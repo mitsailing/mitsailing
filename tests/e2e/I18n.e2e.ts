@@ -12,8 +12,8 @@ test.describe('I18n', () => {
       ).toBeVisible();
     });
 
-    test('shows English content on the sign-in page', async ({ page }) => {
-      await page.goto('/sign-in');
+    test('shows English content on the login page', async ({ page }) => {
+      await page.goto('/login');
 
       await expect(
         page.getByRole('heading', { name: 'Sign in' })

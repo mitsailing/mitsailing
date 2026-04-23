@@ -32,3 +32,18 @@ export const footerSocialIconButtonClassName = [
 
 /** In-content red links (sidebar events, “View all”, class CTAs). */
 export const mitAccentLinkClassName = 'text-sm font-semibold text-mit-red';
+
+/** Primary submit buttons on auth forms (login, signup, password reset). */
+export const authPrimaryButtonClassName = [
+  'rounded-md bg-mit-red px-4 py-2 font-medium text-white',
+  'hover:bg-mit-red-hover disabled:opacity-60',
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2',
+].join(' ');
+
+/** Inline text links on auth pages (forgot password, sign up, etc.). */
+export const authInlineLinkClassName =
+  'text-mit-red underline underline-offset-2 hover:text-mit-red-hover focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2';
+
+/** Standard bordered inputs on auth flows (matches shell neutrals). */
+export const authInputClassName =
+  'rounded-md border border-mit-line bg-white px-3 py-2 text-mit-text outline-none focus:ring-2 focus:ring-mit-text';

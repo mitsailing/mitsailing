@@ -26,7 +26,7 @@ export default async function UserProfilePage(props: UserProfilePageProps) {
   const { locale } = await props.params;
   setRequestLocale(locale);
 
-  const profileHref = getI18nPath('/account/profile/', locale);
+  const profileHref = getI18nPath('/profile/', locale);
   const user = await requireCurrentUser(locale, profileHref);
   const { emailChanged, error } = await props.searchParams;
   let verificationBanner: 'success' | 'error' | null = null;
@@ -48,7 +48,7 @@ export default async function UserProfilePage(props: UserProfilePageProps) {
       initialName={user.name}
       initialUnconfirmedEmail={dbUser?.unconfirmedEmail ?? null}
       initialVerificationBanner={verificationBanner}
-      signInHref={getI18nPath('/sign-in', locale)}
+      signInHref={getI18nPath('/login', locale)}
     />
   );
 }

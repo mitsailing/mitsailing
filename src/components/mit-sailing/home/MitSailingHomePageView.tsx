@@ -13,6 +13,7 @@ import {
   mitAccentLinkClassName,
   textFocusRingClassName,
 } from '@/lib/mit-sailing/tokens';
+import { getSession } from '@/libs/auth/dal';
 import { Link } from '@/libs/I18nNavigation';
 import { getHomeUpcomingDayGroups } from '@/libs/mit-sailing/homeUpcomingFromPrisma';
 import { HomeEventRow } from './HomeEventRow';
@@ -57,6 +58,8 @@ export async function MitSailingHomePageView(
   });
 
   const upcomingDayGroups = await getHomeUpcomingDayGroups();
+  const session = await getSession();
+  const isSignedIn = Boolean(session?.user?.id);
 
   const featuredHomeBoats = HOME_FLEET_SLUGS.map((slug) =>
     FLEET_BOATS.find((b) => b.slug === slug)
@@ -158,12 +161,14 @@ export async function MitSailingHomePageView(
               >
                 {t('hero_cta_classes')}
               </Link>
-              <Link
-                className="inline-flex items-center justify-center rounded-sm bg-transparent px-2 py-3 text-base font-medium text-white underline-offset-4 transition-colors hover:underline focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-mit-hero-ink focus-visible:outline-none"
-                href="/sign-up/"
-              >
-                {t('hero_cta_create_account')}
-              </Link>
+              {isSignedIn ? null : (
+                <Link
+                  className="inline-flex items-center justify-center rounded-sm bg-transparent px-2 py-3 text-base font-medium text-white underline-offset-4 transition-colors hover:underline focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-mit-hero-ink focus-visible:outline-none"
+                  href="/signup/"
+                >
+                  {t('hero_cta_create_account')}
+                </Link>
+              )}
             </div>
           </div>
         </div>
@@ -545,9 +550,11 @@ export async function MitSailingHomePageView(
                       ? 'w-full rounded-lg border-2 border-transparent bg-mit-red py-2.5 text-center text-sm font-medium text-white no-underline hover:bg-mit-red-hover'
                       : 'w-full rounded-lg border border-mit-line bg-white py-2.5 text-center text-sm font-medium text-mit-text no-underline'
                   }
-                  href="/sign-up/"
+                  href={isSignedIn ? '/account/' : '/signup/'}
                 >
-                  {t('create_account')}
+                  {isSignedIn
+                    ? t('membership_cta_manage_account')
+                    : t('create_account')}
                 </Link>
               </div>
             ))}

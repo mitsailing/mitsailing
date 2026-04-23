@@ -1,4 +1,5 @@
 import { FLEET_BOATS } from '@/data/mit-sailing/classesFleetSeed';
+import { getSession } from '@/libs/auth/dal';
 import type { NavigationDropdownItem } from './site/NavigationDropdown';
 import { SiteConditionsBar } from './site/SiteConditionsBar';
 import { SiteFooter } from './site/SiteFooter';
@@ -18,7 +19,12 @@ type MitSailingSiteTemplateProps = {
  * @param props.children - Main page content
  * @returns Full-page shell
  */
-export function MitSailingSiteTemplate(props: MitSailingSiteTemplateProps) {
+export async function MitSailingSiteTemplate(
+  props: MitSailingSiteTemplateProps
+) {
+  const session = await getSession();
+  const initialSignedIn = Boolean(session?.user?.id);
+
   const fleetDropdownItems: NavigationDropdownItem[] = FLEET_BOATS.map(
     (boat) => ({
       label: boat.name,
@@ -30,7 +36,10 @@ export function MitSailingSiteTemplate(props: MitSailingSiteTemplateProps) {
   return (
     <div className="flex min-h-screen flex-col bg-white font-mit-sans text-mit-text">
       <SiteConditionsBar />
-      <SiteHeader fleetDropdownItems={fleetDropdownItems} />
+      <SiteHeader
+        fleetDropdownItems={fleetDropdownItems}
+        initialSignedIn={initialSignedIn}
+      />
       <main className="flex-1">{props.children}</main>
       <SiteFooter />
     </div>

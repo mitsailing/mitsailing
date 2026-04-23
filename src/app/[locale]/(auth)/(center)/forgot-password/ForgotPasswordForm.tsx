@@ -2,7 +2,12 @@
 
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
+import {
+  authInputClassName,
+  authPrimaryButtonClassName,
+} from '@/lib/mit-sailing/tokens';
 import { authClient } from '@/libs/auth-client';
+import { isValidMarketingEmail } from '@/utils/emailValidation';
 
 type ForgotPasswordFormProps = {
   resetRedirectUrl: string;
@@ -16,9 +21,15 @@ export function ForgotPasswordForm(props: ForgotPasswordFormProps) {
   const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   async function onSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
+    setEmailError(null);
+    if (!isValidMarketingEmail(email)) {
+      setEmailError(t('error_invalid_email'));
+      return;
+    }
     setSubmitting(true);
     await authClient.requestPasswordReset({
       email,
@@ -38,14 +49,23 @@ export function ForgotPasswordForm(props: ForgotPasswordFormProps) {
 
   return (
     <form className="flex flex-col gap-4" onSubmit={onSubmit}>
+      {emailError ? (
+        <p
+          className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-800"
+          role="alert"
+        >
+          {emailError}
+        </p>
+      ) : null}
       <div className="flex flex-col gap-1">
-        <label className="text-sm font-medium text-gray-800" htmlFor="email">
+        <label className="text-sm font-medium text-mit-text" htmlFor="email">
           {t('email_label')}
         </label>
         <input
           autoComplete="email"
-          className="rounded-md border border-gray-300 px-3 py-2 text-gray-900 ring-blue-600 outline-none focus:ring-2"
+          className={authInputClassName}
           id="email"
+          inputMode="email"
           name="email"
           onChange={(e) => {
             setEmail(e.target.value);
@@ -57,7 +77,7 @@ export function ForgotPasswordForm(props: ForgotPasswordFormProps) {
       </div>
 
       <button
-        className="rounded-md bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+        className={authPrimaryButtonClassName}
         disabled={submitting}
         type="submit"
       >

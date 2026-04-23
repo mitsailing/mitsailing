@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { authInlineLinkClassName } from '@/lib/mit-sailing/tokens';
 import { redirectIfAuthenticated } from '@/libs/auth/dal';
 import { Link as I18nLink } from '@/libs/I18nNavigation';
 import { getBaseUrl, getI18nPath } from '@/utils/Helpers';
@@ -32,18 +33,18 @@ export default async function ForgotPasswordPage(
   const resetRedirectUrl = `${getBaseUrl()}${getI18nPath('/reset-password', locale)}`;
 
   return (
-    <div className="w-full max-w-md space-y-6 px-4">
+    <>
       <h1 className="text-center text-2xl font-semibold tracking-tight">
         {t('heading')}
       </h1>
 
       <ForgotPasswordForm resetRedirectUrl={resetRedirectUrl} />
 
-      <p className="text-center text-sm text-gray-600">
-        <I18nLink className="text-blue-700 underline" href="/sign-in">
+      <p className="text-center text-sm text-mit-text">
+        <I18nLink className={authInlineLinkClassName} href="/login">
           {t('back_sign_in')}
         </I18nLink>
       </p>
-    </div>
+    </>
   );
 }

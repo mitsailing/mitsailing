@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { authInlineLinkClassName } from '@/lib/mit-sailing/tokens';
 import { redirectIfAuthenticated } from '@/libs/auth/dal';
 import { Link as I18nLink } from '@/libs/I18nNavigation';
 import { getBaseUrl, getI18nPath } from '@/utils/Helpers';
@@ -43,7 +44,7 @@ export default async function SignInPage(props: SignInPageProps) {
   const t = await getTranslations({ locale, namespace: 'SignInPage' });
 
   return (
-    <div className="w-full max-w-md space-y-6 px-4">
+    <>
       <h1 className="text-center text-2xl font-semibold tracking-tight">
         {t('heading')}
       </h1>
@@ -76,21 +77,21 @@ export default async function SignInPage(props: SignInPageProps) {
 
       <SignInForm
         callbackUrl={callbackUrl}
-        verifyCallbackUrl={`${getBaseUrl()}${getI18nPath('/sign-in?verified=1', locale)}`}
+        verifyCallbackUrl={`${getBaseUrl()}${getI18nPath('/login?verified=1', locale)}`}
       />
 
-      <p className="text-center text-sm text-gray-600">
-        <I18nLink className="text-blue-700 underline" href="/forgot-password">
+      <p className="text-center text-sm text-mit-text">
+        <I18nLink className={authInlineLinkClassName} href="/forgot-password">
           {t('forgot_password')}
         </I18nLink>
       </p>
 
-      <p className="text-center text-sm text-gray-600">
+      <p className="text-center text-sm text-mit-text">
         {t('no_account')}{' '}
-        <I18nLink className="text-blue-700 underline" href="/sign-up">
+        <I18nLink className={authInlineLinkClassName} href="/signup">
           {t('sign_up_link')}
         </I18nLink>
       </p>
-    </div>
+    </>
   );
 }

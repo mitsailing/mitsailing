@@ -3,6 +3,10 @@
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import {
+  authInputClassName,
+  authPrimaryButtonClassName,
+} from '@/lib/mit-sailing/tokens';
 import { authClient } from '@/libs/auth-client';
 
 type ResetPasswordFormProps = {
@@ -71,14 +75,14 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
       <form className="flex flex-col gap-4" onSubmit={onSubmit}>
         <div className="flex flex-col gap-1">
           <label
-            className="text-sm font-medium text-gray-800"
+            className="text-sm font-medium text-mit-text"
             htmlFor="password"
           >
             {t('password_label')}
           </label>
           <input
             autoComplete="new-password"
-            className="rounded-md border border-gray-300 px-3 py-2 text-gray-900 ring-blue-600 outline-none focus:ring-2"
+            className={authInputClassName}
             id="password"
             minLength={8}
             name="password"
@@ -89,19 +93,19 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
             type="password"
             value={password}
           />
-          <span className="text-xs text-gray-500">{t('password_hint')}</span>
+          <span className="text-xs text-mit-text/80">{t('password_hint')}</span>
         </div>
 
         <div className="flex flex-col gap-1">
           <label
-            className="text-sm font-medium text-gray-800"
+            className="text-sm font-medium text-mit-text"
             htmlFor="passwordConfirmation"
           >
             {t('password_confirmation_label')}
           </label>
           <input
             autoComplete="new-password"
-            className="rounded-md border border-gray-300 px-3 py-2 text-gray-900 ring-blue-600 outline-none focus:ring-2"
+            className={authInputClassName}
             id="passwordConfirmation"
             minLength={8}
             name="passwordConfirmation"
@@ -115,7 +119,7 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
         </div>
 
         <button
-          className="rounded-md bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+          className={authPrimaryButtonClassName}
           disabled={submitting}
           type="submit"
         >

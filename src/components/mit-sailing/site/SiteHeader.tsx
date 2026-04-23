@@ -1,8 +1,10 @@
 'use client';
 
 import { Menu, X } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
+import { SignOutForm } from '@/components/auth/SignOutForm';
+import { authClient } from '@/libs/auth-client';
 import { Link } from '@/libs/I18nNavigation';
 import type { NavigationDropdownItem } from './NavigationDropdown';
 import { NavigationDropdown } from './NavigationDropdown';
@@ -44,9 +46,47 @@ const navConfig: Omit<NavConfigItem, 'items'>[] = [
   { labelKey: 'nav_resources', externalHref: '#' },
 ];
 
+const desktopAuthOuterClass =
+  'hidden min-h-[42px] min-w-[280px] items-center justify-end gap-2 lg:flex';
+
+const desktopGuestLoginClass =
+  'inline-flex items-center justify-center rounded-lg px-4 py-2.5 text-sm font-medium text-mit-red no-underline transition-opacity hover:opacity-70 focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2 focus-visible:outline-none';
+
+const desktopGuestSignupClass =
+  'inline-flex items-center justify-center rounded-lg bg-mit-red px-6 py-2.5 text-sm font-medium text-white no-underline transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2 focus-visible:outline-none';
+
+const desktopSignOutClass = `${desktopGuestLoginClass} cursor-pointer border-none bg-transparent disabled:opacity-60`;
+
+const mobileGuestLoginClass =
+  'inline-flex min-h-[44px] items-center justify-center rounded-lg py-3 text-sm font-medium text-mit-red no-underline transition-opacity hover:opacity-70 focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2 focus-visible:outline-none';
+
+const mobileGuestSignupClass =
+  'inline-flex min-h-[44px] items-center justify-center rounded-lg bg-mit-red px-6 py-2.5 text-sm font-medium text-white no-underline transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2 focus-visible:outline-none';
+
+const mobileSignOutClass =
+  'inline-flex min-h-[44px] w-full cursor-pointer items-center justify-center rounded-lg border border-mit-red px-6 py-2.5 text-sm font-medium text-mit-red transition-opacity hover:opacity-70 focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-60';
+
+function sessionHasUser(data: unknown): data is { user: { id: string } } {
+  if (!data || typeof data !== 'object') {
+    return false;
+  }
+  const { user } = data as { user?: unknown };
+  if (!user || typeof user !== 'object') {
+    return false;
+  }
+  const { id } = user as { id?: unknown };
+  return typeof id === 'string' && id.length > 0;
+}
+
 export type SiteHeaderProps = {
   /** Items for the Fleet dropdown — generated server-side from the fleet seed. */
   fleetDropdownItems: NavigationDropdownItem[];
+  /**
+   * Session snapshot from the parent RSC (`getSession`). When set, the auth
+   * controls render immediately from SSR instead of waiting on the client
+   * `useSession()` fetch (no loading placeholder flash).
+   */
+  initialSignedIn?: boolean;
 };
 
 /**
@@ -58,8 +98,22 @@ export type SiteHeaderProps = {
  */
 export function SiteHeader(props: SiteHeaderProps) {
   const t = useTranslations('MitSailingSite');
+  const tAccount = useTranslations('AccountLayout');
   const tBase = useTranslations('BaseTemplate');
+  const locale = useLocale();
+  const sessionState = authClient.useSession();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const hasServerAuthHint = props.initialSignedIn !== undefined;
+  const { isPending } = sessionState;
+  const clientAuthenticated = sessionHasUser(sessionState.data);
+
+  const displayAuthenticated =
+    isPending && hasServerAuthHint
+      ? Boolean(props.initialSignedIn)
+      : clientAuthenticated;
+
+  const showAuthPending = isPending && !hasServerAuthHint;
 
   const navItems: NavConfigItem[] = useMemo(
     () =>
@@ -135,19 +189,42 @@ export function SiteHeader(props: SiteHeaderProps) {
           })}
         </nav>
 
-        <div className="hidden items-center gap-2 lg:flex">
-          <Link
-            className="inline-flex items-center justify-center rounded-lg px-4 py-2.5 text-sm font-medium text-mit-red no-underline transition-opacity hover:opacity-70 focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2 focus-visible:outline-none"
-            href="/sign-in/"
-          >
-            {t('auth_log_in')}
-          </Link>
-          <Link
-            className="inline-flex items-center justify-center rounded-lg bg-mit-red px-6 py-2.5 text-sm font-medium text-white no-underline transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2 focus-visible:outline-none"
-            href="/sign-up/"
-          >
-            {t('auth_create_account')}
-          </Link>
+        <div className={desktopAuthOuterClass}>
+          {showAuthPending ? (
+            <div
+              aria-busy="true"
+              aria-live="polite"
+              className="flex min-h-[42px] min-w-[280px] items-center justify-end"
+              role="status"
+            >
+              <span className="sr-only">
+                {t('a11y_header_session_loading')}
+              </span>
+            </div>
+          ) : null}
+          {!showAuthPending && !displayAuthenticated ? (
+            <>
+              <Link className={desktopGuestLoginClass} href="/login/">
+                {t('auth_log_in')}
+              </Link>
+              <Link className={desktopGuestSignupClass} href="/signup/">
+                {t('auth_create_account')}
+              </Link>
+            </>
+          ) : null}
+          {!showAuthPending && displayAuthenticated ? (
+            <>
+              <Link className={desktopGuestLoginClass} href="/profile/">
+                {tAccount('user_profile_link')}
+              </Link>
+              <SignOutForm
+                buttonClassName={desktopSignOutClass}
+                label={tAccount('sign_out')}
+                locale={locale}
+                redirectPath="/"
+              />
+            </>
+          ) : null}
         </div>
 
         <button
@@ -223,21 +300,55 @@ export function SiteHeader(props: SiteHeaderProps) {
               );
             })}
           </nav>
-          <div className="mt-4 flex flex-col gap-2 border-t border-mit-line pt-4">
-            <Link
-              className="inline-flex items-center justify-center rounded-lg py-3 text-sm font-medium text-mit-red no-underline transition-opacity hover:opacity-70 focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2 focus-visible:outline-none"
-              href="/sign-in/"
-              onClick={closeMobile}
-            >
-              {t('auth_log_in')}
-            </Link>
-            <Link
-              className="inline-flex items-center justify-center rounded-lg bg-mit-red px-6 py-2.5 text-sm font-medium text-white no-underline transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2 focus-visible:outline-none"
-              href="/sign-up/"
-              onClick={closeMobile}
-            >
-              {t('auth_create_account')}
-            </Link>
+          <div className="mt-4 flex min-h-[92px] flex-col gap-2 border-t border-mit-line pt-4">
+            {showAuthPending ? (
+              <div
+                aria-busy="true"
+                aria-live="polite"
+                className="flex min-h-[92px] flex-col justify-center"
+                role="status"
+              >
+                <span className="sr-only">
+                  {t('a11y_header_session_loading')}
+                </span>
+              </div>
+            ) : null}
+            {!showAuthPending && !displayAuthenticated ? (
+              <>
+                <Link
+                  className={mobileGuestLoginClass}
+                  href="/login/"
+                  onClick={closeMobile}
+                >
+                  {t('auth_log_in')}
+                </Link>
+                <Link
+                  className={mobileGuestSignupClass}
+                  href="/signup/"
+                  onClick={closeMobile}
+                >
+                  {t('auth_create_account')}
+                </Link>
+              </>
+            ) : null}
+            {!showAuthPending && displayAuthenticated ? (
+              <>
+                <Link
+                  className={`${mobileGuestLoginClass} w-full`}
+                  href="/profile/"
+                  onClick={closeMobile}
+                >
+                  {tAccount('user_profile_link')}
+                </Link>
+                <SignOutForm
+                  buttonClassName={mobileSignOutClass}
+                  label={tAccount('sign_out')}
+                  locale={locale}
+                  onSignOutStart={closeMobile}
+                  redirectPath="/"
+                />
+              </>
+            ) : null}
           </div>
         </div>
       ) : null}

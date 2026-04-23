@@ -25,7 +25,7 @@ import { getBaseUrl, getI18nPath } from '@/utils/Helpers';
  * @returns Redirect to the sign-in page with a success or error flag.
  */
 export async function GET(request: NextRequest) {
-  const signInUrl = `${getBaseUrl()}${getI18nPath('/sign-in', AppConfig.i18n.defaultLocale)}`;
+  const signInUrl = `${getBaseUrl()}${getI18nPath('/login', AppConfig.i18n.defaultLocale)}`;
 
   const token = request.nextUrl.searchParams.get('token');
   if (!token) {

@@ -86,7 +86,7 @@ export async function verifySession(
   const session = await getSession();
 
   if (!session?.user?.id) {
-    const signIn = getI18nPath('/sign-in', locale);
+    const signIn = getI18nPath('/login', locale);
     const destination =
       typeof callbackUrl === 'string' && callbackUrl.startsWith('/')
         ? `${signIn}?callbackUrl=${encodeURIComponent(callbackUrl)}`

@@ -2,8 +2,14 @@
 
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
+import {
+  authInlineLinkClassName,
+  authInputClassName,
+  authPrimaryButtonClassName,
+} from '@/lib/mit-sailing/tokens';
 import { authClient } from '@/libs/auth-client';
 import { Link as I18nLink } from '@/libs/I18nNavigation';
+import { isValidMarketingEmail } from '@/utils/emailValidation';
 
 type ErrorState = {
   message: string;
@@ -58,6 +64,13 @@ export function SignUpForm(props: SignUpFormProps) {
       });
       return;
     }
+    if (!isValidMarketingEmail(email)) {
+      setError({
+        message: t('error_invalid_email'),
+        showSignInLinks: false,
+      });
+      return;
+    }
     setSubmitting(true);
     const res = await authClient.signUp.email({
       email,
@@ -92,11 +105,14 @@ export function SignUpForm(props: SignUpFormProps) {
           {error.showSignInLinks ? (
             <>
               {' '}
-              <I18nLink className="underline" href="/sign-in">
+              <I18nLink className={authInlineLinkClassName} href="/login">
                 {t('sign_in_link')}
               </I18nLink>
               {' · '}
-              <I18nLink className="underline" href="/forgot-password">
+              <I18nLink
+                className={authInlineLinkClassName}
+                href="/forgot-password"
+              >
                 {t('forgot_password_link')}
               </I18nLink>
             </>
@@ -106,12 +122,12 @@ export function SignUpForm(props: SignUpFormProps) {
 
       <form className="flex flex-col gap-4" onSubmit={onSubmit}>
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-gray-800" htmlFor="name">
+          <label className="text-sm font-medium text-mit-text" htmlFor="name">
             {t('name_label')}
           </label>
           <input
             autoComplete="name"
-            className="rounded-md border border-gray-300 px-3 py-2 text-gray-900 ring-blue-600 outline-none focus:ring-2"
+            className={authInputClassName}
             id="name"
             name="name"
             onChange={(e) => {
@@ -123,12 +139,12 @@ export function SignUpForm(props: SignUpFormProps) {
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-gray-800" htmlFor="email">
+          <label className="text-sm font-medium text-mit-text" htmlFor="email">
             {t('email_label')}
           </label>
           <input
             autoComplete="email"
-            className="rounded-md border border-gray-300 px-3 py-2 text-gray-900 ring-blue-600 outline-none focus:ring-2"
+            className={authInputClassName}
             id="email"
             name="email"
             onChange={(e) => {
@@ -142,14 +158,14 @@ export function SignUpForm(props: SignUpFormProps) {
 
         <div className="flex flex-col gap-1">
           <label
-            className="text-sm font-medium text-gray-800"
+            className="text-sm font-medium text-mit-text"
             htmlFor="password"
           >
             {t('password_label')}
           </label>
           <input
             autoComplete="new-password"
-            className="rounded-md border border-gray-300 px-3 py-2 text-gray-900 ring-blue-600 outline-none focus:ring-2"
+            className={authInputClassName}
             id="password"
             minLength={8}
             name="password"
@@ -160,19 +176,19 @@ export function SignUpForm(props: SignUpFormProps) {
             type="password"
             value={password}
           />
-          <span className="text-xs text-gray-500">{t('password_hint')}</span>
+          <span className="text-xs text-mit-text/80">{t('password_hint')}</span>
         </div>
 
         <div className="flex flex-col gap-1">
           <label
-            className="text-sm font-medium text-gray-800"
+            className="text-sm font-medium text-mit-text"
             htmlFor="passwordConfirmation"
           >
             {t('password_confirmation_label')}
           </label>
           <input
             autoComplete="new-password"
-            className="rounded-md border border-gray-300 px-3 py-2 text-gray-900 ring-blue-600 outline-none focus:ring-2"
+            className={authInputClassName}
             id="passwordConfirmation"
             minLength={8}
             name="passwordConfirmation"
@@ -186,7 +202,7 @@ export function SignUpForm(props: SignUpFormProps) {
         </div>
 
         <button
-          className="rounded-md bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+          className={authPrimaryButtonClassName}
           disabled={submitting}
           type="submit"
         >

@@ -3,7 +3,12 @@
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import {
+  authInputClassName,
+  authPrimaryButtonClassName,
+} from '@/lib/mit-sailing/tokens';
 import { authClient } from '@/libs/auth-client';
+import { isValidMarketingEmail } from '@/utils/emailValidation';
 
 type SignInFormProps = {
   callbackUrl: string;
@@ -52,6 +57,10 @@ export function SignInForm(props: SignInFormProps) {
     event.preventDefault();
     setError(null);
     setResent(false);
+    if (!isValidMarketingEmail(email)) {
+      setError({ kind: 'generic', message: t('error_invalid_email') });
+      return;
+    }
     setSubmitting(true);
 
     const res = await authClient.signIn.email({
@@ -125,12 +134,12 @@ export function SignInForm(props: SignInFormProps) {
 
       <form className="flex flex-col gap-4" onSubmit={onSubmit}>
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-gray-800" htmlFor="email">
+          <label className="text-sm font-medium text-mit-text" htmlFor="email">
             {t('email_label')}
           </label>
           <input
             autoComplete="email"
-            className="rounded-md border border-gray-300 px-3 py-2 text-gray-900 ring-blue-600 outline-none focus:ring-2"
+            className={authInputClassName}
             id="email"
             name="email"
             onChange={(e) => {
@@ -144,14 +153,14 @@ export function SignInForm(props: SignInFormProps) {
 
         <div className="flex flex-col gap-1">
           <label
-            className="text-sm font-medium text-gray-800"
+            className="text-sm font-medium text-mit-text"
             htmlFor="password"
           >
             {t('password_label')}
           </label>
           <input
             autoComplete="current-password"
-            className="rounded-md border border-gray-300 px-3 py-2 text-gray-900 ring-blue-600 outline-none focus:ring-2"
+            className={authInputClassName}
             id="password"
             minLength={8}
             name="password"
@@ -165,7 +174,7 @@ export function SignInForm(props: SignInFormProps) {
         </div>
 
         <button
-          className="rounded-md bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+          className={authPrimaryButtonClassName}
           disabled={submitting}
           type="submit"
         >

@@ -68,7 +68,8 @@
     "rental_bullet_4": "Weddings, receptions, corporate functions, and more",
     "rental_cta": "Inquire about availability",
     "rental_image_alt": "MIT Sailing Pavilion venue",
-    "create_account": "Create account"
+    "create_account": "Create account",
+    "membership_cta_manage_account": "Manage account"
   },
   "MitSailingSite": {
     "site_brand_mit": "MIT",
@@ -88,6 +89,7 @@
     "auth_create_account": "Create account",
     "a11y_open_menu": "Open menu",
     "a11y_close_menu": "Close menu",
+    "a11y_header_session_loading": "Loading account status",
     "footer_tagline": "One of the nation's premier university sailing programs, open to the entire MIT community and the general public since 1935.",
     "footer_copyright": "© {year} MIT Sailing Pavilion · Massachusetts Institute of Technology",
     "footer_legal_nav_aria": "Legal",
@@ -170,7 +172,8 @@
     "unlock_invalid_error": "That unlock link is invalid or has expired. Wait for the automatic unlock or try again.",
     "verified_banner": "Your email is verified. You can sign in.",
     "reset_banner": "Your password was reset. Sign in with your new password.",
-    "unlocked_banner": "Your account is unlocked. You can sign in."
+    "unlocked_banner": "Your account is unlocked. You can sign in.",
+    "error_invalid_email": "Enter a valid email address with a domain (for example name@mit.edu)."
   },
   "SignUpPage": {
     "meta_title": "Sign up",
@@ -190,7 +193,8 @@
     "error_exists": "That email is already in the system.",
     "error_pwned": "That password has appeared in a known data breach. Choose a different one.",
     "error_password_mismatch": "Passwords do not match.",
-    "error_rate_limited": "Too many sign-up attempts. Try again in a few minutes."
+    "error_rate_limited": "Too many sign-up attempts. Try again in a few minutes.",
+    "error_invalid_email": "Enter a valid email address with a domain (for example name@mit.edu)."
   },
   "VerifyEmailPage": {
     "heading": "Email verification",
@@ -211,7 +215,8 @@
     "email_label": "Email",
     "submit": "Send reset link",
     "sent_banner": "If an account exists for this email, you will receive a reset link shortly.",
-    "back_sign_in": "Back to sign in"
+    "back_sign_in": "Back to sign in",
+    "error_invalid_email": "Enter a valid email address with a domain (for example name@mit.edu)."
   },
   "ResetPasswordPage": {
     "meta_title": "Set new password",

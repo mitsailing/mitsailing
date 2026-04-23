@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { authInlineLinkClassName } from '@/lib/mit-sailing/tokens';
 import { redirectIfAuthenticated } from '@/libs/auth/dal';
 import { Link as I18nLink } from '@/libs/I18nNavigation';
 import { getBaseUrl, getI18nPath } from '@/utils/Helpers';
@@ -32,22 +33,22 @@ export default async function SignUpPage(props: SignUpPageProps) {
   // redirects to this on success (query string preserved) and appends
   // `&error=<code>` on failure, which the sign-in page renders as an error
   // banner.
-  const verifyCallbackUrl = `${getBaseUrl()}${getI18nPath('/sign-in?verified=1', locale)}`;
+  const verifyCallbackUrl = `${getBaseUrl()}${getI18nPath('/login?verified=1', locale)}`;
 
   return (
-    <div className="w-full max-w-md space-y-6 px-4">
+    <>
       <h1 className="text-center text-2xl font-semibold tracking-tight">
         {t('heading')}
       </h1>
 
       <SignUpForm verifyCallbackUrl={verifyCallbackUrl} />
 
-      <p className="text-center text-sm text-gray-600">
+      <p className="text-center text-sm text-mit-text">
         {t('have_account')}{' '}
-        <I18nLink className="text-blue-700 underline" href="/sign-in">
+        <I18nLink className={authInlineLinkClassName} href="/login">
           {t('sign_in_link')}
         </I18nLink>
       </p>
-    </div>
+    </>
   );
 }

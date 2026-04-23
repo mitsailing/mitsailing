@@ -53,7 +53,7 @@ test.describe('Auth', () => {
     const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
     const password = 'Correct-Horse-Battery-Staple';
 
-    await page.goto('/sign-up');
+    await page.goto('/signup');
     await page.getByLabel('Email').fill(email);
     await page.getByLabel('Password', { exact: true }).fill(password);
     await page.getByLabel('Confirm password').fill(password);
@@ -79,7 +79,7 @@ test.describe('Auth', () => {
 
     await markEmailVerified(email);
 
-    await page.goto('/sign-in');
+    await page.goto('/login');
     await page.getByLabel('Email').fill(email);
     await page.getByLabel('Password').fill(password);
     await page.getByRole('button', { name: 'Sign in' }).click();
@@ -93,7 +93,7 @@ test.describe('Auth', () => {
   test('rejects invalid credentials', async ({ page }) => {
     const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
 
-    await page.goto('/sign-in');
+    await page.goto('/login');
     await page.getByLabel('Email').fill(email);
     await page.getByLabel('Password').fill('wrong-password-123');
     await page.getByRole('button', { name: 'Sign in' }).click();
@@ -107,7 +107,7 @@ test.describe('Auth', () => {
     const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
     const password = 'Correct-Horse-Battery-Staple';
 
-    await page.goto('/sign-up');
+    await page.goto('/signup');
     await page.getByLabel('Email').fill(email);
     await page.getByLabel('Password', { exact: true }).fill(password);
     await page.getByLabel('Confirm password').fill(password);
@@ -119,7 +119,7 @@ test.describe('Auth', () => {
       )
     ).toBeVisible();
 
-    await page.goto('/sign-up');
+    await page.goto('/signup');
     await page.getByLabel('Email').fill(email);
     await page.getByLabel('Password', { exact: true }).fill(password);
     await page.getByLabel('Confirm password').fill(password);
@@ -136,7 +136,7 @@ test.describe('Auth', () => {
     const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
     const password = 'Correct-Horse-Battery-Staple';
 
-    await page.goto('/sign-up');
+    await page.goto('/signup');
     await page.getByLabel('Email').fill(email);
     await page.getByLabel('Password', { exact: true }).fill(password);
     await page.getByLabel('Confirm password').fill(password);
@@ -148,7 +148,7 @@ test.describe('Auth', () => {
       )
     ).toBeVisible();
 
-    await page.goto('/sign-in');
+    await page.goto('/login');
     await page.getByLabel('Email').fill(email);
     await page.getByLabel('Password').fill(password);
     await page.getByRole('button', { name: 'Sign in' }).click();

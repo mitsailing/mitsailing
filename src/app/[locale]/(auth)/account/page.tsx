@@ -31,26 +31,23 @@ export default async function AccountPage(props: AccountPageProps) {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-slate-900">
+      <h1 className="text-2xl font-semibold text-mit-text">
         {t('heading', { email: user.email ?? '' })}
       </h1>
-      <p className="mt-2 text-slate-600">{t('intro')}</p>
-      <ul className="mt-4 list-inside list-disc text-slate-800">
+      <p className="mt-2 text-mit-text">{t('intro')}</p>
+      <ul className="mt-4 list-inside list-disc text-mit-text">
         <li>
-          <Link className="text-blue-800 hover:underline" href="/">
+          <Link className="text-mit-red hover:underline" href="/">
             {t('link_home')}
           </Link>
         </li>
         <li>
-          <Link className="text-blue-800 hover:underline" href="/events/">
+          <Link className="text-mit-red hover:underline" href="/events/">
             {t('link_events')}
           </Link>
         </li>
         <li>
-          <Link
-            className="text-blue-800 hover:underline"
-            href="/account/profile/"
-          >
+          <Link className="text-mit-red hover:underline" href="/profile/">
             {t('link_profile')}
           </Link>
         </li>

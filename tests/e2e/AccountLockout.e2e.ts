@@ -16,7 +16,7 @@ import {
  *   2. They fail sign-in MAX_FAILED_ATTEMPTS times in a row; the account
  *      locks and a lockout email is sent.
  *   3. Clicking the unlock link in the email clears the failed-attempt
- *      rows and lands on /sign-in?unlocked=1.
+ *      rows and lands on /login?unlocked=1.
  *   4. A subsequent sign-in with the correct password succeeds.
  *
  * This is the key integration test for the auth hardening work because it
@@ -86,7 +86,7 @@ test.describe('Account lockout', () => {
 
     await deleteAllMessages();
 
-    await page.goto('/sign-up');
+    await page.goto('/signup');
     await page.getByLabel('Email').fill(email);
     await page.getByLabel('Password', { exact: true }).fill(password);
     await page.getByLabel('Confirm password').fill(password);
@@ -108,7 +108,7 @@ test.describe('Account lockout', () => {
     // silently defeat this test.
     const MAX_ATTEMPTS = 6;
     for (let i = 0; i < MAX_ATTEMPTS; i += 1) {
-      await page.goto('/sign-in');
+      await page.goto('/login');
       await page.getByLabel('Email').fill(email);
       await page.getByLabel('Password').fill('definitely-not-the-password');
       await page.getByRole('button', { name: 'Sign in' }).click();
@@ -126,9 +126,9 @@ test.describe('Account lockout', () => {
       /https?:\/\/[^\s"'<>]+\/api\/unlock-account\?token=[^\s"'<>]+/
     );
 
-    // Follow the unlock link. The API route redirects to /sign-in?unlocked=1.
+    // Follow the unlock link. The API route redirects to /login?unlocked=1.
     await page.goto(unlockUrl);
-    await expect(page).toHaveURL(/\/sign-in\?.*unlocked=1/);
+    await expect(page).toHaveURL(/\/login\?.*unlocked=1/);
     await expect(
       page.getByText('Your account is unlocked. You can sign in.')
     ).toBeVisible();

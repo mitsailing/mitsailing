@@ -1,0 +1,23 @@
+---
+description: MIT palette for auth flows — primary buttons, links, inputs; no raw MIT hex or Tailwind blue in auth UI
+globs: src/app/[locale]/(auth)/**/*,src/components/auth/**/*
+alwaysApply: false
+---
+
+# MIT colors for authentication UI
+
+Auth pages and components under `src/app/[locale]/(auth)/` and `src/components/auth/` must follow the same palette as the public shell ([`src/styles/mit-theme.css`](src/styles/mit-theme.css)).
+
+## Do
+
+- **Primary actions** (submit, send link, update password): `bg-mit-red`, `hover:bg-mit-red-hover`, `text-white` on the button; use [`authPrimaryButtonClassName`](src/lib/mit-sailing/tokens.ts) when sharing styles.
+- **Text links** (forgot password, sign up, sign in): `text-mit-red` with underline/hover; use [`authInlineLinkClassName`](src/lib/mit-sailing/tokens.ts) where appropriate.
+- **Inputs**: neutral border via `border-mit-line`, readable text via `text-mit-text`; focus ring aligned with shell (`focus:ring-mit-text`); use [`authInputClassName`](src/lib/mit-sailing/tokens.ts) for standard fields.
+- **Informational banners** (non-error): prefer `bg-mit-red-highlight` + `text-mit-text` over generic blue backgrounds.
+
+## Do not
+
+- Use **`blue-*`** Tailwind classes for auth buttons, links, or info banners.
+- Paste **raw** `#a31f34`, `#A31F34`, or other one-off MIT reds—use theme utilities (`text-mit-red`, `bg-mit-red`, etc.) or named entries under [`tokens.colors`](src/lib/mit-sailing/tokens.ts) / [`tokens.ts`](src/lib/mit-sailing/tokens.ts) utilities.
+
+See also [app-design-tokens-colors.mdc](app-design-tokens-colors.mdc) for global foreground and brand-token rules.

@@ -3,6 +3,11 @@
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import {
+  authInlineLinkClassName,
+  authInputClassName,
+  authPrimaryButtonClassName,
+} from '@/lib/mit-sailing/tokens';
 import { authClient } from '@/libs/auth-client';
 import { Link as I18nLink } from '@/libs/I18nNavigation';
 
@@ -292,7 +297,7 @@ export function UserProfileClient(props: UserProfileClientProps) {
         </dl>
         <p className="mt-6 text-sm text-gray-600">
           {t('password_hint_forgot')}{' '}
-          <I18nLink className="text-blue-700 underline" href="/forgot-password">
+          <I18nLink className={authInlineLinkClassName} href="/forgot-password">
             {t('reset_password_link')}
           </I18nLink>
         </p>
@@ -316,7 +321,7 @@ export function UserProfileClient(props: UserProfileClientProps) {
             </label>
             <input
               autoComplete="email"
-              className="rounded-md border border-gray-300 px-3 py-2 text-gray-900 ring-blue-600 outline-none focus:ring-2"
+              className={authInputClassName}
               id="newEmail"
               name="newEmail"
               onChange={(e) => {
@@ -328,7 +333,7 @@ export function UserProfileClient(props: UserProfileClientProps) {
             />
           </div>
           <button
-            className="mt-2 w-fit rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+            className={`mt-2 w-fit ${authPrimaryButtonClassName}`}
             disabled={changingEmail}
             type="submit"
           >
@@ -355,7 +360,7 @@ export function UserProfileClient(props: UserProfileClientProps) {
             </label>
             <input
               autoComplete="current-password"
-              className="rounded-md border border-gray-300 px-3 py-2 text-gray-900 ring-blue-600 outline-none focus:ring-2"
+              className={authInputClassName}
               id="currentPassword"
               name="currentPassword"
               onChange={(e) => {
@@ -375,7 +380,7 @@ export function UserProfileClient(props: UserProfileClientProps) {
             </label>
             <input
               autoComplete="new-password"
-              className="rounded-md border border-gray-300 px-3 py-2 text-gray-900 ring-blue-600 outline-none focus:ring-2"
+              className={authInputClassName}
               id="newPassword"
               minLength={8}
               name="newPassword"
@@ -399,7 +404,7 @@ export function UserProfileClient(props: UserProfileClientProps) {
             </label>
             <input
               autoComplete="new-password"
-              className="rounded-md border border-gray-300 px-3 py-2 text-gray-900 ring-blue-600 outline-none focus:ring-2"
+              className={authInputClassName}
               id="newPasswordConfirmation"
               minLength={8}
               name="newPasswordConfirmation"
@@ -412,7 +417,7 @@ export function UserProfileClient(props: UserProfileClientProps) {
             />
           </div>
           <button
-            className="mt-2 w-fit rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+            className={`mt-2 w-fit ${authPrimaryButtonClassName}`}
             disabled={changingPassword}
             type="submit"
           >
@@ -466,7 +471,7 @@ export function UserProfileClient(props: UserProfileClientProps) {
             </label>
             <input
               autoComplete="current-password"
-              className="rounded-md border border-gray-300 px-3 py-2 text-gray-900 ring-blue-600 outline-none focus:ring-2"
+              className={authInputClassName}
               id="deleteCurrentPassword"
               name="currentPassword"
               onChange={(e) => {
