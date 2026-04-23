@@ -1,5 +1,10 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { FleetListView } from '@/components/mit-sailing/fleet/FleetListView';
+import { SiteSectionShell } from '@/components/mit-sailing/SiteSectionShell';
+import { listFleetBoatsForPublic } from '@/libs/mit-sailing/fleetQueries';
+
+export const revalidate = 900;
 
 type PageProps = { params: Promise<{ locale: string }> };
 
@@ -19,5 +24,13 @@ export default async function FleetListPage(props: PageProps) {
     locale,
     namespace: 'MitSailingRoutes',
   });
-  return <h1 className="text-2xl font-semibold">{t('title_fleet')}</h1>;
+  const boats = await listFleetBoatsForPublic();
+  return (
+    <SiteSectionShell
+      locale={locale}
+      segments={[{ label: t('section_fleet') }]}
+    >
+      <FleetListView boats={boats} locale={locale} />
+    </SiteSectionShell>
+  );
 }

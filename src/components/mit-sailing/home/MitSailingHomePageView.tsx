@@ -1,13 +1,6 @@
 import { ArrowDown, ArrowRight, Check, MapPin, Sunset } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import Image from 'next/image';
-import {
-  FLEET_BOATS,
-  getSailingClassById,
-  getSailingClassBySlug,
-  SAILING_CLASSES,
-} from '@/data/mit-sailing/classesFleetSeed';
-import type { FleetBoat } from '@/data/mit-sailing/classesFleetSeed';
 import { pavilionHours } from '@/data/mit-sailing/pavilionInfoSeed';
 import {
   mitAccentLinkClassName,
@@ -15,6 +8,12 @@ import {
 } from '@/lib/mit-sailing/tokens';
 import { getSession } from '@/libs/auth/dal';
 import { Link } from '@/libs/I18nNavigation';
+import {
+  loadHomeClassesBySlugs,
+  loadHomeFeaturedFleetBoats,
+  loadHomeIntroductionClasses,
+  loadSailingClassNamesByIds,
+} from '@/libs/mit-sailing/homeCatalogFromPrisma';
 import { getHomeUpcomingDayGroups } from '@/libs/mit-sailing/homeUpcomingFromPrisma';
 import { HomeEventRow } from './HomeEventRow';
 import { SectionHeader } from './SectionHeader';
@@ -57,21 +56,25 @@ export async function MitSailingHomePageView(
     namespace: 'MitSailingHome',
   });
 
-  const upcomingDayGroups = await getHomeUpcomingDayGroups();
-  const session = await getSession();
+  const [
+    upcomingDayGroups,
+    session,
+    featuredHomeBoats,
+    homeNextClasses,
+    homeIntroClasses,
+  ] = await Promise.all([
+    getHomeUpcomingDayGroups(),
+    getSession(),
+    loadHomeFeaturedFleetBoats(HOME_FLEET_SLUGS),
+    loadHomeClassesBySlugs(HOME_NEXT_CLASS_SLUGS),
+    loadHomeIntroductionClasses(),
+  ]);
   const isSignedIn = Boolean(session?.user?.id);
 
-  const featuredHomeBoats = HOME_FLEET_SLUGS.map((slug) =>
-    FLEET_BOATS.find((b) => b.slug === slug)
-  ).filter((b): b is FleetBoat => b !== undefined);
-
-  const homeNextClasses = HOME_NEXT_CLASS_SLUGS.map((slug) =>
-    getSailingClassBySlug(slug)
-  ).filter((c): c is NonNullable<typeof c> => c !== undefined);
-
-  const homeIntroClasses = SAILING_CLASSES.filter(
-    (c) => c.category === 'introduction'
-  );
+  const firstPrereqIds = homeNextClasses
+    .map((c) => c.prerequisiteIds[0])
+    .filter((id): id is string => id !== undefined);
+  const prereqNameById = await loadSailingClassNamesByIds(firstPrereqIds);
 
   const memPlans = [
     {
@@ -349,11 +352,10 @@ export async function MitSailingHomePageView(
           />
           <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
             {featuredHomeBoats.map((boat) => {
-              const reqClass = getSailingClassById(boat.requiredClassId);
               const imgSrc =
-                UNSPLASH_BY_BOAT_SLUG[boat.slug] ?? boat.images[0] ?? '';
-              const badge = reqClass
-                ? `After: ${reqClass.name}`
+                UNSPLASH_BY_BOAT_SLUG[boat.slug] ?? boat.imagePaths[0] ?? '';
+              const badge = boat.requiredClass
+                ? `After: ${boat.requiredClass.name}`
                 : `${boat.type} · ${boat.capacity} crew`;
               return (
                 <Link
@@ -440,18 +442,15 @@ export async function MitSailingHomePageView(
               </div>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {homeNextClasses.map((cls) => {
-                  const [preId] = cls.prerequisites;
-                  let firstPre:
-                    | ReturnType<typeof getSailingClassById>
-                    | undefined;
-                  if (preId !== undefined) {
-                    firstPre = getSailingClassById(preId);
-                  }
+                  const [preId] = cls.prerequisiteIds;
+                  const firstPreName = preId
+                    ? prereqNameById.get(preId)
+                    : undefined;
                   let reqLabel: string;
-                  if (cls.prerequisites.length === 0) {
+                  if (cls.prerequisiteIds.length === 0) {
                     reqLabel = cls.level;
-                  } else if (firstPre) {
-                    reqLabel = `After: ${firstPre.name}`;
+                  } else if (firstPreName) {
+                    reqLabel = `After: ${firstPreName}`;
                   } else {
                     reqLabel = 'Prerequisites';
                   }

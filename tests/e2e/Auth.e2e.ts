@@ -87,6 +87,17 @@ test.describe('Auth', () => {
     await expect(page).toHaveURL(/\/account/);
     await expect(page.getByRole('link', { name: 'Account' })).toBeVisible();
 
+    await page.goto('/profile/');
+    const accountNav = page.getByRole('navigation', {
+      name: 'Account navigation',
+    });
+    await expect(
+      accountNav.getByRole('button', { name: 'Sign out' })
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole('banner').getByRole('button', { name: 'Sign out' })
+    ).toBeVisible();
+
     await cleanupByEmail(email);
   });
 

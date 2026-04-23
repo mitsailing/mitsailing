@@ -7,7 +7,7 @@ test.describe('I18n', () => {
 
       await expect(
         page.getByRole('heading', {
-          name: 'Boilerplate Code for Your Next.js Project with Tailwind CSS',
+          name: 'Sail the Charles River',
         })
       ).toBeVisible();
     });

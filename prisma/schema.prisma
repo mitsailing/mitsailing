@@ -282,19 +282,32 @@ model EventComment {
   @@map("event_comments")
 }
 
+model ClassCategory {
+  id           String         @id
+  slug         String         @unique
+  name         String
+  displayOrder Int            @map("display_order")
+  isVisible    Boolean        @map("is_visible")
+  createdAt    DateTime       @map("created_at")
+  sailingClasses SailingClass[]
+
+  @@map("class_categories")
+}
+
 model SailingClass {
-  id                String      @id
+  id                String        @id
   name              String
-  slug              String      @unique
-  /** Values from seed: introduction, windsurfing, intro to racing, etc. */
-  category          String
+  slug              String        @unique
+  classCategoryId   String        @map("class_category_id")
   level             String
-  description       String      @db.Text
-  prerequisiteIds   String[]    @map("prerequisite_ids")
-  relatedEventIds   String[]    @map("related_event_ids")
+  description       String        @db.Text
+  prerequisiteIds   String[]      @map("prerequisite_ids")
+  relatedEventIds   String[]      @map("related_event_ids")
   unlockedBoatIds   String[]    @map("unlocked_boat_ids")
+  classCategory     ClassCategory @relation(fields: [classCategoryId], references: [id], onDelete: Restrict)
   fleetBoats        FleetBoat[]
 
+  @@index([classCategoryId])
   @@map("sailing_classes")
 }
 

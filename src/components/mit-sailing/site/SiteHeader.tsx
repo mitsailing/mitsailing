@@ -79,8 +79,10 @@ function sessionHasUser(data: unknown): data is { user: { id: string } } {
 }
 
 export type SiteHeaderProps = {
-  /** Items for the Fleet dropdown — generated server-side from the fleet seed. */
+  /** Items for the Fleet dropdown — generated server-side from Prisma. */
   fleetDropdownItems: NavigationDropdownItem[];
+  /** Items for the Classes dropdown (ordered categories → `/classes/#slug`). */
+  classesDropdownItems: NavigationDropdownItem[];
   /**
    * Session snapshot from the parent RSC (`getSession`). When set, the auth
    * controls render immediately from SSR instead of waiting on the client
@@ -90,10 +92,11 @@ export type SiteHeaderProps = {
 };
 
 /**
- * Sticky top-of-page site header with primary nav, fleet dropdown, and mobile menu.
+ * Sticky top-of-page site header with primary nav, fleet/classes dropdowns, and mobile menu.
  *
  * @param props - Props
  * @param props.fleetDropdownItems - Items for the Fleet dropdown
+ * @param props.classesDropdownItems - Items for the Classes dropdown
  * @returns Sticky header with dropdowns and mobile menu
  */
 export function SiteHeader(props: SiteHeaderProps) {
@@ -117,12 +120,16 @@ export function SiteHeader(props: SiteHeaderProps) {
 
   const navItems: NavConfigItem[] = useMemo(
     () =>
-      navConfig.map((item) =>
-        item.labelKey === 'nav_fleet'
-          ? { ...item, items: props.fleetDropdownItems }
-          : item
-      ),
-    [props.fleetDropdownItems]
+      navConfig.map((item) => {
+        if (item.labelKey === 'nav_fleet') {
+          return { ...item, items: props.fleetDropdownItems };
+        }
+        if (item.labelKey === 'nav_classes') {
+          return { ...item, items: props.classesDropdownItems };
+        }
+        return item;
+      }),
+    [props.classesDropdownItems, props.fleetDropdownItems]
   );
 
   const closeMobile = () => {
@@ -153,6 +160,10 @@ export function SiteHeader(props: SiteHeaderProps) {
           {navItems.map((item) => {
             const label = t(item.labelKey);
             if (item.items && item.items.length > 0) {
+              const overviewSectionLabel =
+                item.labelKey === 'nav_classes'
+                  ? t('nav_classes')
+                  : t('nav_fleet');
               return (
                 <NavigationDropdown
                   href={item.href}
@@ -160,7 +171,7 @@ export function SiteHeader(props: SiteHeaderProps) {
                   key={item.labelKey}
                   label={label}
                   overviewLabel={t('nav_overview_all', {
-                    label: t('nav_fleet'),
+                    label: overviewSectionLabel,
                   })}
                   variant="desktop"
                 />
@@ -262,6 +273,10 @@ export function SiteHeader(props: SiteHeaderProps) {
             {navItems.map((item) => {
               const label = t(item.labelKey);
               if (item.items && item.items.length > 0) {
+                const overviewSectionLabel =
+                  item.labelKey === 'nav_classes'
+                    ? t('nav_classes')
+                    : t('nav_fleet');
                 return (
                   <NavigationDropdown
                     href={item.href}
@@ -270,7 +285,7 @@ export function SiteHeader(props: SiteHeaderProps) {
                     label={label}
                     onNavigate={closeMobile}
                     overviewLabel={t('nav_overview_all', {
-                      label: t('nav_fleet'),
+                      label: overviewSectionLabel,
                     })}
                     variant="mobile"
                   />

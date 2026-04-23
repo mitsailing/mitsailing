@@ -1,21 +1,13 @@
-import { getTranslations } from 'next-intl/server';
-import { SiteSectionShell } from '@/components/mit-sailing/SiteSectionShell';
+import type { ReactNode } from 'react';
 
-export default async function ClassesSectionLayout(props: {
-  children: React.ReactNode;
-  params: Promise<{ locale: string }>;
-}) {
-  const { locale } = await props.params;
-  const t = await getTranslations({
-    locale,
-    namespace: 'MitSailingRoutes',
-  });
-  return (
-    <SiteSectionShell
-      locale={locale}
-      segments={[{ label: t('section_classes') }]}
-    >
-      {props.children}
-    </SiteSectionShell>
-  );
+/**
+ * Classes segment: breadcrumbs live on `page.tsx` / `[slug]/layout.tsx`.
+ *
+ * @param props - Layout props
+ * @returns Child routes
+ */
+export default function ClassesRoutesLayout(props: {
+  children: ReactNode;
+}): ReactNode {
+  return props.children;
 }

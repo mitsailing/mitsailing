@@ -1,6 +1,5 @@
 import { getTranslations } from 'next-intl/server';
 import { ImpersonationBanner } from '@/components/auth/ImpersonationBanner';
-import { SignOutForm } from '@/components/auth/SignOutForm';
 import { MitSailingSiteTemplate } from '@/components/mit-sailing/MitSailingSiteTemplate';
 import { verifySession } from '@/libs/auth/dal';
 import { Role } from '@/libs/auth/roles';
@@ -17,8 +16,8 @@ type AuthenticatedAccountChromeProps = {
 };
 
 /**
- * Shared signed-in shell: site template, impersonation banner, account nav,
- * and sign-out. Used by `/account/*` and `/profile`.
+ * Shared signed-in shell: site template, impersonation banner, and account
+ * nav. Sign-out lives in `SiteHeader`. Used by `/account/*` and `/profile`.
  *
  * @param props - Layout props
  * @param props.locale - Active locale
@@ -53,11 +52,18 @@ export async function AuthenticatedAccountChrome(
             {t('user_profile_link')}
           </Link>
           {isAdmin && !isImpersonating ? (
-            <Link className={LINK_CLASS} href="/account/admin/">
-              {t('admin_link')}
-            </Link>
+            <>
+              <Link className={LINK_CLASS} href="/account/admin/">
+                {t('admin_link')}
+              </Link>
+              <Link className={LINK_CLASS} href="/admin/class_categories/">
+                {t('admin_class_categories_link')}
+              </Link>
+              <Link className={LINK_CLASS} href="/admin/fleet/">
+                {t('admin_fleet_link')}
+              </Link>
+            </>
           ) : null}
-          <SignOutForm label={t('sign_out')} locale={props.locale} />
         </nav>
         {props.children}
       </div>

@@ -9,7 +9,7 @@ test.describe('Visual testing', () => {
 
       await expect(
         page.getByRole('heading', {
-          name: 'Boilerplate Code for Your Next.js Project with Tailwind CSS',
+          name: 'Sail the Charles River',
         })
       ).toBeVisible();
 
@@ -33,7 +33,9 @@ test.describe('Visual testing', () => {
     }, testInfo) => {
       await page.goto('/about');
 
-      await expect(page.getByText('Welcome to our About page!')).toBeVisible();
+      await expect(
+        page.getByText('The MIT Sailing Pavilion exists', { exact: false })
+      ).toBeVisible();
 
       await takeSnapshot(page, testInfo);
     });

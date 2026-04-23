@@ -1,5 +1,9 @@
 import { staff } from '../../src/data/mit-sailing/aboutContent';
 import {
+  CLASS_CATEGORY_ROWS,
+  classCategoryIdFromSeedKey,
+} from '../../src/data/mit-sailing/classCategoriesSeed';
+import {
   FLEET_BOATS,
   SAILING_CLASSES,
 } from '../../src/data/mit-sailing/classesFleetSeed';
@@ -70,17 +74,43 @@ export async function seedEventCategories(p: PrismaClient): Promise<void> {
 /**
  * @param p - Prisma client
  */
+export async function seedClassCategories(p: PrismaClient): Promise<void> {
+  const now = new Date();
+  for (const row of CLASS_CATEGORY_ROWS) {
+    await p.classCategory.upsert({
+      where: { id: row.id },
+      create: {
+        id: row.id,
+        slug: row.slug,
+        name: row.name,
+        displayOrder: row.displayOrder,
+        isVisible: true,
+        createdAt: now,
+      },
+      update: {
+        slug: row.slug,
+        name: row.name,
+        displayOrder: row.displayOrder,
+      },
+    });
+  }
+}
+
+/**
+ * @param p - Prisma client
+ */
 export async function seedSailingClassesAndBoats(
   p: PrismaClient
 ): Promise<void> {
   for (const cl of SAILING_CLASSES) {
+    const classCategoryId = classCategoryIdFromSeedKey(cl.category);
     await p.sailingClass.upsert({
       where: { id: cl.id },
       create: {
         id: cl.id,
         name: cl.name,
         slug: cl.slug,
-        category: cl.category,
+        classCategoryId,
         level: cl.level,
         description: cl.description,
         prerequisiteIds: cl.prerequisites,
@@ -89,7 +119,7 @@ export async function seedSailingClassesAndBoats(
       },
       update: {
         name: cl.name,
-        category: cl.category,
+        classCategoryId,
         level: cl.level,
         description: cl.description,
         prerequisiteIds: cl.prerequisites,

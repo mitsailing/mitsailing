@@ -1,5 +1,10 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { ClassesCatalogView } from '@/components/mit-sailing/classes/ClassesCatalogView';
+import { SiteSectionShell } from '@/components/mit-sailing/SiteSectionShell';
+import { listSailingClassesGroupedForCatalog } from '@/libs/mit-sailing/classQueries';
+
+export const revalidate = 900;
 
 type PageProps = { params: Promise<{ locale: string }> };
 
@@ -19,5 +24,13 @@ export default async function ClassesListPage(props: PageProps) {
     locale,
     namespace: 'MitSailingRoutes',
   });
-  return <h1 className="text-2xl font-semibold">{t('title_classes')}</h1>;
+  const grouped = await listSailingClassesGroupedForCatalog();
+  return (
+    <SiteSectionShell
+      locale={locale}
+      segments={[{ label: t('section_classes') }]}
+    >
+      <ClassesCatalogView grouped={grouped} locale={locale} />
+    </SiteSectionShell>
+  );
 }

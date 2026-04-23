@@ -1,5 +1,6 @@
-import { FLEET_BOATS } from '@/data/mit-sailing/classesFleetSeed';
 import { getSession } from '@/libs/auth/dal';
+import { listClassCategoriesForNav } from '@/libs/mit-sailing/classQueries';
+import { listFleetBoatsForPublic } from '@/libs/mit-sailing/fleetQueries';
 import type { NavigationDropdownItem } from './site/NavigationDropdown';
 import { SiteConditionsBar } from './site/SiteConditionsBar';
 import { SiteFooter } from './site/SiteFooter';
@@ -25,7 +26,19 @@ export async function MitSailingSiteTemplate(
   const session = await getSession();
   const initialSignedIn = Boolean(session?.user?.id);
 
-  const fleetDropdownItems: NavigationDropdownItem[] = FLEET_BOATS.map(
+  const [categories, fleetBoats] = await Promise.all([
+    listClassCategoriesForNav(),
+    listFleetBoatsForPublic(),
+  ]);
+
+  const classesDropdownItems: NavigationDropdownItem[] = categories.map(
+    (c) => ({
+      label: c.name,
+      href: `/classes/#${c.slug}`,
+    })
+  );
+
+  const fleetDropdownItems: NavigationDropdownItem[] = fleetBoats.map(
     (boat) => ({
       label: boat.name,
       href: `/fleet/${boat.slug}/`,
@@ -37,6 +50,7 @@ export async function MitSailingSiteTemplate(
     <div className="flex min-h-screen flex-col bg-white font-mit-sans text-mit-text">
       <SiteConditionsBar />
       <SiteHeader
+        classesDropdownItems={classesDropdownItems}
         fleetDropdownItems={fleetDropdownItems}
         initialSignedIn={initialSignedIn}
       />
