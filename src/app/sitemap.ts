@@ -5,7 +5,7 @@ import { getBaseUrl, getI18nPath } from '@/utils/Helpers';
 export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = getBaseUrl();
 
-  const routes = [
+  const allRoutes = [
     '',
     '/about',
     '/events',
@@ -17,15 +17,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     '/about/mitna/constitution',
     '/about/mitna/meetings',
     '/about/mitna/hatch-award',
-    '/portfolio',
   ];
-
-  // Generate portfolio detail pages
-  const portfolioRoutes = Array.from(
-    { length: 6 },
-    (_, i) => `/portfolio/${i}`
-  );
-  const allRoutes = [...routes, ...portfolioRoutes];
 
   return allRoutes.map((route) => ({
     url: `${baseUrl}${route}`,

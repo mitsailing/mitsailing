@@ -63,11 +63,11 @@ export async function redirectIfAuthenticated(
   if (!session?.user?.id) {
     return;
   }
-  const dashboard = getI18nPath('/dashboard', locale);
+  const account = getI18nPath('/account', locale);
   const destination =
     typeof callbackUrl === 'string' && callbackUrl.startsWith('/')
       ? callbackUrl
-      : dashboard;
+      : account;
   redirect(destination);
 }
 
@@ -99,7 +99,7 @@ export async function verifySession(
 
 /**
  * Requires an admin who is not currently impersonating another user.
- * Redirects to the dashboard otherwise so admins never land on pages they
+ * Redirects to the account home otherwise so admins never land on pages they
  * are forbidden to view.
  *
  * @param locale - Active locale used for redirect paths.
@@ -108,12 +108,12 @@ export async function verifySession(
 export async function requireAdmin(
   locale: string = AppConfig.i18n.defaultLocale
 ): Promise<NonNullable<AuthSession>> {
-  const dashboardHref = getI18nPath('/dashboard/', locale);
-  const session = await verifySession(locale, dashboardHref);
+  const accountHref = getI18nPath('/account/', locale);
+  const session = await verifySession(locale, accountHref);
   const role = normalizeRole(session.user.role);
 
   if (role !== Role.ADMIN || session.session.impersonatedBy) {
-    redirect(dashboardHref);
+    redirect(accountHref);
   }
 
   return session;

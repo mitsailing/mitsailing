@@ -26,7 +26,7 @@ export default async function UserProfilePage(props: UserProfilePageProps) {
   const { locale } = await props.params;
   setRequestLocale(locale);
 
-  const profileHref = getI18nPath('/dashboard/user-profile/', locale);
+  const profileHref = getI18nPath('/account/profile/', locale);
   const user = await requireCurrentUser(locale, profileHref);
   const { emailChanged, error } = await props.searchParams;
   let verificationBanner: 'success' | 'error' | null = null;
@@ -36,11 +36,6 @@ export default async function UserProfilePage(props: UserProfilePageProps) {
     verificationBanner = 'success';
   }
 
-  // Better Auth caches the session user in a signed cookie for
-  // `session.cookieCache.maxAge` seconds, so a fresh `unconfirmedEmail`
-  // written during the change-email flow can lag behind reality on refresh.
-  // Read the column straight from the database so the profile is always
-  // authoritative regardless of cookie-cache age.
   const dbUser = await prisma.user.findUnique({
     where: { id: user.id },
     select: { unconfirmedEmail: true },

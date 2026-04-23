@@ -18,7 +18,7 @@ export async function ImpersonationBanner(props: ImpersonationBannerProps) {
 
   const t = await getTranslations({
     locale: props.locale,
-    namespace: 'DashboardLayout',
+    namespace: 'AccountLayout',
   });
 
   return (

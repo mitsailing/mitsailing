@@ -6,20 +6,27 @@
     "classes_link": "Classes",
     "fleet_link": "Fleet",
     "contact_link": "Contact",
-    "portfolio_link": "Portfolio",
+    "account_link": "Account",
     "sign_in_link": "Sign in",
-    "sign_up_link": "Sign up"
+    "sign_up_link": "Sign up",
+    "sign_out_action": "Sign out"
   },
   "BaseTemplate": {
     "description": "Starter code for your Nextjs Boilerplate with Tailwind CSS",
     "footer_text": "© {year} {name}. Made with <author></author>.",
     "main_navigation_label": "Main navigation"
   },
-  "Index": {
-    "meta_title": "Next.js Boilerplate Presentation",
-    "meta_description": "Next js Boilerplate is the perfect starter code for your project. Build your React application with the Next.js framework.",
-    "sponsors_title": "Sponsors",
-    "zap_emoji_label": "Zap"
+  "MitSailingLayout": {
+    "site_tagline": "Pavilion, classes, and community sailing on the Charles River.",
+    "main_nav_aria": "Main navigation",
+    "utility_nav_aria": "Account and sign in",
+    "footer_legal": "© {year} MIT Sailing Pavilion. All rights reserved."
+  },
+  "MitSailingHome": {
+    "meta_title": "MIT Sailing",
+    "meta_description": "Sailing programs, events, and fleet at the MIT Sailing Pavilion.",
+    "tagline": "Sailing on the Charles River, open to members and students.",
+    "browse_rich": "Browse <events>events</events> and <classes>classes</classes>, or <contact>contact</contact> the pavilion for membership and access."
   },
   "About": {
     "meta_title": "About",
@@ -120,11 +127,13 @@
     "invalid_token": "This reset link is invalid or has expired. Request a new one.",
     "request_new_link": "Request a new reset link"
   },
-  "DashboardPage": {
-    "meta_title": "Dashboard",
-    "hello_message": "Hello {email}!",
-    "alternative_message": "Need advanced features? Multi-tenancy & Teams, Roles & Permissions, Shadcn UI, End-to-End Typesafety with oRPC, Stripe Payment, Light / Dark mode. Try <url></url>.",
-    "max_message": "Or, need a Self-hosted auth stack (Better Auth)? Try <url></url>."
+  "AccountHome": {
+    "meta_title": "Account",
+    "heading": "Signed in as {email}",
+    "intro": "Use the site menu to browse public pages, or manage your profile and security here.",
+    "link_home": "Home",
+    "link_events": "Upcoming events",
+    "link_profile": "Profile and security"
   },
   "UserProfilePage": {
     "meta_title": "User Profile",
@@ -177,12 +186,12 @@
     "delete_validation_error": "Check the confirmation field and try again.",
     "delete_rate_limited_error": "Too many delete-account attempts. Try again in a bit."
   },
-  "DashboardLayout": {
-    "dashboard_link": "Dashboard",
-    "user_profile_link": "Manage your account",
-    "admin_link": "Admin",
+  "AccountLayout": {
+    "account_home_link": "Account",
+    "user_profile_link": "Profile",
+    "admin_link": "User admin",
     "sign_out": "Sign out",
-    "impersonation_notice": "You are viewing the dashboard as another user.",
+    "impersonation_notice": "You are viewing the site as another user.",
     "impersonation_exit": "Exit impersonation"
   },
   "AuthEmails": {

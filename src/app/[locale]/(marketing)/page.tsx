@@ -1,140 +1,48 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { Sponsors } from '@/components/Sponsors';
+import { Link } from '@/libs/I18nNavigation';
 
 type IndexPageProps = {
   params: Promise<{ locale: string }>;
 };
 
+const linkClass = 'font-medium text-blue-800 hover:underline';
+
 export async function generateMetadata(
   props: IndexPageProps
 ): Promise<Metadata> {
   const { locale } = await props.params;
-  const t = await getTranslations({
-    locale,
-    namespace: 'Index',
-  });
-
-  return {
-    title: t('meta_title'),
-    description: t('meta_description'),
-  };
+  const t = await getTranslations({ locale, namespace: 'MitSailingHome' });
+  return { title: t('meta_title'), description: t('meta_description') };
 }
 
 export default async function Index(props: IndexPageProps) {
   const { locale } = await props.params;
   setRequestLocale(locale);
-  const t = await getTranslations({
-    locale,
-    namespace: 'Index',
-  });
+  const t = await getTranslations({ locale, namespace: 'MitSailingHome' });
 
   return (
-    <>
-      <p>
-        {`Follow `}
-        <a
-          className="text-blue-700 hover:border-b-2 hover:border-blue-700"
-          href="https://twitter.com/ixartz"
-          target="_blank"
-          rel="noreferrer noopener"
-        >
-          @Ixartz on Twitter
-        </a>
-        {` for updates and more information about the boilerplate.`}
+    <div>
+      <p className="text-lg text-slate-800">{t('tagline')}</p>
+      <p className="mt-6 text-slate-700">
+        {t.rich('browse_rich', {
+          events: (chunks) => (
+            <Link className={linkClass} href="/events/">
+              {chunks}
+            </Link>
+          ),
+          classes: (chunks) => (
+            <Link className={linkClass} href="/classes/">
+              {chunks}
+            </Link>
+          ),
+          contact: (chunks) => (
+            <Link className={linkClass} href="/contact/">
+              {chunks}
+            </Link>
+          ),
+        })}
       </p>
-      <h2 className="mt-5 text-2xl font-bold">
-        Boilerplate Code for Your Next.js Project with Tailwind CSS
-      </h2>
-      <p className="text-base">
-        Next.js Boilerplate is a developer-friendly starter code for Next.js
-        projects, built with Tailwind CSS and TypeScript.{' '}
-        <span role="img" aria-label={t('zap_emoji_label')}>
-          ⚡️
-        </span>{' '}
-        Designed with developer experience in mind, it includes:
-      </p>
-      <ul className="mt-3 text-base">
-        <li>🚀 Next.js with App Router support</li>
-        <li>🔥 TypeScript for type checking</li>
-        <li>💎 Tailwind CSS integration</li>
-        <li>
-          🔒 Authentication with{' '}
-          <a
-            className="font-bold text-blue-700 hover:border-b-2 hover:border-blue-700"
-            href="https://authjs.dev"
-          >
-            Auth.js
-          </a>{' '}
-          (email and password with verification and secure sessions)
-        </li>
-        <li>📦 Database with Prisma ORM (PostgreSQL)</li>
-        <li>
-          💽 Dev database with PGlite and production with{' '}
-          <a
-            className="font-bold text-blue-700 hover:border-b-2 hover:border-blue-700"
-            href="https://get.neon.com/BMFYNtx"
-          >
-            Neon
-          </a>
-        </li>
-        <li>
-          🌐 Multi-language support (i18n) with next-intl and{' '}
-          <a
-            className="font-bold text-blue-700 hover:border-b-2 hover:border-blue-700"
-            href="https://l.crowdin.com/next-js"
-          >
-            Crowdin
-          </a>
-        </li>
-        <li>🔴 Form handling (React Hook Form) and validation (Zod)</li>
-        <li>📏 Linting and formatting (ESLint, Prettier)</li>
-        <li>🦊 Git hooks and commit linting (Husky, Commitlint)</li>
-        <li>🦺 Testing suite (Vitest, React Testing Library, Playwright)</li>
-        <li>🎉 Storybook for UI development</li>
-        <li>
-          🐰 AI-powered code reviews with{' '}
-          <a
-            className="font-bold text-blue-700 hover:border-b-2 hover:border-blue-700"
-            href="https://www.coderabbit.ai?utm_source=next_js_starter&utm_medium=github&utm_campaign=next_js_starter_oss_2025"
-          >
-            CodeRabbit
-          </a>
-        </li>
-        <li>
-          🚨 Error monitoring (
-          <a
-            className="font-bold text-blue-700 hover:border-b-2 hover:border-blue-700"
-            href="https://sentry.io/for/nextjs/?utm_source=github&amp;utm_medium=paid-community&amp;utm_campaign=general-fy25q1-nextjs&amp;utm_content=github-banner-nextjsboilerplate-logo"
-          >
-            Sentry
-          </a>
-          ) and logging (LogTape, an alternative to Pino.js)
-        </li>
-        <li>🖥️ Monitoring as Code (Checkly)</li>
-        <li>
-          🔐 Security and bot protection (
-          <a
-            className="font-bold text-blue-700 hover:border-b-2 hover:border-blue-700"
-            href="https://launch.arcjet.com/Q6eLbRE"
-          >
-            Arcjet
-          </a>
-          )
-        </li>
-        <li>🤖 SEO optimization (metadata, JSON-LD, Open Graph tags)</li>
-        <li>
-          ⚙️ Development tools (VSCode config, bundler analyzer, changelog
-          generation)
-        </li>
-      </ul>
-      <p className="text-base">
-        Our sponsors&apos; exceptional support has made this project possible.
-        Their services integrate seamlessly with the boilerplate, and we
-        recommend trying them out.
-      </p>
-      <h2 className="mt-5 text-2xl font-bold">{t('sponsors_title')}</h2>
-      <Sponsors />
-    </>
+    </div>
   );
 }

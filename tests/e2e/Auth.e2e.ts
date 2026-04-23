@@ -84,8 +84,8 @@ test.describe('Auth', () => {
     await page.getByLabel('Password').fill(password);
     await page.getByRole('button', { name: 'Sign in' }).click();
 
-    await expect(page).toHaveURL(/\/dashboard/);
-    await expect(page.getByRole('link', { name: 'Dashboard' })).toBeVisible();
+    await expect(page).toHaveURL(/\/account/);
+    await expect(page.getByRole('link', { name: 'Account' })).toBeVisible();
 
     await cleanupByEmail(email);
   });

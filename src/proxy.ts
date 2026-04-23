@@ -28,7 +28,7 @@ export default async function middleware(request: NextRequest) {
   }
 
   const { pathname } = request.nextUrl;
-  const protectedPattern = /^(?:\/[\w-]+)?\/dashboard(?:\/|$)/;
+  const protectedPattern = /^(?:\/[\w-]+)?\/account(?:\/|$)/;
   if (protectedPattern.test(pathname) && !getSessionCookie(request)) {
     const signIn = new URL('/sign-in', request.url);
     signIn.searchParams.set('callbackUrl', pathname);
