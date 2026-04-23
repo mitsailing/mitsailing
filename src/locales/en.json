@@ -227,10 +227,6 @@
     "mitna_nav_constitution": "Constitution",
     "mitna_nav_meetings": "Meetings",
     "mitna_nav_hatch": "Hatch Award",
-    "meta_title_events": "Events",
-    "title_events": "Events",
-    "meta_title_event": "Event: {slug}",
-    "title_event_detail": "Event: {slug}",
     "meta_title_classes": "Classes and lessons",
     "title_classes": "Classes and lessons",
     "meta_title_class": "Class: {slug}",
@@ -264,5 +260,16 @@
     "meta_title_about_staff": "About: {slug}",
     "title_about_staff": "Staff: {slug}",
     "back_to_about": "Back to About"
+  },
+  "MitSailingEvents": {
+    "meta_title_list": "Events",
+    "meta_title_not_found": "Event not found",
+    "list_heading": "Events",
+    "list_empty": "No upcoming events.",
+    "badge_special": "Special",
+    "back_to_list": "Back to events",
+    "field_category": "Category",
+    "field_schedule": "Schedule",
+    "external_cta": "Visit external registration page"
   }
 }
