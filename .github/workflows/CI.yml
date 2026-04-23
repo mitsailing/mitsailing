@@ -7,9 +7,13 @@ on:
     branches: [main]
 
 # Required by `src/libs/Env.ts` when Next.js config and tests load the app.
+# Jobs bring up Postgres via `docker compose up -d postgres` (ubuntu-latest
+# runners ship with Docker + Compose preinstalled) and expose both logical
+# databases on 127.0.0.1:5432.
 env:
-  AUTH_SECRET: ci-placeholder-auth-secret-min-32-chars-long!!
-  DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:51214/postgres?sslmode=disable
+  BETTER_AUTH_SECRET: ci-placeholder-auth-secret-min-32-chars-long!!
+  DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/dev_db?sslmode=disable
+  TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/test_db?sslmode=disable
 
 jobs:
   build:
@@ -160,10 +164,16 @@ jobs:
           node-version: ${{ matrix.node-version }}
           restore-nextjs-cache: true
 
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium firefox
+
+      # Run e2e tests directly on the runner so the Playwright process can
+      # reach the docker-compose services on localhost:5432 / localhost:1025
+      # (a `uses: docker://` step would run in an isolated container that
+      # cannot reach host services).
       - name: Run E2E tests
-        uses: docker://mcr.microsoft.com/playwright:v1.58.2
-        with:
-          args: sh -c "HOME=/root npm run test:e2e" # Set HOME to /root to avoid Playwright error with Firebox
+        run: npm run test:e2e
+
       - name: Fix test results permission # Give permissions to test results needed by Chromatic
         run: |
           sudo chmod -R 777 test-results

@@ -1,6 +1,6 @@
 import { faker } from '@faker-js/faker';
 import { expect, test } from '@playwright/test';
-import { prisma } from '../../src/libs/DB';
+import { Pool } from 'pg';
 import {
   deleteAllMessages,
   extractLinkFromMessage,
@@ -22,31 +22,58 @@ import {
  * covers the three moving parts at once: before-middleware (lockout),
  * sendAccountLockedEmail + SMTP transport (email dispatch), and
  * /api/unlock-account (token verification + state cleanup).
+ *
+ * DB access note: we use `pg` directly rather than importing `@/libs/DB`
+ * because Prisma 7's generated client emits
+ * `globalThis['__dirname'] = path.dirname(fileURLToPath(import.meta.url))`,
+ * which trips Playwright's CJS/ESM auto-detection with a
+ * "ReferenceError: exports is not defined in ES module scope". See
+ * https://github.com/prisma/prisma/issues/28838 and
+ * https://github.com/microsoft/playwright/issues/37890. This is a simple
+ * test harness anyway; raw SQL keeps the setup/teardown transparent.
  */
 
+const testDatabaseUrl =
+  process.env.TEST_DATABASE_URL ??
+  process.env.DATABASE_URL ??
+  'postgresql://postgres:postgres@127.0.0.1:5432/test_db?sslmode=disable';
+
+const pool = new Pool({ connectionString: testDatabaseUrl });
+
 test.afterAll(async () => {
-  await prisma.$disconnect();
+  await pool.end();
 });
 
-const swallow = (error: unknown): null => {
+const swallow = (error: unknown): void => {
   if (process.env.DEBUG_CLEANUP) {
     console.warn(error);
   }
-  return null;
 };
 
 async function cleanupByEmail(email: string) {
-  await prisma.failedLoginAttempt
-    .deleteMany({ where: { email } })
-    .catch(swallow);
-  await prisma.user.delete({ where: { email } }).catch(swallow);
+  try {
+    await pool.query('DELETE FROM "failed_login_attempts" WHERE "email" = $1', [
+      email,
+    ]);
+    await pool.query('DELETE FROM "user" WHERE "email" = $1', [email]);
+  } catch (error) {
+    swallow(error);
+  }
 }
 
 async function markEmailVerified(email: string) {
-  await prisma.user.update({
-    where: { email },
-    data: { emailVerified: true },
-  });
+  await pool.query(
+    'UPDATE "user" SET "email_verified" = TRUE WHERE "email" = $1',
+    [email]
+  );
+}
+
+async function countFailedAttempts(email: string): Promise<number> {
+  const { rows } = await pool.query<{ count: string }>(
+    'SELECT COUNT(*)::text AS count FROM "failed_login_attempts" WHERE "email" = $1',
+    [email]
+  );
+  return Number(rows[0]?.count ?? '0');
 }
 
 test.describe('Account lockout', () => {
@@ -90,6 +117,7 @@ test.describe('Account lockout', () => {
     // The lockout email arrives via Mailpit. Pattern matches the
     // absolute URL our email template renders.
     const lockoutMessage = await findLatestMessageTo(email);
+
     expect(lockoutMessage.Subject).toMatch(/lock/i);
 
     const unlockUrl = extractLinkFromMessage(
@@ -106,10 +134,7 @@ test.describe('Account lockout', () => {
 
     // The failed-attempt rows must be gone so lockout doesn't immediately
     // retrip when the user signs in.
-    const remaining = await prisma.failedLoginAttempt.count({
-      where: { email },
-    });
-    expect(remaining).toBe(0);
+    expect(await countFailedAttempts(email)).toBe(0);
 
     await page.getByLabel('Email').fill(email);
     await page.getByLabel('Password').fill(password);

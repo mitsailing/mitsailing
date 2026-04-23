@@ -128,9 +128,9 @@ Developer experience first, extremely flexible code structure and only keep what
 - ✅ Strict Mode for TypeScript and React 19
 - 🔒 Authentication with [Clerk](https://clerk.com?utm_source=github&utm_medium=sponsorship&utm_campaign=nextjs-boilerplate): Sign up, Sign in, Sign out, Forgot password, Reset password, and more.
 - 👤 Passwordless Authentication with Magic Links, Multi-Factor Auth (MFA), Social Auth (Google, Facebook, Twitter, GitHub, Apple, and more), Passwordless login with Passkeys, User Impersonation
-- 📦 Type-safe ORM with DrizzleORM, compatible with PostgreSQL, SQLite, and MySQL
-- 💽 Offline and local development database with PGlite
-- ☁️ Remote and production database with [Neon](https://get.neon.com/BMFYNtx)
+- 📦 Type-safe ORM with Prisma against PostgreSQL
+- 🐳 Local Postgres + Mailpit via Docker Compose
+- ☁️ Remote and production database with [Neon](https://get.neon.com/BMFYNtx) or any PostgreSQL provider
 - 🌐 Multi-language (i18n) with next-intl and [Crowdin](https://l.crowdin.com/next-js)
 - ♻️ Type-safe environment variables with T3 Env
 - ⌨️ Form handling with React Hook Form
@@ -162,7 +162,7 @@ Developer experience first, extremely flexible code structure and only keep what
 - 🤖 SEO metadata, JSON-LD and Open Graph tags
 - 🗺️ Sitemap.xml and robots.txt
 - 👷 Automatic dependency updates with Dependabot
-- ⌘ Database exploration with Drizzle Studio and CLI migration tool with Drizzle Kit
+- ⌘ Database exploration with Prisma Studio and CLI migration tool with Prisma Migrate
 - ⚙️ Bundler Analyzer
 - 🌈 Include a FREE minimalist theme
 - 💯 Maximize lighthouse score
@@ -212,7 +212,11 @@ Then, you can run the project locally in development mode with live reload by ex
 npm run dev
 ```
 
-Open http://localhost:3000 with your favorite browser to see your project. For your information, the project is already pre-configured with a local database using PGlite. No extra setup is required to run the project locally.
+Open http://localhost:3000 with your favorite browser to see your project.
+
+**How the local stack is split:** the Next.js app runs on your **host** (via `next dev`) while only the **infrastructure** — Postgres and Mailpit — runs in Docker. `npm run dev` brings up the Compose services (`compose.yaml` + `compose.override.yaml`) in the background, waits for Postgres on `127.0.0.1:5432`, applies migrations, and then starts Next. This keeps HMR, source maps, and IDE integration fast and native on the host while still giving you a real Postgres + SMTP server that matches production behavior. Tear the stack down with `npm run db:down` when you're done.
+
+> Make sure you have Docker Desktop (or an equivalent daemon) running before `npm run dev`, and that nothing else on your machine is already listening on ports `5432` / `1025` / `8025`.
 
 Need advanced features? Multi-tenancy & Teams, Roles & Permissions, Shadcn UI, End-to-End Typesafety with oRPC, Stripe Payment, Light / Dark mode. Try [Next.js Boilerplate Pro](https://nextjs-boilerplate.com/pro-saas-starter-kit).
 
@@ -229,21 +233,36 @@ CLERK_SECRET_KEY=your_clerk_secret_key
 
 You now have a fully functional authentication system with Next.js, including features such as sign up, sign in, sign out, forgot password, reset password, update profile, update password, update email, delete account, and more.
 
-### Set up remote database
+### Database setup
 
-The project uses DrizzleORM, a type-safe ORM that is compatible with PostgreSQL, SQLite, and MySQL databases. By default, the project is configured to seamlessly work with PostgreSQL, and you have the flexibility to choose any PostgreSQL database provider of your choice.
+The project uses Prisma (with `@prisma/client` + `@prisma/adapter-pg`) against PostgreSQL. Local development and E2E tests run against Docker Compose; production points at a managed Postgres of your choice (e.g. [Neon](https://get.neon.com/BMFYNtx)).
 
-When you launch the project locally for the first time, it automatically creates a PostgreSQL database on your local machine. This allows you to work with a PostgreSQL database without Docker or any additional setup.
+#### Local development (Docker for infra, host for the app)
 
-To set up a remote and production database, you need to create a PostgreSQL database and obtain the connection string. One recommended option is to use [Neon](https://get.neon.com/BMFYNtx), which provides a free PostgreSQL database. This database is compatible and has been tested with Next.js Boilerplate.
+`compose.yaml` (the shared base) plus `compose.override.yaml` (auto-loaded for local dev) define two services at the repo root:
 
-After creating your Neon account, you can get the connection string and copy it to the `DATABASE_URL` variable in your `.env.production` file.
+- `postgres` on port `5432`, with `dev_db` and `test_db` (the latter is created by `docker/postgres/init.sql` on first boot).
+- `mailpit` on ports `1025` (SMTP) and `8025` (inbox UI + REST API used by the Playwright e2e helpers).
+
+The Next.js app itself runs on your host, not in a container — this keeps `next dev`'s HMR, source maps, and debugger / IDE integration native. Compose is only in charge of the backing services.
+
+You don't need to invoke Compose directly — `npm run dev` runs `db:up` → `db:wait` → `db:migrate` → `dev:app` for you. The same pattern drives `npm run test:e2e` (which additionally migrates `test_db` via `db:migrate:test`). To tear the stack down when you're done:
+
+```shell
+npm run db:down
+```
+
+To start from an empty database, remove the persisted volume:
+
+```shell
+docker compose down -v
+```
+
+#### Remote / production database
+
+For production, create a PostgreSQL database with the provider of your choice and set `DATABASE_URL` in your `.env.production` file. [Neon](https://get.neon.com/BMFYNtx) is a known-good option with a free tier.
 
 > :warning: This project works out of the box with any PostgreSQL provider. Neon is mentioned here because it offers a free tier, and the link is an affiliate link. Feel free to use any PostgreSQL provider that fits your needs.
-
-#### Create a fresh and empty database
-
-If you want to create a fresh and empty database, you just need to remove the folder `local.db` from the root of the project. The next time you run the project, a new database will be created automatically.
 
 ### Translation (i18n) setup
 
@@ -263,14 +282,14 @@ After defining the environment variables in your GitHub Actions, your localizati
 │   └── workflows                   # GitHub Actions workflows
 ├── .storybook                      # Storybook folder
 ├── .vscode                         # VSCode configuration
-├── migrations                      # Database migrations
+├── docker                          # Local docker assets (e.g. postgres init.sql)
+├── prisma                          # Prisma schema, migrations, and seed
 ├── public                          # Public assets folder
 ├── src
 │   ├── app                         # Next JS App (App Router)
 │   ├── components                  # React components
 │   ├── libs                        # 3rd party libraries configuration
 │   ├── locales                     # Locales folder (i18n messages)
-│   ├── models                      # Database models
 │   ├── styles                      # Styles folder
 │   ├── templates                   # Templates folder
 │   ├── types                       # Type definitions
@@ -279,7 +298,8 @@ After defining the environment variables in your GitHub Actions, your localizati
 ├── tests
 │   ├── e2e                         # E2E tests, also includes Monitoring as Code
 │   └── integration                 # Integration tests
-├── drizzle.config.ts               # Drizzle ORM configuration
+├── docker-compose.yml              # Local Postgres + Mailpit stack
+├── prisma.config.ts                # Prisma ORM configuration
 ├── eslint.config.mjs               # ESLint configuration
 ├── next.config.ts                  # Next JS configuration
 ├── package.json                    # NPM dependencies and scripts

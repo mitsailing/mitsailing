@@ -19,14 +19,17 @@ name: next-js-boilerplate
 
 services:
   postgres:
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: dev_db
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      # Postgres 18 stores data under a major-version subdirectory and
+      # expects a single mount at the parent so `pg_upgrade --link` can
+      # work across boundaries. See docker-library/postgres#1259.
+      - postgres_data:/var/lib/postgresql
       - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U postgres -d dev_db']
