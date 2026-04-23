@@ -1,0 +1,49 @@
+# Local-dev overlay — auto-loaded by Docker Compose when `compose.yaml` is
+# in the same directory. Adds:
+#   - host port bindings so the app running on the laptop can reach the
+#     services at 127.0.0.1:5432 / 127.0.0.1:1025 / 127.0.0.1:8025.
+#   - Mailpit for email capture (no auth — loopback-only).
+#
+# Notably does NOT start the Next.js app container. Local workflow runs
+# `npm run dev` on the host so HMR, source maps, and IDE integration all
+# work the way they already do. Flip to the dev container only if you
+# actively want to exercise the Dockerfile's `dev` stage.
+
+services:
+  postgres:
+    ports:
+      # 5432:5432 on the host so `prisma migrate dev` from the workspace
+      # can reach the container over TCP without compose-aware tooling.
+      - '5432:5432'
+
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - '1025:1025' # SMTP — Next.js app points SMTP_URL here
+      - '8025:8025' # Web UI + REST API — Playwright polls this for assertions
+    environment:
+      MP_MAX_MESSAGES: '5000'
+      MP_DATABASE: /data/mailpit.db
+      # Local dev binds Mailpit to loopback only and accepts anything
+      # — never do either in a shared environment (see compose.staging.yaml).
+      MP_SMTP_AUTH_ACCEPT_ANY: '1'
+      MP_SMTP_AUTH_ALLOW_INSECURE: '1'
+    volumes:
+      - mailpit_data:/data
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'wget',
+          '--quiet',
+          '--tries=1',
+          '--spider',
+          'http://localhost:8025/readyz',
+        ]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  mailpit_data:

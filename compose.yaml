@@ -1,0 +1,38 @@
+# Base Compose file — shared by dev, staging, and prod. Environment-specific
+# additions (bind-mounts, Mailpit, Cloudflare Tunnel) live in the matching
+# compose.override.yaml / compose.staging.yaml / compose.prod.yaml.
+#
+# Design choices worth noting:
+# - No host port bindings at the base level. Each env decides whether to
+#   expose ports locally (dev) or rely on an ingress container (cloudflared
+#   in staging/prod). This is the principle that makes the staging stack
+#   safe to run on a machine without a firewall configuration step.
+# - Postgres keeps its data in a named volume, not a bind mount, so the
+#   path works identically on Linux hosts (rootless docker) and macOS.
+# - Healthchecks allow `depends_on: condition: service_healthy` to gate app
+#   startup on a working DB without sprinkling `wait-for-it` scripts.
+# - `name:` gives all environments a stable project namespace so
+#   `docker compose ps` shows recognizable container names regardless of
+#   what the working directory is called.
+
+name: next-js-boilerplate
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: dev_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d dev_db']
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  postgres_data:

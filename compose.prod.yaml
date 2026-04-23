@@ -1,0 +1,47 @@
+# Production overlay — scaffolded for the eventual prod stack. Key
+# differences from staging:
+#   - No Mailpit service: outbound mail goes to Resend
+#     (MAIL_TRANSPORT=resend via .env.production).
+#   - Command runs migrations then the app; same safety property as
+#     staging (bad migration aborts the deploy).
+#
+# Bring up with:
+#   docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production up -d
+
+services:
+  app:
+    image: ${APP_IMAGE}
+    restart: unless-stopped
+    env_file:
+      - path: .env.production
+        required: false
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command:
+      - sh
+      - -c
+      - >-
+        npx prisma migrate deploy && node server.js
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '5'
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command:
+      - tunnel
+      - --no-autoupdate
+      - run
+      - --token
+      - ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - app
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
