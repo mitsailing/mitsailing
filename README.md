@@ -391,6 +391,8 @@ npx playwright install # Only for the first time in a new environment
 npm run test:e2e
 ```
 
+`test:e2e` runs Docker/DB preflight, an e2e-oriented `next build` (unless `E2E_SKIP_BUILD=1`, e.g. CI when `.next` is cached), then Playwright. The Playwright [web server](https://playwright.dev/docs/test-webserver) is **`next start` (production)**, not `next dev` — similar in spirit to [cal.com](https://github.com/calcom/cal.com/blob/main/playwright.config.ts) (`NEXT_PUBLIC_IS_E2E=1`, suppressed web-server logs), but with **short default timeouts** so tests fail fast. Set `PLAYWRIGHT_SLOW=1` for long local waits while debugging. To only run the browser tests (after you have built and can start the app yourself), use `npm run e2e`.
+
 ### Storybook
 
 Storybook is configured for UI component development and testing. The project uses Storybook with Next.js and Vite integration, including accessibility testing and documentation features.

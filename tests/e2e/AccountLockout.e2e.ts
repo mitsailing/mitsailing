@@ -1,6 +1,7 @@
 import { faker } from '@faker-js/faker';
 import { expect, test } from '@playwright/test';
 import { Pool } from 'pg';
+import { formAlert } from '../helpers/e2e-alert';
 import {
   deleteAllMessages,
   extractLinkFromMessage,
@@ -111,7 +112,7 @@ test.describe('Account lockout', () => {
       await page.getByLabel('Email').fill(email);
       await page.getByLabel('Password').fill('definitely-not-the-password');
       await page.getByRole('button', { name: 'Sign in' }).click();
-      await expect(page.getByRole('alert')).toBeVisible();
+      await expect(formAlert(page)).toBeVisible();
     }
 
     // The lockout email arrives via Mailpit. Pattern matches the

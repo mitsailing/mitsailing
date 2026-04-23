@@ -173,6 +173,8 @@ jobs:
       # cannot reach host services).
       - name: Run E2E tests
         run: npm run test:e2e
+        env:
+          E2E_SKIP_BUILD: '1' # .next restored from the `build` job; cal.com also builds before e2e, not inside the e2e script
 
       - name: Fix test results permission # Give permissions to test results needed by Chromatic
         run: |

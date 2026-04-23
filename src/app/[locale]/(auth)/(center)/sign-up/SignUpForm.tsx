@@ -31,13 +31,15 @@ export function SignUpForm(props: SignUpFormProps) {
     code: string | undefined,
     message: string | undefined
   ): ErrorState {
-    if (code === 'EMAIL_EXISTS') {
+    // Better Auth may surface a code, a message, or both; hooks sometimes send
+    // a semantic string in `message` when `code` is absent.
+    if (code === 'EMAIL_EXISTS' || message === 'EMAIL_EXISTS') {
       return { message: t('error_exists'), showSignInLinks: true };
     }
-    if (code === 'PASSWORD_COMPROMISED') {
+    if (code === 'PASSWORD_COMPROMISED' || message === 'PASSWORD_COMPROMISED') {
       return { message: t('error_pwned'), showSignInLinks: false };
     }
-    if (code === 'TOO_MANY_REQUESTS') {
+    if (code === 'TOO_MANY_REQUESTS' || message === 'TOO_MANY_REQUESTS') {
       return { message: t('error_rate_limited'), showSignInLinks: false };
     }
     return {

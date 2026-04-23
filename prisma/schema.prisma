@@ -13,13 +13,6 @@ datasource db {
   provider = "postgresql"
 }
 
-model Counter {
-  id        Int      @id @default(autoincrement())
-  count     Int      @default(0)
-  updatedAt DateTime @updatedAt @map("updated_at")
-  createdAt DateTime @default(now()) @map("created_at")
-}
-
 model User {
   id               String   @id
   name             String
