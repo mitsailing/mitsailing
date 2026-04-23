@@ -2,5 +2,4 @@
 
 @import './mit-fonts.css';
 @import 'tailwindcss';
-@source '../**/*.{ts,tsx}';
 @import './mit-theme.css';

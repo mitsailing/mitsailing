@@ -88,7 +88,7 @@ export async function findLatestMessageTo(
       // Mailpit's API is well-known and the test helper is the narrowest
       // possible consumer, so we accept the cast rather than pulling in a
       // runtime validator for two shapes.
-      // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- Mailpit response shape is fixed in tests
       const list = (await listResponse.json()) as MailpitListResponse;
 
       const [summary] = list.messages;
@@ -96,7 +96,7 @@ export async function findLatestMessageTo(
         const detailResponse = await mailpitFetch(
           `/api/v1/message/${summary.ID}`
         );
-        // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- same as list JSON above
         return (await detailResponse.json()) as MailpitMessage;
       }
     } catch (error) {

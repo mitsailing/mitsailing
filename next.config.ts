@@ -20,6 +20,20 @@ const baseConfig: NextConfig = {
   outputFileTracingIncludes: {
     '/': ['./prisma/migrations/**/*'],
   },
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'mitsailing.com',
+        pathname: '/**',
+      },
+    ],
+  },
 };
 
 // Initialize the Next-Intl plugin

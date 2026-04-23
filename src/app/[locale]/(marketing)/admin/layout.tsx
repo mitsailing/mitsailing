@@ -11,7 +11,10 @@ export default async function AdminSectionLayout(props: {
     namespace: 'MitSailingRoutes',
   });
   return (
-    <SiteSectionShell locale={locale} sectionTitle={t('section_admin')}>
+    <SiteSectionShell
+      locale={locale}
+      segments={[{ label: t('section_admin') }]}
+    >
       {props.children}
     </SiteSectionShell>
   );

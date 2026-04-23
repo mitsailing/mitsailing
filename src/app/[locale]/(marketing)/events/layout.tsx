@@ -11,7 +11,10 @@ export default async function EventsSectionLayout(props: {
     namespace: 'MitSailingRoutes',
   });
   return (
-    <SiteSectionShell locale={locale} sectionTitle={t('section_events')}>
+    <SiteSectionShell
+      locale={locale}
+      segments={[{ label: t('section_events') }]}
+    >
       {props.children}
     </SiteSectionShell>
   );

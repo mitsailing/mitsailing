@@ -4,6 +4,7 @@ import type { Options } from '@node-rs/argon2';
 import { hash } from '@node-rs/argon2';
 import { Role } from '../src/libs/auth/roles';
 import { prisma } from '../src/libs/DB';
+import { seedMitSailing } from './seedMitSailing/index';
 
 const argonOpts: Options = {
   memoryCost: 65_536,
@@ -19,6 +20,8 @@ const argonOpts: Options = {
  * `credential`) alongside the matching User. Run: `npx prisma db seed`
  */
 async function main() {
+  await seedMitSailing();
+
   const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
   const password = process.env.ADMIN_PASSWORD;
 

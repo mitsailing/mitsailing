@@ -11,7 +11,10 @@ export default async function FleetSectionLayout(props: {
     namespace: 'MitSailingRoutes',
   });
   return (
-    <SiteSectionShell locale={locale} sectionTitle={t('section_fleet')}>
+    <SiteSectionShell
+      locale={locale}
+      segments={[{ label: t('section_fleet') }]}
+    >
       {props.children}
     </SiteSectionShell>
   );

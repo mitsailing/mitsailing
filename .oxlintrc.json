@@ -32,5 +32,21 @@
   },
   "options": {
     "reportUnusedDisableDirectives": "error"
-  }
+  },
+  "overrides": [
+    {
+      "files": ["src/data/mit-sailing/**"],
+      "rules": {
+        "jsdoc/require-param": "off",
+        "jsdoc/require-param-description": "off",
+        "jsdoc/require-returns": "off",
+        "jsdoc/require-returns-description": "off",
+        "no-use-before-define": "off",
+        "no-negated-condition": "off",
+        "@typescript-eslint/no-non-null-assertion": "off",
+        "unicorn/prefer-structured-clone": "off",
+        "complexity": "off"
+      }
+    }
+  ]
 }

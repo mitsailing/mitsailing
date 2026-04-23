@@ -11,7 +11,10 @@ export default async function ClassesSectionLayout(props: {
     namespace: 'MitSailingRoutes',
   });
   return (
-    <SiteSectionShell locale={locale} sectionTitle={t('section_classes')}>
+    <SiteSectionShell
+      locale={locale}
+      segments={[{ label: t('section_classes') }]}
+    >
       {props.children}
     </SiteSectionShell>
   );

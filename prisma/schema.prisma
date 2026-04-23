@@ -33,6 +33,11 @@ model User {
   accounts  Account[]
   auditLogs AuditLog[]
 
+  eventRegistrations EventRegistration[]
+  eventComments      EventComment[]
+  eventAdmins        EventAdmin[]
+  eventsCreated      Event[]            @relation("EventCreatedBy")
+
   @@map("user")
 }
 
@@ -115,4 +120,209 @@ model AuditLog {
   @@index([action])
   @@index([createdAt])
   @@map("audit_log")
+}
+
+// --- MIT Sailing domain (events, classes, fleet, about) ---
+
+model EventCategory {
+  id            String   @id
+  name          String
+  displayOrder  Int      @map("display_order")
+  isVisible     Boolean  @map("is_visible")
+  createdAt     DateTime @map("created_at")
+  events        Event[]
+
+  @@map("event_categories")
+}
+
+enum EventDetailPageKind {
+  standard
+  external
+}
+
+model Event {
+  id                   String                 @id
+  name                 String
+  shortName            String                 @map("short_name")
+  eventCategoryId      String                 @map("event_category_id")
+  description          String                 @db.Text
+  slug                 String                 @unique
+  isSpecial            Boolean                @map("is_special")
+  maxParticipants      Int?                   @map("max_participants")
+  requiresApproval     Boolean                @map("requires_approval")
+  registrationStart    DateTime?              @map("registration_start")
+  registrationEnd      DateTime?              @map("registration_end")
+  createdByUserId      String                 @map("created_by")
+  createdAt            DateTime               @map("created_at")
+  detailPageKind       EventDetailPageKind?   @map("detail_page_kind")
+  externalDetailUrl    String?                @map("external_detail_url")
+  internalNotes        String?                @map("internal_notes") @db.Text
+  isPublished          Boolean                @map("is_published")
+
+  category              EventCategory               @relation(fields: [eventCategoryId], references: [id], onDelete: Restrict)
+  createdBy             User                        @relation("EventCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  dates                 EventDate[]
+  admins                EventAdmin[]
+  registrations         EventRegistration[]
+  registrationQuestions EventRegistrationQuestion[]
+  entryFees             EventEntryFee[]
+  comments              EventComment[]
+
+  @@index([eventCategoryId])
+  @@index([createdByUserId])
+  @@map("events")
+}
+
+model EventDate {
+  id            String   @id
+  eventId       String   @map("event_id")
+  startDateTime DateTime @map("start_datetime")
+  endDateTime   DateTime @map("end_datetime")
+  event         Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@map("event_dates")
+}
+
+model EventAdmin {
+  id          String @id
+  eventId     String @map("event_id")
+  adminUserId String @map("admin_user_id")
+  event       Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  admin       User   @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@index([adminUserId])
+  @@map("event_admins")
+}
+
+enum EventRegistrationStatus {
+  pending
+  approved
+  cancelled
+}
+
+model EventRegistration {
+  id                       String                    @id
+  eventId                  String                    @map("event_id")
+  userId                   String                    @map("user_id")
+  status                   EventRegistrationStatus
+  createdAt                DateTime                  @map("created_at")
+  swimAgreementAcceptedAt  DateTime                  @map("swim_agreement_accepted_at")
+  event                    Event                     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user                     User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  registrationAnswers      EventRegistrationAnswer[]
+
+  @@index([eventId])
+  @@index([userId])
+  @@map("event_registrations")
+}
+
+enum EventAnswerType {
+  text
+  select
+  checkbox
+}
+
+model EventRegistrationQuestion {
+  id            String            @id
+  eventId       String            @map("event_id")
+  questionText  String            @map("question_text") @db.Text
+  answerType    EventAnswerType   @map("answer_type")
+  options       Json? // string[] for select
+  required      Boolean
+  displayOrder  Int               @map("display_order")
+  event         Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  answers       EventRegistrationAnswer[]
+
+  @@index([eventId])
+  @@map("event_registration_questions")
+}
+
+model EventRegistrationAnswer {
+  id             String                  @id
+  registrationId String                  @map("registration_id")
+  questionId     String                  @map("question_id")
+  value          String                  @db.Text
+  registration   EventRegistration       @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  question       EventRegistrationQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([registrationId])
+  @@index([questionId])
+  @@map("event_registration_answers")
+}
+
+model EventEntryFee {
+  id          String @id
+  eventId     String @map("event_id")
+  description String
+  amountCents Int    @map("amount_cents")
+  isDeposit   Boolean @map("is_deposit")
+  event       Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@map("event_entry_fees")
+}
+
+model EventComment {
+  id        String  @id
+  eventId   String  @map("event_id")
+  parentId  String? @map("parent_id")
+  userId    String  @map("user_id")
+  body      String  @db.Text
+  createdAt DateTime @map("created_at")
+  event     Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent    EventComment?  @relation("EventCommentThread", fields: [parentId], references: [id], onDelete: SetNull)
+  children  EventComment[] @relation("EventCommentThread")
+
+  @@index([eventId])
+  @@index([userId])
+  @@index([parentId])
+  @@map("event_comments")
+}
+
+model SailingClass {
+  id                String      @id
+  name              String
+  slug              String      @unique
+  /** Values from seed: introduction, windsurfing, intro to racing, etc. */
+  category          String
+  level             String
+  description       String      @db.Text
+  prerequisiteIds   String[]    @map("prerequisite_ids")
+  relatedEventIds   String[]    @map("related_event_ids")
+  unlockedBoatIds   String[]    @map("unlocked_boat_ids")
+  fleetBoats        FleetBoat[]
+
+  @@map("sailing_classes")
+}
+
+model FleetBoat {
+  id                String        @id
+  name              String
+  slug              String        @unique
+  type              String
+  capacity          Int
+  requiredClassId   String        @map("required_class_id")
+  description       String        @db.Text
+  imagePaths        String[]      @map("image_paths")
+  requiredClass     SailingClass  @relation(fields: [requiredClassId], references: [id], onDelete: Restrict)
+
+  @@index([requiredClassId])
+  @@map("fleet_boats")
+}
+
+model StaffMember {
+  id          String  @id
+  slug        String  @unique
+  name        String
+  role        String
+  bio         String? @db.Text
+  fullBio     Json
+  imageSrc    String? @map("image_src")
+  imageAlt    String? @map("image_alt")
+  email       String
+
+  @@map("staff_members")
 }

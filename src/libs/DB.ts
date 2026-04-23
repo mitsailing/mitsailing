@@ -25,7 +25,7 @@ function createPrisma(): PrismaClient {
     });
 
     // Accelerate extends the generated client with the same model surface we rely on.
-    // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- Accelerate wraps PrismaClient for prisma+postgres URLs (Prisma docs)
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- Accelerate wraps the client; double cast matches Prisma docs for prisma+ URLs
     return client.$extends(withAccelerate()) as unknown as PrismaClient;
   }
 

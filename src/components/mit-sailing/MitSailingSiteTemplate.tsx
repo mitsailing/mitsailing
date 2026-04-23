@@ -1,63 +1,38 @@
-'use client';
-
-import { useTranslations } from 'next-intl';
-import { AppConfig } from '@/utils/AppConfig';
+import { FLEET_BOATS } from '@/data/mit-sailing/classesFleetSeed';
+import type { NavigationDropdownItem } from './site/NavigationDropdown';
+import { SiteConditionsBar } from './site/SiteConditionsBar';
+import { SiteFooter } from './site/SiteFooter';
+import { SiteHeader } from './site/SiteHeader';
 
 type MitSailingSiteTemplateProps = {
-  leftNav: React.ReactNode;
-  rightNav?: React.ReactNode;
   children: React.ReactNode;
 };
 
 /**
- * Public + signed-in site chrome (replaces the boilerplate {@link BaseTemplate} for MIT Sailing).
+ * Public + signed-in site chrome (mit-redesign parity).
+ *
+ * Renders the conditions bar, sticky header, main content, and dark footer
+ * around `children` so every page gets the same shell.
  *
  * @param props - Template props
- * @param props.leftNav - Main navigation column (usually list items)
- * @param props.rightNav - Optional account / sign-in column
- * @param props.children - Main content
- * @returns Full-page shell with header, main, and footer
+ * @param props.children - Main page content
+ * @returns Full-page shell
  */
-export function MitSailingSiteTemplate({
-  leftNav,
-  rightNav,
-  children,
-}: MitSailingSiteTemplateProps) {
-  const t = useTranslations('MitSailingLayout');
+export function MitSailingSiteTemplate(props: MitSailingSiteTemplateProps) {
+  const fleetDropdownItems: NavigationDropdownItem[] = FLEET_BOATS.map(
+    (boat) => ({
+      label: boat.name,
+      href: `/fleet/${boat.slug}/`,
+      description: boat.type,
+    })
+  );
 
   return (
-    <div className="w-full text-slate-800 antialiased">
-      <div className="mx-auto max-w-3xl px-1">
-        <header className="border-b border-slate-200">
-          <div className="pt-10 pb-6">
-            <h1 className="text-2xl font-semibold text-slate-900">
-              {AppConfig.name}
-            </h1>
-            <p className="text-base text-slate-600">{t('site_tagline')}</p>
-          </div>
-
-          <div className="flex justify-between gap-4">
-            <nav aria-label={t('main_nav_aria')}>
-              <ul className="flex flex-wrap gap-x-4 gap-y-1 text-base">
-                {leftNav}
-              </ul>
-            </nav>
-            {rightNav ? (
-              <nav aria-label={t('utility_nav_aria')}>
-                <ul className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-base">
-                  {rightNav}
-                </ul>
-              </nav>
-            ) : null}
-          </div>
-        </header>
-
-        <main className="py-6 text-base leading-relaxed">{children}</main>
-
-        <footer className="mt-8 border-t border-slate-200 py-6 text-center text-sm text-slate-600">
-          {t('footer_legal', { year: new Date().getFullYear() })}
-        </footer>
-      </div>
+    <div className="flex min-h-screen flex-col bg-white font-mit-sans text-mit-text">
+      <SiteConditionsBar />
+      <SiteHeader fleetDropdownItems={fleetDropdownItems} />
+      <main className="flex-1">{props.children}</main>
+      <SiteFooter />
     </div>
   );
 }

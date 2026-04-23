@@ -52,3 +52,18 @@ export function formatEasternEventRange(start: Date, end: Date): string {
 export function formatEasternDateTime(d: Date): string {
   return `${fullDateFormatter.format(d)} ${timeOnlyFormatter.format(d)} ET`;
 }
+
+/**
+ * Compact time line for home sidebar rows when start and end share a calendar day
+ * in Eastern; otherwise the full `formatEasternEventRange` string.
+ *
+ * @param start - Event start
+ * @param end - Event end
+ * @returns Time range, or a full date+time line when the event spans NY days
+ */
+export function formatEasternSameDayTimeRange(start: Date, end: Date): string {
+  if (formatNyDateKey(start) !== formatNyDateKey(end)) {
+    return formatEasternEventRange(start, end);
+  }
+  return `${timeOnlyFormatter.format(start)} – ${timeOnlyFormatter.format(end)} ET`;
+}
