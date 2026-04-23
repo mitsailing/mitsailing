@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main]
 
+# Required by `src/libs/Env.ts` when Next.js config and tests load the app.
+env:
+  AUTH_SECRET: ci-placeholder-auth-secret-min-32-chars-long!!
+  DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:51214/postgres?sslmode=disable
+
 jobs:
   build:
     strategy:
@@ -159,9 +164,6 @@ jobs:
         uses: docker://mcr.microsoft.com/playwright:v1.58.2
         with:
           args: sh -c "HOME=/root npm run test:e2e" # Set HOME to /root to avoid Playwright error with Firebox
-        env:
-          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
-
       - name: Fix test results permission # Give permissions to test results needed by Chromatic
         run: |
           sudo chmod -R 777 test-results

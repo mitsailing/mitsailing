@@ -1,17 +1,18 @@
-import { currentUser } from '@clerk/nextjs/server';
 import { getTranslations } from 'next-intl/server';
+import { getCurrentUser } from '@/libs/auth/dal';
 import { Sponsors } from './Sponsors';
 
 export const Hello = async () => {
-  const t = await getTranslations('Dashboard');
-  const user = await currentUser();
+  const t = await getTranslations('DashboardPage');
+  const user = await getCurrentUser();
+  const email = user?.email ?? '';
 
   return (
     <>
       <p>
         {`👋 `}
         {t('hello_message', {
-          email: user?.primaryEmailAddress?.emailAddress ?? '',
+          email,
         })}
       </p>
       <p>

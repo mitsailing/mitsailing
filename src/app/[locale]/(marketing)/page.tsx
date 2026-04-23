@@ -62,13 +62,13 @@ export default async function Index(props: IndexPageProps) {
           🔒 Authentication with{' '}
           <a
             className="font-bold text-blue-700 hover:border-b-2 hover:border-blue-700"
-            href="https://clerk.com?utm_source=github&amp;utm_medium=sponsorship&amp;utm_campaign=nextjs-boilerplate"
+            href="https://authjs.dev"
           >
-            Clerk
+            Auth.js
           </a>{' '}
-          (includes passwordless, social, and multi-factor auth)
+          (email and password with verification and secure sessions)
         </li>
-        <li>📦 ORM with DrizzleORM (PostgreSQL, SQLite, MySQL support)</li>
+        <li>📦 Database with Prisma ORM (PostgreSQL)</li>
         <li>
           💽 Dev database with PGlite and production with{' '}
           <a

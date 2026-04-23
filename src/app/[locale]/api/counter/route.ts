@@ -1,10 +1,8 @@
-import { sql } from 'drizzle-orm';
 import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import * as z from 'zod';
-import { db } from '@/libs/DB';
+import { prisma } from '@/libs/DB';
 import { logger } from '@/libs/Logger';
-import { counterSchema } from '@/models/Schema';
 import { CounterValidation } from '@/validations/CounterValidation';
 
 export const PUT = async (request: Request) => {
@@ -20,18 +18,26 @@ export const PUT = async (request: Request) => {
   const headersList = await headers();
   const id = Number(headersList.get('x-e2e-random-id')) || 0;
 
-  const count = await db
-    .insert(counterSchema)
-    .values({ id, count: parse.data.increment })
-    .onConflictDoUpdate({
-      target: counterSchema.id,
-      set: { count: sql`${counterSchema.count} + ${parse.data.increment}` },
-    })
-    .returning();
+  const { increment } = parse.data;
+
+  const row = await prisma.counter.upsert({
+    where: { id },
+    create: {
+      id,
+      count: increment,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    update: {
+      count: {
+        increment,
+      },
+    },
+  });
 
   logger.info('Counter has been incremented');
 
   return NextResponse.json({
-    count: count[0]?.count,
+    count: row.count,
   });
 };

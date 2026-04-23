@@ -52,29 +52,175 @@
     "content": "Created a set of promotional materials and branding elements for a corporate event. Crafted a visually unified theme, encompassing a logo, posters, banners, and digital assets. Integrated the client's brand identity while infusing it with a contemporary and innovative approach.",
     "code_review_powered_by": "Code review powered by"
   },
-  "SignIn": {
+  "SignInPage": {
     "meta_title": "Sign in",
-    "meta_description": "Seamlessly sign in to your account with our user-friendly login process."
+    "meta_description": "Seamlessly sign in to your account with our user-friendly login process.",
+    "heading": "Sign in",
+    "email_label": "Email",
+    "password_label": "Password",
+    "submit": "Sign in",
+    "forgot_password": "Forgot password?",
+    "no_account": "Need an account?",
+    "sign_up_link": "Sign up",
+    "error_credentials": "Invalid email or password.",
+    "error_locked": "Your account is temporarily locked. Use the unlock link from your email or wait for automatic unlock.",
+    "error_unverified": "Verify your email before signing in.",
+    "error_unverified_resent": "We sent a new confirmation link to that email. Check your inbox.",
+    "error_unverified_resend_link": "Resend confirmation email",
+    "error_unverified_support": "Still stuck? Contact <support>support@mitsailing.com</support>.",
+    "error_rate_limited": "Too many attempts. Try again in a few minutes.",
+    "verification_error": "That confirmation link is invalid or has expired. Sign in to request a new one.",
+    "unlock_invalid_error": "That unlock link is invalid or has expired. Wait for the automatic unlock or try again.",
+    "verified_banner": "Your email is verified. You can sign in.",
+    "reset_banner": "Your password was reset. Sign in with your new password.",
+    "unlocked_banner": "Your account is unlocked. You can sign in."
   },
-  "SignUp": {
+  "SignUpPage": {
     "meta_title": "Sign up",
-    "meta_description": "Effortlessly create an account through our intuitive sign-up process."
+    "meta_description": "Effortlessly create an account through our intuitive sign-up process.",
+    "heading": "Create account",
+    "name_label": "Name (optional)",
+    "email_label": "Email",
+    "password_label": "Password",
+    "password_confirmation_label": "Confirm password",
+    "password_hint": "At least 8 characters.",
+    "submit": "Sign up",
+    "have_account": "Already have an account?",
+    "sign_in_link": "Sign in",
+    "forgot_password_link": "Reset password",
+    "registered_banner": "Check your email to confirm your address before signing in.",
+    "error_generic": "Something went wrong.",
+    "error_exists": "That email is already in the system.",
+    "error_pwned": "That password has appeared in a known data breach. Choose a different one.",
+    "error_password_mismatch": "Passwords do not match.",
+    "error_rate_limited": "Too many sign-up attempts. Try again in a few minutes."
   },
-  "Dashboard": {
+  "VerifyEmailPage": {
+    "heading": "Email verification",
+    "pending_body": "Click the link in your email to confirm your address. This page will redirect you after verification.",
+    "error_body": "This verification link is invalid or has expired. Sign in to request a new one.",
+    "expiry_note": "Confirmation links expire in 1 hour. If yours stopped working, sign in to request a new one, or contact <support>support@mitsailing.com</support> if you never received it.",
+    "back_sign_in": "Back to sign in"
+  },
+  "UnlockAccountPage": {
+    "heading": "Account locked",
+    "body": "Your account is temporarily locked after too many failed sign-in attempts. It will unlock automatically after 15 minutes.",
+    "back_sign_in": "Back to sign in"
+  },
+  "ForgotPasswordPage": {
+    "meta_title": "Forgot password",
+    "meta_description": "Request a password reset link.",
+    "heading": "Reset password",
+    "email_label": "Email",
+    "submit": "Send reset link",
+    "sent_banner": "If an account exists for this email, you will receive a reset link shortly.",
+    "back_sign_in": "Back to sign in"
+  },
+  "ResetPasswordPage": {
+    "meta_title": "Set new password",
+    "meta_description": "Choose a new password for your account.",
+    "heading": "New password",
+    "password_label": "New password",
+    "password_confirmation_label": "Confirm new password",
+    "password_hint": "At least 8 characters.",
+    "submit": "Update password",
+    "error_validation": "Check your password and try again.",
+    "error_pwned": "That password has appeared in a known data breach. Choose a different one.",
+    "error_password_mismatch": "Passwords do not match.",
+    "error_rate_limited": "Too many requests. Try again in a few minutes.",
+    "invalid_token": "This reset link is invalid or has expired. Request a new one.",
+    "request_new_link": "Request a new reset link"
+  },
+  "DashboardPage": {
     "meta_title": "Dashboard",
     "hello_message": "Hello {email}!",
     "alternative_message": "Need advanced features? Multi-tenancy & Teams, Roles & Permissions, Shadcn UI, End-to-End Typesafety with oRPC, Stripe Payment, Light / Dark mode. Try <url></url>.",
     "max_message": "Or, need a Self-hosted auth stack (Better Auth)? Try <url></url>."
   },
-  "UserProfile": {
-    "meta_title": "User Profile"
+  "UserProfilePage": {
+    "meta_title": "User Profile",
+    "meta_description": "Your account details.",
+    "heading": "Your profile",
+    "email": "Email",
+    "name": "Name",
+    "password_hint_forgot": "If you are signed out, you can still reset your password with the link below.",
+    "reset_password_link": "Forgot password",
+    "change_email_heading": "Change email",
+    "new_email_label": "New email",
+    "change_email_submit": "Send confirmation link",
+    "email_change_sent": "Confirmation link sent. The change takes effect after you click it.",
+    "email_change_confirmed": "Your email address has been updated.",
+    "email_change_error_banner": "That confirmation link is invalid or has expired. Send a new one below.",
+    "email_exists_error": "That email is already in the system.",
+    "email_same_error": "That is already your login email.",
+    "email_invalid_password_error": "The password you entered is incorrect.",
+    "email_rate_limited_error": "Too many email change requests. Try again in a bit.",
+    "email_validation_error": "Check the email address and try again.",
+    "pending_email_label": "Pending email",
+    "pending_email_body": "A confirmation link was sent to <strong>{email}</strong>. The change takes effect after you click it. Submitting a different address below replaces this pending change.",
+    "pending_email_resend": "Resend confirmation link",
+    "pending_email_resent": "New confirmation link sent to <strong>{email}</strong>.",
+    "pending_email_resend_error": "Could not resend the confirmation link. Try again in a bit.",
+    "pending_email_support": "Did not receive it? Contact <support>support@mitsailing.com</support>.",
+    "change_password_heading": "Change password",
+    "current_password_label": "Current password",
+    "new_password_label": "New password",
+    "new_password_confirmation_label": "Confirm new password",
+    "new_password_hint": "At least 8 characters.",
+    "change_password_submit": "Update password",
+    "password_changed": "Your password was updated.",
+    "password_change_error": "Check your current password and try again.",
+    "password_pwned_error": "That password has appeared in a known data breach. Choose a different one.",
+    "password_invalid_error": "The current password you entered is incorrect.",
+    "password_rate_limited": "Too many password change attempts. Try again in a bit.",
+    "password_mismatch_error": "New passwords do not match.",
+    "sign_out_all_heading": "Sign out everywhere",
+    "sign_out_all_description": "Revoke every other session signed in to this account.",
+    "sign_out_all_submit": "Sign out of other devices",
+    "sign_out_all_success": "Other sessions have been signed out.",
+    "sign_out_all_error": "Could not revoke other sessions. Try again.",
+    "delete_pending": "Check your email to confirm account deletion.",
+    "delete_account_heading": "Delete account",
+    "delete_account_description": "This permanently deletes your account and all associated data. This cannot be undone.",
+    "delete_confirm_label": "Type DELETE to confirm",
+    "delete_account_submit": "Delete my account",
+    "delete_invalid_password_error": "The password you entered is incorrect.",
+    "delete_validation_error": "Check the confirmation field and try again.",
+    "delete_rate_limited_error": "Too many delete-account attempts. Try again in a bit."
   },
   "DashboardLayout": {
     "dashboard_link": "Dashboard",
     "user_profile_link": "Manage your account",
-    "sign_out": "Sign out"
+    "admin_link": "Admin",
+    "sign_out": "Sign out",
+    "impersonation_notice": "You are viewing the dashboard as another user.",
+    "impersonation_exit": "Exit impersonation"
   },
-  "LocaleSwitcher": {
-    "change_language": "Change language"
+  "AuthEmails": {
+    "verify_subject": "Confirm your email",
+    "reset_password_subject": "Reset your password",
+    "change_email_subject": "Confirm your new email address",
+    "delete_account_subject": "Confirm account deletion",
+    "account_locked_subject": "Your account was temporarily locked",
+    "password_changed_subject": "Your password was changed"
+  },
+  "AuthErrors": {
+    "EMAIL_EXISTS": "That email is already in the system.",
+    "ACCOUNT_LOCKED": "Too many failed sign-in attempts. Your account is locked for 15 minutes.",
+    "INVALID_EMAIL_OR_PASSWORD": "Invalid email or password.",
+    "EMAIL_NOT_VERIFIED": "Verify your email before signing in.",
+    "PASSWORD_COMPROMISED": "That password has appeared in a known data breach. Choose a different one.",
+    "BANNED_USER_MESSAGE": "Your account has been disabled. Contact support if you believe this is an error."
+  },
+  "AdminPage": {
+    "meta_title": "Admin",
+    "meta_description": "Administration and user impersonation.",
+    "heading": "Administration",
+    "description": "Impersonate a user to see the app as they do. Use with care; all actions apply to the target account.",
+    "users_heading": "Users",
+    "impersonate": "View as user",
+    "you": "You",
+    "impersonate_error": "Could not start impersonation for that user.",
+    "role_user_default": "user"
   }
 }

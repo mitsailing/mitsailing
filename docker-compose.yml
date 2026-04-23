@@ -1,0 +1,62 @@
+# Local dev/test infra. Keep close to production: real PostgreSQL (not PGLite
+# or embedded variants) so ORM behavior, SQL errors, and migration output
+# match what we deploy. A single container serves both `dev_db` and `test_db`
+# on the standard port 5432 to minimize cognitive overhead.
+#
+# Mailpit is the 2026 standard "catch-all SMTP" for local work — it accepts
+# mail on 1025, exposes a UI + REST API on 8025 that our Playwright helpers
+# read to assert on outbound email content. In production Resend stays in
+# charge via RESEND_API_KEY; when SMTP_URL is set (as it is here via .env),
+# the transport prefers SMTP so Mailpit gets every dev/test message.
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: nextjs-boilerplate-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: dev_db
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d dev_db']
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: nextjs-boilerplate-mailpit
+    restart: unless-stopped
+    ports:
+      - '1025:1025' # SMTP
+      - '8025:8025' # Web UI + REST API
+    environment:
+      MP_MAX_MESSAGES: '5000'
+      MP_DATABASE: /data/mailpit.db
+      MP_SMTP_AUTH_ACCEPT_ANY: '1'
+      MP_SMTP_AUTH_ALLOW_INSECURE: '1'
+    volumes:
+      - mailpit_data:/data
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'wget',
+          '--quiet',
+          '--tries=1',
+          '--spider',
+          'http://localhost:8025/readyz',
+        ]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  postgres_data:
+  mailpit_data:

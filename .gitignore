@@ -32,8 +32,11 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# local env files
-.env*.local
+# local env files — committed only when suffixed `.example`
+.env
+.env.*
+!.env.example
+!.env.*.example
 
 # Sentry Config File
 .env.sentry-build-plugin
@@ -50,6 +53,9 @@ next-env.d.ts
 
 # Database
 *.db
+
+# Prisma 7 — generated client (see `postinstall`: `prisma generate`)
+/src/generated/
 
 # storybook
 storybook-static

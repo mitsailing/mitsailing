@@ -11,7 +11,6 @@ const config: KnipConfig = {
   // Dependencies to ignore during analysis
   ignoreDependencies: [
     '@commitlint/types',
-    '@clerk/shared',
     '@swc/helpers', // Avoid error in CI: "`npm ci` can only install packages when your package.json and package-lock.json or npm-shrinkwrap.json are in sync."
     'oxfmt',
     'oxlint-tsgolint',
