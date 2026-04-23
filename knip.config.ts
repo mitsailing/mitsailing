@@ -8,6 +8,8 @@ const config: KnipConfig = {
     'src/types/I18n.ts',
     'tests/**/*.ts',
     'mit-redesign/**',
+    // Catalog + time helpers: partially consumed by prisma seed; getters/types fill in when UI is ported
+    'src/data/mit-sailing/**',
     'src/lib/mit-sailing/**',
   ],
   // Dependencies to ignore during analysis

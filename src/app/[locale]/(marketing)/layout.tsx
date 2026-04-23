@@ -38,6 +38,38 @@ export default async function Layout(props: {
             </li>
             <li>
               <Link
+                href="/events/"
+                className="border-none text-gray-700 hover:text-gray-900"
+              >
+                {t('events_link')}
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/classes/"
+                className="border-none text-gray-700 hover:text-gray-900"
+              >
+                {t('classes_link')}
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/fleet/"
+                className="border-none text-gray-700 hover:text-gray-900"
+              >
+                {t('fleet_link')}
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/contact/"
+                className="border-none text-gray-700 hover:text-gray-900"
+              >
+                {t('contact_link')}
+              </Link>
+            </li>
+            <li>
+              <Link
                 href="/portfolio/"
                 className="border-none text-gray-700 hover:text-gray-900"
               >
