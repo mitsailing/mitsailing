@@ -34,6 +34,11 @@ Tailwind v4 utility classes. Reuse shared components. Responsive. No unnecessary
 - Use `React.ReactNode`, not `ReactNode`.
 - Inline short event handlers; extract only when complex.
 
+## Next.js (Node server, not serverless)
+- Production is **`output: 'standalone'`**; expect a **long-lived Node** process. Prefer RSC and server data access; do not use `runtime: 'edge'` for Prisma/pg routes.
+- Prisma is a **singleton** per worker in [DB.ts](src/libs/DB.ts); size `pg` pool for dedicated Postgres, not serverless cold starts.
+- Avoid app-wide `force-dynamic`; use segment `revalidate`, `cache()` / `unstable_cache`, and `revalidatePath` after Server Actions. See `.cursor/rules/nextjs-node-server-2026.mdc` for full guidance.
+
 ## Pages
 - Default export name ends with `Page`. Props alias (if reused) ends with `PageProps`.
 - Locale pages: `props: { params: Promise<{ locale: string }> }` → `await props.params` → `setRequestLocale(locale)`.

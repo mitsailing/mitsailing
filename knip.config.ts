@@ -7,6 +7,8 @@ const config: KnipConfig = {
     'src/libs/I18n.ts',
     'src/types/I18n.ts',
     'tests/**/*.ts',
+    'mit-redesign/**',
+    'src/lib/mit-sailing/**',
   ],
   // Dependencies to ignore during analysis
   ignoreDependencies: [

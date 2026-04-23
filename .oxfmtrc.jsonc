@@ -20,7 +20,7 @@
   "tabWidth": 2,
   "trailingComma": "es5",
   "useTabs": false,
-  "ignorePatterns": ["migrations/*", "*.md"],
+  "ignorePatterns": ["migrations/*", "mit-redesign/**", "*.md"],
   "sortTailwindcss": {
     "stylesheet": "src/styles/global.css"
   },

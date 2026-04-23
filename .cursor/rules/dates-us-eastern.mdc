@@ -1,0 +1,23 @@
+---
+description: Format and interpret dates/times in US Eastern (America/New_York) for pavilion UI and event data.
+globs: src/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Dates and times — US Eastern
+
+For **user-visible dates and times** in this repo (events, “today” logic, seed data meant to read as Pavilion-local), treat **US Eastern** as canonical.
+
+## Implementation
+
+- Use IANA **`America/New_York`** (see `EVENTS_TIME_ZONE` in [`src/lib/mit-sailing/nyTime.ts`](src/lib/mit-sailing/nyTime.ts) when present) for formatting and **calendar-day** comparisons in that context.
+- **Do not** use the viewer’s local time zone for those surfaces unless the product explicitly requires it.
+
+## EST vs EDT
+
+- Do not hard-code a single “EST” UTC offset year-round. Use **`America/New_York`** so EST and EDT apply correctly.
+- **`ET`** is fine as a display suffix; avoid promising “EST” during daylight saving.
+
+## Seed data
+
+- Store instants as **ISO 8601**; derive display with `America/New_York` via `Intl` or shared helpers.

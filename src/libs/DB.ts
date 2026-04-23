@@ -35,11 +35,9 @@ function createPrisma(): PrismaClient {
       connectionString: Env.DATABASE_URL,
     });
 
-  const adapter = new PrismaPg(pool);
+  globalThis.cachedPool = pool;
 
-  if (Env.NODE_ENV !== 'production') {
-    globalThis.cachedPool = pool;
-  }
+  const adapter = new PrismaPg(pool);
 
   return new PrismaClient({
     adapter,
@@ -48,9 +46,6 @@ function createPrisma(): PrismaClient {
 }
 
 const prisma = globalThis.cachedPrisma ?? createPrisma();
-
-if (Env.NODE_ENV !== 'production') {
-  globalThis.cachedPrisma = prisma;
-}
+globalThis.cachedPrisma = prisma;
 
 export { prisma };
