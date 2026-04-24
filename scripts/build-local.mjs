@@ -13,7 +13,7 @@ loadEnv({ path: '.env', override: false, quiet: true });
 // with `npm run db:down` when you're done.
 execSync('npm run db:up', { stdio: 'inherit', shell: true });
 
-const pgPort = process.env.POSTGRES_PUBLISH_PORT || '5432';
+const pgPort = process.env.POSTGRES_PUBLISH_PORT ?? '5432';
 await waitOn({
   resources: [`tcp:127.0.0.1:${pgPort}`],
   timeout: 60_000,

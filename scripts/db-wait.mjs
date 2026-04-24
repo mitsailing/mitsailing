@@ -9,7 +9,7 @@ import waitOn from 'wait-on';
 loadEnv({ path: '.env.local', override: false, quiet: true });
 loadEnv({ path: '.env', override: false, quiet: true });
 
-const port = process.env.POSTGRES_PUBLISH_PORT || '5432';
+const port = process.env.POSTGRES_PUBLISH_PORT ?? '5432';
 
 await waitOn({
   resources: [`tcp:127.0.0.1:${port}`],

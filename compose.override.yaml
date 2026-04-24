@@ -15,15 +15,15 @@ services:
     ports:
       # Host port defaults to 5432; override via POSTGRES_PUBLISH_PORT in `.env`
       # when another Postgres already owns 5432 (Homebrew, another container).
-      - "${POSTGRES_PUBLISH_PORT:-5432}:5432"
+      - '${POSTGRES_PUBLISH_PORT:-5432}:5432'
 
   mailpit:
     image: axllent/mailpit:latest
     restart: unless-stopped
     ports:
       # Container keeps 1025/8025; host side overridable when 1025/8025 are taken.
-      - "${MAILPIT_SMTP_PUBLISH_PORT:-1025}:1025"
-      - "${MAILPIT_HTTP_PUBLISH_PORT:-8025}:8025"
+      - '${MAILPIT_SMTP_PUBLISH_PORT:-1025}:1025'
+      - '${MAILPIT_HTTP_PUBLISH_PORT:-8025}:8025'
     environment:
       MP_MAX_MESSAGES: '5000'
       MP_DATABASE: /data/mailpit.db
