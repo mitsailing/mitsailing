@@ -15,7 +15,9 @@ import {
   useRef,
   useState,
 } from 'react';
+import { Button } from '@/components/ui/button';
 import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
+import { cn } from '@/lib/utils';
 import { Link } from '@/libs/I18nNavigation';
 
 /**
@@ -23,7 +25,8 @@ import { Link } from '@/libs/I18nNavigation';
  *
  * Follows the W3C APG "Disclosure Navigation Menu" pattern
  * (https://www.w3.org/WAI/ARIA/apg/patterns/disclosure/examples/disclosure-navigation/):
- * the trigger is a `<button>` with `aria-expanded` / `aria-controls`, and the
+ * the trigger is a disclosure control (`Button`) with `aria-expanded` /
+ * `aria-controls`, and the
  * panel is a plain list of links (no `role="menu"` because these are site-nav
  * links, not commands).
  */
@@ -313,20 +316,23 @@ export function NavigationDropdown(props: NavigationDropdownProps) {
   };
 
   const trigger = (
-    <button
+    <Button
       aria-controls={panelId}
       aria-expanded={isOpen}
       aria-haspopup="true"
-      className={`${
+      className={cn(
         variant === 'desktop'
           ? 'inline-flex min-h-[44px] items-center gap-1 px-1'
-          : 'flex min-h-[44px] w-full items-center justify-between py-3'
-      } text-sm font-medium text-mit-text transition-opacity hover:opacity-70 ${textFocusRingClassName}`}
+          : 'flex min-h-[44px] w-full items-center justify-between py-3',
+        'rounded-sm text-sm font-medium text-mit-text shadow-none transition-opacity hover:bg-transparent hover:opacity-70',
+        textFocusRingClassName
+      )}
       id={triggerId}
       onClick={toggle}
       onKeyDown={onTriggerKeyDown}
       ref={triggerRef}
       type="button"
+      variant="ghost"
     >
       <span>{label}</span>
       <ChevronDown
@@ -334,7 +340,7 @@ export function NavigationDropdown(props: NavigationDropdownProps) {
         className={`shrink-0 transition-transform duration-150 ease-out${isOpen ? ' rotate-180' : ''}`}
         size={16}
       />
-    </button>
+    </Button>
   );
 
   if (variant === 'mobile') {

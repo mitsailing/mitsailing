@@ -33,7 +33,11 @@ export const footerSocialIconButtonClassName = [
 /** In-content red links (sidebar events, “View all”, class CTAs). */
 export const mitAccentLinkClassName = 'text-sm font-semibold text-mit-red';
 
-/** Primary submit buttons on auth forms (login, signup, password reset). */
+/**
+ * @deprecated Prefer [`Button`](src/components/ui/button.tsx) with
+ * `variant="default"` — `--primary` in `mit-theme.css` matches MIT crimson.
+ * Kept for rare class-only composition outside React.
+ */
 export const authPrimaryButtonClassName = [
   'rounded-md bg-mit-red px-4 py-2 font-medium text-white',
   'hover:bg-mit-red-hover disabled:opacity-60',

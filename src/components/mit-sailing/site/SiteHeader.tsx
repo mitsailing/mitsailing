@@ -4,6 +4,7 @@ import { Menu, X } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 import { SignOutForm } from '@/components/auth/SignOutForm';
+import { Button } from '@/components/ui/button';
 import { authClient } from '@/libs/auth-client';
 import { Link } from '@/libs/I18nNavigation';
 import type { NavigationDropdownItem } from './NavigationDropdown';
@@ -237,20 +238,22 @@ export function SiteHeader(props: SiteHeaderProps) {
           ) : null}
         </div>
 
-        <button
+        <Button
           aria-controls="site-header-mobile-menu"
           aria-expanded={mobileMenuOpen}
           aria-label={
             mobileMenuOpen ? t('a11y_close_menu') : t('a11y_open_menu')
           }
-          className="p-2 text-mit-text lg:hidden"
+          className="shrink-0 text-mit-text lg:hidden"
           onClick={() => {
             setMobileMenuOpen(!mobileMenuOpen);
           }}
+          size="icon"
           type="button"
+          variant="ghost"
         >
           {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
+        </Button>
       </div>
 
       {mobileMenuOpen ? (

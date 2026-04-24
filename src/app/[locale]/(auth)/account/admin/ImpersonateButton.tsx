@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { authClient } from '@/libs/auth-client';
 
 type ImpersonateButtonProps = {
@@ -10,9 +11,8 @@ type ImpersonateButtonProps = {
   redirectHref: string;
 };
 
-// Starts an admin-plugin impersonation session for the given user id. The
-// server issues a `Set-Cookie` on success, so we refresh the route after the
-// call to pick up the new session.
+// Client leaf for the server-rendered admin page: impersonation uses
+// `authClient` + router and must not force the whole route to `'use client'`.
 export function ImpersonateButton(props: ImpersonateButtonProps) {
   const t = useTranslations('AdminPage');
   const router = useRouter();
@@ -35,20 +35,22 @@ export function ImpersonateButton(props: ImpersonateButtonProps) {
   }
 
   return (
-    <>
+    <span className="inline-flex flex-wrap items-center gap-2">
       {error ? (
-        <span className="mr-2 text-xs text-red-700" role="alert">
+        <span className="text-xs text-red-700" role="alert">
           {error}
         </span>
       ) : null}
-      <button
-        className="rounded-md bg-amber-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-60"
+      <Button
+        aria-busy={submitting}
         disabled={submitting}
         onClick={onClick}
+        size="sm"
         type="button"
+        variant="default"
       >
         {t('impersonate')}
-      </button>
-    </>
+      </Button>
+    </span>
   );
 }

@@ -3,10 +3,8 @@
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import {
-  authInputClassName,
-  authPrimaryButtonClassName,
-} from '@/lib/mit-sailing/tokens';
+import { Button } from '@/components/ui/button';
+import { authInputClassName } from '@/lib/mit-sailing/tokens';
 import { authClient } from '@/libs/auth-client';
 import { isValidMarketingEmail } from '@/utils/emailValidation';
 
@@ -111,14 +109,15 @@ export function SignInForm(props: SignInFormProps) {
           {resent ? (
             <p className="text-red-900">{t('error_unverified_resent')}</p>
           ) : (
-            <button
-              className="font-medium text-red-900 underline disabled:opacity-60"
+            <Button
+              className="h-auto min-h-0 px-0 py-0 font-medium text-red-900 underline shadow-none hover:bg-transparent hover:text-red-950 hover:underline disabled:opacity-60"
               disabled={resending}
               onClick={onResendVerification}
               type="button"
+              variant="link"
             >
               {t('error_unverified_resend_link')}
-            </button>
+            </Button>
           )}
           <p>
             {t.rich('error_unverified_support', {
@@ -173,13 +172,9 @@ export function SignInForm(props: SignInFormProps) {
           />
         </div>
 
-        <button
-          className={authPrimaryButtonClassName}
-          disabled={submitting}
-          type="submit"
-        >
+        <Button className="w-full" disabled={submitting} type="submit">
           {t('submit')}
-        </button>
+        </Button>
       </form>
     </>
   );

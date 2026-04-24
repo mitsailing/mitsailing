@@ -15,9 +15,9 @@ const argonOpts: Options = {
 };
 
 /**
- * Optional admin bootstrap when `ADMIN_EMAIL` and `ADMIN_PASSWORD` are set.
- * Creates or updates a Better Auth credentials Account row (provider
- * `credential`) alongside the matching User. Run: `npx prisma db seed`
+ * Admin bootstrap when `ADMIN_EMAIL` and `ADMIN_PASSWORD` are set (defaults
+ * live in `.env.example`). Creates or updates a Better Auth credential Account
+ * alongside the matching User. Run: `npm run db:seed` / `npx prisma db seed`
  */
 async function main() {
   await seedMitSailing();

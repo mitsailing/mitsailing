@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { ImpersonateButton } from '@/components/mit-sailing/account/ImpersonateButton';
 import { requireAdmin } from '@/libs/auth/dal';
 import { prisma } from '@/libs/DB';
 import { getI18nPath } from '@/utils/Helpers';
+import { ImpersonateButton } from './ImpersonateButton';
 
 type AdminPageProps = {
   params: Promise<{ locale: string }>;

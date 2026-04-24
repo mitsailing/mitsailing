@@ -2,10 +2,10 @@
 
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
 import {
   authInlineLinkClassName,
   authInputClassName,
-  authPrimaryButtonClassName,
 } from '@/lib/mit-sailing/tokens';
 import { authClient } from '@/libs/auth-client';
 import { Link as I18nLink } from '@/libs/I18nNavigation';
@@ -201,13 +201,9 @@ export function SignUpForm(props: SignUpFormProps) {
           />
         </div>
 
-        <button
-          className={authPrimaryButtonClassName}
-          disabled={submitting}
-          type="submit"
-        >
+        <Button className="w-full" disabled={submitting} type="submit">
           {t('submit')}
-        </button>
+        </Button>
       </form>
     </>
   );

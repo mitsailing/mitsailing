@@ -1,7 +1,8 @@
 # Local-dev overlay — auto-loaded by Docker Compose when `compose.yaml` is
 # in the same directory. Adds:
 #   - host port bindings so the app running on the laptop can reach the
-#     services at 127.0.0.1:5432 / 127.0.0.1:1025 / 127.0.0.1:8025.
+#     services at 127.0.0.1:<POSTGRES_PUBLISH_PORT> / <MAILPIT_SMTP_PUBLISH_PORT> /
+#     <MAILPIT_HTTP_PUBLISH_PORT> (defaults in `.env.example`; Compose reads `.env`).
 #   - Mailpit for email capture (no auth — loopback-only).
 #
 # Notably does NOT start the Next.js app container. Local workflow runs
@@ -12,16 +13,17 @@
 services:
   postgres:
     ports:
-      # 5432:5432 on the host so `prisma migrate dev` from the workspace
-      # can reach the container over TCP without compose-aware tooling.
-      - '5432:5432'
+      # Host port defaults to 5432; override via POSTGRES_PUBLISH_PORT in `.env`
+      # when another Postgres already owns 5432 (Homebrew, another container).
+      - "${POSTGRES_PUBLISH_PORT:-5432}:5432"
 
   mailpit:
     image: axllent/mailpit:latest
     restart: unless-stopped
     ports:
-      - '1025:1025' # SMTP — Next.js app points SMTP_URL here
-      - '8025:8025' # Web UI + REST API — Playwright polls this for assertions
+      # Container keeps 1025/8025; host side overridable when 1025/8025 are taken.
+      - "${MAILPIT_SMTP_PUBLISH_PORT:-1025}:1025"
+      - "${MAILPIT_HTTP_PUBLISH_PORT:-8025}:8025"
     environment:
       MP_MAX_MESSAGES: '5000'
       MP_DATABASE: /data/mailpit.db

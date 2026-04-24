@@ -3,10 +3,10 @@
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
 import {
   authInlineLinkClassName,
   authInputClassName,
-  authPrimaryButtonClassName,
 } from '@/lib/mit-sailing/tokens';
 import { authClient } from '@/libs/auth-client';
 import { Link as I18nLink } from '@/libs/I18nNavigation';
@@ -266,14 +266,15 @@ export function UserProfileClient(props: UserProfileClientProps) {
                 </p>
                 {renderBanner(resendBanner)}
                 <div className="mt-2 flex flex-wrap items-center gap-3">
-                  <button
-                    className="font-medium text-amber-900 underline disabled:opacity-60"
+                  <Button
+                    className="h-auto min-h-0 px-0 py-0 font-medium text-amber-900 underline shadow-none hover:bg-transparent hover:text-amber-950 hover:underline disabled:opacity-60"
                     disabled={resendingEmail}
                     onClick={onResendPendingEmail}
                     type="button"
+                    variant="link"
                   >
                     {t('pending_email_resend')}
-                  </button>
+                  </Button>
                   <span className="text-amber-800">
                     {t.rich('pending_email_support', {
                       support: (chunks) => (
@@ -332,13 +333,9 @@ export function UserProfileClient(props: UserProfileClientProps) {
               value={newEmail}
             />
           </div>
-          <button
-            className={`mt-2 w-fit ${authPrimaryButtonClassName}`}
-            disabled={changingEmail}
-            type="submit"
-          >
+          <Button className="mt-2 w-fit" disabled={changingEmail} type="submit">
             {t('change_email_submit')}
-          </button>
+          </Button>
         </form>
       </section>
 
@@ -416,13 +413,13 @@ export function UserProfileClient(props: UserProfileClientProps) {
               value={newPasswordConfirm}
             />
           </div>
-          <button
-            className={`mt-2 w-fit ${authPrimaryButtonClassName}`}
+          <Button
+            className="mt-2 w-fit"
             disabled={changingPassword}
             type="submit"
           >
             {t('change_password_submit')}
-          </button>
+          </Button>
         </form>
       </section>
 
@@ -437,14 +434,15 @@ export function UserProfileClient(props: UserProfileClientProps) {
           {t('sign_out_all_description')}
         </p>
         {renderBanner(sessionBanner)}
-        <button
-          className="mt-4 w-fit rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-50 disabled:opacity-60"
+        <Button
+          className="mt-4 w-fit"
           disabled={revoking}
           onClick={onRevokeSessions}
           type="button"
+          variant="outline"
         >
           {t('sign_out_all_submit')}
-        </button>
+        </Button>
       </section>
 
       <section
@@ -502,13 +500,14 @@ export function UserProfileClient(props: UserProfileClientProps) {
               value={deleteConfirmation}
             />
           </div>
-          <button
-            className="mt-2 w-fit rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
+          <Button
+            className="mt-2 w-fit"
             disabled={deleting}
             type="submit"
+            variant="destructive"
           >
             {t('delete_account_submit')}
-          </button>
+          </Button>
         </form>
       </section>
     </div>

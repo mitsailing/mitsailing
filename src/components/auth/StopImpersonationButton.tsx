@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { authClient } from '@/libs/auth-client';
 import { getI18nPath } from '@/utils/Helpers';
 
@@ -25,13 +26,14 @@ export function StopImpersonationButton(props: StopImpersonationButtonProps) {
   }
 
   return (
-    <button
-      className="font-semibold text-amber-900 underline disabled:opacity-60"
+    <Button
+      className="h-auto min-h-0 px-0 py-0 font-semibold text-amber-900 underline shadow-none hover:bg-transparent hover:text-amber-950 hover:underline disabled:opacity-60"
       disabled={submitting}
       onClick={onClick}
       type="button"
+      variant="link"
     >
       {props.label}
-    </button>
+    </Button>
   );
 }

@@ -1,85 +1,88 @@
-@custom-variant dark (&:is(.dark *));
-
+/**
+ * MIT Sailing + shadcn (https://ui.shadcn.com) design tokens.
+ * Foreground/brand: tokens.colors in src/lib/mit-sailing/tokens.ts; semantic
+ * shadcn vars below map "primary" to MIT crimson, text to #2D2D2D, etc.
+ */
 :root {
   --font-size: 16px;
-  --background: #ffffff;
-  --foreground: oklch(0.145 0 0);
-  --card: #ffffff;
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: #030213;
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.95 0.0058 264.53);
-  --secondary-foreground: #030213;
-  --muted: #ececf0;
-  --muted-foreground: #717182;
-  --accent: #e9ebef;
-  --accent-foreground: #030213;
-  --destructive: #d4183d;
-  --destructive-foreground: #ffffff;
-  --border: rgba(0, 0, 0, 0.1);
-  --input: transparent;
-  --input-background: #f3f3f5;
-  --switch-background: #cbced4;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-serif: 'Fraunces', Georgia, serif;
+  --font-heading: var(--font-sans);
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
+  --background: #ffffff;
+  /* Readable body copy — same as tokens.colors.text / text-mit-text */
+  --foreground: #2d2d2d;
+  --card: #ffffff;
+  --card-foreground: #2d2d2d;
+  --popover: #ffffff;
+  --popover-foreground: #2d2d2d;
+  /* MIT crimson for primary CTA, links, sidebar brand */
+  --primary: #a31f34;
+  --primary-foreground: #ffffff;
+  --secondary: #f5f5f5;
+  --secondary-foreground: #2d2d2d;
+  --muted: #f5f5f5;
+  --muted-foreground: #525252;
+  --accent: #fef2f2;
+  --accent-foreground: #2d2d2d;
+  --destructive: #b91c1c;
+  --destructive-foreground: #ffffff;
+  --border: #e5e5e5;
+  --input: #e5e5e5;
+  --input-background: #ffffff;
+  --switch-background: #cbced4;
+  /* Focus ring aligned with shell / auth: ring-mit-text */
+  --ring: #2d2d2d;
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: #030213;
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.55 0.2 20);
+  --chart-2: oklch(0.5 0.12 200);
+  --chart-3: oklch(0.45 0.1 150);
+  --chart-4: oklch(0.6 0.15 40);
+  --chart-5: oklch(0.4 0.1 300);
+  --sidebar: #f5f5f5;
+  --sidebar-foreground: #2d2d2d;
+  --sidebar-primary: #a31f34;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #ececf0;
+  --sidebar-accent-foreground: #2d2d2d;
+  --sidebar-border: #e5e5e5;
+  --sidebar-ring: #2d2d2d;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: oklch(0.439 0 0);
-  --font-weight-medium: 500;
-  --font-weight-normal: 400;
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: oklch(0.439 0 0);
+  --background: #1a1b1e;
+  --foreground: #f5f5f5;
+  --card: #1f2023;
+  --card-foreground: #f5f5f5;
+  --popover: #1f2023;
+  --popover-foreground: #f5f5f5;
+  --primary: #c45a6a;
+  --primary-foreground: #1a0a0c;
+  --secondary: #2a2b30;
+  --secondary-foreground: #f5f5f5;
+  --muted: #2a2b30;
+  --muted-foreground: #a3a3a3;
+  --accent: #3d1f25;
+  --accent-foreground: #fef2f2;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #3f3f46;
+  --input: #3f3f46;
+  --input-background: #27272a;
+  --ring: #d4d4d8;
+  --sidebar: #1f2023;
+  --sidebar-foreground: #f5f5f5;
+  --sidebar-primary: #c45a6a;
+  --sidebar-primary-foreground: #1a0a0c;
+  --sidebar-accent: #2a2b30;
+  --sidebar-accent-foreground: #f5f5f5;
+  --sidebar-border: #3f3f46;
+  --sidebar-ring: #d4d4d8;
 }
 
 @theme inline {
-  /* MIT Sailing public site — use `text-mit-*`, `bg-mit-*`, `font-mit-serif` */
+  /* MIT Sailing: `text-mit-*`, `bg-mit-*`, `font-mit-serif` (also exposed to Tailwind) */
   --color-mit-red: #a31f34;
   --color-mit-red-hover: #8a1a2c;
   --color-mit-red-highlight: #fef2f2;
@@ -92,6 +95,9 @@
   --color-mit-footer: #1a1b1e;
   --font-mit-serif: 'Fraunces', Georgia, serif;
   --font-mit-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  /* Tailwind `font-sans` for shadcn; matches MIT body copy */
+  --font-sans: var(--font-mit-sans);
+  /* shadcn + Tailwind: semantic colors */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -118,10 +124,14 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
+  /* shadcn Nova / radix preset radius scale */
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -148,6 +158,7 @@
 
   html {
     font-size: var(--font-size);
+    font-family: var(--font-sans);
   }
 
   h1 {

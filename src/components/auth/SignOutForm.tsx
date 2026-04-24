@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { authClient } from '@/libs/auth-client';
 import { getI18nPath } from '@/utils/Helpers';
 
@@ -35,17 +36,18 @@ export function SignOutForm(props: SignOutFormProps) {
   }
 
   return (
-    <button
+    <Button
       aria-busy={submitting}
       className={
         props.buttonClassName ??
-        'border-none text-gray-700 hover:text-gray-900 disabled:opacity-60'
+        'h-auto min-h-0 rounded-md border-none bg-transparent px-0 py-0 font-normal text-gray-700 shadow-none hover:bg-transparent hover:text-gray-900 disabled:opacity-60'
       }
       disabled={submitting}
       onClick={onClick}
       type="button"
+      variant="ghost"
     >
       {props.label}
-    </button>
+    </Button>
   );
 }

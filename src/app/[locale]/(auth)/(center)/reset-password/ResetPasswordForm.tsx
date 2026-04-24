@@ -3,10 +3,8 @@
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import {
-  authInputClassName,
-  authPrimaryButtonClassName,
-} from '@/lib/mit-sailing/tokens';
+import { Button } from '@/components/ui/button';
+import { authInputClassName } from '@/lib/mit-sailing/tokens';
 import { authClient } from '@/libs/auth-client';
 
 type ResetPasswordFormProps = {
@@ -118,13 +116,9 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
           />
         </div>
 
-        <button
-          className={authPrimaryButtonClassName}
-          disabled={submitting}
-          type="submit"
-        >
+        <Button className="w-full" disabled={submitting} type="submit">
           {t('submit')}
-        </button>
+        </Button>
       </form>
     </>
   );

@@ -1,7 +1,13 @@
 import { createEnv } from '@t3-oss/env-nextjs';
 import * as z from 'zod';
 
+const isStorybookNpmScript =
+  process.env.npm_lifecycle_event === 'storybook' ||
+  process.env.npm_lifecycle_event === 'build-storybook';
+
 export const Env = createEnv({
+  skipValidation:
+    process.env.SKIP_ENV_VALIDATION === 'true' || isStorybookNpmScript,
   server: {
     ARCJET_KEY: z.string().startsWith('ajkey_').optional(),
     BETTER_AUTH_SECRET: z.string().min(32),
