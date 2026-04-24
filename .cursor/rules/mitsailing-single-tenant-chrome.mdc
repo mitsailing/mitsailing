@@ -1,0 +1,14 @@
+---
+description: Avoid repeating the org name in global chrome; this app is mitsailing-only
+alwaysApply: true
+---
+
+# Single-tenant site: global chrome
+
+This codebase is a **single site** for one organization. Users already know which site they are on.
+
+- **One wordmark** — The main site title in the global header (`SiteHeader`, e.g. MIT + Sailing) is the place for the full brand. Do not repeat that full name again in the same header tagline, footer, or a component name unless there is a clear, separate context (e.g. legal page, partnership).
+- **Subtitles and footers** — Prefer neutral, place-based, or action-based lines ("Pavilion and programs on the Charles", `mitsailing.com`) over echoing the org name.
+- **Component names** — Use generic names such as `SiteShell` for layout chrome, not "Mitsailing*" or "MITSailing*"; the `mit-sailing` path is enough of a product hint.
+
+If you add global chrome, ask: *would this repeat the org name next to the wordmark?* If yes, shorten or drop it.

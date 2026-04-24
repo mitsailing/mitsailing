@@ -16,6 +16,8 @@
 # testing
 /coverage
 /vitest-test-results
+/test-report.junit.xml
+.vitest-attachments/
 
 # next.js
 /.next/

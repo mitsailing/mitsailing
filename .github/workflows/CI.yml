@@ -66,6 +66,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
+    # Codecov OIDC: GitHub mints a short-lived id-token for Codecov to verify.
+    # This is the 2026-preferred auth for public repos — no CODECOV_TOKEN needed.
+    permissions:
+      id-token: write
+      contents: read
+
     steps:
       - uses: actions/checkout@v6
 
@@ -74,15 +80,42 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
-      - name: Run unit tests
+      - name: Run unit tests (with coverage)
         uses: docker://mcr.microsoft.com/playwright:v1.58.2
         with:
-          args: npm run test -- --coverage
+          args: npm run test:coverage
 
       - name: Upload coverage reports to Codecov
+        if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v6
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          use_oidc: true
+          files: ./coverage/lcov.info
+          flags: unittests
+
+      # Codecov is deprecating the standalone test-results-action; the
+      # replacement is codecov-action@v6 with report_type=test_results.
+      - name: Upload test results to Codecov (Test Analytics)
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v6
+        with:
+          use_oidc: true
+          files: ./test-report.junit.xml
+          flags: unittests
+          report_type: test_results
+
+      - name: Upload coverage report artifact
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: coverage
+          path: |
+            coverage/lcov.info
+            coverage/coverage-final.json
+            coverage/coverage-summary.json
+            test-report.junit.xml
+          if-no-files-found: warn
+          retention-days: 14
 
   storybook:
     strategy:

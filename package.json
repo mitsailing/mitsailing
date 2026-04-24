@@ -1,6 +1,18 @@
 {
-  "name": "next-js-boilerplate",
-  "author": "Ixartz (https://github.com/ixartz)",
+  "name": "mitsailing",
+  "version": "0.0.0",
+  "private": true,
+  "description": "MIT Sailing — pavilion and programs on the Charles (https://mitsailing.com).",
+  "homepage": "https://mitsailing.com",
+  "bugs": {
+    "url": "https://github.com/mitsailing/mitsailing/issues"
+  },
+  "license": "MIT",
+  "author": "MIT Sailing (https://mitsailing.com)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mitsailing/mitsailing.git"
+  },
   "scripts": {
     "dev:spotlight": "npx @spotlightjs/spotlight",
     "dev:next": "next dev",
@@ -22,6 +34,7 @@
     "check:i18n": "i18n-check -l src/locales -s en -u src -f next-intl -i \"AuthErrors.*\" \"AuthEmails.*\"",
     "commit": "commit",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "e2e:preflight": "run-s e2e:killport db:up db:wait db:migrate:test e2e:seed",
     "e2e:killport": "node scripts/e2e-killport.cjs",
     "e2e:seed": "node scripts/seed-test-db.mjs",
@@ -114,7 +127,6 @@
     "ultracite": "^7.3.2",
     "vite-tsconfig-paths": "^6.1.1",
     "vitest": "^4.1.0",
-    "vitest-browser-react": "^2.1.0",
     "wait-on": "^9.0.3"
   },
   "release": {

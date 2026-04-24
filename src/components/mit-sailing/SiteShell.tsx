@@ -6,23 +6,20 @@ import { SiteConditionsBar } from './site/SiteConditionsBar';
 import { SiteFooter } from './site/SiteFooter';
 import { SiteHeader } from './site/SiteHeader';
 
-type MitSailingSiteTemplateProps = {
+type SiteShellProps = {
   children: React.ReactNode;
 };
 
 /**
- * Public + signed-in site chrome (mit-redesign parity).
+ * Global site chrome for every page: conditions bar, sticky header with class
+ * and fleet dropdowns, main content, and the dark footer. Wraps `children` so
+ * routes render inside the same shell whether signed in or out.
  *
- * Renders the conditions bar, sticky header, main content, and dark footer
- * around `children` so every page gets the same shell.
- *
- * @param props - Template props
- * @param props.children - Main page content
- * @returns Full-page shell
+ * @param props - Shell props
+ * @param props.children - Page body
+ * @returns Full-page site chrome
  */
-export async function MitSailingSiteTemplate(
-  props: MitSailingSiteTemplateProps
-) {
+export async function SiteShell(props: SiteShellProps) {
   const session = await getSession();
   const initialSignedIn = Boolean(session?.user?.id);
 

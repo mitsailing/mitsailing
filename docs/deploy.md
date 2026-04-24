@@ -5,7 +5,7 @@ user account with rootless Docker. Ingress is a Cloudflare Tunnel; the
 server itself exposes no inbound ports to the public internet.
 
 CI builds a Docker image from every push to `main`, pushes it to GitHub
-Container Registry (GHCR) as `ghcr.io/<owner>/next-js-boilerplate:staging`
+Container Registry (GHCR) as `ghcr.io/mitsailing/mitsailing:staging`
 plus an immutable `sha-<shortsha>` tag, then connects over SSH to trigger
 `bin/deploy.sh` on the server.
 
@@ -52,8 +52,8 @@ systemd units for the app itself — Docker handles that.
 2. **Prepare the deploy directory.**
 
    ```bash
-   mkdir -p ~/apps/next-js-boilerplate
-   cd ~/apps/next-js-boilerplate
+   mkdir -p ~/apps/mitsailing
+   cd ~/apps/mitsailing
 
    # Pull the compose + deploy.sh files. You can either clone the repo
    # and `cp` them over, or scp them in once — they don't change often.
@@ -103,7 +103,7 @@ systemd units for the app itself — Docker handles that.
 6. **First bring-up:**
 
    ```bash
-   cd ~/apps/next-js-boilerplate
+   cd ~/apps/mitsailing
    docker compose -f compose.yaml -f compose.staging.yaml --env-file .env.staging up -d postgres
    # Wait for postgres to be healthy, then let deploy.sh start app + mailpit:
    ~/deploy.sh deploy staging
@@ -135,7 +135,7 @@ human approval gate; otherwise pushes to `main` deploy automatically.
 - **Inspect state on the server**:
   ```bash
   ssh ak@sailing-dock.mit.edu
-  cd ~/apps/next-js-boilerplate
+  cd ~/apps/mitsailing
   docker compose -f compose.yaml -f compose.staging.yaml ps
   docker compose -f compose.yaml -f compose.staging.yaml logs --tail 100 app
   ```

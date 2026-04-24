@@ -15,7 +15,7 @@
 #   `docker compose ps` shows recognizable container names regardless of
 #   what the working directory is called.
 
-name: next-js-boilerplate
+name: mitsailing
 
 services:
   postgres:

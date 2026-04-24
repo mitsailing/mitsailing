@@ -102,7 +102,6 @@ export type SiteHeaderProps = {
 export function SiteHeader(props: SiteHeaderProps) {
   const t = useTranslations('MitSailingSite');
   const tAccount = useTranslations('AccountLayout');
-  const tBase = useTranslations('BaseTemplate');
   const locale = useLocale();
   const sessionState = authClient.useSession();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -136,7 +135,7 @@ export function SiteHeader(props: SiteHeaderProps) {
     setMobileMenuOpen(false);
   };
 
-  const primaryNavAria = tBase('main_navigation_label');
+  const primaryNavAria = t('main_navigation_label');
 
   return (
     <header className="sticky top-0 z-50 border-b border-mit-line bg-white/80 backdrop-blur-md">

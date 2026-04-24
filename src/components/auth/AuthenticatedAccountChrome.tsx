@@ -1,6 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { ImpersonationBanner } from '@/components/auth/ImpersonationBanner';
-import { MitSailingSiteTemplate } from '@/components/mit-sailing/MitSailingSiteTemplate';
+import { SiteShell } from '@/components/mit-sailing/SiteShell';
 import { verifySession } from '@/libs/auth/dal';
 import { Role } from '@/libs/auth/roles';
 import { Link } from '@/libs/I18nNavigation';
@@ -17,7 +17,7 @@ type AuthenticatedAccountChromeProps = {
 
 /**
  * Shared signed-in shell: site template, impersonation banner, and account
- * nav. Sign-out lives in `SiteHeader`. Used by `/account/*` and `/profile`.
+ * nav. Main sign-out is in the global shell. Used by `/account/*` and `/profile`.
  *
  * @param props - Layout props
  * @param props.locale - Active locale
@@ -38,7 +38,7 @@ export async function AuthenticatedAccountChrome(
   const isImpersonating = Boolean(session.session.impersonatedBy);
 
   return (
-    <MitSailingSiteTemplate>
+    <SiteShell>
       <div className="mx-auto max-w-7xl px-6 py-6">
         <ImpersonationBanner locale={props.locale} />
         <nav
@@ -67,6 +67,6 @@ export async function AuthenticatedAccountChrome(
         </nav>
         {props.children}
       </div>
-    </MitSailingSiteTemplate>
+    </SiteShell>
   );
 }

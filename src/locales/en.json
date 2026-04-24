@@ -1,9 +1,4 @@
 {
-  "BaseTemplate": {
-    "description": "Starter code for your Nextjs Boilerplate with Tailwind CSS",
-    "footer_text": "© {year} {name}. Made with <author></author>.",
-    "main_navigation_label": "Main navigation"
-  },
   "MitSailingHome": {
     "meta_title": "MIT Sailing",
     "meta_description": "Sailing programs, events, and fleet at the MIT Sailing Pavilion.",
@@ -90,6 +85,7 @@
     "a11y_open_menu": "Open menu",
     "a11y_close_menu": "Close menu",
     "a11y_header_session_loading": "Loading account status",
+    "main_navigation_label": "Main navigation",
     "footer_tagline": "One of the nation's premier university sailing programs, open to the entire MIT community and the general public since 1935.",
     "footer_copyright": "© {year} MIT Sailing Pavilion · Massachusetts Institute of Technology",
     "footer_legal_nav_aria": "Legal",

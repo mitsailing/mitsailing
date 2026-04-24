@@ -14,7 +14,7 @@ set -Eeuo pipefail
 
 # Where the checked-out compose files + .env.staging live on the host.
 # Admin sets this up once; see docs/deploy.md.
-readonly DEPLOY_DIR="${DEPLOY_DIR:-$HOME/apps/next-js-boilerplate}"
+readonly DEPLOY_DIR="${DEPLOY_DIR:-$HOME/apps/mitsailing}"
 
 log() { printf '[deploy %s] %s\n' "$(date -u +'%FT%TZ')" "$*"; }
 fail() { log "ERROR: $*" >&2; exit 1; }
@@ -47,7 +47,7 @@ main() {
   [[ -f .env.staging ]] \
     || fail ".env.staging missing in $DEPLOY_DIR — copy .env.staging.example and fill it in"
 
-  local image="ghcr.io/${GHCR_OWNER:-OWNER}/next-js-boilerplate:${ref}"
+  local image="ghcr.io/${GHCR_OWNER:-mitsailing}/mitsailing:${ref}"
   log "deploying $image"
 
   # Persist the ref so subsequent `docker compose` invocations (status
