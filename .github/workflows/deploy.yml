@@ -1,6 +1,6 @@
-name: Deploy (staging)
+name: Deploy (production)
 
-# Auto-deploy to the sailing-dock staging host when main changes. We also
+# Auto-deploy to the sailing-dock production host when main changes. We also
 # expose a manual `workflow_dispatch` trigger so operators can deploy an
 # arbitrary commit without having to git-push (useful for hotfix replays
 # and rollback by SHA).
@@ -17,7 +17,7 @@ on:
 # Cancel an in-flight deploy when a newer push lands so `main` converges
 # on the latest commit rather than racing between slower and newer runs.
 concurrency:
-  group: deploy-staging
+  group: deploy-production
   cancel-in-progress: true
 
 env:
@@ -37,8 +37,11 @@ jobs:
     permissions:
       contents: read
       packages: write # needed to push to ghcr.io under the repo's namespace
+      id-token: write # OIDC for signed provenance + SBOM attestations
+      attestations: write # write attestations to the repo's attestation store
     outputs:
       image_tag: ${{ steps.meta.outputs.image_tag }}
+      image_digest: ${{ steps.build.outputs.digest }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -56,18 +59,19 @@ jobs:
         id: meta
         # Two tags per build:
         #   - sha-<shortsha>  : immutable, used for rollback / auditing
-        #   - staging         : floating, what deploy.sh defaults to
+        #   - latest          : floating, what deploy.sh defaults to
         run: |
           short_sha="${GITHUB_SHA::12}"
           repo="$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')"
           echo "image_sha=${{ env.REGISTRY }}/${repo}:sha-${short_sha}" >> "$GITHUB_OUTPUT"
-          echo "image_floating=${{ env.REGISTRY }}/${repo}:staging"    >> "$GITHUB_OUTPUT"
+          echo "image_floating=${{ env.REGISTRY }}/${repo}:latest"     >> "$GITHUB_OUTPUT"
           echo "image_tag=sha-${short_sha}"                            >> "$GITHUB_OUTPUT"
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Build + push prod image
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -80,19 +84,50 @@ jobs:
           # free for public and private repos alike.
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          provenance: false # keeps GHCR UI tidy; flip on once registry UI supports it
+          # SLSA build provenance + in-toto SBOM are rendered by GHCR's
+          # package UI and consumable by `gh attestation verify`. 2026
+          # supply-chain default for self-hosted deploys.
+          provenance: mode=max
+          sbom: true
+
+      # Separate signed attestation via sigstore, stored in the repo's
+      # attestation log. Complements the in-image attestations above so
+      # consumers can verify with `gh attestation verify` without pulling
+      # the image.
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ github.repository }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+      - name: Generate SBOM (syft)
+        uses: anchore/sbom-action@v0.24.0
+        with:
+          image: ${{ steps.meta.outputs.image_sha }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+          upload-artifact: true
+
+      - name: Attest SBOM
+        uses: actions/attest-sbom@v4
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ github.repository }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          sbom-path: sbom.spdx.json
+          push-to-registry: true
 
   # ─────────────────── Stage 2 — deploy ───────────────────
   # Separate job so a failed deploy doesn't block later pushes from
-  # rebuilding the image. Uses `environment: staging` so GitHub surfaces
+  # rebuilding the image. Uses `environment: production` so GitHub surfaces
   # the deploy in the Environments tab with a link + logs.
   deploy:
-    name: Deploy staging
+    name: Deploy production
     runs-on: ubuntu-latest
     needs: build
     timeout-minutes: 10
     environment:
-      name: staging
+      name: production
       url: https://mitsailing.com
     steps:
       - name: Set up SSH
@@ -101,17 +136,17 @@ jobs:
         # the one authorized invocation below is possible.
         run: |
           mkdir -p ~/.ssh
-          printf '%s\n' "${{ secrets.STAGING_SSH_PRIVATE_KEY }}" > ~/.ssh/id_deploy
+          printf '%s\n' "${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}" > ~/.ssh/id_deploy
           chmod 600 ~/.ssh/id_deploy
           # Pin the host key to prevent MITM; the admin records this once
           # via `ssh-keyscan sailing-dock.mit.edu` and puts it in secrets.
-          printf '%s\n' "${{ secrets.STAGING_SSH_HOST_KEY }}" > ~/.ssh/known_hosts
+          printf '%s\n' "${{ secrets.PRODUCTION_SSH_HOST_KEY }}" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
       - name: Deploy
         env:
-          STAGING_USER: ${{ secrets.STAGING_SSH_USER }}
-          STAGING_HOST: ${{ secrets.STAGING_SSH_HOST }}
+          PRODUCTION_USER: ${{ secrets.PRODUCTION_SSH_USER }}
+          PRODUCTION_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
           IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
         # The remote side enforces `command="deploy.sh ..."` in
         # authorized_keys, so whatever we send here is re-parsed by the
@@ -122,5 +157,5 @@ jobs:
             -i ~/.ssh/id_deploy \
             -o BatchMode=yes \
             -o ConnectTimeout=15 \
-            "${STAGING_USER}@${STAGING_HOST}" \
+            "${PRODUCTION_USER}@${PRODUCTION_HOST}" \
             "deploy ${IMAGE_TAG}"

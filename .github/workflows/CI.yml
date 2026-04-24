@@ -1,19 +1,33 @@
 name: CI
 
+# Runs only on pull requests targeting `main`. Post-merge CI is intentionally
+# disabled — the branch-protection ruleset (`.github/rulesets/main-branch.json`)
+# requires these same checks to pass on the PR before merge, so re-running them
+# on the merge commit would just duplicate ~15–20 min of work per PR.
+#
+# `release.yml` triggers directly on `push: main` (not `workflow_run: CI`) so
+# semantic-release still fires after merges. `deploy.yml` and `checkly.yml` are
+# likewise independent of CI.yml.
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
 
-# Required by `src/libs/Env.ts` when Next.js config and tests load the app.
-# Jobs bring up Postgres via `docker compose up -d postgres` (ubuntu-latest
-# runners ship with Docker + Compose preinstalled) and expose both logical
-# databases on 127.0.0.1:5432.
+# Cancel in-flight runs when a newer commit lands on the same PR. Avoids
+# stacking runners on noisy branches; relies on runtime > startup cost.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Env shared by every job. Only the `e2e` job actually talks to Postgres —
+# the rest (`build`, `unit`, `storybook`, `static`) never open a DB connection.
+# `e2e:preflight` in `package.json` is what starts compose Postgres + Mailpit
+# for the e2e job; no other job spins them up.
 env:
   BETTER_AUTH_SECRET: ci-placeholder-auth-secret-min-32-chars-long!!
   DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/dev_db?sslmode=disable
   TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/test_db?sslmode=disable
+  # Required by `src/libs/Env.ts` whenever tests import code that touches Env.
+  NEXT_PUBLIC_APP_URL: http://localhost:3008
 
 jobs:
   build:
@@ -169,6 +183,12 @@ jobs:
 
       - name: Linter
         run: npm run lint
+
+      # Ultracite's `--type-check` only covers files matching its glob.
+      # `check:types` runs `tsc --noEmit` across the full project so type
+      # errors in files Ultracite skips (scripts/, emails/, etc.) still fail CI.
+      - name: Typecheck (tsc --noEmit)
+        run: npm run check:types
 
       - name: Check dependencies
         run: npm run check:deps

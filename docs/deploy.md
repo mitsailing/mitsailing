@@ -1,159 +1,194 @@
-# Staging deploy runbook
+# Production deploy runbook
 
-Target: `mitsailing.com`, hosted on `sailing-dock.mit.edu` under the `ak`
-user account with rootless Docker. Ingress is a Cloudflare Tunnel; the
-server itself exposes no inbound ports to the public internet.
+This app ships as a **Docker image** on GitHub Container Registry (GHCR). Each
+push to `main` builds and tags `ghcr.io/mitsailing/mitsailing:sha-<short>` and
+`:latest`, then GitHub Actions SSHs to your Linux host and runs
+`deploy <sha-short>` (see `bin/deploy.sh` and `.github/workflows/deploy.yml`).
 
-CI builds a Docker image from every push to `main`, pushes it to GitHub
-Container Registry (GHCR) as `ghcr.io/mitsailing/mitsailing:staging`
-plus an immutable `sha-<shortsha>` tag, then connects over SSH to trigger
-`bin/deploy.sh` on the server.
+The server can run **rootless Docker** (no `sudo` for day-to-day). You only need
+`sudo` once if your distro requires **loginctl linger** so the Docker user
+daemon survives logout/reboot (see below).
+
+Ingress in this repo is **Cloudflare Tunnel** (`cloudflared` in
+`compose.prod.yaml`) so the host does not need inbound firewall ports for HTTP.
 
 ---
 
-## One-time setup
+## What you need on the server
 
-These steps only happen once per server. Split by who does them.
+| Requirement | Notes |
+| --- | --- |
+| Docker Engine + Compose v2 | Rootless is fine; same user runs `docker compose` |
+| SSH access | Interactive key for you; **separate** deploy key for CI |
+| `docker login ghcr.io` | Once per user, PAT with `read:packages` if the image is private |
+| Directory `~/apps/mitsailing/` | Holds `compose.yaml`, `compose.prod.yaml`, `docker/postgres/init.sql`, `.env.production`, `deploy.sh` |
 
-### Admin (needs sudo)
+**Multiple projects on one host:** each app should use a **unique Compose
+project name**. This repo sets `name: mitsailing` in `compose.yaml`. A second
+copy of the same file would collide; either use a separate machine, or change
+`name:` (or set `COMPOSE_PROJECT_NAME` when invoking compose — not wired into
+`deploy.sh` today).
 
-Just two lines. Everything else runs as `ak`.
+---
 
-1. **Enable rootless-docker autostart** so the Docker daemon survives
-   reboots without a login session:
+## One-time setup (no `sudo` except optional linger)
 
-   ```bash
-   sudo loginctl enable-linger ak
-   ```
+### 1. Optional — keep rootless Docker alive after reboot (one-time admin)
 
-   This flips `ak`'s `systemd --user` scope to "lingering", which is what
-   keeps `docker.service` (user scope) alive after the admin and `ak`
-   both log out.
+If containers die after you log out or reboot until someone logs in again, an
+admin with `sudo` runs **once**:
 
-2. **Confirm Docker is installed and rootless-Docker is set up for `ak`.**
-   If `dockerd-rootless-setuptool.sh install` has never run for `ak`, ask
-   the admin to run it once (it needs `newuidmap` / `newgidmap`, which
-   may need a one-time `apt install uidmap` depending on distro).
+```bash
+sudo loginctl enable-linger YOUR_LINUX_USERNAME
+```
 
-That's the full admin ask. No firewall changes, no reverse proxy, no
-systemd units for the app itself — Docker handles that.
+If you truly have **no** `sudo` anywhere, ask the host admin to enable linger
+for your UID, or accept starting Docker after login.
 
-### ak (no sudo required)
+### 2. Create the app directory and copy files
 
-1. **Bootstrap Cloudflare Tunnel.**
-   In the Cloudflare Zero Trust dashboard:
-   - Create a tunnel named `sailing-dock-staging`.
-   - Add two public hostnames:
-     - `mitsailing.com` → `http://app:3000`
-     - `mail.mitsailing.com` → `http://mailpit:8025`
-   - Copy the tunnel token; it starts with `eyJ`. You'll paste it into
-     `.env.staging` as `CLOUDFLARE_TUNNEL_TOKEN`.
+On the server as your deploy user:
 
-2. **Prepare the deploy directory.**
+```bash
+mkdir -p ~/apps/mitsailing/docker/postgres
+cd ~/apps/mitsailing
 
-   ```bash
-   mkdir -p ~/apps/mitsailing
-   cd ~/apps/mitsailing
+# From a clone of this repo on your laptop, scp or cp:
+#   compose.yaml compose.prod.yaml docker/postgres/init.sql bin/deploy.sh
+# Example from your workstation:
+#   scp compose.yaml compose.prod.yaml YOUR_USER@YOUR_HOST:~/apps/mitsailing/
+#   scp docker/postgres/init.sql YOUR_USER@YOUR_HOST:~/apps/mitsailing/docker/postgres/
+#   scp bin/deploy.sh YOUR_USER@YOUR_HOST:~/deploy.sh
 
-   # Pull the compose + deploy.sh files. You can either clone the repo
-   # and `cp` them over, or scp them in once — they don't change often.
-   cp /path/to/repo/compose.yaml .
-   cp /path/to/repo/compose.staging.yaml .
-   cp /path/to/repo/docker/postgres/init.sql docker/postgres/init.sql  # mkdir -p first
-   cp /path/to/repo/bin/deploy.sh ~/deploy.sh
-   chmod +x ~/deploy.sh
+chmod +x ~/deploy.sh
+```
 
-   # Fill in real values (tunnel token, GHCR image path, DB password,
-   # bcrypt-hashed Mailpit UI credentials).
-   cp /path/to/repo/.env.staging.example .env.staging
-   $EDITOR .env.staging
-   ```
+`bin/deploy.sh` defaults to `DEPLOY_DIR=$HOME/apps/mitsailing`. If you use a
+different path, set `DEPLOY_DIR` in the `authorized_keys` line (see below) or
+edit the script.
 
-3. **Generate the Mailpit UI basic-auth credential.** It's a bcrypt hash
-   of `username:password`:
+### 3. Configure `.env.production`
 
-   ```bash
-   docker run --rm httpd:alpine htpasswd -nbB mit 'YOUR-STRONG-PASSWORD'
-   ```
+```bash
+cd ~/apps/mitsailing
+cp /path/to/repo/.env.production.example .env.production
+$EDITOR .env.production
+```
 
-   Quote the full `user:$2y$05$...` output and paste it as
-   `MAILPIT_UI_AUTH=...` in `.env.staging`. Mail UI will be at
-   `https://mail.mitsailing.com` once the tunnel is live.
+Fill at least:
 
-4. **Pin the deploy key to the deploy command.** Put this line in
-   `~/.ssh/authorized_keys` (alongside whatever admin key you already
-   have) — replace `<GH_ACTIONS_DEPLOY_PUBLIC_KEY>` with the public half
-   of the key you'll give GitHub:
+- `BETTER_AUTH_SECRET` (32+ random chars)
+- `DATABASE_URL` — must match **Postgres in `compose.yaml`**: user `postgres`,
+  database `dev_db`, host `postgres`, password `POSTGRES_PASSWORD`
+- `POSTGRES_PASSWORD` — strong password; same value embedded in `DATABASE_URL`
+- `NEXT_PUBLIC_APP_URL=https://mitsailing.com` (or your real public URL)
+- `CLOUDFLARE_TUNNEL_TOKEN` from the Cloudflare Zero Trust dashboard
+- `RESEND_API_KEY`, `EMAIL_FROM`, `SUPPORT_EMAIL` (real mail; there is no
+  Mailpit in production)
 
-   ```
-   command="/home/ak/deploy.sh ${SSH_ORIGINAL_COMMAND}",no-pty,no-port-forwarding,no-agent-forwarding,no-X11-forwarding,no-user-rc <GH_ACTIONS_DEPLOY_PUBLIC_KEY>
-   ```
+**Cloudflare public hostname:** point your apex (e.g. `mitsailing.com`) to
+`http://app:3000` on the tunnel. Production compose does **not** expose Mailpit.
 
-   This is the only line that matters for security — any invocation of
-   that key can do exactly `deploy <tag>` and nothing else. A leaked key
-   cannot drop a shell or exfiltrate files.
+### 4. GHCR pull authentication
 
-5. **Log in to GHCR so the first pull succeeds:**
+```bash
+# PAT needs read:packages for private images; public images may pull anonymously.
+install -m 600 /dev/stdin ~/.ghcr-token <<'EOF'
+ghp_your_token_here
+EOF
+docker login ghcr.io --username YOUR_GITHUB_USERNAME --password-stdin < ~/.ghcr-token
+```
 
-   ```bash
-   # Create a PAT with `read:packages`; store it in ~/.ghcr-token with mode 600.
-   docker login ghcr.io --username <your-github-username> --password-stdin < ~/.ghcr-token
-   ```
+### 5. Lock down the deploy SSH key
 
-6. **First bring-up:**
+Generate a **dedicated** key pair for GitHub Actions (not your personal key):
 
-   ```bash
-   cd ~/apps/mitsailing
-   docker compose -f compose.yaml -f compose.staging.yaml --env-file .env.staging up -d postgres
-   # Wait for postgres to be healthy, then let deploy.sh start app + mailpit:
-   ~/deploy.sh deploy staging
-   ```
+```bash
+# On your workstation
+ssh-keygen -t ed25519 -f ./mitsailing-deploy -C 'mitsailing gh actions deploy' -N ''
+```
 
-### GitHub repo admin
+On the server, add the **public** key to `~/.ssh/authorized_keys` with a
+`command=` restriction so that key can **only** run `deploy <ref>`. Use a
+**literal absolute path** (OpenSSH does not expand `$HOME` here):
 
-Add these secrets under **Settings → Environments → staging**:
+```
+command="/home/YOUR_USER/deploy.sh $SSH_ORIGINAL_COMMAND",no-pty,no-port-forwarding,no-agent-forwarding,no-X11-forwarding,no-user-rc ssh-ed25519 AAAA...rest-of-public-key... comment
+```
+
+If `deploy.sh` lives elsewhere, change the path before `$SSH_ORIGINAL_COMMAND`.
+
+Keep your **personal** SSH key in `authorized_keys` **without** `command=` so
+you can still open a normal shell.
+
+### 6. First bring-up (Postgres, then app)
+
+Postgres must exist and be healthy before the app container runs migrations.
+
+```bash
+cd ~/apps/mitsailing
+
+# First time only — creates the volume and runs init.sql
+docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production up -d postgres
+
+docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production ps
+# Wait until postgres is healthy, then:
+
+# Pin the same image tag CI will send (use `latest` or a concrete sha- tag from GHCR)
+~/deploy.sh deploy latest
+```
+
+After the first successful deploy, day-to-day updates are **only** from GitHub
+(`push` to `main` or **Actions → Deploy (production) → Run workflow**).
+
+### 7. GitHub repository configuration
+
+Create environment **`production`** (Settings → Environments) with URL
+`https://mitsailing.com` if you like.
+
+Add secrets used by `.github/workflows/deploy.yml`:
 
 | Secret | Value |
 | --- | --- |
-| `STAGING_SSH_USER` | `ak` |
-| `STAGING_SSH_HOST` | `sailing-dock.mit.edu` |
-| `STAGING_SSH_PRIVATE_KEY` | Private half of the deploy key pair |
-| `STAGING_SSH_HOST_KEY` | Output of `ssh-keyscan sailing-dock.mit.edu` (paste the `ssh-rsa ...` or `ssh-ed25519 ...` line) |
-
-Enable "Required reviewers" on the `staging` environment if you want a
-human approval gate; otherwise pushes to `main` deploy automatically.
+| `PRODUCTION_SSH_USER` | Linux username (e.g. `deploy`) |
+| `PRODUCTION_SSH_HOST` | Hostname or IP |
+| `PRODUCTION_SSH_PRIVATE_KEY` | Full PEM of **mitsailing-deploy** private key |
+| `PRODUCTION_SSH_HOST_KEY` | One line from `ssh-keyscan YOUR_HOST` |
 
 ---
 
 ## Day-to-day
 
-- **Trigger a deploy**: push to `main` (automatic) or use
-  **Actions → Deploy (staging) → Run workflow** to deploy a specific ref.
-- **Rollback**: in the GitHub UI, run Deploy (staging) with input
-  `ref=<older-sha>` — the resulting image tag (`sha-<short>`) will be
-  re-pinned by `deploy.sh`.
-- **Inspect state on the server**:
+- **Deploy:** merge to `main` (automatic) or run the Deploy workflow with a
+  specific `ref` SHA for rollback.
+- **Logs:**
+
   ```bash
-  ssh ak@sailing-dock.mit.edu
   cd ~/apps/mitsailing
-  docker compose -f compose.yaml -f compose.staging.yaml ps
-  docker compose -f compose.yaml -f compose.staging.yaml logs --tail 100 app
+  docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production logs -f --tail 100 app
   ```
-  (When SSH'ing interactively you'll want a second authorized key without
-  the `command=` restriction — admin keys typically.)
-- **Read email in staging**: visit `https://mail.mitsailing.com` and
-  enter the basic-auth credentials from step 3 above.
+
+- **Status:**
+
+  ```bash
+  docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production ps
+  ```
+
+---
+
+## Optional: staging stack (Mailpit)
+
+For a **non-production** environment with captured email, use
+`compose.staging.yaml` and `.env.staging` instead. That path is **not** wired into
+`deploy.sh` anymore; keep staging on a separate host or swap the compose files
+in a fork. See `compose.staging.yaml` and `.env.staging.example`.
+
+---
 
 ## Key rotation
 
-Deploy keys rotate every 12 months, or immediately on suspected
-compromise:
-
-1. On your workstation: `ssh-keygen -t ed25519 -f /tmp/deploy-new -C 'gh-actions deploy'`
-2. On the server: append the new public key to
-   `~/.ssh/authorized_keys` with the same `command=...` restriction.
-3. Update `STAGING_SSH_PRIVATE_KEY` in GitHub secrets.
-4. After the next successful deploy, delete the old public key line.
-
-Compose and `.env.staging` rarely change; when they do, `scp` them
-in and re-run `~/deploy.sh deploy <currenttag>`.
+1. `ssh-keygen -t ed25519 -f /tmp/deploy-new -C 'mitsailing gh deploy'`
+2. Append the new **public** key to `authorized_keys` with the same `command=`
+   line as the old key.
+3. Update `PRODUCTION_SSH_PRIVATE_KEY` in GitHub.
+4. After a successful deploy, remove the old public key line.

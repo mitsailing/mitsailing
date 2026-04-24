@@ -1,0 +1,149 @@
+name: Docker PR
+
+# Builds the `prod` Dockerfile target on every PR, without pushing. Catches
+# Dockerfile regressions (bad COPY, missing runtime lib, alpine ABI drift,
+# non-root user perm issues) before merge — instead of discovering them
+# post-merge in `deploy.yml`.
+#
+# Deliberately does NOT spin up Postgres / Mailpit. Full HTTP + DB integration
+# is already covered by the `e2e` job in CI.yml. This workflow only proves:
+#   1. The image builds.
+#   2. The container boots, stays up, and handles SIGTERM.
+#   3. The built image passes a Trivy vuln scan for HIGH/CRITICAL issues.
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: docker-pr-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ─────────────────── Build + container sanity smoke ───────────────────
+  # Single job so the built image is still in the local docker daemon when
+  # we run the smoke check. Passing the image between jobs via artifacts or
+  # GHCR adds minutes for no value when both steps are seconds.
+  build:
+    name: Docker PR build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # `load: true` imports the image into the local docker daemon so the
+      # smoke step can `docker run` it without a registry round-trip.
+      - name: Build prod image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: prod
+          push: false
+          load: true
+          tags: mitsailing-pr:ci
+          # Share the GHA build cache with deploy.yml so subsequent deploys
+          # of the same commit don't rebuild layers from scratch.
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Narrow container sanity check — no Postgres, no HTTP.
+      # Proves the bundle survives `node server.js` startup and accepts
+      # SIGTERM. Actual route/DB behavior is exercised in the `e2e` job.
+      - name: Container sanity smoke
+        run: |
+          set -euo pipefail
+
+          docker run -d --name smoke \
+            -e DATABASE_URL='postgresql://smoke:smoke@127.0.0.1:5432/smoke?sslmode=disable' \
+            -e BETTER_AUTH_SECRET='smoke-placeholder-that-is-at-least-thirty-two-chars-long' \
+            -e NEXT_PUBLIC_APP_URL='http://localhost:3000' \
+            -e NEXT_PUBLIC_SENTRY_DISABLED='true' \
+            mitsailing-pr:ci
+
+          # Wait 20 s. If the container has exited in that window, the bundle
+          # failed at import (missing module, bad env validation, etc.).
+          sleep 20
+
+          if ! docker ps --filter name=smoke --filter status=running --format '{{.Names}}' | grep -qx smoke; then
+            echo "::error::container exited before 20 s — startup failure"
+            echo '--- docker logs smoke (last 200 lines) ---'
+            docker logs --tail 200 smoke || true
+            echo '--- docker inspect ---'
+            docker inspect smoke --format 'exit={{.State.ExitCode}} oom={{.State.OOMKilled}} error={{.State.Error}}' || true
+            exit 1
+          fi
+
+          # Signal a clean shutdown. Next.js' standalone server handles
+          # SIGTERM; we allow exit 0 (graceful) or 143 (128+SIGTERM).
+          docker kill --signal=SIGTERM smoke
+
+          for _ in $(seq 1 15); do
+            if ! docker ps --filter name=smoke --format '{{.Names}}' | grep -qx smoke; then
+              break
+            fi
+            sleep 1
+          done
+
+          exit_code="$(docker inspect --format '{{.State.ExitCode}}' smoke)"
+          echo "container exited with code ${exit_code}"
+          docker rm -f smoke || true
+
+          if [ "${exit_code}" != "0" ] && [ "${exit_code}" != "143" ]; then
+            echo "::error::unclean SIGTERM exit (${exit_code})"
+            exit 1
+          fi
+
+  # ─────────────────── Trivy vulnerability scan ───────────────────
+  # Runs in its own job so the scan status check is distinct from the build
+  # check — makes it easy to spot "build is green, scan surfaced a CVE" vs.
+  # "Dockerfile regression". Rebuild is ~free because the GHA cache from the
+  # `build` job hits every layer.
+  trivy:
+    name: Trivy image + fs scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: build
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build prod image (cache-hit expected)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: prod
+          push: false
+          load: true
+          tags: mitsailing-pr:ci
+          cache-from: type=gha
+
+      - name: Trivy — scan image (OS + language packages)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: mitsailing-pr:ci
+          format: table
+          exit-code: '1'
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+
+      - name: Trivy — scan filesystem (repo)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: table
+          exit-code: '1'
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          skip-dirs: node_modules,.next,test-results,storybook-static,coverage,playwright-report

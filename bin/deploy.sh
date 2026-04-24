@@ -1,20 +1,26 @@
 #!/usr/bin/env bash
 #
-# Staging deploy script, executed on the sailing-dock server.
+# Production deploy script, executed on the Linux host (rootless Docker OK).
 #
 # Intentional shape: this is the ONLY command the deploy SSH key is allowed
 # to run (pin it in ~/.ssh/authorized_keys with
-#   command="/home/ak/deploy.sh $SSH_ORIGINAL_COMMAND",no-pty,no-port-forwarding,no-agent-forwarding,no-X11-forwarding
+#   command="/home/USER/deploy.sh $SSH_ORIGINAL_COMMAND",no-pty,no-port-forwarding,no-agent-forwarding,no-X11-forwarding
 # so a compromised deploy key cannot turn into a shell or file transfer.)
 #
-# Protocol: the CI workflow sends `deploy <image-tag>` via ssh, we pin that
-# tag, pull it, recreate just the `app` service, and return.
+# Protocol: GitHub Actions sends `deploy <image-tag>` via ssh (e.g. `deploy
+# sha-abc123def456`), we pin that tag, pull it, recreate just the `app`
+# service, and return.
 
 set -Eeuo pipefail
 
-# Where the checked-out compose files + .env.staging live on the host.
-# Admin sets this up once; see docs/deploy.md.
+# Where compose files + `.env.production` live on the host. Override if you
+# keep multiple apps under ~/apps/<name>/.
 readonly DEPLOY_DIR="${DEPLOY_DIR:-$HOME/apps/mitsailing}"
+
+# Compose overlay: production (no Mailpit; Resend for mail). Override with
+# a full flag sequence, e.g. `DEPLOY_COMPOSE_FILES='-f compose.yaml -f compose.prod.yaml'`.
+readonly COMPOSE_FILES="${DEPLOY_COMPOSE_FILES:--f compose.yaml -f compose.prod.yaml}"
+readonly ENV_FILE="${DEPLOY_ENV_FILE:-.env.production}"
 
 log() { printf '[deploy %s] %s\n' "$(date -u +'%FT%TZ')" "$*"; }
 fail() { log "ERROR: $*" >&2; exit 1; }
@@ -42,18 +48,18 @@ main() {
   ref="$(parse_cmd "$@")"
 
   cd "$DEPLOY_DIR" || fail "DEPLOY_DIR not found: $DEPLOY_DIR"
-  [[ -f compose.yaml && -f compose.staging.yaml ]] \
+  [[ -f compose.yaml && -f compose.prod.yaml ]] \
     || fail "compose files missing in $DEPLOY_DIR — re-run the bootstrap from docs/deploy.md"
-  [[ -f .env.staging ]] \
-    || fail ".env.staging missing in $DEPLOY_DIR — copy .env.staging.example and fill it in"
+  [[ -f "$ENV_FILE" ]] \
+    || fail "${ENV_FILE} missing in $DEPLOY_DIR — copy .env.production.example and fill it in"
 
   local image="ghcr.io/${GHCR_OWNER:-mitsailing}/mitsailing:${ref}"
   log "deploying $image"
 
   # Persist the ref so subsequent `docker compose` invocations (status
   # checks, manual restarts) pick up the same pinned tag. We source this
-  # via env_file rather than rewriting .env.staging so nothing in the
-  # deploy loop edits a secrets file.
+  # via a tiny `.env.image` rather than rewriting `.env.production` so the
+  # deploy loop never edits a secrets file.
   printf 'APP_IMAGE=%s\n' "$image" > .env.image
   set -a
   # shellcheck disable=SC1091
@@ -65,12 +71,12 @@ main() {
   # depending on how the package visibility is set.
   docker pull "$image"
 
-  # --no-deps: don't touch postgres/mailpit/cloudflared. --force-recreate
+  # --no-deps: don't touch postgres/cloudflared. --force-recreate
   # is belt-and-braces because `up` only recreates on image change.
+  # shellcheck disable=SC2086
   docker compose \
-    -f compose.yaml \
-    -f compose.staging.yaml \
-    --env-file .env.staging \
+    $COMPOSE_FILES \
+    --env-file "$ENV_FILE" \
     up \
       --detach \
       --no-deps \
@@ -81,7 +87,8 @@ main() {
   # Wait up to 60s for the HEALTHCHECK to go green so CI fails loudly on
   # a broken deploy rather than declaring success on a crashing container.
   local container
-  container=$(docker compose -f compose.yaml -f compose.staging.yaml ps -q app)
+  # shellcheck disable=SC2086
+  container=$(docker compose $COMPOSE_FILES --env-file "$ENV_FILE" ps -q app)
   [[ -n "$container" ]] || fail "app container did not start"
 
   local deadline=$((SECONDS + 60))
