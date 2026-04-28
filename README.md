@@ -151,6 +151,8 @@ npm run dev              # db:up → db:wait → db:migrate → next dev (+ Spot
 npm run db:wait          # wait for Postgres on POSTGRES_PUBLISH_PORT (default 5432)
 npm run db:up            # docker compose up -d postgres mailpit
 npm run db:down          # docker compose down
+npm run db:test:up       # explicit test DB lifecycle start (alias of db:up)
+npm run db:test:down     # explicit test DB lifecycle teardown (alias of db:down)
 npm run build            # production build
 npm run start            # run the production build
 npm run lint             # ultracite / oxlint type-aware check
@@ -159,6 +161,7 @@ npm run check:types      # tsc --noEmit
 npm run check:deps       # knip unused-code report
 npm run check:i18n       # next-intl message coverage
 npm run test             # Vitest unit + browser tests
+npm run test:integration # db:test:up → db:wait → db:migrate:test → test → db:test:down
 npm run test:e2e         # Playwright end-to-end (spins up a test DB)
 npm run storybook        # Storybook dev server on :6006
 npm run build-storybook  # static Storybook build
