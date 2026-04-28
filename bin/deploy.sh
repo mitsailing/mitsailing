@@ -78,7 +78,7 @@ run_migrations() {
   docker compose \
     $COMPOSE_FILES \
     --env-file "$ENV_FILE" \
-    run --rm --no-deps app npx prisma migrate deploy
+    run --rm --no-deps app node ./node_modules/prisma/build/index.js migrate deploy
 }
 
 run_deploy() {
