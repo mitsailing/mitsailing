@@ -1,5 +1,9 @@
 name: Deploy (production)
 
+# Repository → Settings → Environments → `production`:
+#   Add **Required reviewers** so the deploy job waits for human approval before
+#   SSH (recommended). Secrets live on that environment: PRODUCTION_SSH_*.
+#
 # Auto-deploy to the sailing-dock production host when main changes. We also
 # expose a manual `workflow_dispatch` trigger so operators can deploy an
 # arbitrary commit without having to git-push (useful for hotfix replays

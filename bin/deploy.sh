@@ -71,7 +71,7 @@ main() {
   # depending on how the package visibility is set.
   docker pull "$image"
 
-  # --no-deps: don't touch postgres/cloudflared. --force-recreate
+  # --no-deps: don't touch postgres/redis/cloudflared. --force-recreate
   # is belt-and-braces because `up` only recreates on image change.
   # shellcheck disable=SC2086
   docker compose \
@@ -82,7 +82,8 @@ main() {
       --no-deps \
       --force-recreate \
       --pull always \
-      app
+      app \
+      worker
 
   # Wait up to 60s for the HEALTHCHECK to go green so CI fails loudly on
   # a broken deploy rather than declaring success on a crashing container.

@@ -13,6 +13,9 @@ export const Env = createEnv({
     BETTER_AUTH_SECRET: z.string().min(32),
     DATABASE_URL: z.string().min(1),
 
+    // BullMQ worker + optional API enqueue; Redis is internal to Compose in prod.
+    REDIS_URL: z.url().optional(),
+
     // APP_ENV is orthogonal to NODE_ENV: it names the deployment target
     // (staging runs a production build but behaves like staging — Mailpit
     // instead of Resend, optional debug banners, etc.). `local` is the
@@ -68,6 +71,7 @@ export const Env = createEnv({
     ARCJET_KEY: process.env.ARCJET_KEY,
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
     DATABASE_URL: process.env.DATABASE_URL,
+    REDIS_URL: process.env.REDIS_URL,
     APP_ENV: process.env.APP_ENV,
     MAIL_TRANSPORT: process.env.MAIL_TRANSPORT,
     RESEND_API_KEY: process.env.RESEND_API_KEY,

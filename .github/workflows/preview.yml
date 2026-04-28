@@ -1,0 +1,131 @@
+name: Preview (PR)
+
+# Optional per-PR images and teardown on a self-hosted preview host. Add
+# **repository** secrets (Settings → Secrets and variables → Actions):
+#   PREVIEW_SSH_USER, PREVIEW_SSH_HOST, PREVIEW_SSH_PRIVATE_KEY, PREVIEW_SSH_HOST_KEY
+#
+# If `PREVIEW_SSH_HOST` is unset, jobs no-op successfully so forks and
+# unconfigured repos stay green. See docs/deploy.md for the remote `preview-down`
+# hook. Do not add **Required reviewers** to a `preview` environment for this
+# workflow unless you also remove `environment:` from jobs (not used here).
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+concurrency:
+  group: preview-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  gate:
+    name: Preview enabled?
+    runs-on: ubuntu-latest
+    outputs:
+      skip: ${{ steps.check.outputs.skip }}
+    steps:
+      - name: Check secrets
+        id: check
+        env:
+          PREVIEW_SSH_HOST: ${{ secrets.PREVIEW_SSH_HOST }}
+        run: |
+          if [ -z "$PREVIEW_SSH_HOST" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Preview host not configured — skipping PR preview jobs."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  build-push:
+    name: Build + push preview image
+    needs: gate
+    if: |
+      needs.gate.outputs.skip != 'true' &&
+      github.event_name == 'pull_request' &&
+      github.event.action != 'closed' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Image tags
+        id: meta
+        run: |
+          short_sha="$(printf '%s' '${{ github.event.pull_request.head.sha }}' | cut -c1-12)"
+          repo="$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')"
+          tag="pr-${{ github.event.number }}-${short_sha}"
+          echo "image=${{ env.REGISTRY }}/${repo}:${tag}" >> "$GITHUB_OUTPUT"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build + push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: prod
+          push: true
+          tags: ${{ steps.meta.outputs.image }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Summary
+        run: |
+          echo "Pushed ${{ steps.meta.outputs.image }}"
+          echo "Run compose on the preview host with APP_IMAGE set to this tag."
+
+  teardown:
+    name: Preview teardown
+    needs: gate
+    if: |
+      needs.gate.outputs.skip != 'true' &&
+      github.event_name == 'pull_request' &&
+      github.event.action == 'closed' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.PREVIEW_SSH_PRIVATE_KEY }}" > ~/.ssh/id_preview
+          chmod 600 ~/.ssh/id_preview
+          printf '%s\n' "${{ secrets.PREVIEW_SSH_HOST_KEY }}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Teardown remote preview stack
+        env:
+          PREVIEW_USER: ${{ secrets.PREVIEW_SSH_USER }}
+          PREVIEW_HOST: ${{ secrets.PREVIEW_SSH_HOST }}
+          PR_NUMBER: ${{ github.event.number }}
+        run: |
+          ssh \
+            -i ~/.ssh/id_preview \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            "${PREVIEW_USER}@${PREVIEW_HOST}" \
+            "preview-down ${PR_NUMBER}"
+        # The server must expose `preview-down <n>` (e.g. via authorized_keys
+        # command= like deploy.sh). Implement locally until that hook exists.

@@ -14,13 +14,21 @@
 # - `name:` gives all environments a stable project namespace so
 #   `docker compose ps` shows recognizable container names regardless of
 #   what the working directory is called.
+# - `internal` is a user-defined bridge for app↔data plane isolation; local
+#   dev still reaches Postgres via published ports in compose.override.yaml.
 
 name: mitsailing
+
+networks:
+  internal:
+    driver: bridge
 
 services:
   postgres:
     image: postgres:18-alpine
     restart: unless-stopped
+    networks:
+      - internal
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
@@ -32,10 +40,45 @@ services:
       - postgres_data:/var/lib/postgresql
       - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres -d dev_db']
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
       interval: 2s
       timeout: 5s
       retries: 30
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 768M
+        reservations:
+          cpus: '0.10'
+          memory: 256M
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks:
+      - internal
+    volumes:
+      - redis_data:/data
+    command: >-
+      redis-server
+      --appendonly yes
+      --maxmemory 256mb
+      --maxmemory-policy noeviction
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 384M
+        reservations:
+          cpus: '0.05'
+          memory: 64M
 
 volumes:
   postgres_data:
+  redis_data:

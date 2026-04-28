@@ -34,6 +34,11 @@ const baseConfig: NextConfig = {
       },
     ],
   },
+  // Align with the image tag or release id so clients hard-reload on version skew
+  // (see https://nextjs.org/docs/app/api-reference/config/next-config-js/deploymentId).
+  ...(process.env.DEPLOYMENT_VERSION
+    ? { deploymentId: process.env.DEPLOYMENT_VERSION }
+    : {}),
 };
 
 // Initialize the Next-Intl plugin

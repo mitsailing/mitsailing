@@ -61,6 +61,7 @@ ENV BETTER_AUTH_SECRET=build-time-placeholder-that-is-at-least-thirty-two-chars-
 ENV DATABASE_URL=postgresql://build:build@localhost:5432/build?sslmode=disable
 
 RUN npm run build:next
+RUN npm run build:worker
 
 
 # ─────────────────────────────── dev ───────────────────────────────
@@ -109,6 +110,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modul
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+COPY --from=builder --chown=nextjs:nodejs /app/worker.cjs ./worker.cjs
 
 USER nextjs
 EXPOSE 3000

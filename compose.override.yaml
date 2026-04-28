@@ -17,6 +17,11 @@ services:
       # when another Postgres already owns 5432 (Homebrew, another container).
       - '${POSTGRES_PUBLISH_PORT:-5432}:5432'
 
+  redis:
+    ports:
+      # For `npm run worker:dev` on the host. Production leaves Redis unpublished.
+      - '127.0.0.1:${REDIS_PUBLISH_PORT:-6379}:6379'
+
   mailpit:
     image: axllent/mailpit:latest
     restart: unless-stopped

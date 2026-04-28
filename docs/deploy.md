@@ -21,7 +21,7 @@ Ingress in this repo is **Cloudflare Tunnel** (`cloudflared` in
 | Docker Engine + Compose v2 | Rootless is fine; same user runs `docker compose` |
 | SSH access | Interactive key for you; **separate** deploy key for CI |
 | `docker login ghcr.io` | Once per user, PAT with `read:packages` if the image is private |
-| Directory `~/apps/mitsailing/` | Holds `compose.yaml`, `compose.prod.yaml`, `docker/postgres/init.sql`, `.env.production`, `deploy.sh` |
+| Directory `~/apps/mitsailing/` | Holds `compose.yaml`, `compose.prod.yaml`, optional `compose.db-admin.yaml`, `docker/postgres/init.sql`, `.env.production`, `deploy.sh` |
 
 **Multiple projects on one host:** each app should use a **unique Compose
 project name**. This repo sets `name: mitsailing` in `compose.yaml`. A second
@@ -54,9 +54,9 @@ mkdir -p ~/apps/mitsailing/docker/postgres
 cd ~/apps/mitsailing
 
 # From a clone of this repo on your laptop, scp or cp:
-#   compose.yaml compose.prod.yaml docker/postgres/init.sql bin/deploy.sh
+#   compose.yaml compose.prod.yaml compose.db-admin.yaml docker/postgres/init.sql bin/deploy.sh
 # Example from your workstation:
-#   scp compose.yaml compose.prod.yaml YOUR_USER@YOUR_HOST:~/apps/mitsailing/
+#   scp compose.yaml compose.prod.yaml compose.db-admin.yaml YOUR_USER@YOUR_HOST:~/apps/mitsailing/
 #   scp docker/postgres/init.sql YOUR_USER@YOUR_HOST:~/apps/mitsailing/docker/postgres/
 #   scp bin/deploy.sh YOUR_USER@YOUR_HOST:~/deploy.sh
 
@@ -78,9 +78,20 @@ $EDITOR .env.production
 Fill at least:
 
 - `BETTER_AUTH_SECRET` (32+ random chars)
-- `DATABASE_URL` — must match **Postgres in `compose.yaml`**: user `postgres`,
-  database `dev_db`, host `postgres`, password `POSTGRES_PASSWORD`
+- `DATABASE_URL` — must match Postgres in Compose: user `postgres`, host
+  `postgres`, password `POSTGRES_PASSWORD`. Production defaults to database
+  name **`mitsailing_prod`** (`compose.prod.yaml`). If your volume was created
+  earlier with `dev_db`, keep `POSTGRES_DB=dev_db` and point `DATABASE_URL` at
+  `dev_db` until you migrate.
 - `POSTGRES_PASSWORD` — strong password; same value embedded in `DATABASE_URL`
+- `REDIS_URL` — e.g. `redis://redis:6379` for the BullMQ **worker** service
+  (`compose.yaml` / `compose.prod.yaml`)
+- Optional **`DEPLOYMENT_VERSION`** — same string on every `app` container when
+  using rolling deploys or multiple replicas (wired to Next.js `deploymentId`;
+  image tag or git SHA is typical).
+- Optional **`NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`** — required before running
+  **more than one** `app` replica or overlapping rolling deploys (see Next.js
+  data security docs).
 - `NEXT_PUBLIC_APP_URL=https://mitsailing.com` (or your real public URL)
 - `CLOUDFLARE_TUNNEL_TOKEN` from the Cloudflare Zero Trust dashboard
 - `RESEND_API_KEY`, `EMAIL_FROM`, `SUPPORT_EMAIL` (real mail; there is no
@@ -121,18 +132,19 @@ If `deploy.sh` lives elsewhere, change the path before `$SSH_ORIGINAL_COMMAND`.
 Keep your **personal** SSH key in `authorized_keys` **without** `command=` so
 you can still open a normal shell.
 
-### 6. First bring-up (Postgres, then app)
+### 6. First bring-up (Postgres + Redis, then app/worker)
 
-Postgres must exist and be healthy before the app container runs migrations.
+Postgres and Redis must exist and be healthy before the app and worker
+containers start.
 
 ```bash
 cd ~/apps/mitsailing
 
-# First time only — creates the volume and runs init.sql
-docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production up -d postgres
+# First time only — creates volumes and runs init.sql
+docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production up -d postgres redis
 
 docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production ps
-# Wait until postgres is healthy, then:
+# Wait until postgres and redis are healthy, then:
 
 # Pin the same image tag CI will send (use `latest` or a concrete sha- tag from GHCR)
 ~/deploy.sh deploy latest
@@ -144,7 +156,8 @@ After the first successful deploy, day-to-day updates are **only** from GitHub
 ### 7. GitHub repository configuration
 
 Create environment **`production`** (Settings → Environments) with URL
-`https://mitsailing.com` if you like.
+`https://mitsailing.com` if you like. Add **Required reviewers** on that
+environment so production deploys wait for explicit approval (recommended).
 
 Add secrets used by `.github/workflows/deploy.yml`:
 
@@ -155,17 +168,69 @@ Add secrets used by `.github/workflows/deploy.yml`:
 | `PRODUCTION_SSH_PRIVATE_KEY` | Full PEM of **mitsailing-deploy** private key |
 | `PRODUCTION_SSH_HOST_KEY` | One line from `ssh-keyscan YOUR_HOST` |
 
+Optional **PR preview** host (`.github/workflows/preview.yml`) — use **repository**
+secrets so jobs can run without environment protection deadlocks:
+
+| Secret | Value |
+| --- | --- |
+| `PREVIEW_SSH_USER` | Linux username on the preview host |
+| `PREVIEW_SSH_HOST` | Hostname or IP |
+| `PREVIEW_SSH_PRIVATE_KEY` | Dedicated key for preview/teardown |
+| `PREVIEW_SSH_HOST_KEY` | One line from `ssh-keyscan PREVIEW_HOST` |
+
+Each deploy pushes an image tag `pr-<number>-<12-char-sha>`. The teardown job
+runs `preview-down <number>` over SSH; implement that command on the server
+(e.g. `docker compose -p mitsailing-pr-<number> down`) and lock it in
+`authorized_keys` the same way as `deploy.sh`.
+
+---
+
+## Database admin access (SSH tunnel)
+
+Production Postgres is **not** published on the host by default. For one-off
+access from your laptop (GUI or `psql`), use **your personal SSH key** (not the
+CI deploy key) and optionally add the **`compose.db-admin.yaml`** overlay so
+Postgres listens on loopback only:
+
+```bash
+cd ~/apps/mitsailing
+docker compose -f compose.yaml -f compose.prod.yaml -f compose.db-admin.yaml --env-file .env.production up -d
+```
+
+Then tunnel:
+
+```bash
+ssh -N -L 15432:127.0.0.1:15432 YOUR_USER@SERVER
+```
+
+Point tools at `127.0.0.1:15432` (see `compose.db-admin.yaml` for the default
+port). When finished, remove the admin overlay so the port is not left open.
+
+More context: [docs/devops_plan.md](./devops_plan.md) §5.5.
+
+---
+
+## PR preview deployments
+
+When `PREVIEW_SSH_*` secrets are set, `.github/workflows/preview.yml` builds and
+pushes a GHCR image per PR and runs teardown on `pull_request` **closed**. Wire
+the preview host to pull that tag and run Compose with a dedicated
+`COMPOSE_PROJECT_NAME` or stack name per PR; never point previews at the
+production database.
+
 ---
 
 ## Day-to-day
 
-- **Deploy:** merge to `main` (automatic) or run the Deploy workflow with a
-  specific `ref` SHA for rollback.
+- **Deploy:** merge to `main` (automatic, after **production** environment
+  approval if configured) or run the Deploy workflow with a specific `ref` SHA
+  for rollback.
 - **Logs:**
 
   ```bash
   cd ~/apps/mitsailing
   docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production logs -f --tail 100 app
+  docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production logs -f --tail 100 worker
   ```
 
 - **Status:**
