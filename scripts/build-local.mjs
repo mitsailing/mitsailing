@@ -11,13 +11,20 @@ loadEnv({ path: '.env', override: false, quiet: true });
 // `dev_db`, then `next build`. Compose is left running on exit so repeat
 // builds are fast and `npm run dev` can reuse the same stack; tear it down
 // with `npm run db:down` when you're done.
-execSync('npm run db:up', { stdio: 'inherit', shell: true });
+//
+// In CI (`CI=true`), skip Compose — GitHub Actions provides Postgres via a
+// workflow service container (see `.github/workflows/CI.yml`).
+const isCi = process.env.CI === 'true';
 
-const pgPort = process.env.POSTGRES_PUBLISH_PORT ?? '5432';
-await waitOn({
-  resources: [`tcp:127.0.0.1:${pgPort}`],
-  timeout: 60_000,
-});
+if (!isCi) {
+  execSync('npm run db:up', { stdio: 'inherit', shell: true });
+
+  const pgPort = process.env.POSTGRES_PUBLISH_PORT ?? '5432';
+  await waitOn({
+    resources: [`tcp:127.0.0.1:${pgPort}`],
+    timeout: 60_000,
+  });
+}
 
 execSync('npm run db:migrate', { stdio: 'inherit', shell: true });
 execSync('npm run build:next', { stdio: 'inherit', shell: true });

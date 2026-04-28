@@ -40,6 +40,23 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
+    # build-local runs prisma migrate; needs Postgres without relying on
+    # docker compose on the runner (matches DATABASE_URL in workflow env).
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: dev_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d dev_db"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 30
+
     steps:
       - uses: actions/checkout@v6
 
