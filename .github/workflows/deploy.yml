@@ -139,6 +139,11 @@ jobs:
       name: production
       url: https://mitsailing.com
     steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+
       - name: Set up SSH
         run: |
           mkdir -p ~/.ssh
@@ -146,6 +151,24 @@ jobs:
           chmod 600 ~/.ssh/id_deploy
           printf '%s\n' "${{ secrets.PRODUCTION_SSH_HOST_KEY }}" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
+
+      - name: Sync deploy script
+        env:
+          PRODUCTION_USER: ${{ secrets.PRODUCTION_SSH_USER }}
+          PRODUCTION_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
+        run: |
+          scp \
+            -i ~/.ssh/id_deploy \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            bin/deploy.sh \
+            "${PRODUCTION_USER}@${PRODUCTION_HOST}:~/deploy.sh"
+          ssh \
+            -i ~/.ssh/id_deploy \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            "${PRODUCTION_USER}@${PRODUCTION_HOST}" \
+            "chmod +x ~/deploy.sh"
 
       - name: Run prisma migrate deploy
         env:
@@ -173,6 +196,11 @@ jobs:
       name: production
       url: https://mitsailing.com
     steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+
       - name: Set up SSH
         # We do NOT use ssh-agent for this; the deploy key is bound to a
         # single command on the server side (see docs/deploy.md), so only
@@ -185,6 +213,24 @@ jobs:
           # via `ssh-keyscan sailing-dock.mit.edu` and puts it in secrets.
           printf '%s\n' "${{ secrets.PRODUCTION_SSH_HOST_KEY }}" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
+
+      - name: Sync deploy script
+        env:
+          PRODUCTION_USER: ${{ secrets.PRODUCTION_SSH_USER }}
+          PRODUCTION_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
+        run: |
+          scp \
+            -i ~/.ssh/id_deploy \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            bin/deploy.sh \
+            "${PRODUCTION_USER}@${PRODUCTION_HOST}:~/deploy.sh"
+          ssh \
+            -i ~/.ssh/id_deploy \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            "${PRODUCTION_USER}@${PRODUCTION_HOST}" \
+            "chmod +x ~/deploy.sh"
 
       - name: Deploy
         env:
