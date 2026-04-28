@@ -104,11 +104,11 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Ship Prisma CLI engines + schema/migrations so `prisma migrate deploy` can
-# run at container startup. The query client lives under `src/generated/prisma`
-# (see prisma/schema.prisma generator output), not `node_modules/.prisma`.
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
+# Ship full node_modules from the builder so Prisma CLI can resolve all
+# transitive dependencies during `prisma migrate deploy` in production.
+# Prisma 7 pulls runtime modules (for example `effect`) that are not present
+# when only copying `@prisma` and `prisma` directories.
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/worker.cjs ./worker.cjs
 
