@@ -2,8 +2,8 @@
 # differences from staging:
 #   - No Mailpit service: outbound mail goes to Resend
 #     (MAIL_TRANSPORT=resend via .env.production).
-#   - Command runs migrations then the app; same safety property as
-#     staging (bad migration aborts the deploy).
+#   - App command is `node server.js`; database migrations run in CI/CD
+#     before deployment (see `.github/workflows/deploy.yml`).
 #   - Database default name `mitsailing_prod` (override with POSTGRES_DB if
 #     an existing volume was initialized with `dev_db`).
 #   - If heavy ISR / `use cache` needs a shared or durable data cache, add a
@@ -36,11 +36,7 @@ services:
       redis:
         condition: service_healthy
     stop_grace_period: 30s
-    command:
-      - sh
-      - -c
-      - >-
-        npx prisma migrate deploy && node server.js
+    command: ['node', 'server.js']
     deploy:
       resources:
         limits:

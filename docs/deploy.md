@@ -2,8 +2,9 @@
 
 This app ships as a **Docker image** on GitHub Container Registry (GHCR). Each
 push to `main` builds and tags `ghcr.io/mitsailing/mitsailing:sha-<short>` and
-`:latest`, then GitHub Actions SSHs to your Linux host and runs
-`deploy <sha-short>` (see `bin/deploy.sh` and `.github/workflows/deploy.yml`).
+`:latest`, then GitHub Actions SSHs to your Linux host to run
+`migrate <sha-short>` followed by `deploy <sha-short>` (see `bin/deploy.sh`
+and `.github/workflows/deploy.yml`).
 
 The server can run **rootless Docker** (no `sudo` for day-to-day). You only need
 `sudo` once if your distro requires **loginctl linger** so the Docker user
@@ -120,7 +121,8 @@ ssh-keygen -t ed25519 -f ./mitsailing-deploy -C 'mitsailing gh actions deploy' -
 ```
 
 On the server, add the **public** key to `~/.ssh/authorized_keys` with a
-`command=` restriction so that key can **only** run `deploy <ref>`. Use a
+`command=` restriction so that key can only run this script's
+`migrate <ref>` / `deploy <ref>` commands. Use a
 **literal absolute path** (OpenSSH does not expand `$HOME` here):
 
 ```
@@ -132,7 +134,7 @@ If `deploy.sh` lives elsewhere, change the path before `$SSH_ORIGINAL_COMMAND`.
 Keep your **personal** SSH key in `authorized_keys` **without** `command=` so
 you can still open a normal shell.
 
-### 6. First bring-up (Postgres + Redis, then app/worker)
+### 6. First bring-up (Postgres + Redis, then migrate + app/worker)
 
 Postgres and Redis must exist and be healthy before the app and worker
 containers start.
@@ -147,6 +149,7 @@ docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production p
 # Wait until postgres and redis are healthy, then:
 
 # Pin the same image tag CI will send (use `latest` or a concrete sha- tag from GHCR)
+~/deploy.sh migrate latest
 ~/deploy.sh deploy latest
 ```
 
