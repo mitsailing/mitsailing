@@ -104,11 +104,11 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Ship the prisma client + migrations so `prisma migrate deploy` can run
-# at container startup without pulling the whole workspace.
+# Ship Prisma CLI engines + schema/migrations so `prisma migrate deploy` can
+# run at container startup. The query client lives under `src/generated/prisma`
+# (see prisma/schema.prisma generator output), not `node_modules/.prisma`.
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/worker.cjs ./worker.cjs
 
