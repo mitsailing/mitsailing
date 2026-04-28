@@ -133,20 +133,6 @@
     "meta_title": "About MIT Sailing",
     "meta_description": "Mission, history, staff, volunteering, and dock hours at the MIT Sailing Pavilion on the Charles River — inclusive access to sailing for the MIT community."
   },
-  "Portfolio": {
-    "meta_title": "Portfolio",
-    "meta_description": "Welcome to my portfolio page!",
-    "presentation": "Welcome to my portfolio page! Here you will find a carefully curated collection of my work and accomplishments. Through this portfolio, I'm to showcase my expertise, creativity, and the value I can bring to your projects.",
-    "portfolio_name": "Portfolio {name}",
-    "error_reporting_powered_by": "Error reporting powered by"
-  },
-  "PortfolioSlug": {
-    "meta_title": "Portfolio {slug}",
-    "meta_description": "Portfolio {slug} description",
-    "header": "Portfolio {slug}",
-    "content": "Created a set of promotional materials and branding elements for a corporate event. Crafted a visually unified theme, encompassing a logo, posters, banners, and digital assets. Integrated the client's brand identity while infusing it with a contemporary and innovative approach.",
-    "code_review_powered_by": "Code review powered by"
-  },
   "SignInPage": {
     "meta_title": "Sign in",
     "meta_description": "Seamlessly sign in to your account with our user-friendly login process.",

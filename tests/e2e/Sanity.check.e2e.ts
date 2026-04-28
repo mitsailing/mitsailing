@@ -34,13 +34,13 @@ test.describe('Sanity', () => {
       ).toBeVisible();
     });
 
-    test('should navigate to the portfolio page', async ({ page }) => {
-      await page.goto('/portfolio');
+    test('should navigate to the contact page', async ({ page }) => {
+      await page.goto('/contact');
 
-      await expect(page).toHaveURL(/portfolio$/);
+      await expect(page).toHaveURL(/contact$/);
 
       await expect(
-        page.getByText('Welcome to my portfolio page!', { exact: false })
+        page.getByRole('heading', { name: 'Contact' })
       ).toBeVisible();
     });
   });

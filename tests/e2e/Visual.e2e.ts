@@ -16,13 +16,13 @@ test.describe('Visual testing', () => {
       await takeSnapshot(page, testInfo);
     });
 
-    test('should take screenshot of the portfolio page', async ({
+    test('should take screenshot of the contact page', async ({
       page,
     }, testInfo) => {
-      await page.goto('/portfolio');
+      await page.goto('/contact');
 
       await expect(
-        page.getByText('Welcome to my portfolio page!')
+        page.getByRole('heading', { name: 'Contact' })
       ).toBeVisible();
 
       await takeSnapshot(page, testInfo);
@@ -40,13 +40,15 @@ test.describe('Visual testing', () => {
       await takeSnapshot(page, testInfo);
     });
 
-    test('should take screenshot of the portfolio details page', async ({
+    test('should take screenshot of the MIT Nautical Association page', async ({
       page,
     }, testInfo) => {
-      await page.goto('/portfolio/2');
+      await page.goto('/about/mitna');
 
       await expect(
-        page.getByText('Created a set of promotional')
+        page.getByRole('heading', {
+          name: 'About MIT Nautical Association',
+        })
       ).toBeVisible();
 
       await takeSnapshot(page, testInfo);

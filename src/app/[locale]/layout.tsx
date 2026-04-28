@@ -49,9 +49,8 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export function generateStaticParams() {
-  return routing.locales.map((locale) => ({ locale }));
-}
+/** Self-hosted Node: no static prerender at build; all locale routes are requested on the server. */
+export const dynamic = 'force-dynamic';
 
 export default async function RootLayout(props: {
   children: React.ReactNode;

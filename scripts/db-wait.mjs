@@ -9,6 +9,7 @@
  * exist" — so we poll until `test_db` answers inside the container.
  */
 import { execFileSync } from 'node:child_process';
+import { setTimeout as delay } from 'node:timers/promises';
 import { config as loadEnv } from 'dotenv';
 import waitOn from 'wait-on';
 
@@ -42,15 +43,15 @@ for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
         '-c',
         'SELECT 1',
       ],
-      { stdio: 'pipe' },
+      { stdio: 'pipe' }
     );
     break;
   } catch {
     if (attempt === maxAttempts - 1) {
       throw new Error(
-        'Postgres is up but `test_db` is not ready — check docker/postgres/init.sql and compose logs',
+        'Postgres is up but `test_db` is not ready — check docker/postgres/init.sql and compose logs'
       );
     }
-    await new Promise((r) => setTimeout(r, pollMs));
+    await delay(pollMs);
   }
 }
