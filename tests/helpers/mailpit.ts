@@ -73,7 +73,7 @@ export async function deleteAllMessages(): Promise<void> {
  */
 export async function findLatestMessageTo(
   email: string,
-  timeoutMs = 30_000
+  timeoutMs = 15_000
 ): Promise<MailpitMessage> {
   const deadline = Date.now() + timeoutMs;
   let lastError: unknown;

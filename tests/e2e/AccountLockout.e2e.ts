@@ -40,13 +40,8 @@ const testDatabaseUrl =
   'postgresql://postgres:postgres@127.0.0.1:5432/test_db?sslmode=disable';
 
 const pool = new Pool({ connectionString: testDatabaseUrl });
-let poolClosed = false;
 
 test.afterAll(async () => {
-  if (poolClosed) {
-    return;
-  }
-  poolClosed = true;
   await pool.end();
 });
 
