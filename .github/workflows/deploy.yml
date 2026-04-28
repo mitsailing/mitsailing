@@ -158,7 +158,7 @@ jobs:
             -o BatchMode=yes \
             -o ConnectTimeout=15 \
             "${PRODUCTION_USER}@${PRODUCTION_HOST}" \
-            "migrate ${IMAGE_TAG}"
+            "~/deploy.sh migrate ${IMAGE_TAG}"
 
   # ─────────────────── Stage 3 — deploy ───────────────────
   # Separate job so a failed deploy doesn't block later pushes from
@@ -201,4 +201,4 @@ jobs:
             -o BatchMode=yes \
             -o ConnectTimeout=15 \
             "${PRODUCTION_USER}@${PRODUCTION_HOST}" \
-            "deploy ${IMAGE_TAG}"
+            "~/deploy.sh deploy ${IMAGE_TAG}"
