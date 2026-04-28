@@ -1,5 +1,8 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# Figma / Vite source (integrated into src/; not vendored in git)
+/mit-redesign/
+
 # dependencies
 /node_modules
 /.pnp
@@ -13,6 +16,8 @@
 # testing
 /coverage
 /vitest-test-results
+/test-report.junit.xml
+.vitest-attachments/
 
 # next.js
 /.next/
@@ -20,6 +25,7 @@
 
 # production
 /build
+/worker.cjs
 
 # misc
 .DS_Store
@@ -32,8 +38,11 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# local env files
-.env*.local
+# local env files — committed only when suffixed `.example`
+.env
+.env.*
+!.env.example
+!.env.*.example
 
 # Sentry Config File
 .env.sentry-build-plugin
@@ -50,6 +59,9 @@ next-env.d.ts
 
 # Database
 *.db
+
+# Prisma 7 — generated client (see `postinstall`: `prisma generate`)
+/src/generated/
 
 # storybook
 storybook-static

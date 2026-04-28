@@ -2,11 +2,24 @@ import type { Metadata, Viewport } from 'next';
 import { hasLocale, NextIntlClientProvider } from 'next-intl';
 import { setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
-import { DemoBadge } from '@/components/DemoBadge';
 import { routing } from '@/libs/I18nRouting';
+import { AppConfig } from '@/utils/AppConfig';
 import '@/styles/global.css';
 
+const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://mitsailing.com';
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: AppConfig.name,
+    template: `%s · ${AppConfig.name}`,
+  },
+  description: 'Pavilion and programs on the Charles.',
+  openGraph: {
+    type: 'website',
+    siteName: AppConfig.name,
+    url: SITE_URL,
+  },
   icons: [
     {
       rel: 'apple-touch-icon',
@@ -36,9 +49,8 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export function generateStaticParams() {
-  return routing.locales.map((locale) => ({ locale }));
-}
+/** Self-hosted Node: no static prerender at build; all locale routes are requested on the server. */
+export const dynamic = 'force-dynamic';
 
 export default async function RootLayout(props: {
   children: React.ReactNode;
@@ -55,11 +67,7 @@ export default async function RootLayout(props: {
   return (
     <html lang={locale}>
       <body>
-        <NextIntlClientProvider>
-          {props.children}
-
-          <DemoBadge />
-        </NextIntlClientProvider>
+        <NextIntlClientProvider>{props.children}</NextIntlClientProvider>
       </body>
     </html>
   );

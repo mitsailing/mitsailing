@@ -1,0 +1,17 @@
+# Optional overlay: publish Postgres on loopback only for operator SSH tunneling.
+# Do not commit a variant that binds 0.0.0.0.
+#
+# Start with:
+#   docker compose -f compose.yaml -f compose.prod.yaml -f compose.db-admin.yaml --env-file .env.production up -d
+#
+# Then from your laptop (personal SSH key, not the CI deploy key):
+#   ssh -N -L 15432:127.0.0.1:15432 user@server
+#
+# Point GUI clients at postgresql://...@127.0.0.1:15432/...
+#
+# When finished, stop using this file (or `compose down`) so the port closes.
+
+services:
+  postgres:
+    ports:
+      - '127.0.0.1:${POSTGRES_ADMIN_PORT:-15432}:5432'

@@ -1,3 +1,5 @@
+# Crowdin GitHub Actions are temporarily disabled; restore `crowdin.yml` under
+# `.github/workflows/` from git history when re-enabling.
 #
 # Your Crowdin credentials
 #

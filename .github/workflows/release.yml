@@ -1,12 +1,14 @@
 name: Release
 
+# Triggers directly on `push: main` rather than chaining off `workflow_run: CI`.
+# CI no longer runs on main (only on PRs — see `.github/workflows/CI.yml`), so
+# a `workflow_run` trigger would never fire. The branch-protection ruleset
+# (`.github/rulesets/main-branch.json`) already guarantees that every commit
+# reaching `main` has passed the full PR check suite, so running semantic-
+# release straight off the merge commit is safe.
 on:
-  workflow_run:
-    workflows: [CI]
-    types:
-      - completed
-    branches:
-      - main
+  push:
+    branches: [main]
 
 jobs:
   release:

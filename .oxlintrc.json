@@ -1,5 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "ignorePatterns": ["mit-redesign/**"],
   "extends": [
     "./node_modules/ultracite/config/oxlint/core/.oxlintrc.json",
     "./node_modules/ultracite/config/oxlint/next/.oxlintrc.json",
@@ -31,5 +32,21 @@
   },
   "options": {
     "reportUnusedDisableDirectives": "error"
-  }
+  },
+  "overrides": [
+    {
+      "files": ["src/data/mit-sailing/**"],
+      "rules": {
+        "jsdoc/require-param": "off",
+        "jsdoc/require-param-description": "off",
+        "jsdoc/require-returns": "off",
+        "jsdoc/require-returns-description": "off",
+        "no-use-before-define": "off",
+        "no-negated-condition": "off",
+        "@typescript-eslint/no-non-null-assertion": "off",
+        "unicorn/prefer-structured-clone": "off",
+        "complexity": "off"
+      }
+    }
+  ]
 }

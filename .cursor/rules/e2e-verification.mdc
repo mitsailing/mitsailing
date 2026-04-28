@@ -1,0 +1,28 @@
+---
+description: Do not claim e2e is fixed or complete without running the project e2e command
+alwaysApply: true
+---
+
+# E2E verification (Playwright)
+
+This repo follows the same **shape** as [cal.com’s Playwright setup](https://github.com/calcom/cal.com/blob/main/playwright.config.ts): DB preflight (compose + migrate + **`e2e:seed`** / `prisma db seed` on `test_db`, like their `test-e2e` = `db-seed && e2e`), **`fullyParallel` + many `workers`** (optional `PLAYWRIGHT_WORKERS` to cap), the web server in config is **`next start`**, `NEXT_PUBLIC_IS_E2E=1`, and web-server logs are suppressed. **Default Playwright timeouts are short**; use `PLAYWRIGHT_SLOW=1` for long local waits when debugging.
+
+## Before saying e2e is "done" or "passing"
+
+1. **Run:** `npm run test:e2e` from the project root (see `package.json`: preflight → `e2e:build` — unless `E2E_SKIP_BUILD=1` — → `e2e` / Playwright).
+
+2. **End with success:** If you cannot run it here, say what was *not* verified; do not imply a green suite.
+
+3. **On failure:** Summarize the failing test and error (last ~40 lines of output is enough), then fix or report blockers (Docker, port, etc.).
+
+4. **Partial runs** (single spec, `npm run e2e` only) are **not** a substitute for the full `npm run test:e2e` when claiming the whole e2e task is complete.
+
+5. **Port:** Default e2e port is `3008` (`PLAYWRIGHT_E2E_PORT` to override). E2E does **not** use `PORT` from `.env` in `playwright.config.ts`.
+
+6. **CI vs local build:** In GitHub Actions, `E2E_SKIP_BUILD=1` skips a second `next build` when `.next` is restored from the `build` job. Locally, the first `test:e2e` run runs `e2e:build` so `next start` has output.
+
+## Playwright + Prisma in this project
+
+- **Do not** import the app’s Prisma client in `tests/e2e/*` (see `prisma#28838`, `playwright#37890`). Use the `pg` `Pool` (see `AccountLockout.e2e.ts`).
+
+- **Form errors vs Next.js:** use `formAlert` from `tests/helpers/e2e-alert.ts` so `role="alert"` is not ambiguous with the route announcer.

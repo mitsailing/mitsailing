@@ -12,9 +12,33 @@ const baseConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
   reactCompiler: process.env.NODE_ENV === 'production', // Keep the development environment fast
+  // `standalone` produces `.next/standalone/` — a minimal node_modules +
+  // server bundle that the production Docker stage COPYs on top of a slim
+  // base image. Without this, the prod image would need the entire
+  // workspace deps, roughly tripling the image size.
+  output: 'standalone',
   outputFileTracingIncludes: {
-    '/': ['./migrations/**/*'],
+    '/': ['./prisma/migrations/**/*'],
   },
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'mitsailing.com',
+        pathname: '/**',
+      },
+    ],
+  },
+  // Align with the image tag or release id so clients hard-reload on version skew
+  // (see https://nextjs.org/docs/app/api-reference/config/next-config-js/deploymentId).
+  ...(process.env.DEPLOYMENT_VERSION
+    ? { deploymentId: process.env.DEPLOYMENT_VERSION }
+    : {}),
 };
 
 // Initialize the Next-Intl plugin

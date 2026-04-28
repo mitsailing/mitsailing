@@ -70,7 +70,7 @@
     ] // Enable Next.js TypeScript plugin
   },
   // Files to include/exclude from the project
-  "exclude": ["node_modules", "**/*.spec.ts", "**/*.e2e.ts"],
+  "exclude": ["node_modules", "mit-redesign", "**/*.spec.ts", "**/*.e2e.ts"],
   "include": [
     "next-env.d.ts",
     "**/*.ts",

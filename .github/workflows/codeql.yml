@@ -1,0 +1,48 @@
+name: CodeQL
+
+# SAST for JS/TS. Runs on PRs (so auth/session/SSRF bug classes surface before
+# merge) and on a weekly cron (so newly-published queries catch latent issues
+# without requiring a code change).
+#
+# `language: javascript-typescript` covers both .js and .ts/.tsx — GitHub's
+# 2025+ unified analyzer replaces the separate `javascript` and `typescript`
+# matrix entries used in older CodeQL workflows.
+
+on:
+  pull_request:
+    branches: [main]
+  schedule:
+    # Mondays 08:00 UTC — before work hours most places so results are waiting.
+    - cron: '0 8 * * 1'
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  security-events: write # publish findings to the Security tab
+  actions: read
+
+jobs:
+  analyze:
+    name: CodeQL analyze
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: javascript-typescript
+          # `security-and-quality` surfaces more findings than the default
+          # `security-extended`; a few false positives are tolerable because
+          # the Security tab lets you dismiss + re-open as needed.
+          queries: security-and-quality
+
+      - name: Perform analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: '/language:javascript-typescript'

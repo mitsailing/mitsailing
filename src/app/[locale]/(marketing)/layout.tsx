@@ -1,96 +1,22 @@
-import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { DemoBanner } from '@/components/DemoBanner';
-import { LocaleSwitcher } from '@/components/LocaleSwitcher';
-import { Link } from '@/libs/I18nNavigation';
-import { BaseTemplate } from '@/templates/BaseTemplate';
+import { setRequestLocale } from 'next-intl/server';
 
-export default async function Layout(props: {
+/**
+ * Marketing segment: locale only. Nested route groups pick their own chrome:
+ * - `(home)` — landing (`/`)
+ * - `(site)` — pages that share the global pavilion header/footer
+ *
+ * @see https://nextjs.org/docs/app/api-reference/file-conventions/layout
+ * @param props - Layout props
+ * @param props.children - Nested route segments
+ * @param props.params - Dynamic `[locale]` params
+ * @returns Child tree with request locale configured
+ */
+export default async function MarketingSegmentLayout(props: {
   children: React.ReactNode;
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await props.params;
   setRequestLocale(locale);
-  const t = await getTranslations({
-    locale,
-    namespace: 'RootLayout',
-  });
 
-  return (
-    <>
-      <DemoBanner />
-      <BaseTemplate
-        leftNav={
-          <>
-            <li>
-              <Link
-                href="/"
-                className="border-none text-gray-700 hover:text-gray-900"
-              >
-                {t('home_link')}
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/about/"
-                className="border-none text-gray-700 hover:text-gray-900"
-              >
-                {t('about_link')}
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/counter/"
-                className="border-none text-gray-700 hover:text-gray-900"
-              >
-                {t('counter_link')}
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/portfolio/"
-                className="border-none text-gray-700 hover:text-gray-900"
-              >
-                {t('portfolio_link')}
-              </Link>
-            </li>
-            <li>
-              <a
-                className="border-none text-gray-700 hover:text-gray-900"
-                href="https://github.com/ixartz/Next-js-Boilerplate"
-              >
-                GitHub
-              </a>
-            </li>
-          </>
-        }
-        rightNav={
-          <>
-            <li>
-              <Link
-                href="/sign-in/"
-                className="border-none text-gray-700 hover:text-gray-900"
-              >
-                {t('sign_in_link')}
-              </Link>
-            </li>
-
-            <li>
-              <Link
-                href="/sign-up/"
-                className="border-none text-gray-700 hover:text-gray-900"
-              >
-                {t('sign_up_link')}
-              </Link>
-            </li>
-
-            <li>
-              <LocaleSwitcher />
-            </li>
-          </>
-        }
-      >
-        <div className="py-5 text-xl [&_p]:my-6">{props.children}</div>
-      </BaseTemplate>
-    </>
-  );
+  return props.children;
 }

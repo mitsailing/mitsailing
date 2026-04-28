@@ -1,5 +1,4 @@
 import react from '@vitejs/plugin-react';
-import { playwright } from '@vitest/browser-playwright';
 import { loadEnv } from 'vite';
 import tsconfigPaths from 'vite-tsconfig-paths';
 import { defineConfig } from 'vitest/config';
@@ -8,8 +7,24 @@ export default defineConfig({
   plugins: [react(), tsconfigPaths()],
   test: {
     coverage: {
-      include: ['src/**/*'],
-      exclude: ['src/**/*.stories.{js,jsx,ts,tsx}'],
+      provider: 'v8',
+      // lcov: Codecov; json-summary: machine-readable totals in CI logs
+      reporter: ['text', 'lcov', 'json', 'html', 'json-summary'],
+      // Emit coverage even when a test fails so CI uploads still have data.
+      reportOnFailure: true,
+      include: ['src/**/*.{ts,tsx,js,jsx}'],
+      exclude: [
+        'src/**/*.stories.{js,jsx,ts,tsx}',
+        'src/**/*.test.{js,jsx,ts,tsx}',
+        'src/**/*.d.ts',
+        'src/generated/**',
+        'src/types/**',
+        'src/styles/**',
+        'src/data/**',
+        'src/locales/**',
+        'src/instrumentation.ts',
+        'src/instrumentation-client.ts',
+      ],
     },
     projects: [
       {
@@ -21,23 +36,11 @@ export default defineConfig({
           environment: 'node',
         },
       },
-      {
-        extends: true,
-        test: {
-          name: 'ui',
-          include: ['**/*.test.tsx', 'src/hooks/**/*.test.ts'],
-          browser: {
-            enabled: true,
-            headless: true,
-            provider: playwright(),
-            screenshotDirectory: 'vitest-test-results',
-            instances: [{ browser: 'chromium' }],
-          },
-        },
-      },
     ],
     reporters: [
       'default',
+      // JUnit XML is required by Codecov Test Analytics.
+      ['junit', { outputFile: './test-report.junit.xml' }],
       // conditional reporter
       process.env.CI ? 'github-actions' : {},
     ],

@@ -7,11 +7,15 @@ const config: KnipConfig = {
     'src/libs/I18n.ts',
     'src/types/I18n.ts',
     'tests/**/*.ts',
+    'mit-redesign/**',
+    // Catalog + time helpers: partially consumed by prisma seed; getters/types fill in when UI is ported
+    'src/data/mit-sailing/**',
+    'src/lib/mit-sailing/**',
   ],
   // Dependencies to ignore during analysis
   ignoreDependencies: [
+    '@faker-js/faker', // E2E specs import faker; `tests/**` is excluded from Knip entry analysis
     '@commitlint/types',
-    '@clerk/shared',
     '@swc/helpers', // Avoid error in CI: "`npm ci` can only install packages when your package.json and package-lock.json or npm-shrinkwrap.json are in sync."
     'oxfmt',
     'oxlint-tsgolint',

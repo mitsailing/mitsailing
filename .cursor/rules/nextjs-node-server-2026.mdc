@@ -1,0 +1,36 @@
+---
+description: 2026 Next.js patterns for a long-running Node host (not serverless) — RSC, caching, and DB
+globs: src/app/**/*.{ts,tsx},src/libs/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Next.js on a dedicated server (2026)
+
+This app ships as **`output: 'standalone'`** (see [next.config.ts](next.config.ts)) and runs on a **long‑lived Node process** (Docker, VM, bare metal)—not a per-invocation serverless function.
+
+## Runtime
+
+- **Default the Node.js runtime** for `Route Handler`s, `Server Actions`, and RSC that use Prisma, the filesystem, or native `pg`—do not opt into **`runtime = 'edge'`** unless you have a specific need (e.g. geo at the edge) and can avoid unsupported APIs.
+- Prefer **React Server Components** and **data access on the server**; colocate fetches in server components or small server-only modules. Avoid `useEffect`+client fetch for data that can load on the server (see [AGENTS.md](AGENTS.md) React section).
+
+## Caching and revalidation
+
+- **Do not** set `export const dynamic = 'force-dynamic'` (or `revalidate = 0`) for entire sections unless the route truly cannot be static or time‑bounded.
+- Use **segment-level revalidation** (`revalidate` export), **`unstable_cache`** or React **`cache()`** (deduped per request) for read-heavy, shared queries—tune to product needs on a long‑running process where repeated work should be reduced.
+- After mutating data in a **Server Action**, use **`revalidatePath`** / **`revalidateTag`** (when tags are in use) so the next RSC read is consistent.
+- For work that must not block the response (logging, non-critical side effects on a full Node server), consider **`after()`** from `next/server` (Next 15+).
+
+## Database and process lifetime
+
+- Use a **single Prisma (and `pg` Pool) per worker** via a module/global singleton in [DB.ts](src/libs/DB.ts). On a dedicated server, connection count is limited by the pool, not a serverless 1–connection model—tune `Pool` `max` with your Postgres `max_connections` and replica layout.
+- Keep heavy connection setup in **`instrumentation.ts`** if it must run once per process (rare; avoid blocking startup without need).
+
+## Auth and i18n
+
+- Session and `next-intl` behavior should stay compatible with a **stateful** Node server; avoid assuming “cold start on every request.”
+
+## What to avoid
+
+- **Static export** (`output: 'export'`) for this product—it breaks server features this stack relies on.
+- **Edge Runtime** for routes that use Prisma/pg unless you have excluded those deps and a separate data path.
+- Tuning Prisma/Pool as if every request is isolated (serverless); this server reuses the same process and pool for many requests in parallel.

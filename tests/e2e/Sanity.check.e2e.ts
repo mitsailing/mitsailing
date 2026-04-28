@@ -14,7 +14,7 @@ test.describe('Sanity', () => {
 
       await expect(
         page.getByRole('heading', {
-          name: 'Boilerplate Code for Your Next.js Project with Tailwind CSS',
+          name: 'Sail the Charles River',
         })
       ).toBeVisible();
     });
@@ -22,25 +22,26 @@ test.describe('Sanity', () => {
     test('should navigate to the about page', async ({ page }) => {
       await page.goto('/');
 
-      await page.getByRole('link', { name: 'About' }).click();
+      await page
+        .locator('header nav')
+        .getByRole('link', { name: 'About' })
+        .click();
 
       await expect(page).toHaveURL(/about$/);
 
       await expect(
-        page.getByText('Welcome to our About page', { exact: false })
+        page.getByText('The MIT Sailing Pavilion exists', { exact: false })
       ).toBeVisible();
     });
 
-    test('should navigate to the portfolio page', async ({ page }) => {
-      await page.goto('/');
+    test('should navigate to the contact page', async ({ page }) => {
+      await page.goto('/contact');
 
-      await page.getByRole('link', { name: 'Portfolio' }).click();
-
-      await expect(page).toHaveURL(/portfolio$/);
+      await expect(page).toHaveURL(/contact$/);
 
       await expect(
-        page.locator('main').getByRole('link', { name: /^Portfolio/ })
-      ).toHaveCount(6);
+        page.getByRole('heading', { name: 'Contact' })
+      ).toBeVisible();
     });
   });
 });

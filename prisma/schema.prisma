@@ -1,0 +1,341 @@
+// Better Auth canonical schema (PostgreSQL).
+// See https://www.better-auth.com/docs/concepts/database for base tables and
+// https://www.better-auth.com/docs/plugins/admin for admin plugin columns.
+// The lockout table mirrors Devise's Lockable feature, driven by the hooks in
+// src/libs/auth/hooks.ts. AuditLog backs the better-auth-audit-logs plugin.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id               String   @id
+  name             String
+  email            String   @unique
+  emailVerified    Boolean  @default(false) @map("email_verified")
+  unconfirmedEmail String?  @map("unconfirmed_email")
+  image            String?
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt      @map("updated_at")
+
+  // Admin plugin columns.
+  role       String    @default("user")
+  banned     Boolean?  @default(false)
+  banReason  String?   @map("ban_reason")
+  banExpires DateTime? @map("ban_expires")
+
+  sessions  Session[]
+  accounts  Account[]
+  auditLogs AuditLog[]
+
+  eventRegistrations EventRegistration[]
+  eventComments      EventComment[]
+  eventAdmins        EventAdmin[]
+  eventsCreated      Event[]            @relation("EventCreatedBy")
+
+  @@map("user")
+}
+
+model Session {
+  id             String   @id
+  token          String   @unique
+  userId         String   @map("user_id")
+  expiresAt      DateTime @map("expires_at")
+  ipAddress      String?  @map("ip_address")
+  userAgent      String?  @map("user_agent")
+  impersonatedBy String?  @map("impersonated_by")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt      @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  userId                String    @map("user_id")
+  providerId            String    @map("provider_id")
+  accountId             String    @map("account_id")
+  password              String?
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  idToken               String?   @map("id_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at")
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at")
+  scope                 String?
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt      @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime @map("expires_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt      @map("updated_at")
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// Lockout: Devise Lockable parity driven by src/libs/auth/hooks.ts.
+model FailedLoginAttempt {
+  id        String   @id @default(cuid())
+  email     String
+  ipAddress String?  @map("ip_address")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([email, createdAt])
+  @@map("failed_login_attempts")
+}
+
+// Audit log: backs better-auth-audit-logs with Prisma persistence.
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?  @map("user_id")
+  action    String
+  status    String
+  severity  String
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  metadata  String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_log")
+}
+
+// --- MIT Sailing domain (events, classes, fleet, about) ---
+
+model EventCategory {
+  id            String   @id
+  name          String
+  displayOrder  Int      @map("display_order")
+  isVisible     Boolean  @map("is_visible")
+  createdAt     DateTime @map("created_at")
+  events        Event[]
+
+  @@map("event_categories")
+}
+
+enum EventDetailPageKind {
+  standard
+  external
+}
+
+model Event {
+  id                   String                 @id
+  name                 String
+  shortName            String                 @map("short_name")
+  eventCategoryId      String                 @map("event_category_id")
+  description          String                 @db.Text
+  slug                 String                 @unique
+  isSpecial            Boolean                @map("is_special")
+  maxParticipants      Int?                   @map("max_participants")
+  requiresApproval     Boolean                @map("requires_approval")
+  registrationStart    DateTime?              @map("registration_start")
+  registrationEnd      DateTime?              @map("registration_end")
+  createdByUserId      String                 @map("created_by")
+  createdAt            DateTime               @map("created_at")
+  detailPageKind       EventDetailPageKind?   @map("detail_page_kind")
+  externalDetailUrl    String?                @map("external_detail_url")
+  internalNotes        String?                @map("internal_notes") @db.Text
+  isPublished          Boolean                @map("is_published")
+
+  category              EventCategory               @relation(fields: [eventCategoryId], references: [id], onDelete: Restrict)
+  createdBy             User                        @relation("EventCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  dates                 EventDate[]
+  admins                EventAdmin[]
+  registrations         EventRegistration[]
+  registrationQuestions EventRegistrationQuestion[]
+  entryFees             EventEntryFee[]
+  comments              EventComment[]
+
+  @@index([eventCategoryId])
+  @@index([createdByUserId])
+  @@map("events")
+}
+
+model EventDate {
+  id            String   @id
+  eventId       String   @map("event_id")
+  startDateTime DateTime @map("start_datetime")
+  endDateTime   DateTime @map("end_datetime")
+  event         Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@map("event_dates")
+}
+
+model EventAdmin {
+  id          String @id
+  eventId     String @map("event_id")
+  adminUserId String @map("admin_user_id")
+  event       Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  admin       User   @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@index([adminUserId])
+  @@map("event_admins")
+}
+
+enum EventRegistrationStatus {
+  pending
+  approved
+  cancelled
+}
+
+model EventRegistration {
+  id                       String                    @id
+  eventId                  String                    @map("event_id")
+  userId                   String                    @map("user_id")
+  status                   EventRegistrationStatus
+  createdAt                DateTime                  @map("created_at")
+  swimAgreementAcceptedAt  DateTime                  @map("swim_agreement_accepted_at")
+  event                    Event                     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user                     User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  registrationAnswers      EventRegistrationAnswer[]
+
+  @@index([eventId])
+  @@index([userId])
+  @@map("event_registrations")
+}
+
+enum EventAnswerType {
+  text
+  select
+  checkbox
+}
+
+model EventRegistrationQuestion {
+  id            String            @id
+  eventId       String            @map("event_id")
+  questionText  String            @map("question_text") @db.Text
+  answerType    EventAnswerType   @map("answer_type")
+  options       Json? // string[] for select
+  required      Boolean
+  displayOrder  Int               @map("display_order")
+  event         Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  answers       EventRegistrationAnswer[]
+
+  @@index([eventId])
+  @@map("event_registration_questions")
+}
+
+model EventRegistrationAnswer {
+  id             String                  @id
+  registrationId String                  @map("registration_id")
+  questionId     String                  @map("question_id")
+  value          String                  @db.Text
+  registration   EventRegistration       @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  question       EventRegistrationQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([registrationId])
+  @@index([questionId])
+  @@map("event_registration_answers")
+}
+
+model EventEntryFee {
+  id          String @id
+  eventId     String @map("event_id")
+  description String
+  amountCents Int    @map("amount_cents")
+  isDeposit   Boolean @map("is_deposit")
+  event       Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@map("event_entry_fees")
+}
+
+model EventComment {
+  id        String  @id
+  eventId   String  @map("event_id")
+  parentId  String? @map("parent_id")
+  userId    String  @map("user_id")
+  body      String  @db.Text
+  createdAt DateTime @map("created_at")
+  event     Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent    EventComment?  @relation("EventCommentThread", fields: [parentId], references: [id], onDelete: SetNull)
+  children  EventComment[] @relation("EventCommentThread")
+
+  @@index([eventId])
+  @@index([userId])
+  @@index([parentId])
+  @@map("event_comments")
+}
+
+model ClassCategory {
+  id           String         @id
+  slug         String         @unique
+  name         String
+  displayOrder Int            @map("display_order")
+  isVisible    Boolean        @map("is_visible")
+  createdAt    DateTime       @map("created_at")
+  sailingClasses SailingClass[]
+
+  @@map("class_categories")
+}
+
+model SailingClass {
+  id                String        @id
+  name              String
+  slug              String        @unique
+  classCategoryId   String        @map("class_category_id")
+  level             String
+  description       String        @db.Text
+  prerequisiteIds   String[]      @map("prerequisite_ids")
+  relatedEventIds   String[]      @map("related_event_ids")
+  unlockedBoatIds   String[]    @map("unlocked_boat_ids")
+  classCategory     ClassCategory @relation(fields: [classCategoryId], references: [id], onDelete: Restrict)
+  fleetBoats        FleetBoat[]
+
+  @@index([classCategoryId])
+  @@map("sailing_classes")
+}
+
+model FleetBoat {
+  id                String        @id
+  name              String
+  slug              String        @unique
+  type              String
+  capacity          Int
+  requiredClassId   String        @map("required_class_id")
+  description       String        @db.Text
+  imagePaths        String[]      @map("image_paths")
+  requiredClass     SailingClass  @relation(fields: [requiredClassId], references: [id], onDelete: Restrict)
+
+  @@index([requiredClassId])
+  @@map("fleet_boats")
+}
+
+model StaffMember {
+  id          String  @id
+  slug        String  @unique
+  name        String
+  role        String
+  bio         String? @db.Text
+  fullBio     Json
+  imageSrc    String? @map("image_src")
+  imageAlt    String? @map("image_alt")
+  email       String
+
+  @@map("staff_members")
+}

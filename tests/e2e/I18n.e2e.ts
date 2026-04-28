@@ -1,37 +1,24 @@
 import { expect, test } from '@playwright/test';
 
 test.describe('I18n', () => {
-  test.describe('Language Switching', () => {
-    test('should switch language from English to French using dropdown and verify text on the homepage', async ({
-      page,
-    }) => {
+  test.describe('English only', () => {
+    test('shows English content on the homepage', async ({ page }) => {
       await page.goto('/');
 
       await expect(
         page.getByRole('heading', {
-          name: 'Boilerplate Code for Your Next.js Project with Tailwind CSS',
-        })
-      ).toBeVisible();
-
-      await page.getByLabel('Change language').selectOption('fr');
-
-      await expect(
-        page.getByRole('heading', {
-          name: 'Code de démarrage pour Next.js avec Tailwind CSS',
+          name: 'Sail the Charles River',
         })
       ).toBeVisible();
     });
 
-    test('should switch language from English to French using URL and verify text on the sign-in page', async ({
-      page,
-    }) => {
-      await page.goto('/sign-in');
+    test('shows English content on the login page', async ({ page }) => {
+      await page.goto('/login');
 
-      await expect(page.getByText('Email address')).toBeVisible();
-
-      await page.goto('/fr/sign-in');
-
-      await expect(page.getByText('Adresse e-mail')).toBeVisible();
+      await expect(
+        page.getByRole('heading', { name: 'Sign in' })
+      ).toBeVisible();
+      await expect(page.getByLabel('Email')).toBeVisible();
     });
   });
 });

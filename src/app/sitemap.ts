@@ -1,18 +1,38 @@
 import type { MetadataRoute } from 'next';
+import { prisma } from '@/libs/DB';
 import { routing } from '@/libs/I18nRouting';
 import { getBaseUrl, getI18nPath } from '@/utils/Helpers';
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export const dynamic = 'force-dynamic';
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = getBaseUrl();
 
-  const routes = ['', '/about', '/counter', '/portfolio'];
+  const [classSlugs, boatSlugs] = await Promise.all([
+    prisma.sailingClass.findMany({ select: { slug: true } }),
+    prisma.fleetBoat.findMany({ select: { slug: true } }),
+  ]);
 
-  // Generate portfolio detail pages
-  const portfolioRoutes = Array.from(
-    { length: 6 },
-    (_, i) => `/portfolio/${i}`
-  );
-  const allRoutes = [...routes, ...portfolioRoutes];
+  const staticRoutes = [
+    '',
+    '/about',
+    '/events',
+    '/classes',
+    '/fleet',
+    '/contact',
+    '/contact/mashnee-directions',
+    '/about/mitna',
+    '/about/mitna/constitution',
+    '/about/mitna/meetings',
+    '/about/mitna/hatch-award',
+  ];
+
+  const dynamicRoutes = [
+    ...classSlugs.map((c) => `/classes/${c.slug}`),
+    ...boatSlugs.map((b) => `/fleet/${b.slug}`),
+  ];
+
+  const allRoutes = [...staticRoutes, ...dynamicRoutes];
 
   return allRoutes.map((route) => ({
     url: `${baseUrl}${route}`,

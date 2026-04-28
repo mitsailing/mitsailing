@@ -1,10 +1,46 @@
 name: CI
 
+# Runs only on pull requests targeting `main`. Post-merge CI is intentionally
+# disabled — the branch-protection ruleset (`.github/rulesets/main-branch.json`)
+# requires these same checks to pass on the PR before merge, so re-running them
+# on the merge commit would just duplicate ~15–20 min of work per PR.
+#
+# `release.yml` triggers directly on `push: main` (not `workflow_run: CI`) so
+# semantic-release still fires after merges. `deploy.yml` and `checkly.yml` are
+# likewise independent of CI.yml.
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
+
+# Human-readable run title (numeric id only — avoids expression injection in titles).
+# https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#run-name
+run-name: CI PR #${{ github.event.pull_request.number }}
+
+# Cancel in-flight runs when a newer commit lands on the same PR. Avoids
+# stacking runners on noisy branches; relies on runtime > startup cost.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least privilege for GITHUB_TOKEN — grant extra scopes on jobs that need them.
+# https://docs.github.com/en/actions/security-guides/automatic-token-authentication#modifying-the-permissions-for-the-github_token
+permissions:
+  contents: read
+
+# Env shared by every job. `build` uses the Postgres service container; `e2e`
+# uses docker-compose Postgres + Mailpit via `e2e:preflight` in package.json.
+env:
+  BETTER_AUTH_SECRET: ci-placeholder-auth-secret-min-32-chars-long!!
+  DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/dev_db?sslmode=disable
+  TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/test_db?sslmode=disable
+  # Route transactional mail to Mailpit during CI e2e flows.
+  MAIL_TRANSPORT: smtp
+  SMTP_URL: smtp://127.0.0.1:1025
+  MAILPIT_API_URL: http://127.0.0.1:8025
+  EMAIL_FROM: ci@example.com
+  SUPPORT_EMAIL: support@example.com
+  # Required by `src/libs/Env.ts` whenever tests import code that touches Env.
+  NEXT_PUBLIC_APP_URL: http://localhost:3008
 
 jobs:
   build:
@@ -16,6 +52,28 @@ jobs:
     name: Build with ${{ matrix.node-version }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
+
+    # build-local runs prisma migrate; needs Postgres without relying on
+    # docker compose on the runner (matches DATABASE_URL in workflow env).
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: dev_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d dev_db"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 30
+
+    # GITHUB_TOKEN: cache restore/save (actions/cache).
+    permissions:
+      contents: read
+      actions: write
 
     steps:
       - uses: actions/checkout@v6
@@ -57,6 +115,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
+    # Codecov OIDC + artifact uploads + npm cache (setup-project).
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+      artifact-metadata: write
+
     steps:
       - uses: actions/checkout@v6
 
@@ -65,15 +130,70 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
-      - name: Run unit tests
+      - name: Run unit tests (with coverage)
         uses: docker://mcr.microsoft.com/playwright:v1.58.2
         with:
-          args: npm run test -- --coverage
+          args: npm run test:coverage
 
       - name: Upload coverage reports to Codecov
+        if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v6
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          use_oidc: true
+          files: ./coverage/lcov.info
+          flags: unittests
+
+      # Codecov is deprecating the standalone test-results-action; the
+      # replacement is codecov-action@v6 with report_type=test_results.
+      - name: Upload test results to Codecov (Test Analytics)
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v6
+        with:
+          use_oidc: true
+          files: ./test-report.junit.xml
+          flags: unittests
+          report_type: test_results
+
+      - name: Upload coverage report artifact
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: coverage
+          path: |
+            coverage/lcov.info
+            coverage/coverage-final.json
+            coverage/coverage-summary.json
+            test-report.junit.xml
+          if-no-files-found: warn
+          retention-days: 14
+
+  integration:
+    strategy:
+      matrix:
+        node-version: [24.x]
+
+    name: Run integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+
+    permissions:
+      contents: read
+      actions: read
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Node.js environment
+        uses: ./.github/actions/setup-project
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Run integration test lifecycle (db up -> migrate -> test)
+        run: npm run test:integration
+
+      - name: Always teardown integration DB services
+        if: always()
+        run: npm run db:test:down
 
   storybook:
     strategy:
@@ -83,6 +203,10 @@ jobs:
     name: Run Storybook
     runs-on: ubuntu-latest
     timeout-minutes: 10
+
+    permissions:
+      contents: read
+      actions: read
 
     steps:
       - uses: actions/checkout@v6
@@ -107,6 +231,10 @@ jobs:
     timeout-minutes: 10
     needs: [build]
 
+    permissions:
+      contents: read
+      actions: read
+
     steps:
       - uses: actions/checkout@v6
         with:
@@ -128,6 +256,12 @@ jobs:
       - name: Linter
         run: npm run lint
 
+      # Ultracite's `--type-check` only covers files matching its glob.
+      # `check:types` runs `tsc --noEmit` across the full project so type
+      # errors in files Ultracite skips (scripts/, emails/, etc.) still fail CI.
+      - name: Typecheck (tsc --noEmit)
+        run: npm run check:types
+
       - name: Check dependencies
         run: npm run check:deps
 
@@ -141,8 +275,13 @@ jobs:
 
     name: Run E2E tests
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 25
     needs: [build]
+
+    permissions:
+      contents: read
+      actions: read
+      artifact-metadata: write
 
     steps:
       - uses: actions/checkout@v6
@@ -155,24 +294,32 @@ jobs:
           node-version: ${{ matrix.node-version }}
           restore-nextjs-cache: true
 
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium firefox
+
+      # Run e2e tests directly on the runner so the Playwright process can
+      # reach the docker-compose services on localhost:5432 / localhost:1025
+      # (a `uses: docker://` step would run in an isolated container that
+      # cannot reach host services).
       - name: Run E2E tests
-        uses: docker://mcr.microsoft.com/playwright:v1.58.2
-        with:
-          args: sh -c "HOME=/root npm run test:e2e" # Set HOME to /root to avoid Playwright error with Firebox
+        run: npm run test:e2e
         env:
-          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          E2E_SKIP_BUILD: '1' # .next restored from the `build` job; cal.com also builds before e2e, not inside the e2e script
 
       - name: Fix test results permission # Give permissions to test results needed by Chromatic
         run: |
           sudo chmod -R 777 test-results
 
       - name: Run visual regression tests
+        if: env.CHROMATIC_PROJECT_TOKEN != ''
+        env:
+          CHROMATIC_PROJECT_TOKEN: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
         uses: chromaui/action@v16
         with:
           playwright: true
           exitOnceUploaded: true # Speed up by skipping the build results
           outputDir: storybook-static
-          projectToken: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
+          projectToken: ${{ env.CHROMATIC_PROJECT_TOKEN }}
 
       - name: Upload test results
         uses: actions/upload-artifact@v7
@@ -182,29 +329,6 @@ jobs:
           path: test-results/
           retention-days: 7
 
-  synchronize-with-crowdin:
-    name: GitHub PR synchronize with Crowdin
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    if: github.event_name == 'pull_request'
-
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          ref: ${{ github.event.pull_request.head.sha }} # Crowdin Actions needs to push commits to the PR branch, checkout HEAD commit instead of merge commit
-          fetch-depth: 0
-
-      - name: Crowdin action
-        uses: crowdin/github-action@v2
-        with:
-          upload_sources: true
-          upload_translations: true
-          download_translations: true
-          create_pull_request: false
-          localization_branch_name: ${{ github.head_ref || github.ref_name }} # explanation here: https://stackoverflow.com/a/71158878
-          commit_message: 'chore: new Crowdin translations by GitHub Action'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CROWDIN_PROJECT_ID: ${{ secrets.CROWDIN_PROJECT_ID }}
-          CROWDIN_PERSONAL_TOKEN: ${{ secrets.CROWDIN_PERSONAL_TOKEN }}
+      - name: Always teardown E2E DB services
+        if: always()
+        run: npm run db:test:down

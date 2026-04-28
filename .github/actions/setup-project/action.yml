@@ -31,6 +31,10 @@ runs:
       shell: bash
       run: npm ci
 
+    - name: Generate Prisma client
+      shell: bash
+      run: npm run db:generate
+
     - name: Restore Next.js build output
       if: inputs.restore-nextjs-cache == 'true'
       uses: actions/cache/restore@v5
