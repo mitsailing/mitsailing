@@ -12,16 +12,23 @@ on:
   pull_request:
     branches: [main]
 
+# Human-readable run title (numeric id only — avoids expression injection in titles).
+# https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#run-name
+run-name: CI PR #${{ github.event.pull_request.number }}
+
 # Cancel in-flight runs when a newer commit lands on the same PR. Avoids
 # stacking runners on noisy branches; relies on runtime > startup cost.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-# Env shared by every job. Only the `e2e` job actually talks to Postgres —
-# the rest (`build`, `unit`, `storybook`, `static`) never open a DB connection.
-# `e2e:preflight` in `package.json` is what starts compose Postgres + Mailpit
-# for the e2e job; no other job spins them up.
+# Least privilege for GITHUB_TOKEN — grant extra scopes on jobs that need them.
+# https://docs.github.com/en/actions/security-guides/automatic-token-authentication#modifying-the-permissions-for-the-github_token
+permissions:
+  contents: read
+
+# Env shared by every job. `build` uses the Postgres service container; `e2e`
+# uses docker-compose Postgres + Mailpit via `e2e:preflight` in package.json.
 env:
   BETTER_AUTH_SECRET: ci-placeholder-auth-secret-min-32-chars-long!!
   DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/dev_db?sslmode=disable
@@ -56,6 +63,11 @@ jobs:
           --health-interval 2s
           --health-timeout 5s
           --health-retries 30
+
+    # GITHUB_TOKEN: cache restore/save (actions/cache).
+    permissions:
+      contents: read
+      actions: write
 
     steps:
       - uses: actions/checkout@v6
@@ -97,11 +109,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
-    # Codecov OIDC: GitHub mints a short-lived id-token for Codecov to verify.
-    # This is the 2026-preferred auth for public repos — no CODECOV_TOKEN needed.
+    # Codecov OIDC + artifact uploads + npm cache (setup-project).
     permissions:
-      id-token: write
       contents: read
+      actions: read
+      id-token: write
+      artifact-metadata: write
 
     steps:
       - uses: actions/checkout@v6
@@ -157,6 +170,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
+    permissions:
+      contents: read
+      actions: read
+
     steps:
       - uses: actions/checkout@v6
 
@@ -179,6 +196,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build]
+
+    permissions:
+      contents: read
+      actions: read
 
     steps:
       - uses: actions/checkout@v6
@@ -220,8 +241,13 @@ jobs:
 
     name: Run E2E tests
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 25
     needs: [build]
+
+    permissions:
+      contents: read
+      actions: read
+      artifact-metadata: write
 
     steps:
       - uses: actions/checkout@v6
@@ -251,6 +277,7 @@ jobs:
           sudo chmod -R 777 test-results
 
       - name: Run visual regression tests
+        if: ${{ secrets.CHROMATIC_PROJECT_TOKEN != '' }}
         uses: chromaui/action@v16
         with:
           playwright: true

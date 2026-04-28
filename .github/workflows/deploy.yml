@@ -24,6 +24,11 @@ concurrency:
   group: deploy-production
   cancel-in-progress: true
 
+# Default read-only token; `build` job overrides with packages + attestations.
+# https://docs.github.com/en/actions/security-guides/automatic-token-authentication
+permissions:
+  contents: read
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
