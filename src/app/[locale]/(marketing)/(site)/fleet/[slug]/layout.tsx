@@ -1,4 +1,5 @@
 import { getTranslations } from 'next-intl/server';
+import { SiteSectionMain } from '@/components/mit-sailing/SiteSectionMain';
 import { SiteSectionShell } from '@/components/mit-sailing/SiteSectionShell';
 import { getFleetBoatForPublicBySlug } from '@/libs/mit-sailing/fleetQueries';
 
@@ -23,7 +24,7 @@ export default async function FleetBoatSectionLayout(props: {
         { label: titleLabel },
       ]}
     >
-      {props.children}
+      <SiteSectionMain variant="detail">{props.children}</SiteSectionMain>
     </SiteSectionShell>
   );
 }

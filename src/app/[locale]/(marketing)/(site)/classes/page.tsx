@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { ClassesCatalogView } from '@/components/mit-sailing/classes/ClassesCatalogView';
+import { SiteSectionMain } from '@/components/mit-sailing/SiteSectionMain';
 import { SiteSectionShell } from '@/components/mit-sailing/SiteSectionShell';
 import { listSailingClassesGroupedForCatalog } from '@/libs/mit-sailing/classQueries';
 
@@ -30,7 +31,9 @@ export default async function ClassesListPage(props: PageProps) {
       locale={locale}
       segments={[{ label: t('section_classes') }]}
     >
-      <ClassesCatalogView grouped={grouped} locale={locale} />
+      <SiteSectionMain variant="catalog">
+        <ClassesCatalogView grouped={grouped} locale={locale} />
+      </SiteSectionMain>
     </SiteSectionShell>
   );
 }

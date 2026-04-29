@@ -336,12 +336,13 @@
     "section_admin": "Admin",
     "section_contact": "Contact",
     "mitna_title": "MIT Nautical Association",
-    "mitna_breadcrumb_aria": "Breadcrumb for MIT Nautical Association",
     "mitna_subnav_aria": "MIT Nautical Association",
     "mitna_nav_root": "Overview",
     "mitna_nav_constitution": "Constitution",
     "mitna_nav_meetings": "Meetings",
     "mitna_nav_hatch": "Hatch Award",
+    "mitna_back_about": "Back to About",
+    "mitna_back_overview": "Back to overview",
     "meta_title_classes": "Classes and lessons",
     "title_class_unknown": "Class",
     "meta_title_fleet": "Fleet",
@@ -373,6 +374,9 @@
     "meta_title_mitna_hatch": "Hatch Award",
     "title_mitna_hatch": "Hatch Award",
     "meta_title_about_staff": "About: {slug}"
+  },
+  "MitSailingAbout": {
+    "back_to_about": "Back to About"
   },
   "MitSailingClasses": {
     "catalog_heading": "Classes",

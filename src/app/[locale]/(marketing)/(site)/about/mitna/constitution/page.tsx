@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { MitnaMarketingPageShell } from '@/components/mit-sailing/MitnaMarketingPageShell';
 
 type PageProps = { params: Promise<{ locale: string }> };
 
@@ -20,6 +21,10 @@ export default async function MitnaConstitutionPage(props: PageProps) {
     namespace: 'MitSailingRoutes',
   });
   return (
-    <h1 className="text-2xl font-semibold">{t('title_mitna_constitution')}</h1>
+    <MitnaMarketingPageShell locale={locale} page="constitution">
+      <h1 className="font-mit-serif text-2xl font-semibold tracking-tight text-mit-text">
+        {t('title_mitna_constitution')}
+      </h1>
+    </MitnaMarketingPageShell>
   );
 }

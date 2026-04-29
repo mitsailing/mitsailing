@@ -1,4 +1,5 @@
 import { getTranslations } from 'next-intl/server';
+import { SiteSectionMain } from '@/components/mit-sailing/SiteSectionMain';
 import { SiteSectionShell } from '@/components/mit-sailing/SiteSectionShell';
 import { getStaffBySlug } from '@/data/mit-sailing/aboutContent';
 
@@ -21,7 +22,7 @@ export default async function AboutStaffLayout(props: {
         { label: name },
       ]}
     >
-      {props.children}
+      <SiteSectionMain variant="detail">{props.children}</SiteSectionMain>
     </SiteSectionShell>
   );
 }

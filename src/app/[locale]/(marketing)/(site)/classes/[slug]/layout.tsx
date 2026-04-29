@@ -1,4 +1,5 @@
 import { getTranslations } from 'next-intl/server';
+import { SiteSectionMain } from '@/components/mit-sailing/SiteSectionMain';
 import { SiteSectionShell } from '@/components/mit-sailing/SiteSectionShell';
 import { getSailingClassCatalogBySlug } from '@/libs/mit-sailing/classQueries';
 
@@ -23,7 +24,7 @@ export default async function ClassDetailSectionLayout(props: {
         { label: titleLabel },
       ]}
     >
-      {props.children}
+      <SiteSectionMain variant="detail">{props.children}</SiteSectionMain>
     </SiteSectionShell>
   );
 }

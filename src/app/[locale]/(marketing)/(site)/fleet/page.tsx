@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { FleetListView } from '@/components/mit-sailing/fleet/FleetListView';
+import { SiteSectionMain } from '@/components/mit-sailing/SiteSectionMain';
 import { SiteSectionShell } from '@/components/mit-sailing/SiteSectionShell';
 import { listFleetBoatsForPublic } from '@/libs/mit-sailing/fleetQueries';
 
@@ -30,7 +31,9 @@ export default async function FleetListPage(props: PageProps) {
       locale={locale}
       segments={[{ label: t('section_fleet') }]}
     >
-      <FleetListView boats={boats} locale={locale} />
+      <SiteSectionMain variant="catalog">
+        <FleetListView boats={boats} locale={locale} />
+      </SiteSectionMain>
     </SiteSectionShell>
   );
 }
