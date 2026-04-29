@@ -3,32 +3,23 @@
 import { ChevronDown } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type {
+  Dispatch,
   KeyboardEvent as ReactKeyboardEvent,
   MouseEvent as ReactMouseEvent,
   RefObject,
+  SetStateAction,
 } from 'react';
-import {
-  useCallback,
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { isNavLinkActive } from '@/lib/mit-sailing/navPathMatch';
 import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
 import { cn } from '@/lib/utils';
 import { Link } from '@/libs/I18nNavigation';
 
 /**
- * Accessible disclosure-style navigation submenu.
+ * Disclosure-style navigation submenu (APG disclosure navigation).
  *
- * Follows the W3C APG "Disclosure Navigation Menu" pattern
- * (https://www.w3.org/WAI/ARIA/apg/patterns/disclosure/examples/disclosure-navigation/):
- * the trigger is a disclosure control (`Button`) with `aria-expanded` /
- * `aria-controls`, and the
- * panel is a plain list of links (no `role="menu"` because these are site-nav
- * links, not commands).
+ * @see {@link https://www.w3.org/WAI/ARIA/apg/patterns/disclosure/examples/disclosure-navigation/}
  */
 
 export type NavigationDropdownItem = {
@@ -46,6 +37,10 @@ export type NavigationDropdownVariant = 'desktop' | 'mobile';
 
 export type NavigationDropdownProps = {
   label: string;
+  /** Locale-free pathname from `createNavigation()` `usePathname()`. */
+  pathname: string;
+  /** `location.hash` without `#` (hashchange-aware). */
+  routeHash: string;
   /** Primary route for the section (e.g. "/fleet"). Rendered as an overview link. */
   href?: string;
   items: NavigationDropdownItem[];
@@ -58,13 +53,17 @@ export type NavigationDropdownProps = {
 
 function useDismiss(
   ref: RefObject<HTMLElement | null>,
-  isOpen: boolean,
-  close: () => void
+  enabled: boolean,
+  setOpen: Dispatch<SetStateAction<boolean>>
 ) {
   useEffect(() => {
-    if (!isOpen) {
+    if (!enabled) {
       return;
     }
+
+    const close = () => {
+      setOpen(false);
+    };
 
     const onPointerDown = (event: PointerEvent) => {
       const node = ref.current;
@@ -87,16 +86,20 @@ function useDismiss(
       document.removeEventListener('pointerdown', onPointerDown);
       document.removeEventListener('focusin', onFocusIn);
     };
-  }, [isOpen, close, ref]);
+  }, [enabled, setOpen, ref]);
 }
 
 /**
+ * Disclosure-style nav submenu.
+ *
  * @param props - Dropdown props
- * @returns Disclosure-style nav submenu
+ * @returns Disclosure trigger and link list
  */
 export function NavigationDropdown(props: NavigationDropdownProps) {
   const {
     label,
+    pathname,
+    routeHash,
     href,
     items,
     variant = 'desktop',
@@ -114,46 +117,39 @@ export function NavigationDropdown(props: NavigationDropdownProps) {
   const itemRefs = useRef<(HTMLAnchorElement | null)[]>([]);
   const hoverTimeoutRef = useRef<number | null>(null);
 
-  const resolvedItems = useMemo<NavigationDropdownItem[]>(() => {
-    if (!href) {
-      return items;
-    }
-    return [
-      {
-        label: overviewLabel ?? t('nav_overview_all', { label }),
-        href,
-      },
-      ...items,
-    ];
-  }, [items, href, label, overviewLabel, t]);
+  const resolvedItems: NavigationDropdownItem[] = href
+    ? [
+        {
+          label: overviewLabel ?? t('nav_overview_all', { label }),
+          href,
+        },
+        ...items,
+      ]
+    : items;
 
-  const close = useCallback(() => {
-    setIsOpen(false);
-  }, []);
-  const open = useCallback(() => {
-    setIsOpen(true);
-  }, []);
-  const toggle = useCallback(() => {
-    setIsOpen((v) => !v);
-  }, []);
+  const sectionActive = resolvedItems.some(
+    (it) =>
+      typeof it.href === 'string' &&
+      isNavLinkActive(pathname, routeHash, it.href)
+  );
 
-  useDismiss(wrapperRef, isOpen && variant === 'desktop', close);
+  useDismiss(wrapperRef, isOpen && variant === 'desktop', setIsOpen);
 
-  const focusItem = useCallback((index: number) => {
+  function focusItem(index: number) {
     const count = itemRefs.current.length;
     if (count === 0) {
       return;
     }
     const wrapped = ((index % count) + count) % count;
     itemRefs.current[wrapped]?.focus();
-  }, []);
+  }
 
   const onTriggerKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
     switch (event.key) {
       case 'ArrowDown':
       case 'Down': {
         event.preventDefault();
-        open();
+        setIsOpen(true);
         window.setTimeout(() => {
           focusItem(0);
         }, 0);
@@ -162,7 +158,7 @@ export function NavigationDropdown(props: NavigationDropdownProps) {
       case 'ArrowUp':
       case 'Up': {
         event.preventDefault();
-        open();
+        setIsOpen(true);
         window.setTimeout(() => {
           focusItem(-1);
         }, 0);
@@ -172,7 +168,7 @@ export function NavigationDropdown(props: NavigationDropdownProps) {
       case 'Esc': {
         if (isOpen) {
           event.preventDefault();
-          close();
+          setIsOpen(false);
         }
         break;
       }
@@ -212,12 +208,12 @@ export function NavigationDropdown(props: NavigationDropdownProps) {
       case 'Escape':
       case 'Esc': {
         event.preventDefault();
-        close();
+        setIsOpen(false);
         triggerRef.current?.focus();
         break;
       }
       case 'Tab': {
-        close();
+        setIsOpen(false);
         break;
       }
       default: {
@@ -234,8 +230,8 @@ export function NavigationDropdown(props: NavigationDropdownProps) {
       window.clearTimeout(hoverTimeoutRef.current);
     }
     hoverTimeoutRef.current = window.setTimeout(() => {
-      open();
-    }, 80);
+      setIsOpen(true);
+    }, 60);
   };
   const onMouseLeave = () => {
     if (variant !== 'desktop') {
@@ -245,8 +241,8 @@ export function NavigationDropdown(props: NavigationDropdownProps) {
       window.clearTimeout(hoverTimeoutRef.current);
     }
     hoverTimeoutRef.current = window.setTimeout(() => {
-      close();
-    }, 120);
+      setIsOpen(false);
+    }, 140);
   };
 
   useEffect(
@@ -259,16 +255,29 @@ export function NavigationDropdown(props: NavigationDropdownProps) {
   );
 
   const handleItemClick = (_event: ReactMouseEvent<HTMLAnchorElement>) => {
-    close();
+    setIsOpen(false);
     onNavigate?.();
   };
 
-  const itemClassName = `block w-full min-h-[44px] px-4 py-3 text-sm font-medium text-mit-text no-underline transition-colors hover:bg-mit-red-highlight focus-visible:bg-mit-red-highlight ${textFocusRingClassName}`;
+  const dropdownItemInteractive = `block w-full min-h-[44px] text-sm font-medium text-mit-text no-underline transition-colors hover:bg-mit-red-highlight focus-visible:bg-mit-red-highlight ${textFocusRingClassName}`;
+  const itemClassName =
+    variant === 'mobile'
+      ? `${dropdownItemInteractive} py-3 pl-4 pr-0`
+      : `${dropdownItemInteractive} px-4 py-3`;
 
-  const renderItemLink = (item: NavigationDropdownItem, index: number) => {
+  const listItems = resolvedItems.map((item, index) => {
     const setRef = (el: HTMLAnchorElement | null) => {
       itemRefs.current[index] = el;
     };
+    const internalActive =
+      typeof item.href === 'string'
+        ? isNavLinkActive(pathname, routeHash, item.href)
+        : false;
+    const interactiveClass = cn(
+      itemClassName,
+      internalActive &&
+        'underline decoration-2 underline-offset-4 font-semibold'
+    );
     const content = (
       <>
         <span className="block">{item.label}</span>
@@ -280,40 +289,43 @@ export function NavigationDropdown(props: NavigationDropdownProps) {
       </>
     );
 
-    if (item.href) {
-      return (
-        <Link
-          className={itemClassName}
-          href={item.href}
-          id={`${panelId}-item-${index}`}
-          onClick={handleItemClick}
-          onKeyDown={(e) => {
-            onItemKeyDown(e, index);
-          }}
-          ref={setRef}
-          role="menuitem"
-        >
-          {content}
-        </Link>
-      );
-    }
-
     return (
-      <a
-        className={itemClassName}
-        href={item.externalHref ?? '#'}
-        id={`${panelId}-item-${index}`}
-        onClick={handleItemClick}
-        onKeyDown={(e) => {
-          onItemKeyDown(e, index);
-        }}
-        ref={setRef}
-        role="menuitem"
+      <li
+        className="w-full min-w-0"
+        key={item.href ?? item.externalHref ?? item.label}
+        role="none"
       >
-        {content}
-      </a>
+        {item.href ? (
+          <Link
+            aria-current={internalActive ? 'page' : undefined}
+            className={interactiveClass}
+            href={item.href}
+            id={`${panelId}-item-${index}`}
+            onClick={handleItemClick}
+            onKeyDown={(e) => {
+              onItemKeyDown(e, index);
+            }}
+            ref={setRef}
+          >
+            {content}
+          </Link>
+        ) : (
+          <a
+            className={itemClassName}
+            href={item.externalHref ?? '#'}
+            id={`${panelId}-item-${index}`}
+            onClick={handleItemClick}
+            onKeyDown={(e) => {
+              onItemKeyDown(e, index);
+            }}
+            ref={setRef}
+          >
+            {content}
+          </a>
+        )}
+      </li>
     );
-  };
+  });
 
   const trigger = (
     <Button
@@ -321,14 +333,21 @@ export function NavigationDropdown(props: NavigationDropdownProps) {
       aria-expanded={isOpen}
       aria-haspopup="true"
       className={cn(
-        variant === 'desktop'
-          ? 'inline-flex min-h-[44px] items-center gap-1 px-1'
-          : 'flex min-h-[44px] w-full items-center justify-between py-3',
-        'rounded-sm text-sm font-medium text-mit-text shadow-none transition-opacity hover:bg-transparent hover:opacity-70',
-        textFocusRingClassName
+        variant === 'desktop' &&
+          'inline-flex min-h-[44px] items-center gap-1 px-1 rounded-sm text-sm font-medium text-mit-text shadow-none transition-opacity hover:bg-transparent hover:opacity-70 aria-expanded:!bg-transparent',
+        variant === 'mobile' &&
+          cn(
+            'flex h-auto min-h-[44px] w-full items-center justify-between px-0 py-3 rounded-sm text-sm font-medium text-mit-text shadow-none transition-opacity hover:bg-transparent hover:opacity-70 aria-expanded:!bg-transparent',
+            textFocusRingClassName
+          ),
+        variant === 'desktop' && textFocusRingClassName,
+        sectionActive &&
+          'underline decoration-2 underline-offset-4 font-semibold'
       )}
       id={triggerId}
-      onClick={toggle}
+      onClick={() => {
+        setIsOpen((open) => !open);
+      }}
       onKeyDown={onTriggerKeyDown}
       ref={triggerRef}
       type="button"
@@ -337,7 +356,7 @@ export function NavigationDropdown(props: NavigationDropdownProps) {
       <span>{label}</span>
       <ChevronDown
         aria-hidden="true"
-        className={`shrink-0 transition-transform duration-150 ease-out${isOpen ? ' rotate-180' : ''}`}
+        className={`shrink-0 transition-transform duration-150 ease-out motion-reduce:transition-none${isOpen ? ' rotate-180' : ''}`}
         size={16}
       />
     </Button>
@@ -349,16 +368,11 @@ export function NavigationDropdown(props: NavigationDropdownProps) {
         {trigger}
         <ul
           aria-labelledby={triggerId}
-          className="flex flex-col pb-2 pl-4"
+          className="flex flex-col"
           hidden={!isOpen}
           id={panelId}
-          role="menu"
         >
-          {resolvedItems.map((item, index) => (
-            <li key={item.label} role="none">
-              {renderItemLink(item, index)}
-            </li>
-          ))}
+          {listItems}
         </ul>
       </div>
     );
@@ -374,18 +388,11 @@ export function NavigationDropdown(props: NavigationDropdownProps) {
       {trigger}
       <div
         aria-labelledby={triggerId}
-        className="absolute top-full left-0 z-50 mt-2 min-w-[240px] rounded-lg border border-mit-line bg-white py-2 shadow-lg"
+        className="absolute top-full left-0 z-50 mt-0 min-w-[240px] overflow-x-hidden rounded-lg border border-mit-line bg-white shadow-lg"
         hidden={!isOpen}
         id={panelId}
-        role="menu"
       >
-        <ul className="flex flex-col">
-          {resolvedItems.map((item, index) => (
-            <li key={item.label} role="none">
-              {renderItemLink(item, index)}
-            </li>
-          ))}
-        </ul>
+        <ul className="flex min-w-0 flex-col">{listItems}</ul>
       </div>
     </div>
   );

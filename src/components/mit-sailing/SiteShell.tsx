@@ -1,15 +1,13 @@
 import { getTranslations } from 'next-intl/server';
 import { Suspense } from 'react';
 import { getSession } from '@/libs/auth/dal';
-import { listClassCategoriesForNav } from '@/libs/mit-sailing/classQueries';
-import { listFleetBoatsForPublic } from '@/libs/mit-sailing/fleetQueries';
-import type { NavigationDropdownItem } from './site/NavigationDropdown';
 import { SiteFooter } from './site/SiteFooter';
 import { SiteHeader } from './site/SiteHeader';
 import {
   WeatherConditionsBar,
   WeatherConditionsBarSkeleton,
 } from './site/WeatherConditionsBar';
+import { SiteShellHeaderNav } from './SiteShellHeaderNav';
 
 type SiteShellProps = {
   children: React.ReactNode;
@@ -28,26 +26,6 @@ export async function SiteShell(props: SiteShellProps) {
   const session = await getSession();
   const initialSignedIn = Boolean(session?.user?.id);
 
-  const [categories, fleetBoats] = await Promise.all([
-    listClassCategoriesForNav(),
-    listFleetBoatsForPublic(),
-  ]);
-
-  const classesDropdownItems: NavigationDropdownItem[] = categories.map(
-    (c) => ({
-      label: c.name,
-      href: `/classes/#${c.slug}`,
-    })
-  );
-
-  const fleetDropdownItems: NavigationDropdownItem[] = fleetBoats.map(
-    (boat) => ({
-      label: boat.name,
-      href: `/fleet/${boat.slug}/`,
-      description: boat.type,
-    })
-  );
-
   const tMitSite = await getTranslations('MitSailingSite');
 
   return (
@@ -55,13 +33,21 @@ export async function SiteShell(props: SiteShellProps) {
       <Suspense fallback={<WeatherConditionsBarSkeleton tMitSite={tMitSite} />}>
         <WeatherConditionsBar tMitSite={tMitSite} />
       </Suspense>
-      <SiteHeader
-        classesDropdownItems={classesDropdownItems}
-        fleetDropdownItems={fleetDropdownItems}
-        initialSignedIn={initialSignedIn}
-      />
-      <main className="flex-1">{props.children}</main>
-      <SiteFooter />
+      <Suspense
+        fallback={
+          <SiteHeader
+            classesDropdownItems={[]}
+            fleetDropdownItems={[]}
+            initialSignedIn={initialSignedIn}
+          />
+        }
+      >
+        <SiteShellHeaderNav initialSignedIn={initialSignedIn} />
+      </Suspense>
+      <div className="flex min-h-0 flex-1 flex-col" id="site-shell-inert-scope">
+        <main className="flex-1">{props.children}</main>
+        <SiteFooter />
+      </div>
     </div>
   );
 }
