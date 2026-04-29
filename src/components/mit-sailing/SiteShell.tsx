@@ -1,10 +1,15 @@
+import { getTranslations } from 'next-intl/server';
+import { Suspense } from 'react';
 import { getSession } from '@/libs/auth/dal';
 import { listClassCategoriesForNav } from '@/libs/mit-sailing/classQueries';
 import { listFleetBoatsForPublic } from '@/libs/mit-sailing/fleetQueries';
 import type { NavigationDropdownItem } from './site/NavigationDropdown';
-import { SiteConditionsBar } from './site/SiteConditionsBar';
 import { SiteFooter } from './site/SiteFooter';
 import { SiteHeader } from './site/SiteHeader';
+import {
+  WeatherConditionsBar,
+  WeatherConditionsBarSkeleton,
+} from './site/WeatherConditionsBar';
 
 type SiteShellProps = {
   children: React.ReactNode;
@@ -43,9 +48,13 @@ export async function SiteShell(props: SiteShellProps) {
     })
   );
 
+  const tMitSite = await getTranslations('MitSailingSite');
+
   return (
     <div className="flex min-h-screen flex-col bg-white font-mit-sans text-mit-text">
-      <SiteConditionsBar />
+      <Suspense fallback={<WeatherConditionsBarSkeleton tMitSite={tMitSite} />}>
+        <WeatherConditionsBar tMitSite={tMitSite} />
+      </Suspense>
       <SiteHeader
         classesDropdownItems={classesDropdownItems}
         fleetDropdownItems={fleetDropdownItems}

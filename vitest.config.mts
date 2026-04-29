@@ -36,6 +36,16 @@ export default defineConfig({
           environment: 'node',
         },
       },
+      {
+        extends: true,
+        test: {
+          name: 'contract',
+          include: ['tests/integration/**/*.contract.spec.ts'],
+          environment: 'node',
+          testTimeout: 45_000,
+          hookTimeout: 45_000,
+        },
+      },
     ],
     reporters: [
       'default',

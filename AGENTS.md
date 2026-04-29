@@ -15,6 +15,8 @@
 
 ## Token efficiency
 - Skip recaps unless the result is ambiguous or you need more input.
+- **Cursor rules** attach by **glob** (see each `.mdc` frontmatter). **Cite** paths instead of pasting long policy. **`@tdd`** for strict test-first without repeating prompts.
+- **Which rule:** `nextjs-node-server-2026.mdc` (Next caching/DB/runtime, `src/app` + `src/libs`). `e2e-verification.mdc` (when `test:e2e` counts as done). `tdd.mdc` (Vitest/Playwright, `tests/**` + co-located `*.test.*`). `agent-workflow.mdc` (workflow + stale APIs, `src/**`).
 
 ## Commands
 Only these `bun run` scripts: `build-local`, `lint`, `check:types`, `check:deps`, `check:i18n`, `test`, `test:e2e`.
@@ -38,6 +40,7 @@ Tailwind v4 utility classes. Reuse shared components. Responsive. No unnecessary
 - Production is **`output: 'standalone'`**; expect a **long-lived Node** process. Prefer RSC and server data access; do not use `runtime: 'edge'` for Prisma/pg routes.
 - Prisma is a **singleton** per worker in [DB.ts](src/libs/DB.ts); size `pg` pool for dedicated Postgres, not serverless cold starts.
 - Avoid app-wide `force-dynamic`; use segment `revalidate`, `cache()` / `unstable_cache`, and `revalidatePath` after Server Actions. See `.cursor/rules/nextjs-node-server-2026.mdc` for full guidance.
+- Other Cursor rules: see **Token efficiency** (paths + globs).
 
 ## Pages
 - Default export name ends with `Page`. Props alias (if reused) ends with `PageProps`.
