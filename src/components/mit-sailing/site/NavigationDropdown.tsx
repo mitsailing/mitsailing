@@ -127,12 +127,6 @@ export function NavigationDropdown(props: NavigationDropdownProps) {
       ]
     : items;
 
-  const sectionActive = resolvedItems.some(
-    (it) =>
-      typeof it.href === 'string' &&
-      isNavLinkActive(pathname, routeHash, it.href)
-  );
-
   useDismiss(wrapperRef, isOpen && variant === 'desktop', setIsOpen);
 
   function focusItem(index: number) {
@@ -273,11 +267,6 @@ export function NavigationDropdown(props: NavigationDropdownProps) {
       typeof item.href === 'string'
         ? isNavLinkActive(pathname, routeHash, item.href)
         : false;
-    const interactiveClass = cn(
-      itemClassName,
-      internalActive &&
-        'underline decoration-2 underline-offset-4 font-semibold'
-    );
     const content = (
       <>
         <span className="block">{item.label}</span>
@@ -298,7 +287,7 @@ export function NavigationDropdown(props: NavigationDropdownProps) {
         {item.href ? (
           <Link
             aria-current={internalActive ? 'page' : undefined}
-            className={interactiveClass}
+            className={itemClassName}
             href={item.href}
             id={`${panelId}-item-${index}`}
             onClick={handleItemClick}
@@ -340,9 +329,7 @@ export function NavigationDropdown(props: NavigationDropdownProps) {
             'flex h-auto min-h-[44px] w-full items-center justify-between px-0 py-3 rounded-sm text-sm font-medium text-mit-text shadow-none transition-opacity hover:bg-transparent hover:opacity-70 aria-expanded:!bg-transparent',
             textFocusRingClassName
           ),
-        variant === 'desktop' && textFocusRingClassName,
-        sectionActive &&
-          'underline decoration-2 underline-offset-4 font-semibold'
+        variant === 'desktop' && textFocusRingClassName
       )}
       id={triggerId}
       onClick={() => {

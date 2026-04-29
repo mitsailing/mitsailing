@@ -8,7 +8,6 @@ import { SignOutForm } from '@/components/auth/SignOutForm';
 import { Button } from '@/components/ui/button';
 import { useRouteHash } from '@/hooks/useRouteHash';
 import { isNavLinkActive } from '@/lib/mit-sailing/navPathMatch';
-import { cn } from '@/lib/utils';
 import { authClient } from '@/libs/auth-client';
 import { Link, usePathname } from '@/libs/I18nNavigation';
 import type { NavigationDropdownItem } from './NavigationDropdown';
@@ -192,11 +191,7 @@ export function SiteHeader(props: SiteHeaderProps) {
       return (
         <Link
           aria-current={flatActive ? 'page' : undefined}
-          className={cn(
-            flatLinkClass,
-            flatActive &&
-              'underline decoration-2 underline-offset-4 font-semibold'
-          )}
+          className={flatLinkClass}
           href={item.href}
           key={item.labelKey}
           onClick={onNavigate}
