@@ -27,7 +27,10 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-/** Self-hosted Node: no static prerender at build; all locale routes are requested on the server. */
+/**
+ * Keeps `[locale]` on the server request path (`setRequestLocale`, next-intl) instead of stale
+ * build-time locales. Narrower segments still use `revalidate` where safe (see fleet/classes pages).
+ */
 export const dynamic = 'force-dynamic';
 
 export default async function RootLayout(props: {

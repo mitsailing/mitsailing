@@ -3,7 +3,8 @@ import { prisma } from '@/libs/DB';
 import { routing } from '@/libs/I18nRouting';
 import { getBaseUrl, getI18nPath } from '@/utils/Helpers';
 
-export const dynamic = 'force-dynamic';
+/** ISR: cache sitemap responses; refresh hourly (Prisma-backed paths stay reasonably fresh vs. every-request). */
+export const revalidate = 3600;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = getBaseUrl();

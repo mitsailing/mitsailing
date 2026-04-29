@@ -2,11 +2,15 @@
 
 import { Menu, X } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
-import { useMemo, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { SignOutForm } from '@/components/auth/SignOutForm';
 import { Button } from '@/components/ui/button';
+import { useRouteHash } from '@/hooks/useRouteHash';
+import { isNavLinkActive } from '@/lib/mit-sailing/navPathMatch';
+import { cn } from '@/lib/utils';
 import { authClient } from '@/libs/auth-client';
-import { Link } from '@/libs/I18nNavigation';
+import { Link, usePathname } from '@/libs/I18nNavigation';
 import type { NavigationDropdownItem } from './NavigationDropdown';
 import { NavigationDropdown } from './NavigationDropdown';
 
@@ -104,8 +108,18 @@ export function SiteHeader(props: SiteHeaderProps) {
   const t = useTranslations('MitSailingSite');
   const tAccount = useTranslations('AccountLayout');
   const locale = useLocale();
+  const pathname = usePathname();
+  const routeHash = useRouteHash();
   const sessionState = authClient.useSession();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobilePortalReady, setMobilePortalReady] = useState(false);
+  const [mobileDisclosureEpoch, setMobileDisclosureEpoch] = useState(0);
+
+  const mobileMenuToggleRef = useRef<HTMLButtonElement>(null);
+  const mobileOverlayRef = useRef<HTMLDivElement>(null);
+  const prevMobileOpenRef = useRef(false);
+
+  const mobileNavHeadingId = useId();
 
   const hasServerAuthHint = props.initialSignedIn !== undefined;
   const { isPending } = sessionState;
@@ -118,25 +132,293 @@ export function SiteHeader(props: SiteHeaderProps) {
 
   const showAuthPending = isPending && !hasServerAuthHint;
 
-  const navItems: NavConfigItem[] = useMemo(
-    () =>
-      navConfig.map((item) => {
-        if (item.labelKey === 'nav_fleet') {
-          return { ...item, items: props.fleetDropdownItems };
-        }
-        if (item.labelKey === 'nav_classes') {
-          return { ...item, items: props.classesDropdownItems };
-        }
-        return item;
-      }),
-    [props.classesDropdownItems, props.fleetDropdownItems]
-  );
+  const navItems: NavConfigItem[] = navConfig.map((item) => {
+    if (item.labelKey === 'nav_fleet') {
+      return { ...item, items: props.fleetDropdownItems };
+    }
+    if (item.labelKey === 'nav_classes') {
+      return { ...item, items: props.classesDropdownItems };
+    }
+    return item;
+  });
 
-  const closeMobile = () => {
+  function closeMobile() {
     setMobileMenuOpen(false);
-  };
+    setMobileDisclosureEpoch((n) => n + 1);
+  }
+
+  const closeMobileRef = useRef(closeMobile);
+
+  closeMobileRef.current = closeMobile;
+
+  function primaryNavBranch(branchProps: {
+    disclosureEpoch?: number;
+    flatLinkClass: string;
+    item: NavConfigItem;
+    onNavigate?: () => void;
+    variant: 'desktop' | 'mobile';
+  }) {
+    const { item, variant, flatLinkClass, disclosureEpoch, onNavigate } =
+      branchProps;
+    const label = t(item.labelKey);
+
+    const listKey =
+      variant === 'mobile'
+        ? `${item.labelKey}-${disclosureEpoch ?? 0}`
+        : item.labelKey;
+
+    if (item.href && item.items !== undefined) {
+      const overviewSectionLabel =
+        item.labelKey === 'nav_classes' ? t('nav_classes') : t('nav_fleet');
+      return (
+        <NavigationDropdown
+          href={item.href}
+          items={item.items}
+          key={listKey}
+          label={label}
+          overviewLabel={t('nav_overview_all', {
+            label: overviewSectionLabel,
+          })}
+          pathname={pathname}
+          routeHash={routeHash}
+          variant={variant}
+          onNavigate={onNavigate}
+        />
+      );
+    }
+
+    if (item.href) {
+      const flatActive = isNavLinkActive(pathname, routeHash, item.href);
+      return (
+        <Link
+          aria-current={flatActive ? 'page' : undefined}
+          className={cn(
+            flatLinkClass,
+            flatActive &&
+              'underline decoration-2 underline-offset-4 font-semibold'
+          )}
+          href={item.href}
+          key={item.labelKey}
+          onClick={onNavigate}
+        >
+          {label}
+        </Link>
+      );
+    }
+
+    const externalClassName =
+      variant === 'desktop'
+        ? `${flatLinkClass} transition-colors hover:opacity-70`
+        : flatLinkClass;
+
+    return (
+      <a
+        className={externalClassName}
+        href={item.externalHref ?? '#'}
+        key={item.labelKey}
+        onClick={onNavigate}
+      >
+        {label}
+      </a>
+    );
+  }
+
+  useEffect(() => {
+    setMobilePortalReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) {
+      return;
+    }
+
+    const { documentElement } = document;
+    const { body } = document;
+    const previousHtmlOverflow = documentElement.style.overflow;
+    const previousBodyOverflow = body.style.overflow;
+    documentElement.style.overflow = 'hidden';
+    body.style.overflow = 'hidden';
+
+    let shellForInert: HTMLElement | undefined;
+    const candidateShell = document.querySelector('#site-shell-inert-scope');
+    if (
+      candidateShell instanceof HTMLElement &&
+      'inert' in HTMLElement.prototype
+    ) {
+      shellForInert = candidateShell;
+      shellForInert.inert = true;
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') {
+        return;
+      }
+      event.preventDefault();
+      closeMobileRef.current();
+    };
+
+    document.addEventListener('keydown', onKeyDown, true);
+
+    const focusFrame = window.requestAnimationFrame(() => {
+      const root = mobileOverlayRef.current;
+      if (!root) {
+        return;
+      }
+      const firstInteractive = root.querySelector<HTMLElement>(
+        'nav a[href]:not([tabindex="-1"]), nav button:not([disabled])'
+      );
+      firstInteractive?.focus();
+    });
+
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      document.removeEventListener('keydown', onKeyDown, true);
+      documentElement.style.overflow = previousHtmlOverflow;
+      body.style.overflow = previousBodyOverflow;
+      if (shellForInert) {
+        shellForInert.inert = false;
+      }
+    };
+  }, [mobileMenuOpen]);
+
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      prevMobileOpenRef.current = true;
+      return;
+    }
+    if (prevMobileOpenRef.current) {
+      mobileMenuToggleRef.current?.focus();
+      prevMobileOpenRef.current = false;
+    }
+  }, [mobileMenuOpen]);
 
   const primaryNavAria = t('main_navigation_label');
+
+  function renderMobileNavBody() {
+    return (
+      <>
+        <nav aria-label={primaryNavAria} className="flex flex-col gap-1">
+          {mobileUtilityConfig.map((link) => (
+            <Link
+              className={mobileLinkClassName}
+              href={link.href}
+              key={link.labelKey}
+              onClick={closeMobile}
+            >
+              {t(link.labelKey)}
+            </Link>
+          ))}
+          {navItems.map((item) =>
+            primaryNavBranch({
+              disclosureEpoch: mobileDisclosureEpoch,
+              flatLinkClass: mobileLinkClassName,
+              item,
+              onNavigate: closeMobile,
+              variant: 'mobile',
+            })
+          )}
+        </nav>
+        <div className="mt-4 flex min-h-[92px] flex-col gap-2 border-t border-mit-line pt-4">
+          {showAuthPending ? (
+            <div
+              aria-busy="true"
+              aria-live="polite"
+              className="flex min-h-[92px] flex-col justify-center"
+              role="status"
+            >
+              <span className="sr-only">
+                {t('a11y_header_session_loading')}
+              </span>
+            </div>
+          ) : null}
+          {!showAuthPending && !displayAuthenticated ? (
+            <>
+              <Link
+                className={mobileGuestLoginClass}
+                href="/login/"
+                onClick={closeMobile}
+              >
+                {t('auth_log_in')}
+              </Link>
+              <Link
+                className={mobileGuestSignupClass}
+                href="/signup/"
+                onClick={closeMobile}
+              >
+                {t('auth_create_account')}
+              </Link>
+            </>
+          ) : null}
+          {!showAuthPending && displayAuthenticated ? (
+            <>
+              <Link
+                className={`${mobileGuestLoginClass} w-full`}
+                href="/profile/"
+                onClick={closeMobile}
+              >
+                {tAccount('user_profile_link')}
+              </Link>
+              <SignOutForm
+                buttonClassName={mobileSignOutClass}
+                label={tAccount('sign_out')}
+                locale={locale}
+                onSignOutStart={closeMobile}
+                redirectPath="/"
+              />
+            </>
+          ) : null}
+        </div>
+      </>
+    );
+  }
+
+  const mobilePortalContent =
+    mobilePortalReady && mobileMenuOpen
+      ? createPortal(
+          <div
+            aria-labelledby={mobileNavHeadingId}
+            aria-modal="true"
+            className="fixed inset-0 z-[53] flex h-[100dvh] flex-col overflow-hidden bg-white pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] motion-safe:animate-in motion-safe:duration-200 motion-safe:fade-in motion-reduce:animate-none lg:hidden"
+            id="site-header-mobile-menu"
+            ref={mobileOverlayRef}
+            role="dialog"
+          >
+            <h2 className="sr-only" id={mobileNavHeadingId}>
+              {primaryNavAria}
+            </h2>
+            <div className="flex min-h-[4rem] shrink-0 items-center justify-between border-b border-mit-line px-6">
+              <Link
+                className="flex cursor-pointer items-center gap-2 no-underline focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2 focus-visible:outline-none"
+                href="/"
+                onClick={closeMobile}
+              >
+                <div className="font-mit-serif text-[22px] font-bold tracking-tight text-mit-red">
+                  {t('site_brand_mit')}
+                  <span className="ml-1 text-mit-text">
+                    {t('site_brand_sailing')}
+                  </span>
+                </div>
+              </Link>
+              <Button
+                aria-controls="site-header-mobile-menu"
+                aria-expanded
+                aria-label={t('a11y_close_menu')}
+                className="shrink-0 text-mit-text"
+                size="icon"
+                type="button"
+                variant="ghost"
+                onClick={closeMobile}
+              >
+                <X size={24} />
+              </Button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pb-6">
+              {renderMobileNavBody()}
+            </div>
+          </div>,
+          document.body
+        )
+      : null;
 
   return (
     <header className="sticky top-0 z-50 border-b border-mit-line bg-white/80 backdrop-blur-md">
@@ -157,47 +439,13 @@ export function SiteHeader(props: SiteHeaderProps) {
           aria-label={primaryNavAria}
           className="hidden items-center gap-8 lg:flex"
         >
-          {navItems.map((item) => {
-            const label = t(item.labelKey);
-            if (item.items && item.items.length > 0) {
-              const overviewSectionLabel =
-                item.labelKey === 'nav_classes'
-                  ? t('nav_classes')
-                  : t('nav_fleet');
-              return (
-                <NavigationDropdown
-                  href={item.href}
-                  items={item.items}
-                  key={item.labelKey}
-                  label={label}
-                  overviewLabel={t('nav_overview_all', {
-                    label: overviewSectionLabel,
-                  })}
-                  variant="desktop"
-                />
-              );
-            }
-            if (item.href) {
-              return (
-                <Link
-                  className={navLinkClass}
-                  href={item.href}
-                  key={item.labelKey}
-                >
-                  {label}
-                </Link>
-              );
-            }
-            return (
-              <a
-                className={`${navLinkClass} transition-colors hover:opacity-70`}
-                href={item.externalHref ?? '#'}
-                key={item.labelKey}
-              >
-                {label}
-              </a>
-            );
-          })}
+          {navItems.map((item) =>
+            primaryNavBranch({
+              flatLinkClass: navLinkClass,
+              item,
+              variant: 'desktop',
+            })
+          )}
         </nav>
 
         <div className={desktopAuthOuterClass}>
@@ -239,136 +487,25 @@ export function SiteHeader(props: SiteHeaderProps) {
         </div>
 
         <Button
+          ref={mobileMenuToggleRef}
           aria-controls="site-header-mobile-menu"
           aria-expanded={mobileMenuOpen}
           aria-label={
             mobileMenuOpen ? t('a11y_close_menu') : t('a11y_open_menu')
           }
-          className="shrink-0 text-mit-text lg:hidden"
-          onClick={() => {
-            setMobileMenuOpen(!mobileMenuOpen);
-          }}
+          className={`shrink-0 text-mit-text lg:hidden${mobileMenuOpen ? ' pointer-events-none opacity-0' : ''}`}
           size="icon"
           type="button"
           variant="ghost"
+          onClick={() => {
+            setMobileMenuOpen((open) => !open);
+          }}
         >
           {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
         </Button>
       </div>
 
-      {mobileMenuOpen ? (
-        <div
-          className="border-t border-mit-line bg-white px-6 py-4 lg:hidden"
-          id="site-header-mobile-menu"
-        >
-          <nav aria-label={primaryNavAria} className="flex flex-col gap-1">
-            {mobileUtilityConfig.map((link) => (
-              <Link
-                className={mobileLinkClassName}
-                href={link.href}
-                key={link.labelKey}
-                onClick={closeMobile}
-              >
-                {t(link.labelKey)}
-              </Link>
-            ))}
-            {navItems.map((item) => {
-              const label = t(item.labelKey);
-              if (item.items && item.items.length > 0) {
-                const overviewSectionLabel =
-                  item.labelKey === 'nav_classes'
-                    ? t('nav_classes')
-                    : t('nav_fleet');
-                return (
-                  <NavigationDropdown
-                    href={item.href}
-                    items={item.items}
-                    key={item.labelKey}
-                    label={label}
-                    onNavigate={closeMobile}
-                    overviewLabel={t('nav_overview_all', {
-                      label: overviewSectionLabel,
-                    })}
-                    variant="mobile"
-                  />
-                );
-              }
-              if (item.href) {
-                return (
-                  <Link
-                    className={mobileLinkClassName}
-                    href={item.href}
-                    key={item.labelKey}
-                    onClick={closeMobile}
-                  >
-                    {label}
-                  </Link>
-                );
-              }
-              return (
-                <a
-                  className={mobileLinkClassName}
-                  href={item.externalHref ?? '#'}
-                  key={item.labelKey}
-                  onClick={closeMobile}
-                >
-                  {label}
-                </a>
-              );
-            })}
-          </nav>
-          <div className="mt-4 flex min-h-[92px] flex-col gap-2 border-t border-mit-line pt-4">
-            {showAuthPending ? (
-              <div
-                aria-busy="true"
-                aria-live="polite"
-                className="flex min-h-[92px] flex-col justify-center"
-                role="status"
-              >
-                <span className="sr-only">
-                  {t('a11y_header_session_loading')}
-                </span>
-              </div>
-            ) : null}
-            {!showAuthPending && !displayAuthenticated ? (
-              <>
-                <Link
-                  className={mobileGuestLoginClass}
-                  href="/login/"
-                  onClick={closeMobile}
-                >
-                  {t('auth_log_in')}
-                </Link>
-                <Link
-                  className={mobileGuestSignupClass}
-                  href="/signup/"
-                  onClick={closeMobile}
-                >
-                  {t('auth_create_account')}
-                </Link>
-              </>
-            ) : null}
-            {!showAuthPending && displayAuthenticated ? (
-              <>
-                <Link
-                  className={`${mobileGuestLoginClass} w-full`}
-                  href="/profile/"
-                  onClick={closeMobile}
-                >
-                  {tAccount('user_profile_link')}
-                </Link>
-                <SignOutForm
-                  buttonClassName={mobileSignOutClass}
-                  label={tAccount('sign_out')}
-                  locale={locale}
-                  onSignOutStart={closeMobile}
-                  redirectPath="/"
-                />
-              </>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
+      {mobilePortalContent}
     </header>
   );
 }
