@@ -152,6 +152,20 @@ jobs:
           printf '%s\n' "${{ secrets.PRODUCTION_SSH_HOST_KEY }}" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
+      # Keep `compose.yaml` / `compose.prod.yaml` on the host in sync with the branch (overlays, healthchecks).
+      - name: Sync compose files
+        env:
+          PRODUCTION_USER: ${{ secrets.PRODUCTION_SSH_USER }}
+          PRODUCTION_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
+        run: |
+          scp \
+            -i ~/.ssh/id_deploy \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            compose.yaml \
+            compose.prod.yaml \
+            "${PRODUCTION_USER}@${PRODUCTION_HOST}:~/apps/mitsailing/"
+
       - name: Sync deploy script
         env:
           PRODUCTION_USER: ${{ secrets.PRODUCTION_SSH_USER }}
@@ -213,6 +227,20 @@ jobs:
           # via `ssh-keyscan sailing-dock.mit.edu` and puts it in secrets.
           printf '%s\n' "${{ secrets.PRODUCTION_SSH_HOST_KEY }}" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
+
+      # Keep `compose.yaml` / `compose.prod.yaml` on the host in sync with the branch (overlays, healthchecks).
+      - name: Sync compose files
+        env:
+          PRODUCTION_USER: ${{ secrets.PRODUCTION_SSH_USER }}
+          PRODUCTION_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
+        run: |
+          scp \
+            -i ~/.ssh/id_deploy \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            compose.yaml \
+            compose.prod.yaml \
+            "${PRODUCTION_USER}@${PRODUCTION_HOST}:~/apps/mitsailing/"
 
       - name: Sync deploy script
         env:

@@ -156,6 +156,11 @@ docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production p
 After the first successful deploy, day-to-day updates are **only** from GitHub
 (`push` to `main` or **Actions → Deploy (production) → Run workflow**).
 
+Migrate and deploy jobs **scp** `compose.yaml` and `compose.prod.yaml` to
+`~/apps/mitsailing/` on each run so production Compose overlays (for example
+worker healthchecks) stay aligned with the branch, not only whatever was copied
+at initial bootstrap.
+
 ### 7. GitHub repository configuration
 
 Create environment **`production`** (Settings → Environments) with URL
