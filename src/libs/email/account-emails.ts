@@ -1,4 +1,4 @@
-import { render } from '@react-email/render';
+import { render } from 'react-email';
 import { createUnlockAccountToken } from '@/libs/auth/unlock-token';
 import { sendTransactionalEmail } from '@/libs/email/sendTransactional';
 import { Env } from '@/libs/Env';
