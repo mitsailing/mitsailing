@@ -46,8 +46,8 @@ jobs:
   build:
     strategy:
       matrix:
-        node-version: [22.x, 24.x]
-        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
+        # Single version: matches production Docker / server (Node 24).
+        node-version: [24.x]
 
     name: Build with ${{ matrix.node-version }}
     runs-on: ubuntu-latest
@@ -97,7 +97,7 @@ jobs:
           NEXT_PUBLIC_SENTRY_DISABLED: 'true' # Only upload Sentry source maps in deployment
           NEXT_PUBLIC_APP_URL: http://localhost:3008
 
-      - if: matrix.node-version == '24.x' && success()
+      - if: success()
         name: Cache Next.js build output
         uses: actions/cache/save@v5
         with:
@@ -131,7 +131,7 @@ jobs:
           node-version: ${{ matrix.node-version }}
 
       - name: Run unit tests (with coverage)
-        uses: docker://mcr.microsoft.com/playwright:v1.58.2
+        uses: docker://mcr.microsoft.com/playwright:v1.59.1-jammy
         with:
           args: npm run test:coverage
 
@@ -217,7 +217,7 @@ jobs:
           node-version: ${{ matrix.node-version }}
 
       - name: Run storybook tests
-        uses: docker://mcr.microsoft.com/playwright:v1.58.2
+        uses: docker://mcr.microsoft.com/playwright:v1.59.1-jammy
         with:
           args: npm run storybook:test
 

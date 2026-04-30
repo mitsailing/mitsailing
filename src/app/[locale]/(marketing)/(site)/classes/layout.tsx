@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 
 /**
- * Classes segment: breadcrumbs live on `page.tsx` / `[slug]/layout.tsx`.
+ * Classes segment pass-through; breadcrumbs and constrained main column live on
+ * `page.tsx` / `[slug]/layout.tsx`.
  *
  * @param props - Layout props
  * @returns Child routes

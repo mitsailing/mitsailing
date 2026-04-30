@@ -1,4 +1,5 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { SiteSectionMain } from '@/components/mit-sailing/SiteSectionMain';
 import { SiteSectionShell } from '@/components/mit-sailing/SiteSectionShell';
 import { requireAdmin } from '@/libs/auth/dal';
 
@@ -18,7 +19,9 @@ export default async function AdminSectionLayout(props: {
       locale={locale}
       segments={[{ label: t('section_admin') }]}
     >
-      {props.children}
+      <SiteSectionMain maxWidth="7xl" variant="catalog">
+        {props.children}
+      </SiteSectionMain>
     </SiteSectionShell>
   );
 }

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { prisma } from '@/libs/DB';
 import { Link } from '@/libs/I18nNavigation';
+import { prismaOrderByDisplayOrderAscNameAsc } from '@/libs/mit-sailing/prismaOrderPublicNav';
 
 type PageProps = { params: Promise<{ locale: string }> };
 
@@ -28,7 +29,7 @@ export default async function AdminFleetPage(props: PageProps) {
   });
 
   const boats = await prisma.fleetBoat.findMany({
-    orderBy: { name: 'asc' },
+    orderBy: prismaOrderByDisplayOrderAscNameAsc,
     select: {
       id: true,
       name: true,
