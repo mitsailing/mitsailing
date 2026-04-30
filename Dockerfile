@@ -50,14 +50,25 @@ COPY . .
 RUN npx prisma generate
 
 ENV NEXT_TELEMETRY_DISABLED=1
-# Sentry source-map upload is a CI concern; always disable during image
-# build so the Dockerfile is cacheable and usable offline.
-ENV NEXT_PUBLIC_SENTRY_DISABLED=1
 
-# Placeholder NEXT_PUBLIC_APP_URL — Next bakes client env values at build
-# time. The runtime container overrides it via env_file, but Env.ts has
-# `.min(1)` on it so the build would fail without *some* value.
-ENV NEXT_PUBLIC_APP_URL=http://localhost:3000
+# Sentry: defaults keep SDK + webpack plugin off for local/PR builds. Production
+# CI passes empty `NEXT_PUBLIC_SENTRY_DISABLED`, `NEXT_PUBLIC_SENTRY_DSN`, and
+# `SENTRY_AUTH_TOKEN` (builder only — not copied to the `prod` stage).
+ARG NEXT_PUBLIC_SENTRY_DISABLED=1
+ENV NEXT_PUBLIC_SENTRY_DISABLED=${NEXT_PUBLIC_SENTRY_DISABLED}
+ARG NEXT_PUBLIC_SENTRY_DSN=
+ENV NEXT_PUBLIC_SENTRY_DSN=${NEXT_PUBLIC_SENTRY_DSN}
+ARG SENTRY_AUTH_TOKEN=
+ENV SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN}
+
+# `NEXT_PUBLIC_*` is inlined at `next build`. Production CI must pass
+# `--build-arg NEXT_PUBLIC_APP_URL=https://your.domain` so the client bundle
+# matches the public origin (see deploy.yml). Local / PR builds keep default.
+ARG NEXT_PUBLIC_APP_URL=http://localhost:3000
+ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+# Optional release id for Next `deploymentId` + Sentry releases (short SHA is typical).
+ARG DEPLOYMENT_VERSION=
+ENV DEPLOYMENT_VERSION=${DEPLOYMENT_VERSION}
 # Same story: BETTER_AUTH_SECRET is validated (min 32 chars) at import
 # time by t3-env. The real secret is injected at runtime.
 ENV BETTER_AUTH_SECRET=build-time-placeholder-that-is-at-least-thirty-two-chars-long
@@ -87,6 +98,12 @@ CMD ["npm", "run", "dev:next"]
 # ─────────────────────────────── prod ───────────────────────────────
 FROM node:${NODE_VERSION} AS prod
 WORKDIR /app
+
+# Same ARG as `builder` so `docker build --build-arg NEXT_PUBLIC_APP_URL=…`
+# applies here too. `ENV` bakes the value into the runtime image (Compose can
+# still override). Without this, bare `docker run` smoke tests would need `-e`.
+ARG NEXT_PUBLIC_APP_URL=http://localhost:3000
+ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
 
 RUN apk add --no-cache libc6-compat openssl
 

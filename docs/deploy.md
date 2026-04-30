@@ -93,10 +93,33 @@ Fill at least:
 - Optional **`NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`** — required before running
   **more than one** `app` replica or overlapping rolling deploys (see Next.js
   data security docs).
-- `NEXT_PUBLIC_APP_URL=https://mitsailing.com` (or your real public URL)
+- `NEXT_PUBLIC_APP_URL=https://mitsailing.com` — must match the URL baked
+  into the image by GitHub Actions (`deploy.yml` `build-arg`); the production
+  host’s `.env.production` should use the **same** value for runtime `Env`
+  (the host file is **not** read during the CI image build).
 - `CLOUDFLARE_TUNNEL_TOKEN` from the Cloudflare Zero Trust dashboard
 - `RESEND_API_KEY`, `EMAIL_FROM`, `SUPPORT_EMAIL` (real mail; there is no
   Mailpit in production)
+
+**Sentry (errors + source maps):** The production image is built in GitHub
+Actions (`.github/workflows/deploy.yml`), not on the VM. Add these on the
+**`production` environment** (same place as deploy SSH secrets) so the Docker
+build can inline the DSN and upload source maps during `next build`:
+
+| Secret | Purpose |
+| --- | --- |
+| `NEXT_PUBLIC_SENTRY_DSN` | Client/server SDK DSN; baked into the bundle at build time. |
+| `SENTRY_AUTH_TOKEN` | Build-only auth for `@sentry/webpack-plugin` (do **not** put this in `.env.production` on the host). |
+
+Optional `NEXT_PUBLIC_SENTRY_DSN` on the server is documented in
+`.env.production.example`; it does **not** replace CI for inlined `NEXT_PUBLIC_*`.
+
+The workflow passes `NEXT_PUBLIC_SENTRY_DISABLED` as empty for that build so
+Sentry and `withSentryConfig` are active. PR and local Docker builds default to
+Sentry disabled in the `Dockerfile`. If the `production` environment uses
+**required reviewers**, the **Build + push image** job also waits on approval;
+relax rules or duplicate these values as **repository** secrets if you need
+fully unattended image builds.
 
 **Cloudflare public hostname:** point your apex (e.g. `mitsailing.com`) to
 `http://app:3000` on the tunnel. Production compose does **not** expose Mailpit.

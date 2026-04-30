@@ -5,6 +5,12 @@ import NextError from 'next/error';
 import { useEffect } from 'react';
 import { routing } from '@/libs/I18nRouting';
 
+/**
+ * Root error boundary; reports to Sentry from the client.
+ *
+ * @param props - Error payload from Next.js.
+ * @returns Minimal HTML shell with the default Next.js error UI.
+ */
 export default function GlobalError(props: {
   error: Error & { digest?: string };
 }) {

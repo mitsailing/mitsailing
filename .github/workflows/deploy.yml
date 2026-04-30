@@ -2,7 +2,9 @@ name: Deploy (production)
 
 # Repository → Settings → Environments → `production`:
 #   Add **Required reviewers** so the deploy job waits for human approval before
-#   SSH (recommended). Secrets live on that environment: PRODUCTION_SSH_*.
+#   SSH (recommended). Secrets live on that environment: PRODUCTION_SSH_*,
+#   NEXT_PUBLIC_SENTRY_DSN, SENTRY_AUTH_TOKEN (see docs/deploy.md). The `build`
+#   job uses this environment so those values reach Docker build-args.
 #
 # Auto-deploy to the sailing-dock production host when main changes. We also
 # expose a manual `workflow_dispatch` trigger so operators can deploy an
@@ -42,6 +44,8 @@ jobs:
   build:
     name: Build + push image
     runs-on: ubuntu-latest
+    # Production environment secrets (`NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_AUTH_TOKEN`, …).
+    environment: production
     timeout-minutes: 20
     permissions:
       contents: read
@@ -86,6 +90,16 @@ jobs:
           context: .
           target: prod
           push: true
+          # Next inlines `NEXT_PUBLIC_*` at `next build`, which runs in this
+          # job — not on the production host. Server `.env.production` does not
+          # affect the bundle; keep it aligned with this URL for runtime Env.
+          # Sentry secrets live on the `production` GitHub environment (see docs/deploy.md).
+          build-args: |
+            NEXT_PUBLIC_APP_URL=https://mitsailing.com
+            NEXT_PUBLIC_SENTRY_DSN=${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
+            NEXT_PUBLIC_SENTRY_DISABLED=
+            SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
+            DEPLOYMENT_VERSION=${{ github.sha }}
           tags: |
             ${{ steps.meta.outputs.image_sha }}
             ${{ steps.meta.outputs.image_floating }}
