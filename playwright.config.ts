@@ -41,8 +41,10 @@ function playwrightWorkers(): number {
  * See https://playwright.dev/docs/test-configuration
  */
 export default defineConfig<ChromaticConfig>({
-  testDir: './tests',
-  testMatch: '*.@(spec|e2e).?(c|m)[jt]s?(x)',
+  // Vitest integration specs live under `tests/integration/` (`*.contract.spec.ts`);
+  // they must not be discovered here — Playwright loads test files as CJS.
+  testDir: './tests/e2e',
+  testMatch: '**/*.e2e.?(c|m)[jt]s?(x)',
   timeout: defaultTestTimeout,
   forbidOnly: isCi,
   retries: isCi ? 2 : 0,
@@ -90,6 +92,7 @@ export default defineConfig<ChromaticConfig>({
     navigationTimeout: defaultNavigationTimeout,
     actionTimeout: defaultActionTimeout,
   },
+  // Local: Chromium only (fast default). CI: add Firefox for engine coverage before merge.
   projects: [
     {
       name: 'chromium',

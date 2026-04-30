@@ -22,7 +22,7 @@ Do these **in order** the first time you open the project (or on a new laptop).
 
 | Step | What to do |
 | ---- | ---------- |
-| 1 | Install **Node.js ≥ 22**, **npm**, and **Docker Desktop** (start Docker and wait until it says it is running). |
+| 1 | Install **Node.js ≥ 24**, **npm**, and **Docker Desktop** (start Docker and wait until it says it is running). |
 | 2 | Clone the repo and `cd` into it — see [Clone and install](#clone-and-install). |
 | 3 | **`cp .env.example .env`** — you need a real **`.env`** file (it is not committed to git). |
 | 4 | Open **`.env`**: set **`BETTER_AUTH_SECRET`** to a random string **at least 32 characters** (see comments in the template; e.g. `openssl rand -base64 32`). **Change `ADMIN_EMAIL` and `ADMIN_PASSWORD` away from the template defaults** before you run seed (step 7) if anyone else can reach your dev server, you’re on a shared network, or you just don’t want a well-known admin login—those defaults are only for quick **solo** local use. |
@@ -37,7 +37,7 @@ After step 8 you are done with first-time setup. Next time: **Docker on** → **
 
 ### Requirements
 
-- Node.js **≥ 22** and npm
+- Node.js **≥ 24** and npm
 - **Docker Desktop** (or another Docker engine with Compose v2) — must be running before you start dev. Only **Postgres** and **Mailpit** run in containers; the Next.js app runs on the host.
 
 ### Clone and install

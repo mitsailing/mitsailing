@@ -15,7 +15,7 @@
 # supply-chain surface. `output: 'standalone'` in next.config gives us
 # exactly what we need to COPY.
 
-ARG NODE_VERSION=22.13-alpine
+ARG NODE_VERSION=24-alpine
 
 # ─────────────────────────────── deps ───────────────────────────────
 FROM node:${NODE_VERSION} AS deps
