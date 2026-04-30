@@ -98,13 +98,34 @@ function trimToMitWeatherLineLead(singleLine: string): string {
 }
 
 /**
+ * Removes `<…>` spans and unclosed `<` tails so tag-shaped text cannot survive
+ * (avoids single-pass-regex gaps where `<script` without `>` would remain).
+ *
+ * @param input - Raw copy that may include HTML wrappers or fragments
+ * @param gapChar - Insert between former tag boundaries (`' '` for word safety, `''` for tight text)
+ * @returns Copy with angle-bracket spans removed
+ */
+function stripHtmlAngleSpans(input: string, gapChar: string): string {
+  let t = input;
+  while (t.includes('<')) {
+    const start = t.indexOf('<');
+    const end = t.indexOf('>', start);
+    t =
+      end === -1
+        ? t.slice(0, start)
+        : t.slice(0, start) + gapChar + t.slice(end + 1);
+  }
+  return gapChar === '' ? t.replaceAll('>', '') : t.replaceAll('>', gapChar);
+}
+
+/**
  * Drops stray markup fragments stripped upstream may leave on the sunset segment (`</a>`).
  *
  * @param s - Raw sunset substring
  * @returns Plain text fragment
  */
 function sanitizeHtmlishNoise(s: string): string {
-  return s.replaceAll(/<\/?[^>]*>/gu, '').trim();
+  return stripHtmlAngleSpans(s, '').trim();
 }
 
 /**
@@ -264,7 +285,7 @@ export function toDisplayWeatherSegments(
 export function prepareMitWeatherUpstreamText(raw: string): string {
   let s = raw.replaceAll('\uFEFF', '');
   /* eslint-disable unicorn/prefer-string-replace-all -- tag/entity passes need regex spans and casing */
-  s = s.replaceAll(/<[^>]*>/gu, ' ');
+  s = stripHtmlAngleSpans(s, ' ');
   s = s.replaceAll(/&#(\d{1,5});/gu, (_, code: string) => {
     const n = Number(code);
     return n <= MAX_UNICODE_SCALAR ? String.fromCodePoint(n) : '';

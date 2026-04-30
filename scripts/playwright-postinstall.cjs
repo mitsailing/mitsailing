@@ -9,6 +9,7 @@
 'use strict';
 
 const { spawnSync } = require('node:child_process');
+const path = require('node:path');
 
 if (
   process.env.CI === 'true' ||
@@ -21,10 +22,14 @@ if (
 }
 
 // Matches default local `test:e2e` (Chromium). Use `npx playwright install` for Firefox/WebKit.
-const result = spawnSync(
-  'npx',
-  ['playwright', 'install', 'chromium'],
-  { stdio: 'inherit', cwd: require('node:path').join(__dirname, '..') }
-);
+const result = spawnSync('npx', ['playwright', 'install', 'chromium'], {
+  stdio: 'inherit',
+  cwd: path.join(__dirname, '..'),
+});
 
-process.exit(result.status === null ? 1 : result.status);
+if (result.error) {
+  console.error('[playwright-postinstall]', result.error);
+  process.exit(1);
+}
+
+process.exit(result.status ?? 1);

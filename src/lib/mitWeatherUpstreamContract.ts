@@ -22,7 +22,7 @@ export type MitWeatherContractBreach = {
 };
 
 function segmentLooksLikeFahrenheit(s: string): boolean {
-  return /\d/.test(s) && /°?\s*F\b/i.test(s.replaceAll('\u00B0', '°'));
+  return /\d/.test(s) && /°?\s*F\b/i.test(s);
 }
 
 /**

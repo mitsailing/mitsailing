@@ -157,6 +157,10 @@ describe('weatherParse', () => {
     it('extracts clock time when upstream leaves closing anchor junk on the segment', () => {
       expect(formatSunsetTo12Hour('19:42</a>')).toBe('7:42pm');
     });
+
+    it('drops unclosed angle-bracket junk after the clock so sanitization is complete', () => {
+      expect(formatSunsetTo12Hour('19:42<script')).toBe('7:42pm');
+    });
   });
 
   describe('toDisplayWeatherSegments', () => {
