@@ -1,5 +1,5 @@
-import { Heading, Link, Section, Text } from '@react-email/components';
 import type * as React from 'react';
+import { Heading, Link, Section, Text } from 'react-email';
 import { EmailLayout } from './email-layout';
 
 export type PasswordChangedNoticeProps = {

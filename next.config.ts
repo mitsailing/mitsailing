@@ -39,6 +39,20 @@ const baseConfig: NextConfig = {
   ...(process.env.DEPLOYMENT_VERSION
     ? { deploymentId: process.env.DEPLOYMENT_VERSION }
     : {}),
+  // Sitemap is `force-dynamic` + `unstable_cache` (24h) on origin; shared caches
+  // should hold the XML so crawlers do not stampede the app. Matches sitemap TTL.
+  headers: () => [
+    {
+      source: '/sitemap.xml',
+      headers: [
+        {
+          key: 'Cache-Control',
+          value:
+            'public, max-age=0, s-maxage=86400, stale-while-revalidate=43200',
+        },
+      ],
+    },
+  ],
 };
 
 // Initialize the Next-Intl plugin

@@ -7,3 +7,10 @@
 @import 'shadcn/tailwind.css';
 
 @custom-variant dark (&:is(.dark *));
+
+@layer base {
+  /* Sticky header + conditions bar: scroll in-page targets below the fold */
+  main :where([id]) {
+    scroll-margin-top: 7.5rem;
+  }
+}

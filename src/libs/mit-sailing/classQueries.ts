@@ -1,5 +1,11 @@
 import { cache } from 'react';
 import { prisma } from '@/libs/DB';
+import { cacheDbListOrEmpty } from '@/libs/mit-sailing/cacheDbListOrEmpty';
+import {
+  hrefClassesCategoryFromSlug,
+  mapNameSlugRowsToNavLinks,
+} from '@/libs/mit-sailing/mapNavLinksFromNameSlug';
+import { prismaOrderByDisplayOrderAscNameAsc } from '@/libs/mit-sailing/prismaOrderPublicNav';
 
 export type CatalogClassCard = {
   id: string;
@@ -19,19 +25,43 @@ export type CatalogCategorySection = {
   classes: CatalogClassCard[];
 };
 
+export type ClassCategoryNavRow = {
+  id: string;
+  slug: string;
+  name: string;
+  displayOrder: number;
+};
+
 /**
- * Visible categories for nav dropdown, ordered for display.
+ * Maps visible category rows (already ordered, e.g. by `displayOrder`) to header links.
+ *
+ * @param categories - Category rows from Prisma
+ * @returns Dropdown items for the Classes nav (order preserved)
+ */
+export function mapClassCategoriesToNavDropdownItems(
+  categories: readonly Pick<ClassCategoryNavRow, 'name' | 'slug'>[]
+): { label: string; href: string }[] {
+  return mapNameSlugRowsToNavLinks(categories, hrefClassesCategoryFromSlug);
+}
+
+// eslint-disable-next-line @typescript-eslint/promise-function-async -- thin Prisma wrapper
+const loadClassCategoriesForNavUnchecked = (): Promise<ClassCategoryNavRow[]> =>
+  prisma.classCategory.findMany({
+    where: { isVisible: true },
+    orderBy: prismaOrderByDisplayOrderAscNameAsc,
+    select: { id: true, slug: true, name: true, displayOrder: true },
+  });
+
+/**
+ * Visible categories for nav dropdown, ordered for display. Request-cached; returns
+ * an empty list when the database read fails so the shell can still render.
  *
  * @returns Category rows for header dropdown
  */
-export async function listClassCategoriesForNav() {
-  const rows = await prisma.classCategory.findMany({
-    where: { isVisible: true },
-    orderBy: { displayOrder: 'asc' },
-    select: { id: true, slug: true, name: true, displayOrder: true },
-  });
-  return rows;
-}
+export const listClassCategoriesForNav = cacheDbListOrEmpty(
+  'class categories for site nav',
+  loadClassCategoriesForNavUnchecked
+);
 
 /**
  * Group sailing classes by category for `/classes` (sections follow `displayOrder`).

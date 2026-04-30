@@ -1,4 +1,5 @@
 import { getTranslations } from 'next-intl/server';
+import { SiteSectionMain } from '@/components/mit-sailing/SiteSectionMain';
 import { SiteSectionShell } from '@/components/mit-sailing/SiteSectionShell';
 
 export default async function EventsSectionLayout(props: {
@@ -15,7 +16,7 @@ export default async function EventsSectionLayout(props: {
       locale={locale}
       segments={[{ label: t('section_events') }]}
     >
-      {props.children}
+      <SiteSectionMain variant="catalog">{props.children}</SiteSectionMain>
     </SiteSectionShell>
   );
 }

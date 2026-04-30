@@ -28,6 +28,8 @@ export type FleetBoat = {
   slug: string;
   type: string;
   capacity: number;
+  /** Fleet index / nav order (1-based, contiguous in seed data). */
+  displayOrder: number;
   requiredClassId: string;
   description: string;
   images: string[];
@@ -174,6 +176,7 @@ export const FLEET_BOATS: FleetBoat[] = [
     slug: 'tech-dinghy',
     type: 'training dinghy',
     capacity: 2,
+    displayOrder: 1,
     requiredClassId: 'class-intro-sailing-101',
     description:
       'Stable club trainer for the Charles; forgiving hull form for first ratings and light-air drills.',
@@ -188,6 +191,7 @@ export const FLEET_BOATS: FleetBoat[] = [
     slug: 'hunter-140',
     type: 'small daysailer',
     capacity: 4,
+    displayOrder: 2,
     requiredClassId: 'class-intro-for-experienced',
     description:
       'Slightly larger platform for sailors transitioning from other venues; emphasizes crew roles and river communication.',
@@ -199,6 +203,7 @@ export const FLEET_BOATS: FleetBoat[] = [
     slug: 'bic-techno-293',
     type: 'windsurfer',
     capacity: 1,
+    displayOrder: 3,
     requiredClassId: 'class-windsurfing-fundamentals',
     description:
       'Durable learner board with adjustable daggerboard; tuned for first planing attempts in moderate breeze.',
@@ -213,6 +218,7 @@ export const FLEET_BOATS: FleetBoat[] = [
     slug: 'laser-radial',
     type: 'single-handed dinghy',
     capacity: 1,
+    displayOrder: 4,
     requiredClassId: 'class-intro-to-racing',
     description:
       'Responsive hull for rules-of-the-road drills and short-course racing; radial rig for a wide sailor weight range.',
@@ -224,6 +230,7 @@ export const FLEET_BOATS: FleetBoat[] = [
     slug: 'flying-junior',
     type: 'double-handed dinghy',
     capacity: 2,
+    displayOrder: 5,
     requiredClassId: 'class-intermediate-sailing-skills',
     description:
       'Collegiate-standard sloop for coordinated trim and asymmetric boathandling fundamentals (no spin on this progression step).',
@@ -238,6 +245,7 @@ export const FLEET_BOATS: FleetBoat[] = [
     slug: 'club-420',
     type: 'double-handed racing dinghy',
     capacity: 2,
+    displayOrder: 6,
     requiredClassId: 'class-intermediate-racing-tactics',
     description:
       'Spinnaker and trapeze introduction for sailors cleared for advanced river sessions and evening series.',

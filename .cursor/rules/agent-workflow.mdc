@@ -1,0 +1,21 @@
+---
+description: Inspect-first workflow, stale APIs, packages/errors — cite AGENTS / nextjs-node-server-2026 / tdd.mdc; keep short
+globs: src/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Agent workflow
+
+**Sources:** [AGENTS.md](../../AGENTS.md); [nextjs-node-server-2026.mdc](nextjs-node-server-2026.mdc); [tdd.mdc](tdd.mdc) (tests + `*.test.*`). Cite paths — do not paste bodies. Tests policy & Playwright: **tdd.mdc**; **`@tdd`** for strict test-first.
+
+**Workflow:** Inspect before edits; match repo patterns; small diffs; preserve UI unless asked; end with files / tests / assumptions.
+
+**Anti-stale:** Check [`package.json`](../../package.json). App Router on Node, **`standalone`** — not Pages Router defaults (`getServerSideProps`, `next/head` for new code). **`params` / `searchParams`:** async per AGENTS locale pattern.
+
+**Next.js:** Depth in **nextjs-node-server-2026.mdc**. Summary: RSC + server data unless client needs interactivity; no app-wide **`force-dynamic`**; localized loading/error/Suspense; **Node** for Prisma/pg/FS not Edge; **`revalidatePath`** / tags after actions; optional **`after()`**.
+
+**Packages:** Existing deps only; **`Env.ts`**, Logtape, Sentry — no ad-hoc env/logging/auth libs. **`server-only`** / client boundary — no server DB/auth in Client Components.
+
+**Errors:** Recoverable failures → boundaries + fallbacks. Logtape / Sentry; else safe server logs, no secrets.
+
+**Naming:** Clear names; renames in scope only. Simple code; comments where needed; magic numbers → constants.

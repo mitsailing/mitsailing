@@ -20,28 +20,6 @@ export const metadata: Metadata = {
     siteName: AppConfig.name,
     url: SITE_URL,
   },
-  icons: [
-    {
-      rel: 'apple-touch-icon',
-      url: '/apple-touch-icon.png',
-    },
-    {
-      rel: 'icon',
-      type: 'image/png',
-      sizes: '32x32',
-      url: '/favicon-32x32.png',
-    },
-    {
-      rel: 'icon',
-      type: 'image/png',
-      sizes: '16x16',
-      url: '/favicon-16x16.png',
-    },
-    {
-      rel: 'icon',
-      url: '/favicon.ico',
-    },
-  ],
 };
 
 export const viewport: Viewport = {
@@ -49,7 +27,10 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-/** Self-hosted Node: no static prerender at build; all locale routes are requested on the server. */
+/**
+ * Keeps `[locale]` on the server request path (`setRequestLocale`, next-intl) instead of stale
+ * build-time locales. Narrower segments still use `revalidate` where safe (see fleet/classes pages).
+ */
 export const dynamic = 'force-dynamic';
 
 export default async function RootLayout(props: {

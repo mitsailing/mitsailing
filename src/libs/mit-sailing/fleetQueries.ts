@@ -1,5 +1,11 @@
 import { cache } from 'react';
 import { prisma } from '@/libs/DB';
+import { cacheDbListOrEmpty } from '@/libs/mit-sailing/cacheDbListOrEmpty';
+import {
+  hrefFleetBoatFromSlug,
+  mapNameSlugRowsToNavLinks,
+} from '@/libs/mit-sailing/mapNavLinksFromNameSlug';
+import { prismaOrderByDisplayOrderAscNameAsc } from '@/libs/mit-sailing/prismaOrderPublicNav';
 
 export type FleetBoatListRow = {
   id: string;
@@ -12,13 +18,21 @@ export type FleetBoatListRow = {
 };
 
 /**
- * All fleet boats for public list (single query).
+ * Maps fleet rows (already ordered) to header dropdown items.
  *
- * @returns Fleet rows with required class label
+ * @param boats - Fleet rows from Prisma
+ * @returns Dropdown items for the Fleet nav (order preserved)
  */
-export async function listFleetBoatsForPublic(): Promise<FleetBoatListRow[]> {
-  const rows = await prisma.fleetBoat.findMany({
-    orderBy: { name: 'asc' },
+export function mapFleetBoatsToNavDropdownItems(
+  boats: readonly Pick<FleetBoatListRow, 'name' | 'slug'>[]
+): { label: string; href: string }[] {
+  return mapNameSlugRowsToNavLinks(boats, hrefFleetBoatFromSlug);
+}
+
+// eslint-disable-next-line @typescript-eslint/promise-function-async -- thin Prisma wrapper
+const loadFleetBoatsForPublicUnchecked = (): Promise<FleetBoatListRow[]> =>
+  prisma.fleetBoat.findMany({
+    orderBy: prismaOrderByDisplayOrderAscNameAsc,
     select: {
       id: true,
       name: true,
@@ -29,8 +43,18 @@ export async function listFleetBoatsForPublic(): Promise<FleetBoatListRow[]> {
       requiredClass: { select: { name: true, slug: true } },
     },
   });
-  return rows;
-}
+
+/**
+ * All fleet boats for public list (single query). Request-cached; returns an
+ * empty list when the database read fails so the shell can still render.
+ * Ordered by `displayOrder`, then `name` (aligned with class category ordering).
+ *
+ * @returns Fleet rows with required class label
+ */
+export const listFleetBoatsForPublic = cacheDbListOrEmpty(
+  'fleet boats for public list',
+  loadFleetBoatsForPublicUnchecked
+);
 
 export type FleetBoatDetail = {
   id: string;

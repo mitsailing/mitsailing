@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 
 /**
- * Fleet segment: breadcrumbs on `page.tsx` / `[slug]/layout.tsx`.
+ * Fleet segment pass-through; breadcrumbs and constrained main column live on
+ * `page.tsx` and `[slug]/layout.tsx` (`SiteSectionShell` + `SiteSectionMain`).
  *
  * @param props - Layout props
  * @returns Child routes

@@ -1,4 +1,5 @@
 import { getTranslations } from 'next-intl/server';
+import { SiteSectionMain } from '@/components/mit-sailing/SiteSectionMain';
 import { SiteSectionShell } from '@/components/mit-sailing/SiteSectionShell';
 
 export default async function ContactSectionLayout(props: {
@@ -15,7 +16,7 @@ export default async function ContactSectionLayout(props: {
       locale={locale}
       segments={[{ label: t('section_contact') }]}
     >
-      {props.children}
+      <SiteSectionMain variant="catalog">{props.children}</SiteSectionMain>
     </SiteSectionShell>
   );
 }

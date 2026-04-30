@@ -1,7 +1,14 @@
-import '../src/styles/global.css';
 import type { Preview } from '@storybook/nextjs-vite';
+import { StorybookIntlRoot } from './StorybookIntlRoot';
 
 const preview: Preview = {
+  decorators: [
+    (Story) => (
+      <StorybookIntlRoot>
+        <Story />
+      </StorybookIntlRoot>
+    ),
+  ],
   parameters: {
     controls: {
       matchers: {

@@ -1,6 +1,9 @@
+import { ArrowLeft } from 'lucide-react';
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { getStaffBySlug } from '@/data/mit-sailing/aboutContent';
+import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
+import { Link } from '@/libs/I18nNavigation';
 
 type PageProps = { params: Promise<{ locale: string; slug: string }> };
 
@@ -31,12 +34,27 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
 export default async function AboutStaffPage(props: PageProps) {
   const { locale, slug } = await props.params;
   setRequestLocale(locale);
+  const t = await getTranslations({
+    locale,
+    namespace: 'MitSailingAbout',
+  });
   const staff = getStaffBySlug(slug);
   const name = staff?.name ?? slug;
   return (
-    <div className="mx-auto max-w-7xl px-6 py-8">
-      <h1 className="text-2xl font-semibold text-mit-text">{name}</h1>
-      {staff ? <p className="mt-1 text-slate-600">{staff.role}</p> : null}
-    </div>
+    <>
+      <Link
+        className={`mb-8 inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-mit-red no-underline hover:underline ${textFocusRingClassName}`}
+        href="/about/"
+      >
+        <ArrowLeft aria-hidden size={16} />
+        {t('back_to_about')}
+      </Link>
+      <h1 className="font-mit-serif text-[clamp(1.75rem,4vw,2.25rem)] leading-tight font-semibold tracking-tight text-mit-text">
+        {name}
+      </h1>
+      {staff ? (
+        <p className="mt-2 text-base text-mit-text">{staff.role}</p>
+      ) : null}
+    </>
   );
 }

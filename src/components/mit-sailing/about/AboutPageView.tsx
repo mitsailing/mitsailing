@@ -18,6 +18,9 @@ import { Link } from '@/libs/I18nNavigation';
 
 const accent = `font-semibold text-mit-red no-underline hover:underline ${textFocusRingClassName}`;
 
+/** Matches {@link SiteSectionMain} default column; inner wrapper while section bands stay full-viewport. */
+const aboutSectionInner = 'mx-auto w-full max-w-5xl px-6';
+
 function ExternalLink({
   href,
   children,
@@ -101,7 +104,7 @@ export function AboutPageView() {
   return (
     <div className="min-h-0 min-w-0">
       <section className="border-b border-mit-line bg-white py-16 md:py-24">
-        <div className="mx-auto max-w-7xl px-6">
+        <div className={aboutSectionInner}>
           <h1 className="mb-6 font-mit-serif text-3xl leading-tight font-bold text-mit-text md:text-4xl">
             About MIT Sailing
           </h1>
@@ -112,7 +115,7 @@ export function AboutPageView() {
       </section>
 
       <section className="border-b border-mit-line bg-mit-surface py-16 md:py-24">
-        <div className="mx-auto max-w-7xl px-6">
+        <div className={aboutSectionInner}>
           <SectionHeader
             subtitle="How we serve the MIT community and grow lifelong skills on the water."
             title="Our mission"
@@ -149,7 +152,7 @@ export function AboutPageView() {
       </section>
 
       <section className="border-b border-mit-line bg-white py-16 md:py-24">
-        <div className="mx-auto max-w-7xl px-6">
+        <div className={aboutSectionInner}>
           <SectionHeader
             subtitle="From the first college sailing facility to a busy Charles River hub."
             title="History"
@@ -187,7 +190,7 @@ export function AboutPageView() {
         className="border-b border-mit-line bg-mit-surface py-16 md:py-24"
         id="staff"
       >
-        <div className="mx-auto max-w-7xl px-6">
+        <div className={aboutSectionInner}>
           <SectionHeader
             subtitle="Meet the people who keep instruction, the fleet, and the dock running."
             title="Staff"
@@ -232,7 +235,7 @@ export function AboutPageView() {
       </section>
 
       <section className="border-b border-mit-line bg-white py-16 md:py-24">
-        <div className="mx-auto max-w-7xl px-6">
+        <div className={aboutSectionInner}>
           <SectionHeader title="Volunteer" />
           <p className="mb-12 max-w-3xl text-base leading-relaxed text-mit-text">
             {volunteerIntro}
@@ -289,7 +292,7 @@ export function AboutPageView() {
       </section>
 
       <section className="bg-mit-surface py-16 md:py-24">
-        <div className="mx-auto max-w-7xl px-6">
+        <div className={aboutSectionInner}>
           <SectionHeader
             subtitle="Coaching, skills help, and rating tests when volunteers and staff are on the dock."
             title="Dock hours"

@@ -15,7 +15,7 @@
 # supply-chain surface. `output: 'standalone'` in next.config gives us
 # exactly what we need to COPY.
 
-ARG NODE_VERSION=22.13-alpine
+ARG NODE_VERSION=24-alpine
 
 # ─────────────────────────────── deps ───────────────────────────────
 FROM node:${NODE_VERSION} AS deps
@@ -27,9 +27,12 @@ RUN apk add --no-cache libc6-compat openssl
 
 COPY package.json package-lock.json ./
 COPY prisma ./prisma
-# Disable lifecycle scripts during install; the prisma generate in
-# `postinstall` needs the schema (already copied above) and the generated
-# client is regenerated in the builder stage anyway.
+# `postinstall` runs this script after `prisma generate`; it must exist here
+# even though the deps stage does not COPY the full repo yet.
+COPY scripts/playwright-postinstall.cjs ./scripts/playwright-postinstall.cjs
+# Skip Playwright browser download in the image (Alpine has no e2e browsers;
+# postinstall still runs `prisma generate` for a valid node_modules tree).
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 RUN npm ci --include=dev --no-audit --no-fund
 
 

@@ -1,10 +1,10 @@
 import react from '@vitejs/plugin-react';
 import { loadEnv } from 'vite';
-import tsconfigPaths from 'vite-tsconfig-paths';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
-  plugins: [react(), tsconfigPaths()],
+  plugins: [react()],
+  resolve: { tsconfigPaths: true },
   test: {
     coverage: {
       provider: 'v8',
@@ -34,6 +34,16 @@ export default defineConfig({
           include: ['src/**/*.test.{js,ts}'],
           exclude: ['src/hooks/**/*.test.ts'],
           environment: 'node',
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'contract',
+          include: ['tests/integration/**/*.contract.spec.ts'],
+          environment: 'node',
+          testTimeout: 45_000,
+          hookTimeout: 45_000,
         },
       },
     ],

@@ -1,5 +1,5 @@
 /**
- * Conditions strip — utility link routes/keys only. Weather line copy + order: `en.json` (`MitSailingSite`) + `SiteConditionsBar.conditionsLineRows`.
+ * Conditions strip — utility link routes/keys only. Weather line copy + order: `en.json` (`MitSailingSite`) + `WeatherConditionsBar` row keys.
  */
 export const conditionsBarUtilityLinks = [
   { labelKey: 'util_reserve_pavilion' as const, href: '/contact/' as const },

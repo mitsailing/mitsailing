@@ -1,3 +1,4 @@
+import type * as React from 'react';
 import {
   Body,
   Container,
@@ -8,8 +9,7 @@ import {
   Preview,
   Section,
   Text,
-} from '@react-email/components';
-import type * as React from 'react';
+} from 'react-email';
 
 export type EmailLayoutProps = {
   previewText: string;
