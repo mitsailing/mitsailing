@@ -27,9 +27,9 @@ RUN apk add --no-cache libc6-compat openssl
 
 COPY package.json package-lock.json ./
 COPY prisma ./prisma
-# Disable lifecycle scripts during install; the prisma generate in
-# `postinstall` needs the schema (already copied above) and the generated
-# client is regenerated in the builder stage anyway.
+# Skip Playwright browser download in the image (Alpine has no e2e browsers;
+# postinstall still runs `prisma generate` for a valid node_modules tree).
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 RUN npm ci --include=dev --no-audit --no-fund
 
 

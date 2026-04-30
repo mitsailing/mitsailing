@@ -55,7 +55,7 @@
     "db:migrate:test": "node scripts/migrate-test-db.mjs",
     "db:migrate:dev": "dotenv -c -- prisma generate && dotenv -c -- prisma migrate dev",
     "db:studio": "dotenv -c -- prisma studio",
-    "postinstall": "prisma generate",
+    "postinstall": "prisma generate && node scripts/playwright-postinstall.cjs",
     "email:dev": "email dev --dir emails",
     "storybook": "storybook dev -p 6006",
     "storybook:test": "vitest run --config .storybook/vitest.config.mts",

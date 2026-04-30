@@ -26,7 +26,7 @@ Do these **in order** the first time you open the project (or on a new laptop).
 | 2 | Clone the repo and `cd` into it — see [Clone and install](#clone-and-install). |
 | 3 | **`cp .env.example .env`** — you need a real **`.env`** file (it is not committed to git). |
 | 4 | Open **`.env`**: set **`BETTER_AUTH_SECRET`** to a random string **at least 32 characters** (see comments in the template; e.g. `openssl rand -base64 32`). **Change `ADMIN_EMAIL` and `ADMIN_PASSWORD` away from the template defaults** before you run seed (step 7) if anyone else can reach your dev server, you’re on a shared network, or you just don’t want a well-known admin login—those defaults are only for quick **solo** local use. |
-| 5 | **`npm install`** |
+| 5 | **`npm install`** — **`postinstall`** runs Prisma client generation and **`npx playwright install chromium`** for local e2e ([Next.js + Playwright](https://nextjs.org/docs/app/building-your-application/testing/playwright)); skipped in GitHub Actions and in the Docker **deps** stage. |
 | 6 | From the **project root** (folder that contains `compose.yaml`), run **`npm run dev`**. First run starts **Postgres + Mailpit in Docker**, runs migrations, then starts the site on **<http://localhost:3000>**. |
 | 7 | **First run only — sample data + admin user:** open a **second terminal**, same folder, with **`npm run dev` still running**, and run **`npm run db:seed`**. That loads demo content and creates an admin you can log in with. |
 | 8 | **Log in:** open **<http://localhost:3000/login>** using **`ADMIN_EMAIL`** and **`ADMIN_PASSWORD`** exactly as they appear in **your** **`.env`** (whatever you set in step 4). |
