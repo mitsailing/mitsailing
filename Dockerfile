@@ -27,6 +27,9 @@ RUN apk add --no-cache libc6-compat openssl
 
 COPY package.json package-lock.json ./
 COPY prisma ./prisma
+# `postinstall` runs this script after `prisma generate`; it must exist here
+# even though the deps stage does not COPY the full repo yet.
+COPY scripts/playwright-postinstall.cjs ./scripts/playwright-postinstall.cjs
 # Skip Playwright browser download in the image (Alpine has no e2e browsers;
 # postinstall still runs `prisma generate` for a valid node_modules tree).
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
