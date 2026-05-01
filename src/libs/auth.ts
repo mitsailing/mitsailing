@@ -79,7 +79,7 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,
-    autoSignIn: false,
+    // autoSignIn: false,
     revokeSessionsOnPasswordReset: true,
     minPasswordLength: 8,
     password: {

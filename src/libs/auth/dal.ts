@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { cache } from 'react';
 import { auth } from '@/libs/auth';
 import { isRole, Role } from '@/libs/auth/roles';
+import { syncSentryUserFromSession } from '@/libs/sentry-user-server';
 import { AppConfig } from '@/utils/AppConfig';
 import { getI18nPath } from '@/utils/Helpers';
 
@@ -37,9 +38,11 @@ export type CurrentUser = {
  * Request-scoped session read memoized with React `cache` so a single render
  * pass never issues two `auth.api.getSession` calls.
  */
-export const getSession = cache(async () =>
-  auth.api.getSession({ headers: await headers() })
-);
+export const getSession = cache(async () => {
+  const session = await auth.api.getSession({ headers: await headers() });
+  syncSentryUserFromSession(session);
+  return session;
+});
 
 function normalizeRole(role: unknown): Role {
   if (isRole(role)) {

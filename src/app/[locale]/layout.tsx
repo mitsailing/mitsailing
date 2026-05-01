@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { hasLocale, NextIntlClientProvider } from 'next-intl';
 import { setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
+import { SentryUserSync } from '@/components/shell/SentryUserSync';
 import { routing } from '@/libs/I18nRouting';
 import { AppConfig } from '@/utils/AppConfig';
 import '@/styles/global.css';
@@ -48,6 +49,7 @@ export default async function RootLayout(props: {
   return (
     <html lang={locale}>
       <body>
+        <SentryUserSync />
         <NextIntlClientProvider>{props.children}</NextIntlClientProvider>
       </body>
     </html>

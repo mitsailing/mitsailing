@@ -16,6 +16,8 @@
 #
 # Optional loopback DB port for SSH tunnel admin (see compose.db-admin.yaml):
 #   docker compose -f compose.yaml -f compose.prod.yaml -f compose.db-admin.yaml --env-file .env.production up -d
+#
+# Worker reuses the app image; `worker.healthcheck` runs `worker-redis-healthcheck.cjs` (see Dockerfile) instead of the image HTTP probe.
 
 services:
   postgres:
@@ -56,6 +58,12 @@ services:
     restart: unless-stopped
     networks:
       - internal
+    healthcheck:
+      test: ['CMD', 'node', 'worker-redis-healthcheck.cjs']
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
     env_file:
       - path: .env.production
         required: false
