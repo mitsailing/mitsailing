@@ -42,7 +42,7 @@ jobs:
       # `load: true` imports the image into the local docker daemon so the
       # smoke step can `docker run` it without a registry round-trip.
       - name: Build prod image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           target: prod
@@ -216,7 +216,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build prod image (cache-hit expected)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           target: prod
