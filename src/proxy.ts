@@ -1,9 +1,10 @@
 import { detectBot } from '@arcjet/next';
-import { getSessionCookie } from 'better-auth/cookies';
 import createIntlMiddleware from 'next-intl/middleware';
+import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import arcjet from '@/libs/Arcjet';
+import { auth } from '@/libs/auth';
 import { routing } from '@/libs/I18nRouting';
 
 const intl = createIntlMiddleware(routing);
@@ -15,11 +16,10 @@ const aj = arcjet.withRule(
   })
 );
 
-// Edge-safe optimistic auth gate. Real session validation still happens at
-// the page level via `auth.api.getSession`; middleware only short-circuits
-// unauthenticated requests to protected pages so the full redirect dance is
-// cheap. Locale handling is delegated to next-intl.
-export default async function middleware(request: NextRequest) {
+// Next.js 16+ runs Proxy on the Node.js runtime by default, so we can call
+// `auth.api.getSession` for protected paths. Pages and server actions still
+// enforce auth (see `verifySession` / DAL); this layer only redirects early.
+export default async function proxy(request: NextRequest) {
   if (process.env.ARCJET_KEY) {
     const decision = await aj.protect(request);
     if (decision.isDenied()) {
@@ -29,10 +29,15 @@ export default async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
   const protectedPattern = /^(?:\/[\w-]+)?\/(?:account|profile)(?:\/|$)/;
-  if (protectedPattern.test(pathname) && !getSessionCookie(request)) {
-    const signIn = new URL('/login', request.url);
-    signIn.searchParams.set('callbackUrl', pathname);
-    return NextResponse.redirect(signIn);
+  if (protectedPattern.test(pathname)) {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+    if (!session) {
+      const signIn = new URL('/login', request.url);
+      signIn.searchParams.set('callbackUrl', pathname);
+      return NextResponse.redirect(signIn);
+    }
   }
 
   return intl(request);

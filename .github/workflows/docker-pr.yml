@@ -6,7 +6,8 @@ name: Docker PR
 # post-merge in `deploy.yml`.
 #
 # Deliberately does NOT spin up Postgres / Mailpit. Full HTTP + DB integration
-# is already covered by the `e2e` job in CI.yml. This workflow only proves:
+# and Better Auth sign-in / signup are covered by the `e2e` job in CI.yml
+# (`tests/e2e/Auth.e2e.ts`, `AccountLockout.e2e.ts`, etc.). This workflow only proves:
 #   1. The image builds.
 #   2. The container boots, stays up, and handles SIGTERM.
 #   3. The built image passes a Trivy vuln scan for HIGH/CRITICAL issues.
@@ -63,7 +64,6 @@ jobs:
           docker run -d --name smoke \
             -e DATABASE_URL='postgresql://smoke:smoke@127.0.0.1:5432/smoke?sslmode=disable' \
             -e BETTER_AUTH_SECRET='smoke-placeholder-that-is-at-least-thirty-two-chars-long' \
-            -e NEXT_PUBLIC_APP_URL='http://localhost:3000' \
             -e NEXT_PUBLIC_SENTRY_DISABLED='true' \
             mitsailing-pr:ci
 

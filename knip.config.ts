@@ -8,6 +8,8 @@ const config: KnipConfig = {
     'src/types/I18n.ts',
     'tests/**/*.ts',
     'mit-redesign/**',
+    // Invoked by Docker Compose healthcheck + Dockerfile COPY; not a Node import graph entry
+    'scripts/worker-redis-healthcheck.cjs',
     // Catalog + time helpers: partially consumed by prisma seed; getters/types fill in when UI is ported
     'src/data/mit-sailing/**',
     'src/lib/mit-sailing/**',

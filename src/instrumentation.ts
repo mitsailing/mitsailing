@@ -1,38 +1,31 @@
 import * as Sentry from '@sentry/nextjs';
 
+/**
+ * Shared Node + Edge SDK options. Initialization runs only from this file
+ * (no root `sentry.server.config.ts` / `sentry.edge.config.ts`) to avoid duplicate
+ * `Sentry.init` and to keep the DSN on `NEXT_PUBLIC_SENTRY_DSN`.
+ *
+ * @see https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/
+ */
 const sentryOptions: Sentry.NodeOptions | Sentry.EdgeOptions = {
-  // Sentry DSN
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
-
-  // Enable Spotlight in development
   spotlight: process.env.NODE_ENV === 'development',
-
   integrations: [Sentry.consoleLoggingIntegration()],
-
-  // Adds request headers and IP for users, for more info visit
   sendDefaultPii: true,
-
-  // Adjust this value in production, or use tracesSampler for greater control
   tracesSampleRate: 1,
-
-  // Enable logs to be sent to Sentry
   enableLogs: true,
-
-  // Setting this option to true will print useful information to the console while you're setting up Sentry.
   debug: false,
 };
 
 export function register() {
-  if (!process.env.NEXT_PUBLIC_SENTRY_DISABLED) {
-    if (process.env.NEXT_RUNTIME === 'nodejs') {
-      // Node.js Sentry configuration
-      Sentry.init(sentryOptions);
-    }
-
-    if (process.env.NEXT_RUNTIME === 'edge') {
-      // Edge Sentry configuration
-      Sentry.init(sentryOptions);
-    }
+  if (process.env.NEXT_PUBLIC_SENTRY_DISABLED) {
+    return;
+  }
+  if (process.env.NEXT_RUNTIME === 'nodejs') {
+    Sentry.init(sentryOptions);
+  }
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    Sentry.init(sentryOptions);
   }
 }
 

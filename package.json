@@ -70,7 +70,7 @@
     "@prisma/adapter-pg": "7.8.0",
     "@prisma/client": "7.8.0",
     "@prisma/extension-accelerate": "^3.0.1",
-    "@sentry/nextjs": "^10.45.0",
+    "@sentry/nextjs": "^10.51.0",
     "@t3-oss/env-nextjs": "^0.13.10",
     "better-auth": "^1.6.7",
     "better-auth-audit-logs": "^0.3.0",
