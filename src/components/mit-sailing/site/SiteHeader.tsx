@@ -37,7 +37,7 @@ const mobileUtilityConfig: {
 }[] = [
   { labelKey: 'util_reserve_pavilion', href: '/contact/' },
   { labelKey: 'util_directions', href: '/contact/' },
-  { labelKey: 'util_donate', href: '/contact/' },
+  { labelKey: 'util_donate', href: '/donate/' },
 ];
 
 const navConfig: Omit<NavConfigItem, 'items'>[] = [

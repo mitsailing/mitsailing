@@ -7,6 +7,7 @@ import {
   FLEET_BOATS,
   SAILING_CLASSES,
 } from '../../src/data/mit-sailing/classesFleetSeed';
+import { DONATION_FUND_SEED_ROWS } from '../../src/data/mit-sailing/donationFundsSeed';
 import {
   EVENT_ADMINS,
   EVENT_CATEGORIES,
@@ -361,6 +362,34 @@ export async function seedEventRelatedRows(p: PrismaClient): Promise<void> {
         body: c.body,
         parentId: c.parent_id,
         createdAt: new Date(c.created_at),
+      },
+    });
+  }
+}
+
+/**
+ * @param p - Prisma client
+ */
+export async function seedDonationFunds(p: PrismaClient): Promise<void> {
+  for (const row of DONATION_FUND_SEED_ROWS) {
+    await p.donationFund.upsert({
+      where: { id: row.id },
+      create: {
+        id: row.id,
+        fundId: row.fundId,
+        name: row.name,
+        description: row.description,
+        url: row.url,
+        displayOrder: row.displayOrder,
+        isVisible: row.isVisible,
+      },
+      update: {
+        fundId: row.fundId,
+        name: row.name,
+        description: row.description,
+        url: row.url,
+        displayOrder: row.displayOrder,
+        isVisible: row.isVisible,
       },
     });
   }

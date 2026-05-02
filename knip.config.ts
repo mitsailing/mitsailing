@@ -6,8 +6,6 @@ const config: KnipConfig = {
     'checkly.config.ts',
     'src/libs/I18n.ts',
     'src/types/I18n.ts',
-    'tests/**/*.ts',
-    'mit-redesign/**',
     // Invoked by Docker Compose healthcheck + Dockerfile COPY; not a Node import graph entry
     'scripts/worker-redis-healthcheck.cjs',
     // Catalog + time helpers: partially consumed by prisma seed; getters/types fill in when UI is ported
@@ -16,7 +14,6 @@ const config: KnipConfig = {
   ],
   // Dependencies to ignore during analysis
   ignoreDependencies: [
-    '@faker-js/faker', // E2E specs import faker; `tests/**` is excluded from Knip entry analysis
     '@commitlint/types',
     '@swc/helpers', // Avoid error in CI: "`npm ci` can only install packages when your package.json and package-lock.json or npm-shrinkwrap.json are in sync."
     'oxfmt',

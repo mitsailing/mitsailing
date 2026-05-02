@@ -1,6 +1,7 @@
 import { prisma } from '../../src/libs/DB';
 import {
   seedClassCategories,
+  seedDonationFunds,
   seedEventCategories,
   seedEventRelatedRows,
   seedEvents,
@@ -23,4 +24,5 @@ export async function seedMitSailing(): Promise<void> {
   await seedStaff(prisma);
   await seedEvents(prisma);
   await seedEventRelatedRows(prisma);
+  await seedDonationFunds(prisma);
 }

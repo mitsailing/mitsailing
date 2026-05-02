@@ -4,5 +4,5 @@
 export const conditionsBarUtilityLinks = [
   { labelKey: 'util_reserve_pavilion' as const, href: '/contact/' as const },
   { labelKey: 'util_directions' as const, href: '/contact/' as const },
-  { labelKey: 'util_donate' as const, href: '/contact/' as const },
+  { labelKey: 'util_donate' as const, href: '/donate/' as const },
 ] as const;
