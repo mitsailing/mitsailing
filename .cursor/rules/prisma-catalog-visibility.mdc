@@ -1,0 +1,11 @@
+---
+description: Prisma visibility flags — catalog vs editorial publish
+globs: prisma/**/*.prisma,src/**/*.ts,src/**/*.tsx
+alwaysApply: false
+---
+
+# Catalog visibility (`is_visible`)
+
+- **Catalog / list / nav entities** (categories, donation funds, fleet ordering, etc.) use **`isVisible`** with **`@map("is_visible")`** when the row can be hidden from public listings while remaining in the database.
+- **Editorial publish lifecycle** on **detail entities** uses **`isPublished`** with **`@map("is_published")`** — today this applies to **`Event`**.
+- New models: default to **`isVisible`** for “shown on the marketing catalog” unless the entity is explicitly event-like and goes through publish/unpublish workflows like **`Event`**.

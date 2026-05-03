@@ -1,5 +1,5 @@
 import { setRequestLocale } from 'next-intl/server';
-import { AuthenticatedAccountChrome } from '@/components/auth/AuthenticatedAccountChrome';
+import { ProfileSettingsChrome } from '@/components/auth/profile/ProfileSettingsChrome';
 import { getI18nPath } from '@/utils/Helpers';
 
 export default async function ProfileLayout(props: {
@@ -9,11 +9,11 @@ export default async function ProfileLayout(props: {
   const { locale } = await props.params;
   setRequestLocale(locale);
 
-  const profileHref = getI18nPath('/profile/', locale);
+  const profileResumeHref = getI18nPath('/profile/account/', locale);
 
   return (
-    <AuthenticatedAccountChrome locale={locale} loginCallbackUrl={profileHref}>
+    <ProfileSettingsChrome locale={locale} loginCallbackUrl={profileResumeHref}>
       {props.children}
-    </AuthenticatedAccountChrome>
+    </ProfileSettingsChrome>
   );
 }

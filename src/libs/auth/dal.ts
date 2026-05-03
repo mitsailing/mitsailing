@@ -3,7 +3,7 @@ import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { cache } from 'react';
 import { auth } from '@/libs/auth';
-import { isRole, Role } from '@/libs/auth/roles';
+import { normalizeRole, Role } from '@/libs/auth/roles';
 import { syncSentryUserFromSession } from '@/libs/sentry-user-server';
 import { AppConfig } from '@/utils/AppConfig';
 import { getI18nPath } from '@/utils/Helpers';
@@ -44,13 +44,6 @@ export const getSession = cache(async () => {
   return session;
 });
 
-function normalizeRole(role: unknown): Role {
-  if (isRole(role)) {
-    return role;
-  }
-  return Role.USER;
-}
-
 /**
  * Bounces already-authenticated users away from auth-only pages (sign-in,
  * sign-up, forgot-password, reset-password, verify-email).
@@ -66,11 +59,11 @@ export async function redirectIfAuthenticated(
   if (!session?.user?.id) {
     return;
   }
-  const account = getI18nPath('/account', locale);
+  const homeHref = getI18nPath('/', locale);
   const destination =
     typeof callbackUrl === 'string' && callbackUrl.startsWith('/')
       ? callbackUrl
-      : account;
+      : homeHref;
   redirect(destination);
 }
 
@@ -102,8 +95,8 @@ export async function verifySession(
 
 /**
  * Requires an admin who is not currently impersonating another user.
- * Redirects to the account home otherwise so admins never land on pages they
- * are forbidden to view.
+ * Redirects to the site home otherwise so admins never land on pages they are
+ * forbidden to view.
  *
  * @param locale - Active locale used for redirect paths.
  * @returns The authenticated admin session.
@@ -111,12 +104,12 @@ export async function verifySession(
 export async function requireAdmin(
   locale: string = AppConfig.i18n.defaultLocale
 ): Promise<NonNullable<AuthSession>> {
-  const accountHref = getI18nPath('/account/', locale);
-  const session = await verifySession(locale, accountHref);
+  const homeHref = getI18nPath('/', locale);
+  const session = await verifySession(locale, homeHref);
   const role = normalizeRole(session.user.role);
 
   if (role !== Role.ADMIN || session.session.impersonatedBy) {
-    redirect(accountHref);
+    redirect(homeHref);
   }
 
   return session;

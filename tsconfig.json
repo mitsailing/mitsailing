@@ -73,7 +73,13 @@
   // `.next/dev` is from `next dev` only; its generated `validator.ts` can reference
   // deleted routes until the dev server restarts — do not feed it to `tsc` (CI/local).
   // Use `next typegen` + `.next/types` (see `check:types` in package.json).
-  "exclude": ["node_modules", "mit-redesign", "**/*.spec.ts", ".next/dev"],
+  "exclude": [
+    "node_modules",
+    "mit-redesign",
+    "donation-figma",
+    "**/*.spec.ts",
+    ".next/dev"
+  ],
   "include": [
     "next-env.d.ts",
     "global.d.ts",

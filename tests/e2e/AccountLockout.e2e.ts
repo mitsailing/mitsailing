@@ -141,7 +141,7 @@ test.describe('Account lockout', () => {
     await page.getByLabel('Password').fill(password);
     await page.getByRole('button', { name: 'Sign in' }).click();
 
-    await expect(page).toHaveURL(/\/account/);
+    await expect.poll(() => new URL(page.url()).pathname).toBe('/');
 
     await cleanupByEmail(email);
   });

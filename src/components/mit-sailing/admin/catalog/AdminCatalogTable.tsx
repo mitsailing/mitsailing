@@ -1,0 +1,354 @@
+'use client';
+
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import type { DragEndEvent } from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { GripVertical } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import dynamic from 'next/dynamic';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { AdminCatalogListCell } from '@/components/mit-sailing/admin/catalog/AdminCatalogListCell';
+import {
+  adminCatalogResourceDeletePath,
+  adminCatalogResourceEditPath,
+} from '@/libs/admin/catalog/adminCatalogPaths';
+import { reorderCatalogResourceAction } from '@/libs/admin/catalog/catalogActions';
+import type {
+  AdminListColumnDef,
+  CatalogReorderScope,
+  CatalogResourceDefinition,
+  CatalogRow,
+} from '@/libs/admin/catalog/types';
+import { Link } from '@/libs/I18nNavigation';
+
+const ImpersonateButtonClient = dynamic(
+  async () => {
+    const mod =
+      await import('@/components/mit-sailing/admin/ImpersonateButton');
+    return { default: mod.ImpersonateButton };
+  },
+  { ssr: false }
+);
+
+type AdminCatalogTableProps = {
+  locale: string;
+  resourceId: string;
+  definition: CatalogResourceDefinition;
+  rows: CatalogRow[];
+  /** When set (e.g. sailing classes), reorder applies only within this category scope. */
+  reorderScope?: CatalogReorderScope;
+  /** Overrides `/admin/:resourceId` for edit/delete links (e.g. `/admin/users`). */
+  adminBasePath?: string;
+  /** Users admin: impersonation controls (must be serializable; no server callbacks). */
+  userImpersonation?: {
+    accountRedirectHref: string;
+    currentUserId: string;
+    selfLabel: string;
+  };
+  /** Message bundle for column headers and actions (default catalog resource). */
+  messageNamespace?: 'AdminCatalogResource' | 'AdminUsers';
+};
+
+function SortableRow(props: {
+  id: string;
+  children: React.ReactNode;
+  dragLabel: string;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: props.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <tr
+      className={isDragging ? 'bg-mit-surface opacity-80' : undefined}
+      ref={setNodeRef}
+      style={style}
+    >
+      <td className="w-10 px-2 py-3 align-middle">
+        <button
+          aria-label={props.dragLabel}
+          className="cursor-grab touch-none rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-800 active:cursor-grabbing"
+          type="button"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical aria-hidden className="size-5" />
+        </button>
+      </td>
+      {props.children}
+    </tr>
+  );
+}
+
+function StaticRow(props: { children: React.ReactNode }) {
+  return <tr>{props.children}</tr>;
+}
+
+/**
+ * Puts `field: "name"` columns first; keeps relative order within each group.
+ *
+ * @param cols - Definition order from the catalog resource
+ * @returns Columns with every `name` field moved before other fields
+ */
+function listColumnsWithNameFirst(
+  cols: readonly AdminListColumnDef[]
+): AdminListColumnDef[] {
+  if (!cols.some((c) => c.field === 'name')) {
+    return [...cols];
+  }
+  const nameCols = cols.filter((c) => c.field === 'name');
+  const rest = cols.filter((c) => c.field !== 'name');
+  return [...nameCols, ...rest];
+}
+
+/**
+ * Catalog index table with optional drag-and-drop reordering (auto-save).
+ *
+ * @param props - Locale, resource id, column definitions, rows
+ * @returns Table markup
+ */
+export function AdminCatalogTable(props: AdminCatalogTableProps) {
+  const tCatalog = useTranslations('AdminCatalogResource');
+  const tUsers = useTranslations('AdminUsers');
+  /* eslint-disable @typescript-eslint/no-unsafe-type-assertion -- column keys come from the definition matched to `messageNamespace` */
+  const t =
+    props.messageNamespace === 'AdminUsers'
+      ? (tUsers as (key: string) => string)
+      : (tCatalog as (key: string) => string);
+  /* eslint-enable @typescript-eslint/no-unsafe-type-assertion */
+  const router = useRouter();
+  const canReorder = props.definition.capabilities.reorder;
+
+  function editHref(id: string): string {
+    if (props.adminBasePath) {
+      return `${props.adminBasePath}/${encodeURIComponent(id)}/edit`;
+    }
+    return adminCatalogResourceEditPath(props.resourceId, id);
+  }
+
+  function deleteHref(id: string): string {
+    if (props.adminBasePath) {
+      return `${props.adminBasePath}/${encodeURIComponent(id)}/delete`;
+    }
+    return adminCatalogResourceDeletePath(props.resourceId, id);
+  }
+
+  const [orderedIds, setOrderedIds] = useState<string[]>(() =>
+    props.rows.map((r) => String(r.id))
+  );
+  const [reorderError, setReorderError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setOrderedIds(props.rows.map((r) => String(r.id)));
+  }, [props.rows]);
+
+  const rowById = new Map(props.rows.map((r) => [String(r.id), r] as const));
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 6 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  async function persistOrder(nextIds: readonly string[]) {
+    setReorderError(null);
+    const result = await reorderCatalogResourceAction(
+      props.locale,
+      props.resourceId,
+      nextIds,
+      props.reorderScope
+    );
+    if (!result.ok) {
+      setReorderError(t('reorder_error'));
+      return;
+    }
+    router.refresh();
+  }
+
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) {
+      return;
+    }
+    const oldIndex = orderedIds.indexOf(String(active.id));
+    const newIndex = orderedIds.indexOf(String(over.id));
+    if (oldIndex === -1 || newIndex === -1) {
+      return;
+    }
+    const next = arrayMove(orderedIds, oldIndex, newIndex);
+    setOrderedIds(next);
+    await persistOrder(next);
+  }
+
+  const orderedRows = orderedIds
+    .map((id) => rowById.get(id))
+    .filter((r): r is CatalogRow => r !== undefined);
+
+  const displayColumns = listColumnsWithNameFirst(props.definition.listColumns);
+  const canUpdate = props.definition.capabilities.update;
+
+  function renderCells(row: CatalogRow) {
+    const cols = displayColumns.map((col) => {
+      const nameRaw = row.name;
+      const listNameEditHref =
+        col.field === 'name' &&
+        canUpdate &&
+        typeof nameRaw === 'string' &&
+        nameRaw.trim().length > 0
+          ? editHref(String(row.id))
+          : undefined;
+      return (
+        <td key={col.field} className="px-4 py-3 text-mit-text">
+          <AdminCatalogListCell
+            booleanPolarity={col.booleanPolarity}
+            field={col.field}
+            kind={col.kind}
+            listNameEditHref={listNameEditHref}
+            messageNamespace={props.messageNamespace}
+            row={row}
+          />
+        </td>
+      );
+    });
+    const actions = (
+      <td className="px-4 py-3">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <Link
+            className="text-sm font-medium text-mit-red no-underline hover:underline"
+            href={editHref(String(row.id))}
+          >
+            {t('action_edit')}
+          </Link>
+          <Link
+            className="text-sm font-medium text-mit-red no-underline hover:underline"
+            href={deleteHref(String(row.id))}
+          >
+            {t('action_delete')}
+          </Link>
+          {props.userImpersonation &&
+          String(row.id) === props.userImpersonation.currentUserId ? (
+            <span className="text-xs text-mit-text">
+              {props.userImpersonation.selfLabel}
+            </span>
+          ) : null}
+          {props.userImpersonation &&
+          String(row.id) !== props.userImpersonation.currentUserId ? (
+            <ImpersonateButtonClient
+              redirectHref={props.userImpersonation.accountRedirectHref}
+              userId={String(row.id)}
+            />
+          ) : null}
+        </div>
+      </td>
+    );
+    return (
+      <>
+        {cols}
+        {actions}
+      </>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      {reorderError ? (
+        <p className="text-sm text-red-700" role="alert">
+          {reorderError}
+        </p>
+      ) : null}
+
+      {canReorder ? (
+        <DndContext
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+          sensors={sensors}
+        >
+          <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+            <table className="w-full min-w-[720px] text-left text-sm">
+              <thead className="border-b border-slate-200 bg-slate-50 text-slate-700">
+                <tr>
+                  <th
+                    aria-label={t('drag_handle_aria')}
+                    className="w-10 px-2 py-3"
+                  />
+                  {displayColumns.map((col) => (
+                    <th key={col.field} className="px-4 py-3 font-medium">
+                      {t(col.headerKey)}
+                    </th>
+                  ))}
+                  <th className="px-4 py-3 font-medium">
+                    {t('column_actions')}
+                  </th>
+                </tr>
+              </thead>
+              <SortableContext
+                items={orderedIds}
+                strategy={verticalListSortingStrategy}
+              >
+                <tbody className="divide-y divide-slate-200">
+                  {orderedRows.map((row) => (
+                    <SortableRow
+                      dragLabel={t('drag_handle_aria')}
+                      id={String(row.id)}
+                      key={String(row.id)}
+                    >
+                      {renderCells(row)}
+                    </SortableRow>
+                  ))}
+                </tbody>
+              </SortableContext>
+            </table>
+          </div>
+        </DndContext>
+      ) : (
+        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+          <table className="w-full min-w-[720px] text-left text-sm">
+            <thead className="border-b border-slate-200 bg-slate-50 text-slate-700">
+              <tr>
+                {displayColumns.map((col) => (
+                  <th key={col.field} className="px-4 py-3 font-medium">
+                    {t(col.headerKey)}
+                  </th>
+                ))}
+                <th className="px-4 py-3 font-medium">{t('column_actions')}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200">
+              {orderedRows.map((row) => (
+                <StaticRow key={String(row.id)}>{renderCells(row)}</StaticRow>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}

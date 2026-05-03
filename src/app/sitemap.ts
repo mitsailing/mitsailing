@@ -23,7 +23,10 @@ export const dynamic = 'force-dynamic';
 const getCatalogSlugs = unstable_cache(
   async () => {
     const [classes, boats] = await Promise.all([
-      prisma.sailingClass.findMany({ select: { slug: true } }),
+      prisma.sailingClass.findMany({
+        where: { isVisible: true },
+        select: { slug: true },
+      }),
       prisma.fleetBoat.findMany({ select: { slug: true } }),
     ]);
     return [classes, boats] as const;

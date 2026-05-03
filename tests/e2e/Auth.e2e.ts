@@ -18,7 +18,13 @@ const testDatabaseUrl =
 
 const pool = new Pool({ connectionString: testDatabaseUrl });
 
+let pgPoolEnded = false;
+
 test.afterAll(async () => {
+  if (pgPoolEnded) {
+    return;
+  }
+  pgPoolEnded = true;
   await pool.end();
 });
 
@@ -84,15 +90,18 @@ test.describe('Auth', () => {
     await page.getByLabel('Password').fill(password);
     await page.getByRole('button', { name: 'Sign in' }).click();
 
-    await expect(page).toHaveURL(/\/account/);
-    await expect(page.getByRole('link', { name: 'Account' })).toBeVisible();
+    await expect.poll(() => new URL(page.url()).pathname).toBe('/');
 
     await page.goto('/profile/');
-    const accountNav = page.getByRole('navigation', {
-      name: 'Account navigation',
+    await expect(page).toHaveURL(/\/profile\/account/);
+    const profileNav = page.getByRole('navigation', {
+      name: 'Profile settings',
     });
     await expect(
-      accountNav.getByRole('button', { name: 'Sign out' })
+      profileNav.getByRole('link', { name: 'Account', exact: true })
+    ).toBeVisible();
+    await expect(
+      profileNav.getByRole('button', { name: 'Sign out' })
     ).toHaveCount(0);
     await expect(
       page.getByRole('banner').getByRole('button', { name: 'Sign out' })

@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { Suspense } from 'react';
+import { adminHeaderLinkVisibleFromSession } from '@/libs/auth/adminHeaderLink';
 import { getSession } from '@/libs/auth/dal';
 import { SiteFooter } from './site/SiteFooter';
 import { SiteHeader } from './site/SiteHeader';
@@ -25,6 +26,11 @@ type SiteShellProps = {
 export async function SiteShell(props: SiteShellProps) {
   const session = await getSession();
   const initialSignedIn = Boolean(session?.user?.id);
+  const initialShowAdminLink = adminHeaderLinkVisibleFromSession({
+    userId: session?.user?.id,
+    userRole: session?.user?.role,
+    impersonatedBy: session?.session?.impersonatedBy,
+  });
 
   const tMitSite = await getTranslations('MitSailingSite');
 
@@ -38,11 +44,15 @@ export async function SiteShell(props: SiteShellProps) {
           <SiteHeader
             classesDropdownItems={[]}
             fleetDropdownItems={[]}
+            initialShowAdminLink={initialShowAdminLink}
             initialSignedIn={initialSignedIn}
           />
         }
       >
-        <SiteShellHeaderNav initialSignedIn={initialSignedIn} />
+        <SiteShellHeaderNav
+          initialShowAdminLink={initialShowAdminLink}
+          initialSignedIn={initialSignedIn}
+        />
       </Suspense>
       <div className="flex min-h-0 flex-1 flex-col" id="site-shell-inert-scope">
         <main className="flex-1">{props.children}</main>

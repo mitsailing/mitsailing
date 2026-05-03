@@ -21,6 +21,7 @@ function SiteShellStoryPreview() {
       <SiteHeader
         classesDropdownItems={[]}
         fleetDropdownItems={[]}
+        initialShowAdminLink={false}
         initialSignedIn={false}
       />
       <div className="flex min-h-0 flex-1 flex-col" id="site-shell-inert-scope">
