@@ -23,6 +23,7 @@ import {
 import type { CatalogResourceId } from '@/libs/admin/catalog/catalogDefinitions';
 import { isCatalogResourceId } from '@/libs/admin/catalog/catalogDefinitions';
 import { getCatalogServerHandlers } from '@/libs/admin/catalog/catalogServerRegistry';
+import type { CatalogReorderScope } from '@/libs/admin/catalog/types';
 import { requireAdmin } from '@/libs/auth/dal';
 import { getI18nPath } from '@/utils/Helpers';
 
@@ -34,6 +35,7 @@ const CATALOG_EXTRA_PUBLIC_PATHS: Partial<
 > = {
   event_categories: ['/events'],
   class_categories: ['/classes'],
+  sailing_classes: ['/classes'],
   fleet: ['/fleet'],
 };
 
@@ -138,18 +140,24 @@ export async function deleteCatalogResourceAction(
   redirect(getI18nPath(adminCatalogResourceIndexPath(resourceId), locale));
 }
 
+const reorderScopeSchema = z.object({
+  classCategoryId: z.string().min(1),
+});
+
 /**
  * Reorders rows after drag-and-drop; persists `displayOrder` in one transaction.
  *
  * @param locale - Active locale
  * @param resourceId - Registered catalog resource key
- * @param orderedIds - Full ordered list of row ids
+ * @param orderedIds - Full ordered list of row ids (or category subset when `scope` is set)
+ * @param reorderScope - Optional scope (e.g. `sailing_classes` requires `classCategoryId`)
  * @returns Success flag for client UI (no redirect)
  */
 export async function reorderCatalogResourceAction(
   locale: string,
   resourceId: string,
-  orderedIds: unknown
+  orderedIds: unknown,
+  reorderScope?: unknown
 ): Promise<{ ok: true } | { ok: false; code: string }> {
   await requireAdmin(locale);
   if (!isCatalogResourceId(resourceId)) {
@@ -163,7 +171,17 @@ export async function reorderCatalogResourceAction(
   if (!parsed.success) {
     return { ok: false, code: 'invalid_payload' };
   }
-  const result = await handlers.reorder(parsed.data);
+  let scope: CatalogReorderScope | undefined;
+  if (resourceId === 'sailing_classes') {
+    const scoped = reorderScopeSchema.safeParse(reorderScope);
+    if (!scoped.success) {
+      return { ok: false, code: 'invalid_payload' };
+    }
+    scope = scoped.data;
+  } else if (reorderScope !== undefined && reorderScope !== null) {
+    return { ok: false, code: 'invalid_payload' };
+  }
+  const result = await handlers.reorder(parsed.data, scope);
   if (!result.ok) {
     return { ok: false, code: result.code };
   }

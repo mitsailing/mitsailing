@@ -2,9 +2,9 @@ import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { Prisma } from '@/generated/prisma/client';
 import {
-  fleetBoatFormSchema,
-  rawFleetBoatFromFormData,
-} from '@/libs/admin/catalog/fleetSchemas';
+  rawSailingClassFromFormData,
+  sailingClassFormSchema,
+} from '@/libs/admin/catalog/sailingClassesSchemas';
 import type {
   CatalogCreateResult,
   CatalogListOptions,
@@ -15,8 +15,6 @@ import type {
   CatalogServerHandlers,
 } from '@/libs/admin/catalog/types';
 import { prisma } from '@/libs/DB';
-import { routing } from '@/libs/I18nRouting';
-import { getI18nPath } from '@/utils/Helpers';
 
 function mapPrismaErr(e: unknown): CatalogMutationErr | null {
   if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
@@ -29,15 +27,15 @@ function mapPrismaErr(e: unknown): CatalogMutationErr | null {
 }
 
 /**
- * Options for the required-class `<select>` on fleet create/edit forms.
+ * Options for the class category `<select>` on sailing class forms.
  *
- * @returns Sailing classes sorted by name
+ * @returns Rows sorted for stable dropdown display
  */
-export async function fleetRequiredClassSelectOptions(): Promise<
+export async function sailingClassCategorySelectOptions(): Promise<
   readonly { value: string; label: string }[]
 > {
-  const rows = await prisma.sailingClass.findMany({
-    orderBy: [{ name: 'asc' }],
+  const rows = await prisma.classCategory.findMany({
+    orderBy: [{ displayOrder: 'asc' }, { name: 'asc' }],
     select: { id: true, name: true, slug: true },
   });
   return rows.map((r) => ({
@@ -47,22 +45,33 @@ export async function fleetRequiredClassSelectOptions(): Promise<
 }
 
 /**
- * Prisma-backed handlers for the fleet boats catalog admin resource.
+ * Prisma-backed handlers for the sailing classes catalog admin resource.
  */
-export const fleetCatalogHandlers: CatalogServerHandlers = {
-  async list(options?: CatalogListOptions): Promise<CatalogRow[]> {
-    const locale = options?.locale ?? routing.defaultLocale;
-    const rows = await prisma.fleetBoat.findMany({
-      orderBy: [{ displayOrder: 'asc' }, { name: 'asc' }],
+export const sailingClassesCatalogHandlers: CatalogServerHandlers = {
+  async list(_options?: CatalogListOptions): Promise<CatalogRow[]> {
+    const rows = await prisma.sailingClass.findMany({
+      orderBy: [
+        { classCategory: { displayOrder: 'asc' } },
+        { displayOrder: 'asc' },
+        { name: 'asc' },
+      ],
       select: {
         id: true,
         name: true,
         slug: true,
-        type: true,
-        capacity: true,
+        level: true,
         displayOrder: true,
-        requiredClass: {
-          select: { name: true },
+        isVisible: true,
+        classCategoryId: true,
+        classCategory: {
+          select: { name: true, displayOrder: true },
+        },
+        _count: {
+          select: {
+            relatedEvents: true,
+            prerequisiteEdges: true,
+            unlockedBoatLinks: true,
+          },
         },
       },
     });
@@ -70,27 +79,29 @@ export const fleetCatalogHandlers: CatalogServerHandlers = {
       id: row.id,
       name: row.name,
       slug: row.slug,
-      type: row.type,
-      capacity: row.capacity,
+      level: row.level,
       displayOrder: row.displayOrder,
-      requiredClassName: row.requiredClass.name,
-      publicBoatUrl: getI18nPath(`/fleet/${row.slug}/`, locale),
+      classCategoryId: row.classCategoryId,
+      classCategoryName: row.classCategory.name,
+      classCategoryDisplayOrder: row.classCategory.displayOrder,
+      relatedEventsCount: row._count.relatedEvents,
+      prerequisitesCount: row._count.prerequisiteEdges,
+      unlockedBoatsCount: row._count.unlockedBoatLinks,
+      isVisible: row.isVisible,
     }));
   },
 
   async getById(id: string): Promise<CatalogRow | null> {
-    const row = await prisma.fleetBoat.findUnique({
+    const row = await prisma.sailingClass.findUnique({
       where: { id },
       select: {
         id: true,
         name: true,
         slug: true,
-        type: true,
-        capacity: true,
-        displayOrder: true,
-        requiredClassId: true,
+        classCategoryId: true,
+        level: true,
         description: true,
-        imagePaths: true,
+        isVisible: true,
       },
     });
     if (!row) {
@@ -100,44 +111,42 @@ export const fleetCatalogHandlers: CatalogServerHandlers = {
       id: row.id,
       name: row.name,
       slug: row.slug,
-      type: row.type,
-      capacity: row.capacity,
-      displayOrder: row.displayOrder,
-      requiredClassId: row.requiredClassId,
+      classCategoryId: row.classCategoryId,
+      level: row.level,
       description: row.description,
-      imagePaths: row.imagePaths.join('\n'),
+      isVisible: row.isVisible,
     };
   },
 
   async createFromForm(formData: FormData): Promise<CatalogCreateResult> {
-    const parsed = fleetBoatFormSchema.safeParse(
-      rawFleetBoatFromFormData(formData)
+    const parsed = sailingClassFormSchema.safeParse(
+      rawSailingClassFromFormData(formData)
     );
     if (!parsed.success) {
       return { ok: false, code: 'validation_failed' };
     }
     const { data } = parsed;
+    const newId = randomUUID();
     try {
-      const agg = await prisma.fleetBoat.aggregate({
+      const agg = await prisma.sailingClass.aggregate({
+        where: { classCategoryId: data.classCategoryId },
         _max: { displayOrder: true },
       });
-      const nextOrder = (agg._max.displayOrder ?? -1) + 1;
-      const created = await prisma.fleetBoat.create({
+      const nextDisplayOrder = (agg._max.displayOrder ?? -1) + 1;
+      await prisma.sailingClass.create({
         data: {
-          id: randomUUID(),
+          id: newId,
           name: data.name,
           slug: data.slug,
-          type: data.type,
-          capacity: data.capacity,
-          requiredClassId: data.requiredClassId,
+          classCategoryId: data.classCategoryId,
+          level: data.level,
           description: data.description,
-          imagePaths: data.imagePaths,
-          displayOrder: nextOrder,
+          displayOrder: nextDisplayOrder,
+          isVisible: data.isVisible,
         },
-        select: { id: true },
       });
-      return { ok: true, id: created.id };
-    } catch (error: unknown) {
+      return { ok: true, id: newId };
+    } catch (error) {
       const mapped = mapPrismaErr(error);
       if (mapped) {
         return mapped;
@@ -150,54 +159,49 @@ export const fleetCatalogHandlers: CatalogServerHandlers = {
     id: string,
     formData: FormData
   ): Promise<CatalogMutationOk | CatalogMutationErr> {
-    const parsed = fleetBoatFormSchema.safeParse(
-      rawFleetBoatFromFormData(formData)
+    const parsed = sailingClassFormSchema.safeParse(
+      rawSailingClassFromFormData(formData)
     );
     if (!parsed.success) {
       return { ok: false, code: 'validation_failed' };
     }
     const { data } = parsed;
     try {
-      await prisma.fleetBoat.update({
+      await prisma.sailingClass.update({
         where: { id },
         data: {
           name: data.name,
           slug: data.slug,
-          type: data.type,
-          capacity: data.capacity,
-          requiredClassId: data.requiredClassId,
+          classCategoryId: data.classCategoryId,
+          level: data.level,
           description: data.description,
-          imagePaths: data.imagePaths,
+          isVisible: data.isVisible,
         },
       });
       return { ok: true };
-    } catch (error: unknown) {
+    } catch (error) {
       const mapped = mapPrismaErr(error);
       if (mapped) {
         return mapped;
-      }
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
-        return { ok: false, code: 'not_found' };
       }
       return { ok: false, code: 'unknown' };
     }
   },
 
   async delete(id: string): Promise<CatalogMutationOk | CatalogMutationErr> {
+    const boats = await prisma.fleetBoat.count({
+      where: { requiredClassId: id },
+    });
+    if (boats > 0) {
+      return { ok: false, code: 'foreign_key' };
+    }
     try {
-      await prisma.fleetBoat.delete({ where: { id } });
+      await prisma.sailingClass.delete({ where: { id } });
       return { ok: true };
-    } catch (error: unknown) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2025') {
-          return { ok: false, code: 'not_found' };
-        }
-        if (error.code === 'P2003') {
-          return { ok: false, code: 'foreign_key' };
-        }
+    } catch (error) {
+      const mapped = mapPrismaErr(error);
+      if (mapped) {
+        return mapped;
       }
       return { ok: false, code: 'unknown' };
     }
@@ -205,22 +209,27 @@ export const fleetCatalogHandlers: CatalogServerHandlers = {
 
   async reorder(
     orderedIds: readonly string[],
-    _scope?: CatalogReorderScope
+    scope?: CatalogReorderScope
   ): Promise<CatalogMutationOk | CatalogMutationErr> {
-    const existing = await prisma.fleetBoat.findMany({
+    const categoryId = scope?.classCategoryId;
+    if (!categoryId) {
+      return { ok: false, code: 'invalid_payload' };
+    }
+    const inCategory = await prisma.sailingClass.findMany({
+      where: { classCategoryId: categoryId },
       select: { id: true },
     });
-    const set = new Set(existing.map((r) => r.id));
+    const dbIds = new Set(inCategory.map((r) => r.id));
     if (
-      orderedIds.length !== set.size ||
-      orderedIds.some((rowId) => !set.has(rowId))
+      orderedIds.length !== dbIds.size ||
+      orderedIds.some((rowId) => !dbIds.has(rowId))
     ) {
       return { ok: false, code: 'invalid_order' };
     }
     try {
       await prisma.$transaction(async (tx) => {
         for (let index = 0; index < orderedIds.length; index += 1) {
-          await tx.fleetBoat.update({
+          await tx.sailingClass.update({
             where: { id: orderedIds[index] },
             data: { displayOrder: index },
           });

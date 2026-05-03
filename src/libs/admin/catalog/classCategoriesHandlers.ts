@@ -9,6 +9,7 @@ import type {
   CatalogCreateResult,
   CatalogMutationErr,
   CatalogMutationOk,
+  CatalogReorderScope,
   CatalogRow,
   CatalogServerHandlers,
 } from '@/libs/admin/catalog/types';
@@ -161,7 +162,8 @@ export const classCategoriesCatalogHandlers: CatalogServerHandlers = {
   },
 
   async reorder(
-    orderedIds: readonly string[]
+    orderedIds: readonly string[],
+    _scope?: CatalogReorderScope
   ): Promise<CatalogMutationOk | CatalogMutationErr> {
     const existing = await prisma.classCategory.findMany({
       select: { id: true },

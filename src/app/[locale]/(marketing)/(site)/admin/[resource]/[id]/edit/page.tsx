@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { AdminCatalogForm } from '@/components/mit-sailing/admin/catalog/AdminCatalogForm';
+import { SailingClassEditAssociations } from '@/components/mit-sailing/admin/catalog/SailingClassEditAssociations';
 import { updateCatalogResourceAction } from '@/libs/admin/catalog/catalogActions';
 import {
   isCatalogResourceId,
@@ -9,6 +10,7 @@ import {
 } from '@/libs/admin/catalog/catalogDefinitions';
 import { getCatalogServerHandlers } from '@/libs/admin/catalog/catalogServerRegistry';
 import { fleetRequiredClassSelectOptions } from '@/libs/admin/catalog/fleetCatalogHandlers';
+import { sailingClassCategorySelectOptions } from '@/libs/admin/catalog/sailingClassesHandlers';
 
 type PageProps = {
   params: Promise<{ locale: string; resource: string; id: string }>;
@@ -58,12 +60,19 @@ export default async function AdminCatalogResourceEditPage(props: PageProps) {
     id
   );
 
-  const dynamicSelectOptions =
-    resource === 'fleet'
-      ? {
-          requiredClassId: await fleetRequiredClassSelectOptions(),
-        }
-      : undefined;
+  type DynamicSelectOptions = Readonly<
+    Record<string, readonly { value: string; label: string }[]>
+  >;
+  let dynamicSelectOptions: DynamicSelectOptions | undefined;
+  if (resource === 'fleet') {
+    dynamicSelectOptions = {
+      requiredClassId: await fleetRequiredClassSelectOptions(),
+    };
+  } else if (resource === 'sailing_classes') {
+    dynamicSelectOptions = {
+      classCategoryId: await sailingClassCategorySelectOptions(),
+    };
+  }
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
@@ -76,6 +85,9 @@ export default async function AdminCatalogResourceEditPage(props: PageProps) {
         headingKey="edit_heading"
         row={row}
       />
+      {resource === 'sailing_classes' ? (
+        <SailingClassEditAssociations classId={id} locale={locale} />
+      ) : null}
     </div>
   );
 }

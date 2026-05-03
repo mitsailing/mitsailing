@@ -230,10 +230,95 @@ const fleetDefinition = {
   },
 } as const satisfies CatalogResourceDefinition;
 
+const sailingClassesDefinition = {
+  id: 'sailing_classes',
+  titleKey: 'title_admin_catalog_sailing_classes',
+  metaTitleKey: 'meta_title_admin_catalog_sailing_classes',
+  hubLabelKey: 'hub_label_sailing_classes',
+  listColumns: [
+    { field: 'name', kind: 'string', headerKey: 'column_name_label' },
+    {
+      field: 'isVisible',
+      kind: 'visibility',
+      headerKey: 'column_status',
+    },
+    { field: 'slug', kind: 'string', headerKey: 'column_slug_label' },
+    { field: 'level', kind: 'string', headerKey: 'column_level_label' },
+    {
+      field: 'classCategoryName',
+      kind: 'string',
+      headerKey: 'column_class_category_label',
+    },
+    {
+      field: 'relatedEventsCount',
+      kind: 'number',
+      headerKey: 'column_related_events_count',
+    },
+    {
+      field: 'prerequisitesCount',
+      kind: 'number',
+      headerKey: 'column_prerequisites_count',
+    },
+    {
+      field: 'unlockedBoatsCount',
+      kind: 'number',
+      headerKey: 'column_unlocked_boats_count',
+    },
+    {
+      field: 'displayOrder',
+      kind: 'number',
+      headerKey: 'column_display_order_label',
+    },
+  ],
+  formFields: [
+    {
+      field: 'name',
+      kind: 'string',
+      required: true,
+      labelKey: 'field_name',
+    },
+    {
+      field: 'slug',
+      kind: 'string',
+      required: true,
+      labelKey: 'field_slug',
+    },
+    {
+      field: 'classCategoryId',
+      kind: 'select',
+      required: true,
+      labelKey: 'field_class_category',
+    },
+    {
+      field: 'level',
+      kind: 'string',
+      required: true,
+      labelKey: 'field_level',
+    },
+    {
+      field: 'description',
+      kind: 'text',
+      labelKey: 'field_description',
+    },
+    {
+      field: 'isVisible',
+      kind: 'boolean',
+      labelKey: 'field_visible',
+    },
+  ],
+  capabilities: {
+    create: true,
+    update: true,
+    delete: true,
+    reorder: true,
+  },
+} as const satisfies CatalogResourceDefinition;
+
 export const CATALOG_RESOURCE_IDS = [
   'donation_funds',
   'event_categories',
   'class_categories',
+  'sailing_classes',
   'fleet',
 ] as const;
 
@@ -246,6 +331,7 @@ export const catalogResourceDefinitions: Record<
   donation_funds: donationFundsDefinition,
   event_categories: eventCategoriesDefinition,
   class_categories: classCategoriesDefinition,
+  sailing_classes: sailingClassesDefinition,
   fleet: fleetDefinition,
 };
 

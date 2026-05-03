@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { AdminCatalogTable } from '@/components/mit-sailing/admin/catalog/AdminCatalogTable';
+import { AdminSailingClassesGroupedTables } from '@/components/mit-sailing/admin/catalog/AdminSailingClassesGroupedTables';
 import { adminCatalogResourceNewPath } from '@/libs/admin/catalog/adminCatalogPaths';
 import {
   isCatalogResourceId,
@@ -79,12 +80,20 @@ export default async function AdminCatalogResourceIndexPage(props: PageProps) {
         </div>
       </div>
 
-      <AdminCatalogTable
-        definition={def}
-        locale={locale}
-        resourceId={resource}
-        rows={rows}
-      />
+      {resource === 'sailing_classes' ? (
+        <AdminSailingClassesGroupedTables
+          definition={def}
+          locale={locale}
+          rows={rows}
+        />
+      ) : (
+        <AdminCatalogTable
+          definition={def}
+          locale={locale}
+          resourceId={resource}
+          rows={rows}
+        />
+      )}
     </div>
   );
 }

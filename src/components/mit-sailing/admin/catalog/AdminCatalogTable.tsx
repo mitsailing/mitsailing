@@ -30,6 +30,7 @@ import {
 import { reorderCatalogResourceAction } from '@/libs/admin/catalog/catalogActions';
 import type {
   AdminListColumnDef,
+  CatalogReorderScope,
   CatalogResourceDefinition,
   CatalogRow,
 } from '@/libs/admin/catalog/types';
@@ -49,6 +50,8 @@ type AdminCatalogTableProps = {
   resourceId: string;
   definition: CatalogResourceDefinition;
   rows: CatalogRow[];
+  /** When set (e.g. sailing classes), reorder applies only within this category scope. */
+  reorderScope?: CatalogReorderScope;
   /** Overrides `/admin/:resourceId` for edit/delete links (e.g. `/admin/users`). */
   adminBasePath?: string;
   /** Users admin: impersonation controls (must be serializable; no server callbacks). */
@@ -180,7 +183,8 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
     const result = await reorderCatalogResourceAction(
       props.locale,
       props.resourceId,
-      nextIds
+      nextIds,
+      props.reorderScope
     );
     if (!result.ok) {
       setReorderError(t('reorder_error'));
@@ -224,6 +228,7 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
       return (
         <td key={col.field} className="px-4 py-3 text-mit-text">
           <AdminCatalogListCell
+            booleanPolarity={col.booleanPolarity}
             field={col.field}
             kind={col.kind}
             listNameEditHref={listNameEditHref}

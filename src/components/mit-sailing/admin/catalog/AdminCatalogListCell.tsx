@@ -1,7 +1,13 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import type { AdminFieldKind, CatalogRow } from '@/libs/admin/catalog/types';
+import { AdminStatusPill } from '@/components/mit-sailing/admin/catalog/AdminStatusPill';
+import type { AdminStatusPillTone } from '@/components/mit-sailing/admin/catalog/AdminStatusPill';
+import type {
+  AdminBooleanListPolarity,
+  AdminFieldKind,
+  CatalogRow,
+} from '@/libs/admin/catalog/types';
 import { Link } from '@/libs/I18nNavigation';
 
 const nameEditLinkClassName =
@@ -35,10 +41,22 @@ function renderAdminCatalogNameListContent(props: {
   return <span>{str}</span>;
 }
 
+function booleanListTone(
+  on: boolean,
+  polarity: AdminBooleanListPolarity = 'goodWhenTrue'
+): AdminStatusPillTone {
+  if (polarity === 'goodWhenTrue') {
+    return on ? 'success' : 'neutral';
+  }
+  return on ? 'danger' : 'neutral';
+}
+
 type AdminCatalogListCellProps = {
   kind: AdminFieldKind;
   field: string;
   row: CatalogRow;
+  /** When `kind` is `boolean`, maps true/false to pill tones. */
+  booleanPolarity?: AdminBooleanListPolarity;
   /** When `AdminUsers`, boolean headers come from that namespace. */
   messageNamespace?: 'AdminCatalogResource' | 'AdminUsers';
   /**
@@ -68,21 +86,19 @@ export function AdminCatalogListCell(
       return <span className="text-slate-400">—</span>;
     }
     const on = Boolean(raw);
-    return <span className="text-mit-text">{on ? tc('yes') : tc('no')}</span>;
+    return (
+      <AdminStatusPill tone={booleanListTone(on, props.booleanPolarity)}>
+        {on ? tc('yes') : tc('no')}
+      </AdminStatusPill>
+    );
   }
 
   if (props.kind === 'visibility') {
     const visible = Boolean(raw);
     return (
-      <span
-        className={
-          visible
-            ? 'inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800 ring-1 ring-emerald-600/20 ring-inset'
-            : 'inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 ring-1 ring-slate-500/20 ring-inset'
-        }
-      >
+      <AdminStatusPill tone={visible ? 'success' : 'neutral'}>
         {visible ? t('status_live') : t('status_draft')}
-      </span>
+      </AdminStatusPill>
     );
   }
 
@@ -135,14 +151,11 @@ export function AdminCatalogEditStatusBadge(
 ) {
   const t = useTranslations('AdminCatalogResource');
   return (
-    <span
-      className={
-        props.isVisible
-          ? 'inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-600/20 ring-inset'
-          : 'inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700 ring-1 ring-slate-500/20 ring-inset'
-      }
+    <AdminStatusPill
+      density="comfortable"
+      tone={props.isVisible ? 'success' : 'neutral'}
     >
       {props.isVisible ? t('status_live') : t('status_draft')}
-    </span>
+    </AdminStatusPill>
   );
 }

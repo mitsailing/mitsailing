@@ -448,11 +448,15 @@ export async function MitSailingHomePageView(
                     : undefined;
                   let reqLabel: string;
                   if (cls.prerequisiteIds.length === 0) {
-                    reqLabel = cls.level;
+                    reqLabel = t('class_next_badge_by_level', {
+                      level: cls.level,
+                    });
                   } else if (firstPreName) {
-                    reqLabel = `After: ${firstPreName}`;
+                    reqLabel = t('class_next_badge_after', {
+                      name: firstPreName,
+                    });
                   } else {
-                    reqLabel = 'Prerequisites';
+                    reqLabel = t('class_next_badge_prerequisites');
                   }
                   return (
                     <div

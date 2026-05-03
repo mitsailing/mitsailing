@@ -48,3 +48,17 @@ export function adminCatalogResourceDeletePath(
 ): string {
   return `/admin/${resourceId}/${id}/delete`;
 }
+
+/**
+ * @param resourceId - Registered catalog resource key
+ * @param id - Row primary key
+ * @param segment - Child segment (e.g. `related-events`)
+ * @returns Path to an association sub-page under the catalog edit flow
+ */
+export function adminCatalogResourceAssociationPath(
+  resourceId: string,
+  id: string,
+  segment: string
+): string {
+  return `/admin/${resourceId}/${id}/${segment}`;
+}

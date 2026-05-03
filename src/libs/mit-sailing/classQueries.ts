@@ -72,7 +72,12 @@ export async function listSailingClassesGroupedForCatalog(): Promise<
   CatalogCategorySection[]
 > {
   const classes = await prisma.sailingClass.findMany({
-    orderBy: [{ classCategory: { displayOrder: 'asc' } }, { name: 'asc' }],
+    where: { isVisible: true },
+    orderBy: [
+      { classCategory: { displayOrder: 'asc' } },
+      { displayOrder: 'asc' },
+      { name: 'asc' },
+    ],
     select: {
       id: true,
       name: true,
@@ -172,17 +177,48 @@ export const getSailingClassCatalogBySlug = cache(
   async (slug: string): Promise<SailingClassCatalogDetail | null> => {
     const decoded = decodeURIComponent(slug);
     const sailingClass = await prisma.sailingClass.findFirst({
-      where: { slug: decoded },
+      where: { slug: decoded, isVisible: true },
       select: {
         id: true,
         name: true,
         slug: true,
         level: true,
         description: true,
-        prerequisiteIds: true,
-        relatedEventIds: true,
-        unlockedBoatIds: true,
         classCategory: { select: { name: true, slug: true } },
+        prerequisiteEdges: {
+          where: { prerequisiteClass: { isVisible: true } },
+          orderBy: { prerequisiteClass: { name: 'asc' } },
+          select: {
+            prerequisiteClass: {
+              select: { id: true, name: true, slug: true },
+            },
+          },
+        },
+        relatedEvents: {
+          where: { event: { isPublished: true } },
+          orderBy: { event: { name: 'asc' } },
+          select: {
+            event: {
+              select: { id: true, name: true, slug: true },
+            },
+          },
+        },
+        unlockedBoatLinks: {
+          orderBy: { fleetBoat: { displayOrder: 'asc' } },
+          select: {
+            fleetBoat: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                description: true,
+                type: true,
+                capacity: true,
+                imagePaths: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -190,47 +226,18 @@ export const getSailingClassCatalogBySlug = cache(
       return null;
     }
 
-    const [prereqClasses, relatedEvents, unlockedBoats] = await Promise.all([
-      sailingClass.prerequisiteIds.length === 0
-        ? Promise.resolve([] as { id: string; name: string; slug: string }[])
-        : prisma.sailingClass.findMany({
-            where: { id: { in: sailingClass.prerequisiteIds } },
-            select: { id: true, name: true, slug: true },
-          }),
-      sailingClass.relatedEventIds.length === 0
-        ? Promise.resolve([] as { id: string; name: string; slug: string }[])
-        : prisma.event.findMany({
-            where: {
-              id: { in: sailingClass.relatedEventIds },
-              isPublished: true,
-            },
-            select: { id: true, name: true, slug: true },
-          }),
-      sailingClass.unlockedBoatIds.length === 0
-        ? Promise.resolve(
-            [] as {
-              id: string;
-              name: string;
-              slug: string;
-              description: string;
-              type: string;
-              capacity: number;
-              imagePaths: string[];
-            }[]
-          )
-        : prisma.fleetBoat.findMany({
-            where: { id: { in: sailingClass.unlockedBoatIds } },
-            select: {
-              id: true,
-              name: true,
-              slug: true,
-              description: true,
-              type: true,
-              capacity: true,
-              imagePaths: true,
-            },
-          }),
-    ]);
+    const prerequisites = sailingClass.prerequisiteEdges.map(
+      (e) => e.prerequisiteClass
+    );
+    const prerequisiteIds = prerequisites.map((p) => p.id);
+
+    const relatedEvents = sailingClass.relatedEvents.map((r) => r.event);
+    const relatedEventIds = relatedEvents.map((e) => e.id);
+
+    const unlockedBoats = sailingClass.unlockedBoatLinks.map(
+      (l) => l.fleetBoat
+    );
+    const unlockedBoatIds = unlockedBoats.map((b) => b.id);
 
     return {
       id: sailingClass.id,
@@ -239,21 +246,12 @@ export const getSailingClassCatalogBySlug = cache(
       level: sailingClass.level,
       description: sailingClass.description,
       classCategory: sailingClass.classCategory,
-      prerequisiteIds: sailingClass.prerequisiteIds,
-      relatedEventIds: sailingClass.relatedEventIds,
-      unlockedBoatIds: sailingClass.unlockedBoatIds,
-      prerequisites: orderByIdOrder(
-        sailingClass.prerequisiteIds,
-        prereqClasses
-      ),
-      relatedEvents: orderByIdOrder(
-        sailingClass.relatedEventIds,
-        relatedEvents
-      ),
-      unlockedBoats: orderByIdOrder(
-        sailingClass.unlockedBoatIds,
-        unlockedBoats
-      ),
+      prerequisiteIds,
+      relatedEventIds,
+      unlockedBoatIds,
+      prerequisites: orderByIdOrder(prerequisiteIds, prerequisites),
+      relatedEvents: orderByIdOrder(relatedEventIds, relatedEvents),
+      unlockedBoats: orderByIdOrder(unlockedBoatIds, unlockedBoats),
     };
   }
 );

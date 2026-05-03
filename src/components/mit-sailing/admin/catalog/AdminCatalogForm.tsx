@@ -224,12 +224,18 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
         : '';
 
     if (field.kind === 'text') {
+      const fieldId = `catalog-field-${key}`;
       return (
-        <label key={key} className="flex flex-col gap-1 text-sm">
+        <label
+          key={key}
+          className="flex flex-col gap-1 text-sm"
+          htmlFor={fieldId}
+        >
           <span className="font-medium text-mit-text">{label}</span>
           <textarea
             className="min-h-[120px] rounded-md border border-slate-300 px-3 py-2 text-mit-text shadow-sm focus-visible:border-mit-red focus-visible:ring-2 focus-visible:ring-mit-red/25 focus-visible:outline-none"
             defaultValue={defaultValue}
+            id={fieldId}
             name={key}
             required={field.required}
           />

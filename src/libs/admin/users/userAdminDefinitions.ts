@@ -34,6 +34,7 @@ export const usersAdminDefinition = {
       field: 'banned',
       kind: 'boolean',
       headerKey: 'column_banned',
+      booleanPolarity: 'badWhenTrue',
     },
   ],
   formFields: [

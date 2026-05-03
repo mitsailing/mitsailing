@@ -31,11 +31,16 @@ export type AdminSelectOption = {
   labelKey: AdminCatalogResourceMessageKey | AdminUsersMessageKey;
 };
 
+/** Maps list `boolean` values to pill tones (`goodWhenTrue`: verified-style; `badWhenTrue`: banned-style). */
+export type AdminBooleanListPolarity = 'goodWhenTrue' | 'badWhenTrue';
+
 export type AdminListColumnDef = {
   field: string;
   kind: AdminFieldKind;
   /** next-intl key for the table header */
   headerKey: AdminCatalogResourceMessageKey | AdminUsersMessageKey;
+  /** When `kind` is `boolean`, how true/false map to success/neutral/danger pills. */
+  booleanPolarity?: AdminBooleanListPolarity;
 };
 
 export type AdminFormFieldDef = {
@@ -89,6 +94,11 @@ export type CatalogMutationErr = { ok: false; code: string };
 
 export type CatalogCreateResult = { ok: true; id: string } | CatalogMutationErr;
 
+/** Optional scope for category-scoped reorder (e.g. sailing classes per `ClassCategory`). */
+export type CatalogReorderScope = {
+  classCategoryId: string;
+};
+
 /** Optional context for {@link CatalogServerHandlers.list} (e.g. locale-scoped public URLs). */
 export type CatalogListOptions = {
   locale?: string;
@@ -108,6 +118,7 @@ export type CatalogServerHandlers = {
   ) => Promise<CatalogMutationOk | CatalogMutationErr>;
   delete: (id: string) => Promise<CatalogMutationOk | CatalogMutationErr>;
   reorder?: (
-    orderedIds: readonly string[]
+    orderedIds: readonly string[],
+    scope?: CatalogReorderScope
   ) => Promise<CatalogMutationOk | CatalogMutationErr>;
 };

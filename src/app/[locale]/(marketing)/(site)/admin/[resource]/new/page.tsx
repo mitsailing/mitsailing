@@ -8,6 +8,7 @@ import {
   tryGetCatalogDefinition,
 } from '@/libs/admin/catalog/catalogDefinitions';
 import { fleetRequiredClassSelectOptions } from '@/libs/admin/catalog/fleetCatalogHandlers';
+import { sailingClassCategorySelectOptions } from '@/libs/admin/catalog/sailingClassesHandlers';
 
 type PageProps = {
   params: Promise<{ locale: string; resource: string }>;
@@ -51,18 +52,31 @@ export default async function AdminCatalogResourceNewPage(props: PageProps) {
     namespace: 'AdminCatalogResource',
   });
 
-  const dynamicSelectOptions =
-    resource === 'fleet'
-      ? {
-          requiredClassId: [
-            {
-              value: '',
-              label: tr('select_required_class_placeholder'),
-            },
-            ...(await fleetRequiredClassSelectOptions()),
-          ],
-        }
-      : undefined;
+  type DynamicSelectOptions = Readonly<
+    Record<string, readonly { value: string; label: string }[]>
+  >;
+  let dynamicSelectOptions: DynamicSelectOptions | undefined;
+  if (resource === 'fleet') {
+    dynamicSelectOptions = {
+      requiredClassId: [
+        {
+          value: '',
+          label: tr('select_required_class_placeholder'),
+        },
+        ...(await fleetRequiredClassSelectOptions()),
+      ],
+    };
+  } else if (resource === 'sailing_classes') {
+    dynamicSelectOptions = {
+      classCategoryId: [
+        {
+          value: '',
+          label: tr('select_class_category_placeholder'),
+        },
+        ...(await sailingClassCategorySelectOptions()),
+      ],
+    };
+  }
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
