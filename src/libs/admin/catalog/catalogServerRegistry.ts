@@ -1,0 +1,30 @@
+import 'server-only';
+import type { CatalogResourceId } from '@/libs/admin/catalog/catalogDefinitions';
+import { classCategoriesCatalogHandlers } from '@/libs/admin/catalog/classCategoriesHandlers';
+import { donationFundsCatalogHandlers } from '@/libs/admin/catalog/donationFundsHandlers';
+import { eventCategoriesCatalogHandlers } from '@/libs/admin/catalog/eventCategoriesHandlers';
+import { fleetCatalogHandlers } from '@/libs/admin/catalog/fleetCatalogHandlers';
+import type { CatalogServerHandlers } from '@/libs/admin/catalog/types';
+
+/**
+ * Maps catalog resource ids to Prisma-backed handlers (server-only).
+ */
+const catalogServerHandlers: Record<CatalogResourceId, CatalogServerHandlers> =
+  {
+    donation_funds: donationFundsCatalogHandlers,
+    event_categories: eventCategoriesCatalogHandlers,
+    class_categories: classCategoriesCatalogHandlers,
+    fleet: fleetCatalogHandlers,
+  };
+
+/**
+ * Resolves server handlers for a validated catalog resource id.
+ *
+ * @param id - Registered catalog resource id
+ * @returns Handler bundle
+ */
+export function getCatalogServerHandlers(
+  id: CatalogResourceId
+): CatalogServerHandlers {
+  return catalogServerHandlers[id];
+}

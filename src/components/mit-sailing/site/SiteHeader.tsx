@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { useRouteHash } from '@/hooks/useRouteHash';
 import { isNavLinkActive } from '@/lib/mit-sailing/navPathMatch';
 import { authClient } from '@/libs/auth-client';
+import { adminHeaderLinkVisibleFromClientSessionData } from '@/libs/auth/adminHeaderLink';
 import { Link, usePathname } from '@/libs/I18nNavigation';
 import type { NavigationDropdownItem } from './NavigationDropdown';
 import { NavigationDropdown } from './NavigationDropdown';
@@ -93,6 +94,11 @@ export type SiteHeaderProps = {
    * `useSession()` fetch (no loading placeholder flash).
    */
   initialSignedIn?: boolean;
+  /**
+   * Admin nav visibility from the parent RSC (`getSession`). When defined, the
+   * Admin link matches SSR during a pending client session fetch.
+   */
+  initialShowAdminLink?: boolean;
 };
 
 /**
@@ -130,6 +136,16 @@ export function SiteHeader(props: SiteHeaderProps) {
       : clientAuthenticated;
 
   const showAuthPending = isPending && !hasServerAuthHint;
+
+  const hasServerAdminHint = props.initialShowAdminLink !== undefined;
+  const clientAdminLinkVisible = adminHeaderLinkVisibleFromClientSessionData(
+    sessionState.data
+  );
+
+  const displayAdminLink =
+    isPending && hasServerAdminHint
+      ? Boolean(props.initialShowAdminLink)
+      : clientAdminLinkVisible;
 
   const navItems: NavConfigItem[] = navConfig.map((item) => {
     if (item.labelKey === 'nav_fleet') {
@@ -346,6 +362,15 @@ export function SiteHeader(props: SiteHeaderProps) {
           ) : null}
           {!showAuthPending && displayAuthenticated ? (
             <>
+              {displayAdminLink ? (
+                <Link
+                  className={`${mobileGuestLoginClass} w-full`}
+                  href="/admin/"
+                  onClick={closeMobile}
+                >
+                  {tAccount('admin_link')}
+                </Link>
+              ) : null}
               <Link
                 className={`${mobileGuestLoginClass} w-full`}
                 href="/profile/"
@@ -468,6 +493,11 @@ export function SiteHeader(props: SiteHeaderProps) {
           ) : null}
           {!showAuthPending && displayAuthenticated ? (
             <>
+              {displayAdminLink ? (
+                <Link className={desktopGuestLoginClass} href="/admin/">
+                  {tAccount('admin_link')}
+                </Link>
+              ) : null}
               <Link className={desktopGuestLoginClass} href="/profile/">
                 {tAccount('user_profile_link')}
               </Link>

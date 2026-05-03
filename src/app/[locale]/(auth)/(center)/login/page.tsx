@@ -34,7 +34,7 @@ export default async function SignInPage(props: SignInPageProps) {
   setRequestLocale(locale);
 
   const searchParams = await props.searchParams;
-  const defaultCallback = getI18nPath('/account', locale);
+  const defaultCallback = getI18nPath('/', locale);
   const callbackUrl = searchParams.callbackUrl?.startsWith('/')
     ? searchParams.callbackUrl
     : defaultCallback;

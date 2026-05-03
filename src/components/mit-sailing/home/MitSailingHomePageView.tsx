@@ -549,7 +549,7 @@ export async function MitSailingHomePageView(
                       ? 'w-full rounded-lg border-2 border-transparent bg-mit-red py-2.5 text-center text-sm font-medium text-white no-underline hover:bg-mit-red-hover'
                       : 'w-full rounded-lg border border-mit-line bg-white py-2.5 text-center text-sm font-medium text-mit-text no-underline'
                   }
-                  href={isSignedIn ? '/account/' : '/signup/'}
+                  href={isSignedIn ? '/' : '/signup/'}
                 >
                   {isSignedIn
                     ? t('membership_cta_manage_account')

@@ -8,6 +8,19 @@ export type Role = (typeof Role)[keyof typeof Role];
 
 const ROLE_VALUES = Object.values(Role) as Role[];
 
-export function isRole(value: unknown): value is Role {
+function isRole(value: unknown): value is Role {
   return typeof value === 'string' && (ROLE_VALUES as string[]).includes(value);
+}
+
+/**
+ * Maps persisted or API role strings onto {@link Role}, defaulting to user.
+ *
+ * @param role - Raw role from session or DB
+ * @returns Normalized role
+ */
+export function normalizeRole(role: unknown): Role {
+  if (isRole(role)) {
+    return role;
+  }
+  return Role.USER;
 }

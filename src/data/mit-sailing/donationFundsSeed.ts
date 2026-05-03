@@ -114,3 +114,16 @@ export function visibleDonationFundsInDisplayOrder(): readonly DonationFundSeedR
         : a.fundId.localeCompare(b.fundId, undefined, { numeric: true })
   );
 }
+
+/**
+ * Hidden fund row used by admin E2E to toggle visibility on the donate page.
+ *
+ * @returns The `df-3844065` seed row
+ */
+export function donationFundHiddenForE2e(): DonationFundSeedRow {
+  const row = DONATION_FUND_SEED_ROWS.find((r) => r.id === 'df-3844065');
+  if (!row) {
+    throw new Error('donationFundHiddenForE2e: missing df-3844065 seed row');
+  }
+  return row;
+}
