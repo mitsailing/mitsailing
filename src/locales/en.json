@@ -80,6 +80,7 @@
     "nav_about": "About",
     "nav_resources": "Resources",
     "nav_overview_all": "All {label}",
+    "nav_fleet_dropdown_overview": "Our Fleet",
     "util_reserve_pavilion": "Reserve Pavilion",
     "util_directions": "Directions",
     "util_donate": "Donate",

@@ -183,17 +183,17 @@ export function SiteHeader(props: SiteHeaderProps) {
         : item.labelKey;
 
     if (item.href && item.items !== undefined) {
-      const overviewSectionLabel =
-        item.labelKey === 'nav_classes' ? t('nav_classes') : t('nav_fleet');
+      const overviewLabel =
+        item.labelKey === 'nav_classes'
+          ? t('nav_overview_all', { label: t('nav_classes') })
+          : t('nav_fleet_dropdown_overview');
       return (
         <NavigationDropdown
           href={item.href}
           items={item.items}
           key={listKey}
           label={label}
-          overviewLabel={t('nav_overview_all', {
-            label: overviewSectionLabel,
-          })}
+          overviewLabel={overviewLabel}
           pathname={pathname}
           routeHash={routeHash}
           variant={variant}

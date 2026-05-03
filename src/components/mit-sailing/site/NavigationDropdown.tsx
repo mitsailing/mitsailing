@@ -47,7 +47,11 @@ export type NavigationDropdownProps = {
   variant?: NavigationDropdownVariant;
   /** Called after any link inside the submenu is activated; useful for closing a parent mobile menu. */
   onNavigate?: () => void;
-  /** Label for the overview link at the top of the submenu. Defaults to `All {label}`. */
+  /**
+   * Label for the overview link at the top of the submenu. Callers (e.g. site header) usually
+   * pass a section-specific string; when omitted, defaults to `MitSailingSite.nav_overview_all`
+   * with this dropdown's `label` as `{label}`.
+   */
   overviewLabel?: string;
 };
 
