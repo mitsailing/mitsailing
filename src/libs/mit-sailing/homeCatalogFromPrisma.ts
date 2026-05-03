@@ -39,18 +39,36 @@ export async function loadHomeFeaturedFleetBoats(
  */
 export async function loadHomeIntroductionClasses() {
   const rows = await prisma.sailingClass.findMany({
-    where: { classCategory: { slug: 'introduction' } },
-    orderBy: { name: 'asc' },
+    where: {
+      isVisible: true,
+      classCategory: { slug: 'introduction' },
+    },
+    orderBy: [{ displayOrder: 'asc' }, { name: 'asc' }],
     select: {
       id: true,
       name: true,
       slug: true,
       level: true,
       description: true,
-      prerequisiteIds: true,
+      prerequisiteEdges: {
+        where: { prerequisiteClass: { isVisible: true } },
+        take: 1,
+        orderBy: { prerequisiteClassId: 'asc' },
+        select: { prerequisiteClassId: true },
+      },
     },
   });
-  return rows;
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    slug: r.slug,
+    level: r.level,
+    description: r.description,
+    prerequisiteIds:
+      r.prerequisiteEdges[0] === undefined
+        ? []
+        : [r.prerequisiteEdges[0].prerequisiteClassId],
+  }));
 }
 
 /**
@@ -64,20 +82,36 @@ export async function loadHomeClassesBySlugs(orderedSlugs: readonly string[]) {
     return [];
   }
   const classes = await prisma.sailingClass.findMany({
-    where: { slug: { in: [...orderedSlugs] } },
+    where: { slug: { in: [...orderedSlugs] }, isVisible: true },
     select: {
       id: true,
       name: true,
       slug: true,
       level: true,
       description: true,
-      prerequisiteIds: true,
+      prerequisiteEdges: {
+        where: { prerequisiteClass: { isVisible: true } },
+        take: 1,
+        orderBy: { prerequisiteClassId: 'asc' },
+        select: { prerequisiteClassId: true },
+      },
     },
   });
   const bySlug = new Map(classes.map((c) => [c.slug, c]));
   return orderedSlugs
     .map((slug) => bySlug.get(slug))
-    .filter((c): c is NonNullable<typeof c> => c !== undefined);
+    .filter((c): c is NonNullable<typeof c> => c !== undefined)
+    .map((r) => ({
+      id: r.id,
+      name: r.name,
+      slug: r.slug,
+      level: r.level,
+      description: r.description,
+      prerequisiteIds:
+        r.prerequisiteEdges[0] === undefined
+          ? []
+          : [r.prerequisiteEdges[0].prerequisiteClassId],
+    }));
 }
 
 /**
@@ -94,7 +128,7 @@ export async function loadSailingClassNamesByIds(
   }
   const unique = [...new Set(ids)];
   const rows = await prisma.sailingClass.findMany({
-    where: { id: { in: unique } },
+    where: { id: { in: unique }, isVisible: true },
     select: { id: true, name: true },
   });
   return new Map(rows.map((r) => [r.id, r.name]));

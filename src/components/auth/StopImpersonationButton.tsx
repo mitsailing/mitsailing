@@ -21,7 +21,7 @@ export function StopImpersonationButton(props: StopImpersonationButtonProps) {
   async function onClick() {
     setSubmitting(true);
     await authClient.admin.stopImpersonating();
-    router.push(getI18nPath('/account/admin', props.locale));
+    router.push(getI18nPath('/admin/users', props.locale));
     router.refresh();
   }
 

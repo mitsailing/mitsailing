@@ -11,6 +11,8 @@ import { SiteHeader } from './site/SiteHeader';
 type SiteShellHeaderNavProps = {
   /** Session snapshot from the parent shell (`getSession`). */
   initialSignedIn: boolean;
+  /** True when the viewer is an admin and not impersonating. */
+  initialShowAdminLink: boolean;
 };
 
 /**
@@ -30,6 +32,7 @@ export async function SiteShellHeaderNav(props: SiteShellHeaderNavProps) {
     <SiteHeader
       classesDropdownItems={mapClassCategoriesToNavDropdownItems(categories)}
       fleetDropdownItems={mapFleetBoatsToNavDropdownItems(fleetBoats)}
+      initialShowAdminLink={props.initialShowAdminLink}
       initialSignedIn={props.initialSignedIn}
     />
   );

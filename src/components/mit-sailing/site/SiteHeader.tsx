@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { useRouteHash } from '@/hooks/useRouteHash';
 import { isNavLinkActive } from '@/lib/mit-sailing/navPathMatch';
 import { authClient } from '@/libs/auth-client';
+import { adminHeaderLinkVisibleFromClientSessionData } from '@/libs/auth/adminHeaderLink';
 import { Link, usePathname } from '@/libs/I18nNavigation';
 import type { NavigationDropdownItem } from './NavigationDropdown';
 import { NavigationDropdown } from './NavigationDropdown';
@@ -37,7 +38,7 @@ const mobileUtilityConfig: {
 }[] = [
   { labelKey: 'util_reserve_pavilion', href: '/contact/' },
   { labelKey: 'util_directions', href: '/contact/' },
-  { labelKey: 'util_donate', href: '/contact/' },
+  { labelKey: 'util_donate', href: '/donate/' },
 ];
 
 const navConfig: Omit<NavConfigItem, 'items'>[] = [
@@ -93,6 +94,11 @@ export type SiteHeaderProps = {
    * `useSession()` fetch (no loading placeholder flash).
    */
   initialSignedIn?: boolean;
+  /**
+   * Admin nav visibility from the parent RSC (`getSession`). When defined, the
+   * Admin link matches SSR during a pending client session fetch.
+   */
+  initialShowAdminLink?: boolean;
 };
 
 /**
@@ -131,6 +137,16 @@ export function SiteHeader(props: SiteHeaderProps) {
 
   const showAuthPending = isPending && !hasServerAuthHint;
 
+  const hasServerAdminHint = props.initialShowAdminLink !== undefined;
+  const clientAdminLinkVisible = adminHeaderLinkVisibleFromClientSessionData(
+    sessionState.data
+  );
+
+  const displayAdminLink =
+    isPending && hasServerAdminHint
+      ? Boolean(props.initialShowAdminLink)
+      : clientAdminLinkVisible;
+
   const navItems: NavConfigItem[] = navConfig.map((item) => {
     if (item.labelKey === 'nav_fleet') {
       return { ...item, items: props.fleetDropdownItems };
@@ -167,17 +183,17 @@ export function SiteHeader(props: SiteHeaderProps) {
         : item.labelKey;
 
     if (item.href && item.items !== undefined) {
-      const overviewSectionLabel =
-        item.labelKey === 'nav_classes' ? t('nav_classes') : t('nav_fleet');
+      const overviewLabel =
+        item.labelKey === 'nav_classes'
+          ? t('nav_overview_all', { label: t('nav_classes') })
+          : t('nav_fleet_dropdown_overview');
       return (
         <NavigationDropdown
           href={item.href}
           items={item.items}
           key={listKey}
           label={label}
-          overviewLabel={t('nav_overview_all', {
-            label: overviewSectionLabel,
-          })}
+          overviewLabel={overviewLabel}
           pathname={pathname}
           routeHash={routeHash}
           variant={variant}
@@ -346,6 +362,15 @@ export function SiteHeader(props: SiteHeaderProps) {
           ) : null}
           {!showAuthPending && displayAuthenticated ? (
             <>
+              {displayAdminLink ? (
+                <Link
+                  className={`${mobileGuestLoginClass} w-full`}
+                  href="/admin/"
+                  onClick={closeMobile}
+                >
+                  {tAccount('admin_link')}
+                </Link>
+              ) : null}
               <Link
                 className={`${mobileGuestLoginClass} w-full`}
                 href="/profile/"
@@ -468,6 +493,11 @@ export function SiteHeader(props: SiteHeaderProps) {
           ) : null}
           {!showAuthPending && displayAuthenticated ? (
             <>
+              {displayAdminLink ? (
+                <Link className={desktopGuestLoginClass} href="/admin/">
+                  {tAccount('admin_link')}
+                </Link>
+              ) : null}
               <Link className={desktopGuestLoginClass} href="/profile/">
                 {tAccount('user_profile_link')}
               </Link>

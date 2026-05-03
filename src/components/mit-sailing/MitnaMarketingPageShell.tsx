@@ -24,7 +24,7 @@ type MitnaMarketingPageShellProps = {
  * @param props - Wrapper props
  * @param props.locale - Active locale
  * @param props.page - Which MITNA surface (drives breadcrumbs and spacing)
- * @param props.children - Right-column body next to {@link MitnaSubNavColumn}
+ * @param props.children - Main column body (below optional {@link leading})
  * @returns Full section tree below global {@link SiteShell}
  */
 export async function MitnaMarketingPageShell(
@@ -66,20 +66,21 @@ export async function MitnaMarketingPageShell(
     backLabel = t('mitna_back_overview');
   }
 
+  const backLink = (
+    <Link
+      className={`inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-mit-red no-underline hover:underline ${textFocusRingClassName}`}
+      href={backHref}
+    >
+      <ArrowLeft aria-hidden size={16} />
+      {backLabel}
+    </Link>
+  );
+
   return (
     <SiteSectionShell locale={locale} segments={segments}>
       <SiteSectionMain variant={variant}>
-        <MitnaSubNavLayout>
-          <>
-            <Link
-              className={`mb-6 inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-mit-red no-underline hover:underline ${textFocusRingClassName}`}
-              href={backHref}
-            >
-              <ArrowLeft aria-hidden size={16} />
-              {backLabel}
-            </Link>
-            {props.children}
-          </>
+        <MitnaSubNavLayout leading={backLink}>
+          {props.children}
         </MitnaSubNavLayout>
       </SiteSectionMain>
     </SiteSectionShell>

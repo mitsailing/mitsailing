@@ -166,7 +166,8 @@ model Event {
   registrations         EventRegistration[]
   registrationQuestions EventRegistrationQuestion[]
   entryFees             EventEntryFee[]
-  comments              EventComment[]
+  comments                      EventComment[]
+  sailingClassRelatedEvents      SailingClassRelatedEvent[]
 
   @@index([eventCategoryId])
   @@index([createdByUserId])
@@ -295,20 +296,57 @@ model ClassCategory {
 }
 
 model SailingClass {
-  id                String        @id
-  name              String
-  slug              String        @unique
-  classCategoryId   String        @map("class_category_id")
-  level             String
-  description       String        @db.Text
-  prerequisiteIds   String[]      @map("prerequisite_ids")
-  relatedEventIds   String[]      @map("related_event_ids")
-  unlockedBoatIds   String[]    @map("unlocked_boat_ids")
-  classCategory     ClassCategory @relation(fields: [classCategoryId], references: [id], onDelete: Restrict)
-  fleetBoats        FleetBoat[]
+  id          String        @id
+  name        String
+  slug        String        @unique
+  classCategoryId String    @map("class_category_id")
+  level       String
+  description String        @db.Text
+  displayOrder Int          @default(0) @map("display_order")
+  isVisible   Boolean      @default(true) @map("is_visible")
+  classCategory ClassCategory @relation(fields: [classCategoryId], references: [id], onDelete: Restrict)
+  fleetBoats  FleetBoat[]
+  relatedEvents SailingClassRelatedEvent[]
+  prerequisiteEdges SailingClassPrerequisite[] @relation("ClassRequiresPrerequisite")
+  prerequisiteOfEdges SailingClassPrerequisite[] @relation("ClassIsPrerequisiteFor")
+  unlockedBoatLinks SailingClassUnlockedBoat[]
 
   @@index([classCategoryId])
+  @@index([classCategoryId, displayOrder])
+  @@index([isVisible])
   @@map("sailing_classes")
+}
+
+model SailingClassRelatedEvent {
+  sailingClassId String       @map("sailing_class_id")
+  eventId        String       @map("event_id")
+  sailingClass   SailingClass @relation(fields: [sailingClassId], references: [id], onDelete: Cascade)
+  event          Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@id([sailingClassId, eventId])
+  @@index([eventId])
+  @@map("sailing_class_related_events")
+}
+
+model SailingClassPrerequisite {
+  sailingClassId      String       @map("sailing_class_id")
+  prerequisiteClassId String       @map("prerequisite_class_id")
+  dependentClass      SailingClass @relation("ClassRequiresPrerequisite", fields: [sailingClassId], references: [id], onDelete: Cascade)
+  prerequisiteClass   SailingClass @relation("ClassIsPrerequisiteFor", fields: [prerequisiteClassId], references: [id], onDelete: Restrict)
+
+  @@id([sailingClassId, prerequisiteClassId])
+  @@map("sailing_class_prerequisites")
+}
+
+model SailingClassUnlockedBoat {
+  sailingClassId String       @map("sailing_class_id")
+  fleetBoatId    String       @map("fleet_boat_id")
+  sailingClass   SailingClass @relation(fields: [sailingClassId], references: [id], onDelete: Cascade)
+  fleetBoat      FleetBoat    @relation(fields: [fleetBoatId], references: [id], onDelete: Restrict)
+
+  @@id([sailingClassId, fleetBoatId])
+  @@index([fleetBoatId])
+  @@map("sailing_class_unlocked_boats")
 }
 
 model FleetBoat {
@@ -322,9 +360,25 @@ model FleetBoat {
   description       String        @db.Text
   imagePaths        String[]      @map("image_paths")
   requiredClass     SailingClass  @relation(fields: [requiredClassId], references: [id], onDelete: Restrict)
+  unlockedByClasses SailingClassUnlockedBoat[]
 
   @@index([requiredClassId])
   @@map("fleet_boats")
+}
+
+model DonationFund {
+  id            String   @id @default(cuid())
+  fundId        String   @unique @map("designation_id")
+  name          String
+  description   String   @db.Text
+  url           String
+  displayOrder  Int      @default(0) @map("display_order")
+  isVisible     Boolean  @default(true) @map("is_visible")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([isVisible, displayOrder])
+  @@map("donation_funds")
 }
 
 model StaffMember {

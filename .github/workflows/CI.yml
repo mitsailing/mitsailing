@@ -41,6 +41,9 @@ env:
   SUPPORT_EMAIL: support@example.com
   # Required by `src/libs/Env.ts` whenever tests import code that touches Env.
   NEXT_PUBLIC_APP_URL: http://localhost:3008
+  # Bootstrap an admin user during `prisma db seed` in e2e preflight (see prisma/seed.ts).
+  ADMIN_EMAIL: e2e-admin@example.com
+  ADMIN_PASSWORD: 'Correct-Horse-Battery-Staple-E2E-32!!'
 
 jobs:
   build:

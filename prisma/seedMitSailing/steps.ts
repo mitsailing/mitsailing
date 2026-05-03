@@ -7,6 +7,7 @@ import {
   FLEET_BOATS,
   SAILING_CLASSES,
 } from '../../src/data/mit-sailing/classesFleetSeed';
+import { DONATION_FUND_SEED_ROWS } from '../../src/data/mit-sailing/donationFundsSeed';
 import {
   EVENT_ADMINS,
   EVENT_CATEGORIES,
@@ -102,8 +103,17 @@ export async function seedClassCategories(p: PrismaClient): Promise<void> {
 export async function seedSailingClassesAndBoats(
   p: PrismaClient
 ): Promise<void> {
+  const displayOrderByCategory = new Map<string, number>();
+
+  function nextDisplayOrder(categoryKey: string): number {
+    const n = displayOrderByCategory.get(categoryKey) ?? 0;
+    displayOrderByCategory.set(categoryKey, n + 1);
+    return n;
+  }
+
   for (const cl of SAILING_CLASSES) {
     const classCategoryId = classCategoryIdFromSeedKey(cl.category);
+    const displayOrder = nextDisplayOrder(cl.category);
     await p.sailingClass.upsert({
       where: { id: cl.id },
       create: {
@@ -113,20 +123,31 @@ export async function seedSailingClassesAndBoats(
         classCategoryId,
         level: cl.level,
         description: cl.description,
-        prerequisiteIds: cl.prerequisites,
-        relatedEventIds: cl.relatedEventIds,
-        unlockedBoatIds: cl.unlockedBoatIds,
+        displayOrder,
+        isVisible: true,
       },
       update: {
         name: cl.name,
         classCategoryId,
         level: cl.level,
         description: cl.description,
-        prerequisiteIds: cl.prerequisites,
-        relatedEventIds: cl.relatedEventIds,
-        unlockedBoatIds: cl.unlockedBoatIds,
+        displayOrder,
+        isVisible: true,
       },
     });
+
+    await p.sailingClassPrerequisite.deleteMany({
+      where: { sailingClassId: cl.id },
+    });
+    if (cl.prerequisites.length > 0) {
+      await p.sailingClassPrerequisite.createMany({
+        data: cl.prerequisites.map((prerequisiteClassId) => ({
+          sailingClassId: cl.id,
+          prerequisiteClassId,
+        })),
+        skipDuplicates: true,
+      });
+    }
   }
 
   for (const b of FLEET_BOATS) {
@@ -153,6 +174,53 @@ export async function seedSailingClassesAndBoats(
         imagePaths: b.images,
       },
     });
+  }
+
+  for (const cl of SAILING_CLASSES) {
+    await p.sailingClassUnlockedBoat.deleteMany({
+      where: { sailingClassId: cl.id },
+    });
+    const existingBoats = await p.fleetBoat.findMany({
+      where: { id: { in: cl.unlockedBoatIds } },
+      select: { id: true },
+    });
+    if (existingBoats.length > 0) {
+      await p.sailingClassUnlockedBoat.createMany({
+        data: existingBoats.map((b) => ({
+          sailingClassId: cl.id,
+          fleetBoatId: b.id,
+        })),
+        skipDuplicates: true,
+      });
+    }
+  }
+}
+
+/**
+ * Populates {@link SAILING_CLASSES} related-event links after `event` rows exist.
+ *
+ * @param p - Prisma client
+ */
+export async function seedSailingClassRelatedEventsFromSeed(
+  p: PrismaClient
+): Promise<void> {
+  for (const cl of SAILING_CLASSES) {
+    await p.sailingClassRelatedEvent.deleteMany({
+      where: { sailingClassId: cl.id },
+    });
+    const existingEvents = await p.event.findMany({
+      where: { id: { in: cl.relatedEventIds } },
+      select: { id: true },
+    });
+    if (existingEvents.length > 0) {
+      await p.sailingClassRelatedEvent.createMany({
+        data: existingEvents.map((e) => ({
+          sailingClassId: cl.id,
+          eventId: e.id,
+        })),
+        skipDuplicates: true,
+      });
+    }
   }
 }
 
@@ -361,6 +429,34 @@ export async function seedEventRelatedRows(p: PrismaClient): Promise<void> {
         body: c.body,
         parentId: c.parent_id,
         createdAt: new Date(c.created_at),
+      },
+    });
+  }
+}
+
+/**
+ * @param p - Prisma client
+ */
+export async function seedDonationFunds(p: PrismaClient): Promise<void> {
+  for (const row of DONATION_FUND_SEED_ROWS) {
+    await p.donationFund.upsert({
+      where: { id: row.id },
+      create: {
+        id: row.id,
+        fundId: row.fundId,
+        name: row.name,
+        description: row.description,
+        url: row.url,
+        displayOrder: row.displayOrder,
+        isVisible: row.isVisible,
+      },
+      update: {
+        fundId: row.fundId,
+        name: row.name,
+        description: row.description,
+        url: row.url,
+        displayOrder: row.displayOrder,
+        isVisible: row.isVisible,
       },
     });
   }
