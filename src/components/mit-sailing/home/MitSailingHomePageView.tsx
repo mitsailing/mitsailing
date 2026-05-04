@@ -35,8 +35,7 @@ const UNSPLASH_BY_BOAT_SLUG: Record<string, string> = {
     'https://images.unsplash.com/photo-1776308786818-e498ccdb1cc4?w=1080',
 };
 
-const HERO_IMAGE =
-  'https://images.unsplash.com/photo-1577907073204-e5a8cbad51f5?w=1920';
+const HERO_IMAGE = '/assets/images/home-hero-charles-sailing.jpg';
 const RENTAL_IMAGE =
   'https://images.unsplash.com/photo-1773083405898-bb79cb98ed51?w=1200';
 
