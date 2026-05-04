@@ -29,6 +29,21 @@ function mapPrismaErr(e: unknown): CatalogMutationErr | null {
 }
 
 /**
+ * JSON array of `{ name, slug }` for boats with `isVisible === true`, for the
+ * admin tag cloud (read-only).
+ *
+ * @returns JSON string encoding `readonly { name: string; slug: string }[]`
+ */
+export async function fleetVisibleBoatNamesJsonForAdmin(): Promise<string> {
+  const rows = await prisma.fleetBoat.findMany({
+    where: { isVisible: true },
+    orderBy: [{ displayOrder: 'asc' }, { name: 'asc' }],
+    select: { name: true, slug: true },
+  });
+  return JSON.stringify(rows.map((r) => ({ name: r.name, slug: r.slug })));
+}
+
+/**
  * Options for the required-class `<select>` on fleet create/edit forms.
  *
  * @returns Sailing classes sorted by name
@@ -61,6 +76,7 @@ export const fleetCatalogHandlers: CatalogServerHandlers = {
         type: true,
         capacity: true,
         displayOrder: true,
+        isVisible: true,
         requiredClass: {
           select: { name: true },
         },
@@ -73,26 +89,30 @@ export const fleetCatalogHandlers: CatalogServerHandlers = {
       type: row.type,
       capacity: row.capacity,
       displayOrder: row.displayOrder,
+      isVisible: row.isVisible,
       requiredClassName: row.requiredClass.name,
       publicBoatUrl: getI18nPath(`/fleet/${row.slug}/`, locale),
     }));
   },
 
   async getById(id: string): Promise<CatalogRow | null> {
-    const row = await prisma.fleetBoat.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        type: true,
-        capacity: true,
-        displayOrder: true,
-        requiredClassId: true,
-        description: true,
-        imagePaths: true,
-      },
-    });
+    const [row, fleetVisibleBoats] = await Promise.all([
+      prisma.fleetBoat.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          type: true,
+          capacity: true,
+          displayOrder: true,
+          requiredClassId: true,
+          description: true,
+          isVisible: true,
+        },
+      }),
+      fleetVisibleBoatNamesJsonForAdmin(),
+    ]);
     if (!row) {
       return null;
     }
@@ -105,7 +125,8 @@ export const fleetCatalogHandlers: CatalogServerHandlers = {
       displayOrder: row.displayOrder,
       requiredClassId: row.requiredClassId,
       description: row.description,
-      imagePaths: row.imagePaths.join('\n'),
+      isVisible: row.isVisible,
+      fleetVisibleBoats,
     };
   },
 
@@ -131,8 +152,9 @@ export const fleetCatalogHandlers: CatalogServerHandlers = {
           capacity: data.capacity,
           requiredClassId: data.requiredClassId,
           description: data.description,
-          imagePaths: data.imagePaths,
+          imagePaths: [],
           displayOrder: nextOrder,
+          isVisible: data.isVisible,
         },
         select: { id: true },
       });
@@ -167,7 +189,7 @@ export const fleetCatalogHandlers: CatalogServerHandlers = {
           capacity: data.capacity,
           requiredClassId: data.requiredClassId,
           description: data.description,
-          imagePaths: data.imagePaths,
+          isVisible: data.isVisible,
         },
       });
       return { ok: true };

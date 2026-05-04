@@ -1,5 +1,20 @@
 import { expect, test } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { signInAsAdmin } from '../helpers/e2e-admin-sign-in';
+
+/**
+ * Grouped sailing-class admin UI: one `<table>` per category under an `<h2>`.
+ *
+ * @param page - Authenticated admin page
+ * @returns Locator for the section whose heading is “Introduction”
+ */
+function introductionSection(page: Page) {
+  return page.locator('section').filter({
+    has: page.getByRole('heading', { name: 'Introduction', exact: true }),
+  });
+}
+
+const NEW_ROW_IN_LIST_TIMEOUT_MS = 20_000;
 
 test.describe('Admin sailing classes', () => {
   test.describe.configure({ mode: 'serial' });
@@ -16,7 +31,9 @@ test.describe('Admin sailing classes', () => {
       page.getByRole('heading', { name: 'Introduction', exact: true })
     ).toBeVisible();
     await expect(
-      page.getByRole('table').getByText('Intro Sailing 101')
+      introductionSection(page)
+        .getByRole('table')
+        .getByText('Intro Sailing 101')
     ).toBeVisible();
     await expect(
       page.getByRole('columnheader', { name: 'Status' }).first()
@@ -48,9 +65,12 @@ test.describe('Admin sailing classes', () => {
     await page.getByRole('button', { name: 'Save' }).click();
     await expect(page).toHaveURL(/\/admin\/sailing_classes\/?$/);
 
-    await expect(page.getByRole('table').getByText(name)).toBeVisible();
+    const introSection = introductionSection(page);
+    await expect(introSection.getByText(name, { exact: true })).toBeVisible({
+      timeout: NEW_ROW_IN_LIST_TIMEOUT_MS,
+    });
 
-    await page
+    await introSection
       .getByRole('row')
       .filter({ hasText: name })
       .getByRole('link', { name: 'Edit', exact: true })
@@ -62,7 +82,7 @@ test.describe('Admin sailing classes', () => {
     await page.getByRole('button', { name: 'Save' }).click();
     await expect(page).toHaveURL(/\/admin\/sailing_classes\/?$/);
 
-    await page
+    await introSection
       .getByRole('row')
       .filter({ hasText: name })
       .getByRole('link', { name: 'Delete', exact: true })
@@ -72,6 +92,6 @@ test.describe('Admin sailing classes', () => {
     ).toBeVisible();
     await page.getByRole('button', { name: 'Delete' }).click();
     await expect(page).toHaveURL(/\/admin\/sailing_classes\/?$/);
-    await expect(page.getByRole('table').getByText(name)).toHaveCount(0);
+    await expect(introSection.getByText(name, { exact: true })).toHaveCount(0);
   });
 });

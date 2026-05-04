@@ -21,10 +21,16 @@ This repo follows the same **shape** as [cal.com’s Playwright setup](https://g
 
 6. **CI vs local build:** In GitHub Actions, `E2E_SKIP_BUILD=1` skips a second `next build` when `.next` is restored from the `build` job. Locally, the first `test:e2e` run runs `e2e:build` so `next start` has output.
 
-7. **Browsers:** **`npm install`** runs **`postinstall`** → `npx playwright install chromium` locally (aligned with Next.js [Playwright testing](https://nextjs.org/docs/app/building-your-application/testing/playwright) — binaries must match `@playwright/test`). Skipped when **`CI`** or **`PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`** (GitHub e2e job and Docker **deps** use explicit install or skip). Local `npm run test:e2e` runs **Chromium** only. **CI** runs **Chromium + Firefox** (workflow installs both). To reproduce the full CI browser matrix locally, set `CI=1` for that run (also matches CI retries/reporter) or install Firefox and use `npx playwright test --project=firefox` after the usual preflight + build + server.
+7. **Browsers:** **`npm install`** runs **`postinstall`** → `npx playwright install chromium` locally (aligned with Next.js [Playwright testing](https://nextjs.org/docs/app/building-your-application/testing/playwright) — binaries must match `@playwright/test`). Skipped when **`CI`** or **`PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`** (GitHub e2e job and Docker **deps** use explicit install or skip). Local **`npm run test:e2e`** runs **Chromium + a11y-chromium** (Firefox only when `CI=1`). **CI** runs **`npm run test:e2e`** with **Chromium + Firefox + a11y-chromium** (workflow installs Chromium and Firefox). To reproduce the full CI browser matrix locally, set `CI=1` for that run (also matches CI retries/reporter) or install Firefox and use `npx playwright test --project=firefox` after the usual preflight + build + server.
 
 ## Playwright + Prisma in this project
 
 - **Do not** import the app’s Prisma client in `tests/e2e/*` (see `prisma#28838`, `playwright#37890`). Use the `pg` `Pool` (see `AccountLockout.e2e.ts`).
 
 - **Form errors vs Next.js:** use `formAlert` from `tests/helpers/e2e-alert.ts` so `role="alert"` is not ambiguous with the route announcer.
+
+## Accessibility (axe) suite
+
+- **`npm run test:e2e:a11y`** runs the same preflight + `e2e:build` as `test:e2e`, then only the **`a11y-chromium`** Playwright project (`**/*.a11y.e2e.ts`): `@axe-core/playwright` with WCAG 2.x A/AA tags, **light and dark** theme via `localStorage` (`mitsailing-theme`) + `emulateMedia` color scheme.
+- **`npm run test:e2e`** already includes **`a11y-chromium`** (same Playwright run as the other projects). Use **`test:e2e:a11y`** alone when iterating on theme/CSS without re-running the full browser matrix.
+- Scanned URLs = live **`/sitemap.xml`** pathnames plus curated public routes (donate, auth entry points, staff profiles, published standard event detail pages). **Admin** and **profile** routes are out of scope (auth + no Prisma in e2e).

@@ -43,13 +43,14 @@ test.describe('Visual testing', () => {
     test('should take screenshot of the MIT Nautical Association page', async ({
       page,
     }, testInfo) => {
-      await page.goto('/about/mitna');
+      await page.goto('/about/mitna', { waitUntil: 'domcontentloaded' });
 
       await expect(
         page.getByRole('heading', {
-          name: 'About MIT Nautical Association',
+          level: 1,
+          name: /About MIT Nautical Association/,
         })
-      ).toBeVisible();
+      ).toBeVisible({ timeout: 20_000 });
 
       await takeSnapshot(page, testInfo);
     });
