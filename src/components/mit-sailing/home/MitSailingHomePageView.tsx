@@ -36,6 +36,21 @@ const UNSPLASH_BY_BOAT_SLUG: Record<string, string> = {
 };
 
 const HERO_IMAGE = '/assets/images/home-hero-charles-sailing.jpg';
+
+/**
+ * Home hero layout: `next/image` with `fill`, `sizes="100vw"`, and `priority` (LCP); left scrim; shared white CTA focus ring.
+ */
+const HERO_IMAGE_CLASS_NAME = 'object-cover object-center brightness-[1.05]';
+
+const HERO_SCRIM_CLASS_NAME =
+  'absolute inset-0 bg-gradient-to-r from-black/58 via-black/24 to-transparent';
+
+const HERO_COPY_STACK_CLASS_NAME =
+  'max-w-xl [text-shadow:0_1px_2px_rgba(0,0,0,0.65)]';
+
+const HERO_ON_IMAGE_FOCUS_RING_CLASS_NAME =
+  'focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-mit-hero-ink focus-visible:outline-none';
+
 const RENTAL_IMAGE =
   'https://images.unsplash.com/photo-1773083405898-bb79cb98ed51?w=1200';
 
@@ -137,35 +152,35 @@ export async function MitSailingHomePageView(
       <section className="relative flex h-[600px] items-center overflow-hidden bg-mit-hero-ink">
         <Image
           alt={t('hero_image_alt')}
-          className="object-cover object-center opacity-60"
+          className={HERO_IMAGE_CLASS_NAME}
           fill
           priority
           sizes="100vw"
           src={HERO_IMAGE}
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent" />
+        <div className={HERO_SCRIM_CLASS_NAME} />
         <div className="relative z-10 mx-auto w-full max-w-7xl px-6">
-          <div className="max-w-xl">
-            <div className="mb-4 flex items-center gap-2 text-xs font-semibold tracking-widest text-white/80 uppercase">
+          <div className={HERO_COPY_STACK_CLASS_NAME}>
+            <div className="mb-4 flex items-center gap-2 text-xs font-semibold tracking-widest text-white uppercase">
               <MapPin className="shrink-0" size={14} />
               {t('hero_kicker')}
             </div>
             <h1 className="mb-6 font-mit-serif text-4xl leading-tight font-bold text-white">
               {t('hero_title')}
             </h1>
-            <p className="mb-10 text-base leading-relaxed text-white/90">
+            <p className="mb-10 text-base leading-relaxed text-white">
               {t('hero_body')}
             </p>
             <div className="flex flex-wrap items-center gap-4">
               <Link
-                className="inline-flex cursor-pointer items-center justify-center rounded-lg border-2 border-white bg-transparent px-7 py-3 text-base font-medium text-white no-underline backdrop-blur transition-colors hover:bg-white/10"
+                className={`inline-flex cursor-pointer items-center justify-center rounded-lg border-2 border-white bg-transparent px-7 py-3 text-base font-medium text-white no-underline backdrop-blur transition-colors hover:bg-white/10 ${HERO_ON_IMAGE_FOCUS_RING_CLASS_NAME}`}
                 href="/classes/"
               >
                 {t('hero_cta_classes')}
               </Link>
               {isSignedIn ? null : (
                 <Link
-                  className="inline-flex items-center justify-center rounded-sm bg-transparent px-2 py-3 text-base font-medium text-white underline-offset-4 transition-colors hover:underline focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-mit-hero-ink focus-visible:outline-none"
+                  className={`inline-flex items-center justify-center rounded-sm bg-transparent px-2 py-3 text-base font-medium text-white underline-offset-4 transition-colors hover:underline ${HERO_ON_IMAGE_FOCUS_RING_CLASS_NAME}`}
                   href="/signup/"
                 >
                   {t('hero_cta_create_account')}
