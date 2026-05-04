@@ -157,6 +157,11 @@ const fleetDefinition = {
   hubLabelKey: 'hub_label_fleet',
   listColumns: [
     { field: 'name', kind: 'string', headerKey: 'column_name_label' },
+    {
+      field: 'isVisible',
+      kind: 'visibility',
+      headerKey: 'column_status',
+    },
     { field: 'slug', kind: 'string', headerKey: 'column_slug_label' },
     { field: 'type', kind: 'string', headerKey: 'column_type_label' },
     {
@@ -213,13 +218,18 @@ const fleetDefinition = {
     },
     {
       field: 'description',
-      kind: 'text',
+      kind: 'richText',
       labelKey: 'field_description',
     },
     {
-      field: 'imagePaths',
-      kind: 'text',
-      labelKey: 'field_image_paths',
+      field: 'isVisible',
+      kind: 'boolean',
+      labelKey: 'field_visible',
+    },
+    {
+      field: 'fleetVisibleBoats',
+      kind: 'fleetVisibleBoats',
+      labelKey: 'field_fleet_visible_boats',
     },
   ],
   capabilities: {
@@ -297,7 +307,7 @@ const sailingClassesDefinition = {
     },
     {
       field: 'description',
-      kind: 'text',
+      kind: 'richText',
       labelKey: 'field_description',
     },
     {

@@ -19,12 +19,14 @@ export type MitSailingRoutesCatalogMessageKey =
 export type AdminFieldKind =
   | 'string'
   | 'text'
+  | 'richText'
   | 'url'
   | 'number'
   | 'boolean'
   | 'visibility'
   | 'password'
-  | 'select';
+  | 'select'
+  | 'fleetVisibleBoats';
 
 export type AdminSelectOption = {
   value: string;

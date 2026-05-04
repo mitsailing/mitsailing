@@ -1,6 +1,9 @@
 import { ArrowLeft } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import Image from 'next/image';
+import { SanitizedMarketingHtml } from '@/components/mit-sailing/marketing/SanitizedMarketingHtml';
+import { getFleetBoatMarketingHeroSrc } from '@/lib/mit-sailing/fleetBoatMarketingImages';
+import { marketingRichTextArticleClassName } from '@/lib/mit-sailing/marketingRichTextContentClassName';
 import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
 import { Link } from '@/libs/I18nNavigation';
 import type { FleetBoatDetail } from '@/libs/mit-sailing/fleetQueries';
@@ -21,7 +24,7 @@ export async function FleetBoatDetailView(props: FleetBoatDetailViewProps) {
     namespace: 'MitSailingFleet',
   });
 
-  const [primaryImage, ...moreImages] = boat.imagePaths;
+  const heroSrc = getFleetBoatMarketingHeroSrc(boat.slug);
   const bodyClass = 'text-base leading-relaxed text-mit-text';
 
   return (
@@ -52,40 +55,21 @@ export async function FleetBoatDetailView(props: FleetBoatDetailViewProps) {
         </Link>
       </section>
 
-      {primaryImage ? (
-        <div className="relative mb-6 aspect-[16/10] max-h-[420px] overflow-hidden rounded-xl bg-mit-line">
-          <Image
-            alt={boat.name}
-            className="object-cover"
-            fill
-            sizes="(max-width: 768px) 100vw, 1024px"
-            src={primaryImage}
-            unoptimized={primaryImage.startsWith('/')}
-          />
-        </div>
-      ) : null}
+      <div className="relative mb-6 aspect-[16/10] max-h-[420px] overflow-hidden rounded-xl bg-mit-line">
+        <Image
+          alt={boat.name}
+          className="object-cover"
+          fill
+          sizes="(max-width: 768px) 100vw, 1024px"
+          src={heroSrc}
+          unoptimized={heroSrc.startsWith('/')}
+        />
+      </div>
 
-      {moreImages.length > 0 ? (
-        <ul className="m-0 mb-10 grid list-none grid-cols-2 gap-3 p-0">
-          {moreImages.map((src) => (
-            <li
-              className="relative aspect-[4/3] overflow-hidden rounded-lg bg-mit-line"
-              key={src}
-            >
-              <Image
-                alt={`${boat.name} additional`}
-                className="object-cover"
-                fill
-                sizes="(max-width: 768px) 50vw, 320px"
-                src={src}
-                unoptimized={src.startsWith('/')}
-              />
-            </li>
-          ))}
-        </ul>
-      ) : null}
-
-      <p className={bodyClass}>{boat.description}</p>
+      <SanitizedMarketingHtml
+        className={`${bodyClass} ${marketingRichTextArticleClassName}`}
+        html={boat.description}
+      />
     </>
   );
 }

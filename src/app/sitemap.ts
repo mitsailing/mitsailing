@@ -27,7 +27,10 @@ const getCatalogSlugs = unstable_cache(
         where: { isVisible: true },
         select: { slug: true },
       }),
-      prisma.fleetBoat.findMany({ select: { slug: true } }),
+      prisma.fleetBoat.findMany({
+        where: { isVisible: true },
+        select: { slug: true },
+      }),
     ]);
     return [classes, boats] as const;
   },

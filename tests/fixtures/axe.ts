@@ -9,6 +9,7 @@ type AxeFixtures = {
  * Playwright `test` extended with a factory for WCAG-tagged {@link AxeBuilder} instances.
  */
 export const test = base.extend<AxeFixtures>({
+  // eslint-disable-next-line react-hooks/rules-of-hooks -- Playwright fixture `useFixture`; not React
   makeAxeBuilder: async ({ page }, useFixture) => {
     await useFixture(() =>
       new AxeBuilder({ page }).withTags([

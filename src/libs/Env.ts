@@ -53,6 +53,21 @@ export const Env = createEnv({
     // compose.staging.yaml / compose.prod.yaml. Required in staging+prod,
     // unset locally.
     CLOUDFLARE_TUNNEL_TOKEN: z.string().min(1).optional(),
+
+    // Local disk root for admin CMS uploads (not under `public/`). Relative
+    // values resolve from `process.cwd()`; production Compose sets `/data/uploads`.
+    UPLOAD_DIR: z.string().min(1).default('.data/uploads'),
+
+    // Optional ClamAV (`clamd`) TCP endpoint for synchronous INSTREAM scans on
+    // admin uploads. When unset, rows stay `not_scanned` and GET is not gated.
+    CLAMD_HOST: z.string().min(1).optional(),
+    CLAMD_PORT: z.coerce.number().int().min(1).max(65_535).default(3310),
+    CLAMD_TIMEOUT_MS: z.coerce
+      .number()
+      .int()
+      .min(1000)
+      .max(300_000)
+      .default(60_000),
   },
   client: {
     NEXT_PUBLIC_APP_URL: z.string().min(1),
@@ -80,6 +95,10 @@ export const Env = createEnv({
     MAILPIT_API_URL: process.env.MAILPIT_API_URL,
     SUPPORT_EMAIL: process.env.SUPPORT_EMAIL,
     CLOUDFLARE_TUNNEL_TOKEN: process.env.CLOUDFLARE_TUNNEL_TOKEN,
+    UPLOAD_DIR: process.env.UPLOAD_DIR,
+    CLAMD_HOST: process.env.CLAMD_HOST,
+    CLAMD_PORT: process.env.CLAMD_PORT,
+    CLAMD_TIMEOUT_MS: process.env.CLAMD_TIMEOUT_MS,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
     NEXT_PUBLIC_LOGGING_LEVEL: process.env.NEXT_PUBLIC_LOGGING_LEVEL,
     NEXT_PUBLIC_BETTER_STACK_SOURCE_TOKEN:

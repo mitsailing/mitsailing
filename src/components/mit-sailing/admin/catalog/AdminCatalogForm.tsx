@@ -3,6 +3,8 @@
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { AdminCatalogEditStatusBadge } from '@/components/mit-sailing/admin/catalog/AdminCatalogListCell';
+import { AdminFleetVisibleBoatsTagCloud } from '@/components/mit-sailing/admin/catalog/AdminFleetVisibleBoatsTagCloud';
+import { AdminRichTextField } from '@/components/mit-sailing/admin/catalog/AdminRichTextField';
 import type {
   AdminFieldKind,
   AdminFormFieldDef,
@@ -22,6 +24,9 @@ function inputTypeForFieldKind(
   }
   if (kind === 'password') {
     return 'password';
+  }
+  if (kind === 'fleetVisibleBoats') {
+    return 'text';
   }
   return 'text';
 }
@@ -80,6 +85,38 @@ function usersAdminFormErrorMessage(
 }
 
 type DynamicSelectOption = { value: string; label: string };
+
+function parseFleetVisibleBoatsFromRow(
+  row: CatalogRow | undefined,
+  field: string
+): { name: string; slug: string }[] {
+  const raw = row?.[field];
+  if (typeof raw !== 'string' || raw.length === 0) {
+    return [];
+  }
+  try {
+    const v: unknown = JSON.parse(raw);
+    if (!Array.isArray(v)) {
+      return [];
+    }
+    const out: { name: string; slug: string }[] = [];
+    for (const item of v) {
+      if (
+        item !== null &&
+        typeof item === 'object' &&
+        'name' in item &&
+        'slug' in item &&
+        typeof item.name === 'string' &&
+        typeof item.slug === 'string'
+      ) {
+        out.push({ name: item.name, slug: item.slug });
+      }
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
 
 function catalogDynamicSelectField(props: {
   fieldKey: string;
@@ -218,10 +255,36 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
   function renderCatalogField(field: AdminFormFieldDef) {
     const key = field.field;
     const label = translateLabel(field.labelKey);
+
+    if (field.kind === 'fleetVisibleBoats') {
+      const boats = parseFleetVisibleBoatsFromRow(props.row, key);
+      return (
+        <div key={key} className="flex flex-col gap-2">
+          <span className="text-sm font-medium text-mit-text">{label}</span>
+          <AdminFleetVisibleBoatsTagCloud boats={boats} />
+        </div>
+      );
+    }
+
     const defaultValue =
       props.row && props.row[key] !== undefined && props.row[key] !== null
         ? String(props.row[key])
         : '';
+
+    if (field.kind === 'richText') {
+      const fieldId = `catalog-field-${key}`;
+      return (
+        <div key={key}>
+          <AdminRichTextField
+            fieldId={fieldId}
+            initialHtml={defaultValue}
+            label={label}
+            name={key}
+            required={field.required}
+          />
+        </div>
+      );
+    }
 
     if (field.kind === 'text') {
       const fieldId = `catalog-field-${key}`;

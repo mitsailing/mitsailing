@@ -18,17 +18,55 @@
 #   docker compose -f compose.yaml -f compose.prod.yaml -f compose.db-admin.yaml --env-file .env.production up -d
 #
 # Worker reuses the app image; `worker.healthcheck` runs `worker-redis-healthcheck.cjs` (see Dockerfile) instead of the image HTTP probe.
+#
+# ClamAV sidecar: `clamd` on 3310 for synchronous INSTREAM scans on admin CMS
+# uploads (`CLAMD_HOST` on `app`). The engine is GPL-2.0; the app only speaks
+# the clamd wire protocol. First boot can take several minutes (virus DB).
+# See `docs/deploy.md`.
 
 services:
   postgres:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-mitsailing_prod}
 
+  clamav:
+    image: clamav/clamav:latest
+    restart: unless-stopped
+    networks:
+      - internal
+    volumes:
+      - clamav_data:/var/lib/clamav
+    healthcheck:
+      test: ['CMD-SHELL', 'echo PING | nc -w 5 127.0.0.1 3310 | grep -q PONG']
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 400s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2048M
+        reservations:
+          cpus: '0.25'
+          memory: 1536M
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+
   app:
     image: ${APP_IMAGE}
     restart: unless-stopped
     networks:
       - internal
+    volumes:
+      - uploads:/data/uploads
+    environment:
+      UPLOAD_DIR: /data/uploads
+      CLAMD_HOST: clamav
+      CLAMD_PORT: '3310'
     env_file:
       - path: .env.production
         required: false
@@ -36,6 +74,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      clamav:
         condition: service_healthy
     stop_grace_period: 30s
     command: ['node', 'server.js']
@@ -114,3 +154,9 @@ services:
       options:
         max-size: '10m'
         max-file: '3'
+
+volumes:
+  uploads:
+    driver: local
+  clamav_data:
+    driver: local

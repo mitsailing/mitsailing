@@ -1,5 +1,7 @@
 import { ArrowRight } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
+import { SanitizedMarketingHtml } from '@/components/mit-sailing/marketing/SanitizedMarketingHtml';
+import { marketingRichTextCompactClassName } from '@/lib/mit-sailing/marketingRichTextContentClassName';
 import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
 import { Link } from '@/libs/I18nNavigation';
 import type { CatalogCategorySection } from '@/libs/mit-sailing/classQueries';
@@ -54,9 +56,12 @@ export async function ClassesCatalogView(props: ClassesCatalogViewProps) {
                     <div className="mb-2 font-mit-serif text-lg font-semibold text-mit-text md:text-[18px]">
                       {c.name}
                     </div>
-                    <p className="mb-4 line-clamp-3 text-sm leading-snug text-mit-text">
-                      {c.description}
-                    </p>
+                    <div className="mb-4 line-clamp-3 text-sm leading-snug text-mit-text">
+                      <SanitizedMarketingHtml
+                        className={marketingRichTextCompactClassName}
+                        html={c.description}
+                      />
+                    </div>
                     <span className="inline-flex items-center gap-1 text-xs font-semibold text-mit-red">
                       {t('catalog_card_cta')}{' '}
                       <ArrowRight aria-hidden size={14} />

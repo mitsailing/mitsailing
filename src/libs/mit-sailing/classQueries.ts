@@ -149,7 +149,6 @@ export type SailingClassCatalogDetail = {
     description: string;
     type: string;
     capacity: number;
-    imagePaths: string[];
   }[];
 };
 
@@ -204,6 +203,7 @@ export const getSailingClassCatalogBySlug = cache(
           },
         },
         unlockedBoatLinks: {
+          where: { fleetBoat: { isVisible: true } },
           orderBy: { fleetBoat: { displayOrder: 'asc' } },
           select: {
             fleetBoat: {
@@ -214,7 +214,6 @@ export const getSailingClassCatalogBySlug = cache(
                 description: true,
                 type: true,
                 capacity: true,
-                imagePaths: true,
               },
             },
           },

@@ -37,6 +37,7 @@ model User {
   eventComments      EventComment[]
   eventAdmins        EventAdmin[]
   eventsCreated      Event[]            @relation("EventCreatedBy")
+  uploads            Upload[]
 
   @@map("user")
 }
@@ -120,6 +121,25 @@ model AuditLog {
   @@index([action])
   @@index([createdAt])
   @@map("audit_log")
+}
+
+model Upload {
+  id              String   @id @default(cuid())
+  storageKey      String   @unique @map("storage_key")
+  mimeType        String   @map("mime_type")
+  byteSize        Int      @map("byte_size")
+  sha256          String
+  uploadedById    String   @map("uploaded_by_user_id")
+  idempotencyKey  String?  @map("idempotency_key")
+  createdAt       DateTime @default(now()) @map("created_at")
+  scanStatus      String   @default("not_scanned") @map("scan_status")
+
+  uploadedBy User @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  @@unique([uploadedById, idempotencyKey], map: "uploads_uploaded_by_idempotency_key_key")
+  @@index([uploadedById])
+  @@index([createdAt])
+  @@map("uploads")
 }
 
 // --- MIT Sailing domain (events, classes, fleet, about) ---
@@ -356,6 +376,7 @@ model FleetBoat {
   type              String
   capacity          Int
   displayOrder      Int           @default(0) @map("display_order")
+  isVisible         Boolean       @default(true) @map("is_visible")
   requiredClassId   String        @map("required_class_id")
   description       String        @db.Text
   imagePaths        String[]      @map("image_paths")
@@ -363,6 +384,7 @@ model FleetBoat {
   unlockedByClasses SailingClassUnlockedBoat[]
 
   @@index([requiredClassId])
+  @@index([isVisible, displayOrder])
   @@map("fleet_boats")
 }
 

@@ -1,5 +1,10 @@
 import { ArrowLeft } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
+import { SanitizedMarketingHtml } from '@/components/mit-sailing/marketing/SanitizedMarketingHtml';
+import {
+  marketingRichTextArticleClassName,
+  marketingRichTextCompactClassName,
+} from '@/lib/mit-sailing/marketingRichTextContentClassName';
 import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
 import { Link } from '@/libs/I18nNavigation';
 import type { SailingClassCatalogDetail } from '@/libs/mit-sailing/classQueries';
@@ -42,7 +47,10 @@ export async function ClassDetailView(props: ClassDetailViewProps) {
       <p className={`${bodyClass} mb-2 text-sm`}>
         {t('level_label')} <strong className="font-semibold">{cl.level}</strong>
       </p>
-      <p className={`${bodyClass} mt-5`}>{cl.description}</p>
+      <SanitizedMarketingHtml
+        className={`${bodyClass} mt-5 ${marketingRichTextArticleClassName}`}
+        html={cl.description}
+      />
 
       {cl.prerequisites.length > 0 ? (
         <section className="mt-10">
@@ -127,9 +135,10 @@ export async function ClassDetailView(props: ClassDetailViewProps) {
                 >
                   {boat.name}
                 </Link>
-                <p className="mt-1 mb-0 text-sm leading-snug text-mit-text">
-                  {boat.description}
-                </p>
+                <SanitizedMarketingHtml
+                  className={`mt-1 mb-0 text-sm leading-snug text-mit-text ${marketingRichTextCompactClassName}`}
+                  html={boat.description}
+                />
               </li>
             ))}
           </ul>

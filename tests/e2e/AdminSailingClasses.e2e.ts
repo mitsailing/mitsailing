@@ -58,9 +58,10 @@ test.describe('Admin sailing classes', () => {
       .locator('select[name="classCategoryId"]')
       .selectOption('cc-introduction');
     await page.getByLabel('Level', { exact: true }).fill('beginner');
-    const descriptionField = page.locator('textarea[name="description"]');
-    await descriptionField.scrollIntoViewIfNeeded();
-    await descriptionField.fill('E2E body');
+    const descriptionEditor = page.getByTestId('catalog-rich-text-description');
+    await descriptionEditor.scrollIntoViewIfNeeded();
+    await descriptionEditor.click();
+    await descriptionEditor.fill('E2E body');
 
     await page.getByRole('button', { name: 'Save' }).click();
     await expect(page).toHaveURL(/\/admin\/sailing_classes\/?$/);
@@ -76,8 +77,9 @@ test.describe('Admin sailing classes', () => {
       .getByRole('link', { name: 'Edit', exact: true })
       .click();
     await expect(page.getByRole('heading', { name: 'Edit row' })).toBeVisible();
-    const descriptionOnEdit = page.locator('textarea[name="description"]');
+    const descriptionOnEdit = page.getByTestId('catalog-rich-text-description');
     await descriptionOnEdit.scrollIntoViewIfNeeded();
+    await descriptionOnEdit.click();
     await descriptionOnEdit.fill('E2E body updated');
     await page.getByRole('button', { name: 'Save' }).click();
     await expect(page).toHaveURL(/\/admin\/sailing_classes\/?$/);

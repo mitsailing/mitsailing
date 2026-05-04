@@ -32,6 +32,7 @@ export function mapFleetBoatsToNavDropdownItems(
 // eslint-disable-next-line @typescript-eslint/promise-function-async -- thin Prisma wrapper
 const loadFleetBoatsForPublicUnchecked = (): Promise<FleetBoatListRow[]> =>
   prisma.fleetBoat.findMany({
+    where: { isVisible: true },
     orderBy: prismaOrderByDisplayOrderAscNameAsc,
     select: {
       id: true,
@@ -45,9 +46,10 @@ const loadFleetBoatsForPublicUnchecked = (): Promise<FleetBoatListRow[]> =>
   });
 
 /**
- * All fleet boats for public list (single query). Request-cached; returns an
- * empty list when the database read fails so the shell can still render.
- * Ordered by `displayOrder`, then `name` (aligned with class category ordering).
+ * All **visible** fleet boats for public list (single query). Request-cached;
+ * returns an empty list when the database read fails so the shell can still
+ * render. Ordered by `displayOrder`, then `name` (aligned with class category
+ * ordering). Boats with `isVisible === false` are omitted.
  *
  * @returns Fleet rows with required class label
  */
@@ -63,15 +65,19 @@ export type FleetBoatDetail = {
   type: string;
   capacity: number;
   description: string;
-  imagePaths: string[];
   requiredClass: { id: string; name: string; slug: string };
 };
 
+/**
+ * Resolves a single fleet boat for the marketing site. Rows with
+ * `isVisible === false` are treated as missing so URLs 404 like unknown slugs
+ * (no public leakage of hidden catalog entries).
+ */
 export const getFleetBoatForPublicBySlug = cache(
   async (slug: string): Promise<FleetBoatDetail | null> => {
     const decoded = decodeURIComponent(slug);
     const boat = await prisma.fleetBoat.findFirst({
-      where: { slug: decoded },
+      where: { slug: decoded, isVisible: true },
       select: {
         id: true,
         name: true,
@@ -79,7 +85,6 @@ export const getFleetBoatForPublicBySlug = cache(
         type: true,
         capacity: true,
         description: true,
-        imagePaths: true,
         requiredClass: { select: { id: true, name: true, slug: true } },
       },
     });

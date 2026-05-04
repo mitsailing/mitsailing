@@ -16,12 +16,7 @@ export const fleetBoatFormSchema = z.object({
   capacity: z.coerce.number().int().min(1),
   requiredClassId: z.string().trim().min(1),
   description: z.string(),
-  imagePaths: z.string().transform((raw) =>
-    raw
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0)
-  ),
+  isVisible: z.boolean(),
 });
 
 /**
@@ -33,6 +28,9 @@ export const fleetBoatFormSchema = z.object({
 export function rawFleetBoatFromFormData(
   formData: FormData
 ): Record<string, unknown> {
+  const visibilityFlags = formData.getAll('isVisible');
+  const isVisible =
+    visibilityFlags.includes('true') || visibilityFlags.includes('on');
   return {
     name: formData.get('name'),
     slug: formData.get('slug'),
@@ -40,6 +38,6 @@ export function rawFleetBoatFromFormData(
     capacity: formData.get('capacity'),
     requiredClassId: formData.get('requiredClassId'),
     description: formData.get('description') ?? '',
-    imagePaths: formData.get('imagePaths') ?? '',
+    isVisible,
   };
 }

@@ -1,7 +1,10 @@
 import { ArrowDown, ArrowRight, Check, MapPin, Sunset } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import Image from 'next/image';
+import { SanitizedMarketingHtml } from '@/components/mit-sailing/marketing/SanitizedMarketingHtml';
 import { pavilionHours } from '@/data/mit-sailing/pavilionInfoSeed';
+import { getFleetBoatMarketingHeroSrc } from '@/lib/mit-sailing/fleetBoatMarketingImages';
+import { marketingRichTextCompactClassName } from '@/lib/mit-sailing/marketingRichTextContentClassName';
 import {
   mitAccentLinkClassName,
   textFocusRingClassName,
@@ -25,15 +28,6 @@ const HOME_NEXT_CLASS_SLUGS = [
   'windsurfing-fundamentals',
   'intermediate-racing-tactics-strategy',
 ] as const;
-
-const UNSPLASH_BY_BOAT_SLUG: Record<string, string> = {
-  'tech-dinghy':
-    'https://images.unsplash.com/photo-1759809278956-70c6a72eecdd?w=1080',
-  'flying-junior':
-    'https://images.unsplash.com/photo-1660062436864-f7873d68df2d?w=1080',
-  'club-420':
-    'https://images.unsplash.com/photo-1776308786818-e498ccdb1cc4?w=1080',
-};
 
 const HERO_IMAGE =
   'https://images.unsplash.com/photo-1577907073204-e5a8cbad51f5?w=1920';
@@ -352,8 +346,7 @@ export async function MitSailingHomePageView(
           />
           <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
             {featuredHomeBoats.map((boat) => {
-              const imgSrc =
-                UNSPLASH_BY_BOAT_SLUG[boat.slug] ?? boat.imagePaths[0] ?? '';
+              const imgSrc = getFleetBoatMarketingHeroSrc(boat.slug);
               const badge = boat.requiredClass
                 ? `After: ${boat.requiredClass.name}`
                 : `${boat.type} · ${boat.capacity} crew`;
@@ -381,9 +374,12 @@ export async function MitSailingHomePageView(
                     <h3 className="mb-3 font-mit-serif text-xl font-semibold text-mit-text">
                       {boat.name}
                     </h3>
-                    <p className="text-sm leading-relaxed text-mit-text">
-                      {boat.description}
-                    </p>
+                    <div className="line-clamp-3 text-sm leading-relaxed text-mit-text">
+                      <SanitizedMarketingHtml
+                        className={marketingRichTextCompactClassName}
+                        html={boat.description}
+                      />
+                    </div>
                   </div>
                 </Link>
               );
@@ -417,9 +413,12 @@ export async function MitSailingHomePageView(
                     <h4 className="mb-3 line-clamp-3 font-mit-serif text-[22px] font-bold text-mit-text">
                       {cls.name}
                     </h4>
-                    <p className="mb-6 line-clamp-5 text-base leading-relaxed text-mit-text">
-                      {cls.description}
-                    </p>
+                    <div className="mb-6 line-clamp-5 text-base leading-relaxed text-mit-text">
+                      <SanitizedMarketingHtml
+                        className={marketingRichTextCompactClassName}
+                        html={cls.description}
+                      />
+                    </div>
                     <div className="mt-auto flex items-center gap-1 text-xs font-semibold text-mit-red">
                       <span>{t('class_details')}</span>
                       <ArrowRight aria-hidden size={14} />
@@ -466,9 +465,12 @@ export async function MitSailingHomePageView(
                       <h4 className="mb-1 text-base font-semibold text-mit-text">
                         {cls.name}
                       </h4>
-                      <p className="mb-3 text-sm leading-snug text-mit-text">
-                        {cls.description}
-                      </p>
+                      <div className="mb-3 line-clamp-4 text-sm leading-snug text-mit-text">
+                        <SanitizedMarketingHtml
+                          className={marketingRichTextCompactClassName}
+                          html={cls.description}
+                        />
+                      </div>
                       <div className="mt-auto flex w-full items-center justify-between">
                         <span className="rounded border border-mit-line bg-white px-2 py-0.5 text-[10px] font-semibold text-mit-text">
                           {reqLabel}

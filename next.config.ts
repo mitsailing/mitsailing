@@ -3,9 +3,20 @@ import { withSentryConfig } from '@sentry/nextjs';
 import type { NextConfig } from 'next';
 import createNextIntlPlugin from 'next-intl/plugin';
 import './src/libs/Env';
+import { MAX_UPLOAD_BYTES } from './src/libs/uploads/maxUploadBytes';
 
 // Define the base Next.js configuration
+const maxUploadMb = Math.ceil(MAX_UPLOAD_BYTES / (1024 * 1024));
+
 const baseConfig: NextConfig = {
+  experimental: {
+    // Caps how much of the client body Next buffers when a proxy/middleware
+    // path clones the request. If the limit is exceeded, only a **partial**
+    // body is available and a warning is logged — the upload handler still
+    // enforces `MAX_UPLOAD_BYTES` on the parsed `File` so oversize uploads
+    // get a 413 instead of silently accepting truncated files.
+    proxyClientMaxBodySize: `${maxUploadMb}mb`,
+  },
   devIndicators: {
     position: 'bottom-right',
   },

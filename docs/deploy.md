@@ -101,6 +101,47 @@ Fill at least:
 - `RESEND_API_KEY`, `EMAIL_FROM`, `SUPPORT_EMAIL` (real mail; there is no
   Mailpit in production)
 
+**CMS uploads (admin rich text):** Production Compose mounts a named Docker
+volume on the **`app`** service at **`/data/uploads`** (`UPLOAD_DIR`). Treat
+this volume like the database: include it in **backups** and **disaster
+recovery** (filesystem copy or volume snapshot plus DB restore). Never run
+**`docker compose down -v`** against production — it deletes named volumes
+including uploaded blobs.
+
+**CMS upload hardening:** Set **`ARCJET_KEY`** (same as auth/proxy) to enable
+Arcjet shield + per-admin rate limits on **`POST /api/admin/uploads`**. A
+**process-local sliding window** still applies when Arcjet is unset so
+single-node deploys have basic abuse protection. Upload outcomes are written to
+**`audit_log`** (for example `cms_upload_post`, `cms_upload_rate_limited`,
+`cms_upload_idempotent_replay`). Clients should send **`Idempotency-Key`**
+(unique per logical upload) to dedupe retries; **`GET /api/uploads/...`**
+supports **`ETag` / `If-None-Match`**. For **orphans**, reconcile the
+**`uploads`** table against files under **`UPLOAD_DIR`** periodically (SQL +
+`find`); delete only after confirming nothing in published HTML still references
+the object.
+
+**ClamAV (`compose.prod.yaml`):** Production includes a **`clamav`** service on
+the internal Docker network only (`clamd` listens on **3310** — do not publish
+that port publicly). The **`app`** container sets **`CLAMD_HOST=clamav`** and
+**`CLAMD_PORT=3310`** so admin uploads are scanned synchronously via INSTREAM
+before bytes are written under **`UPLOAD_DIR`**; rows store **`scan_status =
+clean`**. If **`clamd`** is unavailable or the scan times out,
+**`POST /api/admin/uploads`** returns **503** (`Env.CLAMD_TIMEOUT_MS`, default
+60s). First boot can take **several minutes** while virus definitions download;
+the Compose **healthcheck** **`start_period`** allows that warm-up. Budget roughly
+**~2 Gi** RAM for **`clamav`** (see **`deploy.resources`**); starving **`clamd`**
+causes instability.
+
+The scanning **engine** runs in the sidecar image (**GPL-2.0**). This app only
+implements the **`clamd`** wire protocol over TCP.
+
+**Uploads created before ClamAV:** With **`CLAMD_HOST`** set, **`GET
+/api/uploads/...`** only serves rows with **`scan_status = clean`**. For
+legacy **`not_scanned`** rows, either run a one-time backfill after operational
+review (e.g. `UPDATE uploads SET scan_status = 'clean' WHERE scan_status =
+'not_scanned'`) or re-upload; identical bytes can self-heal via **SHA-256
+dedupe** on the next successful scan.
+
 **Sentry (errors + source maps):** The production image is built in GitHub
 Actions (`.github/workflows/deploy.yml`), not on the VM. Add these on the
 **`production` environment** (same place as deploy SSH secrets) so the Docker

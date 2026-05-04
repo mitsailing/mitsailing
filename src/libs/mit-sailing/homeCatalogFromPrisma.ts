@@ -13,7 +13,7 @@ export async function loadHomeFeaturedFleetBoats(
     return [];
   }
   const boats = await prisma.fleetBoat.findMany({
-    where: { slug: { in: [...orderedSlugs] } },
+    where: { slug: { in: [...orderedSlugs] }, isVisible: true },
     select: {
       id: true,
       name: true,
@@ -21,7 +21,6 @@ export async function loadHomeFeaturedFleetBoats(
       type: true,
       capacity: true,
       description: true,
-      imagePaths: true,
       requiredClassId: true,
       requiredClass: { select: { id: true, name: true, slug: true } },
     },
