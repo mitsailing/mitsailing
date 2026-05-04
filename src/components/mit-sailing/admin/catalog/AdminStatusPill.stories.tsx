@@ -66,7 +66,7 @@ export const ComfortableLive: Story = {
  */
 export const ToneGridCompact: Story = {
   render: () => (
-    <div className="flex flex-wrap items-center gap-3 bg-white p-6">
+    <div className="flex flex-wrap items-center gap-3 bg-background p-6">
       <AdminStatusPill tone="success">Live</AdminStatusPill>
       <AdminStatusPill tone="neutral">Draft</AdminStatusPill>
       <AdminStatusPill tone="danger">Yes</AdminStatusPill>

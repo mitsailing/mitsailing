@@ -93,18 +93,28 @@ export default defineConfig<ChromaticConfig>({
     actionTimeout: defaultActionTimeout,
   },
   // Local: Chromium only (fast default). CI: add Firefox for engine coverage before merge.
+  // `*.a11y.e2e.ts` is a separate project: axe scans many URLs × themes (slower than smoke e2e).
   projects: [
     {
       name: 'chromium',
+      testIgnore: '**/*.a11y.e2e.ts',
       use: { ...devices['Desktop Chrome'] },
     },
     ...(isCi
       ? [
           {
             name: 'firefox',
+            testIgnore: '**/*.a11y.e2e.ts',
             use: { ...devices['Desktop Firefox'] },
           },
         ]
       : []),
+    {
+      name: 'a11y-chromium',
+      testMatch: '**/*.a11y.e2e.ts',
+      timeout: 300_000,
+      workers: isCi ? 2 : 4,
+      use: { ...devices['Desktop Chrome'] },
+    },
   ],
 });

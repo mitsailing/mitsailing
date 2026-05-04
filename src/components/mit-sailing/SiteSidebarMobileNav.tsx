@@ -30,7 +30,7 @@ export function SiteSidebarMobileNav(props: SiteSidebarMobileNavProps) {
   const label = props.mobileNavLabel ?? t('mobile_menu_label');
 
   const summaryClass = cn(
-    'flex w-full cursor-pointer list-none items-center justify-between gap-3 rounded-lg border border-mit-line bg-white px-4 py-3 text-left text-sm font-semibold text-mit-text no-underline',
+    'flex w-full cursor-pointer list-none items-center justify-between gap-3 rounded-lg border border-mit-line bg-card px-4 py-3 text-left text-sm font-semibold text-mit-text no-underline',
     'min-h-11 shadow-sm',
     '[&::-webkit-details-marker]:hidden',
     textFocusRingClassName
@@ -51,7 +51,7 @@ export function SiteSidebarMobileNav(props: SiteSidebarMobileNavProps) {
               strokeWidth={2}
             />
           </summary>
-          <div className="mt-2 rounded-lg border border-mit-line bg-white p-2 shadow-sm">
+          <div className="mt-2 rounded-lg border border-mit-line bg-card p-2 shadow-sm">
             {props.children}
           </div>
         </details>

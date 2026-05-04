@@ -1,5 +1,5 @@
 ---
-description: MIT palette for auth flows — primary buttons, links, inputs; no raw MIT hex or Tailwind blue in auth UI
+description: MIT palette for auth flows — shadcn inputs, institute CTAs, links; no raw MIT hex or Tailwind blue in auth UI
 globs: src/app/[locale]/(auth)/**/*,src/components/auth/**/*
 alwaysApply: false
 ---
@@ -10,14 +10,15 @@ Auth pages and components under `src/app/[locale]/(auth)/` and `src/components/a
 
 ## Do
 
-- **Primary actions** (submit, send link, update password): use shadcn [`Button`](src/components/ui/button.tsx) with `variant="default"` (maps to `--primary` / MIT crimson in [`mit-theme.css`](src/styles/mit-theme.css)). For legacy class-only cases, [`authPrimaryButtonClassName`](src/lib/mit-sailing/tokens.ts) is deprecated but still matches the same reds.
-- **Text links** (forgot password, sign up, sign in): `text-mit-red` with underline/hover; use [`authInlineLinkClassName`](src/lib/mit-sailing/tokens.ts) where appropriate.
-- **Inputs**: neutral border via `border-mit-line`, readable text via `text-mit-text`; focus ring aligned with shell (`focus:ring-mit-text`); use [`authInputClassName`](src/lib/mit-sailing/tokens.ts) for standard fields.
-- **Informational banners** (non-error): prefer `bg-mit-red-highlight` + `text-mit-text` over generic blue backgrounds.
+- **Submit / primary institute actions** (sign in, sign up, save password, save profile): use shadcn [`Button`](src/components/ui/button.tsx) with **`variant="mit"`** so CTAs stay **MIT web red** in both light and dark. (`variant="default"` follows theme `--primary`: neutral high-contrast in dark mode per [docs/mit-color-strategy.md](../../docs/mit-color-strategy.md).)
+- **Fields**: [`Label`](src/components/ui/label.tsx) + [`Input`](src/components/ui/input.tsx) so borders, rings, and typography use **shadcn semantic tokens** (`border-input`, `ring-ring`, `text-foreground`).
+- **Text links** (forgot password, sign up, sign in): use [`authInlineLinkClassName`](src/lib/mit-sailing/tokens.ts) or `text-mit-red-ink` / theme utilities—not raw hex.
+- **Rare non-`Input` fields:** [`authInputClassName`](src/lib/mit-sailing/tokens.ts) matches `Input` styling.
+- **Informational banners** (non-error): prefer `bg-mit-red-highlight` + `text-foreground` over generic blue backgrounds.
 
 ## Do not
 
 - Use **`blue-*`** Tailwind classes for auth buttons, links, or info banners.
-- Paste **raw** `#a31f34`, `#A31F34`, or other one-off MIT reds—use theme utilities (`text-mit-red`, `bg-mit-red`, etc.) or named entries under [`tokens.colors`](src/lib/mit-sailing/tokens.ts) / [`tokens.ts`](src/lib/mit-sailing/tokens.ts) utilities.
+- Paste **raw** MIT hex codes (`#750014`, `#ff1423`, etc.) in JSX or arbitrary Tailwind values—use theme utilities (`text-mit-red`, `bg-mit-red`, etc.) or [`tokens.colors`](src/lib/mit-sailing/tokens.ts) so values stay aligned with [`mit-theme.css`](src/styles/mit-theme.css). See [mit-brand-colors.mdc](mit-brand-colors.mdc).
 
-See also [app-design-tokens-colors.mdc](app-design-tokens-colors.mdc) for global foreground and brand-token rules.
+See also [app-design-tokens-colors.mdc](app-design-tokens-colors.mdc) and [docs/mit-color-strategy.md](../../docs/mit-color-strategy.md).

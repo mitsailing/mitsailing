@@ -1,9 +1,30 @@
 /**
- * Class-only utilities for the MIT Sailing public shell. Palette + fonts live in
- * `src/styles/mit-theme.css` under `@theme inline` (`text-mit-text`, `bg-mit-red`, `font-mit-serif`, …).
+ * Shell class helpers (`mit-theme.css` owns hex). Use `tokens.colors` only for
+ * inline styles / SVG when Tailwind utilities are awkward.
  */
+export const tokens = {
+  colors: {
+    /** Light foreground; matches `:root --foreground` in mit-theme.css. */
+    text: '#09090b',
+    mitRed: '#750014',
+    mitRedHover: '#590010',
+    mitRedHighlight: '#fef2f2',
+    surface: '#f4f4f5',
+    border: '#e4e4e7',
+    /** MIT expanded palette (optional emphasis; not default primary). */
+    mitRedBright: '#ff1423',
+    mitSilverGray: '#8b959e',
+    mitRed50: '#fef2f2',
+    mitRed600: '#750014',
+    mitRed950: '#1a0005',
+  },
+  typography: {
+    small: 'text-sm',
+  },
+} as const;
+
 export const textFocusRingClassName =
-  'rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2';
+  'rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2 focus-visible:ring-offset-background';
 
 export const footerHorizontalRuleClassName = 'h-px flex-1 bg-white/20';
 
@@ -30,24 +51,36 @@ export const footerSocialIconButtonClassName = [
   'focus-visible:ring-offset-2 focus-visible:ring-offset-mit-footer',
 ].join(' ');
 
-/** In-content red links (sidebar events, “View all”, class CTAs). */
-export const mitAccentLinkClassName = 'text-sm font-semibold text-mit-red';
+export const mitAccentLinkClassName = 'text-sm font-semibold text-primary-ink';
 
 /**
- * @deprecated Prefer [`Button`](src/components/ui/button.tsx) with
- * `variant="default"` — `--primary` in `mit-theme.css` matches MIT crimson.
- * Kept for rare class-only composition outside React.
+ * “MIT” on auth center chrome: crimson in light; rose ink in dark on page background.
+ */
+export const siteBrandMitWordmarkDefaultClassName =
+  'text-mit-red dark:text-mit-red-ink';
+
+/**
+ * @deprecated Prefer [`Button`](src/components/ui/button.tsx) with `variant="default"`.
  */
 export const authPrimaryButtonClassName = [
   'rounded-md bg-mit-red px-4 py-2 font-medium text-white',
   'hover:bg-mit-red-hover disabled:opacity-60',
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2',
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2 focus-visible:ring-offset-background',
 ].join(' ');
 
-/** Inline text links on auth pages (forgot password, sign up, etc.). */
 export const authInlineLinkClassName =
-  'text-mit-red underline underline-offset-2 hover:text-mit-red-hover focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2';
+  'text-mit-red-ink underline underline-offset-2 hover:text-mit-red-hover focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2 focus-visible:ring-offset-background';
 
-/** Standard bordered inputs on auth flows (matches shell neutrals). */
-export const authInputClassName =
-  'rounded-md border border-mit-line bg-white px-3 py-2 text-mit-text outline-none focus:ring-2 focus:ring-mit-text';
+/** Native `<select>` in admin catalog forms (server `FormData`; matches Input chrome). */
+export const adminNativeSelectClassName = [
+  'flex h-8 w-full cursor-pointer appearance-none rounded-lg border border-input bg-transparent bg-[length:1rem] bg-[right_0.5rem_center] bg-no-repeat px-2.5 py-1 pr-9 text-sm text-foreground outline-none transition-colors',
+  'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30',
+  "bg-[url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2724%27 height=%2724%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27%2371717a%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3E%3Cpath d=%27m6 9 6 6 6-6%27/%3E%3C/svg%3E')]",
+].join(' ');
+
+/** Matches [`Input`](src/components/ui/input.tsx) styling for rare non-`Input` fields. */
+export const authInputClassName = [
+  'h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base text-foreground outline-none transition-colors',
+  'placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm',
+  'dark:bg-input/30',
+].join(' ');

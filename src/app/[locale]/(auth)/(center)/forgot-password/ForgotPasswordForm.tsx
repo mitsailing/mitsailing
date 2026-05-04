@@ -3,7 +3,8 @@
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { authInputClassName } from '@/lib/mit-sailing/tokens';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { authClient } from '@/libs/auth-client';
 import { isValidMarketingEmail } from '@/utils/emailValidation';
 
@@ -55,13 +56,12 @@ export function ForgotPasswordForm(props: ForgotPasswordFormProps) {
           {emailError}
         </p>
       ) : null}
-      <div className="flex flex-col gap-1">
-        <label className="text-sm font-medium text-mit-text" htmlFor="email">
+      <div className="flex flex-col gap-1.5">
+        <Label className="text-foreground" htmlFor="email">
           {t('email_label')}
-        </label>
-        <input
+        </Label>
+        <Input
           autoComplete="email"
-          className={authInputClassName}
           id="email"
           inputMode="email"
           name="email"
@@ -74,7 +74,12 @@ export function ForgotPasswordForm(props: ForgotPasswordFormProps) {
         />
       </div>
 
-      <Button className="w-full" disabled={submitting} type="submit">
+      <Button
+        className="w-full"
+        disabled={submitting}
+        type="submit"
+        variant="mit"
+      >
         {t('submit')}
       </Button>
     </form>

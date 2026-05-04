@@ -2,12 +2,15 @@ import type { Metadata, Viewport } from 'next';
 import { hasLocale, NextIntlClientProvider } from 'next-intl';
 import { setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
+import { AppThemeProvider } from '@/components/shell/AppThemeProvider';
 import { SentryUserSync } from '@/components/shell/SentryUserSync';
+import { Env } from '@/libs/Env';
 import { routing } from '@/libs/I18nRouting';
+import { getDefaultThemeForRootLayout } from '@/libs/theme-layout';
 import { AppConfig } from '@/utils/AppConfig';
 import '@/styles/global.css';
 
-const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://mitsailing.com';
+const SITE_URL = Env.NEXT_PUBLIC_APP_URL;
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -28,10 +31,7 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-/**
- * Keeps `[locale]` on the server request path (`setRequestLocale`, next-intl) instead of stale
- * build-time locales. Narrower segments still use `revalidate` where safe (see fleet/classes pages).
- */
+/** next-intl: per-request locale; do not use static build-time locale list. */
 export const dynamic = 'force-dynamic';
 
 export default async function RootLayout(props: {
@@ -46,11 +46,15 @@ export default async function RootLayout(props: {
 
   setRequestLocale(locale);
 
+  const defaultTheme = await getDefaultThemeForRootLayout();
+
   return (
-    <html lang={locale}>
+    <html lang={locale} suppressHydrationWarning>
       <body>
         <SentryUserSync />
-        <NextIntlClientProvider>{props.children}</NextIntlClientProvider>
+        <AppThemeProvider defaultTheme={defaultTheme}>
+          <NextIntlClientProvider>{props.children}</NextIntlClientProvider>
+        </AppThemeProvider>
       </body>
     </html>
   );

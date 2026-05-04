@@ -1,8 +1,4 @@
-/**
- * MIT Sailing + shadcn (https://ui.shadcn.com) design tokens.
- * Foreground/brand: tokens.colors in src/lib/mit-sailing/tokens.ts; semantic
- * shadcn vars below map "primary" to MIT crimson, text to #2D2D2D, etc.
- */
+/** MIT Sailing + shadcn. Institute brand: https://brand.mit.edu/color */
 :root {
   --font-size: 16px;
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
@@ -10,94 +6,142 @@
   --font-heading: var(--font-sans);
   --font-weight-medium: 500;
   --font-weight-normal: 400;
+  /**
+   * Light: shadcn neutral (zinc-style) for forms, cards, and surfaces.
+   * `primary` stays MIT red for default `Button` (on-brand CTAs in light).
+   */
   --background: #ffffff;
-  /* Readable body copy — same as tokens.colors.text / text-mit-text */
-  --foreground: #2d2d2d;
+  --foreground: #09090b;
   --card: #ffffff;
-  --card-foreground: #2d2d2d;
+  --card-foreground: #09090b;
   --popover: #ffffff;
-  --popover-foreground: #2d2d2d;
-  /* MIT crimson for primary CTA, links, sidebar brand */
-  --primary: #a31f34;
+  --popover-foreground: #09090b;
+  --primary: #750014;
+  --primary-ink: var(--primary);
   --primary-foreground: #ffffff;
-  --secondary: #f5f5f5;
-  --secondary-foreground: #2d2d2d;
-  --muted: #f5f5f5;
-  --muted-foreground: #525252;
-  --accent: #fef2f2;
-  --accent-foreground: #2d2d2d;
-  --destructive: #b91c1c;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #18181b;
+  --muted: #f4f4f5;
+  /** Slightly darker than default zinc-500 for AA on `muted` (#f4f4f5). */
+  --muted-foreground: #52525b;
+  --accent: #f4f4f5;
+  --accent-foreground: #18181b;
+  --destructive: #ef4444;
   --destructive-foreground: #ffffff;
-  --border: #e5e5e5;
-  --input: #e5e5e5;
+  --border: #e4e4e7;
+  --input: #e4e4e7;
   --input-background: #ffffff;
   --switch-background: #cbced4;
-  /* Focus ring aligned with shell / auth: ring-mit-text */
-  --ring: #2d2d2d;
+  --ring: #a1a1aa;
   --radius: 0.625rem;
   --chart-1: oklch(0.55 0.2 20);
   --chart-2: oklch(0.5 0.12 200);
   --chart-3: oklch(0.45 0.1 150);
   --chart-4: oklch(0.6 0.15 40);
   --chart-5: oklch(0.4 0.1 300);
-  --sidebar: #f5f5f5;
-  --sidebar-foreground: #2d2d2d;
-  --sidebar-primary: #a31f34;
+  --sidebar: #f4f4f5;
+  --sidebar-foreground: #18181b;
+  --sidebar-primary: #750014;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #ececf0;
-  --sidebar-accent-foreground: #2d2d2d;
-  --sidebar-border: #e5e5e5;
-  --sidebar-ring: #2d2d2d;
+  --sidebar-accent: #f4f4f5;
+  --sidebar-accent-foreground: #18181b;
+  --sidebar-border: #e4e4e7;
+  --sidebar-ring: #a1a1aa;
+  /** MIT red ramp (institute accent; not shadcn `primary` in dark). */
+  --mit-red-core: #750014;
+  --mit-red-ink: var(--mit-red-core);
+  --mit-red-hover: #590010;
+  --mit-red-highlight: #fef2f2;
+  --mit-red-50: #fef2f2;
+  --mit-red-100: #fce7ea;
+  --mit-red-200: #f9d0d7;
+  --mit-red-300: #f0a8b5;
+  --mit-red-400: #d64d62;
+  --mit-red-500: #9b1530;
+  --mit-red-600: #750014;
+  --mit-red-700: #5c0010;
+  --mit-red-800: #45000c;
+  --mit-red-900: #2e0008;
+  --mit-red-950: #1a0005;
+  --mit-text: var(--foreground);
+  --mit-surface: var(--muted);
+  --mit-line: var(--border);
+  --mit-footer-bg: #1a1b1e;
+  --mit-hero-ink: #0a1628;
+  --mit-success: #16a34a;
+  --mit-cat: #0f766e;
 }
 
+/** Dark: shadcn marketing-style neutrals; neutral `primary` for default buttons; MIT red on `mit-*`. */
 .dark {
-  --background: #1a1b1e;
-  --foreground: #f5f5f5;
-  --card: #1f2023;
-  --card-foreground: #f5f5f5;
-  --popover: #1f2023;
-  --popover-foreground: #f5f5f5;
-  --primary: #c45a6a;
-  --primary-foreground: #1a0a0c;
-  --secondary: #2a2b30;
-  --secondary-foreground: #f5f5f5;
-  --muted: #2a2b30;
-  --muted-foreground: #a3a3a3;
-  --accent: #3d1f25;
-  --accent-foreground: #fef2f2;
+  --background: #09090b;
+  --foreground: #fafafa;
+  --card: #18181b;
+  --card-foreground: #fafafa;
+  --popover: #18181b;
+  --popover-foreground: #fafafa;
+  --primary: #fafafa;
+  --primary-foreground: #18181b;
+  --primary-ink: #fb7185;
+  --secondary: #27272a;
+  --secondary-foreground: #fafafa;
+  --muted: #27272a;
+  --muted-foreground: #a1a1aa;
+  --accent: #27272a;
+  --accent-foreground: #fafafa;
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
-  --border: #3f3f46;
-  --input: #3f3f46;
-  --input-background: #27272a;
+  --border: #27272a;
+  --input: #27272a;
+  --input-background: #18181b;
+  --switch-background: #52525b;
   --ring: #d4d4d8;
-  --sidebar: #1f2023;
-  --sidebar-foreground: #f5f5f5;
-  --sidebar-primary: #c45a6a;
-  --sidebar-primary-foreground: #1a0a0c;
-  --sidebar-accent: #2a2b30;
-  --sidebar-accent-foreground: #f5f5f5;
-  --sidebar-border: #3f3f46;
+  --sidebar: #18181b;
+  --sidebar-foreground: #fafafa;
+  --sidebar-primary: #fafafa;
+  --sidebar-primary-foreground: #18181b;
+  --sidebar-accent: #27272a;
+  --sidebar-accent-foreground: #fafafa;
+  --sidebar-border: #27272a;
   --sidebar-ring: #d4d4d8;
+  --mit-red-core: #750014;
+  /** Readable rose ink on dark surfaces (links/wordmarks); ramp stays shared below. */
+  --mit-red-ink: #fb7185;
+  --mit-red-hover: #fda4af;
+  --mit-red-highlight: var(--accent);
+  --mit-text: var(--foreground);
+  --mit-surface: var(--secondary);
+  --mit-line: var(--border);
+  --mit-footer-bg: var(--background);
+  --mit-hero-ink: var(--foreground);
 }
 
 @theme inline {
-  /* MIT Sailing: `text-mit-*`, `bg-mit-*`, `font-mit-serif` (also exposed to Tailwind) */
-  --color-mit-red: #a31f34;
-  --color-mit-red-hover: #8a1a2c;
-  --color-mit-red-highlight: #fef2f2;
-  --color-mit-text: #2d2d2d;
-  --color-mit-surface: #f5f5f5;
-  --color-mit-line: #e5e5e5;
-  --color-mit-success: #16a34a;
-  --color-mit-cat: #0f766e;
-  --color-mit-hero-ink: #0a1628;
-  --color-mit-footer: #1a1b1e;
+  --color-mit-red: var(--mit-red-core);
+  --color-mit-red-ink: var(--mit-red-ink);
+  --color-mit-red-hover: var(--mit-red-hover);
+  --color-mit-red-highlight: var(--mit-red-highlight);
+  --color-mit-red-50: var(--mit-red-50);
+  --color-mit-red-100: var(--mit-red-100);
+  --color-mit-red-200: var(--mit-red-200);
+  --color-mit-red-300: var(--mit-red-300);
+  --color-mit-red-400: var(--mit-red-400);
+  --color-mit-red-500: var(--mit-red-500);
+  --color-mit-red-600: var(--mit-red-600);
+  --color-mit-red-700: var(--mit-red-700);
+  --color-mit-red-800: var(--mit-red-800);
+  --color-mit-red-900: var(--mit-red-900);
+  --color-mit-red-950: var(--mit-red-950);
+  --color-mit-text: var(--mit-text);
+  --color-mit-surface: var(--mit-surface);
+  --color-mit-line: var(--mit-line);
+  --color-mit-success: var(--mit-success);
+  --color-mit-cat: var(--mit-cat);
+  --color-mit-hero-ink: var(--mit-hero-ink);
+  --color-mit-footer: var(--mit-footer-bg);
   --font-mit-serif: 'Fraunces', Georgia, serif;
   --font-mit-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  /* Tailwind `font-sans` for shadcn; matches MIT body copy */
   --font-sans: var(--font-mit-sans);
-  /* shadcn + Tailwind: semantic colors */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -105,6 +149,7 @@
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
+  --color-primary-ink: var(--primary-ink);
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
@@ -124,7 +169,6 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
-  /* shadcn Nova / radix preset radius scale */
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
