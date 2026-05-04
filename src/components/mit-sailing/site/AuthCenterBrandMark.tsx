@@ -1,7 +1,10 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
+import {
+  textFocusRingClassName,
+  siteBrandMitWordmarkDefaultClassName,
+} from '@/lib/mit-sailing/tokens';
 import { Link } from '@/libs/I18nNavigation';
 
 /**
@@ -19,9 +22,11 @@ export function AuthCenterBrandMark() {
         className={`inline-flex cursor-pointer items-center gap-2 no-underline ${textFocusRingClassName}`}
         href="/"
       >
-        <div className="font-mit-serif text-[22px] font-bold tracking-tight text-mit-red">
-          {t('site_brand_mit')}
-          <span className="ml-1 text-mit-text">{t('site_brand_sailing')}</span>
+        <div className="font-mit-serif text-[22px] font-bold tracking-tight text-mit-text">
+          <span className={siteBrandMitWordmarkDefaultClassName}>
+            {t('site_brand_mit')}
+          </span>
+          <span className="ml-1">{t('site_brand_sailing')}</span>
         </div>
       </Link>
     </div>

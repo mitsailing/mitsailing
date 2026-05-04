@@ -1,6 +1,17 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 import {
   adminCatalogResourceAssociationPath,
   adminCatalogResourceEditPath,
@@ -115,7 +126,7 @@ export default async function AdminSailingClassUnlockedBoatsPage(
           {t('assoc_page_unlocked_boats_title')} — {sailingClass.name}
         </h1>
         <Link
-          className="text-sm font-medium text-mit-red no-underline hover:underline"
+          className="text-sm font-medium text-mit-red-ink no-underline hover:underline"
           href={adminCatalogResourceEditPath(resource, id)}
         >
           {t('assoc_back_to_edit')}
@@ -131,7 +142,7 @@ export default async function AdminSailingClassUnlockedBoatsPage(
         </p>
       ) : null}
 
-      <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+      <section className="rounded-lg border border-border bg-card p-6 shadow-sm">
         <h2 className="text-base font-semibold text-mit-text">
           {t('assoc_action_add')}
         </h2>
@@ -142,12 +153,13 @@ export default async function AdminSailingClassUnlockedBoatsPage(
             action={addAction}
             className="mt-3 flex flex-wrap items-end gap-3"
           >
-            <label className="flex min-w-[240px] flex-col gap-1 text-sm">
-              <span className="font-medium text-mit-text">
+            <div className="flex min-w-[240px] flex-col gap-1.5 text-sm">
+              <Label className="text-foreground" htmlFor="assoc-boat-select">
                 {t('assoc_select_boat')}
-              </span>
+              </Label>
               <select
-                className="rounded-md border border-slate-300 px-3 py-2 text-mit-text shadow-sm focus-visible:border-mit-red focus-visible:ring-2 focus-visible:ring-mit-red/25 focus-visible:outline-none"
+                className={adminNativeSelectClassName}
+                id="assoc-boat-select"
                 name="fleetBoatId"
                 required
               >
@@ -158,47 +170,49 @@ export default async function AdminSailingClassUnlockedBoatsPage(
                   </option>
                 ))}
               </select>
-            </label>
-            <button
-              className="rounded-md bg-mit-red px-3 py-2 text-sm font-semibold text-white hover:bg-mit-red-hover"
-              type="submit"
-            >
+            </div>
+            <Button type="submit" variant="mit">
               {t('assoc_action_add')}
-            </button>
+            </Button>
           </form>
         )}
       </section>
 
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-        <table className="w-full min-w-[480px] text-left text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50 text-slate-700">
-            <tr>
-              <th className="px-4 py-3 font-medium">
+      <div className="rounded-lg border border-border bg-card">
+        <Table className="min-w-[480px] text-left">
+          <TableHeader>
+            <TableRow className="border-b bg-muted/50 hover:bg-muted/50">
+              <TableHead className="px-4 py-3 font-medium">
                 {t('assoc_column_linked_item')}
-              </th>
-              <th className="px-4 py-3 font-medium">
+              </TableHead>
+              <TableHead className="px-4 py-3 font-medium">
                 {t('assoc_column_slug')}
-              </th>
-              <th className="px-4 py-3 font-medium">{t('column_actions')}</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-200">
+              </TableHead>
+              <TableHead className="px-4 py-3 font-medium">
+                {t('column_actions')}
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {rows.length === 0 ? (
-              <tr>
-                <td className="px-4 py-4 text-slate-500" colSpan={3}>
+              <TableRow>
+                <TableCell
+                  className="px-4 py-4 text-muted-foreground"
+                  colSpan={3}
+                >
                   {t('assoc_empty')}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ) : (
               rows.map((row) => (
-                <tr key={row.fleetBoat.id}>
-                  <td className="px-4 py-3 text-mit-text">
+                <TableRow key={row.fleetBoat.id}>
+                  <TableCell className="px-4 py-3 text-foreground">
                     {row.fleetBoat.name}
-                  </td>
-                  <td className="px-4 py-3 font-mono text-xs text-mit-text">
+                  </TableCell>
+                  <TableCell className="px-4 py-3 font-mono text-xs text-foreground">
                     {row.fleetBoat.slug}
-                  </td>
-                  <td className="px-4 py-3">
+                  </TableCell>
+                  <TableCell className="px-4 py-3">
                     <form
                       action={removeSailingClassUnlockedBoatAction.bind(
                         null,
@@ -211,19 +225,20 @@ export default async function AdminSailingClassUnlockedBoatsPage(
                         type="hidden"
                         value={row.fleetBoat.id}
                       />
-                      <button
-                        className="text-sm font-medium text-mit-red hover:underline"
+                      <Button
+                        className="h-auto min-h-0 p-0 font-medium text-primary-ink underline shadow-none hover:bg-transparent hover:underline"
                         type="submit"
+                        variant="link"
                       >
                         {t('assoc_action_remove')}
-                      </button>
+                      </Button>
                     </form>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
 
       {totalPages > 1 ? (
@@ -237,7 +252,7 @@ export default async function AdminSailingClassUnlockedBoatsPage(
           <div className="flex gap-3">
             {safePage > 1 ? (
               <Link
-                className="font-medium text-mit-red no-underline hover:underline"
+                className="font-medium text-mit-red-ink no-underline hover:underline"
                 href={`${basePath}?page=${safePage - 1}`}
               >
                 {t('assoc_pagination_prev')}
@@ -249,7 +264,7 @@ export default async function AdminSailingClassUnlockedBoatsPage(
             )}
             {safePage < totalPages ? (
               <Link
-                className="font-medium text-mit-red no-underline hover:underline"
+                className="font-medium text-mit-red-ink no-underline hover:underline"
                 href={`${basePath}?page=${safePage + 1}`}
               >
                 {t('assoc_pagination_next')}

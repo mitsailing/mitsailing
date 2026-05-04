@@ -11,7 +11,7 @@ import type {
 import { Link } from '@/libs/I18nNavigation';
 
 const nameEditLinkClassName =
-  'text-sm font-medium text-mit-red no-underline hover:underline';
+  'text-sm font-medium text-mit-red-ink no-underline hover:underline';
 
 type CatalogCellValue = CatalogRow[string];
 
@@ -105,7 +105,7 @@ export function AdminCatalogListCell(
   if (props.kind === 'url' && typeof raw === 'string' && raw.length > 0) {
     return (
       <a
-        className="text-mit-red underline decoration-mit-red/30 underline-offset-2 hover:decoration-mit-red"
+        className="text-mit-red-ink underline decoration-mit-red/30 underline-offset-2 hover:decoration-mit-red"
         href={raw}
         rel="noopener noreferrer"
         target="_blank"

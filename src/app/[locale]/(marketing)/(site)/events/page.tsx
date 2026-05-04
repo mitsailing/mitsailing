@@ -24,7 +24,7 @@ export default async function EventsListPage(props: PageProps) {
   const events = await listPublishedEventsForPublic();
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-semibold text-slate-900">
+      <h1 className="mb-6 text-2xl font-semibold text-foreground">
         {t('list_heading')}
       </h1>
       <EventsListView events={events} locale={locale} />

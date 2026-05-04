@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader';
+import { AdminPrimaryActionLink } from '@/components/mit-sailing/admin/AdminPrimaryActionLink';
 import { AdminCatalogTable } from '@/components/mit-sailing/admin/catalog/AdminCatalogTable';
 import {
   ADMIN_USERS_PATH,
@@ -8,7 +10,6 @@ import {
 import { usersAdminDefinition } from '@/libs/admin/users/userAdminDefinitions';
 import { usersAdminHandlers } from '@/libs/admin/users/usersAdminHandlers';
 import { requireAdmin } from '@/libs/auth/dal';
-import { Link } from '@/libs/I18nNavigation';
 import { getI18nPath } from '@/utils/Helpers';
 
 type AdminUsersIndexPageProps = {
@@ -46,25 +47,14 @@ export default async function AdminUsersIndexPage(
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold text-mit-text">
-          {t('title_admin_users')}
-        </h1>
-        <div className="flex flex-wrap gap-3">
-          <Link
-            className="text-sm font-medium text-mit-red no-underline hover:underline"
-            href="/admin/"
-          >
-            {tr('back_admin')}
-          </Link>
-          <Link
-            className="rounded-md bg-mit-red px-3 py-1.5 text-sm font-semibold text-white no-underline hover:bg-mit-red-hover"
-            href={adminUsersNewPath()}
-          >
+      <AdminPageHeader
+        actions={
+          <AdminPrimaryActionLink href={adminUsersNewPath()}>
             {tr('action_create')}
-          </Link>
-        </div>
-      </div>
+          </AdminPrimaryActionLink>
+        }
+        title={t('title_admin_users')}
+      />
 
       <AdminCatalogTable
         adminBasePath={ADMIN_USERS_PATH}

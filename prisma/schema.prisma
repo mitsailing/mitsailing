@@ -13,6 +13,14 @@ datasource db {
   provider = "postgresql"
 }
 
+enum ThemePreference {
+  SYSTEM
+  LIGHT
+  DARK
+
+  @@map("theme_preference")
+}
+
 model User {
   id               String   @id
   name             String
@@ -22,6 +30,7 @@ model User {
   image            String?
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt      @map("updated_at")
+  themePreference  ThemePreference @default(SYSTEM) @map("theme_preference")
 
   // Admin plugin columns.
   role       String    @default("user")

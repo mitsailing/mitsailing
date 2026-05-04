@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
+import { Button } from '@/components/ui/button';
 import { deleteAdminUserAction } from '@/libs/admin/users/adminUserActions';
 import { adminUsersIndexPath } from '@/libs/admin/users/adminUserPaths';
 import { usersAdminHandlers } from '@/libs/admin/users/usersAdminHandlers';
@@ -74,19 +75,17 @@ export default async function AdminUsersDeletePage(props: PageProps) {
 
       <div className="flex flex-wrap gap-3">
         <form action={deleteAction}>
-          <button
-            className="rounded-md bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-800 focus-visible:ring-2 focus-visible:ring-red-700 focus-visible:ring-offset-2 focus-visible:outline-none"
+          <Button
+            className="bg-red-700 text-white hover:bg-red-800"
             type="submit"
+            variant="destructive"
           >
             {tr('delete_submit')}
-          </button>
+          </Button>
         </form>
-        <Link
-          className="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-mit-text no-underline hover:bg-slate-50"
-          href={adminUsersIndexPath()}
-        >
-          {tr('cancel')}
-        </Link>
+        <Button asChild variant="outline">
+          <Link href={adminUsersIndexPath()}>{tr('cancel')}</Link>
+        </Button>
       </div>
     </div>
   );

@@ -36,7 +36,7 @@ export function ProfileSecurityClient() {
 
       <section
         aria-labelledby="sign-out-all-heading"
-        className="rounded-lg border border-mit-line bg-white p-6 shadow-sm"
+        className="rounded-lg border border-border bg-card p-6 text-card-foreground shadow-sm"
       >
         <h2 className="text-lg font-medium" id="sign-out-all-heading">
           {t('sign_out_all_heading')}

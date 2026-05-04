@@ -56,7 +56,7 @@ export async function SailingClassEditAssociations(
   }
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+    <section className="rounded-lg border border-border bg-card p-6 text-card-foreground shadow-sm">
       <h2 className="text-lg font-semibold text-mit-text">
         {t('assoc_panel_heading')}
       </h2>
@@ -78,7 +78,7 @@ export async function SailingClassEditAssociations(
             )}
           </ul>
           <Link
-            className="text-sm font-medium text-mit-red no-underline hover:underline"
+            className="text-sm font-medium text-mit-red-ink no-underline hover:underline"
             href={assocHref('related-events')}
           >
             {t('assoc_manage_related_events')}
@@ -103,7 +103,7 @@ export async function SailingClassEditAssociations(
             )}
           </ul>
           <Link
-            className="text-sm font-medium text-mit-red no-underline hover:underline"
+            className="text-sm font-medium text-mit-red-ink no-underline hover:underline"
             href={assocHref('prerequisites')}
           >
             {t('assoc_manage_prerequisites')}
@@ -126,7 +126,7 @@ export async function SailingClassEditAssociations(
             )}
           </ul>
           <Link
-            className="text-sm font-medium text-mit-red no-underline hover:underline"
+            className="text-sm font-medium text-mit-red-ink no-underline hover:underline"
             href={assocHref('unlocked-boats')}
           >
             {t('assoc_manage_unlocked_boats')}

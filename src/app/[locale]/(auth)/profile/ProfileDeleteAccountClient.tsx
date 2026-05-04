@@ -7,7 +7,8 @@ import { mapProfileDeleteError } from '@/components/auth/profile/profileAuthErro
 import { ProfileInlineBanner } from '@/components/auth/profile/profileBanner';
 import type { ProfileBannerState } from '@/components/auth/profile/profileBanner';
 import { Button } from '@/components/ui/button';
-import { authInputClassName } from '@/lib/mit-sailing/tokens';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { authClient } from '@/libs/auth-client';
 
 type ProfileDeleteAccountClientProps = {
@@ -60,7 +61,7 @@ export function ProfileDeleteAccountClient(
         className="rounded-lg border border-mit-red bg-mit-red-highlight p-6 shadow-sm"
       >
         <h2
-          className="text-lg font-medium text-mit-red"
+          className="text-lg font-medium text-mit-red-ink"
           id="delete-account-heading"
         >
           {t('delete_account_heading')}
@@ -70,16 +71,12 @@ export function ProfileDeleteAccountClient(
         </p>
         <ProfileInlineBanner banner={deleteBanner} />
         <form className="mt-4 flex flex-col gap-3" onSubmit={onDeleteAccount}>
-          <div className="flex flex-col gap-1">
-            <label
-              className="text-sm font-medium text-mit-text"
-              htmlFor="deleteCurrentPassword"
-            >
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-foreground" htmlFor="deleteCurrentPassword">
               {t('current_password_label')}
-            </label>
-            <input
+            </Label>
+            <Input
               autoComplete="current-password"
-              className={authInputClassName}
               id="deleteCurrentPassword"
               name="currentPassword"
               onChange={(e) => {
@@ -90,15 +87,11 @@ export function ProfileDeleteAccountClient(
               value={deletePassword}
             />
           </div>
-          <div className="flex flex-col gap-1">
-            <label
-              className="text-sm font-medium text-mit-text"
-              htmlFor="deleteConfirm"
-            >
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-foreground" htmlFor="deleteConfirm">
               {t('delete_confirm_label')}
-            </label>
-            <input
-              className="rounded-md border border-mit-line bg-white px-3 py-2 text-mit-text outline-none focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2"
+            </Label>
+            <Input
               id="deleteConfirm"
               name="confirm"
               onChange={(e) => {

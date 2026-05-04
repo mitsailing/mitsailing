@@ -8,7 +8,7 @@ import { FIELD_PLACEHOLDER } from '@/lib/weatherParse';
 import { Link } from '@/libs/I18nNavigation';
 
 const utilityLinkClassName =
-  'text-xs font-medium text-mit-red no-underline rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2';
+  'text-xs font-medium text-primary-ink no-underline rounded-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:text-mit-text dark:hover:text-white';
 
 const conditionsLineRows = [
   {
@@ -62,11 +62,11 @@ function WeatherConditionsChrome(props: ChromeProps) {
   const { placeholders, tMitSite } = props;
 
   return (
-    <div className="border-b border-mit-line bg-mit-surface pt-4 pb-2 sm:py-2">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-4 px-6">
+    <div className="border-b border-mit-line bg-mit-surface pt-4 pb-2 sm:py-2 dark:bg-background dark:backdrop-blur-none">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-4 px-6 sm:px-8">
         <a
           aria-label={tMitSite('conditions_weather_link_aria')}
-          className="min-w-0 flex-1 cursor-pointer rounded-sm text-xs text-mit-text no-underline focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2 focus-visible:outline-none"
+          className="min-w-0 flex-1 cursor-pointer rounded-sm text-xs font-medium text-muted-foreground no-underline transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none dark:text-mit-text dark:hover:text-white"
           href="https://sailing.mit.edu/weather/"
           rel="noopener noreferrer"
           target="_blank"

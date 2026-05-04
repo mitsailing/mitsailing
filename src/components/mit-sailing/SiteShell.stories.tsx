@@ -16,7 +16,7 @@ function SiteShellStoryPreview() {
   const tMitSite = useTranslations('MitSailingSite');
 
   return (
-    <div className="flex min-h-screen flex-col bg-white font-mit-sans text-mit-text">
+    <div className="flex min-h-screen flex-col bg-background font-mit-sans text-foreground">
       <WeatherConditionsBarSkeleton tMitSite={tMitSite} />
       <SiteHeader
         classesDropdownItems={[]}

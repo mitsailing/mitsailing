@@ -1,18 +1,17 @@
 ---
-description: Use tokens.colors for foreground text; primary text is tokens.colors.text (#2D2D2D)
+description: Foreground and MIT tokens — mit-theme.css + tokens.colors; MIT palette per brand.mit.edu/color
 globs: src/lib/mit-sailing/**/*.tsx,src/components/**/*.tsx
 alwaysApply: false
 ---
 
 # Design tokens for color
 
-The **`tokens` object** in [src/lib/mit-sailing/tokens.ts](src/lib/mit-sailing/tokens.ts) is the source of truth for the MIT Sailing marketing palette.
+Single source of **CSS hex**: [`src/styles/mit-theme.css`](src/styles/mit-theme.css). Single source for **TS inline hex** (SVG, charts, rare `style=`): **`tokens.colors`** in [`src/lib/mit-sailing/tokens.ts`](src/lib/mit-sailing/tokens.ts). Institute palette reference: **[MIT Brand Guide — Color](https://brand.mit.edu/color)** — see [mit-brand-colors.mdc](mit-brand-colors.mdc).
 
-- **Foreground text:** use **`tokens.colors.text`** (`#2D2D2D`) for all readable copy—including labels, secondary lines, and captions. For visual hierarchy, use **font size, weight, or spacing**, not a lower-contrast gray without verified contrast.
-- Do not use raw `#2D2D2D`, `#000000`, or `rgb(45, 45, 45)` when **`tokens.colors.text`** applies—use the token so values stay aligned.
-- **Brand reds / surfaces / borders:** use **`tokens.colors.mitRed`**, **`mitRedHover`**, **`mitRedHighlight`**, **`surface`**, **`border`**, etc.—not one-off hexes.
-- **New roles:** add a named entry under `tokens.colors` instead of scattering new hex values in JSX.
+- **Foreground text:** use **`text-foreground`** / **`text-mit-text`** or **`tokens.colors.text`** (`#09090b` in light mode, aligned with `:root --foreground`) for readable copy. For hierarchy, use **font size, weight, or spacing**, not unverified low-contrast gray.
+- **Brand reds:** **`text-mit-red`**, **`bg-primary`**, **`tokens.colors.mitRed`** — optional **`mitRedBright`** for expanded-palette emphasis only.
+- **New color roles:** add a CSS variable in `mit-theme.css`, wire it in `@theme inline`, then expose a **`tokens.colors`** field if TS needs the same value.
 
-**Focus rings / Tailwind arbitrary colors:** If a class needs the same chroma as primary text, keep the value in sync with **`tokens.colors.text`** (see `textFocusRingClassName` in the same file) or refactor so the hex is not duplicated.
+**Focus rings / arbitrary colors:** Align with **`text-mit-text`** / `--ring` (see `textFocusRingClassName`) rather than duplicating hex in many places.
 
-**Authentication UI:** Login, signup, forgot/reset password, verify/unlock flows, and `src/components/auth/*` must use MIT theme utilities (see [mit-auth-ui-colors.mdc](mit-auth-ui-colors.mdc)) — not **`blue-*`** utilities or arbitrary MIT red hex literals.
+**Authentication UI:** Use MIT theme utilities — see [mit-auth-ui-colors.mdc](mit-auth-ui-colors.mdc); avoid **`blue-*`** for primary actions and avoid raw MIT hex literals.

@@ -5,6 +5,7 @@ import { Button } from './button';
 
 const VARIANTS = [
   'default',
+  'mit',
   'outline',
   'secondary',
   'ghost',
@@ -79,6 +80,11 @@ export const Destructive: Story = {
 
 export const Link: Story = {
   args: { variant: 'link' },
+};
+
+/** Institute MIT red — use when `default` maps to neutral primary (e.g. dark theme). */
+export const Mit: Story = {
+  args: { variant: 'mit', children: 'Give now' },
 };
 
 export const SizeXs: Story = {

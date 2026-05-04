@@ -27,25 +27,28 @@ export async function EventDetailView(props: EventDetailViewProps) {
 
   return (
     <article>
-      <p className="mb-4 text-sm text-slate-600">
-        <Link className="text-blue-800 hover:underline" href="/events/">
+      <p className="mb-4 text-sm text-muted-foreground">
+        <Link
+          className="text-primary-ink no-underline hover:underline"
+          href="/events/"
+        >
           {t('back_to_list')}
         </Link>
       </p>
-      <header className="border-b border-slate-200 pb-4">
-        <h1 className="text-3xl font-semibold text-slate-900">{e.name}</h1>
+      <header className="border-b border-border pb-4">
+        <h1 className="text-3xl font-semibold text-foreground">{e.name}</h1>
         {e.shortName && e.shortName !== e.name ? (
-          <p className="mt-1 text-lg text-slate-600">{e.shortName}</p>
+          <p className="mt-1 text-lg text-muted-foreground">{e.shortName}</p>
         ) : null}
-        <p className="mt-2 text-sm text-slate-600">
-          <span className="font-medium text-slate-800">
+        <p className="mt-2 text-sm text-muted-foreground">
+          <span className="font-medium text-foreground">
             {t('field_category')}
             {': '}
           </span>
           {e.category.name}
         </p>
         {e.isSpecial ? (
-          <p className="mt-1 text-sm font-medium text-amber-800 uppercase">
+          <p className="mt-1 text-sm font-medium text-amber-800 uppercase dark:text-amber-400">
             {t('badge_special')}
           </p>
         ) : null}
@@ -54,7 +57,7 @@ export async function EventDetailView(props: EventDetailViewProps) {
       {e.detailPageKind === 'external' && e.externalDetailUrl ? (
         <p className="mt-6">
           <a
-            className="inline-flex items-center rounded-md bg-blue-800 px-4 py-2 text-sm font-medium text-white hover:bg-blue-900"
+            className="inline-flex items-center rounded-md bg-mit-red px-4 py-2 text-sm font-medium text-white no-underline hover:bg-mit-red-hover"
             href={e.externalDetailUrl}
             rel="noopener noreferrer"
             target="_blank"
@@ -64,14 +67,14 @@ export async function EventDetailView(props: EventDetailViewProps) {
         </p>
       ) : null}
 
-      <div className="mt-6 max-w-prose text-base leading-relaxed text-slate-800">
+      <div className="mt-6 max-w-prose text-base leading-relaxed text-foreground">
         <p className="whitespace-pre-wrap">{e.description}</p>
       </div>
 
       {e.dates.length > 0 ? (
         <section className="mt-8" aria-labelledby="event-schedule-heading">
           <h2
-            className="text-lg font-semibold text-slate-900"
+            className="text-lg font-semibold text-foreground"
             id="event-schedule-heading"
           >
             {t('field_schedule')}
@@ -79,7 +82,7 @@ export async function EventDetailView(props: EventDetailViewProps) {
           <ul className="mt-3 list-none space-y-2 p-0">
             {e.dates.map((d) => (
               <li
-                className="rounded border border-slate-100 bg-slate-50 px-3 py-2 text-slate-800"
+                className="rounded border border-border bg-muted px-3 py-2 text-foreground"
                 key={d.id}
               >
                 {formatEasternEventRange(d.startDateTime, d.endDateTime)}

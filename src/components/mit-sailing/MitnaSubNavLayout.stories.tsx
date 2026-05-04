@@ -15,10 +15,10 @@ type Story = StoryObj<typeof meta>;
 /** Production MITNA shell: {@link MitnaSubNavLayout} + localized subnav column. */
 export const SubNavAndContent: Story = {
   render: () => (
-    <div className="mx-auto max-w-7xl rounded-lg border border-mit-line bg-white p-6">
+    <div className="mx-auto max-w-7xl rounded-lg border border-mit-line bg-card p-6">
       <MitnaSubNavLayout
         leading={
-          <span className="text-sm font-semibold text-mit-red">
+          <span className="text-sm font-semibold text-mit-red-ink">
             ← Back to About
           </span>
         }
@@ -27,8 +27,8 @@ export const SubNavAndContent: Story = {
           <h1 className="font-mit-serif text-2xl font-semibold">Overview</h1>
           <p className="mt-2 text-sm leading-6">
             Main column — same composition as{' '}
-            <code className="text-mit-red">MitnaMarketingPageShell</code> routes
-            under <code className="text-mit-red">/about/mitna</code>.
+            <code className="text-mit-red-ink">MitnaMarketingPageShell</code>{' '}
+            routes under <code className="text-mit-red-ink">/about/mitna</code>.
           </p>
         </div>
       </MitnaSubNavLayout>

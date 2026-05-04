@@ -4,7 +4,8 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { authInputClassName } from '@/lib/mit-sailing/tokens';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { authClient } from '@/libs/auth-client';
 
 type ResetPasswordFormProps = {
@@ -71,16 +72,12 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
       ) : null}
 
       <form className="flex flex-col gap-4" onSubmit={onSubmit}>
-        <div className="flex flex-col gap-1">
-          <label
-            className="text-sm font-medium text-mit-text"
-            htmlFor="password"
-          >
+        <div className="flex flex-col gap-1.5">
+          <Label className="text-foreground" htmlFor="password">
             {t('password_label')}
-          </label>
-          <input
+          </Label>
+          <Input
             autoComplete="new-password"
-            className={authInputClassName}
             id="password"
             minLength={8}
             name="password"
@@ -91,19 +88,17 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
             type="password"
             value={password}
           />
-          <span className="text-xs text-mit-text/80">{t('password_hint')}</span>
+          <span className="text-xs text-muted-foreground">
+            {t('password_hint')}
+          </span>
         </div>
 
-        <div className="flex flex-col gap-1">
-          <label
-            className="text-sm font-medium text-mit-text"
-            htmlFor="passwordConfirmation"
-          >
+        <div className="flex flex-col gap-1.5">
+          <Label className="text-foreground" htmlFor="passwordConfirmation">
             {t('password_confirmation_label')}
-          </label>
-          <input
+          </Label>
+          <Input
             autoComplete="new-password"
-            className={authInputClassName}
             id="passwordConfirmation"
             minLength={8}
             name="passwordConfirmation"
@@ -116,7 +111,12 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
           />
         </div>
 
-        <Button className="w-full" disabled={submitting} type="submit">
+        <Button
+          className="w-full"
+          disabled={submitting}
+          type="submit"
+          variant="mit"
+        >
           {t('submit')}
         </Button>
       </form>

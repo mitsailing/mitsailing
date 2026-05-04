@@ -188,7 +188,7 @@ export async function MitSailingHomePageView(
                   title={pavilionHours.sectionTitle}
                 />
                 <div className="grid grid-cols-1 gap-12 md:grid-cols-2">
-                  <div className="space-y-4 rounded-xl border border-mit-line bg-white p-8">
+                  <div className="space-y-4 rounded-xl border border-border bg-card p-8">
                     <table className="w-full text-left text-sm">
                       <tbody>
                         {pavilionHours.schedule.map((row, i) => {
@@ -216,7 +216,7 @@ export async function MitSailingHomePageView(
                     </table>
                     <div className="mt-6 flex gap-3 rounded-lg bg-mit-red-highlight p-4">
                       <Sunset
-                        className="mt-0.5 shrink-0 text-mit-red"
+                        className="mt-0.5 shrink-0 text-primary-ink"
                         size={18}
                       />
                       <p className="text-xs leading-snug text-mit-text">
@@ -277,7 +277,7 @@ export async function MitSailingHomePageView(
             </div>
 
             <div className="relative lg:col-span-4">
-              <div className="rounded-xl border border-mit-line bg-white p-5 lg:sticky lg:top-24">
+              <div className="rounded-xl border border-border bg-card p-5 lg:sticky lg:top-24">
                 <h3 className="mb-4 font-mit-serif text-base font-semibold text-mit-text">
                   {t('upcoming_title')}
                 </h3>
@@ -295,7 +295,7 @@ export async function MitSailingHomePageView(
                         <div
                           className={
                             group.isToday
-                              ? 'border-b border-mit-line pb-1 text-[11px] font-semibold text-mit-red underline'
+                              ? 'border-b border-mit-line pb-1 text-[11px] font-semibold text-primary-ink underline'
                               : 'border-b border-mit-line pb-1 text-[11px] font-semibold text-mit-text'
                           }
                         >
@@ -359,7 +359,7 @@ export async function MitSailingHomePageView(
                 : `${boat.type} · ${boat.capacity} crew`;
               return (
                 <Link
-                  className={`group block overflow-hidden rounded-xl border border-mit-line bg-white no-underline transition-all duration-300 ${textFocusRingClassName}`}
+                  className={`group block overflow-hidden rounded-xl border border-border bg-card no-underline transition-all duration-300 ${textFocusRingClassName}`}
                   href={`/fleet/${boat.slug}/`}
                   key={boat.id}
                 >
@@ -375,7 +375,7 @@ export async function MitSailingHomePageView(
                     />
                   </div>
                   <div className="p-8">
-                    <div className="mb-4 inline-block rounded bg-mit-red-highlight px-3 py-1 text-[11px] font-bold tracking-wider text-mit-red uppercase">
+                    <div className="mb-4 inline-block rounded bg-mit-red-highlight px-3 py-1 text-[11px] font-bold tracking-wider text-primary-ink uppercase">
                       {badge}
                     </div>
                     <h3 className="mb-3 font-mit-serif text-xl font-semibold text-mit-text">
@@ -393,7 +393,7 @@ export async function MitSailingHomePageView(
       </section>
 
       {/* Classes - truncated: include intro + next + CTA; match Figma structure */}
-      <section className="border-b border-mit-line bg-white py-24">
+      <section className="border-b border-border bg-background py-24">
         <div className="mx-auto max-w-7xl px-6">
           <SectionHeader
             subtitle={t('classes_subtitle')}
@@ -401,17 +401,17 @@ export async function MitSailingHomePageView(
           />
           <div className="mx-auto flex max-w-6xl flex-col items-center">
             <div className="w-full">
-              <div className="mb-6 text-center text-[11px] font-bold tracking-widest text-mit-red uppercase">
+              <div className="mb-6 text-center text-[11px] font-bold tracking-widest text-primary-ink uppercase">
                 {t('classes_start_label')}
               </div>
               <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {homeIntroClasses.map((cls) => (
                   <Link
-                    className={`relative flex h-full flex-col overflow-hidden rounded-xl border border-mit-line bg-white p-8 no-underline shadow-sm transition-shadow hover:shadow-sm ${textFocusRingClassName}`}
+                    className={`relative flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card p-8 no-underline shadow-sm transition-shadow hover:shadow-sm ${textFocusRingClassName}`}
                     href={`/classes/${cls.slug}/`}
                     key={cls.id}
                   >
-                    <span className="mb-3 inline-block self-start rounded bg-mit-red-highlight px-2 py-0.5 text-[10px] font-bold tracking-wide text-mit-red uppercase">
+                    <span className="mb-3 inline-block self-start rounded bg-mit-red-highlight px-2 py-0.5 text-[10px] font-bold tracking-wide text-primary-ink uppercase">
                       {cls.level}
                     </span>
                     <h4 className="mb-3 line-clamp-3 font-mit-serif text-[22px] font-bold text-mit-text">
@@ -420,7 +420,7 @@ export async function MitSailingHomePageView(
                     <p className="mb-6 line-clamp-5 text-base leading-relaxed text-mit-text">
                       {cls.description}
                     </p>
-                    <div className="mt-auto flex items-center gap-1 text-xs font-semibold text-mit-red">
+                    <div className="mt-auto flex items-center gap-1 text-xs font-semibold text-primary-ink">
                       <span>{t('class_details')}</span>
                       <ArrowRight aria-hidden size={14} />
                     </div>
@@ -432,7 +432,7 @@ export async function MitSailingHomePageView(
               <div className="absolute inset-0 -z-10 flex items-center justify-center">
                 <div className="h-full w-px bg-mit-line" />
               </div>
-              <div className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-mit-line bg-white text-mit-red">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-border bg-card text-primary-ink">
                 <ArrowDown size={24} />
               </div>
             </div>
@@ -470,11 +470,11 @@ export async function MitSailingHomePageView(
                         {cls.description}
                       </p>
                       <div className="mt-auto flex w-full items-center justify-between">
-                        <span className="rounded border border-mit-line bg-white px-2 py-0.5 text-[10px] font-semibold text-mit-text">
+                        <span className="rounded border border-border bg-muted px-2 py-0.5 text-[10px] font-semibold text-foreground">
                           {reqLabel}
                         </span>
                         <Link
-                          className={`flex items-center gap-1 text-xs font-semibold text-mit-red no-underline hover:underline ${textFocusRingClassName}`}
+                          className={`flex items-center gap-1 text-xs font-semibold text-primary-ink no-underline hover:underline ${textFocusRingClassName}`}
                           href={`/classes/${cls.slug}/`}
                         >
                           {t('course_details')}
@@ -500,7 +500,7 @@ export async function MitSailingHomePageView(
       </section>
 
       {/* Membership */}
-      <section className="border-b border-mit-line bg-white py-24">
+      <section className="border-b border-border bg-background py-24">
         <div className="mx-auto max-w-7xl px-6">
           <SectionHeader
             subtitle={t('membership_subtitle')}
@@ -511,7 +511,7 @@ export async function MitSailingHomePageView(
               <div
                 className={
                   plan.highlight
-                    ? 'relative flex flex-col rounded-xl border-2 border-mit-red bg-white p-8 shadow-[0_12px_32px_-8px_rgba(163,31,52,0.15)] transition-all hover:-translate-y-1'
+                    ? 'relative flex flex-col rounded-xl border-2 border-primary bg-card p-8 shadow-[0_12px_32px_-8px_rgba(163,31,52,0.15)] transition-all hover:-translate-y-1'
                     : 'relative flex flex-col rounded-xl border border-transparent bg-mit-surface p-8 transition-all hover:-translate-y-1'
                 }
                 key={plan.title}
@@ -551,7 +551,7 @@ export async function MitSailingHomePageView(
                   className={
                     plan.highlight
                       ? 'w-full rounded-lg border-2 border-transparent bg-mit-red py-2.5 text-center text-sm font-medium text-white no-underline hover:bg-mit-red-hover'
-                      : 'w-full rounded-lg border border-mit-line bg-white py-2.5 text-center text-sm font-medium text-mit-text no-underline'
+                      : 'w-full rounded-lg border border-border bg-card py-2.5 text-center text-sm font-medium text-card-foreground no-underline'
                   }
                   href={isSignedIn ? '/' : '/signup/'}
                 >
@@ -569,7 +569,7 @@ export async function MitSailingHomePageView(
       </section>
 
       {/* Pavilion rental */}
-      <section className="bg-white py-24">
+      <section className="bg-background py-24">
         <div className="mx-auto max-w-7xl px-6">
           <div className="grid grid-cols-1 items-center gap-16 lg:grid-cols-2">
             <div>
@@ -589,7 +589,10 @@ export async function MitSailingHomePageView(
                   ] as const
                 ).map((line) => (
                   <li className="flex items-center gap-3" key={line}>
-                    <ArrowRight className="shrink-0 text-mit-red" size={16} />
+                    <ArrowRight
+                      className="shrink-0 text-primary-ink"
+                      size={16}
+                    />
                     <span className="text-sm font-medium text-mit-text">
                       {line}
                     </span>
