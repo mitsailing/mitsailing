@@ -13,6 +13,7 @@ import { adminHeaderLinkVisibleFromClientSessionData } from '@/libs/auth/adminHe
 import { Link, usePathname } from '@/libs/I18nNavigation';
 import type { NavigationDropdownItem } from './NavigationDropdown';
 import { NavigationDropdown } from './NavigationDropdown';
+import { SiteBrandWordmarkTypography } from './SiteBrandWordmarkTypography';
 
 const navLinkClass =
   'text-sm font-medium text-mit-text no-underline transition-colors duration-200 hover:text-primary-ink dark:hover:text-white aria-[current=page]:font-semibold aria-[current=page]:text-primary-ink dark:aria-[current=page]:text-white';
@@ -410,10 +411,11 @@ export function SiteHeader(props: SiteHeaderProps) {
                 href="/"
                 onClick={closeMobile}
               >
-                <div className="font-mit-serif text-[22px] font-bold tracking-tight text-mit-text dark:text-white">
-                  <span>{t('site_brand_mit')}</span>
-                  <span className="ml-1">{t('site_brand_sailing')}</span>
-                </div>
+                <SiteBrandWordmarkTypography
+                  mitLabel={t('site_brand_mit')}
+                  sailingLabel={t('site_brand_sailing')}
+                  variant="shell"
+                />
               </Link>
               <Button
                 aria-controls="site-header-mobile-menu"
@@ -443,10 +445,11 @@ export function SiteHeader(props: SiteHeaderProps) {
           className="flex cursor-pointer items-center gap-2 no-underline"
           href="/"
         >
-          <div className="font-mit-serif text-[22px] font-bold tracking-tight text-mit-text dark:text-white">
-            <span>{t('site_brand_mit')}</span>
-            <span className="ml-1">{t('site_brand_sailing')}</span>
-          </div>
+          <SiteBrandWordmarkTypography
+            mitLabel={t('site_brand_mit')}
+            sailingLabel={t('site_brand_sailing')}
+            variant="shell"
+          />
         </Link>
 
         <nav
