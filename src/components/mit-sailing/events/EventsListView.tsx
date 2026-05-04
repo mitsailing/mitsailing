@@ -28,32 +28,32 @@ export async function EventsListView(props: EventsListViewProps) {
   });
 
   if (props.events.length === 0) {
-    return <p className="text-slate-600">{t('list_empty')}</p>;
+    return <p className="text-muted-foreground">{t('list_empty')}</p>;
   }
 
   return (
     <ul className="flex flex-col gap-4">
       {props.events.map((e) => (
         <li key={e.id}>
-          <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+          <article className="rounded-lg border border-border bg-card p-5 text-card-foreground shadow-sm">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h2 className="text-lg font-semibold text-slate-900">
+              <h2 className="text-lg font-semibold text-foreground">
                 <Link
-                  className="text-blue-800 hover:underline"
+                  className="text-primary-ink no-underline hover:underline"
                   href={`/events/${e.slug}/`}
                 >
                   {e.name}
                 </Link>
                 {e.isSpecial ? (
-                  <span className="ms-2 text-xs font-medium text-amber-700 uppercase">
+                  <span className="ms-2 text-xs font-medium text-amber-800 uppercase dark:text-amber-400">
                     {t('badge_special')}
                   </span>
                 ) : null}
               </h2>
-              <p className="text-sm text-slate-500">{e.category.name}</p>
+              <p className="text-sm text-muted-foreground">{e.category.name}</p>
             </div>
             {e.dates[0] ? (
-              <p className="mt-2 text-sm text-slate-600">
+              <p className="mt-2 text-sm text-muted-foreground">
                 {e.dates[0].endDateTime
                   ? formatEasternEventRange(
                       e.dates[0].startDateTime,
@@ -62,7 +62,7 @@ export async function EventsListView(props: EventsListViewProps) {
                   : formatEasternDateTime(e.dates[0].startDateTime)}
               </p>
             ) : null}
-            <p className="mt-2 line-clamp-2 text-sm text-slate-700">
+            <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
               {e.description}
             </p>
           </article>

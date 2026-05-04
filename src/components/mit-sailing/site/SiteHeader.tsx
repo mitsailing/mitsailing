@@ -13,10 +13,12 @@ import { adminHeaderLinkVisibleFromClientSessionData } from '@/libs/auth/adminHe
 import { Link, usePathname } from '@/libs/I18nNavigation';
 import type { NavigationDropdownItem } from './NavigationDropdown';
 import { NavigationDropdown } from './NavigationDropdown';
+import { SiteBrandWordmarkTypography } from './SiteBrandWordmarkTypography';
 
 const navLinkClass =
-  'text-sm font-medium text-mit-text no-underline transition-opacity hover:opacity-70';
-const mobileLinkClassName = `min-h-[44px] rounded-sm py-3 no-underline transition-opacity hover:opacity-70 focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2 focus-visible:outline-none ${navLinkClass}`;
+  'text-sm font-medium text-mit-text no-underline transition-colors duration-200 hover:text-primary-ink dark:hover:text-white aria-[current=page]:font-semibold aria-[current=page]:text-primary-ink dark:aria-[current=page]:text-white';
+
+const mobileLinkClassName = `min-h-[44px] rounded-sm py-3 focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none ${navLinkClass}`;
 
 type NavConfigItem = {
   labelKey:
@@ -55,21 +57,21 @@ const desktopAuthOuterClass =
   'hidden min-h-[42px] min-w-[280px] items-center justify-end gap-2 lg:flex';
 
 const desktopGuestLoginClass =
-  'inline-flex items-center justify-center rounded-lg px-4 py-2.5 text-sm font-medium text-mit-red no-underline transition-opacity hover:opacity-70 focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2 focus-visible:outline-none';
+  'inline-flex items-center justify-center rounded-lg px-4 py-2.5 text-sm font-medium text-primary-ink no-underline transition-colors duration-200 dark:text-white dark:hover:text-white/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none';
 
 const desktopGuestSignupClass =
-  'inline-flex items-center justify-center rounded-lg bg-mit-red px-6 py-2.5 text-sm font-medium text-white no-underline transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2 focus-visible:outline-none';
+  'inline-flex items-center justify-center rounded-lg bg-mit-red px-6 py-2.5 text-sm font-medium text-white no-underline shadow-sm transition-colors duration-200 hover:bg-mit-red-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none';
 
 const desktopSignOutClass = `${desktopGuestLoginClass} cursor-pointer border-none bg-transparent disabled:opacity-60`;
 
 const mobileGuestLoginClass =
-  'inline-flex min-h-[44px] items-center justify-center rounded-lg py-3 text-sm font-medium text-mit-red no-underline transition-opacity hover:opacity-70 focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2 focus-visible:outline-none';
+  'inline-flex min-h-[44px] items-center justify-center rounded-lg py-3 text-sm font-medium text-primary-ink no-underline transition-colors duration-200 dark:text-white dark:hover:text-white/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none';
 
 const mobileGuestSignupClass =
-  'inline-flex min-h-[44px] items-center justify-center rounded-lg bg-mit-red px-6 py-2.5 text-sm font-medium text-white no-underline transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2 focus-visible:outline-none';
+  'inline-flex min-h-[44px] items-center justify-center rounded-lg bg-mit-red px-6 py-2.5 text-sm font-medium text-white no-underline shadow-sm transition-colors duration-200 hover:bg-mit-red-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none';
 
 const mobileSignOutClass =
-  'inline-flex min-h-[44px] w-full cursor-pointer items-center justify-center rounded-lg border border-mit-red px-6 py-2.5 text-sm font-medium text-mit-red transition-opacity hover:opacity-70 focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-60';
+  'inline-flex min-h-[44px] w-full cursor-pointer items-center justify-center rounded-lg border border-mit-red px-6 py-2.5 text-sm font-medium text-mit-red-ink transition-colors duration-200 hover:bg-mit-red/10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none disabled:opacity-60';
 
 function sessionHasUser(data: unknown): data is { user: { id: string } } {
   if (!data || typeof data !== 'object') {
@@ -217,10 +219,7 @@ export function SiteHeader(props: SiteHeaderProps) {
       );
     }
 
-    const externalClassName =
-      variant === 'desktop'
-        ? `${flatLinkClass} transition-colors hover:opacity-70`
-        : flatLinkClass;
+    const externalClassName = flatLinkClass;
 
     return (
       <a
@@ -398,7 +397,7 @@ export function SiteHeader(props: SiteHeaderProps) {
           <div
             aria-labelledby={mobileNavHeadingId}
             aria-modal="true"
-            className="fixed inset-0 z-[53] flex h-[100dvh] flex-col overflow-hidden bg-white pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] motion-safe:animate-in motion-safe:duration-200 motion-safe:fade-in motion-reduce:animate-none lg:hidden"
+            className="fixed inset-0 z-[53] flex h-[100dvh] flex-col overflow-hidden bg-background pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] motion-safe:animate-in motion-safe:duration-200 motion-safe:fade-in motion-reduce:animate-none lg:hidden"
             id="site-header-mobile-menu"
             ref={mobileOverlayRef}
             role="dialog"
@@ -408,16 +407,15 @@ export function SiteHeader(props: SiteHeaderProps) {
             </h2>
             <div className="flex min-h-[4rem] shrink-0 items-center justify-between border-b border-mit-line px-6">
               <Link
-                className="flex cursor-pointer items-center gap-2 no-underline focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2 focus-visible:outline-none"
+                className="flex cursor-pointer items-center gap-2 no-underline focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
                 href="/"
                 onClick={closeMobile}
               >
-                <div className="font-mit-serif text-[22px] font-bold tracking-tight text-mit-red">
-                  {t('site_brand_mit')}
-                  <span className="ml-1 text-mit-text">
-                    {t('site_brand_sailing')}
-                  </span>
-                </div>
+                <SiteBrandWordmarkTypography
+                  mitLabel={t('site_brand_mit')}
+                  sailingLabel={t('site_brand_sailing')}
+                  variant="shell"
+                />
               </Link>
               <Button
                 aria-controls="site-header-mobile-menu"
@@ -441,23 +439,22 @@ export function SiteHeader(props: SiteHeaderProps) {
       : null;
 
   return (
-    <header className="sticky top-0 z-50 border-b border-mit-line bg-white/80 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
+    <header className="sticky top-0 z-50 border-b border-mit-line bg-background/85 backdrop-blur-md backdrop-saturate-150 dark:bg-background dark:backdrop-blur-none">
+      <div className="mx-auto flex h-[4.25rem] max-w-7xl items-center justify-between gap-4 px-6 sm:px-8">
         <Link
           className="flex cursor-pointer items-center gap-2 no-underline"
           href="/"
         >
-          <div className="font-mit-serif text-[22px] font-bold tracking-tight text-mit-red">
-            {t('site_brand_mit')}
-            <span className="ml-1 text-mit-text">
-              {t('site_brand_sailing')}
-            </span>
-          </div>
+          <SiteBrandWordmarkTypography
+            mitLabel={t('site_brand_mit')}
+            sailingLabel={t('site_brand_sailing')}
+            variant="shell"
+          />
         </Link>
 
         <nav
           aria-label={primaryNavAria}
-          className="hidden items-center gap-8 lg:flex"
+          className="hidden items-center gap-6 lg:flex xl:gap-7"
         >
           {navItems.map((item) =>
             primaryNavBranch({

@@ -35,7 +35,7 @@ export async function SiteShell(props: SiteShellProps) {
   const tMitSite = await getTranslations('MitSailingSite');
 
   return (
-    <div className="flex min-h-screen flex-col bg-white font-mit-sans text-mit-text">
+    <div className="flex min-h-screen flex-col bg-background font-mit-sans text-mit-text">
       <Suspense fallback={<WeatherConditionsBarSkeleton tMitSite={tMitSite} />}>
         <WeatherConditionsBar tMitSite={tMitSite} />
       </Suspense>

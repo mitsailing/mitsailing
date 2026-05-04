@@ -16,7 +16,7 @@ import {
 import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
 import { Link } from '@/libs/I18nNavigation';
 
-const accent = `font-semibold text-mit-red no-underline hover:underline ${textFocusRingClassName}`;
+const accent = `font-semibold text-mit-red-ink no-underline hover:underline ${textFocusRingClassName}`;
 
 /** Matches {@link SiteSectionMain} default column; inner wrapper while section bands stay full-viewport. */
 const aboutSectionInner = 'mx-auto w-full max-w-5xl px-6';
@@ -48,7 +48,7 @@ function StaffCardImage(props: {
 }) {
   if (props.imageSrc && props.imageAlt) {
     return (
-      <div className="relative aspect-16/10 w-full overflow-hidden bg-[#f0f0f0]">
+      <div className="relative aspect-16/10 w-full overflow-hidden bg-muted">
         <Image
           alt={props.imageAlt}
           className="h-full w-full object-cover object-top"
@@ -64,11 +64,7 @@ function StaffCardImage(props: {
     <div className="border-b border-mit-line px-8 pt-8 pb-2">
       <div
         aria-hidden
-        className="flex h-14 w-14 items-center justify-center rounded-full font-mit-serif text-xl font-bold"
-        style={{
-          backgroundColor: 'var(--color-mit-red-highlight, #fef2f2)',
-          color: 'var(--color-mit-red, #a31f34)',
-        }}
+        className="flex h-14 w-14 items-center justify-center rounded-full bg-mit-red-highlight font-mit-serif text-xl font-bold text-mit-red-ink"
       >
         {props.name
           .split(' ')
@@ -103,7 +99,7 @@ function PillarCta(props: { href: string; label: string }) {
 export function AboutPageView() {
   return (
     <div className="min-h-0 min-w-0">
-      <section className="border-b border-mit-line bg-white py-16 md:py-24">
+      <section className="border-b border-mit-line bg-background py-16 md:py-24">
         <div className={aboutSectionInner}>
           <h1 className="mb-6 font-mit-serif text-3xl leading-tight font-bold text-mit-text md:text-4xl">
             About MIT Sailing
@@ -133,7 +129,7 @@ export function AboutPageView() {
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             {missionPillars.map((pillar) => (
               <div
-                className="flex h-full flex-col rounded-xl border border-mit-line bg-white p-8"
+                className="flex h-full flex-col rounded-xl border border-mit-line bg-card p-8"
                 key={pillar.title}
               >
                 <h4 className="mb-3 font-mit-serif text-lg font-semibold text-mit-text">
@@ -151,7 +147,7 @@ export function AboutPageView() {
         </div>
       </section>
 
-      <section className="border-b border-mit-line bg-white py-16 md:py-24">
+      <section className="border-b border-mit-line bg-background py-16 md:py-24">
         <div className={aboutSectionInner}>
           <SectionHeader
             subtitle="From the first college sailing facility to a busy Charles River hub."
@@ -161,7 +157,7 @@ export function AboutPageView() {
             {historyBlocks.map((block) => (
               <div className="flex items-start gap-4" key={block.text}>
                 {block.year ? (
-                  <span className="shrink-0 rounded-md bg-mit-red-highlight px-3 py-1 text-[11px] font-bold tracking-wider text-mit-red uppercase">
+                  <span className="shrink-0 rounded-md bg-mit-red-highlight px-3 py-1 text-[11px] font-bold tracking-wider text-mit-red-ink uppercase">
                     {block.year}
                   </span>
                 ) : (
@@ -198,7 +194,7 @@ export function AboutPageView() {
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
             {staff.map((person) => (
               <article
-                className="flex h-full flex-col overflow-hidden rounded-xl border border-mit-line bg-white"
+                className="flex h-full flex-col overflow-hidden rounded-xl border border-mit-line bg-card"
                 key={person.name}
               >
                 <StaffCardImage
@@ -234,7 +230,7 @@ export function AboutPageView() {
         </div>
       </section>
 
-      <section className="border-b border-mit-line bg-white py-16 md:py-24">
+      <section className="border-b border-mit-line bg-background py-16 md:py-24">
         <div className={aboutSectionInner}>
           <SectionHeader title="Volunteer" />
           <p className="mb-12 max-w-3xl text-base leading-relaxed text-mit-text">
@@ -297,7 +293,7 @@ export function AboutPageView() {
             subtitle="Coaching, skills help, and rating tests when volunteers and staff are on the dock."
             title="Dock hours"
           />
-          <div className="max-w-3xl rounded-xl border border-l-4 border-mit-line border-l-mit-red bg-white p-8">
+          <div className="max-w-3xl rounded-xl border border-l-4 border-mit-line border-l-mit-red bg-card p-8">
             <p className="mb-6 text-base leading-relaxed text-mit-text">
               {dockHours.lead}
             </p>

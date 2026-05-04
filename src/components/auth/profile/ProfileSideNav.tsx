@@ -47,7 +47,7 @@ export function ProfileSideNav() {
     <div
       className={cn(
         'relative flex h-full min-h-0 grow flex-col overflow-y-auto',
-        'border-mit-line bg-white px-4 pt-2 pb-3 md:px-5 md:pt-3 md:pb-4',
+        'border-mit-line bg-card px-4 pt-2 pb-3 md:px-5 md:pt-3 md:pb-4',
         'border-b md:border-b-0 md:border-r'
       )}
     >
@@ -75,7 +75,7 @@ export function ProfileSideNav() {
                         'block rounded-md px-2 py-1.5 text-left text-sm font-semibold text-mit-text leading-6 no-underline',
                         rowFocus,
                         active
-                          ? 'bg-mit-surface text-mit-red'
+                          ? 'bg-mit-surface text-mit-red-ink'
                           : 'hover:bg-mit-surface'
                       )}
                       href={item.href}

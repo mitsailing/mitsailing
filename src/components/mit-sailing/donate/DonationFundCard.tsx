@@ -40,7 +40,7 @@ export function DonationFundCard(props: DonationFundCardProps) {
           <Button
             className="w-full px-5 md:w-auto"
             size="lg"
-            variant="default"
+            variant="mit"
             asChild
           >
             <a href={props.url} target="_blank" rel="noopener noreferrer">

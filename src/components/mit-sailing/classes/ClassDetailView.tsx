@@ -27,7 +27,7 @@ export async function ClassDetailView(props: ClassDetailViewProps) {
   return (
     <>
       <Link
-        className={`mb-8 inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-mit-red no-underline hover:underline ${textFocusRingClassName}`}
+        className={`mb-8 inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-mit-red-ink no-underline hover:underline ${textFocusRingClassName}`}
         href="/classes/"
       >
         <ArrowLeft aria-hidden size={16} />
@@ -53,7 +53,7 @@ export async function ClassDetailView(props: ClassDetailViewProps) {
             {cl.prerequisites.map((pre) => (
               <li className={bodyClass} key={pre.id}>
                 <Link
-                  className={`font-semibold text-mit-red hover:underline ${textFocusRingClassName}`}
+                  className={`font-semibold text-mit-red-ink hover:underline ${textFocusRingClassName}`}
                   href={`/classes/${pre.slug}/`}
                 >
                   {pre.name}
@@ -74,7 +74,7 @@ export async function ClassDetailView(props: ClassDetailViewProps) {
               {event ? (
                 <>
                   <Link
-                    className={`text-base font-semibold text-mit-red hover:underline ${textFocusRingClassName}`}
+                    className={`text-base font-semibold text-mit-red-ink hover:underline ${textFocusRingClassName}`}
                     href={`/events/${event.slug}/`}
                   >
                     {event.name}
@@ -83,7 +83,7 @@ export async function ClassDetailView(props: ClassDetailViewProps) {
                     <p className="mt-2 mb-0 text-sm text-mit-text">
                       {t('related_events_empty')}{' '}
                       <Link
-                        className={`font-semibold text-mit-red hover:underline ${textFocusRingClassName}`}
+                        className={`font-semibold text-mit-red-ink hover:underline ${textFocusRingClassName}`}
                         href="/events/"
                       >
                         {t('related_events_calendar')}
@@ -122,7 +122,7 @@ export async function ClassDetailView(props: ClassDetailViewProps) {
             {cl.unlockedBoats.map((boat) => (
               <li key={boat.id}>
                 <Link
-                  className={`text-base font-semibold text-mit-red hover:underline ${textFocusRingClassName}`}
+                  className={`text-base font-semibold text-mit-red-ink hover:underline ${textFocusRingClassName}`}
                   href={`/fleet/${boat.slug}/`}
                 >
                   {boat.name}

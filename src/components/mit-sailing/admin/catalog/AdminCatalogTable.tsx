@@ -23,6 +23,16 @@ import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { AdminCatalogListCell } from '@/components/mit-sailing/admin/catalog/AdminCatalogListCell';
+import { Button } from '@/components/ui/button';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { cn } from '@/lib/utils';
 import {
   adminCatalogResourceDeletePath,
   adminCatalogResourceEditPath,
@@ -85,28 +95,33 @@ function SortableRow(props: {
 
   return (
     <tr
-      className={isDragging ? 'bg-mit-surface opacity-80' : undefined}
+      className={cn(
+        'border-b transition-colors hover:bg-muted/50',
+        isDragging ? 'bg-mit-surface opacity-80' : undefined
+      )}
       ref={setNodeRef}
       style={style}
     >
-      <td className="w-10 px-2 py-3 align-middle">
-        <button
+      <TableCell className="w-10 px-2 py-3 align-middle">
+        <Button
           aria-label={props.dragLabel}
-          className="cursor-grab touch-none rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-800 active:cursor-grabbing"
+          className="cursor-grab touch-none text-muted-foreground hover:text-foreground"
+          size="icon-sm"
           type="button"
+          variant="ghost"
           {...attributes}
           {...listeners}
         >
           <GripVertical aria-hidden className="size-5" />
-        </button>
-      </td>
+        </Button>
+      </TableCell>
       {props.children}
     </tr>
   );
 }
 
 function StaticRow(props: { children: React.ReactNode }) {
-  return <tr>{props.children}</tr>;
+  return <TableRow>{props.children}</TableRow>;
 }
 
 /**
@@ -226,7 +241,7 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
           ? editHref(String(row.id))
           : undefined;
       return (
-        <td key={col.field} className="px-4 py-3 text-mit-text">
+        <TableCell key={col.field} className="px-4 py-3 text-foreground">
           <AdminCatalogListCell
             booleanPolarity={col.booleanPolarity}
             field={col.field}
@@ -235,20 +250,20 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
             messageNamespace={props.messageNamespace}
             row={row}
           />
-        </td>
+        </TableCell>
       );
     });
     const actions = (
-      <td className="px-4 py-3">
+      <TableCell className="px-4 py-3">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <Link
-            className="text-sm font-medium text-mit-red no-underline hover:underline"
+            className="text-sm font-medium text-mit-red-ink no-underline hover:underline"
             href={editHref(String(row.id))}
           >
             {t('action_edit')}
           </Link>
           <Link
-            className="text-sm font-medium text-mit-red no-underline hover:underline"
+            className="text-sm font-medium text-mit-red-ink no-underline hover:underline"
             href={deleteHref(String(row.id))}
           >
             {t('action_delete')}
@@ -267,7 +282,7 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
             />
           ) : null}
         </div>
-      </td>
+      </TableCell>
     );
     return (
       <>
@@ -291,29 +306,32 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
           onDragEnd={handleDragEnd}
           sensors={sensors}
         >
-          <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-            <table className="w-full min-w-[720px] text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-slate-700">
-                <tr>
-                  <th
+          <div className="rounded-lg border border-border bg-card">
+            <Table className="min-w-[720px] text-left">
+              <TableHeader>
+                <TableRow className="border-b bg-muted/50 hover:bg-muted/50">
+                  <TableHead
                     aria-label={t('drag_handle_aria')}
                     className="w-10 px-2 py-3"
                   />
                   {displayColumns.map((col) => (
-                    <th key={col.field} className="px-4 py-3 font-medium">
+                    <TableHead
+                      key={col.field}
+                      className="px-4 py-3 font-medium"
+                    >
                       {t(col.headerKey)}
-                    </th>
+                    </TableHead>
                   ))}
-                  <th className="px-4 py-3 font-medium">
+                  <TableHead className="px-4 py-3 font-medium">
                     {t('column_actions')}
-                  </th>
-                </tr>
-              </thead>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
               <SortableContext
                 items={orderedIds}
                 strategy={verticalListSortingStrategy}
               >
-                <tbody className="divide-y divide-slate-200">
+                <TableBody>
                   {orderedRows.map((row) => (
                     <SortableRow
                       dragLabel={t('drag_handle_aria')}
@@ -323,30 +341,32 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
                       {renderCells(row)}
                     </SortableRow>
                   ))}
-                </tbody>
+                </TableBody>
               </SortableContext>
-            </table>
+            </Table>
           </div>
         </DndContext>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-          <table className="w-full min-w-[720px] text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-slate-700">
-              <tr>
+        <div className="rounded-lg border border-border bg-card">
+          <Table className="min-w-[720px] text-left">
+            <TableHeader>
+              <TableRow className="border-b bg-muted/50 hover:bg-muted/50">
                 {displayColumns.map((col) => (
-                  <th key={col.field} className="px-4 py-3 font-medium">
+                  <TableHead key={col.field} className="px-4 py-3 font-medium">
                     {t(col.headerKey)}
-                  </th>
+                  </TableHead>
                 ))}
-                <th className="px-4 py-3 font-medium">{t('column_actions')}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200">
+                <TableHead className="px-4 py-3 font-medium">
+                  {t('column_actions')}
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {orderedRows.map((row) => (
                 <StaticRow key={String(row.id)}>{renderCells(row)}</StaticRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
     </div>

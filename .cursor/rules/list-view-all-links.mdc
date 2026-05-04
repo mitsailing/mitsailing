@@ -10,7 +10,7 @@ For **list-style blocks** (stacked rows or grids of items inside a card or colum
 
 - Do **not** put the primary **"View all …"** / calendar-style navigation in the title row beside the section heading (`flex justify-between` with a link opposite the title).
 - Place the aggregate link **immediately below** the list, **centered**, in a wrapper such as `mt-8 flex justify-center w-full`.
-- Match the **View all classes** / **View all events** pattern: `<a>` with `inline-flex items-center gap-1 hover:underline`, **`tokens.colors.mitRed`**, **`tokens.typography.small`**, **`fontWeight: 600`**, and **`ArrowRight` size 16** after the label from [src/lib/mit-sailing/tokens.ts](src/lib/mit-sailing/tokens.ts).
+- Match the **View all classes** / **View all events** pattern: `<a>` with `inline-flex items-center gap-1 hover:underline`, **`text-sm font-semibold text-mit-red`** (or `text-primary`), and **`ArrowRight` size 16** after the label. For inline `style`/`color` props, use **`tokens.colors.mitRed`** from [src/lib/mit-sailing/tokens.ts](src/lib/mit-sailing/tokens.ts).
 
 **Exception:** **Section header** `action` props (e.g. fleet **"View all boats & ratings"**) are **section-level** CTAs in the page header component, not in-card enumerated lists. This rule applies to in-card lists only.
 

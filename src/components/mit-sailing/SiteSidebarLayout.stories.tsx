@@ -27,9 +27,9 @@ function PlaceholderRail() {
 
 function StretchRail() {
   return (
-    <div className="flex h-full min-h-0 flex-col rounded-lg border border-mit-line bg-white px-3 py-3">
+    <div className="flex h-full min-h-0 flex-col rounded-lg border border-mit-line bg-card px-3 py-3">
       <nav aria-label="Example" className="flex flex-col gap-1">
-        <span className="rounded-md bg-mit-surface px-2 py-1.5 text-sm font-semibold text-mit-red">
+        <span className="rounded-md bg-mit-surface px-2 py-1.5 text-sm font-semibold text-mit-red-ink">
           Active
         </span>
         <span className="rounded-md px-2 py-1.5 text-sm font-medium text-mit-text">
@@ -50,9 +50,9 @@ function SampleMain(props: { tall?: boolean }) {
         Main column
       </h1>
       <p className="mt-2 text-sm leading-6">
-        Uses <code className="text-mit-red">minmax(0,1fr)</code> so long prose
-        and wide tables stay inside the grid without forcing horizontal page
-        scroll.
+        Uses <code className="text-mit-red-ink">minmax(0,1fr)</code> so long
+        prose and wide tables stay inside the grid without forcing horizontal
+        page scroll.
       </p>
       {props.tall ? (
         <div className="mt-6 space-y-3 text-sm leading-6">
@@ -70,7 +70,7 @@ function SampleMain(props: { tall?: boolean }) {
 }
 
 const chrome =
-  'mx-auto max-w-7xl rounded-lg border border-mit-line bg-white p-6';
+  'mx-auto max-w-7xl rounded-lg border border-mit-line bg-card p-6';
 
 /** Wider rail + smaller gaps — same preset as marketing `/admin`. */
 export const ComfortableStretch: Story = {
@@ -101,7 +101,7 @@ export const CompactMitnaNav: Story = {
       <SiteSidebarLayout
         density="compact"
         leading={
-          <span className="text-sm font-semibold text-mit-red">
+          <span className="text-sm font-semibold text-mit-red-ink">
             ← Back (leading slot)
           </span>
         }
