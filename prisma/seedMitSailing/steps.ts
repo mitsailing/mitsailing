@@ -104,6 +104,7 @@ export async function seedSailingClassesAndBoats(
   p: PrismaClient
 ): Promise<void> {
   const displayOrderByCategory = new Map<string, number>();
+  const seedEditorUserId = 'user-ak';
 
   function nextDisplayOrder(categoryKey: string): number {
     const n = displayOrderByCategory.get(categoryKey) ?? 0;
@@ -125,6 +126,8 @@ export async function seedSailingClassesAndBoats(
         description: cl.description,
         displayOrder,
         isVisible: true,
+        createdByUserId: seedEditorUserId,
+        updatedByUserId: seedEditorUserId,
       },
       update: {
         name: cl.name,
@@ -133,6 +136,7 @@ export async function seedSailingClassesAndBoats(
         description: cl.description,
         displayOrder,
         isVisible: true,
+        updatedByUserId: seedEditorUserId,
       },
     });
 
@@ -164,6 +168,8 @@ export async function seedSailingClassesAndBoats(
         description: b.description,
         imagePaths: b.images,
         isVisible: true,
+        createdByUserId: seedEditorUserId,
+        updatedByUserId: seedEditorUserId,
       },
       update: {
         name: b.name,
@@ -174,6 +180,7 @@ export async function seedSailingClassesAndBoats(
         description: b.description,
         imagePaths: b.images,
         isVisible: true,
+        updatedByUserId: seedEditorUserId,
       },
     });
   }

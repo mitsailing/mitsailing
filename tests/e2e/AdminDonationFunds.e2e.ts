@@ -70,7 +70,12 @@ test.describe('Admin donation funds', () => {
     );
     await published.check();
     await page.getByRole('button', { name: 'Save' }).click();
-    await expect(page).toHaveURL(/\/admin\/donation_funds\/?$/);
+    await expect(page).toHaveURL(
+      new RegExp(`/admin/donation_funds/${hiddenFundId}/edit/?$`)
+    );
+    await expect(page.getByRole('status').getByText('Saved.')).toBeVisible();
+    await published.uncheck();
+    await published.check();
 
     await page.goto('/donate');
     await expect(
@@ -82,7 +87,10 @@ test.describe('Admin donation funds', () => {
       .locator('form input[name="isVisible"][type="checkbox"]')
       .uncheck();
     await page.getByRole('button', { name: 'Save' }).click();
-    await expect(page).toHaveURL(/\/admin\/donation_funds\/?$/);
+    await expect(page).toHaveURL(
+      new RegExp(`/admin/donation_funds/${hiddenFundId}/edit/?$`)
+    );
+    await expect(page.getByRole('status').getByText('Saved.')).toBeVisible();
 
     await page.goto('/donate');
     await expect(

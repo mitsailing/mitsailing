@@ -97,6 +97,11 @@ Fill at least:
   into the image by GitHub Actions (`deploy.yml` `build-arg`); the production
   host’s `.env.production` should use the **same** value for runtime `Env`
   (the host file is **not** read during the CI image build).
+- `NEXT_PUBLIC_CKEDITOR_LICENSE_KEY` — public CKEditor browser license key
+  baked into the client bundle during the GitHub Actions image build. Set it as
+  a production environment **variable** (not a secret) and restrict the key to
+  approved hosts in the CKEditor Customer Portal. The host `.env.production` is
+  not read by `next build`.
 - `CLOUDFLARE_TUNNEL_TOKEN` from the Cloudflare Zero Trust dashboard
 - `RESEND_API_KEY`, `EMAIL_FROM`, `SUPPORT_EMAIL` (real mail; there is no
   Mailpit in production)
@@ -115,7 +120,8 @@ single-node deploys have basic abuse protection. Upload outcomes are written to
 **`audit_log`** (for example `cms_upload_post`, `cms_upload_rate_limited`,
 `cms_upload_idempotent_replay`). Clients should send **`Idempotency-Key`**
 (unique per logical upload) to dedupe retries; **`GET /api/uploads/...`**
-supports **`ETag` / `If-None-Match`**. For **orphans**, reconcile the
+serves verified uploaded CMS blobs with **`ETag` / `If-None-Match`** so
+published pages can render embedded images. For **orphans**, reconcile the
 **`uploads`** table against files under **`UPLOAD_DIR`** periodically (SQL +
 `find`); delete only after confirming nothing in published HTML still references
 the object.

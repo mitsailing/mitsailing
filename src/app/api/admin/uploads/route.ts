@@ -49,8 +49,8 @@ export async function GET(request: NextRequest) {
 
 /**
  * Accepts a multipart `file` from admins, writes under the configured upload
- * root (`UPLOAD_DIR`), persists metadata, and returns a session-gated URL
- * for rich text embeds.
+ * root (`UPLOAD_DIR`), persists metadata, and returns a CMS image URL for rich
+ * text embeds.
  *
  * @param request - Multipart request with `file` field
  * @returns JSON with `url` or an error payload

@@ -10,9 +10,10 @@
  * pattern if catalog forms need inline errors without a full round-trip redirect.
  */
 
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, updateTag } from 'next/cache';
 import { redirect } from 'next/navigation';
 import * as z from 'zod';
+import { sitemapCatalogCacheTag } from '@/app/sitemap';
 import {
   adminCatalogResourceDeletePath,
   adminCatalogResourceEditPath,
@@ -64,6 +65,7 @@ function revalidateAfterCatalogMutation(
     getI18nPath(adminCatalogResourceIndexPath(resourceId), locale),
     'layout'
   );
+  updateTag(sitemapCatalogCacheTag);
 }
 
 function catalogEditErrorRedirect(

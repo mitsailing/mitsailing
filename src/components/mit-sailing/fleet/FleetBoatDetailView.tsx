@@ -1,6 +1,7 @@
 import { ArrowLeft } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import Image from 'next/image';
+import { AdminEditLink } from '@/components/mit-sailing/AdminEditLink';
 import { SanitizedMarketingHtml } from '@/components/mit-sailing/marketing/SanitizedMarketingHtml';
 import { getFleetBoatMarketingHeroSrc } from '@/lib/mit-sailing/fleetBoatMarketingImages';
 import { marketingRichTextArticleClassName } from '@/lib/mit-sailing/marketingRichTextContentClassName';
@@ -9,6 +10,7 @@ import { Link } from '@/libs/I18nNavigation';
 import type { FleetBoatDetail } from '@/libs/mit-sailing/fleetQueries';
 
 type FleetBoatDetailViewProps = {
+  adminEditHref?: string;
   locale: string;
   boat: FleetBoatDetail;
 };
@@ -29,13 +31,18 @@ export async function FleetBoatDetailView(props: FleetBoatDetailViewProps) {
 
   return (
     <>
-      <Link
-        className={`mb-8 inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-mit-red no-underline hover:underline ${textFocusRingClassName}`}
-        href="/fleet/"
-      >
-        <ArrowLeft aria-hidden size={16} />
-        {t('back_to_fleet')}
-      </Link>
+      <div className="mb-8 flex items-center justify-between gap-4">
+        <Link
+          className={`inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-mit-red no-underline hover:underline ${textFocusRingClassName}`}
+          href="/fleet/"
+        >
+          <ArrowLeft aria-hidden size={16} />
+          {t('back_to_fleet')}
+        </Link>
+        {props.adminEditHref ? (
+          <AdminEditLink href={props.adminEditHref} locale={props.locale} />
+        ) : null}
+      </div>
       <h1 className="mb-3 font-mit-serif text-[clamp(1.75rem,4vw,2.25rem)] leading-tight font-semibold tracking-tight text-mit-text">
         {boat.name}
       </h1>

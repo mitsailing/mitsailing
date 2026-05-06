@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useActionState, useState } from 'react';
 import {
   AdminCatalogEditHistoryPanel,
   AdminCatalogEditMetadataPanel,
@@ -204,6 +204,12 @@ type AdminCatalogFormProps = {
   restoreAction?: (formData: FormData) => Promise<void>;
 };
 
+type AdminCatalogSaveState = {
+  savedAt: number | null;
+};
+
+const initialSaveState: AdminCatalogSaveState = { savedAt: null };
+
 function initialBooleanFields(
   fields: readonly AdminFormFieldDef[],
   row?: CatalogRow
@@ -253,6 +259,16 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
   const [bools, setBools] = useState(() =>
     initialBooleanFields(props.definition.formFields, props.row)
   );
+  const [saveState, formAction, isPending] = useActionState(
+    async (
+      _state: AdminCatalogSaveState,
+      formData: FormData
+    ): Promise<AdminCatalogSaveState> => {
+      await props.formAction(formData);
+      return { savedAt: Date.now() };
+    },
+    initialSaveState
+  );
 
   const visibilityField = props.definition.formFields.find(
     (f) => f.kind === 'boolean' && f.field === 'isVisible'
@@ -262,6 +278,16 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
   const hasRichText = props.definition.formFields.some(
     (field) => field.kind === 'richText'
   );
+  const saveButtonLabel =
+    ns === 'AdminUsers' ? tUsers('action_save') : tCatalog('action_save');
+  const savingButtonLabel =
+    ns === 'AdminUsers'
+      ? tUsers('form_status_saving')
+      : tCatalog('form_status_saving');
+  const savedStatusLabel =
+    ns === 'AdminUsers'
+      ? tUsers('form_status_saved')
+      : tCatalog('form_status_saved');
 
   function togglePublished(): void {
     if (!visibilityField) {
@@ -474,7 +500,7 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
       ) : null}
 
       <form
-        action={props.formAction}
+        action={formAction}
         className={`flex flex-col gap-4 ${hasRichText ? 'w-full' : 'max-w-2xl'}`}
       >
         <div className="flex min-w-0 flex-col gap-4">
@@ -484,12 +510,16 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
         <div className="flex flex-wrap items-center gap-3 pt-2">
           <button
             className="rounded-md bg-mit-red px-4 py-2 text-sm font-semibold text-white hover:bg-mit-red-hover focus-visible:ring-2 focus-visible:ring-mit-red focus-visible:ring-offset-2 focus-visible:outline-none"
+            disabled={isPending}
             type="submit"
           >
-            {ns === 'AdminUsers'
-              ? tUsers('action_save')
-              : tCatalog('action_save')}
+            {isPending ? savingButtonLabel : saveButtonLabel}
           </button>
+          {saveState.savedAt ? (
+            <p className="text-sm font-medium text-mit-text" role="status">
+              {savedStatusLabel}
+            </p>
+          ) : null}
         </div>
       </form>
 

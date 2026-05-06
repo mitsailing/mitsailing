@@ -94,8 +94,10 @@ jobs:
           # job — not on the production host. Server `.env.production` does not
           # affect the bundle; keep it aligned with this URL for runtime Env.
           # Sentry secrets live on the `production` GitHub environment (see docs/deploy.md).
+          # CKEditor's browser license key is public; restrict it to approved hosts in the CKEditor portal.
           build-args: |
             NEXT_PUBLIC_APP_URL=https://mitsailing.com
+            NEXT_PUBLIC_CKEDITOR_LICENSE_KEY=${{ vars.NEXT_PUBLIC_CKEDITOR_LICENSE_KEY || 'GPL' }}
             NEXT_PUBLIC_SENTRY_DSN=${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
             NEXT_PUBLIC_SENTRY_DISABLED=
             SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}

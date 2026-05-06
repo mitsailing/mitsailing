@@ -89,7 +89,7 @@ export default async function AdminCatalogResourceNewPage(props: PageProps) {
   }
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
       <AdminCatalogForm
         key={`${resource}-new`}
         definition={def}

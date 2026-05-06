@@ -30,6 +30,18 @@ export function adminHeaderLinkVisibleFromSession(
 }
 
 /**
+ * Whether public detail pages should expose their admin edit link.
+ *
+ * @param input - User id, role, and impersonation marker from Better Auth session
+ * @returns True when an admin-only edit affordance should render
+ */
+export function adminEditLinkVisibleFromSession(
+  input: AdminHeaderLinkSessionInput
+): boolean {
+  return adminHeaderLinkVisibleFromSession(input);
+}
+
+/**
  * Derives admin header link visibility from Better Auth `useSession().data` on
  * the client (untyped session payload).
  *

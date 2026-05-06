@@ -1,6 +1,7 @@
 ---
 description: Avoid repeating the org name in global chrome; this app is mitsailing-only
-alwaysApply: true
+globs: src/**/*.{ts,tsx}
+alwaysApply: false
 ---
 
 # Single-tenant site: global chrome

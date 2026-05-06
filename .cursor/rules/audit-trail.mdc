@@ -1,0 +1,28 @@
+---
+description: App row-change auditing with Prisma/Postgres and impersonation-aware actor context
+globs: prisma/**/*.prisma,prisma/migrations/**/*.sql,src/app/**/*.{ts,tsx},src/libs/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Audit trail
+
+Source: [docs/audit-trail.md](../../docs/audit-trail.md). Cite it instead of
+pasting the full architecture.
+
+- Do not treat Better Auth `AuditLog`, upload audit rows, or `CatalogChangeLog`
+  as the universal table-change audit trail. They are narrower logs.
+- For broad table-change history, use Postgres row triggers plus
+  transaction-local Prisma context (`set_config(..., true)`) so pooled
+  connections do not leak actor data.
+- Preserve impersonation accountability: record the real admin/operator as the
+  actual actor and the impersonated user as the effective/acting-as user. Never
+  attribute an impersonated write only to the impersonated account.
+- Prefer full `old_values` / `new_values` JSONB snapshots plus
+  `changed_fields` for audited tables unless volume data proves deltas are
+  necessary.
+- Keep UI metadata columns (`createdByUserId`, `updatedByUserId`, `createdAt`,
+  `updatedAt`) when pages need fast creator/last-editor display; audit logs are
+  for history and forensics.
+- When adding audited mutations, route Server Actions, Route Handlers, and
+  workers through the shared audit context helper instead of manual ad-hoc
+  `log...()` calls.

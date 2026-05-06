@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import type { KeyboardEvent, RefObject } from 'react';
+import type { KeyboardEvent } from 'react';
 import type { AdminUploadListItem } from '@/components/mit-sailing/admin/catalog/adminRichTextMediaLibrary';
 
 type MediaListPhase = 'idle' | 'loading' | 'loadingMore' | 'ready' | 'error';
@@ -13,7 +13,6 @@ type AdminRichTextMediaLibraryModalProps = {
   items: AdminUploadListItem[];
   nextCursor: string | null;
   phase: MediaListPhase;
-  dialogRef: RefObject<HTMLDivElement | null>;
   onLoadMore: () => void;
   onPick: (item: AdminUploadListItem) => void;
 };
@@ -125,7 +124,6 @@ export function AdminRichTextMediaLibraryModal(
         onKeyDown={(event) => {
           event.stopPropagation();
         }}
-        ref={props.dialogRef}
         role="dialog"
         tabIndex={-1}
       >

@@ -2,6 +2,9 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { FleetBoatDetailView } from '@/components/mit-sailing/fleet/FleetBoatDetailView';
+import { adminCatalogResourceEditPath } from '@/libs/admin/catalog/adminCatalogPaths';
+import { adminEditLinkVisibleFromSession } from '@/libs/auth/adminHeaderLink';
+import { getSession } from '@/libs/auth/dal';
 import { getFleetBoatForPublicBySlug } from '@/libs/mit-sailing/fleetQueries';
 
 export const revalidate = 900;
@@ -30,5 +33,19 @@ export default async function BoatDetailPage(props: PageProps) {
   if (!boat) {
     notFound();
   }
-  return <FleetBoatDetailView boat={boat} locale={locale} />;
+  const session = await getSession();
+  const adminEditHref = adminEditLinkVisibleFromSession({
+    userId: session?.user?.id,
+    userRole: session?.user?.role,
+    impersonatedBy: session?.session?.impersonatedBy,
+  })
+    ? adminCatalogResourceEditPath('fleet', boat.id)
+    : undefined;
+  return (
+    <FleetBoatDetailView
+      adminEditHref={adminEditHref}
+      boat={boat}
+      locale={locale}
+    />
+  );
 }

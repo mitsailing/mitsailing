@@ -6,6 +6,10 @@ export type AdminUploadListItem = {
   createdAt: string;
 };
 
+function isAdminUploadImageUrl(url: string): boolean {
+  return url.startsWith('/api/uploads/');
+}
+
 export function parseAdminUploadListResponse(parsed: unknown): {
   items: AdminUploadListItem[];
   nextCursor: string | null;
@@ -31,7 +35,9 @@ export function parseAdminUploadListResponse(parsed: unknown): {
     if (
       typeof id !== 'string' ||
       typeof url !== 'string' ||
+      !isAdminUploadImageUrl(url) ||
       typeof mimeType !== 'string' ||
+      !mimeType.startsWith('image/') ||
       typeof byteSize !== 'number' ||
       typeof createdAt !== 'string'
     ) {

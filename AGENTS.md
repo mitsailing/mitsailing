@@ -15,8 +15,8 @@
 
 ## Token efficiency
 - Skip recaps unless the result is ambiguous or you need more input.
-- **Cursor rules** attach by **glob** (see each `.mdc` frontmatter). **Cite** paths instead of pasting long policy. **`@tdd`** for strict test-first without repeating prompts.
-- **Which rule:** `nextjs-node-server-2026.mdc` (Next caching/DB/runtime, `src/app` + `src/libs`). `e2e-verification.mdc` (when `test:e2e` counts as done). `tdd.mdc` (Vitest/Playwright, `tests/**` + co-located `*.test.*`). `agent-workflow.mdc` (workflow + stale APIs, `src/**`).
+- **Cursor rules** attach by **glob** (see each `.mdc` frontmatter). Keep rules short, task-scoped, and mostly pointer-based; use `alwaysApply` only for tiny repo-wide blockers. **Cite** paths instead of pasting long policy. **`@tdd`** for strict test-first without repeating prompts.
+- **Which rule:** `nextjs-node-server-2026.mdc` (Next caching/DB/runtime, `src/app` + `src/libs`). `audit-trail.mdc` (Prisma/Postgres row-change auditing + impersonation, `prisma` + server mutations). `e2e-verification.mdc` (when `test:e2e` counts as done). `tdd.mdc` (Vitest/Playwright, `tests/**` + co-located `*.test.*`). `agent-workflow.mdc` (workflow + stale APIs, `src/**`).
 
 ## Commands
 Only these `bun run` scripts: `build-local`, `lint`, `check:types`, `check:deps`, `check:i18n`, `test`, `test:e2e`.

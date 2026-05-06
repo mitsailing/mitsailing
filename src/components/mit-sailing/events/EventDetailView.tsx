@@ -1,4 +1,5 @@
 import { getTranslations } from 'next-intl/server';
+import { AdminEditLink } from '@/components/mit-sailing/AdminEditLink';
 import { Link } from '@/libs/I18nNavigation';
 import { formatEasternEventRange } from '@/libs/mit-sailing/easternTimeFormat';
 import type { getPublishedEventForPublicBySlug } from '@/libs/mit-sailing/eventQueries';
@@ -8,6 +9,7 @@ type EventDetail = NonNullable<
 >;
 
 type EventDetailViewProps = {
+  adminEditHref?: string;
   locale: string;
   event: EventDetail;
 };
@@ -27,11 +29,14 @@ export async function EventDetailView(props: EventDetailViewProps) {
 
   return (
     <article>
-      <p className="mb-4 text-sm text-slate-600">
+      <div className="mb-4 flex items-center justify-between gap-4 text-sm">
         <Link className="text-blue-800 hover:underline" href="/events/">
           {t('back_to_list')}
         </Link>
-      </p>
+        {props.adminEditHref ? (
+          <AdminEditLink href={props.adminEditHref} locale={props.locale} />
+        ) : null}
+      </div>
       <header className="border-b border-slate-200 pb-4">
         <h1 className="text-3xl font-semibold text-slate-900">{e.name}</h1>
         {e.shortName && e.shortName !== e.name ? (

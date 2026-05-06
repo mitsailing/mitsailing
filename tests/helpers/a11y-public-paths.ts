@@ -50,6 +50,10 @@ function pathsFromSitemapXml(xml: string, baseURL: string): string[] {
   return [...paths];
 }
 
+function isTransientE2ePath(path: string): boolean {
+  return path.startsWith('/classes/e2e-class-');
+}
+
 /**
  * Builds the list of public marketing URLs to scan: live `/sitemap.xml` plus
  * curated extras (staff profiles, events, auth entry points, donate).
@@ -61,5 +65,7 @@ function pathsFromSitemapXml(xml: string, baseURL: string): string[] {
 export function mergePublicA11yPaths(baseURL: string, sitemapXml: string) {
   const fromSitemap = pathsFromSitemapXml(sitemapXml, baseURL);
   const merged = new Set<string>([...fromSitemap, ...EXTRA_PATHS]);
-  return [...merged].toSorted((a, b) => a.localeCompare(b));
+  return [...merged]
+    .filter((path) => !isTransientE2ePath(path))
+    .toSorted((a, b) => a.localeCompare(b));
 }

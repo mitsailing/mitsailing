@@ -1,5 +1,6 @@
 import { ArrowLeft } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
+import { AdminEditLink } from '@/components/mit-sailing/AdminEditLink';
 import { SanitizedMarketingHtml } from '@/components/mit-sailing/marketing/SanitizedMarketingHtml';
 import {
   marketingRichTextArticleClassName,
@@ -11,6 +12,7 @@ import type { SailingClassCatalogDetail } from '@/libs/mit-sailing/classQueries'
 import type { ClassRelatedEventBlock } from '@/libs/mit-sailing/classRelatedOccurrences';
 
 type ClassDetailViewProps = {
+  adminEditHref?: string;
   locale: string;
   sailingClass: SailingClassCatalogDetail;
   occurrenceBlocks: ClassRelatedEventBlock[];
@@ -31,13 +33,18 @@ export async function ClassDetailView(props: ClassDetailViewProps) {
 
   return (
     <>
-      <Link
-        className={`mb-8 inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-mit-red no-underline hover:underline ${textFocusRingClassName}`}
-        href="/classes/"
-      >
-        <ArrowLeft aria-hidden size={16} />
-        {t('back_to_classes')}
-      </Link>
+      <div className="mb-8 flex items-center justify-between gap-4">
+        <Link
+          className={`inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-mit-red no-underline hover:underline ${textFocusRingClassName}`}
+          href="/classes/"
+        >
+          <ArrowLeft aria-hidden size={16} />
+          {t('back_to_classes')}
+        </Link>
+        {props.adminEditHref ? (
+          <AdminEditLink href={props.adminEditHref} locale={props.locale} />
+        ) : null}
+      </div>
       <p className="mb-2 text-xs font-semibold tracking-wide text-mit-text uppercase">
         {cl.classCategory.name}
       </p>

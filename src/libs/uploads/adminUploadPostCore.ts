@@ -33,7 +33,7 @@ export async function runAdminUploadPostCore(
 ): Promise<NextResponse> {
   try {
     const formData = await request.formData();
-    const file = formData.get('file');
+    const file = formData.get('file') ?? formData.get('upload');
     if (!(file instanceof File)) {
       logUploadAudit({
         userId: ctx.userId,
@@ -45,7 +45,7 @@ export async function runAdminUploadPostCore(
         metadata: { reason: 'missing_file' },
       });
       return NextResponse.json(
-        { error: 'Expected file field' },
+        { error: { message: 'Expected upload file' } },
         { status: 400 }
       );
     }
@@ -60,7 +60,10 @@ export async function runAdminUploadPostCore(
         userAgent: ctx.userAgent,
         metadata: { reason: 'file_too_large', byteSize: file.size },
       });
-      return NextResponse.json({ error: 'File too large' }, { status: 413 });
+      return NextResponse.json(
+        { error: { message: 'File too large' } },
+        { status: 413 }
+      );
     }
 
     const ext = MIME_TO_EXT[file.type];
@@ -74,7 +77,10 @@ export async function runAdminUploadPostCore(
         userAgent: ctx.userAgent,
         metadata: { reason: 'unsupported_mime', mimeType: file.type },
       });
-      return NextResponse.json({ error: 'Unsupported type' }, { status: 415 });
+      return NextResponse.json(
+        { error: { message: 'Unsupported type' } },
+        { status: 415 }
+      );
     }
 
     const buf = Buffer.from(await file.arrayBuffer());
@@ -99,7 +105,7 @@ export async function runAdminUploadPostCore(
         metadata: { reason: 'magic_bytes_mismatch', mimeType: file.type },
       });
       return NextResponse.json(
-        { error: 'Content does not match declared type' },
+        { error: { message: 'Content does not match declared type' } },
         { status: 415 }
       );
     }
@@ -143,7 +149,10 @@ export async function runAdminUploadPostCore(
     const dest = path.join(baseDir, relativeFs);
     const resolvedDest = path.resolve(dest);
     if (!resolvedDest.startsWith(basePrefix)) {
-      return NextResponse.json({ error: 'Invalid path' }, { status: 400 });
+      return NextResponse.json(
+        { error: { message: 'Invalid path' } },
+        { status: 400 }
+      );
     }
 
     await mkdir(path.dirname(resolvedDest), { recursive: true });
@@ -227,6 +236,6 @@ export async function runAdminUploadPostCore(
       userAgent: ctx.userAgent,
       metadata: { message },
     });
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: { message } }, { status: 500 });
   }
 }

@@ -3,7 +3,6 @@ import path from 'node:path';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/libs/DB';
 import { Env } from '@/libs/Env';
-import { requireAdminUploadApiSession } from '@/libs/uploads/requireAdminUploadApiSession';
 import { resolveUploadBaseDir } from '@/libs/uploads/resolveUploadBaseDir';
 import { pathSegmentsToStorageKey } from '@/libs/uploads/storageKey';
 
@@ -11,6 +10,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 type RouteParams = { path?: string[] };
+const uploadCacheControl = 'public, max-age=31536000, immutable';
 
 function etagForSha256(sha256: string): string {
   return `"${sha256}"`;
@@ -35,7 +35,7 @@ function ifNoneMatchApplies(header: string | null, etag: string): boolean {
 }
 
 /**
- * Returns an uploaded blob for admins only; path must match a known `Upload` row.
+ * Returns an uploaded CMS blob; path must match a known `Upload` row.
  *
  * @param request - Used for conditional GET (`If-None-Match`)
  * @param props - App Router params promise for `[...path]`
@@ -45,11 +45,6 @@ export async function GET(
   request: Request,
   props: { params: Promise<RouteParams> }
 ) {
-  const authz = await requireAdminUploadApiSession();
-  if (!authz.ok) {
-    return authz.response;
-  }
-
   const params = await props.params;
   const segments = params.path ?? [];
   const storageKey = pathSegmentsToStorageKey(segments);
@@ -84,7 +79,7 @@ export async function GET(
       status: 304,
       headers: {
         ETag: etag,
-        'Cache-Control': 'private, no-cache',
+        'Cache-Control': uploadCacheControl,
       },
     });
   }
@@ -106,7 +101,7 @@ export async function GET(
       'Content-Type': row.mimeType,
       'Content-Length': String(data.byteLength),
       ETag: etag,
-      'Cache-Control': 'private, no-cache',
+      'Cache-Control': uploadCacheControl,
     },
   });
 }

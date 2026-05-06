@@ -26,7 +26,11 @@ export default async function AdminSectionLayout(props: {
         maxWidth="7xl"
         variant="catalog"
       >
-        <SiteSidebarLayout stretch sidebar={<AdminSideNav />}>
+        <SiteSidebarLayout
+          density="collapsible"
+          stretch
+          sidebar={<AdminSideNav />}
+        >
           {props.children}
         </SiteSidebarLayout>
       </SiteSectionMain>

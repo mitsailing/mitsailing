@@ -42,4 +42,41 @@ describe('sanitizeMarketingHtml', () => {
     );
     expect(bad).not.toContain('evil');
   });
+
+  it('keeps CKEditor image layout markup', () => {
+    const out = sanitizeMarketingHtml(
+      '<figure class="image image-style-align-right image_resized bad" style="width: 50%; color: red"><img src="/api/uploads/2026/1/x.jpg" alt="Boat"><figcaption>Caption</figcaption></figure>'
+    );
+    expect(out).toContain('<figure');
+    expect(out).toContain('figcaption');
+    expect(out).toContain('image-style-align-right');
+    expect(out).toContain('image_resized');
+    expect(out).toContain('style="width: 50%;"');
+    expect(out).not.toContain('bad');
+    expect(out).not.toContain('color');
+  });
+
+  it('drops out-of-range CKEditor width styles', () => {
+    const out = sanitizeMarketingHtml(
+      '<figure class="image image_resized" style="width: 100.5%"><img src="/api/uploads/2026/1/x.jpg" alt=""></figure>'
+    );
+    expect(out).not.toContain('style');
+  });
+
+  it('keeps legacy inline right image classes', () => {
+    const out = sanitizeMarketingHtml(
+      '<img class="image-inline image-style-align-right unknown" src="/api/uploads/2026/1/x.jpg" alt="">'
+    );
+    expect(out).toContain('image-inline');
+    expect(out).toContain('image-style-align-right');
+    expect(out).not.toContain('unknown');
+  });
+
+  it('keeps only safe link rel values', () => {
+    const out = sanitizeMarketingHtml(
+      '<a href="https://mit.edu" target="_blank" rel="noopener bad noreferrer">MIT</a>'
+    );
+    expect(out).toContain('rel="noopener noreferrer"');
+    expect(out).not.toContain('bad');
+  });
 });

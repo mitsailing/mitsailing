@@ -75,6 +75,40 @@ describe('parseAdminUploadListResponse', () => {
     ).toBeNull();
   });
 
+  it('returns null when a row points outside admin uploads', () => {
+    expect(
+      parseAdminUploadListResponse({
+        items: [
+          {
+            id: 'u1',
+            url: 'https://example.com/x.jpg',
+            mimeType: 'image/jpeg',
+            byteSize: 1,
+            createdAt: '2026-05-04T12:00:00.000Z',
+          },
+        ],
+        nextCursor: null,
+      })
+    ).toBeNull();
+  });
+
+  it('returns null when a row is not an image', () => {
+    expect(
+      parseAdminUploadListResponse({
+        items: [
+          {
+            id: 'u1',
+            url: '/api/uploads/2026/1/doc.pdf',
+            mimeType: 'application/pdf',
+            byteSize: 1,
+            createdAt: '2026-05-04T12:00:00.000Z',
+          },
+        ],
+        nextCursor: null,
+      })
+    ).toBeNull();
+  });
+
   it('returns null when byte size is not a number', () => {
     expect(
       parseAdminUploadListResponse({

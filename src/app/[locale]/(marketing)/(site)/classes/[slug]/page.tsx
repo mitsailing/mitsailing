@@ -2,6 +2,9 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { ClassDetailView } from '@/components/mit-sailing/classes/ClassDetailView';
+import { adminCatalogResourceEditPath } from '@/libs/admin/catalog/adminCatalogPaths';
+import { adminEditLinkVisibleFromSession } from '@/libs/auth/adminHeaderLink';
+import { getSession } from '@/libs/auth/dal';
 import { getSailingClassCatalogBySlug } from '@/libs/mit-sailing/classQueries';
 import { getClassRelatedEventOccurrenceBlocks } from '@/libs/mit-sailing/classRelatedOccurrences';
 
@@ -34,8 +37,17 @@ export default async function ClassDetailPage(props: PageProps) {
   const occurrenceBlocks = await getClassRelatedEventOccurrenceBlocks(
     sailingClass.relatedEventIds
   );
+  const session = await getSession();
+  const adminEditHref = adminEditLinkVisibleFromSession({
+    userId: session?.user?.id,
+    userRole: session?.user?.role,
+    impersonatedBy: session?.session?.impersonatedBy,
+  })
+    ? adminCatalogResourceEditPath('sailing_classes', sailingClass.id)
+    : undefined;
   return (
     <ClassDetailView
+      adminEditHref={adminEditHref}
       locale={locale}
       occurrenceBlocks={occurrenceBlocks}
       sailingClass={sailingClass}

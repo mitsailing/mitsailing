@@ -28,8 +28,10 @@ export async function createAdminUserAction(
   locale: string,
   formData: FormData
 ): Promise<void> {
-  await requireAdmin(locale);
-  const result = await usersAdminHandlers.createFromForm(formData);
+  const session = await requireAdmin(locale);
+  const result = await usersAdminHandlers.createFromForm(formData, {
+    userId: session.user.id,
+  });
   if (!result.ok) {
     redirect(
       `${getI18nPath(adminUsersNewPath(), locale)}?error=${encodeURIComponent(result.code)}`
@@ -51,15 +53,17 @@ export async function updateAdminUserAction(
   userId: string,
   formData: FormData
 ): Promise<void> {
-  await requireAdmin(locale);
-  const result = await usersAdminHandlers.updateFromForm(userId, formData);
+  const session = await requireAdmin(locale);
+  const result = await usersAdminHandlers.updateFromForm(userId, formData, {
+    userId: session.user.id,
+  });
   if (!result.ok) {
     redirect(
       `${getI18nPath(adminUsersEditPath(userId), locale)}?error=${encodeURIComponent(result.code)}`
     );
   }
   revalidateAfterUserMutation(locale);
-  redirect(getI18nPath(adminUsersIndexPath(), locale));
+  revalidatePath(getI18nPath(adminUsersEditPath(userId), locale));
 }
 
 /**

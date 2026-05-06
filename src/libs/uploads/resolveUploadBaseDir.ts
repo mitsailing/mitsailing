@@ -10,5 +10,5 @@ export function resolveUploadBaseDir(): string {
   const raw = Env.UPLOAD_DIR;
   return path.isAbsolute(raw)
     ? path.resolve(raw)
-    : path.resolve(process.cwd(), raw);
+    : path.resolve(/*turbopackIgnore: true*/ process.cwd(), raw);
 }

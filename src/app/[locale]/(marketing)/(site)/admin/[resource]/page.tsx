@@ -69,6 +69,14 @@ export default async function AdminCatalogResourceIndexPage(props: PageProps) {
           >
             {tr('back_admin')}
           </Link>
+          {def.publicPreview ? (
+            <Link
+              className="text-sm font-medium text-mit-red no-underline hover:underline"
+              href={def.publicPreview.path}
+            >
+              {tr(def.publicPreview.labelKey)}
+            </Link>
+          ) : null}
           {def.capabilities.create ? (
             <Link
               className="rounded-md bg-mit-red px-3 py-1.5 text-sm font-semibold text-white no-underline hover:bg-mit-red-hover"
