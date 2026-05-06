@@ -16,13 +16,15 @@ type AdminNavItem = {
     | 'nav_event_categories'
     | 'nav_class_categories'
     | 'nav_sailing_classes'
-    | 'nav_fleet';
+    | 'nav_fleet'
+    | 'nav_site_text';
   /** `prefix` highlights all subpaths (e.g. event edit under `/admin/events/`). */
   match: 'exact' | 'prefix';
 };
 
 const ADMIN_SITE_NAV: AdminNavItem[] = [
   { href: '/admin/', labelKey: 'nav_admin', match: 'exact' },
+  { href: '/admin/site_text/', labelKey: 'nav_site_text', match: 'prefix' },
   { href: '/admin/users/', labelKey: 'nav_users', match: 'prefix' },
   {
     href: '/admin/donation_funds/',
