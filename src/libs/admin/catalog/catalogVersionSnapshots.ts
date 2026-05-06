@@ -31,6 +31,18 @@ function valueForFormData(value: CatalogSnapshotValue): string {
   return String(value);
 }
 
+function snapshotValueForFormField(
+  field: AdminFormFieldDef,
+  formData: FormData
+): CatalogSnapshotValue {
+  if (field.kind === 'boolean') {
+    const values = formData.getAll(field.field);
+    return values.includes('true') || values.includes('on');
+  }
+  const value = formData.get(field.field);
+  return typeof value === 'string' ? value : null;
+}
+
 function restorableFormFields(
   definition: CatalogResourceDefinition
 ): readonly AdminFormFieldDef[] {
@@ -101,6 +113,44 @@ export function catalogSnapshotFormData(
     formData.set(field.field, valueForFormData(snapshot[field.field] ?? null));
   }
   return formData;
+}
+
+/**
+ * Builds a snapshot from editable form fields.
+ *
+ * @param definition - Catalog definition controlling editable fields
+ * @param formData - Submitted admin form
+ * @returns Snapshot suitable for comparison with an existing row
+ */
+export function catalogSnapshotFromFormData(
+  definition: CatalogResourceDefinition,
+  formData: FormData
+): CatalogVersionSnapshot {
+  const snapshot: CatalogVersionSnapshot = {};
+  for (const field of restorableFormFields(definition)) {
+    snapshot[field.field] = snapshotValueForFormField(field, formData);
+  }
+  return snapshot;
+}
+
+/**
+ * Compares editable catalog snapshots using form-equivalent values.
+ *
+ * @param definition - Catalog definition controlling editable fields
+ * @param current - Existing row snapshot
+ * @param next - Submitted or updated row snapshot
+ * @returns True when all editable fields are equivalent
+ */
+export function catalogEditableSnapshotsEqual(
+  definition: CatalogResourceDefinition,
+  current: CatalogVersionSnapshot,
+  next: CatalogVersionSnapshot
+): boolean {
+  return restorableFormFields(definition).every(
+    (field) =>
+      valueForFormData(current[field.field] ?? null) ===
+      valueForFormData(next[field.field] ?? null)
+  );
 }
 
 /**

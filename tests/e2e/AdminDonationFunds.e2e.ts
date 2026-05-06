@@ -67,8 +67,29 @@ test.describe('Admin donation funds', () => {
     await expect(
       page.locator('form input[name="isVisible"][type="checkbox"]')
     ).toHaveCount(0);
-
     const nameInput = page.getByRole('textbox', { name: 'Name' });
+    const historyRows = page.locator('#catalog-change-history tbody tr');
+    const initialHistoryRowCount = await historyRows.count();
+    const initialTopHistoryDateTime =
+      initialHistoryRowCount > 0
+        ? await historyRows.first().locator('time').getAttribute('datetime')
+        : null;
+
+    await page.getByRole('button', { name: 'Save' }).click();
+    await expect(
+      page.getByRole('status').getByText('No changes to save.')
+    ).toBeVisible();
+
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'Edit row' })).toBeVisible();
+    await expect(historyRows).toHaveCount(initialHistoryRowCount);
+    if (initialTopHistoryDateTime !== null) {
+      await expect(historyRows.first().locator('time')).toHaveAttribute(
+        'datetime',
+        initialTopHistoryDateTime
+      );
+    }
+
     await nameInput.fill(`${hiddenFundName} draft`);
     await expect(page.getByText('Status: Unpublished')).toBeVisible();
     await page.getByRole('button', { name: 'Set published' }).click();

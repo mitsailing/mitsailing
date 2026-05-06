@@ -32,7 +32,9 @@ import {
 } from '@/libs/admin/catalog/catalogEditMetadata';
 import { getCatalogServerHandlers } from '@/libs/admin/catalog/catalogServerRegistry';
 import {
+  catalogEditableSnapshotsEqual,
   catalogSnapshotFormData,
+  catalogSnapshotFromFormData,
   catalogSnapshotFromRow,
 } from '@/libs/admin/catalog/catalogVersionSnapshots';
 import type { CatalogReorderScope } from '@/libs/admin/catalog/types';
@@ -44,6 +46,11 @@ const catalogVersionIdSchema = z.string().min(1);
 const catalogVisibilitySchema = z.object({
   isVisible: z.enum(['true', 'false']),
 });
+
+type CatalogResourceSaveResult = {
+  changed: boolean;
+  ok: true;
+};
 
 /** Public segments to invalidate when a catalog resource mutates (beyond `/donate`). */
 const CATALOG_EXTRA_PUBLIC_PATHS: Partial<
@@ -147,18 +154,38 @@ export async function createCatalogResourceAction(
  * @param resourceId - Registered catalog resource key
  * @param id - Primary key
  * @param formData - Raw multipart form body
+ * @returns Save result indicating whether editable fields changed
  */
 export async function updateCatalogResourceAction(
   locale: string,
   resourceId: string,
   id: string,
   formData: FormData
-): Promise<void> {
+): Promise<CatalogResourceSaveResult> {
   const session = await requireAdmin(locale);
   if (!isCatalogResourceId(resourceId)) {
     redirect(getI18nPath(ADMIN_INDEX_PATH, locale));
   }
+  const definition = tryGetCatalogDefinition(resourceId);
+  if (!definition || !definition.capabilities.update) {
+    redirect(getI18nPath(ADMIN_INDEX_PATH, locale));
+  }
   const handlers = getCatalogServerHandlers(resourceId);
+  const currentRow = await handlers.getById(id);
+  if (!currentRow) {
+    catalogEditErrorRedirect(locale, resourceId, id, 'validation_failed');
+  }
+  const currentSnapshot = catalogSnapshotFromRow(currentRow);
+  const submittedSnapshot = catalogSnapshotFromFormData(definition, formData);
+  if (
+    catalogEditableSnapshotsEqual(
+      definition,
+      currentSnapshot,
+      submittedSnapshot
+    )
+  ) {
+    return { changed: false, ok: true };
+  }
   const result = await handlers.updateFromForm(id, formData, {
     userId: session.user.id,
   });
@@ -179,6 +206,7 @@ export async function updateCatalogResourceAction(
   revalidatePath(
     getI18nPath(adminCatalogResourceEditPath(resourceId, id), locale)
   );
+  return { changed: true, ok: true };
 }
 
 /**
@@ -195,7 +223,10 @@ export async function updateCatalogVisibilityAction(
   resourceId: string,
   id: string,
   formData: FormData
-): Promise<{ ok: true; isVisible: boolean } | { ok: false; code: string }> {
+): Promise<
+  | { ok: true; isVisible: boolean; changed: boolean }
+  | { ok: false; code: string }
+> {
   const session = await requireAdmin(locale);
   if (!isCatalogResourceId(resourceId)) {
     return { ok: false, code: 'unknown_resource' };
@@ -220,6 +251,9 @@ export async function updateCatalogVisibilityAction(
     return { ok: false, code: 'not_found' };
   }
   const isVisible = parsed.data.isVisible === 'true';
+  if (row.isVisible === isVisible) {
+    return { ok: true, isVisible, changed: false };
+  }
   const snapshot = {
     ...catalogSnapshotFromRow(row),
     isVisible,
@@ -241,7 +275,7 @@ export async function updateCatalogVisibilityAction(
     snapshot: updatedRow,
   });
   revalidateAfterCatalogVisibilityMutation(locale, resourceId);
-  return { ok: true, isVisible };
+  return { ok: true, isVisible, changed: true };
 }
 
 /**

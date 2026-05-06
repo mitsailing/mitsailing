@@ -124,6 +124,7 @@ export function AdminCatalogEditMetadataPanel(props: {
   metadata: CatalogEditMetadata;
   isPublished: boolean | null;
   isVisibilityPending?: boolean;
+  visibilityChanged?: boolean | null;
   visibilityAction?: (formData: FormData) => void;
   visibilityErrorCode?: string | null;
   visibilitySavedAt?: number | null;
@@ -211,7 +212,9 @@ export function AdminCatalogEditMetadataPanel(props: {
         ) : null}
         {props.visibilitySavedAt ? (
           <p className="font-medium text-mit-text" role="status">
-            {t('metadata_visibility_saved')}
+            {props.visibilityChanged === false
+              ? t('metadata_visibility_no_change')
+              : t('metadata_visibility_saved')}
           </p>
         ) : null}
         {props.visibilityErrorCode ? (

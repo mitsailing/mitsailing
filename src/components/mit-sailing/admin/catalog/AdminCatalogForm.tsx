@@ -191,7 +191,7 @@ function catalogStaticSelectField(props: {
 type AdminCatalogFormProps = {
   definition: CatalogResourceDefinition;
   row?: CatalogRow;
-  formAction: (formData: FormData) => Promise<void>;
+  formAction: (formData: FormData) => Promise<unknown>;
   headingKey: 'new_heading' | 'edit_heading';
   errorCode?: string | null;
   /** Use `AdminUsers` strings for `/admin/users` forms. */
@@ -204,20 +204,42 @@ type AdminCatalogFormProps = {
   restoreAction?: (formData: FormData) => Promise<void>;
   visibilityAction?: (
     formData: FormData
-  ) => Promise<{ ok: true; isVisible: boolean } | { ok: false; code: string }>;
+  ) => Promise<
+    | { ok: true; isVisible: boolean; changed?: boolean }
+    | { ok: false; code: string }
+  >;
 };
 
 type AdminCatalogSaveState = {
+  changed: boolean | null;
   savedAt: number | null;
 };
 
 type AdminCatalogVisibilityState = {
+  changed: boolean | null;
   errorCode: string | null;
   isPublished: boolean | null;
   savedAt: number | null;
 };
 
-const initialSaveState: AdminCatalogSaveState = { savedAt: null };
+const initialSaveState: AdminCatalogSaveState = {
+  changed: null,
+  savedAt: null,
+};
+
+function catalogSaveResultChanged(result: unknown): boolean {
+  if (
+    result &&
+    typeof result === 'object' &&
+    'ok' in result &&
+    result.ok === true
+  ) {
+    return 'changed' in result && typeof result.changed === 'boolean'
+      ? result.changed
+      : true;
+  }
+  return true;
+}
 
 function initialBooleanFields(
   fields: readonly AdminFormFieldDef[],
@@ -310,18 +332,21 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
             [visibilityField.field]: state.isPublished ?? true,
           }));
           return {
+            changed: null,
             errorCode: result.code,
             isPublished: state.isPublished,
             savedAt: null,
           };
         }
         return {
+          changed: result.changed ?? true,
           errorCode: null,
           isPublished: result.isVisible,
           savedAt: Date.now(),
         };
       },
       {
+        changed: null,
         errorCode: null,
         isPublished: initialIsPublished,
         savedAt: null,
@@ -337,9 +362,12 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
         formData
       );
       setBools(submittedBools);
-      await props.formAction(formData);
+      const result = await props.formAction(formData);
       setBools(submittedBools);
-      return { savedAt: Date.now() };
+      return {
+        changed: catalogSaveResultChanged(result),
+        savedAt: Date.now(),
+      };
     },
     initialSaveState
   );
@@ -358,6 +386,10 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
     ns === 'AdminUsers'
       ? tUsers('form_status_saved')
       : tCatalog('form_status_saved');
+  const unchangedStatusLabel =
+    ns === 'AdminUsers'
+      ? tUsers('form_status_no_changes')
+      : tCatalog('form_status_no_changes');
 
   /* eslint-disable complexity -- branches mirror catalog field kinds (text, boolean, select, default inputs). */
   function renderCatalogField(field: AdminFormFieldDef) {
@@ -559,6 +591,7 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
           visibilityAction={
             props.visibilityAction ? visibilityFormAction : undefined
           }
+          visibilityChanged={visibilityState.changed}
           visibilitySavedAt={visibilityState.savedAt}
         />
       ) : null}
@@ -588,7 +621,9 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
           </button>
           {saveState.savedAt ? (
             <p className="text-sm font-medium text-mit-text" role="status">
-              {savedStatusLabel}
+              {saveState.changed === false
+                ? unchangedStatusLabel
+                : savedStatusLabel}
             </p>
           ) : null}
         </div>
