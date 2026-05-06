@@ -6,6 +6,7 @@ import { SailingClassEditAssociations } from '@/components/mit-sailing/admin/cat
 import {
   restoreCatalogVersionAction,
   updateCatalogResourceAction,
+  updateCatalogVisibilityAction,
 } from '@/libs/admin/catalog/catalogActions';
 import {
   isCatalogResourceId,
@@ -79,6 +80,12 @@ export default async function AdminCatalogResourceEditPage(props: PageProps) {
     resource,
     id
   );
+  const visibilityAction = updateCatalogVisibilityAction.bind(
+    null,
+    locale,
+    resource,
+    id
+  );
 
   type DynamicSelectOptions = Readonly<
     Record<string, readonly { value: string; label: string }[]>
@@ -106,6 +113,7 @@ export default async function AdminCatalogResourceEditPage(props: PageProps) {
         metadata={metadata}
         restoreAction={restoreAction}
         row={row}
+        visibilityAction={visibilityAction}
       />
       {resource === 'sailing_classes' ? (
         <SailingClassEditAssociations classId={id} locale={locale} />

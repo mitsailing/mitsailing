@@ -64,18 +64,19 @@ test.describe('Admin donation funds', () => {
     await signInAsAdmin(page);
     await page.goto(`/admin/donation_funds/${hiddenFundId}/edit`);
     await expect(page.getByRole('heading', { name: 'Edit row' })).toBeVisible();
+    await expect(
+      page.locator('form input[name="isVisible"][type="checkbox"]')
+    ).toHaveCount(0);
 
-    const published = page.locator(
-      'form input[name="isVisible"][type="checkbox"]'
-    );
-    await published.check();
-    await page.getByRole('button', { name: 'Save' }).click();
-    await expect(page).toHaveURL(
-      new RegExp(`/admin/donation_funds/${hiddenFundId}/edit/?$`)
-    );
-    await expect(page.getByRole('status').getByText('Saved.')).toBeVisible();
-    await published.uncheck();
-    await published.check();
+    const nameInput = page.getByRole('textbox', { name: 'Name' });
+    await nameInput.fill(`${hiddenFundName} draft`);
+    await expect(page.getByText('Status: Unpublished')).toBeVisible();
+    await page.getByRole('button', { name: 'Set published' }).click();
+    await expect(
+      page.getByRole('status').getByText('Visibility saved.')
+    ).toBeVisible();
+    await expect(page.getByText('Status: Published')).toBeVisible();
+    await expect(nameInput).toHaveValue(`${hiddenFundName} draft`);
 
     await page.goto('/donate');
     await expect(
@@ -83,14 +84,12 @@ test.describe('Admin donation funds', () => {
     ).toBeVisible();
 
     await page.goto(`/admin/donation_funds/${hiddenFundId}/edit`);
-    await page
-      .locator('form input[name="isVisible"][type="checkbox"]')
-      .uncheck();
-    await page.getByRole('button', { name: 'Save' }).click();
-    await expect(page).toHaveURL(
-      new RegExp(`/admin/donation_funds/${hiddenFundId}/edit/?$`)
-    );
-    await expect(page.getByRole('status').getByText('Saved.')).toBeVisible();
+    await expect(page.getByText('Status: Published')).toBeVisible();
+    await page.getByRole('button', { name: 'Set unpublished' }).click();
+    await expect(
+      page.getByRole('status').getByText('Visibility saved.')
+    ).toBeVisible();
+    await expect(page.getByText('Status: Unpublished')).toBeVisible();
 
     await page.goto('/donate');
     await expect(

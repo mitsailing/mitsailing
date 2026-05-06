@@ -458,6 +458,8 @@
     "metadata_status_unpublished": "Unpublished",
     "metadata_action_set_published": "Set published",
     "metadata_action_set_unpublished": "Set unpublished",
+    "metadata_visibility_saved": "Visibility saved.",
+    "metadata_visibility_error": "Visibility could not be saved.",
     "metadata_modified": "Modified:",
     "metadata_created": "Created:",
     "metadata_created_by": "Created by",

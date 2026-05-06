@@ -31,13 +31,19 @@ import {
   logCatalogChange,
 } from '@/libs/admin/catalog/catalogEditMetadata';
 import { getCatalogServerHandlers } from '@/libs/admin/catalog/catalogServerRegistry';
-import { catalogSnapshotFormData } from '@/libs/admin/catalog/catalogVersionSnapshots';
+import {
+  catalogSnapshotFormData,
+  catalogSnapshotFromRow,
+} from '@/libs/admin/catalog/catalogVersionSnapshots';
 import type { CatalogReorderScope } from '@/libs/admin/catalog/types';
 import { requireAdmin } from '@/libs/auth/dal';
 import { getI18nPath } from '@/utils/Helpers';
 
 const orderedIdsSchema = z.array(z.string().min(1)).min(1);
 const catalogVersionIdSchema = z.string().min(1);
+const catalogVisibilitySchema = z.object({
+  isVisible: z.enum(['true', 'false']),
+});
 
 /** Public segments to invalidate when a catalog resource mutates (beyond `/donate`). */
 const CATALOG_EXTRA_PUBLIC_PATHS: Partial<
@@ -64,6 +70,24 @@ function revalidateAfterCatalogMutation(
   revalidatePath(
     getI18nPath(adminCatalogResourceIndexPath(resourceId), locale),
     'layout'
+  );
+  updateTag(sitemapCatalogCacheTag);
+}
+
+function revalidateAfterCatalogVisibilityMutation(
+  locale: string,
+  resourceId: CatalogResourceId
+): void {
+  revalidatePath(getI18nPath('/donate', locale));
+  const extra = CATALOG_EXTRA_PUBLIC_PATHS[resourceId];
+  if (extra) {
+    for (const path of extra) {
+      revalidatePath(getI18nPath(path, locale));
+    }
+  }
+  revalidatePath(getI18nPath(ADMIN_INDEX_PATH, locale));
+  revalidatePath(
+    getI18nPath(adminCatalogResourceIndexPath(resourceId), locale)
   );
   updateTag(sitemapCatalogCacheTag);
 }
@@ -155,6 +179,69 @@ export async function updateCatalogResourceAction(
   revalidatePath(
     getI18nPath(adminCatalogResourceEditPath(resourceId, id), locale)
   );
+}
+
+/**
+ * Updates only the publish status for a catalog row.
+ *
+ * @param locale - Active locale
+ * @param resourceId - Registered catalog resource key
+ * @param id - Primary key
+ * @param formData - Form containing the next `isVisible` value
+ * @returns Result for optimistic client status UI
+ */
+export async function updateCatalogVisibilityAction(
+  locale: string,
+  resourceId: string,
+  id: string,
+  formData: FormData
+): Promise<{ ok: true; isVisible: boolean } | { ok: false; code: string }> {
+  const session = await requireAdmin(locale);
+  if (!isCatalogResourceId(resourceId)) {
+    return { ok: false, code: 'unknown_resource' };
+  }
+  const definition = tryGetCatalogDefinition(resourceId);
+  const visibilityField = definition?.formFields.find(
+    (field) => field.kind === 'boolean' && field.field === 'isVisible'
+  );
+  if (!definition || !visibilityField || !definition.capabilities.update) {
+    return { ok: false, code: 'visibility_disabled' };
+  }
+  const parsed = catalogVisibilitySchema.safeParse({
+    isVisible: formData.get('isVisible'),
+  });
+  if (!parsed.success) {
+    return { ok: false, code: 'validation_failed' };
+  }
+
+  const handlers = getCatalogServerHandlers(resourceId);
+  const row = await handlers.getById(id);
+  if (!row) {
+    return { ok: false, code: 'not_found' };
+  }
+  const isVisible = parsed.data.isVisible === 'true';
+  const snapshot = {
+    ...catalogSnapshotFromRow(row),
+    isVisible,
+  };
+  const result = await handlers.updateFromForm(
+    id,
+    catalogSnapshotFormData(definition, snapshot),
+    { userId: session.user.id }
+  );
+  if (!result.ok) {
+    return { ok: false, code: result.code };
+  }
+  const updatedRow = await handlers.getById(id);
+  await logCatalogChange({
+    resourceId,
+    rowId: id,
+    action: 'updated',
+    userId: session.user.id,
+    snapshot: updatedRow,
+  });
+  revalidateAfterCatalogVisibilityMutation(locale, resourceId);
+  return { ok: true, isVisible };
 }
 
 /**

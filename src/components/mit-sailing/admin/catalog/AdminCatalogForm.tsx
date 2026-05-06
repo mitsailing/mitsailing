@@ -202,9 +202,18 @@ type AdminCatalogFormProps = {
   >;
   metadata?: CatalogEditMetadata | null;
   restoreAction?: (formData: FormData) => Promise<void>;
+  visibilityAction?: (
+    formData: FormData
+  ) => Promise<{ ok: true; isVisible: boolean } | { ok: false; code: string }>;
 };
 
 type AdminCatalogSaveState = {
+  savedAt: number | null;
+};
+
+type AdminCatalogVisibilityState = {
+  errorCode: string | null;
+  isPublished: boolean | null;
   savedAt: number | null;
 };
 
@@ -230,6 +239,20 @@ function initialBooleanFields(
   return m;
 }
 
+function booleanFieldsFromFormData(
+  fields: readonly AdminFormFieldDef[],
+  formData: FormData
+): Record<string, boolean> {
+  const m: Record<string, boolean> = {};
+  for (const f of fields) {
+    if (f.kind === 'boolean') {
+      const values = formData.getAll(f.field);
+      m[f.field] = values.includes('true') || values.includes('on');
+    }
+  }
+  return m;
+}
+
 /**
  * Generic create/edit form driven by catalog field definitions.
  *
@@ -242,14 +265,14 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
   const tUsers = useTranslations('AdminUsers');
   const tc = useTranslations('AdminCatalog');
 
+  /* eslint-disable @typescript-eslint/no-unsafe-type-assertion -- definition `messageNamespace` selects which translation namespace owns each label key. */
   function translateLabel(key: AdminFormFieldDef['labelKey']): string {
-    /* eslint-disable @typescript-eslint/no-unsafe-type-assertion -- definition `messageNamespace` picks catalog vs users keys */
     if (ns === 'AdminUsers') {
       return tUsers(key as keyof typeof messages.AdminUsers);
     }
     return tCatalog(key as keyof typeof messages.AdminCatalogResource);
-    /* eslint-enable @typescript-eslint/no-unsafe-type-assertion */
   }
+  /* eslint-enable @typescript-eslint/no-unsafe-type-assertion */
 
   const errorMessage =
     ns === 'AdminUsers'
@@ -259,19 +282,66 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
   const [bools, setBools] = useState(() =>
     initialBooleanFields(props.definition.formFields, props.row)
   );
+  const visibilityField = props.definition.formFields.find(
+    (f) => f.kind === 'boolean' && f.field === 'isVisible'
+  );
+  const usesMetadataVisibility = Boolean(props.metadata && visibilityField);
+  const initialIsPublished = visibilityField
+    ? (bools[visibilityField.field] ?? true)
+    : (props.metadata?.isPublished ?? null);
+  const [visibilityState, visibilityFormAction, isVisibilityPending] =
+    useActionState(
+      async (
+        state: AdminCatalogVisibilityState,
+        formData: FormData
+      ): Promise<AdminCatalogVisibilityState> => {
+        if (!visibilityField || !props.visibilityAction) {
+          return state;
+        }
+        const nextIsPublished = formData.get('isVisible') === 'true';
+        setBools((prev) => ({
+          ...prev,
+          [visibilityField.field]: nextIsPublished,
+        }));
+        const result = await props.visibilityAction(formData);
+        if (!result.ok) {
+          setBools((prev) => ({
+            ...prev,
+            [visibilityField.field]: state.isPublished ?? true,
+          }));
+          return {
+            errorCode: result.code,
+            isPublished: state.isPublished,
+            savedAt: null,
+          };
+        }
+        return {
+          errorCode: null,
+          isPublished: result.isVisible,
+          savedAt: Date.now(),
+        };
+      },
+      {
+        errorCode: null,
+        isPublished: initialIsPublished,
+        savedAt: null,
+      }
+    );
   const [saveState, formAction, isPending] = useActionState(
     async (
       _state: AdminCatalogSaveState,
       formData: FormData
     ): Promise<AdminCatalogSaveState> => {
+      const submittedBools = booleanFieldsFromFormData(
+        props.definition.formFields,
+        formData
+      );
+      setBools(submittedBools);
       await props.formAction(formData);
+      setBools(submittedBools);
       return { savedAt: Date.now() };
     },
     initialSaveState
-  );
-
-  const visibilityField = props.definition.formFields.find(
-    (f) => f.kind === 'boolean' && f.field === 'isVisible'
   );
 
   const compactBooleanLabels = ns === 'AdminUsers';
@@ -288,16 +358,6 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
     ns === 'AdminUsers'
       ? tUsers('form_status_saved')
       : tCatalog('form_status_saved');
-
-  function togglePublished(): void {
-    if (!visibilityField) {
-      return;
-    }
-    setBools((prev) => ({
-      ...prev,
-      [visibilityField.field]: !(prev[visibilityField.field] ?? true),
-    }));
-  }
 
   /* eslint-disable complexity -- branches mirror catalog field kinds (text, boolean, select, default inputs). */
   function renderCatalogField(field: AdminFormFieldDef) {
@@ -355,6 +415,9 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
     }
 
     if (field.kind === 'boolean') {
+      if (usesMetadataVisibility && key === 'isVisible') {
+        return null;
+      }
       const checked = bools[key] ?? false;
       if (compactBooleanLabels) {
         return (
@@ -489,13 +552,14 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
 
       {props.metadata ? (
         <AdminCatalogEditMetadataPanel
-          isPublished={
-            visibilityField
-              ? (bools[visibilityField.field] ?? true)
-              : props.metadata.isPublished
-          }
+          isPublished={visibilityState.isPublished}
+          isVisibilityPending={isVisibilityPending}
           metadata={props.metadata}
-          onTogglePublished={visibilityField ? togglePublished : undefined}
+          visibilityErrorCode={visibilityState.errorCode}
+          visibilityAction={
+            props.visibilityAction ? visibilityFormAction : undefined
+          }
+          visibilitySavedAt={visibilityState.savedAt}
         />
       ) : null}
 
@@ -503,6 +567,13 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
         action={formAction}
         className={`flex flex-col gap-4 ${hasRichText ? 'w-full' : 'max-w-2xl'}`}
       >
+        {usesMetadataVisibility && visibilityField ? (
+          <input
+            name={visibilityField.field}
+            type="hidden"
+            value={visibilityState.isPublished ? 'true' : 'false'}
+          />
+        ) : null}
         <div className="flex min-w-0 flex-col gap-4">
           {props.definition.formFields.map(renderCatalogField)}
         </div>

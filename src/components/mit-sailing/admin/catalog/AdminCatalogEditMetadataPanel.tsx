@@ -123,7 +123,10 @@ function ChangeRow(props: {
 export function AdminCatalogEditMetadataPanel(props: {
   metadata: CatalogEditMetadata;
   isPublished: boolean | null;
-  onTogglePublished?: () => void;
+  isVisibilityPending?: boolean;
+  visibilityAction?: (formData: FormData) => void;
+  visibilityErrorCode?: string | null;
+  visibilitySavedAt?: number | null;
 }) {
   const locale = useLocale();
   const t = useTranslations('AdminCatalogResource');
@@ -138,27 +141,34 @@ export function AdminCatalogEditMetadataPanel(props: {
     <section className="rounded-md border border-slate-200 bg-white shadow-sm">
       <div className="flex flex-wrap items-center gap-x-7 gap-y-2 px-4 py-3 text-sm text-slate-600">
         {publishedLabel ? (
-          <p>
+          <div>
             <span>{t('metadata_status')}</span>{' '}
             <strong className="font-semibold text-mit-text">
               {publishedLabel}
             </strong>
-            {props.onTogglePublished ? (
+            {props.visibilityAction ? (
               <>
                 {' '}
                 <span aria-hidden>-</span>{' '}
-                <button
-                  className="font-semibold text-mit-red underline decoration-mit-red/30 underline-offset-4 hover:text-mit-red-hover focus-visible:ring-2 focus-visible:ring-mit-red focus-visible:outline-none"
-                  onClick={props.onTogglePublished}
-                  type="button"
-                >
-                  {props.isPublished
-                    ? t('metadata_action_set_unpublished')
-                    : t('metadata_action_set_published')}
-                </button>
+                <form action={props.visibilityAction} className="inline">
+                  <input
+                    name="isVisible"
+                    type="hidden"
+                    value={props.isPublished ? 'false' : 'true'}
+                  />
+                  <button
+                    className="font-semibold text-mit-red underline decoration-mit-red/30 underline-offset-4 hover:text-mit-red-hover focus-visible:ring-2 focus-visible:ring-mit-red focus-visible:outline-none disabled:text-slate-500 disabled:no-underline"
+                    disabled={props.isVisibilityPending}
+                    type="submit"
+                  >
+                    {props.isPublished
+                      ? t('metadata_action_set_unpublished')
+                      : t('metadata_action_set_published')}
+                  </button>
+                </form>
               </>
             ) : null}
-          </p>
+          </div>
         ) : null}
         <p>
           <span>{t('metadata_modified')}</span>{' '}
@@ -198,6 +208,16 @@ export function AdminCatalogEditMetadataPanel(props: {
             {t('metadata_view_page')}
             <ExternalLink aria-hidden size={14} />
           </a>
+        ) : null}
+        {props.visibilitySavedAt ? (
+          <p className="font-medium text-mit-text" role="status">
+            {t('metadata_visibility_saved')}
+          </p>
+        ) : null}
+        {props.visibilityErrorCode ? (
+          <p className="font-medium text-mit-red" role="alert">
+            {t('metadata_visibility_error')}
+          </p>
         ) : null}
       </div>
     </section>
