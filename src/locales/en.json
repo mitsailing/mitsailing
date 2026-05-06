@@ -337,6 +337,8 @@
     "section_site": "Site",
     "section_catalog": "Catalog",
     "hub_label_users": "Users",
+    "link_site_text": "Site text",
+    "link_site_text_blurb": "Edit live website copy without a rebuild.",
     "link_users_blurb": "Accounts and View as user (impersonation).",
     "link_events": "Events"
   },
@@ -349,7 +351,8 @@
     "nav_event_categories": "Event categories",
     "nav_class_categories": "Class categories",
     "nav_fleet": "Fleet",
-    "nav_sailing_classes": "Classes"
+    "nav_sailing_classes": "Classes",
+    "nav_site_text": "Site text"
   },
   "SiteSidebarLayout": {
     "mobile_menu_label": "Section menu"
@@ -501,6 +504,36 @@
     "impersonate_error": "Could not start impersonation for that user.",
     "role_user_default": "user"
   },
+  "AdminSiteText": {
+    "meta_title": "Site text (admin)",
+    "title": "Site text",
+    "intro": "Edit live text overrides. Values that match the file default are stored by the file instead of the database.",
+    "filter_label": "Namespace",
+    "filter_all": "All namespaces",
+    "search_label": "Search",
+    "search_placeholder": "Search keys or text",
+    "filter_submit": "Filter",
+    "clear_filters": "Clear filters",
+    "default_value": "File default",
+    "live_value": "Live value",
+    "override_value": "Override value",
+    "save": "Save",
+    "reset": "Reset to default",
+    "status_overridden": "Overridden",
+    "status_default": "Default",
+    "updated_by": "Updated by {name}",
+    "updated_at": "Updated {date}",
+    "unknown_editor": "Unknown editor",
+    "empty": "No site text matches those filters.",
+    "stale_heading": "Stale overrides",
+    "stale_intro": "These database overrides no longer match a key in the locale file and are ignored.",
+    "saved": "Text saved.",
+    "reset_done": "Text reset to the file default.",
+    "error_unknown_key": "That text key no longer exists.",
+    "error_validation_failed": "Enter text before saving.",
+    "error_placeholder_mismatch": "Keep the same placeholders and rich text tags as the file default.",
+    "error_unknown": "Something went wrong."
+  },
   "MitSailingDonate": {
     "heading": "Giving to MIT Sailing",
     "intro_p1": "Philanthropy advances MIT Sailing’s mission to prepare students for leadership, teamwork, and excellence on the water and beyond. Private support sustains our fleet and pavilion, strengthens varsity and recreational programs, and helps keep sailing accessible to every MIT student.",
@@ -597,6 +630,8 @@
     "meta_title_admin_catalog_edit": "Edit catalog item (admin)",
     "meta_title_admin_catalog_delete": "Delete catalog item (admin)",
     "title_admin_catalog_delete": "Delete catalog item",
+    "meta_title_admin_site_text": "Site text (admin)",
+    "title_admin_site_text": "Site text",
     "meta_title_admin_sailing_class_related_events": "Related events (admin)",
     "meta_title_admin_sailing_class_prerequisites": "Prerequisites (admin)",
     "meta_title_admin_sailing_class_unlocked_boats": "Unlocked boats (admin)",

@@ -60,6 +60,17 @@ export default async function AdminIndexPage(props: AdminIndexPageProps) {
               {t('link_events')}
             </Link>
           </li>
+          <li>
+            <Link
+              className="font-medium text-mit-red-ink no-underline hover:underline"
+              href="/admin/site_text/"
+            >
+              {t('link_site_text')}
+            </Link>
+            <p className="mt-0.5 text-sm text-mit-text">
+              {t('link_site_text_blurb')}
+            </p>
+          </li>
         </ul>
       </section>
 
