@@ -5,7 +5,11 @@ const config: KnipConfig = {
   ignore: [
     'checkly.config.ts',
     'src/libs/I18n.ts',
+    // Used by next-intl request config above; Knip ignores that entrypoint.
+    'src/libs/site-text/siteTextMessageLoader.ts',
     'src/types/I18n.ts',
+    // Manual admin/developer utility for folding DB overrides back into en.json.
+    'scripts/export-i18n-overrides.ts',
     // Invoked by Docker Compose healthcheck + Dockerfile COPY; not a Node import graph entry
     'scripts/worker-redis-healthcheck.cjs',
     // Catalog + time helpers: partially consumed by prisma seed; getters/types fill in when UI is ported
