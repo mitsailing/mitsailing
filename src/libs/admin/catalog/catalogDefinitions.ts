@@ -238,6 +238,10 @@ const fleetDefinition = {
     delete: true,
     reorder: true,
   },
+  publicPreview: {
+    path: '/fleet/',
+    labelKey: 'link_public_fleet_page',
+  },
 } as const satisfies CatalogResourceDefinition;
 
 const sailingClassesDefinition = {
@@ -321,6 +325,10 @@ const sailingClassesDefinition = {
     update: true,
     delete: true,
     reorder: true,
+  },
+  publicPreview: {
+    path: '/classes/',
+    labelKey: 'link_public_classes_page',
   },
 } as const satisfies CatalogResourceDefinition;
 

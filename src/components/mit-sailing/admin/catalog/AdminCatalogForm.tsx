@@ -2,11 +2,15 @@
 
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
-import { AdminCatalogEditStatusBadge } from '@/components/mit-sailing/admin/catalog/AdminCatalogListCell';
+import {
+  AdminCatalogEditHistoryPanel,
+  AdminCatalogEditMetadataPanel,
+} from '@/components/mit-sailing/admin/catalog/AdminCatalogEditMetadataPanel';
 import { AdminFleetVisibleBoatsTagCloud } from '@/components/mit-sailing/admin/catalog/AdminFleetVisibleBoatsTagCloud';
 import { AdminRichTextField } from '@/components/mit-sailing/admin/catalog/AdminRichTextField';
 import type {
   AdminFieldKind,
+  CatalogEditMetadata,
   AdminFormFieldDef,
   CatalogResourceDefinition,
   CatalogRow,
@@ -49,6 +53,9 @@ function catalogResourceFormErrorMessage(
   }
   if (code === 'foreign_key') {
     return t('form_error_foreign_key');
+  }
+  if (code === 'version_not_found') {
+    return t('form_error_version_not_found');
   }
   return t('form_error_unknown');
 }
@@ -193,6 +200,8 @@ type AdminCatalogFormProps = {
   dynamicSelectOptions?: Readonly<
     Record<string, readonly { value: string; label: string }[]>
   >;
+  metadata?: CatalogEditMetadata | null;
+  restoreAction?: (formData: FormData) => Promise<void>;
 };
 
 function initialBooleanFields(
@@ -250,6 +259,19 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
   );
 
   const compactBooleanLabels = ns === 'AdminUsers';
+  const hasRichText = props.definition.formFields.some(
+    (field) => field.kind === 'richText'
+  );
+
+  function togglePublished(): void {
+    if (!visibilityField) {
+      return;
+    }
+    setBools((prev) => ({
+      ...prev,
+      [visibilityField.field]: !(prev[visibilityField.field] ?? true),
+    }));
+  }
 
   /* eslint-disable complexity -- branches mirror catalog field kinds (text, boolean, select, default inputs). */
   function renderCatalogField(field: AdminFormFieldDef) {
@@ -422,17 +444,12 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center gap-3">
+      <div>
         <h2 className="text-xl font-semibold text-mit-text">
           {ns === 'AdminUsers'
             ? tUsers(props.headingKey)
             : tCatalog(props.headingKey)}
         </h2>
-        {props.row && visibilityField ? (
-          <AdminCatalogEditStatusBadge
-            isVisible={bools[visibilityField.field] ?? true}
-          />
-        ) : null}
       </div>
 
       {errorMessage ? (
@@ -444,10 +461,27 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
         </p>
       ) : null}
 
-      <form action={props.formAction} className="flex max-w-xl flex-col gap-4">
-        {props.definition.formFields.map(renderCatalogField)}
+      {props.metadata ? (
+        <AdminCatalogEditMetadataPanel
+          isPublished={
+            visibilityField
+              ? (bools[visibilityField.field] ?? true)
+              : props.metadata.isPublished
+          }
+          metadata={props.metadata}
+          onTogglePublished={visibilityField ? togglePublished : undefined}
+        />
+      ) : null}
 
-        <div className="flex flex-wrap gap-3 pt-2">
+      <form
+        action={props.formAction}
+        className={`flex flex-col gap-4 ${hasRichText ? 'w-full' : 'max-w-2xl'}`}
+      >
+        <div className="flex min-w-0 flex-col gap-4">
+          {props.definition.formFields.map(renderCatalogField)}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 pt-2">
           <button
             className="rounded-md bg-mit-red px-4 py-2 text-sm font-semibold text-white hover:bg-mit-red-hover focus-visible:ring-2 focus-visible:ring-mit-red focus-visible:ring-offset-2 focus-visible:outline-none"
             type="submit"
@@ -458,6 +492,13 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
           </button>
         </div>
       </form>
+
+      {props.metadata ? (
+        <AdminCatalogEditHistoryPanel
+          metadata={props.metadata}
+          restoreAction={props.restoreAction}
+        />
+      ) : null}
     </div>
   );
 }

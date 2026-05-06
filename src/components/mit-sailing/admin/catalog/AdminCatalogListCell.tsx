@@ -135,27 +135,3 @@ export function AdminCatalogListCell(
 
   return <span>{String(raw)}</span>;
 }
-
-type AdminCatalogEditStatusBadgeProps = {
-  isVisible: boolean;
-};
-
-/**
- * Live/Draft badge shown beside the edit form heading (updates with checkbox).
- *
- * @param props - Visibility flag
- * @returns Badge element
- */
-export function AdminCatalogEditStatusBadge(
-  props: AdminCatalogEditStatusBadgeProps
-) {
-  const t = useTranslations('AdminCatalogResource');
-  return (
-    <AdminStatusPill
-      density="comfortable"
-      tone={props.isVisible ? 'success' : 'neutral'}
-    >
-      {props.isVisible ? t('status_live') : t('status_draft')}
-    </AdminStatusPill>
-  );
-}

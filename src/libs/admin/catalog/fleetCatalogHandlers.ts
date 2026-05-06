@@ -8,6 +8,7 @@ import {
 import type {
   CatalogCreateResult,
   CatalogListOptions,
+  CatalogMutationContext,
   CatalogMutationErr,
   CatalogMutationOk,
   CatalogReorderScope,
@@ -109,6 +110,14 @@ export const fleetCatalogHandlers: CatalogServerHandlers = {
           requiredClassId: true,
           description: true,
           isVisible: true,
+          createdAt: true,
+          updatedAt: true,
+          createdBy: {
+            select: { name: true, email: true },
+          },
+          updatedBy: {
+            select: { name: true, email: true },
+          },
         },
       }),
       fleetVisibleBoatNamesJsonForAdmin(),
@@ -126,11 +135,20 @@ export const fleetCatalogHandlers: CatalogServerHandlers = {
       requiredClassId: row.requiredClassId,
       description: row.description,
       isVisible: row.isVisible,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+      createdByName: row.createdBy.name,
+      createdByEmail: row.createdBy.email,
+      updatedByName: row.updatedBy.name,
+      updatedByEmail: row.updatedBy.email,
       fleetVisibleBoats,
     };
   },
 
-  async createFromForm(formData: FormData): Promise<CatalogCreateResult> {
+  async createFromForm(
+    formData: FormData,
+    context: CatalogMutationContext
+  ): Promise<CatalogCreateResult> {
     const parsed = fleetBoatFormSchema.safeParse(
       rawFleetBoatFromFormData(formData)
     );
@@ -155,6 +173,8 @@ export const fleetCatalogHandlers: CatalogServerHandlers = {
           imagePaths: [],
           displayOrder: nextOrder,
           isVisible: data.isVisible,
+          createdByUserId: context.userId,
+          updatedByUserId: context.userId,
         },
         select: { id: true },
       });
@@ -170,7 +190,8 @@ export const fleetCatalogHandlers: CatalogServerHandlers = {
 
   async updateFromForm(
     id: string,
-    formData: FormData
+    formData: FormData,
+    context: CatalogMutationContext
   ): Promise<CatalogMutationOk | CatalogMutationErr> {
     const parsed = fleetBoatFormSchema.safeParse(
       rawFleetBoatFromFormData(formData)
@@ -190,6 +211,7 @@ export const fleetCatalogHandlers: CatalogServerHandlers = {
           requiredClassId: data.requiredClassId,
           description: data.description,
           isVisible: data.isVisible,
+          updatedByUserId: context.userId,
         },
       });
       return { ok: true };

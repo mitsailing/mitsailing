@@ -3,11 +3,18 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { AdminCatalogForm } from '@/components/mit-sailing/admin/catalog/AdminCatalogForm';
 import { SailingClassEditAssociations } from '@/components/mit-sailing/admin/catalog/SailingClassEditAssociations';
-import { updateCatalogResourceAction } from '@/libs/admin/catalog/catalogActions';
+import {
+  restoreCatalogVersionAction,
+  updateCatalogResourceAction,
+} from '@/libs/admin/catalog/catalogActions';
 import {
   isCatalogResourceId,
   tryGetCatalogDefinition,
 } from '@/libs/admin/catalog/catalogDefinitions';
+import {
+  catalogEditMetadataFromRow,
+  getRecentCatalogChanges,
+} from '@/libs/admin/catalog/catalogEditMetadata';
 import { getCatalogServerHandlers } from '@/libs/admin/catalog/catalogServerRegistry';
 import { fleetRequiredClassSelectOptions } from '@/libs/admin/catalog/fleetCatalogHandlers';
 import { sailingClassCategorySelectOptions } from '@/libs/admin/catalog/sailingClassesHandlers';
@@ -52,8 +59,21 @@ export default async function AdminCatalogResourceEditPage(props: PageProps) {
   if (!row) {
     notFound();
   }
+  const recentChanges = await getRecentCatalogChanges(resource, id, locale);
+  const metadata = catalogEditMetadataFromRow({
+    definition: def,
+    locale,
+    row,
+    recentChanges,
+  });
 
   const updateAction = updateCatalogResourceAction.bind(
+    null,
+    locale,
+    resource,
+    id
+  );
+  const restoreAction = restoreCatalogVersionAction.bind(
     null,
     locale,
     resource,
@@ -75,7 +95,7 @@ export default async function AdminCatalogResourceEditPage(props: PageProps) {
   }
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
       <AdminCatalogForm
         key={`${resource}-${id}`}
         definition={def}
@@ -83,6 +103,8 @@ export default async function AdminCatalogResourceEditPage(props: PageProps) {
         errorCode={errorCode ?? null}
         formAction={updateAction}
         headingKey="edit_heading"
+        metadata={metadata}
+        restoreAction={restoreAction}
         row={row}
       />
       {resource === 'sailing_classes' ? (

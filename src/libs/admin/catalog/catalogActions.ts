@@ -21,13 +21,22 @@ import {
   ADMIN_INDEX_PATH,
 } from '@/libs/admin/catalog/adminCatalogPaths';
 import type { CatalogResourceId } from '@/libs/admin/catalog/catalogDefinitions';
-import { isCatalogResourceId } from '@/libs/admin/catalog/catalogDefinitions';
+import {
+  isCatalogResourceId,
+  tryGetCatalogDefinition,
+} from '@/libs/admin/catalog/catalogDefinitions';
+import {
+  getCatalogChangeVersion,
+  logCatalogChange,
+} from '@/libs/admin/catalog/catalogEditMetadata';
 import { getCatalogServerHandlers } from '@/libs/admin/catalog/catalogServerRegistry';
+import { catalogSnapshotFormData } from '@/libs/admin/catalog/catalogVersionSnapshots';
 import type { CatalogReorderScope } from '@/libs/admin/catalog/types';
 import { requireAdmin } from '@/libs/auth/dal';
 import { getI18nPath } from '@/utils/Helpers';
 
 const orderedIdsSchema = z.array(z.string().min(1)).min(1);
+const catalogVersionIdSchema = z.string().min(1);
 
 /** Public segments to invalidate when a catalog resource mutates (beyond `/donate`). */
 const CATALOG_EXTRA_PUBLIC_PATHS: Partial<
@@ -57,6 +66,17 @@ function revalidateAfterCatalogMutation(
   );
 }
 
+function catalogEditErrorRedirect(
+  locale: string,
+  resourceId: CatalogResourceId,
+  id: string,
+  code: string
+): never {
+  redirect(
+    `${getI18nPath(adminCatalogResourceEditPath(resourceId, id), locale)}?error=${encodeURIComponent(code)}`
+  );
+}
+
 /**
  * Persists a new catalog row from an admin form submission.
  *
@@ -69,17 +89,27 @@ export async function createCatalogResourceAction(
   resourceId: string,
   formData: FormData
 ): Promise<void> {
-  await requireAdmin(locale);
+  const session = await requireAdmin(locale);
   if (!isCatalogResourceId(resourceId)) {
     redirect(getI18nPath(ADMIN_INDEX_PATH, locale));
   }
   const handlers = getCatalogServerHandlers(resourceId);
-  const result = await handlers.createFromForm(formData);
+  const result = await handlers.createFromForm(formData, {
+    userId: session.user.id,
+  });
   if (!result.ok) {
     redirect(
       `${getI18nPath(adminCatalogResourceNewPath(resourceId), locale)}?error=${encodeURIComponent(result.code)}`
     );
   }
+  const row = await handlers.getById(result.id);
+  await logCatalogChange({
+    resourceId,
+    rowId: result.id,
+    action: 'created',
+    userId: session.user.id,
+    snapshot: row,
+  });
   revalidateAfterCatalogMutation(locale, resourceId);
   redirect(getI18nPath(adminCatalogResourceIndexPath(resourceId), locale));
 }
@@ -98,19 +128,91 @@ export async function updateCatalogResourceAction(
   id: string,
   formData: FormData
 ): Promise<void> {
-  await requireAdmin(locale);
+  const session = await requireAdmin(locale);
   if (!isCatalogResourceId(resourceId)) {
     redirect(getI18nPath(ADMIN_INDEX_PATH, locale));
   }
   const handlers = getCatalogServerHandlers(resourceId);
-  const result = await handlers.updateFromForm(id, formData);
+  const result = await handlers.updateFromForm(id, formData, {
+    userId: session.user.id,
+  });
   if (!result.ok) {
     redirect(
       `${getI18nPath(adminCatalogResourceEditPath(resourceId, id), locale)}?error=${encodeURIComponent(result.code)}`
     );
   }
+  const row = await handlers.getById(id);
+  await logCatalogChange({
+    resourceId,
+    rowId: id,
+    action: 'updated',
+    userId: session.user.id,
+    snapshot: row,
+  });
   revalidateAfterCatalogMutation(locale, resourceId);
-  redirect(getI18nPath(adminCatalogResourceIndexPath(resourceId), locale));
+  revalidatePath(
+    getI18nPath(adminCatalogResourceEditPath(resourceId, id), locale)
+  );
+}
+
+/**
+ * Restores a catalog row from a stored version snapshot.
+ *
+ * @param locale - Active locale
+ * @param resourceId - Registered catalog resource key
+ * @param id - Primary key
+ * @param formData - Restore form containing `changeId`
+ */
+export async function restoreCatalogVersionAction(
+  locale: string,
+  resourceId: string,
+  id: string,
+  formData: FormData
+): Promise<void> {
+  const session = await requireAdmin(locale);
+  if (!isCatalogResourceId(resourceId)) {
+    redirect(getI18nPath(ADMIN_INDEX_PATH, locale));
+  }
+  const definition = tryGetCatalogDefinition(resourceId);
+  if (!definition || !definition.capabilities.update) {
+    redirect(getI18nPath(ADMIN_INDEX_PATH, locale));
+  }
+  const parsed = catalogVersionIdSchema.safeParse(formData.get('changeId'));
+  if (!parsed.success) {
+    catalogEditErrorRedirect(locale, resourceId, id, 'version_not_found');
+  }
+  const version = await getCatalogChangeVersion({
+    resourceId,
+    rowId: id,
+    changeId: parsed.data,
+    locale,
+  });
+  if (!version) {
+    catalogEditErrorRedirect(locale, resourceId, id, 'version_not_found');
+  }
+
+  const handlers = getCatalogServerHandlers(resourceId);
+  const result = await handlers.updateFromForm(
+    id,
+    catalogSnapshotFormData(definition, version.snapshot),
+    { userId: session.user.id }
+  );
+  if (!result.ok) {
+    catalogEditErrorRedirect(locale, resourceId, id, result.code);
+  }
+  const row = await handlers.getById(id);
+  await logCatalogChange({
+    resourceId,
+    rowId: id,
+    action: 'restored',
+    userId: session.user.id,
+    snapshot: row,
+  });
+  revalidateAfterCatalogMutation(locale, resourceId);
+  revalidatePath(
+    getI18nPath(adminCatalogResourceEditPath(resourceId, id), locale)
+  );
+  redirect(getI18nPath(adminCatalogResourceEditPath(resourceId, id), locale));
 }
 
 /**

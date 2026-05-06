@@ -52,6 +52,34 @@ export function adminCatalogResourceDeletePath(
 /**
  * @param resourceId - Registered catalog resource key
  * @param id - Row primary key
+ * @param changeId - Catalog change/version id
+ * @returns Path to a read-only row version snapshot
+ */
+export function adminCatalogResourceVersionPath(
+  resourceId: string,
+  id: string,
+  changeId: string
+): string {
+  return `/admin/${resourceId}/${id}/versions/${changeId}`;
+}
+
+/**
+ * @param resourceId - Registered catalog resource key
+ * @param id - Row primary key
+ * @param changeId - Catalog change/version id
+ * @returns Path to compare a row version with the current row
+ */
+export function adminCatalogResourceVersionComparePath(
+  resourceId: string,
+  id: string,
+  changeId: string
+): string {
+  return `/admin/${resourceId}/${id}/versions/${changeId}/compare`;
+}
+
+/**
+ * @param resourceId - Registered catalog resource key
+ * @param id - Row primary key
  * @param segment - Child segment (e.g. `related-events`)
  * @returns Path to an association sub-page under the catalog edit flow
  */

@@ -8,6 +8,7 @@ import {
 import type {
   CatalogCreateResult,
   CatalogListOptions,
+  CatalogMutationContext,
   CatalogMutationErr,
   CatalogMutationOk,
   CatalogReorderScope,
@@ -102,6 +103,14 @@ export const sailingClassesCatalogHandlers: CatalogServerHandlers = {
         level: true,
         description: true,
         isVisible: true,
+        createdAt: true,
+        updatedAt: true,
+        createdBy: {
+          select: { name: true, email: true },
+        },
+        updatedBy: {
+          select: { name: true, email: true },
+        },
       },
     });
     if (!row) {
@@ -115,10 +124,19 @@ export const sailingClassesCatalogHandlers: CatalogServerHandlers = {
       level: row.level,
       description: row.description,
       isVisible: row.isVisible,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+      createdByName: row.createdBy.name,
+      createdByEmail: row.createdBy.email,
+      updatedByName: row.updatedBy.name,
+      updatedByEmail: row.updatedBy.email,
     };
   },
 
-  async createFromForm(formData: FormData): Promise<CatalogCreateResult> {
+  async createFromForm(
+    formData: FormData,
+    context: CatalogMutationContext
+  ): Promise<CatalogCreateResult> {
     const parsed = sailingClassFormSchema.safeParse(
       rawSailingClassFromFormData(formData)
     );
@@ -143,6 +161,8 @@ export const sailingClassesCatalogHandlers: CatalogServerHandlers = {
           description: data.description,
           displayOrder: nextDisplayOrder,
           isVisible: data.isVisible,
+          createdByUserId: context.userId,
+          updatedByUserId: context.userId,
         },
       });
       return { ok: true, id: newId };
@@ -157,7 +177,8 @@ export const sailingClassesCatalogHandlers: CatalogServerHandlers = {
 
   async updateFromForm(
     id: string,
-    formData: FormData
+    formData: FormData,
+    context: CatalogMutationContext
   ): Promise<CatalogMutationOk | CatalogMutationErr> {
     const parsed = sailingClassFormSchema.safeParse(
       rawSailingClassFromFormData(formData)
@@ -176,6 +197,7 @@ export const sailingClassesCatalogHandlers: CatalogServerHandlers = {
           level: data.level,
           description: data.description,
           isVisible: data.isVisible,
+          updatedByUserId: context.userId,
         },
       });
       return { ok: true };

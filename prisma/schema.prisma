@@ -21,7 +21,7 @@ model User {
   unconfirmedEmail String?  @map("unconfirmed_email")
   image            String?
   createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt      @map("updated_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
   // Admin plugin columns.
   role       String    @default("user")
@@ -33,11 +33,16 @@ model User {
   accounts  Account[]
   auditLogs AuditLog[]
 
-  eventRegistrations EventRegistration[]
-  eventComments      EventComment[]
-  eventAdmins        EventAdmin[]
-  eventsCreated      Event[]            @relation("EventCreatedBy")
-  uploads            Upload[]
+  eventRegistrations    EventRegistration[]
+  eventComments         EventComment[]
+  eventAdmins           EventAdmin[]
+  eventsCreated         Event[]             @relation("EventCreatedBy")
+  uploads               Upload[]
+  sailingClassesCreated SailingClass[]      @relation("SailingClassCreatedBy")
+  sailingClassesUpdated SailingClass[]      @relation("SailingClassUpdatedBy")
+  fleetBoatsCreated     FleetBoat[]         @relation("FleetBoatCreatedBy")
+  fleetBoatsUpdated     FleetBoat[]         @relation("FleetBoatUpdatedBy")
+  catalogChangeLogs     CatalogChangeLog[]
 
   @@map("user")
 }
@@ -51,7 +56,7 @@ model Session {
   userAgent      String?  @map("user_agent")
   impersonatedBy String?  @map("impersonated_by")
   createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt      @map("updated_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -72,7 +77,7 @@ model Account {
   refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at")
   scope                 String?
   createdAt             DateTime  @default(now()) @map("created_at")
-  updatedAt             DateTime  @updatedAt      @map("updated_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -86,7 +91,7 @@ model Verification {
   value      String
   expiresAt  DateTime @map("expires_at")
   createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt      @map("updated_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
   @@index([identifier])
   @@map("verification")
@@ -123,16 +128,32 @@ model AuditLog {
   @@map("audit_log")
 }
 
+model CatalogChangeLog {
+  id         String   @id @default(cuid())
+  resourceId String   @map("resource_id")
+  rowId      String   @map("row_id")
+  action     String
+  userId     String?  @map("user_id")
+  snapshot   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([resourceId, rowId, createdAt])
+  @@index([userId])
+  @@map("catalog_change_logs")
+}
+
 model Upload {
-  id              String   @id @default(cuid())
-  storageKey      String   @unique @map("storage_key")
-  mimeType        String   @map("mime_type")
-  byteSize        Int      @map("byte_size")
-  sha256          String
-  uploadedById    String   @map("uploaded_by_user_id")
-  idempotencyKey  String?  @map("idempotency_key")
-  createdAt       DateTime @default(now()) @map("created_at")
-  scanStatus      String   @default("not_scanned") @map("scan_status")
+  id             String   @id @default(cuid())
+  storageKey     String   @unique @map("storage_key")
+  mimeType       String   @map("mime_type")
+  byteSize       Int      @map("byte_size")
+  sha256         String
+  uploadedById   String   @map("uploaded_by_user_id")
+  idempotencyKey String?  @map("idempotency_key")
+  createdAt      DateTime @default(now()) @map("created_at")
+  scanStatus     String   @default("not_scanned") @map("scan_status")
 
   uploadedBy User @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
 
@@ -145,12 +166,12 @@ model Upload {
 // --- MIT Sailing domain (events, classes, fleet, about) ---
 
 model EventCategory {
-  id            String   @id
-  name          String
-  displayOrder  Int      @map("display_order")
-  isVisible     Boolean  @map("is_visible")
-  createdAt     DateTime @map("created_at")
-  events        Event[]
+  id           String   @id
+  name         String
+  displayOrder Int      @map("display_order")
+  isVisible    Boolean  @map("is_visible")
+  createdAt    DateTime @map("created_at")
+  events       Event[]
 
   @@map("event_categories")
 }
@@ -161,33 +182,33 @@ enum EventDetailPageKind {
 }
 
 model Event {
-  id                   String                 @id
-  name                 String
-  shortName            String                 @map("short_name")
-  eventCategoryId      String                 @map("event_category_id")
-  description          String                 @db.Text
-  slug                 String                 @unique
-  isSpecial            Boolean                @map("is_special")
-  maxParticipants      Int?                   @map("max_participants")
-  requiresApproval     Boolean                @map("requires_approval")
-  registrationStart    DateTime?              @map("registration_start")
-  registrationEnd      DateTime?              @map("registration_end")
-  createdByUserId      String                 @map("created_by")
-  createdAt            DateTime               @map("created_at")
-  detailPageKind       EventDetailPageKind?   @map("detail_page_kind")
-  externalDetailUrl    String?                @map("external_detail_url")
-  internalNotes        String?                @map("internal_notes") @db.Text
-  isPublished          Boolean                @map("is_published")
+  id                String               @id
+  name              String
+  shortName         String               @map("short_name")
+  eventCategoryId   String               @map("event_category_id")
+  description       String               @db.Text
+  slug              String               @unique
+  isSpecial         Boolean              @map("is_special")
+  maxParticipants   Int?                 @map("max_participants")
+  requiresApproval  Boolean              @map("requires_approval")
+  registrationStart DateTime?            @map("registration_start")
+  registrationEnd   DateTime?            @map("registration_end")
+  createdByUserId   String               @map("created_by")
+  createdAt         DateTime             @map("created_at")
+  detailPageKind    EventDetailPageKind? @map("detail_page_kind")
+  externalDetailUrl String?              @map("external_detail_url")
+  internalNotes     String?              @map("internal_notes") @db.Text
+  isPublished       Boolean              @map("is_published")
 
-  category              EventCategory               @relation(fields: [eventCategoryId], references: [id], onDelete: Restrict)
-  createdBy             User                        @relation("EventCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
-  dates                 EventDate[]
-  admins                EventAdmin[]
-  registrations         EventRegistration[]
-  registrationQuestions EventRegistrationQuestion[]
-  entryFees             EventEntryFee[]
-  comments                      EventComment[]
-  sailingClassRelatedEvents      SailingClassRelatedEvent[]
+  category                  EventCategory               @relation(fields: [eventCategoryId], references: [id], onDelete: Restrict)
+  createdBy                 User                        @relation("EventCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  dates                     EventDate[]
+  admins                    EventAdmin[]
+  registrations             EventRegistration[]
+  registrationQuestions     EventRegistrationQuestion[]
+  entryFees                 EventEntryFee[]
+  comments                  EventComment[]
+  sailingClassRelatedEvents SailingClassRelatedEvent[]
 
   @@index([eventCategoryId])
   @@index([createdByUserId])
@@ -224,15 +245,15 @@ enum EventRegistrationStatus {
 }
 
 model EventRegistration {
-  id                       String                    @id
-  eventId                  String                    @map("event_id")
-  userId                   String                    @map("user_id")
-  status                   EventRegistrationStatus
-  createdAt                DateTime                  @map("created_at")
-  swimAgreementAcceptedAt  DateTime                  @map("swim_agreement_accepted_at")
-  event                    Event                     @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  user                     User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  registrationAnswers      EventRegistrationAnswer[]
+  id                      String                    @id
+  eventId                 String                    @map("event_id")
+  userId                  String                    @map("user_id")
+  status                  EventRegistrationStatus
+  createdAt               DateTime                  @map("created_at")
+  swimAgreementAcceptedAt DateTime                  @map("swim_agreement_accepted_at")
+  event                   Event                     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user                    User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  registrationAnswers     EventRegistrationAnswer[]
 
   @@index([eventId])
   @@index([userId])
@@ -246,26 +267,26 @@ enum EventAnswerType {
 }
 
 model EventRegistrationQuestion {
-  id            String            @id
-  eventId       String            @map("event_id")
-  questionText  String            @map("question_text") @db.Text
-  answerType    EventAnswerType   @map("answer_type")
-  options       Json? // string[] for select
-  required      Boolean
-  displayOrder  Int               @map("display_order")
-  event         Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  answers       EventRegistrationAnswer[]
+  id           String                    @id
+  eventId      String                    @map("event_id")
+  questionText String                    @map("question_text") @db.Text
+  answerType   EventAnswerType           @map("answer_type")
+  options      Json? // string[] for select
+  required     Boolean
+  displayOrder Int                       @map("display_order")
+  event        Event                     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  answers      EventRegistrationAnswer[]
 
   @@index([eventId])
   @@map("event_registration_questions")
 }
 
 model EventRegistrationAnswer {
-  id             String                  @id
-  registrationId String                  @map("registration_id")
-  questionId     String                  @map("question_id")
-  value          String                  @db.Text
-  registration   EventRegistration       @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  id             String                    @id
+  registrationId String                    @map("registration_id")
+  questionId     String                    @map("question_id")
+  value          String                    @db.Text
+  registration   EventRegistration         @relation(fields: [registrationId], references: [id], onDelete: Cascade)
   question       EventRegistrationQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
   @@index([registrationId])
@@ -274,26 +295,26 @@ model EventRegistrationAnswer {
 }
 
 model EventEntryFee {
-  id          String @id
-  eventId     String @map("event_id")
+  id          String  @id
+  eventId     String  @map("event_id")
   description String
-  amountCents Int    @map("amount_cents")
+  amountCents Int     @map("amount_cents")
   isDeposit   Boolean @map("is_deposit")
-  event       Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event       Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@index([eventId])
   @@map("event_entry_fees")
 }
 
 model EventComment {
-  id        String  @id
-  eventId   String  @map("event_id")
-  parentId  String? @map("parent_id")
-  userId    String  @map("user_id")
-  body      String  @db.Text
-  createdAt DateTime @map("created_at")
-  event     Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String         @id
+  eventId   String         @map("event_id")
+  parentId  String?        @map("parent_id")
+  userId    String         @map("user_id")
+  body      String         @db.Text
+  createdAt DateTime       @map("created_at")
+  event     Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   parent    EventComment?  @relation("EventCommentThread", fields: [parentId], references: [id], onDelete: SetNull)
   children  EventComment[] @relation("EventCommentThread")
 
@@ -304,35 +325,43 @@ model EventComment {
 }
 
 model ClassCategory {
-  id           String         @id
-  slug         String         @unique
-  name         String
-  displayOrder Int            @map("display_order")
-  isVisible    Boolean        @map("is_visible")
-  createdAt    DateTime       @map("created_at")
+  id             String         @id
+  slug           String         @unique
+  name           String
+  displayOrder   Int            @map("display_order")
+  isVisible      Boolean        @map("is_visible")
+  createdAt      DateTime       @map("created_at")
   sailingClasses SailingClass[]
 
   @@map("class_categories")
 }
 
 model SailingClass {
-  id          String        @id
-  name        String
-  slug        String        @unique
-  classCategoryId String    @map("class_category_id")
-  level       String
-  description String        @db.Text
-  displayOrder Int          @default(0) @map("display_order")
-  isVisible   Boolean      @default(true) @map("is_visible")
-  classCategory ClassCategory @relation(fields: [classCategoryId], references: [id], onDelete: Restrict)
-  fleetBoats  FleetBoat[]
-  relatedEvents SailingClassRelatedEvent[]
-  prerequisiteEdges SailingClassPrerequisite[] @relation("ClassRequiresPrerequisite")
+  id                  String                     @id
+  name                String
+  slug                String                     @unique
+  classCategoryId     String                     @map("class_category_id")
+  level               String
+  description         String                     @db.Text
+  displayOrder        Int                        @default(0) @map("display_order")
+  isVisible           Boolean                    @default(true) @map("is_visible")
+  createdByUserId     String                     @map("created_by")
+  updatedByUserId     String                     @map("updated_by")
+  createdAt           DateTime                   @default(now()) @map("created_at")
+  updatedAt           DateTime                   @updatedAt @map("updated_at")
+  classCategory       ClassCategory              @relation(fields: [classCategoryId], references: [id], onDelete: Restrict)
+  createdBy           User                       @relation("SailingClassCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  updatedBy           User                       @relation("SailingClassUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: Restrict)
+  fleetBoats          FleetBoat[]
+  relatedEvents       SailingClassRelatedEvent[]
+  prerequisiteEdges   SailingClassPrerequisite[] @relation("ClassRequiresPrerequisite")
   prerequisiteOfEdges SailingClassPrerequisite[] @relation("ClassIsPrerequisiteFor")
-  unlockedBoatLinks SailingClassUnlockedBoat[]
+  unlockedBoatLinks   SailingClassUnlockedBoat[]
 
   @@index([classCategoryId])
   @@index([classCategoryId, displayOrder])
+  @@index([createdByUserId])
+  @@index([updatedByUserId])
   @@index([isVisible])
   @@map("sailing_classes")
 }
@@ -370,49 +399,57 @@ model SailingClassUnlockedBoat {
 }
 
 model FleetBoat {
-  id                String        @id
+  id                String                     @id
   name              String
-  slug              String        @unique
+  slug              String                     @unique
   type              String
   capacity          Int
-  displayOrder      Int           @default(0) @map("display_order")
-  isVisible         Boolean       @default(true) @map("is_visible")
-  requiredClassId   String        @map("required_class_id")
-  description       String        @db.Text
-  imagePaths        String[]      @map("image_paths")
-  requiredClass     SailingClass  @relation(fields: [requiredClassId], references: [id], onDelete: Restrict)
+  displayOrder      Int                        @default(0) @map("display_order")
+  isVisible         Boolean                    @default(true) @map("is_visible")
+  requiredClassId   String                     @map("required_class_id")
+  description       String                     @db.Text
+  imagePaths        String[]                   @map("image_paths")
+  createdByUserId   String                     @map("created_by")
+  updatedByUserId   String                     @map("updated_by")
+  createdAt         DateTime                   @default(now()) @map("created_at")
+  updatedAt         DateTime                   @updatedAt @map("updated_at")
+  requiredClass     SailingClass               @relation(fields: [requiredClassId], references: [id], onDelete: Restrict)
+  createdBy         User                       @relation("FleetBoatCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  updatedBy         User                       @relation("FleetBoatUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: Restrict)
   unlockedByClasses SailingClassUnlockedBoat[]
 
   @@index([requiredClassId])
+  @@index([createdByUserId])
+  @@index([updatedByUserId])
   @@index([isVisible, displayOrder])
   @@map("fleet_boats")
 }
 
 model DonationFund {
-  id            String   @id @default(cuid())
-  fundId        String   @unique @map("designation_id")
-  name          String
-  description   String   @db.Text
-  url           String
-  displayOrder  Int      @default(0) @map("display_order")
-  isVisible     Boolean  @default(true) @map("is_visible")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  id           String   @id @default(cuid())
+  fundId       String   @unique @map("designation_id")
+  name         String
+  description  String   @db.Text
+  url          String
+  displayOrder Int      @default(0) @map("display_order")
+  isVisible    Boolean  @default(true) @map("is_visible")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   @@index([isVisible, displayOrder])
   @@map("donation_funds")
 }
 
 model StaffMember {
-  id          String  @id
-  slug        String  @unique
-  name        String
-  role        String
-  bio         String? @db.Text
-  fullBio     Json
-  imageSrc    String? @map("image_src")
-  imageAlt    String? @map("image_alt")
-  email       String
+  id       String  @id
+  slug     String  @unique
+  name     String
+  role     String
+  bio      String? @db.Text
+  fullBio  Json
+  imageSrc String? @map("image_src")
+  imageAlt String? @map("image_alt")
+  email    String
 
   @@map("staff_members")
 }
