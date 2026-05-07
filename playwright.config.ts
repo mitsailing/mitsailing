@@ -23,6 +23,7 @@ const defaultNavigationTimeout = slowLocal ? 120_000 : 30_000;
 const defaultExpectTimeout = slowLocal ? 120_000 : 10_000;
 const defaultActionTimeout = slowLocal ? 120_000 : 30_000;
 const defaultTestTimeout = slowLocal ? 240_000 : 90_000;
+const DEFAULT_WORKERS = 4;
 
 function playwrightWorkers(): number {
   if (process.env.PWDEBUG) {
@@ -34,7 +35,7 @@ function playwrightWorkers(): number {
       Number.parseInt(process.env.PLAYWRIGHT_WORKERS, 10) || 1
     );
   }
-  return os.cpus().length;
+  return Math.min(DEFAULT_WORKERS, os.cpus().length);
 }
 
 /**
@@ -49,7 +50,8 @@ export default defineConfig<ChromaticConfig>({
   forbidOnly: isCi,
   retries: isCi ? 2 : 0,
   fullyParallel: true,
-  // Cal.com: `os.cpus().length` locally. Optional `PLAYWRIGHT_WORKERS=4` caps load.
+  // Keep production `next start` + Postgres + Argon2 auth flows inside a stable
+  // local/CI budget. `PLAYWRIGHT_WORKERS=8` can raise this on beefier runners.
   workers: playwrightWorkers(),
   maxFailures: isCi ? 10 : undefined,
   reporter: isCi ? 'github' : 'list',

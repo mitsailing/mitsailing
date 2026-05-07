@@ -516,6 +516,7 @@ export function SiteHeader(props: SiteHeaderProps) {
             mobileMenuOpen ? t('a11y_close_menu') : t('a11y_open_menu')
           }
           className={`shrink-0 text-mit-text lg:hidden${mobileMenuOpen ? ' pointer-events-none opacity-0' : ''}`}
+          disabled={!mobilePortalReady}
           size="icon"
           type="button"
           variant="ghost"

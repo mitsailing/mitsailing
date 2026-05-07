@@ -8,22 +8,11 @@ import {
   isoCalendarDateFromPrismaDate,
   prismaDateFromIsoCalendar,
 } from '@/libs/mit-sailing/isoCalendarDate';
+import { siteAlertPlainTextPreview } from '@/libs/mit-sailing/siteAlertPlainTextPreview';
 import type {
   SiteAlertBannerRow,
   SiteAlertPublicItem,
 } from '@/libs/mit-sailing/siteAlertTypes';
-
-function siteAlertBannerPreview(body: string): string {
-  const plain = body
-    .replaceAll(/<[^>]*>/g, ' ')
-    .replaceAll(/\s+/g, ' ')
-    .trim();
-  const max = 140;
-  if (plain.length <= max) {
-    return plain;
-  }
-  return `${plain.slice(0, max - 1)}…`;
-}
 
 function toPublicItem(row: {
   id: string;
@@ -102,10 +91,13 @@ export function mapSiteAlertsToBannerRows(
   items: SiteAlertPublicItem[]
 ): SiteAlertBannerRow[] {
   return items.map((item) => {
-    const dateIso = item.lastDateIso;
+    const dateIso = item.startDateIso;
     return {
       id: item.id,
-      preview: siteAlertBannerPreview(item.body),
+      preview: siteAlertPlainTextPreview({
+        htmlish: item.body,
+        maxLength: 140,
+      }),
       dateLabel: formatEasternShortDateFromIsoCalendar(dateIso),
       dateIso,
     };

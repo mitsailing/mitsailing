@@ -211,7 +211,7 @@ function CatalogBooleanField(props: {
   label: string;
   checked: boolean;
   compactBooleanLabels: boolean;
-  columnVisibleLabel: string;
+  checkboxLabel: string;
   onToggle: (next: boolean) => void;
 }) {
   if (props.compactBooleanLabels) {
@@ -247,7 +247,7 @@ function CatalogBooleanField(props: {
           type="checkbox"
           value="true"
         />
-        {props.columnVisibleLabel}
+        {props.checkboxLabel}
       </label>
     </div>
   );
@@ -382,7 +382,7 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
         <CatalogBooleanField
           key={key}
           checked={checked}
-          columnVisibleLabel={tc('column_visible')}
+          checkboxLabel={key === 'isVisible' ? tc('column_visible') : label}
           compactBooleanLabels={compactBooleanLabels}
           fieldKey={key}
           label={label}

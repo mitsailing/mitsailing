@@ -34,7 +34,7 @@ export async function SiteAlertsListView(props: SiteAlertsListViewProps) {
       className="flex flex-col gap-4"
     >
       {props.alerts.map((item) => {
-        const dateIso = item.lastDateIso;
+        const dateIso = item.startDateIso;
         return (
           <li key={item.id}>
             <Card role="article">

@@ -31,8 +31,8 @@ const argonOpts: Options = {
   algorithm: 2,
 };
 
-const isProd = process.env.NODE_ENV === 'production';
-const isTest = process.env.NODE_ENV === 'test';
+const isProd = Env.NODE_ENV === 'production';
+const isTest = Env.NODE_ENV === 'test';
 // Playwright runs `next start` with NODE_ENV=production (so `isProd` is true
 // during e2e), but tests intentionally pound sign-up/sign-in from the same
 // localhost IP across parallel workers — the account-lockout test alone does
@@ -40,7 +40,7 @@ const isTest = process.env.NODE_ENV === 'test';
 // limiter under the e2e flag so lockout + "email already exists" tests can
 // reach the logic they care about. The flag is set by `e2e-build.cjs` at
 // build time and by playwright.config.ts at runtime.
-const isE2E = process.env.NEXT_PUBLIC_IS_E2E === '1';
+const isE2E = Env.NEXT_PUBLIC_IS_E2E === '1';
 
 export const auth = betterAuth({
   baseURL: Env.NEXT_PUBLIC_APP_URL,
@@ -160,7 +160,7 @@ export const auth = betterAuth({
       bannedUserMessage: enMessages.AuthErrors.BANNED_USER_MESSAGE,
     }),
     haveIBeenPwned({
-      enabled: !isTest,
+      enabled: !isTest && !isE2E,
     }),
     auditLog({
       nonBlocking: true,

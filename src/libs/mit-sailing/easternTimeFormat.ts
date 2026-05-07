@@ -77,6 +77,7 @@ export function formatEasternCalendarDateKey(d: Date): string {
 }
 
 const isoCalendarDayDisplayFormatter = new Intl.DateTimeFormat('en-US', {
+  timeZone: NY,
   weekday: 'short',
   month: 'short',
   day: 'numeric',

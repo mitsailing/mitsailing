@@ -18,17 +18,7 @@ import { prisma } from '@/libs/DB';
 import { formatEasternShortDateFromIsoCalendar } from '@/libs/mit-sailing/easternTimeFormat';
 import { isoCalendarDateFromPrismaDate } from '@/libs/mit-sailing/isoCalendarDate';
 import { sanitizeSiteAlertBodyHtml } from '@/libs/mit-sailing/sanitizeSiteAlertHtml';
-
-function plainPreview(htmlish: string, maxLen: number): string {
-  const plain = htmlish
-    .replaceAll(/<[^>]*>/g, ' ')
-    .replaceAll(/\s+/g, ' ')
-    .trim();
-  if (plain.length <= maxLen) {
-    return plain;
-  }
-  return `${plain.slice(0, maxLen - 1)}…`;
-}
+import { siteAlertPlainTextPreview } from '@/libs/mit-sailing/siteAlertPlainTextPreview';
 
 /**
  * Prisma-backed handlers for site alerts (home banner + `/alerts`).
@@ -47,7 +37,10 @@ export const siteAlertsCatalogHandlers: CatalogServerHandlers = {
     });
     return rows.map((row) => ({
       id: row.id,
-      bodyPreview: plainPreview(row.body, 96),
+      bodyPreview: siteAlertPlainTextPreview({
+        htmlish: row.body,
+        maxLength: 96,
+      }),
       isPublished: row.isPublished,
       startDateLabel: formatEasternShortDateFromIsoCalendar(
         isoCalendarDateFromPrismaDate(row.startDate)

@@ -34,6 +34,7 @@ test.describe('Admin site alerts', () => {
     const lastInput = page.locator('input[name="lastDate"]');
     await expect(startInput).toHaveAttribute('type', 'date');
     await expect(lastInput).toHaveAttribute('type', 'date');
+    await expect(page.getByLabel('Published on site')).toBeVisible();
 
     const startValue = await startInput.inputValue();
     const lastValue = await lastInput.inputValue();
