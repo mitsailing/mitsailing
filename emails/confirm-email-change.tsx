@@ -1,10 +1,9 @@
 import type * as React from 'react';
-import { Button, Heading, Link, Section, Text } from 'react-email';
+import { Heading, Link, Section, Text } from 'react-email';
 import { EmailLayout } from './email-layout';
 
 export type ConfirmEmailChangeProps = {
-  confirmUrl: string;
-  newEmail: string;
+  code: string;
   supportEmail: string;
 };
 
@@ -26,20 +25,17 @@ const paragraph: React.CSSProperties = {
   margin: '0 0 20px',
 };
 
-const buttonWrap: React.CSSProperties = {
+const codeBox: React.CSSProperties = {
+  backgroundColor: '#f8fafc',
+  border: '1px solid #cbd5e1',
+  borderRadius: '8px',
+  color: '#0f172a',
+  fontSize: '28px',
+  fontWeight: 700,
+  letterSpacing: '6px',
   margin: '24px 0',
+  padding: '16px 20px',
   textAlign: 'center' as const,
-};
-
-const button: React.CSSProperties = {
-  backgroundColor: '#2563eb',
-  borderRadius: '6px',
-  color: '#ffffff',
-  display: 'inline-block',
-  fontSize: '15px',
-  fontWeight: 600,
-  padding: '12px 24px',
-  textDecoration: 'none',
 };
 
 const supportNote: React.CSSProperties = {
@@ -53,27 +49,12 @@ const supportLink: React.CSSProperties = {
   color: '#2563eb',
 };
 
-const finePrint: React.CSSProperties = {
-  color: '#64748b',
-  fontSize: '12px',
-  margin: '24px 0 8px',
-};
-
-const linkText: React.CSSProperties = {
-  color: '#2563eb',
-  fontSize: '12px',
-  wordBreak: 'break-all' as const,
-};
-
 /**
- * Email sent to the CURRENT (verified) address when an account holder asks
- * to change their login email. The body makes the proposed target address
- * visible so the true owner can react if it was not them, mirroring the
- * secure_rails "notify the old address on email change" guidance.
+ * Email sent to the proposed new address when an account holder asks to
+ * change their login email.
  *
  * @param props - Template props.
- * @param props.confirmUrl - Absolute HTTPS URL that completes the swap.
- * @param props.newEmail - Proposed new login address (for confirmation text).
+ * @param props.code - Numeric confirmation code.
  * @param props.supportEmail - Mailbox to surface if the change was not theirs.
  * @returns Complete email element tree.
  */
@@ -85,27 +66,19 @@ export function ConfirmEmailChangeTemplate(props: ConfirmEmailChangeProps) {
           Confirm your new email
         </Heading>
         <Text style={paragraph}>
-          A request was made to change the login email on your account to{' '}
-          <strong>{props.newEmail}</strong>. Click the button below to confirm
-          the change. Your login email stays the same until the new address is
-          verified from its own inbox.
+          Your MIT Sailing email change confirmation code is {props.code}. Enter
+          it in account settings to confirm this address as your new login
+          email.
         </Text>
-        <Section style={buttonWrap}>
-          <Button href={props.confirmUrl} style={button}>
-            Confirm new email
-          </Button>
-        </Section>
+        <Text style={codeBox}>{props.code}</Text>
         <Text style={supportNote}>
-          If you did not request this change, contact{' '}
+          This code expires in 5 minutes. If you did not request this change,
+          contact{' '}
           <Link href={`mailto:${props.supportEmail}`} style={supportLink}>
             {props.supportEmail}
           </Link>{' '}
-          right away — someone else may have access to your account.
+          right away.
         </Text>
-        <Text style={finePrint}>
-          If the button does not work, paste this link into your browser:
-        </Text>
-        <Text style={linkText}>{props.confirmUrl}</Text>
       </Section>
     </EmailLayout>
   );

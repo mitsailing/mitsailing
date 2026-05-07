@@ -7,21 +7,28 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { authClient } from '@/libs/auth-client';
+import { isValidMarketingEmail } from '@/utils/emailValidation';
 
 type ResetPasswordFormProps = {
-  token: string;
-  signInUrl: string;
+  callbackUrl: string;
+  initialEmail: string;
+  passwordHeading: string;
 };
 
-// Client-side reset-password form. Posts the new password with the token
-// that Better Auth embedded in the reset link (`?token=...`).
 export function ResetPasswordForm(props: ResetPasswordFormProps) {
   const t = useTranslations('ResetPasswordPage');
   const router = useRouter();
+  const hasInitialEmail = isValidMarketingEmail(props.initialEmail);
+  const [email, setEmail] = useState(props.initialEmail);
+  const [resetCode, setResetCode] = useState('');
+  const [step, setStep] = useState<'code' | 'password'>('code');
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendLocked, setResendLocked] = useState(false);
 
   function mapError(
     code: string | undefined,
@@ -30,96 +37,260 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
     if (code === 'PASSWORD_COMPROMISED') {
       return t('error_pwned');
     }
+    if (code === 'OTP_EXPIRED') {
+      return t('error_expired');
+    }
+    if (code === 'INVALID_OTP') {
+      return t('error_invalid_code');
+    }
+    if (code === 'TOO_MANY_ATTEMPTS') {
+      return t('error_too_many_attempts');
+    }
     if (code === 'TOO_MANY_REQUESTS') {
       return t('error_rate_limited');
     }
     return message ?? t('error_validation');
   }
 
-  async function onSubmit(event: React.SubmitEvent<HTMLFormElement>) {
+  function lockResend() {
+    setResendLocked(true);
+    window.setTimeout(() => {
+      setResendLocked(false);
+    }, 30_000);
+  }
+
+  function onCodeSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-    if (password !== passwordConfirmation) {
-      setError(t('error_password_mismatch'));
+    setStatus(null);
+    if (!isValidMarketingEmail(email)) {
+      setError(t('error_invalid_email'));
       return;
     }
-    if (!props.token) {
-      setError(t('error_validation'));
+    if (resetCode.length !== 6) {
+      setError(t('error_invalid_code'));
       return;
     }
-    setSubmitting(true);
-    const res = await authClient.resetPassword({
-      newPassword: password,
-      token: props.token,
-    });
-    setSubmitting(false);
+    setStep('password');
+  }
+
+  async function onResendCode() {
+    setError(null);
+    setStatus(null);
+    if (!isValidMarketingEmail(email)) {
+      setError(t('error_invalid_email'));
+      return;
+    }
+    setResending(true);
+    const res = await authClient.emailOtp.requestPasswordReset({ email });
+    setResending(false);
     if (res.error) {
       setError(mapError(res.error.code, res.error.message));
       return;
     }
-    router.push(`${props.signInUrl}?reset=1`);
+    setStatus(t('resent_banner'));
+    lockResend();
+  }
+
+  async function onSubmit(event: React.SubmitEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setStatus(null);
+    if (!isValidMarketingEmail(email)) {
+      setError(t('error_invalid_email'));
+      return;
+    }
+    if (password !== passwordConfirmation) {
+      setError(t('error_password_mismatch'));
+      return;
+    }
+    setSubmitting(true);
+    const res = await authClient.emailOtp.resetPassword({
+      email,
+      otp: resetCode,
+      password,
+    });
+    if (res.error) {
+      setSubmitting(false);
+      setError(mapError(res.error.code, res.error.message));
+      return;
+    }
+    const signInRes = await authClient.signIn.email({
+      email,
+      password,
+      callbackURL: props.callbackUrl,
+    });
+    setSubmitting(false);
+    if (signInRes.error) {
+      setError(mapError(signInRes.error.code, signInRes.error.message));
+      return;
+    }
+    router.push(props.callbackUrl);
+    router.refresh();
   }
 
   return (
-    <>
+    <section className="flex flex-col items-center gap-8 text-center">
       {error ? (
         <p
-          className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-800"
+          className="w-full rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-800"
           role="alert"
         >
           {error}
         </p>
       ) : null}
 
-      <form className="flex flex-col gap-4" onSubmit={onSubmit}>
-        <div className="flex flex-col gap-1.5">
-          <Label className="text-foreground" htmlFor="password">
-            {t('password_label')}
-          </Label>
-          <Input
-            autoComplete="new-password"
-            id="password"
-            minLength={8}
-            name="password"
-            onChange={(e) => {
-              setPassword(e.target.value);
-            }}
-            required
-            type="password"
-            value={password}
-          />
-          <span className="text-xs text-muted-foreground">
-            {t('password_hint')}
-          </span>
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <Label className="text-foreground" htmlFor="passwordConfirmation">
-            {t('password_confirmation_label')}
-          </Label>
-          <Input
-            autoComplete="new-password"
-            id="passwordConfirmation"
-            minLength={8}
-            name="passwordConfirmation"
-            onChange={(e) => {
-              setPasswordConfirmation(e.target.value);
-            }}
-            required
-            type="password"
-            value={passwordConfirmation}
-          />
-        </div>
-
-        <Button
-          className="w-full"
-          disabled={submitting}
-          type="submit"
-          variant="mit"
+      {status ? (
+        <p
+          className="w-full rounded-2xl bg-green-50 px-4 py-3 text-sm text-green-800"
+          role="status"
         >
-          {t('submit')}
-        </Button>
-      </form>
-    </>
+          {status}
+        </p>
+      ) : null}
+
+      {step === 'code' ? (
+        <div className="flex flex-col items-center gap-4">
+          <h1 className="text-center text-4xl font-normal tracking-normal text-foreground sm:text-5xl">
+            {t('heading')}
+          </h1>
+          <p className="max-w-md text-xl leading-relaxed text-pretty text-muted-foreground">
+            {hasInitialEmail
+              ? t('pending_body', { email: props.initialEmail })
+              : t('pending_body_fallback')}
+          </p>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center gap-4">
+          <h1 className="text-center text-3xl font-normal tracking-normal text-foreground sm:text-4xl">
+            {props.passwordHeading}
+          </h1>
+        </div>
+      )}
+
+      {step === 'code' ? (
+        <>
+          <form className="flex w-full flex-col gap-6" onSubmit={onCodeSubmit}>
+            {hasInitialEmail ? null : (
+              <div>
+                <Label className="sr-only" htmlFor="email">
+                  {t('email_label')}
+                </Label>
+                <Input
+                  autoComplete="email"
+                  className="h-14 rounded-full px-8 text-xl md:text-xl"
+                  id="email"
+                  inputMode="email"
+                  name="email"
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                  }}
+                  placeholder={t('email_placeholder')}
+                  required
+                  type="email"
+                  value={email}
+                />
+              </div>
+            )}
+
+            <div>
+              <Label className="sr-only" htmlFor="code">
+                {t('code_label')}
+              </Label>
+              <Input
+                autoComplete="one-time-code"
+                className="h-14 rounded-full px-8 text-xl md:text-xl"
+                enterKeyHint="done"
+                id="code"
+                inputMode="numeric"
+                maxLength={6}
+                minLength={6}
+                name="code"
+                onChange={(e) => {
+                  setResetCode(
+                    e.target.value.replaceAll(/\D/g, '').slice(0, 6)
+                  );
+                }}
+                pattern="[0-9]{6}"
+                placeholder={t('code_placeholder')}
+                required
+                type="text"
+                value={resetCode}
+              />
+            </div>
+
+            <Button
+              className="h-14 w-full rounded-full bg-foreground text-lg font-normal text-background hover:bg-foreground/90"
+              disabled={submitting || resetCode.length !== 6}
+              type="submit"
+            >
+              {t('continue')}
+            </Button>
+          </form>
+
+          <Button
+            className="h-auto min-h-0 px-0 py-0 text-lg font-normal text-foreground no-underline shadow-none hover:bg-transparent hover:text-foreground/70 hover:no-underline disabled:opacity-60"
+            disabled={resending || resendLocked}
+            onClick={onResendCode}
+            type="button"
+            variant="link"
+          >
+            {resendLocked ? t('resend_wait') : t('resend_email')}
+          </Button>
+        </>
+      ) : (
+        <form className="flex w-full flex-col gap-4" onSubmit={onSubmit}>
+          <div className="flex flex-col gap-1.5 text-left">
+            <Label className="text-foreground" htmlFor="password">
+              {t('password_label')}
+            </Label>
+            <Input
+              autoComplete="new-password"
+              className="h-12 rounded-2xl px-5 text-base md:text-base"
+              id="password"
+              minLength={8}
+              name="password"
+              onChange={(e) => {
+                setPassword(e.target.value);
+              }}
+              required
+              type="password"
+              value={password}
+            />
+            <span className="text-xs text-muted-foreground">
+              {t('password_hint')}
+            </span>
+          </div>
+
+          <div className="flex flex-col gap-1.5 text-left">
+            <Label className="text-foreground" htmlFor="passwordConfirmation">
+              {t('password_confirmation_label')}
+            </Label>
+            <Input
+              autoComplete="new-password"
+              className="h-12 rounded-2xl px-5 text-base md:text-base"
+              id="passwordConfirmation"
+              minLength={8}
+              name="passwordConfirmation"
+              onChange={(e) => {
+                setPasswordConfirmation(e.target.value);
+              }}
+              required
+              type="password"
+              value={passwordConfirmation}
+            />
+          </div>
+
+          <Button
+            className="h-12 w-full rounded-full"
+            disabled={submitting}
+            type="submit"
+            variant="mit"
+          >
+            {t('submit')}
+          </Button>
+        </form>
+      )}
+    </section>
   );
 }

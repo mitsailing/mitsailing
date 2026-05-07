@@ -10,6 +10,10 @@ import { useRouteHash } from '@/hooks/useRouteHash';
 import { isNavLinkActive } from '@/lib/mit-sailing/navPathMatch';
 import { authClient } from '@/libs/auth-client';
 import { adminHeaderLinkVisibleFromClientSessionData } from '@/libs/auth/adminHeaderLink';
+import {
+  authHrefWithCallback,
+  safeAuthCallbackUrl,
+} from '@/libs/auth/callbackUrl';
 import { Link, usePathname } from '@/libs/I18nNavigation';
 import type { NavigationDropdownItem } from './NavigationDropdown';
 import { NavigationDropdown } from './NavigationDropdown';
@@ -158,6 +162,9 @@ export function SiteHeader(props: SiteHeaderProps) {
     }
     return item;
   });
+  const authCallbackUrl = safeAuthCallbackUrl(pathname);
+  const loginHref = authHrefWithCallback('/login/', authCallbackUrl);
+  const signupHref = authHrefWithCallback('/signup/', authCallbackUrl);
 
   function closeMobile() {
     setMobileMenuOpen(false);
@@ -345,14 +352,14 @@ export function SiteHeader(props: SiteHeaderProps) {
             <>
               <Link
                 className={mobileGuestLoginClass}
-                href="/login/"
+                href={loginHref}
                 onClick={closeMobile}
               >
                 {t('auth_log_in')}
               </Link>
               <Link
                 className={mobileGuestSignupClass}
-                href="/signup/"
+                href={signupHref}
                 onClick={closeMobile}
               >
                 {t('auth_create_account')}
@@ -480,10 +487,10 @@ export function SiteHeader(props: SiteHeaderProps) {
           ) : null}
           {!showAuthPending && !displayAuthenticated ? (
             <>
-              <Link className={desktopGuestLoginClass} href="/login/">
+              <Link className={desktopGuestLoginClass} href={loginHref}>
                 {t('auth_log_in')}
               </Link>
-              <Link className={desktopGuestSignupClass} href="/signup/">
+              <Link className={desktopGuestSignupClass} href={signupHref}>
                 {t('auth_create_account')}
               </Link>
             </>

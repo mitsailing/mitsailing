@@ -6,15 +6,15 @@ import { hash, verify } from '@node-rs/argon2';
 import { betterAuth } from 'better-auth';
 import { auditLog } from 'better-auth-audit-logs';
 import { nextCookies } from 'better-auth/next-js';
-import { admin, haveIBeenPwned } from 'better-auth/plugins';
+import { admin, emailOTP, haveIBeenPwned } from 'better-auth/plugins';
 import { signInEmailHooks } from '@/libs/auth/hooks';
 import { prisma } from '@/libs/DB';
 import {
-  sendChangeEmailConfirmationEmail,
+  markPendingEmailChange,
   sendDeleteAccountVerificationEmail,
+  sendEmailChangeRequestedNotice,
+  sendEmailOtpCode,
   sendPasswordChangedNotice,
-  sendPasswordResetEmail,
-  sendVerificationEmail,
 } from '@/libs/email/account-emails';
 import { Env } from '@/libs/Env';
 import enMessages from '@/locales/en.json';
@@ -70,9 +70,6 @@ export const auth = betterAuth({
     customRules: {
       '/sign-in/email': { window: 60, max: 5 },
       '/sign-up/email': { window: 60, max: 3 },
-      '/request-password-reset': { window: 60, max: 3 },
-      '/reset-password': { window: 60, max: 10 },
-      '/change-email': { window: 60 * 60, max: 5 },
       '/delete-user': { window: 60 * 60, max: 3 },
     },
   },
@@ -92,9 +89,6 @@ export const auth = betterAuth({
         return ok;
       },
     },
-    sendResetPassword: async ({ user, url }) => {
-      await sendPasswordResetEmail(user.email, url);
-    },
     onPasswordReset: async ({ user }) => {
       await sendPasswordChangedNotice(user.email);
     },
@@ -102,10 +96,7 @@ export const auth = betterAuth({
   emailVerification: {
     sendOnSignUp: true,
     sendOnSignIn: true,
-    autoSignInAfterVerification: false,
-    sendVerificationEmail: async ({ user, url }) => {
-      await sendVerificationEmail(user.email, url);
-    },
+    autoSignInAfterVerification: true,
     afterEmailVerification: async (user) => {
       // Devise-parity: once the verification flow completes (sign-up or
       // change-email), make sure no stale pending address lingers on the
@@ -130,17 +121,7 @@ export const auth = betterAuth({
       },
     },
     changeEmail: {
-      enabled: true,
-      sendChangeEmailConfirmation: async ({ user, newEmail, url }) => {
-        // Persist the pending new address so the profile can show it, support
-        // a resend, and reset it cleanly if the user submits a different
-        // address before confirming.
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { unconfirmedEmail: newEmail },
-        });
-        await sendChangeEmailConfirmationEmail(user.email, newEmail, url);
-      },
+      enabled: false,
     },
     deleteUser: {
       enabled: true,
@@ -161,6 +142,46 @@ export const auth = betterAuth({
     }),
     haveIBeenPwned({
       enabled: !isTest && !isE2E,
+      customPasswordCompromisedMessage:
+        enMessages.AuthErrors.PASSWORD_COMPROMISED,
+      paths: [
+        '/sign-up/email',
+        '/change-password',
+        '/email-otp/reset-password',
+      ],
+    }),
+    emailOTP({
+      allowedAttempts: 3,
+      changeEmail: { enabled: true },
+      expiresIn: 5 * 60,
+      otpLength: 6,
+      overrideDefaultEmailVerification: true,
+      rateLimit: { window: 60, max: 3 },
+      sendVerificationOnSignUp: true,
+      storeOTP: 'hashed',
+      async sendVerificationOTP({ email, otp, type }, ctx) {
+        await sendEmailOtpCode({ email, otp, type });
+
+        if (type === 'change-email') {
+          const sessionUser = ctx?.context.session?.user;
+          if (sessionUser?.id) {
+            const pendingEmailChanged = await markPendingEmailChange({
+              userId: sessionUser.id,
+              newEmail: email,
+            });
+            if (
+              pendingEmailChanged &&
+              sessionUser.email &&
+              sessionUser.email !== email
+            ) {
+              await sendEmailChangeRequestedNotice({
+                currentEmail: sessionUser.email,
+                newEmail: email,
+              });
+            }
+          }
+        }
+      },
     }),
     auditLog({
       nonBlocking: true,

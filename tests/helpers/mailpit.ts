@@ -62,8 +62,8 @@ export async function deleteAllMessages(): Promise<void> {
 
 /**
  * Poll Mailpit until a message addressed to `email` lands (or the deadline
- * elapses). Returns the fully-rendered HTML body so callers can pluck
- * verification/unlock/reset URLs out of it.
+ * elapses). Returns the fully-rendered message so callers can pluck
+ * verification codes and unlock URLs out of it.
  *
  * @param email - Recipient address to filter on.
  * @param timeoutMs - How long to wait before failing. Defaults to 15s —
@@ -127,6 +127,23 @@ export function extractLinkFromMessage(
   if (!match) {
     throw new Error(
       `No link matching ${pattern} found in message ${message.ID} (subject: "${message.Subject}")`
+    );
+  }
+  return match[0];
+}
+
+/**
+ * Pull the first 6-digit OTP out of a Mailpit message body.
+ *
+ * @param message - Message returned by `findLatestMessageTo`.
+ * @returns The first 6-digit verification code in the message body.
+ */
+export function extractCodeFromMessage(message: MailpitMessage): string {
+  const match =
+    message.Text.match(/\b\d{6}\b/) ?? message.HTML.match(/\b\d{6}\b/);
+  if (!match) {
+    throw new Error(
+      `No 6-digit code found in message ${message.ID} (subject: "${message.Subject}")`
     );
   }
   return match[0];

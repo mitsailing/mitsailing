@@ -1,7 +1,12 @@
 import { faker } from '@faker-js/faker';
 import { expect, test } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { Pool } from 'pg';
 import { formAlert } from '../helpers/e2e-alert';
+import {
+  extractCodeFromMessage,
+  findLatestMessageTo,
+} from '../helpers/mailpit';
 
 /**
  * Do not import `prisma` from the app `DB` module here. Prisma 7’s client
@@ -39,17 +44,48 @@ async function cleanupByEmail(email: string) {
     await pool.query('DELETE FROM "failed_login_attempts" WHERE "email" = $1', [
       email,
     ]);
+    await pool.query(
+      `DELETE FROM "verification"
+       WHERE "identifier" = $1
+          OR "identifier" = $2
+          OR "identifier" LIKE $3
+          OR "identifier" LIKE $4`,
+      [
+        `email-verification-otp-${email}`,
+        `forget-password-otp-${email}`,
+        `change-email-otp-${email}-%`,
+        `change-email-otp-%-${email}`,
+      ]
+    );
     await pool.query('DELETE FROM "user" WHERE "email" = $1', [email]);
   } catch (error) {
     swallow(error);
   }
 }
 
-async function markEmailVerified(email: string) {
-  await pool.query(
-    'UPDATE "user" SET "email_verified" = TRUE WHERE "email" = $1',
-    [email]
-  );
+async function signUpWithEmailAndPassword(
+  page: Page,
+  email: string,
+  password: string
+) {
+  await page.getByLabel('Email').fill(email);
+  await page.getByLabel('Password', { exact: true }).fill(password);
+  await page.getByLabel('Confirm password').fill(password);
+  await page.getByRole('button', { name: 'Sign up' }).click();
+  await expect(page).toHaveURL(/\/verify-email\?/);
+  await expect(
+    page.getByText(`Enter the verification code we just sent to ${email}.`)
+  ).toBeVisible();
+}
+
+async function verifyEmailWithLatestCode(page: Page, email: string) {
+  const message = await findLatestMessageTo(email);
+  expect(message.Subject).toMatch(/confirm/i);
+
+  await page
+    .getByLabel('Verification code')
+    .fill(extractCodeFromMessage(message));
+  await page.getByRole('button', { name: 'Continue' }).click();
 }
 
 test.describe('Auth', () => {
@@ -62,16 +98,7 @@ test.describe('Auth', () => {
     const password = 'Correct-Horse-Battery-Staple';
 
     await page.goto('/signup');
-    await page.getByLabel('Email').fill(email);
-    await page.getByLabel('Password', { exact: true }).fill(password);
-    await page.getByLabel('Confirm password').fill(password);
-    await page.getByRole('button', { name: 'Sign up' }).click();
-
-    await expect(
-      page.getByText(
-        'Check your email to confirm your address before signing in.'
-      )
-    ).toBeVisible();
+    await signUpWithEmailAndPassword(page, email, password);
 
     const { rows: credentialRows } = await pool.query<{
       password: string | null;
@@ -85,13 +112,7 @@ test.describe('Auth', () => {
     const storedPassword = credentialRows[0]?.password;
     expect(storedPassword?.startsWith('$argon2id$')).toBe(true);
 
-    await markEmailVerified(email);
-
-    await page.goto('/login');
-    await page.getByLabel('Email').fill(email);
-    await page.getByLabel('Password').fill(password);
-    await page.getByRole('button', { name: 'Sign in' }).click();
-
+    await verifyEmailWithLatestCode(page, email);
     await expect.poll(() => new URL(page.url()).pathname).toBe('/');
 
     await page.goto('/profile/');
@@ -108,6 +129,70 @@ test.describe('Auth', () => {
     await expect(
       page.getByRole('banner').getByRole('button', { name: 'Sign out' })
     ).toBeVisible();
+
+    await cleanupByEmail(email);
+  });
+
+  test('returns to the original page after login-to-signup verification', async ({
+    page,
+  }) => {
+    const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
+    const password = 'Correct-Horse-Battery-Staple';
+
+    await page.goto('/fleet');
+    await page.getByRole('link', { name: 'Log in' }).click();
+    await expect(page).toHaveURL(/\/login\/?\?.*callbackUrl=/);
+
+    await page.getByRole('link', { name: 'Sign up' }).click();
+    await expect(page).toHaveURL(/\/signup\/?\?.*callbackUrl=/);
+
+    await signUpWithEmailAndPassword(page, email, password);
+    await verifyEmailWithLatestCode(page, email);
+
+    await expect
+      .poll(() => new URL(page.url()).pathname)
+      .toMatch(/^\/fleet\/?$/);
+
+    await cleanupByEmail(email);
+  });
+
+  test('returns password reset users to the callback after OTP reset', async ({
+    page,
+  }) => {
+    const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
+    const password = 'Correct-Horse-Battery-Staple';
+    const resetPassword = 'Correct-Horse-Battery-Staple-2';
+
+    await page.goto('/signup');
+    await signUpWithEmailAndPassword(page, email, password);
+    await verifyEmailWithLatestCode(page, email);
+    await expect.poll(() => new URL(page.url()).pathname).toBe('/');
+
+    await page.context().clearCookies();
+    await page.goto('/forgot-password?callbackUrl=/fleet/');
+    await page.getByLabel('Email').fill(email);
+    await page.getByRole('button', { name: 'Send reset code' }).click();
+    await expect(page).toHaveURL(/\/reset-password\?/);
+
+    let resetMessage = await findLatestMessageTo(email);
+    await expect
+      .poll(async () => {
+        resetMessage = await findLatestMessageTo(email);
+        return resetMessage.Subject;
+      })
+      .toMatch(/reset/i);
+
+    await page
+      .getByLabel('Reset code')
+      .fill(extractCodeFromMessage(resetMessage));
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByLabel('New password', { exact: true }).fill(resetPassword);
+    await page.getByLabel('Confirm new password').fill(resetPassword);
+    await page.getByRole('button', { name: 'Update password' }).click();
+
+    await expect
+      .poll(() => new URL(page.url()).pathname)
+      .toMatch(/^\/fleet\/?$/);
 
     await cleanupByEmail(email);
   });
@@ -130,16 +215,7 @@ test.describe('Auth', () => {
     const password = 'Correct-Horse-Battery-Staple';
 
     await page.goto('/signup');
-    await page.getByLabel('Email').fill(email);
-    await page.getByLabel('Password', { exact: true }).fill(password);
-    await page.getByLabel('Confirm password').fill(password);
-    await page.getByRole('button', { name: 'Sign up' }).click();
-
-    await expect(
-      page.getByText(
-        'Check your email to confirm your address before signing in.'
-      )
-    ).toBeVisible();
+    await signUpWithEmailAndPassword(page, email, password);
 
     await page.goto('/signup');
     await page.getByLabel('Email').fill(email);
@@ -159,16 +235,7 @@ test.describe('Auth', () => {
     const password = 'Correct-Horse-Battery-Staple';
 
     await page.goto('/signup');
-    await page.getByLabel('Email').fill(email);
-    await page.getByLabel('Password', { exact: true }).fill(password);
-    await page.getByLabel('Confirm password').fill(password);
-    await page.getByRole('button', { name: 'Sign up' }).click();
-
-    await expect(
-      page.getByText(
-        'Check your email to confirm your address before signing in.'
-      )
-    ).toBeVisible();
+    await signUpWithEmailAndPassword(page, email, password);
 
     await page.goto('/login');
     await page.getByLabel('Email').fill(email);

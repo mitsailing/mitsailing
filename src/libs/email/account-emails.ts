@@ -1,5 +1,6 @@
 import { render } from 'react-email';
 import { createUnlockAccountToken } from '@/libs/auth/unlock-token';
+import { prisma } from '@/libs/DB';
 import { sendTransactionalEmail } from '@/libs/email/sendTransactional';
 import { Env } from '@/libs/Env';
 import enMessages from '@/locales/en.json';
@@ -7,6 +8,7 @@ import { getBaseUrl } from '@/utils/Helpers';
 import { AccountUnlockEmailTemplate } from '../../../emails/account-unlock';
 import { ConfirmEmailChangeTemplate } from '../../../emails/confirm-email-change';
 import { DeleteAccountEmailTemplate } from '../../../emails/delete-account';
+import { EmailChangeRequestedNoticeTemplate } from '../../../emails/email-change-requested';
 import { PasswordChangedNoticeTemplate } from '../../../emails/password-changed';
 import { PasswordResetEmailTemplate } from '../../../emails/password-reset';
 import { VerifyEmailTemplate } from '../../../emails/verify-email';
@@ -16,65 +18,118 @@ const subjects = enMessages.AuthEmails;
 /** Support mailbox surfaced in transactional copy (env-configurable). */
 const { SUPPORT_EMAIL } = Env;
 
+function verificationCodeText(params: {
+  code: string;
+  purpose: 'verify-email' | 'reset-password' | 'change-email';
+}): string {
+  if (params.purpose === 'reset-password') {
+    return `Your MIT Sailing password reset code is ${params.code}.\n\nThis code expires in 5 minutes.`;
+  }
+
+  if (params.purpose === 'change-email') {
+    return `Your MIT Sailing email change confirmation code is ${params.code}.\n\nThis code expires in 5 minutes.`;
+  }
+
+  return `Your MIT Sailing verification code is ${params.code}.\n\nThis code expires in 5 minutes.`;
+}
+
 /**
- * Sends sign-up verification email via React Email + Resend. The body now
- * states the 1-hour expiry and points users at resend/support, matching the
- * `sendOnSignIn` + unverified-error copy on the sign-in page.
+ * Sends an email OTP for verification, password reset, or email change.
  *
- * @param email - Recipient address.
- * @param url - Absolute HTTPS URL that completes verification.
+ * @param params - OTP email parameters.
+ * @param params.email - Recipient address.
+ * @param params.otp - Numeric one-time code.
+ * @param params.type - Better Auth OTP purpose.
  */
-export async function sendVerificationEmail(email: string, url: string) {
+export async function sendEmailOtpCode(params: {
+  email: string;
+  otp: string;
+  type: 'email-verification' | 'forget-password' | 'change-email' | 'sign-in';
+}) {
+  if (params.type === 'forget-password') {
+    const html = await render(PasswordResetEmailTemplate({ code: params.otp }));
+    await sendTransactionalEmail({
+      to: params.email,
+      subject: subjects.reset_password_subject,
+      html,
+      text: verificationCodeText({
+        code: params.otp,
+        purpose: 'reset-password',
+      }),
+    });
+    return;
+  }
+
+  if (params.type === 'change-email') {
+    const html = await render(
+      ConfirmEmailChangeTemplate({
+        code: params.otp,
+        supportEmail: SUPPORT_EMAIL,
+      })
+    );
+    await sendTransactionalEmail({
+      to: params.email,
+      subject: subjects.change_email_subject,
+      html,
+      text: verificationCodeText({ code: params.otp, purpose: 'change-email' }),
+    });
+    return;
+  }
+
   const html = await render(
-    VerifyEmailTemplate({ verifyUrl: url, supportEmail: SUPPORT_EMAIL })
+    VerifyEmailTemplate({ code: params.otp, supportEmail: SUPPORT_EMAIL })
   );
   await sendTransactionalEmail({
-    to: email,
+    to: params.email,
     subject: subjects.verify_subject,
     html,
+    text: verificationCodeText({ code: params.otp, purpose: 'verify-email' }),
   });
 }
 
 /**
- * Sends password reset email.
- * @param email - Recipient address.
- * @param url - Absolute HTTPS URL carrying the reset token.
- */
-export async function sendPasswordResetEmail(email: string, url: string) {
-  const html = await render(PasswordResetEmailTemplate({ resetUrl: url }));
-  await sendTransactionalEmail({
-    to: email,
-    subject: subjects.reset_password_subject,
-    html,
-  });
-}
-
-/**
- * Sends the confirmation link that finalizes an email change. Better Auth
- * delivers to the CURRENT (verified) email first, so this message doubles as
- * the secure_rails "notify the old address on email change" notice: the body
- * names the proposed new address and directs the owner to support if they
- * did not initiate the change.
+ * Records the proposed email address while the OTP is pending.
  *
- * @param currentEmail - Recipient (the current, verified email on file).
- * @param newEmail - Proposed replacement login email (confirmation body copy).
- * @param url - Absolute HTTPS URL that completes the swap.
+ * @param params - Pending email details.
+ * @param params.userId - Current user ID.
+ * @param params.newEmail - Proposed login email.
+ * @returns True when the pending address changed.
  */
-export async function sendChangeEmailConfirmationEmail(
-  currentEmail: string,
-  newEmail: string,
-  url: string
-) {
+export async function markPendingEmailChange(params: {
+  userId: string;
+  newEmail: string;
+}): Promise<boolean> {
+  const existing = await prisma.user.findUnique({
+    where: { id: params.userId },
+    select: { unconfirmedEmail: true },
+  });
+  await prisma.user.update({
+    where: { id: params.userId },
+    data: { unconfirmedEmail: params.newEmail },
+  });
+  return existing?.unconfirmedEmail !== params.newEmail;
+}
+
+/**
+ * Notifies the current login email that a change was requested.
+ *
+ * @param params - Notice details.
+ * @param params.currentEmail - Current verified login email.
+ * @param params.newEmail - Proposed replacement login email.
+ */
+export async function sendEmailChangeRequestedNotice(params: {
+  currentEmail: string;
+  newEmail: string;
+}) {
   const html = await render(
-    ConfirmEmailChangeTemplate({
-      confirmUrl: url,
-      newEmail,
+    EmailChangeRequestedNoticeTemplate({
+      newEmail: params.newEmail,
       supportEmail: SUPPORT_EMAIL,
     })
   );
   await sendTransactionalEmail({
-    to: currentEmail,
-    subject: subjects.change_email_subject,
+    to: params.currentEmail,
+    subject: subjects.change_email_notice_subject,
     html,
   });
 }

@@ -3,6 +3,10 @@ import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { cache } from 'react';
 import { auth } from '@/libs/auth';
+import {
+  authHrefWithCallback,
+  safeAuthCallbackUrl,
+} from '@/libs/auth/callbackUrl';
 import { normalizeRole, Role } from '@/libs/auth/roles';
 import { syncSentryUserFromSession } from '@/libs/sentry-user-server';
 import { AppConfig } from '@/utils/AppConfig';
@@ -60,10 +64,7 @@ export async function redirectIfAuthenticated(
     return;
   }
   const homeHref = getI18nPath('/', locale);
-  const destination =
-    typeof callbackUrl === 'string' && callbackUrl.startsWith('/')
-      ? callbackUrl
-      : homeHref;
+  const destination = safeAuthCallbackUrl(callbackUrl, homeHref);
   redirect(destination);
 }
 
@@ -83,11 +84,7 @@ export async function verifySession(
 
   if (!session?.user?.id) {
     const signIn = getI18nPath('/login', locale);
-    const destination =
-      typeof callbackUrl === 'string' && callbackUrl.startsWith('/')
-        ? `${signIn}?callbackUrl=${encodeURIComponent(callbackUrl)}`
-        : signIn;
-    redirect(destination);
+    redirect(authHrefWithCallback(signIn, callbackUrl));
   }
 
   return session;

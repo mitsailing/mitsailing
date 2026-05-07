@@ -1,13 +1,18 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { authInlineLinkClassName } from '@/lib/mit-sailing/tokens';
+import {
+  authHrefWithCallback,
+  safeAuthCallbackUrl,
+} from '@/libs/auth/callbackUrl';
 import { redirectIfAuthenticated } from '@/libs/auth/dal';
 import { Link as I18nLink } from '@/libs/I18nNavigation';
-import { getBaseUrl, getI18nPath } from '@/utils/Helpers';
+import { getI18nPath } from '@/utils/Helpers';
 import { ForgotPasswordForm } from './ForgotPasswordForm';
 
 type ForgotPasswordPageProps = {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{ callbackUrl?: string }>;
 };
 
 export async function generateMetadata(
@@ -27,10 +32,14 @@ export default async function ForgotPasswordPage(
 ) {
   const { locale } = await props.params;
   setRequestLocale(locale);
-  await redirectIfAuthenticated(locale);
+  const searchParams = await props.searchParams;
+  const callbackUrl = safeAuthCallbackUrl(
+    searchParams.callbackUrl,
+    getI18nPath('/', locale)
+  );
+  await redirectIfAuthenticated(locale, callbackUrl);
 
   const t = await getTranslations({ locale, namespace: 'ForgotPasswordPage' });
-  const resetRedirectUrl = `${getBaseUrl()}${getI18nPath('/reset-password', locale)}`;
 
   return (
     <>
@@ -38,10 +47,13 @@ export default async function ForgotPasswordPage(
         {t('heading')}
       </h1>
 
-      <ForgotPasswordForm resetRedirectUrl={resetRedirectUrl} />
+      <ForgotPasswordForm callbackUrl={callbackUrl} />
 
       <p className="text-center text-sm text-mit-text">
-        <I18nLink className={authInlineLinkClassName} href="/login">
+        <I18nLink
+          className={authInlineLinkClassName}
+          href={authHrefWithCallback('/login', callbackUrl)}
+        >
           {t('back_sign_in')}
         </I18nLink>
       </p>

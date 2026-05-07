@@ -1,12 +1,14 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { authInlineLinkClassName } from '@/lib/mit-sailing/tokens';
 import { authClient } from '@/libs/auth-client';
+import { authHrefWithCallback } from '@/libs/auth/callbackUrl';
 import { Link as I18nLink } from '@/libs/I18nNavigation';
 import { isValidMarketingEmail } from '@/utils/emailValidation';
 
@@ -16,7 +18,7 @@ type ErrorState = {
 } | null;
 
 type SignUpFormProps = {
-  verifyCallbackUrl: string;
+  callbackUrl: string;
 };
 
 // Client-side sign-up form. Calls `authClient.signUp.email` and maps the
@@ -24,6 +26,7 @@ type SignUpFormProps = {
 // our hooks + HaveIBeenPwned plugin) to copy that keeps the Devise-style UX.
 export function SignUpForm(props: SignUpFormProps) {
   const t = useTranslations('SignUpPage');
+  const router = useRouter();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -75,7 +78,7 @@ export function SignUpForm(props: SignUpFormProps) {
       email,
       password,
       name: name.trim() === '' ? (email.split('@')[0] ?? '') : name,
-      callbackURL: props.verifyCallbackUrl,
+      callbackURL: props.callbackUrl,
     });
     setSubmitting(false);
     if (res.error) {
@@ -83,18 +86,21 @@ export function SignUpForm(props: SignUpFormProps) {
       return;
     }
     setSubmitted(true);
-  }
-
-  if (submitted) {
-    return (
-      <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-800">
-        {t('registered_banner')}
-      </p>
+    router.push(
+      authHrefWithCallback(
+        `/verify-email?email=${encodeURIComponent(email)}`,
+        props.callbackUrl
+      )
     );
   }
 
   return (
     <>
+      {submitted ? (
+        <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-800">
+          {t('registered_banner')}
+        </p>
+      ) : null}
       {error ? (
         <p
           className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-800"
@@ -104,13 +110,19 @@ export function SignUpForm(props: SignUpFormProps) {
           {error.showSignInLinks ? (
             <>
               {' '}
-              <I18nLink className={authInlineLinkClassName} href="/login">
+              <I18nLink
+                className={authInlineLinkClassName}
+                href={authHrefWithCallback('/login', props.callbackUrl)}
+              >
                 {t('sign_in_link')}
               </I18nLink>
               {' · '}
               <I18nLink
                 className={authInlineLinkClassName}
-                href="/forgot-password"
+                href={authHrefWithCallback(
+                  '/forgot-password',
+                  props.callbackUrl
+                )}
               >
                 {t('forgot_password_link')}
               </I18nLink>

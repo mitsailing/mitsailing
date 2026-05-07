@@ -7,11 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { authClient } from '@/libs/auth-client';
+import { authHrefWithCallback } from '@/libs/auth/callbackUrl';
 import { isValidMarketingEmail } from '@/utils/emailValidation';
 
 type SignInFormProps = {
   callbackUrl: string;
-  verifyCallbackUrl: string;
 };
 
 type ErrorState =
@@ -22,8 +22,8 @@ type ErrorState =
 // Client-side sign-in form wired directly to `authClient.signIn.email`.
 // Known Better Auth error codes are mapped to translated page copy; anything
 // else falls back to `error.message` (already translated by the i18n plugin).
-// The unverified path surfaces a resend button + support mailto so users
-// have a path forward without bouncing between pages.
+// The unverified path sends an email code and moves the user to the
+// verification screen without losing their original callback.
 export function SignInForm(props: SignInFormProps) {
   const t = useTranslations('SignInPage');
   const router = useRouter();
@@ -77,17 +77,23 @@ export function SignInForm(props: SignInFormProps) {
     router.refresh();
   }
 
-  async function onResendVerification() {
+  async function onSendVerificationCode() {
     if (error?.kind !== 'unverified' || error.email.trim() === '') {
       return;
     }
     setResending(true);
-    await authClient.sendVerificationEmail({
+    await authClient.emailOtp.sendVerificationOtp({
       email: error.email,
-      callbackURL: props.verifyCallbackUrl,
+      type: 'email-verification',
     });
     setResending(false);
     setResent(true);
+    router.push(
+      authHrefWithCallback(
+        `/verify-email?email=${encodeURIComponent(error.email)}`,
+        props.callbackUrl
+      )
+    );
   }
 
   return (
@@ -113,7 +119,7 @@ export function SignInForm(props: SignInFormProps) {
             <Button
               className="h-auto min-h-0 px-0 py-0 font-medium text-red-900 underline shadow-none hover:bg-transparent hover:text-red-950 hover:underline disabled:opacity-60"
               disabled={resending}
-              onClick={onResendVerification}
+              onClick={onSendVerificationCode}
               type="button"
               variant="link"
             >

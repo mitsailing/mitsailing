@@ -25,6 +25,7 @@ type Params = {
   to: string;
   subject: string;
   html: string;
+  text?: string;
 };
 
 let cachedSmtpTransport: Transporter | null = null;
@@ -52,6 +53,7 @@ async function sendViaSmtp(params: Params): Promise<void> {
     to: params.to,
     subject: params.subject,
     html: params.html,
+    text: params.text,
   });
 }
 
@@ -67,6 +69,7 @@ async function sendViaResend(params: Params): Promise<void> {
     to: params.to,
     subject: params.subject,
     html: params.html,
+    text: params.text,
   });
   if (result.error) {
     logger.error(`Resend error: ${result.error.message}`);

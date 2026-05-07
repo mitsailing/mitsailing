@@ -1,13 +1,18 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { authInlineLinkClassName } from '@/lib/mit-sailing/tokens';
+import {
+  authHrefWithCallback,
+  safeAuthCallbackUrl,
+} from '@/libs/auth/callbackUrl';
 import { redirectIfAuthenticated } from '@/libs/auth/dal';
 import { Link as I18nLink } from '@/libs/I18nNavigation';
-import { getBaseUrl, getI18nPath } from '@/utils/Helpers';
+import { getI18nPath } from '@/utils/Helpers';
 import { SignUpForm } from './SignUpForm';
 
 type SignUpPageProps = {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{ callbackUrl?: string }>;
 };
 
 export async function generateMetadata(
@@ -25,15 +30,14 @@ export async function generateMetadata(
 export default async function SignUpPage(props: SignUpPageProps) {
   const { locale } = await props.params;
   setRequestLocale(locale);
-  await redirectIfAuthenticated(locale);
+  const searchParams = await props.searchParams;
+  const callbackUrl = safeAuthCallbackUrl(
+    searchParams.callbackUrl,
+    getI18nPath('/', locale)
+  );
+  await redirectIfAuthenticated(locale, callbackUrl);
 
   const t = await getTranslations({ locale, namespace: 'SignUpPage' });
-
-  // Canonical post-verify URL embedded in the confirmation link. Better Auth
-  // redirects to this on success (query string preserved) and appends
-  // `&error=<code>` on failure, which the sign-in page renders as an error
-  // banner.
-  const verifyCallbackUrl = `${getBaseUrl()}${getI18nPath('/login?verified=1', locale)}`;
 
   return (
     <>
@@ -41,11 +45,14 @@ export default async function SignUpPage(props: SignUpPageProps) {
         {t('heading')}
       </h1>
 
-      <SignUpForm verifyCallbackUrl={verifyCallbackUrl} />
+      <SignUpForm callbackUrl={callbackUrl} />
 
       <p className="text-center text-sm text-mit-text">
         {t('have_account')}{' '}
-        <I18nLink className={authInlineLinkClassName} href="/login">
+        <I18nLink
+          className={authInlineLinkClassName}
+          href={authHrefWithCallback('/login', callbackUrl)}
+        >
           {t('sign_in_link')}
         </I18nLink>
       </p>

@@ -1,15 +1,17 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { authClient } from '@/libs/auth-client';
+import { authHrefWithCallback } from '@/libs/auth/callbackUrl';
 import { isValidMarketingEmail } from '@/utils/emailValidation';
 
 type ForgotPasswordFormProps = {
-  resetRedirectUrl: string;
+  callbackUrl: string;
 };
 
 // Client-side password-reset request form. Always renders the same "sent"
@@ -17,6 +19,7 @@ type ForgotPasswordFormProps = {
 // sign-up flow exposes existence explicitly elsewhere.
 export function ForgotPasswordForm(props: ForgotPasswordFormProps) {
   const t = useTranslations('ForgotPasswordPage');
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -30,12 +33,17 @@ export function ForgotPasswordForm(props: ForgotPasswordFormProps) {
       return;
     }
     setSubmitting(true);
-    await authClient.requestPasswordReset({
+    await authClient.emailOtp.requestPasswordReset({
       email,
-      redirectTo: props.resetRedirectUrl,
     });
     setSubmitting(false);
     setSubmitted(true);
+    router.push(
+      authHrefWithCallback(
+        `/reset-password?email=${encodeURIComponent(email)}`,
+        props.callbackUrl
+      )
+    );
   }
 
   if (submitted) {

@@ -1,6 +1,9 @@
 type EmailErrorKeys =
   | 'email_exists_error'
   | 'email_invalid_password_error'
+  | 'email_invalid_code_error'
+  | 'email_code_expired_error'
+  | 'email_code_attempts_error'
   | 'email_rate_limited_error'
   | 'email_validation_error';
 
@@ -58,6 +61,15 @@ export function mapProfileEmailError(
   }
   if (code === 'INVALID_PASSWORD') {
     return t('email_invalid_password_error');
+  }
+  if (code === 'INVALID_OTP') {
+    return t('email_invalid_code_error');
+  }
+  if (code === 'OTP_EXPIRED') {
+    return t('email_code_expired_error');
+  }
+  if (code === 'TOO_MANY_ATTEMPTS') {
+    return t('email_code_attempts_error');
   }
   if (code === 'TOO_MANY_REQUESTS') {
     return t('email_rate_limited_error');

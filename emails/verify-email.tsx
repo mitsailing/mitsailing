@@ -1,9 +1,9 @@
 import type * as React from 'react';
-import { Button, Heading, Link, Section, Text } from 'react-email';
+import { Heading, Link, Section, Text } from 'react-email';
 import { EmailLayout } from './email-layout';
 
 export type VerifyEmailProps = {
-  verifyUrl: string;
+  code: string;
   supportEmail: string;
 };
 
@@ -25,20 +25,17 @@ const paragraph: React.CSSProperties = {
   margin: '0 0 20px',
 };
 
-const buttonWrap: React.CSSProperties = {
+const codeBox: React.CSSProperties = {
+  backgroundColor: '#f8fafc',
+  border: '1px solid #cbd5e1',
+  borderRadius: '8px',
+  color: '#0f172a',
+  fontSize: '28px',
+  fontWeight: 700,
+  letterSpacing: '6px',
   margin: '24px 0',
+  padding: '16px 20px',
   textAlign: 'center' as const,
-};
-
-const button: React.CSSProperties = {
-  backgroundColor: '#2563eb',
-  borderRadius: '6px',
-  color: '#ffffff',
-  display: 'inline-block',
-  fontSize: '15px',
-  fontWeight: 600,
-  padding: '12px 24px',
-  textDecoration: 'none',
 };
 
 const expiry: React.CSSProperties = {
@@ -52,25 +49,11 @@ const supportLink: React.CSSProperties = {
   color: '#2563eb',
 };
 
-const finePrint: React.CSSProperties = {
-  color: '#64748b',
-  fontSize: '12px',
-  margin: '24px 0 8px',
-};
-
-const linkText: React.CSSProperties = {
-  color: '#2563eb',
-  fontSize: '12px',
-  wordBreak: 'break-all' as const,
-};
-
 /**
- * Sign-up email confirmation with CTA to verify address. Includes the
- * agreed expiry/resend/support blurb so the recipient has a clear path
- * forward when the link has expired or never arrived.
+ * Sign-up email confirmation with a short-lived numeric code.
  *
  * @param props - Template props.
- * @param props.verifyUrl - Absolute HTTPS URL that completes verification.
+ * @param props.code - Numeric verification code.
  * @param props.supportEmail - Mailto address to surface for stuck recipients.
  * @returns Complete email element tree.
  */
@@ -82,26 +65,19 @@ export function VerifyEmailTemplate(props: VerifyEmailProps) {
           Confirm your email
         </Heading>
         <Text style={paragraph}>
-          Thanks for signing up. Click the button below to verify your email
-          address and activate your account.
+          Thanks for signing up. Your MIT Sailing verification code is{' '}
+          {props.code}. Enter it in the verification screen to activate your
+          account.
         </Text>
-        <Section style={buttonWrap}>
-          <Button href={props.verifyUrl} style={button}>
-            Verify email
-          </Button>
-        </Section>
+        <Text style={codeBox}>{props.code}</Text>
         <Text style={expiry}>
-          This link expires in 1 hour. If it stops working, sign in to request a
-          new confirmation email, or contact{' '}
+          This code expires in 5 minutes. If it stops working, request a new
+          code, or contact{' '}
           <Link href={`mailto:${props.supportEmail}`} style={supportLink}>
             {props.supportEmail}
           </Link>{' '}
           if you do not receive it.
         </Text>
-        <Text style={finePrint}>
-          If the button does not work, paste this link into your browser:
-        </Text>
-        <Text style={linkText}>{props.verifyUrl}</Text>
       </Section>
     </EmailLayout>
   );

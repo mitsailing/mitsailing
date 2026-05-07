@@ -56,6 +56,12 @@ async function cleanupByEmail(email: string) {
     await pool.query('DELETE FROM "failed_login_attempts" WHERE "email" = $1', [
       email,
     ]);
+    await pool.query(
+      `DELETE FROM "verification"
+       WHERE "identifier" = $1
+          OR "identifier" = $2`,
+      [`email-verification-otp-${email}`, `forget-password-otp-${email}`]
+    );
     await pool.query('DELETE FROM "user" WHERE "email" = $1', [email]);
   } catch (error) {
     swallow(error);
@@ -92,10 +98,9 @@ test.describe('Account lockout', () => {
     await page.getByLabel('Confirm password').fill(password);
     await page.getByRole('button', { name: 'Sign up' }).click();
 
+    await expect(page).toHaveURL(/\/verify-email\?/);
     await expect(
-      page.getByText(
-        'Check your email to confirm your address before signing in.'
-      )
+      page.getByText('Enter the verification code we just sent to')
     ).toBeVisible();
 
     await markEmailVerified(email);

@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import arcjet from '@/libs/Arcjet';
 import { auth } from '@/libs/auth';
+import { safeAuthCallbackUrl } from '@/libs/auth/callbackUrl';
 import { routing } from '@/libs/I18nRouting';
 
 const intl = createIntlMiddleware(routing);
@@ -35,7 +36,8 @@ export default async function proxy(request: NextRequest) {
     });
     if (!session) {
       const signIn = new URL('/login', request.url);
-      signIn.searchParams.set('callbackUrl', pathname);
+      const callbackPath = `${pathname}${request.nextUrl.search}`;
+      signIn.searchParams.set('callbackUrl', safeAuthCallbackUrl(callbackPath));
       return NextResponse.redirect(signIn);
     }
   }

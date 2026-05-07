@@ -1,9 +1,9 @@
 import type * as React from 'react';
-import { Button, Heading, Section, Text } from 'react-email';
+import { Heading, Section, Text } from 'react-email';
 import { EmailLayout } from './email-layout';
 
 export type PasswordResetEmailProps = {
-  resetUrl: string;
+  code: string;
 };
 
 const section: React.CSSProperties = {
@@ -24,38 +24,29 @@ const paragraph: React.CSSProperties = {
   margin: '0 0 20px',
 };
 
-const buttonWrap: React.CSSProperties = {
+const codeBox: React.CSSProperties = {
+  backgroundColor: '#f8fafc',
+  border: '1px solid #cbd5e1',
+  borderRadius: '8px',
+  color: '#0f172a',
+  fontSize: '28px',
+  fontWeight: 700,
+  letterSpacing: '6px',
   margin: '24px 0',
+  padding: '16px 20px',
   textAlign: 'center' as const,
-};
-
-const button: React.CSSProperties = {
-  backgroundColor: '#2563eb',
-  borderRadius: '6px',
-  color: '#ffffff',
-  display: 'inline-block',
-  fontSize: '15px',
-  fontWeight: 600,
-  padding: '12px 24px',
-  textDecoration: 'none',
 };
 
 const finePrint: React.CSSProperties = {
   color: '#64748b',
   fontSize: '12px',
-  margin: '24px 0 8px',
-};
-
-const linkText: React.CSSProperties = {
-  color: '#2563eb',
-  fontSize: '12px',
-  wordBreak: 'break-all' as const,
+  margin: '24px 0 0',
 };
 
 /**
- * Password reset request with expiring link.
+ * Password reset request with a short-lived numeric code.
  * @param props - Template props.
- * @param props.resetUrl - Absolute HTTPS URL for choosing a new password.
+ * @param props.code - Numeric reset code.
  * @returns Complete email element tree.
  */
 export function PasswordResetEmailTemplate(props: PasswordResetEmailProps) {
@@ -66,18 +57,15 @@ export function PasswordResetEmailTemplate(props: PasswordResetEmailProps) {
           Reset your password
         </Heading>
         <Text style={paragraph}>
-          We received a request to reset your password. Use the button below to
-          choose a new password. This link expires soon for your security.
+          We received a request to reset your password. Your MIT Sailing
+          password reset code is {props.code}. Enter it on the reset screen to
+          choose a new password.
         </Text>
-        <Section style={buttonWrap}>
-          <Button href={props.resetUrl} style={button}>
-            Reset password
-          </Button>
-        </Section>
+        <Text style={codeBox}>{props.code}</Text>
         <Text style={finePrint}>
-          If you did not request this, you can ignore this email.
+          This code expires in 5 minutes. If you did not request this, you can
+          ignore this email.
         </Text>
-        <Text style={linkText}>{props.resetUrl}</Text>
       </Section>
     </EmailLayout>
   );

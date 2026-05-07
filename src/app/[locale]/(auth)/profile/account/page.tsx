@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { requireCurrentUser } from '@/libs/auth/dal';
 import { prisma } from '@/libs/DB';
-import { getBaseUrl, getI18nPath } from '@/utils/Helpers';
+import { getI18nPath } from '@/utils/Helpers';
 import { ProfileAccountClient } from '../ProfileAccountClient';
 
 type ProfileAccountPageProps = {
@@ -45,7 +45,6 @@ export default async function ProfileAccountPage(
 
   return (
     <ProfileAccountClient
-      emailChangeCallbackUrl={`${getBaseUrl()}${profileAccountHref}?emailChanged=1`}
       initialEmail={user.email ?? ''}
       initialName={user.name}
       initialThemePreference={dbUser?.themePreference ?? 'SYSTEM'}
