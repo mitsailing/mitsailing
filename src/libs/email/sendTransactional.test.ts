@@ -143,6 +143,33 @@ describe('sendTransactionalEmail', () => {
     });
   });
 
+  it('passes reply-to through smtp delivery', async () => {
+    Object.assign(mocks.env, {
+      EMAIL_FROM: 'MIT Sailing <noreply@example.com>',
+      MAIL_TRANSPORT: 'smtp' satisfies MailTransport,
+      RESEND_API_KEY: undefined,
+      SMTP_URL: 'smtp://127.0.0.1:1025',
+    });
+
+    const { sendTransactionalEmail } =
+      await import('@/libs/email/sendTransactional');
+
+    await sendTransactionalEmail({
+      ...message,
+      replyTo: 'ada@example.com',
+      to: 'support@mitsailing.com',
+    });
+
+    expect(mocks.sendMail).toHaveBeenCalledWith({
+      from: 'MIT Sailing <noreply@example.com>',
+      html: '<p>Hello sailor</p>',
+      replyTo: 'ada@example.com',
+      subject: 'Account notice',
+      text: 'Hello sailor',
+      to: 'support@mitsailing.com',
+    });
+  });
+
   it('generates plaintext fallback when text is omitted', async () => {
     Object.assign(mocks.env, {
       EMAIL_FROM: 'MIT Sailing <noreply@example.com>',
@@ -203,6 +230,33 @@ describe('sendTransactionalEmail', () => {
       subject: 'Account notice',
       text: 'Hello sailor',
       to: 'sailor@example.com',
+    });
+  });
+
+  it('passes reply-to through resend delivery', async () => {
+    Object.assign(mocks.env, {
+      EMAIL_FROM: 'MIT Sailing <noreply@example.com>',
+      MAIL_TRANSPORT: 'resend' satisfies MailTransport,
+      RESEND_API_KEY: 're_test',
+      SMTP_URL: undefined,
+    });
+
+    const { sendTransactionalEmail } =
+      await import('@/libs/email/sendTransactional');
+
+    await sendTransactionalEmail({
+      ...message,
+      replyTo: 'ada@example.com',
+      to: 'support@mitsailing.com',
+    });
+
+    expect(mocks.resendSend).toHaveBeenCalledWith({
+      from: 'MIT Sailing <noreply@example.com>',
+      html: '<p>Hello sailor</p>',
+      replyTo: 'ada@example.com',
+      subject: 'Account notice',
+      text: 'Hello sailor',
+      to: 'support@mitsailing.com',
     });
   });
 

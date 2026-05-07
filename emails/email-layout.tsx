@@ -12,8 +12,15 @@ import {
 } from 'react-email';
 
 export type EmailLayoutProps = {
-  previewText: string;
   children: React.ReactNode;
+  copy: EmailLayoutCopy;
+  previewText: string;
+};
+
+export type EmailLayoutCopy = {
+  brand_name: string;
+  footer_domain: string;
+  footer_received: string;
 };
 
 const body: React.CSSProperties = {
@@ -80,19 +87,16 @@ export function EmailLayout(props: EmailLayoutProps) {
       <Body style={body}>
         <Container style={container}>
           <Section style={header}>
-            <Text style={brand}>Your app</Text>
+            <Text style={brand}>{props.copy.brand_name}</Text>
           </Section>
           {props.children}
           <Hr style={hr} />
           <Section style={footer}>
+            <Text style={muted}>{props.copy.footer_received}</Text>
             <Text style={muted}>
-              You received this email because of an action on your account.
-            </Text>
-            <Text style={muted}>
-              <Link href="https://authjs.dev" style={link}>
-                Auth.js
-              </Link>{' '}
-              · Secure authentication
+              <Link href="https://mitsailing.com" style={link}>
+                {props.copy.footer_domain}
+              </Link>
             </Text>
           </Section>
         </Container>

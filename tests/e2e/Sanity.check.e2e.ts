@@ -40,7 +40,7 @@ test.describe('Sanity', () => {
       await expect(page).toHaveURL(/contact$/);
 
       await expect(
-        page.getByRole('heading', { name: 'Contact' })
+        page.getByRole('heading', { name: 'Contact us' })
       ).toBeVisible();
     });
   });

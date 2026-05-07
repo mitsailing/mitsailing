@@ -1,5 +1,6 @@
 import { Heading, Section, Text } from 'react-email';
 import { EmailLayout } from './email-layout';
+import { emailLayoutCopy } from './email-layout-copy';
 import {
   assertSixDigitCode,
   codeBox,
@@ -59,7 +60,10 @@ export function SignInOtpEmailTemplate(props: SignInOtpEmailProps) {
   assertSixDigitCode(props.code, 'SignInOtpEmailTemplate');
 
   return (
-    <EmailLayout previewText={props.copy.sign_in_otp_subject}>
+    <EmailLayout
+      copy={emailLayoutCopy}
+      previewText={props.copy.sign_in_otp_subject}
+    >
       <Section style={section}>
         <Heading as="h1" style={heading}>
           {props.copy.sign_in_otp_heading}

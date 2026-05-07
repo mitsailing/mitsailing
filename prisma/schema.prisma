@@ -47,6 +47,7 @@ model User {
   eventComments      EventComment[]
   eventAdmins        EventAdmin[]
   eventsCreated      Event[]            @relation("EventCreatedBy")
+  contactSubmissions ContactSubmission[]
 
   @@map("user")
 }
@@ -148,6 +149,44 @@ model SiteTextOverride {
   @@index([locale])
   @@index([updatedByUserId])
   @@map("site_text_overrides")
+}
+
+enum ContactSubmissionStatus {
+  unread
+  resolved
+  archived
+}
+
+enum ContactSubmissionNotificationStatus {
+  pending
+  sending
+  sent
+  failed
+}
+
+model ContactSubmission {
+  id                       String                              @id @default(cuid())
+  name                     String
+  email                    String
+  message                  String                              @db.Text
+  status                   ContactSubmissionStatus             @default(unread)
+  notificationStatus       ContactSubmissionNotificationStatus @default(pending) @map("notification_status")
+  notificationAttemptCount Int                                 @default(0) @map("notification_attempt_count")
+  notifiedAt               DateTime?                           @map("notified_at")
+  notificationError        String?                             @map("notification_error") @db.Text
+  submittedByUserId        String?                             @map("submitted_by_user_id")
+  ipAddress                String?                             @map("ip_address")
+  userAgent                String?                             @map("user_agent") @db.Text
+  createdAt                DateTime                            @default(now()) @map("created_at")
+  updatedAt                DateTime                            @updatedAt @map("updated_at")
+
+  submittedBy User? @relation(fields: [submittedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([notificationStatus, createdAt])
+  @@index([email])
+  @@index([submittedByUserId])
+  @@map("contact_submissions")
 }
 
 // --- MIT Sailing domain (events, classes, fleet, about) ---

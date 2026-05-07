@@ -1,6 +1,7 @@
 import type * as React from 'react';
 import { Heading, Link, Section, Text } from 'react-email';
 import { EmailLayout } from './email-layout';
+import { emailLayoutCopy } from './email-layout-copy';
 
 export type PasswordChangedNoticeProps = {
   supportEmail: string;
@@ -41,7 +42,7 @@ export function PasswordChangedNoticeTemplate(
   props: PasswordChangedNoticeProps
 ) {
   return (
-    <EmailLayout previewText="Your password was changed">
+    <EmailLayout copy={emailLayoutCopy} previewText="Your password was changed">
       <Section style={section}>
         <Heading as="h1" style={heading}>
           Your password was changed

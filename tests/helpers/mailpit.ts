@@ -147,6 +147,29 @@ export async function findLatestMessageTo(
 }
 
 /**
+ * Poll Mailpit until a message to `email` includes `text` in HTML or plain text.
+ *
+ * @param email - Recipient address to filter on.
+ * @param text - Unique text expected in the message body.
+ * @param timeoutMs - How long to wait before failing.
+ * @returns The newest matching message.
+ */
+export async function findLatestMessageToContaining(
+  email: string,
+  text: string,
+  timeoutMs = 15_000
+): Promise<MailpitMessage> {
+  const message = await findLatestMessageToMatching({
+    description: `message containing ${text}`,
+    email,
+    matches: (candidate) =>
+      candidate.HTML.includes(text) || candidate.Text.includes(text),
+    timeoutMs,
+  });
+  return message;
+}
+
+/**
  * Pull the first link that matches `pattern` out of a Mailpit message body.
  * Uses the HTML body first, falls back to Text so plain-text tests still
  * work. `pattern` typically looks like /\/api\/unlock-account\?token=[^"'<\s]+/.

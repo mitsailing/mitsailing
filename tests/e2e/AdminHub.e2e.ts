@@ -157,6 +157,11 @@ test.describe('Admin hub and users', () => {
     await expect(
       page.getByRole('link', { name: 'Users', exact: true }).first()
     ).toBeVisible();
+    await expect(
+      page
+        .getByRole('link', { name: 'Contact submissions', exact: true })
+        .first()
+    ).toBeVisible();
   });
 
   test('Admin sees users, Add user, and impersonation controls', async ({

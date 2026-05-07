@@ -1,6 +1,7 @@
 import type * as React from 'react';
 import { Heading, Section, Text } from 'react-email';
 import { EmailLayout } from './email-layout';
+import { emailLayoutCopy } from './email-layout-copy';
 import { replaceAuthEmailValues, supportMessage } from './email-styles';
 
 const section: React.CSSProperties = {
@@ -85,7 +86,7 @@ export function EmailChangeRequestedNoticeTemplate(
   props: EmailChangeRequestedNoticeTemplateProps
 ) {
   return (
-    <EmailLayout previewText={props.previewText}>
+    <EmailLayout copy={emailLayoutCopy} previewText={props.previewText}>
       <Section style={section}>
         <Heading as="h1" style={heading}>
           {props.heading}

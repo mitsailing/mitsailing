@@ -279,7 +279,11 @@ export async function sendAccountLockedEmail(email: string) {
   const token = await createUnlockAccountToken(normalizedEmail);
   const unlockUrl = `${getBaseUrl()}/api/unlock-account?token=${encodeURIComponent(token)}`;
   const html = await render(
-    AccountUnlockEmailTemplate({ unlockUrl, supportEmail: SUPPORT_EMAIL })
+    AccountUnlockEmailTemplate({
+      copy,
+      supportEmail: SUPPORT_EMAIL,
+      unlockUrl,
+    })
   );
   await sendTransactionalEmail({
     to: normalizedEmail,

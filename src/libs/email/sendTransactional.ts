@@ -27,6 +27,7 @@ type Params = {
   subject: string;
   html: string;
   text?: string;
+  replyTo?: string;
 };
 
 let cachedSmtpTransport: Transporter | null = null;
@@ -51,7 +52,11 @@ function htmlToPlainText(html: string): string {
     .trim();
 }
 
-function withPlainTextFallback(params: Params): Required<Params> {
+type PreparedParams = Params & {
+  text: string;
+};
+
+function withPlainTextFallback(params: Params): PreparedParams {
   return {
     ...params,
     text: params.text?.trim() ? params.text : htmlToPlainText(params.html),
@@ -71,7 +76,7 @@ function getSmtpTransport(): Transporter {
   return cachedSmtpTransport;
 }
 
-async function sendViaSmtp(params: Params): Promise<void> {
+async function sendViaSmtp(params: PreparedParams): Promise<void> {
   if (!Env.EMAIL_FROM) {
     throw new Error('MAIL_TRANSPORT=smtp but EMAIL_FROM is not set.');
   }
@@ -82,10 +87,11 @@ async function sendViaSmtp(params: Params): Promise<void> {
     subject: params.subject,
     html: params.html,
     text: params.text,
+    ...(params.replyTo ? { replyTo: params.replyTo } : {}),
   });
 }
 
-async function sendViaResend(params: Params): Promise<void> {
+async function sendViaResend(params: PreparedParams): Promise<void> {
   if (!Env.RESEND_API_KEY || !Env.EMAIL_FROM) {
     throw new Error(
       'MAIL_TRANSPORT=resend requires both RESEND_API_KEY and EMAIL_FROM.'
@@ -98,6 +104,7 @@ async function sendViaResend(params: Params): Promise<void> {
     subject: params.subject,
     html: params.html,
     text: params.text,
+    ...(params.replyTo ? { replyTo: params.replyTo } : {}),
   });
   if (result.error) {
     logger.error(`Resend error: ${result.error.message}`);

@@ -71,6 +71,17 @@ export default async function AdminIndexPage(props: AdminIndexPageProps) {
               {t('link_site_text_blurb')}
             </p>
           </li>
+          <li>
+            <Link
+              className="font-medium text-mit-red-ink no-underline hover:underline"
+              href="/admin/contact_submissions/"
+            >
+              {t('link_contact_submissions')}
+            </Link>
+            <p className="mt-0.5 text-sm text-mit-text">
+              {t('link_contact_submissions_blurb')}
+            </p>
+          </li>
         </ul>
       </section>
 

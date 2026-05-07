@@ -6,6 +6,7 @@ import { ConfirmEmailChangeTemplate } from './confirm-email-change';
 import { DeleteAccountEmailTemplate } from './delete-account';
 import { EmailChangeRequestedNoticeTemplate } from './email-change-requested';
 import { EmailLayout } from './email-layout';
+import { emailLayoutCopy } from './email-layout-copy';
 import { PasswordChangedNoticeTemplate } from './password-changed';
 import { PasswordResetEmailTemplate } from './password-reset';
 import { SignInOtpEmailPlaintext, SignInOtpEmailTemplate } from './sign-in-otp';
@@ -16,16 +17,16 @@ const SUPPORT_EMAIL = 'support@example.com';
 describe('email templates', () => {
   it('renders shared layout chrome with preview text', async () => {
     const html = await render(
-      <EmailLayout previewText="Inbox preview">
+      <EmailLayout copy={emailLayoutCopy} previewText="Inbox preview">
         <p>Inner account notice</p>
       </EmailLayout>
     );
 
     expect(html).toContain('Inbox preview');
-    expect(html).toContain('Your app');
+    expect(html).toContain('MIT Sailing');
     expect(html).toContain('Inner account notice');
     expect(html).toContain(
-      'You received this email because of an action on your account.'
+      'You received this email because of activity on MIT Sailing.'
     );
   });
 
@@ -247,6 +248,7 @@ describe('email templates', () => {
       'https://mitsailing.example.com/api/unlock-account?token=signed-token';
     const html = await render(
       <AccountUnlockEmailTemplate
+        copy={enMessages.AuthEmails}
         supportEmail={SUPPORT_EMAIL}
         unlockUrl={unlockUrl}
       />

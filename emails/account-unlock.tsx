@@ -1,10 +1,23 @@
 import type * as React from 'react';
-import { Button, Heading, Link, Section, Text } from 'react-email';
+import { Button, Heading, Section, Text } from 'react-email';
 import { EmailLayout } from './email-layout';
+import { emailLayoutCopy } from './email-layout-copy';
+import { supportMessage } from './email-styles';
 
 export type AccountUnlockEmailProps = {
-  unlockUrl: string;
+  copy: AccountUnlockEmailCopy;
   supportEmail: string;
+  unlockUrl: string;
+};
+
+export type AccountUnlockEmailCopy = {
+  account_locked_body: string;
+  account_locked_button: string;
+  account_locked_expiry: string;
+  account_locked_heading: string;
+  account_locked_link_label: string;
+  account_locked_subject: string;
+  account_locked_unlock: string;
 };
 
 const section: React.CSSProperties = {
@@ -48,10 +61,6 @@ const expiry: React.CSSProperties = {
   margin: '16px 0 0',
 };
 
-const supportLink: React.CSSProperties = {
-  color: '#2563eb',
-};
-
 const finePrint: React.CSSProperties = {
   color: '#64748b',
   fontSize: '12px',
@@ -73,33 +82,28 @@ const linkText: React.CSSProperties = {
  */
 export function AccountUnlockEmailTemplate(props: AccountUnlockEmailProps) {
   return (
-    <EmailLayout previewText="Your account was temporarily locked">
+    <EmailLayout
+      copy={emailLayoutCopy}
+      previewText={props.copy.account_locked_subject}
+    >
       <Section style={section}>
         <Heading as="h1" style={heading}>
-          Account temporarily locked
+          {props.copy.account_locked_heading}
         </Heading>
-        <Text style={paragraph}>
-          Your account was locked after multiple failed sign-in attempts. For
-          your security, access will also restore automatically after the
-          lockout window passes.
-        </Text>
-        <Text style={paragraph}>
-          You can unlock immediately using the button below if this was you.
-        </Text>
+        <Text style={paragraph}>{props.copy.account_locked_body}</Text>
+        <Text style={paragraph}>{props.copy.account_locked_unlock}</Text>
         <Section style={buttonWrap}>
           <Button href={props.unlockUrl} style={button}>
-            Unlock account
+            {props.copy.account_locked_button}
           </Button>
         </Section>
         <Text style={expiry}>
-          This link expires in 1 hour. If it stops working, try again from the
-          sign-in page, or contact{' '}
-          <Link href={`mailto:${props.supportEmail}`} style={supportLink}>
-            {props.supportEmail}
-          </Link>{' '}
-          if you did not lock this account.
+          {supportMessage({
+            message: props.copy.account_locked_expiry,
+            supportEmail: props.supportEmail,
+          })}
         </Text>
-        <Text style={finePrint}>Link:</Text>
+        <Text style={finePrint}>{props.copy.account_locked_link_label}</Text>
         <Text style={linkText}>{props.unlockUrl}</Text>
       </Section>
     </EmailLayout>

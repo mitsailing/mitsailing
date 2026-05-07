@@ -1,6 +1,7 @@
 import type * as React from 'react';
 import { Button, Heading, Section, Text } from 'react-email';
 import { EmailLayout } from './email-layout';
+import { emailLayoutCopy } from './email-layout-copy';
 
 export type DeleteAccountEmailProps = {
   confirmUrl: string;
@@ -63,7 +64,7 @@ const linkText: React.CSSProperties = {
  */
 export function DeleteAccountEmailTemplate(props: DeleteAccountEmailProps) {
   return (
-    <EmailLayout previewText="Confirm account deletion">
+    <EmailLayout copy={emailLayoutCopy} previewText="Confirm account deletion">
       <Section style={section}>
         <Heading as="h1" style={heading}>
           Confirm account deletion

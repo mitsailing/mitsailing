@@ -22,7 +22,7 @@ test.describe('Visual testing', () => {
       await page.goto('/contact');
 
       await expect(
-        page.getByRole('heading', { name: 'Contact' })
+        page.getByRole('heading', { name: 'Contact us' })
       ).toBeVisible();
 
       await takeSnapshot(page, testInfo);
