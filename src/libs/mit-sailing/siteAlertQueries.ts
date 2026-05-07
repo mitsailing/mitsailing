@@ -1,6 +1,7 @@
 import 'server-only';
 import { createHash } from 'node:crypto';
 import { unstable_cache } from 'next/cache';
+import type { Prisma } from '@/generated/prisma/client';
 import { prisma } from '@/libs/DB';
 import {
   formatEasternCalendarDateKey,
@@ -20,6 +21,29 @@ export const SITE_ALERTS_CACHE_TAG = 'site-alerts';
 
 const SITE_ALERTS_BANNER_REVALIDATE_SECONDS = 60 * 60;
 
+/**
+ * Prisma `where` for banner eligibility on one Eastern calendar day.
+ *
+ * Matches {@link siteAlertEligibleForBannerOnEasternDay} for ISO rows derived from
+ * Postgres `DATE` values at UTC midnight (see {@link prismaDateFromIsoCalendar}).
+ *
+ * @param todayIso - Eastern “today” key `YYYY-MM-DD` (same basis as {@link formatEasternCalendarDateKey})
+ * @returns Clause or `null` when `todayIso` is not a valid calendar date
+ */
+export function prismaWhereSiteAlertBannerForCalendarDay(
+  todayIso: string
+): Prisma.SiteAlertWhereInput | null {
+  const todayDate = prismaDateFromIsoCalendar(todayIso);
+  if (!todayDate) {
+    return null;
+  }
+  return {
+    isPublished: true,
+    startDate: { lte: todayDate },
+    lastDate: { gte: todayDate },
+  };
+}
+
 function toPublicItem(row: {
   id: string;
   body: string;
@@ -34,21 +58,17 @@ function toPublicItem(row: {
 
 const listSiteAlertsForBannerByDay = unstable_cache(
   async (todayIso: string): Promise<SiteAlertPublicItem[]> => {
-    const todayDate = prismaDateFromIsoCalendar(todayIso);
-    if (!todayDate) {
+    const where = prismaWhereSiteAlertBannerForCalendarDay(todayIso);
+    if (!where) {
       return [];
     }
 
     const rows = await prisma.siteAlert.findMany({
-      where: {
-        isPublished: true,
-        startDate: { lte: todayDate },
-        lastDate: { gt: todayDate },
-      },
+      where,
       orderBy: { startDate: 'desc' },
       select: {
-        id: true,
         body: true,
+        id: true,
         startDate: true,
       },
     });

@@ -38,7 +38,7 @@ describe('siteAlertEligibleForBannerAt', () => {
     ).toBe(true);
   });
 
-  it('excludes rows on end date', () => {
+  it('includes rows on end date', () => {
     expect(
       siteAlertEligibleForBannerAt({
         isPublished: true,
@@ -46,7 +46,7 @@ describe('siteAlertEligibleForBannerAt', () => {
         lastDateIso: '2026-04-15',
         now: new Date(nyNoonUtc),
       })
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it('excludes rows after end date', () => {
