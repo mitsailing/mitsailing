@@ -96,15 +96,26 @@ export async function listSiteAlertsForBannerAt(
 }
 
 /**
- * Lists every published alert for `/alerts`, including rows past `lastDate`.
+ * Lists published alerts for `/alerts` whose start date is today or earlier,
+ * including rows past `lastDate`.
  *
+ * @param now - Evaluation instant (typically server request time)
  * @returns Same ordering as the banner query subset would use for active rows
  */
-export async function listPublishedSiteAlerts(): Promise<
-  SiteAlertPublicItem[]
-> {
+export async function listPublishedSiteAlerts(
+  now: Date = new Date()
+): Promise<SiteAlertPublicItem[]> {
+  const todayIso = formatEasternCalendarDateKey(now);
+  const todayDate = prismaDateFromIsoCalendar(todayIso);
+  if (!todayDate) {
+    return [];
+  }
+
   const rows = await prisma.siteAlert.findMany({
-    where: { isPublished: true },
+    where: {
+      isPublished: true,
+      startDate: { lte: todayDate },
+    },
     orderBy: { startDate: 'desc' },
     select: {
       id: true,

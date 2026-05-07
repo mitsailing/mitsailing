@@ -225,23 +225,27 @@ describe('listSiteAlertsForBannerAt', () => {
 });
 
 describe('listPublishedSiteAlerts', () => {
-  it('selects published alert fields without end date', async () => {
+  it('queries published alerts started by the Eastern calendar date', async () => {
     findMany.mockResolvedValue([]);
     const { listPublishedSiteAlerts } =
       await import('@/libs/mit-sailing/siteAlertQueries');
 
-    await listPublishedSiteAlerts();
+    const todayDate = prismaDateFromIsoCalendar('2026-04-15');
 
-    expect(findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        select: {
-          body: true,
-          id: true,
-          startDate: true,
-        },
-        where: { isPublished: true },
-      })
-    );
+    await listPublishedSiteAlerts(new Date('2026-04-15T16:00:00.000Z'));
+
+    expect(findMany).toHaveBeenCalledWith({
+      orderBy: { startDate: 'desc' },
+      select: {
+        body: true,
+        id: true,
+        startDate: true,
+      },
+      where: {
+        isPublished: true,
+        startDate: { lte: todayDate },
+      },
+    });
   });
 });
 
