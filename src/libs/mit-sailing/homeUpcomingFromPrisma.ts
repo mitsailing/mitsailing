@@ -1,6 +1,5 @@
 import {
   addNyCalendarDays,
-  EVENTS_TIME_ZONE,
   nyYmd,
   startOfNyCalendarDay,
 } from '@/lib/mit-sailing/nyTime';
@@ -30,7 +29,7 @@ function formatCalendarDayHeading(
   const d = startOfNyCalendarDay(dateKey);
   const y = Number(dateKey.slice(0, 4));
   return new Intl.DateTimeFormat('en-US', {
-    timeZone: EVENTS_TIME_ZONE,
+    timeZone: 'America/New_York',
     weekday: 'short',
     day: 'numeric',
     month: 'short',

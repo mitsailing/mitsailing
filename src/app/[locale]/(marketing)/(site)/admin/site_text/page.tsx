@@ -83,6 +83,7 @@ function formatUpdatedAt(value: string | null): string | null {
     return null;
   }
   return new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date(value));

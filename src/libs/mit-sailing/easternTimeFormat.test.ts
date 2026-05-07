@@ -29,3 +29,20 @@ describe('formatEasternShortDateFromIsoCalendar', () => {
     );
   });
 });
+
+describe('formatEasternEventRange', () => {
+  it('formats ranges in New York time without a visible timezone label', async () => {
+    process.env.TZ = 'Pacific/Kiritimati';
+    vi.resetModules();
+
+    const { formatEasternEventRange } =
+      await import('@/libs/mit-sailing/easternTimeFormat');
+
+    expect(
+      formatEasternEventRange(
+        new Date('2026-01-15T19:30:00.000Z'),
+        new Date('2026-01-15T21:00:00.000Z')
+      )
+    ).toBe('Thu, Jan 15, 2026 · 2:30 PM – 4:00 PM');
+  });
+});

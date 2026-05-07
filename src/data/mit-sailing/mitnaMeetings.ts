@@ -1,8 +1,4 @@
-import {
-  EVENTS_TIME_ZONE,
-  nyYmd,
-  startOfNyCalendarDay,
-} from '@/lib/mit-sailing/nyTime';
+import { nyYmd, startOfNyCalendarDay } from '@/lib/mit-sailing/nyTime';
 import { MITNA_MEETING_SEED } from './mitnaMeetingSeed';
 
 export type MitnaMeetingListItem = {
@@ -64,7 +60,7 @@ export function formatMitnaMeetingDateLabel(dateYmd: string): string {
     startOfNyCalendarDay(dateYmd).getTime() + 12 * 60 * 60 * 1000
   );
   return new Intl.DateTimeFormat('en-US', {
-    timeZone: EVENTS_TIME_ZONE,
+    timeZone: 'America/New_York',
     weekday: 'long',
     month: 'long',
     day: 'numeric',

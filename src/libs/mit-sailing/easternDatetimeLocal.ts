@@ -1,5 +1,3 @@
-const NY = 'America/New_York';
-
 /**
  * Parses `YYYY-MM-DDTHH:mm` as civil clock time in America/New_York (handles DST).
  *
@@ -19,7 +17,7 @@ export function easternDatetimeLocalToUtc(isoLocal: string): Date | null {
   const minute = Number(match[5]);
 
   const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: NY,
+    timeZone: 'America/New_York',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -66,7 +64,7 @@ export function easternDatetimeLocalToUtc(isoLocal: string): Date | null {
  */
 export function utcToEasternDatetimeLocal(d: Date): string {
   const formatter = new Intl.DateTimeFormat('en-CA', {
-    timeZone: NY,
+    timeZone: 'America/New_York',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',

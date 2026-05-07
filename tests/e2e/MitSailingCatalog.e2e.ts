@@ -35,4 +35,18 @@ test.describe('MIT Sailing catalog (classes + fleet)', () => {
       page.getByRole('heading', { level: 1, name: 'Tech Dinghy' })
     ).toBeVisible();
   });
+
+  test('/events shows New York-local schedule without timezone copy', async ({
+    page,
+  }) => {
+    await page.goto('/events');
+
+    const event = page
+      .getByRole('article')
+      .filter({ hasText: 'Boston Dinghy Cup' });
+    await expect(
+      event.getByText('Sat, Jun 13, 2026 · 9:00 AM – 5:00 PM')
+    ).toBeVisible();
+    await expect(event.getByText(/ ET\b/)).toHaveCount(0);
+  });
 });
