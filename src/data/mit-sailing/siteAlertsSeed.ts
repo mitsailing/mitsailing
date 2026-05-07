@@ -1,7 +1,5 @@
 /**
  * Seed rows for `SiteAlert` (home banner + `/alerts`).
- *
- * `createdByUserId` / `updatedByUserId` reference stub user `user-ak` from `eventsSeed.ts`.
  */
 export const SITE_ALERT_SEED_ROWS = [
   {
@@ -10,7 +8,5 @@ export const SITE_ALERT_SEED_ROWS = [
     isPublished: true,
     startDate: new Date(Date.UTC(2025, 0, 1)),
     lastDate: new Date(Date.UTC(2030, 11, 31)),
-    createdByUserId: 'user-ak',
-    updatedByUserId: 'user-ak',
   },
 ] as const;

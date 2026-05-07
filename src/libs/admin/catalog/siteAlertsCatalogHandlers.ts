@@ -13,7 +13,6 @@ import type {
   CatalogRow,
   CatalogServerHandlers,
 } from '@/libs/admin/catalog/types';
-import { getSession } from '@/libs/auth/dal';
 import { prisma } from '@/libs/DB';
 import { formatEasternShortDateFromIsoCalendar } from '@/libs/mit-sailing/easternTimeFormat';
 import { isoCalendarDateFromPrismaDate } from '@/libs/mit-sailing/isoCalendarDate';
@@ -59,12 +58,6 @@ export const siteAlertsCatalogHandlers: CatalogServerHandlers = {
         lastDate: true,
         createdAt: true,
         updatedAt: true,
-        createdBy: {
-          select: { name: true, email: true },
-        },
-        updatedBy: {
-          select: { name: true, email: true },
-        },
       },
     });
     if (!row) {
@@ -78,19 +71,10 @@ export const siteAlertsCatalogHandlers: CatalogServerHandlers = {
       lastDate: isoCalendarDateFromPrismaDate(row.lastDate),
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
-      createdByName: row.createdBy.name,
-      createdByEmail: row.createdBy.email,
-      updatedByName: row.updatedBy.name,
-      updatedByEmail: row.updatedBy.email,
     };
   },
 
   async createFromForm(formData: FormData): Promise<CatalogCreateResult> {
-    const session = await getSession();
-    const userId = session?.user?.id;
-    if (!userId) {
-      return { ok: false, code: 'validation_failed' };
-    }
     const parsed = siteAlertFormSchema.safeParse(
       rawSiteAlertFromFormData(formData)
     );
@@ -109,8 +93,6 @@ export const siteAlertsCatalogHandlers: CatalogServerHandlers = {
           isPublished: data.isPublished,
           startDate: dates.startDate,
           lastDate: dates.lastDate,
-          createdByUserId: userId,
-          updatedByUserId: userId,
         },
         select: { id: true },
       });
@@ -124,11 +106,6 @@ export const siteAlertsCatalogHandlers: CatalogServerHandlers = {
     id: string,
     formData: FormData
   ): Promise<CatalogMutationOk | CatalogMutationErr> {
-    const session = await getSession();
-    const userId = session?.user?.id;
-    if (!userId) {
-      return { ok: false, code: 'validation_failed' };
-    }
     const parsed = siteAlertFormSchema.safeParse(
       rawSiteAlertFromFormData(formData)
     );
@@ -148,7 +125,6 @@ export const siteAlertsCatalogHandlers: CatalogServerHandlers = {
           isPublished: data.isPublished,
           startDate: dates.startDate,
           lastDate: dates.lastDate,
-          updatedByUserId: userId,
         },
       });
       return { ok: true };

@@ -476,15 +476,12 @@ export async function seedSiteAlerts(p: PrismaClient): Promise<void> {
         isPublished: row.isPublished,
         startDate: row.startDate,
         lastDate: row.lastDate,
-        createdByUserId: row.createdByUserId,
-        updatedByUserId: row.updatedByUserId,
       },
       update: {
         body: row.body,
         isPublished: row.isPublished,
         startDate: row.startDate,
         lastDate: row.lastDate,
-        updatedByUserId: row.updatedByUserId,
       },
     });
   }
