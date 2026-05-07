@@ -2,9 +2,18 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { EventDetailView } from '@/components/mit-sailing/events/EventDetailView';
-import { getPublishedEventForPublicBySlug } from '@/libs/mit-sailing/eventQueries';
+import { SiteSectionMain } from '@/components/mit-sailing/SiteSectionMain';
+import { SiteSectionShell } from '@/components/mit-sailing/SiteSectionShell';
+import { getCurrentUser } from '@/libs/auth/dal';
+import {
+  getPublicEventRegistrationState,
+  getPublishedEventForPublicBySlug,
+} from '@/libs/mit-sailing/eventQueries';
 
-type PageProps = { params: Promise<{ locale: string; slug: string }> };
+type PageProps = {
+  params: Promise<{ locale: string; slug: string }>;
+  searchParams?: Promise<{ registration?: string }>;
+};
 
 export async function generateMetadata(props: PageProps): Promise<Metadata> {
   const { locale, slug } = await props.params;
@@ -23,11 +32,40 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
 
 export default async function EventDetailPage(props: PageProps) {
   const { locale, slug: raw } = await props.params;
+  const searchParams = await props.searchParams;
   const slug = decodeURIComponent(raw);
   setRequestLocale(locale);
-  const event = await getPublishedEventForPublicBySlug(slug);
+  const [event, t, currentUser] = await Promise.all([
+    getPublishedEventForPublicBySlug(slug),
+    getTranslations({ locale, namespace: 'MitSailingRoutes' }),
+    getCurrentUser(),
+  ]);
   if (!event) {
     notFound();
   }
-  return <EventDetailView event={event} locale={locale} />;
+  const currentRegistration = currentUser
+    ? await getPublicEventRegistrationState({
+        eventId: event.id,
+        userId: currentUser.id,
+      })
+    : null;
+  return (
+    <SiteSectionShell
+      locale={locale}
+      segments={[
+        { label: t('section_events'), href: '/events/' },
+        { label: event.name },
+      ]}
+    >
+      <SiteSectionMain variant="detail">
+        <EventDetailView
+          currentRegistration={currentRegistration}
+          errorCode={searchParams?.registration ?? null}
+          event={event}
+          isSignedIn={Boolean(currentUser)}
+          locale={locale}
+        />
+      </SiteSectionMain>
+    </SiteSectionShell>
+  );
 }

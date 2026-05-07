@@ -1,9 +1,8 @@
 import { staff, staffProfilePath } from '@/data/mit-sailing/aboutContent';
-import { EVENTS } from '@/data/mit-sailing/eventsSeed';
 
 /**
  * Public routes omitted from `/sitemap.xml` but worth scanning (auth shells,
- * donate, seeded event detail).
+ * donate, staff profile details).
  */
 const EXTRA_PATHS: string[] = [
   '/donate',
@@ -13,11 +12,6 @@ const EXTRA_PATHS: string[] = [
   '/verify-email',
   '/unlock-account',
   ...staff.map((s) => staffProfilePath(s.slug)),
-  ...EVENTS.filter(
-    (e) =>
-      e.is_published &&
-      (e.detail_page_kind === undefined || e.detail_page_kind === 'standard')
-  ).map((e) => `/events/${e.slug}`),
 ];
 
 /**
@@ -52,7 +46,7 @@ function pathsFromSitemapXml(xml: string, baseURL: string): string[] {
 
 /**
  * Builds the list of public marketing URLs to scan: live `/sitemap.xml` plus
- * curated extras (staff profiles, events, auth entry points, donate).
+ * curated extras (staff profiles, auth entry points, donate).
  *
  * @param baseURL - Playwright `use.baseURL` (no trailing slash)
  * @param sitemapXml - Raw `GET /sitemap.xml` body

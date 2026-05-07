@@ -1,15 +1,22 @@
-import { nyYmd } from '@/lib/mit-sailing/nyTime';
+import { EVENTS_TIME_ZONE, nyYmd } from '@/lib/mit-sailing/nyTime';
 
 const fullDateFormatter = new Intl.DateTimeFormat('en-US', {
-  timeZone: 'America/New_York',
+  timeZone: EVENTS_TIME_ZONE,
   weekday: 'short',
   month: 'short',
   day: 'numeric',
   year: 'numeric',
 });
 
+const dateNoYearFormatter = new Intl.DateTimeFormat('en-US', {
+  timeZone: EVENTS_TIME_ZONE,
+  weekday: 'short',
+  month: 'short',
+  day: 'numeric',
+});
+
 const timeOnlyFormatter = new Intl.DateTimeFormat('en-US', {
-  timeZone: 'America/New_York',
+  timeZone: EVENTS_TIME_ZONE,
   hour: 'numeric',
   minute: '2-digit',
 });
@@ -70,4 +77,31 @@ export function formatEasternShortDateFromIsoCalendar(iso: string): string {
   const day = Number(match[3]);
   const instant = new Date(Date.UTC(y, month - 1, day, 12, 0, 0));
   return fullDateFormatter.format(instant);
+}
+
+/**
+ * @param params - Event occurrence segment
+ * @returns Compact line for calendar rows
+ */
+export function formatEasternEventCalendarLine(params: {
+  start: Date;
+  end: Date;
+  segment: 'single' | 'multi-start' | 'multi-end';
+}): string {
+  if (params.segment === 'single') {
+    return formatEasternSameDayTimeRange(params.start, params.end);
+  }
+  if (params.segment === 'multi-end') {
+    return `Until ${timeOnlyFormatter.format(params.end)} ET`;
+  }
+
+  const startYear = Number(nyYmd(params.start).slice(0, 4));
+  const endYear = Number(nyYmd(params.end).slice(0, 4));
+  const endDate =
+    startYear === endYear
+      ? dateNoYearFormatter.format(params.end)
+      : fullDateFormatter.format(params.end);
+  return `${timeOnlyFormatter.format(params.start)} – ${endDate}, ${timeOnlyFormatter.format(
+    params.end
+  )} ET`;
 }

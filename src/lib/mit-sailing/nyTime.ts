@@ -1,12 +1,15 @@
+/** IANA zone for US Eastern (EST + EDT). */
+export const EVENTS_TIME_ZONE = 'America/New_York';
+
 const ymdFormatter = new Intl.DateTimeFormat('en-CA', {
-  timeZone: 'America/New_York',
+  timeZone: EVENTS_TIME_ZONE,
   year: 'numeric',
   month: '2-digit',
   day: '2-digit',
 });
 
 const fullFormatter = new Intl.DateTimeFormat('en-US', {
-  timeZone: 'America/New_York',
+  timeZone: EVENTS_TIME_ZONE,
   year: 'numeric',
   month: 'numeric',
   day: 'numeric',
@@ -124,4 +127,45 @@ export function addNyCalendarDays(ymd: string, days: number): string {
     k = step > 0 ? nextNyYmd(k) : prevNyYmd(k);
   }
   return k;
+}
+
+export function nyMonthFirstYmd(year: number, month: number): string {
+  const m = String(month).padStart(2, '0');
+  return `${year}-${m}-01`;
+}
+
+export function listNyDayKeysInMonth(year: number, month: number): string[] {
+  const keys: string[] = [];
+  let key = nyMonthFirstYmd(year, month);
+  while (true) {
+    const y = Number(key.slice(0, 4));
+    const m = Number(key.slice(5, 7));
+    if (y !== year || m !== month) {
+      break;
+    }
+    keys.push(key);
+    key = nextNyYmd(key);
+  }
+  return keys;
+}
+
+const nyWeekdayShort = new Intl.DateTimeFormat('en-US', {
+  timeZone: EVENTS_TIME_ZONE,
+  weekday: 'short',
+});
+
+export function nyWeekdaySunday0(ymd: string): number {
+  const parts = nyWeekdayShort.formatToParts(startOfNyCalendarDay(ymd));
+  const raw = parts.find((p) => p.type === 'weekday')?.value?.trim() ?? '';
+  const key = raw.replace(/\.$/, '').slice(0, 3).toLowerCase();
+  const map: Record<string, number> = {
+    sun: 0,
+    mon: 1,
+    tue: 2,
+    wed: 3,
+    thu: 4,
+    fri: 5,
+    sat: 6,
+  };
+  return map[key] ?? 0;
 }

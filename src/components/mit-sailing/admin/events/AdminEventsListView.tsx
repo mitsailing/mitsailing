@@ -1,0 +1,313 @@
+import { Plus, Search } from 'lucide-react';
+import type { getTranslations } from 'next-intl/server';
+import * as React from 'react';
+import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
+import { cn } from '@/lib/utils';
+import {
+  adminEventDeletePath,
+  adminEventEditPath,
+  adminEventRegistrationsPath,
+  adminEventsIndexPath,
+  adminEventsNewPath,
+} from '@/libs/admin/events/eventAdminPaths';
+import type {
+  AdminEventCategoryOption,
+  AdminEventDateDto,
+  AdminEventListFilters,
+  AdminEventListRow,
+  AdminEventRegistrationCounts,
+} from '@/libs/admin/events/eventAdminQueries';
+import { Link } from '@/libs/I18nNavigation';
+import { formatEasternEventRange } from '@/libs/mit-sailing/easternTimeFormat';
+
+type AdminEventsListTranslations = Awaited<
+  ReturnType<typeof getTranslations<'AdminEvents'>>
+>;
+
+type AdminEventsListViewProps = {
+  categories: AdminEventCategoryOption[];
+  filters: AdminEventListFilters;
+  rows: AdminEventListRow[];
+  t: AdminEventsListTranslations;
+};
+
+function firstAndLastDate(dates: AdminEventDateDto[]): {
+  first: AdminEventDateDto | null;
+  last: AdminEventDateDto | null;
+} {
+  if (dates.length === 0) {
+    return { first: null, last: null };
+  }
+  return { first: dates[0] ?? null, last: dates.at(-1) ?? null };
+}
+
+function dateSummary(
+  dates: AdminEventDateDto[],
+  t: AdminEventsListTranslations
+) {
+  const { first, last } = firstAndLastDate(dates);
+  if (!first || !last) {
+    return t('date_empty');
+  }
+  if (first.id === last.id) {
+    return formatEasternEventRange(first.startDateTime, first.endDateTime);
+  }
+  return t('date_range_multi', {
+    first: formatEasternEventRange(first.startDateTime, first.endDateTime),
+    last: formatEasternEventRange(last.startDateTime, last.endDateTime),
+  });
+}
+
+function registrationsSummary(
+  counts: AdminEventRegistrationCounts,
+  capacity: number | null,
+  t: AdminEventsListTranslations
+) {
+  const confirmed = capacity
+    ? t('list_capacity_limited', { approved: counts.approved, capacity })
+    : t('list_capacity_open', { approved: counts.approved });
+  if (counts.pending === 0) {
+    return confirmed;
+  }
+  return t('list_registration_summary_pending', {
+    confirmed,
+    pending: counts.pending,
+  });
+}
+
+function StatusBadge(props: {
+  children: React.ReactNode;
+  tone: 'green' | 'red' | 'neutral';
+}) {
+  return (
+    <span
+      className={cn(
+        'inline-flex w-fit items-center rounded-md border px-2 py-0.5 text-xs font-medium',
+        props.tone === 'green'
+          ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+          : undefined,
+        props.tone === 'red'
+          ? 'border-red-200 bg-red-50 text-red-900'
+          : undefined,
+        props.tone === 'neutral'
+          ? 'border-border bg-muted/60 text-muted-foreground'
+          : undefined
+      )}
+    >
+      {props.children}
+    </span>
+  );
+}
+
+function EventStatusBadges(props: {
+  event: AdminEventListRow;
+  t: AdminEventsListTranslations;
+}) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      <StatusBadge tone={props.event.isPublished ? 'green' : 'neutral'}>
+        {props.event.isPublished
+          ? props.t('status_published')
+          : props.t('status_draft')}
+      </StatusBadge>
+      {props.event.isSpecial ? (
+        <StatusBadge tone="red">{props.t('status_special')}</StatusBadge>
+      ) : null}
+      {props.event.detailPageKind === 'external' ? (
+        <StatusBadge tone="neutral">{props.t('status_external')}</StatusBadge>
+      ) : null}
+    </div>
+  );
+}
+
+function EventRow(props: {
+  event: AdminEventListRow;
+  t: AdminEventsListTranslations;
+}) {
+  return (
+    <TableRow>
+      <TableCell className="px-4 py-3 align-top text-sm">
+        <span className="font-medium text-foreground">
+          {props.event.category.name}
+        </span>
+      </TableCell>
+      <TableCell className="px-4 py-3 align-top">
+        <div className="flex min-w-0 flex-col gap-1">
+          <Link
+            className="font-semibold text-mit-red-ink no-underline hover:underline"
+            href={adminEventEditPath(props.event.slug)}
+          >
+            {props.event.name}
+          </Link>
+          <span className="text-xs text-muted-foreground">
+            {props.event.shortName} · /events/{props.event.slug}
+          </span>
+          <EventStatusBadges event={props.event} t={props.t} />
+        </div>
+      </TableCell>
+      <TableCell className="px-4 py-3 align-top text-sm text-muted-foreground">
+        {dateSummary(props.event.dates, props.t)}
+      </TableCell>
+      <TableCell className="px-4 py-3 align-top text-sm">
+        {registrationsSummary(
+          props.event.registrationCounts,
+          props.event.maxParticipants,
+          props.t
+        )}
+      </TableCell>
+      <TableCell className="px-4 py-3 align-top text-sm text-muted-foreground">
+        {props.event.requiresApproval
+          ? props.t('approval_manual')
+          : props.t('approval_auto')}
+      </TableCell>
+      <TableCell className="px-4 py-3 align-top">
+        <div className="flex flex-wrap gap-x-3 gap-y-1">
+          <Link
+            className="text-sm font-medium text-mit-red-ink no-underline hover:underline"
+            href={adminEventEditPath(props.event.slug)}
+          >
+            {props.t('action_edit')}
+          </Link>
+          <Link
+            className="text-sm font-medium text-mit-red-ink no-underline hover:underline"
+            href={adminEventRegistrationsPath(props.event.slug)}
+          >
+            {props.t('action_registrations')}
+          </Link>
+          <Link
+            className="text-sm font-medium text-mit-red-ink no-underline hover:underline"
+            href={adminEventDeletePath(props.event.slug)}
+          >
+            {props.t('action_delete')}
+          </Link>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+export function AdminEventsListView(props: AdminEventsListViewProps) {
+  return (
+    <div className="mx-auto flex max-w-6xl flex-col gap-6">
+      <AdminPageHeader
+        actions={
+          <Button asChild size="sm" variant="mit">
+            <Link href={adminEventsNewPath()}>
+              <Plus aria-hidden className="size-4" />
+              {props.t('action_new_event')}
+            </Link>
+          </Button>
+        }
+        title={props.t('list_title')}
+      />
+
+      <form
+        action=""
+        className="grid gap-3 rounded-lg border border-border bg-card p-4 md:grid-cols-[minmax(0,1fr)_minmax(220px,280px)_auto]"
+        role="search"
+      >
+        <label className="relative flex min-w-0 flex-col gap-1.5 text-sm">
+          <span className="font-medium text-foreground">
+            {props.t('filter_search_label')}
+          </span>
+          <Search
+            aria-hidden
+            className="pointer-events-none absolute bottom-2 left-2.5 size-4 text-muted-foreground"
+          />
+          <Input
+            className="pl-8"
+            defaultValue={props.filters.query ?? ''}
+            name="q"
+            placeholder={props.t('filter_search_placeholder')}
+            type="search"
+          />
+        </label>
+        <label className="flex min-w-0 flex-col gap-1.5 text-sm">
+          <span className="font-medium text-foreground">
+            {props.t('filter_category_label')}
+          </span>
+          <select
+            className={adminNativeSelectClassName}
+            defaultValue={props.filters.categoryId ?? ''}
+            name="category"
+          >
+            <option value="">{props.t('filter_category_all')}</option>
+            {props.categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="flex items-end gap-2">
+          <Button type="submit" variant="outline">
+            {props.t('action_filter')}
+          </Button>
+          <Button asChild type="button" variant="ghost">
+            <Link href={adminEventsIndexPath()}>{props.t('action_reset')}</Link>
+          </Button>
+        </div>
+      </form>
+
+      <p className="text-sm text-muted-foreground">
+        {props.t('list_count', { count: props.rows.length })}
+      </p>
+
+      <div className="overflow-hidden rounded-lg border border-border bg-card">
+        <div className="overflow-x-auto">
+          <Table className="min-w-[980px] text-left">
+            <TableHeader>
+              <TableRow className="border-b bg-muted/50 hover:bg-muted/50">
+                <TableHead className="px-4 py-3">
+                  {props.t('column_category')}
+                </TableHead>
+                <TableHead className="px-4 py-3">
+                  {props.t('column_event')}
+                </TableHead>
+                <TableHead className="px-4 py-3">
+                  {props.t('column_dates')}
+                </TableHead>
+                <TableHead className="px-4 py-3">
+                  {props.t('column_registrations')}
+                </TableHead>
+                <TableHead className="px-4 py-3">
+                  {props.t('column_approval')}
+                </TableHead>
+                <TableHead className="px-4 py-3">
+                  {props.t('column_actions')}
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {props.rows.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    className="px-4 py-10 text-center text-sm text-muted-foreground"
+                    colSpan={6}
+                  >
+                    {props.t('list_empty')}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                props.rows.map((event) => (
+                  <EventRow event={event} key={event.id} t={props.t} />
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+    </div>
+  );
+}

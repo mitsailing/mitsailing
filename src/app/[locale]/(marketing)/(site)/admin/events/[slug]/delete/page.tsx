@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
-import { AdminEventFormView } from '@/components/mit-sailing/admin/events/AdminEventFormView';
-import { getAdminEventEditorDataBySlug } from '@/libs/admin/events/eventAdminQueries';
+import { AdminEventDeleteView } from '@/components/mit-sailing/admin/events/AdminEventDeleteView';
+import { getAdminEventDeleteBySlug } from '@/libs/admin/events/eventAdminQueries';
 
 type PageProps = {
   params: Promise<{ locale: string; slug: string }>;
@@ -15,28 +15,26 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
     locale,
     namespace: 'MitSailingRoutes',
   });
-  return { title: t('meta_title_admin_event_edit', { slug }) };
+  return { title: t('meta_title_admin_event_delete', { slug }) };
 }
 
-export default async function AdminEventEditPage(props: PageProps) {
+export default async function AdminEventDeletePage(props: PageProps) {
   const { locale, slug } = await props.params;
   const { error: errorCode } = await props.searchParams;
   setRequestLocale(locale);
-  const [data, t] = await Promise.all([
-    getAdminEventEditorDataBySlug(slug),
+  const [event, t] = await Promise.all([
+    getAdminEventDeleteBySlug(slug),
     getTranslations({ locale, namespace: 'AdminEvents' }),
   ]);
-  if (!data.event) {
+  if (!event) {
     notFound();
   }
   return (
-    <AdminEventFormView
-      categories={data.categories}
+    <AdminEventDeleteView
       errorCode={errorCode ?? null}
-      event={data.event}
+      event={event}
       locale={locale}
       t={t}
-      users={data.users}
     />
   );
 }

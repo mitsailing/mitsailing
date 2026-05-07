@@ -1,0 +1,897 @@
+import {
+  ArrowLeft,
+  CreditCard,
+  ExternalLink,
+  Plus,
+  Save,
+  Trash2,
+} from 'lucide-react';
+import type { getTranslations } from 'next-intl/server';
+import {
+  adminEventFormErrorMessage,
+  AdminEventBackLink,
+  AdminEventCheckbox,
+  AdminEventEmptyState,
+  AdminEventField,
+  AdminEventFormSection,
+} from '@/components/mit-sailing/admin/events/AdminEventShared';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { EventAnswerType, EventDetailPageKind } from '@/generated/prisma/enums';
+import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
+import {
+  addAdminEventDateAction,
+  addAdminEventFeeAction,
+  addAdminEventQuestionAction,
+  updateAdminEventAdminsAction,
+  updateAdminEventBasicsAction,
+  updateAdminEventDateAction,
+  updateAdminEventFeeAction,
+  updateAdminEventQuestionAction,
+  deleteAdminEventDateAction,
+  deleteAdminEventFeeAction,
+  deleteAdminEventQuestionAction,
+} from '@/libs/admin/events/eventAdminActions';
+import { adminEventsIndexPath } from '@/libs/admin/events/eventAdminPaths';
+import type {
+  AdminEventCategoryOption,
+  AdminEventDateDto,
+  AdminEventEditorDto,
+  AdminEventFeeDto,
+  AdminEventQuestionDto,
+  AdminEventUserOption,
+} from '@/libs/admin/events/eventAdminQueries';
+import {
+  eventAdminCentsToDollars,
+  formatEasternDateTimeLocal,
+} from '@/libs/admin/events/eventAdminSchemas';
+import { Link } from '@/libs/I18nNavigation';
+import { formatEasternDateTime } from '@/libs/mit-sailing/easternTimeFormat';
+
+type AdminEventFormTranslations = Awaited<
+  ReturnType<typeof getTranslations<'AdminEvents'>>
+>;
+
+type AdminEventFormViewProps = {
+  event: AdminEventEditorDto;
+  categories: AdminEventCategoryOption[];
+  users: AdminEventUserOption[];
+  errorCode: string | null;
+  locale: string;
+  t: AdminEventFormTranslations;
+};
+
+function userInitials(user: AdminEventUserOption): string {
+  const words = user.name.trim().split(/\s+/);
+  const first = words[0]?.[0] ?? user.email[0] ?? '?';
+  const second = words[1]?.[0] ?? '';
+  return `${first}${second}`.toUpperCase();
+}
+
+function eventAdminPublicHref(slug: string): string {
+  return `/events/${encodeURIComponent(slug)}`;
+}
+
+function AdminEventErrorAlert(props: {
+  code: string | null;
+  t: AdminEventFormTranslations;
+}) {
+  const message = adminEventFormErrorMessage(props.code, props.t);
+  if (!message) {
+    return null;
+  }
+  return (
+    <p
+      className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-950"
+      role="alert"
+    >
+      {message}
+    </p>
+  );
+}
+
+function EventBasicsForm(props: AdminEventFormViewProps) {
+  const updateAction = updateAdminEventBasicsAction.bind(
+    null,
+    props.locale,
+    props.event.slug
+  );
+  const detailPageKind =
+    props.event.detailPageKind ?? EventDetailPageKind.standard;
+
+  return (
+    <form action={updateAction} className="flex flex-col gap-5">
+      <AdminEventFormSection
+        id="event-basics"
+        subtitle={props.t('basics_subtitle')}
+        title={props.t('section_basics')}
+      >
+        <div className="grid gap-4 md:grid-cols-2">
+          <AdminEventField htmlFor="event-name" label={props.t('field_name')}>
+            <Input
+              defaultValue={props.event.name}
+              id="event-name"
+              name="name"
+              required
+            />
+          </AdminEventField>
+          <AdminEventField
+            htmlFor="event-short-name"
+            hint={props.t('field_short_name_hint')}
+            label={props.t('field_short_name')}
+          >
+            <Input
+              defaultValue={props.event.shortName}
+              id="event-short-name"
+              name="shortName"
+            />
+          </AdminEventField>
+          <AdminEventField
+            htmlFor="event-slug"
+            hint={props.t('field_slug_hint', { slug: props.event.slug })}
+            label={props.t('field_slug')}
+          >
+            <Input
+              defaultValue={props.event.slug}
+              id="event-slug"
+              name="slug"
+              required
+            />
+          </AdminEventField>
+          <AdminEventField
+            htmlFor="event-category"
+            label={props.t('field_category')}
+          >
+            <select
+              className={adminNativeSelectClassName}
+              defaultValue={props.event.eventCategoryId}
+              id="event-category"
+              name="eventCategoryId"
+              required
+            >
+              {props.categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          </AdminEventField>
+        </div>
+
+        <AdminEventField
+          htmlFor="event-description"
+          hint={props.t('field_description_hint')}
+          label={props.t('field_description')}
+        >
+          <Textarea
+            className="min-h-28"
+            defaultValue={props.event.description}
+            id="event-description"
+            name="description"
+          />
+        </AdminEventField>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <AdminEventCheckbox
+            defaultChecked={props.event.isPublished}
+            hint={props.t('field_published_hint')}
+            label={props.t('field_published')}
+            name="isPublished"
+          />
+          <AdminEventCheckbox
+            defaultChecked={props.event.isSpecial}
+            hint={props.t('field_special_hint')}
+            label={props.t('field_special')}
+            name="isSpecial"
+          />
+          <AdminEventCheckbox
+            defaultChecked={props.event.requiresApproval}
+            label={props.t('field_requires_approval')}
+            name="requiresApproval"
+          />
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-3">
+          <AdminEventField
+            htmlFor="event-registration-start"
+            label={props.t('field_registration_start')}
+          >
+            <Input
+              defaultValue={formatEasternDateTimeLocal(
+                props.event.registrationStart
+              )}
+              id="event-registration-start"
+              name="registrationStart"
+              type="datetime-local"
+            />
+          </AdminEventField>
+          <AdminEventField
+            htmlFor="event-registration-end"
+            label={props.t('field_registration_end')}
+          >
+            <Input
+              defaultValue={formatEasternDateTimeLocal(
+                props.event.registrationEnd
+              )}
+              id="event-registration-end"
+              name="registrationEnd"
+              type="datetime-local"
+            />
+          </AdminEventField>
+          <AdminEventField
+            htmlFor="event-max-participants"
+            hint={props.t('field_max_participants_hint')}
+            label={props.t('field_max_participants')}
+          >
+            <Input
+              defaultValue={props.event.maxParticipants ?? ''}
+              id="event-max-participants"
+              min={1}
+              name="maxParticipants"
+              type="number"
+            />
+          </AdminEventField>
+        </div>
+
+        <AdminEventField
+          htmlFor="event-internal-notes"
+          hint={props.t('field_internal_notes_hint')}
+          label={props.t('field_internal_notes')}
+        >
+          <Textarea
+            className="min-h-24"
+            defaultValue={props.event.internalNotes ?? ''}
+            id="event-internal-notes"
+            name="internalNotes"
+          />
+        </AdminEventField>
+      </AdminEventFormSection>
+
+      <AdminEventFormSection
+        id="event-public-page"
+        subtitle={props.t('public_page_subtitle')}
+        title={props.t('section_public_page')}
+      >
+        <fieldset className="flex flex-col gap-3">
+          <legend className="sr-only">
+            {props.t('field_detail_page_kind')}
+          </legend>
+          <label
+            aria-label={props.t('detail_standard_label')}
+            className="flex cursor-pointer items-start gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+          >
+            <input
+              className="mt-0.5"
+              defaultChecked={detailPageKind === EventDetailPageKind.standard}
+              name="detailPageKind"
+              type="radio"
+              value={EventDetailPageKind.standard}
+            />
+            <span className="flex flex-col gap-0.5">
+              <span className="font-medium">
+                {props.t('detail_standard_label')}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {props.t('detail_standard_hint', {
+                  slug: props.event.slug,
+                })}
+              </span>
+            </span>
+          </label>
+          <label
+            aria-label={props.t('detail_external_label')}
+            className="flex cursor-pointer items-start gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+          >
+            <input
+              className="mt-0.5"
+              defaultChecked={detailPageKind === EventDetailPageKind.external}
+              name="detailPageKind"
+              type="radio"
+              value={EventDetailPageKind.external}
+            />
+            <span className="flex flex-col gap-0.5">
+              <span className="font-medium">
+                {props.t('detail_external_label')}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {props.t('detail_external_hint')}
+              </span>
+            </span>
+          </label>
+        </fieldset>
+        <AdminEventField
+          htmlFor="event-external-url"
+          label={props.t('field_external_detail_url')}
+        >
+          <Input
+            defaultValue={props.event.externalDetailUrl ?? ''}
+            id="event-external-url"
+            name="externalDetailUrl"
+            placeholder="https://"
+            type="url"
+          />
+        </AdminEventField>
+      </AdminEventFormSection>
+
+      <div className="flex justify-end">
+        <Button type="submit" variant="mit">
+          <Save aria-hidden className="size-4" />
+          {props.t('action_save_event')}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function EventMetadataSection(props: {
+  event: AdminEventEditorDto;
+  t: AdminEventFormTranslations;
+}) {
+  return (
+    <AdminEventFormSection
+      id="event-metadata"
+      subtitle={props.t('metadata_subtitle')}
+      title={props.t('section_metadata')}
+    >
+      <dl className="grid gap-4 md:grid-cols-3">
+        <div>
+          <dt className="text-xs font-semibold text-muted-foreground uppercase">
+            {props.t('metadata_created_at')}
+          </dt>
+          <dd className="mt-1 text-sm font-medium">
+            {formatEasternDateTime(props.event.createdAt)}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs font-semibold text-muted-foreground uppercase">
+            {props.t('metadata_created_by')}
+          </dt>
+          <dd className="mt-1 text-sm font-medium">
+            {props.event.createdBy.name}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs font-semibold text-muted-foreground uppercase">
+            {props.t('metadata_registrations')}
+          </dt>
+          <dd className="mt-1 text-sm font-medium">
+            {props.t('metadata_registration_counts', {
+              approved: props.event.registrationCounts.approved,
+              pending: props.event.registrationCounts.pending,
+              cancelled: props.event.registrationCounts.cancelled,
+            })}
+          </dd>
+        </div>
+      </dl>
+    </AdminEventFormSection>
+  );
+}
+
+function DateRow(props: {
+  date: AdminEventDateDto;
+  event: AdminEventEditorDto;
+  locale: string;
+  t: AdminEventFormTranslations;
+}) {
+  const updateAction = updateAdminEventDateAction.bind(
+    null,
+    props.locale,
+    props.event.slug,
+    props.date.id
+  );
+  const deleteAction = deleteAdminEventDateAction.bind(
+    null,
+    props.locale,
+    props.event.slug,
+    props.date.id
+  );
+  return (
+    <li className="grid gap-3 rounded-lg border border-border bg-background p-3 md:grid-cols-[1fr_1fr_auto_auto] md:items-end">
+      <form action={updateAction} className="contents">
+        <AdminEventField
+          htmlFor={`date-start-${props.date.id}`}
+          label={props.t('field_date_start')}
+        >
+          <Input
+            defaultValue={formatEasternDateTimeLocal(props.date.startDateTime)}
+            id={`date-start-${props.date.id}`}
+            name="startDateTime"
+            required
+            type="datetime-local"
+          />
+        </AdminEventField>
+        <AdminEventField
+          htmlFor={`date-end-${props.date.id}`}
+          label={props.t('field_date_end')}
+        >
+          <Input
+            defaultValue={formatEasternDateTimeLocal(props.date.endDateTime)}
+            id={`date-end-${props.date.id}`}
+            name="endDateTime"
+            required
+            type="datetime-local"
+          />
+        </AdminEventField>
+        <Button type="submit" variant="outline">
+          {props.t('action_save')}
+        </Button>
+      </form>
+      <form action={deleteAction}>
+        <Button
+          aria-label={props.t('action_delete_date')}
+          type="submit"
+          variant="destructive"
+        >
+          <Trash2 aria-hidden className="size-4" />
+        </Button>
+      </form>
+    </li>
+  );
+}
+
+function EventDatesSection(props: AdminEventFormViewProps) {
+  const addAction = addAdminEventDateAction.bind(
+    null,
+    props.locale,
+    props.event.slug,
+    props.event.id
+  );
+  return (
+    <AdminEventFormSection
+      id="event-dates"
+      subtitle={props.t('dates_subtitle')}
+      title={props.t('section_dates')}
+    >
+      {props.event.dates.length === 0 ? (
+        <AdminEventEmptyState>{props.t('dates_empty')}</AdminEventEmptyState>
+      ) : (
+        <ol className="m-0 flex list-none flex-col gap-3 p-0">
+          {props.event.dates.map((date) => (
+            <DateRow
+              date={date}
+              event={props.event}
+              key={date.id}
+              locale={props.locale}
+              t={props.t}
+            />
+          ))}
+        </ol>
+      )}
+      <form
+        action={addAction}
+        className="grid gap-3 border-t border-dashed border-border pt-4 md:grid-cols-[1fr_1fr_auto] md:items-end"
+      >
+        <AdminEventField
+          htmlFor="new-date-start"
+          label={props.t('field_new_date_start')}
+        >
+          <Input
+            id="new-date-start"
+            name="startDateTime"
+            required
+            type="datetime-local"
+          />
+        </AdminEventField>
+        <AdminEventField
+          htmlFor="new-date-end"
+          label={props.t('field_new_date_end')}
+        >
+          <Input
+            id="new-date-end"
+            name="endDateTime"
+            required
+            type="datetime-local"
+          />
+        </AdminEventField>
+        <Button type="submit" variant="mit">
+          <Plus aria-hidden className="size-4" />
+          {props.t('action_add_date')}
+        </Button>
+      </form>
+    </AdminEventFormSection>
+  );
+}
+
+function EventAdminsSection(props: AdminEventFormViewProps) {
+  const updateAction = updateAdminEventAdminsAction.bind(
+    null,
+    props.locale,
+    props.event.slug,
+    props.event.id
+  );
+  const selectedIds = new Set(
+    props.event.admins.map((admin) => admin.adminUserId)
+  );
+  return (
+    <AdminEventFormSection
+      id="event-admins"
+      subtitle={props.t('admins_subtitle')}
+      title={props.t('section_admins')}
+    >
+      <form action={updateAction} className="flex flex-col gap-4">
+        <ul className="m-0 grid list-none gap-2 p-0 md:grid-cols-2 xl:grid-cols-3">
+          {props.users.map((user) => {
+            const selected = selectedIds.has(user.id);
+            return (
+              <li key={user.id}>
+                <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-border bg-background px-3 py-2 text-sm has-checked:border-mit-red has-checked:bg-red-50">
+                  <input
+                    defaultChecked={selected}
+                    name="adminUserId"
+                    type="checkbox"
+                    value={user.id}
+                  />
+                  <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
+                    {userInitials(user)}
+                  </span>
+                  <span className="flex min-w-0 flex-col">
+                    <span className="truncate font-medium">{user.name}</span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      {user.email}
+                    </span>
+                  </span>
+                </label>
+              </li>
+            );
+          })}
+        </ul>
+        <div className="flex justify-end">
+          <Button type="submit" variant="outline">
+            {props.t('action_save_admins')}
+          </Button>
+        </div>
+      </form>
+    </AdminEventFormSection>
+  );
+}
+
+function questionOptionsCsv(question: AdminEventQuestionDto): string {
+  return question.options.join(', ');
+}
+
+function QuestionFields(props: {
+  question?: AdminEventQuestionDto;
+  t: AdminEventFormTranslations;
+}) {
+  const prefix = props.question?.id ?? 'new';
+  return (
+    <>
+      <div className="grid gap-3 md:grid-cols-[1fr_180px]">
+        <AdminEventField
+          htmlFor={`question-text-${prefix}`}
+          label={props.t('field_question_text')}
+        >
+          <Input
+            defaultValue={props.question?.questionText ?? ''}
+            id={`question-text-${prefix}`}
+            name="questionText"
+            required
+          />
+        </AdminEventField>
+        <AdminEventField
+          htmlFor={`question-type-${prefix}`}
+          label={props.t('field_answer_type')}
+        >
+          <select
+            className={adminNativeSelectClassName}
+            defaultValue={props.question?.answerType ?? EventAnswerType.text}
+            id={`question-type-${prefix}`}
+            name="answerType"
+          >
+            <option value={EventAnswerType.text}>
+              {props.t('question_type_text')}
+            </option>
+            <option value={EventAnswerType.select}>
+              {props.t('question_type_select')}
+            </option>
+            <option value={EventAnswerType.checkbox}>
+              {props.t('question_type_checkbox')}
+            </option>
+          </select>
+        </AdminEventField>
+      </div>
+      <div className="grid gap-3 md:grid-cols-[1fr_120px_auto] md:items-end">
+        <AdminEventField
+          htmlFor={`question-options-${prefix}`}
+          hint={props.t('field_question_options_hint')}
+          label={props.t('field_question_options')}
+        >
+          <Input
+            defaultValue={
+              props.question ? questionOptionsCsv(props.question) : ''
+            }
+            id={`question-options-${prefix}`}
+            name="optionsCsv"
+          />
+        </AdminEventField>
+        <AdminEventField
+          htmlFor={`question-order-${prefix}`}
+          label={props.t('field_display_order')}
+        >
+          <Input
+            defaultValue={props.question?.displayOrder ?? ''}
+            id={`question-order-${prefix}`}
+            min={1}
+            name="displayOrder"
+            type="number"
+          />
+        </AdminEventField>
+        <AdminEventCheckbox
+          defaultChecked={props.question?.required ?? false}
+          label={props.t('field_required')}
+          name="required"
+        />
+      </div>
+    </>
+  );
+}
+
+function QuestionRow(props: {
+  event: AdminEventEditorDto;
+  locale: string;
+  question: AdminEventQuestionDto;
+  t: AdminEventFormTranslations;
+}) {
+  const updateAction = updateAdminEventQuestionAction.bind(
+    null,
+    props.locale,
+    props.event.slug,
+    props.question.id
+  );
+  const deleteAction = deleteAdminEventQuestionAction.bind(
+    null,
+    props.locale,
+    props.event.slug,
+    props.question.id
+  );
+  return (
+    <li className="rounded-lg border border-border bg-background p-3">
+      <form action={updateAction} className="flex flex-col gap-3">
+        <QuestionFields question={props.question} t={props.t} />
+        <div className="flex justify-end gap-2">
+          <Button type="submit" variant="outline">
+            {props.t('action_save')}
+          </Button>
+        </div>
+      </form>
+      <form action={deleteAction} className="mt-2 flex justify-end">
+        <Button type="submit" variant="destructive">
+          <Trash2 aria-hidden className="size-4" />
+          {props.t('action_delete_question')}
+        </Button>
+      </form>
+    </li>
+  );
+}
+
+function EventQuestionsSection(props: AdminEventFormViewProps) {
+  const addAction = addAdminEventQuestionAction.bind(
+    null,
+    props.locale,
+    props.event.slug,
+    props.event.id
+  );
+  return (
+    <AdminEventFormSection
+      id="event-questions"
+      subtitle={props.t('questions_subtitle')}
+      title={props.t('section_questions')}
+    >
+      {props.event.registrationQuestions.length === 0 ? (
+        <AdminEventEmptyState>
+          {props.t('questions_empty')}
+        </AdminEventEmptyState>
+      ) : (
+        <ol className="m-0 flex list-none flex-col gap-3 p-0">
+          {props.event.registrationQuestions.map((question) => (
+            <QuestionRow
+              event={props.event}
+              key={question.id}
+              locale={props.locale}
+              question={question}
+              t={props.t}
+            />
+          ))}
+        </ol>
+      )}
+      <form
+        action={addAction}
+        className="flex flex-col gap-3 border-t border-dashed border-border pt-4"
+      >
+        <h3 className="text-sm font-semibold text-foreground">
+          {props.t('add_question_heading')}
+        </h3>
+        <QuestionFields t={props.t} />
+        <div className="flex justify-end">
+          <Button type="submit" variant="mit">
+            <Plus aria-hidden className="size-4" />
+            {props.t('action_add_question')}
+          </Button>
+        </div>
+      </form>
+    </AdminEventFormSection>
+  );
+}
+
+function FeeFields(props: {
+  fee?: AdminEventFeeDto;
+  t: AdminEventFormTranslations;
+}) {
+  const prefix = props.fee?.id ?? 'new';
+  return (
+    <div className="grid gap-3 md:grid-cols-[1fr_180px_auto] md:items-end">
+      <AdminEventField
+        htmlFor={`fee-description-${prefix}`}
+        label={props.t('field_fee_description')}
+      >
+        <Input
+          defaultValue={props.fee?.description ?? ''}
+          id={`fee-description-${prefix}`}
+          name="description"
+          required
+        />
+      </AdminEventField>
+      <AdminEventField
+        htmlFor={`fee-amount-${prefix}`}
+        label={props.t('field_fee_amount')}
+      >
+        <Input
+          defaultValue={
+            props.fee ? eventAdminCentsToDollars(props.fee.amountCents) : ''
+          }
+          id={`fee-amount-${prefix}`}
+          inputMode="decimal"
+          name="amountCents"
+          placeholder="150.00"
+          required
+        />
+      </AdminEventField>
+      <AdminEventCheckbox
+        defaultChecked={props.fee?.isDeposit ?? false}
+        label={props.t('field_fee_deposit')}
+        name="isDeposit"
+      />
+    </div>
+  );
+}
+
+function FeeRow(props: {
+  event: AdminEventEditorDto;
+  fee: AdminEventFeeDto;
+  locale: string;
+  t: AdminEventFormTranslations;
+}) {
+  const updateAction = updateAdminEventFeeAction.bind(
+    null,
+    props.locale,
+    props.event.slug,
+    props.fee.id
+  );
+  const deleteAction = deleteAdminEventFeeAction.bind(
+    null,
+    props.locale,
+    props.event.slug,
+    props.fee.id
+  );
+  return (
+    <li className="rounded-lg border border-border bg-background p-3">
+      <form action={updateAction} className="flex flex-col gap-3">
+        <FeeFields fee={props.fee} t={props.t} />
+        <div className="flex justify-end">
+          <Button type="submit" variant="outline">
+            {props.t('action_save')}
+          </Button>
+        </div>
+      </form>
+      <form action={deleteAction} className="mt-2 flex justify-end">
+        <Button type="submit" variant="destructive">
+          <Trash2 aria-hidden className="size-4" />
+          {props.t('action_delete_fee')}
+        </Button>
+      </form>
+    </li>
+  );
+}
+
+function EventFeesSection(props: AdminEventFormViewProps) {
+  const addAction = addAdminEventFeeAction.bind(
+    null,
+    props.locale,
+    props.event.slug,
+    props.event.id
+  );
+  return (
+    <AdminEventFormSection
+      id="event-fees"
+      subtitle={props.t('fees_subtitle')}
+      title={props.t('section_fees')}
+    >
+      {props.event.entryFees.length === 0 ? (
+        <AdminEventEmptyState>{props.t('fees_empty')}</AdminEventEmptyState>
+      ) : (
+        <ol className="m-0 flex list-none flex-col gap-3 p-0">
+          {props.event.entryFees.map((fee) => (
+            <FeeRow
+              event={props.event}
+              fee={fee}
+              key={fee.id}
+              locale={props.locale}
+              t={props.t}
+            />
+          ))}
+        </ol>
+      )}
+      <form
+        action={addAction}
+        className="flex flex-col gap-3 border-t border-dashed border-border pt-4"
+      >
+        <h3 className="text-sm font-semibold text-foreground">
+          {props.t('add_fee_heading')}
+        </h3>
+        <FeeFields t={props.t} />
+        <div className="flex justify-end">
+          <Button type="submit" variant="mit">
+            <Plus aria-hidden className="size-4" />
+            {props.t('action_add_fee')}
+          </Button>
+        </div>
+      </form>
+    </AdminEventFormSection>
+  );
+}
+
+function StripePlaceholder(props: { t: AdminEventFormTranslations }) {
+  return (
+    <AdminEventFormSection
+      id="event-stripe"
+      subtitle={props.t('stripe_placeholder_body')}
+      title={props.t('section_stripe')}
+    >
+      <div className="flex items-center gap-3 rounded-lg border border-dashed border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+        <CreditCard aria-hidden className="size-5" />
+        <span>{props.t('stripe_placeholder_status')}</span>
+      </div>
+    </AdminEventFormSection>
+  );
+}
+
+export function AdminEventFormView(props: AdminEventFormViewProps) {
+  return (
+    <div className="mx-auto flex max-w-4xl flex-col gap-6">
+      <AdminEventBackLink href={adminEventsIndexPath()}>
+        <ArrowLeft aria-hidden className="size-4" />
+        {props.t('back_to_events')}
+      </AdminEventBackLink>
+
+      <header className="flex flex-col gap-2">
+        <p className="text-xs font-semibold tracking-widest text-mit-red uppercase">
+          {props.t('edit_eyebrow')}
+        </p>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+            {props.event.name}
+          </h1>
+          <Button asChild size="sm" variant="outline">
+            <Link href={eventAdminPublicHref(props.event.slug)}>
+              <ExternalLink aria-hidden className="size-4" />
+              {props.t('action_view_public')}
+            </Link>
+          </Button>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          {props.t('edit_public_url', { slug: props.event.slug })}
+        </p>
+      </header>
+
+      <AdminEventErrorAlert code={props.errorCode} t={props.t} />
+      <EventMetadataSection event={props.event} t={props.t} />
+      <EventBasicsForm {...props} />
+      <EventDatesSection {...props} />
+      <EventAdminsSection {...props} />
+      <EventQuestionsSection {...props} />
+      <EventFeesSection {...props} />
+      <StripePlaceholder t={props.t} />
+    </div>
+  );
+}
