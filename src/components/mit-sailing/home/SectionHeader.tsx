@@ -17,11 +17,11 @@ export function SectionHeader(props: SectionHeaderProps) {
   return (
     <div className="mb-12 flex flex-col justify-between gap-6 md:flex-row md:items-end">
       <div className="max-w-2xl">
-        <h2 className="mb-3 font-mit-serif text-[22px] font-semibold text-mit-text">
+        <h2 className="mb-3 font-mit-serif text-[22px] font-semibold text-foreground">
           {props.title}
         </h2>
         {props.subtitle ? (
-          <p className="text-base text-mit-text">{props.subtitle}</p>
+          <p className="text-base text-muted-foreground">{props.subtitle}</p>
         ) : null}
       </div>
       {props.action ? <div className="shrink-0">{props.action}</div> : null}

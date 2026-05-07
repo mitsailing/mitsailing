@@ -92,8 +92,8 @@ export default defineConfig<ChromaticConfig>({
     navigationTimeout: defaultNavigationTimeout,
     actionTimeout: defaultActionTimeout,
   },
-  // Local: Chromium + a11y. CI: add Firefox for engine coverage before merge.
-  // `*.a11y.e2e.ts` runs only in `a11y-chromium` (axe scans many URLs × themes).
+  // Local: Chromium only (fast default). CI: add Firefox for engine coverage before merge.
+  // `*.a11y.e2e.ts` is a separate project: axe scans many URLs × themes (slower than smoke e2e).
   projects: [
     {
       name: 'chromium',

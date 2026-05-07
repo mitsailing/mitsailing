@@ -62,7 +62,7 @@ export async function ClassesCatalogView(props: ClassesCatalogViewProps) {
                         html={c.description}
                       />
                     </div>
-                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-mit-red">
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-mit-red-ink">
                       {t('catalog_card_cta')}{' '}
                       <ArrowRight aria-hidden size={14} />
                     </span>

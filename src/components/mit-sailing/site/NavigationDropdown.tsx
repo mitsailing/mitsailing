@@ -16,6 +16,12 @@ import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
 import { cn } from '@/lib/utils';
 import { Link } from '@/libs/I18nNavigation';
 
+const desktopNavTriggerClass =
+  'inline-flex min-h-[44px] items-center gap-1.5 rounded-md px-2.5 -mx-0.5 text-sm font-medium text-mit-text shadow-none transition-colors duration-200 hover:bg-muted/60 hover:text-primary-ink dark:hover:bg-white/5 dark:hover:text-white aria-expanded:bg-muted/70 aria-expanded:text-primary-ink dark:aria-expanded:bg-white/10 dark:aria-expanded:text-white';
+
+const mobileNavTriggerClass =
+  'flex h-auto min-h-[44px] w-full items-center justify-between rounded-md px-0 py-3 text-sm font-medium text-mit-text shadow-none transition-colors duration-200 hover:text-primary-ink dark:hover:text-white aria-expanded:text-primary-ink dark:aria-expanded:text-white';
+
 /**
  * Disclosure-style navigation submenu (APG disclosure navigation).
  *
@@ -257,11 +263,16 @@ export function NavigationDropdown(props: NavigationDropdownProps) {
     onNavigate?.();
   };
 
-  const dropdownItemInteractive = `block w-full min-h-[44px] text-sm font-medium text-mit-text no-underline transition-colors hover:bg-mit-red-highlight focus-visible:bg-mit-red-highlight ${textFocusRingClassName}`;
+  /** Submenu links: same look for all rows; `aria-current` is set for assistive tech only. */
+  const subMenuLinkClassName = cn(
+    'block w-full min-h-[44px] text-sm font-medium text-foreground no-underline transition-colors',
+    'hover:bg-muted/80 focus-visible:bg-muted/80',
+    textFocusRingClassName
+  );
   const itemClassName =
     variant === 'mobile'
-      ? `${dropdownItemInteractive} py-3 pl-4 pr-0`
-      : `${dropdownItemInteractive} px-4 py-3`;
+      ? cn(subMenuLinkClassName, 'rounded-md py-3 pl-4 pr-0')
+      : cn(subMenuLinkClassName, 'px-3 py-2.5');
 
   const listItems = resolvedItems.map((item, index) => {
     const setRef = (el: HTMLAnchorElement | null) => {
@@ -275,7 +286,7 @@ export function NavigationDropdown(props: NavigationDropdownProps) {
       <>
         <span className="block">{item.label}</span>
         {item.description ? (
-          <span className="mt-0.5 block text-xs text-mit-text/80">
+          <span className="mt-0.5 block text-xs text-muted-foreground">
             {item.description}
           </span>
         ) : null}
@@ -326,13 +337,9 @@ export function NavigationDropdown(props: NavigationDropdownProps) {
       aria-expanded={isOpen}
       aria-haspopup="true"
       className={cn(
-        variant === 'desktop' &&
-          'inline-flex min-h-[44px] items-center gap-1 px-1 rounded-sm text-sm font-medium text-mit-text shadow-none transition-opacity hover:bg-transparent hover:opacity-70 aria-expanded:!bg-transparent',
+        variant === 'desktop' && desktopNavTriggerClass,
         variant === 'mobile' &&
-          cn(
-            'flex h-auto min-h-[44px] w-full items-center justify-between px-0 py-3 rounded-sm text-sm font-medium text-mit-text shadow-none transition-opacity hover:bg-transparent hover:opacity-70 aria-expanded:!bg-transparent',
-            textFocusRingClassName
-          ),
+          cn(mobileNavTriggerClass, textFocusRingClassName),
         variant === 'desktop' && textFocusRingClassName
       )}
       id={triggerId}
@@ -379,7 +386,7 @@ export function NavigationDropdown(props: NavigationDropdownProps) {
       {trigger}
       <div
         aria-labelledby={triggerId}
-        className="absolute top-full left-0 z-50 mt-0 min-w-[240px] overflow-x-hidden rounded-lg border border-mit-line bg-white shadow-lg"
+        className="absolute top-full left-0 z-50 mt-1.5 min-w-[260px] overflow-x-hidden rounded-xl border border-border bg-card py-1 shadow-lg ring-1 ring-black/5 dark:ring-white/10"
         hidden={!isOpen}
         id={panelId}
       >

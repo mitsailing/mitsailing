@@ -13,6 +13,14 @@ datasource db {
   provider = "postgresql"
 }
 
+enum ThemePreference {
+  SYSTEM
+  LIGHT
+  DARK
+
+  @@map("theme_preference")
+}
+
 model User {
   id               String   @id
   name             String
@@ -21,7 +29,8 @@ model User {
   unconfirmedEmail String?  @map("unconfirmed_email")
   image            String?
   createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
+  themePreference  ThemePreference @default(SYSTEM) @map("theme_preference")
 
   // Admin plugin columns.
   role       String    @default("user")
@@ -32,6 +41,7 @@ model User {
   sessions  Session[]
   accounts  Account[]
   auditLogs AuditLog[]
+  siteTextOverrides SiteTextOverride[]
 
   eventRegistrations    EventRegistration[]
   eventComments         EventComment[]
@@ -161,6 +171,24 @@ model Upload {
   @@index([uploadedById])
   @@index([createdAt])
   @@map("uploads")
+}
+
+model SiteTextOverride {
+  id              String   @id @default(cuid())
+  locale          String
+  namespace       String
+  key             String
+  value           String   @db.Text
+  updatedByUserId String?  @map("updated_by_user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  updatedBy User? @relation(fields: [updatedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([locale, namespace, key])
+  @@index([locale])
+  @@index([updatedByUserId])
+  @@map("site_text_overrides")
 }
 
 // --- MIT Sailing domain (events, classes, fleet, about) ---

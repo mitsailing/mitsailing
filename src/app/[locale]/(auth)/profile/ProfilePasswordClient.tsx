@@ -6,10 +6,9 @@ import { mapProfilePasswordError } from '@/components/auth/profile/profileAuthEr
 import { ProfileInlineBanner } from '@/components/auth/profile/profileBanner';
 import type { ProfileBannerState } from '@/components/auth/profile/profileBanner';
 import { Button } from '@/components/ui/button';
-import {
-  authInlineLinkClassName,
-  authInputClassName,
-} from '@/lib/mit-sailing/tokens';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { authInlineLinkClassName } from '@/lib/mit-sailing/tokens';
 import { authClient } from '@/libs/auth-client';
 import { Link as I18nLink } from '@/libs/I18nNavigation';
 
@@ -60,12 +59,12 @@ export function ProfilePasswordClient() {
 
       <section
         aria-labelledby="change-password-heading"
-        className="rounded-lg border border-mit-line bg-white p-6 shadow-sm"
+        className="rounded-lg border border-border bg-card p-6 text-card-foreground shadow-sm"
       >
         <h2 className="text-lg font-medium" id="change-password-heading">
           {t('change_password_heading')}
         </h2>
-        <p className="mt-2 text-sm text-mit-text">
+        <p className="mt-2 text-sm text-muted-foreground">
           {t('password_hint_forgot')}{' '}
           <I18nLink className={authInlineLinkClassName} href="/forgot-password">
             {t('reset_password_link')}
@@ -73,16 +72,12 @@ export function ProfilePasswordClient() {
         </p>
         <ProfileInlineBanner banner={passwordBanner} />
         <form className="mt-4 flex flex-col gap-3" onSubmit={onChangePassword}>
-          <div className="flex flex-col gap-1">
-            <label
-              className="text-sm font-medium text-mit-text"
-              htmlFor="currentPassword"
-            >
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-foreground" htmlFor="currentPassword">
               {t('current_password_label')}
-            </label>
-            <input
+            </Label>
+            <Input
               autoComplete="current-password"
-              className={authInputClassName}
               id="currentPassword"
               name="currentPassword"
               onChange={(e) => {
@@ -93,16 +88,12 @@ export function ProfilePasswordClient() {
               value={currentPassword}
             />
           </div>
-          <div className="flex flex-col gap-1">
-            <label
-              className="text-sm font-medium text-mit-text"
-              htmlFor="newPassword"
-            >
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-foreground" htmlFor="newPassword">
               {t('new_password_label')}
-            </label>
-            <input
+            </Label>
+            <Input
               autoComplete="new-password"
-              className={authInputClassName}
               id="newPassword"
               minLength={8}
               name="newPassword"
@@ -113,20 +104,19 @@ export function ProfilePasswordClient() {
               type="password"
               value={newPassword}
             />
-            <span className="text-xs text-mit-text">
+            <span className="text-xs text-muted-foreground">
               {t('new_password_hint')}
             </span>
           </div>
-          <div className="flex flex-col gap-1">
-            <label
-              className="text-sm font-medium text-mit-text"
+          <div className="flex flex-col gap-1.5">
+            <Label
+              className="text-foreground"
               htmlFor="newPasswordConfirmation"
             >
               {t('new_password_confirmation_label')}
-            </label>
-            <input
+            </Label>
+            <Input
               autoComplete="new-password"
-              className={authInputClassName}
               id="newPasswordConfirmation"
               minLength={8}
               name="newPasswordConfirmation"
@@ -142,6 +132,7 @@ export function ProfilePasswordClient() {
             className="mt-2 w-fit"
             disabled={changingPassword}
             type="submit"
+            variant="mit"
           >
             {t('change_password_submit')}
           </Button>

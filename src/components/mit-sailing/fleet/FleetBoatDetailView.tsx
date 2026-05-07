@@ -33,7 +33,7 @@ export async function FleetBoatDetailView(props: FleetBoatDetailViewProps) {
     <>
       <div className="mb-8 flex items-center justify-between gap-4">
         <Link
-          className={`inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-mit-red no-underline hover:underline ${textFocusRingClassName}`}
+          className={`inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-mit-red-ink no-underline hover:underline ${textFocusRingClassName}`}
           href="/fleet/"
         >
           <ArrowLeft aria-hidden size={16} />
@@ -55,7 +55,7 @@ export async function FleetBoatDetailView(props: FleetBoatDetailViewProps) {
           {t('required_class_heading')}
         </h2>
         <Link
-          className={`inline-flex font-semibold text-mit-red hover:underline ${textFocusRingClassName}`}
+          className={`inline-flex font-semibold text-mit-red-ink hover:underline ${textFocusRingClassName}`}
           href={`/classes/${boat.requiredClass.slug}/`}
         >
           {boat.requiredClass.name}

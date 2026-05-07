@@ -39,8 +39,8 @@ export default async function ProfileAccountPage(
   }
 
   const dbUser = await prisma.user.findUnique({
+    select: { themePreference: true, unconfirmedEmail: true },
     where: { id: user.id },
-    select: { unconfirmedEmail: true },
   });
 
   return (
@@ -48,6 +48,7 @@ export default async function ProfileAccountPage(
       emailChangeCallbackUrl={`${getBaseUrl()}${profileAccountHref}?emailChanged=1`}
       initialEmail={user.email ?? ''}
       initialName={user.name}
+      initialThemePreference={dbUser?.themePreference ?? 'SYSTEM'}
       initialUnconfirmedEmail={dbUser?.unconfirmedEmail ?? null}
       initialVerificationBanner={verificationBanner}
     />

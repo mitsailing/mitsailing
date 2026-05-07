@@ -8,9 +8,30 @@ alwaysApply: false
 
 Before saying e2e is **done**, **fixed**, or **passing**, run `npm run test:e2e` from the repo root. Partial Playwright runs are useful for debugging but do not prove the full e2e gate.
 
-- If it cannot run, say exactly what was not verified.
-- On failure, report the failing spec and the useful tail of the error before fixing or handing back a blocker.
-- Default e2e port is `3008` (`PLAYWRIGHT_E2E_PORT` overrides it); `.env` `PORT` is not used by `playwright.config.ts`.
-- Local `npm run test:e2e` includes Chromium and `a11y-chromium`; CI also runs Firefox. Use `CI=1` locally to mirror CI browser selection.
-- Do not import the app Prisma client from `tests/e2e/*`; use `pg` helpers instead.
-- Use `formAlert` from `tests/helpers/e2e-alert.ts` for form errors so Next route announcers do not collide with `role="alert"`.
+## Before saying e2e is "done" or "passing"
+
+1. **Run:** `npm run test:e2e` from the project root (see `package.json`: preflight → `e2e:build` — unless `E2E_SKIP_BUILD=1` — → `e2e` / Playwright).
+
+2. **End with success:** If you cannot run it here, say what was *not* verified; do not imply a green suite.
+
+3. **On failure:** Summarize the failing test and error (last ~40 lines of output is enough), then fix or report blockers (Docker, port, etc.).
+
+4. **Partial runs** (single spec, `npm run e2e` only) are **not** a substitute for the full `npm run test:e2e` when claiming the whole e2e task is complete.
+
+5. **Port:** Default e2e port is `3008` (`PLAYWRIGHT_E2E_PORT` to override). E2E does **not** use `PORT` from `.env` in `playwright.config.ts`.
+
+6. **CI vs local build:** In GitHub Actions, `E2E_SKIP_BUILD=1` skips a second `next build` when `.next` is restored from the `build` job. Locally, the first `test:e2e` run runs `e2e:build` so `next start` has output.
+
+7. **Browsers:** **`npm install`** runs **`postinstall`** → `npx playwright install chromium` locally (aligned with Next.js [Playwright testing](https://nextjs.org/docs/app/building-your-application/testing/playwright) — binaries must match `@playwright/test`). Skipped when **`CI`** or **`PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`** (GitHub e2e job and Docker **deps** use explicit install or skip). Local `npm run test:e2e` runs **Chromium** only. **CI** runs **Chromium + Firefox** (workflow installs both). To reproduce the full CI browser matrix locally, set `CI=1` for that run (also matches CI retries/reporter) or install Firefox and use `npx playwright test --project=firefox` after the usual preflight + build + server.
+
+## Playwright + Prisma in this project
+
+- **Do not** import the app’s Prisma client in `tests/e2e/*` (see `prisma#28838`, `playwright#37890`). Use the `pg` `Pool` (see `AccountLockout.e2e.ts`).
+
+- **Form errors vs Next.js:** use `formAlert` from `tests/helpers/e2e-alert.ts` so `role="alert"` is not ambiguous with the route announcer.
+
+## Accessibility (axe) suite
+
+- **`npm run test:e2e:a11y`** runs the same preflight + `e2e:build` as `test:e2e`, then only the **`a11y-chromium`** Playwright project (`**/*.a11y.e2e.ts`): `@axe-core/playwright` with WCAG 2.x A/AA tags, **light and dark** theme via `localStorage` (`mitsailing-theme`) + `emulateMedia` color scheme.
+- **`npm run test:e2e`** runs **chromium + firefox (CI)** and does **not** include those files (they are ignored on default projects). Run **`test:e2e:a11y`** when changing global styles, theme tokens, or public page shells.
+- Scanned URLs = live **`/sitemap.xml`** pathnames plus curated public routes (donate, auth entry points, staff profiles, published standard event detail pages). **Admin** and **profile** routes are out of scope (auth + no Prisma in e2e).

@@ -8,6 +8,10 @@ import {
 } from '@/components/mit-sailing/admin/catalog/AdminCatalogEditMetadataPanel';
 import { AdminFleetVisibleBoatsTagCloud } from '@/components/mit-sailing/admin/catalog/AdminFleetVisibleBoatsTagCloud';
 import { AdminRichTextField } from '@/components/mit-sailing/admin/catalog/AdminRichTextField';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 import type {
   AdminFieldKind,
   CatalogEditMetadata,
@@ -132,13 +136,13 @@ function catalogDynamicSelectField(props: {
   required: boolean | undefined;
   options: readonly DynamicSelectOption[];
 }) {
-  const selectClassName =
-    'rounded-md border border-slate-300 px-3 py-2 text-mit-text shadow-sm focus-visible:border-mit-red focus-visible:ring-2 focus-visible:ring-mit-red/25 focus-visible:outline-none';
   return (
-    <label className="flex flex-col gap-1 text-sm" htmlFor={props.fieldKey}>
-      <span className="font-medium text-mit-text">{props.label}</span>
+    <div className="flex flex-col gap-1.5 text-sm">
+      <Label className="text-foreground" htmlFor={props.fieldKey}>
+        {props.label}
+      </Label>
       <select
-        className={selectClassName}
+        className={adminNativeSelectClassName}
         defaultValue={props.defaultValue || undefined}
         id={props.fieldKey}
         name={props.fieldKey}
@@ -150,7 +154,7 @@ function catalogDynamicSelectField(props: {
           </option>
         ))}
       </select>
-    </label>
+    </div>
   );
 }
 
@@ -166,13 +170,13 @@ function catalogStaticSelectField(props: {
   if (!opts || opts.length === 0) {
     return null;
   }
-  const selectClassName =
-    'rounded-md border border-slate-300 px-3 py-2 text-mit-text shadow-sm focus-visible:border-mit-red focus-visible:ring-2 focus-visible:ring-mit-red/25 focus-visible:outline-none';
   return (
-    <label className="flex flex-col gap-1 text-sm" htmlFor={props.fieldKey}>
-      <span className="font-medium text-mit-text">{props.label}</span>
+    <div className="flex flex-col gap-1.5 text-sm">
+      <Label className="text-foreground" htmlFor={props.fieldKey}>
+        {props.label}
+      </Label>
       <select
-        className={selectClassName}
+        className={adminNativeSelectClassName}
         defaultValue={props.defaultValue || undefined}
         id={props.fieldKey}
         name={props.fieldKey}
@@ -184,7 +188,7 @@ function catalogStaticSelectField(props: {
           </option>
         ))}
       </select>
-    </label>
+    </div>
   );
 }
 
@@ -429,20 +433,18 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
     if (field.kind === 'text') {
       const fieldId = `catalog-field-${key}`;
       return (
-        <label
-          key={key}
-          className="flex flex-col gap-1 text-sm"
-          htmlFor={fieldId}
-        >
-          <span className="font-medium text-mit-text">{label}</span>
-          <textarea
-            className="min-h-[120px] rounded-md border border-slate-300 px-3 py-2 text-mit-text shadow-sm focus-visible:border-mit-red focus-visible:ring-2 focus-visible:ring-mit-red/25 focus-visible:outline-none"
+        <div key={key} className="flex flex-col gap-1.5 text-sm">
+          <Label className="text-foreground" htmlFor={fieldId}>
+            {label}
+          </Label>
+          <Textarea
+            className="min-h-[120px]"
             defaultValue={defaultValue}
             id={fieldId}
             name={key}
             required={field.required}
           />
-        </label>
+        </div>
       );
     }
 
@@ -460,7 +462,7 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
             <input name={key} type="hidden" value="false" />
             <input
               checked={checked}
-              className="size-4 rounded border-slate-300 text-mit-red focus:ring-mit-red"
+              className="size-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
               name={key}
               onChange={(event) => {
                 setBools((prev) => ({
@@ -482,7 +484,7 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
           <label className="flex cursor-pointer items-center gap-2 text-sm text-mit-text">
             <input
               checked={checked}
-              className="size-4 rounded border-slate-300 text-mit-red focus:ring-mit-red"
+              className="size-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
               name={key}
               onChange={(event) => {
                 setBools((prev) => ({
@@ -532,31 +534,34 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
     }
 
     const inputType = inputTypeForFieldKind(field.kind);
+    const fieldId = `catalog-field-${key}`;
 
     return (
-      <div key={key} className="flex flex-col gap-1 text-sm">
-        <label className="flex flex-col gap-1">
-          <span className="font-medium text-mit-text">{label}</span>
-          <input
-            autoComplete={
-              field.kind === 'password' ? 'new-password' : undefined
-            }
-            className="rounded-md border border-slate-300 px-3 py-2 text-mit-text shadow-sm focus-visible:border-mit-red focus-visible:ring-2 focus-visible:ring-mit-red/25 focus-visible:outline-none"
-            defaultValue={defaultValue}
-            name={key}
-            required={field.required}
-            type={inputType}
-          />
-        </label>
+      <div key={key} className="flex flex-col gap-1.5 text-sm">
+        <Label className="text-foreground" htmlFor={fieldId}>
+          {label}
+        </Label>
+        <Input
+          autoComplete={field.kind === 'password' ? 'new-password' : undefined}
+          defaultValue={defaultValue}
+          id={fieldId}
+          name={key}
+          required={field.required}
+          type={inputType}
+        />
         {ns === 'AdminUsers' &&
         field.kind === 'password' &&
         key === 'password' ? (
-          <p className="text-xs text-mit-text">{tUsers('password_hint')}</p>
+          <p className="text-xs text-muted-foreground">
+            {tUsers('password_hint')}
+          </p>
         ) : null}
         {ns === 'AdminUsers' &&
         field.kind === 'password' &&
         key === 'newPassword' ? (
-          <p className="text-xs text-mit-text">{tUsers('new_password_hint')}</p>
+          <p className="text-xs text-muted-foreground">
+            {tUsers('new_password_hint')}
+          </p>
         ) : null}
       </div>
     );
@@ -565,8 +570,8 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h2 className="text-xl font-semibold text-mit-text">
+      <div className="flex flex-wrap items-center gap-3">
+        <h2 className="text-xl font-semibold text-foreground">
           {ns === 'AdminUsers'
             ? tUsers(props.headingKey)
             : tCatalog(props.headingKey)}
@@ -575,7 +580,7 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
 
       {errorMessage ? (
         <p
-          className="rounded-md border border-mit-line bg-mit-red-highlight px-3 py-2 text-sm text-mit-text"
+          className="rounded-md border border-mit-line bg-mit-red-highlight px-3 py-2 text-sm text-foreground"
           role="alert"
         >
           {errorMessage}

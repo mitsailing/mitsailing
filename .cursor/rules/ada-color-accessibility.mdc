@@ -13,3 +13,7 @@ alwaysApply: false
 - Secondary-looking text on tinted backgrounds still needs sufficient contrast; differentiate with typography, not low-contrast gray, unless contrast is verified.
 - Opacity-only hovers lower effective contrast. Verify the **blended** result against the background, not only base hex values.
 - When adding new pairs, use a contrast checker (e.g. [WebAIM Contrast Checker](https://webaim.org/resources/contrastchecker/)) and include **effective** colors after overlays in the check.
+
+**Example:** If a link uses `color: #750014` (MIT Red web) at rest and `hover:opacity-70`, compute or sample the hover color on the real background and confirm both ratios meet AA—not only the rest state.
+
+- **Automated regression:** `npm run test:e2e:a11y` runs `@axe-core/playwright` with WCAG 2.x A/AA rule tags on public marketing URLs (from live `/sitemap.xml` plus curated routes) in **light and dark** theme. Use it as a net for many machine-detectable issues; translucent layers, gradients, and motion still need design-token and manual checks.

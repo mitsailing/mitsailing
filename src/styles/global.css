@@ -58,6 +58,11 @@
     max-width: none;
   }
 
+  .ck-content.cms-rich-text,
+  .ck-content.cms-rich-text :where(p, ul, ol, li, blockquote, h2, h3, h4) {
+    color: inherit !important;
+  }
+
   .admin-rich-text-ckeditor .ck-content::after,
   .cms-rich-text::after {
     clear: both;

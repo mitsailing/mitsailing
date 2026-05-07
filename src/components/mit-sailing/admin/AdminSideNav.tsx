@@ -3,6 +3,7 @@
 import {
   CalendarDays,
   CircleDollarSign,
+  FileText,
   FolderTree,
   Home,
   ListTree,
@@ -31,7 +32,8 @@ type AdminNavItem = {
     | 'nav_event_categories'
     | 'nav_class_categories'
     | 'nav_sailing_classes'
-    | 'nav_fleet';
+    | 'nav_fleet'
+    | 'nav_site_text';
   /** `prefix` highlights all subpaths (e.g. event edit under `/admin/events/`). */
   match: AdminNavMatchMode;
   icon: LucideIcon;
@@ -39,6 +41,12 @@ type AdminNavItem = {
 
 const ADMIN_SITE_NAV: AdminNavItem[] = [
   { href: '/admin/', icon: Home, labelKey: 'nav_admin', match: 'exact' },
+  {
+    href: '/admin/site_text/',
+    icon: FileText,
+    labelKey: 'nav_site_text',
+    match: 'prefix',
+  },
   {
     href: '/admin/users/',
     icon: Users,
@@ -100,7 +108,7 @@ export function AdminSideNav() {
     <div
       className={cn(
         'relative flex h-full min-h-0 grow flex-col overflow-y-auto transition-[width] duration-200',
-        'border-mit-line bg-white px-4 pt-2 pb-3 md:pt-3 md:pb-4',
+        'border-mit-line bg-card px-4 pt-2 pb-3 md:pt-3 md:pb-4',
         'border-b md:border-b-0 md:border-r',
         collapsed ? 'md:w-[4.5rem] md:px-3' : 'md:w-72 md:px-5'
       )}
@@ -152,7 +160,7 @@ export function AdminSideNav() {
                         rowFocus,
                         collapsed && 'md:justify-center',
                         active
-                          ? 'bg-mit-surface text-mit-red'
+                          ? 'bg-mit-surface text-mit-red-ink'
                           : 'hover:bg-mit-surface'
                       )}
                       href={item.href}

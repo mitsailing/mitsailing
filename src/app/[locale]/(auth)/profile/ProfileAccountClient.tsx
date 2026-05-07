@@ -3,17 +3,21 @@
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { ProfileAppearanceSection } from '@/components/auth/profile/ProfileAppearanceSection';
 import { mapProfileEmailError } from '@/components/auth/profile/profileAuthErrorMaps';
 import { ProfileInlineBanner } from '@/components/auth/profile/profileBanner';
 import type { ProfileBannerState } from '@/components/auth/profile/profileBanner';
 import { Button } from '@/components/ui/button';
-import { authInputClassName } from '@/lib/mit-sailing/tokens';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import type { ThemePreferenceValue } from '@/lib/mit-sailing/themePreference';
 import { authClient } from '@/libs/auth-client';
 
 type ProfileAccountClientProps = {
   emailChangeCallbackUrl: string;
   initialEmail: string;
   initialName: string | null;
+  initialThemePreference: ThemePreferenceValue;
   initialUnconfirmedEmail: string | null;
   initialVerificationBanner: 'success' | 'error' | null;
 };
@@ -131,7 +135,7 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
     <div className="mx-auto flex max-w-lg flex-col gap-6 px-4 py-8">
       <h1 className="text-2xl font-semibold">{t('account_page_heading')}</h1>
 
-      <div className="rounded-lg border border-mit-line bg-white p-6 shadow-sm">
+      <div className="rounded-lg border border-mit-line bg-card p-6 shadow-sm">
         <dl className="flex flex-col gap-3">
           <div>
             <dt className="text-sm font-medium text-mit-text">{t('email')}</dt>
@@ -181,7 +185,7 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
 
       <section
         aria-labelledby="update-name-heading"
-        className="rounded-lg border border-mit-line bg-white p-6 shadow-sm"
+        className="rounded-lg border border-mit-line bg-card p-6 shadow-sm"
       >
         <h2 className="text-lg font-medium" id="update-name-heading">
           {t('update_name_heading')}
@@ -191,16 +195,12 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
         </p>
         <ProfileInlineBanner banner={nameBanner} />
         <form className="mt-4 flex flex-col gap-3" onSubmit={onUpdateName}>
-          <div className="flex flex-col gap-1">
-            <label
-              className="text-sm font-medium text-mit-text"
-              htmlFor="displayName"
-            >
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-foreground" htmlFor="displayName">
               {t('name')}
-            </label>
-            <input
+            </Label>
+            <Input
               autoComplete="name"
-              className={authInputClassName}
               id="displayName"
               name="displayName"
               onChange={(e) => {
@@ -210,31 +210,36 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
               value={displayName}
             />
           </div>
-          <Button className="mt-2 w-fit" disabled={updatingName} type="submit">
+          <Button
+            className="mt-2 w-fit"
+            disabled={updatingName}
+            type="submit"
+            variant="mit"
+          >
             {t('name_save')}
           </Button>
         </form>
       </section>
 
+      <ProfileAppearanceSection
+        initialPreference={props.initialThemePreference}
+      />
+
       <section
         aria-labelledby="change-email-heading"
-        className="rounded-lg border border-mit-line bg-white p-6 shadow-sm"
+        className="rounded-lg border border-mit-line bg-card p-6 shadow-sm"
       >
         <h2 className="text-lg font-medium" id="change-email-heading">
           {t('change_email_heading')}
         </h2>
         <ProfileInlineBanner banner={emailBanner} />
         <form className="mt-4 flex flex-col gap-3" onSubmit={onChangeEmail}>
-          <div className="flex flex-col gap-1">
-            <label
-              className="text-sm font-medium text-mit-text"
-              htmlFor="newEmail"
-            >
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-foreground" htmlFor="newEmail">
               {t('new_email_label')}
-            </label>
-            <input
+            </Label>
+            <Input
               autoComplete="email"
-              className={authInputClassName}
               id="newEmail"
               name="newEmail"
               onChange={(e) => {
@@ -245,7 +250,12 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
               value={newEmail}
             />
           </div>
-          <Button className="mt-2 w-fit" disabled={changingEmail} type="submit">
+          <Button
+            className="mt-2 w-fit"
+            disabled={changingEmail}
+            type="submit"
+            variant="mit"
+          >
             {t('change_email_submit')}
           </Button>
         </form>

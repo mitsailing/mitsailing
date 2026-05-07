@@ -55,7 +55,7 @@ export function DonateAlternateGivingSection(
           <p className="text-mit-text">{props.contactRole}</p>
           <p className="mt-2">
             <a
-              className="font-semibold text-primary underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2 focus-visible:outline-none"
+              className="font-semibold text-primary-ink underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2 focus-visible:outline-none"
               href={`mailto:${props.contactEmail}`}
             >
               {props.contactEmail}
