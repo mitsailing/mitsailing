@@ -53,6 +53,9 @@ export const Env = createEnv({
     // compose.staging.yaml / compose.prod.yaml. Required in staging+prod,
     // unset locally.
     CLOUDFLARE_TUNNEL_TOKEN: z.string().min(1).optional(),
+
+    // Shared secret expected by deployment cron routes.
+    CRON_SECRET: z.string().min(32).optional(),
   },
   client: {
     NEXT_PUBLIC_APP_URL: z.string().min(1),
@@ -81,6 +84,7 @@ export const Env = createEnv({
     MAILPIT_API_URL: process.env.MAILPIT_API_URL,
     SUPPORT_EMAIL: process.env.SUPPORT_EMAIL,
     CLOUDFLARE_TUNNEL_TOKEN: process.env.CLOUDFLARE_TUNNEL_TOKEN,
+    CRON_SECRET: process.env.CRON_SECRET,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
     NEXT_PUBLIC_LOGGING_LEVEL: process.env.NEXT_PUBLIC_LOGGING_LEVEL,
     NEXT_PUBLIC_BETTER_STACK_SOURCE_TOKEN:

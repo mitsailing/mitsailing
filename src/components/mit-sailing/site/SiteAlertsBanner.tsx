@@ -2,36 +2,75 @@
 
 import { ChevronDown } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { Link } from '@/libs/I18nNavigation';
+import {
+  parseStoredSiteAlertBannerCollapse,
+  serializeSiteAlertBannerCollapse,
+  SITE_ALERT_BANNER_COLLAPSE_STORAGE_KEY,
+  siteAlertBannerStartsCollapsed,
+} from '@/libs/mit-sailing/siteAlertBannerCollapse';
 import type { SiteAlertBannerRow } from '@/libs/mit-sailing/siteAlertTypes';
-
-const MAX_ROWS = 2;
 
 const SITE_ALERT_BANNER_PRIMARY_LINK_CLASS =
   'block min-h-11 text-inherit no-underline outline-offset-[3px] focus-visible:relative focus-visible:z-[1] focus-visible:ring-2 focus-visible:ring-ring';
 
 /**
- * Home strip listing active banner alerts (collapsible).
- * Always loads expanded; minimize state applies until the next full navigation or reload.
+ * Site strip listing active banner alerts (collapsible).
+ * Minimize state persists only while the active alert fingerprint is unchanged.
  * Uses {@link https://www.w3.org/WAI/ARIA/apg/patterns/disclosure-pattern/ | disclosure semantics} (`aria-expanded`, `aria-controls`).
  *
  * @param props - Banner rows already filtered for the visibility window
  * @returns Banner markup or `null` when there are no rows
  */
-export function SiteAlertsBanner(props: { rows: SiteAlertBannerRow[] }) {
-  const t = useTranslations('MitSailingHome');
+export function SiteAlertsBanner(props: {
+  alertsFingerprint: string;
+  rows: SiteAlertBannerRow[];
+}) {
+  const t = useTranslations('MitSailingSite');
   const disclosureId = useId();
   const headingId = `${disclosureId}-heading`;
 
   const [collapsed, setCollapsed] = useState(false);
 
   const total = props.rows.length;
-  const displayRows = props.rows.slice(0, MAX_ROWS);
 
   function toggleCollapsed() {
-    setCollapsed((c) => !c);
+    setCollapsed((current) => {
+      const next = !current;
+      try {
+        if (next) {
+          window.localStorage.setItem(
+            SITE_ALERT_BANNER_COLLAPSE_STORAGE_KEY,
+            serializeSiteAlertBannerCollapse(props.alertsFingerprint)
+          );
+        } else {
+          window.localStorage.removeItem(
+            SITE_ALERT_BANNER_COLLAPSE_STORAGE_KEY
+          );
+        }
+      } catch {
+        return next;
+      }
+      return next;
+    });
   }
+
+  useEffect(() => {
+    try {
+      const storedFingerprint = parseStoredSiteAlertBannerCollapse(
+        window.localStorage.getItem(SITE_ALERT_BANNER_COLLAPSE_STORAGE_KEY)
+      );
+      setCollapsed(
+        siteAlertBannerStartsCollapsed({
+          currentFingerprint: props.alertsFingerprint,
+          storedFingerprint,
+        })
+      );
+    } catch {
+      setCollapsed(false);
+    }
+  }, [props.alertsFingerprint]);
 
   if (total === 0) {
     return null;
@@ -87,7 +126,7 @@ export function SiteAlertsBanner(props: { rows: SiteAlertBannerRow[] }) {
                   className="flex flex-col gap-2.5 p-0 [list-style:none]"
                   role="list"
                 >
-                  {displayRows.map((row) => (
+                  {props.rows.map((row) => (
                     <li className="m-0" key={row.id}>
                       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[clamp(0.8125rem,2.8vw,0.9375rem)] leading-snug">
                         <time

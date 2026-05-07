@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
-import { SiteAlertsBanner } from '@/components/mit-sailing/home/SiteAlertsBanner';
+import { SiteAlertsBanner } from '@/components/mit-sailing/site/SiteAlertsBanner';
 import type { SiteAlertBannerRow } from '@/libs/mit-sailing/siteAlertTypes';
 
 const rows: SiteAlertBannerRow[] = [
@@ -45,18 +45,21 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   args: {
+    alertsFingerprint: 'default-alerts',
     rows,
   },
 };
 
 export const SingleAlert: Story = {
   args: {
+    alertsFingerprint: 'single-alert',
     rows: rows.slice(0, 1),
   },
 };
 
 export const Empty: Story = {
   args: {
+    alertsFingerprint: 'empty-alerts',
     rows: [],
   },
 };

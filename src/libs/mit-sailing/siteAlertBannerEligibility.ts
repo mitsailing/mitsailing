@@ -1,7 +1,7 @@
 import { formatEasternCalendarDateKey } from '@/libs/mit-sailing/easternTimeFormat';
 
 /**
- * Published alert eligible for the home banner at `now`: inside the date-only visibility window (Eastern “today”).
+ * Published alert eligible for the home banner at `now`: from start date through the day before end date (Eastern “today”).
  *
  * @param props - Publish flag, alert dates as ISO `YYYY-MM-DD`, evaluation instant
  * @returns True when the row should appear in the banner query at `now`
@@ -19,7 +19,7 @@ export function siteAlertEligibleForBannerAt(props: {
   if (props.startDateIso > today) {
     return false;
   }
-  if (props.lastDateIso < today) {
+  if (props.lastDateIso <= today) {
     return false;
   }
   return true;

@@ -1,4 +1,6 @@
 import 'server-only';
+import { createHash } from 'node:crypto';
+import { unstable_cache } from 'next/cache';
 import { prisma } from '@/libs/DB';
 import {
   formatEasternCalendarDateKey,
@@ -14,19 +16,50 @@ import type {
   SiteAlertPublicItem,
 } from '@/libs/mit-sailing/siteAlertTypes';
 
+export const SITE_ALERTS_CACHE_TAG = 'site-alerts';
+
+const SITE_ALERTS_BANNER_REVALIDATE_SECONDS = 60 * 60;
+
 function toPublicItem(row: {
   id: string;
   body: string;
   startDate: Date;
-  lastDate: Date;
 }): SiteAlertPublicItem {
   return {
     id: row.id,
     startDateIso: isoCalendarDateFromPrismaDate(row.startDate),
-    lastDateIso: isoCalendarDateFromPrismaDate(row.lastDate),
     body: row.body,
   };
 }
+
+const listSiteAlertsForBannerByDay = unstable_cache(
+  async (todayIso: string): Promise<SiteAlertPublicItem[]> => {
+    const todayDate = prismaDateFromIsoCalendar(todayIso);
+    if (!todayDate) {
+      return [];
+    }
+
+    const rows = await prisma.siteAlert.findMany({
+      where: {
+        isPublished: true,
+        startDate: { lte: todayDate },
+        lastDate: { gt: todayDate },
+      },
+      orderBy: { startDate: 'desc' },
+      select: {
+        id: true,
+        body: true,
+        startDate: true,
+      },
+    });
+    return rows.map(toPublicItem);
+  },
+  ['site-alerts-banner-by-day'],
+  {
+    revalidate: SITE_ALERTS_BANNER_REVALIDATE_SECONDS,
+    tags: [SITE_ALERTS_CACHE_TAG],
+  }
+);
 
 /**
  * Lists alerts eligible for the home banner strip at `now`.
@@ -38,26 +71,8 @@ export async function listSiteAlertsForBannerAt(
   now: Date
 ): Promise<SiteAlertPublicItem[]> {
   const todayIso = formatEasternCalendarDateKey(now);
-  const todayDate = prismaDateFromIsoCalendar(todayIso);
-  if (!todayDate) {
-    return [];
-  }
-
-  const rows = await prisma.siteAlert.findMany({
-    where: {
-      isPublished: true,
-      startDate: { lte: todayDate },
-      lastDate: { gte: todayDate },
-    },
-    orderBy: { startDate: 'desc' },
-    select: {
-      id: true,
-      body: true,
-      startDate: true,
-      lastDate: true,
-    },
-  });
-  return rows.map(toPublicItem);
+  const rows = await listSiteAlertsForBannerByDay(todayIso);
+  return rows;
 }
 
 /**
@@ -75,7 +90,6 @@ export async function listPublishedSiteAlerts(): Promise<
       id: true,
       body: true,
       startDate: true,
-      lastDate: true,
     },
   });
   return rows.map(toPublicItem);
@@ -99,4 +113,21 @@ export function mapSiteAlertsToBannerRows(
       dateIso,
     };
   });
+}
+
+/**
+ * Builds a content version for alert collapse persistence.
+ *
+ * @param rows - Banner rows in display order
+ * @returns Stable hash for the current active alert set
+ */
+export function buildSiteAlertsFingerprint(rows: SiteAlertBannerRow[]): string {
+  const payload = rows.map((row) => ({
+    bodyPlainText: row.bodyPlainText,
+    dateIso: row.dateIso,
+    id: row.id,
+  }));
+  return createHash('sha256')
+    .update(JSON.stringify(payload))
+    .digest('base64url');
 }

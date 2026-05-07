@@ -15,13 +15,8 @@ import {
   loadSailingClassNamesByIds,
 } from '@/libs/mit-sailing/homeCatalogFromPrisma';
 import { getHomeUpcomingDayGroups } from '@/libs/mit-sailing/homeUpcomingFromPrisma';
-import {
-  listSiteAlertsForBannerAt,
-  mapSiteAlertsToBannerRows,
-} from '@/libs/mit-sailing/siteAlertQueries';
 import { HomeEventRow } from './HomeEventRow';
 import { SectionHeader } from './SectionHeader';
-import { SiteAlertsBanner } from './SiteAlertsBanner';
 
 const HOME_FLEET_SLUGS = ['tech-dinghy', 'flying-junior', 'club-420'] as const;
 const HOME_NEXT_CLASS_SLUGS = [
@@ -75,21 +70,18 @@ export async function MitSailingHomePageView(
     namespace: 'MitSailingHome',
   });
 
-  const bannerEvalTime = new Date();
   const [
     upcomingDayGroups,
     session,
     featuredHomeBoats,
     homeNextClasses,
     homeIntroClasses,
-    bannerSiteAlerts,
   ] = await Promise.all([
     getHomeUpcomingDayGroups(),
     getSession(),
     loadHomeFeaturedFleetBoats(HOME_FLEET_SLUGS),
     loadHomeClassesBySlugs(HOME_NEXT_CLASS_SLUGS),
     loadHomeIntroductionClasses(),
-    listSiteAlertsForBannerAt(bannerEvalTime),
   ]);
   const isSignedIn = Boolean(session?.user?.id);
 
@@ -135,8 +127,6 @@ export async function MitSailingHomePageView(
 
   return (
     <div className="w-full min-w-0">
-      <SiteAlertsBanner rows={mapSiteAlertsToBannerRows(bannerSiteAlerts)} />
-
       {/* Hero */}
       <section className="relative flex h-[600px] items-center overflow-hidden bg-mit-hero-ink">
         <Image

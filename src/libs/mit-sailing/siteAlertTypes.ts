@@ -5,8 +5,6 @@ export type SiteAlertPublicItem = {
   id: string;
   /** Civil ISO start date (`YYYY-MM-DD`). */
   startDateIso: string;
-  /** Civil inclusive last banner day (`YYYY-MM-DD`). */
-  lastDateIso: string;
   body: string;
 };
 
