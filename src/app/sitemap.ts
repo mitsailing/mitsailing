@@ -49,6 +49,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     '/events',
     '/classes',
     '/fleet',
+    '/alerts',
     '/contact',
     '/contact/mashnee-directions',
     '/about/mitna',

@@ -9,6 +9,8 @@ import {
 } from '@/libs/admin/catalog/catalogDefinitions';
 import { fleetRequiredClassSelectOptions } from '@/libs/admin/catalog/fleetCatalogHandlers';
 import { sailingClassCategorySelectOptions } from '@/libs/admin/catalog/sailingClassesHandlers';
+import type { CatalogRow } from '@/libs/admin/catalog/types';
+import { siteAlertsNewCatalogDefaults } from '@/libs/mit-sailing/siteAlertAdminDefaults';
 
 type PageProps = {
   params: Promise<{ locale: string; resource: string }>;
@@ -78,6 +80,11 @@ export default async function AdminCatalogResourceNewPage(props: PageProps) {
     };
   }
 
+  let siteAlertsRowDefaults: CatalogRow | undefined;
+  if (resource === 'site_alerts') {
+    siteAlertsRowDefaults = siteAlertsNewCatalogDefaults();
+  }
+
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
       <AdminCatalogForm
@@ -87,6 +94,7 @@ export default async function AdminCatalogResourceNewPage(props: PageProps) {
         errorCode={errorCode ?? null}
         formAction={createAction}
         headingKey="new_heading"
+        row={siteAlertsRowDefaults}
       />
     </div>
   );

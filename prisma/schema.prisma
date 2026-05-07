@@ -47,6 +47,8 @@ model User {
   eventComments      EventComment[]
   eventAdmins        EventAdmin[]
   eventsCreated      Event[]            @relation("EventCreatedBy")
+  siteAlertsCreated  SiteAlert[]        @relation("SiteAlertCreatedBy")
+  siteAlertsUpdated  SiteAlert[]        @relation("SiteAlertUpdatedBy")
 
   @@map("user")
 }
@@ -392,6 +394,25 @@ model FleetBoat {
 
   @@index([requiredClassId])
   @@map("fleet_boats")
+}
+
+model SiteAlert {
+  id             String    @id @default(cuid())
+  body           String    @db.Text
+  isPublished    Boolean   @default(false) @map("is_published")
+  startDate      DateTime  @db.Date @map("start_date")
+  lastDate       DateTime  @db.Date @map("last_date")
+  createdByUserId  String    @map("created_by")
+  updatedByUserId  String    @map("updated_by")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  createdBy      User      @relation("SiteAlertCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  updatedBy      User      @relation("SiteAlertUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([createdByUserId])
+  @@index([updatedByUserId])
+  @@index([isPublished, startDate])
+  @@map("site_alerts")
 }
 
 model DonationFund {

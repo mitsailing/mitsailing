@@ -24,7 +24,9 @@ export type AdminFieldKind =
   | 'boolean'
   | 'visibility'
   | 'password'
-  | 'select';
+  | 'select'
+  | 'datetimeLocal'
+  | 'date';
 
 export type AdminSelectOption = {
   value: string;

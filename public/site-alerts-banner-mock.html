@@ -1,0 +1,577 @@
+<!doctype html>
+<!--
+  Airline alert / advisory patterns (for product context — not part of runtime UI):
+  1) JetBlue (jetblue.com): full-width strip, urgent short headline + "Details ›"
+     style CTA; high contrast; often one primary message.
+  2) Delta (delta.com / advisories): dedicated "Current advisories" hub; alerts
+     grouped by type (weather, airport, policy); dates and waivers in body pages.
+  3) American (aa.com / travel-alerts): "Travel alerts" index with scannable
+     titles, expandable detail, effective-date language.
+  4) United (united.com): frequent thin advisory bars (inc. orange/red emphasis)
+     above main nav for operational issues; link through to travel notices.
+  5) Southwest (southwest.com): travel alert / irregular operations messaging;
+     simple banner + link to centralized travel info.
+
+  Common production themes: full-bleed strip, left accent or solid bar,
+  one primary action, dedicated detail URL, effective dates, WCAG contrast.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta
+      name="description"
+      content="Production-oriented mock for MIT Sailing site alerts banner."
+    />
+    <title>Site alerts banner — design mock</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --banner-bg: #f4f4f5;
+        --banner-text: #09090b;
+        --banner-muted: #3f3f46;
+        --focus-ring: #2563eb;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --banner-bg: #27272a;
+          --banner-text: #fafafa;
+          --banner-muted: #a1a1aa;
+          --focus-ring: #60a5fa;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family:
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          Roboto,
+          'Helvetica Neue',
+          Arial,
+          sans-serif;
+        font-size: 16px;
+        color: var(--banner-text);
+        background: #fafafa;
+        line-height: 1.5;
+        scroll-behavior: smooth;
+      }
+      @media (prefers-color-scheme: dark) {
+        body {
+          background: #18181b;
+        }
+      }
+      .note {
+        max-width: 56rem;
+        margin: 1rem auto;
+        padding: 0 1.5rem;
+        font-size: 0.8125rem;
+        color: var(--banner-muted);
+      }
+      .note-practices-title {
+        margin: 1rem 0 0.35rem;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: var(--banner-text);
+      }
+      .note-practices {
+        margin: 0 0 0.75rem;
+        padding-left: 1.35rem;
+        color: var(--banner-muted);
+      }
+      .note-practices li {
+        margin: 0.4rem 0;
+        padding-inline-start: 0.25rem;
+      }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+      .banner {
+        background: var(--banner-bg);
+      }
+      .banner-shell {
+        max-width: 80rem;
+        margin: 0 auto;
+        display: flex;
+        align-items: stretch;
+      }
+      .banner-track {
+        flex: 1;
+        min-width: 0;
+      }
+      .banner-link {
+        flex: 1;
+        min-width: 0;
+        display: block;
+        color: inherit;
+        text-decoration: none;
+        outline-offset: 3px;
+        min-height: 44px;
+      }
+      .banner-link:focus-visible {
+        outline: 2px solid var(--focus-ring);
+        z-index: 1;
+        position: relative;
+      }
+      .banner-link:focus:not(:focus-visible) {
+        outline: none;
+      }
+      .banner-inner {
+        padding: 0.75rem 1.25rem;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 0;
+        min-height: inherit;
+      }
+      .banner-inner--collapsed {
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.35rem 0.5rem;
+        padding-block: 0.625rem;
+      }
+      @media (min-width: 640px) {
+        .banner-inner {
+          padding: 0.75rem 1.5rem;
+        }
+      }
+      /**
+       * List first, CTA last: users scan items before the hub link (linear reading
+       * order, content before navigation, WCAG 2.4.4 link purpose in context).
+       * role="list" keeps list semantics when bullets are removed (see WCAG Technique H48).
+       */
+      .view-all-row {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: var(--banner-text);
+        text-decoration: underline;
+        text-underline-offset: 3px;
+        text-align: start;
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        margin-top: 0.75rem;
+      }
+      .view-all-row .chevron {
+        font-size: 1rem;
+        line-height: 1;
+      }
+      .alert-rows {
+        display: flex;
+        flex-direction: column;
+        gap: 0.625rem;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 0.375rem 0.625rem;
+        font-size: clamp(0.8125rem, 2.8vw, 0.9375rem);
+        line-height: 1.45;
+        color: var(--banner-text);
+      }
+      li.row {
+        margin: 0;
+      }
+      .date {
+        font-weight: 600;
+        color: var(--banner-muted);
+        white-space: nowrap;
+      }
+      /**
+       * Banner: cap height with line-clamp (2 lines) so one long headline
+       * does not eat the page. Full wording lives on /alerts.
+       */
+      .title {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        overflow-wrap: anywhere;
+        hyphens: auto;
+      }
+      /**
+       * Collapsible trigger (shadcn Collapsible-style: chevron + plain-language
+       * label, not abstract “minimize”).
+       */
+      .banner-toggle {
+        flex-shrink: 0;
+        align-self: stretch;
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.125rem;
+        padding: 0.375rem 0.75rem;
+        margin: 0;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--banner-text);
+        font: inherit;
+        font-size: 0.75rem;
+        font-weight: 600;
+        line-height: 1.2;
+        cursor: pointer;
+        min-width: 4.5rem;
+        min-height: 44px;
+      }
+      .banner-toggle-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--banner-muted);
+        transition: transform 0.2s ease;
+      }
+      .banner-toggle[data-expanded='true'] .banner-toggle-icon {
+        transform: rotate(180deg);
+      }
+      .banner-toggle-icon svg {
+        width: 1.125rem;
+        height: 1.125rem;
+        flex-shrink: 0;
+      }
+      .banner-toggle:focus-visible {
+        outline: 2px solid var(--focus-ring);
+        outline-offset: 2px;
+        border-color: transparent;
+      }
+      .banner-toggle:hover {
+        background: color-mix(in srgb, var(--banner-text) 6%, transparent);
+      }
+      .banner-count {
+        font-size: clamp(0.8125rem, 2.8vw, 0.9375rem);
+        color: var(--banner-text);
+      }
+      .banner-cta-compact {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+        color: var(--banner-text);
+      }
+      .page-demo {
+        max-width: 80rem;
+        margin: 2rem auto;
+        padding: 0 1.5rem;
+        scroll-margin-top: 5rem;
+      }
+      .page-demo h2 {
+        font-size: 1.25rem;
+        margin-bottom: 0.5rem;
+      }
+      .page-demo ul {
+        margin: 0;
+        padding-left: 1.25rem;
+      }
+      .page-demo li {
+        margin: 0.5rem 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="note">
+      <p>
+        <strong>How to open:</strong> this file must live under
+        <code>public/</code> so the app can serve it at
+        <code>/site-alerts-banner-mock.html</code> (e.g.
+        <code>http://localhost:3000/site-alerts-banner-mock.html</code> when
+        <code>PORT</code> is 3000). You can also open
+        <code>public/site-alerts-banner-mock.html</code> directly in a browser.
+        If the banner looks stuck, append <code>?reset=1</code> to the URL once
+        to clear this tab’s collapse state.
+      </p>
+      <p>
+        <strong>Banner mock:</strong> Plain strip (no accent bar, no rules
+        between rows). <strong>View all alerts</strong>
+        <span aria-hidden="true">›</span> sits <strong>below</strong> the list.
+        Items use <code>ul.alert-rows</code>,
+        <code>role=&quot;list&quot;</code>, and <code>li.row</code>. The
+        expanded block link <code>aria-label</code> lists summaries first, then
+        “View all alerts.” <strong>All</strong> active alerts show in the
+        strip—no “+N more.” Each title uses a <strong>2-line clamp</strong>;
+        full copy on <code>/alerts</code>.
+      </p>
+      <p class="note-practices-title">
+        10 list best practices (HTML/accessibility; this mock follows them)
+      </p>
+      <ol class="note-practices">
+        <li>
+          Use real list elements (<code>ul</code>, <code>ol</code>,
+          <code>li</code>) for a collection of parallel items—the list is not
+          decorative (“Semantics for lists,”
+          <abbr title="Web Content Accessibility Guidelines">WCAG</abbr>
+          Technique H48).
+        </li>
+        <li>
+          Give the list an accessible name: associate it with a heading via
+          <code>aria-labelledby</code> (here, the section’s
+          <code>Site alerts</code> <code>h2</code>).
+        </li>
+        <li>
+          If CSS removes bullets or you rely on flex/grid on the list, set
+          <code>role=&quot;list&quot;</code> on <code>ul</code> so assistive
+          tech still exposes list length in browsers that suppress native list
+          semantics.
+        </li>
+        <li>
+          Keep a meaningful order (e.g. newest-first for alerts) and use the
+          same order visually, in the DOM, and in any summary
+          <code>aria-label</code>.
+        </li>
+        <li>
+          Keep each item structurally parallel (same pieces in the same
+          sequence—for example date, then title) so scanning and speech output
+          stay predictable.
+        </li>
+        <li>
+          Place supplementary navigation (e.g. “View all alerts”) after the list
+          in reading order so context precedes the hub link (helps link purpose
+          in context, WCAG 2.4.4).
+        </li>
+        <li>
+          For dates, use <code>&lt;time datetime&gt;</code> with a visible label
+          so machines and people both get a stable value.
+        </li>
+        <li>
+          Do not nest extra interactive elements inside list items when the
+          whole banner is already one link; keep dismiss outside the anchor to
+          avoid nested controls.
+        </li>
+        <li>
+          Truncate or clamp long titles in compact UIs; put the authoritative,
+          untruncated wording on the detail or index page.
+        </li>
+        <li>
+          Prefer <code>ul</code> for an unordered set; reserve
+          <code>ol</code> when sequence, rank, or step number materially changes
+          meaning.
+        </li>
+      </ol>
+      <p>
+        <strong>Expand/collapse:</strong> control next to the strip uses
+        <strong>Show more</strong> / <strong>Show less</strong> plus a chevron
+        (same idea as shadcn/ui <code>CollapsibleTrigger</code>—plain language,
+        not “minimize”). Collapsed row link says
+        <strong>See all alerts</strong> (not “View”) and jumps to
+        <code>#alerts-page</code> on this mock; production would use
+        <code>/alerts</code>. State is remembered for this tab
+        (<code>sessionStorage</code>).<br />
+      </p>
+    </div>
+
+    <section
+      class="banner"
+      aria-labelledby="alerts-banner-heading"
+      data-alert-banner
+    >
+      <h2 id="alerts-banner-heading" class="sr-only">Site alerts</h2>
+      <div class="banner-shell">
+        <div class="banner-track" id="site-alerts-disclosure">
+          <div data-banner-expanded>
+            <a
+              class="banner-link"
+              href="#alerts-page"
+              aria-label="Site alerts: Limited boats April 18; priority queue open; pavilion parking. View all alerts."
+            >
+              <div class="banner-inner">
+                <ul
+                  class="alert-rows"
+                  role="list"
+                  aria-labelledby="alerts-banner-heading"
+                  data-alert-items
+                >
+                  <li class="row">
+                    <time class="date" datetime="2026-04-14">Apr 14</time>
+                    <span class="title">
+                      Limited boats available April 18 due to Boston Dinghy Cup
+                    </span>
+                  </li>
+                  <li class="row">
+                    <time class="date" datetime="2026-04-13">Apr 13</time>
+                    <span class="title"
+                      >Priority queue for 2026 is now open</span
+                    >
+                  </li>
+                  <li class="row">
+                    <time class="date" datetime="2026-01-28">Jan 28</time>
+                    <span class="title">
+                      Pavilion front parking unavailable until July
+                    </span>
+                  </li>
+                </ul>
+                <div class="view-all-row">
+                  <span>View all alerts</span>
+                  <span class="chevron" aria-hidden="true">›</span>
+                </div>
+              </div>
+            </a>
+          </div>
+          <div data-banner-collapsed hidden>
+            <a
+              class="banner-link"
+              href="#alerts-page"
+              data-banner-collapsed-link
+              aria-label="Site alerts: 3 alerts. See all alerts."
+            >
+              <div class="banner-inner banner-inner--collapsed">
+                <span class="banner-count" data-banner-count>3 alerts.</span>
+                <span class="banner-cta-compact">See all alerts</span>
+                <span class="chevron" aria-hidden="true">›</span>
+              </div>
+            </a>
+          </div>
+        </div>
+        <button
+          type="button"
+          class="banner-toggle"
+          data-banner-toggle
+          data-expanded="true"
+          aria-expanded="true"
+          aria-controls="site-alerts-disclosure"
+        >
+          <span class="banner-toggle-icon" aria-hidden="true">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </span>
+          <span data-banner-toggle-label>Show less</span>
+        </button>
+      </div>
+    </section>
+
+    <section
+      class="page-demo"
+      id="alerts-page"
+      aria-labelledby="alerts-page-heading"
+    >
+      <h2 id="alerts-page-heading">Alerts page (mock)</h2>
+      <p>
+        Full list with body copy would live here, including items past
+        <strong>banner visible until</strong>.
+      </p>
+      <ul aria-labelledby="alerts-page-heading">
+        <li>
+          <time datetime="2026-04-14"><strong>Apr 14</strong></time> — Limited
+          boats available …
+        </li>
+        <li>
+          <time datetime="2026-04-13"><strong>Apr 13</strong></time> — Priority
+          queue …
+        </li>
+        <li>
+          <time datetime="2026-01-28"><strong>Jan 28</strong></time> — Pavilion
+          parking … (still listed after banner end)
+        </li>
+      </ul>
+    </section>
+
+    <script>
+      (function () {
+        var storageKey = 'mitsailing-mock-alerts-collapsed';
+        var legacyDismissKey = 'mitsailing-mock-alerts-dismissed';
+        var storage = sessionStorage;
+
+        try {
+          if (/\breset=1\b/.test(location.search)) {
+            storage.removeItem(storageKey);
+            if (typeof history.replaceState === 'function') {
+              history.replaceState(null, '', location.pathname + location.hash);
+            }
+          }
+        } catch (_) {}
+
+        var expandedWrap = document.querySelector('[data-banner-expanded]');
+        var collapsedWrap = document.querySelector('[data-banner-collapsed]');
+        var toggle = document.querySelector('[data-banner-toggle]');
+        var list = document.querySelector('[data-alert-items]');
+        var countEl = document.querySelector('[data-banner-count]');
+        var collapsedLink = document.querySelector(
+          '[data-banner-collapsed-link]'
+        );
+
+        if (
+          !expandedWrap ||
+          !collapsedWrap ||
+          !toggle ||
+          !list ||
+          !countEl ||
+          !collapsedLink
+        ) {
+          return;
+        }
+
+        try {
+          storage.removeItem(legacyDismissKey);
+          localStorage.removeItem(legacyDismissKey);
+        } catch (_) {}
+
+        function syncCount() {
+          var n = list.querySelectorAll('li').length;
+          countEl.textContent = n === 1 ? '1 alert.' : n + ' alerts.';
+          collapsedLink.setAttribute(
+            'aria-label',
+            'Site alerts: ' + countEl.textContent + ' See all alerts.'
+          );
+        }
+
+        function setCollapsed(isCollapsed) {
+          expandedWrap.hidden = isCollapsed;
+          collapsedWrap.hidden = !isCollapsed;
+          toggle.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+          toggle.setAttribute('data-expanded', isCollapsed ? 'false' : 'true');
+          var labelEl = toggle.querySelector('[data-banner-toggle-label]');
+          if (labelEl) {
+            labelEl.textContent = isCollapsed ? 'Show more' : 'Show less';
+          }
+          try {
+            if (isCollapsed) {
+              storage.setItem(storageKey, '1');
+            } else {
+              storage.removeItem(storageKey);
+            }
+          } catch (_) {}
+        }
+
+        syncCount();
+
+        if (storage.getItem(storageKey) === '1') {
+          setCollapsed(true);
+        }
+
+        toggle.addEventListener('click', function () {
+          setCollapsed(collapsedWrap.hidden);
+        });
+      })();
+    </script>
+  </body>
+</html>

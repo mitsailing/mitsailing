@@ -67,3 +67,37 @@ export function formatEasternSameDayTimeRange(start: Date, end: Date): string {
   }
   return `${timeOnlyFormatter.format(start)} – ${timeOnlyFormatter.format(end)} ET`;
 }
+
+/**
+ * @param d - Instant
+ * @returns Calendar day in America/New_York (`YYYY-MM-DD`) for same-day comparisons
+ */
+export function formatEasternCalendarDateKey(d: Date): string {
+  return formatNyDateKey(d);
+}
+
+const isoCalendarDayDisplayFormatter = new Intl.DateTimeFormat('en-US', {
+  weekday: 'short',
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+});
+
+/**
+ * Formats a civil ISO calendar date for compact marketing display.
+ * Uses noon UTC so timezone shifting does not change the calendar day.
+ *
+ * @param iso - `YYYY-MM-DD`
+ * @returns US short weekday + date string, or `iso` when the pattern does not match
+ */
+export function formatEasternShortDateFromIsoCalendar(iso: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!match) {
+    return iso;
+  }
+  const y = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const instant = new Date(Date.UTC(y, month - 1, day, 12, 0, 0));
+  return isoCalendarDayDisplayFormatter.format(instant);
+}

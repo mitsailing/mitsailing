@@ -314,12 +314,72 @@ const sailingClassesDefinition = {
   },
 } as const satisfies CatalogResourceDefinition;
 
+const siteAlertsDefinition = {
+  id: 'site_alerts',
+  titleKey: 'title_admin_catalog_site_alerts',
+  metaTitleKey: 'meta_title_admin_catalog_site_alerts',
+  hubLabelKey: 'hub_label_site_alerts',
+  listColumns: [
+    {
+      field: 'bodyPreview',
+      kind: 'string',
+      headerKey: 'column_site_alert_message_preview',
+    },
+    {
+      field: 'isPublished',
+      kind: 'visibility',
+      headerKey: 'column_site_alert_published',
+    },
+    {
+      field: 'startDateLabel',
+      kind: 'string',
+      headerKey: 'column_site_alert_start_date',
+    },
+    {
+      field: 'lastDateLabel',
+      kind: 'string',
+      headerKey: 'column_site_alert_last_date',
+    },
+  ],
+  formFields: [
+    {
+      field: 'body',
+      kind: 'text',
+      labelKey: 'field_site_alert_message',
+    },
+    {
+      field: 'startDate',
+      kind: 'date',
+      required: true,
+      labelKey: 'field_site_alert_start_date',
+    },
+    {
+      field: 'lastDate',
+      kind: 'date',
+      required: true,
+      labelKey: 'field_site_alert_last_date',
+    },
+    {
+      field: 'isPublished',
+      kind: 'boolean',
+      labelKey: 'field_site_alert_published',
+    },
+  ],
+  capabilities: {
+    create: true,
+    update: true,
+    delete: true,
+    reorder: false,
+  },
+} as const satisfies CatalogResourceDefinition;
+
 export const CATALOG_RESOURCE_IDS = [
   'donation_funds',
   'event_categories',
   'class_categories',
   'sailing_classes',
   'fleet',
+  'site_alerts',
 ] as const;
 
 export type CatalogResourceId = (typeof CATALOG_RESOURCE_IDS)[number];
@@ -333,6 +393,7 @@ export const catalogResourceDefinitions: Record<
   class_categories: classCategoriesDefinition,
   sailing_classes: sailingClassesDefinition,
   fleet: fleetDefinition,
+  site_alerts: siteAlertsDefinition,
 };
 
 export function isCatalogResourceId(id: string): id is CatalogResourceId {

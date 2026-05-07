@@ -17,6 +17,7 @@ type AdminNavItem = {
     | 'nav_class_categories'
     | 'nav_sailing_classes'
     | 'nav_fleet'
+    | 'nav_site_alerts'
     | 'nav_site_text';
   /** `prefix` highlights all subpaths (e.g. event edit under `/admin/events/`). */
   match: 'exact' | 'prefix';
@@ -48,6 +49,11 @@ const ADMIN_SITE_NAV: AdminNavItem[] = [
     match: 'prefix',
   },
   { href: '/admin/fleet/', labelKey: 'nav_fleet', match: 'prefix' },
+  {
+    href: '/admin/site_alerts/',
+    labelKey: 'nav_site_alerts',
+    match: 'prefix',
+  },
 ];
 
 function isAdminNavItemActive(

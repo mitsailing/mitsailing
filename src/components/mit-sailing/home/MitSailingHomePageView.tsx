@@ -15,8 +15,13 @@ import {
   loadSailingClassNamesByIds,
 } from '@/libs/mit-sailing/homeCatalogFromPrisma';
 import { getHomeUpcomingDayGroups } from '@/libs/mit-sailing/homeUpcomingFromPrisma';
+import {
+  listSiteAlertsForBannerAt,
+  mapSiteAlertsToBannerRows,
+} from '@/libs/mit-sailing/siteAlertQueries';
 import { HomeEventRow } from './HomeEventRow';
 import { SectionHeader } from './SectionHeader';
+import { SiteAlertsBanner } from './SiteAlertsBanner';
 
 const HOME_FLEET_SLUGS = ['tech-dinghy', 'flying-junior', 'club-420'] as const;
 const HOME_NEXT_CLASS_SLUGS = [
@@ -70,18 +75,21 @@ export async function MitSailingHomePageView(
     namespace: 'MitSailingHome',
   });
 
+  const bannerEvalTime = new Date();
   const [
     upcomingDayGroups,
     session,
     featuredHomeBoats,
     homeNextClasses,
     homeIntroClasses,
+    bannerSiteAlerts,
   ] = await Promise.all([
     getHomeUpcomingDayGroups(),
     getSession(),
     loadHomeFeaturedFleetBoats(HOME_FLEET_SLUGS),
     loadHomeClassesBySlugs(HOME_NEXT_CLASS_SLUGS),
     loadHomeIntroductionClasses(),
+    listSiteAlertsForBannerAt(bannerEvalTime),
   ]);
   const isSignedIn = Boolean(session?.user?.id);
 
@@ -127,26 +135,7 @@ export async function MitSailingHomePageView(
 
   return (
     <div className="w-full min-w-0">
-      {/* News strip */}
-      <div className="border-b border-mit-line bg-mit-red-highlight">
-        <div className="mx-auto flex max-w-7xl items-stretch">
-          <Link
-            className="flex shrink-0 items-center bg-mit-red px-6 py-2.5 text-xs font-bold tracking-widest text-white uppercase no-underline transition-opacity hover:opacity-70 focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:outline-none"
-            href="/events/"
-          >
-            {t('news_badge')}
-          </Link>
-          <div className="no-scrollbar flex flex-1 items-center gap-8 overflow-x-auto px-6 py-2.5 text-xs whitespace-nowrap text-mit-text">
-            <div className="flex items-center gap-2">{t('news_1')}</div>
-            <div className="flex items-center gap-2 border-l border-mit-line pl-8">
-              {t('news_2')}
-            </div>
-            <div className="flex items-center gap-2 border-l border-mit-line pl-8">
-              {t('news_3')}
-            </div>
-          </div>
-        </div>
-      </div>
+      <SiteAlertsBanner rows={mapSiteAlertsToBannerRows(bannerSiteAlerts)} />
 
       {/* Hero */}
       <section className="relative flex h-[600px] items-center overflow-hidden bg-mit-hero-ink">

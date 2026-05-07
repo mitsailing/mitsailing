@@ -37,6 +37,7 @@ const CATALOG_EXTRA_PUBLIC_PATHS: Partial<
   class_categories: ['/classes'],
   sailing_classes: ['/classes'],
   fleet: ['/fleet'],
+  site_alerts: ['/', '/alerts'],
 };
 
 function revalidateAfterCatalogMutation(

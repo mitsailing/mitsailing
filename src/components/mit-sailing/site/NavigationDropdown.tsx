@@ -19,8 +19,9 @@ import { Link } from '@/libs/I18nNavigation';
 const desktopNavTriggerClass =
   'inline-flex min-h-[44px] items-center gap-1.5 rounded-md px-2.5 -mx-0.5 text-sm font-medium text-mit-text shadow-none transition-colors duration-200 hover:bg-muted/60 hover:text-primary-ink dark:hover:bg-white/5 dark:hover:text-white aria-expanded:bg-muted/70 aria-expanded:text-primary-ink dark:aria-expanded:bg-white/10 dark:aria-expanded:text-white';
 
+/** Bleed: `-mx-3` plus `w-[calc(100%+1.5rem)]` must stay matched (2 × Tailwind spacing 3). */
 const mobileNavTriggerClass =
-  'flex h-auto min-h-[44px] w-full items-center justify-between rounded-md px-0 py-3 text-sm font-medium text-mit-text shadow-none transition-colors duration-200 hover:text-primary-ink dark:hover:text-white aria-expanded:text-primary-ink dark:aria-expanded:text-white';
+  'flex h-auto min-h-[44px] w-[calc(100%+1.5rem)] max-w-none shrink-0 -mx-3 items-center justify-between rounded-md px-3 py-3 text-sm font-medium text-mit-text shadow-none transition-colors duration-200 hover:text-primary-ink dark:hover:text-white aria-expanded:text-primary-ink dark:aria-expanded:text-white';
 
 /**
  * Disclosure-style navigation submenu (APG disclosure navigation).
