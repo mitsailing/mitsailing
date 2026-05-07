@@ -94,10 +94,7 @@ export function mapSiteAlertsToBannerRows(
     const dateIso = item.startDateIso;
     return {
       id: item.id,
-      preview: siteAlertPlainTextPreview({
-        htmlish: item.body,
-        maxLength: 140,
-      }),
+      preview: siteAlertPlainTextPreview(item.body),
       dateLabel: formatEasternShortDateFromIsoCalendar(dateIso),
       dateIso,
     };

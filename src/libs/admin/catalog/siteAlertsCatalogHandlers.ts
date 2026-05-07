@@ -37,10 +37,7 @@ export const siteAlertsCatalogHandlers: CatalogServerHandlers = {
     });
     return rows.map((row) => ({
       id: row.id,
-      bodyPreview: siteAlertPlainTextPreview({
-        htmlish: row.body,
-        maxLength: 96,
-      }),
+      bodyPreview: siteAlertPlainTextPreview(row.body),
       isPublished: row.isPublished,
       startDateLabel: formatEasternShortDateFromIsoCalendar(
         isoCalendarDateFromPrismaDate(row.startDate)

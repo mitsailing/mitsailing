@@ -1,22 +1,28 @@
 import { describe, expect, it } from 'vitest';
-import { siteAlertPlainTextPreview } from '@/libs/mit-sailing/siteAlertPlainTextPreview';
+import {
+  plainTextFromSiteAlertHtmlish,
+  siteAlertPlainTextPreview,
+} from '@/libs/mit-sailing/siteAlertPlainTextPreview';
 
-describe('siteAlertPlainTextPreview', () => {
+describe('plainTextFromSiteAlertHtmlish', () => {
   it('strips tags and collapses whitespace', () => {
     expect(
-      siteAlertPlainTextPreview({
-        htmlish: 'Line <a href="/alerts">one</a>\n\n<br> two',
-        maxLength: 40,
-      })
+      plainTextFromSiteAlertHtmlish(
+        'Line <a href="/alerts">one</a>\n\n<br> two'
+      )
+    ).toBe('Line one two');
+  });
+});
+
+describe('siteAlertPlainTextPreview', () => {
+  it('matches plain text from HTML-ish markup', () => {
+    expect(
+      siteAlertPlainTextPreview('Line <a href="/alerts">one</a>\n\n<br> two')
     ).toBe('Line one two');
   });
 
-  it('truncates long previews with an ellipsis', () => {
-    expect(
-      siteAlertPlainTextPreview({
-        htmlish: '1234567890',
-        maxLength: 6,
-      })
-    ).toBe('12345…');
+  it('returns full body text without truncation', () => {
+    const long = `Start ${'x'.repeat(500)} end`;
+    expect(siteAlertPlainTextPreview(long)).toBe(long);
   });
 });
