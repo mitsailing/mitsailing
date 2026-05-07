@@ -97,7 +97,7 @@ export function SiteAlertsBanner(props: { rows: SiteAlertBannerRow[] }) {
                           {row.dateLabel}
                         </time>
                         <span className="min-w-0 flex-1 [overflow-wrap:anywhere] hyphens-auto">
-                          {row.preview}
+                          {row.bodyPlainText}
                         </span>
                       </div>
                     </li>

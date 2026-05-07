@@ -7,20 +7,20 @@ const rows: SiteAlertBannerRow[] = [
     id: '1',
     dateIso: '2026-04-14',
     dateLabel: 'Apr 14, 2026',
-    preview:
+    bodyPlainText:
       'Limited boats available April 18 due to Boston Dinghy Cup across two lines',
   },
   {
     id: '2',
     dateIso: '2026-04-13',
     dateLabel: 'Apr 13, 2026',
-    preview: 'Priority queue for 2026 is now open',
+    bodyPlainText: 'Priority queue for 2026 is now open',
   },
   {
     id: '3',
     dateIso: '2026-01-28',
     dateLabel: 'Jan 28, 2026',
-    preview: 'Pavilion front parking unavailable until July',
+    bodyPlainText: 'Pavilion front parking unavailable until July',
   },
 ];
 

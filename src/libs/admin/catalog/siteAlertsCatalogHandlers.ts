@@ -18,7 +18,7 @@ import { prisma } from '@/libs/DB';
 import { formatEasternShortDateFromIsoCalendar } from '@/libs/mit-sailing/easternTimeFormat';
 import { isoCalendarDateFromPrismaDate } from '@/libs/mit-sailing/isoCalendarDate';
 import { sanitizeSiteAlertBodyHtml } from '@/libs/mit-sailing/sanitizeSiteAlertHtml';
-import { siteAlertPlainTextPreview } from '@/libs/mit-sailing/siteAlertPlainTextPreview';
+import { plainTextFromSiteAlertHtmlish } from '@/libs/mit-sailing/siteAlertPlainText';
 
 /**
  * Prisma-backed handlers for site alerts (home banner + `/alerts`).
@@ -37,7 +37,7 @@ export const siteAlertsCatalogHandlers: CatalogServerHandlers = {
     });
     return rows.map((row) => ({
       id: row.id,
-      bodyPreview: siteAlertPlainTextPreview(row.body),
+      bodyPlainText: plainTextFromSiteAlertHtmlish(row.body),
       isPublished: row.isPublished,
       startDateLabel: formatEasternShortDateFromIsoCalendar(
         isoCalendarDateFromPrismaDate(row.startDate)

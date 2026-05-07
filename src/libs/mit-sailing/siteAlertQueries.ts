@@ -8,7 +8,7 @@ import {
   isoCalendarDateFromPrismaDate,
   prismaDateFromIsoCalendar,
 } from '@/libs/mit-sailing/isoCalendarDate';
-import { siteAlertPlainTextPreview } from '@/libs/mit-sailing/siteAlertPlainTextPreview';
+import { plainTextFromSiteAlertHtmlish } from '@/libs/mit-sailing/siteAlertPlainText';
 import type {
   SiteAlertBannerRow,
   SiteAlertPublicItem,
@@ -94,7 +94,7 @@ export function mapSiteAlertsToBannerRows(
     const dateIso = item.startDateIso;
     return {
       id: item.id,
-      preview: siteAlertPlainTextPreview(item.body),
+      bodyPlainText: plainTextFromSiteAlertHtmlish(item.body),
       dateLabel: formatEasternShortDateFromIsoCalendar(dateIso),
       dateIso,
     };

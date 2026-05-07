@@ -321,9 +321,9 @@ const siteAlertsDefinition = {
   hubLabelKey: 'hub_label_site_alerts',
   listColumns: [
     {
-      field: 'bodyPreview',
+      field: 'bodyPlainText',
       kind: 'string',
-      headerKey: 'column_site_alert_message_preview',
+      headerKey: 'column_site_alert_message',
     },
     {
       field: 'isPublished',

@@ -13,9 +13,9 @@ export type SiteAlertPublicItem = {
 /** Home banner row with formatted date labels (built on the server). */
 export type SiteAlertBannerRow = {
   id: string;
-  /** Plain-text preview derived from HTML/text body. */
-  preview: string;
+  /** Plain text derived from the HTML-ish body (tags stripped). */
+  bodyPlainText: string;
   dateLabel: string;
-  /** Civil ISO date shown beside the preview (last day). */
+  /** Civil ISO date shown beside the message (start day). */
   dateIso: string;
 };
