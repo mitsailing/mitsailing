@@ -63,18 +63,7 @@
     "rental_cta": "Inquire about availability",
     "rental_image_alt": "MIT Sailing Pavilion venue",
     "create_account": "Create account",
-    "membership_cta_manage_account": "Manage account",
-    "alerts_banner_heading": "Site alerts",
-    "alerts_banner_aria_prefix": "Site alerts",
-    "alerts_view_all": "View all alerts",
-    "alerts_see_all": "See all alerts",
-    "alerts_show_more": "Show more",
-    "alerts_show_less": "Show less",
-    "alerts_toggle_expand_aria": "Expand site alerts to show messages",
-    "alerts_toggle_collapse_aria": "Collapse site alerts to a short summary",
-    "alerts_banner_link_expanded_aria": "Site alerts — opens full alerts page",
-    "alerts_collapsed_count_one": "1 alert.",
-    "alerts_collapsed_count_many": "{count} alerts."
+    "membership_cta_manage_account": "Manage account"
   },
   "MitSailingSite": {
     "site_brand_mit": "MIT",
