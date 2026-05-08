@@ -46,6 +46,7 @@ describe('assertPasswordNotCompromised', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     fetchSpy.mockRestore();
   });
 
@@ -131,7 +132,8 @@ describe('assertPasswordNotCompromised', () => {
     await expect(
       assertPasswordNotCompromised('password')
     ).rejects.toMatchObject({
-      message: 'Failed to check password. Status: 503',
+      code: 'PASSWORD_CHECK_FAILED',
+      message: 'Password check failed.',
       status: 'INTERNAL_SERVER_ERROR',
     });
   });
@@ -144,7 +146,22 @@ describe('assertPasswordNotCompromised', () => {
     await expect(
       assertPasswordNotCompromised('password')
     ).rejects.toMatchObject({
-      message: 'Failed to check password. Please try again later.',
+      code: 'PASSWORD_CHECK_FAILED',
+      message: 'Password check failed.',
+      status: 'INTERNAL_SERVER_ERROR',
+    });
+  });
+
+  it('sailor gets a safe error when breach lookup rejects without an error object', async () => {
+    fetchSpy.mockRejectedValue('network down');
+    const { assertPasswordNotCompromised } =
+      await import('@/libs/auth/password-compromise');
+
+    await expect(
+      assertPasswordNotCompromised('password')
+    ).rejects.toMatchObject({
+      code: 'PASSWORD_CHECK_FAILED',
+      message: 'Password check failed.',
       status: 'INTERNAL_SERVER_ERROR',
     });
   });
@@ -157,6 +174,35 @@ describe('assertPasswordNotCompromised', () => {
     await expect(assertPasswordNotCompromised('password')).resolves.toBe(
       undefined
     );
+  });
+
+  it('sailor can continue when breach lookup aborts as an error', async () => {
+    const abortError = new Error('Timed out');
+    abortError.name = 'AbortError';
+    fetchSpy.mockRejectedValue(abortError);
+    const { assertPasswordNotCompromised } =
+      await import('@/libs/auth/password-compromise');
+
+    await expect(assertPasswordNotCompromised('password')).resolves.toBe(
+      undefined
+    );
+  });
+
+  it('sailor aborts a slow breach lookup after the timeout', async () => {
+    vi.useFakeTimers();
+    const abortSpy = vi.spyOn(AbortController.prototype, 'abort');
+    fetchSpy.mockImplementation(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+      return new Response('', { status: 200 });
+    });
+    const { assertPasswordNotCompromised } =
+      await import('@/libs/auth/password-compromise');
+
+    await expect(assertPasswordNotCompromised('password')).resolves.toBe(
+      undefined
+    );
+
+    expect(abortSpy).toHaveBeenCalledOnce();
   });
 
   it('sailor keeps upstream APIError details for auth handling', async () => {

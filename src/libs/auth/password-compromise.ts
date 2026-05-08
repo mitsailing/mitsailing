@@ -66,7 +66,8 @@ export async function assertPasswordNotCompromised(password: string) {
 
     if (!response.ok) {
       throw new APIError('INTERNAL_SERVER_ERROR', {
-        message: `Failed to check password. Status: ${response.status}`,
+        code: 'PASSWORD_CHECK_FAILED',
+        message: enMessages.AuthErrors.PASSWORD_CHECK_FAILED,
       });
     }
 
@@ -91,7 +92,8 @@ export async function assertPasswordNotCompromised(password: string) {
     }
 
     throw new APIError('INTERNAL_SERVER_ERROR', {
-      message: 'Failed to check password. Please try again later.',
+      code: 'PASSWORD_CHECK_FAILED',
+      message: enMessages.AuthErrors.PASSWORD_CHECK_FAILED,
     });
   }
 }

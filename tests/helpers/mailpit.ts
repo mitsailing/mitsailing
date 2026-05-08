@@ -9,9 +9,9 @@
  *
  * Test strategy: at the start of every spec that cares about mail content,
  * `await deleteAllMessages()`. Then after the action under test, poll
- * `findLatestMessageTo(email)` until it returns. That way parallel
- * Playwright workers don't cross-contaminate: each worker's unique email
- * address scopes the read.
+ * `findLatestMessageTo(email)` or `findLatestMessageToMatching(...)` until
+ * it returns. That way parallel Playwright workers don't cross-contaminate:
+ * each worker's unique email address scopes the read.
  */
 
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -35,6 +35,8 @@ type MailpitMessage = {
   HTML: string;
   Text: string;
 };
+
+type MailpitMessagePredicate = (message: MailpitMessage) => boolean;
 
 /**
  * Thin wrapper around the Mailpit REST API that throws on non-2xx.
@@ -61,6 +63,56 @@ export async function deleteAllMessages(): Promise<void> {
 }
 
 /**
+ * Poll Mailpit until a matching message addressed to `email` lands.
+ *
+ * @param params - Recipient, matcher, timeout, and error description.
+ * @returns The most recent matching Mailpit message for `email`.
+ */
+export async function findLatestMessageToMatching(params: {
+  description: string;
+  email: string;
+  matches: MailpitMessagePredicate;
+  timeoutMs?: number;
+}): Promise<MailpitMessage> {
+  const timeoutMs = params.timeoutMs ?? 15_000;
+  const deadline = Date.now() + timeoutMs;
+  let lastError: unknown;
+
+  while (Date.now() < deadline) {
+    try {
+      // Mailpit's search-by-query endpoint accepts Gmail-style filters.
+      // `to:` is case-insensitive and matches the envelope recipient.
+      const listResponse = await mailpitFetch(
+        `/api/v1/search?query=${encodeURIComponent(`to:${params.email}`)}&limit=10`
+      );
+      // Mailpit's API is well-known and the test helper is the narrowest
+      // possible consumer, so we accept the cast rather than pulling in a
+      // runtime validator for two shapes.
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- Mailpit response shape is fixed in tests
+      const list = (await listResponse.json()) as MailpitListResponse;
+
+      for (const summary of list.messages) {
+        const detailResponse = await mailpitFetch(
+          `/api/v1/message/${summary.ID}`
+        );
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- same as list JSON above
+        const message = (await detailResponse.json()) as MailpitMessage;
+        if (params.matches(message)) {
+          return message;
+        }
+      }
+    } catch (error) {
+      lastError = error;
+    }
+    await sleep(250);
+  }
+
+  throw new Error(
+    `No Mailpit ${params.description} to ${params.email} within ${timeoutMs}ms (last error: ${String(lastError)})`
+  );
+}
+
+/**
  * Poll Mailpit until a message addressed to `email` lands (or the deadline
  * elapses). Returns the fully-rendered message so callers can pluck
  * verification codes and unlock URLs out of it.
@@ -75,39 +127,13 @@ export async function findLatestMessageTo(
   email: string,
   timeoutMs = 15_000
 ): Promise<MailpitMessage> {
-  const deadline = Date.now() + timeoutMs;
-  let lastError: unknown;
-
-  while (Date.now() < deadline) {
-    try {
-      // Mailpit's search-by-query endpoint accepts Gmail-style filters.
-      // `to:` is case-insensitive and matches the envelope recipient.
-      const listResponse = await mailpitFetch(
-        `/api/v1/search?query=${encodeURIComponent(`to:${email}`)}&limit=1`
-      );
-      // Mailpit's API is well-known and the test helper is the narrowest
-      // possible consumer, so we accept the cast rather than pulling in a
-      // runtime validator for two shapes.
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- Mailpit response shape is fixed in tests
-      const list = (await listResponse.json()) as MailpitListResponse;
-
-      const [summary] = list.messages;
-      if (summary) {
-        const detailResponse = await mailpitFetch(
-          `/api/v1/message/${summary.ID}`
-        );
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- same as list JSON above
-        return (await detailResponse.json()) as MailpitMessage;
-      }
-    } catch (error) {
-      lastError = error;
-    }
-    await sleep(250);
-  }
-
-  throw new Error(
-    `No Mailpit message to ${email} within ${timeoutMs}ms (last error: ${String(lastError)})`
-  );
+  const message = await findLatestMessageToMatching({
+    description: 'message',
+    email,
+    matches: () => true,
+    timeoutMs,
+  });
+  return message;
 }
 
 /**

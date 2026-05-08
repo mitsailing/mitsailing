@@ -378,6 +378,7 @@
     "ACCOUNT_LOCKED": "Too many failed sign-in attempts. Your account is locked for 15 minutes.",
     "INVALID_EMAIL_OR_PASSWORD": "Invalid email or password.",
     "EMAIL_NOT_VERIFIED": "Verify your email before signing in.",
+    "PASSWORD_CHECK_FAILED": "Password check failed.",
     "PASSWORD_COMPROMISED": "That password has appeared in a known data breach. Choose a different one.",
     "BANNED_USER_MESSAGE": "Your account has been disabled. Contact support if you believe this is an error."
   },

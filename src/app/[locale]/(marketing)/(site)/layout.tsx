@@ -10,9 +10,8 @@ import type * as React from 'react';
  * @param props.children - Page content under `(site)/`
  * @returns Marketing site page content
  */
-export default async function MarketingSiteLayout(props: {
+export default function MarketingSiteLayout(props: {
   children: React.ReactNode;
-}) {
-  const children = await props.children;
-  return children;
+}): React.ReactNode {
+  return props.children;
 }

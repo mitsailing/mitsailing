@@ -134,6 +134,22 @@ describe('ResetPasswordForm', () => {
     );
   });
 
+  it('visitor sees request error when code verification fails', async () => {
+    authClientMock.emailOtp.checkVerificationOtp.mockRejectedValue(
+      new Error('network')
+    );
+    renderResetPasswordForm();
+
+    await continueWithResetCode('111111');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'We could not complete that request right now.'
+    );
+    expect(
+      screen.queryByLabelText('New password', { exact: true })
+    ).not.toBeInTheDocument();
+  });
+
   it('visitor enters an email when the reset link has none', async () => {
     const user = userEvent.setup();
     renderResetPasswordForm({ initialEmail: '' });
@@ -413,6 +429,21 @@ describe('ResetPasswordForm', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Password cannot include your email.'
     );
+  });
+
+  it('visitor sees request error when password update fails', async () => {
+    authClientMock.emailOtp.resetPassword.mockRejectedValue(
+      new Error('network')
+    );
+    renderResetPasswordForm();
+
+    await continueWithResetCode();
+    await fillNewPassword({ password: 'new-password' });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'We could not complete that request right now.'
+    );
+    expect(componentTestRouter().push).not.toHaveBeenCalled();
   });
 
   it('visitor sees sign-in message when automatic sign-in fails after reset', async () => {

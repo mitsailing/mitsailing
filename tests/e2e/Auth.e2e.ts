@@ -6,6 +6,7 @@ import { formAlert } from '../helpers/e2e-alert';
 import {
   extractCodeFromMessage,
   findLatestMessageTo,
+  findLatestMessageToMatching,
 } from '../helpers/mailpit';
 
 /**
@@ -96,18 +97,13 @@ async function createVerifiedUser(page: Page, email: string, password: string) {
 }
 
 async function findLatestPasswordResetCode(email: string) {
-  let resetMessage: Awaited<ReturnType<typeof findLatestMessageTo>> | null =
-    null;
-  await expect
-    .poll(async () => {
-      resetMessage = await findLatestMessageTo(email);
-      return resetMessage.Subject;
-    })
-    .toMatch(/reset/i);
-
-  if (!resetMessage) {
-    throw new Error('No password reset message found');
-  }
+  const resetMessage = await findLatestMessageToMatching({
+    description: 'password reset message',
+    email,
+    matches: (message) =>
+      /reset/i.test(message.Subject) ||
+      /password reset/i.test(`${message.Text}\n${message.HTML}`),
+  });
 
   return extractCodeFromMessage(resetMessage);
 }

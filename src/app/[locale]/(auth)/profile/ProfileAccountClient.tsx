@@ -81,23 +81,31 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
     setEmailBanner(null);
     setResendBanner(null);
     setChangingEmail(true);
-    const res = await authClient.emailOtp.requestEmailChange({
-      newEmail,
-    });
-    setChangingEmail(false);
-    if (res.error) {
+    try {
+      const res = await authClient.emailOtp.requestEmailChange({
+        newEmail,
+      });
+      if (res.error) {
+        setEmailBanner({
+          kind: 'error',
+          message: mapProfileEmailError(res.error.code, res.error.message, t),
+        });
+        return;
+      }
+      setEmailBanner({ kind: 'success', message: t('email_change_sent') });
+      setEmailOtpBanner(null);
+      lockEmailResend();
+      setPendingEmail(newEmail);
+      setEmailCode('');
+      setNewEmail('');
+    } catch {
       setEmailBanner({
         kind: 'error',
-        message: mapProfileEmailError(res.error.code, res.error.message, t),
+        message: t('error_request_failed'),
       });
-      return;
+    } finally {
+      setChangingEmail(false);
     }
-    setEmailBanner({ kind: 'success', message: t('email_change_sent') });
-    setEmailOtpBanner(null);
-    lockEmailResend();
-    setPendingEmail(newEmail);
-    setEmailCode('');
-    setNewEmail('');
   }
 
   async function onConfirmPendingEmail(options: {
@@ -175,19 +183,27 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
     }
     setNameBanner(null);
     setUpdatingName(true);
-    const res = await authClient.updateUser({
-      name: trimmed,
-    });
-    setUpdatingName(false);
-    if (res.error) {
+    try {
+      const res = await authClient.updateUser({
+        name: trimmed,
+      });
+      if (res.error) {
+        setNameBanner({
+          kind: 'error',
+          message: res.error.message ?? t('name_update_error'),
+        });
+        return;
+      }
+      setNameBanner({ kind: 'success', message: t('name_updated') });
+      router.refresh();
+    } catch {
       setNameBanner({
         kind: 'error',
-        message: res.error.message ?? t('name_update_error'),
+        message: t('error_request_failed'),
       });
-      return;
+    } finally {
+      setUpdatingName(false);
     }
-    setNameBanner({ kind: 'success', message: t('name_updated') });
-    router.refresh();
   }
 
   return (

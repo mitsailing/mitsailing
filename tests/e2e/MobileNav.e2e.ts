@@ -53,7 +53,8 @@ test.describe('Desktop navigation', () => {
 
     const nav = page.getByRole('navigation', { name: 'Main navigation' });
 
-    await nav.getByRole('button', { name: 'Classes' }).click();
+    await nav.getByRole('button', { name: 'Classes' }).focus();
+    await page.keyboard.press('ArrowDown');
     await expect(
       nav.getByRole('link', { name: 'Introduction', exact: true })
     ).toBeVisible();
@@ -64,7 +65,8 @@ test.describe('Desktop navigation', () => {
       page.getByRole('heading', { level: 1, name: 'Classes' })
     ).toBeVisible();
 
-    await nav.getByRole('button', { name: 'Fleet' }).click();
+    await nav.getByRole('button', { name: 'Fleet' }).focus();
+    await page.keyboard.press('ArrowDown');
     await expect(
       nav.getByRole('link', { name: 'Tech Dinghy', exact: true })
     ).toBeVisible();
