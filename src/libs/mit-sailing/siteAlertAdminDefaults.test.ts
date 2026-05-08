@@ -9,6 +9,16 @@ describe('easternNextCalendarDayIso', () => {
     const instant = new Date('2026-05-07T16:00:00.000Z');
     expect(easternNextCalendarDayIso(instant)).toBe('2026-05-08');
   });
+
+  it.each([
+    ['2026-03-08T06:30:00.000Z', '2026-03-09'],
+    ['2026-11-01T05:30:00.000Z', '2026-11-02'],
+  ])(
+    'returns the next Eastern calendar day near DST changes',
+    (iso, expected) => {
+      expect(easternNextCalendarDayIso(new Date(iso))).toBe(expected);
+    }
+  );
 });
 
 describe('siteAlertsNewCatalogDefaults', () => {
