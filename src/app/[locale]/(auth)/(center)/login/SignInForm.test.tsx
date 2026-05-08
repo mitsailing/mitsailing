@@ -144,6 +144,22 @@ describe('SignInForm', () => {
     );
   });
 
+  it('visitor sees request-failed message when sign-in throws', async () => {
+    const user = userEvent.setup();
+    authClientMock.signIn.email.mockRejectedValue(new Error('network'));
+
+    render(<SignInForm callbackUrl="/fleet/" />);
+
+    await user.type(screen.getByLabelText('Email'), 'sailor@mit.edu');
+    await user.type(screen.getByLabelText('Password'), 'correct-password');
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'We could not complete that request right now.'
+    );
+    expect(screen.getByRole('button', { name: 'Sign in' })).not.toBeDisabled();
+  });
+
   it('unverified sailor uses normalized email for OTP and verify-email redirect', async () => {
     const user = userEvent.setup();
     authClientMock.signIn.email.mockResolvedValue({

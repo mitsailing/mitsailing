@@ -148,6 +148,29 @@ describe('VerifyEmailForm', () => {
     });
   });
 
+  it('normalizes typed email before verify and resend', async () => {
+    const user = userEvent.setup();
+
+    render(<VerifyEmailForm callbackUrl="/fleet/" initialEmail="" />);
+
+    await user.type(screen.getByLabelText('Email'), '  Sailor@MIT.EDU  ');
+    await user.type(screen.getByLabelText('Verification code'), '123456');
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+
+    expect(authClientMock.emailOtp.verifyEmail).toHaveBeenCalledWith({
+      email: 'sailor@mit.edu',
+      otp: '123456',
+    });
+
+    authClientMock.emailOtp.verifyEmail.mockClear();
+    await user.click(screen.getByRole('button', { name: 'Resend email' }));
+
+    expect(authClientMock.emailOtp.sendVerificationOtp).toHaveBeenCalledWith({
+      email: 'sailor@mit.edu',
+      type: 'email-verification',
+    });
+  });
+
   it('unverified sailor sees a safe error before submitting an invalid email', async () => {
     const user = userEvent.setup();
 

@@ -1,52 +1,17 @@
-import type * as React from 'react';
 import { Heading, Link, Section, Text } from 'react-email';
 import { EmailLayout } from './email-layout';
+import {
+  codeBox,
+  heading,
+  paragraph,
+  section,
+  supportFooter,
+  supportLink,
+} from './email-styles';
 
 export type VerifyEmailProps = {
   code: string;
   supportEmail: string;
-};
-
-const section: React.CSSProperties = {
-  padding: '28px 24px',
-};
-
-const heading: React.CSSProperties = {
-  color: '#0f172a',
-  fontSize: '22px',
-  fontWeight: 600,
-  margin: '0 0 16px',
-};
-
-const paragraph: React.CSSProperties = {
-  color: '#334155',
-  fontSize: '15px',
-  lineHeight: '22px',
-  margin: '0 0 20px',
-};
-
-const codeBox: React.CSSProperties = {
-  backgroundColor: '#f8fafc',
-  border: '1px solid #cbd5e1',
-  borderRadius: '8px',
-  color: '#0f172a',
-  fontSize: '28px',
-  fontWeight: 700,
-  letterSpacing: '6px',
-  margin: '24px 0',
-  padding: '16px 20px',
-  textAlign: 'center' as const,
-};
-
-const expiry: React.CSSProperties = {
-  color: '#334155',
-  fontSize: '14px',
-  lineHeight: '20px',
-  margin: '16px 0 0',
-};
-
-const supportLink: React.CSSProperties = {
-  color: '#2563eb',
 };
 
 /**
@@ -70,7 +35,7 @@ export function VerifyEmailTemplate(props: VerifyEmailProps) {
           account.
         </Text>
         <Text style={codeBox}>{props.code}</Text>
-        <Text style={expiry}>
+        <Text style={supportFooter}>
           This code expires in 5 minutes. If it stops working, request a new
           code, or contact{' '}
           <Link href={`mailto:${props.supportEmail}`} style={supportLink}>

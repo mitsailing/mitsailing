@@ -164,7 +164,8 @@
     "error_reset_failed": "We could not send a reset code right now. Try again in a moment.",
     "unlock_invalid_error": "That unlock link is invalid or has expired. Wait for the automatic unlock or try again.",
     "unlocked_banner": "Your account is unlocked. You can sign in.",
-    "error_invalid_email": "Enter a valid email address with a domain (for example name@mit.edu)."
+    "error_invalid_email": "Enter a valid email address with a domain (for example name@mit.edu).",
+    "error_request_failed": "We could not complete that request right now."
   },
   "SignUpPage": {
     "meta_title": "Sign up",

@@ -7,7 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { authClient } from '@/libs/auth-client';
-import { isValidMarketingEmail } from '@/utils/emailValidation';
+import {
+  isValidMarketingEmail,
+  normalizeMarketingEmail,
+} from '@/utils/emailValidation';
 
 type VerifyEmailFormProps = {
   callbackUrl: string;
@@ -23,8 +26,12 @@ type BannerState = {
 export function VerifyEmailForm(props: VerifyEmailFormProps) {
   const t = useTranslations('VerifyEmailPage');
   const router = useRouter();
-  const hasInitialEmail = isValidMarketingEmail(props.initialEmail);
-  const [email, setEmail] = useState(props.initialEmail);
+  const hasInitialEmail = isValidMarketingEmail(
+    normalizeMarketingEmail(props.initialEmail)
+  );
+  const [email, setEmail] = useState(
+    normalizeMarketingEmail(props.initialEmail)
+  );
   const [code, setCode] = useState('');
   const [banner, setBanner] = useState<BannerState>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -85,14 +92,16 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
   async function onSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setBanner(null);
-    if (!isValidMarketingEmail(email)) {
+    const normalizedEmail = normalizeMarketingEmail(email);
+    setEmail(normalizedEmail);
+    if (!isValidMarketingEmail(normalizedEmail)) {
       setBanner({ kind: 'error', message: t('error_invalid_email') });
       return;
     }
     setSubmitting(true);
     try {
       const res = await authClient.emailOtp.verifyEmail({
-        email,
+        email: normalizedEmail,
         otp: code,
       });
       if (res.error) {
@@ -113,14 +122,16 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
 
   async function onResendCode() {
     setBanner(null);
-    if (!isValidMarketingEmail(email)) {
+    const normalizedEmail = normalizeMarketingEmail(email);
+    setEmail(normalizedEmail);
+    if (!isValidMarketingEmail(normalizedEmail)) {
       setBanner({ kind: 'error', message: t('error_invalid_email') });
       return;
     }
     setResending(true);
     try {
       const res = await authClient.emailOtp.sendVerificationOtp({
-        email,
+        email: normalizedEmail,
         type: 'email-verification',
       });
       if (res.error) {
@@ -147,7 +158,9 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
         </h1>
         <p className="max-w-md text-xl leading-relaxed text-pretty text-muted-foreground">
           {hasInitialEmail
-            ? t('pending_body', { email: props.initialEmail })
+            ? t('pending_body', {
+                email: normalizeMarketingEmail(props.initialEmail),
+              })
             : t('pending_body_fallback')}
         </p>
       </div>

@@ -1,6 +1,7 @@
 import type * as React from 'react';
 import { Heading, Link, Section, Text } from 'react-email';
 import { EmailLayout } from './email-layout';
+import { supportLink } from './email-styles';
 
 export type EmailChangeRequestedNoticeProps = {
   newEmail: string;
@@ -23,10 +24,6 @@ const paragraph: React.CSSProperties = {
   fontSize: '15px',
   lineHeight: '24px',
   margin: '0 0 20px',
-};
-
-const supportLink: React.CSSProperties = {
-  color: '#2563eb',
 };
 
 /**

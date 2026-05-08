@@ -80,20 +80,24 @@ export function SignInForm(props: SignInFormProps) {
       return;
     }
     setSubmitting(true);
+    try {
+      const res = await authClient.signIn.email({
+        email: normalizedEmail,
+        password,
+        callbackURL: props.callbackUrl,
+      });
 
-    const res = await authClient.signIn.email({
-      email: normalizedEmail,
-      password,
-      callbackURL: props.callbackUrl,
-    });
-
-    setSubmitting(false);
-    if (res.error) {
-      setError(mapError(res.error.code, res.error.message, normalizedEmail));
-      return;
+      if (res.error) {
+        setError(mapError(res.error.code, res.error.message, normalizedEmail));
+        return;
+      }
+      router.push(props.callbackUrl);
+      router.refresh();
+    } catch {
+      setError({ kind: 'generic', message: t('error_request_failed') });
+    } finally {
+      setSubmitting(false);
     }
-    router.push(props.callbackUrl);
-    router.refresh();
   }
 
   async function onSendVerificationCode(unverifiedEmail: string) {
