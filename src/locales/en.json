@@ -218,6 +218,7 @@
     "email_label": "Email",
     "submit": "Send reset code",
     "sent_banner": "If an account exists for this email, you will receive a reset code shortly.",
+    "error_request_failed": "We could not send a reset code right now. Try again in a moment.",
     "back_sign_in": "Back to sign in",
     "error_invalid_email": "Enter a valid email address with a domain (for example name@mit.edu)."
   },

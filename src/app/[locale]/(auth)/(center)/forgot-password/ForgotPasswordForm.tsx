@@ -33,17 +33,22 @@ export function ForgotPasswordForm(props: ForgotPasswordFormProps) {
       return;
     }
     setSubmitting(true);
-    await authClient.emailOtp.requestPasswordReset({
-      email,
-    });
-    setSubmitting(false);
-    setSubmitted(true);
-    router.push(
-      authHrefWithCallback(
-        `/reset-password?email=${encodeURIComponent(email)}`,
-        props.callbackUrl
-      )
-    );
+    try {
+      await authClient.emailOtp.requestPasswordReset({
+        email,
+      });
+      setSubmitted(true);
+      router.push(
+        authHrefWithCallback(
+          `/reset-password?email=${encodeURIComponent(email)}`,
+          props.callbackUrl
+        )
+      );
+    } catch {
+      setEmailError(t('error_request_failed'));
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   if (submitted) {

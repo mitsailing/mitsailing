@@ -52,6 +52,17 @@ export function SignInForm(props: SignInFormProps) {
     return { kind: 'generic', message: message ?? t('error_credentials') };
   }
 
+  function mapGenericMessage(
+    code: string | undefined,
+    message: string | undefined
+  ): string {
+    const mapped = mapError(code, message);
+    if (mapped?.kind === 'generic') {
+      return mapped.message;
+    }
+    return message ?? t('error_credentials');
+  }
+
   async function onSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
@@ -82,18 +93,30 @@ export function SignInForm(props: SignInFormProps) {
       return;
     }
     setResending(true);
-    await authClient.emailOtp.sendVerificationOtp({
-      email: error.email,
-      type: 'email-verification',
-    });
-    setResending(false);
-    setResent(true);
-    router.push(
-      authHrefWithCallback(
-        `/verify-email?email=${encodeURIComponent(error.email)}`,
-        props.callbackUrl
-      )
-    );
+    try {
+      const res = await authClient.emailOtp.sendVerificationOtp({
+        email: error.email,
+        type: 'email-verification',
+      });
+      if (res.error) {
+        setError({
+          kind: 'generic',
+          message: mapGenericMessage(res.error.code, res.error.message),
+        });
+        return;
+      }
+      setResent(true);
+      router.push(
+        authHrefWithCallback(
+          `/verify-email?email=${encodeURIComponent(error.email)}`,
+          props.callbackUrl
+        )
+      );
+    } catch {
+      setError({ kind: 'generic', message: t('error_rate_limited') });
+    } finally {
+      setResending(false);
+    }
   }
 
   return (

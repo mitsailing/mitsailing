@@ -2,6 +2,7 @@
 
 import { Menu, X } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
 import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { SignOutForm } from '@/components/auth/SignOutForm';
@@ -120,6 +121,7 @@ export function SiteHeader(props: SiteHeaderProps) {
   const tAccount = useTranslations('AccountLayout');
   const locale = useLocale();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const routeHash = useRouteHash();
   const sessionState = authClient.useSession();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -162,7 +164,10 @@ export function SiteHeader(props: SiteHeaderProps) {
     }
     return item;
   });
-  const authCallbackUrl = safeAuthCallbackUrl(pathname);
+  const search = searchParams.toString();
+  const authCallbackUrl = safeAuthCallbackUrl(
+    search ? `${pathname}?${search}` : pathname
+  );
   const loginHref = authHrefWithCallback('/login/', authCallbackUrl);
   const signupHref = authHrefWithCallback('/signup/', authCallbackUrl);
 

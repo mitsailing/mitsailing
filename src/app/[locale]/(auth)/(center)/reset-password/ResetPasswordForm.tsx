@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,6 +29,7 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
   const [submitting, setSubmitting] = useState(false);
   const [resending, setResending] = useState(false);
   const [resendLocked, setResendLocked] = useState(false);
+  const resendTimeoutRef = useRef<number | null>(null);
 
   function mapError(
     code: string | undefined,
@@ -53,11 +54,25 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
   }
 
   function lockResend() {
+    if (resendTimeoutRef.current) {
+      clearTimeout(resendTimeoutRef.current);
+    }
     setResendLocked(true);
-    window.setTimeout(() => {
+    resendTimeoutRef.current = window.setTimeout(() => {
       setResendLocked(false);
+      resendTimeoutRef.current = null;
     }, 30_000);
   }
+
+  useEffect(
+    () => () => {
+      if (resendTimeoutRef.current) {
+        clearTimeout(resendTimeoutRef.current);
+        resendTimeoutRef.current = null;
+      }
+    },
+    []
+  );
 
   function onCodeSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -105,28 +120,37 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
       return;
     }
     setSubmitting(true);
-    const res = await authClient.emailOtp.resetPassword({
-      email,
-      otp: resetCode,
-      password,
-    });
-    if (res.error) {
+    try {
+      const res = await authClient.emailOtp.resetPassword({
+        email,
+        otp: resetCode,
+        password,
+      });
+      if (res.error) {
+        if (
+          res.error.code === 'INVALID_OTP' ||
+          res.error.code === 'OTP_EXPIRED' ||
+          res.error.code === 'TOO_MANY_ATTEMPTS'
+        ) {
+          setStep('code');
+        }
+        setError(mapError(res.error.code, res.error.message));
+        return;
+      }
+      const signInRes = await authClient.signIn.email({
+        email,
+        password,
+        callbackURL: props.callbackUrl,
+      });
+      if (signInRes.error) {
+        setError(mapError(signInRes.error.code, signInRes.error.message));
+        return;
+      }
+      router.push(props.callbackUrl);
+      router.refresh();
+    } finally {
       setSubmitting(false);
-      setError(mapError(res.error.code, res.error.message));
-      return;
     }
-    const signInRes = await authClient.signIn.email({
-      email,
-      password,
-      callbackURL: props.callbackUrl,
-    });
-    setSubmitting(false);
-    if (signInRes.error) {
-      setError(mapError(signInRes.error.code, signInRes.error.message));
-      return;
-    }
-    router.push(props.callbackUrl);
-    router.refresh();
   }
 
   return (

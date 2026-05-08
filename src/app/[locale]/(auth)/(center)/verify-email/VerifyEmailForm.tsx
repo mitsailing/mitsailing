@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,6 +29,7 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
   const [submitting, setSubmitting] = useState(false);
   const [resending, setResending] = useState(false);
   const [resendLocked, setResendLocked] = useState(false);
+  const resendTimeoutRef = useRef<number | null>(null);
 
   function mapError(
     codeValue: string | undefined,
@@ -50,11 +51,25 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
   }
 
   function lockResend() {
+    if (resendTimeoutRef.current) {
+      clearTimeout(resendTimeoutRef.current);
+    }
     setResendLocked(true);
-    window.setTimeout(() => {
+    resendTimeoutRef.current = window.setTimeout(() => {
       setResendLocked(false);
+      resendTimeoutRef.current = null;
     }, 30_000);
   }
+
+  useEffect(
+    () => () => {
+      if (resendTimeoutRef.current) {
+        clearTimeout(resendTimeoutRef.current);
+        resendTimeoutRef.current = null;
+      }
+    },
+    []
+  );
 
   async function onSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
