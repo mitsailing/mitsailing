@@ -7,7 +7,6 @@ import { ProfileAccountClient } from '../ProfileAccountClient';
 
 type ProfileAccountPageProps = {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ emailChanged?: string; error?: string }>;
 };
 
 export async function generateMetadata(
@@ -30,13 +29,6 @@ export default async function ProfileAccountPage(
 
   const profileAccountHref = getI18nPath('/profile/account/', locale);
   const user = await requireCurrentUser(locale, profileAccountHref);
-  const { emailChanged, error } = await props.searchParams;
-  let verificationBanner: 'success' | 'error' | null = null;
-  if (error) {
-    verificationBanner = 'error';
-  } else if (emailChanged) {
-    verificationBanner = 'success';
-  }
 
   const dbUser = await prisma.user.findUnique({
     select: { themePreference: true, unconfirmedEmail: true },
@@ -49,7 +41,6 @@ export default async function ProfileAccountPage(
       initialName={user.name}
       initialThemePreference={dbUser?.themePreference ?? 'SYSTEM'}
       initialUnconfirmedEmail={dbUser?.unconfirmedEmail ?? null}
-      initialVerificationBanner={verificationBanner}
     />
   );
 }

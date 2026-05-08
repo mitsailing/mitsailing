@@ -9,6 +9,7 @@ describe('normalizeNavPath', () => {
   it('strips trailing slash except root', () => {
     expect(normalizeNavPath('/fleet/foo/')).toBe('/fleet/foo');
     expect(normalizeNavPath('/')).toBe('/');
+    expect(normalizeNavPath('   ')).toBe('/');
   });
 
   it('drops query on pathname segment', () => {

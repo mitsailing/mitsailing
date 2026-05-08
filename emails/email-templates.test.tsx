@@ -1,0 +1,133 @@
+import { render } from 'react-email';
+import { describe, expect, it } from 'vitest';
+import { AccountUnlockEmailTemplate } from './account-unlock';
+import { ConfirmEmailChangeTemplate } from './confirm-email-change';
+import { DeleteAccountEmailTemplate } from './delete-account';
+import { EmailChangeRequestedNoticeTemplate } from './email-change-requested';
+import { EmailLayout } from './email-layout';
+import { PasswordChangedNoticeTemplate } from './password-changed';
+import { PasswordResetEmailTemplate } from './password-reset';
+import { SignInOtpEmailTemplate } from './sign-in-otp';
+import { VerifyEmailTemplate } from './verify-email';
+
+describe('email templates', () => {
+  it('renders shared layout chrome with preview text', async () => {
+    const html = await render(
+      <EmailLayout previewText="Inbox preview">
+        <p>Inner account notice</p>
+      </EmailLayout>
+    );
+
+    expect(html).toContain('Inbox preview');
+    expect(html).toContain('Your app');
+    expect(html).toContain('Inner account notice');
+    expect(html).toContain(
+      'You received this email because of an action on your account.'
+    );
+  });
+
+  it('renders verification code content for new sailors', async () => {
+    const html = await render(
+      <VerifyEmailTemplate code="123456" supportEmail="support@example.com" />
+    );
+
+    expect(html).toContain('Confirm your email');
+    expect(html).toContain('123456');
+    expect(html).toContain('This code expires in 5 minutes');
+    expect(html).toContain('mailto:support@example.com');
+    expect(html).toContain('Thanks for signing up');
+  });
+
+  it('renders sign-in OTP content without sign-up wording', async () => {
+    const html = await render(
+      <SignInOtpEmailTemplate
+        code="111222"
+        supportEmail="support@example.com"
+      />
+    );
+
+    expect(html).toContain('Sign in with your code');
+    expect(html).toContain('111222');
+    expect(html).toContain('sign-in screen');
+    expect(html).not.toContain('Thanks for signing up');
+    expect(html).toContain('mailto:support@example.com');
+  });
+
+  it('renders password reset code content', async () => {
+    const html = await render(<PasswordResetEmailTemplate code="654321" />);
+
+    expect(html).toContain('Reset your password');
+    expect(html).toContain('654321');
+    expect(html).toContain('choose a new password');
+    expect(html).toContain('If you did not request this');
+  });
+
+  it('renders email change confirmation content for the new address', async () => {
+    const html = await render(
+      <ConfirmEmailChangeTemplate
+        code="987654"
+        supportEmail="support@example.com"
+      />
+    );
+
+    expect(html).toContain('Confirm your new email');
+    expect(html).toContain('987654');
+    expect(html).toContain('new login email');
+    expect(html).toContain('mailto:support@example.com');
+  });
+
+  it('renders email change requested notice for the current address', async () => {
+    const html = await render(
+      <EmailChangeRequestedNoticeTemplate
+        newEmail="next@example.com"
+        supportEmail="support@example.com"
+      />
+    );
+
+    expect(html).toContain('Email change requested');
+    expect(html).toContain('next@example.com');
+    expect(html).toContain('will not take effect');
+    expect(html).toContain('mailto:support@example.com');
+  });
+
+  it('renders delete account confirmation with the signed link', async () => {
+    const confirmUrl =
+      'https://mitsailing.example.com/delete-account?token=signed-token';
+    const html = await render(
+      <DeleteAccountEmailTemplate confirmUrl={confirmUrl} />
+    );
+
+    expect(html).toContain('Confirm account deletion');
+    expect(html).toContain('Delete my account');
+    expect(html).toContain('This cannot be undone');
+    expect(html).toContain(confirmUrl);
+  });
+
+  it('renders account unlock content with the absolute unlock url', async () => {
+    const unlockUrl =
+      'https://mitsailing.example.com/api/unlock-account?token=signed-token';
+    const html = await render(
+      <AccountUnlockEmailTemplate
+        supportEmail="support@example.com"
+        unlockUrl={unlockUrl}
+      />
+    );
+
+    expect(html).toContain('Account temporarily locked');
+    expect(html).toContain('Unlock account');
+    expect(html).toContain('This link expires in 1 hour');
+    expect(html).toContain(unlockUrl);
+    expect(html).toContain('mailto:support@example.com');
+  });
+
+  it('renders password changed notice with support contact', async () => {
+    const html = await render(
+      <PasswordChangedNoticeTemplate supportEmail="support@example.com" />
+    );
+
+    expect(html).toContain('Your password was changed');
+    expect(html).toContain('No action is needed if this was you');
+    expect(html).toContain('someone else may have access to your account');
+    expect(html).toContain('mailto:support@example.com');
+  });
+});

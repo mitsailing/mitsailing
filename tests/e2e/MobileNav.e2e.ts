@@ -44,3 +44,35 @@ test.describe('Mobile navigation', () => {
     expect(box.height).toBeCloseTo(viewport.height, 3);
   });
 });
+
+test.describe('Desktop navigation', () => {
+  test('opens classes and fleet dropdowns and navigates to items', async ({
+    page,
+  }) => {
+    await page.goto('/');
+
+    const nav = page.getByRole('navigation', { name: 'Main navigation' });
+
+    await nav.getByRole('button', { name: 'Classes' }).click();
+    await expect(
+      nav.getByRole('link', { name: 'Introduction', exact: true })
+    ).toBeVisible();
+
+    await nav.getByRole('link', { name: 'Introduction', exact: true }).click();
+    await expect(page).toHaveURL(/\/classes\/?#introduction$/u);
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Classes' })
+    ).toBeVisible();
+
+    await nav.getByRole('button', { name: 'Fleet' }).click();
+    await expect(
+      nav.getByRole('link', { name: 'Tech Dinghy', exact: true })
+    ).toBeVisible();
+
+    await nav.getByRole('link', { name: 'Tech Dinghy', exact: true }).click();
+    await expect(page).toHaveURL(/\/fleet\/tech-dinghy\/?$/u);
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Tech Dinghy' })
+    ).toBeVisible();
+  });
+});

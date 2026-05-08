@@ -52,6 +52,10 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
   }
 
   function lockResend() {
+    if (resendTimeoutRef.current !== null) {
+      clearTimeout(resendTimeoutRef.current);
+      resendTimeoutRef.current = null;
+    }
     setResendLocked(true);
     resendTimeoutRef.current = window.setTimeout(() => {
       setResendLocked(false);

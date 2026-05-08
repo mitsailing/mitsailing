@@ -53,7 +53,6 @@ function renderAccountClient(
         initialName="Old Name"
         initialThemePreference="LIGHT"
         initialUnconfirmedEmail={null}
-        initialVerificationBanner={null}
         {...props}
       />
     </AppThemeProvider>
@@ -61,24 +60,6 @@ function renderAccountClient(
 }
 
 describe('ProfileAccountClient', () => {
-  it('profile owner sees a confirmed-email banner after returning from verification', () => {
-    renderAccountClient({ initialVerificationBanner: 'success' });
-
-    expect(
-      screen.getByText('Your email address has been updated.')
-    ).toBeVisible();
-  });
-
-  it('profile owner sees an email-error banner after returning from verification', () => {
-    renderAccountClient({ initialVerificationBanner: 'error' });
-
-    expect(
-      screen.getByText(
-        'That confirmation code is invalid or expired. Send a new one below.'
-      )
-    ).toBeVisible();
-  });
-
   it('profile owner updates their display name', async () => {
     const user = userEvent.setup();
     renderAccountClient();
@@ -232,6 +213,7 @@ describe('ProfileAccountClient', () => {
     expect(
       await screen.findByText('Your email address has been updated.')
     ).toBeVisible();
+    expect(screen.getByText('next@mit.edu')).toBeVisible();
     expect(componentTestRouter().refresh).toHaveBeenCalledTimes(1);
   });
 
@@ -287,6 +269,55 @@ describe('ProfileAccountClient', () => {
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(30_000);
+    });
+
+    expect(screen.getByRole('button', { name: 'Resend email' })).toBeEnabled();
+  });
+
+  it('email-change persona keeps resend cooldown anchored to the latest change request', async () => {
+    vi.useFakeTimers();
+    renderAccountClient();
+
+    fireEvent.change(screen.getByLabelText('New email'), {
+      target: { value: 'first@mit.edu' },
+    });
+    act(() => {
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Send confirmation code' })
+      );
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+
+    fireEvent.change(screen.getByLabelText('New email'), {
+      target: { value: 'second@mit.edu' },
+    });
+    act(() => {
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Send confirmation code' })
+      );
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(25_000);
+    });
+
+    expect(
+      screen.getByRole('button', {
+        name: 'You can request a new code in 30 seconds',
+      })
+    ).toBeDisabled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
     });
 
     expect(screen.getByRole('button', { name: 'Resend email' })).toBeEnabled();

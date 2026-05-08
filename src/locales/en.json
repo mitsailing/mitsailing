@@ -293,7 +293,6 @@
     "change_email_submit": "Send confirmation code",
     "email_change_sent": "Confirmation code sent. Enter it below to finish changing your email.",
     "email_change_confirmed": "Your email address has been updated.",
-    "email_change_error_banner": "That confirmation code is invalid or expired. Send a new one below.",
     "email_exists_error": "That email is already in the system.",
     "email_same_error": "That is already your login email.",
     "email_invalid_password_error": "The password you entered is incorrect.",
@@ -359,6 +358,7 @@
     "impersonation_exit": "Exit impersonation"
   },
   "AuthEmails": {
+    "sign_in_otp_subject": "Your sign-in code",
     "verify_subject": "Confirm your email",
     "reset_password_subject": "Reset your password",
     "change_email_subject": "Confirm your new email address",

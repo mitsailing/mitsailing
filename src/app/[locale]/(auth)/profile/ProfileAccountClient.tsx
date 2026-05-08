@@ -19,28 +19,13 @@ type ProfileAccountClientProps = {
   initialName: string | null;
   initialThemePreference: ThemePreferenceValue;
   initialUnconfirmedEmail: string | null;
-  initialVerificationBanner: 'success' | 'error' | null;
 };
 
 export function ProfileAccountClient(props: ProfileAccountClientProps) {
   const t = useTranslations('UserProfilePage');
   const router = useRouter();
 
-  let initialEmailBanner: ProfileBannerState = null;
-  if (props.initialVerificationBanner === 'success') {
-    initialEmailBanner = {
-      kind: 'success',
-      message: t('email_change_confirmed'),
-    };
-  } else if (props.initialVerificationBanner === 'error') {
-    initialEmailBanner = {
-      kind: 'error',
-      message: t('email_change_error_banner'),
-    };
-  }
-
-  const [emailBanner, setEmailBanner] =
-    useState<ProfileBannerState>(initialEmailBanner);
+  const [emailBanner, setEmailBanner] = useState<ProfileBannerState>(null);
   const [emailOtpBanner, setEmailOtpBanner] =
     useState<ProfileBannerState>(null);
   const [nameBanner, setNameBanner] = useState<ProfileBannerState>(null);
@@ -49,6 +34,7 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
   const [pendingEmail, setPendingEmail] = useState<string | null>(
     props.initialUnconfirmedEmail
   );
+  const [currentEmail, setCurrentEmail] = useState(props.initialEmail);
   const [displayName, setDisplayName] = useState(props.initialName ?? '');
   const [newEmail, setNewEmail] = useState('');
   const [emailCode, setEmailCode] = useState('');
@@ -61,6 +47,10 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
   const resendTimerRef = useRef<number | null>(null);
 
   function lockEmailResend() {
+    if (resendTimerRef.current !== null) {
+      clearTimeout(resendTimerRef.current);
+      resendTimerRef.current = null;
+    }
     setResendLocked(true);
     resendTimerRef.current = window.setTimeout(() => {
       setResendLocked(false);
@@ -80,7 +70,7 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
 
   async function onChangeEmail(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!newEmail || newEmail === props.initialEmail) {
+    if (!newEmail || newEmail === currentEmail) {
       setEmailBanner({ kind: 'error', message: t('email_same_error') });
       return;
     }
@@ -130,6 +120,7 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
       return;
     }
     setEmailBanner({ kind: 'success', message: t('email_change_confirmed') });
+    setCurrentEmail(options.emailToConfirm);
     setPendingEmail(null);
     setEmailCode('');
     router.refresh();
@@ -191,7 +182,7 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
         <dl className="flex flex-col gap-3">
           <div>
             <dt className="text-sm font-medium text-mit-text">{t('email')}</dt>
-            <dd className="text-mit-text">{props.initialEmail}</dd>
+            <dd className="text-mit-text">{currentEmail}</dd>
           </div>
           {pendingEmail ? (
             <div>

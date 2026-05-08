@@ -228,9 +228,6 @@ export function NavigationDropdown(props: NavigationDropdownProps) {
   };
 
   const onMouseEnter = () => {
-    if (variant !== 'desktop') {
-      return;
-    }
     if (hoverTimeoutRef.current) {
       window.clearTimeout(hoverTimeoutRef.current);
     }
@@ -239,9 +236,6 @@ export function NavigationDropdown(props: NavigationDropdownProps) {
     }, 60);
   };
   const onMouseLeave = () => {
-    if (variant !== 'desktop') {
-      return;
-    }
     if (hoverTimeoutRef.current) {
       window.clearTimeout(hoverTimeoutRef.current);
     }

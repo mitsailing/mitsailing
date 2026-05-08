@@ -136,12 +136,15 @@ test.describe('Admin hub and users', () => {
     await expect(adminLink).toHaveAttribute('href', /\/admin\/?$/);
   });
 
-  test('admin bans and restores a user sign-in', async ({ page }) => {
+  test('admin revokes and restores a banned sailor sign-in', async ({
+    page,
+  }) => {
     const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
     const password = 'Correct-Horse-Battery-Staple';
 
     try {
       await createVerifiedUser(page, email, password);
+      const signedInUserCookies = await page.context().cookies();
 
       await page.context().clearCookies();
       await signInAsAdmin(page);
@@ -160,6 +163,13 @@ test.describe('Admin hub and users', () => {
       await expect
         .poll(() => new URL(page.url()).pathname)
         .toBe('/admin/users');
+
+      await page.context().clearCookies();
+      await page.context().addCookies(signedInUserCookies);
+      await page.goto('/profile/account');
+      await expect
+        .poll(() => new URL(page.url()).pathname)
+        .toMatch(/\/login\/?$/);
 
       await page.context().clearCookies();
       await page.goto('/login');

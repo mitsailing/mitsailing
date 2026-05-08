@@ -6,6 +6,7 @@ import enMessages from '@/locales/en.json';
 import {
   componentTestPathname,
   componentTestRouter,
+  componentTestSearchParams,
   resetComponentTestRouter,
 } from '@/test/component';
 
@@ -86,6 +87,7 @@ vi.mock('next-intl', () => ({
 
 vi.mock('next/navigation', () => ({
   useRouter: () => componentTestRouter(),
+  useSearchParams: () => componentTestSearchParams(),
 }));
 
 vi.mock('@/libs/I18nNavigation', () => ({

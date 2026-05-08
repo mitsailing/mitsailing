@@ -193,7 +193,7 @@ export function SiteHeader(props: SiteHeaderProps) {
 
     const listKey =
       variant === 'mobile'
-        ? `${item.labelKey}-${disclosureEpoch ?? 0}`
+        ? `${item.labelKey}-${String(disclosureEpoch)}`
         : item.labelKey;
 
     if (item.href && item.items !== undefined) {
@@ -236,7 +236,7 @@ export function SiteHeader(props: SiteHeaderProps) {
     return (
       <a
         className={externalClassName}
-        href={item.externalHref ?? '#'}
+        href={item.externalHref}
         key={item.labelKey}
         onClick={onNavigate}
       >

@@ -20,7 +20,12 @@ export type ParsedWeatherSegments = {
  */
 export function segmentsQuartetComplete(
   segments: ParsedWeatherSegments
-): boolean {
+): segments is {
+  windText: string;
+  airText: string;
+  waterText: string;
+  sunsetText: string;
+} {
   const parts = [
     segments.windText,
     segments.airText,
@@ -33,8 +38,6 @@ export function segmentsQuartetComplete(
 const AIR_MARKER = ', Air ';
 const WATER_MARKER = ', Water ';
 const SUNSET_MARKER = ', Sunset ';
-/** Maximum Unicode scalar (U+10FFFF). */
-const MAX_UNICODE_SCALAR = 1_114_111;
 
 /** Nautical knots per one statute mph (marine wind convention for US mph→kt). */
 const KNOT_PER_STATUTE_MPH = 1 / 1.150_779_448_023_542;
@@ -61,10 +64,6 @@ export function formatWindMphToKnotsForDisplay(
     /\b(\d+(?:\.\d+)?)\s*mph\b/giu,
     (_, numStr: string) => {
       const mph = Number.parseFloat(numStr);
-      if (Number.isNaN(mph)) {
-        return `${numStr} mph`;
-      }
-
       const knots = roundStatuteMphToWholeKnots(mph);
 
       return `${String(knots)} knots`;
@@ -149,12 +148,17 @@ function normalizeTemperatureGlyphs(value: string | null): string | null {
   );
 }
 
+function trimmedTextOrNull(value: string): string | null {
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 function stripWindPrefix(windSlice: string): string | null {
   const t = windSlice.trim();
   const windMatch = /^Wind\b\s*(.*)$/iu.exec(t);
-  const rest = windMatch?.[1]?.trim();
+  const rest = windMatch?.[1];
 
-  return rest?.length ? rest : null;
+  return typeof rest === 'string' ? trimmedTextOrNull(rest) : null;
 }
 
 /**
@@ -192,13 +196,13 @@ export function parseMitSailingWeather(
   if (waterIdx === -1) {
     return {
       windText,
-      airText: line.slice(airStart).trim() || null,
+      airText: trimmedTextOrNull(line.slice(airStart)),
       waterText: null,
       sunsetText: null,
     };
   }
 
-  const airText = line.slice(airStart, waterIdx).trim() || null;
+  const airText = trimmedTextOrNull(line.slice(airStart, waterIdx));
   const waterStart = waterIdx + WATER_MARKER.length;
   const sunsetIdx = line.indexOf(SUNSET_MARKER, waterStart);
 
@@ -206,14 +210,15 @@ export function parseMitSailingWeather(
     return {
       windText,
       airText,
-      waterText: line.slice(waterStart).trim() || null,
+      waterText: trimmedTextOrNull(line.slice(waterStart)),
       sunsetText: null,
     };
   }
 
-  const waterText = line.slice(waterStart, sunsetIdx).trim() || null;
-  const sunsetText =
-    line.slice(sunsetIdx + SUNSET_MARKER.length).trim() || null;
+  const waterText = trimmedTextOrNull(line.slice(waterStart, sunsetIdx));
+  const sunsetText = trimmedTextOrNull(
+    line.slice(sunsetIdx + SUNSET_MARKER.length)
+  );
 
   return {
     windText,
@@ -286,14 +291,12 @@ export function prepareMitWeatherUpstreamText(raw: string): string {
   let s = raw.replaceAll('\uFEFF', '');
   /* eslint-disable unicorn/prefer-string-replace-all -- tag/entity passes need regex spans and casing */
   s = stripHtmlAngleSpans(s, ' ');
-  s = s.replaceAll(/&#(\d{1,5});/gu, (_, code: string) => {
-    const n = Number(code);
-    return n <= MAX_UNICODE_SCALAR ? String.fromCodePoint(n) : '';
-  });
-  s = s.replaceAll(/&#x([\da-f]{1,5});/giu, (_, hex: string) => {
-    const n = Number.parseInt(hex, 16);
-    return n <= MAX_UNICODE_SCALAR ? String.fromCodePoint(n) : '';
-  });
+  s = s.replaceAll(/&#(\d{1,5});/gu, (_, code: string) =>
+    String.fromCodePoint(Number(code))
+  );
+  s = s.replaceAll(/&#x([\da-f]{1,5});/giu, (_, hex: string) =>
+    String.fromCodePoint(Number.parseInt(hex, 16))
+  );
   s = s.replaceAll(/&deg;/giu, '\u00B0');
   s = s.replaceAll(/&nbsp;/giu, ' ');
   s = s.replaceAll(/\u00C2\u00B0/gu, '\u00B0');

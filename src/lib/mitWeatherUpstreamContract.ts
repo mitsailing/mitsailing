@@ -71,7 +71,7 @@ export function validateMitWeatherUpstreamContract(
 
   const { windText, airText, waterText, sunsetText } = parsed;
 
-  const wind = windText ?? '';
+  const wind = windText;
   const usesKnots = /\bknots?\b/i.test(wind);
   const usesMph = /\bmph\b/i.test(wind);
 
@@ -95,32 +95,32 @@ export function validateMitWeatherUpstreamContract(
     };
   }
 
-  if (!segmentLooksLikeFahrenheit(airText ?? '')) {
+  if (!segmentLooksLikeFahrenheit(airText)) {
     return {
       status: 'breach',
       breach: {
         code: 'AIR_NOT_FAHRENHEIT',
-        detail: airText ?? '',
+        detail: airText,
       },
     };
   }
 
-  if (!segmentLooksLikeFahrenheit(waterText ?? '')) {
+  if (!segmentLooksLikeFahrenheit(waterText)) {
     return {
       status: 'breach',
       breach: {
         code: 'WATER_NOT_FAHRENHEIT',
-        detail: waterText ?? '',
+        detail: waterText,
       },
     };
   }
 
-  if (!/\b\d{1,2}:\d{2}\b/u.test(sunsetText ?? '')) {
+  if (!/\b\d{1,2}:\d{2}\b/u.test(sunsetText)) {
     return {
       status: 'breach',
       breach: {
         code: 'SUNSET_NOT_CLOCK',
-        detail: sunsetText ?? '',
+        detail: sunsetText,
       },
     };
   }

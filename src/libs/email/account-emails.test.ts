@@ -45,6 +45,28 @@ describe('account email notices', () => {
     expect(payload?.to).toBe('new-sailor@example.com');
     expect(payload?.subject).toMatch(/confirm/i);
     expect(payload?.text).toContain('verification code is 123456');
+    expect(payload?.html).toContain('Thanks for signing up');
+  });
+
+  it('returning sailor receives sign-in OTP copy, not sign-up verification copy', async () => {
+    const { sendTransactionalEmail } =
+      await import('@/libs/email/sendTransactional');
+    const { sendEmailOtpCode } = await import('@/libs/email/account-emails');
+
+    await sendEmailOtpCode({
+      email: 'returning@example.com',
+      otp: '111222',
+      type: 'sign-in',
+    });
+
+    const [payload] = vi.mocked(sendTransactionalEmail).mock.calls[0] ?? [];
+
+    expect(payload?.to).toBe('returning@example.com');
+    expect(payload?.subject).toMatch(/sign-in/i);
+    expect(payload?.text).toContain('sign-in code is 111222');
+    expect(payload?.html).toContain('Sign in with your code');
+    expect(payload?.html).not.toContain('Thanks for signing up');
+    expect(payload?.html).not.toContain('activate your account');
   });
 
   it('security-notice persona receives a password reset code email', async () => {

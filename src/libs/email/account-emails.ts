@@ -11,6 +11,7 @@ import { DeleteAccountEmailTemplate } from '../../../emails/delete-account';
 import { EmailChangeRequestedNoticeTemplate } from '../../../emails/email-change-requested';
 import { PasswordChangedNoticeTemplate } from '../../../emails/password-changed';
 import { PasswordResetEmailTemplate } from '../../../emails/password-reset';
+import { SignInOtpEmailTemplate } from '../../../emails/sign-in-otp';
 import { VerifyEmailTemplate } from '../../../emails/verify-email';
 
 const subjects = enMessages.AuthEmails;
@@ -20,7 +21,7 @@ const { SUPPORT_EMAIL } = Env;
 
 function verificationCodeText(params: {
   code: string;
-  purpose: 'verify-email' | 'reset-password' | 'change-email';
+  purpose: 'verify-email' | 'reset-password' | 'change-email' | 'sign-in';
 }): string {
   if (params.purpose === 'reset-password') {
     return `Your MIT Sailing password reset code is ${params.code}.\n\nThis code expires in 5 minutes.`;
@@ -28,6 +29,10 @@ function verificationCodeText(params: {
 
   if (params.purpose === 'change-email') {
     return `Your MIT Sailing email change confirmation code is ${params.code}.\n\nThis code expires in 5 minutes.`;
+  }
+
+  if (params.purpose === 'sign-in') {
+    return `Your MIT Sailing sign-in code is ${params.code}.\n\nThis code expires in 5 minutes.`;
   }
 
   return `Your MIT Sailing verification code is ${params.code}.\n\nThis code expires in 5 minutes.`;
@@ -72,6 +77,22 @@ export async function sendEmailOtpCode(params: {
       subject: subjects.change_email_subject,
       html,
       text: verificationCodeText({ code: params.otp, purpose: 'change-email' }),
+    });
+    return;
+  }
+
+  if (params.type === 'sign-in') {
+    const html = await render(
+      SignInOtpEmailTemplate({
+        code: params.otp,
+        supportEmail: SUPPORT_EMAIL,
+      })
+    );
+    await sendTransactionalEmail({
+      to: params.email,
+      subject: subjects.sign_in_otp_subject,
+      html,
+      text: verificationCodeText({ code: params.otp, purpose: 'sign-in' }),
     });
     return;
   }

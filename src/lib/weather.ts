@@ -37,14 +37,11 @@ const FALLBACK_BROWNOUT: WeatherHeaderData = {
 function logMitWeatherWarn(
   options: Readonly<{
     where: string;
-    detail: Record<string, string | number | undefined>;
+    detail: Record<string, string | number>;
   }>
 ): void {
   const bits = [`[mit-weather:${options.where}]`];
   for (const [k, v] of Object.entries(options.detail)) {
-    if (v === undefined) {
-      continue;
-    }
     bits.push(`${k}=${String(v)}`);
   }
 
