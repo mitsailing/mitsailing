@@ -19,7 +19,7 @@
 - **Which rule:** `nextjs-node-server-2026.mdc` (Next caching/DB/runtime, `src/app` + `src/libs`). `e2e-verification.mdc` (when `test:e2e` counts as done). `tdd.mdc` (Vitest/Playwright, `tests/**` + co-located `*.test.*`). `agent-workflow.mdc` (workflow + stale APIs, `src/**`).
 
 ## Commands
-Only these `npm run` scripts: `build-local`, `lint`, `check:types`, `check:deps`, `check:i18n`, `test`, `test:e2e`.
+Only these `npm run` scripts: `build-local`, `lint`, `check:types`, `check:deps`, `check:i18n`, `test`, `test:coverage`, `test:e2e`.
 
 ## Git Commits
 Conventional Commits: `type: summary` without scope. The summary should be a short, specific sentence that explains what changed and where or why, not a vague phrase. Types: `feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert`. `BREAKING CHANGE:` footer when needed.

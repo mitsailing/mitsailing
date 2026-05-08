@@ -52,7 +52,9 @@ export function ForgotPasswordForm(props: ForgotPasswordFormProps) {
       }
       router.replace(
         authHrefWithCallback(
-          `/reset-password?email=${encodeURIComponent(normalizedEmail)}`,
+          `/reset-password?email=${encodeURIComponent(
+            normalizedEmail
+          )}&codeSent=1`,
           props.callbackUrl
         )
       );

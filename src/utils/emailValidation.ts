@@ -14,11 +14,7 @@ export function isValidMarketingEmail(raw: string): boolean {
   if (at <= 0 || at === trimmed.length - 1) {
     return false;
   }
-  const local = trimmed.slice(0, at);
   const domain = trimmed.slice(at + 1);
-  if (local.length === 0 || domain.length === 0) {
-    return false;
-  }
   if (!domain.includes('.')) {
     return false;
   }

@@ -12,6 +12,7 @@ import { isValidMarketingEmail } from '@/utils/emailValidation';
 type VerifyEmailFormProps = {
   callbackUrl: string;
   initialEmail: string;
+  initialResendLocked?: boolean;
 };
 
 type BannerState = {
@@ -51,9 +52,6 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
   }
 
   function lockResend() {
-    if (resendTimeoutRef.current !== null) {
-      clearTimeout(resendTimeoutRef.current);
-    }
     setResendLocked(true);
     resendTimeoutRef.current = window.setTimeout(() => {
       setResendLocked(false);
@@ -61,15 +59,22 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
     }, 30_000);
   }
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    if (props.initialResendLocked) {
+      setResendLocked(true);
+      resendTimeoutRef.current = window.setTimeout(() => {
+        setResendLocked(false);
+        resendTimeoutRef.current = null;
+      }, 30_000);
+    }
+
+    return () => {
       if (resendTimeoutRef.current !== null) {
         clearTimeout(resendTimeoutRef.current);
         resendTimeoutRef.current = null;
       }
-    },
-    []
-  );
+    };
+  }, [props.initialResendLocked]);
 
   async function onSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();

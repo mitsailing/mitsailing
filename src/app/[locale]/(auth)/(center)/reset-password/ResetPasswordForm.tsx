@@ -15,6 +15,7 @@ import {
 type ResetPasswordFormProps = {
   callbackUrl: string;
   initialEmail: string;
+  initialResendLocked?: boolean;
   passwordHeading: string;
 };
 
@@ -67,9 +68,6 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
   }
 
   function lockResend() {
-    if (resendTimeoutRef.current !== null) {
-      clearTimeout(resendTimeoutRef.current);
-    }
     setResendLocked(true);
     resendTimeoutRef.current = window.setTimeout(() => {
       setResendLocked(false);
@@ -77,15 +75,21 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
     }, 30_000);
   }
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    if (props.initialResendLocked) {
+      setResendLocked(true);
+      resendTimeoutRef.current = window.setTimeout(() => {
+        setResendLocked(false);
+        resendTimeoutRef.current = null;
+      }, 30_000);
+    }
+    return () => {
       if (resendTimeoutRef.current !== null) {
         clearTimeout(resendTimeoutRef.current);
         resendTimeoutRef.current = null;
       }
-    },
-    []
-  );
+    };
+  }, [props.initialResendLocked]);
 
   async function onCodeSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -95,10 +99,6 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
     setEmail(normalizedEmail);
     if (!isValidMarketingEmail(normalizedEmail)) {
       setError(t('error_invalid_email'));
-      return;
-    }
-    if (resetCode.length !== 6) {
-      setError(t('error_invalid_code'));
       return;
     }
     setSubmitting(true);

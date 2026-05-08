@@ -19,6 +19,7 @@ export default defineConfig({
         'src/**/*.d.ts',
         'src/generated/**',
         'src/types/**',
+        'src/test/**',
         'src/styles/**',
         'src/data/**',
         'src/locales/**',
@@ -34,6 +35,15 @@ export default defineConfig({
           include: ['src/**/*.test.{js,ts}'],
           exclude: ['src/hooks/**/*.test.ts'],
           environment: 'node',
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'component',
+          include: ['src/**/*.test.{jsx,tsx}'],
+          environment: 'jsdom',
+          setupFiles: ['tests/setup/component.tsx'],
         },
       },
       {

@@ -7,7 +7,11 @@ import { ResetPasswordForm } from './ResetPasswordForm';
 
 type ResetPasswordPageProps = {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ callbackUrl?: string; email?: string }>;
+  searchParams: Promise<{
+    callbackUrl?: string;
+    email?: string;
+    codeSent?: string;
+  }>;
 };
 
 export async function generateMetadata(
@@ -38,6 +42,7 @@ export default async function ResetPasswordPage(props: ResetPasswordPageProps) {
     <ResetPasswordForm
       callbackUrl={callbackUrl}
       initialEmail={searchParams.email ?? ''}
+      initialResendLocked={searchParams.codeSent === '1'}
       passwordHeading={t('password_heading')}
     />
   );

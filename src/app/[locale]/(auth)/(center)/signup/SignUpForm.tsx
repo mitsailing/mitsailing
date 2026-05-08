@@ -77,7 +77,7 @@ export function SignUpForm(props: SignUpFormProps) {
     const res = await authClient.signUp.email({
       email,
       password,
-      name: name.trim() === '' ? (email.split('@')[0] ?? '') : name,
+      name: name.trim() === '' ? email.slice(0, email.indexOf('@')) : name,
       callbackURL: props.callbackUrl,
     });
     setSubmitting(false);
@@ -88,7 +88,7 @@ export function SignUpForm(props: SignUpFormProps) {
     setSubmitted(true);
     router.push(
       authHrefWithCallback(
-        `/verify-email?email=${encodeURIComponent(email)}`,
+        `/verify-email?email=${encodeURIComponent(email)}&codeSent=1`,
         props.callbackUrl
       )
     );

@@ -61,9 +61,6 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
   const resendTimerRef = useRef<number | null>(null);
 
   function lockEmailResend() {
-    if (resendTimerRef.current !== null) {
-      clearTimeout(resendTimerRef.current);
-    }
     setResendLocked(true);
     resendTimerRef.current = window.setTimeout(() => {
       setResendLocked(false);
@@ -113,24 +110,15 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
     setNewEmail('');
   }
 
-  async function onConfirmPendingEmail(
-    event: React.SubmitEvent<HTMLFormElement>
-  ) {
-    event.preventDefault();
-    if (!pendingEmail) {
-      return;
-    }
-    if (emailCode.length !== 6) {
-      setEmailOtpBanner({
-        kind: 'error',
-        message: t('email_invalid_code_error'),
-      });
-      return;
-    }
+  async function onConfirmPendingEmail(options: {
+    event: React.SubmitEvent<HTMLFormElement>;
+    emailToConfirm: string;
+  }) {
+    options.event.preventDefault();
     setEmailOtpBanner(null);
     setConfirmingEmail(true);
     const res = await authClient.emailOtp.changeEmail({
-      newEmail: pendingEmail,
+      newEmail: options.emailToConfirm,
       otp: emailCode,
     });
     setConfirmingEmail(false);
@@ -147,14 +135,11 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
     router.refresh();
   }
 
-  async function onResendPendingEmail() {
-    if (!pendingEmail) {
-      return;
-    }
+  async function onResendPendingEmail(emailToConfirm: string) {
     setResendBanner(null);
     setResendingEmail(true);
     const res = await authClient.emailOtp.requestEmailChange({
-      newEmail: pendingEmail,
+      newEmail: emailToConfirm,
     });
     setResendingEmail(false);
     if (res.error) {
@@ -167,7 +152,7 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
     setResendBanner({
       kind: 'success',
       message: t.rich('pending_email_resent', {
-        email: pendingEmail,
+        email: emailToConfirm,
         strong: (chunks) => <strong>{chunks}</strong>,
       }),
     });
@@ -225,7 +210,12 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
                 </p>
                 <form
                   className="mt-3 flex flex-col gap-2"
-                  onSubmit={onConfirmPendingEmail}
+                  onSubmit={async (event) => {
+                    await onConfirmPendingEmail({
+                      event,
+                      emailToConfirm: pendingEmail,
+                    });
+                  }}
                 >
                   <Label className="text-amber-950" htmlFor="emailCode">
                     {t('pending_email_code_label')}
@@ -265,7 +255,9 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
                   <Button
                     className="h-auto min-h-0 px-0 py-0 font-medium text-amber-900 underline shadow-none hover:bg-transparent hover:text-amber-950 hover:underline disabled:opacity-60"
                     disabled={resendingEmail || resendLocked}
-                    onClick={onResendPendingEmail}
+                    onClick={async () => {
+                      await onResendPendingEmail(pendingEmail);
+                    }}
                     type="button"
                     variant="link"
                   >

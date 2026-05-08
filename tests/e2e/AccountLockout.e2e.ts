@@ -84,7 +84,7 @@ async function countFailedAttempts(email: string): Promise<number> {
 }
 
 test.describe('Account lockout', () => {
-  test('locks after repeated failures, sends unlock email, unlocks via link', async ({
+  test('locked-out sailor unlocks account from email link', async ({
     page,
   }) => {
     const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;

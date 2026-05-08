@@ -177,7 +177,50 @@ function differentResetCode(code: string) {
 test.describe('Auth', () => {
   test.describe.configure({ mode: 'serial' });
 
-  test('registers, verifies, and signs in with Better Auth credentials', async ({
+  test('regression persona redirects away from auth-only pages', async ({
+    page,
+  }) => {
+    const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
+    const password = 'Correct-Horse-Battery-Staple';
+    const authPaths = [
+      '/login',
+      '/signup',
+      '/forgot-password',
+      '/reset-password',
+      '/verify-email',
+    ] as const;
+
+    try {
+      await createVerifiedUser(page, email, password);
+
+      for (const path of authPaths) {
+        await page.goto(`${path}?callbackUrl=${encodeURIComponent('/fleet/')}`);
+        await expect
+          .poll(() => new URL(page.url()).pathname)
+          .toMatch(/^\/fleet\/?$/);
+      }
+
+      await page.goto(
+        `/login?callbackUrl=${encodeURIComponent('https://example.com/phish')}`
+      );
+      await expect.poll(() => new URL(page.url()).pathname).toBe('/');
+    } finally {
+      await cleanupByEmail(email);
+    }
+  });
+
+  test('locked-out sailor sees an error banner for invalid unlock links', async ({
+    page,
+  }) => {
+    await page.goto('/api/unlock-account?token=not-a-real-token');
+
+    await expect(page).toHaveURL(/\/login\?error=unlock_invalid/);
+    await expect(formAlert(page)).toHaveText(
+      'That unlock link is invalid or has expired. Wait for the automatic unlock or try again.'
+    );
+  });
+
+  test('visitor registers, verifies, and signs in with Better Auth credentials', async ({
     page,
   }) => {
     const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
@@ -219,7 +262,7 @@ test.describe('Auth', () => {
     await cleanupByEmail(email);
   });
 
-  test('returns to the original page after login-to-signup verification', async ({
+  test('visitor returns to the original page after login-to-signup verification', async ({
     page,
   }) => {
     const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
@@ -242,7 +285,46 @@ test.describe('Auth', () => {
     await cleanupByEmail(email);
   });
 
-  test('returns password reset users to the callback after OTP reset', async ({
+  test('email-change persona changes the signed-in email after OTP confirmation', async ({
+    page,
+  }) => {
+    const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
+    const newEmail = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
+    const password = 'Correct-Horse-Battery-Staple';
+
+    try {
+      await createVerifiedUser(page, email, password);
+
+      await page.goto('/profile/account/');
+      await page.getByLabel('New email').fill(newEmail);
+      await page
+        .getByRole('button', { name: 'Send confirmation code' })
+        .click();
+      await expect(
+        page.getByText(
+          'Confirmation code sent. Enter it below to finish changing your email.'
+        )
+      ).toBeVisible();
+
+      const message = await findLatestMessageTo(newEmail);
+      expect(message.Subject).toMatch(/confirm/i);
+
+      await page
+        .getByLabel('Confirmation code')
+        .fill(extractCodeFromMessage(message));
+      await page.getByRole('button', { name: 'Confirm email' }).click();
+
+      await expect(
+        page.getByText('Your email address has been updated.')
+      ).toBeVisible();
+      await expect(page.getByText(newEmail, { exact: true })).toBeVisible();
+    } finally {
+      await cleanupByEmail(email);
+      await cleanupByEmail(newEmail);
+    }
+  });
+
+  test('visitor returns to the callback after OTP password reset', async ({
     page,
   }) => {
     const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
@@ -273,7 +355,7 @@ test.describe('Auth', () => {
     await cleanupByEmail(email);
   });
 
-  test('keeps a valid password reset code usable after a password mismatch', async ({
+  test('visitor keeps a valid password reset code after a password mismatch', async ({
     page,
   }) => {
     const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
@@ -300,7 +382,7 @@ test.describe('Auth', () => {
     await cleanupByEmail(email);
   });
 
-  test('shows expired copy when a reset code expires before password submit', async ({
+  test('visitor sees expired message when a reset code expires before password submit', async ({
     page,
   }) => {
     const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
@@ -325,7 +407,7 @@ test.describe('Auth', () => {
     await cleanupByEmail(email);
   });
 
-  test('requests a reset from the login email without a second send action', async ({
+  test('visitor requests a reset from the login email without a second send action', async ({
     page,
   }) => {
     const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
@@ -354,7 +436,7 @@ test.describe('Auth', () => {
     await cleanupByEmail(email);
   });
 
-  test('revokes existing sessions after password reset', async ({
+  test('profile owner revokes existing sessions after password reset', async ({
     browser,
     page,
   }) => {
@@ -386,7 +468,7 @@ test.describe('Auth', () => {
     }
   });
 
-  test('rejects invalid credentials', async ({ page }) => {
+  test('visitor sees invalid credentials message', async ({ page }) => {
     const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
 
     await page.goto('/login');
@@ -397,7 +479,7 @@ test.describe('Auth', () => {
     await expect(formAlert(page)).toHaveText('Invalid email or password.');
   });
 
-  test('surfaces an explicit error when signing up with an existing email', async ({
+  test('visitor sees an explicit error when signing up with an existing email', async ({
     page,
   }) => {
     const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
@@ -419,7 +501,7 @@ test.describe('Auth', () => {
     await cleanupByEmail(email);
   });
 
-  test('blocks sign-in for unverified accounts', async ({ page }) => {
+  test('unverified sailor is blocked from sign-in', async ({ page }) => {
     const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
     const password = 'Correct-Horse-Battery-Staple';
 

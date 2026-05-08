@@ -95,14 +95,11 @@ export function SignInForm(props: SignInFormProps) {
     router.refresh();
   }
 
-  async function onSendVerificationCode() {
-    if (error?.kind !== 'unverified' || error.email.trim() === '') {
-      return;
-    }
+  async function onSendVerificationCode(unverifiedEmail: string) {
     setResending(true);
     try {
       const res = await authClient.emailOtp.sendVerificationOtp({
-        email: error.email,
+        email: unverifiedEmail,
         type: 'email-verification',
       });
       if (res.error) {
@@ -115,7 +112,9 @@ export function SignInForm(props: SignInFormProps) {
       setResent(true);
       router.push(
         authHrefWithCallback(
-          `/verify-email?email=${encodeURIComponent(error.email)}`,
+          `/verify-email?email=${encodeURIComponent(
+            unverifiedEmail
+          )}&codeSent=1`,
           props.callbackUrl
         )
       );
@@ -153,7 +152,9 @@ export function SignInForm(props: SignInFormProps) {
 
       router.push(
         authHrefWithCallback(
-          `/reset-password?email=${encodeURIComponent(normalizedEmail)}`,
+          `/reset-password?email=${encodeURIComponent(
+            normalizedEmail
+          )}&codeSent=1`,
           props.callbackUrl
         )
       );
@@ -186,7 +187,9 @@ export function SignInForm(props: SignInFormProps) {
             <Button
               className="h-auto min-h-0 px-0 py-0 font-medium text-red-900 underline shadow-none hover:bg-transparent hover:text-red-950 hover:underline disabled:opacity-60"
               disabled={resending}
-              onClick={onSendVerificationCode}
+              onClick={async () => {
+                await onSendVerificationCode(error.email);
+              }}
               type="button"
               variant="link"
             >

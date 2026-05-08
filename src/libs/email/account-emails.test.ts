@@ -1,5 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+const { findUnique, update } = vi.hoisted(() => ({
+  findUnique: vi.fn(),
+  update: vi.fn(),
+}));
+
+vi.mock('@/libs/DB', () => ({
+  prisma: {
+    user: {
+      findUnique,
+      update,
+    },
+  },
+}));
+
 vi.mock('@/libs/email/sendTransactional', () => ({
   sendTransactionalEmail: vi.fn(),
 }));
@@ -8,12 +22,137 @@ vi.mock('@/libs/auth/unlock-token', () => ({
   createUnlockAccountToken: vi.fn().mockResolvedValue('fake-signed-jwt-token'),
 }));
 
-describe('sendAccountLockedEmail', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+beforeEach(() => {
+  vi.clearAllMocks();
+  findUnique.mockResolvedValue({ unconfirmedEmail: null });
+  update.mockResolvedValue({});
+});
+
+describe('account email notices', () => {
+  it('security-notice persona receives a verification code email', async () => {
+    const { sendTransactionalEmail } =
+      await import('@/libs/email/sendTransactional');
+    const { sendEmailOtpCode } = await import('@/libs/email/account-emails');
+
+    await sendEmailOtpCode({
+      email: 'new-sailor@example.com',
+      otp: '123456',
+      type: 'email-verification',
+    });
+
+    const [payload] = vi.mocked(sendTransactionalEmail).mock.calls[0] ?? [];
+
+    expect(payload?.to).toBe('new-sailor@example.com');
+    expect(payload?.subject).toMatch(/confirm/i);
+    expect(payload?.text).toContain('verification code is 123456');
   });
 
-  it('builds an unlock URL that targets /api/unlock-account with a signed token', async () => {
+  it('security-notice persona receives a password reset code email', async () => {
+    const { sendTransactionalEmail } =
+      await import('@/libs/email/sendTransactional');
+    const { sendEmailOtpCode } = await import('@/libs/email/account-emails');
+
+    await sendEmailOtpCode({
+      email: 'reset@example.com',
+      otp: '654321',
+      type: 'forget-password',
+    });
+
+    const [payload] = vi.mocked(sendTransactionalEmail).mock.calls[0] ?? [];
+
+    expect(payload?.to).toBe('reset@example.com');
+    expect(payload?.subject).toMatch(/reset/i);
+    expect(payload?.text).toContain('password reset code is 654321');
+  });
+
+  it('email-change persona receives a confirmation code at the new email', async () => {
+    const { sendTransactionalEmail } =
+      await import('@/libs/email/sendTransactional');
+    const { sendEmailOtpCode } = await import('@/libs/email/account-emails');
+
+    await sendEmailOtpCode({
+      email: 'next@example.com',
+      otp: '987654',
+      type: 'change-email',
+    });
+
+    const [payload] = vi.mocked(sendTransactionalEmail).mock.calls[0] ?? [];
+
+    expect(payload?.to).toBe('next@example.com');
+    expect(payload?.subject).toMatch(/new email/i);
+    expect(payload?.text).toContain('email change confirmation code is 987654');
+  });
+
+  it('email-change persona records when the pending email changes', async () => {
+    const { markPendingEmailChange } =
+      await import('@/libs/email/account-emails');
+
+    findUnique.mockResolvedValue({ unconfirmedEmail: 'old@example.com' });
+
+    await expect(
+      markPendingEmailChange({
+        newEmail: 'next@example.com',
+        userId: 'user_123',
+      })
+    ).resolves.toBe(true);
+
+    expect(update).toHaveBeenCalledWith({
+      data: { unconfirmedEmail: 'next@example.com' },
+      where: { id: 'user_123' },
+    });
+  });
+
+  it('email-change persona keeps resend state when pending email is unchanged', async () => {
+    const { markPendingEmailChange } =
+      await import('@/libs/email/account-emails');
+
+    findUnique.mockResolvedValue({ unconfirmedEmail: 'next@example.com' });
+
+    await expect(
+      markPendingEmailChange({
+        newEmail: 'next@example.com',
+        userId: 'user_123',
+      })
+    ).resolves.toBe(false);
+  });
+
+  it('security-notice persona receives a change-request notice at the current email', async () => {
+    const { sendTransactionalEmail } =
+      await import('@/libs/email/sendTransactional');
+    const { sendEmailChangeRequestedNotice } =
+      await import('@/libs/email/account-emails');
+
+    await sendEmailChangeRequestedNotice({
+      currentEmail: 'current@example.com',
+      newEmail: 'next@example.com',
+    });
+
+    const [payload] = vi.mocked(sendTransactionalEmail).mock.calls[0] ?? [];
+
+    expect(payload?.to).toBe('current@example.com');
+    expect(payload?.subject).toMatch(/email change requested/i);
+    expect(payload?.html).toContain('next@example.com');
+  });
+
+  it('security-notice persona receives the delete-account confirmation email', async () => {
+    const { sendTransactionalEmail } =
+      await import('@/libs/email/sendTransactional');
+    const { sendDeleteAccountVerificationEmail } =
+      await import('@/libs/email/account-emails');
+
+    await sendDeleteAccountVerificationEmail(
+      'owner@example.com',
+      'https://example.test/delete'
+    );
+
+    const [payload] = vi.mocked(sendTransactionalEmail).mock.calls[0] ?? [];
+
+    expect(payload?.to).toBe('owner@example.com');
+    expect(payload?.subject).toMatch(/account deletion/i);
+    expect(payload?.html).toContain('https://example.test/delete');
+  });
+
+  it('locked-out sailor receives an unlock URL with a signed token', async () => {
     const { sendTransactionalEmail } =
       await import('@/libs/email/sendTransactional');
     const { sendAccountLockedEmail } =
@@ -41,5 +180,19 @@ describe('sendAccountLockedEmail', () => {
     expect(payload.html).toMatch(/\/api\/unlock-account\?token=/);
     expect(payload.html).toMatch(/fake-signed-jwt-token/);
     expect(payload.html).toMatch(/https?:\/\//);
+  });
+
+  it('security-notice persona receives a password-changed notice', async () => {
+    const { sendTransactionalEmail } =
+      await import('@/libs/email/sendTransactional');
+    const { sendPasswordChangedNotice } =
+      await import('@/libs/email/account-emails');
+
+    await sendPasswordChangedNotice('owner@example.com');
+
+    const [payload] = vi.mocked(sendTransactionalEmail).mock.calls[0] ?? [];
+
+    expect(payload?.to).toBe('owner@example.com');
+    expect(payload?.subject).toMatch(/password was changed/i);
   });
 });

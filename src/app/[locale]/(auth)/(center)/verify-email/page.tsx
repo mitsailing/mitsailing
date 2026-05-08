@@ -11,7 +11,11 @@ export const metadata: Metadata = {
 
 type VerifyEmailPageProps = {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ callbackUrl?: string; email?: string }>;
+  searchParams: Promise<{
+    callbackUrl?: string;
+    codeSent?: string;
+    email?: string;
+  }>;
 };
 
 export default async function VerifyEmailPage(props: VerifyEmailPageProps) {
@@ -28,6 +32,7 @@ export default async function VerifyEmailPage(props: VerifyEmailPageProps) {
     <VerifyEmailForm
       callbackUrl={callbackUrl}
       initialEmail={searchParams.email ?? ''}
+      initialResendLocked={searchParams.codeSent === '1'}
     />
   );
 }
