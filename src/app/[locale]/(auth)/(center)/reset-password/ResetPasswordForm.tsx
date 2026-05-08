@@ -97,14 +97,15 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
       return;
     }
     setResending(true);
-    const res = await authClient.emailOtp.requestPasswordReset({ email });
-    setResending(false);
-    if (res.error) {
-      setError(mapError(res.error.code, res.error.message));
-      return;
+    try {
+      await authClient.emailOtp.requestPasswordReset({ email });
+      setStatus(t('resent_banner'));
+      lockResend();
+    } catch {
+      setError(t('error_resend_failed'));
+    } finally {
+      setResending(false);
     }
-    setStatus(t('resent_banner'));
-    lockResend();
   }
 
   async function onSubmit(event: React.SubmitEvent<HTMLFormElement>) {

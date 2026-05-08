@@ -241,6 +241,7 @@
     "resend_email": "Resend email",
     "resend_wait": "Resend available in 30 seconds",
     "resent_banner": "We sent a new reset code.",
+    "error_resend_failed": "We could not send a reset code right now.",
     "error_validation": "Check your password and try again.",
     "error_pwned": "That password has appeared in a known data breach. Choose a different one.",
     "error_invalid_email": "Enter a valid email address with a domain (for example name@mit.edu).",
