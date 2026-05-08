@@ -53,14 +53,6 @@ export function formatEasternSameDayTimeRange(start: Date, end: Date): string {
   return `${timeOnlyFormatter.format(start)} – ${timeOnlyFormatter.format(end)}`;
 }
 
-const isoCalendarDayDisplayFormatter = new Intl.DateTimeFormat('en-US', {
-  timeZone: 'America/New_York',
-  weekday: 'short',
-  month: 'short',
-  day: 'numeric',
-  year: 'numeric',
-});
-
 /**
  * Formats a civil ISO calendar date for compact marketing display.
  * Uses noon UTC so timezone shifting does not change the calendar day.
@@ -77,5 +69,5 @@ export function formatEasternShortDateFromIsoCalendar(iso: string): string {
   const month = Number(match[2]);
   const day = Number(match[3]);
   const instant = new Date(Date.UTC(y, month - 1, day, 12, 0, 0));
-  return isoCalendarDayDisplayFormatter.format(instant);
+  return fullDateFormatter.format(instant);
 }
