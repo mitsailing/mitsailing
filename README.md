@@ -161,7 +161,7 @@ npm run check:types      # tsc --noEmit
 npm run check:deps       # knip unused-code report
 npm run check:i18n       # next-intl message coverage
 npm run test             # Vitest unit + browser tests
-npm run test:integration # db:test:up → db:wait → db:migrate:test → test → db:test:down
+npm run test:integration # db:test:up → db:wait → reset + migrate test_db → test → db:test:down
 npm run test:e2e         # Playwright end-to-end (spins up a test DB)
 npm run storybook        # Storybook dev server on :6006
 npm run build-storybook  # static Storybook build
@@ -186,7 +186,8 @@ The project uses Prisma (`@prisma/client` + `@prisma/adapter-pg`) against Postgr
 
 The Next.js app runs on the **host**, not in Compose; Compose is only Postgres + Mailpit. New-developer flow (including **seed** and **login**) is the [First time on this repo](#first-time-on-this-repo-checklist) checklist above.
 
-`npm run test:e2e` uses the same Docker stack and also migrates `test_db` via `db:migrate:test`.
+`npm run test:e2e` uses the same Docker stack and resets + migrates `test_db` via `db:migrate:test`, so stale schemas from other branches are not reused.
+Playwright defaults to four workers so production `next start`, Postgres, Mailpit, and Argon2 auth flows stay deterministic; set `PLAYWRIGHT_WORKERS` to tune for a larger runner.
 
 ### Seed data and admin user
 

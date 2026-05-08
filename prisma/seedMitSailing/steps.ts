@@ -20,6 +20,7 @@ import {
   GLOBAL_EVENT_DATES,
   STUB_USERS,
 } from '../../src/data/mit-sailing/eventsSeed';
+import { SITE_ALERT_SEED_ROWS } from '../../src/data/mit-sailing/siteAlertsSeed';
 import { Prisma } from '../../src/generated/prisma/client';
 import type { PrismaClient } from '../../src/generated/prisma/client';
 import type { EventRegistrationStatus } from '../../src/generated/prisma/enums';
@@ -457,6 +458,30 @@ export async function seedDonationFunds(p: PrismaClient): Promise<void> {
         url: row.url,
         displayOrder: row.displayOrder,
         isVisible: row.isVisible,
+      },
+    });
+  }
+}
+
+/**
+ * @param p - Prisma client
+ */
+export async function seedSiteAlerts(p: PrismaClient): Promise<void> {
+  for (const row of SITE_ALERT_SEED_ROWS) {
+    await p.siteAlert.upsert({
+      where: { id: row.id },
+      create: {
+        id: row.id,
+        body: row.body,
+        isPublished: row.isPublished,
+        startDate: row.startDate,
+        lastDate: row.lastDate,
+      },
+      update: {
+        body: row.body,
+        isPublished: row.isPublished,
+        startDate: row.startDate,
+        lastDate: row.lastDate,
       },
     });
   }

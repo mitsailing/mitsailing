@@ -2,10 +2,6 @@
   "MitSailingHome": {
     "meta_title": "MIT Sailing",
     "meta_description": "Sailing programs, events, and fleet at the MIT Sailing Pavilion.",
-    "news_badge": "News",
-    "news_1": "Apr 14 — Limited boats available April 18 due to Boston Dinghy Cup",
-    "news_2": "Apr 13 — Priority Queue for 2026 is now open",
-    "news_3": "Jan 28 — Pavilion front parking unavailable until July",
     "hero_kicker": "MIT Sailing Pavilion · Cambridge, MA",
     "hero_title": "Sail the Charles River",
     "hero_body": "One of the finest university sailing programs in the world — open to MIT students, faculty, staff, and the public.",
@@ -86,6 +82,17 @@
     "util_donate": "Donate",
     "auth_log_in": "Log in",
     "auth_create_account": "Create account",
+    "alerts_banner_heading": "Current site alerts",
+    "alerts_banner_aria_prefix": "Site alerts",
+    "alerts_view_all": "View all alerts",
+    "alerts_see_all": "See all alerts",
+    "alerts_show_more": "Show more",
+    "alerts_show_less": "Show less",
+    "alerts_toggle_expand_aria": "Expand site alerts to show messages",
+    "alerts_toggle_collapse_aria": "Collapse site alerts to a short summary",
+    "alerts_banner_link_expanded_aria": "Site alerts — opens full alerts page",
+    "alerts_collapsed_count_one": "1 alert.",
+    "alerts_collapsed_count_many": "{count} alerts.",
     "a11y_open_menu": "Open menu",
     "a11y_close_menu": "Close menu",
     "a11y_header_session_loading": "Loading account status",
@@ -352,6 +359,7 @@
     "nav_class_categories": "Class categories",
     "nav_fleet": "Fleet",
     "nav_sailing_classes": "Classes",
+    "nav_site_alerts": "Site alerts",
     "nav_site_text": "Site text"
   },
   "SiteSidebarLayout": {
@@ -451,7 +459,17 @@
     "assoc_pagination_prev": "Previous",
     "assoc_pagination_next": "Next",
     "new_heading": "New row",
-    "edit_heading": "Edit row"
+    "edit_heading": "Edit row",
+    "hub_label_site_alerts": "Site alerts",
+    "column_site_alert_message": "Message",
+    "column_site_alert_published": "Status",
+    "column_site_alert_start_date": "Start date",
+    "column_site_alert_last_date": "Last date",
+    "field_site_alert_published": "Published on site",
+    "field_site_alert_message": "Alert message",
+    "field_site_alert_message_links_hint": "Plain text plus links only: use <a href=\"…\">…</a> for links and <br> for line breaks. Other HTML is removed.",
+    "field_site_alert_start_date": "Start date",
+    "field_site_alert_last_date": "Last date"
   },
   "AdminUsers": {
     "hub_label_users": "Users",
@@ -640,7 +658,10 @@
     "meta_title_admin_users_new": "New user (admin)",
     "meta_title_admin_users_edit": "Edit user (admin)",
     "meta_title_admin_users_delete": "Delete user (admin)",
-    "title_admin_users_delete": "Delete user"
+    "title_admin_users_delete": "Delete user",
+    "section_alerts": "Alerts",
+    "meta_title_admin_catalog_site_alerts": "Site alerts (admin)",
+    "title_admin_catalog_site_alerts": "Site alerts"
   },
   "MitSailingAbout": {
     "back_to_about": "Back to About"
@@ -682,5 +703,11 @@
     "field_category": "Category",
     "field_schedule": "Schedule",
     "external_cta": "Visit external registration page"
+  },
+  "MitSailingAlerts": {
+    "meta_title": "Alerts",
+    "page_heading": "Alerts",
+    "page_intro": "Official notices about schedules, facilities, and operations.",
+    "list_empty": "There are no published alerts right now."
   }
 }

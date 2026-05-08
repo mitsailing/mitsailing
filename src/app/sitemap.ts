@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { unstable_cache } from 'next/cache';
 import { prisma } from '@/libs/DB';
+import { Env } from '@/libs/Env';
 import { routing } from '@/libs/I18nRouting';
 import { getBaseUrl, getI18nPath } from '@/utils/Helpers';
 
@@ -20,17 +21,19 @@ export const sitemapCatalogCacheTag = 'sitemap-catalog';
  */
 export const dynamic = 'force-dynamic';
 
-const getCatalogSlugs = unstable_cache(
-  async () => {
-    const [classes, boats] = await Promise.all([
-      prisma.sailingClass.findMany({
-        where: { isVisible: true },
-        select: { slug: true },
-      }),
-      prisma.fleetBoat.findMany({ select: { slug: true } }),
-    ]);
-    return [classes, boats] as const;
-  },
+async function fetchCatalogSlugs() {
+  const [classes, boats] = await Promise.all([
+    prisma.sailingClass.findMany({
+      where: { isVisible: true },
+      select: { slug: true },
+    }),
+    prisma.fleetBoat.findMany({ select: { slug: true } }),
+  ]);
+  return [classes, boats] as const;
+}
+
+const getCachedCatalogSlugs = unstable_cache(
+  fetchCatalogSlugs,
   ['sitemap-catalog-slugs'],
   {
     revalidate: SITEMAP_CATALOG_REVALIDATE_SECONDS,
@@ -41,7 +44,10 @@ const getCatalogSlugs = unstable_cache(
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = getBaseUrl();
 
-  const [classSlugs, boatSlugs] = await getCatalogSlugs();
+  const [classSlugs, boatSlugs] =
+    Env.NEXT_PUBLIC_IS_E2E === '1'
+      ? await fetchCatalogSlugs()
+      : await getCachedCatalogSlugs();
 
   const staticRoutes = [
     '',
@@ -49,6 +55,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     '/events',
     '/classes',
     '/fleet',
+    '/alerts',
     '/contact',
     '/contact/mashnee-directions',
     '/about/mitna',

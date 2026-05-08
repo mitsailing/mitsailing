@@ -10,7 +10,7 @@
  * pattern if catalog forms need inline errors without a full round-trip redirect.
  */
 
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { redirect } from 'next/navigation';
 import * as z from 'zod';
 import {
@@ -25,6 +25,7 @@ import { isCatalogResourceId } from '@/libs/admin/catalog/catalogDefinitions';
 import { getCatalogServerHandlers } from '@/libs/admin/catalog/catalogServerRegistry';
 import type { CatalogReorderScope } from '@/libs/admin/catalog/types';
 import { requireAdmin } from '@/libs/auth/dal';
+import { SITE_ALERTS_CACHE_TAG } from '@/libs/mit-sailing/siteAlertQueries';
 import { getI18nPath } from '@/utils/Helpers';
 
 const orderedIdsSchema = z.array(z.string().min(1)).min(1);
@@ -37,6 +38,7 @@ const CATALOG_EXTRA_PUBLIC_PATHS: Partial<
   class_categories: ['/classes'],
   sailing_classes: ['/classes'],
   fleet: ['/fleet'],
+  site_alerts: ['/', '/alerts'],
 };
 
 function revalidateAfterCatalogMutation(
@@ -49,6 +51,9 @@ function revalidateAfterCatalogMutation(
     for (const path of extra) {
       revalidatePath(getI18nPath(path, locale));
     }
+  }
+  if (resourceId === 'site_alerts') {
+    revalidateTag(SITE_ALERTS_CACHE_TAG, { expire: 0 });
   }
   revalidatePath(getI18nPath(ADMIN_INDEX_PATH, locale));
   revalidatePath(

@@ -1,15 +1,12 @@
-/** IANA zone for US Eastern (EST + EDT). */
-export const EVENTS_TIME_ZONE = 'America/New_York';
-
 const ymdFormatter = new Intl.DateTimeFormat('en-CA', {
-  timeZone: EVENTS_TIME_ZONE,
+  timeZone: 'America/New_York',
   year: 'numeric',
   month: '2-digit',
   day: '2-digit',
 });
 
 const fullFormatter = new Intl.DateTimeFormat('en-US', {
-  timeZone: EVENTS_TIME_ZONE,
+  timeZone: 'America/New_York',
   year: 'numeric',
   month: 'numeric',
   day: 'numeric',
@@ -100,7 +97,7 @@ export function startOfNyCalendarDay(ymd: string): Date {
   return new Date(hi);
 }
 
-export function nextNyYmd(ymd: string): string {
+function nextNyYmd(ymd: string): string {
   const s = startOfNyCalendarDay(ymd);
   let lo = s.getTime();
   let hi = s.getTime() + 72 * 60 * 60 * 1000;
@@ -115,7 +112,7 @@ export function nextNyYmd(ymd: string): string {
   return nyYmd(new Date(hi));
 }
 
-export function prevNyYmd(ymd: string): string {
+function prevNyYmd(ymd: string): string {
   const s = startOfNyCalendarDay(ymd);
   return nyYmd(new Date(s.getTime() - 1));
 }
@@ -127,45 +124,4 @@ export function addNyCalendarDays(ymd: string, days: number): string {
     k = step > 0 ? nextNyYmd(k) : prevNyYmd(k);
   }
   return k;
-}
-
-export function nyMonthFirstYmd(year: number, month: number): string {
-  const m = String(month).padStart(2, '0');
-  return `${year}-${m}-01`;
-}
-
-export function listNyDayKeysInMonth(year: number, month: number): string[] {
-  const keys: string[] = [];
-  let k = nyMonthFirstYmd(year, month);
-  while (true) {
-    const y = Number(k.slice(0, 4));
-    const mo = Number(k.slice(5, 7));
-    if (y !== year || mo !== month) {
-      break;
-    }
-    keys.push(k);
-    k = nextNyYmd(k);
-  }
-  return keys;
-}
-
-const nyWeekdayShort = new Intl.DateTimeFormat('en-US', {
-  timeZone: EVENTS_TIME_ZONE,
-  weekday: 'short',
-});
-
-export function nyWeekdaySunday0(ymd: string): number {
-  const parts = nyWeekdayShort.formatToParts(startOfNyCalendarDay(ymd));
-  const raw = parts.find((p) => p.type === 'weekday')?.value?.trim() ?? '';
-  const key = raw.replace(/\.$/, '').slice(0, 3).toLowerCase();
-  const map: Record<string, number> = {
-    sun: 0,
-    mon: 1,
-    tue: 2,
-    wed: 3,
-    thu: 4,
-    fri: 5,
-    sat: 6,
-  };
-  return map[key] ?? 0;
 }

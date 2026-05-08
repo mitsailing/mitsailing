@@ -18,7 +18,7 @@ import type messages from '@/locales/en.json';
 
 function inputTypeForFieldKind(
   kind: AdminFieldKind
-): 'url' | 'number' | 'text' | 'password' {
+): 'url' | 'number' | 'text' | 'password' | 'datetime-local' | 'date' {
   if (kind === 'url') {
     return 'url';
   }
@@ -28,7 +28,23 @@ function inputTypeForFieldKind(
   if (kind === 'password') {
     return 'password';
   }
+  if (kind === 'datetimeLocal') {
+    return 'datetime-local';
+  }
+  if (kind === 'date') {
+    return 'date';
+  }
   return 'text';
+}
+
+function autoCompleteForCatalogField(kind: AdminFieldKind): string | undefined {
+  if (kind === 'password') {
+    return 'new-password';
+  }
+  if (kind === 'date') {
+    return 'off';
+  }
+  return undefined;
 }
 
 function catalogResourceFormErrorMessage(
@@ -163,6 +179,112 @@ type AdminCatalogFormProps = {
   >;
 };
 
+function CatalogTextareaField(props: {
+  fieldId: string;
+  label: string;
+  defaultValue: string;
+  fieldKey: string;
+  required: boolean | undefined;
+  linksHint: string | undefined;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5 text-sm">
+      <Label className="text-foreground" htmlFor={props.fieldId}>
+        {props.label}
+      </Label>
+      <Textarea
+        className="min-h-[120px]"
+        defaultValue={props.defaultValue}
+        id={props.fieldId}
+        name={props.fieldKey}
+        required={props.required}
+      />
+      {props.linksHint ? (
+        <p className="text-xs text-muted-foreground">{props.linksHint}</p>
+      ) : null}
+    </div>
+  );
+}
+
+function CatalogBooleanField(props: {
+  fieldKey: string;
+  label: string;
+  checked: boolean;
+  compactBooleanLabels: boolean;
+  checkboxLabel: string;
+  onToggle: (next: boolean) => void;
+}) {
+  if (props.compactBooleanLabels) {
+    return (
+      <label className="flex cursor-pointer items-center gap-2 text-sm text-mit-text">
+        <input name={props.fieldKey} type="hidden" value="false" />
+        <input
+          checked={props.checked}
+          className="size-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
+          name={props.fieldKey}
+          onChange={(event) => {
+            props.onToggle(event.target.checked);
+          }}
+          type="checkbox"
+          value="true"
+        />
+        <span className="font-medium">{props.label}</span>
+      </label>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="text-sm font-medium text-mit-text">{props.label}</span>
+      <input name={props.fieldKey} type="hidden" value="false" />
+      <label className="flex cursor-pointer items-center gap-2 text-sm text-mit-text">
+        <input
+          checked={props.checked}
+          className="size-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
+          name={props.fieldKey}
+          onChange={(event) => {
+            props.onToggle(event.target.checked);
+          }}
+          type="checkbox"
+          value="true"
+        />
+        {props.checkboxLabel}
+      </label>
+    </div>
+  );
+}
+
+function CatalogSelectFieldBranch(props: {
+  fieldKey: string;
+  label: string;
+  defaultValue: string;
+  required: boolean | undefined;
+  selectOptions: AdminFormFieldDef['selectOptions'];
+  dynamicOptions: readonly DynamicSelectOption[] | undefined;
+  translateLabel: (key: AdminFormFieldDef['labelKey']) => string;
+}) {
+  const dynOpts = props.dynamicOptions;
+  if (dynOpts && dynOpts.length > 0) {
+    return catalogDynamicSelectField({
+      fieldKey: props.fieldKey,
+      label: props.label,
+      defaultValue: props.defaultValue,
+      required: props.required,
+      options: dynOpts,
+    });
+  }
+  if (props.selectOptions && props.selectOptions.length > 0) {
+    return catalogStaticSelectField({
+      fieldKey: props.fieldKey,
+      label: props.label,
+      defaultValue: props.defaultValue,
+      required: props.required,
+      options: props.selectOptions,
+      translateLabel: props.translateLabel,
+    });
+  }
+  return null;
+}
+
 function initialBooleanFields(
   fields: readonly AdminFormFieldDef[],
   row?: CatalogRow
@@ -219,7 +341,6 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
 
   const compactBooleanLabels = ns === 'AdminUsers';
 
-  /* eslint-disable complexity -- branches mirror catalog field kinds (text, boolean, select, default inputs). */
   function renderCatalogField(field: AdminFormFieldDef) {
     const key = field.field;
     const label = translateLabel(field.labelKey);
@@ -230,102 +351,53 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
 
     if (field.kind === 'text') {
       const fieldId = `catalog-field-${key}`;
+      const linksHint =
+        props.definition.id === 'site_alerts' && key === 'body'
+          ? tCatalog('field_site_alert_message_links_hint')
+          : undefined;
       return (
-        <div key={key} className="flex flex-col gap-1.5 text-sm">
-          <Label className="text-foreground" htmlFor={fieldId}>
-            {label}
-          </Label>
-          <Textarea
-            className="min-h-[120px]"
-            defaultValue={defaultValue}
-            id={fieldId}
-            name={key}
-            required={field.required}
-          />
-        </div>
+        <CatalogTextareaField
+          key={key}
+          defaultValue={defaultValue}
+          fieldId={fieldId}
+          fieldKey={key}
+          label={label}
+          linksHint={linksHint}
+          required={field.required}
+        />
       );
     }
 
     if (field.kind === 'boolean') {
       const checked = bools[key] ?? false;
-      if (compactBooleanLabels) {
-        return (
-          <label
-            key={key}
-            className="flex cursor-pointer items-center gap-2 text-sm text-mit-text"
-          >
-            <input name={key} type="hidden" value="false" />
-            <input
-              checked={checked}
-              className="size-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
-              name={key}
-              onChange={(event) => {
-                setBools((prev) => ({
-                  ...prev,
-                  [key]: event.target.checked,
-                }));
-              }}
-              type="checkbox"
-              value="true"
-            />
-            <span className="font-medium">{label}</span>
-          </label>
-        );
-      }
       return (
-        <div key={key} className="flex flex-col gap-2">
-          <span className="text-sm font-medium text-mit-text">{label}</span>
-          <input name={key} type="hidden" value="false" />
-          <label className="flex cursor-pointer items-center gap-2 text-sm text-mit-text">
-            <input
-              checked={checked}
-              className="size-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
-              name={key}
-              onChange={(event) => {
-                setBools((prev) => ({
-                  ...prev,
-                  [key]: event.target.checked,
-                }));
-              }}
-              type="checkbox"
-              value="true"
-            />
-            {tc('column_visible')}
-          </label>
-        </div>
+        <CatalogBooleanField
+          key={key}
+          checked={checked}
+          checkboxLabel={key === 'isVisible' ? tc('column_visible') : label}
+          compactBooleanLabels={compactBooleanLabels}
+          fieldKey={key}
+          label={label}
+          onToggle={(next) => {
+            setBools((prev) => ({ ...prev, [key]: next }));
+          }}
+        />
       );
     }
 
     if (field.kind === 'select') {
-      const dynOpts = props.dynamicSelectOptions?.[key];
-      if (dynOpts && dynOpts.length > 0) {
-        return (
-          <div key={key}>
-            {catalogDynamicSelectField({
-              fieldKey: key,
-              label,
-              defaultValue,
-              required: field.required,
-              options: dynOpts,
-            })}
-          </div>
-        );
-      }
-      if (field.selectOptions && field.selectOptions.length > 0) {
-        return (
-          <div key={key}>
-            {catalogStaticSelectField({
-              fieldKey: key,
-              label,
-              defaultValue,
-              required: field.required,
-              options: field.selectOptions,
-              translateLabel,
-            })}
-          </div>
-        );
-      }
-      return null;
+      return (
+        <CatalogSelectFieldBranch
+          key={key}
+          defaultValue={defaultValue}
+          dynamicOptions={props.dynamicSelectOptions?.[key]}
+          fieldKey={key}
+          label={label}
+          required={field.required}
+          selectOptions={field.selectOptions}
+          translateLabel={translateLabel}
+        />
+      );
     }
 
     const inputType = inputTypeForFieldKind(field.kind);
@@ -337,7 +409,7 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
           {label}
         </Label>
         <Input
-          autoComplete={field.kind === 'password' ? 'new-password' : undefined}
+          autoComplete={autoCompleteForCatalogField(field.kind)}
           defaultValue={defaultValue}
           id={fieldId}
           name={key}
@@ -361,7 +433,6 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
       </div>
     );
   }
-  /* eslint-enable complexity */
 
   return (
     <div className="flex flex-col gap-6">
@@ -387,7 +458,11 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
         </p>
       ) : null}
 
-      <form action={props.formAction} className="flex max-w-xl flex-col gap-4">
+      <form
+        action={props.formAction}
+        autoComplete={props.definition.id === 'site_alerts' ? 'off' : undefined}
+        className="flex max-w-xl flex-col gap-4"
+      >
         {props.definition.formFields.map(renderCatalogField)}
 
         <div className="flex flex-wrap gap-3 pt-2">

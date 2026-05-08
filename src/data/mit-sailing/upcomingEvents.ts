@@ -1,6 +1,5 @@
 import {
   addNyCalendarDays,
-  EVENTS_TIME_ZONE,
   nyYmd,
   startOfNyCalendarDay,
 } from '@/lib/mit-sailing/nyTime';
@@ -8,7 +7,7 @@ import type { Event, EventCategory, EventDate } from './eventsSeed';
 import { getEventById, GLOBAL_EVENT_DATES } from './eventsSeed';
 
 const dateWithYear = new Intl.DateTimeFormat('en-US', {
-  timeZone: EVENTS_TIME_ZONE,
+  timeZone: 'America/New_York',
   weekday: 'short',
   month: 'short',
   day: 'numeric',
@@ -16,14 +15,14 @@ const dateWithYear = new Intl.DateTimeFormat('en-US', {
 });
 
 const dateNoYear = new Intl.DateTimeFormat('en-US', {
-  timeZone: EVENTS_TIME_ZONE,
+  timeZone: 'America/New_York',
   weekday: 'short',
   month: 'short',
   day: 'numeric',
 });
 
 const timeFmt = new Intl.DateTimeFormat('en-US', {
-  timeZone: EVENTS_TIME_ZONE,
+  timeZone: 'America/New_York',
   hour: 'numeric',
   minute: '2-digit',
   hour12: true,
@@ -36,7 +35,7 @@ function formatTime(d: Date): string {
 /** Time-only line when the occurrence is listed under its start-day heading (same NY day). */
 export function formatOccurrenceTimeLine(start: Date, end: Date): string {
   if (nyYmd(start) === nyYmd(end)) {
-    return `${formatTime(start)} – ${formatTime(end)} ET`;
+    return `${formatTime(start)} – ${formatTime(end)}`;
   }
   return formatEventDateRange(start, end);
 }
@@ -58,10 +57,10 @@ export function formatOccurrenceListLine(row: UpcomingOccurrenceRow): string {
       return formatOccurrenceTimeLine(row.start, row.end);
     }
     case 'multi-start': {
-      return `${formatTime(row.start)} – ${dateNoYear.format(row.end)}, ${formatTime(row.end)} ET`;
+      return `${formatTime(row.start)} – ${dateNoYear.format(row.end)}, ${formatTime(row.end)}`;
     }
     case 'multi-end': {
-      return `Until ${formatTime(row.end)} ET`;
+      return `Until ${formatTime(row.end)}`;
     }
     default: {
       return formatOccurrenceTimeLine(row.start, row.end);
@@ -73,14 +72,14 @@ export function formatOccurrenceListLine(row: UpcomingOccurrenceRow): string {
 export function formatEventDateRange(start: Date, end: Date): string {
   const sameNyDay = nyYmd(start) === nyYmd(end);
   if (sameNyDay) {
-    return `${dateWithYear.format(start)} · ${formatTime(start)} – ${formatTime(end)} ET`;
+    return `${dateWithYear.format(start)} · ${formatTime(start)} – ${formatTime(end)}`;
   }
   const yStart = Number(nyYmd(start).slice(0, 4));
   const yEnd = Number(nyYmd(end).slice(0, 4));
   if (yStart === yEnd) {
-    return `${dateNoYear.format(start)}, ${formatTime(start)} – ${dateNoYear.format(end)}, ${formatTime(end)}, ${yStart} ET`;
+    return `${dateNoYear.format(start)}, ${formatTime(start)} – ${dateNoYear.format(end)}, ${formatTime(end)}, ${yStart}`;
   }
-  return `${dateWithYear.format(start)}, ${formatTime(start)} – ${dateWithYear.format(end)}, ${formatTime(end)} ET`;
+  return `${dateWithYear.format(start)}, ${formatTime(start)} – ${dateWithYear.format(end)}, ${formatTime(end)}`;
 }
 
 export type UpcomingOccurrenceRow = {
@@ -256,7 +255,7 @@ function formatCalendarDayHeading(
   const d = startOfNyCalendarDay(dateKey);
   const y = Number(dateKey.slice(0, 4));
   return new Intl.DateTimeFormat('en-US', {
-    timeZone: EVENTS_TIME_ZONE,
+    timeZone: 'America/New_York',
     weekday: 'short',
     day: 'numeric',
     month: 'short',
