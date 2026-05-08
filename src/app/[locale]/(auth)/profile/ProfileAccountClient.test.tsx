@@ -233,6 +233,20 @@ describe('ProfileAccountClient', () => {
     expect(screen.getByText('next@mit.edu')).toBeVisible();
   });
 
+  it('email-change persona sees request failed when confirmation throws', async () => {
+    const user = userEvent.setup();
+    authClientMock.emailOtp.changeEmail.mockRejectedValue(new Error('network'));
+    renderAccountClient({ initialUnconfirmedEmail: 'next@mit.edu' });
+
+    await user.type(screen.getByLabelText('Confirmation code'), '123456');
+    await user.click(screen.getByRole('button', { name: 'Confirm email' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'We could not complete that request right now.'
+    );
+    expect(screen.getByRole('button', { name: 'Confirm email' })).toBeEnabled();
+  });
+
   it('email-change persona resends a pending confirmation code', async () => {
     const user = userEvent.setup();
     renderAccountClient({ initialUnconfirmedEmail: 'next@mit.edu' });
@@ -335,6 +349,21 @@ describe('ProfileAccountClient', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Could not resend the confirmation code.'
     );
+  });
+
+  it('email-change persona sees request failed when resend throws', async () => {
+    const user = userEvent.setup();
+    authClientMock.emailOtp.requestEmailChange.mockRejectedValue(
+      new Error('network')
+    );
+    renderAccountClient({ initialUnconfirmedEmail: 'next@mit.edu' });
+
+    await user.click(screen.getByRole('button', { name: 'Resend email' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'We could not complete that request right now.'
+    );
+    expect(screen.getByRole('button', { name: 'Resend email' })).toBeEnabled();
   });
 
   it('profile owner saves a dark appearance preference', async () => {

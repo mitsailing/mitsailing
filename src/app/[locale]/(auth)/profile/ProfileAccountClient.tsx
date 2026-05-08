@@ -107,47 +107,63 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
     options.event.preventDefault();
     setEmailOtpBanner(null);
     setConfirmingEmail(true);
-    const res = await authClient.emailOtp.changeEmail({
-      newEmail: options.emailToConfirm,
-      otp: emailCode,
-    });
-    setConfirmingEmail(false);
-    if (res.error) {
+    try {
+      const res = await authClient.emailOtp.changeEmail({
+        newEmail: options.emailToConfirm,
+        otp: emailCode,
+      });
+      if (res.error) {
+        setEmailOtpBanner({
+          kind: 'error',
+          message: mapProfileEmailError(res.error.code, res.error.message, t),
+        });
+        return;
+      }
+      setEmailBanner({ kind: 'success', message: t('email_change_confirmed') });
+      setCurrentEmail(options.emailToConfirm);
+      setPendingEmail(null);
+      setEmailCode('');
+      router.refresh();
+    } catch {
       setEmailOtpBanner({
         kind: 'error',
-        message: mapProfileEmailError(res.error.code, res.error.message, t),
+        message: t('error_request_failed'),
       });
-      return;
+    } finally {
+      setConfirmingEmail(false);
     }
-    setEmailBanner({ kind: 'success', message: t('email_change_confirmed') });
-    setCurrentEmail(options.emailToConfirm);
-    setPendingEmail(null);
-    setEmailCode('');
-    router.refresh();
   }
 
   async function onResendPendingEmail(emailToConfirm: string) {
     setResendBanner(null);
     setResendingEmail(true);
-    const res = await authClient.emailOtp.requestEmailChange({
-      newEmail: emailToConfirm,
-    });
-    setResendingEmail(false);
-    if (res.error) {
+    try {
+      const res = await authClient.emailOtp.requestEmailChange({
+        newEmail: emailToConfirm,
+      });
+      if (res.error) {
+        setResendBanner({
+          kind: 'error',
+          message: t('pending_email_resend_error'),
+        });
+        return;
+      }
+      setResendBanner({
+        kind: 'success',
+        message: t.rich('pending_email_resent', {
+          email: emailToConfirm,
+          strong: (chunks) => <strong>{chunks}</strong>,
+        }),
+      });
+      lockEmailResend();
+    } catch {
       setResendBanner({
         kind: 'error',
-        message: t('pending_email_resend_error'),
+        message: t('error_request_failed'),
       });
-      return;
+    } finally {
+      setResendingEmail(false);
     }
-    setResendBanner({
-      kind: 'success',
-      message: t.rich('pending_email_resent', {
-        email: emailToConfirm,
-        strong: (chunks) => <strong>{chunks}</strong>,
-      }),
-    });
-    lockEmailResend();
   }
 
   async function onUpdateName(event: React.SubmitEvent<HTMLFormElement>) {

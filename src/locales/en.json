@@ -311,6 +311,7 @@
     "pending_email_resend_wait": "You can request a new code in 30 seconds",
     "pending_email_resent": "New confirmation code sent to <strong>{email}</strong>.",
     "pending_email_resend_error": "Could not resend the confirmation code. Try again in a bit.",
+    "error_request_failed": "We could not complete that request right now.",
     "pending_email_support": "Did not receive it? Contact <support>support@mitsailing.com</support>.",
     "change_password_heading": "Change password",
     "current_password_label": "Current password",
