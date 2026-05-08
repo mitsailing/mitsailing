@@ -183,4 +183,28 @@ describe('buildSiteAlertBannerCollapseAlerts', () => {
 
     expect(updated?.contentFingerprint).not.toBe(current?.contentFingerprint);
   });
+
+  it('keeps fingerprint when alert date label changes', async () => {
+    const { buildSiteAlertBannerCollapseAlerts } =
+      await import('@/libs/mit-sailing/siteAlertQueries');
+
+    const [current] = buildSiteAlertBannerCollapseAlerts([
+      {
+        bodyPlainText: 'Current text',
+        dateIso: '2026-04-15',
+        dateLabel: 'Wed, Apr 15, 2026',
+        id: 'alert-1',
+      },
+    ]);
+    const [updated] = buildSiteAlertBannerCollapseAlerts([
+      {
+        bodyPlainText: 'Current text',
+        dateIso: '2026-04-15',
+        dateLabel: 'April 15, 2026',
+        id: 'alert-1',
+      },
+    ]);
+
+    expect(updated?.contentFingerprint).toBe(current?.contentFingerprint);
+  });
 });

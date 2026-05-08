@@ -161,7 +161,6 @@ export function buildSiteAlertBannerCollapseAlerts(
         JSON.stringify({
           bodyPlainText: row.bodyPlainText,
           dateIso: row.dateIso,
-          dateLabel: row.dateLabel,
         })
       )
       .digest('base64url'),
