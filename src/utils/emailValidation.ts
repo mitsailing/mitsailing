@@ -29,3 +29,13 @@ export function isValidMarketingEmail(raw: string): boolean {
   const publicSuffix = segments.at(-1);
   return publicSuffix !== undefined && publicSuffix.length >= 2;
 }
+
+/**
+ * Normalize user-entered auth email addresses before submitting to Better Auth.
+ *
+ * @param raw - Candidate email string from user input
+ * @returns The trimmed, lowercase address
+ */
+export function normalizeMarketingEmail(raw: string): string {
+  return raw.trim().toLowerCase();
+}

@@ -88,6 +88,88 @@ async function verifyEmailWithLatestCode(page: Page, email: string) {
   await page.getByRole('button', { name: 'Continue' }).click();
 }
 
+async function createVerifiedUser(page: Page, email: string, password: string) {
+  await page.goto('/signup');
+  await signUpWithEmailAndPassword(page, email, password);
+  await verifyEmailWithLatestCode(page, email);
+  await expect.poll(() => new URL(page.url()).pathname).toBe('/');
+}
+
+async function findLatestPasswordResetCode(email: string) {
+  let resetMessage: Awaited<ReturnType<typeof findLatestMessageTo>> | null =
+    null;
+  await expect
+    .poll(async () => {
+      resetMessage = await findLatestMessageTo(email);
+      return resetMessage.Subject;
+    })
+    .toMatch(/reset/i);
+
+  if (!resetMessage) {
+    throw new Error('No password reset message found');
+  }
+
+  return extractCodeFromMessage(resetMessage);
+}
+
+async function requestPasswordReset(
+  page: Page,
+  email: string,
+  callbackUrl = '/'
+) {
+  await page.goto(
+    `/forgot-password?callbackUrl=${encodeURIComponent(callbackUrl)}`
+  );
+  await page.getByLabel('Email').fill(email);
+  await page.getByRole('button', { name: 'Send reset code' }).click();
+  await expect(page).toHaveURL(/\/reset-password\?/);
+  await expect(
+    page.getByText(
+      'If an account exists for this email, you will receive a reset code shortly.'
+    )
+  ).toHaveCount(0);
+
+  return findLatestPasswordResetCode(email);
+}
+
+async function completeResetCodeStep(page: Page, resetCode: string) {
+  await page.getByLabel('Reset code').fill(resetCode);
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await expect(page.getByLabel('New password', { exact: true })).toBeVisible();
+}
+
+async function submitNewPassword(
+  page: Page,
+  password: string,
+  passwordConfirmation: string
+) {
+  await page.getByLabel('New password', { exact: true }).fill(password);
+  await page.getByLabel('Confirm new password').fill(passwordConfirmation);
+  await page.getByRole('button', { name: 'Update password' }).click();
+}
+
+async function expirePasswordResetCode(email: string) {
+  const result = await pool.query(
+    `UPDATE "verification"
+     SET "expires_at" = NOW() - INTERVAL '1 minute'
+     WHERE "identifier" = $1`,
+    [`forget-password-otp-${email}`]
+  );
+  expect(result.rowCount).toBeGreaterThan(0);
+}
+
+async function signInWithEmailAndPassword(
+  page: Page,
+  email: string,
+  password: string
+) {
+  await page.goto('/login');
+  await page.getByLabel('Email').fill(email);
+  await page.getByLabel('Password').fill(password);
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect.poll(() => new URL(page.url()).pathname).toBe('/');
+}
+
 function differentResetCode(code: string) {
   return code === '000000' ? '111111' : '000000';
 }
@@ -167,31 +249,10 @@ test.describe('Auth', () => {
     const password = 'Correct-Horse-Battery-Staple';
     const resetPassword = 'Correct-Horse-Battery-Staple-2';
 
-    await page.goto('/signup');
-    await signUpWithEmailAndPassword(page, email, password);
-    await verifyEmailWithLatestCode(page, email);
-    await expect.poll(() => new URL(page.url()).pathname).toBe('/');
+    await createVerifiedUser(page, email, password);
 
     await page.context().clearCookies();
-    await page.goto('/forgot-password?callbackUrl=/fleet/');
-    await page.getByLabel('Email').fill(email);
-    await page.getByRole('button', { name: 'Send reset code' }).click();
-    await expect(page).toHaveURL(/\/reset-password\?/);
-
-    let resetMessage: Awaited<ReturnType<typeof findLatestMessageTo>> | null =
-      null;
-    await expect
-      .poll(async () => {
-        resetMessage = await findLatestMessageTo(email);
-        return resetMessage.Subject;
-      })
-      .toMatch(/reset/i);
-
-    if (!resetMessage) {
-      throw new Error('No password reset message found');
-    }
-
-    const resetCode = extractCodeFromMessage(resetMessage);
+    const resetCode = await requestPasswordReset(page, email, '/fleet/');
 
     await page.getByLabel('Reset code').fill(differentResetCode(resetCode));
     await page.getByRole('button', { name: 'Continue' }).click();
@@ -210,6 +271,119 @@ test.describe('Auth', () => {
       .toMatch(/^\/fleet\/?$/);
 
     await cleanupByEmail(email);
+  });
+
+  test('keeps a valid password reset code usable after a password mismatch', async ({
+    page,
+  }) => {
+    const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
+    const password = 'Correct-Horse-Battery-Staple';
+    const resetPassword = 'Correct-Horse-Battery-Staple-2';
+
+    await createVerifiedUser(page, email, password);
+    await page.context().clearCookies();
+    const resetCode = await requestPasswordReset(page, email);
+
+    await completeResetCodeStep(page, resetCode);
+    await submitNewPassword(page, resetPassword, `${resetPassword}-mismatch`);
+
+    await expect(formAlert(page)).toHaveText('Passwords do not match.');
+    await expect(
+      page.getByLabel('New password', { exact: true })
+    ).toBeVisible();
+    await expect(page.getByLabel('Reset code')).toBeHidden();
+
+    await submitNewPassword(page, resetPassword, resetPassword);
+
+    await expect.poll(() => new URL(page.url()).pathname).toBe('/');
+
+    await cleanupByEmail(email);
+  });
+
+  test('shows expired copy when a reset code expires before password submit', async ({
+    page,
+  }) => {
+    const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
+    const password = 'Correct-Horse-Battery-Staple';
+    const resetPassword = 'Correct-Horse-Battery-Staple-2';
+
+    await createVerifiedUser(page, email, password);
+    await page.context().clearCookies();
+    const resetCode = await requestPasswordReset(page, email);
+
+    await completeResetCodeStep(page, resetCode);
+    await expirePasswordResetCode(email);
+    await submitNewPassword(page, resetPassword, resetPassword);
+
+    await expect(formAlert(page)).toHaveText(
+      'That code expired. Request a new reset code.'
+    );
+    await expect(formAlert(page)).not.toHaveText('That code is invalid.');
+    await expect(page.getByLabel('Reset code')).toBeVisible();
+    await expect(page.getByLabel('New password', { exact: true })).toBeHidden();
+
+    await cleanupByEmail(email);
+  });
+
+  test('requests a reset from the login email without a second send action', async ({
+    page,
+  }) => {
+    const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
+    const password = 'Correct-Horse-Battery-Staple';
+
+    await createVerifiedUser(page, email, password);
+    await page.context().clearCookies();
+
+    await page.goto('/login?callbackUrl=/fleet/');
+    await page.getByLabel('Email').fill(email);
+    await page.getByRole('link', { name: 'Forgot password?' }).click();
+
+    await expect(page).toHaveURL(/\/reset-password\?/);
+    await expect(page.getByLabel('Reset code')).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Send reset code' })
+    ).toHaveCount(0);
+    await expect(
+      page.getByText(
+        'If an account exists for this email, you will receive a reset code shortly.'
+      )
+    ).toHaveCount(0);
+
+    await findLatestPasswordResetCode(email);
+
+    await cleanupByEmail(email);
+  });
+
+  test('revokes existing sessions after password reset', async ({
+    browser,
+    page,
+  }) => {
+    const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
+    const password = 'Correct-Horse-Battery-Staple';
+    const resetPassword = 'Correct-Horse-Battery-Staple-2';
+    const otherContext = await browser.newContext();
+    const resetContext = await browser.newContext();
+    const otherPage = await otherContext.newPage();
+    const resetPage = await resetContext.newPage();
+
+    try {
+      await createVerifiedUser(page, email, password);
+      await signInWithEmailAndPassword(otherPage, email, password);
+
+      const resetCode = await requestPasswordReset(resetPage, email);
+      await completeResetCodeStep(resetPage, resetCode);
+      await submitNewPassword(resetPage, resetPassword, resetPassword);
+      await expect.poll(() => new URL(resetPage.url()).pathname).toBe('/');
+
+      await page.goto('/profile/account/');
+      await expect(page).toHaveURL(/\/login\/?\?/);
+      await otherPage.goto('/profile/account/');
+      await expect(otherPage).toHaveURL(/\/login\/?\?/);
+    } finally {
+      await resetContext.close();
+      await otherContext.close();
+      await cleanupByEmail(email);
+    }
   });
 
   test('rejects invalid credentials', async ({ page }) => {

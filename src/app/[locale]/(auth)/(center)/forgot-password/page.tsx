@@ -12,7 +12,7 @@ import { ForgotPasswordForm } from './ForgotPasswordForm';
 
 type ForgotPasswordPageProps = {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ callbackUrl?: string }>;
+  searchParams: Promise<{ callbackUrl?: string; email?: string }>;
 };
 
 export async function generateMetadata(
@@ -47,7 +47,10 @@ export default async function ForgotPasswordPage(
         {t('heading')}
       </h1>
 
-      <ForgotPasswordForm callbackUrl={callbackUrl} />
+      <ForgotPasswordForm
+        callbackUrl={callbackUrl}
+        initialEmail={searchParams.email ?? ''}
+      />
 
       <p className="text-center text-sm text-mit-text">
         <I18nLink

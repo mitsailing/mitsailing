@@ -1,5 +1,6 @@
 import 'server-only';
 import { APIError, createAuthMiddleware } from 'better-auth/api';
+import { assertPasswordNotCompromised } from '@/libs/auth/password-compromise';
 import { prisma } from '@/libs/DB';
 import {
   sendAccountLockedEmail,
@@ -10,6 +11,9 @@ import {
 const MAX_FAILED_ATTEMPTS = 5;
 /** Rolling window (15 minutes, Devise Lockable parity). */
 const LOCKOUT_WINDOW_MS = 15 * 60 * 1000;
+const RESET_PASSWORD_EMAIL_OTP_PATH = '/email-otp/reset-password';
+const MIN_PASSWORD_LENGTH = 8;
+const MAX_PASSWORD_LENGTH = 128;
 
 function normalizeEmail(value: unknown): string {
   return typeof value === 'string' ? value.trim().toLowerCase() : '';
@@ -21,6 +25,28 @@ async function countRecentFailures(email: string): Promise<number> {
     where: { email, createdAt: { gt: since } },
   });
   return count;
+}
+
+async function preflightEmailOtpResetPassword(password: unknown) {
+  if (typeof password !== 'string') {
+    return;
+  }
+
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    throw APIError.from('BAD_REQUEST', {
+      code: 'PASSWORD_TOO_SHORT',
+      message: 'Password too short',
+    });
+  }
+
+  if (password.length > MAX_PASSWORD_LENGTH) {
+    throw APIError.from('BAD_REQUEST', {
+      code: 'PASSWORD_TOO_LONG',
+      message: 'Password too long',
+    });
+  }
+
+  await assertPasswordNotCompromised(password);
 }
 
 // Secure Rails "notify on password change": Better Auth does not ship a
@@ -50,6 +76,10 @@ async function notifyPasswordChange(ctx: {
  */
 export const signInEmailHooks = {
   before: createAuthMiddleware(async (ctx) => {
+    if (ctx.path === RESET_PASSWORD_EMAIL_OTP_PATH) {
+      await preflightEmailOtpResetPassword(ctx.body?.password);
+    }
+
     if (ctx.path === '/sign-in/email') {
       const email = normalizeEmail(ctx.body?.email);
       if (email && (await countRecentFailures(email)) >= MAX_FAILED_ATTEMPTS) {

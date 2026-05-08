@@ -8,6 +8,7 @@ import { auditLog } from 'better-auth-audit-logs';
 import { nextCookies } from 'better-auth/next-js';
 import { admin, emailOTP, haveIBeenPwned } from 'better-auth/plugins';
 import { signInEmailHooks } from '@/libs/auth/hooks';
+import { passwordCompromiseCheckEnabled } from '@/libs/auth/password-compromise';
 import { prisma } from '@/libs/DB';
 import {
   markPendingEmailChange,
@@ -33,7 +34,6 @@ const argonOpts: Options = {
 };
 
 const isProd = Env.NODE_ENV === 'production';
-const isTest = Env.NODE_ENV === 'test';
 // Playwright runs `next start` with NODE_ENV=production (so `isProd` is true
 // during e2e), but tests intentionally pound sign-up/sign-in from the same
 // localhost IP across parallel workers — the account-lockout test alone does
@@ -141,14 +141,10 @@ export const auth = betterAuth({
       bannedUserMessage: enMessages.AuthErrors.BANNED_USER_MESSAGE,
     }),
     haveIBeenPwned({
-      enabled: !isTest && !isE2E,
+      enabled: passwordCompromiseCheckEnabled,
       customPasswordCompromisedMessage:
         enMessages.AuthErrors.PASSWORD_COMPROMISED,
-      paths: [
-        '/sign-up/email',
-        '/change-password',
-        '/email-otp/reset-password',
-      ],
+      paths: ['/sign-up/email', '/change-password'],
     }),
     emailOTP({
       allowedAttempts: 3,

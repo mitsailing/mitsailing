@@ -7,7 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { authClient } from '@/libs/auth-client';
-import { isValidMarketingEmail } from '@/utils/emailValidation';
+import {
+  isValidMarketingEmail,
+  normalizeMarketingEmail,
+} from '@/utils/emailValidation';
 
 type ResetPasswordFormProps = {
   callbackUrl: string;
@@ -18,8 +21,9 @@ type ResetPasswordFormProps = {
 export function ResetPasswordForm(props: ResetPasswordFormProps) {
   const t = useTranslations('ResetPasswordPage');
   const router = useRouter();
-  const hasInitialEmail = isValidMarketingEmail(props.initialEmail);
-  const [email, setEmail] = useState(props.initialEmail);
+  const normalizedInitialEmail = normalizeMarketingEmail(props.initialEmail);
+  const hasInitialEmail = isValidMarketingEmail(normalizedInitialEmail);
+  const [email, setEmail] = useState(normalizedInitialEmail);
   const [resetCode, setResetCode] = useState('');
   const [step, setStep] = useState<'code' | 'password'>('code');
   const [password, setPassword] = useState('');
@@ -31,23 +35,35 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
   const [resendLocked, setResendLocked] = useState(false);
   const resendTimeoutRef = useRef<number | null>(null);
 
-  function mapError(code: string | undefined, message?: string): string {
-    if (code === 'PASSWORD_COMPROMISED') {
+  function mapError(options: {
+    code: string | undefined;
+    message?: string;
+    passwordStep?: boolean;
+  }): string {
+    if (options.code === 'PASSWORD_TOO_SHORT') {
+      return t('error_password_too_short');
+    }
+    if (options.code === 'PASSWORD_TOO_LONG') {
+      return t('error_password_too_long');
+    }
+    if (options.code === 'PASSWORD_COMPROMISED') {
       return t('error_pwned');
     }
-    if (code === 'OTP_EXPIRED') {
-      return t('error_expired');
+    if (options.code === 'OTP_EXPIRED') {
+      return options.passwordStep
+        ? t('error_expired_password_step')
+        : t('error_expired');
     }
-    if (code === 'INVALID_OTP') {
+    if (options.code === 'INVALID_OTP') {
       return t('error_invalid_code');
     }
-    if (code === 'TOO_MANY_ATTEMPTS') {
+    if (options.code === 'TOO_MANY_ATTEMPTS') {
       return t('error_too_many_attempts');
     }
-    if (code === 'TOO_MANY_REQUESTS') {
+    if (options.code === 'TOO_MANY_REQUESTS') {
       return t('error_rate_limited');
     }
-    return message ?? t('error_validation');
+    return options.message ?? t('error_validation');
   }
 
   function lockResend() {
@@ -75,7 +91,9 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
     event.preventDefault();
     setError(null);
     setStatus(null);
-    if (!isValidMarketingEmail(email)) {
+    const normalizedEmail = normalizeMarketingEmail(email);
+    setEmail(normalizedEmail);
+    if (!isValidMarketingEmail(normalizedEmail)) {
       setError(t('error_invalid_email'));
       return;
     }
@@ -86,12 +104,12 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
     setSubmitting(true);
     try {
       const res = await authClient.emailOtp.checkVerificationOtp({
-        email,
+        email: normalizedEmail,
         otp: resetCode,
         type: 'forget-password',
       });
       if (res.error) {
-        setError(mapError(res.error.code));
+        setError(mapError({ code: res.error.code }));
         return;
       }
     } finally {
@@ -103,15 +121,21 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
   async function onResendCode() {
     setError(null);
     setStatus(null);
-    if (!isValidMarketingEmail(email)) {
+    const normalizedEmail = normalizeMarketingEmail(email);
+    setEmail(normalizedEmail);
+    if (!isValidMarketingEmail(normalizedEmail)) {
       setError(t('error_invalid_email'));
       return;
     }
     setResending(true);
     try {
-      const res = await authClient.emailOtp.requestPasswordReset({ email });
+      const res = await authClient.emailOtp.requestPasswordReset({
+        email: normalizedEmail,
+      });
       if (res.error) {
-        setError(mapError(res.error.code, res.error.message));
+        setError(
+          mapError({ code: res.error.code, message: res.error.message })
+        );
         return;
       }
       setStatus(t('resent_banner'));
@@ -127,7 +151,9 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
     event.preventDefault();
     setError(null);
     setStatus(null);
-    if (!isValidMarketingEmail(email)) {
+    const normalizedEmail = normalizeMarketingEmail(email);
+    setEmail(normalizedEmail);
+    if (!isValidMarketingEmail(normalizedEmail)) {
       setError(t('error_invalid_email'));
       return;
     }
@@ -138,7 +164,7 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
     setSubmitting(true);
     try {
       const res = await authClient.emailOtp.resetPassword({
-        email,
+        email: normalizedEmail,
         otp: resetCode,
         password,
       });
@@ -148,18 +174,32 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
           res.error.code === 'OTP_EXPIRED' ||
           res.error.code === 'TOO_MANY_ATTEMPTS'
         ) {
+          if (res.error.code === 'OTP_EXPIRED') {
+            setResetCode('');
+          }
           setStep('code');
         }
-        setError(mapError(res.error.code, res.error.message));
+        setError(
+          mapError({
+            code: res.error.code,
+            message: res.error.message,
+            passwordStep: true,
+          })
+        );
         return;
       }
       const signInRes = await authClient.signIn.email({
-        email,
+        email: normalizedEmail,
         password,
         callbackURL: props.callbackUrl,
       });
       if (signInRes.error) {
-        setError(mapError(signInRes.error.code, signInRes.error.message));
+        setError(
+          mapError({
+            code: signInRes.error.code,
+            message: signInRes.error.message,
+          })
+        );
         return;
       }
       router.push(props.callbackUrl);
@@ -196,7 +236,7 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
           </h1>
           <p className="max-w-md text-xl leading-relaxed text-pretty text-muted-foreground">
             {hasInitialEmail
-              ? t('pending_body', { email: props.initialEmail })
+              ? t('pending_body', { email })
               : t('pending_body_fallback')}
           </p>
         </div>
@@ -288,6 +328,7 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
               autoComplete="new-password"
               className="h-12 rounded-2xl px-5 text-base md:text-base"
               id="password"
+              maxLength={128}
               minLength={8}
               name="password"
               onChange={(e) => {
@@ -310,6 +351,7 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
               autoComplete="new-password"
               className="h-12 rounded-2xl px-5 text-base md:text-base"
               id="passwordConfirmation"
+              maxLength={128}
               minLength={8}
               name="passwordConfirmation"
               onChange={(e) => {

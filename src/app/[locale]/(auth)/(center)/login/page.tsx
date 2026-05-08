@@ -69,15 +69,6 @@ export default async function SignInPage(props: SignInPageProps) {
       <SignInForm callbackUrl={callbackUrl} />
 
       <p className="text-center text-sm text-mit-text">
-        <I18nLink
-          className={authInlineLinkClassName}
-          href={authHrefWithCallback('/forgot-password', callbackUrl)}
-        >
-          {t('forgot_password')}
-        </I18nLink>
-      </p>
-
-      <p className="text-center text-sm text-mit-text">
         {t('no_account')}{' '}
         <I18nLink
           className={authInlineLinkClassName}

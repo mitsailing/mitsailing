@@ -6,9 +6,13 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { authInlineLinkClassName } from '@/lib/mit-sailing/tokens';
 import { authClient } from '@/libs/auth-client';
 import { authHrefWithCallback } from '@/libs/auth/callbackUrl';
-import { isValidMarketingEmail } from '@/utils/emailValidation';
+import {
+  isValidMarketingEmail,
+  normalizeMarketingEmail,
+} from '@/utils/emailValidation';
 
 type SignInFormProps = {
   callbackUrl: string;
@@ -31,6 +35,7 @@ export function SignInForm(props: SignInFormProps) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<ErrorState>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [requestingReset, setRequestingReset] = useState(false);
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
 
@@ -67,14 +72,16 @@ export function SignInForm(props: SignInFormProps) {
     event.preventDefault();
     setError(null);
     setResent(false);
-    if (!isValidMarketingEmail(email)) {
+    const normalizedEmail = normalizeMarketingEmail(email);
+    setEmail(normalizedEmail);
+    if (!isValidMarketingEmail(normalizedEmail)) {
       setError({ kind: 'generic', message: t('error_invalid_email') });
       return;
     }
     setSubmitting(true);
 
     const res = await authClient.signIn.email({
-      email,
+      email: normalizedEmail,
       password,
       callbackURL: props.callbackUrl,
     });
@@ -116,6 +123,43 @@ export function SignInForm(props: SignInFormProps) {
       setError({ kind: 'generic', message: t('error_rate_limited') });
     } finally {
       setResending(false);
+    }
+  }
+
+  async function onForgotPassword(event: React.MouseEvent<HTMLAnchorElement>) {
+    const normalizedEmail = normalizeMarketingEmail(email);
+    if (!isValidMarketingEmail(normalizedEmail)) {
+      return;
+    }
+
+    event.preventDefault();
+    if (requestingReset) {
+      return;
+    }
+
+    setError(null);
+    setResent(false);
+    setEmail(normalizedEmail);
+    setRequestingReset(true);
+    try {
+      const res = await authClient.emailOtp.requestPasswordReset({
+        email: normalizedEmail,
+      });
+      if (res.error) {
+        setError({ kind: 'generic', message: t('error_reset_failed') });
+        setRequestingReset(false);
+        return;
+      }
+
+      router.push(
+        authHrefWithCallback(
+          `/reset-password?email=${encodeURIComponent(normalizedEmail)}`,
+          props.callbackUrl
+        )
+      );
+    } catch {
+      setError({ kind: 'generic', message: t('error_reset_failed') });
+      setRequestingReset(false);
     }
   }
 
@@ -206,6 +250,24 @@ export function SignInForm(props: SignInFormProps) {
           {t('submit')}
         </Button>
       </form>
+
+      <p className="text-center text-sm text-mit-text">
+        <a
+          aria-disabled={requestingReset}
+          className={authInlineLinkClassName}
+          href={authHrefWithCallback(
+            isValidMarketingEmail(email)
+              ? `/forgot-password?email=${encodeURIComponent(
+                  normalizeMarketingEmail(email)
+                )}`
+              : '/forgot-password',
+            props.callbackUrl
+          )}
+          onClick={onForgotPassword}
+        >
+          {t('forgot_password')}
+        </a>
+      </p>
     </>
   );
 }

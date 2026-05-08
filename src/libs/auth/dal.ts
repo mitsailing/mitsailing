@@ -43,7 +43,10 @@ export type CurrentUser = {
  * pass never issues two `auth.api.getSession` calls.
  */
 export const getSession = cache(async () => {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await auth.api.getSession({
+    headers: await headers(),
+    query: { disableCookieCache: true },
+  });
   syncSentryUserFromSession(session);
   return session;
 });
