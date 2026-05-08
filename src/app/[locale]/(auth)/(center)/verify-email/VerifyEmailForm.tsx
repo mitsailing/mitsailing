@@ -79,20 +79,25 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
       return;
     }
     setSubmitting(true);
-    const res = await authClient.emailOtp.verifyEmail({
-      email,
-      otp: code,
-    });
-    setSubmitting(false);
-    if (res.error) {
-      setBanner({
-        kind: 'error',
-        message: mapError(res.error.code, res.error.message),
+    try {
+      const res = await authClient.emailOtp.verifyEmail({
+        email,
+        otp: code,
       });
-      return;
+      if (res.error) {
+        setBanner({
+          kind: 'error',
+          message: mapError(res.error.code, res.error.message),
+        });
+        return;
+      }
+      router.push(props.callbackUrl);
+      router.refresh();
+    } catch {
+      setBanner({ kind: 'error', message: t('error_request_failed') });
+    } finally {
+      setSubmitting(false);
     }
-    router.push(props.callbackUrl);
-    router.refresh();
   }
 
   async function onResendCode() {
@@ -102,20 +107,25 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
       return;
     }
     setResending(true);
-    const res = await authClient.emailOtp.sendVerificationOtp({
-      email,
-      type: 'email-verification',
-    });
-    setResending(false);
-    if (res.error) {
-      setBanner({
-        kind: 'error',
-        message: mapError(res.error.code, res.error.message),
+    try {
+      const res = await authClient.emailOtp.sendVerificationOtp({
+        email,
+        type: 'email-verification',
       });
-      return;
+      if (res.error) {
+        setBanner({
+          kind: 'error',
+          message: mapError(res.error.code, res.error.message),
+        });
+        return;
+      }
+      setBanner({ kind: 'success', message: t('resent_banner') });
+      lockResend();
+    } catch {
+      setBanner({ kind: 'error', message: t('error_request_failed') });
+    } finally {
+      setResending(false);
     }
-    setBanner({ kind: 'success', message: t('resent_banner') });
-    lockResend();
   }
 
   return (

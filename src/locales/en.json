@@ -202,6 +202,7 @@
     "error_expired": "That code expired.",
     "error_too_many_attempts": "Too many code attempts. Request a new code.",
     "error_rate_limited": "Too many code requests. Wait a few minutes.",
+    "error_request_failed": "We could not complete that request right now.",
     "error_invalid_email": "Enter a valid email address with a domain (for example name@mit.edu).",
     "expiry_note": "Codes expire in 5 minutes. If yours stopped working, request a new one, or contact <support>support@mitsailing.com</support> if you never received it.",
     "back_sign_in": "Back to sign in"
