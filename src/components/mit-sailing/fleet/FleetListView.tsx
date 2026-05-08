@@ -56,11 +56,9 @@ export async function FleetListView(props: FleetListViewProps) {
                   {t('card_cta')} <ArrowRight aria-hidden size={14} />
                 </span>
                 <p className="mt-3 mb-0 text-xs text-mit-text">
-                  {t('required_rating_label')}{' '}
+                  {t('required_class_label')}{' '}
                   <span className="font-semibold">
-                    {boat.requiredRatings
-                      .map((rating) => rating.name)
-                      .join(', ')}
+                    {boat.requiredClass.name}
                   </span>
                 </p>
               </div>

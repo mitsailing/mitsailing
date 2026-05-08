@@ -50,6 +50,30 @@ function RatingBoatLinks(props: {
   );
 }
 
+function RatingClassLinks(props: {
+  classes: PublicSailingRating['grantableClasses'];
+  emptyLabel: string;
+}) {
+  if (props.classes.length === 0) {
+    return <span>{props.emptyLabel}</span>;
+  }
+
+  return (
+    <ul className="m-0 list-none space-y-1 p-0">
+      {props.classes.map((sailingClass) => (
+        <li key={sailingClass.id}>
+          <Link
+            className={`inline-flex items-center gap-1 font-semibold text-mit-red-ink hover:underline ${textFocusRingClassName}`}
+            href={`/classes/${sailingClass.slug}/`}
+          >
+            {sailingClass.name} <ArrowRight aria-hidden size={14} />
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export async function RatingsListView(props: RatingsListViewProps) {
   const t = await getTranslations({
     locale: props.locale,
@@ -72,25 +96,28 @@ export async function RatingsListView(props: RatingsListViewProps) {
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-mit-line bg-mit-surface">
-        <table className="w-full min-w-[860px] border-collapse text-left text-sm leading-relaxed text-mit-text">
+        <table className="w-full min-w-[1040px] border-collapse text-left text-sm leading-relaxed text-mit-text">
           <thead className="bg-mit-red-highlight text-xs font-bold tracking-wider text-mit-text uppercase">
             <tr>
-              <th className="w-[16%] px-4 py-3" scope="col">
+              <th className="w-[15%] px-4 py-3" scope="col">
                 {t('column_rating')}
               </th>
               <th className="w-[6%] px-4 py-3" scope="col">
                 {t('column_level')}
               </th>
-              <th className="w-[34%] px-4 py-3" scope="col">
+              <th className="w-[27%] px-4 py-3" scope="col">
                 {t('column_description')}
               </th>
               <th className="w-[18%] px-4 py-3" scope="col">
+                {t('column_classes')}
+              </th>
+              <th className="w-[14%] px-4 py-3" scope="col">
                 {t('column_boats')}
               </th>
-              <th className="w-[10%] px-4 py-3" scope="col">
+              <th className="w-[8%] px-4 py-3" scope="col">
                 {t('column_wind')}
               </th>
-              <th className="w-[16%] px-4 py-3" scope="col">
+              <th className="w-[18%] px-4 py-3" scope="col">
                 {t('column_guide')}
               </th>
             </tr>
@@ -114,6 +141,12 @@ export async function RatingsListView(props: RatingsListViewProps) {
                   {rating.level ?? t('not_applicable')}
                 </td>
                 <td className="px-4 py-4">{rating.description}</td>
+                <td className="px-4 py-4">
+                  <RatingClassLinks
+                    classes={rating.grantableClasses}
+                    emptyLabel={t('not_applicable')}
+                  />
+                </td>
                 <td className="px-4 py-4">
                   <RatingBoatLinks
                     boats={rating.unlockedBoats}

@@ -28,7 +28,8 @@ type NavConfigItem = {
     | 'nav_racing'
     | 'nav_calendar'
     | 'nav_about'
-    | 'nav_resources';
+    | 'nav_resources'
+    | 'nav_sailing_ratings';
   href?: string;
   externalHref?: string;
   items?: NavigationDropdownItem[];
@@ -154,7 +155,13 @@ export function SiteHeader(props: SiteHeaderProps) {
       return { ...item, items: props.fleetDropdownItems };
     }
     if (item.labelKey === 'nav_classes') {
-      return { ...item, items: props.classesDropdownItems };
+      return {
+        ...item,
+        items: [
+          { href: '/ratings/', label: t('nav_sailing_ratings') },
+          ...props.classesDropdownItems,
+        ],
+      };
     }
     return item;
   });
