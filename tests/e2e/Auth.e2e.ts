@@ -88,6 +88,10 @@ async function verifyEmailWithLatestCode(page: Page, email: string) {
   await page.getByRole('button', { name: 'Continue' }).click();
 }
 
+function differentResetCode(code: string) {
+  return code === '000000' ? '111111' : '000000';
+}
+
 test.describe('Auth', () => {
   test.describe.configure({ mode: 'serial' });
 
@@ -187,9 +191,15 @@ test.describe('Auth', () => {
       throw new Error('No password reset message found');
     }
 
-    await page
-      .getByLabel('Reset code')
-      .fill(extractCodeFromMessage(resetMessage));
+    const resetCode = extractCodeFromMessage(resetMessage);
+
+    await page.getByLabel('Reset code').fill(differentResetCode(resetCode));
+    await page.getByRole('button', { name: 'Continue' }).click();
+
+    await expect(formAlert(page)).toHaveText('That code is invalid.');
+    await expect(page.getByLabel('New password', { exact: true })).toBeHidden();
+
+    await page.getByLabel('Reset code').fill(resetCode);
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.getByLabel('New password', { exact: true }).fill(resetPassword);
     await page.getByLabel('Confirm new password').fill(resetPassword);

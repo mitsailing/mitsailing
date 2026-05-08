@@ -31,10 +31,7 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
   const [resendLocked, setResendLocked] = useState(false);
   const resendTimeoutRef = useRef<number | null>(null);
 
-  function mapError(
-    code: string | undefined,
-    message: string | undefined
-  ): string {
+  function mapError(code: string | undefined, message?: string): string {
     if (code === 'PASSWORD_COMPROMISED') {
       return t('error_pwned');
     }
@@ -74,7 +71,7 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
     []
   );
 
-  function onCodeSubmit(event: React.SubmitEvent<HTMLFormElement>) {
+  async function onCodeSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setStatus(null);
@@ -85,6 +82,20 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
     if (resetCode.length !== 6) {
       setError(t('error_invalid_code'));
       return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await authClient.emailOtp.checkVerificationOtp({
+        email,
+        otp: resetCode,
+        type: 'forget-password',
+      });
+      if (res.error) {
+        setError(mapError(res.error.code));
+        return;
+      }
+    } finally {
+      setSubmitting(false);
     }
     setStep('password');
   }
