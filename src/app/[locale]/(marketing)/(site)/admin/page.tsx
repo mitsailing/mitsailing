@@ -105,6 +105,39 @@ export default async function AdminIndexPage(props: AdminIndexPageProps) {
               {t('link_users_blurb')}
             </p>
           </li>
+          <li>
+            <Link
+              className="font-medium text-mit-red-ink no-underline hover:underline"
+              href="/admin/newsletter-subscribers/"
+            >
+              {t('link_newsletter_subscribers')}
+            </Link>
+            <p className="mt-0.5 text-sm text-mit-text">
+              {t('link_newsletter_subscribers_blurb')}
+            </p>
+          </li>
+          <li>
+            <Link
+              className="font-medium text-mit-red-ink no-underline hover:underline"
+              href="/admin/newsletter-lists/"
+            >
+              {t('link_newsletter_lists')}
+            </Link>
+            <p className="mt-0.5 text-sm text-mit-text">
+              {t('link_newsletter_lists_blurb')}
+            </p>
+          </li>
+          <li>
+            <Link
+              className="font-medium text-mit-red-ink no-underline hover:underline"
+              href="/admin/newsletter-broadcasts/"
+            >
+              {t('link_newsletter_broadcasts')}
+            </Link>
+            <p className="mt-0.5 text-sm text-mit-text">
+              {t('link_newsletter_broadcasts_blurb')}
+            </p>
+          </li>
           {CATALOG_RESOURCE_IDS.map((id) => {
             const def = catalogResourceDefinitions[id];
             return (

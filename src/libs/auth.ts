@@ -19,6 +19,7 @@ import {
 } from '@/libs/email/account-emails';
 import { Env } from '@/libs/Env';
 import { logger } from '@/libs/Logger';
+import { ensureNewsletterSubscriberForUser } from '@/libs/newsletter/newsletterSubscriptions';
 import enMessages from '@/locales/en.json';
 
 /**
@@ -107,6 +108,14 @@ export const auth = betterAuth({
         where: { id: user.id, unconfirmedEmail: { not: null } },
         data: { unconfirmedEmail: null },
       });
+      try {
+        await ensureNewsletterSubscriberForUser(user.id);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        logger.error(
+          `Failed to create default newsletter preference: ${message}`
+        );
+      }
     },
   },
   user: {

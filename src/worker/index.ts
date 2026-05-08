@@ -3,6 +3,9 @@ import { Queue, Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import { Env } from '@/libs/Env';
 import { logger } from '@/libs/Logger';
+import { processNewsletterBroadcast } from '@/libs/newsletter/newsletterBroadcasts';
+import { NEWSLETTER_QUEUE_NAME } from '@/libs/newsletter/newsletterConstants';
+import type { NewsletterBroadcastJob } from '@/libs/newsletter/newsletterQueue';
 import { safeErrorCode, safeErrorName } from '@/libs/safeUnknownError';
 import { DEFAULT_QUEUE_NAME } from '@/worker/defaultQueue';
 import {
@@ -64,7 +67,40 @@ async function main(): Promise<void> {
     { connection, concurrency: 1 }
   );
 
+  const newsletterWorker = new Worker<NewsletterBroadcastJob>(
+    NEWSLETTER_QUEUE_NAME,
+    async (job) => {
+      await processNewsletterBroadcast(job.data.broadcastId);
+    },
+    { connection, concurrency: Env.NEWSLETTER_WORKER_CONCURRENCY }
+  );
+
+  logger.info('Newsletter worker started', {
+    concurrency: Env.NEWSLETTER_WORKER_CONCURRENCY,
+  });
+
+  newsletterWorker.on('completed', (job) => {
+    logger.info('Newsletter broadcast job completed', {
+      broadcastId: job.data.broadcastId,
+      jobId: job.id,
+    });
+  });
+  newsletterWorker.on('failed', (job, error) => {
+    logger.error('Newsletter broadcast job failed: {error}', {
+      broadcastId: job?.data.broadcastId,
+      error,
+      jobId: job?.id,
+    });
+  });
+  newsletterWorker.on('error', (error) => {
+    logger.error('Newsletter worker error: {error}', { error });
+  });
+  newsletterWorker.on('stalled', (jobId) => {
+    logger.warn('Newsletter broadcast job stalled', { jobId });
+  });
+
   const shutdown = async (): Promise<void> => {
+    await newsletterWorker.close();
     await worker.close();
     await queue.close();
     await connection.quit();

@@ -80,6 +80,13 @@ export const Env = createEnv({
     // Overridable so different deployments can point at different teams.
     SUPPORT_EMAIL: z.email().default('support@mitsailing.com'),
 
+    // Marketing footer and Resend webhook settings for newsletter broadcasts.
+    NEWSLETTER_POSTAL_ADDRESS: z
+      .string()
+      .min(1)
+      .default('MIT Sailing Pavilion, 134 Memorial Drive, Cambridge, MA 02139'),
+    RESEND_WEBHOOK_SECRET: z.string().min(1).optional(),
+
     // Cloudflare Tunnel credential consumed by the cloudflared service in
     // compose.staging.yaml / compose.prod.yaml. Required in staging+prod,
     // unset locally.
@@ -159,6 +166,8 @@ export const Env = createEnv({
     DEBUG_CLEANUP: process.env.DEBUG_CLEANUP,
     IS_E2E: process.env.IS_E2E,
     SUPPORT_EMAIL: process.env.SUPPORT_EMAIL,
+    NEWSLETTER_POSTAL_ADDRESS: process.env.NEWSLETTER_POSTAL_ADDRESS,
+    RESEND_WEBHOOK_SECRET: process.env.RESEND_WEBHOOK_SECRET,
     CLOUDFLARE_TUNNEL_TOKEN: process.env.CLOUDFLARE_TUNNEL_TOKEN,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
     NEXT_PUBLIC_LOGGING_LEVEL: process.env.NEXT_PUBLIC_LOGGING_LEVEL,

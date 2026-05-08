@@ -28,6 +28,13 @@ type Params = {
   html: string;
   replyTo?: string;
   text?: string;
+  headers?: Record<string, string>;
+  tags?: { name: string; value: string }[];
+  topicId?: string | null;
+};
+
+export type SendEmailResult = {
+  providerMessageId: string | null;
 };
 
 let cachedSmtpTransport: Transporter | null = null;
@@ -72,22 +79,24 @@ function getSmtpTransport(): Transporter {
   return cachedSmtpTransport;
 }
 
-async function sendViaSmtp(params: Params): Promise<void> {
+async function sendViaSmtp(params: Params): Promise<SendEmailResult> {
   if (!Env.EMAIL_FROM) {
     throw new Error('MAIL_TRANSPORT=smtp but EMAIL_FROM is not set.');
   }
   const transport = getSmtpTransport();
-  await transport.sendMail({
+  const info = await transport.sendMail({
     from: Env.EMAIL_FROM,
     ...(params.replyTo ? { replyTo: params.replyTo } : {}),
     to: params.to,
     subject: params.subject,
     html: params.html,
     text: params.text,
+    headers: params.headers,
   });
+  return { providerMessageId: info.messageId ?? null };
 }
 
-async function sendViaResend(params: Params): Promise<void> {
+async function sendViaResend(params: Params): Promise<SendEmailResult> {
   if (!Env.RESEND_API_KEY || !Env.EMAIL_FROM) {
     throw new Error(
       'MAIL_TRANSPORT=resend requires both RESEND_API_KEY and EMAIL_FROM.'
@@ -101,36 +110,43 @@ async function sendViaResend(params: Params): Promise<void> {
     subject: params.subject,
     html: params.html,
     text: params.text,
+    headers: params.headers,
+    tags: params.tags,
+    topicId: params.topicId,
   });
   if (result.error) {
     logger.error(`Resend error: ${result.error.message}`);
     throw new Error(result.error.message);
   }
+  return { providerMessageId: result.data?.id ?? null };
 }
 
-function logOnly(params: Params): void {
+function logOnly(params: Params): SendEmailResult {
   logger.info(`[mail:log] → ${params.to} — ${params.subject}`);
+  return { providerMessageId: null };
 }
 
 /**
  * Sends a transactional email through the active transport.
  * @param params - Outbound message payload.
+ * @returns Provider message id for transports that expose one.
  */
-export async function sendTransactionalEmail(params: Params): Promise<void> {
+export async function sendTransactionalEmail(
+  params: Params
+): Promise<SendEmailResult> {
   const message = withPlainTextFallback(params);
 
   switch (Env.MAIL_TRANSPORT) {
     case 'smtp': {
-      await sendViaSmtp(message);
-      return;
+      const result = await sendViaSmtp(message);
+      return result;
     }
     case 'resend': {
-      await sendViaResend(message);
-      return;
+      const result = await sendViaResend(message);
+      return result;
     }
     case 'log': {
-      logOnly(message);
-      return;
+      return logOnly(message);
     }
     default: {
       // Exhaustiveness check — MAIL_TRANSPORT is a closed enum in Env.ts, so
