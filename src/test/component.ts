@@ -30,9 +30,9 @@ export function setComponentTestSearchParams(searchParams: string) {
 }
 
 export function resetComponentTestRouter() {
-  router.push.mockClear();
-  router.refresh.mockClear();
-  router.replace.mockClear();
+  router.push.mockReset();
+  router.refresh.mockReset();
+  router.replace.mockReset();
   currentPathname = '/profile/account/';
   currentSearchParams = new URLSearchParams();
 }

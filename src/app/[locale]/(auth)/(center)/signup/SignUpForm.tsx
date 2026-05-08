@@ -74,10 +74,17 @@ export function SignUpForm(props: SignUpFormProps) {
       return;
     }
     setSubmitting(true);
+    let displayName: string;
+    if (name.trim() === '') {
+      const at = email.indexOf('@');
+      displayName = at === -1 ? email : email.slice(0, at);
+    } else {
+      displayName = name;
+    }
     const res = await authClient.signUp.email({
       email,
       password,
-      name: name.trim() === '' ? email.slice(0, email.indexOf('@')) : name,
+      name: displayName,
       callbackURL: props.callbackUrl,
     });
     setSubmitting(false);

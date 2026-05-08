@@ -160,10 +160,17 @@ export const auth = betterAuth({
         if (type === 'change-email') {
           const sessionUser = ctx?.context.session?.user;
           if (sessionUser?.id) {
-            const pendingEmailChanged = await markPendingEmailChange({
-              userId: sessionUser.id,
-              newEmail: email,
-            });
+            let pendingEmailChanged = false;
+            try {
+              pendingEmailChanged = await markPendingEmailChange({
+                userId: sessionUser.id,
+                newEmail: email,
+              });
+            } catch (error) {
+              const message =
+                error instanceof Error ? error.message : String(error);
+              logger.error(`Failed to mark pending email change: ${message}`);
+            }
             if (
               pendingEmailChanged &&
               sessionUser.email &&

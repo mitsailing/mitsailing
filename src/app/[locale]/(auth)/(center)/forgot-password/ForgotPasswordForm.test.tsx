@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { componentTestRouter } from '@/test/component';
@@ -31,9 +31,11 @@ describe('ForgotPasswordForm', () => {
     expect(authClientMock.emailOtp.requestPasswordReset).toHaveBeenCalledWith({
       email: 'reset@mit.edu',
     });
-    expect(componentTestRouter().replace).toHaveBeenCalledWith(
-      '/reset-password?email=reset%40mit.edu&codeSent=1&callbackUrl=%2Ffleet%2F'
-    );
+    await waitFor(() => {
+      expect(componentTestRouter().replace).toHaveBeenCalledWith(
+        '/reset-password?email=reset%40mit.edu&codeSent=1&callbackUrl=%2Ffleet%2F'
+      );
+    });
   });
 
   it('visitor sees a safe error for an invalid reset email', async () => {

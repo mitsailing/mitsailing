@@ -3,7 +3,10 @@ import { Role } from '@/libs/auth/roles';
 
 const roleSchema = z.enum([Role.USER, Role.ADMIN]);
 
-function booleanFromFormData(formData: FormData, field: string): boolean {
+function booleanFromFormData(
+  formData: FormData,
+  field: 'emailVerified' | 'banned'
+): boolean {
   return formData.getAll(field).includes('true');
 }
 

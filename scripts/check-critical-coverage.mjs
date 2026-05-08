@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -376,11 +377,28 @@ function printExemptions(exemptions) {
   }
 }
 
+if (!existsSync(coverageSummaryPath)) {
+  throw new Error(
+    `Coverage summary missing: ${coverageSummaryPath}. Run tests with coverage (e.g. npm run test) so coverage/coverage-summary.json exists.`
+  );
+}
+
 const rawSummary = await readFile(coverageSummaryPath, 'utf8');
-const coverageSummary = JSON.parse(rawSummary);
+
+let coverageSummary;
+try {
+  coverageSummary = JSON.parse(rawSummary);
+} catch (error) {
+  throw new TypeError(
+    `Invalid JSON in coverage summary: ${coverageSummaryPath}`,
+    { cause: error }
+  );
+}
 
 if (!isCoverageSummary(coverageSummary)) {
-  throw new TypeError('Invalid coverage summary format');
+  throw new TypeError(
+    `Invalid coverage summary format: ${coverageSummaryPath}`
+  );
 }
 
 const authFailures = coverageFailuresForFiles(

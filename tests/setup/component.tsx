@@ -85,10 +85,15 @@ vi.mock('next-intl', () => ({
   useTranslations: (namespace: string) => createTranslator(namespace),
 }));
 
-vi.mock('next/navigation', () => ({
-  useRouter: () => componentTestRouter(),
-  useSearchParams: () => componentTestSearchParams(),
-}));
+vi.mock('next/navigation', async (importOriginal) => {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-imports -- Vitest `importOriginal` needs the module type for the spread.
+  const actual = await importOriginal<typeof import('next/navigation')>();
+  return {
+    ...actual,
+    useRouter: () => componentTestRouter(),
+    useSearchParams: () => componentTestSearchParams(),
+  };
+});
 
 vi.mock('@/libs/I18nNavigation', () => ({
   Link: (props: React.ComponentProps<'a'>) => (

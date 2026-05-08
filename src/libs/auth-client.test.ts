@@ -24,7 +24,7 @@ beforeEach(() => {
 });
 
 describe('authClient', () => {
-  it('registers admin and email OTP client plugins', async () => {
+  it('Registers admin and email OTP client plugins', async () => {
     const { authClient } = await import('@/libs/auth-client');
 
     expect(authClient).toEqual({

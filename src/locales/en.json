@@ -160,9 +160,9 @@
     "error_unverified_resent": "We sent a verification code to that email.",
     "error_unverified_resend_link": "Send verification code",
     "error_unverified_support": "Still stuck? Contact <support>support@mitsailing.com</support>.",
-    "error_rate_limited": "Too many attempts. Try again in a few minutes.",
-    "error_reset_failed": "We could not send a reset code right now. Try again in a moment.",
-    "unlock_invalid_error": "That unlock link is invalid or has expired. Wait for the automatic unlock or try again.",
+    "error_rate_limited": "Too many attempts. Wait a few minutes.",
+    "error_reset_failed": "We could not send a reset code right now.",
+    "unlock_invalid_error": "That unlock link is invalid or has expired. Wait for automatic unlock.",
     "unlocked_banner": "Your account is unlocked. You can sign in.",
     "error_invalid_email": "Enter a valid email address with a domain (for example name@mit.edu).",
     "error_request_failed": "We could not complete that request right now."
@@ -185,7 +185,7 @@
     "error_exists": "That email is already in the system.",
     "error_pwned": "That password has appeared in a known data breach. Choose a different one.",
     "error_password_mismatch": "Passwords do not match.",
-    "error_rate_limited": "Too many sign-up attempts. Try again in a few minutes.",
+    "error_rate_limited": "Too many sign-up attempts. Wait a few minutes.",
     "error_invalid_email": "Enter a valid email address with a domain (for example name@mit.edu)."
   },
   "VerifyEmailPage": {
@@ -221,7 +221,7 @@
     "email_label": "Email",
     "submit": "Send reset code",
     "sent_banner": "If an account exists for this email, you will receive a reset code shortly.",
-    "error_request_failed": "We could not send a reset code right now. Try again in a moment.",
+    "error_request_failed": "We could not send a reset code right now.",
     "back_sign_in": "Back to sign in",
     "error_invalid_email": "Enter a valid email address with a domain (for example name@mit.edu)."
   },
@@ -245,7 +245,7 @@
     "resend_wait": "You can request a new code in 30 seconds",
     "resent_banner": "We sent a new reset code.",
     "error_resend_failed": "We could not send a reset code right now.",
-    "error_validation": "Check your password and try again.",
+    "error_validation": "Check your password.",
     "error_pwned": "That password has appeared in a known data breach. Choose a different one.",
     "error_password_too_short": "Use at least 8 characters.",
     "error_password_too_long": "Use 128 characters or fewer.",

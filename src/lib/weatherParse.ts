@@ -280,6 +280,30 @@ export function toDisplayWeatherSegments(
   };
 }
 
+/** Maximum Unicode scalar value U+10FFFF (inclusive). */
+const MAX_UNICODE_SCALAR = 1_114_111;
+/** High surrogate code unit range start (non-scalars). */
+const SURROGATE_MIN = 55_296;
+/** High surrogate code unit range end (non-scalars). */
+const SURROGATE_MAX = 57_343;
+
+function isUnicodeScalarValue(cp: number): boolean {
+  if (
+    !Number.isFinite(cp) ||
+    !Number.isInteger(cp) ||
+    cp < 0 ||
+    cp > MAX_UNICODE_SCALAR
+  ) {
+    return false;
+  }
+  /** `String.fromCodePoint` rejects surrogate code units as scalar values. */
+  return cp < SURROGATE_MIN || cp > SURROGATE_MAX;
+}
+
+function scalarCharFromParsedEntity(cp: number, fallback: string): string {
+  return isUnicodeScalarValue(cp) ? String.fromCodePoint(cp) : fallback;
+}
+
 /**
  * Cleans MIT weather blobs wrapped in stray markup / wrong encoding — strips HTML,
  * expands &#176;-style entities for `°F`, fixes `Â°F`, then [`normalizeWeatherText`].
@@ -291,11 +315,11 @@ export function prepareMitWeatherUpstreamText(raw: string): string {
   let s = raw.replaceAll('\uFEFF', '');
   /* eslint-disable unicorn/prefer-string-replace-all -- tag/entity passes need regex spans and casing */
   s = stripHtmlAngleSpans(s, ' ');
-  s = s.replaceAll(/&#(\d{1,5});/gu, (_, code: string) =>
-    String.fromCodePoint(Number(code))
+  s = s.replaceAll(/&#(\d{1,5});/gu, (full, code: string) =>
+    scalarCharFromParsedEntity(Number(code), full)
   );
-  s = s.replaceAll(/&#x([\da-f]{1,5});/giu, (_, hex: string) =>
-    String.fromCodePoint(Number.parseInt(hex, 16))
+  s = s.replaceAll(/&#x([\da-f]{1,5});/giu, (full, hex: string) =>
+    scalarCharFromParsedEntity(Number.parseInt(hex, 16), full)
   );
   s = s.replaceAll(/&deg;/giu, '\u00B0');
   s = s.replaceAll(/&nbsp;/giu, ' ');

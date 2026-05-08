@@ -60,7 +60,7 @@ export default async function SignInPage(props: SignInPageProps) {
           {t('unlock_invalid_error')}
         </p>
       ) : null}
-      {!searchParams.error && searchParams.unlocked ? (
+      {!searchParams.error && searchParams.unlocked === '1' ? (
         <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-800">
           {t('unlocked_banner')}
         </p>

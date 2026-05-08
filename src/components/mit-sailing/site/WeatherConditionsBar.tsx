@@ -71,13 +71,11 @@ function displaySegmentText(value: string | null | undefined): string {
 }
 
 function WeatherConditionsChrome(props: ChromeProps) {
-  const { segments, tMitSite } = props;
-
   return (
     <div className="border-b border-mit-line bg-mit-surface pt-4 pb-2 sm:py-2 dark:bg-background dark:backdrop-blur-none">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-4 px-6 sm:px-8">
         <a
-          aria-label={tMitSite('conditions_weather_link_aria')}
+          aria-label={props.tMitSite('conditions_weather_link_aria')}
           className="min-w-0 flex-1 cursor-pointer rounded-sm text-xs font-medium text-muted-foreground no-underline transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none dark:text-mit-text dark:hover:text-white"
           href="https://sailing.mit.edu/weather/"
           rel="noopener noreferrer"
@@ -86,12 +84,14 @@ function WeatherConditionsChrome(props: ChromeProps) {
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2 sm:gap-6">
             {conditionsLineRows.map((row) => {
               const { Icon, lineKey } = row;
-              const slotValue = displaySegmentText(segments[row.segmentKey]);
+              const slotValue = displaySegmentText(
+                props.segments[row.segmentKey]
+              );
 
               return (
                 <div className="flex items-center gap-1.5" key={lineKey}>
                   <Icon aria-hidden="true" size={14} />
-                  {tMitSite(lineKey, { value: slotValue })}
+                  {props.tMitSite(lineKey, { value: slotValue })}
                 </div>
               );
             })}
@@ -104,7 +104,7 @@ function WeatherConditionsChrome(props: ChromeProps) {
               href={u.href}
               key={u.labelKey}
             >
-              {tMitSite(u.labelKey)}
+              {props.tMitSite(u.labelKey)}
             </Link>
           ))}
         </div>

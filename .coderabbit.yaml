@@ -1,25 +1,93 @@
 # yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
-
-# CodeRabbit is an AI-powered code reviewer that cuts review time and bugs in half
+#
+# Strict review defaults (assertive profile + request changes). Finishing-touch
+# autofix delivery is not configurable here: use `@coderabbitai autofix` to push
+# fixes to the PR branch, or `@coderabbitai autofix stacked pr` for a separate PR.
 
 language: en-US
 early_access: false
+
 reviews:
-  profile: chill
-  request_changes_workflow: false
+  profile: assertive
+  request_changes_workflow: true
+  poem: false
+
   high_level_summary: true
-  poem: true
   review_status: true
+  review_details: true
   collapse_walkthrough: false
+
+  commit_status: true
+  fail_commit_status: true
+
+  enable_prompt_for_ai_agents: true
+
   path_instructions:
     - path: '**/*.{ts,tsx}'
-      instructions: 'Review the Typescript and React code for conformity with best practices in React, and Typescript. Highlight any deviations.'
+      instructions: >-
+        Follow repository AGENTS.md and .cursor/rules: TypeScript strictness,
+        React patterns (single props param, no useMemo/useCallback), Next.js App Router
+        and server/client boundaries, next-intl (no hard-coded user-visible strings),
+        accessibility and contrast (ADA rule). Flag deviations and security-sensitive
+        mistakes (auth, SQL, secrets).
+    - path: 'prisma/**'
+      instructions: >-
+        Validate Prisma schema and migrations for naming consistency, safe evolves,
+        and relation integrity; align with project migration practices.
+    - path: '.github/workflows/**'
+      instructions: >-
+        Check workflows for CI best practices, secrets handling, and consistency with
+        docs and npm scripts in package.json.
+
   auto_review:
     enabled: true
+    auto_incremental_review: true
+    auto_pause_after_reviewed_commits: 0
+    drafts: false
     ignore_title_keywords:
       - WIP
       - DO NOT MERGE
       - DRAFT
-    drafts: false
+    base_branches:
+      - develop
+      - release/.*
+
+  finishing_touches:
+    # Docstring generation opens a follow-up PR by design; use `@coderabbitai autofix`
+    # on the original PR for same-branch fixes instead.
+    docstrings:
+      enabled: false
+    simplify:
+      enabled: true
+
+  pre_merge_checks:
+    docstrings:
+      mode: off
+    title:
+      mode: warning
+      requirements: >-
+        Prefer Conventional Commits-style titles (feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert): short specific summary.
+    description:
+      mode: warning
+    issue_assessment:
+      mode: warning
+
+  tools:
+    # Lint stack matches package.json (ultracite / oxlint); no ESLint config in-repo.
+    eslint:
+      enabled: false
+    biome:
+      enabled: false
+    oxc:
+      enabled: true
+    prismaLint:
+      enabled: true
+    actionlint:
+      enabled: true
+    yamllint:
+      enabled: true
+    github-checks:
+      enabled: true
+
 chat:
   auto_reply: true

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { componentTestRouter } from '@/test/component';
@@ -29,8 +29,10 @@ describe('StopImpersonationButton', () => {
       screen.getByRole('button', { name: 'Exit impersonation' })
     );
 
-    expect(authClientMock.admin.stopImpersonating).toHaveBeenCalledTimes(1);
-    expect(componentTestRouter().push).toHaveBeenCalledWith('/admin/users');
-    expect(componentTestRouter().refresh).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(authClientMock.admin.stopImpersonating).toHaveBeenCalledTimes(1);
+      expect(componentTestRouter().push).toHaveBeenCalledWith('/admin/users');
+      expect(componentTestRouter().refresh).toHaveBeenCalledTimes(1);
+    });
   });
 });

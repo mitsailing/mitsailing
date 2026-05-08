@@ -456,7 +456,7 @@ describe('ResetPasswordForm', () => {
     await fillNewPassword({ password: 'new-password' });
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Check your password and try again.'
+      'Check your password.'
     );
     expect(componentTestRouter().push).not.toHaveBeenCalled();
   });

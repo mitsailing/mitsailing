@@ -9,22 +9,30 @@ import {
   findLatestMessageTo,
 } from '../helpers/mailpit';
 
-const testDatabaseUrl = Env.TEST_DATABASE_URL;
+let cleanupPool: Pool | undefined;
 
-if (!testDatabaseUrl) {
-  throw new Error('TEST_DATABASE_URL is required for AdminHub e2e cleanup.');
+/**
+ * Lazily creates a pool when `Env.TEST_DATABASE_URL` is set (avoids import-time failure).
+ *
+ * @returns A Postgres pool, or `null` when no test database URL is configured.
+ */
+function getCleanupPool(): Pool | null {
+  const url = Env.TEST_DATABASE_URL;
+  if (!url) {
+    return null;
+  }
+  cleanupPool ??= new Pool({ connectionString: url });
+  return cleanupPool;
 }
-
-const pool = new Pool({ connectionString: testDatabaseUrl });
 
 let pgPoolEnded = false;
 
 test.afterAll(async () => {
-  if (pgPoolEnded) {
+  if (pgPoolEnded || !cleanupPool) {
     return;
   }
   pgPoolEnded = true;
-  await pool.end();
+  await cleanupPool.end();
 });
 
 const swallow = (error: unknown): void => {
@@ -34,6 +42,10 @@ const swallow = (error: unknown): void => {
 };
 
 async function cleanupByEmail(email: string) {
+  const pool = getCleanupPool();
+  if (!pool) {
+    return;
+  }
   try {
     await pool.query('DELETE FROM "failed_login_attempts" WHERE "email" = $1', [
       email,

@@ -64,6 +64,18 @@ describe('weatherParse', () => {
       expect(normalized).toContain('Air 49.9°F');
       expect(normalized).toContain('Water 57.0°F');
     });
+
+    it('leaves numeric entities intact when the code point is not a Unicode scalar value', () => {
+      const tooHigh = 'Wind calm, Air 50&#1114112;F, Water 55°F, Sunset 18:00';
+      expect(prepareMitWeatherUpstreamText(tooHigh)).toContain('&#1114112;');
+
+      const surrogate = 'Wind calm, Air 50&#55357;F, Water 55°F, Sunset 18:00';
+      expect(prepareMitWeatherUpstreamText(surrogate)).toContain('&#55357;');
+
+      const hexTooHigh =
+        'Wind calm, Air 50&#x110000;F, Water 55°F, Sunset 18:00';
+      expect(prepareMitWeatherUpstreamText(hexTooHigh)).toContain('&#x110000;');
+    });
   });
 
   describe('parseMitSailingWeather', () => {
