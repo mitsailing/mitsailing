@@ -41,7 +41,7 @@ function renderDropdown(props?: {
 
 describe('NavigationDropdown', () => {
   it('opens and closes disclosure on click', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ skipHover: true });
     renderDropdown();
 
     const trigger = screen.getByRole('button', { name: 'Classes' });
@@ -56,7 +56,7 @@ describe('NavigationDropdown', () => {
   });
 
   it('prepends overview link when href is present', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ skipHover: true });
     renderDropdown();
 
     await user.click(screen.getByRole('button', { name: 'Classes' }));
@@ -197,7 +197,7 @@ describe('NavigationDropdown', () => {
   });
 
   it('dismisses desktop dropdown on outside pointer and focus', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ skipHover: true });
     render(
       <>
         <NavigationDropdown
@@ -229,7 +229,7 @@ describe('NavigationDropdown', () => {
   });
 
   it('marks active dropdown children with aria-current', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ skipHover: true });
     renderDropdown({ pathname: '/classes/', routeHash: 'windsurfing' });
 
     await user.click(screen.getByRole('button', { name: 'Classes' }));
@@ -265,7 +265,7 @@ describe('NavigationDropdown', () => {
   });
 
   it('renders items without an overview link when href is absent', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ skipHover: true });
     render(
       <NavigationDropdown
         items={dropdownItems}
@@ -285,7 +285,7 @@ describe('NavigationDropdown', () => {
   });
 
   it('uses label fallback for items without hrefs', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ skipHover: true });
     render(
       <NavigationDropdown
         items={[{ label: 'Placeholder' }]}
