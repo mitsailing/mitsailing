@@ -24,8 +24,8 @@ const SITE_ALERTS_BANNER_REVALIDATE_SECONDS = 60 * 60;
 /**
  * Prisma `where` for banner eligibility on one Eastern calendar day.
  *
- * Matches {@link siteAlertEligibleForBannerOnEasternDay} for ISO rows derived from
- * Postgres `DATE` values at UTC midnight (see {@link prismaDateFromIsoCalendar}).
+ * Uses the same UTC-midnight `Date` values as {@link prismaDateFromIsoCalendar}
+ * for Postgres `DATE` bounds.
  *
  * @param todayIso - Eastern “today” key `YYYY-MM-DD` (same basis as {@link formatEasternCalendarDateKey})
  * @returns Clause or `null` when `todayIso` is not a valid calendar date
