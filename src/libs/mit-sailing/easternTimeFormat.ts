@@ -1,9 +1,4 @@
-const dateKeyFormatter = new Intl.DateTimeFormat('en-CA', {
-  timeZone: 'America/New_York',
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-});
+import { nyYmd } from '@/lib/mit-sailing/nyTime';
 
 const fullDateFormatter = new Intl.DateTimeFormat('en-US', {
   timeZone: 'America/New_York',
@@ -20,21 +15,13 @@ const timeOnlyFormatter = new Intl.DateTimeFormat('en-US', {
 });
 
 /**
- * @param d - Instant
- * @returns Calendar day in America/New_York (YYYY-MM-DD) for same-day comparisons
- */
-function formatNyDateKey(d: Date): string {
-  return dateKeyFormatter.format(d);
-}
-
-/**
  * @param start - Start instant
  * @param end - End instant
  * @returns Prose range, e.g. `Sat, Mar 7, 2026 · 9:00 AM – 5:00 PM`
  */
 export function formatEasternEventRange(start: Date, end: Date): string {
-  const startKey = formatNyDateKey(start);
-  const endKey = formatNyDateKey(end);
+  const startKey = nyYmd(start);
+  const endKey = nyYmd(end);
   const t1 = timeOnlyFormatter.format(start);
   const t2 = timeOnlyFormatter.format(end);
   if (startKey === endKey) {
@@ -60,18 +47,10 @@ export function formatEasternDateTime(d: Date): string {
  * @returns Time range, or a full date+time line when the event spans NY days
  */
 export function formatEasternSameDayTimeRange(start: Date, end: Date): string {
-  if (formatNyDateKey(start) !== formatNyDateKey(end)) {
+  if (nyYmd(start) !== nyYmd(end)) {
     return formatEasternEventRange(start, end);
   }
   return `${timeOnlyFormatter.format(start)} – ${timeOnlyFormatter.format(end)}`;
-}
-
-/**
- * @param d - Instant
- * @returns Calendar day in America/New_York (`YYYY-MM-DD`) for same-day comparisons
- */
-export function formatEasternCalendarDateKey(d: Date): string {
-  return formatNyDateKey(d);
 }
 
 const isoCalendarDayDisplayFormatter = new Intl.DateTimeFormat('en-US', {

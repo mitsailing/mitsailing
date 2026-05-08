@@ -2,11 +2,9 @@ import 'server-only';
 import { createHash } from 'node:crypto';
 import { unstable_cache } from 'next/cache';
 import type { Prisma } from '@/generated/prisma/client';
+import { nyYmd } from '@/lib/mit-sailing/nyTime';
 import { prisma } from '@/libs/DB';
-import {
-  formatEasternCalendarDateKey,
-  formatEasternShortDateFromIsoCalendar,
-} from '@/libs/mit-sailing/easternTimeFormat';
+import { formatEasternShortDateFromIsoCalendar } from '@/libs/mit-sailing/easternTimeFormat';
 import {
   isoCalendarDateFromPrismaDate,
   prismaDateFromIsoCalendar,
@@ -27,7 +25,7 @@ const SITE_ALERTS_BANNER_REVALIDATE_SECONDS = 60 * 60;
  * Uses the same UTC-midnight `Date` values as {@link prismaDateFromIsoCalendar}
  * for Postgres `DATE` bounds.
  *
- * @param todayIso - Eastern “today” key `YYYY-MM-DD` (same basis as {@link formatEasternCalendarDateKey})
+ * @param todayIso - Eastern “today” key `YYYY-MM-DD` (same basis as {@link nyYmd})
  * @returns Clause or `null` when `todayIso` is not a valid calendar date
  */
 export function prismaWhereSiteAlertBannerForCalendarDay(
@@ -90,7 +88,7 @@ const listSiteAlertsForBannerByDay = unstable_cache(
 export async function listSiteAlertsForBannerAt(
   now: Date
 ): Promise<SiteAlertPublicItem[]> {
-  const todayIso = formatEasternCalendarDateKey(now);
+  const todayIso = nyYmd(now);
   const rows = await listSiteAlertsForBannerByDay(todayIso);
   return rows;
 }
@@ -105,7 +103,7 @@ export async function listSiteAlertsForBannerAt(
 export async function listPublishedSiteAlerts(
   now: Date = new Date()
 ): Promise<SiteAlertPublicItem[]> {
-  const todayIso = formatEasternCalendarDateKey(now);
+  const todayIso = nyYmd(now);
   const todayDate = prismaDateFromIsoCalendar(todayIso);
   if (!todayDate) {
     return [];

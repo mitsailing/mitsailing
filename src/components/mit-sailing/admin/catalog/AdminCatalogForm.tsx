@@ -264,31 +264,23 @@ function CatalogSelectFieldBranch(props: {
 }) {
   const dynOpts = props.dynamicOptions;
   if (dynOpts && dynOpts.length > 0) {
-    return (
-      <div>
-        {catalogDynamicSelectField({
-          fieldKey: props.fieldKey,
-          label: props.label,
-          defaultValue: props.defaultValue,
-          required: props.required,
-          options: dynOpts,
-        })}
-      </div>
-    );
+    return catalogDynamicSelectField({
+      fieldKey: props.fieldKey,
+      label: props.label,
+      defaultValue: props.defaultValue,
+      required: props.required,
+      options: dynOpts,
+    });
   }
   if (props.selectOptions && props.selectOptions.length > 0) {
-    return (
-      <div>
-        {catalogStaticSelectField({
-          fieldKey: props.fieldKey,
-          label: props.label,
-          defaultValue: props.defaultValue,
-          required: props.required,
-          options: props.selectOptions,
-          translateLabel: props.translateLabel,
-        })}
-      </div>
-    );
+    return catalogStaticSelectField({
+      fieldKey: props.fieldKey,
+      label: props.label,
+      defaultValue: props.defaultValue,
+      required: props.required,
+      options: props.selectOptions,
+      translateLabel: props.translateLabel,
+    });
   }
   return null;
 }
@@ -395,17 +387,16 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
 
     if (field.kind === 'select') {
       return (
-        <div key={key}>
-          <CatalogSelectFieldBranch
-            defaultValue={defaultValue}
-            dynamicOptions={props.dynamicSelectOptions?.[key]}
-            fieldKey={key}
-            label={label}
-            required={field.required}
-            selectOptions={field.selectOptions}
-            translateLabel={translateLabel}
-          />
-        </div>
+        <CatalogSelectFieldBranch
+          key={key}
+          defaultValue={defaultValue}
+          dynamicOptions={props.dynamicSelectOptions?.[key]}
+          fieldKey={key}
+          label={label}
+          required={field.required}
+          selectOptions={field.selectOptions}
+          translateLabel={translateLabel}
+        />
       );
     }
 
