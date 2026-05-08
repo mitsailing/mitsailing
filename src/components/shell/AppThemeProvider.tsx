@@ -45,8 +45,9 @@ function applyTheme(theme: AppColorScheme): ResolvedColorScheme {
 
 export function AppThemeProvider(props: AppThemeProviderProps) {
   const [theme, setThemeState] = useState<AppColorScheme>(props.defaultTheme);
-  const [resolvedTheme, setResolvedTheme] =
-    useState<ResolvedColorScheme>('light');
+  const [resolvedTheme, setResolvedTheme] = useState<ResolvedColorScheme>(
+    props.defaultTheme === 'dark' ? 'dark' : 'light'
+  );
 
   useEffect(() => {
     setThemeState(props.defaultTheme);

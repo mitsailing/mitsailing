@@ -94,7 +94,6 @@ export const auth = betterAuth({
     },
   },
   emailVerification: {
-    sendOnSignUp: true,
     sendOnSignIn: true,
     autoSignInAfterVerification: true,
     afterEmailVerification: async (user) => {
@@ -157,7 +156,6 @@ export const auth = betterAuth({
       otpLength: 6,
       overrideDefaultEmailVerification: true,
       rateLimit: { window: 60, max: 3 },
-      sendVerificationOnSignUp: true,
       storeOTP: 'hashed',
       async sendVerificationOTP({ email, otp, type }, ctx) {
         await sendEmailOtpCode({ email, otp, type });

@@ -54,7 +54,7 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
   }
 
   function lockResend() {
-    if (resendTimeoutRef.current) {
+    if (resendTimeoutRef.current !== null) {
       clearTimeout(resendTimeoutRef.current);
     }
     setResendLocked(true);
@@ -66,7 +66,7 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
 
   useEffect(
     () => () => {
-      if (resendTimeoutRef.current) {
+      if (resendTimeoutRef.current !== null) {
         clearTimeout(resendTimeoutRef.current);
         resendTimeoutRef.current = null;
       }

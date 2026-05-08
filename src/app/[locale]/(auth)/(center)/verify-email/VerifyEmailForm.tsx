@@ -51,7 +51,7 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
   }
 
   function lockResend() {
-    if (resendTimeoutRef.current) {
+    if (resendTimeoutRef.current !== null) {
       clearTimeout(resendTimeoutRef.current);
     }
     setResendLocked(true);
@@ -63,7 +63,7 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
 
   useEffect(
     () => () => {
-      if (resendTimeoutRef.current) {
+      if (resendTimeoutRef.current !== null) {
         clearTimeout(resendTimeoutRef.current);
         resendTimeoutRef.current = null;
       }

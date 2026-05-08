@@ -41,6 +41,8 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
 
   const [emailBanner, setEmailBanner] =
     useState<ProfileBannerState>(initialEmailBanner);
+  const [emailOtpBanner, setEmailOtpBanner] =
+    useState<ProfileBannerState>(null);
   const [nameBanner, setNameBanner] = useState<ProfileBannerState>(null);
   const [resendBanner, setResendBanner] = useState<ProfileBannerState>(null);
 
@@ -59,7 +61,7 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
   const resendTimerRef = useRef<number | null>(null);
 
   function lockEmailResend() {
-    if (resendTimerRef.current) {
+    if (resendTimerRef.current !== null) {
       clearTimeout(resendTimerRef.current);
     }
     setResendLocked(true);
@@ -71,7 +73,7 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
 
   useEffect(
     () => () => {
-      if (resendTimerRef.current) {
+      if (resendTimerRef.current !== null) {
         clearTimeout(resendTimerRef.current);
         resendTimerRef.current = null;
       }
@@ -104,6 +106,8 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
       return;
     }
     setEmailBanner({ kind: 'success', message: t('email_change_sent') });
+    setEmailOtpBanner(null);
+    lockEmailResend();
     setPendingEmail(newEmail);
     setEmailCode('');
     setNewEmail('');
@@ -117,13 +121,13 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
       return;
     }
     if (emailCode.length !== 6) {
-      setEmailBanner({
+      setEmailOtpBanner({
         kind: 'error',
         message: t('email_invalid_code_error'),
       });
       return;
     }
-    setEmailBanner(null);
+    setEmailOtpBanner(null);
     setConfirmingEmail(true);
     const res = await authClient.emailOtp.changeEmail({
       newEmail: pendingEmail,
@@ -131,7 +135,7 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
     });
     setConfirmingEmail(false);
     if (res.error) {
-      setEmailBanner({
+      setEmailOtpBanner({
         kind: 'error',
         message: mapProfileEmailError(res.error.code, res.error.message, t),
       });
@@ -255,6 +259,7 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
                     {t('pending_email_confirm')}
                   </Button>
                 </form>
+                <ProfileInlineBanner banner={emailOtpBanner} />
                 <ProfileInlineBanner banner={resendBanner} />
                 <div className="mt-2 flex flex-wrap items-center gap-3">
                   <Button
