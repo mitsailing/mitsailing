@@ -1,4 +1,4 @@
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import Image from 'next/image';
 import { PublicAdminEditLink } from '@/components/mit-sailing/admin/PublicAdminEditLink';
@@ -61,15 +61,41 @@ export async function FleetBoatDetailView(props: FleetBoatDetailViewProps) {
 
       <section className="mb-8 rounded-xl border border-mit-line bg-mit-red-highlight p-6">
         <h2 className="mt-0 mb-2 font-mit-serif text-xl font-semibold text-mit-text">
-          {t('required_class_heading')}
+          {t('required_rating_heading')}
         </h2>
-        <Link
-          className={`inline-flex font-semibold text-mit-red-ink hover:underline ${textFocusRingClassName}`}
-          href={`/classes/${encodeURIComponent(boat.requiredClass.slug)}`}
-        >
-          {boat.requiredClass.name}
-        </Link>
+        <ul className="m-0 list-none space-y-1 p-0">
+          {boat.requiredRatings.map((rating) => (
+            <li key={rating.id}>
+              <Link
+                className={`inline-flex items-center gap-1 font-semibold text-mit-red-ink hover:underline ${textFocusRingClassName}`}
+                href={`/ratings/#${rating.slug}`}
+              >
+                {rating.name} <ArrowRight aria-hidden size={14} />
+              </Link>
+            </li>
+          ))}
+        </ul>
       </section>
+
+      {boat.advancedRatings.length > 0 ? (
+        <section className="mb-8 rounded-xl border border-mit-line bg-mit-surface p-6">
+          <h2 className="mt-0 mb-2 font-mit-serif text-xl font-semibold text-mit-text">
+            {t('advanced_rating_heading')}
+          </h2>
+          <ul className="m-0 list-none space-y-1 p-0">
+            {boat.advancedRatings.map((rating) => (
+              <li key={rating.id}>
+                <Link
+                  className={`inline-flex items-center gap-1 font-semibold text-mit-red-ink hover:underline ${textFocusRingClassName}`}
+                  href={`/ratings/#${rating.slug}`}
+                >
+                  {rating.name} <ArrowRight aria-hidden size={14} />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {boat.imagePath && !descriptionHasImage ? (
         <div className="relative mb-6 aspect-[16/10] max-h-[420px] overflow-hidden rounded-xl bg-mit-line">

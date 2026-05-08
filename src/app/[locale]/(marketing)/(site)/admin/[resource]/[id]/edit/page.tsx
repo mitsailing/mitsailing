@@ -23,6 +23,7 @@ import {
 } from '@/libs/admin/catalog/cmsCatalogHandlers';
 import { fleetRequiredClassSelectOptions } from '@/libs/admin/catalog/fleetCatalogHandlers';
 import { sailingClassCategorySelectOptions } from '@/libs/admin/catalog/sailingClassesHandlers';
+import { sailingRatingSelectOptions } from '@/libs/admin/catalog/sailingRatingsHandlers';
 import type { CatalogRow } from '@/libs/admin/catalog/types';
 import { isCatalogHistoryResourceId } from '@/libs/mit-sailing/catalogHistory';
 import { isAppRelativeCmsHref, safeCmsHref } from '@/libs/mit-sailing/cmsHref';
@@ -49,6 +50,11 @@ async function catalogEditDynamicSelectOptions(props: {
   if (props.resource === 'sailing_classes') {
     return {
       classCategoryId: await sailingClassCategorySelectOptions(),
+    };
+  }
+  if (props.resource === 'sailing_rating_rules') {
+    return {
+      sailingRatingId: await sailingRatingSelectOptions(),
     };
   }
   if (props.resource === 'cms_page_blocks') {

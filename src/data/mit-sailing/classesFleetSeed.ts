@@ -8,7 +8,9 @@ export type ClassCategory =
   | 'windsurfing'
   | 'intro to racing'
   | 'intermediate sailing'
-  | 'intermediate racing';
+  | 'intermediate racing'
+  | 'rating checkoffs'
+  | 'bluewater';
 
 export type SailingClass = {
   id: string;
@@ -66,7 +68,7 @@ export const SAILING_CLASSES: SailingClass[] = [
       'evt-lts-allinone',
       'evt-intermediate-clinic',
     ],
-    unlockedBoatIds: ['boat-hunter-140'],
+    unlockedBoatIds: ['boat-tech-dinghy'],
   },
   {
     id: 'class-learn-to-sail-intensive',
@@ -82,7 +84,7 @@ export const SAILING_CLASSES: SailingClass[] = [
       'evt-lts-weekday-apr-7',
       'evt-boardsailing-weekend',
     ],
-    unlockedBoatIds: [],
+    unlockedBoatIds: ['boat-tech-dinghy'],
   },
   {
     id: 'class-windsurfing-fundamentals',
@@ -98,7 +100,7 @@ export const SAILING_CLASSES: SailingClass[] = [
       'evt-lts-allinone',
       'evt-lts-weekday-apr-7',
     ],
-    unlockedBoatIds: ['boat-bic-techno-293'],
+    unlockedBoatIds: ['boat-windsurfing'],
   },
   {
     id: 'class-intro-to-racing',
@@ -114,7 +116,7 @@ export const SAILING_CLASSES: SailingClass[] = [
       'evt-dinghy-cup',
       'evt-lts-weekday-apr-7',
     ],
-    unlockedBoatIds: ['boat-laser-radial'],
+    unlockedBoatIds: ['boat-laser'],
   },
   {
     id: 'class-intermediate-sailing-skills',
@@ -130,7 +132,7 @@ export const SAILING_CLASSES: SailingClass[] = [
       'evt-lts-weekday-apr-7',
       'evt-overnight-series',
     ],
-    unlockedBoatIds: ['boat-flying-junior'],
+    unlockedBoatIds: [],
   },
   {
     id: 'class-intermediate-sailing-crew',
@@ -167,6 +169,126 @@ export const SAILING_CLASSES: SailingClass[] = [
     ],
     unlockedBoatIds: ['boat-club-420'],
   },
+  {
+    id: 'class-provisional-checkoff',
+    name: 'Provisional Rating Checkoff',
+    slug: 'provisional-rating-checkoff',
+    category: 'rating checkoffs',
+    level: 'beginner',
+    description:
+      'Self-study and staff checkoff for safe Tech Dinghy handling on the Charles River, including basic maneuvers, rigging, safety precautions, rules of the road, and dock procedures.',
+    prerequisites: [],
+    relatedEventIds: [],
+    unlockedBoatIds: ['boat-lynx-catboat', 'boat-laser'],
+  },
+  {
+    id: 'class-crew-rating-self-study',
+    name: 'Crew Rating Self-study',
+    slug: 'crew-rating-self-study',
+    category: 'rating checkoffs',
+    level: 'intermediate',
+    description:
+      'Self-study path for the Crew Rating, covering nautical terminology, seamanship, knots, splices, and the general knowledge expected of MIT sailors.',
+    prerequisites: [],
+    relatedEventIds: [],
+    unlockedBoatIds: [],
+  },
+  {
+    id: 'class-helmsman-checkoff',
+    name: 'Helmsman Rating Checkoff',
+    slug: 'helmsman-rating-checkoff',
+    category: 'rating checkoffs',
+    level: 'advanced',
+    description:
+      'Strong-wind Tech Dinghy checkoff focused on solo upwind sailing, hiking technique, tiller extension use, controlled gybes, and man-overboard recovery.',
+    prerequisites: [],
+    relatedEventIds: [],
+    unlockedBoatIds: ['boat-flying-junior'],
+  },
+  {
+    id: 'class-lynx-catboat-intro',
+    name: 'Intro to Lynx Catboat',
+    slug: 'intro-to-lynx-catboat',
+    category: 'rating checkoffs',
+    level: 'intermediate',
+    description:
+      'On-boat Lynx Catboat instruction and checkoff covering the gaff rig, mooring work, tacking, gybing, docking, reefing, and safe operation for moonlight sails and harbor-trip preparation.',
+    prerequisites: [],
+    relatedEventIds: [],
+    unlockedBoatIds: ['boat-lynx-catboat'],
+  },
+  {
+    id: 'class-laser-checkoff',
+    name: 'Laser Rating Checkoff',
+    slug: 'laser-rating-checkoff',
+    category: 'rating checkoffs',
+    level: 'advanced',
+    description:
+      'Laser rigging and boat-handling checkoff for sailors who are comfortable with capsize recovery, tiller extension use, sail controls, and upwind and downwind trim.',
+    prerequisites: [],
+    relatedEventIds: [],
+    unlockedBoatIds: ['boat-laser'],
+  },
+  {
+    id: 'class-420-checkoff',
+    name: '420 Rating Checkoff',
+    slug: '420-rating-checkoff',
+    category: 'rating checkoffs',
+    level: 'advanced',
+    description:
+      'Club 420 checkoff for sailors ready for double-handed racing boat handling, spinnaker and trapeze preparation, and advanced Charles River sessions.',
+    prerequisites: [],
+    relatedEventIds: [],
+    unlockedBoatIds: ['boat-club-420', 'boat-melges-15'],
+  },
+  {
+    id: 'class-board-sailing-basic-checkoff',
+    name: 'Board Sailing Basic Checkoff',
+    slug: 'board-sailing-basic-checkoff',
+    category: 'windsurfing',
+    level: 'intermediate',
+    description:
+      'Board sailing checkoff for sailors who can rig beginner equipment, tack, and sail upwind in light to medium wind conditions.',
+    prerequisites: ['class-windsurfing-fundamentals'],
+    relatedEventIds: [],
+    unlockedBoatIds: ['boat-windsurfing'],
+  },
+  {
+    id: 'class-board-sailing-advanced-checkoff',
+    name: 'Board Sailing Advanced Checkoff',
+    slug: 'board-sailing-advanced-checkoff',
+    category: 'windsurfing',
+    level: 'advanced',
+    description:
+      'Advanced board sailing checkoff for shaped sails, harness use, tacking, jibing, upwind sailing, and strong-wind conditions.',
+    prerequisites: ['class-board-sailing-basic-checkoff'],
+    relatedEventIds: [],
+    unlockedBoatIds: ['boat-windsurfing'],
+  },
+  {
+    id: 'class-bluewater-crew-pathway',
+    name: 'Bluewater Crew Pathway',
+    slug: 'bluewater-crew-pathway',
+    category: 'bluewater',
+    level: 'intermediate',
+    description:
+      'Mashnee crew leadership pathway for sailors learning coastal sailing, winch operation, sail trim, line handling, mooring, anchoring, navigation, safety, and emergency procedures.',
+    prerequisites: [],
+    relatedEventIds: ['evt-bluewater-boston-provincetown'],
+    unlockedBoatIds: [],
+  },
+  {
+    id: 'class-bluewater-skipper-pathway',
+    name: 'Bluewater Skipper Pathway',
+    slug: 'bluewater-skipper-pathway',
+    category: 'bluewater',
+    level: 'advanced',
+    description:
+      'Mashnee skipper pathway for sailors preparing to schedule trips, direct a crew, understand ship systems, maintain the boat, complete skipper-training cruises, and obtain Sailing Master approval.',
+    prerequisites: ['class-bluewater-crew-pathway'],
+    relatedEventIds: ['evt-bluewater-boston-provincetown'],
+    unlockedBoatIds: ['boat-mashnee'],
+  },
 ];
 
 export const FLEET_BOATS: FleetBoat[] = [
@@ -183,40 +305,40 @@ export const FLEET_BOATS: FleetBoat[] = [
     image: '/images/boats/tech-dinghy-1.jpg',
   },
   {
-    id: 'boat-hunter-140',
-    name: 'Hunter 140',
-    slug: 'hunter-140',
-    type: 'small daysailer',
-    capacity: 4,
+    id: 'boat-lynx-catboat',
+    name: 'Lynx Catboat',
+    slug: 'lynx-catboat',
+    type: 'gaff-rigged catboat',
+    capacity: 8,
     displayOrder: 2,
-    requiredClassId: 'class-intro-for-experienced',
+    requiredClassId: 'class-lynx-catboat-intro',
     description:
-      'Slightly larger platform for sailors transitioning from other venues; emphasizes crew roles and river communication.',
-    image: '/images/boats/hunter-140.jpg',
+      'Wide, stable catboat for groups, moonlight sails, and harbor-trip preparation after the Lynx rating.',
+    image: '/images/boats/lynx-catboat.jpg',
   },
   {
-    id: 'boat-bic-techno-293',
-    name: 'BIC Techno 293 OD',
-    slug: 'bic-techno-293',
-    type: 'windsurfer',
+    id: 'boat-windsurfing',
+    name: 'Windsurfing',
+    slug: 'windsurfing',
+    type: 'windsurfing',
     capacity: 1,
     displayOrder: 3,
     requiredClassId: 'class-windsurfing-fundamentals',
     description:
-      'Durable learner board with adjustable daggerboard; tuned for first planing attempts in moderate breeze.',
-    image: '/images/boats/bic-techno-1.jpg',
+      'Windsurfing boards and rigs for sailors with the appropriate board sailing rating.',
+    image: '/images/boats/windsurfing.jpg',
   },
   {
-    id: 'boat-laser-radial',
-    name: 'Laser Radial',
-    slug: 'laser-radial',
+    id: 'boat-laser',
+    name: 'Laser',
+    slug: 'laser',
     type: 'single-handed dinghy',
     capacity: 1,
     displayOrder: 4,
-    requiredClassId: 'class-intro-to-racing',
+    requiredClassId: 'class-laser-checkoff',
     description:
-      'Responsive hull for rules-of-the-road drills and short-course racing; radial rig for a wide sailor weight range.',
-    image: '/images/boats/laser-radial.jpg',
+      'Fast single-handed dinghy that demands confident capsize recovery, trim, and boat handling.',
+    image: '/images/boats/laser.jpg',
   },
   {
     id: 'boat-flying-junior',
@@ -227,7 +349,7 @@ export const FLEET_BOATS: FleetBoat[] = [
     displayOrder: 5,
     requiredClassId: 'class-intermediate-sailing-skills',
     description:
-      'Collegiate-standard sloop for coordinated trim and asymmetric boathandling fundamentals (no spin on this progression step).',
+      'Collegiate-standard sloop used by the Sailing Team and advanced sailors.',
     image: '/images/boats/flying-junior-1.jpg',
   },
   {
@@ -239,8 +361,32 @@ export const FLEET_BOATS: FleetBoat[] = [
     displayOrder: 6,
     requiredClassId: 'class-intermediate-racing-tactics',
     description:
-      'Spinnaker and trapeze introduction for sailors cleared for advanced river sessions and evening series.',
+      'Double-handed racing dinghy for advanced sailors and team practice.',
     image: '/images/boats/club-420-1.jpg',
+  },
+  {
+    id: 'boat-melges-15',
+    name: 'Melges 15',
+    slug: 'melges-15',
+    type: 'double-handed racing dinghy',
+    capacity: 2,
+    displayOrder: 7,
+    requiredClassId: 'class-420-checkoff',
+    description:
+      'Versatile double-handed racing dinghy with an asymmetric spinnaker. MITNA guidance requires Helmsman, Laser Advanced, or 420 Advanced to sail it.',
+    image: '/images/boats/melges-15.jpg',
+  },
+  {
+    id: 'boat-mashnee',
+    name: 'Mashnee',
+    slug: 'mashnee',
+    type: 'bluewater sailboat',
+    capacity: 8,
+    displayOrder: 8,
+    requiredClassId: 'class-bluewater-skipper-pathway',
+    description:
+      'MIT bluewater sailboat berthed in Boston Harbor. A Tech Rating allows members to join sails, while Bluewater Crew and Bluewater Skipper ratings mark leadership and skipper readiness.',
+    image: '/images/boats/mashnee.jpg',
   },
 ];
 
@@ -266,6 +412,8 @@ const CATEGORY_ORDER: ClassCategory[] = [
   'intro to racing',
   'intermediate sailing',
   'intermediate racing',
+  'rating checkoffs',
+  'bluewater',
 ];
 
 export function groupClassesByCategory(

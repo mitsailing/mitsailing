@@ -191,6 +191,13 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
     return href && isAppRelativeCmsHref(href) ? href : null;
   }
 
+  function primaryHref(id: string): string {
+    if (props.adminBasePath) {
+      return `${props.adminBasePath}/${encodeURIComponent(id)}`;
+    }
+    return editHref(id);
+  }
+
   const [orderedIds, setOrderedIds] = useState<string[]>(() =>
     props.rows.map((r) => String(r.id))
   );
@@ -256,7 +263,7 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
         canUpdate &&
         typeof nameRaw === 'string' &&
         nameRaw.trim().length > 0
-          ? editHref(String(row.id))
+          ? primaryHref(String(row.id))
           : undefined;
       return (
         <TableCell

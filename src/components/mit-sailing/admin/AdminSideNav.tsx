@@ -16,6 +16,8 @@ type AdminNavItem = {
     | 'nav_event_categories'
     | 'nav_class_categories'
     | 'nav_sailing_classes'
+    | 'nav_sailing_ratings'
+    | 'nav_sailing_rating_rules'
     | 'nav_fleet'
     | 'nav_site_alerts'
     | 'nav_site_text'
@@ -50,6 +52,16 @@ const ADMIN_SITE_NAV: AdminNavItem[] = [
   {
     href: '/admin/sailing_classes',
     labelKey: 'nav_sailing_classes',
+    match: 'prefix',
+  },
+  {
+    href: '/admin/sailing_ratings',
+    labelKey: 'nav_sailing_ratings',
+    match: 'prefix',
+  },
+  {
+    href: '/admin/sailing_rating_rules',
+    labelKey: 'nav_sailing_rating_rules',
     match: 'prefix',
   },
   { href: '/admin/fleet', labelKey: 'nav_fleet', match: 'prefix' },

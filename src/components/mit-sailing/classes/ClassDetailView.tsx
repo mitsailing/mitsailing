@@ -1,4 +1,4 @@
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import Image from 'next/image';
 import { PublicAdminEditLink } from '@/components/mit-sailing/admin/PublicAdminEditLink';
@@ -103,6 +103,46 @@ export async function ClassDetailView(props: ClassDetailViewProps) {
         className={`${bodyClass} mt-5`}
         sanitizedHtml={sanitizedDescription}
       />
+
+      {cl.requiredRatings.length > 0 ? (
+        <section className="mt-10">
+          <h2 className="mb-3 font-mit-serif text-xl font-semibold text-mit-text md:text-2xl">
+            {t('section_required_ratings')}
+          </h2>
+          <ul className="m-0 list-disc space-y-2 pl-5">
+            {cl.requiredRatings.map((rating) => (
+              <li className={bodyClass} key={rating.id}>
+                <Link
+                  className={`inline-flex items-center gap-1 font-semibold text-mit-red-ink hover:underline ${textFocusRingClassName}`}
+                  href={`/ratings/#${rating.slug}`}
+                >
+                  {rating.name} <ArrowRight aria-hidden size={14} />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {cl.grantableRatings.length > 0 ? (
+        <section className="mt-10">
+          <h2 className="mb-3 font-mit-serif text-xl font-semibold text-mit-text md:text-2xl">
+            {t('section_grantable_ratings')}
+          </h2>
+          <ul className="m-0 list-disc space-y-2 pl-5">
+            {cl.grantableRatings.map((rating) => (
+              <li className={bodyClass} key={rating.id}>
+                <Link
+                  className={`inline-flex items-center gap-1 font-semibold text-mit-red-ink hover:underline ${textFocusRingClassName}`}
+                  href={`/ratings/#${rating.slug}`}
+                >
+                  {rating.name} <ArrowRight aria-hidden size={14} />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {cl.prerequisites.length > 0 ? (
         <section className="mt-10">

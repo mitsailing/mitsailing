@@ -30,6 +30,10 @@ import {
   GLOBAL_EVENT_DATES,
   STUB_USERS,
 } from '../../src/data/mit-sailing/eventsSeed';
+import {
+  SAILING_RATING_RULES,
+  SAILING_RATINGS,
+} from '../../src/data/mit-sailing/sailingRatingsSeed';
 import { SITE_ALERT_SEED_ROWS } from '../../src/data/mit-sailing/siteAlertsSeed';
 import { Prisma } from '../../src/generated/prisma/client';
 import type { PrismaClient } from '../../src/generated/prisma/client';
@@ -91,6 +95,23 @@ export async function seedEventCategories(p: PrismaClient): Promise<void> {
 export async function seedClassCategories(p: PrismaClient): Promise<void> {
   const now = new Date();
   for (const row of CLASS_CATEGORY_ROWS) {
+    const existingBySlug = await p.classCategory.findUnique({
+      where: { slug: row.slug },
+      select: { id: true },
+    });
+    if (existingBySlug && existingBySlug.id !== row.id) {
+      await p.classCategory.update({
+        where: { slug: row.slug },
+        data: {
+          id: row.id,
+          name: row.name,
+          displayOrder: row.displayOrder,
+          isVisible: true,
+        },
+      });
+      continue;
+    }
+
     await p.classCategory.upsert({
       where: { id: row.id },
       create: {
@@ -163,6 +184,33 @@ export async function seedSailingClassesAndBoats(
     }
   }
 
+  const boatIds = FLEET_BOATS.map((boat) => boat.id);
+  const boatSlugs = FLEET_BOATS.map((boat) => boat.slug);
+  await p.sailingClassUnlockedBoat.deleteMany({
+    where: {
+      fleetBoat: {
+        OR: [
+          { id: { notIn: boatIds } },
+          { slug: { in: boatSlugs }, id: { notIn: boatIds } },
+        ],
+      },
+    },
+  });
+  await p.sailingRatingRule.deleteMany({
+    where: {
+      targetType: 'boat',
+      targetId: { notIn: boatIds },
+    },
+  });
+  await p.fleetBoat.deleteMany({
+    where: {
+      OR: [
+        { id: { notIn: boatIds } },
+        { slug: { in: boatSlugs }, id: { notIn: boatIds } },
+      ],
+    },
+  });
+
   for (const b of FLEET_BOATS) {
     await p.fleetBoat.upsert({
       where: { id: b.id },
@@ -206,6 +254,52 @@ export async function seedSailingClassesAndBoats(
         skipDuplicates: true,
       });
     }
+  }
+}
+
+/**
+ * @param p - Prisma client
+ */
+export async function seedSailingRatings(p: PrismaClient): Promise<void> {
+  const now = new Date();
+  const ratingIds = SAILING_RATINGS.map((rating) => rating.id);
+
+  await p.sailingRatingRule.deleteMany({});
+  await p.userSailingRating.deleteMany({
+    where: { sailingRatingId: { notIn: ratingIds } },
+  });
+  await p.sailingRating.deleteMany({
+    where: { id: { notIn: ratingIds } },
+  });
+
+  for (const rating of SAILING_RATINGS) {
+    await p.sailingRating.upsert({
+      where: { id: rating.id },
+      create: {
+        ...rating,
+        createdAt: now,
+      },
+      update: {
+        slug: rating.slug,
+        name: rating.name,
+        shortName: rating.shortName,
+        description: rating.description,
+        category: rating.category,
+        level: rating.level,
+        windCondition: rating.windCondition,
+        guideUrl: rating.guideUrl,
+        displayOrder: rating.displayOrder,
+        isVisible: rating.isVisible,
+        isDeprecated: rating.isDeprecated,
+      },
+    });
+  }
+
+  if (SAILING_RATING_RULES.length > 0) {
+    await p.sailingRatingRule.createMany({
+      data: SAILING_RATING_RULES,
+      skipDuplicates: true,
+    });
   }
 }
 

@@ -19,6 +19,7 @@ import {
 } from '@/libs/admin/catalog/cmsCatalogHandlers';
 import { fleetRequiredClassSelectOptions } from '@/libs/admin/catalog/fleetCatalogHandlers';
 import { sailingClassCategorySelectOptions } from '@/libs/admin/catalog/sailingClassesHandlers';
+import { sailingRatingSelectOptions } from '@/libs/admin/catalog/sailingRatingsHandlers';
 import { catalogScopedListState } from '@/libs/admin/catalog/scopedCatalogLists';
 import type { CatalogScopedListState } from '@/libs/admin/catalog/scopedCatalogLists';
 import type { CatalogRow } from '@/libs/admin/catalog/types';
@@ -41,6 +42,7 @@ type DynamicSelectOptions = Readonly<
 
 async function catalogNewDynamicSelectOptions(props: {
   classCategoryPlaceholder: string;
+  ratingPlaceholder: string;
   requiredClassPlaceholder: string;
   resource: CatalogResourceId;
   scopedList: CatalogScopedListState | undefined;
@@ -64,6 +66,17 @@ async function catalogNewDynamicSelectOptions(props: {
           label: props.classCategoryPlaceholder,
         },
         ...(await sailingClassCategorySelectOptions()),
+      ],
+    };
+  }
+  if (props.resource === 'sailing_rating_rules') {
+    return {
+      sailingRatingId: [
+        {
+          value: '',
+          label: props.ratingPlaceholder,
+        },
+        ...(await sailingRatingSelectOptions()),
       ],
     };
   }
@@ -148,6 +161,7 @@ export default async function AdminCatalogResourceNewPage(props: PageProps) {
 
   const dynamicSelectOptions = await catalogNewDynamicSelectOptions({
     classCategoryPlaceholder: tr('select_class_category_placeholder'),
+    ratingPlaceholder: tr('select_rating_placeholder'),
     requiredClassPlaceholder: tr('select_required_class_placeholder'),
     resource,
     scopedList,

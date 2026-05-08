@@ -49,6 +49,20 @@ export const CLASS_CATEGORY_ROWS: ClassCategoryRow[] = [
     name: 'Intermediate Racing',
     displayOrder: 4,
   },
+  {
+    id: 'cc-rating-checkoffs',
+    slug: 'rating-checkoffs',
+    seedKey: 'rating checkoffs',
+    name: 'Rating Checkoffs',
+    displayOrder: 5,
+  },
+  {
+    id: 'cc-bluewater',
+    slug: 'bluewater',
+    seedKey: 'bluewater',
+    name: 'Bluewater',
+    displayOrder: 6,
+  },
 ];
 
 const seedKeyToId = new Map<ClassCategory, string>(
