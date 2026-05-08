@@ -24,11 +24,10 @@ export function hibpPasswordSha1RangeParts(password: string): {
   suffix: string;
 } {
   // Not password storage: Pwned Passwords range API requires SHA-1 for k-anonymity.
+  const sha1Hasher = createHash('sha1');
+
   // codeql[js/insufficient-password-hash]
-  const sha1Hash = createHash('sha1')
-    .update(password)
-    .digest('hex')
-    .toUpperCase();
+  const sha1Hash = sha1Hasher.update(password).digest('hex').toUpperCase();
   return {
     prefix: sha1Hash.slice(0, 5),
     suffix: sha1Hash.slice(5),
