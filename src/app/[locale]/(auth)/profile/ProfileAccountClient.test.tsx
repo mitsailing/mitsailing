@@ -169,11 +169,23 @@ describe('ProfileAccountClient', () => {
     expect(screen.getByText('next@mit.edu')).toBeVisible();
   });
 
+  it('email-change persona normalizes a new address before requesting confirmation', async () => {
+    const user = userEvent.setup();
+    renderAccountClient();
+
+    await requestConfirmationCode(user, '  Next@MIT.EDU  ');
+
+    expect(authClientMock.emailOtp.requestEmailChange).toHaveBeenCalledWith({
+      newEmail: 'next@mit.edu',
+    });
+    expect(await screen.findByText('next@mit.edu')).toBeVisible();
+  });
+
   it('email-change persona sees a clear error for the current address', async () => {
     const user = userEvent.setup();
     renderAccountClient();
 
-    await requestConfirmationCode(user, 'owner@mit.edu');
+    await requestConfirmationCode(user, '  Owner@MIT.EDU  ');
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'That is already your login email.'

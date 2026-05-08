@@ -12,7 +12,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { ThemePreferenceValue } from '@/lib/mit-sailing/themePreference';
 import { authClient } from '@/libs/auth-client';
-import { isValidMarketingEmail } from '@/utils/emailValidation';
+import {
+  isValidMarketingEmail,
+  normalizeMarketingEmail,
+} from '@/utils/emailValidation';
 
 type ProfileAccountClientProps = {
   initialEmail: string;
@@ -70,11 +73,13 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
 
   async function onChangeEmail(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!newEmail || newEmail === currentEmail) {
+    const normalizedNewEmail = normalizeMarketingEmail(newEmail);
+    const normalizedCurrentEmail = normalizeMarketingEmail(currentEmail);
+    if (!normalizedNewEmail || normalizedNewEmail === normalizedCurrentEmail) {
       setEmailBanner({ kind: 'error', message: t('email_same_error') });
       return;
     }
-    if (!isValidMarketingEmail(newEmail)) {
+    if (!isValidMarketingEmail(normalizedNewEmail)) {
       setEmailBanner({ kind: 'error', message: t('email_validation_error') });
       return;
     }
@@ -83,7 +88,7 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
     setChangingEmail(true);
     try {
       const res = await authClient.emailOtp.requestEmailChange({
-        newEmail,
+        newEmail: normalizedNewEmail,
       });
       if (res.error) {
         setEmailBanner({
@@ -95,7 +100,7 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
       setEmailBanner({ kind: 'success', message: t('email_change_sent') });
       setEmailOtpBanner(null);
       lockEmailResend();
-      setPendingEmail(newEmail);
+      setPendingEmail(normalizedNewEmail);
       setEmailCode('');
       setNewEmail('');
     } catch {
