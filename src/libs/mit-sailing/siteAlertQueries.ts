@@ -9,6 +9,7 @@ import {
   isoCalendarDateFromPrismaDate,
   prismaDateFromIsoCalendar,
 } from '@/libs/mit-sailing/isoCalendarDate';
+import type { SiteAlertBannerCollapseAlert } from '@/libs/mit-sailing/siteAlertBannerCollapse';
 import { plainTextFromSiteAlertHtmlish } from '@/libs/mit-sailing/siteAlertPlainText';
 import type {
   SiteAlertBannerRow,
@@ -145,18 +146,24 @@ export function mapSiteAlertsToBannerRows(
 }
 
 /**
- * Builds a content version for alert collapse persistence.
+ * Builds per-alert content versions for collapse persistence.
  *
  * @param rows - Banner rows in display order
- * @returns Stable hash for the current active alert set
+ * @returns Stable alert identifiers with displayed-content fingerprints
  */
-export function buildSiteAlertsFingerprint(rows: SiteAlertBannerRow[]): string {
-  const payload = rows.map((row) => ({
-    bodyPlainText: row.bodyPlainText,
-    dateIso: row.dateIso,
+export function buildSiteAlertBannerCollapseAlerts(
+  rows: SiteAlertBannerRow[]
+): SiteAlertBannerCollapseAlert[] {
+  return rows.map((row) => ({
     id: row.id,
+    contentFingerprint: createHash('sha256')
+      .update(
+        JSON.stringify({
+          bodyPlainText: row.bodyPlainText,
+          dateIso: row.dateIso,
+          dateLabel: row.dateLabel,
+        })
+      )
+      .digest('base64url'),
   }));
-  return createHash('sha256')
-    .update(JSON.stringify(payload))
-    .digest('base64url');
 }

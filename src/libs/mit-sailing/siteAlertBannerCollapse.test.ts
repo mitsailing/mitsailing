@@ -4,40 +4,112 @@ import {
   serializeSiteAlertBannerCollapse,
   siteAlertBannerStartsCollapsed,
 } from '@/libs/mit-sailing/siteAlertBannerCollapse';
+import type { SiteAlertBannerCollapseAlert } from '@/libs/mit-sailing/siteAlertBannerCollapse';
+
+const activeAlerts: SiteAlertBannerCollapseAlert[] = [
+  {
+    id: 'alert-1',
+    contentFingerprint: 'alert-1-content',
+  },
+  {
+    id: 'alert-2',
+    contentFingerprint: 'alert-2-content',
+  },
+];
 
 describe('siteAlertBannerStartsCollapsed', () => {
-  it('preserves collapsed state for matching fingerprint', () => {
+  it('preserves collapsed state for same alerts', () => {
     expect(
       siteAlertBannerStartsCollapsed({
-        currentFingerprint: 'active-alerts',
-        storedFingerprint: 'active-alerts',
+        currentAlerts: activeAlerts,
+        storedAlerts: activeAlerts,
       })
     ).toBe(true);
   });
 
-  it('expands for changed fingerprint', () => {
+  it('preserves collapsed state after alert removal', () => {
     expect(
       siteAlertBannerStartsCollapsed({
-        currentFingerprint: 'updated-alerts',
-        storedFingerprint: 'active-alerts',
+        currentAlerts: activeAlerts.slice(0, 1),
+        storedAlerts: activeAlerts,
+      })
+    ).toBe(true);
+  });
+
+  it('expands for new alert', () => {
+    expect(
+      siteAlertBannerStartsCollapsed({
+        currentAlerts: [
+          ...activeAlerts,
+          {
+            id: 'alert-3',
+            contentFingerprint: 'alert-3-content',
+          },
+        ],
+        storedAlerts: activeAlerts,
+      })
+    ).toBe(false);
+  });
+
+  it('expands for edited alert text', () => {
+    expect(
+      siteAlertBannerStartsCollapsed({
+        currentAlerts: [
+          {
+            id: 'alert-1',
+            contentFingerprint: 'alert-1-updated-text',
+          },
+        ],
+        storedAlerts: activeAlerts,
+      })
+    ).toBe(false);
+  });
+
+  it('expands for edited alert date', () => {
+    expect(
+      siteAlertBannerStartsCollapsed({
+        currentAlerts: [
+          {
+            id: 'alert-1',
+            contentFingerprint: 'alert-1-updated-date',
+          },
+        ],
+        storedAlerts: activeAlerts,
+      })
+    ).toBe(false);
+  });
+
+  it('expands for invalid storage', () => {
+    expect(
+      siteAlertBannerStartsCollapsed({
+        currentAlerts: activeAlerts,
+        storedAlerts: null,
       })
     ).toBe(false);
   });
 });
 
 describe('parseStoredSiteAlertBannerCollapse', () => {
-  it('reads serialized collapse fingerprint', () => {
+  it('reads serialized collapse alerts', () => {
     expect(
       parseStoredSiteAlertBannerCollapse(
-        serializeSiteAlertBannerCollapse('active-alerts')
+        serializeSiteAlertBannerCollapse(activeAlerts)
       )
-    ).toBe('active-alerts');
+    ).toEqual(activeAlerts);
   });
 
   it('ignores invalid storage values', () => {
     expect(parseStoredSiteAlertBannerCollapse('{')).toBeNull();
     expect(
       parseStoredSiteAlertBannerCollapse('{"collapsed":false}')
+    ).toBeNull();
+  });
+
+  it('ignores legacy aggregate fingerprint values', () => {
+    expect(
+      parseStoredSiteAlertBannerCollapse(
+        '{"collapsed":true,"fingerprint":"active-alerts"}'
+      )
     ).toBeNull();
   });
 });

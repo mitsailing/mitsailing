@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import { SiteAlertsBanner } from '@/components/mit-sailing/site/SiteAlertsBanner';
+import type { SiteAlertBannerCollapseAlert } from '@/libs/mit-sailing/siteAlertBannerCollapse';
 import type { SiteAlertBannerRow } from '@/libs/mit-sailing/siteAlertTypes';
 
 const rows: SiteAlertBannerRow[] = [
@@ -24,6 +25,15 @@ const rows: SiteAlertBannerRow[] = [
   },
 ];
 
+function storyCollapseAlerts(
+  storyRows: SiteAlertBannerRow[]
+): SiteAlertBannerCollapseAlert[] {
+  return storyRows.map((row) => ({
+    id: row.id,
+    contentFingerprint: `${row.dateIso}:${row.bodyPlainText}`,
+  }));
+}
+
 const meta = {
   title: 'Marketing/SiteAlertsBanner',
   component: SiteAlertsBanner,
@@ -45,21 +55,21 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   args: {
-    alertsFingerprint: 'default-alerts',
+    collapseAlerts: storyCollapseAlerts(rows),
     rows,
   },
 };
 
 export const SingleAlert: Story = {
   args: {
-    alertsFingerprint: 'single-alert',
+    collapseAlerts: storyCollapseAlerts(rows.slice(0, 1)),
     rows: rows.slice(0, 1),
   },
 };
 
 export const Empty: Story = {
   args: {
-    alertsFingerprint: 'empty-alerts',
+    collapseAlerts: [],
     rows: [],
   },
 };

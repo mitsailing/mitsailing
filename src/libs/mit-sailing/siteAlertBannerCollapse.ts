@@ -2,26 +2,46 @@ export const SITE_ALERT_BANNER_COLLAPSE_STORAGE_KEY =
   'mit-sailing:site-alert-banner:v1';
 
 type StoredSiteAlertBannerCollapse = {
+  alerts: SiteAlertBannerCollapseAlert[];
   collapsed: true;
-  fingerprint: string;
 };
+
+export type SiteAlertBannerCollapseAlert = {
+  contentFingerprint: string;
+  id: string;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object';
+}
+
+function isSiteAlertBannerCollapseAlert(
+  value: unknown
+): value is SiteAlertBannerCollapseAlert {
+  if (!isRecord(value)) {
+    return false;
+  }
+  return (
+    typeof value.contentFingerprint === 'string' && typeof value.id === 'string'
+  );
+}
 
 function isStoredSiteAlertBannerCollapse(
   value: unknown
 ): value is StoredSiteAlertBannerCollapse {
-  if (!value || typeof value !== 'object') {
+  if (!isRecord(value)) {
     return false;
   }
-  const record = value as {
-    collapsed?: unknown;
-    fingerprint?: unknown;
-  };
-  return record.collapsed === true && typeof record.fingerprint === 'string';
+  return (
+    value.collapsed === true &&
+    Array.isArray(value.alerts) &&
+    value.alerts.every(isSiteAlertBannerCollapseAlert)
+  );
 }
 
 export function parseStoredSiteAlertBannerCollapse(
   raw: string | null
-): string | null {
+): SiteAlertBannerCollapseAlert[] | null {
   if (!raw) {
     return null;
   }
@@ -30,19 +50,31 @@ export function parseStoredSiteAlertBannerCollapse(
     if (!isStoredSiteAlertBannerCollapse(value)) {
       return null;
     }
-    return value.fingerprint;
+    return value.alerts;
   } catch {
     return null;
   }
 }
 
-export function serializeSiteAlertBannerCollapse(fingerprint: string): string {
-  return JSON.stringify({ collapsed: true, fingerprint });
+export function serializeSiteAlertBannerCollapse(
+  alerts: SiteAlertBannerCollapseAlert[]
+): string {
+  return JSON.stringify({ collapsed: true, alerts });
 }
 
 export function siteAlertBannerStartsCollapsed(props: {
-  currentFingerprint: string;
-  storedFingerprint: string | null;
+  currentAlerts: SiteAlertBannerCollapseAlert[];
+  storedAlerts: SiteAlertBannerCollapseAlert[] | null;
 }): boolean {
-  return props.storedFingerprint === props.currentFingerprint;
+  if (!props.storedAlerts) {
+    return false;
+  }
+
+  const storedFingerprintsById = new Map(
+    props.storedAlerts.map((alert) => [alert.id, alert.contentFingerprint])
+  );
+
+  return props.currentAlerts.every(
+    (alert) => storedFingerprintsById.get(alert.id) === alert.contentFingerprint
+  );
 }
