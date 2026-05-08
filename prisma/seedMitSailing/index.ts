@@ -7,6 +7,7 @@ import {
   seedEvents,
   seedSailingClassRelatedEventsFromSeed,
   seedSailingClassesAndBoats,
+  seedSiteAlerts,
   seedStaff,
   seedStubUsers,
 } from './steps';
@@ -27,4 +28,5 @@ export async function seedMitSailing(): Promise<void> {
   await seedSailingClassRelatedEventsFromSeed(prisma);
   await seedEventRelatedRows(prisma);
   await seedDonationFunds(prisma);
+  await seedSiteAlerts(prisma);
 }

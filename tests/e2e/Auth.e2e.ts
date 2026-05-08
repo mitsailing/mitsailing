@@ -53,6 +53,8 @@ async function markEmailVerified(email: string) {
 }
 
 test.describe('Auth', () => {
+  test.describe.configure({ mode: 'serial' });
+
   test('registers, verifies, and signs in with Better Auth credentials', async ({
     page,
   }) => {

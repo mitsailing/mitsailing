@@ -8,6 +8,7 @@ import {
   WeatherConditionsBar,
   WeatherConditionsBarSkeleton,
 } from './site/WeatherConditionsBar';
+import { SiteShellAlertsTopBar } from './SiteShellAlertsTopBar';
 import { SiteShellHeaderNav } from './SiteShellHeaderNav';
 
 type SiteShellProps = {
@@ -38,6 +39,9 @@ export async function SiteShell(props: SiteShellProps) {
     <div className="flex min-h-screen flex-col bg-background font-mit-sans text-mit-text">
       <Suspense fallback={<WeatherConditionsBarSkeleton tMitSite={tMitSite} />}>
         <WeatherConditionsBar tMitSite={tMitSite} />
+      </Suspense>
+      <Suspense fallback={null}>
+        <SiteShellAlertsTopBar />
       </Suspense>
       <Suspense
         fallback={

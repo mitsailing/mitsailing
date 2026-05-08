@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Apply Prisma migrations to the E2E test database.
+ * Reset the E2E test database schema, then apply Prisma migrations.
  *
  * Why this script exists (instead of an npm-scripts one-liner):
  *   The previous incarnation was
@@ -19,6 +19,7 @@
 
 import { execFileSync } from 'node:child_process';
 import { config as loadEnv } from 'dotenv';
+import { Client } from 'pg';
 
 loadEnv({ path: '.env.local', override: false, quiet: true });
 loadEnv({ path: '.env', override: false, quiet: true });
@@ -27,14 +28,64 @@ const testDatabaseUrl =
   process.env.TEST_DATABASE_URL ??
   'postgresql://postgres:postgres@127.0.0.1:5432/test_db?sslmode=disable';
 
+assertTestDatabaseUrl(testDatabaseUrl);
+
 console.log(
-  `[migrate-test-db] applying migrations to ${redact(testDatabaseUrl)}`
+  `[migrate-test-db] resetting public schema in ${redact(testDatabaseUrl)}`
+);
+
+const client = new Client({ connectionString: testDatabaseUrl });
+let connected = false;
+try {
+  await client.connect();
+  connected = true;
+  await client.query('DROP SCHEMA IF EXISTS public CASCADE');
+  await client.query('CREATE SCHEMA public');
+} finally {
+  if (connected) {
+    await client.end();
+  }
+}
+
+console.log(
+  `[migrate-test-db] applying current migrations to ${redact(testDatabaseUrl)}`
 );
 
 execFileSync('npx', ['prisma', 'migrate', 'deploy'], {
   stdio: 'inherit',
   env: { ...process.env, DATABASE_URL: testDatabaseUrl },
 });
+
+/**
+ * Fail closed before running destructive schema reset work.
+ *
+ * @param {string} url Raw connection string from the environment.
+ */
+function assertTestDatabaseUrl(url) {
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error(
+      `[migrate-test-db] TEST_DATABASE_URL must be a valid URL; got ${redact(url)}`
+    );
+  }
+
+  if (!['postgres:', 'postgresql:'].includes(parsed.protocol)) {
+    throw new Error(
+      `[migrate-test-db] Refusing to reset non-Postgres database URL ${redact(url)}`
+    );
+  }
+
+  const databaseName = decodeURIComponent(parsed.pathname.replace(/^\//, ''));
+
+  if (databaseName !== 'test_db') {
+    throw new Error(
+      `[migrate-test-db] Refusing to reset database "${databaseName}". ` +
+        'db:migrate:test only resets the dedicated test_db database.'
+    );
+  }
+}
 
 /**
  * Replace a Postgres password in the connection string with `***` so CI

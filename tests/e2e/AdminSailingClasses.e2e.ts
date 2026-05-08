@@ -44,6 +44,7 @@ test.describe('Admin sailing classes', () => {
     const descriptionField = page.locator('textarea[name="description"]');
     await descriptionField.scrollIntoViewIfNeeded();
     await descriptionField.fill('E2E body');
+    await page.getByRole('checkbox', { name: 'Visible' }).uncheck();
 
     await page.getByRole('button', { name: 'Save' }).click();
     await expect(page).toHaveURL(/\/admin\/sailing_classes\/?$/);
