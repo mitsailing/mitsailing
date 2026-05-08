@@ -38,4 +38,20 @@ describe('authHrefWithCallback', () => {
       '/login?unlocked=1&callbackUrl=%2Ffleet%2F'
     );
   });
+
+  it('leaves external auth hrefs unchanged', () => {
+    expect(authHrefWithCallback('https://example.com/login', '/fleet/')).toBe(
+      'https://example.com/login'
+    );
+    expect(authHrefWithCallback('//example.com/login', '/fleet/')).toBe(
+      '//example.com/login'
+    );
+  });
+
+  it('leaves malformed auth hrefs unchanged', () => {
+    expect(authHrefWithCallback('login', '/fleet/')).toBe('login');
+    expect(authHrefWithCallback('/\\example.com/login', '/fleet/')).toBe(
+      '/\\example.com/login'
+    );
+  });
 });

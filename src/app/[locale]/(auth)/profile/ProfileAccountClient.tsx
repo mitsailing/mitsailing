@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ProfileAppearanceSection } from '@/components/auth/profile/ProfileAppearanceSection';
 import { mapProfileEmailError } from '@/components/auth/profile/profileAuthErrorMaps';
 import { ProfileInlineBanner } from '@/components/auth/profile/profileBanner';
@@ -56,13 +56,28 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
   const [resendingEmail, setResendingEmail] = useState(false);
   const [resendLocked, setResendLocked] = useState(false);
   const [updatingName, setUpdatingName] = useState(false);
+  const resendTimerRef = useRef<number | null>(null);
 
   function lockEmailResend() {
+    if (resendTimerRef.current) {
+      clearTimeout(resendTimerRef.current);
+    }
     setResendLocked(true);
-    window.setTimeout(() => {
+    resendTimerRef.current = window.setTimeout(() => {
       setResendLocked(false);
+      resendTimerRef.current = null;
     }, 30_000);
   }
+
+  useEffect(
+    () => () => {
+      if (resendTimerRef.current) {
+        clearTimeout(resendTimerRef.current);
+        resendTimerRef.current = null;
+      }
+    },
+    []
+  );
 
   async function onChangeEmail(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();

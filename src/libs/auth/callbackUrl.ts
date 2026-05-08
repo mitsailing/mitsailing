@@ -62,7 +62,7 @@ export function authHrefWithCallback(
   href: string,
   callbackUrl: string | null | undefined
 ): string {
-  if (!callbackUrl) {
+  if (!callbackUrl || href === '' || !isSafeAppPath(href)) {
     return href;
   }
 

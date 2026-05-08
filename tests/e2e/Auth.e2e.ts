@@ -174,13 +174,18 @@ test.describe('Auth', () => {
     await page.getByRole('button', { name: 'Send reset code' }).click();
     await expect(page).toHaveURL(/\/reset-password\?/);
 
-    let resetMessage = await findLatestMessageTo(email);
+    let resetMessage: Awaited<ReturnType<typeof findLatestMessageTo>> | null =
+      null;
     await expect
       .poll(async () => {
         resetMessage = await findLatestMessageTo(email);
         return resetMessage.Subject;
       })
       .toMatch(/reset/i);
+
+    if (!resetMessage) {
+      throw new Error('No password reset message found');
+    }
 
     await page
       .getByLabel('Reset code')
