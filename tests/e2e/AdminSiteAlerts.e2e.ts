@@ -50,6 +50,12 @@ test.describe('Admin site alerts', () => {
 
     await expect(page.getByRole('table').getByText(marker)).toBeVisible();
 
+    await page.goto('/');
+    await expect(
+      page.locator('[data-alert-banner]').getByText(marker)
+    ).toHaveCount(0);
+
+    await page.goto('/admin/site_alerts');
     await page
       .getByRole('row')
       .filter({ hasText: marker })
@@ -61,5 +67,39 @@ test.describe('Admin site alerts', () => {
     await page.getByRole('button', { name: 'Delete' }).click();
     await expect(page).toHaveURL(/\/admin\/site_alerts\/?$/);
     await expect(page.getByRole('table').getByText(marker)).toHaveCount(0);
+  });
+
+  test('admin site alert mutation refreshes public banner cache', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    await expect(page.locator('[data-alert-banner]')).toBeVisible();
+
+    await signInAsAdmin(page);
+    await page.goto('/admin/site_alerts/new');
+
+    const marker = `E2E cached banner alert ${Date.now()}`;
+    await page.getByLabel('Alert message').fill(marker);
+    await page.getByLabel('Published on site').check();
+
+    await page.getByRole('button', { name: 'Save' }).click();
+    await expect(page).toHaveURL(/\/admin\/site_alerts\/?$/);
+    await expect(page.getByRole('table').getByText(marker)).toBeVisible();
+
+    await page.goto('/');
+    const banner = page.locator('[data-alert-banner]');
+    await expect(banner.getByText(marker)).toBeVisible();
+
+    await page.goto('/admin/site_alerts');
+    await page
+      .getByRole('row')
+      .filter({ hasText: marker })
+      .getByRole('link', { name: 'Delete', exact: true })
+      .click();
+    await page.getByRole('button', { name: 'Delete' }).click();
+    await expect(page).toHaveURL(/\/admin\/site_alerts\/?$/);
+
+    await page.goto('/');
+    await expect(banner.getByText(marker)).toHaveCount(0);
   });
 });

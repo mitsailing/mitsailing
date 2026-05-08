@@ -10,7 +10,7 @@
  * pattern if catalog forms need inline errors without a full round-trip redirect.
  */
 
-import { revalidatePath, updateTag } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { redirect } from 'next/navigation';
 import * as z from 'zod';
 import {
@@ -53,7 +53,7 @@ function revalidateAfterCatalogMutation(
     }
   }
   if (resourceId === 'site_alerts') {
-    updateTag(SITE_ALERTS_CACHE_TAG);
+    revalidateTag(SITE_ALERTS_CACHE_TAG, { expire: 0 });
   }
   revalidatePath(getI18nPath(ADMIN_INDEX_PATH, locale));
   revalidatePath(
