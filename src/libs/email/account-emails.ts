@@ -51,61 +51,75 @@ export async function sendEmailOtpCode(params: {
   otp: string;
   type: 'email-verification' | 'forget-password' | 'change-email' | 'sign-in';
 }) {
-  if (params.type === 'forget-password') {
-    const html = await render(PasswordResetEmailTemplate({ code: params.otp }));
-    await sendTransactionalEmail({
-      to: params.email,
-      subject: subjects.reset_password_subject,
-      html,
-      text: verificationCodeText({
-        code: params.otp,
-        purpose: 'reset-password',
-      }),
-    });
-    return;
+  switch (params.type) {
+    case 'forget-password': {
+      const html = await render(
+        PasswordResetEmailTemplate({ code: params.otp })
+      );
+      await sendTransactionalEmail({
+        to: params.email,
+        subject: subjects.reset_password_subject,
+        html,
+        text: verificationCodeText({
+          code: params.otp,
+          purpose: 'reset-password',
+        }),
+      });
+      return;
+    }
+    case 'change-email': {
+      const html = await render(
+        ConfirmEmailChangeTemplate({
+          code: params.otp,
+          supportEmail: SUPPORT_EMAIL,
+        })
+      );
+      await sendTransactionalEmail({
+        to: params.email,
+        subject: subjects.change_email_subject,
+        html,
+        text: verificationCodeText({
+          code: params.otp,
+          purpose: 'change-email',
+        }),
+      });
+      return;
+    }
+    case 'sign-in': {
+      const html = await render(
+        SignInOtpEmailTemplate({
+          code: params.otp,
+          supportEmail: SUPPORT_EMAIL,
+        })
+      );
+      await sendTransactionalEmail({
+        to: params.email,
+        subject: subjects.sign_in_otp_subject,
+        html,
+        text: verificationCodeText({ code: params.otp, purpose: 'sign-in' }),
+      });
+      return;
+    }
+    case 'email-verification': {
+      const html = await render(
+        VerifyEmailTemplate({ code: params.otp, supportEmail: SUPPORT_EMAIL })
+      );
+      await sendTransactionalEmail({
+        to: params.email,
+        subject: subjects.verify_subject,
+        html,
+        text: verificationCodeText({
+          code: params.otp,
+          purpose: 'verify-email',
+        }),
+      });
+      return;
+    }
+    default: {
+      const exhaustive: never = params.type;
+      throw new Error(`Unsupported email OTP type: ${String(exhaustive)}`);
+    }
   }
-
-  if (params.type === 'change-email') {
-    const html = await render(
-      ConfirmEmailChangeTemplate({
-        code: params.otp,
-        supportEmail: SUPPORT_EMAIL,
-      })
-    );
-    await sendTransactionalEmail({
-      to: params.email,
-      subject: subjects.change_email_subject,
-      html,
-      text: verificationCodeText({ code: params.otp, purpose: 'change-email' }),
-    });
-    return;
-  }
-
-  if (params.type === 'sign-in') {
-    const html = await render(
-      SignInOtpEmailTemplate({
-        code: params.otp,
-        supportEmail: SUPPORT_EMAIL,
-      })
-    );
-    await sendTransactionalEmail({
-      to: params.email,
-      subject: subjects.sign_in_otp_subject,
-      html,
-      text: verificationCodeText({ code: params.otp, purpose: 'sign-in' }),
-    });
-    return;
-  }
-
-  const html = await render(
-    VerifyEmailTemplate({ code: params.otp, supportEmail: SUPPORT_EMAIL })
-  );
-  await sendTransactionalEmail({
-    to: params.email,
-    subject: subjects.verify_subject,
-    html,
-    text: verificationCodeText({ code: params.otp, purpose: 'verify-email' }),
-  });
 }
 
 /**
