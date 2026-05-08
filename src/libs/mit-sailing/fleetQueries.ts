@@ -6,6 +6,8 @@ import {
   mapNameSlugRowsToNavLinks,
 } from '@/libs/mit-sailing/mapNavLinksFromNameSlug';
 import { prismaOrderByDisplayOrderAscNameAsc } from '@/libs/mit-sailing/prismaOrderPublicNav';
+import { listRequiredRatingsForTarget } from '@/libs/mit-sailing/sailingRatingQueries';
+import type { SailingRatingBrief } from '@/libs/mit-sailing/sailingRatingQueries';
 
 export type FleetBoatListRow = {
   id: string;
@@ -15,6 +17,7 @@ export type FleetBoatListRow = {
   capacity: number;
   description: string;
   requiredClass: { name: string; slug: string };
+  requiredRatings: SailingRatingBrief[];
 };
 
 /**
@@ -29,20 +32,50 @@ export function mapFleetBoatsToNavDropdownItems(
   return mapNameSlugRowsToNavLinks(boats, hrefFleetBoatFromSlug);
 }
 
-// eslint-disable-next-line @typescript-eslint/promise-function-async -- thin Prisma wrapper
-const loadFleetBoatsForPublicUnchecked = (): Promise<FleetBoatListRow[]> =>
-  prisma.fleetBoat.findMany({
-    orderBy: prismaOrderByDisplayOrderAscNameAsc,
-    select: {
-      id: true,
-      name: true,
-      slug: true,
-      type: true,
-      capacity: true,
-      description: true,
-      requiredClass: { select: { name: true, slug: true } },
-    },
-  });
+const loadFleetBoatsForPublicUnchecked = async (): Promise<
+  FleetBoatListRow[]
+> => {
+  const [boats, rules] = await Promise.all([
+    prisma.fleetBoat.findMany({
+      orderBy: prismaOrderByDisplayOrderAscNameAsc,
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        type: true,
+        capacity: true,
+        description: true,
+        requiredClass: { select: { name: true, slug: true } },
+      },
+    }),
+    prisma.sailingRatingRule.findMany({
+      where: { targetType: 'boat', ruleType: 'requires' },
+      orderBy: [{ displayOrder: 'asc' }],
+      select: {
+        targetId: true,
+        groupKey: true,
+        displayOrder: true,
+        sailingRating: {
+          select: {
+            id: true,
+            slug: true,
+            name: true,
+            shortName: true,
+            isDeprecated: true,
+          },
+        },
+      },
+    }),
+  ]);
+  return boats.map((boat) => ({
+    ...boat,
+    requiredRatings: rules
+      .filter((rule) => rule.targetId === boat.id)
+      .filter((rule) => rule.groupKey !== 'advanced')
+      .toSorted((a, b) => a.displayOrder - b.displayOrder)
+      .map((rule) => rule.sailingRating),
+  }));
+};
 
 /**
  * All fleet boats for public list (single query). Request-cached; returns an
@@ -65,6 +98,8 @@ export type FleetBoatDetail = {
   description: string;
   imagePaths: string[];
   requiredClass: { id: string; name: string; slug: string };
+  requiredRatings: SailingRatingBrief[];
+  advancedRatings: SailingRatingBrief[];
 };
 
 export const getFleetBoatForPublicBySlug = cache(
@@ -83,6 +118,25 @@ export const getFleetBoatForPublicBySlug = cache(
         requiredClass: { select: { id: true, name: true, slug: true } },
       },
     });
-    return boat;
+    if (!boat) {
+      return null;
+    }
+    const ratingRules = await listRequiredRatingsForTarget({
+      targetType: 'boat',
+      targetId: boat.id,
+      ruleType: 'requires',
+    });
+    const sortedRatingRules = ratingRules.toSorted(
+      (a, b) => a.displayOrder - b.displayOrder
+    );
+    return {
+      ...boat,
+      requiredRatings: sortedRatingRules
+        .filter((rule) => rule.groupKey !== 'advanced')
+        .map((rule) => rule.sailingRating),
+      advancedRatings: sortedRatingRules
+        .filter((rule) => rule.groupKey === 'advanced')
+        .map((rule) => rule.sailingRating),
+    };
   }
 );

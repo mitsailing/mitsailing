@@ -11,6 +11,7 @@ import {
 import { getCatalogServerHandlers } from '@/libs/admin/catalog/catalogServerRegistry';
 import { fleetRequiredClassSelectOptions } from '@/libs/admin/catalog/fleetCatalogHandlers';
 import { sailingClassCategorySelectOptions } from '@/libs/admin/catalog/sailingClassesHandlers';
+import { sailingRatingSelectOptions } from '@/libs/admin/catalog/sailingRatingsHandlers';
 
 type PageProps = {
   params: Promise<{ locale: string; resource: string; id: string }>;
@@ -71,6 +72,10 @@ export default async function AdminCatalogResourceEditPage(props: PageProps) {
   } else if (resource === 'sailing_classes') {
     dynamicSelectOptions = {
       classCategoryId: await sailingClassCategorySelectOptions(),
+    };
+  } else if (resource === 'sailing_rating_rules') {
+    dynamicSelectOptions = {
+      sailingRatingId: await sailingRatingSelectOptions(),
     };
   }
 

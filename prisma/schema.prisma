@@ -47,6 +47,8 @@ model User {
   eventComments      EventComment[]
   eventAdmins        EventAdmin[]
   eventsCreated      Event[]            @relation("EventCreatedBy")
+  sailingRatings     UserSailingRating[] @relation("UserSailingRatings")
+  issuedSailingRatings UserSailingRating[] @relation("IssuedSailingRatings")
 
   @@map("user")
 }
@@ -375,6 +377,83 @@ model SailingClassUnlockedBoat {
   @@id([sailingClassId, fleetBoatId])
   @@index([fleetBoatId])
   @@map("sailing_class_unlocked_boats")
+}
+
+model SailingRating {
+  id           String   @id
+  slug         String   @unique
+  name         String
+  shortName    String?  @map("short_name")
+  description  String   @db.Text
+  category     String?
+  level        String?
+  windCondition String?  @map("wind_condition")
+  guideUrl     String?  @map("guide_url")
+  displayOrder Int      @default(0) @map("display_order")
+  isVisible    Boolean  @default(true) @map("is_visible")
+  isDeprecated Boolean  @default(false) @map("is_deprecated")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  userRatings UserSailingRating[]
+  rules       SailingRatingRule[]
+
+  @@index([isVisible, displayOrder])
+  @@map("sailing_ratings")
+}
+
+model UserSailingRating {
+  id              String   @id
+  userId          String   @map("user_id")
+  sailingRatingId String   @map("sailing_rating_id")
+  issuedByUserId  String   @map("issued_by_user_id")
+  issuedAt        DateTime @default(now()) @map("issued_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  user          User          @relation("UserSailingRatings", fields: [userId], references: [id], onDelete: Cascade)
+  sailingRating SailingRating @relation(fields: [sailingRatingId], references: [id], onDelete: Restrict)
+  issuedBy      User          @relation("IssuedSailingRatings", fields: [issuedByUserId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, sailingRatingId])
+  @@index([userId])
+  @@index([sailingRatingId])
+  @@index([issuedByUserId])
+  @@map("user_sailing_ratings")
+}
+
+enum SailingRatingRuleTargetType {
+  rating
+  class
+  boat
+
+  @@map("sailing_rating_rule_target_type")
+}
+
+enum SailingRatingRuleType {
+  requires
+  grants
+
+  @@map("sailing_rating_rule_type")
+}
+
+model SailingRatingRule {
+  id              String                     @id
+  targetType      SailingRatingRuleTargetType @map("target_type")
+  targetId        String                     @map("target_id")
+  ruleType        SailingRatingRuleType      @map("rule_type")
+  sailingRatingId String                     @map("sailing_rating_id")
+  groupKey        String                     @default("default") @map("group_key")
+  displayOrder    Int                        @default(0) @map("display_order")
+  createdAt       DateTime                   @default(now()) @map("created_at")
+  updatedAt       DateTime                   @updatedAt @map("updated_at")
+
+  sailingRating SailingRating @relation(fields: [sailingRatingId], references: [id], onDelete: Cascade)
+
+  @@unique([targetType, targetId, ruleType, groupKey, sailingRatingId])
+  @@index([targetType, targetId, ruleType])
+  @@index([sailingRatingId])
+  @@map("sailing_rating_rules")
 }
 
 model FleetBoat {

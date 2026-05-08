@@ -5,6 +5,10 @@ import { donationFundsCatalogHandlers } from '@/libs/admin/catalog/donationFunds
 import { eventCategoriesCatalogHandlers } from '@/libs/admin/catalog/eventCategoriesHandlers';
 import { fleetCatalogHandlers } from '@/libs/admin/catalog/fleetCatalogHandlers';
 import { sailingClassesCatalogHandlers } from '@/libs/admin/catalog/sailingClassesHandlers';
+import {
+  sailingRatingRulesCatalogHandlers,
+  sailingRatingsCatalogHandlers,
+} from '@/libs/admin/catalog/sailingRatingsHandlers';
 import { siteAlertsCatalogHandlers } from '@/libs/admin/catalog/siteAlertsCatalogHandlers';
 import type { CatalogServerHandlers } from '@/libs/admin/catalog/types';
 
@@ -17,6 +21,8 @@ const catalogServerHandlers: Record<CatalogResourceId, CatalogServerHandlers> =
     event_categories: eventCategoriesCatalogHandlers,
     class_categories: classCategoriesCatalogHandlers,
     sailing_classes: sailingClassesCatalogHandlers,
+    sailing_ratings: sailingRatingsCatalogHandlers,
+    sailing_rating_rules: sailingRatingRulesCatalogHandlers,
     fleet: fleetCatalogHandlers,
     site_alerts: siteAlertsCatalogHandlers,
   };

@@ -9,6 +9,7 @@ import {
 } from '@/libs/admin/catalog/catalogDefinitions';
 import { fleetRequiredClassSelectOptions } from '@/libs/admin/catalog/fleetCatalogHandlers';
 import { sailingClassCategorySelectOptions } from '@/libs/admin/catalog/sailingClassesHandlers';
+import { sailingRatingSelectOptions } from '@/libs/admin/catalog/sailingRatingsHandlers';
 import type { CatalogRow } from '@/libs/admin/catalog/types';
 import { siteAlertsNewCatalogDefaults } from '@/libs/mit-sailing/siteAlertAdminDefaults';
 
@@ -76,6 +77,16 @@ export default async function AdminCatalogResourceNewPage(props: PageProps) {
           label: tr('select_class_category_placeholder'),
         },
         ...(await sailingClassCategorySelectOptions()),
+      ],
+    };
+  } else if (resource === 'sailing_rating_rules') {
+    dynamicSelectOptions = {
+      sailingRatingId: [
+        {
+          value: '',
+          label: tr('select_rating_placeholder'),
+        },
+        ...(await sailingRatingSelectOptions()),
       ],
     };
   }

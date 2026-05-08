@@ -6,6 +6,8 @@ import {
   mapNameSlugRowsToNavLinks,
 } from '@/libs/mit-sailing/mapNavLinksFromNameSlug';
 import { prismaOrderByDisplayOrderAscNameAsc } from '@/libs/mit-sailing/prismaOrderPublicNav';
+import { listRequiredRatingsForTarget } from '@/libs/mit-sailing/sailingRatingQueries';
+import type { SailingRatingBrief } from '@/libs/mit-sailing/sailingRatingQueries';
 
 export type CatalogClassCard = {
   id: string;
@@ -141,6 +143,8 @@ export type SailingClassCatalogDetail = {
   relatedEventIds: string[];
   unlockedBoatIds: string[];
   prerequisites: { id: string; name: string; slug: string }[];
+  requiredRatings: SailingRatingBrief[];
+  grantableRatings: SailingRatingBrief[];
   relatedEvents: { id: string; name: string; slug: string }[];
   unlockedBoats: {
     id: string;
@@ -239,6 +243,19 @@ export const getSailingClassCatalogBySlug = cache(
     );
     const unlockedBoatIds = unlockedBoats.map((b) => b.id);
 
+    const [requiredRatingRules, grantableRatingRules] = await Promise.all([
+      listRequiredRatingsForTarget({
+        targetType: 'class',
+        targetId: sailingClass.id,
+        ruleType: 'requires',
+      }),
+      listRequiredRatingsForTarget({
+        targetType: 'class',
+        targetId: sailingClass.id,
+        ruleType: 'grants',
+      }),
+    ]);
+
     return {
       id: sailingClass.id,
       name: sailingClass.name,
@@ -250,6 +267,12 @@ export const getSailingClassCatalogBySlug = cache(
       relatedEventIds,
       unlockedBoatIds,
       prerequisites: orderByIdOrder(prerequisiteIds, prerequisites),
+      requiredRatings: requiredRatingRules
+        .toSorted((a, b) => a.displayOrder - b.displayOrder)
+        .map((rule) => rule.sailingRating),
+      grantableRatings: grantableRatingRules
+        .toSorted((a, b) => a.displayOrder - b.displayOrder)
+        .map((rule) => rule.sailingRating),
       relatedEvents: orderByIdOrder(relatedEventIds, relatedEvents),
       unlockedBoats: orderByIdOrder(unlockedBoatIds, unlockedBoats),
     };
