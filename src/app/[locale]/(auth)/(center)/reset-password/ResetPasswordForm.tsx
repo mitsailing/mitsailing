@@ -109,7 +109,11 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
     }
     setResending(true);
     try {
-      await authClient.emailOtp.requestPasswordReset({ email });
+      const res = await authClient.emailOtp.requestPasswordReset({ email });
+      if (res.error) {
+        setError(mapError(res.error.code, res.error.message));
+        return;
+      }
       setStatus(t('resent_banner'));
       lockResend();
     } catch {
