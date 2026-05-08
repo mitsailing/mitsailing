@@ -144,6 +144,30 @@ describe('SignInForm', () => {
     );
   });
 
+  it('unverified sailor uses normalized email for OTP and verify-email redirect', async () => {
+    const user = userEvent.setup();
+    authClientMock.signIn.email.mockResolvedValue({
+      error: { code: 'EMAIL_NOT_VERIFIED' },
+    });
+
+    render(<SignInForm callbackUrl="/fleet/" />);
+
+    await user.type(screen.getByLabelText('Email'), ' Sailor@MIT.EDU ');
+    await user.type(screen.getByLabelText('Password'), 'correct-password');
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+    await user.click(
+      await screen.findByRole('button', { name: 'Send verification code' })
+    );
+
+    expect(authClientMock.emailOtp.sendVerificationOtp).toHaveBeenCalledWith({
+      email: 'sailor@mit.edu',
+      type: 'email-verification',
+    });
+    expect(componentTestRouter().push).toHaveBeenCalledWith(
+      '/verify-email?email=sailor%40mit.edu&codeSent=1&callbackUrl=%2Ffleet%2F'
+    );
+  });
+
   it('unverified sailor requests a verification code from sign-in', async () => {
     const user = userEvent.setup();
     authClientMock.signIn.email.mockResolvedValue({

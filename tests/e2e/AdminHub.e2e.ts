@@ -136,6 +136,91 @@ test.describe('Admin hub and users', () => {
     await expect(adminLink).toHaveAttribute('href', /\/admin\/?$/);
   });
 
+  test('admin bans and restores a user sign-in', async ({ page }) => {
+    const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
+    const password = 'Correct-Horse-Battery-Staple';
+
+    try {
+      await createVerifiedUser(page, email, password);
+
+      await page.context().clearCookies();
+      await signInAsAdmin(page);
+      await page.goto('/admin/users');
+
+      await page
+        .getByRole('row')
+        .filter({ hasText: email })
+        .getByRole('link', { name: 'Edit' })
+        .click();
+      await expect(
+        page.getByRole('heading', { name: 'Edit user' })
+      ).toBeVisible();
+      await page.getByLabel('Banned').check();
+      await page.getByRole('button', { name: 'Save' }).click();
+      await expect
+        .poll(() => new URL(page.url()).pathname)
+        .toBe('/admin/users');
+
+      await page.context().clearCookies();
+      await page.goto('/login');
+      await page.getByLabel('Email').fill(email);
+      await page.getByLabel('Password').fill(password);
+      await page.getByRole('button', { name: 'Sign in' }).click();
+      await expect(
+        page.getByRole('alert').filter({
+          hasText:
+            'Your account has been disabled. Contact support if you believe this is an error.',
+        })
+      ).toBeVisible();
+      await expect(
+        page.getByRole('alert').filter({
+          hasText: 'Verify your email before signing in.',
+        })
+      ).toHaveCount(0);
+      await expect(
+        page.getByRole('alert').filter({
+          hasText: 'Invalid email or password.',
+        })
+      ).toHaveCount(0);
+      await expect(
+        page.getByRole('alert').filter({
+          hasText: 'Your account is temporarily locked',
+        })
+      ).toHaveCount(0);
+      await expect(
+        page.getByRole('alert').filter({
+          hasText: 'Too many attempts.',
+        })
+      ).toHaveCount(0);
+      await expect
+        .poll(() => new URL(page.url()).pathname)
+        .toMatch(/\/login\/?$/);
+
+      await page.context().clearCookies();
+      await signInAsAdmin(page);
+      await page.goto('/admin/users');
+      await page
+        .getByRole('row')
+        .filter({ hasText: email })
+        .getByRole('link', { name: 'Edit' })
+        .click();
+      await page.getByLabel('Banned').uncheck();
+      await page.getByRole('button', { name: 'Save' }).click();
+      await expect
+        .poll(() => new URL(page.url()).pathname)
+        .toBe('/admin/users');
+
+      await page.context().clearCookies();
+      await page.goto('/login');
+      await page.getByLabel('Email').fill(email);
+      await page.getByLabel('Password').fill(password);
+      await page.getByRole('button', { name: 'Sign in' }).click();
+      await expect.poll(() => new URL(page.url()).pathname).toBe('/');
+    } finally {
+      await cleanupByEmail(email);
+    }
+  });
+
   test('sailor and impersonating admin are blocked from admin pages', async ({
     page,
   }) => {

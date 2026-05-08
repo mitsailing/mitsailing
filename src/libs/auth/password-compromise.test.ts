@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MockInstance } from 'vitest';
 
@@ -35,17 +34,6 @@ const MockAPIError = vi.hoisted(
 vi.mock('server-only', () => ({}));
 vi.mock('@/libs/Env', () => ({ Env: mockEnv }));
 vi.mock('better-auth/api', () => ({ APIError: MockAPIError }));
-
-function passwordHashParts(password: string) {
-  const sha1Hash = createHash('sha1')
-    .update(password)
-    .digest('hex')
-    .toUpperCase();
-  return {
-    prefix: sha1Hash.slice(0, 5),
-    suffix: sha1Hash.slice(5),
-  };
-}
 
 describe('assertPasswordNotCompromised', () => {
   let fetchSpy: MockInstance<(typeof globalThis)['fetch']>;
@@ -89,14 +77,17 @@ describe('assertPasswordNotCompromised', () => {
 
   it('sailor can use an uncompromised password', async () => {
     const password = 'better sailing passphrase';
-    const { prefix, suffix } = passwordHashParts(password);
+    const {
+      assertPasswordNotCompromised,
+      hibpPasswordSha1RangeParts,
+      passwordCompromiseCheckEnabled,
+    } = await import('@/libs/auth/password-compromise');
+    const { prefix, suffix } = hibpPasswordSha1RangeParts(password);
     fetchSpy.mockResolvedValue(
       new Response(`AAAA${suffix.slice(4)}:1\nBBBB${suffix.slice(4)}:3`, {
         status: 200,
       })
     );
-    const { assertPasswordNotCompromised, passwordCompromiseCheckEnabled } =
-      await import('@/libs/auth/password-compromise');
 
     await expect(assertPasswordNotCompromised(password)).resolves.toBe(
       undefined
@@ -116,14 +107,14 @@ describe('assertPasswordNotCompromised', () => {
 
   it('sailor cannot use a compromised password suffix', async () => {
     const password = 'correct horse battery staple';
-    const { suffix } = passwordHashParts(password);
+    const { assertPasswordNotCompromised, hibpPasswordSha1RangeParts } =
+      await import('@/libs/auth/password-compromise');
+    const { suffix } = hibpPasswordSha1RangeParts(password);
     fetchSpy.mockResolvedValue(
       new Response(`00000000000000000000000000000000000:2\n${suffix}:42`, {
         status: 200,
       })
     );
-    const { assertPasswordNotCompromised } =
-      await import('@/libs/auth/password-compromise');
 
     await expect(assertPasswordNotCompromised(password)).rejects.toMatchObject({
       code: 'PASSWORD_COMPROMISED',

@@ -41,10 +41,11 @@ export function SignInForm(props: SignInFormProps) {
 
   function mapError(
     code: string | undefined,
-    message: string | undefined
+    message: string | undefined,
+    signInEmail?: string
   ): ErrorState {
     if (code === 'EMAIL_NOT_VERIFIED') {
-      return { kind: 'unverified', email };
+      return { kind: 'unverified', email: signInEmail ?? email };
     }
     const mapping: Record<string, string> = {
       INVALID_EMAIL_OR_PASSWORD: t('error_credentials'),
@@ -88,7 +89,7 @@ export function SignInForm(props: SignInFormProps) {
 
     setSubmitting(false);
     if (res.error) {
-      setError(mapError(res.error.code, res.error.message));
+      setError(mapError(res.error.code, res.error.message, normalizedEmail));
       return;
     }
     router.push(props.callbackUrl);

@@ -10,17 +10,37 @@ const HIBP_USER_AGENT = 'BetterAuth Password Checker';
 export const passwordCompromiseCheckEnabled =
   Env.NODE_ENV !== 'test' && Env.NEXT_PUBLIC_IS_E2E !== '1';
 
+/**
+ * Computes the SHA-1 hex split required by the Pwned Passwords (range) API for
+ * k-anonymity lookups. This is **not** password storage — the upstream service
+ * protocol mandates SHA-1 for prefix/suffix matching.
+ *
+ * @param password - Cleartext password for the one-way range lookup only.
+ * @returns The SHA-1 prefix and suffix for a range API request.
+ * @see {@link https://haveibeenpwned.com/API/v3#PwnedPasswords HIBP Pwned Passwords}
+ */
+export function hibpPasswordSha1RangeParts(password: string): {
+  prefix: string;
+  suffix: string;
+} {
+  // Not password storage: Pwned Passwords range API requires SHA-1 for k-anonymity.
+  // codeql[js/insufficient-password-hash]
+  const sha1Hash = createHash('sha1')
+    .update(password)
+    .digest('hex')
+    .toUpperCase();
+  return {
+    prefix: sha1Hash.slice(0, 5),
+    suffix: sha1Hash.slice(5),
+  };
+}
+
 export async function assertPasswordNotCompromised(password: string) {
   if (!passwordCompromiseCheckEnabled) {
     return;
   }
 
-  const sha1Hash = createHash('sha1')
-    .update(password)
-    .digest('hex')
-    .toUpperCase();
-  const prefix = sha1Hash.slice(0, 5);
-  const suffix = sha1Hash.slice(5);
+  const { prefix, suffix } = hibpPasswordSha1RangeParts(password);
 
   try {
     const response = await fetch(`${HIBP_RANGE_URL}${prefix}`, {
