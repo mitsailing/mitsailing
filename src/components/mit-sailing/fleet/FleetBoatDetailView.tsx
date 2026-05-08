@@ -61,20 +61,14 @@ export async function FleetBoatDetailView(props: FleetBoatDetailViewProps) {
 
       <section className="mb-8 rounded-xl border border-mit-line bg-mit-red-highlight p-6">
         <h2 className="mt-0 mb-2 font-mit-serif text-xl font-semibold text-mit-text">
-          {t('required_rating_heading')}
+          {t('required_class_heading')}
         </h2>
-        <ul className="m-0 list-none space-y-1 p-0">
-          {boat.requiredRatings.map((rating) => (
-            <li key={rating.id}>
-              <Link
-                className={`inline-flex items-center gap-1 font-semibold text-mit-red-ink hover:underline ${textFocusRingClassName}`}
-                href={`/ratings/#${rating.slug}`}
-              >
-                {rating.name} <ArrowRight aria-hidden size={14} />
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <Link
+          className={`inline-flex items-center gap-1 font-semibold text-mit-red-ink hover:underline ${textFocusRingClassName}`}
+          href={`/classes/${boat.requiredClass.slug}/`}
+        >
+          {boat.requiredClass.name} <ArrowRight aria-hidden size={14} />
+        </Link>
       </section>
 
       {boat.advancedRatings.length > 0 ? (

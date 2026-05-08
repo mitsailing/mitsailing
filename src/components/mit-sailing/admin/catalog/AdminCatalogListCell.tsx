@@ -76,8 +76,6 @@ export function AdminCatalogListCell(
   props: AdminCatalogListCellProps
 ): React.ReactElement {
   const tCatalog = useTranslations('AdminCatalogResource');
-  const tUsers = useTranslations('AdminUsers');
-  const t = props.messageNamespace === 'AdminUsers' ? tUsers : tCatalog;
   const tc = useTranslations('AdminCatalog');
   const raw = props.row[props.field];
 
@@ -97,7 +95,7 @@ export function AdminCatalogListCell(
     const visible = Boolean(raw);
     return (
       <AdminStatusPill tone={visible ? 'success' : 'neutral'}>
-        {visible ? t('status_live') : t('status_draft')}
+        {visible ? tCatalog('status_live') : tCatalog('status_draft')}
       </AdminStatusPill>
     );
   }

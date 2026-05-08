@@ -144,13 +144,20 @@ function withGeneratedDropdowns(props: {
   items: SiteHeaderMenuItem[];
   fleetDropdownItems: NavigationDropdownItem[];
   classesDropdownItems: NavigationDropdownItem[];
+  sailingRatingsLabel: string;
 }): SiteHeaderMenuItem[] {
   return props.items.map((item) => {
     if (item.systemKey === 'fleet') {
       return { ...item, items: props.fleetDropdownItems };
     }
     if (item.systemKey === 'classes') {
-      return { ...item, items: props.classesDropdownItems };
+      return {
+        ...item,
+        items: [
+          { href: '/ratings', label: props.sailingRatingsLabel },
+          ...props.classesDropdownItems,
+        ],
+      };
     }
     return item;
   });
@@ -278,6 +285,7 @@ export function SiteHeader(props: SiteHeaderProps) {
     }),
     fleetDropdownItems: props.fleetDropdownItems,
     classesDropdownItems: props.classesDropdownItems,
+    sailingRatingsLabel: t('nav_sailing_ratings'),
   });
   const mobileUtilityItems = configuredMobileUtilityItems({
     mobileUtilityItems: props.mobileUtilityItems,

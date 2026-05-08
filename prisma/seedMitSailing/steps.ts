@@ -158,7 +158,7 @@ export async function seedSailingClassesAndBoats(
         level: cl.level,
         description: cl.description,
         displayOrder,
-        isVisible: true,
+        isVisible: cl.isVisible ?? true,
       },
       update: {
         name: cl.name,
@@ -166,7 +166,7 @@ export async function seedSailingClassesAndBoats(
         level: cl.level,
         description: cl.description,
         displayOrder,
-        isVisible: true,
+        isVisible: cl.isVisible ?? true,
       },
     });
 

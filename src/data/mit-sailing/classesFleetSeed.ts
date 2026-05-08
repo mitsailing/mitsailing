@@ -1,6 +1,6 @@
 /**
  * Mock curriculum + fleet data. Classes reference event IDs in eventsSeed and boat IDs here;
- * each boat's requiredClassId must match the class that lists that boat in unlockedBoatIds.
+ * each boat's requiredClassId points at the canonical public class/checkoff shown on fleet pages.
  */
 
 export type ClassCategory =
@@ -22,6 +22,7 @@ export type SailingClass = {
   prerequisites: string[];
   relatedEventIds: string[];
   unlockedBoatIds: string[];
+  isVisible?: boolean;
 };
 
 export type FleetBoat = {
@@ -276,6 +277,7 @@ export const SAILING_CLASSES: SailingClass[] = [
     prerequisites: [],
     relatedEventIds: ['evt-bluewater-boston-provincetown'],
     unlockedBoatIds: [],
+    isVisible: false,
   },
   {
     id: 'class-bluewater-skipper-pathway',
@@ -288,6 +290,7 @@ export const SAILING_CLASSES: SailingClass[] = [
     prerequisites: ['class-bluewater-crew-pathway'],
     relatedEventIds: ['evt-bluewater-boston-provincetown'],
     unlockedBoatIds: ['boat-mashnee'],
+    isVisible: false,
   },
 ];
 
@@ -383,7 +386,7 @@ export const FLEET_BOATS: FleetBoat[] = [
     type: 'bluewater sailboat',
     capacity: 8,
     displayOrder: 8,
-    requiredClassId: 'class-bluewater-skipper-pathway',
+    requiredClassId: 'class-intro-sailing-101',
     description:
       'MIT bluewater sailboat berthed in Boston Harbor. A Tech Rating allows members to join sails, while Bluewater Crew and Bluewater Skipper ratings mark leadership and skipper readiness.',
     image: '/images/boats/mashnee.jpg',

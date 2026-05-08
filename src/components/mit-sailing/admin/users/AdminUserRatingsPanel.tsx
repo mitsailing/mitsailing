@@ -12,12 +12,12 @@ import {
   grantAdminUserRatingAction,
   revokeAdminUserRatingAction,
 } from '@/libs/admin/users/adminUserRatingActions';
-import type { AdminUserRatingRow } from '@/libs/mit-sailing/sailingRatingQueries';
+import type { UserRatingAssignmentRow } from '@/libs/mit-sailing/sailingRatingQueries';
 
 type AdminUserRatingsPanelProps = {
   locale: string;
   userId: string;
-  rows: AdminUserRatingRow[];
+  rows: UserRatingAssignmentRow[];
   errorCode?: string | null;
 };
 

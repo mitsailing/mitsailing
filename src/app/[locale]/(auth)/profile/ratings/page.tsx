@@ -1,9 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
 import { requireCurrentUser } from '@/libs/auth/dal';
-import { Link } from '@/libs/I18nNavigation';
-import { listProfileSailingRatingRows } from '@/libs/mit-sailing/sailingRatingQueries';
+import { listUserRatingAssignmentRows } from '@/libs/mit-sailing/sailingRatingQueries';
 import { getI18nPath } from '@/utils/Helpers';
 
 type ProfileRatingsPageProps = {
@@ -30,61 +28,47 @@ export default async function ProfileRatingsPage(
     locale,
     getI18nPath('/profile/ratings/', locale)
   );
-  const rows = await listProfileSailingRatingRows(user.id);
+  const ratingRows = await listUserRatingAssignmentRows(user.id);
+  const rows = ratingRows.filter((row) => !row.isDeprecated);
   const t = await getTranslations({ locale, namespace: 'UserProfilePage' });
   const dateFormatter = new Intl.DateTimeFormat(locale, {
     dateStyle: 'medium',
   });
 
   return (
-    <div className="mx-auto max-w-3xl">
-      <h1 className="mb-3 font-mit-serif text-2xl font-semibold text-mit-text">
+    <section className="mx-auto max-w-5xl">
+      <h1 className="mb-8 font-mit-serif text-3xl font-semibold text-mit-text">
         {t('ratings_page_heading')}
       </h1>
-      {rows.length === 0 ? (
-        <p className="rounded-lg border border-mit-line bg-card p-5 text-sm text-mit-text">
-          {t('ratings_empty')}
-        </p>
-      ) : (
-        <ul className="m-0 list-none space-y-4 p-0">
-          {rows.map((rating) => (
-            <li
-              className="rounded-lg border border-mit-line bg-card p-5"
-              key={rating.id}
-            >
-              <h2 className="mb-2 font-mit-serif text-xl font-semibold text-mit-text">
-                {rating.name}
-              </h2>
-              <p className="mb-3 text-sm text-mit-text">
-                {t('ratings_issued', {
-                  date: dateFormatter.format(rating.issuedAt),
-                })}
-                {' · '}
-                {t('ratings_issued_by', { name: rating.issuedByName })}
-              </p>
-              {rating.unlockedBoats.length > 0 ? (
-                <div>
-                  <h3 className="mb-2 text-xs font-semibold tracking-wide text-mit-text uppercase">
-                    {t('ratings_unlocked_boats')}
-                  </h3>
-                  <ul className="m-0 list-none space-y-1 p-0">
-                    {rating.unlockedBoats.map((boat) => (
-                      <li key={boat.id}>
-                        <Link
-                          className={`text-sm font-semibold text-mit-red-ink hover:underline ${textFocusRingClassName}`}
-                          href={`/fleet/${boat.slug}/`}
-                        >
-                          {boat.name}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-            </li>
+      <table className="w-full table-fixed border-collapse text-left text-sm leading-snug text-mit-text md:text-base">
+        <thead>
+          <tr className="text-sm font-bold text-mit-text">
+            <th className="w-[42%] px-2 py-2" scope="col">
+              {t('ratings_column_rating')}
+            </th>
+            <th className="w-[58%] px-2 py-2" scope="col">
+              {t('ratings_column_assignment')}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr className="border-t border-mit-line" key={row.id}>
+              <th className="px-2 py-2 font-normal" scope="row">
+                {row.name}
+              </th>
+              <td className="px-2 py-2">
+                {row.issuedAt
+                  ? t('ratings_issued_by', {
+                      date: dateFormatter.format(row.issuedAt),
+                      name: row.issuedByName ?? '',
+                    })
+                  : ''}
+              </td>
+            </tr>
           ))}
-        </ul>
-      )}
-    </div>
+        </tbody>
+      </table>
+    </section>
   );
 }
