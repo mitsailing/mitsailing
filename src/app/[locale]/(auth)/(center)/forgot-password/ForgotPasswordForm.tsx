@@ -14,9 +14,10 @@ type ForgotPasswordFormProps = {
   callbackUrl: string;
 };
 
-// Client-side password-reset request form. Always renders the same "sent"
-// banner on 2xx so the endpoint stays non-enumerating even though the
-// sign-up flow exposes existence explicitly elsewhere.
+// Client-side password-reset request form. Mirrors the server's non-enumerating
+// semantics: unknown addresses still succeed at the HTTP layer; we never
+// branch UX on response `error`, which could correlate with existence if the
+// plugin or transports ever diverged per email.
 export function ForgotPasswordForm(props: ForgotPasswordFormProps) {
   const t = useTranslations('ForgotPasswordPage');
   const router = useRouter();
@@ -34,13 +35,9 @@ export function ForgotPasswordForm(props: ForgotPasswordFormProps) {
     }
     setSubmitting(true);
     try {
-      const res = await authClient.emailOtp.requestPasswordReset({
+      await authClient.emailOtp.requestPasswordReset({
         email,
       });
-      if (res.error) {
-        setEmailError(t('error_request_failed'));
-        return;
-      }
       setSubmitted(true);
       router.push(
         authHrefWithCallback(
