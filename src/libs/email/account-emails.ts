@@ -138,11 +138,14 @@ export async function markPendingEmailChange(params: {
     where: { id: params.userId },
     select: { unconfirmedEmail: true },
   });
+  if (existing?.unconfirmedEmail === params.newEmail) {
+    return false;
+  }
   await prisma.user.update({
     where: { id: params.userId },
     data: { unconfirmedEmail: params.newEmail },
   });
-  return existing?.unconfirmedEmail !== params.newEmail;
+  return true;
 }
 
 /**

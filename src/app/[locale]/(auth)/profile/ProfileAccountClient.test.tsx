@@ -59,6 +59,26 @@ function renderAccountClient(
   );
 }
 
+async function requestConfirmationCode(
+  user: ReturnType<typeof userEvent.setup>,
+  email: string
+) {
+  await user.clear(screen.getByLabelText('New email'));
+  await user.type(screen.getByLabelText('New email'), email);
+  await user.click(
+    screen.getByRole('button', { name: 'Send confirmation code' })
+  );
+}
+
+function requestConfirmationCodeWithFireEvent(email: string) {
+  fireEvent.change(screen.getByLabelText('New email'), {
+    target: { value: email },
+  });
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Send confirmation code' })
+  );
+}
+
 describe('ProfileAccountClient', () => {
   it('profile owner updates their display name', async () => {
     const user = userEvent.setup();
@@ -136,10 +156,7 @@ describe('ProfileAccountClient', () => {
     const user = userEvent.setup();
     renderAccountClient();
 
-    await user.type(screen.getByLabelText('New email'), 'next@mit.edu');
-    await user.click(
-      screen.getByRole('button', { name: 'Send confirmation code' })
-    );
+    await requestConfirmationCode(user, 'next@mit.edu');
 
     expect(authClientMock.emailOtp.requestEmailChange).toHaveBeenCalledWith({
       newEmail: 'next@mit.edu',
@@ -156,10 +173,7 @@ describe('ProfileAccountClient', () => {
     const user = userEvent.setup();
     renderAccountClient();
 
-    await user.type(screen.getByLabelText('New email'), 'owner@mit.edu');
-    await user.click(
-      screen.getByRole('button', { name: 'Send confirmation code' })
-    );
+    await requestConfirmationCode(user, 'owner@mit.edu');
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'That is already your login email.'
@@ -171,10 +185,7 @@ describe('ProfileAccountClient', () => {
     const user = userEvent.setup();
     renderAccountClient();
 
-    await user.type(screen.getByLabelText('New email'), 'next@mit');
-    await user.click(
-      screen.getByRole('button', { name: 'Send confirmation code' })
-    );
+    await requestConfirmationCode(user, 'next@mit');
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Check the email address and try again.'
@@ -189,10 +200,7 @@ describe('ProfileAccountClient', () => {
     });
     renderAccountClient();
 
-    await user.type(screen.getByLabelText('New email'), 'taken@mit.edu');
-    await user.click(
-      screen.getByRole('button', { name: 'Send confirmation code' })
-    );
+    await requestConfirmationCode(user, 'taken@mit.edu');
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'That email is already in the system.'
@@ -272,7 +280,12 @@ describe('ProfileAccountClient', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Resend email' }));
     });
     await act(async () => {
-      await Promise.resolve();
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    await vi.waitFor(() => {
+      expect(authClientMock.emailOtp.requestEmailChange).toHaveBeenCalledTimes(
+        1
+      );
     });
 
     expect(
@@ -292,32 +305,32 @@ describe('ProfileAccountClient', () => {
     vi.useFakeTimers();
     renderAccountClient();
 
-    fireEvent.change(screen.getByLabelText('New email'), {
-      target: { value: 'first@mit.edu' },
-    });
     act(() => {
-      fireEvent.click(
-        screen.getByRole('button', { name: 'Send confirmation code' })
-      );
+      requestConfirmationCodeWithFireEvent('first@mit.edu');
     });
     await act(async () => {
-      await Promise.resolve();
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    await vi.waitFor(() => {
+      expect(authClientMock.emailOtp.requestEmailChange).toHaveBeenCalledTimes(
+        1
+      );
     });
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(5000);
     });
 
-    fireEvent.change(screen.getByLabelText('New email'), {
-      target: { value: 'second@mit.edu' },
-    });
     act(() => {
-      fireEvent.click(
-        screen.getByRole('button', { name: 'Send confirmation code' })
-      );
+      requestConfirmationCodeWithFireEvent('second@mit.edu');
     });
     await act(async () => {
-      await Promise.resolve();
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    await vi.waitFor(() => {
+      expect(authClientMock.emailOtp.requestEmailChange).toHaveBeenCalledTimes(
+        2
+      );
     });
 
     await act(async () => {

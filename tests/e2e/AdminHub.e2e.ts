@@ -2,16 +2,18 @@ import { faker } from '@faker-js/faker';
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { Pool } from 'pg';
+import { Env } from '@/libs/Env';
 import { signInAsAdmin } from '../helpers/e2e-admin-sign-in';
 import {
   extractCodeFromMessage,
   findLatestMessageTo,
 } from '../helpers/mailpit';
 
-const testDatabaseUrl =
-  process.env.TEST_DATABASE_URL ??
-  process.env.DATABASE_URL ??
-  'postgresql://postgres:postgres@127.0.0.1:5432/test_db?sslmode=disable';
+const testDatabaseUrl = Env.TEST_DATABASE_URL;
+
+if (!testDatabaseUrl) {
+  throw new Error('TEST_DATABASE_URL is required for AdminHub e2e cleanup.');
+}
 
 const pool = new Pool({ connectionString: testDatabaseUrl });
 
@@ -26,7 +28,7 @@ test.afterAll(async () => {
 });
 
 const swallow = (error: unknown): void => {
-  if (process.env.DEBUG_CLEANUP) {
+  if (Env.DEBUG_CLEANUP) {
     console.warn(error);
   }
 };

@@ -33,7 +33,9 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
   const [status, setStatus] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [resending, setResending] = useState(false);
-  const [resendLocked, setResendLocked] = useState(false);
+  const [resendLocked, setResendLocked] = useState(
+    props.initialResendLocked ?? false
+  );
   const resendTimeoutRef = useRef<number | null>(null);
 
   function mapError(options: {
@@ -116,6 +118,9 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
         setError(mapError({ code: res.error.code }));
         return;
       }
+    } catch {
+      setError(t('error_request_failed'));
+      return;
     } finally {
       setSubmitting(false);
     }
@@ -208,6 +213,8 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
       }
       router.push(props.callbackUrl);
       router.refresh();
+    } catch {
+      setError(t('error_request_failed'));
     } finally {
       setSubmitting(false);
     }

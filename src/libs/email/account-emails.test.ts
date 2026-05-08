@@ -105,6 +105,21 @@ describe('account email notices', () => {
     expect(payload?.text).toContain('email change confirmation code is 987654');
   });
 
+  it('throws when an unsupported OTP type reaches the exhaustive branch', async () => {
+    const { sendEmailOtpCode } = await import('@/libs/email/account-emails');
+    type SendEmailOtpParams = Parameters<typeof sendEmailOtpCode>[0];
+
+    await expect(
+      sendEmailOtpCode({
+        email: 'x@example.com',
+        otp: '123456',
+        type:
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- deliberate runtime invalid union member for exhaustive switch coverage
+          'unsupported-runtime-type' as unknown as SendEmailOtpParams['type'],
+      })
+    ).rejects.toThrow(/Unsupported email OTP type/);
+  });
+
   it('email-change persona records when the pending email changes', async () => {
     const { markPendingEmailChange } =
       await import('@/libs/email/account-emails');
@@ -136,6 +151,8 @@ describe('account email notices', () => {
         userId: 'user_123',
       })
     ).resolves.toBe(false);
+
+    expect(update).not.toHaveBeenCalled();
   });
 
   it('security-notice persona receives a change-request notice at the current email', async () => {

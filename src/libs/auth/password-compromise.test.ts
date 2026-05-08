@@ -101,6 +101,7 @@ describe('assertPasswordNotCompromised', () => {
           'Add-Padding': 'true',
           'User-Agent': 'BetterAuth Password Checker',
         },
+        signal: expect.any(AbortSignal),
       }
     );
   });
@@ -146,6 +147,16 @@ describe('assertPasswordNotCompromised', () => {
       message: 'Failed to check password. Please try again later.',
       status: 'INTERNAL_SERVER_ERROR',
     });
+  });
+
+  it('sailor can continue when breach lookup times out', async () => {
+    fetchSpy.mockRejectedValue(new DOMException('Timed out', 'AbortError'));
+    const { assertPasswordNotCompromised } =
+      await import('@/libs/auth/password-compromise');
+
+    await expect(assertPasswordNotCompromised('password')).resolves.toBe(
+      undefined
+    );
   });
 
   it('sailor keeps upstream APIError details for auth handling', async () => {

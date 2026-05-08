@@ -10,8 +10,7 @@ import type * as React from 'react';
  * @param props.children - Home page content
  * @returns Home route content
  */
-export default function HomeLayout(props: {
-  children: React.ReactNode;
-}): React.ReactNode {
-  return props.children;
+export default async function HomeLayout(props: { children: React.ReactNode }) {
+  const children = await props.children;
+  return children;
 }

@@ -1,5 +1,6 @@
 import type * as React from 'react';
 import { Heading, Link, Section, Text } from 'react-email';
+import enMessages from '@/locales/en.json';
 import { EmailLayout } from './email-layout';
 
 export type SignInOtpEmailProps = {
@@ -49,6 +50,12 @@ const supportLink: React.CSSProperties = {
   color: '#2563eb',
 };
 
+const copy = enMessages.AuthEmails;
+
+function signInOtpBody(code: string): string {
+  return copy.sign_in_otp_body.replace('{code}', code);
+}
+
 /**
  * Email OTP for passwordless sign-in (existing accounts).
  *
@@ -59,23 +66,19 @@ const supportLink: React.CSSProperties = {
  */
 export function SignInOtpEmailTemplate(props: SignInOtpEmailProps) {
   return (
-    <EmailLayout previewText="Your sign-in code">
+    <EmailLayout previewText={copy.sign_in_otp_subject}>
       <Section style={section}>
         <Heading as="h1" style={heading}>
-          Sign in with your code
+          {copy.sign_in_otp_heading}
         </Heading>
-        <Text style={paragraph}>
-          Your MIT Sailing sign-in code is {props.code}. Enter it on the sign-in
-          screen to continue.
-        </Text>
+        <Text style={paragraph}>{signInOtpBody(props.code)}</Text>
         <Text style={codeBox}>{props.code}</Text>
         <Text style={expiry}>
-          This code expires in 5 minutes. If you did not try to sign in, you can
-          ignore this email, or contact{' '}
+          {copy.sign_in_otp_expiry_prefix}{' '}
           <Link href={`mailto:${props.supportEmail}`} style={supportLink}>
             {props.supportEmail}
           </Link>{' '}
-          if you have questions.
+          {copy.sign_in_otp_expiry_suffix}
         </Text>
       </Section>
     </EmailLayout>

@@ -1,9 +1,13 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { setComponentTestPathname } from '@/test/component';
 import { ProfileSideNav } from './ProfileSideNav';
 
 describe('ProfileSideNav', () => {
+  beforeEach(() => {
+    setComponentTestPathname('/profile/account/');
+  });
+
   it('profile owner sees profile settings navigation with the current page marked', () => {
     render(<ProfileSideNav />);
 

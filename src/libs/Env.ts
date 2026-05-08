@@ -45,6 +45,12 @@ export const Env = createEnv({
     // assert on outbound mail content (subject, links, etc.).
     MAILPIT_API_URL: z.url().optional(),
 
+    // Dedicated test database for destructive Playwright cleanup helpers.
+    TEST_DATABASE_URL: z.string().min(1).optional(),
+
+    // Optional cleanup logging for e2e teardown helpers.
+    DEBUG_CLEANUP: z.enum(['1', 'true']).optional(),
+
     // Support mailbox surfaced in transactional copy and on the sign-in page.
     // Overridable so different deployments can point at different teams.
     SUPPORT_EMAIL: z.email().default('support@mitsailing.com'),
@@ -79,6 +85,8 @@ export const Env = createEnv({
     EMAIL_FROM: process.env.EMAIL_FROM,
     SMTP_URL: process.env.SMTP_URL,
     MAILPIT_API_URL: process.env.MAILPIT_API_URL,
+    TEST_DATABASE_URL: process.env.TEST_DATABASE_URL,
+    DEBUG_CLEANUP: process.env.DEBUG_CLEANUP,
     SUPPORT_EMAIL: process.env.SUPPORT_EMAIL,
     CLOUDFLARE_TUNNEL_TOKEN: process.env.CLOUDFLARE_TUNNEL_TOKEN,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,

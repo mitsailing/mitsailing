@@ -35,14 +35,14 @@ async function preflightEmailOtpResetPassword(password: unknown) {
   if (password.length < MIN_PASSWORD_LENGTH) {
     throw APIError.from('BAD_REQUEST', {
       code: 'PASSWORD_TOO_SHORT',
-      message: 'Password too short',
+      message: 'PASSWORD_TOO_SHORT',
     });
   }
 
   if (password.length > MAX_PASSWORD_LENGTH) {
     throw APIError.from('BAD_REQUEST', {
       code: 'PASSWORD_TOO_LONG',
-      message: 'Password too long',
+      message: 'PASSWORD_TOO_LONG',
     });
   }
 

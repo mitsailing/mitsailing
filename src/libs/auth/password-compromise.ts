@@ -5,10 +5,18 @@ import { Env } from '@/libs/Env';
 import enMessages from '@/locales/en.json';
 
 const HIBP_RANGE_URL = 'https://api.pwnedpasswords.com/range/';
+const HIBP_TIMEOUT_MS = 5000;
 const HIBP_USER_AGENT = 'BetterAuth Password Checker';
 
 export const passwordCompromiseCheckEnabled =
   Env.NODE_ENV !== 'test' && Env.NEXT_PUBLIC_IS_E2E !== '1';
+
+function isAbortError(error: unknown): boolean {
+  return (
+    (error instanceof Error || error instanceof DOMException) &&
+    error.name === 'AbortError'
+  );
+}
 
 /**
  * Computes the SHA-1 hex split required by the Pwned Passwords (range) API for
@@ -42,11 +50,18 @@ export async function assertPasswordNotCompromised(password: string) {
   const { prefix, suffix } = hibpPasswordSha1RangeParts(password);
 
   try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => {
+      controller.abort();
+    }, HIBP_TIMEOUT_MS);
     const response = await fetch(`${HIBP_RANGE_URL}${prefix}`, {
       headers: {
         'Add-Padding': 'true',
         'User-Agent': HIBP_USER_AGENT,
       },
+      signal: controller.signal,
+    }).finally(() => {
+      clearTimeout(timeout);
     });
 
     if (!response.ok) {
@@ -69,6 +84,10 @@ export async function assertPasswordNotCompromised(password: string) {
   } catch (error) {
     if (error instanceof APIError) {
       throw error;
+    }
+
+    if (isAbortError(error)) {
+      return;
     }
 
     throw new APIError('INTERNAL_SERVER_ERROR', {

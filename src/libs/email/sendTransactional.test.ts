@@ -75,6 +75,7 @@ async function sendWithEnv(env: EnvMock) {
 }
 
 beforeEach(() => {
+  vi.resetModules();
   vi.clearAllMocks();
   mocks.sendMail.mockResolvedValue({});
   mocks.resendSend.mockResolvedValue({ data: { id: 'email_123' } });

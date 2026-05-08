@@ -29,7 +29,9 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
   const [banner, setBanner] = useState<BannerState>(null);
   const [submitting, setSubmitting] = useState(false);
   const [resending, setResending] = useState(false);
-  const [resendLocked, setResendLocked] = useState(false);
+  const [resendLocked, setResendLocked] = useState(
+    props.initialResendLocked ?? false
+  );
   const resendTimeoutRef = useRef<number | null>(null);
 
   function mapError(

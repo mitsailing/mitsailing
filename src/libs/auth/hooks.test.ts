@@ -113,12 +113,12 @@ const emailExistsError = {
 };
 
 const passwordTooShortError = {
-  body: { code: 'PASSWORD_TOO_SHORT', message: 'Password too short' },
+  body: { code: 'PASSWORD_TOO_SHORT', message: 'PASSWORD_TOO_SHORT' },
   status: 'BAD_REQUEST',
 };
 
 const passwordTooLongError = {
-  body: { code: 'PASSWORD_TOO_LONG', message: 'Password too long' },
+  body: { code: 'PASSWORD_TOO_LONG', message: 'PASSWORD_TOO_LONG' },
   status: 'BAD_REQUEST',
 };
 
