@@ -12,6 +12,9 @@ import { logger } from '@/libs/Logger';
 /** Upstream polling window for MIT `weather.txt` (seconds). */
 const WEATHER_UPSTREAM_REVALIDATE_SECONDS = 900;
 
+const WEATHER_UPSTREAM_REVALIDATE_MS =
+  WEATHER_UPSTREAM_REVALIDATE_SECONDS * 1000;
+
 /** Max time before aborting a single upstream GET (milliseconds). */
 const WEATHER_FETCH_TIMEOUT_MS = 10_000;
 
@@ -28,6 +31,14 @@ const FALLBACK_BROWNOUT: WeatherHeaderData = {
   sunsetText: null,
   isFallback: true,
 };
+
+type WeatherHeaderCacheEntry = {
+  data: WeatherHeaderData;
+  expiresAtMs: number;
+};
+
+let weatherHeaderCache: WeatherHeaderCacheEntry | null = null;
+let weatherHeaderRefresh: Promise<WeatherHeaderData> | null = null;
 
 /**
  * Operational `warn` — single-line `{key=value}` suffix for grep; avoids `error`/Sentry for routine upstream issues.
@@ -49,15 +60,15 @@ function logMitWeatherWarn(
 }
 
 /**
- * Pulls pavilion `weather.txt`, caches upstream for 900s; never propagates failures to the router.
+ * Pulls pavilion `weather.txt`; never propagates failures to the router.
  *
  * @returns Structured row data with field-level nulls translated to placeholders in UI
  */
-export async function fetchWeatherHeaderData(): Promise<WeatherHeaderData> {
+async function fetchFreshWeatherHeaderData(): Promise<WeatherHeaderData> {
   try {
     const response = await fetch(MIT_WEATHER_TXT_URL, {
+      cache: 'no-store',
       signal: AbortSignal.timeout(WEATHER_FETCH_TIMEOUT_MS),
-      next: { revalidate: WEATHER_UPSTREAM_REVALIDATE_SECONDS },
     });
 
     if (!response.ok) {
@@ -146,4 +157,40 @@ export async function fetchWeatherHeaderData(): Promise<WeatherHeaderData> {
 
     return FALLBACK_BROWNOUT;
   }
+}
+
+async function refreshWeatherHeaderData(): Promise<WeatherHeaderData> {
+  try {
+    const data = await fetchFreshWeatherHeaderData();
+    weatherHeaderCache = {
+      data,
+      expiresAtMs: Date.now() + WEATHER_UPSTREAM_REVALIDATE_MS,
+    };
+
+    return data;
+  } finally {
+    weatherHeaderRefresh = null;
+  }
+}
+
+/**
+ * Returns MIT weather from this Node worker's in-memory cache for 900s.
+ *
+ * @returns Structured row data with field-level nulls translated to placeholders in UI
+ */
+export async function fetchWeatherHeaderData(): Promise<WeatherHeaderData> {
+  const nowMs = Date.now();
+  if (weatherHeaderCache && weatherHeaderCache.expiresAtMs > nowMs) {
+    return weatherHeaderCache.data;
+  }
+
+  if (weatherHeaderRefresh) {
+    const data = await weatherHeaderRefresh;
+    return data;
+  }
+
+  weatherHeaderRefresh = refreshWeatherHeaderData();
+
+  const data = await weatherHeaderRefresh;
+  return data;
 }

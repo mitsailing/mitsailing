@@ -25,6 +25,7 @@ describe('fetchWeatherHeaderData', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     fetchSpy.mockRestore();
   });
 
@@ -46,8 +47,76 @@ describe('fetchWeatherHeaderData', () => {
     expect(result.windText).toBe('ENE @ 10 knots, Gust 12 knots');
     expect(result.sunsetText).toBe('7:42pm');
     expect(result.sourceTimestamp).toBe('Wed, 01 Jan 2025 00:00:00 GMT');
+    expect(fetchSpy.mock.calls[0]?.[1]).toMatchObject({ cache: 'no-store' });
+    expect(fetchSpy.mock.calls[0]?.[1]).not.toHaveProperty('next');
     expect(mockWarn).not.toHaveBeenCalled();
     expect(mockError).not.toHaveBeenCalled();
+  });
+
+  it('serves cached weather from server memory until the 15-minute ttl expires', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-08T12:00:00.000Z'));
+
+    fetchSpy
+      .mockResolvedValueOnce(
+        new Response(
+          'Wind ENE @ 11 mph, Air 49.9°F, Water 57.0°F, Sunset 19:42',
+          { status: 200 }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response('Wind W @ 8 mph, Air 55.0°F, Water 58.0°F, Sunset 19:45', {
+          status: 200,
+        })
+      );
+
+    const { fetchWeatherHeaderData } = await import('@/lib/weather');
+
+    const first = await fetchWeatherHeaderData();
+    const second = await fetchWeatherHeaderData();
+
+    expect(first.windText).toBe('ENE @ 10 knots');
+    expect(second.windText).toBe('ENE @ 10 knots');
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+    vi.setSystemTime(new Date('2026-05-08T12:14:59.999Z'));
+
+    const beforeExpiry = await fetchWeatherHeaderData();
+
+    expect(beforeExpiry.windText).toBe('ENE @ 10 knots');
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+    vi.setSystemTime(new Date('2026-05-08T12:15:00.001Z'));
+
+    const afterExpiry = await fetchWeatherHeaderData();
+
+    expect(afterExpiry.windText).toBe('W @ 7 knots');
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('shares one upstream request for concurrent cache misses', async () => {
+    const pendingFetch = Promise.withResolvers<Response>();
+    fetchSpy.mockReturnValue(pendingFetch.promise);
+
+    const { fetchWeatherHeaderData } = await import('@/lib/weather');
+
+    const first = fetchWeatherHeaderData();
+    const second = fetchWeatherHeaderData();
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+    pendingFetch.resolve(
+      new Response(
+        'Wind ENE @ 11 mph, Air 49.9°F, Water 57.0°F, Sunset 19:42',
+        { status: 200 }
+      )
+    );
+
+    const [firstResult, secondResult] = await Promise.all([first, second]);
+
+    expect(firstResult).toEqual(secondResult);
+    expect(firstResult.windText).toBe('ENE @ 10 knots');
+    expect(mockWarn).not.toHaveBeenCalled();
   });
 
   it('uses Date as source timestamp when Last-Modified is missing', async () => {
