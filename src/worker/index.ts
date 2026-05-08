@@ -1,5 +1,8 @@
 import { Worker } from 'bullmq';
 import IORedis from 'ioredis';
+import { processNewsletterBroadcast } from '@/libs/newsletter/newsletterBroadcasts';
+import { NEWSLETTER_QUEUE_NAME } from '@/libs/newsletter/newsletterConstants';
+import type { NewsletterBroadcastJob } from '@/libs/newsletter/newsletterQueue';
 
 function main(): void {
   const redisUrl = process.env.REDIS_URL;
@@ -11,10 +14,10 @@ function main(): void {
     maxRetriesPerRequest: null,
   });
 
-  const worker = new Worker(
-    'default',
-    async () => {
-      // Domain processors (email, sync, etc.) register here.
+  const worker = new Worker<NewsletterBroadcastJob>(
+    NEWSLETTER_QUEUE_NAME,
+    async (job) => {
+      await processNewsletterBroadcast(job.data.broadcastId);
     },
     { connection, concurrency: 2 }
   );

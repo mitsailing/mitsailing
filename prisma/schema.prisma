@@ -46,12 +46,15 @@ model User {
   siteTextOverrides      SiteTextOverride[]
   cmsMediaAssets         CmsMediaAsset[]    @relation("CmsMediaUploadedBy")
 
-  eventRegistrations EventRegistration[]
-  eventComments      EventComment[]
-  eventAdmins        EventAdmin[]
-  eventsCreated      Event[]              @relation("EventCreatedBy")
-  sailingRatings     UserSailingRating[]  @relation("UserSailingRatings")
-  issuedSailingRatings UserSailingRating[] @relation("IssuedSailingRatings")
+  eventRegistrations   EventRegistration[]
+  eventComments        EventComment[]
+  eventAdmins          EventAdmin[]
+  eventsCreated        Event[]                @relation("EventCreatedBy")
+  sailingRatings       UserSailingRating[]    @relation("UserSailingRatings")
+  issuedSailingRatings UserSailingRating[]    @relation("IssuedSailingRatings")
+  newsletterSubscriber NewsletterSubscriber?
+  newsletterBroadcasts NewsletterBroadcast[]  @relation("NewsletterBroadcastCreatedBy")
+  newsletterEvents     NewsletterEvent[]      @relation("NewsletterEventActor")
 
   @@map("user")
 }
@@ -187,6 +190,265 @@ model SiteTextOverride {
   @@index([locale])
   @@index([updatedByUserId])
   @@map("site_text_overrides")
+}
+
+enum NewsletterListDefaultSubscription {
+  opt_in
+  opt_out
+
+  @@map("newsletter_list_default_subscription")
+}
+
+enum NewsletterListVisibility {
+  public
+  private
+
+  @@map("newsletter_list_visibility")
+}
+
+enum NewsletterSubscriberSuppressionReason {
+  bounced
+  complained
+  suppressed
+  admin
+
+  @@map("newsletter_subscriber_suppression_reason")
+}
+
+enum NewsletterSubscriptionStatus {
+  subscribed
+  unsubscribed
+
+  @@map("newsletter_subscription_status")
+}
+
+enum NewsletterBroadcastStatus {
+  draft
+  queued
+  sending
+  sent
+  paused
+  cancelled
+  failed
+
+  @@map("newsletter_broadcast_status")
+}
+
+enum NewsletterDeliveryStatus {
+  queued
+  sending
+  sent
+  delivered
+  delivery_delayed
+  bounced
+  complained
+  failed
+  suppressed
+  cancelled
+
+  @@map("newsletter_delivery_status")
+}
+
+enum NewsletterEventType {
+  subscribed
+  unsubscribed
+  unsubscribed_all
+  resubscribed
+  bounced
+  complained
+  suppressed
+  delivered
+  delivery_delayed
+  failed
+  sent
+  broadcast_created
+  broadcast_queued
+
+  @@map("newsletter_event_type")
+}
+
+model NewsletterSubscriber {
+  id                String                                  @id @default(cuid())
+  email             String                                  @unique
+  name              String?
+  userId            String?                                 @unique @map("user_id")
+  resendContactId   String?                                 @unique @map("resend_contact_id")
+  manageTokenHash   String                                  @unique @map("manage_token_hash")
+  globalUnsubscribedAt DateTime?                            @map("global_unsubscribed_at")
+  suppressedAt      DateTime?                               @map("suppressed_at")
+  suppressionReason NewsletterSubscriberSuppressionReason?  @map("suppression_reason")
+  source            String?
+  consentedAt       DateTime                                @default(now()) @map("consented_at")
+  consentIpAddress  String?                                 @map("consent_ip_address")
+  consentUserAgent  String?                                 @map("consent_user_agent") @db.Text
+  createdAt         DateTime                                @default(now()) @map("created_at")
+  updatedAt         DateTime                                @updatedAt @map("updated_at")
+
+  user          User?                    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  subscriptions NewsletterSubscription[]
+  deliveries    NewsletterDelivery[]
+  events        NewsletterEvent[]
+
+  @@index([email])
+  @@index([userId])
+  @@index([suppressedAt])
+  @@map("newsletter_subscribers")
+}
+
+model NewsletterList {
+  id                  String                            @id @default(cuid())
+  slug                String                            @unique
+  name                String
+  description         String?                           @db.Text
+  defaultSubscription NewsletterListDefaultSubscription @default(opt_out) @map("default_subscription")
+  visibility          NewsletterListVisibility          @default(public)
+  displayOrder        Int                               @default(0) @map("display_order")
+  isArchived          Boolean                           @default(false) @map("is_archived")
+  resendTopicId       String?                           @unique @map("resend_topic_id")
+  createdAt           DateTime                          @default(now()) @map("created_at")
+  updatedAt           DateTime                          @updatedAt @map("updated_at")
+
+  subscriptions     NewsletterSubscription[]
+  broadcasts        NewsletterBroadcastList[]
+  primaryBroadcasts NewsletterBroadcast[] @relation("NewsletterBroadcastPrimaryList")
+  deliveries        NewsletterDelivery[]
+  events            NewsletterEvent[]
+
+  @@index([visibility, displayOrder])
+  @@index([isArchived, displayOrder])
+  @@map("newsletter_lists")
+}
+
+model NewsletterSubscription {
+  id             String                       @id @default(cuid())
+  subscriberId   String                       @map("subscriber_id")
+  listId         String                       @map("list_id")
+  status         NewsletterSubscriptionStatus @default(subscribed)
+  source         String?
+  subscribedAt   DateTime                     @default(now()) @map("subscribed_at")
+  unsubscribedAt DateTime?                    @map("unsubscribed_at")
+  createdAt      DateTime                     @default(now()) @map("created_at")
+  updatedAt      DateTime                     @updatedAt @map("updated_at")
+
+  subscriber NewsletterSubscriber @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+  list       NewsletterList       @relation(fields: [listId], references: [id], onDelete: Cascade)
+
+  @@unique([subscriberId, listId])
+  @@index([listId, status])
+  @@index([status, updatedAt])
+  @@map("newsletter_subscriptions")
+}
+
+model NewsletterTemplate {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  description String?  @db.Text
+  isDefault   Boolean  @default(false) @map("is_default")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  broadcasts NewsletterBroadcast[]
+
+  @@index([isDefault])
+  @@map("newsletter_templates")
+}
+
+model NewsletterBroadcast {
+  id               String                    @id @default(cuid())
+  name             String?
+  subject          String
+  previewText      String                    @map("preview_text")
+  body             String                    @db.Text
+  status           NewsletterBroadcastStatus @default(draft)
+  templateId       String                    @map("template_id")
+  primaryListId    String                    @map("primary_list_id")
+  createdByUserId  String                    @map("created_by_user_id")
+  resendBroadcastId String?                  @unique @map("resend_broadcast_id")
+  queuedAt         DateTime?                 @map("queued_at")
+  sentAt           DateTime?                 @map("sent_at")
+  createdAt        DateTime                  @default(now()) @map("created_at")
+  updatedAt        DateTime                  @updatedAt @map("updated_at")
+
+  template      NewsletterTemplate @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  primaryList   NewsletterList     @relation("NewsletterBroadcastPrimaryList", fields: [primaryListId], references: [id], onDelete: Restrict)
+  createdBy     User               @relation("NewsletterBroadcastCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  targetLists   NewsletterBroadcastList[]
+  deliveries    NewsletterDelivery[]
+  events        NewsletterEvent[]
+
+  @@index([status, createdAt])
+  @@index([createdByUserId])
+  @@index([primaryListId])
+  @@map("newsletter_broadcasts")
+}
+
+model NewsletterBroadcastList {
+  broadcastId String @map("broadcast_id")
+  listId      String @map("list_id")
+
+  broadcast NewsletterBroadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+  list      NewsletterList      @relation(fields: [listId], references: [id], onDelete: Restrict)
+
+  @@id([broadcastId, listId])
+  @@index([listId])
+  @@map("newsletter_broadcast_lists")
+}
+
+model NewsletterDelivery {
+  id                String                   @id @default(cuid())
+  broadcastId       String                   @map("broadcast_id")
+  subscriberId      String                   @map("subscriber_id")
+  primaryListId     String                   @map("primary_list_id")
+  email             String
+  status            NewsletterDeliveryStatus @default(queued)
+  providerMessageId String?                  @unique @map("provider_message_id")
+  attemptCount      Int                      @default(0) @map("attempt_count")
+  lastError         String?                  @map("last_error") @db.Text
+  queuedAt          DateTime                 @default(now()) @map("queued_at")
+  sentAt            DateTime?                @map("sent_at")
+  deliveredAt       DateTime?                @map("delivered_at")
+  failedAt          DateTime?                @map("failed_at")
+  createdAt         DateTime                 @default(now()) @map("created_at")
+  updatedAt         DateTime                 @updatedAt @map("updated_at")
+
+  broadcast  NewsletterBroadcast  @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+  subscriber NewsletterSubscriber @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+  primaryList NewsletterList      @relation(fields: [primaryListId], references: [id], onDelete: Restrict)
+  events     NewsletterEvent[]
+
+  @@unique([broadcastId, subscriberId])
+  @@index([status, queuedAt])
+  @@index([subscriberId])
+  @@index([primaryListId])
+  @@map("newsletter_deliveries")
+}
+
+model NewsletterEvent {
+  id                String              @id @default(cuid())
+  type              NewsletterEventType
+  subscriberId      String?             @map("subscriber_id")
+  listId            String?             @map("list_id")
+  broadcastId       String?             @map("broadcast_id")
+  deliveryId        String?             @map("delivery_id")
+  actorUserId       String?             @map("actor_user_id")
+  email             String?
+  providerMessageId String?             @map("provider_message_id")
+  metadata          Json?
+  createdAt         DateTime            @default(now()) @map("created_at")
+
+  subscriber NewsletterSubscriber? @relation(fields: [subscriberId], references: [id], onDelete: SetNull)
+  list       NewsletterList?       @relation(fields: [listId], references: [id], onDelete: SetNull)
+  broadcast  NewsletterBroadcast?  @relation(fields: [broadcastId], references: [id], onDelete: SetNull)
+  delivery   NewsletterDelivery?   @relation(fields: [deliveryId], references: [id], onDelete: SetNull)
+  actor      User?                 @relation("NewsletterEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([type, createdAt])
+  @@index([subscriberId, createdAt])
+  @@index([broadcastId, createdAt])
+  @@index([deliveryId])
+  @@index([providerMessageId])
+  @@map("newsletter_events")
 }
 
 // --- MIT Sailing domain (events, classes, fleet, about) ---
