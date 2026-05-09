@@ -140,6 +140,38 @@ describe('account email notices', () => {
     ).rejects.toThrow(/Unsupported email OTP type/);
   });
 
+  it('rejects invalid OTP recipients before sending mail', async () => {
+    const { sendTransactionalEmail } =
+      await import('@/libs/email/sendTransactional');
+    const { sendEmailOtpCode } = await import('@/libs/email/account-emails');
+
+    await expect(
+      sendEmailOtpCode({
+        email: 'not-an-email',
+        otp: '123456',
+        type: 'sign-in',
+      })
+    ).rejects.toThrow('Expected a valid email address.');
+
+    expect(sendTransactionalEmail).not.toHaveBeenCalled();
+  });
+
+  it('rejects malformed OTP codes before sending mail', async () => {
+    const { sendTransactionalEmail } =
+      await import('@/libs/email/sendTransactional');
+    const { sendEmailOtpCode } = await import('@/libs/email/account-emails');
+
+    await expect(
+      sendEmailOtpCode({
+        email: 'returning@example.com',
+        otp: 'abc123',
+        type: 'sign-in',
+      })
+    ).rejects.toThrow('Expected a six-digit email OTP code.');
+
+    expect(sendTransactionalEmail).not.toHaveBeenCalled();
+  });
+
   it('email-change persona records when the pending email changes', async () => {
     const { markPendingEmailChange } =
       await import('@/libs/email/account-emails');

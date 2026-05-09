@@ -258,6 +258,50 @@ describe('SiteHeader', () => {
     expect(openButton).toHaveFocus();
   });
 
+  it('skips mobile focus when the overlay unmounts before the animation frame', async () => {
+    const user = userEvent.setup();
+    let frameCallback: FrameRequestCallback | undefined;
+    const requestAnimationFrame = vi
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((nextFrame) => {
+        frameCallback = nextFrame;
+        return 1;
+      });
+    const cancelAnimationFrame = vi
+      .spyOn(window, 'cancelAnimationFrame')
+      .mockImplementation(() => {});
+
+    try {
+      renderHeader();
+
+      const openButton = screen.getByRole('button', { name: 'Open menu' });
+      await waitFor(() => {
+        expect(openButton).toBeEnabled();
+      });
+
+      await user.click(openButton);
+      const dialog = screen.getByRole('dialog', { name: 'Main navigation' });
+      await user.click(within(dialog).getByRole('link', { name: 'Calendar' }));
+      await waitFor(() => {
+        expect(
+          screen.queryByRole('dialog', { name: 'Main navigation' })
+        ).not.toBeInTheDocument();
+      });
+
+      if (!frameCallback) {
+        throw new Error(
+          'Expected mobile focus animation frame to be captured.'
+        );
+      }
+
+      frameCallback(performance.now());
+      expect(requestAnimationFrame).toHaveBeenCalled();
+    } finally {
+      requestAnimationFrame.mockRestore();
+      cancelAnimationFrame.mockRestore();
+    }
+  });
+
   it('renders signed-in mobile account links and restores inert shell state', async () => {
     const user = userEvent.setup();
     const hadInert = 'inert' in HTMLElement.prototype;
@@ -323,7 +367,8 @@ describe('SiteHeader', () => {
     }
   });
 
-  it('renders accessible pending auth state without guest or account links', () => {
+  it('renders accessible pending auth state without guest or account links', async () => {
+    const user = userEvent.setup();
     setSessionState({ data: null, isPending: true });
 
     renderHeader();
@@ -343,6 +388,24 @@ describe('SiteHeader', () => {
     ).not.toBeInTheDocument();
     expect(
       within(banner).queryByRole('button', { name: 'Sign out' })
+    ).not.toBeInTheDocument();
+
+    const openButton = screen.getByRole('button', { name: 'Open menu' });
+    await waitFor(() => {
+      expect(openButton).toBeEnabled();
+    });
+
+    await user.click(openButton);
+    const dialog = screen.getByRole('dialog', { name: 'Main navigation' });
+    expect(within(dialog).getByRole('status')).toHaveAttribute(
+      'aria-busy',
+      'true'
+    );
+    expect(
+      within(dialog).queryByRole('link', { name: 'Log in' })
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).queryByRole('link', { name: 'Profile' })
     ).not.toBeInTheDocument();
   });
 });

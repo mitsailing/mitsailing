@@ -45,6 +45,16 @@ describe('email templates', () => {
     expect(html).toContain('Thanks for signing up');
   });
 
+  it('rejects malformed verification codes', () => {
+    expect(() =>
+      VerifyEmailTemplate({
+        code: '12345',
+        copy: enMessages.AuthEmails,
+        supportEmail: SUPPORT_EMAIL,
+      })
+    ).toThrow('VerifyEmailTemplate requires a six-digit code.');
+  });
+
   it('renders sign-in OTP content without sign-up wording', async () => {
     const html = await render(
       <SignInOtpEmailTemplate
