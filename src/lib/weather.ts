@@ -32,12 +32,22 @@ const FALLBACK_BROWNOUT: WeatherHeaderData = {
   isFallback: true,
 };
 
+/**
+ * Cache entry for weather header data with expiration timestamp.
+ */
 type WeatherHeaderCacheEntry = {
   data: WeatherHeaderData;
   expiresAtMs: number;
 };
 
+/**
+ * In-memory cache for weather header data with 15-minute TTL.
+ */
 let weatherHeaderCache: WeatherHeaderCacheEntry | null = null;
+
+/**
+ * Pending refresh promise to deduplicate concurrent weather fetches.
+ */
 let weatherHeaderRefresh: Promise<WeatherHeaderData> | null = null;
 
 /**
@@ -159,13 +169,20 @@ async function fetchFreshWeatherHeaderData(): Promise<WeatherHeaderData> {
   }
 }
 
+/**
+ * Refreshes weather header data and updates the cache.
+ *
+ * @returns Fresh weather header data
+ */
 async function refreshWeatherHeaderData(): Promise<WeatherHeaderData> {
   try {
     const data = await fetchFreshWeatherHeaderData();
-    weatherHeaderCache = {
-      data,
-      expiresAtMs: Date.now() + WEATHER_UPSTREAM_REVALIDATE_MS,
-    };
+    if (!data.isFallback) {
+      weatherHeaderCache = {
+        data,
+        expiresAtMs: Date.now() + WEATHER_UPSTREAM_REVALIDATE_MS,
+      };
+    }
 
     return data;
   } finally {

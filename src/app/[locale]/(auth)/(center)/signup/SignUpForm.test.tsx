@@ -224,4 +224,20 @@ describe('SignUpForm', () => {
       'Something went wrong.'
     );
   });
+
+  it('visitor sees error and form re-enables when sign-up rejects', async () => {
+    authClientMock.signUp.email.mockRejectedValue(new Error('network'));
+    render(<SignUpForm callbackUrl="/fleet/" />);
+
+    const user = await fillSignUpForm({
+      email: 'member@mit.edu',
+      password: 'correct-password',
+    });
+    await user.click(screen.getByRole('button', { name: 'Sign up' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Something went wrong.'
+    );
+    expect(screen.getByRole('button', { name: 'Sign up' })).not.toBeDisabled();
+  });
 });

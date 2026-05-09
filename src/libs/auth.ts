@@ -144,7 +144,7 @@ export const auth = betterAuth({
       enabled: passwordCompromiseCheckEnabled,
       customPasswordCompromisedMessage:
         enMessages.AuthErrors.PASSWORD_COMPROMISED,
-      paths: ['/sign-up/email', '/change-password'],
+      paths: ['/sign-up/email', '/change-password', '/email-otp/reset-password'],
     }),
     emailOTP({
       allowedAttempts: 3,

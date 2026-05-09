@@ -85,4 +85,27 @@ describe('ForgotPasswordForm', () => {
       'We could not send a reset code right now.'
     );
   });
+
+  it('Visitor with malicious callbackUrl gets sanitized to safe internal path', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <ForgotPasswordForm
+        callbackUrl="https://attacker.com"
+        initialEmail=""
+      />
+    );
+
+    await user.type(screen.getByLabelText('Email'), 'reset@mit.edu');
+    await user.click(screen.getByRole('button', { name: 'Send reset code' }));
+
+    expect(authClientMock.emailOtp.requestPasswordReset).toHaveBeenCalledWith({
+      email: 'reset@mit.edu',
+    });
+    await waitFor(() => {
+      expect(componentTestRouter().replace).toHaveBeenCalledWith(
+        '/reset-password?email=reset%40mit.edu&codeSent=1&callbackUrl=%2F'
+      );
+    });
+  });
 });
