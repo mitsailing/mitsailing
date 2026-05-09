@@ -83,6 +83,12 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
   useEffect(() => {
     if (props.initialResendLocked) {
       lockResend();
+    } else {
+      if (resendTimeoutRef.current !== null) {
+        clearTimeout(resendTimeoutRef.current);
+        resendTimeoutRef.current = null;
+      }
+      setResendLocked(false);
     }
 
     return () => {

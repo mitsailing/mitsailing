@@ -388,7 +388,9 @@
     "change_email_notice_contact": "If you did not request this, contact <support>{email}</support> right away.",
     "delete_account_subject": "Confirm account deletion",
     "account_locked_subject": "Your account was temporarily locked",
-    "password_changed_subject": "Your password was changed"
+    "password_changed_subject": "Your password was changed",
+    "password_changed_body": "The password on your account was just updated. No action is needed if this was you.",
+    "password_changed_contact": "If you did not change your password, contact {email} right away."
   },
   "AuthErrors": {
     "EMAIL_EXISTS": "That email is already in the system.",

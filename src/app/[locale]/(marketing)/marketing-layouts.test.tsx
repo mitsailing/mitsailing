@@ -1,3 +1,4 @@
+import { setRequestLocale } from 'next-intl/server';
 import type * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
@@ -20,6 +21,7 @@ describe('marketing segment layouts', () => {
     });
     const html = renderToStaticMarkup(node);
     expect(html).toContain('data-testid="home-inner"');
+    expect(html).not.toContain('data-testid="site-shell"');
   });
 
   it('site route group passes children through', async () => {
@@ -38,6 +40,7 @@ describe('marketing segment layouts', () => {
       params: Promise.resolve({ locale: 'en' }),
     });
     const html = renderToStaticMarkup(tree);
+    expect(setRequestLocale).toHaveBeenCalledWith('en');
     expect(html).toContain('data-testid="site-shell"');
     expect(html).toContain('data-testid="mkt"');
   });

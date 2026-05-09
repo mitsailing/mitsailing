@@ -71,6 +71,16 @@ describe('email templates', () => {
     expect(html).toContain(`mailto:${SUPPORT_EMAIL}`);
   });
 
+  it('rejects malformed sign-in OTP codes', () => {
+    expect(() =>
+      SignInOtpEmailTemplate({
+        code: 'abc123',
+        copy: enMessages.AuthEmails,
+        supportEmail: SUPPORT_EMAIL,
+      })
+    ).toThrow('SignInOtpEmailTemplate requires a six-digit code.');
+  });
+
   it('renders every sign-in OTP code token', async () => {
     const html = await render(
       <SignInOtpEmailTemplate

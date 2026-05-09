@@ -27,7 +27,7 @@ describe('profile auth error maps', () => {
 
   it('shows fallback password guidance to profile owner for unknown password errors', () => {
     expect(mapProfilePasswordError('UNKNOWN', 'Raw message', t)).toBe(
-      'Raw message'
+      'translated:password_change_error'
     );
     expect(mapProfilePasswordError(undefined, undefined, t)).toBe(
       'translated:password_change_error'
@@ -57,7 +57,7 @@ describe('profile auth error maps', () => {
 
   it('shows fallback email guidance for unknown email errors', () => {
     expect(mapProfileEmailError('UNKNOWN', 'Raw message', t)).toBe(
-      'Raw message'
+      'translated:email_validation_error'
     );
     expect(mapProfileEmailError(undefined, undefined, t)).toBe(
       'translated:email_validation_error'
@@ -78,7 +78,7 @@ describe('profile auth error maps', () => {
 
   it('shows fallback delete guidance to profile owner for unknown delete errors', () => {
     expect(mapProfileDeleteError('UNKNOWN', 'Raw message', t)).toBe(
-      'Raw message'
+      'translated:delete_validation_error'
     );
     expect(mapProfileDeleteError(undefined, undefined, t)).toBe(
       'translated:delete_validation_error'

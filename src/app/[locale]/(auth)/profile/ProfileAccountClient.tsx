@@ -208,7 +208,7 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
       if (res.error) {
         setNameBanner({
           kind: 'error',
-          message: res.error.message ?? t('name_update_error'),
+          message: t('name_update_error'),
         });
         return;
       }

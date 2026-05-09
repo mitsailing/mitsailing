@@ -122,7 +122,7 @@ describe('ProfileAccountClient', () => {
     expect(authClientMock.updateUser).not.toHaveBeenCalled();
   });
 
-  it('profile owner sees provider message when a name update fails', async () => {
+  it('profile owner sees safe message when a name update fails', async () => {
     const user = userEvent.setup();
     authClientMock.updateUser.mockResolvedValue({
       error: { message: 'Name contains unsupported characters.' },
@@ -134,7 +134,7 @@ describe('ProfileAccountClient', () => {
     await user.click(screen.getByRole('button', { name: 'Save name' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Name contains unsupported characters.'
+      'Could not update your name.'
     );
   });
 

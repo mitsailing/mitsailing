@@ -23,6 +23,12 @@ export type SignInOtpEmailCopy = {
   sign_in_otp_subject: string;
 };
 
+function assertSixDigitCode(code: string): void {
+  if (!/^\d{6}$/.test(code)) {
+    throw new Error('SignInOtpEmailTemplate requires a six-digit code.');
+  }
+}
+
 /**
  * Email OTP for passwordless sign-in (existing accounts).
  *
@@ -33,6 +39,8 @@ export type SignInOtpEmailCopy = {
  * @returns Complete email element tree.
  */
 export function SignInOtpEmailTemplate(props: SignInOtpEmailProps) {
+  assertSixDigitCode(props.code);
+
   return (
     <EmailLayout previewText={props.copy.sign_in_otp_subject}>
       <Section style={section}>

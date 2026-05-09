@@ -272,17 +272,27 @@ function assertCoverageExemptionsExist(label, projectPaths, exemptions) {
 
 /**
  * @param {string} projectPath - Project-relative source path.
+ * @returns {string} Project path with POSIX separators for prefix checks.
+ */
+function normalizeProjectPathSeparators(projectPath) {
+  return path.normalize(projectPath).replaceAll('\\', '/');
+}
+
+/**
+ * @param {string} projectPath - Project-relative source path.
  * @returns {boolean} True when the file belongs to the auth-owned surface.
  */
 function isAuthOwnedPath(projectPath) {
+  const normalizedProjectPath = normalizeProjectPathSeparators(projectPath);
+
   return (
-    projectPath.startsWith('src/app/[locale]/(auth)/') ||
-    projectPath.startsWith('src/components/auth/') ||
-    projectPath.startsWith('src/libs/auth/') ||
-    projectPath === 'src/libs/auth.ts' ||
-    projectPath === 'src/libs/auth-client.ts' ||
-    projectPath === 'src/app/api/auth/[...all]/route.ts' ||
-    projectPath === 'src/app/api/unlock-account/route.ts'
+    normalizedProjectPath.startsWith('src/app/[locale]/(auth)/') ||
+    normalizedProjectPath.startsWith('src/components/auth/') ||
+    normalizedProjectPath.startsWith('src/libs/auth/') ||
+    normalizedProjectPath === 'src/libs/auth.ts' ||
+    normalizedProjectPath === 'src/libs/auth-client.ts' ||
+    normalizedProjectPath === 'src/app/api/auth/[...all]/route.ts' ||
+    normalizedProjectPath === 'src/app/api/unlock-account/route.ts'
   );
 }
 

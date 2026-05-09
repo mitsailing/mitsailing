@@ -623,6 +623,28 @@ describe('ResetPasswordForm', () => {
           screen.getByRole('link', { name: 'Back to sign in' })
         ).toBeInTheDocument();
       });
+
+      it('continue when automatic sign-in throws after reset', async () => {
+        authClientMock.signIn.email.mockRejectedValue(new Error('network'));
+        renderResetPasswordForm();
+
+        await continueWithResetCode();
+        await fillNewPassword({ password: 'new-password' });
+
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+        expect(sentryMock.captureMessage).toHaveBeenCalledWith(
+          'Unknown auth client error',
+          expect.objectContaining({
+            tags: expect.objectContaining({
+              authAction: 'reset-password.auto-sign-in',
+            }),
+          })
+        );
+        expect(componentTestRouter().push).not.toHaveBeenCalled();
+        expect(
+          screen.getByRole('link', { name: 'Back to sign in' })
+        ).toBeInTheDocument();
+      });
     });
   });
 });

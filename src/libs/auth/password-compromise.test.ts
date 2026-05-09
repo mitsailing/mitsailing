@@ -127,45 +127,42 @@ describe('assertPasswordNotCompromised', () => {
     });
   });
 
-  it('return safe error when breach lookup returns non-ok', async () => {
+  it('continue when breach lookup returns non-ok', async () => {
     fetchSpy.mockResolvedValue(new Response(null, { status: 503 }));
     const { assertPasswordNotCompromised } =
       await import('@/libs/auth/password-compromise');
 
-    await expect(
-      assertPasswordNotCompromised('password')
-    ).rejects.toMatchObject({
-      code: 'PASSWORD_CHECK_FAILED',
-      message: 'The password you entered is incorrect.',
-      status: 'INTERNAL_SERVER_ERROR',
+    await expect(assertPasswordNotCompromised('password')).resolves.toBe(
+      undefined
+    );
+    expect(warnSpy).toHaveBeenCalledWith('Password breach lookup failed.', {
+      status: 503,
     });
   });
 
-  it('return safe error when breach lookup has network failure', async () => {
+  it('continue when breach lookup has network failure', async () => {
     fetchSpy.mockRejectedValue(new TypeError('network down'));
     const { assertPasswordNotCompromised } =
       await import('@/libs/auth/password-compromise');
 
-    await expect(
-      assertPasswordNotCompromised('password')
-    ).rejects.toMatchObject({
-      code: 'PASSWORD_CHECK_FAILED',
-      message: 'The password you entered is incorrect.',
-      status: 'INTERNAL_SERVER_ERROR',
+    await expect(assertPasswordNotCompromised('password')).resolves.toBe(
+      undefined
+    );
+    expect(warnSpy).toHaveBeenCalledWith('Password breach lookup failed.', {
+      message: 'network down',
     });
   });
 
-  it('return safe error when breach lookup rejects without error object', async () => {
+  it('continue when breach lookup rejects without error object', async () => {
     fetchSpy.mockRejectedValue('network down');
     const { assertPasswordNotCompromised } =
       await import('@/libs/auth/password-compromise');
 
-    await expect(
-      assertPasswordNotCompromised('password')
-    ).rejects.toMatchObject({
-      code: 'PASSWORD_CHECK_FAILED',
-      message: 'The password you entered is incorrect.',
-      status: 'INTERNAL_SERVER_ERROR',
+    await expect(assertPasswordNotCompromised('password')).resolves.toBe(
+      undefined
+    );
+    expect(warnSpy).toHaveBeenCalledWith('Password breach lookup failed.', {
+      message: 'network down',
     });
   });
 

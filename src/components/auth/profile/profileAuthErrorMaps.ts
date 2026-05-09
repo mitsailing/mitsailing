@@ -22,13 +22,13 @@ type DeleteErrorKeys =
  * Maps Better Auth change-password error codes to user-facing copy.
  *
  * @param code - Better Auth error code when present
- * @param message - Raw error message fallback
+ * @param _message - Raw provider message, intentionally not surfaced.
  * @param t - Namespace lookup for password error strings
  * @returns Localized error line
  */
 export function mapProfilePasswordError(
   code: string | undefined,
-  message: string | undefined,
+  _message: string | undefined,
   t: (key: PasswordErrorKeys) => string
 ): string {
   if (code === 'PASSWORD_COMPROMISED') {
@@ -40,20 +40,20 @@ export function mapProfilePasswordError(
   if (code === 'TOO_MANY_REQUESTS') {
     return t('password_rate_limited');
   }
-  return message ?? t('password_change_error');
+  return t('password_change_error');
 }
 
 /**
  * Maps Better Auth change-email error codes to user-facing copy.
  *
  * @param code - Better Auth error code when present
- * @param message - Raw error message fallback
+ * @param _message - Raw provider message, intentionally not surfaced.
  * @param t - Namespace lookup for email error strings
  * @returns Localized error line
  */
 export function mapProfileEmailError(
   code: string | undefined,
-  message: string | undefined,
+  _message: string | undefined,
   t: (key: EmailErrorKeys) => string
 ): string {
   if (code === 'EMAIL_EXISTS') {
@@ -74,20 +74,20 @@ export function mapProfileEmailError(
   if (code === 'TOO_MANY_REQUESTS') {
     return t('email_rate_limited_error');
   }
-  return message ?? t('email_validation_error');
+  return t('email_validation_error');
 }
 
 /**
  * Maps Better Auth delete-user error codes to user-facing copy.
  *
  * @param code - Better Auth error code when present
- * @param message - Raw error message fallback
+ * @param _message - Raw provider message, intentionally not surfaced.
  * @param t - Namespace lookup for delete error strings
  * @returns Localized error line
  */
 export function mapProfileDeleteError(
   code: string | undefined,
-  message: string | undefined,
+  _message: string | undefined,
   t: (key: DeleteErrorKeys) => string
 ): string {
   if (code === 'INVALID_PASSWORD' || code === 'INVALID_EMAIL_OR_PASSWORD') {
@@ -96,5 +96,5 @@ export function mapProfileDeleteError(
   if (code === 'TOO_MANY_REQUESTS') {
     return t('delete_rate_limited_error');
   }
-  return message ?? t('delete_validation_error');
+  return t('delete_validation_error');
 }

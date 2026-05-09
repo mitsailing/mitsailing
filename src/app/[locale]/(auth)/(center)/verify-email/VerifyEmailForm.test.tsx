@@ -431,5 +431,35 @@ describe('VerifyEmailForm', () => {
         })
       ).toBeDisabled();
     });
+
+    it('clear initial resend cooldown when lock lifts', () => {
+      vi.useFakeTimers();
+
+      const { rerender } = render(
+        <VerifyEmailForm
+          callbackUrl="/fleet/"
+          initialEmail="sailor@mit.edu"
+          initialResendLocked
+        />
+      );
+
+      expect(
+        screen.getByRole('button', {
+          name: 'You can request a new code in 30 seconds',
+        })
+      ).toBeDisabled();
+
+      rerender(
+        <VerifyEmailForm
+          callbackUrl="/fleet/"
+          initialEmail="sailor@mit.edu"
+          initialResendLocked={false}
+        />
+      );
+
+      expect(
+        screen.getByRole('button', { name: 'Resend email' })
+      ).toBeEnabled();
+    });
   });
 });

@@ -65,10 +65,10 @@ export async function assertPasswordNotCompromised(password: string) {
     });
 
     if (!response.ok) {
-      throw APIError.from('INTERNAL_SERVER_ERROR', {
-        code: 'PASSWORD_CHECK_FAILED',
-        message: enMessages.AuthErrors.PASSWORD_CHECK_FAILED,
+      console.warn('Password breach lookup failed.', {
+        status: response.status,
       });
+      return;
     }
 
     const rangeBody = await response.text();
@@ -92,9 +92,8 @@ export async function assertPasswordNotCompromised(password: string) {
       return;
     }
 
-    throw APIError.from('INTERNAL_SERVER_ERROR', {
-      code: 'PASSWORD_CHECK_FAILED',
-      message: enMessages.AuthErrors.PASSWORD_CHECK_FAILED,
+    console.warn('Password breach lookup failed.', {
+      message: error instanceof Error ? error.message : String(error),
     });
   }
 }

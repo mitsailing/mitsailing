@@ -289,8 +289,10 @@ export async function sendPasswordChangedNotice(email: string) {
     html,
     text: [
       copy.password_changed_subject,
-      'The password on your account was just updated. No action is needed if this was you.',
-      `If you did not change your password, contact ${SUPPORT_EMAIL} right away.`,
+      copy.password_changed_body,
+      replaceAuthEmailValues(copy.password_changed_contact, {
+        email: SUPPORT_EMAIL,
+      }),
     ].join('\n\n'),
   });
 }

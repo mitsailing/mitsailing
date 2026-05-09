@@ -238,11 +238,27 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
       const passwordForSignIn = password;
       setPassword('');
       setPasswordConfirmation('');
-      const signInRes = await authClient.signIn.email({
-        email: normalizedEmail,
-        password: passwordForSignIn,
-        callbackURL: safeCallbackUrl,
-      });
+      const signInRes = await (async () => {
+        try {
+          return await authClient.signIn.email({
+            email: normalizedEmail,
+            password: passwordForSignIn,
+            callbackURL: safeCallbackUrl,
+          });
+        } catch (signInError) {
+          reportUnknownAuthClientError({
+            action: 'reset-password.auto-sign-in',
+            code: undefined,
+            message:
+              signInError instanceof Error ? signInError.message : undefined,
+          });
+          setAutoSignInFailed(true);
+          return null;
+        }
+      })();
+      if (!signInRes) {
+        return;
+      }
       if (signInRes.error) {
         reportUnknownAuthClientError({
           code: signInRes.error.code,

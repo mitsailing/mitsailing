@@ -27,11 +27,13 @@ describe('authClient', () => {
   it('registers admin and email OTP client plugins', async () => {
     await import('@/libs/auth-client');
 
-    expect(clientMocks.createAuthClient).toHaveBeenCalledWith({
-      plugins: expect.arrayContaining([
-        expect.objectContaining({ id: 'admin-client-plugin' }),
-        expect.objectContaining({ id: 'email-otp-client-plugin' }),
-      ]),
-    });
+    expect(clientMocks.createAuthClient).toHaveBeenCalledWith(
+      expect.objectContaining({
+        plugins: expect.arrayContaining([
+          expect.objectContaining({ id: 'admin-client-plugin' }),
+          expect.objectContaining({ id: 'email-otp-client-plugin' }),
+        ]),
+      })
+    );
   });
 });

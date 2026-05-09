@@ -33,6 +33,11 @@ if (options.help) {
   process.exit(0);
 }
 
+if (process.env.CI) {
+  console.log('CI environment detected. Skipping pre-push AI checks.');
+  process.exit(0);
+}
+
 const initialResult = runChecks();
 const hasChanges = getStatusPorcelain().trim().length > 0;
 
@@ -149,6 +154,7 @@ it asks an AI CLI to fix real issues in the current diff, then reruns checks.
 
 Options:
   --agent=auto|cursor|codex|none  AI CLI to use. Default: auto.
+                                  Auto finds cursor-agent/codex on PATH; on macOS it also checks the Codex app bundle.
   --allow-ai-changes              Exit 0 even if AI edits the working tree.
   --checks-only                   Run checks without invoking AI.
   -h, --help                      Show this help.
@@ -209,9 +215,11 @@ function resolveAgent(requestedAgent) {
     path.join(os.homedir(), '.local/bin/cursor-agent'),
   ]);
 
-  const codexAgent = findCommand('codex', [
-    '/Applications/Codex.app/Contents/Resources/codex',
-  ]);
+  const codexAbsolutePaths =
+    process.platform === 'darwin'
+      ? ['/Applications/Codex.app/Contents/Resources/codex']
+      : [];
+  const codexAgent = findCommand('codex', codexAbsolutePaths);
 
   if (requestedAgent === 'cursor') {
     return cursorAgent ? createCursorAgent(cursorAgent) : null;
@@ -264,6 +272,8 @@ function createCursorAgent(command) {
 function createCodexAgent(command) {
   return {
     name: 'codex',
+    // The hook only runs on a developer machine; bypassing approvals lets
+    // Codex repair local pre-push failures without an interactive prompt.
     command,
     args: ['exec', '--dangerously-bypass-approvals-and-sandbox', '--cd', cwd],
   };

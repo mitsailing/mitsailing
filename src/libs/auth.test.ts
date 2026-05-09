@@ -232,6 +232,12 @@ beforeEach(() => {
   authMocks.verify.mockResolvedValue(true);
   authMocks.markPendingEmailChange.mockResolvedValue(true);
   authMocks.prisma.user.updateMany.mockResolvedValue({ count: 1 });
+  authMocks.sendDeleteAccountVerificationEmail.mockImplementation(
+    async () => {}
+  );
+  authMocks.sendEmailChangeRequestedNotice.mockImplementation(async () => {});
+  authMocks.sendEmailOtpCode.mockImplementation(async () => {});
+  authMocks.sendPasswordChangedNotice.mockImplementation(async () => {});
 });
 
 describe('auth', () => {
