@@ -71,23 +71,17 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
   }
 
   function lockResend() {
-    if (resendTimeoutRef.current !== null) {
-      clearTimeout(resendTimeoutRef.current);
-      resendTimeoutRef.current = null;
-    }
-    if (resendIntervalRef.current !== null) {
-      clearInterval(resendIntervalRef.current);
-      resendIntervalRef.current = null;
-    }
+    clearTimeout(resendTimeoutRef.current ?? undefined);
+    clearInterval(resendIntervalRef.current ?? undefined);
+    resendTimeoutRef.current = null;
+    resendIntervalRef.current = null;
     setResendLocked(true);
     setResendSecondsLeft(30);
     resendIntervalRef.current = window.setInterval(() => {
       setResendSecondsLeft((prev) => {
         if (prev <= 1) {
-          if (resendIntervalRef.current !== null) {
-            clearInterval(resendIntervalRef.current);
-            resendIntervalRef.current = null;
-          }
+          clearInterval(resendIntervalRef.current ?? undefined);
+          resendIntervalRef.current = null;
           return 0;
         }
         return prev - 1;
@@ -96,10 +90,8 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
     resendTimeoutRef.current = window.setTimeout(() => {
       setResendLocked(false);
       resendTimeoutRef.current = null;
-      if (resendIntervalRef.current !== null) {
-        clearInterval(resendIntervalRef.current);
-        resendIntervalRef.current = null;
-      }
+      clearInterval(resendIntervalRef.current ?? undefined);
+      resendIntervalRef.current = null;
     }, 30_000);
   }
 
@@ -107,26 +99,18 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
     if (props.initialResendLocked) {
       lockResend();
     } else {
-      if (resendTimeoutRef.current !== null) {
-        clearTimeout(resendTimeoutRef.current);
-        resendTimeoutRef.current = null;
-      }
-      if (resendIntervalRef.current !== null) {
-        clearInterval(resendIntervalRef.current);
-        resendIntervalRef.current = null;
-      }
+      clearTimeout(resendTimeoutRef.current ?? undefined);
+      clearInterval(resendIntervalRef.current ?? undefined);
+      resendTimeoutRef.current = null;
+      resendIntervalRef.current = null;
       setResendLocked(false);
     }
 
     return () => {
-      if (resendTimeoutRef.current !== null) {
-        clearTimeout(resendTimeoutRef.current);
-        resendTimeoutRef.current = null;
-      }
-      if (resendIntervalRef.current !== null) {
-        clearInterval(resendIntervalRef.current);
-        resendIntervalRef.current = null;
-      }
+      clearTimeout(resendTimeoutRef.current ?? undefined);
+      clearInterval(resendIntervalRef.current ?? undefined);
+      resendTimeoutRef.current = null;
+      resendIntervalRef.current = null;
     };
   }, [props.initialResendLocked]);
 

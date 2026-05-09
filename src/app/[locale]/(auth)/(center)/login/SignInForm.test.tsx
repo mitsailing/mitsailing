@@ -328,12 +328,10 @@ describe('SignInForm', () => {
     render(<SignInForm callbackUrl="/fleet/" />);
 
     await user.type(screen.getByLabelText('Email'), ' Reset@MIT.EDU ');
-    const resetLink = screen.getByRole('link', { name: 'Forgot password?' });
-    expect(resetLink).toHaveAttribute(
-      'href',
-      '/forgot-password?email=reset%40mit.edu&callbackUrl=%2Ffleet%2F'
-    );
-    await user.click(resetLink);
+    const resetButton = screen.getByRole('button', {
+      name: 'Forgot password?',
+    });
+    await user.click(resetButton);
 
     expect(authClientMock.emailOtp.requestPasswordReset).toHaveBeenCalledWith({
       email: 'reset@mit.edu',
@@ -342,8 +340,8 @@ describe('SignInForm', () => {
       '/reset-password?email=reset%40mit.edu&codeSent=1&callbackUrl=%2Ffleet%2F'
     );
     expect(
-      screen.getByRole('link', { name: 'Forgot password?' })
-    ).toHaveAttribute('aria-disabled', 'false');
+      screen.getByRole('button', { name: 'Forgot password?' })
+    ).not.toBeDisabled();
   });
 
   it('Visitor retries inline reset after successful navigation stays mounted', async () => {
@@ -352,8 +350,8 @@ describe('SignInForm', () => {
     render(<SignInForm callbackUrl="/fleet/" />);
 
     await user.type(screen.getByLabelText('Email'), 'reset@mit.edu');
-    await user.click(screen.getByRole('link', { name: 'Forgot password?' }));
-    await user.click(screen.getByRole('link', { name: 'Forgot password?' }));
+    await user.click(screen.getByRole('button', { name: 'Forgot password?' }));
+    await user.click(screen.getByRole('button', { name: 'Forgot password?' }));
 
     expect(authClientMock.emailOtp.requestPasswordReset).toHaveBeenCalledTimes(
       2
@@ -369,7 +367,9 @@ describe('SignInForm', () => {
     render(<SignInForm callbackUrl="/fleet/" />);
 
     await user.type(screen.getByLabelText('Email'), 'reset@mit.edu');
-    await user.dblClick(screen.getByRole('link', { name: 'Forgot password?' }));
+    await user.dblClick(
+      screen.getByRole('button', { name: 'Forgot password?' })
+    );
 
     expect(authClientMock.emailOtp.requestPasswordReset).toHaveBeenCalledTimes(
       1
@@ -392,7 +392,7 @@ describe('SignInForm', () => {
     render(<SignInForm callbackUrl="/fleet/" />);
 
     await user.type(screen.getByLabelText('Email'), 'sailor@mit');
-    await user.click(screen.getByRole('link', { name: 'Forgot password?' }));
+    await user.click(screen.getByRole('button', { name: 'Forgot password?' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Enter a valid email address with a domain'
@@ -401,7 +401,7 @@ describe('SignInForm', () => {
     expect(componentTestRouter().push).not.toHaveBeenCalled();
   });
 
-  it('Visitor continues when inline reset returns an opaque error', async () => {
+  it('Visitor sees reset message when inline reset returns an error', async () => {
     const user = userEvent.setup();
     authClientMock.emailOtp.requestPasswordReset.mockResolvedValue({
       error: { code: 'TOO_MANY_REQUESTS' },
@@ -410,15 +410,15 @@ describe('SignInForm', () => {
     render(<SignInForm callbackUrl="/fleet/" />);
 
     await user.type(screen.getByLabelText('Email'), 'reset@mit.edu');
-    await user.click(screen.getByRole('link', { name: 'Forgot password?' }));
+    await user.click(screen.getByRole('button', { name: 'Forgot password?' }));
 
     expect(authClientMock.emailOtp.requestPasswordReset).toHaveBeenCalledWith({
       email: 'reset@mit.edu',
     });
-    expect(componentTestRouter().push).toHaveBeenCalledWith(
-      '/reset-password?email=reset%40mit.edu&codeSent=1&callbackUrl=%2Ffleet%2F'
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'We could not send a reset code.'
     );
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(componentTestRouter().push).not.toHaveBeenCalled();
   });
 
   it('Visitor sees reset message when inline reset delivery fails', async () => {
@@ -430,7 +430,7 @@ describe('SignInForm', () => {
     render(<SignInForm callbackUrl="/fleet/" />);
 
     await user.type(screen.getByLabelText('Email'), 'reset@mit.edu');
-    await user.click(screen.getByRole('link', { name: 'Forgot password?' }));
+    await user.click(screen.getByRole('button', { name: 'Forgot password?' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'We could not send a reset code.'

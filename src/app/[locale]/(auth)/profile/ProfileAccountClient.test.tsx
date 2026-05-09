@@ -309,7 +309,17 @@ describe('ProfileAccountClient', () => {
     ).toBeDisabled();
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(30_000);
+      await vi.advanceTimersByTimeAsync(29_000);
+    });
+
+    expect(
+      screen.getByRole('button', {
+        name: 'You can request a new code in 1 second',
+      })
+    ).toBeDisabled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
     });
 
     expect(screen.getByRole('button', { name: 'Resend email' })).toBeEnabled();
@@ -353,7 +363,7 @@ describe('ProfileAccountClient', () => {
 
     expect(
       screen.getByRole('button', {
-        name: 'You can request a new code in 30 seconds',
+        name: 'You can request a new code in 5 seconds',
       })
     ).toBeDisabled();
 

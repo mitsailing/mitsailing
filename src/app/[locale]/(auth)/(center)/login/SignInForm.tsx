@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -37,6 +37,7 @@ export function SignInForm(props: SignInFormProps) {
   const [error, setError] = useState<ErrorState>(null);
   const [submitting, setSubmitting] = useState(false);
   const [requestingReset, setRequestingReset] = useState(false);
+  const requestingResetRef = useRef(false);
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
 
@@ -132,20 +133,12 @@ export function SignInForm(props: SignInFormProps) {
     }
   }
 
-  async function onForgotPassword(event: React.MouseEvent<HTMLAnchorElement>) {
-    if (requestingReset) {
-      event.preventDefault();
+  async function onForgotPassword() {
+    if (requestingResetRef.current) {
       return;
     }
 
     const normalizedEmail = normalizeMarketingEmail(email);
-
-    if (normalizedEmail.length === 0) {
-      // Omit preventDefault so the anchor navigates to forgot-password without inline reset.
-      return;
-    }
-
-    event.preventDefault();
     if (!isValidMarketingEmail(normalizedEmail)) {
       setError({ kind: 'generic', message: t('error_invalid_email') });
       return;
@@ -154,13 +147,17 @@ export function SignInForm(props: SignInFormProps) {
     setError(null);
     setResent(false);
     setEmail(normalizedEmail);
+    requestingResetRef.current = true;
     setRequestingReset(true);
     try {
-      // Match forgot-password: never branch UX on `res.error` for this request,
-      // so client-visible outcomes cannot correlate with account existence.
-      await authClient.emailOtp.requestPasswordReset({
+      const res = await authClient.emailOtp.requestPasswordReset({
         email: normalizedEmail,
       });
+
+      if (res.error) {
+        setError({ kind: 'generic', message: t('error_reset_failed') });
+        return;
+      }
 
       router.push(
         authHrefWithCallback(
@@ -173,6 +170,7 @@ export function SignInForm(props: SignInFormProps) {
     } catch {
       setError({ kind: 'generic', message: t('error_reset_failed') });
     } finally {
+      requestingResetRef.current = false;
       setRequestingReset(false);
     }
   }
@@ -270,22 +268,23 @@ export function SignInForm(props: SignInFormProps) {
       </form>
 
       <p className="text-center text-sm text-mit-text">
-        <a
-          aria-disabled={requestingReset}
-          className={authInlineLinkClassName}
-          href={authHrefWithCallback(
-            isValidMarketingEmail(normalizedForgotPasswordEmail)
-              ? `/forgot-password?email=${encodeURIComponent(
-                  normalizedForgotPasswordEmail
-                )}`
-              : '/forgot-password',
-            props.callbackUrl
-          )}
-          onClick={onForgotPassword}
-          tabIndex={requestingReset ? -1 : undefined}
-        >
-          {t('forgot_password')}
-        </a>
+        {normalizedForgotPasswordEmail.length === 0 ? (
+          <a
+            className={authInlineLinkClassName}
+            href={authHrefWithCallback('/forgot-password', props.callbackUrl)}
+          >
+            {t('forgot_password')}
+          </a>
+        ) : (
+          <button
+            className={`${authInlineLinkClassName} border-0 bg-transparent p-0 disabled:opacity-60`}
+            disabled={requestingReset}
+            onClick={onForgotPassword}
+            type="button"
+          >
+            {t('forgot_password')}
+          </button>
+        )}
       </p>
     </>
   );

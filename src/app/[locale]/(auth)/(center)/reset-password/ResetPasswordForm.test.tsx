@@ -257,9 +257,7 @@ describe('ResetPasswordForm', () => {
         await vi.advanceTimersByTimeAsync(30_000);
       });
 
-      expect(
-        screen.getByRole('button', { name: 'Resend email' })
-      ).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'Resend code' })).toBeEnabled();
     });
 
     it('leave before initial reset-code cooldown ends', () => {
@@ -285,7 +283,7 @@ describe('ResetPasswordForm', () => {
       });
 
       act(() => {
-        fireEvent.click(screen.getByRole('button', { name: 'Resend email' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Resend code' }));
       });
       await act(async () => {
         await Promise.resolve();
@@ -310,9 +308,7 @@ describe('ResetPasswordForm', () => {
         await vi.advanceTimersByTimeAsync(30_000);
       });
 
-      expect(
-        screen.getByRole('button', { name: 'Resend email' })
-      ).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'Resend code' })).toBeEnabled();
     });
 
     it('keep latest reset resend cooldown', async () => {
@@ -327,7 +323,7 @@ describe('ResetPasswordForm', () => {
       );
       const { unmount } = renderResetPasswordForm();
 
-      const resendButton = screen.getByRole('button', { name: 'Resend email' });
+      const resendButton = screen.getByRole('button', { name: 'Resend code' });
       act(() => {
         fireEvent.click(resendButton);
         fireEvent.click(resendButton);
@@ -361,7 +357,7 @@ describe('ResetPasswordForm', () => {
       });
       renderResetPasswordForm();
 
-      await user.click(screen.getByRole('button', { name: 'Resend email' }));
+      await user.click(screen.getByRole('button', { name: 'Resend code' }));
 
       expect(await screen.findByRole('alert')).toHaveTextContent(
         'Too many requests. Wait a few minutes.'
@@ -375,7 +371,7 @@ describe('ResetPasswordForm', () => {
       );
       renderResetPasswordForm();
 
-      await user.click(screen.getByRole('button', { name: 'Resend email' }));
+      await user.click(screen.getByRole('button', { name: 'Resend code' }));
 
       expect(await screen.findByRole('alert')).toHaveTextContent(
         'We could not send a reset code.'
@@ -386,7 +382,7 @@ describe('ResetPasswordForm', () => {
       const user = userEvent.setup();
       renderResetPasswordForm({ initialEmail: '' });
 
-      await user.click(screen.getByRole('button', { name: 'Resend email' }));
+      await user.click(screen.getByRole('button', { name: 'Resend code' }));
 
       expect(await screen.findByRole('alert')).toHaveTextContent(
         'Enter a valid email address with a domain'

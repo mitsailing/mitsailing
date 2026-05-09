@@ -53,23 +53,17 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
   const resendIntervalRef = useRef<number | null>(null);
 
   function lockEmailResend() {
-    if (resendTimerRef.current !== null) {
-      clearTimeout(resendTimerRef.current);
-      resendTimerRef.current = null;
-    }
-    if (resendIntervalRef.current !== null) {
-      clearInterval(resendIntervalRef.current);
-      resendIntervalRef.current = null;
-    }
+    clearTimeout(resendTimerRef.current ?? undefined);
+    clearInterval(resendIntervalRef.current ?? undefined);
+    resendTimerRef.current = null;
+    resendIntervalRef.current = null;
     setResendLocked(true);
     setResendSecondsLeft(30);
     resendIntervalRef.current = window.setInterval(() => {
       setResendSecondsLeft((prev) => {
         if (prev <= 1) {
-          if (resendIntervalRef.current !== null) {
-            clearInterval(resendIntervalRef.current);
-            resendIntervalRef.current = null;
-          }
+          clearInterval(resendIntervalRef.current ?? undefined);
+          resendIntervalRef.current = null;
           return 0;
         }
         return prev - 1;
@@ -78,23 +72,17 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
     resendTimerRef.current = window.setTimeout(() => {
       setResendLocked(false);
       resendTimerRef.current = null;
-      if (resendIntervalRef.current !== null) {
-        clearInterval(resendIntervalRef.current);
-        resendIntervalRef.current = null;
-      }
+      clearInterval(resendIntervalRef.current ?? undefined);
+      resendIntervalRef.current = null;
     }, 30_000);
   }
 
   useEffect(
     () => () => {
-      if (resendTimerRef.current !== null) {
-        clearTimeout(resendTimerRef.current);
-        resendTimerRef.current = null;
-      }
-      if (resendIntervalRef.current !== null) {
-        clearInterval(resendIntervalRef.current);
-        resendIntervalRef.current = null;
-      }
+      clearTimeout(resendTimerRef.current ?? undefined);
+      clearInterval(resendIntervalRef.current ?? undefined);
+      resendTimerRef.current = null;
+      resendIntervalRef.current = null;
     },
     []
   );

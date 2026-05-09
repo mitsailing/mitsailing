@@ -8,7 +8,7 @@ import { EmailChangeRequestedNoticeTemplate } from './email-change-requested';
 import { EmailLayout } from './email-layout';
 import { PasswordChangedNoticeTemplate } from './password-changed';
 import { PasswordResetEmailTemplate } from './password-reset';
-import { SignInOtpEmailTemplate } from './sign-in-otp';
+import { SignInOtpEmailPlaintext, SignInOtpEmailTemplate } from './sign-in-otp';
 import { VerifyEmailTemplate } from './verify-email';
 
 const SUPPORT_EMAIL = 'support@example.com';
@@ -79,6 +79,16 @@ describe('email templates', () => {
         supportEmail: SUPPORT_EMAIL,
       })
     ).toThrow('SignInOtpEmailTemplate requires a six-digit code.');
+  });
+
+  it('rejects malformed sign-in OTP plaintext codes', () => {
+    expect(() =>
+      SignInOtpEmailPlaintext({
+        code: 'abc123',
+        copy: enMessages.AuthEmails,
+        supportEmail: SUPPORT_EMAIL,
+      })
+    ).toThrow('SignInOtpEmailPlaintext requires a six-digit code.');
   });
 
   it('renders every sign-in OTP code token', async () => {

@@ -239,7 +239,7 @@ describe('VerifyEmailForm', () => {
       });
 
       authClientMock.emailOtp.verifyEmail.mockClear();
-      await user.click(screen.getByRole('button', { name: 'Resend email' }));
+      await user.click(screen.getByRole('button', { name: 'Resend code' }));
 
       expect(authClientMock.emailOtp.sendVerificationOtp).toHaveBeenCalledWith({
         email: 'sailor@mit.edu',
@@ -267,7 +267,7 @@ describe('VerifyEmailForm', () => {
 
       render(<VerifyEmailForm callbackUrl="/fleet/" initialEmail="" />);
 
-      await user.click(screen.getByRole('button', { name: 'Resend email' }));
+      await user.click(screen.getByRole('button', { name: 'Resend code' }));
 
       expect(await screen.findByRole('alert')).toHaveTextContent(
         'Enter a valid email address with a domain'
@@ -286,7 +286,7 @@ describe('VerifyEmailForm', () => {
         <VerifyEmailForm callbackUrl="/fleet/" initialEmail="sailor@mit.edu" />
       );
 
-      await user.click(screen.getByRole('button', { name: 'Resend email' }));
+      await user.click(screen.getByRole('button', { name: 'Resend code' }));
 
       expect(authClientMock.emailOtp.sendVerificationOtp).toHaveBeenCalledWith({
         email: 'sailor@mit.edu',
@@ -307,7 +307,7 @@ describe('VerifyEmailForm', () => {
         <VerifyEmailForm callbackUrl="/fleet/" initialEmail="sailor@mit.edu" />
       );
 
-      await user.click(screen.getByRole('button', { name: 'Resend email' }));
+      await user.click(screen.getByRole('button', { name: 'Resend code' }));
 
       expect(await screen.findByRole('alert')).toHaveTextContent(
         'Too many code requests.'
@@ -324,7 +324,7 @@ describe('VerifyEmailForm', () => {
         <VerifyEmailForm callbackUrl="/fleet/" initialEmail="sailor@mit.edu" />
       );
 
-      await user.click(screen.getByRole('button', { name: 'Resend email' }));
+      await user.click(screen.getByRole('button', { name: 'Resend code' }));
 
       expect(await screen.findByRole('alert')).toHaveTextContent(
         'We could not complete that request right now.'
@@ -341,7 +341,7 @@ describe('VerifyEmailForm', () => {
       );
 
       act(() => {
-        fireEvent.click(screen.getByRole('button', { name: 'Resend email' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Resend code' }));
       });
       await act(async () => {
         await Promise.resolve();
@@ -357,9 +357,7 @@ describe('VerifyEmailForm', () => {
         await vi.advanceTimersByTimeAsync(30_000);
       });
 
-      expect(
-        screen.getByRole('button', { name: 'Resend email' })
-      ).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'Resend code' })).toBeEnabled();
     });
 
     it('wait through initial resend cooldown', async () => {
@@ -386,9 +384,7 @@ describe('VerifyEmailForm', () => {
         await vi.advanceTimersByTimeAsync(30_000);
       });
 
-      expect(
-        screen.getByRole('button', { name: 'Resend email' })
-      ).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'Resend code' })).toBeEnabled();
     });
 
     it('refresh cooldown when lock restarts', async () => {
@@ -406,7 +402,7 @@ describe('VerifyEmailForm', () => {
       );
 
       act(() => {
-        fireEvent.click(screen.getByRole('button', { name: 'Resend email' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Resend code' }));
       });
       await act(async () => {
         await Promise.resolve();
@@ -457,9 +453,7 @@ describe('VerifyEmailForm', () => {
         />
       );
 
-      expect(
-        screen.getByRole('button', { name: 'Resend email' })
-      ).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'Resend code' })).toBeEnabled();
     });
   });
 });

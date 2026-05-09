@@ -31,7 +31,7 @@ export type SignInOtpEmailCopy = {
  * @returns Plaintext email body.
  */
 export function SignInOtpEmailPlaintext(props: SignInOtpEmailProps): string {
-  assertSixDigitCode(props.code, 'SignInOtpEmailTemplate');
+  assertSixDigitCode(props.code, 'SignInOtpEmailPlaintext');
 
   return [
     props.copy.sign_in_otp_heading,
