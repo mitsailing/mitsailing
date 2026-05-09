@@ -32,16 +32,16 @@ export type EmailChangeRequestedNoticeTemplateProps = {
 
 function replaceAuthEmailValues(
   message: string,
-  values: { email?: string }
+  values: { email: string }
 ): string {
-  return message.replaceAll('{email}', values.email ?? '');
+  return message.replaceAll('{email}', values.email);
 }
 
 function strongEmailMessage(props: {
   message: string;
   newEmail: string;
 }): React.ReactNode {
-  const [beforeEmail, afterEmail = ''] = props.message.split('{email}');
+  const [beforeEmail, afterEmail] = props.message.split('{email}');
   return (
     <>
       {beforeEmail}

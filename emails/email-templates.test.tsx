@@ -55,6 +55,22 @@ describe('email templates', () => {
     expect(html).toContain('mailto:support@example.com');
   });
 
+  it('renders sign-in OTP fallback support copy', async () => {
+    const html = await render(
+      <SignInOtpEmailTemplate
+        code="111222"
+        copy={{
+          ...enMessages.AuthEmails,
+          sign_in_otp_expiry: 'Contact {email} if this was not you.',
+        }}
+        supportEmail="support@example.com"
+      />
+    );
+
+    expect(html).toContain('Contact support@example.com');
+    expect(html).not.toContain('mailto:support@example.com');
+  });
+
   it('renders password reset code content', async () => {
     const html = await render(<PasswordResetEmailTemplate code="654321" />);
 
@@ -95,6 +111,40 @@ describe('email templates', () => {
     expect(html).toContain('next@example.com');
     expect(html).toContain('will not take effect');
     expect(html).toContain('mailto:support@example.com');
+  });
+
+  it('renders email change requested fallback support copy', async () => {
+    const authEmails = enMessages.AuthEmails;
+    const html = await render(
+      <EmailChangeRequestedNoticeTemplate
+        newEmail="next@example.com"
+        supportEmail="support@example.com"
+        previewText={authEmails.change_email_notice_preview}
+        heading={authEmails.change_email_notice_subject}
+        bodyMessage={authEmails.change_email_notice_body}
+        contactMessage="Contact {email} right away."
+      />
+    );
+
+    expect(html).toContain('Contact support@example.com');
+    expect(html).not.toContain('mailto:support@example.com');
+  });
+
+  it('renders email change requested fallback body copy', async () => {
+    const authEmails = enMessages.AuthEmails;
+    const html = await render(
+      <EmailChangeRequestedNoticeTemplate
+        newEmail="next@example.com"
+        supportEmail="support@example.com"
+        previewText={authEmails.change_email_notice_preview}
+        heading={authEmails.change_email_notice_subject}
+        bodyMessage="A login email change was requested."
+        contactMessage={authEmails.change_email_notice_contact}
+      />
+    );
+
+    expect(html).toContain('A login email change was requested.');
+    expect(html).toContain('next@example.com');
   });
 
   it('renders delete account confirmation with the signed link', async () => {

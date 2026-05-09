@@ -65,6 +65,7 @@ const authCoverageFiles = [
   'src/libs/auth/dal.ts',
   'src/libs/auth/hooks.ts',
   'src/libs/auth/password-compromise.ts',
+  'src/libs/auth/reportAuthClientError.ts',
   'src/libs/auth/roles.ts',
   'src/libs/auth/themePreferenceActions.ts',
   'src/libs/auth/unlock-token.ts',
