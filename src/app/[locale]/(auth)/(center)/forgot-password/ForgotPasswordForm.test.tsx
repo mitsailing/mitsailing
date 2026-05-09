@@ -20,7 +20,7 @@ beforeEach(() => {
 });
 
 describe('ForgotPasswordForm', () => {
-  it('visitor requests a reset code and moves to the code form', async () => {
+  it('Visitor requests a reset code and moves to the code form', async () => {
     const user = userEvent.setup();
 
     render(<ForgotPasswordForm callbackUrl="/fleet/" initialEmail="" />);
@@ -38,7 +38,7 @@ describe('ForgotPasswordForm', () => {
     });
   });
 
-  it('visitor sees a safe error for an invalid reset email', async () => {
+  it('Visitor sees a safe error for an invalid reset email', async () => {
     const user = userEvent.setup();
 
     render(<ForgotPasswordForm callbackUrl="/fleet/" initialEmail="" />);
@@ -52,7 +52,7 @@ describe('ForgotPasswordForm', () => {
     expect(authClientMock.emailOtp.requestPasswordReset).not.toHaveBeenCalled();
   });
 
-  it('visitor sees recovery message when reset delivery fails', async () => {
+  it('Visitor sees recovery message when reset delivery fails', async () => {
     const user = userEvent.setup();
     authClientMock.emailOtp.requestPasswordReset.mockResolvedValue({
       error: { code: 'TOO_MANY_REQUESTS' },
@@ -69,7 +69,7 @@ describe('ForgotPasswordForm', () => {
     );
   });
 
-  it('visitor sees recovery message when reset delivery rejects', async () => {
+  it('Visitor sees recovery message when reset delivery rejects', async () => {
     const user = userEvent.setup();
     authClientMock.emailOtp.requestPasswordReset.mockRejectedValue(
       new Error('network')

@@ -90,64 +90,66 @@ test.describe('Account lockout', () => {
     const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
     const password = 'Correct-Horse-Battery-Staple';
 
-    await deleteAllMessages();
+    try {
+      await deleteAllMessages();
 
-    await page.goto('/signup');
-    await page.getByLabel('Email').fill(email);
-    await page.getByLabel('Password', { exact: true }).fill(password);
-    await page.getByLabel('Confirm password').fill(password);
-    await page.getByRole('button', { name: 'Sign up' }).click();
-
-    await expect(page).toHaveURL(/\/verify-email\?/);
-    await expect(
-      page.getByText('Enter the verification code we just sent to')
-    ).toBeVisible();
-
-    await markEmailVerified(email);
-    await deleteAllMessages();
-
-    // Five wrong-password attempts in a row. The sixth attempt — or even
-    // the fifth, depending on whether the count is checked before or
-    // after — trips the lockout. We loop to a generous max instead of
-    // hard-coding so a future tweak to MAX_FAILED_ATTEMPTS doesn't
-    // silently defeat this test.
-    const MAX_ATTEMPTS = 6;
-    for (let i = 0; i < MAX_ATTEMPTS; i += 1) {
-      await page.goto('/login');
+      await page.goto('/signup');
       await page.getByLabel('Email').fill(email);
-      await page.getByLabel('Password').fill('definitely-not-the-password');
+      await page.getByLabel('Password', { exact: true }).fill(password);
+      await page.getByLabel('Confirm password').fill(password);
+      await page.getByRole('button', { name: 'Sign up' }).click();
+
+      await expect(page).toHaveURL(/\/verify-email\?/);
+      await expect(
+        page.getByText('Enter the verification code we just sent to')
+      ).toBeVisible();
+
+      await markEmailVerified(email);
+      await deleteAllMessages();
+
+      // Five wrong-password attempts in a row. The sixth attempt — or even
+      // the fifth, depending on whether the count is checked before or
+      // after — trips the lockout. We loop to a generous max instead of
+      // hard-coding so a future tweak to MAX_FAILED_ATTEMPTS doesn't
+      // silently defeat this test.
+      const MAX_ATTEMPTS = 6;
+      for (let i = 0; i < MAX_ATTEMPTS; i += 1) {
+        await page.goto('/login');
+        await page.getByLabel('Email').fill(email);
+        await page.getByLabel('Password').fill('definitely-not-the-password');
+        await page.getByRole('button', { name: 'Sign in' }).click();
+        await expect(formAlert(page)).toBeVisible();
+      }
+
+      // The lockout email arrives via Mailpit. Pattern matches the
+      // absolute URL our email template renders.
+      const lockoutMessage = await findLatestMessageTo(email);
+
+      expect(lockoutMessage.Subject).toMatch(/lock/i);
+
+      const unlockUrl = extractLinkFromMessage(
+        lockoutMessage,
+        /https?:\/\/[^\s"'<>]+\/api\/unlock-account\?token=[^\s"'<>]+/
+      );
+
+      // Follow the unlock link. The API route redirects to /login?unlocked=1.
+      await page.goto(unlockUrl);
+      await expect(page).toHaveURL(/\/login\?.*unlocked=1/);
+      await expect(
+        page.getByText('Your account is unlocked. You can sign in.')
+      ).toBeVisible();
+
+      // The failed-attempt rows must be gone so lockout doesn't immediately
+      // retrip when the user signs in.
+      expect(await countFailedAttempts(email)).toBe(0);
+
+      await page.getByLabel('Email').fill(email);
+      await page.getByLabel('Password').fill(password);
       await page.getByRole('button', { name: 'Sign in' }).click();
-      await expect(formAlert(page)).toBeVisible();
+
+      await expect.poll(() => new URL(page.url()).pathname).toBe('/');
+    } finally {
+      await cleanupByEmail(email);
     }
-
-    // The lockout email arrives via Mailpit. Pattern matches the
-    // absolute URL our email template renders.
-    const lockoutMessage = await findLatestMessageTo(email);
-
-    expect(lockoutMessage.Subject).toMatch(/lock/i);
-
-    const unlockUrl = extractLinkFromMessage(
-      lockoutMessage,
-      /https?:\/\/[^\s"'<>]+\/api\/unlock-account\?token=[^\s"'<>]+/
-    );
-
-    // Follow the unlock link. The API route redirects to /login?unlocked=1.
-    await page.goto(unlockUrl);
-    await expect(page).toHaveURL(/\/login\?.*unlocked=1/);
-    await expect(
-      page.getByText('Your account is unlocked. You can sign in.')
-    ).toBeVisible();
-
-    // The failed-attempt rows must be gone so lockout doesn't immediately
-    // retrip when the user signs in.
-    expect(await countFailedAttempts(email)).toBe(0);
-
-    await page.getByLabel('Email').fill(email);
-    await page.getByLabel('Password').fill(password);
-    await page.getByRole('button', { name: 'Sign in' }).click();
-
-    await expect.poll(() => new URL(page.url()).pathname).toBe('/');
-
-    await cleanupByEmail(email);
   });
 });

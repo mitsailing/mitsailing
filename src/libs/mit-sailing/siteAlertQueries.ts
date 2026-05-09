@@ -1,5 +1,4 @@
 import 'server-only';
-import { createHash } from 'node:crypto';
 import { unstable_cache } from 'next/cache';
 import type { Prisma } from '@/generated/prisma/client';
 import { nyYmd } from '@/lib/mit-sailing/nyTime';
@@ -9,12 +8,13 @@ import {
   isoCalendarDateFromPrismaDate,
   prismaDateFromIsoCalendar,
 } from '@/libs/mit-sailing/isoCalendarDate';
-import type { SiteAlertBannerCollapseAlert } from '@/libs/mit-sailing/siteAlertBannerCollapse';
 import { plainTextFromSiteAlertHtmlish } from '@/libs/mit-sailing/siteAlertPlainText';
 import type {
   SiteAlertBannerRow,
   SiteAlertPublicItem,
 } from '@/libs/mit-sailing/siteAlertTypes';
+
+export { buildSiteAlertBannerCollapseAlerts } from '@/libs/mit-sailing/siteAlertBannerCollapse';
 
 export const SITE_ALERTS_CACHE_TAG = 'site-alerts';
 
@@ -143,26 +143,4 @@ export function mapSiteAlertsToBannerRows(
       dateIso,
     };
   });
-}
-
-/**
- * Builds per-alert content versions for collapse persistence.
- *
- * @param rows - Banner rows in display order
- * @returns Stable alert identifiers with displayed-content fingerprints
- */
-export function buildSiteAlertBannerCollapseAlerts(
-  rows: SiteAlertBannerRow[]
-): SiteAlertBannerCollapseAlert[] {
-  return rows.map((row) => ({
-    id: row.id,
-    contentFingerprint: createHash('sha256')
-      .update(
-        JSON.stringify({
-          bodyPlainText: row.bodyPlainText,
-          dateIso: row.dateIso,
-        })
-      )
-      .digest('base64url'),
-  }));
 }

@@ -124,7 +124,7 @@ export function SignInForm(props: SignInFormProps) {
         )
       );
     } catch {
-      setError({ kind: 'generic', message: t('error_rate_limited') });
+      setError({ kind: 'generic', message: t('error_request_failed') });
     } finally {
       setResending(false);
     }

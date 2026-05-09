@@ -475,7 +475,7 @@ describe('auth', () => {
     );
 
     expect(authMocks.loggerError).toHaveBeenCalledWith(
-      'Failed to send email change requested notice: mail down'
+      'Failed to send email change requested notice'
     );
   });
 
@@ -502,7 +502,7 @@ describe('auth', () => {
     );
 
     expect(authMocks.loggerError).toHaveBeenCalledWith(
-      'Failed to send email change requested notice: mail down'
+      'Failed to send email change requested notice'
     );
   });
 });

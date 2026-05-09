@@ -11,6 +11,13 @@ export type SiteAlertBannerCollapseAlert = {
   id: string;
 };
 
+type SiteAlertBannerCollapseRow = {
+  bodyPlainText: string;
+  dateLabel?: string;
+  dateIso: string;
+  id: string;
+};
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object';
 }
@@ -60,6 +67,18 @@ export function serializeSiteAlertBannerCollapse(
   alerts: SiteAlertBannerCollapseAlert[]
 ): string {
   return JSON.stringify({ collapsed: true, alerts });
+}
+
+export function buildSiteAlertBannerCollapseAlerts(
+  rows: SiteAlertBannerCollapseRow[]
+): SiteAlertBannerCollapseAlert[] {
+  return rows.map((row) => ({
+    id: row.id,
+    contentFingerprint: JSON.stringify({
+      bodyPlainText: row.bodyPlainText,
+      dateIso: row.dateIso,
+    }),
+  }));
 }
 
 export function siteAlertBannerStartsCollapsed(props: {

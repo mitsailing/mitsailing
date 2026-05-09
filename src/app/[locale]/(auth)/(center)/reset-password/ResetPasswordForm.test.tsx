@@ -74,390 +74,414 @@ async function fillNewPassword(props: {
 }
 
 describe('ResetPasswordForm', () => {
-  it('visitor verifies a reset code before choosing a new password', async () => {
-    renderResetPasswordForm();
+  describe('Code verification', () => {
+    it('Visitor verifies a reset code before choosing a new password', async () => {
+      renderResetPasswordForm();
 
-    await continueWithResetCode();
+      await continueWithResetCode();
 
-    expect(authClientMock.emailOtp.checkVerificationOtp).toHaveBeenCalledWith({
-      email: 'reset@mit.edu',
-      otp: '123456',
-      type: 'forget-password',
-    });
-    expect(
-      await screen.findByLabelText('New password', { exact: true })
-    ).toBeVisible();
-  });
-
-  it('visitor sees invalid-code message before the password step', async () => {
-    authClientMock.emailOtp.checkVerificationOtp.mockResolvedValue({
-      error: { code: 'INVALID_OTP' },
-    });
-    renderResetPasswordForm();
-
-    await continueWithResetCode('111111');
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'That code is invalid.'
-    );
-    expect(
-      screen.queryByLabelText('New password', { exact: true })
-    ).not.toBeInTheDocument();
-  });
-
-  it('visitor sees expired-code message before the password step', async () => {
-    authClientMock.emailOtp.checkVerificationOtp.mockResolvedValue({
-      error: { code: 'OTP_EXPIRED' },
-    });
-    renderResetPasswordForm();
-
-    await continueWithResetCode('111111');
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'That code expired.'
-    );
-    expect(
-      screen.queryByLabelText('New password', { exact: true })
-    ).not.toBeInTheDocument();
-  });
-
-  it('visitor sees too-many-attempts message before the password step', async () => {
-    authClientMock.emailOtp.checkVerificationOtp.mockResolvedValue({
-      error: { code: 'TOO_MANY_ATTEMPTS' },
-    });
-    renderResetPasswordForm();
-
-    await continueWithResetCode('111111');
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Too many code attempts.'
-    );
-  });
-
-  it('visitor sees request error when code verification fails', async () => {
-    authClientMock.emailOtp.checkVerificationOtp.mockRejectedValue(
-      new Error('network')
-    );
-    renderResetPasswordForm();
-
-    await continueWithResetCode('111111');
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'We could not complete that request right now.'
-    );
-    expect(
-      screen.queryByLabelText('New password', { exact: true })
-    ).not.toBeInTheDocument();
-  });
-
-  it('visitor enters an email when the reset link has none', async () => {
-    const user = userEvent.setup();
-    renderResetPasswordForm({ initialEmail: '' });
-
-    expect(screen.getByText(/that email/)).toBeVisible();
-    await user.type(screen.getByLabelText('Email'), ' Reset@MIT.EDU ');
-    await user.type(screen.getByLabelText('Reset code'), '123456');
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
-
-    expect(authClientMock.emailOtp.checkVerificationOtp).toHaveBeenCalledWith({
-      email: 'reset@mit.edu',
-      otp: '123456',
-      type: 'forget-password',
-    });
-  });
-
-  it('visitor sees a safe error before checking an invalid reset email', async () => {
-    const user = userEvent.setup();
-    renderResetPasswordForm({ initialEmail: '' });
-
-    await user.type(screen.getByLabelText('Email'), 'reset@mit');
-    await user.type(screen.getByLabelText('Reset code'), '123456');
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Enter a valid email address with a domain'
-    );
-    expect(authClientMock.emailOtp.checkVerificationOtp).not.toHaveBeenCalled();
-  });
-
-  it('visitor waits through the initial reset-code cooldown', async () => {
-    vi.useFakeTimers();
-    renderResetPasswordForm({ initialResendLocked: true });
-
-    const resendButton = screen.getByRole('button', {
-      name: 'You can request a new code in 30 seconds',
+      expect(authClientMock.emailOtp.checkVerificationOtp).toHaveBeenCalledWith(
+        {
+          email: 'reset@mit.edu',
+          otp: '123456',
+          type: 'forget-password',
+        }
+      );
+      expect(
+        await screen.findByLabelText('New password', { exact: true })
+      ).toBeVisible();
     });
 
-    expect(resendButton).toBeDisabled();
-    expect(authClientMock.emailOtp.requestPasswordReset).not.toHaveBeenCalled();
+    it('Visitor sees invalid-code message before the password step', async () => {
+      authClientMock.emailOtp.checkVerificationOtp.mockResolvedValue({
+        error: { code: 'INVALID_OTP' },
+      });
+      renderResetPasswordForm();
 
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(30_000);
+      await continueWithResetCode('111111');
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'That code is invalid.'
+      );
+      expect(
+        screen.queryByLabelText('New password', { exact: true })
+      ).not.toBeInTheDocument();
     });
 
-    expect(screen.getByRole('button', { name: 'Resend email' })).toBeEnabled();
+    it('Visitor sees expired-code message before the password step', async () => {
+      authClientMock.emailOtp.checkVerificationOtp.mockResolvedValue({
+        error: { code: 'OTP_EXPIRED' },
+      });
+      renderResetPasswordForm();
+
+      await continueWithResetCode('111111');
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'That code expired.'
+      );
+      expect(
+        screen.queryByLabelText('New password', { exact: true })
+      ).not.toBeInTheDocument();
+    });
+
+    it('Visitor sees too-many-attempts message before the password step', async () => {
+      authClientMock.emailOtp.checkVerificationOtp.mockResolvedValue({
+        error: { code: 'TOO_MANY_ATTEMPTS' },
+      });
+      renderResetPasswordForm();
+
+      await continueWithResetCode('111111');
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Too many code attempts.'
+      );
+    });
+
+    it('Visitor sees request error when code verification fails', async () => {
+      authClientMock.emailOtp.checkVerificationOtp.mockRejectedValue(
+        new Error('network')
+      );
+      renderResetPasswordForm();
+
+      await continueWithResetCode('111111');
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'We could not complete that request right now.'
+      );
+      expect(
+        screen.queryByLabelText('New password', { exact: true })
+      ).not.toBeInTheDocument();
+    });
+
+    it('Visitor enters an email when the reset link has none', async () => {
+      const user = userEvent.setup();
+      renderResetPasswordForm({ initialEmail: '' });
+
+      expect(screen.getByText(/that email/)).toBeVisible();
+      await user.type(screen.getByLabelText('Email'), ' Reset@MIT.EDU ');
+      await user.type(screen.getByLabelText('Reset code'), '123456');
+      await user.click(screen.getByRole('button', { name: 'Continue' }));
+
+      expect(authClientMock.emailOtp.checkVerificationOtp).toHaveBeenCalledWith(
+        {
+          email: 'reset@mit.edu',
+          otp: '123456',
+          type: 'forget-password',
+        }
+      );
+    });
+
+    it('Visitor sees a safe error before checking an invalid reset email', async () => {
+      const user = userEvent.setup();
+      renderResetPasswordForm({ initialEmail: '' });
+
+      await user.type(screen.getByLabelText('Email'), 'reset@mit');
+      await user.type(screen.getByLabelText('Reset code'), '123456');
+      await user.click(screen.getByRole('button', { name: 'Continue' }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Enter a valid email address with a domain'
+      );
+      expect(
+        authClientMock.emailOtp.checkVerificationOtp
+      ).not.toHaveBeenCalled();
+    });
   });
 
-  it('visitor leaves before the initial reset-code cooldown ends', () => {
-    vi.useFakeTimers();
-    const { unmount } = renderResetPasswordForm({ initialResendLocked: true });
+  describe('Resend cooldown', () => {
+    it('Visitor waits through the initial reset-code cooldown', async () => {
+      vi.useFakeTimers();
+      renderResetPasswordForm({ initialResendLocked: true });
 
-    unmount();
-
-    expect(
-      screen.queryByRole('button', {
+      const resendButton = screen.getByRole('button', {
         name: 'You can request a new code in 30 seconds',
-      })
-    ).not.toBeInTheDocument();
-  });
+      });
 
-  it('visitor waits before requesting another reset code after resending', async () => {
-    vi.useFakeTimers();
-    renderResetPasswordForm();
+      expect(resendButton).toBeDisabled();
+      expect(
+        authClientMock.emailOtp.requestPasswordReset
+      ).not.toHaveBeenCalled();
 
-    act(() => {
-      fireEvent.click(screen.getByRole('button', { name: 'Resend email' }));
-    });
-    await act(async () => {
-      await Promise.resolve();
-    });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(30_000);
+      });
 
-    expect(authClientMock.emailOtp.requestPasswordReset).toHaveBeenCalledWith({
-      email: 'reset@mit.edu',
-    });
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'We sent a new reset code.'
-    );
-    expect(
-      screen.getByRole('button', {
-        name: 'You can request a new code in 30 seconds',
-      })
-    ).toBeDisabled();
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(30_000);
+      expect(
+        screen.getByRole('button', { name: 'Resend email' })
+      ).toBeEnabled();
     });
 
-    expect(screen.getByRole('button', { name: 'Resend email' })).toBeEnabled();
-  });
+    it('Visitor leaves before the initial reset-code cooldown ends', () => {
+      vi.useFakeTimers();
+      const { unmount } = renderResetPasswordForm({
+        initialResendLocked: true,
+      });
 
-  it('visitor sees reset resend message when delivery is blocked', async () => {
-    const user = userEvent.setup();
-    authClientMock.emailOtp.requestPasswordReset.mockResolvedValue({
-      error: { code: 'TOO_MANY_REQUESTS' },
+      unmount();
+
+      expect(
+        screen.queryByRole('button', {
+          name: 'You can request a new code in 30 seconds',
+        })
+      ).not.toBeInTheDocument();
     });
-    renderResetPasswordForm();
 
-    await user.click(screen.getByRole('button', { name: 'Resend email' }));
+    it('Visitor waits before requesting another reset code after resending', async () => {
+      vi.useFakeTimers();
+      renderResetPasswordForm();
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Too many requests.'
-    );
-  });
+      act(() => {
+        fireEvent.click(screen.getByRole('button', { name: 'Resend email' }));
+      });
+      await act(async () => {
+        await Promise.resolve();
+      });
 
-  it('visitor sees reset resend message when delivery fails', async () => {
-    const user = userEvent.setup();
-    authClientMock.emailOtp.requestPasswordReset.mockRejectedValue(
-      new Error('network')
-    );
-    renderResetPasswordForm();
+      expect(authClientMock.emailOtp.requestPasswordReset).toHaveBeenCalledWith(
+        {
+          email: 'reset@mit.edu',
+        }
+      );
+      expect(screen.getByRole('status')).toHaveTextContent(
+        'We sent a new reset code.'
+      );
+      expect(
+        screen.getByRole('button', {
+          name: 'You can request a new code in 30 seconds',
+        })
+      ).toBeDisabled();
 
-    await user.click(screen.getByRole('button', { name: 'Resend email' }));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(30_000);
+      });
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'We could not send a reset code right now.'
-    );
-  });
-
-  it('visitor sees a safe error before resending without an email', async () => {
-    const user = userEvent.setup();
-    renderResetPasswordForm({ initialEmail: '' });
-
-    await user.click(screen.getByRole('button', { name: 'Resend email' }));
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Enter a valid email address with a domain'
-    );
-    expect(authClientMock.emailOtp.requestPasswordReset).not.toHaveBeenCalled();
-  });
-
-  it('visitor resets password and signs in to the callback', async () => {
-    renderResetPasswordForm();
-
-    const user = await continueWithResetCode();
-    await user.type(
-      await screen.findByLabelText('New password', { exact: true }),
-      'new-password'
-    );
-    await user.type(
-      screen.getByLabelText('Confirm new password'),
-      'new-password'
-    );
-    await user.click(screen.getByRole('button', { name: 'Update password' }));
-
-    expect(authClientMock.emailOtp.resetPassword).toHaveBeenCalledWith({
-      email: 'reset@mit.edu',
-      otp: '123456',
-      password: 'new-password',
+      expect(
+        screen.getByRole('button', { name: 'Resend email' })
+      ).toBeEnabled();
     });
-    expect(authClientMock.signIn.email).toHaveBeenCalledWith({
-      callbackURL: '/fleet/',
-      email: 'reset@mit.edu',
-      password: 'new-password',
+
+    it('Visitor sees reset resend message when delivery is blocked', async () => {
+      const user = userEvent.setup();
+      authClientMock.emailOtp.requestPasswordReset.mockResolvedValue({
+        error: { code: 'TOO_MANY_REQUESTS' },
+      });
+      renderResetPasswordForm();
+
+      await user.click(screen.getByRole('button', { name: 'Resend email' }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Too many requests.'
+      );
     });
-    expect(componentTestRouter().push).toHaveBeenCalledWith('/fleet/');
-  });
 
-  it('visitor keeps a valid reset code after password mismatch', async () => {
-    renderResetPasswordForm();
+    it('Visitor sees reset resend message when delivery fails', async () => {
+      const user = userEvent.setup();
+      authClientMock.emailOtp.requestPasswordReset.mockRejectedValue(
+        new Error('network')
+      );
+      renderResetPasswordForm();
 
-    const user = await continueWithResetCode();
-    await user.type(
-      await screen.findByLabelText('New password', { exact: true }),
-      'new-password'
-    );
-    await user.type(
-      screen.getByLabelText('Confirm new password'),
-      'different-password'
-    );
-    await user.click(screen.getByRole('button', { name: 'Update password' }));
+      await user.click(screen.getByRole('button', { name: 'Resend email' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Passwords do not match.'
-    );
-    expect(screen.queryByLabelText('Reset code')).not.toBeInTheDocument();
-    expect(authClientMock.emailOtp.resetPassword).not.toHaveBeenCalled();
-  });
-
-  it('visitor returns to code entry when a reset code expires during password update', async () => {
-    authClientMock.emailOtp.resetPassword.mockResolvedValue({
-      error: { code: 'OTP_EXPIRED' },
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'We could not send a reset code right now.'
+      );
     });
-    renderResetPasswordForm();
 
-    await continueWithResetCode();
-    await fillNewPassword({ password: 'new-password' });
+    it('Visitor sees a safe error before resending without an email', async () => {
+      const user = userEvent.setup();
+      renderResetPasswordForm({ initialEmail: '' });
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'That code expired. Request a new reset code.'
-    );
-    expect(screen.getByLabelText('Reset code')).toHaveValue('');
-  });
+      await user.click(screen.getByRole('button', { name: 'Resend email' }));
 
-  it('visitor returns to code entry when a reset code is invalid during password update', async () => {
-    authClientMock.emailOtp.resetPassword.mockResolvedValue({
-      error: { code: 'INVALID_OTP' },
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Enter a valid email address with a domain'
+      );
+      expect(
+        authClientMock.emailOtp.requestPasswordReset
+      ).not.toHaveBeenCalled();
     });
-    renderResetPasswordForm();
-
-    await continueWithResetCode();
-    await fillNewPassword({ password: 'new-password' });
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'That code is invalid.'
-    );
-    expect(screen.getByLabelText('Reset code')).toHaveValue('123456');
   });
 
-  it('visitor returns to code entry after too many reset attempts', async () => {
-    authClientMock.emailOtp.resetPassword.mockResolvedValue({
-      error: { code: 'TOO_MANY_ATTEMPTS' },
+  describe('Password update', () => {
+    it('Visitor resets password and signs in to the callback', async () => {
+      renderResetPasswordForm();
+
+      const user = await continueWithResetCode();
+      await user.type(
+        await screen.findByLabelText('New password', { exact: true }),
+        'new-password'
+      );
+      await user.type(
+        screen.getByLabelText('Confirm new password'),
+        'new-password'
+      );
+      await user.click(screen.getByRole('button', { name: 'Update password' }));
+
+      expect(authClientMock.emailOtp.resetPassword).toHaveBeenCalledWith({
+        email: 'reset@mit.edu',
+        otp: '123456',
+        password: 'new-password',
+      });
+      expect(authClientMock.signIn.email).toHaveBeenCalledWith({
+        callbackURL: '/fleet/',
+        email: 'reset@mit.edu',
+        password: 'new-password',
+      });
+      expect(componentTestRouter().push).toHaveBeenCalledWith('/fleet/');
     });
-    renderResetPasswordForm();
 
-    await continueWithResetCode();
-    await fillNewPassword({ password: 'new-password' });
+    it('Visitor keeps a valid reset code after password mismatch', async () => {
+      renderResetPasswordForm();
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Too many code attempts.'
-    );
-    expect(screen.getByLabelText('Reset code')).toBeVisible();
-  });
+      const user = await continueWithResetCode();
+      await user.type(
+        await screen.findByLabelText('New password', { exact: true }),
+        'new-password'
+      );
+      await user.type(
+        screen.getByLabelText('Confirm new password'),
+        'different-password'
+      );
+      await user.click(screen.getByRole('button', { name: 'Update password' }));
 
-  it('visitor sees breached-password message during password update', async () => {
-    authClientMock.emailOtp.resetPassword.mockResolvedValue({
-      error: { code: 'PASSWORD_COMPROMISED' },
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Passwords do not match.'
+      );
+      expect(screen.queryByLabelText('Reset code')).not.toBeInTheDocument();
+      expect(authClientMock.emailOtp.resetPassword).not.toHaveBeenCalled();
     });
-    renderResetPasswordForm();
 
-    await continueWithResetCode();
-    await fillNewPassword({ password: 'new-password' });
+    it('Visitor returns to code entry when a reset code expires during password update', async () => {
+      authClientMock.emailOtp.resetPassword.mockResolvedValue({
+        error: { code: 'OTP_EXPIRED' },
+      });
+      renderResetPasswordForm();
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'That password has appeared in a known data breach.'
-    );
-    expect(screen.queryByLabelText('Reset code')).not.toBeInTheDocument();
-  });
+      await continueWithResetCode();
+      await fillNewPassword({ password: 'new-password' });
 
-  it('visitor sees short-password message during password update', async () => {
-    authClientMock.emailOtp.resetPassword.mockResolvedValue({
-      error: { code: 'PASSWORD_TOO_SHORT' },
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'That code expired. Request a new reset code.'
+      );
+      expect(screen.getByLabelText('Reset code')).toHaveValue('');
     });
-    renderResetPasswordForm();
 
-    await continueWithResetCode();
-    await fillNewPassword({ password: 'new-password' });
+    it('Visitor returns to code entry when a reset code is invalid during password update', async () => {
+      authClientMock.emailOtp.resetPassword.mockResolvedValue({
+        error: { code: 'INVALID_OTP' },
+      });
+      renderResetPasswordForm();
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Use at least 8 characters.'
-    );
-  });
+      await continueWithResetCode();
+      await fillNewPassword({ password: 'new-password' });
 
-  it('visitor sees long-password message during password update', async () => {
-    authClientMock.emailOtp.resetPassword.mockResolvedValue({
-      error: { code: 'PASSWORD_TOO_LONG' },
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'That code is invalid.'
+      );
+      expect(screen.getByLabelText('Reset code')).toHaveValue('123456');
     });
-    renderResetPasswordForm();
 
-    await continueWithResetCode();
-    await fillNewPassword({ password: 'new-password' });
+    it('Visitor returns to code entry after too many reset attempts', async () => {
+      authClientMock.emailOtp.resetPassword.mockResolvedValue({
+        error: { code: 'TOO_MANY_ATTEMPTS' },
+      });
+      renderResetPasswordForm();
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Use 128 characters or fewer.'
-    );
-  });
+      await continueWithResetCode();
+      await fillNewPassword({ password: 'new-password' });
 
-  it('visitor sees provider message during password update', async () => {
-    authClientMock.emailOtp.resetPassword.mockResolvedValue({
-      error: { message: 'Password cannot include your email.' },
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Too many code attempts.'
+      );
+      expect(screen.getByLabelText('Reset code')).toBeVisible();
     });
-    renderResetPasswordForm();
 
-    await continueWithResetCode();
-    await fillNewPassword({ password: 'new-password' });
+    it('Visitor sees breached-password message during password update', async () => {
+      authClientMock.emailOtp.resetPassword.mockResolvedValue({
+        error: { code: 'PASSWORD_COMPROMISED' },
+      });
+      renderResetPasswordForm();
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Password cannot include your email.'
-    );
-  });
+      await continueWithResetCode();
+      await fillNewPassword({ password: 'new-password' });
 
-  it('visitor sees request error when password update fails', async () => {
-    authClientMock.emailOtp.resetPassword.mockRejectedValue(
-      new Error('network')
-    );
-    renderResetPasswordForm();
-
-    await continueWithResetCode();
-    await fillNewPassword({ password: 'new-password' });
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'We could not complete that request right now.'
-    );
-    expect(componentTestRouter().push).not.toHaveBeenCalled();
-  });
-
-  it('visitor sees sign-in message when automatic sign-in fails after reset', async () => {
-    authClientMock.signIn.email.mockResolvedValue({
-      error: { code: 'INVALID_EMAIL_OR_PASSWORD' },
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'That password has appeared in a known data breach.'
+      );
+      expect(screen.queryByLabelText('Reset code')).not.toBeInTheDocument();
     });
-    renderResetPasswordForm();
 
-    await continueWithResetCode();
-    await fillNewPassword({ password: 'new-password' });
+    it('Visitor sees short-password message during password update', async () => {
+      authClientMock.emailOtp.resetPassword.mockResolvedValue({
+        error: { code: 'PASSWORD_TOO_SHORT' },
+      });
+      renderResetPasswordForm();
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Check your password.'
-    );
-    expect(componentTestRouter().push).not.toHaveBeenCalled();
+      await continueWithResetCode();
+      await fillNewPassword({ password: 'new-password' });
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Use at least 8 characters.'
+      );
+    });
+
+    it('Visitor sees long-password message during password update', async () => {
+      authClientMock.emailOtp.resetPassword.mockResolvedValue({
+        error: { code: 'PASSWORD_TOO_LONG' },
+      });
+      renderResetPasswordForm();
+
+      await continueWithResetCode();
+      await fillNewPassword({ password: 'new-password' });
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Use 128 characters or fewer.'
+      );
+    });
+
+    it('Visitor sees provider message during password update', async () => {
+      authClientMock.emailOtp.resetPassword.mockResolvedValue({
+        error: { message: 'Password cannot include your email.' },
+      });
+      renderResetPasswordForm();
+
+      await continueWithResetCode();
+      await fillNewPassword({ password: 'new-password' });
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Password cannot include your email.'
+      );
+    });
+
+    it('Visitor sees request error when password update fails', async () => {
+      authClientMock.emailOtp.resetPassword.mockRejectedValue(
+        new Error('network')
+      );
+      renderResetPasswordForm();
+
+      await continueWithResetCode();
+      await fillNewPassword({ password: 'new-password' });
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'We could not complete that request right now.'
+      );
+      expect(componentTestRouter().push).not.toHaveBeenCalled();
+    });
+
+    it('Visitor sees sign-in message when automatic sign-in fails after reset', async () => {
+      authClientMock.signIn.email.mockResolvedValue({
+        error: { code: 'INVALID_EMAIL_OR_PASSWORD' },
+      });
+      renderResetPasswordForm();
+
+      await continueWithResetCode();
+      await fillNewPassword({ password: 'new-password' });
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Check your password.'
+      );
+      expect(componentTestRouter().push).not.toHaveBeenCalled();
+    });
   });
 });

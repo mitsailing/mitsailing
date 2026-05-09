@@ -98,20 +98,37 @@ async function createVerifiedUser(page: Page, email: string, password: string) {
   await expect.poll(() => new URL(page.url()).pathname).toBe('/');
 }
 
+async function expectSignInCallback(page: Page, callbackUrl: string) {
+  await expect.poll(() => new URL(page.url()).pathname).toMatch(/\/login\/?$/);
+  await expect
+    .poll(() => new URL(page.url()).searchParams.get('callbackUrl'))
+    .toBe(callbackUrl);
+}
+
 test.describe('Admin hub and users', () => {
-  test('visitor redirects from catalog admin resources to sign-in', async ({
+  test('Visitor redirects from catalog admin resources to sign-in', async ({
     page,
   }) => {
     await page.goto('/admin/donation_funds/');
-    await expect(page).toHaveURL(/\/login/);
+    await expectSignInCallback(page, '/admin/donation_funds/');
+
+    await signInAsAdmin(page, {
+      expectedPath: '/admin/donation_funds',
+      preserveCurrentPage: true,
+    });
   });
 
-  test('visitor redirects from admin home to sign-in', async ({ page }) => {
+  test('Visitor redirects from admin home to sign-in', async ({ page }) => {
     await page.goto('/admin');
-    await expect(page).toHaveURL(/\/login/);
+    await expectSignInCallback(page, '/admin');
+
+    await signInAsAdmin(page, {
+      expectedPath: '/admin',
+      preserveCurrentPage: true,
+    });
   });
 
-  test('admin sees the admin index at /admin', async ({ page }) => {
+  test('Admin sees the admin index at /admin', async ({ page }) => {
     await signInAsAdmin(page);
     await page.goto('/admin');
     await expect(
@@ -122,7 +139,7 @@ test.describe('Admin hub and users', () => {
     ).toBeVisible();
   });
 
-  test('admin sees users, Add user, and impersonation controls', async ({
+  test('Admin sees users, Add user, and impersonation controls', async ({
     page,
   }) => {
     await signInAsAdmin(page);
@@ -140,7 +157,7 @@ test.describe('Admin hub and users', () => {
     await expect(page.getByRole('heading', { name: 'New user' })).toBeVisible();
   });
 
-  test('admin sees Admin header link on a public page after sign-in', async ({
+  test('Admin sees Admin header link on a public page after sign-in', async ({
     page,
   }) => {
     await signInAsAdmin(page);
@@ -150,7 +167,7 @@ test.describe('Admin hub and users', () => {
     await expect(adminLink).toHaveAttribute('href', /\/admin\/?$/);
   });
 
-  test('admin revokes and restores a banned sailor sign-in', async ({
+  test('Admin revokes and restores a banned sailor sign-in', async ({
     page,
   }) => {
     const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
@@ -181,9 +198,7 @@ test.describe('Admin hub and users', () => {
       await page.context().clearCookies();
       await page.context().addCookies(signedInUserCookies);
       await page.goto('/profile/account');
-      await expect
-        .poll(() => new URL(page.url()).pathname)
-        .toMatch(/\/login\/?$/);
+      await expectSignInCallback(page, '/profile/account');
 
       await page.context().clearCookies();
       await page.goto('/login');
@@ -245,7 +260,7 @@ test.describe('Admin hub and users', () => {
     }
   });
 
-  test('sailor and impersonating admin are blocked from admin pages', async ({
+  test('Sailor and impersonating admin are blocked from admin pages', async ({
     page,
   }) => {
     const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;

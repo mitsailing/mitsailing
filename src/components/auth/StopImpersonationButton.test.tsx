@@ -20,7 +20,7 @@ beforeEach(() => {
 });
 
 describe('StopImpersonationButton', () => {
-  it('impersonating admin exits back to admin users', async () => {
+  it('Impersonating admin exits back to admin users', async () => {
     const user = userEvent.setup();
 
     render(<StopImpersonationButton label="Exit impersonation" locale="en" />);

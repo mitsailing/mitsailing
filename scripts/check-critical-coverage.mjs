@@ -234,6 +234,21 @@ function coverageFailuresForFiles(summary, projectPaths) {
 }
 
 /**
+ * @param {string[]} projectPaths - Gated project-relative paths.
+ * @param {CoverageExemption[]} exemptions - Documented exemptions.
+ * @returns {string[]} Gated paths after applying documented exemptions.
+ */
+function withoutCoverageExemptions(projectPaths, exemptions) {
+  const exempted = new Set(
+    exemptions.map((exemption) => path.normalize(exemption.path))
+  );
+
+  return projectPaths.filter(
+    (projectPath) => !exempted.has(path.normalize(projectPath))
+  );
+}
+
+/**
  * @param {string} projectPath - Project-relative source path.
  * @returns {boolean} True when the file belongs to the auth-owned surface.
  */
@@ -363,15 +378,16 @@ function formatAggregate(aggregate) {
 
 /**
  * @param {CoverageExemption[]} exemptions - Exemptions to print.
+ * @param {(message: string) => void} write - Output function.
  */
-function printExemptions(exemptions) {
+function printExemptions(exemptions, write = console.error) {
   if (exemptions.length === 0) {
-    console.error('- none');
+    write('- none');
     return;
   }
 
   for (const exemption of exemptions) {
-    console.error(
+    write(
       `- ${exemption.path}: ${exemption.reason}; proof: ${exemption.e2eProof.join(', ')}`
     );
   }
@@ -401,18 +417,27 @@ if (!isCoverageSummary(coverageSummary)) {
   );
 }
 
+const gatedAuthCoverageFiles = withoutCoverageExemptions(
+  authCoverageFiles,
+  authCoverageExcludedFiles
+);
+const gatedAdditionalCriticalCoverageFiles = withoutCoverageExemptions(
+  additionalCriticalCoverageFiles,
+  additionalCriticalExcludedFiles
+);
+
 const authFailures = coverageFailuresForFiles(
   coverageSummary,
-  authCoverageFiles
+  gatedAuthCoverageFiles
 );
 const additionalFailures = coverageFailuresForFiles(
   coverageSummary,
-  additionalCriticalCoverageFiles
+  gatedAdditionalCriticalCoverageFiles
 );
 const ungatedAuthCoverageFiles = ungatedAuthFiles(coverageSummary);
 
 console.log(
-  `Auth coverage files checked: ${authCoverageFiles.length} at >=${minimumPct}% statements, lines, functions, and branches.`
+  `Auth coverage files checked: ${gatedAuthCoverageFiles.length} at >=${minimumPct}% statements, lines, functions, and branches.`
 );
 
 console.log('Folder aggregates for src/app/[locale]/(auth):');
@@ -461,9 +486,10 @@ if (
 }
 
 console.log('Auth files below threshold: none');
-console.log('Auth files intentionally exempted: none');
+console.log('Auth files intentionally exempted:');
+printExemptions(authCoverageExcludedFiles, console.log);
 console.log(
-  `Additional critical coverage files checked: ${additionalCriticalCoverageFiles.length} at >=${minimumPct}% statements, lines, functions, and branches.`
+  `Additional critical coverage files checked: ${gatedAdditionalCriticalCoverageFiles.length} at >=${minimumPct}% statements, lines, functions, and branches.`
 );
 if (additionalCriticalExcludedFiles.length > 0) {
   console.log(

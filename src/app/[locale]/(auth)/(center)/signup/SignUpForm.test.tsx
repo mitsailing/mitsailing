@@ -207,4 +207,21 @@ describe('SignUpForm', () => {
       'Invite is required.'
     );
   });
+
+  it('visitor sees fallback message from an empty sign-up error', async () => {
+    authClientMock.signUp.email.mockResolvedValue({
+      error: {},
+    });
+    render(<SignUpForm callbackUrl="/fleet/" />);
+
+    const user = await fillSignUpForm({
+      email: 'member@mit.edu',
+      password: 'correct-password',
+    });
+    await user.click(screen.getByRole('button', { name: 'Sign up' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Something went wrong.'
+    );
+  });
 });

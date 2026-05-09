@@ -166,10 +166,8 @@ export const auth = betterAuth({
                 userId: sessionUser.id,
                 newEmail: email,
               });
-            } catch (error) {
-              const message =
-                error instanceof Error ? error.message : String(error);
-              logger.error(`Failed to mark pending email change: ${message}`);
+            } catch {
+              logger.error('Failed to mark pending email change');
             }
             if (
               pendingEmailChanged &&
@@ -181,12 +179,8 @@ export const auth = betterAuth({
                   currentEmail: sessionUser.email,
                   newEmail: email,
                 });
-              } catch (error) {
-                const message =
-                  error instanceof Error ? error.message : String(error);
-                logger.error(
-                  `Failed to send email change requested notice: ${message}`
-                );
+              } catch {
+                logger.error('Failed to send email change requested notice');
               }
             }
           }

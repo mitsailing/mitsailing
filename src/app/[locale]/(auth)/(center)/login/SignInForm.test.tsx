@@ -250,7 +250,7 @@ describe('SignInForm', () => {
     );
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Too many attempts.'
+      'We could not complete that request right now.'
     );
   });
 
