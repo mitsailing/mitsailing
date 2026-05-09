@@ -365,5 +365,34 @@ describe('VerifyEmailForm', () => {
         screen.getByRole('button', { name: 'Resend email' })
       ).toBeEnabled();
     });
+
+    it('Unverified sailor refreshes the cooldown when the lock restarts', async () => {
+      vi.useFakeTimers();
+
+      const { rerender } = render(
+        <VerifyEmailForm callbackUrl="/fleet/" initialEmail="sailor@mit.edu" />
+      );
+
+      act(() => {
+        fireEvent.click(screen.getByRole('button', { name: 'Resend email' }));
+      });
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      rerender(
+        <VerifyEmailForm
+          callbackUrl="/fleet/"
+          initialEmail="sailor@mit.edu"
+          initialResendLocked
+        />
+      );
+
+      expect(
+        screen.getByRole('button', {
+          name: 'You can request a new code in 30 seconds',
+        })
+      ).toBeDisabled();
+    });
   });
 });
