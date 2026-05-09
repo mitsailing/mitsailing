@@ -1,3 +1,4 @@
+import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -24,24 +25,35 @@ vi.mock('next-intl/server', () => ({
 }));
 
 vi.mock('@/components/auth/ImpersonationBanner', () => ({
-  ImpersonationBanner: () => <div data-testid="impersonation-banner" />,
+  ImpersonationBanner: () =>
+    React.createElement('div', { 'data-testid': 'impersonation-banner' }),
 }));
 
 vi.mock('@/components/mit-sailing/site/WeatherConditionsBar', () => ({
-  WeatherConditionsBar: () => <div data-testid="weather-bar" />,
-  WeatherConditionsBarSkeleton: () => <div data-testid="weather-skeleton" />,
+  WeatherConditionsBar: () =>
+    React.createElement('div', { 'data-testid': 'weather-bar' }),
+  WeatherConditionsBarSkeleton: () =>
+    React.createElement('div', { 'data-testid': 'weather-skeleton' }),
 }));
 
 vi.mock('@/components/mit-sailing/SiteShellAlertsTopBar', () => ({
-  SiteShellAlertsTopBar: () => <div data-testid="alerts-top" />,
+  SiteShellAlertsTopBar: () =>
+    React.createElement('div', { 'data-testid': 'alerts-top' }),
 }));
 
 vi.mock('@/components/mit-sailing/SiteShellHeaderNav', () => ({
-  SiteShellHeaderNav: () => <div data-testid="header-nav" />,
+  SiteShellHeaderNav: () =>
+    React.createElement('div', { 'data-testid': 'header-nav' }),
 }));
 
 vi.mock('@/components/mit-sailing/site/SiteFooter', () => ({
-  SiteFooter: () => <footer data-testid="site-footer" />,
+  SiteFooter: () =>
+    React.createElement('footer', { 'data-testid': 'site-footer' }),
+}));
+
+vi.mock('@/components/mit-sailing/site/SiteHeader', () => ({
+  SiteHeader: () =>
+    React.createElement('header', { 'data-testid': 'site-header' }),
 }));
 
 describe('SiteShell', () => {
@@ -55,7 +67,11 @@ describe('SiteShell', () => {
     const { SiteShell } = await import('./SiteShell');
 
     const tree = await SiteShell({
-      children: <span data-testid="page-body">Page</span>,
+      children: React.createElement(
+        'span',
+        { 'data-testid': 'page-body' },
+        'Page'
+      ),
     });
     const html = renderToStaticMarkup(tree);
 

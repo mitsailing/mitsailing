@@ -83,12 +83,9 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
 
   useEffect(() => {
     if (props.initialResendLocked) {
-      setResendLocked(true);
-      resendTimeoutRef.current = window.setTimeout(() => {
-        setResendLocked(false);
-        resendTimeoutRef.current = null;
-      }, 30_000);
+      lockResend();
     }
+
     return () => {
       if (resendTimeoutRef.current !== null) {
         clearTimeout(resendTimeoutRef.current);
@@ -162,10 +159,6 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
     setStatus(null);
     const normalizedEmail = normalizeMarketingEmail(email);
     setEmail(normalizedEmail);
-    if (!isValidMarketingEmail(normalizedEmail)) {
-      setError(t('error_invalid_email'));
-      return;
-    }
     if (password !== passwordConfirmation) {
       setError(t('error_password_mismatch'));
       return;

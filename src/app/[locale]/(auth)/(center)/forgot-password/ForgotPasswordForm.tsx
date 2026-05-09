@@ -42,14 +42,9 @@ export function ForgotPasswordForm(props: ForgotPasswordFormProps) {
     }
     setSubmitting(true);
     try {
-      const res = await authClient.emailOtp.requestPasswordReset({
+      await authClient.emailOtp.requestPasswordReset({
         email: normalizedEmail,
       });
-      if (res.error) {
-        setEmailError(t('error_request_failed'));
-        setSubmitting(false);
-        return;
-      }
       router.replace(
         authHrefWithCallback(
           `/reset-password?email=${encodeURIComponent(

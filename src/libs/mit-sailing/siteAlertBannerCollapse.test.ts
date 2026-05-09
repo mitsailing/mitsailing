@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildSiteAlertBannerCollapseAlerts,
   parseStoredSiteAlertBannerCollapse,
   serializeSiteAlertBannerCollapse,
   siteAlertBannerStartsCollapsed,
@@ -108,7 +109,9 @@ describe('parseStoredSiteAlertBannerCollapse', () => {
   });
 
   it('ignores invalid storage values', () => {
+    expect(parseStoredSiteAlertBannerCollapse(null)).toBeNull();
     expect(parseStoredSiteAlertBannerCollapse('{')).toBeNull();
+    expect(parseStoredSiteAlertBannerCollapse('0')).toBeNull();
     expect(
       parseStoredSiteAlertBannerCollapse('{"collapsed":false}')
     ).toBeNull();
@@ -125,8 +128,31 @@ describe('parseStoredSiteAlertBannerCollapse', () => {
   it('ignores stored payloads when an alert entry is malformed', () => {
     expect(
       parseStoredSiteAlertBannerCollapse(
-        '{"collapsed":true,"alerts":[{"id":"a","contentFingerprint":"x"},{}]}'
+        '{"collapsed":true,"alerts":[{"id":"a","contentFingerprint":"x"},0]}'
       )
     ).toBeNull();
+  });
+});
+
+describe('buildSiteAlertBannerCollapseAlerts', () => {
+  it('builds fingerprints from stable alert fields', () => {
+    expect(
+      buildSiteAlertBannerCollapseAlerts([
+        {
+          bodyPlainText: 'Launch delayed',
+          dateIso: '2026-05-08',
+          dateLabel: 'May 8',
+          id: 'alert-1',
+        },
+      ])
+    ).toEqual([
+      {
+        id: 'alert-1',
+        contentFingerprint: JSON.stringify({
+          bodyPlainText: 'Launch delayed',
+          dateIso: '2026-05-08',
+        }),
+      },
+    ]);
   });
 });

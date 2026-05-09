@@ -52,7 +52,7 @@ describe('ForgotPasswordForm', () => {
     expect(authClientMock.emailOtp.requestPasswordReset).not.toHaveBeenCalled();
   });
 
-  it('Visitor sees recovery message when reset delivery fails', async () => {
+  it('Visitor continues when reset delivery returns an opaque error', async () => {
     const user = userEvent.setup();
     authClientMock.emailOtp.requestPasswordReset.mockResolvedValue({
       error: { code: 'TOO_MANY_REQUESTS' },
@@ -64,9 +64,15 @@ describe('ForgotPasswordForm', () => {
 
     await user.click(screen.getByRole('button', { name: 'Send reset code' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'We could not send a reset code right now.'
-    );
+    expect(authClientMock.emailOtp.requestPasswordReset).toHaveBeenCalledWith({
+      email: 'reset@mit.edu',
+    });
+    await waitFor(() => {
+      expect(componentTestRouter().replace).toHaveBeenCalledWith(
+        '/reset-password?email=reset%40mit.edu&codeSent=1&callbackUrl=%2Ffleet%2F'
+      );
+    });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('Visitor sees recovery message when reset delivery rejects', async () => {
@@ -101,7 +107,16 @@ describe('ForgotPasswordForm', () => {
     });
     await waitFor(() => {
       expect(componentTestRouter().replace).toHaveBeenCalledWith(
-        '/reset-password?email=reset%40mit.edu&codeSent=1'
+        expect.stringContaining('/reset-password')
+      );
+      expect(componentTestRouter().replace).toHaveBeenCalledWith(
+        expect.stringContaining('email=reset%40mit.edu')
+      );
+      expect(componentTestRouter().replace).toHaveBeenCalledWith(
+        expect.stringContaining('codeSent=1')
+      );
+      expect(componentTestRouter().replace).not.toHaveBeenCalledWith(
+        expect.stringContaining('callbackUrl=')
       );
     });
   });

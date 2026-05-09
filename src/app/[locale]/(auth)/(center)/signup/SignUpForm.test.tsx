@@ -243,4 +243,22 @@ describe('SignUpForm', () => {
     expect(screen.getByRole('button', { name: 'Sign up' })).not.toBeDisabled();
     expect(componentTestRouter().push).not.toHaveBeenCalled();
   });
+
+  it('visitor sees thrown provider message when sign-up rejects', async () => {
+    authClientMock.signUp.email.mockRejectedValueOnce(
+      new Error('Invite is closed.')
+    );
+    render(<SignUpForm callbackUrl="/fleet/" />);
+
+    const user = await fillSignUpForm({
+      email: 'member@mit.edu',
+      password: 'correct-password',
+    });
+    await user.click(screen.getByRole('button', { name: 'Sign up' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Invite is closed.'
+    );
+    expect(componentTestRouter().push).not.toHaveBeenCalled();
+  });
 });

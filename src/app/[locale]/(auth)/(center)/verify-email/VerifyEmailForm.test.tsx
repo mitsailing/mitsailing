@@ -163,6 +163,28 @@ describe('VerifyEmailForm', () => {
       warnSpy.mockRestore();
     });
 
+    it('Unverified sailor sees invalid-code message for empty verification errors', async () => {
+      const user = userEvent.setup();
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      authClientMock.emailOtp.verifyEmail.mockResolvedValue({
+        error: {},
+      });
+
+      render(
+        <VerifyEmailForm callbackUrl="/fleet/" initialEmail="sailor@mit.edu" />
+      );
+
+      await user.type(screen.getByLabelText('Verification code'), '111111');
+      await user.click(screen.getByRole('button', { name: 'Continue' }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'That code is invalid.'
+      );
+      expect(warnSpy).not.toHaveBeenCalled();
+      warnSpy.mockRestore();
+    });
+
     it('Unverified sailor sees request message when verification fails', async () => {
       const user = userEvent.setup();
       authClientMock.emailOtp.verifyEmail.mockRejectedValue(

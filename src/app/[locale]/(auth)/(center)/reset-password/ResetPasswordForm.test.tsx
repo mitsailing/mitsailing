@@ -273,6 +273,50 @@ describe('ResetPasswordForm', () => {
       ).toBeEnabled();
     });
 
+    it('Visitor keeps the latest reset resend cooldown', async () => {
+      vi.useFakeTimers();
+      const clearTimeoutSpy = vi.spyOn(window, 'clearTimeout');
+      const firstResend = Promise.withResolvers<object>();
+      const secondResend = Promise.withResolvers<object>();
+      authClientMock.emailOtp.requestPasswordReset
+        .mockImplementationOnce(async () => {
+          const value = await firstResend.promise;
+          return value;
+        })
+        .mockImplementationOnce(async () => {
+          const value = await secondResend.promise;
+          return value;
+        });
+      renderResetPasswordForm();
+
+      const resendButton = screen.getByRole('button', { name: 'Resend email' });
+      act(() => {
+        fireEvent.click(resendButton);
+        fireEvent.click(resendButton);
+      });
+
+      expect(
+        authClientMock.emailOtp.requestPasswordReset
+      ).toHaveBeenCalledTimes(2);
+
+      await act(async () => {
+        firstResend.resolve({});
+        await Promise.resolve();
+      });
+      await act(async () => {
+        secondResend.resolve({});
+        await Promise.resolve();
+      });
+
+      expect(clearTimeoutSpy).toHaveBeenCalled();
+      expect(
+        screen.getByRole('button', {
+          name: 'You can request a new code in 30 seconds',
+        })
+      ).toBeDisabled();
+      clearTimeoutSpy.mockRestore();
+    });
+
     it('Visitor sees reset resend message when delivery is blocked', async () => {
       const user = userEvent.setup();
       authClientMock.emailOtp.requestPasswordReset.mockResolvedValue({
