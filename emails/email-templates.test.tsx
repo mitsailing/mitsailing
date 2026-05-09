@@ -55,6 +55,22 @@ describe('email templates', () => {
     expect(html).toContain('mailto:support@example.com');
   });
 
+  it('renders every sign-in OTP code token', async () => {
+    const html = await render(
+      <SignInOtpEmailTemplate
+        code="111222"
+        copy={{
+          ...enMessages.AuthEmails,
+          sign_in_otp_body: 'Use {code}, then enter {code}.',
+        }}
+        supportEmail="support@example.com"
+      />
+    );
+
+    expect(html).toContain('Use 111222, then enter 111222.');
+    expect(html).not.toContain('{code}');
+  });
+
   it('renders sign-in OTP fallback support copy', async () => {
     const html = await render(
       <SignInOtpEmailTemplate

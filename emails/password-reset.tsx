@@ -1,9 +1,11 @@
 import { Heading, Section, Text } from 'react-email';
+import enMessages from '@/locales/en.json';
 import { EmailLayout } from './email-layout';
 import {
   codeBox,
   heading,
   paragraph,
+  replaceAuthEmailValues,
   section,
   supportFooter,
 } from './email-styles';
@@ -11,6 +13,8 @@ import {
 export type PasswordResetEmailProps = {
   code: string;
 };
+
+const copy = enMessages.AuthEmails;
 
 /**
  * Password reset request with a short-lived numeric code.
@@ -20,21 +24,18 @@ export type PasswordResetEmailProps = {
  */
 export function PasswordResetEmailTemplate(props: PasswordResetEmailProps) {
   return (
-    <EmailLayout previewText="Reset your password">
+    <EmailLayout previewText={copy.reset_password_subject}>
       <Section style={section}>
         <Heading as="h1" style={heading}>
-          Reset your password
+          {copy.reset_password_subject}
         </Heading>
         <Text style={paragraph}>
-          We received a request to reset your password. Your MIT Sailing
-          password reset code is {props.code}. Enter it on the reset screen to
-          choose a new password.
+          {replaceAuthEmailValues(copy.reset_password_body, {
+            code: props.code,
+          })}
         </Text>
         <Text style={codeBox}>{props.code}</Text>
-        <Text style={supportFooter}>
-          This code expires in 5 minutes. If you did not request this, you can
-          ignore this email.
-        </Text>
+        <Text style={supportFooter}>{copy.reset_password_expiry}</Text>
       </Section>
     </EmailLayout>
   );

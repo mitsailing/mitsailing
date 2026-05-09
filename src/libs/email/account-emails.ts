@@ -4,38 +4,61 @@ import { prisma } from '@/libs/DB';
 import { sendTransactionalEmail } from '@/libs/email/sendTransactional';
 import { Env } from '@/libs/Env';
 import enMessages from '@/locales/en.json';
+import { AppConfig } from '@/utils/AppConfig';
 import { getBaseUrl } from '@/utils/Helpers';
 import { AccountUnlockEmailTemplate } from '../../../emails/account-unlock';
 import { ConfirmEmailChangeTemplate } from '../../../emails/confirm-email-change';
 import { DeleteAccountEmailTemplate } from '../../../emails/delete-account';
 import { EmailChangeRequestedNoticeTemplate } from '../../../emails/email-change-requested';
+import { replaceAuthEmailValues } from '../../../emails/email-styles';
 import { PasswordChangedNoticeTemplate } from '../../../emails/password-changed';
 import { PasswordResetEmailTemplate } from '../../../emails/password-reset';
 import { SignInOtpEmailTemplate } from '../../../emails/sign-in-otp';
 import { VerifyEmailTemplate } from '../../../emails/verify-email';
 
-const subjects = enMessages.AuthEmails;
-
 /** Support mailbox surfaced in transactional copy (env-configurable). */
 const { SUPPORT_EMAIL } = Env;
 
+type AuthEmailMessages = typeof enMessages.AuthEmails;
+
+const authEmailMessagesByLocale: Record<string, AuthEmailMessages> = {
+  en: enMessages.AuthEmails,
+};
+
+function getAuthEmailMessages(
+  locale: string = AppConfig.i18n.defaultLocale
+): AuthEmailMessages {
+  return (
+    authEmailMessagesByLocale[locale] ??
+    authEmailMessagesByLocale[AppConfig.i18n.defaultLocale] ??
+    enMessages.AuthEmails
+  );
+}
+
 function verificationCodeText(params: {
   code: string;
+  copy: AuthEmailMessages;
   purpose: 'verify-email' | 'reset-password' | 'change-email' | 'sign-in';
 }): string {
   if (params.purpose === 'reset-password') {
-    return `Your MIT Sailing password reset code is ${params.code}.\n\nThis code expires in 5 minutes.`;
+    return replaceAuthEmailValues(params.copy.reset_password_text, {
+      code: params.code,
+    });
   }
 
   if (params.purpose === 'change-email') {
-    return `Your MIT Sailing email change confirmation code is ${params.code}.\n\nThis code expires in 5 minutes.`;
+    return replaceAuthEmailValues(params.copy.change_email_text, {
+      code: params.code,
+    });
   }
 
   if (params.purpose === 'sign-in') {
-    return `Your MIT Sailing sign-in code is ${params.code}.\n\nThis code expires in 5 minutes.`;
+    return replaceAuthEmailValues(params.copy.sign_in_otp_text, {
+      code: params.code,
+    });
   }
 
-  return `Your MIT Sailing verification code is ${params.code}.\n\nThis code expires in 5 minutes.`;
+  return replaceAuthEmailValues(params.copy.verify_text, { code: params.code });
 }
 
 /**
@@ -48,9 +71,12 @@ function verificationCodeText(params: {
  */
 export async function sendEmailOtpCode(params: {
   email: string;
+  locale?: string;
   otp: string;
   type: 'email-verification' | 'forget-password' | 'change-email' | 'sign-in';
 }) {
+  const copy = getAuthEmailMessages(params.locale);
+
   switch (params.type) {
     case 'forget-password': {
       const html = await render(
@@ -58,10 +84,11 @@ export async function sendEmailOtpCode(params: {
       );
       await sendTransactionalEmail({
         to: params.email,
-        subject: subjects.reset_password_subject,
+        subject: copy.reset_password_subject,
         html,
         text: verificationCodeText({
           code: params.otp,
+          copy,
           purpose: 'reset-password',
         }),
       });
@@ -76,10 +103,11 @@ export async function sendEmailOtpCode(params: {
       );
       await sendTransactionalEmail({
         to: params.email,
-        subject: subjects.change_email_subject,
+        subject: copy.change_email_subject,
         html,
         text: verificationCodeText({
           code: params.otp,
+          copy,
           purpose: 'change-email',
         }),
       });
@@ -89,15 +117,19 @@ export async function sendEmailOtpCode(params: {
       const html = await render(
         SignInOtpEmailTemplate({
           code: params.otp,
-          copy: subjects,
+          copy,
           supportEmail: SUPPORT_EMAIL,
         })
       );
       await sendTransactionalEmail({
         to: params.email,
-        subject: subjects.sign_in_otp_subject,
+        subject: copy.sign_in_otp_subject,
         html,
-        text: verificationCodeText({ code: params.otp, purpose: 'sign-in' }),
+        text: verificationCodeText({
+          code: params.otp,
+          copy,
+          purpose: 'sign-in',
+        }),
       });
       return;
     }
@@ -107,10 +139,11 @@ export async function sendEmailOtpCode(params: {
       );
       await sendTransactionalEmail({
         to: params.email,
-        subject: subjects.verify_subject,
+        subject: copy.verify_subject,
         html,
         text: verificationCodeText({
           code: params.otp,
+          copy,
           purpose: 'verify-email',
         }),
       });
@@ -160,19 +193,20 @@ export async function sendEmailChangeRequestedNotice(params: {
   currentEmail: string;
   newEmail: string;
 }) {
+  const copy = getAuthEmailMessages();
   const html = await render(
     EmailChangeRequestedNoticeTemplate({
       newEmail: params.newEmail,
       supportEmail: SUPPORT_EMAIL,
-      previewText: subjects.change_email_notice_preview,
-      heading: subjects.change_email_notice_subject,
-      bodyMessage: subjects.change_email_notice_body,
-      contactMessage: subjects.change_email_notice_contact,
+      previewText: copy.change_email_notice_preview,
+      heading: copy.change_email_notice_subject,
+      bodyMessage: copy.change_email_notice_body,
+      contactMessage: copy.change_email_notice_contact,
     })
   );
   await sendTransactionalEmail({
     to: params.currentEmail,
-    subject: subjects.change_email_notice_subject,
+    subject: copy.change_email_notice_subject,
     html,
   });
 }
@@ -186,10 +220,11 @@ export async function sendDeleteAccountVerificationEmail(
   email: string,
   url: string
 ) {
+  const copy = getAuthEmailMessages();
   const html = await render(DeleteAccountEmailTemplate({ confirmUrl: url }));
   await sendTransactionalEmail({
     to: email,
-    subject: subjects.delete_account_subject,
+    subject: copy.delete_account_subject,
     html,
   });
 }
@@ -204,6 +239,7 @@ export async function sendDeleteAccountVerificationEmail(
  * @param email - Recipient address tied to the locked account.
  */
 export async function sendAccountLockedEmail(email: string) {
+  const copy = getAuthEmailMessages();
   const token = await createUnlockAccountToken(email);
   const unlockUrl = `${getBaseUrl()}/api/unlock-account?token=${encodeURIComponent(token)}`;
   const html = await render(
@@ -211,7 +247,7 @@ export async function sendAccountLockedEmail(email: string) {
   );
   await sendTransactionalEmail({
     to: email,
-    subject: subjects.account_locked_subject,
+    subject: copy.account_locked_subject,
     html,
   });
 }
@@ -224,12 +260,13 @@ export async function sendAccountLockedEmail(email: string) {
  * @param email - Recipient (current login email).
  */
 export async function sendPasswordChangedNotice(email: string) {
+  const copy = getAuthEmailMessages();
   const html = await render(
     PasswordChangedNoticeTemplate({ supportEmail: SUPPORT_EMAIL })
   );
   await sendTransactionalEmail({
     to: email,
-    subject: subjects.password_changed_subject,
+    subject: copy.password_changed_subject,
     html,
   });
 }

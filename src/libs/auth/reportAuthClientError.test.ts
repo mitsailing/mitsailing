@@ -7,7 +7,7 @@ vi.mock('@sentry/nextjs', () => ({
 }));
 
 describe('reportUnknownAuthClientError', () => {
-  it('captures unknown auth client error context', () => {
+  it('redacts provider auth client error messages', () => {
     reportUnknownAuthClientError({
       action: 'sign_up',
       code: 'PROVIDER_DOWN',
@@ -25,10 +25,30 @@ describe('reportUnknownAuthClientError', () => {
         contexts: {
           authClientError: {
             code: 'PROVIDER_DOWN',
-            message: 'Provider failed',
+            message: '[redacted]',
           },
         },
       }
+    );
+  });
+
+  it('keeps mapped auth client error messages', () => {
+    reportUnknownAuthClientError({
+      action: 'sign_up',
+      code: 'PASSWORD_CHECK_FAILED',
+      message: 'Password check failed',
+    });
+
+    expect(Sentry.captureMessage).toHaveBeenCalledWith(
+      'Unknown auth client error',
+      expect.objectContaining({
+        contexts: {
+          authClientError: {
+            code: 'PASSWORD_CHECK_FAILED',
+            message: 'Password check failed',
+          },
+        },
+      })
     );
   });
 
@@ -36,7 +56,7 @@ describe('reportUnknownAuthClientError', () => {
     reportUnknownAuthClientError({
       action: 'reset_password',
       code: undefined,
-      message: undefined,
+      message: 'Provider failed',
     });
 
     expect(Sentry.captureMessage).toHaveBeenCalledWith(
@@ -45,6 +65,32 @@ describe('reportUnknownAuthClientError', () => {
         tags: expect.objectContaining({
           authErrorCode: 'missing',
         }),
+        contexts: {
+          authClientError: {
+            code: undefined,
+            message: '[redacted]',
+          },
+        },
+      })
+    );
+  });
+
+  it('redacts unknown auth client error messages', () => {
+    reportUnknownAuthClientError({
+      action: 'reset_password',
+      code: 'unknown',
+      message: 'Provider failed',
+    });
+
+    expect(Sentry.captureMessage).toHaveBeenCalledWith(
+      'Unknown auth client error',
+      expect.objectContaining({
+        contexts: {
+          authClientError: {
+            code: 'unknown',
+            message: '[redacted]',
+          },
+        },
       })
     );
   });

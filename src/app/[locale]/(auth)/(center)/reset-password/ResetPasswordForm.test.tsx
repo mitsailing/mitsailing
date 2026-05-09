@@ -173,7 +173,7 @@ describe('ResetPasswordForm', () => {
           contexts: {
             authClientError: {
               code: undefined,
-              message: 'Reset code was already used.',
+              message: '[redacted]',
             },
           },
         })
@@ -364,7 +364,7 @@ describe('ResetPasswordForm', () => {
       await user.click(screen.getByRole('button', { name: 'Resend email' }));
 
       expect(await screen.findByRole('alert')).toHaveTextContent(
-        'Too many requests.'
+        'Too many requests. Try again in a few minutes.'
       );
     });
 

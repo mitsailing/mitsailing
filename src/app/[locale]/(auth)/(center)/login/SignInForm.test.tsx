@@ -339,7 +339,8 @@ describe('SignInForm', () => {
 
   it('Visitor cannot start two inline reset requests at once', async () => {
     const user = userEvent.setup();
-    const pendingReset = Promise.race<never>([]);
+    // eslint-disable-next-line promise/avoid-new -- pending promise keeps the first reset request in flight
+    const pendingReset = new Promise<never>(() => {});
     authClientMock.emailOtp.requestPasswordReset.mockReturnValue(pendingReset);
 
     render(<SignInForm callbackUrl="/fleet/" />);
