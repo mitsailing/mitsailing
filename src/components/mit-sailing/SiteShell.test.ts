@@ -63,39 +63,45 @@ describe('SiteShell', () => {
     adminHeaderLinkVisibleFromSession.mockReturnValue(false);
   });
 
-  it('renders chrome markup with main content scope', async () => {
-    const { SiteShell } = await import('./SiteShell');
+  describe('when there is no session', () => {
+    it('renders chrome markup with main content scope', async () => {
+      const { SiteShell } = await import('./SiteShell');
 
-    const tree = await SiteShell({
-      children: React.createElement(
-        'span',
-        { 'data-testid': 'page-body' },
-        'Page'
-      ),
+      const tree = await SiteShell({
+        children: React.createElement(
+          'span',
+          { 'data-testid': 'page-body' },
+          'Page'
+        ),
+      });
+      const html = renderToStaticMarkup(tree);
+
+      expect(html).toContain('id="site-shell-inert-scope"');
+      expect(html).toContain('data-testid="page-body"');
+      expect(html).toContain('data-testid="site-footer"');
     });
-    const html = renderToStaticMarkup(tree);
-
-    expect(html).toContain('id="site-shell-inert-scope"');
-    expect(html).toContain('data-testid="page-body"');
-    expect(html).toContain('data-testid="site-footer"');
   });
 
-  it('passes session-derived flags into header nav props', async () => {
-    getSession.mockResolvedValue({
-      session: { impersonatedBy: undefined },
-      user: { id: 'user-1', role: 'admin' },
+  describe('when a session exists', () => {
+    beforeEach(() => {
+      getSession.mockResolvedValue({
+        session: { impersonatedBy: undefined },
+        user: { id: 'user-1', role: 'admin' },
+      });
+      adminHeaderLinkVisibleFromSession.mockReturnValue(true);
     });
-    adminHeaderLinkVisibleFromSession.mockReturnValue(true);
 
-    const { SiteShell } = await import('./SiteShell');
+    it('passes session-derived flags into header nav props', async () => {
+      const { SiteShell } = await import('./SiteShell');
 
-    const tree = await SiteShell({ children: null });
-    renderToStaticMarkup(tree);
+      const tree = await SiteShell({ children: null });
+      renderToStaticMarkup(tree);
 
-    expect(adminHeaderLinkVisibleFromSession).toHaveBeenCalledWith({
-      impersonatedBy: undefined,
-      userId: 'user-1',
-      userRole: 'admin',
+      expect(adminHeaderLinkVisibleFromSession).toHaveBeenCalledWith({
+        impersonatedBy: undefined,
+        userId: 'user-1',
+        userRole: 'admin',
+      });
     });
   });
 });

@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { MockInstance } from 'vitest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { componentTestRouter } from '@/test/component';
 import { VerifyEmailForm } from './VerifyEmailForm';
@@ -15,6 +16,8 @@ vi.mock('@/libs/auth-client', () => ({
   authClient: authClientMock,
 }));
 
+let warnSpy: MockInstance<typeof console.warn> | undefined;
+
 beforeEach(() => {
   vi.clearAllMocks();
   authClientMock.emailOtp.sendVerificationOtp.mockResolvedValue({});
@@ -22,6 +25,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  warnSpy?.mockRestore();
+  warnSpy = undefined;
   vi.useRealTimers();
 });
 
@@ -140,7 +145,7 @@ describe('VerifyEmailForm', () => {
 
     it('Unverified sailor sees invalid-code message for unmapped verification errors', async () => {
       const user = userEvent.setup();
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
       authClientMock.emailOtp.verifyEmail.mockResolvedValue({
         error: { message: 'Code was already used.' },
@@ -160,12 +165,11 @@ describe('VerifyEmailForm', () => {
         '[VerifyEmailForm] Unmapped OTP error',
         expect.objectContaining({ message: 'Code was already used.' })
       );
-      warnSpy.mockRestore();
     });
 
     it('Unverified sailor sees invalid-code message for empty verification errors', async () => {
       const user = userEvent.setup();
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
       authClientMock.emailOtp.verifyEmail.mockResolvedValue({
         error: {},
@@ -182,7 +186,6 @@ describe('VerifyEmailForm', () => {
         'That code is invalid.'
       );
       expect(warnSpy).not.toHaveBeenCalled();
-      warnSpy.mockRestore();
     });
 
     it('Unverified sailor sees request message when verification fails', async () => {
