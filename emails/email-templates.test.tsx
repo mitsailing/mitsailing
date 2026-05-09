@@ -1,5 +1,6 @@
 import { render } from 'react-email';
 import { describe, expect, it } from 'vitest';
+import enMessages from '@/locales/en.json';
 import { AccountUnlockEmailTemplate } from './account-unlock';
 import { ConfirmEmailChangeTemplate } from './confirm-email-change';
 import { DeleteAccountEmailTemplate } from './delete-account';
@@ -77,14 +78,21 @@ describe('email templates', () => {
   });
 
   it('renders email change requested notice for the current address', async () => {
+    const authEmails = enMessages.AuthEmails;
     const html = await render(
       <EmailChangeRequestedNoticeTemplate
         newEmail="next@example.com"
         supportEmail="support@example.com"
+        previewText={authEmails.change_email_notice_preview}
+        heading={authEmails.change_email_notice_subject}
+        bodyLead={authEmails.change_email_notice_body_lead}
+        bodyTail={authEmails.change_email_notice_body_tail}
+        contactBefore={authEmails.change_email_notice_contact_before}
+        contactAfter={authEmails.change_email_notice_contact_after}
       />
     );
 
-    expect(html).toContain('Email change requested');
+    expect(html).toContain(authEmails.change_email_notice_subject);
     expect(html).toContain('next@example.com');
     expect(html).toContain('will not take effect');
     expect(html).toContain('mailto:support@example.com');

@@ -10,7 +10,10 @@ import { authInlineLinkClassName } from '@/lib/mit-sailing/tokens';
 import { authClient } from '@/libs/auth-client';
 import { authHrefWithCallback } from '@/libs/auth/callbackUrl';
 import { Link as I18nLink } from '@/libs/I18nNavigation';
-import { isValidMarketingEmail } from '@/utils/emailValidation';
+import {
+  isValidMarketingEmail,
+  normalizeMarketingEmail,
+} from '@/utils/emailValidation';
 
 type ErrorState = {
   message: string;
@@ -66,7 +69,9 @@ export function SignUpForm(props: SignUpFormProps) {
       });
       return;
     }
-    if (!isValidMarketingEmail(email)) {
+    const normalizedEmail = normalizeMarketingEmail(email);
+    setEmail(normalizedEmail);
+    if (!isValidMarketingEmail(normalizedEmail)) {
       setError({
         message: t('error_invalid_email'),
         showSignInLinks: false,
@@ -74,11 +79,11 @@ export function SignUpForm(props: SignUpFormProps) {
       return;
     }
     setSubmitting(true);
-    const displayName =
-      name.trim() === '' ? email.slice(0, email.indexOf('@')) : name;
+    const localPart = normalizedEmail.split('@')[0] ?? normalizedEmail;
+    const displayName = name.trim() === '' ? localPart : name;
     try {
       const res = await authClient.signUp.email({
-        email,
+        email: normalizedEmail,
         password,
         name: displayName,
         callbackURL: props.callbackUrl,
@@ -90,7 +95,7 @@ export function SignUpForm(props: SignUpFormProps) {
       setSubmitted(true);
       router.push(
         authHrefWithCallback(
-          `/verify-email?email=${encodeURIComponent(email)}&codeSent=1`,
+          `/verify-email?email=${encodeURIComponent(normalizedEmail)}&codeSent=1`,
           props.callbackUrl
         )
       );

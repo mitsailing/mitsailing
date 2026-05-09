@@ -21,35 +21,49 @@ const paragraph: React.CSSProperties = {
   margin: '0 0 20px',
 };
 
+export type EmailChangeRequestedNoticeTemplateProps = {
+  newEmail: string;
+  supportEmail: string;
+  previewText: string;
+  heading: string;
+  bodyLead: string;
+  bodyTail: string;
+  contactBefore: string;
+  contactAfter: string;
+};
+
 /**
  * Security notice sent to the current login email when a change is requested.
  *
  * @param props - Template props.
  * @param props.newEmail - Proposed replacement login email.
  * @param props.supportEmail - Mailbox to surface if the change was not theirs.
+ * @param props.previewText - Localized inbox preview line.
+ * @param props.heading - Localized title.
+ * @param props.bodyLead - Localized sentence start before the proposed email.
+ * @param props.bodyTail - Localized sentence after the proposed email.
+ * @param props.contactBefore - Localized text before the support mailto link.
+ * @param props.contactAfter - Localized text after the support mailto link.
  * @returns Complete email element tree.
  */
-export function EmailChangeRequestedNoticeTemplate(props: {
-  newEmail: string;
-  supportEmail: string;
-}) {
+export function EmailChangeRequestedNoticeTemplate(
+  props: EmailChangeRequestedNoticeTemplateProps
+) {
   return (
-    <EmailLayout previewText="A change to your login email was requested.">
+    <EmailLayout previewText={props.previewText}>
       <Section style={section}>
         <Heading as="h1" style={heading}>
-          Email change requested
+          {props.heading}
         </Heading>
         <Text style={paragraph}>
-          A request was made to change your login email to{' '}
-          <strong>{props.newEmail}</strong>. The change will not take effect
-          until that address is confirmed with its code.
+          {props.bodyLead} <strong>{props.newEmail}</strong>. {props.bodyTail}
         </Text>
         <Text style={paragraph}>
-          If you did not request this, contact{' '}
+          {props.contactBefore}{' '}
           <Link href={`mailto:${props.supportEmail}`} style={supportLink}>
             {props.supportEmail}
           </Link>{' '}
-          right away.
+          {props.contactAfter}
         </Text>
       </Section>
     </EmailLayout>

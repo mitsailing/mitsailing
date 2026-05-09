@@ -22,9 +22,8 @@ vi.mock('next/navigation', () => ({
 vi.mock('next-intl', () => ({
   hasLocale: (locales: readonly string[], locale: string): boolean =>
     Boolean(layoutMocks.hasLocale(locales, locale)),
-  NextIntlClientProvider: (props: { children: React.ReactNode }) => (
-    <div data-testid="intl">{props.children}</div>
-  ),
+  NextIntlClientProvider: (props: { children: React.ReactNode }) =>
+    React.createElement('div', { 'data-testid': 'intl' }, props.children),
 }));
 
 vi.mock('next-intl/server', () => ({
@@ -40,9 +39,8 @@ vi.mock('@/libs/Env', () => ({
 }));
 
 vi.mock('@/components/shell/AppThemeProvider', () => ({
-  AppThemeProvider: (props: { children: React.ReactNode }) => (
-    <div data-testid="theme">{props.children}</div>
-  ),
+  AppThemeProvider: (props: { children: React.ReactNode }) =>
+    React.createElement('div', { 'data-testid': 'theme' }, props.children),
 }));
 
 vi.mock('@/components/shell/SentryUserSync', () => ({
@@ -77,7 +75,7 @@ describe('RootLayout', () => {
 
     await expect(
       RootLayout({
-        children: <span>child</span>,
+        children: React.createElement('span', null, 'child'),
         params: Promise.resolve({ locale: 'xx' }),
       })
     ).rejects.toThrow('not_found');
@@ -89,7 +87,11 @@ describe('RootLayout', () => {
     const { default: RootLayout } = await import('./layout');
 
     const tree = await RootLayout({
-      children: <span data-testid="child">inner</span>,
+      children: React.createElement(
+        'span',
+        { 'data-testid': 'child' },
+        'inner'
+      ),
       params: Promise.resolve({ locale: 'en' }),
     });
 
@@ -105,7 +107,7 @@ describe('RootLayout', () => {
     const { default: RootLayout } = await import('./layout');
 
     const tree = await RootLayout({
-      children: <span>child</span>,
+      children: React.createElement('span', null, 'child'),
       params: Promise.resolve({ locale: 'en' }),
     });
 

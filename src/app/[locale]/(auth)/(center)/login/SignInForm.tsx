@@ -67,6 +67,9 @@ export function SignInForm(props: SignInFormProps) {
     if (mapped?.kind === 'generic') {
       return mapped.message;
     }
+    if (mapped?.kind === 'unverified' || code === 'EMAIL_NOT_VERIFIED') {
+      return t('error_credentials');
+    }
     return message ?? t('error_credentials');
   }
 
@@ -155,14 +158,11 @@ export function SignInForm(props: SignInFormProps) {
     setEmail(normalizedEmail);
     setRequestingReset(true);
     try {
-      const res = await authClient.emailOtp.requestPasswordReset({
+      // Match forgot-password: never branch UX on `res.error` for this request,
+      // so client-visible outcomes cannot correlate with account existence.
+      await authClient.emailOtp.requestPasswordReset({
         email: normalizedEmail,
       });
-      if (res.error) {
-        setError({ kind: 'generic', message: t('error_reset_failed') });
-        setRequestingReset(false);
-        return;
-      }
 
       router.push(
         authHrefWithCallback(

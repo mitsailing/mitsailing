@@ -294,6 +294,33 @@ describe('SignInForm', () => {
     );
   });
 
+  it('unverified sailor does not see backend text when resend returns EMAIL_NOT_VERIFIED', async () => {
+    const user = userEvent.setup();
+    authClientMock.signIn.email.mockResolvedValue({
+      error: { code: 'EMAIL_NOT_VERIFIED' },
+    });
+    authClientMock.emailOtp.sendVerificationOtp.mockResolvedValue({
+      error: {
+        code: 'EMAIL_NOT_VERIFIED',
+        message: 'DO_NOT_SHOW_RAW_BACKEND_COPY',
+      },
+    });
+
+    render(<SignInForm callbackUrl="/fleet/" />);
+
+    await user.type(screen.getByLabelText('Email'), 'new-sailor@mit.edu');
+    await user.type(screen.getByLabelText('Password'), 'correct-password');
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+    await user.click(
+      await screen.findByRole('button', { name: 'Send verification code' })
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Invalid email or password.'
+    );
+    expect(screen.queryByText(/DO_NOT_SHOW_RAW_BACKEND_COPY/)).toBeNull();
+  });
+
   it('visitor requests a password reset from the entered email', async () => {
     const user = userEvent.setup();
 
@@ -350,7 +377,7 @@ describe('SignInForm', () => {
     expect(componentTestRouter().push).not.toHaveBeenCalled();
   });
 
-  it('visitor sees reset message when inline reset delivery is blocked', async () => {
+  it('visitor continues when inline reset returns an opaque error', async () => {
     const user = userEvent.setup();
     authClientMock.emailOtp.requestPasswordReset.mockResolvedValue({
       error: { code: 'TOO_MANY_REQUESTS' },
@@ -361,9 +388,13 @@ describe('SignInForm', () => {
     await user.type(screen.getByLabelText('Email'), 'reset@mit.edu');
     await user.click(screen.getByRole('link', { name: 'Forgot password?' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'We could not send a reset code right now.'
+    expect(authClientMock.emailOtp.requestPasswordReset).toHaveBeenCalledWith({
+      email: 'reset@mit.edu',
+    });
+    expect(componentTestRouter().push).toHaveBeenCalledWith(
+      '/reset-password?email=reset%40mit.edu&codeSent=1&callbackUrl=%2Ffleet%2F'
     );
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('visitor sees reset message when inline reset delivery fails', async () => {

@@ -163,6 +163,12 @@ export async function sendEmailChangeRequestedNotice(params: {
     EmailChangeRequestedNoticeTemplate({
       newEmail: params.newEmail,
       supportEmail: SUPPORT_EMAIL,
+      previewText: subjects.change_email_notice_preview,
+      heading: subjects.change_email_notice_subject,
+      bodyLead: subjects.change_email_notice_body_lead,
+      bodyTail: subjects.change_email_notice_body_tail,
+      contactBefore: subjects.change_email_notice_contact_before,
+      contactAfter: subjects.change_email_notice_contact_after,
     })
   );
   await sendTransactionalEmail({
