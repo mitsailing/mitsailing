@@ -2,6 +2,7 @@
 
 import { Menu, X } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
 import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { SignOutForm } from '@/components/auth/SignOutForm';
@@ -10,6 +11,10 @@ import { useRouteHash } from '@/hooks/useRouteHash';
 import { isNavLinkActive } from '@/lib/mit-sailing/navPathMatch';
 import { authClient } from '@/libs/auth-client';
 import { adminHeaderLinkVisibleFromClientSessionData } from '@/libs/auth/adminHeaderLink';
+import {
+  authHrefWithCallback,
+  safeAuthCallbackUrl,
+} from '@/libs/auth/callbackUrl';
 import { Link, usePathname } from '@/libs/I18nNavigation';
 import type { NavigationDropdownItem } from './NavigationDropdown';
 import { NavigationDropdown } from './NavigationDropdown';
@@ -116,6 +121,7 @@ export function SiteHeader(props: SiteHeaderProps) {
   const tAccount = useTranslations('AccountLayout');
   const locale = useLocale();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const routeHash = useRouteHash();
   const sessionState = authClient.useSession();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -158,6 +164,12 @@ export function SiteHeader(props: SiteHeaderProps) {
     }
     return item;
   });
+  const search = searchParams?.toString() ?? '';
+  const authCallbackUrl = safeAuthCallbackUrl(
+    search ? `${pathname}?${search}` : pathname
+  );
+  const loginHref = authHrefWithCallback('/login/', authCallbackUrl);
+  const signupHref = authHrefWithCallback('/signup/', authCallbackUrl);
 
   function closeMobile() {
     setMobileMenuOpen(false);
@@ -181,7 +193,7 @@ export function SiteHeader(props: SiteHeaderProps) {
 
     const listKey =
       variant === 'mobile'
-        ? `${item.labelKey}-${disclosureEpoch ?? 0}`
+        ? `${item.labelKey}-${String(disclosureEpoch ?? 0)}`
         : item.labelKey;
 
     if (item.href && item.items !== undefined) {
@@ -345,14 +357,14 @@ export function SiteHeader(props: SiteHeaderProps) {
             <>
               <Link
                 className={mobileGuestLoginClass}
-                href="/login/"
+                href={loginHref}
                 onClick={closeMobile}
               >
                 {t('auth_log_in')}
               </Link>
               <Link
                 className={mobileGuestSignupClass}
-                href="/signup/"
+                href={signupHref}
                 onClick={closeMobile}
               >
                 {t('auth_create_account')}
@@ -480,10 +492,10 @@ export function SiteHeader(props: SiteHeaderProps) {
           ) : null}
           {!showAuthPending && !displayAuthenticated ? (
             <>
-              <Link className={desktopGuestLoginClass} href="/login/">
+              <Link className={desktopGuestLoginClass} href={loginHref}>
                 {t('auth_log_in')}
               </Link>
-              <Link className={desktopGuestSignupClass} href="/signup/">
+              <Link className={desktopGuestSignupClass} href={signupHref}>
                 {t('auth_create_account')}
               </Link>
             </>

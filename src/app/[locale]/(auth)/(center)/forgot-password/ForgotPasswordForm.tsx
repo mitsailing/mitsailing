@@ -1,49 +1,60 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { authClient } from '@/libs/auth-client';
-import { isValidMarketingEmail } from '@/utils/emailValidation';
+import { authHrefWithCallback } from '@/libs/auth/callbackUrl';
+import {
+  isValidMarketingEmail,
+  normalizeMarketingEmail,
+} from '@/utils/emailValidation';
 
 type ForgotPasswordFormProps = {
-  resetRedirectUrl: string;
+  callbackUrl: string;
+  initialEmail: string;
 };
 
-// Client-side password-reset request form. Always renders the same "sent"
-// banner on 2xx so the endpoint stays non-enumerating even though the
-// sign-up flow exposes existence explicitly elsewhere.
+// Client-side password-reset request form. Mirrors the server's non-enumerating
+// semantics: unknown addresses still succeed at the HTTP layer; we never
+// branch UX on response `error`, which could correlate with existence if the
+// plugin or transports ever diverged per email.
 export function ForgotPasswordForm(props: ForgotPasswordFormProps) {
   const t = useTranslations('ForgotPasswordPage');
-  const [email, setEmail] = useState('');
-  const [submitted, setSubmitted] = useState(false);
+  const router = useRouter();
+  const [email, setEmail] = useState(
+    normalizeMarketingEmail(props.initialEmail)
+  );
   const [submitting, setSubmitting] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
 
   async function onSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setEmailError(null);
-    if (!isValidMarketingEmail(email)) {
+    const normalizedEmail = normalizeMarketingEmail(email);
+    setEmail(normalizedEmail);
+    if (!isValidMarketingEmail(normalizedEmail)) {
       setEmailError(t('error_invalid_email'));
       return;
     }
     setSubmitting(true);
-    await authClient.requestPasswordReset({
-      email,
-      redirectTo: props.resetRedirectUrl,
-    });
-    setSubmitting(false);
-    setSubmitted(true);
-  }
-
-  if (submitted) {
-    return (
-      <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-800">
-        {t('sent_banner')}
-      </p>
+    const resetHref = authHrefWithCallback(
+      `/reset-password?email=${encodeURIComponent(normalizedEmail)}&codeSent=1`,
+      props.callbackUrl
     );
+    try {
+      await authClient.emailOtp.requestPasswordReset({
+        email: normalizedEmail,
+      });
+    } catch {
+      // Keep the same client-visible result for known and unknown addresses.
+    } finally {
+      router.replace(resetHref);
+      setSubmitting(false);
+    }
   }
 
   return (

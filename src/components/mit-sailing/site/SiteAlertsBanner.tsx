@@ -10,6 +10,7 @@ import {
   SITE_ALERT_BANNER_COLLAPSE_STORAGE_KEY,
   siteAlertBannerStartsCollapsed,
 } from '@/libs/mit-sailing/siteAlertBannerCollapse';
+import type { SiteAlertBannerCollapseAlert } from '@/libs/mit-sailing/siteAlertBannerCollapse';
 import type { SiteAlertBannerRow } from '@/libs/mit-sailing/siteAlertTypes';
 
 const SITE_ALERT_BANNER_PRIMARY_LINK_CLASS =
@@ -17,14 +18,14 @@ const SITE_ALERT_BANNER_PRIMARY_LINK_CLASS =
 
 /**
  * Site strip listing active banner alerts (collapsible).
- * Minimize state persists only while the active alert fingerprint is unchanged.
+ * Minimize state persists until a new or edited active alert appears.
  * Uses {@link https://www.w3.org/WAI/ARIA/apg/patterns/disclosure-pattern/ | disclosure semantics} (`aria-expanded`, `aria-controls`).
  *
  * @param props - Banner rows already filtered for the visibility window
  * @returns Banner markup or `null` when there are no rows
  */
 export function SiteAlertsBanner(props: {
-  alertsFingerprint: string;
+  collapseAlerts: SiteAlertBannerCollapseAlert[];
   rows: SiteAlertBannerRow[];
 }) {
   const t = useTranslations('MitSailingSite');
@@ -34,6 +35,9 @@ export function SiteAlertsBanner(props: {
   const [collapsed, setCollapsed] = useState(false);
 
   const total = props.rows.length;
+  const alertsFingerprint = serializeSiteAlertBannerCollapse(
+    props.collapseAlerts
+  );
 
   function toggleCollapsed() {
     setCollapsed((current) => {
@@ -42,7 +46,7 @@ export function SiteAlertsBanner(props: {
         if (next) {
           window.localStorage.setItem(
             SITE_ALERT_BANNER_COLLAPSE_STORAGE_KEY,
-            serializeSiteAlertBannerCollapse(props.alertsFingerprint)
+            alertsFingerprint
           );
         } else {
           window.localStorage.removeItem(
@@ -58,19 +62,19 @@ export function SiteAlertsBanner(props: {
 
   useEffect(() => {
     try {
-      const storedFingerprint = parseStoredSiteAlertBannerCollapse(
+      const storedAlerts = parseStoredSiteAlertBannerCollapse(
         window.localStorage.getItem(SITE_ALERT_BANNER_COLLAPSE_STORAGE_KEY)
       );
       setCollapsed(
         siteAlertBannerStartsCollapsed({
-          currentFingerprint: props.alertsFingerprint,
-          storedFingerprint,
+          currentAlerts: props.collapseAlerts,
+          storedAlerts,
         })
       );
     } catch {
       setCollapsed(false);
     }
-  }, [props.alertsFingerprint]);
+  }, [alertsFingerprint, props.collapseAlerts]);
 
   if (total === 0) {
     return null;

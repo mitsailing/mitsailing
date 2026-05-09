@@ -20,7 +20,7 @@ test.describe('Site alerts', () => {
     await expect(article.getByText('Tue, Dec 31, 2030')).toHaveCount(0);
   });
 
-  test('visitor minimize persists until active alerts change', async ({
+  test('visitor collapse persists until new or edited alerts appear', async ({
     page,
   }) => {
     await page.goto('/');
@@ -39,7 +39,15 @@ test.describe('Site alerts', () => {
     await page.evaluate(() => {
       window.localStorage.setItem(
         'mit-sailing:site-alert-banner:v1',
-        JSON.stringify({ collapsed: true, fingerprint: 'stale-alerts' })
+        JSON.stringify({
+          collapsed: true,
+          alerts: [
+            {
+              id: 'seed-site-alert-demo-through-2030',
+              contentFingerprint: 'stale-alert-content',
+            },
+          ],
+        })
       );
     });
     await page.reload();

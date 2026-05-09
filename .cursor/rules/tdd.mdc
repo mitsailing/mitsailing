@@ -8,7 +8,7 @@ alwaysApply: false
 
 **Sources:** [AGENTS.md](../../AGENTS.md) Tests; [agent-workflow.mdc](agent-workflow.mdc); E2E claims → [e2e-verification.mdc](e2e-verification.mdc). Cite paths — do not paste bodies.
 
-**Titles:** AGENTS (`it` = third-person, *verb + object + context* — not generic `it("should …")` tutorials).
+**Titles:** AGENTS + CodeRabbit (`it` = short lowercase verb phrase, *verb + object + context*, no trailing period — not generic `it("should …")` tutorials).
 
 **Red → Green → Refactor:** Small slices; **test first** when logic is unit-testable.
 

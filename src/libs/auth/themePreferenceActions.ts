@@ -1,8 +1,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { nextThemeToThemePreference } from '@/lib/mit-sailing/themePreference';
-import type { NextColorScheme } from '@/lib/mit-sailing/themePreference';
+import { colorSchemeToThemePreference } from '@/lib/mit-sailing/themePreference';
+import type { AppColorScheme } from '@/lib/mit-sailing/themePreference';
 import { getSession } from '@/libs/auth/dal';
 import { prisma } from '@/libs/DB';
 import { getI18nPath } from '@/utils/Helpers';
@@ -15,14 +15,14 @@ export type UpdateThemePreferenceResult =
  * Persists appearance (light / dark / system) for the current user.
  *
  * @param locale - Active locale for session verification
- * @param theme - next-themes value to store
+ * @param theme - App color-scheme value to store
  * @returns Success or error code
  */
 export async function updateThemePreferenceAction(
   locale: string,
-  theme: NextColorScheme
+  theme: AppColorScheme
 ): Promise<UpdateThemePreferenceResult> {
-  const allowed: NextColorScheme[] = ['system', 'light', 'dark'];
+  const allowed: AppColorScheme[] = ['system', 'light', 'dark'];
   if (!allowed.includes(theme)) {
     return { ok: false, error: 'invalid' };
   }
@@ -32,7 +32,7 @@ export async function updateThemePreferenceAction(
     return { ok: false, error: 'unauthorized' };
   }
 
-  const preference = nextThemeToThemePreference(theme);
+  const preference = colorSchemeToThemePreference(theme);
   await prisma.user.update({
     data: { themePreference: preference },
     where: { id: session.user.id },

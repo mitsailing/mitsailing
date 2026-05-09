@@ -9,26 +9,18 @@ import { Link, usePathname } from '@/libs/I18nNavigation';
 type ProfileNavItem = {
   href: string;
   labelKey: 'nav_account' | 'nav_password' | 'nav_security' | 'nav_delete';
-  match: 'exact' | 'prefix';
 };
 
 const PROFILE_NAV: ProfileNavItem[] = [
-  { href: '/profile/account/', labelKey: 'nav_account', match: 'prefix' },
-  { href: '/profile/password/', labelKey: 'nav_password', match: 'prefix' },
-  { href: '/profile/security/', labelKey: 'nav_security', match: 'prefix' },
-  { href: '/profile/delete/', labelKey: 'nav_delete', match: 'prefix' },
+  { href: '/profile/account/', labelKey: 'nav_account' },
+  { href: '/profile/password/', labelKey: 'nav_password' },
+  { href: '/profile/security/', labelKey: 'nav_security' },
+  { href: '/profile/delete/', labelKey: 'nav_delete' },
 ];
 
-function isProfileNavActive(
-  pathname: string,
-  href: string,
-  match: ProfileNavItem['match']
-): boolean {
+function isProfileNavActive(pathname: string, href: string): boolean {
   const p = normalizeNavPath(pathname);
   const h = normalizeNavPath(href);
-  if (match === 'exact') {
-    return p === h;
-  }
   return p === h || p.startsWith(`${h}/`);
 }
 
@@ -62,11 +54,7 @@ export function ProfileSideNav() {
           <li>
             <ul className="m-0 -mx-2 list-none space-y-0.5 p-0" role="list">
               {PROFILE_NAV.map((item) => {
-                const active = isProfileNavActive(
-                  pathname,
-                  item.href,
-                  item.match
-                );
+                const active = isProfileNavActive(pathname, item.href);
                 return (
                   <li key={item.href}>
                     <Link

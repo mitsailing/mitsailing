@@ -1,18 +1,18 @@
 'use client';
 
 import { useLocale, useTranslations } from 'next-intl';
-import { useTheme } from 'next-themes';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ProfileInlineBanner } from '@/components/auth/profile/profileBanner';
 import type { ProfileBannerState } from '@/components/auth/profile/profileBanner';
+import { useAppTheme } from '@/components/shell/AppThemeProvider';
 import type {
-  NextColorScheme,
+  AppColorScheme,
   ThemePreferenceValue,
 } from '@/lib/mit-sailing/themePreference';
 import {
-  nextThemeToThemePreference,
-  themePreferenceToNextTheme,
+  colorSchemeToThemePreference,
+  themePreferenceToColorScheme,
 } from '@/lib/mit-sailing/themePreference';
 import { cn } from '@/lib/utils';
 import { updateThemePreferenceAction } from '@/libs/auth/themePreferenceActions';
@@ -23,7 +23,7 @@ type ProfileAppearanceSectionProps = {
 
 type AppearanceOption = {
   labelKey: 'appearance_auto' | 'appearance_light' | 'appearance_dark';
-  value: NextColorScheme;
+  value: AppColorScheme;
 };
 
 const APPEARANCE_OPTIONS: AppearanceOption[] = [
@@ -36,28 +36,18 @@ export function ProfileAppearanceSection(props: ProfileAppearanceSectionProps) {
   const t = useTranslations('UserProfilePage');
   const locale = useLocale();
   const router = useRouter();
-  const { setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
+  const { setTheme } = useAppTheme();
   const [stored, setStored] = useState<ThemePreferenceValue>(
     props.initialPreference
   );
   const [banner, setBanner] = useState<ProfileBannerState>(null);
   const [pending, setPending] = useState(false);
 
-  /** next-themes: `useTheme` is undefined on server; avoid hydration mismatch (see next-themes README). */
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    setStored(props.initialPreference);
-  }, [props.initialPreference]);
-
-  async function onSelect(next: NextColorScheme) {
+  async function onSelect(next: AppColorScheme) {
     setBanner(null);
     const previousPref = stored;
-    const previousTheme = themePreferenceToNextTheme(previousPref);
-    const nextPref = nextThemeToThemePreference(next);
+    const previousTheme = themePreferenceToColorScheme(previousPref);
+    const nextPref = colorSchemeToThemePreference(next);
     setStored(nextPref);
     setTheme(next);
     setPending(true);
@@ -75,7 +65,7 @@ export function ProfileAppearanceSection(props: ProfileAppearanceSectionProps) {
     router.refresh();
   }
 
-  const activeScheme = themePreferenceToNextTheme(stored);
+  const activeScheme = themePreferenceToColorScheme(stored);
 
   return (
     <section
@@ -110,7 +100,7 @@ export function ProfileAppearanceSection(props: ProfileAppearanceSectionProps) {
                     ? 'border-mit-red-600 bg-mit-red-600 text-white'
                     : 'border-border bg-background text-foreground hover:bg-muted'
                 )}
-                disabled={pending || !mounted}
+                disabled={pending}
                 key={opt.value}
                 role="radio"
                 type="button"

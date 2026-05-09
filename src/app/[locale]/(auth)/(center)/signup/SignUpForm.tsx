@@ -1,14 +1,20 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { authInlineLinkClassName } from '@/lib/mit-sailing/tokens';
 import { authClient } from '@/libs/auth-client';
+import { authHrefWithCallback } from '@/libs/auth/callbackUrl';
+import { reportUnknownAuthClientError } from '@/libs/auth/reportAuthClientError';
 import { Link as I18nLink } from '@/libs/I18nNavigation';
-import { isValidMarketingEmail } from '@/utils/emailValidation';
+import {
+  isValidMarketingEmail,
+  normalizeMarketingEmail,
+} from '@/utils/emailValidation';
 
 type ErrorState = {
   message: string;
@@ -16,7 +22,7 @@ type ErrorState = {
 } | null;
 
 type SignUpFormProps = {
-  verifyCallbackUrl: string;
+  callbackUrl: string;
 };
 
 // Client-side sign-up form. Calls `authClient.signUp.email` and maps the
@@ -24,6 +30,7 @@ type SignUpFormProps = {
 // our hooks + HaveIBeenPwned plugin) to copy that keeps the Devise-style UX.
 export function SignUpForm(props: SignUpFormProps) {
   const t = useTranslations('SignUpPage');
+  const router = useRouter();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -47,8 +54,13 @@ export function SignUpForm(props: SignUpFormProps) {
     if (code === 'TOO_MANY_REQUESTS' || message === 'TOO_MANY_REQUESTS') {
       return { message: t('error_rate_limited'), showSignInLinks: false };
     }
+    reportUnknownAuthClientError({
+      action: 'signup.email',
+      code,
+      message,
+    });
     return {
-      message: message ?? t('error_generic'),
+      message: t('error_generic'),
       showSignInLinks: false,
     };
   }
@@ -63,7 +75,9 @@ export function SignUpForm(props: SignUpFormProps) {
       });
       return;
     }
-    if (!isValidMarketingEmail(email)) {
+    const normalizedEmail = normalizeMarketingEmail(email);
+    setEmail(normalizedEmail);
+    if (!isValidMarketingEmail(normalizedEmail)) {
       setError({
         message: t('error_invalid_email'),
         showSignInLinks: false,
@@ -71,30 +85,59 @@ export function SignUpForm(props: SignUpFormProps) {
       return;
     }
     setSubmitting(true);
-    const res = await authClient.signUp.email({
-      email,
-      password,
-      name: name.trim() === '' ? (email.split('@')[0] ?? '') : name,
-      callbackURL: props.verifyCallbackUrl,
-    });
-    setSubmitting(false);
-    if (res.error) {
-      setError(mapError(res.error.code, res.error.message));
-      return;
+    const localPart = normalizedEmail.split('@')[0] ?? normalizedEmail;
+    const trimmedName = name.trim();
+    const displayName = trimmedName === '' ? localPart : trimmedName;
+    let keepSubmitting = false;
+    try {
+      const res = await authClient.signUp.email({
+        email: normalizedEmail,
+        password,
+        name: displayName,
+        callbackURL: props.callbackUrl,
+      });
+      if (res.error) {
+        setError(mapError(res.error.code, res.error.message));
+        return;
+      }
+      setSubmitted(true);
+      keepSubmitting = true;
+      router.push(
+        authHrefWithCallback(
+          `/verify-email?email=${encodeURIComponent(normalizedEmail)}&codeSent=1`,
+          props.callbackUrl
+        )
+      );
+    } catch (caughtError) {
+      reportUnknownAuthClientError({
+        action: 'signup.email.thrown',
+        code: undefined,
+        message:
+          caughtError instanceof Error && caughtError.message.trim() !== ''
+            ? caughtError.message.trim()
+            : undefined,
+      });
+      setError({
+        message: t('error_generic'),
+        showSignInLinks: false,
+      });
+    } finally {
+      if (!keepSubmitting) {
+        setSubmitting(false);
+      }
     }
-    setSubmitted(true);
-  }
-
-  if (submitted) {
-    return (
-      <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-800">
-        {t('registered_banner')}
-      </p>
-    );
   }
 
   return (
     <>
+      {submitted ? (
+        <p
+          className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-800"
+          role="status"
+        >
+          {t('registered_banner')}
+        </p>
+      ) : null}
       {error ? (
         <p
           className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-800"
@@ -104,13 +147,19 @@ export function SignUpForm(props: SignUpFormProps) {
           {error.showSignInLinks ? (
             <>
               {' '}
-              <I18nLink className={authInlineLinkClassName} href="/login">
+              <I18nLink
+                className={authInlineLinkClassName}
+                href={authHrefWithCallback('/login', props.callbackUrl)}
+              >
                 {t('sign_in_link')}
               </I18nLink>
               {' · '}
               <I18nLink
                 className={authInlineLinkClassName}
-                href="/forgot-password"
+                href={authHrefWithCallback(
+                  '/forgot-password',
+                  props.callbackUrl
+                )}
               >
                 {t('forgot_password_link')}
               </I18nLink>

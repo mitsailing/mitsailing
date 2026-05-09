@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ProfileAppearanceSection } from '@/components/auth/profile/ProfileAppearanceSection';
 import { mapProfileEmailError } from '@/components/auth/profile/profileAuthErrorMaps';
 import { ProfileInlineBanner } from '@/components/auth/profile/profileBanner';
@@ -12,98 +12,198 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { ThemePreferenceValue } from '@/lib/mit-sailing/themePreference';
 import { authClient } from '@/libs/auth-client';
+import {
+  isValidMarketingEmail,
+  normalizeMarketingEmail,
+} from '@/utils/emailValidation';
 
 type ProfileAccountClientProps = {
-  emailChangeCallbackUrl: string;
   initialEmail: string;
   initialName: string | null;
   initialThemePreference: ThemePreferenceValue;
   initialUnconfirmedEmail: string | null;
-  initialVerificationBanner: 'success' | 'error' | null;
 };
 
 export function ProfileAccountClient(props: ProfileAccountClientProps) {
+  const tCommon = useTranslations('Common');
   const t = useTranslations('UserProfilePage');
   const router = useRouter();
 
-  let initialEmailBanner: ProfileBannerState = null;
-  if (props.initialVerificationBanner === 'success') {
-    initialEmailBanner = {
-      kind: 'success',
-      message: t('email_change_confirmed'),
-    };
-  } else if (props.initialVerificationBanner === 'error') {
-    initialEmailBanner = {
-      kind: 'error',
-      message: t('email_change_error_banner'),
-    };
-  }
-
-  const [emailBanner, setEmailBanner] =
-    useState<ProfileBannerState>(initialEmailBanner);
+  const [emailBanner, setEmailBanner] = useState<ProfileBannerState>(null);
+  const [emailOtpBanner, setEmailOtpBanner] =
+    useState<ProfileBannerState>(null);
   const [nameBanner, setNameBanner] = useState<ProfileBannerState>(null);
   const [resendBanner, setResendBanner] = useState<ProfileBannerState>(null);
 
   const [pendingEmail, setPendingEmail] = useState<string | null>(
     props.initialUnconfirmedEmail
   );
+  const [currentEmail, setCurrentEmail] = useState(props.initialEmail);
   const [displayName, setDisplayName] = useState(props.initialName ?? '');
   const [newEmail, setNewEmail] = useState('');
+  const [emailCode, setEmailCode] = useState('');
 
   const [changingEmail, setChangingEmail] = useState(false);
+  const [confirmingEmail, setConfirmingEmail] = useState(false);
   const [resendingEmail, setResendingEmail] = useState(false);
+  const [resendLocked, setResendLocked] = useState(false);
+  const [resendSecondsLeft, setResendSecondsLeft] = useState(30);
   const [updatingName, setUpdatingName] = useState(false);
+  const resendTimerRef = useRef<number | null>(null);
+  const resendIntervalRef = useRef<number | null>(null);
+
+  function lockEmailResend() {
+    clearTimeout(resendTimerRef.current ?? undefined);
+    clearInterval(resendIntervalRef.current ?? undefined);
+    resendTimerRef.current = null;
+    resendIntervalRef.current = null;
+    setResendLocked(true);
+    setResendSecondsLeft(30);
+    resendIntervalRef.current = window.setInterval(() => {
+      setResendSecondsLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(resendIntervalRef.current ?? undefined);
+          resendIntervalRef.current = null;
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    resendTimerRef.current = window.setTimeout(() => {
+      setResendLocked(false);
+      resendTimerRef.current = null;
+      clearInterval(resendIntervalRef.current ?? undefined);
+      resendIntervalRef.current = null;
+    }, 30_000);
+  }
+
+  useEffect(
+    () => () => {
+      clearTimeout(resendTimerRef.current ?? undefined);
+      clearInterval(resendIntervalRef.current ?? undefined);
+      resendTimerRef.current = null;
+      resendIntervalRef.current = null;
+    },
+    []
+  );
 
   async function onChangeEmail(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!newEmail || newEmail === props.initialEmail) {
+    const normalizedNewEmail = normalizeMarketingEmail(newEmail);
+    const normalizedCurrentEmail = normalizeMarketingEmail(currentEmail);
+    if (!normalizedNewEmail || !isValidMarketingEmail(normalizedNewEmail)) {
+      setEmailBanner({ kind: 'error', message: t('email_validation_error') });
+      return;
+    }
+    if (normalizedNewEmail === normalizedCurrentEmail) {
       setEmailBanner({ kind: 'error', message: t('email_same_error') });
       return;
     }
     setEmailBanner(null);
     setResendBanner(null);
     setChangingEmail(true);
-    const res = await authClient.changeEmail({
-      newEmail,
-      callbackURL: props.emailChangeCallbackUrl,
-    });
-    setChangingEmail(false);
-    if (res.error) {
+    try {
+      const res = await authClient.emailOtp.requestEmailChange({
+        newEmail: normalizedNewEmail,
+      });
+      if (res.error) {
+        setEmailBanner({
+          kind: 'error',
+          message: mapProfileEmailError(res.error.code, res.error.message, t),
+        });
+        return;
+      }
+      setEmailBanner({ kind: 'success', message: t('email_change_sent') });
+      setEmailOtpBanner(null);
+      lockEmailResend();
+      setPendingEmail(normalizedNewEmail);
+      setEmailCode('');
+      setNewEmail('');
+    } catch {
       setEmailBanner({
         kind: 'error',
-        message: mapProfileEmailError(res.error.code, res.error.message, t),
+        message: t('error_request_failed'),
       });
-      return;
+    } finally {
+      setChangingEmail(false);
     }
-    setEmailBanner({ kind: 'success', message: t('email_change_sent') });
-    setPendingEmail(newEmail);
-    setNewEmail('');
   }
 
-  async function onResendPendingEmail() {
+  async function onConfirmPendingEmail(options: {
+    event: React.SubmitEvent<HTMLFormElement>;
+    emailToConfirm: string;
+  }) {
+    options.event.preventDefault();
+    setEmailOtpBanner(null);
+    setConfirmingEmail(true);
+    try {
+      const res = await authClient.emailOtp.changeEmail({
+        newEmail: options.emailToConfirm,
+        otp: emailCode,
+      });
+      if (res.error) {
+        setEmailOtpBanner({
+          kind: 'error',
+          message: mapProfileEmailError(res.error.code, res.error.message, t),
+        });
+        return;
+      }
+      setEmailBanner({ kind: 'success', message: t('email_change_confirmed') });
+      setCurrentEmail(options.emailToConfirm);
+      setPendingEmail(null);
+      setEmailCode('');
+      router.refresh();
+    } catch {
+      setEmailOtpBanner({
+        kind: 'error',
+        message: t('error_request_failed'),
+      });
+    } finally {
+      setConfirmingEmail(false);
+    }
+  }
+
+  async function onResendPendingEmail(emailToConfirm: string) {
+    setResendBanner(null);
+    setResendingEmail(true);
+    try {
+      const res = await authClient.emailOtp.requestEmailChange({
+        newEmail: emailToConfirm,
+      });
+      if (res.error) {
+        setResendBanner({
+          kind: 'error',
+          message: t('pending_email_resend_error'),
+        });
+        return;
+      }
+      setResendBanner({
+        kind: 'success',
+        message: t.rich('pending_email_resent', {
+          email: emailToConfirm,
+          strong: (chunks) => <strong>{chunks}</strong>,
+        }),
+      });
+      lockEmailResend();
+    } catch {
+      setResendBanner({
+        kind: 'error',
+        message: t('error_request_failed'),
+      });
+    } finally {
+      setResendingEmail(false);
+    }
+  }
+
+  async function onConfirmPendingEmailSubmit(
+    event: React.SubmitEvent<HTMLFormElement>
+  ) {
     if (!pendingEmail) {
       return;
     }
-    setResendBanner(null);
-    setResendingEmail(true);
-    const res = await authClient.changeEmail({
-      newEmail: pendingEmail,
-      callbackURL: props.emailChangeCallbackUrl,
-    });
-    setResendingEmail(false);
-    if (res.error) {
-      setResendBanner({
-        kind: 'error',
-        message: t('pending_email_resend_error'),
-      });
-      return;
-    }
-    setResendBanner({
-      kind: 'success',
-      message: t.rich('pending_email_resent', {
-        email: pendingEmail,
-        strong: (chunks) => <strong>{chunks}</strong>,
-      }),
+    await onConfirmPendingEmail({
+      event,
+      emailToConfirm: pendingEmail,
     });
   }
 
@@ -116,19 +216,27 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
     }
     setNameBanner(null);
     setUpdatingName(true);
-    const res = await authClient.updateUser({
-      name: trimmed,
-    });
-    setUpdatingName(false);
-    if (res.error) {
+    try {
+      const res = await authClient.updateUser({
+        name: trimmed,
+      });
+      if (res.error) {
+        setNameBanner({
+          kind: 'error',
+          message: t('name_update_error'),
+        });
+        return;
+      }
+      setNameBanner({ kind: 'success', message: t('name_updated') });
+      router.refresh();
+    } catch {
       setNameBanner({
         kind: 'error',
-        message: res.error.message ?? t('name_update_error'),
+        message: t('error_request_failed'),
       });
-      return;
+    } finally {
+      setUpdatingName(false);
     }
-    setNameBanner({ kind: 'success', message: t('name_updated') });
-    router.refresh();
   }
 
   return (
@@ -139,30 +247,79 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
         <dl className="flex flex-col gap-3">
           <div>
             <dt className="text-sm font-medium text-mit-text">{t('email')}</dt>
-            <dd className="text-mit-text">{props.initialEmail}</dd>
+            <dd className="text-mit-text">{currentEmail}</dd>
           </div>
           {pendingEmail ? (
             <div>
               <dt className="text-sm font-medium text-mit-text">
                 {t('pending_email_label')}
               </dt>
-              <dd className="mt-1 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                <p>
+              <dd className="mt-1 rounded-2xl bg-amber-50 px-4 py-4 text-sm text-amber-900">
+                <p className="text-base font-medium text-amber-950">
+                  {t('pending_email_heading')}
+                </p>
+                <p className="mt-1">
                   {t.rich('pending_email_body', {
                     email: pendingEmail,
                     strong: (chunks) => <strong>{chunks}</strong>,
                   })}
                 </p>
+                <form
+                  className="mt-3 flex flex-col gap-2"
+                  onSubmit={onConfirmPendingEmailSubmit}
+                >
+                  <Label className="text-amber-950" htmlFor="emailCode">
+                    {t('pending_email_code_label')}
+                  </Label>
+                  <Input
+                    autoComplete="one-time-code"
+                    className="h-12 max-w-64 rounded-full bg-white px-5 text-base md:text-base"
+                    enterKeyHint="done"
+                    id="emailCode"
+                    inputMode="numeric"
+                    maxLength={6}
+                    minLength={6}
+                    name="emailCode"
+                    onChange={(e) => {
+                      setEmailCode(
+                        e.target.value.replaceAll(/\D/g, '').slice(0, 6)
+                      );
+                    }}
+                    pattern="[0-9]{6}"
+                    placeholder={t('pending_email_code_placeholder')}
+                    required
+                    type="text"
+                    value={emailCode}
+                  />
+                  <Button
+                    className="h-11 w-fit rounded-full px-5"
+                    disabled={confirmingEmail || emailCode.length !== 6}
+                    type="submit"
+                    variant="mit"
+                  >
+                    {t('pending_email_confirm')}
+                  </Button>
+                </form>
+                <ProfileInlineBanner banner={emailOtpBanner} />
                 <ProfileInlineBanner banner={resendBanner} />
                 <div className="mt-2 flex flex-wrap items-center gap-3">
                   <Button
                     className="h-auto min-h-0 px-0 py-0 font-medium text-amber-900 underline shadow-none hover:bg-transparent hover:text-amber-950 hover:underline disabled:opacity-60"
-                    disabled={resendingEmail}
-                    onClick={onResendPendingEmail}
+                    disabled={resendingEmail || resendLocked}
+                    onClick={async () => {
+                      await onResendPendingEmail(pendingEmail);
+                    }}
                     type="button"
                     variant="link"
                   >
-                    {t('pending_email_resend')}
+                    {resendLocked
+                      ? tCommon('resend_wait', {
+                          seconds:
+                            resendSecondsLeft === 1
+                              ? '1 second'
+                              : `${resendSecondsLeft} seconds`,
+                        })
+                      : t('pending_email_resend')}
                   </Button>
                   <span className="text-amber-800">
                     {t.rich('pending_email_support', {

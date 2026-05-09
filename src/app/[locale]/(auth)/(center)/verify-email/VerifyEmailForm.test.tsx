@@ -1,0 +1,459 @@
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import type { MockInstance } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { componentTestRouter } from '@/test/component';
+import { VerifyEmailForm } from './VerifyEmailForm';
+
+const authClientMock = vi.hoisted(() => ({
+  emailOtp: {
+    sendVerificationOtp: vi.fn(),
+    verifyEmail: vi.fn(),
+  },
+}));
+
+vi.mock('@/libs/auth-client', () => ({
+  authClient: authClientMock,
+}));
+
+let warnSpy: MockInstance<typeof console.warn> | undefined;
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  authClientMock.emailOtp.sendVerificationOtp.mockResolvedValue({});
+  authClientMock.emailOtp.verifyEmail.mockResolvedValue({});
+});
+
+afterEach(() => {
+  warnSpy?.mockRestore();
+  warnSpy = undefined;
+  vi.useRealTimers();
+});
+
+describe('VerifyEmailForm', () => {
+  describe('verification', () => {
+    it('verify email and return to callback', async () => {
+      const user = userEvent.setup();
+
+      render(
+        <VerifyEmailForm callbackUrl="/fleet/" initialEmail="sailor@mit.edu" />
+      );
+
+      await user.type(screen.getByLabelText('Verification code'), '123456');
+      await user.click(screen.getByRole('button', { name: 'Continue' }));
+
+      expect(authClientMock.emailOtp.verifyEmail).toHaveBeenCalledWith({
+        email: 'sailor@mit.edu',
+        otp: '123456',
+      });
+      expect(componentTestRouter().push).toHaveBeenCalledWith('/fleet/');
+      expect(componentTestRouter().refresh).not.toHaveBeenCalled();
+    });
+
+    it('reject unsafe callback and use fallback', async () => {
+      const user = userEvent.setup();
+
+      render(
+        <VerifyEmailForm
+          callbackUrl="https://malicious.example.com"
+          initialEmail="sailor@mit.edu"
+        />
+      );
+
+      await user.type(screen.getByLabelText('Verification code'), '123456');
+      await user.click(screen.getByRole('button', { name: 'Continue' }));
+
+      expect(authClientMock.emailOtp.verifyEmail).toHaveBeenCalledWith({
+        email: 'sailor@mit.edu',
+        otp: '123456',
+      });
+      expect(componentTestRouter().push).toHaveBeenCalledWith('/');
+      expect(componentTestRouter().refresh).not.toHaveBeenCalled();
+    });
+
+    it('show invalid-code message', async () => {
+      const user = userEvent.setup();
+      authClientMock.emailOtp.verifyEmail.mockResolvedValue({
+        error: { code: 'INVALID_OTP' },
+      });
+
+      render(
+        <VerifyEmailForm callbackUrl="/fleet/" initialEmail="sailor@mit.edu" />
+      );
+
+      await user.type(screen.getByLabelText('Verification code'), '111111');
+      await user.click(screen.getByRole('button', { name: 'Continue' }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'That code is invalid.'
+      );
+    });
+
+    it('show expired-code message', async () => {
+      const user = userEvent.setup();
+      authClientMock.emailOtp.verifyEmail.mockResolvedValue({
+        error: { code: 'OTP_EXPIRED' },
+      });
+
+      render(
+        <VerifyEmailForm callbackUrl="/fleet/" initialEmail="sailor@mit.edu" />
+      );
+
+      await user.type(screen.getByLabelText('Verification code'), '111111');
+      await user.click(screen.getByRole('button', { name: 'Continue' }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'That code expired.'
+      );
+    });
+
+    it('show too-many-attempts message', async () => {
+      const user = userEvent.setup();
+      authClientMock.emailOtp.verifyEmail.mockResolvedValue({
+        error: { code: 'TOO_MANY_ATTEMPTS' },
+      });
+
+      render(
+        <VerifyEmailForm callbackUrl="/fleet/" initialEmail="sailor@mit.edu" />
+      );
+
+      await user.type(screen.getByLabelText('Verification code'), '111111');
+      await user.click(screen.getByRole('button', { name: 'Continue' }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Too many code attempts.'
+      );
+    });
+
+    it('show rate-limit message from verification', async () => {
+      const user = userEvent.setup();
+      authClientMock.emailOtp.verifyEmail.mockResolvedValue({
+        error: { code: 'TOO_MANY_REQUESTS' },
+      });
+
+      render(
+        <VerifyEmailForm callbackUrl="/fleet/" initialEmail="sailor@mit.edu" />
+      );
+
+      await user.type(screen.getByLabelText('Verification code'), '111111');
+      await user.click(screen.getByRole('button', { name: 'Continue' }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Too many code requests. Wait a few minutes.'
+      );
+    });
+
+    it('show invalid-code message for unmapped verification errors', async () => {
+      const user = userEvent.setup();
+      warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      authClientMock.emailOtp.verifyEmail.mockResolvedValue({
+        error: { message: 'Code was already used.' },
+      });
+
+      render(
+        <VerifyEmailForm callbackUrl="/fleet/" initialEmail="sailor@mit.edu" />
+      );
+
+      await user.type(screen.getByLabelText('Verification code'), '111111');
+      await user.click(screen.getByRole('button', { name: 'Continue' }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'That code is invalid.'
+      );
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[VerifyEmailForm] Unmapped OTP error',
+        expect.objectContaining({ message: 'Code was already used.' })
+      );
+    });
+
+    it('show invalid-code message for empty verification errors', async () => {
+      const user = userEvent.setup();
+      warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      authClientMock.emailOtp.verifyEmail.mockResolvedValue({
+        error: {},
+      });
+
+      render(
+        <VerifyEmailForm callbackUrl="/fleet/" initialEmail="sailor@mit.edu" />
+      );
+
+      await user.type(screen.getByLabelText('Verification code'), '111111');
+      await user.click(screen.getByRole('button', { name: 'Continue' }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'That code is invalid.'
+      );
+      expect(warnSpy).not.toHaveBeenCalled();
+    });
+
+    it('show request message when verification fails', async () => {
+      const user = userEvent.setup();
+      authClientMock.emailOtp.verifyEmail.mockRejectedValue(
+        new Error('network')
+      );
+
+      render(
+        <VerifyEmailForm callbackUrl="/fleet/" initialEmail="sailor@mit.edu" />
+      );
+
+      await user.type(screen.getByLabelText('Verification code'), '111111');
+      await user.click(screen.getByRole('button', { name: 'Continue' }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'We could not complete that request right now.'
+      );
+    });
+  });
+
+  describe('validation', () => {
+    it('enter email when link has none', async () => {
+      const user = userEvent.setup();
+
+      render(<VerifyEmailForm callbackUrl="/fleet/" initialEmail="" />);
+
+      expect(screen.getByText(/your email/)).toBeVisible();
+      await user.type(screen.getByLabelText('Email'), 'sailor@mit.edu');
+      await user.type(screen.getByLabelText('Verification code'), '123456');
+      await user.click(screen.getByRole('button', { name: 'Continue' }));
+
+      expect(authClientMock.emailOtp.verifyEmail).toHaveBeenCalledWith({
+        email: 'sailor@mit.edu',
+        otp: '123456',
+      });
+    });
+
+    it('normalize typed email before verify and resend', async () => {
+      const user = userEvent.setup();
+
+      render(<VerifyEmailForm callbackUrl="/fleet/" initialEmail="" />);
+
+      await user.type(screen.getByLabelText('Email'), '  Sailor@MIT.EDU  ');
+      await user.type(screen.getByLabelText('Verification code'), '123456');
+      await user.click(screen.getByRole('button', { name: 'Continue' }));
+
+      expect(authClientMock.emailOtp.verifyEmail).toHaveBeenCalledWith({
+        email: 'sailor@mit.edu',
+        otp: '123456',
+      });
+
+      authClientMock.emailOtp.verifyEmail.mockClear();
+      await user.click(screen.getByRole('button', { name: 'Resend code' }));
+
+      expect(authClientMock.emailOtp.sendVerificationOtp).toHaveBeenCalledWith({
+        email: 'sailor@mit.edu',
+        type: 'email-verification',
+      });
+    });
+
+    it('show safe error before submitting invalid email', async () => {
+      const user = userEvent.setup();
+
+      render(<VerifyEmailForm callbackUrl="/fleet/" initialEmail="" />);
+
+      await user.type(screen.getByLabelText('Email'), 'sailor@mit');
+      await user.type(screen.getByLabelText('Verification code'), '123456');
+      await user.click(screen.getByRole('button', { name: 'Continue' }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Enter a valid email address with a domain'
+      );
+      expect(authClientMock.emailOtp.verifyEmail).not.toHaveBeenCalled();
+    });
+
+    it('show safe error before resending without email', async () => {
+      const user = userEvent.setup();
+
+      render(<VerifyEmailForm callbackUrl="/fleet/" initialEmail="" />);
+
+      await user.click(screen.getByRole('button', { name: 'Resend code' }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Enter a valid email address with a domain'
+      );
+      expect(
+        authClientMock.emailOtp.sendVerificationOtp
+      ).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('resend', () => {
+    it('resend verification code', async () => {
+      const user = userEvent.setup();
+
+      render(
+        <VerifyEmailForm callbackUrl="/fleet/" initialEmail="sailor@mit.edu" />
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Resend code' }));
+
+      expect(authClientMock.emailOtp.sendVerificationOtp).toHaveBeenCalledWith({
+        email: 'sailor@mit.edu',
+        type: 'email-verification',
+      });
+      expect(
+        await screen.findByText('We sent a new verification code.')
+      ).toBeVisible();
+    });
+
+    it('show rate-limit message when resend is blocked', async () => {
+      const user = userEvent.setup();
+      authClientMock.emailOtp.sendVerificationOtp.mockResolvedValue({
+        error: { code: 'TOO_MANY_REQUESTS' },
+      });
+
+      render(
+        <VerifyEmailForm callbackUrl="/fleet/" initialEmail="sailor@mit.edu" />
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Resend code' }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Too many code requests.'
+      );
+    });
+
+    it('show request message when resend fails', async () => {
+      const user = userEvent.setup();
+      authClientMock.emailOtp.sendVerificationOtp.mockRejectedValue(
+        new Error('network')
+      );
+
+      render(
+        <VerifyEmailForm callbackUrl="/fleet/" initialEmail="sailor@mit.edu" />
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Resend code' }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'We could not complete that request right now.'
+      );
+    });
+  });
+
+  describe('cooldown', () => {
+    it('show resend unlock after cooldown', async () => {
+      vi.useFakeTimers();
+
+      render(
+        <VerifyEmailForm callbackUrl="/fleet/" initialEmail="sailor@mit.edu" />
+      );
+
+      act(() => {
+        fireEvent.click(screen.getByRole('button', { name: 'Resend code' }));
+      });
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(
+        screen.getByRole('button', {
+          name: 'You can request a new code in 30 seconds',
+        })
+      ).toBeDisabled();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(30_000);
+      });
+
+      expect(screen.getByRole('button', { name: 'Resend code' })).toBeEnabled();
+    });
+
+    it('wait through initial resend cooldown', async () => {
+      vi.useFakeTimers();
+
+      render(
+        <VerifyEmailForm
+          callbackUrl="/fleet/"
+          initialEmail="sailor@mit.edu"
+          initialResendLocked
+        />
+      );
+
+      expect(
+        screen.getByRole('button', {
+          name: 'You can request a new code in 30 seconds',
+        })
+      ).toBeDisabled();
+      expect(
+        authClientMock.emailOtp.sendVerificationOtp
+      ).not.toHaveBeenCalled();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(30_000);
+      });
+
+      expect(screen.getByRole('button', { name: 'Resend code' })).toBeEnabled();
+    });
+
+    it('refresh cooldown when lock restarts', async () => {
+      vi.useFakeTimers();
+      const resend = Promise.withResolvers<object>();
+      authClientMock.emailOtp.sendVerificationOtp.mockImplementationOnce(
+        async () => {
+          const value = await resend.promise;
+          return value;
+        }
+      );
+
+      const { rerender } = render(
+        <VerifyEmailForm callbackUrl="/fleet/" initialEmail="sailor@mit.edu" />
+      );
+
+      act(() => {
+        fireEvent.click(screen.getByRole('button', { name: 'Resend code' }));
+      });
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      rerender(
+        <VerifyEmailForm
+          callbackUrl="/fleet/"
+          initialEmail="sailor@mit.edu"
+          initialResendLocked
+        />
+      );
+
+      await act(async () => {
+        resend.resolve({});
+        await Promise.resolve();
+      });
+
+      expect(
+        screen.getByRole('button', {
+          name: 'You can request a new code in 30 seconds',
+        })
+      ).toBeDisabled();
+    });
+
+    it('clear initial resend cooldown when lock lifts', () => {
+      vi.useFakeTimers();
+
+      const { rerender } = render(
+        <VerifyEmailForm
+          callbackUrl="/fleet/"
+          initialEmail="sailor@mit.edu"
+          initialResendLocked
+        />
+      );
+
+      expect(
+        screen.getByRole('button', {
+          name: 'You can request a new code in 30 seconds',
+        })
+      ).toBeDisabled();
+
+      rerender(
+        <VerifyEmailForm
+          callbackUrl="/fleet/"
+          initialEmail="sailor@mit.edu"
+          initialResendLocked={false}
+        />
+      );
+
+      expect(screen.getByRole('button', { name: 'Resend code' })).toBeEnabled();
+    });
+  });
+});

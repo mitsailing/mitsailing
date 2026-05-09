@@ -2,13 +2,30 @@ import { describe, expect, it } from 'vitest';
 import {
   formatSunsetTo12Hour,
   formatWindMphToKnotsForDisplay,
+  isUnicodeScalarValue,
   normalizeWeatherText,
   parseMitSailingWeather,
   prepareMitWeatherUpstreamText,
+  segmentsQuartetComplete,
   toDisplayWeatherSegments,
 } from './weatherParse';
 
 describe('weatherParse', () => {
+  describe('isUnicodeScalarValue', () => {
+    it('rejects non-finite and non-integer code points and values outside scalar range', () => {
+      expect(isUnicodeScalarValue(Number.NaN)).toBe(false);
+      expect(isUnicodeScalarValue(Number.POSITIVE_INFINITY)).toBe(false);
+      expect(isUnicodeScalarValue(1.25)).toBe(false);
+      expect(isUnicodeScalarValue(-1)).toBe(false);
+      expect(isUnicodeScalarValue(1_114_112)).toBe(false);
+    });
+
+    it('accepts scalar values outside the surrogate block', () => {
+      expect(isUnicodeScalarValue(0)).toBe(true);
+      expect(isUnicodeScalarValue(1_114_111)).toBe(true);
+    });
+  });
+
   describe('normalizeWeatherText', () => {
     it('collapses internal whitespace and line breaks to single spaces', () => {
       expect(
@@ -54,6 +71,31 @@ describe('weatherParse', () => {
       expect(normalized).toContain('49.9°F');
       const parsed = parseMitSailingWeather(normalized);
       expect(toDisplayWeatherSegments(parsed).airText).toBe('49.9°F');
+    });
+
+    it('decodes hex and named degree entities in temperature anchors', () => {
+      const raw =
+        'Wind E @ 6 mph, Air 49.9&#xB0;F, Water 57.0&deg;F, Sunset 19:42';
+      const normalized = prepareMitWeatherUpstreamText(raw);
+      expect(normalized).toContain('Air 49.9°F');
+      expect(normalized).toContain('Water 57.0°F');
+    });
+
+    it('decodes six-digit hex entities for scalar values', () => {
+      const raw = 'Wind calm, Air 50&#x01F600;F, Water 55°F, Sunset 18:00';
+      expect(prepareMitWeatherUpstreamText(raw)).toContain('50😀F');
+    });
+
+    it('leaves numeric entities intact when the code point is not a Unicode scalar value', () => {
+      const tooHigh = 'Wind calm, Air 50&#1114112;F, Water 55°F, Sunset 18:00';
+      expect(prepareMitWeatherUpstreamText(tooHigh)).toContain('&#1114112;');
+
+      const surrogate = 'Wind calm, Air 50&#55357;F, Water 55°F, Sunset 18:00';
+      expect(prepareMitWeatherUpstreamText(surrogate)).toContain('&#55357;');
+
+      const hexTooHigh =
+        'Wind calm, Air 50&#x110000;F, Water 55°F, Sunset 18:00';
+      expect(prepareMitWeatherUpstreamText(hexTooHigh)).toContain('&#x110000;');
     });
   });
 
@@ -111,6 +153,42 @@ describe('weatherParse', () => {
       });
     });
 
+    it('returns partial segments when water marker missing', () => {
+      const input = 'Wind calm, Air 50°F';
+      expect(parseMitSailingWeather(normalizeWeatherText(input))).toEqual({
+        windText: 'calm',
+        airText: '50°F',
+        waterText: null,
+        sunsetText: null,
+      });
+    });
+
+    it('returns null partial values for empty anchors', () => {
+      expect(
+        parseMitSailingWeather('Wind calm, Air , Water    , Sunset 18:00')
+      ).toEqual({
+        windText: 'calm',
+        airText: null,
+        waterText: null,
+        sunsetText: '18:00',
+      });
+      expect(
+        parseMitSailingWeather('Breeze, Air 50°F, Water 55°F, Sunset 18:00')
+      ).toEqual({
+        windText: null,
+        airText: '50°F',
+        waterText: '55°F',
+        sunsetText: '18:00',
+      });
+    });
+
+    it('parses wind lines without gust text', () => {
+      const input = 'Wind E @ 6 mph, Air 50°F, Water 55°F, Sunset 18:30';
+      const parsed = parseMitSailingWeather(normalizeWeatherText(input));
+      expect(parsed.windText).toBe('E @ 6 mph');
+      expect(toDisplayWeatherSegments(parsed).windText).toBe('E @ 5 knots');
+    });
+
     it('parses after normalize fixes broken line endings', () => {
       const raw =
         'Wind E @ 5 mph,\r\nGust 6 mph,\r\nAir 40°F,\r\nWater 50°F,\r\nSunset 17:30';
@@ -154,6 +232,14 @@ describe('weatherParse', () => {
       expect(formatSunsetTo12Hour('n/a')).toBe('n/a');
     });
 
+    it('returns null when sanitization removes the sunset segment', () => {
+      expect(formatSunsetTo12Hour('<span>')).toBeNull();
+    });
+
+    it('passes through malformed clock values', () => {
+      expect(formatSunsetTo12Hour('25:99')).toBe('25:99');
+    });
+
     it('extracts clock time when upstream leaves closing anchor junk on the segment', () => {
       expect(formatSunsetTo12Hour('19:42</a>')).toBe('7:42pm');
     });
@@ -182,6 +268,54 @@ describe('weatherParse', () => {
       expect(toDisplayWeatherSegments(parsed).windText).toBe(
         'ENE @ 10 knots, Gust 12 knots'
       );
+    });
+
+    it('preserves null and empty display segment values', () => {
+      expect(
+        toDisplayWeatherSegments({
+          windText: null,
+          airText: '',
+          waterText: ' ',
+          sunsetText: null,
+        })
+      ).toEqual({
+        windText: null,
+        airText: '',
+        waterText: ' ',
+        sunsetText: null,
+      });
+    });
+
+    it('keeps original temperature glyph text when cleanup empties it', () => {
+      expect(
+        toDisplayWeatherSegments({
+          windText: 'calm',
+          airText: '\uFFFD',
+          waterText: '55°F',
+          sunsetText: '18:00',
+        }).airText
+      ).toBe('\uFFFD');
+    });
+  });
+
+  describe('segmentsQuartetComplete', () => {
+    it('returns true only when all segments have text', () => {
+      expect(
+        segmentsQuartetComplete({
+          windText: 'calm',
+          airText: '50°F',
+          waterText: '55°F',
+          sunsetText: '18:30',
+        })
+      ).toBe(true);
+      expect(
+        segmentsQuartetComplete({
+          windText: 'calm',
+          airText: '50°F',
+          waterText: ' ',
+          sunsetText: '18:30',
+        })
+      ).toBe(false);
     });
   });
 });

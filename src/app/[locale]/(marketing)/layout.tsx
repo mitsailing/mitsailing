@@ -1,15 +1,17 @@
 import { setRequestLocale } from 'next-intl/server';
+import { SiteShell } from '@/components/mit-sailing/SiteShell';
 
 /**
- * Marketing segment: locale only. Nested route groups pick their own chrome:
+ * Marketing segment: locale plus shared pavilion chrome. Nested route groups
+ * keep their page organization without remounting the shell:
  * - `(home)` — landing (`/`)
- * - `(site)` — pages that share the global pavilion header/footer
+ * - `(site)` — standard public site pages
  *
  * @see https://nextjs.org/docs/app/api-reference/file-conventions/layout
  * @param props - Layout props
  * @param props.children - Nested route segments
  * @param props.params - Dynamic `[locale]` params
- * @returns Child tree with request locale configured
+ * @returns Marketing tree with request locale configured and shared chrome
  */
 export default async function MarketingSegmentLayout(props: {
   children: React.ReactNode;
@@ -18,5 +20,5 @@ export default async function MarketingSegmentLayout(props: {
   const { locale } = await props.params;
   setRequestLocale(locale);
 
-  return props.children;
+  return <SiteShell>{props.children}</SiteShell>;
 }

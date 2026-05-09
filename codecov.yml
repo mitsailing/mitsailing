@@ -2,8 +2,8 @@
 # - `auto` targets compare against the base branch so we don't hardcode %.
 # - `threshold: 1%` tolerates tiny regressions from refactors.
 # - `patch` enforces quality on *changed lines* (stricter than project).
-# - `ignore` mirrors `vitest.config.mts` coverage.exclude so local `npm run
-#   test:coverage` and the Codecov report agree.
+# - `ignore` mirrors `vitest.config.mts` coverage.exclude so local HTML,
+#   Codecov uploads, and the auth-owned 95% four-metric gate agree.
 
 coverage:
   precision: 2
@@ -30,6 +30,7 @@ flags:
   unittests:
     paths:
       - src/
+      - emails/
     carryforward: true
 
 ignore:
@@ -42,4 +43,5 @@ ignore:
   - 'src/instrumentation-client.ts'
   - 'src/**/*.stories.{js,jsx,ts,tsx}'
   - 'src/**/*.test.{js,jsx,ts,tsx}'
+  - 'emails/**/*.test.{js,jsx,ts,tsx}'
   - 'src/**/*.d.ts'

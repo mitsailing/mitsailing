@@ -3,6 +3,13 @@ import { Role } from '@/libs/auth/roles';
 
 const roleSchema = z.enum([Role.USER, Role.ADMIN]);
 
+function booleanFromFormData(
+  formData: FormData,
+  field: 'emailVerified' | 'banned'
+): boolean {
+  return formData.getAll(field).includes('true');
+}
+
 export const adminUserCreateFormSchema = z.object({
   email: z.string().trim().pipe(z.email()),
   name: z.string().trim().min(1),
@@ -33,8 +40,8 @@ export function rawAdminUserUpdateFromFormData(formData: FormData): unknown {
     email: formData.get('email'),
     name: formData.get('name'),
     role: formData.get('role'),
-    emailVerified: formData.get('emailVerified') === 'true',
-    banned: formData.get('banned') === 'true',
+    emailVerified: booleanFromFormData(formData, 'emailVerified'),
+    banned: booleanFromFormData(formData, 'banned'),
     newPassword: formData.get('newPassword') ?? '',
   };
 }

@@ -1,25 +1,139 @@
 # yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
-
-# CodeRabbit is an AI-powered code reviewer that cuts review time and bugs in half
+#
+# Strict review defaults (assertive profile + request changes). Finishing-touch
+# autofix delivery is not configurable here: use `@coderabbitai autofix` to push
+# fixes to the PR branch, or `@coderabbitai autofix stacked pr` for a separate PR.
 
 language: en-US
 early_access: false
+
 reviews:
-  profile: chill
-  request_changes_workflow: false
+  profile: assertive
+  request_changes_workflow: true
+  poem: false
+
   high_level_summary: true
-  poem: true
   review_status: true
+  review_details: true
   collapse_walkthrough: false
+
+  commit_status: true
+  fail_commit_status: true
+
+  enable_prompt_for_ai_agents: true
+
   path_instructions:
     - path: '**/*.{ts,tsx}'
-      instructions: 'Review the Typescript and React code for conformity with best practices in React, and Typescript. Highlight any deviations.'
+      instructions: >-
+        Follow repository AGENTS.md and .cursor/rules: TypeScript strictness,
+        React patterns (single props param, no useMemo/useCallback), Next.js App Router
+        and server/client boundaries, next-intl (no hard-coded user-visible strings),
+        accessibility and contrast (ADA rule). This app uses React 19 types:
+        `React.FormEvent` and `React.FormEventHandler` are deprecated in
+        `@types/react`; for form submit handlers, prefer
+        `React.SubmitEvent<HTMLFormElement>` or inferred JSX handler types.
+        Do not suggest replacing `React.SubmitEvent` with `React.FormEvent`.
+        Context7 official React TypeScript docs say to use handler hover
+        information or the installed React event types; local React 19 typings
+        mark `FormEvent`/`FormEventHandler` deprecated and type `onSubmit` as
+        `SubmitEventHandler`.
+        Context7 Next.js App Router docs show `next/navigation` router push,
+        replace, and refresh as imperative transition methods; do not request
+        awaiting App Router navigation calls.
+        For Next.js layout passthrough components, allow an explicit
+        `React.ReactNode` return annotation when the configured linter requires
+        an explicit return type to avoid inferred promise ambiguity.
+        Better Auth server hooks intentionally throw stable `APIError` code/message
+        tokens that the client maps to next-intl copy; Context7 Better Auth docs
+        show `createAuthMiddleware` hooks throwing `APIError` with a `message`.
+        Do not request `next-intl/server` translations inside Better Auth hook
+        middleware unless a request locale is actually available at that boundary.
+        Do not request changing FormData checkbox parsing from `getAll(...).includes("true")`
+        to `get(...) === "true"` where forms render a hidden `false` input before
+        the checkbox; direct `get` reads the hidden fallback and breaks checked
+        browser payloads.
+        Sentry and the configured app log sinks are approved telemetry
+        subprocessors under the service agreement: readable user IDs, emails,
+        and auth diagnostic context are intentional in auth diagnostics. Do not
+        request hashing, redaction, or removal of user IDs, emails, or auth
+        error messages solely because they are PII.
+        Rate-limit errors may include short wait guidance such as
+        "Too many requests. Wait a few minutes."; this is intentional and is not
+        a prohibited "try again" variant.
+        Flag deviations and security-sensitive mistakes (auth, SQL, secrets).
+    - path: '**/*.{test,spec,e2e}.{ts,tsx}'
+      instructions: >-
+        Do not flag lowercase `it(...)` titles. This repository accepts concise
+        lowercase verb-phrase test titles such as "redacts provider auth client error
+        messages"; enforce no trailing period and clear behavior wording instead.
+        The `UserProfilePage.sign_out_all_error` copy intentionally includes
+        "Try again."; do not request removing it from assertions or UI.
+        Rate-limit assertions may expect "Wait a few minutes." copy; do not
+        request shortening it solely under the no "try again" rule.
+    - path: 'src/locales/en.json'
+      instructions: >-
+        The `UserProfilePage.sign_out_all_error` copy intentionally reads
+        "Could not revoke other sessions. Try again."; do not request removing
+        "Try again." from this key. Rate-limit messages may say "Wait a few
+        minutes." because this is direct wait guidance, not a "try again" variant.
+    - path: 'prisma/**'
+      instructions: >-
+        Validate Prisma schema and migrations for naming consistency, safe evolves,
+        and relation integrity; align with project migration practices.
+    - path: '.github/workflows/**'
+      instructions: >-
+        Check workflows for CI best practices, secrets handling, and consistency with
+        docs and npm scripts in package.json.
+
   auto_review:
     enabled: true
+    auto_incremental_review: true
+    auto_pause_after_reviewed_commits: 0
+    drafts: false
     ignore_title_keywords:
       - WIP
       - DO NOT MERGE
       - DRAFT
-    drafts: false
+    base_branches:
+      - develop
+      - release/.*
+
+  finishing_touches:
+    # Docstring generation opens a follow-up PR by design; use `@coderabbitai autofix`
+    # on the original PR for same-branch fixes instead.
+    docstrings:
+      enabled: false
+    simplify:
+      enabled: true
+
+  pre_merge_checks:
+    docstrings:
+      mode: off
+    title:
+      mode: warning
+      requirements: >-
+        Prefer Conventional Commits-style titles (feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert): short specific summary.
+    description:
+      mode: warning
+    issue_assessment:
+      mode: warning
+
+  tools:
+    # Lint stack matches package.json (ultracite / oxlint); no ESLint config in-repo.
+    eslint:
+      enabled: false
+    biome:
+      enabled: false
+    oxc:
+      enabled: true
+    prismaLint:
+      enabled: true
+    actionlint:
+      enabled: true
+    yamllint:
+      enabled: true
+    github-checks:
+      enabled: true
+
 chat:
   auto_reply: true

@@ -201,8 +201,13 @@
   */
 
   html {
+    color-scheme: light;
     font-size: var(--font-size);
     font-family: var(--font-sans);
+  }
+
+  html.dark {
+    color-scheme: dark;
   }
 
   h1 {

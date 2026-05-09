@@ -11,6 +11,10 @@ describe('normalizeNavPath', () => {
     expect(normalizeNavPath('/')).toBe('/');
   });
 
+  it('normalizes whitespace-only input to root', () => {
+    expect(normalizeNavPath('   ')).toBe('/');
+  });
+
   it('drops query on pathname segment', () => {
     expect(normalizeNavPath('/events/?foo=bar')).toBe('/events');
   });

@@ -2,28 +2,33 @@
 
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { authInlineLinkClassName } from '@/lib/mit-sailing/tokens';
 import { authClient } from '@/libs/auth-client';
-import { isValidMarketingEmail } from '@/utils/emailValidation';
+import { authHrefWithCallback } from '@/libs/auth/callbackUrl';
+import {
+  isValidMarketingEmail,
+  normalizeMarketingEmail,
+} from '@/utils/emailValidation';
 
 type SignInFormProps = {
   callbackUrl: string;
-  verifyCallbackUrl: string;
 };
 
 type ErrorState =
   | { kind: 'generic'; message: string }
   | { kind: 'unverified'; email: string }
   | null;
+type MappedErrorState = Exclude<ErrorState, null>;
 
 // Client-side sign-in form wired directly to `authClient.signIn.email`.
-// Known Better Auth error codes are mapped to translated page copy; anything
-// else falls back to `error.message` (already translated by the i18n plugin).
-// The unverified path surfaces a resend button + support mailto so users
-// have a path forward without bouncing between pages.
+// Known Better Auth error codes are mapped to translated page copy; unknown
+// codes use the generic credentials string so raw backend text never renders.
+// The unverified path sends an email code and moves the user to the
+// verification screen without losing their original callback.
 export function SignInForm(props: SignInFormProps) {
   const t = useTranslations('SignInPage');
   const router = useRouter();
@@ -31,64 +36,146 @@ export function SignInForm(props: SignInFormProps) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<ErrorState>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [requestingReset, setRequestingReset] = useState(false);
+  const requestingResetRef = useRef(false);
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
 
   function mapError(
     code: string | undefined,
-    message: string | undefined
-  ): ErrorState {
+    _message: string | undefined,
+    signInEmail?: string
+  ): MappedErrorState {
     if (code === 'EMAIL_NOT_VERIFIED') {
-      return { kind: 'unverified', email };
+      return { kind: 'unverified', email: signInEmail ?? email };
     }
     const mapping: Record<string, string> = {
       INVALID_EMAIL_OR_PASSWORD: t('error_credentials'),
       ACCOUNT_LOCKED: t('error_locked'),
       TOO_MANY_REQUESTS: t('error_rate_limited'),
+      BANNED_USER: t('error_banned'),
     };
     if (code && mapping[code]) {
       return { kind: 'generic', message: mapping[code] };
     }
-    return { kind: 'generic', message: message ?? t('error_credentials') };
+    return { kind: 'generic', message: t('error_credentials') };
+  }
+
+  function mapGenericMessage(
+    code: string | undefined,
+    message: string | undefined
+  ): string {
+    const mapped = mapError(code, message);
+    if (mapped.kind === 'generic') {
+      return mapped.message;
+    }
+    return t('error_credentials');
   }
 
   async function onSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setResent(false);
-    if (!isValidMarketingEmail(email)) {
+    const normalizedEmail = normalizeMarketingEmail(email);
+    setEmail(normalizedEmail);
+    if (!isValidMarketingEmail(normalizedEmail)) {
       setError({ kind: 'generic', message: t('error_invalid_email') });
       return;
     }
     setSubmitting(true);
+    try {
+      const res = await authClient.signIn.email({
+        email: normalizedEmail,
+        password,
+        callbackURL: props.callbackUrl,
+      });
 
-    const res = await authClient.signIn.email({
-      email,
-      password,
-      callbackURL: props.callbackUrl,
-    });
-
-    setSubmitting(false);
-    if (res.error) {
-      setError(mapError(res.error.code, res.error.message));
-      return;
+      if (res.error) {
+        setError(mapError(res.error.code, res.error.message, normalizedEmail));
+        return;
+      }
+      router.push(props.callbackUrl);
+      router.refresh();
+    } catch {
+      setError({ kind: 'generic', message: t('error_request_failed') });
+    } finally {
+      setSubmitting(false);
     }
-    router.push(props.callbackUrl);
-    router.refresh();
   }
 
-  async function onResendVerification() {
-    if (error?.kind !== 'unverified' || error.email.trim() === '') {
-      return;
-    }
+  async function onSendVerificationCode(unverifiedEmail: string) {
     setResending(true);
-    await authClient.sendVerificationEmail({
-      email: error.email,
-      callbackURL: props.verifyCallbackUrl,
-    });
-    setResending(false);
-    setResent(true);
+    try {
+      const res = await authClient.emailOtp.sendVerificationOtp({
+        email: unverifiedEmail,
+        type: 'email-verification',
+      });
+      if (res.error) {
+        setError({
+          kind: 'generic',
+          message: mapGenericMessage(res.error.code, res.error.message),
+        });
+        return;
+      }
+      setResent(true);
+      router.push(
+        authHrefWithCallback(
+          `/verify-email?email=${encodeURIComponent(
+            unverifiedEmail
+          )}&codeSent=1`,
+          props.callbackUrl
+        )
+      );
+    } catch {
+      setError({ kind: 'generic', message: t('error_request_failed') });
+    } finally {
+      setResending(false);
+    }
   }
+
+  async function onForgotPassword() {
+    if (requestingResetRef.current) {
+      return;
+    }
+
+    const normalizedEmail = normalizeMarketingEmail(email);
+    if (!isValidMarketingEmail(normalizedEmail)) {
+      setError({ kind: 'generic', message: t('error_invalid_email') });
+      return;
+    }
+
+    setError(null);
+    setResent(false);
+    setEmail(normalizedEmail);
+    requestingResetRef.current = true;
+    setRequestingReset(true);
+    try {
+      const res = await authClient.emailOtp.requestPasswordReset({
+        email: normalizedEmail,
+      });
+
+      if (res.error) {
+        setError({ kind: 'generic', message: t('error_reset_failed') });
+        return;
+      }
+
+      router.push(
+        authHrefWithCallback(
+          `/reset-password?email=${encodeURIComponent(
+            normalizedEmail
+          )}&codeSent=1`,
+          props.callbackUrl
+        )
+      );
+    } catch {
+      setError({ kind: 'generic', message: t('error_reset_failed') });
+    } finally {
+      requestingResetRef.current = false;
+      setRequestingReset(false);
+    }
+  }
+
+  const normalizedForgotPasswordEmail = normalizeMarketingEmail(email);
 
   return (
     <>
@@ -113,7 +200,9 @@ export function SignInForm(props: SignInFormProps) {
             <Button
               className="h-auto min-h-0 px-0 py-0 font-medium text-red-900 underline shadow-none hover:bg-transparent hover:text-red-950 hover:underline disabled:opacity-60"
               disabled={resending}
-              onClick={onResendVerification}
+              onClick={async () => {
+                await onSendVerificationCode(error.email);
+              }}
               type="button"
               variant="link"
             >
@@ -177,6 +266,26 @@ export function SignInForm(props: SignInFormProps) {
           {t('submit')}
         </Button>
       </form>
+
+      <p className="text-center text-sm text-mit-text">
+        {normalizedForgotPasswordEmail.length === 0 ? (
+          <a
+            className={authInlineLinkClassName}
+            href={authHrefWithCallback('/forgot-password', props.callbackUrl)}
+          >
+            {t('forgot_password')}
+          </a>
+        ) : (
+          <button
+            className={`${authInlineLinkClassName} border-0 bg-transparent p-0 disabled:opacity-60`}
+            disabled={requestingReset}
+            onClick={onForgotPassword}
+            type="button"
+          >
+            {t('forgot_password')}
+          </button>
+        )}
+      </p>
     </>
   );
 }

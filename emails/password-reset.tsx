@@ -1,83 +1,49 @@
-import type * as React from 'react';
-import { Button, Heading, Section, Text } from 'react-email';
+import { Heading, Section, Text } from 'react-email';
 import { EmailLayout } from './email-layout';
+import {
+  assertSixDigitCode,
+  codeBox,
+  heading,
+  paragraph,
+  replaceAuthEmailValues,
+  section,
+  supportFooter,
+} from './email-styles';
 
 export type PasswordResetEmailProps = {
-  resetUrl: string;
+  code: string;
+  copy: PasswordResetEmailCopy;
 };
 
-const section: React.CSSProperties = {
-  padding: '28px 24px',
-};
-
-const heading: React.CSSProperties = {
-  color: '#0f172a',
-  fontSize: '22px',
-  fontWeight: 600,
-  margin: '0 0 16px',
-};
-
-const paragraph: React.CSSProperties = {
-  color: '#334155',
-  fontSize: '15px',
-  lineHeight: '22px',
-  margin: '0 0 20px',
-};
-
-const buttonWrap: React.CSSProperties = {
-  margin: '24px 0',
-  textAlign: 'center' as const,
-};
-
-const button: React.CSSProperties = {
-  backgroundColor: '#2563eb',
-  borderRadius: '6px',
-  color: '#ffffff',
-  display: 'inline-block',
-  fontSize: '15px',
-  fontWeight: 600,
-  padding: '12px 24px',
-  textDecoration: 'none',
-};
-
-const finePrint: React.CSSProperties = {
-  color: '#64748b',
-  fontSize: '12px',
-  margin: '24px 0 8px',
-};
-
-const linkText: React.CSSProperties = {
-  color: '#2563eb',
-  fontSize: '12px',
-  wordBreak: 'break-all' as const,
+export type PasswordResetEmailCopy = {
+  reset_password_body: string;
+  reset_password_expiry: string;
+  reset_password_subject: string;
 };
 
 /**
- * Password reset request with expiring link.
+ * Password reset request with a short-lived numeric code.
  * @param props - Template props.
- * @param props.resetUrl - Absolute HTTPS URL for choosing a new password.
+ * @param props.code - Numeric reset code string, such as "123456".
+ * @param props.copy - Localized email copy.
  * @returns Complete email element tree.
  */
 export function PasswordResetEmailTemplate(props: PasswordResetEmailProps) {
+  assertSixDigitCode(props.code, 'PasswordResetEmailTemplate');
+
   return (
-    <EmailLayout previewText="Reset your password">
+    <EmailLayout previewText={props.copy.reset_password_subject}>
       <Section style={section}>
         <Heading as="h1" style={heading}>
-          Reset your password
+          {props.copy.reset_password_subject}
         </Heading>
         <Text style={paragraph}>
-          We received a request to reset your password. Use the button below to
-          choose a new password. This link expires soon for your security.
+          {replaceAuthEmailValues(props.copy.reset_password_body, {
+            code: props.code,
+          })}
         </Text>
-        <Section style={buttonWrap}>
-          <Button href={props.resetUrl} style={button}>
-            Reset password
-          </Button>
-        </Section>
-        <Text style={finePrint}>
-          If you did not request this, you can ignore this email.
-        </Text>
-        <Text style={linkText}>{props.resetUrl}</Text>
+        <Text style={codeBox}>{props.code}</Text>
+        <Text style={supportFooter}>{props.copy.reset_password_expiry}</Text>
       </Section>
     </EmailLayout>
   );
