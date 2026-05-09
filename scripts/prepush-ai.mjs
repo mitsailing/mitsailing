@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync } from 'node:fs';
+import { accessSync, constants, statSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -276,19 +276,84 @@ function createCodexAgent(command) {
  */
 function findCommand(command, absolutePaths) {
   for (const absolutePath of absolutePaths) {
-    if (existsSync(absolutePath)) {
+    if (isExecutableFile(absolutePath)) {
       return absolutePath;
     }
   }
 
-  const result = spawnSync('sh', ['-lc', `command -v ${command}`], {
-    cwd,
-    encoding: 'utf8',
-  });
+  if (!isBareCommandName(command)) {
+    return null;
+  }
 
-  const candidate = result.stdout.trim();
+  const pathEntries = getPathEntries();
+  const commandNames = getPlatformCommandNames(command);
 
-  return candidate.length > 0 ? candidate : null;
+  for (const pathEntry of pathEntries) {
+    for (const commandName of commandNames) {
+      const candidate = path.join(pathEntry, commandName);
+      if (isExecutableFile(candidate)) {
+        return candidate;
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * @param {string} command - Executable name to validate.
+ * @returns {boolean} Whether command is a plain filename.
+ */
+function isBareCommandName(command) {
+  return (
+    command.length > 0 &&
+    !command.includes('/') &&
+    !command.includes('\\') &&
+    command === path.basename(command)
+  );
+}
+
+/**
+ * @returns {string[]} Directories from PATH.
+ */
+function getPathEntries() {
+  const pathValue = process.env.PATH ?? '';
+
+  return pathValue
+    .split(path.delimiter)
+    .filter((pathEntry) => pathEntry.length > 0);
+}
+
+/**
+ * @param {string} command - Executable filename.
+ * @returns {string[]} Platform-specific executable filename candidates.
+ */
+function getPlatformCommandNames(command) {
+  if (process.platform !== 'win32' || path.extname(command).length > 0) {
+    return [command];
+  }
+
+  const extensions = (process.env.PATHEXT ?? '.COM;.EXE;.BAT;.CMD')
+    .split(';')
+    .filter((extension) => extension.length > 0);
+
+  return [command, ...extensions.map((extension) => `${command}${extension}`)];
+}
+
+/**
+ * @param {string} filePath - File path to check.
+ * @returns {boolean} Whether the path exists and is executable.
+ */
+function isExecutableFile(filePath) {
+  try {
+    if (!statSync(filePath).isFile()) {
+      return false;
+    }
+    accessSync(filePath, constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
