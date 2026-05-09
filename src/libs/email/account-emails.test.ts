@@ -48,22 +48,21 @@ describe('account email notices', () => {
     expect(payload?.html).toContain('Thanks for signing up');
   });
 
-  it('falls back to default email copy for unknown locales', async () => {
+  it('interpolates every sign-in OTP text code token', async () => {
     const { sendTransactionalEmail } =
       await import('@/libs/email/sendTransactional');
     const { sendEmailOtpCode } = await import('@/libs/email/account-emails');
 
     await sendEmailOtpCode({
-      email: 'localized@example.com',
-      locale: 'fr',
+      email: 'returning@example.com',
       otp: '123456',
-      type: 'email-verification',
+      type: 'sign-in',
     });
 
     const [payload] = vi.mocked(sendTransactionalEmail).mock.calls[0] ?? [];
 
-    expect(payload?.subject).toBe('Confirm your email');
-    expect(payload?.text).toContain('verification code is 123456');
+    expect(payload?.text).toContain('sign-in code is 123456');
+    expect(payload?.text).not.toContain('{code}');
   });
 
   it('returning sailor receives sign-in OTP copy, not sign-up verification copy', async () => {

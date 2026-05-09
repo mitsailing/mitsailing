@@ -4,7 +4,6 @@ import { prisma } from '@/libs/DB';
 import { sendTransactionalEmail } from '@/libs/email/sendTransactional';
 import { Env } from '@/libs/Env';
 import enMessages from '@/locales/en.json';
-import { AppConfig } from '@/utils/AppConfig';
 import { getBaseUrl } from '@/utils/Helpers';
 import { AccountUnlockEmailTemplate } from '../../../emails/account-unlock';
 import { ConfirmEmailChangeTemplate } from '../../../emails/confirm-email-change';
@@ -21,15 +20,7 @@ const { SUPPORT_EMAIL } = Env;
 
 type AuthEmailMessages = typeof enMessages.AuthEmails;
 
-const authEmailMessagesByLocale: Record<string, AuthEmailMessages> = {
-  en: enMessages.AuthEmails,
-};
-
-function getAuthEmailMessages(
-  locale: string = AppConfig.i18n.defaultLocale
-): AuthEmailMessages {
-  return authEmailMessagesByLocale[locale] ?? enMessages.AuthEmails;
-}
+const authEmailMessages = enMessages.AuthEmails;
 
 function verificationCodeText(params: {
   code: string;
@@ -67,11 +58,10 @@ function verificationCodeText(params: {
  */
 export async function sendEmailOtpCode(params: {
   email: string;
-  locale?: string;
   otp: string;
   type: 'email-verification' | 'forget-password' | 'change-email' | 'sign-in';
 }) {
-  const copy = getAuthEmailMessages(params.locale);
+  const copy = authEmailMessages;
 
   switch (params.type) {
     case 'forget-password': {
@@ -189,7 +179,7 @@ export async function sendEmailChangeRequestedNotice(params: {
   currentEmail: string;
   newEmail: string;
 }) {
-  const copy = getAuthEmailMessages();
+  const copy = authEmailMessages;
   const html = await render(
     EmailChangeRequestedNoticeTemplate({
       newEmail: params.newEmail,
@@ -216,7 +206,7 @@ export async function sendDeleteAccountVerificationEmail(
   email: string,
   url: string
 ) {
-  const copy = getAuthEmailMessages();
+  const copy = authEmailMessages;
   const html = await render(DeleteAccountEmailTemplate({ confirmUrl: url }));
   await sendTransactionalEmail({
     to: email,
@@ -235,7 +225,7 @@ export async function sendDeleteAccountVerificationEmail(
  * @param email - Recipient address tied to the locked account.
  */
 export async function sendAccountLockedEmail(email: string) {
-  const copy = getAuthEmailMessages();
+  const copy = authEmailMessages;
   const token = await createUnlockAccountToken(email);
   const unlockUrl = `${getBaseUrl()}/api/unlock-account?token=${encodeURIComponent(token)}`;
   const html = await render(
@@ -256,7 +246,7 @@ export async function sendAccountLockedEmail(email: string) {
  * @param email - Recipient (current login email).
  */
 export async function sendPasswordChangedNotice(email: string) {
-  const copy = getAuthEmailMessages();
+  const copy = authEmailMessages;
   const html = await render(
     PasswordChangedNoticeTemplate({ supportEmail: SUPPORT_EMAIL })
   );
