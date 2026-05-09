@@ -1,12 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { updateMany } = vi.hoisted(() => ({
+const { findUnique, updateMany } = vi.hoisted(() => ({
+  findUnique: vi.fn(),
   updateMany: vi.fn(),
 }));
 
 vi.mock('@/libs/DB', () => ({
   prisma: {
     user: {
+      findUnique,
       updateMany,
     },
   },
@@ -22,6 +24,7 @@ vi.mock('@/libs/auth/unlock-token', () => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  findUnique.mockResolvedValue({ email: 'current@example.com' });
   updateMany.mockResolvedValue({ count: 1 });
 });
 
@@ -189,6 +192,38 @@ describe('account email notices', () => {
     });
   });
 
+  it('email-change persona skips when new email is already verified', async () => {
+    const { markPendingEmailChange } =
+      await import('@/libs/email/account-emails');
+
+    findUnique.mockResolvedValue({ email: 'next@example.com' });
+
+    await expect(
+      markPendingEmailChange({
+        newEmail: 'next@example.com',
+        userId: 'user_123',
+      })
+    ).resolves.toBe(false);
+
+    expect(updateMany).not.toHaveBeenCalled();
+  });
+
+  it('email-change persona skips when user is missing', async () => {
+    const { markPendingEmailChange } =
+      await import('@/libs/email/account-emails');
+
+    findUnique.mockResolvedValue(null);
+
+    await expect(
+      markPendingEmailChange({
+        newEmail: 'next@example.com',
+        userId: 'missing_user',
+      })
+    ).resolves.toBe(false);
+
+    expect(updateMany).not.toHaveBeenCalled();
+  });
+
   it('email-change persona keeps resend state when pending email is unchanged', async () => {
     const { markPendingEmailChange } =
       await import('@/libs/email/account-emails');
@@ -251,6 +286,34 @@ describe('account email notices', () => {
     expect(payload?.to).toBe('owner@example.com');
     expect(payload?.subject).toMatch(/account deletion/i);
     expect(payload?.html).toContain('https://example.test/delete');
+    expect(payload?.text).toContain('https://example.test/delete');
+    expect(payload?.text).not.toContain('{url}');
+  });
+
+  it('rejects invalid delete-account recipients before sending mail', async () => {
+    const { sendTransactionalEmail } =
+      await import('@/libs/email/sendTransactional');
+    const { sendDeleteAccountVerificationEmail } =
+      await import('@/libs/email/account-emails');
+
+    await expect(
+      sendDeleteAccountVerificationEmail('not-an-email', 'https://example.test')
+    ).rejects.toThrow('Expected a valid email address.');
+
+    expect(sendTransactionalEmail).not.toHaveBeenCalled();
+  });
+
+  it('rejects empty delete-account confirmation urls before sending mail', async () => {
+    const { sendTransactionalEmail } =
+      await import('@/libs/email/sendTransactional');
+    const { sendDeleteAccountVerificationEmail } =
+      await import('@/libs/email/account-emails');
+
+    await expect(
+      sendDeleteAccountVerificationEmail('owner@example.com', '  ')
+    ).rejects.toThrow('Expected a delete-account confirmation URL.');
+
+    expect(sendTransactionalEmail).not.toHaveBeenCalled();
   });
 
   it('locked-out sailor receives an unlock URL with a signed token', async () => {
@@ -281,6 +344,25 @@ describe('account email notices', () => {
     expect(payload.html).toMatch(/\/api\/unlock-account\?token=/);
     expect(payload.html).toMatch(/fake-signed-jwt-token/);
     expect(payload.html).toMatch(/https?:\/\//);
+    expect(payload.text).toMatch(/\/api\/unlock-account\?token=/);
+    expect(payload.text).toContain('fake-signed-jwt-token');
+    expect(payload.text).not.toContain('{url}');
+  });
+
+  it('rejects invalid account-lock recipients before creating tokens', async () => {
+    const { createUnlockAccountToken } =
+      await import('@/libs/auth/unlock-token');
+    const { sendTransactionalEmail } =
+      await import('@/libs/email/sendTransactional');
+    const { sendAccountLockedEmail } =
+      await import('@/libs/email/account-emails');
+
+    await expect(sendAccountLockedEmail('not-an-email')).rejects.toThrow(
+      'Expected a valid email address.'
+    );
+
+    expect(createUnlockAccountToken).not.toHaveBeenCalled();
+    expect(sendTransactionalEmail).not.toHaveBeenCalled();
   });
 
   it('security-notice persona receives a password-changed notice', async () => {

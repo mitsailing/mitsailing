@@ -75,11 +75,12 @@ export const supportLink: React.CSSProperties = {
  */
 export function replaceAuthEmailValues(
   message: string,
-  values: { code?: string; email?: string }
+  values: { code?: string; email?: string; url?: string }
 ): string {
   return message
     .replaceAll('{code}', values.code ?? '')
-    .replaceAll('{email}', values.email ?? '');
+    .replaceAll('{email}', values.email ?? '')
+    .replaceAll('{url}', values.url ?? '');
 }
 
 /**

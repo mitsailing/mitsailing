@@ -46,6 +46,12 @@ function assertEmailOtpCode(otp: string): void {
   }
 }
 
+function assertNonEmptyValue(value: string, message: string): void {
+  if (value.trim().length === 0) {
+    throw new Error(message);
+  }
+}
+
 function verificationCodeText(params: {
   code: string;
   copy: AuthEmailMessages;
@@ -179,6 +185,15 @@ export async function markPendingEmailChange(params: {
   newEmail: string;
 }): Promise<boolean> {
   const newEmail = normalizeAuthEmail(params.newEmail);
+  const user = await prisma.user.findUnique({
+    where: { id: params.userId },
+    select: { email: true },
+  });
+
+  if (!user || normalizeMarketingEmail(user.email) === newEmail) {
+    return false;
+  }
+
   const result = await prisma.user.updateMany({
     where: {
       id: params.userId,
@@ -238,11 +253,14 @@ export async function sendDeleteAccountVerificationEmail(
   url: string
 ) {
   const copy = authEmailMessages;
+  const normalizedEmail = normalizeAuthEmail(email);
+  assertNonEmptyValue(url, 'Expected a delete-account confirmation URL.');
   const html = await render(DeleteAccountEmailTemplate({ confirmUrl: url }));
   await sendTransactionalEmail({
-    to: email,
+    to: normalizedEmail,
     subject: copy.delete_account_subject,
     html,
+    text: replaceAuthEmailValues(copy.delete_account_text, { url }),
   });
 }
 
@@ -257,15 +275,20 @@ export async function sendDeleteAccountVerificationEmail(
  */
 export async function sendAccountLockedEmail(email: string) {
   const copy = authEmailMessages;
-  const token = await createUnlockAccountToken(email);
+  const normalizedEmail = normalizeAuthEmail(email);
+  const token = await createUnlockAccountToken(normalizedEmail);
   const unlockUrl = `${getBaseUrl()}/api/unlock-account?token=${encodeURIComponent(token)}`;
   const html = await render(
     AccountUnlockEmailTemplate({ unlockUrl, supportEmail: SUPPORT_EMAIL })
   );
   await sendTransactionalEmail({
-    to: email,
+    to: normalizedEmail,
     subject: copy.account_locked_subject,
     html,
+    text: replaceAuthEmailValues(copy.account_locked_text, {
+      email: SUPPORT_EMAIL,
+      url: unlockUrl,
+    }),
   });
 }
 
