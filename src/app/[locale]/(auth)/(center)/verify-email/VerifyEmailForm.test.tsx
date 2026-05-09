@@ -368,6 +368,13 @@ describe('VerifyEmailForm', () => {
 
     it('Unverified sailor refreshes the cooldown when the lock restarts', async () => {
       vi.useFakeTimers();
+      const resend = Promise.withResolvers<object>();
+      authClientMock.emailOtp.sendVerificationOtp.mockImplementationOnce(
+        async () => {
+          const value = await resend.promise;
+          return value;
+        }
+      );
 
       const { rerender } = render(
         <VerifyEmailForm callbackUrl="/fleet/" initialEmail="sailor@mit.edu" />
@@ -387,6 +394,11 @@ describe('VerifyEmailForm', () => {
           initialResendLocked
         />
       );
+
+      await act(async () => {
+        resend.resolve({});
+        await Promise.resolve();
+      });
 
       expect(
         screen.getByRole('button', {
