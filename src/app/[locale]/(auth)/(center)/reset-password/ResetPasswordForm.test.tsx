@@ -152,7 +152,7 @@ describe('ResetPasswordForm', () => {
       await continueWithResetCode('111111');
 
       expect(await screen.findByRole('alert')).toHaveTextContent(
-        'Too many requests. Try again in a few minutes.'
+        'Too many requests.'
       );
     });
 
@@ -165,7 +165,7 @@ describe('ResetPasswordForm', () => {
       await continueWithResetCode('111111');
 
       expect(await screen.findByRole('alert')).toHaveTextContent(
-        'Check your password.'
+        'Check your reset code.'
       );
       expect(sentryMock.captureMessage).toHaveBeenCalledWith(
         'Unknown auth client error',
@@ -275,6 +275,9 @@ describe('ResetPasswordForm', () => {
     it('Visitor waits before requesting another reset code after resending', async () => {
       vi.useFakeTimers();
       renderResetPasswordForm();
+      fireEvent.change(screen.getByLabelText('Reset code'), {
+        target: { value: '123456' },
+      });
 
       act(() => {
         fireEvent.click(screen.getByRole('button', { name: 'Resend email' }));
@@ -291,6 +294,7 @@ describe('ResetPasswordForm', () => {
       expect(screen.getByRole('status')).toHaveTextContent(
         'We sent a new reset code.'
       );
+      expect(screen.getByLabelText('Reset code')).toHaveValue('');
       expect(
         screen.getByRole('button', {
           name: 'You can request a new code in 30 seconds',
@@ -470,7 +474,7 @@ describe('ResetPasswordForm', () => {
       await fillNewPassword({ password: 'new-password' });
 
       expect(await screen.findByRole('alert')).toHaveTextContent(
-        'Too many requests. Try again in a few minutes.'
+        'Too many requests.'
       );
     });
 
@@ -584,19 +588,28 @@ describe('ResetPasswordForm', () => {
         expect(componentTestRouter().push).toHaveBeenCalledWith('/fleet/');
       });
 
-      it('Visitor sees sign-in message when automatic sign-in fails after reset', async () => {
+      it('Visitor continues when automatic sign-in fails after reset', async () => {
         authClientMock.signIn.email.mockResolvedValue({
-          error: { code: 'INVALID_EMAIL_OR_PASSWORD' },
+          error: {
+            code: 'INVALID_EMAIL_OR_PASSWORD',
+            message: 'Invalid credentials',
+          },
         });
         renderResetPasswordForm();
 
         await continueWithResetCode();
         await fillNewPassword({ password: 'new-password' });
 
-        expect(await screen.findByRole('alert')).toHaveTextContent(
-          'Check your password.'
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+        expect(sentryMock.captureMessage).toHaveBeenCalledWith(
+          'Unknown auth client error',
+          expect.objectContaining({
+            tags: expect.objectContaining({
+              authAction: 'reset-password.auto-sign-in',
+            }),
+          })
         );
-        expect(componentTestRouter().push).not.toHaveBeenCalled();
+        expect(componentTestRouter().push).toHaveBeenCalledWith('/fleet/');
       });
     });
   });

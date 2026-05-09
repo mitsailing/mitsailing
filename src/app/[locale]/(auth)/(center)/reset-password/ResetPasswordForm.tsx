@@ -73,7 +73,9 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
       code: options.code,
       message: options.message,
     });
-    return t('error_validation');
+    return options.passwordStep
+      ? t('error_validation')
+      : t('error_code_validation');
   }
 
   function lockResend() {
@@ -162,6 +164,7 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
         return;
       }
       setStatus(t('resent_banner'));
+      setResetCode('');
       lockResend();
     } catch {
       setError(t('error_resend_failed'));
@@ -214,14 +217,11 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
         callbackURL: props.callbackUrl,
       });
       if (signInRes.error) {
-        setError(
-          mapError({
-            code: signInRes.error.code,
-            message: signInRes.error.message,
-            action: 'reset-password.auto-sign-in',
-          })
-        );
-        return;
+        reportUnknownAuthClientError({
+          code: signInRes.error.code,
+          message: signInRes.error.message,
+          action: 'reset-password.auto-sign-in',
+        });
       }
       router.push(props.callbackUrl);
       router.refresh();
