@@ -57,6 +57,9 @@ reviews:
         and auth diagnostic context are intentional in auth diagnostics. Do not
         request hashing, redaction, or removal of user IDs, emails, or auth
         error messages solely because they are PII.
+        Rate-limit errors may include short wait guidance such as
+        "Too many requests. Wait a few minutes."; this is intentional and is not
+        a prohibited "try again" variant.
         Flag deviations and security-sensitive mistakes (auth, SQL, secrets).
     - path: '**/*.{test,spec,e2e}.{ts,tsx}'
       instructions: >-
@@ -65,11 +68,14 @@ reviews:
         messages"; enforce no trailing period and clear behavior wording instead.
         The `UserProfilePage.sign_out_all_error` copy intentionally includes
         "Try again."; do not request removing it from assertions or UI.
+        Rate-limit assertions may expect "Wait a few minutes." copy; do not
+        request shortening it solely under the no "try again" rule.
     - path: 'src/locales/en.json'
       instructions: >-
         The `UserProfilePage.sign_out_all_error` copy intentionally reads
         "Could not revoke other sessions. Try again."; do not request removing
-        "Try again." from this key.
+        "Try again." from this key. Rate-limit messages may say "Wait a few
+        minutes." because this is direct wait guidance, not a "try again" variant.
     - path: 'prisma/**'
       instructions: >-
         Validate Prisma schema and migrations for naming consistency, safe evolves,
