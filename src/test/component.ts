@@ -1,6 +1,12 @@
 import { vi } from 'vitest';
 
-const router = {
+type ComponentTestRouter = {
+  push: ReturnType<typeof vi.fn>;
+  refresh: ReturnType<typeof vi.fn>;
+  replace: ReturnType<typeof vi.fn>;
+};
+
+const router: ComponentTestRouter = {
   push: vi.fn(),
   refresh: vi.fn(),
   replace: vi.fn(),
@@ -18,7 +24,7 @@ export function componentTestPathname() {
 }
 
 export function componentTestSearchParams() {
-  return currentSearchParams;
+  return new URLSearchParams(currentSearchParams);
 }
 
 export function setComponentTestPathname(pathname: string) {
@@ -29,7 +35,7 @@ export function setComponentTestSearchParams(searchParams: string) {
   currentSearchParams = new URLSearchParams(searchParams);
 }
 
-export function resetComponentTestRouter() {
+export function resetComponentTestState() {
   router.push.mockReset();
   router.refresh.mockReset();
   router.replace.mockReset();

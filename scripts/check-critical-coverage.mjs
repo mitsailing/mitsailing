@@ -396,7 +396,7 @@ function printExemptions(exemptions, write = console.error) {
 
 if (!existsSync(coverageSummaryPath)) {
   throw new Error(
-    `Coverage summary missing: ${coverageSummaryPath}. Run tests with coverage (e.g. npm run test) so coverage/coverage-summary.json exists.`
+    `Coverage summary missing: ${coverageSummaryPath}. Run tests with coverage (e.g. npm run test:coverage) so coverage/coverage-summary.json exists.`
   );
 }
 

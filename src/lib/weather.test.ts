@@ -47,8 +47,10 @@ describe('fetchWeatherHeaderData', () => {
     expect(result.windText).toBe('ENE @ 10 knots, Gust 12 knots');
     expect(result.sunsetText).toBe('7:42pm');
     expect(result.sourceTimestamp).toBe('Wed, 01 Jan 2025 00:00:00 GMT');
-    expect(fetchSpy.mock.calls[0]?.[1]).toMatchObject({ cache: 'no-store' });
-    expect(fetchSpy.mock.calls[0]?.[1]).not.toHaveProperty('next');
+    expect(fetchSpy.mock.calls[0]?.[1]).toEqual({
+      cache: 'no-store',
+      signal: expect.any(AbortSignal),
+    });
     expect(mockWarn).not.toHaveBeenCalled();
     expect(mockError).not.toHaveBeenCalled();
   });

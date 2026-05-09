@@ -27,7 +27,7 @@ export function isValidMarketingEmail(raw: string): boolean {
 }
 
 /**
- * Normalize user-entered auth email addresses before submitting to Better Auth.
+ * Normalize user-entered email addresses before validation or submission.
  *
  * @param raw - Candidate email string from user input
  * @returns The trimmed, lowercase address

@@ -1,5 +1,4 @@
 import { Heading, Section, Text } from 'react-email';
-import enMessages from '@/locales/en.json';
 import { EmailLayout } from './email-layout';
 import {
   codeBox,
@@ -12,30 +11,36 @@ import {
 
 export type PasswordResetEmailProps = {
   code: string;
+  copy: PasswordResetEmailCopy;
 };
 
-const copy = enMessages.AuthEmails;
+export type PasswordResetEmailCopy = {
+  reset_password_body: string;
+  reset_password_expiry: string;
+  reset_password_subject: string;
+};
 
 /**
  * Password reset request with a short-lived numeric code.
  * @param props - Template props.
  * @param props.code - Numeric reset code.
+ * @param props.copy - Localized email copy.
  * @returns Complete email element tree.
  */
 export function PasswordResetEmailTemplate(props: PasswordResetEmailProps) {
   return (
-    <EmailLayout previewText={copy.reset_password_subject}>
+    <EmailLayout previewText={props.copy.reset_password_subject}>
       <Section style={section}>
         <Heading as="h1" style={heading}>
-          {copy.reset_password_subject}
+          {props.copy.reset_password_subject}
         </Heading>
         <Text style={paragraph}>
-          {replaceAuthEmailValues(copy.reset_password_body, {
+          {replaceAuthEmailValues(props.copy.reset_password_body, {
             code: props.code,
           })}
         </Text>
         <Text style={codeBox}>{props.code}</Text>
-        <Text style={supportFooter}>{copy.reset_password_expiry}</Text>
+        <Text style={supportFooter}>{props.copy.reset_password_expiry}</Text>
       </Section>
     </EmailLayout>
   );

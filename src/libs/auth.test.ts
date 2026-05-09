@@ -153,7 +153,7 @@ vi.mock('@/libs/Logger', () => ({
 }));
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function isAuthPlugin(value: unknown): value is AuthPlugin {
@@ -500,7 +500,14 @@ describe('auth', () => {
       type: 'change-email',
     });
     expect(authMocks.loggerError).toHaveBeenCalledWith(
-      'Failed to send email change requested notice'
+      'Failed to send email change requested notice: {error}',
+      expect.objectContaining({
+        currentEmail: 'sailor@example.com',
+        error: expect.any(Error),
+        newEmail: 'next@example.com',
+        operation: 'sendEmailChangeRequestedNotice',
+        userId: 'user-1',
+      })
     );
   });
 
@@ -532,7 +539,14 @@ describe('auth', () => {
       type: 'change-email',
     });
     expect(authMocks.loggerError).toHaveBeenCalledWith(
-      'Failed to send email change requested notice'
+      'Failed to send email change requested notice: {error}',
+      expect.objectContaining({
+        currentEmail: 'sailor@example.com',
+        error: 'mail down',
+        newEmail: 'next@example.com',
+        operation: 'sendEmailChangeRequestedNotice',
+        userId: 'user-1',
+      })
     );
   });
 
@@ -564,7 +578,14 @@ describe('auth', () => {
       type: 'change-email',
     });
     expect(authMocks.loggerError).toHaveBeenCalledWith(
-      'Failed to mark pending email change'
+      'Failed to mark pending email change: {error}',
+      expect.objectContaining({
+        currentEmail: 'sailor@example.com',
+        error: expect.any(Error),
+        newEmail: 'next@example.com',
+        operation: 'markPendingEmailChange',
+        userId: 'user-1',
+      })
     );
     expect(authMocks.sendEmailChangeRequestedNotice).not.toHaveBeenCalled();
   });

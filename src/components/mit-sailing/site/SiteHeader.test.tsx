@@ -178,7 +178,7 @@ describe('SiteHeader', () => {
   it('sets aria-current on active flat links and dropdown children', async () => {
     const user = userEvent.setup();
     setComponentTestPathname('/events/');
-    renderHeader();
+    const view = renderHeader();
 
     const banner = screen.getByRole('banner');
     expect(
@@ -187,19 +187,22 @@ describe('SiteHeader', () => {
 
     setComponentTestPathname('/classes/');
     window.history.replaceState(null, '', '/classes/#windsurfing');
-    renderHeader();
-
-    const latestBanner = screen.getAllByRole('banner').at(-1);
-    expect(latestBanner).toBeDefined();
-    if (!latestBanner) {
-      throw new Error('Expected header banner to render');
-    }
+    view.rerender(
+      <SiteHeader
+        classesDropdownItems={classesDropdownItems}
+        fleetDropdownItems={fleetDropdownItems}
+      />
+    );
 
     await user.click(
-      within(latestBanner).getByRole('button', { name: 'Classes' })
+      within(screen.getByRole('banner')).getByRole('button', {
+        name: 'Classes',
+      })
     );
     expect(
-      within(latestBanner).getByRole('link', { name: 'Windsurfing' })
+      within(screen.getByRole('banner')).getByRole('link', {
+        name: 'Windsurfing',
+      })
     ).toHaveAttribute('aria-current', 'page');
   });
 

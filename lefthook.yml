@@ -22,8 +22,8 @@ pre-commit:
       glob: '*'
       run: npm run check:deps
 
-# Mirror the CI unit job before pushing.
+# Run repo checks and AI repair before pushing.
 pre-push:
   jobs:
-    - name: test coverage
-      run: npm run test:coverage
+    - name: prepush-ai
+      run: node scripts/prepush-ai.mjs

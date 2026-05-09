@@ -1,33 +1,14 @@
-import React from 'react';
-import { renderToString } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import {
-  AppThemeProvider,
-  useAppTheme,
-} from '@/components/shell/AppThemeProvider';
-import type { AppColorScheme } from '@/lib/mit-sailing/themePreference';
-
-function ThemeProbe() {
-  const theme = useAppTheme();
-  return React.createElement('span', null, theme.resolvedTheme);
-}
-
-function renderResolvedTheme(defaultTheme: AppColorScheme) {
-  const props = {
-    children: React.createElement(ThemeProbe),
-    defaultTheme,
-  } satisfies React.ComponentProps<typeof AppThemeProvider>;
-
-  return renderToString(React.createElement(AppThemeProvider, props));
-}
+import { resolveInitialTheme } from '@/components/shell/AppThemeProvider';
 
 describe('AppThemeProvider', () => {
   it('initializes resolved theme from explicit dark preference', () => {
-    expect(renderResolvedTheme('dark')).toContain('dark');
+    expect(resolveInitialTheme('dark')).toBe('dark');
   });
 
   it('initializes resolved theme from non-dark preferences without window', () => {
-    expect(renderResolvedTheme('light')).toContain('light');
-    expect(renderResolvedTheme('system')).toContain('light');
+    expect(resolveInitialTheme('light')).toBe('light');
+    expect(resolveInitialTheme('system', false)).toBe('light');
+    expect(resolveInitialTheme('system', true)).toBe('dark');
   });
 });

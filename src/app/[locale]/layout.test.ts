@@ -70,7 +70,7 @@ describe('RootLayout', () => {
   });
 
   describe('Locale handling', () => {
-    it('Calls notFound for unsupported locales', async () => {
+    it('calls notFound for unsupported locales', async () => {
       layoutMocks.hasLocale.mockReturnValue(false);
       const { default: RootLayout } = await import('./layout');
 
@@ -84,7 +84,7 @@ describe('RootLayout', () => {
       expect(layoutMocks.notFound).toHaveBeenCalled();
     });
 
-    it('Renders the html shell for a supported locale', async () => {
+    it('renders the html shell for a supported locale', async () => {
       const { default: RootLayout } = await import('./layout');
 
       const tree = await RootLayout({
@@ -105,7 +105,7 @@ describe('RootLayout', () => {
   });
 
   describe('Theme handling', () => {
-    it('Sets the dark class on html when the default theme is dark', async () => {
+    it('sets the dark class on html when the default theme is dark', async () => {
       themeHooks.getDefaultThemeForRootLayout.mockResolvedValue('dark');
       const { default: RootLayout } = await import('./layout');
 

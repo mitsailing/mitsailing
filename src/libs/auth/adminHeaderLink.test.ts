@@ -6,7 +6,7 @@ import {
 import { Role } from '@/libs/auth/roles';
 
 describe('adminHeaderLinkVisibleFromSession', () => {
-  it('visitor does not see the admin header link', () => {
+  it('hides admin header link from visitor', () => {
     expect(
       adminHeaderLinkVisibleFromSession({
         impersonatedBy: null,
@@ -23,7 +23,7 @@ describe('adminHeaderLinkVisibleFromSession', () => {
     ).toBe(false);
   });
 
-  it('sailor does not see the admin header link', () => {
+  it('hides admin header link from sailor', () => {
     expect(
       adminHeaderLinkVisibleFromSession({
         impersonatedBy: null,
@@ -33,7 +33,7 @@ describe('adminHeaderLinkVisibleFromSession', () => {
     ).toBe(false);
   });
 
-  it('impersonating admin does not see the admin header link', () => {
+  it('hides admin header link from impersonating admin', () => {
     expect(
       adminHeaderLinkVisibleFromSession({
         impersonatedBy: 'admin-1',
@@ -43,7 +43,7 @@ describe('adminHeaderLinkVisibleFromSession', () => {
     ).toBe(false);
   });
 
-  it('admin sees the admin header link', () => {
+  it('shows admin header link to admin', () => {
     expect(
       adminHeaderLinkVisibleFromSession({
         impersonatedBy: null,
@@ -55,7 +55,7 @@ describe('adminHeaderLinkVisibleFromSession', () => {
 });
 
 describe('adminHeaderLinkVisibleFromClientSessionData', () => {
-  it('admin and impersonating admin get distinct client visibility', () => {
+  it('shows distinct client visibility for admin and impersonating admin', () => {
     expect(
       adminHeaderLinkVisibleFromClientSessionData({
         session: {},
@@ -70,7 +70,7 @@ describe('adminHeaderLinkVisibleFromClientSessionData', () => {
     ).toBe(false);
   });
 
-  it('visitor is protected from malformed client session data', () => {
+  it('protects visitor from malformed client session data', () => {
     expect(adminHeaderLinkVisibleFromClientSessionData(null)).toBe(false);
     expect(adminHeaderLinkVisibleFromClientSessionData('signed-in')).toBe(
       false

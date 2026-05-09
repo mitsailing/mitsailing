@@ -2,7 +2,7 @@
 
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ProfileInlineBanner } from '@/components/auth/profile/profileBanner';
 import type { ProfileBannerState } from '@/components/auth/profile/profileBanner';
 import { useAppTheme } from '@/components/shell/AppThemeProvider';
@@ -42,10 +42,6 @@ export function ProfileAppearanceSection(props: ProfileAppearanceSectionProps) {
   );
   const [banner, setBanner] = useState<ProfileBannerState>(null);
   const [pending, setPending] = useState(false);
-
-  useEffect(() => {
-    setStored(props.initialPreference);
-  }, [props.initialPreference]);
 
   async function onSelect(next: AppColorScheme) {
     setBanner(null);

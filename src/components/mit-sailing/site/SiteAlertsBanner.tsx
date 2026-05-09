@@ -35,6 +35,9 @@ export function SiteAlertsBanner(props: {
   const [collapsed, setCollapsed] = useState(false);
 
   const total = props.rows.length;
+  const alertsFingerprint = serializeSiteAlertBannerCollapse(
+    props.collapseAlerts
+  );
 
   function toggleCollapsed() {
     setCollapsed((current) => {
@@ -43,7 +46,7 @@ export function SiteAlertsBanner(props: {
         if (next) {
           window.localStorage.setItem(
             SITE_ALERT_BANNER_COLLAPSE_STORAGE_KEY,
-            serializeSiteAlertBannerCollapse(props.collapseAlerts)
+            alertsFingerprint
           );
         } else {
           window.localStorage.removeItem(
@@ -62,16 +65,18 @@ export function SiteAlertsBanner(props: {
       const storedAlerts = parseStoredSiteAlertBannerCollapse(
         window.localStorage.getItem(SITE_ALERT_BANNER_COLLAPSE_STORAGE_KEY)
       );
+      const currentAlerts =
+        parseStoredSiteAlertBannerCollapse(alertsFingerprint) ?? [];
       setCollapsed(
         siteAlertBannerStartsCollapsed({
-          currentAlerts: props.collapseAlerts,
+          currentAlerts,
           storedAlerts,
         })
       );
     } catch {
       setCollapsed(false);
     }
-  }, [props.collapseAlerts]);
+  }, [alertsFingerprint]);
 
   if (total === 0) {
     return null;

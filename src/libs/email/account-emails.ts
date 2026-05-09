@@ -4,6 +4,10 @@ import { prisma } from '@/libs/DB';
 import { sendTransactionalEmail } from '@/libs/email/sendTransactional';
 import { Env } from '@/libs/Env';
 import enMessages from '@/locales/en.json';
+import {
+  isValidMarketingEmail,
+  normalizeMarketingEmail,
+} from '@/utils/emailValidation';
 import { getBaseUrl } from '@/utils/Helpers';
 import { AccountUnlockEmailTemplate } from '../../../emails/account-unlock';
 import { ConfirmEmailChangeTemplate } from '../../../emails/confirm-email-change';
@@ -21,6 +25,20 @@ const { SUPPORT_EMAIL } = Env;
 type AuthEmailMessages = typeof enMessages.AuthEmails;
 
 const authEmailMessages = enMessages.AuthEmails;
+
+function normalizeAuthEmail(value: string): string {
+  const email = normalizeMarketingEmail(value);
+  if (!isValidMarketingEmail(email)) {
+    throw new Error('Expected a valid email address.');
+  }
+  return email;
+}
+
+function assertEmailOtpCode(otp: string): void {
+  if (!/^\d{6}$/.test(otp)) {
+    throw new Error('Expected a six-digit email OTP code.');
+  }
+}
 
 function verificationCodeText(params: {
   code: string;
@@ -61,15 +79,17 @@ export async function sendEmailOtpCode(params: {
   otp: string;
   type: 'email-verification' | 'forget-password' | 'change-email' | 'sign-in';
 }) {
+  const email = normalizeAuthEmail(params.email);
+  assertEmailOtpCode(params.otp);
   const copy = authEmailMessages;
 
   switch (params.type) {
     case 'forget-password': {
       const html = await render(
-        PasswordResetEmailTemplate({ code: params.otp })
+        PasswordResetEmailTemplate({ code: params.otp, copy })
       );
       await sendTransactionalEmail({
-        to: params.email,
+        to: email,
         subject: copy.reset_password_subject,
         html,
         text: verificationCodeText({
@@ -88,7 +108,7 @@ export async function sendEmailOtpCode(params: {
         })
       );
       await sendTransactionalEmail({
-        to: params.email,
+        to: email,
         subject: copy.change_email_subject,
         html,
         text: verificationCodeText({
@@ -108,7 +128,7 @@ export async function sendEmailOtpCode(params: {
         })
       );
       await sendTransactionalEmail({
-        to: params.email,
+        to: email,
         subject: copy.sign_in_otp_subject,
         html,
         text: verificationCodeText({
@@ -121,10 +141,14 @@ export async function sendEmailOtpCode(params: {
     }
     case 'email-verification': {
       const html = await render(
-        VerifyEmailTemplate({ code: params.otp, supportEmail: SUPPORT_EMAIL })
+        VerifyEmailTemplate({
+          code: params.otp,
+          copy,
+          supportEmail: SUPPORT_EMAIL,
+        })
       );
       await sendTransactionalEmail({
-        to: params.email,
+        to: email,
         subject: copy.verify_subject,
         html,
         text: verificationCodeText({
@@ -154,15 +178,13 @@ export async function markPendingEmailChange(params: {
   userId: string;
   newEmail: string;
 }): Promise<boolean> {
+  const newEmail = normalizeAuthEmail(params.newEmail);
   const result = await prisma.user.updateMany({
     where: {
       id: params.userId,
-      OR: [
-        { unconfirmedEmail: null },
-        { unconfirmedEmail: { not: params.newEmail } },
-      ],
+      OR: [{ unconfirmedEmail: null }, { unconfirmedEmail: { not: newEmail } }],
     },
-    data: { unconfirmedEmail: params.newEmail },
+    data: { unconfirmedEmail: newEmail },
   });
   return result.count > 0;
 }
@@ -179,9 +201,11 @@ export async function sendEmailChangeRequestedNotice(params: {
   newEmail: string;
 }) {
   const copy = authEmailMessages;
+  const currentEmail = normalizeAuthEmail(params.currentEmail);
+  const newEmail = normalizeAuthEmail(params.newEmail);
   const html = await render(
     EmailChangeRequestedNoticeTemplate({
-      newEmail: params.newEmail,
+      newEmail,
       supportEmail: SUPPORT_EMAIL,
       previewText: copy.change_email_notice_preview,
       heading: copy.change_email_notice_subject,
@@ -190,13 +214,13 @@ export async function sendEmailChangeRequestedNotice(params: {
     })
   );
   await sendTransactionalEmail({
-    to: params.currentEmail,
+    to: currentEmail,
     subject: copy.change_email_notice_subject,
     html,
     text: [
       copy.change_email_notice_subject,
       replaceAuthEmailValues(copy.change_email_notice_body, {
-        email: params.newEmail,
+        email: newEmail,
       }),
       replaceAuthEmailValues(copy.change_email_notice_contact, {
         email: SUPPORT_EMAIL,
@@ -255,12 +279,18 @@ export async function sendAccountLockedEmail(email: string) {
  */
 export async function sendPasswordChangedNotice(email: string) {
   const copy = authEmailMessages;
+  const normalizedEmail = normalizeAuthEmail(email);
   const html = await render(
     PasswordChangedNoticeTemplate({ supportEmail: SUPPORT_EMAIL })
   );
   await sendTransactionalEmail({
-    to: email,
+    to: normalizedEmail,
     subject: copy.password_changed_subject,
     html,
+    text: [
+      copy.password_changed_subject,
+      'The password on your account was just updated. No action is needed if this was you.',
+      `If you did not change your password, contact ${SUPPORT_EMAIL} right away.`,
+    ].join('\n\n'),
   });
 }

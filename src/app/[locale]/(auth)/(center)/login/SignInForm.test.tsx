@@ -90,7 +90,7 @@ describe('SignInForm', () => {
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Your account has been disabled. Contact support if you believe this is an error.'
+      'Your account has been disabled. Contact support.'
     );
   });
 
@@ -433,7 +433,7 @@ describe('SignInForm', () => {
     await user.click(screen.getByRole('link', { name: 'Forgot password?' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'We could not send a reset code right now.'
+      'We could not send a reset code.'
     );
   });
 });

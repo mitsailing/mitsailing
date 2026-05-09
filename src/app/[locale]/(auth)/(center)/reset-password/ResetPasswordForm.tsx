@@ -8,7 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { authInlineLinkClassName } from '@/lib/mit-sailing/tokens';
 import { authClient } from '@/libs/auth-client';
-import { authHrefWithCallback } from '@/libs/auth/callbackUrl';
+import {
+  authHrefWithCallback,
+  safeAuthCallbackUrl,
+} from '@/libs/auth/callbackUrl';
 import { reportUnknownAuthClientError } from '@/libs/auth/reportAuthClientError';
 import { Link as I18nLink } from '@/libs/I18nNavigation';
 import {
@@ -24,8 +27,10 @@ type ResetPasswordFormProps = {
 };
 
 export function ResetPasswordForm(props: ResetPasswordFormProps) {
+  const tCommon = useTranslations('Common');
   const t = useTranslations('ResetPasswordPage');
   const router = useRouter();
+  const safeCallbackUrl = safeAuthCallbackUrl(props.callbackUrl, '/');
   const normalizedInitialEmail = normalizeMarketingEmail(props.initialEmail);
   const hasInitialEmail = isValidMarketingEmail(normalizedInitialEmail);
   const [email, setEmail] = useState(normalizedInitialEmail);
@@ -97,7 +102,15 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
 
   useEffect(() => {
     if (props.initialResendLocked) {
-      lockResend();
+      if (resendTimeoutRef.current !== null) {
+        clearTimeout(resendTimeoutRef.current);
+        resendTimeoutRef.current = null;
+      }
+      setResendLocked(true);
+      resendTimeoutRef.current = window.setTimeout(() => {
+        setResendLocked(false);
+        resendTimeoutRef.current = null;
+      }, 30_000);
     }
 
     return () => {
@@ -228,7 +241,7 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
       const signInRes = await authClient.signIn.email({
         email: normalizedEmail,
         password: passwordForSignIn,
-        callbackURL: props.callbackUrl,
+        callbackURL: safeCallbackUrl,
       });
       if (signInRes.error) {
         reportUnknownAuthClientError({
@@ -239,7 +252,7 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
         setAutoSignInFailed(true);
         return;
       }
-      router.push(props.callbackUrl);
+      router.push(safeCallbackUrl);
       router.refresh();
     } catch {
       setError(t('error_request_failed'));
@@ -354,7 +367,7 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
             type="button"
             variant="link"
           >
-            {resendLocked ? t('resend_wait') : t('resend_email')}
+            {resendLocked ? tCommon('resend_wait') : t('resend_email')}
           </Button>
         </>
       ) : (

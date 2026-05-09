@@ -35,7 +35,7 @@ export const viewport: Viewport = {
 /** next-intl: per-request locale; do not use static build-time locale list. */
 export const dynamic = 'force-dynamic';
 
-function themeBootScript(defaultTheme: AppColorScheme) {
+function themeBootScript(defaultTheme: AppColorScheme): string {
   return `(() => {
   const theme = ${JSON.stringify(defaultTheme)};
   const resolved = theme === 'system'

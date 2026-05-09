@@ -20,7 +20,7 @@ test.describe('Site alerts', () => {
     await expect(article.getByText('Tue, Dec 31, 2030')).toHaveCount(0);
   });
 
-  test('visitor minimize persists until new or edited alerts appear', async ({
+  test('visitor collapse persists until new or edited alerts appear', async ({
     page,
   }) => {
     await page.goto('/');

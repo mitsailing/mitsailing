@@ -81,7 +81,7 @@ function formDataForScenario(props: {
 describe('admin catalog boolean FormData parsers', () => {
   for (const scenario of booleanParserCases) {
     describe(scenario.label, () => {
-      it('admin keeps checked browser checkbox payloads', () => {
+      it('keeps checked browser checkbox payloads for admin', () => {
         const raw = scenario.parser(
           formDataForScenario({ scenario, checked: true })
         );
@@ -89,7 +89,7 @@ describe('admin catalog boolean FormData parsers', () => {
         expect(raw[scenario.field]).toBe(true);
       });
 
-      it('admin clears unchecked hidden fallback payloads', () => {
+      it('clears unchecked hidden fallback payloads for admin', () => {
         const raw = scenario.parser(
           formDataForScenario({ scenario, checked: false })
         );

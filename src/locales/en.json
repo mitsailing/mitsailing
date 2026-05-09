@@ -1,4 +1,7 @@
 {
+  "Common": {
+    "resend_wait": "You can request a new code in 30 seconds"
+  },
   "MitSailingHome": {
     "meta_title": "MIT Sailing",
     "meta_description": "Sailing programs, events, and fleet at the MIT Sailing Pavilion.",
@@ -161,8 +164,8 @@
     "error_unverified_resend_link": "Send verification code",
     "error_unverified_support": "Still stuck? Contact <support>support@mitsailing.com</support>.",
     "error_rate_limited": "Too many attempts. Wait a few minutes.",
-    "error_banned": "Your account has been disabled. Contact support if you believe this is an error.",
-    "error_reset_failed": "We could not send a reset code right now.",
+    "error_banned": "Your account has been disabled. Contact support.",
+    "error_reset_failed": "We could not send a reset code.",
     "unlock_invalid_error": "That unlock link is invalid or has expired. Wait for automatic unlock.",
     "unlocked_banner": "Your account is unlocked. You can sign in.",
     "error_invalid_email": "Enter a valid email address with a domain (for example name@mit.edu).",
@@ -198,8 +201,7 @@
     "code_label": "Verification code",
     "code_placeholder": "Code",
     "submit": "Continue",
-    "resend_code": "Resend email",
-    "resend_wait": "You can request a new code in 30 seconds",
+    "resend_email": "Resend email",
     "resent_banner": "We sent a new verification code.",
     "error_invalid_code": "That code is invalid.",
     "error_expired": "That code expired.",
@@ -243,9 +245,8 @@
     "continue": "Continue",
     "submit": "Update password",
     "resend_email": "Resend email",
-    "resend_wait": "You can request a new code in 30 seconds",
     "resent_banner": "We sent a new reset code.",
-    "error_resend_failed": "We could not send a reset code right now.",
+    "error_resend_failed": "We could not send a reset code.",
     "error_validation": "Check your password.",
     "error_code_validation": "Check your reset code.",
     "error_pwned": "That password has appeared in a known data breach. Choose a different one.",
@@ -259,7 +260,7 @@
     "error_password_mismatch": "Passwords do not match.",
     "error_rate_limited": "Too many requests. Try again in a few minutes.",
     "error_request_failed": "We could not complete that request right now.",
-    "auto_sign_in_failed": "Your password was reset.",
+    "auto_sign_in_failed": "Your password was reset. Please sign in manually.",
     "back_sign_in": "Back to sign in"
   },
   "UserProfilePage": {
@@ -314,7 +315,6 @@
     "pending_email_code_placeholder": "Code",
     "pending_email_confirm": "Confirm email",
     "pending_email_resend": "Resend email",
-    "pending_email_resend_wait": "You can request a new code in 30 seconds",
     "pending_email_resent": "New confirmation code sent to <strong>{email}</strong>.",
     "pending_email_resend_error": "Could not resend the confirmation code.",
     "error_request_failed": "We could not complete that request right now.",
@@ -362,7 +362,8 @@
     "admin_fleet_link": "Fleet admin",
     "sign_out": "Sign out",
     "impersonation_notice": "You are viewing the site as another user.",
-    "impersonation_exit": "Exit impersonation"
+    "impersonation_exit": "Exit impersonation",
+    "impersonation_exit_error": "Could not exit impersonation."
   },
   "AuthEmails": {
     "sign_in_otp_subject": "Your sign-in code",
@@ -371,6 +372,9 @@
     "sign_in_otp_expiry": "This code expires in 5 minutes. If you did not try to sign in, you can ignore this email, or contact <support>{email}</support> if you have questions.",
     "sign_in_otp_text": "Your MIT Sailing sign-in code is {code}.\n\nThis code expires in 5 minutes.",
     "verify_subject": "Confirm your email",
+    "verify_heading": "Confirm your email",
+    "verify_body": "Thanks for signing up. Your MIT Sailing verification code is {code}. Enter it in the verification screen to activate your account.",
+    "verify_expiry": "This code expires in 5 minutes. If it stops working, request a new code, or contact <support>{email}</support> if you do not receive it.",
     "verify_text": "Your MIT Sailing verification code is {code}.\n\nThis code expires in 5 minutes.",
     "reset_password_subject": "Reset your password",
     "reset_password_body": "We received a request to reset your password. Your MIT Sailing password reset code is {code}. Enter it on the reset screen to choose a new password.",
@@ -391,7 +395,7 @@
     "ACCOUNT_LOCKED": "Too many failed sign-in attempts. Your account is locked for 15 minutes.",
     "INVALID_EMAIL_OR_PASSWORD": "Invalid email or password.",
     "EMAIL_NOT_VERIFIED": "Verify your email before signing in.",
-    "PASSWORD_CHECK_FAILED": "Password check failed.",
+    "PASSWORD_CHECK_FAILED": "The password you entered is incorrect.",
     "PASSWORD_COMPROMISED": "That password has appeared in a known data breach. Choose a different one.",
     "BANNED_USER_MESSAGE": "Your account has been disabled. Contact support if you believe this is an error."
   },

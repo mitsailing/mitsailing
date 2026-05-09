@@ -90,21 +90,15 @@ describe('WeatherConditionsBar', () => {
 
     render(await WeatherConditionsBar(weatherProps));
 
-    expect(
-      screen.getByRole('link', {
-        name: 'MIT Sailing current weather conditions. Opens in a new tab.',
-      })
-    ).toHaveAttribute('href', 'https://sailing.mit.edu/weather/');
-    expect(
-      screen.getByRole('link', {
-        name: 'MIT Sailing current weather conditions. Opens in a new tab.',
-      })
-    ).toHaveAttribute('target', '_blank');
-    expect(
-      screen.getByRole('link', {
-        name: 'MIT Sailing current weather conditions. Opens in a new tab.',
-      })
-    ).toHaveAttribute('rel', 'noopener noreferrer');
+    const weatherLink = screen.getByRole('link', {
+      name: 'MIT Sailing current weather conditions. Opens in a new tab.',
+    });
+    expect(weatherLink).toHaveAttribute(
+      'href',
+      'https://sailing.mit.edu/weather/'
+    );
+    expect(weatherLink).toHaveAttribute('target', '_blank');
+    expect(weatherLink).toHaveAttribute('rel', 'noopener noreferrer');
 
     expect(
       screen.getByRole('link', { name: 'Reserve Pavilion' })

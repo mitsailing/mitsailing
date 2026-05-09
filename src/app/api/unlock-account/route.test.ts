@@ -34,7 +34,7 @@ function unlockRequest(token?: string) {
 }
 
 describe('GET /api/unlock-account', () => {
-  it('locked-out sailor returns to sign-in when the unlock token is missing', async () => {
+  it('redirects to login with error when token is missing', async () => {
     const response = await GET(unlockRequest());
 
     expect(response.headers.get('location')).toMatch(
@@ -43,7 +43,7 @@ describe('GET /api/unlock-account', () => {
     expect(deleteMany).not.toHaveBeenCalled();
   });
 
-  it('locked-out sailor returns to sign-in when the unlock token is invalid', async () => {
+  it('redirects to login with error when token is invalid', async () => {
     const response = await GET(unlockRequest('invalid-token'));
 
     expect(verifyUnlockAccountTokenMock).toHaveBeenCalledWith('invalid-token');
@@ -53,7 +53,7 @@ describe('GET /api/unlock-account', () => {
     expect(deleteMany).not.toHaveBeenCalled();
   });
 
-  it('locked-out sailor unlocks account with a valid email token', async () => {
+  it('deletes failed attempts and redirects when token is valid', async () => {
     verifyUnlockAccountTokenMock.mockResolvedValue({
       email: 'locked@example.com',
     });

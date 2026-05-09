@@ -34,11 +34,20 @@ function resolveTheme(theme: AppColorScheme): ResolvedColorScheme {
   return window.matchMedia(colorSchemeQuery).matches ? 'dark' : 'light';
 }
 
-function initialResolvedTheme(theme: AppColorScheme): ResolvedColorScheme {
+export function resolveInitialTheme(
+  theme: AppColorScheme,
+  prefersDark?: boolean
+): ResolvedColorScheme {
   if (theme === 'dark') {
     return 'dark';
   }
-  if (theme === 'light' || typeof window === 'undefined') {
+  if (theme === 'light') {
+    return 'light';
+  }
+  if (prefersDark !== undefined) {
+    return prefersDark ? 'dark' : 'light';
+  }
+  if (typeof window === 'undefined') {
     return 'light';
   }
   return window.matchMedia(colorSchemeQuery).matches ? 'dark' : 'light';
@@ -56,7 +65,7 @@ function applyTheme(theme: AppColorScheme): ResolvedColorScheme {
 export function AppThemeProvider(props: AppThemeProviderProps) {
   const [theme, setThemeState] = useState<AppColorScheme>(props.defaultTheme);
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedColorScheme>(() =>
-    initialResolvedTheme(props.defaultTheme)
+    resolveInitialTheme(props.defaultTheme)
   );
 
   useEffect(() => {

@@ -25,6 +25,7 @@ type ProfileAccountClientProps = {
 };
 
 export function ProfileAccountClient(props: ProfileAccountClientProps) {
+  const tCommon = useTranslations('Common');
   const t = useTranslations('UserProfilePage');
   const router = useRouter();
 
@@ -297,7 +298,7 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
                     variant="link"
                   >
                     {resendLocked
-                      ? t('pending_email_resend_wait')
+                      ? tCommon('resend_wait')
                       : t('pending_email_resend')}
                   </Button>
                   <span className="text-amber-800">

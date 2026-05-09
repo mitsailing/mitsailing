@@ -20,11 +20,17 @@ beforeEach(() => {
 });
 
 describe('StopImpersonationButton', () => {
-  it('Impersonating admin exits back to admin users', async () => {
+  it('exit impersonation and return to admin users', async () => {
     const user = userEvent.setup();
     const router = componentTestRouter();
 
-    render(<StopImpersonationButton label="Exit impersonation" locale="en" />);
+    render(
+      <StopImpersonationButton
+        errorLabel="Could not exit impersonation."
+        label="Exit impersonation"
+        locale="en"
+      />
+    );
 
     await user.click(
       screen.getByRole('button', { name: 'Exit impersonation' })
@@ -34,6 +40,35 @@ describe('StopImpersonationButton', () => {
       expect(authClientMock.admin.stopImpersonating).toHaveBeenCalledTimes(1);
       expect(router.push).toHaveBeenCalledWith('/admin/users');
       expect(router.refresh).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('show error when impersonation exit fails', async () => {
+    const user = userEvent.setup();
+    const router = componentTestRouter();
+    authClientMock.admin.stopImpersonating.mockRejectedValue(
+      new Error('network')
+    );
+
+    render(
+      <StopImpersonationButton
+        errorLabel="Could not exit impersonation."
+        label="Exit impersonation"
+        locale="en"
+      />
+    );
+
+    await user.click(
+      screen.getByRole('button', { name: 'Exit impersonation' })
+    );
+
+    await waitFor(() => {
+      expect(authClientMock.admin.stopImpersonating).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'Could not exit impersonation.'
+      );
+      expect(router.push).not.toHaveBeenCalled();
+      expect(router.refresh).not.toHaveBeenCalled();
     });
   });
 });

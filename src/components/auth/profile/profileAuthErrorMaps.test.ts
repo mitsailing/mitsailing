@@ -10,7 +10,7 @@ function t(key: string) {
 }
 
 describe('profile auth error maps', () => {
-  it('profile owner gets password guidance for known password errors', () => {
+  it('shows password guidance to profile owner for known password errors', () => {
     expect(mapProfilePasswordError('PASSWORD_COMPROMISED', undefined, t)).toBe(
       'translated:password_pwned_error'
     );
@@ -25,7 +25,7 @@ describe('profile auth error maps', () => {
     );
   });
 
-  it('profile owner gets fallback password guidance for unknown password errors', () => {
+  it('shows fallback password guidance to profile owner for unknown password errors', () => {
     expect(mapProfilePasswordError('UNKNOWN', 'Raw message', t)).toBe(
       'Raw message'
     );
@@ -34,7 +34,7 @@ describe('profile auth error maps', () => {
     );
   });
 
-  it('email-change persona gets guidance for known email errors', () => {
+  it('shows email guidance for known email errors', () => {
     expect(mapProfileEmailError('EMAIL_EXISTS', undefined, t)).toBe(
       'translated:email_exists_error'
     );
@@ -55,7 +55,7 @@ describe('profile auth error maps', () => {
     );
   });
 
-  it('email-change persona gets fallback guidance for unknown email errors', () => {
+  it('shows fallback email guidance for unknown email errors', () => {
     expect(mapProfileEmailError('UNKNOWN', 'Raw message', t)).toBe(
       'Raw message'
     );
@@ -64,7 +64,7 @@ describe('profile auth error maps', () => {
     );
   });
 
-  it('profile owner gets delete-account guidance for known delete errors', () => {
+  it('shows delete-account guidance to profile owner for known delete errors', () => {
     expect(mapProfileDeleteError('INVALID_PASSWORD', undefined, t)).toBe(
       'translated:delete_invalid_password_error'
     );
@@ -76,7 +76,7 @@ describe('profile auth error maps', () => {
     );
   });
 
-  it('profile owner gets fallback guidance for unknown delete errors', () => {
+  it('shows fallback delete guidance to profile owner for unknown delete errors', () => {
     expect(mapProfileDeleteError('UNKNOWN', 'Raw message', t)).toBe(
       'Raw message'
     );

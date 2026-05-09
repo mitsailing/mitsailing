@@ -46,7 +46,7 @@ function htmlToPlainText(html: string): string {
   })
     .replaceAll('\u00A0', ' ')
     .replaceAll(/[ \t\f\v]*\n[ \t\f\v]*/gu, '\n')
-    .replaceAll(/\n{2,}/gu, '\n')
+    .replaceAll(/\n{3,}/gu, '\n\n')
     .replaceAll(/[ \t\f\v]{2,}/gu, ' ')
     .trim();
 }

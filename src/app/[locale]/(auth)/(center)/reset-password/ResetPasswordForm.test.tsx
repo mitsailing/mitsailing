@@ -81,7 +81,7 @@ async function fillNewPassword(props: {
 
 describe('ResetPasswordForm', () => {
   describe('Code verification', () => {
-    it('Visitor verifies a reset code before choosing a new password', async () => {
+    it('verify reset code before choosing new password', async () => {
       renderResetPasswordForm();
 
       await continueWithResetCode();
@@ -98,7 +98,7 @@ describe('ResetPasswordForm', () => {
       ).toBeVisible();
     });
 
-    it('Visitor sees invalid-code message before the password step', async () => {
+    it('show invalid-code message before password step', async () => {
       authClientMock.emailOtp.checkVerificationOtp.mockResolvedValue({
         error: { code: 'INVALID_OTP' },
       });
@@ -114,7 +114,7 @@ describe('ResetPasswordForm', () => {
       ).not.toBeInTheDocument();
     });
 
-    it('Visitor sees expired-code message before the password step', async () => {
+    it('show expired-code message before password step', async () => {
       authClientMock.emailOtp.checkVerificationOtp.mockResolvedValue({
         error: { code: 'OTP_EXPIRED' },
       });
@@ -130,7 +130,7 @@ describe('ResetPasswordForm', () => {
       ).not.toBeInTheDocument();
     });
 
-    it('Visitor sees too-many-attempts message before the password step', async () => {
+    it('show too-many-attempts message before password step', async () => {
       authClientMock.emailOtp.checkVerificationOtp.mockResolvedValue({
         error: { code: 'TOO_MANY_ATTEMPTS' },
       });
@@ -143,7 +143,7 @@ describe('ResetPasswordForm', () => {
       );
     });
 
-    it('Visitor sees rate-limit message before the password step', async () => {
+    it('show rate-limit message before password step', async () => {
       authClientMock.emailOtp.checkVerificationOtp.mockResolvedValue({
         error: { code: 'TOO_MANY_REQUESTS' },
       });
@@ -156,7 +156,7 @@ describe('ResetPasswordForm', () => {
       );
     });
 
-    it('Visitor sees validation message before the password step for unknown provider errors', async () => {
+    it('show validation message before password step for unknown provider errors', async () => {
       authClientMock.emailOtp.checkVerificationOtp.mockResolvedValue({
         error: { message: 'Reset code was already used.' },
       });
@@ -183,7 +183,7 @@ describe('ResetPasswordForm', () => {
       ).not.toBeInTheDocument();
     });
 
-    it('Visitor sees request error when code verification fails', async () => {
+    it('show request error when code verification fails', async () => {
       authClientMock.emailOtp.checkVerificationOtp.mockRejectedValue(
         new Error('network')
       );
@@ -199,7 +199,7 @@ describe('ResetPasswordForm', () => {
       ).not.toBeInTheDocument();
     });
 
-    it('Visitor enters an email when the reset link has none', async () => {
+    it('enter email when reset link has none', async () => {
       const user = userEvent.setup();
       renderResetPasswordForm({ initialEmail: '' });
 
@@ -217,7 +217,7 @@ describe('ResetPasswordForm', () => {
       );
     });
 
-    it('Visitor sees a safe error before checking an invalid reset email', async () => {
+    it('show safe error before checking invalid reset email', async () => {
       const user = userEvent.setup();
       renderResetPasswordForm({ initialEmail: '' });
 
@@ -235,7 +235,7 @@ describe('ResetPasswordForm', () => {
   });
 
   describe('Resend cooldown', () => {
-    it('Visitor waits through the initial reset-code cooldown', async () => {
+    it('wait through initial reset-code cooldown', async () => {
       vi.useFakeTimers();
       renderResetPasswordForm({ initialResendLocked: true });
 
@@ -257,7 +257,7 @@ describe('ResetPasswordForm', () => {
       ).toBeEnabled();
     });
 
-    it('Visitor leaves before the initial reset-code cooldown ends', () => {
+    it('leave before initial reset-code cooldown ends', () => {
       vi.useFakeTimers();
       const { unmount } = renderResetPasswordForm({
         initialResendLocked: true,
@@ -272,7 +272,7 @@ describe('ResetPasswordForm', () => {
       ).not.toBeInTheDocument();
     });
 
-    it('Visitor waits before requesting another reset code after resending', async () => {
+    it('wait before requesting another reset code after resending', async () => {
       vi.useFakeTimers();
       renderResetPasswordForm();
       fireEvent.change(screen.getByLabelText('Reset code'), {
@@ -310,7 +310,7 @@ describe('ResetPasswordForm', () => {
       ).toBeEnabled();
     });
 
-    it('Visitor keeps the latest reset resend cooldown', async () => {
+    it('keep latest reset resend cooldown', async () => {
       vi.useFakeTimers();
       const clearTimeoutSpy = vi.spyOn(window, 'clearTimeout');
       const resend = Promise.withResolvers<object>();
@@ -349,7 +349,7 @@ describe('ResetPasswordForm', () => {
       clearTimeoutSpy.mockRestore();
     });
 
-    it('Visitor sees reset resend message when delivery is blocked', async () => {
+    it('show reset resend message when delivery is blocked', async () => {
       const user = userEvent.setup();
       authClientMock.emailOtp.requestPasswordReset.mockResolvedValue({
         error: { code: 'TOO_MANY_REQUESTS' },
@@ -363,7 +363,7 @@ describe('ResetPasswordForm', () => {
       );
     });
 
-    it('Visitor sees reset resend message when delivery fails', async () => {
+    it('show reset resend message when delivery fails', async () => {
       const user = userEvent.setup();
       authClientMock.emailOtp.requestPasswordReset.mockRejectedValue(
         new Error('network')
@@ -373,11 +373,11 @@ describe('ResetPasswordForm', () => {
       await user.click(screen.getByRole('button', { name: 'Resend email' }));
 
       expect(await screen.findByRole('alert')).toHaveTextContent(
-        'We could not send a reset code right now.'
+        'We could not send a reset code.'
       );
     });
 
-    it('Visitor sees a safe error before resending without an email', async () => {
+    it('show safe error before resending without email', async () => {
       const user = userEvent.setup();
       renderResetPasswordForm({ initialEmail: '' });
 
@@ -393,7 +393,7 @@ describe('ResetPasswordForm', () => {
   });
 
   describe('Password update', () => {
-    it('Visitor keeps a valid reset code after password mismatch', async () => {
+    it('keep valid reset code after password mismatch', async () => {
       renderResetPasswordForm();
 
       const user = await continueWithResetCode();
@@ -414,7 +414,7 @@ describe('ResetPasswordForm', () => {
       expect(authClientMock.emailOtp.resetPassword).not.toHaveBeenCalled();
     });
 
-    it('Visitor returns to code entry when a reset code expires during password update', async () => {
+    it('return to code entry when reset code expires during password update', async () => {
       authClientMock.emailOtp.resetPassword.mockResolvedValue({
         error: { code: 'OTP_EXPIRED' },
       });
@@ -429,7 +429,7 @@ describe('ResetPasswordForm', () => {
       expect(screen.getByLabelText('Reset code')).toHaveValue('');
     });
 
-    it('Visitor returns to code entry when a reset code is invalid during password update', async () => {
+    it('return to code entry when reset code is invalid during password update', async () => {
       authClientMock.emailOtp.resetPassword.mockResolvedValue({
         error: { code: 'INVALID_OTP' },
       });
@@ -444,7 +444,7 @@ describe('ResetPasswordForm', () => {
       expect(screen.getByLabelText('Reset code')).toHaveValue('123456');
     });
 
-    it('Visitor returns to code entry after too many reset attempts', async () => {
+    it('return to code entry after too many reset attempts', async () => {
       authClientMock.emailOtp.resetPassword.mockResolvedValue({
         error: { code: 'TOO_MANY_ATTEMPTS' },
       });
@@ -459,7 +459,7 @@ describe('ResetPasswordForm', () => {
       expect(screen.getByLabelText('Reset code')).toBeVisible();
     });
 
-    it('Visitor sees rate-limit message during password update', async () => {
+    it('show rate-limit message during password update', async () => {
       authClientMock.emailOtp.resetPassword.mockResolvedValue({
         error: { code: 'TOO_MANY_REQUESTS' },
       });
@@ -473,7 +473,7 @@ describe('ResetPasswordForm', () => {
       );
     });
 
-    it('Visitor sees breached-password message during password update', async () => {
+    it('show breached-password message during password update', async () => {
       authClientMock.emailOtp.resetPassword.mockResolvedValue({
         error: { code: 'PASSWORD_COMPROMISED' },
       });
@@ -488,7 +488,7 @@ describe('ResetPasswordForm', () => {
       expect(screen.queryByLabelText('Reset code')).not.toBeInTheDocument();
     });
 
-    it('Visitor sees short-password message during password update', async () => {
+    it('show short-password message during password update', async () => {
       authClientMock.emailOtp.resetPassword.mockResolvedValue({
         error: { code: 'PASSWORD_TOO_SHORT' },
       });
@@ -502,7 +502,7 @@ describe('ResetPasswordForm', () => {
       );
     });
 
-    it('Visitor sees long-password message during password update', async () => {
+    it('show long-password message during password update', async () => {
       authClientMock.emailOtp.resetPassword.mockResolvedValue({
         error: { code: 'PASSWORD_TOO_LONG' },
       });
@@ -516,7 +516,7 @@ describe('ResetPasswordForm', () => {
       );
     });
 
-    it('Visitor sees validation message during password update for unknown provider errors', async () => {
+    it('show validation message during password update for unknown provider errors', async () => {
       authClientMock.emailOtp.resetPassword.mockResolvedValue({
         error: { message: 'Password cannot include your email.' },
       });
@@ -538,7 +538,7 @@ describe('ResetPasswordForm', () => {
       );
     });
 
-    it('Visitor sees request error when password update fails', async () => {
+    it('show request error when password update fails', async () => {
       authClientMock.emailOtp.resetPassword.mockRejectedValue(
         new Error('network')
       );
@@ -554,7 +554,7 @@ describe('ResetPasswordForm', () => {
     });
 
     describe('Auto sign-in', () => {
-      it('Visitor resets password and signs in to the callback', async () => {
+      it('reset password and sign in to callback', async () => {
         renderResetPasswordForm();
 
         const user = await continueWithResetCode();
@@ -583,7 +583,21 @@ describe('ResetPasswordForm', () => {
         expect(componentTestRouter().push).toHaveBeenCalledWith('/fleet/');
       });
 
-      it('Visitor continues when automatic sign-in fails after reset', async () => {
+      it('use fallback after reset with unsafe callback', async () => {
+        renderResetPasswordForm({ callbackUrl: 'https://attacker.com' });
+
+        await continueWithResetCode();
+        await fillNewPassword({ password: 'new-password' });
+
+        expect(authClientMock.signIn.email).toHaveBeenCalledWith({
+          callbackURL: '/',
+          email: 'reset@mit.edu',
+          password: 'new-password',
+        });
+        expect(componentTestRouter().push).toHaveBeenCalledWith('/');
+      });
+
+      it('continue when automatic sign-in fails after reset', async () => {
         authClientMock.signIn.email.mockResolvedValue({
           error: {
             code: 'INVALID_EMAIL_OR_PASSWORD',

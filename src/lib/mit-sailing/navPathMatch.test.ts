@@ -9,6 +9,9 @@ describe('normalizeNavPath', () => {
   it('strips trailing slash except root', () => {
     expect(normalizeNavPath('/fleet/foo/')).toBe('/fleet/foo');
     expect(normalizeNavPath('/')).toBe('/');
+  });
+
+  it('normalizes whitespace-only input to root', () => {
     expect(normalizeNavPath('   ')).toBe('/');
   });
 

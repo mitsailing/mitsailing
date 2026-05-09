@@ -1,5 +1,9 @@
 import * as React from 'react';
 import { Link } from 'react-email';
+import {
+  isValidMarketingEmail,
+  normalizeMarketingEmail,
+} from '@/utils/emailValidation';
 
 /**
  * Shared inline styles for OTP / verification-family transactional emails
@@ -62,21 +66,45 @@ export function supportMessage(props: {
   message: string;
   supportEmail: string;
 }): React.ReactNode {
-  const [beforeSupport = '', rest] = props.message.split('<support>');
-  if (!rest) {
+  const openTag = '<support>';
+  const closeTag = '</support>';
+  const openIndex = props.message.indexOf(openTag);
+  const closeIndex = props.message.indexOf(closeTag);
+  const hasSingleSupportPair =
+    openIndex !== -1 &&
+    closeIndex !== -1 &&
+    openIndex < closeIndex &&
+    openIndex === props.message.lastIndexOf(openTag) &&
+    closeIndex === props.message.lastIndexOf(closeTag);
+
+  if (!hasSingleSupportPair) {
     return replaceAuthEmailValues(props.message, { email: props.supportEmail });
   }
-  const [supportText = '', afterSupport = ''] = rest.split('</support>');
+
+  const normalizedSupportEmail = normalizeMarketingEmail(props.supportEmail);
+  const beforeSupport = props.message.slice(0, openIndex);
+  const supportText = props.message.slice(
+    openIndex + openTag.length,
+    closeIndex
+  );
+  const afterSupport = props.message.slice(closeIndex + closeTag.length);
+
+  if (!isValidMarketingEmail(normalizedSupportEmail)) {
+    return replaceAuthEmailValues(
+      `${beforeSupport}${supportText}${afterSupport}`,
+      { email: normalizedSupportEmail }
+    );
+  }
 
   return React.createElement(
     React.Fragment,
     null,
-    replaceAuthEmailValues(beforeSupport, { email: props.supportEmail }),
+    replaceAuthEmailValues(beforeSupport, { email: normalizedSupportEmail }),
     React.createElement(
       Link,
-      { href: `mailto:${props.supportEmail}`, style: supportLink },
-      replaceAuthEmailValues(supportText, { email: props.supportEmail })
+      { href: `mailto:${normalizedSupportEmail}`, style: supportLink },
+      replaceAuthEmailValues(supportText, { email: normalizedSupportEmail })
     ),
-    replaceAuthEmailValues(afterSupport, { email: props.supportEmail })
+    replaceAuthEmailValues(afterSupport, { email: normalizedSupportEmail })
   );
 }

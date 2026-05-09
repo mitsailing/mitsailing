@@ -12,6 +12,8 @@ import { AppThemeProvider } from '@/components/shell/AppThemeProvider';
 import { componentTestRouter } from '@/test/component';
 import { ProfileAccountClient } from './ProfileAccountClient';
 
+const LOCALE = 'en';
+
 const authClientMock = vi.hoisted(() => ({
   emailOtp: {
     changeEmail: vi.fn(),
@@ -397,7 +399,10 @@ describe('ProfileAccountClient', () => {
 
     await user.click(screen.getByRole('radio', { name: 'Dark' }));
 
-    expect(updateThemePreferenceActionMock).toHaveBeenCalledWith('en', 'dark');
+    expect(updateThemePreferenceActionMock).toHaveBeenCalledWith(
+      LOCALE,
+      'dark'
+    );
     expect(await screen.findByRole('radio', { name: 'Dark' })).toHaveAttribute(
       'aria-checked',
       'true'

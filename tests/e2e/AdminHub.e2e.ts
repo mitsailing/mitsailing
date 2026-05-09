@@ -63,6 +63,16 @@ async function cleanupByEmail(email: string) {
         `change-email-otp-%-${email}`,
       ]
     );
+    await pool.query(
+      `DELETE FROM "session"
+       WHERE "user_id" = (SELECT "id" FROM "user" WHERE "email" = $1)`,
+      [email]
+    );
+    await pool.query(
+      `DELETE FROM "account"
+       WHERE "user_id" = (SELECT "id" FROM "user" WHERE "email" = $1)`,
+      [email]
+    );
     await pool.query('DELETE FROM "user" WHERE "email" = $1', [email]);
   } catch (error) {
     swallow(error);
@@ -306,7 +316,10 @@ test.describe('Admin hub and users', () => {
       const weatherBox = await weatherConditionsLink.boundingBox();
       expect(impersonationBox).not.toBeNull();
       expect(weatherBox).not.toBeNull();
-      expect(impersonationBox?.y).toBeLessThan(weatherBox?.y ?? 0);
+      if (!(impersonationBox && weatherBox)) {
+        throw new Error('Expected impersonation and weather bars to render.');
+      }
+      expect(impersonationBox.y).toBeLessThan(weatherBox.y);
 
       await page.goto('/profile/account/');
       await expect(

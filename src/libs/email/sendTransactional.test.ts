@@ -164,7 +164,7 @@ describe('sendTransactionalEmail', () => {
       from: 'MIT Sailing <noreply@example.com>',
       html: '<p>Hello&nbsp;<strong>sailor</strong></p><p><a href="https://example.com/account">Account</a></p>',
       subject: 'Account notice',
-      text: 'Hello sailor\nAccount (https://example.com/account)',
+      text: 'Hello sailor\n\nAccount (https://example.com/account)',
       to: 'sailor@example.com',
     });
   });

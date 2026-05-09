@@ -25,6 +25,7 @@ type BannerState = {
 } | null;
 
 export function VerifyEmailForm(props: VerifyEmailFormProps) {
+  const tCommon = useTranslations('Common');
   const t = useTranslations('VerifyEmailPage');
   const router = useRouter();
   const hasInitialEmail = isValidMarketingEmail(
@@ -243,7 +244,7 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
         type="button"
         variant="link"
       >
-        {resendLocked ? t('resend_wait') : t('resend_code')}
+        {resendLocked ? tCommon('resend_wait') : t('resend_email')}
       </Button>
     </section>
   );

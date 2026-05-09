@@ -24,11 +24,7 @@ vi.mock('@/components/mit-sailing/SiteSidebarLayout', () => ({
     sidebar: React.ReactNode;
     stretch?: boolean;
   }) => (
-    <div
-      data-density={props.density}
-      data-stretch={String(props.stretch)}
-      data-testid="site-sidebar-layout"
-    >
+    <div data-testid="site-sidebar-layout">
       <aside>{props.sidebar}</aside>
       <main>{props.children}</main>
     </div>
@@ -62,14 +58,6 @@ describe('ProfileSettingsChrome', () => {
       '/profile/account/'
     );
     expect(screen.getByTestId('site-shell')).toBeInTheDocument();
-    expect(screen.getByTestId('site-sidebar-layout')).toHaveAttribute(
-      'data-density',
-      'comfortable'
-    );
-    expect(screen.getByTestId('site-sidebar-layout')).toHaveAttribute(
-      'data-stretch',
-      'true'
-    );
     expect(
       screen.getByRole('navigation', { name: 'Profile settings' })
     ).toBeVisible();

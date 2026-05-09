@@ -14,14 +14,8 @@ vi.mock('@/libs/auth/adminHeaderLink', () => ({
 }));
 
 vi.mock('next-intl/server', () => ({
-  getLocale: vi.fn(async () => {
-    await Promise.resolve();
-    return 'en';
-  }),
-  getTranslations: vi.fn(async (_namespace: string) => {
-    await Promise.resolve();
-    return (key: string) => key;
-  }),
+  getLocale: vi.fn().mockResolvedValue('en'),
+  getTranslations: vi.fn().mockResolvedValue((key: string) => key),
 }));
 
 vi.mock('@/components/auth/ImpersonationBanner', () => ({
@@ -42,8 +36,14 @@ vi.mock('@/components/mit-sailing/SiteShellAlertsTopBar', () => ({
 }));
 
 vi.mock('@/components/mit-sailing/SiteShellHeaderNav', () => ({
-  SiteShellHeaderNav: () =>
-    React.createElement('div', { 'data-testid': 'header-nav' }),
+  SiteShellHeaderNav: (props: { initialShowAdminLink?: boolean }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'header-nav' },
+      props.initialShowAdminLink
+        ? React.createElement('a', { href: '/admin' }, 'Admin')
+        : null
+    ),
 }));
 
 vi.mock('@/components/mit-sailing/site/SiteFooter', () => ({
@@ -52,8 +52,14 @@ vi.mock('@/components/mit-sailing/site/SiteFooter', () => ({
 }));
 
 vi.mock('@/components/mit-sailing/site/SiteHeader', () => ({
-  SiteHeader: () =>
-    React.createElement('header', { 'data-testid': 'site-header' }),
+  SiteHeader: (props: { initialShowAdminLink?: boolean }) =>
+    React.createElement(
+      'header',
+      { 'data-testid': 'site-header' },
+      props.initialShowAdminLink
+        ? React.createElement('a', { href: '/admin' }, 'Admin')
+        : null
+    ),
 }));
 
 describe('SiteShell', () => {
@@ -91,17 +97,22 @@ describe('SiteShell', () => {
       adminHeaderLinkVisibleFromSession.mockReturnValue(true);
     });
 
-    it('passes session-derived flags into header nav props', async () => {
+    it('renders admin link when session-derived flags allow it', async () => {
       const { SiteShell } = await import('./SiteShell');
 
       const tree = await SiteShell({ children: null });
-      renderToStaticMarkup(tree);
+      const html = renderToStaticMarkup(tree);
 
       expect(adminHeaderLinkVisibleFromSession).toHaveBeenCalledWith({
         impersonatedBy: undefined,
         userId: 'user-1',
         userRole: 'admin',
       });
+      expect(html).toContain('Admin');
+
+      adminHeaderLinkVisibleFromSession.mockReturnValue(false);
+      const hiddenTree = await SiteShell({ children: null });
+      expect(renderToStaticMarkup(hiddenTree)).not.toContain('Admin');
     });
   });
 });

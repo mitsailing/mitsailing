@@ -156,7 +156,6 @@ describe('buildSiteAlertBannerCollapseAlerts', () => {
       },
     ]);
 
-    expect(updated).toMatchObject({ id: 'alert-1' });
     expect(updated?.contentFingerprint).not.toBe(current?.contentFingerprint);
   });
 

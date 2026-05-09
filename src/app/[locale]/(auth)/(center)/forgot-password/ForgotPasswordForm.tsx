@@ -41,22 +41,18 @@ export function ForgotPasswordForm(props: ForgotPasswordFormProps) {
       return;
     }
     setSubmitting(true);
+    const resetHref = authHrefWithCallback(
+      `/reset-password?email=${encodeURIComponent(normalizedEmail)}&codeSent=1`,
+      props.callbackUrl
+    );
     try {
       await authClient.emailOtp.requestPasswordReset({
         email: normalizedEmail,
       });
-      router.replace(
-        authHrefWithCallback(
-          `/reset-password?email=${encodeURIComponent(
-            normalizedEmail
-          )}&codeSent=1`,
-          props.callbackUrl
-        )
-      );
     } catch {
-      setEmailError(t('error_request_failed'));
-      setSubmitting(false);
+      // Keep the same client-visible result for known and unknown addresses.
     }
+    router.replace(resetHref);
   }
 
   return (

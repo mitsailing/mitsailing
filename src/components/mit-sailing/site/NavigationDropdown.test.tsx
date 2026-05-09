@@ -62,12 +62,12 @@ describe('NavigationDropdown', () => {
     await user.click(screen.getByRole('button', { name: 'Classes' }));
 
     const links = screen.getAllByRole('link');
-    expect(links.map((link) => link.textContent)).toEqual([
-      'All Classes',
-      'IntroductionStart here',
-      'Windsurfing',
-      'External guide',
-    ]);
+    expect(screen.getByRole('link', { name: 'All Classes' })).toBeVisible();
+    expect(screen.getByRole('link', { name: /Introduction/u })).toBeVisible();
+    expect(screen.getByText('Start here')).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Windsurfing' })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'External guide' })).toBeVisible();
+    expect(links).toHaveLength(4);
     expect(links[0]).toHaveAttribute('href', '/classes/');
   });
 
@@ -148,9 +148,8 @@ describe('NavigationDropdown', () => {
 
       const trigger = screen.getByRole('button', { name: 'Classes' });
       const wrapper = trigger.parentElement;
-      expect(wrapper).not.toBeNull();
       if (!wrapper) {
-        throw new Error('Expected dropdown wrapper to render');
+        throw new Error('Expected dropdown trigger wrapper.');
       }
 
       fireEvent.mouseEnter(wrapper);
@@ -223,7 +222,6 @@ describe('NavigationDropdown', () => {
     await user.click(trigger);
     expect(trigger).toHaveAttribute('aria-expanded', 'true');
 
-    outside.focus();
     fireEvent.focusIn(outside);
     expect(trigger).toHaveAttribute('aria-expanded', 'false');
   });
@@ -253,10 +251,10 @@ describe('NavigationDropdown', () => {
     expect(trigger).toHaveAttribute('aria-expanded', 'true');
 
     const root = container.firstElementChild;
-    expect(root).not.toBeNull();
-    if (root) {
-      fireEvent.mouseLeave(root);
+    if (!root) {
+      throw new Error('Expected dropdown root.');
     }
+    fireEvent.mouseLeave(root);
     expect(trigger).toHaveAttribute('aria-expanded', 'true');
 
     await user.click(screen.getByRole('link', { name: /Introduction/u }));

@@ -16,7 +16,11 @@ vi.mock('@/libs/auth/dal', () => ({
 }));
 
 vi.mock('./StopImpersonationButton', () => ({
-  StopImpersonationButton: (props: { label: string; locale: string }) => (
+  StopImpersonationButton: (props: {
+    errorLabel: string;
+    label: string;
+    locale: string;
+  }) => (
     <button data-locale={props.locale} type="button">
       {props.label}
     </button>
@@ -25,11 +29,8 @@ vi.mock('./StopImpersonationButton', () => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
-  impersonationMocks.getTranslations.mockImplementation(
-    async (props: { namespace: string }) => {
-      await Promise.resolve();
-      return (key: string) => `${props.namespace}.${key}`;
-    }
+  impersonationMocks.getTranslations.mockResolvedValue(
+    (key: string) => `AccountLayout.${key}`
   );
 });
 

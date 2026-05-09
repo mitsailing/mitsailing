@@ -47,7 +47,7 @@ async function fillSignUpForm(props: {
 }
 
 describe('SignUpForm', () => {
-  it('Visitor creates an account and continues to email verification', async () => {
+  it('create account and continue to email verification', async () => {
     render(<SignUpForm callbackUrl="/fleet/" />);
 
     const user = await fillSignUpForm({
@@ -71,7 +71,7 @@ describe('SignUpForm', () => {
     );
   });
 
-  it('Visitor creates an account with the email name when name is blank', async () => {
+  it('create account with email name when name is blank', async () => {
     render(<SignUpForm callbackUrl="/fleet/" />);
 
     const user = await fillSignUpForm({
@@ -88,7 +88,7 @@ describe('SignUpForm', () => {
     });
   });
 
-  it('Visitor submits trimmed lowercase email for sign-up and verify-email redirect', async () => {
+  it('submit trimmed lowercase email for sign-up and verify-email redirect', async () => {
     render(<SignUpForm callbackUrl="/fleet/" />);
 
     const user = await fillSignUpForm({
@@ -112,7 +112,7 @@ describe('SignUpForm', () => {
     );
   });
 
-  it('Visitor sees sign-in recovery links for an existing email', async () => {
+  it('show sign-in recovery links for existing email', async () => {
     authClientMock.signUp.email.mockResolvedValue({
       error: { code: 'EMAIL_EXISTS' },
     });
@@ -136,7 +136,7 @@ describe('SignUpForm', () => {
     ).toHaveAttribute('href', '/forgot-password?callbackUrl=%2Ffleet%2F');
   });
 
-  it('Visitor keeps the form when password confirmation does not match', async () => {
+  it('keep form when password confirmation does not match', async () => {
     render(<SignUpForm callbackUrl="/fleet/" />);
 
     const user = await fillSignUpForm({
@@ -152,7 +152,7 @@ describe('SignUpForm', () => {
     expect(authClientMock.signUp.email).not.toHaveBeenCalled();
   });
 
-  it('Visitor sees a safe error before submitting an invalid sign-up email', async () => {
+  it('show safe error before submitting invalid sign-up email', async () => {
     render(<SignUpForm callbackUrl="/fleet/" />);
 
     const user = await fillSignUpForm({
@@ -167,7 +167,7 @@ describe('SignUpForm', () => {
     expect(authClientMock.signUp.email).not.toHaveBeenCalled();
   });
 
-  it('Visitor sees breached-password message from sign-up', async () => {
+  it('show breached-password message from sign-up', async () => {
     authClientMock.signUp.email.mockResolvedValue({
       error: { code: 'PASSWORD_COMPROMISED' },
     });
@@ -187,7 +187,7 @@ describe('SignUpForm', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('Visitor sees rate-limit message from sign-up', async () => {
+  it('show rate-limit message from sign-up', async () => {
     authClientMock.signUp.email.mockResolvedValue({
       error: { message: 'TOO_MANY_REQUESTS' },
     });
@@ -204,7 +204,7 @@ describe('SignUpForm', () => {
     );
   });
 
-  it('Visitor sees rate-limit message from sign-up error code', async () => {
+  it('show rate-limit message from sign-up error code', async () => {
     authClientMock.signUp.email.mockResolvedValue({
       error: { code: 'TOO_MANY_REQUESTS' },
     });
@@ -221,7 +221,7 @@ describe('SignUpForm', () => {
     );
   });
 
-  it('Visitor sees generic copy from an unexpected sign-up error', async () => {
+  it('show generic copy from unexpected sign-up error', async () => {
     authClientMock.signUp.email.mockResolvedValue({
       error: { message: 'Invite is required.' },
     });
@@ -249,7 +249,7 @@ describe('SignUpForm', () => {
     );
   });
 
-  it('Visitor sees fallback message from an empty sign-up error', async () => {
+  it('show fallback message from empty sign-up error', async () => {
     authClientMock.signUp.email.mockResolvedValue({
       error: {},
     });
@@ -266,7 +266,7 @@ describe('SignUpForm', () => {
     );
   });
 
-  it('Visitor sees generic error and submit re-enables when sign-up rejects', async () => {
+  it('show generic error and re-enable submit when sign-up rejects', async () => {
     const rejection = new Error('empty message placeholder');
     rejection.message = '';
     authClientMock.signUp.email.mockRejectedValueOnce(rejection);
@@ -285,7 +285,7 @@ describe('SignUpForm', () => {
     expect(componentTestRouter().push).not.toHaveBeenCalled();
   });
 
-  it('Visitor sees generic copy when sign-up rejects with provider text', async () => {
+  it('show generic copy when sign-up rejects with provider text', async () => {
     authClientMock.signUp.email.mockRejectedValueOnce(
       new Error('Invite is closed.')
     );

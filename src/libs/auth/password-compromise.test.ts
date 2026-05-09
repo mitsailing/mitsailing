@@ -37,20 +37,23 @@ vi.mock('better-auth/api', () => ({ APIError: MockAPIError }));
 
 describe('assertPasswordNotCompromised', () => {
   let fetchSpy: MockInstance<(typeof globalThis)['fetch']>;
+  let warnSpy: MockInstance<typeof console.warn>;
 
   beforeEach(() => {
     vi.resetModules();
     mockEnv.NEXT_PUBLIC_IS_E2E = undefined;
     mockEnv.NODE_ENV = 'production';
     fetchSpy = vi.spyOn(globalThis, 'fetch');
+    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    warnSpy.mockRestore();
     fetchSpy.mockRestore();
   });
 
-  it('test sailor skips breach lookup when test env disables checks', async () => {
+  it('skip breach lookup when test env disables checks', async () => {
     mockEnv.NODE_ENV = 'test';
     const { assertPasswordNotCompromised, passwordCompromiseCheckEnabled } =
       await import('@/libs/auth/password-compromise');
@@ -63,7 +66,7 @@ describe('assertPasswordNotCompromised', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it('e2e sailor skips breach lookup when e2e env disables checks', async () => {
+  it('skip breach lookup when e2e env disables checks', async () => {
     mockEnv.NEXT_PUBLIC_IS_E2E = '1';
     const { assertPasswordNotCompromised, passwordCompromiseCheckEnabled } =
       await import('@/libs/auth/password-compromise');
@@ -76,7 +79,7 @@ describe('assertPasswordNotCompromised', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it('sailor can use an uncompromised password', async () => {
+  it('allow uncompromised password', async () => {
     const password = 'better sailing passphrase';
     const {
       assertPasswordNotCompromised,
@@ -107,7 +110,7 @@ describe('assertPasswordNotCompromised', () => {
     );
   });
 
-  it('sailor cannot use a compromised password suffix', async () => {
+  it('reject compromised password suffix', async () => {
     const password = 'correct horse battery staple';
     const { assertPasswordNotCompromised, hibpPasswordSha1RangeParts } =
       await import('@/libs/auth/password-compromise');
@@ -124,7 +127,7 @@ describe('assertPasswordNotCompromised', () => {
     });
   });
 
-  it('sailor gets a safe error when breach lookup returns non-ok', async () => {
+  it('return safe error when breach lookup returns non-ok', async () => {
     fetchSpy.mockResolvedValue(new Response(null, { status: 503 }));
     const { assertPasswordNotCompromised } =
       await import('@/libs/auth/password-compromise');
@@ -133,12 +136,12 @@ describe('assertPasswordNotCompromised', () => {
       assertPasswordNotCompromised('password')
     ).rejects.toMatchObject({
       code: 'PASSWORD_CHECK_FAILED',
-      message: 'Password check failed.',
+      message: 'The password you entered is incorrect.',
       status: 'INTERNAL_SERVER_ERROR',
     });
   });
 
-  it('sailor gets a safe error when breach lookup has a network failure', async () => {
+  it('return safe error when breach lookup has network failure', async () => {
     fetchSpy.mockRejectedValue(new TypeError('network down'));
     const { assertPasswordNotCompromised } =
       await import('@/libs/auth/password-compromise');
@@ -147,12 +150,12 @@ describe('assertPasswordNotCompromised', () => {
       assertPasswordNotCompromised('password')
     ).rejects.toMatchObject({
       code: 'PASSWORD_CHECK_FAILED',
-      message: 'Password check failed.',
+      message: 'The password you entered is incorrect.',
       status: 'INTERNAL_SERVER_ERROR',
     });
   });
 
-  it('sailor gets a safe error when breach lookup rejects without an error object', async () => {
+  it('return safe error when breach lookup rejects without error object', async () => {
     fetchSpy.mockRejectedValue('network down');
     const { assertPasswordNotCompromised } =
       await import('@/libs/auth/password-compromise');
@@ -161,12 +164,12 @@ describe('assertPasswordNotCompromised', () => {
       assertPasswordNotCompromised('password')
     ).rejects.toMatchObject({
       code: 'PASSWORD_CHECK_FAILED',
-      message: 'Password check failed.',
+      message: 'The password you entered is incorrect.',
       status: 'INTERNAL_SERVER_ERROR',
     });
   });
 
-  it('sailor can continue when breach lookup times out', async () => {
+  it('continue when breach lookup times out', async () => {
     fetchSpy.mockRejectedValue(new DOMException('Timed out', 'AbortError'));
     const { assertPasswordNotCompromised } =
       await import('@/libs/auth/password-compromise');
@@ -174,9 +177,12 @@ describe('assertPasswordNotCompromised', () => {
     await expect(assertPasswordNotCompromised('password')).resolves.toBe(
       undefined
     );
+    expect(warnSpy).toHaveBeenCalledWith(
+      'Password breach lookup timed out or aborted.'
+    );
   });
 
-  it('sailor can continue when breach lookup aborts as an error', async () => {
+  it('continue when breach lookup aborts as error', async () => {
     const abortError = new Error('Timed out');
     abortError.name = 'AbortError';
     fetchSpy.mockRejectedValue(abortError);
@@ -186,9 +192,12 @@ describe('assertPasswordNotCompromised', () => {
     await expect(assertPasswordNotCompromised('password')).resolves.toBe(
       undefined
     );
+    expect(warnSpy).toHaveBeenCalledWith(
+      'Password breach lookup timed out or aborted.'
+    );
   });
 
-  it('sailor aborts a slow breach lookup after the timeout', async () => {
+  it('abort slow breach lookup after timeout', async () => {
     vi.useFakeTimers();
     const abortSpy = vi.spyOn(AbortController.prototype, 'abort');
     fetchSpy.mockImplementation(async () => {
@@ -203,9 +212,10 @@ describe('assertPasswordNotCompromised', () => {
     );
 
     expect(abortSpy).toHaveBeenCalledOnce();
+    abortSpy.mockRestore();
   });
 
-  it('sailor keeps upstream APIError details for auth handling', async () => {
+  it('keep upstream APIError details for auth handling', async () => {
     const apiError = new MockAPIError('BAD_REQUEST', {
       code: 'UPSTREAM_POLICY',
       message: 'Blocked by upstream policy',

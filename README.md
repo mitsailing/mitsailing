@@ -161,7 +161,7 @@ npm run check:types      # tsc --noEmit
 npm run check:deps       # knip unused-code report
 npm run check:i18n       # next-intl message coverage
 npm run test             # Vitest unit + browser tests
-npm run test:coverage    # Vitest V8 coverage + auth-owned 95% four-metric gate
+npm run test:coverage    # Vitest V8 coverage + auth-owned 95% gate on branches, statements, lines, and functions
 npm run test:integration # db:test:up → db:wait → reset + migrate test_db → test → db:test:down
 npm run test:e2e         # Playwright end-to-end (spins up a test DB)
 npm run storybook        # Storybook dev server on :6006

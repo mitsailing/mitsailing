@@ -20,7 +20,7 @@ beforeEach(() => {
 });
 
 describe('ForgotPasswordForm', () => {
-  it('Visitor requests a reset code and moves to the code form', async () => {
+  it('request reset code and move to code form', async () => {
     const user = userEvent.setup();
 
     render(<ForgotPasswordForm callbackUrl="/fleet/" initialEmail="" />);
@@ -38,7 +38,7 @@ describe('ForgotPasswordForm', () => {
     });
   });
 
-  it('Visitor sees a safe error for an invalid reset email', async () => {
+  it('show safe error for invalid reset email', async () => {
     const user = userEvent.setup();
 
     render(<ForgotPasswordForm callbackUrl="/fleet/" initialEmail="" />);
@@ -52,7 +52,7 @@ describe('ForgotPasswordForm', () => {
     expect(authClientMock.emailOtp.requestPasswordReset).not.toHaveBeenCalled();
   });
 
-  it('Visitor continues when reset delivery returns an opaque error', async () => {
+  it('continue when reset delivery returns opaque error', async () => {
     const user = userEvent.setup();
     authClientMock.emailOtp.requestPasswordReset.mockResolvedValue({
       error: { code: 'TOO_MANY_REQUESTS' },
@@ -75,7 +75,7 @@ describe('ForgotPasswordForm', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
-  it('Visitor sees recovery message when reset delivery rejects', async () => {
+  it('continue when reset delivery rejects', async () => {
     const user = userEvent.setup();
     authClientMock.emailOtp.requestPasswordReset.mockRejectedValue(
       new Error('network')
@@ -87,12 +87,15 @@ describe('ForgotPasswordForm', () => {
 
     await user.click(screen.getByRole('button', { name: 'Send reset code' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'We could not send a reset code right now.'
-    );
+    await waitFor(() => {
+      expect(componentTestRouter().replace).toHaveBeenCalledWith(
+        '/reset-password?email=reset%40mit.edu&codeSent=1&callbackUrl=%2Ffleet%2F'
+      );
+    });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
-  it('Visitor reset redirect omits unsafe external callbackUrl', async () => {
+  it('omit unsafe external callbackUrl from reset redirect', async () => {
     const user = userEvent.setup();
 
     render(

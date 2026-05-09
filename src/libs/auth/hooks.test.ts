@@ -167,7 +167,7 @@ afterEach(() => {
 });
 
 describe('signInEmailHooks before', () => {
-  it('locked-out sailor cannot pass sign-in preflight during active lockout', async () => {
+  it('reject locked-out user during active lockout preflight', async () => {
     count.mockResolvedValue(5);
 
     await expect(
@@ -187,7 +187,7 @@ describe('signInEmailHooks before', () => {
     });
   });
 
-  it('sailor can pass sign-in preflight below the lockout threshold', async () => {
+  it('allow sign-in preflight below lockout threshold', async () => {
     count.mockResolvedValue(4);
 
     await expect(
@@ -200,7 +200,7 @@ describe('signInEmailHooks before', () => {
     ).resolves.toBeUndefined();
   });
 
-  it('visitor skips sign-in and sign-up preflight without email', async () => {
+  it('skip sign-in and sign-up preflight without email', async () => {
     await hooks.before(
       authContext({
         body: { email: '' },
@@ -218,7 +218,7 @@ describe('signInEmailHooks before', () => {
     expect(findUnique).not.toHaveBeenCalled();
   });
 
-  it('visitor cannot sign up with a duplicate normalized email', async () => {
+  it('reject sign-up with duplicate normalized email', async () => {
     findUnique.mockResolvedValue({ id: 'user_1' });
 
     await expect(
@@ -235,7 +235,7 @@ describe('signInEmailHooks before', () => {
     });
   });
 
-  it('visitor cannot reset without a string password', async () => {
+  it('reject reset without string password', async () => {
     await expect(
       hooks.before(
         authContext({
@@ -248,7 +248,7 @@ describe('signInEmailHooks before', () => {
     expect(assertPasswordNotCompromised).not.toHaveBeenCalled();
   });
 
-  it('visitor cannot reset to a short password before breach lookup', async () => {
+  it('reject short reset password before breach lookup', async () => {
     await expect(
       hooks.before(
         authContext({
@@ -261,7 +261,7 @@ describe('signInEmailHooks before', () => {
     expect(assertPasswordNotCompromised).not.toHaveBeenCalled();
   });
 
-  it('visitor cannot reset to a long password before breach lookup', async () => {
+  it('reject long reset password before breach lookup', async () => {
     await expect(
       hooks.before(
         authContext({
@@ -274,7 +274,7 @@ describe('signInEmailHooks before', () => {
     expect(assertPasswordNotCompromised).not.toHaveBeenCalled();
   });
 
-  it('visitor checks reset password breach risk for valid length', async () => {
+  it('check reset password breach risk for valid length', async () => {
     await hooks.before(
       authContext({
         body: { password: 'valid-password' },
@@ -285,7 +285,7 @@ describe('signInEmailHooks before', () => {
     expect(assertPasswordNotCompromised).toHaveBeenCalledWith('valid-password');
   });
 
-  it('visitor gets compromised reset password rejection', async () => {
+  it('reject compromised reset password', async () => {
     const compromisedError = new Error('compromised');
     assertPasswordNotCompromisedMock.mockRejectedValue(compromisedError);
 
@@ -301,7 +301,7 @@ describe('signInEmailHooks before', () => {
 });
 
 describe('signInEmailHooks after sign-in', () => {
-  it('sailor failed sign-in records Cloudflare IP', async () => {
+  it('record Cloudflare IP for failed sign-in', async () => {
     await hooks.after(
       authContext({
         body: { email: ' Failed.User@Example.COM ' },
@@ -318,7 +318,7 @@ describe('signInEmailHooks after sign-in', () => {
     });
   });
 
-  it('sailor failed sign-in records no IP when request is missing', async () => {
+  it('record no IP for failed sign-in without request', async () => {
     await hooks.after(
       authContext({
         body: { email: 'failed@example.com' },
@@ -334,7 +334,7 @@ describe('signInEmailHooks after sign-in', () => {
     });
   });
 
-  it('sailor successful sign-in clears failed attempts', async () => {
+  it('clear failed attempts after successful sign-in', async () => {
     await hooks.after(
       authContext({
         body: { email: ' Success.User@Example.COM ' },
@@ -349,7 +349,7 @@ describe('signInEmailHooks after sign-in', () => {
     expect(create).not.toHaveBeenCalled();
   });
 
-  it('visitor skips failed-attempt tracking without a sign-in email', async () => {
+  it('skip failed-attempt tracking without sign-in email', async () => {
     await hooks.after(
       authContext({
         path: '/session',
@@ -366,7 +366,7 @@ describe('signInEmailHooks after sign-in', () => {
     expect(deleteMany).not.toHaveBeenCalled();
   });
 
-  it('locked-out sailor receives lockout email on fifth recent failure', async () => {
+  it('send lockout email on fifth recent failure', async () => {
     count.mockResolvedValue(5);
 
     await hooks.after(
@@ -380,7 +380,7 @@ describe('signInEmailHooks after sign-in', () => {
     expect(sendAccountLockedEmail).toHaveBeenCalledWith('locked@example.com');
   });
 
-  it('sailor does not receive lockout email outside fifth recent failure', async () => {
+  it('skip lockout email outside fifth recent failure', async () => {
     count.mockResolvedValueOnce(4).mockResolvedValueOnce(6);
 
     await hooks.after(
@@ -399,7 +399,7 @@ describe('signInEmailHooks after sign-in', () => {
     expect(sendAccountLockedEmail).not.toHaveBeenCalled();
   });
 
-  it('locked-out sailor sign-in flow survives lockout email failure', async () => {
+  it('keep sign-in flow working when lockout email fails', async () => {
     const deliveryError = new Error('mail down');
     count.mockResolvedValue(5);
     sendAccountLockedEmailMock.mockRejectedValue(deliveryError);
@@ -421,7 +421,7 @@ describe('signInEmailHooks after sign-in', () => {
 });
 
 describe('signInEmailHooks after change password', () => {
-  it('security-notice persona receives password change notice for session email', async () => {
+  it('send password change notice for session email', async () => {
     await hooks.after(
       authContext({
         context: { session: { user: { email: 'user@example.com' } } },
@@ -433,7 +433,7 @@ describe('signInEmailHooks after change password', () => {
     expect(sendPasswordChangedNotice).toHaveBeenCalledWith('user@example.com');
   });
 
-  it('security-notice persona skips password change notice without session email', async () => {
+  it('skip password change notice without session email', async () => {
     await hooks.after(
       authContext({
         context: { session: { user: { email: null } } },
@@ -444,7 +444,7 @@ describe('signInEmailHooks after change password', () => {
     expect(sendPasswordChangedNotice).not.toHaveBeenCalled();
   });
 
-  it('security-notice persona skips password change notice without session', async () => {
+  it('skip password change notice without session', async () => {
     await hooks.after(
       authContext({
         path: '/change-password',
@@ -454,7 +454,7 @@ describe('signInEmailHooks after change password', () => {
     expect(sendPasswordChangedNotice).not.toHaveBeenCalled();
   });
 
-  it('security-notice persona skips password change notice with empty session email', async () => {
+  it('skip password change notice with empty session email', async () => {
     await hooks.after(
       authContext({
         context: { session: { user: { email: '' } } },
@@ -465,7 +465,7 @@ describe('signInEmailHooks after change password', () => {
     expect(sendPasswordChangedNotice).not.toHaveBeenCalled();
   });
 
-  it('profile owner password change survives notice delivery failure', async () => {
+  it('keep password change working when notice delivery fails', async () => {
     const deliveryError = new Error('mail down');
     sendPasswordChangedNoticeMock.mockRejectedValue(deliveryError);
 

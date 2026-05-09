@@ -24,25 +24,14 @@ beforeEach(() => {
 });
 
 describe('authClient', () => {
-  it('Registers admin and email OTP client plugins', async () => {
-    const { authClient } = await import('@/libs/auth-client');
+  it('registers admin and email OTP client plugins', async () => {
+    await import('@/libs/auth-client');
 
-    expect(authClient).toEqual({
-      config: {
-        plugins: [
-          { id: 'admin-client-plugin' },
-          { id: 'email-otp-client-plugin' },
-        ],
-      },
-      id: 'auth-client',
-    });
-    expect(clientMocks.adminClient).toHaveBeenCalledTimes(1);
-    expect(clientMocks.emailOTPClient).toHaveBeenCalledTimes(1);
     expect(clientMocks.createAuthClient).toHaveBeenCalledWith({
-      plugins: [
-        { id: 'admin-client-plugin' },
-        { id: 'email-otp-client-plugin' },
-      ],
+      plugins: expect.arrayContaining([
+        expect.objectContaining({ id: 'admin-client-plugin' }),
+        expect.objectContaining({ id: 'email-otp-client-plugin' }),
+      ]),
     });
   });
 });

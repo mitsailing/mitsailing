@@ -7,19 +7,7 @@ import {
 
 function ThemeProbe() {
   const theme = useAppTheme();
-  return (
-    <>
-      <span>{theme.resolvedTheme}</span>
-      <button
-        type="button"
-        onClick={() => {
-          theme.setTheme('system');
-        }}
-      >
-        System
-      </button>
-    </>
-  );
+  return <span>{theme.resolvedTheme}</span>;
 }
 
 function MissingProviderProbe() {
@@ -82,6 +70,7 @@ describe('AppThemeProvider client behavior', () => {
     expect(screen.getByText('dark')).toBeVisible();
     expect(document.documentElement).toHaveClass('dark');
     expect(document.documentElement.dataset.theme).toBe('system');
+    expect(document.documentElement.style.colorScheme).toBe('dark');
 
     prefersDark = false;
     act(() => {
@@ -92,6 +81,7 @@ describe('AppThemeProvider client behavior', () => {
 
     expect(screen.getByText('light')).toBeVisible();
     expect(document.documentElement).not.toHaveClass('dark');
+    expect(document.documentElement.dataset.theme).toBe('system');
     expect(document.documentElement.style.colorScheme).toBe('light');
 
     view.unmount();

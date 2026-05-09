@@ -1,10 +1,14 @@
 import * as Sentry from '@sentry/nextjs';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { reportUnknownAuthClientError } from './reportAuthClientError';
 
 vi.mock('@sentry/nextjs', () => ({
   captureMessage: vi.fn(),
 }));
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 describe('reportUnknownAuthClientError', () => {
   it('redacts provider auth client error messages', () => {
@@ -42,6 +46,10 @@ describe('reportUnknownAuthClientError', () => {
     expect(Sentry.captureMessage).toHaveBeenCalledWith(
       'Unknown auth client error',
       expect.objectContaining({
+        tags: expect.objectContaining({
+          authAction: 'sign_up',
+          authErrorCode: 'PASSWORD_CHECK_FAILED',
+        }),
         contexts: {
           authClientError: {
             code: 'PASSWORD_CHECK_FAILED',
@@ -85,6 +93,10 @@ describe('reportUnknownAuthClientError', () => {
     expect(Sentry.captureMessage).toHaveBeenCalledWith(
       'Unknown auth client error',
       expect.objectContaining({
+        tags: expect.objectContaining({
+          authAction: 'reset_password',
+          authErrorCode: 'unknown',
+        }),
         contexts: {
           authClientError: {
             code: 'unknown',

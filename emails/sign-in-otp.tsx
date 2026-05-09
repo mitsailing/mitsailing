@@ -23,20 +23,11 @@ export type SignInOtpEmailCopy = {
   sign_in_otp_subject: string;
 };
 
-function signInOtpBody(props: {
-  code: string;
-  copy: SignInOtpEmailCopy;
-}): string {
-  return replaceAuthEmailValues(props.copy.sign_in_otp_body, {
-    code: props.code,
-  });
-}
-
 /**
  * Email OTP for passwordless sign-in (existing accounts).
  *
  * @param props - Template props.
- * @param props.code - Numeric sign-in code.
+ * @param props.code - Numeric string sign-in code.
  * @param props.copy - Localized email copy.
  * @param props.supportEmail - Mailto address for recipients who need help.
  * @returns Complete email element tree.
@@ -49,7 +40,9 @@ export function SignInOtpEmailTemplate(props: SignInOtpEmailProps) {
           {props.copy.sign_in_otp_heading}
         </Heading>
         <Text style={paragraph}>
-          {signInOtpBody({ code: props.code, copy: props.copy })}
+          {replaceAuthEmailValues(props.copy.sign_in_otp_body, {
+            code: props.code,
+          })}
         </Text>
         <Text style={codeBox}>{props.code}</Text>
         <Text style={supportFooter}>

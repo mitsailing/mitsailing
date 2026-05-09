@@ -32,7 +32,7 @@ afterEach(() => {
 
 describe('VerifyEmailForm', () => {
   describe('verification', () => {
-    it('Unverified sailor verifies email and returns to the callback', async () => {
+    it('verify email and return to callback', async () => {
       const user = userEvent.setup();
 
       render(
@@ -50,7 +50,7 @@ describe('VerifyEmailForm', () => {
       expect(componentTestRouter().refresh).not.toHaveBeenCalled();
     });
 
-    it('Rejects unsafe callback and uses fallback', async () => {
+    it('reject unsafe callback and use fallback', async () => {
       const user = userEvent.setup();
 
       render(
@@ -71,7 +71,7 @@ describe('VerifyEmailForm', () => {
       expect(componentTestRouter().refresh).not.toHaveBeenCalled();
     });
 
-    it('Unverified sailor sees invalid-code message', async () => {
+    it('show invalid-code message', async () => {
       const user = userEvent.setup();
       authClientMock.emailOtp.verifyEmail.mockResolvedValue({
         error: { code: 'INVALID_OTP' },
@@ -89,7 +89,7 @@ describe('VerifyEmailForm', () => {
       );
     });
 
-    it('Unverified sailor sees expired-code message', async () => {
+    it('show expired-code message', async () => {
       const user = userEvent.setup();
       authClientMock.emailOtp.verifyEmail.mockResolvedValue({
         error: { code: 'OTP_EXPIRED' },
@@ -107,7 +107,7 @@ describe('VerifyEmailForm', () => {
       );
     });
 
-    it('Unverified sailor sees too-many-attempts message', async () => {
+    it('show too-many-attempts message', async () => {
       const user = userEvent.setup();
       authClientMock.emailOtp.verifyEmail.mockResolvedValue({
         error: { code: 'TOO_MANY_ATTEMPTS' },
@@ -125,7 +125,7 @@ describe('VerifyEmailForm', () => {
       );
     });
 
-    it('Unverified sailor sees rate-limit message from verification', async () => {
+    it('show rate-limit message from verification', async () => {
       const user = userEvent.setup();
       authClientMock.emailOtp.verifyEmail.mockResolvedValue({
         error: { code: 'TOO_MANY_REQUESTS' },
@@ -143,7 +143,7 @@ describe('VerifyEmailForm', () => {
       );
     });
 
-    it('Unverified sailor sees invalid-code message for unmapped verification errors', async () => {
+    it('show invalid-code message for unmapped verification errors', async () => {
       const user = userEvent.setup();
       warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
@@ -167,7 +167,7 @@ describe('VerifyEmailForm', () => {
       );
     });
 
-    it('Unverified sailor sees invalid-code message for empty verification errors', async () => {
+    it('show invalid-code message for empty verification errors', async () => {
       const user = userEvent.setup();
       warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
@@ -188,7 +188,7 @@ describe('VerifyEmailForm', () => {
       expect(warnSpy).not.toHaveBeenCalled();
     });
 
-    it('Unverified sailor sees request message when verification fails', async () => {
+    it('show request message when verification fails', async () => {
       const user = userEvent.setup();
       authClientMock.emailOtp.verifyEmail.mockRejectedValue(
         new Error('network')
@@ -208,7 +208,7 @@ describe('VerifyEmailForm', () => {
   });
 
   describe('validation', () => {
-    it('Unverified sailor enters an email when the link has none', async () => {
+    it('enter email when link has none', async () => {
       const user = userEvent.setup();
 
       render(<VerifyEmailForm callbackUrl="/fleet/" initialEmail="" />);
@@ -224,7 +224,7 @@ describe('VerifyEmailForm', () => {
       });
     });
 
-    it('Normalizes typed email before verify and resend', async () => {
+    it('normalize typed email before verify and resend', async () => {
       const user = userEvent.setup();
 
       render(<VerifyEmailForm callbackUrl="/fleet/" initialEmail="" />);
@@ -247,7 +247,7 @@ describe('VerifyEmailForm', () => {
       });
     });
 
-    it('Unverified sailor sees a safe error before submitting an invalid email', async () => {
+    it('show safe error before submitting invalid email', async () => {
       const user = userEvent.setup();
 
       render(<VerifyEmailForm callbackUrl="/fleet/" initialEmail="" />);
@@ -262,7 +262,7 @@ describe('VerifyEmailForm', () => {
       expect(authClientMock.emailOtp.verifyEmail).not.toHaveBeenCalled();
     });
 
-    it('Unverified sailor sees a safe error before resending without an email', async () => {
+    it('show safe error before resending without email', async () => {
       const user = userEvent.setup();
 
       render(<VerifyEmailForm callbackUrl="/fleet/" initialEmail="" />);
@@ -279,7 +279,7 @@ describe('VerifyEmailForm', () => {
   });
 
   describe('resend', () => {
-    it('Unverified sailor resends a verification code', async () => {
+    it('resend verification code', async () => {
       const user = userEvent.setup();
 
       render(
@@ -297,7 +297,7 @@ describe('VerifyEmailForm', () => {
       ).toBeVisible();
     });
 
-    it('Unverified sailor sees rate-limit message when resend is blocked', async () => {
+    it('show rate-limit message when resend is blocked', async () => {
       const user = userEvent.setup();
       authClientMock.emailOtp.sendVerificationOtp.mockResolvedValue({
         error: { code: 'TOO_MANY_REQUESTS' },
@@ -314,7 +314,7 @@ describe('VerifyEmailForm', () => {
       );
     });
 
-    it('Unverified sailor sees request message when resend fails', async () => {
+    it('show request message when resend fails', async () => {
       const user = userEvent.setup();
       authClientMock.emailOtp.sendVerificationOtp.mockRejectedValue(
         new Error('network')
@@ -333,7 +333,7 @@ describe('VerifyEmailForm', () => {
   });
 
   describe('cooldown', () => {
-    it('Unverified sailor sees resend unlock after the cooldown', async () => {
+    it('show resend unlock after cooldown', async () => {
       vi.useFakeTimers();
 
       render(
@@ -362,7 +362,7 @@ describe('VerifyEmailForm', () => {
       ).toBeEnabled();
     });
 
-    it('Unverified sailor waits through the initial resend cooldown', async () => {
+    it('wait through initial resend cooldown', async () => {
       vi.useFakeTimers();
 
       render(
@@ -391,7 +391,7 @@ describe('VerifyEmailForm', () => {
       ).toBeEnabled();
     });
 
-    it('Unverified sailor refreshes the cooldown when the lock restarts', async () => {
+    it('refresh cooldown when lock restarts', async () => {
       vi.useFakeTimers();
       const resend = Promise.withResolvers<object>();
       authClientMock.emailOtp.sendVerificationOtp.mockImplementationOnce(

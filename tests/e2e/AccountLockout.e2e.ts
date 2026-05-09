@@ -59,8 +59,13 @@ async function cleanupByEmail(email: string) {
     await pool.query(
       `DELETE FROM "verification"
        WHERE "identifier" = $1
-          OR "identifier" = $2`,
-      [`email-verification-otp-${email}`, `forget-password-otp-${email}`]
+          OR "identifier" = $2
+          OR "identifier" = $3`,
+      [
+        `email-verification-otp-${email}`,
+        `forget-password-otp-${email}`,
+        `forgot-password-otp-${email}`,
+      ]
     );
     await pool.query('DELETE FROM "user" WHERE "email" = $1', [email]);
   } catch (error) {

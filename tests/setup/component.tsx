@@ -7,17 +7,14 @@ import {
   componentTestPathname,
   componentTestRouter,
   componentTestSearchParams,
-  resetComponentTestRouter,
+  resetComponentTestState,
 } from '@/test/component';
 
 type TranslationValue = React.ReactNode | RichValue;
 type TranslationValues = Record<string, TranslationValue>;
 type RichValue = (chunks: React.ReactNode) => React.ReactNode;
 
-const messageCatalog: Record<
-  string,
-  Record<string, string>
-> = Object.fromEntries(Object.entries(enMessages));
+const messageCatalog: Record<string, Record<string, string>> = enMessages;
 
 Object.defineProperty(window, 'matchMedia', {
   configurable: true,
@@ -106,5 +103,5 @@ vi.mock('@/libs/I18nNavigation', () => ({
 
 afterEach(() => {
   cleanup();
-  resetComponentTestRouter();
+  resetComponentTestState();
 });

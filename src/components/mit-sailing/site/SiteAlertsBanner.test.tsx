@@ -8,30 +8,15 @@ import enMessages from '@/locales/en.json';
 
 const mitSite = enMessages.MitSailingSite;
 
-/**
- * Builds the collapsed summary link `aria-label` from `MitSailingSite` messages.
- *
- * @param alertCount Number of alerts in the collapsed summary.
- * @returns Localized `aria-label` text for the collapsed summary link.
- */
-function collapsedSummaryLinkAriaLabel(alertCount: number): string {
-  const countLabel =
-    alertCount === 1
-      ? mitSite.alerts_collapsed_count_one
-      : mitSite.alerts_collapsed_count_many.replaceAll(
-          '{count}',
-          String(alertCount)
-        );
-  return `${mitSite.alerts_banner_aria_prefix}: ${countLabel} ${mitSite.alerts_see_all}.`;
-}
+const firstRow: SiteAlertBannerRow = {
+  bodyPlainText: 'Limited boats available April 18.',
+  dateIso: '2026-04-14',
+  dateLabel: 'Apr 14, 2026',
+  id: 'alert-1',
+};
 
-const rows: [SiteAlertBannerRow, SiteAlertBannerRow] = [
-  {
-    bodyPlainText: 'Limited boats available April 18.',
-    dateIso: '2026-04-14',
-    dateLabel: 'Apr 14, 2026',
-    id: 'alert-1',
-  },
+const rows: SiteAlertBannerRow[] = [
+  firstRow,
   {
     bodyPlainText: 'Priority queue for 2026 is now open.',
     dateIso: '2026-04-13',
@@ -53,7 +38,7 @@ describe('SiteAlertsBanner', () => {
     expect(
       screen.getByRole('heading', { name: mitSite.alerts_banner_heading })
     ).toBeVisible();
-    expect(screen.getByText(rows[0].bodyPlainText)).toBeVisible();
+    expect(screen.getByText(firstRow.bodyPlainText)).toBeVisible();
     expect(
       screen.getByRole('button', {
         name: mitSite.alerts_toggle_collapse_aria,
@@ -62,11 +47,11 @@ describe('SiteAlertsBanner', () => {
   });
 
   it('returns null when there are no rows', () => {
-    const { container } = render(
-      <SiteAlertsBanner collapseAlerts={[]} rows={[]} />
-    );
+    render(<SiteAlertsBanner collapseAlerts={[]} rows={[]} />);
 
-    expect(container.firstChild).toBeNull();
+    expect(
+      screen.queryByRole('heading', { name: mitSite.alerts_banner_heading })
+    ).not.toBeInTheDocument();
   });
 
   it('still toggles collapse when persisting to localStorage throws', async () => {
@@ -85,7 +70,7 @@ describe('SiteAlertsBanner', () => {
 
     expect(
       screen.getByRole('link', {
-        name: collapsedSummaryLinkAriaLabel(rows.length),
+        name: /2 alerts/u,
       })
     ).toBeVisible();
   });

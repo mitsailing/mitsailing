@@ -34,14 +34,18 @@ function strongEmailMessage(props: {
   message: string;
   newEmail: string;
 }): React.ReactNode {
-  const [beforeEmail, afterEmail] = props.message.split('{email}');
-  return (
-    <>
-      {beforeEmail}
-      <strong>{props.newEmail}</strong>
-      {afterEmail}
-    </>
-  );
+  if (!props.message.includes('{email}')) {
+    return props.message;
+  }
+  const parts = props.message.split('{email}');
+  const nodes: React.ReactNode[] = [];
+  for (const [index, part] of parts.entries()) {
+    nodes.push(part);
+    if (index < parts.length - 1) {
+      nodes.push(<strong key={`email-${index}`}>{props.newEmail}</strong>);
+    }
+  }
+  return nodes;
 }
 
 /**

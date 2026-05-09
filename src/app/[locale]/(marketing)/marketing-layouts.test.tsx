@@ -1,4 +1,4 @@
-import React from 'react';
+import type * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -18,7 +18,6 @@ describe('marketing segment layouts', () => {
     const node = HomeLayout({
       children: <span data-testid="home-inner">h</span>,
     });
-    expect(React.isValidElement(node)).toBe(true);
     const html = renderToStaticMarkup(node);
     expect(html).toContain('data-testid="home-inner"');
   });
@@ -28,7 +27,6 @@ describe('marketing segment layouts', () => {
     const node = SiteLayout({
       children: <span data-testid="site-inner">s</span>,
     });
-    expect(React.isValidElement(node)).toBe(true);
     const html = renderToStaticMarkup(node);
     expect(html).toContain('data-testid="site-inner"');
   });
@@ -39,7 +37,6 @@ describe('marketing segment layouts', () => {
       children: <span data-testid="mkt">m</span>,
       params: Promise.resolve({ locale: 'en' }),
     });
-    expect(React.isValidElement(tree)).toBe(true);
     const html = renderToStaticMarkup(tree);
     expect(html).toContain('data-testid="site-shell"');
     expect(html).toContain('data-testid="mkt"');

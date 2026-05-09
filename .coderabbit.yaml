@@ -33,12 +33,38 @@ reviews:
         `@types/react`; for form submit handlers, prefer
         `React.SubmitEvent<HTMLFormElement>` or inferred JSX handler types.
         Do not suggest replacing `React.SubmitEvent` with `React.FormEvent`.
+        Context7 official React TypeScript docs say to use handler hover
+        information or the installed React event types; local React 19 typings
+        mark `FormEvent`/`FormEventHandler` deprecated and type `onSubmit` as
+        `SubmitEventHandler`.
+        Context7 Next.js App Router docs show `next/navigation` router push,
+        replace, and refresh as imperative transition methods; do not request
+        awaiting App Router navigation calls.
+        For Next.js layout passthrough components, allow an explicit
+        `React.ReactNode` return annotation when the configured linter requires
+        an explicit return type to avoid inferred promise ambiguity.
+        Better Auth server hooks intentionally throw stable `APIError` code/message
+        tokens that the client maps to next-intl copy; Context7 Better Auth docs
+        show `createAuthMiddleware` hooks throwing `APIError` with a `message`.
+        Do not request `next-intl/server` translations inside Better Auth hook
+        middleware unless a request locale is actually available at that boundary.
+        Do not request changing FormData checkbox parsing from `getAll(...).includes("true")`
+        to `get(...) === "true"` where forms render a hidden `false` input before
+        the checkbox; direct `get` reads the hidden fallback and breaks checked
+        browser payloads.
         Flag deviations and security-sensitive mistakes (auth, SQL, secrets).
     - path: '**/*.{test,spec,e2e}.{ts,tsx}'
       instructions: >-
         Do not flag lowercase `it(...)` titles. This repository accepts concise
         lowercase verb-phrase test titles such as "redacts provider auth client error
         messages"; enforce no trailing period and clear behavior wording instead.
+        The `UserProfilePage.sign_out_all_error` copy intentionally includes
+        "Try again."; do not request removing it from assertions or UI.
+    - path: 'src/locales/en.json'
+      instructions: >-
+        The `UserProfilePage.sign_out_all_error` copy intentionally reads
+        "Could not revoke other sessions. Try again."; do not request removing
+        "Try again." from this key.
     - path: 'prisma/**'
       instructions: >-
         Validate Prisma schema and migrations for naming consistency, safe evolves,

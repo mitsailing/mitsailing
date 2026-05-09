@@ -164,7 +164,7 @@ export function SiteHeader(props: SiteHeaderProps) {
     }
     return item;
   });
-  const search = searchParams.toString();
+  const search = searchParams?.toString() ?? '';
   const authCallbackUrl = safeAuthCallbackUrl(
     search ? `${pathname}?${search}` : pathname
   );
