@@ -287,7 +287,7 @@ const SURROGATE_MIN = 55_296;
 /** High surrogate code unit range end (non-scalars). */
 const SURROGATE_MAX = 57_343;
 
-function isUnicodeScalarValue(cp: number): boolean {
+export function isUnicodeScalarValue(cp: number): boolean {
   if (
     !Number.isFinite(cp) ||
     !Number.isInteger(cp) ||

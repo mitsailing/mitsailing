@@ -98,6 +98,24 @@ describe('VerifyEmailForm', () => {
     );
   });
 
+  it('unverified sailor sees rate-limit message from verification', async () => {
+    const user = userEvent.setup();
+    authClientMock.emailOtp.verifyEmail.mockResolvedValue({
+      error: { code: 'TOO_MANY_REQUESTS' },
+    });
+
+    render(
+      <VerifyEmailForm callbackUrl="/fleet/" initialEmail="sailor@mit.edu" />
+    );
+
+    await user.type(screen.getByLabelText('Verification code'), '111111');
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Too many code requests. Wait a few minutes.'
+    );
+  });
+
   it('unverified sailor sees provider message from verification', async () => {
     const user = userEvent.setup();
     authClientMock.emailOtp.verifyEmail.mockResolvedValue({

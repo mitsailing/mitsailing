@@ -112,4 +112,12 @@ describe('parseStoredSiteAlertBannerCollapse', () => {
       )
     ).toBeNull();
   });
+
+  it('ignores stored payloads when an alert entry is malformed', () => {
+    expect(
+      parseStoredSiteAlertBannerCollapse(
+        '{"collapsed":true,"alerts":[{"id":"a","contentFingerprint":"x"},{}]}'
+      )
+    ).toBeNull();
+  });
 });

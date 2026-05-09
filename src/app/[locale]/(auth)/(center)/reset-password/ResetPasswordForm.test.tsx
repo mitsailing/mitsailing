@@ -137,6 +137,19 @@ describe('ResetPasswordForm', () => {
       );
     });
 
+    it('Visitor sees rate-limit message before the password step', async () => {
+      authClientMock.emailOtp.checkVerificationOtp.mockResolvedValue({
+        error: { code: 'TOO_MANY_REQUESTS' },
+      });
+      renderResetPasswordForm();
+
+      await continueWithResetCode('111111');
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Too many requests. Try again in a few minutes.'
+      );
+    });
+
     it('Visitor sees request error when code verification fails', async () => {
       authClientMock.emailOtp.checkVerificationOtp.mockRejectedValue(
         new Error('network')
@@ -304,33 +317,6 @@ describe('ResetPasswordForm', () => {
   });
 
   describe('Password update', () => {
-    it('Visitor resets password and signs in to the callback', async () => {
-      renderResetPasswordForm();
-
-      const user = await continueWithResetCode();
-      await user.type(
-        await screen.findByLabelText('New password', { exact: true }),
-        'new-password'
-      );
-      await user.type(
-        screen.getByLabelText('Confirm new password'),
-        'new-password'
-      );
-      await user.click(screen.getByRole('button', { name: 'Update password' }));
-
-      expect(authClientMock.emailOtp.resetPassword).toHaveBeenCalledWith({
-        email: 'reset@mit.edu',
-        otp: '123456',
-        password: 'new-password',
-      });
-      expect(authClientMock.signIn.email).toHaveBeenCalledWith({
-        callbackURL: '/fleet/',
-        email: 'reset@mit.edu',
-        password: 'new-password',
-      });
-      expect(componentTestRouter().push).toHaveBeenCalledWith('/fleet/');
-    });
-
     it('Visitor keeps a valid reset code after password mismatch', async () => {
       renderResetPasswordForm();
 
@@ -395,6 +381,20 @@ describe('ResetPasswordForm', () => {
         'Too many code attempts.'
       );
       expect(screen.getByLabelText('Reset code')).toBeVisible();
+    });
+
+    it('Visitor sees rate-limit message during password update', async () => {
+      authClientMock.emailOtp.resetPassword.mockResolvedValue({
+        error: { code: 'TOO_MANY_REQUESTS' },
+      });
+      renderResetPasswordForm();
+
+      await continueWithResetCode();
+      await fillNewPassword({ password: 'new-password' });
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Too many requests. Try again in a few minutes.'
+      );
     });
 
     it('Visitor sees breached-password message during password update', async () => {
@@ -469,19 +469,50 @@ describe('ResetPasswordForm', () => {
       expect(componentTestRouter().push).not.toHaveBeenCalled();
     });
 
-    it('Visitor sees sign-in message when automatic sign-in fails after reset', async () => {
-      authClientMock.signIn.email.mockResolvedValue({
-        error: { code: 'INVALID_EMAIL_OR_PASSWORD' },
+    describe('Auto sign-in', () => {
+      it('Visitor resets password and signs in to the callback', async () => {
+        renderResetPasswordForm();
+
+        const user = await continueWithResetCode();
+        await user.type(
+          await screen.findByLabelText('New password', { exact: true }),
+          'new-password'
+        );
+        await user.type(
+          screen.getByLabelText('Confirm new password'),
+          'new-password'
+        );
+        await user.click(
+          screen.getByRole('button', { name: 'Update password' })
+        );
+
+        expect(authClientMock.emailOtp.resetPassword).toHaveBeenCalledWith({
+          email: 'reset@mit.edu',
+          otp: '123456',
+          password: 'new-password',
+        });
+        expect(authClientMock.signIn.email).toHaveBeenCalledWith({
+          callbackURL: '/fleet/',
+          email: 'reset@mit.edu',
+          password: 'new-password',
+        });
+        expect(componentTestRouter().push).toHaveBeenCalledWith('/fleet/');
       });
-      renderResetPasswordForm();
 
-      await continueWithResetCode();
-      await fillNewPassword({ password: 'new-password' });
+      it('Visitor sees sign-in message when automatic sign-in fails after reset', async () => {
+        authClientMock.signIn.email.mockResolvedValue({
+          error: { code: 'INVALID_EMAIL_OR_PASSWORD' },
+        });
+        renderResetPasswordForm();
 
-      expect(await screen.findByRole('alert')).toHaveTextContent(
-        'Check your password.'
-      );
-      expect(componentTestRouter().push).not.toHaveBeenCalled();
+        await continueWithResetCode();
+        await fillNewPassword({ password: 'new-password' });
+
+        expect(await screen.findByRole('alert')).toHaveTextContent(
+          'Check your password.'
+        );
+        expect(componentTestRouter().push).not.toHaveBeenCalled();
+      });
     });
   });
 });

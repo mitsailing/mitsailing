@@ -505,4 +505,32 @@ describe('auth', () => {
       'Failed to send email change requested notice'
     );
   });
+
+  it('logs pending email change failures', async () => {
+    authMocks.markPendingEmailChange.mockRejectedValue(new Error('db'));
+    const { config } = await importAuthConfig();
+
+    await emailOtpConfig(config).sendVerificationOTP(
+      {
+        email: 'next@example.com',
+        otp: '123456',
+        type: 'change-email',
+      },
+      {
+        context: {
+          session: {
+            user: {
+              email: 'sailor@example.com',
+              id: 'user-1',
+            },
+          },
+        },
+      }
+    );
+
+    expect(authMocks.loggerError).toHaveBeenCalledWith(
+      'Failed to mark pending email change'
+    );
+    expect(authMocks.sendEmailChangeRequestedNotice).not.toHaveBeenCalled();
+  });
 });

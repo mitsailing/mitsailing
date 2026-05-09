@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   formatSunsetTo12Hour,
   formatWindMphToKnotsForDisplay,
+  isUnicodeScalarValue,
   normalizeWeatherText,
   parseMitSailingWeather,
   prepareMitWeatherUpstreamText,
@@ -10,6 +11,21 @@ import {
 } from './weatherParse';
 
 describe('weatherParse', () => {
+  describe('isUnicodeScalarValue', () => {
+    it('Rejects non-finite and non-integer code points and values outside scalar range', () => {
+      expect(isUnicodeScalarValue(Number.NaN)).toBe(false);
+      expect(isUnicodeScalarValue(Number.POSITIVE_INFINITY)).toBe(false);
+      expect(isUnicodeScalarValue(1.25)).toBe(false);
+      expect(isUnicodeScalarValue(-1)).toBe(false);
+      expect(isUnicodeScalarValue(1_114_112)).toBe(false);
+    });
+
+    it('Accepts scalar values outside the surrogate block', () => {
+      expect(isUnicodeScalarValue(0)).toBe(true);
+      expect(isUnicodeScalarValue(1_114_111)).toBe(true);
+    });
+  });
+
   describe('normalizeWeatherText', () => {
     it('Collapses internal whitespace and line breaks to single spaces', () => {
       expect(
