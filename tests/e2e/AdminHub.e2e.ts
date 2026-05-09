@@ -227,8 +227,7 @@ test.describe('Admin hub and users', () => {
       await page.getByRole('button', { name: 'Sign in' }).click();
       await expect(
         page.getByRole('alert').filter({
-          hasText:
-            'Your account has been disabled. Contact support if you believe this is an error.',
+          hasText: 'Your account has been disabled. Contact support.',
         })
       ).toBeVisible();
       await expect(

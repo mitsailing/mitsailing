@@ -75,6 +75,7 @@ const authCoverageFiles = [
 const authCoverageExcludedFiles = [];
 
 const additionalCriticalCoverageFiles = [
+  'src/components/mit-sailing/SiteShellHeaderNav.tsx',
   'src/components/mit-sailing/site/SiteHeader.tsx',
   'src/components/mit-sailing/site/NavigationDropdown.tsx',
   'src/components/mit-sailing/site/WeatherConditionsBar.tsx',
@@ -250,6 +251,26 @@ function withoutCoverageExemptions(projectPaths, exemptions) {
 }
 
 /**
+ * @param {string} label - Human-readable coverage list label.
+ * @param {string[]} projectPaths - Coverage list paths that may be exempted.
+ * @param {CoverageExemption[]} exemptions - Documented exemptions.
+ */
+function assertCoverageExemptionsExist(label, projectPaths, exemptions) {
+  const gated = new Set(
+    projectPaths.map((projectPath) => path.normalize(projectPath))
+  );
+  const missing = exemptions
+    .map((exemption) => exemption.path)
+    .filter((exemptionPath) => !gated.has(path.normalize(exemptionPath)));
+
+  if (missing.length > 0) {
+    throw new Error(
+      `${label} coverage exemptions must also appear in the matching coverage file list: ${missing.join(', ')}`
+    );
+  }
+}
+
+/**
  * @param {string} projectPath - Project-relative source path.
  * @returns {boolean} True when the file belongs to the auth-owned surface.
  */
@@ -417,6 +438,17 @@ if (!isCoverageSummary(coverageSummary)) {
     `Invalid coverage summary format: ${coverageSummaryPath}`
   );
 }
+
+assertCoverageExemptionsExist(
+  'Auth',
+  authCoverageFiles,
+  authCoverageExcludedFiles
+);
+assertCoverageExemptionsExist(
+  'Additional critical',
+  additionalCriticalCoverageFiles,
+  additionalCriticalExcludedFiles
+);
 
 const gatedAuthCoverageFiles = withoutCoverageExemptions(
   authCoverageFiles,
