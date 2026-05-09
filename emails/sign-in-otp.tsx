@@ -18,7 +18,7 @@ export type SignInOtpEmailProps = {
 const copy = enMessages.AuthEmails;
 
 function signInOtpBody(code: string): string {
-  return copy.sign_in_otp_body.replace('{code}', code);
+  return copy.sign_in_otp_body.replaceAll('{code}', code);
 }
 
 /**
