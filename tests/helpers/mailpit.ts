@@ -74,7 +74,7 @@ export async function findLatestMessageToMatching(params: {
   matches: MailpitMessagePredicate;
   timeoutMs?: number;
 }): Promise<MailpitMessage> {
-  const timeoutMs = params.timeoutMs ?? 15_000;
+  const timeoutMs = params.timeoutMs ?? 30_000;
   const deadline = Date.now() + timeoutMs;
   let lastError: unknown;
 
@@ -128,14 +128,14 @@ export async function findLatestMessageToMatching(params: {
  * verification codes and unlock URLs out of it.
  *
  * @param email - Recipient address to filter on.
- * @param timeoutMs - How long to wait before failing. Defaults to 15s —
+ * @param timeoutMs - How long to wait before failing. Defaults to 30s —
  *                    comfortably longer than the worst-case SMTP handoff
  *                    from the app container to Mailpit on CI runners.
  * @returns The most recent Mailpit message for `email`.
  */
 export async function findLatestMessageTo(
   email: string,
-  timeoutMs = 15_000
+  timeoutMs = 30_000
 ): Promise<MailpitMessage> {
   const message = await findLatestMessageToMatching({
     description: 'message',

@@ -440,7 +440,7 @@ test.describe('Auth', () => {
 
     await page.goto('/login?callbackUrl=/fleet/');
     await page.getByLabel('Email').fill(email);
-    await page.getByRole('link', { name: 'Forgot password?' }).click();
+    await page.getByRole('button', { name: 'Forgot password?' }).click();
 
     await expect(page).toHaveURL(/\/reset-password\?/);
     await expect(page.getByLabel('Reset code')).toBeVisible();
