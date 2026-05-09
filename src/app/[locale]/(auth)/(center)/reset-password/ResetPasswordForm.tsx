@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { authClient } from '@/libs/auth-client';
+import { reportUnknownAuthClientError } from '@/libs/auth/reportAuthClientError';
 import {
   isValidMarketingEmail,
   normalizeMarketingEmail,
@@ -39,6 +40,7 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
   const resendTimeoutRef = useRef<number | null>(null);
 
   function mapError(options: {
+    action: string;
     code: string | undefined;
     message?: string;
     passwordStep?: boolean;
@@ -66,7 +68,12 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
     if (options.code === 'TOO_MANY_REQUESTS') {
       return t('error_rate_limited');
     }
-    return options.message ?? t('error_validation');
+    reportUnknownAuthClientError({
+      action: options.action,
+      code: options.code,
+      message: options.message,
+    });
+    return t('error_validation');
   }
 
   function lockResend() {
@@ -113,7 +120,11 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
       });
       if (res.error) {
         setError(
-          mapError({ code: res.error.code, message: res.error.message })
+          mapError({
+            action: 'reset-password.check-code',
+            code: res.error.code,
+            message: res.error.message,
+          })
         );
         return;
       }
@@ -142,7 +153,11 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
       });
       if (res.error) {
         setError(
-          mapError({ code: res.error.code, message: res.error.message })
+          mapError({
+            action: 'reset-password.resend-code',
+            code: res.error.code,
+            message: res.error.message,
+          })
         );
         return;
       }
@@ -187,6 +202,7 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
           mapError({
             code: res.error.code,
             message: res.error.message,
+            action: 'reset-password.update-password',
             passwordStep: true,
           })
         );
@@ -202,6 +218,7 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
           mapError({
             code: signInRes.error.code,
             message: signInRes.error.message,
+            action: 'reset-password.auto-sign-in',
           })
         );
         return;

@@ -69,49 +69,53 @@ describe('RootLayout', () => {
     themeHooks.getDefaultThemeForRootLayout.mockResolvedValue('system');
   });
 
-  it('calls notFound for unsupported locales', async () => {
-    layoutMocks.hasLocale.mockReturnValue(false);
-    const { default: RootLayout } = await import('./layout');
+  describe('Locale handling', () => {
+    it('Calls notFound for unsupported locales', async () => {
+      layoutMocks.hasLocale.mockReturnValue(false);
+      const { default: RootLayout } = await import('./layout');
 
-    await expect(
-      RootLayout({
+      await expect(
+        RootLayout({
+          children: React.createElement('span', null, 'child'),
+          params: Promise.resolve({ locale: 'xx' }),
+        })
+      ).rejects.toThrow('not_found');
+
+      expect(layoutMocks.notFound).toHaveBeenCalled();
+    });
+
+    it('Renders the html shell for a supported locale', async () => {
+      const { default: RootLayout } = await import('./layout');
+
+      const tree = await RootLayout({
+        children: React.createElement(
+          'span',
+          { 'data-testid': 'child' },
+          'inner'
+        ),
+        params: Promise.resolve({ locale: 'en' }),
+      });
+
+      const html = renderToStaticMarkup(tree);
+      expect(html).toContain('data-testid="child"');
+      expect(html).toContain('lang="en"');
+      expect(html).toContain('theme-boot');
+      expect(layoutMocks.notFound).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Theme handling', () => {
+    it('Sets the dark class on html when the default theme is dark', async () => {
+      themeHooks.getDefaultThemeForRootLayout.mockResolvedValue('dark');
+      const { default: RootLayout } = await import('./layout');
+
+      const tree = await RootLayout({
         children: React.createElement('span', null, 'child'),
-        params: Promise.resolve({ locale: 'xx' }),
-      })
-    ).rejects.toThrow('not_found');
+        params: Promise.resolve({ locale: 'en' }),
+      });
 
-    expect(layoutMocks.notFound).toHaveBeenCalled();
-  });
-
-  it('renders the html shell for a supported locale', async () => {
-    const { default: RootLayout } = await import('./layout');
-
-    const tree = await RootLayout({
-      children: React.createElement(
-        'span',
-        { 'data-testid': 'child' },
-        'inner'
-      ),
-      params: Promise.resolve({ locale: 'en' }),
+      const html = renderToStaticMarkup(tree);
+      expect(html).toContain('class="dark"');
     });
-
-    const html = renderToStaticMarkup(tree);
-    expect(html).toContain('data-testid="child"');
-    expect(html).toContain('lang="en"');
-    expect(html).toContain('theme-boot');
-    expect(layoutMocks.notFound).not.toHaveBeenCalled();
-  });
-
-  it('sets the dark class on html when the default theme is dark', async () => {
-    themeHooks.getDefaultThemeForRootLayout.mockResolvedValue('dark');
-    const { default: RootLayout } = await import('./layout');
-
-    const tree = await RootLayout({
-      children: React.createElement('span', null, 'child'),
-      params: Promise.resolve({ locale: 'en' }),
-    });
-
-    const html = renderToStaticMarkup(tree);
-    expect(html).toContain('class="dark"');
   });
 });

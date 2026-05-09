@@ -22,28 +22,65 @@ const paragraph: React.CSSProperties = {
 };
 
 export type EmailChangeRequestedNoticeTemplateProps = {
-  newEmail: string;
-  supportEmail: string;
-  previewText: string;
+  bodyMessage: string;
+  contactMessage: string;
   heading: string;
-  bodyLead: string;
-  bodyTail: string;
-  contactBefore: string;
-  contactAfter: string;
+  newEmail: string;
+  previewText: string;
+  supportEmail: string;
 };
+
+function replaceAuthEmailValues(
+  message: string,
+  values: { email?: string }
+): string {
+  return message.replaceAll('{email}', values.email ?? '');
+}
+
+function strongEmailMessage(props: {
+  message: string;
+  newEmail: string;
+}): React.ReactNode {
+  const [beforeEmail, afterEmail = ''] = props.message.split('{email}');
+  return (
+    <>
+      {beforeEmail}
+      <strong>{props.newEmail}</strong>
+      {afterEmail}
+    </>
+  );
+}
+
+function supportMessage(props: {
+  message: string;
+  supportEmail: string;
+}): React.ReactNode {
+  const [beforeSupport = '', rest] = props.message.split('<support>');
+  if (!rest) {
+    return replaceAuthEmailValues(props.message, { email: props.supportEmail });
+  }
+  const [supportText = '', afterSupport = ''] = rest.split('</support>');
+  return (
+    <>
+      {replaceAuthEmailValues(beforeSupport, { email: props.supportEmail })}
+      <Link href={`mailto:${props.supportEmail}`} style={supportLink}>
+        {replaceAuthEmailValues(supportText, { email: props.supportEmail })}
+      </Link>
+      {replaceAuthEmailValues(afterSupport, { email: props.supportEmail })}
+    </>
+  );
+}
 
 /**
  * Security notice sent to the current login email when a change is requested.
  *
  * @param props - Template props.
- * @param props.newEmail - Proposed replacement login email.
- * @param props.supportEmail - Mailbox to surface if the change was not theirs.
- * @param props.previewText - Localized inbox preview line.
+ * @param props.bodyMessage - Localized message containing the new email.
+ * @param props.contactMessage - Localized message containing the support link.
  * @param props.heading - Localized title.
- * @param props.bodyLead - Localized sentence start before the proposed email.
- * @param props.bodyTail - Localized sentence after the proposed email.
- * @param props.contactBefore - Localized text before the support mailto link.
- * @param props.contactAfter - Localized text after the support mailto link.
+ * @param props.newEmail - Proposed replacement login email.
+ * @param props.previewText - Localized inbox preview line.
+ * @param props.supportEmail - Mailbox to surface if the change was not theirs.
  * @returns Complete email element tree.
  */
 export function EmailChangeRequestedNoticeTemplate(
@@ -56,14 +93,16 @@ export function EmailChangeRequestedNoticeTemplate(
           {props.heading}
         </Heading>
         <Text style={paragraph}>
-          {props.bodyLead} <strong>{props.newEmail}</strong>. {props.bodyTail}
+          {strongEmailMessage({
+            message: props.bodyMessage,
+            newEmail: props.newEmail,
+          })}
         </Text>
         <Text style={paragraph}>
-          {props.contactBefore}{' '}
-          <Link href={`mailto:${props.supportEmail}`} style={supportLink}>
-            {props.supportEmail}
-          </Link>{' '}
-          {props.contactAfter}
+          {supportMessage({
+            message: props.contactMessage,
+            supportEmail: props.supportEmail,
+          })}
         </Text>
       </Section>
     </EmailLayout>

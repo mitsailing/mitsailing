@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { authInlineLinkClassName } from '@/lib/mit-sailing/tokens';
 import { authClient } from '@/libs/auth-client';
 import { authHrefWithCallback } from '@/libs/auth/callbackUrl';
+import { reportUnknownAuthClientError } from '@/libs/auth/reportAuthClientError';
 import { Link as I18nLink } from '@/libs/I18nNavigation';
 import {
   isValidMarketingEmail,
@@ -53,8 +54,13 @@ export function SignUpForm(props: SignUpFormProps) {
     if (code === 'TOO_MANY_REQUESTS' || message === 'TOO_MANY_REQUESTS') {
       return { message: t('error_rate_limited'), showSignInLinks: false };
     }
+    reportUnknownAuthClientError({
+      action: 'signup.email',
+      code,
+      message,
+    });
     return {
-      message: message ?? t('error_generic'),
+      message: t('error_generic'),
       showSignInLinks: false,
     };
   }
@@ -100,11 +106,18 @@ export function SignUpForm(props: SignUpFormProps) {
         )
       );
     } catch (caughtError) {
-      const message =
-        caughtError instanceof Error && caughtError.message.trim() !== ''
-          ? caughtError.message.trim()
-          : undefined;
-      setError(mapError(undefined, message));
+      reportUnknownAuthClientError({
+        action: 'signup.email.thrown',
+        code: undefined,
+        message:
+          caughtError instanceof Error && caughtError.message.trim() !== ''
+            ? caughtError.message.trim()
+            : undefined,
+      });
+      setError({
+        message: t('error_generic'),
+        showSignInLinks: false,
+      });
     } finally {
       setSubmitting(false);
     }

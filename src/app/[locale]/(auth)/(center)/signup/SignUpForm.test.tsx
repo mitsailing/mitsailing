@@ -10,9 +10,15 @@ const authClientMock = vi.hoisted(() => ({
   },
 }));
 
+const sentryMock = vi.hoisted(() => ({
+  captureMessage: vi.fn(),
+}));
+
 vi.mock('@/libs/auth-client', () => ({
   authClient: authClientMock,
 }));
+
+vi.mock('@sentry/nextjs', () => sentryMock);
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -215,7 +221,7 @@ describe('SignUpForm', () => {
     );
   });
 
-  it('Visitor sees provider message from an unexpected sign-up error', async () => {
+  it('Visitor sees generic copy from an unexpected sign-up error', async () => {
     authClientMock.signUp.email.mockResolvedValue({
       error: { message: 'Invite is required.' },
     });
@@ -228,7 +234,18 @@ describe('SignUpForm', () => {
     await user.click(screen.getByRole('button', { name: 'Sign up' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Invite is required.'
+      'Something went wrong.'
+    );
+    expect(sentryMock.captureMessage).toHaveBeenCalledWith(
+      'Unknown auth client error',
+      expect.objectContaining({
+        contexts: {
+          authClientError: {
+            code: undefined,
+            message: 'Invite is required.',
+          },
+        },
+      })
     );
   });
 
@@ -268,7 +285,7 @@ describe('SignUpForm', () => {
     expect(componentTestRouter().push).not.toHaveBeenCalled();
   });
 
-  it('Visitor sees thrown provider message when sign-up rejects', async () => {
+  it('Visitor sees generic copy when sign-up rejects with provider text', async () => {
     authClientMock.signUp.email.mockRejectedValueOnce(
       new Error('Invite is closed.')
     );
@@ -281,7 +298,15 @@ describe('SignUpForm', () => {
     await user.click(screen.getByRole('button', { name: 'Sign up' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Invite is closed.'
+      'Something went wrong.'
+    );
+    expect(sentryMock.captureMessage).toHaveBeenCalledWith(
+      'Unknown auth client error',
+      expect.objectContaining({
+        tags: expect.objectContaining({
+          authAction: 'signup.email.thrown',
+        }),
+      })
     );
     expect(componentTestRouter().push).not.toHaveBeenCalled();
   });

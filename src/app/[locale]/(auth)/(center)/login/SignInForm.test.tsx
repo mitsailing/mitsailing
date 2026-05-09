@@ -26,7 +26,7 @@ beforeEach(() => {
 });
 
 describe('SignInForm', () => {
-  it('visitor signs in and returns to the requested page', async () => {
+  it('Visitor signs in and returns to the requested page', async () => {
     const user = userEvent.setup();
 
     render(<SignInForm callbackUrl="/fleet/" />);
@@ -44,7 +44,7 @@ describe('SignInForm', () => {
     expect(componentTestRouter().refresh).toHaveBeenCalledTimes(1);
   });
 
-  it('visitor sees a safe error before submitting an invalid email', async () => {
+  it('Visitor sees a safe error before submitting an invalid email', async () => {
     const user = userEvent.setup();
 
     render(<SignInForm callbackUrl="/fleet/" />);
@@ -59,7 +59,7 @@ describe('SignInForm', () => {
     expect(authClientMock.signIn.email).not.toHaveBeenCalled();
   });
 
-  it('locked-out sailor sees the lockout recovery message', async () => {
+  it('Locked-out sailor sees the lockout recovery message', async () => {
     const user = userEvent.setup();
     authClientMock.signIn.email.mockResolvedValue({
       error: { code: 'ACCOUNT_LOCKED' },
@@ -76,7 +76,7 @@ describe('SignInForm', () => {
     );
   });
 
-  it('banned sailor sees the disabled-account message', async () => {
+  it('Banned sailor sees the disabled-account message', async () => {
     const user = userEvent.setup();
     authClientMock.signIn.email.mockResolvedValue({
       error: { code: 'BANNED_USER' },
@@ -93,7 +93,7 @@ describe('SignInForm', () => {
     );
   });
 
-  it('visitor sees credentials message after a failed sign-in', async () => {
+  it('Visitor sees credentials message after a failed sign-in', async () => {
     const user = userEvent.setup();
     authClientMock.signIn.email.mockResolvedValue({
       error: { code: 'INVALID_EMAIL_OR_PASSWORD' },
@@ -110,7 +110,7 @@ describe('SignInForm', () => {
     );
   });
 
-  it('visitor sees rate-limit message after too many sign-in attempts', async () => {
+  it('Visitor sees rate-limit message after too many sign-in attempts', async () => {
     const user = userEvent.setup();
     authClientMock.signIn.email.mockResolvedValue({
       error: { code: 'TOO_MANY_REQUESTS' },
@@ -127,7 +127,7 @@ describe('SignInForm', () => {
     );
   });
 
-  it('visitor sees credentials message after an unexpected sign-in error', async () => {
+  it('Visitor sees credentials message after an unexpected sign-in error', async () => {
     const user = userEvent.setup();
     authClientMock.signIn.email.mockResolvedValue({
       error: { message: 'Account requires staff approval.' },
@@ -144,7 +144,7 @@ describe('SignInForm', () => {
     );
   });
 
-  it('visitor sees credentials message when sign-in fails without details', async () => {
+  it('Visitor sees credentials message when sign-in fails without details', async () => {
     const user = userEvent.setup();
     authClientMock.signIn.email.mockResolvedValue({
       error: {},
@@ -161,7 +161,7 @@ describe('SignInForm', () => {
     );
   });
 
-  it('visitor sees request-failed message when sign-in throws', async () => {
+  it('Visitor sees request-failed message when sign-in throws', async () => {
     const user = userEvent.setup();
     authClientMock.signIn.email.mockRejectedValue(new Error('network'));
 
@@ -177,7 +177,7 @@ describe('SignInForm', () => {
     expect(screen.getByRole('button', { name: 'Sign in' })).not.toBeDisabled();
   });
 
-  it('unverified sailor uses normalized email for OTP and verify-email redirect', async () => {
+  it('Unverified sailor uses normalized email for OTP and verify-email redirect', async () => {
     const user = userEvent.setup();
     authClientMock.signIn.email.mockResolvedValue({
       error: { code: 'EMAIL_NOT_VERIFIED' },
@@ -201,7 +201,7 @@ describe('SignInForm', () => {
     );
   });
 
-  it('unverified sailor requests a verification code from sign-in', async () => {
+  it('Unverified sailor requests a verification code from sign-in', async () => {
     const user = userEvent.setup();
     authClientMock.signIn.email.mockResolvedValue({
       error: { code: 'EMAIL_NOT_VERIFIED' },
@@ -225,7 +225,7 @@ describe('SignInForm', () => {
     );
   });
 
-  it('unverified sailor sees delivery message when verification resend is blocked', async () => {
+  it('Unverified sailor sees delivery message when verification resend is blocked', async () => {
     const user = userEvent.setup();
     authClientMock.signIn.email.mockResolvedValue({
       error: { code: 'EMAIL_NOT_VERIFIED' },
@@ -248,7 +248,7 @@ describe('SignInForm', () => {
     );
   });
 
-  it('unverified sailor sees delivery message when verification resend fails', async () => {
+  it('Unverified sailor sees delivery message when verification resend fails', async () => {
     const user = userEvent.setup();
     authClientMock.signIn.email.mockResolvedValue({
       error: { code: 'EMAIL_NOT_VERIFIED' },
@@ -271,7 +271,7 @@ describe('SignInForm', () => {
     );
   });
 
-  it('unverified sailor sees fallback message when verification resend has no details', async () => {
+  it('Unverified sailor sees fallback message when verification resend has no details', async () => {
     const user = userEvent.setup();
     authClientMock.signIn.email.mockResolvedValue({
       error: { code: 'EMAIL_NOT_VERIFIED' },
@@ -294,7 +294,7 @@ describe('SignInForm', () => {
     );
   });
 
-  it('unverified sailor does not see backend text when resend returns EMAIL_NOT_VERIFIED', async () => {
+  it('Unverified sailor does not see backend text when resend returns EMAIL_NOT_VERIFIED', async () => {
     const user = userEvent.setup();
     authClientMock.signIn.email.mockResolvedValue({
       error: { code: 'EMAIL_NOT_VERIFIED' },
@@ -321,7 +321,7 @@ describe('SignInForm', () => {
     expect(screen.queryByText(/DO_NOT_SHOW_RAW_BACKEND_COPY/)).toBeNull();
   });
 
-  it('visitor requests a password reset from the entered email', async () => {
+  it('Visitor requests a password reset from the entered email', async () => {
     const user = userEvent.setup();
 
     render(<SignInForm callbackUrl="/fleet/" />);
@@ -337,7 +337,7 @@ describe('SignInForm', () => {
     );
   });
 
-  it('visitor cannot start two inline reset requests at once', async () => {
+  it('Visitor cannot start two inline reset requests at once', async () => {
     const user = userEvent.setup();
     const pendingReset = Promise.withResolvers<never>().promise;
     authClientMock.emailOtp.requestPasswordReset.mockReturnValue(pendingReset);
@@ -352,7 +352,7 @@ describe('SignInForm', () => {
     );
   });
 
-  it('visitor follows the forgot-password link without an entered email', async () => {
+  it('Visitor follows the forgot-password link without an entered email', async () => {
     const user = userEvent.setup();
 
     render(<SignInForm callbackUrl="/fleet/" />);
@@ -362,7 +362,7 @@ describe('SignInForm', () => {
     expect(authClientMock.emailOtp.requestPasswordReset).not.toHaveBeenCalled();
   });
 
-  it('visitor sees invalid email message when forgot password is clicked with malformed email', async () => {
+  it('Visitor sees invalid email message when forgot password is clicked with malformed email', async () => {
     const user = userEvent.setup();
 
     render(<SignInForm callbackUrl="/fleet/" />);
@@ -377,7 +377,7 @@ describe('SignInForm', () => {
     expect(componentTestRouter().push).not.toHaveBeenCalled();
   });
 
-  it('visitor continues when inline reset returns an opaque error', async () => {
+  it('Visitor continues when inline reset returns an opaque error', async () => {
     const user = userEvent.setup();
     authClientMock.emailOtp.requestPasswordReset.mockResolvedValue({
       error: { code: 'TOO_MANY_REQUESTS' },
@@ -397,7 +397,7 @@ describe('SignInForm', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
-  it('visitor sees reset message when inline reset delivery fails', async () => {
+  it('Visitor sees reset message when inline reset delivery fails', async () => {
     const user = userEvent.setup();
     authClientMock.emailOtp.requestPasswordReset.mockRejectedValue(
       new Error('network')

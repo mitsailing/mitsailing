@@ -43,6 +43,7 @@ describe('email templates', () => {
     const html = await render(
       <SignInOtpEmailTemplate
         code="111222"
+        copy={enMessages.AuthEmails}
         supportEmail="support@example.com"
       />
     );
@@ -85,10 +86,8 @@ describe('email templates', () => {
         supportEmail="support@example.com"
         previewText={authEmails.change_email_notice_preview}
         heading={authEmails.change_email_notice_subject}
-        bodyLead={authEmails.change_email_notice_body_lead}
-        bodyTail={authEmails.change_email_notice_body_tail}
-        contactBefore={authEmails.change_email_notice_contact_before}
-        contactAfter={authEmails.change_email_notice_contact_after}
+        bodyMessage={authEmails.change_email_notice_body}
+        contactMessage={authEmails.change_email_notice_contact}
       />
     );
 

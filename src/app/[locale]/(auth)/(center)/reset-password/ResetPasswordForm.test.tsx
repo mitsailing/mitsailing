@@ -16,9 +16,15 @@ const authClientMock = vi.hoisted(() => ({
   },
 }));
 
+const sentryMock = vi.hoisted(() => ({
+  captureMessage: vi.fn(),
+}));
+
 vi.mock('@/libs/auth-client', () => ({
   authClient: authClientMock,
 }));
+
+vi.mock('@sentry/nextjs', () => sentryMock);
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -150,7 +156,7 @@ describe('ResetPasswordForm', () => {
       );
     });
 
-    it('Visitor sees provider message before the password step', async () => {
+    it('Visitor sees validation message before the password step for unknown provider errors', async () => {
       authClientMock.emailOtp.checkVerificationOtp.mockResolvedValue({
         error: { message: 'Reset code was already used.' },
       });
@@ -159,7 +165,18 @@ describe('ResetPasswordForm', () => {
       await continueWithResetCode('111111');
 
       expect(await screen.findByRole('alert')).toHaveTextContent(
-        'Reset code was already used.'
+        'Check your password.'
+      );
+      expect(sentryMock.captureMessage).toHaveBeenCalledWith(
+        'Unknown auth client error',
+        expect.objectContaining({
+          contexts: {
+            authClientError: {
+              code: undefined,
+              message: 'Reset code was already used.',
+            },
+          },
+        })
       );
       expect(
         screen.queryByLabelText('New password', { exact: true })
@@ -500,7 +517,7 @@ describe('ResetPasswordForm', () => {
       );
     });
 
-    it('Visitor sees provider message during password update', async () => {
+    it('Visitor sees validation message during password update for unknown provider errors', async () => {
       authClientMock.emailOtp.resetPassword.mockResolvedValue({
         error: { message: 'Password cannot include your email.' },
       });
@@ -510,7 +527,15 @@ describe('ResetPasswordForm', () => {
       await fillNewPassword({ password: 'new-password' });
 
       expect(await screen.findByRole('alert')).toHaveTextContent(
-        'Password cannot include your email.'
+        'Check your password.'
+      );
+      expect(sentryMock.captureMessage).toHaveBeenCalledWith(
+        'Unknown auth client error',
+        expect.objectContaining({
+          tags: expect.objectContaining({
+            authAction: 'reset-password.update-password',
+          }),
+        })
       );
     });
 

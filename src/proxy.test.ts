@@ -118,7 +118,9 @@ describe('proxy', () => {
       const request = new NextRequest(
         new URL('http://localhost:3008/en/profile')
       );
-      await proxy(request);
+      const response = await proxy(request);
+      expect(response.status).toBe(200);
+      expect(response.headers.get('location')).toBeNull();
       expect(intlFn).toHaveBeenCalledWith(request);
     });
   });

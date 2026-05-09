@@ -1,16 +1,15 @@
-import type * as React from 'react';
 import { Heading, Section, Text } from 'react-email';
 import { EmailLayout } from './email-layout';
-import { codeBox, heading, paragraph, section } from './email-styles';
+import {
+  codeBox,
+  heading,
+  paragraph,
+  section,
+  supportFooter,
+} from './email-styles';
 
 export type PasswordResetEmailProps = {
   code: string;
-};
-
-const finePrint: React.CSSProperties = {
-  color: '#64748b',
-  fontSize: '12px',
-  margin: '24px 0 0',
 };
 
 /**
@@ -32,7 +31,7 @@ export function PasswordResetEmailTemplate(props: PasswordResetEmailProps) {
           choose a new password.
         </Text>
         <Text style={codeBox}>{props.code}</Text>
-        <Text style={finePrint}>
+        <Text style={supportFooter}>
           This code expires in 5 minutes. If you did not request this, you can
           ignore this email.
         </Text>

@@ -89,6 +89,7 @@ export async function sendEmailOtpCode(params: {
       const html = await render(
         SignInOtpEmailTemplate({
           code: params.otp,
+          copy: subjects,
           supportEmail: SUPPORT_EMAIL,
         })
       );
@@ -165,10 +166,8 @@ export async function sendEmailChangeRequestedNotice(params: {
       supportEmail: SUPPORT_EMAIL,
       previewText: subjects.change_email_notice_preview,
       heading: subjects.change_email_notice_subject,
-      bodyLead: subjects.change_email_notice_body_lead,
-      bodyTail: subjects.change_email_notice_body_tail,
-      contactBefore: subjects.change_email_notice_contact_before,
-      contactAfter: subjects.change_email_notice_contact_after,
+      bodyMessage: subjects.change_email_notice_body,
+      contactMessage: subjects.change_email_notice_contact,
     })
   );
   await sendTransactionalEmail({
