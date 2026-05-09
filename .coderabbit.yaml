@@ -30,6 +30,11 @@ reviews:
         and server/client boundaries, next-intl (no hard-coded user-visible strings),
         accessibility and contrast (ADA rule). Flag deviations and security-sensitive
         mistakes (auth, SQL, secrets).
+    - path: '**/*.{test,spec,e2e}.{ts,tsx}'
+      instructions: >-
+        Do not flag lowercase `it(...)` titles. This repository accepts concise
+        lowercase verb-phrase test titles such as "redacts provider auth client error
+        messages"; enforce no trailing period and clear behavior wording instead.
     - path: 'prisma/**'
       instructions: >-
         Validate Prisma schema and migrations for naming consistency, safe evolves,
