@@ -2,7 +2,9 @@ import { expect, test } from '@playwright/test';
 import { signInAsAdmin } from '../helpers/e2e-admin-sign-in';
 
 test.describe('Profile appearance', () => {
-  test('account appearance applies dark class on html', async ({ page }) => {
+  test('profile owner applies dark appearance to the page', async ({
+    page,
+  }) => {
     await signInAsAdmin(page);
     await page.goto('/profile/account/');
 

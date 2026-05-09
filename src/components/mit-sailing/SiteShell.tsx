@@ -1,5 +1,6 @@
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 import { Suspense } from 'react';
+import { ImpersonationBanner } from '@/components/auth/ImpersonationBanner';
 import { adminHeaderLinkVisibleFromSession } from '@/libs/auth/adminHeaderLink';
 import { getSession } from '@/libs/auth/dal';
 import { SiteFooter } from './site/SiteFooter';
@@ -15,10 +16,24 @@ type SiteShellProps = {
   children: React.ReactNode;
 };
 
+type SiteShellSession = {
+  session?: { impersonatedBy?: string | null } | null;
+  user?: { id?: string; role?: unknown } | null;
+} | null;
+
+export function shouldShowAdminLink(session: SiteShellSession): boolean {
+  return adminHeaderLinkVisibleFromSession({
+    userId: session?.user?.id,
+    userRole: session?.user?.role,
+    impersonatedBy: session?.session?.impersonatedBy,
+  });
+}
+
 /**
- * Global site chrome for every page: conditions bar, sticky header with class
- * and fleet dropdowns, main content, and the dark footer. Wraps `children` so
- * routes render inside the same shell whether signed in or out.
+ * Global site chrome for every page: impersonation notice, conditions bar,
+ * sticky header with class and fleet dropdowns, main content, and the dark
+ * footer. Wraps `children` so routes render inside the same shell whether
+ * signed in or out.
  *
  * @param props - Shell props
  * @param props.children - Page body
@@ -26,17 +41,17 @@ type SiteShellProps = {
  */
 export async function SiteShell(props: SiteShellProps) {
   const session = await getSession();
+  const locale = await getLocale();
   const initialSignedIn = Boolean(session?.user?.id);
-  const initialShowAdminLink = adminHeaderLinkVisibleFromSession({
-    userId: session?.user?.id,
-    userRole: session?.user?.role,
-    impersonatedBy: session?.session?.impersonatedBy,
-  });
+  const initialShowAdminLink = shouldShowAdminLink(session);
 
   const tMitSite = await getTranslations('MitSailingSite');
 
   return (
     <div className="flex min-h-screen flex-col bg-background font-mit-sans text-mit-text">
+      <Suspense fallback={null}>
+        <ImpersonationBanner locale={locale} />
+      </Suspense>
       <Suspense fallback={<WeatherConditionsBarSkeleton tMitSite={tMitSite} />}>
         <WeatherConditionsBar tMitSite={tMitSite} />
       </Suspense>

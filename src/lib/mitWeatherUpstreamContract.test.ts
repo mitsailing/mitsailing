@@ -26,4 +26,38 @@ describe('validateMitWeatherUpstreamContract', () => {
       expect(got.breach.code).toBe('AIR_NOT_FAHRENHEIT');
     }
   });
+
+  it.each([
+    {
+      raw: '   ',
+      code: 'EMPTY_BODY',
+    },
+    {
+      raw: 'Current conditions are offline',
+      code: 'NO_WEATHER_ANCHORS',
+    },
+    {
+      raw: 'Wind calm, Air 50°F, Water 57°F',
+      code: 'INCOMPLETE_QUARTET',
+    },
+    {
+      raw: 'Wind calm, Air 50°F, Water 57°F, Sunset 19:42',
+      code: 'WIND_EXPECTS_MPH',
+    },
+    {
+      raw: 'Wind N @ 12 mph, Air 50°F, Water 12°C, Sunset 19:42',
+      code: 'WATER_NOT_FAHRENHEIT',
+    },
+    {
+      raw: 'Wind N @ 12 mph, Air 50°F, Water 57°F, Sunset evening',
+      code: 'SUNSET_NOT_CLOCK',
+    },
+  ] as const)('reports $code breach', (fixture) => {
+    const got = validateMitWeatherUpstreamContract(fixture.raw);
+    expect(got.status).toBe('breach');
+    if (got.status === 'breach') {
+      expect(got.breach.code).toBe(fixture.code);
+      expect(got.breach.detail.length).toBeGreaterThan(0);
+    }
+  });
 });

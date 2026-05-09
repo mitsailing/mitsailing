@@ -1,4 +1,4 @@
-import { adminClient } from 'better-auth/client/plugins';
+import { adminClient, emailOTPClient } from 'better-auth/client/plugins';
 import { createAuthClient } from 'better-auth/react';
 
 /**
@@ -8,5 +8,5 @@ import { createAuthClient } from 'better-auth/react';
  * plugin registered on the server instance.
  */
 export const authClient = createAuthClient({
-  plugins: [adminClient()],
+  plugins: [adminClient(), emailOTPClient()],
 });

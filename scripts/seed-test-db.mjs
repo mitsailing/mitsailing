@@ -18,9 +18,15 @@ console.log(
   `[seed-test-db] running prisma db seed on ${redact(testDatabaseUrl)}`
 );
 
+const seedEnv = {
+  ...process.env,
+  DATABASE_URL: testDatabaseUrl,
+  TEST_DATABASE_URL: '',
+};
+
 execFileSync('npx', ['prisma', 'db', 'seed'], {
   stdio: 'inherit',
-  env: { ...process.env, DATABASE_URL: testDatabaseUrl },
+  env: seedEnv,
 });
 
 /**

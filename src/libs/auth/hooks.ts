@@ -1,5 +1,6 @@
 import 'server-only';
 import { APIError, createAuthMiddleware } from 'better-auth/api';
+import { assertPasswordNotCompromised } from '@/libs/auth/password-compromise';
 import { prisma } from '@/libs/DB';
 import {
   sendAccountLockedEmail,
@@ -10,6 +11,9 @@ import {
 const MAX_FAILED_ATTEMPTS = 5;
 /** Rolling window (15 minutes, Devise Lockable parity). */
 const LOCKOUT_WINDOW_MS = 15 * 60 * 1000;
+const RESET_PASSWORD_EMAIL_OTP_PATH = '/email-otp/reset-password';
+const MIN_PASSWORD_LENGTH = 8;
+const MAX_PASSWORD_LENGTH = 128;
 
 function normalizeEmail(value: unknown): string {
   return typeof value === 'string' ? value.trim().toLowerCase() : '';
@@ -21,6 +25,40 @@ async function countRecentFailures(email: string): Promise<number> {
     where: { email, createdAt: { gt: since } },
   });
   return count;
+}
+
+/**
+ * Validates email OTP reset-password input before Better Auth updates password.
+ * Enforces MIN_PASSWORD_LENGTH and MAX_PASSWORD_LENGTH and maps failures to
+ * stable BAD_REQUEST APIError codes.
+ *
+ * @param password - Candidate password from the request body.
+ * @returns Resolves when password preflight passes.
+ * @throws APIError for missing, short, long, or compromised passwords.
+ */
+async function preflightEmailOtpResetPassword(password: unknown) {
+  if (typeof password !== 'string') {
+    throw APIError.from('BAD_REQUEST', {
+      code: 'PASSWORD_REQUIRED',
+      message: 'PASSWORD_REQUIRED',
+    });
+  }
+
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    throw APIError.from('BAD_REQUEST', {
+      code: 'PASSWORD_TOO_SHORT',
+      message: 'PASSWORD_TOO_SHORT',
+    });
+  }
+
+  if (password.length > MAX_PASSWORD_LENGTH) {
+    throw APIError.from('BAD_REQUEST', {
+      code: 'PASSWORD_TOO_LONG',
+      message: 'PASSWORD_TOO_LONG',
+    });
+  }
+
+  await assertPasswordNotCompromised(password);
 }
 
 // Secure Rails "notify on password change": Better Auth does not ship a
@@ -50,6 +88,10 @@ async function notifyPasswordChange(ctx: {
  */
 export const signInEmailHooks = {
   before: createAuthMiddleware(async (ctx) => {
+    if (ctx.path === RESET_PASSWORD_EMAIL_OTP_PATH) {
+      await preflightEmailOtpResetPassword(ctx.body?.password);
+    }
+
     if (ctx.path === '/sign-in/email') {
       const email = normalizeEmail(ctx.body?.email);
       if (email && (await countRecentFailures(email)) >= MAX_FAILED_ATTEMPTS) {

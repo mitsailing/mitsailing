@@ -1,5 +1,5 @@
 import {
-  buildSiteAlertsFingerprint,
+  buildSiteAlertBannerCollapseAlerts,
   listSiteAlertsForBannerAt,
   mapSiteAlertsToBannerRows,
 } from '@/libs/mit-sailing/siteAlertQueries';
@@ -18,7 +18,7 @@ export async function SiteShellAlertsTopBar() {
   }
   return (
     <SiteAlertsBanner
-      alertsFingerprint={buildSiteAlertsFingerprint(rows)}
+      collapseAlerts={buildSiteAlertBannerCollapseAlerts(rows)}
       rows={rows}
     />
   );

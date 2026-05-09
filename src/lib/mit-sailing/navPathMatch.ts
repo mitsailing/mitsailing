@@ -4,14 +4,29 @@
  */
 
 /**
+ * Extracts the part before a separator.
+ *
+ * @param value - String to split.
+ * @param separator - Separator to find.
+ * @returns The segment before the separator, or the original value.
+ */
+function segmentBefore(value: string, separator: string): string {
+  const separatorIndex = value.indexOf(separator);
+  if (separatorIndex === -1) {
+    return value;
+  }
+  return value.slice(0, separatorIndex);
+}
+
+/**
  * Normalizes an app path for equality (ignore trailing slash except root, strip query).
  *
  * @param path - Raw path, possibly with query/hash.
  * @returns Path with stable `/` form for comparison.
  */
 export function normalizeNavPath(path: string): string {
-  const withoutQuery = path.split('?')[0] ?? '';
-  const withoutHash = withoutQuery.split('#')[0] ?? '';
+  const withoutQuery = segmentBefore(path, '?');
+  const withoutHash = segmentBefore(withoutQuery, '#');
   let s = withoutHash.trim();
   if (s.length > 1 && s.endsWith('/')) {
     s = s.slice(0, -1);
@@ -47,8 +62,8 @@ export function isNavLinkActive(
   routeHash: string,
   href: string
 ): boolean {
-  const pathOnly = href.split('?')[0] ?? '';
-  const pathPart = pathOnly.split('#')[0] ?? '';
+  const pathOnly = segmentBefore(href, '?');
+  const pathPart = segmentBefore(pathOnly, '#');
   const normPath = normalizeNavPath(pathname);
   const normHrefPath = normalizeNavPath(pathPart);
   if (normPath !== normHrefPath) {

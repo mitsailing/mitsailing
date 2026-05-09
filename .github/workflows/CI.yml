@@ -134,9 +134,7 @@ jobs:
           node-version: ${{ matrix.node-version }}
 
       - name: Run unit tests (with coverage)
-        uses: docker://mcr.microsoft.com/playwright:v1.59.1-jammy
-        with:
-          args: npm run test:coverage
+        run: npm run test:coverage
 
       - name: Upload coverage reports to Codecov
         if: ${{ !cancelled() }}
@@ -219,10 +217,11 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
       - name: Run storybook tests
-        uses: docker://mcr.microsoft.com/playwright:v1.59.1-jammy
-        with:
-          args: npm run storybook:test
+        run: npm run storybook:test
 
   static:
     strategy:

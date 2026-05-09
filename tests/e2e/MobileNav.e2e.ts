@@ -44,3 +44,47 @@ test.describe('Mobile navigation', () => {
     expect(box.height).toBeCloseTo(viewport.height, 3);
   });
 });
+
+test.describe('Desktop navigation', () => {
+  test.use({ viewport: { width: 1280, height: 800 } });
+
+  test('opens classes dropdown and navigates to introduction', async ({
+    page,
+  }) => {
+    await page.goto('/');
+
+    const nav = page.getByRole('navigation', { name: 'Main navigation' });
+
+    await nav.getByRole('button', { name: 'Classes' }).focus();
+    await page.keyboard.press('ArrowDown');
+    await expect(
+      nav.getByRole('link', { name: 'Introduction', exact: true })
+    ).toBeVisible();
+
+    await nav.getByRole('link', { name: 'Introduction', exact: true }).click();
+    await expect(page).toHaveURL(/\/classes\/?#introduction$/u);
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Classes' })
+    ).toBeVisible();
+  });
+
+  test('opens fleet dropdown and navigates to tech dinghy', async ({
+    page,
+  }) => {
+    await page.goto('/');
+
+    const nav = page.getByRole('navigation', { name: 'Main navigation' });
+
+    await nav.getByRole('button', { name: 'Fleet' }).focus();
+    await page.keyboard.press('ArrowDown');
+    await expect(
+      nav.getByRole('link', { name: 'Tech Dinghy', exact: true })
+    ).toBeVisible();
+
+    await nav.getByRole('link', { name: 'Tech Dinghy', exact: true }).click();
+    await expect(page).toHaveURL(/\/fleet\/tech-dinghy\/?$/u);
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Tech Dinghy' })
+    ).toBeVisible();
+  });
+});

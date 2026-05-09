@@ -55,6 +55,71 @@ async function assertCanRemoveOrDemoteAdmin(
   return null;
 }
 
+type AdminHeaders = Awaited<ReturnType<typeof headers>>;
+
+function authMutationError(error: unknown): CatalogMutationErr {
+  if (error instanceof APIError) {
+    return { ok: false, code: mapAuthAdminErrorToCode(error) };
+  }
+  return { ok: false, code: 'unknown' };
+}
+
+async function updateUserDetails(props: {
+  id: string;
+  data: Record<string, unknown>;
+  headers: AdminHeaders;
+}): Promise<boolean | CatalogMutationErr> {
+  try {
+    await auth.api.adminUpdateUser({
+      body: { userId: props.id, data: props.data },
+      headers: props.headers,
+    });
+    return true;
+  } catch (error: unknown) {
+    if (error instanceof APIError && error.body?.code === 'NO_DATA_TO_UPDATE') {
+      return false;
+    }
+    return authMutationError(error);
+  }
+}
+
+async function updateUserBanState(props: {
+  id: string;
+  banned: boolean;
+  headers: AdminHeaders;
+}): Promise<CatalogMutationErr | null> {
+  try {
+    await (props.banned
+      ? auth.api.banUser({
+          body: { userId: props.id },
+          headers: props.headers,
+        })
+      : auth.api.unbanUser({
+          body: { userId: props.id },
+          headers: props.headers,
+        }));
+    return null;
+  } catch (error: unknown) {
+    return authMutationError(error);
+  }
+}
+
+async function setAdminUserPassword(props: {
+  id: string;
+  newPassword: string;
+  headers: AdminHeaders;
+}): Promise<CatalogMutationErr | null> {
+  try {
+    await auth.api.setUserPassword({
+      body: { userId: props.id, newPassword: props.newPassword },
+      headers: props.headers,
+    });
+    return null;
+  } catch (error: unknown) {
+    return authMutationError(error);
+  }
+}
+
 /**
  * Better Auth–backed handlers for `/admin/users` (not registered in catalog registry).
  */
@@ -145,7 +210,7 @@ export const usersAdminHandlers: CatalogServerHandlers = {
 
     const existing = await prisma.user.findUnique({
       where: { id },
-      select: { role: true },
+      select: { banned: true, role: true },
     });
     if (!existing) {
       return { ok: false, code: 'not_found' };
@@ -172,44 +237,34 @@ export const usersAdminHandlers: CatalogServerHandlers = {
       name,
       role,
       emailVerified,
-      banned,
     };
+    const wasBanned = Boolean(existing.banned);
+    const banStateChanged = wasBanned !== banned;
 
-    let userUpdated = false;
-    try {
-      await auth.api.adminUpdateUser({
-        body: { userId: id, data },
-        headers: hdrs,
-      });
-      userUpdated = true;
-    } catch (error: unknown) {
-      if (
-        error instanceof APIError &&
-        error.body?.code === 'NO_DATA_TO_UPDATE'
-      ) {
-        userUpdated = false;
-      } else if (error instanceof APIError) {
-        return { ok: false, code: mapAuthAdminErrorToCode(error) };
-      } else {
-        return { ok: false, code: 'unknown' };
+    const userUpdate = await updateUserDetails({ id, data, headers: hdrs });
+    if (typeof userUpdate !== 'boolean') {
+      return userUpdate;
+    }
+
+    if (banStateChanged) {
+      const banUpdate = await updateUserBanState({ id, banned, headers: hdrs });
+      if (banUpdate) {
+        return banUpdate;
       }
     }
 
     if (trimmedPassword.length > 0) {
-      try {
-        await auth.api.setUserPassword({
-          body: { userId: id, newPassword: trimmedPassword },
-          headers: hdrs,
-        });
-      } catch (error: unknown) {
-        if (error instanceof APIError) {
-          return { ok: false, code: mapAuthAdminErrorToCode(error) };
-        }
-        return { ok: false, code: 'unknown' };
+      const passwordUpdate = await setAdminUserPassword({
+        id,
+        newPassword: trimmedPassword,
+        headers: hdrs,
+      });
+      if (passwordUpdate) {
+        return passwordUpdate;
       }
     }
 
-    if (!userUpdated && trimmedPassword.length === 0) {
+    if (!userUpdate && !banStateChanged && trimmedPassword.length === 0) {
       return { ok: false, code: 'no_data_to_update' };
     }
 

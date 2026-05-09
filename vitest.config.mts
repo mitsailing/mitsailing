@@ -12,13 +12,15 @@ export default defineConfig({
       reporter: ['text', 'lcov', 'json', 'html', 'json-summary'],
       // Emit coverage even when a test fails so CI uploads still have data.
       reportOnFailure: true,
-      include: ['src/**/*.{ts,tsx,js,jsx}'],
+      include: ['src/**/*.{ts,tsx,js,jsx}', 'emails/**/*.{ts,tsx,js,jsx}'],
       exclude: [
         'src/**/*.stories.{js,jsx,ts,tsx}',
         'src/**/*.test.{js,jsx,ts,tsx}',
+        'emails/**/*.test.{js,jsx,ts,tsx}',
         'src/**/*.d.ts',
         'src/generated/**',
         'src/types/**',
+        'src/test/**',
         'src/styles/**',
         'src/data/**',
         'src/locales/**',
@@ -34,6 +36,15 @@ export default defineConfig({
           include: ['src/**/*.test.{js,ts}'],
           exclude: ['src/hooks/**/*.test.ts'],
           environment: 'node',
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'component',
+          include: ['src/**/*.test.{jsx,tsx}', 'emails/**/*.test.{jsx,tsx}'],
+          environment: 'jsdom',
+          setupFiles: ['tests/setup/component.tsx'],
         },
       },
       {

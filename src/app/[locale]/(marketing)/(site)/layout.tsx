@@ -1,17 +1,17 @@
-import { SiteShell } from '@/components/mit-sailing/SiteShell';
+import type * as React from 'react';
 
 /**
- * Standard marketing pages: global pavilion chrome (conditions bar, header,
- * footer). Auth-only flows use `src/app/[locale]/(auth)/` instead.
+ * Standard marketing pages. Auth-only flows use `src/app/[locale]/(auth)/`
+ * instead.
  *
- * Locale is set in the parent `(marketing)/layout.tsx`.
+ * Locale and shared chrome are set in the parent `(marketing)/layout.tsx`.
  *
  * @param props - Layout props
  * @param props.children - Page content under `(site)/`
- * @returns Marketing pages wrapped in {@link SiteShell}
+ * @returns Marketing site page content
  */
 export default function MarketingSiteLayout(props: {
   children: React.ReactNode;
-}) {
-  return <SiteShell>{props.children}</SiteShell>;
+}): React.ReactNode {
+  return props.children;
 }

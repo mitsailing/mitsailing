@@ -134,12 +134,12 @@ describe('listPublishedSiteAlerts', () => {
   });
 });
 
-describe('buildSiteAlertsFingerprint', () => {
+describe('buildSiteAlertBannerCollapseAlerts', () => {
   it('changes when alert body text changes', async () => {
-    const { buildSiteAlertsFingerprint } =
+    const { buildSiteAlertBannerCollapseAlerts } =
       await import('@/libs/mit-sailing/siteAlertQueries');
 
-    const current = buildSiteAlertsFingerprint([
+    const [current] = buildSiteAlertBannerCollapseAlerts([
       {
         bodyPlainText: 'Current text',
         dateIso: '2026-04-15',
@@ -147,7 +147,7 @@ describe('buildSiteAlertsFingerprint', () => {
         id: 'alert-1',
       },
     ]);
-    const updated = buildSiteAlertsFingerprint([
+    const [updated] = buildSiteAlertBannerCollapseAlerts([
       {
         bodyPlainText: 'Updated text',
         dateIso: '2026-04-15',
@@ -156,6 +156,54 @@ describe('buildSiteAlertsFingerprint', () => {
       },
     ]);
 
-    expect(updated).not.toBe(current);
+    expect(updated?.contentFingerprint).not.toBe(current?.contentFingerprint);
+  });
+
+  it('changes when alert date changes', async () => {
+    const { buildSiteAlertBannerCollapseAlerts } =
+      await import('@/libs/mit-sailing/siteAlertQueries');
+
+    const [current] = buildSiteAlertBannerCollapseAlerts([
+      {
+        bodyPlainText: 'Current text',
+        dateIso: '2026-04-15',
+        dateLabel: 'Wed, Apr 15, 2026',
+        id: 'alert-1',
+      },
+    ]);
+    const [updated] = buildSiteAlertBannerCollapseAlerts([
+      {
+        bodyPlainText: 'Current text',
+        dateIso: '2026-04-16',
+        dateLabel: 'Thu, Apr 16, 2026',
+        id: 'alert-1',
+      },
+    ]);
+
+    expect(updated?.contentFingerprint).not.toBe(current?.contentFingerprint);
+  });
+
+  it('keeps fingerprint when alert date label changes', async () => {
+    const { buildSiteAlertBannerCollapseAlerts } =
+      await import('@/libs/mit-sailing/siteAlertQueries');
+
+    const [current] = buildSiteAlertBannerCollapseAlerts([
+      {
+        bodyPlainText: 'Current text',
+        dateIso: '2026-04-15',
+        dateLabel: 'Wed, Apr 15, 2026',
+        id: 'alert-1',
+      },
+    ]);
+    const [updated] = buildSiteAlertBannerCollapseAlerts([
+      {
+        bodyPlainText: 'Current text',
+        dateIso: '2026-04-15',
+        dateLabel: 'April 15, 2026',
+        id: 'alert-1',
+      },
+    ]);
+
+    expect(updated?.contentFingerprint).toBe(current?.contentFingerprint);
   });
 });

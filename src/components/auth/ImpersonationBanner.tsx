@@ -29,6 +29,7 @@ export async function ImpersonationBanner(props: ImpersonationBannerProps) {
     >
       <span>{t('impersonation_notice')}</span>{' '}
       <StopImpersonationButton
+        errorLabel={t('impersonation_exit_error')}
         label={t('impersonation_exit')}
         locale={props.locale}
       />

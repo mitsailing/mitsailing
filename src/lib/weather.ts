@@ -12,6 +12,12 @@ import { logger } from '@/libs/Logger';
 /** Upstream polling window for MIT `weather.txt` (seconds). */
 const WEATHER_UPSTREAM_REVALIDATE_SECONDS = 900;
 
+const WEATHER_UPSTREAM_REVALIDATE_MS =
+  WEATHER_UPSTREAM_REVALIDATE_SECONDS * 1000;
+
+/** In-memory cache TTL when data is a brownout placeholder (`isFallback`), so retries run before the full upstream poll window. */
+const BROWNOUT_TTL_MS = 60_000;
+
 /** Max time before aborting a single upstream GET (milliseconds). */
 const WEATHER_FETCH_TIMEOUT_MS = 10_000;
 
@@ -30,6 +36,23 @@ const FALLBACK_BROWNOUT: WeatherHeaderData = {
 };
 
 /**
+ * In-memory weather header cache row for this Node worker: parsed payload plus wall-clock expiry.
+ *
+ * @property {WeatherHeaderData} data Display segments and `isFallback` when upstream was unavailable or incomplete.
+ * @property {number} expiresAtMs Epoch milliseconds after which callers should refresh.
+ */
+type WeatherHeaderCacheEntry = {
+  data: WeatherHeaderData;
+  expiresAtMs: number;
+};
+
+/** Latest cached {@link WeatherHeaderData}, or `null` before the first successful refresh. */
+let weatherHeaderCache: WeatherHeaderCacheEntry | null = null;
+
+/** Shared in-flight refresh promise so concurrent requests await one upstream fetch; cleared when refresh completes. */
+let weatherHeaderRefresh: Promise<WeatherHeaderData> | null = null;
+
+/**
  * Operational `warn` — single-line `{key=value}` suffix for grep; avoids `error`/Sentry for routine upstream issues.
  *
  * @param options - `where` narrows the code path; `detail` is serialized as `k=v` pairs
@@ -37,14 +60,11 @@ const FALLBACK_BROWNOUT: WeatherHeaderData = {
 function logMitWeatherWarn(
   options: Readonly<{
     where: string;
-    detail: Record<string, string | number | undefined>;
+    detail: Record<string, string | number>;
   }>
 ): void {
   const bits = [`[mit-weather:${options.where}]`];
   for (const [k, v] of Object.entries(options.detail)) {
-    if (v === undefined) {
-      continue;
-    }
     bits.push(`${k}=${String(v)}`);
   }
 
@@ -52,15 +72,15 @@ function logMitWeatherWarn(
 }
 
 /**
- * Pulls pavilion `weather.txt`, caches upstream for 900s; never propagates failures to the router.
+ * Pulls pavilion `weather.txt`; never propagates failures to the router.
  *
  * @returns Structured row data with field-level nulls translated to placeholders in UI
  */
-export async function fetchWeatherHeaderData(): Promise<WeatherHeaderData> {
+async function fetchFreshWeatherHeaderData(): Promise<WeatherHeaderData> {
   try {
     const response = await fetch(MIT_WEATHER_TXT_URL, {
+      cache: 'no-store',
       signal: AbortSignal.timeout(WEATHER_FETCH_TIMEOUT_MS),
-      next: { revalidate: WEATHER_UPSTREAM_REVALIDATE_SECONDS },
     });
 
     if (!response.ok) {
@@ -149,4 +169,48 @@ export async function fetchWeatherHeaderData(): Promise<WeatherHeaderData> {
 
     return FALLBACK_BROWNOUT;
   }
+}
+
+/**
+ * Fetches fresh weather, writes {@link weatherHeaderCache} (shorter TTL when `isFallback`), and clears {@link weatherHeaderRefresh} in `finally`.
+ *
+ * @returns Same shaped data as {@link fetchFreshWeatherHeaderData}
+ */
+async function refreshWeatherHeaderData(): Promise<WeatherHeaderData> {
+  try {
+    const data = await fetchFreshWeatherHeaderData();
+    const ttlMs = data.isFallback
+      ? BROWNOUT_TTL_MS
+      : WEATHER_UPSTREAM_REVALIDATE_MS;
+    weatherHeaderCache = {
+      data,
+      expiresAtMs: Date.now() + ttlMs,
+    };
+
+    return data;
+  } finally {
+    weatherHeaderRefresh = null;
+  }
+}
+
+/**
+ * Returns MIT weather from this Node worker's in-memory cache (900s for successful fetches; shorter TTL for brownout fallbacks).
+ *
+ * @returns Structured row data with field-level nulls translated to placeholders in UI
+ */
+export async function fetchWeatherHeaderData(): Promise<WeatherHeaderData> {
+  const nowMs = Date.now();
+  if (weatherHeaderCache && weatherHeaderCache.expiresAtMs > nowMs) {
+    return weatherHeaderCache.data;
+  }
+
+  if (weatherHeaderRefresh) {
+    const data = await weatherHeaderRefresh;
+    return data;
+  }
+
+  weatherHeaderRefresh = refreshWeatherHeaderData();
+
+  const data = await weatherHeaderRefresh;
+  return data;
 }

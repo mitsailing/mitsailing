@@ -1,6 +1,5 @@
 import { Droplets, Sunset, Thermometer, Wind } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import type { getTranslations } from 'next-intl/server';
 import { conditionsBarUtilityLinks } from '@/data/mit-sailing/conditionsBarSeed';
 import { fetchWeatherHeaderData } from '@/lib/weather';
 import type { ParsedWeatherSegments } from '@/lib/weatherParse';
@@ -41,14 +40,27 @@ const conditionsLineRows = [
   segmentKey: keyof ParsedWeatherSegments;
 }[];
 
-type MitSiteT = Awaited<ReturnType<typeof getTranslations>>;
+type MitSiteTranslationKey =
+  | 'conditions_weather_link_aria'
+  | 'conditions_line_wind'
+  | 'conditions_line_air'
+  | 'conditions_line_water'
+  | 'conditions_line_sunset'
+  | 'util_reserve_pavilion'
+  | 'util_directions'
+  | 'util_donate';
+
+type MitSiteT = (
+  key: MitSiteTranslationKey,
+  values?: Record<string, string>
+) => string;
 
 export type WeatherConditionsBarProps = {
   tMitSite: MitSiteT;
 };
 
 type ChromeProps = {
-  placeholders: string[];
+  segments: ParsedWeatherSegments;
   tMitSite: MitSiteT;
 };
 
@@ -59,27 +71,27 @@ function displaySegmentText(value: string | null | undefined): string {
 }
 
 function WeatherConditionsChrome(props: ChromeProps) {
-  const { placeholders, tMitSite } = props;
-
   return (
     <div className="border-b border-mit-line bg-mit-surface pt-4 pb-2 sm:py-2 dark:bg-background dark:backdrop-blur-none">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-4 px-6 sm:px-8">
         <a
-          aria-label={tMitSite('conditions_weather_link_aria')}
+          aria-label={props.tMitSite('conditions_weather_link_aria')}
           className="min-w-0 flex-1 cursor-pointer rounded-sm text-xs font-medium text-muted-foreground no-underline transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none dark:text-mit-text dark:hover:text-white"
           href="https://sailing.mit.edu/weather/"
           rel="noopener noreferrer"
           target="_blank"
         >
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2 sm:gap-6">
-            {conditionsLineRows.map((row, idx) => {
+            {conditionsLineRows.map((row) => {
               const { Icon, lineKey } = row;
-              const slotValue = placeholders[idx] ?? FIELD_PLACEHOLDER;
+              const slotValue = displaySegmentText(
+                props.segments[row.segmentKey]
+              );
 
               return (
                 <div className="flex items-center gap-1.5" key={lineKey}>
                   <Icon aria-hidden="true" size={14} />
-                  {tMitSite(lineKey, { value: slotValue })}
+                  {props.tMitSite(lineKey, { value: slotValue })}
                 </div>
               );
             })}
@@ -92,7 +104,7 @@ function WeatherConditionsChrome(props: ChromeProps) {
               href={u.href}
               key={u.labelKey}
             >
-              {tMitSite(u.labelKey)}
+              {props.tMitSite(u.labelKey)}
             </Link>
           ))}
         </div>
@@ -108,12 +120,14 @@ function WeatherConditionsChrome(props: ChromeProps) {
  * @returns Markup for the strip
  */
 export function WeatherConditionsBarSkeleton(props: WeatherConditionsBarProps) {
-  const placeholders = conditionsLineRows.map(() => FIELD_PLACEHOLDER);
+  const segments: ParsedWeatherSegments = {
+    windText: null,
+    airText: null,
+    waterText: null,
+    sunsetText: null,
+  };
   return (
-    <WeatherConditionsChrome
-      placeholders={placeholders}
-      tMitSite={props.tMitSite}
-    />
+    <WeatherConditionsChrome segments={segments} tMitSite={props.tMitSite} />
   );
 }
 
@@ -125,14 +139,6 @@ export function WeatherConditionsBarSkeleton(props: WeatherConditionsBarProps) {
  */
 export async function WeatherConditionsBar(props: WeatherConditionsBarProps) {
   const data = await fetchWeatherHeaderData();
-  const placeholders = conditionsLineRows.map((row) =>
-    displaySegmentText(data[row.segmentKey])
-  );
 
-  return (
-    <WeatherConditionsChrome
-      placeholders={placeholders}
-      tMitSite={props.tMitSite}
-    />
-  );
+  return <WeatherConditionsChrome segments={data} tMitSite={props.tMitSite} />;
 }

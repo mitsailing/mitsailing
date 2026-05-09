@@ -1,4 +1,3 @@
-import { ImpersonationBanner } from '@/components/auth/ImpersonationBanner';
 import { ProfileSideNav } from '@/components/auth/profile/ProfileSideNav';
 import { SiteShell } from '@/components/mit-sailing/SiteShell';
 import { SiteSidebarLayout } from '@/components/mit-sailing/SiteSidebarLayout';
@@ -12,8 +11,8 @@ type ProfileSettingsChromeProps = {
 };
 
 /**
- * Signed-in profile shell: site template, impersonation banner, and sidebar
- * settings nav (no horizontal account nav or admin shortcuts).
+ * Signed-in profile shell: site template and sidebar settings nav (no
+ * horizontal account nav or admin shortcuts).
  *
  * @param props - Layout props
  * @returns Profile section with sidebar layout
@@ -24,7 +23,6 @@ export async function ProfileSettingsChrome(props: ProfileSettingsChromeProps) {
   return (
     <SiteShell>
       <div className="mx-auto max-w-7xl px-6 py-6">
-        <ImpersonationBanner locale={props.locale} />
         <SiteSidebarLayout
           density="comfortable"
           sidebar={<ProfileSideNav />}
