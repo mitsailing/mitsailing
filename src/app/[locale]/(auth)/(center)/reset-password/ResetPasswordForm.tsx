@@ -112,7 +112,9 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
         type: 'forget-password',
       });
       if (res.error) {
-        setError(mapError({ code: res.error.code }));
+        setError(
+          mapError({ code: res.error.code, message: res.error.message })
+        );
         return;
       }
     } catch {

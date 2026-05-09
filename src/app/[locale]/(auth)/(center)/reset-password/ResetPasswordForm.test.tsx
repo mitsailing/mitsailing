@@ -150,6 +150,22 @@ describe('ResetPasswordForm', () => {
       );
     });
 
+    it('Visitor sees provider message before the password step', async () => {
+      authClientMock.emailOtp.checkVerificationOtp.mockResolvedValue({
+        error: { message: 'Reset code was already used.' },
+      });
+      renderResetPasswordForm();
+
+      await continueWithResetCode('111111');
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Reset code was already used.'
+      );
+      expect(
+        screen.queryByLabelText('New password', { exact: true })
+      ).not.toBeInTheDocument();
+    });
+
     it('Visitor sees request error when code verification fails', async () => {
       authClientMock.emailOtp.checkVerificationOtp.mockRejectedValue(
         new Error('network')
