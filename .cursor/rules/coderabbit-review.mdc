@@ -1,0 +1,19 @@
+---
+description: CodeRabbit-aligned review conventions for agents before PRs
+globs: **/*.{ts,tsx,js,jsx,mjs,cjs,json,yaml,yml,md,mdx}
+alwaysApply: true
+---
+
+# CodeRabbit review conventions
+
+**Sources:** [AGENTS.md](../../AGENTS.md); [CodeRabbit config](../../.coderabbit.yaml). This rule mirrors CodeRabbit's local review expectations so agents write code that already satisfies the PR reviewer.
+
+**Before PR:** Prefer `cr review --agent --base main` on feature branches. Verify findings against current code; fix real bugs directly; skip noise with a brief reason. Keep diffs minimal and run the relevant allowed `npm run` checks from AGENTS.
+
+**Next/React:** Follow current Next 16 App Router and React 19 patterns: `useRouter` comes from `next/navigation` in Client Components; `router.push`/`replace`/`refresh` are imperative navigation calls, not promises to await; sanitize untrusted href/callback input before navigation. Use current React 19 event types such as `React.SubmitEvent<HTMLFormElement>` for form submits; do not replace them with deprecated `React.FormEvent`. Avoid `any`, broad casts, direct `process.env`, hard-coded user-visible strings, and app-wide dynamic/runtime changes that conflict with the Next Node-server rules.
+
+**Auth/security:** Treat auth, email, callback URL, session, secret, SQL/Prisma, and transport code as security-sensitive. Prefer explicit validation, safe fallbacks, plaintext email fallbacks where transactional mail sends HTML, and logging that preserves diagnostic context without leaking secrets.
+
+**Errors/i18n/accessibility:** User-visible errors stay short and translated. No "try again" variants. Status/success banners use `role="status"` and error banners use `role="alert"` when they are meant to be announced.
+
+**Tests:** `it(...)` titles are short lowercase verb phrases with no trailing period. Prefer exact assertions when the full shape matters, realistic user interactions, isolated mocks, and behavior coverage over broad cleanup.

@@ -236,7 +236,7 @@ export function SiteHeader(props: SiteHeaderProps) {
     return (
       <a
         className={externalClassName}
-        href={item.externalHref}
+        href={item.externalHref ?? '#'}
         key={item.labelKey}
         onClick={onNavigate}
       >

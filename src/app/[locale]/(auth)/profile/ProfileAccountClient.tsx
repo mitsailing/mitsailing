@@ -75,12 +75,12 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
     event.preventDefault();
     const normalizedNewEmail = normalizeMarketingEmail(newEmail);
     const normalizedCurrentEmail = normalizeMarketingEmail(currentEmail);
-    if (!normalizedNewEmail || normalizedNewEmail === normalizedCurrentEmail) {
-      setEmailBanner({ kind: 'error', message: t('email_same_error') });
+    if (!normalizedNewEmail || !isValidMarketingEmail(normalizedNewEmail)) {
+      setEmailBanner({ kind: 'error', message: t('email_validation_error') });
       return;
     }
-    if (!isValidMarketingEmail(normalizedNewEmail)) {
-      setEmailBanner({ kind: 'error', message: t('email_validation_error') });
+    if (normalizedNewEmail === normalizedCurrentEmail) {
+      setEmailBanner({ kind: 'error', message: t('email_same_error') });
       return;
     }
     setEmailBanner(null);

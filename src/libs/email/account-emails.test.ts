@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { findUnique, update } = vi.hoisted(() => ({
+const { findUnique, update, updateMany } = vi.hoisted(() => ({
   findUnique: vi.fn(),
   update: vi.fn(),
+  updateMany: vi.fn(),
 }));
 
 vi.mock('@/libs/DB', () => ({
@@ -10,6 +11,7 @@ vi.mock('@/libs/DB', () => ({
     user: {
       findUnique,
       update,
+      updateMany,
     },
   },
 }));
@@ -26,6 +28,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   findUnique.mockResolvedValue({ unconfirmedEmail: null });
   update.mockResolvedValue({});
+  updateMany.mockResolvedValue({ count: 1 });
 });
 
 describe('account email notices', () => {
@@ -141,8 +144,6 @@ describe('account email notices', () => {
     const { markPendingEmailChange } =
       await import('@/libs/email/account-emails');
 
-    findUnique.mockResolvedValue({ unconfirmedEmail: 'old@example.com' });
-
     await expect(
       markPendingEmailChange({
         newEmail: 'next@example.com',
@@ -150,9 +151,15 @@ describe('account email notices', () => {
       })
     ).resolves.toBe(true);
 
-    expect(update).toHaveBeenCalledWith({
+    expect(updateMany).toHaveBeenCalledWith({
       data: { unconfirmedEmail: 'next@example.com' },
-      where: { id: 'user_123' },
+      where: {
+        OR: [
+          { unconfirmedEmail: null },
+          { unconfirmedEmail: { not: 'next@example.com' } },
+        ],
+        id: 'user_123',
+      },
     });
   });
 
@@ -160,7 +167,7 @@ describe('account email notices', () => {
     const { markPendingEmailChange } =
       await import('@/libs/email/account-emails');
 
-    findUnique.mockResolvedValue({ unconfirmedEmail: 'next@example.com' });
+    updateMany.mockResolvedValue({ count: 0 });
 
     await expect(
       markPendingEmailChange({
@@ -169,7 +176,16 @@ describe('account email notices', () => {
       })
     ).resolves.toBe(false);
 
-    expect(update).not.toHaveBeenCalled();
+    expect(updateMany).toHaveBeenCalledWith({
+      data: { unconfirmedEmail: 'next@example.com' },
+      where: {
+        OR: [
+          { unconfirmedEmail: null },
+          { unconfirmedEmail: { not: 'next@example.com' } },
+        ],
+        id: 'user_123',
+      },
+    });
   });
 
   it('security-notice persona receives a change-request notice at the current email', async () => {
@@ -188,6 +204,8 @@ describe('account email notices', () => {
     expect(payload?.to).toBe('current@example.com');
     expect(payload?.subject).toMatch(/email change requested/i);
     expect(payload?.html).toContain('next@example.com');
+    expect(payload?.text).toContain('next@example.com');
+    expect(payload?.text).toContain('support@mitsailing.com');
   });
 
   it('security-notice persona receives the delete-account confirmation email', async () => {

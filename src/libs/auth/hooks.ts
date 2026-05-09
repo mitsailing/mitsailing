@@ -29,7 +29,10 @@ async function countRecentFailures(email: string): Promise<number> {
 
 async function preflightEmailOtpResetPassword(password: unknown) {
   if (typeof password !== 'string') {
-    return;
+    throw APIError.from('BAD_REQUEST', {
+      code: 'PASSWORD_REQUIRED',
+      message: 'PASSWORD_REQUIRED',
+    });
   }
 
   if (password.length < MIN_PASSWORD_LENGTH) {

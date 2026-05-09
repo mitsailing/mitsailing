@@ -280,6 +280,7 @@ export function SignInForm(props: SignInFormProps) {
             props.callbackUrl
           )}
           onClick={onForgotPassword}
+          tabIndex={requestingReset ? -1 : undefined}
         >
           {t('forgot_password')}
         </a>

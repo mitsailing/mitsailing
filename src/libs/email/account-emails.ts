@@ -154,18 +154,17 @@ export async function markPendingEmailChange(params: {
   userId: string;
   newEmail: string;
 }): Promise<boolean> {
-  const existing = await prisma.user.findUnique({
-    where: { id: params.userId },
-    select: { unconfirmedEmail: true },
-  });
-  if (existing?.unconfirmedEmail === params.newEmail) {
-    return false;
-  }
-  await prisma.user.update({
-    where: { id: params.userId },
+  const result = await prisma.user.updateMany({
+    where: {
+      id: params.userId,
+      OR: [
+        { unconfirmedEmail: null },
+        { unconfirmedEmail: { not: params.newEmail } },
+      ],
+    },
     data: { unconfirmedEmail: params.newEmail },
   });
-  return true;
+  return result.count > 0;
 }
 
 /**
@@ -194,6 +193,15 @@ export async function sendEmailChangeRequestedNotice(params: {
     to: params.currentEmail,
     subject: copy.change_email_notice_subject,
     html,
+    text: [
+      copy.change_email_notice_subject,
+      replaceAuthEmailValues(copy.change_email_notice_body, {
+        email: params.newEmail,
+      }),
+      replaceAuthEmailValues(copy.change_email_notice_contact, {
+        email: SUPPORT_EMAIL,
+      }),
+    ].join('\n\n'),
   });
 }
 

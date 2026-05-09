@@ -27,6 +27,12 @@ describe('safeAuthCallbackUrl', () => {
     expect(safeAuthCallbackUrl('/fleet/\u007Fadmin', '/login')).toBe('/login');
   });
 
+  it('visitor cannot return to overly long paths', () => {
+    expect(safeAuthCallbackUrl(`/${'a'.repeat(2000)}`, '/login')).toBe(
+      '/login'
+    );
+  });
+
   it('visitor gets a safe fallback when fallback input is unsafe', () => {
     expect(safeAuthCallbackUrl(null, 'https://example.com/fleet')).toBe('/');
     expect(safeAuthCallbackUrl(null, '/\\example.com/fleet')).toBe('/');

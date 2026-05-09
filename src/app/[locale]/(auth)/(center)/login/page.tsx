@@ -61,7 +61,10 @@ export default async function SignInPage(props: SignInPageProps) {
         </p>
       ) : null}
       {!searchParams.error && searchParams.unlocked === '1' ? (
-        <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-800">
+        <p
+          className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-800"
+          role="status"
+        >
           {t('unlocked_banner')}
         </p>
       ) : null}

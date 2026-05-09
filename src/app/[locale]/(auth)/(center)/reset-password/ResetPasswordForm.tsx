@@ -222,9 +222,12 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
         );
         return;
       }
+      const passwordForSignIn = password;
+      setPassword('');
+      setPasswordConfirmation('');
       const signInRes = await authClient.signIn.email({
         email: normalizedEmail,
-        password,
+        password: passwordForSignIn,
         callbackURL: props.callbackUrl,
       });
       if (signInRes.error) {

@@ -1,6 +1,7 @@
 const authCallbackParam = 'callbackUrl';
 
 const fallbackCallbackUrl = '/';
+const maxCallbackUrlLength = 2000;
 
 function hasControlCharacter(value: string): boolean {
   for (const character of value) {
@@ -41,7 +42,7 @@ export function safeAuthCallbackUrl(
   }
 
   const candidate = value.trim();
-  if (!candidate) {
+  if (!candidate || candidate.length > maxCallbackUrlLength) {
     return safeFallback;
   }
   if (!isSafeAppPath(candidate)) {

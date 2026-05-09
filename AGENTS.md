@@ -16,7 +16,7 @@
 ## Token efficiency
 - Skip recaps unless the result is ambiguous or you need more input.
 - **Cursor rules** attach by **glob** (see each `.mdc` frontmatter). **Cite** paths instead of pasting long policy. **`@tdd`** for strict test-first without repeating prompts.
-- **Which rule:** `nextjs-node-server-2026.mdc` (Next caching/DB/runtime, `src/app` + `src/libs`). `e2e-verification.mdc` (when `test:e2e` counts as done). `tdd.mdc` (Vitest/Playwright, `tests/**` + co-located `*.test.*`). `agent-workflow.mdc` (workflow + stale APIs, `src/**`).
+- **Which rule:** `coderabbit-review.mdc` (CodeRabbit-aligned conventions, all code/config/docs). `nextjs-node-server-2026.mdc` (Next caching/DB/runtime, `src/app` + `src/libs`). `e2e-verification.mdc` (when `test:e2e` counts as done). `tdd.mdc` (Vitest/Playwright, `tests/**` + co-located `*.test.*`). `agent-workflow.mdc` (workflow + stale APIs, `src/**`).
 
 ## Commands
 Only these `npm run` scripts: `build-local`, `lint`, `check:types`, `check:deps`, `check:i18n`, `test`, `test:coverage`, `test:e2e`.
@@ -64,6 +64,6 @@ Tailwind v4 utility classes. Reuse shared components. Responsive. No unnecessary
 - `*.test.ts` for unit tests; `*.spec.ts` for integration tests; `*.e2e.ts` for Playwright tests.
 - `*.test.ts` co-located with implementation; `*.spec.ts` and `*.e2e.ts` in `tests/` directory.
 - Top `describe` = subject; nested `describe` to group scenarios or contexts.
-- `it` titles: short, third-person present, `verb + object + context`. Sentence case, no period.
+- `it` titles: short, lowercase verb phrase, `verb + object + context`, no period.
 - Omit "should/works/handles/checks/validates". State what, not how.
 - Avoid mocking unless necessary.

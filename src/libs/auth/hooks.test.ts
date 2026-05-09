@@ -122,6 +122,11 @@ const passwordTooLongError = {
   status: 'BAD_REQUEST',
 };
 
+const passwordRequiredError = {
+  body: { code: 'PASSWORD_REQUIRED', message: 'PASSWORD_REQUIRED' },
+  status: 'BAD_REQUEST',
+};
+
 function authContext(props: {
   body?: TestAuthContext['body'];
   context?: TestAuthContext['context'];
@@ -230,13 +235,15 @@ describe('signInEmailHooks before', () => {
     });
   });
 
-  it('visitor skips reset password preflight without a string password', async () => {
-    await hooks.before(
-      authContext({
-        body: { password: null },
-        path: '/email-otp/reset-password',
-      })
-    );
+  it('visitor cannot reset without a string password', async () => {
+    await expect(
+      hooks.before(
+        authContext({
+          body: { password: null },
+          path: '/email-otp/reset-password',
+        })
+      )
+    ).rejects.toMatchObject(passwordRequiredError);
 
     expect(assertPasswordNotCompromised).not.toHaveBeenCalled();
   });

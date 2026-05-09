@@ -86,7 +86,9 @@ export function SignUpForm(props: SignUpFormProps) {
     }
     setSubmitting(true);
     const localPart = normalizedEmail.split('@')[0] ?? normalizedEmail;
-    const displayName = name.trim() === '' ? localPart : name;
+    const trimmedName = name.trim();
+    const displayName = trimmedName === '' ? localPart : trimmedName;
+    let keepSubmitting = false;
     try {
       const res = await authClient.signUp.email({
         email: normalizedEmail,
@@ -99,6 +101,7 @@ export function SignUpForm(props: SignUpFormProps) {
         return;
       }
       setSubmitted(true);
+      keepSubmitting = true;
       router.push(
         authHrefWithCallback(
           `/verify-email?email=${encodeURIComponent(normalizedEmail)}&codeSent=1`,
@@ -119,7 +122,9 @@ export function SignUpForm(props: SignUpFormProps) {
         showSignInLinks: false,
       });
     } finally {
-      setSubmitting(false);
+      if (!keepSubmitting) {
+        setSubmitting(false);
+      }
     }
   }
 
