@@ -28,11 +28,7 @@ const authEmailMessagesByLocale: Record<string, AuthEmailMessages> = {
 function getAuthEmailMessages(
   locale: string = AppConfig.i18n.defaultLocale
 ): AuthEmailMessages {
-  return (
-    authEmailMessagesByLocale[locale] ??
-    authEmailMessagesByLocale[AppConfig.i18n.defaultLocale] ??
-    enMessages.AuthEmails
-  );
+  return authEmailMessagesByLocale[locale] ?? enMessages.AuthEmails;
 }
 
 function verificationCodeText(params: {

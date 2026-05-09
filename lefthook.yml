@@ -21,3 +21,9 @@ pre-commit:
     - name: knip
       glob: '*'
       run: npm run check:deps
+
+# Mirror the CI unit job before pushing.
+pre-push:
+  jobs:
+    - name: test coverage
+      run: npm run test:coverage
