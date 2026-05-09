@@ -36,6 +36,9 @@ describe('ForgotPasswordForm', () => {
         '/reset-password?email=reset%40mit.edu&codeSent=1&callbackUrl=%2Ffleet%2F'
       );
     });
+    expect(
+      screen.getByRole('button', { name: 'Send reset code' })
+    ).toBeEnabled();
   });
 
   it('show safe error for invalid reset email', async () => {
