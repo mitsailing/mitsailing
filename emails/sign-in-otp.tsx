@@ -30,6 +30,28 @@ function assertSixDigitCode(code: string): void {
 }
 
 /**
+ * Plaintext email OTP for passwordless sign-in.
+ *
+ * @param props - Template props.
+ * @returns Plaintext email body.
+ */
+export function SignInOtpEmailPlaintext(props: SignInOtpEmailProps): string {
+  assertSixDigitCode(props.code);
+
+  return [
+    props.copy.sign_in_otp_heading,
+    replaceAuthEmailValues(props.copy.sign_in_otp_body, { code: props.code }),
+    `Code: ${props.code}`,
+    replaceAuthEmailValues(
+      props.copy.sign_in_otp_expiry
+        .replaceAll('<support>', '')
+        .replaceAll('</support>', ''),
+      { email: props.supportEmail }
+    ),
+  ].join('\n\n');
+}
+
+/**
  * Email OTP for passwordless sign-in (existing accounts).
  *
  * @param props - Template props.

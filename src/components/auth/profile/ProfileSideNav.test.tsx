@@ -16,7 +16,7 @@ describe('ProfileSideNav', () => {
       'aria-current',
       'page'
     );
-    expect(screen.getByRole('link', { name: 'Password' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Password' })).toBeVisible();
     expect(screen.getByRole('link', { name: 'Delete account' })).toBeVisible();
   });
 

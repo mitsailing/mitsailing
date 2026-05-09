@@ -272,8 +272,9 @@ function createCursorAgent(command) {
 function createCodexAgent(command) {
   return {
     name: 'codex',
-    // The hook only runs on a developer machine; bypassing approvals lets
-    // Codex repair local pre-push failures without an interactive prompt.
+    // Security warning: --dangerously-bypass-approvals-and-sandbox gives Codex
+    // full local filesystem and command execution access. Use only on trusted
+    // developer machines.
     command,
     args: ['exec', '--dangerously-bypass-approvals-and-sandbox', '--cd', cwd],
   };

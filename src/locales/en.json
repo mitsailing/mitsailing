@@ -258,7 +258,7 @@
     "error_expired_password_step": "That code expired. Request a new reset code.",
     "error_too_many_attempts": "Too many code attempts. Request a new code.",
     "error_password_mismatch": "Passwords do not match.",
-    "error_rate_limited": "Too many requests. Try again in a few minutes.",
+    "error_rate_limited": "Too many requests. Wait a few minutes.",
     "error_request_failed": "We could not complete that request right now.",
     "auto_sign_in_failed": "Your password was reset. Please sign in manually.",
     "back_sign_in": "Back to sign in"
@@ -306,7 +306,7 @@
     "email_invalid_code_error": "That code is invalid.",
     "email_code_expired_error": "That code expired.",
     "email_code_attempts_error": "Too many code attempts. Send a new code.",
-    "email_rate_limited_error": "Too many email change requests. Try again in a bit.",
+    "email_rate_limited_error": "Too many email change requests. Wait a bit.",
     "email_validation_error": "Check the email address and try again.",
     "pending_email_label": "Pending email",
     "pending_email_heading": "Check your inbox",
@@ -329,7 +329,7 @@
     "password_change_error": "Check your current password and try again.",
     "password_pwned_error": "That password has appeared in a known data breach. Choose a different one.",
     "password_invalid_error": "The current password you entered is incorrect.",
-    "password_rate_limited": "Too many password change attempts. Try again in a bit.",
+    "password_rate_limited": "Too many password change attempts. Wait a bit.",
     "password_mismatch_error": "New passwords do not match.",
     "sign_out_all_heading": "Sign out everywhere",
     "sign_out_all_description": "Revoke every other session signed in to this account.",
@@ -343,7 +343,7 @@
     "delete_account_submit": "Delete my account",
     "delete_invalid_password_error": "The password you entered is incorrect.",
     "delete_validation_error": "Check the confirmation field and try again.",
-    "delete_rate_limited_error": "Too many delete-account attempts. Try again in a bit."
+    "delete_rate_limited_error": "Too many delete-account attempts. Wait a bit."
   },
   "ProfileSideNav": {
     "aria_label": "Profile settings",

@@ -70,6 +70,17 @@ describe('RootLayout', () => {
   });
 
   describe('Locale handling', () => {
+    it('validates supported locales', async () => {
+      layoutMocks.hasLocale.mockReturnValue(false);
+      const { isSupportedLocale } = await import('./layout');
+
+      expect(isSupportedLocale('xx')).toBe(false);
+      expect(layoutMocks.hasLocale).toHaveBeenCalledWith(
+        expect.any(Array),
+        'xx'
+      );
+    });
+
     it('calls notFound for unsupported locales', async () => {
       layoutMocks.hasLocale.mockReturnValue(false);
       const { default: RootLayout } = await import('./layout');
@@ -116,6 +127,7 @@ describe('RootLayout', () => {
 
       const html = renderToStaticMarkup(tree);
       expect(html).toContain('class="dark"');
+      expect(html).toContain('data-theme="dark"');
     });
   });
 });

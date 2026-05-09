@@ -271,6 +271,24 @@ function assertCoverageExemptionsExist(label, projectPaths, exemptions) {
 }
 
 /**
+ * @param {string} label - Human-readable coverage list label.
+ * @param {CoverageExemption[]} exemptions - Documented exemptions.
+ */
+function assertCoverageExemptionProofsExist(label, exemptions) {
+  const missingProofs = exemptions.flatMap((exemption) =>
+    exemption.e2eProof
+      .filter((proofPath) => !existsSync(path.join(process.cwd(), proofPath)))
+      .map((proofPath) => `${exemption.path} -> ${proofPath}`)
+  );
+
+  if (missingProofs.length > 0) {
+    throw new Error(
+      `${label} coverage exemption E2E proof files must exist: ${missingProofs.join(', ')}`
+    );
+  }
+}
+
+/**
  * @param {string} projectPath - Project-relative source path.
  * @returns {string} Project path with POSIX separators for prefix checks.
  */
@@ -382,9 +400,10 @@ function authAppFolderAggregates(summary) {
       continue;
     }
 
-    const projectPath = toProjectPath(filePath);
+    const projectPath = normalizeProjectPathSeparators(toProjectPath(filePath));
     for (const folderRoot of folderRoots) {
-      if (projectPath.startsWith(`${folderRoot}/`)) {
+      const normalizedFolderRoot = normalizeProjectPathSeparators(folderRoot);
+      if (projectPath.startsWith(`${normalizedFolderRoot}/`)) {
         const aggregate = aggregates.get(folderRoot);
         if (aggregate) {
           addFileToAggregate(aggregate, fileSummary);
@@ -457,6 +476,11 @@ assertCoverageExemptionsExist(
 assertCoverageExemptionsExist(
   'Additional critical',
   additionalCriticalCoverageFiles,
+  additionalCriticalExcludedFiles
+);
+assertCoverageExemptionProofsExist('Auth', authCoverageExcludedFiles);
+assertCoverageExemptionProofsExist(
+  'Additional critical',
   additionalCriticalExcludedFiles
 );
 

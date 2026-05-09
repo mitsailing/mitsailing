@@ -42,7 +42,16 @@ export function hibpPasswordSha1RangeParts(password: string): {
   };
 }
 
-export async function assertPasswordNotCompromised(password: string) {
+/**
+ * Checks whether a password appears in the HIBP range API.
+ *
+ * @param password - Cleartext password used only for the k-anonymous lookup.
+ * @returns Resolves when checks are disabled, unavailable, or the password is not compromised.
+ * @throws APIError when the password is known to be compromised.
+ */
+export async function assertPasswordNotCompromised(
+  password: string
+): Promise<void> {
   if (!passwordCompromiseCheckEnabled) {
     return;
   }

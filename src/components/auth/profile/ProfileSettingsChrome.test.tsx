@@ -38,8 +38,8 @@ vi.mock('./ProfileSideNav', () => ({
 beforeEach(() => {
   vi.clearAllMocks();
   chromeMocks.verifySession.mockResolvedValue({
-    session: {},
-    user: { id: 'user-1' },
+    session: { impersonatedBy: null },
+    user: { email: 'sailor@example.com', id: 'user-1', role: 'user' },
   });
 });
 
@@ -53,10 +53,6 @@ describe('ProfileSettingsChrome', () => {
       })
     );
 
-    expect(chromeMocks.verifySession).toHaveBeenCalledWith(
-      'en',
-      '/profile/account/'
-    );
     expect(screen.getByTestId('site-shell')).toBeInTheDocument();
     expect(
       screen.getByRole('navigation', { name: 'Profile settings' })

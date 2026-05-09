@@ -91,6 +91,10 @@ export async function findLatestMessageToMatching(params: {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- Mailpit response shape is fixed in tests
       const list = (await listResponse.json()) as MailpitListResponse;
 
+      if (!Array.isArray(list.messages)) {
+        throw new TypeError('Mailpit response missing messages array.');
+      }
+
       for (const summary of list.messages) {
         const detailResponse = await mailpitFetch(
           `/api/v1/message/${summary.ID}`
@@ -107,8 +111,14 @@ export async function findLatestMessageToMatching(params: {
     await sleep(250);
   }
 
+  let lastErrorMessage = 'no polling errors';
+  if (lastError instanceof Error) {
+    lastErrorMessage = lastError.message;
+  } else if (lastError !== undefined) {
+    lastErrorMessage = JSON.stringify(lastError);
+  }
   throw new Error(
-    `No Mailpit ${params.description} to ${params.email} within ${timeoutMs}ms (last error: ${String(lastError)})`
+    `No Mailpit ${params.description} to ${params.email} within ${timeoutMs}ms (last error: ${lastErrorMessage})`
   );
 }
 
@@ -160,6 +170,7 @@ export function extractLinkFromMessage(
 
 /**
  * Pull the first 6-digit OTP out of a Mailpit message body.
+ * Prefers Text to avoid HTML markup and encoded characters, then falls back to HTML.
  *
  * @param message - Message returned by `findLatestMessageTo`.
  * @returns The first 6-digit verification code in the message body.

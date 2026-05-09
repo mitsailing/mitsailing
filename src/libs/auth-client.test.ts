@@ -25,7 +25,7 @@ beforeEach(() => {
 
 describe('authClient', () => {
   it('registers admin and email OTP client plugins', async () => {
-    await import('@/libs/auth-client');
+    const { authClient } = await import('@/libs/auth-client');
 
     expect(clientMocks.createAuthClient).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -33,6 +33,17 @@ describe('authClient', () => {
           expect.objectContaining({ id: 'admin-client-plugin' }),
           expect.objectContaining({ id: 'email-otp-client-plugin' }),
         ]),
+      })
+    );
+    expect(authClient).toEqual(
+      expect.objectContaining({
+        id: 'auth-client',
+        config: expect.objectContaining({
+          plugins: expect.arrayContaining([
+            expect.objectContaining({ id: 'admin-client-plugin' }),
+            expect.objectContaining({ id: 'email-otp-client-plugin' }),
+          ]),
+        }),
       })
     );
   });

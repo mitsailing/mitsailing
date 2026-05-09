@@ -242,7 +242,7 @@ describe('SignUpForm', () => {
         contexts: {
           authClientError: {
             code: undefined,
-            message: '[redacted]',
+            message: 'Invite is required.',
           },
         },
       })

@@ -35,7 +35,13 @@ export const viewport: Viewport = {
 /** next-intl: per-request locale; do not use static build-time locale list. */
 export const dynamic = 'force-dynamic';
 
-function themeBootScript(defaultTheme: AppColorScheme): string {
+/**
+ * Serializes the inline boot script that applies theme before hydration.
+ *
+ * @param defaultTheme - Stored color scheme preference (`light`, `dark`, or `system`).
+ * @returns IIFE string that sets the root theme attributes and color scheme.
+ */
+export function themeBootScript(defaultTheme: AppColorScheme): string {
   return `(() => {
   const theme = ${JSON.stringify(defaultTheme)};
   const resolved = theme === 'system'
@@ -48,13 +54,17 @@ function themeBootScript(defaultTheme: AppColorScheme): string {
 })();`;
 }
 
+export function isSupportedLocale(locale: string): boolean {
+  return hasLocale(routing.locales, locale);
+}
+
 export default async function RootLayout(props: {
   children: React.ReactNode;
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await props.params;
 
-  if (!hasLocale(routing.locales, locale)) {
+  if (!isSupportedLocale(locale)) {
     notFound();
   }
 

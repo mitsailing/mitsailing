@@ -18,6 +18,9 @@ const tMitSite: WeatherConditionsBarProps['tMitSite'] = (
   values: Record<string, string> = {}
 ) => {
   const message = enMessages.MitSailingSite[key];
+  if (typeof message !== 'string') {
+    throw new TypeError(`Missing MitSailingSite translation for ${key}`);
+  }
   return message.replaceAll(
     /\{(\w+)\}/g,
     (_match, name: string) => values[name] ?? ''

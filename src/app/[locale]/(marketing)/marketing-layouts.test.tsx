@@ -31,6 +31,7 @@ describe('marketing segment layouts', () => {
     });
     const html = renderToStaticMarkup(node);
     expect(html).toContain('data-testid="site-inner"');
+    expect(html).not.toContain('data-testid="site-shell"');
   });
 
   it('wraps the marketing tree in the site shell', async () => {

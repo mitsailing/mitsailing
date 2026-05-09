@@ -16,6 +16,19 @@ type SiteShellProps = {
   children: React.ReactNode;
 };
 
+type SiteShellSession = {
+  session?: { impersonatedBy?: string | null } | null;
+  user?: { id?: string; role?: unknown } | null;
+} | null;
+
+export function shouldShowAdminLink(session: SiteShellSession): boolean {
+  return adminHeaderLinkVisibleFromSession({
+    userId: session?.user?.id,
+    userRole: session?.user?.role,
+    impersonatedBy: session?.session?.impersonatedBy,
+  });
+}
+
 /**
  * Global site chrome for every page: impersonation notice, conditions bar,
  * sticky header with class and fleet dropdowns, main content, and the dark
@@ -30,11 +43,7 @@ export async function SiteShell(props: SiteShellProps) {
   const session = await getSession();
   const locale = await getLocale();
   const initialSignedIn = Boolean(session?.user?.id);
-  const initialShowAdminLink = adminHeaderLinkVisibleFromSession({
-    userId: session?.user?.id,
-    userRole: session?.user?.role,
-    impersonatedBy: session?.session?.impersonatedBy,
-  });
+  const initialShowAdminLink = shouldShowAdminLink(session);
 
   const tMitSite = await getTranslations('MitSailingSite');
 

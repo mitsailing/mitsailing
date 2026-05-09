@@ -37,6 +37,8 @@ describe('GET /api/unlock-account', () => {
   it('redirects to login with error when token is missing', async () => {
     const response = await GET(unlockRequest());
 
+    expect(verifyUnlockAccountTokenMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(307);
     expect(response.headers.get('location')).toMatch(
       /\/login\?error=unlock_invalid$/
     );
@@ -47,6 +49,7 @@ describe('GET /api/unlock-account', () => {
     const response = await GET(unlockRequest('invalid-token'));
 
     expect(verifyUnlockAccountTokenMock).toHaveBeenCalledWith('invalid-token');
+    expect(response.status).toBe(307);
     expect(response.headers.get('location')).toMatch(
       /\/login\?error=unlock_invalid$/
     );
@@ -63,6 +66,7 @@ describe('GET /api/unlock-account', () => {
     expect(deleteMany).toHaveBeenCalledWith({
       where: { email: 'locked@example.com' },
     });
+    expect(response.status).toBe(307);
     expect(response.headers.get('location')).toMatch(/\/login\?unlocked=1$/);
   });
 });

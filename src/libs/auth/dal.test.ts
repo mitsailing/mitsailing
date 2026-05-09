@@ -69,7 +69,7 @@ beforeEach(() => {
 });
 
 describe('getSession', () => {
-  it('sailor session lookup passes headers and disables cookie cache', async () => {
+  it('pass headers and disable cookie cache for sailor session', async () => {
     const requestHeaders = new Headers([['cookie', 'session=abc']]);
     const session = createSession({ id: 'user-1', role: 'user' });
     headers.mockResolvedValue(requestHeaders);
@@ -84,7 +84,7 @@ describe('getSession', () => {
     });
   });
 
-  it('admin session lookup syncs Sentry identity', async () => {
+  it('sync sentry identity for admin session', async () => {
     const session = createSession({ id: 'user-1', role: 'admin' });
     authGetSession.mockResolvedValue(session);
 
@@ -97,7 +97,7 @@ describe('getSession', () => {
 });
 
 describe('redirectIfAuthenticated', () => {
-  it('visitor stays on auth pages while signed out', async () => {
+  it('keep visitor on auth pages when signed out', async () => {
     const { redirectIfAuthenticated } = await import('@/libs/auth/dal');
 
     await expect(
@@ -107,7 +107,7 @@ describe('redirectIfAuthenticated', () => {
     expect(redirect).not.toHaveBeenCalled();
   });
 
-  it('sailor returns to a safe callback when already signed in', async () => {
+  it('return safe callback for signed-in sailor', async () => {
     authGetSession.mockResolvedValue(createSession({ id: 'user-1' }));
     const { redirectIfAuthenticated } = await import('@/libs/auth/dal');
 
@@ -118,7 +118,7 @@ describe('redirectIfAuthenticated', () => {
     expect(redirect).toHaveBeenCalledWith('/profile?tab=appearance');
   });
 
-  it('sailor returns home instead of an unsafe callback', async () => {
+  it('redirect to home for unsafe callback', async () => {
     authGetSession.mockResolvedValue(createSession({ id: 'user-1' }));
     const { redirectIfAuthenticated } = await import('@/libs/auth/dal');
 
@@ -131,7 +131,7 @@ describe('redirectIfAuthenticated', () => {
 });
 
 describe('verifySession', () => {
-  it('visitor redirects to sign-in with a preserved callback', async () => {
+  it('redirect visitor to sign-in with preserved callback', async () => {
     const { verifySession } = await import('@/libs/auth/dal');
 
     await expect(verifySession('en', '/fleet/')).rejects.toThrow(
@@ -141,7 +141,7 @@ describe('verifySession', () => {
     expect(redirect).toHaveBeenCalledWith('/login?callbackUrl=%2Ffleet%2F');
   });
 
-  it('sailor continues with a verified session', async () => {
+  it('continue with verified sailor session', async () => {
     const session = createSession({ id: 'user-1', role: 'user' });
     authGetSession.mockResolvedValue(session);
     const { verifySession } = await import('@/libs/auth/dal');
@@ -153,7 +153,7 @@ describe('verifySession', () => {
 });
 
 describe('requireAdmin', () => {
-  it('admin can enter protected admin routes', async () => {
+  it('allow admin into protected admin routes', async () => {
     const session = createSession({ id: 'admin-1', role: 'admin' });
     authGetSession.mockResolvedValue(session);
     const { requireAdmin } = await import('@/libs/auth/dal');
@@ -163,7 +163,7 @@ describe('requireAdmin', () => {
     expect(redirect).not.toHaveBeenCalled();
   });
 
-  it('sailor redirects home from admin routes', async () => {
+  it('redirect sailor from admin routes to home', async () => {
     authGetSession.mockResolvedValue(
       createSession({ id: 'user-1', role: 'user' })
     );
@@ -174,7 +174,7 @@ describe('requireAdmin', () => {
     expect(redirect).toHaveBeenCalledWith('/');
   });
 
-  it('impersonating admin redirects home from admin routes', async () => {
+  it('redirect impersonating admin from admin routes', async () => {
     authGetSession.mockResolvedValue({
       ...createSession({ id: 'admin-1', role: 'admin' }),
       session: { impersonatedBy: 'owner-1' },
@@ -188,13 +188,13 @@ describe('requireAdmin', () => {
 });
 
 describe('getCurrentUser', () => {
-  it('visitor has no current user DTO', async () => {
+  it('return null current user for visitor', async () => {
     const { getCurrentUser } = await import('@/libs/auth/dal');
 
     await expect(getCurrentUser()).resolves.toBeNull();
   });
 
-  it('sailor gets normalized current user fields', async () => {
+  it('normalize current user fields for sailor', async () => {
     authGetSession.mockResolvedValue(
       createSession({
         email: 'sailor@example.com',
@@ -217,7 +217,16 @@ describe('getCurrentUser', () => {
 });
 
 describe('requireCurrentUser', () => {
-  it('admin gets a required current user DTO', async () => {
+  it('redirect visitor to sign-in for required current user', async () => {
+    const { requireCurrentUser } = await import('@/libs/auth/dal');
+
+    await expect(requireCurrentUser('en', '/profile')).rejects.toThrow(
+      'NEXT_REDIRECT:/login?callbackUrl=%2Fprofile'
+    );
+    expect(redirect).toHaveBeenCalledWith('/login?callbackUrl=%2Fprofile');
+  });
+
+  it('return required current user DTO for admin', async () => {
     authGetSession.mockResolvedValue(
       createSession({
         email: 'admin@example.com',

@@ -20,6 +20,17 @@ beforeEach(() => {
 });
 
 describe('ForgotPasswordForm', () => {
+  it('prefills initial reset email', () => {
+    render(
+      <ForgotPasswordForm
+        callbackUrl="/fleet/"
+        initialEmail=" Sailor@MIT.EDU "
+      />
+    );
+
+    expect(screen.getByLabelText('Email')).toHaveValue('sailor@mit.edu');
+  });
+
   it('request reset code and move to code form', async () => {
     const user = userEvent.setup();
 
@@ -36,9 +47,11 @@ describe('ForgotPasswordForm', () => {
         '/reset-password?email=reset%40mit.edu&codeSent=1&callbackUrl=%2Ffleet%2F'
       );
     });
-    expect(
-      screen.getByRole('button', { name: 'Send reset code' })
-    ).toBeEnabled();
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Send reset code' })
+      ).toBeEnabled()
+    );
   });
 
   it('show safe error for invalid reset email', async () => {
@@ -112,18 +125,13 @@ describe('ForgotPasswordForm', () => {
       email: 'reset@mit.edu',
     });
     await waitFor(() => {
-      expect(componentTestRouter().replace).toHaveBeenCalledWith(
-        expect.stringContaining('/reset-password')
-      );
-      expect(componentTestRouter().replace).toHaveBeenCalledWith(
-        expect.stringContaining('email=reset%40mit.edu')
-      );
-      expect(componentTestRouter().replace).toHaveBeenCalledWith(
-        expect.stringContaining('codeSent=1')
-      );
-      expect(componentTestRouter().replace).not.toHaveBeenCalledWith(
-        expect.stringContaining('callbackUrl=')
-      );
+      const call = componentTestRouter().replace.mock.calls[0]?.[0];
+      expect(call).toBeDefined();
+      const url = new URL(String(call), 'https://example.test');
+      expect(url.pathname).toBe('/reset-password');
+      expect(url.searchParams.get('email')).toBe('reset@mit.edu');
+      expect(url.searchParams.get('codeSent')).toBe('1');
+      expect(url.searchParams.has('callbackUrl')).toBe(false);
     });
   });
 });

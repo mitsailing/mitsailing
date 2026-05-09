@@ -10,8 +10,8 @@
  * @returns Path with stable `/` form for comparison.
  */
 export function normalizeNavPath(path: string): string {
-  const withoutQuery = path.split('?', 1).join('');
-  const withoutHash = withoutQuery.split('#', 1).join('');
+  const withoutQuery = path.split('?')[0] ?? '';
+  const withoutHash = withoutQuery.split('#')[0] ?? '';
   let s = withoutHash.trim();
   if (s.length > 1 && s.endsWith('/')) {
     s = s.slice(0, -1);
@@ -47,8 +47,8 @@ export function isNavLinkActive(
   routeHash: string,
   href: string
 ): boolean {
-  const pathOnly = href.split('?', 1).join('');
-  const pathPart = pathOnly.split('#', 1).join('');
+  const pathOnly = href.split('?')[0] ?? '';
+  const pathPart = pathOnly.split('#')[0] ?? '';
   const normPath = normalizeNavPath(pathname);
   const normHrefPath = normalizeNavPath(pathPart);
   if (normPath !== normHrefPath) {

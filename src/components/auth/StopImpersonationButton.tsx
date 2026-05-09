@@ -27,7 +27,11 @@ export function StopImpersonationButton(props: StopImpersonationButtonProps) {
       await authClient.admin.stopImpersonating();
       router.push(getI18nPath('/admin/users', props.locale));
       router.refresh();
-    } catch {
+    } catch (caughtError) {
+      console.error(
+        'StopImpersonationButton stop impersonation failed.',
+        caughtError
+      );
       setError(true);
     } finally {
       setSubmitting(false);

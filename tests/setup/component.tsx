@@ -42,31 +42,61 @@ function interpolate(message: string, values: TranslationValues = {}): string {
 }
 
 function renderRich(message: string, values: TranslationValues = {}) {
-  const nodes: React.ReactNode[] = [];
-  const tagPattern = /<(\w+)>(.*?)<\/\1>/g;
-  let lastIndex = 0;
-  let match: RegExpExecArray | null = tagPattern.exec(message);
+  function parseNodes(endTag?: string): {
+    index: number;
+    nodes: React.ReactNode[];
+  } {
+    const nodes: React.ReactNode[] = [];
+    let index = 0;
 
-  while (match) {
-    const [raw, tag, inner] = match;
-    if (match.index > lastIndex) {
-      nodes.push(interpolate(message.slice(lastIndex, match.index), values));
+    while (index < message.length) {
+      const nextTagIndex = message.indexOf('<', index);
+      if (nextTagIndex === -1) {
+        nodes.push(interpolate(message.slice(index), values));
+        return { index: message.length, nodes };
+      }
+
+      if (nextTagIndex > index) {
+        nodes.push(interpolate(message.slice(index, nextTagIndex), values));
+      }
+
+      const closeMatch = message.slice(nextTagIndex).match(/^<\/(\w+)>/u);
+      if (closeMatch) {
+        const tag = closeMatch[1] ?? '';
+        const closeIndex = nextTagIndex + closeMatch[0].length;
+        if (tag === endTag) {
+          return { index: closeIndex, nodes };
+        }
+        nodes.push(
+          interpolate(message.slice(nextTagIndex, closeIndex), values)
+        );
+        index = closeIndex;
+        continue;
+      }
+
+      const openMatch = message.slice(nextTagIndex).match(/^<(\w+)>/u);
+      if (!openMatch) {
+        nodes.push(interpolate(message[nextTagIndex] ?? '', values));
+        index = nextTagIndex + 1;
+        continue;
+      }
+
+      const tag = openMatch[1] ?? '';
+      const innerStart = nextTagIndex + openMatch[0].length;
+      const inner = parseNodes(tag);
+      const renderer = values[tag];
+      nodes.push(
+        typeof renderer === 'function'
+          ? renderer(React.createElement(React.Fragment, null, ...inner.nodes))
+          : React.createElement(React.Fragment, null, ...inner.nodes)
+      );
+      index = inner.index === innerStart ? innerStart : inner.index;
     }
 
-    const renderedInner = interpolate(inner ?? '', values);
-    const renderer = values[tag ?? ''];
-    nodes.push(
-      typeof renderer === 'function' ? renderer(renderedInner) : renderedInner
-    );
-    lastIndex = match.index + raw.length;
-    match = tagPattern.exec(message);
+    return { index, nodes };
   }
 
-  if (lastIndex < message.length) {
-    nodes.push(interpolate(message.slice(lastIndex), values));
-  }
-
-  return React.createElement(React.Fragment, null, ...nodes);
+  return React.createElement(React.Fragment, null, ...parseNodes().nodes);
 }
 
 function createTranslator(namespace: string) {

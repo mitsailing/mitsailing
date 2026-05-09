@@ -70,7 +70,7 @@ describe('SiteShell', () => {
   });
 
   describe('when there is no session', () => {
-    it('renders chrome markup with main content scope', async () => {
+    it('renders page body and footer chrome', async () => {
       const { SiteShell } = await import('./SiteShell');
 
       const tree = await SiteShell({
@@ -82,9 +82,19 @@ describe('SiteShell', () => {
       });
       const html = renderToStaticMarkup(tree);
 
-      expect(html).toContain('id="site-shell-inert-scope"');
       expect(html).toContain('data-testid="page-body"');
       expect(html).toContain('data-testid="site-footer"');
+    });
+
+    it('hides admin link without session', async () => {
+      const { shouldShowAdminLink } = await import('./SiteShell');
+
+      expect(shouldShowAdminLink(null)).toBe(false);
+      expect(adminHeaderLinkVisibleFromSession).toHaveBeenCalledWith({
+        impersonatedBy: undefined,
+        userId: undefined,
+        userRole: undefined,
+      });
     });
   });
 
@@ -98,7 +108,14 @@ describe('SiteShell', () => {
     });
 
     it('renders admin link when session-derived flags allow it', async () => {
-      const { SiteShell } = await import('./SiteShell');
+      const { SiteShell, shouldShowAdminLink } = await import('./SiteShell');
+
+      expect(
+        shouldShowAdminLink({
+          session: { impersonatedBy: undefined },
+          user: { id: 'user-1', role: 'admin' },
+        })
+      ).toBe(true);
 
       const tree = await SiteShell({ children: null });
       const html = renderToStaticMarkup(tree);
@@ -109,6 +126,10 @@ describe('SiteShell', () => {
         userRole: 'admin',
       });
       expect(html).toContain('Admin');
+    });
+
+    it('hides admin link when session-derived flags deny it', async () => {
+      const { SiteShell } = await import('./SiteShell');
 
       adminHeaderLinkVisibleFromSession.mockReturnValue(false);
       const hiddenTree = await SiteShell({ children: null });

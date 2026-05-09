@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { componentTestRouter } from '@/test/component';
 import { StopImpersonationButton } from './StopImpersonationButton';
 
@@ -17,6 +17,11 @@ vi.mock('@/libs/auth-client', () => ({
 beforeEach(() => {
   vi.clearAllMocks();
   authClientMock.admin.stopImpersonating.mockResolvedValue({});
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe('StopImpersonationButton', () => {
@@ -38,9 +43,9 @@ describe('StopImpersonationButton', () => {
 
     await waitFor(() => {
       expect(authClientMock.admin.stopImpersonating).toHaveBeenCalledTimes(1);
-      expect(router.push).toHaveBeenCalledWith('/admin/users');
-      expect(router.refresh).toHaveBeenCalledTimes(1);
     });
+    expect(router.push).toHaveBeenCalledWith('/admin/users');
+    expect(router.refresh).toHaveBeenCalledTimes(1);
   });
 
   it('show error when impersonation exit fails', async () => {
@@ -64,11 +69,15 @@ describe('StopImpersonationButton', () => {
 
     await waitFor(() => {
       expect(authClientMock.admin.stopImpersonating).toHaveBeenCalledTimes(1);
-      expect(screen.getByRole('alert')).toHaveTextContent(
-        'Could not exit impersonation.'
-      );
-      expect(router.push).not.toHaveBeenCalled();
-      expect(router.refresh).not.toHaveBeenCalled();
     });
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Could not exit impersonation.'
+    );
+    expect(console.error).toHaveBeenCalledWith(
+      'StopImpersonationButton stop impersonation failed.',
+      expect.any(Error)
+    );
+    expect(router.push).not.toHaveBeenCalled();
+    expect(router.refresh).not.toHaveBeenCalled();
   });
 });

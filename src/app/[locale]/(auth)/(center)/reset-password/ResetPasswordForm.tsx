@@ -88,7 +88,7 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
       : t('error_code_validation');
   }
 
-  function lockResend() {
+  function startResendLock() {
     if (resendTimeoutRef.current !== null) {
       clearTimeout(resendTimeoutRef.current);
       resendTimeoutRef.current = null;
@@ -100,17 +100,13 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
     }, 30_000);
   }
 
+  function lockResend() {
+    startResendLock();
+  }
+
   useEffect(() => {
     if (props.initialResendLocked) {
-      if (resendTimeoutRef.current !== null) {
-        clearTimeout(resendTimeoutRef.current);
-        resendTimeoutRef.current = null;
-      }
-      setResendLocked(true);
-      resendTimeoutRef.current = window.setTimeout(() => {
-        setResendLocked(false);
-        resendTimeoutRef.current = null;
-      }, 30_000);
+      startResendLock();
     }
 
     return () => {

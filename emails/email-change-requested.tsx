@@ -1,7 +1,7 @@
 import type * as React from 'react';
 import { Heading, Section, Text } from 'react-email';
 import { EmailLayout } from './email-layout';
-import { supportMessage } from './email-styles';
+import { replaceAuthEmailValues, supportMessage } from './email-styles';
 
 const section: React.CSSProperties = {
   padding: '32px 28px',
@@ -46,6 +46,27 @@ function strongEmailMessage(props: {
     }
   }
   return nodes;
+}
+
+/**
+ * Plaintext security notice sent when a login email change is requested.
+ *
+ * @param props - Template props.
+ * @returns Plaintext email body.
+ */
+export function EmailChangeRequestedNoticePlaintext(
+  props: EmailChangeRequestedNoticeTemplateProps
+): string {
+  return [
+    props.heading,
+    replaceAuthEmailValues(props.bodyMessage, { email: props.newEmail }),
+    replaceAuthEmailValues(
+      props.contactMessage
+        .replaceAll('<support>', '')
+        .replaceAll('</support>', ''),
+      { email: props.supportEmail }
+    ),
+  ].join('\n\n');
 }
 
 /**

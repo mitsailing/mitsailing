@@ -1,16 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { findUnique, update, updateMany } = vi.hoisted(() => ({
-  findUnique: vi.fn(),
-  update: vi.fn(),
+const { updateMany } = vi.hoisted(() => ({
   updateMany: vi.fn(),
 }));
 
 vi.mock('@/libs/DB', () => ({
   prisma: {
     user: {
-      findUnique,
-      update,
       updateMany,
     },
   },
@@ -26,8 +22,6 @@ vi.mock('@/libs/auth/unlock-token', () => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
-  findUnique.mockResolvedValue({ unconfirmedEmail: null });
-  update.mockResolvedValue({});
   updateMany.mockResolvedValue({ count: 1 });
 });
 

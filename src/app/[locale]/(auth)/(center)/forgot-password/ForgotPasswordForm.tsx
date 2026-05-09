@@ -52,9 +52,9 @@ export function ForgotPasswordForm(props: ForgotPasswordFormProps) {
     } catch {
       // Keep the same client-visible result for known and unknown addresses.
     } finally {
+      router.replace(resetHref);
       setSubmitting(false);
     }
-    router.replace(resetHref);
   }
 
   return (

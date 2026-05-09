@@ -23,7 +23,7 @@ export type PasswordResetEmailCopy = {
 /**
  * Password reset request with a short-lived numeric code.
  * @param props - Template props.
- * @param props.code - Numeric reset code.
+ * @param props.code - Numeric reset code string, such as "123456".
  * @param props.copy - Localized email copy.
  * @returns Complete email element tree.
  */

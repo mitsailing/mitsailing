@@ -52,6 +52,7 @@ describe('ImpersonationBanner', () => {
     const banner = await ImpersonationBanner({ locale: 'en' });
 
     expect(banner).toBeNull();
+    expect(impersonationMocks.getTranslations).not.toHaveBeenCalled();
   });
 
   it('impersonating admin sees a banner with exit control', async () => {

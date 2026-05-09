@@ -74,6 +74,19 @@ export const Env = createEnv({
   shared: {
     NODE_ENV: z.enum(['test', 'development', 'production']).optional(),
   },
+  createFinalSchema: (shape) =>
+    z.object(shape).superRefine((env, ctx) => {
+      if (
+        env.TEST_DATABASE_URL !== undefined &&
+        env.TEST_DATABASE_URL === env.DATABASE_URL
+      ) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'TEST_DATABASE_URL must not equal DATABASE_URL.',
+          path: ['TEST_DATABASE_URL'],
+        });
+      }
+    }),
   runtimeEnv: {
     ARCJET_KEY: process.env.ARCJET_KEY,
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,

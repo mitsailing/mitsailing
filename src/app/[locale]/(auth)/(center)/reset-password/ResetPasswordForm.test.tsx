@@ -152,7 +152,7 @@ describe('ResetPasswordForm', () => {
       await continueWithResetCode('111111');
 
       expect(await screen.findByRole('alert')).toHaveTextContent(
-        'Too many requests. Try again in a few minutes.'
+        'Too many requests. Wait a few minutes.'
       );
     });
 
@@ -169,14 +169,19 @@ describe('ResetPasswordForm', () => {
       );
       expect(sentryMock.captureMessage).toHaveBeenCalledWith(
         'Unknown auth client error',
-        expect.objectContaining({
+        {
+          level: 'warning',
+          tags: {
+            authAction: 'reset-password.check-code',
+            authErrorCode: 'missing',
+          },
           contexts: {
             authClientError: {
               code: undefined,
-              message: '[redacted]',
+              message: 'Reset code was already used.',
             },
           },
-        })
+        }
       );
       expect(
         screen.queryByLabelText('New password', { exact: true })
@@ -359,7 +364,7 @@ describe('ResetPasswordForm', () => {
       await user.click(screen.getByRole('button', { name: 'Resend email' }));
 
       expect(await screen.findByRole('alert')).toHaveTextContent(
-        'Too many requests. Try again in a few minutes.'
+        'Too many requests. Wait a few minutes.'
       );
     });
 
@@ -469,7 +474,7 @@ describe('ResetPasswordForm', () => {
       await fillNewPassword({ password: 'new-password' });
 
       expect(await screen.findByRole('alert')).toHaveTextContent(
-        'Too many requests. Try again in a few minutes.'
+        'Too many requests. Wait a few minutes.'
       );
     });
 

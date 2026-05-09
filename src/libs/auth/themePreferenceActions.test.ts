@@ -32,17 +32,21 @@ vi.mock('@/utils/Helpers', () => ({
 }));
 
 beforeEach(() => {
-  getI18nPath.mockClear();
+  getI18nPath.mockReset();
   getSession.mockReset();
-  revalidatePath.mockClear();
+  revalidatePath.mockReset();
   userUpdate.mockReset();
 
+  getI18nPath.mockImplementation((url: string, locale: string) =>
+    locale === 'en' ? url : `/${locale}${url}`
+  );
   getSession.mockResolvedValue(null);
+  revalidatePath.mockImplementation(() => {});
   userUpdate.mockResolvedValue({});
 });
 
 describe('updateThemePreferenceAction', () => {
-  it('profile owner cannot save an invalid theme value', async () => {
+  it('rejects invalid theme value before checking session', async () => {
     const { updateThemePreferenceAction } =
       await import('@/libs/auth/themePreferenceActions');
 

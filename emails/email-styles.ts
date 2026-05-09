@@ -53,6 +53,13 @@ export const supportLink: React.CSSProperties = {
   color: '#2563eb',
 };
 
+/**
+ * Replaces auth email placeholders in localized copy.
+ *
+ * @param message - Template string containing `{code}` or `{email}` tokens.
+ * @param values - Optional replacement values for the supported tokens.
+ * @returns The message with supported placeholders replaced.
+ */
 export function replaceAuthEmailValues(
   message: string,
   values: { code?: string; email?: string }
@@ -62,6 +69,14 @@ export function replaceAuthEmailValues(
     .replaceAll('{email}', values.email ?? '');
 }
 
+/**
+ * Renders a localized support message with a mailto link when markup is valid.
+ *
+ * @param props - Support message details.
+ * @param props.message - Message template with an optional support tag pair.
+ * @param props.supportEmail - Support mailbox used for link and placeholders.
+ * @returns Plain text or a React node containing the support mailto link.
+ */
 export function supportMessage(props: {
   message: string;
   supportEmail: string;

@@ -453,6 +453,7 @@ test.describe('Auth', () => {
       )
     ).toHaveCount(0);
 
+    // findLatestPasswordResetCode throws if the reset email was not delivered.
     await findLatestPasswordResetCode(email);
 
     await cleanupByEmail(email);

@@ -65,18 +65,16 @@ export function SiteAlertsBanner(props: {
       const storedAlerts = parseStoredSiteAlertBannerCollapse(
         window.localStorage.getItem(SITE_ALERT_BANNER_COLLAPSE_STORAGE_KEY)
       );
-      const currentAlerts =
-        parseStoredSiteAlertBannerCollapse(alertsFingerprint) ?? [];
       setCollapsed(
         siteAlertBannerStartsCollapsed({
-          currentAlerts,
+          currentAlerts: props.collapseAlerts,
           storedAlerts,
         })
       );
     } catch {
       setCollapsed(false);
     }
-  }, [alertsFingerprint]);
+  }, [alertsFingerprint, props.collapseAlerts]);
 
   if (total === 0) {
     return null;

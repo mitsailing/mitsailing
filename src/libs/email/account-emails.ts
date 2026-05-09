@@ -12,11 +12,17 @@ import { getBaseUrl } from '@/utils/Helpers';
 import { AccountUnlockEmailTemplate } from '../../../emails/account-unlock';
 import { ConfirmEmailChangeTemplate } from '../../../emails/confirm-email-change';
 import { DeleteAccountEmailTemplate } from '../../../emails/delete-account';
-import { EmailChangeRequestedNoticeTemplate } from '../../../emails/email-change-requested';
+import {
+  EmailChangeRequestedNoticePlaintext,
+  EmailChangeRequestedNoticeTemplate,
+} from '../../../emails/email-change-requested';
 import { replaceAuthEmailValues } from '../../../emails/email-styles';
 import { PasswordChangedNoticeTemplate } from '../../../emails/password-changed';
 import { PasswordResetEmailTemplate } from '../../../emails/password-reset';
-import { SignInOtpEmailTemplate } from '../../../emails/sign-in-otp';
+import {
+  SignInOtpEmailPlaintext,
+  SignInOtpEmailTemplate,
+} from '../../../emails/sign-in-otp';
 import { VerifyEmailTemplate } from '../../../emails/verify-email';
 
 /** Support mailbox surfaced in transactional copy (env-configurable). */
@@ -131,10 +137,10 @@ export async function sendEmailOtpCode(params: {
         to: email,
         subject: copy.sign_in_otp_subject,
         html,
-        text: verificationCodeText({
+        text: SignInOtpEmailPlaintext({
           code: params.otp,
           copy,
-          purpose: 'sign-in',
+          supportEmail: SUPPORT_EMAIL,
         }),
       });
       return;
@@ -217,15 +223,14 @@ export async function sendEmailChangeRequestedNotice(params: {
     to: currentEmail,
     subject: copy.change_email_notice_subject,
     html,
-    text: [
-      copy.change_email_notice_subject,
-      replaceAuthEmailValues(copy.change_email_notice_body, {
-        email: newEmail,
-      }),
-      replaceAuthEmailValues(copy.change_email_notice_contact, {
-        email: SUPPORT_EMAIL,
-      }),
-    ].join('\n\n'),
+    text: EmailChangeRequestedNoticePlaintext({
+      newEmail,
+      supportEmail: SUPPORT_EMAIL,
+      previewText: copy.change_email_notice_preview,
+      heading: copy.change_email_notice_subject,
+      bodyMessage: copy.change_email_notice_body,
+      contactMessage: copy.change_email_notice_contact,
+    }),
   });
 }
 

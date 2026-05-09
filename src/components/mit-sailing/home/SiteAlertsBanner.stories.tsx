@@ -60,7 +60,7 @@ export const SingleAlert: Story = {
 
 export const Empty: Story = {
   args: {
-    collapseAlerts: [],
+    collapseAlerts: buildSiteAlertBannerCollapseAlerts([]),
     rows: [],
   },
 };

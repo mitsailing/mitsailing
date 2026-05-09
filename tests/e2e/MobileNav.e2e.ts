@@ -48,7 +48,7 @@ test.describe('Mobile navigation', () => {
 test.describe('Desktop navigation', () => {
   test.use({ viewport: { width: 1280, height: 800 } });
 
-  test('opens classes and fleet dropdowns and navigates to items', async ({
+  test('opens classes dropdown and navigates to introduction', async ({
     page,
   }) => {
     await page.goto('/');
@@ -66,6 +66,14 @@ test.describe('Desktop navigation', () => {
     await expect(
       page.getByRole('heading', { level: 1, name: 'Classes' })
     ).toBeVisible();
+  });
+
+  test('opens fleet dropdown and navigates to tech dinghy', async ({
+    page,
+  }) => {
+    await page.goto('/');
+
+    const nav = page.getByRole('navigation', { name: 'Main navigation' });
 
     await nav.getByRole('button', { name: 'Fleet' }).focus();
     await page.keyboard.press('ArrowDown');

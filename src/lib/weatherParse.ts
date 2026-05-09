@@ -315,7 +315,7 @@ export function prepareMitWeatherUpstreamText(raw: string): string {
   let s = raw.replaceAll('\uFEFF', '');
   /* eslint-disable unicorn/prefer-string-replace-all -- tag/entity passes need regex spans and casing */
   s = stripHtmlAngleSpans(s, ' ');
-  s = s.replaceAll(/&#(\d{1,5});/gu, (full, code: string) =>
+  s = s.replaceAll(/&#(\d{1,7});/gu, (full, code: string) =>
     scalarCharFromParsedEntity(Number(code), full)
   );
   s = s.replaceAll(/&#x([\da-f]{1,6});/giu, (full, hex: string) =>

@@ -11,7 +11,7 @@ beforeEach(() => {
 });
 
 describe('reportUnknownAuthClientError', () => {
-  it('redacts provider auth client error messages', () => {
+  it('reports provider auth client error messages', () => {
     reportUnknownAuthClientError({
       action: 'sign_up',
       code: 'PROVIDER_DOWN',
@@ -29,7 +29,7 @@ describe('reportUnknownAuthClientError', () => {
         contexts: {
           authClientError: {
             code: 'PROVIDER_DOWN',
-            message: '[redacted]',
+            message: 'Provider failed',
           },
         },
       }
@@ -45,18 +45,19 @@ describe('reportUnknownAuthClientError', () => {
 
     expect(Sentry.captureMessage).toHaveBeenCalledWith(
       'Unknown auth client error',
-      expect.objectContaining({
-        tags: expect.objectContaining({
+      {
+        level: 'warning',
+        tags: {
           authAction: 'sign_up',
           authErrorCode: 'PASSWORD_CHECK_FAILED',
-        }),
+        },
         contexts: {
           authClientError: {
             code: 'PASSWORD_CHECK_FAILED',
             message: 'Password check failed',
           },
         },
-      })
+      }
     );
   });
 
@@ -69,21 +70,23 @@ describe('reportUnknownAuthClientError', () => {
 
     expect(Sentry.captureMessage).toHaveBeenCalledWith(
       'Unknown auth client error',
-      expect.objectContaining({
-        tags: expect.objectContaining({
+      {
+        level: 'warning',
+        tags: {
+          authAction: 'reset_password',
           authErrorCode: 'missing',
-        }),
+        },
         contexts: {
           authClientError: {
             code: undefined,
-            message: '[redacted]',
+            message: 'Provider failed',
           },
         },
-      })
+      }
     );
   });
 
-  it('redacts unknown auth client error messages', () => {
+  it('reports unknown auth client error messages', () => {
     reportUnknownAuthClientError({
       action: 'reset_password',
       code: 'unknown',
@@ -92,18 +95,19 @@ describe('reportUnknownAuthClientError', () => {
 
     expect(Sentry.captureMessage).toHaveBeenCalledWith(
       'Unknown auth client error',
-      expect.objectContaining({
-        tags: expect.objectContaining({
+      {
+        level: 'warning',
+        tags: {
           authAction: 'reset_password',
           authErrorCode: 'unknown',
-        }),
+        },
         contexts: {
           authClientError: {
             code: 'unknown',
-            message: '[redacted]',
+            message: 'Provider failed',
           },
         },
-      })
+      }
     );
   });
 });

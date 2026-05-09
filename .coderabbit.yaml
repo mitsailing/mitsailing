@@ -52,6 +52,11 @@ reviews:
         to `get(...) === "true"` where forms render a hidden `false` input before
         the checkbox; direct `get` reads the hidden fallback and breaks checked
         browser payloads.
+        Sentry and the configured app log sinks are approved telemetry
+        subprocessors under the service agreement: readable user IDs, emails,
+        and auth diagnostic context are intentional in auth diagnostics. Do not
+        request hashing, redaction, or removal of user IDs, emails, or auth
+        error messages solely because they are PII.
         Flag deviations and security-sensitive mistakes (auth, SQL, secrets).
     - path: '**/*.{test,spec,e2e}.{ts,tsx}'
       instructions: >-

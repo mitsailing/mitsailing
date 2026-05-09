@@ -28,6 +28,8 @@ export function isValidMarketingEmail(raw: string): boolean {
 
 /**
  * Normalize user-entered email addresses before validation or submission.
+ * Callers should normalize first, then pass the normalized value to
+ * `isValidMarketingEmail` and submit that same normalized value.
  *
  * @param raw - Candidate email string from user input
  * @returns The trimmed, lowercase address

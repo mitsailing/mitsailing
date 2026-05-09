@@ -27,6 +27,15 @@ async function countRecentFailures(email: string): Promise<number> {
   return count;
 }
 
+/**
+ * Validates email OTP reset-password input before Better Auth updates password.
+ * Enforces MIN_PASSWORD_LENGTH and MAX_PASSWORD_LENGTH and maps failures to
+ * stable BAD_REQUEST APIError codes.
+ *
+ * @param password - Candidate password from the request body.
+ * @returns Resolves when password preflight passes.
+ * @throws APIError for missing, short, long, or compromised passwords.
+ */
 async function preflightEmailOtpResetPassword(password: unknown) {
   if (typeof password !== 'string') {
     throw APIError.from('BAD_REQUEST', {

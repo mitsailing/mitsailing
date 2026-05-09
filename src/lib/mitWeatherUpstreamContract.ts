@@ -100,7 +100,7 @@ export function validateMitWeatherUpstreamContract(
       status: 'breach',
       breach: {
         code: 'AIR_NOT_FAHRENHEIT',
-        detail: airText,
+        detail: `Air line is not Fahrenheit: ${airText}`,
       },
     };
   }
@@ -110,7 +110,7 @@ export function validateMitWeatherUpstreamContract(
       status: 'breach',
       breach: {
         code: 'WATER_NOT_FAHRENHEIT',
-        detail: waterText,
+        detail: `Water line is not Fahrenheit: ${waterText}`,
       },
     };
   }
@@ -120,7 +120,7 @@ export function validateMitWeatherUpstreamContract(
       status: 'breach',
       breach: {
         code: 'SUNSET_NOT_CLOCK',
-        detail: sunsetText,
+        detail: `Sunset line is not a clock time: ${sunsetText}`,
       },
     };
   }
