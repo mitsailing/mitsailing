@@ -22,6 +22,7 @@ type ErrorState =
   | { kind: 'generic'; message: string }
   | { kind: 'unverified'; email: string }
   | null;
+type MappedErrorState = Exclude<ErrorState, null>;
 
 // Client-side sign-in form wired directly to `authClient.signIn.email`.
 // Known Better Auth error codes are mapped to translated page copy; unknown
@@ -43,7 +44,7 @@ export function SignInForm(props: SignInFormProps) {
     code: string | undefined,
     _message: string | undefined,
     signInEmail?: string
-  ): ErrorState {
+  ): MappedErrorState {
     if (code === 'EMAIL_NOT_VERIFIED') {
       return { kind: 'unverified', email: signInEmail ?? email };
     }
@@ -64,13 +65,10 @@ export function SignInForm(props: SignInFormProps) {
     message: string | undefined
   ): string {
     const mapped = mapError(code, message);
-    if (mapped?.kind === 'generic') {
+    if (mapped.kind === 'generic') {
       return mapped.message;
     }
-    if (mapped?.kind === 'unverified' || code === 'EMAIL_NOT_VERIFIED') {
-      return t('error_credentials');
-    }
-    return message ?? t('error_credentials');
+    return t('error_credentials');
   }
 
   async function onSubmit(event: React.SubmitEvent<HTMLFormElement>) {
