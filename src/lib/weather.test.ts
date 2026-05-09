@@ -94,6 +94,37 @@ describe('fetchWeatherHeaderData', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 
+  it('expires brownout cache before the full poll window so upstream retries sooner', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-08T12:00:00.000Z'));
+
+    fetchSpy
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(
+        new Response(
+          'Wind ENE @ 11 mph, Air 49.9°F, Water 57.0°F, Sunset 19:42',
+          { status: 200 }
+        )
+      );
+
+    const { fetchWeatherHeaderData } = await import('@/lib/weather');
+
+    const brownout = await fetchWeatherHeaderData();
+    expect(brownout.isFallback).toBe(true);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+    vi.setSystemTime(new Date('2026-05-08T12:00:59.999Z'));
+    const stillCached = await fetchWeatherHeaderData();
+    expect(stillCached.isFallback).toBe(true);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+    vi.setSystemTime(new Date('2026-05-08T12:01:00.001Z'));
+    const recovered = await fetchWeatherHeaderData();
+    expect(recovered.isFallback).toBe(false);
+    expect(recovered.windText).toBe('ENE @ 10 knots');
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
   it('shares one upstream request for concurrent cache misses', async () => {
     const pendingFetch = Promise.withResolvers<Response>();
     fetchSpy.mockReturnValue(pendingFetch.promise);

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { authClient } from '@/libs/auth-client';
+import { safeAuthCallbackUrl } from '@/libs/auth/callbackUrl';
 import {
   isValidMarketingEmail,
   normalizeMarketingEmail,
@@ -41,7 +42,10 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
   );
   const resendTimeoutRef = useRef<number | null>(null);
 
-  function mapError(codeValue: string | undefined): string {
+  function mapError(
+    codeValue: string | undefined,
+    message: string | undefined
+  ): string {
     if (codeValue === 'OTP_EXPIRED') {
       return t('error_expired');
     }
@@ -53,6 +57,12 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
     }
     if (codeValue === 'TOO_MANY_REQUESTS') {
       return t('error_rate_limited');
+    }
+    if (message || codeValue) {
+      console.warn('[VerifyEmailForm] Unmapped OTP error', {
+        code: codeValue,
+        message,
+      });
     }
     return t('error_invalid_code');
   }
@@ -100,11 +110,11 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
       if (res.error) {
         setBanner({
           kind: 'error',
-          message: mapError(res.error.code),
+          message: mapError(res.error.code, res.error.message),
         });
         return;
       }
-      router.push(props.callbackUrl);
+      router.push(safeAuthCallbackUrl(props.callbackUrl, '/'));
       router.refresh();
     } catch {
       setBanner({ kind: 'error', message: t('error_request_failed') });
@@ -130,7 +140,7 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
       if (res.error) {
         setBanner({
           kind: 'error',
-          message: mapError(res.error.code),
+          message: mapError(res.error.code, res.error.message),
         });
         return;
       }

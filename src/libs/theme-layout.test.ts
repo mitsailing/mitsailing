@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const getSession = vi.fn();
-const findUnique = vi.fn();
+const { getSession, findUnique } = vi.hoisted(() => ({
+  getSession: vi.fn(),
+  findUnique: vi.fn(),
+}));
 
 vi.mock('server-only', () => ({}));
 

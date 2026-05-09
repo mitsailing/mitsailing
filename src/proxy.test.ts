@@ -85,14 +85,18 @@ describe('proxy', () => {
     vi.stubEnv('ARCJET_KEY', '');
     getSession.mockResolvedValue(null);
     const { default: proxy } = await import('@/proxy');
-    const request = new NextRequest(
-      new URL('http://localhost:3008/en/account?tab=security')
-    );
+    const target = new URL('http://localhost:3008/en/account?tab=security');
+    const expectedCallback = `${target.pathname}${target.search}`;
+    const request = new NextRequest(target);
     const response = await proxy(request);
     expect(response.status).toBe(307);
     const location = response.headers.get('location');
-    expect(location).toContain('/login');
-    expect(location).toContain('callbackUrl');
+    if (!location) {
+      throw new Error('Expected redirect location');
+    }
+    const redirectUrl = new URL(location, request.url);
+    expect(redirectUrl.pathname).toBe('/login');
+    expect(redirectUrl.searchParams.get('callbackUrl')).toBe(expectedCallback);
     expect(intlFn).not.toHaveBeenCalled();
   });
 

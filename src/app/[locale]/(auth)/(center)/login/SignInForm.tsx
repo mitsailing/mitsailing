@@ -24,8 +24,8 @@ type ErrorState =
   | null;
 
 // Client-side sign-in form wired directly to `authClient.signIn.email`.
-// Known Better Auth error codes are mapped to translated page copy; anything
-// else falls back to `error.message` (already translated by the i18n plugin).
+// Known Better Auth error codes are mapped to translated page copy; unknown
+// codes use the generic credentials string so raw backend text never renders.
 // The unverified path sends an email code and moves the user to the
 // verification screen without losing their original callback.
 export function SignInForm(props: SignInFormProps) {
@@ -41,7 +41,7 @@ export function SignInForm(props: SignInFormProps) {
 
   function mapError(
     code: string | undefined,
-    message: string | undefined,
+    _message: string | undefined,
     signInEmail?: string
   ): ErrorState {
     if (code === 'EMAIL_NOT_VERIFIED') {
@@ -51,11 +51,12 @@ export function SignInForm(props: SignInFormProps) {
       INVALID_EMAIL_OR_PASSWORD: t('error_credentials'),
       ACCOUNT_LOCKED: t('error_locked'),
       TOO_MANY_REQUESTS: t('error_rate_limited'),
+      BANNED_USER: t('error_banned'),
     };
     if (code && mapping[code]) {
       return { kind: 'generic', message: mapping[code] };
     }
-    return { kind: 'generic', message: message ?? t('error_credentials') };
+    return { kind: 'generic', message: t('error_credentials') };
   }
 
   function mapGenericMessage(
@@ -131,13 +132,21 @@ export function SignInForm(props: SignInFormProps) {
   }
 
   async function onForgotPassword(event: React.MouseEvent<HTMLAnchorElement>) {
-    event.preventDefault();
     if (requestingReset) {
+      event.preventDefault();
       return;
     }
 
     const normalizedEmail = normalizeMarketingEmail(email);
+
+    if (normalizedEmail.length === 0) {
+      // Omit preventDefault so the anchor navigates to forgot-password without inline reset.
+      return;
+    }
+
+    event.preventDefault();
     if (!isValidMarketingEmail(normalizedEmail)) {
+      setError({ kind: 'generic', message: t('error_invalid_email') });
       return;
     }
 

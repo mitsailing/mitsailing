@@ -2,11 +2,12 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const notFound = vi.fn(() => {
-  throw new Error('not_found');
-});
-
-const hasLocale = vi.fn((_locales: readonly string[], _locale: string) => true);
+const layoutMocks = vi.hoisted(() => ({
+  notFound: vi.fn(() => {
+    throw new Error('not_found');
+  }),
+  hasLocale: vi.fn((_locales: readonly string[], _locale: string) => true),
+}));
 
 const themeHooks = vi.hoisted(() => ({
   getDefaultThemeForRootLayout: vi.fn(
@@ -15,12 +16,12 @@ const themeHooks = vi.hoisted(() => ({
 }));
 
 vi.mock('next/navigation', () => ({
-  notFound,
+  notFound: layoutMocks.notFound,
 }));
 
 vi.mock('next-intl', () => ({
   hasLocale: (locales: readonly string[], locale: string): boolean =>
-    Boolean(hasLocale(locales, locale)),
+    Boolean(layoutMocks.hasLocale(locales, locale)),
   NextIntlClientProvider: (props: { children: React.ReactNode }) => (
     <div data-testid="intl">{props.children}</div>
   ),
@@ -63,15 +64,15 @@ vi.mock('@/styles/global.css', () => ({}));
 
 describe('RootLayout', () => {
   beforeEach(() => {
-    hasLocale.mockReset();
-    notFound.mockClear();
-    hasLocale.mockReturnValue(true);
+    layoutMocks.hasLocale.mockReset();
+    layoutMocks.notFound.mockClear();
+    layoutMocks.hasLocale.mockReturnValue(true);
     themeHooks.getDefaultThemeForRootLayout.mockReset();
     themeHooks.getDefaultThemeForRootLayout.mockResolvedValue('system');
   });
 
   it('calls notFound for unsupported locales', async () => {
-    hasLocale.mockReturnValue(false);
+    layoutMocks.hasLocale.mockReturnValue(false);
     const { default: RootLayout } = await import('./layout');
 
     await expect(
@@ -81,7 +82,7 @@ describe('RootLayout', () => {
       })
     ).rejects.toThrow('not_found');
 
-    expect(notFound).toHaveBeenCalled();
+    expect(layoutMocks.notFound).toHaveBeenCalled();
   });
 
   it('renders the html shell for a supported locale', async () => {
@@ -96,7 +97,7 @@ describe('RootLayout', () => {
     expect(html).toContain('data-testid="child"');
     expect(html).toContain('lang="en"');
     expect(html).toContain('theme-boot');
-    expect(notFound).not.toHaveBeenCalled();
+    expect(layoutMocks.notFound).not.toHaveBeenCalled();
   });
 
   it('sets the dark class on html when the default theme is dark', async () => {

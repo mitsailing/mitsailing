@@ -3,11 +3,6 @@ import { Heading, Link, Section, Text } from 'react-email';
 import { EmailLayout } from './email-layout';
 import { supportLink } from './email-styles';
 
-export type EmailChangeRequestedNoticeProps = {
-  newEmail: string;
-  supportEmail: string;
-};
-
 const section: React.CSSProperties = {
   padding: '32px 28px',
 };
@@ -34,9 +29,10 @@ const paragraph: React.CSSProperties = {
  * @param props.supportEmail - Mailbox to surface if the change was not theirs.
  * @returns Complete email element tree.
  */
-export function EmailChangeRequestedNoticeTemplate(
-  props: EmailChangeRequestedNoticeProps
-) {
+export function EmailChangeRequestedNoticeTemplate(props: {
+  newEmail: string;
+  supportEmail: string;
+}) {
   return (
     <EmailLayout previewText="A change to your login email was requested.">
       <Section style={section}>

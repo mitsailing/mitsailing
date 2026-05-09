@@ -1,3 +1,6 @@
+/**
+ * Namespaced localStorage key for persisted collapsed site alert banner state (v1 schema).
+ */
 export const SITE_ALERT_BANNER_COLLAPSE_STORAGE_KEY =
   'mit-sailing:site-alert-banner:v1';
 
@@ -7,7 +10,10 @@ type StoredSiteAlertBannerCollapse = {
 };
 
 /**
- * Represents a single alert for collapse tracking.
+ * Identifies a site alert when persisting collapse state: stable id plus a content fingerprint.
+ *
+ * @property {string} contentFingerprint Serialized fingerprint of body plain text and date ISO so content changes invalidate collapse.
+ * @property {string} id Stable alert identifier aligned with the source row.
  */
 export type SiteAlertBannerCollapseAlert = {
   contentFingerprint: string;
@@ -50,10 +56,10 @@ function isStoredSiteAlertBannerCollapse(
 }
 
 /**
- * Parses stored site alert banner collapse state from JSON.
+ * Parses localStorage JSON into collapsed alert entries, or null when missing or invalid.
  *
- * @param raw - JSON string from localStorage
- * @returns Parsed alert array or null if invalid
+ * @param raw Serialized storage string, or null when unset.
+ * @returns Parsed alert list, or null when input is empty or JSON is invalid or shape does not match.
  */
 export function parseStoredSiteAlertBannerCollapse(
   raw: string | null
@@ -73,10 +79,10 @@ export function parseStoredSiteAlertBannerCollapse(
 }
 
 /**
- * Serializes site alert banner collapse state to JSON.
+ * Serializes collapsed alerts for localStorage using the stored wrapper shape.
  *
- * @param alerts - Array of alerts to serialize
- * @returns JSON string for localStorage
+ * @param alerts Alert identities to persist.
+ * @returns JSON string with `collapsed: true` and the alerts array.
  */
 export function serializeSiteAlertBannerCollapse(
   alerts: SiteAlertBannerCollapseAlert[]
@@ -85,10 +91,10 @@ export function serializeSiteAlertBannerCollapse(
 }
 
 /**
- * Builds collapse alerts from alert rows with fingerprints.
+ * Maps banner rows to collapse-alert records with ids and content fingerprints.
  *
- * @param rows - Alert rows with body text and dates
- * @returns Array of alerts with content fingerprints
+ * @param rows Banner rows with body plain text, optional date label, ISO date, and id.
+ * @returns One alert per row: id plus fingerprint derived from body and date ISO.
  */
 export function buildSiteAlertBannerCollapseAlerts(
   rows: SiteAlertBannerCollapseRow[]
@@ -103,10 +109,12 @@ export function buildSiteAlertBannerCollapseAlerts(
 }
 
 /**
- * Determines if the site alert banner starts in collapsed state.
+ * Returns whether stored collapse state still matches every current alert so the banner can start collapsed.
  *
- * @param props - Current and stored alerts
- * @returns True if all current alerts match stored fingerprints
+ * @param props Current page alerts and last persisted collapse snapshot.
+ * @param props.currentAlerts Alerts currently rendered for the banner.
+ * @param props.storedAlerts Alerts from storage when the user collapsed the banner, or null when none.
+ * @returns True when storage exists, there is at least one current alert, and each id's fingerprint matches storage.
  */
 export function siteAlertBannerStartsCollapsed(props: {
   currentAlerts: SiteAlertBannerCollapseAlert[];

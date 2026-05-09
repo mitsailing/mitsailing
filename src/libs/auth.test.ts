@@ -363,6 +363,11 @@ describe('auth', () => {
       }
     );
 
+    expect(authMocks.sendEmailOtpCode).toHaveBeenCalledWith({
+      email: 'next@example.com',
+      otp: '123456',
+      type: 'change-email',
+    });
     expect(authMocks.markPendingEmailChange).toHaveBeenCalledWith({
       newEmail: 'next@example.com',
       userId: 'user-1',
@@ -395,6 +400,11 @@ describe('auth', () => {
       }
     );
 
+    expect(authMocks.sendEmailOtpCode).toHaveBeenCalledWith({
+      email: 'next@example.com',
+      otp: '123456',
+      type: 'change-email',
+    });
     expect(authMocks.sendEmailChangeRequestedNotice).not.toHaveBeenCalled();
   });
 
@@ -418,6 +428,11 @@ describe('auth', () => {
       }
     );
 
+    expect(authMocks.sendEmailOtpCode).toHaveBeenCalledWith({
+      email: 'next@example.com',
+      otp: '123456',
+      type: 'change-email',
+    });
     expect(authMocks.markPendingEmailChange).not.toHaveBeenCalled();
     expect(authMocks.sendEmailChangeRequestedNotice).not.toHaveBeenCalled();
   });
@@ -443,6 +458,11 @@ describe('auth', () => {
       }
     );
 
+    expect(authMocks.sendEmailOtpCode).toHaveBeenCalledWith({
+      email: 'sailor@example.com',
+      otp: '123456',
+      type: 'change-email',
+    });
     expect(authMocks.markPendingEmailChange).toHaveBeenCalledWith({
       newEmail: 'sailor@example.com',
       userId: 'user-1',
@@ -474,6 +494,11 @@ describe('auth', () => {
       }
     );
 
+    expect(authMocks.sendEmailOtpCode).toHaveBeenCalledWith({
+      email: 'next@example.com',
+      otp: '123456',
+      type: 'change-email',
+    });
     expect(authMocks.loggerError).toHaveBeenCalledWith(
       'Failed to send email change requested notice'
     );
@@ -501,6 +526,11 @@ describe('auth', () => {
       }
     );
 
+    expect(authMocks.sendEmailOtpCode).toHaveBeenCalledWith({
+      email: 'next@example.com',
+      otp: '123456',
+      type: 'change-email',
+    });
     expect(authMocks.loggerError).toHaveBeenCalledWith(
       'Failed to send email change requested notice'
     );
@@ -528,6 +558,11 @@ describe('auth', () => {
       }
     );
 
+    expect(authMocks.sendEmailOtpCode).toHaveBeenCalledWith({
+      email: 'next@example.com',
+      otp: '123456',
+      type: 'change-email',
+    });
     expect(authMocks.loggerError).toHaveBeenCalledWith(
       'Failed to mark pending email change'
     );

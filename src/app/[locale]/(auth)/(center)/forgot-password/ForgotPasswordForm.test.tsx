@@ -86,14 +86,11 @@ describe('ForgotPasswordForm', () => {
     );
   });
 
-  it('Visitor with malicious callbackUrl gets sanitized to safe internal path', async () => {
+  it('Visitor reset redirect omits unsafe external callbackUrl', async () => {
     const user = userEvent.setup();
 
     render(
-      <ForgotPasswordForm
-        callbackUrl="https://attacker.com"
-        initialEmail=""
-      />
+      <ForgotPasswordForm callbackUrl="https://attacker.com" initialEmail="" />
     );
 
     await user.type(screen.getByLabelText('Email'), 'reset@mit.edu');
@@ -104,7 +101,7 @@ describe('ForgotPasswordForm', () => {
     });
     await waitFor(() => {
       expect(componentTestRouter().replace).toHaveBeenCalledWith(
-        '/reset-password?email=reset%40mit.edu&codeSent=1&callbackUrl=%2F'
+        '/reset-password?email=reset%40mit.edu&codeSent=1'
       );
     });
   });

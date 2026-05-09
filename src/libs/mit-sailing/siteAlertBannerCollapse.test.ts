@@ -87,6 +87,15 @@ describe('siteAlertBannerStartsCollapsed', () => {
       })
     ).toBe(false);
   });
+
+  it('does not treat empty current alerts as collapsed', () => {
+    expect(
+      siteAlertBannerStartsCollapsed({
+        currentAlerts: [],
+        storedAlerts: activeAlerts,
+      })
+    ).toBe(false);
+  });
 });
 
 describe('parseStoredSiteAlertBannerCollapse', () => {

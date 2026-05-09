@@ -76,6 +76,23 @@ describe('SignInForm', () => {
     );
   });
 
+  it('banned sailor sees the disabled-account message', async () => {
+    const user = userEvent.setup();
+    authClientMock.signIn.email.mockResolvedValue({
+      error: { code: 'BANNED_USER' },
+    });
+
+    render(<SignInForm callbackUrl="/fleet/" />);
+
+    await user.type(screen.getByLabelText('Email'), 'banned@mit.edu');
+    await user.type(screen.getByLabelText('Password'), 'correct-password');
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Your account has been disabled. Contact support if you believe this is an error.'
+    );
+  });
+
   it('visitor sees credentials message after a failed sign-in', async () => {
     const user = userEvent.setup();
     authClientMock.signIn.email.mockResolvedValue({
@@ -110,7 +127,7 @@ describe('SignInForm', () => {
     );
   });
 
-  it('visitor sees provider message after an unexpected sign-in error', async () => {
+  it('visitor sees credentials message after an unexpected sign-in error', async () => {
     const user = userEvent.setup();
     authClientMock.signIn.email.mockResolvedValue({
       error: { message: 'Account requires staff approval.' },
@@ -123,7 +140,7 @@ describe('SignInForm', () => {
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Account requires staff approval.'
+      'Invalid email or password.'
     );
   });
 
@@ -316,6 +333,21 @@ describe('SignInForm', () => {
     await user.click(screen.getByRole('link', { name: 'Forgot password?' }));
 
     expect(authClientMock.emailOtp.requestPasswordReset).not.toHaveBeenCalled();
+  });
+
+  it('visitor sees invalid email message when forgot password is clicked with malformed email', async () => {
+    const user = userEvent.setup();
+
+    render(<SignInForm callbackUrl="/fleet/" />);
+
+    await user.type(screen.getByLabelText('Email'), 'sailor@mit');
+    await user.click(screen.getByRole('link', { name: 'Forgot password?' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Enter a valid email address with a domain'
+    );
+    expect(authClientMock.emailOtp.requestPasswordReset).not.toHaveBeenCalled();
+    expect(componentTestRouter().push).not.toHaveBeenCalled();
   });
 
   it('visitor sees reset message when inline reset delivery is blocked', async () => {

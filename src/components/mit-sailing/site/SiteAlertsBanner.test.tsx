@@ -1,11 +1,31 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SiteAlertsBanner } from '@/components/mit-sailing/site/SiteAlertsBanner';
 import { buildSiteAlertBannerCollapseAlerts } from '@/libs/mit-sailing/siteAlertBannerCollapse';
 import type { SiteAlertBannerRow } from '@/libs/mit-sailing/siteAlertTypes';
+import enMessages from '@/locales/en.json';
 
-const rows: SiteAlertBannerRow[] = [
+const mitSite = enMessages.MitSailingSite;
+
+/**
+ * Builds the collapsed summary link `aria-label` from `MitSailingSite` messages.
+ *
+ * @param alertCount Number of alerts in the collapsed summary.
+ * @returns Localized `aria-label` text for the collapsed summary link.
+ */
+function collapsedSummaryLinkAriaLabel(alertCount: number): string {
+  const countLabel =
+    alertCount === 1
+      ? mitSite.alerts_collapsed_count_one
+      : mitSite.alerts_collapsed_count_many.replaceAll(
+          '{count}',
+          String(alertCount)
+        );
+  return `${mitSite.alerts_banner_aria_prefix}: ${countLabel} ${mitSite.alerts_see_all}.`;
+}
+
+const rows: [SiteAlertBannerRow, SiteAlertBannerRow] = [
   {
     bodyPlainText: 'Limited boats available April 18.',
     dateIso: '2026-04-14',
@@ -23,16 +43,20 @@ const rows: SiteAlertBannerRow[] = [
 const collapseAlerts = buildSiteAlertBannerCollapseAlerts(rows);
 
 describe('SiteAlertsBanner', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('renders active alerts and disclosure controls', () => {
     render(<SiteAlertsBanner collapseAlerts={collapseAlerts} rows={rows} />);
 
     expect(
-      screen.getByRole('heading', { name: 'Current site alerts' })
+      screen.getByRole('heading', { name: mitSite.alerts_banner_heading })
     ).toBeVisible();
-    expect(screen.getByText('Limited boats available April 18.')).toBeVisible();
+    expect(screen.getByText(rows[0].bodyPlainText)).toBeVisible();
     expect(
       screen.getByRole('button', {
-        name: 'Collapse site alerts to a short summary',
+        name: mitSite.alerts_toggle_collapse_aria,
       })
     ).toBeVisible();
   });
@@ -47,42 +71,34 @@ describe('SiteAlertsBanner', () => {
 
   it('still toggles collapse when persisting to localStorage throws', async () => {
     const user = userEvent.setup();
-    const setItemSpy = vi
-      .spyOn(Storage.prototype, 'setItem')
-      .mockImplementation(() => {
-        throw new DOMException('quota', 'QuotaExceededError');
-      });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('quota', 'QuotaExceededError');
+    });
 
     render(<SiteAlertsBanner collapseAlerts={collapseAlerts} rows={rows} />);
 
     await user.click(
       screen.getByRole('button', {
-        name: 'Collapse site alerts to a short summary',
+        name: mitSite.alerts_toggle_collapse_aria,
       })
     );
 
     expect(
       screen.getByRole('link', {
-        name: /Site alerts: 2 alerts\. See all alerts\./i,
+        name: collapsedSummaryLinkAriaLabel(rows.length),
       })
     ).toBeVisible();
-
-    setItemSpy.mockRestore();
   });
 
   it('survives localStorage.getItem throwing during hydration', () => {
-    const getItemSpy = vi
-      .spyOn(Storage.prototype, 'getItem')
-      .mockImplementation(() => {
-        throw new DOMException('denied', 'SecurityError');
-      });
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('denied', 'SecurityError');
+    });
 
     render(<SiteAlertsBanner collapseAlerts={collapseAlerts} rows={rows} />);
 
     expect(
-      screen.getByRole('heading', { name: 'Current site alerts' })
+      screen.getByRole('heading', { name: mitSite.alerts_banner_heading })
     ).toBeVisible();
-
-    getItemSpy.mockRestore();
   });
 });

@@ -161,6 +161,7 @@
     "error_unverified_resend_link": "Send verification code",
     "error_unverified_support": "Still stuck? Contact <support>support@mitsailing.com</support>.",
     "error_rate_limited": "Too many attempts. Wait a few minutes.",
+    "error_banned": "Your account has been disabled. Contact support if you believe this is an error.",
     "error_reset_failed": "We could not send a reset code right now.",
     "unlock_invalid_error": "That unlock link is invalid or has expired. Wait for automatic unlock.",
     "unlocked_banner": "Your account is unlocked. You can sign in.",

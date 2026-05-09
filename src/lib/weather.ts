@@ -15,6 +15,9 @@ const WEATHER_UPSTREAM_REVALIDATE_SECONDS = 900;
 const WEATHER_UPSTREAM_REVALIDATE_MS =
   WEATHER_UPSTREAM_REVALIDATE_SECONDS * 1000;
 
+/** In-memory cache TTL when data is a brownout placeholder (`isFallback`), so retries run before the full upstream poll window. */
+const BROWNOUT_TTL_MS = 60_000;
+
 /** Max time before aborting a single upstream GET (milliseconds). */
 const WEATHER_FETCH_TIMEOUT_MS = 10_000;
 
@@ -33,21 +36,20 @@ const FALLBACK_BROWNOUT: WeatherHeaderData = {
 };
 
 /**
- * Cache entry for weather header data with expiration timestamp.
+ * In-memory weather header cache row for this Node worker: parsed payload plus wall-clock expiry.
+ *
+ * @property {WeatherHeaderData} data Display segments and `isFallback` when upstream was unavailable or incomplete.
+ * @property {number} expiresAtMs Epoch milliseconds after which callers should refresh.
  */
 type WeatherHeaderCacheEntry = {
   data: WeatherHeaderData;
   expiresAtMs: number;
 };
 
-/**
- * In-memory cache for weather header data with 15-minute TTL.
- */
+/** Latest cached {@link WeatherHeaderData}, or `null` before the first successful refresh. */
 let weatherHeaderCache: WeatherHeaderCacheEntry | null = null;
 
-/**
- * Pending refresh promise to deduplicate concurrent weather fetches.
- */
+/** Shared in-flight refresh promise so concurrent requests await one upstream fetch; cleared when refresh completes. */
 let weatherHeaderRefresh: Promise<WeatherHeaderData> | null = null;
 
 /**
@@ -170,19 +172,20 @@ async function fetchFreshWeatherHeaderData(): Promise<WeatherHeaderData> {
 }
 
 /**
- * Refreshes weather header data and updates the cache.
+ * Fetches fresh weather, writes {@link weatherHeaderCache} (shorter TTL when `isFallback`), and clears {@link weatherHeaderRefresh} in `finally`.
  *
- * @returns Fresh weather header data
+ * @returns Same shaped data as {@link fetchFreshWeatherHeaderData}
  */
 async function refreshWeatherHeaderData(): Promise<WeatherHeaderData> {
   try {
     const data = await fetchFreshWeatherHeaderData();
-    if (!data.isFallback) {
-      weatherHeaderCache = {
-        data,
-        expiresAtMs: Date.now() + WEATHER_UPSTREAM_REVALIDATE_MS,
-      };
-    }
+    const ttlMs = data.isFallback
+      ? BROWNOUT_TTL_MS
+      : WEATHER_UPSTREAM_REVALIDATE_MS;
+    weatherHeaderCache = {
+      data,
+      expiresAtMs: Date.now() + ttlMs,
+    };
 
     return data;
   } finally {
@@ -191,7 +194,7 @@ async function refreshWeatherHeaderData(): Promise<WeatherHeaderData> {
 }
 
 /**
- * Returns MIT weather from this Node worker's in-memory cache for 900s.
+ * Returns MIT weather from this Node worker's in-memory cache (900s for successful fetches; shorter TTL for brownout fallbacks).
  *
  * @returns Structured row data with field-level nulls translated to placeholders in UI
  */

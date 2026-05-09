@@ -225,8 +225,10 @@ describe('SignUpForm', () => {
     );
   });
 
-  it('visitor sees error and form re-enables when sign-up rejects', async () => {
-    authClientMock.signUp.email.mockRejectedValue(new Error('network'));
+  it('visitor sees generic error and submit re-enables when sign-up rejects', async () => {
+    const rejection = new Error('empty message placeholder');
+    rejection.message = '';
+    authClientMock.signUp.email.mockRejectedValueOnce(rejection);
     render(<SignUpForm callbackUrl="/fleet/" />);
 
     const user = await fillSignUpForm({
@@ -239,5 +241,6 @@ describe('SignUpForm', () => {
       'Something went wrong.'
     );
     expect(screen.getByRole('button', { name: 'Sign up' })).not.toBeDisabled();
+    expect(componentTestRouter().push).not.toHaveBeenCalled();
   });
 });

@@ -74,9 +74,9 @@ export function SignUpForm(props: SignUpFormProps) {
       return;
     }
     setSubmitting(true);
+    const displayName =
+      name.trim() === '' ? email.slice(0, email.indexOf('@')) : name;
     try {
-      const displayName =
-        name.trim() === '' ? email.slice(0, email.indexOf('@')) : name;
       const res = await authClient.signUp.email({
         email,
         password,
@@ -94,8 +94,12 @@ export function SignUpForm(props: SignUpFormProps) {
           props.callbackUrl
         )
       );
-    } catch {
-      setError({ message: t('error_generic'), showSignInLinks: false });
+    } catch (caughtError) {
+      const message =
+        caughtError instanceof Error && caughtError.message.trim() !== ''
+          ? caughtError.message.trim()
+          : undefined;
+      setError(mapError(undefined, message));
     } finally {
       setSubmitting(false);
     }
