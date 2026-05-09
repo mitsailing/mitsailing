@@ -63,9 +63,9 @@ describe('SignUpForm', () => {
       name: 'New Sailor',
       password: 'correct-password',
     });
-    expect(
-      await screen.findByText('Check your email for a verification code.')
-    ).toBeVisible();
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Check your email for a verification code.'
+    );
     expect(componentTestRouter().push).toHaveBeenCalledWith(
       '/verify-email?email=new-sailor%40mit.edu&codeSent=1&callbackUrl=%2Ffleet%2F'
     );

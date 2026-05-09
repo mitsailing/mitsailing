@@ -81,6 +81,11 @@ describe('weatherParse', () => {
       expect(normalized).toContain('Water 57.0°F');
     });
 
+    it('Decodes six-digit hex entities for scalar values', () => {
+      const raw = 'Wind calm, Air 50&#x01F600;F, Water 55°F, Sunset 18:00';
+      expect(prepareMitWeatherUpstreamText(raw)).toContain('50😀F');
+    });
+
     it('Leaves numeric entities intact when the code point is not a Unicode scalar value', () => {
       const tooHigh = 'Wind calm, Air 50&#1114112;F, Water 55°F, Sunset 18:00';
       expect(prepareMitWeatherUpstreamText(tooHigh)).toContain('&#1114112;');

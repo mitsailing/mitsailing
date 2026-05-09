@@ -2,6 +2,7 @@ import 'server-only';
 import nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 import { Resend } from 'resend';
+import sanitizeHtml from 'sanitize-html';
 import { Env } from '@/libs/Env';
 import { logger } from '@/libs/Logger';
 
@@ -29,6 +30,33 @@ type Params = {
 };
 
 let cachedSmtpTransport: Transporter | null = null;
+
+function htmlToPlainText(html: string): string {
+  const withReadableLinks = html.replaceAll(
+    /<a\b(?=[^>]*\bhref=(['"])(.*?)\1)[^>]*>([\s\S]*?)<\/a>/gi,
+    (_full, _quote: string, href: string, label: string) => `${label} (${href})`
+  );
+  const withLineBreaks = withReadableLinks
+    .replaceAll(/<br\s*\/?>/giu, '\n')
+    .replaceAll(/<\/(p|div|h[1-6]|li|tr|section|article)>/giu, '\n')
+    .replaceAll(/<(p|div|h[1-6]|li|tr|section|article)\b[^>]*>/giu, '\n');
+  return sanitizeHtml(withLineBreaks, {
+    allowedAttributes: {},
+    allowedTags: [],
+  })
+    .replaceAll('\u00A0', ' ')
+    .replaceAll(/[ \t\f\v]*\n[ \t\f\v]*/gu, '\n')
+    .replaceAll(/\n{2,}/gu, '\n')
+    .replaceAll(/[ \t\f\v]{2,}/gu, ' ')
+    .trim();
+}
+
+function withPlainTextFallback(params: Params): Required<Params> {
+  return {
+    ...params,
+    text: params.text?.trim() ? params.text : htmlToPlainText(params.html),
+  };
+}
 
 function getSmtpTransport(): Transporter {
   if (cachedSmtpTransport) {
@@ -86,17 +114,19 @@ function logOnly(params: Params): void {
  * @param params - Outbound message payload.
  */
 export async function sendTransactionalEmail(params: Params): Promise<void> {
+  const message = withPlainTextFallback(params);
+
   switch (Env.MAIL_TRANSPORT) {
     case 'smtp': {
-      await sendViaSmtp(params);
+      await sendViaSmtp(message);
       return;
     }
     case 'resend': {
-      await sendViaResend(params);
+      await sendViaResend(message);
       return;
     }
     case 'log': {
-      logOnly(params);
+      logOnly(message);
       return;
     }
     default: {

@@ -47,7 +47,7 @@ describe('VerifyEmailForm', () => {
         otp: '123456',
       });
       expect(componentTestRouter().push).toHaveBeenCalledWith('/fleet/');
-      expect(componentTestRouter().refresh).toHaveBeenCalledTimes(1);
+      expect(componentTestRouter().refresh).not.toHaveBeenCalled();
     });
 
     it('Rejects unsafe callback and uses fallback', async () => {
@@ -68,7 +68,7 @@ describe('VerifyEmailForm', () => {
         otp: '123456',
       });
       expect(componentTestRouter().push).toHaveBeenCalledWith('/');
-      expect(componentTestRouter().refresh).toHaveBeenCalledTimes(1);
+      expect(componentTestRouter().refresh).not.toHaveBeenCalled();
     });
 
     it('Unverified sailor sees invalid-code message', async () => {

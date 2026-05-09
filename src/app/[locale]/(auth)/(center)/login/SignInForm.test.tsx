@@ -327,8 +327,13 @@ describe('SignInForm', () => {
 
     render(<SignInForm callbackUrl="/fleet/" />);
 
-    await user.type(screen.getByLabelText('Email'), 'reset@mit.edu');
-    await user.click(screen.getByRole('link', { name: 'Forgot password?' }));
+    await user.type(screen.getByLabelText('Email'), ' Reset@MIT.EDU ');
+    const resetLink = screen.getByRole('link', { name: 'Forgot password?' });
+    expect(resetLink).toHaveAttribute(
+      'href',
+      '/forgot-password?email=reset%40mit.edu&callbackUrl=%2Ffleet%2F'
+    );
+    await user.click(resetLink);
 
     expect(authClientMock.emailOtp.requestPasswordReset).toHaveBeenCalledWith({
       email: 'reset@mit.edu',

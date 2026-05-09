@@ -143,6 +143,32 @@ describe('sendTransactionalEmail', () => {
     });
   });
 
+  it('generates plaintext fallback when text is omitted', async () => {
+    Object.assign(mocks.env, {
+      EMAIL_FROM: 'MIT Sailing <noreply@example.com>',
+      MAIL_TRANSPORT: 'smtp' satisfies MailTransport,
+      RESEND_API_KEY: undefined,
+      SMTP_URL: 'smtp://127.0.0.1:1025',
+    });
+
+    const { sendTransactionalEmail } =
+      await import('@/libs/email/sendTransactional');
+
+    await sendTransactionalEmail({
+      html: '<p>Hello&nbsp;<strong>sailor</strong></p><p><a href="https://example.com/account">Account</a></p>',
+      subject: 'Account notice',
+      to: 'sailor@example.com',
+    });
+
+    expect(mocks.sendMail).toHaveBeenCalledWith({
+      from: 'MIT Sailing <noreply@example.com>',
+      html: '<p>Hello&nbsp;<strong>sailor</strong></p><p><a href="https://example.com/account">Account</a></p>',
+      subject: 'Account notice',
+      text: 'Hello sailor\nAccount (https://example.com/account)',
+      to: 'sailor@example.com',
+    });
+  });
+
   it('requires resend credentials before sending', async () => {
     await expect(
       sendWithEnv({

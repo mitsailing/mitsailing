@@ -193,7 +193,7 @@ export function SiteHeader(props: SiteHeaderProps) {
 
     const listKey =
       variant === 'mobile'
-        ? `${item.labelKey}-${String(disclosureEpoch)}`
+        ? `${item.labelKey}-${String(disclosureEpoch ?? 0)}`
         : item.labelKey;
 
     if (item.href && item.items !== undefined) {

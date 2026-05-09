@@ -179,6 +179,18 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
     }
   }
 
+  async function onConfirmPendingEmailSubmit(
+    event: React.SubmitEvent<HTMLFormElement>
+  ) {
+    if (!pendingEmail) {
+      return;
+    }
+    await onConfirmPendingEmail({
+      event,
+      emailToConfirm: pendingEmail,
+    });
+  }
+
   async function onUpdateName(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     const trimmed = displayName.trim();
@@ -238,12 +250,7 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
                 </p>
                 <form
                   className="mt-3 flex flex-col gap-2"
-                  onSubmit={async (event) => {
-                    await onConfirmPendingEmail({
-                      event,
-                      emailToConfirm: pendingEmail,
-                    });
-                  }}
+                  onSubmit={onConfirmPendingEmailSubmit}
                 >
                   <Label className="text-amber-950" htmlFor="emailCode">
                     {t('pending_email_code_label')}

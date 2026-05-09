@@ -28,8 +28,12 @@ reviews:
         Follow repository AGENTS.md and .cursor/rules: TypeScript strictness,
         React patterns (single props param, no useMemo/useCallback), Next.js App Router
         and server/client boundaries, next-intl (no hard-coded user-visible strings),
-        accessibility and contrast (ADA rule). Flag deviations and security-sensitive
-        mistakes (auth, SQL, secrets).
+        accessibility and contrast (ADA rule). This app uses React 19 types:
+        `React.FormEvent` and `React.FormEventHandler` are deprecated in
+        `@types/react`; for form submit handlers, prefer
+        `React.SubmitEvent<HTMLFormElement>` or inferred JSX handler types.
+        Do not suggest replacing `React.SubmitEvent` with `React.FormEvent`.
+        Flag deviations and security-sensitive mistakes (auth, SQL, secrets).
     - path: '**/*.{test,spec,e2e}.{ts,tsx}'
       instructions: >-
         Do not flag lowercase `it(...)` titles. This repository accepts concise

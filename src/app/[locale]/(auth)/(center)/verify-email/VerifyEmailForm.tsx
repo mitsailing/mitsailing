@@ -115,7 +115,6 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
         return;
       }
       router.push(safeAuthCallbackUrl(props.callbackUrl, '/'));
-      router.refresh();
     } catch {
       setBanner({ kind: 'error', message: t('error_request_failed') });
     } finally {

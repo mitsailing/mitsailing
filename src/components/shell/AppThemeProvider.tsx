@@ -34,6 +34,16 @@ function resolveTheme(theme: AppColorScheme): ResolvedColorScheme {
   return window.matchMedia(colorSchemeQuery).matches ? 'dark' : 'light';
 }
 
+function initialResolvedTheme(theme: AppColorScheme): ResolvedColorScheme {
+  if (theme === 'dark') {
+    return 'dark';
+  }
+  if (theme === 'light' || typeof window === 'undefined') {
+    return 'light';
+  }
+  return window.matchMedia(colorSchemeQuery).matches ? 'dark' : 'light';
+}
+
 function applyTheme(theme: AppColorScheme): ResolvedColorScheme {
   const resolved = resolveTheme(theme);
   const root = document.documentElement;
@@ -45,8 +55,8 @@ function applyTheme(theme: AppColorScheme): ResolvedColorScheme {
 
 export function AppThemeProvider(props: AppThemeProviderProps) {
   const [theme, setThemeState] = useState<AppColorScheme>(props.defaultTheme);
-  const [resolvedTheme, setResolvedTheme] = useState<ResolvedColorScheme>(
-    props.defaultTheme === 'dark' ? 'dark' : 'light'
+  const [resolvedTheme, setResolvedTheme] = useState<ResolvedColorScheme>(() =>
+    initialResolvedTheme(props.defaultTheme)
   );
 
   useEffect(() => {

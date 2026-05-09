@@ -131,7 +131,10 @@ export function SignUpForm(props: SignUpFormProps) {
   return (
     <>
       {submitted ? (
-        <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-800">
+        <p
+          className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-800"
+          role="status"
+        >
           {t('registered_banner')}
         </p>
       ) : null}

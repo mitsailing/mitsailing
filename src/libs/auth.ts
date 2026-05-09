@@ -170,8 +170,14 @@ export const auth = betterAuth({
                 userId: sessionUser.id,
                 newEmail: email,
               });
-            } catch {
-              logger.error('Failed to mark pending email change');
+            } catch (error) {
+              logger.error('Failed to mark pending email change: {error}', {
+                currentEmail: sessionUser.email,
+                error,
+                newEmail: email,
+                operation: 'markPendingEmailChange',
+                userId: sessionUser.id,
+              });
             }
             if (
               pendingEmailChanged &&
@@ -183,8 +189,17 @@ export const auth = betterAuth({
                   currentEmail: sessionUser.email,
                   newEmail: email,
                 });
-              } catch {
-                logger.error('Failed to send email change requested notice');
+              } catch (error) {
+                logger.error(
+                  'Failed to send email change requested notice: {error}',
+                  {
+                    currentEmail: sessionUser.email,
+                    error,
+                    newEmail: email,
+                    operation: 'sendEmailChangeRequestedNotice',
+                    userId: sessionUser.id,
+                  }
+                );
               }
             }
           }

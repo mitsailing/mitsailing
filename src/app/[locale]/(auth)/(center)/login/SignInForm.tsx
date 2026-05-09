@@ -177,6 +177,8 @@ export function SignInForm(props: SignInFormProps) {
     }
   }
 
+  const normalizedForgotPasswordEmail = normalizeMarketingEmail(email);
+
   return (
     <>
       {error?.kind === 'generic' ? (
@@ -272,9 +274,9 @@ export function SignInForm(props: SignInFormProps) {
           aria-disabled={requestingReset}
           className={authInlineLinkClassName}
           href={authHrefWithCallback(
-            isValidMarketingEmail(email)
+            isValidMarketingEmail(normalizedForgotPasswordEmail)
               ? `/forgot-password?email=${encodeURIComponent(
-                  normalizeMarketingEmail(email)
+                  normalizedForgotPasswordEmail
                 )}`
               : '/forgot-password',
             props.callbackUrl

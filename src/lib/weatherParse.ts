@@ -318,7 +318,7 @@ export function prepareMitWeatherUpstreamText(raw: string): string {
   s = s.replaceAll(/&#(\d{1,5});/gu, (full, code: string) =>
     scalarCharFromParsedEntity(Number(code), full)
   );
-  s = s.replaceAll(/&#x([\da-f]{1,5});/giu, (full, hex: string) =>
+  s = s.replaceAll(/&#x([\da-f]{1,6});/giu, (full, hex: string) =>
     scalarCharFromParsedEntity(Number.parseInt(hex, 16), full)
   );
   s = s.replaceAll(/&deg;/giu, '\u00B0');

@@ -46,6 +46,8 @@ test.describe('Mobile navigation', () => {
 });
 
 test.describe('Desktop navigation', () => {
+  test.use({ viewport: { width: 1280, height: 800 } });
+
   test('opens classes and fleet dropdowns and navigates to items', async ({
     page,
   }) => {
