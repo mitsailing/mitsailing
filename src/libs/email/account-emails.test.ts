@@ -292,6 +292,7 @@ describe('account email notices', () => {
   it('security-notice persona receives a password-changed notice', async () => {
     const { sendTransactionalEmail } =
       await import('@/libs/email/sendTransactional');
+    const { Env } = await import('@/libs/Env');
     const { sendPasswordChangedNotice } =
       await import('@/libs/email/account-emails');
 
@@ -302,7 +303,7 @@ describe('account email notices', () => {
     expect(payload?.to).toBe('owner@example.com');
     expect(payload?.subject).toMatch(/password was changed/i);
     expect(payload?.text).toContain('No action is needed if this was you.');
-    expect(payload?.text).toContain('support@mitsailing.com');
+    expect(payload?.text).toContain(Env.SUPPORT_EMAIL);
     expect(payload?.text).not.toContain('{email}');
   });
 });
