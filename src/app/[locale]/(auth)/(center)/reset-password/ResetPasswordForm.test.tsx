@@ -152,7 +152,7 @@ describe('ResetPasswordForm', () => {
       await continueWithResetCode('111111');
 
       expect(await screen.findByRole('alert')).toHaveTextContent(
-        'Too many requests.'
+        'Too many requests. Try again in a few minutes.'
       );
     });
 
@@ -474,7 +474,7 @@ describe('ResetPasswordForm', () => {
       await fillNewPassword({ password: 'new-password' });
 
       expect(await screen.findByRole('alert')).toHaveTextContent(
-        'Too many requests.'
+        'Too many requests. Try again in a few minutes.'
       );
     });
 

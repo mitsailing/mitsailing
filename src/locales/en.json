@@ -257,7 +257,7 @@
     "error_expired_password_step": "That code expired. Request a new reset code.",
     "error_too_many_attempts": "Too many code attempts. Request a new code.",
     "error_password_mismatch": "Passwords do not match.",
-    "error_rate_limited": "Too many requests.",
+    "error_rate_limited": "Too many requests. Try again in a few minutes.",
     "error_request_failed": "We could not complete that request right now."
   },
   "UserProfilePage": {
