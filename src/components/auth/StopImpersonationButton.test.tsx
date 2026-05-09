@@ -22,6 +22,7 @@ beforeEach(() => {
 describe('StopImpersonationButton', () => {
   it('Impersonating admin exits back to admin users', async () => {
     const user = userEvent.setup();
+    const router = componentTestRouter();
 
     render(<StopImpersonationButton label="Exit impersonation" locale="en" />);
 
@@ -31,8 +32,8 @@ describe('StopImpersonationButton', () => {
 
     await waitFor(() => {
       expect(authClientMock.admin.stopImpersonating).toHaveBeenCalledTimes(1);
-      expect(componentTestRouter().push).toHaveBeenCalledWith('/admin/users');
-      expect(componentTestRouter().refresh).toHaveBeenCalledTimes(1);
+      expect(router.push).toHaveBeenCalledWith('/admin/users');
+      expect(router.refresh).toHaveBeenCalledTimes(1);
     });
   });
 });

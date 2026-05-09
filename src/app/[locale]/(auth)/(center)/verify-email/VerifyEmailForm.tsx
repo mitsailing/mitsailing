@@ -41,10 +41,7 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
   );
   const resendTimeoutRef = useRef<number | null>(null);
 
-  function mapError(
-    codeValue: string | undefined,
-    message: string | undefined
-  ): string {
+  function mapError(codeValue: string | undefined): string {
     if (codeValue === 'OTP_EXPIRED') {
       return t('error_expired');
     }
@@ -57,7 +54,7 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
     if (codeValue === 'TOO_MANY_REQUESTS') {
       return t('error_rate_limited');
     }
-    return message ?? t('error_invalid_code');
+    return t('error_invalid_code');
   }
 
   function lockResend() {
@@ -74,11 +71,7 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
 
   useEffect(() => {
     if (props.initialResendLocked) {
-      setResendLocked(true);
-      resendTimeoutRef.current = window.setTimeout(() => {
-        setResendLocked(false);
-        resendTimeoutRef.current = null;
-      }, 30_000);
+      lockResend();
     }
 
     return () => {
@@ -107,7 +100,7 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
       if (res.error) {
         setBanner({
           kind: 'error',
-          message: mapError(res.error.code, res.error.message),
+          message: mapError(res.error.code),
         });
         return;
       }
@@ -137,7 +130,7 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
       if (res.error) {
         setBanner({
           kind: 'error',
-          message: mapError(res.error.code, res.error.message),
+          message: mapError(res.error.code),
         });
         return;
       }

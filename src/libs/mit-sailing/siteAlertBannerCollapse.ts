@@ -6,6 +6,9 @@ type StoredSiteAlertBannerCollapse = {
   collapsed: true;
 };
 
+/**
+ * Represents a single alert for collapse tracking.
+ */
 export type SiteAlertBannerCollapseAlert = {
   contentFingerprint: string;
   id: string;
@@ -46,6 +49,12 @@ function isStoredSiteAlertBannerCollapse(
   );
 }
 
+/**
+ * Parses stored site alert banner collapse state from JSON.
+ *
+ * @param raw - JSON string from localStorage
+ * @returns Parsed alert array or null if invalid
+ */
 export function parseStoredSiteAlertBannerCollapse(
   raw: string | null
 ): SiteAlertBannerCollapseAlert[] | null {
@@ -63,12 +72,24 @@ export function parseStoredSiteAlertBannerCollapse(
   }
 }
 
+/**
+ * Serializes site alert banner collapse state to JSON.
+ *
+ * @param alerts - Array of alerts to serialize
+ * @returns JSON string for localStorage
+ */
 export function serializeSiteAlertBannerCollapse(
   alerts: SiteAlertBannerCollapseAlert[]
 ): string {
   return JSON.stringify({ collapsed: true, alerts });
 }
 
+/**
+ * Builds collapse alerts from alert rows with fingerprints.
+ *
+ * @param rows - Alert rows with body text and dates
+ * @returns Array of alerts with content fingerprints
+ */
 export function buildSiteAlertBannerCollapseAlerts(
   rows: SiteAlertBannerCollapseRow[]
 ): SiteAlertBannerCollapseAlert[] {
@@ -81,11 +102,21 @@ export function buildSiteAlertBannerCollapseAlerts(
   }));
 }
 
+/**
+ * Determines if the site alert banner starts in collapsed state.
+ *
+ * @param props - Current and stored alerts
+ * @returns True if all current alerts match stored fingerprints
+ */
 export function siteAlertBannerStartsCollapsed(props: {
   currentAlerts: SiteAlertBannerCollapseAlert[];
   storedAlerts: SiteAlertBannerCollapseAlert[] | null;
 }): boolean {
   if (!props.storedAlerts) {
+    return false;
+  }
+
+  if (props.currentAlerts.length === 0) {
     return false;
   }
 

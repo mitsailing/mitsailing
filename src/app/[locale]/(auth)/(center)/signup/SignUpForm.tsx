@@ -74,26 +74,31 @@ export function SignUpForm(props: SignUpFormProps) {
       return;
     }
     setSubmitting(true);
-    const displayName =
-      name.trim() === '' ? email.slice(0, email.indexOf('@')) : name;
-    const res = await authClient.signUp.email({
-      email,
-      password,
-      name: displayName,
-      callbackURL: props.callbackUrl,
-    });
-    setSubmitting(false);
-    if (res.error) {
-      setError(mapError(res.error.code, res.error.message));
-      return;
+    try {
+      const displayName =
+        name.trim() === '' ? email.slice(0, email.indexOf('@')) : name;
+      const res = await authClient.signUp.email({
+        email,
+        password,
+        name: displayName,
+        callbackURL: props.callbackUrl,
+      });
+      if (res.error) {
+        setError(mapError(res.error.code, res.error.message));
+        return;
+      }
+      setSubmitted(true);
+      router.push(
+        authHrefWithCallback(
+          `/verify-email?email=${encodeURIComponent(email)}&codeSent=1`,
+          props.callbackUrl
+        )
+      );
+    } catch {
+      setError({ message: t('error_generic'), showSignInLinks: false });
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitted(true);
-    router.push(
-      authHrefWithCallback(
-        `/verify-email?email=${encodeURIComponent(email)}&codeSent=1`,
-        props.callbackUrl
-      )
-    );
   }
 
   return (

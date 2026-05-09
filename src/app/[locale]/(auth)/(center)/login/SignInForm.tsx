@@ -131,13 +131,13 @@ export function SignInForm(props: SignInFormProps) {
   }
 
   async function onForgotPassword(event: React.MouseEvent<HTMLAnchorElement>) {
-    const normalizedEmail = normalizeMarketingEmail(email);
-    if (!isValidMarketingEmail(normalizedEmail)) {
+    event.preventDefault();
+    if (requestingReset) {
       return;
     }
 
-    event.preventDefault();
-    if (requestingReset) {
+    const normalizedEmail = normalizeMarketingEmail(email);
+    if (!isValidMarketingEmail(normalizedEmail)) {
       return;
     }
 
