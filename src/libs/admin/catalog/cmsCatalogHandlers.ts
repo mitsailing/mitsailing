@@ -4,12 +4,20 @@ import { Prisma } from '@/generated/prisma/client';
 import type {
   CatalogCreateResult,
   CatalogListOptions,
+  CatalogMutationContext,
   CatalogMutationErr,
   CatalogMutationOk,
   CatalogRow,
   CatalogServerHandlers,
 } from '@/libs/admin/catalog/types';
 import { prisma } from '@/libs/DB';
+import {
+  loadCmsPageRevisionSnapshot,
+  recordCmsPageRevision,
+  recordCmsPageRevisionIfChanged,
+  recordCmsPageRevisionFromSnapshot,
+} from '@/libs/mit-sailing/cmsHistory';
+import { sanitizeCmsRichTextHtml } from '@/libs/mit-sailing/cmsRichText';
 import {
   cmsBlockInputSchema,
   cmsMenuItemInputSchema,
@@ -55,6 +63,16 @@ function optionalString(value: FormDataEntryValue | null): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
+function optionalCmsRichText(
+  value: FormDataEntryValue | null
+): string | undefined {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+  const sanitized = sanitizeCmsRichTextHtml(value);
+  return sanitized.length > 0 ? sanitized : undefined;
+}
+
 function numberFromForm(value: FormDataEntryValue | null): number {
   if (typeof value !== 'string') {
     return 0;
@@ -95,7 +113,7 @@ function rawCmsBlockFromFormData(formData: FormData): Record<string, unknown> {
     kind: formData.get('kind'),
     title: formData.get('title'),
     subtitle: optionalString(formData.get('subtitle')),
-    body: optionalString(formData.get('body')),
+    body: optionalCmsRichText(formData.get('body')),
     ctaLabel: optionalString(formData.get('ctaLabel')),
     ctaUrl: optionalString(formData.get('ctaUrl')),
     imageSrc: optionalString(formData.get('imageSrc')),
@@ -167,7 +185,10 @@ export const cmsPagesCatalogHandlers: CatalogServerHandlers = {
     return row;
   },
 
-  async createFromForm(formData: FormData): Promise<CatalogCreateResult> {
+  async createFromForm(
+    formData: FormData,
+    context?: CatalogMutationContext
+  ): Promise<CatalogCreateResult> {
     const parsed = cmsPageInputSchema.safeParse(
       rawCmsPageFromFormData(formData)
     );
@@ -179,6 +200,11 @@ export const cmsPagesCatalogHandlers: CatalogServerHandlers = {
         data: parsed.data,
         select: { id: true },
       });
+      await recordCmsPageRevision({
+        pageId: created.id,
+        action: 'create',
+        createdByUserId: context?.userId,
+      });
       return { ok: true, id: created.id };
     } catch (error: unknown) {
       return duplicateCode(error) ?? { ok: false, code: 'unknown' };
@@ -187,7 +213,8 @@ export const cmsPagesCatalogHandlers: CatalogServerHandlers = {
 
   async updateFromForm(
     id: string,
-    formData: FormData
+    formData: FormData,
+    context?: CatalogMutationContext
   ): Promise<CatalogMutationOk | CatalogMutationErr> {
     const parsed = cmsPageInputSchema.safeParse(
       rawCmsPageFromFormData(formData)
@@ -196,16 +223,35 @@ export const cmsPagesCatalogHandlers: CatalogServerHandlers = {
       return { ok: false, code: 'validation_failed' };
     }
     try {
+      const previousSnapshot = await loadCmsPageRevisionSnapshot(id);
       await prisma.cmsPage.update({ where: { id }, data: parsed.data });
+      await recordCmsPageRevisionIfChanged({
+        pageId: id,
+        action: 'update',
+        previousSnapshot,
+        createdByUserId: context?.userId,
+      });
       return { ok: true };
     } catch (error: unknown) {
       return duplicateCode(error) ?? { ok: false, code: 'unknown' };
     }
   },
 
-  async delete(id: string): Promise<CatalogMutationOk | CatalogMutationErr> {
+  async delete(
+    id: string,
+    context?: CatalogMutationContext
+  ): Promise<CatalogMutationOk | CatalogMutationErr> {
     try {
+      const snapshot = await loadCmsPageRevisionSnapshot(id);
       await prisma.cmsPage.delete({ where: { id } });
+      if (snapshot) {
+        await recordCmsPageRevisionFromSnapshot({
+          pageId: id,
+          action: 'delete',
+          snapshot,
+          createdByUserId: context?.userId,
+        });
+      }
       return { ok: true };
     } catch (error: unknown) {
       return duplicateCode(error) ?? { ok: false, code: 'unknown' };
@@ -262,7 +308,10 @@ export const cmsPageBlocksCatalogHandlers: CatalogServerHandlers = {
     };
   },
 
-  async createFromForm(formData: FormData): Promise<CatalogCreateResult> {
+  async createFromForm(
+    formData: FormData,
+    context?: CatalogMutationContext
+  ): Promise<CatalogCreateResult> {
     const parsed = cmsBlockInputSchema.safeParse(
       rawCmsBlockFromFormData(formData)
     );
@@ -274,6 +323,11 @@ export const cmsPageBlocksCatalogHandlers: CatalogServerHandlers = {
         data: parsed.data,
         select: { id: true },
       });
+      await recordCmsPageRevision({
+        pageId: parsed.data.pageId,
+        action: 'update',
+        createdByUserId: context?.userId,
+      });
       return { ok: true, id: created.id };
     } catch (error: unknown) {
       return duplicateCode(error) ?? { ok: false, code: 'unknown' };
@@ -282,7 +336,8 @@ export const cmsPageBlocksCatalogHandlers: CatalogServerHandlers = {
 
   async updateFromForm(
     id: string,
-    formData: FormData
+    formData: FormData,
+    context?: CatalogMutationContext
   ): Promise<CatalogMutationOk | CatalogMutationErr> {
     const parsed = cmsBlockInputSchema.safeParse(
       rawCmsBlockFromFormData(formData)
@@ -291,16 +346,62 @@ export const cmsPageBlocksCatalogHandlers: CatalogServerHandlers = {
       return { ok: false, code: 'validation_failed' };
     }
     try {
-      await prisma.cmsPageBlock.update({ where: { id }, data: parsed.data });
+      const existing = await prisma.cmsPageBlock.findUnique({
+        where: { id },
+        select: { pageId: true },
+      });
+      const previousSnapshot = existing?.pageId
+        ? await loadCmsPageRevisionSnapshot(existing.pageId)
+        : null;
+      const previousTargetSnapshot =
+        existing?.pageId && existing.pageId !== parsed.data.pageId
+          ? await loadCmsPageRevisionSnapshot(parsed.data.pageId)
+          : null;
+      const updated = await prisma.cmsPageBlock.update({
+        where: { id },
+        data: parsed.data,
+        select: { pageId: true },
+      });
+      if (existing?.pageId && existing.pageId !== updated.pageId) {
+        await recordCmsPageRevisionIfChanged({
+          pageId: existing.pageId,
+          action: 'update',
+          previousSnapshot,
+          createdByUserId: context?.userId,
+        });
+      }
+      await recordCmsPageRevisionIfChanged({
+        pageId: updated.pageId,
+        action: 'update',
+        previousSnapshot:
+          existing?.pageId === updated.pageId
+            ? previousSnapshot
+            : previousTargetSnapshot,
+        createdByUserId: context?.userId,
+      });
       return { ok: true };
     } catch (error: unknown) {
       return duplicateCode(error) ?? { ok: false, code: 'unknown' };
     }
   },
 
-  async delete(id: string): Promise<CatalogMutationOk | CatalogMutationErr> {
+  async delete(
+    id: string,
+    context?: CatalogMutationContext
+  ): Promise<CatalogMutationOk | CatalogMutationErr> {
     try {
+      const existing = await prisma.cmsPageBlock.findUnique({
+        where: { id },
+        select: { pageId: true },
+      });
       await prisma.cmsPageBlock.delete({ where: { id } });
+      if (existing) {
+        await recordCmsPageRevision({
+          pageId: existing.pageId,
+          action: 'update',
+          createdByUserId: context?.userId,
+        });
+      }
       return { ok: true };
     } catch (error: unknown) {
       return duplicateCode(error) ?? { ok: false, code: 'unknown' };

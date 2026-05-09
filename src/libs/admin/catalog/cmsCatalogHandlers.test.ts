@@ -3,8 +3,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   cmsMenuFindMany: vi.fn(),
   cmsMenuItemFindMany: vi.fn(),
+  cmsPageBlockCreate: vi.fn(),
+  cmsPageBlockFindUnique: vi.fn(),
   cmsPageBlockFindMany: vi.fn(),
+  cmsPageBlockUpdate: vi.fn(),
+  cmsPageFindUnique: vi.fn(),
   cmsPageFindMany: vi.fn(),
+  cmsPageUpdate: vi.fn(),
+  cmsPageRevisionAggregate: vi.fn(),
+  cmsPageRevisionCreate: vi.fn(),
+  cmsPageRevisionFindFirst: vi.fn(),
 }));
 
 vi.mock('server-only', () => ({}));
@@ -19,9 +27,19 @@ vi.mock('@/libs/DB', () => ({
     },
     cmsPage: {
       findMany: mocks.cmsPageFindMany,
+      findUnique: mocks.cmsPageFindUnique,
+      update: mocks.cmsPageUpdate,
     },
     cmsPageBlock: {
+      create: mocks.cmsPageBlockCreate,
+      findUnique: mocks.cmsPageBlockFindUnique,
       findMany: mocks.cmsPageBlockFindMany,
+      update: mocks.cmsPageBlockUpdate,
+    },
+    cmsPageRevision: {
+      aggregate: mocks.cmsPageRevisionAggregate,
+      create: mocks.cmsPageRevisionCreate,
+      findFirst: mocks.cmsPageRevisionFindFirst,
     },
   },
 }));
@@ -29,6 +47,7 @@ vi.mock('@/libs/DB', () => ({
 const {
   cmsMenuItemsCatalogHandlers,
   cmsMenuParentSelectOptions,
+  cmsPagesCatalogHandlers,
   cmsPageBlocksCatalogHandlers,
 } = await import('@/libs/admin/catalog/cmsCatalogHandlers');
 const {
@@ -40,8 +59,74 @@ const {
 beforeEach(() => {
   mocks.cmsMenuFindMany.mockReset();
   mocks.cmsMenuItemFindMany.mockReset();
+  mocks.cmsPageBlockCreate.mockReset();
+  mocks.cmsPageBlockFindUnique.mockReset();
   mocks.cmsPageBlockFindMany.mockReset();
+  mocks.cmsPageBlockUpdate.mockReset();
+  mocks.cmsPageFindUnique.mockReset();
   mocks.cmsPageFindMany.mockReset();
+  mocks.cmsPageUpdate.mockReset();
+  mocks.cmsPageRevisionAggregate.mockReset();
+  mocks.cmsPageRevisionCreate.mockReset();
+  mocks.cmsPageRevisionFindFirst.mockReset();
+});
+
+function cmsPageSnapshotRow(now: Date) {
+  return {
+    id: 'page-1',
+    slug: 'about',
+    path: '/about/',
+    title: 'About',
+    metaTitle: 'About',
+    metaDescription: 'About page',
+    isPublished: true,
+    createdAt: now,
+    updatedAt: now,
+    blocks: [
+      {
+        id: 'block-1',
+        kind: 'text_section',
+        title: 'Overview',
+        subtitle: null,
+        body: '<p>Plain body</p>',
+        ctaLabel: null,
+        ctaUrl: null,
+        imageSrc: null,
+        imageAlt: null,
+        displayOrder: 10,
+        isVisible: true,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ],
+  };
+}
+
+describe('cmsPagesCatalogHandlers', () => {
+  describe('updateFromForm', () => {
+    it('skips history when page content is unchanged', async () => {
+      const now = new Date('2026-05-09T12:00:00.000Z');
+      const formData = new FormData();
+      formData.set('slug', 'about');
+      formData.set('path', '/about/');
+      formData.set('title', 'About');
+      formData.set('metaTitle', 'About');
+      formData.set('metaDescription', 'About page');
+      formData.set('isPublished', 'true');
+
+      mocks.cmsPageFindUnique.mockResolvedValue(cmsPageSnapshotRow(now));
+      mocks.cmsPageUpdate.mockResolvedValue({ id: 'page-1' });
+
+      await expect(
+        cmsPagesCatalogHandlers.updateFromForm('page-1', formData, {
+          userId: 'admin-1',
+        })
+      ).resolves.toEqual({ ok: true });
+
+      expect(mocks.cmsPageRevisionCreate).not.toHaveBeenCalled();
+      expect(mocks.cmsPageRevisionFindFirst).not.toHaveBeenCalled();
+    });
+  });
 });
 
 describe('cmsPageBlocksCatalogHandlers', () => {
@@ -84,6 +169,88 @@ describe('cmsPageBlocksCatalogHandlers', () => {
     it('returns no rows without a page scope', async () => {
       await expect(cmsPageBlocksCatalogHandlers.list()).resolves.toEqual([]);
       expect(mocks.cmsPageBlockFindMany).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('createFromForm', () => {
+    it('records page history after block creation', async () => {
+      const now = new Date('2026-05-09T12:00:00.000Z');
+      const formData = new FormData();
+      formData.set('pageId', 'page-1');
+      formData.set('kind', 'text_section');
+      formData.set('title', 'Overview');
+      formData.set('body', 'Plain body');
+      formData.set('displayOrder', '10');
+      formData.set('isVisible', 'true');
+
+      mocks.cmsPageBlockCreate.mockResolvedValue({ id: 'block-1' });
+      mocks.cmsPageFindUnique.mockResolvedValue({
+        id: 'page-1',
+        slug: 'about',
+        path: '/about/',
+        title: 'About',
+        metaTitle: null,
+        metaDescription: null,
+        isPublished: true,
+        createdAt: now,
+        updatedAt: now,
+        blocks: [
+          {
+            id: 'block-1',
+            kind: 'text_section',
+            title: 'Overview',
+            subtitle: null,
+            body: '<p>Plain body</p>',
+            ctaLabel: null,
+            ctaUrl: null,
+            imageSrc: null,
+            imageAlt: null,
+            displayOrder: 10,
+            isVisible: true,
+            createdAt: now,
+            updatedAt: now,
+          },
+        ],
+      });
+      mocks.cmsPageRevisionFindFirst.mockResolvedValue({
+        snapshot: {
+          page: {
+            id: 'page-1',
+            slug: 'about',
+            path: '/about/',
+            title: 'About',
+            metaTitle: null,
+            metaDescription: null,
+            isPublished: true,
+          },
+          blocks: [],
+        },
+        version: 2,
+      });
+      mocks.cmsPageRevisionCreate.mockResolvedValue({ id: 'revision-3' });
+
+      await expect(
+        cmsPageBlocksCatalogHandlers.createFromForm(formData, {
+          userId: 'admin-1',
+        })
+      ).resolves.toEqual({ ok: true, id: 'block-1' });
+
+      expect(mocks.cmsPageRevisionCreate).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          action: 'update',
+          createdByUserId: 'admin-1',
+          pageId: 'page-1',
+          version: 3,
+          snapshot: expect.objectContaining({
+            blocks: [
+              expect.objectContaining({
+                body: '<p>Plain body</p>',
+                id: 'block-1',
+              }),
+            ],
+          }),
+        }),
+      });
     });
   });
 });

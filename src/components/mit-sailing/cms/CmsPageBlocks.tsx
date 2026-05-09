@@ -5,6 +5,7 @@ import type {
   PublicCmsBlock,
   PublicCmsPage,
 } from '@/libs/mit-sailing/cmsQueries';
+import { CmsRichText } from './CmsRichText';
 
 const blockInnerClassName = 'mx-auto w-full max-w-5xl px-6';
 
@@ -56,11 +57,10 @@ function CmsHeroBlock(props: { block: PublicCmsBlock }) {
             <h1 className="mb-6 font-mit-serif text-4xl leading-tight font-bold text-white">
               {props.block.title}
             </h1>
-            {props.block.body ? (
-              <p className="mb-8 text-base leading-relaxed text-white">
-                {props.block.body}
-              </p>
-            ) : null}
+            <CmsRichText
+              className="mb-8 max-w-3xl text-base leading-relaxed text-white"
+              html={props.block.body}
+            />
             {props.block.ctaLabel && props.block.ctaUrl ? (
               <Link
                 className="inline-flex cursor-pointer items-center justify-center rounded-lg border-2 border-white bg-transparent px-7 py-3 text-base font-medium text-white no-underline backdrop-blur transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-mit-hero-ink focus-visible:outline-none"
@@ -80,11 +80,10 @@ function CmsHeroBlock(props: { block: PublicCmsBlock }) {
         <h1 className="mb-6 font-mit-serif text-3xl leading-tight font-bold text-mit-text md:text-4xl">
           {props.block.title}
         </h1>
-        {props.block.body ? (
-          <p className="max-w-3xl text-base leading-relaxed text-mit-text">
-            {props.block.body}
-          </p>
-        ) : null}
+        <CmsRichText
+          className="max-w-3xl text-base leading-relaxed text-mit-text"
+          html={props.block.body}
+        />
       </div>
     </section>
   );
@@ -103,13 +102,10 @@ function CmsTextBlock(props: { block: PublicCmsBlock; index: number }) {
         <h2 className="mb-6 font-mit-serif text-2xl font-semibold text-mit-text">
           {props.block.title}
         </h2>
-        {props.block.body ? (
-          <div className="max-w-3xl space-y-4 text-base leading-relaxed text-mit-text">
-            {props.block.body.split('\n\n').map((paragraph) => (
-              <p key={paragraph}>{paragraph}</p>
-            ))}
-          </div>
-        ) : null}
+        <CmsRichText
+          className="max-w-3xl text-base leading-relaxed text-mit-text"
+          html={props.block.body}
+        />
         {props.block.ctaLabel && props.block.ctaUrl ? (
           <div className="mt-8">
             <CmsBlockLink href={props.block.ctaUrl}>
@@ -129,11 +125,10 @@ function CmsCalloutBlock(props: { block: PublicCmsBlock }) {
         <h2 className="mb-3 font-mit-serif text-2xl font-semibold text-mit-text">
           {props.block.title}
         </h2>
-        {props.block.body ? (
-          <p className="max-w-3xl text-sm leading-relaxed text-mit-text">
-            {props.block.body}
-          </p>
-        ) : null}
+        <CmsRichText
+          className="max-w-3xl text-sm leading-relaxed text-mit-text"
+          html={props.block.body}
+        />
         {props.block.ctaLabel && props.block.ctaUrl ? (
           <div className="mt-6">
             <CmsBlockLink href={props.block.ctaUrl}>

@@ -25,6 +25,7 @@ import { isCatalogResourceId } from '@/libs/admin/catalog/catalogDefinitions';
 import { getCatalogServerHandlers } from '@/libs/admin/catalog/catalogServerRegistry';
 import type { CatalogReorderScope } from '@/libs/admin/catalog/types';
 import { requireAdmin } from '@/libs/auth/dal';
+import { restoreCmsPageRevision } from '@/libs/mit-sailing/cmsHistory';
 import { SITE_ALERTS_CACHE_TAG } from '@/libs/mit-sailing/siteAlertQueries';
 import { getI18nPath } from '@/utils/Helpers';
 
@@ -116,13 +117,15 @@ export async function createCatalogResourceAction(
   resourceId: string,
   formData: FormData
 ): Promise<void> {
-  await requireAdmin(locale);
+  const session = await requireAdmin(locale);
   if (!isCatalogResourceId(resourceId)) {
     redirect(getI18nPath(ADMIN_INDEX_PATH, locale));
   }
   const handlers = getCatalogServerHandlers(resourceId);
   const scope = scopedCatalogMutationSearchParam(resourceId, formData);
-  const result = await handlers.createFromForm(formData);
+  const result = await handlers.createFromForm(formData, {
+    userId: session.user.id,
+  });
   if (!result.ok) {
     redirect(
       catalogRedirectPath({
@@ -155,13 +158,15 @@ export async function updateCatalogResourceAction(
   id: string,
   formData: FormData
 ): Promise<void> {
-  await requireAdmin(locale);
+  const session = await requireAdmin(locale);
   if (!isCatalogResourceId(resourceId)) {
     redirect(getI18nPath(ADMIN_INDEX_PATH, locale));
   }
   const handlers = getCatalogServerHandlers(resourceId);
   const scope = scopedCatalogMutationSearchParam(resourceId, formData);
-  const result = await handlers.updateFromForm(id, formData);
+  const result = await handlers.updateFromForm(id, formData, {
+    userId: session.user.id,
+  });
   if (!result.ok) {
     redirect(
       catalogRedirectPath({
@@ -195,12 +200,12 @@ export async function deleteCatalogResourceAction(
   resourceId: string,
   id: string
 ): Promise<void> {
-  await requireAdmin(locale);
+  const session = await requireAdmin(locale);
   if (!isCatalogResourceId(resourceId)) {
     redirect(getI18nPath(ADMIN_INDEX_PATH, locale));
   }
   const handlers = getCatalogServerHandlers(resourceId);
-  const result = await handlers.delete(id);
+  const result = await handlers.delete(id, { userId: session.user.id });
   if (!result.ok) {
     redirect(
       `${getI18nPath(adminCatalogResourceDeletePath(resourceId, id), locale)}?error=${encodeURIComponent(result.code)}`
@@ -208,6 +213,42 @@ export async function deleteCatalogResourceAction(
   }
   revalidateAfterCatalogMutation(locale, resourceId);
   redirect(getI18nPath(adminCatalogResourceIndexPath(resourceId), locale));
+}
+
+/**
+ * Restores a CMS page and its blocks from a recorded page revision.
+ *
+ * @param locale - Active locale
+ * @param pageId - CMS page id
+ * @param revisionId - CMS page revision id
+ * @param formData - Confirmation form body
+ */
+export async function restoreCmsPageRevisionAction(
+  locale: string,
+  pageId: string,
+  revisionId: string,
+  formData: FormData
+): Promise<void> {
+  const session = await requireAdmin(locale);
+  if (formData.get('confirmRestore') !== 'true') {
+    redirect(
+      `${getI18nPath(adminCatalogResourceEditPath('cms_pages', pageId), locale)}?error=validation_failed`
+    );
+  }
+  const result = await restoreCmsPageRevision({
+    createdByUserId: session.user.id,
+    pageId,
+    revisionId,
+  });
+  if (!result.ok) {
+    redirect(
+      `${getI18nPath(adminCatalogResourceEditPath('cms_pages', pageId), locale)}?error=${encodeURIComponent(result.code)}`
+    );
+  }
+  revalidateAfterCatalogMutation(locale, 'cms_pages');
+  redirect(
+    getI18nPath(adminCatalogResourceEditPath('cms_pages', pageId), locale)
+  );
 }
 
 const reorderScopeSchema = z.object({

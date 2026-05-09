@@ -62,3 +62,15 @@ export function adminCatalogResourceAssociationPath(
 ): string {
   return `/admin/${resourceId}/${id}/${segment}`;
 }
+
+/**
+ * @param pageId - CMS page id
+ * @param revisionId - CMS page revision id
+ * @returns Path to the CMS page revision comparison screen
+ */
+export function adminCmsPageRevisionPath(
+  pageId: string,
+  revisionId: string
+): string {
+  return `/admin/cms_pages/${pageId}/revisions/${revisionId}`;
+}

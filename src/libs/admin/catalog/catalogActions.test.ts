@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CatalogServerHandlers } from '@/libs/admin/catalog/types';
 
+vi.mock('server-only', () => ({}));
+
 const {
   createFromForm,
   getCatalogServerHandlers,
@@ -72,6 +74,7 @@ beforeEach(() => {
   getCatalogServerHandlers.mockReturnValue(handlers);
   requireAdmin.mockImplementation(async () => {
     await Promise.resolve();
+    return { user: { id: 'admin-1' } };
   });
 });
 

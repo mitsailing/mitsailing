@@ -7,7 +7,7 @@ test.describe('I18n', () => {
 
       await expect(
         page.getByRole('heading', {
-          name: 'Sail the Charles River',
+          name: 'Sail the Charles from MIT',
         })
       ).toBeVisible();
     });

@@ -14,7 +14,7 @@ test.describe('Sanity', () => {
 
       await expect(
         page.getByRole('heading', {
-          name: 'Sail the Charles River',
+          name: 'Sail the Charles from MIT',
         })
       ).toBeVisible();
     });
@@ -30,7 +30,7 @@ test.describe('Sanity', () => {
       await expect(page).toHaveURL(/about$/);
 
       await expect(
-        page.getByText('The MIT Sailing Pavilion exists', { exact: false })
+        page.getByRole('heading', { name: 'About MIT Sailing' })
       ).toBeVisible();
     });
 

@@ -42,6 +42,8 @@ model User {
   accounts  Account[]
   auditLogs AuditLog[]
   siteTextOverrides SiteTextOverride[]
+  cmsMediaAssets CmsMediaAsset[] @relation("CmsMediaUploadedBy")
+  cmsPageRevisions CmsPageRevision[] @relation("CmsPageRevisionCreatedBy")
 
   eventRegistrations EventRegistration[]
   eventComments      EventComment[]
@@ -425,6 +427,14 @@ enum CmsMenuLocation {
   @@map("cms_menu_location")
 }
 
+enum CmsPageRevisionAction {
+  create
+  update
+  delete
+
+  @@map("cms_page_revision_action")
+}
+
 model CmsPage {
   id              String         @id @default(cuid())
   slug            String         @unique
@@ -438,6 +448,7 @@ model CmsPage {
 
   blocks    CmsPageBlock[]
   menuItems CmsMenuItem[]
+  mediaAssets CmsMediaAsset[]
 
   @@index([isPublished, path])
   @@map("cms_pages")
@@ -463,6 +474,42 @@ model CmsPageBlock {
 
   @@index([pageId, displayOrder])
   @@map("cms_page_blocks")
+}
+
+model CmsPageRevision {
+  id              String                @id @default(cuid())
+  pageId          String                @map("page_id")
+  version         Int
+  action          CmsPageRevisionAction
+  snapshot        Json
+  createdByUserId String?               @map("created_by_user_id")
+  createdAt       DateTime              @default(now()) @map("created_at")
+
+  createdBy User? @relation("CmsPageRevisionCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([pageId, createdAt])
+  @@index([createdByUserId])
+  @@map("cms_page_revisions")
+}
+
+model CmsMediaAsset {
+  id               String   @id @default(cuid())
+  pageId           String?  @map("page_id")
+  storedFilename   String   @map("stored_filename")
+  originalFilename String   @map("original_filename")
+  mimeType         String   @map("mime_type")
+  byteSize         Int      @map("byte_size")
+  publicPath       String   @unique @map("public_path")
+  uploadedByUserId String?  @map("uploaded_by_user_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  page       CmsPage? @relation(fields: [pageId], references: [id], onDelete: SetNull)
+  uploadedBy User?   @relation("CmsMediaUploadedBy", fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([pageId, createdAt])
+  @@index([uploadedByUserId])
+  @@map("cms_media_assets")
 }
 
 model CmsMenu {

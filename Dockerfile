@@ -111,6 +111,8 @@ RUN apk add --no-cache libc6-compat openssl
 # restricted shell.
 RUN addgroup --system --gid 1001 nodejs \
   && adduser --system --uid 1001 nextjs
+RUN mkdir -p /var/lib/mitsailing/cms-media \
+  && chown -R nextjs:nodejs /var/lib/mitsailing
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1

@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { AdminCatalogEditStatusBadge } from '@/components/mit-sailing/admin/catalog/AdminCatalogListCell';
+import { AdminRichTextEditor } from '@/components/mit-sailing/admin/catalog/AdminRichTextEditor';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -340,6 +341,11 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
   );
 
   const compactBooleanLabels = ns === 'AdminUsers';
+  const formMaxWidth = props.definition.formFields.some(
+    (field) => field.kind === 'richText'
+  )
+    ? 'max-w-3xl'
+    : 'max-w-xl';
 
   function renderCatalogField(field: AdminFormFieldDef) {
     const key = field.field;
@@ -363,6 +369,20 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
           fieldKey={key}
           label={label}
           linksHint={linksHint}
+          required={field.required}
+        />
+      );
+    }
+
+    if (field.kind === 'richText') {
+      const fieldId = `catalog-field-${key}`;
+      return (
+        <AdminRichTextEditor
+          key={key}
+          defaultValue={defaultValue}
+          fieldId={fieldId}
+          fieldKey={key}
+          label={label}
           required={field.required}
         />
       );
@@ -461,7 +481,7 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
       <form
         action={props.formAction}
         autoComplete={props.definition.id === 'site_alerts' ? 'off' : undefined}
-        className="flex max-w-xl flex-col gap-4"
+        className={`flex ${formMaxWidth} flex-col gap-4`}
       >
         {props.definition.formFields.map(renderCatalogField)}
 

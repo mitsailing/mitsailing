@@ -19,6 +19,7 @@ export type MitSailingRoutesCatalogMessageKey =
 export type AdminFieldKind =
   | 'string'
   | 'text'
+  | 'richText'
   | 'url'
   | 'number'
   | 'boolean'
@@ -96,6 +97,10 @@ export type CatalogMutationErr = { ok: false; code: string };
 
 export type CatalogCreateResult = { ok: true; id: string } | CatalogMutationErr;
 
+export type CatalogMutationContext = {
+  userId?: string;
+};
+
 /** Optional scope for category-scoped reorder (e.g. sailing classes per `ClassCategory`). */
 export type CatalogReorderScope = {
   classCategoryId: string;
@@ -115,12 +120,19 @@ export type CatalogListOptions = {
 export type CatalogServerHandlers = {
   list: (options?: CatalogListOptions) => Promise<CatalogRow[]>;
   getById: (id: string) => Promise<CatalogRow | null>;
-  createFromForm: (formData: FormData) => Promise<CatalogCreateResult>;
+  createFromForm: (
+    formData: FormData,
+    context?: CatalogMutationContext
+  ) => Promise<CatalogCreateResult>;
   updateFromForm: (
     id: string,
-    formData: FormData
+    formData: FormData,
+    context?: CatalogMutationContext
   ) => Promise<CatalogMutationOk | CatalogMutationErr>;
-  delete: (id: string) => Promise<CatalogMutationOk | CatalogMutationErr>;
+  delete: (
+    id: string,
+    context?: CatalogMutationContext
+  ) => Promise<CatalogMutationOk | CatalogMutationErr>;
   reorder?: (
     orderedIds: readonly string[],
     scope?: CatalogReorderScope

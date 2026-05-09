@@ -1,5 +1,6 @@
 import { ArrowRight } from 'lucide-react';
 import Image from 'next/image';
+import { CmsRichText } from '@/components/mit-sailing/cms/CmsRichText';
 import { SectionHeader } from '@/components/mit-sailing/home/SectionHeader';
 import {
   dockHours,
@@ -113,9 +114,16 @@ export function AboutPageView(props: { cmsPage?: PublicCmsPage | null }) {
           <h1 className="mb-6 font-mit-serif text-3xl leading-tight font-bold text-mit-text md:text-4xl">
             {introBlock?.title ?? 'About MIT Sailing'}
           </h1>
-          <p className="max-w-3xl text-base leading-relaxed text-mit-text">
-            {introBlock?.body ?? missionIntro}
-          </p>
+          {introBlock?.body ? (
+            <CmsRichText
+              className="max-w-3xl text-base leading-relaxed text-mit-text"
+              html={introBlock.body}
+            />
+          ) : (
+            <p className="max-w-3xl text-base leading-relaxed text-mit-text">
+              {missionIntro}
+            </p>
+          )}
         </div>
       </section>
 
@@ -129,14 +137,18 @@ export function AboutPageView(props: { cmsPage?: PublicCmsPage | null }) {
             title={missionBlock?.title ?? 'Our mission'}
           />
           <div className="mb-14 max-w-3xl space-y-6">
-            {(missionBlock?.body
-              ? missionBlock.body.split('\n\n')
-              : missionBody
-            ).map((p) => (
-              <p className="text-base leading-relaxed text-mit-text" key={p}>
-                {p}
-              </p>
-            ))}
+            {missionBlock?.body ? (
+              <CmsRichText
+                className="text-base leading-relaxed text-mit-text"
+                html={missionBlock.body}
+              />
+            ) : (
+              missionBody.map((p) => (
+                <p className="text-base leading-relaxed text-mit-text" key={p}>
+                  {p}
+                </p>
+              ))
+            )}
           </div>
           <h3 className="mb-6 font-mit-serif text-lg font-semibold text-mit-text">
             How we carry out our mission

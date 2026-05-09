@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { AdminCatalogForm } from '@/components/mit-sailing/admin/catalog/AdminCatalogForm';
+import { AdminCmsHistoryPanel } from '@/components/mit-sailing/admin/catalog/AdminCmsHistoryPanel';
 import { SailingClassEditAssociations } from '@/components/mit-sailing/admin/catalog/SailingClassEditAssociations';
 import { updateCatalogResourceAction } from '@/libs/admin/catalog/catalogActions';
 import {
@@ -94,6 +95,13 @@ export default async function AdminCatalogResourceEditPage(props: PageProps) {
     };
   }
 
+  let historyPageId: string | undefined;
+  if (resource === 'cms_pages') {
+    historyPageId = id;
+  } else if (resource === 'cms_page_blocks' && typeof row.pageId === 'string') {
+    historyPageId = row.pageId;
+  }
+
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
       <AdminCatalogForm
@@ -107,6 +115,9 @@ export default async function AdminCatalogResourceEditPage(props: PageProps) {
       />
       {resource === 'sailing_classes' ? (
         <SailingClassEditAssociations classId={id} locale={locale} />
+      ) : null}
+      {historyPageId ? (
+        <AdminCmsHistoryPanel locale={locale} pageId={historyPageId} />
       ) : null}
     </div>
   );

@@ -5,6 +5,7 @@ The public site and internal app for the [MIT Sailing Pavilion](https://mitsaili
 - **Production:** <https://mitsailing.com>
 - **Repo:** <https://github.com/mitsailing/mitsailing>
 - **Upstream boilerplate:** <https://github.com/ixartz/Next-js-Boilerplate> (this codebase began as a fork; see [Git remotes](#git-remotes) below)
+- **CMS architecture reference:** <https://github.com/docmost/docmost> (page history and attachment/media patterns; MIT Sailing implementation is written in this repo rather than vendoring Docmost source)
 
 Built with Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, next-intl, Prisma + PostgreSQL, and Better Auth. End-to-end tests with Playwright, unit tests with Vitest, and synthetic monitoring with Checkly.
 

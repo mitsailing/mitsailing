@@ -448,7 +448,7 @@ const cmsPageBlocksDefinition = {
     },
     { field: 'title', kind: 'string', required: true, labelKey: 'field_name' },
     { field: 'subtitle', kind: 'text', labelKey: 'field_cms_subtitle' },
-    { field: 'body', kind: 'text', labelKey: 'field_cms_body' },
+    { field: 'body', kind: 'richText', labelKey: 'field_cms_body' },
     { field: 'ctaLabel', kind: 'string', labelKey: 'field_cms_cta_label' },
     { field: 'ctaUrl', kind: 'string', labelKey: 'field_cms_cta_url' },
     { field: 'imageSrc', kind: 'string', labelKey: 'field_cms_image_src' },
