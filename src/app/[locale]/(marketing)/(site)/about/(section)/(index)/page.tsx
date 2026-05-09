@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { AboutPageView } from '@/components/mit-sailing/about/AboutPageView';
+import { loadPublishedCmsPageByPath } from '@/libs/mit-sailing/cmsQueries';
 
 type AboutPageProps = {
   params: Promise<{ locale: string }>;
@@ -35,5 +36,6 @@ export async function generateMetadata(
 export default async function AboutPage(props: AboutPageProps) {
   const { locale } = await props.params;
   setRequestLocale(locale);
-  return <AboutPageView />;
+  const cmsPage = await loadPublishedCmsPageByPath('/about/');
+  return <AboutPageView cmsPage={cmsPage} />;
 }

@@ -1,12 +1,33 @@
-import { getTranslations } from 'next-intl/server';
 import { footerSocialIconPaths } from '@/data/mit-sailing/footerSocialIcons';
 import type { SocialNetwork } from '@/data/mit-sailing/footerSocialSeed';
-import { footerSocialGroups } from '@/data/mit-sailing/footerSocialSeed';
 import {
   footerHorizontalRuleClassName,
   footerSocialGroupLabelClassName,
   footerSocialIconButtonClassName,
 } from '@/lib/mit-sailing/tokens';
+
+type FooterSocialStripGroup = {
+  id: string;
+  label: string;
+  links: {
+    id: string;
+    label: string;
+    href: string;
+    network?: string;
+  }[];
+};
+
+function isSocialNetwork(
+  network: string | undefined
+): network is SocialNetwork {
+  return (
+    network === 'tiktok' ||
+    network === 'instagram' ||
+    network === 'github' ||
+    network === 'facebook' ||
+    network === 'x'
+  );
+}
 
 function SocialIcon({ network }: { network: SocialNetwork }) {
   return (
@@ -21,42 +42,50 @@ function SocialIcon({ network }: { network: SocialNetwork }) {
 }
 
 /**
- * Social links strip shown at the top of the site footer. Copy: `en.json` (`MitSailingSite`); data: `footerSocialSeed`.
+ * Social links strip shown at the top of the site footer.
  *
+ * @param props - CMS social groups
  * @returns Group-labeled social icon row
  */
-export async function FooterSocialStrip() {
-  const t = await getTranslations('MitSailingSite');
-
+export function FooterSocialStrip(props: { groups: FooterSocialStripGroup[] }) {
+  if (props.groups.length === 0) {
+    return null;
+  }
   return (
     <div className="mb-12 flex items-center gap-4 md:gap-6">
       <div aria-hidden="true" className={footerHorizontalRuleClassName} />
       <div className="w-full max-w-5xl">
         <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center sm:gap-6">
-          {footerSocialGroups.map((group) => (
+          {props.groups.map((group) => (
             <div
               className="flex min-w-0 items-center gap-4 whitespace-nowrap sm:gap-3"
-              key={group.groupLabelKey}
+              key={group.id}
             >
               <span
                 className={`${footerSocialGroupLabelClassName} leading-snug`}
               >
-                {t(group.groupLabelKey)}
+                {group.label}
               </span>
               <div
-                aria-label={t(group.groupAriaLabelKey)}
+                aria-label={`${group.label} social links`}
                 className="flex flex-nowrap items-center gap-2 sm:gap-3"
               >
                 {group.links.map((link) => (
                   <a
-                    aria-label={t(link.ariaLabelKey)}
+                    aria-label={link.label}
                     className={footerSocialIconButtonClassName}
                     href={link.href}
-                    key={`${group.groupLabelKey}-${link.network}-${link.href}`}
+                    key={link.id}
                     rel="noopener noreferrer"
                     target="_blank"
                   >
-                    <SocialIcon network={link.network} />
+                    {isSocialNetwork(link.network) ? (
+                      <SocialIcon network={link.network} />
+                    ) : (
+                      <span className="text-xs font-bold">
+                        {link.label.slice(0, 1)}
+                      </span>
+                    )}
                   </a>
                 ))}
               </div>

@@ -18,7 +18,11 @@ type AdminNavItem = {
     | 'nav_sailing_classes'
     | 'nav_fleet'
     | 'nav_site_alerts'
-    | 'nav_site_text';
+    | 'nav_site_text'
+    | 'nav_cms_pages'
+    | 'nav_cms_page_blocks'
+    | 'nav_cms_menus'
+    | 'nav_cms_menu_items';
   /** `prefix` highlights all subpaths (e.g. event edit under `/admin/events/`). */
   match: 'exact' | 'prefix';
 };
@@ -52,6 +56,18 @@ const ADMIN_SITE_NAV: AdminNavItem[] = [
   {
     href: '/admin/site_alerts/',
     labelKey: 'nav_site_alerts',
+    match: 'prefix',
+  },
+  { href: '/admin/cms_pages/', labelKey: 'nav_cms_pages', match: 'prefix' },
+  {
+    href: '/admin/cms_page_blocks/',
+    labelKey: 'nav_cms_page_blocks',
+    match: 'prefix',
+  },
+  { href: '/admin/cms_menus/', labelKey: 'nav_cms_menus', match: 'prefix' },
+  {
+    href: '/admin/cms_menu_items/',
+    labelKey: 'nav_cms_menu_items',
     match: 'prefix',
   },
 ];

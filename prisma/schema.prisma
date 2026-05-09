@@ -407,6 +407,100 @@ model SiteAlert {
   @@map("site_alerts")
 }
 
+enum CmsBlockKind {
+  hero
+  text_section
+  callout
+
+  @@map("cms_block_kind")
+}
+
+enum CmsMenuLocation {
+  header
+  mobile_utility
+  footer
+  legal
+  social
+
+  @@map("cms_menu_location")
+}
+
+model CmsPage {
+  id              String         @id @default(cuid())
+  slug            String         @unique
+  path            String         @unique
+  title           String
+  metaTitle       String?        @map("meta_title")
+  metaDescription String?        @map("meta_description") @db.Text
+  isPublished     Boolean        @default(true) @map("is_published")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  blocks    CmsPageBlock[]
+  menuItems CmsMenuItem[]
+
+  @@index([isPublished, path])
+  @@map("cms_pages")
+}
+
+model CmsPageBlock {
+  id           String       @id @default(cuid())
+  pageId       String       @map("page_id")
+  kind         CmsBlockKind
+  title        String
+  subtitle     String?      @db.Text
+  body         String?      @db.Text
+  ctaLabel     String?      @map("cta_label")
+  ctaUrl       String?      @map("cta_url")
+  imageSrc     String?      @map("image_src")
+  imageAlt     String?      @map("image_alt")
+  displayOrder Int          @default(0) @map("display_order")
+  isVisible    Boolean      @default(true) @map("is_visible")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  page CmsPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@index([pageId, displayOrder])
+  @@map("cms_page_blocks")
+}
+
+model CmsMenu {
+  id        String          @id @default(cuid())
+  location  CmsMenuLocation @unique
+  title     String
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+
+  items CmsMenuItem[]
+
+  @@map("cms_menus")
+}
+
+model CmsMenuItem {
+  id           String   @id @default(cuid())
+  menuId       String   @map("menu_id")
+  parentId     String?  @map("parent_id")
+  linkedPageId String?  @map("linked_page_id")
+  label        String
+  url          String?
+  isExternal   Boolean  @default(false) @map("is_external")
+  isVisible    Boolean  @default(true) @map("is_visible")
+  displayOrder Int      @default(0) @map("display_order")
+  systemKey    String?  @map("system_key")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  menu       CmsMenu       @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  parent     CmsMenuItem?  @relation("CmsMenuItemChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  children   CmsMenuItem[] @relation("CmsMenuItemChildren")
+  linkedPage CmsPage?      @relation(fields: [linkedPageId], references: [id], onDelete: SetNull)
+
+  @@index([menuId, parentId, displayOrder])
+  @@index([linkedPageId])
+  @@map("cms_menu_items")
+}
+
 model DonationFund {
   id            String   @id @default(cuid())
   fundId        String   @unique @map("designation_id")

@@ -8,6 +8,8 @@ import {
 } from '@/lib/mit-sailing/tokens';
 import { getSession } from '@/libs/auth/dal';
 import { Link } from '@/libs/I18nNavigation';
+import { loadPublishedCmsPageByPath } from '@/libs/mit-sailing/cmsQueries';
+import type { PublicCmsBlock } from '@/libs/mit-sailing/cmsQueries';
 import {
   loadHomeClassesBySlugs,
   loadHomeFeaturedFleetBoats,
@@ -56,6 +58,61 @@ const RENTAL_IMAGE =
 
 type MitSailingHomePageViewProps = { locale: string };
 
+function HomeHeroSection(props: {
+  block?: PublicCmsBlock;
+  fallbackImageAlt: string;
+  fallbackKicker: string;
+  fallbackTitle: string;
+  fallbackBody: string;
+  fallbackCtaLabel: string;
+  createAccountLabel: string;
+  isSignedIn: boolean;
+}) {
+  return (
+    <section className="relative flex h-[600px] items-center overflow-hidden bg-mit-hero-ink">
+      <Image
+        alt={props.block?.imageAlt ?? props.fallbackImageAlt}
+        className={HERO_IMAGE_CLASS_NAME}
+        fill
+        priority
+        sizes="100vw"
+        src={props.block?.imageSrc ?? HERO_IMAGE}
+      />
+      <div className={HERO_SCRIM_CLASS_NAME} />
+      <div className="relative z-10 mx-auto w-full max-w-7xl px-6">
+        <div className={HERO_COPY_STACK_CLASS_NAME}>
+          <div className="mb-4 flex items-center gap-2 text-xs font-semibold tracking-widest text-white uppercase">
+            <MapPin className="shrink-0" size={14} />
+            {props.block?.subtitle ?? props.fallbackKicker}
+          </div>
+          <h1 className="mb-6 font-mit-serif text-4xl leading-tight font-bold text-white">
+            {props.block?.title ?? props.fallbackTitle}
+          </h1>
+          <p className="mb-10 text-base leading-relaxed text-white">
+            {props.block?.body ?? props.fallbackBody}
+          </p>
+          <div className="flex flex-wrap items-center gap-4">
+            <Link
+              className={`inline-flex cursor-pointer items-center justify-center rounded-lg border-2 border-white bg-transparent px-7 py-3 text-base font-medium text-white no-underline backdrop-blur transition-colors hover:bg-white/10 ${HERO_ON_IMAGE_FOCUS_RING_CLASS_NAME}`}
+              href={props.block?.ctaUrl ?? '/classes/'}
+            >
+              {props.block?.ctaLabel ?? props.fallbackCtaLabel}
+            </Link>
+            {props.isSignedIn ? null : (
+              <Link
+                className={`inline-flex items-center justify-center rounded-sm bg-transparent px-2 py-3 text-base font-medium text-white underline-offset-4 transition-colors hover:underline ${HERO_ON_IMAGE_FOCUS_RING_CLASS_NAME}`}
+                href="/signup/"
+              >
+                {props.createAccountLabel}
+              </Link>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /**
  * @param props - Home page
  * @param props.locale - Active UI locale
@@ -76,14 +133,22 @@ export async function MitSailingHomePageView(
     featuredHomeBoats,
     homeNextClasses,
     homeIntroClasses,
+    cmsHomePage,
   ] = await Promise.all([
     getHomeUpcomingDayGroups(),
     getSession(),
     loadHomeFeaturedFleetBoats(HOME_FLEET_SLUGS),
     loadHomeClassesBySlugs(HOME_NEXT_CLASS_SLUGS),
     loadHomeIntroductionClasses(),
+    loadPublishedCmsPageByPath('/'),
   ]);
   const isSignedIn = Boolean(session?.user?.id);
+  const homeHeroBlock = cmsHomePage?.blocks.find(
+    (block) => block.kind === 'hero'
+  );
+  const rentalBlock = cmsHomePage?.blocks.find(
+    (block) => block.kind === 'callout'
+  );
 
   const firstPrereqIds = homeNextClasses
     .map((c) => c.prerequisiteIds[0])
@@ -127,48 +192,16 @@ export async function MitSailingHomePageView(
 
   return (
     <div className="w-full min-w-0">
-      {/* Hero */}
-      <section className="relative flex h-[600px] items-center overflow-hidden bg-mit-hero-ink">
-        <Image
-          alt={t('hero_image_alt')}
-          className={HERO_IMAGE_CLASS_NAME}
-          fill
-          priority
-          sizes="100vw"
-          src={HERO_IMAGE}
-        />
-        <div className={HERO_SCRIM_CLASS_NAME} />
-        <div className="relative z-10 mx-auto w-full max-w-7xl px-6">
-          <div className={HERO_COPY_STACK_CLASS_NAME}>
-            <div className="mb-4 flex items-center gap-2 text-xs font-semibold tracking-widest text-white uppercase">
-              <MapPin className="shrink-0" size={14} />
-              {t('hero_kicker')}
-            </div>
-            <h1 className="mb-6 font-mit-serif text-4xl leading-tight font-bold text-white">
-              {t('hero_title')}
-            </h1>
-            <p className="mb-10 text-base leading-relaxed text-white">
-              {t('hero_body')}
-            </p>
-            <div className="flex flex-wrap items-center gap-4">
-              <Link
-                className={`inline-flex cursor-pointer items-center justify-center rounded-lg border-2 border-white bg-transparent px-7 py-3 text-base font-medium text-white no-underline backdrop-blur transition-colors hover:bg-white/10 ${HERO_ON_IMAGE_FOCUS_RING_CLASS_NAME}`}
-                href="/classes/"
-              >
-                {t('hero_cta_classes')}
-              </Link>
-              {isSignedIn ? null : (
-                <Link
-                  className={`inline-flex items-center justify-center rounded-sm bg-transparent px-2 py-3 text-base font-medium text-white underline-offset-4 transition-colors hover:underline ${HERO_ON_IMAGE_FOCUS_RING_CLASS_NAME}`}
-                  href="/signup/"
-                >
-                  {t('hero_cta_create_account')}
-                </Link>
-              )}
-            </div>
-          </div>
-        </div>
-      </section>
+      <HomeHeroSection
+        block={homeHeroBlock}
+        createAccountLabel={t('hero_cta_create_account')}
+        fallbackBody={t('hero_body')}
+        fallbackCtaLabel={t('hero_cta_classes')}
+        fallbackImageAlt={t('hero_image_alt')}
+        fallbackKicker={t('hero_kicker')}
+        fallbackTitle={t('hero_title')}
+        isSignedIn={isSignedIn}
+      />
 
       {/* Hours + events */}
       <section className="border-b border-mit-line bg-mit-surface py-24">
@@ -567,10 +600,10 @@ export async function MitSailingHomePageView(
           <div className="grid grid-cols-1 items-center gap-16 lg:grid-cols-2">
             <div>
               <h2 className="mb-4 font-mit-serif text-[32px] leading-tight font-semibold text-mit-text">
-                {t('rental_title')}
+                {rentalBlock?.title ?? t('rental_title')}
               </h2>
               <p className="mb-8 text-base leading-relaxed text-mit-text">
-                {t('rental_body')}
+                {rentalBlock?.body ?? t('rental_body')}
               </p>
               <ul className="mb-10 space-y-4">
                 {(
@@ -594,9 +627,9 @@ export async function MitSailingHomePageView(
               </ul>
               <Link
                 className="inline-flex rounded-md bg-mit-red px-5 py-2.5 text-sm font-medium text-white no-underline hover:bg-mit-red-hover"
-                href="/contact/"
+                href={rentalBlock?.ctaUrl ?? '/contact/'}
               >
-                {t('rental_cta')}
+                {rentalBlock?.ctaLabel ?? t('rental_cta')}
               </Link>
             </div>
             <div className="relative aspect-[4/3] overflow-hidden rounded-2xl border border-mit-line shadow-lg">

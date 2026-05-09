@@ -104,6 +104,8 @@ export type CatalogReorderScope = {
 /** Optional context for {@link CatalogServerHandlers.list} (e.g. locale-scoped public URLs). */
 export type CatalogListOptions = {
   locale?: string;
+  menuId?: string;
+  pageId?: string;
 };
 
 /**

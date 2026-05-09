@@ -97,4 +97,33 @@ describe('createCatalogResourceAction', () => {
 
     expect(revalidateTag).not.toHaveBeenCalled();
   });
+
+  it('preserves page scope after creating a CMS page block', async () => {
+    const { createCatalogResourceAction } =
+      await import('@/libs/admin/catalog/catalogActions');
+    const formData = new FormData();
+    formData.set('pageId', 'page-2');
+
+    await expect(
+      createCatalogResourceAction('en', 'cms_page_blocks', formData)
+    ).rejects.toThrow('NEXT_REDIRECT');
+
+    expect(redirect).toHaveBeenCalledWith('/admin/cms_page_blocks?page=page-2');
+  });
+
+  it('preserves menu scope on CMS menu item validation errors', async () => {
+    const { createCatalogResourceAction } =
+      await import('@/libs/admin/catalog/catalogActions');
+    const formData = new FormData();
+    formData.set('menuId', 'menu-2');
+    createFromForm.mockResolvedValue({ code: 'validation_failed', ok: false });
+
+    await expect(
+      createCatalogResourceAction('en', 'cms_menu_items', formData)
+    ).rejects.toThrow('NEXT_REDIRECT');
+
+    expect(redirect).toHaveBeenCalledWith(
+      '/admin/cms_menu_items/new?menu=menu-2&error=validation_failed'
+    );
+  });
 });

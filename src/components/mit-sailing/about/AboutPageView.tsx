@@ -15,6 +15,7 @@ import {
 } from '@/data/mit-sailing/aboutContent';
 import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
 import { Link } from '@/libs/I18nNavigation';
+import type { PublicCmsPage } from '@/libs/mit-sailing/cmsQueries';
 
 const accent = `font-semibold text-mit-red-ink no-underline hover:underline ${textFocusRingClassName}`;
 
@@ -94,18 +95,26 @@ function PillarCta(props: { href: string; label: string }) {
  * About MIT Sailing (mission, history, staff, volunteer, dock hours).
  * Data from `aboutContent.ts`; design aligned with `mit-redesign/AboutPage`.
  *
+ * @param props - About page content
+ * @param props.cmsPage - Optional CMS page data for migrated editorial blocks
  * @returns Full About page
  */
-export function AboutPageView() {
+export function AboutPageView(props: { cmsPage?: PublicCmsPage | null }) {
+  const introBlock = props.cmsPage?.blocks.find(
+    (block) => block.kind === 'hero'
+  );
+  const missionBlock = props.cmsPage?.blocks.find(
+    (block) => block.kind === 'text_section'
+  );
   return (
     <div className="min-h-0 min-w-0">
       <section className="border-b border-mit-line bg-background py-16 md:py-24">
         <div className={aboutSectionInner}>
           <h1 className="mb-6 font-mit-serif text-3xl leading-tight font-bold text-mit-text md:text-4xl">
-            About MIT Sailing
+            {introBlock?.title ?? 'About MIT Sailing'}
           </h1>
           <p className="max-w-3xl text-base leading-relaxed text-mit-text">
-            {missionIntro}
+            {introBlock?.body ?? missionIntro}
           </p>
         </div>
       </section>
@@ -113,11 +122,17 @@ export function AboutPageView() {
       <section className="border-b border-mit-line bg-mit-surface py-16 md:py-24">
         <div className={aboutSectionInner}>
           <SectionHeader
-            subtitle="How we serve the MIT community and grow lifelong skills on the water."
-            title="Our mission"
+            subtitle={
+              missionBlock?.subtitle ??
+              'How we serve the MIT community and grow lifelong skills on the water.'
+            }
+            title={missionBlock?.title ?? 'Our mission'}
           />
           <div className="mb-14 max-w-3xl space-y-6">
-            {missionBody.map((p) => (
+            {(missionBlock?.body
+              ? missionBlock.body.split('\n\n')
+              : missionBody
+            ).map((p) => (
               <p className="text-base leading-relaxed text-mit-text" key={p}>
                 {p}
               </p>

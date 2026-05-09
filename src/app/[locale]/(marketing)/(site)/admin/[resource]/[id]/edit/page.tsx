@@ -9,6 +9,12 @@ import {
   tryGetCatalogDefinition,
 } from '@/libs/admin/catalog/catalogDefinitions';
 import { getCatalogServerHandlers } from '@/libs/admin/catalog/catalogServerRegistry';
+import {
+  cmsMenuParentSelectOptions,
+  cmsMenuSelectOptions,
+  cmsPageRequiredSelectOptions,
+  cmsPageSelectOptions,
+} from '@/libs/admin/catalog/cmsCatalogHandlers';
 import { fleetRequiredClassSelectOptions } from '@/libs/admin/catalog/fleetCatalogHandlers';
 import { sailingClassCategorySelectOptions } from '@/libs/admin/catalog/sailingClassesHandlers';
 
@@ -71,6 +77,20 @@ export default async function AdminCatalogResourceEditPage(props: PageProps) {
   } else if (resource === 'sailing_classes') {
     dynamicSelectOptions = {
       classCategoryId: await sailingClassCategorySelectOptions(),
+    };
+  } else if (resource === 'cms_page_blocks') {
+    dynamicSelectOptions = {
+      pageId: await cmsPageRequiredSelectOptions(),
+    };
+  } else if (resource === 'cms_menu_items') {
+    const currentMenuId = typeof row.menuId === 'string' ? row.menuId : '';
+    dynamicSelectOptions = {
+      menuId: await cmsMenuSelectOptions(),
+      parentId: await cmsMenuParentSelectOptions({
+        excludeId: id,
+        menuId: currentMenuId,
+      }),
+      linkedPageId: await cmsPageSelectOptions(),
     };
   }
 

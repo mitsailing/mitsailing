@@ -373,6 +373,172 @@ const siteAlertsDefinition = {
   },
 } as const satisfies CatalogResourceDefinition;
 
+const cmsPagesDefinition = {
+  id: 'cms_pages',
+  titleKey: 'title_admin_catalog_cms_pages',
+  metaTitleKey: 'meta_title_admin_catalog_cms_pages',
+  hubLabelKey: 'hub_label_cms_pages',
+  listColumns: [
+    { field: 'path', kind: 'string', headerKey: 'column_cms_path' },
+    { field: 'title', kind: 'string', headerKey: 'column_name_label' },
+    { field: 'isPublished', kind: 'visibility', headerKey: 'column_status' },
+  ],
+  formFields: [
+    { field: 'slug', kind: 'string', required: true, labelKey: 'field_slug' },
+    {
+      field: 'path',
+      kind: 'string',
+      required: true,
+      labelKey: 'field_cms_path',
+    },
+    { field: 'title', kind: 'string', required: true, labelKey: 'field_name' },
+    {
+      field: 'metaTitle',
+      kind: 'string',
+      required: true,
+      labelKey: 'field_cms_meta_title',
+    },
+    {
+      field: 'metaDescription',
+      kind: 'text',
+      required: true,
+      labelKey: 'field_cms_meta_description',
+    },
+    {
+      field: 'isPublished',
+      kind: 'boolean',
+      labelKey: 'field_cms_published',
+    },
+  ],
+  capabilities: { create: true, update: true, delete: true, reorder: false },
+} as const satisfies CatalogResourceDefinition;
+
+const cmsPageBlocksDefinition = {
+  id: 'cms_page_blocks',
+  titleKey: 'title_admin_catalog_cms_page_blocks',
+  metaTitleKey: 'meta_title_admin_catalog_cms_page_blocks',
+  hubLabelKey: 'hub_label_cms_page_blocks',
+  listColumns: [
+    { field: 'kind', kind: 'string', headerKey: 'column_cms_kind' },
+    { field: 'title', kind: 'string', headerKey: 'column_name_label' },
+    { field: 'isVisible', kind: 'visibility', headerKey: 'column_status' },
+    {
+      field: 'displayOrder',
+      kind: 'number',
+      headerKey: 'column_display_order_label',
+    },
+  ],
+  formFields: [
+    {
+      field: 'pageId',
+      kind: 'select',
+      required: true,
+      labelKey: 'field_cms_page',
+    },
+    {
+      field: 'kind',
+      kind: 'select',
+      required: true,
+      labelKey: 'field_cms_kind',
+      selectOptions: [
+        { value: 'hero', labelKey: 'field_cms_kind_hero' },
+        { value: 'text_section', labelKey: 'field_cms_kind_text_section' },
+        { value: 'callout', labelKey: 'field_cms_kind_callout' },
+      ],
+    },
+    { field: 'title', kind: 'string', required: true, labelKey: 'field_name' },
+    { field: 'subtitle', kind: 'text', labelKey: 'field_cms_subtitle' },
+    { field: 'body', kind: 'text', labelKey: 'field_cms_body' },
+    { field: 'ctaLabel', kind: 'string', labelKey: 'field_cms_cta_label' },
+    { field: 'ctaUrl', kind: 'string', labelKey: 'field_cms_cta_url' },
+    { field: 'imageSrc', kind: 'string', labelKey: 'field_cms_image_src' },
+    { field: 'imageAlt', kind: 'string', labelKey: 'field_cms_image_alt' },
+    {
+      field: 'displayOrder',
+      kind: 'number',
+      required: true,
+      labelKey: 'field_display_order',
+    },
+    { field: 'isVisible', kind: 'boolean', labelKey: 'field_visible' },
+  ],
+  capabilities: { create: true, update: true, delete: true, reorder: false },
+} as const satisfies CatalogResourceDefinition;
+
+const cmsMenusDefinition = {
+  id: 'cms_menus',
+  titleKey: 'title_admin_catalog_cms_menus',
+  metaTitleKey: 'meta_title_admin_catalog_cms_menus',
+  hubLabelKey: 'hub_label_cms_menus',
+  listColumns: [
+    { field: 'location', kind: 'string', headerKey: 'column_cms_location' },
+    { field: 'title', kind: 'string', headerKey: 'column_name_label' },
+  ],
+  formFields: [
+    {
+      field: 'location',
+      kind: 'select',
+      required: true,
+      labelKey: 'field_cms_location',
+      selectOptions: [
+        { value: 'header', labelKey: 'field_cms_location_header' },
+        {
+          value: 'mobile_utility',
+          labelKey: 'field_cms_location_mobile_utility',
+        },
+        { value: 'footer', labelKey: 'field_cms_location_footer' },
+        { value: 'legal', labelKey: 'field_cms_location_legal' },
+        { value: 'social', labelKey: 'field_cms_location_social' },
+      ],
+    },
+    { field: 'title', kind: 'string', required: true, labelKey: 'field_name' },
+  ],
+  capabilities: { create: true, update: true, delete: true, reorder: false },
+} as const satisfies CatalogResourceDefinition;
+
+const cmsMenuItemsDefinition = {
+  id: 'cms_menu_items',
+  titleKey: 'title_admin_catalog_cms_menu_items',
+  metaTitleKey: 'meta_title_admin_catalog_cms_menu_items',
+  hubLabelKey: 'hub_label_cms_menu_items',
+  listColumns: [
+    { field: 'parentLabel', kind: 'string', headerKey: 'column_cms_parent' },
+    { field: 'label', kind: 'string', headerKey: 'column_name_label' },
+    { field: 'url', kind: 'string', headerKey: 'field_cms_url' },
+    { field: 'isVisible', kind: 'visibility', headerKey: 'column_status' },
+    {
+      field: 'displayOrder',
+      kind: 'number',
+      headerKey: 'column_display_order_label',
+    },
+  ],
+  formFields: [
+    {
+      field: 'menuId',
+      kind: 'select',
+      required: true,
+      labelKey: 'field_cms_menu',
+    },
+    { field: 'parentId', kind: 'select', labelKey: 'field_cms_parent' },
+    {
+      field: 'linkedPageId',
+      kind: 'select',
+      labelKey: 'field_cms_linked_page',
+    },
+    { field: 'label', kind: 'string', required: true, labelKey: 'field_name' },
+    { field: 'url', kind: 'string', labelKey: 'field_cms_url' },
+    { field: 'systemKey', kind: 'string', labelKey: 'field_cms_system_key' },
+    {
+      field: 'displayOrder',
+      kind: 'number',
+      required: true,
+      labelKey: 'field_display_order',
+    },
+    { field: 'isExternal', kind: 'boolean', labelKey: 'field_cms_external' },
+    { field: 'isVisible', kind: 'boolean', labelKey: 'field_visible' },
+  ],
+  capabilities: { create: true, update: true, delete: true, reorder: false },
+} as const satisfies CatalogResourceDefinition;
+
 export const CATALOG_RESOURCE_IDS = [
   'donation_funds',
   'event_categories',
@@ -380,6 +546,10 @@ export const CATALOG_RESOURCE_IDS = [
   'sailing_classes',
   'fleet',
   'site_alerts',
+  'cms_pages',
+  'cms_page_blocks',
+  'cms_menus',
+  'cms_menu_items',
 ] as const;
 
 export type CatalogResourceId = (typeof CATALOG_RESOURCE_IDS)[number];
@@ -394,6 +564,10 @@ export const catalogResourceDefinitions: Record<
   sailing_classes: sailingClassesDefinition,
   fleet: fleetDefinition,
   site_alerts: siteAlertsDefinition,
+  cms_pages: cmsPagesDefinition,
+  cms_page_blocks: cmsPageBlocksDefinition,
+  cms_menus: cmsMenusDefinition,
+  cms_menu_items: cmsMenuItemsDefinition,
 };
 
 export function isCatalogResourceId(id: string): id is CatalogResourceId {

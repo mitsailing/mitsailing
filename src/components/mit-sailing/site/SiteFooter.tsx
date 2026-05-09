@@ -1,8 +1,4 @@
 import { getTranslations } from 'next-intl/server';
-import {
-  footerNavColumns,
-  footerLegalLinks,
-} from '@/data/mit-sailing/footerNavSeed';
 import { pavilionShippingAddress } from '@/data/mit-sailing/pavilionInfoSeed';
 import {
   footerCopyrightBarClassName,
@@ -12,7 +8,28 @@ import {
   footerNavSectionHeadingClassName,
 } from '@/lib/mit-sailing/tokens';
 import { Link } from '@/libs/I18nNavigation';
+import { loadCmsMenu } from '@/libs/mit-sailing/cmsQueries';
 import { FooterSocialStrip } from './FooterSocialStrip';
+
+function FooterMaybeInternalLink(props: {
+  className: string;
+  href: string;
+  isExternal: boolean;
+  children: React.ReactNode;
+}) {
+  if (!props.isExternal && props.href.startsWith('/')) {
+    return (
+      <Link className={props.className} href={props.href}>
+        {props.children}
+      </Link>
+    );
+  }
+  return (
+    <a className={props.className} href={props.href}>
+      {props.children}
+    </a>
+  );
+}
 
 /**
  * Dark site footer: social strip, four-column nav, brand + address, and legal row.
@@ -22,12 +39,33 @@ import { FooterSocialStrip } from './FooterSocialStrip';
  */
 export async function SiteFooter() {
   const t = await getTranslations('MitSailingSite');
+  const [footerMenu, legalMenu, socialMenu] = await Promise.all([
+    loadCmsMenu('footer'),
+    loadCmsMenu('legal'),
+    loadCmsMenu('social'),
+  ]);
   const year = new Date().getFullYear();
+  const socialGroups = socialMenu.map((group) => ({
+    id: group.id,
+    label: group.label,
+    links: group.children.flatMap((link) =>
+      link.href
+        ? [
+            {
+              id: link.id,
+              label: link.label,
+              href: link.href,
+              network: link.systemKey,
+            },
+          ]
+        : []
+    ),
+  }));
 
   return (
     <footer className="mt-auto bg-mit-footer py-16 text-white">
       <div className="mx-auto max-w-7xl px-6">
-        <FooterSocialStrip />
+        <FooterSocialStrip groups={socialGroups} />
 
         <div className="mb-16 grid grid-cols-1 gap-12 md:grid-cols-2 lg:grid-cols-5">
           <div className="lg:col-span-2">
@@ -49,29 +87,23 @@ export async function SiteFooter() {
             </address>
           </div>
 
-          {footerNavColumns.map((col) => (
-            <div key={col.titleKey}>
+          {footerMenu.map((col) => (
+            <div key={col.id}>
               <h4 className={`mb-6 ${footerNavSectionHeadingClassName}`}>
-                {t(col.titleKey)}
+                {col.label}
               </h4>
               <ul className="space-y-4">
-                {col.links.map((link) => (
-                  <li key={link.labelKey}>
-                    {'to' in link ? (
-                      <Link
+                {col.children.map((link) => (
+                  <li key={link.id}>
+                    {link.href ? (
+                      <FooterMaybeInternalLink
                         className={`${footerLinkClassName} ${footerNavLinkClassName} no-underline`}
-                        href={link.to}
-                      >
-                        {t(link.labelKey)}
-                      </Link>
-                    ) : (
-                      <a
-                        className={`${footerLinkClassName} ${footerNavLinkClassName}`}
                         href={link.href}
+                        isExternal={link.isExternal}
                       >
-                        {t(link.labelKey)}
-                      </a>
-                    )}
+                        {link.label}
+                      </FooterMaybeInternalLink>
+                    ) : null}
                   </li>
                 ))}
               </ul>
@@ -83,15 +115,18 @@ export async function SiteFooter() {
           <p className="text-xs">{t('footer_copyright', { year })}</p>
           <nav aria-label={t('footer_legal_nav_aria')}>
             <div className="flex gap-6">
-              {footerLegalLinks.map((item) => (
-                <a
-                  className={`${footerLinkClassName} ${footerLegalLinkClassName}`}
-                  href={item.href}
-                  key={item.labelKey}
-                >
-                  {t(item.labelKey)}
-                </a>
-              ))}
+              {legalMenu.map((item) =>
+                item.href ? (
+                  <FooterMaybeInternalLink
+                    className={`${footerLinkClassName} ${footerLegalLinkClassName}`}
+                    href={item.href}
+                    isExternal={item.isExternal}
+                    key={item.id}
+                  >
+                    {item.label}
+                  </FooterMaybeInternalLink>
+                ) : null
+              )}
             </div>
           </nav>
         </div>

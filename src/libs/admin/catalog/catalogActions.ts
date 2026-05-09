@@ -39,6 +39,10 @@ const CATALOG_EXTRA_PUBLIC_PATHS: Partial<
   sailing_classes: ['/classes'],
   fleet: ['/fleet'],
   site_alerts: ['/', '/alerts'],
+  cms_pages: ['/', '/about'],
+  cms_page_blocks: ['/', '/about'],
+  cms_menus: ['/'],
+  cms_menu_items: ['/'],
 };
 
 function revalidateAfterCatalogMutation(
@@ -55,11 +59,49 @@ function revalidateAfterCatalogMutation(
   if (resourceId === 'site_alerts') {
     revalidateTag(SITE_ALERTS_CACHE_TAG, { expire: 0 });
   }
+  if (resourceId.startsWith('cms_')) {
+    revalidatePath(getI18nPath('/', locale), 'layout');
+  }
   revalidatePath(getI18nPath(ADMIN_INDEX_PATH, locale));
   revalidatePath(
     getI18nPath(adminCatalogResourceIndexPath(resourceId), locale),
     'layout'
   );
+}
+
+function scopedCatalogMutationSearchParam(
+  resourceId: CatalogResourceId,
+  formData: FormData
+): { name: string; value: string } | undefined {
+  if (resourceId === 'cms_page_blocks') {
+    const pageId = formData.get('pageId');
+    return typeof pageId === 'string' && pageId.trim().length > 0
+      ? { name: 'page', value: pageId }
+      : undefined;
+  }
+  if (resourceId === 'cms_menu_items') {
+    const menuId = formData.get('menuId');
+    return typeof menuId === 'string' && menuId.trim().length > 0
+      ? { name: 'menu', value: menuId }
+      : undefined;
+  }
+  return undefined;
+}
+
+function catalogRedirectPath(props: {
+  basePath: string;
+  errorCode?: string;
+  scope?: { name: string; value: string };
+}): string {
+  const searchParams = new URLSearchParams();
+  if (props.scope) {
+    searchParams.set(props.scope.name, props.scope.value);
+  }
+  if (props.errorCode) {
+    searchParams.set('error', props.errorCode);
+  }
+  const query = searchParams.toString();
+  return query ? `${props.basePath}?${query}` : props.basePath;
 }
 
 /**
@@ -79,14 +121,24 @@ export async function createCatalogResourceAction(
     redirect(getI18nPath(ADMIN_INDEX_PATH, locale));
   }
   const handlers = getCatalogServerHandlers(resourceId);
+  const scope = scopedCatalogMutationSearchParam(resourceId, formData);
   const result = await handlers.createFromForm(formData);
   if (!result.ok) {
     redirect(
-      `${getI18nPath(adminCatalogResourceNewPath(resourceId), locale)}?error=${encodeURIComponent(result.code)}`
+      catalogRedirectPath({
+        basePath: getI18nPath(adminCatalogResourceNewPath(resourceId), locale),
+        errorCode: result.code,
+        scope,
+      })
     );
   }
   revalidateAfterCatalogMutation(locale, resourceId);
-  redirect(getI18nPath(adminCatalogResourceIndexPath(resourceId), locale));
+  redirect(
+    catalogRedirectPath({
+      basePath: getI18nPath(adminCatalogResourceIndexPath(resourceId), locale),
+      scope,
+    })
+  );
 }
 
 /**
@@ -108,14 +160,27 @@ export async function updateCatalogResourceAction(
     redirect(getI18nPath(ADMIN_INDEX_PATH, locale));
   }
   const handlers = getCatalogServerHandlers(resourceId);
+  const scope = scopedCatalogMutationSearchParam(resourceId, formData);
   const result = await handlers.updateFromForm(id, formData);
   if (!result.ok) {
     redirect(
-      `${getI18nPath(adminCatalogResourceEditPath(resourceId, id), locale)}?error=${encodeURIComponent(result.code)}`
+      catalogRedirectPath({
+        basePath: getI18nPath(
+          adminCatalogResourceEditPath(resourceId, id),
+          locale
+        ),
+        errorCode: result.code,
+        scope,
+      })
     );
   }
   revalidateAfterCatalogMutation(locale, resourceId);
-  redirect(getI18nPath(adminCatalogResourceIndexPath(resourceId), locale));
+  redirect(
+    catalogRedirectPath({
+      basePath: getI18nPath(adminCatalogResourceIndexPath(resourceId), locale),
+      scope,
+    })
+  );
 }
 
 /**

@@ -3,6 +3,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader';
 import { AdminPrimaryActionLink } from '@/components/mit-sailing/admin/AdminPrimaryActionLink';
+import { AdminCatalogScopeFilter } from '@/components/mit-sailing/admin/catalog/AdminCatalogScopeFilter';
 import { AdminCatalogTable } from '@/components/mit-sailing/admin/catalog/AdminCatalogTable';
 import { AdminSailingClassesGroupedTables } from '@/components/mit-sailing/admin/catalog/AdminSailingClassesGroupedTables';
 import { adminCatalogResourceNewPath } from '@/libs/admin/catalog/adminCatalogPaths';
@@ -11,9 +12,15 @@ import {
   tryGetCatalogDefinition,
 } from '@/libs/admin/catalog/catalogDefinitions';
 import { getCatalogServerHandlers } from '@/libs/admin/catalog/catalogServerRegistry';
+import {
+  catalogListOptionsForScope,
+  catalogScopedCreatePath,
+  catalogScopedListState,
+} from '@/libs/admin/catalog/scopedCatalogLists';
 
 type PageProps = {
   params: Promise<{ locale: string; resource: string }>;
+  searchParams: Promise<{ menu?: string; page?: string }>;
 };
 
 export async function generateMetadata(props: PageProps): Promise<Metadata> {
@@ -38,6 +45,7 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
  */
 export default async function AdminCatalogResourceIndexPage(props: PageProps) {
   const { locale, resource } = await props.params;
+  const searchParams = await props.searchParams;
   setRequestLocale(locale);
 
   const def = tryGetCatalogDefinition(resource);
@@ -45,8 +53,18 @@ export default async function AdminCatalogResourceIndexPage(props: PageProps) {
     notFound();
   }
 
+  const scopedList = await catalogScopedListState({
+    resourceId: resource,
+    searchParams,
+  });
   const handlers = getCatalogServerHandlers(resource);
-  const rows = await handlers.list({ locale });
+  const rows =
+    scopedList && scopedList.selectedValue === ''
+      ? []
+      : await handlers.list({
+          locale,
+          ...catalogListOptionsForScope(scopedList),
+        });
 
   const t = await getTranslations({
     locale,
@@ -63,7 +81,10 @@ export default async function AdminCatalogResourceIndexPage(props: PageProps) {
         actions={
           def.capabilities.create ? (
             <AdminPrimaryActionLink
-              href={adminCatalogResourceNewPath(resource)}
+              href={catalogScopedCreatePath({
+                basePath: adminCatalogResourceNewPath(resource),
+                state: scopedList,
+              })}
             >
               {tr('action_create')}
             </AdminPrimaryActionLink>
@@ -71,6 +92,16 @@ export default async function AdminCatalogResourceIndexPage(props: PageProps) {
         }
         title={t(def.titleKey)}
       />
+
+      {scopedList ? (
+        <AdminCatalogScopeFilter
+          actionLabel={tr('action_filter')}
+          label={tr(scopedList.definition.labelKey)}
+          options={scopedList.options}
+          queryParamName={scopedList.definition.queryParamName}
+          selectedValue={scopedList.selectedValue}
+        />
+      ) : null}
 
       {resource === 'sailing_classes' ? (
         <AdminSailingClassesGroupedTables
