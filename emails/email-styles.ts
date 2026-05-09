@@ -41,6 +41,19 @@ export const codeBox: React.CSSProperties = {
   textAlign: 'center' as const,
 };
 
+/**
+ * Verifies transactional auth emails only render six-digit OTP codes.
+ *
+ * @param code - OTP code to render in an email template.
+ * @param templateName - Template name used in the error message.
+ * @throws When the code is not exactly six digits.
+ */
+export function assertSixDigitCode(code: string, templateName: string): void {
+  if (!/^\d{6}$/.test(code)) {
+    throw new Error(`${templateName} requires a six-digit code.`);
+  }
+}
+
 /** Muted line below the code (expiry text, support instructions). */
 export const supportFooter: React.CSSProperties = {
   color: '#334155',

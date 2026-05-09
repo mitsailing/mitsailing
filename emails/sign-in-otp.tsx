@@ -1,6 +1,7 @@
 import { Heading, Section, Text } from 'react-email';
 import { EmailLayout } from './email-layout';
 import {
+  assertSixDigitCode,
   codeBox,
   heading,
   paragraph,
@@ -23,12 +24,6 @@ export type SignInOtpEmailCopy = {
   sign_in_otp_subject: string;
 };
 
-function assertSixDigitCode(code: string): void {
-  if (!/^\d{6}$/.test(code)) {
-    throw new Error('SignInOtpEmailTemplate requires a six-digit code.');
-  }
-}
-
 /**
  * Plaintext email OTP for passwordless sign-in.
  *
@@ -36,7 +31,7 @@ function assertSixDigitCode(code: string): void {
  * @returns Plaintext email body.
  */
 export function SignInOtpEmailPlaintext(props: SignInOtpEmailProps): string {
-  assertSixDigitCode(props.code);
+  assertSixDigitCode(props.code, 'SignInOtpEmailTemplate');
 
   return [
     props.copy.sign_in_otp_heading,
@@ -61,7 +56,7 @@ export function SignInOtpEmailPlaintext(props: SignInOtpEmailProps): string {
  * @returns Complete email element tree.
  */
 export function SignInOtpEmailTemplate(props: SignInOtpEmailProps) {
-  assertSixDigitCode(props.code);
+  assertSixDigitCode(props.code, 'SignInOtpEmailTemplate');
 
   return (
     <EmailLayout previewText={props.copy.sign_in_otp_subject}>

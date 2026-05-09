@@ -1,6 +1,7 @@
 import { Heading, Section, Text } from 'react-email';
 import { EmailLayout } from './email-layout';
 import {
+  assertSixDigitCode,
   codeBox,
   heading,
   paragraph,
@@ -28,6 +29,8 @@ export type PasswordResetEmailCopy = {
  * @returns Complete email element tree.
  */
 export function PasswordResetEmailTemplate(props: PasswordResetEmailProps) {
+  assertSixDigitCode(props.code, 'PasswordResetEmailTemplate');
+
   return (
     <EmailLayout previewText={props.copy.reset_password_subject}>
       <Section style={section}>

@@ -1,6 +1,7 @@
 import { Heading, Link, Section, Text } from 'react-email';
 import { EmailLayout } from './email-layout';
 import {
+  assertSixDigitCode,
   codeBox,
   heading,
   paragraph,
@@ -24,6 +25,8 @@ export type ConfirmEmailChangeProps = {
  * @returns Complete email element tree.
  */
 export function ConfirmEmailChangeTemplate(props: ConfirmEmailChangeProps) {
+  assertSixDigitCode(props.code, 'ConfirmEmailChangeTemplate');
+
   return (
     <EmailLayout previewText="Confirm your new email address">
       <Section style={section}>

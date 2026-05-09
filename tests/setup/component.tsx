@@ -42,12 +42,15 @@ function interpolate(message: string, values: TranslationValues = {}): string {
 }
 
 function renderRich(message: string, values: TranslationValues = {}) {
-  function parseNodes(endTag?: string): {
+  function parseNodes(
+    startIndex = 0,
+    endTag?: string
+  ): {
     index: number;
     nodes: React.ReactNode[];
   } {
     const nodes: React.ReactNode[] = [];
-    let index = 0;
+    let index = startIndex;
 
     while (index < message.length) {
       const nextTagIndex = message.indexOf('<', index);
@@ -83,7 +86,7 @@ function renderRich(message: string, values: TranslationValues = {}) {
 
       const tag = openMatch[1] ?? '';
       const innerStart = nextTagIndex + openMatch[0].length;
-      const inner = parseNodes(tag);
+      const inner = parseNodes(innerStart, tag);
       const renderer = values[tag];
       nodes.push(
         typeof renderer === 'function'
@@ -96,7 +99,7 @@ function renderRich(message: string, values: TranslationValues = {}) {
     return { index, nodes };
   }
 
-  return React.createElement(React.Fragment, null, ...parseNodes().nodes);
+  return React.createElement(React.Fragment, null, ...parseNodes(0).nodes);
 }
 
 function createTranslator(namespace: string) {

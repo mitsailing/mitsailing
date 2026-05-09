@@ -137,6 +137,15 @@ describe('email templates', () => {
     expect(html).toContain('If you did not request this');
   });
 
+  it('rejects malformed password reset codes', () => {
+    expect(() =>
+      PasswordResetEmailTemplate({
+        code: '65432',
+        copy: enMessages.AuthEmails,
+      })
+    ).toThrow('PasswordResetEmailTemplate requires a six-digit code.');
+  });
+
   it('renders email change confirmation content for the new address', async () => {
     const html = await render(
       <ConfirmEmailChangeTemplate code="987654" supportEmail={SUPPORT_EMAIL} />
@@ -146,6 +155,15 @@ describe('email templates', () => {
     expect(html).toContain('987654');
     expect(html).toContain('new login email');
     expect(html).toContain(`mailto:${SUPPORT_EMAIL}`);
+  });
+
+  it('rejects malformed email change confirmation codes', () => {
+    expect(() =>
+      ConfirmEmailChangeTemplate({
+        code: '98765a',
+        supportEmail: SUPPORT_EMAIL,
+      })
+    ).toThrow('ConfirmEmailChangeTemplate requires a six-digit code.');
   });
 
   it('renders email change requested notice for the current address', async () => {

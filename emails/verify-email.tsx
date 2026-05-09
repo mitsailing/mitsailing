@@ -1,6 +1,7 @@
 import { Heading, Section, Text } from 'react-email';
 import { EmailLayout } from './email-layout';
 import {
+  assertSixDigitCode,
   codeBox,
   heading,
   paragraph,
@@ -23,12 +24,6 @@ export type VerifyEmailCopy = {
   verify_subject: string;
 };
 
-function assertSixDigitCode(code: string): void {
-  if (!/^\d{6}$/.test(code)) {
-    throw new Error('VerifyEmailTemplate requires a six-digit code.');
-  }
-}
-
 /**
  * Sign-up email confirmation with a short-lived numeric code.
  *
@@ -39,7 +34,7 @@ function assertSixDigitCode(code: string): void {
  * @returns Complete email element tree.
  */
 export function VerifyEmailTemplate(props: VerifyEmailProps) {
-  assertSixDigitCode(props.code);
+  assertSixDigitCode(props.code, 'VerifyEmailTemplate');
 
   return (
     <EmailLayout previewText={props.copy.verify_subject}>
