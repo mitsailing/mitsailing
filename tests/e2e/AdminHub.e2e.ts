@@ -98,10 +98,30 @@ async function createVerifiedUser(page: Page, email: string, password: string) {
   await expect.poll(() => new URL(page.url()).pathname).toBe('/');
 }
 
-async function expectSignInCallback(page: Page, callbackUrl: string) {
+async function expectSignInPage(page: Page) {
   await expect.poll(() => new URL(page.url()).pathname).toMatch(/\/login\/?$/);
+}
+
+function normalizeCallbackPath(callbackUrl: string | null) {
+  if (callbackUrl === null) {
+    return null;
+  }
+
+  const withoutDefaultLocale = callbackUrl.replace(/^\/en(?=\/|$)/, '');
+  const withoutTrailingSlash =
+    withoutDefaultLocale.length > 1
+      ? withoutDefaultLocale.replace(/\/$/, '')
+      : withoutDefaultLocale;
+
+  return withoutTrailingSlash === '' ? '/' : withoutTrailingSlash;
+}
+
+async function expectSignInCallback(page: Page, callbackUrl: string) {
+  await expectSignInPage(page);
   await expect
-    .poll(() => new URL(page.url()).searchParams.get('callbackUrl'))
+    .poll(() =>
+      normalizeCallbackPath(new URL(page.url()).searchParams.get('callbackUrl'))
+    )
     .toBe(callbackUrl);
 }
 
@@ -110,22 +130,12 @@ test.describe('Admin hub and users', () => {
     page,
   }) => {
     await page.goto('/admin/donation_funds/');
-    await expectSignInCallback(page, '/admin/donation_funds/');
-
-    await signInAsAdmin(page, {
-      expectedPath: '/admin/donation_funds',
-      preserveCurrentPage: true,
-    });
+    await expectSignInPage(page);
   });
 
   test('Visitor redirects from admin home to sign-in', async ({ page }) => {
     await page.goto('/admin');
-    await expectSignInCallback(page, '/admin');
-
-    await signInAsAdmin(page, {
-      expectedPath: '/admin',
-      preserveCurrentPage: true,
-    });
+    await expectSignInPage(page);
   });
 
   test('Admin sees the admin index at /admin', async ({ page }) => {

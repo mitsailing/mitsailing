@@ -1,0 +1,114 @@
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const notFound = vi.fn(() => {
+  throw new Error('not_found');
+});
+
+const hasLocale = vi.fn((_locales: readonly string[], _locale: string) => true);
+
+const themeHooks = vi.hoisted(() => ({
+  getDefaultThemeForRootLayout: vi.fn(
+    (): 'system' | 'light' | 'dark' => 'system'
+  ),
+}));
+
+vi.mock('next/navigation', () => ({
+  notFound,
+}));
+
+vi.mock('next-intl', () => ({
+  hasLocale: (locales: readonly string[], locale: string): boolean =>
+    Boolean(hasLocale(locales, locale)),
+  NextIntlClientProvider: (props: { children: React.ReactNode }) => (
+    <div data-testid="intl">{props.children}</div>
+  ),
+}));
+
+vi.mock('next-intl/server', () => ({
+  setRequestLocale: vi.fn(),
+}));
+
+vi.mock('@/libs/theme-layout', () => ({
+  getDefaultThemeForRootLayout: themeHooks.getDefaultThemeForRootLayout,
+}));
+
+vi.mock('@/libs/Env', () => ({
+  Env: { NEXT_PUBLIC_APP_URL: 'http://localhost:3008' },
+}));
+
+vi.mock('@/components/shell/AppThemeProvider', () => ({
+  AppThemeProvider: (props: { children: React.ReactNode }) => (
+    <div data-testid="theme">{props.children}</div>
+  ),
+}));
+
+vi.mock('@/components/shell/SentryUserSync', () => ({
+  SentryUserSync: () => null,
+}));
+
+vi.mock('@/utils/AppConfig', () => ({
+  AppConfig: {
+    name: 'Test',
+    i18n: {
+      defaultLocale: 'en',
+      localePrefix: 'as-needed',
+      locales: ['en'],
+    },
+  },
+}));
+
+vi.mock('@/styles/global.css', () => ({}));
+
+describe('RootLayout', () => {
+  beforeEach(() => {
+    hasLocale.mockReset();
+    notFound.mockClear();
+    hasLocale.mockReturnValue(true);
+    themeHooks.getDefaultThemeForRootLayout.mockReset();
+    themeHooks.getDefaultThemeForRootLayout.mockResolvedValue('system');
+  });
+
+  it('calls notFound for unsupported locales', async () => {
+    hasLocale.mockReturnValue(false);
+    const { default: RootLayout } = await import('./layout');
+
+    await expect(
+      RootLayout({
+        children: <span>child</span>,
+        params: Promise.resolve({ locale: 'xx' }),
+      })
+    ).rejects.toThrow('not_found');
+
+    expect(notFound).toHaveBeenCalled();
+  });
+
+  it('renders the html shell for a supported locale', async () => {
+    const { default: RootLayout } = await import('./layout');
+
+    const tree = await RootLayout({
+      children: <span data-testid="child">inner</span>,
+      params: Promise.resolve({ locale: 'en' }),
+    });
+
+    const html = renderToStaticMarkup(tree);
+    expect(html).toContain('data-testid="child"');
+    expect(html).toContain('lang="en"');
+    expect(html).toContain('theme-boot');
+    expect(notFound).not.toHaveBeenCalled();
+  });
+
+  it('sets the dark class on html when the default theme is dark', async () => {
+    themeHooks.getDefaultThemeForRootLayout.mockResolvedValue('dark');
+    const { default: RootLayout } = await import('./layout');
+
+    const tree = await RootLayout({
+      children: <span>child</span>,
+      params: Promise.resolve({ locale: 'en' }),
+    });
+
+    const html = renderToStaticMarkup(tree);
+    expect(html).toContain('class="dark"');
+  });
+});
