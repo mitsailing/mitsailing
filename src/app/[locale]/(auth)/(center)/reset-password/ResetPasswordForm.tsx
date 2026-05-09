@@ -6,8 +6,11 @@ import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { authInlineLinkClassName } from '@/lib/mit-sailing/tokens';
 import { authClient } from '@/libs/auth-client';
+import { authHrefWithCallback } from '@/libs/auth/callbackUrl';
 import { reportUnknownAuthClientError } from '@/libs/auth/reportAuthClientError';
+import { Link as I18nLink } from '@/libs/I18nNavigation';
 import {
   isValidMarketingEmail,
   normalizeMarketingEmail,
@@ -33,11 +36,13 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [autoSignInFailed, setAutoSignInFailed] = useState(false);
   const [resending, setResending] = useState(false);
   const [resendLocked, setResendLocked] = useState(
     props.initialResendLocked ?? false
   );
   const resendTimeoutRef = useRef<number | null>(null);
+  const resendInFlightRef = useRef(false);
 
   function mapError(options: {
     action: string;
@@ -114,6 +119,7 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
       return;
     }
     setSubmitting(true);
+    setAutoSignInFailed(false);
     try {
       const res = await authClient.emailOtp.checkVerificationOtp({
         email: normalizedEmail,
@@ -140,6 +146,9 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
   }
 
   async function onResendCode() {
+    if (resendInFlightRef.current || resendLocked) {
+      return;
+    }
     setError(null);
     setStatus(null);
     const normalizedEmail = normalizeMarketingEmail(email);
@@ -148,6 +157,7 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
       setError(t('error_invalid_email'));
       return;
     }
+    resendInFlightRef.current = true;
     setResending(true);
     try {
       const res = await authClient.emailOtp.requestPasswordReset({
@@ -169,6 +179,7 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
     } catch {
       setError(t('error_resend_failed'));
     } finally {
+      resendInFlightRef.current = false;
       setResending(false);
     }
   }
@@ -222,6 +233,8 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
           message: signInRes.error.message,
           action: 'reset-password.auto-sign-in',
         });
+        setAutoSignInFailed(true);
+        return;
       }
       router.push(props.callbackUrl);
       router.refresh();
@@ -396,6 +409,18 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
           </Button>
         </form>
       )}
+
+      {autoSignInFailed ? (
+        <p className="text-center text-sm text-mit-text">
+          {t('auto_sign_in_failed')}{' '}
+          <I18nLink
+            className={authInlineLinkClassName}
+            href={authHrefWithCallback('/login', props.callbackUrl)}
+          >
+            {t('back_sign_in')}
+          </I18nLink>
+        </p>
+      ) : null}
     </section>
   );
 }

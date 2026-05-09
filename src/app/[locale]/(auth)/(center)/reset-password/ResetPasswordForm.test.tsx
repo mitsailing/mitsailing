@@ -313,18 +313,14 @@ describe('ResetPasswordForm', () => {
     it('Visitor keeps the latest reset resend cooldown', async () => {
       vi.useFakeTimers();
       const clearTimeoutSpy = vi.spyOn(window, 'clearTimeout');
-      const firstResend = Promise.withResolvers<object>();
-      const secondResend = Promise.withResolvers<object>();
-      authClientMock.emailOtp.requestPasswordReset
-        .mockImplementationOnce(async () => {
-          const value = await firstResend.promise;
+      const resend = Promise.withResolvers<object>();
+      authClientMock.emailOtp.requestPasswordReset.mockImplementation(
+        async () => {
+          const value = await resend.promise;
           return value;
-        })
-        .mockImplementationOnce(async () => {
-          const value = await secondResend.promise;
-          return value;
-        });
-      renderResetPasswordForm();
+        }
+      );
+      const { unmount } = renderResetPasswordForm();
 
       const resendButton = screen.getByRole('button', { name: 'Resend email' });
       act(() => {
@@ -334,23 +330,22 @@ describe('ResetPasswordForm', () => {
 
       expect(
         authClientMock.emailOtp.requestPasswordReset
-      ).toHaveBeenCalledTimes(2);
+      ).toHaveBeenCalledTimes(1);
 
       await act(async () => {
-        firstResend.resolve({});
-        await Promise.resolve();
-      });
-      await act(async () => {
-        secondResend.resolve({});
+        resend.resolve({});
         await Promise.resolve();
       });
 
-      expect(clearTimeoutSpy).toHaveBeenCalled();
       expect(
         screen.getByRole('button', {
           name: 'You can request a new code in 30 seconds',
         })
       ).toBeDisabled();
+
+      unmount();
+
+      expect(clearTimeoutSpy).toHaveBeenCalled();
       clearTimeoutSpy.mockRestore();
     });
 
@@ -609,7 +604,10 @@ describe('ResetPasswordForm', () => {
             }),
           })
         );
-        expect(componentTestRouter().push).toHaveBeenCalledWith('/fleet/');
+        expect(componentTestRouter().push).not.toHaveBeenCalled();
+        expect(
+          screen.getByRole('link', { name: 'Back to sign in' })
+        ).toBeInTheDocument();
       });
     });
   });

@@ -172,6 +172,7 @@ export function SignInForm(props: SignInFormProps) {
       );
     } catch {
       setError({ kind: 'generic', message: t('error_reset_failed') });
+    } finally {
       setRequestingReset(false);
     }
   }

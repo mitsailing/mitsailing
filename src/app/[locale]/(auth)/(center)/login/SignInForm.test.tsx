@@ -42,6 +42,7 @@ describe('SignInForm', () => {
     });
     expect(componentTestRouter().push).toHaveBeenCalledWith('/fleet/');
     expect(componentTestRouter().refresh).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Sign in' })).not.toBeDisabled();
   });
 
   it('Visitor sees a safe error before submitting an invalid email', async () => {
@@ -334,6 +335,23 @@ describe('SignInForm', () => {
     });
     expect(componentTestRouter().push).toHaveBeenCalledWith(
       '/reset-password?email=reset%40mit.edu&codeSent=1&callbackUrl=%2Ffleet%2F'
+    );
+    expect(
+      screen.getByRole('link', { name: 'Forgot password?' })
+    ).toHaveAttribute('aria-disabled', 'false');
+  });
+
+  it('Visitor retries inline reset after successful navigation stays mounted', async () => {
+    const user = userEvent.setup();
+
+    render(<SignInForm callbackUrl="/fleet/" />);
+
+    await user.type(screen.getByLabelText('Email'), 'reset@mit.edu');
+    await user.click(screen.getByRole('link', { name: 'Forgot password?' }));
+    await user.click(screen.getByRole('link', { name: 'Forgot password?' }));
+
+    expect(authClientMock.emailOtp.requestPasswordReset).toHaveBeenCalledTimes(
+      2
     );
   });
 
