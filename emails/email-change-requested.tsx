@@ -1,7 +1,7 @@
 import type * as React from 'react';
-import { Heading, Link, Section, Text } from 'react-email';
+import { Heading, Section, Text } from 'react-email';
 import { EmailLayout } from './email-layout';
-import { supportLink } from './email-styles';
+import { supportMessage } from './email-styles';
 
 const section: React.CSSProperties = {
   padding: '32px 28px',
@@ -30,13 +30,6 @@ export type EmailChangeRequestedNoticeTemplateProps = {
   supportEmail: string;
 };
 
-function replaceAuthEmailValues(
-  message: string,
-  values: { email: string }
-): string {
-  return message.replaceAll('{email}', values.email);
-}
-
 function strongEmailMessage(props: {
   message: string;
   newEmail: string;
@@ -47,26 +40,6 @@ function strongEmailMessage(props: {
       {beforeEmail}
       <strong>{props.newEmail}</strong>
       {afterEmail}
-    </>
-  );
-}
-
-function supportMessage(props: {
-  message: string;
-  supportEmail: string;
-}): React.ReactNode {
-  const [beforeSupport = '', rest] = props.message.split('<support>');
-  if (!rest) {
-    return replaceAuthEmailValues(props.message, { email: props.supportEmail });
-  }
-  const [supportText = '', afterSupport = ''] = rest.split('</support>');
-  return (
-    <>
-      {replaceAuthEmailValues(beforeSupport, { email: props.supportEmail })}
-      <Link href={`mailto:${props.supportEmail}`} style={supportLink}>
-        {replaceAuthEmailValues(supportText, { email: props.supportEmail })}
-      </Link>
-      {replaceAuthEmailValues(afterSupport, { email: props.supportEmail })}
     </>
   );
 }

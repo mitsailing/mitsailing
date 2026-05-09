@@ -1,13 +1,13 @@
-import type * as React from 'react';
-import { Heading, Link, Section, Text } from 'react-email';
+import { Heading, Section, Text } from 'react-email';
 import { EmailLayout } from './email-layout';
 import {
   codeBox,
   heading,
   paragraph,
+  replaceAuthEmailValues,
   section,
   supportFooter,
-  supportLink,
+  supportMessage,
 } from './email-styles';
 
 export type SignInOtpEmailProps = {
@@ -23,15 +23,6 @@ export type SignInOtpEmailCopy = {
   sign_in_otp_subject: string;
 };
 
-function replaceAuthEmailValues(
-  message: string,
-  values: { code?: string; email?: string }
-): string {
-  return message
-    .replaceAll('{code}', values.code ?? '')
-    .replaceAll('{email}', values.email ?? '');
-}
-
 function signInOtpBody(props: {
   code: string;
   copy: SignInOtpEmailCopy;
@@ -39,26 +30,6 @@ function signInOtpBody(props: {
   return replaceAuthEmailValues(props.copy.sign_in_otp_body, {
     code: props.code,
   });
-}
-
-function supportMessage(props: {
-  message: string;
-  supportEmail: string;
-}): React.ReactNode {
-  const [beforeSupport = '', rest] = props.message.split('<support>');
-  if (!rest) {
-    return replaceAuthEmailValues(props.message, { email: props.supportEmail });
-  }
-  const [supportText = '', afterSupport = ''] = rest.split('</support>');
-  return (
-    <>
-      {replaceAuthEmailValues(beforeSupport, { email: props.supportEmail })}
-      <Link href={`mailto:${props.supportEmail}`} style={supportLink}>
-        {replaceAuthEmailValues(supportText, { email: props.supportEmail })}
-      </Link>
-      {replaceAuthEmailValues(afterSupport, { email: props.supportEmail })}
-    </>
-  );
 }
 
 /**

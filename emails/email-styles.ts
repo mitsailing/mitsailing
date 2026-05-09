@@ -1,4 +1,5 @@
-import type * as React from 'react';
+import * as React from 'react';
+import { Link } from 'react-email';
 
 /**
  * Shared inline styles for OTP / verification-family transactional emails
@@ -47,3 +48,35 @@ export const supportFooter: React.CSSProperties = {
 export const supportLink: React.CSSProperties = {
   color: '#2563eb',
 };
+
+export function replaceAuthEmailValues(
+  message: string,
+  values: { code?: string; email?: string }
+): string {
+  return message
+    .replaceAll('{code}', values.code ?? '')
+    .replaceAll('{email}', values.email ?? '');
+}
+
+export function supportMessage(props: {
+  message: string;
+  supportEmail: string;
+}): React.ReactNode {
+  const [beforeSupport = '', rest] = props.message.split('<support>');
+  if (!rest) {
+    return replaceAuthEmailValues(props.message, { email: props.supportEmail });
+  }
+  const [supportText = '', afterSupport = ''] = rest.split('</support>');
+
+  return React.createElement(
+    React.Fragment,
+    null,
+    replaceAuthEmailValues(beforeSupport, { email: props.supportEmail }),
+    React.createElement(
+      Link,
+      { href: `mailto:${props.supportEmail}`, style: supportLink },
+      replaceAuthEmailValues(supportText, { email: props.supportEmail })
+    ),
+    replaceAuthEmailValues(afterSupport, { email: props.supportEmail })
+  );
+}
