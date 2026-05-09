@@ -191,6 +191,7 @@ describe('account email notices', () => {
   it('security-notice persona receives a change-request notice at the current email', async () => {
     const { sendTransactionalEmail } =
       await import('@/libs/email/sendTransactional');
+    const { Env } = await import('@/libs/Env');
     const { sendEmailChangeRequestedNotice } =
       await import('@/libs/email/account-emails');
 
@@ -205,7 +206,7 @@ describe('account email notices', () => {
     expect(payload?.subject).toMatch(/email change requested/i);
     expect(payload?.html).toContain('next@example.com');
     expect(payload?.text).toContain('next@example.com');
-    expect(payload?.text).toContain('support@mitsailing.com');
+    expect(payload?.text).toContain(Env.SUPPORT_EMAIL);
   });
 
   it('security-notice persona receives the delete-account confirmation email', async () => {
