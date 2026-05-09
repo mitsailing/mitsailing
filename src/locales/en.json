@@ -1,6 +1,6 @@
 {
   "Common": {
-    "resend_wait": "You can request a new code in 30 seconds"
+    "resend_wait": "You can request a new code in {seconds}"
   },
   "MitSailingHome": {
     "meta_title": "MIT Sailing",
@@ -201,7 +201,7 @@
     "code_label": "Verification code",
     "code_placeholder": "Code",
     "submit": "Continue",
-    "resend_email": "Resend email",
+    "resend_email": "Resend code",
     "resent_banner": "We sent a new verification code.",
     "error_invalid_code": "That code is invalid.",
     "error_expired": "That code expired.",
@@ -244,7 +244,7 @@
     "password_hint": "At least 8 characters.",
     "continue": "Continue",
     "submit": "Update password",
-    "resend_email": "Resend email",
+    "resend_email": "Resend code",
     "resent_banner": "We sent a new reset code.",
     "error_resend_failed": "We could not send a reset code.",
     "error_validation": "Check your password.",

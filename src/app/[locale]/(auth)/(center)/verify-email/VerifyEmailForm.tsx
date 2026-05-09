@@ -41,7 +41,9 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
   const [resendLocked, setResendLocked] = useState(
     props.initialResendLocked ?? false
   );
+  const [resendSecondsLeft, setResendSecondsLeft] = useState(30);
   const resendTimeoutRef = useRef<number | null>(null);
+  const resendIntervalRef = useRef<number | null>(null);
 
   function mapError(
     codeValue: string | undefined,
@@ -73,10 +75,31 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
       clearTimeout(resendTimeoutRef.current);
       resendTimeoutRef.current = null;
     }
+    if (resendIntervalRef.current !== null) {
+      clearInterval(resendIntervalRef.current);
+      resendIntervalRef.current = null;
+    }
     setResendLocked(true);
+    setResendSecondsLeft(30);
+    resendIntervalRef.current = window.setInterval(() => {
+      setResendSecondsLeft((prev) => {
+        if (prev <= 1) {
+          if (resendIntervalRef.current !== null) {
+            clearInterval(resendIntervalRef.current);
+            resendIntervalRef.current = null;
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
     resendTimeoutRef.current = window.setTimeout(() => {
       setResendLocked(false);
       resendTimeoutRef.current = null;
+      if (resendIntervalRef.current !== null) {
+        clearInterval(resendIntervalRef.current);
+        resendIntervalRef.current = null;
+      }
     }, 30_000);
   }
 
@@ -88,6 +111,10 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
         clearTimeout(resendTimeoutRef.current);
         resendTimeoutRef.current = null;
       }
+      if (resendIntervalRef.current !== null) {
+        clearInterval(resendIntervalRef.current);
+        resendIntervalRef.current = null;
+      }
       setResendLocked(false);
     }
 
@@ -95,6 +122,10 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
       if (resendTimeoutRef.current !== null) {
         clearTimeout(resendTimeoutRef.current);
         resendTimeoutRef.current = null;
+      }
+      if (resendIntervalRef.current !== null) {
+        clearInterval(resendIntervalRef.current);
+        resendIntervalRef.current = null;
       }
     };
   }, [props.initialResendLocked]);
@@ -250,7 +281,14 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
         type="button"
         variant="link"
       >
-        {resendLocked ? tCommon('resend_wait') : t('resend_email')}
+        {resendLocked
+          ? tCommon('resend_wait', {
+              seconds:
+                resendSecondsLeft === 1
+                  ? '1 second'
+                  : `${resendSecondsLeft} seconds`,
+            })
+          : t('resend_email')}
       </Button>
     </section>
   );

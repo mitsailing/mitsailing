@@ -47,18 +47,41 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
   const [confirmingEmail, setConfirmingEmail] = useState(false);
   const [resendingEmail, setResendingEmail] = useState(false);
   const [resendLocked, setResendLocked] = useState(false);
+  const [resendSecondsLeft, setResendSecondsLeft] = useState(30);
   const [updatingName, setUpdatingName] = useState(false);
   const resendTimerRef = useRef<number | null>(null);
+  const resendIntervalRef = useRef<number | null>(null);
 
   function lockEmailResend() {
     if (resendTimerRef.current !== null) {
       clearTimeout(resendTimerRef.current);
       resendTimerRef.current = null;
     }
+    if (resendIntervalRef.current !== null) {
+      clearInterval(resendIntervalRef.current);
+      resendIntervalRef.current = null;
+    }
     setResendLocked(true);
+    setResendSecondsLeft(30);
+    resendIntervalRef.current = window.setInterval(() => {
+      setResendSecondsLeft((prev) => {
+        if (prev <= 1) {
+          if (resendIntervalRef.current !== null) {
+            clearInterval(resendIntervalRef.current);
+            resendIntervalRef.current = null;
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
     resendTimerRef.current = window.setTimeout(() => {
       setResendLocked(false);
       resendTimerRef.current = null;
+      if (resendIntervalRef.current !== null) {
+        clearInterval(resendIntervalRef.current);
+        resendIntervalRef.current = null;
+      }
     }, 30_000);
   }
 
@@ -67,6 +90,10 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
       if (resendTimerRef.current !== null) {
         clearTimeout(resendTimerRef.current);
         resendTimerRef.current = null;
+      }
+      if (resendIntervalRef.current !== null) {
+        clearInterval(resendIntervalRef.current);
+        resendIntervalRef.current = null;
       }
     },
     []
@@ -298,7 +325,12 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
                     variant="link"
                   >
                     {resendLocked
-                      ? tCommon('resend_wait')
+                      ? tCommon('resend_wait', {
+                          seconds:
+                            resendSecondsLeft === 1
+                              ? '1 second'
+                              : `${resendSecondsLeft} seconds`,
+                        })
                       : t('pending_email_resend')}
                   </Button>
                   <span className="text-amber-800">

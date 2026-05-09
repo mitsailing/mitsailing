@@ -46,7 +46,9 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
   const [resendLocked, setResendLocked] = useState(
     props.initialResendLocked ?? false
   );
+  const [resendSecondsLeft, setResendSecondsLeft] = useState(30);
   const resendTimeoutRef = useRef<number | null>(null);
+  const resendIntervalRef = useRef<number | null>(null);
   const resendInFlightRef = useRef(false);
 
   function mapError(options: {
@@ -93,10 +95,31 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
       clearTimeout(resendTimeoutRef.current);
       resendTimeoutRef.current = null;
     }
+    if (resendIntervalRef.current !== null) {
+      clearInterval(resendIntervalRef.current);
+      resendIntervalRef.current = null;
+    }
     setResendLocked(true);
+    setResendSecondsLeft(30);
+    resendIntervalRef.current = window.setInterval(() => {
+      setResendSecondsLeft((prev) => {
+        if (prev <= 1) {
+          if (resendIntervalRef.current !== null) {
+            clearInterval(resendIntervalRef.current);
+            resendIntervalRef.current = null;
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
     resendTimeoutRef.current = window.setTimeout(() => {
       setResendLocked(false);
       resendTimeoutRef.current = null;
+      if (resendIntervalRef.current !== null) {
+        clearInterval(resendIntervalRef.current);
+        resendIntervalRef.current = null;
+      }
     }, 30_000);
   }
 
@@ -113,6 +136,10 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
       if (resendTimeoutRef.current !== null) {
         clearTimeout(resendTimeoutRef.current);
         resendTimeoutRef.current = null;
+      }
+      if (resendIntervalRef.current !== null) {
+        clearInterval(resendIntervalRef.current);
+        resendIntervalRef.current = null;
       }
     };
   }, [props.initialResendLocked]);
@@ -379,7 +406,14 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
             type="button"
             variant="link"
           >
-            {resendLocked ? tCommon('resend_wait') : t('resend_email')}
+            {resendLocked
+              ? tCommon('resend_wait', {
+                  seconds:
+                    resendSecondsLeft === 1
+                      ? '1 second'
+                      : `${resendSecondsLeft} seconds`,
+                })
+              : t('resend_email')}
           </Button>
         </>
       ) : (
