@@ -77,6 +77,7 @@ export const Env = createEnv({
   createFinalSchema: (shape) =>
     z.object(shape).superRefine((env, ctx) => {
       if (
+        env.NEXT_PUBLIC_IS_E2E !== '1' &&
         env.TEST_DATABASE_URL !== undefined &&
         env.TEST_DATABASE_URL === env.DATABASE_URL
       ) {

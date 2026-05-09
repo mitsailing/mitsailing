@@ -27,18 +27,20 @@ const e2eDb =
 const e2ePort = process.env.PLAYWRIGHT_E2E_PORT ?? '3008';
 const e2eAppUrl =
   process.env.NEXT_PUBLIC_APP_URL ?? `http://localhost:${e2ePort}`;
+const buildEnv = {
+  ...process.env,
+  DATABASE_URL: e2eDb,
+  TEST_DATABASE_URL: '',
+  NEXT_PUBLIC_IS_E2E: '1',
+  // Match playwright webServer; keeps build-time client env aligned with e2e runs.
+  NEXT_PUBLIC_SENTRY_DISABLED: 'true',
+  NEXT_PUBLIC_APP_URL: e2eAppUrl,
+};
 
 const result = spawnSync('npx', ['next', 'build'], {
   stdio: 'inherit',
   cwd: path.join(__dirname, '..'),
-  env: {
-    ...process.env,
-    DATABASE_URL: e2eDb,
-    NEXT_PUBLIC_IS_E2E: '1',
-    // Match playwright webServer; keeps build-time client env aligned with e2e runs.
-    NEXT_PUBLIC_SENTRY_DISABLED: 'true',
-    NEXT_PUBLIC_APP_URL: e2eAppUrl,
-  },
+  env: buildEnv,
 });
 
 process.exit(result.status ?? 1);

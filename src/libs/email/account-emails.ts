@@ -49,7 +49,7 @@ function assertEmailOtpCode(otp: string): void {
 function verificationCodeText(params: {
   code: string;
   copy: AuthEmailMessages;
-  purpose: 'verify-email' | 'reset-password' | 'change-email' | 'sign-in';
+  purpose: 'verify-email' | 'reset-password' | 'change-email';
 }): string {
   if (params.purpose === 'reset-password') {
     return replaceAuthEmailValues(params.copy.reset_password_text, {
@@ -59,12 +59,6 @@ function verificationCodeText(params: {
 
   if (params.purpose === 'change-email') {
     return replaceAuthEmailValues(params.copy.change_email_text, {
-      code: params.code,
-    });
-  }
-
-  if (params.purpose === 'sign-in') {
-    return replaceAuthEmailValues(params.copy.sign_in_otp_text, {
       code: params.code,
     });
   }
