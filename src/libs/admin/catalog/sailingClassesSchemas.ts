@@ -15,6 +15,12 @@ export const sailingClassFormSchema = z.object({
   classCategoryId: z.string().trim().min(1),
   level: z.string().trim().min(1),
   description: z.string(),
+  imagePaths: z.string().transform((raw) =>
+    raw
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+  ),
   isVisible: z.boolean(),
 });
 
@@ -36,6 +42,7 @@ export function rawSailingClassFromFormData(
     classCategoryId: formData.get('classCategoryId'),
     level: formData.get('level'),
     description: formData.get('description') ?? '',
+    imagePaths: formData.get('imagePaths') ?? '',
     isVisible,
   };
 }

@@ -8,6 +8,11 @@ import {
   footerNavSectionHeadingClassName,
 } from '@/lib/mit-sailing/tokens';
 import { Link } from '@/libs/I18nNavigation';
+import {
+  externalCmsLinkProps,
+  isAppRelativeCmsHref,
+  safeCmsHref,
+} from '@/libs/mit-sailing/cmsHref';
 import { loadCmsMenu } from '@/libs/mit-sailing/cmsQueries';
 import { FooterSocialStrip } from './FooterSocialStrip';
 
@@ -17,15 +22,19 @@ function FooterMaybeInternalLink(props: {
   isExternal: boolean;
   children: React.ReactNode;
 }) {
-  if (!props.isExternal && props.href.startsWith('/')) {
+  const href = safeCmsHref(props.href);
+  if (!href) {
+    return null;
+  }
+  if (!props.isExternal && isAppRelativeCmsHref(href)) {
     return (
-      <Link className={props.className} href={props.href}>
+      <Link className={props.className} href={href}>
         {props.children}
       </Link>
     );
   }
   return (
-    <a className={props.className} href={props.href}>
+    <a className={props.className} href={href} {...externalCmsLinkProps(href)}>
       {props.children}
     </a>
   );
@@ -93,9 +102,9 @@ export async function SiteFooter() {
                 {col.label}
               </h4>
               <ul className="space-y-4">
-                {col.children.map((link) => (
-                  <li key={link.id}>
-                    {link.href ? (
+                {col.children.map((link) =>
+                  link.href ? (
+                    <li key={link.id}>
                       <FooterMaybeInternalLink
                         className={`${footerLinkClassName} ${footerNavLinkClassName} no-underline`}
                         href={link.href}
@@ -103,9 +112,9 @@ export async function SiteFooter() {
                       >
                         {link.label}
                       </FooterMaybeInternalLink>
-                    ) : null}
-                  </li>
-                ))}
+                    </li>
+                  ) : null
+                )}
               </ul>
             </div>
           ))}

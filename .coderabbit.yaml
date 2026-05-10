@@ -52,6 +52,17 @@ reviews:
         to `get(...) === "true"` where forms render a hidden `false` input before
         the checkbox; direct `get` reads the hidden fallback and breaks checked
         browser payloads.
+        CMS seed files are editorial bootstrap content, not component UI copy;
+        do not request replacing seed titles, body copy, labels, or addresses
+        with next-intl keys unless the render path has been explicitly changed
+        to store translation keys instead of CMS content.
+        CMS media routes are public by design because published page content
+        references them directly; flag unsafe path traversal, MIME, cache, or
+        storage bugs there, but do not request authentication solely because the
+        file is served from `/cms-media/...`.
+        `readCmsMediaFile` returns a Node Buffer while NextResponse's installed
+        Next 16 typings accept BodyInit; keep the explicit Uint8Array body
+        conversion unless local typings prove Buffer is assignable without casts.
         Sentry and the configured app log sinks are approved telemetry
         subprocessors under the service agreement: readable user IDs, emails,
         and auth diagnostic context are intentional in auth diagnostics. Do not
@@ -79,7 +90,10 @@ reviews:
     - path: 'prisma/**'
       instructions: >-
         Validate Prisma schema and migrations for naming consistency, safe evolves,
-        and relation integrity; align with project migration practices.
+        and relation integrity; align with project migration practices. CMS media
+        uploads are capped by application validation at 10 MiB, so `byte_size`
+        using an integer is intentional unless the upload cap or storage contract
+        changes.
     - path: '.github/workflows/**'
       instructions: >-
         Check workflows for CI best practices, secrets handling, and consistency with

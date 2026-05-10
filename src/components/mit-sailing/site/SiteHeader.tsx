@@ -16,6 +16,11 @@ import {
   safeAuthCallbackUrl,
 } from '@/libs/auth/callbackUrl';
 import { Link, usePathname } from '@/libs/I18nNavigation';
+import {
+  externalCmsLinkProps,
+  isAppRelativeCmsHref,
+  safeCmsHref,
+} from '@/libs/mit-sailing/cmsHref';
 import type { NavigationDropdownItem } from './NavigationDropdown';
 import { NavigationDropdown } from './NavigationDropdown';
 import { SiteBrandWordmarkTypography } from './SiteBrandWordmarkTypography';
@@ -173,22 +178,18 @@ function PrimaryNavBranch(props: {
   overviewAllLabel: string;
   fleetOverviewLabel: string;
 }) {
-  const { item, variant, flatLinkClass, disclosureEpoch, onNavigate } = props;
-  const listKey =
-    variant === 'mobile'
-      ? `${item.id}-${String(disclosureEpoch ?? 0)}`
-      : item.id;
+  const { item, flatLinkClass, onNavigate, variant } = props;
+  const href = safeCmsHref(item.href) ?? (item.href ? null : '#');
 
-  if (item.href && item.items !== undefined) {
+  if (href && item.items !== undefined) {
     const overviewLabel =
       item.systemKey === 'classes'
         ? props.overviewAllLabel
         : props.fleetOverviewLabel;
     return (
       <NavigationDropdown
-        href={item.href}
+        href={href}
         items={item.items}
-        key={listKey}
         label={item.label}
         overviewLabel={overviewLabel}
         pathname={props.pathname}
@@ -199,18 +200,13 @@ function PrimaryNavBranch(props: {
     );
   }
 
-  if (item.href && !item.isExternal && item.href.startsWith('/')) {
-    const flatActive = isNavLinkActive(
-      props.pathname,
-      props.routeHash,
-      item.href
-    );
+  if (href && !item.isExternal && isAppRelativeCmsHref(href)) {
+    const flatActive = isNavLinkActive(props.pathname, props.routeHash, href);
     return (
       <Link
         aria-current={flatActive ? 'page' : undefined}
         className={flatLinkClass}
-        href={item.href}
-        key={item.id}
+        href={href}
         onClick={onNavigate}
       >
         {item.label}
@@ -218,12 +214,16 @@ function PrimaryNavBranch(props: {
     );
   }
 
+  if (!href) {
+    return null;
+  }
+
   return (
     <a
       className={flatLinkClass}
-      href={item.href ?? '#'}
-      key={item.id}
+      href={href}
       onClick={onNavigate}
+      {...externalCmsLinkProps(href)}
     >
       {item.label}
     </a>
@@ -380,27 +380,32 @@ export function SiteHeader(props: SiteHeaderProps) {
     return (
       <>
         <nav aria-label={primaryNavAria} className="flex flex-col gap-1">
-          {mobileUtilityItems.map((link) =>
-            link.isExternal || !link.href.startsWith('/') ? (
+          {mobileUtilityItems.map((link) => {
+            const href = safeCmsHref(link.href);
+            if (!href) {
+              return null;
+            }
+            return link.isExternal || !isAppRelativeCmsHref(href) ? (
               <a
                 className={mobileLinkClassName}
-                href={link.href}
+                href={href}
                 key={link.id}
                 onClick={closeMobile}
+                {...externalCmsLinkProps(href)}
               >
                 {link.label}
               </a>
             ) : (
               <Link
                 className={mobileLinkClassName}
-                href={link.href}
+                href={href}
                 key={link.id}
                 onClick={closeMobile}
               >
                 {link.label}
               </Link>
-            )
-          )}
+            );
+          })}
           {navItems.map((item) => (
             <PrimaryNavBranch
               disclosureEpoch={mobileDisclosureEpoch}

@@ -1,4 +1,5 @@
 import { prisma } from '@/libs/DB';
+import { plainTextFromCmsRichTextHtml } from '@/libs/mit-sailing/cmsRichText';
 
 /**
  * Featured fleet rows for the home page (stable slug order).
@@ -29,7 +30,11 @@ export async function loadHomeFeaturedFleetBoats(
   const bySlug = new Map(boats.map((b) => [b.slug, b]));
   return orderedSlugs
     .map((slug) => bySlug.get(slug))
-    .filter((b): b is NonNullable<typeof b> => b !== undefined);
+    .filter((b): b is NonNullable<typeof b> => b !== undefined)
+    .map((b) => ({
+      ...b,
+      description: plainTextFromCmsRichTextHtml(b.description),
+    }));
 }
 
 /**
@@ -63,7 +68,7 @@ export async function loadHomeIntroductionClasses() {
     name: r.name,
     slug: r.slug,
     level: r.level,
-    description: r.description,
+    description: plainTextFromCmsRichTextHtml(r.description),
     prerequisiteIds:
       r.prerequisiteEdges[0] === undefined
         ? []
@@ -106,7 +111,7 @@ export async function loadHomeClassesBySlugs(orderedSlugs: readonly string[]) {
       name: r.name,
       slug: r.slug,
       level: r.level,
-      description: r.description,
+      description: plainTextFromCmsRichTextHtml(r.description),
       prerequisiteIds:
         r.prerequisiteEdges[0] === undefined
           ? []

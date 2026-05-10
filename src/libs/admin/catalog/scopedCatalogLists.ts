@@ -96,8 +96,11 @@ export function catalogScopedCreatePath(props: {
     return props.basePath;
   }
 
-  const searchParams = new URLSearchParams({
-    [props.state.definition.queryParamName]: props.state.selectedValue,
-  });
-  return `${props.basePath}?${searchParams.toString()}`;
+  const [pathWithoutQuery, existingQuery] = props.basePath.split('?', 2);
+  const searchParams = new URLSearchParams(existingQuery);
+  searchParams.set(
+    props.state.definition.queryParamName,
+    props.state.selectedValue
+  );
+  return `${pathWithoutQuery}?${searchParams.toString()}`;
 }

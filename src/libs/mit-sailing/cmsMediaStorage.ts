@@ -33,13 +33,7 @@ function cmsMediaFilePath(props: {
 }
 
 async function removeCmsMediaPath(filePath: string): Promise<void> {
-  try {
-    await rm(filePath, { force: true });
-  } catch (error: unknown) {
-    if (!isMissingFileError(error)) {
-      throw error;
-    }
-  }
+  await rm(filePath, { force: true });
 }
 
 export async function writeCmsMediaFile(props: {
@@ -60,7 +54,11 @@ export async function writeCmsMediaFile(props: {
     await writeFile(tempPath, props.bytes, { flag: 'wx' });
     await rename(tempPath, fullPath);
   } catch (error: unknown) {
-    await removeCmsMediaPath(tempPath);
+    try {
+      await removeCmsMediaPath(tempPath);
+    } catch {
+      // Preserve the original write/rename failure.
+    }
     throw error;
   }
   return fullPath;

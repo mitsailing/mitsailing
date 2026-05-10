@@ -20,6 +20,8 @@ export type AdminFieldKind =
   | 'string'
   | 'text'
   | 'richText'
+  | 'image'
+  | 'imageList'
   | 'url'
   | 'number'
   | 'boolean'
@@ -78,7 +80,7 @@ export type CatalogResourceDefinition = {
 /** Serialized row for list/detail forms (dates as ISO strings). */
 export type CatalogRow = Record<
   string,
-  string | number | boolean | null | undefined
+  string | string[] | number | boolean | null | undefined
 >;
 
 /** Admin user row for `/admin/users` lists and forms (assignable to {@link CatalogRow}). */

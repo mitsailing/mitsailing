@@ -1,5 +1,7 @@
 import { ArrowLeft } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
+import Image from 'next/image';
+import { CmsRichText } from '@/components/mit-sailing/cms/CmsRichText';
 import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
 import { Link } from '@/libs/I18nNavigation';
 import type { SailingClassCatalogDetail } from '@/libs/mit-sailing/classQueries';
@@ -23,6 +25,7 @@ export async function ClassDetailView(props: ClassDetailViewProps) {
   });
 
   const bodyClass = 'text-base leading-relaxed text-mit-text';
+  const [primaryImage, ...moreImages] = cl.imagePaths;
 
   return (
     <>
@@ -42,7 +45,40 @@ export async function ClassDetailView(props: ClassDetailViewProps) {
       <p className={`${bodyClass} mb-2 text-sm`}>
         {t('level_label')} <strong className="font-semibold">{cl.level}</strong>
       </p>
-      <p className={`${bodyClass} mt-5`}>{cl.description}</p>
+      {primaryImage ? (
+        <div className="relative mt-6 mb-6 aspect-[16/10] max-h-[420px] overflow-hidden rounded-xl bg-mit-line">
+          <Image
+            alt={cl.name}
+            className="object-cover"
+            fill
+            sizes="(max-width: 768px) 100vw, 1024px"
+            src={primaryImage}
+            unoptimized={primaryImage.startsWith('/')}
+          />
+        </div>
+      ) : null}
+
+      {moreImages.length > 0 ? (
+        <ul className="m-0 mb-10 grid list-none grid-cols-2 gap-3 p-0">
+          {moreImages.map((src) => (
+            <li
+              className="relative aspect-[4/3] overflow-hidden rounded-lg bg-mit-line"
+              key={src}
+            >
+              <Image
+                alt={`${cl.name} additional`}
+                className="object-cover"
+                fill
+                sizes="(max-width: 768px) 50vw, 320px"
+                src={src}
+                unoptimized={src.startsWith('/')}
+              />
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      <CmsRichText className={`${bodyClass} mt-5`} html={cl.description} />
 
       {cl.prerequisites.length > 0 ? (
         <section className="mt-10">

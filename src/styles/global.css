@@ -88,6 +88,8 @@
   }
 
   .cms-rich-text [data-resize-container] {
+    align-items: flex-start;
+    display: flex;
     margin-block: 1rem;
     max-width: 100%;
   }

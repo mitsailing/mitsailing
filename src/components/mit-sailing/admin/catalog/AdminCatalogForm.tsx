@@ -3,6 +3,10 @@
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { AdminCatalogEditStatusBadge } from '@/components/mit-sailing/admin/catalog/AdminCatalogListCell';
+import {
+  AdminImageField,
+  AdminImageListField,
+} from '@/components/mit-sailing/admin/catalog/AdminCmsMediaControls';
 import { AdminRichTextEditor } from '@/components/mit-sailing/admin/catalog/AdminRichTextEditor';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -286,6 +290,65 @@ function CatalogSelectFieldBranch(props: {
   return null;
 }
 
+function CatalogMediaFieldBranch(props: {
+  field: AdminFormFieldDef;
+  rawDefaultValue: CatalogRow[string];
+  defaultValue: string;
+  fieldId: string;
+  label: string;
+}) {
+  if (props.field.kind === 'image') {
+    return (
+      <AdminImageField
+        defaultValue={props.defaultValue}
+        fieldId={props.fieldId}
+        fieldKey={props.field.field}
+        label={props.label}
+        required={props.field.required}
+      />
+    );
+  }
+  return (
+    <AdminImageListField
+      defaultValue={
+        Array.isArray(props.rawDefaultValue)
+          ? props.rawDefaultValue
+          : props.defaultValue
+      }
+      fieldId={props.fieldId}
+      fieldKey={props.field.field}
+      label={props.label}
+      required={props.field.required}
+    />
+  );
+}
+
+function CatalogPasswordHint(props: {
+  namespace: 'AdminCatalogResource' | 'AdminUsers';
+  fieldKind: AdminFieldKind;
+  fieldKey: string;
+  tUsers: ReturnType<typeof useTranslations<'AdminUsers'>>;
+}) {
+  if (props.namespace !== 'AdminUsers' || props.fieldKind !== 'password') {
+    return null;
+  }
+  if (props.fieldKey === 'password') {
+    return (
+      <p className="text-xs text-muted-foreground">
+        {props.tUsers('password_hint')}
+      </p>
+    );
+  }
+  if (props.fieldKey === 'newPassword') {
+    return (
+      <p className="text-xs text-muted-foreground">
+        {props.tUsers('new_password_hint')}
+      </p>
+    );
+  }
+  return null;
+}
+
 function initialBooleanFields(
   fields: readonly AdminFormFieldDef[],
   row?: CatalogRow
@@ -350,9 +413,10 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
   function renderCatalogField(field: AdminFormFieldDef) {
     const key = field.field;
     const label = translateLabel(field.labelKey);
+    const rawDefaultValue = props.row?.[key];
     const defaultValue =
-      props.row && props.row[key] !== undefined && props.row[key] !== null
-        ? String(props.row[key])
+      rawDefaultValue !== undefined && rawDefaultValue !== null
+        ? String(rawDefaultValue)
         : '';
 
     if (field.kind === 'text') {
@@ -384,6 +448,20 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
           fieldKey={key}
           label={label}
           required={field.required}
+        />
+      );
+    }
+
+    if (field.kind === 'image' || field.kind === 'imageList') {
+      const fieldId = `catalog-field-${key}`;
+      return (
+        <CatalogMediaFieldBranch
+          key={key}
+          defaultValue={defaultValue}
+          field={field}
+          fieldId={fieldId}
+          label={label}
+          rawDefaultValue={rawDefaultValue}
         />
       );
     }
@@ -436,20 +514,12 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
           required={field.required}
           type={inputType}
         />
-        {ns === 'AdminUsers' &&
-        field.kind === 'password' &&
-        key === 'password' ? (
-          <p className="text-xs text-muted-foreground">
-            {tUsers('password_hint')}
-          </p>
-        ) : null}
-        {ns === 'AdminUsers' &&
-        field.kind === 'password' &&
-        key === 'newPassword' ? (
-          <p className="text-xs text-muted-foreground">
-            {tUsers('new_password_hint')}
-          </p>
-        ) : null}
+        <CatalogPasswordHint
+          fieldKey={key}
+          fieldKind={field.kind}
+          namespace={ns}
+          tUsers={tUsers}
+        />
       </div>
     );
   }

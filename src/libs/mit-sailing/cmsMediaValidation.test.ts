@@ -63,6 +63,9 @@ describe('cms media validation', () => {
     expect(
       sanitizeCmsMediaFilename('../Race Day FINAL!!.PNG', 'image/png')
     ).toBe('race-day-final.png');
+    expect(sanitizeCmsMediaFilename('test..jpeg', 'image/jpeg')).toBe(
+      'test.jpg'
+    );
     expect(sanitizeCmsMediaFilename('..', 'image/jpeg')).toBe('upload.jpg');
   });
 

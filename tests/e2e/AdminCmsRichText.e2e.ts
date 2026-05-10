@@ -21,7 +21,7 @@ test.describe('Admin CMS rich text', () => {
     await page.keyboard.press('ControlOrMeta+A');
     await page.keyboard.type(marker);
 
-    await page.locator('input[type="file"]').setInputFiles({
+    await page.locator('input[type="file"]').first().setInputFiles({
       buffer: PNG_BYTES,
       mimeType: 'image/png',
       name: 'e2e-cms-rich.png',
@@ -30,7 +30,9 @@ test.describe('Admin CMS rich text', () => {
       /\/cms-media\/.+\/e2e-cms-rich\.png/u
     );
 
-    await page.getByRole('button', { name: 'Select existing image' }).click();
+    await page
+      .getByRole('button', { exact: true, name: 'Select existing image' })
+      .click();
     await page.getByRole('button', { name: 'e2e-cms-rich.png' }).click();
     await editor.locator('img[src*="/cms-media/"]').last().click();
     await page.getByRole('button', { name: 'Align image right' }).click();

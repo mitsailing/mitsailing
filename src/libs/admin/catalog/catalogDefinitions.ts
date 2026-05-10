@@ -213,12 +213,12 @@ const fleetDefinition = {
     },
     {
       field: 'description',
-      kind: 'text',
+      kind: 'richText',
       labelKey: 'field_description',
     },
     {
       field: 'imagePaths',
-      kind: 'text',
+      kind: 'imageList',
       labelKey: 'field_image_paths',
     },
   ],
@@ -297,8 +297,13 @@ const sailingClassesDefinition = {
     },
     {
       field: 'description',
-      kind: 'text',
+      kind: 'richText',
       labelKey: 'field_description',
+    },
+    {
+      field: 'imagePaths',
+      kind: 'imageList',
+      labelKey: 'field_image_paths',
     },
     {
       field: 'isVisible',
@@ -451,7 +456,7 @@ const cmsPageBlocksDefinition = {
     { field: 'body', kind: 'richText', labelKey: 'field_cms_body' },
     { field: 'ctaLabel', kind: 'string', labelKey: 'field_cms_cta_label' },
     { field: 'ctaUrl', kind: 'string', labelKey: 'field_cms_cta_url' },
-    { field: 'imageSrc', kind: 'string', labelKey: 'field_cms_image_src' },
+    { field: 'imageSrc', kind: 'image', labelKey: 'field_cms_image_src' },
     { field: 'imageAlt', kind: 'string', labelKey: 'field_cms_image_alt' },
     {
       field: 'displayOrder',

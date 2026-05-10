@@ -1,5 +1,6 @@
 import { ArrowRight } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
+import Image from 'next/image';
 import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
 import { Link } from '@/libs/I18nNavigation';
 import type { FleetBoatListRow } from '@/libs/mit-sailing/fleetQueries';
@@ -35,12 +36,25 @@ export async function FleetListView(props: FleetListViewProps) {
               className={`block h-full overflow-hidden rounded-xl border border-mit-line bg-mit-surface no-underline transition-shadow hover:shadow-sm ${textFocusRingClassName}`}
               href={`/fleet/${boat.slug}/`}
             >
-              <div
-                aria-hidden
-                className="flex aspect-[4/3] items-center justify-center bg-mit-line text-xs text-mit-text"
-              >
-                {t('photo_placeholder')}
-              </div>
+              {boat.imagePaths[0] ? (
+                <div className="relative aspect-[4/3] bg-mit-line">
+                  <Image
+                    alt=""
+                    className="object-cover"
+                    fill
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                    src={boat.imagePaths[0]}
+                    unoptimized={boat.imagePaths[0].startsWith('/')}
+                  />
+                </div>
+              ) : (
+                <div
+                  aria-hidden
+                  className="flex aspect-[4/3] items-center justify-center bg-mit-line text-xs text-mit-text"
+                >
+                  {t('photo_placeholder')}
+                </div>
+              )}
               <div className="p-6">
                 <div className="mb-2 text-[11px] font-bold tracking-wider text-mit-text uppercase">
                   {boat.type} · {boat.capacity}{' '}

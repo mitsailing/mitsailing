@@ -101,6 +101,7 @@ export const sailingClassesCatalogHandlers: CatalogServerHandlers = {
         classCategoryId: true,
         level: true,
         description: true,
+        imagePaths: true,
         isVisible: true,
       },
     });
@@ -114,6 +115,7 @@ export const sailingClassesCatalogHandlers: CatalogServerHandlers = {
       classCategoryId: row.classCategoryId,
       level: row.level,
       description: row.description,
+      imagePaths: row.imagePaths,
       isVisible: row.isVisible,
     };
   },
@@ -141,6 +143,7 @@ export const sailingClassesCatalogHandlers: CatalogServerHandlers = {
           classCategoryId: data.classCategoryId,
           level: data.level,
           description: data.description,
+          imagePaths: data.imagePaths,
           displayOrder: nextDisplayOrder,
           isVisible: data.isVisible,
         },
@@ -175,6 +178,7 @@ export const sailingClassesCatalogHandlers: CatalogServerHandlers = {
           classCategoryId: data.classCategoryId,
           level: data.level,
           description: data.description,
+          imagePaths: data.imagePaths,
           isVisible: data.isVisible,
         },
       });

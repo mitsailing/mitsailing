@@ -2,6 +2,7 @@ import {
   listClassCategoriesForNav,
   mapClassCategoriesToNavDropdownItems,
 } from '@/libs/mit-sailing/classQueries';
+import { safeCmsHref } from '@/libs/mit-sailing/cmsHref';
 import { loadCmsMenu } from '@/libs/mit-sailing/cmsQueries';
 import {
   listFleetBoatsForPublic,
@@ -44,10 +45,10 @@ export async function SiteShellHeaderNav(props: SiteShellHeaderNavProps) {
     systemKey: item.systemKey,
     items:
       item.children.length > 0
-        ? item.children.map((child) => ({
-            label: child.label,
-            href: child.href ?? '#',
-          }))
+        ? item.children.flatMap((child) => {
+            const href = safeCmsHref(child.href);
+            return href ? [{ label: child.label, href }] : [];
+          })
         : undefined,
   }));
   const mobileUtilityItems: SiteHeaderMobileUtilityItem[] =

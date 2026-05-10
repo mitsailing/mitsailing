@@ -148,6 +148,40 @@ describe('AdminCatalogForm rich text fields', () => {
       view.container.querySelector('textarea[name="body"]')
     ).not.toBeNull();
   });
+
+  it('renders class descriptions as rich text with image lists', () => {
+    const view = render(
+      <AdminCatalogForm
+        definition={catalogResourceDefinitions.sailing_classes}
+        dynamicSelectOptions={{
+          classCategoryId: [{ label: 'Introduction', value: 'cc-intro' }],
+        }}
+        formAction={formAction}
+        headingKey="edit_heading"
+        row={{
+          classCategoryId: 'cc-intro',
+          description: '<p>Existing class body</p>',
+          id: 'class-1',
+          imagePaths: ['/images/classes/intro.jpg'],
+          isVisible: true,
+          level: 'beginner',
+          name: 'Intro',
+          slug: 'intro',
+        }}
+      />
+    );
+
+    expect(screen.getByLabelText('Block style')).toBeVisible();
+    expect(
+      view.container.querySelector('input[name="description"]')
+    ).toHaveAttribute('type', 'hidden');
+    expect(
+      view.container.querySelector('textarea[name="description"]')
+    ).toBeNull();
+    expect(
+      view.container.querySelector('input[name="imagePaths"]')
+    ).toHaveValue('/images/classes/intro.jpg');
+  });
 });
 
 describe('AdminRichTextEditor media controls', () => {
@@ -396,6 +430,83 @@ describe('AdminRichTextEditor media controls', () => {
       'Could not load CMS images.'
     );
     expect(hiddenBodyValue(view.container)).not.toContain('/uploads/');
+  });
+});
+
+describe('Admin catalog media fields', () => {
+  it('uploads a single cms image field', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      Response.json({
+        originalFilename: 'hero.png',
+        publicPath: '/cms-media/asset-5/hero.png',
+        url: '/cms-media/asset-5/hero.png',
+      })
+    );
+    const user = userEvent.setup();
+    const view = renderCmsBlockForm();
+    const uploadInputs = view.container.querySelectorAll('input[type="file"]');
+    const imageFieldUpload = uploadInputs.item(1);
+    if (!(imageFieldUpload instanceof HTMLInputElement)) {
+      throw new Error('Expected image field upload input');
+    }
+
+    await user.upload(
+      imageFieldUpload,
+      new File(['png'], 'hero.png', { type: 'image/png' })
+    );
+
+    await waitFor(() => {
+      expect(
+        view.container.querySelector('input[name="imageSrc"]')
+      ).toHaveValue('/cms-media/asset-5/hero.png');
+    });
+  });
+
+  it('uploads and serializes image list fields', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      Response.json({
+        originalFilename: 'fleet.png',
+        publicPath: '/cms-media/asset-6/fleet.png',
+        url: '/cms-media/asset-6/fleet.png',
+      })
+    );
+    const user = userEvent.setup();
+    const view = render(
+      <AdminCatalogForm
+        definition={catalogResourceDefinitions.fleet}
+        dynamicSelectOptions={{
+          requiredClassId: [{ label: 'Intro', value: 'class-1' }],
+        }}
+        formAction={formAction}
+        headingKey="edit_heading"
+        row={{
+          capacity: 2,
+          description: '<p>Existing fleet body</p>',
+          id: 'boat-1',
+          imagePaths: ['/images/boats/tech.jpg'],
+          name: 'Tech',
+          requiredClassId: 'class-1',
+          slug: 'tech',
+          type: 'dinghy',
+        }}
+      />
+    );
+    const uploadInputs = view.container.querySelectorAll('input[type="file"]');
+    const imageListUpload = uploadInputs.item(1);
+    if (!(imageListUpload instanceof HTMLInputElement)) {
+      throw new Error('Expected image list upload input');
+    }
+
+    await user.upload(
+      imageListUpload,
+      new File(['png'], 'fleet.png', { type: 'image/png' })
+    );
+
+    await waitFor(() => {
+      expect(
+        view.container.querySelector('input[name="imagePaths"]')
+      ).toHaveValue('/images/boats/tech.jpg\n/cms-media/asset-6/fleet.png');
+    });
   });
 });
 

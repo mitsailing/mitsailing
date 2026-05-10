@@ -374,4 +374,22 @@ describe('catalogScopedListState', () => {
       })
     ).toBe('/admin/cms_page_blocks/new');
   });
+
+  it('merges scoped create params into existing query strings', async () => {
+    mocks.cmsPageFindMany.mockResolvedValue([
+      { id: 'page-2', path: '/contact', title: 'Contact' },
+    ]);
+
+    const state = await catalogScopedListState({
+      resourceId: 'cms_page_blocks',
+      searchParams: { page: 'page-2' },
+    });
+
+    expect(
+      catalogScopedCreatePath({
+        basePath: '/admin/cms_page_blocks/new?menu=open',
+        state,
+      })
+    ).toBe('/admin/cms_page_blocks/new?menu=open&page=page-2');
+  });
 });

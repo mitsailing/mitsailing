@@ -23,7 +23,10 @@ import {
 import type { CatalogResourceId } from '@/libs/admin/catalog/catalogDefinitions';
 import { isCatalogResourceId } from '@/libs/admin/catalog/catalogDefinitions';
 import { getCatalogServerHandlers } from '@/libs/admin/catalog/catalogServerRegistry';
-import type { CatalogReorderScope } from '@/libs/admin/catalog/types';
+import type {
+  CatalogReorderScope,
+  CatalogRow,
+} from '@/libs/admin/catalog/types';
 import { requireAdmin } from '@/libs/auth/dal';
 import { restoreCmsPageRevision } from '@/libs/mit-sailing/cmsHistory';
 import { SITE_ALERTS_CACHE_TAG } from '@/libs/mit-sailing/siteAlertQueries';
@@ -68,6 +71,47 @@ function revalidateAfterCatalogMutation(
     getI18nPath(adminCatalogResourceIndexPath(resourceId), locale),
     'layout'
   );
+}
+
+function catalogDetailPath(
+  resourceId: CatalogResourceId,
+  slug: string
+): string | null {
+  if (resourceId === 'sailing_classes') {
+    return `/classes/${slug}/`;
+  }
+  if (resourceId === 'fleet') {
+    return `/fleet/${slug}/`;
+  }
+  return null;
+}
+
+function slugFromCatalogFormData(formData: FormData): string | null {
+  const slug = formData.get('slug');
+  return typeof slug === 'string' && slug.trim().length > 0
+    ? slug.trim()
+    : null;
+}
+
+function slugFromCatalogRow(row: CatalogRow | null): string | null {
+  const slug = row?.slug;
+  return typeof slug === 'string' && slug.trim().length > 0
+    ? slug.trim()
+    : null;
+}
+
+function revalidateCatalogDetailPath(
+  locale: string,
+  resourceId: CatalogResourceId,
+  slug: string | null
+): void {
+  if (!slug) {
+    return;
+  }
+  const path = catalogDetailPath(resourceId, slug);
+  if (path) {
+    revalidatePath(getI18nPath(path, locale));
+  }
 }
 
 function scopedCatalogMutationSearchParam(
@@ -136,6 +180,11 @@ export async function createCatalogResourceAction(
     );
   }
   revalidateAfterCatalogMutation(locale, resourceId);
+  revalidateCatalogDetailPath(
+    locale,
+    resourceId,
+    slugFromCatalogFormData(formData)
+  );
   redirect(
     catalogRedirectPath({
       basePath: getI18nPath(adminCatalogResourceIndexPath(resourceId), locale),
@@ -164,6 +213,7 @@ export async function updateCatalogResourceAction(
   }
   const handlers = getCatalogServerHandlers(resourceId);
   const scope = scopedCatalogMutationSearchParam(resourceId, formData);
+  const oldSlug = slugFromCatalogRow(await handlers.getById(id));
   const result = await handlers.updateFromForm(id, formData, {
     userId: session.user.id,
   });
@@ -180,6 +230,12 @@ export async function updateCatalogResourceAction(
     );
   }
   revalidateAfterCatalogMutation(locale, resourceId);
+  revalidateCatalogDetailPath(locale, resourceId, oldSlug);
+  revalidateCatalogDetailPath(
+    locale,
+    resourceId,
+    slugFromCatalogFormData(formData)
+  );
   redirect(
     catalogRedirectPath({
       basePath: getI18nPath(adminCatalogResourceIndexPath(resourceId), locale),
@@ -205,6 +261,7 @@ export async function deleteCatalogResourceAction(
     redirect(getI18nPath(ADMIN_INDEX_PATH, locale));
   }
   const handlers = getCatalogServerHandlers(resourceId);
+  const oldSlug = slugFromCatalogRow(await handlers.getById(id));
   const result = await handlers.delete(id, { userId: session.user.id });
   if (!result.ok) {
     redirect(
@@ -212,6 +269,7 @@ export async function deleteCatalogResourceAction(
     );
   }
   revalidateAfterCatalogMutation(locale, resourceId);
+  revalidateCatalogDetailPath(locale, resourceId, oldSlug);
   redirect(getI18nPath(adminCatalogResourceIndexPath(resourceId), locale));
 }
 

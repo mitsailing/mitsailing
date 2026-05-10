@@ -84,6 +84,22 @@ describe('buildContactEmail', () => {
     }
   });
 
+  it('uses the submitter email as the reply address', () => {
+    const parsed = parseContactSubmission(
+      contactFormData({
+        email: 'ada@mit.edu',
+      }),
+      new Date('2026-05-09T12:00:00-04:00')
+    );
+
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(buildContactEmail(parsed.data)).toMatchObject({
+        replyTo: 'ada@mit.edu',
+      });
+    }
+  });
+
   it('removes line breaks from the email subject header', () => {
     const parsed = parseContactSubmission(
       contactFormData({

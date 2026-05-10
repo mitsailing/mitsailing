@@ -92,8 +92,10 @@ export function sanitizeCmsMediaFilename(
     .replaceAll(/\.+$/g, '')
     .toLowerCase();
   const stem =
-    normalized.replace(/\.[a-z0-9]+$/u, '').replaceAll(/^-+|-+$/g, '') ||
-    'upload';
+    normalized
+      .replace(/\.[a-z0-9]+$/u, '')
+      .replaceAll(/\.+$/g, '')
+      .replaceAll(/^-+|-+$/g, '') || 'upload';
   return `${stem.slice(0, 96)}${CMS_MEDIA_EXTENSIONS[mimeType]}`;
 }
 

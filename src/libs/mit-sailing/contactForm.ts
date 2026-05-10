@@ -131,6 +131,7 @@ export function buildContactEmail(submission: ContactSubmission) {
 
   return {
     to: recipientForContactTopic(submission.topic),
+    replyTo: sanitizeEmailHeader(submission.email),
     subject,
     html,
     text,

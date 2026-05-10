@@ -18,19 +18,28 @@ import {
   Unlink,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import NextImage from 'next/image';
 import { useRef, useState } from 'react';
+import {
+  AdminCmsMediaPickerPanel,
+  currentPageId,
+  isCmsMediaPath,
+  loadCmsMediaAssets,
+  stringField,
+  uploadCmsMediaFile,
+} from '@/components/mit-sailing/admin/catalog/AdminCmsMediaControls';
+import type { CmsMediaAsset } from '@/components/mit-sailing/admin/catalog/AdminCmsMediaControls';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 
-type CmsMediaAsset = {
-  id: string;
-  originalFilename: string;
-  publicPath: string;
-  createdAt: string;
-};
+export {
+  cmsMediaAssetFromUnknown,
+  cmsMediaAssetsFromUnknown,
+  currentPageId,
+  isCmsMediaPath,
+  stringField,
+} from '@/components/mit-sailing/admin/catalog/AdminCmsMediaControls';
 
 const imageWidthOptions = [
   { value: 'reset', translationKey: 'rich_text_image_size_original' },
@@ -88,51 +97,6 @@ export function isAllowedEditorHref(href: string): boolean {
     lower.startsWith('http://') ||
     lower.startsWith('mailto:')
   );
-}
-
-export function isCmsMediaPath(value: string | undefined): value is string {
-  return typeof value === 'string' && value.startsWith('/cms-media/');
-}
-
-export function currentPageId(form: HTMLFormElement | null): string {
-  if (!form) {
-    return '';
-  }
-  const value = new FormData(form).get('pageId');
-  return typeof value === 'string' ? value : '';
-}
-
-export function stringField(value: unknown, field: string): string | undefined {
-  if (typeof value !== 'object' || value === null) {
-    return undefined;
-  }
-  const descriptor = Object.getOwnPropertyDescriptor(value, field);
-  return typeof descriptor?.value === 'string' ? descriptor.value : undefined;
-}
-
-export function cmsMediaAssetFromUnknown(value: unknown): CmsMediaAsset | null {
-  const id = stringField(value, 'id');
-  const originalFilename = stringField(value, 'originalFilename');
-  const publicPath = stringField(value, 'publicPath');
-  const createdAt = stringField(value, 'createdAt');
-  if (!id || !originalFilename || !publicPath || !createdAt) {
-    return null;
-  }
-  return { createdAt, id, originalFilename, publicPath };
-}
-
-export function cmsMediaAssetsFromUnknown(value: unknown): CmsMediaAsset[] {
-  if (typeof value !== 'object' || value === null) {
-    return [];
-  }
-  const descriptor = Object.getOwnPropertyDescriptor(value, 'assets');
-  if (!Array.isArray(descriptor?.value)) {
-    return [];
-  }
-  return descriptor.value.flatMap((item: unknown) => {
-    const asset = cmsMediaAssetFromUnknown(item);
-    return asset ? [asset] : [];
-  });
 }
 
 export function nodeStringAttribute(
@@ -276,14 +240,13 @@ export function AdminRichTextEditor(props: {
   async function loadAssets() {
     setMediaBusy(true);
     setMediaError(null);
-    const response = await fetch('/api/admin/cms-media');
-    if (!response.ok) {
+    const loadedAssets = await loadCmsMediaAssets();
+    if (!loadedAssets) {
       setMediaBusy(false);
       setMediaError(t('rich_text_media_error'));
       return;
     }
-    const data: unknown = await response.json();
-    setAssets(cmsMediaAssetsFromUnknown(data));
+    setAssets(loadedAssets);
     setPickerOpen(true);
     setMediaBusy(false);
   }
@@ -291,37 +254,16 @@ export function AdminRichTextEditor(props: {
   async function uploadImage(file: File) {
     setMediaBusy(true);
     setMediaError(null);
-    const formData = new FormData();
-    formData.set('file', file);
     const pageId = currentPageId(
       editorShellRef.current?.closest('form') ?? null
     );
-    if (pageId) {
-      formData.set('pageId', pageId);
-    }
-    const response = await fetch('/api/admin/cms-media', {
-      body: formData,
-      method: 'POST',
-    });
-    if (!response.ok) {
+    const asset = await uploadCmsMediaFile({ file, pageId });
+    if (!asset || !isCmsMediaPath(asset.publicPath)) {
       setMediaBusy(false);
       setMediaError(t('rich_text_media_error'));
       return;
     }
-    const data: unknown = await response.json();
-    const publicPath =
-      stringField(data, 'publicPath') ?? stringField(data, 'url');
-    if (!isCmsMediaPath(publicPath)) {
-      setMediaBusy(false);
-      setMediaError(t('rich_text_media_error'));
-      return;
-    }
-    insertCmsImage({
-      createdAt: new Date().toISOString(),
-      id: publicPath,
-      originalFilename: stringField(data, 'originalFilename') ?? file.name,
-      publicPath,
-    });
+    insertCmsImage(asset);
     setMediaBusy(false);
   }
 
@@ -375,7 +317,7 @@ export function AdminRichTextEditor(props: {
         }
         tr.setNodeMarkup(pos, undefined, { ...node.attrs, ...attributes });
         updated = true;
-        return true;
+        return false;
       });
       return updated;
     });
@@ -674,35 +616,7 @@ export function AdminRichTextEditor(props: {
           </div>
         ) : null}
         {pickerOpen ? (
-          <div className="grid max-h-56 gap-2 overflow-y-auto border-b border-border bg-background p-2 sm:grid-cols-2">
-            {assets.length > 0 ? (
-              assets.map((asset) => (
-                <button
-                  className="flex min-w-0 items-center gap-2 rounded-md border border-border bg-card p-2 text-left text-sm text-card-foreground transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                  key={asset.id}
-                  onClick={() => {
-                    insertCmsImage(asset);
-                  }}
-                  type="button"
-                >
-                  <NextImage
-                    alt=""
-                    className="size-12 rounded-sm object-cover"
-                    height={48}
-                    src={asset.publicPath}
-                    width={48}
-                  />
-                  <span className="min-w-0 truncate">
-                    {asset.originalFilename}
-                  </span>
-                </button>
-              ))
-            ) : (
-              <p className="px-2 py-4 text-sm text-muted-foreground">
-                {t('rich_text_media_empty')}
-              </p>
-            )}
-          </div>
+          <AdminCmsMediaPickerPanel assets={assets} onSelect={insertCmsImage} />
         ) : null}
         <EditorContent editor={editor} id={props.fieldId} />
       </div>

@@ -1,6 +1,11 @@
 import { ArrowRight } from 'lucide-react';
 import Image from 'next/image';
 import { Link } from '@/libs/I18nNavigation';
+import {
+  externalCmsLinkProps,
+  isAppRelativeCmsHref,
+  safeCmsHref,
+} from '@/libs/mit-sailing/cmsHref';
 import type {
   PublicCmsBlock,
   PublicCmsPage,
@@ -9,25 +14,29 @@ import { CmsRichText } from './CmsRichText';
 
 const blockInnerClassName = 'mx-auto w-full max-w-5xl px-6';
 
-function CmsBlockLink(props: { href: string; children: React.ReactNode }) {
-  if (props.href.startsWith('/')) {
+const blockLinkClassName =
+  'inline-flex items-center gap-1 rounded-sm font-semibold text-mit-red-ink no-underline hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none';
+
+function CmsBlockLink(props: {
+  className?: string;
+  href: string;
+  children: React.ReactNode;
+}) {
+  const href = safeCmsHref(props.href);
+  if (!href) {
+    return null;
+  }
+  const className = props.className ?? blockLinkClassName;
+  if (isAppRelativeCmsHref(href)) {
     return (
-      <Link
-        className="inline-flex items-center gap-1 rounded-sm font-semibold text-mit-red-ink no-underline hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
-        href={props.href}
-      >
+      <Link className={className} href={href}>
         {props.children}
         <ArrowRight aria-hidden className="size-4" />
       </Link>
     );
   }
   return (
-    <a
-      className="inline-flex items-center gap-1 rounded-sm font-semibold text-mit-red-ink no-underline hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
-      href={props.href}
-      rel="noopener noreferrer"
-      target="_blank"
-    >
+    <a className={className} href={href} {...externalCmsLinkProps(href)}>
       {props.children}
       <ArrowRight aria-hidden className="size-4" />
     </a>
@@ -62,12 +71,12 @@ function CmsHeroBlock(props: { block: PublicCmsBlock }) {
               html={props.block.body}
             />
             {props.block.ctaLabel && props.block.ctaUrl ? (
-              <Link
+              <CmsBlockLink
                 className="inline-flex cursor-pointer items-center justify-center rounded-lg border-2 border-white bg-transparent px-7 py-3 text-base font-medium text-white no-underline backdrop-blur transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-mit-hero-ink focus-visible:outline-none"
                 href={props.block.ctaUrl}
               >
                 {props.block.ctaLabel}
-              </Link>
+              </CmsBlockLink>
             ) : null}
           </div>
         </div>

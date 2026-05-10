@@ -332,6 +332,7 @@ model SailingClass {
   classCategoryId String    @map("class_category_id")
   level       String
   description String        @db.Text
+  imagePaths  String[]      @default([]) @map("image_paths")
   displayOrder Int          @default(0) @map("display_order")
   isVisible   Boolean      @default(true) @map("is_visible")
   classCategory ClassCategory @relation(fields: [classCategoryId], references: [id], onDelete: Restrict)
