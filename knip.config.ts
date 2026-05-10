@@ -15,15 +15,8 @@ const config: KnipConfig = {
     // Catalog + time helpers: partially consumed by prisma seed; getters/types fill in when UI is ported
     'src/data/mit-sailing/**',
     'src/lib/mit-sailing/**',
-    // Stacked CMS PR foundations: consumed by the admin/public branches above this base.
-    'src/libs/admin/catalog/adminCatalogPaths.ts',
-    'src/libs/admin/catalog/catalogActions.ts',
-    'src/libs/admin/catalog/catalogFieldErrors.ts',
-    'src/libs/admin/catalog/cmsCatalogHandlers.ts',
-    'src/libs/mit-sailing/cmsHistory.ts',
-    'src/libs/mit-sailing/cmsHomeOverview.ts',
-    'src/libs/mit-sailing/cmsMediaStorage.ts',
-    'src/libs/mit-sailing/cmsPricing.ts',
+    // Stacked CMS PR rendering export is consumed by the public branch above admin.
+    'src/components/mit-sailing/cms/CmsPageBlocks.tsx',
     'src/libs/mit-sailing/cmsQueries.ts',
   ],
   // Dependencies to ignore during analysis
@@ -33,10 +26,6 @@ const config: KnipConfig = {
     'oxfmt',
     'oxlint-tsgolint',
     'postcss',
-    '@tiptap/extension-image',
-    '@tiptap/extension-link',
-    '@tiptap/react',
-    '@tiptap/starter-kit',
     'vite',
   ],
   // Binaries to ignore during analysis
