@@ -18,6 +18,7 @@ import path from 'node:path';
  */
 
 const cwd = process.cwd();
+const codexPrepushModel = 'gpt-5.4-mini';
 
 /** @type {Check[]} */
 const checks = [
@@ -276,7 +277,14 @@ function createCodexAgent(command) {
     // full local filesystem and command execution access. Use only on trusted
     // developer machines.
     command,
-    args: ['exec', '--dangerously-bypass-approvals-and-sandbox', '--cd', cwd],
+    args: [
+      'exec',
+      '--model',
+      codexPrepushModel,
+      '--dangerously-bypass-approvals-and-sandbox',
+      '--cd',
+      cwd,
+    ],
   };
 }
 
