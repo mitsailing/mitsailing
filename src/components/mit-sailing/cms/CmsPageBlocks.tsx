@@ -18,6 +18,15 @@ const blockInnerClassName = 'mx-auto w-full max-w-5xl px-6';
 const blockLinkClassName =
   'inline-flex items-center gap-1 rounded-sm font-semibold text-mit-red-ink no-underline hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none';
 
+const homePageOwnedBlockKinds: ReadonlySet<PublicCmsBlock['kind']> = new Set([
+  'home_overview',
+  'home_classes',
+]);
+
+function isHomePageOwnedBlockKind(kind: PublicCmsBlock['kind']) {
+  return homePageOwnedBlockKinds.has(kind);
+}
+
 function CmsBlockLink(props: {
   className?: string;
   href: string;
@@ -161,10 +170,7 @@ function CmsBlock(props: { block: PublicCmsBlock; index: number }) {
   if (props.block.kind === 'pricing') {
     return <CmsPricingBlock block={props.block} />;
   }
-  if (
-    props.block.kind === 'home_overview' ||
-    props.block.kind === 'home_classes'
-  ) {
+  if (isHomePageOwnedBlockKind(props.block.kind)) {
     return null;
   }
   return <CmsTextBlock block={props.block} index={props.index} />;
