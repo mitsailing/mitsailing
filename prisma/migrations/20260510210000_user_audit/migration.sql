@@ -32,7 +32,11 @@ SELECT
   'cms_pages',
   "page_id",
   "created_by_user_id",
-  "action"::text::"user_audit_action",
+  CASE
+    WHEN "action"::text IN ('create', 'update', 'delete', 'restore')
+    THEN "action"::text::"user_audit_action"
+    ELSE 'update'::"user_audit_action"
+  END,
   "snapshot",
   "version",
   "created_at"
@@ -67,7 +71,7 @@ SELECT
   1,
   CURRENT_TIMESTAMP
 FROM "sailing_classes" sc
-JOIN "class_categories" cc ON cc."id" = sc."class_category_id";
+LEFT JOIN "class_categories" cc ON cc."id" = sc."class_category_id";
 
 INSERT INTO "user_audit" (
   "id",
@@ -98,7 +102,21 @@ SELECT
   1,
   CURRENT_TIMESTAMP
 FROM "fleet_boats" fb
-JOIN "sailing_classes" sc ON sc."id" = fb."required_class_id";
+LEFT JOIN "sailing_classes" sc ON sc."id" = fb."required_class_id";
+
+UPDATE "user_audit" ua
+SET "user_id" = NULL
+WHERE ua."user_id" IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM "user" u WHERE u."id" = ua."user_id"
+  );
+
+UPDATE "user_audit" ua
+SET "impersonated_user_id" = NULL
+WHERE ua."impersonated_user_id" IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM "user" u WHERE u."id" = ua."impersonated_user_id"
+  );
 
 CREATE UNIQUE INDEX "user_audit_auditable_type_auditable_id_version_key" ON "user_audit"("auditable_type", "auditable_id", "version");
 CREATE INDEX "user_audit_auditable_type_auditable_id_created_at_idx" ON "user_audit"("auditable_type", "auditable_id", "created_at");

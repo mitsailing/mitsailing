@@ -1,6 +1,6 @@
 import * as z from 'zod';
 import { parseCmsHomeOverviewBody } from '@/libs/mit-sailing/cmsHomeOverview';
-import { safeCmsHref } from '@/libs/mit-sailing/cmsHref';
+import { isSafeCmsAppPath, safeCmsHref } from '@/libs/mit-sailing/cmsHref';
 import { parseCmsPricingBody } from '@/libs/mit-sailing/cmsPricing';
 
 function canonicalCmsAppPath(path: string): string {
@@ -11,25 +11,21 @@ const cmsPathSchema = z
   .string()
   .trim()
   .min(1)
-  .refine((value) => value.startsWith('/'), 'CMS paths must start with /')
   .refine(
-    (value) => !value.startsWith('//'),
-    'CMS paths must not be protocol-relative'
+    (value) => isSafeCmsAppPath(value),
+    'CMS paths must be safe app-relative paths without query strings or fragments'
   )
+  .transform((value) => canonicalCmsAppPath(value));
+
+const cmsImagePathSchema = z
+  .string()
+  .trim()
+  .min(1)
   .refine(
-    (value) => !value.includes('?'),
-    'CMS paths must not include query strings'
+    (value) => isSafeCmsAppPath(value),
+    'CMS image paths must be safe app-relative paths without query strings or fragments'
   )
-  .refine(
-    (value) => !value.includes('#'),
-    'CMS paths must not include fragments'
-  )
-  .transform((value) => {
-    if (value === '/') {
-      return value;
-    }
-    return canonicalCmsAppPath(value);
-  });
+  .transform((value) => canonicalCmsAppPath(value));
 
 const cmsUrlSchema = z
   .string()
@@ -40,7 +36,10 @@ const cmsUrlSchema = z
       return true;
     }
     if (value.startsWith('/')) {
-      return !value.startsWith('//');
+      return isSafeCmsAppPath(value, { allowQueryAndFragment: true });
+    }
+    if (value.includes('\\')) {
+      return false;
     }
     try {
       const url = new URL(value);
@@ -89,7 +88,12 @@ export const cmsBlockInputSchema = z
       .optional()
       .transform((value) => (value === '' ? undefined : value))
       .pipe(cmsUrlSchema.optional()),
-    imageSrc: z.string().trim().optional(),
+    imageSrc: z
+      .string()
+      .trim()
+      .optional()
+      .transform((value) => (value === '' ? undefined : value))
+      .pipe(cmsImagePathSchema.optional()),
     imageAlt: z.string().trim().optional(),
     isVisible: z.boolean(),
   })

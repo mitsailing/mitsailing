@@ -59,6 +59,14 @@ describe('sanitizeCmsRichTextHtml', () => {
     ).toBe('<p>Images</p>');
   });
 
+  it('removes cms media images with traversal paths', () => {
+    expect(
+      sanitizeCmsRichTextHtml(
+        '<p>Images</p><img src="/cms-media/%2e%2e/race-day.png"><img src="/cms-media/asset-1/../race-day.png">'
+      )
+    ).toBe('<p>Images</p>');
+  });
+
   it('extracts plain text from rich text for previews', () => {
     expect(
       plainTextFromCmsRichTextHtml(

@@ -21,5 +21,5 @@ export function catalogFieldErrorsFromSearchParam(
     fieldErrors[field] = 'true';
   }
 
-  return fieldErrors;
+  return Object.keys(fieldErrors).length > 0 ? fieldErrors : undefined;
 }

@@ -36,6 +36,21 @@ describe('cms page validation', () => {
 
     expect(parsed.success).toBe(false);
   });
+
+  it('rejects traversal and backslash paths', () => {
+    for (const path of ['/about/../admin', '/about/.', '/\\evil.com']) {
+      const parsed = cmsPageInputSchema.safeParse({
+        slug: 'bad',
+        path,
+        title: 'Bad',
+        metaTitle: 'Bad',
+        metaDescription: 'Bad page',
+        isPublished: true,
+      });
+
+      expect(parsed.success).toBe(false);
+    }
+  });
 });
 
 describe('cms block validation', () => {
@@ -67,6 +82,19 @@ describe('cms block validation', () => {
     });
 
     expect(parsed.ctaUrl).toBe('/classes');
+  });
+
+  it('rejects unsafe image paths', () => {
+    const parsed = cmsBlockInputSchema.safeParse({
+      pageId: 'page-1',
+      kind: 'hero',
+      title: 'Hero',
+      imageSrc: '/assets/../secret.jpg',
+      imageAlt: 'Secret',
+      isVisible: true,
+    });
+
+    expect(parsed.success).toBe(false);
   });
 
   it('rejects partial optional groups', () => {
@@ -325,6 +353,20 @@ describe('cms menu item validation', () => {
     });
 
     expect(parsed.success).toBe(false);
+  });
+
+  it('rejects unsafe internal URLs', () => {
+    for (const url of ['//evil.test', '/\\evil.test', '/about/../admin']) {
+      const parsed = cmsMenuItemInputSchema.safeParse({
+        menuId: 'menu',
+        label: 'Bad',
+        url,
+        isExternal: false,
+        isVisible: true,
+      });
+
+      expect(parsed.success).toBe(false);
+    }
   });
 
   it('normalizes internal URLs with trailing slashes', () => {

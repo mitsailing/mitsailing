@@ -12,6 +12,12 @@ SET "audited_changes" =
       WHEN jsonb_typeof("audited_changes"->'imagePaths') = 'array'
       THEN "audited_changes"->'imagePaths'->>0
       ELSE NULL
+    END,
+    'legacyImagePaths',
+    CASE
+      WHEN jsonb_typeof("audited_changes"->'imagePaths') = 'array'
+      THEN "audited_changes"->'imagePaths'
+      ELSE '[]'::jsonb
     END
   )
 WHERE "auditable_type" = 'fleet'

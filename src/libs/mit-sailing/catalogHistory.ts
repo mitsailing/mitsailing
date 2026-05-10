@@ -11,6 +11,7 @@ export type CatalogRevisionAction = 'create' | 'delete' | 'restore' | 'update';
 
 const HISTORY_LIST_LIMIT = 20;
 const HISTORY_SUMMARY_CHANGE_LIMIT = 3;
+const HISTORY_COMPARE_CHANGE_LIMIT = 8;
 
 export type AdminCatalogRevision = {
   id: string;
@@ -91,6 +92,15 @@ type FleetAuditSnapshot = {
 };
 
 type CatalogAuditSnapshot = SailingClassAuditSnapshot | FleetAuditSnapshot;
+
+type CatalogHistoryPrisma = {
+  fleetBoat: Pick<Prisma.TransactionClient['fleetBoat'], 'findUnique'>;
+  sailingClass: Pick<Prisma.TransactionClient['sailingClass'], 'findUnique'>;
+  userAudit: Pick<
+    Prisma.TransactionClient['userAudit'],
+    'create' | 'findFirst'
+  >;
+};
 
 const CATALOG_AUDIT_RESOURCE_IDS = [
   'fleet',
@@ -368,13 +378,13 @@ function compareCatalogAuditSnapshots(
     );
     addFieldChange(
       changes,
-      'requiredClassId',
+      'requiredClassName',
       textChangeValue(before.requiredClassName),
       textChangeValue(after.requiredClassName)
     );
   }
 
-  const shownChanges = changes.slice(0, 8);
+  const shownChanges = changes.slice(0, HISTORY_COMPARE_CHANGE_LIMIT);
   return {
     baseVersion,
     changes: shownChanges,
@@ -485,9 +495,11 @@ function auditUserData(context?: CatalogMutationContext) {
 export async function loadCatalogRevisionSnapshot(props: {
   itemId: string;
   resourceId: CatalogHistoryResourceId;
+  tx?: CatalogHistoryPrisma;
 }): Promise<Prisma.InputJsonObject | null> {
+  const db = props.tx ?? prisma;
   if (props.resourceId === 'sailing_classes') {
-    const row = await prisma.sailingClass.findUnique({
+    const row = await db.sailingClass.findUnique({
       where: { id: props.itemId },
       select: {
         id: true,
@@ -517,7 +529,7 @@ export async function loadCatalogRevisionSnapshot(props: {
       : null;
   }
 
-  const row = await prisma.fleetBoat.findUnique({
+  const row = await db.fleetBoat.findUnique({
     where: { id: props.itemId },
     select: {
       id: true,
@@ -547,45 +559,61 @@ export async function loadCatalogRevisionSnapshot(props: {
     : null;
 }
 
+async function writeCatalogRevisionFromSnapshot(props: {
+  action: CatalogRevisionAction;
+  itemId: string;
+  resourceId: CatalogHistoryResourceId;
+  snapshot: Prisma.InputJsonObject;
+  context?: CatalogMutationContext;
+  tx: CatalogHistoryPrisma;
+}): Promise<void> {
+  const latestRevision = await props.tx.userAudit.findFirst({
+    orderBy: [{ version: 'desc' }, { createdAt: 'desc' }],
+    select: { auditedChanges: true, version: true },
+    where: {
+      auditableId: props.itemId,
+      auditableType: props.resourceId,
+    },
+  });
+  const latestSnapshot = catalogAuditSnapshotFromUnknown(
+    latestRevision?.auditedChanges
+  );
+  const nextSnapshot = catalogAuditSnapshotFromUnknown(props.snapshot);
+  if (
+    props.action === 'update' &&
+    latestSnapshot &&
+    nextSnapshot &&
+    catalogAuditSnapshotsEqual(latestSnapshot, nextSnapshot)
+  ) {
+    return;
+  }
+  await props.tx.userAudit.create({
+    data: {
+      action: props.action,
+      auditableId: props.itemId,
+      auditableType: props.resourceId,
+      auditedChanges: props.snapshot,
+      ...auditUserData(props.context),
+      version: (latestRevision?.version ?? 0) + 1,
+    },
+  });
+}
+
 export async function recordCatalogRevisionFromSnapshot(props: {
   action: CatalogRevisionAction;
   itemId: string;
   resourceId: CatalogHistoryResourceId;
   snapshot: Prisma.InputJsonObject;
   context?: CatalogMutationContext;
+  tx?: CatalogHistoryPrisma;
 }): Promise<void> {
+  if (props.tx) {
+    await writeCatalogRevisionFromSnapshot({ ...props, tx: props.tx });
+    return;
+  }
   await prisma.$transaction(
     async (tx) => {
-      const latestRevision = await tx.userAudit.findFirst({
-        orderBy: [{ version: 'desc' }, { createdAt: 'desc' }],
-        select: { auditedChanges: true, version: true },
-        where: {
-          auditableId: props.itemId,
-          auditableType: props.resourceId,
-        },
-      });
-      const latestSnapshot = catalogAuditSnapshotFromUnknown(
-        latestRevision?.auditedChanges
-      );
-      const nextSnapshot = catalogAuditSnapshotFromUnknown(props.snapshot);
-      if (
-        props.action === 'update' &&
-        latestSnapshot &&
-        nextSnapshot &&
-        catalogAuditSnapshotsEqual(latestSnapshot, nextSnapshot)
-      ) {
-        return;
-      }
-      await tx.userAudit.create({
-        data: {
-          action: props.action,
-          auditableId: props.itemId,
-          auditableType: props.resourceId,
-          auditedChanges: props.snapshot,
-          ...auditUserData(props.context),
-          version: (latestRevision?.version ?? 0) + 1,
-        },
-      });
+      await writeCatalogRevisionFromSnapshot({ ...props, tx });
     },
     { isolationLevel: 'Serializable' }
   );
@@ -596,10 +624,12 @@ export async function recordCatalogRevision(props: {
   itemId: string;
   resourceId: CatalogHistoryResourceId;
   context?: CatalogMutationContext;
+  tx?: CatalogHistoryPrisma;
 }): Promise<void> {
   const snapshot = await loadCatalogRevisionSnapshot({
     itemId: props.itemId,
     resourceId: props.resourceId,
+    tx: props.tx,
   });
   if (!snapshot) {
     return;
@@ -610,6 +640,7 @@ export async function recordCatalogRevision(props: {
     itemId: props.itemId,
     resourceId: props.resourceId,
     snapshot,
+    tx: props.tx,
   });
 }
 
@@ -619,10 +650,12 @@ export async function recordCatalogRevisionIfChanged(props: {
   previousSnapshot: Prisma.InputJsonObject | null;
   resourceId: CatalogHistoryResourceId;
   context?: CatalogMutationContext;
+  tx?: CatalogHistoryPrisma;
 }): Promise<void> {
   const snapshot = await loadCatalogRevisionSnapshot({
     itemId: props.itemId,
     resourceId: props.resourceId,
+    tx: props.tx,
   });
   if (!snapshot) {
     return;
@@ -639,6 +672,7 @@ export async function recordCatalogRevisionIfChanged(props: {
     itemId: props.itemId,
     resourceId: props.resourceId,
     snapshot,
+    tx: props.tx,
   });
 }
 

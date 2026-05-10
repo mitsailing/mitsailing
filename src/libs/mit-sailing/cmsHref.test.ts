@@ -24,6 +24,9 @@ describe('cmsHref', () => {
     expect(safeCmsHref(unsafeScriptHref)).toBeNull();
     expect(safeCmsHref('data:text/html,hello')).toBeNull();
     expect(safeCmsHref('//example.com')).toBeNull();
+    expect(safeCmsHref('/\\example.com')).toBeNull();
+    expect(safeCmsHref('/classes/../admin')).toBeNull();
+    expect(safeCmsHref('/classes/%2e%2e/admin')).toBeNull();
     expect(safeCmsHref('relative/path')).toBeNull();
   });
 
@@ -38,6 +41,10 @@ describe('cmsHref', () => {
       target: '_blank',
     });
     expect(externalCmsLinkProps('HTTPS://sailing.mit.edu')).toEqual({
+      rel: 'noopener noreferrer',
+      target: '_blank',
+    });
+    expect(externalCmsLinkProps('http://sailing.mit.edu')).toEqual({
       rel: 'noopener noreferrer',
       target: '_blank',
     });

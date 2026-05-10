@@ -33,7 +33,7 @@ services:
       - path: .env.production
         required: false
     environment:
-      CMS_MEDIA_ROOT: ${CMS_MEDIA_ROOT:-/var/lib/mitsailing/cms-media}
+      CMS_MEDIA_ROOT: /var/lib/mitsailing/cms-media
     depends_on:
       postgres:
         condition: service_healthy
@@ -42,7 +42,7 @@ services:
     volumes:
       - type: volume
         source: cms_media
-        target: ${CMS_MEDIA_ROOT:-/var/lib/mitsailing/cms-media}
+        target: /var/lib/mitsailing/cms-media
     stop_grace_period: 30s
     command: ['node', 'server.js']
     deploy:
@@ -74,7 +74,7 @@ services:
       - path: .env.production
         required: false
     environment:
-      CMS_MEDIA_ROOT: ${CMS_MEDIA_ROOT:-/var/lib/mitsailing/cms-media}
+      CMS_MEDIA_ROOT: /var/lib/mitsailing/cms-media
     depends_on:
       postgres:
         condition: service_healthy
@@ -83,7 +83,7 @@ services:
     volumes:
       - type: volume
         source: cms_media
-        target: ${CMS_MEDIA_ROOT:-/var/lib/mitsailing/cms-media}
+        target: /var/lib/mitsailing/cms-media
     stop_grace_period: 30s
     command: ['node', 'worker.cjs']
     deploy:
@@ -129,3 +129,5 @@ services:
 
 volumes:
   cms_media:
+    name: mitsailing_cms_media
+    external: true

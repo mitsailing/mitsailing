@@ -128,31 +128,38 @@ export const fleetCatalogHandlers: CatalogServerHandlers = {
     }
     const { data } = parsed;
     try {
-      const agg = await prisma.fleetBoat.aggregate({
-        _max: { displayOrder: true },
-      });
-      const nextOrder = (agg._max.displayOrder ?? -1) + 1;
-      const created = await prisma.fleetBoat.create({
-        data: {
-          id: randomUUID(),
-          name: data.name,
-          slug: data.slug,
-          type: data.type,
-          capacity: data.capacity,
-          requiredClassId: data.requiredClassId,
-          description: data.description,
-          imagePath: data.imagePath,
-          displayOrder: nextOrder,
+      const newId = randomUUID();
+      await prisma.$transaction(
+        async (tx) => {
+          const agg = await tx.fleetBoat.aggregate({
+            _max: { displayOrder: true },
+          });
+          const nextOrder = (agg._max.displayOrder ?? -1) + 1;
+          await tx.fleetBoat.create({
+            data: {
+              id: newId,
+              name: data.name,
+              slug: data.slug,
+              type: data.type,
+              capacity: data.capacity,
+              requiredClassId: data.requiredClassId,
+              description: data.description,
+              imagePath: data.imagePath,
+              displayOrder: nextOrder,
+            },
+            select: { id: true },
+          });
+          await recordCatalogRevision({
+            action: 'create',
+            context,
+            itemId: newId,
+            resourceId: 'fleet',
+            tx,
+          });
         },
-        select: { id: true },
-      });
-      await recordCatalogRevision({
-        action: 'create',
-        context,
-        itemId: created.id,
-        resourceId: 'fleet',
-      });
-      return { ok: true, id: created.id };
+        { isolationLevel: 'Serializable' }
+      );
+      return { ok: true, id: newId };
     } catch (error: unknown) {
       const mapped = mapPrismaErr(error);
       if (mapped) {
@@ -175,29 +182,36 @@ export const fleetCatalogHandlers: CatalogServerHandlers = {
     }
     const { data } = parsed;
     try {
-      const previousSnapshot = await loadCatalogRevisionSnapshot({
-        itemId: id,
-        resourceId: 'fleet',
-      });
-      await prisma.fleetBoat.update({
-        where: { id },
-        data: {
-          name: data.name,
-          slug: data.slug,
-          type: data.type,
-          capacity: data.capacity,
-          requiredClassId: data.requiredClassId,
-          description: data.description,
-          imagePath: data.imagePath,
+      await prisma.$transaction(
+        async (tx) => {
+          const previousSnapshot = await loadCatalogRevisionSnapshot({
+            itemId: id,
+            resourceId: 'fleet',
+            tx,
+          });
+          await tx.fleetBoat.update({
+            where: { id },
+            data: {
+              name: data.name,
+              slug: data.slug,
+              type: data.type,
+              capacity: data.capacity,
+              requiredClassId: data.requiredClassId,
+              description: data.description,
+              imagePath: data.imagePath,
+            },
+          });
+          await recordCatalogRevisionIfChanged({
+            action: 'update',
+            context,
+            itemId: id,
+            previousSnapshot,
+            resourceId: 'fleet',
+            tx,
+          });
         },
-      });
-      await recordCatalogRevisionIfChanged({
-        action: 'update',
-        context,
-        itemId: id,
-        previousSnapshot,
-        resourceId: 'fleet',
-      });
+        { isolationLevel: 'Serializable' }
+      );
       return { ok: true };
     } catch (error: unknown) {
       const mapped = mapPrismaErr(error);
@@ -219,20 +233,27 @@ export const fleetCatalogHandlers: CatalogServerHandlers = {
     context?: CatalogMutationContext
   ): Promise<CatalogMutationOk | CatalogMutationErr> {
     try {
-      const snapshot = await loadCatalogRevisionSnapshot({
-        itemId: id,
-        resourceId: 'fleet',
-      });
-      await prisma.fleetBoat.delete({ where: { id } });
-      if (snapshot) {
-        await recordCatalogRevisionFromSnapshot({
-          action: 'delete',
-          context,
-          itemId: id,
-          resourceId: 'fleet',
-          snapshot,
-        });
-      }
+      await prisma.$transaction(
+        async (tx) => {
+          const snapshot = await loadCatalogRevisionSnapshot({
+            itemId: id,
+            resourceId: 'fleet',
+            tx,
+          });
+          await tx.fleetBoat.delete({ where: { id } });
+          if (snapshot) {
+            await recordCatalogRevisionFromSnapshot({
+              action: 'delete',
+              context,
+              itemId: id,
+              resourceId: 'fleet',
+              snapshot,
+              tx,
+            });
+          }
+        },
+        { isolationLevel: 'Serializable' }
+      );
       return { ok: true };
     } catch (error: unknown) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {

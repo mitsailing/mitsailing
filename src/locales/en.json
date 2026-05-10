@@ -576,6 +576,7 @@
     "column_cms_location": "Location",
     "column_cms_menu": "Menu",
     "column_cms_parent": "Parent",
+    "column_cms_url": "URL",
     "field_cms_path": "Path",
     "field_cms_meta_title": "Meta title",
     "field_cms_meta_description": "Meta description",

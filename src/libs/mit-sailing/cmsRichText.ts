@@ -1,4 +1,5 @@
 import sanitizeHtml from 'sanitize-html';
+import { isSafeCmsAppPath } from '@/libs/mit-sailing/cmsHref';
 
 const ALLOWED_HREF_PREFIXES = [
   'http://',
@@ -58,7 +59,7 @@ function isAllowedCmsRichTextHref(href: string): boolean {
 
 function isAllowedCmsMediaImageSrc(src: string): boolean {
   const s = src.trim();
-  if (!CMS_MEDIA_IMAGE_PATH_RE.test(s)) {
+  if (!CMS_MEDIA_IMAGE_PATH_RE.test(s) || !isSafeCmsAppPath(s)) {
     return false;
   }
   const lower = s.toLowerCase();

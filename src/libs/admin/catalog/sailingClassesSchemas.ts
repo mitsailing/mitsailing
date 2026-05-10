@@ -1,10 +1,26 @@
 import * as z from 'zod';
+import { isSafeCmsAppPath } from '@/libs/mit-sailing/cmsHref';
 
 const slugSchema = z
   .string()
   .trim()
   .min(1)
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+
+function imagePathsFromLines(raw: string): string[] {
+  const paths: string[] = [];
+  const seen = new Set<string>();
+  for (const path of raw
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)) {
+    if (!seen.has(path)) {
+      seen.add(path);
+      paths.push(path);
+    }
+  }
+  return paths;
+}
 
 /**
  * Validates sailing class create/update payloads from admin forms.
@@ -15,12 +31,13 @@ export const sailingClassFormSchema = z.object({
   classCategoryId: z.string().trim().min(1),
   level: z.string().trim().min(1),
   description: z.string(),
-  imagePaths: z.string().transform((raw) =>
-    raw
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0)
-  ),
+  imagePaths: z
+    .string()
+    .transform(imagePathsFromLines)
+    .refine(
+      (paths) => paths.every((path) => isSafeCmsAppPath(path)),
+      'Class image paths must be safe app-relative paths without query strings or fragments'
+    ),
   isVisible: z.boolean(),
 });
 

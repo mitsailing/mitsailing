@@ -35,6 +35,7 @@ vi.mock('@/libs/DB', () => ({
 const {
   getAdminCatalogRevisionCompare,
   listAdminCatalogRevisions,
+  recordCatalogRevision,
   restoreCatalogRevision,
 } = await import('@/libs/mit-sailing/catalogHistory');
 
@@ -187,6 +188,47 @@ describe('getAdminCatalogRevisionCompare', () => {
       after: { kind: 'number', value: 4 },
       before: { kind: 'number', value: 2 },
       field: 'capacity',
+    });
+  });
+});
+
+describe('recordCatalogRevision', () => {
+  it('uses the provided transaction client', async () => {
+    mocks.fleetBoatFindUnique.mockResolvedValue({
+      ...fleetSnapshot(),
+      requiredClass: { name: 'Intro Sailing 101' },
+      requiredClassId: 'class-1',
+    });
+    mocks.userAuditFindFirst.mockResolvedValue(null);
+    mocks.userAuditCreate.mockResolvedValue({ id: 'audit-1' });
+    const tx = {
+      fleetBoat: { findUnique: mocks.fleetBoatFindUnique },
+      sailingClass: { findUnique: mocks.sailingClassFindUnique },
+      userAudit: {
+        create: mocks.userAuditCreate,
+        findFirst: mocks.userAuditFindFirst,
+      },
+    };
+
+    await recordCatalogRevision({
+      action: 'create',
+      itemId: 'boat-1',
+      resourceId: 'fleet',
+      tx,
+    });
+
+    expect(mocks.prismaTransaction).not.toHaveBeenCalled();
+    expect(mocks.fleetBoatFindUnique).toHaveBeenCalledWith({
+      select: expect.objectContaining({ imagePath: true, name: true }),
+      where: { id: 'boat-1' },
+    });
+    expect(mocks.userAuditCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        action: 'create',
+        auditableId: 'boat-1',
+        auditableType: 'fleet',
+        version: 1,
+      }),
     });
   });
 });

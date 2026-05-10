@@ -1,4 +1,5 @@
 import * as z from 'zod';
+import { isSafeCmsAppPath } from '@/libs/mit-sailing/cmsHref';
 
 const slugSchema = z
   .string()
@@ -16,10 +17,16 @@ export const fleetBoatFormSchema = z.object({
   capacity: z.coerce.number().int().min(1),
   requiredClassId: z.string().trim().min(1),
   description: z.string(),
-  imagePath: z.string().transform((raw) => {
-    const trimmed = raw.trim();
-    return trimmed.length > 0 ? trimmed : null;
-  }),
+  imagePath: z
+    .string()
+    .transform((raw) => {
+      const trimmed = raw.trim();
+      return trimmed.length > 0 ? trimmed : null;
+    })
+    .refine(
+      (value) => value === null || isSafeCmsAppPath(value),
+      'Fleet image path must be a safe app-relative path without query strings or fragments'
+    ),
 });
 
 /**

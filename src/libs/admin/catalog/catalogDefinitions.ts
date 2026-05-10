@@ -521,7 +521,7 @@ const cmsMenuItemsDefinition = {
   listColumns: [
     { field: 'parentLabel', kind: 'string', headerKey: 'column_cms_parent' },
     { field: 'label', kind: 'string', headerKey: 'column_name_label' },
-    { field: 'url', kind: 'string', headerKey: 'field_cms_url' },
+    { field: 'url', kind: 'string', headerKey: 'column_cms_url' },
     { field: 'isVisible', kind: 'visibility', headerKey: 'column_status' },
   ],
   formFields: [
