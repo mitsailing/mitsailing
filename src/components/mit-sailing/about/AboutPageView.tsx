@@ -292,7 +292,7 @@ export function AboutPageView(props: { cmsPage?: PublicCmsPage | null }) {
           <div className="mt-10 flex flex-col flex-wrap gap-6 sm:flex-row">
             <Link
               className={`inline-flex items-center gap-1 ${accent}`}
-              href="/contact/"
+              href="/contact"
             >
               Contact the Pavilion
               <ArrowRight aria-hidden className="size-4" />
@@ -302,7 +302,7 @@ export function AboutPageView(props: { cmsPage?: PublicCmsPage | null }) {
             </ExternalLink>
             <Link
               className={`inline-flex items-center gap-1 ${accent}`}
-              href="/about/mitna/"
+              href="/about/mitna"
             >
               MITNA Executive Committee
               <ArrowRight aria-hidden className="size-4" />

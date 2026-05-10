@@ -32,7 +32,7 @@ export async function FleetBoatDetailView(props: FleetBoatDetailViewProps) {
       />
       <Link
         className={`mb-8 inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-mit-red-ink no-underline hover:underline ${textFocusRingClassName}`}
-        href="/fleet/"
+        href="/fleet"
       >
         <ArrowLeft aria-hidden size={16} />
         {t('back_to_fleet')}
@@ -50,7 +50,7 @@ export async function FleetBoatDetailView(props: FleetBoatDetailViewProps) {
         </h2>
         <Link
           className={`inline-flex font-semibold text-mit-red-ink hover:underline ${textFocusRingClassName}`}
-          href={`/classes/${boat.requiredClass.slug}/`}
+          href={`/classes/${boat.requiredClass.slug}`}
         >
           {boat.requiredClass.name}
         </Link>

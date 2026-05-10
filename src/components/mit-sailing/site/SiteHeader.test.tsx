@@ -24,13 +24,13 @@ vi.mock('@/libs/auth-client', () => ({
 }));
 
 const classesDropdownItems = [
-  { label: 'Introduction', href: '/classes/#introduction' },
-  { label: 'Windsurfing', href: '/classes/#windsurfing' },
+  { label: 'Introduction', href: '/classes#introduction' },
+  { label: 'Windsurfing', href: '/classes#windsurfing' },
 ];
 
 const fleetDropdownItems = [
-  { label: 'Tech Dinghy', href: '/fleet/tech-dinghy/' },
-  { label: 'Laser Radial', href: '/fleet/laser-radial/' },
+  { label: 'Tech Dinghy', href: '/fleet/tech-dinghy' },
+  { label: 'Laser Radial', href: '/fleet/laser-radial' },
 ];
 
 function renderHeader(props: Partial<SiteHeaderProps> = {}) {
@@ -61,7 +61,7 @@ describe('SiteHeader', () => {
   });
 
   it('renders guest desktop nav with safe auth callback URLs', () => {
-    setComponentTestPathname('/fleet/');
+    setComponentTestPathname('/fleet');
     setComponentTestSearchParams('category=dinghy');
 
     renderHeader();
@@ -85,22 +85,22 @@ describe('SiteHeader', () => {
     ).toHaveAttribute('href', '#');
     expect(
       within(primaryNav).getByRole('link', { name: 'Calendar' })
-    ).toHaveAttribute('href', '/events/');
+    ).toHaveAttribute('href', '/events');
     expect(
       within(primaryNav).getByRole('link', { name: 'About' })
-    ).toHaveAttribute('href', '/about/');
+    ).toHaveAttribute('href', '/about');
 
     expect(
       within(banner).getByRole('link', { name: 'Log in' })
     ).toHaveAttribute(
       'href',
-      '/login/?callbackUrl=%2Ffleet%2F%3Fcategory%3Ddinghy'
+      '/login?callbackUrl=%2Ffleet%3Fcategory%3Ddinghy'
     );
     expect(
       within(banner).getByRole('link', { name: 'Create account' })
     ).toHaveAttribute(
       'href',
-      '/signup/?callbackUrl=%2Ffleet%2F%3Fcategory%3Ddinghy'
+      '/signup?callbackUrl=%2Ffleet%3Fcategory%3Ddinghy'
     );
   });
 
@@ -114,7 +114,7 @@ describe('SiteHeader', () => {
     const banner = screen.getByRole('banner');
     expect(
       within(banner).getByRole('link', { name: 'Profile' })
-    ).toHaveAttribute('href', '/profile/');
+    ).toHaveAttribute('href', '/profile');
     expect(
       within(banner).getByRole('button', { name: 'Sign out' })
     ).toBeVisible();
@@ -138,7 +138,7 @@ describe('SiteHeader', () => {
 
     expect(
       within(screen.getByRole('banner')).getByRole('link', { name: 'Admin' })
-    ).toHaveAttribute('href', '/admin/');
+    ).toHaveAttribute('href', '/admin');
   });
 
   it('uses server auth hints while the client session is pending', () => {
@@ -150,7 +150,7 @@ describe('SiteHeader', () => {
     expect(within(banner).queryByRole('status')).not.toBeInTheDocument();
     expect(within(banner).getByRole('link', { name: 'Admin' })).toHaveAttribute(
       'href',
-      '/admin/'
+      '/admin'
     );
     expect(within(banner).getByRole('link', { name: 'Profile' })).toBeVisible();
     expect(
@@ -172,7 +172,7 @@ describe('SiteHeader', () => {
 
   it('sets aria-current on active flat links and dropdown children', async () => {
     const user = userEvent.setup();
-    setComponentTestPathname('/events/');
+    setComponentTestPathname('/events');
     const view = renderHeader();
 
     const banner = screen.getByRole('banner');
@@ -180,8 +180,8 @@ describe('SiteHeader', () => {
       within(banner).getByRole('link', { name: 'Calendar' })
     ).toHaveAttribute('aria-current', 'page');
 
-    setComponentTestPathname('/classes/');
-    window.history.replaceState(null, '', '/classes/#windsurfing');
+    setComponentTestPathname('/classes');
+    window.history.replaceState(null, '', '/classes#windsurfing');
     view.rerender(
       <SiteHeader
         classesDropdownItems={classesDropdownItems}

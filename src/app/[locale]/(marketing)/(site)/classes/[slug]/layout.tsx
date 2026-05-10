@@ -20,7 +20,7 @@ export default async function ClassDetailSectionLayout(props: {
     <SiteSectionShell
       locale={locale}
       segments={[
-        { label: t('section_classes'), href: '/classes/' },
+        { label: t('section_classes'), href: '/classes' },
         { label: titleLabel },
       ]}
     >

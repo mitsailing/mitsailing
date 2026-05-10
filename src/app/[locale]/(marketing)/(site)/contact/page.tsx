@@ -21,7 +21,7 @@ export async function generateMetadata(
   props: ContactPageProps
 ): Promise<Metadata> {
   const { locale } = await props.params;
-  const cmsPage = await loadPublishedCmsPageByPath('/contact/');
+  const cmsPage = await loadPublishedCmsPageByPath('/contact');
   if (cmsPage) {
     return {
       title: cmsPage.metaTitle,
@@ -49,7 +49,7 @@ export default async function ContactPage(props: ContactPageProps) {
   const { locale } = await props.params;
   const searchParams = await props.searchParams;
   setRequestLocale(locale);
-  const cmsPage = await loadPublishedCmsPageByPath('/contact/');
+  const cmsPage = await loadPublishedCmsPageByPath('/contact');
   const formAction = submitContactFormAction.bind(null, locale);
   const pageView = (
     <ContactPageView

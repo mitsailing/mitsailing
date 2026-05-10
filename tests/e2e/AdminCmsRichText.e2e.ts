@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { signInAsAdmin } from '../helpers/e2e-admin-sign-in';
+import { submitCatalogSave } from '../helpers/e2e-catalog-form';
 
 const PNG_BYTES = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/lcK0nQAAAABJRU5ErkJggg==',
@@ -12,13 +13,16 @@ test.describe('Admin CMS rich text', () => {
   }) => {
     await signInAsAdmin(page);
 
-    await page.goto('/admin/cms_pages/');
+    await page.goto('/admin/cms_pages');
     await page
       .getByRole('row')
-      .filter({ hasText: '/about/' })
+      .filter({ hasText: '/about' })
       .getByRole('link', { name: 'View page' })
       .click();
-    await expect(page).toHaveURL(/\/about\/$/u);
+    await expect(page).toHaveURL(/\/about$/u);
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'About MIT Sailing' })
+    ).toBeVisible();
     await expect(
       page.getByRole('link', { name: 'Edit this page' })
     ).toHaveAttribute('href', '/admin/cms_pages/cms-page-about/edit');
@@ -27,7 +31,7 @@ test.describe('Admin CMS rich text', () => {
     await page.goto('/admin/cms_page_blocks/cms-block-about-intro/edit');
     await expect(page.getByRole('link', { name: 'View page' })).toHaveAttribute(
       'href',
-      '/about/'
+      '/about'
     );
     await expect(page.getByRole('heading', { name: 'Preview' })).toBeVisible();
 
@@ -36,9 +40,10 @@ test.describe('Admin CMS rich text', () => {
     await editor.click();
     await page.keyboard.press('ControlOrMeta+A');
     await page.keyboard.type(marker);
-    await expect(
-      page.locator('section').filter({ hasText: marker })
-    ).toBeVisible();
+    const preview = page.locator('section', {
+      has: page.getByRole('heading', { name: 'Preview' }),
+    });
+    await expect(preview.getByText(marker)).toBeVisible();
 
     await page.locator('input[type="file"]').first().setInputFiles({
       buffer: PNG_BYTES,
@@ -59,16 +64,17 @@ test.describe('Admin CMS rich text', () => {
     await expect(page.locator('input[name="body"]')).toHaveValue(
       /data-align="right"/u
     );
-    await page.getByRole('button', { name: 'Save' }).click();
+    await submitCatalogSave(page);
     await expect(page).toHaveURL(
-      /\/admin\/cms_page_blocks\?page=cms-page-about$/u
+      /\/admin\/cms_page_blocks\/cms-block-about-intro\/edit\?page=cms-page-about$/u
     );
+    await expect(page.getByRole('heading', { name: 'Edit row' })).toBeVisible();
 
-    await page.goto('/profile/account/');
+    await page.goto('/profile/account');
     await page.getByRole('radio', { name: 'Light' }).click();
     await expect(page.locator('html')).not.toHaveClass(/dark/u);
 
-    await page.goto('/about/');
+    await page.goto('/about');
     await expect(
       page.getByRole('link', { name: 'Edit this page' })
     ).toHaveAttribute('href', '/admin/cms_pages/cms-page-about/edit');
@@ -76,11 +82,11 @@ test.describe('Admin CMS rich text', () => {
     await expect(richText).toBeVisible();
     await expect(richText.locator('img[data-align="right"]')).toBeVisible();
 
-    await page.goto('/profile/account/');
+    await page.goto('/profile/account');
     await page.getByRole('radio', { name: 'Dark' }).click();
     await expect(page.locator('html')).toHaveClass(/dark/u);
 
-    await page.goto('/about/');
+    await page.goto('/about');
     await expect(page.locator('html')).toHaveClass(/dark/u);
     await expect(richText).toBeVisible();
     await expect(richText.locator('img[data-align="right"]')).toBeVisible();
@@ -89,7 +95,7 @@ test.describe('Admin CMS rich text', () => {
   test('admin sees edit links on catalog detail pages', async ({ page }) => {
     await signInAsAdmin(page);
 
-    await page.goto('/classes/intro-sailing-101/');
+    await page.goto('/classes/intro-sailing-101');
     await expect(
       page.getByRole('link', { name: 'Edit this page' })
     ).toHaveAttribute(
@@ -97,12 +103,12 @@ test.describe('Admin CMS rich text', () => {
       '/admin/sailing_classes/class-intro-sailing-101/edit'
     );
 
-    await page.goto('/fleet/tech-dinghy/');
+    await page.goto('/fleet/tech-dinghy');
     await expect(
       page.getByRole('link', { name: 'Edit this page' })
     ).toHaveAttribute('href', '/admin/fleet/boat-tech-dinghy/edit');
 
-    await page.goto('/events/boston-dinghy-cup/');
+    await page.goto('/events/boston-dinghy-cup');
     await expect(
       page.getByRole('link', { name: 'Edit this page' })
     ).toHaveAttribute('href', '/admin/events/boston-dinghy-cup/edit');

@@ -34,7 +34,7 @@ export async function FleetListView(props: FleetListViewProps) {
           <li key={boat.id}>
             <Link
               className={`block h-full overflow-hidden rounded-xl border border-mit-line bg-mit-surface no-underline transition-shadow hover:shadow-sm ${textFocusRingClassName}`}
-              href={`/fleet/${boat.slug}/`}
+              href={`/fleet/${boat.slug}`}
             >
               {boat.imagePath ? (
                 <div className="relative aspect-[4/3] bg-mit-line">

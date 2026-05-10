@@ -5,7 +5,7 @@ import { ProfileSideNav } from './ProfileSideNav';
 
 describe('ProfileSideNav', () => {
   beforeEach(() => {
-    setComponentTestPathname('/profile/account/');
+    setComponentTestPathname('/profile/account');
   });
 
   it('profile owner sees profile settings navigation with the current page marked', () => {
@@ -21,7 +21,7 @@ describe('ProfileSideNav', () => {
   });
 
   it('profile owner sees a nested password page marked in the rail', () => {
-    setComponentTestPathname('/profile/password/change/');
+    setComponentTestPathname('/profile/password/change');
 
     render(<ProfileSideNav />);
 

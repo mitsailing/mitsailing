@@ -66,7 +66,7 @@ afterEach(() => {
 describe('AdminRichTextEditor helpers', () => {
   it('accepts safe editor links', () => {
     expect(isAllowedEditorHref('#')).toBe(true);
-    expect(isAllowedEditorHref('/about/')).toBe(true);
+    expect(isAllowedEditorHref('/about')).toBe(true);
     expect(isAllowedEditorHref('https://example.com')).toBe(true);
     expect(isAllowedEditorHref('http://example.com')).toBe(true);
     expect(isAllowedEditorHref('mailto:sailing@example.com')).toBe(true);
@@ -166,7 +166,7 @@ describe('AdminRichTextEditor formatting controls', () => {
 
   it('removes unsafe links', async () => {
     const user = userEvent.setup();
-    const view = renderEditor('<p><a href="/about/">Existing body</a></p>');
+    const view = renderEditor('<p><a href="/about">Existing body</a></p>');
 
     await user.click(screen.getByRole('button', { name: 'Add link' }));
     await user.clear(screen.getByRole('textbox', { name: 'Link URL' }));

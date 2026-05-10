@@ -23,50 +23,50 @@ type AdminNavItem = {
     | 'nav_cms_page_blocks'
     | 'nav_cms_menus'
     | 'nav_cms_menu_items';
-  /** `prefix` highlights all subpaths (e.g. event edit under `/admin/events/`). */
+  /** `prefix` highlights all subpaths (e.g. event edit under `/admin/events`). */
   match: 'exact' | 'prefix';
 };
 
 const ADMIN_SITE_NAV: AdminNavItem[] = [
-  { href: '/admin/', labelKey: 'nav_admin', match: 'exact' },
-  { href: '/admin/site_text/', labelKey: 'nav_site_text', match: 'prefix' },
-  { href: '/admin/users/', labelKey: 'nav_users', match: 'prefix' },
+  { href: '/admin', labelKey: 'nav_admin', match: 'exact' },
+  { href: '/admin/site_text', labelKey: 'nav_site_text', match: 'prefix' },
+  { href: '/admin/users', labelKey: 'nav_users', match: 'prefix' },
   {
-    href: '/admin/donation_funds/',
+    href: '/admin/donation_funds',
     labelKey: 'nav_donation_funds',
     match: 'prefix',
   },
-  { href: '/admin/events/', labelKey: 'nav_events', match: 'prefix' },
+  { href: '/admin/events', labelKey: 'nav_events', match: 'prefix' },
   {
-    href: '/admin/event_categories/',
+    href: '/admin/event_categories',
     labelKey: 'nav_event_categories',
     match: 'prefix',
   },
   {
-    href: '/admin/class_categories/',
+    href: '/admin/class_categories',
     labelKey: 'nav_class_categories',
     match: 'prefix',
   },
   {
-    href: '/admin/sailing_classes/',
+    href: '/admin/sailing_classes',
     labelKey: 'nav_sailing_classes',
     match: 'prefix',
   },
-  { href: '/admin/fleet/', labelKey: 'nav_fleet', match: 'prefix' },
+  { href: '/admin/fleet', labelKey: 'nav_fleet', match: 'prefix' },
   {
-    href: '/admin/site_alerts/',
+    href: '/admin/site_alerts',
     labelKey: 'nav_site_alerts',
     match: 'prefix',
   },
-  { href: '/admin/cms_pages/', labelKey: 'nav_cms_pages', match: 'prefix' },
+  { href: '/admin/cms_pages', labelKey: 'nav_cms_pages', match: 'prefix' },
   {
-    href: '/admin/cms_page_blocks/',
+    href: '/admin/cms_page_blocks',
     labelKey: 'nav_cms_page_blocks',
     match: 'prefix',
   },
-  { href: '/admin/cms_menus/', labelKey: 'nav_cms_menus', match: 'prefix' },
+  { href: '/admin/cms_menus', labelKey: 'nav_cms_menus', match: 'prefix' },
   {
-    href: '/admin/cms_menu_items/',
+    href: '/admin/cms_menu_items',
     labelKey: 'nav_cms_menu_items',
     match: 'prefix',
   },

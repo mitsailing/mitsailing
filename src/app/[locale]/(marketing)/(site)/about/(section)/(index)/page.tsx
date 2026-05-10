@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { AboutPageView } from '@/components/mit-sailing/about/AboutPageView';
+import { PublicAdminEditLink } from '@/components/mit-sailing/admin/PublicAdminEditLink';
+import { adminCatalogResourceEditPath } from '@/libs/admin/catalog/adminCatalogPaths';
 import { loadPublishedCmsPageByPath } from '@/libs/mit-sailing/cmsQueries';
 import type { PublicCmsPage } from '@/libs/mit-sailing/cmsQueries';
 
@@ -39,9 +41,19 @@ export default async function AboutPage(props: AboutPageProps) {
   setRequestLocale(locale);
   let cmsPage: PublicCmsPage | null = null;
   try {
-    cmsPage = await loadPublishedCmsPageByPath('/about/');
+    cmsPage = await loadPublishedCmsPageByPath('/about');
   } catch (error: unknown) {
     console.error('Failed to load About CMS page', error);
   }
-  return <AboutPageView cmsPage={cmsPage} />;
+  return (
+    <>
+      {cmsPage ? (
+        <PublicAdminEditLink
+          className="mx-auto mb-0 w-full max-w-5xl px-6 pt-4"
+          href={adminCatalogResourceEditPath('cms_pages', cmsPage.id)}
+        />
+      ) : null}
+      <AboutPageView cmsPage={cmsPage} />
+    </>
+  );
 }

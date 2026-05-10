@@ -38,7 +38,7 @@ describe('submitContactFormAction', () => {
 
     await expect(
       submitContactFormAction('en', validContactFormData())
-    ).rejects.toThrow('NEXT_REDIRECT:/contact/?status=sent#contact-form');
+    ).rejects.toThrow('NEXT_REDIRECT:/contact?status=sent#contact-form');
 
     expect(sendTransactionalEmailMock).toHaveBeenCalledTimes(1);
     expect(sendTransactionalEmailMock).toHaveBeenCalledWith(
@@ -56,7 +56,7 @@ describe('submitContactFormAction', () => {
     formData.set('currentYear', '2025');
 
     await expect(submitContactFormAction('en', formData)).rejects.toThrow(
-      'NEXT_REDIRECT:/contact/?status=invalid#contact-form'
+      'NEXT_REDIRECT:/contact?status=invalid#contact-form'
     );
 
     expect(sendTransactionalEmailMock).not.toHaveBeenCalled();

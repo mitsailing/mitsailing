@@ -62,7 +62,7 @@ export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
         subtitle: 'MIT Sailing Pavilion',
         body: "Learn, race, volunteer, and explore the river with one of the nation's most active university sailing communities.",
         ctaLabel: 'View classes',
-        ctaUrl: '/classes/',
+        ctaUrl: '/classes',
         imageSrc: '/assets/images/home-hero-charles-sailing.jpg',
         imageAlt: 'Sailboats on the Charles River near MIT',
         displayOrder: 0,
@@ -108,7 +108,7 @@ export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
             eventCount: 4,
             eventsEmptyText: 'No events scheduled in the next 7 days.',
             eventsCtaLabel: 'View all events',
-            eventsCtaUrl: '/events/',
+            eventsCtaUrl: '/events',
           },
           null,
           2
@@ -134,7 +134,7 @@ export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
                 badge: 'Most Common',
                 highlighted: true,
                 linkLabel: 'Create account',
-                linkUrl: '/signup/',
+                linkUrl: '/signup',
                 features: [
                   'Full access to all boats',
                   'All classes and clinics',
@@ -148,7 +148,7 @@ export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
                 price: 'Free',
                 frequency: 'with MIT Rec',
                 linkLabel: 'Create account',
-                linkUrl: '/signup/',
+                linkUrl: '/signup',
                 features: [
                   'Full access to all boats',
                   'All classes and clinics',
@@ -161,7 +161,7 @@ export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
                 price: '$64',
                 frequency: '/ month',
                 linkLabel: 'Create account',
-                linkUrl: '/signup/',
+                linkUrl: '/signup',
                 features: [
                   'Full access to all boats',
                   'All classes and clinics',
@@ -175,7 +175,7 @@ export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
                 price: '$90',
                 frequency: '/ month',
                 linkLabel: 'Create account',
-                linkUrl: '/signup/',
+                linkUrl: '/signup',
                 features: [
                   'Full access to all boats',
                   'All classes and clinics',
@@ -198,7 +198,7 @@ export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
         subtitle:
           'Every sailor starts with a required beginner class. Once you have your first rating, choose from a range of advanced courses.',
         ctaLabel: 'View all classes',
-        ctaUrl: '/classes/',
+        ctaUrl: '/classes',
         displayOrder: 10,
         isVisible: true,
       },
@@ -208,7 +208,7 @@ export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
         title: 'Reserve the Pavilion',
         body: 'The Sailing Pavilion is available for selected MIT community events and waterfront gatherings.',
         ctaLabel: 'Contact us',
-        ctaUrl: '/contact/',
+        ctaUrl: '/contact',
         displayOrder: 30,
         isVisible: true,
       },
@@ -217,7 +217,7 @@ export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
   {
     id: 'cms-page-about',
     slug: 'about',
-    path: '/about/',
+    path: '/about',
     title: 'About MIT Sailing',
     metaTitle: 'About MIT Sailing',
     metaDescription:
@@ -246,7 +246,7 @@ export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
   {
     id: 'cms-page-contact',
     slug: 'contact',
-    path: '/contact/',
+    path: '/contact',
     title: 'Contact',
     metaTitle: 'Contact',
     metaDescription:
@@ -275,7 +275,7 @@ export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
         subtitle: 'Pavilion and Mashnee locations',
         body: 'MIT Sailing is based at the Walter C. Wood Sailing Pavilion on the Charles River. Bluewater/Mashnee events meet at Boston Waterboat Marina near Long Wharf, not at the Pavilion on Memorial Drive.',
         ctaLabel: 'View Mashnee directions',
-        ctaUrl: '/contact/#mashnee-directions',
+        ctaUrl: '/contact#mashnee-directions',
         displayOrder: 20,
         isVisible: true,
       },
@@ -292,7 +292,7 @@ export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
   {
     id: 'cms-page-privacy',
     slug: 'privacy',
-    path: '/privacy/',
+    path: '/privacy',
     title: 'Privacy',
     metaTitle: 'Privacy',
     metaDescription:
@@ -338,7 +338,7 @@ export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
   {
     id: 'cms-page-terms',
     slug: 'terms',
-    path: '/terms/',
+    path: '/terms',
     title: 'Terms',
     metaTitle: 'Terms',
     metaDescription:
@@ -384,7 +384,7 @@ export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
   {
     id: 'cms-page-accessibility',
     slug: 'accessibility',
-    path: '/accessibility/',
+    path: '/accessibility',
     title: 'Accessibility',
     metaTitle: 'Accessibility',
     metaDescription:
@@ -438,7 +438,7 @@ export const CMS_MENU_SEED_ROWS: readonly CmsSeedMenu[] = [
       {
         id: 'cms-menu-header-classes',
         label: 'Classes',
-        url: '/classes/',
+        url: '/classes',
         isExternal: false,
         isVisible: true,
         displayOrder: 0,
@@ -447,7 +447,7 @@ export const CMS_MENU_SEED_ROWS: readonly CmsSeedMenu[] = [
       {
         id: 'cms-menu-header-fleet',
         label: 'Fleet',
-        url: '/fleet/',
+        url: '/fleet',
         isExternal: false,
         isVisible: true,
         displayOrder: 10,
@@ -472,7 +472,7 @@ export const CMS_MENU_SEED_ROWS: readonly CmsSeedMenu[] = [
       {
         id: 'cms-menu-header-calendar',
         label: 'Calendar',
-        url: '/events/',
+        url: '/events',
         isExternal: false,
         isVisible: true,
         displayOrder: 40,
@@ -519,7 +519,7 @@ export const CMS_MENU_SEED_ROWS: readonly CmsSeedMenu[] = [
       {
         id: 'cms-menu-mobile-donate',
         label: 'Donate',
-        url: '/donate/',
+        url: '/donate',
         isExternal: false,
         isVisible: true,
         displayOrder: 20,
@@ -542,7 +542,7 @@ export const CMS_MENU_SEED_ROWS: readonly CmsSeedMenu[] = [
         id: 'cms-menu-footer-classes',
         parentId: 'cms-menu-footer-learn',
         label: 'All Classes',
-        url: '/classes/',
+        url: '/classes',
         isExternal: false,
         isVisible: true,
         displayOrder: 0,
@@ -567,7 +567,7 @@ export const CMS_MENU_SEED_ROWS: readonly CmsSeedMenu[] = [
         id: 'cms-menu-footer-fleet',
         parentId: 'cms-menu-footer-sail',
         label: 'Our Fleet',
-        url: '/fleet/',
+        url: '/fleet',
         isExternal: false,
         isVisible: true,
         displayOrder: 0,
@@ -576,7 +576,7 @@ export const CMS_MENU_SEED_ROWS: readonly CmsSeedMenu[] = [
         id: 'cms-menu-footer-calendar',
         parentId: 'cms-menu-footer-sail',
         label: 'Calendar',
-        url: '/events/',
+        url: '/events',
         isExternal: false,
         isVisible: true,
         displayOrder: 10,
@@ -619,7 +619,7 @@ export const CMS_MENU_SEED_ROWS: readonly CmsSeedMenu[] = [
         id: 'cms-menu-footer-event-admin',
         parentId: 'cms-menu-footer-about',
         label: 'Event admin',
-        url: '/admin/events/',
+        url: '/admin/events',
         isExternal: false,
         isVisible: true,
         displayOrder: 30,

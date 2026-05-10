@@ -228,7 +228,7 @@ describe('AdminCatalogForm rich text fields', () => {
         row={{
           body: '<p>Existing body</p>',
           ctaLabel: 'Learn more',
-          ctaUrl: '/classes/',
+          ctaUrl: '/classes',
           displayOrder: 1,
           id: 'block-1',
           imageAlt: 'Boats on the river',
@@ -244,7 +244,7 @@ describe('AdminCatalogForm rich text fields', () => {
     expect(screen.getByRole('checkbox', { name: 'Add CTA' })).toBeChecked();
     expect(screen.getByRole('checkbox', { name: 'Add picture' })).toBeChecked();
     expect(screen.getByLabelText('CTA label')).toHaveValue('Learn more');
-    expect(screen.getByLabelText('CTA URL')).toHaveValue('/classes/');
+    expect(screen.getByLabelText('CTA URL')).toHaveValue('/classes');
     expect(screen.getByLabelText('Image alt text')).toHaveValue(
       'Boats on the river'
     );
@@ -263,7 +263,7 @@ describe('AdminCatalogForm rich text fields', () => {
         row={{
           body: '<p>Existing body</p>',
           ctaLabel: 'Learn more',
-          ctaUrl: '/classes/',
+          ctaUrl: '/classes',
           displayOrder: 1,
           id: 'block-1',
           imageAlt: 'Boats on the river',
@@ -285,7 +285,7 @@ describe('AdminCatalogForm rich text fields', () => {
       'Learn more'
     );
     expect(view.container.querySelector('input[name="ctaUrl"]')).toHaveValue(
-      '/classes/'
+      '/classes'
     );
     expect(view.container.querySelector('input[name="imageSrc"]')).toHaveValue(
       '/assets/images/home-hero-charles-sailing.jpg'
@@ -298,7 +298,7 @@ describe('AdminCatalogForm rich text fields', () => {
     await user.click(screen.getByRole('checkbox', { name: 'Add picture' }));
 
     expect(screen.getByLabelText('CTA label')).toHaveValue('Learn more');
-    expect(screen.getByLabelText('CTA URL')).toHaveValue('/classes/');
+    expect(screen.getByLabelText('CTA URL')).toHaveValue('/classes');
     expect(screen.getByLabelText('Image alt text')).toHaveValue(
       'Boats on the river'
     );
@@ -316,14 +316,14 @@ describe('AdminCatalogForm rich text fields', () => {
               {
                 features: ['Full access'],
                 linkLabel: 'Create account',
-                linkUrl: '/signup/',
+                linkUrl: '/signup',
                 price: 'Free',
                 title: 'Students',
               },
             ],
           }),
           ctaLabel: 'Block CTA',
-          ctaUrl: '/block/',
+          ctaUrl: '/block',
           displayOrder: 1,
           id: 'block-1',
           imageAlt: 'Boats on the river',
@@ -341,13 +341,13 @@ describe('AdminCatalogForm rich text fields', () => {
     expect(screen.queryByLabelText('CTA label')).toBeNull();
     expect(screen.queryByLabelText('Image alt text')).toBeNull();
     expect(screen.getByLabelText('Link label')).toHaveValue('Create account');
-    expect(screen.getByLabelText('Link URL')).toHaveValue('/signup/');
+    expect(screen.getByLabelText('Link URL')).toHaveValue('/signup');
     expect(view.container.querySelector('input[name="ctaLabel"]')).toBeNull();
     expect(view.container.querySelector('input[name="imageSrc"]')).toBeNull();
     expect(hiddenBodyValue(view.container)).toContain(
       '"linkLabel": "Create account"'
     );
-    expect(hiddenBodyValue(view.container)).toContain('"linkUrl": "/signup/"');
+    expect(hiddenBodyValue(view.container)).toContain('"linkUrl": "/signup"');
   });
 });
 
@@ -596,7 +596,7 @@ describe('AdminRichTextEditor media controls', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Could not load CMS images.'
     );
-    expect(hiddenBodyValue(view.container)).not.toContain('/uploads/');
+    expect(hiddenBodyValue(view.container)).not.toContain('/uploads');
   });
 });
 
@@ -761,7 +761,7 @@ describe('Admin catalog media fields', () => {
     expect(ctaUrlInput).toHaveFocus();
     expect(saveAction).not.toHaveBeenCalled();
 
-    await user.type(ctaUrlInput, '/classes/');
+    await user.type(ctaUrlInput, '/classes');
 
     expect(
       screen.queryByText('Add a CTA URL before saving.')
@@ -793,7 +793,7 @@ describe('Admin catalog media fields', () => {
     const ctaLabelInput = screen.getByLabelText('CTA label');
     const ctaUrlInput = screen.getByLabelText('CTA URL');
 
-    await user.type(ctaUrlInput, '/classes/');
+    await user.type(ctaUrlInput, '/classes');
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(screen.getByText('Add a CTA label before saving.')).toBeVisible();
@@ -950,12 +950,12 @@ describe('AdminRichTextEditor link controls', () => {
     await user.click(screen.getByRole('button', { name: 'Add link' }));
     await user.type(
       screen.getByRole('textbox', { name: 'Link URL' }),
-      '/guide/'
+      '/guide'
     );
     await user.click(screen.getByRole('button', { name: 'Apply link' }));
 
     await waitFor(() => {
-      expect(hiddenBodyValue(view.container)).toContain('href="/guide/"');
+      expect(hiddenBodyValue(view.container)).toContain('href="/guide"');
     });
     expect(hiddenBodyValue(view.container)).toContain('>guide</a>');
 
@@ -970,12 +970,12 @@ describe('AdminRichTextEditor link controls', () => {
 
   it('unsets selected links for unsafe link URLs', async () => {
     const user = userEvent.setup();
-    const view = renderCmsBlockForm('<p><a href="/old/">Old link</a></p>');
+    const view = renderCmsBlockForm('<p><a href="/old">Old link</a></p>');
 
     selectEditorText('Old link');
     await user.click(screen.getByRole('button', { name: 'Add link' }));
     const urlInput = screen.getByRole('textbox', { name: 'Link URL' });
-    expect(urlInput).toHaveValue('/old/');
+    expect(urlInput).toHaveValue('/old');
     await user.clear(urlInput);
     await user.type(urlInput, `${['java', 'script'].join('')}:alert(1)`);
     await user.click(screen.getByRole('button', { name: 'Apply link' }));
@@ -1026,7 +1026,7 @@ describe('AdminCmsHistoryPanelView', () => {
             preview: {
               blockCount: 2,
               excerpt: 'Intro body',
-              pagePath: '/about/',
+              pagePath: '/about',
               pageTitle: 'About',
             },
             summary: {
@@ -1250,7 +1250,7 @@ describe('AdminCmsRevisionCompareView', () => {
           preview: {
             blockCount: 2,
             excerpt: 'Intro body',
-            pagePath: '/about/',
+            pagePath: '/about',
             pageTitle: 'About',
           },
           summary: {

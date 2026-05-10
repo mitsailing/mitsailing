@@ -97,7 +97,7 @@ function HomeHeroSection(props: {
             {props.isSignedIn ? null : (
               <Link
                 className={`inline-flex items-center justify-center rounded-sm bg-transparent px-2 py-3 text-base font-medium text-white underline-offset-4 transition-colors hover:underline ${HERO_ON_IMAGE_FOCUS_RING_CLASS_NAME}`}
-                href="/signup/"
+                href="/signup"
               >
                 {props.createAccountLabel}
               </Link>
@@ -221,7 +221,7 @@ function HomeClassesSection(props: {
               {props.homeIntroClasses.map((cls) => (
                 <Link
                   className={`relative flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card p-8 no-underline shadow-sm transition-shadow hover:shadow-sm ${textFocusRingClassName}`}
-                  href={`/classes/${cls.slug}/`}
+                  href={`/classes/${cls.slug}`}
                   key={cls.id}
                 >
                   <span className="mb-3 inline-block self-start rounded bg-mit-red-highlight px-2 py-0.5 text-[10px] font-bold tracking-wide text-primary-ink uppercase">
@@ -288,7 +288,7 @@ function HomeClassesSection(props: {
                       </span>
                       <Link
                         className={`flex items-center gap-1 text-xs font-semibold text-primary-ink no-underline hover:underline ${textFocusRingClassName}`}
-                        href={`/classes/${cls.slug}/`}
+                        href={`/classes/${cls.slug}`}
                       >
                         {props.t('course_details')}
                         <ArrowRight aria-hidden size={12} />

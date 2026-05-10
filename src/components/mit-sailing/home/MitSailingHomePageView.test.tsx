@@ -78,9 +78,9 @@ describe('MitSailingHomePageView', () => {
     mockHomeData({
       blocks: [
         {
-          body: '<p><strong>Fast</strong> sailing <a href="/classes/">classes</a></p>',
+          body: '<p><strong>Fast</strong> sailing <a href="/classes">classes</a></p>',
           ctaLabel: 'Start sailing',
-          ctaUrl: '/classes/',
+          ctaUrl: '/classes',
           id: 'hero-block',
           imageAlt: 'Sailboats',
           imageSrc: '/assets/images/home-hero-charles-sailing.jpg',
@@ -91,7 +91,7 @@ describe('MitSailingHomePageView', () => {
         {
           body: '<p>Reserve the <em>pavilion</em>.</p>',
           ctaLabel: 'Contact us',
-          ctaUrl: '/contact/',
+          ctaUrl: '/contact',
           id: 'rental-block',
           kind: 'callout',
           title: 'CMS rental',
@@ -102,14 +102,14 @@ describe('MitSailingHomePageView', () => {
               {
                 features: ['Full access'],
                 linkLabel: 'Join students',
-                linkUrl: '/signup/',
+                linkUrl: '/signup',
                 price: '$10',
                 title: 'One plan',
               },
             ],
           }),
           ctaLabel: 'Block join',
-          ctaUrl: '/block-signup/',
+          ctaUrl: '/block-signup',
           id: 'pricing-block',
           kind: 'pricing',
           title: 'CMS pricing',
@@ -139,7 +139,7 @@ describe('MitSailingHomePageView', () => {
     );
     expect(screen.getByRole('link', { name: 'Join students' })).toHaveAttribute(
       'href',
-      '/signup/'
+      '/signup'
     );
     expect(
       screen.queryByRole('link', { name: 'Block join' })
@@ -207,7 +207,7 @@ describe('MitSailingHomePageView', () => {
             eventCount: 2,
             eventsEmptyText: 'No CMS events.',
             eventsCtaLabel: 'All CMS events',
-            eventsCtaUrl: '/events/',
+            eventsCtaUrl: '/events',
           }),
           id: 'home-overview-block',
           kind: 'home_overview',
@@ -273,16 +273,16 @@ describe('MitSailingHomePageView', () => {
     expect(screen.getByText('CMS events')).toBeInTheDocument();
     expect(
       screen.getByRole('link', { name: 'First CMS event' })
-    ).toHaveAttribute('href', '/events/first-cms-event/');
+    ).toHaveAttribute('href', '/events/first-cms-event');
     expect(
       screen.getByRole('link', { name: 'Second CMS event' })
-    ).toHaveAttribute('href', '/events/second-cms-event/');
+    ).toHaveAttribute('href', '/events/second-cms-event');
     expect(
       screen.queryByRole('link', { name: 'Third CMS event' })
     ).not.toBeInTheDocument();
     expect(
       screen.getByRole('link', { name: 'All CMS events' })
-    ).toHaveAttribute('href', '/events/');
+    ).toHaveAttribute('href', '/events');
   });
 
   it('renders learn to sail content from a cms block with class data', async () => {
@@ -290,7 +290,7 @@ describe('MitSailingHomePageView', () => {
       blocks: [
         {
           ctaLabel: 'All classes',
-          ctaUrl: '/classes/',
+          ctaUrl: '/classes',
           id: 'home-classes-block',
           kind: 'home_classes',
           subtitle: 'CMS class path copy.',
@@ -336,7 +336,7 @@ describe('MitSailingHomePageView', () => {
     expect(screen.getByText('Boat Speed')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'All classes' })).toHaveAttribute(
       'href',
-      '/classes/'
+      '/classes'
     );
   });
 

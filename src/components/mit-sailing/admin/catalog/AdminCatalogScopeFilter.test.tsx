@@ -64,7 +64,7 @@ describe('AdminCatalogTable scoped CMS definitions', () => {
           {
             id: 'page-1',
             isPublished: true,
-            path: '/about/',
+            path: '/about',
             title: 'About',
           },
         ]}
@@ -73,7 +73,7 @@ describe('AdminCatalogTable scoped CMS definitions', () => {
 
     expect(screen.getByRole('link', { name: 'View page' })).toHaveAttribute(
       'href',
-      '/about/'
+      '/about'
     );
   });
 

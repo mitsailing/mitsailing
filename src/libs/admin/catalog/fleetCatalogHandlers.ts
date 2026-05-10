@@ -81,7 +81,7 @@ export const fleetCatalogHandlers: CatalogServerHandlers = {
       capacity: row.capacity,
       displayOrder: row.displayOrder,
       requiredClassName: row.requiredClass.name,
-      publicBoatUrl: getI18nPath(`/fleet/${row.slug}/`, locale),
+      publicBoatUrl: getI18nPath(`/fleet/${row.slug}`, locale),
     }));
   },
 

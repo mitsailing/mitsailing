@@ -98,10 +98,10 @@ function catalogDetailPath(
   slug: string
 ): string | null {
   if (resourceId === 'sailing_classes') {
-    return `/classes/${slug}/`;
+    return `/classes/${slug}`;
   }
   if (resourceId === 'fleet') {
-    return `/fleet/${slug}/`;
+    return `/fleet/${slug}`;
   }
   return null;
 }

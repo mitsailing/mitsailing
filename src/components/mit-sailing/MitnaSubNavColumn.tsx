@@ -17,25 +17,25 @@ export function MitnaSubNavColumn() {
     >
       <Link
         className="rounded-md px-2 py-1.5 text-foreground hover:bg-muted"
-        href="/about/mitna/"
+        href="/about/mitna"
       >
         {t('mitna_nav_root')}
       </Link>
       <Link
         className="rounded-md px-2 py-1.5 text-foreground hover:bg-muted"
-        href="/about/mitna/constitution/"
+        href="/about/mitna/constitution"
       >
         {t('mitna_nav_constitution')}
       </Link>
       <Link
         className="rounded-md px-2 py-1.5 text-foreground hover:bg-muted"
-        href="/about/mitna/meetings/"
+        href="/about/mitna/meetings"
       >
         {t('mitna_nav_meetings')}
       </Link>
       <Link
         className="rounded-md px-2 py-1.5 text-foreground hover:bg-muted"
-        href="/about/mitna/hatch-award/"
+        href="/about/mitna/hatch-award"
       >
         {t('mitna_nav_hatch')}
       </Link>

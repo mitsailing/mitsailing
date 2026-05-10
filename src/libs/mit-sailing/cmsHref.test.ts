@@ -7,7 +7,7 @@ import {
 
 describe('cmsHref', () => {
   it('accepts safe cms hrefs', () => {
-    expect(safeCmsHref('/classes/')).toBe('/classes/');
+    expect(safeCmsHref('/classes')).toBe('/classes');
     expect(safeCmsHref('#')).toBe('#');
     expect(safeCmsHref('https://sailing.mit.edu')).toBe(
       'https://sailing.mit.edu'
@@ -28,7 +28,7 @@ describe('cmsHref', () => {
   });
 
   it('marks only app relative cms hrefs as internal', () => {
-    expect(isAppRelativeCmsHref('/about/')).toBe(true);
+    expect(isAppRelativeCmsHref('/about')).toBe(true);
     expect(isAppRelativeCmsHref('https://sailing.mit.edu')).toBe(false);
   });
 

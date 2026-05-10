@@ -13,10 +13,10 @@ import { NavigationDropdown } from './NavigationDropdown';
 const dropdownItems = [
   {
     label: 'Introduction',
-    href: '/classes/#introduction',
+    href: '/classes#introduction',
     description: 'Start here',
   },
-  { label: 'Windsurfing', href: '/classes/#windsurfing' },
+  { label: 'Windsurfing', href: '/classes#windsurfing' },
   { label: 'External guide', externalHref: 'https://example.com/guide' },
 ];
 
@@ -28,7 +28,7 @@ function renderDropdown(props?: {
 }) {
   return render(
     <NavigationDropdown
-      href="/classes/"
+      href="/classes"
       items={dropdownItems}
       label="Classes"
       pathname={props?.pathname ?? '/'}
@@ -68,7 +68,7 @@ describe('NavigationDropdown', () => {
     expect(screen.getByRole('link', { name: 'Windsurfing' })).toBeVisible();
     expect(screen.getByRole('link', { name: 'External guide' })).toBeVisible();
     expect(links).toHaveLength(4);
-    expect(links[0]).toHaveAttribute('href', '/classes/');
+    expect(links[0]).toHaveAttribute('href', '/classes');
   });
 
   it('supports disclosure keyboard flow', async () => {
@@ -200,7 +200,7 @@ describe('NavigationDropdown', () => {
     render(
       <>
         <NavigationDropdown
-          href="/classes/"
+          href="/classes"
           items={dropdownItems}
           label="Classes"
           pathname="/"
@@ -228,7 +228,7 @@ describe('NavigationDropdown', () => {
 
   it('marks active dropdown children with aria-current', async () => {
     const user = userEvent.setup({ skipHover: true });
-    renderDropdown({ pathname: '/classes/', routeHash: 'windsurfing' });
+    renderDropdown({ pathname: '/classes', routeHash: 'windsurfing' });
 
     await user.click(screen.getByRole('button', { name: 'Classes' }));
 

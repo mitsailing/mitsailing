@@ -11,7 +11,7 @@ type CmsCatchAllPageProps = {
 };
 
 function pathFromSegments(segments: string[]): string {
-  return `/${segments.map((segment) => decodeURIComponent(segment)).join('/')}/`;
+  return `/${segments.map((segment) => decodeURIComponent(segment)).join('/')}`;
 }
 
 export async function generateMetadata(

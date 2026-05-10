@@ -2,6 +2,10 @@ import * as z from 'zod';
 import { parseCmsHomeOverviewBody } from '@/libs/mit-sailing/cmsHomeOverview';
 import { parseCmsPricingBody } from '@/libs/mit-sailing/cmsPricing';
 
+function canonicalCmsAppPath(path: string): string {
+  return path === '/' ? path : path.replace(/\/+$/u, '');
+}
+
 const cmsPathSchema = z
   .string()
   .trim()
@@ -23,7 +27,7 @@ const cmsPathSchema = z
     if (value === '/') {
       return value;
     }
-    return value.endsWith('/') ? value : `${value}/`;
+    return canonicalCmsAppPath(value);
   });
 
 const cmsUrlSchema = z
@@ -43,7 +47,12 @@ const cmsUrlSchema = z
     } catch {
       return false;
     }
-  }, 'CMS links must be internal paths, #, or http(s) URLs');
+  }, 'CMS links must be internal paths, #, or http(s) URLs')
+  .transform((value) =>
+    value.startsWith('/') && !value.startsWith('//')
+      ? canonicalCmsAppPath(value)
+      : value
+  );
 
 export const cmsPageInputSchema = z.object({
   slug: z
@@ -117,30 +126,21 @@ export const cmsBlockInputSchema = z
     }
   });
 
-export const cmsMenuItemInputSchema = z
-  .object({
-    menuId: z.string().trim().min(1),
-    parentId: z.string().trim().optional(),
-    linkedPageId: z.string().trim().optional(),
-    label: z.string().trim().min(1),
-    url: z
-      .string()
-      .trim()
-      .optional()
-      .transform((value) => (value === '' ? undefined : value)),
-    isExternal: z.boolean(),
-    isVisible: z.boolean(),
-    systemKey: z.string().trim().optional(),
-  })
-  .refine(
-    (value) => {
-      if (!value.url) {
-        return true;
-      }
-      return cmsUrlSchema.safeParse(value.url).success;
-    },
-    { message: 'CMS menu item URL is invalid', path: ['url'] }
-  );
+export const cmsMenuItemInputSchema = z.object({
+  menuId: z.string().trim().min(1),
+  parentId: z.string().trim().optional(),
+  linkedPageId: z.string().trim().optional(),
+  label: z.string().trim().min(1),
+  url: z
+    .string()
+    .trim()
+    .optional()
+    .transform((value) => (value === '' ? undefined : value))
+    .pipe(cmsUrlSchema.optional()),
+  isExternal: z.boolean(),
+  isVisible: z.boolean(),
+  systemKey: z.string().trim().optional(),
+});
 
 export type CmsMenuTreeNode = {
   id: string;

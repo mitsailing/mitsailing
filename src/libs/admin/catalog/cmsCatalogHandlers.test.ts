@@ -108,7 +108,7 @@ function cmsPageSnapshotRow(now: Date) {
   return {
     id: 'page-1',
     slug: 'about',
-    path: '/about/',
+    path: '/about',
     title: 'About',
     metaTitle: 'About',
     metaDescription: 'About page',
@@ -141,7 +141,7 @@ describe('cmsPagesCatalogHandlers', () => {
       const now = new Date('2026-05-09T12:00:00.000Z');
       const formData = new FormData();
       formData.set('slug', 'about');
-      formData.set('path', '/about/');
+      formData.set('path', '/about');
       formData.set('title', 'About');
       formData.set('metaTitle', 'About');
       formData.set('metaDescription', 'About page');
@@ -222,7 +222,7 @@ describe('cmsPageBlocksCatalogHandlers', () => {
       mocks.cmsPageFindUnique.mockResolvedValue({
         id: 'page-1',
         slug: 'about',
-        path: '/about/',
+        path: '/about',
         title: 'About',
         metaTitle: null,
         metaDescription: null,
@@ -252,7 +252,7 @@ describe('cmsPageBlocksCatalogHandlers', () => {
           page: {
             id: 'page-1',
             slug: 'about',
-            path: '/about/',
+            path: '/about',
             title: 'About',
             metaTitle: null,
             metaDescription: null,
@@ -565,7 +565,7 @@ describe('cmsMenuItemsCatalogHandlers', () => {
       formData.set('menuId', 'menu-1');
       formData.set('parentId', 'parent-1');
       formData.set('label', 'Membership');
-      formData.set('url', '/membership/');
+      formData.set('url', '/membership');
       formData.set('isVisible', 'true');
 
       mocks.cmsMenuItemFindMany.mockResolvedValue([
@@ -602,7 +602,7 @@ describe('cmsMenuItemsCatalogHandlers', () => {
       const formData = new FormData();
       formData.set('menuId', 'menu-1');
       formData.set('label', 'About MIT Sailing');
-      formData.set('url', '/about/');
+      formData.set('url', '/about');
       formData.set('isVisible', 'true');
 
       mocks.cmsMenuItemFindMany.mockResolvedValue([

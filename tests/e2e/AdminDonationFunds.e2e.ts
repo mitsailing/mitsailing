@@ -4,10 +4,9 @@ import {
   visibleDonationFundsInDisplayOrder,
 } from '@/data/mit-sailing/donationFundsSeed';
 import { signInAsAdmin } from '../helpers/e2e-admin-sign-in';
+import { submitCatalogSave } from '../helpers/e2e-catalog-form';
 
-const hiddenFund = donationFundHiddenForE2e();
-const hiddenFundId = hiddenFund.id;
-const hiddenFundName = hiddenFund.name;
+const hiddenFundName = donationFundHiddenForE2e().name;
 
 test.describe('Admin donation funds', () => {
   test.describe.configure({ mode: 'serial' });
@@ -62,31 +61,63 @@ test.describe('Admin donation funds', () => {
     page,
   }) => {
     await signInAsAdmin(page);
-    await page.goto(`/admin/donation_funds/${hiddenFundId}/edit`);
-    await expect(page.getByRole('heading', { name: 'Edit row' })).toBeVisible();
 
-    const published = page.locator(
-      'form input[name="isVisible"][type="checkbox"]'
-    );
-    await published.check();
-    await page.getByRole('button', { name: 'Save' }).click();
-    await expect(page).toHaveURL(/\/admin\/donation_funds\/?$/);
+    const suffix = Date.now();
+    const fundId = `e2e-${suffix}`;
+    const fundName = `E2E hidden donation fund ${suffix}`;
 
-    await page.goto('/donate');
-    await expect(
-      page.getByRole('heading', { level: 3, name: hiddenFundName })
-    ).toBeVisible();
-
-    await page.goto(`/admin/donation_funds/${hiddenFundId}/edit`);
+    await page.goto('/admin/donation_funds/new');
+    await page.getByLabel('Designation ID').fill(fundId);
+    await page.getByLabel('Name', { exact: true }).fill(fundName);
+    await page
+      .getByLabel('Description')
+      .fill('E2E donation fund used to verify public visibility toggles.');
+    await page.getByLabel('URL').fill('https://example.com');
     await page
       .locator('form input[name="isVisible"][type="checkbox"]')
       .uncheck();
-    await page.getByRole('button', { name: 'Save' }).click();
-    await expect(page).toHaveURL(/\/admin\/donation_funds\/?$/);
+    await submitCatalogSave(page);
+    await expect(page.getByRole('heading', { name: 'Edit row' })).toBeVisible();
+    const editUrl = page.url();
 
     await page.goto('/donate');
     await expect(
-      page.getByRole('heading', { level: 3, name: hiddenFundName })
+      page.getByRole('heading', { level: 3, name: fundName })
     ).toHaveCount(0);
+
+    await page.goto(editUrl);
+    const visible = page.locator(
+      'form input[name="isVisible"][type="checkbox"]'
+    );
+    await visible.check();
+    await submitCatalogSave(page);
+    await expect(page.getByRole('heading', { name: 'Edit row' })).toBeVisible();
+
+    await page.goto('/donate');
+    await expect(
+      page.getByRole('heading', { level: 3, name: fundName })
+    ).toBeVisible();
+
+    await page.goto(editUrl);
+    await page
+      .locator('form input[name="isVisible"][type="checkbox"]')
+      .uncheck();
+    await submitCatalogSave(page);
+    await expect(page.getByRole('heading', { name: 'Edit row' })).toBeVisible();
+
+    await page.goto('/donate');
+    await expect(
+      page.getByRole('heading', { level: 3, name: fundName })
+    ).toHaveCount(0);
+
+    await page.goto('/admin/donation_funds');
+    await page
+      .getByRole('row')
+      .filter({ hasText: fundName })
+      .getByRole('link', { name: 'Delete', exact: true })
+      .click();
+    await page.getByRole('button', { name: 'Delete' }).click();
+    await expect(page).toHaveURL(/\/admin\/donation_funds\/?$/);
+    await expect(page.getByRole('table').getByText(fundName)).toHaveCount(0);
   });
 });

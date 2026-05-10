@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { signInAsAdmin } from '../helpers/e2e-admin-sign-in';
+import { submitCatalogSave } from '../helpers/e2e-catalog-form';
 
 const PNG_BYTES = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/lcK0nQAAAABJRU5ErkJggg==',
@@ -59,17 +60,17 @@ test.describe('Admin sailing classes', () => {
       /\/cms-media\/.+\/e2e-class-gallery\.png/u
     );
 
-    await page.getByRole('button', { name: 'Save' }).click();
-    await expect(page).toHaveURL(/\/admin\/sailing_classes\/?$/);
+    await submitCatalogSave(page);
+    await expect(page).toHaveURL(/\/admin\/sailing_classes\/[^/]+\/edit\/?$/);
+    await expect(page.getByRole('heading', { name: 'Edit row' })).toBeVisible();
 
-    await expect(page.getByRole('table').getByText(name)).toBeVisible();
-
-    await page.goto(`/classes/${slug}/`);
+    await page.goto(`/classes/${slug}`);
     await expect(page.getByRole('heading', { name, level: 1 })).toBeVisible();
     await expect(page.locator('img[src*="/cms-media/"]')).toBeVisible();
     await expect(page.locator('.cms-rich-text')).toContainText('E2E body');
 
     await page.goto('/admin/sailing_classes');
+    await expect(page.getByRole('table').getByText(name)).toBeVisible();
     await page
       .getByRole('row')
       .filter({ hasText: name })
@@ -81,9 +82,15 @@ test.describe('Admin sailing classes', () => {
     await editorOnEdit.click();
     await page.keyboard.press('ControlOrMeta+A');
     await page.keyboard.type('E2E body updated');
-    await page.getByRole('button', { name: 'Save' }).click();
-    await expect(page).toHaveURL(/\/admin\/sailing_classes\/?$/);
+    await submitCatalogSave(page);
+    await expect(page).toHaveURL(/\/admin\/sailing_classes\/[^/]+\/edit\/?$/);
 
+    await page.goto(`/classes/${slug}`);
+    await expect(page.locator('.cms-rich-text')).toContainText(
+      'E2E body updated'
+    );
+
+    await page.goto('/admin/sailing_classes');
     await page
       .getByRole('row')
       .filter({ hasText: name })

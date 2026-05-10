@@ -11,7 +11,7 @@ import { getI18nPath } from '@/utils/Helpers';
 type ContactFormStatus = 'invalid' | 'sent';
 
 function contactFormRedirect(locale: string, status: ContactFormStatus): never {
-  redirect(`${getI18nPath('/contact/', locale)}?status=${status}#contact-form`);
+  redirect(`${getI18nPath('/contact', locale)}?status=${status}#contact-form`);
 }
 
 /**

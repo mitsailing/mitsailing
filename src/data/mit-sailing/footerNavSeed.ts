@@ -35,7 +35,7 @@ export const footerNavColumns: readonly FooterNavColumn[] = [
   {
     titleKey: 'footer_col_learn',
     links: [
-      { labelKey: 'footer_link_all_classes', href: '/classes/' },
+      { labelKey: 'footer_link_all_classes', href: '/classes' },
       { labelKey: 'footer_link_learn_sail', href: '#' },
       { labelKey: 'footer_link_intermediate', href: '#' },
       { labelKey: 'footer_link_learn_race', href: '#' },
@@ -45,8 +45,8 @@ export const footerNavColumns: readonly FooterNavColumn[] = [
   {
     titleKey: 'footer_col_sail',
     links: [
-      { labelKey: 'footer_link_our_fleet', href: '/fleet/' },
-      { labelKey: 'footer_link_calendar', href: '/events/' },
+      { labelKey: 'footer_link_our_fleet', href: '/fleet' },
+      { labelKey: 'footer_link_calendar', href: '/events' },
       { labelKey: 'footer_link_sailing_ratings', href: '#' },
       { labelKey: 'footer_link_river_webcam', href: '#' },
       { labelKey: 'footer_link_conditions', href: '#' },
@@ -59,8 +59,8 @@ export const footerNavColumns: readonly FooterNavColumn[] = [
       { labelKey: 'footer_link_sailing_team', href: '#' },
       { labelKey: 'footer_link_pavilion_rental', href: '#' },
       { labelKey: 'footer_link_about_us', href: '#' },
-      { labelKey: 'footer_link_contact', to: '/contact/' },
-      { labelKey: 'footer_link_event_admin', to: '/admin/events/' },
+      { labelKey: 'footer_link_contact', to: '/contact' },
+      { labelKey: 'footer_link_event_admin', to: '/admin/events' },
     ],
   },
 ] as const;

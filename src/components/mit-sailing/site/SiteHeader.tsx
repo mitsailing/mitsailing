@@ -85,7 +85,7 @@ export type SiteHeaderProps = {
   mobileUtilityItems?: SiteHeaderMobileUtilityItem[];
   /** Items for the Fleet dropdown — generated server-side from Prisma. */
   fleetDropdownItems: NavigationDropdownItem[];
-  /** Items for the Classes dropdown (ordered categories → `/classes/#slug`). */
+  /** Items for the Classes dropdown (ordered categories → `/classes#slug`). */
   classesDropdownItems: NavigationDropdownItem[];
   /**
    * Session snapshot from the parent RSC (`getSession`). When set, the auth
@@ -107,14 +107,14 @@ function defaultHeaderMenuItems(
     {
       id: 'classes',
       label: t('nav_classes'),
-      href: '/classes/',
+      href: '/classes',
       systemKey: 'classes',
     },
-    { id: 'fleet', label: t('nav_fleet'), href: '/fleet/', systemKey: 'fleet' },
+    { id: 'fleet', label: t('nav_fleet'), href: '/fleet', systemKey: 'fleet' },
     { id: 'bluewater', label: t('nav_bluewater'), href: '#' },
     { id: 'racing', label: t('nav_racing'), href: '#' },
-    { id: 'calendar', label: t('nav_calendar'), href: '/events/' },
-    { id: 'about', label: t('nav_about'), href: '/about/' },
+    { id: 'calendar', label: t('nav_calendar'), href: '/events' },
+    { id: 'about', label: t('nav_about'), href: '/about' },
     { id: 'resources', label: t('nav_resources'), href: '#' },
   ];
 }
@@ -126,10 +126,10 @@ function defaultMobileUtilityItems(
     {
       id: 'reserve-pavilion',
       label: t('util_reserve_pavilion'),
-      href: '/contact/',
+      href: '/contact',
     },
-    { id: 'directions', label: t('util_directions'), href: '/contact/' },
-    { id: 'donate', label: t('util_donate'), href: '/donate/' },
+    { id: 'directions', label: t('util_directions'), href: '/contact' },
+    { id: 'donate', label: t('util_donate'), href: '/donate' },
   ];
 }
 
@@ -293,8 +293,8 @@ export function SiteHeader(props: SiteHeaderProps) {
   const authCallbackUrl = safeAuthCallbackUrl(
     search ? `${pathname}?${search}` : pathname
   );
-  const loginHref = authHrefWithCallback('/login/', authCallbackUrl);
-  const signupHref = authHrefWithCallback('/signup/', authCallbackUrl);
+  const loginHref = authHrefWithCallback('/login', authCallbackUrl);
+  const signupHref = authHrefWithCallback('/signup', authCallbackUrl);
 
   function closeMobile() {
     setMobileMenuOpen(false);
@@ -457,7 +457,7 @@ export function SiteHeader(props: SiteHeaderProps) {
               {displayAdminLink ? (
                 <Link
                   className={`${mobileGuestLoginClass} w-full`}
-                  href="/admin/"
+                  href="/admin"
                   onClick={closeMobile}
                 >
                   {tAccount('admin_link')}
@@ -465,7 +465,7 @@ export function SiteHeader(props: SiteHeaderProps) {
               ) : null}
               <Link
                 className={`${mobileGuestLoginClass} w-full`}
-                href="/profile/"
+                href="/profile"
                 onClick={closeMobile}
               >
                 {tAccount('user_profile_link')}
@@ -589,11 +589,11 @@ export function SiteHeader(props: SiteHeaderProps) {
           {!showAuthPending && displayAuthenticated ? (
             <>
               {displayAdminLink ? (
-                <Link className={desktopGuestLoginClass} href="/admin/">
+                <Link className={desktopGuestLoginClass} href="/admin">
                   {tAccount('admin_link')}
                 </Link>
               ) : null}
-              <Link className={desktopGuestLoginClass} href="/profile/">
+              <Link className={desktopGuestLoginClass} href="/profile">
                 {tAccount('user_profile_link')}
               </Link>
               <SignOutForm

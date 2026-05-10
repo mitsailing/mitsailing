@@ -14,14 +14,14 @@ describe('cms page validation', () => {
   it('normalizes internal page paths with trailing slashes', () => {
     const parsed = cmsPageInputSchema.parse({
       slug: 'about',
-      path: '/about',
+      path: '/about///',
       title: 'About',
       metaTitle: 'About',
       metaDescription: 'About MIT Sailing',
       isPublished: true,
     });
 
-    expect(parsed.path).toBe('/about/');
+    expect(parsed.path).toBe('/about');
   });
 
   it('rejects protocol-relative paths', () => {
@@ -45,13 +45,28 @@ describe('cms block validation', () => {
       kind: 'hero',
       title: 'Hero',
       ctaLabel: 'Classes',
-      ctaUrl: '/classes/',
+      ctaUrl: '/classes',
       imageSrc: '/assets/images/home-hero-charles-sailing.jpg',
       imageAlt: 'Sailboats on the Charles',
       isVisible: true,
     });
 
     expect(parsed.success).toBe(true);
+  });
+
+  it('normalizes internal CTA URLs with trailing slashes', () => {
+    const parsed = cmsBlockInputSchema.parse({
+      pageId: 'page-1',
+      kind: 'hero',
+      title: 'Hero',
+      ctaLabel: 'Classes',
+      ctaUrl: '/classes/',
+      imageSrc: '/assets/images/home-hero-charles-sailing.jpg',
+      imageAlt: 'Sailboats on the Charles',
+      isVisible: true,
+    });
+
+    expect(parsed.ctaUrl).toBe('/classes');
   });
 
   it('rejects partial optional groups', () => {
@@ -125,7 +140,7 @@ describe('cms block validation', () => {
         eventCount: 4,
         eventsEmptyText: 'No events scheduled.',
         eventsCtaLabel: 'View all events',
-        eventsCtaUrl: '/events/',
+        eventsCtaUrl: '/events',
       }),
       isVisible: true,
     });
@@ -151,7 +166,7 @@ describe('cms block validation', () => {
         eventCount: 4,
         eventsEmptyText: '',
         eventsCtaLabel: 'View all events',
-        eventsCtaUrl: '/events/',
+        eventsCtaUrl: '/events',
       }),
       isVisible: true,
     });
@@ -172,7 +187,7 @@ describe('cms block validation', () => {
         eventCount: 4,
         eventsEmptyText: 'No events scheduled.',
         eventsCtaLabel: 'View all events',
-        eventsCtaUrl: '/events/',
+        eventsCtaUrl: '/events',
       }),
       isVisible: true,
     });
@@ -197,7 +212,7 @@ describe('cms home overview body', () => {
       eventCount: 3,
       eventsEmptyText: '',
       eventsCtaLabel: 'View all events',
-      eventsCtaUrl: '/events/',
+      eventsCtaUrl: '/events',
     };
 
     const parsed = parseCmsHomeOverviewBody(serializeCmsHomeOverviewBody(data));
@@ -238,6 +253,18 @@ describe('cms menu item validation', () => {
     });
 
     expect(parsed.success).toBe(false);
+  });
+
+  it('normalizes internal URLs with trailing slashes', () => {
+    const parsed = cmsMenuItemInputSchema.parse({
+      menuId: 'menu',
+      label: 'About',
+      url: '/about/',
+      isExternal: false,
+      isVisible: true,
+    });
+
+    expect(parsed.url).toBe('/about');
   });
 });
 

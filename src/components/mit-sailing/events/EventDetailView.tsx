@@ -32,7 +32,7 @@ export async function EventDetailView(props: EventDetailViewProps) {
       <p className="mb-4 text-sm text-muted-foreground">
         <Link
           className="text-primary-ink no-underline hover:underline"
-          href="/events/"
+          href="/events"
         >
           {t('back_to_list')}
         </Link>

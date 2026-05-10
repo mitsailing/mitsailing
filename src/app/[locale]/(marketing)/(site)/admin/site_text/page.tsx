@@ -303,7 +303,7 @@ export default async function AdminSiteTextPage(props: AdminSiteTextPageProps) {
         </div>
         <div className="flex items-end">
           <Button asChild className="w-full" type="button" variant="outline">
-            <Link href="/admin/site_text/">{t('clear_filters')}</Link>
+            <Link href="/admin/site_text">{t('clear_filters')}</Link>
           </Button>
         </div>
       </form>

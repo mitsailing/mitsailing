@@ -200,7 +200,7 @@ test.describe('Auth', () => {
       await createVerifiedUser({ email, page, password });
 
       for (const path of authPaths) {
-        await page.goto(`${path}?callbackUrl=${encodeURIComponent('/fleet/')}`);
+        await page.goto(`${path}?callbackUrl=${encodeURIComponent('/fleet')}`);
         await expect
           .poll(() => new URL(page.url()).pathname)
           .toMatch(/^\/fleet\/?$/);
@@ -250,7 +250,7 @@ test.describe('Auth', () => {
     await verifyEmailWithLatestCode(page, email);
     await expect.poll(() => new URL(page.url()).pathname).toBe('/');
 
-    await page.goto('/profile/');
+    await page.goto('/profile');
     await expect(page).toHaveURL(/\/profile\/account/);
     const profileNav = page.getByRole('navigation', {
       name: 'Profile settings',
@@ -301,7 +301,7 @@ test.describe('Auth', () => {
     try {
       await createVerifiedUser({ email, page, password });
 
-      await page.goto('/profile/account/');
+      await page.goto('/profile/account');
       await page.getByLabel('New email').fill(newEmail);
       await page
         .getByRole('button', { name: 'Send confirmation code' })
@@ -341,7 +341,7 @@ test.describe('Auth', () => {
 
     await page.context().clearCookies();
     const resetCode = await requestPasswordReset({
-      callbackUrl: '/fleet/',
+      callbackUrl: '/fleet',
       email,
       page,
     });
@@ -438,7 +438,7 @@ test.describe('Auth', () => {
     await createVerifiedUser({ email, page, password });
     await page.context().clearCookies();
 
-    await page.goto('/login?callbackUrl=/fleet/');
+    await page.goto('/login?callbackUrl=/fleet');
     await page.getByLabel('Email').fill(email);
     await page.getByRole('button', { name: 'Forgot password?' }).click();
 
@@ -491,9 +491,9 @@ test.describe('Auth', () => {
       });
       await expect.poll(() => new URL(resetPage.url()).pathname).toBe('/');
 
-      await page.goto('/profile/account/');
+      await page.goto('/profile/account');
       await expect(page).toHaveURL(/\/login\/?\?/);
-      await otherPage.goto('/profile/account/');
+      await otherPage.goto('/profile/account');
       await expect(otherPage).toHaveURL(/\/login\/?\?/);
     } finally {
       await resetContext.close();

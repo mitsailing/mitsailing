@@ -12,7 +12,7 @@ const router: ComponentTestRouter = {
   replace: vi.fn(),
 };
 
-let currentPathname = '/profile/account/';
+let currentPathname = '/profile/account';
 let currentSearchParams = new URLSearchParams();
 
 /**
@@ -65,6 +65,6 @@ export function resetComponentTestState() {
   router.push.mockReset();
   router.refresh.mockReset();
   router.replace.mockReset();
-  currentPathname = '/profile/account/';
+  currentPathname = '/profile/account';
   currentSearchParams = new URLSearchParams();
 }

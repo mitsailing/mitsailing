@@ -36,7 +36,7 @@ export async function ClassDetailView(props: ClassDetailViewProps) {
       />
       <Link
         className={`mb-8 inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-mit-red-ink no-underline hover:underline ${textFocusRingClassName}`}
-        href="/classes/"
+        href="/classes"
       >
         <ArrowLeft aria-hidden size={16} />
         {t('back_to_classes')}
@@ -95,7 +95,7 @@ export async function ClassDetailView(props: ClassDetailViewProps) {
               <li className={bodyClass} key={pre.id}>
                 <Link
                   className={`font-semibold text-mit-red-ink hover:underline ${textFocusRingClassName}`}
-                  href={`/classes/${pre.slug}/`}
+                  href={`/classes/${pre.slug}`}
                 >
                   {pre.name}
                 </Link>
@@ -116,7 +116,7 @@ export async function ClassDetailView(props: ClassDetailViewProps) {
                 <>
                   <Link
                     className={`text-base font-semibold text-mit-red-ink hover:underline ${textFocusRingClassName}`}
-                    href={`/events/${event.slug}/`}
+                    href={`/events/${event.slug}`}
                   >
                     {event.name}
                   </Link>
@@ -125,7 +125,7 @@ export async function ClassDetailView(props: ClassDetailViewProps) {
                       {t('related_events_empty')}{' '}
                       <Link
                         className={`font-semibold text-mit-red-ink hover:underline ${textFocusRingClassName}`}
-                        href="/events/"
+                        href="/events"
                       >
                         {t('related_events_calendar')}
                       </Link>
@@ -164,7 +164,7 @@ export async function ClassDetailView(props: ClassDetailViewProps) {
               <li key={boat.id}>
                 <Link
                   className={`text-base font-semibold text-mit-red-ink hover:underline ${textFocusRingClassName}`}
-                  href={`/fleet/${boat.slug}/`}
+                  href={`/fleet/${boat.slug}`}
                 >
                   {boat.name}
                 </Link>
