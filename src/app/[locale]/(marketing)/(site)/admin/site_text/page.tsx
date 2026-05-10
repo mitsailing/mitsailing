@@ -4,6 +4,7 @@ import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader'
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SubmitButton } from '@/components/ui/submit-button';
 import { Textarea } from '@/components/ui/textarea';
 import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 import {
@@ -93,6 +94,7 @@ function SiteTextRow(props: {
   entry: SiteTextEntry;
   locale: string;
   t: Awaited<ReturnType<typeof getTranslations<'AdminSiteText'>>>;
+  tCommon: Awaited<ReturnType<typeof getTranslations<'Common'>>>;
 }) {
   const saveAction = saveSiteTextOverrideAction.bind(
     null,
@@ -181,16 +183,22 @@ function SiteTextRow(props: {
             />
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button type="submit" variant="mit">
+            <SubmitButton
+              pendingLabel={props.tCommon('pending_saving')}
+              variant="mit"
+            >
               {props.t('save')}
-            </Button>
+            </SubmitButton>
           </div>
         </form>
         {hasOverride ? (
           <form action={resetAction}>
-            <Button type="submit" variant="outline">
+            <SubmitButton
+              pendingLabel={props.tCommon('pending_resetting')}
+              variant="outline"
+            >
               {props.t('reset')}
-            </Button>
+            </SubmitButton>
           </form>
         ) : null}
       </div>
@@ -216,6 +224,7 @@ export default async function AdminSiteTextPage(props: AdminSiteTextPageProps) {
   const entries = filterSiteTextEntries(rows.entries, namespace, query);
   const namespaces = [...new Set(rows.entries.map((entry) => entry.namespace))];
   const t = await getTranslations({ locale, namespace: 'AdminSiteText' });
+  const tCommon = await getTranslations({ locale, namespace: 'Common' });
   const message = statusMessage(status, t);
 
   return (
@@ -284,9 +293,13 @@ export default async function AdminSiteTextPage(props: AdminSiteTextPageProps) {
           />
         </div>
         <div className="flex items-end">
-          <Button className="w-full" type="submit" variant="mit">
+          <SubmitButton
+            className="w-full"
+            pendingLabel={tCommon('pending_filtering')}
+            variant="mit"
+          >
             {t('filter_submit')}
-          </Button>
+          </SubmitButton>
         </div>
         <div className="flex items-end">
           <Button asChild className="w-full" type="button" variant="outline">
@@ -303,6 +316,7 @@ export default async function AdminSiteTextPage(props: AdminSiteTextPageProps) {
               key={`${entry.namespace}\u0000${entry.key}`}
               locale={locale}
               t={t}
+              tCommon={tCommon}
             />
           ))}
         </ul>

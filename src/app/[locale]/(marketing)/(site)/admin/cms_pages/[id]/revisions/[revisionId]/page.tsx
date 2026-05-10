@@ -37,6 +37,10 @@ export default async function AdminCmsPageRevisionComparePage(
     locale,
     namespace: 'AdminCatalogResource',
   });
+  const tCommon = await getTranslations({
+    locale,
+    namespace: 'Common',
+  });
   const restoreAction = restoreCmsPageRevisionAction.bind(
     null,
     locale,
@@ -87,6 +91,7 @@ export default async function AdminCmsPageRevisionComparePage(
         removed: t('cms_revision_removed'),
         restore: t('cms_revision_restore'),
         restoreConfirm: t('cms_revision_restore_confirm'),
+        restorePending: tCommon('pending_restoring'),
         snapshotVersion: (version) =>
           t('cms_revision_snapshot_version', { version }),
         trueValue: t('cms_revision_true'),

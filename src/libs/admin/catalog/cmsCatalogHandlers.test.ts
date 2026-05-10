@@ -382,6 +382,56 @@ describe('cmsPageBlocksCatalogHandlers', () => {
       });
     });
 
+    it('persists uploaded block image fields with alt text', async () => {
+      const now = new Date('2026-05-09T12:00:00.000Z');
+      const formData = new FormData();
+      formData.set('pageId', 'page-1');
+      formData.set('kind', 'hero');
+      formData.set('title', 'Hero');
+      formData.set('imageSrc', '/cms-media/asset-5/hero.png');
+      formData.set('imageAlt', 'Sailboats on the Charles');
+      formData.set('isVisible', 'true');
+
+      mocks.cmsPageBlockFindUnique.mockResolvedValue({ pageId: 'page-1' });
+      mocks.cmsPageBlockUpdate.mockResolvedValue({ pageId: 'page-1' });
+      mocks.cmsPageFindUnique.mockResolvedValue(cmsPageSnapshotRow(now));
+
+      await expect(
+        cmsPageBlocksCatalogHandlers.updateFromForm('block-1', formData)
+      ).resolves.toEqual({ ok: true });
+
+      expect(mocks.cmsPageBlockUpdate).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          imageAlt: 'Sailboats on the Charles',
+          imageSrc: '/cms-media/asset-5/hero.png',
+        }),
+        select: { pageId: true },
+        where: { id: 'block-1' },
+      });
+    });
+
+    it('returns image alt field errors for partial block images', async () => {
+      const formData = new FormData();
+      formData.set('pageId', 'page-1');
+      formData.set('kind', 'hero');
+      formData.set('title', 'Hero');
+      formData.set('imageSrc', '/cms-media/asset-5/hero.png');
+      formData.set('imageAlt', '');
+      formData.set('isVisible', 'true');
+
+      await expect(
+        cmsPageBlocksCatalogHandlers.updateFromForm('block-1', formData)
+      ).resolves.toEqual({
+        code: 'validation_failed',
+        fieldErrors: {
+          imageAlt: 'CMS image requires both source and alt text',
+        },
+        ok: false,
+      });
+
+      expect(mocks.cmsPageBlockUpdate).not.toHaveBeenCalled();
+    });
+
     it('appends moved blocks to the target page', async () => {
       const now = new Date('2026-05-09T12:00:00.000Z');
       const formData = new FormData();

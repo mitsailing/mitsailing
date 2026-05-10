@@ -51,6 +51,10 @@ export default async function AdminCatalogRevisionComparePage(
     locale,
     namespace: 'AdminCatalogResource',
   });
+  const tCommon = await getTranslations({
+    locale,
+    namespace: 'Common',
+  });
   const restoreAction = restoreCatalogResourceRevisionAction.bind(
     null,
     locale,
@@ -73,6 +77,7 @@ export default async function AdminCatalogRevisionComparePage(
         capacity: t('field_capacity'),
         classCategoryId: t('field_class_category'),
         description: t('field_description'),
+        imagePath: t('field_fleet_image'),
         imagePaths: t('field_image_paths'),
         isVisible: t('field_visible'),
         level: t('field_level'),
@@ -96,6 +101,7 @@ export default async function AdminCatalogRevisionComparePage(
         noChanges: t('cms_revision_no_changes'),
         restore: t('cms_revision_restore'),
         restoreConfirm: t('catalog_revision_restore_confirm'),
+        restorePending: tCommon('pending_restoring'),
         snapshotVersion: (version) =>
           t('cms_revision_snapshot_version', { version }),
         trueValue: t('cms_revision_true'),

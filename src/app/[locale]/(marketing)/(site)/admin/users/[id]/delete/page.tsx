@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { SubmitButton } from '@/components/ui/submit-button';
 import { deleteAdminUserAction } from '@/libs/admin/users/adminUserActions';
 import { adminUsersIndexPath } from '@/libs/admin/users/adminUserPaths';
 import { usersAdminHandlers } from '@/libs/admin/users/usersAdminHandlers';
@@ -56,6 +57,7 @@ export default async function AdminUsersDeletePage(props: PageProps) {
 
   const t = await getTranslations({ locale, namespace: 'MitSailingRoutes' });
   const tr = await getTranslations({ locale, namespace: 'AdminUsers' });
+  const tCommon = await getTranslations({ locale, namespace: 'Common' });
 
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-6">
@@ -75,13 +77,13 @@ export default async function AdminUsersDeletePage(props: PageProps) {
 
       <div className="flex flex-wrap gap-3">
         <form action={deleteAction}>
-          <Button
+          <SubmitButton
             className="bg-red-700 text-white hover:bg-red-800"
-            type="submit"
+            pendingLabel={tCommon('pending_deleting')}
             variant="destructive"
           >
             {tr('delete_submit')}
-          </Button>
+          </SubmitButton>
         </form>
         <Button asChild variant="outline">
           <Link href={adminUsersIndexPath()}>{tr('cancel')}</Link>

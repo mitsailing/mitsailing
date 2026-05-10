@@ -1,4 +1,4 @@
-import { Button } from '@/components/ui/button';
+import { SubmitButton } from '@/components/ui/submit-button';
 import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 
 type AdminCatalogScopeFilterOption = {
@@ -10,6 +10,7 @@ type AdminCatalogScopeFilterProps = {
   actionLabel: string;
   label: string;
   options: readonly AdminCatalogScopeFilterOption[];
+  pendingLabel: string;
   queryParamName: string;
   selectedValue: string;
 };
@@ -32,13 +33,13 @@ export function AdminCatalogScopeFilter(props: AdminCatalogScopeFilterProps) {
           ))}
         </select>
       </label>
-      <Button
+      <SubmitButton
         disabled={props.options.length === 0}
-        type="submit"
+        pendingLabel={props.pendingLabel}
         variant="outline"
       >
         {props.actionLabel}
-      </Button>
+      </SubmitButton>
     </form>
   );
 }

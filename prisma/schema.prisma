@@ -424,7 +424,7 @@ model FleetBoat {
   displayOrder      Int                        @default(0) @map("display_order")
   requiredClassId   String                     @map("required_class_id")
   description       String                     @db.Text
-  imagePaths        String[]                   @map("image_paths")
+  imagePath         String?                    @map("image_path")
   requiredClass     SailingClass               @relation(fields: [requiredClassId], references: [id], onDelete: Restrict)
   unlockedByClasses SailingClassUnlockedBoat[]
 

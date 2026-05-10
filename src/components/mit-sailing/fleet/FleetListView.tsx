@@ -36,15 +36,15 @@ export async function FleetListView(props: FleetListViewProps) {
               className={`block h-full overflow-hidden rounded-xl border border-mit-line bg-mit-surface no-underline transition-shadow hover:shadow-sm ${textFocusRingClassName}`}
               href={`/fleet/${boat.slug}/`}
             >
-              {boat.imagePaths[0] ? (
+              {boat.imagePath ? (
                 <div className="relative aspect-[4/3] bg-mit-line">
                   <Image
-                    alt=""
+                    alt={boat.name}
                     className="object-cover"
                     fill
                     sizes="(max-width: 768px) 100vw, 50vw"
-                    src={boat.imagePaths[0]}
-                    unoptimized={boat.imagePaths[0].startsWith('/')}
+                    src={boat.imagePath}
+                    unoptimized={boat.imagePath.startsWith('/')}
                   />
                 </div>
               ) : (

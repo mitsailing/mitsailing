@@ -156,6 +156,7 @@ function scopedCatalogMutationSearchParam(
 function catalogRedirectPath(props: {
   basePath: string;
   errorCode?: string;
+  fieldErrors?: Record<string, string>;
   scope?: { name: string; value: string };
 }): string {
   const searchParams = new URLSearchParams();
@@ -164,6 +165,11 @@ function catalogRedirectPath(props: {
   }
   if (props.errorCode) {
     searchParams.set('error', props.errorCode);
+  }
+  if (props.fieldErrors) {
+    for (const field of Object.keys(props.fieldErrors)) {
+      searchParams.append('fieldError', field);
+    }
   }
   const query = searchParams.toString();
   return query ? `${props.basePath}?${query}` : props.basePath;
@@ -196,6 +202,7 @@ export async function createCatalogResourceAction(
       catalogRedirectPath({
         basePath: getI18nPath(adminCatalogResourceNewPath(resourceId), locale),
         errorCode: result.code,
+        fieldErrors: result.fieldErrors,
         scope,
       })
     );
@@ -251,6 +258,7 @@ export async function updateCatalogResourceAction(
           locale
         ),
         errorCode: result.code,
+        fieldErrors: result.fieldErrors,
         scope,
       })
     );

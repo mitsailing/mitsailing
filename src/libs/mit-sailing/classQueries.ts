@@ -154,7 +154,7 @@ export type SailingClassCatalogDetail = {
     description: string;
     type: string;
     capacity: number;
-    imagePaths: string[];
+    imagePath: string | null;
   }[];
 };
 
@@ -220,7 +220,7 @@ export const getSailingClassCatalogBySlug = cache(
                 description: true,
                 type: true,
                 capacity: true,
-                imagePaths: true,
+                imagePath: true,
               },
             },
           },

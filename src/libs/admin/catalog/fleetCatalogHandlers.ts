@@ -97,7 +97,7 @@ export const fleetCatalogHandlers: CatalogServerHandlers = {
         displayOrder: true,
         requiredClassId: true,
         description: true,
-        imagePaths: true,
+        imagePath: true,
       },
     });
     if (!row) {
@@ -112,7 +112,7 @@ export const fleetCatalogHandlers: CatalogServerHandlers = {
       displayOrder: row.displayOrder,
       requiredClassId: row.requiredClassId,
       description: row.description,
-      imagePaths: row.imagePaths.join('\n'),
+      imagePath: row.imagePath,
     };
   },
 
@@ -141,7 +141,7 @@ export const fleetCatalogHandlers: CatalogServerHandlers = {
           capacity: data.capacity,
           requiredClassId: data.requiredClassId,
           description: data.description,
-          imagePaths: data.imagePaths,
+          imagePath: data.imagePath,
           displayOrder: nextOrder,
         },
         select: { id: true },
@@ -188,7 +188,7 @@ export const fleetCatalogHandlers: CatalogServerHandlers = {
           capacity: data.capacity,
           requiredClassId: data.requiredClassId,
           description: data.description,
-          imagePaths: data.imagePaths,
+          imagePath: data.imagePath,
         },
       });
       await recordCatalogRevisionIfChanged({

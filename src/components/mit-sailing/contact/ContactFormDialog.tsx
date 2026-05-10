@@ -1,11 +1,13 @@
 'use client';
 
 import { CalendarDays, HelpCircle, MapPinned, Send, X } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import type * as React from 'react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SubmitButton } from '@/components/ui/submit-button';
 import { Textarea } from '@/components/ui/textarea';
 import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 import { contactTopics } from '@/libs/mit-sailing/contactForm';
@@ -126,6 +128,8 @@ function ContactForm(
     topicRef: React.RefObject<HTMLSelectElement | null>;
   }
 ) {
+  const tCommon = useTranslations('Common');
+
   return (
     <form
       action={props.formAction}
@@ -202,10 +206,14 @@ function ContactForm(
           Enter the current calendar year to prove you are not a robot spammer.
         </p>
       </div>
-      <Button className="h-10 px-4" type="submit" variant="mit">
+      <SubmitButton
+        className="h-10 px-4"
+        pendingLabel={tCommon('pending_sending')}
+        variant="mit"
+      >
         <Send aria-hidden className="size-4" />
         Send message
-      </Button>
+      </SubmitButton>
     </form>
   );
 }

@@ -3,7 +3,7 @@
 import { Plus, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type * as React from 'react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { AdminCatalogEditStatusBadge } from '@/components/mit-sailing/admin/catalog/AdminCatalogListCell';
 import {
   AdminImageField,
@@ -14,11 +14,13 @@ import { CmsPageBlockPreview } from '@/components/mit-sailing/cms/CmsPageBlocks'
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SubmitButton } from '@/components/ui/submit-button';
 import { Textarea } from '@/components/ui/textarea';
 import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 import type {
   AdminFieldKind,
   AdminFormFieldDef,
+  AdminFormSectionDef,
   CatalogResourceDefinition,
   CatalogRow,
 } from '@/libs/admin/catalog/types';
@@ -200,6 +202,7 @@ type AdminCatalogFormProps = {
   formAction: (formData: FormData) => Promise<void>;
   headingKey: 'new_heading' | 'edit_heading';
   errorCode?: string | null;
+  fieldErrors?: Record<string, string>;
   /** Use `AdminUsers` strings for `/admin/users` forms. */
   messageNamespace?: 'AdminCatalogResource' | 'AdminUsers';
   /** Server-loaded `<select>` options (e.g. sailing classes for fleet `requiredClassId`). */
@@ -227,6 +230,19 @@ type CmsBlockPreviewState = {
   subtitle: string;
   title: string;
 };
+
+type CmsBlockPairErrors = Record<
+  'ctaLabel' | 'ctaUrl' | 'imageAlt' | 'imageSrc',
+  boolean
+>;
+
+function cmsBlockUsesStandalonePairs(state: CmsBlockPreviewState) {
+  return state.kind !== 'pricing' && state.kind !== 'home_overview';
+}
+
+function hasCmsBlockPairErrors(errors: CmsBlockPairErrors) {
+  return errors.ctaLabel || errors.ctaUrl || errors.imageAlt || errors.imageSrc;
+}
 
 function stringValue(value: CatalogRow[string]): string {
   return value !== undefined && value !== null ? String(value) : '';
@@ -754,6 +770,7 @@ function AdminCmsOptionalGroup(props: {
 export function AdminCatalogForm(props: AdminCatalogFormProps) {
   const ns = props.messageNamespace ?? 'AdminCatalogResource';
   const tCatalog = useTranslations('AdminCatalogResource');
+  const tCommon = useTranslations('Common');
   const tUsers = useTranslations('AdminUsers');
   const tc = useTranslations('AdminCatalog');
 
@@ -778,6 +795,22 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
   const [cmsBlockPreviewState, setCmsBlockPreviewState] = useState(() =>
     initialCmsBlockPreviewState(props.row)
   );
+  const cmsCtaLabelErrorId = 'catalog-field-ctaLabel-error';
+  const cmsCtaUrlErrorId = 'catalog-field-ctaUrl-error';
+  const cmsImageSrcErrorId = 'catalog-field-imageSrc-error';
+  const cmsImageAltErrorId = 'catalog-field-imageAlt-error';
+  const cmsCtaLabelInputRef = useRef<HTMLInputElement>(null);
+  const cmsCtaUrlInputRef = useRef<HTMLInputElement>(null);
+  const cmsImageSrcUploadButtonRef = useRef<HTMLButtonElement>(null);
+  const cmsImageAltInputRef = useRef<HTMLInputElement>(null);
+  const [cmsPairErrors, setCmsPairErrors] = useState<CmsBlockPairErrors>(
+    () => ({
+      ctaLabel: isCmsBlockForm && Boolean(props.fieldErrors?.ctaLabel),
+      ctaUrl: isCmsBlockForm && Boolean(props.fieldErrors?.ctaUrl),
+      imageAlt: isCmsBlockForm && Boolean(props.fieldErrors?.imageAlt),
+      imageSrc: isCmsBlockForm && Boolean(props.fieldErrors?.imageSrc),
+    })
+  );
   const [cmsBlockGroupsEnabled, setCmsBlockGroupsEnabled] = useState(() => ({
     cta: hasCmsOptionalValue(props.row, ['ctaLabel', 'ctaUrl']),
     image: hasCmsOptionalValue(props.row, ['imageSrc', 'imageAlt']),
@@ -800,10 +833,87 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
     ? 'max-w-3xl'
     : 'max-w-xl';
 
+  function cmsBlockStateWith(
+    field: keyof CmsBlockPreviewState,
+    value: string | boolean
+  ): CmsBlockPreviewState {
+    return { ...cmsBlockPreviewState, [field]: value };
+  }
+
+  function clearCompletedCmsPairErrors(nextState: CmsBlockPreviewState) {
+    setCmsPairErrors((prev) => {
+      const ctaLabel = nextState.ctaLabel.trim();
+      const ctaUrl = nextState.ctaUrl.trim();
+      const imageAlt = nextState.imageAlt.trim();
+      const imageSrc = nextState.imageSrc.trim();
+      const ctaCompleteOrEmpty =
+        !cmsBlockUsesStandalonePairs(nextState) ||
+        Boolean(ctaLabel) === Boolean(ctaUrl);
+      const imageCompleteOrEmpty =
+        !cmsBlockUsesStandalonePairs(nextState) ||
+        Boolean(imageAlt) === Boolean(imageSrc);
+
+      return {
+        ctaLabel: ctaCompleteOrEmpty
+          ? false
+          : prev.ctaLabel && ctaLabel.length === 0,
+        ctaUrl: ctaCompleteOrEmpty ? false : prev.ctaUrl && ctaUrl.length === 0,
+        imageAlt: imageCompleteOrEmpty
+          ? false
+          : prev.imageAlt && imageAlt.length === 0,
+        imageSrc: imageCompleteOrEmpty
+          ? false
+          : prev.imageSrc && imageSrc.length === 0,
+      };
+    });
+  }
+
+  function cmsBlockPairErrorsFromState(
+    state: CmsBlockPreviewState
+  ): CmsBlockPairErrors {
+    const ctaLabel = state.ctaLabel.trim();
+    const ctaUrl = state.ctaUrl.trim();
+    const imageAlt = state.imageAlt.trim();
+    const imageSrc = state.imageSrc.trim();
+    if (!cmsBlockUsesStandalonePairs(state)) {
+      return {
+        ctaLabel: false,
+        ctaUrl: false,
+        imageAlt: false,
+        imageSrc: false,
+      };
+    }
+    return {
+      ctaLabel: ctaUrl.length > 0 && ctaLabel.length === 0,
+      ctaUrl: ctaLabel.length > 0 && ctaUrl.length === 0,
+      imageAlt: imageSrc.length > 0 && imageAlt.length === 0,
+      imageSrc: imageAlt.length > 0 && imageSrc.length === 0,
+    };
+  }
+
+  function focusFirstCmsBlockPairError(errors: CmsBlockPairErrors) {
+    if (errors.ctaLabel) {
+      cmsCtaLabelInputRef.current?.focus();
+      return;
+    }
+    if (errors.ctaUrl) {
+      cmsCtaUrlInputRef.current?.focus();
+      return;
+    }
+    if (errors.imageSrc) {
+      cmsImageSrcUploadButtonRef.current?.focus();
+      return;
+    }
+    if (errors.imageAlt) {
+      cmsImageAltInputRef.current?.focus();
+    }
+  }
+
   function setCmsPreviewField(
     field: keyof CmsBlockPreviewState,
     value: string | boolean
   ) {
+    clearCompletedCmsPairErrors(cmsBlockStateWith(field, value));
     updateCmsBlockPreviewField(setCmsBlockPreviewState, field, value);
   }
 
@@ -873,6 +983,13 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
   }
 
   function renderCmsBlockCtaGroup() {
+    const ctaLabelErrorMessage = cmsPairErrors.ctaLabel
+      ? tCatalog('field_error_cms_cta_label_required')
+      : null;
+    const ctaUrlErrorMessage = cmsPairErrors.ctaUrl
+      ? tCatalog('field_error_cms_cta_url_required')
+      : null;
+
     return (
       <AdminCmsOptionalGroup
         enabled={cmsBlockGroupsEnabled.cta}
@@ -893,26 +1010,46 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
               {translateLabel('field_cms_cta_label')}
             </Label>
             <Input
+              aria-describedby={
+                ctaLabelErrorMessage ? cmsCtaLabelErrorId : undefined
+              }
+              aria-invalid={ctaLabelErrorMessage ? true : undefined}
               id="catalog-field-ctaLabel"
               name="ctaLabel"
               onChange={(event) => {
                 updateInputPreviewField('ctaLabel', event.target.value);
               }}
+              ref={cmsCtaLabelInputRef}
               value={cmsBlockPreviewState.ctaLabel}
             />
+            {ctaLabelErrorMessage ? (
+              <p className="text-sm text-red-700" id={cmsCtaLabelErrorId}>
+                {ctaLabelErrorMessage}
+              </p>
+            ) : null}
           </div>
           <div className="flex flex-col gap-1.5">
             <Label className="text-foreground" htmlFor="catalog-field-ctaUrl">
               {translateLabel('field_cms_cta_url')}
             </Label>
             <Input
+              aria-describedby={
+                ctaUrlErrorMessage ? cmsCtaUrlErrorId : undefined
+              }
+              aria-invalid={ctaUrlErrorMessage ? true : undefined}
               id="catalog-field-ctaUrl"
               name="ctaUrl"
               onChange={(event) => {
                 updateInputPreviewField('ctaUrl', event.target.value);
               }}
+              ref={cmsCtaUrlInputRef}
               value={cmsBlockPreviewState.ctaUrl}
             />
+            {ctaUrlErrorMessage ? (
+              <p className="text-sm text-red-700" id={cmsCtaUrlErrorId}>
+                {ctaUrlErrorMessage}
+              </p>
+            ) : null}
           </div>
         </div>
       </AdminCmsOptionalGroup>
@@ -920,6 +1057,13 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
   }
 
   function renderCmsBlockImageGroup() {
+    const imageSrcErrorMessage = cmsPairErrors.imageSrc
+      ? tCatalog('field_error_cms_image_src_required')
+      : null;
+    const imageAltErrorMessage = cmsPairErrors.imageAlt
+      ? tCatalog('field_error_cms_image_alt_required')
+      : null;
+
     return (
       <AdminCmsOptionalGroup
         enabled={cmsBlockGroupsEnabled.image}
@@ -943,19 +1087,40 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
             onChange={(value) => {
               setCmsPreviewField('imageSrc', value);
             }}
+            errorId={cmsImageSrcErrorId}
+            errorMessage={imageSrcErrorMessage}
+            uploadButtonRef={cmsImageSrcUploadButtonRef}
           />
           <div className="flex flex-col gap-1.5">
             <Label className="text-foreground" htmlFor="catalog-field-imageAlt">
               {translateLabel('field_cms_image_alt')}
             </Label>
             <Input
+              aria-describedby={
+                imageAltErrorMessage ? cmsImageAltErrorId : undefined
+              }
+              aria-invalid={imageAltErrorMessage ? true : undefined}
               id="catalog-field-imageAlt"
               name="imageAlt"
               onChange={(event) => {
                 updateInputPreviewField('imageAlt', event.target.value);
               }}
+              onInvalid={(event) => {
+                if (cmsBlockPreviewState.imageSrc.trim().length > 0) {
+                  event.preventDefault();
+                  setCmsPairErrors((prev) => ({ ...prev, imageAlt: true }));
+                  cmsImageAltInputRef.current?.focus();
+                }
+              }}
+              ref={cmsImageAltInputRef}
+              required={cmsBlockPreviewState.imageSrc.trim().length > 0}
               value={cmsBlockPreviewState.imageAlt}
             />
+            {imageAltErrorMessage ? (
+              <p className="text-sm text-red-700" id={cmsImageAltErrorId}>
+                {imageAltErrorMessage}
+              </p>
+            ) : null}
           </div>
         </div>
       </AdminCmsOptionalGroup>
@@ -1834,20 +1999,82 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
     );
   }
 
+  function renderCatalogFormSection(
+    section: AdminFormSectionDef,
+    index: number
+  ): React.ReactNode {
+    const headingId = `catalog-section-${section.headingKey}`;
+    const sectionFields = props.definition.formFields.filter((field) =>
+      section.fields.includes(field.field)
+    );
+    if (sectionFields.length === 0) {
+      return null;
+    }
+    return (
+      <section
+        aria-labelledby={headingId}
+        className={`flex flex-col gap-4 ${index === 0 ? '' : 'border-t border-border pt-6'}`}
+        key={section.headingKey}
+      >
+        <div className="flex flex-col gap-1">
+          <h3
+            className="text-base font-semibold text-foreground"
+            id={headingId}
+          >
+            {translateLabel(section.headingKey)}
+          </h3>
+          {section.helperKey ? (
+            <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
+              {translateLabel(section.helperKey)}
+            </p>
+          ) : null}
+        </div>
+        {sectionFields.map(renderCatalogField)}
+      </section>
+    );
+  }
+
+  function renderCatalogFormFields(): React.ReactNode {
+    if (!props.definition.formSections) {
+      return props.definition.formFields.map(renderCatalogField);
+    }
+    const sectionFieldNames = new Set(
+      props.definition.formSections.flatMap((section) => [...section.fields])
+    );
+    return [
+      ...props.definition.formSections.map(renderCatalogFormSection),
+      ...props.definition.formFields
+        .filter((field) => !sectionFieldNames.has(field.field))
+        .map(renderCatalogField),
+    ];
+  }
+
   const formElement = (
     <form
       action={props.formAction}
       autoComplete={props.definition.id === 'site_alerts' ? 'off' : undefined}
       className={`flex ${formMaxWidth} flex-col gap-4`}
+      onSubmit={(event) => {
+        if (!isCmsBlockForm) {
+          return;
+        }
+        const nextPairErrors =
+          cmsBlockPairErrorsFromState(cmsBlockPreviewState);
+        if (hasCmsBlockPairErrors(nextPairErrors)) {
+          event.preventDefault();
+          setCmsPairErrors(nextPairErrors);
+          focusFirstCmsBlockPairError(nextPairErrors);
+        }
+      }}
     >
-      {props.definition.formFields.map(renderCatalogField)}
+      {renderCatalogFormFields()}
 
       <div className="flex flex-wrap gap-3 pt-2">
-        <Button type="submit" variant="mit">
+        <SubmitButton pendingLabel={tCommon('pending_saving')} variant="mit">
           {ns === 'AdminUsers'
             ? tUsers('action_save')
             : tCatalog('action_save')}
-        </Button>
+        </SubmitButton>
       </div>
     </form>
   );

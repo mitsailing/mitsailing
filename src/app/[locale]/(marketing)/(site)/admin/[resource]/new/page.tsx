@@ -9,6 +9,7 @@ import {
   tryGetCatalogDefinition,
 } from '@/libs/admin/catalog/catalogDefinitions';
 import type { CatalogResourceId } from '@/libs/admin/catalog/catalogDefinitions';
+import { catalogFieldErrorsFromSearchParam } from '@/libs/admin/catalog/catalogFieldErrors';
 import {
   cmsMenuParentSelectOptions,
   cmsMenuSelectOptions,
@@ -26,7 +27,12 @@ import { siteAlertsNewCatalogDefaults } from '@/libs/mit-sailing/siteAlertAdminD
 
 type PageProps = {
   params: Promise<{ locale: string; resource: string }>;
-  searchParams: Promise<{ error?: string; menu?: string; page?: string }>;
+  searchParams: Promise<{
+    error?: string;
+    fieldError?: string | string[];
+    menu?: string;
+    page?: string;
+  }>;
 };
 
 type DynamicSelectOptions = Readonly<
@@ -118,6 +124,9 @@ export default async function AdminCatalogResourceNewPage(props: PageProps) {
   const { locale, resource } = await props.params;
   const searchParams = await props.searchParams;
   const { error: errorCode } = searchParams;
+  const fieldErrors = catalogFieldErrorsFromSearchParam(
+    searchParams.fieldError
+  );
   setRequestLocale(locale);
 
   const def = tryGetCatalogDefinition(resource);
@@ -167,6 +176,7 @@ export default async function AdminCatalogResourceNewPage(props: PageProps) {
         definition={def}
         dynamicSelectOptions={dynamicSelectOptions}
         errorCode={errorCode ?? null}
+        fieldErrors={fieldErrors}
         formAction={createAction}
         headingKey="new_heading"
         row={rowDefaults}

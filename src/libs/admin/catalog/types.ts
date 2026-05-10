@@ -58,6 +58,12 @@ export type AdminFormFieldDef = {
   selectOptions?: readonly AdminSelectOption[];
 };
 
+export type AdminFormSectionDef = {
+  fields: readonly string[];
+  helperKey?: AdminCatalogResourceMessageKey | AdminUsersMessageKey;
+  headingKey: AdminCatalogResourceMessageKey | AdminUsersMessageKey;
+};
+
 export type CatalogCapabilities = {
   create: boolean;
   update: boolean;
@@ -74,6 +80,7 @@ export type CatalogResourceDefinition = {
   hubLabelKey: AdminCatalogResourceMessageKey;
   listColumns: readonly AdminListColumnDef[];
   formFields: readonly AdminFormFieldDef[];
+  formSections?: readonly AdminFormSectionDef[];
   capabilities: CatalogCapabilities;
   /** Row field containing an app-relative public URL for a View action. */
   publicViewHrefField?: string;
@@ -97,7 +104,11 @@ export type AdminUserRow = {
 
 export type CatalogMutationOk = { ok: true };
 
-export type CatalogMutationErr = { ok: false; code: string };
+export type CatalogMutationErr = {
+  ok: false;
+  code: string;
+  fieldErrors?: Record<string, string>;
+};
 
 export type CatalogCreateResult = { ok: true; id: string } | CatalogMutationErr;
 

@@ -16,12 +16,10 @@ export const fleetBoatFormSchema = z.object({
   capacity: z.coerce.number().int().min(1),
   requiredClassId: z.string().trim().min(1),
   description: z.string(),
-  imagePaths: z.string().transform((raw) =>
-    raw
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0)
-  ),
+  imagePath: z.string().transform((raw) => {
+    const trimmed = raw.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }),
 });
 
 /**
@@ -40,6 +38,6 @@ export function rawFleetBoatFromFormData(
     capacity: formData.get('capacity'),
     requiredClassId: formData.get('requiredClassId'),
     description: formData.get('description') ?? '',
-    imagePaths: formData.get('imagePaths') ?? '',
+    imagePath: formData.get('imagePath') ?? '',
   };
 }

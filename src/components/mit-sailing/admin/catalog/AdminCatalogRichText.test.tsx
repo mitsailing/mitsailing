@@ -601,6 +601,245 @@ describe('AdminRichTextEditor media controls', () => {
 });
 
 describe('Admin catalog media fields', () => {
+  it('requires alt text for cms block pictures', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      Response.json({
+        originalFilename: 'hero.png',
+        publicPath: '/cms-media/asset-5/hero.png',
+        url: '/cms-media/asset-5/hero.png',
+      })
+    );
+    const saveAction = vi.fn(async () => {
+      await Promise.resolve();
+    });
+    const user = userEvent.setup();
+    const view = render(
+      <AdminCatalogForm
+        definition={catalogResourceDefinitions.cms_page_blocks}
+        dynamicSelectOptions={{
+          pageId: [{ label: 'Home', value: 'page-1' }],
+        }}
+        formAction={saveAction}
+        headingKey="edit_heading"
+        row={{
+          body: '<p>Existing body</p>',
+          displayOrder: 1,
+          id: 'block-1',
+          isVisible: true,
+          kind: 'hero',
+          pageId: 'page-1',
+          title: 'Hero',
+        }}
+      />
+    );
+    await user.click(screen.getByRole('checkbox', { name: 'Add picture' }));
+    const form = view.container.querySelector('form');
+    const imageAltInput = screen.getByLabelText('Image alt text');
+    const uploadInputs = view.container.querySelectorAll('input[type="file"]');
+    const imageFieldUpload = uploadInputs.item(1);
+    if (!(form instanceof HTMLFormElement)) {
+      throw new Error('Expected form');
+    }
+    if (!(imageAltInput instanceof HTMLInputElement)) {
+      throw new Error('Expected image alt input');
+    }
+    if (!(imageFieldUpload instanceof HTMLInputElement)) {
+      throw new Error('Expected image field upload input');
+    }
+
+    await user.upload(
+      imageFieldUpload,
+      new File(['png'], 'hero.png', { type: 'image/png' })
+    );
+
+    await waitFor(() => {
+      expect(
+        view.container.querySelector('input[name="imageSrc"]')
+      ).toHaveValue('/cms-media/asset-5/hero.png');
+    });
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    const imageAltError = screen.getByText('Add image alt text before saving.');
+    expect(imageAltInput).toBeRequired();
+    expect(imageAltInput).toHaveAttribute('aria-invalid', 'true');
+    expect(imageAltInput).toHaveAccessibleDescription(
+      'Add image alt text before saving.'
+    );
+    expect(imageAltInput).toHaveFocus();
+    expect(imageAltError.id).toBeTruthy();
+    expect(saveAction).not.toHaveBeenCalled();
+
+    await user.type(imageAltInput, 'Sailboats on the Charles');
+
+    expect(
+      screen.queryByText('Add image alt text before saving.')
+    ).not.toBeInTheDocument();
+    expect(form.checkValidity()).toBe(true);
+  });
+
+  it('requires an image for cms block picture alt text', async () => {
+    const saveAction = vi.fn(async () => {
+      await Promise.resolve();
+    });
+    const user = userEvent.setup();
+    render(
+      <AdminCatalogForm
+        definition={catalogResourceDefinitions.cms_page_blocks}
+        formAction={saveAction}
+        headingKey="edit_heading"
+        row={{
+          body: '<p>Existing body</p>',
+          displayOrder: 1,
+          id: 'block-1',
+          isVisible: true,
+          kind: 'hero',
+          pageId: 'page-1',
+          title: 'Hero',
+        }}
+      />
+    );
+    await user.click(screen.getByRole('checkbox', { name: 'Add picture' }));
+    const imageAltInput = screen.getByLabelText('Image alt text');
+    const imageUploadButton = screen.getByRole('button', {
+      name: 'Upload image for Image source',
+    });
+    if (!(imageAltInput instanceof HTMLInputElement)) {
+      throw new Error('Expected image alt input');
+    }
+
+    await user.type(imageAltInput, 'Sailboats on the Charles');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(screen.getByText('Add an image before saving.')).toBeVisible();
+    expect(imageUploadButton).toHaveAttribute('aria-invalid', 'true');
+    expect(imageUploadButton).toHaveAccessibleDescription(
+      'Add an image before saving.'
+    );
+    expect(imageUploadButton).toHaveFocus();
+    expect(saveAction).not.toHaveBeenCalled();
+
+    await user.clear(imageAltInput);
+
+    expect(
+      screen.queryByText('Add an image before saving.')
+    ).not.toBeInTheDocument();
+  });
+
+  it('requires a CTA URL for cms block CTA labels', async () => {
+    const saveAction = vi.fn(async () => {
+      await Promise.resolve();
+    });
+    const user = userEvent.setup();
+    render(
+      <AdminCatalogForm
+        definition={catalogResourceDefinitions.cms_page_blocks}
+        formAction={saveAction}
+        headingKey="edit_heading"
+        row={{
+          body: '<p>Existing body</p>',
+          displayOrder: 1,
+          id: 'block-1',
+          isVisible: true,
+          kind: 'hero',
+          pageId: 'page-1',
+          title: 'Hero',
+        }}
+      />
+    );
+    await user.click(screen.getByRole('checkbox', { name: 'Add CTA' }));
+    const ctaLabelInput = screen.getByLabelText('CTA label');
+    const ctaUrlInput = screen.getByLabelText('CTA URL');
+
+    await user.type(ctaLabelInput, 'Learn more');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(screen.getByText('Add a CTA URL before saving.')).toBeVisible();
+    expect(ctaUrlInput).toHaveAttribute('aria-invalid', 'true');
+    expect(ctaUrlInput).toHaveAccessibleDescription(
+      'Add a CTA URL before saving.'
+    );
+    expect(ctaUrlInput).toHaveFocus();
+    expect(saveAction).not.toHaveBeenCalled();
+
+    await user.type(ctaUrlInput, '/classes/');
+
+    expect(
+      screen.queryByText('Add a CTA URL before saving.')
+    ).not.toBeInTheDocument();
+  });
+
+  it('requires a CTA label for cms block CTA URLs', async () => {
+    const saveAction = vi.fn(async () => {
+      await Promise.resolve();
+    });
+    const user = userEvent.setup();
+    render(
+      <AdminCatalogForm
+        definition={catalogResourceDefinitions.cms_page_blocks}
+        formAction={saveAction}
+        headingKey="edit_heading"
+        row={{
+          body: '<p>Existing body</p>',
+          displayOrder: 1,
+          id: 'block-1',
+          isVisible: true,
+          kind: 'hero',
+          pageId: 'page-1',
+          title: 'Hero',
+        }}
+      />
+    );
+    await user.click(screen.getByRole('checkbox', { name: 'Add CTA' }));
+    const ctaLabelInput = screen.getByLabelText('CTA label');
+    const ctaUrlInput = screen.getByLabelText('CTA URL');
+
+    await user.type(ctaUrlInput, '/classes/');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(screen.getByText('Add a CTA label before saving.')).toBeVisible();
+    expect(ctaLabelInput).toHaveAttribute('aria-invalid', 'true');
+    expect(ctaLabelInput).toHaveAccessibleDescription(
+      'Add a CTA label before saving.'
+    );
+    expect(ctaLabelInput).toHaveFocus();
+    expect(saveAction).not.toHaveBeenCalled();
+
+    await user.type(ctaLabelInput, 'Learn more');
+
+    expect(
+      screen.queryByText('Add a CTA label before saving.')
+    ).not.toBeInTheDocument();
+  });
+
+  it('renders server-returned cms block pair field errors', () => {
+    render(
+      <AdminCatalogForm
+        definition={catalogResourceDefinitions.cms_page_blocks}
+        fieldErrors={{ ctaUrl: 'true', imageSrc: 'true' }}
+        formAction={formAction}
+        headingKey="edit_heading"
+        row={{
+          body: '<p>Existing body</p>',
+          ctaLabel: 'Learn more',
+          displayOrder: 1,
+          id: 'block-1',
+          imageAlt: 'Sailboats on the Charles',
+          isVisible: true,
+          kind: 'hero',
+          pageId: 'page-1',
+          title: 'Hero',
+        }}
+      />
+    );
+
+    expect(screen.getByLabelText('CTA URL')).toHaveAccessibleDescription(
+      'Add a CTA URL before saving.'
+    );
+    expect(
+      screen.getByRole('button', { name: 'Upload image for Image source' })
+    ).toHaveAccessibleDescription('Add an image before saving.');
+  });
+
   it('uploads a single cms image field', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       Response.json({
@@ -630,7 +869,7 @@ describe('Admin catalog media fields', () => {
     });
   });
 
-  it('uploads and serializes image list fields', async () => {
+  it('renders fleet boat sections and uploads one fleet image', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       Response.json({
         originalFilename: 'fleet.png',
@@ -651,7 +890,7 @@ describe('Admin catalog media fields', () => {
           capacity: 2,
           description: '<p>Existing fleet body</p>',
           id: 'boat-1',
-          imagePaths: ['/images/boats/tech.jpg'],
+          imagePath: '/images/boats/tech.jpg',
           name: 'Tech',
           requiredClassId: 'class-1',
           slug: 'tech',
@@ -659,21 +898,45 @@ describe('Admin catalog media fields', () => {
         }}
       />
     );
+
+    expect(screen.getByRole('heading', { name: 'Boat basics' })).toBeVisible();
+    expect(
+      screen.getByRole('heading', { name: 'Fleet page image' })
+    ).toBeVisible();
+    expect(
+      screen.getByText(
+        'This image appears on the fleet page only. Alt text is automatically the boat name.'
+      )
+    ).toBeVisible();
+    expect(
+      screen.getByRole('heading', { name: 'Boat page content' })
+    ).toBeVisible();
+    expect(
+      screen.getByText('Images added here appear on the individual boat page.')
+    ).toBeVisible();
+    expect(
+      screen.getByRole('heading', { name: 'Access requirement' })
+    ).toBeVisible();
+    expect(view.container.querySelector('input[name="imagePaths"]')).toBeNull();
+    expect(view.container.querySelector('input[name="imagePath"]')).toHaveValue(
+      '/images/boats/tech.jpg'
+    );
+
     const uploadInputs = view.container.querySelectorAll('input[type="file"]');
-    const imageListUpload = uploadInputs.item(1);
-    if (!(imageListUpload instanceof HTMLInputElement)) {
-      throw new Error('Expected image list upload input');
+    const fleetImageUpload = uploadInputs.item(0);
+    if (!(fleetImageUpload instanceof HTMLInputElement)) {
+      throw new Error('Expected fleet image upload input');
     }
 
     await user.upload(
-      imageListUpload,
+      fleetImageUpload,
       new File(['png'], 'fleet.png', { type: 'image/png' })
     );
 
     await waitFor(() => {
       expect(
-        view.container.querySelector('input[name="imagePaths"]')
-      ).toHaveValue('/images/boats/tech.jpg\n/cms-media/asset-6/fleet.png');
+        view.container.querySelector('input[name="imagePath"]')
+      ).toHaveValue('/cms-media/asset-6/fleet.png');
     });
   });
 });
@@ -1041,6 +1304,7 @@ describe('AdminCmsRevisionCompareView', () => {
           restore: 'Restore this version',
           restoreConfirm:
             'I understand this will replace the current page and blocks with this version.',
+          restorePending: 'Restoring...',
           snapshotVersion: (version) => `Version ${version}`,
           trueValue: 'Yes',
           unknownEditor: 'Unknown editor',

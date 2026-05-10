@@ -3,6 +3,7 @@
 import { ArrowDown, ArrowUp, ImageIcon, Upload, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import NextImage from 'next/image';
+import type * as React from 'react';
 import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -185,11 +186,14 @@ function mediaFieldError(error: string | null) {
 
 export function AdminImageField(props: {
   defaultValue: string;
+  errorId?: string;
+  errorMessage?: string | null;
   fieldId: string;
   fieldKey: string;
   label: string;
   onChange?: (value: string) => void;
   required?: boolean;
+  uploadButtonRef?: React.Ref<HTMLButtonElement>;
 }) {
   const t = useTranslations('AdminCatalogResource');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -264,8 +268,11 @@ export function AdminImageField(props: {
         {value ? imagePreview(value, props.label) : null}
         <Button
           aria-label={t('media_upload_for_field', { label: props.label })}
+          aria-describedby={props.errorMessage ? props.errorId : undefined}
+          aria-invalid={props.errorMessage ? true : undefined}
           disabled={mediaBusy}
           onClick={() => fileInputRef.current?.click()}
+          ref={props.uploadButtonRef}
           type="button"
           variant="outline"
         >
@@ -320,6 +327,11 @@ export function AdminImageField(props: {
             setPickerOpen(false);
           }}
         />
+      ) : null}
+      {props.errorMessage ? (
+        <p className="text-sm text-red-700" id={props.errorId} role="alert">
+          {props.errorMessage}
+        </p>
       ) : null}
       {mediaFieldError(mediaError)}
     </div>

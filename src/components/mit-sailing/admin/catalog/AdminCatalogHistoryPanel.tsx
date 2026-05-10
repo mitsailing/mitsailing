@@ -41,6 +41,7 @@ export async function AdminCatalogHistoryPanel(props: {
         capacity: t('field_capacity'),
         classCategoryId: t('field_class_category'),
         description: t('field_description'),
+        imagePath: t('field_fleet_image'),
         imagePaths: t('field_image_paths'),
         isVisible: t('field_visible'),
         level: t('field_level'),

@@ -172,7 +172,7 @@ export async function seedSailingClassesAndBoats(
         displayOrder: b.displayOrder,
         requiredClassId: b.requiredClassId,
         description: b.description,
-        imagePaths: b.images,
+        imagePath: b.image,
       },
       update: {
         name: b.name,
@@ -181,7 +181,7 @@ export async function seedSailingClassesAndBoats(
         displayOrder: b.displayOrder,
         requiredClassId: b.requiredClassId,
         description: b.description,
-        imagePaths: b.images,
+        imagePath: b.image,
       },
     });
   }

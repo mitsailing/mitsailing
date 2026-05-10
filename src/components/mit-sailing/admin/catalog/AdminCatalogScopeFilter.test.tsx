@@ -24,6 +24,7 @@ describe('AdminCatalogScopeFilter', () => {
           { label: '/contact Contact', value: 'page-2' },
         ]}
         queryParamName="page"
+        pendingLabel="Filtering..."
         selectedValue="page-2"
       />
     );
@@ -41,6 +42,7 @@ describe('AdminCatalogScopeFilter', () => {
         label="Menu"
         options={[{ label: 'Header (header)', value: 'menu-1' }]}
         queryParamName="menu"
+        pendingLabel="Filtering..."
         selectedValue="menu-1"
       />
     );

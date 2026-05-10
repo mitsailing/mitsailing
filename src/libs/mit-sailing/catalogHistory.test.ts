@@ -65,7 +65,7 @@ function fleetSnapshot(props?: { capacity?: number; name?: string }) {
     capacity: props?.capacity ?? 2,
     description: '<p>Fast boat</p>',
     id: 'boat-1',
-    imagePaths: ['/fleet.png'],
+    imagePath: '/fleet.png',
     name: props?.name ?? 'Tech Dinghy',
     requiredClassId: 'class-1',
     requiredClassName: 'Intro Sailing 101',
@@ -186,6 +186,48 @@ describe('getAdminCatalogRevisionCompare', () => {
 });
 
 describe('restoreCatalogRevision', () => {
+  it('restores fleet image path and records a restore audit', async () => {
+    mocks.userAuditFindFirst
+      .mockResolvedValueOnce({ auditedChanges: fleetSnapshot() })
+      .mockResolvedValueOnce({
+        auditedChanges: fleetSnapshot(),
+        version: 2,
+      });
+    mocks.fleetBoatUpdate.mockResolvedValue({ id: 'boat-1' });
+    mocks.fleetBoatFindUnique.mockResolvedValue({
+      ...fleetSnapshot(),
+      requiredClass: { name: 'Intro Sailing 101' },
+      requiredClassId: 'class-1',
+    });
+
+    await expect(
+      restoreCatalogRevision({
+        context: { userId: 'admin-1' },
+        itemId: 'boat-1',
+        resourceId: 'fleet',
+        revisionId: 'audit-1',
+      })
+    ).resolves.toEqual({ ok: true, slug: 'tech-dinghy' });
+
+    expect(mocks.fleetBoatUpdate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        imagePath: '/fleet.png',
+        name: 'Tech Dinghy',
+        slug: 'tech-dinghy',
+      }),
+      where: { id: 'boat-1' },
+    });
+    expect(mocks.userAuditCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        action: 'restore',
+        auditableId: 'boat-1',
+        auditableType: 'fleet',
+        userId: 'admin-1',
+        version: 3,
+      }),
+    });
+  });
+
   it('restores class form fields and records a restore audit', async () => {
     mocks.userAuditFindFirst
       .mockResolvedValueOnce({ auditedChanges: sailingClassSnapshot() })

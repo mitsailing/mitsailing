@@ -4,10 +4,11 @@ import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { ProfileInlineBanner } from '@/components/auth/profile/profileBanner';
 import type { ProfileBannerState } from '@/components/auth/profile/profileBanner';
-import { Button } from '@/components/ui/button';
+import { SubmitButton } from '@/components/ui/submit-button';
 import { authClient } from '@/libs/auth-client';
 
 export function ProfileSecurityClient() {
+  const tCommon = useTranslations('Common');
   const t = useTranslations('UserProfilePage');
   const [sessionBanner, setSessionBanner] = useState<ProfileBannerState>(null);
   const [revoking, setRevoking] = useState(false);
@@ -45,15 +46,16 @@ export function ProfileSecurityClient() {
           {t('sign_out_all_description')}
         </p>
         <ProfileInlineBanner banner={sessionBanner} />
-        <Button
+        <SubmitButton
           className="mt-4 w-fit"
-          disabled={revoking}
           onClick={onRevokeSessions}
+          pending={revoking}
+          pendingLabel={tCommon('pending_submitting')}
           type="button"
           variant="outline"
         >
           {t('sign_out_all_submit')}
-        </Button>
+        </SubmitButton>
       </section>
     </div>
   );

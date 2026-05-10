@@ -32,7 +32,7 @@ export type FleetBoat = {
   displayOrder: number;
   requiredClassId: string;
   description: string;
-  images: string[];
+  image: string;
 };
 
 export const SAILING_CLASSES: SailingClass[] = [
@@ -180,10 +180,7 @@ export const FLEET_BOATS: FleetBoat[] = [
     requiredClassId: 'class-intro-sailing-101',
     description:
       'Stable club trainer for the Charles; forgiving hull form for first ratings and light-air drills.',
-    images: [
-      '/images/boats/tech-dinghy-1.jpg',
-      '/images/boats/tech-dinghy-2.jpg',
-    ],
+    image: '/images/boats/tech-dinghy-1.jpg',
   },
   {
     id: 'boat-hunter-140',
@@ -195,7 +192,7 @@ export const FLEET_BOATS: FleetBoat[] = [
     requiredClassId: 'class-intro-for-experienced',
     description:
       'Slightly larger platform for sailors transitioning from other venues; emphasizes crew roles and river communication.',
-    images: ['/images/boats/hunter-140.jpg'],
+    image: '/images/boats/hunter-140.jpg',
   },
   {
     id: 'boat-bic-techno-293',
@@ -207,10 +204,7 @@ export const FLEET_BOATS: FleetBoat[] = [
     requiredClassId: 'class-windsurfing-fundamentals',
     description:
       'Durable learner board with adjustable daggerboard; tuned for first planing attempts in moderate breeze.',
-    images: [
-      '/images/boats/bic-techno-1.jpg',
-      '/images/boats/bic-techno-2.jpg',
-    ],
+    image: '/images/boats/bic-techno-1.jpg',
   },
   {
     id: 'boat-laser-radial',
@@ -222,7 +216,7 @@ export const FLEET_BOATS: FleetBoat[] = [
     requiredClassId: 'class-intro-to-racing',
     description:
       'Responsive hull for rules-of-the-road drills and short-course racing; radial rig for a wide sailor weight range.',
-    images: ['/images/boats/laser-radial.jpg'],
+    image: '/images/boats/laser-radial.jpg',
   },
   {
     id: 'boat-flying-junior',
@@ -234,10 +228,7 @@ export const FLEET_BOATS: FleetBoat[] = [
     requiredClassId: 'class-intermediate-sailing-skills',
     description:
       'Collegiate-standard sloop for coordinated trim and asymmetric boathandling fundamentals (no spin on this progression step).',
-    images: [
-      '/images/boats/flying-junior-1.jpg',
-      '/images/boats/flying-junior-2.jpg',
-    ],
+    image: '/images/boats/flying-junior-1.jpg',
   },
   {
     id: 'boat-club-420',
@@ -249,7 +240,7 @@ export const FLEET_BOATS: FleetBoat[] = [
     requiredClassId: 'class-intermediate-racing-tactics',
     description:
       'Spinnaker and trapeze introduction for sailors cleared for advanced river sessions and evening series.',
-    images: ['/images/boats/club-420-1.jpg', '/images/boats/club-420-2.jpg'],
+    image: '/images/boats/club-420-1.jpg',
   },
 ];
 

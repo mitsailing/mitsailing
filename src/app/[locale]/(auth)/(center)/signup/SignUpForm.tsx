@@ -3,9 +3,9 @@
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SubmitButton } from '@/components/ui/submit-button';
 import { authInlineLinkClassName } from '@/lib/mit-sailing/tokens';
 import { authClient } from '@/libs/auth-client';
 import { authHrefWithCallback } from '@/libs/auth/callbackUrl';
@@ -30,6 +30,7 @@ type SignUpFormProps = {
 // our hooks + HaveIBeenPwned plugin) to copy that keeps the Devise-style UX.
 export function SignUpForm(props: SignUpFormProps) {
   const t = useTranslations('SignUpPage');
+  const tCommon = useTranslations('Common');
   const router = useRouter();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -241,14 +242,14 @@ export function SignUpForm(props: SignUpFormProps) {
           />
         </div>
 
-        <Button
+        <SubmitButton
           className="w-full"
-          disabled={submitting}
-          type="submit"
+          pending={submitting}
+          pendingLabel={tCommon('pending_submitting')}
           variant="mit"
         >
           {t('submit')}
-        </Button>
+        </SubmitButton>
       </form>
     </>
   );

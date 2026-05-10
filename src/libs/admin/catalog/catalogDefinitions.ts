@@ -206,10 +206,9 @@ const fleetDefinition = {
       labelKey: 'field_capacity',
     },
     {
-      field: 'requiredClassId',
-      kind: 'select',
-      required: true,
-      labelKey: 'field_required_class',
+      field: 'imagePath',
+      kind: 'image',
+      labelKey: 'field_fleet_image',
     },
     {
       field: 'description',
@@ -217,9 +216,30 @@ const fleetDefinition = {
       labelKey: 'field_description',
     },
     {
-      field: 'imagePaths',
-      kind: 'imageList',
-      labelKey: 'field_image_paths',
+      field: 'requiredClassId',
+      kind: 'select',
+      required: true,
+      labelKey: 'field_required_class',
+    },
+  ],
+  formSections: [
+    {
+      fields: ['name', 'slug', 'type', 'capacity'],
+      headingKey: 'fleet_form_section_basics',
+    },
+    {
+      fields: ['imagePath'],
+      headingKey: 'fleet_form_section_fleet_image',
+      helperKey: 'fleet_form_section_fleet_image_helper',
+    },
+    {
+      fields: ['description'],
+      headingKey: 'fleet_form_section_boat_page',
+      helperKey: 'fleet_form_section_boat_page_helper',
+    },
+    {
+      fields: ['requiredClassId'],
+      headingKey: 'fleet_form_section_access',
     },
   ],
   capabilities: {

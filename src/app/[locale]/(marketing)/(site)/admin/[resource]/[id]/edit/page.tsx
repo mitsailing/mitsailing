@@ -12,6 +12,7 @@ import {
   tryGetCatalogDefinition,
 } from '@/libs/admin/catalog/catalogDefinitions';
 import type { CatalogResourceId } from '@/libs/admin/catalog/catalogDefinitions';
+import { catalogFieldErrorsFromSearchParam } from '@/libs/admin/catalog/catalogFieldErrors';
 import { getCatalogServerHandlers } from '@/libs/admin/catalog/catalogServerRegistry';
 import {
   cmsMenuParentSelectOptions,
@@ -28,7 +29,7 @@ import { isAppRelativeCmsHref, safeCmsHref } from '@/libs/mit-sailing/cmsHref';
 
 type PageProps = {
   params: Promise<{ locale: string; resource: string; id: string }>;
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; fieldError?: string | string[] }>;
 };
 
 type DynamicSelectOptions = Readonly<
@@ -127,7 +128,11 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
  */
 export default async function AdminCatalogResourceEditPage(props: PageProps) {
   const { locale, resource, id } = await props.params;
-  const { error: errorCode } = await props.searchParams;
+  const searchParams = await props.searchParams;
+  const { error: errorCode } = searchParams;
+  const fieldErrors = catalogFieldErrorsFromSearchParam(
+    searchParams.fieldError
+  );
   setRequestLocale(locale);
 
   const def = tryGetCatalogDefinition(resource);
@@ -178,6 +183,7 @@ export default async function AdminCatalogResourceEditPage(props: PageProps) {
         definition={def}
         dynamicSelectOptions={dynamicSelectOptions}
         errorCode={errorCode ?? null}
+        fieldErrors={fieldErrors}
         formAction={updateAction}
         headingKey="edit_heading"
         row={row}

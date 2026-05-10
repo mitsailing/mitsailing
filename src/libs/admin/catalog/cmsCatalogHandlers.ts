@@ -120,6 +120,19 @@ function rawCmsBlockFromFormData(formData: FormData): Record<string, unknown> {
 
 type ParsedCmsBlockInput = z.infer<typeof cmsBlockInputSchema>;
 
+function fieldErrorsFromZodError(
+  error: z.ZodError
+): Record<string, string> | undefined {
+  const fieldErrors: Record<string, string> = {};
+  for (const issue of error.issues) {
+    const [field] = issue.path;
+    if (typeof field === 'string' && !fieldErrors[field]) {
+      fieldErrors[field] = issue.message;
+    }
+  }
+  return Object.keys(fieldErrors).length > 0 ? fieldErrors : undefined;
+}
+
 function cmsRevisionContext(context?: CatalogMutationContext) {
   return {
     createdByUserId: context?.userId,
@@ -356,7 +369,11 @@ export const cmsPageBlocksCatalogHandlers: CatalogServerHandlers = {
       rawCmsBlockFromFormData(formData)
     );
     if (!parsed.success) {
-      return { ok: false, code: 'validation_failed' };
+      return {
+        ok: false,
+        code: 'validation_failed',
+        fieldErrors: fieldErrorsFromZodError(parsed.error),
+      };
     }
     try {
       const created = await prisma.cmsPageBlock.create({
@@ -386,7 +403,11 @@ export const cmsPageBlocksCatalogHandlers: CatalogServerHandlers = {
       rawCmsBlockFromFormData(formData)
     );
     if (!parsed.success) {
-      return { ok: false, code: 'validation_failed' };
+      return {
+        ok: false,
+        code: 'validation_failed',
+        fieldErrors: fieldErrorsFromZodError(parsed.error),
+      };
     }
     try {
       const existing = await prisma.cmsPageBlock.findUnique({

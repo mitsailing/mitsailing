@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button';
+import { SubmitButton } from '@/components/ui/submit-button';
 import { Link } from '@/libs/I18nNavigation';
 import type {
   AdminCmsPageRevisionChange,
@@ -41,6 +42,7 @@ type AdminCmsRevisionCompareViewProps = {
     removed: string;
     restore: string;
     restoreConfirm: string;
+    restorePending: string;
     snapshotVersion: (version: number) => string;
     trueValue: string;
     unknownEditor: string;
@@ -267,9 +269,13 @@ export function AdminCmsRevisionCompareView(
           <span>{props.text.restoreConfirm}</span>
         </label>
         <div>
-          <Button size="sm" type="submit" variant="destructive">
+          <SubmitButton
+            pendingLabel={props.text.restorePending}
+            size="sm"
+            variant="destructive"
+          >
             {props.text.restore}
-          </Button>
+          </SubmitButton>
         </div>
       </form>
     </main>

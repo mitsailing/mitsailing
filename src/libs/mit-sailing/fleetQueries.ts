@@ -15,7 +15,7 @@ export type FleetBoatListRow = {
   type: string;
   capacity: number;
   description: string;
-  imagePaths: string[];
+  imagePath: string | null;
   requiredClass: { name: string; slug: string };
 };
 
@@ -41,7 +41,7 @@ async function loadFleetBoatsForPublicUnchecked(): Promise<FleetBoatListRow[]> {
       type: true,
       capacity: true,
       description: true,
-      imagePaths: true,
+      imagePath: true,
       requiredClass: { select: { name: true, slug: true } },
     },
   });
@@ -70,7 +70,7 @@ export type FleetBoatDetail = {
   type: string;
   capacity: number;
   description: string;
-  imagePaths: string[];
+  imagePath: string | null;
   requiredClass: { id: string; name: string; slug: string };
 };
 
@@ -86,7 +86,7 @@ export const getFleetBoatForPublicBySlug = cache(
         type: true,
         capacity: true,
         description: true,
-        imagePaths: true,
+        imagePath: true,
         requiredClass: { select: { id: true, name: true, slug: true } },
       },
     });

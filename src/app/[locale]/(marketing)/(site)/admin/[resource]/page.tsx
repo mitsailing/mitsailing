@@ -79,6 +79,10 @@ export default async function AdminCatalogResourceIndexPage(props: PageProps) {
     locale,
     namespace: 'AdminCatalogResource',
   });
+  const tCommon = await getTranslations({
+    locale,
+    namespace: 'Common',
+  });
   const scopedCmsPagePath =
     resource === 'cms_page_blocks' && scopedList?.selectedValue
       ? await cmsPagePublicPathById(scopedList.selectedValue)
@@ -118,6 +122,7 @@ export default async function AdminCatalogResourceIndexPage(props: PageProps) {
           actionLabel={tr('action_filter')}
           label={tr(scopedList.definition.labelKey)}
           options={scopedList.options}
+          pendingLabel={tCommon('pending_filtering')}
           queryParamName={scopedList.definition.queryParamName}
           selectedValue={scopedList.selectedValue}
         />

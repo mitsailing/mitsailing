@@ -87,7 +87,7 @@ type FleetAuditSnapshot = {
   requiredClassId: string;
   requiredClassName: string;
   description: string;
-  imagePaths: string[];
+  imagePath: string | null;
 };
 
 type CatalogAuditSnapshot = SailingClassAuditSnapshot | FleetAuditSnapshot;
@@ -150,14 +150,14 @@ function catalogAuditSnapshotFromUnknown(
   const description = nullableStringFromUnknown(
     propertyFromUnknown(value, 'description')
   );
-  const imagePaths = stringArrayFromUnknown(
-    propertyFromUnknown(value, 'imagePaths')
-  );
-  if (!id || !name || !slug || description === undefined || !imagePaths) {
+  if (!id || !name || !slug || description === undefined) {
     return null;
   }
 
   if (resource === 'sailing_classes') {
+    const imagePaths = stringArrayFromUnknown(
+      propertyFromUnknown(value, 'imagePaths')
+    );
     const classCategoryId = stringFromUnknown(
       propertyFromUnknown(value, 'classCategoryId')
     );
@@ -172,6 +172,7 @@ function catalogAuditSnapshotFromUnknown(
       !classCategoryId ||
       !classCategoryName ||
       !level ||
+      !imagePaths ||
       isVisible === undefined
     ) {
       return null;
@@ -191,6 +192,13 @@ function catalogAuditSnapshotFromUnknown(
   }
 
   if (resource === 'fleet') {
+    const legacyImagePaths = stringArrayFromUnknown(
+      propertyFromUnknown(value, 'imagePaths')
+    );
+    const imagePath =
+      nullableStringFromUnknown(propertyFromUnknown(value, 'imagePath')) ??
+      legacyImagePaths?.[0] ??
+      null;
     const type = stringFromUnknown(propertyFromUnknown(value, 'type'));
     const capacity = numberFromUnknown(propertyFromUnknown(value, 'capacity'));
     const requiredClassId = stringFromUnknown(
@@ -211,7 +219,7 @@ function catalogAuditSnapshotFromUnknown(
       capacity,
       description,
       id,
-      imagePaths,
+      imagePath,
       name,
       requiredClassId,
       requiredClassName,
@@ -245,6 +253,10 @@ function numberChangeValue(value: number) {
 
 function imagePathsChangeValue(value: readonly string[]) {
   return textChangeValue(value.join('\n'));
+}
+
+function imagePathChangeValue(value: string | null | undefined) {
+  return textChangeValue(value);
 }
 
 function changeValuesEqual(
@@ -305,17 +317,16 @@ function compareCatalogAuditSnapshots(
     richTextChangeValue(before.description),
     richTextChangeValue(after.description)
   );
-  addFieldChange(
-    changes,
-    'imagePaths',
-    imagePathsChangeValue(before.imagePaths),
-    imagePathsChangeValue(after.imagePaths)
-  );
-
   if (
     before.resource === 'sailing_classes' &&
     after.resource === 'sailing_classes'
   ) {
+    addFieldChange(
+      changes,
+      'imagePaths',
+      imagePathsChangeValue(before.imagePaths),
+      imagePathsChangeValue(after.imagePaths)
+    );
     addFieldChange(
       changes,
       'classCategoryId',
@@ -337,6 +348,12 @@ function compareCatalogAuditSnapshots(
   }
 
   if (before.resource === 'fleet' && after.resource === 'fleet') {
+    addFieldChange(
+      changes,
+      'imagePath',
+      imagePathChangeValue(before.imagePath),
+      imagePathChangeValue(after.imagePath)
+    );
     addFieldChange(
       changes,
       'type',
@@ -431,7 +448,7 @@ function catalogAuditSnapshotJson(
     capacity: snapshot.capacity,
     description: snapshot.description,
     id: snapshot.id,
-    imagePaths: snapshot.imagePaths,
+    imagePath: snapshot.imagePath,
     name: snapshot.name,
     requiredClassId: snapshot.requiredClassId,
     requiredClassName: snapshot.requiredClassName,
@@ -511,7 +528,7 @@ export async function loadCatalogRevisionSnapshot(props: {
       requiredClassId: true,
       requiredClass: { select: { name: true } },
       description: true,
-      imagePaths: true,
+      imagePath: true,
     },
   });
   return row
@@ -519,7 +536,7 @@ export async function loadCatalogRevisionSnapshot(props: {
         capacity: row.capacity,
         description: row.description,
         id: row.id,
-        imagePaths: row.imagePaths,
+        imagePath: row.imagePath,
         name: row.name,
         requiredClassId: row.requiredClassId,
         requiredClassName: row.requiredClass.name,
@@ -780,7 +797,7 @@ export async function restoreCatalogRevision(props: {
       data: {
         capacity: snapshot.capacity,
         description: snapshot.description,
-        imagePaths: snapshot.imagePaths,
+        imagePath: snapshot.imagePath,
         name: snapshot.name,
         requiredClassId: snapshot.requiredClassId,
         slug: snapshot.slug,
