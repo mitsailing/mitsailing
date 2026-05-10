@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -272,11 +272,117 @@ function lineCoverageFromLcov(lcov) {
 }
 
 /**
+ * @param {string[]} args - Git command arguments.
+ * @returns {boolean} True when the git command exits successfully.
+ */
+function gitCommandSucceeds(args) {
+  const result = spawnSync('git', args, {
+    cwd: process.cwd(),
+    stdio: 'ignore',
+  });
+
+  return result.status === 0;
+}
+
+/**
+ * @param {string} ref - Git ref to validate.
+ * @returns {boolean} True when the ref resolves to a commit.
+ */
+function gitRefExists(ref) {
+  return gitCommandSucceeds([
+    'rev-parse',
+    '--verify',
+    '--quiet',
+    `${ref}^{commit}`,
+  ]);
+}
+
+/**
+ * @param {string} branchName - Remote branch name.
+ * @returns {boolean} True when the branch name can be safely fetched.
+ */
+function isValidRemoteBranchName(branchName) {
+  return gitCommandSucceeds(['check-ref-format', `refs/heads/${branchName}`]);
+}
+
+/**
+ * @param {string} ref - Candidate ref.
+ * @returns {string | null} Remote branch name when the ref is an origin branch.
+ */
+function originBranchNameFromRef(ref) {
+  return ref.startsWith('origin/') ? ref.slice('origin/'.length) : null;
+}
+
+/**
+ * @param {string} branchName - Branch to fetch from origin.
+ */
+function fetchOriginBranch(branchName) {
+  if (
+    !isValidRemoteBranchName(branchName) ||
+    !gitCommandSucceeds(['remote', 'get-url', 'origin'])
+  ) {
+    return;
+  }
+
+  spawnSync(
+    'git',
+    [
+      'fetch',
+      '--no-tags',
+      '--depth=1',
+      'origin',
+      `+refs/heads/${branchName}:refs/remotes/origin/${branchName}`,
+    ],
+    {
+      cwd: process.cwd(),
+      stdio: 'inherit',
+    }
+  );
+}
+
+/**
+ * @returns {string} Existing git ref to use as the changed-line coverage base.
+ */
+function resolveCoverageBaseRef() {
+  const candidates = [
+    process.env.COVERAGE_BASE_REF,
+    process.env.GITHUB_BASE_REF
+      ? `origin/${process.env.GITHUB_BASE_REF}`
+      : undefined,
+    'origin/main',
+    'main',
+  ].filter(
+    (candidate) => typeof candidate === 'string' && candidate.length > 0
+  );
+  const uniqueCandidates = [...new Set(candidates)];
+
+  for (const candidate of uniqueCandidates) {
+    if (gitRefExists(candidate)) {
+      return candidate;
+    }
+
+    const originBranchName = originBranchNameFromRef(candidate);
+    if (originBranchName) {
+      fetchOriginBranch(originBranchName);
+      if (gitRefExists(candidate)) {
+        return candidate;
+      }
+    }
+  }
+
+  throw new Error(
+    `Coverage base ref not found. Set COVERAGE_BASE_REF to an existing commit or fetch one of: ${uniqueCandidates.join(
+      ', '
+    )}.`
+  );
+}
+
+/**
  * @param {string[]} projectPaths - Project paths whose changed lines should be gated.
  * @returns {Map<string, Set<number>>} Changed new-line numbers by project path.
  */
 function changedLinesAgainstBase(projectPaths) {
-  const baseRef = process.env.COVERAGE_BASE_REF ?? 'origin/main';
+  const baseRef = resolveCoverageBaseRef();
   const diff = execFileSync(
     'git',
     ['diff', '--unified=0', baseRef, '--', ...projectPaths],
