@@ -1,4 +1,5 @@
-import { existsSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -15,8 +16,10 @@ const coverageSummaryPath = path.join(
   'coverage',
   'coverage-summary.json'
 );
+const coverageLcovPath = path.join(process.cwd(), 'coverage', 'lcov.info');
 
 const minimumPct = 95;
+const cmsRichTextChangedLineMinimumPct = 90;
 const metricNames = /** @type {MetricName[]} */ ([
   'statements',
   'lines',
@@ -94,6 +97,13 @@ const additionalCriticalCoverageFiles = [
   'emails/password-reset.tsx',
   'emails/sign-in-otp.tsx',
   'emails/verify-email.tsx',
+];
+
+const cmsRichTextCoverageFiles = [
+  'src/components/mit-sailing/admin/catalog/AdminRichTextEditor.tsx',
+  'src/components/mit-sailing/cms/CmsRichText.tsx',
+  'src/components/mit-sailing/home/MitSailingHomePageView.tsx',
+  'src/libs/mit-sailing/cmsRichText.ts',
 ];
 
 /** @type {CoverageExemption[]} */
@@ -233,6 +243,137 @@ function coverageFailuresForFiles(summary, projectPaths) {
   }
 
   return failures;
+}
+
+/**
+ * @param {string} lcov - LCOV report contents.
+ * @returns {Map<string, Map<number, number>>} Hit counts by project path and line.
+ */
+function lineCoverageFromLcov(lcov) {
+  /** @type {Map<string, Map<number, number>>} */
+  const coverageByFile = new Map();
+
+  for (const record of lcov.split('end_of_record')) {
+    const sourceMatch = record.match(/^SF:(.+)$/m);
+    if (!sourceMatch) {
+      continue;
+    }
+
+    const sourcePath = toProjectPath(sourceMatch[1] ?? '');
+    /** @type {Map<number, number>} */
+    const lineHits = new Map();
+    for (const lineMatch of record.matchAll(/^DA:(\d+),(\d+)/gm)) {
+      lineHits.set(Number(lineMatch[1]), Number(lineMatch[2]));
+    }
+    coverageByFile.set(sourcePath, lineHits);
+  }
+
+  return coverageByFile;
+}
+
+/**
+ * @param {string[]} projectPaths - Project paths whose changed lines should be gated.
+ * @returns {Map<string, Set<number>>} Changed new-line numbers by project path.
+ */
+function changedLinesAgainstBase(projectPaths) {
+  const baseRef = process.env.COVERAGE_BASE_REF ?? 'origin/main';
+  const diff = execFileSync(
+    'git',
+    ['diff', '--unified=0', baseRef, '--', ...projectPaths],
+    {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+    }
+  );
+  /** @type {Map<string, Set<number>>} */
+  const changedLineMap = new Map();
+  let currentPath = '';
+
+  for (const line of diff.split('\n')) {
+    if (line.startsWith('+++ b/')) {
+      currentPath = line.slice('+++ b/'.length);
+      continue;
+    }
+    if (line.startsWith('+++ /dev/null')) {
+      currentPath = '';
+      continue;
+    }
+    const hunkMatch = line.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/u);
+    if (!(hunkMatch && currentPath)) {
+      continue;
+    }
+
+    const start = Number(hunkMatch[1]);
+    const count = Number(hunkMatch[2] ?? '1');
+    const changedLines = changedLineMap.get(currentPath) ?? new Set();
+    for (let offset = 0; offset < count; offset += 1) {
+      changedLines.add(start + offset);
+    }
+    changedLineMap.set(currentPath, changedLines);
+  }
+
+  return changedLineMap;
+}
+
+/**
+ * @param {string[]} projectPaths - Project paths whose changed executable lines should meet the threshold.
+ * @param {number} threshold - Minimum accepted percentage.
+ * @returns {{ checked: number, covered: number, failures: string[] }} Coverage result.
+ */
+function changedLineCoverageForFiles(projectPaths, threshold) {
+  if (!existsSync(coverageLcovPath)) {
+    throw new Error(
+      `LCOV coverage report missing: ${coverageLcovPath}. Run tests with coverage so coverage/lcov.info exists.`
+    );
+  }
+
+  const lcov = readFileSync(coverageLcovPath, 'utf8');
+  const coverageByFile = lineCoverageFromLcov(lcov);
+  const changedLineMap = changedLinesAgainstBase(projectPaths);
+  /** @type {string[]} */
+  const failures = [];
+  let checked = 0;
+  let covered = 0;
+
+  for (const projectPath of projectPaths) {
+    const changedLines = changedLineMap.get(projectPath) ?? new Set();
+    const lineHits = coverageByFile.get(projectPath);
+    if (!lineHits && changedLines.size > 0) {
+      failures.push(`${projectPath}: missing from LCOV report`);
+      continue;
+    }
+
+    const executableChangedLines = [...changedLines].filter((lineNumber) =>
+      lineHits?.has(lineNumber)
+    );
+    if (executableChangedLines.length === 0) {
+      continue;
+    }
+
+    const coveredLines = executableChangedLines.filter(
+      (lineNumber) => Number(lineHits?.get(lineNumber) ?? 0) > 0
+    );
+    checked += executableChangedLines.length;
+    covered += coveredLines.length;
+    const pct = (coveredLines.length / executableChangedLines.length) * 100;
+    if (pct < threshold) {
+      const uncovered = executableChangedLines.filter(
+        (lineNumber) => Number(lineHits?.get(lineNumber) ?? 0) === 0
+      );
+      failures.push(
+        `${projectPath}: changed lines ${formatPct(pct)} (${coveredLines.length}/${executableChangedLines.length}); uncovered lines ${uncovered.join(', ')}`
+      );
+    }
+  }
+
+  const totalPct = checked === 0 ? 100 : (covered / checked) * 100;
+  if (totalPct < threshold) {
+    failures.push(
+      `CMS rich text changed-line total: ${formatPct(totalPct)} (${covered}/${checked})`
+    );
+  }
+
+  return { checked, covered, failures };
 }
 
 /**
@@ -501,6 +642,10 @@ const additionalFailures = coverageFailuresForFiles(
   coverageSummary,
   gatedAdditionalCriticalCoverageFiles
 );
+const cmsRichTextChangedLineCoverage = changedLineCoverageForFiles(
+  cmsRichTextCoverageFiles,
+  cmsRichTextChangedLineMinimumPct
+);
 const ungatedAuthCoverageFiles = ungatedAuthFiles(coverageSummary);
 
 console.log(
@@ -517,6 +662,7 @@ for (const [folderRoot, aggregate] of authAppFolderAggregates(
 if (
   authFailures.length > 0 ||
   additionalFailures.length > 0 ||
+  cmsRichTextChangedLineCoverage.failures.length > 0 ||
   ungatedAuthCoverageFiles.length > 0
 ) {
   console.error('Auth files below threshold:');
@@ -549,6 +695,13 @@ if (
     printExemptions(additionalCriticalExcludedFiles);
   }
 
+  if (cmsRichTextChangedLineCoverage.failures.length > 0) {
+    console.error('CMS rich text changed lines below threshold:');
+    for (const failure of cmsRichTextChangedLineCoverage.failures) {
+      console.error(`- ${failure}`);
+    }
+  }
+
   process.exit(1);
 }
 
@@ -563,3 +716,6 @@ if (additionalCriticalExcludedFiles.length > 0) {
     `Additional critical coverage excludes ${additionalCriticalExcludedFiles.length} files with documented E2E proof paths.`
   );
 }
+console.log(
+  `CMS rich text changed lines checked: ${cmsRichTextChangedLineCoverage.checked} executable lines at ${formatPct(cmsRichTextChangedLineCoverage.checked === 0 ? 100 : (cmsRichTextChangedLineCoverage.covered / cmsRichTextChangedLineCoverage.checked) * 100)} (>=${cmsRichTextChangedLineMinimumPct}%).`
+);

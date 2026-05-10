@@ -12,6 +12,7 @@ import {
   setComponentTestSearchParams,
 } from '@/test/component';
 import { SiteHeader } from './SiteHeader';
+import type { SiteHeaderProps } from './SiteHeader';
 
 const authClientMock = vi.hoisted(() => ({
   signOut: vi.fn(),
@@ -32,18 +33,12 @@ const fleetDropdownItems = [
   { label: 'Laser Radial', href: '/fleet/laser-radial/' },
 ];
 
-function renderHeader(
-  props: {
-    initialShowAdminLink?: boolean;
-    initialSignedIn?: boolean;
-  } = {}
-) {
+function renderHeader(props: Partial<SiteHeaderProps> = {}) {
   return render(
     <SiteHeader
       classesDropdownItems={classesDropdownItems}
       fleetDropdownItems={fleetDropdownItems}
-      initialShowAdminLink={props.initialShowAdminLink}
-      initialSignedIn={props.initialSignedIn}
+      {...props}
     />
   );
 }
@@ -365,6 +360,75 @@ describe('SiteHeader', () => {
         Reflect.deleteProperty(HTMLElement.prototype, 'inert');
       }
     }
+  });
+
+  it('renders signed-in mobile account links without admin link', async () => {
+    const user = userEvent.setup();
+    setSessionState({
+      data: { user: { id: 'user-1', role: 'user' }, session: {} },
+    });
+
+    renderHeader();
+
+    const openButton = screen.getByRole('button', { name: 'Open menu' });
+    await waitFor(() => {
+      expect(openButton).toBeEnabled();
+    });
+
+    await user.click(openButton);
+    const dialog = screen.getByRole('dialog', { name: 'Main navigation' });
+    expect(
+      within(dialog).queryByRole('link', { name: 'Admin' })
+    ).not.toBeInTheDocument();
+    expect(within(dialog).getByRole('link', { name: 'Profile' })).toBeVisible();
+  });
+
+  it('renders configured menu links and mobile utilities', async () => {
+    const user = userEvent.setup();
+    renderHeader({
+      headerMenuItems: [
+        {
+          href: 'https://sailing.example.com',
+          id: 'external',
+          isExternal: true,
+          label: 'External',
+        },
+        {
+          id: 'placeholder',
+          label: 'Resources',
+        },
+      ],
+      mobileUtilityItems: [
+        {
+          href: 'https://directions.example.com',
+          id: 'directions',
+          isExternal: true,
+          label: 'Directions',
+        },
+      ],
+    });
+
+    const banner = screen.getByRole('banner');
+    const primaryNav = within(banner).getByRole('navigation', {
+      name: 'Main navigation',
+    });
+    expect(
+      within(primaryNav).getByRole('link', { name: 'External' })
+    ).toHaveAttribute('href', 'https://sailing.example.com');
+    expect(
+      within(primaryNav).getByRole('link', { name: 'Resources' })
+    ).toHaveAttribute('href', '#');
+
+    const openButton = screen.getByRole('button', { name: 'Open menu' });
+    await waitFor(() => {
+      expect(openButton).toBeEnabled();
+    });
+
+    await user.click(openButton);
+    const dialog = screen.getByRole('dialog', { name: 'Main navigation' });
+    expect(
+      within(dialog).getByRole('link', { name: 'Directions' })
+    ).toHaveAttribute('href', 'https://directions.example.com');
   });
 
   it('renders accessible pending auth state without guest or account links', async () => {

@@ -1,6 +1,7 @@
 import { ArrowDown, ArrowRight, Check, MapPin, Sunset } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import Image from 'next/image';
+import { CmsRichText } from '@/components/mit-sailing/cms/CmsRichText';
 import { pavilionHours } from '@/data/mit-sailing/pavilionInfoSeed';
 import {
   mitAccentLinkClassName,
@@ -88,9 +89,16 @@ function HomeHeroSection(props: {
           <h1 className="mb-6 font-mit-serif text-4xl leading-tight font-bold text-white">
             {props.block?.title ?? props.fallbackTitle}
           </h1>
-          <p className="mb-10 text-base leading-relaxed text-white">
-            {props.block?.body ?? props.fallbackBody}
-          </p>
+          {props.block?.body ? (
+            <CmsRichText
+              className="mb-10 text-base leading-relaxed text-white"
+              html={props.block.body}
+            />
+          ) : (
+            <p className="mb-10 text-base leading-relaxed text-white">
+              {props.fallbackBody}
+            </p>
+          )}
           <div className="flex flex-wrap items-center gap-4">
             <Link
               className={`inline-flex cursor-pointer items-center justify-center rounded-lg border-2 border-white bg-transparent px-7 py-3 text-base font-medium text-white no-underline backdrop-blur transition-colors hover:bg-white/10 ${HERO_ON_IMAGE_FOCUS_RING_CLASS_NAME}`}
@@ -602,9 +610,16 @@ export async function MitSailingHomePageView(
               <h2 className="mb-4 font-mit-serif text-[32px] leading-tight font-semibold text-mit-text">
                 {rentalBlock?.title ?? t('rental_title')}
               </h2>
-              <p className="mb-8 text-base leading-relaxed text-mit-text">
-                {rentalBlock?.body ?? t('rental_body')}
-              </p>
+              {rentalBlock?.body ? (
+                <CmsRichText
+                  className="mb-8 text-base leading-relaxed text-mit-text"
+                  html={rentalBlock.body}
+                />
+              ) : (
+                <p className="mb-8 text-base leading-relaxed text-mit-text">
+                  {t('rental_body')}
+                </p>
+              )}
               <ul className="mb-10 space-y-4">
                 {(
                   [

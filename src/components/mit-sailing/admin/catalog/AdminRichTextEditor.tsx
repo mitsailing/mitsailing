@@ -32,6 +32,14 @@ type CmsMediaAsset = {
   createdAt: string;
 };
 
+const imageWidthOptions = [
+  { value: 'reset', translationKey: 'rich_text_image_size_original' },
+  { value: '320', translationKey: 'rich_text_image_size_small' },
+  { value: '480', translationKey: 'rich_text_image_size_medium' },
+  { value: '640', translationKey: 'rich_text_image_size_large' },
+  { value: '960', translationKey: 'rich_text_image_size_full' },
+] as const;
+
 const CmsEditorImage = TiptapImage.extend({
   addAttributes() {
     const parentAttributes = this.parent?.() ?? {};
@@ -54,7 +62,7 @@ const CmsEditorImage = TiptapImage.extend({
   },
 });
 
-function isAllowedEditorHref(href: string): boolean {
+export function isAllowedEditorHref(href: string): boolean {
   const trimmed = href.trim();
   if (!trimmed) {
     return false;
@@ -82,11 +90,11 @@ function isAllowedEditorHref(href: string): boolean {
   );
 }
 
-function isCmsMediaPath(value: string | undefined): value is string {
+export function isCmsMediaPath(value: string | undefined): value is string {
   return typeof value === 'string' && value.startsWith('/cms-media/');
 }
 
-function currentPageId(form: HTMLFormElement | null): string {
+export function currentPageId(form: HTMLFormElement | null): string {
   if (!form) {
     return '';
   }
@@ -94,7 +102,7 @@ function currentPageId(form: HTMLFormElement | null): string {
   return typeof value === 'string' ? value : '';
 }
 
-function stringField(value: unknown, field: string): string | undefined {
+export function stringField(value: unknown, field: string): string | undefined {
   if (typeof value !== 'object' || value === null) {
     return undefined;
   }
@@ -102,7 +110,7 @@ function stringField(value: unknown, field: string): string | undefined {
   return typeof descriptor?.value === 'string' ? descriptor.value : undefined;
 }
 
-function cmsMediaAssetFromUnknown(value: unknown): CmsMediaAsset | null {
+export function cmsMediaAssetFromUnknown(value: unknown): CmsMediaAsset | null {
   const id = stringField(value, 'id');
   const originalFilename = stringField(value, 'originalFilename');
   const publicPath = stringField(value, 'publicPath');
@@ -113,7 +121,7 @@ function cmsMediaAssetFromUnknown(value: unknown): CmsMediaAsset | null {
   return { createdAt, id, originalFilename, publicPath };
 }
 
-function cmsMediaAssetsFromUnknown(value: unknown): CmsMediaAsset[] {
+export function cmsMediaAssetsFromUnknown(value: unknown): CmsMediaAsset[] {
   if (typeof value !== 'object' || value === null) {
     return [];
   }
@@ -127,11 +135,29 @@ function cmsMediaAssetsFromUnknown(value: unknown): CmsMediaAsset[] {
   });
 }
 
-function nodeStringAttribute(
+export function nodeStringAttribute(
   value: unknown,
   field: string
 ): string | undefined {
   return stringField(value, field);
+}
+
+export function nodeNumberAttribute(
+  value: unknown,
+  field: string
+): number | undefined {
+  if (typeof value !== 'object' || value === null) {
+    return undefined;
+  }
+  const descriptor = Object.getOwnPropertyDescriptor(value, field);
+  return typeof descriptor?.value === 'number' ? descriptor.value : undefined;
+}
+
+function imageWidthSelectValue(
+  editor: NonNullable<ReturnType<typeof useEditor>>
+): string {
+  const width = nodeNumberAttribute(editor.getAttributes('image'), 'width');
+  return width ? String(width) : 'reset';
 }
 
 function activeBlockKind(editor: NonNullable<ReturnType<typeof useEditor>>) {
@@ -165,6 +191,14 @@ export function AdminRichTextEditor(props: {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [mediaBusy, setMediaBusy] = useState(false);
   const [mediaError, setMediaError] = useState<string | null>(null);
+  const [, setToolbarRevision] = useState(0);
+
+  function syncEditorState(
+    currentEditor: NonNullable<ReturnType<typeof useEditor>>
+  ) {
+    setHtml(currentEditor.getHTML());
+    setToolbarRevision((revision) => revision + 1);
+  }
 
   const editor = useEditor({
     content: props.defaultValue || '<p></p>',
@@ -193,11 +227,28 @@ export function AdminRichTextEditor(props: {
       CmsEditorImage.configure({
         allowBase64: false,
         inline: false,
+        resize: {
+          alwaysPreserveAspectRatio: true,
+          directions: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
+          enabled: true,
+          minHeight: 80,
+          minWidth: 120,
+        },
       }),
     ],
     immediatelyRender: false,
+    onSelectionUpdate: ({ editor: currentEditor }) => {
+      const selectedImageSrc = nodeStringAttribute(
+        currentEditor.getAttributes('image'),
+        'src'
+      );
+      if (selectedImageSrc) {
+        setLastImageSrc(selectedImageSrc);
+      }
+      setToolbarRevision((revision) => revision + 1);
+    },
     onUpdate: ({ editor: currentEditor }) => {
-      setHtml(currentEditor.getHTML());
+      syncEditorState(currentEditor);
     },
   });
 
@@ -218,7 +269,7 @@ export function AdminRichTextEditor(props: {
       })
       .run();
     setLastImageSrc(asset.publicPath);
-    setHtml(editor.getHTML());
+    syncEditorState(editor);
     setPickerOpen(false);
   }
 
@@ -295,7 +346,7 @@ export function AdminRichTextEditor(props: {
     const trimmed = linkHref.trim();
     if (!isAllowedEditorHref(trimmed)) {
       editor.chain().focus().unsetLink().run();
-      setHtml(editor.getHTML());
+      syncEditorState(editor);
       setLinkEditorOpen(false);
       return;
     }
@@ -305,44 +356,62 @@ export function AdminRichTextEditor(props: {
       .extendMarkRange('link')
       .setLink({ href: trimmed })
       .run();
-    setHtml(editor.getHTML());
+    syncEditorState(editor);
     setLinkEditorOpen(false);
   }
 
-  function alignImage(align: 'left' | 'center' | 'right') {
+  function updateLastImageAttributes(
+    attributes: Record<string, number | string | null>
+  ) {
     if (!editor) {
       return;
     }
-    const hasSelectedImage = editor.isActive('image');
-    if (hasSelectedImage) {
-      editor.chain().focus().updateAttributes('image', { align }).run();
-    } else if (lastImageSrc) {
-      editor.commands.command(({ tr }) => {
-        let imagePos: number | null = null;
-        let imageAlt = '';
-        let imageSrc = lastImageSrc;
-        tr.doc.descendants((node, pos) => {
-          const src = nodeStringAttribute(node.attrs, 'src');
-          if (node.type.name !== 'image' || src !== lastImageSrc) {
-            return true;
-          }
-          imagePos = pos;
-          imageAlt = nodeStringAttribute(node.attrs, 'alt') ?? '';
-          imageSrc = src;
-          return false;
-        });
-        if (imagePos === null || !imageSrc) {
-          return false;
+    editor.commands.command(({ tr }) => {
+      let updated = false;
+      tr.doc.descendants((node, pos) => {
+        const src = nodeStringAttribute(node.attrs, 'src');
+        if (node.type.name !== 'image' || src !== lastImageSrc) {
+          return true;
         }
-        tr.setNodeMarkup(imagePos, undefined, {
-          align,
-          alt: imageAlt,
-          src: imageSrc,
-        });
+        tr.setNodeMarkup(pos, undefined, { ...node.attrs, ...attributes });
+        updated = true;
         return true;
       });
+      return updated;
+    });
+  }
+
+  function updateImageAttributes(
+    attributes: Record<string, number | string | null>
+  ) {
+    if (!editor) {
+      return;
     }
-    setHtml(editor.getHTML());
+    if (editor.isActive('image')) {
+      editor.chain().focus().updateAttributes('image', attributes).run();
+    } else if (lastImageSrc) {
+      updateLastImageAttributes(attributes);
+    }
+    syncEditorState(editor);
+  }
+
+  function alignImage(align: 'left' | 'center' | 'right') {
+    updateImageAttributes({ align });
+  }
+
+  function resizeImage(width: number | null) {
+    updateImageAttributes({ height: null, width });
+  }
+
+  function selectImageWidth(value: string) {
+    if (value === 'reset') {
+      resizeImage(null);
+      return;
+    }
+    const width = Number.parseInt(value, 10);
+    if (Number.isFinite(width)) {
+      resizeImage(width);
+    }
   }
 
   const disabled = !editor;
@@ -387,7 +456,7 @@ export function AdminRichTextEditor(props: {
             onClick={() => {
               editor?.chain().focus().toggleBold().run();
               if (editor) {
-                setHtml(editor.getHTML());
+                syncEditorState(editor);
               }
             }}
             size="icon"
@@ -403,7 +472,7 @@ export function AdminRichTextEditor(props: {
             onClick={() => {
               editor?.chain().focus().toggleItalic().run();
               if (editor) {
-                setHtml(editor.getHTML());
+                syncEditorState(editor);
               }
             }}
             size="icon"
@@ -419,7 +488,7 @@ export function AdminRichTextEditor(props: {
             onClick={() => {
               editor?.chain().focus().toggleBulletList().run();
               if (editor) {
-                setHtml(editor.getHTML());
+                syncEditorState(editor);
               }
             }}
             size="icon"
@@ -435,7 +504,7 @@ export function AdminRichTextEditor(props: {
             onClick={() => {
               editor?.chain().focus().toggleOrderedList().run();
               if (editor) {
-                setHtml(editor.getHTML());
+                syncEditorState(editor);
               }
             }}
             size="icon"
@@ -462,7 +531,7 @@ export function AdminRichTextEditor(props: {
             onClick={() => {
               editor?.chain().focus().unsetLink().run();
               if (editor) {
-                setHtml(editor.getHTML());
+                syncEditorState(editor);
               }
             }}
             size="icon"
@@ -544,6 +613,21 @@ export function AdminRichTextEditor(props: {
           >
             <AlignRight aria-hidden />
           </Button>
+          <select
+            aria-label={t('rich_text_image_size')}
+            className={`${adminNativeSelectClassName} h-8 w-auto min-w-[8.5rem]`}
+            disabled={disabled}
+            onChange={(event) => {
+              selectImageWidth(event.target.value);
+            }}
+            value={editor ? imageWidthSelectValue(editor) : 'reset'}
+          >
+            {imageWidthOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {t(option.translationKey)}
+              </option>
+            ))}
+          </select>
           <input
             accept="image/jpeg,image/png,image/webp,image/gif"
             className="sr-only"

@@ -4,6 +4,8 @@ const REMOTE_HREF_PREFIXES = ['http://', 'https://', 'mailto:'] as const;
 const CMS_MEDIA_IMAGE_EXTENSIONS = ['.gif', '.jpg', '.jpeg', '.png', '.webp'];
 const CMS_MEDIA_IMAGE_PATH_RE = /^\/cms-media\/[^/?#]+\/[^/?#]+$/u;
 const HTML_TAG_RE = /<[a-z][\s\S]*>/iu;
+const CMS_IMAGE_MIN_DIMENSION = 40;
+const CMS_IMAGE_MAX_DIMENSION = 1600;
 
 type SanitizeHtmlOptions = NonNullable<Parameters<typeof sanitizeHtml>[1]>;
 type SanitizeAttribs = Record<string, string>;
@@ -62,6 +64,25 @@ function cmsImageAlign(value: string | undefined): 'left' | 'center' | 'right' {
     return value;
   }
   return 'center';
+}
+
+function cmsImageDimension(value: string | undefined): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+  if (!/^\d{1,4}$/u.test(value.trim())) {
+    return undefined;
+  }
+  const dimension = Number.parseInt(value, 10);
+  if (!Number.isFinite(dimension)) {
+    return undefined;
+  }
+  return String(
+    Math.min(
+      CMS_IMAGE_MAX_DIMENSION,
+      Math.max(CMS_IMAGE_MIN_DIMENSION, dimension)
+    )
+  );
 }
 
 function escapeHtmlText(raw: string): string {
@@ -124,12 +145,16 @@ function transformCmsRichTextImage(
     return { tagName: 'span', attribs: {} };
   }
   const alt = (attribs.alt ?? '').trim();
+  const width = cmsImageDimension(attribs.width);
+  const height = cmsImageDimension(attribs.height);
   return {
     tagName: 'img',
     attribs: {
       alt,
       'data-align': cmsImageAlign(attribs['data-align']),
+      ...(height ? { height } : {}),
       src,
+      ...(width ? { width } : {}),
     },
   };
 }
@@ -137,7 +162,7 @@ function transformCmsRichTextImage(
 const CMS_RICH_TEXT_SANITIZE_OPTIONS = {
   allowedAttributes: {
     a: ['href', 'rel', 'target'],
-    img: ['alt', 'data-align', 'src'],
+    img: ['alt', 'data-align', 'height', 'src', 'width'],
   },
   allowedTags: [
     'a',

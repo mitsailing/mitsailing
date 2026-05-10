@@ -44,10 +44,10 @@ describe('sanitizeCmsRichTextHtml', () => {
   it('keeps cms media images with normalized alignment', () => {
     expect(
       sanitizeCmsRichTextHtml(
-        '<p>Race day</p><img class="x" style="width:10px" src="/cms-media/asset-1/race-day.png" alt="Race" data-align="right" width="200"><img src="/cms-media/asset-2/photo.webp" data-align="sideways">'
+        '<p>Race day</p><img class="x" style="width:10px" src="/cms-media/asset-1/race-day.png" alt="Race" data-align="right" width="200" height="120"><img src="/cms-media/asset-2/photo.webp" data-align="sideways" width="100%">'
       )
     ).toBe(
-      '<p>Race day</p><img alt="Race" data-align="right" src="/cms-media/asset-1/race-day.png" /><img alt="" data-align="center" src="/cms-media/asset-2/photo.webp" />'
+      '<p>Race day</p><img alt="Race" data-align="right" height="120" src="/cms-media/asset-1/race-day.png" width="200" /><img alt="" data-align="center" src="/cms-media/asset-2/photo.webp" />'
     );
   });
 

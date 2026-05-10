@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { AdminCatalogForm } from '@/components/mit-sailing/admin/catalog/AdminCatalogForm';
 import { AdminCmsHistoryPanelView } from '@/components/mit-sailing/admin/catalog/AdminCmsHistoryPanelView';
 import { AdminCmsRevisionCompareView } from '@/components/mit-sailing/admin/catalog/AdminCmsRevisionCompareView';
@@ -30,8 +30,31 @@ beforeAll(() => {
   });
 });
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 async function formAction() {
   await Promise.resolve();
+}
+
+function renderCmsBlockForm(body = '<p>Existing body</p>') {
+  return render(
+    <AdminCatalogForm
+      definition={catalogResourceDefinitions.cms_page_blocks}
+      formAction={formAction}
+      headingKey="edit_heading"
+      row={{
+        body,
+        displayOrder: 1,
+        id: 'block-1',
+        isVisible: true,
+        kind: 'text_section',
+        pageId: 'page-1',
+        title: 'Overview',
+      }}
+    />
+  );
 }
 
 function hiddenBodyValue(container: HTMLElement): string {
@@ -40,6 +63,38 @@ function hiddenBodyValue(container: HTMLElement): string {
     throw new Error('Expected body input');
   }
   return input.value;
+}
+
+function textNodeContaining(root: HTMLElement, text: string): Text {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  let node = walker.nextNode();
+  while (node) {
+    if (node instanceof Text && node.data.includes(text)) {
+      return node;
+    }
+    node = walker.nextNode();
+  }
+  throw new Error(`Expected editor text "${text}"`);
+}
+
+function selectEditorText(text: string) {
+  const editor = screen.getByLabelText('Body');
+  if (!(editor instanceof HTMLElement)) {
+    throw new Error('Expected rich text editor');
+  }
+  editor.focus();
+  const textNode = textNodeContaining(editor, text);
+  const start = textNode.data.indexOf(text);
+  const range = document.createRange();
+  range.setStart(textNode, start);
+  range.setEnd(textNode, start + text.length);
+  const selection = window.getSelection();
+  if (!selection) {
+    throw new Error('Expected window selection');
+  }
+  selection.removeAllRanges();
+  selection.addRange(range);
+  document.dispatchEvent(new Event('selectionchange'));
 }
 
 describe('AdminCatalogForm rich text fields', () => {
@@ -131,10 +186,15 @@ describe('AdminRichTextEditor media controls', () => {
       new File(['png'], 'race.png', { type: 'image/png' })
     );
     await user.click(screen.getByRole('button', { name: 'Align image right' }));
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'Image size' }),
+      '480'
+    );
 
     await waitFor(() => {
       expect(hiddenBodyValue(view.container)).toContain('data-align="right"');
     });
+    expect(hiddenBodyValue(view.container)).toContain('width="480"');
     expect(hiddenBodyValue(view.container)).toContain(
       '/cms-media/asset-1/race.png'
     );
@@ -143,6 +203,85 @@ describe('AdminRichTextEditor media controls', () => {
       expect.objectContaining({ method: 'POST' })
     );
     fetchMock.mockRestore();
+  });
+
+  it('centers image alignment and resets image width', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      Response.json({
+        originalFilename: 'burgee.png',
+        publicPath: '/cms-media/asset-3/burgee.png',
+        url: '/cms-media/asset-3/burgee.png',
+      })
+    );
+    const user = userEvent.setup();
+    const view = renderCmsBlockForm();
+
+    const uploadInput = view.container.querySelector('input[type="file"]');
+    if (!(uploadInput instanceof HTMLInputElement)) {
+      throw new Error('Expected file input');
+    }
+    await user.upload(
+      uploadInput,
+      new File(['png'], 'burgee.png', { type: 'image/png' })
+    );
+    await user.click(screen.getByRole('button', { name: 'Align image right' }));
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'Image size' }),
+      '640'
+    );
+
+    await waitFor(() => {
+      expect(hiddenBodyValue(view.container)).toContain('data-align="right"');
+    });
+    expect(hiddenBodyValue(view.container)).toContain('width="640"');
+
+    await user.click(
+      screen.getByRole('button', { name: 'Align image center' })
+    );
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'Image size' }),
+      'reset'
+    );
+
+    await waitFor(() => {
+      expect(hiddenBodyValue(view.container)).toContain('data-align="center"');
+    });
+    expect(hiddenBodyValue(view.container)).not.toContain('width=');
+  });
+
+  it('ignores invalid image width selections', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      Response.json({
+        originalFilename: 'harbor.png',
+        publicPath: '/cms-media/asset-4/harbor.png',
+        url: '/cms-media/asset-4/harbor.png',
+      })
+    );
+    const user = userEvent.setup();
+    const view = renderCmsBlockForm();
+
+    const uploadInput = view.container.querySelector('input[type="file"]');
+    if (!(uploadInput instanceof HTMLInputElement)) {
+      throw new Error('Expected file input');
+    }
+    await user.upload(
+      uploadInput,
+      new File(['png'], 'harbor.png', { type: 'image/png' })
+    );
+    const sizeSelect = screen.getByRole('combobox', { name: 'Image size' });
+    await user.selectOptions(sizeSelect, '320');
+
+    await waitFor(() => {
+      expect(hiddenBodyValue(view.container)).toContain('width="320"');
+    });
+
+    const invalidOption = document.createElement('option');
+    invalidOption.textContent = 'Invalid width';
+    invalidOption.value = 'wide';
+    sizeSelect.append(invalidOption);
+    await user.selectOptions(sizeSelect, 'wide');
+
+    expect(hiddenBodyValue(view.container)).toContain('width="320"');
   });
 
   it('submits selected aligned cms image html', async () => {
@@ -181,14 +320,128 @@ describe('AdminRichTextEditor media controls', () => {
     );
     await user.click(screen.getByRole('button', { name: 'dock.jpg' }));
     await user.click(screen.getByRole('button', { name: 'Align image left' }));
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'Image size' }),
+      '320'
+    );
 
     await waitFor(() => {
       expect(hiddenBodyValue(view.container)).toContain('data-align="left"');
     });
+    expect(hiddenBodyValue(view.container)).toContain('width="320"');
     expect(hiddenBodyValue(view.container)).toContain(
       '/cms-media/asset-2/dock.jpg'
     );
     fetchMock.mockRestore();
+  });
+
+  it('shows media error when existing images fail to load', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(null, { status: 500 })
+    );
+    const user = userEvent.setup();
+    renderCmsBlockForm();
+
+    await user.click(
+      screen.getByRole('button', { name: 'Select existing image' })
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Could not load CMS images.'
+    );
+  });
+
+  it('shows media error when image upload fails', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(null, { status: 500 })
+    );
+    const user = userEvent.setup();
+    const view = renderCmsBlockForm();
+
+    const uploadInput = view.container.querySelector('input[type="file"]');
+    if (!(uploadInput instanceof HTMLInputElement)) {
+      throw new Error('Expected file input');
+    }
+    await user.upload(
+      uploadInput,
+      new File(['png'], 'failed.png', { type: 'image/png' })
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Could not load CMS images.'
+    );
+    expect(hiddenBodyValue(view.container)).not.toContain('failed.png');
+  });
+
+  it('shows media error when upload response omits a cms path', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      Response.json({
+        originalFilename: 'external.png',
+        publicPath: '/uploads/external.png',
+      })
+    );
+    const user = userEvent.setup();
+    const view = renderCmsBlockForm();
+
+    const uploadInput = view.container.querySelector('input[type="file"]');
+    if (!(uploadInput instanceof HTMLInputElement)) {
+      throw new Error('Expected file input');
+    }
+    await user.upload(
+      uploadInput,
+      new File(['png'], 'external.png', { type: 'image/png' })
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Could not load CMS images.'
+    );
+    expect(hiddenBodyValue(view.container)).not.toContain('/uploads/');
+  });
+});
+
+describe('AdminRichTextEditor link controls', () => {
+  it('applies and removes selected links', async () => {
+    const user = userEvent.setup();
+    const view = renderCmsBlockForm('<p>Open the guide</p>');
+
+    selectEditorText('guide');
+    await user.click(screen.getByRole('button', { name: 'Add link' }));
+    await user.type(
+      screen.getByRole('textbox', { name: 'Link URL' }),
+      '/guide/'
+    );
+    await user.click(screen.getByRole('button', { name: 'Apply link' }));
+
+    await waitFor(() => {
+      expect(hiddenBodyValue(view.container)).toContain('href="/guide/"');
+    });
+    expect(hiddenBodyValue(view.container)).toContain('>guide</a>');
+
+    selectEditorText('guide');
+    await user.click(screen.getByRole('button', { name: 'Remove link' }));
+
+    await waitFor(() => {
+      expect(hiddenBodyValue(view.container)).not.toContain('<a ');
+    });
+    expect(hiddenBodyValue(view.container)).toContain('guide');
+  });
+
+  it('unsets selected links for unsafe link URLs', async () => {
+    const user = userEvent.setup();
+    const view = renderCmsBlockForm('<p><a href="/old/">Old link</a></p>');
+
+    selectEditorText('Old link');
+    await user.click(screen.getByRole('button', { name: 'Add link' }));
+    const urlInput = screen.getByRole('textbox', { name: 'Link URL' });
+    expect(urlInput).toHaveValue('/old/');
+    await user.clear(urlInput);
+    await user.type(urlInput, `${['java', 'script'].join('')}:alert(1)`);
+    await user.click(screen.getByRole('button', { name: 'Apply link' }));
+
+    await waitFor(() => {
+      expect(hiddenBodyValue(view.container)).not.toContain('<a ');
+    });
+    expect(hiddenBodyValue(view.container)).toContain('Old link');
   });
 });
 
