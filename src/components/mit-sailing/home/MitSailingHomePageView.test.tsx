@@ -1,0 +1,337 @@
+import { render, screen, within } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type {
+  PublicCmsBlock,
+  PublicCmsPage,
+} from '@/libs/mit-sailing/cmsQueries';
+import type { HomeUpcomingDayGroup } from '@/libs/mit-sailing/homeUpcomingFromPrisma';
+import enMessages from '@/locales/en.json';
+import { MitSailingHomePageView } from './MitSailingHomePageView';
+
+const homeMocks = vi.hoisted(() => ({
+  getHomeUpcomingDayGroups: vi.fn(),
+  getSession: vi.fn(),
+  getTranslations: vi.fn(),
+  loadHomeLearnToSailIntroductionClasses: vi.fn(),
+  loadHomeLearnToSailNextClassesBySlugs: vi.fn(),
+  loadHomeLearnToSailPrerequisiteNamesByIds: vi.fn(),
+  loadPublishedCmsPageByPath: vi.fn(),
+  setRequestLocale: vi.fn(),
+}));
+
+vi.mock('next-intl/server', () => ({
+  getTranslations: homeMocks.getTranslations,
+  setRequestLocale: homeMocks.setRequestLocale,
+}));
+
+vi.mock('next/image', () => ({
+  default: (props: {
+    alt: string;
+    className?: string;
+    height?: number;
+    src: string;
+    width?: number;
+  }) => (
+    // eslint-disable-next-line @next/next/no-img-element -- Test double for `next/image`.
+    <img
+      alt={props.alt}
+      className={props.className}
+      height={props.height}
+      src={props.src}
+      width={props.width}
+    />
+  ),
+}));
+
+vi.mock('@/libs/auth/dal', () => ({
+  getSession: homeMocks.getSession,
+}));
+
+vi.mock('@/libs/mit-sailing/cmsQueries', () => ({
+  loadPublishedCmsPageByPath: homeMocks.loadPublishedCmsPageByPath,
+}));
+
+vi.mock('@/libs/mit-sailing/homeLearnToSailFromPrisma', () => ({
+  loadHomeLearnToSailIntroductionClasses:
+    homeMocks.loadHomeLearnToSailIntroductionClasses,
+  loadHomeLearnToSailNextClassesBySlugs:
+    homeMocks.loadHomeLearnToSailNextClassesBySlugs,
+  loadHomeLearnToSailPrerequisiteNamesByIds:
+    homeMocks.loadHomeLearnToSailPrerequisiteNamesByIds,
+}));
+
+vi.mock('@/libs/mit-sailing/homeUpcomingFromPrisma', () => ({
+  getHomeUpcomingDayGroups: homeMocks.getHomeUpcomingDayGroups,
+}));
+
+const homeMessages = enMessages.MitSailingHome;
+
+function isHomeMessageKey(key: string): key is keyof typeof homeMessages {
+  return Object.hasOwn(homeMessages, key);
+}
+
+const translate = (key: string, values: Record<string, string> = {}) => {
+  if (!isHomeMessageKey(key)) {
+    return key;
+  }
+
+  const message = homeMessages[key];
+  return message.replaceAll(
+    /\{(\w+)\}/g,
+    (_match, name: string) => values[name] ?? ''
+  );
+};
+
+const introClasses = [
+  {
+    description: 'Learn rigging and basic boat handling.',
+    id: 'intro-id',
+    level: 'Beginner',
+    name: 'Intro Sailing',
+    prerequisiteIds: [],
+    slug: 'intro-sailing',
+  },
+];
+
+const nextClasses = [
+  {
+    description: 'Build speed without prerequisites.',
+    id: 'advanced-id',
+    level: 'Advanced',
+    name: 'Advanced Boat Speed',
+    prerequisiteIds: [],
+    slug: 'advanced-boat-speed',
+  },
+  {
+    description: 'Continue after intro sailing.',
+    id: 'racing-id',
+    level: 'Intermediate',
+    name: 'Intro to Racing',
+    prerequisiteIds: ['intro-id'],
+    slug: 'intro-to-racing',
+  },
+  {
+    description: 'Unknown prerequisite still has a badge.',
+    id: 'strategy-id',
+    level: 'Intermediate',
+    name: 'Racing Strategy',
+    prerequisiteIds: ['missing-id'],
+    slug: 'racing-strategy',
+  },
+];
+
+const upcomingGroups = [
+  {
+    dateKey: '2026-05-10',
+    headingLabel: 'Today',
+    isToday: true,
+    rows: [
+      {
+        categoryId: 'cat-class',
+        eventName: 'Intro sail',
+        eventSlug: 'intro-sail',
+        line: '10:00 AM - noon',
+        rowKey: 'today-row',
+      },
+    ],
+  },
+  {
+    dateKey: '2026-05-11',
+    headingLabel: 'Mon, May 11',
+    isToday: false,
+    rows: [
+      {
+        categoryId: 'cat-racing',
+        eventName: 'Racing clinic',
+        eventSlug: 'racing-clinic',
+        line: '6:00 PM - 8:00 PM',
+        rowKey: 'tomorrow-row',
+      },
+    ],
+  },
+] satisfies HomeUpcomingDayGroup[];
+
+const blocks = [
+  {
+    body: '<p>Membership includes <strong>boats</strong> and community.</p>',
+    ctaLabel: 'See classes',
+    ctaUrl: '/classes',
+    id: 'hero',
+    imageAlt: 'Sailors on the Charles River',
+    imageSrc: '/uploads/hero.jpg',
+    kind: 'hero',
+    subtitle: 'Cambridge, Massachusetts',
+    title: 'Learn to sail on the Charles',
+  },
+  {
+    body: JSON.stringify({
+      eventCount: 2,
+      eventsCtaLabel: 'Full calendar',
+      eventsCtaUrl: 'https://calendar.example.edu',
+      eventsEmptyText: 'No events posted.',
+      eventsTitle: 'Upcoming at MIT Sailing',
+      hoursNote: 'Sunset can change launch times.',
+      schedule: [
+        { day: 'Weekdays', hours: 'Noon - 8 PM' },
+        { day: 'Weekends', hours: '9 AM - 6 PM' },
+      ],
+      steps: [
+        {
+          description: 'Create an account and review pavilion rules.',
+          title: 'Join online',
+        },
+        {
+          description: 'Take the introductory class before solo sailing.',
+          title: 'Take a class',
+        },
+      ],
+      stepsTitle: 'Getting started',
+    }),
+    id: 'overview',
+    kind: 'home_overview',
+    subtitle: 'What to know before you visit',
+    title: 'Daily Sailing',
+  },
+  {
+    ctaLabel: 'Browse classes',
+    ctaUrl: '/classes',
+    id: 'classes',
+    kind: 'home_classes',
+    subtitle: 'Progress through ratings',
+    title: 'Learn to sail',
+  },
+  {
+    body: JSON.stringify({
+      footnote: 'Rates are subject to change.',
+      plans: [
+        {
+          badge: 'Best value',
+          description: 'For currently registered students.',
+          features: ['Unlimited rentals', 'Club events'],
+          frequency: 'per year',
+          highlighted: true,
+          linkLabel: 'Choose student',
+          linkUrl: '/signup',
+          price: '$95',
+          title: 'Student pass',
+        },
+      ],
+    }),
+    id: 'pricing',
+    kind: 'pricing',
+    subtitle: 'Membership options',
+    title: 'Sailing passes',
+  },
+  {
+    body: '<p>Reserve the pavilion or ask about rentals.</p>',
+    ctaLabel: 'Book rentals',
+    ctaUrl: '/contact',
+    id: 'rental',
+    imageAlt: 'Dock with dinghies',
+    imageSrc: '/uploads/rentals.jpg',
+    kind: 'callout',
+    title: 'Rentals and pavilion',
+  },
+] satisfies PublicCmsBlock[];
+
+const homePage = {
+  blocks,
+  id: 'home',
+  metaDescription: 'Home page',
+  metaTitle: 'MIT Sailing',
+  path: '/',
+  slug: 'home',
+  title: 'MIT Sailing',
+} satisfies PublicCmsPage;
+
+describe('MitSailingHomePageView', () => {
+  beforeEach(() => {
+    homeMocks.getTranslations.mockResolvedValue(translate);
+    homeMocks.getSession.mockResolvedValue(null);
+    homeMocks.getHomeUpcomingDayGroups.mockResolvedValue(upcomingGroups);
+    homeMocks.loadPublishedCmsPageByPath.mockResolvedValue(homePage);
+    homeMocks.loadHomeLearnToSailIntroductionClasses.mockResolvedValue(
+      introClasses
+    );
+    homeMocks.loadHomeLearnToSailNextClassesBySlugs.mockResolvedValue(
+      nextClasses
+    );
+    homeMocks.loadHomeLearnToSailPrerequisiteNamesByIds.mockResolvedValue(
+      new Map([['intro-id', 'Intro Sailing']])
+    );
+    homeMocks.setRequestLocale.mockReset();
+  });
+
+  it('renders cms home sections with events and class paths', async () => {
+    render(await MitSailingHomePageView({ locale: 'en' }));
+
+    expect(homeMocks.setRequestLocale).toHaveBeenCalledWith('en');
+    expect(homeMocks.loadPublishedCmsPageByPath).toHaveBeenCalledWith('/');
+    expect(
+      screen.getByRole('img', { name: 'Sailors on the Charles River' })
+    ).toBeVisible();
+    expect(
+      screen.getByRole('heading', { name: 'Learn to sail on the Charles' })
+    ).toBeVisible();
+    expect(screen.getByRole('link', { name: 'See classes' })).toHaveAttribute(
+      'href',
+      '/classes'
+    );
+    expect(
+      screen.getByRole('link', { name: 'Create account' })
+    ).toHaveAttribute('href', '/signup');
+
+    expect(
+      screen.getByRole('heading', { name: 'Daily Sailing' })
+    ).toBeVisible();
+    expect(screen.getByText('Weekdays')).toBeVisible();
+    expect(screen.getByText('Sunset can change launch times.')).toBeVisible();
+    expect(screen.getByText('Join online')).toBeVisible();
+    expect(screen.getByText('Upcoming at MIT Sailing')).toBeVisible();
+    expect(screen.getByText('Today')).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Intro sail' })).toHaveAttribute(
+      'href',
+      '/events/intro-sail/'
+    );
+    expect(screen.getByRole('link', { name: 'Racing clinic' })).toHaveAttribute(
+      'href',
+      '/events/racing-clinic/'
+    );
+    expect(screen.getByRole('link', { name: 'Full calendar' })).toHaveAttribute(
+      'target',
+      '_blank'
+    );
+
+    expect(
+      screen.getByRole('heading', { name: 'Learn to sail' })
+    ).toBeVisible();
+    expect(
+      screen.getByRole('link', { name: /Intro Sailing/u })
+    ).toHaveAttribute('href', '/classes/intro-sailing');
+    expect(screen.getByText('Advanced')).toBeVisible();
+    expect(screen.getByText('After: Intro Sailing')).toBeVisible();
+    expect(screen.getByText('Prerequisites')).toBeVisible();
+
+    expect(
+      screen.getByRole('heading', { name: 'Sailing passes' })
+    ).toBeVisible();
+    expect(screen.getByText('Best value')).toBeVisible();
+    expect(screen.getByText('Unlimited rentals')).toBeVisible();
+    expect(
+      screen.getByRole('link', { name: 'Choose student' })
+    ).toHaveAttribute('href', '/signup');
+
+    const rentalSection = screen
+      .getByRole('heading', { name: 'Rentals and pavilion' })
+      .closest('section');
+    expect(rentalSection).not.toBeNull();
+    if (!rentalSection) {
+      throw new Error('Expected rentals section to render');
+    }
+    expect(
+      within(rentalSection).getByRole('link', {
+        name: 'Book rentals',
+      })
+    ).toHaveAttribute('href', '/contact');
+  });
+});

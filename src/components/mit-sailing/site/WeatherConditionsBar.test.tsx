@@ -105,14 +105,14 @@ describe('WeatherConditionsBar', () => {
 
     expect(
       screen.getByRole('link', { name: 'Reserve Pavilion' })
-    ).toHaveAttribute('href', '/contact/');
+    ).toHaveAttribute('href', '/contact');
     expect(screen.getByRole('link', { name: 'Directions' })).toHaveAttribute(
       'href',
-      '/contact/'
+      '/contact'
     );
     expect(screen.getByRole('link', { name: 'Donate' })).toHaveAttribute(
       'href',
-      '/donate/'
+      '/donate'
     );
   });
 });
