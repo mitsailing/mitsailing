@@ -113,7 +113,7 @@ RUN addgroup --system --gid 1001 nodejs \
   && adduser --system --uid 1001 nextjs
 # Runtime CMS media uploads live here; production must mount it as a volume.
 RUN mkdir -p /var/lib/mitsailing/cms-media \
-  && chown -R nextjs:nodejs /var/lib/mitsailing
+  && chown nextjs:nodejs /var/lib/mitsailing/cms-media
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1

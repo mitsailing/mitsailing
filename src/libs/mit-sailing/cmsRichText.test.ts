@@ -10,9 +10,7 @@ describe('sanitizeCmsRichTextHtml', () => {
     expect(sanitizeCmsRichTextHtml('First line\nsecond line\n\nNext')).toBe(
       '<p>First line<br />second line</p><p>Next</p>'
     );
-    expect(normalizeLegacyPlainTextToCmsRichTextHtml('5 < 7')).toBe(
-      '<p>5 &lt; 7</p>'
-    );
+    expect(sanitizeCmsRichTextHtml('5 < 7')).toBe('<p>5 &lt; 7</p>');
   });
 
   it('keeps semantic rich text and safe links', () => {
@@ -73,5 +71,13 @@ describe('sanitizeCmsRichTextHtml', () => {
         '<h2>Intro</h2><p>First <strong>body</strong></p>'
       )
     ).toBe('Intro First body');
+  });
+});
+
+describe('normalizeLegacyPlainTextToCmsRichTextHtml', () => {
+  it('escapes html characters', () => {
+    expect(normalizeLegacyPlainTextToCmsRichTextHtml('5 < 7')).toBe(
+      '<p>5 &lt; 7</p>'
+    );
   });
 });

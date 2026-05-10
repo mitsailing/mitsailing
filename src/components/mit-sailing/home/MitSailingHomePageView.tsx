@@ -50,6 +50,35 @@ const HERO_ON_IMAGE_FOCUS_RING_CLASS_NAME =
 
 type MitSailingHomePageViewProps = { locale: string };
 
+function HomeCmsCtaLink(props: {
+  className: string;
+  href: string;
+  label: string;
+  showArrow?: boolean;
+}) {
+  const href = safeCmsHref(props.href);
+  if (!href) {
+    return null;
+  }
+  const icon = props.showArrow ? (
+    <ArrowRight aria-hidden className="inline" size={16} />
+  ) : null;
+  if (isAppRelativeCmsHref(href)) {
+    return (
+      <Link className={props.className} href={href}>
+        {props.label}
+        {icon}
+      </Link>
+    );
+  }
+  return (
+    <a className={props.className} href={href} {...externalCmsLinkProps(href)}>
+      {props.label}
+      {icon}
+    </a>
+  );
+}
+
 function HomeHeroSection(props: {
   block: PublicCmsBlock;
   createAccountLabel: string;
@@ -87,12 +116,11 @@ function HomeHeroSection(props: {
           ) : null}
           <div className="flex flex-wrap items-center gap-4">
             {props.block.ctaUrl && props.block.ctaLabel ? (
-              <Link
+              <HomeCmsCtaLink
                 className={`inline-flex cursor-pointer items-center justify-center rounded-lg border-2 border-white bg-transparent px-7 py-3 text-base font-medium text-white no-underline backdrop-blur transition-colors hover:bg-white/10 ${HERO_ON_IMAGE_FOCUS_RING_CLASS_NAME}`}
                 href={props.block.ctaUrl}
-              >
-                {props.block.ctaLabel}
-              </Link>
+                label={props.block.ctaLabel}
+              />
             ) : null}
             {props.isSignedIn ? null : (
               <Link
@@ -129,24 +157,14 @@ function limitHomeUpcomingDayGroups(
 }
 
 function HomeOverviewCtaLink(props: { href: string; label: string }) {
-  const href = safeCmsHref(props.href);
-  if (!href) {
-    return null;
-  }
   const className = `inline-flex items-center gap-1 no-underline hover:underline ${mitAccentLinkClassName}`;
-  if (isAppRelativeCmsHref(href)) {
-    return (
-      <Link className={className} href={href}>
-        {props.label}
-        <ArrowRight aria-hidden className="inline" size={16} />
-      </Link>
-    );
-  }
   return (
-    <a className={className} href={href} {...externalCmsLinkProps(href)}>
-      {props.label}
-      <ArrowRight aria-hidden className="inline" size={16} />
-    </a>
+    <HomeCmsCtaLink
+      className={className}
+      href={props.href}
+      label={props.label}
+      showArrow
+    />
   );
 }
 
@@ -169,12 +187,11 @@ function HomeRentalSection(props: { block: PublicCmsBlock }) {
               />
             ) : null}
             {props.block.ctaUrl && props.block.ctaLabel ? (
-              <Link
+              <HomeCmsCtaLink
                 className="inline-flex rounded-md bg-mit-red px-5 py-2.5 text-sm font-medium text-white no-underline hover:bg-mit-red-hover"
                 href={props.block.ctaUrl}
-              >
-                {props.block.ctaLabel}
-              </Link>
+                label={props.block.ctaLabel}
+              />
             ) : null}
           </div>
           {props.block.imageSrc ? (
@@ -300,13 +317,12 @@ function HomeClassesSection(props: {
             </div>
             {props.block.ctaUrl && props.block.ctaLabel ? (
               <div className="mt-8 flex w-full justify-center">
-                <Link
+                <HomeCmsCtaLink
                   className={`inline-flex items-center gap-1 no-underline hover:underline ${textFocusRingClassName} ${mitAccentLinkClassName}`}
                   href={props.block.ctaUrl}
-                >
-                  {props.block.ctaLabel}
-                  <ArrowRight aria-hidden size={16} />
-                </Link>
+                  label={props.block.ctaLabel}
+                  showArrow
+                />
               </div>
             ) : null}
           </div>
@@ -370,6 +386,7 @@ export async function MitSailingHomePageView(
     cmsHomePage?.blocks.filter(
       (block) =>
         block.kind === 'callout' ||
+        block.kind === 'text_section' ||
         block.kind === 'pricing' ||
         block.kind === 'home_classes'
     ) ?? [];

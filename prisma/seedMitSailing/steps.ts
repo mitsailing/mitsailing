@@ -10,6 +10,7 @@ import {
 import {
   CMS_MENU_SEED_ROWS,
   CMS_PAGE_SEED_ROWS,
+  orderedCmsSeedMenuItems,
 } from '../../src/data/mit-sailing/cmsSeed';
 import type {
   CmsSeedMenu,
@@ -608,7 +609,7 @@ async function seedCmsMenus(p: PrismaClient): Promise<void> {
       },
     });
 
-    for (const item of menu.items) {
+    for (const item of orderedCmsSeedMenuItems(menu)) {
       await seedCmsMenuItem(p, menu, item);
     }
   }

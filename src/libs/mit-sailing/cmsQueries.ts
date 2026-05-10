@@ -49,6 +49,12 @@ function isPublicCmsBlockKind(kind: string): kind is PublicCmsBlock['kind'] {
   return VALID_PUBLIC_CMS_BLOCK_KINDS.has(kind);
 }
 
+function isPublicCmsBlockRow<T extends { kind: string }>(
+  block: T
+): block is T & { kind: PublicCmsBlock['kind'] } {
+  return isPublicCmsBlockKind(block.kind);
+}
+
 export type PublicCmsPage = {
   id: string;
   slug: string;
@@ -186,19 +192,17 @@ async function loadPublishedCmsPageByPathUnchecked(
     title: page.title,
     metaTitle: page.metaTitle ?? page.title,
     metaDescription: page.metaDescription ?? '',
-    blocks: page.blocks
-      .filter((block) => isPublicCmsBlockKind(block.kind))
-      .map((block) => ({
-        id: block.id,
-        kind: block.kind,
-        title: block.title,
-        subtitle: block.subtitle ?? undefined,
-        body: block.body ?? undefined,
-        ctaLabel: block.ctaLabel ?? undefined,
-        ctaUrl: block.ctaUrl ?? undefined,
-        imageSrc: block.imageSrc ?? undefined,
-        imageAlt: block.imageAlt ?? undefined,
-      })),
+    blocks: page.blocks.filter(isPublicCmsBlockRow).map((block) => ({
+      id: block.id,
+      kind: block.kind,
+      title: block.title,
+      subtitle: block.subtitle ?? undefined,
+      body: block.body ?? undefined,
+      ctaLabel: block.ctaLabel ?? undefined,
+      ctaUrl: block.ctaUrl ?? undefined,
+      imageSrc: block.imageSrc ?? undefined,
+      imageAlt: block.imageAlt ?? undefined,
+    })),
   };
 }
 

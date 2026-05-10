@@ -250,7 +250,7 @@ export const getSailingClassCatalogBySlug = cache(
       name: sailingClass.name,
       slug: sailingClass.slug,
       level: sailingClass.level,
-      description: sailingClass.description,
+      description: plainTextFromCmsRichTextHtml(sailingClass.description),
       imagePaths: sailingClass.imagePaths,
       classCategory: sailingClass.classCategory,
       prerequisiteIds,

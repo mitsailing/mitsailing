@@ -100,7 +100,6 @@ const additionalCriticalCoverageFiles = [
 ];
 
 const cmsRichTextCoverageFiles = [
-  'src/components/mit-sailing/admin/catalog/AdminRichTextEditor.tsx',
   'src/components/mit-sailing/cms/CmsRichText.tsx',
   'src/components/mit-sailing/home/MitSailingHomePageView.tsx',
   'src/libs/mit-sailing/cmsRichText.ts',
@@ -439,6 +438,22 @@ function assertCoverageExemptionProofsExist(label, exemptions) {
 }
 
 /**
+ * @param {string} label - Human-readable coverage list label.
+ * @param {string[]} projectPaths - Every path must exist on disk (phantom entries silently skip checks).
+ */
+function assertCoverageGatePathsExist(label, projectPaths) {
+  const missing = projectPaths.filter(
+    (projectPath) => !existsSync(path.join(process.cwd(), projectPath))
+  );
+
+  if (missing.length > 0) {
+    throw new Error(
+      `${label} coverage gate lists paths that are not in the tree (remove dead entries or merge the files first): ${missing.join(', ')}`
+    );
+  }
+}
+
+/**
  * @param {string} projectPath - Project-relative source path.
  * @returns {string} Project path with POSIX separators for prefix checks.
  */
@@ -633,6 +648,7 @@ assertCoverageExemptionProofsExist(
   'Additional critical',
   additionalCriticalExcludedFiles
 );
+assertCoverageGatePathsExist('CMS rich text', cmsRichTextCoverageFiles);
 
 const gatedAuthCoverageFiles = withoutCoverageExemptions(
   authCoverageFiles,

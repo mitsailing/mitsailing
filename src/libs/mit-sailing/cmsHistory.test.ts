@@ -113,5 +113,18 @@ describe('listAdminCmsPageRevisions', () => {
         version: 1,
       },
     ]);
+    expect(mocks.userAuditFindMany).toHaveBeenCalledWith({
+      orderBy: [{ version: 'desc' }, { createdAt: 'desc' }],
+      select: {
+        action: true,
+        auditedChanges: true,
+        createdAt: true,
+        id: true,
+        user: { select: { email: true, name: true } },
+        version: true,
+      },
+      take: 21,
+      where: { auditableId: 'page-1', auditableType: 'cms_pages' },
+    });
   });
 });

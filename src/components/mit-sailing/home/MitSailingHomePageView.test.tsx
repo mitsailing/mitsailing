@@ -423,6 +423,35 @@ describe('MitSailingHomePageView', () => {
     ).not.toHaveAttribute('target');
   });
 
+  it('renders text_section blocks in the ordered cms strip', async () => {
+    const callout = blocks.find((block) => block.id === 'rental');
+    if (!callout || callout.kind !== 'callout') {
+      throw new Error('Expected rental callout block');
+    }
+    homeMocks.loadPublishedCmsPageByPath.mockResolvedValue(
+      homePageWithBlocks([
+        ...blocks.slice(0, 4),
+        {
+          body: '<p>Weekend clinics need coaches.</p>',
+          id: 'cms-block-home-text',
+          kind: 'text_section',
+          title: 'Volunteer spotlight',
+        },
+        callout,
+      ])
+    );
+
+    render(await MitSailingHomePageView({ locale: 'en' }));
+
+    expect(
+      screen.getByRole('heading', { name: 'Volunteer spotlight' })
+    ).toBeVisible();
+    expect(screen.getByText('Weekend clinics need coaches.')).toBeVisible();
+    expect(
+      screen.getByRole('heading', { name: 'Rentals and pavilion' })
+    ).toBeVisible();
+  });
+
   it('does not render unsafe cms overview cta links', async () => {
     homeMocks.getHomeUpcomingDayGroups.mockResolvedValue([]);
     homeMocks.loadPublishedCmsPageByPath.mockResolvedValue(
@@ -439,6 +468,33 @@ describe('MitSailingHomePageView', () => {
     expect(screen.queryByText('No events posted.')).not.toBeInTheDocument();
     expect(
       screen.queryByRole('link', { name: 'Unsafe calendar' })
+    ).not.toBeInTheDocument();
+  });
+
+  it('does not render unsafe cms section cta links', async () => {
+    const unsafeUrl = ['java', 'script:alert(1)'].join('');
+    homeMocks.loadPublishedCmsPageByPath.mockResolvedValue(
+      homePageWithBlocks(
+        blocks.map((block) =>
+          block.kind === 'hero' ||
+          block.kind === 'home_classes' ||
+          block.kind === 'callout'
+            ? { ...block, ctaUrl: unsafeUrl }
+            : block
+        )
+      )
+    );
+
+    render(await MitSailingHomePageView({ locale: 'en' }));
+
+    expect(
+      screen.queryByRole('link', { name: 'See classes' })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: 'Browse classes' })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: 'Book rentals' })
     ).not.toBeInTheDocument();
   });
 });

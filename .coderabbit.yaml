@@ -93,7 +93,19 @@ reviews:
         and relation integrity; align with project migration practices. CMS media
         uploads are capped by application validation at 10 MiB, so `byte_size`
         using an integer is intentional unless the upload cap or storage contract
-        changes.
+        changes. Catalog history stores the Fleet admin resource under
+        auditable_type/resource `fleet`, matching `CatalogHistoryResourceId`, not
+        the physical `fleet_boats` table name. `StaffMember.id` is app-assigned
+        from the staff slug in seed code; do not request `@default(cuid())`
+        unless a real `staffMember.create` call omits an id.
+    - path: 'compose.prod.yaml'
+      instructions: >-
+        Production CMS media intentionally uses a fixed in-container path:
+        `CMS_MEDIA_ROOT=/var/lib/mitsailing/cms-media`, with the external
+        Docker volume `mitsailing_cms_media` mounted at that same literal target
+        for app and worker. Do not request making this path env-overridable in
+        production compose; deploy.sh owns volume creation, permissions, and
+        mount verification for this contract.
     - path: '.github/workflows/**'
       instructions: >-
         Check workflows for CI best practices, secrets handling, and consistency with

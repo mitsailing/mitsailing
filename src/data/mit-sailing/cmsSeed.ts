@@ -46,6 +46,53 @@ export type CmsSeedMenuItem = {
   systemKey?: string;
 };
 
+export function orderedCmsSeedMenuItems(menu: CmsSeedMenu): CmsSeedMenuItem[] {
+  const itemsById = new Map<string, CmsSeedMenuItem>();
+  for (const item of menu.items) {
+    if (itemsById.has(item.id)) {
+      throw new Error(
+        `CMS menu seed "${menu.id}" contains duplicate item "${item.id}"`
+      );
+    }
+    itemsById.set(item.id, item);
+  }
+
+  const ordered: CmsSeedMenuItem[] = [];
+  const visiting = new Set<string>();
+  const visited = new Set<string>();
+
+  function visit(item: CmsSeedMenuItem): void {
+    if (visited.has(item.id)) {
+      return;
+    }
+    if (visiting.has(item.id)) {
+      throw new Error(
+        `CMS menu seed "${menu.id}" contains a parent cycle at item "${item.id}"`
+      );
+    }
+
+    visiting.add(item.id);
+    if (item.parentId) {
+      const parent = itemsById.get(item.parentId);
+      if (!parent) {
+        throw new Error(
+          `CMS menu seed "${menu.id}" item "${item.id}" references missing parent "${item.parentId}"`
+        );
+      }
+      visit(parent);
+    }
+    visiting.delete(item.id);
+    visited.add(item.id);
+    ordered.push(item);
+  }
+
+  for (const item of menu.items) {
+    visit(item);
+  }
+
+  return ordered;
+}
+
 export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
   {
     id: 'cms-page-home',

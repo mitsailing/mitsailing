@@ -1,1 +1,1 @@
-ALTER TYPE "cms_block_kind" ADD VALUE 'home_overview';
+ALTER TYPE "cms_block_kind" ADD VALUE IF NOT EXISTS 'home_overview';

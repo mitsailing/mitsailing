@@ -1,3 +1,5 @@
+import { safeCmsHref } from '@/libs/mit-sailing/cmsHref';
+
 export const CMS_PRICING_MAX_PLANS = 4;
 
 export type CmsPricingPlan = {
@@ -46,6 +48,11 @@ function stringArrayFromUnknown(value: unknown): string[] | null {
     : null;
 }
 
+function urlFromUnknown(value: unknown): string | undefined {
+  const url = stringFromUnknown(value);
+  return url ? (safeCmsHref(url) ?? undefined) : undefined;
+}
+
 function planFromUnknown(value: unknown): CmsPricingPlan | null {
   const title = stringFromUnknown(propertyFromUnknown(value, 'title'));
   const price = stringFromUnknown(propertyFromUnknown(value, 'price'));
@@ -63,7 +70,7 @@ function planFromUnknown(value: unknown): CmsPricingPlan | null {
     frequency: stringFromUnknown(propertyFromUnknown(value, 'frequency')),
     badge: stringFromUnknown(propertyFromUnknown(value, 'badge')),
     linkLabel: stringFromUnknown(propertyFromUnknown(value, 'linkLabel')),
-    linkUrl: stringFromUnknown(propertyFromUnknown(value, 'linkUrl')),
+    linkUrl: urlFromUnknown(propertyFromUnknown(value, 'linkUrl')),
     features,
     highlighted: booleanFromUnknown(propertyFromUnknown(value, 'highlighted')),
   };
@@ -94,13 +101,16 @@ export function parseCmsPricingBody(
     return null;
   }
 
-  const plans = plansValue.map(planFromUnknown);
-  if (plans.length < 1 || plans.length > CMS_PRICING_MAX_PLANS) {
+  const parsedPlans = plansValue.map(planFromUnknown);
+  if (parsedPlans.length < 1 || parsedPlans.length > CMS_PRICING_MAX_PLANS) {
     return null;
   }
-  if (!plans.every((plan): plan is CmsPricingPlan => plan !== null)) {
+  if (!parsedPlans.every((plan): plan is CmsPricingPlan => plan !== null)) {
     return null;
   }
+  const plans = parsedPlans.filter(
+    (plan): plan is CmsPricingPlan => plan !== null
+  );
 
   return {
     footnote: stringFromUnknown(propertyFromUnknown(parsed, 'footnote')),

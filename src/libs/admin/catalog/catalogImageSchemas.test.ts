@@ -69,6 +69,8 @@ describe('sailingClassFormSchema', () => {
     for (const imagePaths of [
       '/images/../secret.jpg',
       '/images/class.jpg#photo',
+      '/images/class.jpg?size=1',
+      'C:\\images\\class.jpg',
       '/\\evil.test',
     ]) {
       expect(

@@ -152,7 +152,7 @@ Restore into the same external volume before starting app containers:
 docker run --rm \
   -v mitsailing_cms_media:/media \
   -v "$PWD":/backup \
-  alpine sh -c 'cd /media && tar xzf /backup/mitsailing-cms-media-backup.tgz'
+  alpine sh -c 'cd /media && tar xzf /backup/mitsailing-cms-media-<timestamp>.tgz'
 ```
 
 Do **not** use `docker compose down -v` on the production stack unless you have
