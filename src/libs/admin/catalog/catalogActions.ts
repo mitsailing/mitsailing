@@ -187,7 +187,10 @@ export async function createCatalogResourceAction(
   );
   redirect(
     catalogRedirectPath({
-      basePath: getI18nPath(adminCatalogResourceIndexPath(resourceId), locale),
+      basePath: getI18nPath(
+        adminCatalogResourceEditPath(resourceId, result.id),
+        locale
+      ),
       scope,
     })
   );
@@ -238,7 +241,10 @@ export async function updateCatalogResourceAction(
   );
   redirect(
     catalogRedirectPath({
-      basePath: getI18nPath(adminCatalogResourceIndexPath(resourceId), locale),
+      basePath: getI18nPath(
+        adminCatalogResourceEditPath(resourceId, id),
+        locale
+      ),
       scope,
     })
   );

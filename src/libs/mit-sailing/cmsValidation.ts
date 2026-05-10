@@ -1,4 +1,6 @@
 import * as z from 'zod';
+import { parseCmsHomeOverviewBody } from '@/libs/mit-sailing/cmsHomeOverview';
+import { parseCmsPricingBody } from '@/libs/mit-sailing/cmsPricing';
 
 const cmsPathSchema = z
   .string()
@@ -56,24 +58,63 @@ export const cmsPageInputSchema = z.object({
   isPublished: z.boolean(),
 });
 
-export const cmsBlockInputSchema = z.object({
-  pageId: z.string().trim().min(1),
-  kind: z.enum(['hero', 'text_section', 'callout']),
-  title: z.string().trim().min(1),
-  subtitle: z.string().trim().optional(),
-  body: z.string().trim().optional(),
-  ctaLabel: z.string().trim().optional(),
-  ctaUrl: z
-    .string()
-    .trim()
-    .optional()
-    .transform((value) => (value === '' ? undefined : value))
-    .pipe(cmsUrlSchema.optional()),
-  imageSrc: z.string().trim().optional(),
-  imageAlt: z.string().trim().optional(),
-  displayOrder: z.number().int().min(0),
-  isVisible: z.boolean(),
-});
+export const cmsBlockInputSchema = z
+  .object({
+    pageId: z.string().trim().min(1),
+    kind: z.enum([
+      'hero',
+      'text_section',
+      'callout',
+      'pricing',
+      'home_overview',
+    ]),
+    title: z.string().trim().min(1),
+    subtitle: z.string().trim().optional(),
+    body: z.string().trim().optional(),
+    ctaLabel: z.string().trim().optional(),
+    ctaUrl: z
+      .string()
+      .trim()
+      .optional()
+      .transform((value) => (value === '' ? undefined : value))
+      .pipe(cmsUrlSchema.optional()),
+    imageSrc: z.string().trim().optional(),
+    imageAlt: z.string().trim().optional(),
+    isVisible: z.boolean(),
+  })
+  .superRefine((value, ctx) => {
+    if (Boolean(value.ctaLabel) !== Boolean(value.ctaUrl)) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'CMS CTA requires both label and URL',
+        path: value.ctaLabel ? ['ctaUrl'] : ['ctaLabel'],
+      });
+    }
+    if (Boolean(value.imageSrc) !== Boolean(value.imageAlt)) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'CMS image requires both source and alt text',
+        path: value.imageSrc ? ['imageAlt'] : ['imageSrc'],
+      });
+    }
+    if (value.kind === 'pricing' && !parseCmsPricingBody(value.body)) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'CMS pricing blocks require one to four pricing options',
+        path: ['body'],
+      });
+    }
+    if (
+      value.kind === 'home_overview' &&
+      !parseCmsHomeOverviewBody(value.body)
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'CMS home overview blocks require valid overview settings',
+        path: ['body'],
+      });
+    }
+  });
 
 export const cmsMenuItemInputSchema = z
   .object({

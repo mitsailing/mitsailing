@@ -8,7 +8,7 @@ export type CmsSeedPage = {
   isPublished?: boolean;
   blocks: readonly {
     id: string;
-    kind: 'hero' | 'text_section' | 'callout';
+    kind: 'hero' | 'text_section' | 'callout' | 'pricing' | 'home_overview';
     title: string;
     subtitle?: string;
     body?: string;
@@ -60,6 +60,129 @@ export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
         imageSrc: '/assets/images/home-hero-charles-sailing.jpg',
         imageAlt: 'Sailboats on the Charles River near MIT',
         displayOrder: 0,
+        isVisible: true,
+      },
+      {
+        id: 'cms-block-home-overview',
+        kind: 'home_overview',
+        title: 'Pavilion Hours',
+        subtitle: 'Open 7 days a week · April 1 – November 15',
+        body: JSON.stringify(
+          {
+            hoursNote:
+              'Sunset times and daily open hours follow the table. Team practices run on a separate schedule.',
+            schedule: [
+              { day: 'Monday', hours: '3:00 pm – Sunset' },
+              { day: 'Tuesday', hours: 'Noon – Sunset' },
+              { day: 'Wednesday', hours: 'Noon – Sunset' },
+              { day: 'Thursday', hours: 'Noon – Sunset' },
+              { day: 'Friday', hours: 'Noon – Sunset' },
+              { day: 'Saturday', hours: 'Noon – Sunset' },
+              { day: 'Sunday', hours: 'Noon – Sunset' },
+            ],
+            stepsTitle: 'How to get on the water',
+            steps: [
+              {
+                title: 'Create your account',
+                description:
+                  'Free for MIT students. Alumni and public need an MIT Rec membership.',
+              },
+              {
+                title: 'Take a beginner class',
+                description:
+                  'Sign up for Learn to Sail or Intro for Experienced Sailors.',
+              },
+              {
+                title: 'Get your rating and sail',
+                description:
+                  'Pass your skills test, receive your rating, and book boats anytime.',
+              },
+            ],
+            eventsTitle: 'Upcoming Events',
+            eventCount: 4,
+            eventsEmptyText: 'No events scheduled in the next 7 days.',
+            eventsCtaLabel: 'View all events',
+            eventsCtaUrl: '/events/',
+          },
+          null,
+          2
+        ),
+        displayOrder: 5,
+        isVisible: true,
+      },
+      {
+        id: 'cms-block-home-membership-pricing',
+        kind: 'pricing',
+        title: 'Membership Options',
+        subtitle:
+          'MIT Sailing is open to the entire MIT community and the general public.',
+        body: JSON.stringify(
+          {
+            footnote:
+              'Full membership details and MIT Fitness info available from the pavilion.',
+            plans: [
+              {
+                title: 'MIT Students',
+                description: 'Enrolled MIT students',
+                price: 'Free',
+                badge: 'Most Common',
+                highlighted: true,
+                linkLabel: 'Create account',
+                linkUrl: '/signup/',
+                features: [
+                  'Full access to all boats',
+                  'All classes and clinics',
+                  'Independent sailing rights',
+                  'Sailing Team eligibility',
+                ],
+              },
+              {
+                title: 'Faculty and Staff',
+                description: 'Requires MIT Rec membership',
+                price: 'Free',
+                frequency: 'with MIT Rec',
+                linkLabel: 'Create account',
+                linkUrl: '/signup/',
+                features: [
+                  'Full access to all boats',
+                  'All classes and clinics',
+                  'Independent sailing after rating',
+                ],
+              },
+              {
+                title: 'Alumni',
+                description: 'MIT alumni — via MIT Fitness',
+                price: '$64',
+                frequency: '/ month',
+                linkLabel: 'Create account',
+                linkUrl: '/signup/',
+                features: [
+                  'Full access to all boats',
+                  'All classes and clinics',
+                  'Independent sailing after rating',
+                  'MIT Fitness facility access',
+                ],
+              },
+              {
+                title: 'General Public',
+                description: 'Non-MIT community',
+                price: '$90',
+                frequency: '/ month',
+                linkLabel: 'Create account',
+                linkUrl: '/signup/',
+                features: [
+                  'Full access to all boats',
+                  'All classes and clinics',
+                  'Independent sailing after rating',
+                  'MIT Fitness facility access',
+                ],
+              },
+            ],
+          },
+          null,
+          2
+        ),
+        displayOrder: 20,
         isVisible: true,
       },
       {

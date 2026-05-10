@@ -117,6 +117,7 @@ describe('AdminCatalogForm rich text fields', () => {
     );
 
     expect(screen.getByLabelText('Block style')).toBeVisible();
+    expect(screen.queryByLabelText('Display order')).toBeNull();
     expect(view.container.querySelector('input[name="body"]')).toHaveAttribute(
       'type',
       'hidden'
@@ -198,6 +199,154 @@ describe('AdminCatalogForm rich text fields', () => {
       screen.getByRole('heading', { name: 'Updated preview title' })
     ).toBeVisible();
     expect(screen.getByText('Hidden block')).toBeVisible();
+  });
+
+  it('collapses optional cms block groups when empty', () => {
+    const view = renderCmsBlockForm();
+
+    expect(screen.getByRole('checkbox', { name: 'Add CTA' })).not.toBeChecked();
+    expect(
+      screen.getByRole('checkbox', { name: 'Add picture' })
+    ).not.toBeChecked();
+    expect(screen.queryByLabelText('CTA label')).toBeNull();
+    expect(screen.queryByLabelText('Image alt text')).toBeNull();
+    expect(view.container.querySelector('input[name="ctaLabel"]')).toHaveValue(
+      ''
+    );
+    expect(view.container.querySelector('input[name="imageSrc"]')).toHaveValue(
+      ''
+    );
+  });
+
+  it('expands optional cms block groups with existing values', () => {
+    const view = render(
+      <AdminCatalogForm
+        definition={catalogResourceDefinitions.cms_page_blocks}
+        formAction={formAction}
+        headingKey="edit_heading"
+        row={{
+          body: '<p>Existing body</p>',
+          ctaLabel: 'Learn more',
+          ctaUrl: '/classes/',
+          displayOrder: 1,
+          id: 'block-1',
+          imageAlt: 'Boats on the river',
+          imageSrc: '/assets/images/home-hero-charles-sailing.jpg',
+          isVisible: true,
+          kind: 'hero',
+          pageId: 'page-1',
+          title: 'Overview',
+        }}
+      />
+    );
+
+    expect(screen.getByRole('checkbox', { name: 'Add CTA' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Add picture' })).toBeChecked();
+    expect(screen.getByLabelText('CTA label')).toHaveValue('Learn more');
+    expect(screen.getByLabelText('CTA URL')).toHaveValue('/classes/');
+    expect(screen.getByLabelText('Image alt text')).toHaveValue(
+      'Boats on the river'
+    );
+    expect(view.container.querySelector('input[name="imageSrc"]')).toHaveValue(
+      '/assets/images/home-hero-charles-sailing.jpg'
+    );
+  });
+
+  it('preserves optional cms block group values when disabled', async () => {
+    const user = userEvent.setup();
+    const view = render(
+      <AdminCatalogForm
+        definition={catalogResourceDefinitions.cms_page_blocks}
+        formAction={formAction}
+        headingKey="edit_heading"
+        row={{
+          body: '<p>Existing body</p>',
+          ctaLabel: 'Learn more',
+          ctaUrl: '/classes/',
+          displayOrder: 1,
+          id: 'block-1',
+          imageAlt: 'Boats on the river',
+          imageSrc: '/assets/images/home-hero-charles-sailing.jpg',
+          isVisible: true,
+          kind: 'hero',
+          pageId: 'page-1',
+          title: 'Overview',
+        }}
+      />
+    );
+
+    await user.click(screen.getByRole('checkbox', { name: 'Add CTA' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Add picture' }));
+
+    expect(screen.queryByLabelText('CTA label')).toBeNull();
+    expect(screen.queryByLabelText('Image alt text')).toBeNull();
+    expect(view.container.querySelector('input[name="ctaLabel"]')).toHaveValue(
+      'Learn more'
+    );
+    expect(view.container.querySelector('input[name="ctaUrl"]')).toHaveValue(
+      '/classes/'
+    );
+    expect(view.container.querySelector('input[name="imageSrc"]')).toHaveValue(
+      '/assets/images/home-hero-charles-sailing.jpg'
+    );
+    expect(view.container.querySelector('input[name="imageAlt"]')).toHaveValue(
+      'Boats on the river'
+    );
+
+    await user.click(screen.getByRole('checkbox', { name: 'Add CTA' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Add picture' }));
+
+    expect(screen.getByLabelText('CTA label')).toHaveValue('Learn more');
+    expect(screen.getByLabelText('CTA URL')).toHaveValue('/classes/');
+    expect(screen.getByLabelText('Image alt text')).toHaveValue(
+      'Boats on the river'
+    );
+  });
+
+  it('renders pricing link fields without block cta or picture groups', () => {
+    const view = render(
+      <AdminCatalogForm
+        definition={catalogResourceDefinitions.cms_page_blocks}
+        formAction={formAction}
+        headingKey="edit_heading"
+        row={{
+          body: JSON.stringify({
+            plans: [
+              {
+                features: ['Full access'],
+                linkLabel: 'Create account',
+                linkUrl: '/signup/',
+                price: 'Free',
+                title: 'Students',
+              },
+            ],
+          }),
+          ctaLabel: 'Block CTA',
+          ctaUrl: '/block/',
+          displayOrder: 1,
+          id: 'block-1',
+          imageAlt: 'Boats on the river',
+          imageSrc: '/assets/images/home-hero-charles-sailing.jpg',
+          isVisible: true,
+          kind: 'pricing',
+          pageId: 'page-1',
+          title: 'Membership',
+        }}
+      />
+    );
+
+    expect(screen.queryByRole('checkbox', { name: 'Add CTA' })).toBeNull();
+    expect(screen.queryByRole('checkbox', { name: 'Add picture' })).toBeNull();
+    expect(screen.queryByLabelText('CTA label')).toBeNull();
+    expect(screen.queryByLabelText('Image alt text')).toBeNull();
+    expect(screen.getByLabelText('Link label')).toHaveValue('Create account');
+    expect(screen.getByLabelText('Link URL')).toHaveValue('/signup/');
+    expect(view.container.querySelector('input[name="ctaLabel"]')).toBeNull();
+    expect(view.container.querySelector('input[name="imageSrc"]')).toBeNull();
+    expect(hiddenBodyValue(view.container)).toContain(
+      '"linkLabel": "Create account"'
+    );
+    expect(hiddenBodyValue(view.container)).toContain('"linkUrl": "/signup/"');
   });
 });
 
@@ -461,6 +610,7 @@ describe('Admin catalog media fields', () => {
     );
     const user = userEvent.setup();
     const view = renderCmsBlockForm();
+    await user.click(screen.getByRole('checkbox', { name: 'Add picture' }));
     const uploadInputs = view.container.querySelectorAll('input[type="file"]');
     const imageFieldUpload = uploadInputs.item(1);
     if (!(imageFieldUpload instanceof HTMLInputElement)) {

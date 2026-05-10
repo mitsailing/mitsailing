@@ -10,6 +10,7 @@ import type {
   PublicCmsBlock,
   PublicCmsPage,
 } from '@/libs/mit-sailing/cmsQueries';
+import { CmsPricingBlock } from './CmsPricingBlock';
 import { CmsRichText } from './CmsRichText';
 
 const blockInnerClassName = 'mx-auto w-full max-w-5xl px-6';
@@ -156,6 +157,12 @@ function CmsBlock(props: { block: PublicCmsBlock; index: number }) {
   }
   if (props.block.kind === 'callout') {
     return <CmsCalloutBlock block={props.block} />;
+  }
+  if (props.block.kind === 'pricing') {
+    return <CmsPricingBlock block={props.block} />;
+  }
+  if (props.block.kind === 'home_overview') {
+    return null;
   }
   return <CmsTextBlock block={props.block} index={props.index} />;
 }

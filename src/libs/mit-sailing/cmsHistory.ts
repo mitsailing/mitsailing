@@ -54,7 +54,12 @@ export type AdminCmsPageRevision = {
   };
 };
 
-type CmsPageRevisionBlockKind = 'hero' | 'text_section' | 'callout';
+type CmsPageRevisionBlockKind =
+  | 'hero'
+  | 'text_section'
+  | 'callout'
+  | 'pricing'
+  | 'home_overview';
 
 type CmsPageRevisionSnapshotPage = {
   id: string;
@@ -182,7 +187,11 @@ function nullableStringFromUnknown(value: unknown): string | null | undefined {
 function blockKindFromUnknown(
   value: unknown
 ): CmsPageRevisionBlockKind | undefined {
-  return value === 'hero' || value === 'text_section' || value === 'callout'
+  return value === 'hero' ||
+    value === 'text_section' ||
+    value === 'callout' ||
+    value === 'pricing' ||
+    value === 'home_overview'
     ? value
     : undefined;
 }

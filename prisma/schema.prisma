@@ -414,6 +414,8 @@ enum CmsBlockKind {
   hero
   text_section
   callout
+  pricing
+  home_overview
 
   @@map("cms_block_kind")
 }

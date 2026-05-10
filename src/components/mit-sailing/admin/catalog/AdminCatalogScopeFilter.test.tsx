@@ -98,7 +98,13 @@ describe('AdminCatalogTable scoped CMS definitions', () => {
       within(table).queryByRole('columnheader', { name: 'Path' })
     ).toBeNull();
     expect(
+      within(table).queryByRole('columnheader', { name: 'Order' })
+    ).toBeNull();
+    expect(
       within(table).getByRole('columnheader', { name: 'Block type' })
+    ).toBeVisible();
+    expect(
+      within(table).getByRole('button', { name: 'Reorder row' })
     ).toBeVisible();
   });
 

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   cmsMenuFindMany: vi.fn(),
   cmsMenuItemFindMany: vi.fn(),
+  cmsPageBlockAggregate: vi.fn(),
   cmsPageBlockCreate: vi.fn(),
   cmsPageBlockFindUnique: vi.fn(),
   cmsPageBlockFindMany: vi.fn(),
@@ -32,6 +33,7 @@ vi.mock('@/libs/DB', () => ({
       update: mocks.cmsPageUpdate,
     },
     cmsPageBlock: {
+      aggregate: mocks.cmsPageBlockAggregate,
       create: mocks.cmsPageBlockCreate,
       findUnique: mocks.cmsPageBlockFindUnique,
       findMany: mocks.cmsPageBlockFindMany,
@@ -61,6 +63,7 @@ const {
 beforeEach(() => {
   mocks.cmsMenuFindMany.mockReset();
   mocks.cmsMenuItemFindMany.mockReset();
+  mocks.cmsPageBlockAggregate.mockReset();
   mocks.cmsPageBlockCreate.mockReset();
   mocks.cmsPageBlockFindUnique.mockReset();
   mocks.cmsPageBlockFindMany.mockReset();
@@ -79,6 +82,9 @@ beforeEach(() => {
           aggregate: mocks.cmsPageRevisionAggregate,
           create: mocks.cmsPageRevisionCreate,
           findFirst: mocks.cmsPageRevisionFindFirst,
+        },
+        cmsPageBlock: {
+          update: mocks.cmsPageBlockUpdate,
         },
       });
       return result;
@@ -195,9 +201,11 @@ describe('cmsPageBlocksCatalogHandlers', () => {
       formData.set('kind', 'text_section');
       formData.set('title', 'Overview');
       formData.set('body', 'Plain body');
-      formData.set('displayOrder', '10');
       formData.set('isVisible', 'true');
 
+      mocks.cmsPageBlockAggregate.mockResolvedValue({
+        _max: { displayOrder: 9 },
+      });
       mocks.cmsPageBlockCreate.mockResolvedValue({ id: 'block-1' });
       mocks.cmsPageFindUnique.mockResolvedValue({
         id: 'page-1',
@@ -250,6 +258,14 @@ describe('cmsPageBlocksCatalogHandlers', () => {
         })
       ).resolves.toEqual({ ok: true, id: 'block-1' });
 
+      expect(mocks.cmsPageBlockCreate).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          displayOrder: 10,
+          pageId: 'page-1',
+          title: 'Overview',
+        }),
+        select: { id: true },
+      });
       expect(mocks.prismaTransaction).toHaveBeenCalledWith(
         expect.any(Function),
         { isolationLevel: 'Serializable' }
@@ -269,6 +285,152 @@ describe('cmsPageBlocksCatalogHandlers', () => {
             ],
           }),
         }),
+      });
+    });
+
+    it('appends new blocks after the current page order', async () => {
+      const formData = new FormData();
+      formData.set('pageId', 'page-1');
+      formData.set('kind', 'text_section');
+      formData.set('title', 'Schedule');
+      formData.set('isVisible', 'true');
+
+      mocks.cmsPageBlockAggregate.mockResolvedValue({
+        _max: { displayOrder: 41 },
+      });
+      mocks.cmsPageBlockCreate.mockResolvedValue({ id: 'block-2' });
+      mocks.cmsPageFindUnique.mockResolvedValue(null);
+
+      await expect(
+        cmsPageBlocksCatalogHandlers.createFromForm(formData)
+      ).resolves.toEqual({ ok: true, id: 'block-2' });
+
+      expect(mocks.cmsPageBlockCreate).toHaveBeenCalledWith({
+        data: expect.objectContaining({ displayOrder: 42 }),
+        select: { id: true },
+      });
+    });
+  });
+
+  describe('updateFromForm', () => {
+    it('preserves display order when editing the same page', async () => {
+      const now = new Date('2026-05-09T12:00:00.000Z');
+      const formData = new FormData();
+      formData.set('pageId', 'page-1');
+      formData.set('kind', 'text_section');
+      formData.set('title', 'Overview');
+      formData.set('isVisible', 'true');
+
+      mocks.cmsPageBlockFindUnique.mockResolvedValue({ pageId: 'page-1' });
+      mocks.cmsPageBlockUpdate.mockResolvedValue({ pageId: 'page-1' });
+      mocks.cmsPageFindUnique.mockResolvedValue(cmsPageSnapshotRow(now));
+
+      await expect(
+        cmsPageBlocksCatalogHandlers.updateFromForm('block-1', formData)
+      ).resolves.toEqual({ ok: true });
+
+      expect(mocks.cmsPageBlockAggregate).not.toHaveBeenCalled();
+      expect(mocks.cmsPageBlockUpdate).toHaveBeenCalledWith({
+        data: expect.not.objectContaining({ displayOrder: expect.any(Number) }),
+        select: { pageId: true },
+        where: { id: 'block-1' },
+      });
+    });
+
+    it('clears optional block fields when form values are empty', async () => {
+      const now = new Date('2026-05-09T12:00:00.000Z');
+      const formData = new FormData();
+      formData.set('pageId', 'page-1');
+      formData.set('kind', 'hero');
+      formData.set('title', 'Hero');
+      formData.set('imageSrc', '');
+      formData.set('imageAlt', '');
+      formData.set('ctaLabel', '');
+      formData.set('ctaUrl', '');
+      formData.set('isVisible', 'true');
+
+      mocks.cmsPageBlockFindUnique.mockResolvedValue({ pageId: 'page-1' });
+      mocks.cmsPageBlockUpdate.mockResolvedValue({ pageId: 'page-1' });
+      mocks.cmsPageFindUnique.mockResolvedValue(cmsPageSnapshotRow(now));
+
+      await expect(
+        cmsPageBlocksCatalogHandlers.updateFromForm('block-1', formData)
+      ).resolves.toEqual({ ok: true });
+
+      expect(mocks.cmsPageBlockUpdate).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          ctaLabel: null,
+          ctaUrl: null,
+          imageAlt: null,
+          imageSrc: null,
+        }),
+        select: { pageId: true },
+        where: { id: 'block-1' },
+      });
+    });
+
+    it('appends moved blocks to the target page', async () => {
+      const now = new Date('2026-05-09T12:00:00.000Z');
+      const formData = new FormData();
+      formData.set('pageId', 'page-2');
+      formData.set('kind', 'text_section');
+      formData.set('title', 'Overview');
+      formData.set('isVisible', 'true');
+
+      mocks.cmsPageBlockFindUnique.mockResolvedValue({ pageId: 'page-1' });
+      mocks.cmsPageBlockAggregate.mockResolvedValue({
+        _max: { displayOrder: 6 },
+      });
+      mocks.cmsPageBlockUpdate.mockResolvedValue({ pageId: 'page-2' });
+      mocks.cmsPageFindUnique.mockResolvedValue(cmsPageSnapshotRow(now));
+
+      await expect(
+        cmsPageBlocksCatalogHandlers.updateFromForm('block-1', formData)
+      ).resolves.toEqual({ ok: true });
+
+      expect(mocks.cmsPageBlockUpdate).toHaveBeenCalledWith({
+        data: expect.objectContaining({ displayOrder: 7, pageId: 'page-2' }),
+        select: { pageId: true },
+        where: { id: 'block-1' },
+      });
+    });
+  });
+
+  describe('reorder', () => {
+    it('rejects mixed page block ids', async () => {
+      mocks.cmsPageBlockFindMany.mockResolvedValue([
+        { id: 'block-1', pageId: 'page-1' },
+        { id: 'block-2', pageId: 'page-2' },
+      ]);
+
+      await expect(
+        cmsPageBlocksCatalogHandlers.reorder?.(['block-1', 'block-2'])
+      ).resolves.toEqual({ ok: false, code: 'invalid_order' });
+
+      expect(mocks.prismaTransaction).not.toHaveBeenCalled();
+    });
+
+    it('persists page-local block order', async () => {
+      const now = new Date('2026-05-09T12:00:00.000Z');
+      mocks.cmsPageBlockFindMany
+        .mockResolvedValueOnce([
+          { id: 'block-2', pageId: 'page-1' },
+          { id: 'block-1', pageId: 'page-1' },
+        ])
+        .mockResolvedValueOnce([{ id: 'block-1' }, { id: 'block-2' }]);
+      mocks.cmsPageFindUnique.mockResolvedValue(cmsPageSnapshotRow(now));
+
+      await expect(
+        cmsPageBlocksCatalogHandlers.reorder?.(['block-2', 'block-1'])
+      ).resolves.toEqual({ ok: true });
+
+      expect(mocks.cmsPageBlockUpdate).toHaveBeenNthCalledWith(1, {
+        data: { displayOrder: 0 },
+        where: { id: 'block-2' },
+      });
+      expect(mocks.cmsPageBlockUpdate).toHaveBeenNthCalledWith(2, {
+        data: { displayOrder: 1 },
+        where: { id: 'block-1' },
       });
     });
   });

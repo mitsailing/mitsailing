@@ -10,6 +10,7 @@ const {
   requireAdmin,
   revalidatePath,
   revalidateTag,
+  updateFromForm,
 } = vi.hoisted(() => ({
   createFromForm: vi.fn(),
   getCatalogServerHandlers: vi.fn(),
@@ -19,6 +20,7 @@ const {
   requireAdmin: vi.fn(),
   revalidatePath: vi.fn(),
   revalidateTag: vi.fn(),
+  updateFromForm: vi.fn(),
 }));
 
 vi.mock('next/cache', () => ({
@@ -52,10 +54,7 @@ const handlers: CatalogServerHandlers = {
     return null;
   },
   createFromForm,
-  updateFromForm: async () => {
-    await Promise.resolve();
-    return { ok: true };
-  },
+  updateFromForm,
   delete: async () => {
     await Promise.resolve();
     return { ok: true };
@@ -69,6 +68,7 @@ beforeEach(() => {
   requireAdmin.mockReset();
   revalidatePath.mockClear();
   revalidateTag.mockClear();
+  updateFromForm.mockReset();
 
   createFromForm.mockResolvedValue({ ok: true, id: 'row-1' });
   getCatalogServerHandlers.mockReturnValue(handlers);
@@ -76,6 +76,7 @@ beforeEach(() => {
     await Promise.resolve();
     return { user: { id: 'admin-1' } };
   });
+  updateFromForm.mockResolvedValue({ ok: true });
 });
 
 describe('createCatalogResourceAction', () => {
@@ -101,7 +102,7 @@ describe('createCatalogResourceAction', () => {
     expect(revalidateTag).not.toHaveBeenCalled();
   });
 
-  it('preserves page scope after creating a CMS page block', async () => {
+  it('opens the edit screen after creating a CMS page block', async () => {
     const { createCatalogResourceAction } =
       await import('@/libs/admin/catalog/catalogActions');
     const formData = new FormData();
@@ -111,7 +112,9 @@ describe('createCatalogResourceAction', () => {
       createCatalogResourceAction('en', 'cms_page_blocks', formData)
     ).rejects.toThrow('NEXT_REDIRECT');
 
-    expect(redirect).toHaveBeenCalledWith('/admin/cms_page_blocks?page=page-2');
+    expect(redirect).toHaveBeenCalledWith(
+      '/admin/cms_page_blocks/row-1/edit?page=page-2'
+    );
   });
 
   it('preserves menu scope on CMS menu item validation errors', async () => {
@@ -127,6 +130,34 @@ describe('createCatalogResourceAction', () => {
 
     expect(redirect).toHaveBeenCalledWith(
       '/admin/cms_menu_items/new?menu=menu-2&error=validation_failed'
+    );
+  });
+});
+
+describe('updateCatalogResourceAction', () => {
+  it('stays on the edit screen after updating a catalog row', async () => {
+    const { updateCatalogResourceAction } =
+      await import('@/libs/admin/catalog/catalogActions');
+
+    await expect(
+      updateCatalogResourceAction('en', 'fleet', 'boat-1', new FormData())
+    ).rejects.toThrow('NEXT_REDIRECT');
+
+    expect(redirect).toHaveBeenCalledWith('/admin/fleet/boat-1/edit');
+  });
+
+  it('preserves page scope after updating a CMS page block', async () => {
+    const { updateCatalogResourceAction } =
+      await import('@/libs/admin/catalog/catalogActions');
+    const formData = new FormData();
+    formData.set('pageId', 'page-2');
+
+    await expect(
+      updateCatalogResourceAction('en', 'cms_page_blocks', 'block-1', formData)
+    ).rejects.toThrow('NEXT_REDIRECT');
+
+    expect(redirect).toHaveBeenCalledWith(
+      '/admin/cms_page_blocks/block-1/edit?page=page-2'
     );
   });
 });

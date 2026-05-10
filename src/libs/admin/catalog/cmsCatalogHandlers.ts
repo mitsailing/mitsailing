@@ -108,18 +108,38 @@ function rawCmsPageFromFormData(formData: FormData): Record<string, unknown> {
 }
 
 function rawCmsBlockFromFormData(formData: FormData): Record<string, unknown> {
+  const kind = formData.get('kind');
   return {
     pageId: formData.get('pageId'),
-    kind: formData.get('kind'),
+    kind,
     title: formData.get('title'),
     subtitle: optionalString(formData.get('subtitle')),
-    body: optionalCmsRichText(formData.get('body')),
+    body:
+      kind === 'pricing' || kind === 'home_overview'
+        ? optionalString(formData.get('body'))
+        : optionalCmsRichText(formData.get('body')),
     ctaLabel: optionalString(formData.get('ctaLabel')),
     ctaUrl: optionalString(formData.get('ctaUrl')),
     imageSrc: optionalString(formData.get('imageSrc')),
     imageAlt: optionalString(formData.get('imageAlt')),
-    displayOrder: numberFromForm(formData.get('displayOrder')),
     isVisible: booleanFromForm(formData, 'isVisible'),
+  };
+}
+
+type ParsedCmsBlockInput = z.infer<typeof cmsBlockInputSchema>;
+
+function cmsBlockMutationData(input: ParsedCmsBlockInput) {
+  return {
+    pageId: input.pageId,
+    kind: input.kind,
+    title: input.title,
+    subtitle: input.subtitle ?? null,
+    body: input.body ?? null,
+    ctaLabel: input.ctaLabel ?? null,
+    ctaUrl: input.ctaUrl ?? null,
+    imageSrc: input.imageSrc ?? null,
+    imageAlt: input.imageAlt ?? null,
+    isVisible: input.isVisible,
   };
 }
 
@@ -144,6 +164,14 @@ function rawCmsMenuItemFromFormData(
     displayOrder: numberFromForm(formData.get('displayOrder')),
     systemKey: optionalString(formData.get('systemKey')),
   };
+}
+
+async function nextCmsBlockDisplayOrder(pageId: string): Promise<number> {
+  const agg = await prisma.cmsPageBlock.aggregate({
+    where: { pageId },
+    _max: { displayOrder: true },
+  });
+  return (agg._max.displayOrder ?? -1) + 1;
 }
 
 export const cmsPagesCatalogHandlers: CatalogServerHandlers = {
@@ -320,7 +348,10 @@ export const cmsPageBlocksCatalogHandlers: CatalogServerHandlers = {
     }
     try {
       const created = await prisma.cmsPageBlock.create({
-        data: parsed.data,
+        data: {
+          ...cmsBlockMutationData(parsed.data),
+          displayOrder: await nextCmsBlockDisplayOrder(parsed.data.pageId),
+        },
         select: { id: true },
       });
       await recordCmsPageRevision({
@@ -357,9 +388,22 @@ export const cmsPageBlocksCatalogHandlers: CatalogServerHandlers = {
         existing?.pageId && existing.pageId !== parsed.data.pageId
           ? await loadCmsPageRevisionSnapshot(parsed.data.pageId)
           : null;
+      const movedToNewPage =
+        existing !== null &&
+        existing !== undefined &&
+        existing.pageId !== parsed.data.pageId;
       const updated = await prisma.cmsPageBlock.update({
         where: { id },
-        data: parsed.data,
+        data: {
+          ...cmsBlockMutationData(parsed.data),
+          ...(movedToNewPage
+            ? {
+                displayOrder: await nextCmsBlockDisplayOrder(
+                  parsed.data.pageId
+                ),
+              }
+            : {}),
+        },
         select: { pageId: true },
       });
       if (existing?.pageId && existing.pageId !== updated.pageId) {
@@ -405,6 +449,51 @@ export const cmsPageBlocksCatalogHandlers: CatalogServerHandlers = {
       return { ok: true };
     } catch (error: unknown) {
       return duplicateCode(error) ?? { ok: false, code: 'unknown' };
+    }
+  },
+
+  async reorder(
+    orderedIds: readonly string[]
+  ): Promise<CatalogMutationOk | CatalogMutationErr> {
+    const rows = await prisma.cmsPageBlock.findMany({
+      where: { id: { in: [...orderedIds] } },
+      select: { id: true, pageId: true },
+    });
+    const pageId = rows[0]?.pageId;
+    if (!pageId || rows.some((row) => row.pageId !== pageId)) {
+      return { ok: false, code: 'invalid_order' };
+    }
+
+    const pageRows = await prisma.cmsPageBlock.findMany({
+      where: { pageId },
+      select: { id: true },
+    });
+    const pageIds = new Set(pageRows.map((row) => row.id));
+    if (
+      orderedIds.length !== pageIds.size ||
+      orderedIds.some((rowId) => !pageIds.has(rowId))
+    ) {
+      return { ok: false, code: 'invalid_order' };
+    }
+
+    try {
+      const previousSnapshot = await loadCmsPageRevisionSnapshot(pageId);
+      await prisma.$transaction(async (tx) => {
+        for (let index = 0; index < orderedIds.length; index += 1) {
+          await tx.cmsPageBlock.update({
+            where: { id: orderedIds[index] },
+            data: { displayOrder: index },
+          });
+        }
+      });
+      await recordCmsPageRevisionIfChanged({
+        pageId,
+        action: 'update',
+        previousSnapshot,
+      });
+      return { ok: true };
+    } catch {
+      return { ok: false, code: 'unknown' };
     }
   },
 };

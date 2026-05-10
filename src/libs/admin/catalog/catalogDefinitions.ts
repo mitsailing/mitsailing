@@ -428,11 +428,6 @@ const cmsPageBlocksDefinition = {
     { field: 'kind', kind: 'string', headerKey: 'column_cms_kind' },
     { field: 'title', kind: 'string', headerKey: 'column_name_label' },
     { field: 'isVisible', kind: 'visibility', headerKey: 'column_status' },
-    {
-      field: 'displayOrder',
-      kind: 'number',
-      headerKey: 'column_display_order_label',
-    },
   ],
   formFields: [
     {
@@ -450,6 +445,8 @@ const cmsPageBlocksDefinition = {
         { value: 'hero', labelKey: 'field_cms_kind_hero' },
         { value: 'text_section', labelKey: 'field_cms_kind_text_section' },
         { value: 'callout', labelKey: 'field_cms_kind_callout' },
+        { value: 'pricing', labelKey: 'field_cms_kind_pricing' },
+        { value: 'home_overview', labelKey: 'field_cms_kind_home_overview' },
       ],
     },
     { field: 'title', kind: 'string', required: true, labelKey: 'field_name' },
@@ -459,15 +456,9 @@ const cmsPageBlocksDefinition = {
     { field: 'ctaUrl', kind: 'string', labelKey: 'field_cms_cta_url' },
     { field: 'imageSrc', kind: 'image', labelKey: 'field_cms_image_src' },
     { field: 'imageAlt', kind: 'string', labelKey: 'field_cms_image_alt' },
-    {
-      field: 'displayOrder',
-      kind: 'number',
-      required: true,
-      labelKey: 'field_display_order',
-    },
     { field: 'isVisible', kind: 'boolean', labelKey: 'field_visible' },
   ],
-  capabilities: { create: true, update: true, delete: true, reorder: false },
+  capabilities: { create: true, update: true, delete: true, reorder: true },
 } as const satisfies CatalogResourceDefinition;
 
 const cmsMenusDefinition = {
