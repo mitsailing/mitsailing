@@ -329,7 +329,7 @@ function compareCatalogAuditSnapshots(
     );
     addFieldChange(
       changes,
-      'classCategoryId',
+      'classCategory',
       textChangeValue(before.classCategoryName),
       textChangeValue(after.classCategoryName)
     );
@@ -776,44 +776,62 @@ export async function restoreCatalogRevision(props: {
     return { ok: false, code: 'invalid_snapshot' };
   }
 
-  if (
-    props.resourceId === 'sailing_classes' &&
-    snapshot.resource === 'sailing_classes'
-  ) {
-    await prisma.sailingClass.update({
-      data: {
-        classCategoryId: snapshot.classCategoryId,
-        description: snapshot.description,
-        imagePaths: snapshot.imagePaths,
-        isVisible: snapshot.isVisible,
-        level: snapshot.level,
-        name: snapshot.name,
-        slug: snapshot.slug,
-      },
-      where: { id: props.itemId },
-    });
-  } else if (props.resourceId === 'fleet' && snapshot.resource === 'fleet') {
-    await prisma.fleetBoat.update({
-      data: {
-        capacity: snapshot.capacity,
-        description: snapshot.description,
-        imagePath: snapshot.imagePath,
-        name: snapshot.name,
-        requiredClassId: snapshot.requiredClassId,
-        slug: snapshot.slug,
-        type: snapshot.type,
-      },
-      where: { id: props.itemId },
-    });
-  } else {
-    return { ok: false, code: 'invalid_resource' };
-  }
+  await prisma.$transaction(
+    async (tx) => {
+      if (
+        props.resourceId === 'sailing_classes' &&
+        snapshot.resource === 'sailing_classes'
+      ) {
+        await tx.sailingClass.update({
+          data: {
+            classCategoryId: snapshot.classCategoryId,
+            description: snapshot.description,
+            imagePaths: snapshot.imagePaths,
+            isVisible: snapshot.isVisible,
+            level: snapshot.level,
+            name: snapshot.name,
+            slug: snapshot.slug,
+          },
+          where: { id: props.itemId },
+        });
+      } else if (
+        props.resourceId === 'fleet' &&
+        snapshot.resource === 'fleet'
+      ) {
+        await tx.fleetBoat.update({
+          data: {
+            capacity: snapshot.capacity,
+            description: snapshot.description,
+            imagePath: snapshot.imagePath,
+            name: snapshot.name,
+            requiredClassId: snapshot.requiredClassId,
+            slug: snapshot.slug,
+            type: snapshot.type,
+          },
+          where: { id: props.itemId },
+        });
+      }
 
-  await recordCatalogRevision({
-    action: 'restore',
-    context: props.context,
-    itemId: props.itemId,
-    resourceId: props.resourceId,
-  });
+      const latestRevision = await tx.userAudit.findFirst({
+        orderBy: [{ version: 'desc' }, { createdAt: 'desc' }],
+        select: { version: true },
+        where: {
+          auditableId: props.itemId,
+          auditableType: props.resourceId,
+        },
+      });
+      await tx.userAudit.create({
+        data: {
+          action: 'restore',
+          auditableId: props.itemId,
+          auditableType: props.resourceId,
+          auditedChanges: catalogAuditSnapshotJson(snapshot),
+          ...auditUserData(props.context),
+          version: (latestRevision?.version ?? 0) + 1,
+        },
+      });
+    },
+    { isolationLevel: 'Serializable' }
+  );
   return { ok: true, slug: snapshot.slug };
 }

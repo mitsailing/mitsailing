@@ -501,6 +501,8 @@
     "field_level": "Level",
     "field_display_order": "Display order",
     "select_class_category_placeholder": "Choose a category…",
+    "select_no_linked_page": "No linked page",
+    "select_no_parent": "No parent",
     "field_image_paths": "Images",
     "field_fleet_image": "Fleet page image",
     "fleet_form_section_basics": "Boat basics",

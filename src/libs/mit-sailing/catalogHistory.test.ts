@@ -50,6 +50,12 @@ beforeEach(() => {
   mocks.prismaTransaction.mockImplementation(
     async (transactionBody: (tx: unknown) => Promise<unknown>) => {
       const result = await transactionBody({
+        fleetBoat: {
+          update: mocks.fleetBoatUpdate,
+        },
+        sailingClass: {
+          update: mocks.sailingClassUpdate,
+        },
         userAudit: {
           create: mocks.userAuditCreate,
           findFirst: mocks.userAuditFindFirst,

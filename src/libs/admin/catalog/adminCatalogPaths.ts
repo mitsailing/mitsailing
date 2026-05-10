@@ -76,15 +76,13 @@ export function adminCmsPageRevisionPath(
 }
 
 /**
- * @param resourceId - Registered catalog resource key
- * @param id - Row primary key
- * @param revisionId - User audit revision id
+ * @param props - Resource id, row id, and revision id
  * @returns Path to a catalog item revision comparison screen
  */
-export function adminCatalogResourceRevisionPath(
-  resourceId: string,
-  id: string,
-  revisionId: string
-): string {
-  return `/admin/${encodeURIComponent(resourceId)}/${encodeURIComponent(id)}/revisions/${encodeURIComponent(revisionId)}`;
+export function adminCatalogResourceRevisionPath(props: {
+  id: string;
+  resourceId: string;
+  revisionId: string;
+}): string {
+  return `/admin/${encodeURIComponent(props.resourceId)}/${encodeURIComponent(props.id)}/revisions/${encodeURIComponent(props.revisionId)}`;
 }

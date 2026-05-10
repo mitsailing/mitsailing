@@ -52,7 +52,7 @@ function CmsPricingCard(props: { plan: CmsPricingData['plans'][number] }) {
   const href = safeCmsHref(props.plan.linkUrl);
   const linkClassName = props.plan.highlighted
     ? 'w-full rounded-lg border-2 border-transparent bg-mit-red py-2.5 text-center text-sm font-medium text-white no-underline hover:bg-mit-red-hover'
-    : 'w-full rounded-lg border border-border bg-card py-2.5 text-center text-sm font-medium text-card-foreground no-underline';
+    : 'w-full rounded-lg border border-border bg-card py-2.5 text-center text-sm font-medium text-card-foreground no-underline hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring';
 
   return (
     <div

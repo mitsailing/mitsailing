@@ -344,6 +344,14 @@ describe('MitSailingHomePageView', () => {
       'target',
       '_blank'
     );
+    expect(screen.getByRole('link', { name: 'Full calendar' })).toHaveAttribute(
+      'rel',
+      expect.stringContaining('noopener')
+    );
+    expect(screen.getByRole('link', { name: 'Full calendar' })).toHaveAttribute(
+      'rel',
+      expect.stringContaining('noreferrer')
+    );
 
     expect(
       screen.getByRole('heading', { name: 'Learn to sail' })
@@ -428,7 +436,7 @@ describe('MitSailingHomePageView', () => {
 
     render(await MitSailingHomePageView({ locale: 'en' }));
 
-    expect(screen.getByText('No events posted.')).toBeVisible();
+    expect(screen.queryByText('No events posted.')).not.toBeInTheDocument();
     expect(
       screen.queryByRole('link', { name: 'Unsafe calendar' })
     ).not.toBeInTheDocument();

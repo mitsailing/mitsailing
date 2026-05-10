@@ -10,7 +10,7 @@ describe('CmsRichText', () => {
   });
 
   it('renders sanitized cms html with custom classes', () => {
-    render(
+    const view = render(
       <CmsRichText
         className="extra-copy"
         html="<p>Safe <strong>copy</strong><script>alert(1)</script></p>"
@@ -19,7 +19,7 @@ describe('CmsRichText', () => {
 
     expect(screen.getByText('Safe')).toBeVisible();
     expect(screen.getByText('copy')).toBeVisible();
-    expect(document.querySelector('script')).not.toBeInTheDocument();
+    expect(view.container.querySelector('script')).not.toBeInTheDocument();
     expect(screen.getByText('Safe').closest('.cms-rich-text')).toHaveClass(
       'extra-copy'
     );

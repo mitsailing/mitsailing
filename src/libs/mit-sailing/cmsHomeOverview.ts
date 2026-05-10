@@ -1,3 +1,5 @@
+import { safeCmsHref } from '@/libs/mit-sailing/cmsHref';
+
 export const CMS_HOME_OVERVIEW_MAX_EVENTS = 12;
 export const CMS_HOME_OVERVIEW_MAX_SCHEDULE_ROWS = 14;
 export const CMS_HOME_OVERVIEW_MAX_STEPS = 6;
@@ -155,7 +157,8 @@ export function parseCmsHomeOverviewBody(
     !eventsTitle ||
     eventsEmptyText === undefined ||
     !eventsCtaLabel ||
-    !eventsCtaUrl
+    !eventsCtaUrl ||
+    !safeCmsHref(eventsCtaUrl)
   ) {
     return null;
   }

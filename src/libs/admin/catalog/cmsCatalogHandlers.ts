@@ -24,6 +24,7 @@ import {
   cmsPageInputSchema,
   validateCmsMenuTree,
 } from '@/libs/mit-sailing/cmsValidation';
+import enMessages from '@/locales/en.json';
 
 const cmsMenuInputSchema = z.object({
   location: z.enum(['header', 'mobile_utility', 'footer', 'legal', 'social']),
@@ -422,9 +423,7 @@ export const cmsPageBlocksCatalogHandlers: CatalogServerHandlers = {
           ? await loadCmsPageRevisionSnapshot(parsed.data.pageId)
           : null;
       const movedToNewPage =
-        existing !== null &&
-        existing !== undefined &&
-        existing.pageId !== parsed.data.pageId;
+        existing !== null && existing.pageId !== parsed.data.pageId;
       const updated = await prisma.cmsPageBlock.update({
         where: { id },
         data: {
@@ -885,7 +884,10 @@ export async function cmsPageSelectOptions() {
     select: { id: true, path: true, title: true },
   });
   return [
-    { value: '', label: 'No linked page' },
+    {
+      value: '',
+      label: enMessages.AdminCatalogResource.select_no_linked_page,
+    },
     ...rows.map((row) => ({
       value: row.id,
       label: `${row.path} ${row.title}`,
@@ -936,7 +938,12 @@ export async function cmsMenuParentSelectOptions(options: {
   menuId: string;
 }) {
   if (!options.menuId) {
-    return [{ value: '', label: 'No parent' }];
+    return [
+      {
+        value: '',
+        label: enMessages.AdminCatalogResource.select_no_parent,
+      },
+    ];
   }
 
   const rows = await prisma.cmsMenuItem.findMany({
@@ -960,7 +967,7 @@ export async function cmsMenuParentSelectOptions(options: {
     },
   });
   return [
-    { value: '', label: 'No parent' },
+    { value: '', label: enMessages.AdminCatalogResource.select_no_parent },
     ...orderedCmsMenuItemRows(rows).map((row) => ({
       value: row.id,
       label: row.label,

@@ -18,7 +18,11 @@ import path from 'node:path';
  */
 
 const cwd = process.cwd();
-const codexPrepushModel = 'gpt-5.4-mini';
+const codexPrepushModelInput = process.env.CODEX_PREPUSH_MODEL?.trim();
+const codexPrepushModel =
+  codexPrepushModelInput && codexPrepushModelInput.length > 0
+    ? codexPrepushModelInput
+    : null;
 
 /** @type {Check[]} */
 const checks = [
@@ -271,6 +275,7 @@ function createCursorAgent(command) {
  * @returns {Agent} Codex agent invocation.
  */
 function createCodexAgent(command) {
+  const modelArgs = codexPrepushModel ? ['--model', codexPrepushModel] : [];
   return {
     name: 'codex',
     // Security warning: --dangerously-bypass-approvals-and-sandbox gives Codex
@@ -279,8 +284,7 @@ function createCodexAgent(command) {
     command,
     args: [
       'exec',
-      '--model',
-      codexPrepushModel,
+      ...modelArgs,
       '--dangerously-bypass-approvals-and-sandbox',
       '--cd',
       cwd,

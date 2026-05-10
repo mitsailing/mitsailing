@@ -40,7 +40,7 @@ export async function PublicAdminEditLink(props: {
   return (
     <div className={cn('mb-6 flex justify-end', props.className)}>
       <Link
-        className="inline-flex items-center gap-1.5 rounded-md border border-mit-line bg-background px-3 py-1.5 text-sm font-semibold text-mit-red-ink no-underline shadow-xs hover:bg-mit-red-highlight"
+        className="inline-flex items-center gap-1.5 rounded-md border border-mit-line bg-background px-3 py-1.5 text-sm font-semibold text-mit-red no-underline shadow-xs hover:bg-mit-red-highlight"
         href={safeHref}
       >
         <Pencil aria-hidden className="size-4" />

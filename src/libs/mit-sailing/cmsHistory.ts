@@ -1,4 +1,5 @@
 import 'server-only';
+import { randomUUID } from 'node:crypto';
 import type { Prisma } from '@/generated/prisma/client';
 import { prisma } from '@/libs/DB';
 import { plainTextFromCmsRichTextHtml } from '@/libs/mit-sailing/cmsRichText';
@@ -986,9 +987,26 @@ export async function restoreCmsPageRevision(props: {
         where: { id: props.pageId },
       });
       await tx.cmsPageBlock.deleteMany({ where: { pageId: props.pageId } });
+      const snapshotBlockIds = snapshot.blocks.map((block) => block.id);
+      const collidingBlockCount =
+        snapshotBlockIds.length > 0
+          ? await tx.cmsPageBlock.count({
+              where: {
+                id: { in: snapshotBlockIds },
+                pageId: { not: props.pageId },
+              },
+            })
+          : 0;
+      const restoredBlocks =
+        collidingBlockCount === 0
+          ? snapshot.blocks
+          : snapshot.blocks.map((block) => ({
+              ...block,
+              id: randomUUID(),
+            }));
       if (snapshot.blocks.length > 0) {
         await tx.cmsPageBlock.createMany({
-          data: snapshot.blocks.map((block) => ({
+          data: restoredBlocks.map((block) => ({
             body: block.body,
             ctaLabel: block.ctaLabel,
             ctaUrl: block.ctaUrl,
@@ -1013,7 +1031,10 @@ export async function restoreCmsPageRevision(props: {
           action: 'restore',
           auditableId: props.pageId,
           auditableType: 'cms_pages',
-          auditedChanges: cmsPageRevisionSnapshotJson(snapshot),
+          auditedChanges: cmsPageRevisionSnapshotJson({
+            ...snapshot,
+            blocks: restoredBlocks,
+          }),
           impersonatedUserId: props.impersonatedUserId ?? null,
           userId: props.createdByUserId ?? null,
           version: (latest._max.version ?? 0) + 1,

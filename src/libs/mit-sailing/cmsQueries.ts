@@ -36,6 +36,19 @@ export type PublicCmsBlock = {
   imageAlt?: string;
 };
 
+const VALID_PUBLIC_CMS_BLOCK_KINDS = new Set<string>([
+  'hero',
+  'text_section',
+  'callout',
+  'pricing',
+  'home_overview',
+  'home_classes',
+]);
+
+function isPublicCmsBlockKind(kind: string): kind is PublicCmsBlock['kind'] {
+  return VALID_PUBLIC_CMS_BLOCK_KINDS.has(kind);
+}
+
 export type PublicCmsPage = {
   id: string;
   slug: string;
@@ -173,17 +186,19 @@ async function loadPublishedCmsPageByPathUnchecked(
     title: page.title,
     metaTitle: page.metaTitle ?? page.title,
     metaDescription: page.metaDescription ?? '',
-    blocks: page.blocks.map((block) => ({
-      id: block.id,
-      kind: block.kind,
-      title: block.title,
-      subtitle: block.subtitle ?? undefined,
-      body: block.body ?? undefined,
-      ctaLabel: block.ctaLabel ?? undefined,
-      ctaUrl: block.ctaUrl ?? undefined,
-      imageSrc: block.imageSrc ?? undefined,
-      imageAlt: block.imageAlt ?? undefined,
-    })),
+    blocks: page.blocks
+      .filter((block) => isPublicCmsBlockKind(block.kind))
+      .map((block) => ({
+        id: block.id,
+        kind: block.kind,
+        title: block.title,
+        subtitle: block.subtitle ?? undefined,
+        body: block.body ?? undefined,
+        ctaLabel: block.ctaLabel ?? undefined,
+        ctaUrl: block.ctaUrl ?? undefined,
+        imageSrc: block.imageSrc ?? undefined,
+        imageAlt: block.imageAlt ?? undefined,
+      })),
   };
 }
 
