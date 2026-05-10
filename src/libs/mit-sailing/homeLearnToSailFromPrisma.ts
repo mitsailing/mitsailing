@@ -2,11 +2,11 @@ import { prisma } from '@/libs/DB';
 import { plainTextFromCmsRichTextHtml } from '@/libs/mit-sailing/cmsRichText';
 
 /**
- * Introduction-category classes for the home page grid.
+ * Introduction-category classes for the home Learn to Sail block.
  *
  * @returns Intro sailing classes
  */
-export async function loadHomeIntroductionClasses() {
+export async function loadHomeLearnToSailIntroductionClasses() {
   const rows = await prisma.sailingClass.findMany({
     where: {
       isVisible: true,
@@ -41,12 +41,14 @@ export async function loadHomeIntroductionClasses() {
 }
 
 /**
- * Next classes on the home page (stable slug order).
+ * Next classes for the home Learn to Sail block.
  *
  * @param orderedSlugs - Slugs in display order
  * @returns Matching classes in the same order
  */
-export async function loadHomeClassesBySlugs(orderedSlugs: readonly string[]) {
+export async function loadHomeLearnToSailNextClassesBySlugs(
+  orderedSlugs: readonly string[]
+) {
   if (orderedSlugs.length === 0) {
     return [];
   }
@@ -84,12 +86,12 @@ export async function loadHomeClassesBySlugs(orderedSlugs: readonly string[]) {
 }
 
 /**
- * Resolve prerequisite display for home next cards.
+ * Resolve prerequisite display for home Learn to Sail next cards.
  *
  * @param ids - Sailing class ids
  * @returns Map id to display name
  */
-export async function loadSailingClassNamesByIds(
+export async function loadHomeLearnToSailPrerequisiteNamesByIds(
   ids: string[]
 ): Promise<Map<string, string>> {
   if (ids.length === 0) {

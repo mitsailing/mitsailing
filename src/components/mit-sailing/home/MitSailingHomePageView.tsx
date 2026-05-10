@@ -18,16 +18,16 @@ import {
 import { loadPublishedCmsPageByPath } from '@/libs/mit-sailing/cmsQueries';
 import type { PublicCmsBlock } from '@/libs/mit-sailing/cmsQueries';
 import {
-  loadHomeClassesBySlugs,
-  loadHomeIntroductionClasses,
-  loadSailingClassNamesByIds,
-} from '@/libs/mit-sailing/homeCatalogFromPrisma';
+  loadHomeLearnToSailIntroductionClasses,
+  loadHomeLearnToSailNextClassesBySlugs,
+  loadHomeLearnToSailPrerequisiteNamesByIds,
+} from '@/libs/mit-sailing/homeLearnToSailFromPrisma';
 import { getHomeUpcomingDayGroups } from '@/libs/mit-sailing/homeUpcomingFromPrisma';
 import type { HomeUpcomingDayGroup } from '@/libs/mit-sailing/homeUpcomingFromPrisma';
 import { HomeEventRow } from './HomeEventRow';
 import { SectionHeader } from './SectionHeader';
 
-const HOME_NEXT_CLASS_SLUGS = [
+const HOME_LEARN_TO_SAIL_NEXT_CLASS_SLUGS = [
   'intermediate-sailing-boat-speed',
   'intro-to-racing',
   'windsurfing-fundamentals',
@@ -196,8 +196,12 @@ function HomeRentalSection(props: { block: PublicCmsBlock }) {
 
 function HomeClassesSection(props: {
   block: PublicCmsBlock;
-  homeIntroClasses: Awaited<ReturnType<typeof loadHomeIntroductionClasses>>;
-  homeNextClasses: Awaited<ReturnType<typeof loadHomeClassesBySlugs>>;
+  homeIntroClasses: Awaited<
+    ReturnType<typeof loadHomeLearnToSailIntroductionClasses>
+  >;
+  homeNextClasses: Awaited<
+    ReturnType<typeof loadHomeLearnToSailNextClassesBySlugs>
+  >;
   prereqNameById: Map<string, string>;
   t: Awaited<ReturnType<typeof getTranslations>>;
 }) {
@@ -344,8 +348,10 @@ export async function MitSailingHomePageView(
 
   const [homeNextClasses, homeIntroClasses] = homeClassesBlock
     ? await Promise.all([
-        loadHomeClassesBySlugs(HOME_NEXT_CLASS_SLUGS),
-        loadHomeIntroductionClasses(),
+        loadHomeLearnToSailNextClassesBySlugs(
+          HOME_LEARN_TO_SAIL_NEXT_CLASS_SLUGS
+        ),
+        loadHomeLearnToSailIntroductionClasses(),
       ])
     : [[], []];
 
@@ -354,7 +360,7 @@ export async function MitSailingHomePageView(
     .filter((id): id is string => id !== undefined);
   const prereqNameById =
     firstPrereqIds.length > 0
-      ? await loadSailingClassNamesByIds(firstPrereqIds)
+      ? await loadHomeLearnToSailPrerequisiteNamesByIds(firstPrereqIds)
       : new Map<string, string>();
   const homeOverviewData = parseCmsHomeOverviewBody(homeOverviewBlock?.body);
   const homeOverviewUpcomingDayGroups = homeOverviewData

@@ -8,10 +8,10 @@ import { MitSailingHomePageView } from './MitSailingHomePageView';
 const homeDataMocks = vi.hoisted(() => ({
   getHomeUpcomingDayGroups: vi.fn(),
   getSession: vi.fn(),
-  loadHomeClassesBySlugs: vi.fn(),
-  loadHomeIntroductionClasses: vi.fn(),
+  loadHomeLearnToSailNextClassesBySlugs: vi.fn(),
+  loadHomeLearnToSailIntroductionClasses: vi.fn(),
   loadPublishedCmsPageByPath: vi.fn(),
-  loadSailingClassNamesByIds: vi.fn(),
+  loadHomeLearnToSailPrerequisiteNamesByIds: vi.fn(),
 }));
 
 const messageCatalogs = new Map(
@@ -45,10 +45,13 @@ vi.mock('@/libs/mit-sailing/cmsQueries', () => ({
   loadPublishedCmsPageByPath: homeDataMocks.loadPublishedCmsPageByPath,
 }));
 
-vi.mock('@/libs/mit-sailing/homeCatalogFromPrisma', () => ({
-  loadHomeClassesBySlugs: homeDataMocks.loadHomeClassesBySlugs,
-  loadHomeIntroductionClasses: homeDataMocks.loadHomeIntroductionClasses,
-  loadSailingClassNamesByIds: homeDataMocks.loadSailingClassNamesByIds,
+vi.mock('@/libs/mit-sailing/homeLearnToSailFromPrisma', () => ({
+  loadHomeLearnToSailIntroductionClasses:
+    homeDataMocks.loadHomeLearnToSailIntroductionClasses,
+  loadHomeLearnToSailNextClassesBySlugs:
+    homeDataMocks.loadHomeLearnToSailNextClassesBySlugs,
+  loadHomeLearnToSailPrerequisiteNamesByIds:
+    homeDataMocks.loadHomeLearnToSailPrerequisiteNamesByIds,
 }));
 
 vi.mock('@/libs/mit-sailing/homeUpcomingFromPrisma', () => ({
@@ -58,9 +61,11 @@ vi.mock('@/libs/mit-sailing/homeUpcomingFromPrisma', () => ({
 function mockHomeData(cmsHomePage: PublicCmsPage | null) {
   homeDataMocks.getHomeUpcomingDayGroups.mockResolvedValue([]);
   homeDataMocks.getSession.mockResolvedValue(null);
-  homeDataMocks.loadHomeClassesBySlugs.mockResolvedValue([]);
-  homeDataMocks.loadHomeIntroductionClasses.mockResolvedValue([]);
-  homeDataMocks.loadSailingClassNamesByIds.mockResolvedValue(new Map());
+  homeDataMocks.loadHomeLearnToSailNextClassesBySlugs.mockResolvedValue([]);
+  homeDataMocks.loadHomeLearnToSailIntroductionClasses.mockResolvedValue([]);
+  homeDataMocks.loadHomeLearnToSailPrerequisiteNamesByIds.mockResolvedValue(
+    new Map()
+  );
   homeDataMocks.loadPublishedCmsPageByPath.mockResolvedValue(cmsHomePage);
 }
 
@@ -299,7 +304,7 @@ describe('MitSailingHomePageView', () => {
       slug: 'home',
       title: 'Home',
     });
-    homeDataMocks.loadHomeIntroductionClasses.mockResolvedValue([
+    homeDataMocks.loadHomeLearnToSailIntroductionClasses.mockResolvedValue([
       {
         description: 'Intro class description.',
         id: 'class-intro',
@@ -309,7 +314,7 @@ describe('MitSailingHomePageView', () => {
         slug: 'learn-to-sail',
       },
     ]);
-    homeDataMocks.loadHomeClassesBySlugs.mockResolvedValue([
+    homeDataMocks.loadHomeLearnToSailNextClassesBySlugs.mockResolvedValue([
       {
         description: 'Next class description.',
         id: 'class-next',
@@ -319,7 +324,7 @@ describe('MitSailingHomePageView', () => {
         slug: 'boat-speed',
       },
     ]);
-    homeDataMocks.loadSailingClassNamesByIds.mockResolvedValue(
+    homeDataMocks.loadHomeLearnToSailPrerequisiteNamesByIds.mockResolvedValue(
       new Map([['class-intro', 'Learn to Sail']])
     );
 
