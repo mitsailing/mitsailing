@@ -8,11 +8,7 @@ import { MitSailingHomePageView } from './MitSailingHomePageView';
 const homeDataMocks = vi.hoisted(() => ({
   getHomeUpcomingDayGroups: vi.fn(),
   getSession: vi.fn(),
-  loadHomeClassesBySlugs: vi.fn(),
-  loadHomeFeaturedFleetBoats: vi.fn(),
-  loadHomeIntroductionClasses: vi.fn(),
   loadPublishedCmsPageByPath: vi.fn(),
-  loadSailingClassNamesByIds: vi.fn(),
 }));
 
 const messageCatalogs = new Map(
@@ -46,13 +42,6 @@ vi.mock('@/libs/mit-sailing/cmsQueries', () => ({
   loadPublishedCmsPageByPath: homeDataMocks.loadPublishedCmsPageByPath,
 }));
 
-vi.mock('@/libs/mit-sailing/homeCatalogFromPrisma', () => ({
-  loadHomeClassesBySlugs: homeDataMocks.loadHomeClassesBySlugs,
-  loadHomeFeaturedFleetBoats: homeDataMocks.loadHomeFeaturedFleetBoats,
-  loadHomeIntroductionClasses: homeDataMocks.loadHomeIntroductionClasses,
-  loadSailingClassNamesByIds: homeDataMocks.loadSailingClassNamesByIds,
-}));
-
 vi.mock('@/libs/mit-sailing/homeUpcomingFromPrisma', () => ({
   getHomeUpcomingDayGroups: homeDataMocks.getHomeUpcomingDayGroups,
 }));
@@ -60,10 +49,6 @@ vi.mock('@/libs/mit-sailing/homeUpcomingFromPrisma', () => ({
 function mockHomeData(cmsHomePage: PublicCmsPage | null) {
   homeDataMocks.getHomeUpcomingDayGroups.mockResolvedValue([]);
   homeDataMocks.getSession.mockResolvedValue(null);
-  homeDataMocks.loadHomeClassesBySlugs.mockResolvedValue([]);
-  homeDataMocks.loadHomeFeaturedFleetBoats.mockResolvedValue([]);
-  homeDataMocks.loadHomeIntroductionClasses.mockResolvedValue([]);
-  homeDataMocks.loadSailingClassNamesByIds.mockResolvedValue(new Map());
   homeDataMocks.loadPublishedCmsPageByPath.mockResolvedValue(cmsHomePage);
 }
 
@@ -297,6 +282,8 @@ describe('MitSailingHomePageView', () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByText('Membership Options')).not.toBeInTheDocument();
     expect(screen.queryByText('Pavilion Hours')).not.toBeInTheDocument();
+    expect(screen.queryByText('Our Core Fleet')).not.toBeInTheDocument();
+    expect(screen.queryByText('Learn to Sail')).not.toBeInTheDocument();
   });
 
   it('omits invalid home overview blocks instead of rendering fallback content', async () => {
