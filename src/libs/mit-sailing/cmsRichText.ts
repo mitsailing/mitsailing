@@ -1,6 +1,11 @@
 import sanitizeHtml from 'sanitize-html';
 
-const REMOTE_HREF_PREFIXES = ['http://', 'https://', 'mailto:'] as const;
+const REMOTE_HREF_PREFIXES = [
+  'http://',
+  'https://',
+  'mailto:',
+  'tel:',
+] as const;
 const CMS_MEDIA_IMAGE_EXTENSIONS = ['.gif', '.jpg', '.jpeg', '.png', '.webp'];
 const CMS_MEDIA_IMAGE_PATH_RE = /^\/cms-media\/[^/?#]+\/[^/?#]+$/u;
 const HTML_TAG_RE = /<[a-z][\s\S]*>/iu;

@@ -120,6 +120,26 @@ describe('cms block validation', () => {
     expect(parsed.success).toBe(false);
   });
 
+  it('rejects malformed pricing block options', () => {
+    const parsed = cmsBlockInputSchema.safeParse({
+      pageId: 'page-1',
+      kind: 'pricing',
+      title: 'Membership',
+      body: JSON.stringify({
+        plans: [
+          {
+            title: 'Students',
+            price: 'Free',
+            features: ['Full access to all boats', ''],
+          },
+        ],
+      }),
+      isVisible: true,
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+
   it('accepts home overview blocks with structured panels', () => {
     const parsed = cmsBlockInputSchema.safeParse({
       pageId: 'page-1',
@@ -188,6 +208,58 @@ describe('cms block validation', () => {
         eventsEmptyText: 'No events scheduled.',
         eventsCtaLabel: 'View all events',
         eventsCtaUrl: '/events',
+      }),
+      isVisible: true,
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+
+  it('rejects malformed home overview rows', () => {
+    const parsed = cmsBlockInputSchema.safeParse({
+      pageId: 'page-1',
+      kind: 'home_overview',
+      title: 'Pavilion Hours',
+      body: JSON.stringify({
+        schedule: [{ day: 'Monday', hours: 'Noon – Sunset' }, { day: '' }],
+        stepsTitle: 'How to get on the water',
+        steps: [
+          {
+            title: 'Create your account',
+            description: 'Sign in before you sail.',
+          },
+        ],
+        eventsTitle: 'Upcoming Events',
+        eventCount: 4,
+        eventsEmptyText: 'No events scheduled.',
+        eventsCtaLabel: 'View all events',
+        eventsCtaUrl: '/events',
+      }),
+      isVisible: true,
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+
+  it('rejects unsafe home overview events cta urls', () => {
+    const parsed = cmsBlockInputSchema.safeParse({
+      pageId: 'page-1',
+      kind: 'home_overview',
+      title: 'Pavilion Hours',
+      body: JSON.stringify({
+        schedule: [{ day: 'Monday', hours: 'Noon – Sunset' }],
+        stepsTitle: 'How to get on the water',
+        steps: [
+          {
+            title: 'Create your account',
+            description: 'Sign in before you sail.',
+          },
+        ],
+        eventsTitle: 'Upcoming Events',
+        eventCount: 4,
+        eventsEmptyText: 'No events scheduled.',
+        eventsCtaLabel: 'View all events',
+        eventsCtaUrl: ['java', 'script:alert(1)'].join(''),
       }),
       isVisible: true,
     });
@@ -265,6 +337,23 @@ describe('cms menu item validation', () => {
     });
 
     expect(parsed.url).toBe('/about');
+  });
+
+  it('normalizes empty optional ids', () => {
+    const parsed = cmsMenuItemInputSchema.parse({
+      menuId: 'menu',
+      parentId: '',
+      linkedPageId: '',
+      label: 'About',
+      url: '/about',
+      isExternal: false,
+      isVisible: true,
+      systemKey: '',
+    });
+
+    expect(parsed.parentId).toBeUndefined();
+    expect(parsed.linkedPageId).toBeUndefined();
+    expect(parsed.systemKey).toBeUndefined();
   });
 });
 

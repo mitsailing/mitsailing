@@ -26,13 +26,13 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: '${{ github.event.deployment_status.deployment.ref }}'
+          ref: '${{ github.event.deployment.ref }}'
           fetch-depth: 0
 
       - name: Set Checkly git metadata
         run: |
-          echo "CHECKLY_REPO_BRANCH=${{ github.event.deployment_status.deployment.ref }}" >> "$GITHUB_ENV"
-          echo "CHECKLY_REPO_SHA=${{ github.event.deployment_status.deployment.sha }}" >> "$GITHUB_ENV"
+          echo "CHECKLY_REPO_BRANCH=${{ github.event.deployment.ref }}" >> "$GITHUB_ENV"
+          echo "CHECKLY_REPO_SHA=${{ github.event.deployment.sha }}" >> "$GITHUB_ENV"
 
       - name: Set up Node.js environment
         uses: ./.github/actions/setup-project

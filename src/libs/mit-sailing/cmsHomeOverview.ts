@@ -76,24 +76,26 @@ function stepFromUnknown(value: unknown): CmsHomeOverviewStep | null {
   return { title, description };
 }
 
-function scheduleRowsFromUnknown(value: unknown): CmsHomeOverviewScheduleRow[] {
+function scheduleRowsFromUnknown(
+  value: unknown
+): CmsHomeOverviewScheduleRow[] | null {
   if (!Array.isArray(value)) {
-    return [];
+    return null;
   }
-  return value.flatMap((item) => {
-    const row = scheduleRowFromUnknown(item);
-    return row ? [row] : [];
-  });
+  const rows = value.map(scheduleRowFromUnknown);
+  return rows.every((row): row is CmsHomeOverviewScheduleRow => row !== null)
+    ? rows
+    : null;
 }
 
-function stepsFromUnknown(value: unknown): CmsHomeOverviewStep[] {
+function stepsFromUnknown(value: unknown): CmsHomeOverviewStep[] | null {
   if (!Array.isArray(value)) {
-    return [];
+    return null;
   }
-  return value.flatMap((item) => {
-    const step = stepFromUnknown(item);
-    return step ? [step] : [];
-  });
+  const steps = value.map(stepFromUnknown);
+  return steps.every((step): step is CmsHomeOverviewStep => step !== null)
+    ? steps
+    : null;
 }
 
 /**
@@ -120,8 +122,9 @@ export function parseCmsHomeOverviewBody(
     propertyFromUnknown(parsed, 'schedule')
   );
   const steps = stepsFromUnknown(propertyFromUnknown(parsed, 'steps'));
-  const eventCount =
-    integerFromUnknown(propertyFromUnknown(parsed, 'eventCount')) ?? 4;
+  const eventCount = integerFromUnknown(
+    propertyFromUnknown(parsed, 'eventCount')
+  );
   const stepsTitle = stringFromUnknown(
     propertyFromUnknown(parsed, 'stepsTitle')
   );
@@ -139,10 +142,13 @@ export function parseCmsHomeOverviewBody(
   );
 
   if (
+    !schedule ||
     schedule.length < 1 ||
     schedule.length > CMS_HOME_OVERVIEW_MAX_SCHEDULE_ROWS ||
+    !steps ||
     steps.length < 1 ||
     steps.length > CMS_HOME_OVERVIEW_MAX_STEPS ||
+    eventCount === undefined ||
     eventCount < 1 ||
     eventCount > CMS_HOME_OVERVIEW_MAX_EVENTS ||
     !stepsTitle ||

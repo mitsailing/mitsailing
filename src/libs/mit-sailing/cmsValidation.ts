@@ -1,5 +1,6 @@
 import * as z from 'zod';
 import { parseCmsHomeOverviewBody } from '@/libs/mit-sailing/cmsHomeOverview';
+import { safeCmsHref } from '@/libs/mit-sailing/cmsHref';
 import { parseCmsPricingBody } from '@/libs/mit-sailing/cmsPricing';
 
 function canonicalCmsAppPath(path: string): string {
@@ -114,22 +115,38 @@ export const cmsBlockInputSchema = z
         path: ['body'],
       });
     }
-    if (
-      value.kind === 'home_overview' &&
-      !parseCmsHomeOverviewBody(value.body)
-    ) {
-      ctx.addIssue({
-        code: 'custom',
-        message: 'CMS home overview blocks require valid overview settings',
-        path: ['body'],
-      });
+    if (value.kind === 'home_overview') {
+      const homeOverview = parseCmsHomeOverviewBody(value.body);
+      if (!homeOverview) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'CMS home overview blocks require valid overview settings',
+          path: ['body'],
+        });
+        return;
+      }
+      if (!safeCmsHref(homeOverview.eventsCtaUrl)) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'CMS home overview events CTA URL must be safe',
+          path: ['body'],
+        });
+      }
     }
   });
 
 export const cmsMenuItemInputSchema = z.object({
   menuId: z.string().trim().min(1),
-  parentId: z.string().trim().optional(),
-  linkedPageId: z.string().trim().optional(),
+  parentId: z
+    .string()
+    .trim()
+    .optional()
+    .transform((value) => (value === '' ? undefined : value)),
+  linkedPageId: z
+    .string()
+    .trim()
+    .optional()
+    .transform((value) => (value === '' ? undefined : value)),
   label: z.string().trim().min(1),
   url: z
     .string()
@@ -139,7 +156,11 @@ export const cmsMenuItemInputSchema = z.object({
     .pipe(cmsUrlSchema.optional()),
   isExternal: z.boolean(),
   isVisible: z.boolean(),
-  systemKey: z.string().trim().optional(),
+  systemKey: z
+    .string()
+    .trim()
+    .optional()
+    .transform((value) => (value === '' ? undefined : value)),
 });
 
 export type CmsMenuTreeNode = {

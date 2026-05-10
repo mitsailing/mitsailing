@@ -28,7 +28,13 @@ export function externalCmsLinkProps(href: string): {
   rel?: 'noopener noreferrer';
   target?: '_blank';
 } {
-  if (href.startsWith('http://') || href.startsWith('https://')) {
+  let protocol: string;
+  try {
+    ({ protocol } = new URL(href));
+  } catch {
+    return {};
+  }
+  if (protocol === 'http:' || protocol === 'https:') {
     return {
       rel: 'noopener noreferrer',
       target: '_blank',

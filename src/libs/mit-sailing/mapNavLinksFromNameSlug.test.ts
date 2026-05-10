@@ -29,12 +29,16 @@ describe('mapNameSlugRowsToNavLinks', () => {
 describe('hrefClassesCategoryFromSlug', () => {
   it('anchors the category slug hash', () => {
     expect(hrefClassesCategoryFromSlug('intro')).toBe('/classes#intro');
+    expect(hrefClassesCategoryFromSlug('intro & racing')).toBe(
+      '/classes#intro%20%26%20racing'
+    );
   });
 });
 
 describe('hrefFleetBoatFromSlug', () => {
   it('normalizes trailing path segment', () => {
     expect(hrefFleetBoatFromSlug('club-420')).toBe('/fleet/club-420');
+    expect(hrefFleetBoatFromSlug('tech dinghy')).toBe('/fleet/tech%20dinghy');
   });
 });
 

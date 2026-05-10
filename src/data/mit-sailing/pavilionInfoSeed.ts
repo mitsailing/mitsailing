@@ -98,7 +98,7 @@ export const mashneeBluewaterLocation = {
     '66 Long Wharf',
     'Boston, MA 02110',
   ] as const,
-  mapsUrl: mapsSearchUrl('Boston Waterboat Marina, Long Wharf, Boston, MA'),
+  mapsUrl: mapsSearchUrl('66 Long Wharf, Boston, MA 02110'),
 } as const;
 
 export const mashneeDirections = {

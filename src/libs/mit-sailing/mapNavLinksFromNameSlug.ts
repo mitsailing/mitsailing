@@ -26,7 +26,7 @@ export function mapNameSlugRowsToNavLinks(
  * @returns Path to `/classes` with slug hash.
  */
 export function hrefClassesCategoryFromSlug(slug: string) {
-  return `/classes#${slug}`;
+  return `/classes#${encodeURIComponent(slug)}`;
 }
 
 /**
@@ -36,5 +36,5 @@ export function hrefClassesCategoryFromSlug(slug: string) {
  * @returns Canonical fleet detail URL.
  */
 export function hrefFleetBoatFromSlug(slug: string) {
-  return `/fleet/${slug}`;
+  return `/fleet/${encodeURIComponent(slug)}`;
 }

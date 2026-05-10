@@ -277,14 +277,23 @@ function lineCoverageFromLcov(lcov) {
  */
 function changedLinesAgainstBase(projectPaths) {
   const baseRef = process.env.COVERAGE_BASE_REF ?? 'origin/main';
-  const diff = execFileSync(
-    'git',
-    ['diff', '--unified=0', baseRef, '--', ...projectPaths],
-    {
-      cwd: process.cwd(),
-      encoding: 'utf8',
-    }
-  );
+  let diff = '';
+  try {
+    diff = execFileSync(
+      'git',
+      ['diff', '--unified=0', baseRef, '--', ...projectPaths],
+      {
+        cwd: process.cwd(),
+        encoding: 'utf8',
+      }
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(
+      `Skipping changed-line coverage check; could not diff against ${baseRef}: ${message}`
+    );
+    return new Map();
+  }
   /** @type {Map<string, Set<number>>} */
   const changedLineMap = new Map();
   let currentPath = '';

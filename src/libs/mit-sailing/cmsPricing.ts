@@ -36,14 +36,14 @@ function booleanFromUnknown(value: unknown): boolean | undefined {
   return typeof value === 'boolean' ? value : undefined;
 }
 
-function stringArrayFromUnknown(value: unknown): string[] {
+function stringArrayFromUnknown(value: unknown): string[] | null {
   if (!Array.isArray(value)) {
-    return [];
+    return null;
   }
-  return value.flatMap((item) => {
-    const text = stringFromUnknown(item);
-    return text ? [text] : [];
-  });
+  const strings = value.map(stringFromUnknown);
+  return strings.every((item): item is string => item !== undefined)
+    ? strings
+    : null;
 }
 
 function planFromUnknown(value: unknown): CmsPricingPlan | null {
@@ -52,7 +52,7 @@ function planFromUnknown(value: unknown): CmsPricingPlan | null {
   const features = stringArrayFromUnknown(
     propertyFromUnknown(value, 'features')
   );
-  if (!title || !price || features.length === 0) {
+  if (!title || !price || !features || features.length === 0) {
     return null;
   }
 
@@ -94,11 +94,11 @@ export function parseCmsPricingBody(
     return null;
   }
 
-  const plans = plansValue.flatMap((value) => {
-    const plan = planFromUnknown(value);
-    return plan ? [plan] : [];
-  });
+  const plans = plansValue.map(planFromUnknown);
   if (plans.length < 1 || plans.length > CMS_PRICING_MAX_PLANS) {
+    return null;
+  }
+  if (!plans.every((plan): plan is CmsPricingPlan => plan !== null)) {
     return null;
   }
 

@@ -18,10 +18,10 @@ describe('sanitizeCmsRichTextHtml', () => {
   it('keeps semantic rich text and safe links', () => {
     expect(
       sanitizeCmsRichTextHtml(
-        '<h2>Intro</h2><p><strong>Bold</strong> and <em>italic</em> <a href="/about">about</a> <a href="https://example.com">remote</a></p><ul><li>One</li></ul>'
+        '<h2>Intro</h2><p><strong>Bold</strong> and <em>italic</em> <a href="/about">about</a> <a href="https://example.com">remote</a> <a href="tel:+16172534880">call</a></p><ul><li>One</li></ul>'
       )
     ).toBe(
-      '<h2>Intro</h2><p><strong>Bold</strong> and <em>italic</em> <a href="/about">about</a> <a href="https://example.com" rel="noopener noreferrer" target="_blank">remote</a></p><ul><li>One</li></ul>'
+      '<h2>Intro</h2><p><strong>Bold</strong> and <em>italic</em> <a href="/about">about</a> <a href="https://example.com" rel="noopener noreferrer" target="_blank">remote</a> <a href="tel:+16172534880" rel="noopener noreferrer" target="_blank">call</a></p><ul><li>One</li></ul>'
     );
   });
 

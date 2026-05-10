@@ -1,5 +1,6 @@
 import { ArrowLeft } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
+import Image from 'next/image';
 import { PublicAdminEditLink } from '@/components/mit-sailing/admin/PublicAdminEditLink';
 import { CmsRichText } from '@/components/mit-sailing/cms/CmsRichText';
 import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
@@ -55,6 +56,19 @@ export async function FleetBoatDetailView(props: FleetBoatDetailViewProps) {
           {boat.requiredClass.name}
         </Link>
       </section>
+
+      {boat.imagePath ? (
+        <div className="relative mb-6 aspect-[16/10] max-h-[420px] overflow-hidden rounded-xl bg-mit-line">
+          <Image
+            alt={boat.name}
+            className="object-cover"
+            fill
+            sizes="(max-width: 768px) 100vw, 1024px"
+            src={boat.imagePath}
+            unoptimized={boat.imagePath.startsWith('/')}
+          />
+        </div>
+      ) : null}
 
       <CmsRichText className={bodyClass} html={boat.description} />
     </>

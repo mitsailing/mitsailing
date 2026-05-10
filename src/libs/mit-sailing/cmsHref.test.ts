@@ -37,6 +37,11 @@ describe('cmsHref', () => {
       rel: 'noopener noreferrer',
       target: '_blank',
     });
+    expect(externalCmsLinkProps('HTTPS://sailing.mit.edu')).toEqual({
+      rel: 'noopener noreferrer',
+      target: '_blank',
+    });
     expect(externalCmsLinkProps('mailto:sailing@mit.edu')).toEqual({});
+    expect(externalCmsLinkProps('/about')).toEqual({});
   });
 });
