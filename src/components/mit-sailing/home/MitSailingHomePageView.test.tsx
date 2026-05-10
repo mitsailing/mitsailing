@@ -244,6 +244,49 @@ const homePage = {
   title: 'MIT Sailing',
 } satisfies PublicCmsPage;
 
+function createOverviewBlock(props: {
+  eventCount?: number;
+  eventsCtaLabel?: string;
+  eventsCtaUrl?: string;
+}) {
+  return {
+    body: JSON.stringify({
+      eventCount: props.eventCount ?? 2,
+      eventsCtaLabel: props.eventsCtaLabel ?? 'Full calendar',
+      eventsCtaUrl: props.eventsCtaUrl ?? 'https://calendar.example.edu',
+      eventsEmptyText: 'No events posted.',
+      eventsTitle: 'Upcoming at MIT Sailing',
+      hoursNote: 'Sunset can change launch times.',
+      schedule: [
+        { day: 'Weekdays', hours: 'Noon - 8 PM' },
+        { day: 'Weekends', hours: '9 AM - 6 PM' },
+      ],
+      steps: [
+        {
+          description: 'Create an account and review pavilion rules.',
+          title: 'Join online',
+        },
+        {
+          description: 'Take the introductory class before solo sailing.',
+          title: 'Take a class',
+        },
+      ],
+      stepsTitle: 'Getting started',
+    }),
+    id: 'overview',
+    kind: 'home_overview',
+    subtitle: 'What to know before you visit',
+    title: 'Daily Sailing',
+  } satisfies PublicCmsBlock;
+}
+
+function homePageWithBlocks(nextBlocks: PublicCmsBlock[]) {
+  return {
+    ...homePage,
+    blocks: nextBlocks,
+  } satisfies PublicCmsPage;
+}
+
 describe('MitSailingHomePageView', () => {
   beforeEach(() => {
     homeMocks.getTranslations.mockResolvedValue(translate);
@@ -333,5 +376,61 @@ describe('MitSailingHomePageView', () => {
         name: 'Book rentals',
       })
     ).toHaveAttribute('href', '/contact');
+  });
+
+  it('limits public event links and omits account creation for signed-in sailors', async () => {
+    const [heroBlock] = blocks;
+    if (!heroBlock) {
+      throw new Error('Expected hero block fixture');
+    }
+
+    homeMocks.getSession.mockResolvedValue({
+      user: { id: 'sailor-id' },
+    });
+    homeMocks.loadPublishedCmsPageByPath.mockResolvedValue(
+      homePageWithBlocks([
+        heroBlock,
+        createOverviewBlock({ eventCount: 1, eventsCtaUrl: '/events' }),
+      ])
+    );
+
+    render(await MitSailingHomePageView({ locale: 'en' }));
+
+    expect(
+      screen.queryByRole('link', { name: 'Create account' })
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Intro sail' })).toHaveAttribute(
+      'href',
+      '/events/intro-sail/'
+    );
+    expect(
+      screen.queryByRole('link', { name: 'Racing clinic' })
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Full calendar' })).toHaveAttribute(
+      'href',
+      '/events'
+    );
+    expect(
+      screen.getByRole('link', { name: 'Full calendar' })
+    ).not.toHaveAttribute('target');
+  });
+
+  it('does not render unsafe cms overview cta links', async () => {
+    homeMocks.getHomeUpcomingDayGroups.mockResolvedValue([]);
+    homeMocks.loadPublishedCmsPageByPath.mockResolvedValue(
+      homePageWithBlocks([
+        createOverviewBlock({
+          eventsCtaLabel: 'Unsafe calendar',
+          eventsCtaUrl: ['java', 'script:alert(1)'].join(''),
+        }),
+      ])
+    );
+
+    render(await MitSailingHomePageView({ locale: 'en' }));
+
+    expect(screen.getByText('No events posted.')).toBeVisible();
+    expect(
+      screen.queryByRole('link', { name: 'Unsafe calendar' })
+    ).not.toBeInTheDocument();
   });
 });
