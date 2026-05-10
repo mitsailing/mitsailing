@@ -1,11 +1,12 @@
 import sanitizeHtml from 'sanitize-html';
 
-const REMOTE_HREF_PREFIXES = [
+const ALLOWED_HREF_PREFIXES = [
   'http://',
   'https://',
   'mailto:',
   'tel:',
 ] as const;
+const NEW_TAB_HREF_PREFIXES = ['http://', 'https://'] as const;
 const CMS_MEDIA_IMAGE_EXTENSIONS = ['.gif', '.jpg', '.jpeg', '.png', '.webp'];
 const CMS_MEDIA_IMAGE_PATH_RE = /^\/cms-media\/[^/?#]+\/[^/?#]+$/u;
 const HTML_TAG_RE = /<[a-z][\s\S]*>/iu;
@@ -52,7 +53,7 @@ function isAllowedCmsRichTextHref(href: string): boolean {
   if (h.startsWith('/') && !h.startsWith('//')) {
     return true;
   }
-  return REMOTE_HREF_PREFIXES.some((p) => lower.startsWith(p));
+  return ALLOWED_HREF_PREFIXES.some((p) => lower.startsWith(p));
 }
 
 function isAllowedCmsMediaImageSrc(src: string): boolean {
@@ -132,10 +133,10 @@ function transformCmsRichTextAnchor(
     return { tagName: 'span', attribs: {} };
   }
   const lower = href.toLowerCase();
-  const isRemote = REMOTE_HREF_PREFIXES.some((p) => lower.startsWith(p));
+  const opensNewTab = NEW_TAB_HREF_PREFIXES.some((p) => lower.startsWith(p));
   return {
     tagName: 'a',
-    attribs: isRemote
+    attribs: opensNewTab
       ? { href, rel: 'noopener noreferrer', target: '_blank' }
       : { href },
   };

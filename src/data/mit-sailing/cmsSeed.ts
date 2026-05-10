@@ -49,6 +49,7 @@ export type CmsSeedMenuItem = {
 export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
   {
     id: 'cms-page-home',
+    isPublished: true,
     slug: 'home',
     path: '/',
     title: 'MIT Sailing',
@@ -216,6 +217,7 @@ export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
   },
   {
     id: 'cms-page-about',
+    isPublished: true,
     slug: 'about',
     path: '/about',
     title: 'About MIT Sailing',
@@ -245,6 +247,7 @@ export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
   },
   {
     id: 'cms-page-contact',
+    isPublished: true,
     slug: 'contact',
     path: '/contact',
     title: 'Contact',
@@ -291,6 +294,7 @@ export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
   },
   {
     id: 'cms-page-privacy',
+    isPublished: true,
     slug: 'privacy',
     path: '/privacy',
     title: 'Privacy',
@@ -337,6 +341,7 @@ export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
   },
   {
     id: 'cms-page-terms',
+    isPublished: true,
     slug: 'terms',
     path: '/terms',
     title: 'Terms',
@@ -383,6 +388,7 @@ export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
   },
   {
     id: 'cms-page-accessibility',
+    isPublished: true,
     slug: 'accessibility',
     path: '/accessibility',
     title: 'Accessibility',
