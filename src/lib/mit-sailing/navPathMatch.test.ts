@@ -8,6 +8,7 @@ import {
 describe('normalizeNavPath', () => {
   it('strips trailing slash except root', () => {
     expect(normalizeNavPath('/fleet/foo/')).toBe('/fleet/foo');
+    expect(normalizeNavPath('/fleet/foo')).toBe('/fleet/foo');
     expect(normalizeNavPath('/')).toBe('/');
   });
 
@@ -16,7 +17,7 @@ describe('normalizeNavPath', () => {
   });
 
   it('drops query on pathname segment', () => {
-    expect(normalizeNavPath('/events/?foo=bar')).toBe('/events');
+    expect(normalizeNavPath('/events?foo=bar')).toBe('/events');
   });
 
   it('drops hash from pathname fragment', () => {
@@ -26,7 +27,7 @@ describe('normalizeNavPath', () => {
 
 describe('hashFromHref', () => {
   it('returns decoded hash when present', () => {
-    expect(hashFromHref('/classes/#foo%20bar')).toBe('foo bar');
+    expect(hashFromHref('/classes#foo%20bar')).toBe('foo bar');
   });
 
   it('returns undefined when hash absent', () => {
@@ -40,23 +41,27 @@ describe('hashFromHref', () => {
 
 describe('isNavLinkActive', () => {
   it('matches path-only link when pathname matches and route has no hash', () => {
-    expect(isNavLinkActive('/events/', '', '/events/')).toBe(true);
+    expect(isNavLinkActive('/events', '', '/events')).toBe(true);
     expect(isNavLinkActive('/events', '', '/events')).toBe(true);
   });
 
   it('does not mark path-only link when hash present on route', () => {
-    expect(isNavLinkActive('/classes', 'windsurfing', '/classes/')).toBe(false);
+    expect(isNavLinkActive('/classes', 'windsurfing', '/classes')).toBe(false);
+  });
+
+  it('does not match links for a different path', () => {
+    expect(isNavLinkActive('/fleet', '', '/classes')).toBe(false);
   });
 
   it('matches hashed link when path and hash match', () => {
-    expect(isNavLinkActive('/classes/', 'slug', '/classes/#slug')).toBe(true);
+    expect(isNavLinkActive('/classes', 'slug', '/classes#slug')).toBe(true);
   });
 
   it('does not match hashed link when route hash differs', () => {
-    expect(isNavLinkActive('/classes', 'a', '/classes/#b')).toBe(false);
+    expect(isNavLinkActive('/classes', 'a', '/classes#b')).toBe(false);
   });
 
   it('requires hash match when href includes hash', () => {
-    expect(isNavLinkActive('/classes', '', '/classes/#slug')).toBe(false);
+    expect(isNavLinkActive('/classes', '', '/classes#slug')).toBe(false);
   });
 });

@@ -19,6 +19,9 @@ export type MitSailingRoutesCatalogMessageKey =
 export type AdminFieldKind =
   | 'string'
   | 'text'
+  | 'richText'
+  | 'image'
+  | 'imageList'
   | 'url'
   | 'number'
   | 'boolean'
@@ -55,6 +58,12 @@ export type AdminFormFieldDef = {
   selectOptions?: readonly AdminSelectOption[];
 };
 
+export type AdminFormSectionDef = {
+  fields: readonly string[];
+  helperKey?: AdminCatalogResourceMessageKey | AdminUsersMessageKey;
+  headingKey: AdminCatalogResourceMessageKey | AdminUsersMessageKey;
+};
+
 export type CatalogCapabilities = {
   create: boolean;
   update: boolean;
@@ -71,13 +80,16 @@ export type CatalogResourceDefinition = {
   hubLabelKey: AdminCatalogResourceMessageKey;
   listColumns: readonly AdminListColumnDef[];
   formFields: readonly AdminFormFieldDef[];
+  formSections?: readonly AdminFormSectionDef[];
   capabilities: CatalogCapabilities;
+  /** Row field containing an app-relative public URL for a View action. */
+  publicViewHrefField?: string;
 };
 
 /** Serialized row for list/detail forms (dates as ISO strings). */
 export type CatalogRow = Record<
   string,
-  string | number | boolean | null | undefined
+  string | string[] | number | boolean | null | undefined
 >;
 
 /** Admin user row for `/admin/users` lists and forms (assignable to {@link CatalogRow}). */
@@ -92,9 +104,20 @@ export type AdminUserRow = {
 
 export type CatalogMutationOk = { ok: true };
 
-export type CatalogMutationErr = { ok: false; code: string };
+export type CatalogMutationErr = {
+  ok: false;
+  code: string;
+  fieldErrors?: Record<string, string>;
+};
 
 export type CatalogCreateResult = { ok: true; id: string } | CatalogMutationErr;
+
+export type CatalogMutationContext = {
+  /** Real actor responsible for the change. */
+  userId?: string;
+  /** Session target when an actor is impersonating another user. */
+  impersonatedUserId?: string;
+};
 
 /** Optional scope for category-scoped reorder (e.g. sailing classes per `ClassCategory`). */
 export type CatalogReorderScope = {
@@ -104,6 +127,8 @@ export type CatalogReorderScope = {
 /** Optional context for {@link CatalogServerHandlers.list} (e.g. locale-scoped public URLs). */
 export type CatalogListOptions = {
   locale?: string;
+  menuId?: string;
+  pageId?: string;
 };
 
 /**
@@ -113,12 +138,19 @@ export type CatalogListOptions = {
 export type CatalogServerHandlers = {
   list: (options?: CatalogListOptions) => Promise<CatalogRow[]>;
   getById: (id: string) => Promise<CatalogRow | null>;
-  createFromForm: (formData: FormData) => Promise<CatalogCreateResult>;
+  createFromForm: (
+    formData: FormData,
+    context?: CatalogMutationContext
+  ) => Promise<CatalogCreateResult>;
   updateFromForm: (
     id: string,
-    formData: FormData
+    formData: FormData,
+    context?: CatalogMutationContext
   ) => Promise<CatalogMutationOk | CatalogMutationErr>;
-  delete: (id: string) => Promise<CatalogMutationOk | CatalogMutationErr>;
+  delete: (
+    id: string,
+    context?: CatalogMutationContext
+  ) => Promise<CatalogMutationOk | CatalogMutationErr>;
   reorder?: (
     orderedIds: readonly string[],
     scope?: CatalogReorderScope

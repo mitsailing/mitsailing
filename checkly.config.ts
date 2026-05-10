@@ -8,13 +8,13 @@ const sendDefaults = {
 };
 
 const emailChannel = new EmailAlertChannel('email-channel-1', {
-  address: process.env.CHECKLY_EMAIL_ADDRESS ?? '',
+  address: 'support@mitsailing.com',
   ...sendDefaults,
 });
 
 export const config = defineConfig({
-  projectName: process.env.CHECKLY_PROJECT_NAME ?? '',
-  logicalId: process.env.CHECKLY_LOGICAL_ID ?? '',
+  projectName: 'MIT Sailing',
+  logicalId: 'mitsailing',
   repoUrl: 'https://github.com/mitsailing/mitsailing',
   checks: {
     locations: ['us-east-1'],

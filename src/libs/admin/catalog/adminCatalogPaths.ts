@@ -62,3 +62,29 @@ export function adminCatalogResourceAssociationPath(
 ): string {
   return `/admin/${resourceId}/${id}/${segment}`;
 }
+
+/**
+ * @param pageId - CMS page id
+ * @param revisionId - CMS page revision id
+ * @returns Path to the CMS page revision comparison screen
+ */
+export function adminCmsPageRevisionPath(
+  pageId: string,
+  revisionId: string
+): string {
+  return `/admin/cms_pages/${encodeURIComponent(pageId)}/revisions/${encodeURIComponent(revisionId)}`;
+}
+
+/**
+ * @param resourceId - Registered catalog resource key
+ * @param id - Row primary key
+ * @param revisionId - User audit revision id
+ * @returns Path to a catalog item revision comparison screen
+ */
+export function adminCatalogResourceRevisionPath(
+  resourceId: string,
+  id: string,
+  revisionId: string
+): string {
+  return `/admin/${encodeURIComponent(resourceId)}/${encodeURIComponent(id)}/revisions/${encodeURIComponent(revisionId)}`;
+}

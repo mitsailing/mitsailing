@@ -8,6 +8,7 @@ import {
 import type {
   CatalogCreateResult,
   CatalogListOptions,
+  CatalogMutationContext,
   CatalogMutationErr,
   CatalogMutationOk,
   CatalogReorderScope,
@@ -15,6 +16,12 @@ import type {
   CatalogServerHandlers,
 } from '@/libs/admin/catalog/types';
 import { prisma } from '@/libs/DB';
+import {
+  loadCatalogRevisionSnapshot,
+  recordCatalogRevision,
+  recordCatalogRevisionFromSnapshot,
+  recordCatalogRevisionIfChanged,
+} from '@/libs/mit-sailing/catalogHistory';
 
 function mapPrismaErr(e: unknown): CatalogMutationErr | null {
   if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
@@ -101,6 +108,7 @@ export const sailingClassesCatalogHandlers: CatalogServerHandlers = {
         classCategoryId: true,
         level: true,
         description: true,
+        imagePaths: true,
         isVisible: true,
       },
     });
@@ -114,11 +122,15 @@ export const sailingClassesCatalogHandlers: CatalogServerHandlers = {
       classCategoryId: row.classCategoryId,
       level: row.level,
       description: row.description,
+      imagePaths: row.imagePaths,
       isVisible: row.isVisible,
     };
   },
 
-  async createFromForm(formData: FormData): Promise<CatalogCreateResult> {
+  async createFromForm(
+    formData: FormData,
+    context?: CatalogMutationContext
+  ): Promise<CatalogCreateResult> {
     const parsed = sailingClassFormSchema.safeParse(
       rawSailingClassFromFormData(formData)
     );
@@ -141,9 +153,16 @@ export const sailingClassesCatalogHandlers: CatalogServerHandlers = {
           classCategoryId: data.classCategoryId,
           level: data.level,
           description: data.description,
+          imagePaths: data.imagePaths,
           displayOrder: nextDisplayOrder,
           isVisible: data.isVisible,
         },
+      });
+      await recordCatalogRevision({
+        action: 'create',
+        context,
+        itemId: newId,
+        resourceId: 'sailing_classes',
       });
       return { ok: true, id: newId };
     } catch (error) {
@@ -157,7 +176,8 @@ export const sailingClassesCatalogHandlers: CatalogServerHandlers = {
 
   async updateFromForm(
     id: string,
-    formData: FormData
+    formData: FormData,
+    context?: CatalogMutationContext
   ): Promise<CatalogMutationOk | CatalogMutationErr> {
     const parsed = sailingClassFormSchema.safeParse(
       rawSailingClassFromFormData(formData)
@@ -167,6 +187,10 @@ export const sailingClassesCatalogHandlers: CatalogServerHandlers = {
     }
     const { data } = parsed;
     try {
+      const previousSnapshot = await loadCatalogRevisionSnapshot({
+        itemId: id,
+        resourceId: 'sailing_classes',
+      });
       await prisma.sailingClass.update({
         where: { id },
         data: {
@@ -175,8 +199,16 @@ export const sailingClassesCatalogHandlers: CatalogServerHandlers = {
           classCategoryId: data.classCategoryId,
           level: data.level,
           description: data.description,
+          imagePaths: data.imagePaths,
           isVisible: data.isVisible,
         },
+      });
+      await recordCatalogRevisionIfChanged({
+        action: 'update',
+        context,
+        itemId: id,
+        previousSnapshot,
+        resourceId: 'sailing_classes',
       });
       return { ok: true };
     } catch (error) {
@@ -188,7 +220,10 @@ export const sailingClassesCatalogHandlers: CatalogServerHandlers = {
     }
   },
 
-  async delete(id: string): Promise<CatalogMutationOk | CatalogMutationErr> {
+  async delete(
+    id: string,
+    context?: CatalogMutationContext
+  ): Promise<CatalogMutationOk | CatalogMutationErr> {
     const boats = await prisma.fleetBoat.count({
       where: { requiredClassId: id },
     });
@@ -196,7 +231,20 @@ export const sailingClassesCatalogHandlers: CatalogServerHandlers = {
       return { ok: false, code: 'foreign_key' };
     }
     try {
+      const snapshot = await loadCatalogRevisionSnapshot({
+        itemId: id,
+        resourceId: 'sailing_classes',
+      });
       await prisma.sailingClass.delete({ where: { id } });
+      if (snapshot) {
+        await recordCatalogRevisionFromSnapshot({
+          action: 'delete',
+          context,
+          itemId: id,
+          resourceId: 'sailing_classes',
+          snapshot,
+        });
+      }
       return { ok: true };
     } catch (error) {
       const mapped = mapPrismaErr(error);

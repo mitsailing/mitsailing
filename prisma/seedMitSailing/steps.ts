@@ -7,6 +7,15 @@ import {
   FLEET_BOATS,
   SAILING_CLASSES,
 } from '../../src/data/mit-sailing/classesFleetSeed';
+import {
+  CMS_MENU_SEED_ROWS,
+  CMS_PAGE_SEED_ROWS,
+} from '../../src/data/mit-sailing/cmsSeed';
+import type {
+  CmsSeedMenu,
+  CmsSeedMenuItem,
+  CmsSeedPage,
+} from '../../src/data/mit-sailing/cmsSeed';
 import { DONATION_FUND_SEED_ROWS } from '../../src/data/mit-sailing/donationFundsSeed';
 import {
   EVENT_ADMINS,
@@ -163,7 +172,7 @@ export async function seedSailingClassesAndBoats(
         displayOrder: b.displayOrder,
         requiredClassId: b.requiredClassId,
         description: b.description,
-        imagePaths: b.images,
+        imagePath: b.image,
       },
       update: {
         name: b.name,
@@ -172,7 +181,7 @@ export async function seedSailingClassesAndBoats(
         displayOrder: b.displayOrder,
         requiredClassId: b.requiredClassId,
         description: b.description,
-        imagePaths: b.images,
+        imagePath: b.image,
       },
     });
   }
@@ -485,4 +494,130 @@ export async function seedSiteAlerts(p: PrismaClient): Promise<void> {
       },
     });
   }
+}
+
+async function seedCmsPageBlocks(
+  p: PrismaClient,
+  page: CmsSeedPage
+): Promise<void> {
+  for (const block of page.blocks) {
+    await p.cmsPageBlock.upsert({
+      where: { id: block.id },
+      create: {
+        id: block.id,
+        pageId: page.id,
+        kind: block.kind,
+        title: block.title,
+        subtitle: block.subtitle ?? null,
+        body: block.body ?? null,
+        ctaLabel: block.ctaLabel ?? null,
+        ctaUrl: block.ctaUrl ?? null,
+        imageSrc: block.imageSrc ?? null,
+        imageAlt: block.imageAlt ?? null,
+        displayOrder: block.displayOrder,
+        isVisible: block.isVisible,
+      },
+      update: {
+        pageId: page.id,
+        kind: block.kind,
+        title: block.title,
+        subtitle: block.subtitle ?? null,
+        body: block.body ?? null,
+        ctaLabel: block.ctaLabel ?? null,
+        ctaUrl: block.ctaUrl ?? null,
+        imageSrc: block.imageSrc ?? null,
+        imageAlt: block.imageAlt ?? null,
+        displayOrder: block.displayOrder,
+        isVisible: block.isVisible,
+      },
+    });
+  }
+}
+
+async function seedCmsPages(p: PrismaClient): Promise<void> {
+  for (const page of CMS_PAGE_SEED_ROWS) {
+    await p.cmsPage.upsert({
+      where: { id: page.id },
+      create: {
+        id: page.id,
+        slug: page.slug,
+        path: page.path,
+        title: page.title,
+        metaTitle: page.metaTitle,
+        metaDescription: page.metaDescription,
+        isPublished: page.isPublished ?? true,
+      },
+      update: {
+        slug: page.slug,
+        path: page.path,
+        title: page.title,
+        metaTitle: page.metaTitle,
+        metaDescription: page.metaDescription,
+        isPublished: page.isPublished ?? true,
+      },
+    });
+    await seedCmsPageBlocks(p, page);
+  }
+}
+
+async function seedCmsMenuItem(
+  p: PrismaClient,
+  menu: CmsSeedMenu,
+  item: CmsSeedMenuItem
+): Promise<void> {
+  await p.cmsMenuItem.upsert({
+    where: { id: item.id },
+    create: {
+      id: item.id,
+      menuId: menu.id,
+      parentId: item.parentId ?? null,
+      linkedPageId: item.linkedPageId ?? null,
+      label: item.label,
+      url: item.url ?? null,
+      isExternal: item.isExternal,
+      isVisible: item.isVisible,
+      displayOrder: item.displayOrder,
+      systemKey: item.systemKey ?? null,
+    },
+    update: {
+      menuId: menu.id,
+      parentId: item.parentId ?? null,
+      linkedPageId: item.linkedPageId ?? null,
+      label: item.label,
+      url: item.url ?? null,
+      isExternal: item.isExternal,
+      isVisible: item.isVisible,
+      displayOrder: item.displayOrder,
+      systemKey: item.systemKey ?? null,
+    },
+  });
+}
+
+async function seedCmsMenus(p: PrismaClient): Promise<void> {
+  for (const menu of CMS_MENU_SEED_ROWS) {
+    await p.cmsMenu.upsert({
+      where: { id: menu.id },
+      create: {
+        id: menu.id,
+        location: menu.location,
+        title: menu.title,
+      },
+      update: {
+        location: menu.location,
+        title: menu.title,
+      },
+    });
+
+    for (const item of menu.items) {
+      await seedCmsMenuItem(p, menu, item);
+    }
+  }
+}
+
+/**
+ * @param p - Prisma client
+ */
+export async function seedCmsContent(p: PrismaClient): Promise<void> {
+  await seedCmsPages(p);
+  await seedCmsMenus(p);
 }

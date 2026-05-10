@@ -1,6 +1,7 @@
 import { cache } from 'react';
 import { prisma } from '@/libs/DB';
 import { cacheDbListOrEmpty } from '@/libs/mit-sailing/cacheDbListOrEmpty';
+import { plainTextFromCmsRichTextHtml } from '@/libs/mit-sailing/cmsRichText';
 import {
   hrefClassesCategoryFromSlug,
   mapNameSlugRowsToNavLinks,
@@ -13,6 +14,7 @@ export type CatalogClassCard = {
   slug: string;
   level: string;
   description: string;
+  imagePaths: string[];
 };
 
 export type CatalogCategorySection = {
@@ -84,6 +86,7 @@ export async function listSailingClassesGroupedForCatalog(): Promise<
       slug: true,
       level: true,
       description: true,
+      imagePaths: true,
       classCategory: {
         select: {
           id: true,
@@ -109,7 +112,8 @@ export async function listSailingClassesGroupedForCatalog(): Promise<
       name: row.name,
       slug: row.slug,
       level: row.level,
-      description: row.description,
+      description: plainTextFromCmsRichTextHtml(row.description),
+      imagePaths: row.imagePaths,
     };
     if (current && current.category.id === cat.id) {
       current.classes.push(card);
@@ -136,6 +140,7 @@ export type SailingClassCatalogDetail = {
   slug: string;
   level: string;
   description: string;
+  imagePaths: string[];
   classCategory: { name: string; slug: string };
   prerequisiteIds: string[];
   relatedEventIds: string[];
@@ -149,7 +154,7 @@ export type SailingClassCatalogDetail = {
     description: string;
     type: string;
     capacity: number;
-    imagePaths: string[];
+    imagePath: string | null;
   }[];
 };
 
@@ -184,6 +189,7 @@ export const getSailingClassCatalogBySlug = cache(
         slug: true,
         level: true,
         description: true,
+        imagePaths: true,
         classCategory: { select: { name: true, slug: true } },
         prerequisiteEdges: {
           where: { prerequisiteClass: { isVisible: true } },
@@ -214,7 +220,7 @@ export const getSailingClassCatalogBySlug = cache(
                 description: true,
                 type: true,
                 capacity: true,
-                imagePaths: true,
+                imagePath: true,
               },
             },
           },
@@ -245,13 +251,19 @@ export const getSailingClassCatalogBySlug = cache(
       slug: sailingClass.slug,
       level: sailingClass.level,
       description: sailingClass.description,
+      imagePaths: sailingClass.imagePaths,
       classCategory: sailingClass.classCategory,
       prerequisiteIds,
       relatedEventIds,
       unlockedBoatIds,
       prerequisites: orderByIdOrder(prerequisiteIds, prerequisites),
       relatedEvents: orderByIdOrder(relatedEventIds, relatedEvents),
-      unlockedBoats: orderByIdOrder(unlockedBoatIds, unlockedBoats),
+      unlockedBoats: orderByIdOrder(unlockedBoatIds, unlockedBoats).map(
+        (boat) => ({
+          ...boat,
+          description: plainTextFromCmsRichTextHtml(boat.description),
+        })
+      ),
     };
   }
 );

@@ -48,6 +48,10 @@ export const Env = createEnv({
     // Dedicated test database for destructive Playwright cleanup helpers.
     TEST_DATABASE_URL: z.string().min(1).optional(),
 
+    // Persistent local filesystem root for CMS uploads. Local dev can use the
+    // git-ignored `local/` tree; staging/prod should set an absolute mounted path.
+    CMS_MEDIA_ROOT: z.string().min(1).default('local/cms-media'),
+
     // Optional cleanup logging for e2e teardown helpers.
     DEBUG_CLEANUP: z.enum(['1', 'true']).optional(),
 
@@ -87,6 +91,17 @@ export const Env = createEnv({
           path: ['TEST_DATABASE_URL'],
         });
       }
+      if (
+        (env.APP_ENV === 'staging' || env.APP_ENV === 'production') &&
+        !env.CMS_MEDIA_ROOT.startsWith('/')
+      ) {
+        ctx.addIssue({
+          code: 'custom',
+          message:
+            'CMS_MEDIA_ROOT must be an absolute persistent path in staging and production.',
+          path: ['CMS_MEDIA_ROOT'],
+        });
+      }
     }),
   runtimeEnv: {
     ARCJET_KEY: process.env.ARCJET_KEY,
@@ -100,6 +115,7 @@ export const Env = createEnv({
     SMTP_URL: process.env.SMTP_URL,
     MAILPIT_API_URL: process.env.MAILPIT_API_URL,
     TEST_DATABASE_URL: process.env.TEST_DATABASE_URL,
+    CMS_MEDIA_ROOT: process.env.CMS_MEDIA_ROOT,
     DEBUG_CLEANUP: process.env.DEBUG_CLEANUP,
     SUPPORT_EMAIL: process.env.SUPPORT_EMAIL,
     CLOUDFLARE_TUNNEL_TOKEN: process.env.CLOUDFLARE_TUNNEL_TOKEN,

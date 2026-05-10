@@ -23,12 +23,36 @@ import {
 import type { CatalogResourceId } from '@/libs/admin/catalog/catalogDefinitions';
 import { isCatalogResourceId } from '@/libs/admin/catalog/catalogDefinitions';
 import { getCatalogServerHandlers } from '@/libs/admin/catalog/catalogServerRegistry';
-import type { CatalogReorderScope } from '@/libs/admin/catalog/types';
+import type {
+  CatalogMutationContext,
+  CatalogReorderScope,
+  CatalogRow,
+} from '@/libs/admin/catalog/types';
 import { requireAdmin } from '@/libs/auth/dal';
+import type { AuthSession } from '@/libs/auth/dal';
+import {
+  isCatalogHistoryResourceId,
+  restoreCatalogRevision,
+} from '@/libs/mit-sailing/catalogHistory';
+import { restoreCmsPageRevision } from '@/libs/mit-sailing/cmsHistory';
 import { SITE_ALERTS_CACHE_TAG } from '@/libs/mit-sailing/siteAlertQueries';
 import { getI18nPath } from '@/utils/Helpers';
 
 const orderedIdsSchema = z.array(z.string().min(1)).min(1);
+
+function catalogMutationContextFromSession(
+  session: NonNullable<AuthSession>
+): CatalogMutationContext {
+  const actorUserId =
+    typeof session.session.impersonatedBy === 'string'
+      ? session.session.impersonatedBy
+      : session.user.id;
+  return {
+    impersonatedUserId:
+      actorUserId === session.user.id ? undefined : session.user.id,
+    userId: actorUserId,
+  };
+}
 
 /** Public segments to invalidate when a catalog resource mutates (beyond `/donate`). */
 const CATALOG_EXTRA_PUBLIC_PATHS: Partial<
@@ -39,6 +63,10 @@ const CATALOG_EXTRA_PUBLIC_PATHS: Partial<
   sailing_classes: ['/classes'],
   fleet: ['/fleet'],
   site_alerts: ['/', '/alerts'],
+  cms_pages: ['/', '/about'],
+  cms_page_blocks: ['/', '/about'],
+  cms_menus: ['/'],
+  cms_menu_items: ['/'],
 };
 
 function revalidateAfterCatalogMutation(
@@ -55,11 +83,96 @@ function revalidateAfterCatalogMutation(
   if (resourceId === 'site_alerts') {
     revalidateTag(SITE_ALERTS_CACHE_TAG, { expire: 0 });
   }
+  if (resourceId.startsWith('cms_')) {
+    revalidatePath(getI18nPath('/', locale), 'layout');
+  }
   revalidatePath(getI18nPath(ADMIN_INDEX_PATH, locale));
   revalidatePath(
     getI18nPath(adminCatalogResourceIndexPath(resourceId), locale),
     'layout'
   );
+}
+
+function catalogDetailPath(
+  resourceId: CatalogResourceId,
+  slug: string
+): string | null {
+  if (resourceId === 'sailing_classes') {
+    return `/classes/${slug}`;
+  }
+  if (resourceId === 'fleet') {
+    return `/fleet/${slug}`;
+  }
+  return null;
+}
+
+function slugFromCatalogFormData(formData: FormData): string | null {
+  const slug = formData.get('slug');
+  return typeof slug === 'string' && slug.trim().length > 0
+    ? slug.trim()
+    : null;
+}
+
+function slugFromCatalogRow(row: CatalogRow | null): string | null {
+  const slug = row?.slug;
+  return typeof slug === 'string' && slug.trim().length > 0
+    ? slug.trim()
+    : null;
+}
+
+function revalidateCatalogDetailPath(
+  locale: string,
+  resourceId: CatalogResourceId,
+  slug: string | null
+): void {
+  if (!slug) {
+    return;
+  }
+  const path = catalogDetailPath(resourceId, slug);
+  if (path) {
+    revalidatePath(getI18nPath(path, locale));
+  }
+}
+
+function scopedCatalogMutationSearchParam(
+  resourceId: CatalogResourceId,
+  formData: FormData
+): { name: string; value: string } | undefined {
+  if (resourceId === 'cms_page_blocks') {
+    const pageId = formData.get('pageId');
+    return typeof pageId === 'string' && pageId.trim().length > 0
+      ? { name: 'page', value: pageId }
+      : undefined;
+  }
+  if (resourceId === 'cms_menu_items') {
+    const menuId = formData.get('menuId');
+    return typeof menuId === 'string' && menuId.trim().length > 0
+      ? { name: 'menu', value: menuId }
+      : undefined;
+  }
+  return undefined;
+}
+
+function catalogRedirectPath(props: {
+  basePath: string;
+  errorCode?: string;
+  fieldErrors?: Record<string, string>;
+  scope?: { name: string; value: string };
+}): string {
+  const searchParams = new URLSearchParams();
+  if (props.scope) {
+    searchParams.set(props.scope.name, props.scope.value);
+  }
+  if (props.errorCode) {
+    searchParams.set('error', props.errorCode);
+  }
+  if (props.fieldErrors) {
+    for (const field of Object.keys(props.fieldErrors)) {
+      searchParams.append('fieldError', field);
+    }
+  }
+  const query = searchParams.toString();
+  return query ? `${props.basePath}?${query}` : props.basePath;
 }
 
 /**
@@ -74,19 +187,41 @@ export async function createCatalogResourceAction(
   resourceId: string,
   formData: FormData
 ): Promise<void> {
-  await requireAdmin(locale);
+  const session = await requireAdmin(locale);
   if (!isCatalogResourceId(resourceId)) {
     redirect(getI18nPath(ADMIN_INDEX_PATH, locale));
   }
   const handlers = getCatalogServerHandlers(resourceId);
-  const result = await handlers.createFromForm(formData);
+  const scope = scopedCatalogMutationSearchParam(resourceId, formData);
+  const result = await handlers.createFromForm(
+    formData,
+    catalogMutationContextFromSession(session)
+  );
   if (!result.ok) {
     redirect(
-      `${getI18nPath(adminCatalogResourceNewPath(resourceId), locale)}?error=${encodeURIComponent(result.code)}`
+      catalogRedirectPath({
+        basePath: getI18nPath(adminCatalogResourceNewPath(resourceId), locale),
+        errorCode: result.code,
+        fieldErrors: result.fieldErrors,
+        scope,
+      })
     );
   }
   revalidateAfterCatalogMutation(locale, resourceId);
-  redirect(getI18nPath(adminCatalogResourceIndexPath(resourceId), locale));
+  revalidateCatalogDetailPath(
+    locale,
+    resourceId,
+    slugFromCatalogFormData(formData)
+  );
+  redirect(
+    catalogRedirectPath({
+      basePath: getI18nPath(
+        adminCatalogResourceEditPath(resourceId, result.id),
+        locale
+      ),
+      scope,
+    })
+  );
 }
 
 /**
@@ -103,19 +238,47 @@ export async function updateCatalogResourceAction(
   id: string,
   formData: FormData
 ): Promise<void> {
-  await requireAdmin(locale);
+  const session = await requireAdmin(locale);
   if (!isCatalogResourceId(resourceId)) {
     redirect(getI18nPath(ADMIN_INDEX_PATH, locale));
   }
   const handlers = getCatalogServerHandlers(resourceId);
-  const result = await handlers.updateFromForm(id, formData);
+  const scope = scopedCatalogMutationSearchParam(resourceId, formData);
+  const oldSlug = slugFromCatalogRow(await handlers.getById(id));
+  const result = await handlers.updateFromForm(
+    id,
+    formData,
+    catalogMutationContextFromSession(session)
+  );
   if (!result.ok) {
     redirect(
-      `${getI18nPath(adminCatalogResourceEditPath(resourceId, id), locale)}?error=${encodeURIComponent(result.code)}`
+      catalogRedirectPath({
+        basePath: getI18nPath(
+          adminCatalogResourceEditPath(resourceId, id),
+          locale
+        ),
+        errorCode: result.code,
+        fieldErrors: result.fieldErrors,
+        scope,
+      })
     );
   }
   revalidateAfterCatalogMutation(locale, resourceId);
-  redirect(getI18nPath(adminCatalogResourceIndexPath(resourceId), locale));
+  revalidateCatalogDetailPath(locale, resourceId, oldSlug);
+  revalidateCatalogDetailPath(
+    locale,
+    resourceId,
+    slugFromCatalogFormData(formData)
+  );
+  redirect(
+    catalogRedirectPath({
+      basePath: getI18nPath(
+        adminCatalogResourceEditPath(resourceId, id),
+        locale
+      ),
+      scope,
+    })
+  );
 }
 
 /**
@@ -130,19 +293,110 @@ export async function deleteCatalogResourceAction(
   resourceId: string,
   id: string
 ): Promise<void> {
-  await requireAdmin(locale);
+  const session = await requireAdmin(locale);
   if (!isCatalogResourceId(resourceId)) {
     redirect(getI18nPath(ADMIN_INDEX_PATH, locale));
   }
   const handlers = getCatalogServerHandlers(resourceId);
-  const result = await handlers.delete(id);
+  const oldSlug = slugFromCatalogRow(await handlers.getById(id));
+  const result = await handlers.delete(
+    id,
+    catalogMutationContextFromSession(session)
+  );
   if (!result.ok) {
     redirect(
       `${getI18nPath(adminCatalogResourceDeletePath(resourceId, id), locale)}?error=${encodeURIComponent(result.code)}`
     );
   }
   revalidateAfterCatalogMutation(locale, resourceId);
+  revalidateCatalogDetailPath(locale, resourceId, oldSlug);
   redirect(getI18nPath(adminCatalogResourceIndexPath(resourceId), locale));
+}
+
+/**
+ * Restores a CMS page and its blocks from a recorded page revision.
+ *
+ * @param locale - Active locale
+ * @param pageId - CMS page id
+ * @param revisionId - CMS page revision id
+ * @param formData - Confirmation form body
+ */
+export async function restoreCmsPageRevisionAction(
+  locale: string,
+  pageId: string,
+  revisionId: string,
+  formData: FormData
+): Promise<void> {
+  const session = await requireAdmin(locale);
+  if (formData.get('confirmRestore') !== 'true') {
+    redirect(
+      `${getI18nPath(adminCatalogResourceEditPath('cms_pages', pageId), locale)}?error=validation_failed`
+    );
+  }
+  const context = catalogMutationContextFromSession(session);
+  const result = await restoreCmsPageRevision({
+    createdByUserId: context.userId,
+    impersonatedUserId: context.impersonatedUserId,
+    pageId,
+    revisionId,
+  });
+  if (!result.ok) {
+    redirect(
+      `${getI18nPath(adminCatalogResourceEditPath('cms_pages', pageId), locale)}?error=${encodeURIComponent(result.code)}`
+    );
+  }
+  revalidateAfterCatalogMutation(locale, 'cms_pages');
+  redirect(
+    getI18nPath(adminCatalogResourceEditPath('cms_pages', pageId), locale)
+  );
+}
+
+/**
+ * Restores class or fleet form fields from a recorded user audit revision.
+ *
+ * @param locale - Active locale
+ * @param resourceId - Supported catalog resource key
+ * @param id - Row primary key
+ * @param revisionId - User audit revision id
+ * @param formData - Confirmation form body
+ */
+export async function restoreCatalogResourceRevisionAction(
+  locale: string,
+  resourceId: string,
+  id: string,
+  revisionId: string,
+  formData: FormData
+): Promise<void> {
+  const session = await requireAdmin(locale);
+  if (!isCatalogResourceId(resourceId)) {
+    redirect(getI18nPath(ADMIN_INDEX_PATH, locale));
+  }
+  if (!isCatalogHistoryResourceId(resourceId)) {
+    redirect(getI18nPath(adminCatalogResourceEditPath(resourceId, id), locale));
+  }
+  if (formData.get('confirmRestore') !== 'true') {
+    redirect(
+      `${getI18nPath(adminCatalogResourceEditPath(resourceId, id), locale)}?error=validation_failed`
+    );
+  }
+
+  const handlers = getCatalogServerHandlers(resourceId);
+  const oldSlug = slugFromCatalogRow(await handlers.getById(id));
+  const result = await restoreCatalogRevision({
+    context: catalogMutationContextFromSession(session),
+    itemId: id,
+    resourceId,
+    revisionId,
+  });
+  if (!result.ok) {
+    redirect(
+      `${getI18nPath(adminCatalogResourceEditPath(resourceId, id), locale)}?error=${encodeURIComponent(result.code)}`
+    );
+  }
+  revalidateAfterCatalogMutation(locale, resourceId);
+  revalidateCatalogDetailPath(locale, resourceId, oldSlug);
+  revalidateCatalogDetailPath(locale, resourceId, result.slug);
+  redirect(getI18nPath(adminCatalogResourceEditPath(resourceId, id), locale));
 }
 
 const reorderScopeSchema = z.object({
