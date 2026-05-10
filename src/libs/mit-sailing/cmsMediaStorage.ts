@@ -1,5 +1,6 @@
 import 'server-only';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { Env } from '@/libs/Env';
 import { resolveCmsMediaStoragePath } from '@/libs/mit-sailing/cmsMediaValidation';
@@ -8,8 +9,16 @@ function cmsMediaRoot(): string {
   return path.resolve(Env.CMS_MEDIA_ROOT);
 }
 
+function errorCode(error: unknown): string | undefined {
+  if (!(error instanceof Error) || !('code' in error)) {
+    return undefined;
+  }
+  const { code } = error;
+  return typeof code === 'string' ? code : undefined;
+}
+
 function isMissingFileError(error: unknown): boolean {
-  return error instanceof Error && Reflect.get(error, 'code') === 'ENOENT';
+  return errorCode(error) === 'ENOENT';
 }
 
 function cmsMediaFilePath(props: {
@@ -21,6 +30,16 @@ function cmsMediaFilePath(props: {
     id: props.id,
     filename: props.filename,
   });
+}
+
+async function removeCmsMediaPath(filePath: string): Promise<void> {
+  try {
+    await rm(filePath, { force: true });
+  } catch (error: unknown) {
+    if (!isMissingFileError(error)) {
+      throw error;
+    }
+  }
 }
 
 export async function writeCmsMediaFile(props: {
@@ -36,8 +55,28 @@ export async function writeCmsMediaFile(props: {
     return null;
   }
   await mkdir(path.dirname(fullPath), { recursive: true });
-  await writeFile(fullPath, props.bytes);
+  const tempPath = `${fullPath}.tmp-${randomUUID()}`;
+  try {
+    await writeFile(tempPath, props.bytes, { flag: 'wx' });
+    await rename(tempPath, fullPath);
+  } catch (error: unknown) {
+    await removeCmsMediaPath(tempPath);
+    throw error;
+  }
   return fullPath;
+}
+
+export async function deleteCmsMediaFile(props: {
+  id: string;
+  filename: string;
+}): Promise<void> {
+  const fullPath = cmsMediaFilePath({
+    id: props.id,
+    filename: props.filename,
+  });
+  if (fullPath) {
+    await removeCmsMediaPath(fullPath);
+  }
 }
 
 export async function readCmsMediaFile(props: {

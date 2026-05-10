@@ -489,9 +489,19 @@ async function menuTreeIsValid(props: {
     where: { menuId: props.menuId },
     select: { id: true, parentId: true },
   });
-  const nodes = rows.map((row) =>
-    row.id === props.id ? { id: row.id, parentId: props.parentId ?? null } : row
-  );
+  const nodes = props.id
+    ? rows.map((row) =>
+        row.id === props.id
+          ? { id: row.id, parentId: props.parentId ?? null }
+          : row
+      )
+    : [
+        ...rows,
+        {
+          id: '__pending_cms_menu_item__',
+          parentId: props.parentId ?? null,
+        },
+      ];
   return validateCmsMenuTree(nodes).ok;
 }
 

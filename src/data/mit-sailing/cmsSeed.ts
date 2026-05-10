@@ -5,6 +5,7 @@ export type CmsSeedPage = {
   title: string;
   metaTitle: string;
   metaDescription: string;
+  isPublished?: boolean;
   blocks: readonly {
     id: string;
     kind: 'hero' | 'text_section' | 'callout';

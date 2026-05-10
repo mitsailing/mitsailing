@@ -44,7 +44,9 @@ describe('parseContactSubmission', () => {
   it.each([
     ['topic', { topic: 'Regatta organizers' }],
     ['email', { email: 'ada@mit' }],
-    ['year', { currentYear: '2025' }],
+    ['year', { currentYear: '1900' }],
+    ['name', { name: ' ' }],
+    ['subject', { subject: ' ' }],
     ['message', { message: ' ' }],
   ])('rejects invalid %s submissions', (_field, override) => {
     const parsed = parseContactSubmission(
@@ -78,6 +80,22 @@ describe('buildContactEmail', () => {
     if (parsed.success) {
       expect(buildContactEmail(parsed.data).subject).toBe(
         '[MIT Sailing Contact] Visit the Pavilion: Sunday hours'
+      );
+    }
+  });
+
+  it('removes line breaks from the email subject header', () => {
+    const parsed = parseContactSubmission(
+      contactFormData({
+        subject: 'Hello\r\nBcc: attacker@example.com',
+      }),
+      new Date('2026-05-09T12:00:00-04:00')
+    );
+
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(buildContactEmail(parsed.data).subject).toBe(
+        '[MIT Sailing Contact] General questions: Hello Bcc: attacker@example.com'
       );
     }
   });

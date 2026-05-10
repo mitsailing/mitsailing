@@ -3,7 +3,10 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/libs/auth/dal';
 import { Role } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
-import { writeCmsMediaFile } from '@/libs/mit-sailing/cmsMediaStorage';
+import {
+  deleteCmsMediaFile,
+  writeCmsMediaFile,
+} from '@/libs/mit-sailing/cmsMediaStorage';
 import {
   buildCmsMediaPublicPath,
   validateCmsMediaUpload,
@@ -13,6 +16,15 @@ async function currentAdminUserId(): Promise<string | null> {
   const currentUser = await getCurrentUser();
   return currentUser?.role === Role.ADMIN ? currentUser.id : null;
 }
+
+type CreatedCmsMediaAsset = {
+  id: string;
+  originalFilename: string;
+  mimeType: string;
+  byteSize: number;
+  publicPath: string;
+  createdAt: Date;
+};
 
 export async function GET() {
   const userId = await currentAdminUserId();
@@ -57,7 +69,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const formData = await request.formData();
+  let formData: FormData;
+  try {
+    formData = await request.formData();
+  } catch {
+    return NextResponse.json({ error: 'invalid_form_data' }, { status: 400 });
+  }
   const file = formData.get('file');
   const pageId = formData.get('pageId');
   const normalizedPageId =
@@ -94,35 +111,52 @@ export async function POST(request: Request) {
     id,
     filename: validation.storedFilename,
   });
-  const writtenPath = await writeCmsMediaFile({
-    id,
-    filename: validation.storedFilename,
-    bytes,
-  });
+  let writtenPath: string | null;
+  try {
+    writtenPath = await writeCmsMediaFile({
+      id,
+      filename: validation.storedFilename,
+      bytes,
+    });
+  } catch (error: unknown) {
+    console.error('Failed to write CMS media file', error);
+    return NextResponse.json({ error: 'storage_failed' }, { status: 500 });
+  }
   if (!writtenPath) {
     return NextResponse.json({ error: 'unsafe_storage_path' }, { status: 400 });
   }
 
-  const asset = await prisma.cmsMediaAsset.create({
-    data: {
-      id,
-      pageId: normalizedPageId,
-      storedFilename: validation.storedFilename,
-      originalFilename: file.name,
-      mimeType: validation.mimeType,
-      byteSize: bytes.byteLength,
-      publicPath,
-      uploadedByUserId: userId,
-    },
-    select: {
-      id: true,
-      originalFilename: true,
-      mimeType: true,
-      byteSize: true,
-      publicPath: true,
-      createdAt: true,
-    },
-  });
+  let asset: CreatedCmsMediaAsset;
+  try {
+    asset = await prisma.cmsMediaAsset.create({
+      data: {
+        id,
+        pageId: normalizedPageId,
+        storedFilename: validation.storedFilename,
+        originalFilename: file.name,
+        mimeType: validation.mimeType,
+        byteSize: bytes.byteLength,
+        publicPath,
+        uploadedByUserId: userId,
+      },
+      select: {
+        id: true,
+        originalFilename: true,
+        mimeType: true,
+        byteSize: true,
+        publicPath: true,
+        createdAt: true,
+      },
+    });
+  } catch (error: unknown) {
+    try {
+      await deleteCmsMediaFile({ id, filename: validation.storedFilename });
+    } catch (cleanupError: unknown) {
+      console.error('Failed to remove orphaned CMS media file', cleanupError);
+    }
+    console.error('Failed to record CMS media asset', error);
+    return NextResponse.json({ error: 'asset_create_failed' }, { status: 500 });
+  }
 
   return NextResponse.json({
     id: asset.id,

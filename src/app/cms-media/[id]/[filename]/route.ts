@@ -1,10 +1,17 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/libs/DB';
 import { readCmsMediaFile } from '@/libs/mit-sailing/cmsMediaStorage';
+import { CMS_MEDIA_ALLOWED_MIME_TYPES } from '@/libs/mit-sailing/cmsMediaValidation';
 
 type CmsMediaRouteProps = {
   params: Promise<{ id: string; filename: string }>;
 };
+
+type CmsMediaAssetRouteRecord = {
+  storedFilename: string;
+  mimeType: string;
+  publicPath: string;
+} | null;
 
 const CMS_MEDIA_RESPONSE_HEADERS = {
   'Cache-Control': 'public, max-age=31536000, immutable',
@@ -12,6 +19,14 @@ const CMS_MEDIA_RESPONSE_HEADERS = {
     "default-src 'none'; img-src 'self'; media-src 'self'; style-src 'none'; script-src 'none'; sandbox",
   'X-Content-Type-Options': 'nosniff',
 } as const;
+
+const cmsMediaAllowedMimeTypes = new Set<string>(CMS_MEDIA_ALLOWED_MIME_TYPES);
+
+function cmsMediaContentType(mimeType: string): string {
+  return cmsMediaAllowedMimeTypes.has(mimeType)
+    ? mimeType
+    : 'application/octet-stream';
+}
 
 /**
  * Serves only DB-known CMS media files from the configured storage root.
@@ -22,14 +37,20 @@ const CMS_MEDIA_RESPONSE_HEADERS = {
  */
 export async function GET(_request: Request, props: CmsMediaRouteProps) {
   const { id, filename } = await props.params;
-  const asset = await prisma.cmsMediaAsset.findUnique({
-    where: { id },
-    select: {
-      storedFilename: true,
-      mimeType: true,
-      publicPath: true,
-    },
-  });
+  let asset: CmsMediaAssetRouteRecord;
+  try {
+    asset = await prisma.cmsMediaAsset.findUnique({
+      where: { id },
+      select: {
+        storedFilename: true,
+        mimeType: true,
+        publicPath: true,
+      },
+    });
+  } catch (error: unknown) {
+    console.error('Failed to fetch CMS media asset', error);
+    return new NextResponse(null, { status: 500 });
+  }
 
   if (
     !asset ||
@@ -39,7 +60,13 @@ export async function GET(_request: Request, props: CmsMediaRouteProps) {
     return new NextResponse(null, { status: 404 });
   }
 
-  const bytes = await readCmsMediaFile({ id, filename });
+  let bytes: Awaited<ReturnType<typeof readCmsMediaFile>>;
+  try {
+    bytes = await readCmsMediaFile({ id, filename });
+  } catch (error: unknown) {
+    console.error('Failed to read CMS media file', error);
+    return new NextResponse(null, { status: 500 });
+  }
   if (!bytes) {
     return new NextResponse(null, { status: 404 });
   }
@@ -48,7 +75,7 @@ export async function GET(_request: Request, props: CmsMediaRouteProps) {
     headers: {
       ...CMS_MEDIA_RESPONSE_HEADERS,
       'Content-Length': String(bytes.byteLength),
-      'Content-Type': asset.mimeType,
+      'Content-Type': cmsMediaContentType(asset.mimeType),
     },
   });
 }

@@ -58,6 +58,13 @@ function escapeHtml(value: string): string {
     .replaceAll("'", '&#39;');
 }
 
+function sanitizeEmailHeader(value: string): string {
+  return value
+    .replaceAll(/[\r\n]+/g, ' ')
+    .replaceAll(/\s+/g, ' ')
+    .trim();
+}
+
 function htmlParagraph(label: string, value: string): string {
   return `<p><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</p>`;
 }
@@ -104,7 +111,8 @@ export function recipientForContactTopic(topic: ContactTopic): string {
  * @returns Email payload for the transactional email gateway
  */
 export function buildContactEmail(submission: ContactSubmission) {
-  const subject = `[MIT Sailing Contact] ${submission.topic}: ${submission.subject}`;
+  const subjectText = sanitizeEmailHeader(submission.subject);
+  const subject = `[MIT Sailing Contact] ${submission.topic}: ${subjectText}`;
   const text = [
     `Topic: ${submission.topic}`,
     `Name: ${submission.name}`,

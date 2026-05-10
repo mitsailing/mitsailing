@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   cmsPageRevisionAggregate: vi.fn(),
   cmsPageRevisionCreate: vi.fn(),
   cmsPageRevisionFindFirst: vi.fn(),
+  prismaTransaction: vi.fn(),
 }));
 
 vi.mock('server-only', () => ({}));
@@ -41,6 +42,7 @@ vi.mock('@/libs/DB', () => ({
       create: mocks.cmsPageRevisionCreate,
       findFirst: mocks.cmsPageRevisionFindFirst,
     },
+    $transaction: mocks.prismaTransaction,
   },
 }));
 
@@ -69,6 +71,19 @@ beforeEach(() => {
   mocks.cmsPageRevisionAggregate.mockReset();
   mocks.cmsPageRevisionCreate.mockReset();
   mocks.cmsPageRevisionFindFirst.mockReset();
+  mocks.prismaTransaction.mockReset();
+  mocks.prismaTransaction.mockImplementation(
+    async (transactionBody: (tx: unknown) => Promise<unknown>) => {
+      const result = await transactionBody({
+        cmsPageRevision: {
+          aggregate: mocks.cmsPageRevisionAggregate,
+          create: mocks.cmsPageRevisionCreate,
+          findFirst: mocks.cmsPageRevisionFindFirst,
+        },
+      });
+      return result;
+    }
+  );
 });
 
 function cmsPageSnapshotRow(now: Date) {
@@ -235,6 +250,10 @@ describe('cmsPageBlocksCatalogHandlers', () => {
         })
       ).resolves.toEqual({ ok: true, id: 'block-1' });
 
+      expect(mocks.prismaTransaction).toHaveBeenCalledWith(
+        expect.any(Function),
+        { isolationLevel: 'Serializable' }
+      );
       expect(mocks.cmsPageRevisionCreate).toHaveBeenCalledWith({
         data: expect.objectContaining({
           action: 'update',

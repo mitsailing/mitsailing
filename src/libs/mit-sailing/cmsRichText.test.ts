@@ -33,6 +33,14 @@ describe('sanitizeCmsRichTextHtml', () => {
     ).toBe('<p>Text color bad</p>');
   });
 
+  it('strips links with obfuscated unsafe schemes', () => {
+    expect(
+      sanitizeCmsRichTextHtml(
+        '<p><a href="java\u0000script:alert(1)">null</a> <a href="java\tscript:alert(2)">tab</a></p>'
+      )
+    ).toBe('<p>null tab</p>');
+  });
+
   it('keeps cms media images with normalized alignment', () => {
     expect(
       sanitizeCmsRichTextHtml(

@@ -449,6 +449,7 @@ model CmsPage {
   blocks    CmsPageBlock[]
   menuItems CmsMenuItem[]
   mediaAssets CmsMediaAsset[]
+  revisions CmsPageRevision[]
 
   @@index([isPublished, path])
   @@map("cms_pages")
@@ -485,8 +486,10 @@ model CmsPageRevision {
   createdByUserId String?               @map("created_by_user_id")
   createdAt       DateTime              @default(now()) @map("created_at")
 
+  page      CmsPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
   createdBy User? @relation("CmsPageRevisionCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
 
+  @@unique([pageId, version])
   @@index([pageId, createdAt])
   @@index([createdByUserId])
   @@map("cms_page_revisions")

@@ -76,6 +76,8 @@ function mapCmsMenuTree(rows: CmsMenuItemRow[]): PublicCmsMenuItem[] {
       const parent = nodes.get(row.parentId);
       if (parent) {
         parent.children.push(node);
+      } else {
+        root.push(node);
       }
       continue;
     }

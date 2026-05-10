@@ -629,21 +629,6 @@ function cmsPageRevisionSnapshotJson(
   };
 }
 
-async function latestCmsPageRevision(pageId: string): Promise<{
-  version: number;
-  snapshot: Prisma.JsonValue;
-} | null> {
-  const revision = await prisma.cmsPageRevision.findFirst({
-    orderBy: [{ version: 'desc' }, { createdAt: 'desc' }],
-    select: {
-      snapshot: true,
-      version: true,
-    },
-    where: { pageId },
-  });
-  return revision;
-}
-
 export async function loadCmsPageRevisionSnapshot(
   pageId: string
 ): Promise<Prisma.InputJsonObject | null> {
@@ -660,28 +645,40 @@ export async function recordCmsPageRevisionFromSnapshot(props: {
   snapshot: Prisma.InputJsonObject;
   createdByUserId?: string;
 }): Promise<void> {
-  const latestRevision = await latestCmsPageRevision(props.pageId);
-  const latestSnapshot = cmsPageRevisionSnapshotFromUnknown(
-    latestRevision?.snapshot
-  );
-  const nextSnapshot = cmsPageRevisionSnapshotFromUnknown(props.snapshot);
-  if (
-    props.action === 'update' &&
-    latestSnapshot &&
-    nextSnapshot &&
-    cmsPageRevisionSnapshotsEqual(latestSnapshot, nextSnapshot)
-  ) {
-    return;
-  }
-  await prisma.cmsPageRevision.create({
-    data: {
-      pageId: props.pageId,
-      action: props.action,
-      version: (latestRevision?.version ?? 0) + 1,
-      snapshot: props.snapshot,
-      createdByUserId: props.createdByUserId ?? null,
+  await prisma.$transaction(
+    async (tx) => {
+      const latestRevision = await tx.cmsPageRevision.findFirst({
+        orderBy: [{ version: 'desc' }, { createdAt: 'desc' }],
+        select: {
+          snapshot: true,
+          version: true,
+        },
+        where: { pageId: props.pageId },
+      });
+      const latestSnapshot = cmsPageRevisionSnapshotFromUnknown(
+        latestRevision?.snapshot
+      );
+      const nextSnapshot = cmsPageRevisionSnapshotFromUnknown(props.snapshot);
+      if (
+        props.action === 'update' &&
+        latestSnapshot &&
+        nextSnapshot &&
+        cmsPageRevisionSnapshotsEqual(latestSnapshot, nextSnapshot)
+      ) {
+        return;
+      }
+      await tx.cmsPageRevision.create({
+        data: {
+          action: props.action,
+          createdByUserId: props.createdByUserId ?? null,
+          pageId: props.pageId,
+          snapshot: props.snapshot,
+          version: (latestRevision?.version ?? 0) + 1,
+        },
+      });
     },
-  });
+    { isolationLevel: 'Serializable' }
+  );
 }
 
 export async function recordCmsPageRevision(props: {
@@ -847,51 +844,54 @@ export async function restoreCmsPageRevision(props: {
     return { ok: true };
   }
 
-  await prisma.$transaction(async (tx) => {
-    await tx.cmsPage.update({
-      data: {
-        isPublished: snapshot.page.isPublished,
-        metaDescription: snapshot.page.metaDescription,
-        metaTitle: snapshot.page.metaTitle,
-        path: snapshot.page.path,
-        slug: snapshot.page.slug,
-        title: snapshot.page.title,
-      },
-      where: { id: props.pageId },
-    });
-    await tx.cmsPageBlock.deleteMany({ where: { pageId: props.pageId } });
-    if (snapshot.blocks.length > 0) {
-      await tx.cmsPageBlock.createMany({
-        data: snapshot.blocks.map((block) => ({
-          body: block.body,
-          ctaLabel: block.ctaLabel,
-          ctaUrl: block.ctaUrl,
-          displayOrder: block.displayOrder,
-          id: block.id,
-          imageAlt: block.imageAlt,
-          imageSrc: block.imageSrc,
-          isVisible: block.isVisible,
-          kind: block.kind,
-          pageId: props.pageId,
-          subtitle: block.subtitle,
-          title: block.title,
-        })),
+  await prisma.$transaction(
+    async (tx) => {
+      await tx.cmsPage.update({
+        data: {
+          isPublished: snapshot.page.isPublished,
+          metaDescription: snapshot.page.metaDescription,
+          metaTitle: snapshot.page.metaTitle,
+          path: snapshot.page.path,
+          slug: snapshot.page.slug,
+          title: snapshot.page.title,
+        },
+        where: { id: props.pageId },
       });
-    }
-    const latest = await tx.cmsPageRevision.aggregate({
-      where: { pageId: props.pageId },
-      _max: { version: true },
-    });
-    await tx.cmsPageRevision.create({
-      data: {
-        action: 'update',
-        createdByUserId: props.createdByUserId ?? null,
-        pageId: props.pageId,
-        snapshot: cmsPageRevisionSnapshotJson(snapshot),
-        version: (latest._max.version ?? 0) + 1,
-      },
-    });
-  });
+      await tx.cmsPageBlock.deleteMany({ where: { pageId: props.pageId } });
+      if (snapshot.blocks.length > 0) {
+        await tx.cmsPageBlock.createMany({
+          data: snapshot.blocks.map((block) => ({
+            body: block.body,
+            ctaLabel: block.ctaLabel,
+            ctaUrl: block.ctaUrl,
+            displayOrder: block.displayOrder,
+            id: block.id,
+            imageAlt: block.imageAlt,
+            imageSrc: block.imageSrc,
+            isVisible: block.isVisible,
+            kind: block.kind,
+            pageId: props.pageId,
+            subtitle: block.subtitle,
+            title: block.title,
+          })),
+        });
+      }
+      const latest = await tx.cmsPageRevision.aggregate({
+        where: { pageId: props.pageId },
+        _max: { version: true },
+      });
+      await tx.cmsPageRevision.create({
+        data: {
+          action: 'update',
+          createdByUserId: props.createdByUserId ?? null,
+          pageId: props.pageId,
+          snapshot: cmsPageRevisionSnapshotJson(snapshot),
+          version: (latest._max.version ?? 0) + 1,
+        },
+      });
+    },
+    { isolationLevel: 'Serializable' }
+  );
 
   return { ok: true };
 }

@@ -544,7 +544,7 @@ async function seedCmsPages(p: PrismaClient): Promise<void> {
         title: page.title,
         metaTitle: page.metaTitle,
         metaDescription: page.metaDescription,
-        isPublished: true,
+        isPublished: page.isPublished ?? true,
       },
       update: {
         slug: page.slug,
@@ -552,7 +552,7 @@ async function seedCmsPages(p: PrismaClient): Promise<void> {
         title: page.title,
         metaTitle: page.metaTitle,
         metaDescription: page.metaDescription,
-        isPublished: true,
+        isPublished: page.isPublished ?? true,
       },
     });
     await seedCmsPageBlocks(p, page);

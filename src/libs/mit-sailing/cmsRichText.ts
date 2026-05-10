@@ -9,11 +9,25 @@ type SanitizeHtmlOptions = NonNullable<Parameters<typeof sanitizeHtml>[1]>;
 type SanitizeAttribs = Record<string, string>;
 type SanitizeTagResult = { tagName: string; attribs: SanitizeAttribs };
 
+function isControlOrWhitespace(char: string): boolean {
+  const codePoint = char.codePointAt(0);
+  if (codePoint === undefined) {
+    return false;
+  }
+  return codePoint <= 31 || codePoint === 127 || char.trim() === '';
+}
+
 function startsWithDangerousScheme(lowerHref: string): boolean {
   const jsScheme = `${['java', 'script'].join('')}:`;
   const vbScheme = `${['vb', 'script'].join('')}:`;
   const prefixes = [jsScheme, 'data:', vbScheme] as const;
-  return prefixes.some((p) => lowerHref.startsWith(p));
+  let normalizedHref = '';
+  for (const char of lowerHref) {
+    if (!isControlOrWhitespace(char)) {
+      normalizedHref += char;
+    }
+  }
+  return prefixes.some((p) => normalizedHref.startsWith(p));
 }
 
 function isAllowedCmsRichTextHref(href: string): boolean {

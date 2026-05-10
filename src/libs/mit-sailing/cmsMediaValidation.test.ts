@@ -49,6 +49,16 @@ describe('cms media validation', () => {
     ).toEqual({ ok: false, code: 'mime_mismatch' });
   });
 
+  it('accepts valid uploads with matching mime types', () => {
+    const result = validateCmsMediaUpload({
+      bytes: PNG_BYTES,
+      declaredMimeType: 'image/png',
+      originalFilename: 'photo.png',
+    });
+
+    expect(result.ok).toBe(true);
+  });
+
   it('sanitizes filenames and uses detected extensions', () => {
     expect(
       sanitizeCmsMediaFilename('../Race Day FINAL!!.PNG', 'image/png')
@@ -63,7 +73,7 @@ describe('cms media validation', () => {
   });
 
   it('keeps storage paths inside the configured root', () => {
-    const root = path.join(path.sep, 'var', 'lib', 'mitsailing', 'cms-media');
+    const root = path.resolve('test-cms-media-root');
 
     expect(
       resolveCmsMediaStoragePath({
