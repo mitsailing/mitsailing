@@ -2,10 +2,16 @@ import {
   listClassCategoriesForNav,
   mapClassCategoriesToNavDropdownItems,
 } from '@/libs/mit-sailing/classQueries';
+import { safeCmsHref } from '@/libs/mit-sailing/cmsHref';
+import { loadCmsMenu } from '@/libs/mit-sailing/cmsQueries';
 import {
   listFleetBoatsForPublic,
   mapFleetBoatsToNavDropdownItems,
 } from '@/libs/mit-sailing/fleetQueries';
+import type {
+  SiteHeaderMenuItem,
+  SiteHeaderMobileUtilityItem,
+} from './site/SiteHeader';
 import { SiteHeader } from './site/SiteHeader';
 
 type SiteShellHeaderNavProps = {
@@ -23,17 +29,50 @@ type SiteShellHeaderNavProps = {
  * @returns Sticky header with populated dropdowns when data loads
  */
 export async function SiteShellHeaderNav(props: SiteShellHeaderNavProps) {
-  const [categories, fleetBoats] = await Promise.all([
-    listClassCategoriesForNav(),
-    listFleetBoatsForPublic(),
-  ]);
+  const [categories, fleetBoats, headerMenu, mobileUtilityMenu] =
+    await Promise.all([
+      listClassCategoriesForNav(),
+      listFleetBoatsForPublic(),
+      loadCmsMenu('header'),
+      loadCmsMenu('mobile_utility'),
+    ]);
+
+  const headerMenuItems: SiteHeaderMenuItem[] = headerMenu.map((item) => ({
+    id: item.id,
+    label: item.label,
+    href: item.href,
+    isExternal: item.isExternal,
+    systemKey: item.systemKey,
+    items:
+      item.children.length > 0
+        ? item.children.flatMap((child) => {
+            const href = safeCmsHref(child.href);
+            return href ? [{ label: child.label, href }] : [];
+          })
+        : undefined,
+  }));
+  const mobileUtilityItems: SiteHeaderMobileUtilityItem[] =
+    mobileUtilityMenu.flatMap((item) =>
+      item.href
+        ? [
+            {
+              id: item.id,
+              label: item.label,
+              href: item.href,
+              isExternal: item.isExternal,
+            },
+          ]
+        : []
+    );
 
   return (
     <SiteHeader
       classesDropdownItems={mapClassCategoriesToNavDropdownItems(categories)}
       fleetDropdownItems={mapFleetBoatsToNavDropdownItems(fleetBoats)}
+      headerMenuItems={headerMenuItems}
       initialShowAdminLink={props.initialShowAdminLink}
       initialSignedIn={props.initialSignedIn}
+      mobileUtilityItems={mobileUtilityItems}
     />
   );
 }

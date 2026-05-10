@@ -11,7 +11,7 @@ import {
 } from '@/libs/site-text/siteTextMessages';
 import { getI18nPath } from '@/utils/Helpers';
 
-const SITE_TEXT_PATH = '/admin/site_text/';
+const SITE_TEXT_PATH = '/admin/site_text';
 
 function siteTextRedirect(locale: string, status: string): never {
   redirect(`${getI18nPath(SITE_TEXT_PATH, locale)}?status=${status}`);

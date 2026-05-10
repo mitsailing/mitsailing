@@ -6,9 +6,9 @@ import { useState } from 'react';
 import { mapProfileDeleteError } from '@/components/auth/profile/profileAuthErrorMaps';
 import { ProfileInlineBanner } from '@/components/auth/profile/profileBanner';
 import type { ProfileBannerState } from '@/components/auth/profile/profileBanner';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SubmitButton } from '@/components/ui/submit-button';
 import { authClient } from '@/libs/auth-client';
 
 type ProfileDeleteAccountClientProps = {
@@ -19,6 +19,7 @@ export function ProfileDeleteAccountClient(
   props: ProfileDeleteAccountClientProps
 ) {
   const t = useTranslations('UserProfilePage');
+  const tCommon = useTranslations('Common');
   const router = useRouter();
 
   const [deleteBanner, setDeleteBanner] = useState<ProfileBannerState>(null);
@@ -103,14 +104,14 @@ export function ProfileDeleteAccountClient(
               value={deleteConfirmation}
             />
           </div>
-          <Button
+          <SubmitButton
             className="mt-2 w-fit"
-            disabled={deleting}
-            type="submit"
+            pending={deleting}
+            pendingLabel={tCommon('pending_deleting')}
             variant="destructive"
           >
             {t('delete_account_submit')}
-          </Button>
+          </SubmitButton>
         </form>
       </section>
     </div>

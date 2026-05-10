@@ -16,6 +16,11 @@ import {
   safeAuthCallbackUrl,
 } from '@/libs/auth/callbackUrl';
 import { Link, usePathname } from '@/libs/I18nNavigation';
+import {
+  externalCmsLinkProps,
+  isAppRelativeCmsHref,
+  safeCmsHref,
+} from '@/libs/mit-sailing/cmsHref';
 import type { NavigationDropdownItem } from './NavigationDropdown';
 import { NavigationDropdown } from './NavigationDropdown';
 import { SiteBrandWordmarkTypography } from './SiteBrandWordmarkTypography';
@@ -25,38 +30,21 @@ const navLinkClass =
 
 const mobileLinkClassName = `min-h-[44px] rounded-sm py-3 focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none ${navLinkClass}`;
 
-type NavConfigItem = {
-  labelKey:
-    | 'nav_classes'
-    | 'nav_fleet'
-    | 'nav_bluewater'
-    | 'nav_racing'
-    | 'nav_calendar'
-    | 'nav_about'
-    | 'nav_resources';
+export type SiteHeaderMenuItem = {
+  id: string;
+  label: string;
   href?: string;
-  externalHref?: string;
+  isExternal?: boolean;
+  systemKey?: string;
   items?: NavigationDropdownItem[];
 };
 
-const mobileUtilityConfig: {
-  labelKey: 'util_reserve_pavilion' | 'util_directions' | 'util_donate';
+export type SiteHeaderMobileUtilityItem = {
+  id: string;
+  label: string;
   href: string;
-}[] = [
-  { labelKey: 'util_reserve_pavilion', href: '/contact/' },
-  { labelKey: 'util_directions', href: '/contact/' },
-  { labelKey: 'util_donate', href: '/donate/' },
-];
-
-const navConfig: Omit<NavConfigItem, 'items'>[] = [
-  { labelKey: 'nav_classes', href: '/classes/' },
-  { labelKey: 'nav_fleet', href: '/fleet/' },
-  { labelKey: 'nav_bluewater', externalHref: '#' },
-  { labelKey: 'nav_racing', externalHref: '#' },
-  { labelKey: 'nav_calendar', href: '/events/' },
-  { labelKey: 'nav_about', href: '/about/' },
-  { labelKey: 'nav_resources', externalHref: '#' },
-];
+  isExternal?: boolean;
+};
 
 const desktopAuthOuterClass =
   'hidden min-h-[42px] min-w-[280px] items-center justify-end gap-2 lg:flex';
@@ -91,9 +79,13 @@ function sessionHasUser(data: unknown): data is { user: { id: string } } {
 }
 
 export type SiteHeaderProps = {
+  /** Top-level public nav items from the CMS header menu. */
+  headerMenuItems?: SiteHeaderMenuItem[];
+  /** Mobile-only public utility links from the CMS mobile utility menu. */
+  mobileUtilityItems?: SiteHeaderMobileUtilityItem[];
   /** Items for the Fleet dropdown — generated server-side from Prisma. */
   fleetDropdownItems: NavigationDropdownItem[];
-  /** Items for the Classes dropdown (ordered categories → `/classes/#slug`). */
+  /** Items for the Classes dropdown (ordered categories → `/classes#slug`). */
   classesDropdownItems: NavigationDropdownItem[];
   /**
    * Session snapshot from the parent RSC (`getSession`). When set, the auth
@@ -107,6 +99,132 @@ export type SiteHeaderProps = {
    */
   initialShowAdminLink?: boolean;
 };
+
+function defaultHeaderMenuItems(
+  t: ReturnType<typeof useTranslations<'MitSailingSite'>>
+): SiteHeaderMenuItem[] {
+  return [
+    {
+      id: 'classes',
+      label: t('nav_classes'),
+      href: '/classes',
+      systemKey: 'classes',
+    },
+    { id: 'fleet', label: t('nav_fleet'), href: '/fleet', systemKey: 'fleet' },
+    { id: 'bluewater', label: t('nav_bluewater'), href: '#' },
+    { id: 'racing', label: t('nav_racing'), href: '#' },
+    { id: 'calendar', label: t('nav_calendar'), href: '/events' },
+    { id: 'about', label: t('nav_about'), href: '/about' },
+    { id: 'resources', label: t('nav_resources'), href: '#' },
+  ];
+}
+
+function defaultMobileUtilityItems(
+  t: ReturnType<typeof useTranslations<'MitSailingSite'>>
+): SiteHeaderMobileUtilityItem[] {
+  return [
+    {
+      id: 'reserve-pavilion',
+      label: t('util_reserve_pavilion'),
+      href: '/contact',
+    },
+    { id: 'directions', label: t('util_directions'), href: '/contact' },
+    { id: 'donate', label: t('util_donate'), href: '/donate' },
+  ];
+}
+
+function configuredHeaderMenuItems(props: {
+  headerMenuItems: SiteHeaderProps['headerMenuItems'];
+  t: ReturnType<typeof useTranslations<'MitSailingSite'>>;
+}): SiteHeaderMenuItem[] {
+  return props.headerMenuItems ?? defaultHeaderMenuItems(props.t);
+}
+
+function withGeneratedDropdowns(props: {
+  items: SiteHeaderMenuItem[];
+  fleetDropdownItems: NavigationDropdownItem[];
+  classesDropdownItems: NavigationDropdownItem[];
+}): SiteHeaderMenuItem[] {
+  return props.items.map((item) => {
+    if (item.systemKey === 'fleet') {
+      return { ...item, items: props.fleetDropdownItems };
+    }
+    if (item.systemKey === 'classes') {
+      return { ...item, items: props.classesDropdownItems };
+    }
+    return item;
+  });
+}
+
+function configuredMobileUtilityItems(props: {
+  mobileUtilityItems: SiteHeaderProps['mobileUtilityItems'];
+  t: ReturnType<typeof useTranslations<'MitSailingSite'>>;
+}): SiteHeaderMobileUtilityItem[] {
+  return props.mobileUtilityItems ?? defaultMobileUtilityItems(props.t);
+}
+
+function PrimaryNavBranch(props: {
+  disclosureEpoch?: number;
+  flatLinkClass: string;
+  item: SiteHeaderMenuItem;
+  onNavigate?: () => void;
+  pathname: string;
+  routeHash: string;
+  variant: 'desktop' | 'mobile';
+  overviewAllLabel: string;
+  fleetOverviewLabel: string;
+}) {
+  const { item, flatLinkClass, onNavigate, variant } = props;
+  const href = safeCmsHref(item.href) ?? (item.href ? null : '#');
+
+  if (href && item.items !== undefined) {
+    const overviewLabel =
+      item.systemKey === 'fleet'
+        ? props.fleetOverviewLabel
+        : props.overviewAllLabel;
+    return (
+      <NavigationDropdown
+        href={href}
+        items={item.items}
+        label={item.label}
+        overviewLabel={overviewLabel}
+        pathname={props.pathname}
+        routeHash={props.routeHash}
+        variant={variant}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
+  if (href && !item.isExternal && isAppRelativeCmsHref(href)) {
+    const flatActive = isNavLinkActive(props.pathname, props.routeHash, href);
+    return (
+      <Link
+        aria-current={flatActive ? 'page' : undefined}
+        className={flatLinkClass}
+        href={href}
+        onClick={onNavigate}
+      >
+        {item.label}
+      </Link>
+    );
+  }
+
+  if (!href) {
+    return null;
+  }
+
+  return (
+    <a
+      className={flatLinkClass}
+      href={href}
+      onClick={onNavigate}
+      {...externalCmsLinkProps(href)}
+    >
+      {item.label}
+    </a>
+  );
+}
 
 /**
  * Sticky top-of-page site header with primary nav, fleet/classes dropdowns, and mobile menu.
@@ -155,21 +273,24 @@ export function SiteHeader(props: SiteHeaderProps) {
       ? Boolean(props.initialShowAdminLink)
       : clientAdminLinkVisible;
 
-  const navItems: NavConfigItem[] = navConfig.map((item) => {
-    if (item.labelKey === 'nav_fleet') {
-      return { ...item, items: props.fleetDropdownItems };
-    }
-    if (item.labelKey === 'nav_classes') {
-      return { ...item, items: props.classesDropdownItems };
-    }
-    return item;
+  const navItems = withGeneratedDropdowns({
+    items: configuredHeaderMenuItems({
+      headerMenuItems: props.headerMenuItems,
+      t,
+    }),
+    fleetDropdownItems: props.fleetDropdownItems,
+    classesDropdownItems: props.classesDropdownItems,
+  });
+  const mobileUtilityItems = configuredMobileUtilityItems({
+    mobileUtilityItems: props.mobileUtilityItems,
+    t,
   });
   const search = searchParams?.toString() ?? '';
   const authCallbackUrl = safeAuthCallbackUrl(
     search ? `${pathname}?${search}` : pathname
   );
-  const loginHref = authHrefWithCallback('/login/', authCallbackUrl);
-  const signupHref = authHrefWithCallback('/signup/', authCallbackUrl);
+  const loginHref = authHrefWithCallback('/login', authCallbackUrl);
+  const signupHref = authHrefWithCallback('/signup', authCallbackUrl);
 
   function closeMobile() {
     setMobileMenuOpen(false);
@@ -179,71 +300,6 @@ export function SiteHeader(props: SiteHeaderProps) {
   const closeMobileRef = useRef(closeMobile);
 
   closeMobileRef.current = closeMobile;
-
-  function primaryNavBranch(branchProps: {
-    disclosureEpoch?: number;
-    flatLinkClass: string;
-    item: NavConfigItem;
-    onNavigate?: () => void;
-    variant: 'desktop' | 'mobile';
-  }) {
-    const { item, variant, flatLinkClass, disclosureEpoch, onNavigate } =
-      branchProps;
-    const label = t(item.labelKey);
-
-    const listKey =
-      variant === 'mobile'
-        ? `${item.labelKey}-${String(disclosureEpoch ?? 0)}`
-        : item.labelKey;
-
-    if (item.href && item.items !== undefined) {
-      const overviewLabel =
-        item.labelKey === 'nav_classes'
-          ? t('nav_overview_all', { label: t('nav_classes') })
-          : t('nav_fleet_dropdown_overview');
-      return (
-        <NavigationDropdown
-          href={item.href}
-          items={item.items}
-          key={listKey}
-          label={label}
-          overviewLabel={overviewLabel}
-          pathname={pathname}
-          routeHash={routeHash}
-          variant={variant}
-          onNavigate={onNavigate}
-        />
-      );
-    }
-
-    if (item.href) {
-      const flatActive = isNavLinkActive(pathname, routeHash, item.href);
-      return (
-        <Link
-          aria-current={flatActive ? 'page' : undefined}
-          className={flatLinkClass}
-          href={item.href}
-          key={item.labelKey}
-          onClick={onNavigate}
-        >
-          {label}
-        </Link>
-      );
-    }
-
-    const externalClassName = flatLinkClass;
-
-    return (
-      <a
-        className={externalClassName}
-        href={item.externalHref ?? '#'}
-        key={item.labelKey}
-        onClick={onNavigate}
-      >
-        {label}
-      </a>
-    );
-  }
 
   useEffect(() => {
     setMobilePortalReady(true);
@@ -320,25 +376,46 @@ export function SiteHeader(props: SiteHeaderProps) {
     return (
       <>
         <nav aria-label={primaryNavAria} className="flex flex-col gap-1">
-          {mobileUtilityConfig.map((link) => (
-            <Link
-              className={mobileLinkClassName}
-              href={link.href}
-              key={link.labelKey}
-              onClick={closeMobile}
-            >
-              {t(link.labelKey)}
-            </Link>
+          {mobileUtilityItems.map((link) => {
+            const href = safeCmsHref(link.href);
+            if (!href) {
+              return null;
+            }
+            return link.isExternal || !isAppRelativeCmsHref(href) ? (
+              <a
+                className={mobileLinkClassName}
+                href={href}
+                key={link.id}
+                onClick={closeMobile}
+                {...externalCmsLinkProps(href)}
+              >
+                {link.label}
+              </a>
+            ) : (
+              <Link
+                className={mobileLinkClassName}
+                href={href}
+                key={link.id}
+                onClick={closeMobile}
+              >
+                {link.label}
+              </Link>
+            );
+          })}
+          {navItems.map((item) => (
+            <PrimaryNavBranch
+              disclosureEpoch={mobileDisclosureEpoch}
+              flatLinkClass={mobileLinkClassName}
+              fleetOverviewLabel={t('nav_fleet_dropdown_overview')}
+              item={item}
+              key={item.id}
+              overviewAllLabel={t('nav_overview_all', { label: item.label })}
+              pathname={pathname}
+              routeHash={routeHash}
+              variant="mobile"
+              onNavigate={closeMobile}
+            />
           ))}
-          {navItems.map((item) =>
-            primaryNavBranch({
-              disclosureEpoch: mobileDisclosureEpoch,
-              flatLinkClass: mobileLinkClassName,
-              item,
-              onNavigate: closeMobile,
-              variant: 'mobile',
-            })
-          )}
         </nav>
         <div className="mt-4 flex min-h-[92px] flex-col gap-2 border-t border-mit-line pt-4">
           {showAuthPending ? (
@@ -376,7 +453,7 @@ export function SiteHeader(props: SiteHeaderProps) {
               {displayAdminLink ? (
                 <Link
                   className={`${mobileGuestLoginClass} w-full`}
-                  href="/admin/"
+                  href="/admin"
                   onClick={closeMobile}
                 >
                   {tAccount('admin_link')}
@@ -384,7 +461,7 @@ export function SiteHeader(props: SiteHeaderProps) {
               ) : null}
               <Link
                 className={`${mobileGuestLoginClass} w-full`}
-                href="/profile/"
+                href="/profile"
                 onClick={closeMobile}
               >
                 {tAccount('user_profile_link')}
@@ -468,13 +545,18 @@ export function SiteHeader(props: SiteHeaderProps) {
           aria-label={primaryNavAria}
           className="hidden items-center gap-6 lg:flex xl:gap-7"
         >
-          {navItems.map((item) =>
-            primaryNavBranch({
-              flatLinkClass: navLinkClass,
-              item,
-              variant: 'desktop',
-            })
-          )}
+          {navItems.map((item) => (
+            <PrimaryNavBranch
+              flatLinkClass={navLinkClass}
+              fleetOverviewLabel={t('nav_fleet_dropdown_overview')}
+              item={item}
+              key={item.id}
+              overviewAllLabel={t('nav_overview_all', { label: item.label })}
+              pathname={pathname}
+              routeHash={routeHash}
+              variant="desktop"
+            />
+          ))}
         </nav>
 
         <div className={desktopAuthOuterClass}>
@@ -503,11 +585,11 @@ export function SiteHeader(props: SiteHeaderProps) {
           {!showAuthPending && displayAuthenticated ? (
             <>
               {displayAdminLink ? (
-                <Link className={desktopGuestLoginClass} href="/admin/">
+                <Link className={desktopGuestLoginClass} href="/admin">
                   {tAccount('admin_link')}
                 </Link>
               ) : null}
-              <Link className={desktopGuestLoginClass} href="/profile/">
+              <Link className={desktopGuestLoginClass} href="/profile">
                 {tAccount('user_profile_link')}
               </Link>
               <SignOutForm

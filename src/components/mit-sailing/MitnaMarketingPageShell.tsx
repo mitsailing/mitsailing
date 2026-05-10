@@ -19,7 +19,7 @@ type MitnaMarketingPageShellProps = {
 
 /**
  * Standard marketing chrome for MITNA: {@link SiteSectionShell} + {@link SiteSectionMain} +
- * {@link MitnaSubNavLayout}. Landing links back to `/about/`; deeper pages link to `/about/mitna/`.
+ * {@link MitnaSubNavLayout}. Landing links back to `/about`; deeper pages link to `/about/mitna`.
  *
  * @param props - Wrapper props
  * @param props.locale - Active locale
@@ -38,16 +38,16 @@ export async function MitnaMarketingPageShell(
 
   let segments: SiteSectionBreadcrumbSegment[];
   let variant: 'catalog' | 'detail';
-  let backHref: '/about/' | '/about/mitna/';
+  let backHref: '/about' | '/about/mitna';
   let backLabel: string;
 
   if (page === 'landing') {
     segments = [
-      { href: '/about/', label: t('section_about') },
+      { href: '/about', label: t('section_about') },
       { label: t('mitna_title') },
     ];
     variant = 'catalog';
-    backHref = '/about/';
+    backHref = '/about';
     backLabel = t('mitna_back_about');
   } else {
     let lastLabel = t('mitna_nav_constitution');
@@ -57,12 +57,12 @@ export async function MitnaMarketingPageShell(
       lastLabel = t('mitna_nav_hatch');
     }
     segments = [
-      { href: '/about/', label: t('section_about') },
-      { href: '/about/mitna/', label: t('mitna_title') },
+      { href: '/about', label: t('section_about') },
+      { href: '/about/mitna', label: t('mitna_title') },
       { label: lastLabel },
     ];
     variant = 'detail';
-    backHref = '/about/mitna/';
+    backHref = '/about/mitna';
     backLabel = t('mitna_back_overview');
   }
 

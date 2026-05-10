@@ -104,7 +104,7 @@ export function SiteAlertsBanner(props: {
             <Link
               aria-label={collapsedAriaLabel}
               className={SITE_ALERT_BANNER_PRIMARY_LINK_CLASS}
-              href="/alerts/"
+              href="/alerts"
             >
               <div className="flex min-h-11 flex-wrap items-center gap-x-2 gap-y-1 px-5 py-2.5 sm:px-6">
                 <span className="text-[clamp(0.8125rem,2.8vw,0.9375rem)] text-foreground">
@@ -122,7 +122,7 @@ export function SiteAlertsBanner(props: {
             <Link
               aria-label={expandedLinkAriaLabel}
               className={SITE_ALERT_BANNER_PRIMARY_LINK_CLASS}
-              href="/alerts/"
+              href="/alerts"
             >
               <div className="flex min-h-11 flex-col justify-center gap-0 px-5 py-3 sm:px-6">
                 <ul

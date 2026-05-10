@@ -4,18 +4,22 @@ import { getI18nPath } from './Helpers';
 
 describe('Helpers', () => {
   describe('getI18nPath', () => {
-    it('should not change the path for default language', () => {
+    it('keeps default locale paths unchanged', () => {
       const url = '/random-url';
       const locale = routing.defaultLocale;
 
       expect(getI18nPath(url, locale)).toBe(url);
     });
 
-    it('should prepend the locale to the path for non-default language', () => {
+    it('prefixes non-default locale paths', () => {
       const url = '/random-url';
       const locale = 'fr';
 
       expect(getI18nPath(url, locale)).toMatch(/^\/fr/);
+    });
+
+    it('returns non-default locale roots without trailing slashes', () => {
+      expect(getI18nPath('/', 'fr')).toBe('/fr');
     });
   });
 });

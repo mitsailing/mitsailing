@@ -29,18 +29,18 @@ describe('SignInForm', () => {
   it('Visitor signs in and returns to the requested page', async () => {
     const user = userEvent.setup();
 
-    render(<SignInForm callbackUrl="/fleet/" />);
+    render(<SignInForm callbackUrl="/fleet" />);
 
     await user.type(screen.getByLabelText('Email'), ' Sailor@MIT.EDU ');
     await user.type(screen.getByLabelText('Password'), 'correct-password');
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
 
     expect(authClientMock.signIn.email).toHaveBeenCalledWith({
-      callbackURL: '/fleet/',
+      callbackURL: '/fleet',
       email: 'sailor@mit.edu',
       password: 'correct-password',
     });
-    expect(componentTestRouter().push).toHaveBeenCalledWith('/fleet/');
+    expect(componentTestRouter().push).toHaveBeenCalledWith('/fleet');
     expect(componentTestRouter().refresh).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('button', { name: 'Sign in' })).not.toBeDisabled();
   });
@@ -48,7 +48,7 @@ describe('SignInForm', () => {
   it('Visitor sees a safe error before submitting an invalid email', async () => {
     const user = userEvent.setup();
 
-    render(<SignInForm callbackUrl="/fleet/" />);
+    render(<SignInForm callbackUrl="/fleet" />);
 
     await user.type(screen.getByLabelText('Email'), 'sailor@mit');
     await user.type(screen.getByLabelText('Password'), 'correct-password');
@@ -66,7 +66,7 @@ describe('SignInForm', () => {
       error: { code: 'ACCOUNT_LOCKED' },
     });
 
-    render(<SignInForm callbackUrl="/fleet/" />);
+    render(<SignInForm callbackUrl="/fleet" />);
 
     await user.type(screen.getByLabelText('Email'), 'locked@mit.edu');
     await user.type(screen.getByLabelText('Password'), 'wrong-password');
@@ -83,7 +83,7 @@ describe('SignInForm', () => {
       error: { code: 'BANNED_USER' },
     });
 
-    render(<SignInForm callbackUrl="/fleet/" />);
+    render(<SignInForm callbackUrl="/fleet" />);
 
     await user.type(screen.getByLabelText('Email'), 'banned@mit.edu');
     await user.type(screen.getByLabelText('Password'), 'correct-password');
@@ -100,7 +100,7 @@ describe('SignInForm', () => {
       error: { code: 'INVALID_EMAIL_OR_PASSWORD' },
     });
 
-    render(<SignInForm callbackUrl="/fleet/" />);
+    render(<SignInForm callbackUrl="/fleet" />);
 
     await user.type(screen.getByLabelText('Email'), 'sailor@mit.edu');
     await user.type(screen.getByLabelText('Password'), 'wrong-password');
@@ -117,7 +117,7 @@ describe('SignInForm', () => {
       error: { code: 'TOO_MANY_REQUESTS' },
     });
 
-    render(<SignInForm callbackUrl="/fleet/" />);
+    render(<SignInForm callbackUrl="/fleet" />);
 
     await user.type(screen.getByLabelText('Email'), 'sailor@mit.edu');
     await user.type(screen.getByLabelText('Password'), 'wrong-password');
@@ -134,7 +134,7 @@ describe('SignInForm', () => {
       error: { message: 'Account requires staff approval.' },
     });
 
-    render(<SignInForm callbackUrl="/fleet/" />);
+    render(<SignInForm callbackUrl="/fleet" />);
 
     await user.type(screen.getByLabelText('Email'), 'sailor@mit.edu');
     await user.type(screen.getByLabelText('Password'), 'correct-password');
@@ -151,7 +151,7 @@ describe('SignInForm', () => {
       error: {},
     });
 
-    render(<SignInForm callbackUrl="/fleet/" />);
+    render(<SignInForm callbackUrl="/fleet" />);
 
     await user.type(screen.getByLabelText('Email'), 'sailor@mit.edu');
     await user.type(screen.getByLabelText('Password'), 'wrong-password');
@@ -166,7 +166,7 @@ describe('SignInForm', () => {
     const user = userEvent.setup();
     authClientMock.signIn.email.mockRejectedValue(new Error('network'));
 
-    render(<SignInForm callbackUrl="/fleet/" />);
+    render(<SignInForm callbackUrl="/fleet" />);
 
     await user.type(screen.getByLabelText('Email'), 'sailor@mit.edu');
     await user.type(screen.getByLabelText('Password'), 'correct-password');
@@ -184,7 +184,7 @@ describe('SignInForm', () => {
       error: { code: 'EMAIL_NOT_VERIFIED' },
     });
 
-    render(<SignInForm callbackUrl="/fleet/" />);
+    render(<SignInForm callbackUrl="/fleet" />);
 
     await user.type(screen.getByLabelText('Email'), ' Sailor@MIT.EDU ');
     await user.type(screen.getByLabelText('Password'), 'correct-password');
@@ -198,7 +198,7 @@ describe('SignInForm', () => {
       type: 'email-verification',
     });
     expect(componentTestRouter().push).toHaveBeenCalledWith(
-      '/verify-email?email=sailor%40mit.edu&codeSent=1&callbackUrl=%2Ffleet%2F'
+      '/verify-email?email=sailor%40mit.edu&codeSent=1&callbackUrl=%2Ffleet'
     );
   });
 
@@ -208,7 +208,7 @@ describe('SignInForm', () => {
       error: { code: 'EMAIL_NOT_VERIFIED' },
     });
 
-    render(<SignInForm callbackUrl="/fleet/" />);
+    render(<SignInForm callbackUrl="/fleet" />);
 
     await user.type(screen.getByLabelText('Email'), 'new-sailor@mit.edu');
     await user.type(screen.getByLabelText('Password'), 'correct-password');
@@ -222,7 +222,7 @@ describe('SignInForm', () => {
       type: 'email-verification',
     });
     expect(componentTestRouter().push).toHaveBeenCalledWith(
-      '/verify-email?email=new-sailor%40mit.edu&codeSent=1&callbackUrl=%2Ffleet%2F'
+      '/verify-email?email=new-sailor%40mit.edu&codeSent=1&callbackUrl=%2Ffleet'
     );
   });
 
@@ -235,7 +235,7 @@ describe('SignInForm', () => {
       error: { code: 'TOO_MANY_REQUESTS' },
     });
 
-    render(<SignInForm callbackUrl="/fleet/" />);
+    render(<SignInForm callbackUrl="/fleet" />);
 
     await user.type(screen.getByLabelText('Email'), 'new-sailor@mit.edu');
     await user.type(screen.getByLabelText('Password'), 'correct-password');
@@ -258,7 +258,7 @@ describe('SignInForm', () => {
       new Error('network')
     );
 
-    render(<SignInForm callbackUrl="/fleet/" />);
+    render(<SignInForm callbackUrl="/fleet" />);
 
     await user.type(screen.getByLabelText('Email'), 'new-sailor@mit.edu');
     await user.type(screen.getByLabelText('Password'), 'correct-password');
@@ -281,7 +281,7 @@ describe('SignInForm', () => {
       error: { code: 'EMAIL_NOT_VERIFIED' },
     });
 
-    render(<SignInForm callbackUrl="/fleet/" />);
+    render(<SignInForm callbackUrl="/fleet" />);
 
     await user.type(screen.getByLabelText('Email'), 'new-sailor@mit.edu');
     await user.type(screen.getByLabelText('Password'), 'correct-password');
@@ -307,7 +307,7 @@ describe('SignInForm', () => {
       },
     });
 
-    render(<SignInForm callbackUrl="/fleet/" />);
+    render(<SignInForm callbackUrl="/fleet" />);
 
     await user.type(screen.getByLabelText('Email'), 'new-sailor@mit.edu');
     await user.type(screen.getByLabelText('Password'), 'correct-password');
@@ -325,7 +325,7 @@ describe('SignInForm', () => {
   it('Visitor requests a password reset from the entered email', async () => {
     const user = userEvent.setup();
 
-    render(<SignInForm callbackUrl="/fleet/" />);
+    render(<SignInForm callbackUrl="/fleet" />);
 
     await user.type(screen.getByLabelText('Email'), ' Reset@MIT.EDU ');
     const resetButton = screen.getByRole('button', {
@@ -337,7 +337,7 @@ describe('SignInForm', () => {
       email: 'reset@mit.edu',
     });
     expect(componentTestRouter().push).toHaveBeenCalledWith(
-      '/reset-password?email=reset%40mit.edu&codeSent=1&callbackUrl=%2Ffleet%2F'
+      '/reset-password?email=reset%40mit.edu&codeSent=1&callbackUrl=%2Ffleet'
     );
     expect(
       screen.getByRole('button', { name: 'Forgot password?' })
@@ -347,7 +347,7 @@ describe('SignInForm', () => {
   it('Visitor retries inline reset after successful navigation stays mounted', async () => {
     const user = userEvent.setup();
 
-    render(<SignInForm callbackUrl="/fleet/" />);
+    render(<SignInForm callbackUrl="/fleet" />);
 
     await user.type(screen.getByLabelText('Email'), 'reset@mit.edu');
     await user.click(screen.getByRole('button', { name: 'Forgot password?' }));
@@ -364,7 +364,7 @@ describe('SignInForm', () => {
     const pendingReset = new Promise<never>(() => {});
     authClientMock.emailOtp.requestPasswordReset.mockReturnValue(pendingReset);
 
-    render(<SignInForm callbackUrl="/fleet/" />);
+    render(<SignInForm callbackUrl="/fleet" />);
 
     await user.type(screen.getByLabelText('Email'), 'reset@mit.edu');
     await user.dblClick(
@@ -379,7 +379,7 @@ describe('SignInForm', () => {
   it('Visitor follows the forgot-password link without an entered email', async () => {
     const user = userEvent.setup();
 
-    render(<SignInForm callbackUrl="/fleet/" />);
+    render(<SignInForm callbackUrl="/fleet" />);
 
     await user.click(screen.getByRole('link', { name: 'Forgot password?' }));
 
@@ -389,7 +389,7 @@ describe('SignInForm', () => {
   it('Visitor sees invalid email message when forgot password is clicked with malformed email', async () => {
     const user = userEvent.setup();
 
-    render(<SignInForm callbackUrl="/fleet/" />);
+    render(<SignInForm callbackUrl="/fleet" />);
 
     await user.type(screen.getByLabelText('Email'), 'sailor@mit');
     await user.click(screen.getByRole('button', { name: 'Forgot password?' }));
@@ -407,7 +407,7 @@ describe('SignInForm', () => {
       error: { code: 'TOO_MANY_REQUESTS' },
     });
 
-    render(<SignInForm callbackUrl="/fleet/" />);
+    render(<SignInForm callbackUrl="/fleet" />);
 
     await user.type(screen.getByLabelText('Email'), 'reset@mit.edu');
     await user.click(screen.getByRole('button', { name: 'Forgot password?' }));
@@ -427,7 +427,7 @@ describe('SignInForm', () => {
       new Error('network')
     );
 
-    render(<SignInForm callbackUrl="/fleet/" />);
+    render(<SignInForm callbackUrl="/fleet" />);
 
     await user.type(screen.getByLabelText('Email'), 'reset@mit.edu');
     await user.click(screen.getByRole('button', { name: 'Forgot password?' }));

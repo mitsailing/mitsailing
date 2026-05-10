@@ -2,9 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { getI18nPath, getSession, revalidatePath, userUpdate } = vi.hoisted(
   () => ({
-    getI18nPath: vi.fn((url: string, locale: string) =>
-      locale === 'en' ? url : `/${locale}${url}`
-    ),
+    getI18nPath: vi.fn((url: string, locale: string) => {
+      if (locale === 'en') {
+        return url;
+      }
+      return url === '/' ? `/${locale}` : `/${locale}${url}`;
+    }),
     getSession: vi.fn(),
     revalidatePath: vi.fn(),
     userUpdate: vi.fn(),
@@ -37,9 +40,12 @@ beforeEach(() => {
   revalidatePath.mockReset();
   userUpdate.mockReset();
 
-  getI18nPath.mockImplementation((url: string, locale: string) =>
-    locale === 'en' ? url : `/${locale}${url}`
-  );
+  getI18nPath.mockImplementation((url: string, locale: string) => {
+    if (locale === 'en') {
+      return url;
+    }
+    return url === '/' ? `/${locale}` : `/${locale}${url}`;
+  });
   getSession.mockResolvedValue(null);
   revalidatePath.mockImplementation(() => {});
   userUpdate.mockResolvedValue({});
@@ -87,6 +93,6 @@ describe('updateThemePreferenceAction', () => {
       where: { id: 'user-1' },
     });
     expect(getI18nPath).toHaveBeenCalledWith('/', 'fr');
-    expect(revalidatePath).toHaveBeenCalledWith('/fr/', 'layout');
+    expect(revalidatePath).toHaveBeenCalledWith('/fr', 'layout');
   });
 });

@@ -6,6 +6,7 @@ import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SubmitButton } from '@/components/ui/submit-button';
 import { authInlineLinkClassName } from '@/lib/mit-sailing/tokens';
 import { authClient } from '@/libs/auth-client';
 import { authHrefWithCallback } from '@/libs/auth/callbackUrl';
@@ -31,6 +32,7 @@ type MappedErrorState = Exclude<ErrorState, null>;
 // verification screen without losing their original callback.
 export function SignInForm(props: SignInFormProps) {
   const t = useTranslations('SignInPage');
+  const tCommon = useTranslations('Common');
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -257,14 +259,14 @@ export function SignInForm(props: SignInFormProps) {
           />
         </div>
 
-        <Button
+        <SubmitButton
           className="w-full"
-          disabled={submitting}
-          type="submit"
+          pending={submitting}
+          pendingLabel={tCommon('pending_submitting')}
           variant="mit"
         >
           {t('submit')}
-        </Button>
+        </SubmitButton>
       </form>
 
       <p className="text-center text-sm text-mit-text">

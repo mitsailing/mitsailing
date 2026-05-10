@@ -46,7 +46,7 @@ export async function ClassesCatalogView(props: ClassesCatalogViewProps) {
                 <li key={c.id}>
                   <Link
                     className={`block h-full rounded-xl border border-mit-line bg-mit-surface p-6 no-underline transition-shadow hover:shadow-sm ${textFocusRingClassName}`}
-                    href={`/classes/${c.slug}/`}
+                    href={`/classes/${c.slug}`}
                   >
                     <div className="mb-2 text-[11px] font-bold tracking-wider text-mit-text uppercase">
                       {c.level}

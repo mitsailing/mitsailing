@@ -20,7 +20,7 @@ const meta = {
     title: 'Join our mailing list',
     body: 'Stay updated on regattas, pavilion events, and our competitive season.',
     linkLabel: 'Subscribe',
-    linkHref: '/contact/',
+    linkHref: '/contact',
     linkExternal: false,
   },
   argTypes: {
@@ -47,6 +47,6 @@ export const Volunteer: Story = {
     title: 'Volunteer with us',
     body: 'Become a mentor or race official to support our daily operations.',
     linkLabel: 'Learn more',
-    linkHref: '/contact/',
+    linkHref: '/contact',
   },
 };

@@ -15,9 +15,6 @@ const config: KnipConfig = {
     // Catalog + time helpers: partially consumed by prisma seed; getters/types fill in when UI is ported
     'src/data/mit-sailing/**',
     'src/lib/mit-sailing/**',
-    // Stacked CMS PR rendering export is consumed by the public branch above admin.
-    'src/components/mit-sailing/cms/CmsPageBlocks.tsx',
-    'src/libs/mit-sailing/cmsQueries.ts',
   ],
   // Dependencies to ignore during analysis
   ignoreDependencies: [

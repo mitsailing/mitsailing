@@ -1,6 +1,10 @@
 import { ArrowLeft } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
+import Image from 'next/image';
+import { PublicAdminEditLink } from '@/components/mit-sailing/admin/PublicAdminEditLink';
+import { CmsRichText } from '@/components/mit-sailing/cms/CmsRichText';
 import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
+import { adminCatalogResourceEditPath } from '@/libs/admin/catalog/adminCatalogPaths';
 import { Link } from '@/libs/I18nNavigation';
 import type { SailingClassCatalogDetail } from '@/libs/mit-sailing/classQueries';
 import type { ClassRelatedEventBlock } from '@/libs/mit-sailing/classRelatedOccurrences';
@@ -23,12 +27,16 @@ export async function ClassDetailView(props: ClassDetailViewProps) {
   });
 
   const bodyClass = 'text-base leading-relaxed text-mit-text';
+  const [primaryImage, ...moreImages] = cl.imagePaths;
 
   return (
     <>
+      <PublicAdminEditLink
+        href={adminCatalogResourceEditPath('sailing_classes', cl.id)}
+      />
       <Link
         className={`mb-8 inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-mit-red-ink no-underline hover:underline ${textFocusRingClassName}`}
-        href="/classes/"
+        href="/classes"
       >
         <ArrowLeft aria-hidden size={16} />
         {t('back_to_classes')}
@@ -42,7 +50,40 @@ export async function ClassDetailView(props: ClassDetailViewProps) {
       <p className={`${bodyClass} mb-2 text-sm`}>
         {t('level_label')} <strong className="font-semibold">{cl.level}</strong>
       </p>
-      <p className={`${bodyClass} mt-5`}>{cl.description}</p>
+      {primaryImage ? (
+        <div className="relative mt-6 mb-6 aspect-[16/10] max-h-[420px] overflow-hidden rounded-xl bg-mit-line">
+          <Image
+            alt={cl.name}
+            className="object-cover"
+            fill
+            sizes="(max-width: 768px) 100vw, 1024px"
+            src={primaryImage}
+            unoptimized={primaryImage.startsWith('/')}
+          />
+        </div>
+      ) : null}
+
+      {moreImages.length > 0 ? (
+        <ul className="m-0 mb-10 grid list-none grid-cols-2 gap-3 p-0">
+          {moreImages.map((src) => (
+            <li
+              className="relative aspect-[4/3] overflow-hidden rounded-lg bg-mit-line"
+              key={src}
+            >
+              <Image
+                alt={t('additional_image_alt', { name: cl.name })}
+                className="object-cover"
+                fill
+                sizes="(max-width: 768px) 50vw, 320px"
+                src={src}
+                unoptimized={src.startsWith('/')}
+              />
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      <CmsRichText className={`${bodyClass} mt-5`} html={cl.description} />
 
       {cl.prerequisites.length > 0 ? (
         <section className="mt-10">
@@ -54,7 +95,7 @@ export async function ClassDetailView(props: ClassDetailViewProps) {
               <li className={bodyClass} key={pre.id}>
                 <Link
                   className={`font-semibold text-mit-red-ink hover:underline ${textFocusRingClassName}`}
-                  href={`/classes/${pre.slug}/`}
+                  href={`/classes/${pre.slug}`}
                 >
                   {pre.name}
                 </Link>
@@ -75,7 +116,7 @@ export async function ClassDetailView(props: ClassDetailViewProps) {
                 <>
                   <Link
                     className={`text-base font-semibold text-mit-red-ink hover:underline ${textFocusRingClassName}`}
-                    href={`/events/${event.slug}/`}
+                    href={`/events/${event.slug}`}
                   >
                     {event.name}
                   </Link>
@@ -84,7 +125,7 @@ export async function ClassDetailView(props: ClassDetailViewProps) {
                       {t('related_events_empty')}{' '}
                       <Link
                         className={`font-semibold text-mit-red-ink hover:underline ${textFocusRingClassName}`}
-                        href="/events/"
+                        href="/events"
                       >
                         {t('related_events_calendar')}
                       </Link>
@@ -123,7 +164,7 @@ export async function ClassDetailView(props: ClassDetailViewProps) {
               <li key={boat.id}>
                 <Link
                   className={`text-base font-semibold text-mit-red-ink hover:underline ${textFocusRingClassName}`}
-                  href={`/fleet/${boat.slug}/`}
+                  href={`/fleet/${boat.slug}`}
                 >
                   {boat.name}
                 </Link>

@@ -48,7 +48,7 @@ async function fillSignUpForm(props: {
 
 describe('SignUpForm', () => {
   it('create account and continue to email verification', async () => {
-    render(<SignUpForm callbackUrl="/fleet/" />);
+    render(<SignUpForm callbackUrl="/fleet" />);
 
     const user = await fillSignUpForm({
       email: 'new-sailor@mit.edu',
@@ -58,7 +58,7 @@ describe('SignUpForm', () => {
     await user.click(screen.getByRole('button', { name: 'Sign up' }));
 
     expect(authClientMock.signUp.email).toHaveBeenCalledWith({
-      callbackURL: '/fleet/',
+      callbackURL: '/fleet',
       email: 'new-sailor@mit.edu',
       name: 'New Sailor',
       password: 'correct-password',
@@ -67,12 +67,12 @@ describe('SignUpForm', () => {
       'Check your email for a verification code.'
     );
     expect(componentTestRouter().push).toHaveBeenCalledWith(
-      '/verify-email?email=new-sailor%40mit.edu&codeSent=1&callbackUrl=%2Ffleet%2F'
+      '/verify-email?email=new-sailor%40mit.edu&codeSent=1&callbackUrl=%2Ffleet'
     );
   });
 
   it('create account with email name when name is blank', async () => {
-    render(<SignUpForm callbackUrl="/fleet/" />);
+    render(<SignUpForm callbackUrl="/fleet" />);
 
     const user = await fillSignUpForm({
       email: 'deckhand@mit.edu',
@@ -81,7 +81,7 @@ describe('SignUpForm', () => {
     await user.click(screen.getByRole('button', { name: 'Sign up' }));
 
     expect(authClientMock.signUp.email).toHaveBeenCalledWith({
-      callbackURL: '/fleet/',
+      callbackURL: '/fleet',
       email: 'deckhand@mit.edu',
       name: 'deckhand',
       password: 'correct-password',
@@ -89,7 +89,7 @@ describe('SignUpForm', () => {
   });
 
   it('submit trimmed lowercase email for sign-up and verify-email redirect', async () => {
-    render(<SignUpForm callbackUrl="/fleet/" />);
+    render(<SignUpForm callbackUrl="/fleet" />);
 
     const user = await fillSignUpForm({
       email: '  Sailor@MIT.EDU ',
@@ -99,7 +99,7 @@ describe('SignUpForm', () => {
     await user.click(screen.getByRole('button', { name: 'Sign up' }));
 
     expect(authClientMock.signUp.email).toHaveBeenCalledWith({
-      callbackURL: '/fleet/',
+      callbackURL: '/fleet',
       email: 'sailor@mit.edu',
       name: 'New Sailor',
       password: 'correct-password',
@@ -108,7 +108,7 @@ describe('SignUpForm', () => {
       await screen.findByText('Check your email for a verification code.')
     ).toBeVisible();
     expect(componentTestRouter().push).toHaveBeenCalledWith(
-      '/verify-email?email=sailor%40mit.edu&codeSent=1&callbackUrl=%2Ffleet%2F'
+      '/verify-email?email=sailor%40mit.edu&codeSent=1&callbackUrl=%2Ffleet'
     );
   });
 
@@ -116,7 +116,7 @@ describe('SignUpForm', () => {
     authClientMock.signUp.email.mockResolvedValue({
       error: { code: 'EMAIL_EXISTS' },
     });
-    render(<SignUpForm callbackUrl="/fleet/" />);
+    render(<SignUpForm callbackUrl="/fleet" />);
 
     const user = await fillSignUpForm({
       email: 'member@mit.edu',
@@ -129,15 +129,15 @@ describe('SignUpForm', () => {
     );
     expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute(
       'href',
-      '/login?callbackUrl=%2Ffleet%2F'
+      '/login?callbackUrl=%2Ffleet'
     );
     expect(
       screen.getByRole('link', { name: 'Reset password' })
-    ).toHaveAttribute('href', '/forgot-password?callbackUrl=%2Ffleet%2F');
+    ).toHaveAttribute('href', '/forgot-password?callbackUrl=%2Ffleet');
   });
 
   it('keep form when password confirmation does not match', async () => {
-    render(<SignUpForm callbackUrl="/fleet/" />);
+    render(<SignUpForm callbackUrl="/fleet" />);
 
     const user = await fillSignUpForm({
       email: 'member@mit.edu',
@@ -153,7 +153,7 @@ describe('SignUpForm', () => {
   });
 
   it('show safe error before submitting invalid sign-up email', async () => {
-    render(<SignUpForm callbackUrl="/fleet/" />);
+    render(<SignUpForm callbackUrl="/fleet" />);
 
     const user = await fillSignUpForm({
       email: 'member@mit',
@@ -171,7 +171,7 @@ describe('SignUpForm', () => {
     authClientMock.signUp.email.mockResolvedValue({
       error: { code: 'PASSWORD_COMPROMISED' },
     });
-    render(<SignUpForm callbackUrl="/fleet/" />);
+    render(<SignUpForm callbackUrl="/fleet" />);
 
     const user = await fillSignUpForm({
       email: 'member@mit.edu',
@@ -191,7 +191,7 @@ describe('SignUpForm', () => {
     authClientMock.signUp.email.mockResolvedValue({
       error: { message: 'TOO_MANY_REQUESTS' },
     });
-    render(<SignUpForm callbackUrl="/fleet/" />);
+    render(<SignUpForm callbackUrl="/fleet" />);
 
     const user = await fillSignUpForm({
       email: 'member@mit.edu',
@@ -208,7 +208,7 @@ describe('SignUpForm', () => {
     authClientMock.signUp.email.mockResolvedValue({
       error: { code: 'TOO_MANY_REQUESTS' },
     });
-    render(<SignUpForm callbackUrl="/fleet/" />);
+    render(<SignUpForm callbackUrl="/fleet" />);
 
     const user = await fillSignUpForm({
       email: 'member@mit.edu',
@@ -225,7 +225,7 @@ describe('SignUpForm', () => {
     authClientMock.signUp.email.mockResolvedValue({
       error: { message: 'Invite is required.' },
     });
-    render(<SignUpForm callbackUrl="/fleet/" />);
+    render(<SignUpForm callbackUrl="/fleet" />);
 
     const user = await fillSignUpForm({
       email: 'member@mit.edu',
@@ -253,7 +253,7 @@ describe('SignUpForm', () => {
     authClientMock.signUp.email.mockResolvedValue({
       error: {},
     });
-    render(<SignUpForm callbackUrl="/fleet/" />);
+    render(<SignUpForm callbackUrl="/fleet" />);
 
     const user = await fillSignUpForm({
       email: 'member@mit.edu',
@@ -270,7 +270,7 @@ describe('SignUpForm', () => {
     const rejection = new Error('empty message placeholder');
     rejection.message = '';
     authClientMock.signUp.email.mockRejectedValueOnce(rejection);
-    render(<SignUpForm callbackUrl="/fleet/" />);
+    render(<SignUpForm callbackUrl="/fleet" />);
 
     const user = await fillSignUpForm({
       email: 'member@mit.edu',
@@ -289,7 +289,7 @@ describe('SignUpForm', () => {
     authClientMock.signUp.email.mockRejectedValueOnce(
       new Error('Invite is closed.')
     );
-    render(<SignUpForm callbackUrl="/fleet/" />);
+    render(<SignUpForm callbackUrl="/fleet" />);
 
     const user = await fillSignUpForm({
       email: 'member@mit.edu',

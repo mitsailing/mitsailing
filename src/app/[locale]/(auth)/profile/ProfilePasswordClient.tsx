@@ -5,15 +5,16 @@ import { useState } from 'react';
 import { mapProfilePasswordError } from '@/components/auth/profile/profileAuthErrorMaps';
 import { ProfileInlineBanner } from '@/components/auth/profile/profileBanner';
 import type { ProfileBannerState } from '@/components/auth/profile/profileBanner';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SubmitButton } from '@/components/ui/submit-button';
 import { authInlineLinkClassName } from '@/lib/mit-sailing/tokens';
 import { authClient } from '@/libs/auth-client';
 import { Link as I18nLink } from '@/libs/I18nNavigation';
 
 export function ProfilePasswordClient() {
   const t = useTranslations('UserProfilePage');
+  const tCommon = useTranslations('Common');
 
   const [passwordBanner, setPasswordBanner] =
     useState<ProfileBannerState>(null);
@@ -128,14 +129,14 @@ export function ProfilePasswordClient() {
               value={newPasswordConfirm}
             />
           </div>
-          <Button
+          <SubmitButton
             className="mt-2 w-fit"
-            disabled={changingPassword}
-            type="submit"
+            pending={changingPassword}
+            pendingLabel={tCommon('pending_saving')}
             variant="mit"
           >
             {t('change_password_submit')}
-          </Button>
+          </SubmitButton>
         </form>
       </section>
     </div>

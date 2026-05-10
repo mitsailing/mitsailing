@@ -12,10 +12,10 @@ type ProfileNavItem = {
 };
 
 const PROFILE_NAV: ProfileNavItem[] = [
-  { href: '/profile/account/', labelKey: 'nav_account' },
-  { href: '/profile/password/', labelKey: 'nav_password' },
-  { href: '/profile/security/', labelKey: 'nav_security' },
-  { href: '/profile/delete/', labelKey: 'nav_delete' },
+  { href: '/profile/account', labelKey: 'nav_account' },
+  { href: '/profile/password', labelKey: 'nav_password' },
+  { href: '/profile/security', labelKey: 'nav_security' },
+  { href: '/profile/delete', labelKey: 'nav_delete' },
 ];
 
 function isProfileNavActive(pathname: string, href: string): boolean {

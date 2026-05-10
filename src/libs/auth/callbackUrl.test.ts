@@ -4,9 +4,9 @@ import { authHrefWithCallback, safeAuthCallbackUrl } from './callbackUrl';
 describe('safeAuthCallbackUrl', () => {
   it('visitor returns to app relative paths', () => {
     expect(safeAuthCallbackUrl('/')).toBe('/');
-    expect(safeAuthCallbackUrl('/fleet/')).toBe('/fleet/');
-    expect(safeAuthCallbackUrl('/fleet/?category=dinghy#boats')).toBe(
-      '/fleet/?category=dinghy#boats'
+    expect(safeAuthCallbackUrl('/fleet')).toBe('/fleet');
+    expect(safeAuthCallbackUrl('/fleet?category=dinghy#boats')).toBe(
+      '/fleet?category=dinghy#boats'
     );
   });
 
@@ -18,8 +18,8 @@ describe('safeAuthCallbackUrl', () => {
   it('visitor cannot return to malformed relative paths', () => {
     expect(safeAuthCallbackUrl('fleet', '/login')).toBe('/login');
     expect(safeAuthCallbackUrl('/\\example.com/fleet', '/')).toBe('/');
-    expect(safeAuthCallbackUrl('', '/fleet/')).toBe('/fleet/');
-    expect(safeAuthCallbackUrl('   ', '/fleet/')).toBe('/fleet/');
+    expect(safeAuthCallbackUrl('', '/fleet')).toBe('/fleet');
+    expect(safeAuthCallbackUrl('   ', '/fleet')).toBe('/fleet');
   });
 
   it('visitor cannot return to paths with control characters', () => {
@@ -46,20 +46,20 @@ describe('safeAuthCallbackUrl', () => {
 
 describe('authHrefWithCallback', () => {
   it('visitor carries callback query into auth hrefs', () => {
-    expect(authHrefWithCallback('/login', '/fleet/')).toBe(
-      '/login?callbackUrl=%2Ffleet%2F'
+    expect(authHrefWithCallback('/login', '/fleet')).toBe(
+      '/login?callbackUrl=%2Ffleet'
     );
   });
 
   it('visitor keeps existing auth query params with callbacks', () => {
-    expect(authHrefWithCallback('/login?unlocked=1', '/fleet/')).toBe(
-      '/login?unlocked=1&callbackUrl=%2Ffleet%2F'
+    expect(authHrefWithCallback('/login?unlocked=1', '/fleet')).toBe(
+      '/login?unlocked=1&callbackUrl=%2Ffleet'
     );
   });
 
   it('visitor keeps auth href hashes with callbacks', () => {
-    expect(authHrefWithCallback('/login#form', '/fleet/#boats')).toBe(
-      '/login?callbackUrl=%2Ffleet%2F%23boats#form'
+    expect(authHrefWithCallback('/login#form', '/fleet#boats')).toBe(
+      '/login?callbackUrl=%2Ffleet%23boats#form'
     );
   });
 
@@ -71,18 +71,18 @@ describe('authHrefWithCallback', () => {
   });
 
   it('visitor gets unchanged external auth hrefs', () => {
-    expect(authHrefWithCallback('https://example.com/login', '/fleet/')).toBe(
+    expect(authHrefWithCallback('https://example.com/login', '/fleet')).toBe(
       'https://example.com/login'
     );
-    expect(authHrefWithCallback('//example.com/login', '/fleet/')).toBe(
+    expect(authHrefWithCallback('//example.com/login', '/fleet')).toBe(
       '//example.com/login'
     );
   });
 
   it('visitor gets unchanged malformed auth hrefs', () => {
-    expect(authHrefWithCallback('', '/fleet/')).toBe('');
-    expect(authHrefWithCallback('login', '/fleet/')).toBe('login');
-    expect(authHrefWithCallback('/\\example.com/login', '/fleet/')).toBe(
+    expect(authHrefWithCallback('', '/fleet')).toBe('');
+    expect(authHrefWithCallback('login', '/fleet')).toBe('login');
+    expect(authHrefWithCallback('/\\example.com/login', '/fleet')).toBe(
       '/\\example.com/login'
     );
   });

@@ -6,7 +6,7 @@ test.describe('Profile appearance', () => {
     page,
   }) => {
     await signInAsAdmin(page);
-    await page.goto('/profile/account/');
+    await page.goto('/profile/account');
 
     await page.getByRole('radio', { name: 'Dark' }).click();
 
