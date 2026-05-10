@@ -26,13 +26,13 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: '${{ github.event.deployment.ref }}'
+          ref: '${{ github.event.deployment.sha || github.event.deployment_status.deployment.sha }}'
           fetch-depth: 0
 
       - name: Set Checkly git metadata
         run: |
-          echo "CHECKLY_REPO_BRANCH=${{ github.event.deployment.ref }}" >> "$GITHUB_ENV"
-          echo "CHECKLY_REPO_SHA=${{ github.event.deployment.sha }}" >> "$GITHUB_ENV"
+          echo "CHECKLY_REPO_BRANCH=${{ github.event.deployment.ref || github.event.deployment_status.deployment.ref }}" >> "$GITHUB_ENV"
+          echo "CHECKLY_REPO_SHA=${{ github.event.deployment.sha || github.event.deployment_status.deployment.sha }}" >> "$GITHUB_ENV"
 
       - name: Set up Node.js environment
         uses: ./.github/actions/setup-project
@@ -45,7 +45,11 @@ jobs:
 
       - name: Create summary # export the markdown report to the job summary.
         id: create-summary
-        run: cat checkly-github-report.md > $GITHUB_STEP_SUMMARY
+        if: always()
+        run: |
+          if [ -f checkly-github-report.md ]; then
+            cat checkly-github-report.md > "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Deploy checks # if the test run was successful and we are on production, deploy the checks
         id: deploy-checks

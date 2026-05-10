@@ -40,7 +40,9 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      - cms_media:${CMS_MEDIA_ROOT:-/var/lib/mitsailing/cms-media}
+      - type: volume
+        source: cms_media
+        target: ${CMS_MEDIA_ROOT:-/var/lib/mitsailing/cms-media}
     stop_grace_period: 30s
     command: ['node', 'server.js']
     deploy:
@@ -79,7 +81,9 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      - cms_media:${CMS_MEDIA_ROOT:-/var/lib/mitsailing/cms-media}
+      - type: volume
+        source: cms_media
+        target: ${CMS_MEDIA_ROOT:-/var/lib/mitsailing/cms-media}
     stop_grace_period: 30s
     command: ['node', 'worker.cjs']
     deploy:

@@ -25,6 +25,9 @@ export async function FleetBoatDetailView(props: FleetBoatDetailViewProps) {
   });
 
   const bodyClass = 'text-base leading-relaxed text-mit-text';
+  const isLocalImagePath =
+    boat.imagePath?.startsWith('/') === true &&
+    !boat.imagePath.startsWith('//');
 
   return (
     <>
@@ -51,7 +54,7 @@ export async function FleetBoatDetailView(props: FleetBoatDetailViewProps) {
         </h2>
         <Link
           className={`inline-flex font-semibold text-mit-red-ink hover:underline ${textFocusRingClassName}`}
-          href={`/classes/${boat.requiredClass.slug}`}
+          href={`/classes/${encodeURIComponent(boat.requiredClass.slug)}`}
         >
           {boat.requiredClass.name}
         </Link>
@@ -65,7 +68,7 @@ export async function FleetBoatDetailView(props: FleetBoatDetailViewProps) {
             fill
             sizes="(max-width: 768px) 100vw, 1024px"
             src={boat.imagePath}
-            unoptimized={boat.imagePath.startsWith('/')}
+            unoptimized={isLocalImagePath}
           />
         </div>
       ) : null}

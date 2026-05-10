@@ -58,7 +58,7 @@ export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
       {
         id: 'cms-block-home-hero',
         kind: 'hero',
-        title: 'Sail the Charles from MIT',
+        title: 'Sail the Charles River',
         subtitle: 'MIT Sailing Pavilion',
         body: "Learn, race, volunteer, and explore the river with one of the nation's most active university sailing communities.",
         ctaLabel: 'View classes',
