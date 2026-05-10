@@ -106,14 +106,13 @@ export async function uploadCmsMediaFile(props: {
   };
 }
 
-function mediaAssetButton(props: {
+function MediaAssetButton(props: {
   asset: CmsMediaAsset;
   onSelect: (asset: CmsMediaAsset) => void;
 }) {
   return (
     <button
       className="flex min-w-0 items-center gap-2 rounded-md border border-border bg-card p-2 text-left text-sm text-card-foreground transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-      key={props.asset.id}
       onClick={() => {
         props.onSelect(props.asset);
       }}
@@ -139,9 +138,13 @@ export function AdminCmsMediaPickerPanel(props: {
   return (
     <div className="grid max-h-56 gap-2 overflow-y-auto border border-border bg-background p-2 sm:grid-cols-2">
       {props.assets.length > 0 ? (
-        props.assets.map((asset) =>
-          mediaAssetButton({ asset, onSelect: props.onSelect })
-        )
+        props.assets.map((asset) => (
+          <MediaAssetButton
+            asset={asset}
+            key={asset.id}
+            onSelect={props.onSelect}
+          />
+        ))
       ) : (
         <p className="px-2 py-4 text-sm text-muted-foreground">
           {t('rich_text_media_empty')}

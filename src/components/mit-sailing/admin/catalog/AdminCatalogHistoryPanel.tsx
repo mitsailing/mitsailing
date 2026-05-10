@@ -31,11 +31,11 @@ export async function AdminCatalogHistoryPanel(props: {
         update: t('cms_history_action_update'),
       }}
       compareHrefFor={(revisionId) =>
-        adminCatalogResourceRevisionPath(
-          props.resourceId,
-          props.itemId,
-          revisionId
-        )
+        adminCatalogResourceRevisionPath({
+          id: props.itemId,
+          resourceId: props.resourceId,
+          revisionId,
+        })
       }
       fieldLabels={{
         capacity: t('field_capacity'),

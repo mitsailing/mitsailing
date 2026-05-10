@@ -1,6 +1,14 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
 import { AdminCatalogForm } from '@/components/mit-sailing/admin/catalog/AdminCatalogForm';
 import { AdminCatalogHistoryPanelView } from '@/components/mit-sailing/admin/catalog/AdminCatalogHistoryPanelView';
 import { AdminCmsHistoryPanelView } from '@/components/mit-sailing/admin/catalog/AdminCmsHistoryPanelView';
@@ -12,6 +20,26 @@ function emptyBoundingRect(): DOMRect {
 }
 
 const emptyClientRectList = document.createElement('div').getClientRects();
+const originalElementGetClientRects = Object.getOwnPropertyDescriptor(
+  Element.prototype,
+  'getClientRects'
+);
+const originalRangeGetClientRects = Object.getOwnPropertyDescriptor(
+  Range.prototype,
+  'getClientRects'
+);
+const originalRangeGetBoundingClientRect = Object.getOwnPropertyDescriptor(
+  Range.prototype,
+  'getBoundingClientRect'
+);
+const originalTextGetClientRects = Object.getOwnPropertyDescriptor(
+  Text.prototype,
+  'getClientRects'
+);
+const originalTextGetBoundingClientRect = Object.getOwnPropertyDescriptor(
+  Text.prototype,
+  'getBoundingClientRect'
+);
 
 function emptyClientRects(): DOMRectList {
   return emptyClientRectList;
@@ -33,6 +61,44 @@ beforeAll(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+afterAll(() => {
+  if (originalElementGetClientRects) {
+    Object.defineProperty(
+      Element.prototype,
+      'getClientRects',
+      originalElementGetClientRects
+    );
+  }
+  if (originalRangeGetClientRects) {
+    Object.defineProperty(
+      Range.prototype,
+      'getClientRects',
+      originalRangeGetClientRects
+    );
+  }
+  if (originalRangeGetBoundingClientRect) {
+    Object.defineProperty(
+      Range.prototype,
+      'getBoundingClientRect',
+      originalRangeGetBoundingClientRect
+    );
+  }
+  if (originalTextGetClientRects) {
+    Object.defineProperty(
+      Text.prototype,
+      'getClientRects',
+      originalTextGetClientRects
+    );
+  }
+  if (originalTextGetBoundingClientRect) {
+    Object.defineProperty(
+      Text.prototype,
+      'getBoundingClientRect',
+      originalTextGetBoundingClientRect
+    );
+  }
 });
 
 async function formAction() {
@@ -282,16 +348,16 @@ describe('AdminCatalogForm rich text fields', () => {
     expect(screen.queryByLabelText('CTA label')).toBeNull();
     expect(screen.queryByLabelText('Image alt text')).toBeNull();
     expect(view.container.querySelector('input[name="ctaLabel"]')).toHaveValue(
-      'Learn more'
+      ''
     );
     expect(view.container.querySelector('input[name="ctaUrl"]')).toHaveValue(
-      '/classes'
+      ''
     );
     expect(view.container.querySelector('input[name="imageSrc"]')).toHaveValue(
-      '/assets/images/home-hero-charles-sailing.jpg'
+      ''
     );
     expect(view.container.querySelector('input[name="imageAlt"]')).toHaveValue(
-      'Boats on the river'
+      ''
     );
 
     await user.click(screen.getByRole('checkbox', { name: 'Add CTA' }));
@@ -809,6 +875,38 @@ describe('Admin catalog media fields', () => {
     expect(
       screen.queryByText('Add a CTA label before saving.')
     ).not.toBeInTheDocument();
+  });
+
+  it('submits disabled optional cms block groups with partial draft values', async () => {
+    const saveAction = vi.fn(async () => {
+      await Promise.resolve();
+    });
+    const user = userEvent.setup();
+    render(
+      <AdminCatalogForm
+        definition={catalogResourceDefinitions.cms_page_blocks}
+        formAction={saveAction}
+        headingKey="edit_heading"
+        row={{
+          body: '<p>Existing body</p>',
+          displayOrder: 1,
+          id: 'block-1',
+          isVisible: true,
+          kind: 'hero',
+          pageId: 'page-1',
+          title: 'Hero',
+        }}
+      />
+    );
+
+    await user.click(screen.getByRole('checkbox', { name: 'Add CTA' }));
+    await user.type(screen.getByLabelText('CTA label'), 'Learn more');
+    await user.click(screen.getByRole('checkbox', { name: 'Add CTA' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(saveAction).toHaveBeenCalled();
+    });
   });
 
   it('renders server-returned cms block pair field errors', () => {

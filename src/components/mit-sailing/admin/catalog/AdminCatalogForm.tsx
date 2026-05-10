@@ -884,10 +884,18 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
       };
     }
     return {
-      ctaLabel: ctaUrl.length > 0 && ctaLabel.length === 0,
-      ctaUrl: ctaLabel.length > 0 && ctaUrl.length === 0,
-      imageAlt: imageSrc.length > 0 && imageAlt.length === 0,
-      imageSrc: imageAlt.length > 0 && imageSrc.length === 0,
+      ctaLabel:
+        cmsBlockGroupsEnabled.cta && ctaUrl.length > 0 && ctaLabel.length === 0,
+      ctaUrl:
+        cmsBlockGroupsEnabled.cta && ctaLabel.length > 0 && ctaUrl.length === 0,
+      imageAlt:
+        cmsBlockGroupsEnabled.image &&
+        imageSrc.length > 0 &&
+        imageAlt.length === 0,
+      imageSrc:
+        cmsBlockGroupsEnabled.image &&
+        imageAlt.length > 0 &&
+        imageSrc.length === 0,
     };
   }
 
@@ -994,8 +1002,8 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
       <AdminCmsOptionalGroup
         enabled={cmsBlockGroupsEnabled.cta}
         hiddenFields={[
-          { name: 'ctaLabel', value: cmsBlockPreviewState.ctaLabel },
-          { name: 'ctaUrl', value: cmsBlockPreviewState.ctaUrl },
+          { name: 'ctaLabel', value: '' },
+          { name: 'ctaUrl', value: '' },
         ]}
         key="cms-block-cta-group"
         legend={tCatalog('cms_block_cta_group')}
@@ -1068,8 +1076,8 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
       <AdminCmsOptionalGroup
         enabled={cmsBlockGroupsEnabled.image}
         hiddenFields={[
-          { name: 'imageSrc', value: cmsBlockPreviewState.imageSrc },
-          { name: 'imageAlt', value: cmsBlockPreviewState.imageAlt },
+          { name: 'imageSrc', value: '' },
+          { name: 'imageAlt', value: '' },
         ]}
         key="cms-block-image-group"
         legend={tCatalog('cms_block_picture_group')}
@@ -1768,9 +1776,10 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
                 max={CMS_HOME_OVERVIEW_MAX_EVENTS}
                 min={1}
                 onChange={(event) => {
+                  const eventCount = Number.parseInt(event.target.value, 10);
                   updateCmsHomeOverviewEditorState({
                     ...cmsHomeOverviewEditorState,
-                    eventCount: Number.parseInt(event.target.value, 10),
+                    eventCount: Number.isFinite(eventCount) ? eventCount : 1,
                   });
                 }}
                 required
