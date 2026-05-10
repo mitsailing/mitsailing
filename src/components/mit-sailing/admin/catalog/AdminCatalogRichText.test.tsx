@@ -2,6 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { AdminCatalogForm } from '@/components/mit-sailing/admin/catalog/AdminCatalogForm';
+import { AdminCatalogHistoryPanelView } from '@/components/mit-sailing/admin/catalog/AdminCatalogHistoryPanelView';
 import { AdminCmsHistoryPanelView } from '@/components/mit-sailing/admin/catalog/AdminCmsHistoryPanelView';
 import { AdminCmsRevisionCompareView } from '@/components/mit-sailing/admin/catalog/AdminCmsRevisionCompareView';
 import { catalogResourceDefinitions } from '@/libs/admin/catalog/catalogDefinitions';
@@ -724,7 +725,7 @@ describe('AdminRichTextEditor link controls', () => {
 });
 
 describe('AdminCmsHistoryPanelView', () => {
-  it('renders compact revision metadata with compare link', () => {
+  it('renders compact revision metadata with change summary', () => {
     render(
       <AdminCmsHistoryPanelView
         actionLabels={{
@@ -735,6 +736,23 @@ describe('AdminCmsHistoryPanelView', () => {
         compareHrefFor={(revisionId) =>
           `/admin/cms_pages/page-1/revisions/${revisionId}`
         }
+        fieldLabels={{
+          body: 'Body',
+          ctaLabel: 'CTA label',
+          ctaUrl: 'CTA URL',
+          displayOrder: 'Display order',
+          imageAlt: 'Image alt text',
+          imageSrc: 'Image source',
+          isPublished: 'Published',
+          isVisible: 'Published',
+          kind: 'Block type',
+          metaDescription: 'Meta description',
+          metaTitle: 'Meta title',
+          path: 'Path',
+          slug: 'Slug',
+          subtitle: 'Subtitle',
+          title: 'Title',
+        }}
         locale="en"
         revisions={[
           {
@@ -748,16 +766,33 @@ describe('AdminCmsHistoryPanelView', () => {
               pagePath: '/about/',
               pageTitle: 'About',
             },
+            summary: {
+              changes: [
+                {
+                  blockTitle: 'Overview',
+                  field: 'body',
+                  kind: 'block_field',
+                },
+                { field: 'metaDescription', kind: 'page_field' },
+              ],
+              kind: 'changes',
+              remainingCount: 1,
+            },
             version: 3,
           },
         ]}
         text={{
-          compare: 'Compare with current',
+          addedBlock: (blockTitle) => `Added block: ${blockTitle}`,
+          changed: (changes) => `Changed: ${changes}`,
+          createdSummary: 'Created initial version',
           empty: 'No page history saved yet.',
           heading: 'Page history',
-          snapshotBlocks: (count) => `${count} blocks`,
+          moreChanges: (count) => `${count} more changes`,
+          noChangesSummary: 'No field changes detected',
+          removedBlock: (blockTitle) => `Removed block: ${blockTitle}`,
           unknownEditor: 'Unknown editor',
           version: (version) => `Version ${version}`,
+          viewChanges: 'View changes',
         }}
       />
     );
@@ -766,11 +801,159 @@ describe('AdminCmsHistoryPanelView', () => {
     expect(screen.getByText('Version 3')).toBeVisible();
     expect(screen.getByText('Updated')).toBeVisible();
     expect(screen.getByText('admin@example.com')).toBeVisible();
-    expect(screen.getByText('About / /about/')).toBeVisible();
-    expect(screen.getByText('2 blocks - Intro body')).toBeVisible();
     expect(
-      screen.getByRole('link', { name: 'Compare with current' })
-    ).toHaveAttribute('href', '/admin/cms_pages/page-1/revisions/revision-1');
+      screen.getByText('Changed: Overview / Body, Meta description')
+    ).toBeVisible();
+    expect(screen.getByText('1 more changes')).toBeVisible();
+    expect(screen.queryByText('About / /about/')).toBeNull();
+    expect(screen.queryByText('2 blocks - Intro body')).toBeNull();
+    expect(screen.getByRole('link', { name: 'View changes' })).toHaveAttribute(
+      'href',
+      '/admin/cms_pages/page-1/revisions/revision-1'
+    );
+  });
+
+  it('renders created and block add/remove summaries', () => {
+    render(
+      <AdminCmsHistoryPanelView
+        actionLabels={{
+          create: 'Created',
+          delete: 'Deleted',
+          update: 'Updated',
+        }}
+        compareHrefFor={(revisionId) =>
+          `/admin/cms_pages/page-1/revisions/${revisionId}`
+        }
+        fieldLabels={{
+          body: 'Body',
+          ctaLabel: 'CTA label',
+          ctaUrl: 'CTA URL',
+          displayOrder: 'Display order',
+          imageAlt: 'Image alt text',
+          imageSrc: 'Image source',
+          isPublished: 'Published',
+          isVisible: 'Published',
+          kind: 'Block type',
+          metaDescription: 'Meta description',
+          metaTitle: 'Meta title',
+          path: 'Path',
+          slug: 'Slug',
+          subtitle: 'Subtitle',
+          title: 'Title',
+        }}
+        locale="en"
+        revisions={[
+          {
+            action: 'create',
+            createdAt: '2026-05-09T16:30:00.000Z',
+            id: 'revision-1',
+            preview: { blockCount: 1 },
+            summary: { kind: 'created' },
+            version: 1,
+          },
+          {
+            action: 'update',
+            createdAt: '2026-05-09T17:30:00.000Z',
+            id: 'revision-2',
+            preview: { blockCount: 2 },
+            summary: {
+              changes: [
+                { blockTitle: 'Pricing', kind: 'block_added' },
+                { blockTitle: 'Callout', kind: 'block_removed' },
+              ],
+              kind: 'changes',
+              remainingCount: 0,
+            },
+            version: 2,
+          },
+        ]}
+        text={{
+          addedBlock: (blockTitle) => `Added block: ${blockTitle}`,
+          changed: (changes) => `Changed: ${changes}`,
+          createdSummary: 'Created initial version',
+          empty: 'No page history saved yet.',
+          heading: 'Page history',
+          moreChanges: (count) => `${count} more changes`,
+          noChangesSummary: 'No field changes detected',
+          removedBlock: (blockTitle) => `Removed block: ${blockTitle}`,
+          unknownEditor: 'Unknown editor',
+          version: (version) => `Version ${version}`,
+          viewChanges: 'View changes',
+        }}
+      />
+    );
+
+    expect(screen.getByText('Created initial version')).toBeVisible();
+    expect(screen.getByText('Added block: Pricing')).toBeVisible();
+    expect(screen.getByText('Removed block: Callout')).toBeVisible();
+  });
+});
+
+describe('AdminCatalogHistoryPanelView', () => {
+  it('renders catalog change summaries without snapshot copy', () => {
+    render(
+      <AdminCatalogHistoryPanelView
+        actionLabels={{
+          create: 'Created',
+          delete: 'Deleted',
+          restore: 'Restored',
+          update: 'Updated',
+        }}
+        compareHrefFor={(revisionId) =>
+          `/admin/sailing_classes/class-1/revisions/${revisionId}`
+        }
+        fieldLabels={{
+          classCategoryId: 'Category',
+          description: 'Description',
+          isVisible: 'Visible',
+        }}
+        locale="en"
+        revisions={[
+          {
+            action: 'update',
+            createdAt: '2026-05-09T16:30:00.000Z',
+            editorName: 'Admin Sailor',
+            id: 'revision-1',
+            preview: {
+              excerpt: 'Repeated class description',
+              subtitle: 'Introduction',
+              title: 'Intro Sailing',
+            },
+            summary: {
+              changes: [
+                { field: 'description' },
+                { field: 'classCategoryId' },
+                { field: 'isVisible' },
+              ],
+              kind: 'changes',
+              remainingCount: 0,
+            },
+            version: 4,
+          },
+        ]}
+        text={{
+          changed: (changes) => `Changed: ${changes}`,
+          createdSummary: 'Created initial version',
+          empty: 'No history saved yet.',
+          heading: 'Class history',
+          moreChanges: (count) => `${count} more changes`,
+          noChangesSummary: 'No field changes detected',
+          unknownEditor: 'Unknown editor',
+          version: (version) => `Version ${version}`,
+          viewChanges: 'View changes',
+        }}
+      />
+    );
+
+    expect(
+      screen.getByText('Changed: Description, Category, Visible')
+    ).toBeVisible();
+    expect(screen.queryByText('Intro Sailing / Introduction')).toBeNull();
+    expect(screen.queryByText('Repeated class description')).toBeNull();
+    expect(screen.getByRole('link', { name: 'View changes' })).toHaveAttribute(
+      'href',
+      '/admin/sailing_classes/class-1/revisions/revision-1'
+    );
   });
 });
 
@@ -806,6 +989,17 @@ describe('AdminCmsRevisionCompareView', () => {
             excerpt: 'Intro body',
             pagePath: '/about/',
             pageTitle: 'About',
+          },
+          summary: {
+            changes: [
+              {
+                blockTitle: 'Overview',
+                field: 'body',
+                kind: 'block_field',
+              },
+            ],
+            kind: 'changes',
+            remainingCount: 0,
           },
           version: 3,
         }}

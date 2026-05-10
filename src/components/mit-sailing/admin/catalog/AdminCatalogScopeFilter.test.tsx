@@ -108,7 +108,7 @@ describe('AdminCatalogTable scoped CMS definitions', () => {
     ).toBeVisible();
   });
 
-  it('omits the menu column from menu items', () => {
+  it('renders menu items with drag handles and no order column', () => {
     render(
       <AdminCatalogTable
         definition={catalogResourceDefinitions.cms_menu_items}
@@ -132,7 +132,13 @@ describe('AdminCatalogTable scoped CMS definitions', () => {
       within(table).queryByRole('columnheader', { name: 'Menu' })
     ).toBeNull();
     expect(
+      within(table).queryByRole('columnheader', { name: 'Order' })
+    ).toBeNull();
+    expect(
       within(table).getByRole('columnheader', { name: 'Parent' })
+    ).toBeVisible();
+    expect(
+      within(table).getByRole('button', { name: 'Reorder row' })
     ).toBeVisible();
   });
 });
@@ -170,5 +176,34 @@ describe('AdminCatalogForm scoped CMS defaults', () => {
     );
 
     expect(screen.getByLabelText('Menu')).toHaveValue('menu-1');
+    expect(screen.queryByLabelText('Display order')).toBeNull();
+  });
+
+  it('omits display order from menu item edit forms', () => {
+    render(
+      <AdminCatalogForm
+        definition={catalogResourceDefinitions.cms_menu_items}
+        dynamicSelectOptions={{
+          linkedPageId: [{ label: 'No linked page', value: '' }],
+          menuId: [{ label: 'Header (header)', value: 'menu-1' }],
+          parentId: [{ label: 'No parent', value: '' }],
+        }}
+        formAction={noopFormAction}
+        headingKey="edit_heading"
+        row={{
+          displayOrder: 3,
+          id: 'item-1',
+          isExternal: false,
+          isVisible: true,
+          label: 'About',
+          menuId: 'menu-1',
+          parentId: '',
+          url: '/about',
+        }}
+      />
+    );
+
+    expect(screen.getByLabelText('Menu')).toHaveValue('menu-1');
+    expect(screen.queryByLabelText('Display order')).toBeNull();
   });
 });

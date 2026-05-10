@@ -1,8 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
+  cmsMenuItemAggregate: vi.fn(),
+  cmsMenuItemCreate: vi.fn(),
   cmsMenuFindMany: vi.fn(),
   cmsMenuItemFindMany: vi.fn(),
+  cmsMenuItemUpdate: vi.fn(),
   cmsPageBlockAggregate: vi.fn(),
   cmsPageBlockCreate: vi.fn(),
   cmsPageBlockFindUnique: vi.fn(),
@@ -11,9 +14,9 @@ const mocks = vi.hoisted(() => ({
   cmsPageFindUnique: vi.fn(),
   cmsPageFindMany: vi.fn(),
   cmsPageUpdate: vi.fn(),
-  cmsPageRevisionAggregate: vi.fn(),
-  cmsPageRevisionCreate: vi.fn(),
-  cmsPageRevisionFindFirst: vi.fn(),
+  userAuditAggregate: vi.fn(),
+  userAuditCreate: vi.fn(),
+  userAuditFindFirst: vi.fn(),
   prismaTransaction: vi.fn(),
 }));
 
@@ -25,7 +28,10 @@ vi.mock('@/libs/DB', () => ({
       findMany: mocks.cmsMenuFindMany,
     },
     cmsMenuItem: {
+      aggregate: mocks.cmsMenuItemAggregate,
+      create: mocks.cmsMenuItemCreate,
       findMany: mocks.cmsMenuItemFindMany,
+      update: mocks.cmsMenuItemUpdate,
     },
     cmsPage: {
       findMany: mocks.cmsPageFindMany,
@@ -39,10 +45,10 @@ vi.mock('@/libs/DB', () => ({
       findMany: mocks.cmsPageBlockFindMany,
       update: mocks.cmsPageBlockUpdate,
     },
-    cmsPageRevision: {
-      aggregate: mocks.cmsPageRevisionAggregate,
-      create: mocks.cmsPageRevisionCreate,
-      findFirst: mocks.cmsPageRevisionFindFirst,
+    userAudit: {
+      aggregate: mocks.userAuditAggregate,
+      create: mocks.userAuditCreate,
+      findFirst: mocks.userAuditFindFirst,
     },
     $transaction: mocks.prismaTransaction,
   },
@@ -61,8 +67,11 @@ const {
 } = await import('@/libs/admin/catalog/scopedCatalogLists');
 
 beforeEach(() => {
+  mocks.cmsMenuItemAggregate.mockReset();
+  mocks.cmsMenuItemCreate.mockReset();
   mocks.cmsMenuFindMany.mockReset();
   mocks.cmsMenuItemFindMany.mockReset();
+  mocks.cmsMenuItemUpdate.mockReset();
   mocks.cmsPageBlockAggregate.mockReset();
   mocks.cmsPageBlockCreate.mockReset();
   mocks.cmsPageBlockFindUnique.mockReset();
@@ -71,20 +80,23 @@ beforeEach(() => {
   mocks.cmsPageFindUnique.mockReset();
   mocks.cmsPageFindMany.mockReset();
   mocks.cmsPageUpdate.mockReset();
-  mocks.cmsPageRevisionAggregate.mockReset();
-  mocks.cmsPageRevisionCreate.mockReset();
-  mocks.cmsPageRevisionFindFirst.mockReset();
+  mocks.userAuditAggregate.mockReset();
+  mocks.userAuditCreate.mockReset();
+  mocks.userAuditFindFirst.mockReset();
   mocks.prismaTransaction.mockReset();
   mocks.prismaTransaction.mockImplementation(
     async (transactionBody: (tx: unknown) => Promise<unknown>) => {
       const result = await transactionBody({
-        cmsPageRevision: {
-          aggregate: mocks.cmsPageRevisionAggregate,
-          create: mocks.cmsPageRevisionCreate,
-          findFirst: mocks.cmsPageRevisionFindFirst,
+        userAudit: {
+          aggregate: mocks.userAuditAggregate,
+          create: mocks.userAuditCreate,
+          findFirst: mocks.userAuditFindFirst,
         },
         cmsPageBlock: {
           update: mocks.cmsPageBlockUpdate,
+        },
+        cmsMenuItem: {
+          update: mocks.cmsMenuItemUpdate,
         },
       });
       return result;
@@ -144,8 +156,8 @@ describe('cmsPagesCatalogHandlers', () => {
         })
       ).resolves.toEqual({ ok: true });
 
-      expect(mocks.cmsPageRevisionCreate).not.toHaveBeenCalled();
-      expect(mocks.cmsPageRevisionFindFirst).not.toHaveBeenCalled();
+      expect(mocks.userAuditCreate).not.toHaveBeenCalled();
+      expect(mocks.userAuditFindFirst).not.toHaveBeenCalled();
     });
   });
 });
@@ -235,8 +247,8 @@ describe('cmsPageBlocksCatalogHandlers', () => {
           },
         ],
       });
-      mocks.cmsPageRevisionFindFirst.mockResolvedValue({
-        snapshot: {
+      mocks.userAuditFindFirst.mockResolvedValue({
+        auditedChanges: {
           page: {
             id: 'page-1',
             slug: 'about',
@@ -250,7 +262,7 @@ describe('cmsPageBlocksCatalogHandlers', () => {
         },
         version: 2,
       });
-      mocks.cmsPageRevisionCreate.mockResolvedValue({ id: 'revision-3' });
+      mocks.userAuditCreate.mockResolvedValue({ id: 'revision-3' });
 
       await expect(
         cmsPageBlocksCatalogHandlers.createFromForm(formData, {
@@ -270,13 +282,14 @@ describe('cmsPageBlocksCatalogHandlers', () => {
         expect.any(Function),
         { isolationLevel: 'Serializable' }
       );
-      expect(mocks.cmsPageRevisionCreate).toHaveBeenCalledWith({
+      expect(mocks.userAuditCreate).toHaveBeenCalledWith({
         data: expect.objectContaining({
           action: 'update',
-          createdByUserId: 'admin-1',
-          pageId: 'page-1',
+          auditableId: 'page-1',
+          auditableType: 'cms_pages',
+          userId: 'admin-1',
           version: 3,
-          snapshot: expect.objectContaining({
+          auditedChanges: expect.objectContaining({
             blocks: [
               expect.objectContaining({
                 body: '<p>Plain body</p>',
@@ -493,6 +506,121 @@ describe('cmsMenuItemsCatalogHandlers', () => {
           where: { id: { not: 'item-1' }, menuId: 'menu-1' },
         })
       );
+    });
+  });
+
+  describe('createFromForm', () => {
+    it('appends new menu items after the current menu and parent order', async () => {
+      const formData = new FormData();
+      formData.set('menuId', 'menu-1');
+      formData.set('parentId', 'parent-1');
+      formData.set('label', 'Membership');
+      formData.set('url', '/membership/');
+      formData.set('isVisible', 'true');
+
+      mocks.cmsMenuItemFindMany.mockResolvedValue([
+        { id: 'parent-1', parentId: null },
+        { id: 'item-1', parentId: 'parent-1' },
+      ]);
+      mocks.cmsMenuItemAggregate.mockResolvedValue({
+        _max: { displayOrder: 4 },
+      });
+      mocks.cmsMenuItemCreate.mockResolvedValue({ id: 'item-2' });
+
+      await expect(
+        cmsMenuItemsCatalogHandlers.createFromForm(formData)
+      ).resolves.toEqual({ ok: true, id: 'item-2' });
+
+      expect(mocks.cmsMenuItemAggregate).toHaveBeenCalledWith({
+        _max: { displayOrder: true },
+        where: { menuId: 'menu-1', parentId: 'parent-1' },
+      });
+      expect(mocks.cmsMenuItemCreate).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          displayOrder: 5,
+          label: 'Membership',
+          menuId: 'menu-1',
+          parentId: 'parent-1',
+        }),
+        select: { id: true },
+      });
+    });
+  });
+
+  describe('updateFromForm', () => {
+    it('preserves display order when editing menu item details', async () => {
+      const formData = new FormData();
+      formData.set('menuId', 'menu-1');
+      formData.set('label', 'About MIT Sailing');
+      formData.set('url', '/about/');
+      formData.set('isVisible', 'true');
+
+      mocks.cmsMenuItemFindMany.mockResolvedValue([
+        { id: 'item-1', parentId: null },
+      ]);
+      mocks.cmsMenuItemUpdate.mockResolvedValue({ id: 'item-1' });
+
+      await expect(
+        cmsMenuItemsCatalogHandlers.updateFromForm('item-1', formData)
+      ).resolves.toEqual({ ok: true });
+
+      expect(mocks.cmsMenuItemAggregate).not.toHaveBeenCalled();
+      expect(mocks.cmsMenuItemUpdate).toHaveBeenCalledWith({
+        data: expect.not.objectContaining({ displayOrder: expect.any(Number) }),
+        where: { id: 'item-1' },
+      });
+    });
+  });
+
+  describe('reorder', () => {
+    it('persists menu-local row order', async () => {
+      mocks.cmsMenuItemFindMany
+        .mockResolvedValueOnce([
+          { id: 'item-2', menuId: 'menu-1' },
+          { id: 'item-1', menuId: 'menu-1' },
+        ])
+        .mockResolvedValueOnce([{ id: 'item-1' }, { id: 'item-2' }]);
+
+      await expect(
+        cmsMenuItemsCatalogHandlers.reorder?.(['item-2', 'item-1'])
+      ).resolves.toEqual({ ok: true });
+
+      expect(mocks.prismaTransaction).toHaveBeenCalledWith(
+        expect.any(Function)
+      );
+      expect(mocks.cmsMenuItemUpdate).toHaveBeenNthCalledWith(1, {
+        data: { displayOrder: 0 },
+        where: { id: 'item-2' },
+      });
+      expect(mocks.cmsMenuItemUpdate).toHaveBeenNthCalledWith(2, {
+        data: { displayOrder: 1 },
+        where: { id: 'item-1' },
+      });
+    });
+
+    it('rejects menu item ids from multiple menus', async () => {
+      mocks.cmsMenuItemFindMany.mockResolvedValue([
+        { id: 'item-1', menuId: 'menu-1' },
+        { id: 'item-2', menuId: 'menu-2' },
+      ]);
+
+      await expect(
+        cmsMenuItemsCatalogHandlers.reorder?.(['item-1', 'item-2'])
+      ).resolves.toEqual({ ok: false, code: 'invalid_order' });
+
+      expect(mocks.prismaTransaction).not.toHaveBeenCalled();
+    });
+
+    it('rejects missing menu item ids', async () => {
+      mocks.cmsMenuItemFindMany
+        .mockResolvedValueOnce([{ id: 'item-1', menuId: 'menu-1' }])
+        .mockResolvedValueOnce([{ id: 'item-1' }, { id: 'item-2' }]);
+
+      await expect(
+        cmsMenuItemsCatalogHandlers.reorder?.(['item-1', 'missing-item'])
+      ).resolves.toEqual({ ok: false, code: 'invalid_order' });
+
+      expect(mocks.prismaTransaction).not.toHaveBeenCalled();
     });
   });
 });

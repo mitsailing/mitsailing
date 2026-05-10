@@ -223,7 +223,6 @@ describe('cms menu item validation', () => {
       label: 'Footer column',
       isExternal: false,
       isVisible: true,
-      displayOrder: 0,
     });
 
     expect(parsed.success).toBe(true);
@@ -236,7 +235,6 @@ describe('cms menu item validation', () => {
       url: ['java', 'script:alert(1)'].join(''),
       isExternal: true,
       isVisible: true,
-      displayOrder: 0,
     });
 
     expect(parsed.success).toBe(false);

@@ -130,7 +130,6 @@ export const cmsMenuItemInputSchema = z
       .transform((value) => (value === '' ? undefined : value)),
     isExternal: z.boolean(),
     isVisible: z.boolean(),
-    displayOrder: z.number().int().min(0),
     systemKey: z.string().trim().optional(),
   })
   .refine(

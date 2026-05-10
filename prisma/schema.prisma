@@ -22,14 +22,14 @@ enum ThemePreference {
 }
 
 model User {
-  id               String   @id
+  id               String          @id
   name             String
-  email            String   @unique
-  emailVerified    Boolean  @default(false) @map("email_verified")
-  unconfirmedEmail String?  @map("unconfirmed_email")
+  email            String          @unique
+  emailVerified    Boolean         @default(false) @map("email_verified")
+  unconfirmedEmail String?         @map("unconfirmed_email")
   image            String?
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt      @map("updated_at")
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
   themePreference  ThemePreference @default(SYSTEM) @map("theme_preference")
 
   // Admin plugin columns.
@@ -38,17 +38,18 @@ model User {
   banReason  String?   @map("ban_reason")
   banExpires DateTime? @map("ban_expires")
 
-  sessions  Session[]
-  accounts  Account[]
-  auditLogs AuditLog[]
-  siteTextOverrides SiteTextOverride[]
-  cmsMediaAssets CmsMediaAsset[] @relation("CmsMediaUploadedBy")
-  cmsPageRevisions CmsPageRevision[] @relation("CmsPageRevisionCreatedBy")
+  sessions               Session[]
+  accounts               Account[]
+  auditLogs              AuditLog[]
+  userAudits             UserAudit[]        @relation("UserAuditUser")
+  impersonatedUserAudits UserAudit[]        @relation("UserAuditImpersonatedUser")
+  siteTextOverrides      SiteTextOverride[]
+  cmsMediaAssets         CmsMediaAsset[]    @relation("CmsMediaUploadedBy")
 
   eventRegistrations EventRegistration[]
   eventComments      EventComment[]
   eventAdmins        EventAdmin[]
-  eventsCreated      Event[]            @relation("EventCreatedBy")
+  eventsCreated      Event[]             @relation("EventCreatedBy")
 
   @@map("user")
 }
@@ -62,7 +63,7 @@ model Session {
   userAgent      String?  @map("user_agent")
   impersonatedBy String?  @map("impersonated_by")
   createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt      @map("updated_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -83,7 +84,7 @@ model Account {
   refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at")
   scope                 String?
   createdAt             DateTime  @default(now()) @map("created_at")
-  updatedAt             DateTime  @updatedAt      @map("updated_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -97,7 +98,7 @@ model Verification {
   value      String
   expiresAt  DateTime @map("expires_at")
   createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt      @map("updated_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
   @@index([identifier])
   @@map("verification")
@@ -134,6 +135,40 @@ model AuditLog {
   @@map("audit_log")
 }
 
+enum UserAuditAction {
+  create
+  update
+  delete
+  restore
+
+  @@map("user_audit_action")
+}
+
+model UserAudit {
+  id                 String          @id @default(cuid())
+  auditableType      String          @map("auditable_type")
+  auditableId        String          @map("auditable_id")
+  userId             String?         @map("user_id")
+  impersonatedUserId String?         @map("impersonated_user_id")
+  action             UserAuditAction
+  auditedChanges     Json            @map("audited_changes")
+  version            Int
+  comment            String?         @db.Text
+  remoteAddress      String?         @map("remote_address")
+  requestUuid        String?         @map("request_uuid")
+  createdAt          DateTime        @default(now()) @map("created_at")
+
+  user             User? @relation("UserAuditUser", fields: [userId], references: [id], onDelete: SetNull)
+  impersonatedUser User? @relation("UserAuditImpersonatedUser", fields: [impersonatedUserId], references: [id], onDelete: SetNull)
+
+  @@unique([auditableType, auditableId, version])
+  @@index([auditableType, auditableId, createdAt])
+  @@index([userId])
+  @@index([impersonatedUserId])
+  @@index([action])
+  @@map("user_audit")
+}
+
 model SiteTextOverride {
   id              String   @id @default(cuid())
   locale          String
@@ -155,12 +190,12 @@ model SiteTextOverride {
 // --- MIT Sailing domain (events, classes, fleet, about) ---
 
 model EventCategory {
-  id            String   @id
-  name          String
-  displayOrder  Int      @map("display_order")
-  isVisible     Boolean  @map("is_visible")
-  createdAt     DateTime @map("created_at")
-  events        Event[]
+  id           String   @id
+  name         String
+  displayOrder Int      @map("display_order")
+  isVisible    Boolean  @map("is_visible")
+  createdAt    DateTime @map("created_at")
+  events       Event[]
 
   @@map("event_categories")
 }
@@ -171,33 +206,33 @@ enum EventDetailPageKind {
 }
 
 model Event {
-  id                   String                 @id
-  name                 String
-  shortName            String                 @map("short_name")
-  eventCategoryId      String                 @map("event_category_id")
-  description          String                 @db.Text
-  slug                 String                 @unique
-  isSpecial            Boolean                @map("is_special")
-  maxParticipants      Int?                   @map("max_participants")
-  requiresApproval     Boolean                @map("requires_approval")
-  registrationStart    DateTime?              @map("registration_start")
-  registrationEnd      DateTime?              @map("registration_end")
-  createdByUserId      String                 @map("created_by")
-  createdAt            DateTime               @map("created_at")
-  detailPageKind       EventDetailPageKind?   @map("detail_page_kind")
-  externalDetailUrl    String?                @map("external_detail_url")
-  internalNotes        String?                @map("internal_notes") @db.Text
-  isPublished          Boolean                @map("is_published")
+  id                String               @id
+  name              String
+  shortName         String               @map("short_name")
+  eventCategoryId   String               @map("event_category_id")
+  description       String               @db.Text
+  slug              String               @unique
+  isSpecial         Boolean              @map("is_special")
+  maxParticipants   Int?                 @map("max_participants")
+  requiresApproval  Boolean              @map("requires_approval")
+  registrationStart DateTime?            @map("registration_start")
+  registrationEnd   DateTime?            @map("registration_end")
+  createdByUserId   String               @map("created_by")
+  createdAt         DateTime             @map("created_at")
+  detailPageKind    EventDetailPageKind? @map("detail_page_kind")
+  externalDetailUrl String?              @map("external_detail_url")
+  internalNotes     String?              @map("internal_notes") @db.Text
+  isPublished       Boolean              @map("is_published")
 
-  category              EventCategory               @relation(fields: [eventCategoryId], references: [id], onDelete: Restrict)
-  createdBy             User                        @relation("EventCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
-  dates                 EventDate[]
-  admins                EventAdmin[]
-  registrations         EventRegistration[]
-  registrationQuestions EventRegistrationQuestion[]
-  entryFees             EventEntryFee[]
-  comments                      EventComment[]
-  sailingClassRelatedEvents      SailingClassRelatedEvent[]
+  category                  EventCategory               @relation(fields: [eventCategoryId], references: [id], onDelete: Restrict)
+  createdBy                 User                        @relation("EventCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  dates                     EventDate[]
+  admins                    EventAdmin[]
+  registrations             EventRegistration[]
+  registrationQuestions     EventRegistrationQuestion[]
+  entryFees                 EventEntryFee[]
+  comments                  EventComment[]
+  sailingClassRelatedEvents SailingClassRelatedEvent[]
 
   @@index([eventCategoryId])
   @@index([createdByUserId])
@@ -234,15 +269,15 @@ enum EventRegistrationStatus {
 }
 
 model EventRegistration {
-  id                       String                    @id
-  eventId                  String                    @map("event_id")
-  userId                   String                    @map("user_id")
-  status                   EventRegistrationStatus
-  createdAt                DateTime                  @map("created_at")
-  swimAgreementAcceptedAt  DateTime                  @map("swim_agreement_accepted_at")
-  event                    Event                     @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  user                     User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  registrationAnswers      EventRegistrationAnswer[]
+  id                      String                    @id
+  eventId                 String                    @map("event_id")
+  userId                  String                    @map("user_id")
+  status                  EventRegistrationStatus
+  createdAt               DateTime                  @map("created_at")
+  swimAgreementAcceptedAt DateTime                  @map("swim_agreement_accepted_at")
+  event                   Event                     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user                    User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  registrationAnswers     EventRegistrationAnswer[]
 
   @@index([eventId])
   @@index([userId])
@@ -256,26 +291,26 @@ enum EventAnswerType {
 }
 
 model EventRegistrationQuestion {
-  id            String            @id
-  eventId       String            @map("event_id")
-  questionText  String            @map("question_text") @db.Text
-  answerType    EventAnswerType   @map("answer_type")
-  options       Json? // string[] for select
-  required      Boolean
-  displayOrder  Int               @map("display_order")
-  event         Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  answers       EventRegistrationAnswer[]
+  id           String                    @id
+  eventId      String                    @map("event_id")
+  questionText String                    @map("question_text") @db.Text
+  answerType   EventAnswerType           @map("answer_type")
+  options      Json? // string[] for select
+  required     Boolean
+  displayOrder Int                       @map("display_order")
+  event        Event                     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  answers      EventRegistrationAnswer[]
 
   @@index([eventId])
   @@map("event_registration_questions")
 }
 
 model EventRegistrationAnswer {
-  id             String                  @id
-  registrationId String                  @map("registration_id")
-  questionId     String                  @map("question_id")
-  value          String                  @db.Text
-  registration   EventRegistration       @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  id             String                    @id
+  registrationId String                    @map("registration_id")
+  questionId     String                    @map("question_id")
+  value          String                    @db.Text
+  registration   EventRegistration         @relation(fields: [registrationId], references: [id], onDelete: Cascade)
   question       EventRegistrationQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
   @@index([registrationId])
@@ -284,26 +319,26 @@ model EventRegistrationAnswer {
 }
 
 model EventEntryFee {
-  id          String @id
-  eventId     String @map("event_id")
+  id          String  @id
+  eventId     String  @map("event_id")
   description String
-  amountCents Int    @map("amount_cents")
+  amountCents Int     @map("amount_cents")
   isDeposit   Boolean @map("is_deposit")
-  event       Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event       Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@index([eventId])
   @@map("event_entry_fees")
 }
 
 model EventComment {
-  id        String  @id
-  eventId   String  @map("event_id")
-  parentId  String? @map("parent_id")
-  userId    String  @map("user_id")
-  body      String  @db.Text
-  createdAt DateTime @map("created_at")
-  event     Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String         @id
+  eventId   String         @map("event_id")
+  parentId  String?        @map("parent_id")
+  userId    String         @map("user_id")
+  body      String         @db.Text
+  createdAt DateTime       @map("created_at")
+  event     Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   parent    EventComment?  @relation("EventCommentThread", fields: [parentId], references: [id], onDelete: SetNull)
   children  EventComment[] @relation("EventCommentThread")
 
@@ -314,33 +349,33 @@ model EventComment {
 }
 
 model ClassCategory {
-  id           String         @id
-  slug         String         @unique
-  name         String
-  displayOrder Int            @map("display_order")
-  isVisible    Boolean        @map("is_visible")
-  createdAt    DateTime       @map("created_at")
+  id             String         @id
+  slug           String         @unique
+  name           String
+  displayOrder   Int            @map("display_order")
+  isVisible      Boolean        @map("is_visible")
+  createdAt      DateTime       @map("created_at")
   sailingClasses SailingClass[]
 
   @@map("class_categories")
 }
 
 model SailingClass {
-  id          String        @id
-  name        String
-  slug        String        @unique
-  classCategoryId String    @map("class_category_id")
-  level       String
-  description String        @db.Text
-  imagePaths  String[]      @default([]) @map("image_paths")
-  displayOrder Int          @default(0) @map("display_order")
-  isVisible   Boolean      @default(true) @map("is_visible")
-  classCategory ClassCategory @relation(fields: [classCategoryId], references: [id], onDelete: Restrict)
-  fleetBoats  FleetBoat[]
-  relatedEvents SailingClassRelatedEvent[]
-  prerequisiteEdges SailingClassPrerequisite[] @relation("ClassRequiresPrerequisite")
+  id                  String                     @id
+  name                String
+  slug                String                     @unique
+  classCategoryId     String                     @map("class_category_id")
+  level               String
+  description         String                     @db.Text
+  imagePaths          String[]                   @default([]) @map("image_paths")
+  displayOrder        Int                        @default(0) @map("display_order")
+  isVisible           Boolean                    @default(true) @map("is_visible")
+  classCategory       ClassCategory              @relation(fields: [classCategoryId], references: [id], onDelete: Restrict)
+  fleetBoats          FleetBoat[]
+  relatedEvents       SailingClassRelatedEvent[]
+  prerequisiteEdges   SailingClassPrerequisite[] @relation("ClassRequiresPrerequisite")
   prerequisiteOfEdges SailingClassPrerequisite[] @relation("ClassIsPrerequisiteFor")
-  unlockedBoatLinks SailingClassUnlockedBoat[]
+  unlockedBoatLinks   SailingClassUnlockedBoat[]
 
   @@index([classCategoryId])
   @@index([classCategoryId, displayOrder])
@@ -381,16 +416,16 @@ model SailingClassUnlockedBoat {
 }
 
 model FleetBoat {
-  id                String        @id
+  id                String                     @id
   name              String
-  slug              String        @unique
+  slug              String                     @unique
   type              String
   capacity          Int
-  displayOrder      Int           @default(0) @map("display_order")
-  requiredClassId   String        @map("required_class_id")
-  description       String        @db.Text
-  imagePaths        String[]      @map("image_paths")
-  requiredClass     SailingClass  @relation(fields: [requiredClassId], references: [id], onDelete: Restrict)
+  displayOrder      Int                        @default(0) @map("display_order")
+  requiredClassId   String                     @map("required_class_id")
+  description       String                     @db.Text
+  imagePaths        String[]                   @map("image_paths")
+  requiredClass     SailingClass               @relation(fields: [requiredClassId], references: [id], onDelete: Restrict)
   unlockedByClasses SailingClassUnlockedBoat[]
 
   @@index([requiredClassId])
@@ -398,13 +433,13 @@ model FleetBoat {
 }
 
 model SiteAlert {
-  id             String    @id @default(cuid())
-  body           String    @db.Text
-  isPublished    Boolean   @default(false) @map("is_published")
-  startDate      DateTime  @db.Date @map("start_date")
-  lastDate       DateTime  @db.Date @map("last_date")
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
+  id          String   @id @default(cuid())
+  body        String   @db.Text
+  isPublished Boolean  @default(false) @map("is_published")
+  startDate   DateTime @map("start_date") @db.Date
+  lastDate    DateTime @map("last_date") @db.Date
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   @@index([isPublished, startDate])
   @@map("site_alerts")
@@ -431,29 +466,20 @@ enum CmsMenuLocation {
   @@map("cms_menu_location")
 }
 
-enum CmsPageRevisionAction {
-  create
-  update
-  delete
-
-  @@map("cms_page_revision_action")
-}
-
 model CmsPage {
-  id              String         @id @default(cuid())
-  slug            String         @unique
-  path            String         @unique
+  id              String   @id @default(cuid())
+  slug            String   @unique
+  path            String   @unique
   title           String
-  metaTitle       String?        @map("meta_title")
-  metaDescription String?        @map("meta_description") @db.Text
-  isPublished     Boolean        @default(true) @map("is_published")
-  createdAt       DateTime       @default(now()) @map("created_at")
-  updatedAt       DateTime       @updatedAt @map("updated_at")
+  metaTitle       String?  @map("meta_title")
+  metaDescription String?  @map("meta_description") @db.Text
+  isPublished     Boolean  @default(true) @map("is_published")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
-  blocks    CmsPageBlock[]
-  menuItems CmsMenuItem[]
+  blocks      CmsPageBlock[]
+  menuItems   CmsMenuItem[]
   mediaAssets CmsMediaAsset[]
-  revisions CmsPageRevision[]
 
   @@index([isPublished, path])
   @@map("cms_pages")
@@ -481,24 +507,6 @@ model CmsPageBlock {
   @@map("cms_page_blocks")
 }
 
-model CmsPageRevision {
-  id              String                @id @default(cuid())
-  pageId          String                @map("page_id")
-  version         Int
-  action          CmsPageRevisionAction
-  snapshot        Json
-  createdByUserId String?               @map("created_by_user_id")
-  createdAt       DateTime              @default(now()) @map("created_at")
-
-  page      CmsPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
-  createdBy User? @relation("CmsPageRevisionCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
-
-  @@unique([pageId, version])
-  @@index([pageId, createdAt])
-  @@index([createdByUserId])
-  @@map("cms_page_revisions")
-}
-
 model CmsMediaAsset {
   id               String   @id @default(cuid())
   pageId           String?  @map("page_id")
@@ -512,7 +520,7 @@ model CmsMediaAsset {
   updatedAt        DateTime @updatedAt @map("updated_at")
 
   page       CmsPage? @relation(fields: [pageId], references: [id], onDelete: SetNull)
-  uploadedBy User?   @relation("CmsMediaUploadedBy", fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+  uploadedBy User?    @relation("CmsMediaUploadedBy", fields: [uploadedByUserId], references: [id], onDelete: SetNull)
 
   @@index([pageId, createdAt])
   @@index([uploadedByUserId])
@@ -556,30 +564,30 @@ model CmsMenuItem {
 }
 
 model DonationFund {
-  id            String   @id @default(cuid())
-  fundId        String   @unique @map("designation_id")
-  name          String
-  description   String   @db.Text
-  url           String
-  displayOrder  Int      @default(0) @map("display_order")
-  isVisible     Boolean  @default(true) @map("is_visible")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  id           String   @id @default(cuid())
+  fundId       String   @unique @map("designation_id")
+  name         String
+  description  String   @db.Text
+  url          String
+  displayOrder Int      @default(0) @map("display_order")
+  isVisible    Boolean  @default(true) @map("is_visible")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   @@index([isVisible, displayOrder])
   @@map("donation_funds")
 }
 
 model StaffMember {
-  id          String  @id
-  slug        String  @unique
-  name        String
-  role        String
-  bio         String? @db.Text
-  fullBio     Json
-  imageSrc    String? @map("image_src")
-  imageAlt    String? @map("image_alt")
-  email       String
+  id       String  @id
+  slug     String  @unique
+  name     String
+  role     String
+  bio      String? @db.Text
+  fullBio  Json
+  imageSrc String? @map("image_src")
+  imageAlt String? @map("image_alt")
+  email    String
 
   @@map("staff_members")
 }

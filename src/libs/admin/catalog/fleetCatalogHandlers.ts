@@ -8,6 +8,7 @@ import {
 import type {
   CatalogCreateResult,
   CatalogListOptions,
+  CatalogMutationContext,
   CatalogMutationErr,
   CatalogMutationOk,
   CatalogReorderScope,
@@ -16,6 +17,12 @@ import type {
 } from '@/libs/admin/catalog/types';
 import { prisma } from '@/libs/DB';
 import { routing } from '@/libs/I18nRouting';
+import {
+  loadCatalogRevisionSnapshot,
+  recordCatalogRevision,
+  recordCatalogRevisionFromSnapshot,
+  recordCatalogRevisionIfChanged,
+} from '@/libs/mit-sailing/catalogHistory';
 import { getI18nPath } from '@/utils/Helpers';
 
 function mapPrismaErr(e: unknown): CatalogMutationErr | null {
@@ -109,7 +116,10 @@ export const fleetCatalogHandlers: CatalogServerHandlers = {
     };
   },
 
-  async createFromForm(formData: FormData): Promise<CatalogCreateResult> {
+  async createFromForm(
+    formData: FormData,
+    context?: CatalogMutationContext
+  ): Promise<CatalogCreateResult> {
     const parsed = fleetBoatFormSchema.safeParse(
       rawFleetBoatFromFormData(formData)
     );
@@ -136,6 +146,12 @@ export const fleetCatalogHandlers: CatalogServerHandlers = {
         },
         select: { id: true },
       });
+      await recordCatalogRevision({
+        action: 'create',
+        context,
+        itemId: created.id,
+        resourceId: 'fleet',
+      });
       return { ok: true, id: created.id };
     } catch (error: unknown) {
       const mapped = mapPrismaErr(error);
@@ -148,7 +164,8 @@ export const fleetCatalogHandlers: CatalogServerHandlers = {
 
   async updateFromForm(
     id: string,
-    formData: FormData
+    formData: FormData,
+    context?: CatalogMutationContext
   ): Promise<CatalogMutationOk | CatalogMutationErr> {
     const parsed = fleetBoatFormSchema.safeParse(
       rawFleetBoatFromFormData(formData)
@@ -158,6 +175,10 @@ export const fleetCatalogHandlers: CatalogServerHandlers = {
     }
     const { data } = parsed;
     try {
+      const previousSnapshot = await loadCatalogRevisionSnapshot({
+        itemId: id,
+        resourceId: 'fleet',
+      });
       await prisma.fleetBoat.update({
         where: { id },
         data: {
@@ -169,6 +190,13 @@ export const fleetCatalogHandlers: CatalogServerHandlers = {
           description: data.description,
           imagePaths: data.imagePaths,
         },
+      });
+      await recordCatalogRevisionIfChanged({
+        action: 'update',
+        context,
+        itemId: id,
+        previousSnapshot,
+        resourceId: 'fleet',
       });
       return { ok: true };
     } catch (error: unknown) {
@@ -186,9 +214,25 @@ export const fleetCatalogHandlers: CatalogServerHandlers = {
     }
   },
 
-  async delete(id: string): Promise<CatalogMutationOk | CatalogMutationErr> {
+  async delete(
+    id: string,
+    context?: CatalogMutationContext
+  ): Promise<CatalogMutationOk | CatalogMutationErr> {
     try {
+      const snapshot = await loadCatalogRevisionSnapshot({
+        itemId: id,
+        resourceId: 'fleet',
+      });
       await prisma.fleetBoat.delete({ where: { id } });
+      if (snapshot) {
+        await recordCatalogRevisionFromSnapshot({
+          action: 'delete',
+          context,
+          itemId: id,
+          resourceId: 'fleet',
+          snapshot,
+        });
+      }
       return { ok: true };
     } catch (error: unknown) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {

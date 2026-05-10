@@ -102,7 +102,10 @@ export type CatalogMutationErr = { ok: false; code: string };
 export type CatalogCreateResult = { ok: true; id: string } | CatalogMutationErr;
 
 export type CatalogMutationContext = {
+  /** Real actor responsible for the change. */
   userId?: string;
+  /** Session target when an actor is impersonating another user. */
+  impersonatedUserId?: string;
 };
 
 /** Optional scope for category-scoped reorder (e.g. sailing classes per `ClassCategory`). */

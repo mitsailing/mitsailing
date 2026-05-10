@@ -10,6 +10,8 @@ const {
   requireAdmin,
   revalidatePath,
   revalidateTag,
+  restoreCatalogRevision,
+  restoreCmsPageRevision,
   updateFromForm,
 } = vi.hoisted(() => ({
   createFromForm: vi.fn(),
@@ -20,6 +22,8 @@ const {
   requireAdmin: vi.fn(),
   revalidatePath: vi.fn(),
   revalidateTag: vi.fn(),
+  restoreCatalogRevision: vi.fn(),
+  restoreCmsPageRevision: vi.fn(),
   updateFromForm: vi.fn(),
 }));
 
@@ -38,6 +42,16 @@ vi.mock('@/libs/admin/catalog/catalogServerRegistry', () => ({
 
 vi.mock('@/libs/auth/dal', () => ({
   requireAdmin,
+}));
+
+vi.mock('@/libs/mit-sailing/catalogHistory', () => ({
+  isCatalogHistoryResourceId: (resourceId: string) =>
+    resourceId === 'fleet' || resourceId === 'sailing_classes',
+  restoreCatalogRevision,
+}));
+
+vi.mock('@/libs/mit-sailing/cmsHistory', () => ({
+  restoreCmsPageRevision,
 }));
 
 vi.mock('@/libs/mit-sailing/siteAlertQueries', () => ({
@@ -68,14 +82,18 @@ beforeEach(() => {
   requireAdmin.mockReset();
   revalidatePath.mockClear();
   revalidateTag.mockClear();
+  restoreCatalogRevision.mockReset();
+  restoreCmsPageRevision.mockReset();
   updateFromForm.mockReset();
 
   createFromForm.mockResolvedValue({ ok: true, id: 'row-1' });
   getCatalogServerHandlers.mockReturnValue(handlers);
   requireAdmin.mockImplementation(async () => {
     await Promise.resolve();
-    return { user: { id: 'admin-1' } };
+    return { session: { impersonatedBy: null }, user: { id: 'admin-1' } };
   });
+  restoreCatalogRevision.mockResolvedValue({ ok: true, slug: 'boat-1' });
+  restoreCmsPageRevision.mockResolvedValue({ ok: true });
   updateFromForm.mockResolvedValue({ ok: true });
 });
 

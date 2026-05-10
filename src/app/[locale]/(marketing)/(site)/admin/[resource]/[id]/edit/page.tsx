@@ -3,6 +3,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { AdminSecondaryActionLink } from '@/components/mit-sailing/admin/AdminPrimaryActionLink';
 import { AdminCatalogForm } from '@/components/mit-sailing/admin/catalog/AdminCatalogForm';
+import { AdminCatalogHistoryPanel } from '@/components/mit-sailing/admin/catalog/AdminCatalogHistoryPanel';
 import { AdminCmsHistoryPanel } from '@/components/mit-sailing/admin/catalog/AdminCmsHistoryPanel';
 import { SailingClassEditAssociations } from '@/components/mit-sailing/admin/catalog/SailingClassEditAssociations';
 import { updateCatalogResourceAction } from '@/libs/admin/catalog/catalogActions';
@@ -22,6 +23,7 @@ import {
 import { fleetRequiredClassSelectOptions } from '@/libs/admin/catalog/fleetCatalogHandlers';
 import { sailingClassCategorySelectOptions } from '@/libs/admin/catalog/sailingClassesHandlers';
 import type { CatalogRow } from '@/libs/admin/catalog/types';
+import { isCatalogHistoryResourceId } from '@/libs/mit-sailing/catalogHistory';
 import { isAppRelativeCmsHref, safeCmsHref } from '@/libs/mit-sailing/cmsHref';
 
 type PageProps = {
@@ -185,6 +187,13 @@ export default async function AdminCatalogResourceEditPage(props: PageProps) {
       ) : null}
       {historyPageId ? (
         <AdminCmsHistoryPanel locale={locale} pageId={historyPageId} />
+      ) : null}
+      {isCatalogHistoryResourceId(resource) ? (
+        <AdminCatalogHistoryPanel
+          itemId={id}
+          locale={locale}
+          resourceId={resource}
+        />
       ) : null}
     </div>
   );

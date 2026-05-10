@@ -503,11 +503,6 @@ const cmsMenuItemsDefinition = {
     { field: 'label', kind: 'string', headerKey: 'column_name_label' },
     { field: 'url', kind: 'string', headerKey: 'field_cms_url' },
     { field: 'isVisible', kind: 'visibility', headerKey: 'column_status' },
-    {
-      field: 'displayOrder',
-      kind: 'number',
-      headerKey: 'column_display_order_label',
-    },
   ],
   formFields: [
     {
@@ -525,16 +520,10 @@ const cmsMenuItemsDefinition = {
     { field: 'label', kind: 'string', required: true, labelKey: 'field_name' },
     { field: 'url', kind: 'string', labelKey: 'field_cms_url' },
     { field: 'systemKey', kind: 'string', labelKey: 'field_cms_system_key' },
-    {
-      field: 'displayOrder',
-      kind: 'number',
-      required: true,
-      labelKey: 'field_display_order',
-    },
     { field: 'isExternal', kind: 'boolean', labelKey: 'field_cms_external' },
     { field: 'isVisible', kind: 'boolean', labelKey: 'field_visible' },
   ],
-  capabilities: { create: true, update: true, delete: true, reorder: false },
+  capabilities: { create: true, update: true, delete: true, reorder: true },
 } as const satisfies CatalogResourceDefinition;
 
 export const CATALOG_RESOURCE_IDS = [

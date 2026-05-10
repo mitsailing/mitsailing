@@ -73,14 +73,6 @@ function optionalCmsRichText(
   return sanitized.length > 0 ? sanitized : undefined;
 }
 
-function numberFromForm(value: FormDataEntryValue | null): number {
-  if (typeof value !== 'string') {
-    return 0;
-  }
-  const parsed = Number.parseInt(value, 10);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
 function duplicateCode(error: unknown): CatalogMutationErr | null {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     if (error.code === 'P2002') {
@@ -128,6 +120,13 @@ function rawCmsBlockFromFormData(formData: FormData): Record<string, unknown> {
 
 type ParsedCmsBlockInput = z.infer<typeof cmsBlockInputSchema>;
 
+function cmsRevisionContext(context?: CatalogMutationContext) {
+  return {
+    createdByUserId: context?.userId,
+    impersonatedUserId: context?.impersonatedUserId,
+  };
+}
+
 function cmsBlockMutationData(input: ParsedCmsBlockInput) {
   return {
     pageId: input.pageId,
@@ -161,7 +160,6 @@ function rawCmsMenuItemFromFormData(
     url: optionalString(formData.get('url')),
     isExternal: booleanFromForm(formData, 'isExternal'),
     isVisible: booleanFromForm(formData, 'isVisible'),
-    displayOrder: numberFromForm(formData.get('displayOrder')),
     systemKey: optionalString(formData.get('systemKey')),
   };
 }
@@ -169,6 +167,20 @@ function rawCmsMenuItemFromFormData(
 async function nextCmsBlockDisplayOrder(pageId: string): Promise<number> {
   const agg = await prisma.cmsPageBlock.aggregate({
     where: { pageId },
+    _max: { displayOrder: true },
+  });
+  return (agg._max.displayOrder ?? -1) + 1;
+}
+
+async function nextCmsMenuItemDisplayOrder(options: {
+  menuId: string;
+  parentId?: string;
+}): Promise<number> {
+  const agg = await prisma.cmsMenuItem.aggregate({
+    where: {
+      menuId: options.menuId,
+      parentId: options.parentId ?? null,
+    },
     _max: { displayOrder: true },
   });
   return (agg._max.displayOrder ?? -1) + 1;
@@ -231,7 +243,7 @@ export const cmsPagesCatalogHandlers: CatalogServerHandlers = {
       await recordCmsPageRevision({
         pageId: created.id,
         action: 'create',
-        createdByUserId: context?.userId,
+        ...cmsRevisionContext(context),
       });
       return { ok: true, id: created.id };
     } catch (error: unknown) {
@@ -257,7 +269,7 @@ export const cmsPagesCatalogHandlers: CatalogServerHandlers = {
         pageId: id,
         action: 'update',
         previousSnapshot,
-        createdByUserId: context?.userId,
+        ...cmsRevisionContext(context),
       });
       return { ok: true };
     } catch (error: unknown) {
@@ -277,7 +289,7 @@ export const cmsPagesCatalogHandlers: CatalogServerHandlers = {
           pageId: id,
           action: 'delete',
           snapshot,
-          createdByUserId: context?.userId,
+          ...cmsRevisionContext(context),
         });
       }
       return { ok: true };
@@ -357,7 +369,7 @@ export const cmsPageBlocksCatalogHandlers: CatalogServerHandlers = {
       await recordCmsPageRevision({
         pageId: parsed.data.pageId,
         action: 'update',
-        createdByUserId: context?.userId,
+        ...cmsRevisionContext(context),
       });
       return { ok: true, id: created.id };
     } catch (error: unknown) {
@@ -411,7 +423,7 @@ export const cmsPageBlocksCatalogHandlers: CatalogServerHandlers = {
           pageId: existing.pageId,
           action: 'update',
           previousSnapshot,
-          createdByUserId: context?.userId,
+          ...cmsRevisionContext(context),
         });
       }
       await recordCmsPageRevisionIfChanged({
@@ -421,7 +433,7 @@ export const cmsPageBlocksCatalogHandlers: CatalogServerHandlers = {
           existing?.pageId === updated.pageId
             ? previousSnapshot
             : previousTargetSnapshot,
-        createdByUserId: context?.userId,
+        ...cmsRevisionContext(context),
       });
       return { ok: true };
     } catch (error: unknown) {
@@ -443,7 +455,7 @@ export const cmsPageBlocksCatalogHandlers: CatalogServerHandlers = {
         await recordCmsPageRevision({
           pageId: existing.pageId,
           action: 'update',
-          createdByUserId: context?.userId,
+          ...cmsRevisionContext(context),
         });
       }
       return { ok: true };
@@ -751,7 +763,13 @@ export const cmsMenuItemsCatalogHandlers: CatalogServerHandlers = {
     }
     try {
       const created = await prisma.cmsMenuItem.create({
-        data: parsed.data,
+        data: {
+          ...parsed.data,
+          displayOrder: await nextCmsMenuItemDisplayOrder({
+            menuId: parsed.data.menuId,
+            parentId: parsed.data.parentId,
+          }),
+        },
         select: { id: true },
       });
       return { ok: true, id: created.id };
@@ -793,6 +811,47 @@ export const cmsMenuItemsCatalogHandlers: CatalogServerHandlers = {
       return { ok: true };
     } catch (error: unknown) {
       return duplicateCode(error) ?? { ok: false, code: 'unknown' };
+    }
+  },
+
+  async reorder(
+    orderedIds: readonly string[]
+  ): Promise<CatalogMutationOk | CatalogMutationErr> {
+    const rows = await prisma.cmsMenuItem.findMany({
+      where: { id: { in: [...orderedIds] } },
+      select: { id: true, menuId: true },
+    });
+    const menuId = rows[0]?.menuId;
+    if (!menuId || rows.some((row) => row.menuId !== menuId)) {
+      return { ok: false, code: 'invalid_order' };
+    }
+
+    const menuRows = await prisma.cmsMenuItem.findMany({
+      where: { menuId },
+      select: { id: true },
+    });
+    const menuIds = new Set(menuRows.map((row) => row.id));
+    const orderedIdSet = new Set(orderedIds);
+    if (
+      orderedIdSet.size !== orderedIds.length ||
+      orderedIds.length !== menuIds.size ||
+      orderedIds.some((rowId) => !menuIds.has(rowId))
+    ) {
+      return { ok: false, code: 'invalid_order' };
+    }
+
+    try {
+      await prisma.$transaction(async (tx) => {
+        for (let index = 0; index < orderedIds.length; index += 1) {
+          await tx.cmsMenuItem.update({
+            where: { id: orderedIds[index] },
+            data: { displayOrder: index },
+          });
+        }
+      });
+      return { ok: true };
+    } catch {
+      return { ok: false, code: 'unknown' };
     }
   },
 };

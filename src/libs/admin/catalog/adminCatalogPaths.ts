@@ -74,3 +74,17 @@ export function adminCmsPageRevisionPath(
 ): string {
   return `/admin/cms_pages/${pageId}/revisions/${revisionId}`;
 }
+
+/**
+ * @param resourceId - Registered catalog resource key
+ * @param id - Row primary key
+ * @param revisionId - User audit revision id
+ * @returns Path to a catalog item revision comparison screen
+ */
+export function adminCatalogResourceRevisionPath(
+  resourceId: string,
+  id: string,
+  revisionId: string
+): string {
+  return `/admin/${resourceId}/${id}/revisions/${revisionId}`;
+}

@@ -37,6 +37,9 @@ type CmsPageHistoryRow = Prisma.CmsPageGetPayload<{
   select: typeof CMS_PAGE_HISTORY_SELECT;
 }>;
 
+const HISTORY_LIST_LIMIT = 20;
+const HISTORY_SUMMARY_CHANGE_LIMIT = 3;
+
 export type CmsPageRevisionAction = 'create' | 'update' | 'delete';
 
 export type AdminCmsPageRevision = {
@@ -52,6 +55,7 @@ export type AdminCmsPageRevision = {
     pagePath?: string;
     pageTitle?: string;
   };
+  summary: AdminCmsPageRevisionSummary;
 };
 
 type CmsPageRevisionBlockKind =
@@ -140,6 +144,34 @@ export type AdminCmsPageRevisionChange =
       blockTitle: string;
     };
 
+export type AdminCmsPageRevisionSummaryChange =
+  | {
+      kind: 'page_field';
+      field: AdminCmsPageRevisionPageField;
+    }
+  | {
+      kind: 'block_field';
+      blockTitle: string;
+      field: AdminCmsPageRevisionBlockField;
+    }
+  | {
+      kind: 'block_added';
+      blockTitle: string;
+    }
+  | {
+      kind: 'block_removed';
+      blockTitle: string;
+    };
+
+export type AdminCmsPageRevisionSummary =
+  | { kind: 'created' }
+  | { kind: 'empty' }
+  | {
+      kind: 'changes';
+      changes: AdminCmsPageRevisionSummaryChange[];
+      remainingCount: number;
+    };
+
 export type AdminCmsPageRevisionComparison = {
   baseVersion?: number;
   changes: AdminCmsPageRevisionChange[];
@@ -154,6 +186,12 @@ export type AdminCmsPageRevisionCompare = AdminCmsPageRevision & {
 export type CmsPageRevisionRestoreResult =
   | { ok: true }
   | { ok: false; code: 'invalid_snapshot' | 'not_found' };
+
+function cmsPageRevisionActionFromAudit(
+  action: 'create' | 'delete' | 'restore' | 'update'
+): CmsPageRevisionAction {
+  return action === 'restore' ? 'update' : action;
+}
 
 function propertyFromUnknown(value: unknown, key: string): unknown {
   if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
@@ -557,6 +595,51 @@ function compareCmsPageRevisionSnapshots(
   };
 }
 
+function cmsPageRevisionSummaryChange(
+  change: AdminCmsPageRevisionChange
+): AdminCmsPageRevisionSummaryChange {
+  if (change.kind === 'page_field') {
+    return { field: change.field, kind: change.kind };
+  }
+  if (change.kind === 'block_field') {
+    return {
+      blockTitle: change.blockTitle,
+      field: change.field,
+      kind: change.kind,
+    };
+  }
+  return { blockTitle: change.blockTitle, kind: change.kind };
+}
+
+function cmsPageRevisionSummary(props: {
+  action: CmsPageRevisionAction;
+  previousSnapshot: CmsPageRevisionSnapshot | null;
+  snapshot: CmsPageRevisionSnapshot | null;
+}): AdminCmsPageRevisionSummary {
+  if (props.action === 'create') {
+    return { kind: 'created' };
+  }
+  const comparison = compareCmsPageRevisionSnapshots(
+    props.previousSnapshot,
+    props.snapshot
+  );
+  const shownChanges = comparison.changes.slice(
+    0,
+    HISTORY_SUMMARY_CHANGE_LIMIT
+  );
+  if (shownChanges.length === 0 && comparison.remainingCount === 0) {
+    return { kind: 'empty' };
+  }
+  return {
+    changes: shownChanges.map(cmsPageRevisionSummaryChange),
+    kind: 'changes',
+    remainingCount:
+      comparison.remainingCount +
+      comparison.changes.length -
+      shownChanges.length,
+  };
+}
+
 function cmsPageRevisionSnapshotsEqual(
   a: CmsPageRevisionSnapshot,
   b: CmsPageRevisionSnapshot
@@ -655,19 +738,20 @@ export async function recordCmsPageRevisionFromSnapshot(props: {
   action: CmsPageRevisionAction;
   snapshot: Prisma.InputJsonObject;
   createdByUserId?: string;
+  impersonatedUserId?: string;
 }): Promise<void> {
   await prisma.$transaction(
     async (tx) => {
-      const latestRevision = await tx.cmsPageRevision.findFirst({
+      const latestRevision = await tx.userAudit.findFirst({
         orderBy: [{ version: 'desc' }, { createdAt: 'desc' }],
         select: {
-          snapshot: true,
+          auditedChanges: true,
           version: true,
         },
-        where: { pageId: props.pageId },
+        where: { auditableId: props.pageId, auditableType: 'cms_pages' },
       });
       const latestSnapshot = cmsPageRevisionSnapshotFromUnknown(
-        latestRevision?.snapshot
+        latestRevision?.auditedChanges
       );
       const nextSnapshot = cmsPageRevisionSnapshotFromUnknown(props.snapshot);
       if (
@@ -678,12 +762,14 @@ export async function recordCmsPageRevisionFromSnapshot(props: {
       ) {
         return;
       }
-      await tx.cmsPageRevision.create({
+      await tx.userAudit.create({
         data: {
           action: props.action,
-          createdByUserId: props.createdByUserId ?? null,
-          pageId: props.pageId,
-          snapshot: props.snapshot,
+          auditableId: props.pageId,
+          auditableType: 'cms_pages',
+          auditedChanges: props.snapshot,
+          impersonatedUserId: props.impersonatedUserId ?? null,
+          userId: props.createdByUserId ?? null,
           version: (latestRevision?.version ?? 0) + 1,
         },
       });
@@ -696,6 +782,7 @@ export async function recordCmsPageRevision(props: {
   pageId: string;
   action: CmsPageRevisionAction;
   createdByUserId?: string;
+  impersonatedUserId?: string;
 }): Promise<void> {
   const snapshot = await loadCmsPageRevisionSnapshot(props.pageId);
   if (!snapshot) {
@@ -706,6 +793,7 @@ export async function recordCmsPageRevision(props: {
     action: props.action,
     snapshot,
     createdByUserId: props.createdByUserId,
+    impersonatedUserId: props.impersonatedUserId,
   });
 }
 
@@ -714,6 +802,7 @@ export async function recordCmsPageRevisionIfChanged(props: {
   action: CmsPageRevisionAction;
   previousSnapshot: Prisma.InputJsonObject | null;
   createdByUserId?: string;
+  impersonatedUserId?: string;
 }): Promise<void> {
   const snapshot = await loadCmsPageRevisionSnapshot(props.pageId);
   if (!snapshot) {
@@ -728,6 +817,7 @@ export async function recordCmsPageRevisionIfChanged(props: {
   await recordCmsPageRevisionFromSnapshot({
     action: props.action,
     createdByUserId: props.createdByUserId,
+    impersonatedUserId: props.impersonatedUserId,
     pageId: props.pageId,
     snapshot,
   });
@@ -736,33 +826,45 @@ export async function recordCmsPageRevisionIfChanged(props: {
 export async function listAdminCmsPageRevisions(
   pageId: string
 ): Promise<AdminCmsPageRevision[]> {
-  const revisions = await prisma.cmsPageRevision.findMany({
+  const revisions = await prisma.userAudit.findMany({
     orderBy: [{ version: 'desc' }, { createdAt: 'desc' }],
     select: {
       id: true,
       version: true,
       action: true,
-      snapshot: true,
+      auditedChanges: true,
       createdAt: true,
-      createdBy: {
+      user: {
         select: {
           email: true,
           name: true,
         },
       },
     },
-    take: 20,
-    where: { pageId },
+    take: HISTORY_LIST_LIMIT + 1,
+    where: { auditableId: pageId, auditableType: 'cms_pages' },
   });
-  return revisions.map((revision) => ({
-    action: revision.action,
-    createdAt: revision.createdAt.toISOString(),
-    editorEmail: revision.createdBy?.email,
-    editorName: revision.createdBy?.name,
-    id: revision.id,
-    preview: cmsPageRevisionPreview(revision.snapshot),
-    version: revision.version,
+  const revisionSnapshots = revisions.map((revision) => ({
+    revision,
+    snapshot: cmsPageRevisionSnapshotFromUnknown(revision.auditedChanges),
   }));
+  return revisionSnapshots.slice(0, HISTORY_LIST_LIMIT).map((entry, index) => {
+    const action = cmsPageRevisionActionFromAudit(entry.revision.action);
+    return {
+      action,
+      createdAt: entry.revision.createdAt.toISOString(),
+      editorEmail: entry.revision.user?.email,
+      editorName: entry.revision.user?.name,
+      id: entry.revision.id,
+      preview: cmsPageRevisionPreview(entry.revision.auditedChanges),
+      summary: cmsPageRevisionSummary({
+        action,
+        previousSnapshot: revisionSnapshots[index + 1]?.snapshot ?? null,
+        snapshot: entry.snapshot,
+      }),
+      version: entry.revision.version,
+    };
+  });
 }
 
 export async function getAdminCmsPageRevisionCompare(props: {
@@ -771,53 +873,63 @@ export async function getAdminCmsPageRevisionCompare(props: {
 }): Promise<AdminCmsPageRevisionCompare | null> {
   const [currentSnapshotValue, revision] = await Promise.all([
     loadCmsPageRevisionSnapshot(props.pageId),
-    prisma.cmsPageRevision.findFirst({
+    prisma.userAudit.findFirst({
       select: {
         id: true,
         version: true,
         action: true,
-        snapshot: true,
+        auditedChanges: true,
         createdAt: true,
-        createdBy: {
+        user: {
           select: {
             email: true,
             name: true,
           },
         },
       },
-      where: { id: props.revisionId, pageId: props.pageId },
+      where: {
+        auditableId: props.pageId,
+        auditableType: 'cms_pages',
+        id: props.revisionId,
+      },
     }),
   ]);
   if (!revision) {
     return null;
   }
-  const previousRevision = await prisma.cmsPageRevision.findFirst({
+  const previousRevision = await prisma.userAudit.findFirst({
     orderBy: [{ version: 'desc' }, { createdAt: 'desc' }],
     select: {
-      snapshot: true,
+      auditedChanges: true,
       version: true,
     },
     where: {
-      pageId: props.pageId,
+      auditableId: props.pageId,
+      auditableType: 'cms_pages',
       version: { lt: revision.version },
     },
   });
   const baseSnapshot = previousRevision
-    ? cmsPageRevisionSnapshotFromUnknown(previousRevision.snapshot)
+    ? cmsPageRevisionSnapshotFromUnknown(previousRevision.auditedChanges)
     : cmsPageRevisionSnapshotFromUnknown(currentSnapshotValue);
   return {
-    action: revision.action,
+    action: cmsPageRevisionActionFromAudit(revision.action),
     baseVersion: previousRevision?.version,
     comparison: compareCmsPageRevisionSnapshots(
       baseSnapshot,
-      cmsPageRevisionSnapshotFromUnknown(revision.snapshot),
+      cmsPageRevisionSnapshotFromUnknown(revision.auditedChanges),
       previousRevision?.version
     ),
     createdAt: revision.createdAt.toISOString(),
-    editorEmail: revision.createdBy?.email,
-    editorName: revision.createdBy?.name,
+    editorEmail: revision.user?.email,
+    editorName: revision.user?.name,
     id: revision.id,
-    preview: cmsPageRevisionPreview(revision.snapshot),
+    preview: cmsPageRevisionPreview(revision.auditedChanges),
+    summary: cmsPageRevisionSummary({
+      action: cmsPageRevisionActionFromAudit(revision.action),
+      previousSnapshot: baseSnapshot,
+      snapshot: cmsPageRevisionSnapshotFromUnknown(revision.auditedChanges),
+    }),
     version: revision.version,
   };
 }
@@ -826,22 +938,27 @@ export async function restoreCmsPageRevision(props: {
   pageId: string;
   revisionId: string;
   createdByUserId?: string;
+  impersonatedUserId?: string;
 }): Promise<CmsPageRevisionRestoreResult> {
   const [currentPage, revision] = await Promise.all([
     prisma.cmsPage.findUnique({
       select: { id: true },
       where: { id: props.pageId },
     }),
-    prisma.cmsPageRevision.findFirst({
-      select: { snapshot: true },
-      where: { id: props.revisionId, pageId: props.pageId },
+    prisma.userAudit.findFirst({
+      select: { auditedChanges: true },
+      where: {
+        auditableId: props.pageId,
+        auditableType: 'cms_pages',
+        id: props.revisionId,
+      },
     }),
   ]);
   if (!currentPage || !revision) {
     return { ok: false, code: 'not_found' };
   }
 
-  const snapshot = cmsPageRevisionSnapshotFromUnknown(revision.snapshot);
+  const snapshot = cmsPageRevisionSnapshotFromUnknown(revision.auditedChanges);
   if (!snapshot || snapshot.page.id !== props.pageId) {
     return { ok: false, code: 'invalid_snapshot' };
   }
@@ -887,16 +1004,18 @@ export async function restoreCmsPageRevision(props: {
           })),
         });
       }
-      const latest = await tx.cmsPageRevision.aggregate({
-        where: { pageId: props.pageId },
+      const latest = await tx.userAudit.aggregate({
+        where: { auditableId: props.pageId, auditableType: 'cms_pages' },
         _max: { version: true },
       });
-      await tx.cmsPageRevision.create({
+      await tx.userAudit.create({
         data: {
-          action: 'update',
-          createdByUserId: props.createdByUserId ?? null,
-          pageId: props.pageId,
-          snapshot: cmsPageRevisionSnapshotJson(snapshot),
+          action: 'restore',
+          auditableId: props.pageId,
+          auditableType: 'cms_pages',
+          auditedChanges: cmsPageRevisionSnapshotJson(snapshot),
+          impersonatedUserId: props.impersonatedUserId ?? null,
+          userId: props.createdByUserId ?? null,
           version: (latest._max.version ?? 0) + 1,
         },
       });

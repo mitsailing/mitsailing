@@ -1,56 +1,31 @@
 import { Button } from '@/components/ui/button';
 import { Link } from '@/libs/I18nNavigation';
 import type {
-  AdminCmsPageRevision,
-  AdminCmsPageRevisionBlockField,
-  AdminCmsPageRevisionPageField,
-  AdminCmsPageRevisionSummary,
-} from '@/libs/mit-sailing/cmsHistory';
+  AdminCatalogRevision,
+  AdminCatalogRevisionSummary,
+  CatalogRevisionAction,
+} from '@/libs/mit-sailing/catalogHistory';
 
-type CmsHistoryActionLabels = {
-  create: string;
-  delete: string;
-  update: string;
-};
+type CatalogHistoryActionLabels = Record<CatalogRevisionAction, string>;
 
-type CmsHistoryFieldLabels = Record<
-  AdminCmsPageRevisionPageField | AdminCmsPageRevisionBlockField,
-  string
->;
-
-type AdminCmsHistoryPanelViewProps = {
-  actionLabels: CmsHistoryActionLabels;
+type AdminCatalogHistoryPanelViewProps = {
+  actionLabels: CatalogHistoryActionLabels;
   compareHrefFor: (revisionId: string) => string;
-  fieldLabels: CmsHistoryFieldLabels;
+  fieldLabels: Record<string, string>;
   locale: string;
-  revisions: readonly AdminCmsPageRevision[];
+  revisions: readonly AdminCatalogRevision[];
   text: {
-    addedBlock: (blockTitle: string) => string;
     changed: (changes: string) => string;
     createdSummary: string;
     empty: string;
     heading: string;
     moreChanges: (count: number) => string;
     noChangesSummary: string;
-    removedBlock: (blockTitle: string) => string;
     unknownEditor: string;
     version: (version: number) => string;
     viewChanges: string;
   };
 };
-
-function revisionActionLabel(
-  action: AdminCmsPageRevision['action'],
-  labels: CmsHistoryActionLabels
-): string {
-  if (action === 'create') {
-    return labels.create;
-  }
-  if (action === 'delete') {
-    return labels.delete;
-  }
-  return labels.update;
-}
 
 function formatRevisionTimestamp(locale: string, value: string): string {
   return new Intl.DateTimeFormat(locale, {
@@ -60,9 +35,9 @@ function formatRevisionTimestamp(locale: string, value: string): string {
 }
 
 function revisionSummaryLines(props: {
-  fieldLabels: CmsHistoryFieldLabels;
-  summary: AdminCmsPageRevisionSummary;
-  text: AdminCmsHistoryPanelViewProps['text'];
+  fieldLabels: Record<string, string>;
+  summary: AdminCatalogRevisionSummary;
+  text: AdminCatalogHistoryPanelViewProps['text'];
 }): string[] {
   if (props.summary.kind === 'created') {
     return [props.text.createdSummary];
@@ -70,38 +45,27 @@ function revisionSummaryLines(props: {
   if (props.summary.kind === 'empty') {
     return [props.text.noChangesSummary];
   }
-  const changedLabels: string[] = [];
-  const lines: string[] = [];
-  for (const change of props.summary.changes) {
-    if (change.kind === 'page_field') {
-      changedLabels.push(props.fieldLabels[change.field]);
-    } else if (change.kind === 'block_field') {
-      changedLabels.push(
-        `${change.blockTitle} / ${props.fieldLabels[change.field]}`
-      );
-    } else if (change.kind === 'block_added') {
-      lines.push(props.text.addedBlock(change.blockTitle));
-    } else {
-      lines.push(props.text.removedBlock(change.blockTitle));
-    }
-  }
-  if (changedLabels.length > 0) {
-    lines.unshift(props.text.changed(changedLabels.join(', ')));
-  }
+  const changedLabels = props.summary.changes.map(
+    (change) => props.fieldLabels[change.field] ?? change.field
+  );
+  const lines =
+    changedLabels.length > 0
+      ? [props.text.changed(changedLabels.join(', '))]
+      : [];
   if (props.summary.remainingCount > 0) {
     lines.push(props.text.moreChanges(props.summary.remainingCount));
   }
   return lines;
 }
 
-export function AdminCmsHistoryPanelView(props: AdminCmsHistoryPanelViewProps) {
+export function AdminCatalogHistoryPanelView(
+  props: AdminCatalogHistoryPanelViewProps
+) {
   return (
     <section className="flex max-w-3xl flex-col gap-3 border-t border-mit-line pt-6">
-      <div>
-        <h2 className="text-lg font-semibold text-foreground">
-          {props.text.heading}
-        </h2>
-      </div>
+      <h2 className="text-lg font-semibold text-foreground">
+        {props.text.heading}
+      </h2>
       {props.revisions.length === 0 ? (
         <p className="rounded-md border border-dashed border-border px-3 py-4 text-sm text-muted-foreground">
           {props.text.empty}
@@ -130,10 +94,7 @@ export function AdminCmsHistoryPanelView(props: AdminCmsHistoryPanelViewProps) {
                         {props.text.version(revision.version)}
                       </span>
                       <span className="text-muted-foreground">
-                        {revisionActionLabel(
-                          revision.action,
-                          props.actionLabels
-                        )}
+                        {props.actionLabels[revision.action]}
                       </span>
                       <time
                         className="text-muted-foreground"

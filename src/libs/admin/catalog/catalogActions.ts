@@ -24,15 +24,35 @@ import type { CatalogResourceId } from '@/libs/admin/catalog/catalogDefinitions'
 import { isCatalogResourceId } from '@/libs/admin/catalog/catalogDefinitions';
 import { getCatalogServerHandlers } from '@/libs/admin/catalog/catalogServerRegistry';
 import type {
+  CatalogMutationContext,
   CatalogReorderScope,
   CatalogRow,
 } from '@/libs/admin/catalog/types';
 import { requireAdmin } from '@/libs/auth/dal';
+import type { AuthSession } from '@/libs/auth/dal';
+import {
+  isCatalogHistoryResourceId,
+  restoreCatalogRevision,
+} from '@/libs/mit-sailing/catalogHistory';
 import { restoreCmsPageRevision } from '@/libs/mit-sailing/cmsHistory';
 import { SITE_ALERTS_CACHE_TAG } from '@/libs/mit-sailing/siteAlertQueries';
 import { getI18nPath } from '@/utils/Helpers';
 
 const orderedIdsSchema = z.array(z.string().min(1)).min(1);
+
+function catalogMutationContextFromSession(
+  session: NonNullable<AuthSession>
+): CatalogMutationContext {
+  const actorUserId =
+    typeof session.session.impersonatedBy === 'string'
+      ? session.session.impersonatedBy
+      : session.user.id;
+  return {
+    impersonatedUserId:
+      actorUserId === session.user.id ? undefined : session.user.id,
+    userId: actorUserId,
+  };
+}
 
 /** Public segments to invalidate when a catalog resource mutates (beyond `/donate`). */
 const CATALOG_EXTRA_PUBLIC_PATHS: Partial<
@@ -167,9 +187,10 @@ export async function createCatalogResourceAction(
   }
   const handlers = getCatalogServerHandlers(resourceId);
   const scope = scopedCatalogMutationSearchParam(resourceId, formData);
-  const result = await handlers.createFromForm(formData, {
-    userId: session.user.id,
-  });
+  const result = await handlers.createFromForm(
+    formData,
+    catalogMutationContextFromSession(session)
+  );
   if (!result.ok) {
     redirect(
       catalogRedirectPath({
@@ -217,9 +238,11 @@ export async function updateCatalogResourceAction(
   const handlers = getCatalogServerHandlers(resourceId);
   const scope = scopedCatalogMutationSearchParam(resourceId, formData);
   const oldSlug = slugFromCatalogRow(await handlers.getById(id));
-  const result = await handlers.updateFromForm(id, formData, {
-    userId: session.user.id,
-  });
+  const result = await handlers.updateFromForm(
+    id,
+    formData,
+    catalogMutationContextFromSession(session)
+  );
   if (!result.ok) {
     redirect(
       catalogRedirectPath({
@@ -268,7 +291,10 @@ export async function deleteCatalogResourceAction(
   }
   const handlers = getCatalogServerHandlers(resourceId);
   const oldSlug = slugFromCatalogRow(await handlers.getById(id));
-  const result = await handlers.delete(id, { userId: session.user.id });
+  const result = await handlers.delete(
+    id,
+    catalogMutationContextFromSession(session)
+  );
   if (!result.ok) {
     redirect(
       `${getI18nPath(adminCatalogResourceDeletePath(resourceId, id), locale)}?error=${encodeURIComponent(result.code)}`
@@ -299,8 +325,10 @@ export async function restoreCmsPageRevisionAction(
       `${getI18nPath(adminCatalogResourceEditPath('cms_pages', pageId), locale)}?error=validation_failed`
     );
   }
+  const context = catalogMutationContextFromSession(session);
   const result = await restoreCmsPageRevision({
-    createdByUserId: session.user.id,
+    createdByUserId: context.userId,
+    impersonatedUserId: context.impersonatedUserId,
     pageId,
     revisionId,
   });
@@ -313,6 +341,54 @@ export async function restoreCmsPageRevisionAction(
   redirect(
     getI18nPath(adminCatalogResourceEditPath('cms_pages', pageId), locale)
   );
+}
+
+/**
+ * Restores class or fleet form fields from a recorded user audit revision.
+ *
+ * @param locale - Active locale
+ * @param resourceId - Supported catalog resource key
+ * @param id - Row primary key
+ * @param revisionId - User audit revision id
+ * @param formData - Confirmation form body
+ */
+export async function restoreCatalogResourceRevisionAction(
+  locale: string,
+  resourceId: string,
+  id: string,
+  revisionId: string,
+  formData: FormData
+): Promise<void> {
+  const session = await requireAdmin(locale);
+  if (!isCatalogResourceId(resourceId)) {
+    redirect(getI18nPath(ADMIN_INDEX_PATH, locale));
+  }
+  if (!isCatalogHistoryResourceId(resourceId)) {
+    redirect(getI18nPath(adminCatalogResourceEditPath(resourceId, id), locale));
+  }
+  if (formData.get('confirmRestore') !== 'true') {
+    redirect(
+      `${getI18nPath(adminCatalogResourceEditPath(resourceId, id), locale)}?error=validation_failed`
+    );
+  }
+
+  const handlers = getCatalogServerHandlers(resourceId);
+  const oldSlug = slugFromCatalogRow(await handlers.getById(id));
+  const result = await restoreCatalogRevision({
+    context: catalogMutationContextFromSession(session),
+    itemId: id,
+    resourceId,
+    revisionId,
+  });
+  if (!result.ok) {
+    redirect(
+      `${getI18nPath(adminCatalogResourceEditPath(resourceId, id), locale)}?error=${encodeURIComponent(result.code)}`
+    );
+  }
+  revalidateAfterCatalogMutation(locale, resourceId);
+  revalidateCatalogDetailPath(locale, resourceId, oldSlug);
+  revalidateCatalogDetailPath(locale, resourceId, result.slug);
+  redirect(getI18nPath(adminCatalogResourceEditPath(resourceId, id), locale));
 }
 
 const reorderScopeSchema = z.object({
