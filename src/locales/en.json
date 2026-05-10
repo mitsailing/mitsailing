@@ -565,6 +565,7 @@
     "field_cms_kind_callout": "Callout",
     "field_cms_kind_pricing": "Pricing",
     "field_cms_kind_home_overview": "Home overview",
+    "field_cms_kind_home_classes": "Home classes",
     "field_cms_subtitle": "Subtitle",
     "field_cms_body": "Body",
     "cms_block_preview_heading": "Preview",

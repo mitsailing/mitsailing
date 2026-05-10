@@ -59,7 +59,8 @@ type CmsPageRevisionBlockKind =
   | 'text_section'
   | 'callout'
   | 'pricing'
-  | 'home_overview';
+  | 'home_overview'
+  | 'home_classes';
 
 type CmsPageRevisionSnapshotPage = {
   id: string;
@@ -191,7 +192,8 @@ function blockKindFromUnknown(
     value === 'text_section' ||
     value === 'callout' ||
     value === 'pricing' ||
-    value === 'home_overview'
+    value === 'home_overview' ||
+    value === 'home_classes'
     ? value
     : undefined;
 }

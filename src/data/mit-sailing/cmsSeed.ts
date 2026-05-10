@@ -8,7 +8,13 @@ export type CmsSeedPage = {
   isPublished?: boolean;
   blocks: readonly {
     id: string;
-    kind: 'hero' | 'text_section' | 'callout' | 'pricing' | 'home_overview';
+    kind:
+      | 'hero'
+      | 'text_section'
+      | 'callout'
+      | 'pricing'
+      | 'home_overview'
+      | 'home_classes';
     title: string;
     subtitle?: string;
     body?: string;
@@ -186,13 +192,24 @@ export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
         isVisible: true,
       },
       {
+        id: 'cms-block-home-classes',
+        kind: 'home_classes',
+        title: 'Learn to Sail',
+        subtitle:
+          'Every sailor starts with a required beginner class. Once you have your first rating, choose from a range of advanced courses.',
+        ctaLabel: 'View all classes',
+        ctaUrl: '/classes/',
+        displayOrder: 10,
+        isVisible: true,
+      },
+      {
         id: 'cms-block-home-rental',
         kind: 'callout',
         title: 'Reserve the Pavilion',
         body: 'The Sailing Pavilion is available for selected MIT community events and waterfront gatherings.',
         ctaLabel: 'Contact us',
         ctaUrl: '/contact/',
-        displayOrder: 10,
+        displayOrder: 30,
         isVisible: true,
       },
     ],

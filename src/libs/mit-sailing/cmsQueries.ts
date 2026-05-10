@@ -19,7 +19,13 @@ export type PublicCmsMenuItem = {
 
 export type PublicCmsBlock = {
   id: string;
-  kind: 'hero' | 'text_section' | 'callout' | 'pricing' | 'home_overview';
+  kind:
+    | 'hero'
+    | 'text_section'
+    | 'callout'
+    | 'pricing'
+    | 'home_overview'
+    | 'home_classes';
   title: string;
   subtitle?: string;
   body?: string;

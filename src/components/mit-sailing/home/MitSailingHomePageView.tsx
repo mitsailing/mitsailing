@@ -1,9 +1,12 @@
-import { ArrowRight, MapPin, Sunset } from 'lucide-react';
+import { ArrowDown, ArrowRight, MapPin, Sunset } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import Image from 'next/image';
 import { CmsPricingBlock } from '@/components/mit-sailing/cms/CmsPricingBlock';
 import { CmsRichText } from '@/components/mit-sailing/cms/CmsRichText';
-import { mitAccentLinkClassName } from '@/lib/mit-sailing/tokens';
+import {
+  mitAccentLinkClassName,
+  textFocusRingClassName,
+} from '@/lib/mit-sailing/tokens';
 import { getSession } from '@/libs/auth/dal';
 import { Link } from '@/libs/I18nNavigation';
 import { parseCmsHomeOverviewBody } from '@/libs/mit-sailing/cmsHomeOverview';
@@ -14,10 +17,22 @@ import {
 } from '@/libs/mit-sailing/cmsHref';
 import { loadPublishedCmsPageByPath } from '@/libs/mit-sailing/cmsQueries';
 import type { PublicCmsBlock } from '@/libs/mit-sailing/cmsQueries';
+import {
+  loadHomeClassesBySlugs,
+  loadHomeIntroductionClasses,
+  loadSailingClassNamesByIds,
+} from '@/libs/mit-sailing/homeCatalogFromPrisma';
 import { getHomeUpcomingDayGroups } from '@/libs/mit-sailing/homeUpcomingFromPrisma';
 import type { HomeUpcomingDayGroup } from '@/libs/mit-sailing/homeUpcomingFromPrisma';
 import { HomeEventRow } from './HomeEventRow';
 import { SectionHeader } from './SectionHeader';
+
+const HOME_NEXT_CLASS_SLUGS = [
+  'intermediate-sailing-boat-speed',
+  'intro-to-racing',
+  'windsurfing-fundamentals',
+  'intermediate-racing-tactics-strategy',
+] as const;
 
 /**
  * Home hero layout: `next/image` with `fill`, `sizes="100vw"`, and `priority` (LCP); left scrim; shared white CTA focus ring.
@@ -179,6 +194,124 @@ function HomeRentalSection(props: { block: PublicCmsBlock }) {
   );
 }
 
+function HomeClassesSection(props: {
+  block: PublicCmsBlock;
+  homeIntroClasses: Awaited<ReturnType<typeof loadHomeIntroductionClasses>>;
+  homeNextClasses: Awaited<ReturnType<typeof loadHomeClassesBySlugs>>;
+  prereqNameById: Map<string, string>;
+  t: Awaited<ReturnType<typeof getTranslations>>;
+}) {
+  return (
+    <section className="border-b border-border bg-background py-24">
+      <div className="mx-auto max-w-7xl px-6">
+        <SectionHeader
+          subtitle={props.block.subtitle}
+          title={props.block.title}
+        />
+        <div className="mx-auto flex max-w-6xl flex-col items-center">
+          <div className="w-full">
+            <div className="mb-6 text-center text-[11px] font-bold tracking-widest text-primary-ink uppercase">
+              {props.t('classes_start_label')}
+            </div>
+            <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {props.homeIntroClasses.map((cls) => (
+                <Link
+                  className={`relative flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card p-8 no-underline shadow-sm transition-shadow hover:shadow-sm ${textFocusRingClassName}`}
+                  href={`/classes/${cls.slug}/`}
+                  key={cls.id}
+                >
+                  <span className="mb-3 inline-block self-start rounded bg-mit-red-highlight px-2 py-0.5 text-[10px] font-bold tracking-wide text-primary-ink uppercase">
+                    {cls.level}
+                  </span>
+                  <h4 className="mb-3 line-clamp-3 font-mit-serif text-[22px] font-bold text-mit-text">
+                    {cls.name}
+                  </h4>
+                  <p className="mb-6 line-clamp-5 text-base leading-relaxed text-mit-text">
+                    {cls.description}
+                  </p>
+                  <div className="mt-auto flex items-center gap-1 text-xs font-semibold text-primary-ink">
+                    <span>{props.t('class_details')}</span>
+                    <ArrowRight aria-hidden size={14} />
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+          <div className="relative flex w-full flex-col items-center py-8">
+            <div className="absolute inset-0 -z-10 flex items-center justify-center">
+              <div className="h-full w-px bg-mit-line" />
+            </div>
+            <div className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-border bg-card text-primary-ink">
+              <ArrowDown size={24} />
+            </div>
+          </div>
+          <div className="w-full">
+            <div className="mb-6 text-center text-[11px] font-bold tracking-widest text-mit-text uppercase">
+              {props.t('classes_next_label')}
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              {props.homeNextClasses.map((cls) => {
+                const [preId] = cls.prerequisiteIds;
+                const firstPreName = preId
+                  ? props.prereqNameById.get(preId)
+                  : undefined;
+                let reqLabel: string;
+                if (cls.prerequisiteIds.length === 0) {
+                  reqLabel = props.t('class_next_badge_by_level', {
+                    level: cls.level,
+                  });
+                } else if (firstPreName) {
+                  reqLabel = props.t('class_next_badge_after', {
+                    name: firstPreName,
+                  });
+                } else {
+                  reqLabel = props.t('class_next_badge_prerequisites');
+                }
+                return (
+                  <div
+                    className="flex flex-col items-start rounded-xl border border-mit-line bg-mit-surface p-5 transition-shadow hover:shadow-sm"
+                    key={cls.id}
+                  >
+                    <h4 className="mb-1 text-base font-semibold text-mit-text">
+                      {cls.name}
+                    </h4>
+                    <p className="mb-3 text-sm leading-snug text-mit-text">
+                      {cls.description}
+                    </p>
+                    <div className="mt-auto flex w-full items-center justify-between">
+                      <span className="rounded border border-border bg-muted px-2 py-0.5 text-[10px] font-semibold text-foreground">
+                        {reqLabel}
+                      </span>
+                      <Link
+                        className={`flex items-center gap-1 text-xs font-semibold text-primary-ink no-underline hover:underline ${textFocusRingClassName}`}
+                        href={`/classes/${cls.slug}/`}
+                      >
+                        {props.t('course_details')}
+                        <ArrowRight aria-hidden size={12} />
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {props.block.ctaUrl && props.block.ctaLabel ? (
+              <div className="mt-8 flex w-full justify-center">
+                <Link
+                  className={`inline-flex items-center gap-1 no-underline hover:underline ${textFocusRingClassName} ${mitAccentLinkClassName}`}
+                  href={props.block.ctaUrl}
+                >
+                  {props.block.ctaLabel}
+                  <ArrowRight aria-hidden size={16} />
+                </Link>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /**
  * @param props - Home page
  * @param props.locale - Active UI locale
@@ -205,14 +338,34 @@ export async function MitSailingHomePageView(
   const homeOverviewBlock = cmsHomePage?.blocks.find(
     (block) => block.kind === 'home_overview'
   );
+  const homeClassesBlock = cmsHomePage?.blocks.find(
+    (block) => block.kind === 'home_classes'
+  );
 
+  const [homeNextClasses, homeIntroClasses] = homeClassesBlock
+    ? await Promise.all([
+        loadHomeClassesBySlugs(HOME_NEXT_CLASS_SLUGS),
+        loadHomeIntroductionClasses(),
+      ])
+    : [[], []];
+
+  const firstPrereqIds = homeNextClasses
+    .map((c) => c.prerequisiteIds[0])
+    .filter((id): id is string => id !== undefined);
+  const prereqNameById =
+    firstPrereqIds.length > 0
+      ? await loadSailingClassNamesByIds(firstPrereqIds)
+      : new Map<string, string>();
   const homeOverviewData = parseCmsHomeOverviewBody(homeOverviewBlock?.body);
   const homeOverviewUpcomingDayGroups = homeOverviewData
     ? limitHomeUpcomingDayGroups(upcomingDayGroups, homeOverviewData.eventCount)
     : [];
   const orderedHomeCmsBlocks =
     cmsHomePage?.blocks.filter(
-      (block) => block.kind === 'callout' || block.kind === 'pricing'
+      (block) =>
+        block.kind === 'callout' ||
+        block.kind === 'pricing' ||
+        block.kind === 'home_classes'
     ) ?? [];
 
   return (
@@ -368,6 +521,18 @@ export async function MitSailingHomePageView(
       {orderedHomeCmsBlocks.map((block) => {
         if (block.kind === 'pricing') {
           return <CmsPricingBlock block={block} key={block.id} />;
+        }
+        if (block.kind === 'home_classes') {
+          return (
+            <HomeClassesSection
+              block={block}
+              homeIntroClasses={homeIntroClasses}
+              homeNextClasses={homeNextClasses}
+              key={block.id}
+              prereqNameById={prereqNameById}
+              t={t}
+            />
+          );
         }
         return <HomeRentalSection block={block} key={block.id} />;
       })}

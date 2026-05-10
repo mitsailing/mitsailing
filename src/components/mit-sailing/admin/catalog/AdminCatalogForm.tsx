@@ -213,7 +213,8 @@ type CmsBlockKind =
   | 'text_section'
   | 'callout'
   | 'pricing'
-  | 'home_overview';
+  | 'home_overview'
+  | 'home_classes';
 
 type CmsBlockPreviewState = {
   body: string;
@@ -232,7 +233,12 @@ function stringValue(value: CatalogRow[string]): string {
 }
 
 function cmsBlockKindValue(value: CatalogRow[string]): CmsBlockKind {
-  if (value === 'hero' || value === 'callout' || value === 'pricing') {
+  if (
+    value === 'hero' ||
+    value === 'callout' ||
+    value === 'pricing' ||
+    value === 'home_classes'
+  ) {
     return value;
   }
   if (value === 'home_overview') {

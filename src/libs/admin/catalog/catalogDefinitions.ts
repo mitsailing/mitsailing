@@ -447,6 +447,7 @@ const cmsPageBlocksDefinition = {
         { value: 'callout', labelKey: 'field_cms_kind_callout' },
         { value: 'pricing', labelKey: 'field_cms_kind_pricing' },
         { value: 'home_overview', labelKey: 'field_cms_kind_home_overview' },
+        { value: 'home_classes', labelKey: 'field_cms_kind_home_classes' },
       ],
     },
     { field: 'title', kind: 'string', required: true, labelKey: 'field_name' },

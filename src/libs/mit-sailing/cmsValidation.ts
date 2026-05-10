@@ -67,6 +67,7 @@ export const cmsBlockInputSchema = z
       'callout',
       'pricing',
       'home_overview',
+      'home_classes',
     ]),
     title: z.string().trim().min(1),
     subtitle: z.string().trim().optional(),

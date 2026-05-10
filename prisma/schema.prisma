@@ -416,6 +416,7 @@ enum CmsBlockKind {
   callout
   pricing
   home_overview
+  home_classes
 
   @@map("cms_block_kind")
 }

@@ -8,7 +8,10 @@ import { MitSailingHomePageView } from './MitSailingHomePageView';
 const homeDataMocks = vi.hoisted(() => ({
   getHomeUpcomingDayGroups: vi.fn(),
   getSession: vi.fn(),
+  loadHomeClassesBySlugs: vi.fn(),
+  loadHomeIntroductionClasses: vi.fn(),
   loadPublishedCmsPageByPath: vi.fn(),
+  loadSailingClassNamesByIds: vi.fn(),
 }));
 
 const messageCatalogs = new Map(
@@ -42,6 +45,12 @@ vi.mock('@/libs/mit-sailing/cmsQueries', () => ({
   loadPublishedCmsPageByPath: homeDataMocks.loadPublishedCmsPageByPath,
 }));
 
+vi.mock('@/libs/mit-sailing/homeCatalogFromPrisma', () => ({
+  loadHomeClassesBySlugs: homeDataMocks.loadHomeClassesBySlugs,
+  loadHomeIntroductionClasses: homeDataMocks.loadHomeIntroductionClasses,
+  loadSailingClassNamesByIds: homeDataMocks.loadSailingClassNamesByIds,
+}));
+
 vi.mock('@/libs/mit-sailing/homeUpcomingFromPrisma', () => ({
   getHomeUpcomingDayGroups: homeDataMocks.getHomeUpcomingDayGroups,
 }));
@@ -49,6 +58,9 @@ vi.mock('@/libs/mit-sailing/homeUpcomingFromPrisma', () => ({
 function mockHomeData(cmsHomePage: PublicCmsPage | null) {
   homeDataMocks.getHomeUpcomingDayGroups.mockResolvedValue([]);
   homeDataMocks.getSession.mockResolvedValue(null);
+  homeDataMocks.loadHomeClassesBySlugs.mockResolvedValue([]);
+  homeDataMocks.loadHomeIntroductionClasses.mockResolvedValue([]);
+  homeDataMocks.loadSailingClassNamesByIds.mockResolvedValue(new Map());
   homeDataMocks.loadPublishedCmsPageByPath.mockResolvedValue(cmsHomePage);
 }
 
@@ -266,6 +278,61 @@ describe('MitSailingHomePageView', () => {
     expect(
       screen.getByRole('link', { name: 'All CMS events' })
     ).toHaveAttribute('href', '/events/');
+  });
+
+  it('renders learn to sail content from a cms block with class data', async () => {
+    mockHomeData({
+      blocks: [
+        {
+          ctaLabel: 'All classes',
+          ctaUrl: '/classes/',
+          id: 'home-classes-block',
+          kind: 'home_classes',
+          subtitle: 'CMS class path copy.',
+          title: 'CMS Learn to Sail',
+        },
+      ],
+      id: 'home-page',
+      metaDescription: 'Home',
+      metaTitle: 'Home',
+      path: '/',
+      slug: 'home',
+      title: 'Home',
+    });
+    homeDataMocks.loadHomeIntroductionClasses.mockResolvedValue([
+      {
+        description: 'Intro class description.',
+        id: 'class-intro',
+        level: 'Beginner',
+        name: 'Learn to Sail',
+        prerequisiteIds: [],
+        slug: 'learn-to-sail',
+      },
+    ]);
+    homeDataMocks.loadHomeClassesBySlugs.mockResolvedValue([
+      {
+        description: 'Next class description.',
+        id: 'class-next',
+        level: 'Intermediate',
+        name: 'Boat Speed',
+        prerequisiteIds: ['class-intro'],
+        slug: 'boat-speed',
+      },
+    ]);
+    homeDataMocks.loadSailingClassNamesByIds.mockResolvedValue(
+      new Map([['class-intro', 'Learn to Sail']])
+    );
+
+    const page = await MitSailingHomePageView({ locale: 'en' });
+    render(page);
+
+    expect(screen.getByText('CMS Learn to Sail')).toBeInTheDocument();
+    expect(screen.getByText('CMS class path copy.')).toBeInTheDocument();
+    expect(screen.getByText('Boat Speed')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'All classes' })).toHaveAttribute(
+      'href',
+      '/classes/'
+    );
   });
 
   it('omits block-managed fallback content when cms home page is missing', async () => {

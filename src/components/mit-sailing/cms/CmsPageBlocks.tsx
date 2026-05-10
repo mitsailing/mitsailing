@@ -161,7 +161,10 @@ function CmsBlock(props: { block: PublicCmsBlock; index: number }) {
   if (props.block.kind === 'pricing') {
     return <CmsPricingBlock block={props.block} />;
   }
-  if (props.block.kind === 'home_overview') {
+  if (
+    props.block.kind === 'home_overview' ||
+    props.block.kind === 'home_classes'
+  ) {
     return null;
   }
   return <CmsTextBlock block={props.block} index={props.index} />;
