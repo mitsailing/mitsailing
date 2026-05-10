@@ -156,6 +156,9 @@ export function AdminRichTextEditor(props: {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [mediaBusy, setMediaBusy] = useState(false);
   const [mediaError, setMediaError] = useState<string | null>(null);
+  const [uploadingFilename, setUploadingFilename] = useState<string | null>(
+    null
+  );
   const [, setToolbarRevision] = useState(0);
 
   function syncEditorState(
@@ -257,17 +260,21 @@ export function AdminRichTextEditor(props: {
   async function uploadImage(file: File) {
     setMediaBusy(true);
     setMediaError(null);
-    const pageId = currentPageId(
-      editorShellRef.current?.closest('form') ?? null
-    );
-    const asset = await uploadCmsMediaFile({ file, pageId });
-    if (!asset || !isCmsMediaPath(asset.publicPath)) {
+    setUploadingFilename(file.name);
+    try {
+      const pageId = currentPageId(
+        editorShellRef.current?.closest('form') ?? null
+      );
+      const asset = await uploadCmsMediaFile({ file, pageId });
+      if (!asset || !isCmsMediaPath(asset.publicPath)) {
+        setMediaError(t('rich_text_media_error'));
+        return;
+      }
+      insertCmsImage(asset);
+    } finally {
       setMediaBusy(false);
-      setMediaError(t('rich_text_media_error'));
-      return;
+      setUploadingFilename(null);
     }
-    insertCmsImage(asset);
-    setMediaBusy(false);
   }
 
   function handleMediaFailure() {
@@ -616,6 +623,21 @@ export function AdminRichTextEditor(props: {
             >
               {t('rich_text_apply_link')}
             </Button>
+          </div>
+        ) : null}
+        {uploadingFilename ? (
+          <div
+            aria-live="polite"
+            className="flex min-w-0 items-center gap-2 border-b border-border bg-background px-3 py-2 text-sm text-muted-foreground"
+            role="status"
+          >
+            <span
+              aria-hidden
+              className="size-4 shrink-0 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground"
+            />
+            <span className="min-w-0 truncate">
+              {t('rich_text_uploading_image', { filename: uploadingFilename })}
+            </span>
           </div>
         ) : null}
         {pickerOpen ? (

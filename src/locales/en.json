@@ -615,6 +615,7 @@
     "rich_text_image_size_medium": "Medium image",
     "rich_text_image_size_large": "Large image",
     "rich_text_image_size_full": "Full image",
+    "rich_text_uploading_image": "Uploading {filename}...",
     "rich_text_media_empty": "No CMS images yet.",
     "rich_text_media_error": "Could not load CMS images.",
     "media_upload": "Upload",

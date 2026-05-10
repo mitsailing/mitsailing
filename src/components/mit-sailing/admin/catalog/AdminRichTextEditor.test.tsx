@@ -183,6 +183,40 @@ describe('AdminRichTextEditor formatting controls', () => {
 });
 
 describe('AdminRichTextEditor media controls', () => {
+  it('shows upload status while image upload is pending', async () => {
+    const uploadResponse = Promise.withResolvers<Response>();
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
+      const response = await uploadResponse.promise;
+      return response;
+    });
+    const user = userEvent.setup();
+    renderEditor();
+
+    const uploadInput = document.querySelector('input[type="file"]');
+    if (!(uploadInput instanceof HTMLInputElement)) {
+      throw new Error('Expected file input');
+    }
+    const uploadPromise = user.upload(
+      uploadInput,
+      new File(['png'], 'race.png', { type: 'image/png' })
+    );
+
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Uploading race.png...'
+    );
+
+    uploadResponse.resolve(
+      Response.json({
+        originalFilename: 'race.png',
+        publicPath: '/cms-media/asset-1/race.png',
+      })
+    );
+    await uploadPromise;
+    await waitFor(() => {
+      expect(screen.queryByRole('status')).toBeNull();
+    });
+  });
+
   it('shows an error when loading media fails', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(null, {

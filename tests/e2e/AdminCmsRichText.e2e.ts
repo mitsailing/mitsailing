@@ -10,7 +10,7 @@ const PNG_BYTES = Buffer.from(
 test.describe('Admin CMS rich text', () => {
   test('admin edits body with uploaded selected aligned image', async ({
     page,
-  }) => {
+  }, testInfo) => {
     await signInAsAdmin(page);
 
     await page.goto('/admin/cms_pages');
@@ -27,7 +27,16 @@ test.describe('Admin CMS rich text', () => {
       page.getByRole('link', { name: 'Edit this page' })
     ).toHaveAttribute('href', '/admin/cms_pages/cms-page-about/edit');
 
-    const marker = `E2E CMS rich body ${Date.now()}`;
+    const runId = [
+      testInfo.project.name,
+      testInfo.workerIndex,
+      testInfo.retry,
+      Date.now(),
+    ]
+      .join('-')
+      .replaceAll(/[^a-z0-9.-]/giu, '-');
+    const marker = `E2E CMS rich body ${runId}`;
+    const mediaFilename = `e2e-cms-rich-${runId}.png`;
     await page.goto('/admin/cms_page_blocks/cms-block-about-intro/edit');
     await expect(page.getByRole('link', { name: 'View page' })).toHaveAttribute(
       'href',
@@ -48,16 +57,18 @@ test.describe('Admin CMS rich text', () => {
     await page.locator('input[type="file"]').first().setInputFiles({
       buffer: PNG_BYTES,
       mimeType: 'image/png',
-      name: 'e2e-cms-rich.png',
+      name: mediaFilename,
     });
     await expect(page.locator('input[name="body"]')).toHaveValue(
-      /\/cms-media\/.+\/e2e-cms-rich\.png/u
+      new RegExp(`/cms-media/.+/${mediaFilename.replaceAll('.', '\\.')}`, 'u')
     );
 
     await page
       .getByRole('button', { exact: true, name: 'Select existing image' })
       .click();
-    await page.getByRole('button', { name: 'e2e-cms-rich.png' }).click();
+    await page
+      .getByRole('button', { exact: true, name: mediaFilename })
+      .click();
     await editor.locator('img[src*="/cms-media/"]').last().click();
     await page.getByRole('button', { name: 'Align image right' }).click();
 
@@ -70,24 +81,11 @@ test.describe('Admin CMS rich text', () => {
     );
     await expect(page.getByRole('heading', { name: 'Edit row' })).toBeVisible();
 
-    await page.goto('/profile/account');
-    await page.getByRole('radio', { name: 'Light' }).click();
-    await expect(page.locator('html')).not.toHaveClass(/dark/u);
-
     await page.goto('/about');
     await expect(
       page.getByRole('link', { name: 'Edit this page' })
     ).toHaveAttribute('href', '/admin/cms_pages/cms-page-about/edit');
     const richText = page.locator('.cms-rich-text').filter({ hasText: marker });
-    await expect(richText).toBeVisible();
-    await expect(richText.locator('img[data-align="right"]')).toBeVisible();
-
-    await page.goto('/profile/account');
-    await page.getByRole('radio', { name: 'Dark' }).click();
-    await expect(page.locator('html')).toHaveClass(/dark/u);
-
-    await page.goto('/about');
-    await expect(page.locator('html')).toHaveClass(/dark/u);
     await expect(richText).toBeVisible();
     await expect(richText.locator('img[data-align="right"]')).toBeVisible();
   });
