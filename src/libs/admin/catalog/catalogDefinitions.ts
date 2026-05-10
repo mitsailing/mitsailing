@@ -383,6 +383,7 @@ const cmsPagesDefinition = {
   titleKey: 'title_admin_catalog_cms_pages',
   metaTitleKey: 'meta_title_admin_catalog_cms_pages',
   hubLabelKey: 'hub_label_cms_pages',
+  publicViewHrefField: 'path',
   listColumns: [
     { field: 'path', kind: 'string', headerKey: 'column_cms_path' },
     { field: 'title', kind: 'string', headerKey: 'column_name_label' },

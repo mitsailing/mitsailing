@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
+import { AdminSecondaryActionLink } from '@/components/mit-sailing/admin/AdminPrimaryActionLink';
 import { AdminCatalogForm } from '@/components/mit-sailing/admin/catalog/AdminCatalogForm';
 import { createCatalogResourceAction } from '@/libs/admin/catalog/catalogActions';
 import {
@@ -11,6 +12,7 @@ import type { CatalogResourceId } from '@/libs/admin/catalog/catalogDefinitions'
 import {
   cmsMenuParentSelectOptions,
   cmsMenuSelectOptions,
+  cmsPagePublicPathById,
   cmsPageRequiredSelectOptions,
   cmsPageSelectOptions,
 } from '@/libs/admin/catalog/cmsCatalogHandlers';
@@ -19,6 +21,7 @@ import { sailingClassCategorySelectOptions } from '@/libs/admin/catalog/sailingC
 import { catalogScopedListState } from '@/libs/admin/catalog/scopedCatalogLists';
 import type { CatalogScopedListState } from '@/libs/admin/catalog/scopedCatalogLists';
 import type { CatalogRow } from '@/libs/admin/catalog/types';
+import { isAppRelativeCmsHref, safeCmsHref } from '@/libs/mit-sailing/cmsHref';
 import { siteAlertsNewCatalogDefaults } from '@/libs/mit-sailing/siteAlertAdminDefaults';
 
 type PageProps = {
@@ -140,9 +143,25 @@ export default async function AdminCatalogResourceNewPage(props: PageProps) {
     scopedList,
   });
   const rowDefaults = catalogNewRowDefaults({ resource, scopedList });
+  const scopedCmsPagePath =
+    resource === 'cms_page_blocks' && scopedList?.selectedValue
+      ? await cmsPagePublicPathById(scopedList.selectedValue)
+      : null;
+  const scopedCmsPageHref = safeCmsHref(scopedCmsPagePath);
+  const scopedCmsPageViewHref =
+    scopedCmsPageHref && isAppRelativeCmsHref(scopedCmsPageHref)
+      ? scopedCmsPageHref
+      : null;
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
+      {scopedCmsPageViewHref ? (
+        <div className="flex justify-end">
+          <AdminSecondaryActionLink href={scopedCmsPageViewHref}>
+            {tr('action_view_page')}
+          </AdminSecondaryActionLink>
+        </div>
+      ) : null}
       <AdminCatalogForm
         key={`${resource}-new`}
         definition={def}

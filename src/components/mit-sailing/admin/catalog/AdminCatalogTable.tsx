@@ -45,6 +45,7 @@ import type {
   CatalogRow,
 } from '@/libs/admin/catalog/types';
 import { Link } from '@/libs/I18nNavigation';
+import { isAppRelativeCmsHref, safeCmsHref } from '@/libs/mit-sailing/cmsHref';
 
 const ImpersonateButtonClient = dynamic(
   async () => {
@@ -173,6 +174,19 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
     return adminCatalogResourceDeletePath(props.resourceId, id);
   }
 
+  function publicViewHref(row: CatalogRow): string | null {
+    const field = props.definition.publicViewHrefField;
+    if (!field) {
+      return null;
+    }
+    const raw = row[field];
+    if (typeof raw !== 'string') {
+      return null;
+    }
+    const href = safeCmsHref(raw);
+    return href && isAppRelativeCmsHref(href) ? href : null;
+  }
+
   const [orderedIds, setOrderedIds] = useState<string[]>(() =>
     props.rows.map((r) => String(r.id))
   );
@@ -253,9 +267,18 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
         </TableCell>
       );
     });
+    const viewHref = publicViewHref(row);
     const actions = (
       <TableCell className="px-4 py-3">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          {viewHref ? (
+            <Link
+              className="text-sm font-medium text-mit-red-ink no-underline hover:underline"
+              href={viewHref}
+            >
+              {t('action_view_page')}
+            </Link>
+          ) : null}
           <Link
             className="text-sm font-medium text-mit-red-ink no-underline hover:underline"
             href={editHref(String(row.id))}

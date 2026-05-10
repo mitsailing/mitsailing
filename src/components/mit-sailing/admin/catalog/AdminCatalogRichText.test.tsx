@@ -182,6 +182,23 @@ describe('AdminCatalogForm rich text fields', () => {
       view.container.querySelector('input[name="imagePaths"]')
     ).toHaveValue('/images/classes/intro.jpg');
   });
+
+  it('updates cms block preview before saving', async () => {
+    const user = userEvent.setup();
+    renderCmsBlockForm();
+
+    expect(screen.getByRole('heading', { name: 'Preview' })).toBeVisible();
+
+    await user.clear(screen.getByLabelText('Name'));
+    await user.type(screen.getByLabelText('Name'), 'Updated preview title');
+    await user.selectOptions(screen.getByLabelText('Block type'), 'callout');
+    await user.click(screen.getByRole('checkbox', { name: 'Visible' }));
+
+    expect(
+      screen.getByRole('heading', { name: 'Updated preview title' })
+    ).toBeVisible();
+    expect(screen.getByText('Hidden block')).toBeVisible();
+  });
 });
 
 describe('AdminRichTextEditor media controls', () => {

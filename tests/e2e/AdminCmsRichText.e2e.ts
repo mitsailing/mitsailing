@@ -12,14 +12,33 @@ test.describe('Admin CMS rich text', () => {
   }) => {
     await signInAsAdmin(page);
 
+    await page.goto('/admin/cms_pages/');
+    await page
+      .getByRole('row')
+      .filter({ hasText: '/about/' })
+      .getByRole('link', { name: 'View page' })
+      .click();
+    await expect(page).toHaveURL(/\/about\/$/u);
+    await expect(
+      page.getByRole('link', { name: 'Edit this page' })
+    ).toHaveAttribute('href', '/admin/cms_pages/cms-page-about/edit');
+
     const marker = `E2E CMS rich body ${Date.now()}`;
     await page.goto('/admin/cms_page_blocks/cms-block-about-intro/edit');
+    await expect(page.getByRole('link', { name: 'View page' })).toHaveAttribute(
+      'href',
+      '/about/'
+    );
+    await expect(page.getByRole('heading', { name: 'Preview' })).toBeVisible();
 
     const editor = page.locator('.ProseMirror[aria-label="Body"]');
     await expect(editor).toBeVisible();
     await editor.click();
     await page.keyboard.press('ControlOrMeta+A');
     await page.keyboard.type(marker);
+    await expect(
+      page.locator('section').filter({ hasText: marker })
+    ).toBeVisible();
 
     await page.locator('input[type="file"]').first().setInputFiles({
       buffer: PNG_BYTES,
@@ -50,6 +69,9 @@ test.describe('Admin CMS rich text', () => {
     await expect(page.locator('html')).not.toHaveClass(/dark/u);
 
     await page.goto('/about/');
+    await expect(
+      page.getByRole('link', { name: 'Edit this page' })
+    ).toHaveAttribute('href', '/admin/cms_pages/cms-page-about/edit');
     const richText = page.locator('.cms-rich-text').filter({ hasText: marker });
     await expect(richText).toBeVisible();
     await expect(richText.locator('img[data-align="right"]')).toBeVisible();
@@ -62,5 +84,27 @@ test.describe('Admin CMS rich text', () => {
     await expect(page.locator('html')).toHaveClass(/dark/u);
     await expect(richText).toBeVisible();
     await expect(richText.locator('img[data-align="right"]')).toBeVisible();
+  });
+
+  test('admin sees edit links on catalog detail pages', async ({ page }) => {
+    await signInAsAdmin(page);
+
+    await page.goto('/classes/intro-sailing-101/');
+    await expect(
+      page.getByRole('link', { name: 'Edit this page' })
+    ).toHaveAttribute(
+      'href',
+      '/admin/sailing_classes/class-intro-sailing-101/edit'
+    );
+
+    await page.goto('/fleet/tech-dinghy/');
+    await expect(
+      page.getByRole('link', { name: 'Edit this page' })
+    ).toHaveAttribute('href', '/admin/fleet/boat-tech-dinghy/edit');
+
+    await page.goto('/events/boston-dinghy-cup/');
+    await expect(
+      page.getByRole('link', { name: 'Edit this page' })
+    ).toHaveAttribute('href', '/admin/events/boston-dinghy-cup/edit');
   });
 });

@@ -142,6 +142,7 @@ export function AdminRichTextEditor(props: {
   fieldId: string;
   fieldKey: string;
   label: string;
+  onChange?: (value: string) => void;
   required?: boolean;
 }) {
   const t = useTranslations('AdminCatalogResource');
@@ -160,7 +161,9 @@ export function AdminRichTextEditor(props: {
   function syncEditorState(
     currentEditor: NonNullable<ReturnType<typeof useEditor>>
   ) {
-    setHtml(currentEditor.getHTML());
+    const nextHtml = currentEditor.getHTML();
+    setHtml(nextHtml);
+    props.onChange?.(nextHtml);
     setToolbarRevision((revision) => revision + 1);
   }
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import type * as React from 'react';
 import { useState } from 'react';
 import { AdminCatalogEditStatusBadge } from '@/components/mit-sailing/admin/catalog/AdminCatalogListCell';
 import {
@@ -8,6 +9,7 @@ import {
   AdminImageListField,
 } from '@/components/mit-sailing/admin/catalog/AdminCmsMediaControls';
 import { AdminRichTextEditor } from '@/components/mit-sailing/admin/catalog/AdminRichTextEditor';
+import { CmsPageBlockPreview } from '@/components/mit-sailing/cms/CmsPageBlocks';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -113,6 +115,7 @@ function catalogDynamicSelectField(props: {
   defaultValue: string;
   required: boolean | undefined;
   options: readonly DynamicSelectOption[];
+  onChange?: (value: string) => void;
 }) {
   return (
     <div className="flex flex-col gap-1.5 text-sm">
@@ -124,6 +127,9 @@ function catalogDynamicSelectField(props: {
         defaultValue={props.defaultValue || undefined}
         id={props.fieldKey}
         name={props.fieldKey}
+        onChange={(event) => {
+          props.onChange?.(event.target.value);
+        }}
         required={props.required}
       >
         {props.options.map((opt) => (
@@ -142,6 +148,7 @@ function catalogStaticSelectField(props: {
   defaultValue: string;
   required: boolean | undefined;
   options: AdminFormFieldDef['selectOptions'];
+  onChange?: (value: string) => void;
   translateLabel: (key: AdminFormFieldDef['labelKey']) => string;
 }) {
   const opts = props.options;
@@ -158,6 +165,9 @@ function catalogStaticSelectField(props: {
         defaultValue={props.defaultValue || undefined}
         id={props.fieldKey}
         name={props.fieldKey}
+        onChange={(event) => {
+          props.onChange?.(event.target.value);
+        }}
         required={props.required}
       >
         {opts.map((opt) => (
@@ -184,6 +194,88 @@ type AdminCatalogFormProps = {
   >;
 };
 
+type CmsBlockKind = 'hero' | 'text_section' | 'callout';
+
+type CmsBlockPreviewState = {
+  body: string;
+  ctaLabel: string;
+  ctaUrl: string;
+  imageAlt: string;
+  imageSrc: string;
+  isVisible: boolean;
+  kind: CmsBlockKind;
+  subtitle: string;
+  title: string;
+};
+
+function stringValue(value: CatalogRow[string]): string {
+  return value !== undefined && value !== null ? String(value) : '';
+}
+
+function cmsBlockKindValue(value: CatalogRow[string]): CmsBlockKind {
+  return value === 'hero' || value === 'callout' ? value : 'text_section';
+}
+
+function initialCmsBlockPreviewState(row?: CatalogRow): CmsBlockPreviewState {
+  return {
+    body: stringValue(row?.body),
+    ctaLabel: stringValue(row?.ctaLabel),
+    ctaUrl: stringValue(row?.ctaUrl),
+    imageAlt: stringValue(row?.imageAlt),
+    imageSrc: stringValue(row?.imageSrc),
+    isVisible: typeof row?.isVisible === 'boolean' ? row.isVisible : true,
+    kind: cmsBlockKindValue(row?.kind),
+    subtitle: stringValue(row?.subtitle),
+    title: stringValue(row?.title),
+  };
+}
+
+function updateCmsBlockPreviewField(
+  setPreviewState: React.Dispatch<React.SetStateAction<CmsBlockPreviewState>>,
+  field: keyof CmsBlockPreviewState,
+  value: string | boolean
+) {
+  setPreviewState((prev) => ({ ...prev, [field]: value }));
+}
+
+function AdminCmsBlockPreviewPanel(props: {
+  previewState: CmsBlockPreviewState;
+  t: ReturnType<typeof useTranslations<'AdminCatalogResource'>>;
+}) {
+  return (
+    <section className="flex max-w-5xl flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 className="text-base font-semibold text-foreground">
+          {props.t('cms_block_preview_heading')}
+        </h3>
+        {props.previewState.isVisible ? null : (
+          <AdminCatalogEditStatusBadge isVisible={false} />
+        )}
+      </div>
+      {props.previewState.isVisible ? null : (
+        <p className="text-xs text-muted-foreground">
+          {props.t('cms_block_preview_hidden')}
+        </p>
+      )}
+      <div className="overflow-hidden rounded-lg border border-border bg-background">
+        <CmsPageBlockPreview
+          block={{
+            body: props.previewState.body,
+            ctaLabel: props.previewState.ctaLabel,
+            ctaUrl: props.previewState.ctaUrl,
+            id: 'admin-cms-block-preview',
+            imageAlt: props.previewState.imageAlt,
+            imageSrc: props.previewState.imageSrc,
+            kind: props.previewState.kind,
+            subtitle: props.previewState.subtitle,
+            title: props.previewState.title,
+          }}
+        />
+      </div>
+    </section>
+  );
+}
+
 function CatalogTextareaField(props: {
   fieldId: string;
   label: string;
@@ -191,6 +283,7 @@ function CatalogTextareaField(props: {
   fieldKey: string;
   required: boolean | undefined;
   linksHint: string | undefined;
+  onChange?: (value: string) => void;
 }) {
   return (
     <div className="flex flex-col gap-1.5 text-sm">
@@ -202,6 +295,9 @@ function CatalogTextareaField(props: {
         defaultValue={props.defaultValue}
         id={props.fieldId}
         name={props.fieldKey}
+        onChange={(event) => {
+          props.onChange?.(event.target.value);
+        }}
         required={props.required}
       />
       {props.linksHint ? (
@@ -265,6 +361,7 @@ function CatalogSelectFieldBranch(props: {
   required: boolean | undefined;
   selectOptions: AdminFormFieldDef['selectOptions'];
   dynamicOptions: readonly DynamicSelectOption[] | undefined;
+  onChange?: (value: string) => void;
   translateLabel: (key: AdminFormFieldDef['labelKey']) => string;
 }) {
   const dynOpts = props.dynamicOptions;
@@ -275,6 +372,7 @@ function CatalogSelectFieldBranch(props: {
       defaultValue: props.defaultValue,
       required: props.required,
       options: dynOpts,
+      onChange: props.onChange,
     });
   }
   if (props.selectOptions && props.selectOptions.length > 0) {
@@ -284,6 +382,7 @@ function CatalogSelectFieldBranch(props: {
       defaultValue: props.defaultValue,
       required: props.required,
       options: props.selectOptions,
+      onChange: props.onChange,
       translateLabel: props.translateLabel,
     });
   }
@@ -296,6 +395,7 @@ function CatalogMediaFieldBranch(props: {
   defaultValue: string;
   fieldId: string;
   label: string;
+  onChange?: (value: string) => void;
 }) {
   if (props.field.kind === 'image') {
     return (
@@ -304,6 +404,7 @@ function CatalogMediaFieldBranch(props: {
         fieldId={props.fieldId}
         fieldKey={props.field.field}
         label={props.label}
+        onChange={props.onChange}
         required={props.field.required}
       />
     );
@@ -398,6 +499,10 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
   const [bools, setBools] = useState(() =>
     initialBooleanFields(props.definition.formFields, props.row)
   );
+  const isCmsBlockForm = props.definition.id === 'cms_page_blocks';
+  const [cmsBlockPreviewState, setCmsBlockPreviewState] = useState(() =>
+    initialCmsBlockPreviewState(props.row)
+  );
 
   const visibilityField = props.definition.formFields.find(
     (f) => f.kind === 'boolean' && f.field === 'isVisible'
@@ -409,6 +514,71 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
   )
     ? 'max-w-3xl'
     : 'max-w-xl';
+
+  function setCmsPreviewField(
+    field: keyof CmsBlockPreviewState,
+    value: string | boolean
+  ) {
+    updateCmsBlockPreviewField(setCmsBlockPreviewState, field, value);
+  }
+
+  function cmsPreviewTextChange(fieldKey: string) {
+    if (!isCmsBlockForm || fieldKey !== 'subtitle') {
+      return;
+    }
+    return (value: string) => {
+      setCmsPreviewField('subtitle', value);
+    };
+  }
+
+  function cmsPreviewRichTextChange(fieldKey: string) {
+    if (!isCmsBlockForm || fieldKey !== 'body') {
+      return;
+    }
+    return (value: string) => {
+      setCmsPreviewField('body', value);
+    };
+  }
+
+  function cmsPreviewImageChange(fieldKey: string) {
+    if (!isCmsBlockForm || fieldKey !== 'imageSrc') {
+      return;
+    }
+    return (value: string) => {
+      setCmsPreviewField('imageSrc', value);
+    };
+  }
+
+  function cmsPreviewSelectChange(fieldKey: string) {
+    if (!isCmsBlockForm || fieldKey !== 'kind') {
+      return;
+    }
+    return (value: string) => {
+      setCmsPreviewField('kind', cmsBlockKindValue(value));
+    };
+  }
+
+  function updateBooleanField(fieldKey: string, next: boolean) {
+    setBools((prev) => ({ ...prev, [fieldKey]: next }));
+    if (isCmsBlockForm && fieldKey === 'isVisible') {
+      setCmsPreviewField('isVisible', next);
+    }
+  }
+
+  function updateInputPreviewField(fieldKey: string, value: string) {
+    if (!isCmsBlockForm) {
+      return;
+    }
+    if (
+      fieldKey !== 'title' &&
+      fieldKey !== 'ctaLabel' &&
+      fieldKey !== 'ctaUrl' &&
+      fieldKey !== 'imageAlt'
+    ) {
+      return;
+    }
+    setCmsPreviewField(fieldKey, value);
+  }
 
   function renderCatalogField(field: AdminFormFieldDef) {
     const key = field.field;
@@ -433,6 +603,7 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
           fieldKey={key}
           label={label}
           linksHint={linksHint}
+          onChange={cmsPreviewTextChange(key)}
           required={field.required}
         />
       );
@@ -447,6 +618,7 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
           fieldId={fieldId}
           fieldKey={key}
           label={label}
+          onChange={cmsPreviewRichTextChange(key)}
           required={field.required}
         />
       );
@@ -461,6 +633,7 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
           field={field}
           fieldId={fieldId}
           label={label}
+          onChange={cmsPreviewImageChange(key)}
           rawDefaultValue={rawDefaultValue}
         />
       );
@@ -477,7 +650,7 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
           fieldKey={key}
           label={label}
           onToggle={(next) => {
-            setBools((prev) => ({ ...prev, [key]: next }));
+            updateBooleanField(key, next);
           }}
         />
       );
@@ -491,6 +664,7 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
           dynamicOptions={props.dynamicSelectOptions?.[key]}
           fieldKey={key}
           label={label}
+          onChange={cmsPreviewSelectChange(key)}
           required={field.required}
           selectOptions={field.selectOptions}
           translateLabel={translateLabel}
@@ -511,6 +685,9 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
           defaultValue={defaultValue}
           id={fieldId}
           name={key}
+          onChange={(event) => {
+            updateInputPreviewField(key, event.target.value);
+          }}
           required={field.required}
           type={inputType}
         />
@@ -523,6 +700,24 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
       </div>
     );
   }
+
+  const formElement = (
+    <form
+      action={props.formAction}
+      autoComplete={props.definition.id === 'site_alerts' ? 'off' : undefined}
+      className={`flex ${formMaxWidth} flex-col gap-4`}
+    >
+      {props.definition.formFields.map(renderCatalogField)}
+
+      <div className="flex flex-wrap gap-3 pt-2">
+        <Button type="submit" variant="mit">
+          {ns === 'AdminUsers'
+            ? tUsers('action_save')
+            : tCatalog('action_save')}
+        </Button>
+      </div>
+    </form>
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -548,21 +743,17 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
         </p>
       ) : null}
 
-      <form
-        action={props.formAction}
-        autoComplete={props.definition.id === 'site_alerts' ? 'off' : undefined}
-        className={`flex ${formMaxWidth} flex-col gap-4`}
-      >
-        {props.definition.formFields.map(renderCatalogField)}
-
-        <div className="flex flex-wrap gap-3 pt-2">
-          <Button type="submit" variant="mit">
-            {ns === 'AdminUsers'
-              ? tUsers('action_save')
-              : tCatalog('action_save')}
-          </Button>
+      {isCmsBlockForm ? (
+        <div className="flex flex-col gap-6">
+          {formElement}
+          <AdminCmsBlockPreviewPanel
+            previewState={cmsBlockPreviewState}
+            t={tCatalog}
+          />
         </div>
-      </form>
+      ) : (
+        formElement
+      )}
     </div>
   );
 }

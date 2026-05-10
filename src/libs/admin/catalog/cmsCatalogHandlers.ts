@@ -733,6 +733,16 @@ export async function cmsPageRequiredSelectOptions() {
   }));
 }
 
+export async function cmsPagePublicPathById(
+  id: string
+): Promise<string | null> {
+  const row = await prisma.cmsPage.findUnique({
+    where: { id },
+    select: { path: true },
+  });
+  return row?.path ?? null;
+}
+
 export async function cmsMenuSelectOptions() {
   const rows = await prisma.cmsMenu.findMany({
     orderBy: [{ location: 'asc' }],

@@ -188,6 +188,7 @@ export function AdminImageField(props: {
   fieldId: string;
   fieldKey: string;
   label: string;
+  onChange?: (value: string) => void;
   required?: boolean;
 }) {
   const t = useTranslations('AdminCatalogResource');
@@ -200,6 +201,11 @@ export function AdminImageField(props: {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [mediaBusy, setMediaBusy] = useState(false);
   const [mediaError, setMediaError] = useState<string | null>(null);
+
+  function setFieldValue(nextValue: string) {
+    setValue(nextValue);
+    props.onChange?.(nextValue);
+  }
 
   async function openPicker() {
     if (pickerOpen) {
@@ -238,7 +244,7 @@ export function AdminImageField(props: {
       setMediaError(t('rich_text_media_error'));
       return;
     }
-    setValue(asset.publicPath);
+    setFieldValue(asset.publicPath);
     setPickerOpen(false);
   }
 
@@ -283,7 +289,7 @@ export function AdminImageField(props: {
           <Button
             aria-label={t('media_remove_for_field', { label: props.label })}
             onClick={() => {
-              setValue('');
+              setFieldValue('');
             }}
             size="icon"
             type="button"
@@ -310,7 +316,7 @@ export function AdminImageField(props: {
         <AdminCmsMediaPickerPanel
           assets={assets}
           onSelect={(asset) => {
-            setValue(asset.publicPath);
+            setFieldValue(asset.publicPath);
             setPickerOpen(false);
           }}
         />

@@ -1,7 +1,9 @@
 import type { Metadata } from 'next';
 import { setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
+import { PublicAdminEditLink } from '@/components/mit-sailing/admin/PublicAdminEditLink';
 import { CmsPageBlocks } from '@/components/mit-sailing/cms/CmsPageBlocks';
+import { adminCatalogResourceEditPath } from '@/libs/admin/catalog/adminCatalogPaths';
 import { loadPublishedCmsPageByPath } from '@/libs/mit-sailing/cmsQueries';
 
 type CmsCatchAllPageProps = {
@@ -43,5 +45,13 @@ export default async function CmsCatchAllPage(props: CmsCatchAllPageProps) {
   if (!page) {
     notFound();
   }
-  return <CmsPageBlocks page={page} />;
+  return (
+    <>
+      <PublicAdminEditLink
+        className="mx-auto mb-0 w-full max-w-5xl px-6 pt-4"
+        href={adminCatalogResourceEditPath('cms_pages', page.id)}
+      />
+      <CmsPageBlocks page={page} />
+    </>
+  );
 }

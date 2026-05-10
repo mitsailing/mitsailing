@@ -161,6 +161,16 @@ function CmsBlock(props: { block: PublicCmsBlock; index: number }) {
 }
 
 /**
+ * Renders one CMS block with the same markup used on public pages.
+ *
+ * @param props - CMS block DTO
+ * @returns Single public-style block
+ */
+export function CmsPageBlockPreview(props: { block: PublicCmsBlock }) {
+  return <CmsBlock block={props.block} index={0} />;
+}
+
+/**
  * Renders ordered CMS page blocks for public SSR pages.
  *
  * @param props - Published CMS page DTO

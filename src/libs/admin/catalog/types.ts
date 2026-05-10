@@ -75,6 +75,8 @@ export type CatalogResourceDefinition = {
   listColumns: readonly AdminListColumnDef[];
   formFields: readonly AdminFormFieldDef[];
   capabilities: CatalogCapabilities;
+  /** Row field containing an app-relative public URL for a View action. */
+  publicViewHrefField?: string;
 };
 
 /** Serialized row for list/detail forms (dates as ISO strings). */

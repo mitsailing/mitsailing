@@ -1,8 +1,10 @@
 import { ArrowLeft } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import Image from 'next/image';
+import { PublicAdminEditLink } from '@/components/mit-sailing/admin/PublicAdminEditLink';
 import { CmsRichText } from '@/components/mit-sailing/cms/CmsRichText';
 import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
+import { adminCatalogResourceEditPath } from '@/libs/admin/catalog/adminCatalogPaths';
 import { Link } from '@/libs/I18nNavigation';
 import type { FleetBoatDetail } from '@/libs/mit-sailing/fleetQueries';
 
@@ -27,6 +29,9 @@ export async function FleetBoatDetailView(props: FleetBoatDetailViewProps) {
 
   return (
     <>
+      <PublicAdminEditLink
+        href={adminCatalogResourceEditPath('fleet', boat.id)}
+      />
       <Link
         className={`mb-8 inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-mit-red-ink no-underline hover:underline ${textFocusRingClassName}`}
         href="/fleet/"

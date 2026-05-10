@@ -52,6 +52,29 @@ describe('AdminCatalogScopeFilter', () => {
 });
 
 describe('AdminCatalogTable scoped CMS definitions', () => {
+  it('renders public view actions for cms pages', () => {
+    render(
+      <AdminCatalogTable
+        definition={catalogResourceDefinitions.cms_pages}
+        locale="en"
+        resourceId="cms_pages"
+        rows={[
+          {
+            id: 'page-1',
+            isPublished: true,
+            path: '/about/',
+            title: 'About',
+          },
+        ]}
+      />
+    );
+
+    expect(screen.getByRole('link', { name: 'View page' })).toHaveAttribute(
+      'href',
+      '/about/'
+    );
+  });
+
   it('omits the page path column from page blocks', () => {
     render(
       <AdminCatalogTable

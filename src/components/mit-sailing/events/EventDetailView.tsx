@@ -1,4 +1,5 @@
 import { getTranslations } from 'next-intl/server';
+import { PublicAdminEditLink } from '@/components/mit-sailing/admin/PublicAdminEditLink';
 import { Link } from '@/libs/I18nNavigation';
 import { formatEasternEventRange } from '@/libs/mit-sailing/easternTimeFormat';
 import type { getPublishedEventForPublicBySlug } from '@/libs/mit-sailing/eventQueries';
@@ -27,6 +28,7 @@ export async function EventDetailView(props: EventDetailViewProps) {
 
   return (
     <article>
+      <PublicAdminEditLink href={`/admin/events/${e.slug}/edit`} />
       <p className="mb-4 text-sm text-muted-foreground">
         <Link
           className="text-primary-ink no-underline hover:underline"
