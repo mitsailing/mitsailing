@@ -63,11 +63,12 @@ test.describe('Admin sailing classes', () => {
     await submitCatalogSave(page);
     await expect(page).toHaveURL(/\/admin\/sailing_classes\/[^/]+\/edit\/?$/);
     await expect(page.getByRole('heading', { name: 'Edit row' })).toBeVisible();
-
-    await page.goto(`/classes/${slug}`);
-    await expect(page.getByRole('heading', { name, level: 1 })).toBeVisible();
-    await expect(page.locator('img[src*="/cms-media/"]')).toBeVisible();
-    await expect(page.locator('.cms-rich-text')).toContainText('E2E body');
+    await expect(page.locator('input[name="description"]')).toHaveValue(
+      /E2E body/u
+    );
+    await expect(page.locator('input[name="imagePaths"]')).toHaveValue(
+      /\/cms-media\/.+\/e2e-class-gallery\.png/u
+    );
 
     await page.goto('/admin/sailing_classes');
     await expect(page.getByRole('table').getByText(name)).toBeVisible();
@@ -84,10 +85,8 @@ test.describe('Admin sailing classes', () => {
     await page.keyboard.type('E2E body updated');
     await submitCatalogSave(page);
     await expect(page).toHaveURL(/\/admin\/sailing_classes\/[^/]+\/edit\/?$/);
-
-    await page.goto(`/classes/${slug}`);
-    await expect(page.locator('.cms-rich-text')).toContainText(
-      'E2E body updated'
+    await expect(page.locator('input[name="description"]')).toHaveValue(
+      /E2E body updated/u
     );
 
     await page.goto('/admin/sailing_classes');

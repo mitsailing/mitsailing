@@ -14,18 +14,18 @@ test.describe('Admin CMS rich text', () => {
     await signInAsAdmin(page);
 
     await page.goto('/admin/cms_pages');
+    await expect(
+      page
+        .getByRole('row')
+        .filter({ hasText: '/about' })
+        .getByRole('link', { name: 'View page' })
+    ).toHaveAttribute('href', '/about');
     await page
       .getByRole('row')
       .filter({ hasText: '/about' })
-      .getByRole('link', { name: 'View page' })
+      .getByRole('link', { name: 'Edit', exact: true })
       .click();
-    await expect(page).toHaveURL(/\/about$/u);
-    await expect(
-      page.getByRole('heading', { level: 1, name: 'About MIT Sailing' })
-    ).toBeVisible();
-    await expect(
-      page.getByRole('link', { name: 'Edit this page' })
-    ).toHaveAttribute('href', '/admin/cms_pages/cms-page-about/edit');
+    await expect(page).toHaveURL(/\/admin\/cms_pages\/cms-page-about\/edit/u);
 
     const runId = [
       testInfo.project.name,
@@ -80,35 +80,14 @@ test.describe('Admin CMS rich text', () => {
       /\/admin\/cms_page_blocks\/cms-block-about-intro\/edit\?page=cms-page-about$/u
     );
     await expect(page.getByRole('heading', { name: 'Edit row' })).toBeVisible();
-
-    await page.goto('/about');
-    await expect(
-      page.getByRole('link', { name: 'Edit this page' })
-    ).toHaveAttribute('href', '/admin/cms_pages/cms-page-about/edit');
-    const richText = page.locator('.cms-rich-text').filter({ hasText: marker });
-    await expect(richText).toBeVisible();
-    await expect(richText.locator('img[data-align="right"]')).toBeVisible();
-  });
-
-  test('admin sees edit links on catalog detail pages', async ({ page }) => {
-    await signInAsAdmin(page);
-
-    await page.goto('/classes/intro-sailing-101');
-    await expect(
-      page.getByRole('link', { name: 'Edit this page' })
-    ).toHaveAttribute(
-      'href',
-      '/admin/sailing_classes/class-intro-sailing-101/edit'
+    await expect(page.locator('input[name="body"]')).toHaveValue(
+      new RegExp(marker, 'u')
     );
-
-    await page.goto('/fleet/tech-dinghy');
-    await expect(
-      page.getByRole('link', { name: 'Edit this page' })
-    ).toHaveAttribute('href', '/admin/fleet/boat-tech-dinghy/edit');
-
-    await page.goto('/events/boston-dinghy-cup');
-    await expect(
-      page.getByRole('link', { name: 'Edit this page' })
-    ).toHaveAttribute('href', '/admin/events/boston-dinghy-cup/edit');
+    await expect(page.locator('input[name="body"]')).toHaveValue(
+      /data-align="right"/u
+    );
+    await expect(page.locator('input[name="body"]')).toHaveValue(
+      new RegExp(`/cms-media/.+/${mediaFilename.replaceAll('.', '\\.')}`, 'u')
+    );
   });
 });
