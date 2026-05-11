@@ -441,7 +441,7 @@ export function EventRegistrationForm(props: EventRegistrationFormProps) {
         locale={props.locale}
       />
 
-      <p className="text-xs leading-relaxed text-mit-text/70 dark:text-white">
+      <p className="text-xs leading-relaxed text-muted-foreground">
         {props.event.requiresApproval
           ? props.labels.requiresApprovalNote
           : props.labels.autoApprovalNote}

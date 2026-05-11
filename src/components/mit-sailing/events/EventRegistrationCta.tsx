@@ -30,7 +30,7 @@ type EventRegistrationCtaProps = {
 
 function RegistrationNote(props: { children: React.ReactNode }) {
   return (
-    <p className="text-xs leading-relaxed text-mit-text/70 dark:text-white">
+    <p className="text-xs leading-relaxed text-muted-foreground">
       {props.children}
     </p>
   );

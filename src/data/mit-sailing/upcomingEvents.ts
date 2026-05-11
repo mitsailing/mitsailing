@@ -1,5 +1,6 @@
 import {
   addNyCalendarDays,
+  EVENTS_TIME_ZONE,
   nyYmd,
   startOfNyCalendarDay,
 } from '@/lib/mit-sailing/nyTime';
@@ -7,7 +8,7 @@ import type { Event, EventCategory, EventDate } from './eventsSeed';
 import { getEventById, GLOBAL_EVENT_DATES } from './eventsSeed';
 
 const dateWithYear = new Intl.DateTimeFormat('en-US', {
-  timeZone: 'America/New_York',
+  timeZone: EVENTS_TIME_ZONE,
   weekday: 'short',
   month: 'short',
   day: 'numeric',
@@ -15,14 +16,14 @@ const dateWithYear = new Intl.DateTimeFormat('en-US', {
 });
 
 const dateNoYear = new Intl.DateTimeFormat('en-US', {
-  timeZone: 'America/New_York',
+  timeZone: EVENTS_TIME_ZONE,
   weekday: 'short',
   month: 'short',
   day: 'numeric',
 });
 
 const timeFmt = new Intl.DateTimeFormat('en-US', {
-  timeZone: 'America/New_York',
+  timeZone: EVENTS_TIME_ZONE,
   hour: 'numeric',
   minute: '2-digit',
   hour12: true,
@@ -255,7 +256,7 @@ function formatCalendarDayHeading(
   const d = startOfNyCalendarDay(dateKey);
   const y = Number(dateKey.slice(0, 4));
   return new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/New_York',
+    timeZone: EVENTS_TIME_ZONE,
     weekday: 'short',
     day: 'numeric',
     month: 'short',
