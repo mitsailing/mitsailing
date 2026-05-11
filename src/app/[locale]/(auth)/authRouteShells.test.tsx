@@ -562,7 +562,7 @@ describe('auth route shells', () => {
     );
   });
 
-  it('profile ratings page renders filtered rating assignments', async () => {
+  it('profile ratings page renders active rating assignments', async () => {
     routeMocks.listUserRatingAssignmentRows.mockResolvedValue([
       {
         id: 'keelboat',
@@ -572,18 +572,18 @@ describe('auth route shells', () => {
         name: 'Keelboat',
       },
       {
-        id: 'tech',
+        id: 'club-420',
         isDeprecated: false,
         issuedAt: new Date('2026-04-16T12:00:00Z'),
         issuedByName: null,
-        name: 'Tech dinghy',
+        name: 'Club 420',
       },
       {
-        id: 'legacy',
-        isDeprecated: true,
+        id: 'tech',
+        isDeprecated: false,
         issuedAt: null,
         issuedByName: null,
-        name: 'Legacy rating',
+        name: 'Tech dinghy',
       },
     ]);
 
@@ -599,7 +599,8 @@ describe('auth route shells', () => {
       '/profile/ratings/'
     );
     expect(routeMocks.listUserRatingAssignmentRows).toHaveBeenCalledWith(
-      'user-1'
+      'user-1',
+      { includeDeprecated: false }
     );
     expect(
       screen.getByRole('heading', {
@@ -617,12 +618,15 @@ describe('auth route shells', () => {
       })
     ).toBeVisible();
     expect(screen.getByRole('rowheader', { name: 'Keelboat' })).toBeVisible();
+    expect(screen.getByRole('rowheader', { name: 'Club 420' })).toBeVisible();
     expect(
       screen.getByRole('rowheader', { name: 'Tech dinghy' })
     ).toBeVisible();
-    expect(screen.queryByText('Legacy rating')).not.toBeInTheDocument();
     expect(screen.getByText('UserProfilePage.ratings_issued_by')).toBeVisible();
     expect(screen.getByText('UserProfilePage.ratings_issued_on')).toBeVisible();
+    expect(
+      screen.getByText('UserProfilePage.ratings_no_issue_date')
+    ).toBeVisible();
   });
 
   it('profile ratings page renders empty state', async () => {

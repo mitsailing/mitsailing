@@ -62,7 +62,7 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     name: 'Provisional Rating',
     shortName: 'Provisional',
     description:
-      'Staff checkoff for safe Charles River sailing: basic maneuvers, rigging and unrigging, safety precautions, right-of-way rules, and care of the Tech Dinghy.',
+      'Staff checkoff for safe Charles River sailing: basic maneuvers, rigging and unrigging, safety precautions, right-of-way rules, and care of the Tech dinghy.',
     category: 'Dinghy',
     level: '1',
     windCondition: 'Medium',
@@ -92,7 +92,7 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
     name: 'Helmsman Rating',
     shortName: 'Helmsman',
     description:
-      'Strong-wind solo Tech Dinghy rating for sailors who can sail upwind with good hiking technique, gybe downwind, and demonstrate man-overboard recovery.',
+      'Strong-wind solo Tech dinghy rating for sailors who can sail upwind with good hiking technique, gybe downwind, and demonstrate man-overboard recovery.',
     category: 'Dinghy',
     level: '3',
     windCondition: 'Strong',

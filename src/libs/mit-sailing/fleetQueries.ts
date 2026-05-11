@@ -57,10 +57,14 @@ async function loadFleetBoatsForPublicUnchecked(): Promise<FleetBoatListRow[]> {
       },
     }),
     prisma.sailingRatingRule.findMany({
-      where: { targetType: 'boat', ruleType: 'requires' },
+      where: {
+        boatId: { not: null },
+        ruleType: 'requires',
+        sailingRating: { isVisible: true },
+      },
       orderBy: [{ displayOrder: 'asc' }],
       select: {
-        targetId: true,
+        boatId: true,
         groupKey: true,
         displayOrder: true,
         sailingRating: {
@@ -79,7 +83,7 @@ async function loadFleetBoatsForPublicUnchecked(): Promise<FleetBoatListRow[]> {
     ...boat,
     description: plainTextFromCmsRichTextHtml(boat.description),
     requiredRatings: rules
-      .filter((rule) => rule.targetId === boat.id)
+      .filter((rule) => rule.boatId === boat.id)
       .filter((rule) => rule.groupKey !== 'advanced')
       .toSorted((a, b) => a.displayOrder - b.displayOrder)
       .map((rule) => rule.sailingRating),

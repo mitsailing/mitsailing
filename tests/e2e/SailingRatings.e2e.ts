@@ -161,12 +161,18 @@ test.describe('Sailing ratings', () => {
       page.getByRole('heading', { name: 'Sailing ratings' })
     ).toBeVisible();
     await expect(page.getByText('Tech Rating')).toBeVisible();
-    await expect(page.getByText('Issued by Administrator')).toBeVisible();
     await expect(
-      page.getByText(/Issued [A-Z][a-z]{2} \d{1,2}, 20\d{2}/)
+      page.getByText(/Issued [A-Z][a-z]{2} \d{1,2}, 20\d{2} by Administrator/)
     ).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Tech Dinghy' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Mashnee' })).toBeVisible();
+    const techRatingRow = page.getByRole('row').filter({
+      has: page.getByRole('rowheader', { name: 'Tech Rating' }),
+    });
+    await expect(
+      techRatingRow.getByRole('link', { name: 'Tech dinghy' })
+    ).toBeVisible();
+    await expect(
+      techRatingRow.getByRole('link', { name: 'Mashnee' })
+    ).toBeVisible();
   });
 
   test('melges detail shows advanced 420 rating', async ({ page }) => {

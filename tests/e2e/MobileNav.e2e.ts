@@ -54,9 +54,10 @@ test.describe('Desktop navigation', () => {
     await page.goto('/');
 
     const nav = page.getByRole('navigation', { name: 'Main navigation' });
+    const classesButton = nav.getByRole('button', { name: 'Classes' });
 
-    await nav.getByRole('button', { name: 'Classes' }).focus();
-    await page.keyboard.press('ArrowDown');
+    await classesButton.click();
+    await expect(classesButton).toHaveAttribute('aria-expanded', 'true');
     await expect(
       nav.getByRole('link', { name: 'Introduction', exact: true })
     ).toBeVisible();
@@ -74,17 +75,18 @@ test.describe('Desktop navigation', () => {
     await page.goto('/');
 
     const nav = page.getByRole('navigation', { name: 'Main navigation' });
+    const fleetButton = nav.getByRole('button', { name: 'Fleet' });
 
-    await nav.getByRole('button', { name: 'Fleet' }).focus();
-    await page.keyboard.press('ArrowDown');
+    await fleetButton.click();
+    await expect(fleetButton).toHaveAttribute('aria-expanded', 'true');
     await expect(
-      nav.getByRole('link', { name: 'Tech Dinghy', exact: true })
+      nav.getByRole('link', { name: 'Tech dinghy', exact: true })
     ).toBeVisible();
 
-    await nav.getByRole('link', { name: 'Tech Dinghy', exact: true }).click();
+    await nav.getByRole('link', { name: 'Tech dinghy', exact: true }).click();
     await expect(page).toHaveURL(/\/fleet\/tech-dinghy\/?$/u);
     await expect(
-      page.getByRole('heading', { level: 1, name: 'Tech Dinghy' })
+      page.getByRole('heading', { level: 1, name: 'Tech dinghy' })
     ).toBeVisible();
   });
 });

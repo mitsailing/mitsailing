@@ -19,6 +19,8 @@ vi.mock('next-intl/server', () => ({
         photo_placeholder: 'Photo placeholder',
         required_class_heading: 'Required class',
         required_class_label: 'Required class:',
+        required_rating_heading: 'Required rating',
+        required_rating_label: 'Required rating:',
       })[key] ?? key;
   }),
 }));
@@ -43,7 +45,7 @@ describe('FleetListView', () => {
             description: 'Stable trainer',
             id: 'boat-1',
             imagePath: '/images/boats/tech.jpg',
-            name: 'Tech Dinghy',
+            name: 'Tech dinghy',
             requiredClass: { name: 'Intro Sailing 101', slug: 'intro' },
             requiredRatings: [],
             slug: 'tech-dinghy',
@@ -54,7 +56,39 @@ describe('FleetListView', () => {
       })
     );
 
-    expect(screen.getByAltText('Tech Dinghy')).toBeVisible();
+    expect(screen.getByAltText('Tech dinghy')).toBeVisible();
+  });
+
+  it('renders required ratings when present', async () => {
+    render(
+      await FleetListView({
+        boats: [
+          {
+            capacity: 2,
+            description: 'Stable trainer',
+            id: 'boat-1',
+            imagePath: null,
+            name: 'Tech dinghy',
+            requiredClass: { name: 'Intro Sailing 101', slug: 'intro' },
+            requiredRatings: [
+              {
+                id: 'rating-tech',
+                isDeprecated: false,
+                name: 'Tech Rating',
+                shortName: 'Tech',
+                slug: 'tech-rating',
+              },
+            ],
+            slug: 'tech-dinghy',
+            type: 'training dinghy',
+          },
+        ],
+        locale: 'en',
+      })
+    );
+
+    expect(screen.getByText('Required rating:')).toBeVisible();
+    expect(screen.getByText('Tech Rating')).toBeVisible();
   });
 });
 
@@ -68,7 +102,7 @@ describe('FleetBoatDetailView', () => {
             '<p>Boat page copy</p><img alt="Rigging detail" src="/cms-media/asset-1/rigging.png" />',
           id: 'boat-1',
           imagePath: '/images/boats/tech.jpg',
-          name: 'Tech Dinghy',
+          name: 'Tech dinghy',
           requiredClass: {
             id: 'class-1',
             name: 'Intro Sailing 101',
@@ -83,7 +117,7 @@ describe('FleetBoatDetailView', () => {
       })
     );
 
-    expect(screen.queryByAltText('Tech Dinghy')).toBeNull();
+    expect(screen.queryByAltText('Tech dinghy')).toBeNull();
     expect(screen.getByAltText('Rigging detail')).toBeVisible();
   });
 
@@ -96,7 +130,7 @@ describe('FleetBoatDetailView', () => {
             '<p>Boat page copy</p><img alt="Legacy inline" src="/images/boats/legacy.jpg" />',
           id: 'boat-1',
           imagePath: '/images/boats/tech.jpg',
-          name: 'Tech Dinghy',
+          name: 'Tech dinghy',
           requiredClass: {
             id: 'class-1',
             name: 'Intro Sailing 101',
@@ -111,7 +145,45 @@ describe('FleetBoatDetailView', () => {
       })
     );
 
-    expect(screen.getByAltText('Tech Dinghy')).toBeVisible();
+    expect(screen.getByAltText('Tech dinghy')).toBeVisible();
     expect(screen.queryByAltText('Legacy inline')).toBeNull();
+  });
+
+  it('renders required ratings instead of required class', async () => {
+    render(
+      await FleetBoatDetailView({
+        boat: {
+          capacity: 2,
+          description: '<p>Boat page copy</p>',
+          id: 'boat-1',
+          imagePath: null,
+          name: 'Tech dinghy',
+          requiredClass: {
+            id: 'class-1',
+            name: 'Intro Sailing 101',
+            slug: 'intro-sailing-101',
+          },
+          advancedRatings: [],
+          requiredRatings: [
+            {
+              id: 'rating-tech',
+              isDeprecated: false,
+              name: 'Tech Rating',
+              shortName: 'Tech',
+              slug: 'tech-rating',
+            },
+          ],
+          slug: 'tech-dinghy',
+          type: 'training dinghy',
+        },
+        locale: 'en',
+      })
+    );
+
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'Required rating' })
+    ).toBeVisible();
+    expect(screen.getByRole('link', { name: /Tech Rating/ })).toBeVisible();
+    expect(screen.queryByText('Required class')).toBeNull();
   });
 });

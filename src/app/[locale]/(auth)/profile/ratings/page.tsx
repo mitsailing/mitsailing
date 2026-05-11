@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { EVENTS_TIME_ZONE } from '@/lib/mit-sailing/nyTime';
 import { requireCurrentUser } from '@/libs/auth/dal';
+import { Link } from '@/libs/I18nNavigation';
 import { listUserRatingAssignmentRows } from '@/libs/mit-sailing/sailingRatingQueries';
 import { getI18nPath } from '@/utils/Helpers';
 
@@ -28,11 +30,13 @@ export default async function ProfileRatingsPage(
     locale,
     getI18nPath('/profile/ratings/', locale)
   );
-  const ratingRows = await listUserRatingAssignmentRows(user.id);
-  const rows = ratingRows.filter((row) => !row.isDeprecated);
+  const rows = await listUserRatingAssignmentRows(user.id, {
+    includeDeprecated: false,
+  });
   const t = await getTranslations({ locale, namespace: 'UserProfilePage' });
   const dateFormatter = new Intl.DateTimeFormat(locale, {
     dateStyle: 'medium',
+    timeZone: EVENTS_TIME_ZONE,
   });
 
   return (
@@ -79,6 +83,21 @@ export default async function ProfileRatingsPage(
                         date: dateFormatter.format(row.issuedAt),
                       })
                     : null}
+                  {row.issuedAt ? null : t('ratings_no_issue_date')}
+                  {row.unlockedBoats.length > 0 ? (
+                    <ul className="mt-2 mb-0 list-disc space-y-1 pl-5">
+                      {row.unlockedBoats.map((boat) => (
+                        <li key={boat.id}>
+                          <Link
+                            className="font-semibold text-mit-red-ink hover:underline"
+                            href={`/fleet/${boat.slug}`}
+                          >
+                            {boat.name}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
                 </td>
               </tr>
             ))

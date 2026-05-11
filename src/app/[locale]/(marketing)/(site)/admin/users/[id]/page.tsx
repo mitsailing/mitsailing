@@ -7,7 +7,9 @@ import { AdminUserRatingsPanel } from '@/components/mit-sailing/admin/users/Admi
 import { adminUsersEditPath } from '@/libs/admin/users/adminUserPaths';
 import { usersAdminHandlers } from '@/libs/admin/users/usersAdminHandlers';
 import { requireAdmin } from '@/libs/auth/dal';
+import { logger } from '@/libs/Logger';
 import { listUserRatingAssignmentRows } from '@/libs/mit-sailing/sailingRatingQueries';
+import type { UserRatingAssignmentRow } from '@/libs/mit-sailing/sailingRatingQueries';
 
 type AdminUserShowPageProps = {
   params: Promise<{ locale: string; id: string }>;
@@ -32,7 +34,15 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
   if (!user) {
     notFound();
   }
-  const rows = await listUserRatingAssignmentRows(id);
+  let rows: UserRatingAssignmentRow[] = [];
+  try {
+    rows = await listUserRatingAssignmentRows(id);
+  } catch (error) {
+    logger.error('Failed to load admin user rating rows: {error}', {
+      error,
+      userId: id,
+    });
+  }
   const t = await getTranslations({ locale, namespace: 'AdminUsers' });
 
   return (

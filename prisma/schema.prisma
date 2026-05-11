@@ -384,6 +384,7 @@ model SailingClass {
   prerequisiteEdges   SailingClassPrerequisite[] @relation("ClassRequiresPrerequisite")
   prerequisiteOfEdges SailingClassPrerequisite[] @relation("ClassIsPrerequisiteFor")
   unlockedBoatLinks   SailingClassUnlockedBoat[]
+  ratingRules         SailingRatingRule[]
 
   @@index([classCategoryId])
   @@index([classCategoryId, displayOrder])
@@ -440,7 +441,8 @@ model SailingRating {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   userRatings UserSailingRating[]
-  rules       SailingRatingRule[]
+  rules       SailingRatingRule[] @relation("RuleSailingRating")
+  targetRules SailingRatingRule[] @relation("RuleTargetRating")
 
   @@index([isVisible, displayOrder])
   @@map("sailing_ratings")
@@ -466,14 +468,6 @@ model UserSailingRating {
   @@map("user_sailing_ratings")
 }
 
-enum SailingRatingRuleTargetType {
-  rating
-  class
-  boat
-
-  @@map("sailing_rating_rule_target_type")
-}
-
 enum SailingRatingRuleType {
   requires
   grants
@@ -482,20 +476,28 @@ enum SailingRatingRuleType {
 }
 
 model SailingRatingRule {
-  id              String                     @id
-  targetType      SailingRatingRuleTargetType @map("target_type")
-  targetId        String                     @map("target_id")
-  ruleType        SailingRatingRuleType      @map("rule_type")
-  sailingRatingId String                     @map("sailing_rating_id")
-  groupKey        String                     @default("default") @map("group_key")
-  displayOrder    Int                        @default(0) @map("display_order")
-  createdAt       DateTime                   @default(now()) @map("created_at")
-  updatedAt       DateTime                   @updatedAt @map("updated_at")
+  id              String                @id
+  boatId          String?               @map("boat_id")
+  classId         String?               @map("class_id")
+  ratingId        String?               @map("rating_id")
+  ruleType        SailingRatingRuleType @map("rule_type")
+  sailingRatingId String                @map("sailing_rating_id")
+  groupKey        String                @default("default") @map("group_key")
+  displayOrder    Int                   @default(0) @map("display_order")
+  createdAt       DateTime              @default(now()) @map("created_at")
+  updatedAt       DateTime              @updatedAt @map("updated_at")
 
-  sailingRating SailingRating @relation(fields: [sailingRatingId], references: [id], onDelete: Cascade)
+  boat          FleetBoat?     @relation(fields: [boatId], references: [id], onDelete: Cascade)
+  sailingClass  SailingClass?  @relation(fields: [classId], references: [id], onDelete: Cascade)
+  targetRating  SailingRating? @relation("RuleTargetRating", fields: [ratingId], references: [id], onDelete: Cascade)
+  sailingRating SailingRating  @relation("RuleSailingRating", fields: [sailingRatingId], references: [id], onDelete: Cascade)
 
-  @@unique([targetType, targetId, ruleType, groupKey, sailingRatingId], map: "sailing_rating_rules_composite_uq")
-  @@index([targetType, targetId, ruleType])
+  @@unique([boatId, ruleType, groupKey, sailingRatingId], map: "sailing_rating_rules_boat_uq")
+  @@unique([classId, ruleType, groupKey, sailingRatingId], map: "sailing_rating_rules_class_uq")
+  @@unique([ratingId, ruleType, groupKey, sailingRatingId], map: "sailing_rating_rules_rating_uq")
+  @@index([boatId, ruleType])
+  @@index([classId, ruleType])
+  @@index([ratingId, ruleType])
   @@index([sailingRatingId])
   @@map("sailing_rating_rules")
 }
@@ -512,6 +514,7 @@ model FleetBoat {
   imagePath         String?                    @map("image_path")
   requiredClass     SailingClass               @relation(fields: [requiredClassId], references: [id], onDelete: Restrict)
   unlockedByClasses SailingClassUnlockedBoat[]
+  ratingRules       SailingRatingRule[]
 
   @@index([requiredClassId])
   @@map("fleet_boats")

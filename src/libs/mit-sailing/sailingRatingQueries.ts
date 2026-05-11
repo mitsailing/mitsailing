@@ -1,3 +1,4 @@
+import 'server-only';
 import { cache } from 'react';
 import { prisma } from '@/libs/DB';
 import { evaluateSailingRatingGrantEligibility } from '@/libs/mit-sailing/sailingRatingRules';
@@ -34,19 +35,47 @@ type RatingRuleWithRating = SailingRatingRuleInput & {
   sailingRating: SailingRatingBrief;
 };
 
-function isPresent<T>(value: T | undefined): value is T {
-  return value !== undefined;
+type SailingRatingTargetType = 'boat' | 'class' | 'rating';
+
+type SailingRatingReadClient = Pick<
+  typeof prisma,
+  | 'fleetBoat'
+  | 'sailingClass'
+  | 'sailingRating'
+  | 'sailingRatingRule'
+  | 'userSailingRating'
+>;
+
+type ListUserRatingAssignmentRowsOptions = {
+  includeDeprecated?: boolean;
+  client?: SailingRatingReadClient;
+};
+
+function isPresent<T>(value: T | null | undefined): value is T {
+  return value !== undefined && value !== null;
+}
+
+function targetRuleWhere(props: {
+  targetType: SailingRatingTargetType;
+  targetId: string;
+}) {
+  if (props.targetType === 'boat') {
+    return { boatId: props.targetId };
+  }
+  if (props.targetType === 'class') {
+    return { classId: props.targetId };
+  }
+  return { ratingId: props.targetId };
 }
 
 export async function listRequiredRatingsForTarget(props: {
-  targetType: 'boat' | 'class' | 'rating';
+  targetType: SailingRatingTargetType;
   targetId: string;
   ruleType: 'requires' | 'grants';
 }): Promise<RatingRuleWithRating[]> {
   const rows = await prisma.sailingRatingRule.findMany({
     where: {
-      targetType: props.targetType,
-      targetId: props.targetId,
+      ...targetRuleWhere(props),
       ruleType: props.ruleType,
       sailingRating: { isVisible: true },
     },
@@ -74,73 +103,95 @@ export async function listRequiredRatingsForTarget(props: {
   }));
 }
 
+async function listPublicSailingRatingsForClient(
+  client: SailingRatingReadClient,
+  props: { includeDeprecated?: boolean } = {}
+): Promise<PublicSailingRating[]> {
+  const [ratings, classRules, boatRules] = await Promise.all([
+    client.sailingRating.findMany({
+      where: {
+        isVisible: true,
+        ...(props.includeDeprecated === false ? { isDeprecated: false } : {}),
+      },
+      orderBy: [{ displayOrder: 'asc' }, { name: 'asc' }],
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        shortName: true,
+        description: true,
+        category: true,
+        level: true,
+        windCondition: true,
+        guideUrl: true,
+        isDeprecated: true,
+      },
+    }),
+    client.sailingRatingRule.findMany({
+      where: { classId: { not: null }, ruleType: 'grants' },
+      orderBy: [{ displayOrder: 'asc' }],
+      select: { classId: true, sailingRatingId: true },
+    }),
+    client.sailingRatingRule.findMany({
+      where: { boatId: { not: null }, ruleType: 'requires' },
+      orderBy: [{ displayOrder: 'asc' }],
+      select: { boatId: true, sailingRatingId: true },
+    }),
+  ]);
+
+  const classIds = [
+    ...new Set(classRules.map((rule) => rule.classId).filter(isPresent)),
+  ];
+  const boatIds = [
+    ...new Set(boatRules.map((rule) => rule.boatId).filter(isPresent)),
+  ];
+  const [classes, boats] = await Promise.all([
+    client.sailingClass.findMany({
+      where: { id: { in: classIds }, isVisible: true },
+      select: { id: true, name: true, slug: true },
+    }),
+    client.fleetBoat.findMany({
+      where: { id: { in: boatIds } },
+      select: { id: true, name: true, slug: true },
+    }),
+  ]);
+
+  const classById = new Map(classes.map((row) => [row.id, row]));
+  const boatById = new Map(boats.map((row) => [row.id, row]));
+
+  return ratings.map((rating) => ({
+    ...rating,
+    grantableClasses: classRules
+      .filter((rule) => rule.sailingRatingId === rating.id)
+      .map((rule) => (rule.classId ? classById.get(rule.classId) : undefined))
+      .filter(isPresent),
+    unlockedBoats: boatRules
+      .filter((rule) => rule.sailingRatingId === rating.id)
+      .map((rule) => (rule.boatId ? boatById.get(rule.boatId) : undefined))
+      .filter(isPresent),
+  }));
+}
+
 export const listPublicSailingRatings = cache(
   async (): Promise<PublicSailingRating[]> => {
-    const [ratings, classRules, boatRules] = await Promise.all([
-      prisma.sailingRating.findMany({
-        where: { isVisible: true },
-        orderBy: [{ displayOrder: 'asc' }, { name: 'asc' }],
-        select: {
-          id: true,
-          slug: true,
-          name: true,
-          shortName: true,
-          description: true,
-          category: true,
-          level: true,
-          windCondition: true,
-          guideUrl: true,
-          isDeprecated: true,
-        },
-      }),
-      prisma.sailingRatingRule.findMany({
-        where: { targetType: 'class', ruleType: 'grants' },
-        orderBy: [{ displayOrder: 'asc' }],
-        select: { targetId: true, sailingRatingId: true },
-      }),
-      prisma.sailingRatingRule.findMany({
-        where: { targetType: 'boat', ruleType: 'requires' },
-        orderBy: [{ displayOrder: 'asc' }],
-        select: { targetId: true, sailingRatingId: true },
-      }),
-    ]);
-
-    const classIds = [...new Set(classRules.map((rule) => rule.targetId))];
-    const boatIds = [...new Set(boatRules.map((rule) => rule.targetId))];
-    const [classes, boats] = await Promise.all([
-      prisma.sailingClass.findMany({
-        where: { id: { in: classIds }, isVisible: true },
-        select: { id: true, name: true, slug: true },
-      }),
-      prisma.fleetBoat.findMany({
-        where: { id: { in: boatIds } },
-        select: { id: true, name: true, slug: true },
-      }),
-    ]);
-
-    const classById = new Map(classes.map((row) => [row.id, row]));
-    const boatById = new Map(boats.map((row) => [row.id, row]));
-
-    return ratings.map((rating) => ({
-      ...rating,
-      grantableClasses: classRules
-        .filter((rule) => rule.sailingRatingId === rating.id)
-        .map((rule) => classById.get(rule.targetId))
-        .filter(isPresent),
-      unlockedBoats: boatRules
-        .filter((rule) => rule.sailingRatingId === rating.id)
-        .map((rule) => boatById.get(rule.targetId))
-        .filter(isPresent),
-    }));
+    const rows = await listPublicSailingRatingsForClient(prisma);
+    return rows;
   }
 );
 
 export async function listUserRatingAssignmentRows(
-  userId: string
+  userId: string,
+  options: ListUserRatingAssignmentRowsOptions = {}
 ): Promise<UserRatingAssignmentRow[]> {
-  const [publicRatings, grants, prerequisiteRules] = await Promise.all([
-    listPublicSailingRatings(),
-    prisma.userSailingRating.findMany({
+  const client = options.client ?? prisma;
+  const publicRatingRows =
+    options.client || options.includeDeprecated === false
+      ? await listPublicSailingRatingsForClient(client, {
+          includeDeprecated: options.includeDeprecated,
+        })
+      : await listPublicSailingRatings();
+  const [grants, prerequisiteRules] = await Promise.all([
+    client.userSailingRating.findMany({
       where: { userId },
       select: {
         sailingRatingId: true,
@@ -148,10 +199,10 @@ export async function listUserRatingAssignmentRows(
         issuedBy: { select: { name: true } },
       },
     }),
-    prisma.sailingRatingRule.findMany({
-      where: { targetType: 'rating', ruleType: 'requires' },
+    client.sailingRatingRule.findMany({
+      where: { ratingId: { not: null }, ruleType: 'requires' },
       select: {
-        targetId: true,
+        ratingId: true,
         groupKey: true,
         sailingRatingId: true,
         displayOrder: true,
@@ -163,10 +214,10 @@ export async function listUserRatingAssignmentRows(
   const grantByRatingId = new Map(
     grants.map((row) => [row.sailingRatingId, row])
   );
-  return publicRatings.map((rating) => {
+  return publicRatingRows.map((rating) => {
     const grant = grantByRatingId.get(rating.id);
     const rules = prerequisiteRules.filter(
-      (rule) => rule.targetId === rating.id
+      (rule) => rule.ratingId === rating.id
     );
     return {
       ...rating,
@@ -182,10 +233,15 @@ export async function listUserRatingAssignmentRows(
   });
 }
 
-export async function userCanGrantSailingRating(props: {
-  userId: string;
-  ratingId: string;
-}): Promise<SailingRatingGrantEligibility | null> {
-  const rows = await listUserRatingAssignmentRows(props.userId);
+export async function userCanGrantSailingRating(
+  props: {
+    userId: string;
+    ratingId: string;
+  },
+  options: { client?: SailingRatingReadClient } = {}
+): Promise<SailingRatingGrantEligibility | null> {
+  const rows = await listUserRatingAssignmentRows(props.userId, {
+    client: options.client,
+  });
   return rows.find((row) => row.id === props.ratingId)?.eligibility ?? null;
 }

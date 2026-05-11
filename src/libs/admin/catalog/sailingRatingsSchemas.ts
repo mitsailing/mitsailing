@@ -5,6 +5,12 @@ const optionalString = z
   .string()
   .trim()
   .transform((value) => value || null);
+const optionalWindCondition = z
+  .union([
+    z.enum(['Low', 'Medium', 'Medium-strong', 'Strong', 'All']),
+    z.literal(''),
+  ])
+  .transform((value) => value || null);
 
 export const sailingRatingFormSchema = z.object({
   slug: requiredString,
@@ -13,7 +19,7 @@ export const sailingRatingFormSchema = z.object({
   description: requiredString,
   category: optionalString,
   level: optionalString,
-  windCondition: optionalString,
+  windCondition: optionalWindCondition,
   guideUrl: optionalString,
   isVisible: z.boolean(),
   isDeprecated: z.boolean(),

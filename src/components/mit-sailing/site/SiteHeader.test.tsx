@@ -29,7 +29,7 @@ const classesDropdownItems = [
 ];
 
 const fleetDropdownItems = [
-  { label: 'Tech Dinghy', href: '/fleet/tech-dinghy' },
+  { label: 'Tech dinghy', href: '/fleet/tech-dinghy' },
   { label: 'Laser Radial', href: '/fleet/laser-radial' },
 ];
 

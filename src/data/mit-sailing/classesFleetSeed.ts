@@ -180,7 +180,7 @@ export const SAILING_CLASSES: SailingClass[] = [
       'Self-study and staff checkoff for safe Lynx Catboat and Laser handling on the Charles River, including basic maneuvers, rigging, safety precautions, rules of the road, and dock procedures.',
     prerequisites: [],
     relatedEventIds: [],
-    unlockedBoatIds: ['boat-lynx-catboat', 'boat-laser'],
+    unlockedBoatIds: [],
   },
   {
     id: 'class-crew-rating-self-study',
@@ -240,7 +240,7 @@ export const SAILING_CLASSES: SailingClass[] = [
       'Club 420 checkoff for sailors ready for double-handed racing boat handling, spinnaker and trapeze preparation, and advanced Charles River sessions.',
     prerequisites: [],
     relatedEventIds: [],
-    unlockedBoatIds: ['boat-club-420', 'boat-melges-15'],
+    unlockedBoatIds: ['boat-club-420'],
   },
   {
     id: 'class-board-sailing-basic-checkoff',
@@ -297,7 +297,7 @@ export const SAILING_CLASSES: SailingClass[] = [
 export const FLEET_BOATS: FleetBoat[] = [
   {
     id: 'boat-tech-dinghy',
-    name: 'Tech Dinghy',
+    name: 'Tech dinghy',
     slug: 'tech-dinghy',
     type: 'training dinghy',
     capacity: 2,

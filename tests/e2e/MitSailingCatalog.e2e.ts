@@ -200,7 +200,7 @@ test.describe('MIT Sailing catalog', () => {
     await page.goto('/fleet/tech-dinghy');
 
     await expect(
-      page.getByRole('heading', { level: 1, name: 'Tech Dinghy' })
+      page.getByRole('heading', { level: 1, name: 'Tech dinghy' })
     ).toBeVisible();
   });
 

@@ -14,10 +14,17 @@ import { userCanGrantSailingRating } from '@/libs/mit-sailing/sailingRatingQueri
 import { getI18nPath } from '@/utils/Helpers';
 
 function revalidateAfterRatingMutation(locale: string, userId: string): void {
+  const paths = [
+    adminUsersIndexPath(),
+    adminUsersShowPath(userId),
+    '/profile/ratings/',
+    '/ratings/',
+  ];
+  for (const path of paths) {
+    revalidatePath(path);
+    revalidatePath(getI18nPath(path, locale));
+  }
   revalidatePath(getI18nPath(adminUsersIndexPath(), locale), 'layout');
-  revalidatePath(getI18nPath(adminUsersShowPath(userId), locale));
-  revalidatePath(getI18nPath('/profile/ratings/', locale));
-  revalidatePath(getI18nPath('/ratings/', locale));
 }
 
 function ratingIdFromFormData(formData: FormData): string | null {
@@ -46,34 +53,47 @@ export async function grantAdminUserRatingAction(
     );
   }
 
-  const eligibility = await userCanGrantSailingRating({
-    userId: props.userId,
-    ratingId,
-  });
-  if (!eligibility?.eligible) {
-    redirect(
-      `${getI18nPath(adminUsersShowPath(props.userId), props.locale)}?error=${encodeURIComponent(eligibility?.reason ?? 'invalid')}`
-    );
-  }
+  const grantError = await prisma.$transaction(
+    async (tx) => {
+      const eligibility = await userCanGrantSailingRating(
+        {
+          userId: props.userId,
+          ratingId,
+        },
+        { client: tx }
+      );
+      if (!eligibility?.eligible) {
+        return eligibility?.reason ?? 'invalid';
+      }
 
-  try {
-    await prisma.userSailingRating.create({
-      data: {
-        id: randomUUID(),
-        userId: props.userId,
-        sailingRatingId: ratingId,
-        issuedByUserId: session.user.id,
-      },
-    });
-  } catch (error) {
-    if (
-      !(
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      )
-    ) {
-      throw error;
-    }
+      try {
+        await tx.userSailingRating.create({
+          data: {
+            id: randomUUID(),
+            userId: props.userId,
+            sailingRatingId: ratingId,
+            issuedByUserId: session.user.id,
+          },
+        });
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2002'
+        ) {
+          return null;
+        }
+        throw error;
+      }
+
+      return null;
+    },
+    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+  );
+
+  if (grantError) {
+    redirect(
+      `${getI18nPath(adminUsersShowPath(props.userId), props.locale)}?error=${encodeURIComponent(grantError)}`
+    );
   }
 
   revalidateAfterRatingMutation(props.locale, props.userId);
@@ -92,12 +112,10 @@ export async function revokeAdminUserRatingAction(
     );
   }
 
-  await prisma.userSailingRating.delete({
+  await prisma.userSailingRating.deleteMany({
     where: {
-      userId_sailingRatingId: {
-        userId: props.userId,
-        sailingRatingId: ratingId,
-      },
+      userId: props.userId,
+      sailingRatingId: ratingId,
     },
   });
 

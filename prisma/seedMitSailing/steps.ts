@@ -2,6 +2,7 @@ import { staff } from '../../src/data/mit-sailing/aboutContent';
 import {
   CLASS_CATEGORY_ROWS,
   classCategoryIdFromSeedKey,
+  overrideClassCategorySeedId,
 } from '../../src/data/mit-sailing/classCategoriesSeed';
 import {
   FLEET_BOATS,
@@ -100,6 +101,7 @@ export async function seedClassCategories(p: PrismaClient): Promise<void> {
       select: { id: true },
     });
     if (existingBySlug && existingBySlug.id !== row.id) {
+      overrideClassCategorySeedId(row.seedKey, existingBySlug.id);
       await p.classCategory.update({
         where: { slug: row.slug },
         data: {
@@ -197,8 +199,7 @@ export async function seedSailingClassesAndBoats(
   });
   await p.sailingRatingRule.deleteMany({
     where: {
-      targetType: 'boat',
-      targetId: { notIn: boatIds },
+      boatId: { notIn: boatIds },
     },
   });
   await p.fleetBoat.deleteMany({
@@ -256,6 +257,16 @@ export async function seedSailingClassesAndBoats(
   }
 }
 
+function sailingRatingRuleTargetData(
+  rule: (typeof SAILING_RATING_RULES)[number]
+) {
+  return {
+    boatId: rule.targetType === 'boat' ? rule.targetId : null,
+    classId: rule.targetType === 'class' ? rule.targetId : null,
+    ratingId: rule.targetType === 'rating' ? rule.targetId : null,
+  };
+}
+
 /**
  * @param p - Prisma client
  */
@@ -299,12 +310,19 @@ export async function seedSailingRatings(p: PrismaClient): Promise<void> {
 
   if (SAILING_RATING_RULES.length > 0) {
     for (const rule of SAILING_RATING_RULES) {
+      const target = sailingRatingRuleTargetData(rule);
       await p.sailingRatingRule.upsert({
         where: { id: rule.id },
-        create: rule,
+        create: {
+          id: rule.id,
+          ...target,
+          ruleType: rule.ruleType,
+          sailingRatingId: rule.sailingRatingId,
+          groupKey: rule.groupKey,
+          displayOrder: rule.displayOrder,
+        },
         update: {
-          targetType: rule.targetType,
-          targetId: rule.targetId,
+          ...target,
           ruleType: rule.ruleType,
           sailingRatingId: rule.sailingRatingId,
           groupKey: rule.groupKey,

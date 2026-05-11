@@ -8,6 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { EVENTS_TIME_ZONE } from '@/lib/mit-sailing/nyTime';
 import {
   grantAdminUserRatingAction,
   revokeAdminUserRatingAction,
@@ -61,7 +62,7 @@ export async function AdminUserRatingsPanel(props: AdminUserRatingsPanelProps) {
           {t('ratings_heading')}
         </h2>
         {error ? (
-          <p className="mt-2 mb-0 text-sm text-red-700" role="alert">
+          <p className="mt-2 mb-0 text-sm text-destructive" role="alert">
             {error}
           </p>
         ) : null}
@@ -76,55 +77,89 @@ export async function AdminUserRatingsPanel(props: AdminUserRatingsPanelProps) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {props.rows.map((row) => (
-            <TableRow key={row.id}>
-              <TableCell>
-                <div className="font-semibold text-foreground">{row.name}</div>
-                {row.isDeprecated ? (
-                  <div className="text-xs text-muted-foreground">
-                    {t('rating_status_deprecated')}
+          {props.rows.map((row) => {
+            let grantDisabledMessage: string | null = null;
+            if (!row.eligibility.eligible) {
+              if (row.eligibility.reason === 'missing_prerequisites') {
+                grantDisabledMessage = t(
+                  'rating_grant_disabled_missing_prerequisites'
+                );
+              } else if (row.eligibility.reason === 'deprecated') {
+                grantDisabledMessage = t('rating_grant_disabled_deprecated');
+              } else {
+                grantDisabledMessage = t(
+                  'rating_grant_disabled_already_granted'
+                );
+              }
+            }
+            const grantDisabledMessageId = `${row.id}-grant-disabled`;
+
+            return (
+              <TableRow key={row.id}>
+                <TableCell>
+                  <div className="font-semibold text-foreground">
+                    {row.name}
                   </div>
-                ) : null}
-              </TableCell>
-              <TableCell>
-                {row.issuedAt
-                  ? new Intl.DateTimeFormat(props.locale, {
-                      dateStyle: 'medium',
-                    }).format(row.issuedAt)
-                  : t('rating_status_missing')}
-              </TableCell>
-              <TableCell>{row.issuedByName ?? '—'}</TableCell>
-              <TableCell>
-                {row.issuedAt ? (
-                  <form action={revokeAction}>
-                    <input
-                      name="sailingRatingId"
-                      type="hidden"
-                      value={row.id}
-                    />
-                    <Button size="sm" type="submit" variant="outline">
-                      {t('rating_action_revoke')}
-                    </Button>
-                  </form>
-                ) : (
-                  <form action={grantAction}>
-                    <input
-                      name="sailingRatingId"
-                      type="hidden"
-                      value={row.id}
-                    />
-                    <Button
-                      disabled={!row.eligibility.eligible}
-                      size="sm"
-                      type="submit"
-                    >
-                      {t('rating_action_grant')}
-                    </Button>
-                  </form>
-                )}
-              </TableCell>
-            </TableRow>
-          ))}
+                  {row.isDeprecated ? (
+                    <div className="text-xs text-muted-foreground">
+                      {t('rating_status_deprecated')}
+                    </div>
+                  ) : null}
+                </TableCell>
+                <TableCell>
+                  {row.issuedAt
+                    ? new Intl.DateTimeFormat(props.locale, {
+                        dateStyle: 'medium',
+                        timeZone: EVENTS_TIME_ZONE,
+                      }).format(row.issuedAt)
+                    : t('rating_status_missing')}
+                </TableCell>
+                <TableCell>{row.issuedByName ?? '—'}</TableCell>
+                <TableCell>
+                  {row.issuedAt ? (
+                    <form action={revokeAction}>
+                      <input
+                        name="sailingRatingId"
+                        type="hidden"
+                        value={row.id}
+                      />
+                      <Button size="sm" type="submit" variant="outline">
+                        {t('rating_action_revoke')}
+                      </Button>
+                    </form>
+                  ) : (
+                    <form action={grantAction}>
+                      <input
+                        name="sailingRatingId"
+                        type="hidden"
+                        value={row.id}
+                      />
+                      <Button
+                        aria-describedby={
+                          grantDisabledMessage
+                            ? grantDisabledMessageId
+                            : undefined
+                        }
+                        disabled={!row.eligibility.eligible}
+                        size="sm"
+                        type="submit"
+                      >
+                        {t('rating_action_grant')}
+                      </Button>
+                      {grantDisabledMessage ? (
+                        <p
+                          className="mt-1 mb-0 text-xs text-muted-foreground"
+                          id={grantDisabledMessageId}
+                        >
+                          {grantDisabledMessage}
+                        </p>
+                      ) : null}
+                    </form>
+                  )}
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </section>

@@ -440,8 +440,16 @@ const sailingRatingsDefinition = {
     { field: 'level', kind: 'string', labelKey: 'field_level' },
     {
       field: 'windCondition',
-      kind: 'string',
+      kind: 'select',
       labelKey: 'field_wind_condition',
+      selectOptions: [
+        { value: '', labelKey: 'select_wind_condition_placeholder' },
+        { value: 'Low', labelKey: 'wind_condition_low' },
+        { value: 'Medium', labelKey: 'wind_condition_medium' },
+        { value: 'Medium-strong', labelKey: 'wind_condition_medium_strong' },
+        { value: 'Strong', labelKey: 'wind_condition_strong' },
+        { value: 'All', labelKey: 'wind_condition_all' },
+      ],
     },
     { field: 'guideUrl', kind: 'url', labelKey: 'field_guide_url' },
     { field: 'isVisible', kind: 'boolean', labelKey: 'field_visible' },

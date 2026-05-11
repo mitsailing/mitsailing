@@ -17,6 +17,31 @@ import type {
 } from '@/libs/admin/catalog/types';
 import { prisma } from '@/libs/DB';
 
+function sailingRatingRuleTargetFields(props: {
+  targetType: 'boat' | 'class' | 'rating';
+  targetId: string;
+}) {
+  return {
+    boatId: props.targetType === 'boat' ? props.targetId : null,
+    classId: props.targetType === 'class' ? props.targetId : null,
+    ratingId: props.targetType === 'rating' ? props.targetId : null,
+  };
+}
+
+function sailingRatingRuleTarget(row: {
+  boatId: string | null;
+  classId: string | null;
+  ratingId: string | null;
+}) {
+  if (row.boatId) {
+    return { targetType: 'boat', targetId: row.boatId };
+  }
+  if (row.classId) {
+    return { targetType: 'class', targetId: row.classId };
+  }
+  return { targetType: 'rating', targetId: row.ratingId ?? '' };
+}
+
 function mapPrismaErr(error: unknown): CatalogMutationErr | null {
   if (
     error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -158,11 +183,12 @@ export const sailingRatingsCatalogHandlers: CatalogServerHandlers = {
 export const sailingRatingRulesCatalogHandlers: CatalogServerHandlers = {
   async list(): Promise<CatalogRow[]> {
     const rows = await prisma.sailingRatingRule.findMany({
-      orderBy: [{ targetType: 'asc' }, { targetId: 'asc' }],
+      orderBy: [{ boatId: 'asc' }, { classId: 'asc' }, { ratingId: 'asc' }],
       select: {
         id: true,
-        targetType: true,
-        targetId: true,
+        boatId: true,
+        classId: true,
+        ratingId: true,
         ruleType: true,
         groupKey: true,
         displayOrder: true,
@@ -171,8 +197,7 @@ export const sailingRatingRulesCatalogHandlers: CatalogServerHandlers = {
     });
     return rows.map((row) => ({
       id: row.id,
-      targetType: row.targetType,
-      targetId: row.targetId,
+      ...sailingRatingRuleTarget(row),
       ruleType: row.ruleType,
       groupKey: row.groupKey,
       displayOrder: row.displayOrder,
@@ -184,14 +209,15 @@ export const sailingRatingRulesCatalogHandlers: CatalogServerHandlers = {
       where: { id },
       select: {
         id: true,
-        targetType: true,
-        targetId: true,
+        boatId: true,
+        classId: true,
+        ratingId: true,
         ruleType: true,
         sailingRatingId: true,
         groupKey: true,
       },
     });
-    return row;
+    return row ? { ...row, ...sailingRatingRuleTarget(row) } : null;
   },
   async createFromForm(formData: FormData): Promise<CatalogCreateResult> {
     const parsed = sailingRatingRuleFormSchema.safeParse(
@@ -201,8 +227,15 @@ export const sailingRatingRulesCatalogHandlers: CatalogServerHandlers = {
       return { ok: false, code: 'validation_failed' };
     }
     try {
+      const target = sailingRatingRuleTargetFields(parsed.data);
       const created = await prisma.sailingRatingRule.create({
-        data: { id: randomUUID(), ...parsed.data },
+        data: {
+          id: randomUUID(),
+          ...target,
+          ruleType: parsed.data.ruleType,
+          sailingRatingId: parsed.data.sailingRatingId,
+          groupKey: parsed.data.groupKey,
+        },
         select: { id: true },
       });
       return { ok: true, id: created.id };
@@ -221,9 +254,15 @@ export const sailingRatingRulesCatalogHandlers: CatalogServerHandlers = {
       return { ok: false, code: 'validation_failed' };
     }
     try {
+      const target = sailingRatingRuleTargetFields(parsed.data);
       await prisma.sailingRatingRule.update({
         where: { id },
-        data: parsed.data,
+        data: {
+          ...target,
+          ruleType: parsed.data.ruleType,
+          sailingRatingId: parsed.data.sailingRatingId,
+          groupKey: parsed.data.groupKey,
+        },
       });
       return { ok: true };
     } catch (error) {

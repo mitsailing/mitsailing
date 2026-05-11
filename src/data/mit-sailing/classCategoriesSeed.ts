@@ -69,6 +69,13 @@ const seedKeyToId = new Map<ClassCategory, string>(
   CLASS_CATEGORY_ROWS.map((r) => [r.seedKey, r.id])
 );
 
+export function overrideClassCategorySeedId(
+  seedKey: ClassCategory,
+  id: string
+): void {
+  seedKeyToId.set(seedKey, id);
+}
+
 /**
  * @param seedKey - Value from sailing class seed `category`
  * @returns `class_categories.id`
