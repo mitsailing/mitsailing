@@ -1,6 +1,9 @@
 'use client';
 
+import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { normalizeNavPath } from '@/lib/mit-sailing/navPathMatch';
 import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
 import { cn } from '@/lib/utils';
@@ -108,18 +111,44 @@ const rowFocus = textFocusRingClassName;
 export function AdminSideNav() {
   const t = useTranslations('AdminSideNav');
   const pathname = usePathname();
+  const [collapsed, setCollapsed] = useState(false);
+  const toggleLabel = collapsed ? t('expand_label') : t('collapse_label');
 
   return (
     <div
       className={cn(
-        'relative flex h-full min-h-0 grow flex-col overflow-y-auto',
-        'border-mit-line bg-card px-4 pt-2 pb-3 md:px-5 md:pt-3 md:pb-4',
-        'border-b md:border-b-0 md:border-r'
+        'relative flex h-full min-h-0 grow flex-col overflow-y-auto transition-[width,padding]',
+        'border-mit-line bg-card px-4 pt-2 pb-3 md:pt-3 md:pb-4',
+        'border-b md:border-b-0 md:border-r',
+        collapsed ? 'md:w-14 md:px-2' : 'md:w-72 md:px-5'
       )}
     >
+      <div className="mb-2 hidden justify-end md:flex">
+        <Button
+          aria-label={toggleLabel}
+          aria-expanded={!collapsed}
+          className="text-muted-foreground hover:text-foreground"
+          size="icon-sm"
+          title={toggleLabel}
+          type="button"
+          variant="ghost"
+          onClick={() => {
+            setCollapsed((value) => !value);
+          }}
+        >
+          {collapsed ? (
+            <PanelLeftOpen aria-hidden className="size-4" />
+          ) : (
+            <PanelLeftClose aria-hidden className="size-4" />
+          )}
+        </Button>
+      </div>
       <nav
         aria-label={t('aria_label')}
-        className="relative flex min-h-0 flex-1 flex-col"
+        className={cn(
+          'relative flex min-h-0 flex-1 flex-col',
+          collapsed && 'md:hidden'
+        )}
       >
         <ul
           className="m-0 flex min-h-0 flex-1 list-none flex-col gap-y-2 p-0"

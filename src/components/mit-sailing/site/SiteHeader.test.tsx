@@ -75,7 +75,7 @@ describe('SiteHeader', () => {
       name: 'Main navigation',
     });
     expect(
-      within(primaryNav).getByRole('button', { name: 'Classes' })
+      within(primaryNav).getByRole('button', { name: 'Classes & Ratings' })
     ).toBeVisible();
     expect(
       within(primaryNav).getByRole('button', { name: 'Fleet' })
@@ -191,7 +191,7 @@ describe('SiteHeader', () => {
 
     await user.click(
       within(screen.getByRole('banner')).getByRole('button', {
-        name: 'Classes',
+        name: 'Classes & Ratings',
       })
     );
     expect(
@@ -220,7 +220,7 @@ describe('SiteHeader', () => {
     ).toBeVisible();
     expect(within(dialog).getByRole('link', { name: 'Donate' })).toBeVisible();
     expect(
-      within(dialog).getByRole('button', { name: 'Classes' })
+      within(dialog).getByRole('button', { name: 'Classes & Ratings' })
     ).toBeVisible();
     expect(
       within(dialog).getByRole('link', { name: 'Calendar' })

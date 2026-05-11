@@ -437,6 +437,8 @@
   },
   "AdminSideNav": {
     "aria_label": "Administration",
+    "collapse_label": "Minimize admin navigation",
+    "expand_label": "Expand admin navigation",
     "nav_admin": "Admin",
     "nav_users": "Users",
     "nav_donation_funds": "Donation funds",
