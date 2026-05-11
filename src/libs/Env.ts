@@ -55,6 +55,13 @@ export const Env = createEnv({
     // Optional cleanup logging for e2e teardown helpers.
     DEBUG_CLEANUP: z.enum(['1', 'true']).optional(),
 
+    /**
+     * Playwright / standalone e2e server only. Prefer this over `NEXT_PUBLIC_*`
+     * so the same `.next` artifact is not build-tainted for deploys or other CI
+     * consumers that restore the build cache.
+     */
+    IS_E2E: z.literal('1').optional(),
+
     // Support mailbox surfaced in transactional copy and on the sign-in page.
     // Overridable so different deployments can point at different teams.
     SUPPORT_EMAIL: z.email().default('support@mitsailing.com'),
@@ -73,7 +80,6 @@ export const Env = createEnv({
     NEXT_PUBLIC_BETTER_STACK_INGESTING_HOST: z.string().optional(),
     NEXT_PUBLIC_POSTHOG_KEY: z.string().optional(),
     NEXT_PUBLIC_POSTHOG_HOST: z.string().optional(),
-    NEXT_PUBLIC_IS_E2E: z.literal('1').optional(),
   },
   shared: {
     NODE_ENV: z.enum(['test', 'development', 'production']).optional(),
@@ -81,7 +87,7 @@ export const Env = createEnv({
   createFinalSchema: (shape) =>
     z.object(shape).superRefine((env, ctx) => {
       if (
-        env.NEXT_PUBLIC_IS_E2E !== '1' &&
+        env.IS_E2E !== '1' &&
         env.TEST_DATABASE_URL !== undefined &&
         env.TEST_DATABASE_URL === env.DATABASE_URL
       ) {
@@ -117,6 +123,7 @@ export const Env = createEnv({
     TEST_DATABASE_URL: process.env.TEST_DATABASE_URL,
     CMS_MEDIA_ROOT: process.env.CMS_MEDIA_ROOT,
     DEBUG_CLEANUP: process.env.DEBUG_CLEANUP,
+    IS_E2E: process.env.IS_E2E,
     SUPPORT_EMAIL: process.env.SUPPORT_EMAIL,
     CLOUDFLARE_TUNNEL_TOKEN: process.env.CLOUDFLARE_TUNNEL_TOKEN,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
@@ -127,7 +134,6 @@ export const Env = createEnv({
       process.env.NEXT_PUBLIC_BETTER_STACK_INGESTING_HOST,
     NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
     NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
-    NEXT_PUBLIC_IS_E2E: process.env.NEXT_PUBLIC_IS_E2E,
     NODE_ENV: process.env.NODE_ENV,
   },
   // Treat "" like "unset" so `.optional()` vars in shared .env files can be

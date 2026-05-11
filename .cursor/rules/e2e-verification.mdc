@@ -6,7 +6,7 @@ alwaysApply: false
 
 # E2E verification (Playwright)
 
-Same **shape** as [cal.com’s Playwright setup](https://github.com/calcom/cal.com/blob/main/playwright.config.ts): DB preflight → **`e2e:seed`**, **`e2e:build`** (unless `E2E_SKIP_BUILD=1`) → **`next start`** with `NEXT_PUBLIC_IS_E2E=1`, parallel workers. Short default timeouts — `PLAYWRIGHT_SLOW=1` when debugging locally.
+Same **workflow** as [cal.com’s Playwright setup](https://github.com/calcom/cal.com/blob/main/playwright.config.ts) (preflight → seed → build → tests), but the **`webServer`** entrypoint is **`node .next/standalone/server.js`** (see `playwright.config.ts`) so e2e matches the **standalone** deploy path, not `next start`. CI uses the **blob** reporter and **`npx playwright merge-reports`** after matrix shards per [Playwright sharding](https://playwright.dev/docs/test-sharding). **`IS_E2E=1`** on the Playwright web server (see `Env.ts`), parallel workers; short default timeouts — `PLAYWRIGHT_SLOW=1` when debugging locally.
 
 ## Before claiming e2e is done
 
@@ -15,7 +15,7 @@ Same **shape** as [cal.com’s Playwright setup](https://github.com/calcom/cal.c
 3. A **partial** run (single spec or `npm run e2e` only) is **not** a substitute for the full `npm run test:e2e` when the whole e2e task is claimed complete.
 4. Default port **`3008`** (`PLAYWRIGHT_E2E_PORT`). Playwright config does **not** use `.env` **`PORT`**.
 5. **CI:** `E2E_SKIP_BUILD=1` when `.next` is restored from the build job; locally the first run uses `e2e:build`.
-6. **Browsers:** postinstall → Chromium locally; CI installs Chromium + Firefox. Reproduce CI matrix locally with `CI=1` or `npx playwright test --project=firefox` after preflight + build.
+6. **Browsers:** the **PR merge gate** runs **Chromium only** (by design — speed and parity with production Chromium). `postinstall` installs Chromium locally; CI uses `npx playwright install chromium --with-deps` per [Playwright CI guidance](https://playwright.dev/docs/ci). **Firefox/WebKit are not part of the default gate**; to run the `firefox` project, set `PLAYWRIGHT_INCLUDE_FIREFOX=1`, install that browser (`npx playwright install firefox --with-deps`), then run `npx playwright test --project=firefox` after the usual preflight + build.
 
 ## This repo
 

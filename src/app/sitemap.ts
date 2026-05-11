@@ -132,7 +132,7 @@ const getSitemapEventSlugs = unstable_cache(
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = getBaseUrl();
   const slugLoaders =
-    Env.NEXT_PUBLIC_IS_E2E === '1'
+    Env.IS_E2E === '1'
       ? {
           classes: loadSitemapClassSlugs,
           fleet: loadSitemapBoatSlugs,

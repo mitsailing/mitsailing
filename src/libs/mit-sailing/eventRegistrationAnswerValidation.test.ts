@@ -120,6 +120,40 @@ describe('parsePublicEventRegistrationAnswersFromForm', () => {
     expect(result).toEqual({ ok: false, code: 'answers_invalid' });
   });
 
+  it('treats whitespace-only select as missing when required', () => {
+    const fd = new FormData();
+    fd.set('question_q1', '  \t  ');
+    const result = parsePublicEventRegistrationAnswersFromForm(
+      [
+        {
+          id: 'q1',
+          required: true,
+          answerType: EventAnswerType.select,
+          options: ['Alpha', 'Beta'],
+        },
+      ],
+      fd
+    );
+    expect(result).toEqual({ ok: false, code: 'questions_required' });
+  });
+
+  it('skips optional select when value is whitespace-only', () => {
+    const fd = new FormData();
+    fd.set('question_q1', '   ');
+    const result = parsePublicEventRegistrationAnswersFromForm(
+      [
+        {
+          id: 'q1',
+          required: false,
+          answerType: EventAnswerType.select,
+          options: ['Alpha', 'Beta'],
+        },
+      ],
+      fd
+    );
+    expect(result).toEqual({ ok: true, answers: [] });
+  });
+
   it('accepts boolean checkbox true', () => {
     const fd = new FormData();
     fd.set('question_q1', 'true');

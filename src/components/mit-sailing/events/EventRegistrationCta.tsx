@@ -3,10 +3,12 @@ import type { getTranslations } from 'next-intl/server';
 import type * as React from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { authHrefWithCallback } from '@/libs/auth/callbackUrl';
 import { Link } from '@/libs/I18nNavigation';
 import type { PublicEventDetail } from '@/libs/mit-sailing/eventQueries';
 import { eventRegistrationErrorMessage } from '@/libs/mit-sailing/eventRegistrationErrors';
 import type { PublicEventReservationState } from '@/libs/mit-sailing/eventRegistrationState';
+import { getI18nPath } from '@/utils/Helpers';
 
 type EventRegistrationTranslations = Awaited<
   ReturnType<typeof getTranslations<'MitSailingEvents'>>
@@ -65,8 +67,14 @@ function RegistrationStatusPill(props: {
 
 export function EventRegistrationCta(props: EventRegistrationCtaProps) {
   const errorMessage = eventRegistrationErrorMessage(props.errorCode, props.t);
-  const registrationHref = `/events/${props.event.slug}/register`;
-  const loginHref = `/login?callbackUrl=${encodeURIComponent(registrationHref)}`;
+  const registrationHref = getI18nPath(
+    `/events/${encodeURIComponent(props.event.slug)}/register`,
+    props.locale
+  );
+  const loginHref = authHrefWithCallback(
+    getI18nPath('/login', props.locale),
+    registrationHref
+  );
 
   if (props.reservationState === 'approved') {
     return (

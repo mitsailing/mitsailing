@@ -176,7 +176,7 @@ The project uses Prisma (`@prisma/client` + `@prisma/adapter-pg`) against Postgr
 The Next.js app runs on the **host**, not in Compose; Compose is only Postgres + Mailpit. New-developer flow (including **seed** and **login**) is the [First time on this repo](#first-time-on-this-repo-checklist) checklist above.
 
 `npm run test:e2e` uses the same Docker stack and resets + migrates `test_db` via `db:migrate:test`, so stale schemas from other branches are not reused.
-Playwright defaults to four workers so production `next start`, Postgres, Mailpit, and Argon2 auth flows stay deterministic; set `PLAYWRIGHT_WORKERS` to tune for a larger runner.
+Playwright defaults to four workers so the production standalone server, Postgres, Mailpit, and Argon2 auth flows stay deterministic; set `PLAYWRIGHT_WORKERS` to tune for a larger runner.
 
 ### Seed data and admin user
 

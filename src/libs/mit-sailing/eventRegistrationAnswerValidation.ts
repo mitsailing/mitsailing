@@ -99,7 +99,16 @@ function selectAnswerSlice(
   if (question.options.length === 0) {
     return { status: 'fail', code: 'answers_invalid' };
   }
-  const parsedSelect = selectValueSchema(question.options).safeParse(raw);
+  const normalized = raw.trim();
+  if (normalized.length === 0) {
+    if (question.required) {
+      return { status: 'fail', code: 'questions_required' };
+    }
+    return { status: 'skip' };
+  }
+  const parsedSelect = selectValueSchema(question.options).safeParse(
+    normalized
+  );
   if (!parsedSelect.success) {
     return { status: 'fail', code: 'answers_invalid' };
   }

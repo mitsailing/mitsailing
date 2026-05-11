@@ -14,10 +14,11 @@ const e2eDatabaseUrl = playwrightE2eDatabaseUrl();
 process.env.DATABASE_URL = e2eDatabaseUrl;
 
 const isCi = !!process.env.CI;
+/** Second browser project; off unless explicitly enabled (local or CI). */
 const includeFirefox = process.env.PLAYWRIGHT_INCLUDE_FIREFOX === '1';
 
-// Fast (default): short limits but enough headroom for cold `next start` and
-// cal-style high parallelism. Set PLAYWRIGHT_SLOW=1 for 120s nav/expect/action.
+// Fast (default): short limits but enough headroom for cold standalone
+// `server.js` and cal-style high parallelism. Set PLAYWRIGHT_SLOW=1 for 120s nav/expect/action.
 const slowLocal = !isCi && process.env.PLAYWRIGHT_SLOW === '1';
 const defaultNavigationTimeout = slowLocal ? 120_000 : 30_000;
 const defaultExpectTimeout = slowLocal ? 120_000 : 10_000;
@@ -79,7 +80,7 @@ export default defineConfig<ChromaticConfig>({
       ...process.env,
       NODE_ENV: 'production',
       NODE_OPTIONS: '--dns-result-order=ipv4first',
-      NEXT_PUBLIC_IS_E2E: '1',
+      IS_E2E: '1',
       NEXT_PUBLIC_SENTRY_DISABLED: 'true',
       NEXT_PUBLIC_APP_URL: baseURL,
       PORT: String(PORT),
@@ -96,8 +97,8 @@ export default defineConfig<ChromaticConfig>({
     navigationTimeout: defaultNavigationTimeout,
     actionTimeout: defaultActionTimeout,
   },
-  // E2E defaults to Chromium only in local and CI runs.
-  // PLAYWRIGHT_INCLUDE_FIREFOX=1 opts local runs into Firefox coverage.
+  // E2E defaults to Chromium only in local and CI runs; Firefox is fully opt-in.
+  // Set PLAYWRIGHT_INCLUDE_FIREFOX=1 (local or CI) to add the `firefox` project.
   // `*.a11y.e2e.ts` is a separate project: axe scans many URLs × themes (slower than smoke e2e).
   projects: [
     {

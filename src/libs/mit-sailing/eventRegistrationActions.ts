@@ -170,15 +170,6 @@ export async function createPublicEventRegistrationAction(
 ): Promise<PublicEventRegistrationFormState> {
   const callbackUrl = `/events/${encodeURIComponent(slug)}/register`;
   const user = await requireCurrentUser(locale, callbackUrl);
-  const swimAgreement = formData.get('swimAgreementAccepted');
-  if (swimAgreement !== 'true') {
-    return publicEventRegistrationFormErrorState({
-      code: 'swim_agreement_required',
-      fieldErrors: { [swimAgreementFieldName]: 'swim_agreement_required' },
-      fieldNames: [swimAgreementFieldName],
-      formData,
-    });
-  }
 
   const now = new Date();
   let event: {
@@ -233,6 +224,15 @@ export async function createPublicEventRegistrationAction(
       options: questionOptionsFromJson(question.options),
     })
   );
+  const swimAgreement = formData.get('swimAgreementAccepted');
+  if (swimAgreement !== 'true') {
+    return publicEventRegistrationFormErrorState({
+      code: 'swim_agreement_required',
+      fieldErrors: { [swimAgreementFieldName]: 'swim_agreement_required' },
+      fieldNames: publicEventRegistrationFieldNames(questionsForValidation),
+      formData,
+    });
+  }
   const parsedAnswers = parsePublicEventRegistrationAnswersFromForm(
     questionsForValidation,
     formData

@@ -3,6 +3,7 @@ import type { Prisma } from '@/generated/prisma/client';
 import { EventRegistrationStatus } from '@/generated/prisma/enums';
 import type { EventRegistrationStatus as EventRegistrationStatusValue } from '@/generated/prisma/enums';
 import { prisma } from '@/libs/DB';
+import { questionOptionsFromJson } from '@/libs/mit-sailing/eventQueries';
 
 export type AdminEventCategoryOption = {
   id: string;
@@ -176,13 +177,6 @@ async function registrationCountsForEventId(
     counts[row.status] = row._count.id ?? 0;
   }
   return counts;
-}
-
-function questionOptionsFromJson(value: Prisma.JsonValue | null): string[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  return value.filter((option): option is string => typeof option === 'string');
 }
 
 function questionFromDb(row: {

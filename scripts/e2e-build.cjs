@@ -68,7 +68,7 @@ const buildEnv = {
   ...process.env,
   DATABASE_URL: e2eDb,
   TEST_DATABASE_URL: '',
-  NEXT_PUBLIC_IS_E2E: '1',
+  IS_E2E: '1',
   // Match playwright webServer; keeps build-time client env aligned with e2e runs.
   NEXT_PUBLIC_SENTRY_DISABLED: 'true',
   NEXT_PUBLIC_APP_URL: e2eAppUrl,
