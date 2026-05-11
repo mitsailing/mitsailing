@@ -1,5 +1,6 @@
 'use client';
 
+import { Field, Label as HeadlessLabel } from '@headlessui/react';
 import * as React from 'react';
 import { useActionState } from 'react';
 import { RegistrationBooleanSwitch } from '@/components/mit-sailing/events/RegistrationBooleanSwitch';
@@ -89,7 +90,7 @@ function FieldError(props: { id: string; message: string | null }) {
 }
 
 function restoreInput(control: HTMLInputElement, values: string[]): void {
-  if (control.type === 'hidden') {
+  if (control.hidden || control.type === 'hidden') {
     return;
   }
   if (control.type === 'checkbox' || control.type === 'radio') {
@@ -202,7 +203,7 @@ function QuestionField(props: {
       ) : null}
       {props.question.answerType === 'checkbox' ? (
         <>
-          <div className="flex items-start gap-3">
+          <Field className="flex items-start gap-3">
             <RegistrationBooleanSwitch
               aria-describedby={describedBy}
               aria-invalid={errorMessage ? true : undefined}
@@ -213,15 +214,12 @@ function QuestionField(props: {
               id={switchId}
               name={name}
             />
-            <label
-              className="min-w-0 flex-1 cursor-pointer leading-relaxed font-normal text-mit-text"
-              htmlFor={switchId}
-            >
+            <HeadlessLabel className="min-w-0 flex-1 cursor-pointer leading-relaxed font-normal text-mit-text">
               <span className="font-semibold text-mit-text" id={controlId}>
                 {questionLabel}
               </span>
-            </label>
-          </div>
+            </HeadlessLabel>
+          </Field>
           <FieldError id={errorId} message={errorMessage} />
         </>
       ) : null}
@@ -274,7 +272,7 @@ function SwimAgreementField(props: {
         </span>
         <span className="sr-only"> {props.labels.required}</span>
       </h3>
-      <div className="flex items-start gap-3 rounded-md border border-border bg-card p-4 text-sm text-mit-text">
+      <Field className="flex items-start gap-3 rounded-md border border-border bg-card p-4 text-sm text-mit-text">
         <RegistrationBooleanSwitch
           aria-describedby={
             errorMessage
@@ -291,14 +289,13 @@ function SwimAgreementField(props: {
           id="event-registration-swim-agreement-switch"
           name="swimAgreementAccepted"
         />
-        <label
+        <HeadlessLabel
           className="min-w-0 flex-1 cursor-pointer leading-relaxed font-normal text-mit-text"
-          htmlFor="event-registration-swim-agreement-switch"
           id="event-registration-swim-agreement-copy"
         >
           {props.labels.swimAgreementLabel}
-        </label>
-      </div>
+        </HeadlessLabel>
+      </Field>
       <FieldError id={errorId} message={errorMessage} />
     </section>
   );

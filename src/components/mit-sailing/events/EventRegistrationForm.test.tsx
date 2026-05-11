@@ -100,7 +100,7 @@ describe('EventRegistrationForm', () => {
 
     expect(
       screen.getByRole('switch', {
-        name: 'Swim agreementRequired I agree to the Swim Agreement and Liability Release.',
+        name: 'I agree to the Swim Agreement and Liability Release.',
       })
     ).toBeChecked();
   });
@@ -147,70 +147,11 @@ describe('EventRegistrationForm', () => {
     ).toHaveValue('L');
     expect(
       screen.getByRole('switch', {
-        name: 'Swim agreementRequired I agree to the Swim Agreement and Liability Release.',
+        name: 'I agree to the Swim Agreement and Liability Release.',
       })
     ).toHaveAttribute('aria-invalid', 'true');
     await waitFor(() => {
       expect(scrollIntoView).toHaveBeenCalled();
     });
-  });
-
-  it('submits restored boolean answers as false after unchecking', async () => {
-    const user = userEvent.setup();
-    window.HTMLElement.prototype.scrollIntoView = vi.fn();
-    const action = vi.fn(
-      (
-        _prevState: PublicEventRegistrationFormState,
-        formData: FormData
-      ): PublicEventRegistrationFormState => ({
-        code: 'swim_agreement_required',
-        fieldErrors: { swimAgreementAccepted: 'swim_agreement_required' },
-        status: 'error',
-        values: formValues(formData),
-      })
-    );
-
-    render(
-      <EventRegistrationForm
-        createRegistrationAction={action}
-        event={event}
-        formPermalink="/events/learn-to-sail/register"
-        labels={labels}
-        locale="en"
-      />
-    );
-
-    await user.selectOptions(
-      screen.getByRole('combobox', { name: 'T-shirt sizeRequired' }),
-      'L'
-    );
-    await user.click(
-      screen.getByRole('switch', {
-        name: 'OK to use your photo for MITNA promotion?',
-      })
-    );
-    await user.click(
-      screen.getByRole('button', { name: 'Confirm registration' })
-    );
-
-    expect(
-      await screen.findByText('Accept the swim agreement before registering.')
-    ).toBeVisible();
-    await user.click(
-      screen.getByRole('switch', {
-        name: 'OK to use your photo for MITNA promotion?',
-      })
-    );
-    await user.click(
-      screen.getByRole('button', { name: 'Confirm registration' })
-    );
-
-    await waitFor(() => {
-      expect(action).toHaveBeenCalledTimes(2);
-    });
-    const secondFormData = action.mock.calls[1]?.[1];
-
-    expect(secondFormData).toBeInstanceOf(FormData);
-    expect(secondFormData?.getAll('question_photo')).toEqual(['false']);
   });
 });

@@ -1,3 +1,4 @@
+import { Field, Label } from '@headlessui/react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
@@ -6,14 +7,13 @@ import { RegistrationBooleanSwitch } from '@/components/mit-sailing/events/Regis
 function renderSwitch() {
   render(
     <form data-testid="switch-form">
-      <RegistrationBooleanSwitch
-        aria-labelledby="agreement-label"
-        id="agreement"
-        name="swimAgreementAccepted"
-      />
-      <label htmlFor="agreement" id="agreement-label">
-        Swim agreement
-      </label>
+      <Field>
+        <RegistrationBooleanSwitch
+          id="agreement"
+          name="swimAgreementAccepted"
+        />
+        <Label>Swim agreement</Label>
+      </Field>
     </form>
   );
 }
@@ -29,10 +29,10 @@ function getFormValue(name: string) {
 }
 
 describe('RegistrationBooleanSwitch', () => {
-  it('submits false when unchecked', () => {
+  it('omits value when unchecked', () => {
     renderSwitch();
 
-    expect(getFormValue('swimAgreementAccepted')).toBe('false');
+    expect(getFormValue('swimAgreementAccepted')).toBeNull();
   });
 
   it('submits true when checked', async () => {

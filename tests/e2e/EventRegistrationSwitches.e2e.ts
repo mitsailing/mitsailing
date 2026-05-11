@@ -64,14 +64,10 @@ test.describe('Event registration switches', () => {
         name: 'OK to use your photo for MITNA promotion?',
       });
 
-      await page
-        .locator('label:has(input#event-registration-swim-agreement-switch)')
-        .click();
+      await swimAgreementSwitch.click();
       await expect(swimAgreementSwitch).toBeChecked();
 
-      await page
-        .locator('label:has(input#registration-question-q-lts-ai-photo-switch)')
-        .click();
+      await photoSwitch.click();
       await expect(photoSwitch).toBeChecked();
 
       await page

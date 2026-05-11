@@ -11,10 +11,7 @@ const registrationTextBodySchema = z
   .min(1)
   .max(MAX_EVENT_REGISTRATION_TEXT_ANSWER_LENGTH);
 
-/**
- * Boolean checkbox posts at most two same-name values (hidden `false` + optional
- * `true`); each literal must appear at most once (`max(2)` + no duplicates).
- */
+/** Boolean switches post `"true"` when checked and no value when unchecked. */
 const checkboxBooleanFormEntriesSchema = z
   .array(z.enum(['true', 'false']))
   .max(2)
@@ -121,9 +118,8 @@ function checkboxBooleanSlice(
   fieldName: string,
   formData: FormData
 ): AnswerSlice {
-  // `FormData.get` returns only the first value per name; unchecked+hidden and
-  // checked+hidden both need `getAll` (Next.js / React form actions pass through
-  // the same `FormData` as the browser builds from the form).
+  // `FormData.getAll` keeps this tolerant of older hidden-false switch markup
+  // while supporting Headless UI's default checked-only form output.
   const rawAll = formData.getAll(fieldName);
   const strings = rawAll.filter(
     (entry): entry is string => typeof entry === 'string'
