@@ -55,7 +55,7 @@ export default async function AdminIndexPage(props: AdminIndexPageProps) {
           <li>
             <Link
               className="font-medium text-mit-red-ink no-underline hover:underline"
-              href="/admin/events/"
+              href="/admin/events"
             >
               {t('link_events')}
             </Link>
@@ -63,7 +63,7 @@ export default async function AdminIndexPage(props: AdminIndexPageProps) {
           <li>
             <Link
               className="font-medium text-mit-red-ink no-underline hover:underline"
-              href="/admin/site_text/"
+              href="/admin/site_text"
             >
               {t('link_site_text')}
             </Link>

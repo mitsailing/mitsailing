@@ -385,6 +385,8 @@ describe('cmsPageBlocksCatalogHandlers', () => {
       formData.set('imageAlt', '');
       formData.set('ctaLabel', '');
       formData.set('ctaUrl', '');
+      formData.set('showCta', 'false');
+      formData.set('showImage', 'false');
       formData.set('isVisible', 'true');
 
       mocks.cmsPageBlockFindUnique.mockResolvedValue({ pageId: 'page-1' });
@@ -401,6 +403,44 @@ describe('cmsPageBlocksCatalogHandlers', () => {
           ctaUrl: null,
           imageAlt: null,
           imageSrc: null,
+          showCta: false,
+          showImage: false,
+        }),
+        select: { pageId: true },
+        where: { id: 'block-1' },
+      });
+    });
+
+    it('clears optional block fields when display toggles are off', async () => {
+      const now = new Date('2026-05-09T12:00:00.000Z');
+      const formData = new FormData();
+      formData.set('pageId', 'page-1');
+      formData.set('kind', 'hero');
+      formData.set('title', 'Hero');
+      formData.set('ctaLabel', 'Learn more');
+      formData.set('ctaUrl', '/classes');
+      formData.set('showCta', 'false');
+      formData.set('imageSrc', '/assets/../draft.jpg');
+      formData.set('imageAlt', '');
+      formData.set('showImage', 'false');
+      formData.set('isVisible', 'true');
+
+      mocks.cmsPageBlockFindUnique.mockResolvedValue({ pageId: 'page-1' });
+      mocks.cmsPageBlockUpdate.mockResolvedValue({ pageId: 'page-1' });
+      mocks.cmsPageFindUnique.mockResolvedValue(cmsPageSnapshotRow(now));
+
+      await expect(
+        cmsPageBlocksCatalogHandlers.updateFromForm('block-1', formData)
+      ).resolves.toEqual({ ok: true });
+
+      expect(mocks.cmsPageBlockUpdate).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          ctaLabel: null,
+          ctaUrl: null,
+          imageAlt: null,
+          imageSrc: null,
+          showCta: false,
+          showImage: false,
         }),
         select: { pageId: true },
         where: { id: 'block-1' },
@@ -415,6 +455,7 @@ describe('cmsPageBlocksCatalogHandlers', () => {
       formData.set('title', 'Hero');
       formData.set('imageSrc', '/cms-media/asset-5/hero.png');
       formData.set('imageAlt', 'Sailboats on the Charles');
+      formData.set('showImage', 'true');
       formData.set('isVisible', 'true');
 
       mocks.cmsPageBlockFindUnique.mockResolvedValue({ pageId: 'page-1' });
@@ -429,6 +470,7 @@ describe('cmsPageBlocksCatalogHandlers', () => {
         data: expect.objectContaining({
           imageAlt: 'Sailboats on the Charles',
           imageSrc: '/cms-media/asset-5/hero.png',
+          showImage: true,
         }),
         select: { pageId: true },
         where: { id: 'block-1' },
@@ -442,6 +484,7 @@ describe('cmsPageBlocksCatalogHandlers', () => {
       formData.set('title', 'Hero');
       formData.set('imageSrc', '/cms-media/asset-5/hero.png');
       formData.set('imageAlt', '');
+      formData.set('showImage', 'true');
       formData.set('isVisible', 'true');
 
       await expect(

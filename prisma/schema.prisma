@@ -494,8 +494,10 @@ model CmsPageBlock {
   body         String?      @db.Text
   ctaLabel     String?      @map("cta_label")
   ctaUrl       String?      @map("cta_url")
+  showCta      Boolean      @default(false) @map("show_cta")
   imageSrc     String?      @map("image_src")
   imageAlt     String?      @map("image_alt")
+  showImage    Boolean      @default(false) @map("show_image")
   displayOrder Int          @default(0) @map("display_order")
   isVisible    Boolean      @default(true) @map("is_visible")
   createdAt    DateTime     @default(now()) @map("created_at")

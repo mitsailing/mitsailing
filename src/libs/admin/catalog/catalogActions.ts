@@ -153,6 +153,9 @@ function scopedCatalogMutationSearchParam(
   return undefined;
 }
 
+/** Keeps redirect URLs bounded when Zod surfaces long issue messages. */
+const MAX_FIELD_ERROR_MESSAGE_CHARS = 500;
+
 function catalogRedirectPath(props: {
   basePath: string;
   errorCode?: string;
@@ -167,8 +170,15 @@ function catalogRedirectPath(props: {
     searchParams.set('error', props.errorCode);
   }
   if (props.fieldErrors) {
-    for (const field of Object.keys(props.fieldErrors)) {
-      searchParams.append('fieldError', field);
+    for (const [field, message] of Object.entries(props.fieldErrors)) {
+      const safeMessage =
+        message.length > MAX_FIELD_ERROR_MESSAGE_CHARS
+          ? `${message.slice(0, MAX_FIELD_ERROR_MESSAGE_CHARS)}…`
+          : message;
+      searchParams.append(
+        'fieldError',
+        JSON.stringify({ f: field, m: safeMessage })
+      );
     }
   }
   const query = searchParams.toString();

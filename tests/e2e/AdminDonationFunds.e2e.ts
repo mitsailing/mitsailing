@@ -86,10 +86,10 @@ test.describe('Admin donation funds', () => {
     ).toHaveCount(0);
 
     await page.goto(editUrl);
-    const published = page.locator(
+    const visible = page.locator(
       'form input[name="isVisible"][type="checkbox"]'
     );
-    await published.check();
+    await visible.check();
     await submitCatalogSave(page);
     await expect(page.getByRole('heading', { name: 'Edit row' })).toBeVisible();
 

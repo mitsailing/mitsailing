@@ -56,6 +56,13 @@ function booleanFromForm(formData: FormData, field: string): boolean {
   return flags.includes('true') || flags.includes('on');
 }
 
+function optionalBooleanFromForm(
+  formData: FormData,
+  field: string
+): boolean | undefined {
+  return formData.has(field) ? booleanFromForm(formData, field) : undefined;
+}
+
 function optionalString(value: FormDataEntryValue | null): string | undefined {
   if (typeof value !== 'string') {
     return undefined;
@@ -113,8 +120,10 @@ function rawCmsBlockFromFormData(formData: FormData): Record<string, unknown> {
         : optionalCmsRichText(formData.get('body')),
     ctaLabel: optionalString(formData.get('ctaLabel')),
     ctaUrl: optionalString(formData.get('ctaUrl')),
+    showCta: optionalBooleanFromForm(formData, 'showCta'),
     imageSrc: optionalString(formData.get('imageSrc')),
     imageAlt: optionalString(formData.get('imageAlt')),
+    showImage: optionalBooleanFromForm(formData, 'showImage'),
     isVisible: booleanFromForm(formData, 'isVisible'),
   };
 }
@@ -150,8 +159,10 @@ function cmsBlockMutationData(input: ParsedCmsBlockInput) {
     body: input.body ?? null,
     ctaLabel: input.ctaLabel ?? null,
     ctaUrl: input.ctaUrl ?? null,
+    showCta: input.showCta,
     imageSrc: input.imageSrc ?? null,
     imageAlt: input.imageAlt ?? null,
+    showImage: input.showImage,
     isVisible: input.isVisible,
   };
 }
@@ -375,8 +386,10 @@ export const cmsPageBlocksCatalogHandlers: CatalogServerHandlers = {
       body: row.body,
       ctaLabel: row.ctaLabel,
       ctaUrl: row.ctaUrl,
+      showCta: row.showCta,
       imageSrc: row.imageSrc,
       imageAlt: row.imageAlt,
+      showImage: row.showImage,
       displayOrder: row.displayOrder,
       isVisible: row.isVisible,
       createdAt: row.createdAt.toISOString(),

@@ -228,6 +228,97 @@ describe('getAdminCatalogRevisionCompare', () => {
     });
   });
 
+  it('detects fleet required class change when ids differ but names match', async () => {
+    mocks.userAuditFindFirst
+      .mockResolvedValueOnce({
+        action: 'update',
+        auditedChanges: {
+          ...fleetSnapshot(),
+          requiredClassId: 'class-2',
+        },
+        createdAt: new Date('2026-05-10T12:00:00.000Z'),
+        id: 'audit-2',
+        user: null,
+        version: 2,
+      })
+      .mockResolvedValueOnce({
+        auditedChanges: fleetSnapshot(),
+        version: 1,
+      });
+
+    const compare = await getAdminCatalogRevisionCompare({
+      itemId: 'boat-1',
+      resourceId: 'fleet',
+      revisionId: 'audit-2',
+    });
+
+    expect(compare?.comparison.changes).toContainEqual({
+      after: { kind: 'text', value: 'Intro Sailing 101' },
+      before: { kind: 'text', value: 'Intro Sailing 101' },
+      field: 'requiredClassId',
+    });
+  });
+
+  it('ignores fleet required class drift when only the denormalized name changed', async () => {
+    mocks.userAuditFindFirst
+      .mockResolvedValueOnce({
+        action: 'update',
+        auditedChanges: {
+          ...fleetSnapshot(),
+          requiredClassName: 'Intro Sailing 101 (renamed)',
+        },
+        createdAt: new Date('2026-05-10T12:00:00.000Z'),
+        id: 'audit-2',
+        user: null,
+        version: 2,
+      })
+      .mockResolvedValueOnce({
+        auditedChanges: fleetSnapshot(),
+        version: 1,
+      });
+
+    const compare = await getAdminCatalogRevisionCompare({
+      itemId: 'boat-1',
+      resourceId: 'fleet',
+      revisionId: 'audit-2',
+    });
+
+    expect(compare?.comparison.changes.map((c) => c.field)).not.toContain(
+      'requiredClassId'
+    );
+  });
+
+  it('detects sailing class category change when ids differ but names match', async () => {
+    mocks.userAuditFindFirst
+      .mockResolvedValueOnce({
+        action: 'update',
+        auditedChanges: {
+          ...sailingClassSnapshot(),
+          classCategoryId: 'cc-other',
+        },
+        createdAt: new Date('2026-05-10T12:00:00.000Z'),
+        id: 'audit-2',
+        user: null,
+        version: 2,
+      })
+      .mockResolvedValueOnce({
+        auditedChanges: sailingClassSnapshot(),
+        version: 1,
+      });
+
+    const compare = await getAdminCatalogRevisionCompare({
+      itemId: 'class-1',
+      resourceId: 'sailing_classes',
+      revisionId: 'audit-2',
+    });
+
+    expect(compare?.comparison.changes).toContainEqual({
+      after: { kind: 'text', value: 'Introduction' },
+      before: { kind: 'text', value: 'Introduction' },
+      field: 'classCategoryId',
+    });
+  });
+
   it('diffs the first revision against empty snapshot not live row', async () => {
     mocks.userAuditFindFirst
       .mockResolvedValueOnce({
