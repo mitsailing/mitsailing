@@ -38,6 +38,20 @@ function RegistrationNote(props: { children: React.ReactNode }) {
   );
 }
 
+function RegistrationErrorAlert(props: { message: string | null }) {
+  if (!props.message) {
+    return null;
+  }
+  return (
+    <p
+      className="rounded-lg border border-destructive bg-destructive/10 px-3 py-2 text-sm text-destructive"
+      role="alert"
+    >
+      {props.message}
+    </p>
+  );
+}
+
 type RegistrationStatusPillTone = 'good' | 'warning' | 'muted';
 
 const registrationStatusPillToneClassName: Record<
@@ -79,6 +93,7 @@ export function EventRegistrationCta(props: EventRegistrationCtaProps) {
   if (props.reservationState === 'approved') {
     return (
       <div className="flex flex-col items-start gap-2">
+        <RegistrationErrorAlert message={errorMessage} />
         <RegistrationStatusPill tone="good">
           <Check aria-hidden className="size-4" />
           {props.t('registration_status_going')}
@@ -95,6 +110,7 @@ export function EventRegistrationCta(props: EventRegistrationCtaProps) {
   if (props.reservationState === 'pending') {
     return (
       <div className="flex flex-col items-start gap-2">
+        <RegistrationErrorAlert message={errorMessage} />
         <RegistrationStatusPill tone="warning">
           <Clock aria-hidden className="size-4" />
           {props.t('registration_status_pending')}
@@ -110,31 +126,38 @@ export function EventRegistrationCta(props: EventRegistrationCtaProps) {
 
   if (props.reservationState === 'opening_later') {
     return (
-      <RegistrationStatusPill tone="muted">
-        <Clock aria-hidden className="size-4" />
-        {props.t('registration_opening_on', {
-          date: props.registrationOpens,
-        })}
-      </RegistrationStatusPill>
+      <div className="flex flex-col items-start gap-2">
+        <RegistrationErrorAlert message={errorMessage} />
+        <RegistrationStatusPill tone="muted">
+          <Clock aria-hidden className="size-4" />
+          {props.t('registration_opening_on', {
+            date: props.registrationOpens,
+          })}
+        </RegistrationStatusPill>
+      </div>
     );
   }
 
   if (props.reservationState === 'closed') {
-    return null;
+    return <RegistrationErrorAlert message={errorMessage} />;
   }
 
   if (props.reservationState === 'full') {
     return (
-      <RegistrationStatusPill tone="muted">
-        <X aria-hidden className="size-4" />
-        {props.t('registration_full')}
-      </RegistrationStatusPill>
+      <div className="flex flex-col items-start gap-2">
+        <RegistrationErrorAlert message={errorMessage} />
+        <RegistrationStatusPill tone="muted">
+          <X aria-hidden className="size-4" />
+          {props.t('registration_full')}
+        </RegistrationStatusPill>
+      </div>
     );
   }
 
   if (!props.isSignedIn) {
     return (
       <div className="flex flex-col gap-2">
+        <RegistrationErrorAlert message={errorMessage} />
         <Button asChild className="w-full" size="lg" variant="mit">
           <Link href={loginHref}>
             <LogIn aria-hidden className="size-4" />
@@ -150,14 +173,7 @@ export function EventRegistrationCta(props: EventRegistrationCtaProps) {
 
   return (
     <div className="flex flex-col gap-3">
-      {errorMessage ? (
-        <p
-          className="rounded-lg border border-destructive bg-destructive/10 px-3 py-2 text-sm text-destructive"
-          role="alert"
-        >
-          {errorMessage}
-        </p>
-      ) : null}
+      <RegistrationErrorAlert message={errorMessage} />
       <Button asChild className="w-full" size="lg" variant="mit">
         <Link href={registrationHref}>
           {props.event.requiresApproval

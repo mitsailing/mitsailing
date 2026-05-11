@@ -102,6 +102,12 @@ jobs:
           NEXT_PUBLIC_SENTRY_DISABLED: 'true' # Only upload Sentry source maps in deployment
           NEXT_PUBLIC_APP_URL: http://localhost:3008
 
+      # Records the inlined public origin so `E2E_SKIP_BUILD=1` never reuses a
+      # `.next` built for a different NEXT_PUBLIC_APP_URL (Better Auth INVALID_ORIGIN).
+      - name: Mark Next output for E2E skip-build
+        if: success()
+        run: node scripts/e2e-build.cjs --write-e2e-ready-marker
+
       - if: success()
         name: Cache Next.js build output
         uses: actions/cache/save@v5

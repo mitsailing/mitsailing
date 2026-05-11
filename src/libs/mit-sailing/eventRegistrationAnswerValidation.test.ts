@@ -270,6 +270,24 @@ describe('parsePublicEventRegistrationAnswersFromForm', () => {
     expect(result).toEqual({ ok: false, code: 'answers_invalid' });
   });
 
+  it('rejects boolean checkbox with duplicated false entries', () => {
+    const fd = new FormData();
+    fd.append('question_q1', 'false');
+    fd.append('question_q1', 'false');
+    const result = parsePublicEventRegistrationAnswersFromForm(
+      [
+        {
+          id: 'q1',
+          required: false,
+          answerType: EventAnswerType.checkbox,
+          options: [],
+        },
+      ],
+      fd
+    );
+    expect(result).toEqual({ ok: false, code: 'answers_invalid' });
+  });
+
   it('requires boolean checkbox when marked required', () => {
     const fd = new FormData();
     const result = parsePublicEventRegistrationAnswersFromForm(

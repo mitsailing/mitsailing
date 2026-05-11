@@ -12,13 +12,14 @@ const registrationTextBodySchema = z
   .max(MAX_EVENT_REGISTRATION_TEXT_ANSWER_LENGTH);
 
 /**
- * At most one hidden `false` and one checkbox `true` (`max(2)` + one `true` max).
+ * Boolean checkbox posts at most two same-name values (hidden `false` + optional
+ * `true`); each literal must appear at most once (`max(2)` + no duplicates).
  */
 const checkboxBooleanFormEntriesSchema = z
   .array(z.enum(['true', 'false']))
   .max(2)
-  .refine((entries) => entries.filter((v) => v === 'true').length <= 1, {
-    message: 'boolean_checkbox_at_most_one_true',
+  .refine((entries) => new Set(entries).size === entries.length, {
+    message: 'boolean_checkbox_at_most_one_each',
   });
 
 export type PublicRegistrationQuestionForValidation = {

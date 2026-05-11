@@ -536,8 +536,9 @@ function EventAdminsSection(props: AdminEventFormViewProps) {
             const selected = selectedIds.has(user.id);
             return (
               <li key={user.id}>
-                <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-border bg-background px-3 py-2 text-sm has-checked:border-mit-red has-checked:bg-red-50">
+                <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-border bg-background px-3 py-2 text-sm transition-colors duration-200 has-checked:border-mit-red has-checked:bg-mit-red-highlight has-checked:text-mit-red-ink dark:has-checked:border-white/40 dark:has-checked:bg-white/10 dark:has-checked:text-white">
                   <input
+                    className="size-4 shrink-0 rounded border border-input text-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
                     defaultChecked={selected}
                     name="adminUserId"
                     type="checkbox"
