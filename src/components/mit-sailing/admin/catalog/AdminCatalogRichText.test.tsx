@@ -496,6 +496,12 @@ describe('AdminCatalogForm rich text fields', () => {
     expect(view.container.querySelector('input[name="imageAlt"]')).toHaveValue(
       ''
     );
+    expect(view.container.querySelector('input[name="showCta"]')).toHaveValue(
+      'false'
+    );
+    expect(view.container.querySelector('input[name="showImage"]')).toHaveValue(
+      'false'
+    );
     expect(hiddenBodyValue(view.container)).toContain(
       '"linkLabel": "Create account"'
     );

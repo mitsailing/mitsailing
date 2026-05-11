@@ -110,8 +110,11 @@ function normalizedVisibleCmsUrl(
   value: string | undefined,
   isShown: boolean
 ): string | undefined {
-  if (!isShown || !value) {
-    return value;
+  if (!isShown) {
+    return undefined;
+  }
+  if (!value) {
+    return undefined;
   }
   const parsed = cmsUrlSchema.safeParse(value);
   return parsed.success ? parsed.data : value;
@@ -121,8 +124,11 @@ function normalizedVisibleCmsImagePath(
   value: string | undefined,
   isShown: boolean
 ): string | undefined {
-  if (!isShown || !value) {
-    return value;
+  if (!isShown) {
+    return undefined;
+  }
+  if (!value) {
+    return undefined;
   }
   const parsed = cmsImagePathSchema.safeParse(value);
   return parsed.success ? parsed.data : value;
@@ -274,7 +280,9 @@ export const cmsBlockInputSchema = z
     const showImage = cmsBlockShowImage(value);
     return {
       ...value,
+      ctaLabel: showCta ? value.ctaLabel : undefined,
       ctaUrl: normalizedVisibleCmsUrl(value.ctaUrl, showCta),
+      imageAlt: showImage ? value.imageAlt : undefined,
       imageSrc: normalizedVisibleCmsImagePath(value.imageSrc, showImage),
       showCta,
       showImage,

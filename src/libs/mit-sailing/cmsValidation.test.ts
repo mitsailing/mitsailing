@@ -139,7 +139,7 @@ describe('cms block validation', () => {
     expect(parsed.success).toBe(false);
   });
 
-  it('preserves hidden optional group draft values', () => {
+  it('clears optional group fields when toggles are off', () => {
     const parsed = cmsBlockInputSchema.parse({
       pageId: 'page-1',
       kind: 'hero',
@@ -148,14 +148,16 @@ describe('cms block validation', () => {
       ctaUrl: `${['java', 'script'].join('')}:alert(1)`,
       showCta: false,
       imageSrc: '/assets/../secret.jpg',
+      imageAlt: 'Alt',
       showImage: false,
       isVisible: true,
     });
 
-    expect(parsed.ctaLabel).toBe('Classes');
-    expect(parsed.ctaUrl).toBe(`${['java', 'script'].join('')}:alert(1)`);
+    expect(parsed.ctaLabel).toBeUndefined();
+    expect(parsed.ctaUrl).toBeUndefined();
     expect(parsed.showCta).toBe(false);
-    expect(parsed.imageSrc).toBe('/assets/../secret.jpg');
+    expect(parsed.imageSrc).toBeUndefined();
+    expect(parsed.imageAlt).toBeUndefined();
     expect(parsed.showImage).toBe(false);
   });
 

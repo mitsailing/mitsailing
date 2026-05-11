@@ -411,7 +411,7 @@ describe('cmsPageBlocksCatalogHandlers', () => {
       });
     });
 
-    it('preserves hidden optional block draft values', async () => {
+    it('clears optional block fields when display toggles are off', async () => {
       const now = new Date('2026-05-09T12:00:00.000Z');
       const formData = new FormData();
       formData.set('pageId', 'page-1');
@@ -435,10 +435,10 @@ describe('cmsPageBlocksCatalogHandlers', () => {
 
       expect(mocks.cmsPageBlockUpdate).toHaveBeenCalledWith({
         data: expect.objectContaining({
-          ctaLabel: 'Learn more',
-          ctaUrl: '/classes',
+          ctaLabel: null,
+          ctaUrl: null,
           imageAlt: null,
-          imageSrc: '/assets/../draft.jpg',
+          imageSrc: null,
           showCta: false,
           showImage: false,
         }),

@@ -3,7 +3,7 @@
 import { Plus, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type * as React from 'react';
-import { useRef, useState } from 'react';
+import { Fragment, useRef, useState } from 'react';
 import { AdminCatalogEditStatusBadge } from '@/components/mit-sailing/admin/catalog/AdminCatalogListCell';
 import {
   AdminImageField,
@@ -1979,14 +1979,24 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
       return renderCmsHomeOverviewEditor();
     }
     if (
-      (cmsBlockPreviewState.kind === 'pricing' ||
-        cmsBlockPreviewState.kind === 'home_overview') &&
-      (key === 'ctaLabel' ||
-        key === 'ctaUrl' ||
-        key === 'imageSrc' ||
-        key === 'imageAlt')
+      cmsBlockPreviewState.kind === 'pricing' ||
+      cmsBlockPreviewState.kind === 'home_overview'
     ) {
-      return <input key={key} name={key} type="hidden" value="" />;
+      if (key === 'ctaLabel') {
+        return (
+          <Fragment key={key}>
+            <input name="ctaLabel" type="hidden" value="" />
+            <input name="ctaUrl" type="hidden" value="" />
+            <input name="imageSrc" type="hidden" value="" />
+            <input name="imageAlt" type="hidden" value="" />
+            <input name="showCta" type="hidden" value="false" />
+            <input name="showImage" type="hidden" value="false" />
+          </Fragment>
+        );
+      }
+      if (key === 'ctaUrl' || key === 'imageSrc' || key === 'imageAlt') {
+        return null;
+      }
     }
     if (key === 'ctaLabel') {
       return renderCmsBlockCtaGroup();
