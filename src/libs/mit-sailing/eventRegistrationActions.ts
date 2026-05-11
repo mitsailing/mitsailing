@@ -33,15 +33,24 @@ export type PublicEventRegistrationFormState = {
   values: Record<string, string[]>;
 };
 
+const swimAgreementFieldName = 'swimAgreementAccepted';
+
+function publicEventRegistrationQuestionFieldName(questionId: string): string {
+  return `question_${questionId}`;
+}
+
 function publicEventRegistrationFormValues(
-  formData: FormData
+  formData: FormData,
+  fieldNames: readonly string[]
 ): Record<string, string[]> {
   const values: Record<string, string[]> = {};
-  for (const [name, value] of formData) {
-    if (typeof value !== 'string') {
-      continue;
+  for (const fieldName of fieldNames) {
+    const fieldValues = formData
+      .getAll(fieldName)
+      .filter((value): value is string => typeof value === 'string');
+    if (fieldValues.length > 0) {
+      values[fieldName] = fieldValues;
     }
-    values[name] = [...(values[name] ?? []), value];
   }
   return values;
 }
@@ -49,13 +58,17 @@ function publicEventRegistrationFormValues(
 function publicEventRegistrationFormErrorState(options: {
   code: EventRegistrationMutationCode;
   fieldErrors: Record<string, EventRegistrationMutationCode>;
+  fieldNames: readonly string[];
   formData: FormData;
 }): PublicEventRegistrationFormState {
   return {
     code: options.code,
     fieldErrors: options.fieldErrors,
     status: 'error',
-    values: publicEventRegistrationFormValues(options.formData),
+    values: publicEventRegistrationFormValues(
+      options.formData,
+      options.fieldNames
+    ),
   };
 }
 
@@ -72,11 +85,23 @@ function publicEventRegistrationQuestionFieldErrors(options: {
       options.formData
     );
     if (!result.ok && result.code === options.code) {
-      fieldErrors[`question_${question.id}`] = options.code;
+      fieldErrors[publicEventRegistrationQuestionFieldName(question.id)] =
+        options.code;
     }
   }
 
   return fieldErrors;
+}
+
+function publicEventRegistrationFieldNames(
+  questions: PublicRegistrationQuestionForValidation[]
+): string[] {
+  return [
+    swimAgreementFieldName,
+    ...questions.map((question) =>
+      publicEventRegistrationQuestionFieldName(question.id)
+    ),
+  ];
 }
 
 function logPublicEventRegistrationFailure(options: {
@@ -153,7 +178,8 @@ export async function createPublicEventRegistrationAction(
   if (swimAgreement !== 'true') {
     return publicEventRegistrationFormErrorState({
       code: 'swim_agreement_required',
-      fieldErrors: { swimAgreementAccepted: 'swim_agreement_required' },
+      fieldErrors: { [swimAgreementFieldName]: 'swim_agreement_required' },
+      fieldNames: [swimAgreementFieldName],
       formData,
     });
   }
@@ -223,6 +249,7 @@ export async function createPublicEventRegistrationAction(
         formData,
         questions: questionsForValidation,
       }),
+      fieldNames: publicEventRegistrationFieldNames(questionsForValidation),
       formData,
     });
   }
