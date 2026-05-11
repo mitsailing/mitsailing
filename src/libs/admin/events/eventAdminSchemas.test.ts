@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { EventAnswerType, EventDetailPageKind } from '@/generated/prisma/enums';
 import {
-  EVENT_ADMIN_INVALID_FEE_AMOUNT_ERROR_CODE,
-  zodCustomIssueParamsErrorCode,
   dollarsToEventAdminCents,
+  isEventAdminInvalidFeeAmountIssue,
   eventAdminBasicsFormSchema,
   eventDateFormSchema,
   eventFeeFormSchema,
@@ -112,12 +111,29 @@ describe('eventAdminSchemas', () => {
     if (!parsed.success) {
       const [issue] = parsed.error.issues;
       expect(issue?.code).toBe('custom');
-      expect(zodCustomIssueParamsErrorCode(issue ?? {})).toBe(
-        EVENT_ADMIN_INVALID_FEE_AMOUNT_ERROR_CODE
-      );
+      expect(isEventAdminInvalidFeeAmountIssue(issue ?? {})).toBe(true);
       expect(issue?.path.at(-1)).toBe('amountDollars');
     }
   });
+
+  it.each(['0', '0.00', '0.0'])(
+    'rejects fee form with zero dollar amount (%s)',
+    (amountDollars) => {
+      const parsed = eventFeeFormSchema.safeParse({
+        description: 'Entry fee',
+        amountDollars,
+        isDeposit: false,
+      });
+
+      expect(parsed.success).toBe(false);
+      if (!parsed.success) {
+        const [issue] = parsed.error.issues;
+        expect(issue?.code).toBe('too_small');
+        expect(isEventAdminInvalidFeeAmountIssue(issue ?? {})).toBe(true);
+        expect(issue?.path.at(-1)).toBe('amountDollars');
+      }
+    }
+  );
 
   it('splits comma options', () => {
     expect(splitEventAdminCsv('Helm, Navigation, Sail trim')).toEqual([

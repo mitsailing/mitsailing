@@ -15,19 +15,18 @@ import {
   adminEventsNewPath,
 } from '@/libs/admin/events/eventAdminPaths';
 import {
-  EVENT_ADMIN_INVALID_FEE_AMOUNT_ERROR_CODE,
   eventAdminBasicsFormSchema,
   eventDateFormSchema,
   eventFeeFormSchema,
   eventQuestionFormSchema,
   eventRegistrationStatusFormSchema,
+  isEventAdminInvalidFeeAmountIssue,
   rawEventAdminIdsFromFormData,
   rawEventBasicsFromFormData,
   rawEventDateFromFormData,
   rawEventFeeFromFormData,
   rawEventQuestionFromFormData,
   rawEventRegistrationStatusFromFormData,
-  zodCustomIssueParamsErrorCode,
 } from '@/libs/admin/events/eventAdminSchemas';
 import { requireAdmin } from '@/libs/auth/dal';
 import { prisma } from '@/libs/DB';
@@ -92,10 +91,7 @@ function mutationCodeFromPrisma(error: unknown): EventAdminMutationCode {
 
 function eventFeeFormMutationCode(error: z.ZodError): EventAdminMutationCode {
   for (const issue of error.issues) {
-    if (
-      zodCustomIssueParamsErrorCode(issue) ===
-      EVENT_ADMIN_INVALID_FEE_AMOUNT_ERROR_CODE
-    ) {
+    if (isEventAdminInvalidFeeAmountIssue(issue)) {
       return 'invalid_event_fee_amount';
     }
   }
@@ -163,10 +159,7 @@ async function adminEventZodParseParams(locale: string) {
   const t = await getTranslations({ locale, namespace: 'AdminEvents' });
   return {
     error: (iss: z.core.$ZodRawIssue) => {
-      if (
-        zodCustomIssueParamsErrorCode(iss) ===
-        EVENT_ADMIN_INVALID_FEE_AMOUNT_ERROR_CODE
-      ) {
+      if (isEventAdminInvalidFeeAmountIssue(iss)) {
         return t('form_error_invalid_event_fee_amount');
       }
       return t('form_error_validation_failed');

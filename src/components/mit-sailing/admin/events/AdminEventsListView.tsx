@@ -1,7 +1,7 @@
 import { Plus, Search } from 'lucide-react';
 import type { getTranslations } from 'next-intl/server';
-import * as React from 'react';
 import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader';
+import { AdminEventListStatusBadge } from '@/components/mit-sailing/admin/events/AdminEventShared';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -12,13 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import type { AdminStatusSemanticTone } from '@/lib/mit-sailing/tokens';
-import {
-  adminEventListStatusBadgeBaseClassName,
-  adminEventListStatusBadgeToneClassName,
-  adminNativeSelectClassName,
-} from '@/lib/mit-sailing/tokens';
-import { cn } from '@/lib/utils';
+import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 import {
   adminEventDeletePath,
   adminEventEditPath,
@@ -112,38 +106,28 @@ function registrationsSummary(
   });
 }
 
-function StatusBadge(props: {
-  children: React.ReactNode;
-  tone: AdminStatusSemanticTone;
-}) {
-  return (
-    <span
-      className={cn(
-        adminEventListStatusBadgeBaseClassName,
-        adminEventListStatusBadgeToneClassName[props.tone]
-      )}
-    >
-      {props.children}
-    </span>
-  );
-}
-
 function EventStatusBadges(props: {
   event: AdminEventListRow;
   t: AdminEventsListTranslations;
 }) {
   return (
     <div className="flex flex-wrap gap-1.5">
-      <StatusBadge tone={props.event.isPublished ? 'success' : 'neutral'}>
+      <AdminEventListStatusBadge
+        tone={props.event.isPublished ? 'success' : 'neutral'}
+      >
         {props.event.isPublished
           ? props.t('status_published')
           : props.t('status_draft')}
-      </StatusBadge>
+      </AdminEventListStatusBadge>
       {props.event.isSpecial ? (
-        <StatusBadge tone="danger">{props.t('status_special')}</StatusBadge>
+        <AdminEventListStatusBadge tone="danger">
+          {props.t('status_special')}
+        </AdminEventListStatusBadge>
       ) : null}
       {props.event.detailPageKind === 'external' ? (
-        <StatusBadge tone="neutral">{props.t('status_external')}</StatusBadge>
+        <AdminEventListStatusBadge tone="neutral">
+          {props.t('status_external')}
+        </AdminEventListStatusBadge>
       ) : null}
     </div>
   );
@@ -163,18 +147,18 @@ function EventRow(props: {
       <TableCell className="px-4 py-3 align-top">
         <div className="flex min-w-0 flex-col gap-1">
           <Link
-            className="font-semibold text-mit-red-ink no-underline hover:underline"
+            className="font-semibold text-mit-red no-underline hover:underline"
             href={adminEventEditPath(props.event.slug)}
           >
             {props.event.name}
           </Link>
-          <span className="text-xs text-muted-foreground dark:text-white">
+          <span className="text-xs text-mit-readable-ink">
             {props.event.shortName} · /events/{props.event.slug}
           </span>
           <EventStatusBadges event={props.event} t={props.t} />
         </div>
       </TableCell>
-      <TableCell className="px-4 py-3 align-top text-sm text-muted-foreground dark:text-white">
+      <TableCell className="px-4 py-3 align-top text-sm text-mit-readable-ink">
         {dateSummary(props.event.dates, props.t)}
       </TableCell>
       <TableCell className="px-4 py-3 align-top text-sm">
@@ -184,7 +168,7 @@ function EventRow(props: {
           props.t
         )}
       </TableCell>
-      <TableCell className="px-4 py-3 align-top text-sm text-muted-foreground dark:text-white">
+      <TableCell className="px-4 py-3 align-top text-sm text-mit-readable-ink">
         {props.event.requiresApproval
           ? props.t('approval_manual')
           : props.t('approval_auto')}
@@ -192,19 +176,19 @@ function EventRow(props: {
       <TableCell className="px-4 py-3 align-top">
         <div className="flex flex-wrap gap-x-3 gap-y-1">
           <Link
-            className="text-sm font-medium text-mit-red-ink no-underline hover:underline"
+            className="text-sm font-medium text-mit-red no-underline hover:underline"
             href={adminEventEditPath(props.event.slug)}
           >
             {props.t('action_edit')}
           </Link>
           <Link
-            className="text-sm font-medium text-mit-red-ink no-underline hover:underline"
+            className="text-sm font-medium text-mit-red no-underline hover:underline"
             href={adminEventRegistrationsPath(props.event.slug)}
           >
             {props.t('action_registrations')}
           </Link>
           <Link
-            className="text-sm font-medium text-mit-red-ink no-underline hover:underline"
+            className="text-sm font-medium text-mit-red no-underline hover:underline"
             href={adminEventDeletePath(props.event.slug)}
           >
             {props.t('action_delete')}
@@ -241,7 +225,7 @@ export function AdminEventsListView(props: AdminEventsListViewProps) {
           </span>
           <Search
             aria-hidden
-            className="pointer-events-none absolute bottom-2 left-2.5 size-4 text-muted-foreground dark:text-white"
+            className="pointer-events-none absolute bottom-2 left-2.5 size-4 text-mit-readable-ink"
           />
           <Input
             className="pl-8"
@@ -278,7 +262,7 @@ export function AdminEventsListView(props: AdminEventsListViewProps) {
         </div>
       </form>
 
-      <p className="text-sm text-muted-foreground dark:text-white">
+      <p className="text-sm text-mit-readable-ink">
         {props.t('list_count', { count: props.rows.length })}
       </p>
 
@@ -311,7 +295,7 @@ export function AdminEventsListView(props: AdminEventsListViewProps) {
               {props.rows.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    className="px-4 py-10 text-center text-sm text-muted-foreground dark:text-white"
+                    className="px-4 py-10 text-center text-sm text-mit-readable-ink"
                     colSpan={6}
                   >
                     {props.t('list_empty')}

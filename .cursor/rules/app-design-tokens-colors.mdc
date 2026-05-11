@@ -9,6 +9,7 @@ alwaysApply: false
 Single source of **CSS hex**: [`src/styles/mit-theme.css`](src/styles/mit-theme.css). Single source for **TS inline hex** (SVG, charts, rare `style=`): **`tokens.colors`** in [`src/lib/mit-sailing/tokens.ts`](src/lib/mit-sailing/tokens.ts). Institute palette reference: **[MIT Brand Guide — Color](https://brand.mit.edu/color)** — see [mit-brand-colors.mdc](mit-brand-colors.mdc).
 
 - **Foreground text:** use **`text-foreground`** / **`text-mit-text`** or **`tokens.colors.text`** (`#09090b` in light mode, aligned with `:root --foreground`) for readable copy. For hierarchy, use **font size, weight, or spacing**, not unverified low-contrast gray.
+- **Pure white in dark** (vs zinc `--foreground`): use **`text-mit-readable-ink`** (`--mit-readable-ink` in `mit-theme.css`); avoid stacking **`text-mit-text dark:text-white`** — encode light/dark in the token (Tailwind v4 `@theme` pattern).
 - **Brand reds:** **`text-mit-red`**, **`bg-primary`**, **`tokens.colors.mitRed`** — optional **`mitRedBright`** for expanded-palette emphasis only.
 - **New color roles:** add a CSS variable in `mit-theme.css`, wire it in `@theme inline`, then expose a **`tokens.colors`** field if TS needs the same value.
 

@@ -394,7 +394,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [e2e]
-    if: ${{ always() && !cancelled() }}
+    # Run even when e2e shards fail so the merged HTML report is still produced,
+    # but skip on cancellation (the merge step checks out sources and could hang).
+    # GitHub Actions docs recommend `!cancelled()` over `always()` for this case
+    # (Status check functions > always).
+    if: ${{ !cancelled() }}
 
     permissions:
       contents: read

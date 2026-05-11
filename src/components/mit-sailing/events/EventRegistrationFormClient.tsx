@@ -424,7 +424,6 @@ export function EventRegistrationForm(props: EventRegistrationFormProps) {
           aria-live="polite"
           className="rounded-lg border border-destructive bg-destructive/10 px-3 py-2 text-sm text-destructive"
           data-registration-error="true"
-          role="alert"
         >
           {formError}
         </p>

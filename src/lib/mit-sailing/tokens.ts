@@ -82,7 +82,7 @@ export const authInlineLinkClassName =
  */
 export const adminStatusPillToneClassName = {
   success: 'bg-mit-success/10 text-mit-success-ink ring-mit-success/30',
-  neutral: 'bg-muted text-muted-foreground ring-border',
+  neutral: 'bg-muted text-mit-readable-ink ring-border',
   danger:
     'bg-mit-red-50 text-mit-red-900 ring-mit-red-300 dark:bg-mit-red-950/70 dark:text-mit-red-100 dark:ring-mit-red-700',
 } as const;
@@ -104,7 +104,7 @@ export const adminEventListStatusBadgeToneClassName: Record<
   success: 'border-mit-success/30 bg-mit-success/10 text-mit-success-ink',
   danger:
     'border-mit-red-200 bg-mit-red-50 text-mit-red-900 dark:border-mit-red-700 dark:bg-mit-red-950/70 dark:text-mit-red-100',
-  neutral: 'border-border bg-muted/60 text-muted-foreground dark:text-white',
+  neutral: 'border-border bg-muted/60 text-mit-readable-ink',
 };
 
 /** Native `<select>` in admin catalog forms (server `FormData`; matches Input chrome). */

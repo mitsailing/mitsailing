@@ -56,7 +56,7 @@ export function AdminEventCreateFormView(props: AdminEventCreateFormViewProps) {
         <h1 className="text-3xl font-semibold tracking-tight text-foreground">
           {props.t('new_title')}
         </h1>
-        <p className="max-w-3xl text-sm text-muted-foreground dark:text-white">
+        <p className="max-w-3xl text-sm text-mit-readable-ink">
           {props.t('new_subtitle')}
         </p>
       </header>
@@ -223,7 +223,7 @@ export function AdminEventCreateFormView(props: AdminEventCreateFormViewProps) {
                 >
                   {props.t('detail_standard_label')}
                 </span>
-                <span className="text-xs text-muted-foreground dark:text-white">
+                <span className="text-xs text-mit-readable-ink">
                   {props.t('new_detail_standard_hint')}
                 </span>
               </span>
@@ -247,7 +247,7 @@ export function AdminEventCreateFormView(props: AdminEventCreateFormViewProps) {
                 >
                   {props.t('detail_external_label')}
                 </span>
-                <span className="text-xs text-muted-foreground dark:text-white">
+                <span className="text-xs text-mit-readable-ink">
                   {props.t('detail_external_hint')}
                 </span>
               </span>

@@ -9,12 +9,42 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import type { AdminStatusSemanticTone } from '@/lib/mit-sailing/tokens';
+import {
+  adminEventListStatusBadgeBaseClassName,
+  adminEventListStatusBadgeToneClassName,
+} from '@/lib/mit-sailing/tokens';
 import { cn } from '@/lib/utils';
 import { Link } from '@/libs/I18nNavigation';
 
 export type AdminEventsTranslations = Awaited<
   ReturnType<typeof getTranslations<'AdminEvents'>>
 >;
+
+/**
+ * Bordered status chip for admin event surfaces; classes come from
+ * {@link import("@/lib/mit-sailing/tokens").adminEventListStatusBadgeToneClassName}
+ * so colors stay on theme tokens (`mit-theme.css` / `@theme inline`), not raw
+ * palette utilities in call sites.
+ *
+ * @param props - Label content and semantic tone
+ * @returns Inline badge element
+ */
+export function AdminEventListStatusBadge(props: {
+  children: React.ReactNode;
+  tone: AdminStatusSemanticTone;
+}) {
+  return (
+    <span
+      className={cn(
+        adminEventListStatusBadgeBaseClassName,
+        adminEventListStatusBadgeToneClassName[props.tone]
+      )}
+    >
+      {props.children}
+    </span>
+  );
+}
 
 type AdminEventFormSectionProps = {
   title: React.ReactNode;
@@ -45,7 +75,7 @@ export function AdminEventFormSection(props: AdminEventFormSectionProps) {
 
 export function AdminEventEmptyState(props: { children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-dashed border-border bg-muted/40 px-4 py-6 text-center text-sm text-muted-foreground dark:text-white">
+    <div className="rounded-lg border border-dashed border-border bg-muted/40 px-4 py-6 text-center text-sm text-mit-readable-ink">
       {props.children}
     </div>
   );
@@ -65,9 +95,7 @@ export function AdminEventField(props: {
       </Label>
       {props.children}
       {props.hint ? (
-        <p className="text-xs text-muted-foreground dark:text-white">
-          {props.hint}
-        </p>
+        <p className="text-xs text-mit-readable-ink">{props.hint}</p>
       ) : null}
     </div>
   );
@@ -80,7 +108,7 @@ export function AdminEventCheckbox(props: {
   hint?: React.ReactNode;
 }) {
   return (
-    <label className="flex cursor-pointer items-start gap-2 text-sm text-mit-text">
+    <label className="flex cursor-pointer items-start gap-2 text-sm text-mit-readable-ink">
       <input name={props.name} type="hidden" value="false" />
       <input
         className="mt-0.5 size-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
@@ -92,9 +120,7 @@ export function AdminEventCheckbox(props: {
       <span className="flex min-w-0 flex-col gap-0.5">
         <span className="font-medium">{props.label}</span>
         {props.hint ? (
-          <span className="text-xs text-muted-foreground dark:text-white">
-            {props.hint}
-          </span>
+          <span className="text-xs text-mit-readable-ink">{props.hint}</span>
         ) : null}
       </span>
     </label>

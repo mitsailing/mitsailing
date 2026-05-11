@@ -64,6 +64,12 @@
   --mit-red-900: #2e0008;
   --mit-red-950: #1a0005;
   --mit-text: var(--foreground);
+  /**
+   * Strong default reading color: same as `--foreground` in light; in `.dark`,
+   * pure white (`#ffffff`) where zinc foreground (`#fafafa`) is too soft.
+   * Prefer `text-mit-readable-ink` over `text-mit-text dark:text-white`.
+   */
+  --mit-readable-ink: var(--foreground);
   --mit-surface: var(--muted);
   --mit-line: var(--border);
   --mit-footer-bg: #1a1b1e;
@@ -126,6 +132,7 @@
   --mit-red-hover: var(--mit-red-core);
   --mit-red-highlight: var(--accent);
   --mit-text: var(--foreground);
+  --mit-readable-ink: #ffffff;
   --mit-surface: var(--secondary);
   --mit-line: var(--border);
   --mit-footer-bg: var(--background);
@@ -153,6 +160,7 @@
   --color-mit-red-900: var(--mit-red-900);
   --color-mit-red-950: var(--mit-red-950);
   --color-mit-text: var(--mit-text);
+  --color-mit-readable-ink: var(--mit-readable-ink);
   --color-mit-surface: var(--mit-surface);
   --color-mit-line: var(--mit-line);
   --color-mit-success: var(--mit-success);

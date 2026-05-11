@@ -6,6 +6,7 @@ import {
   AdminEventBackLink,
   AdminEventEmptyState,
   AdminEventFormSection,
+  AdminEventListStatusBadge,
   adminEventFormErrorMessage,
 } from '@/components/mit-sailing/admin/events/AdminEventShared';
 import { Button } from '@/components/ui/button';
@@ -13,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { EventRegistrationStatus } from '@/generated/prisma/enums';
-import { cn } from '@/lib/utils';
+import type { AdminStatusSemanticTone } from '@/lib/mit-sailing/tokens';
 import { updateAdminEventRegistrationStatusAction } from '@/libs/admin/events/eventAdminActions';
 import {
   adminEventRegistrationsPath,
@@ -94,14 +95,16 @@ function emptyStatusMessage(
   return t('registrations_empty_status_cancelled');
 }
 
-function statusBadgeClassName(status: AdminEventRegistrationDto['status']) {
+function registrationStatusTone(
+  status: AdminEventRegistrationDto['status']
+): AdminStatusSemanticTone {
   if (status === EventRegistrationStatus.approved) {
-    return 'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-100';
+    return 'success';
   }
-  if (status === EventRegistrationStatus.pending) {
-    return 'border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100';
+  if (status === EventRegistrationStatus.cancelled) {
+    return 'danger';
   }
-  return 'border-border bg-muted text-muted-foreground';
+  return 'neutral';
 }
 
 function RegistrationFilters(props: {
@@ -183,18 +186,15 @@ function RegistrationCard(props: {
         <CardHeader className="gap-3 md:grid-cols-[1fr_auto]">
           <div className="min-w-0">
             <CardTitle>{props.registration.user.name}</CardTitle>
-            <p className="truncate text-sm text-muted-foreground dark:text-white">
+            <p className="truncate text-sm text-mit-readable-ink">
               {props.registration.user.email}
             </p>
           </div>
-          <span
-            className={cn(
-              'inline-flex w-fit items-center rounded-md border px-2 py-0.5 text-xs font-medium',
-              statusBadgeClassName(props.registration.status)
-            )}
+          <AdminEventListStatusBadge
+            tone={registrationStatusTone(props.registration.status)}
           >
             {statusLabel(props.registration.status, props.t)}
-          </span>
+          </AdminEventListStatusBadge>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <dl className="grid gap-3 text-sm md:grid-cols-2">
@@ -226,7 +226,7 @@ function RegistrationCard(props: {
               <dl className="mt-2 flex flex-col gap-2">
                 {props.registration.answers.map((answer) => (
                   <div key={answer.id}>
-                    <dt className="text-xs font-medium text-muted-foreground dark:text-white">
+                    <dt className="text-xs font-medium text-mit-readable-ink">
                       {answer.question.questionText}
                     </dt>
                     <dd className="text-sm text-foreground">{answer.value}</dd>
@@ -295,7 +295,7 @@ function BulkEmailPlaceholder(props: {
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
-        <p className="text-sm text-muted-foreground dark:text-white">
+        <p className="text-sm text-mit-readable-ink">
           {props.t('bulk_email_placeholder')}
         </p>
         <Input
@@ -309,7 +309,7 @@ function BulkEmailPlaceholder(props: {
           disabled
           placeholder={props.t('bulk_email_message')}
         />
-        <p className="text-xs text-muted-foreground dark:text-white">
+        <p className="text-xs text-mit-readable-ink">
           {props.t('bulk_email_recipients', { count: recipientCount })}
         </p>
         <Button disabled type="button" variant="mit">

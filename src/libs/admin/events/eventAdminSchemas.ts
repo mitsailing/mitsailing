@@ -228,10 +228,12 @@ export const eventQuestionFormSchema = z
   );
 
 /**
- * Zod `custom` issue `params.errorCode` when `parseUsdDecimalStringToMinorUnits`
- * rejects the fee amount (translate via `AdminEvents` at parse/redirect boundary).
+ * Zod `custom` issue `params.errorCode` when the fee dollar string does not parse
+ * to minor units (`parseUsdDecimalStringToMinorUnits` returns `null`). Zero and
+ * negative valid parses are rejected by `z.int().positive()` on the pipe — use
+ * {@link isEventAdminInvalidFeeAmountIssue} at the admin boundary for both cases.
  */
-export const EVENT_ADMIN_INVALID_FEE_AMOUNT_ERROR_CODE =
+const EVENT_ADMIN_INVALID_FEE_AMOUNT_ERROR_CODE =
   'invalid_event_fee_amount' as const;
 
 /**
@@ -240,7 +242,7 @@ export const EVENT_ADMIN_INVALID_FEE_AMOUNT_ERROR_CODE =
  * @param issue - Zod issue-like object with optional custom params
  * @returns Error code from `params.errorCode`, when present
  */
-export function zodCustomIssueParamsErrorCode(issue: {
+function zodCustomIssueParamsErrorCode(issue: {
   readonly code?: string;
   readonly params?: Record<string, unknown> | undefined;
 }): string | undefined {
@@ -251,7 +253,35 @@ export function zodCustomIssueParamsErrorCode(issue: {
   return typeof candidate === 'string' ? candidate : undefined;
 }
 
-/** Admin fee amount field: decimal dollar string from HTML → integer cents. */
+/**
+ * Whether a Zod issue for `eventFeeFormSchema` should use invalid-fee admin copy
+ * (`invalid_event_fee_amount`): unparseable dollar string (`custom` +
+ * {@link EVENT_ADMIN_INVALID_FEE_AMOUNT_ERROR_CODE}) or zero / negative cents
+ * after parse (`too_small` from `z.int().positive()` on `amountDollars`).
+ *
+ * @param issue - Raw Zod issue (path may end with `amountDollars`)
+ * @returns `true` when the issue maps to invalid fee amount admin copy
+ */
+export function isEventAdminInvalidFeeAmountIssue(issue: {
+  readonly code?: string;
+  readonly params?: Record<string, unknown> | undefined;
+  readonly path?: readonly PropertyKey[] | undefined;
+}): boolean {
+  if (
+    zodCustomIssueParamsErrorCode(issue) ===
+    EVENT_ADMIN_INVALID_FEE_AMOUNT_ERROR_CODE
+  ) {
+    return true;
+  }
+  return issue.code === 'too_small' && issue.path?.at(-1) === 'amountDollars';
+}
+
+/**
+ * Admin fee amount: decimal dollar string → integer cents. Parse failures use a
+ * `custom` issue; valid parses must pass `z.int().positive()` (matches Stripe
+ * USD `amount` > 0), mirroring the string → `pipe(z.int().positive())` style used
+ * for optional max participants in this module.
+ */
 const eventAdminFeeDollarStringToCentsSchema = z
   .string()
   .trim()
@@ -265,7 +295,8 @@ const eventAdminFeeDollarStringToCentsSchema = z
       return z.NEVER;
     }
     return cents;
-  });
+  })
+  .pipe(z.int().positive());
 
 export const eventFeeFormSchema = z
   .object({

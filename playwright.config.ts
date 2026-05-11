@@ -48,6 +48,13 @@ export default defineConfig<ChromaticConfig>({
   testDir: './tests/e2e',
   testMatch: '**/*.e2e.?(c|m)[jt]s?(x)',
   timeout: defaultTestTimeout,
+  // Serialized into blob/HTML reports; helps distinguish merged shard runs in CI.
+  metadata: {
+    environment: isCi ? 'ci' : 'local',
+    ...(isCi && process.env.GITHUB_SHA
+      ? { commit: process.env.GITHUB_SHA.slice(0, 7) }
+      : {}),
+  },
   forbidOnly: isCi,
   retries: isCi ? 2 : 0,
   fullyParallel: true,
@@ -64,7 +71,9 @@ export default defineConfig<ChromaticConfig>({
   // keeps CI e2e on the same server entrypoint as deploys.
   webServer: {
     command: 'node .next/standalone/server.js',
-    port: Number(PORT),
+    // Prefer `url` over `port`: wait until HTTP returns a ready status, not only a listening socket.
+    // See https://playwright.dev/docs/test-webserver
+    url: baseURL,
     timeout: 60_000,
     // Always spawn a fresh standalone server tied to this Playwright run so the
     // server uses the build env from `e2e:build` (correct NEXT_PUBLIC_APP_URL,

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { connection } from 'next/server';
 import { EventsListView } from '@/components/mit-sailing/events/EventsListView';
 import { SiteSectionMain } from '@/components/mit-sailing/SiteSectionMain';
 import { SiteSectionShell } from '@/components/mit-sailing/SiteSectionShell';
@@ -17,8 +18,6 @@ import {
   listPublishedEventDatesForCalendarMonth,
   listVisibleEventCategoriesForPublicCalendarMonth,
 } from '@/libs/mit-sailing/eventQueries';
-
-export const revalidate = 900;
 
 type PageProps = {
   params: Promise<{ locale: string }>;
@@ -49,7 +48,16 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
   return { title: t('meta_title_list') };
 }
 
+/**
+ * Public events calendar. Request-bound: `connection()` plus `searchParams` (month, category)
+ * tie this segment to each request; segment `revalidate` is not used (see catalog pages without
+ * query input for ISR).
+ *
+ * @param props - Locale params and calendar filters
+ * @returns Events calendar page
+ */
 export default async function EventsListPage(props: PageProps) {
+  await connection();
   const { locale } = await props.params;
   const { month: monthParam, category: categoryParam } =
     await props.searchParams;
