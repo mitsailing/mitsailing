@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 
-type PageProps = { params: Promise<{ locale: string }> };
+type MashneeDirectionsPageProps = { params: Promise<{ locale: string }> };
 
-export async function generateMetadata(props: PageProps): Promise<Metadata> {
+export async function generateMetadata(
+  props: MashneeDirectionsPageProps
+): Promise<Metadata> {
   const { locale } = await props.params;
   const t = await getTranslations({
     locale,
@@ -12,7 +14,9 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
   return { title: t('meta_title_mashnee') };
 }
 
-export default async function MashneeDirectionsPage(props: PageProps) {
+export default async function MashneeDirectionsPage(
+  props: MashneeDirectionsPageProps
+) {
   const { locale } = await props.params;
   setRequestLocale(locale);
   const t = await getTranslations({

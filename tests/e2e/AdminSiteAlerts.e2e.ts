@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { signInAsAdmin } from '../helpers/e2e-admin-sign-in';
+import { submitCatalogSave } from '../helpers/e2e-catalog-form';
 
 /**
  * Covers `/admin/site_alerts` CRUD paths that were previously untested (catalog
@@ -45,9 +46,11 @@ test.describe('Admin site alerts', () => {
     const marker = `E2E site alert ${Date.now()}`;
     await page.getByLabel('Alert message').fill(marker);
 
-    await page.getByRole('button', { name: 'Save' }).click();
-    await expect(page).toHaveURL(/\/admin\/site_alerts\/?$/);
+    await submitCatalogSave(page);
+    await expect(page).toHaveURL(/\/admin\/site_alerts\/[^/]+\/edit\/?$/);
+    await expect(page.getByRole('heading', { name: 'Edit row' })).toBeVisible();
 
+    await page.goto('/admin/site_alerts');
     await expect(page.getByRole('table').getByText(marker)).toBeVisible();
 
     await page.goto('/');
@@ -82,8 +85,10 @@ test.describe('Admin site alerts', () => {
     await page.getByLabel('Alert message').fill(marker);
     await page.getByLabel('Published on site').check();
 
-    await page.getByRole('button', { name: 'Save' }).click();
-    await expect(page).toHaveURL(/\/admin\/site_alerts\/?$/);
+    await submitCatalogSave(page);
+    await expect(page).toHaveURL(/\/admin\/site_alerts\/[^/]+\/edit\/?$/);
+
+    await page.goto('/admin/site_alerts');
     await expect(page.getByRole('table').getByText(marker)).toBeVisible();
 
     await page.goto('/');

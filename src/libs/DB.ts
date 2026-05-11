@@ -45,7 +45,16 @@ function createPrisma(): PrismaClient {
   });
 }
 
-const prisma = globalThis.cachedPrisma ?? createPrisma();
+function hasGeneratedModelSurface(client: PrismaClient): boolean {
+  return 'userAudit' in client;
+}
+
+const { cachedPrisma } = globalThis;
+const prisma =
+  cachedPrisma && hasGeneratedModelSurface(cachedPrisma)
+    ? cachedPrisma
+    : createPrisma();
+
 globalThis.cachedPrisma = prisma;
 
 export { prisma };

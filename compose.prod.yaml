@@ -32,11 +32,17 @@ services:
     env_file:
       - path: .env.production
         required: false
+    environment:
+      CMS_MEDIA_ROOT: /var/lib/mitsailing/cms-media
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - type: volume
+        source: cms_media
+        target: /var/lib/mitsailing/cms-media
     stop_grace_period: 30s
     command: ['node', 'server.js']
     deploy:
@@ -67,11 +73,17 @@ services:
     env_file:
       - path: .env.production
         required: false
+    environment:
+      CMS_MEDIA_ROOT: /var/lib/mitsailing/cms-media
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - type: volume
+        source: cms_media
+        target: /var/lib/mitsailing/cms-media
     stop_grace_period: 30s
     command: ['node', 'worker.cjs']
     deploy:
@@ -114,3 +126,8 @@ services:
       options:
         max-size: '10m'
         max-file: '3'
+
+volumes:
+  cms_media:
+    name: mitsailing_cms_media
+    external: true
