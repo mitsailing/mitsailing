@@ -47,6 +47,9 @@ export function isSafeCmsAppPath(
   value: string,
   options?: { allowQueryAndFragment?: boolean }
 ): boolean {
+  if (cmsHrefHasAsciiControlOrDelete(value)) {
+    return false;
+  }
   if (
     value.includes('\\') ||
     !value.startsWith('/') ||
@@ -142,6 +145,14 @@ export function safeCmsMenuItemHref(
     : undefined;
 }
 
+/**
+ * True when `href` is a safe app-root path for CMS UIs (rich text anchors, in-page links),
+ * including optional `?query` and `#fragment`. Rejects backslashes, `.` / `..` segments
+ * (including percent-encoded), non-leading slashes, and ASCII control/delete characters.
+ *
+ * @param href Candidate href string (typically from CMS content).
+ * @returns Whether the href is allowed as an app-relative CMS link.
+ */
 export function isAppRelativeCmsHref(href: string): boolean {
   return isSafeCmsAppPath(href, { allowQueryAndFragment: true });
 }

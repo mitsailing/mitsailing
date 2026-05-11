@@ -34,6 +34,7 @@ describe('cmsHref', () => {
   it('marks only app relative cms hrefs as internal', () => {
     expect(isAppRelativeCmsHref('/about')).toBe(true);
     expect(isAppRelativeCmsHref('https://sailing.mit.edu')).toBe(false);
+    expect(isAppRelativeCmsHref('/about\u0000/evil')).toBe(false);
   });
 
   describe('safeCmsMenuItemHref', () => {

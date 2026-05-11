@@ -55,6 +55,12 @@ describe('sanitizeCmsRichTextHtml', () => {
     );
   });
 
+  it('strips internal links with ascii control characters in path', () => {
+    expect(
+      sanitizeCmsRichTextHtml('<p><a href="/about\u0000/foo">x</a></p>')
+    ).toBe('<p>x</p>');
+  });
+
   it('keeps internal links with query and fragment on safe paths', () => {
     expect(sanitizeCmsRichTextHtml('<p><a href="/ok?x=1#h">z</a></p>')).toBe(
       '<p><a href="/ok?x=1#h">z</a></p>'

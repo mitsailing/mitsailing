@@ -44,6 +44,12 @@ function startsWithDangerousScheme(lowerHref: string): boolean {
   return prefixes.some((p) => normalizedHref.startsWith(p));
 }
 
+/**
+ * Allowed `<a href>` values for CMS rich text; app-relative paths use {@link isAppRelativeCmsHref}.
+ *
+ * @param href Raw href attribute value from sanitized HTML.
+ * @returns Whether the anchor href may be kept after sanitization.
+ */
 function isAllowedCmsRichTextHref(href: string): boolean {
   const h = href.trim();
   if (!h) {
