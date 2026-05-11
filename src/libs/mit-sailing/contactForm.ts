@@ -28,6 +28,39 @@ export const contactTopics = [
 
 export type ContactTopic = (typeof contactTopics)[number];
 
+/**
+ * Parses a raw topic label from form fields or URL search params into a known topic.
+ *
+ * @param value - Unvalidated topic string (decoded query value or select value)
+ * @returns The matching topic when the string equals a known option
+ */
+export function parseContactTopicParam(
+  value: string
+): ContactTopic | undefined {
+  for (const topic of contactTopics) {
+    if (topic === value) {
+      return topic;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Reads a topic from Next.js `searchParams` (string or repeated key) when present.
+ *
+ * @param value - Raw search param value for `topic`, if present
+ * @returns Parsed topic when the first value matches a known option
+ */
+export function parseContactTopicSearchParam(
+  value?: string | string[]
+): ContactTopic | undefined {
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (typeof raw !== 'string') {
+    return undefined;
+  }
+  return parseContactTopicParam(raw);
+}
+
 const contactTopicRoutes: Record<ContactTopic, string> = {
   'General questions': sailingContactEmail,
   'Visit the Pavilion': sailingContactEmail,

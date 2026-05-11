@@ -37,4 +37,19 @@ describe('ContactFormDialog', () => {
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
+
+  it('opens with dialog title matching topic from post-submit redirect', () => {
+    render(
+      <ContactFormDialog
+        currentYear={2026}
+        formAction={vi.fn(async () => {})}
+        initialTopic="Reserve Pavilion"
+        status="sent"
+      />
+    );
+
+    expect(
+      screen.getByRole('dialog', { name: 'Reserve Pavilion' })
+    ).toBeVisible();
+  });
 });

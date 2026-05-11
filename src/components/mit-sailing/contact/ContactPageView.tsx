@@ -13,12 +13,14 @@ import {
 } from '@/data/mit-sailing/pavilionInfoSeed';
 import type { PavilionAddressBlock } from '@/data/mit-sailing/pavilionInfoSeed';
 import { keyedStringItems } from '@/lib/keyedStringList';
+import type { ContactTopic } from '@/libs/mit-sailing/contactForm';
 
 type ContactPageViewProps = {
   currentYear: number;
   formAction: (formData: FormData) => Promise<void>;
   locale: string;
   status?: 'error' | 'invalid' | 'sent';
+  topic?: ContactTopic;
 };
 
 const sectionClassName = 'border-t border-mit-line py-10 md:py-12';
@@ -115,7 +117,7 @@ function MapLink(props: { href: string; children: React.ReactNode }) {
 /**
  * Renders the structured public contact page below CMS intro blocks.
  *
- * @param props - Contact form action, submit status, and current year
+ * @param props - Contact form action, submit status, optional topic from URL, locale, and current year
  * @returns Three-path contact UI, compact address details, and directions
  */
 export async function ContactPageView(props: ContactPageViewProps) {
@@ -133,6 +135,7 @@ export async function ContactPageView(props: ContactPageViewProps) {
         <ContactFormDialog
           currentYear={props.currentYear}
           formAction={props.formAction}
+          initialTopic={props.topic}
           status={props.status}
         />
         <div className="mt-6 grid gap-3 rounded-lg border border-mit-line bg-mit-surface p-4 text-sm text-mit-text md:grid-cols-3">

@@ -4,11 +4,14 @@ import { CmsPageBlocks } from '@/components/mit-sailing/cms/CmsPageBlocks';
 import { ContactPageView } from '@/components/mit-sailing/contact/ContactPageView';
 import { loadPublishedCmsPageByPath } from '@/libs/mit-sailing/cmsQueries';
 import { submitContactFormAction } from '@/libs/mit-sailing/contactActions';
-import { calendarYearInContactFormTimeZone } from '@/libs/mit-sailing/contactForm';
+import {
+  calendarYearInContactFormTimeZone,
+  parseContactTopicSearchParam,
+} from '@/libs/mit-sailing/contactForm';
 
 type ContactPageProps = {
   params: Promise<{ locale: string }>;
-  searchParams?: Promise<{ status?: string }>;
+  searchParams?: Promise<{ status?: string; topic?: string | string[] }>;
 };
 
 function contactStatus(
@@ -61,6 +64,7 @@ export default async function ContactPage(props: ContactPageProps) {
       formAction={formAction}
       locale={locale}
       status={contactStatus(searchParams?.status)}
+      topic={parseContactTopicSearchParam(searchParams?.topic)}
     />
   );
 

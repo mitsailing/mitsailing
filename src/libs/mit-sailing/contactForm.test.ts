@@ -4,6 +4,8 @@ import {
   calendarYearInContactFormTimeZone,
   contactTopics,
   parseContactSubmission,
+  parseContactTopicParam,
+  parseContactTopicSearchParam,
   recipientForContactTopic,
 } from '@/libs/mit-sailing/contactForm';
 
@@ -128,5 +130,31 @@ describe('buildContactEmail', () => {
         '[MIT Sailing Contact] General questions: Hello Bcc: attacker@example.com'
       );
     }
+  });
+});
+
+describe('parseContactTopicParam', () => {
+  it('returns topic for exact known labels', () => {
+    expect(parseContactTopicParam('Reserve Pavilion')).toBe('Reserve Pavilion');
+    expect(parseContactTopicParam('Visit the Pavilion')).toBe(
+      'Visit the Pavilion'
+    );
+  });
+
+  it('returns undefined for unknown labels', () => {
+    expect(parseContactTopicParam('Other')).toBeUndefined();
+  });
+});
+
+describe('parseContactTopicSearchParam', () => {
+  it('uses first value when search param is repeated', () => {
+    expect(parseContactTopicSearchParam(['Visit the Pavilion', 'Other'])).toBe(
+      'Visit the Pavilion'
+    );
+  });
+
+  it('returns undefined for missing or invalid values', () => {
+    expect(parseContactTopicSearchParam()).toBeUndefined();
+    expect(parseContactTopicSearchParam('nope')).toBeUndefined();
   });
 });

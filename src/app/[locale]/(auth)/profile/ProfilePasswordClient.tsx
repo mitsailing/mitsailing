@@ -1,5 +1,6 @@
 'use client';
 
+import * as Sentry from '@sentry/nextjs';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { mapProfilePasswordError } from '@/components/auth/profile/profileAuthErrorMaps';
@@ -15,7 +16,7 @@ import { Link as I18nLink } from '@/libs/I18nNavigation';
 export function ProfilePasswordClient() {
   const t = useTranslations('UserProfilePage');
   const tCommon = useTranslations('Common');
-  const { refetch: refetchSession } = authClient.useSession();
+  const { data, refetch: refetchSession } = authClient.useSession();
 
   const [passwordBanner, setPasswordBanner] =
     useState<ProfileBannerState>(null);
@@ -51,7 +52,13 @@ export function ProfilePasswordClient() {
       }
       try {
         await refetchSession();
-      } catch {
+      } catch (refetchError) {
+        Sentry.captureException(refetchError, {
+          extra: {
+            action: 'refetchSession after password change',
+            userId: data?.user.id ?? undefined,
+          },
+        });
         // Best-effort: password change already succeeded on the server.
       }
       setPasswordBanner({ kind: 'success', message: t('password_changed') });

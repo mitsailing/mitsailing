@@ -17,6 +17,7 @@ import type { ContactTopic } from '@/libs/mit-sailing/contactForm';
 type ContactFormDialogProps = {
   currentYear: number;
   formAction: (formData: FormData) => Promise<void>;
+  initialTopic?: ContactTopic;
   status?: 'error' | 'invalid' | 'sent';
 };
 
@@ -286,16 +287,17 @@ function ContactForm(
 /**
  * Renders topic cards and a focused modal contact form.
  *
- * @param props - Form action, submit status, and server current year
+ * @param props - Form action, submit status, optional topic from redirect, and server current year
  * @returns Three action cards plus modal form
  */
 export function ContactFormDialog(props: ContactFormDialogProps) {
   const t = useTranslations('MitSailingContact');
   const firstFieldRef = useRef<HTMLSelectElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
-  const [selectedTopic, setSelectedTopic] =
-    useState<ContactTopic>('General questions');
-  const [isOpen, setIsOpen] = useState(Boolean(props.status));
+  const [selectedTopic, setSelectedTopic] = useState<ContactTopic>(
+    () => props.initialTopic ?? 'General questions'
+  );
+  const [isOpen, setIsOpen] = useState(() => Boolean(props.status));
 
   function openForm(topic: ContactTopic): void {
     previouslyFocusedRef.current =

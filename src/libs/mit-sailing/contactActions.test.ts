@@ -42,7 +42,9 @@ describe('submitContactFormAction', () => {
 
     await expect(
       submitContactFormAction('en', validContactFormData())
-    ).rejects.toThrow('NEXT_REDIRECT:/contact?status=sent#contact-form');
+    ).rejects.toThrow(
+      'NEXT_REDIRECT:/contact?status=sent&topic=Reserve+Pavilion#contact-form'
+    );
 
     expect(sendTransactionalEmailMock).toHaveBeenCalledTimes(1);
     expect(sendTransactionalEmailMock).toHaveBeenCalledWith(
@@ -60,10 +62,22 @@ describe('submitContactFormAction', () => {
     formData.set('currentYear', '1900');
 
     await expect(submitContactFormAction('en', formData)).rejects.toThrow(
-      'NEXT_REDIRECT:/contact?status=invalid#contact-form'
+      'NEXT_REDIRECT:/contact?status=invalid&topic=Reserve+Pavilion#contact-form'
     );
 
     expect(sendTransactionalEmailMock).not.toHaveBeenCalled();
+  });
+
+  it('omits topic on invalid redirect when topic field is not a known label', async () => {
+    const { submitContactFormAction } =
+      await import('@/libs/mit-sailing/contactActions');
+    const formData = validContactFormData();
+    formData.set('currentYear', '1900');
+    formData.set('topic', 'not-a-topic');
+
+    await expect(submitContactFormAction('en', formData)).rejects.toThrow(
+      'NEXT_REDIRECT:/contact?status=invalid#contact-form'
+    );
   });
 
   it('redirects with error when contact email sending fails', async () => {
@@ -73,7 +87,9 @@ describe('submitContactFormAction', () => {
 
     await expect(
       submitContactFormAction('en', validContactFormData())
-    ).rejects.toThrow('NEXT_REDIRECT:/contact?status=error#contact-form');
+    ).rejects.toThrow(
+      'NEXT_REDIRECT:/contact?status=error&topic=Reserve+Pavilion#contact-form'
+    );
 
     expect(sendTransactionalEmailMock).toHaveBeenCalledTimes(1);
   });
