@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MockInstance } from 'vitest';
 
 const mockEnv = vi.hoisted(() => ({
-  NEXT_PUBLIC_IS_E2E: undefined as '1' | undefined,
+  IS_E2E: undefined as '1' | undefined,
   NODE_ENV: 'production' as 'development' | 'production' | 'test',
 }));
 
@@ -41,7 +41,7 @@ describe('assertPasswordNotCompromised', () => {
 
   beforeEach(() => {
     vi.resetModules();
-    mockEnv.NEXT_PUBLIC_IS_E2E = undefined;
+    mockEnv.IS_E2E = undefined;
     mockEnv.NODE_ENV = 'production';
     fetchSpy = vi.spyOn(globalThis, 'fetch');
     warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -67,7 +67,7 @@ describe('assertPasswordNotCompromised', () => {
   });
 
   it('skip breach lookup when e2e env disables checks', async () => {
-    mockEnv.NEXT_PUBLIC_IS_E2E = '1';
+    mockEnv.IS_E2E = '1';
     const { assertPasswordNotCompromised, passwordCompromiseCheckEnabled } =
       await import('@/libs/auth/password-compromise');
 

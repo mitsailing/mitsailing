@@ -1,3 +1,4 @@
+import 'server-only';
 import { prisma } from '@/libs/DB';
 import { plainTextFromCmsRichTextHtml } from '@/libs/mit-sailing/cmsRichText';
 

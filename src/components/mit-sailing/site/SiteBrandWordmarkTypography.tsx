@@ -1,7 +1,7 @@
 import { siteBrandMitWordmarkDefaultClassName } from '@/lib/mit-sailing/tokens';
 
 const shellClassName =
-  'font-mit-serif text-[22px] font-bold tracking-tight text-mit-text dark:text-white';
+  'font-mit-serif text-[22px] font-bold tracking-tight text-mit-readable-ink';
 
 const authClassName =
   'font-mit-serif text-[22px] font-bold tracking-tight text-mit-text';

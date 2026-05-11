@@ -276,7 +276,7 @@ export default async function AdminSailingClassPrerequisitesPage(
                 {t('assoc_pagination_prev')}
               </Link>
             ) : (
-              <span className="text-slate-400">
+              <span className="text-muted-foreground">
                 {t('assoc_pagination_prev')}
               </span>
             )}
@@ -288,7 +288,7 @@ export default async function AdminSailingClassPrerequisitesPage(
                 {t('assoc_pagination_next')}
               </Link>
             ) : (
-              <span className="text-slate-400">
+              <span className="text-muted-foreground">
                 {t('assoc_pagination_next')}
               </span>
             )}

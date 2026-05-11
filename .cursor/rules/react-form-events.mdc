@@ -1,37 +1,18 @@
 ---
-description: React 19 form event types (FormEvent/FormEventHandler are deprecated)
+description: React 19 — use SubmitEvent for onSubmit; FormEvent is deprecated
 globs: **/*.tsx
 alwaysApply: false
 ---
 
 # React 19 form event types
 
-This project is on `react@19` with `@types/react@19.2+`, where
-`React.FormEvent` and `React.FormEventHandler` are **deprecated**. The
-documented replacements are `React.SubmitEvent` and `React.SubmitEventHandler`
-(see `node_modules/@types/react/index.d.ts` — the deprecation JSDoc on
-`FormEvent` literally points at `SubmitEvent`, and `HTMLAttributes.onSubmit` is
-typed as `SubmitEventHandler<T>`).
-
-Sources:
-- DefinitelyTyped PR [#74383](https://github.com/DefinitelyTyped/DefinitelyTyped/pull/74383) ("deprecates `React.FormEvent` which has no counterpart in the DOM")
-- typescript-cheatsheets/react [c299ceb](https://github.com/typescript-cheatsheets/react/commit/c299ceb2d0d26cdff06b2350b2ed6fd8d2449cc0) ("`FormEvent` and `FormEventHandler` are deprecated and should be replaced with `SubmitEvent` and `SubmitEventHandler`")
+On `react@19` / `@types/react@19.2+`, **`React.FormEvent` / `React.FormEventHandler` are deprecated** for submit flows. Use **`React.SubmitEvent<HTMLFormElement>`** (and `SubmitEventHandler`) — see `@types/react` deprecation on `FormEvent` and `HTMLAttributes.onSubmit` typing.
 
 ## Typing `onSubmit`
 
-Prefer a named handler typed with `React.SubmitEvent<HTMLFormElement>`. Don't
-wrap it in an anonymous `(event) => { event.preventDefault(); void fn(); }` just
-to satisfy a lint rule — that splits `preventDefault` from the submit logic for
-no reason.
+Use a **named** handler with `React.SubmitEvent<HTMLFormElement>`; avoid anonymous wrappers that split `preventDefault` from submit logic. **`useActionState` + `<form action>`** when the submit is a Server Action; keep a typed **`onSubmit`** for client SDK flows (e.g. `authClient.*`) — do not migrate those to `useActionState` only because it is newer.
 
 ```tsx
-// BAD — deprecated type
-const onSubmit: React.FormEventHandler<HTMLFormElement> = (e) => { /* ... */ };
-
-// BAD — works, but loses the named/reusable handler and the accurate type
-<form onSubmit={(event) => { event.preventDefault(); void handleSubmit(); }}>
-
-// GOOD — matches how the onSubmit prop is typed in @types/react 19
 async function onSubmit(event: React.SubmitEvent<HTMLFormElement>) {
   event.preventDefault();
   // ...
@@ -40,14 +21,4 @@ async function onSubmit(event: React.SubmitEvent<HTMLFormElement>) {
 <form onSubmit={onSubmit}>
 ```
 
-`React.SyntheticEvent<HTMLFormElement>` is accepted as a fallback by the
-deprecation message, but `SubmitEvent` is more specific and is what the prop's
-type actually is, so use `SubmitEvent`.
-
-## When to use React 19 Actions instead
-
-`useActionState` + `<form action={...}>` is the right pattern when the submit
-does server work (Server Actions / server functions). For flows that call a
-client SDK (e.g. `authClient.*` from `src/libs/auth-client.ts`) and then do
-client-side routing or error mapping, a plain typed `onSubmit` handler is still
-appropriate — don't migrate those to `useActionState` just because it's newer.
+`React.SyntheticEvent<HTMLFormElement>` is a weaker fallback; prefer **`SubmitEvent`**.

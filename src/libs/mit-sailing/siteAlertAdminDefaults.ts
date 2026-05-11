@@ -1,4 +1,4 @@
-import { addNyCalendarDays, nyYmd } from '@/lib/mit-sailing/nyTime';
+import { nextNyCalendarDay, nyYmd } from '@/lib/mit-sailing/nyTime';
 import type { CatalogRow } from '@/libs/admin/catalog/types';
 
 /**
@@ -8,7 +8,7 @@ import type { CatalogRow } from '@/libs/admin/catalog/types';
  * @returns Eastern civil date key (`YYYY-MM-DD`) for the following calendar day
  */
 export function easternNextCalendarDayIso(fromInstant: Date): string {
-  return addNyCalendarDays(nyYmd(fromInstant), 1);
+  return nextNyCalendarDay(nyYmd(fromInstant));
 }
 
 /**

@@ -2,6 +2,7 @@ import { ArrowLeft } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import Image from 'next/image';
 import { PublicAdminEditLink } from '@/components/mit-sailing/admin/PublicAdminEditLink';
+import { PublicCatalogDetailTopNav } from '@/components/mit-sailing/admin/PublicCatalogDetailTopNav';
 import { CmsRichText } from '@/components/mit-sailing/cms/CmsRichText';
 import { keyedStringItems } from '@/lib/keyedStringList';
 import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
@@ -39,16 +40,19 @@ export async function ClassDetailView(props: ClassDetailViewProps) {
 
   return (
     <>
-      <PublicAdminEditLink
-        href={adminCatalogResourceEditPath('sailing_classes', cl.id)}
-      />
-      <Link
-        className={`mb-8 inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-mit-red-ink no-underline hover:underline ${textFocusRingClassName}`}
-        href="/classes"
-      >
-        <ArrowLeft aria-hidden size={16} />
-        {t('back_to_classes')}
-      </Link>
+      <PublicCatalogDetailTopNav>
+        <Link
+          className={`inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-mit-red-ink no-underline hover:underline ${textFocusRingClassName}`}
+          href="/classes"
+        >
+          <ArrowLeft aria-hidden size={16} />
+          {t('back_to_classes')}
+        </Link>
+        <PublicAdminEditLink
+          className="mb-0 ml-auto shrink-0"
+          href={adminCatalogResourceEditPath('sailing_classes', cl.id)}
+        />
+      </PublicCatalogDetailTopNav>
       <p className="mb-2 text-xs font-semibold tracking-wide text-mit-text uppercase">
         {cl.classCategory.name}
       </p>

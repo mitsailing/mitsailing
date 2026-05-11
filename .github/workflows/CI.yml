@@ -2,7 +2,8 @@ name: CI
 
 # Runs only on pull requests targeting `main`. Post-merge CI is intentionally
 # disabled — the branch-protection ruleset (`.github/rulesets/main-branch.json`)
-# requires these same checks to pass on the PR before merge, so re-running them
+# requires these same checks to pass on the PR before merge (`Run E2E tests` is
+# the `e2e-required` fan-in after sharded Playwright jobs), so re-running them
 # on the merge commit would just duplicate ~15–20 min of work per PR.
 #
 # `release.yml` triggers directly on `push: main` (not `workflow_run: CI`) so
@@ -44,6 +45,7 @@ env:
   # Bootstrap an admin user during `prisma db seed` in e2e preflight (see prisma/seed.ts).
   ADMIN_EMAIL: e2e-admin@example.com
   ADMIN_PASSWORD: 'Correct-Horse-Battery-Staple-E2E-32!!'
+  NODE_VERSION: 24.x
 
 jobs:
   build:
@@ -99,6 +101,12 @@ jobs:
         env:
           NEXT_PUBLIC_SENTRY_DISABLED: 'true' # Only upload Sentry source maps in deployment
           NEXT_PUBLIC_APP_URL: http://localhost:3008
+
+      # Records the inlined public origin so `E2E_SKIP_BUILD=1` never reuses a
+      # `.next` built for a different NEXT_PUBLIC_APP_URL (Better Auth INVALID_ORIGIN).
+      - name: Mark Next output for E2E skip-build
+        if: success()
+        run: node scripts/e2e-build.cjs --write-e2e-ready-marker
 
       - if: success()
         name: Cache Next.js build output
@@ -276,12 +284,15 @@ jobs:
 
   e2e:
     strategy:
+      fail-fast: false
       matrix:
         node-version: [24.x]
+        shardIndex: [1, 2, 3]
+        shardTotal: [3]
 
-    name: Run E2E tests
+    name: Run E2E shard (${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 20
     needs: [build]
 
     permissions:
@@ -300,19 +311,32 @@ jobs:
           node-version: ${{ matrix.node-version }}
           restore-nextjs-cache: true
 
+      # Chromium-only on the PR gate (faster CI, matches deploy engine). The
+      # `firefox` Playwright project is omitted unless PLAYWRIGHT_INCLUDE_FIREFOX=1
+      # and `npx playwright install firefox --with-deps` — see e2e-verification.mdc.
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium firefox
+        run: npx playwright install chromium --with-deps
 
       # Run e2e tests directly on the runner so the Playwright process can
       # reach the docker-compose services on localhost:5432 / localhost:1025
       # (a `uses: docker://` step would run in an isolated container that
       # cannot reach host services).
-      - name: Run E2E tests
-        run: npm run test:e2e
+      - name: Run E2E preflight
+        timeout-minutes: 3
+        run: npm run e2e:preflight
+
+      - name: Prepare cached E2E build
+        timeout-minutes: 2
+        run: npm run e2e:build
         env:
           E2E_SKIP_BUILD: '1' # .next restored from the `build` job; cal.com also builds before e2e, not inside the e2e script
 
+      - name: Run E2E tests
+        timeout-minutes: 5
+        run: npm run e2e -- --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+
       - name: Fix test results permission # Give permissions to test results needed by Chromatic
+        if: ${{ !cancelled() && hashFiles('test-results/**') != '' }}
         run: |
           sudo chmod -R 777 test-results
 
@@ -329,12 +353,87 @@ jobs:
 
       - name: Upload test results
         uses: actions/upload-artifact@v7
-        if: always()
+        if: ${{ !cancelled() && hashFiles('test-results/**') != '' }}
         with:
-          name: test-results
+          name: test-results-${{ matrix.shardIndex }}
           path: test-results/
+          retention-days: 7
+
+      - name: Upload blob report
+        uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() && hashFiles('blob-report/**') != '' }}
+        with:
+          name: blob-report-${{ matrix.shardIndex }}
+          path: blob-report/
           retention-days: 7
 
       - name: Always teardown E2E DB services
         if: always()
         run: npm run db:test:down
+
+  # Fan-in after the sharded `e2e` matrix: a job that `needs` a matrix parent
+  # waits for every matrix leg to finish successfully (GitHub Actions dependency
+  # semantics). Exposes one stable check name for branch rulesets; shard labels
+  # stay on the matrix jobs for debugging.
+  e2e-required:
+    name: Run E2E tests (24.x)
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    needs: [e2e]
+    # `always()` is required so this job still runs when `e2e` is skipped (e.g.
+    # `build` failed) and can fail the gate; `!cancelled()` alone does not run
+    # dependents of skipped jobs. See GitHub Actions "Skipping job applications".
+    if: ${{ always() }}
+    steps:
+      - name: Verify E2E shards
+        run: |
+          if [ "${E2E_RESULT}" != "success" ]; then
+            echo "E2E shards finished with result: ${E2E_RESULT}"
+            exit 1
+          fi
+          echo "All E2E shards completed successfully."
+        env:
+          E2E_RESULT: ${{ needs.e2e.result }}
+
+  merge-e2e-reports:
+    name: Merge E2E reports
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [e2e]
+    # Run even when e2e shards fail so the merged HTML report is still produced,
+    # but skip on cancellation (the merge step checks out sources and could hang).
+    # GitHub Actions docs recommend `!cancelled()` over `always()` for this case
+    # (Status check functions > always).
+    if: ${{ !cancelled() }}
+
+    permissions:
+      contents: read
+      actions: read
+      artifact-metadata: write
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Node.js environment
+        uses: ./.github/actions/setup-project
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Download blob reports
+        uses: actions/download-artifact@v7
+        with:
+          pattern: blob-report-*
+          path: all-blob-reports
+          merge-multiple: true
+
+      - name: Merge Playwright reports
+        timeout-minutes: 5
+        run: npx playwright merge-reports --reporter html ./all-blob-reports
+
+      - name: Upload merged E2E report
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: playwright-report--attempt-${{ github.run_attempt }}
+          path: playwright-report/
+          retention-days: 7

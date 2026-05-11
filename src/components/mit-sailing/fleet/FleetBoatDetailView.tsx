@@ -2,6 +2,7 @@ import { ArrowLeft } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import Image from 'next/image';
 import { PublicAdminEditLink } from '@/components/mit-sailing/admin/PublicAdminEditLink';
+import { PublicCatalogDetailTopNav } from '@/components/mit-sailing/admin/PublicCatalogDetailTopNav';
 import { CmsRichText } from '@/components/mit-sailing/cms/CmsRichText';
 import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
 import { adminCatalogResourceEditPath } from '@/libs/admin/catalog/adminCatalogPaths';
@@ -38,16 +39,19 @@ export async function FleetBoatDetailView(props: FleetBoatDetailViewProps) {
 
   return (
     <>
-      <PublicAdminEditLink
-        href={adminCatalogResourceEditPath('fleet', boat.id)}
-      />
-      <Link
-        className={`mb-8 inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-mit-red-ink no-underline hover:underline ${textFocusRingClassName}`}
-        href="/fleet"
-      >
-        <ArrowLeft aria-hidden size={16} />
-        {t('back_to_fleet')}
-      </Link>
+      <PublicCatalogDetailTopNav>
+        <Link
+          className={`inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-mit-red-ink no-underline hover:underline ${textFocusRingClassName}`}
+          href="/fleet"
+        >
+          <ArrowLeft aria-hidden size={16} />
+          {t('back_to_fleet')}
+        </Link>
+        <PublicAdminEditLink
+          className="mb-0 ml-auto shrink-0"
+          href={adminCatalogResourceEditPath('fleet', boat.id)}
+        />
+      </PublicCatalogDetailTopNav>
       <h1 className="mb-3 font-mit-serif text-[clamp(1.75rem,4vw,2.25rem)] leading-tight font-semibold tracking-tight text-mit-text">
         {boat.name}
       </h1>

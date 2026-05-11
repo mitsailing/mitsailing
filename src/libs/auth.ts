@@ -34,14 +34,15 @@ const argonOpts: Options = {
 };
 
 const isProd = Env.NODE_ENV === 'production';
-// Playwright runs `next start` with NODE_ENV=production (so `isProd` is true
+// Playwright runs the production Next server (standalone `webServer` in
+// playwright.config.ts) with NODE_ENV=production (so `isProd` is true
 // during e2e), but tests intentionally pound sign-up/sign-in from the same
 // localhost IP across parallel workers — the account-lockout test alone does
 // 6 sign-ins, which exceeds the 5/60s cap. Disable Better Auth's IP rate
 // limiter under the e2e flag so lockout + "email already exists" tests can
-// reach the logic they care about. The flag is set by `e2e-build.cjs` at
-// build time and by playwright.config.ts at runtime.
-const isE2E = Env.NEXT_PUBLIC_IS_E2E === '1';
+// reach the logic they care about. Use server-only `IS_E2E` (not
+// `NEXT_PUBLIC_*`) so CI `.next` cache is not build-tainted for other jobs.
+const isE2E = Env.IS_E2E === '1';
 
 export const auth = betterAuth({
   baseURL: Env.NEXT_PUBLIC_APP_URL,

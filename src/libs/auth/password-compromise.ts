@@ -9,7 +9,7 @@ const HIBP_TIMEOUT_MS = 5000;
 const HIBP_USER_AGENT = 'BetterAuth Password Checker';
 
 export const passwordCompromiseCheckEnabled =
-  Env.NODE_ENV !== 'test' && Env.NEXT_PUBLIC_IS_E2E !== '1';
+  Env.NODE_ENV !== 'test' && Env.IS_E2E !== '1';
 
 function isAbortError(error: unknown): boolean {
   return (

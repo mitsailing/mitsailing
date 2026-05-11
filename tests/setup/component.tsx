@@ -111,6 +111,8 @@ function createTranslator(namespace: string) {
 }
 
 vi.mock('next-intl', () => ({
+  createTranslator: (options: { namespace?: string }) =>
+    createTranslator(options.namespace ?? ''),
   useLocale: () => 'en',
   useTranslations: (namespace: string) => createTranslator(namespace),
 }));

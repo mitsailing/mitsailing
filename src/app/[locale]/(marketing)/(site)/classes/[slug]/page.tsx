@@ -10,8 +10,7 @@ export const revalidate = 900;
 type PageProps = { params: Promise<{ locale: string; slug: string }> };
 
 export async function generateMetadata(props: PageProps): Promise<Metadata> {
-  const { locale, slug: raw } = await props.params;
-  const slug = decodeURIComponent(raw);
+  const { locale, slug } = await props.params;
   const sailingClass = await getSailingClassCatalogBySlug(slug);
   if (!sailingClass) {
     const t = await getTranslations({
@@ -24,8 +23,7 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
 }
 
 export default async function ClassDetailPage(props: PageProps) {
-  const { locale, slug: raw } = await props.params;
-  const slug = decodeURIComponent(raw);
+  const { locale, slug } = await props.params;
   setRequestLocale(locale);
   const sailingClass = await getSailingClassCatalogBySlug(slug);
   if (!sailingClass) {

@@ -64,11 +64,24 @@
   --mit-red-900: #2e0008;
   --mit-red-950: #1a0005;
   --mit-text: var(--foreground);
+  /**
+   * Strong default reading color: same as `--foreground` in light; in `.dark`,
+   * pure white (`#ffffff`) where zinc foreground (`#fafafa`) is too soft.
+   * Prefer `text-mit-readable-ink` over `text-mit-text dark:text-white`.
+   */
+  --mit-readable-ink: var(--foreground);
   --mit-surface: var(--muted);
   --mit-line: var(--border);
   --mit-footer-bg: #1a1b1e;
   --mit-hero-ink: #0a1628;
-  --mit-success: #16a34a;
+  /** Semantic status (Tailwind v4-style OKLCH; matches default green-600 / amber-700). */
+  --mit-success: oklch(62.7% 0.194 149.214);
+  /** Text/icons on white or on `bg-mit-success/10` (AA); `--mit-success` stays the fill/tint hue. */
+  --mit-success-ink: oklch(52% 0.14 149.214);
+  /** Tint / overlays (e.g. `bg-mit-warning/10`). Same hue as Tailwind `amber-700`. */
+  --mit-warning: oklch(55.5% 0.163 48.998);
+  /** Readable on `bg-mit-warning/10` in light (`amber-800` scale). Dark: warm foreground on tinted dark surfaces. */
+  --mit-warning-ink: oklch(47.3% 0.137 46.201);
   --mit-cat: #0f766e;
 }
 
@@ -82,7 +95,7 @@
   --popover-foreground: #fafafa;
   --primary: #fafafa;
   --primary-foreground: #18181b;
-  --primary-ink: #fb7185;
+  --primary-ink: var(--primary);
   --secondary: #27272a;
   --secondary-foreground: #fafafa;
   --muted: #27272a;
@@ -91,8 +104,9 @@
   --accent-foreground: #fafafa;
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
-  --border: #27272a;
-  --input: #27272a;
+  /** Slightly lighter than `secondary` so `border-input` / `border-border` read on `#09090b` without chalk-white strokes. */
+  --border: #3f3f46;
+  --input: #3f3f46;
   --input-background: #18181b;
   --switch-background: #52525b;
   --ring: #d4d4d8;
@@ -105,15 +119,28 @@
   --sidebar-border: #27272a;
   --sidebar-ring: #d4d4d8;
   --mit-red-core: #750014;
-  /** Readable rose ink on dark surfaces (links/wordmarks); ramp stays shared below. */
-  --mit-red-ink: #fb7185;
-  --mit-red-hover: #fda4af;
+  /** White ink on dark surfaces for public text/link contrast; ramp stays shared below. */
+  --mit-red-ink: var(--foreground);
+  /**
+   * In dark mode, hover keeps the MIT Red base so white text stays AA-compliant
+   * (white-on-#750014 ≈ 10.4:1). Lighter pinks fail SC 1.4.3 with `text-white` on
+   * primary CTAs (~1.8:1) and Bright Red `#ff1423` only reaches ~3.9:1, so MIT
+   * Red is the only on-brand AA-safe hover background. Mouse-hover affordance is
+   * restored on consumers via a `dark:hover:ring-inset ring-white/30` outline
+   * (WCAG technique C41-style two-color indicator).
+   */
+  --mit-red-hover: var(--mit-red-core);
   --mit-red-highlight: var(--accent);
   --mit-text: var(--foreground);
+  --mit-readable-ink: #ffffff;
   --mit-surface: var(--secondary);
   --mit-line: var(--border);
   --mit-footer-bg: var(--background);
   --mit-hero-ink: var(--foreground);
+  /** Lighter amber ink for dark tinted surfaces (see `RegistrationStatusPill` warning tone). */
+  --mit-warning-ink: oklch(74% 0.13 52);
+  /** Lighter green ink on dark page/tint surfaces (paired with `--mit-success`). */
+  --mit-success-ink: oklch(72% 0.11 149.214);
 }
 
 @theme inline {
@@ -133,9 +160,13 @@
   --color-mit-red-900: var(--mit-red-900);
   --color-mit-red-950: var(--mit-red-950);
   --color-mit-text: var(--mit-text);
+  --color-mit-readable-ink: var(--mit-readable-ink);
   --color-mit-surface: var(--mit-surface);
   --color-mit-line: var(--mit-line);
   --color-mit-success: var(--mit-success);
+  --color-mit-success-ink: var(--mit-success-ink);
+  --color-mit-warning: var(--mit-warning);
+  --color-mit-warning-ink: var(--mit-warning-ink);
   --color-mit-cat: var(--mit-cat);
   --color-mit-hero-ink: var(--mit-hero-ink);
   --color-mit-footer: var(--mit-footer-bg);
