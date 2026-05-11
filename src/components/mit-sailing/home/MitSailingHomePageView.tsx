@@ -9,7 +9,6 @@ import {
 } from '@/lib/mit-sailing/tokens';
 import { getSession } from '@/libs/auth/dal';
 import { Link } from '@/libs/I18nNavigation';
-import { logger } from '@/libs/Logger';
 import { parseCmsHomeOverviewBody } from '@/libs/mit-sailing/cmsHomeOverview';
 import {
   externalCmsLinkProps,
@@ -397,19 +396,16 @@ export async function MitSailingHomePageView(
     getSession(),
     loadPublishedCmsPageByPath('/'),
   ]);
-  if (!cmsHomePage) {
-    logger.error('Missing CMS homepage', { path: '/' });
-    throw new Error('Published CMS home page is missing');
-  }
 
   const isSignedIn = Boolean(session?.user?.id);
-  const homeHeroBlock = cmsHomePage.blocks.find(
+  const cmsHomePageBlocks = cmsHomePage?.blocks ?? [];
+  const homeHeroBlock = cmsHomePageBlocks.find(
     (block) => block.kind === 'hero'
   );
-  const homeOverviewBlock = cmsHomePage.blocks.find(
+  const homeOverviewBlock = cmsHomePageBlocks.find(
     (block) => block.kind === 'home_overview'
   );
-  const homeClassesBlock = cmsHomePage.blocks.find(
+  const homeClassesBlock = cmsHomePageBlocks.find(
     (block) => block.kind === 'home_classes'
   );
 
@@ -434,7 +430,7 @@ export async function MitSailingHomePageView(
     ? limitHomeUpcomingDayGroups(upcomingDayGroups, homeOverviewData.eventCount)
     : [];
   const orderedHomeCmsBlocks: HomeOrderedStripBlock[] =
-    cmsHomePage.blocks.filter(
+    cmsHomePageBlocks.filter(
       (block): block is HomeOrderedStripBlock =>
         block.kind === 'callout' ||
         block.kind === 'text_section' ||

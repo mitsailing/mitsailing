@@ -16,16 +16,7 @@ const homeMocks = vi.hoisted(() => ({
   loadHomeLearnToSailNextClassesBySlugs: vi.fn(),
   loadHomeLearnToSailPrerequisiteNamesByIds: vi.fn(),
   loadPublishedCmsPageByPath: vi.fn(),
-  loggerError: vi.fn(),
   setRequestLocale: vi.fn(),
-}));
-
-vi.mock('@/libs/Logger', () => ({
-  logger: {
-    error: homeMocks.loggerError,
-    info: vi.fn(),
-    warn: vi.fn(),
-  },
 }));
 
 vi.mock('next-intl/server', () => ({
@@ -311,19 +302,18 @@ describe('MitSailingHomePageView', () => {
     homeMocks.loadHomeLearnToSailPrerequisiteNamesByIds.mockResolvedValue(
       new Map([['intro-id', 'Intro Sailing']])
     );
-    homeMocks.loggerError.mockReset();
     homeMocks.setRequestLocale.mockReset();
   });
 
-  it('logs and throws when the published CMS homepage is missing', async () => {
+  it('renders fallback shell when the published CMS homepage is missing', async () => {
     homeMocks.loadPublishedCmsPageByPath.mockResolvedValue(null);
 
-    await expect(MitSailingHomePageView({ locale: 'en' })).rejects.toThrow(
-      'Published CMS home page is missing'
-    );
-    expect(homeMocks.loggerError).toHaveBeenCalledWith('Missing CMS homepage', {
-      path: '/',
-    });
+    const result = render(await MitSailingHomePageView({ locale: 'en' }));
+
+    expect(result.container.querySelector('section')).toBeNull();
+    expect(
+      homeMocks.loadHomeLearnToSailNextClassesBySlugs
+    ).not.toHaveBeenCalled();
   });
 
   it('renders cms home sections with events and class paths', async () => {
