@@ -9,6 +9,10 @@ import { adminCatalogResourceEditPath } from '@/libs/admin/catalog/adminCatalogP
 import { Link } from '@/libs/I18nNavigation';
 import type { SailingClassCatalogDetail } from '@/libs/mit-sailing/classQueries';
 import type { ClassRelatedEventBlock } from '@/libs/mit-sailing/classRelatedOccurrences';
+import {
+  cmsRichTextContainsRenderedImageFromSanitized,
+  sanitizeCmsRichTextHtml,
+} from '@/libs/mit-sailing/cmsRichText';
 
 type ClassDetailViewProps = {
   locale: string;
@@ -28,6 +32,9 @@ export async function ClassDetailView(props: ClassDetailViewProps) {
   });
 
   const bodyClass = 'text-base leading-relaxed text-mit-text';
+  const sanitizedDescription = sanitizeCmsRichTextHtml(cl.description);
+  const descriptionHasImage =
+    cmsRichTextContainsRenderedImageFromSanitized(sanitizedDescription);
   const [primaryImage, ...moreImages] = cl.imagePaths;
 
   return (
@@ -51,7 +58,7 @@ export async function ClassDetailView(props: ClassDetailViewProps) {
       <p className={`${bodyClass} mb-2 text-sm`}>
         {t('level_label')} <strong className="font-semibold">{cl.level}</strong>
       </p>
-      {primaryImage ? (
+      {primaryImage && !descriptionHasImage ? (
         <div className="relative mt-6 mb-6 aspect-[16/10] max-h-[420px] overflow-hidden rounded-xl bg-mit-line">
           <Image
             alt={cl.name}
@@ -59,7 +66,9 @@ export async function ClassDetailView(props: ClassDetailViewProps) {
             fill
             sizes="(max-width: 768px) 100vw, 1024px"
             src={primaryImage}
-            unoptimized={primaryImage.startsWith('/')}
+            unoptimized={
+              primaryImage.startsWith('/') && !primaryImage.startsWith('//')
+            }
           />
         </div>
       ) : null}
@@ -77,14 +86,19 @@ export async function ClassDetailView(props: ClassDetailViewProps) {
                 fill
                 sizes="(max-width: 768px) 50vw, 320px"
                 src={item.value}
-                unoptimized={item.value.startsWith('/')}
+                unoptimized={
+                  item.value.startsWith('/') && !item.value.startsWith('//')
+                }
               />
             </li>
           ))}
         </ul>
       ) : null}
 
-      <CmsRichText className={`${bodyClass} mt-5`} html={cl.description} />
+      <CmsRichText
+        className={`${bodyClass} mt-5`}
+        sanitizedHtml={sanitizedDescription}
+      />
 
       {cl.prerequisites.length > 0 ? (
         <section className="mt-10">
@@ -169,9 +183,10 @@ export async function ClassDetailView(props: ClassDetailViewProps) {
                 >
                   {boat.name}
                 </Link>
-                <p className="mt-1 mb-0 text-sm leading-snug text-mit-text">
-                  {boat.description}
-                </p>
+                <CmsRichText
+                  className="cms-rich-text mt-1 text-sm leading-snug text-mit-text"
+                  sanitizedHtml={sanitizeCmsRichTextHtml(boat.description)}
+                />
               </li>
             ))}
           </ul>

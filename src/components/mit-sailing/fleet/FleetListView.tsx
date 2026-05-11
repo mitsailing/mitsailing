@@ -44,7 +44,10 @@ export async function FleetListView(props: FleetListViewProps) {
                     fill
                     sizes="(max-width: 768px) 100vw, 50vw"
                     src={boat.imagePath}
-                    unoptimized={boat.imagePath.startsWith('/')}
+                    unoptimized={
+                      boat.imagePath.startsWith('/') &&
+                      !boat.imagePath.startsWith('//')
+                    }
                   />
                 </div>
               ) : (
