@@ -501,6 +501,16 @@ async function seedCmsPageBlocks(
   p: PrismaClient,
   page: CmsSeedPage
 ): Promise<void> {
+  await p.cmsPageBlock.deleteMany({
+    where:
+      page.blocks.length === 0
+        ? { pageId: page.id }
+        : {
+            pageId: page.id,
+            id: { notIn: page.blocks.map((block) => block.id) },
+          },
+  });
+
   for (const block of page.blocks) {
     await p.cmsPageBlock.upsert({
       where: { id: block.id },
