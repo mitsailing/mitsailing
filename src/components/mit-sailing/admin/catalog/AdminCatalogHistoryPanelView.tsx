@@ -5,6 +5,10 @@ import type {
   AdminCatalogRevisionSummary,
   CatalogRevisionAction,
 } from '@/libs/mit-sailing/catalogHistory';
+import {
+  formatRevisionTimestamp,
+  revisionSummaryLineItems,
+} from './adminRevisionFormatting';
 
 type CatalogHistoryActionLabels = Record<CatalogRevisionAction, string>;
 
@@ -26,13 +30,6 @@ type AdminCatalogHistoryPanelViewProps = {
     viewChanges: string;
   };
 };
-
-function formatRevisionTimestamp(locale: string, value: string): string {
-  return new Intl.DateTimeFormat(locale, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(value));
-}
 
 function revisionSummaryLines(props: {
   fieldLabels: Record<string, string>;
@@ -115,8 +112,8 @@ export function AdminCatalogHistoryPanelView(
                   </Button>
                 </div>
                 <div className="mt-2 flex flex-col gap-1 text-sm text-muted-foreground">
-                  {summaryLines.map((line) => (
-                    <p key={line}>{line}</p>
+                  {revisionSummaryLineItems(summaryLines).map((item) => (
+                    <p key={item.key}>{item.line}</p>
                   ))}
                 </div>
               </li>

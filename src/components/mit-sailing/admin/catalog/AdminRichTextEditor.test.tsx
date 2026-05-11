@@ -74,9 +74,18 @@ function renderEditor(defaultValue = '<p>Existing body</p>') {
 }
 
 beforeAll(() => {
-  Element.prototype.getClientRects = emptyClientRects;
-  Range.prototype.getClientRects = emptyClientRects;
-  Range.prototype.getBoundingClientRect = emptyBoundingRect;
+  Object.defineProperty(Element.prototype, 'getClientRects', {
+    configurable: true,
+    value: emptyClientRects,
+  });
+  Object.defineProperty(Range.prototype, 'getClientRects', {
+    configurable: true,
+    value: emptyClientRects,
+  });
+  Object.defineProperty(Range.prototype, 'getBoundingClientRect', {
+    configurable: true,
+    value: emptyBoundingRect,
+  });
   Object.defineProperty(Text.prototype, 'getClientRects', {
     configurable: true,
     value: emptyClientRects,

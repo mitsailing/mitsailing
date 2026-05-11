@@ -8,6 +8,7 @@ import type {
   AdminCmsPageRevisionPageField,
   AdminCmsPageRevisionBlockField,
 } from '@/libs/mit-sailing/cmsHistory';
+import { formatRevisionTimestamp } from './adminRevisionFormatting';
 
 type CmsRevisionCompareFieldLabels = Record<
   AdminCmsPageRevisionPageField | AdminCmsPageRevisionBlockField,
@@ -68,13 +69,6 @@ function revisionActionLabel(
   return labels.update;
 }
 
-function formatRevisionTimestamp(locale: string, value: string): string {
-  return new Intl.DateTimeFormat(locale, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(value));
-}
-
 function changeValueText(
   value: AdminCmsPageRevisionChangeValue,
   text: AdminCmsRevisionCompareViewProps['text']
@@ -109,9 +103,9 @@ function revisionChangeKey(change: AdminCmsPageRevisionChange): string {
     return `${change.kind}-${change.field}`;
   }
   if (change.kind === 'block_field') {
-    return `${change.kind}-${change.blockTitle}-${change.field}`;
+    return `${change.kind}-${change.blockId}-${change.field}`;
   }
-  return `${change.kind}-${change.blockTitle}`;
+  return `${change.kind}-${change.blockId}`;
 }
 
 function RevisionChangeRow(props: {

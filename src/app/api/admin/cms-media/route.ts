@@ -29,15 +29,20 @@ type CreatedCmsMediaAsset = {
   createdAt: Date;
 };
 
-export async function GET() {
+export async function GET(request: Request) {
   const userId = await currentAdminUserId();
   if (!userId) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
+  const requestedPageId =
+    new URL(request.url).searchParams.get('pageId')?.trim() ?? '';
+  const pageId = requestedPageId.length > 0 ? requestedPageId : null;
+
   const assets = await prisma.cmsMediaAsset.findMany({
     orderBy: [{ createdAt: 'desc' }],
     take: 100,
+    where: pageId ? { pageId } : undefined,
     select: {
       id: true,
       originalFilename: true,

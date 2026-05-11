@@ -7,6 +7,7 @@ import type {
   AdminCatalogRevisionCompare,
   CatalogRevisionAction,
 } from '@/libs/mit-sailing/catalogHistory';
+import { formatRevisionTimestamp } from './adminRevisionFormatting';
 
 type CatalogRevisionCompareActionLabels = Record<CatalogRevisionAction, string>;
 
@@ -41,13 +42,6 @@ function baseVersionLabel(props: AdminCatalogRevisionCompareViewProps): string {
   return props.compare.baseVersion
     ? props.text.snapshotVersion(props.compare.baseVersion)
     : props.text.current;
-}
-
-function formatRevisionTimestamp(locale: string, value: string): string {
-  return new Intl.DateTimeFormat(locale, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(value));
 }
 
 function changeValueText(

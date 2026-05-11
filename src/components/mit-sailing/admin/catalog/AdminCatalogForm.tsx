@@ -125,7 +125,25 @@ function usersAdminFormErrorMessage(
 
 type DynamicSelectOption = { value: string; label: string };
 
+function describedBy(...ids: (string | undefined)[]): string | undefined {
+  const value = ids.filter(Boolean).join(' ');
+  return value.length > 0 ? value : undefined;
+}
+
+function CatalogFieldError(props: { id?: string; message?: string | null }) {
+  if (!props.id || !props.message) {
+    return null;
+  }
+  return (
+    <p className="text-sm text-destructive" id={props.id} role="alert">
+      {props.message}
+    </p>
+  );
+}
+
 function catalogDynamicSelectField(props: {
+  errorId?: string;
+  errorMessage?: string | null;
   fieldKey: string;
   label: string;
   defaultValue: string;
@@ -139,6 +157,8 @@ function catalogDynamicSelectField(props: {
         {props.label}
       </Label>
       <select
+        aria-describedby={props.errorMessage ? props.errorId : undefined}
+        aria-invalid={props.errorMessage ? true : undefined}
         className={adminNativeSelectClassName}
         defaultValue={props.defaultValue || undefined}
         id={props.fieldKey}
@@ -154,11 +174,14 @@ function catalogDynamicSelectField(props: {
           </option>
         ))}
       </select>
+      <CatalogFieldError id={props.errorId} message={props.errorMessage} />
     </div>
   );
 }
 
 function catalogStaticSelectField(props: {
+  errorId?: string;
+  errorMessage?: string | null;
   fieldKey: string;
   label: string;
   defaultValue: string;
@@ -177,6 +200,8 @@ function catalogStaticSelectField(props: {
         {props.label}
       </Label>
       <select
+        aria-describedby={props.errorMessage ? props.errorId : undefined}
+        aria-invalid={props.errorMessage ? true : undefined}
         className={adminNativeSelectClassName}
         defaultValue={props.defaultValue || undefined}
         id={props.fieldKey}
@@ -192,6 +217,7 @@ function catalogStaticSelectField(props: {
           </option>
         ))}
       </select>
+      <CatalogFieldError id={props.errorId} message={props.errorMessage} />
     </div>
   );
 }
@@ -525,6 +551,8 @@ function cmsPricingBodyFromEditorState(state: CmsPricingEditorState): string {
 }
 
 function CatalogTextareaField(props: {
+  errorId?: string;
+  errorMessage?: string | null;
   fieldId: string;
   label: string;
   defaultValue: string;
@@ -533,12 +561,18 @@ function CatalogTextareaField(props: {
   linksHint: string | undefined;
   onChange?: (value: string) => void;
 }) {
+  const linksHintId = props.linksHint ? `${props.fieldId}-hint` : undefined;
   return (
     <div className="flex flex-col gap-1.5 text-sm">
       <Label className="text-foreground" htmlFor={props.fieldId}>
         {props.label}
       </Label>
       <Textarea
+        aria-describedby={describedBy(
+          linksHintId,
+          props.errorMessage ? props.errorId : undefined
+        )}
+        aria-invalid={props.errorMessage ? true : undefined}
         className="min-h-[120px]"
         defaultValue={props.defaultValue}
         id={props.fieldId}
@@ -549,8 +583,11 @@ function CatalogTextareaField(props: {
         required={props.required}
       />
       {props.linksHint ? (
-        <p className="text-xs text-muted-foreground">{props.linksHint}</p>
+        <p className="text-xs text-muted-foreground" id={linksHintId}>
+          {props.linksHint}
+        </p>
       ) : null}
+      <CatalogFieldError id={props.errorId} message={props.errorMessage} />
     </div>
   );
 }
@@ -603,6 +640,8 @@ function CatalogBooleanField(props: {
 }
 
 function CatalogSelectFieldBranch(props: {
+  errorId?: string;
+  errorMessage?: string | null;
   fieldKey: string;
   label: string;
   defaultValue: string;
@@ -618,6 +657,8 @@ function CatalogSelectFieldBranch(props: {
       fieldKey: props.fieldKey,
       label: props.label,
       defaultValue: props.defaultValue,
+      errorId: props.errorId,
+      errorMessage: props.errorMessage,
       required: props.required,
       options: dynOpts,
       onChange: props.onChange,
@@ -628,6 +669,8 @@ function CatalogSelectFieldBranch(props: {
       fieldKey: props.fieldKey,
       label: props.label,
       defaultValue: props.defaultValue,
+      errorId: props.errorId,
+      errorMessage: props.errorMessage,
       required: props.required,
       options: props.selectOptions,
       onChange: props.onChange,
@@ -638,6 +681,8 @@ function CatalogSelectFieldBranch(props: {
 }
 
 function CatalogMediaFieldBranch(props: {
+  errorId?: string;
+  errorMessage?: string | null;
   field: AdminFormFieldDef;
   rawDefaultValue: CatalogRow[string];
   defaultValue: string;
@@ -649,6 +694,8 @@ function CatalogMediaFieldBranch(props: {
     return (
       <AdminImageField
         defaultValue={props.defaultValue}
+        errorId={props.errorId}
+        errorMessage={props.errorMessage}
         fieldId={props.fieldId}
         fieldKey={props.field.field}
         label={props.label}
@@ -664,6 +711,8 @@ function CatalogMediaFieldBranch(props: {
           ? props.rawDefaultValue
           : props.defaultValue
       }
+      errorId={props.errorId}
+      errorMessage={props.errorMessage}
       fieldId={props.fieldId}
       fieldKey={props.field.field}
       label={props.label}
@@ -957,7 +1006,26 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
       return;
     }
     return (value: string) => {
-      setCmsPreviewField('kind', cmsBlockKindValue(value));
+      const kind = cmsBlockKindValue(value);
+      if (!cmsBlockUsesStandalonePairs({ ...cmsBlockPreviewState, kind })) {
+        setCmsBlockGroupsEnabled({ cta: false, image: false });
+        setCmsPairErrors({
+          ctaLabel: false,
+          ctaUrl: false,
+          imageAlt: false,
+          imageSrc: false,
+        });
+        setCmsBlockPreviewState((prev) => ({
+          ...prev,
+          ctaLabel: '',
+          ctaUrl: '',
+          imageAlt: '',
+          imageSrc: '',
+          kind,
+        }));
+        return;
+      }
+      setCmsPreviewField('kind', kind);
     };
   }
 
@@ -988,6 +1056,19 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
     next: boolean
   ) {
     setCmsBlockGroupsEnabled((prev) => ({ ...prev, [group]: next }));
+    if (next) {
+      return;
+    }
+    setCmsBlockPreviewState((prev) =>
+      group === 'cta'
+        ? { ...prev, ctaLabel: '', ctaUrl: '' }
+        : { ...prev, imageAlt: '', imageSrc: '' }
+    );
+    setCmsPairErrors((prev) =>
+      group === 'cta'
+        ? { ...prev, ctaLabel: false, ctaUrl: false }
+        : { ...prev, imageAlt: false, imageSrc: false }
+    );
   }
 
   function renderCmsBlockCtaGroup() {
@@ -1776,10 +1857,19 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
                 max={CMS_HOME_OVERVIEW_MAX_EVENTS}
                 min={1}
                 onChange={(event) => {
-                  const eventCount = Number.parseInt(event.target.value, 10);
+                  const parsedEventCount = Number.parseInt(
+                    event.target.value,
+                    10
+                  );
+                  const eventCount = Number.isFinite(parsedEventCount)
+                    ? Math.max(
+                        1,
+                        Math.min(CMS_HOME_OVERVIEW_MAX_EVENTS, parsedEventCount)
+                      )
+                    : 1;
                   updateCmsHomeOverviewEditorState({
                     ...cmsHomeOverviewEditorState,
-                    eventCount: Number.isFinite(eventCount) ? eventCount : 1,
+                    eventCount,
                   });
                 }}
                 required
@@ -1868,7 +1958,7 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
         key === 'imageSrc' ||
         key === 'imageAlt')
     ) {
-      return null;
+      return <input key={key} name={key} type="hidden" value="" />;
     }
     if (key === 'ctaLabel') {
       return renderCmsBlockCtaGroup();
@@ -1886,10 +1976,10 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
     const key = field.field;
     const label = translateLabel(field.labelKey);
     const rawDefaultValue = props.row?.[key];
-    const defaultValue =
-      rawDefaultValue !== undefined && rawDefaultValue !== null
-        ? String(rawDefaultValue)
-        : '';
+    const defaultValue = stringValue(rawDefaultValue);
+    const fieldId = `catalog-field-${key}`;
+    const fieldErrorMessage = props.fieldErrors?.[key] ?? null;
+    const errorId = `${fieldId}-error`;
 
     const cmsBlockSpecialField = renderCmsBlockSpecialField(key);
     if (cmsBlockSpecialField !== undefined) {
@@ -1897,7 +1987,6 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
     }
 
     if (field.kind === 'text') {
-      const fieldId = `catalog-field-${key}`;
       const linksHint =
         props.definition.id === 'site_alerts' && key === 'body'
           ? tCatalog('field_site_alert_message_links_hint')
@@ -1906,6 +1995,8 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
         <CatalogTextareaField
           key={key}
           defaultValue={defaultValue}
+          errorId={errorId}
+          errorMessage={fieldErrorMessage}
           fieldId={fieldId}
           fieldKey={key}
           label={label}
@@ -1917,11 +2008,12 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
     }
 
     if (field.kind === 'richText') {
-      const fieldId = `catalog-field-${key}`;
       return (
         <AdminRichTextEditor
           key={key}
           defaultValue={defaultValue}
+          errorId={errorId}
+          errorMessage={fieldErrorMessage}
           fieldId={fieldId}
           fieldKey={key}
           label={label}
@@ -1932,11 +2024,12 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
     }
 
     if (field.kind === 'image' || field.kind === 'imageList') {
-      const fieldId = `catalog-field-${key}`;
       return (
         <CatalogMediaFieldBranch
           key={key}
           defaultValue={defaultValue}
+          errorId={errorId}
+          errorMessage={fieldErrorMessage}
           field={field}
           fieldId={fieldId}
           label={label}
@@ -1969,6 +2062,8 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
           key={key}
           defaultValue={defaultValue}
           dynamicOptions={props.dynamicSelectOptions?.[key]}
+          errorId={errorId}
+          errorMessage={fieldErrorMessage}
           fieldKey={key}
           label={label}
           onChange={cmsPreviewSelectChange(key)}
@@ -1980,7 +2075,6 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
     }
 
     const inputType = inputTypeForFieldKind(field.kind);
-    const fieldId = `catalog-field-${key}`;
 
     return (
       <div key={key} className="flex flex-col gap-1.5 text-sm">
@@ -1988,6 +2082,8 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
           {label}
         </Label>
         <Input
+          aria-describedby={fieldErrorMessage ? errorId : undefined}
+          aria-invalid={fieldErrorMessage ? true : undefined}
           autoComplete={autoCompleteForCatalogField(field.kind)}
           defaultValue={defaultValue}
           id={fieldId}
@@ -2004,6 +2100,7 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
           namespace={ns}
           tUsers={tUsers}
         />
+        <CatalogFieldError id={errorId} message={fieldErrorMessage} />
       </div>
     );
   }

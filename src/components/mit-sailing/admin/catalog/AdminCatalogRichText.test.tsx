@@ -132,6 +132,19 @@ function hiddenBodyValue(container: HTMLElement): string {
   return input.value;
 }
 
+function repeatedCmsImageAssetResponse(): Response {
+  return Response.json({
+    assets: [
+      {
+        createdAt: '2026-05-09T12:00:00.000Z',
+        id: 'asset-7',
+        originalFilename: 'reused.jpg',
+        publicPath: '/cms-media/asset-7/reused.jpg',
+      },
+    ],
+  });
+}
+
 function textNodeContaining(root: HTMLElement, text: string): Text {
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   let node = walker.nextNode();
@@ -195,6 +208,18 @@ describe('AdminCatalogForm rich text fields', () => {
     ).not.toBeNull();
   });
 
+  it('announces active rich text formatting controls', async () => {
+    const user = userEvent.setup();
+    renderCmsBlockForm();
+
+    const boldButton = screen.getByRole('button', { name: 'Bold' });
+    expect(boldButton).toHaveAttribute('aria-pressed', 'false');
+
+    await user.click(boldButton);
+
+    expect(boldButton).toHaveAttribute('aria-pressed', 'true');
+  });
+
   it('keeps other text fields as plain textareas', () => {
     const view = render(
       <AdminCatalogForm
@@ -249,6 +274,42 @@ describe('AdminCatalogForm rich text fields', () => {
     expect(
       view.container.querySelector('input[name="imagePaths"]')
     ).toHaveValue('/images/classes/intro.jpg');
+  });
+
+  it('renders redirected field errors on catalog fields', () => {
+    render(
+      <AdminCatalogForm
+        definition={catalogResourceDefinitions.sailing_classes}
+        dynamicSelectOptions={{
+          classCategoryId: [{ label: 'Introduction', value: 'cc-intro' }],
+        }}
+        fieldErrors={{
+          classCategoryId: 'Choose a category.',
+          description: 'Add a description.',
+          imagePaths: 'Add at least one image.',
+          name: 'Add a name.',
+        }}
+        formAction={formAction}
+        headingKey="new_heading"
+      />
+    );
+
+    expect(screen.getByLabelText('Name')).toHaveAttribute(
+      'aria-invalid',
+      'true'
+    );
+    expect(screen.getByLabelText('Name')).toHaveAccessibleDescription(
+      'Add a name.'
+    );
+    expect(screen.getByLabelText('Category')).toHaveAccessibleDescription(
+      'Choose a category.'
+    );
+    expect(screen.getByLabelText('Description')).toHaveAccessibleDescription(
+      'Add a description.'
+    );
+    expect(
+      screen.getByRole('button', { name: 'Upload image for Images' })
+    ).toHaveAccessibleDescription('Add at least one image.');
   });
 
   it('updates cms block preview before saving', async () => {
@@ -319,7 +380,7 @@ describe('AdminCatalogForm rich text fields', () => {
     );
   });
 
-  it('preserves optional cms block group values when disabled', async () => {
+  it('clears optional cms block group values when disabled', async () => {
     const user = userEvent.setup();
     const view = render(
       <AdminCatalogForm
@@ -363,10 +424,11 @@ describe('AdminCatalogForm rich text fields', () => {
     await user.click(screen.getByRole('checkbox', { name: 'Add CTA' }));
     await user.click(screen.getByRole('checkbox', { name: 'Add picture' }));
 
-    expect(screen.getByLabelText('CTA label')).toHaveValue('Learn more');
-    expect(screen.getByLabelText('CTA URL')).toHaveValue('/classes');
-    expect(screen.getByLabelText('Image alt text')).toHaveValue(
-      'Boats on the river'
+    expect(screen.getByLabelText('CTA label')).toHaveValue('');
+    expect(screen.getByLabelText('CTA URL')).toHaveValue('');
+    expect(screen.getByLabelText('Image alt text')).toHaveValue('');
+    expect(view.container.querySelector('input[name="imageSrc"]')).toHaveValue(
+      ''
     );
   });
 
@@ -408,8 +470,18 @@ describe('AdminCatalogForm rich text fields', () => {
     expect(screen.queryByLabelText('Image alt text')).toBeNull();
     expect(screen.getByLabelText('Link label')).toHaveValue('Create account');
     expect(screen.getByLabelText('Link URL')).toHaveValue('/signup');
-    expect(view.container.querySelector('input[name="ctaLabel"]')).toBeNull();
-    expect(view.container.querySelector('input[name="imageSrc"]')).toBeNull();
+    expect(view.container.querySelector('input[name="ctaLabel"]')).toHaveValue(
+      ''
+    );
+    expect(view.container.querySelector('input[name="ctaUrl"]')).toHaveValue(
+      ''
+    );
+    expect(view.container.querySelector('input[name="imageSrc"]')).toHaveValue(
+      ''
+    );
+    expect(view.container.querySelector('input[name="imageAlt"]')).toHaveValue(
+      ''
+    );
     expect(hiddenBodyValue(view.container)).toContain(
       '"linkLabel": "Create account"'
     );
@@ -600,6 +672,39 @@ describe('AdminRichTextEditor media controls', () => {
       '/cms-media/asset-2/dock.jpg'
     );
     fetchMock.mockRestore();
+  });
+
+  it('updates the most recently inserted repeated cms image', async () => {
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(repeatedCmsImageAssetResponse())
+      .mockResolvedValueOnce(repeatedCmsImageAssetResponse());
+    const user = userEvent.setup();
+    const view = renderCmsBlockForm();
+
+    await user.click(
+      screen.getByRole('button', { name: 'Select existing image' })
+    );
+    await user.click(await screen.findByRole('button', { name: 'reused.jpg' }));
+    await user.click(
+      screen.getByRole('button', { name: 'Select existing image' })
+    );
+    await user.click(await screen.findByRole('button', { name: 'reused.jpg' }));
+    await user.click(screen.getByRole('button', { name: 'Align image right' }));
+
+    await waitFor(() => {
+      const doc = new DOMParser().parseFromString(
+        hiddenBodyValue(view.container),
+        'text/html'
+      );
+      const images = [
+        ...doc.querySelectorAll<HTMLImageElement>(
+          'img[src="/cms-media/asset-7/reused.jpg"]'
+        ),
+      ];
+      expect(images).toHaveLength(2);
+      expect(images.at(0)?.dataset.align).toBe('center');
+      expect(images.at(1)?.dataset.align).toBe('right');
+    });
   });
 
   it('shows media error when existing images fail to load', async () => {
@@ -1335,6 +1440,7 @@ describe('AdminCmsRevisionCompareView', () => {
               {
                 after: { kind: 'text', value: 'Intro body' },
                 before: { kind: 'text', value: 'Old intro body' },
+                blockId: 'block-overview',
                 blockTitle: 'Overview',
                 field: 'body',
                 kind: 'block_field',

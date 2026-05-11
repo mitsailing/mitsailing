@@ -36,4 +36,17 @@ describe('SubmitButton', () => {
 
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
   });
+
+  it('preserves explicit button type', () => {
+    render(
+      <SubmitButton pendingLabel="Saving..." type="button">
+        Save
+      </SubmitButton>
+    );
+
+    expect(screen.getByRole('button', { name: 'Save' })).toHaveAttribute(
+      'type',
+      'button'
+    );
+  });
 });

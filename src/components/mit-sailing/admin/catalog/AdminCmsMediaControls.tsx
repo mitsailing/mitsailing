@@ -67,8 +67,15 @@ export function cmsMediaAssetsFromUnknown(value: unknown): CmsMediaAsset[] {
   });
 }
 
-export async function loadCmsMediaAssets(): Promise<CmsMediaAsset[] | null> {
-  const response = await fetch('/api/admin/cms-media');
+export async function loadCmsMediaAssets(
+  props: {
+    pageId?: string;
+  } = {}
+): Promise<CmsMediaAsset[] | null> {
+  const query = props.pageId
+    ? `?${new URLSearchParams({ pageId: props.pageId })}`
+    : '';
+  const response = await fetch(`/api/admin/cms-media${query}`);
   if (!response.ok) {
     return null;
   }
@@ -223,7 +230,8 @@ export function AdminImageField(props: {
     setMediaError(null);
     let loaded: CmsMediaAsset[] | null;
     try {
-      loaded = await loadCmsMediaAssets();
+      const pageId = currentPageId(shellRef.current?.closest('form') ?? null);
+      loaded = await loadCmsMediaAssets({ pageId });
     } catch {
       loaded = null;
     }
@@ -343,6 +351,8 @@ export function AdminImageField(props: {
 
 export function AdminImageListField(props: {
   defaultValue: string | string[];
+  errorId?: string;
+  errorMessage?: string | null;
   fieldId: string;
   fieldKey: string;
   label: string;
@@ -373,7 +383,8 @@ export function AdminImageListField(props: {
     setMediaError(null);
     let loaded: CmsMediaAsset[] | null;
     try {
-      loaded = await loadCmsMediaAssets();
+      const pageId = currentPageId(shellRef.current?.closest('form') ?? null);
+      loaded = await loadCmsMediaAssets({ pageId });
     } catch {
       loaded = null;
     }
@@ -434,6 +445,8 @@ export function AdminImageListField(props: {
       <div className="flex flex-wrap items-center gap-2">
         <Button
           aria-label={t('media_upload_for_field', { label: props.label })}
+          aria-describedby={props.errorMessage ? props.errorId : undefined}
+          aria-invalid={props.errorMessage ? true : undefined}
           disabled={mediaBusy}
           onClick={() => fileInputRef.current?.click()}
           type="button"
@@ -445,6 +458,8 @@ export function AdminImageListField(props: {
         <Button
           aria-expanded={pickerOpen}
           aria-label={t('media_select_for_field', { label: props.label })}
+          aria-describedby={props.errorMessage ? props.errorId : undefined}
+          aria-invalid={props.errorMessage ? true : undefined}
           disabled={mediaBusy}
           onClick={async () => {
             await openPicker();
@@ -531,6 +546,11 @@ export function AdminImageListField(props: {
             addImage(asset.publicPath);
           }}
         />
+      ) : null}
+      {props.errorMessage ? (
+        <p className="text-sm text-destructive" id={props.errorId} role="alert">
+          {props.errorMessage}
+        </p>
       ) : null}
       {mediaFieldError(mediaError)}
     </div>

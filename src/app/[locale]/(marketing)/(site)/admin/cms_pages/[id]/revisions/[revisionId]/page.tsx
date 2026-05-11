@@ -16,7 +16,7 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
     locale,
     namespace: 'MitSailingRoutes',
   });
-  return { title: t('meta_title_admin_catalog_edit') };
+  return { title: t('meta_title_admin_catalog_revision_compare') };
 }
 
 export default async function AdminCmsPageRevisionComparePage(

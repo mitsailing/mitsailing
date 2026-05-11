@@ -286,20 +286,20 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           {viewHref ? (
             <Link
-              className="text-sm font-medium text-mit-red-ink no-underline hover:underline"
+              className="text-sm font-medium text-mit-red no-underline hover:underline"
               href={viewHref}
             >
               {t('action_view_page')}
             </Link>
           ) : null}
           <Link
-            className="text-sm font-medium text-mit-red-ink no-underline hover:underline"
+            className="text-sm font-medium text-mit-red no-underline hover:underline"
             href={editHref(String(row.id))}
           >
             {t('action_edit')}
           </Link>
           <Link
-            className="text-sm font-medium text-mit-red-ink no-underline hover:underline"
+            className="text-sm font-medium text-mit-red no-underline hover:underline"
             href={deleteHref(String(row.id))}
           >
             {t('action_delete')}

@@ -131,6 +131,7 @@ export type AdminCmsPageRevisionChange =
     }
   | {
       kind: 'block_field';
+      blockId: string;
       blockTitle: string;
       field: AdminCmsPageRevisionBlockField;
       before: AdminCmsPageRevisionChangeValue;
@@ -138,10 +139,12 @@ export type AdminCmsPageRevisionChange =
     }
   | {
       kind: 'block_added';
+      blockId: string;
       blockTitle: string;
     }
   | {
       kind: 'block_removed';
+      blockId: string;
       blockTitle: string;
     };
 
@@ -445,6 +448,7 @@ function compareBlockField(
     addChange(changes, {
       after,
       before,
+      blockId: block.id,
       blockTitle: blockTitle(block),
       field,
       kind: 'block_field',
@@ -503,6 +507,7 @@ function compareCmsPageRevisionSnapshots(
   for (const block of before.blocks) {
     if (!afterBlocks.has(block.id)) {
       addChange(changes, {
+        blockId: block.id,
         blockTitle: blockTitle(block),
         kind: 'block_removed',
       });
@@ -512,6 +517,7 @@ function compareCmsPageRevisionSnapshots(
     const previous = beforeBlocks.get(block.id);
     if (!previous) {
       addChange(changes, {
+        blockId: block.id,
         blockTitle: blockTitle(block),
         kind: 'block_added',
       });

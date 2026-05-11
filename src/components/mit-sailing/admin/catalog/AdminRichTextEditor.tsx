@@ -2,6 +2,7 @@
 
 import { Image as TiptapImage } from '@tiptap/extension-image';
 import { Link as TiptapLink } from '@tiptap/extension-link';
+import { NodeSelection } from '@tiptap/pm/state';
 import { EditorContent, useEditor } from '@tiptap/react';
 import { StarterKit } from '@tiptap/starter-kit';
 import {
@@ -18,6 +19,7 @@ import {
   Unlink,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import type { RefObject } from 'react';
 import { useRef, useState } from 'react';
 import {
   AdminCmsMediaPickerPanel,
@@ -48,6 +50,9 @@ const imageWidthOptions = [
   { value: '640', translationKey: 'rich_text_image_size_large' },
   { value: '960', translationKey: 'rich_text_image_size_full' },
 ] as const;
+
+type RichTextEditorInstance = NonNullable<ReturnType<typeof useEditor>>;
+type SyncRichTextEditorState = (editor: RichTextEditorInstance) => void;
 
 const CmsEditorImage = TiptapImage.extend({
   addAttributes() {
@@ -117,14 +122,31 @@ export function nodeNumberAttribute(
   return typeof descriptor?.value === 'number' ? descriptor.value : undefined;
 }
 
+function selectedImagePosition(editor: RichTextEditorInstance): number | null {
+  const { selection } = editor.state;
+  if (
+    selection instanceof NodeSelection &&
+    selection.node.type.name === 'image'
+  ) {
+    return selection.from;
+  }
+  return null;
+}
+
 function imageWidthSelectValue(
-  editor: NonNullable<ReturnType<typeof useEditor>>
+  editor: RichTextEditorInstance,
+  lastImagePos: number | null
 ): string {
-  const width = nodeNumberAttribute(editor.getAttributes('image'), 'width');
+  const imagePos = selectedImagePosition(editor) ?? lastImagePos;
+  const node = imagePos === null ? null : editor.state.doc.nodeAt(imagePos);
+  const width =
+    node?.type.name === 'image'
+      ? nodeNumberAttribute(node.attrs, 'width')
+      : nodeNumberAttribute(editor.getAttributes('image'), 'width');
   return width ? String(width) : 'reset';
 }
 
-function activeBlockKind(editor: NonNullable<ReturnType<typeof useEditor>>) {
+function activeBlockKind(editor: RichTextEditorInstance) {
   if (editor.isActive('heading', { level: 2 })) {
     return 'h2';
   }
@@ -137,8 +159,446 @@ function activeBlockKind(editor: NonNullable<ReturnType<typeof useEditor>>) {
   return 'paragraph';
 }
 
+function imageAlignmentAt(
+  editor: RichTextEditorInstance,
+  imagePos: number | null
+): 'left' | 'center' | 'right' | null {
+  const node = imagePos === null ? null : editor.state.doc.nodeAt(imagePos);
+  if (node?.type.name !== 'image') {
+    return null;
+  }
+  const align = nodeStringAttribute(node.attrs, 'align');
+  if (align === 'left' || align === 'right') {
+    return align;
+  }
+  return 'center';
+}
+
+function activeImageAlignment(
+  editor: RichTextEditorInstance,
+  lastImagePos: number | null
+): 'left' | 'center' | 'right' | null {
+  return (
+    imageAlignmentAt(editor, selectedImagePosition(editor)) ??
+    imageAlignmentAt(editor, lastImagePos)
+  );
+}
+
+function findInsertedImagePosition(props: {
+  editor: RichTextEditorInstance;
+  from: number;
+  src: string;
+}): number | null {
+  let firstMatchAtOrAfterSelection: number | null = null;
+  let lastMatch: number | null = null;
+  props.editor.state.doc.descendants((node, pos) => {
+    if (
+      node.type.name === 'image' &&
+      nodeStringAttribute(node.attrs, 'src') === props.src
+    ) {
+      if (pos >= props.from && firstMatchAtOrAfterSelection === null) {
+        firstMatchAtOrAfterSelection = pos;
+      }
+      lastMatch = pos;
+    }
+    return true;
+  });
+  return firstMatchAtOrAfterSelection ?? lastMatch;
+}
+
+function editorAttributes(props: {
+  errorId?: string;
+  errorMessage?: string | null;
+  label: string;
+}): Record<string, string> {
+  const attributes: Record<string, string> = {
+    'aria-label': props.label,
+    class:
+      'cms-rich-text min-h-[220px] px-3 py-3 outline-none focus-visible:ring-0',
+  };
+  if (props.errorMessage && props.errorId) {
+    attributes['aria-describedby'] = props.errorId;
+    attributes['aria-invalid'] = 'true';
+  }
+  return attributes;
+}
+
+function updateImageAttributesAtPosition(props: {
+  attributes: Record<string, number | string | null>;
+  editor: RichTextEditorInstance;
+  imagePos: number;
+}): boolean {
+  return props.editor.commands.command(({ tr }) => {
+    const node = tr.doc.nodeAt(props.imagePos);
+    if (node?.type.name !== 'image') {
+      return false;
+    }
+    tr.setNodeMarkup(props.imagePos, undefined, {
+      ...node.attrs,
+      ...props.attributes,
+    });
+    return true;
+  });
+}
+
+function activeImageAlignmentFor(
+  editor: RichTextEditorInstance | null,
+  lastImagePos: number | null
+): 'left' | 'center' | 'right' | null {
+  return editor ? activeImageAlignment(editor, lastImagePos) : null;
+}
+
+function selectEditorBlockStyle(
+  editor: RichTextEditorInstance | null,
+  value: string
+) {
+  if (!editor) {
+    return;
+  }
+  if (value === 'paragraph') {
+    editor.chain().focus().setParagraph().run();
+    return;
+  }
+  const level = Number.parseInt(value.slice(1), 10);
+  if (level === 2 || level === 3 || level === 4) {
+    editor.chain().focus().toggleHeading({ level }).run();
+  }
+}
+
+function mutateEditor(props: {
+  editor: RichTextEditorInstance | null;
+  mutate: (editor: RichTextEditorInstance) => void;
+  syncEditorState: SyncRichTextEditorState;
+}) {
+  if (!props.editor) {
+    return;
+  }
+  props.mutate(props.editor);
+  props.syncEditorState(props.editor);
+}
+
+function selectImageWidthValue(
+  value: string,
+  resizeImage: (width: number | null) => void
+) {
+  if (value === 'reset') {
+    resizeImage(null);
+    return;
+  }
+  const width = Number.parseInt(value, 10);
+  if (Number.isFinite(width)) {
+    resizeImage(width);
+  }
+}
+
+async function toggleMediaPicker(props: {
+  loadAssets: () => Promise<void>;
+  pickerOpen: boolean;
+  setPickerOpen: (next: boolean) => void;
+}) {
+  if (props.pickerOpen) {
+    props.setPickerOpen(false);
+    return;
+  }
+  await props.loadAssets();
+}
+
+async function handleFileInputChange(props: {
+  event: React.ChangeEvent<HTMLInputElement>;
+  handleMediaFailure: () => void;
+  uploadImage: (file: File) => Promise<void>;
+}) {
+  const file = props.event.target.files?.[0];
+  props.event.currentTarget.value = '';
+  if (!file) {
+    return;
+  }
+  try {
+    await props.uploadImage(file);
+  } catch {
+    props.handleMediaFailure();
+  }
+}
+
+function AdminRichTextFormatControls(props: {
+  disabled: boolean;
+  editor: RichTextEditorInstance | null;
+  onOpenLinkEditor: () => void;
+  syncEditorState: SyncRichTextEditorState;
+}) {
+  const t = useTranslations('AdminCatalogResource');
+  const handleOpenLinkEditor = props.onOpenLinkEditor;
+
+  return (
+    <>
+      <Button
+        aria-label={t('rich_text_bold')}
+        aria-pressed={props.editor?.isActive('bold') ?? false}
+        disabled={props.disabled}
+        onClick={() => {
+          mutateEditor({
+            editor: props.editor,
+            mutate: (currentEditor) => {
+              currentEditor.chain().focus().toggleBold().run();
+            },
+            syncEditorState: props.syncEditorState,
+          });
+        }}
+        size="icon"
+        title={t('rich_text_bold')}
+        type="button"
+        variant={props.editor?.isActive('bold') ? 'secondary' : 'ghost'}
+      >
+        <Bold aria-hidden />
+      </Button>
+      <Button
+        aria-label={t('rich_text_italic')}
+        aria-pressed={props.editor?.isActive('italic') ?? false}
+        disabled={props.disabled}
+        onClick={() => {
+          mutateEditor({
+            editor: props.editor,
+            mutate: (currentEditor) => {
+              currentEditor.chain().focus().toggleItalic().run();
+            },
+            syncEditorState: props.syncEditorState,
+          });
+        }}
+        size="icon"
+        title={t('rich_text_italic')}
+        type="button"
+        variant={props.editor?.isActive('italic') ? 'secondary' : 'ghost'}
+      >
+        <Italic aria-hidden />
+      </Button>
+      <Button
+        aria-label={t('rich_text_bullet_list')}
+        aria-pressed={props.editor?.isActive('bulletList') ?? false}
+        disabled={props.disabled}
+        onClick={() => {
+          mutateEditor({
+            editor: props.editor,
+            mutate: (currentEditor) => {
+              currentEditor.chain().focus().toggleBulletList().run();
+            },
+            syncEditorState: props.syncEditorState,
+          });
+        }}
+        size="icon"
+        title={t('rich_text_bullet_list')}
+        type="button"
+        variant={props.editor?.isActive('bulletList') ? 'secondary' : 'ghost'}
+      >
+        <List aria-hidden />
+      </Button>
+      <Button
+        aria-label={t('rich_text_ordered_list')}
+        aria-pressed={props.editor?.isActive('orderedList') ?? false}
+        disabled={props.disabled}
+        onClick={() => {
+          mutateEditor({
+            editor: props.editor,
+            mutate: (currentEditor) => {
+              currentEditor.chain().focus().toggleOrderedList().run();
+            },
+            syncEditorState: props.syncEditorState,
+          });
+        }}
+        size="icon"
+        title={t('rich_text_ordered_list')}
+        type="button"
+        variant={props.editor?.isActive('orderedList') ? 'secondary' : 'ghost'}
+      >
+        <ListOrdered aria-hidden />
+      </Button>
+      <Button
+        aria-label={t('rich_text_link')}
+        disabled={props.disabled}
+        onClick={handleOpenLinkEditor}
+        size="icon"
+        title={t('rich_text_link')}
+        type="button"
+        variant="ghost"
+      >
+        <Link aria-hidden />
+      </Button>
+      <Button
+        aria-label={t('rich_text_unlink')}
+        disabled={props.disabled}
+        onClick={() => {
+          mutateEditor({
+            editor: props.editor,
+            mutate: (currentEditor) => {
+              currentEditor.chain().focus().unsetLink().run();
+            },
+            syncEditorState: props.syncEditorState,
+          });
+        }}
+        size="icon"
+        title={t('rich_text_unlink')}
+        type="button"
+        variant="ghost"
+      >
+        <Unlink aria-hidden />
+      </Button>
+    </>
+  );
+}
+
+function AdminRichTextToolbar(props: {
+  currentImageAlignment: 'left' | 'center' | 'right' | null;
+  disabled: boolean;
+  editor: RichTextEditorInstance | null;
+  fileInputRef: RefObject<HTMLInputElement | null>;
+  handleMediaFailure: () => void;
+  lastImagePos: number | null;
+  loadAssets: () => Promise<void>;
+  mediaBusy: boolean;
+  onOpenLinkEditor: () => void;
+  pickerOpen: boolean;
+  resizeImage: (width: number | null) => void;
+  setPickerOpen: (next: boolean) => void;
+  syncEditorState: SyncRichTextEditorState;
+  updateImageAttributes: (
+    attributes: Record<string, number | string | null>
+  ) => void;
+  uploadImage: (file: File) => Promise<void>;
+}) {
+  const t = useTranslations('AdminCatalogResource');
+
+  return (
+    <div className="flex flex-wrap items-center gap-1 border-b border-border bg-muted/50 p-1.5 dark:bg-muted/30">
+      <select
+        aria-label={t('rich_text_block_style')}
+        className={`${adminNativeSelectClassName} h-8 w-auto min-w-[9rem]`}
+        disabled={props.disabled}
+        onChange={(event) => {
+          selectEditorBlockStyle(props.editor, event.target.value);
+        }}
+        value={props.editor ? activeBlockKind(props.editor) : 'paragraph'}
+      >
+        <option value="paragraph">{t('rich_text_paragraph')}</option>
+        <option value="h2">{t('rich_text_heading_2')}</option>
+        <option value="h3">{t('rich_text_heading_3')}</option>
+        <option value="h4">{t('rich_text_heading_4')}</option>
+      </select>
+      <AdminRichTextFormatControls
+        disabled={props.disabled}
+        editor={props.editor}
+        onOpenLinkEditor={props.onOpenLinkEditor}
+        syncEditorState={props.syncEditorState}
+      />
+      <Button
+        aria-label={t('rich_text_upload_image')}
+        disabled={props.disabled || props.mediaBusy}
+        onClick={() => props.fileInputRef.current?.click()}
+        size="icon"
+        title={t('rich_text_upload_image')}
+        type="button"
+        variant="ghost"
+      >
+        <Upload aria-hidden />
+      </Button>
+      <Button
+        aria-expanded={props.pickerOpen}
+        aria-label={t('rich_text_select_image')}
+        disabled={props.disabled || props.mediaBusy}
+        onClick={async () => {
+          await toggleMediaPicker({
+            loadAssets: props.loadAssets,
+            pickerOpen: props.pickerOpen,
+            setPickerOpen: props.setPickerOpen,
+          });
+        }}
+        size="icon"
+        title={t('rich_text_select_image')}
+        type="button"
+        variant="ghost"
+      >
+        <ImageIcon aria-hidden />
+      </Button>
+      <Button
+        aria-label={t('rich_text_align_left')}
+        aria-pressed={props.currentImageAlignment === 'left'}
+        disabled={props.disabled}
+        onClick={() => {
+          props.updateImageAttributes({ align: 'left' });
+        }}
+        size="icon"
+        title={t('rich_text_align_left')}
+        type="button"
+        variant="ghost"
+      >
+        <AlignLeft aria-hidden />
+      </Button>
+      <Button
+        aria-label={t('rich_text_align_center')}
+        aria-pressed={props.currentImageAlignment === 'center'}
+        disabled={props.disabled}
+        onClick={() => {
+          props.updateImageAttributes({ align: 'center' });
+        }}
+        size="icon"
+        title={t('rich_text_align_center')}
+        type="button"
+        variant="ghost"
+      >
+        <AlignCenter aria-hidden />
+      </Button>
+      <Button
+        aria-label={t('rich_text_align_right')}
+        aria-pressed={props.currentImageAlignment === 'right'}
+        disabled={props.disabled}
+        onClick={() => {
+          props.updateImageAttributes({ align: 'right' });
+        }}
+        size="icon"
+        title={t('rich_text_align_right')}
+        type="button"
+        variant="ghost"
+      >
+        <AlignRight aria-hidden />
+      </Button>
+      <select
+        aria-label={t('rich_text_image_size')}
+        className={`${adminNativeSelectClassName} h-8 w-auto min-w-[8.5rem]`}
+        disabled={props.disabled}
+        onChange={(event) => {
+          selectImageWidthValue(event.target.value, props.resizeImage);
+        }}
+        value={
+          props.editor
+            ? imageWidthSelectValue(props.editor, props.lastImagePos)
+            : 'reset'
+        }
+      >
+        {imageWidthOptions.map((option) => (
+          <option key={option.value} value={option.value}>
+            {t(option.translationKey)}
+          </option>
+        ))}
+      </select>
+      <input
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        className="sr-only"
+        onChange={async (event) => {
+          await handleFileInputChange({
+            event,
+            handleMediaFailure: props.handleMediaFailure,
+            uploadImage: props.uploadImage,
+          });
+        }}
+        ref={props.fileInputRef}
+        type="file"
+      />
+    </div>
+  );
+}
+
 export function AdminRichTextEditor(props: {
   defaultValue: string;
+  errorId?: string;
+  errorMessage?: string | null;
   fieldId: string;
   fieldKey: string;
   label: string;
@@ -150,7 +610,7 @@ export function AdminRichTextEditor(props: {
   const editorShellRef = useRef<HTMLDivElement>(null);
   const [html, setHtml] = useState(props.defaultValue);
   const [assets, setAssets] = useState<CmsMediaAsset[]>([]);
-  const [lastImageSrc, setLastImageSrc] = useState<string | null>(null);
+  const [lastImagePos, setLastImagePos] = useState<number | null>(null);
   const [linkEditorOpen, setLinkEditorOpen] = useState(false);
   const [linkHref, setLinkHref] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -160,6 +620,11 @@ export function AdminRichTextEditor(props: {
     null
   );
   const [, setToolbarRevision] = useState(0);
+  const attributes = editorAttributes({
+    errorId: props.errorId,
+    errorMessage: props.errorMessage,
+    label: props.label,
+  });
 
   function syncEditorState(
     currentEditor: NonNullable<ReturnType<typeof useEditor>>
@@ -173,11 +638,7 @@ export function AdminRichTextEditor(props: {
   const editor = useEditor({
     content: props.defaultValue || '<p></p>',
     editorProps: {
-      attributes: {
-        'aria-label': props.label,
-        class:
-          'cms-rich-text min-h-[220px] px-3 py-3 outline-none focus-visible:ring-0',
-      },
+      attributes,
     },
     extensions: [
       StarterKit.configure({
@@ -208,12 +669,9 @@ export function AdminRichTextEditor(props: {
     ],
     immediatelyRender: false,
     onSelectionUpdate: ({ editor: currentEditor }) => {
-      const selectedImageSrc = nodeStringAttribute(
-        currentEditor.getAttributes('image'),
-        'src'
-      );
-      if (selectedImageSrc) {
-        setLastImageSrc(selectedImageSrc);
+      const imagePos = selectedImagePosition(currentEditor);
+      if (imagePos !== null) {
+        setLastImagePos(imagePos);
       }
       setToolbarRevision((revision) => revision + 1);
     },
@@ -226,6 +684,9 @@ export function AdminRichTextEditor(props: {
     if (!editor) {
       return;
     }
+    const {
+      selection: { from },
+    } = editor.state;
     editor
       .chain()
       .focus()
@@ -238,7 +699,13 @@ export function AdminRichTextEditor(props: {
         type: 'image',
       })
       .run();
-    setLastImageSrc(asset.publicPath);
+    setLastImagePos(
+      findInsertedImagePosition({
+        editor,
+        from,
+        src: asset.publicPath,
+      })
+    );
     syncEditorState(editor);
     setPickerOpen(false);
   }
@@ -247,7 +714,10 @@ export function AdminRichTextEditor(props: {
     setMediaBusy(true);
     setMediaError(null);
     try {
-      const loadedAssets = await loadCmsMediaAssets();
+      const pageId = currentPageId(
+        editorShellRef.current?.closest('form') ?? null
+      );
+      const loadedAssets = await loadCmsMediaAssets({ pageId });
       if (!loadedAssets) {
         setMediaError(t('rich_text_media_error'));
         return;
@@ -316,58 +786,28 @@ export function AdminRichTextEditor(props: {
     setLinkEditorOpen(false);
   }
 
-  function updateLastImageAttributes(
-    attributes: Record<string, number | string | null>
-  ) {
-    if (!editor) {
-      return;
-    }
-    editor.commands.command(({ tr }) => {
-      let updated = false;
-      tr.doc.descendants((node, pos) => {
-        const src = nodeStringAttribute(node.attrs, 'src');
-        if (node.type.name !== 'image' || src !== lastImageSrc) {
-          return true;
-        }
-        tr.setNodeMarkup(pos, undefined, { ...node.attrs, ...attributes });
-        updated = true;
-        return false;
-      });
-      return updated;
-    });
-  }
-
   function updateImageAttributes(
-    attributes: Record<string, number | string | null>
+    imageAttributes: Record<string, number | string | null>
   ) {
     if (!editor) {
       return;
     }
-    if (editor.isActive('image')) {
-      editor.chain().focus().updateAttributes('image', attributes).run();
-    } else if (lastImageSrc) {
-      updateLastImageAttributes(attributes);
+    const imagePos = selectedImagePosition(editor) ?? lastImagePos;
+    if (
+      imagePos !== null &&
+      updateImageAttributesAtPosition({
+        attributes: imageAttributes,
+        editor,
+        imagePos,
+      })
+    ) {
+      setLastImagePos(imagePos);
     }
     syncEditorState(editor);
   }
 
-  function alignImage(align: 'left' | 'center' | 'right') {
-    updateImageAttributes({ align });
-  }
-
   function resizeImage(width: number | null) {
     updateImageAttributes({ height: null, width });
-  }
-
-  function selectImageWidth(value: string) {
-    if (value === 'reset') {
-      resizeImage(null);
-      return;
-    }
-    const width = Number.parseInt(value, 10);
-    if (Number.isFinite(width)) {
-      resizeImage(width);
-    }
   }
 
   const disabled = !editor;
@@ -381,223 +821,23 @@ export function AdminRichTextEditor(props: {
         className="overflow-hidden rounded-lg border border-input bg-background text-foreground shadow-xs focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 dark:bg-input/20"
         ref={editorShellRef}
       >
-        <div className="flex flex-wrap items-center gap-1 border-b border-border bg-muted/50 p-1.5 dark:bg-muted/30">
-          <select
-            aria-label={t('rich_text_block_style')}
-            className={`${adminNativeSelectClassName} h-8 w-auto min-w-[9rem]`}
-            disabled={disabled}
-            onChange={(event) => {
-              if (!editor) {
-                return;
-              }
-              if (event.target.value === 'paragraph') {
-                editor.chain().focus().setParagraph().run();
-                return;
-              }
-              const level = Number.parseInt(event.target.value.slice(1), 10);
-              if (level === 2 || level === 3 || level === 4) {
-                editor.chain().focus().toggleHeading({ level }).run();
-              }
-            }}
-            value={editor ? activeBlockKind(editor) : 'paragraph'}
-          >
-            <option value="paragraph">{t('rich_text_paragraph')}</option>
-            <option value="h2">{t('rich_text_heading_2')}</option>
-            <option value="h3">{t('rich_text_heading_3')}</option>
-            <option value="h4">{t('rich_text_heading_4')}</option>
-          </select>
-          <Button
-            aria-label={t('rich_text_bold')}
-            disabled={disabled}
-            onClick={() => {
-              editor?.chain().focus().toggleBold().run();
-              if (editor) {
-                syncEditorState(editor);
-              }
-            }}
-            size="icon"
-            title={t('rich_text_bold')}
-            type="button"
-            variant={editor?.isActive('bold') ? 'secondary' : 'ghost'}
-          >
-            <Bold aria-hidden />
-          </Button>
-          <Button
-            aria-label={t('rich_text_italic')}
-            disabled={disabled}
-            onClick={() => {
-              editor?.chain().focus().toggleItalic().run();
-              if (editor) {
-                syncEditorState(editor);
-              }
-            }}
-            size="icon"
-            title={t('rich_text_italic')}
-            type="button"
-            variant={editor?.isActive('italic') ? 'secondary' : 'ghost'}
-          >
-            <Italic aria-hidden />
-          </Button>
-          <Button
-            aria-label={t('rich_text_bullet_list')}
-            disabled={disabled}
-            onClick={() => {
-              editor?.chain().focus().toggleBulletList().run();
-              if (editor) {
-                syncEditorState(editor);
-              }
-            }}
-            size="icon"
-            title={t('rich_text_bullet_list')}
-            type="button"
-            variant={editor?.isActive('bulletList') ? 'secondary' : 'ghost'}
-          >
-            <List aria-hidden />
-          </Button>
-          <Button
-            aria-label={t('rich_text_ordered_list')}
-            disabled={disabled}
-            onClick={() => {
-              editor?.chain().focus().toggleOrderedList().run();
-              if (editor) {
-                syncEditorState(editor);
-              }
-            }}
-            size="icon"
-            title={t('rich_text_ordered_list')}
-            type="button"
-            variant={editor?.isActive('orderedList') ? 'secondary' : 'ghost'}
-          >
-            <ListOrdered aria-hidden />
-          </Button>
-          <Button
-            aria-label={t('rich_text_link')}
-            disabled={disabled}
-            onClick={openLinkEditor}
-            size="icon"
-            title={t('rich_text_link')}
-            type="button"
-            variant="ghost"
-          >
-            <Link aria-hidden />
-          </Button>
-          <Button
-            aria-label={t('rich_text_unlink')}
-            disabled={disabled}
-            onClick={() => {
-              editor?.chain().focus().unsetLink().run();
-              if (editor) {
-                syncEditorState(editor);
-              }
-            }}
-            size="icon"
-            title={t('rich_text_unlink')}
-            type="button"
-            variant="ghost"
-          >
-            <Unlink aria-hidden />
-          </Button>
-          <Button
-            aria-label={t('rich_text_upload_image')}
-            disabled={disabled || mediaBusy}
-            onClick={() => fileInputRef.current?.click()}
-            size="icon"
-            title={t('rich_text_upload_image')}
-            type="button"
-            variant="ghost"
-          >
-            <Upload aria-hidden />
-          </Button>
-          <Button
-            aria-expanded={pickerOpen}
-            aria-label={t('rich_text_select_image')}
-            disabled={disabled || mediaBusy}
-            onClick={async () => {
-              if (pickerOpen) {
-                setPickerOpen(false);
-                return;
-              }
-              await loadAssets();
-            }}
-            size="icon"
-            title={t('rich_text_select_image')}
-            type="button"
-            variant="ghost"
-          >
-            <ImageIcon aria-hidden />
-          </Button>
-          <Button
-            aria-label={t('rich_text_align_left')}
-            disabled={disabled}
-            onClick={() => {
-              alignImage('left');
-            }}
-            size="icon"
-            title={t('rich_text_align_left')}
-            type="button"
-            variant="ghost"
-          >
-            <AlignLeft aria-hidden />
-          </Button>
-          <Button
-            aria-label={t('rich_text_align_center')}
-            disabled={disabled}
-            onClick={() => {
-              alignImage('center');
-            }}
-            size="icon"
-            title={t('rich_text_align_center')}
-            type="button"
-            variant="ghost"
-          >
-            <AlignCenter aria-hidden />
-          </Button>
-          <Button
-            aria-label={t('rich_text_align_right')}
-            disabled={disabled}
-            onClick={() => {
-              alignImage('right');
-            }}
-            size="icon"
-            title={t('rich_text_align_right')}
-            type="button"
-            variant="ghost"
-          >
-            <AlignRight aria-hidden />
-          </Button>
-          <select
-            aria-label={t('rich_text_image_size')}
-            className={`${adminNativeSelectClassName} h-8 w-auto min-w-[8.5rem]`}
-            disabled={disabled}
-            onChange={(event) => {
-              selectImageWidth(event.target.value);
-            }}
-            value={editor ? imageWidthSelectValue(editor) : 'reset'}
-          >
-            {imageWidthOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {t(option.translationKey)}
-              </option>
-            ))}
-          </select>
-          <input
-            accept="image/jpeg,image/png,image/webp,image/gif"
-            className="sr-only"
-            onChange={async (event) => {
-              const file = event.target.files?.[0];
-              event.currentTarget.value = '';
-              if (file) {
-                try {
-                  await uploadImage(file);
-                } catch {
-                  handleMediaFailure();
-                }
-              }
-            }}
-            ref={fileInputRef}
-            type="file"
-          />
-        </div>
+        <AdminRichTextToolbar
+          currentImageAlignment={activeImageAlignmentFor(editor, lastImagePos)}
+          disabled={disabled}
+          editor={editor}
+          fileInputRef={fileInputRef}
+          handleMediaFailure={handleMediaFailure}
+          lastImagePos={lastImagePos}
+          loadAssets={loadAssets}
+          mediaBusy={mediaBusy}
+          onOpenLinkEditor={openLinkEditor}
+          pickerOpen={pickerOpen}
+          resizeImage={resizeImage}
+          setPickerOpen={setPickerOpen}
+          syncEditorState={syncEditorState}
+          updateImageAttributes={updateImageAttributes}
+          uploadImage={uploadImage}
+        />
         {linkEditorOpen ? (
           <div className="flex flex-wrap items-center gap-2 border-b border-border bg-background p-2">
             <Input
@@ -654,6 +894,11 @@ export function AdminRichTextEditor(props: {
       {mediaError ? (
         <p className="text-xs text-destructive" role="alert">
           {mediaError}
+        </p>
+      ) : null}
+      {props.errorMessage ? (
+        <p className="text-sm text-destructive" id={props.errorId} role="alert">
+          {props.errorMessage}
         </p>
       ) : null}
     </div>

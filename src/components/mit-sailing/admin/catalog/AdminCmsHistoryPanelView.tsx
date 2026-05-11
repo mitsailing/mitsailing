@@ -6,6 +6,10 @@ import type {
   AdminCmsPageRevisionPageField,
   AdminCmsPageRevisionSummary,
 } from '@/libs/mit-sailing/cmsHistory';
+import {
+  formatRevisionTimestamp,
+  revisionSummaryLineItems,
+} from './adminRevisionFormatting';
 
 type CmsHistoryActionLabels = {
   create: string;
@@ -50,13 +54,6 @@ function revisionActionLabel(
     return labels.delete;
   }
   return labels.update;
-}
-
-function formatRevisionTimestamp(locale: string, value: string): string {
-  return new Intl.DateTimeFormat(locale, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(value));
 }
 
 function revisionSummaryLines(props: {
@@ -154,8 +151,8 @@ export function AdminCmsHistoryPanelView(props: AdminCmsHistoryPanelViewProps) {
                   </Button>
                 </div>
                 <div className="mt-2 flex flex-col gap-1 text-sm text-muted-foreground">
-                  {summaryLines.map((line) => (
-                    <p key={line}>{line}</p>
+                  {revisionSummaryLineItems(summaryLines).map((item) => (
+                    <p key={item.key}>{item.line}</p>
                   ))}
                 </div>
               </li>
