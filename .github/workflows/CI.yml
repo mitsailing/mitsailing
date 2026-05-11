@@ -287,7 +287,7 @@ jobs:
 
     name: Run E2E tests (${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 10
     needs: [build]
 
     permissions:
@@ -314,17 +314,17 @@ jobs:
       # (a `uses: docker://` step would run in an isolated container that
       # cannot reach host services).
       - name: Run E2E preflight
-        timeout-minutes: 5
+        timeout-minutes: 3
         run: npm run e2e:preflight
 
       - name: Prepare cached E2E build
-        timeout-minutes: 3
+        timeout-minutes: 2
         run: npm run e2e:build
         env:
           E2E_SKIP_BUILD: '1' # .next restored from the `build` job; cal.com also builds before e2e, not inside the e2e script
 
       - name: Run E2E tests
-        timeout-minutes: 16
+        timeout-minutes: 5
         run: npm run e2e -- --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
 
       - name: Fix test results permission # Give permissions to test results needed by Chromatic
