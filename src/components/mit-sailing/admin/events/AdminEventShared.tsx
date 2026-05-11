@@ -61,7 +61,7 @@ export function AdminEventFormSection(props: AdminEventFormSectionProps) {
           <h2 id={props.id}>{props.title}</h2>
         </CardTitle>
         {props.subtitle ? (
-          <CardDescription className="max-w-3xl dark:text-white">
+          <CardDescription className="max-w-3xl text-mit-readable-ink">
             {props.subtitle}
           </CardDescription>
         ) : null}

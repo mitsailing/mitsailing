@@ -10,7 +10,7 @@ import {
   parseEasternDateTimeLocal,
   rawEventFeeFromFormData,
   slugifyEventAdmin,
-  splitEventAdminCsv,
+  splitEventAdminOptionLines,
 } from '@/libs/admin/events/eventAdminSchemas';
 
 describe('eventAdminSchemas', () => {
@@ -135,8 +135,8 @@ describe('eventAdminSchemas', () => {
     }
   );
 
-  it('splits comma options', () => {
-    expect(splitEventAdminCsv('Helm, Navigation, Sail trim')).toEqual([
+  it('splits option lines', () => {
+    expect(splitEventAdminOptionLines('Helm\nNavigation\nSail trim')).toEqual([
       'Helm',
       'Navigation',
       'Sail trim',
@@ -151,7 +151,7 @@ describe('eventAdminSchemas', () => {
     const parsed = eventQuestionFormSchema.parse({
       questionText: 'Preferred role',
       answerType: EventAnswerType.select,
-      optionsCsv: 'Helm, Trim',
+      optionsText: 'Helm\nTrim',
       required: true,
       displayOrder: '1',
     });
@@ -159,11 +159,23 @@ describe('eventAdminSchemas', () => {
     expect(parsed.options).toEqual(['Helm', 'Trim']);
   });
 
+  it('preserves commas inside option text', () => {
+    const parsed = eventQuestionFormSchema.parse({
+      questionText: 'Pickup location',
+      answerType: EventAnswerType.select,
+      optionsText: 'Boston, MA\nCambridge, MA',
+      required: true,
+      displayOrder: '1',
+    });
+
+    expect(parsed.options).toEqual(['Boston, MA', 'Cambridge, MA']);
+  });
+
   it('maps empty question display order to zero for append default', () => {
     const parsed = eventQuestionFormSchema.parse({
       questionText: 'Shirt size',
       answerType: EventAnswerType.text,
-      optionsCsv: '',
+      optionsText: '',
       required: false,
       displayOrder: '',
     });
@@ -175,7 +187,7 @@ describe('eventAdminSchemas', () => {
     const parsed = eventQuestionFormSchema.parse({
       questionText: 'Shirt size',
       answerType: EventAnswerType.text,
-      optionsCsv: '',
+      optionsText: '',
       required: false,
       displayOrder: '0',
     });
@@ -187,7 +199,7 @@ describe('eventAdminSchemas', () => {
     const parsed = eventQuestionFormSchema.parse({
       questionText: 'Dietary',
       answerType: EventAnswerType.text,
-      optionsCsv: '',
+      optionsText: '',
       required: false,
       displayOrder: '4',
     });

@@ -195,6 +195,7 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
         <div className="grid gap-4 md:grid-cols-3">
           <AdminEventField
             htmlFor="event-registration-start"
+            hint={props.t('field_datetime_et_hint')}
             label={props.t('field_registration_start')}
           >
             <Input
@@ -208,6 +209,7 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
           </AdminEventField>
           <AdminEventField
             htmlFor="event-registration-end"
+            hint={props.t('field_datetime_et_hint')}
             label={props.t('field_registration_end')}
           >
             <Input
@@ -318,7 +320,7 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
             defaultValue={props.event.externalDetailUrl ?? ''}
             id="event-external-url"
             name="externalDetailUrl"
-            placeholder="https://"
+            placeholder={props.t('field_external_detail_url_placeholder')}
             type="url"
           />
         </AdminEventField>
@@ -405,6 +407,7 @@ function DateRow(props: {
       <form action={updateAction} className="contents">
         <AdminEventField
           htmlFor={`date-start-${props.date.id}`}
+          hint={props.t('field_datetime_et_hint')}
           label={props.t('field_date_start')}
         >
           <Input
@@ -417,6 +420,7 @@ function DateRow(props: {
         </AdminEventField>
         <AdminEventField
           htmlFor={`date-end-${props.date.id}`}
+          hint={props.t('field_datetime_et_hint')}
           label={props.t('field_date_end')}
         >
           <Input
@@ -482,6 +486,7 @@ function EventDatesSection(props: AdminEventFormViewProps) {
       >
         <AdminEventField
           htmlFor="new-date-start"
+          hint={props.t('field_datetime_et_hint')}
           label={props.t('field_new_date_start')}
         >
           <Input
@@ -493,6 +498,7 @@ function EventDatesSection(props: AdminEventFormViewProps) {
         </AdminEventField>
         <AdminEventField
           htmlFor="new-date-end"
+          hint={props.t('field_datetime_et_hint')}
           label={props.t('field_new_date_end')}
         >
           <Input
@@ -571,8 +577,8 @@ function EventAdminsSection(props: AdminEventFormViewProps) {
   );
 }
 
-function questionOptionsCsv(question: AdminEventQuestionDto): string {
-  return question.options.join(', ');
+function questionOptionsText(question: AdminEventQuestionDto): string {
+  return question.options.join('\n');
 }
 
 function QuestionFields(props: {
@@ -623,12 +629,13 @@ function QuestionFields(props: {
           hint={props.t('field_question_options_hint')}
           label={props.t('field_question_options')}
         >
-          <Input
+          <Textarea
+            className="min-h-24"
             defaultValue={
-              props.question ? questionOptionsCsv(props.question) : ''
+              props.question ? questionOptionsText(props.question) : ''
             }
             id={`question-options-${prefix}`}
-            name="optionsCsv"
+            name="optionsText"
           />
         </AdminEventField>
         <AdminEventField
@@ -796,7 +803,7 @@ function FeeFields(props: {
           id={`fee-amount-${prefix}`}
           inputMode="decimal"
           name="amountDollars"
-          placeholder="150.00"
+          placeholder={props.t('field_fee_amount_placeholder')}
           required
         />
       </AdminEventField>

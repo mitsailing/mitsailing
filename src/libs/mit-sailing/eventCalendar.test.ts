@@ -104,6 +104,36 @@ describe('eventCalendar', () => {
     ]);
   });
 
+  it('lists ongoing rows for intermediate multi-day dates', () => {
+    const eventDates: EventCalendarDate[] = [
+      {
+        id: 'date-1',
+        startDateTime: new Date('2026-03-07T14:00:00.000Z'),
+        endDateTime: new Date('2026-03-10T20:00:00.000Z'),
+        event,
+      },
+    ];
+
+    const rows = buildEventCalendarOccurrenceRows({
+      eventDates,
+      rangeStartKey: '2026-03-01',
+      rangeEndKey: '2026-03-31',
+    });
+
+    expect(rows.map((row) => row.listSegment)).toEqual([
+      'multi-start',
+      'ongoing',
+      'ongoing',
+      'multi-end',
+    ]);
+    expect(rows.map((row) => row.displayDayKey)).toEqual([
+      '2026-03-07',
+      '2026-03-08',
+      '2026-03-09',
+      '2026-03-10',
+    ]);
+  });
+
   it('lists ongoing rows for dates spanning the full range', () => {
     const eventDates: EventCalendarDate[] = [
       {
@@ -117,11 +147,19 @@ describe('eventCalendar', () => {
     const rows = buildEventCalendarOccurrenceRows({
       eventDates,
       rangeStartKey: '2026-03-01',
-      rangeEndKey: '2026-03-31',
+      rangeEndKey: '2026-03-03',
     });
 
-    expect(rows.map((row) => row.listSegment)).toEqual(['ongoing']);
-    expect(rows.map((row) => row.displayDayKey)).toEqual(['2026-03-01']);
+    expect(rows.map((row) => row.listSegment)).toEqual([
+      'ongoing',
+      'ongoing',
+      'ongoing',
+    ]);
+    expect(rows.map((row) => row.displayDayKey)).toEqual([
+      '2026-03-01',
+      '2026-03-02',
+      '2026-03-03',
+    ]);
   });
 
   it('builds calendar href with category filter', () => {

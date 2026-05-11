@@ -45,9 +45,9 @@ export function slugifyEventAdmin(value: string): string {
     .replaceAll(/^-|-$/g, '');
 }
 
-export function splitEventAdminCsv(input: string): string[] {
+export function splitEventAdminOptionLines(input: string): string[] {
   return input
-    .split(',')
+    .split(/\r?\n/)
     .map((part) => part.trim())
     .filter(Boolean);
 }
@@ -209,7 +209,7 @@ export const eventQuestionFormSchema = z
   .object({
     questionText: z.string().trim().min(1),
     answerType: eventAnswerTypeSchema,
-    optionsCsv: z.string().trim(),
+    optionsText: z.string().trim(),
     required: z.boolean(),
     displayOrder: optionalNonNegativeIntSchema,
   })
@@ -218,13 +218,13 @@ export const eventQuestionFormSchema = z
     displayOrder: value.displayOrder ?? 0,
     options:
       value.answerType === EventAnswerType.select
-        ? splitEventAdminCsv(value.optionsCsv)
+        ? splitEventAdminOptionLines(value.optionsText)
         : [],
   }))
   .refine(
     (value) =>
       value.answerType !== EventAnswerType.select || value.options.length > 0,
-    { path: ['optionsCsv'] }
+    { path: ['optionsText'] }
   );
 
 /**
@@ -349,7 +349,7 @@ export function rawEventQuestionFromFormData(formData: FormData): unknown {
   return {
     questionText: formString(formData, 'questionText'),
     answerType: formString(formData, 'answerType'),
-    optionsCsv: formString(formData, 'optionsCsv'),
+    optionsText: formString(formData, 'optionsText'),
     required: formCheckbox(formData, 'required'),
     displayOrder: formString(formData, 'displayOrder'),
   };

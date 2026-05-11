@@ -149,6 +149,7 @@ export function AdminEventCreateFormView(props: AdminEventCreateFormViewProps) {
           <div className="grid gap-4 md:grid-cols-3">
             <AdminEventField
               htmlFor="event-registration-start"
+              hint={props.t('field_datetime_et_hint')}
               label={props.t('field_registration_start')}
             >
               <Input
@@ -159,6 +160,7 @@ export function AdminEventCreateFormView(props: AdminEventCreateFormViewProps) {
             </AdminEventField>
             <AdminEventField
               htmlFor="event-registration-end"
+              hint={props.t('field_datetime_et_hint')}
               label={props.t('field_registration_end')}
             >
               <Input
@@ -260,7 +262,7 @@ export function AdminEventCreateFormView(props: AdminEventCreateFormViewProps) {
             <Input
               id="event-external-url"
               name="externalDetailUrl"
-              placeholder="https://"
+              placeholder={props.t('field_external_detail_url_placeholder')}
               type="url"
             />
           </AdminEventField>

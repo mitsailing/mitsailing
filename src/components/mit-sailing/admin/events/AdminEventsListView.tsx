@@ -48,7 +48,9 @@ function firstAndLastDate(dates: AdminEventDateDto[]): {
   if (dates.length === 0) {
     return { first: null, last: null };
   }
-  const [first, ...rest] = dates;
+  const [first, ...rest] = dates.toSorted(
+    (a, b) => a.startDateTime.getTime() - b.startDateTime.getTime()
+  );
   if (!first) {
     return { first: null, last: null };
   }

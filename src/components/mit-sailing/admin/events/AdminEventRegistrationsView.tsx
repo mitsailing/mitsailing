@@ -211,9 +211,11 @@ function RegistrationCard(props: {
                 {props.t('registration_swim_agreement')}
               </dt>
               <dd className="mt-1">
-                {formatEasternDateTime(
-                  props.registration.swimAgreementAcceptedAt
-                )}
+                {props.registration.swimAgreementAcceptedAt
+                  ? formatEasternDateTime(
+                      props.registration.swimAgreementAcceptedAt
+                    )
+                  : props.t('registration_swim_agreement_not_completed')}
               </dd>
             </div>
           </dl>

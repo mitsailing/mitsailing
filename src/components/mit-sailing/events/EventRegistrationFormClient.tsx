@@ -162,12 +162,12 @@ function QuestionField(props: {
     <>
       {props.question.questionText}
       {props.question.required ? (
-        <span
-          aria-label={props.labels.required}
-          className="ml-1 text-mit-red-ink"
-        >
-          *
-        </span>
+        <>
+          <span aria-hidden="true" className="ml-1 text-mit-red-ink">
+            *
+          </span>
+          <span className="sr-only"> {props.labels.required}</span>
+        </>
       ) : null}
     </>
   );
@@ -270,12 +270,10 @@ function SwimAgreementField(props: {
         id="event-registration-swim-heading"
       >
         {props.labels.swimAgreementHeading}
-        <span
-          aria-label={props.labels.required}
-          className="ml-1 text-mit-red-ink"
-        >
+        <span aria-hidden="true" className="ml-1 text-mit-red-ink">
           *
         </span>
+        <span className="sr-only"> {props.labels.required}</span>
       </h3>
       <div className="flex items-start gap-3 rounded-md border border-border bg-card p-4 text-sm text-mit-text">
         <RegistrationBooleanSwitch
