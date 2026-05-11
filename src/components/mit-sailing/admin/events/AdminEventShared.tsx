@@ -81,21 +81,36 @@ export function AdminEventEmptyState(props: { children: React.ReactNode }) {
   );
 }
 
+type AdminEventFieldControlProps = {
+  'aria-describedby'?: string;
+};
+
+type AdminEventFieldChildren =
+  | React.ReactNode
+  | ((controlProps: AdminEventFieldControlProps) => React.ReactNode);
+
 export function AdminEventField(props: {
-  children: React.ReactNode;
+  children: AdminEventFieldChildren;
   label: React.ReactNode;
   htmlFor?: string;
   hint?: React.ReactNode;
   className?: string;
 }) {
+  const hintId =
+    props.hint && props.htmlFor ? `${props.htmlFor}-hint` : undefined;
+
   return (
     <div className={cn('flex flex-col gap-1.5', props.className)}>
       <Label className="text-foreground" htmlFor={props.htmlFor}>
         {props.label}
       </Label>
-      {props.children}
+      {typeof props.children === 'function'
+        ? props.children({ 'aria-describedby': hintId })
+        : props.children}
       {props.hint ? (
-        <p className="text-xs text-mit-readable-ink">{props.hint}</p>
+        <p className="text-xs text-mit-readable-ink" id={hintId}>
+          {props.hint}
+        </p>
       ) : null}
     </div>
   );

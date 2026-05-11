@@ -78,14 +78,22 @@ export function AdminEventCreateFormView(props: AdminEventCreateFormViewProps) {
               hint={props.t('field_short_name_hint')}
               label={props.t('field_short_name')}
             >
-              <Input id="event-short-name" name="shortName" />
+              {(controlProps) => (
+                <Input
+                  id="event-short-name"
+                  name="shortName"
+                  {...controlProps}
+                />
+              )}
             </AdminEventField>
             <AdminEventField
               htmlFor="event-slug"
               hint={props.t('new_slug_hint')}
               label={props.t('field_slug')}
             >
-              <Input id="event-slug" name="slug" />
+              {(controlProps) => (
+                <Input id="event-slug" name="slug" {...controlProps} />
+              )}
             </AdminEventField>
             <AdminEventField
               htmlFor="event-category"
@@ -94,25 +102,28 @@ export function AdminEventCreateFormView(props: AdminEventCreateFormViewProps) {
               }
               label={props.t('field_category')}
             >
-              <select
-                className={adminNativeSelectClassName}
-                defaultValue={props.categories[0]?.id ?? ''}
-                disabled={!hasCategories}
-                id="event-category"
-                name="eventCategoryId"
-                required
-              >
-                {props.categories.length === 0 ? (
-                  <option disabled value="">
-                    {props.t('field_category_placeholder')}
-                  </option>
-                ) : null}
-                {props.categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
+              {(controlProps) => (
+                <select
+                  className={adminNativeSelectClassName}
+                  defaultValue={props.categories[0]?.id ?? ''}
+                  disabled={!hasCategories}
+                  id="event-category"
+                  name="eventCategoryId"
+                  required
+                  {...controlProps}
+                >
+                  {props.categories.length === 0 ? (
+                    <option disabled value="">
+                      {props.t('field_category_placeholder')}
+                    </option>
+                  ) : null}
+                  {props.categories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              )}
             </AdminEventField>
           </div>
 
@@ -121,11 +132,14 @@ export function AdminEventCreateFormView(props: AdminEventCreateFormViewProps) {
             hint={props.t('field_description_hint')}
             label={props.t('field_description')}
           >
-            <Textarea
-              className="min-h-28"
-              id="event-description"
-              name="description"
-            />
+            {(controlProps) => (
+              <Textarea
+                className="min-h-28"
+                id="event-description"
+                name="description"
+                {...controlProps}
+              />
+            )}
           </AdminEventField>
 
           <div className="grid gap-4 md:grid-cols-2">
@@ -152,34 +166,43 @@ export function AdminEventCreateFormView(props: AdminEventCreateFormViewProps) {
               hint={props.t('field_datetime_et_hint')}
               label={props.t('field_registration_start')}
             >
-              <Input
-                id="event-registration-start"
-                name="registrationStart"
-                type="datetime-local"
-              />
+              {(controlProps) => (
+                <Input
+                  id="event-registration-start"
+                  name="registrationStart"
+                  type="datetime-local"
+                  {...controlProps}
+                />
+              )}
             </AdminEventField>
             <AdminEventField
               htmlFor="event-registration-end"
               hint={props.t('field_datetime_et_hint')}
               label={props.t('field_registration_end')}
             >
-              <Input
-                id="event-registration-end"
-                name="registrationEnd"
-                type="datetime-local"
-              />
+              {(controlProps) => (
+                <Input
+                  id="event-registration-end"
+                  name="registrationEnd"
+                  type="datetime-local"
+                  {...controlProps}
+                />
+              )}
             </AdminEventField>
             <AdminEventField
               htmlFor="event-max-participants"
               hint={props.t('field_max_participants_hint')}
               label={props.t('field_max_participants')}
             >
-              <Input
-                id="event-max-participants"
-                min={1}
-                name="maxParticipants"
-                type="number"
-              />
+              {(controlProps) => (
+                <Input
+                  id="event-max-participants"
+                  min={1}
+                  name="maxParticipants"
+                  type="number"
+                  {...controlProps}
+                />
+              )}
             </AdminEventField>
           </div>
 
@@ -188,11 +211,14 @@ export function AdminEventCreateFormView(props: AdminEventCreateFormViewProps) {
             hint={props.t('field_internal_notes_hint')}
             label={props.t('field_internal_notes')}
           >
-            <Textarea
-              className="min-h-24"
-              id="event-internal-notes"
-              name="internalNotes"
-            />
+            {(controlProps) => (
+              <Textarea
+                className="min-h-24"
+                id="event-internal-notes"
+                name="internalNotes"
+                {...controlProps}
+              />
+            )}
           </AdminEventField>
         </AdminEventFormSection>
 

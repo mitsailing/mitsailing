@@ -121,23 +121,29 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
             hint={props.t('field_short_name_hint')}
             label={props.t('field_short_name')}
           >
-            <Input
-              defaultValue={props.event.shortName}
-              id="event-short-name"
-              name="shortName"
-            />
+            {(controlProps) => (
+              <Input
+                defaultValue={props.event.shortName}
+                id="event-short-name"
+                name="shortName"
+                {...controlProps}
+              />
+            )}
           </AdminEventField>
           <AdminEventField
             htmlFor="event-slug"
             hint={props.t('field_slug_hint', { slug: props.event.slug })}
             label={props.t('field_slug')}
           >
-            <Input
-              defaultValue={props.event.slug}
-              id="event-slug"
-              name="slug"
-              required
-            />
+            {(controlProps) => (
+              <Input
+                defaultValue={props.event.slug}
+                id="event-slug"
+                name="slug"
+                required
+                {...controlProps}
+              />
+            )}
           </AdminEventField>
           <AdminEventField
             htmlFor="event-category"
@@ -164,12 +170,15 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
           hint={props.t('field_description_hint')}
           label={props.t('field_description')}
         >
-          <Textarea
-            className="min-h-28"
-            defaultValue={props.event.description}
-            id="event-description"
-            name="description"
-          />
+          {(controlProps) => (
+            <Textarea
+              className="min-h-28"
+              defaultValue={props.event.description}
+              id="event-description"
+              name="description"
+              {...controlProps}
+            />
+          )}
         </AdminEventField>
 
         <div className="grid gap-4 md:grid-cols-2">
@@ -198,42 +207,51 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
             hint={props.t('field_datetime_et_hint')}
             label={props.t('field_registration_start')}
           >
-            <Input
-              defaultValue={formatEasternDateTimeLocal(
-                props.event.registrationStart
-              )}
-              id="event-registration-start"
-              name="registrationStart"
-              type="datetime-local"
-            />
+            {(controlProps) => (
+              <Input
+                defaultValue={formatEasternDateTimeLocal(
+                  props.event.registrationStart
+                )}
+                id="event-registration-start"
+                name="registrationStart"
+                type="datetime-local"
+                {...controlProps}
+              />
+            )}
           </AdminEventField>
           <AdminEventField
             htmlFor="event-registration-end"
             hint={props.t('field_datetime_et_hint')}
             label={props.t('field_registration_end')}
           >
-            <Input
-              defaultValue={formatEasternDateTimeLocal(
-                props.event.registrationEnd
-              )}
-              id="event-registration-end"
-              name="registrationEnd"
-              type="datetime-local"
-            />
+            {(controlProps) => (
+              <Input
+                defaultValue={formatEasternDateTimeLocal(
+                  props.event.registrationEnd
+                )}
+                id="event-registration-end"
+                name="registrationEnd"
+                type="datetime-local"
+                {...controlProps}
+              />
+            )}
           </AdminEventField>
           <AdminEventField
             htmlFor="event-max-participants"
             hint={props.t('field_max_participants_hint')}
             label={props.t('field_max_participants')}
           >
-            <Input
-              defaultValue={props.event.maxParticipants ?? ''}
-              id="event-max-participants"
-              min={1}
-              name="maxParticipants"
-              step={1}
-              type="number"
-            />
+            {(controlProps) => (
+              <Input
+                defaultValue={props.event.maxParticipants ?? ''}
+                id="event-max-participants"
+                min={1}
+                name="maxParticipants"
+                step={1}
+                type="number"
+                {...controlProps}
+              />
+            )}
           </AdminEventField>
         </div>
 
@@ -242,12 +260,15 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
           hint={props.t('field_internal_notes_hint')}
           label={props.t('field_internal_notes')}
         >
-          <Textarea
-            className="min-h-24"
-            defaultValue={props.event.internalNotes ?? ''}
-            id="event-internal-notes"
-            name="internalNotes"
-          />
+          {(controlProps) => (
+            <Textarea
+              className="min-h-24"
+              defaultValue={props.event.internalNotes ?? ''}
+              id="event-internal-notes"
+              name="internalNotes"
+              {...controlProps}
+            />
+          )}
         </AdminEventField>
       </AdminEventFormSection>
 
@@ -411,26 +432,34 @@ function DateRow(props: {
           hint={props.t('field_datetime_et_hint')}
           label={props.t('field_date_start')}
         >
-          <Input
-            defaultValue={formatEasternDateTimeLocal(props.date.startDateTime)}
-            id={`date-start-${props.date.id}`}
-            name="startDateTime"
-            required
-            type="datetime-local"
-          />
+          {(controlProps) => (
+            <Input
+              defaultValue={formatEasternDateTimeLocal(
+                props.date.startDateTime
+              )}
+              id={`date-start-${props.date.id}`}
+              name="startDateTime"
+              required
+              type="datetime-local"
+              {...controlProps}
+            />
+          )}
         </AdminEventField>
         <AdminEventField
           htmlFor={`date-end-${props.date.id}`}
           hint={props.t('field_datetime_et_hint')}
           label={props.t('field_date_end')}
         >
-          <Input
-            defaultValue={formatEasternDateTimeLocal(props.date.endDateTime)}
-            id={`date-end-${props.date.id}`}
-            name="endDateTime"
-            required
-            type="datetime-local"
-          />
+          {(controlProps) => (
+            <Input
+              defaultValue={formatEasternDateTimeLocal(props.date.endDateTime)}
+              id={`date-end-${props.date.id}`}
+              name="endDateTime"
+              required
+              type="datetime-local"
+              {...controlProps}
+            />
+          )}
         </AdminEventField>
         <SubmitButton
           pendingLabel={props.tCommon('pending_saving')}
@@ -490,24 +519,30 @@ function EventDatesSection(props: AdminEventFormViewProps) {
           hint={props.t('field_datetime_et_hint')}
           label={props.t('field_new_date_start')}
         >
-          <Input
-            id="new-date-start"
-            name="startDateTime"
-            required
-            type="datetime-local"
-          />
+          {(controlProps) => (
+            <Input
+              id="new-date-start"
+              name="startDateTime"
+              required
+              type="datetime-local"
+              {...controlProps}
+            />
+          )}
         </AdminEventField>
         <AdminEventField
           htmlFor="new-date-end"
           hint={props.t('field_datetime_et_hint')}
           label={props.t('field_new_date_end')}
         >
-          <Input
-            id="new-date-end"
-            name="endDateTime"
-            required
-            type="datetime-local"
-          />
+          {(controlProps) => (
+            <Input
+              id="new-date-end"
+              name="endDateTime"
+              required
+              type="datetime-local"
+              {...controlProps}
+            />
+          )}
         </AdminEventField>
         <SubmitButton
           pendingLabel={props.tCommon('pending_adding')}
@@ -630,14 +665,17 @@ function QuestionFields(props: {
           hint={props.t('field_question_options_hint')}
           label={props.t('field_question_options')}
         >
-          <Textarea
-            className="min-h-24"
-            defaultValue={
-              props.question ? questionOptionsText(props.question) : ''
-            }
-            id={`question-options-${prefix}`}
-            name="optionsText"
-          />
+          {(controlProps) => (
+            <Textarea
+              className="min-h-24"
+              defaultValue={
+                props.question ? questionOptionsText(props.question) : ''
+              }
+              id={`question-options-${prefix}`}
+              name="optionsText"
+              {...controlProps}
+            />
+          )}
         </AdminEventField>
         <AdminEventField
           htmlFor={`question-order-${prefix}`}
