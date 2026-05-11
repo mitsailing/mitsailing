@@ -2,10 +2,16 @@ import {
   listClassCategoriesForNav,
   mapClassCategoriesToNavDropdownItems,
 } from '@/libs/mit-sailing/classQueries';
+import { safeCmsHref } from '@/libs/mit-sailing/cmsHref';
+import { loadCmsMenu } from '@/libs/mit-sailing/cmsQueries';
 import {
   listFleetBoatsForPublic,
   mapFleetBoatsToNavDropdownItems,
 } from '@/libs/mit-sailing/fleetQueries';
+import type {
+  SiteHeaderMenuItem,
+  SiteHeaderMobileUtilityItem,
+} from './site/SiteHeader';
 import { SiteHeader } from './site/SiteHeader';
 
 type SiteShellHeaderNavProps = {
@@ -23,17 +29,62 @@ type SiteShellHeaderNavProps = {
  * @returns Sticky header with populated dropdowns when data loads
  */
 export async function SiteShellHeaderNav(props: SiteShellHeaderNavProps) {
-  const [categories, fleetBoats] = await Promise.all([
-    listClassCategoriesForNav(),
-    listFleetBoatsForPublic(),
-  ]);
+  const [categories, fleetBoats, headerMenu, mobileUtilityMenu] =
+    await Promise.all([
+      listClassCategoriesForNav(),
+      listFleetBoatsForPublic(),
+      loadCmsMenu('header'),
+      loadCmsMenu('mobile_utility'),
+    ]);
+
+  const headerMenuItems = headerMenu.flatMap<SiteHeaderMenuItem>((item) => {
+    const href = safeCmsHref(item.href) ?? undefined;
+    const childItems = item.children.flatMap((child) => {
+      const childHref = safeCmsHref(child.href);
+      return childHref ? [{ label: child.label, href: childHref }] : [];
+    });
+
+    if (!href && childItems.length === 0 && !item.systemKey) {
+      return [];
+    }
+
+    return [
+      {
+        id: item.id,
+        label: item.label,
+        href,
+        isExternal: item.isExternal,
+        systemKey: item.systemKey,
+        items: childItems.length > 0 ? childItems : undefined,
+      },
+    ];
+  });
+
+  const mobileUtilityItems =
+    mobileUtilityMenu.flatMap<SiteHeaderMobileUtilityItem>((item) => {
+      const href = safeCmsHref(item.href);
+      return href
+        ? [
+            {
+              id: item.id,
+              label: item.label,
+              href,
+              isExternal: item.isExternal,
+            },
+          ]
+        : [];
+    });
 
   return (
     <SiteHeader
       classesDropdownItems={mapClassCategoriesToNavDropdownItems(categories)}
       fleetDropdownItems={mapFleetBoatsToNavDropdownItems(fleetBoats)}
+      headerMenuItems={headerMenuItems.length > 0 ? headerMenuItems : undefined}
       initialShowAdminLink={props.initialShowAdminLink}
       initialSignedIn={props.initialSignedIn}
+      mobileUtilityItems={
+        mobileUtilityItems.length > 0 ? mobileUtilityItems : undefined
+      }
     />
   );
 }

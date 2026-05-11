@@ -4,6 +4,9 @@ import { plainTextFromCmsRichTextHtml } from '@/libs/mit-sailing/cmsRichText';
 /**
  * Introduction-category classes for the home Learn to Sail block.
  *
+ * `description` is a plain excerpt (`catalogFieldUsesRichText('sailing_classes',
+ * 'description')` is true, but home cards stay text-only for layout).
+ *
  * @returns Intro sailing classes
  */
 export async function loadHomeLearnToSailIntroductionClasses() {
@@ -42,6 +45,8 @@ export async function loadHomeLearnToSailIntroductionClasses() {
 
 /**
  * Next classes for the home Learn to Sail block.
+ *
+ * `description` is a plain excerpt (see {@link loadHomeLearnToSailIntroductionClasses}).
  *
  * @param orderedSlugs - Slugs in display order
  * @returns Matching classes in the same order

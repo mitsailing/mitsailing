@@ -68,6 +68,10 @@ export const listClassCategoriesForNav = cacheDbListOrEmpty(
 /**
  * Group sailing classes by category for `/classes` (sections follow `displayOrder`).
  *
+ * Card `description` values are plain excerpts (`plainTextFromCmsRichTextHtml`):
+ * the admin field is catalog `richText`, but list cards stay text-only for layout
+ * and nested-link UX (see `catalogFieldUsesRichText` in catalog definitions).
+ *
  * @returns Sections with anchored category slugs
  */
 export async function listSailingClassesGroupedForCatalog(): Promise<
@@ -139,6 +143,7 @@ export type SailingClassCatalogDetail = {
   name: string;
   slug: string;
   level: string;
+  /** CMS-authored HTML; sanitize in the class detail view before rich text render. */
   description: string;
   imagePaths: string[];
   classCategory: { name: string; slug: string };
@@ -151,6 +156,7 @@ export type SailingClassCatalogDetail = {
     id: string;
     name: string;
     slug: string;
+    /** Fleet boat CMS HTML; sanitize in the class detail view (catalog `richText`). */
     description: string;
     type: string;
     capacity: number;
@@ -250,7 +256,7 @@ export const getSailingClassCatalogBySlug = cache(
       name: sailingClass.name,
       slug: sailingClass.slug,
       level: sailingClass.level,
-      description: plainTextFromCmsRichTextHtml(sailingClass.description),
+      description: sailingClass.description,
       imagePaths: sailingClass.imagePaths,
       classCategory: sailingClass.classCategory,
       prerequisiteIds,
@@ -258,12 +264,7 @@ export const getSailingClassCatalogBySlug = cache(
       unlockedBoatIds,
       prerequisites: orderByIdOrder(prerequisiteIds, prerequisites),
       relatedEvents: orderByIdOrder(relatedEventIds, relatedEvents),
-      unlockedBoats: orderByIdOrder(unlockedBoatIds, unlockedBoats).map(
-        (boat) => ({
-          ...boat,
-          description: plainTextFromCmsRichTextHtml(boat.description),
-        })
-      ),
+      unlockedBoats: orderByIdOrder(unlockedBoatIds, unlockedBoats),
     };
   }
 );

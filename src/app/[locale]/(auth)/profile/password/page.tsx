@@ -26,7 +26,7 @@ export default async function ProfilePasswordPage(
   const { locale } = await props.params;
   setRequestLocale(locale);
 
-  await requireCurrentUser(locale, getI18nPath('/profile/account/', locale));
+  await requireCurrentUser(locale, getI18nPath('/profile/account', locale));
 
   return <ProfilePasswordClient />;
 }

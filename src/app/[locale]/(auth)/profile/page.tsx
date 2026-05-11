@@ -8,5 +8,5 @@ export default async function ProfileIndexPage(props: {
   const { locale } = await props.params;
   setRequestLocale(locale);
 
-  redirect(getI18nPath('/profile/account/', locale));
+  redirect(getI18nPath('/profile/account', locale));
 }

@@ -27,7 +27,7 @@ export default async function ProfileAccountPage(
   const { locale } = await props.params;
   setRequestLocale(locale);
 
-  const profileAccountHref = getI18nPath('/profile/account/', locale);
+  const profileAccountHref = getI18nPath('/profile/account', locale);
   const user = await requireCurrentUser(locale, profileAccountHref);
 
   const dbUser = await prisma.user.findUnique({

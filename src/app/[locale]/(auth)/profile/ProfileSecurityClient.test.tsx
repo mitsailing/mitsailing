@@ -65,4 +65,23 @@ describe('ProfileSecurityClient', () => {
       'Could not revoke other sessions. Try again.'
     );
   });
+
+  it('profile owner sees recovery message when revocation throws', async () => {
+    const user = userEvent.setup();
+    authClientMock.revokeOtherSessions.mockRejectedValue(
+      new TypeError('Failed to fetch')
+    );
+
+    render(<ProfileSecurityClient />);
+
+    const button = screen.getByRole('button', {
+      name: 'Sign out of other devices',
+    });
+    await user.click(button);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Could not revoke other sessions. Try again.'
+    );
+    expect(button).toBeEnabled();
+  });
 });

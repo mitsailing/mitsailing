@@ -15,6 +15,19 @@ describe('parseCmsPricingBody', () => {
     ).toBeNull();
   });
 
+  it('rejects duplicate plan titles', () => {
+    expect(
+      parseCmsPricingBody(
+        JSON.stringify({
+          plans: [
+            { title: 'Member', price: '$10', features: ['Sailing'] },
+            { title: 'Member', price: '$20', features: ['Racing'] },
+          ],
+        })
+      )
+    ).toBeNull();
+  });
+
   it('keeps only safe plan link urls', () => {
     const parsed = parseCmsPricingBody(
       JSON.stringify({

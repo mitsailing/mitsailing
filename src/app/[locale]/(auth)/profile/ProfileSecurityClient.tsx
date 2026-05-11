@@ -4,10 +4,11 @@ import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { ProfileInlineBanner } from '@/components/auth/profile/profileBanner';
 import type { ProfileBannerState } from '@/components/auth/profile/profileBanner';
-import { Button } from '@/components/ui/button';
+import { SubmitButton } from '@/components/ui/submit-button';
 import { authClient } from '@/libs/auth-client';
 
 export function ProfileSecurityClient() {
+  const tCommon = useTranslations('Common');
   const t = useTranslations('UserProfilePage');
   const [sessionBanner, setSessionBanner] = useState<ProfileBannerState>(null);
   const [revoking, setRevoking] = useState(false);
@@ -15,19 +16,27 @@ export function ProfileSecurityClient() {
   async function onRevokeSessions() {
     setSessionBanner(null);
     setRevoking(true);
-    const res = await authClient.revokeOtherSessions();
-    setRevoking(false);
-    if (res.error) {
+    try {
+      const res = await authClient.revokeOtherSessions();
+      if (res.error) {
+        setSessionBanner({
+          kind: 'error',
+          message: res.error.message ?? t('sign_out_all_error'),
+        });
+        return;
+      }
+      setSessionBanner({
+        kind: 'success',
+        message: t('sign_out_all_success'),
+      });
+    } catch {
       setSessionBanner({
         kind: 'error',
-        message: res.error.message ?? t('sign_out_all_error'),
+        message: t('sign_out_all_error'),
       });
-      return;
+    } finally {
+      setRevoking(false);
     }
-    setSessionBanner({
-      kind: 'success',
-      message: t('sign_out_all_success'),
-    });
   }
 
   return (
@@ -45,15 +54,16 @@ export function ProfileSecurityClient() {
           {t('sign_out_all_description')}
         </p>
         <ProfileInlineBanner banner={sessionBanner} />
-        <Button
+        <SubmitButton
           className="mt-4 w-fit"
-          disabled={revoking}
           onClick={onRevokeSessions}
+          pending={revoking}
+          pendingLabel={tCommon('pending_submitting')}
           type="button"
           variant="outline"
         >
           {t('sign_out_all_submit')}
-        </Button>
+        </SubmitButton>
       </section>
     </div>
   );

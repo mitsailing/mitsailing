@@ -31,6 +31,13 @@ export function mapFleetBoatsToNavDropdownItems(
   return mapNameSlugRowsToNavLinks(boats, hrefFleetBoatFromSlug);
 }
 
+/**
+ * Loads fleet rows; `description` is converted to plain excerpts for list cards
+ * (`catalogFieldUsesRichText('fleet','description')` is true, but `/fleet` cards
+ * stay text-only for layout and nested-link UX).
+ *
+ * @returns Fleet rows with plain-text description excerpts for list cards
+ */
 async function loadFleetBoatsForPublicUnchecked(): Promise<FleetBoatListRow[]> {
   const rows = await prisma.fleetBoat.findMany({
     orderBy: prismaOrderByDisplayOrderAscNameAsc,

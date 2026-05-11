@@ -345,11 +345,11 @@ describe('MitSailingHomePageView', () => {
     expect(screen.getByText('Today')).toBeVisible();
     expect(screen.getByRole('link', { name: 'Intro sail' })).toHaveAttribute(
       'href',
-      '/events/intro-sail/'
+      '/events/intro-sail'
     );
     expect(screen.getByRole('link', { name: 'Racing clinic' })).toHaveAttribute(
       'href',
-      '/events/racing-clinic/'
+      '/events/racing-clinic'
     );
     expect(screen.getByRole('link', { name: 'Full calendar' })).toHaveAttribute(
       'target',
@@ -420,7 +420,7 @@ describe('MitSailingHomePageView', () => {
     ).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Intro sail' })).toHaveAttribute(
       'href',
-      '/events/intro-sail/'
+      '/events/intro-sail'
     );
     expect(
       screen.queryByRole('link', { name: 'Racing clinic' })
@@ -507,5 +507,258 @@ describe('MitSailingHomePageView', () => {
     expect(
       screen.queryByRole('link', { name: 'Book rentals' })
     ).not.toBeInTheDocument();
+  });
+
+  it('renders cms rich text and ordered block ctas', async () => {
+    const heroBlock = blocks.find((block) => block.id === 'hero');
+    const rentalBlock = blocks.find((block) => block.id === 'rental');
+    if (!heroBlock || !rentalBlock || rentalBlock.kind !== 'callout') {
+      throw new Error('Expected home hero and rental blocks');
+    }
+    homeMocks.loadPublishedCmsPageByPath.mockResolvedValue(
+      homePageWithBlocks([
+        {
+          ...heroBlock,
+          body: '<p><strong>Fast</strong> sailing <a href="/classes">classes</a></p>',
+          title: 'CMS home hero',
+        },
+        {
+          ...rentalBlock,
+          body: '<p>Reserve the <em>pavilion</em>.</p>',
+          ctaLabel: 'Contact us',
+          ctaUrl: '/contact',
+          title: 'CMS rental',
+        },
+        {
+          body: JSON.stringify({
+            plans: [
+              {
+                features: ['Full access'],
+                linkLabel: 'Join students',
+                linkUrl: '/signup',
+                price: '$10',
+                title: 'One plan',
+              },
+            ],
+          }),
+          ctaLabel: 'Block join',
+          ctaUrl: '/block-signup',
+          id: 'pricing-block',
+          kind: 'pricing',
+          title: 'CMS pricing',
+        },
+      ])
+    );
+
+    const view = render(await MitSailingHomePageView({ locale: 'en' }));
+
+    expect(screen.getByText('Fast').tagName).toBe('STRONG');
+    expect(screen.getByText('pavilion').tagName).toBe('EM');
+    const pageText = view.container.textContent ?? '';
+    expect(pageText.indexOf('CMS rental')).toBeLessThan(
+      pageText.indexOf('CMS pricing')
+    );
+    expect(screen.getByRole('link', { name: 'Join students' })).toHaveAttribute(
+      'href',
+      '/signup'
+    );
+    expect(
+      screen.queryByRole('link', { name: 'Block join' })
+    ).not.toBeInTheDocument();
+    expect(view.container).not.toHaveTextContent('<strong>Fast</strong>');
+  });
+
+  it('omits default ctas when cms home blocks remove cta fields', async () => {
+    homeMocks.loadPublishedCmsPageByPath.mockResolvedValue(
+      homePageWithBlocks([
+        {
+          body: '<p>CMS hero body.</p>',
+          id: 'hero-block',
+          imageAlt: 'Sailboats',
+          imageSrc: '/assets/images/home-hero-charles-sailing.jpg',
+          kind: 'hero',
+          subtitle: 'On the Charles',
+          title: 'CMS home hero',
+        },
+        {
+          body: '<p>Reserve the pavilion.</p>',
+          id: 'rental-block',
+          kind: 'callout',
+          title: 'CMS rental',
+        },
+      ])
+    );
+
+    render(await MitSailingHomePageView({ locale: 'en' }));
+
+    expect(
+      screen.queryByRole('link', { name: 'Explore classes' })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: 'Inquire about availability' })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'Create account' })
+    ).toHaveAttribute('href', '/signup');
+    expect(screen.queryByText('Membership Options')).not.toBeInTheDocument();
+  });
+
+  it('renders home overview content from a composite cms block', async () => {
+    homeMocks.loadPublishedCmsPageByPath.mockResolvedValue(
+      homePageWithBlocks([
+        createOverviewBlock({
+          eventCount: 2,
+          eventsCtaLabel: 'All CMS events',
+          eventsCtaUrl: '/events',
+        }),
+      ])
+    );
+    homeMocks.getHomeUpcomingDayGroups.mockResolvedValue([
+      {
+        dateKey: '2026-05-14',
+        headingLabel: 'Thu, May 14',
+        isToday: false,
+        rows: [
+          {
+            categoryId: 'cat-racing',
+            eventName: 'First CMS event',
+            eventSlug: 'first-cms-event',
+            line: '7:00 PM - 8:00 PM',
+            rowKey: 'event-date-1',
+          },
+          {
+            categoryId: 'cat-class',
+            eventName: 'Second CMS event',
+            eventSlug: 'second-cms-event',
+            line: '9:00 PM - 10:00 PM',
+            rowKey: 'event-date-2',
+          },
+        ],
+      },
+      {
+        dateKey: '2026-05-15',
+        headingLabel: 'Fri, May 15',
+        isToday: false,
+        rows: [
+          {
+            categoryId: 'cat-cruise',
+            eventName: 'Third CMS event',
+            eventSlug: 'third-cms-event',
+            line: '6:00 PM - 7:00 PM',
+            rowKey: 'event-date-3',
+          },
+        ],
+      },
+    ]);
+
+    render(await MitSailingHomePageView({ locale: 'en' }));
+
+    expect(screen.getByText('Daily Sailing')).toBeInTheDocument();
+    expect(
+      screen.getByText('What to know before you visit')
+    ).toBeInTheDocument();
+    expect(screen.getByText('Weekdays')).toBeInTheDocument();
+    expect(screen.getByText('Noon - 8 PM')).toBeInTheDocument();
+    expect(screen.getByText('Getting started')).toBeInTheDocument();
+    expect(screen.getByText('Join online')).toBeInTheDocument();
+    expect(screen.getByText('Upcoming at MIT Sailing')).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'First CMS event' })
+    ).toHaveAttribute('href', '/events/first-cms-event');
+    expect(
+      screen.getByRole('link', { name: 'Second CMS event' })
+    ).toHaveAttribute('href', '/events/second-cms-event');
+    expect(
+      screen.queryByRole('link', { name: 'Third CMS event' })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'All CMS events' })
+    ).toHaveAttribute('href', '/events');
+  });
+
+  it('renders learn to sail content from a cms block with class data', async () => {
+    homeMocks.loadPublishedCmsPageByPath.mockResolvedValue(
+      homePageWithBlocks([
+        {
+          ctaLabel: 'All classes',
+          ctaUrl: '/classes',
+          id: 'home-classes-block',
+          kind: 'home_classes',
+          subtitle: 'CMS class path copy.',
+          title: 'CMS Learn to Sail',
+        },
+      ])
+    );
+    homeMocks.loadHomeLearnToSailIntroductionClasses.mockResolvedValue([
+      {
+        description: 'Intro class description.',
+        id: 'class-intro',
+        level: 'Beginner',
+        name: 'Learn to Sail',
+        prerequisiteIds: [],
+        slug: 'learn-to-sail',
+      },
+    ]);
+    homeMocks.loadHomeLearnToSailNextClassesBySlugs.mockResolvedValue([
+      {
+        description: 'Next class description.',
+        id: 'class-next',
+        level: 'Intermediate',
+        name: 'Boat Speed',
+        prerequisiteIds: ['class-intro'],
+        slug: 'boat-speed',
+      },
+    ]);
+    homeMocks.loadHomeLearnToSailPrerequisiteNamesByIds.mockResolvedValue(
+      new Map([['class-intro', 'Learn to Sail']])
+    );
+
+    render(await MitSailingHomePageView({ locale: 'en' }));
+
+    expect(screen.getByText('CMS Learn to Sail')).toBeInTheDocument();
+    expect(screen.getByText('CMS class path copy.')).toBeInTheDocument();
+    expect(screen.getByText('Boat Speed')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'All classes' })).toHaveAttribute(
+      'href',
+      '/classes'
+    );
+  });
+
+  it('omits block-managed fallback content when cms home page is missing', async () => {
+    homeMocks.loadPublishedCmsPageByPath.mockResolvedValue(null);
+
+    render(await MitSailingHomePageView({ locale: 'en' }));
+
+    expect(
+      screen.queryByRole('link', { name: 'Explore classes' })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: 'Inquire about availability' })
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText('Membership Options')).not.toBeInTheDocument();
+    expect(screen.queryByText('Pavilion Hours')).not.toBeInTheDocument();
+    expect(screen.queryByText('Our Core Fleet')).not.toBeInTheDocument();
+    expect(screen.queryByText('Learn to Sail')).not.toBeInTheDocument();
+  });
+
+  it('omits invalid home overview blocks instead of rendering fallback content', async () => {
+    homeMocks.loadPublishedCmsPageByPath.mockResolvedValue(
+      homePageWithBlocks([
+        {
+          body: JSON.stringify({
+            schedule: [],
+          }),
+          id: 'home-overview-block',
+          kind: 'home_overview',
+          subtitle: 'Invalid season',
+          title: 'Invalid CMS hours',
+        },
+      ])
+    );
+
+    render(await MitSailingHomePageView({ locale: 'en' }));
+
+    expect(screen.queryByText('Invalid CMS hours')).not.toBeInTheDocument();
+    expect(screen.queryByText('Pavilion Hours')).not.toBeInTheDocument();
   });
 });

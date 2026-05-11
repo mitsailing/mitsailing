@@ -593,3 +593,19 @@ export function tryGetCatalogDefinition(
   }
   return catalogResourceDefinitions[id];
 }
+
+/**
+ * Whether the catalog admin edits this field with TipTap (`AdminRichTextEditor`).
+ *
+ * @param resourceId - Registered catalog resource id
+ * @param field - Form field name (e.g. `description`, `body`)
+ * @returns True when the field is configured as `richText`
+ */
+export function catalogFieldUsesRichText(
+  resourceId: CatalogResourceId,
+  field: string
+): boolean {
+  const def = catalogResourceDefinitions[resourceId];
+  const match = def.formFields.find((f) => f.field === field);
+  return match?.kind === 'richText';
+}

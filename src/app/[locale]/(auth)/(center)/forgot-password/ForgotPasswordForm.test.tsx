@@ -23,7 +23,7 @@ describe('ForgotPasswordForm', () => {
   it('prefills initial reset email', () => {
     render(
       <ForgotPasswordForm
-        callbackUrl="/fleet/"
+        callbackUrl="/fleet"
         initialEmail=" Sailor@MIT.EDU "
       />
     );
@@ -34,7 +34,7 @@ describe('ForgotPasswordForm', () => {
   it('request reset code and move to code form', async () => {
     const user = userEvent.setup();
 
-    render(<ForgotPasswordForm callbackUrl="/fleet/" initialEmail="" />);
+    render(<ForgotPasswordForm callbackUrl="/fleet" initialEmail="" />);
 
     await user.type(screen.getByLabelText('Email'), ' Reset@MIT.EDU ');
     await user.click(screen.getByRole('button', { name: 'Send reset code' }));
@@ -44,7 +44,7 @@ describe('ForgotPasswordForm', () => {
     });
     await waitFor(() => {
       expect(componentTestRouter().replace).toHaveBeenCalledWith(
-        '/reset-password?email=reset%40mit.edu&codeSent=1&callbackUrl=%2Ffleet%2F'
+        '/reset-password?email=reset%40mit.edu&codeSent=1&callbackUrl=%2Ffleet'
       );
     });
     await waitFor(() =>
@@ -57,7 +57,7 @@ describe('ForgotPasswordForm', () => {
   it('show safe error for invalid reset email', async () => {
     const user = userEvent.setup();
 
-    render(<ForgotPasswordForm callbackUrl="/fleet/" initialEmail="" />);
+    render(<ForgotPasswordForm callbackUrl="/fleet" initialEmail="" />);
 
     await user.type(screen.getByLabelText('Email'), 'sailor@mit');
     await user.click(screen.getByRole('button', { name: 'Send reset code' }));
@@ -75,7 +75,7 @@ describe('ForgotPasswordForm', () => {
     });
 
     render(
-      <ForgotPasswordForm callbackUrl="/fleet/" initialEmail="reset@mit.edu" />
+      <ForgotPasswordForm callbackUrl="/fleet" initialEmail="reset@mit.edu" />
     );
 
     await user.click(screen.getByRole('button', { name: 'Send reset code' }));
@@ -85,7 +85,7 @@ describe('ForgotPasswordForm', () => {
     });
     await waitFor(() => {
       expect(componentTestRouter().replace).toHaveBeenCalledWith(
-        '/reset-password?email=reset%40mit.edu&codeSent=1&callbackUrl=%2Ffleet%2F'
+        '/reset-password?email=reset%40mit.edu&codeSent=1&callbackUrl=%2Ffleet'
       );
     });
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -98,14 +98,14 @@ describe('ForgotPasswordForm', () => {
     );
 
     render(
-      <ForgotPasswordForm callbackUrl="/fleet/" initialEmail="reset@mit.edu" />
+      <ForgotPasswordForm callbackUrl="/fleet" initialEmail="reset@mit.edu" />
     );
 
     await user.click(screen.getByRole('button', { name: 'Send reset code' }));
 
     await waitFor(() => {
       expect(componentTestRouter().replace).toHaveBeenCalledWith(
-        '/reset-password?email=reset%40mit.edu&codeSent=1&callbackUrl=%2Ffleet%2F'
+        '/reset-password?email=reset%40mit.edu&codeSent=1&callbackUrl=%2Ffleet'
       );
     });
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();

@@ -3,17 +3,41 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProfilePasswordClient } from './ProfilePasswordClient';
 
-const authClientMock = vi.hoisted(() => ({
-  changePassword: vi.fn(),
+type ProfilePasswordSession = {
+  data: { user: { id: string } } | null;
+  refetch: () => Promise<void>;
+};
+
+const authClientMock = vi.hoisted(() => {
+  const refetchSession = vi.fn(async () => {});
+  return {
+    changePassword: vi.fn(),
+    refetchSession,
+    useSession: vi.fn<() => ProfilePasswordSession>(() => ({
+      data: { user: { id: 'user_123' } },
+      refetch: refetchSession,
+    })),
+  };
+});
+
+const sentryMock = vi.hoisted(() => ({
+  captureException: vi.fn(),
 }));
 
 vi.mock('@/libs/auth-client', () => ({
   authClient: authClientMock,
 }));
 
+vi.mock('@sentry/nextjs', () => sentryMock);
+
 beforeEach(() => {
   vi.clearAllMocks();
   authClientMock.changePassword.mockResolvedValue({});
+  authClientMock.refetchSession.mockImplementation(async () => {});
+  authClientMock.useSession.mockReturnValue({
+    data: { user: { id: 'user_123' } },
+    refetch: authClientMock.refetchSession,
+  });
 });
 
 async function fillPasswordForm(props: {
@@ -52,7 +76,61 @@ describe('ProfilePasswordClient', () => {
       revokeOtherSessions: true,
     });
     expect(await screen.findByText('Your password was updated.')).toBeVisible();
+    expect(authClientMock.refetchSession).toHaveBeenCalledTimes(1);
     expect(screen.getByLabelText('Current password')).toHaveValue('');
+  });
+
+  it('reports refetch failure after password change', async () => {
+    const error = new Error('refetch failed');
+    authClientMock.refetchSession.mockRejectedValueOnce(error);
+    render(<ProfilePasswordClient />);
+
+    const user = await fillPasswordForm({
+      currentPassword: 'current-password',
+      newPassword: 'new-password',
+    });
+    await user.click(screen.getByRole('button', { name: 'Update password' }));
+
+    expect(await screen.findByText('Your password was updated.')).toBeVisible();
+    expect(sentryMock.captureException).toHaveBeenCalledWith(error, {
+      extra: {
+        action: 'refetchSession after password change',
+        userId: 'user_123',
+      },
+    });
+    expect(sentryMock.captureException).not.toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        extra: expect.objectContaining({
+          currentPassword: expect.anything(),
+          newPassword: expect.anything(),
+        }),
+      })
+    );
+  });
+
+  it('reports refetch failure without session user', async () => {
+    const error = new Error('refetch failed');
+    authClientMock.useSession.mockReturnValue({
+      data: null,
+      refetch: authClientMock.refetchSession,
+    });
+    authClientMock.refetchSession.mockRejectedValueOnce(error);
+    render(<ProfilePasswordClient />);
+
+    const user = await fillPasswordForm({
+      currentPassword: 'current-password',
+      newPassword: 'new-password',
+    });
+    await user.click(screen.getByRole('button', { name: 'Update password' }));
+
+    expect(await screen.findByText('Your password was updated.')).toBeVisible();
+    expect(sentryMock.captureException).toHaveBeenCalledWith(error, {
+      extra: {
+        action: 'refetchSession after password change',
+        userId: undefined,
+      },
+    });
   });
 
   it('profile owner sees a mismatch before password submission', async () => {

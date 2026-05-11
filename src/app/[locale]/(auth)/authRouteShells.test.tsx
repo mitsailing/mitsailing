@@ -252,7 +252,7 @@ describe('auth route shells', () => {
     render(
       await SignInPage(
         routeProps({
-          callbackUrl: '/profile/account/',
+          callbackUrl: '/profile/account',
           error: 'unlock_invalid',
         })
       )
@@ -260,7 +260,7 @@ describe('auth route shells', () => {
 
     expect(routeMocks.redirectIfAuthenticated).toHaveBeenCalledWith(
       'en',
-      '/profile/account/'
+      '/profile/account'
     );
     expect(
       screen.getByRole('heading', { name: 'SignInPage.heading' })
@@ -270,11 +270,11 @@ describe('auth route shells', () => {
     );
     expect(screen.getByRole('form', { name: 'sign-in-form' })).toHaveAttribute(
       'data-callback-url',
-      '/profile/account/'
+      '/profile/account'
     );
     expect(
       screen.getByRole('link', { name: 'SignInPage.sign_up_link' })
-    ).toHaveAttribute('href', '/signup?callbackUrl=%2Fprofile%2Faccount%2F');
+    ).toHaveAttribute('href', '/signup?callbackUrl=%2Fprofile%2Faccount');
   });
 
   it('sign-in page renders unlocked banner without an error', async () => {
@@ -301,22 +301,22 @@ describe('auth route shells', () => {
   });
 
   it('sign-up page passes callback links through the shell', async () => {
-    render(await SignUpPage(routeProps({ callbackUrl: '/fleet/' })));
+    render(await SignUpPage(routeProps({ callbackUrl: '/fleet' })));
 
     expect(routeMocks.redirectIfAuthenticated).toHaveBeenCalledWith(
       'en',
-      '/fleet/'
+      '/fleet'
     );
     expect(
       screen.getByRole('heading', { name: 'SignUpPage.heading' })
     ).toBeVisible();
     expect(screen.getByRole('form', { name: 'sign-up-form' })).toHaveAttribute(
       'data-callback-url',
-      '/fleet/'
+      '/fleet'
     );
     expect(
       screen.getByRole('link', { name: 'SignUpPage.sign_in_link' })
-    ).toHaveAttribute('href', '/login?callbackUrl=%2Ffleet%2F');
+    ).toHaveAttribute('href', '/login?callbackUrl=%2Ffleet');
   });
 
   it('forgot-password metadata uses localized copy', async () => {
@@ -331,20 +331,20 @@ describe('auth route shells', () => {
   it('forgot-password page passes callback and initial email', async () => {
     render(
       await ForgotPasswordPage(
-        routeProps({ callbackUrl: '/profile/', email: 'sailor@example.com' })
+        routeProps({ callbackUrl: '/profile', email: 'sailor@example.com' })
       )
     );
 
     expect(routeMocks.redirectIfAuthenticated).toHaveBeenCalledWith(
       'en',
-      '/profile/'
+      '/profile'
     );
     expect(
       screen.getByRole('form', { name: 'forgot-password-form' })
     ).toHaveAttribute('data-initial-email', 'sailor@example.com');
     expect(
       screen.getByRole('link', { name: 'ForgotPasswordPage.back_sign_in' })
-    ).toHaveAttribute('href', '/login?callbackUrl=%2Fprofile%2F');
+    ).toHaveAttribute('href', '/login?callbackUrl=%2Fprofile');
   });
 
   it('forgot-password page defaults an empty initial email', async () => {
@@ -366,7 +366,7 @@ describe('auth route shells', () => {
     render(
       await ResetPasswordPage(
         routeProps({
-          callbackUrl: '/profile/',
+          callbackUrl: '/profile',
           codeSent: '1',
           email: 'sailor@example.com',
         })
@@ -399,7 +399,7 @@ describe('auth route shells', () => {
     render(
       await VerifyEmailPage(
         routeProps({
-          callbackUrl: '/profile/',
+          callbackUrl: '/profile',
           codeSent: '1',
           email: 'sailor@example.com',
         })
@@ -452,7 +452,7 @@ describe('auth route shells', () => {
 
     expect(screen.getByTestId('profile-settings-chrome')).toHaveAttribute(
       'data-callback-url',
-      '/profile/account/'
+      '/profile/account'
     );
     expect(screen.getByText('Profile child')).toBeVisible();
   });
@@ -460,9 +460,9 @@ describe('auth route shells', () => {
   it('profile index redirects to account settings', async () => {
     await expect(
       ProfileIndexPage({ params: Promise.resolve({ locale: 'en' }) })
-    ).rejects.toThrow('NEXT_REDIRECT:/profile/account/');
+    ).rejects.toThrow('NEXT_REDIRECT:/profile/account');
 
-    expect(routeMocks.redirect).toHaveBeenCalledWith('/profile/account/');
+    expect(routeMocks.redirect).toHaveBeenCalledWith('/profile/account');
   });
 
   it('profile account metadata uses localized copy', async () => {
@@ -483,7 +483,7 @@ describe('auth route shells', () => {
 
     expect(routeMocks.requireCurrentUser).toHaveBeenCalledWith(
       'en',
-      '/profile/account/'
+      '/profile/account'
     );
     expect(routeMocks.findUnique).toHaveBeenCalledWith({
       select: { themePreference: true, unconfirmedEmail: true },
@@ -537,7 +537,7 @@ describe('auth route shells', () => {
 
     expect(routeMocks.requireCurrentUser).toHaveBeenCalledWith(
       'en',
-      '/profile/account/'
+      '/profile/account'
     );
     expect(
       screen.getByRole('region', { name: 'profile-password-client' })
@@ -562,7 +562,7 @@ describe('auth route shells', () => {
 
     expect(routeMocks.requireCurrentUser).toHaveBeenCalledWith(
       'en',
-      '/profile/account/'
+      '/profile/account'
     );
     expect(
       screen.getByRole('region', { name: 'profile-security-client' })
@@ -585,7 +585,7 @@ describe('auth route shells', () => {
 
     expect(routeMocks.requireCurrentUser).toHaveBeenCalledWith(
       'en',
-      '/profile/account/'
+      '/profile/account'
     );
     expect(
       screen.getByRole('region', { name: 'profile-delete-account-client' })

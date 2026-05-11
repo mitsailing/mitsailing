@@ -26,6 +26,7 @@ type Params = {
   to: string;
   subject: string;
   html: string;
+  replyTo?: string;
   text?: string;
 };
 
@@ -51,7 +52,7 @@ function htmlToPlainText(html: string): string {
     .trim();
 }
 
-function withPlainTextFallback(params: Params): Required<Params> {
+function withPlainTextFallback(params: Params): Params & { text: string } {
   return {
     ...params,
     text: params.text?.trim() ? params.text : htmlToPlainText(params.html),
@@ -78,6 +79,7 @@ async function sendViaSmtp(params: Params): Promise<void> {
   const transport = getSmtpTransport();
   await transport.sendMail({
     from: Env.EMAIL_FROM,
+    ...(params.replyTo ? { replyTo: params.replyTo } : {}),
     to: params.to,
     subject: params.subject,
     html: params.html,
@@ -94,6 +96,7 @@ async function sendViaResend(params: Params): Promise<void> {
   const resend = new Resend(Env.RESEND_API_KEY);
   const result = await resend.emails.send({
     from: Env.EMAIL_FROM,
+    ...(params.replyTo ? { replyTo: params.replyTo } : {}),
     to: params.to,
     subject: params.subject,
     html: params.html,
