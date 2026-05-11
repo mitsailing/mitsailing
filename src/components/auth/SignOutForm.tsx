@@ -1,8 +1,9 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { SubmitButton } from '@/components/ui/submit-button';
 import { authClient } from '@/libs/auth-client';
 import { getI18nPath } from '@/utils/Helpers';
 
@@ -20,6 +21,7 @@ type SignOutFormProps = {
 // Client-side sign-out button wired to `authClient.signOut`. Uses `router.push`
 // so the post-sign-out redirect respects locale-aware paths.
 export function SignOutForm(props: SignOutFormProps) {
+  const tCommon = useTranslations('Common');
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
 
@@ -36,18 +38,18 @@ export function SignOutForm(props: SignOutFormProps) {
   }
 
   return (
-    <Button
-      aria-busy={submitting}
+    <SubmitButton
       className={
         props.buttonClassName ??
         'h-auto min-h-0 rounded-md border-none bg-transparent px-0 py-0 font-normal text-gray-700 shadow-none hover:bg-transparent hover:text-gray-900 disabled:opacity-60'
       }
-      disabled={submitting}
       onClick={onClick}
+      pending={submitting}
+      pendingLabel={tCommon('pending_submitting')}
       type="button"
       variant="ghost"
     >
       {props.label}
-    </Button>
+    </SubmitButton>
   );
 }

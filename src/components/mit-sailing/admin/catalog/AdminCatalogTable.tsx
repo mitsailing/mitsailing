@@ -45,6 +45,7 @@ import type {
   CatalogRow,
 } from '@/libs/admin/catalog/types';
 import { Link } from '@/libs/I18nNavigation';
+import { isAppRelativeCmsHref, safeCmsHref } from '@/libs/mit-sailing/cmsHref';
 
 const ImpersonateButtonClient = dynamic(
   async () => {
@@ -96,13 +97,13 @@ function SortableRow(props: {
   return (
     <tr
       className={cn(
-        'border-b transition-colors hover:bg-muted/50',
+        'grid grid-cols-[2.75rem_minmax(0,1fr)] border-b transition-colors hover:bg-muted/50 md:table-row',
         isDragging ? 'bg-mit-surface opacity-80' : undefined
       )}
       ref={setNodeRef}
       style={style}
     >
-      <TableCell className="w-10 px-2 py-3 align-middle">
+      <TableCell className="row-span-full flex w-11 items-start justify-center px-2 py-3 align-middle md:table-cell md:w-10">
         <Button
           aria-label={props.dragLabel}
           className="cursor-grab touch-none text-muted-foreground hover:text-foreground"
@@ -121,7 +122,11 @@ function SortableRow(props: {
 }
 
 function StaticRow(props: { children: React.ReactNode }) {
-  return <TableRow>{props.children}</TableRow>;
+  return (
+    <TableRow className="grid grid-cols-1 md:table-row">
+      {props.children}
+    </TableRow>
+  );
 }
 
 /**
@@ -171,6 +176,19 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
       return `${props.adminBasePath}/${encodeURIComponent(id)}/delete`;
     }
     return adminCatalogResourceDeletePath(props.resourceId, id);
+  }
+
+  function publicViewHref(row: CatalogRow): string | null {
+    const field = props.definition.publicViewHrefField;
+    if (!field) {
+      return null;
+    }
+    const raw = row[field];
+    if (typeof raw !== 'string') {
+      return null;
+    }
+    const href = safeCmsHref(raw);
+    return href && isAppRelativeCmsHref(href) ? href : null;
   }
 
   const [orderedIds, setOrderedIds] = useState<string[]>(() =>
@@ -241,7 +259,13 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
           ? editHref(String(row.id))
           : undefined;
       return (
-        <TableCell key={col.field} className="px-4 py-3 text-foreground">
+        <TableCell
+          key={col.field}
+          className="block min-w-0 px-4 py-2 text-foreground md:table-cell md:py-3"
+        >
+          <span className="mb-1 block text-xs font-medium text-muted-foreground md:hidden">
+            {t(col.headerKey)}
+          </span>
           <AdminCatalogListCell
             booleanPolarity={col.booleanPolarity}
             field={col.field}
@@ -253,17 +277,29 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
         </TableCell>
       );
     });
+    const viewHref = publicViewHref(row);
     const actions = (
-      <TableCell className="px-4 py-3">
+      <TableCell className="block min-w-0 px-4 pt-2 pb-4 md:table-cell md:py-3">
+        <span className="mb-1 block text-xs font-medium text-muted-foreground md:hidden">
+          {t('column_actions')}
+        </span>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          {viewHref ? (
+            <Link
+              className="text-sm font-medium text-mit-red no-underline hover:underline"
+              href={viewHref}
+            >
+              {t('action_view_page')}
+            </Link>
+          ) : null}
           <Link
-            className="text-sm font-medium text-mit-red-ink no-underline hover:underline"
+            className="text-sm font-medium text-mit-red no-underline hover:underline"
             href={editHref(String(row.id))}
           >
             {t('action_edit')}
           </Link>
           <Link
-            className="text-sm font-medium text-mit-red-ink no-underline hover:underline"
+            className="text-sm font-medium text-mit-red no-underline hover:underline"
             href={deleteHref(String(row.id))}
           >
             {t('action_delete')}
@@ -295,7 +331,7 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
   return (
     <div className="flex flex-col gap-2">
       {reorderError ? (
-        <p className="text-sm text-red-700" role="alert">
+        <p className="text-sm text-destructive" role="alert">
           {reorderError}
         </p>
       ) : null}
@@ -307,8 +343,8 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
           sensors={sensors}
         >
           <div className="rounded-lg border border-border bg-card">
-            <Table className="min-w-[720px] text-left">
-              <TableHeader>
+            <Table className="text-left md:min-w-[720px]">
+              <TableHeader className="hidden md:table-header-group">
                 <TableRow className="border-b bg-muted/50 hover:bg-muted/50">
                   <TableHead
                     aria-label={t('drag_handle_aria')}
@@ -348,8 +384,8 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
         </DndContext>
       ) : (
         <div className="rounded-lg border border-border bg-card">
-          <Table className="min-w-[720px] text-left">
-            <TableHeader>
+          <Table className="text-left md:min-w-[720px]">
+            <TableHeader className="hidden md:table-header-group">
               <TableRow className="border-b bg-muted/50 hover:bg-muted/50">
                 {displayColumns.map((col) => (
                   <TableHead key={col.field} className="px-4 py-3 font-medium">

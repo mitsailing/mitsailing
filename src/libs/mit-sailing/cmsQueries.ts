@@ -3,6 +3,7 @@ import { cache } from 'react';
 import { prisma } from '@/libs/DB';
 import { logger } from '@/libs/Logger';
 import { safeCmsMenuItemHref } from '@/libs/mit-sailing/cmsHref';
+import { safePublicCmsBlockImageSrc } from '@/libs/mit-sailing/cmsValidation';
 
 export type CmsMenuLocation =
   | 'header'
@@ -55,6 +56,32 @@ function isPublicCmsBlockRow<T extends { kind: string }>(
   block: T
 ): block is T & { kind: PublicCmsBlock['kind'] } {
   return isPublicCmsBlockKind(block.kind);
+}
+
+function publicCmsBlockCtaAndImage(block: {
+  ctaLabel: string | null;
+  ctaUrl: string | null;
+  imageAlt: string | null;
+  imageSrc: string | null;
+  showCta: boolean;
+  showImage: boolean;
+}): Pick<PublicCmsBlock, 'ctaLabel' | 'ctaUrl' | 'imageSrc' | 'imageAlt'> {
+  const safeHref = safeCmsMenuItemHref(block.ctaUrl?.trim());
+  const ctaLabelTrimmed = block.ctaLabel?.trim();
+  const emitCta =
+    block.showCta && Boolean(ctaLabelTrimmed) && Boolean(safeHref);
+
+  const normalizedImageSrc = safePublicCmsBlockImageSrc(block.imageSrc);
+  const imageAltTrimmed = block.imageAlt?.trim();
+  const emitImage =
+    block.showImage && Boolean(normalizedImageSrc) && Boolean(imageAltTrimmed);
+
+  return {
+    ctaLabel: emitCta ? ctaLabelTrimmed : undefined,
+    ctaUrl: emitCta ? safeHref : undefined,
+    imageSrc: emitImage ? normalizedImageSrc : undefined,
+    imageAlt: emitImage ? imageAltTrimmed : undefined,
+  };
 }
 
 export type PublicCmsPage = {
@@ -166,7 +193,8 @@ export async function loadCmsMenu(
 
 /**
  * Loads a published CMS page with visible blocks directly from Prisma for SSR.
- * Block `ctaUrl` values use {@link safeCmsMenuItemHref} (same as public menus).
+ * Block CTAs emit {@link safeCmsMenuItemHref}-validated URLs paired with non-empty labels;
+ * images emit {@link safePublicCmsBlockImageSrc}-validated paths paired with non-empty alt text.
  *
  * @param path - Public path, including leading slash
  * @returns Page DTO or null when unpublished/missing
@@ -195,8 +223,10 @@ async function loadPublishedCmsPageByPathUnchecked(
           body: true,
           ctaLabel: true,
           ctaUrl: true,
+          showCta: true,
           imageSrc: true,
           imageAlt: true,
+          showImage: true,
         },
       },
     },
@@ -217,10 +247,7 @@ async function loadPublishedCmsPageByPathUnchecked(
       title: block.title,
       subtitle: block.subtitle ?? undefined,
       body: block.body ?? undefined,
-      ctaLabel: block.ctaLabel ?? undefined,
-      ctaUrl: safeCmsMenuItemHref(block.ctaUrl?.trim()) ?? undefined,
-      imageSrc: block.imageSrc ?? undefined,
-      imageAlt: block.imageAlt ?? undefined,
+      ...publicCmsBlockCtaAndImage(block),
     })),
   };
 }

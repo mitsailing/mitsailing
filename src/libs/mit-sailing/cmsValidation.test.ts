@@ -139,6 +139,28 @@ describe('cms block validation', () => {
     expect(parsed.success).toBe(false);
   });
 
+  it('clears optional group fields when toggles are off', () => {
+    const parsed = cmsBlockInputSchema.parse({
+      pageId: 'page-1',
+      kind: 'hero',
+      title: 'Hero',
+      ctaLabel: 'Classes',
+      ctaUrl: `${['java', 'script'].join('')}:alert(1)`,
+      showCta: false,
+      imageSrc: '/assets/../secret.jpg',
+      imageAlt: 'Alt',
+      showImage: false,
+      isVisible: true,
+    });
+
+    expect(parsed.ctaLabel).toBeUndefined();
+    expect(parsed.ctaUrl).toBeUndefined();
+    expect(parsed.showCta).toBe(false);
+    expect(parsed.imageSrc).toBeUndefined();
+    expect(parsed.imageAlt).toBeUndefined();
+    expect(parsed.showImage).toBe(false);
+  });
+
   it('accepts pricing blocks with one option', () => {
     const parsed = cmsBlockInputSchema.safeParse({
       pageId: 'page-1',

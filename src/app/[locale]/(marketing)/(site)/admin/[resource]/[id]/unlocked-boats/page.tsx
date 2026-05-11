@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
-import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { SubmitButton } from '@/components/ui/submit-button';
 import {
   Table,
   TableBody,
@@ -106,6 +106,10 @@ export default async function AdminSailingClassUnlockedBoatsPage(
     locale,
     namespace: 'AdminCatalogResource',
   });
+  const tCommon = await getTranslations({
+    locale,
+    namespace: 'Common',
+  });
   const tRoutes = await getTranslations({
     locale,
     namespace: 'MitSailingRoutes',
@@ -171,9 +175,12 @@ export default async function AdminSailingClassUnlockedBoatsPage(
                 ))}
               </select>
             </div>
-            <Button type="submit" variant="mit">
+            <SubmitButton
+              pendingLabel={tCommon('pending_adding')}
+              variant="mit"
+            >
               {t('assoc_action_add')}
-            </Button>
+            </SubmitButton>
           </form>
         )}
       </section>
@@ -225,13 +232,13 @@ export default async function AdminSailingClassUnlockedBoatsPage(
                         type="hidden"
                         value={row.fleetBoat.id}
                       />
-                      <Button
+                      <SubmitButton
                         className="h-auto min-h-0 p-0 font-medium text-primary-ink underline shadow-none hover:bg-transparent hover:underline"
-                        type="submit"
+                        pendingLabel={tCommon('pending_removing')}
                         variant="link"
                       >
                         {t('assoc_action_remove')}
-                      </Button>
+                      </SubmitButton>
                     </form>
                   </TableCell>
                 </TableRow>

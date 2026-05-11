@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { SubmitButton } from '@/components/ui/submit-button';
 import { authClient } from '@/libs/auth-client';
 
 type ImpersonateButtonProps = {
@@ -15,6 +15,7 @@ type ImpersonateButtonProps = {
 // `authClient` + router and must not force the whole route to `'use client'`.
 export function ImpersonateButton(props: ImpersonateButtonProps) {
   const t = useTranslations('AdminPage');
+  const tCommon = useTranslations('Common');
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -22,16 +23,21 @@ export function ImpersonateButton(props: ImpersonateButtonProps) {
   async function onClick() {
     setError(null);
     setSubmitting(true);
-    const res = await authClient.admin.impersonateUser({
-      userId: props.userId,
-    });
-    setSubmitting(false);
-    if (res.error) {
-      setError(res.error.message ?? t('impersonate_error'));
-      return;
+    try {
+      const res = await authClient.admin.impersonateUser({
+        userId: props.userId,
+      });
+      if (res.error) {
+        setError(res.error.message ?? t('impersonate_error'));
+        return;
+      }
+      router.push(props.redirectHref);
+      router.refresh();
+    } catch {
+      setError(t('impersonate_error'));
+    } finally {
+      setSubmitting(false);
     }
-    router.push(props.redirectHref);
-    router.refresh();
   }
 
   return (
@@ -41,16 +47,16 @@ export function ImpersonateButton(props: ImpersonateButtonProps) {
           {error}
         </span>
       ) : null}
-      <Button
-        aria-busy={submitting}
-        disabled={submitting}
+      <SubmitButton
         onClick={onClick}
+        pending={submitting}
+        pendingLabel={tCommon('pending_submitting')}
         size="sm"
         type="button"
         variant="default"
       >
         {t('impersonate')}
-      </Button>
+      </SubmitButton>
     </span>
   );
 }

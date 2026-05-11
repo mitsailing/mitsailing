@@ -36,6 +36,8 @@ describe('loadPublishedCmsPageByPath', () => {
           imageAlt: null,
           imageSrc: null,
           kind: 'hero',
+          showCta: true,
+          showImage: false,
           subtitle: null,
           title: 'H',
         },
@@ -51,6 +53,39 @@ describe('loadPublishedCmsPageByPath', () => {
     const { loadPublishedCmsPageByPath } =
       await import('@/libs/mit-sailing/cmsQueries');
     const page = await loadPublishedCmsPageByPath('/x');
+    expect(page?.blocks[0]?.ctaLabel).toBeUndefined();
+    expect(page?.blocks[0]?.ctaUrl).toBeUndefined();
+  });
+
+  it('drops block CTA pair when showCta but label is empty', async () => {
+    findUnique.mockResolvedValue({
+      blocks: [
+        {
+          body: null,
+          ctaLabel: '   ',
+          ctaUrl: '/classes',
+          id: 'b1',
+          imageAlt: null,
+          imageSrc: null,
+          kind: 'hero',
+          showCta: true,
+          showImage: false,
+          subtitle: null,
+          title: 'H',
+        },
+      ],
+      id: 'p1',
+      isPublished: true,
+      metaDescription: 'd',
+      metaTitle: 'T',
+      path: '/x',
+      slug: 'x',
+      title: 'T',
+    });
+    const { loadPublishedCmsPageByPath } =
+      await import('@/libs/mit-sailing/cmsQueries');
+    const page = await loadPublishedCmsPageByPath('/x');
+    expect(page?.blocks[0]?.ctaLabel).toBeUndefined();
     expect(page?.blocks[0]?.ctaUrl).toBeUndefined();
   });
 
@@ -65,6 +100,8 @@ describe('loadPublishedCmsPageByPath', () => {
           imageAlt: null,
           imageSrc: null,
           kind: 'hero',
+          showCta: true,
+          showImage: false,
           subtitle: null,
           title: 'H',
         },
@@ -81,5 +118,103 @@ describe('loadPublishedCmsPageByPath', () => {
       await import('@/libs/mit-sailing/cmsQueries');
     const page = await loadPublishedCmsPageByPath('/x');
     expect(page?.blocks[0]?.ctaUrl).toBe('/classes');
+  });
+
+  it('omits hidden optional block groups from the public DTO', async () => {
+    findUnique.mockResolvedValue({
+      blocks: [
+        {
+          body: null,
+          ctaLabel: 'Go',
+          ctaUrl: '/classes',
+          id: 'b1',
+          imageAlt: 'Sailing',
+          imageSrc: '/cms-media/asset-1/sailing.jpg',
+          kind: 'hero',
+          showCta: false,
+          showImage: false,
+          subtitle: null,
+          title: 'H',
+        },
+      ],
+      id: 'p1',
+      isPublished: true,
+      metaDescription: 'd',
+      metaTitle: 'T',
+      path: '/x',
+      slug: 'x',
+      title: 'T',
+    });
+    const { loadPublishedCmsPageByPath } =
+      await import('@/libs/mit-sailing/cmsQueries');
+    const page = await loadPublishedCmsPageByPath('/x');
+    expect(page?.blocks[0]?.ctaLabel).toBeUndefined();
+    expect(page?.blocks[0]?.ctaUrl).toBeUndefined();
+    expect(page?.blocks[0]?.imageAlt).toBeUndefined();
+    expect(page?.blocks[0]?.imageSrc).toBeUndefined();
+  });
+
+  it('drops block image pair when image path fails safety checks', async () => {
+    findUnique.mockResolvedValue({
+      blocks: [
+        {
+          body: null,
+          ctaLabel: null,
+          ctaUrl: null,
+          id: 'b1',
+          imageAlt: 'Photo',
+          imageSrc: '/classes/../admin',
+          kind: 'hero',
+          showCta: false,
+          showImage: true,
+          subtitle: null,
+          title: 'H',
+        },
+      ],
+      id: 'p1',
+      isPublished: true,
+      metaDescription: 'd',
+      metaTitle: 'T',
+      path: '/x',
+      slug: 'x',
+      title: 'T',
+    });
+    const { loadPublishedCmsPageByPath } =
+      await import('@/libs/mit-sailing/cmsQueries');
+    const page = await loadPublishedCmsPageByPath('/x');
+    expect(page?.blocks[0]?.imageSrc).toBeUndefined();
+    expect(page?.blocks[0]?.imageAlt).toBeUndefined();
+  });
+
+  it('drops block image pair when showImage but alt is empty', async () => {
+    findUnique.mockResolvedValue({
+      blocks: [
+        {
+          body: null,
+          ctaLabel: null,
+          ctaUrl: null,
+          id: 'b1',
+          imageAlt: '  ',
+          imageSrc: '/cms-media/asset-1/sailing.jpg',
+          kind: 'hero',
+          showCta: false,
+          showImage: true,
+          subtitle: null,
+          title: 'H',
+        },
+      ],
+      id: 'p1',
+      isPublished: true,
+      metaDescription: 'd',
+      metaTitle: 'T',
+      path: '/x',
+      slug: 'x',
+      title: 'T',
+    });
+    const { loadPublishedCmsPageByPath } =
+      await import('@/libs/mit-sailing/cmsQueries');
+    const page = await loadPublishedCmsPageByPath('/x');
+    expect(page?.blocks[0]?.imageSrc).toBeUndefined();
+    expect(page?.blocks[0]?.imageAlt).toBeUndefined();
   });
 });

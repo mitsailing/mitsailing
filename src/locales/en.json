@@ -906,6 +906,7 @@
     "meta_title_admin_catalog_new": "New catalog item (admin)",
     "meta_title_admin_catalog_edit": "Edit catalog item (admin)",
     "meta_title_admin_catalog_delete": "Delete catalog item (admin)",
+    "meta_title_admin_catalog_revision_compare": "Compare revision (admin)",
     "title_admin_catalog_delete": "Delete catalog item",
     "meta_title_admin_site_text": "Site text (admin)",
     "title_admin_site_text": "Site text",

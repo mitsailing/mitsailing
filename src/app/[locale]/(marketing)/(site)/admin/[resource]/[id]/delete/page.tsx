@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { SubmitButton } from '@/components/ui/submit-button';
 import { adminCatalogResourceIndexPath } from '@/libs/admin/catalog/adminCatalogPaths';
 import { deleteCatalogResourceAction } from '@/libs/admin/catalog/catalogActions';
 import {
@@ -69,6 +70,10 @@ export default async function AdminCatalogResourceDeletePage(props: PageProps) {
     locale,
     namespace: 'AdminCatalogResource',
   });
+  const tCommon = await getTranslations({
+    locale,
+    namespace: 'Common',
+  });
 
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-6">
@@ -90,13 +95,13 @@ export default async function AdminCatalogResourceDeletePage(props: PageProps) {
 
       <div className="flex flex-wrap gap-3">
         <form action={deleteAction}>
-          <Button
+          <SubmitButton
             className="bg-red-700 text-white hover:bg-red-800"
-            type="submit"
+            pendingLabel={tCommon('pending_deleting')}
             variant="destructive"
           >
             {tr('delete_submit')}
-          </Button>
+          </SubmitButton>
         </form>
         <Button asChild variant="outline">
           <Link href={adminCatalogResourceIndexPath(resource)}>
