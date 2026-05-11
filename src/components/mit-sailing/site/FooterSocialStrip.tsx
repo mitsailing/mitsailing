@@ -1,12 +1,33 @@
-import { getTranslations } from 'next-intl/server';
 import { footerSocialIconPaths } from '@/data/mit-sailing/footerSocialIcons';
 import type { SocialNetwork } from '@/data/mit-sailing/footerSocialSeed';
-import { footerSocialGroups } from '@/data/mit-sailing/footerSocialSeed';
 import {
   footerHorizontalRuleClassName,
   footerSocialGroupLabelClassName,
   footerSocialIconButtonClassName,
 } from '@/lib/mit-sailing/tokens';
+import { Link } from '@/libs/I18nNavigation';
+import {
+  externalCmsLinkProps,
+  isAppRelativeCmsHref,
+  safeCmsHref,
+} from '@/libs/mit-sailing/cmsHref';
+
+export type FooterSocialStripGroup = {
+  id: string;
+  label: string;
+  links: {
+    id: string;
+    label: string;
+    href: string;
+    network?: string;
+  }[];
+};
+
+function isSocialNetwork(
+  network: string | undefined
+): network is SocialNetwork {
+  return network !== undefined && Object.hasOwn(footerSocialIconPaths, network);
+}
 
 function SocialIcon({ network }: { network: SocialNetwork }) {
   return (
@@ -21,44 +42,77 @@ function SocialIcon({ network }: { network: SocialNetwork }) {
 }
 
 /**
- * Social links strip shown at the top of the site footer. Copy: `en.json` (`MitSailingSite`); data: `footerSocialSeed`.
+ * Social links strip shown at the top of the site footer.
  *
+ * @param props - CMS social groups and localized aria suffix
  * @returns Group-labeled social icon row
  */
-export async function FooterSocialStrip() {
-  const t = await getTranslations('MitSailingSite');
-
+export function FooterSocialStrip(props: {
+  groups: FooterSocialStripGroup[];
+  socialLinksLabel: string;
+}) {
+  if (props.groups.length === 0) {
+    return null;
+  }
   return (
     <div className="mb-12 flex items-center gap-4 md:gap-6">
       <div aria-hidden="true" className={footerHorizontalRuleClassName} />
       <div className="w-full max-w-5xl">
         <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center sm:gap-6">
-          {footerSocialGroups.map((group) => (
+          {props.groups.map((group) => (
             <div
               className="flex min-w-0 items-center gap-4 whitespace-nowrap sm:gap-3"
-              key={group.groupLabelKey}
+              key={group.id}
             >
               <span
                 className={`${footerSocialGroupLabelClassName} leading-snug`}
               >
-                {t(group.groupLabelKey)}
+                {group.label}
               </span>
               <div
-                aria-label={t(group.groupAriaLabelKey)}
+                aria-label={`${group.label} ${props.socialLinksLabel}`}
                 className="flex flex-nowrap items-center gap-2 sm:gap-3"
+                role="list"
               >
-                {group.links.map((link) => (
-                  <a
-                    aria-label={t(link.ariaLabelKey)}
-                    className={footerSocialIconButtonClassName}
-                    href={link.href}
-                    key={`${group.groupLabelKey}-${link.network}-${link.href}`}
-                    rel="noopener noreferrer"
-                    target="_blank"
-                  >
+                {group.links.map((link) => {
+                  const href = safeCmsHref(link.href);
+                  if (!href) {
+                    return null;
+                  }
+                  const label = link.label.trim() || href;
+                  const icon = isSocialNetwork(link.network) ? (
                     <SocialIcon network={link.network} />
-                  </a>
-                ))}
+                  ) : (
+                    <span className="text-xs font-bold">
+                      {label.slice(0, 1)}
+                    </span>
+                  );
+                  if (isAppRelativeCmsHref(href)) {
+                    return (
+                      <Link
+                        aria-label={label}
+                        className={footerSocialIconButtonClassName}
+                        href={href}
+                        key={link.id}
+                        role="listitem"
+                      >
+                        {icon}
+                      </Link>
+                    );
+                  }
+                  return (
+                    <a
+                      aria-label={label}
+                      className={footerSocialIconButtonClassName}
+                      href={href}
+                      key={link.id}
+                      role="listitem"
+                      {...externalCmsLinkProps(href)}
+                    >
+                      {icon}
+                    </a>
+                  );
+                })}
               </div>
             </div>
           ))}

@@ -40,7 +40,7 @@ export async function EventsListView(props: EventsListViewProps) {
               <h2 className="text-lg font-semibold text-foreground">
                 <Link
                   className="text-primary-ink no-underline hover:underline"
-                  href={`/events/${e.slug}/`}
+                  href={`/events/${e.slug}`}
                 >
                   {e.name}
                 </Link>

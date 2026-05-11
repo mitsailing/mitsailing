@@ -134,11 +134,11 @@ describe('verifySession', () => {
   it('redirect visitor to sign-in with preserved callback', async () => {
     const { verifySession } = await import('@/libs/auth/dal');
 
-    await expect(verifySession('en', '/fleet/')).rejects.toThrow(
-      'NEXT_REDIRECT:/login?callbackUrl=%2Ffleet%2F'
+    await expect(verifySession('en', '/fleet')).rejects.toThrow(
+      'NEXT_REDIRECT:/login?callbackUrl=%2Ffleet'
     );
 
-    expect(redirect).toHaveBeenCalledWith('/login?callbackUrl=%2Ffleet%2F');
+    expect(redirect).toHaveBeenCalledWith('/login?callbackUrl=%2Ffleet');
   });
 
   it('continue with verified sailor session', async () => {

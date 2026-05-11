@@ -18,7 +18,7 @@ export default async function AboutStaffLayout(props: {
     <SiteSectionShell
       locale={locale}
       segments={[
-        { href: '/about/', label: t('section_about') },
+        { href: '/about', label: t('section_about') },
         { label: name },
       ]}
     >

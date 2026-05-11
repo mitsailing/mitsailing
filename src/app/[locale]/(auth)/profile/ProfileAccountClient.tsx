@@ -10,6 +10,7 @@ import type { ProfileBannerState } from '@/components/auth/profile/profileBanner
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SubmitButton } from '@/components/ui/submit-button';
 import type { ThemePreferenceValue } from '@/lib/mit-sailing/themePreference';
 import { authClient } from '@/libs/auth-client';
 import {
@@ -291,14 +292,15 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
                     type="text"
                     value={emailCode}
                   />
-                  <Button
+                  <SubmitButton
                     className="h-11 w-fit rounded-full px-5"
-                    disabled={confirmingEmail || emailCode.length !== 6}
-                    type="submit"
+                    disabled={emailCode.length !== 6}
+                    pending={confirmingEmail}
+                    pendingLabel={tCommon('pending_submitting')}
                     variant="mit"
                   >
                     {t('pending_email_confirm')}
-                  </Button>
+                  </SubmitButton>
                 </form>
                 <ProfileInlineBanner banner={emailOtpBanner} />
                 <ProfileInlineBanner banner={resendBanner} />
@@ -367,14 +369,14 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
               value={displayName}
             />
           </div>
-          <Button
+          <SubmitButton
             className="mt-2 w-fit"
-            disabled={updatingName}
-            type="submit"
+            pending={updatingName}
+            pendingLabel={tCommon('pending_saving')}
             variant="mit"
           >
             {t('name_save')}
-          </Button>
+          </SubmitButton>
         </form>
       </section>
 
@@ -407,14 +409,14 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
               value={newEmail}
             />
           </div>
-          <Button
+          <SubmitButton
             className="mt-2 w-fit"
-            disabled={changingEmail}
-            type="submit"
+            pending={changingEmail}
+            pendingLabel={tCommon('pending_saving')}
             variant="mit"
           >
             {t('change_email_submit')}
-          </Button>
+          </SubmitButton>
         </form>
       </section>
     </div>

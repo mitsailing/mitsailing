@@ -1,11 +1,15 @@
 import { cn } from '@/lib/utils';
 import { sanitizeCmsRichTextHtml } from '@/libs/mit-sailing/cmsRichText';
 
-export function CmsRichText(props: {
+type CmsRichTextProps = {
   className?: string;
-  html: string | null | undefined;
-}) {
-  const html = sanitizeCmsRichTextHtml(props.html);
+} & (
+  | { html: string | null | undefined; sanitizedHtml?: undefined }
+  | { html?: undefined; sanitizedHtml: string }
+);
+
+export function CmsRichText(props: CmsRichTextProps) {
+  const html = props.sanitizedHtml ?? sanitizeCmsRichTextHtml(props.html);
   if (!html) {
     return null;
   }

@@ -9,7 +9,7 @@ export default async function ProfileLayout(props: {
   const { locale } = await props.params;
   setRequestLocale(locale);
 
-  const profileResumeHref = getI18nPath('/profile/account/', locale);
+  const profileResumeHref = getI18nPath('/profile/account', locale);
 
   return (
     <ProfileSettingsChrome locale={locale} loginCallbackUrl={profileResumeHref}>

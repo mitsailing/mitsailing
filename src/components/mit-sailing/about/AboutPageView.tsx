@@ -1,5 +1,6 @@
 import { ArrowRight } from 'lucide-react';
 import Image from 'next/image';
+import { CmsRichText } from '@/components/mit-sailing/cms/CmsRichText';
 import { SectionHeader } from '@/components/mit-sailing/home/SectionHeader';
 import {
   dockHours,
@@ -15,6 +16,7 @@ import {
 } from '@/data/mit-sailing/aboutContent';
 import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
 import { Link } from '@/libs/I18nNavigation';
+import type { PublicCmsPage } from '@/libs/mit-sailing/cmsQueries';
 
 const accent = `font-semibold text-mit-red-ink no-underline hover:underline ${textFocusRingClassName}`;
 
@@ -90,38 +92,74 @@ function PillarCta(props: { href: string; label: string }) {
   return <ExternalLink href={props.href}>{props.label}</ExternalLink>;
 }
 
+function cmsTextOrFallback(
+  value: string | undefined,
+  fallback: string
+): string {
+  const trimmed = value?.trim();
+  if (trimmed) {
+    return trimmed;
+  }
+  return fallback;
+}
+
 /**
  * About MIT Sailing (mission, history, staff, volunteer, dock hours).
  * Data from `aboutContent.ts`; design aligned with `mit-redesign/AboutPage`.
  *
+ * @param props - About page content
+ * @param props.cmsPage - Optional CMS page data for migrated editorial blocks
  * @returns Full About page
  */
-export function AboutPageView() {
+export function AboutPageView(props: { cmsPage?: PublicCmsPage | null }) {
+  const introBlock = props.cmsPage?.blocks.find(
+    (block) => block.kind === 'hero'
+  );
+  const missionBlock = props.cmsPage?.blocks.find(
+    (block) => block.kind === 'text_section'
+  );
   return (
     <div className="min-h-0 min-w-0">
       <section className="border-b border-mit-line bg-background py-16 md:py-24">
         <div className={aboutSectionInner}>
           <h1 className="mb-6 font-mit-serif text-3xl leading-tight font-bold text-mit-text md:text-4xl">
-            About MIT Sailing
+            {cmsTextOrFallback(introBlock?.title, 'About MIT Sailing')}
           </h1>
-          <p className="max-w-3xl text-base leading-relaxed text-mit-text">
-            {missionIntro}
-          </p>
+          {introBlock?.body ? (
+            <CmsRichText
+              className="max-w-3xl text-base leading-relaxed text-mit-text"
+              html={introBlock.body}
+            />
+          ) : (
+            <p className="max-w-3xl text-base leading-relaxed text-mit-text">
+              {missionIntro}
+            </p>
+          )}
         </div>
       </section>
 
       <section className="border-b border-mit-line bg-mit-surface py-16 md:py-24">
         <div className={aboutSectionInner}>
           <SectionHeader
-            subtitle="How we serve the MIT community and grow lifelong skills on the water."
-            title="Our mission"
+            subtitle={cmsTextOrFallback(
+              missionBlock?.subtitle,
+              'How we serve the MIT community and grow lifelong skills on the water.'
+            )}
+            title={cmsTextOrFallback(missionBlock?.title, 'Our mission')}
           />
           <div className="mb-14 max-w-3xl space-y-6">
-            {missionBody.map((p) => (
-              <p className="text-base leading-relaxed text-mit-text" key={p}>
-                {p}
-              </p>
-            ))}
+            {missionBlock?.body ? (
+              <CmsRichText
+                className="text-base leading-relaxed text-mit-text"
+                html={missionBlock.body}
+              />
+            ) : (
+              missionBody.map((p) => (
+                <p className="text-base leading-relaxed text-mit-text" key={p}>
+                  {p}
+                </p>
+              ))
+            )}
           </div>
           <h3 className="mb-6 font-mit-serif text-lg font-semibold text-mit-text">
             How we carry out our mission
@@ -265,7 +303,7 @@ export function AboutPageView() {
           <div className="mt-10 flex flex-col flex-wrap gap-6 sm:flex-row">
             <Link
               className={`inline-flex items-center gap-1 ${accent}`}
-              href="/contact/"
+              href="/contact"
             >
               Contact the Pavilion
               <ArrowRight aria-hidden className="size-4" />
@@ -275,7 +313,7 @@ export function AboutPageView() {
             </ExternalLink>
             <Link
               className={`inline-flex items-center gap-1 ${accent}`}
-              href="/about/mitna/"
+              href="/about/mitna"
             >
               MITNA Executive Committee
               <ArrowRight aria-hidden className="size-4" />

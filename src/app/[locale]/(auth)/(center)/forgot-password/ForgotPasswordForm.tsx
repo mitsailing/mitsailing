@@ -3,9 +3,9 @@
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SubmitButton } from '@/components/ui/submit-button';
 import { authClient } from '@/libs/auth-client';
 import { authHrefWithCallback } from '@/libs/auth/callbackUrl';
 import {
@@ -24,6 +24,7 @@ type ForgotPasswordFormProps = {
 // plugin or transports ever diverged per email.
 export function ForgotPasswordForm(props: ForgotPasswordFormProps) {
   const t = useTranslations('ForgotPasswordPage');
+  const tCommon = useTranslations('Common');
   const router = useRouter();
   const [email, setEmail] = useState(
     normalizeMarketingEmail(props.initialEmail)
@@ -85,14 +86,14 @@ export function ForgotPasswordForm(props: ForgotPasswordFormProps) {
         />
       </div>
 
-      <Button
+      <SubmitButton
         className="w-full"
-        disabled={submitting}
-        type="submit"
+        pending={submitting}
+        pendingLabel={tCommon('pending_sending')}
         variant="mit"
       >
         {t('submit')}
-      </Button>
+      </SubmitButton>
     </form>
   );
 }

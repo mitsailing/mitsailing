@@ -20,7 +20,7 @@ export default async function FleetBoatSectionLayout(props: {
     <SiteSectionShell
       locale={locale}
       segments={[
-        { label: t('section_fleet'), href: '/fleet/' },
+        { label: t('section_fleet'), href: '/fleet' },
         { label: titleLabel },
       ]}
     >

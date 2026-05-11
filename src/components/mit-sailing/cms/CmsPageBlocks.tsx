@@ -16,7 +16,7 @@ import { CmsRichText } from './CmsRichText';
 const blockInnerClassName = 'mx-auto w-full max-w-5xl px-6';
 
 const blockLinkClassName =
-  'inline-flex items-center gap-1 rounded-sm font-semibold text-mit-red no-underline hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none';
+  'inline-flex items-center gap-1 rounded-sm font-semibold text-mit-red-ink no-underline hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none';
 
 const homePageOwnedBlockKinds: ReadonlySet<PublicCmsBlock['kind']> = new Set([
   'home_overview',

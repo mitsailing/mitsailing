@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SubmitButton } from '@/components/ui/submit-button';
 import { authClient } from '@/libs/auth-client';
 import { safeAuthCallbackUrl } from '@/libs/auth/callbackUrl';
 import {
@@ -249,13 +250,14 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
           />
         </div>
 
-        <Button
+        <SubmitButton
           className="h-14 w-full rounded-full bg-foreground text-lg font-normal text-background hover:bg-foreground/90"
           disabled={submitting || code.length !== 6}
-          type="submit"
+          pending={submitting}
+          pendingLabel={tCommon('pending_submitting')}
         >
           {t('submit')}
-        </Button>
+        </SubmitButton>
       </form>
 
       <Button

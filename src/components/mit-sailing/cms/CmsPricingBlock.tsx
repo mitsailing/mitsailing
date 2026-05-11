@@ -1,4 +1,5 @@
 import { Check } from 'lucide-react';
+import { keyedStringItems } from '@/lib/keyedStringList';
 import { Link } from '@/libs/I18nNavigation';
 import {
   externalCmsLinkProps,
@@ -6,7 +7,10 @@ import {
   safeCmsHref,
 } from '@/libs/mit-sailing/cmsHref';
 import type { CmsPricingData } from '@/libs/mit-sailing/cmsPricing';
-import { parseCmsPricingBody } from '@/libs/mit-sailing/cmsPricing';
+import {
+  cmsPricingPlanTitlesUnique,
+  parseCmsPricingBody,
+} from '@/libs/mit-sailing/cmsPricing';
 import type { PublicCmsBlock } from '@/libs/mit-sailing/cmsQueries';
 
 function pricingGridClassName(count: number): string {
@@ -48,24 +52,6 @@ function CmsPricingPlanLink(props: {
   );
 }
 
-function keyedPricingFeatures(features: readonly string[]) {
-  const seen = new Map<string, number>();
-  return features.map((feature) => {
-    const occurrence = (seen.get(feature) ?? 0) + 1;
-    seen.set(feature, occurrence);
-    return { feature, key: `${feature}-${occurrence}` };
-  });
-}
-
-function keyedPricingPlans(plans: CmsPricingData['plans']) {
-  const seen = new Map<string, number>();
-  return plans.map((plan) => {
-    const occurrence = (seen.get(plan.title) ?? 0) + 1;
-    seen.set(plan.title, occurrence);
-    return { key: `${plan.title}-${occurrence}`, plan };
-  });
-}
-
 function CmsPricingCard(props: { plan: CmsPricingData['plans'][number] }) {
   const href = safeCmsHref(props.plan.linkUrl);
   const linkClassName = props.plan.highlighted
@@ -105,10 +91,10 @@ function CmsPricingCard(props: { plan: CmsPricingData['plans'][number] }) {
         ) : null}
       </div>
       <ul className="mb-8 flex-1 space-y-4 text-xs text-mit-text">
-        {keyedPricingFeatures(props.plan.features).map((entry) => (
+        {keyedStringItems(props.plan.features).map((entry) => (
           <li className="flex items-start gap-3" key={entry.key}>
             <Check className="mt-0.5 shrink-0 text-mit-success" size={16} />
-            <span className="leading-snug">{entry.feature}</span>
+            <span className="leading-snug">{entry.value}</span>
           </li>
         ))}
       </ul>
@@ -132,7 +118,7 @@ export function CmsPricingBlock(props: {
   fallbackData?: CmsPricingData;
 }) {
   const pricing = parseCmsPricingBody(props.block.body) ?? props.fallbackData;
-  if (!pricing) {
+  if (!pricing || !cmsPricingPlanTitlesUnique(pricing.plans)) {
     return null;
   }
 
@@ -152,8 +138,8 @@ export function CmsPricingBlock(props: {
           </div>
         </div>
         <div className={pricingGridClassName(pricing.plans.length)}>
-          {keyedPricingPlans(pricing.plans).map((entry) => (
-            <CmsPricingCard key={entry.key} plan={entry.plan} />
+          {pricing.plans.map((plan) => (
+            <CmsPricingCard key={plan.title} plan={plan} />
           ))}
         </div>
         {pricing.footnote ? (

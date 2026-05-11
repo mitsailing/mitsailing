@@ -54,6 +54,7 @@ vi.mock('@/libs/Logger', () => ({
 
 const message = {
   html: '<p>Hello sailor</p>',
+  replyTo: 'sailor@mit.edu',
   subject: 'Account notice',
   text: 'Hello sailor',
   to: 'sailor@example.com',
@@ -137,6 +138,7 @@ describe('sendTransactionalEmail', () => {
     expect(mocks.sendMail).toHaveBeenCalledWith({
       from: 'MIT Sailing <noreply@example.com>',
       html: '<p>Hello sailor</p>',
+      replyTo: 'sailor@mit.edu',
       subject: 'Account notice',
       text: 'Hello sailor',
       to: 'sailor@example.com',
@@ -200,6 +202,7 @@ describe('sendTransactionalEmail', () => {
     expect(mocks.resendSend).toHaveBeenCalledWith({
       from: 'MIT Sailing <noreply@example.com>',
       html: '<p>Hello sailor</p>',
+      replyTo: 'sailor@mit.edu',
       subject: 'Account notice',
       text: 'Hello sailor',
       to: 'sailor@example.com',

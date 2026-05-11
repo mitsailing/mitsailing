@@ -75,12 +75,12 @@ export default async function DonatePage(props: PageProps) {
           heading={t('heading')}
           introParagraphs={[t('intro_p1'), t('intro_p2')]}
           mailingBody={t('mailing_body')}
-          mailingHref="/contact/"
+          mailingHref="/contact"
           mailingLinkLabel={t('mailing_link')}
           mailingTitle={t('mailing_title')}
           supportHeading={t('support_heading')}
           volunteerBody={t('volunteer_body')}
-          volunteerHref="/contact/"
+          volunteerHref="/contact"
           volunteerLinkLabel={t('volunteer_link')}
           volunteerTitle={t('volunteer_title')}
         />

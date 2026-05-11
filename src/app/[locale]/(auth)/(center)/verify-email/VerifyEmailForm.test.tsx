@@ -36,7 +36,7 @@ describe('VerifyEmailForm', () => {
       const user = userEvent.setup();
 
       render(
-        <VerifyEmailForm callbackUrl="/fleet/" initialEmail="sailor@mit.edu" />
+        <VerifyEmailForm callbackUrl="/fleet" initialEmail="sailor@mit.edu" />
       );
 
       await user.type(screen.getByLabelText('Verification code'), '123456');
@@ -46,7 +46,7 @@ describe('VerifyEmailForm', () => {
         email: 'sailor@mit.edu',
         otp: '123456',
       });
-      expect(componentTestRouter().push).toHaveBeenCalledWith('/fleet/');
+      expect(componentTestRouter().push).toHaveBeenCalledWith('/fleet');
       expect(componentTestRouter().refresh).not.toHaveBeenCalled();
     });
 
@@ -78,7 +78,7 @@ describe('VerifyEmailForm', () => {
       });
 
       render(
-        <VerifyEmailForm callbackUrl="/fleet/" initialEmail="sailor@mit.edu" />
+        <VerifyEmailForm callbackUrl="/fleet" initialEmail="sailor@mit.edu" />
       );
 
       await user.type(screen.getByLabelText('Verification code'), '111111');
@@ -96,7 +96,7 @@ describe('VerifyEmailForm', () => {
       });
 
       render(
-        <VerifyEmailForm callbackUrl="/fleet/" initialEmail="sailor@mit.edu" />
+        <VerifyEmailForm callbackUrl="/fleet" initialEmail="sailor@mit.edu" />
       );
 
       await user.type(screen.getByLabelText('Verification code'), '111111');
@@ -114,7 +114,7 @@ describe('VerifyEmailForm', () => {
       });
 
       render(
-        <VerifyEmailForm callbackUrl="/fleet/" initialEmail="sailor@mit.edu" />
+        <VerifyEmailForm callbackUrl="/fleet" initialEmail="sailor@mit.edu" />
       );
 
       await user.type(screen.getByLabelText('Verification code'), '111111');
@@ -132,7 +132,7 @@ describe('VerifyEmailForm', () => {
       });
 
       render(
-        <VerifyEmailForm callbackUrl="/fleet/" initialEmail="sailor@mit.edu" />
+        <VerifyEmailForm callbackUrl="/fleet" initialEmail="sailor@mit.edu" />
       );
 
       await user.type(screen.getByLabelText('Verification code'), '111111');
@@ -152,7 +152,7 @@ describe('VerifyEmailForm', () => {
       });
 
       render(
-        <VerifyEmailForm callbackUrl="/fleet/" initialEmail="sailor@mit.edu" />
+        <VerifyEmailForm callbackUrl="/fleet" initialEmail="sailor@mit.edu" />
       );
 
       await user.type(screen.getByLabelText('Verification code'), '111111');
@@ -176,7 +176,7 @@ describe('VerifyEmailForm', () => {
       });
 
       render(
-        <VerifyEmailForm callbackUrl="/fleet/" initialEmail="sailor@mit.edu" />
+        <VerifyEmailForm callbackUrl="/fleet" initialEmail="sailor@mit.edu" />
       );
 
       await user.type(screen.getByLabelText('Verification code'), '111111');
@@ -195,7 +195,7 @@ describe('VerifyEmailForm', () => {
       );
 
       render(
-        <VerifyEmailForm callbackUrl="/fleet/" initialEmail="sailor@mit.edu" />
+        <VerifyEmailForm callbackUrl="/fleet" initialEmail="sailor@mit.edu" />
       );
 
       await user.type(screen.getByLabelText('Verification code'), '111111');
@@ -211,7 +211,7 @@ describe('VerifyEmailForm', () => {
     it('enter email when link has none', async () => {
       const user = userEvent.setup();
 
-      render(<VerifyEmailForm callbackUrl="/fleet/" initialEmail="" />);
+      render(<VerifyEmailForm callbackUrl="/fleet" initialEmail="" />);
 
       expect(screen.getByText(/your email/)).toBeVisible();
       await user.type(screen.getByLabelText('Email'), 'sailor@mit.edu');
@@ -227,7 +227,7 @@ describe('VerifyEmailForm', () => {
     it('normalize typed email before verify and resend', async () => {
       const user = userEvent.setup();
 
-      render(<VerifyEmailForm callbackUrl="/fleet/" initialEmail="" />);
+      render(<VerifyEmailForm callbackUrl="/fleet" initialEmail="" />);
 
       await user.type(screen.getByLabelText('Email'), '  Sailor@MIT.EDU  ');
       await user.type(screen.getByLabelText('Verification code'), '123456');
@@ -250,7 +250,7 @@ describe('VerifyEmailForm', () => {
     it('show safe error before submitting invalid email', async () => {
       const user = userEvent.setup();
 
-      render(<VerifyEmailForm callbackUrl="/fleet/" initialEmail="" />);
+      render(<VerifyEmailForm callbackUrl="/fleet" initialEmail="" />);
 
       await user.type(screen.getByLabelText('Email'), 'sailor@mit');
       await user.type(screen.getByLabelText('Verification code'), '123456');
@@ -265,7 +265,7 @@ describe('VerifyEmailForm', () => {
     it('show safe error before resending without email', async () => {
       const user = userEvent.setup();
 
-      render(<VerifyEmailForm callbackUrl="/fleet/" initialEmail="" />);
+      render(<VerifyEmailForm callbackUrl="/fleet" initialEmail="" />);
 
       await user.click(screen.getByRole('button', { name: 'Resend code' }));
 
@@ -283,7 +283,7 @@ describe('VerifyEmailForm', () => {
       const user = userEvent.setup();
 
       render(
-        <VerifyEmailForm callbackUrl="/fleet/" initialEmail="sailor@mit.edu" />
+        <VerifyEmailForm callbackUrl="/fleet" initialEmail="sailor@mit.edu" />
       );
 
       await user.click(screen.getByRole('button', { name: 'Resend code' }));
@@ -304,7 +304,7 @@ describe('VerifyEmailForm', () => {
       });
 
       render(
-        <VerifyEmailForm callbackUrl="/fleet/" initialEmail="sailor@mit.edu" />
+        <VerifyEmailForm callbackUrl="/fleet" initialEmail="sailor@mit.edu" />
       );
 
       await user.click(screen.getByRole('button', { name: 'Resend code' }));
@@ -321,7 +321,7 @@ describe('VerifyEmailForm', () => {
       );
 
       render(
-        <VerifyEmailForm callbackUrl="/fleet/" initialEmail="sailor@mit.edu" />
+        <VerifyEmailForm callbackUrl="/fleet" initialEmail="sailor@mit.edu" />
       );
 
       await user.click(screen.getByRole('button', { name: 'Resend code' }));
@@ -337,7 +337,7 @@ describe('VerifyEmailForm', () => {
       vi.useFakeTimers();
 
       render(
-        <VerifyEmailForm callbackUrl="/fleet/" initialEmail="sailor@mit.edu" />
+        <VerifyEmailForm callbackUrl="/fleet" initialEmail="sailor@mit.edu" />
       );
 
       act(() => {
@@ -365,7 +365,7 @@ describe('VerifyEmailForm', () => {
 
       render(
         <VerifyEmailForm
-          callbackUrl="/fleet/"
+          callbackUrl="/fleet"
           initialEmail="sailor@mit.edu"
           initialResendLocked
         />
@@ -398,7 +398,7 @@ describe('VerifyEmailForm', () => {
       );
 
       const { rerender } = render(
-        <VerifyEmailForm callbackUrl="/fleet/" initialEmail="sailor@mit.edu" />
+        <VerifyEmailForm callbackUrl="/fleet" initialEmail="sailor@mit.edu" />
       );
 
       act(() => {
@@ -410,7 +410,7 @@ describe('VerifyEmailForm', () => {
 
       rerender(
         <VerifyEmailForm
-          callbackUrl="/fleet/"
+          callbackUrl="/fleet"
           initialEmail="sailor@mit.edu"
           initialResendLocked
         />
@@ -433,7 +433,7 @@ describe('VerifyEmailForm', () => {
 
       const { rerender } = render(
         <VerifyEmailForm
-          callbackUrl="/fleet/"
+          callbackUrl="/fleet"
           initialEmail="sailor@mit.edu"
           initialResendLocked
         />
@@ -447,7 +447,7 @@ describe('VerifyEmailForm', () => {
 
       rerender(
         <VerifyEmailForm
-          callbackUrl="/fleet/"
+          callbackUrl="/fleet"
           initialEmail="sailor@mit.edu"
           initialResendLocked={false}
         />

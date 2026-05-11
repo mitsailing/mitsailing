@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SubmitButton } from '@/components/ui/submit-button';
 import { authInlineLinkClassName } from '@/lib/mit-sailing/tokens';
 import { authClient } from '@/libs/auth-client';
 import {
@@ -378,13 +379,14 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
               />
             </div>
 
-            <Button
+            <SubmitButton
               className="h-14 w-full rounded-full bg-foreground text-lg font-normal text-background hover:bg-foreground/90"
               disabled={submitting || resetCode.length !== 6}
-              type="submit"
+              pending={submitting}
+              pendingLabel={tCommon('pending_submitting')}
             >
               {t('continue')}
-            </Button>
+            </SubmitButton>
           </form>
 
           <Button
@@ -449,14 +451,14 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
             />
           </div>
 
-          <Button
+          <SubmitButton
             className="h-12 w-full rounded-full"
-            disabled={submitting}
-            type="submit"
+            pending={submitting}
+            pendingLabel={tCommon('pending_submitting')}
             variant="mit"
           >
             {t('submit')}
-          </Button>
+          </SubmitButton>
         </form>
       )}
 

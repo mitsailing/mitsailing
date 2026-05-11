@@ -28,7 +28,7 @@ export const Detail: Story = {
     ariaLabel: 'Breadcrumb',
     crumbs: [
       { label: 'Home', href: '/' },
-      { label: 'About', href: '/about/' },
+      { label: 'About', href: '/about' },
       { label: 'Hannah Agate' },
     ],
   },

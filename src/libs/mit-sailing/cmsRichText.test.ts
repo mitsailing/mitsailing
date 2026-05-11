@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  cmsRichTextContainsRenderedImage,
+  cmsRichTextContainsRenderedImageFromSanitized,
   normalizeLegacyPlainTextToCmsRichTextHtml,
   plainTextFromCmsRichTextHtml,
   sanitizeCmsRichTextHtml,
@@ -91,6 +93,45 @@ describe('sanitizeCmsRichTextHtml', () => {
         '<p>Images</p><img src="/cms-media/%2e%2e/race-day.png"><img src="/cms-media/asset-1/../race-day.png">'
       )
     ).toBe('<p>Images</p>');
+  });
+});
+
+describe('cmsRichTextContainsRenderedImageFromSanitized', () => {
+  it('detects img in sanitized fragment', () => {
+    expect(
+      cmsRichTextContainsRenderedImageFromSanitized(
+        '<p>x</p><img alt="" src="/cms-media/a/b.png" />'
+      )
+    ).toBe(true);
+    expect(
+      cmsRichTextContainsRenderedImageFromSanitized('<p>no image</p>')
+    ).toBe(false);
+  });
+});
+
+describe('cmsRichTextContainsRenderedImage', () => {
+  it('returns false when only disallowed image sources are present', () => {
+    expect(
+      cmsRichTextContainsRenderedImage(
+        '<p>About this hull</p><img src="/images/boats/photo.jpg" alt="Legacy" />'
+      )
+    ).toBe(false);
+    expect(
+      cmsRichTextContainsRenderedImage('<img src="https://example.com/a.png">')
+    ).toBe(false);
+  });
+
+  it('returns true when sanitized output keeps a cms-media image', () => {
+    expect(
+      cmsRichTextContainsRenderedImage(
+        '<p>Race day</p><img alt="Rigging" src="/cms-media/asset-1/rigging.png" />'
+      )
+    ).toBe(true);
+  });
+
+  it('returns false for empty input', () => {
+    expect(cmsRichTextContainsRenderedImage('')).toBe(false);
+    expect(cmsRichTextContainsRenderedImage(null)).toBe(false);
   });
 });
 

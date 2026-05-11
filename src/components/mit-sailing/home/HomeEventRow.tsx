@@ -45,7 +45,7 @@ export function HomeEventRow(props: HomeEventRowProps) {
       <div className="min-w-0 flex-1">
         <Link
           className={`block truncate no-underline hover:underline ${textFocusRingClassName} ${mitAccentLinkClassName} leading-tight`}
-          href={`/events/${props.row.eventSlug}/`}
+          href={`/events/${props.row.eventSlug}`}
           title={props.row.eventName}
         >
           {props.row.eventName}

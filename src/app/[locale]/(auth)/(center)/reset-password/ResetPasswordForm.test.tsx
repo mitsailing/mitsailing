@@ -43,7 +43,7 @@ function renderResetPasswordForm(
 ) {
   return render(
     <ResetPasswordForm
-      callbackUrl="/fleet/"
+      callbackUrl="/fleet"
       initialEmail="reset@mit.edu"
       passwordHeading="Create a new password"
       {...props}
@@ -577,11 +577,11 @@ describe('ResetPasswordForm', () => {
           password: 'new-password',
         });
         expect(authClientMock.signIn.email).toHaveBeenCalledWith({
-          callbackURL: '/fleet/',
+          callbackURL: '/fleet',
           email: 'reset@mit.edu',
           password: 'new-password',
         });
-        expect(componentTestRouter().push).toHaveBeenCalledWith('/fleet/');
+        expect(componentTestRouter().push).toHaveBeenCalledWith('/fleet');
       });
 
       it('use fallback after reset with unsafe callback', async () => {

@@ -23,11 +23,11 @@ const baseProps = {
   mailingTitle: 'Join our mailing list',
   mailingBody: 'Stay updated on events.',
   mailingLinkLabel: 'Subscribe',
-  mailingHref: '/contact/',
+  mailingHref: '/contact',
   volunteerTitle: 'Volunteer with us',
   volunteerBody: 'Become a mentor.',
   volunteerLinkLabel: 'Learn more',
-  volunteerHref: '/contact/',
+  volunteerHref: '/contact',
   alternateGiving: {
     heading: 'Other ways to give',
     blocks: [
