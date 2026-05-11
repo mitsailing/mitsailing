@@ -9,6 +9,7 @@ import {
 } from '@/lib/mit-sailing/tokens';
 import { getSession } from '@/libs/auth/dal';
 import { Link } from '@/libs/I18nNavigation';
+import { logger } from '@/libs/Logger';
 import { parseCmsHomeOverviewBody } from '@/libs/mit-sailing/cmsHomeOverview';
 import {
   externalCmsLinkProps,
@@ -220,7 +221,7 @@ function HomeCmsTextSection(props: { block: PublicCmsBlock }) {
     <section className="bg-background py-24">
       <div className="mx-auto max-w-3xl px-6">
         {props.block.subtitle ? (
-          <p className="mb-3 text-sm leading-snug text-muted-foreground">
+          <p className="mb-3 text-sm leading-snug text-mit-text">
             {props.block.subtitle}
           </p>
         ) : null}
@@ -396,14 +397,19 @@ export async function MitSailingHomePageView(
     getSession(),
     loadPublishedCmsPageByPath('/'),
   ]);
+  if (!cmsHomePage) {
+    logger.error('Missing CMS homepage', { path: '/' });
+    throw new Error('Published CMS home page is missing');
+  }
+
   const isSignedIn = Boolean(session?.user?.id);
-  const homeHeroBlock = cmsHomePage?.blocks.find(
+  const homeHeroBlock = cmsHomePage.blocks.find(
     (block) => block.kind === 'hero'
   );
-  const homeOverviewBlock = cmsHomePage?.blocks.find(
+  const homeOverviewBlock = cmsHomePage.blocks.find(
     (block) => block.kind === 'home_overview'
   );
-  const homeClassesBlock = cmsHomePage?.blocks.find(
+  const homeClassesBlock = cmsHomePage.blocks.find(
     (block) => block.kind === 'home_classes'
   );
 
@@ -428,13 +434,13 @@ export async function MitSailingHomePageView(
     ? limitHomeUpcomingDayGroups(upcomingDayGroups, homeOverviewData.eventCount)
     : [];
   const orderedHomeCmsBlocks: HomeOrderedStripBlock[] =
-    cmsHomePage?.blocks.filter(
+    cmsHomePage.blocks.filter(
       (block): block is HomeOrderedStripBlock =>
         block.kind === 'callout' ||
         block.kind === 'text_section' ||
         block.kind === 'pricing' ||
         block.kind === 'home_classes'
-    ) ?? [];
+    );
 
   return (
     <div className="w-full min-w-0">
@@ -472,9 +478,12 @@ export async function MitSailingHomePageView(
                                 }
                                 key={row.day}
                               >
-                                <td className="py-3 font-semibold text-mit-text">
+                                <th
+                                  className="py-3 text-left font-semibold text-mit-text"
+                                  scope="row"
+                                >
                                   {row.day}
-                                </td>
+                                </th>
                                 <td className="py-3 text-mit-text">
                                   {row.hours}
                                 </td>
