@@ -3,9 +3,16 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProfilePasswordClient } from './ProfilePasswordClient';
 
-const authClientMock = vi.hoisted(() => ({
-  changePassword: vi.fn(),
-}));
+const authClientMock = vi.hoisted(() => {
+  const refetchSession = vi.fn(async () => {});
+  return {
+    changePassword: vi.fn(),
+    refetchSession,
+    useSession: vi.fn(() => ({
+      refetch: refetchSession,
+    })),
+  };
+});
 
 vi.mock('@/libs/auth-client', () => ({
   authClient: authClientMock,
@@ -52,6 +59,7 @@ describe('ProfilePasswordClient', () => {
       revokeOtherSessions: true,
     });
     expect(await screen.findByText('Your password was updated.')).toBeVisible();
+    expect(authClientMock.refetchSession).toHaveBeenCalledTimes(1);
     expect(screen.getByLabelText('Current password')).toHaveValue('');
   });
 

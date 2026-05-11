@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import Image from 'next/image';
 import { PublicAdminEditLink } from '@/components/mit-sailing/admin/PublicAdminEditLink';
 import { CmsRichText } from '@/components/mit-sailing/cms/CmsRichText';
+import { keyedStringItems } from '@/lib/keyedStringList';
 import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
 import { adminCatalogResourceEditPath } from '@/libs/admin/catalog/adminCatalogPaths';
 import { Link } from '@/libs/I18nNavigation';
@@ -14,15 +15,6 @@ type ClassDetailViewProps = {
   sailingClass: SailingClassCatalogDetail;
   occurrenceBlocks: ClassRelatedEventBlock[];
 };
-
-function keyedImagePaths(paths: readonly string[]) {
-  const seen = new Map<string, number>();
-  return paths.map((src) => {
-    const count = seen.get(src) ?? 0;
-    seen.set(src, count + 1);
-    return { key: `${src}-${count}`, src };
-  });
-}
 
 /**
  * @param props - Class detail (mit-redesign ClassDetailPage parity)
@@ -74,18 +66,18 @@ export async function ClassDetailView(props: ClassDetailViewProps) {
 
       {moreImages.length > 0 ? (
         <ul className="m-0 mb-10 grid list-none grid-cols-2 gap-3 p-0">
-          {keyedImagePaths(moreImages).map((image) => (
+          {keyedStringItems(moreImages).map((item) => (
             <li
               className="relative aspect-[4/3] overflow-hidden rounded-lg bg-mit-line"
-              key={image.key}
+              key={item.key}
             >
               <Image
                 alt={t('additional_image_alt', { name: cl.name })}
                 className="object-cover"
                 fill
                 sizes="(max-width: 768px) 50vw, 320px"
-                src={image.src}
-                unoptimized={image.src.startsWith('/')}
+                src={item.value}
+                unoptimized={item.value.startsWith('/')}
               />
             </li>
           ))}

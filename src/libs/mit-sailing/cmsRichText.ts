@@ -236,6 +236,33 @@ export function sanitizeCmsRichTextHtml(
   return cmsRichTextHasContent(sanitized) ? sanitized : '';
 }
 
+/**
+ * Detects whether already-sanitized CMS HTML includes a rendered `<img>`.
+ *
+ * @param sanitized - Output of {@link sanitizeCmsRichTextHtml}
+ * @returns True when the string contains an `<img>` tag
+ */
+export function cmsRichTextContainsRenderedImageFromSanitized(
+  sanitized: string
+): boolean {
+  return /<img\b/iu.test(sanitized);
+}
+
+/**
+ * Detects whether sanitized CMS HTML includes a rendered `<img>` (only allowed
+ * `/cms-media/` sources survive {@link sanitizeCmsRichTextHtml}).
+ *
+ * @param raw - Raw HTML or legacy plain text from storage
+ * @returns True when the sanitized output contains an `<img>` tag
+ */
+export function cmsRichTextContainsRenderedImage(
+  raw: string | null | undefined
+): boolean {
+  return cmsRichTextContainsRenderedImageFromSanitized(
+    sanitizeCmsRichTextHtml(raw)
+  );
+}
+
 export function plainTextFromCmsRichTextHtml(
   raw: string | null | undefined
 ): string {

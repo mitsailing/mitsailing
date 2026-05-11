@@ -16,19 +16,27 @@ export function ProfileSecurityClient() {
   async function onRevokeSessions() {
     setSessionBanner(null);
     setRevoking(true);
-    const res = await authClient.revokeOtherSessions();
-    setRevoking(false);
-    if (res.error) {
+    try {
+      const res = await authClient.revokeOtherSessions();
+      if (res.error) {
+        setSessionBanner({
+          kind: 'error',
+          message: res.error.message ?? t('sign_out_all_error'),
+        });
+        return;
+      }
+      setSessionBanner({
+        kind: 'success',
+        message: t('sign_out_all_success'),
+      });
+    } catch {
       setSessionBanner({
         kind: 'error',
-        message: res.error.message ?? t('sign_out_all_error'),
+        message: t('sign_out_all_error'),
       });
-      return;
+    } finally {
+      setRevoking(false);
     }
-    setSessionBanner({
-      kind: 'success',
-      message: t('sign_out_all_success'),
-    });
   }
 
   return (

@@ -28,7 +28,9 @@ export async function EventDetailView(props: EventDetailViewProps) {
 
   return (
     <article>
-      <PublicAdminEditLink href={`/admin/events/${e.slug}/edit`} />
+      <PublicAdminEditLink
+        href={`/admin/events/${encodeURIComponent(e.slug)}/edit`}
+      />
       <p className="mb-4 text-sm text-muted-foreground">
         <Link
           className="text-primary-ink no-underline hover:underline"

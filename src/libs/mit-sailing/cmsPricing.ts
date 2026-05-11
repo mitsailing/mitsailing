@@ -19,6 +19,19 @@ export type CmsPricingData = {
   plans: CmsPricingPlan[];
 };
 
+/**
+ * Returns whether plan titles are pairwise distinct (after CMS parsing, titles are trimmed).
+ *
+ * @param plans Pricing plans with parsed titles.
+ * @returns Whether every plan title is unique.
+ */
+export function cmsPricingPlanTitlesUnique(
+  plans: readonly Pick<CmsPricingPlan, 'title'>[]
+): boolean {
+  const titles = plans.map((plan) => plan.title);
+  return new Set(titles).size === titles.length;
+}
+
 function propertyFromUnknown(value: unknown, key: string): unknown {
   if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
     return Object.getOwnPropertyDescriptor(value, key)?.value;
@@ -106,6 +119,10 @@ export function parseCmsPricingBody(
     return null;
   }
   if (!parsedPlans.every((plan): plan is CmsPricingPlan => plan !== null)) {
+    return null;
+  }
+
+  if (!cmsPricingPlanTitlesUnique(parsedPlans)) {
     return null;
   }
 

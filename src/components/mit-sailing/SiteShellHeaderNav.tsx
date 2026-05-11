@@ -37,22 +37,31 @@ export async function SiteShellHeaderNav(props: SiteShellHeaderNavProps) {
       loadCmsMenu('mobile_utility'),
     ]);
 
-  const headerMenuItems: SiteHeaderMenuItem[] = headerMenu.map((item) => ({
-    id: item.id,
-    label: item.label,
-    href: safeCmsHref(item.href) ?? undefined,
-    isExternal: item.isExternal,
-    systemKey: item.systemKey,
-    items:
-      item.children.length > 0
-        ? item.children.flatMap((child) => {
-            const href = safeCmsHref(child.href);
-            return href ? [{ label: child.label, href }] : [];
-          })
-        : undefined,
-  }));
-  const mobileUtilityItems: SiteHeaderMobileUtilityItem[] =
-    mobileUtilityMenu.flatMap((item) => {
+  const headerMenuItems = headerMenu.flatMap<SiteHeaderMenuItem>((item) => {
+    const href = safeCmsHref(item.href) ?? undefined;
+    const childItems = item.children.flatMap((child) => {
+      const childHref = safeCmsHref(child.href);
+      return childHref ? [{ label: child.label, href: childHref }] : [];
+    });
+
+    if (!href && childItems.length === 0 && !item.systemKey) {
+      return [];
+    }
+
+    return [
+      {
+        id: item.id,
+        label: item.label,
+        href,
+        isExternal: item.isExternal,
+        systemKey: item.systemKey,
+        items: childItems.length > 0 ? childItems : undefined,
+      },
+    ];
+  });
+
+  const mobileUtilityItems =
+    mobileUtilityMenu.flatMap<SiteHeaderMobileUtilityItem>((item) => {
       const href = safeCmsHref(item.href);
       return href
         ? [
@@ -70,10 +79,12 @@ export async function SiteShellHeaderNav(props: SiteShellHeaderNavProps) {
     <SiteHeader
       classesDropdownItems={mapClassCategoriesToNavDropdownItems(categories)}
       fleetDropdownItems={mapFleetBoatsToNavDropdownItems(fleetBoats)}
-      headerMenuItems={headerMenuItems}
+      headerMenuItems={headerMenuItems.length > 0 ? headerMenuItems : undefined}
       initialShowAdminLink={props.initialShowAdminLink}
       initialSignedIn={props.initialSignedIn}
-      mobileUtilityItems={mobileUtilityItems}
+      mobileUtilityItems={
+        mobileUtilityItems.length > 0 ? mobileUtilityItems : undefined
+      }
     />
   );
 }

@@ -24,7 +24,7 @@ export function ProfileInlineBanner(props: {
   return (
     <p
       className={cls}
-      role={props.banner.kind === 'error' ? 'alert' : undefined}
+      role={props.banner.kind === 'error' ? 'alert' : 'status'}
     >
       {props.banner.message}
     </p>

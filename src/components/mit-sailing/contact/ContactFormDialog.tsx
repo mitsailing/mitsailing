@@ -2,8 +2,9 @@
 
 import { CalendarDays, HelpCircle, MapPinned, Send, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { Dialog } from 'radix-ui';
 import type * as React from 'react';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -290,29 +291,11 @@ function ContactForm(
  */
 export function ContactFormDialog(props: ContactFormDialogProps) {
   const t = useTranslations('MitSailingContact');
-  const titleId = useId();
   const firstFieldRef = useRef<HTMLSelectElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
   const [selectedTopic, setSelectedTopic] =
     useState<ContactTopic>('General questions');
   const [isOpen, setIsOpen] = useState(Boolean(props.status));
-
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-    firstFieldRef.current?.focus();
-    function onKeyDown(event: KeyboardEvent): void {
-      if (event.key === 'Escape') {
-        setIsOpen(false);
-        previouslyFocusedRef.current?.focus();
-      }
-    }
-    document.addEventListener('keydown', onKeyDown, true);
-    return () => {
-      document.removeEventListener('keydown', onKeyDown, true);
-    };
-  }, [isOpen]);
 
   function openForm(topic: ContactTopic): void {
     previouslyFocusedRef.current =
@@ -323,11 +306,6 @@ export function ContactFormDialog(props: ContactFormDialogProps) {
     setIsOpen(true);
   }
 
-  function closeForm(): void {
-    setIsOpen(false);
-    previouslyFocusedRef.current?.focus();
-  }
-
   return (
     <>
       <div className="grid gap-5 lg:grid-cols-3">
@@ -336,48 +314,55 @@ export function ContactFormDialog(props: ContactFormDialogProps) {
         ))}
       </div>
 
-      {isOpen ? (
-        <div
-          aria-labelledby={titleId}
-          aria-modal="true"
-          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/55 px-4 py-8"
-          role="dialog"
-        >
-          <div className="w-full max-w-2xl rounded-lg border border-mit-line bg-background shadow-xl">
-            <div className="flex items-start justify-between gap-4 border-b border-mit-line px-5 py-4">
-              <div>
-                <p className="mb-1 text-xs font-bold tracking-widest text-primary-ink uppercase">
-                  {t('dialog_eyebrow')}
-                </p>
-                <h2
-                  className="font-mit-serif text-2xl font-semibold text-mit-text"
-                  id={titleId}
-                >
-                  {contactTopicLabel(t, selectedTopic)}
-                </h2>
+      <Dialog.Root modal onOpenChange={setIsOpen} open={isOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/55" />
+          <Dialog.Content
+            aria-describedby={undefined}
+            className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-8 outline-none"
+            onCloseAutoFocus={(event) => {
+              event.preventDefault();
+              previouslyFocusedRef.current?.focus();
+            }}
+            onOpenAutoFocus={(event) => {
+              event.preventDefault();
+              firstFieldRef.current?.focus();
+            }}
+          >
+            <div className="w-full max-w-2xl rounded-lg border border-mit-line bg-background shadow-xl">
+              <div className="flex items-start justify-between gap-4 border-b border-mit-line px-5 py-4">
+                <div>
+                  <p className="mb-1 text-xs font-bold tracking-widest text-primary-ink uppercase">
+                    {t('dialog_eyebrow')}
+                  </p>
+                  <Dialog.Title className="font-mit-serif text-2xl font-semibold text-mit-text">
+                    {contactTopicLabel(t, selectedTopic)}
+                  </Dialog.Title>
+                </div>
+                <Dialog.Close asChild>
+                  <Button
+                    aria-label={t('close_contact_form')}
+                    size="icon"
+                    type="button"
+                    variant="ghost"
+                  >
+                    <X aria-hidden className="size-5" />
+                  </Button>
+                </Dialog.Close>
               </div>
-              <Button
-                aria-label={t('close_contact_form')}
-                onClick={closeForm}
-                size="icon"
-                type="button"
-                variant="ghost"
-              >
-                <X aria-hidden className="size-5" />
-              </Button>
+              <div className="px-5 py-5">
+                <ContactForm
+                  currentYear={props.currentYear}
+                  formAction={props.formAction}
+                  status={props.status}
+                  topic={selectedTopic}
+                  topicRef={firstFieldRef}
+                />
+              </div>
             </div>
-            <div className="px-5 py-5">
-              <ContactForm
-                currentYear={props.currentYear}
-                formAction={props.formAction}
-                status={props.status}
-                topic={selectedTopic}
-                topicRef={firstFieldRef}
-              />
-            </div>
-          </div>
-        </div>
-      ) : null}
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </>
   );
 }

@@ -83,4 +83,30 @@ describe('FleetBoatDetailView', () => {
     expect(screen.queryByAltText('Tech Dinghy')).toBeNull();
     expect(screen.getByAltText('Rigging detail')).toBeVisible();
   });
+
+  it('shows catalog hero when description img is stripped by sanitizer', async () => {
+    render(
+      await FleetBoatDetailView({
+        boat: {
+          capacity: 2,
+          description:
+            '<p>Boat page copy</p><img alt="Legacy inline" src="/images/boats/legacy.jpg" />',
+          id: 'boat-1',
+          imagePath: '/images/boats/tech.jpg',
+          name: 'Tech Dinghy',
+          requiredClass: {
+            id: 'class-1',
+            name: 'Intro Sailing 101',
+            slug: 'intro-sailing-101',
+          },
+          slug: 'tech-dinghy',
+          type: 'training dinghy',
+        },
+        locale: 'en',
+      })
+    );
+
+    expect(screen.getByAltText('Tech Dinghy')).toBeVisible();
+    expect(screen.queryByAltText('Legacy inline')).toBeNull();
+  });
 });

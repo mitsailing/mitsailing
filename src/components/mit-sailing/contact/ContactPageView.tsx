@@ -12,6 +12,7 @@ import {
   pavilionStreetAddress,
 } from '@/data/mit-sailing/pavilionInfoSeed';
 import type { PavilionAddressBlock } from '@/data/mit-sailing/pavilionInfoSeed';
+import { keyedStringItems } from '@/lib/keyedStringList';
 
 type ContactPageViewProps = {
   currentYear: number;
@@ -22,15 +23,6 @@ type ContactPageViewProps = {
 
 const sectionClassName = 'border-t border-mit-line py-10 md:py-12';
 const helperClassName = 'text-sm leading-relaxed text-muted-foreground';
-
-function keyedStaticValues(values: readonly string[]) {
-  const seen = new Map<string, number>();
-  return values.map((value) => {
-    const count = seen.get(value) ?? 0;
-    seen.set(value, count + 1);
-    return { key: `${value}-${count}`, value };
-  });
-}
 
 function SectionHeading(props: {
   eyebrow?: string;
@@ -59,7 +51,7 @@ function SectionHeading(props: {
 function AddressLines(props: { lines: readonly string[] }) {
   return (
     <address className="space-y-1 text-sm leading-relaxed text-mit-text not-italic">
-      {keyedStaticValues(props.lines).map((line) => (
+      {keyedStringItems(props.lines).map((line) => (
         <div key={line.key}>{line.value}</div>
       ))}
     </address>
@@ -98,7 +90,7 @@ function DirectionList(props: {
             : 'list-disc space-y-2 pl-5 text-sm leading-relaxed text-mit-text'
         }
       >
-        {keyedStaticValues(props.items).map((item) => (
+        {keyedStringItems(props.items).map((item) => (
           <li key={item.key}>{item.value}</li>
         ))}
       </ListTag>

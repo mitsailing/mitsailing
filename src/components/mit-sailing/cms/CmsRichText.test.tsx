@@ -22,6 +22,12 @@ describe('CmsRichText', () => {
     expect(screen.getByText('Fast').tagName).toBe('STRONG');
   });
 
+  it('renders pre-sanitized html from props', () => {
+    render(<CmsRichText sanitizedHtml="<p><strong>Ready</strong> copy</p>" />);
+
+    expect(screen.getByText('Ready').tagName).toBe('STRONG');
+  });
+
   it('renders sanitized cms html with custom classes', () => {
     const view = render(
       <CmsRichText

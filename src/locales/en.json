@@ -353,7 +353,8 @@
     "delete_account_submit": "Delete my account",
     "delete_invalid_password_error": "The password you entered is incorrect.",
     "delete_validation_error": "Check the confirmation field and try again.",
-    "delete_rate_limited_error": "Too many delete-account attempts. Wait a bit."
+    "delete_rate_limited_error": "Too many delete-account attempts. Wait a bit.",
+    "delete_unknown_error": "Could not delete account."
   },
   "ProfileSideNav": {
     "aria_label": "Profile settings",

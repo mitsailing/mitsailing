@@ -82,4 +82,24 @@ describe('ProfileDeleteAccountClient', () => {
       'The password you entered is incorrect.'
     );
   });
+
+  it('profile owner sees recovery message when deletion throws', async () => {
+    authClientMock.deleteUser.mockRejectedValue(
+      new TypeError('Failed to fetch')
+    );
+    render(<ProfileDeleteAccountClient signInHref="/login" />);
+
+    const user = await fillDeleteForm({
+      confirmation: 'DELETE',
+      password: 'current-password',
+    });
+    const button = screen.getByRole('button', { name: 'Delete my account' });
+    await user.click(button);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Could not delete account.'
+    );
+    expect(button).toBeEnabled();
+    expect(componentTestRouter().push).not.toHaveBeenCalled();
+  });
 });

@@ -6,6 +6,10 @@ import { CmsRichText } from '@/components/mit-sailing/cms/CmsRichText';
 import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
 import { adminCatalogResourceEditPath } from '@/libs/admin/catalog/adminCatalogPaths';
 import { Link } from '@/libs/I18nNavigation';
+import {
+  cmsRichTextContainsRenderedImageFromSanitized,
+  sanitizeCmsRichTextHtml,
+} from '@/libs/mit-sailing/cmsRichText';
 import type { FleetBoatDetail } from '@/libs/mit-sailing/fleetQueries';
 
 type FleetBoatDetailViewProps = {
@@ -25,7 +29,9 @@ export async function FleetBoatDetailView(props: FleetBoatDetailViewProps) {
   });
 
   const bodyClass = 'text-base leading-relaxed text-mit-text';
-  const descriptionHasImage = /<img\b/iu.test(boat.description);
+  const sanitizedDescription = sanitizeCmsRichTextHtml(boat.description);
+  const descriptionHasImage =
+    cmsRichTextContainsRenderedImageFromSanitized(sanitizedDescription);
   const isLocalImagePath =
     boat.imagePath?.startsWith('/') === true &&
     !boat.imagePath.startsWith('//');
@@ -74,7 +80,7 @@ export async function FleetBoatDetailView(props: FleetBoatDetailViewProps) {
         </div>
       ) : null}
 
-      <CmsRichText className={bodyClass} html={boat.description} />
+      <CmsRichText className={bodyClass} sanitizedHtml={sanitizedDescription} />
     </>
   );
 }

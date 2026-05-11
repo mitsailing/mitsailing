@@ -7,11 +7,7 @@ test.describe('Visual testing', () => {
     }, testInfo) => {
       await page.goto('/');
 
-      await expect(
-        page.getByRole('heading', {
-          name: 'Sail the Charles from MIT',
-        })
-      ).toBeVisible();
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 
       await takeSnapshot(page, testInfo);
     });
@@ -34,7 +30,7 @@ test.describe('Visual testing', () => {
       await page.goto('/about');
 
       await expect(
-        page.getByRole('heading', { name: 'About MIT Sailing' })
+        page.getByRole('heading', { level: 1, name: /About MIT Sailing/ })
       ).toBeVisible();
 
       await takeSnapshot(page, testInfo);

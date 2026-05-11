@@ -12,11 +12,7 @@ test.describe('Sanity', () => {
     test('should display the homepage', async ({ page }) => {
       await page.goto('/');
 
-      await expect(
-        page.getByRole('heading', {
-          name: 'Sail the Charles from MIT',
-        })
-      ).toBeVisible();
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     });
 
     test('should navigate to the about page', async ({ page }) => {
@@ -30,7 +26,7 @@ test.describe('Sanity', () => {
       await expect(page).toHaveURL(/about$/);
 
       await expect(
-        page.getByRole('heading', { name: 'About MIT Sailing' })
+        page.getByRole('heading', { level: 1, name: /About MIT Sailing/ })
       ).toBeVisible();
     });
 

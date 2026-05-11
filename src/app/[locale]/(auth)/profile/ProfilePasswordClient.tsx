@@ -15,6 +15,7 @@ import { Link as I18nLink } from '@/libs/I18nNavigation';
 export function ProfilePasswordClient() {
   const t = useTranslations('UserProfilePage');
   const tCommon = useTranslations('Common');
+  const { refetch: refetchSession } = authClient.useSession();
 
   const [passwordBanner, setPasswordBanner] =
     useState<ProfileBannerState>(null);
@@ -35,23 +36,36 @@ export function ProfilePasswordClient() {
     }
     setPasswordBanner(null);
     setChangingPassword(true);
-    const res = await authClient.changePassword({
-      currentPassword,
-      newPassword,
-      revokeOtherSessions: true,
-    });
-    setChangingPassword(false);
-    if (res.error) {
+    try {
+      const { error } = await authClient.changePassword({
+        currentPassword,
+        newPassword,
+        revokeOtherSessions: true,
+      });
+      if (error) {
+        setPasswordBanner({
+          kind: 'error',
+          message: mapProfilePasswordError(error.code, error.message, t),
+        });
+        return;
+      }
+      try {
+        await refetchSession();
+      } catch {
+        // Best-effort: password change already succeeded on the server.
+      }
+      setPasswordBanner({ kind: 'success', message: t('password_changed') });
+      setCurrentPassword('');
+      setNewPassword('');
+      setNewPasswordConfirm('');
+    } catch {
       setPasswordBanner({
         kind: 'error',
-        message: mapProfilePasswordError(res.error.code, res.error.message, t),
+        message: t('error_request_failed'),
       });
-      return;
+    } finally {
+      setChangingPassword(false);
     }
-    setPasswordBanner({ kind: 'success', message: t('password_changed') });
-    setCurrentPassword('');
-    setNewPassword('');
-    setNewPasswordConfirm('');
   }
 
   return (
@@ -72,13 +86,18 @@ export function ProfilePasswordClient() {
           </I18nLink>
         </p>
         <ProfileInlineBanner banner={passwordBanner} />
-        <form className="mt-4 flex flex-col gap-3" onSubmit={onChangePassword}>
+        <form
+          aria-busy={changingPassword || undefined}
+          className="mt-4 flex flex-col gap-3"
+          onSubmit={onChangePassword}
+        >
           <div className="flex flex-col gap-1.5">
             <Label className="text-foreground" htmlFor="currentPassword">
               {t('current_password_label')}
             </Label>
             <Input
               autoComplete="current-password"
+              disabled={changingPassword}
               id="currentPassword"
               name="currentPassword"
               onChange={(e) => {
@@ -95,6 +114,7 @@ export function ProfilePasswordClient() {
             </Label>
             <Input
               autoComplete="new-password"
+              disabled={changingPassword}
               id="newPassword"
               minLength={8}
               name="newPassword"
@@ -118,6 +138,7 @@ export function ProfilePasswordClient() {
             </Label>
             <Input
               autoComplete="new-password"
+              disabled={changingPassword}
               id="newPasswordConfirmation"
               minLength={8}
               name="newPasswordConfirmation"

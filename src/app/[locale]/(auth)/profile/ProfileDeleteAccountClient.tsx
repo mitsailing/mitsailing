@@ -38,19 +38,27 @@ export function ProfileDeleteAccountClient(
     }
     setDeleteBanner(null);
     setDeleting(true);
-    const res = await authClient.deleteUser({ password: deletePassword });
-    setDeleting(false);
-    if (res.error) {
+    try {
+      const res = await authClient.deleteUser({ password: deletePassword });
+      if (res.error) {
+        setDeleteBanner({
+          kind: 'error',
+          message: mapProfileDeleteError(res.error.code, res.error.message, t),
+        });
+        return;
+      }
+      setDeleteBanner({ kind: 'success', message: t('delete_pending') });
+      setDeletePassword('');
+      setDeleteConfirmation('');
+      router.push(props.signInHref);
+    } catch {
       setDeleteBanner({
         kind: 'error',
-        message: mapProfileDeleteError(res.error.code, res.error.message, t),
+        message: t('delete_unknown_error'),
       });
-      return;
+    } finally {
+      setDeleting(false);
     }
-    setDeleteBanner({ kind: 'success', message: t('delete_pending') });
-    setDeletePassword('');
-    setDeleteConfirmation('');
-    router.push(props.signInHref);
   }
 
   return (
