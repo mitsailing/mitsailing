@@ -497,19 +497,11 @@ export async function seedSiteAlerts(p: PrismaClient): Promise<void> {
   }
 }
 
-async function seedCmsPageBlocks(
-  p: PrismaClient,
-  page: CmsSeedPage
-): Promise<void> {
-  await p.cmsPageBlock.deleteMany({
-    where:
-      page.blocks.length === 0
-        ? { pageId: page.id }
-        : {
-            pageId: page.id,
-            id: { notIn: page.blocks.map((block) => block.id) },
-          },
-  });
+async function seedCmsPageBlocks(props: {
+  p: PrismaClient;
+  page: CmsSeedPage;
+}): Promise<void> {
+  const { p, page } = props;
 
   for (const block of page.blocks) {
     await p.cmsPageBlock.upsert({
@@ -567,15 +559,16 @@ async function seedCmsPages(p: PrismaClient): Promise<void> {
         isPublished: page.isPublished ?? true,
       },
     });
-    await seedCmsPageBlocks(p, page);
+    await seedCmsPageBlocks({ p, page });
   }
 }
 
-async function seedCmsMenuItem(
-  p: PrismaClient,
-  menu: CmsSeedMenu,
-  item: CmsSeedMenuItem
-): Promise<void> {
+async function seedCmsMenuItem(props: {
+  p: PrismaClient;
+  menu: CmsSeedMenu;
+  item: CmsSeedMenuItem;
+}): Promise<void> {
+  const { p, menu, item } = props;
   const linkedPageId = item.kind === 'page_link' ? item.linkedPageId : null;
   const url = item.kind === 'url_link' ? (item.url ?? null) : null;
   const isExternal = item.kind === 'url_link' ? item.isExternal : false;
@@ -636,7 +629,7 @@ async function seedCmsMenus(p: PrismaClient): Promise<void> {
     });
 
     for (const item of items) {
-      await seedCmsMenuItem(p, menu, item);
+      await seedCmsMenuItem({ p, menu, item });
     }
   }
 }
