@@ -72,12 +72,14 @@ export async function seedEventCategories(p: PrismaClient): Promise<void> {
         name: c.name,
         displayOrder: c.display_order,
         isVisible: c.is_visible,
+        accentClassName: c.accent_class_name ?? null,
         createdAt: new Date(c.created_at),
       },
       update: {
         name: c.name,
         displayOrder: c.display_order,
         isVisible: c.is_visible,
+        accentClassName: c.accent_class_name ?? null,
       },
     });
   }

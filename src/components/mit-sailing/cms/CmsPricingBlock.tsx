@@ -55,7 +55,7 @@ function CmsPricingPlanLink(props: {
 function CmsPricingCard(props: { plan: CmsPricingData['plans'][number] }) {
   const href = safeCmsHref(props.plan.linkUrl);
   const linkClassName = props.plan.highlighted
-    ? 'w-full rounded-lg border-2 border-transparent bg-mit-red py-2.5 text-center text-sm font-medium text-white no-underline hover:bg-mit-red-hover'
+    ? 'w-full rounded-lg border-2 border-transparent bg-mit-red py-2.5 text-center text-sm font-medium text-white no-underline hover:bg-mit-red-hover dark:hover:ring-1 dark:hover:ring-inset dark:hover:ring-white/30'
     : 'w-full rounded-lg border border-border bg-card py-2.5 text-center text-sm font-medium text-card-foreground no-underline hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring';
 
   return (
@@ -93,7 +93,7 @@ function CmsPricingCard(props: { plan: CmsPricingData['plans'][number] }) {
       <ul className="mb-8 flex-1 space-y-4 text-xs text-mit-text">
         {keyedStringItems(props.plan.features).map((entry) => (
           <li className="flex items-start gap-3" key={entry.key}>
-            <Check className="mt-0.5 shrink-0 text-mit-success" size={16} />
+            <Check className="mt-0.5 shrink-0 text-mit-success-ink" size={16} />
             <span className="leading-snug">{entry.value}</span>
           </li>
         ))}

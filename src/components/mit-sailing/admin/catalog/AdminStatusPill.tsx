@@ -1,7 +1,9 @@
+import type { AdminStatusSemanticTone } from '@/lib/mit-sailing/tokens';
+import { adminStatusPillToneClassName } from '@/lib/mit-sailing/tokens';
 import { cn } from '@/lib/utils';
 
 /** Visual tone for catalog status pills (Live/Draft, Yes/No, banned). */
-export type AdminStatusPillTone = 'success' | 'neutral' | 'danger';
+export type AdminStatusPillTone = AdminStatusSemanticTone;
 
 /** List rows use compact padding; edit headings use comfortable padding. */
 export type AdminStatusPillDensity = 'compact' | 'comfortable';
@@ -12,12 +14,6 @@ type AdminStatusPillProps = {
   /** Defaults to `compact` (table cells). */
   density?: AdminStatusPillDensity;
   className?: string;
-};
-
-const toneClassName: Record<AdminStatusPillTone, string> = {
-  success: 'bg-emerald-50 text-emerald-800 ring-emerald-600/20',
-  neutral: 'bg-slate-100 text-slate-700 ring-slate-500/20',
-  danger: 'bg-red-50 text-red-900 ring-red-600/20',
 };
 
 const densityClassName: Record<AdminStatusPillDensity, string> = {
@@ -39,7 +35,7 @@ export function AdminStatusPill(props: AdminStatusPillProps) {
     <span
       className={cn(
         'inline-flex rounded-full ring-1 ring-inset',
-        toneClassName[props.tone],
+        adminStatusPillToneClassName[props.tone],
         densityClassName[density],
         props.className
       )}

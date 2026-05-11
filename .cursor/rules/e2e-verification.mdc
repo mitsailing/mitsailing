@@ -1,36 +1,24 @@
 ---
-description: Do not claim e2e is fixed or complete without running the project e2e command
-alwaysApply: true
+description: When test:e2e counts as done; Playwright preflight, ports, CI vs local, a11y project
+globs: playwright.config.ts,tests/e2e/**/*.ts,scripts/e2e-build.cjs,scripts/e2e-killport.cjs,.github/workflows/CI.yml
+alwaysApply: false
 ---
 
 # E2E verification (Playwright)
 
-This repo follows the same **shape** as [cal.com’s Playwright setup](https://github.com/calcom/cal.com/blob/main/playwright.config.ts): DB preflight (compose + migrate + **`e2e:seed`** / `prisma db seed` on `test_db`, like their `test-e2e` = `db-seed && e2e`), **`fullyParallel` + many `workers`** (optional `PLAYWRIGHT_WORKERS` to cap), the web server in config is **`next start`**, `NEXT_PUBLIC_IS_E2E=1`, and web-server logs are suppressed. **Default Playwright timeouts are short**; use `PLAYWRIGHT_SLOW=1` for long local waits when debugging.
+Same **workflow** as [cal.com’s Playwright setup](https://github.com/calcom/cal.com/blob/main/playwright.config.ts) (preflight → seed → build → tests), but the **`webServer`** entrypoint is **`node .next/standalone/server.js`** (see `playwright.config.ts`) so e2e matches the **standalone** deploy path, not `next start`. CI uses the **blob** reporter and **`npx playwright merge-reports`** after matrix shards per [Playwright sharding](https://playwright.dev/docs/test-sharding). **`IS_E2E=1`** on the Playwright web server (see `Env.ts`), parallel workers; short default timeouts — `PLAYWRIGHT_SLOW=1` when debugging locally.
 
-## Before saying e2e is "done" or "passing"
+## Before claiming e2e is done
 
-1. **Run:** `npm run test:e2e` from the project root (see `package.json`: preflight → `e2e:build` — unless `E2E_SKIP_BUILD=1` — → `e2e` / Playwright).
+1. Run **`npm run test:e2e`** from repo root for a full claim; if you cannot run it, say what was **not** verified.
+2. On failure: name the test and summarize the error (last ~40 lines of output is enough); note Docker/port blockers.
+3. A **partial** run (single spec or `npm run e2e` only) is **not** a substitute for the full `npm run test:e2e` when the whole e2e task is claimed complete.
+4. Default port **`3008`** (`PLAYWRIGHT_E2E_PORT`). Playwright config does **not** use `.env` **`PORT`**.
+5. **CI:** `E2E_SKIP_BUILD=1` when `.next` is restored from the build job; locally the first run uses `e2e:build`.
+6. **Browsers:** the **PR merge gate** runs **Chromium only** (by design — speed and parity with production Chromium). `postinstall` installs Chromium locally; CI uses `npx playwright install chromium --with-deps` per [Playwright CI guidance](https://playwright.dev/docs/ci). **Firefox/WebKit are not part of the default gate**; to run the `firefox` project, set `PLAYWRIGHT_INCLUDE_FIREFOX=1`, install that browser (`npx playwright install firefox --with-deps`), then run `npx playwright test --project=firefox` after the usual preflight + build.
 
-2. **End with success:** If you cannot run it here, say what was *not* verified; do not imply a green suite.
+## This repo
 
-3. **On failure:** Summarize the failing test and error (last ~40 lines of output is enough), then fix or report blockers (Docker, port, etc.).
+- **Do not** import the app Prisma client in `tests/e2e/*` — use `pg` `Pool` (see `AccountLockout.e2e.ts`). Form errors: `formAlert` from `tests/helpers/e2e-alert.ts` (avoids clashing with the route announcer’s `role="alert"`).
 
-4. **Partial runs** (single spec, `npm run e2e` only) are **not** a substitute for the full `npm run test:e2e` when claiming the whole e2e task is complete.
-
-5. **Port:** Default e2e port is `3008` (`PLAYWRIGHT_E2E_PORT` to override). E2E does **not** use `PORT` from `.env` in `playwright.config.ts`.
-
-6. **CI vs local build:** In GitHub Actions, `E2E_SKIP_BUILD=1` skips a second `next build` when `.next` is restored from the `build` job. Locally, the first `test:e2e` run runs `e2e:build` so `next start` has output.
-
-7. **Browsers:** **`npm install`** runs **`postinstall`** → `npx playwright install chromium` locally (aligned with Next.js [Playwright testing](https://nextjs.org/docs/app/building-your-application/testing/playwright) — binaries must match `@playwright/test`). Skipped when **`CI`** or **`PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`** (GitHub e2e job and Docker **deps** use explicit install or skip). Local `npm run test:e2e` runs **Chromium** only. **CI** runs **Chromium + Firefox** (workflow installs both). To reproduce the full CI browser matrix locally, set `CI=1` for that run (also matches CI retries/reporter) or install Firefox and use `npx playwright test --project=firefox` after the usual preflight + build + server.
-
-## Playwright + Prisma in this project
-
-- **Do not** import the app’s Prisma client in `tests/e2e/*` (see `prisma#28838`, `playwright#37890`). Use the `pg` `Pool` (see `AccountLockout.e2e.ts`).
-
-- **Form errors vs Next.js:** use `formAlert` from `tests/helpers/e2e-alert.ts` so `role="alert"` is not ambiguous with the route announcer.
-
-## Accessibility (axe) suite
-
-- **`npm run test:e2e:a11y`** runs the same preflight + `e2e:build` as `test:e2e`, then only the **`a11y-chromium`** Playwright project (`**/*.a11y.e2e.ts`): `@axe-core/playwright` with WCAG 2.x A/AA tags, **light and dark** theme via `localStorage` (`mitsailing-theme`) + `emulateMedia` color scheme.
-- **`npm run test:e2e`** runs **chromium + firefox (CI)** and does **not** include those files (they are ignored on default projects). Run **`test:e2e:a11y`** when changing global styles, theme tokens, or public page shells.
-- Scanned URLs = live **`/sitemap.xml`** pathnames plus curated public routes (donate, auth entry points, staff profiles, published standard event detail pages). **Admin** and **profile** routes are out of scope (auth + no Prisma in e2e).
+**A11y:** `npm run test:e2e:a11y` — `a11y-chromium` on `**/*.a11y.e2e.ts`, light + dark theme. Run after global styles, theme tokens, or public shells change. Default `test:e2e` does **not** run those specs. URLs: live `/sitemap.xml` pathnames plus curated public routes; admin/profile out of scope.

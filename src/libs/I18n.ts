@@ -1,5 +1,6 @@
 import { hasLocale } from 'next-intl';
 import { getRequestConfig } from 'next-intl/server';
+import { EVENTS_TIME_ZONE } from '@/lib/mit-sailing/nyTime';
 import { getMergedSiteTextMessages } from '@/libs/site-text/siteTextMessageLoader';
 import { routing } from './I18nRouting';
 
@@ -16,5 +17,6 @@ export default getRequestConfig(async ({ requestLocale }) => {
   return {
     locale,
     messages: await getMergedSiteTextMessages(locale),
+    timeZone: EVENTS_TIME_ZONE,
   };
 });

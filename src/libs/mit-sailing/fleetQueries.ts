@@ -83,9 +83,8 @@ export type FleetBoatDetail = {
 
 export const getFleetBoatForPublicBySlug = cache(
   async (slug: string): Promise<FleetBoatDetail | null> => {
-    const decoded = decodeURIComponent(slug);
     const boat = await prisma.fleetBoat.findFirst({
-      where: { slug: decoded },
+      where: { slug },
       select: {
         id: true,
         name: true,

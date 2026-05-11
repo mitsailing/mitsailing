@@ -2,6 +2,7 @@ import { faker } from '@faker-js/faker';
 import { expect, test } from '@playwright/test';
 import { Pool } from 'pg';
 import { formAlert } from '../helpers/e2e-alert';
+import { e2ePgConnectionString } from '../helpers/e2e-database-url';
 import {
   deleteAllMessages,
   extractLinkFromMessage,
@@ -34,12 +35,7 @@ import {
  * test harness anyway; raw SQL keeps the setup/teardown transparent.
  */
 
-const testDatabaseUrl =
-  process.env.TEST_DATABASE_URL ??
-  process.env.DATABASE_URL ??
-  'postgresql://postgres:postgres@127.0.0.1:5432/test_db?sslmode=disable';
-
-const pool = new Pool({ connectionString: testDatabaseUrl });
+const pool = new Pool({ connectionString: e2ePgConnectionString() });
 
 test.afterAll(async () => {
   await pool.end();

@@ -254,13 +254,8 @@ function formatCalendarDayHeading(
 ): string {
   const d = startOfNyCalendarDay(dateKey);
   const y = Number(dateKey.slice(0, 4));
-  return new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/New_York',
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    ...(y !== referenceYear ? { year: 'numeric' as const } : {}),
-  }).format(d);
+  const fmt = y !== referenceYear ? dateWithYear : dateNoYear;
+  return fmt.format(d);
 }
 
 /** Buckets occurrences by NY calendar day for display (`displayDayKey`). */

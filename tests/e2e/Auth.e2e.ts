@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { Pool } from 'pg';
 import { formAlert } from '../helpers/e2e-alert';
+import { e2ePgConnectionString } from '../helpers/e2e-database-url';
 import {
   extractCodeFromMessage,
   findLatestMessageTo,
@@ -17,12 +18,7 @@ import {
  * @see https://github.com/microsoft/playwright/issues/37890
  * Raw SQL with `pg` matches `AccountLockout.e2e.ts` and keeps the harness simple.
  */
-const testDatabaseUrl =
-  process.env.TEST_DATABASE_URL ??
-  process.env.DATABASE_URL ??
-  'postgresql://postgres:postgres@127.0.0.1:5432/test_db?sslmode=disable';
-
-const pool = new Pool({ connectionString: testDatabaseUrl });
+const pool = new Pool({ connectionString: e2ePgConnectionString() });
 
 let pgPoolEnded = false;
 

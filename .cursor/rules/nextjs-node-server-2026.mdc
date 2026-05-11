@@ -15,8 +15,9 @@ This app ships as **`output: 'standalone'`** (see [next.config.ts](next.config.t
 
 ## Caching and revalidation
 
-- **Do not** set `export const dynamic = 'force-dynamic'` (or `revalidate = 0`) for entire sections unless the route truly cannot be static or time‑bounded.
-- Use **segment-level revalidation** (`revalidate` export), **`unstable_cache`** or React **`cache()`** (deduped per request) for read-heavy, shared queries—tune to product needs on a long‑running process where repeated work should be reduced.
+- **Avoid** `export const dynamic = 'force-dynamic'` and blanket **`revalidate = 0`** on whole layouts or broad route trees. Next.js treats `force-dynamic` as a coarse switch; prefer narrower caching or request scoping (below).
+- When a route **must** render at **request time** (DB-backed counts, CSP nonces, or children that need request context), prefer **`await connection()`** from `next/server` in that page or layout segment. It ties rendering to the incoming request and is the documented alternative to `force-dynamic` for this purpose (see App Router docs on `connection()` and dynamic rendering).
+- Use **segment-level revalidation** (`revalidate` export with a positive interval), **`unstable_cache`**, or React **`cache()`** (deduped per request) for read-heavy, shared queries—tune to product needs on a long‑running process where repeated work should be reduced.
 - After mutating data in a **Server Action**, use **`revalidatePath`** / **`revalidateTag`** (when tags are in use) so the next RSC read is consistent.
 - For work that must not block the response (logging, non-critical side effects on a full Node server), consider **`after()`** from `next/server` (Next 15+).
 

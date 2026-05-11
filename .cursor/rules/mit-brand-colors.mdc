@@ -12,13 +12,10 @@ Authoritative reference: **[MIT Brand Guide — Color](https://brand.mit.edu/col
 
 Use these as the baseline for Institute-aligned reds, neutrals, and primary UI accents. Do **not** substitute legacy crimson hexes (e.g. `#a31f34`) unless reconciling historical assets—default UI tokens follow the guide.
 
-| Name          | HEX       | Role on this site                                      |
-| ------------- | --------- | ------------------------------------------------------ |
-| MIT Red       | `#750014` | `--primary` (light only), `--mit-red-core`, `Button variant="mit"`; brand marks — in **dark**, `--primary` is neutral; use `mit-*` / `variant="mit"` for institute red fills |
-| Silver Gray   | `#8b959e` | Optional muted chrome / borders (expanded neutral)    |
-| Bright Red    | `#ff1423` | Optional emphasis only — not default shell primary    |
-| Black         | `#000000` | Pure black sparingly; prefer `--foreground` tokens   |
-| White         | `#ffffff` | Surfaces and `*-foreground` on saturated reds        |
+- **MIT Red `#750014`** — `--primary` (light), `--mit-red-core`, `Button variant="mit"`, brand marks; in **dark**, `--primary` is neutral — use `mit-*` / `variant="mit"` for red fills.
+- **Silver Gray `#8b959e`** — optional muted chrome / borders.
+- **Bright Red `#ff1423`** — emphasis only, not default primary.
+- **Black `#000000` / white `#ffffff`** — sparingly; prefer `--foreground` and surface tokens.
 
 ## Expanded palette
 

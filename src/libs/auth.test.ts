@@ -50,7 +50,7 @@ const authMocks = vi.hoisted(() => ({
   Env: {
     BETTER_AUTH_SECRET: 'test-secret',
     NEXT_PUBLIC_APP_URL: 'http://localhost:3000',
-    NEXT_PUBLIC_IS_E2E: '0',
+    IS_E2E: undefined as '1' | undefined,
     NODE_ENV: 'production',
   },
   admin: vi.fn((config: unknown) => ({ config, id: 'admin' })),
@@ -227,7 +227,7 @@ beforeEach(() => {
   vi.resetModules();
   vi.clearAllMocks();
   authMocks.Env.NODE_ENV = 'production';
-  authMocks.Env.NEXT_PUBLIC_IS_E2E = '0';
+  authMocks.Env.IS_E2E = undefined;
   authMocks.hash.mockResolvedValue('hashed-password');
   authMocks.verify.mockResolvedValue(true);
   authMocks.markPendingEmailChange.mockResolvedValue(true);
@@ -260,7 +260,7 @@ describe('auth', () => {
   });
 
   it('disables IP rate limits for e2e runtime', async () => {
-    authMocks.Env.NEXT_PUBLIC_IS_E2E = '1';
+    authMocks.Env.IS_E2E = '1';
 
     const { config } = await importAuthConfig();
 

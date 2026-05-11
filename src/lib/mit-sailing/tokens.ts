@@ -17,6 +17,10 @@ export const tokens = {
     mitRed50: '#fef2f2',
     mitRed600: '#750014',
     mitRed950: '#1a0005',
+    /** Matches `:root --mit-success` (Tailwind green-600 scale) in mit-theme.css. */
+    mitSuccess: '#00a63e',
+    /** Matches `:root --mit-success-ink`; use for SVG/stroke on light surfaces / success tints. */
+    mitSuccessInk: '#117e38',
   },
   typography: {
     small: 'text-sm',
@@ -64,17 +68,49 @@ export const siteBrandMitWordmarkDefaultClassName =
  */
 export const authPrimaryButtonClassName = [
   'rounded-md bg-mit-red px-4 py-2 font-medium text-white',
-  'hover:bg-mit-red-hover disabled:opacity-60',
+  'hover:bg-mit-red-hover dark:hover:ring-1 dark:hover:ring-inset dark:hover:ring-white/30 disabled:opacity-60',
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2 focus-visible:ring-offset-background',
 ].join(' ');
 
 export const authInlineLinkClassName =
   'text-mit-red-ink underline underline-offset-2 hover:text-mit-red-hover focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2 focus-visible:ring-offset-background';
 
+/**
+ * Admin catalog status pills (`AdminStatusPill`): `ring-1 ring-inset` chrome;
+ * colors from `mit-theme.css` (`mit-success*`, `mit-red*`, shadcn `muted` /
+ * `border`), not palette `emerald-*` / `slate-*` / `red-*`.
+ */
+export const adminStatusPillToneClassName = {
+  success: 'bg-mit-success/10 text-mit-success-ink ring-mit-success/30',
+  neutral: 'bg-muted text-mit-readable-ink ring-border',
+  danger:
+    'bg-mit-red-50 text-mit-red-900 ring-mit-red-300 dark:bg-mit-red-950/70 dark:text-mit-red-100 dark:ring-mit-red-700',
+} as const;
+
+/** Shared semantics for admin status UI (pills, bordered list badges). */
+export type AdminStatusSemanticTone = keyof typeof adminStatusPillToneClassName;
+
+/**
+ * Bordered rounded-rect chips for the admin events table; same tones as
+ * {@link adminStatusPillToneClassName}, different layout utilities.
+ */
+export const adminEventListStatusBadgeBaseClassName =
+  'inline-flex w-fit items-center rounded-md border px-2 py-0.5 text-xs font-medium';
+
+export const adminEventListStatusBadgeToneClassName: Record<
+  AdminStatusSemanticTone,
+  string
+> = {
+  success: 'border-mit-success/30 bg-mit-success/10 text-mit-success-ink',
+  danger:
+    'border-mit-red-200 bg-mit-red-50 text-mit-red-900 dark:border-mit-red-700 dark:bg-mit-red-950/70 dark:text-mit-red-100',
+  neutral: 'border-border bg-muted/60 text-mit-readable-ink',
+};
+
 /** Native `<select>` in admin catalog forms (server `FormData`; matches Input chrome). */
 export const adminNativeSelectClassName = [
   'flex h-8 w-full cursor-pointer appearance-none rounded-lg border border-input bg-transparent bg-[length:1rem] bg-[right_0.5rem_center] bg-no-repeat px-2.5 py-1 pr-9 text-sm text-foreground outline-none transition-colors',
-  'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30',
+  'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input-background dark:contrast-more:border-white',
   "bg-[url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2724%27 height=%2724%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27%2371717a%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3E%3Cpath d=%27m6 9 6 6 6-6%27/%3E%3C/svg%3E')]",
 ].join(' ');
 
@@ -82,5 +118,5 @@ export const adminNativeSelectClassName = [
 export const authInputClassName = [
   'h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base text-foreground outline-none transition-colors',
   'placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm',
-  'dark:bg-input/30',
+  'dark:bg-input-background dark:contrast-more:border-white',
 ].join(' ');

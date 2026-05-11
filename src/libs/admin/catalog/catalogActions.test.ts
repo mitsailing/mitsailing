@@ -9,10 +9,10 @@ const {
   redirect,
   requireAdmin,
   revalidatePath,
-  revalidateTag,
   restoreCatalogRevision,
   restoreCmsPageRevision,
   updateFromForm,
+  updateTag,
 } = vi.hoisted(() => ({
   createFromForm: vi.fn(),
   getCatalogServerHandlers: vi.fn(),
@@ -21,15 +21,15 @@ const {
   }),
   requireAdmin: vi.fn(),
   revalidatePath: vi.fn(),
-  revalidateTag: vi.fn(),
   restoreCatalogRevision: vi.fn(),
   restoreCmsPageRevision: vi.fn(),
   updateFromForm: vi.fn(),
+  updateTag: vi.fn(),
 }));
 
 vi.mock('next/cache', () => ({
   revalidatePath,
-  revalidateTag,
+  updateTag,
 }));
 
 vi.mock('next/navigation', () => ({
@@ -81,7 +81,7 @@ beforeEach(() => {
   redirect.mockClear();
   requireAdmin.mockReset();
   revalidatePath.mockClear();
-  revalidateTag.mockClear();
+  updateTag.mockClear();
   restoreCatalogRevision.mockReset();
   restoreCmsPageRevision.mockReset();
   updateFromForm.mockReset();
@@ -106,7 +106,7 @@ describe('createCatalogResourceAction', () => {
       createCatalogResourceAction('en', 'site_alerts', new FormData())
     ).rejects.toThrow('NEXT_REDIRECT');
 
-    expect(revalidateTag).toHaveBeenCalledWith('site-alerts', { expire: 0 });
+    expect(updateTag).toHaveBeenCalledWith('site-alerts');
   });
 
   it('skips site alerts cache after creating other resources', async () => {
@@ -117,7 +117,18 @@ describe('createCatalogResourceAction', () => {
       createCatalogResourceAction('en', 'donation_funds', new FormData())
     ).rejects.toThrow('NEXT_REDIRECT');
 
-    expect(revalidateTag).not.toHaveBeenCalled();
+    expect(updateTag).not.toHaveBeenCalled();
+  });
+
+  it('invalidates sitemap catalog cache after creating sailing_classes', async () => {
+    const { createCatalogResourceAction } =
+      await import('@/libs/admin/catalog/catalogActions');
+
+    await expect(
+      createCatalogResourceAction('en', 'sailing_classes', new FormData())
+    ).rejects.toThrow('NEXT_REDIRECT');
+
+    expect(updateTag).toHaveBeenCalledWith('sitemap-catalog');
   });
 
   it('opens the edit screen after creating a CMS page block', async () => {
@@ -162,6 +173,7 @@ describe('updateCatalogResourceAction', () => {
     ).rejects.toThrow('NEXT_REDIRECT');
 
     expect(redirect).toHaveBeenCalledWith('/admin/fleet/boat-1/edit');
+    expect(updateTag).toHaveBeenCalledWith('sitemap-catalog');
   });
 
   it('preserves page scope after updating a CMS page block', async () => {

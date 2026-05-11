@@ -1,17 +1,21 @@
 ---
-description: Format and interpret dates/times in US Eastern (America/New_York) for pavilion UI and event data.
+description: US Eastern (`America/New_York`) site-wide; literals OK; do not bulk-replace with `EVENTS_TIME_ZONE` for DRY only.
 globs: src/**/*.{ts,tsx}
 alwaysApply: false
 ---
 
 # Dates and times — US Eastern
 
-For **user-visible dates and times** in this repo (events, “today” logic, seed data meant to read as Pavilion-local), treat **US Eastern** as canonical.
+**Single site time zone:** user-visible times on this site (events, schedules, hours, “today” logic, Pavilion-local copy) are **always US Eastern**—the same zone for every visitor. Do not switch to the viewer’s local zone unless a feature is explicitly designed for that.
 
 ## Implementation
 
-- Use IANA **`America/New_York`** (see `EVENTS_TIME_ZONE` in [`src/lib/mit-sailing/nyTime.ts`](src/lib/mit-sailing/nyTime.ts); event seed rows also use the same constants from [`src/data/mit-sailing/eventsSeed.ts`](src/data/mit-sailing/eventsSeed.ts)) for formatting and **calendar-day** comparisons in that context.
-- **Do not** use the viewer’s local time zone for those surfaces unless the product explicitly requires it.
+- Use IANA **`America/New_York`** everywhere that zone matters (same string site-wide). Reuse [`src/lib/mit-sailing/nyTime.ts`](src/lib/mit-sailing/nyTime.ts) helpers or `EVENTS_TIME_ZONE` when convenient; the literal is equally correct.
+
+## Agent mistakes to avoid
+
+- **No “DRY the zone string” refactors.** Duplicated `timeZone: 'America/New_York'` (or the same literal in several `Intl` formatters) is normal here. Do **not** sweep the repo to replace literals with `EVENTS_TIME_ZONE` or add imports only to dedupe the IANA identifier.
+- **Use `nyTime` for semantics, not ceremony** — calendar-day boundaries, NY “today,” seed alignment, parsing instants from wall clocks. Not as a mandate to thread one exported constant through every file.
 
 ## EST vs EDT
 

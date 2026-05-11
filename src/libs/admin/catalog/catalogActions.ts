@@ -10,7 +10,7 @@
  * pattern if catalog forms need inline errors without a full round-trip redirect.
  */
 
-import { revalidatePath, revalidateTag } from 'next/cache';
+import { revalidatePath, updateTag } from 'next/cache';
 import { redirect } from 'next/navigation';
 import * as z from 'zod';
 import {
@@ -36,6 +36,7 @@ import {
 } from '@/libs/mit-sailing/catalogHistory';
 import { restoreCmsPageRevision } from '@/libs/mit-sailing/cmsHistory';
 import { SITE_ALERTS_CACHE_TAG } from '@/libs/mit-sailing/siteAlertQueries';
+import { sitemapCatalogCacheTag } from '@/libs/mit-sailing/sitemapCache';
 import { getI18nPath } from '@/utils/Helpers';
 
 const orderedIdsSchema = z.array(z.string().min(1)).min(1);
@@ -81,7 +82,10 @@ function revalidateAfterCatalogMutation(
     }
   }
   if (resourceId === 'site_alerts') {
-    revalidateTag(SITE_ALERTS_CACHE_TAG, { expire: 0 });
+    updateTag(SITE_ALERTS_CACHE_TAG);
+  }
+  if (resourceId === 'sailing_classes' || resourceId === 'fleet') {
+    updateTag(sitemapCatalogCacheTag);
   }
   if (resourceId.startsWith('cms_')) {
     revalidatePath(getI18nPath('/', locale), 'layout');

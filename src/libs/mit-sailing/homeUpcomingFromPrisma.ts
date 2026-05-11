@@ -1,3 +1,5 @@
+import 'server-only';
+import { resolveEventCategoryCalendarAccentClassName } from '@/lib/mit-sailing/eventCategoryAccent';
 import {
   addNyCalendarDays,
   nyYmd,
@@ -11,8 +13,10 @@ export type HomeUpcomingRow = {
   eventName: string;
   eventSlug: string;
   line: string;
-  /** Event category id (for accent color) */
+  /** Event category id (debug / analytics) */
   categoryId: string;
+  /** Resolved Tailwind `bg-*` bar class from `event_categories.accent_class_name`. */
+  categoryAccentClassName: string;
 };
 
 export type HomeUpcomingDayGroup = {
@@ -58,7 +62,13 @@ export async function getHomeUpcomingDayGroups(): Promise<
     },
     orderBy: { startDateTime: 'asc' },
     take: 200,
-    include: { event: true },
+    include: {
+      event: {
+        include: {
+          category: { select: { accentClassName: true } },
+        },
+      },
+    },
   });
 
   const inWindow = found.filter((d) => nyYmd(d.startDateTime) <= windowEndKey);
@@ -77,6 +87,9 @@ export async function getHomeUpcomingDayGroups(): Promise<
         eventSlug: d.event.slug,
         line: formatEasternSameDayTimeRange(start, end),
         categoryId: d.event.eventCategoryId,
+        categoryAccentClassName: resolveEventCategoryCalendarAccentClassName(
+          d.event.category
+        ),
       },
     });
   }

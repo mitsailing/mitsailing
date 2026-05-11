@@ -128,6 +128,7 @@ const upcomingGroups = [
     rows: [
       {
         categoryId: 'cat-class',
+        categoryAccentClassName: 'bg-mit-success',
         eventName: 'Intro sail',
         eventSlug: 'intro-sail',
         line: '10:00 AM - noon',
@@ -142,6 +143,7 @@ const upcomingGroups = [
     rows: [
       {
         categoryId: 'cat-racing',
+        categoryAccentClassName: 'bg-mit-red',
         eventName: 'Racing clinic',
         eventSlug: 'racing-clinic',
         line: '6:00 PM - 8:00 PM',
@@ -621,6 +623,7 @@ describe('MitSailingHomePageView', () => {
         rows: [
           {
             categoryId: 'cat-racing',
+            categoryAccentClassName: 'bg-mit-red',
             eventName: 'First CMS event',
             eventSlug: 'first-cms-event',
             line: '7:00 PM - 8:00 PM',
@@ -628,6 +631,7 @@ describe('MitSailingHomePageView', () => {
           },
           {
             categoryId: 'cat-class',
+            categoryAccentClassName: 'bg-mit-success',
             eventName: 'Second CMS event',
             eventSlug: 'second-cms-event',
             line: '9:00 PM - 10:00 PM',
@@ -642,6 +646,7 @@ describe('MitSailingHomePageView', () => {
         rows: [
           {
             categoryId: 'cat-cruise',
+            categoryAccentClassName: 'bg-mit-cat',
             eventName: 'Third CMS event',
             eventSlug: 'third-cms-event',
             line: '6:00 PM - 7:00 PM',

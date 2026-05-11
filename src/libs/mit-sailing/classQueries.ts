@@ -186,9 +186,8 @@ function orderByIdOrder<T extends { id: string }>(
  */
 export const getSailingClassCatalogBySlug = cache(
   async (slug: string): Promise<SailingClassCatalogDetail | null> => {
-    const decoded = decodeURIComponent(slug);
     const sailingClass = await prisma.sailingClass.findFirst({
-      where: { slug: decoded, isVisible: true },
+      where: { slug, isVisible: true },
       select: {
         id: true,
         name: true,
