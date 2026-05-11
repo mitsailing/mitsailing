@@ -38,10 +38,10 @@
         "do_not_enforce_on_create": false,
         "required_status_checks": [
           { "context": "Build with 24.x" },
-          { "context": "Run unit tests (24.x)" },
-          { "context": "Run static checks (24.x)" },
-          { "context": "Run Storybook (24.x)" },
-          { "context": "Run E2E tests (24.x)" }
+          { "context": "Run unit tests" },
+          { "context": "Run static checks" },
+          { "context": "Run Storybook" },
+          { "context": "Run E2E tests" }
         ]
       }
     }

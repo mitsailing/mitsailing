@@ -4,20 +4,20 @@ import { prisma } from '@/libs/DB';
 import { Env } from '@/libs/Env';
 import { routing } from '@/libs/I18nRouting';
 import { logger } from '@/libs/Logger';
+import { sitemapCatalogCacheTag } from '@/libs/mit-sailing/sitemapCache';
 import { safeErrorCode, safeErrorName } from '@/libs/safeUnknownError';
 import { getBaseUrl, getI18nPath } from '@/utils/Helpers';
+
+export { sitemapCatalogCacheTag };
 
 /** Align with `Cache-Control` on `/sitemap.xml` in `next.config.ts` (CDN `s-maxage`). */
 const SITEMAP_CATALOG_REVALIDATE_SECONDS = 86_400;
 
-/** Use with `revalidateTag` from Server Actions or a secured cron route after catalog edits. */
-export const sitemapCatalogCacheTag = 'sitemap-catalog';
-
 /**
  * - **No build-time DB:** Docker / `next build` have no Postgres → `force-dynamic`.
  * - **Origin load:** Prisma slug lists are wrapped in `unstable_cache` (24h TTL). After
- *   admin edits to classes/fleet, call `revalidateTag('sitemap-catalog')` from a
- *   Server Action or a secured cron route (`revalidateTag(sitemapCatalogCacheTag)`).
+ *   catalog or published-event changes: from a Server Action call `updateTag(sitemapCatalogCacheTag)`;
+ *   from a route handler or cron, use `revalidateTag(sitemapCatalogCacheTag, 'max')`.
  * - **Edge traffic:** `next.config.ts` sets `s-maxage` so CDNs cache the XML response;
  *   a daily cron can `GET /sitemap.xml` to warm the edge after deploy (optional).
  */

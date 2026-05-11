@@ -7,8 +7,7 @@ export default async function FleetBoatSectionLayout(props: {
   children: React.ReactNode;
   params: Promise<{ locale: string; slug: string }>;
 }) {
-  const { locale, slug: raw } = await props.params;
-  const slug = decodeURIComponent(raw);
+  const { locale, slug } = await props.params;
   const t = await getTranslations({
     locale,
     namespace: 'MitSailingRoutes',

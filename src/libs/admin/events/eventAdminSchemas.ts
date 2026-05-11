@@ -214,6 +214,30 @@ export const eventQuestionFormSchema = z
     { path: ['optionsCsv'] }
   );
 
+/**
+ * Zod `custom` issue `params.errorCode` when `parseUsdDecimalStringToMinorUnits`
+ * rejects the fee amount (translate via `AdminEvents` at parse/redirect boundary).
+ */
+export const EVENT_ADMIN_INVALID_FEE_AMOUNT_ERROR_CODE =
+  'invalid_event_fee_amount' as const;
+
+/**
+ * Reads stable `params.errorCode` from a Zod `custom` issue.
+ *
+ * @param issue - Zod issue-like object with optional custom params
+ * @returns Error code from `params.errorCode`, when present
+ */
+export function zodCustomIssueParamsErrorCode(issue: {
+  readonly code?: string;
+  readonly params?: Record<string, unknown> | undefined;
+}): string | undefined {
+  if (issue.code !== 'custom') {
+    return undefined;
+  }
+  const candidate = issue.params?.errorCode;
+  return typeof candidate === 'string' ? candidate : undefined;
+}
+
 /** Admin fee amount field: decimal dollar string from HTML → integer cents. */
 const eventAdminFeeDollarStringToCentsSchema = z
   .string()
@@ -223,8 +247,7 @@ const eventAdminFeeDollarStringToCentsSchema = z
     if (cents === null) {
       ctx.addIssue({
         code: 'custom',
-        message: 'Invalid dollar amount for event fee.',
-        path: ['amountDollars'],
+        params: { errorCode: EVENT_ADMIN_INVALID_FEE_AMOUNT_ERROR_CODE },
       });
       return z.NEVER;
     }

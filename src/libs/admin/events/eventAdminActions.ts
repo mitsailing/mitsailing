@@ -2,8 +2,9 @@
 
 import { randomUUID } from 'node:crypto';
 import { getTranslations } from 'next-intl/server';
-import { revalidatePath, revalidateTag } from 'next/cache';
+import { revalidatePath, updateTag } from 'next/cache';
 import { redirect } from 'next/navigation';
+import type * as z from 'zod';
 import { Prisma } from '@/generated/prisma/client';
 import { EventAnswerType } from '@/generated/prisma/enums';
 import {
@@ -14,6 +15,7 @@ import {
   adminEventsNewPath,
 } from '@/libs/admin/events/eventAdminPaths';
 import {
+  EVENT_ADMIN_INVALID_FEE_AMOUNT_ERROR_CODE,
   eventAdminBasicsFormSchema,
   eventDateFormSchema,
   eventFeeFormSchema,
@@ -25,15 +27,18 @@ import {
   rawEventFeeFromFormData,
   rawEventQuestionFromFormData,
   rawEventRegistrationStatusFromFormData,
+  zodCustomIssueParamsErrorCode,
 } from '@/libs/admin/events/eventAdminSchemas';
 import { requireAdmin } from '@/libs/auth/dal';
 import { prisma } from '@/libs/DB';
 import { logger } from '@/libs/Logger';
+import { sitemapCatalogCacheTag } from '@/libs/mit-sailing/sitemapCache';
 import { safeErrorCode, safeErrorName } from '@/libs/safeUnknownError';
 import { getI18nPath } from '@/utils/Helpers';
 
 type EventAdminMutationCode =
   | 'validation_failed'
+  | 'invalid_event_fee_amount'
   | 'not_found'
   | 'duplicate_slug'
   | 'foreign_key'
@@ -57,10 +62,23 @@ function logAdminEventMutationFailure(options: {
   );
 }
 
+function prismaUniqueTargetIncludes(
+  error: Prisma.PrismaClientKnownRequestError,
+  field: string
+): boolean {
+  const target = error.meta?.target;
+  if (Array.isArray(target)) {
+    return target.some((value) => value === field);
+  }
+  return typeof target === 'string' && target.includes(field);
+}
+
 function mutationCodeFromPrisma(error: unknown): EventAdminMutationCode {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     if (error.code === 'P2002') {
-      return 'duplicate_slug';
+      return prismaUniqueTargetIncludes(error, 'slug')
+        ? 'duplicate_slug'
+        : 'unknown';
     }
     if (error.code === 'P2025') {
       return 'not_found';
@@ -70,6 +88,18 @@ function mutationCodeFromPrisma(error: unknown): EventAdminMutationCode {
     }
   }
   return 'unknown';
+}
+
+function eventFeeFormMutationCode(error: z.ZodError): EventAdminMutationCode {
+  for (const issue of error.issues) {
+    if (
+      zodCustomIssueParamsErrorCode(issue) ===
+      EVENT_ADMIN_INVALID_FEE_AMOUNT_ERROR_CODE
+    ) {
+      return 'invalid_event_fee_amount';
+    }
+  }
+  return 'validation_failed';
 }
 
 function editUrlWithError(
@@ -132,7 +162,15 @@ async function verifiedEventIdFromSlug(options: {
 async function adminEventZodParseParams(locale: string) {
   const t = await getTranslations({ locale, namespace: 'AdminEvents' });
   return {
-    error: () => t('form_error_validation_failed'),
+    error: (iss: z.core.$ZodRawIssue) => {
+      if (
+        zodCustomIssueParamsErrorCode(iss) ===
+        EVENT_ADMIN_INVALID_FEE_AMOUNT_ERROR_CODE
+      ) {
+        return t('form_error_invalid_event_fee_amount');
+      }
+      return t('form_error_validation_failed');
+    },
   };
 }
 
@@ -147,7 +185,7 @@ function revalidateEventAdminMutation(
     revalidatePath(getI18nPath(adminEventEditPath(slug), locale));
     revalidatePath(getI18nPath(adminEventRegistrationsPath(slug), locale));
   }
-  revalidateTag('sitemap-catalog', 'max');
+  updateTag(sitemapCatalogCacheTag);
 }
 
 export async function createAdminEventAction(
@@ -531,7 +569,9 @@ export async function addAdminEventFeeAction(
     zodParse
   );
   if (!parsed.success) {
-    redirect(editUrlWithError(locale, slug, 'validation_failed'));
+    redirect(
+      editUrlWithError(locale, slug, eventFeeFormMutationCode(parsed.error))
+    );
   }
   const verifiedEventId = await verifiedEventIdFromSlug({
     action: 'add-fee',
@@ -570,7 +610,9 @@ export async function updateAdminEventFeeAction(
     zodParse
   );
   if (!parsed.success) {
-    redirect(editUrlWithError(locale, slug, 'validation_failed'));
+    redirect(
+      editUrlWithError(locale, slug, eventFeeFormMutationCode(parsed.error))
+    );
   }
   let updatedCount = 0;
   try {

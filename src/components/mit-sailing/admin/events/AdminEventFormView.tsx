@@ -264,18 +264,23 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
             {props.t('field_detail_page_kind')}
           </legend>
           <label
-            aria-label={props.t('detail_standard_label')}
+            aria-labelledby="event-detail-page-kind-standard-label"
             className="flex cursor-pointer items-start gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            htmlFor="event-detail-page-kind-standard"
           >
             <input
               className="mt-0.5"
               defaultChecked={detailPageKind === EventDetailPageKind.standard}
+              id="event-detail-page-kind-standard"
               name="detailPageKind"
               type="radio"
               value={EventDetailPageKind.standard}
             />
             <span className="flex flex-col gap-0.5">
-              <span className="font-medium">
+              <span
+                className="font-medium"
+                id="event-detail-page-kind-standard-label"
+              >
                 {props.t('detail_standard_label')}
               </span>
               <span className="text-xs text-muted-foreground dark:text-white">
@@ -286,18 +291,23 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
             </span>
           </label>
           <label
-            aria-label={props.t('detail_external_label')}
+            aria-labelledby="event-detail-page-kind-external-label"
             className="flex cursor-pointer items-start gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            htmlFor="event-detail-page-kind-external"
           >
             <input
               className="mt-0.5"
               defaultChecked={detailPageKind === EventDetailPageKind.external}
+              id="event-detail-page-kind-external"
               name="detailPageKind"
               type="radio"
               value={EventDetailPageKind.external}
             />
             <span className="flex flex-col gap-0.5">
-              <span className="font-medium">
+              <span
+                className="font-medium"
+                id="event-detail-page-kind-external-label"
+              >
                 {props.t('detail_external_label')}
               </span>
               <span className="text-xs text-muted-foreground dark:text-white">
@@ -706,12 +716,12 @@ function EventQuestionsSection(props: AdminEventFormViewProps) {
     props.event.slug,
     props.event.id
   );
-  let maxQuestionOrder = 0;
-  for (const question of props.event.registrationQuestions) {
-    if (question.displayOrder > maxQuestionOrder) {
-      maxQuestionOrder = question.displayOrder;
-    }
-  }
+  const maxQuestionOrder = Math.max(
+    0,
+    ...props.event.registrationQuestions.map(
+      (question) => question.displayOrder
+    )
+  );
   const suggestedDisplayOrder = maxQuestionOrder + 1;
   return (
     <AdminEventFormSection

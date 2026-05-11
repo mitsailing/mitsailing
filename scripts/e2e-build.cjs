@@ -17,18 +17,25 @@ function prepareStandaloneAssets() {
   const publicDir = path.join(repoRoot, 'public');
   const standalonePublicDir = path.join(standaloneDir, 'public');
 
+  const missing = [];
   if (!fs.existsSync(standaloneDir)) {
-    console.warn(
-      '[e2e-build] .next/standalone is missing; run e2e build without E2E_SKIP_BUILD=1.'
+    missing.push(path.relative(repoRoot, standaloneDir));
+  }
+  if (!fs.existsSync(nextStaticDir)) {
+    missing.push(path.relative(repoRoot, nextStaticDir));
+  }
+  if (missing.length > 0) {
+    console.error(
+      `[e2e-build] Missing required Next.js build outputs: ${missing.join(
+        ', '
+      )}. Run a full \`next build\` (for example without E2E_SKIP_BUILD=1) or restore a complete .next from CI.`
     );
-    return;
+    process.exit(1);
   }
 
-  if (fs.existsSync(nextStaticDir)) {
-    fs.rmSync(standaloneStaticDir, { force: true, recursive: true });
-    fs.mkdirSync(path.dirname(standaloneStaticDir), { recursive: true });
-    fs.cpSync(nextStaticDir, standaloneStaticDir, { recursive: true });
-  }
+  fs.rmSync(standaloneStaticDir, { force: true, recursive: true });
+  fs.mkdirSync(path.dirname(standaloneStaticDir), { recursive: true });
+  fs.cpSync(nextStaticDir, standaloneStaticDir, { recursive: true });
 
   if (fs.existsSync(publicDir)) {
     fs.rmSync(standalonePublicDir, { force: true, recursive: true });

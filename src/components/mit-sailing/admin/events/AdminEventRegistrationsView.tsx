@@ -95,12 +95,12 @@ function emptyStatusMessage(
 
 function statusBadgeClassName(status: AdminEventRegistrationDto['status']) {
   if (status === EventRegistrationStatus.approved) {
-    return 'border-emerald-200 bg-emerald-50 text-emerald-900';
+    return 'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-100';
   }
   if (status === EventRegistrationStatus.pending) {
-    return 'border-amber-200 bg-amber-50 text-amber-950';
+    return 'border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100';
   }
-  return 'border-border bg-muted text-muted-foreground dark:text-white';
+  return 'border-border bg-muted text-muted-foreground';
 }
 
 function RegistrationFilters(props: {

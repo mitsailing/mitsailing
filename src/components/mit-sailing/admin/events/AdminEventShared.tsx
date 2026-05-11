@@ -25,7 +25,7 @@ type AdminEventFormSectionProps = {
 
 export function AdminEventFormSection(props: AdminEventFormSectionProps) {
   return (
-    <Card aria-labelledby={props.id ?? undefined} className="rounded-lg">
+    <Card aria-labelledby={props.id} className="rounded-lg">
       <CardHeader>
         <CardTitle>
           <h2 id={props.id}>{props.title}</h2>
@@ -121,6 +121,9 @@ export function adminEventFormErrorMessage(
   }
   if (code === 'validation_failed') {
     return t('form_error_validation_failed');
+  }
+  if (code === 'invalid_event_fee_amount') {
+    return t('form_error_invalid_event_fee_amount');
   }
   if (code === 'duplicate_slug') {
     return t('form_error_duplicate_slug');

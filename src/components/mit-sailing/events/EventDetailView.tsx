@@ -2,6 +2,7 @@ import { ArrowLeft } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import type * as React from 'react';
 import { PublicAdminEditLink } from '@/components/mit-sailing/admin/PublicAdminEditLink';
+import { PublicCatalogDetailTopNav } from '@/components/mit-sailing/admin/PublicCatalogDetailTopNav';
 import { EVENTS_TIME_ZONE } from '@/lib/mit-sailing/nyTime';
 import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
 import { cn } from '@/lib/utils';
@@ -11,6 +12,7 @@ import type {
   PublicEventDetail,
   PublicEventRegistrationState,
 } from '@/libs/mit-sailing/eventQueries';
+import { cancelPublicEventRegistrationAction } from '@/libs/mit-sailing/eventRegistrationActions';
 import { publicEventReservationState } from '@/libs/mit-sailing/eventRegistrationState';
 import type { PublicEventReservationState } from '@/libs/mit-sailing/eventRegistrationState';
 import { formatUsdMinorUnitsAsCurrency } from '@/libs/money/stripeUsdMinorUnits';
@@ -44,21 +46,6 @@ function adminInitials(name: string): string {
   const first = parts[0]?.[0] ?? '';
   const second = parts[1]?.[0] ?? '';
   return `${first}${second}`.toUpperCase() || '?';
-}
-
-function questionTypeLabel(props: {
-  answerType: PublicEventDetail['registrationQuestions'][number]['answerType'];
-  text: string;
-  select: string;
-  checkbox: string;
-}): string {
-  if (props.answerType === 'checkbox') {
-    return props.checkbox;
-  }
-  if (props.answerType === 'select') {
-    return props.select;
-  }
-  return props.text;
 }
 
 function SectionHeading(props: { children: React.ReactNode; id: string }) {
@@ -105,6 +92,25 @@ function registrationHeading(
   return t('registration_heading_available');
 }
 
+function dateTense(date: Date | null, now: Date): 'past' | 'present' {
+  return date && date <= now ? 'past' : 'present';
+}
+
+function registrationMetaLabels(props: {
+  event: PublicEventDetail;
+  now: Date;
+  t: Awaited<ReturnType<typeof getTranslations<'MitSailingEvents'>>>;
+}): { opens: string; closes: string } {
+  return {
+    opens: props.t('registration_opens_label', {
+      tense: dateTense(props.event.registrationStart, props.now),
+    }),
+    closes: props.t('registration_closes_label', {
+      tense: dateTense(props.event.registrationEnd, props.now),
+    }),
+  };
+}
+
 /**
  * @param props - Detail view props
  * @param props.locale - Active locale
@@ -116,26 +122,31 @@ export async function EventDetailView(props: EventDetailViewProps) {
     locale: props.locale,
     namespace: 'MitSailingEvents',
   });
-  const { event } = props;
   const registrationOpens = formatDateOnly(
-    event.registrationStart,
+    props.event.registrationStart,
     props.locale
   );
   const registrationCloses = formatDateOnly(
-    event.registrationEnd,
+    props.event.registrationEnd,
     props.locale
   );
   const capacityLabel =
-    event.maxParticipants === null
+    props.event.maxParticipants === null
       ? t('capacity_no_limit')
       : t('capacity_limited', {
-          approved: event.approvedRegistrationCount,
-          capacity: event.maxParticipants,
+          approved: props.event.approvedRegistrationCount,
+          capacity: props.event.maxParticipants,
         });
+  const now = new Date();
+  const registrationMeta = registrationMetaLabels({
+    event: props.event,
+    now,
+    t,
+  });
   const reservationState = publicEventReservationState({
     currentRegistration: props.currentRegistration,
-    event,
-    now: new Date(),
+    event: props.event,
+    now,
   });
   const registrationHeadingText = registrationHeading(
     reservationState,
@@ -145,42 +156,46 @@ export async function EventDetailView(props: EventDetailViewProps) {
 
   return (
     <article>
-      <PublicAdminEditLink
-        href={`/admin/events/${encodeURIComponent(event.slug)}/edit`}
-      />
-      <Link
-        className={cn(
-          'mb-8 inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-mit-red-ink no-underline hover:underline dark:text-white',
-          textFocusRingClassName
-        )}
-        href="/events/"
-      >
-        <ArrowLeft aria-hidden size={16} />
-        {t('back_to_list')}
-      </Link>
+      <PublicCatalogDetailTopNav>
+        <Link
+          className={cn(
+            'inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-mit-red-ink no-underline hover:underline',
+            textFocusRingClassName
+          )}
+          href="/events/"
+        >
+          <ArrowLeft aria-hidden size={16} />
+          {t('back_to_list')}
+        </Link>
+        <PublicAdminEditLink
+          className="mb-0 ml-auto shrink-0"
+          href={`/admin/events/${encodeURIComponent(props.event.slug)}/edit`}
+        />
+      </PublicCatalogDetailTopNav>
 
       <div className="grid grid-cols-1 gap-x-12 gap-y-10 lg:grid-cols-[minmax(0,1fr)_320px]">
         <header className="lg:col-span-2">
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <span className="rounded-sm bg-mit-red-highlight px-2 py-1 text-xs font-bold tracking-wide text-mit-red-ink uppercase dark:text-white">
-              {event.category.name}
+              {props.event.category.name}
             </span>
-            {event.isSpecial ? (
+            {props.event.isSpecial ? (
               <span className="rounded-sm bg-mit-red px-2 py-1 text-xs font-bold tracking-wide text-white uppercase">
                 {t('badge_special')}
               </span>
             ) : null}
           </div>
           <h1 className="scroll-m-20 font-mit-serif text-[clamp(1.875rem,5vw,3rem)] leading-tight font-semibold tracking-tight text-balance text-mit-text">
-            {event.name}
+            {props.event.name}
           </h1>
-          {event.shortName && event.shortName !== event.name ? (
+          {props.event.shortName &&
+          props.event.shortName !== props.event.name ? (
             <p className="mt-2 text-xl leading-7 text-muted-foreground">
-              {event.shortName}
+              {props.event.shortName}
             </p>
           ) : null}
           <p className="mt-5 max-w-3xl text-base leading-relaxed whitespace-pre-wrap text-mit-text">
-            {event.description}
+            {props.event.description}
           </p>
         </header>
 
@@ -192,13 +207,14 @@ export async function EventDetailView(props: EventDetailViewProps) {
             <h2 className="mb-4 scroll-m-20 font-mit-serif text-xl font-semibold tracking-tight text-mit-text">
               {registrationHeadingText}
             </h2>
-            {event.detailPageKind === 'external' && event.externalDetailUrl ? (
+            {props.event.detailPageKind === 'external' &&
+            props.event.externalDetailUrl ? (
               <a
                 className={cn(
-                  'mb-5 inline-flex min-h-10 items-center justify-center rounded-md bg-mit-red px-4 py-2 text-sm font-medium text-white no-underline hover:bg-mit-red-hover',
+                  'inline-flex min-h-10 items-center justify-center rounded-md bg-mit-red px-4 py-2 text-sm font-medium text-white no-underline hover:bg-mit-red-hover dark:hover:ring-1 dark:hover:ring-inset dark:hover:ring-white/30',
                   textFocusRingClassName
                 )}
-                href={event.externalDetailUrl}
+                href={props.event.externalDetailUrl}
                 rel="noopener noreferrer"
                 target="_blank"
               >
@@ -206,14 +222,15 @@ export async function EventDetailView(props: EventDetailViewProps) {
               </a>
             ) : (
               <EventRegistrationCta
-                currentRegistration={props.currentRegistration}
+                cancelRegistrationAction={cancelPublicEventRegistrationAction.bind(
+                  null,
+                  props.locale,
+                  props.event.slug
+                )}
                 errorCode={props.errorCode}
-                event={event}
+                event={props.event}
                 isSignedIn={props.isSignedIn}
                 locale={props.locale}
-                registrationCloses={
-                  registrationCloses || t('date_to_be_announced')
-                }
                 registrationOpens={
                   registrationOpens || t('date_to_be_announced')
                 }
@@ -221,24 +238,24 @@ export async function EventDetailView(props: EventDetailViewProps) {
                 t={t}
               />
             )}
-            <dl className="m-0 space-y-3 p-0">
-              <MetaRow label={t('registration_opens')}>
+            <dl className="m-0 mt-5 flex flex-col gap-3 p-0">
+              <MetaRow label={registrationMeta.opens}>
                 {registrationOpens || t('date_to_be_announced')}
               </MetaRow>
-              <MetaRow label={t('registration_closes')}>
+              <MetaRow label={registrationMeta.closes}>
                 {registrationCloses || t('date_to_be_announced')}
               </MetaRow>
               <MetaRow label={t('capacity_label')}>{capacityLabel}</MetaRow>
               <MetaRow label={t('approval_label')}>
-                {event.requiresApproval
+                {props.event.requiresApproval
                   ? t('approval_required')
                   : t('approval_auto')}
               </MetaRow>
             </dl>
-            {event.pendingRegistrationCount > 0 ? (
+            {props.event.pendingRegistrationCount > 0 ? (
               <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
                 {t('pending_review', {
-                  count: event.pendingRegistrationCount,
+                  count: props.event.pendingRegistrationCount,
                 })}
               </p>
             ) : null}
@@ -248,13 +265,13 @@ export async function EventDetailView(props: EventDetailViewProps) {
             <h2 className="mb-3 scroll-m-20 font-mit-serif text-xl font-semibold tracking-tight text-mit-text">
               {t('section_admins')}
             </h2>
-            {event.admins.length === 0 ? (
+            {props.event.admins.length === 0 ? (
               <p className="text-sm leading-7 text-muted-foreground">
                 {t('admins_empty')}
               </p>
             ) : (
               <ul className="m-0 list-none space-y-3 p-0">
-                {event.admins.map((adminRow) => (
+                {props.event.admins.map((adminRow) => (
                   <li className="flex items-center gap-3" key={adminRow.id}>
                     <span
                       aria-hidden
@@ -284,68 +301,31 @@ export async function EventDetailView(props: EventDetailViewProps) {
         </aside>
 
         <div className="min-w-0 lg:col-start-1 lg:row-start-2">
-          <section className="mb-10" aria-labelledby="event-schedule-heading">
-            <SectionHeading id="event-schedule-heading">
-              {t('field_schedule')}
-            </SectionHeading>
-            <ul className="m-0 list-none divide-y divide-mit-line border-t border-mit-line p-0">
-              {event.dates.map((date) => (
-                <li className="py-3 text-sm text-mit-text" key={date.id}>
-                  {formatEasternEventRange(
-                    date.startDateTime,
-                    date.endDateTime
-                  )}
-                </li>
-              ))}
-            </ul>
-          </section>
-
-          {event.registrationQuestions.length > 0 ? (
-            <section
-              className="mb-10"
-              aria-labelledby="event-registration-questions-heading"
-            >
-              <SectionHeading id="event-registration-questions-heading">
-                {t('section_questions')}
+          {props.event.dates.length > 0 ? (
+            <section className="mb-10" aria-labelledby="event-schedule-heading">
+              <SectionHeading id="event-schedule-heading">
+                {t('field_schedule')}
               </SectionHeading>
-              <p className="mb-3 text-sm leading-7 text-muted-foreground">
-                {t('questions_intro')}
-              </p>
               <ul className="m-0 list-none divide-y divide-mit-line border-t border-mit-line p-0">
-                {event.registrationQuestions.map((question) => (
-                  <li className="py-3" key={question.id}>
-                    <p className="m-0 text-sm font-semibold text-mit-text">
-                      {question.questionText}
-                      {question.required ? (
-                        <span
-                          aria-label={t('question_required')}
-                          className="ml-1 text-mit-red-ink"
-                        >
-                          *
-                        </span>
-                      ) : null}
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground capitalize">
-                      {questionTypeLabel({
-                        answerType: question.answerType,
-                        text: t('question_type_text'),
-                        select: t('question_type_select'),
-                        checkbox: t('question_type_checkbox'),
-                      })}
-                    </p>
+                {props.event.dates.map((date) => (
+                  <li className="py-3 text-sm text-mit-text" key={date.id}>
+                    {formatEasternEventRange(
+                      date.startDateTime,
+                      date.endDateTime
+                    )}
                   </li>
                 ))}
               </ul>
             </section>
           ) : null}
 
-          {event.entryFees.length > 0 ? (
+          {props.event.entryFees.length > 0 ? (
             <section className="mb-10" aria-labelledby="event-fees-heading">
               <SectionHeading id="event-fees-heading">
                 {t('section_fees')}
               </SectionHeading>
               <ul className="m-0 list-none divide-y divide-mit-line border-t border-mit-line p-0">
-                {event.entryFees.map((fee) => (
+                {props.event.entryFees.map((fee) => (
                   <li
                     className="flex items-baseline justify-between gap-4 py-3"
                     key={fee.id}

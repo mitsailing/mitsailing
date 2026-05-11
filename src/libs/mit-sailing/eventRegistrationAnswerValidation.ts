@@ -11,6 +11,16 @@ const registrationTextBodySchema = z
   .min(1)
   .max(MAX_EVENT_REGISTRATION_TEXT_ANSWER_LENGTH);
 
+/**
+ * At most one hidden `false` and one checkbox `true` (`max(2)` + one `true` max).
+ */
+const checkboxBooleanFormEntriesSchema = z
+  .array(z.enum(['true', 'false']))
+  .max(2)
+  .refine((entries) => entries.filter((v) => v === 'true').length <= 1, {
+    message: 'boolean_checkbox_at_most_one_true',
+  });
+
 export type PublicRegistrationQuestionForValidation = {
   id: string;
   required: boolean;
@@ -94,6 +104,9 @@ function checkboxBooleanSlice(
   fieldName: string,
   formData: FormData
 ): AnswerSlice {
+  // `FormData.get` returns only the first value per name; unchecked+hidden and
+  // checked+hidden both need `getAll` (Next.js / React form actions pass through
+  // the same `FormData` as the browser builds from the form).
   const rawAll = formData.getAll(fieldName);
   const strings = rawAll.filter(
     (entry): entry is string => typeof entry === 'string'
@@ -101,20 +114,18 @@ function checkboxBooleanSlice(
   if (strings.length !== rawAll.length) {
     return { status: 'fail', code: 'answers_invalid' };
   }
-  if (rawAll.length > 1) {
+  const parsedEntries = checkboxBooleanFormEntriesSchema.safeParse(strings);
+  if (!parsedEntries.success) {
     return { status: 'fail', code: 'answers_invalid' };
   }
-  if (rawAll.length === 0) {
-    if (question.required) {
-      return { status: 'fail', code: 'questions_required' };
-    }
-    return { status: 'skip' };
+  const entries = parsedEntries.data;
+  if (entries.includes('true')) {
+    return { status: 'persist', value: 'true' };
   }
-  const only = z.literal('true').safeParse(strings[0]);
-  if (!only.success) {
-    return { status: 'fail', code: 'answers_invalid' };
+  if (question.required) {
+    return { status: 'fail', code: 'questions_required' };
   }
-  return { status: 'persist', value: 'true' };
+  return { status: 'skip' };
 }
 
 function checkboxMultiSlice(
@@ -174,7 +185,11 @@ function answerSliceForQuestion(
 /**
  * Validates registration question answers from a public form and returns rows
  * safe to persist. Uses {@link https://github.com/colinhacks/zod Zod}
- * {@link z.ZodSchema.safeParse safeParse} for text and select bodies.
+ * {@link z.ZodSchema.safeParse safeParse} for text, select, and boolean checkbox
+ * entries (per Next.js server-validation patterns).
+ * Duplicate `name` values (hidden + checkbox) must be read with
+ * {@link https://developer.mozilla.org/en-US/docs/Web/API/FormData/getAll FormData.getAll},
+ * not `get()`, which returns only the first value.
  *
  * @param questions - Questions in display order with normalized option strings
  * @param formData - Submitted multipart body

@@ -73,14 +73,25 @@ function dateSummary(
   });
 }
 
+/**
+ * Confirmed-registration column. `capacity === null` means no cap; `0` is a
+ * real limit. Branch before `t()` so `capacity` is never passed as null (ICU
+ * args: next-intl disallows null).
+ *
+ * @param counts - Registration counts for the event
+ * @param capacity - Event capacity, or null for no cap
+ * @param t - Admin event translations
+ * @returns Localized registration summary
+ */
 function registrationsSummary(
   counts: AdminEventRegistrationCounts,
   capacity: number | null,
   t: AdminEventsListTranslations
 ) {
-  const confirmed = capacity
-    ? t('list_capacity_limited', { approved: counts.approved, capacity })
-    : t('list_capacity_open', { approved: counts.approved });
+  const confirmed =
+    capacity === null
+      ? t('list_capacity_open', { approved: counts.approved })
+      : t('list_capacity_limited', { approved: counts.approved, capacity });
   if (counts.pending === 0) {
     return confirmed;
   }

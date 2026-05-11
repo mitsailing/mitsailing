@@ -4,14 +4,13 @@ import { Link } from '@/libs/I18nNavigation';
 import { formatEasternEventCalendarLine } from '@/libs/mit-sailing/easternTimeFormat';
 import type { EventCalendarOccurrenceRow as EventCalendarOccurrence } from '@/libs/mit-sailing/eventCalendar';
 
+const CATEGORY_ACCENT_CLASS_NAME_BY_ID: Record<string, string> = {
+  'cat-class': 'bg-mit-success',
+  'cat-racing': 'bg-mit-red',
+};
+
 function categoryAccentClassName(categoryId: string): string {
-  if (categoryId === 'cat-racing') {
-    return 'bg-mit-red';
-  }
-  if (categoryId === 'cat-class') {
-    return 'bg-mit-success';
-  }
-  return 'bg-mit-cat';
+  return CATEGORY_ACCENT_CLASS_NAME_BY_ID[categoryId] ?? 'bg-mit-cat';
 }
 
 type EventCalendarOccurrenceRowProps = {

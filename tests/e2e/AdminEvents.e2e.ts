@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test';
 import { signInAsAdmin } from '../helpers/e2e-admin-sign-in';
 
+const SEED_EVENT_NAME = 'Bluewater: Boston to Provincetown Passage';
+
 test.describe('Admin events', () => {
   test('shows event admin list and editor sections', async ({ page }) => {
     await signInAsAdmin(page);
@@ -10,14 +12,12 @@ test.describe('Admin events', () => {
     await expect(page.getByRole('heading', { name: 'Events' })).toBeVisible();
     await expect(
       page.getByRole('link', {
-        name: 'Bluewater: Boston to Provincetown Passage',
+        name: SEED_EVENT_NAME,
       })
     ).toBeVisible();
     await expect(page.getByRole('link', { name: 'New event' })).toBeVisible();
 
-    await page
-      .getByRole('link', { name: 'Bluewater: Boston to Provincetown Passage' })
-      .click();
+    await page.getByRole('link', { name: SEED_EVENT_NAME }).click();
 
     await expect(page).toHaveURL(
       /\/admin\/events\/bluewater-boston-provincetown\/edit\/?$/

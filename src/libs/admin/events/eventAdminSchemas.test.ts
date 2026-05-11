@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { EventAnswerType, EventDetailPageKind } from '@/generated/prisma/enums';
 import {
+  EVENT_ADMIN_INVALID_FEE_AMOUNT_ERROR_CODE,
+  zodCustomIssueParamsErrorCode,
   dollarsToEventAdminCents,
   eventAdminBasicsFormSchema,
   eventDateFormSchema,
@@ -57,9 +59,10 @@ describe('eventAdminSchemas', () => {
   });
 
   it('parses eastern datetime local values', () => {
-    expect(parseEasternDateTimeLocal('2026-05-16T09:30')?.toISOString()).toBe(
-      '2026-05-16T13:30:00.000Z'
-    );
+    const result = parseEasternDateTimeLocal('2026-05-16T09:30');
+
+    expect(result).not.toBeNull();
+    expect(result?.toISOString()).toBe('2026-05-16T13:30:00.000Z');
   });
 
   it('rejects date rows with inverted range', () => {
@@ -106,6 +109,14 @@ describe('eventAdminSchemas', () => {
     });
 
     expect(parsed.success).toBe(false);
+    if (!parsed.success) {
+      const [issue] = parsed.error.issues;
+      expect(issue?.code).toBe('custom');
+      expect(zodCustomIssueParamsErrorCode(issue ?? {})).toBe(
+        EVENT_ADMIN_INVALID_FEE_AMOUNT_ERROR_CODE
+      );
+      expect(issue?.path.at(-1)).toBe('amountDollars');
+    }
   });
 
   it('splits comma options', () => {

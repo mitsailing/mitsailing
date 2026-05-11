@@ -129,6 +129,15 @@ export type AdminEventListFilters = {
   categoryId?: string;
 };
 
+type AdminEventUserListOptions = {
+  limit?: number;
+  offset?: number;
+  query?: string;
+};
+
+const DEFAULT_ADMIN_EVENT_USER_LIMIT = 100;
+const MAX_ADMIN_EVENT_USER_LIMIT = 200;
+
 function emptyRegistrationCounts(): AdminEventRegistrationCounts {
   return { pending: 0, approved: 0, cancelled: 0 };
 }
@@ -148,8 +157,7 @@ async function registrationCountsByEventId(
   const counts = new Map<string, AdminEventRegistrationCounts>();
   for (const row of rows) {
     const existing = counts.get(row.eventId) ?? emptyRegistrationCounts();
-    existing[row.status] =
-      typeof row._count === 'object' && row._count ? (row._count.id ?? 0) : 0;
+    existing[row.status] = row._count.id ?? 0;
     counts.set(row.eventId, existing);
   }
   return counts;
@@ -158,18 +166,16 @@ async function registrationCountsByEventId(
 async function registrationCountsForEventId(
   eventId: string
 ): Promise<AdminEventRegistrationCounts> {
-  const [pending, approved, cancelled] = await Promise.all([
-    prisma.eventRegistration.count({
-      where: { eventId, status: EventRegistrationStatus.pending },
-    }),
-    prisma.eventRegistration.count({
-      where: { eventId, status: EventRegistrationStatus.approved },
-    }),
-    prisma.eventRegistration.count({
-      where: { eventId, status: EventRegistrationStatus.cancelled },
-    }),
-  ]);
-  return { pending, approved, cancelled };
+  const rows = await prisma.eventRegistration.groupBy({
+    by: ['status'],
+    where: { eventId },
+    _count: { id: true },
+  });
+  const counts = emptyRegistrationCounts();
+  for (const row of rows) {
+    counts[row.status] = row._count.id ?? 0;
+  }
+  return counts;
 }
 
 function questionOptionsFromJson(value: Prisma.JsonValue | null): string[] {
@@ -247,9 +253,34 @@ export async function listAdminEventCategories(): Promise<
   return rows;
 }
 
-async function listAdminEventUsers(): Promise<AdminEventUserOption[]> {
+function adminEventUserWhereFromOptions(
+  options: AdminEventUserListOptions
+): Prisma.UserWhereInput {
+  const query = options.query?.trim();
+  if (!query) {
+    return {};
+  }
+  return {
+    OR: [
+      { name: { contains: query, mode: 'insensitive' } },
+      { email: { contains: query, mode: 'insensitive' } },
+    ],
+  };
+}
+
+async function listAdminEventUsers(
+  options: AdminEventUserListOptions = {}
+): Promise<AdminEventUserOption[]> {
+  const limit = Math.min(
+    Math.max(1, options.limit ?? DEFAULT_ADMIN_EVENT_USER_LIMIT),
+    MAX_ADMIN_EVENT_USER_LIMIT
+  );
+  const offset = Math.max(0, options.offset ?? 0);
   const rows = await prisma.user.findMany({
+    where: adminEventUserWhereFromOptions(options),
     orderBy: [{ name: 'asc' }, { email: 'asc' }],
+    skip: offset,
+    take: limit,
     select: { id: true, name: true, email: true },
   });
   return rows;

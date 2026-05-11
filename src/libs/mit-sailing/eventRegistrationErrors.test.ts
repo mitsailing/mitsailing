@@ -61,7 +61,7 @@ describe('eventRegistrationErrorMessageKey', () => {
     );
   });
 
-  it('returns null for unrecognised codes and nullish values', () => {
+  it('returns null for unrecognized codes and nullish values', () => {
     expect(eventRegistrationErrorMessageKey('bogus')).toBeNull();
     expect(eventRegistrationErrorMessageKey('')).toBeNull();
     expect(eventRegistrationErrorMessageKey(null)).toBeNull();

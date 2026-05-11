@@ -17,8 +17,8 @@
 ## Token efficiency
 
 - Skip recaps unless the result is ambiguous or you need more input.
-- **Cursor rules** attach by **glob** (see each `.mdc` frontmatter). **Cite** paths instead of pasting long policy. **`@tdd`** for strict test-first without repeating prompts.
-- **Which rule:** `coderabbit-review.mdc` (CodeRabbit-aligned conventions, all code/config/docs). `nextjs-node-server-2026.mdc` (Next caching/DB/runtime, `src/app` + `src/libs`). `e2e-verification.mdc` (when `test:e2e` counts as done). `tdd.mdc` (Vitest/Playwright, `tests/**` + co-located `*.test.*`). `agent-workflow.mdc` (workflow + stale APIs, `src/**`).
+- **Cursor rules** ([Cursor docs](https://cursor.com/docs/rules)): keep each `.mdc` **focused, actionable, well-scoped** — **reference** code or docs instead of duplicating prose (official guidance allows up to **500 lines per rule**; stay **well below** that). Prefer **`globs` + `alwaysApply: false`**; use **`alwaysApply: true`** only for short universal policy. **Cite** `.cursor/rules/…` paths; do not paste full rule bodies (including in **sub-agent** prompts). **`@tdd`** for strict test-first.
+- **Which rule:** `.coderabbit.yaml` (CodeRabbit on PRs) + `coderabbit-review.mdc` (same expectations for local agents / `cr review`). `nextjs-node-server-2026.mdc` (Next cache/DB/runtime, `src/app` + `src/libs`). `e2e-verification.mdc` (`test:e2e` gate). `tdd.mdc` (`tests/**`, `*.test.*`). `agent-workflow.mdc` (inspect-first, `src/**`). `ada-color-accessibility.mdc` (UI contrast/tokens). `mitsailing-single-tenant-chrome.mdc` (chrome copy).
 
 ## Commands
 
@@ -47,7 +47,7 @@ Tailwind v4 utility classes. Reuse shared components. Responsive. No unnecessary
 
 - Production is **`output: 'standalone'`**; expect a **long-lived Node** process. Prefer RSC and server data access; do not use `runtime: 'edge'` for Prisma/pg routes.
 - Prisma is a **singleton** per worker in [DB.ts](src/libs/DB.ts); size `pg` pool for dedicated Postgres, not serverless cold starts.
-- Avoid app-wide `force-dynamic`; use segment `revalidate`, `cache()` / `unstable_cache`, and `revalidatePath` after Server Actions. See `.cursor/rules/nextjs-node-server-2026.mdc` for full guidance.
+- Avoid app-wide `force-dynamic`; use segment `revalidate`, `cache()` / `unstable_cache`, `await connection()` when a route must bind to the request, and `revalidatePath` after Server Actions. See `.cursor/rules/nextjs-node-server-2026.mdc` for full guidance.
 - Other Cursor rules: see **Token efficiency** (paths + globs).
 
 ## Pages

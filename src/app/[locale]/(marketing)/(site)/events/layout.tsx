@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type React from 'react';
 
 /**
  * Events segment pass-through; list and detail pages choose their own content width.
@@ -7,7 +7,7 @@ import type { ReactNode } from 'react';
  * @returns Child routes
  */
 export default function EventsRoutesLayout(props: {
-  children: ReactNode;
-}): ReactNode {
+  children: React.ReactNode;
+}): React.ReactNode {
   return props.children;
 }

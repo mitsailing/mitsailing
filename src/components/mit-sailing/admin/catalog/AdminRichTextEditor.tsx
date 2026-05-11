@@ -818,7 +818,7 @@ export function AdminRichTextEditor(props: {
         {props.label}
       </Label>
       <div
-        className="overflow-hidden rounded-lg border border-input bg-background text-foreground shadow-xs focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 dark:border-white/45 dark:bg-white/5 dark:focus-within:border-white dark:focus-within:ring-white/30 dark:contrast-more:border-white"
+        className="overflow-hidden rounded-lg border border-input bg-background text-foreground shadow-xs focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 dark:bg-input-background dark:contrast-more:border-white"
         ref={editorShellRef}
       >
         <AdminRichTextToolbar

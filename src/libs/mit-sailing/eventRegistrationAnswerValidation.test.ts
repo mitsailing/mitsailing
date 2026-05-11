@@ -106,6 +106,48 @@ describe('parsePublicEventRegistrationAnswersFromForm', () => {
     });
   });
 
+  it('accepts required boolean checkbox with hidden false and checked true', () => {
+    const fd = new FormData();
+    fd.append('question_q1', 'false');
+    fd.append('question_q1', 'true');
+    const result = parsePublicEventRegistrationAnswersFromForm(
+      [
+        {
+          id: 'q1',
+          required: true,
+          answerType: EventAnswerType.checkbox,
+          options: [],
+        },
+      ],
+      fd
+    );
+    expect(result).toEqual({
+      ok: true,
+      answers: [{ questionId: 'q1', value: 'true' }],
+    });
+  });
+
+  it('accepts required boolean checkbox when checkbox precedes hidden in form data', () => {
+    const fd = new FormData();
+    fd.append('question_q1', 'true');
+    fd.append('question_q1', 'false');
+    const result = parsePublicEventRegistrationAnswersFromForm(
+      [
+        {
+          id: 'q1',
+          required: true,
+          answerType: EventAnswerType.checkbox,
+          options: [],
+        },
+      ],
+      fd
+    );
+    expect(result).toEqual({
+      ok: true,
+      answers: [{ questionId: 'q1', value: 'true' }],
+    });
+  });
+
   it('rejects boolean checkbox tampered value', () => {
     const fd = new FormData();
     fd.set('question_q1', 'on');
@@ -114,6 +156,43 @@ describe('parsePublicEventRegistrationAnswersFromForm', () => {
         {
           id: 'q1',
           required: true,
+          answerType: EventAnswerType.checkbox,
+          options: [],
+        },
+      ],
+      fd
+    );
+    expect(result).toEqual({ ok: false, code: 'answers_invalid' });
+  });
+
+  it('rejects boolean checkbox with more than two same-name entries', () => {
+    const fd = new FormData();
+    fd.append('question_q1', 'false');
+    fd.append('question_q1', 'true');
+    fd.append('question_q1', 'false');
+    const result = parsePublicEventRegistrationAnswersFromForm(
+      [
+        {
+          id: 'q1',
+          required: true,
+          answerType: EventAnswerType.checkbox,
+          options: [],
+        },
+      ],
+      fd
+    );
+    expect(result).toEqual({ ok: false, code: 'answers_invalid' });
+  });
+
+  it('rejects boolean checkbox with duplicated true entries', () => {
+    const fd = new FormData();
+    fd.append('question_q1', 'true');
+    fd.append('question_q1', 'true');
+    const result = parsePublicEventRegistrationAnswersFromForm(
+      [
+        {
+          id: 'q1',
+          required: false,
           answerType: EventAnswerType.checkbox,
           options: [],
         },
@@ -137,6 +216,40 @@ describe('parsePublicEventRegistrationAnswersFromForm', () => {
       fd
     );
     expect(result).toEqual({ ok: false, code: 'questions_required' });
+  });
+
+  it('requires boolean checkbox when only hidden false is posted', () => {
+    const fd = new FormData();
+    fd.set('question_q1', 'false');
+    const result = parsePublicEventRegistrationAnswersFromForm(
+      [
+        {
+          id: 'q1',
+          required: true,
+          answerType: EventAnswerType.checkbox,
+          options: [],
+        },
+      ],
+      fd
+    );
+    expect(result).toEqual({ ok: false, code: 'questions_required' });
+  });
+
+  it('skips optional boolean checkbox when only false is posted', () => {
+    const fd = new FormData();
+    fd.set('question_q1', 'false');
+    const result = parsePublicEventRegistrationAnswersFromForm(
+      [
+        {
+          id: 'q1',
+          required: false,
+          answerType: EventAnswerType.checkbox,
+          options: [],
+        },
+      ],
+      fd
+    );
+    expect(result).toEqual({ ok: true, answers: [] });
   });
 
   it('accepts multi checkbox subset and sorts stored json', () => {

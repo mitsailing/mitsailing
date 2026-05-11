@@ -80,6 +80,13 @@ export function formatEasternShortDateFromIsoCalendar(iso: string): string {
 }
 
 /**
+ * Formats compact calendar row strings by segment.
+ *
+ * Examples:
+ * - `single`: `9:00 AM – 5:00 PM`
+ * - `multi-start`: `9:00 AM – Sat, Mar 7, 5:00 PM ET`
+ * - `multi-end` and `ongoing`: `Until 5:00 PM ET`
+ *
  * @param params - Event occurrence segment
  * @returns Compact line for calendar rows
  */

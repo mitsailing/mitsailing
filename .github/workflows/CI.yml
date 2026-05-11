@@ -2,7 +2,8 @@ name: CI
 
 # Runs only on pull requests targeting `main`. Post-merge CI is intentionally
 # disabled — the branch-protection ruleset (`.github/rulesets/main-branch.json`)
-# requires these same checks to pass on the PR before merge, so re-running them
+# requires these same checks to pass on the PR before merge (`Run E2E tests` is
+# the `e2e-required` fan-in after sharded Playwright jobs), so re-running them
 # on the merge commit would just duplicate ~15–20 min of work per PR.
 #
 # `release.yml` triggers directly on `push: main` (not `workflow_run: CI`) so
@@ -44,6 +45,7 @@ env:
   # Bootstrap an admin user during `prisma db seed` in e2e preflight (see prisma/seed.ts).
   ADMIN_EMAIL: e2e-admin@example.com
   ADMIN_PASSWORD: 'Correct-Horse-Battery-Staple-E2E-32!!'
+  NODE_VERSION: 24.x
 
 jobs:
   build:
@@ -358,6 +360,19 @@ jobs:
         if: always()
         run: npm run db:test:down
 
+  # Fan-in after the sharded `e2e` matrix: a job that `needs` a matrix parent
+  # waits for every matrix leg to finish successfully (GitHub Actions dependency
+  # semantics). Exposes one stable check name for branch rulesets; shard labels
+  # stay on the matrix jobs for debugging.
+  e2e-required:
+    name: Run E2E tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    needs: [e2e]
+    steps:
+      - name: All E2E shards passed
+        run: echo "All E2E shards completed successfully."
+
   merge-e2e-reports:
     name: Merge E2E reports
     runs-on: ubuntu-latest
@@ -376,7 +391,7 @@ jobs:
       - name: Set up Node.js environment
         uses: ./.github/actions/setup-project
         with:
-          node-version: 24.x
+          node-version: ${{ env.NODE_VERSION }}
 
       - name: Download blob reports
         uses: actions/download-artifact@v7

@@ -9,10 +9,11 @@ export function adminEventsNewPath(): string {
 }
 
 function encodedAdminEventSlug(slug: string): string {
-  if (slug.trim().length === 0) {
+  const trimmed = slug.trim();
+  if (trimmed.length === 0) {
     throw new Error('Event slug cannot be empty');
   }
-  return encodeURIComponent(slug);
+  return encodeURIComponent(trimmed);
 }
 
 export function adminEventEditPath(slug: string): string {

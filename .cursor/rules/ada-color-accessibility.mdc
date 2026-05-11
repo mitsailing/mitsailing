@@ -1,6 +1,7 @@
 ---
-description: WCAG contrast expectations for UI colors, including hover, focus, and interactive states
-alwaysApply: true
+description: WCAG 2.1 AA contrast, tokens, hover/focus states, a11y e2e net
+globs: src/**/*.{ts,tsx},src/styles/**/*.css
+alwaysApply: false
 ---
 
 # ADA-compliant color usage

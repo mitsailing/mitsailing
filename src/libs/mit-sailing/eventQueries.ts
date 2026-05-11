@@ -208,24 +208,37 @@ export const getPublishedEventForPublicBySlug = cache(async (slug: string) => {
  * @param options - Event and user identifiers
  * @returns Registration state or `null`
  */
+const getCachedPublicEventRegistrationState = cache(
+  async (
+    eventId: string,
+    userId: string
+  ): Promise<PublicEventRegistrationState | null> => {
+    try {
+      return await prisma.eventRegistration.findFirst({
+        where: { eventId, userId },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, status: true },
+      });
+    } catch (error) {
+      logPublicEventsQueryFailure({
+        where: 'viewer-registration',
+        fallback: 'null_registration',
+        error,
+      });
+      return null;
+    }
+  }
+);
+
 export async function getPublicEventRegistrationState(options: {
   eventId: string;
   userId: string;
 }): Promise<PublicEventRegistrationState | null> {
-  try {
-    return await prisma.eventRegistration.findFirst({
-      where: { eventId: options.eventId, userId: options.userId },
-      orderBy: { createdAt: 'desc' },
-      select: { id: true, status: true },
-    });
-  } catch (error) {
-    logPublicEventsQueryFailure({
-      where: 'viewer-registration',
-      fallback: 'null_registration',
-      error,
-    });
-    return null;
-  }
+  const state = await getCachedPublicEventRegistrationState(
+    options.eventId,
+    options.userId
+  );
+  return state;
 }
 
 /**

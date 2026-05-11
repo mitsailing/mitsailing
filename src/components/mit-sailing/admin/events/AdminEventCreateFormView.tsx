@@ -47,6 +47,7 @@ function AdminEventCreateErrorAlert(props: {
 
 export function AdminEventCreateFormView(props: AdminEventCreateFormViewProps) {
   const createAction = createAdminEventAction.bind(null, props.locale);
+  const hasCategories = props.categories.length > 0;
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6">
       <AdminEventBackLink href={adminEventsIndexPath()}>
@@ -94,11 +95,15 @@ export function AdminEventCreateFormView(props: AdminEventCreateFormViewProps) {
             </AdminEventField>
             <AdminEventField
               htmlFor="event-category"
+              hint={
+                hasCategories ? undefined : props.t('new_category_empty_hint')
+              }
               label={props.t('field_category')}
             >
               <select
                 className={adminNativeSelectClassName}
                 defaultValue={props.categories[0]?.id ?? ''}
+                disabled={!hasCategories}
                 id="event-category"
                 name="eventCategoryId"
                 required
@@ -205,18 +210,23 @@ export function AdminEventCreateFormView(props: AdminEventCreateFormViewProps) {
               {props.t('field_detail_page_kind')}
             </legend>
             <label
-              aria-label={props.t('detail_standard_label')}
+              aria-labelledby="new-event-detail-page-kind-standard-label"
               className="flex cursor-pointer items-start gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              htmlFor="new-event-detail-page-kind-standard"
             >
               <input
                 className="mt-0.5"
                 defaultChecked
+                id="new-event-detail-page-kind-standard"
                 name="detailPageKind"
                 type="radio"
                 value={EventDetailPageKind.standard}
               />
               <span className="flex flex-col gap-0.5">
-                <span className="font-medium">
+                <span
+                  className="font-medium"
+                  id="new-event-detail-page-kind-standard-label"
+                >
                   {props.t('detail_standard_label')}
                 </span>
                 <span className="text-xs text-muted-foreground dark:text-white">
@@ -225,17 +235,22 @@ export function AdminEventCreateFormView(props: AdminEventCreateFormViewProps) {
               </span>
             </label>
             <label
-              aria-label={props.t('detail_external_label')}
+              aria-labelledby="new-event-detail-page-kind-external-label"
               className="flex cursor-pointer items-start gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              htmlFor="new-event-detail-page-kind-external"
             >
               <input
                 className="mt-0.5"
+                id="new-event-detail-page-kind-external"
                 name="detailPageKind"
                 type="radio"
                 value={EventDetailPageKind.external}
               />
               <span className="flex flex-col gap-0.5">
-                <span className="font-medium">
+                <span
+                  className="font-medium"
+                  id="new-event-detail-page-kind-external-label"
+                >
                   {props.t('detail_external_label')}
                 </span>
                 <span className="text-xs text-muted-foreground dark:text-white">
@@ -258,7 +273,7 @@ export function AdminEventCreateFormView(props: AdminEventCreateFormViewProps) {
         </AdminEventFormSection>
 
         <div className="flex justify-end gap-3">
-          <Button type="submit" variant="mit">
+          <Button disabled={!hasCategories} type="submit" variant="mit">
             <Save aria-hidden className="size-4" />
             {props.t('action_create_event')}
           </Button>

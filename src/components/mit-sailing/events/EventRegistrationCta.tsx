@@ -4,11 +4,7 @@ import type * as React from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Link } from '@/libs/I18nNavigation';
-import type {
-  PublicEventDetail,
-  PublicEventRegistrationState,
-} from '@/libs/mit-sailing/eventQueries';
-import { cancelPublicEventRegistrationAction } from '@/libs/mit-sailing/eventRegistrationActions';
+import type { PublicEventDetail } from '@/libs/mit-sailing/eventQueries';
 import { eventRegistrationErrorMessage } from '@/libs/mit-sailing/eventRegistrationErrors';
 import type { PublicEventReservationState } from '@/libs/mit-sailing/eventRegistrationState';
 
@@ -16,13 +12,17 @@ type EventRegistrationTranslations = Awaited<
   ReturnType<typeof getTranslations<'MitSailingEvents'>>
 >;
 
+/** Bound cancel handler supplied by the server parent (Next.js form `action`). */
+type EventRegistrationCancelFormAction = (
+  formData: FormData
+) => void | Promise<void>;
+
 type EventRegistrationCtaProps = {
-  currentRegistration: PublicEventRegistrationState | null;
+  cancelRegistrationAction: EventRegistrationCancelFormAction;
   event: PublicEventDetail;
   errorCode: string | null;
   isSignedIn: boolean;
   locale: string;
-  registrationCloses: string;
   registrationOpens: string;
   reservationState: PublicEventReservationState;
   t: EventRegistrationTranslations;
@@ -42,8 +42,8 @@ const registrationStatusPillToneClassName: Record<
   RegistrationStatusPillTone,
   string
 > = {
-  good: 'bg-mit-success/10 text-mit-success',
-  warning: 'bg-mit-warning/10 text-mit-warning',
+  good: 'bg-mit-success/10 text-mit-success-ink',
+  warning: 'bg-mit-warning/10 text-mit-warning-ink',
   muted: 'bg-muted text-muted-foreground',
 };
 
@@ -69,18 +69,13 @@ export function EventRegistrationCta(props: EventRegistrationCtaProps) {
   const loginHref = `/login?callbackUrl=${encodeURIComponent(registrationHref)}`;
 
   if (props.reservationState === 'approved') {
-    const cancelAction = cancelPublicEventRegistrationAction.bind(
-      null,
-      props.locale,
-      props.event.slug
-    );
     return (
       <div className="flex flex-col items-start gap-2">
         <RegistrationStatusPill tone="good">
           <Check aria-hidden className="size-4" />
           {props.t('registration_status_going')}
         </RegistrationStatusPill>
-        <form action={cancelAction}>
+        <form action={props.cancelRegistrationAction}>
           <Button size="sm" type="submit" variant="link">
             {props.t('registration_cancel_button')}
           </Button>
@@ -90,18 +85,13 @@ export function EventRegistrationCta(props: EventRegistrationCtaProps) {
   }
 
   if (props.reservationState === 'pending') {
-    const cancelAction = cancelPublicEventRegistrationAction.bind(
-      null,
-      props.locale,
-      props.event.slug
-    );
     return (
       <div className="flex flex-col items-start gap-2">
         <RegistrationStatusPill tone="warning">
           <Clock aria-hidden className="size-4" />
           {props.t('registration_status_pending')}
         </RegistrationStatusPill>
-        <form action={cancelAction}>
+        <form action={props.cancelRegistrationAction}>
           <Button size="sm" type="submit" variant="outline">
             {props.t('registration_cancel_request_button')}
           </Button>
@@ -122,12 +112,7 @@ export function EventRegistrationCta(props: EventRegistrationCtaProps) {
   }
 
   if (props.reservationState === 'closed') {
-    return (
-      <RegistrationStatusPill tone="muted">
-        <X aria-hidden className="size-4" />
-        {props.t('registration_closed')}
-      </RegistrationStatusPill>
-    );
+    return null;
   }
 
   if (props.reservationState === 'full') {
@@ -159,7 +144,7 @@ export function EventRegistrationCta(props: EventRegistrationCtaProps) {
     <div className="flex flex-col gap-3">
       {errorMessage ? (
         <p
-          className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-950"
+          className="rounded-lg border border-destructive bg-destructive/10 px-3 py-2 text-sm text-destructive"
           role="alert"
         >
           {errorMessage}

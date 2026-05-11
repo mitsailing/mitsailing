@@ -69,7 +69,7 @@ export function AdminEventDeleteView(props: AdminEventDeleteViewProps) {
       <Card className="rounded-lg">
         <CardHeader>
           <CardTitle>{props.t('delete_title')}</CardTitle>
-          <CardDescription className="dark:text-white">
+          <CardDescription>
             {props.t('delete_description', { name: props.event.name })}
           </CardDescription>
         </CardHeader>
@@ -77,7 +77,7 @@ export function AdminEventDeleteView(props: AdminEventDeleteViewProps) {
           <AdminEventDeleteErrorAlert code={props.errorCode} t={props.t} />
           <dl className="grid gap-3 text-sm md:grid-cols-2">
             <div>
-              <dt className="text-xs font-semibold text-muted-foreground uppercase dark:text-white">
+              <dt className="text-xs font-semibold text-muted-foreground uppercase">
                 {props.t('delete_dates')}
               </dt>
               <dd className="mt-1 font-medium tabular-nums">
@@ -85,7 +85,7 @@ export function AdminEventDeleteView(props: AdminEventDeleteViewProps) {
               </dd>
             </div>
             <div>
-              <dt className="text-xs font-semibold text-muted-foreground uppercase dark:text-white">
+              <dt className="text-xs font-semibold text-muted-foreground uppercase">
                 {props.t('delete_registrations')}
               </dt>
               <dd className="mt-1 font-medium tabular-nums">

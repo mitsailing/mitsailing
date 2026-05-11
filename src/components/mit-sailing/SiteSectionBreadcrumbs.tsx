@@ -8,7 +8,7 @@ export type SiteSectionBreadcrumbSegment = {
 };
 
 const breadcrumbLinkClassName = [
-  'font-semibold text-mit-red-ink no-underline hover:underline dark:text-white',
+  'font-semibold text-mit-red-ink no-underline hover:underline',
   textFocusRingClassName,
 ].join(' ');
 

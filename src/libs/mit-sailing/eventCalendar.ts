@@ -222,10 +222,7 @@ export function buildEventCalendarWeeks(
   if (dayKeys.length === 0) {
     return [];
   }
-  const [first] = dayKeys;
-  if (!first) {
-    return [];
-  }
+  const first = dayKeys[0] ?? '';
   const leading = nyWeekdaySunday0(first);
   const cells: (string | null)[] = [
     ...Array.from({ length: leading }, () => null),
@@ -297,10 +294,7 @@ export function buildEventCalendarOccurrenceRows(params: {
       });
     }
 
-    if (
-      dateKeyIsInRange(endKey, params.rangeStartKey, params.rangeEndKey) &&
-      endKey !== startKey
-    ) {
+    if (dateKeyIsInRange(endKey, params.rangeStartKey, params.rangeEndKey)) {
       rows.push({
         ...base,
         rowKey: `${eventDate.id}-${endKey}-end`,

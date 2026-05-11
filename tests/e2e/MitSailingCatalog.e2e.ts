@@ -18,34 +18,47 @@ async function closePgPool(): Promise<void> {
     return;
   }
   pgPoolEnded = true;
-  await pool.end();
+  try {
+    await pool.end();
+  } catch (error) {
+    throw new Error('closePgPool failed while ending the Postgres pool.', {
+      cause: error,
+    });
+  }
 }
 
 async function resetAdminEventRegistration(slug: string): Promise<void> {
-  await pool.query(
-    `
-      DELETE FROM "event_registration_answers"
-      WHERE "registration_id" IN (
-        SELECT er."id"
-        FROM "event_registrations" er
-        JOIN "events" e ON e."id" = er."event_id"
-        JOIN "user" u ON u."id" = er."user_id"
-        WHERE e."slug" = $1 AND lower(u."email") = $2
-      )
-    `,
-    [slug, adminEmail]
-  );
-  await pool.query(
-    `
-      DELETE FROM "event_registrations" er
-      USING "events" e, "user" u
-      WHERE e."id" = er."event_id"
-        AND u."id" = er."user_id"
-        AND e."slug" = $1
-        AND lower(u."email") = $2
-    `,
-    [slug, adminEmail]
-  );
+  try {
+    await pool.query(
+      `
+        DELETE FROM "event_registration_answers"
+        WHERE "registration_id" IN (
+          SELECT er."id"
+          FROM "event_registrations" er
+          JOIN "events" e ON e."id" = er."event_id"
+          JOIN "user" u ON u."id" = er."user_id"
+          WHERE e."slug" = $1 AND lower(u."email") = $2
+        )
+      `,
+      [slug, adminEmail]
+    );
+    await pool.query(
+      `
+        DELETE FROM "event_registrations" er
+        USING "events" e, "user" u
+        WHERE e."id" = er."event_id"
+          AND u."id" = er."user_id"
+          AND e."slug" = $1
+          AND lower(u."email") = $2
+      `,
+      [slug, adminEmail]
+    );
+  } catch (error) {
+    throw new Error(
+      `resetAdminEventRegistration failed for slug=${slug} adminEmail=${adminEmail}.`,
+      { cause: error }
+    );
+  }
 }
 
 test.afterAll(async () => {
@@ -53,6 +66,8 @@ test.afterAll(async () => {
 });
 
 test.describe('MIT Sailing catalog', () => {
+  test.describe.configure({ mode: 'serial' });
+
   test('/events renders event calendar', async ({ page }) => {
     await page.goto('/events?month=2026-04');
 
@@ -108,6 +123,7 @@ test.describe('MIT Sailing catalog', () => {
   test('/events/[slug] shows registration state when signed in', async ({
     page,
   }) => {
+    await resetAdminEventRegistration('bluewater-boston-provincetown');
     await signInAsAdmin(page);
 
     await page.goto('/events/bluewater-boston-provincetown');
@@ -119,14 +135,7 @@ test.describe('MIT Sailing catalog', () => {
       })
     ).toBeVisible();
     await expect(
-      page
-        .getByRole('link', { name: 'Request to register' })
-        .or(
-          page.getByRole('button', {
-            name: /Cancel request|Cancel my registration/,
-          })
-        )
-        .or(page.getByText(/Pending acceptance|You’re going/))
+      page.getByRole('link', { name: 'Request to register' })
     ).toBeVisible();
   });
 

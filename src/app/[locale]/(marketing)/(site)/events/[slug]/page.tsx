@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
+import { connection } from 'next/server';
 import { EventDetailView } from '@/components/mit-sailing/events/EventDetailView';
 import { SiteSectionMain } from '@/components/mit-sailing/SiteSectionMain';
 import { SiteSectionShell } from '@/components/mit-sailing/SiteSectionShell';
@@ -17,9 +18,7 @@ type PageProps = {
 
 export async function generateMetadata(props: PageProps): Promise<Metadata> {
   const { locale, slug } = await props.params;
-  const event = await getPublishedEventForPublicBySlug(
-    decodeURIComponent(slug)
-  );
+  const event = await getPublishedEventForPublicBySlug(slug);
   if (!event) {
     const t = await getTranslations({
       locale,
@@ -31,9 +30,9 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
 }
 
 export default async function EventDetailPage(props: PageProps) {
-  const { locale, slug: raw } = await props.params;
+  await connection();
+  const { locale, slug } = await props.params;
   const searchParams = await props.searchParams;
-  const slug = decodeURIComponent(raw);
   setRequestLocale(locale);
   const [event, t, currentUser] = await Promise.all([
     getPublishedEventForPublicBySlug(slug),

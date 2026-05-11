@@ -11,7 +11,7 @@ const buttonVariants = cva(
       variant: {
         default: 'bg-primary text-primary-foreground [a]:hover:bg-primary/80',
         /** MIT institute red on all themes (use when default `primary` is neutral, e.g. dark mode). */
-        mit: 'border-transparent bg-mit-red text-white hover:bg-mit-red-hover [a]:hover:bg-mit-red-hover',
+        mit: 'border-transparent bg-mit-red text-white hover:bg-mit-red-hover dark:hover:ring-1 dark:hover:ring-inset dark:hover:ring-white/30 [a]:hover:bg-mit-red-hover dark:[a]:hover:ring-1 dark:[a]:hover:ring-inset dark:[a]:hover:ring-white/30',
         outline:
           'border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50',
         secondary:

@@ -192,7 +192,7 @@ function HomeCalloutSection(props: { block: PublicCmsBlock }) {
             ) : null}
             {props.block.ctaUrl && props.block.ctaLabel ? (
               <HomeCmsCtaLink
-                className="inline-flex rounded-md bg-mit-red px-5 py-2.5 text-sm font-medium text-white no-underline hover:bg-mit-red-hover"
+                className="inline-flex rounded-md bg-mit-red px-5 py-2.5 text-sm font-medium text-white no-underline hover:bg-mit-red-hover dark:hover:ring-1 dark:hover:ring-white/30 dark:hover:ring-inset"
                 href={props.block.ctaUrl}
                 label={props.block.ctaLabel}
               />
@@ -246,7 +246,7 @@ function HomeCmsTextSection(props: { block: PublicCmsBlock }) {
         ) : null}
         {props.block.ctaUrl && props.block.ctaLabel ? (
           <HomeCmsCtaLink
-            className="inline-flex rounded-md bg-mit-red px-5 py-2.5 text-sm font-medium text-white no-underline hover:bg-mit-red-hover"
+            className="inline-flex rounded-md bg-mit-red px-5 py-2.5 text-sm font-medium text-white no-underline hover:bg-mit-red-hover dark:hover:ring-1 dark:hover:ring-white/30 dark:hover:ring-inset"
             href={props.block.ctaUrl}
             label={props.block.ctaLabel}
           />

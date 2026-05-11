@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound, redirect } from 'next/navigation';
+import { connection } from 'next/server';
 import {
   EventRegistrationForm,
   eventRegistrationFormLabels,
@@ -14,6 +15,7 @@ import {
   getPublishedEventForPublicBySlug,
 } from '@/libs/mit-sailing/eventQueries';
 import type { PublicEventDetail } from '@/libs/mit-sailing/eventQueries';
+import { createPublicEventRegistrationAction } from '@/libs/mit-sailing/eventRegistrationActions';
 import {
   eventRegistrationErrorMessage,
   parseEventRegistrationMutationCode,
@@ -53,9 +55,7 @@ export async function generateMetadata(
   props: RegisterPageProps
 ): Promise<Metadata> {
   const { locale, slug } = await props.params;
-  const event = await getPublishedEventForPublicBySlug(
-    decodeURIComponent(slug)
-  );
+  const event = await getPublishedEventForPublicBySlug(slug);
   const t = await getTranslations({
     locale,
     namespace: 'MitSailingEvents',
@@ -67,9 +67,9 @@ export async function generateMetadata(
 }
 
 export default async function EventRegisterPage(props: RegisterPageProps) {
-  const { locale, slug: raw } = await props.params;
+  await connection();
+  const { locale, slug } = await props.params;
   const searchParams = await props.searchParams;
-  const slug = decodeURIComponent(raw);
   setRequestLocale(locale);
   const [event, t, tRoutes] = await Promise.all([
     getPublishedEventForPublicBySlug(slug),
@@ -120,14 +120,23 @@ export default async function EventRegisterPage(props: RegisterPageProps) {
           <EventScheduleSummary event={event} t={t} />
           {errorMessage ? (
             <p
-              className="mb-5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-950"
+              className="mb-5 rounded-lg border border-destructive bg-destructive/10 px-3 py-2 text-sm text-destructive"
               role="alert"
             >
               {errorMessage}
             </p>
           ) : null}
           <EventRegistrationForm
+            createRegistrationAction={createPublicEventRegistrationAction.bind(
+              null,
+              locale,
+              event.slug
+            )}
             event={event}
+            formPermalink={getI18nPath(
+              `/events/${encodeURIComponent(event.slug)}/register`,
+              locale
+            )}
             labels={eventRegistrationFormLabels(t)}
             locale={locale}
           />

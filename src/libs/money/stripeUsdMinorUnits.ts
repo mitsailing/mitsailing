@@ -19,11 +19,29 @@
  * @see https://docs.stripe.com/api/payment_intents/create — `amount`, `currency`
  */
 
+const STRIPE_USD_MAX_MINOR_UNITS = 99_999_999;
+const STRIPE_USD_MAX_MAJOR_UNITS = STRIPE_USD_MAX_MINOR_UNITS / 100;
+
+function assertValidUsdMinorUnits(options: {
+  functionName: string;
+  minorUnits: number;
+}): void {
+  if (
+    !Number.isInteger(options.minorUnits) ||
+    options.minorUnits < 0 ||
+    options.minorUnits > STRIPE_USD_MAX_MINOR_UNITS
+  ) {
+    throw new TypeError(
+      `${options.functionName} expects finite non-negative integer USD minor units within Stripe's USD limit.`
+    );
+  }
+}
+
 /**
  * Parses a user-entered decimal dollar string into integer USD minor units.
  *
  * @param input - Raw string (commas allowed); major units, not cents
- * @returns Rounded minor units, or `null` when empty or invalid
+ * @returns Minor units, or `null` when empty or invalid
  */
 export function parseUsdDecimalStringToMinorUnits(
   input: string
@@ -32,11 +50,23 @@ export function parseUsdDecimalStringToMinorUnits(
   if (!normalized) {
     return null;
   }
-  const parsed = Number(normalized);
-  if (!Number.isFinite(parsed) || parsed < 0) {
+  const match = /^(\d+)(?:\.(\d{0,2}))?$|^\.(\d{1,2})$/.exec(normalized);
+  if (!match) {
     return null;
   }
-  return Math.round(parsed * 100);
+  const majorUnits = Number(match[1] ?? '0');
+  const fractionalMinorUnits = Number(
+    (match[2] ?? match[3] ?? '').padEnd(2, '0')
+  );
+  if (
+    !Number.isSafeInteger(majorUnits) ||
+    majorUnits > STRIPE_USD_MAX_MAJOR_UNITS ||
+    majorUnits > Number.MAX_SAFE_INTEGER / 100
+  ) {
+    return null;
+  }
+  const minorUnits = majorUnits * 100 + fractionalMinorUnits;
+  return minorUnits <= STRIPE_USD_MAX_MINOR_UNITS ? minorUnits : null;
 }
 
 /**
@@ -46,6 +76,10 @@ export function parseUsdDecimalStringToMinorUnits(
  * @returns String like `150.00` for 15_000 minor units
  */
 export function usdMinorUnitsToDecimalInputString(minorUnits: number): string {
+  assertValidUsdMinorUnits({
+    functionName: 'usdMinorUnitsToDecimalInputString',
+    minorUnits,
+  });
   return (minorUnits / 100).toFixed(2);
 }
 
@@ -60,6 +94,10 @@ export function formatUsdMinorUnitsAsCurrency(
   minorUnits: number,
   locale: string
 ): string {
+  assertValidUsdMinorUnits({
+    functionName: 'formatUsdMinorUnitsAsCurrency',
+    minorUnits,
+  });
   return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency: 'USD',
