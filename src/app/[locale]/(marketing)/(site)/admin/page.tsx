@@ -38,7 +38,7 @@ export default async function AdminIndexPage(props: AdminIndexPageProps) {
   });
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-8">
+    <div className="flex w-full max-w-5xl flex-col gap-8">
       <div>
         <h1 className="text-2xl font-semibold text-mit-text">{t('title')}</h1>
         <p className="mt-2 text-sm text-mit-text">{t('intro')}</p>

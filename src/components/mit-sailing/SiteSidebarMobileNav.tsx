@@ -60,7 +60,7 @@ export function SiteSidebarMobileNav(props: SiteSidebarMobileNavProps) {
         className={cn(
           'hidden min-h-0',
           props.stretch
-            ? 'md:flex md:flex-1 md:flex-col md:min-h-full'
+            ? 'md:flex md:w-max md:flex-col md:min-h-full'
             : 'md:block'
         )}
       >

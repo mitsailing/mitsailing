@@ -338,7 +338,7 @@ export function AdminEventRegistrationsView(
     (registration) => registrationVisible(registration, props.filter)
   );
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-6">
+    <div className="flex w-full flex-col gap-6">
       <AdminEventBackLink href={adminEventsIndexPath()}>
         <ArrowLeft aria-hidden className="size-4" />
         {props.t('back_to_events')}

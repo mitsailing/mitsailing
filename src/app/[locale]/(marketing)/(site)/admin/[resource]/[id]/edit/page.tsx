@@ -177,7 +177,7 @@ export default async function AdminCatalogResourceEditPage(props: PageProps) {
   );
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-6">
+    <div className="flex w-full max-w-5xl flex-col gap-6">
       {cmsPageViewHref ? (
         <div className="flex justify-end">
           <AdminSecondaryActionLink href={cmsPageViewHref}>

@@ -228,7 +228,7 @@ export default async function AdminSiteTextPage(props: AdminSiteTextPageProps) {
   const message = statusMessage(status, t);
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-6">
+    <div className="flex w-full flex-col gap-6">
       <AdminPageHeader title={t('title')} />
       <p className="max-w-3xl text-sm text-muted-foreground">{t('intro')}</p>
 

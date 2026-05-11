@@ -122,7 +122,7 @@ export default async function AdminSailingClassRelatedEventsPage(
   const assocErrorMessage = sailingClassAssocQueryErrorMessage(errorCode, t);
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6">
+    <div className="flex w-full max-w-3xl flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold text-mit-text">
           {t('assoc_page_related_events_title')} — {sailingClass.name}

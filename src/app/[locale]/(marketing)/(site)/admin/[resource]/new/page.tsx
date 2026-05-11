@@ -178,7 +178,7 @@ export default async function AdminCatalogResourceNewPage(props: PageProps) {
       : null;
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-6">
+    <div className="flex w-full max-w-5xl flex-col gap-6">
       {scopedCmsPageViewHref ? (
         <div className="flex justify-end">
           <AdminSecondaryActionLink href={scopedCmsPageViewHref}>

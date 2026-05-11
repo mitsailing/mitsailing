@@ -60,7 +60,7 @@ export default async function AdminUsersDeletePage(props: PageProps) {
   const tCommon = await getTranslations({ locale, namespace: 'Common' });
 
   return (
-    <div className="mx-auto flex max-w-lg flex-col gap-6">
+    <div className="flex w-full max-w-lg flex-col gap-6">
       <h1 className="text-2xl font-semibold text-mit-text">
         {t('title_admin_users_delete')}
       </h1>

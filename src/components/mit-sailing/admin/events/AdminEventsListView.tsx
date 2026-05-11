@@ -203,7 +203,7 @@ function EventRow(props: {
 
 export function AdminEventsListView(props: AdminEventsListViewProps) {
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-6">
+    <div className="flex w-full flex-col gap-6">
       <AdminPageHeader
         actions={
           <Button asChild size="sm" variant="mit">

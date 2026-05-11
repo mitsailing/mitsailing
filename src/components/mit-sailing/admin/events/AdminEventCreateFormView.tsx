@@ -48,7 +48,7 @@ export function AdminEventCreateFormView(props: AdminEventCreateFormViewProps) {
   const createAction = createAdminEventAction.bind(null, props.locale);
   const hasCategories = props.categories.length > 0;
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-6">
+    <div className="flex w-full max-w-4xl flex-col gap-6">
       <AdminEventBackLink href={adminEventsIndexPath()}>
         <ArrowLeft aria-hidden className="size-4" />
         {props.t('back_to_events')}

@@ -969,7 +969,7 @@ function StripePlaceholder(props: { t: AdminEventFormTranslations }) {
 
 export function AdminEventFormView(props: AdminEventFormViewProps) {
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-6">
+    <div className="flex w-full max-w-4xl flex-col gap-6">
       <AdminEventBackLink href={adminEventsIndexPath()}>
         <ArrowLeft aria-hidden className="size-4" />
         {props.t('back_to_events')}

@@ -36,7 +36,7 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
   const t = await getTranslations({ locale, namespace: 'AdminUsers' });
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-6">
+    <div className="flex w-full max-w-5xl flex-col gap-6">
       <AdminPageHeader
         actions={
           <AdminPrimaryActionLink href={adminUsersEditPath(id)}>
