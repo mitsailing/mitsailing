@@ -108,13 +108,10 @@ export function parseCmsPricingBody(
   if (!parsedPlans.every((plan): plan is CmsPricingPlan => plan !== null)) {
     return null;
   }
-  const plans = parsedPlans.filter(
-    (plan): plan is CmsPricingPlan => plan !== null
-  );
 
   return {
     footnote: stringFromUnknown(propertyFromUnknown(parsed, 'footnote')),
-    plans,
+    plans: parsedPlans,
   };
 }
 

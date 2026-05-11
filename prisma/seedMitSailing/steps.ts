@@ -600,6 +600,8 @@ async function seedCmsMenuItem(
 
 async function seedCmsMenus(p: PrismaClient): Promise<void> {
   for (const menu of CMS_MENU_SEED_ROWS) {
+    const items = orderedCmsSeedMenuItems(menu);
+
     await p.cmsMenu.upsert({
       where: { id: menu.id },
       create: {
@@ -613,7 +615,17 @@ async function seedCmsMenus(p: PrismaClient): Promise<void> {
       },
     });
 
-    for (const item of orderedCmsSeedMenuItems(menu)) {
+    await p.cmsMenuItem.deleteMany({
+      where:
+        items.length === 0
+          ? { menuId: menu.id }
+          : {
+              menuId: menu.id,
+              id: { notIn: items.map((item) => item.id) },
+            },
+    });
+
+    for (const item of items) {
       await seedCmsMenuItem(p, menu, item);
     }
   }

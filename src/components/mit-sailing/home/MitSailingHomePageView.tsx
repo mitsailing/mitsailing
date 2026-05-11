@@ -50,6 +50,10 @@ const HERO_ON_IMAGE_FOCUS_RING_CLASS_NAME =
 
 type MitSailingHomePageViewProps = { locale: string };
 
+type HomeOrderedStripBlock = PublicCmsBlock & {
+  kind: 'callout' | 'home_classes' | 'pricing' | 'text_section';
+};
+
 function HomeCmsCtaLink(props: {
   className: string;
   href: string;
@@ -168,7 +172,7 @@ function HomeOverviewCtaLink(props: { href: string; label: string }) {
   );
 }
 
-function HomeRentalSection(props: { block: PublicCmsBlock }) {
+function HomeCalloutSection(props: { block: PublicCmsBlock }) {
   const contentClassName = props.block.imageSrc
     ? 'grid grid-cols-1 items-center gap-16 lg:grid-cols-2'
     : 'max-w-3xl';
@@ -195,17 +199,58 @@ function HomeRentalSection(props: { block: PublicCmsBlock }) {
             ) : null}
           </div>
           {props.block.imageSrc ? (
-            <div className="relative aspect-[4/3] overflow-hidden rounded-2xl border border-mit-line shadow-lg">
+            <div className="relative aspect-4/3 overflow-hidden rounded-2xl border border-mit-line shadow-lg">
               <Image
                 alt={props.block.imageAlt ?? ''}
                 className="h-full w-full object-cover"
-                height={800}
+                height={900}
                 src={props.block.imageSrc}
                 width={1200}
               />
             </div>
           ) : null}
         </div>
+      </div>
+    </section>
+  );
+}
+
+function HomeCmsTextSection(props: { block: PublicCmsBlock }) {
+  return (
+    <section className="bg-background py-24">
+      <div className="mx-auto max-w-3xl px-6">
+        {props.block.subtitle ? (
+          <p className="mb-3 text-sm leading-snug text-muted-foreground">
+            {props.block.subtitle}
+          </p>
+        ) : null}
+        <h2 className="mb-4 font-mit-serif text-[32px] leading-tight font-semibold text-mit-text">
+          {props.block.title}
+        </h2>
+        {props.block.imageSrc ? (
+          <div className="relative mb-8 aspect-4/3 overflow-hidden rounded-2xl border border-mit-line shadow-lg">
+            <Image
+              alt={props.block.imageAlt ?? ''}
+              className="h-full w-full object-cover"
+              height={900}
+              src={props.block.imageSrc}
+              width={1200}
+            />
+          </div>
+        ) : null}
+        {props.block.body ? (
+          <CmsRichText
+            className="mb-8 text-base leading-relaxed text-mit-text"
+            html={props.block.body}
+          />
+        ) : null}
+        {props.block.ctaUrl && props.block.ctaLabel ? (
+          <HomeCmsCtaLink
+            className="inline-flex rounded-md bg-mit-red px-5 py-2.5 text-sm font-medium text-white no-underline hover:bg-mit-red-hover"
+            href={props.block.ctaUrl}
+            label={props.block.ctaLabel}
+          />
+        ) : null}
       </div>
     </section>
   );
@@ -382,9 +427,9 @@ export async function MitSailingHomePageView(
   const homeOverviewUpcomingDayGroups = homeOverviewData
     ? limitHomeUpcomingDayGroups(upcomingDayGroups, homeOverviewData.eventCount)
     : [];
-  const orderedHomeCmsBlocks =
+  const orderedHomeCmsBlocks: HomeOrderedStripBlock[] =
     cmsHomePage?.blocks.filter(
-      (block) =>
+      (block): block is HomeOrderedStripBlock =>
         block.kind === 'callout' ||
         block.kind === 'text_section' ||
         block.kind === 'pricing' ||
@@ -557,7 +602,10 @@ export async function MitSailingHomePageView(
             />
           );
         }
-        return <HomeRentalSection block={block} key={block.id} />;
+        if (block.kind === 'text_section') {
+          return <HomeCmsTextSection block={block} key={block.id} />;
+        }
+        return <HomeCalloutSection block={block} key={block.id} />;
       })}
     </div>
   );
