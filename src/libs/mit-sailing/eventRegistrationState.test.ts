@@ -47,7 +47,7 @@ describe('publicEventReservationState', () => {
     ).toBe('available');
   });
 
-  it('returns full when accepted registrations reach capacity regardless of pending', () => {
+  it('returns available for approval-required events when accepted registrations reach capacity', () => {
     expect(
       publicEventReservationState({
         currentRegistration: null,
@@ -55,6 +55,21 @@ describe('publicEventReservationState', () => {
           approvedRegistrationCount: 10,
           pendingRegistrationCount: 50,
           maxParticipants: 10,
+        }),
+        now: midJune,
+      })
+    ).toBe('available');
+  });
+
+  it('returns full for auto-approved events when accepted registrations reach capacity', () => {
+    expect(
+      publicEventReservationState({
+        currentRegistration: null,
+        event: makeEvent({
+          approvedRegistrationCount: 10,
+          pendingRegistrationCount: 50,
+          maxParticipants: 10,
+          requiresApproval: false,
         }),
         now: midJune,
       })

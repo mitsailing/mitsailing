@@ -16,6 +16,7 @@ export type PublicEventReservationState =
 
 function publicEventIsAtAcceptedCapacity(event: PublicEventDetail): boolean {
   return (
+    !event.requiresApproval &&
     event.maxParticipants !== null &&
     event.approvedRegistrationCount >= event.maxParticipants
   );
@@ -24,8 +25,8 @@ function publicEventIsAtAcceptedCapacity(event: PublicEventDetail): boolean {
 /**
  * Resolves public registration state in priority order: external event detail,
  * existing approved or pending registration, registration window, registration
- * end, accepted capacity (approved count only — pending does not consume
- * capacity), then available fallback.
+ * end, accepted capacity for auto-approved events (approved count only; pending
+ * does not consume capacity), then available fallback.
  *
  * @param options - Current registration, event detail, and comparison time
  * @returns Public reservation state for rendering and action guards
