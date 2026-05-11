@@ -3,12 +3,17 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProfilePasswordClient } from './ProfilePasswordClient';
 
+type ProfilePasswordSession = {
+  data: { user: { id: string } } | null;
+  refetch: () => Promise<void>;
+};
+
 const authClientMock = vi.hoisted(() => {
   const refetchSession = vi.fn(async () => {});
   return {
     changePassword: vi.fn(),
     refetchSession,
-    useSession: vi.fn(() => ({
+    useSession: vi.fn<() => ProfilePasswordSession>(() => ({
       data: { user: { id: 'user_123' } },
       refetch: refetchSession,
     })),
@@ -28,6 +33,11 @@ vi.mock('@sentry/nextjs', () => sentryMock);
 beforeEach(() => {
   vi.clearAllMocks();
   authClientMock.changePassword.mockResolvedValue({});
+  authClientMock.refetchSession.mockImplementation(async () => {});
+  authClientMock.useSession.mockReturnValue({
+    data: { user: { id: 'user_123' } },
+    refetch: authClientMock.refetchSession,
+  });
 });
 
 async function fillPasswordForm(props: {
@@ -97,6 +107,30 @@ describe('ProfilePasswordClient', () => {
         }),
       })
     );
+  });
+
+  it('reports refetch failure without session user', async () => {
+    const error = new Error('refetch failed');
+    authClientMock.useSession.mockReturnValue({
+      data: null,
+      refetch: authClientMock.refetchSession,
+    });
+    authClientMock.refetchSession.mockRejectedValueOnce(error);
+    render(<ProfilePasswordClient />);
+
+    const user = await fillPasswordForm({
+      currentPassword: 'current-password',
+      newPassword: 'new-password',
+    });
+    await user.click(screen.getByRole('button', { name: 'Update password' }));
+
+    expect(await screen.findByText('Your password was updated.')).toBeVisible();
+    expect(sentryMock.captureException).toHaveBeenCalledWith(error, {
+      extra: {
+        action: 'refetchSession after password change',
+        userId: undefined,
+      },
+    });
   });
 
   it('profile owner sees a mismatch before password submission', async () => {
