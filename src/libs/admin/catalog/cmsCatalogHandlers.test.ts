@@ -691,7 +691,8 @@ describe('cmsMenuItemsCatalogHandlers', () => {
       ).resolves.toEqual({ ok: true });
 
       expect(mocks.prismaTransaction).toHaveBeenCalledWith(
-        expect.any(Function)
+        expect.any(Function),
+        { isolationLevel: 'Serializable' }
       );
       expect(mocks.cmsMenuItemUpdate).toHaveBeenNthCalledWith(1, {
         data: { displayOrder: 0 },

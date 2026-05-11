@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { Prisma } from '@/generated/prisma/client';
 
 const mocks = vi.hoisted(() => ({
   fleetBoatFindUnique: vi.fn(),
@@ -36,6 +37,7 @@ const {
   getAdminCatalogRevisionCompare,
   listAdminCatalogRevisions,
   recordCatalogRevision,
+  recordCatalogRevisionIfChanged,
   restoreCatalogRevision,
 } = await import('@/libs/mit-sailing/catalogHistory');
 
@@ -81,7 +83,7 @@ function fleetSnapshot(props?: { capacity?: number; name?: string }) {
     resource: 'fleet',
     slug: 'tech-dinghy',
     type: 'Dinghy',
-  };
+  } satisfies Prisma.InputJsonObject;
 }
 
 function sailingClassSnapshot(props?: { name?: string }) {
@@ -157,6 +159,44 @@ describe('listAdminCatalogRevisions', () => {
       },
     ]);
   });
+
+  it('summarizes oldest update revision against empty baseline when no prior audit', async () => {
+    mocks.userAuditFindMany.mockResolvedValue([
+      {
+        action: 'update',
+        auditedChanges: fleetSnapshot({ capacity: 4 }),
+        createdAt: new Date('2026-05-10T12:00:00.000Z'),
+        id: 'audit-1',
+        user: null,
+        version: 2,
+      },
+      {
+        action: 'update',
+        auditedChanges: fleetSnapshot({ capacity: 2 }),
+        createdAt: new Date('2026-05-10T11:00:00.000Z'),
+        id: 'audit-0',
+        user: null,
+        version: 1,
+      },
+    ]);
+
+    const rows = await listAdminCatalogRevisions({
+      itemId: 'boat-1',
+      resourceId: 'fleet',
+    });
+
+    expect(rows).toHaveLength(2);
+    const [, oldest] = rows;
+    if (oldest === undefined) {
+      throw new Error('expected second row');
+    }
+    expect(oldest.version).toBe(1);
+    const oldestSummary = oldest.summary;
+    expect(oldestSummary.kind).toBe('changes');
+    if (oldestSummary.kind === 'changes') {
+      expect(oldestSummary.changes.length).toBeGreaterThan(0);
+    }
+  });
 });
 
 describe('getAdminCatalogRevisionCompare', () => {
@@ -215,6 +255,115 @@ describe('getAdminCatalogRevisionCompare', () => {
   });
 });
 
+describe('recordCatalogRevisionIfChanged', () => {
+  it('skips audit row when previousSnapshot is null but row matches latest audit', async () => {
+    mocks.fleetBoatFindUnique.mockResolvedValue({
+      ...fleetSnapshot(),
+      requiredClass: { name: 'Intro Sailing 101' },
+      requiredClassId: 'class-1',
+    });
+    mocks.userAuditFindFirst.mockResolvedValue({
+      auditedChanges: fleetSnapshot(),
+      version: 1,
+    });
+    const tx = {
+      fleetBoat: { findUnique: mocks.fleetBoatFindUnique },
+      sailingClass: { findUnique: mocks.sailingClassFindUnique },
+      userAudit: {
+        create: mocks.userAuditCreate,
+        findFirst: mocks.userAuditFindFirst,
+      },
+    };
+
+    await recordCatalogRevisionIfChanged({
+      action: 'update',
+      itemId: 'boat-1',
+      previousSnapshot: null,
+      resourceId: 'fleet',
+      tx,
+    });
+
+    expect(mocks.userAuditCreate).not.toHaveBeenCalled();
+  });
+
+  it('skips audit row when previousSnapshot matches row after update', async () => {
+    mocks.fleetBoatFindUnique.mockResolvedValue({
+      ...fleetSnapshot(),
+      requiredClass: { name: 'Intro Sailing 101' },
+      requiredClassId: 'class-1',
+    });
+    const tx = {
+      fleetBoat: { findUnique: mocks.fleetBoatFindUnique },
+      sailingClass: { findUnique: mocks.sailingClassFindUnique },
+      userAudit: {
+        create: mocks.userAuditCreate,
+        findFirst: mocks.userAuditFindFirst,
+      },
+    };
+
+    await recordCatalogRevisionIfChanged({
+      action: 'update',
+      itemId: 'boat-1',
+      previousSnapshot: fleetSnapshot(),
+      resourceId: 'fleet',
+      tx,
+    });
+
+    expect(mocks.userAuditCreate).not.toHaveBeenCalled();
+    expect(mocks.userAuditFindFirst).not.toHaveBeenCalled();
+  });
+
+  it('writes audit when previousSnapshot is null and no prior audit exists', async () => {
+    mocks.fleetBoatFindUnique.mockResolvedValue({
+      ...fleetSnapshot(),
+      requiredClass: { name: 'Intro Sailing 101' },
+      requiredClassId: 'class-1',
+    });
+    mocks.userAuditFindFirst.mockResolvedValue(null);
+    mocks.userAuditCreate.mockResolvedValue({ id: 'audit-1' });
+    const tx = {
+      fleetBoat: { findUnique: mocks.fleetBoatFindUnique },
+      sailingClass: { findUnique: mocks.sailingClassFindUnique },
+      userAudit: {
+        create: mocks.userAuditCreate,
+        findFirst: mocks.userAuditFindFirst,
+      },
+    };
+
+    await recordCatalogRevisionIfChanged({
+      action: 'update',
+      itemId: 'boat-1',
+      previousSnapshot: null,
+      resourceId: 'fleet',
+      tx,
+    });
+
+    expect(mocks.userAuditCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it('loads snapshot and compares in one transaction when tx omitted', async () => {
+    mocks.fleetBoatFindUnique.mockResolvedValue({
+      ...fleetSnapshot(),
+      requiredClass: { name: 'Intro Sailing 101' },
+      requiredClassId: 'class-1',
+    });
+    mocks.userAuditFindFirst.mockResolvedValue({
+      auditedChanges: fleetSnapshot(),
+      version: 1,
+    });
+
+    await recordCatalogRevisionIfChanged({
+      action: 'update',
+      itemId: 'boat-1',
+      previousSnapshot: null,
+      resourceId: 'fleet',
+    });
+
+    expect(mocks.prismaTransaction).toHaveBeenCalledTimes(1);
+    expect(mocks.userAuditCreate).not.toHaveBeenCalled();
+  });
+});
+
 describe('recordCatalogRevision', () => {
   it('uses the provided transaction client', async () => {
     mocks.fleetBoatFindUnique.mockResolvedValue({
@@ -253,6 +402,26 @@ describe('recordCatalogRevision', () => {
         version: 1,
       }),
     });
+  });
+
+  it('loads snapshot and writes audit in one serializable transaction when tx omitted', async () => {
+    mocks.fleetBoatFindUnique.mockResolvedValue({
+      ...fleetSnapshot(),
+      requiredClass: { name: 'Intro Sailing 101' },
+      requiredClassId: 'class-1',
+    });
+    mocks.userAuditFindFirst.mockResolvedValue(null);
+    mocks.userAuditCreate.mockResolvedValue({ id: 'audit-1' });
+
+    await recordCatalogRevision({
+      action: 'create',
+      itemId: 'boat-1',
+      resourceId: 'fleet',
+    });
+
+    expect(mocks.prismaTransaction).toHaveBeenCalledTimes(1);
+    expect(mocks.fleetBoatFindUnique).toHaveBeenCalledTimes(1);
+    expect(mocks.userAuditCreate).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -359,5 +528,25 @@ describe('restoreCatalogRevision', () => {
         version: 3,
       }),
     });
+  });
+
+  it('maps prisma P2025 during restore transaction to not_found', async () => {
+    mocks.userAuditFindFirst.mockResolvedValueOnce({
+      auditedChanges: fleetSnapshot(),
+    });
+    mocks.prismaTransaction.mockRejectedValueOnce(
+      new Prisma.PrismaClientKnownRequestError('Record to update not found.', {
+        clientVersion: 'test',
+        code: 'P2025',
+      })
+    );
+
+    await expect(
+      restoreCatalogRevision({
+        itemId: 'boat-1',
+        resourceId: 'fleet',
+        revisionId: 'audit-1',
+      })
+    ).resolves.toEqual({ ok: false, code: 'not_found' });
   });
 });

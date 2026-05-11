@@ -113,7 +113,8 @@ function escapeHtmlText(raw: string): string {
 }
 
 export function normalizeLegacyPlainTextToCmsRichTextHtml(raw: string): string {
-  const trimmed = raw.trim();
+  const normalized = raw.replaceAll(/\r\n?/gu, '\n');
+  const trimmed = normalized.trim();
   if (!trimmed) {
     return '';
   }

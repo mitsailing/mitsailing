@@ -162,6 +162,23 @@ docker run --rm \
   alpine sh -c 'cd /media && tar xzf "/backup/${BACKUP_FILE}"'
 ```
 
+That restore **overlays** the tarball onto whatever is already in the volume:
+paths in the archive replace same-path objects, but files that exist only under
+`/media` and not in the backup are **not** removed, so stale assets can remain.
+Use overlay restores when you intentionally merge or patch content.
+
+For a **point-in-time** restore that matches the backup only (no leftover
+paths), stop the app and worker, then clear `/media` before extraction—for
+example:
+
+```bash
+docker run --rm \
+  -v mitsailing_cms_media:/media \
+  -v "$PWD":/backup \
+  -e BACKUP_FILE="$backup_file" \
+  alpine sh -c 'find /media -mindepth 1 -delete && tar xzf "/backup/${BACKUP_FILE}" -C /media'
+```
+
 Do **not** use `docker compose down -v` on the production stack unless you have
 a current, verified media backup and intend to delete all uploaded CMS media.
 

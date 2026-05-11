@@ -28,6 +28,8 @@ describe('cmsHref', () => {
     expect(safeCmsHref('/\\example.com')).toBeNull();
     expect(safeCmsHref('/classes/../admin')).toBeNull();
     expect(safeCmsHref('/classes/%2e%2e/admin')).toBeNull();
+    expect(safeCmsHref('/classes/%2e%2e%2fadmin')).toBeNull();
+    expect(safeCmsHref('/foo/%00/bar')).toBeNull();
     expect(safeCmsHref('relative/path')).toBeNull();
   });
 

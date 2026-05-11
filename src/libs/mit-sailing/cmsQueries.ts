@@ -1,6 +1,7 @@
 import 'server-only';
 import { cache } from 'react';
 import { prisma } from '@/libs/DB';
+import { logger } from '@/libs/Logger';
 import { safeCmsMenuItemHref } from '@/libs/mit-sailing/cmsHref';
 
 export type CmsMenuLocation =
@@ -117,7 +118,10 @@ function mapCmsMenuTree(rows: CmsMenuItemRow[]): PublicCmsMenuItem[] {
       if (parent) {
         parent.children.push(node);
       } else {
-        root.push(node);
+        logger.warn('CMS menu item omitted: parent not in menu result', {
+          nodeId: row.id,
+          parentId: row.parentId,
+        });
       }
       continue;
     }
@@ -162,6 +166,7 @@ export async function loadCmsMenu(
 
 /**
  * Loads a published CMS page with visible blocks directly from Prisma for SSR.
+ * Block `ctaUrl` values use {@link safeCmsMenuItemHref} (same as public menus).
  *
  * @param path - Public path, including leading slash
  * @returns Page DTO or null when unpublished/missing
@@ -213,7 +218,7 @@ async function loadPublishedCmsPageByPathUnchecked(
       subtitle: block.subtitle ?? undefined,
       body: block.body ?? undefined,
       ctaLabel: block.ctaLabel ?? undefined,
-      ctaUrl: block.ctaUrl ?? undefined,
+      ctaUrl: safeCmsMenuItemHref(block.ctaUrl?.trim()) ?? undefined,
       imageSrc: block.imageSrc ?? undefined,
       imageAlt: block.imageAlt ?? undefined,
     })),

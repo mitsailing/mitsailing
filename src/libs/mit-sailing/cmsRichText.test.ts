@@ -119,4 +119,10 @@ describe('normalizeLegacyPlainTextToCmsRichTextHtml', () => {
       '<p>5 &lt; 7</p>'
     );
   });
+
+  it('normalizes crlf before splitting paragraphs and single line breaks', () => {
+    expect(
+      normalizeLegacyPlainTextToCmsRichTextHtml('line1\r\n\r\nline2\r\nline3')
+    ).toBe('<p>line1</p><p>line2<br />line3</p>');
+  });
 });

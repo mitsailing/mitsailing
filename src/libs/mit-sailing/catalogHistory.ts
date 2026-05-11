@@ -1,5 +1,5 @@
 import 'server-only';
-import type { Prisma } from '@/generated/prisma/client';
+import { Prisma } from '@/generated/prisma/client';
 import type { CatalogResourceId } from '@/libs/admin/catalog/catalogDefinitions';
 import type { CatalogMutationContext } from '@/libs/admin/catalog/types';
 import { prisma } from '@/libs/DB';
@@ -596,6 +596,23 @@ export async function loadCatalogRevisionSnapshot(props: {
     : null;
 }
 
+async function latestAuditedChangesJson(props: {
+  itemId: string;
+  resourceId: CatalogHistoryResourceId;
+  tx?: CatalogHistoryPrisma;
+}): Promise<unknown> {
+  const db = props.tx ?? prisma;
+  const row = await db.userAudit.findFirst({
+    orderBy: [{ version: 'desc' }, { createdAt: 'desc' }],
+    select: { auditedChanges: true },
+    where: {
+      auditableId: props.itemId,
+      auditableType: props.resourceId,
+    },
+  });
+  return row?.auditedChanges ?? null;
+}
+
 async function writeCatalogRevisionFromSnapshot(props: {
   action: CatalogRevisionAction;
   itemId: string;
@@ -616,6 +633,9 @@ async function writeCatalogRevisionFromSnapshot(props: {
     latestRevision?.auditedChanges
   );
   const nextSnapshot = catalogAuditSnapshotFromUnknown(props.snapshot);
+  if (props.action === 'update' && !nextSnapshot) {
+    return;
+  }
   if (
     props.action === 'update' &&
     latestSnapshot &&
@@ -663,6 +683,15 @@ export async function recordCatalogRevision(props: {
   context?: CatalogMutationContext;
   tx?: CatalogHistoryPrisma;
 }): Promise<void> {
+  if (!props.tx) {
+    await prisma.$transaction(
+      async (tx) => {
+        await recordCatalogRevision({ ...props, tx });
+      },
+      { isolationLevel: 'Serializable' }
+    );
+    return;
+  }
   const snapshot = await loadCatalogRevisionSnapshot({
     itemId: props.itemId,
     resourceId: props.resourceId,
@@ -689,6 +718,15 @@ export async function recordCatalogRevisionIfChanged(props: {
   context?: CatalogMutationContext;
   tx?: CatalogHistoryPrisma;
 }): Promise<void> {
+  if (!props.tx) {
+    await prisma.$transaction(
+      async (tx) => {
+        await recordCatalogRevisionIfChanged({ ...props, tx });
+      },
+      { isolationLevel: 'Serializable' }
+    );
+    return;
+  }
   const snapshot = await loadCatalogRevisionSnapshot({
     itemId: props.itemId,
     resourceId: props.resourceId,
@@ -697,9 +735,16 @@ export async function recordCatalogRevisionIfChanged(props: {
   if (!snapshot) {
     return;
   }
+  const baselineJson =
+    props.previousSnapshot ??
+    (await latestAuditedChangesJson({
+      itemId: props.itemId,
+      resourceId: props.resourceId,
+      tx: props.tx,
+    }));
   if (
-    props.previousSnapshot &&
-    catalogAuditSnapshotsHaveSameContent(props.previousSnapshot, snapshot)
+    baselineJson &&
+    catalogAuditSnapshotsHaveSameContent(baselineJson, snapshot)
   ) {
     return;
   }
@@ -746,7 +791,11 @@ export async function listAdminCatalogRevisions(props: {
     preview: catalogRevisionPreview(entry.revision.auditedChanges),
     summary: catalogRevisionSummary({
       action: entry.revision.action,
-      previousSnapshot: revisionSnapshots[index + 1]?.snapshot ?? null,
+      previousSnapshot:
+        revisionSnapshots[index + 1]?.snapshot ??
+        (entry.snapshot
+          ? emptyCatalogAuditSnapshotForCompare(entry.snapshot)
+          : null),
       snapshot: entry.snapshot,
     }),
     version: entry.revision.version,
@@ -848,70 +897,80 @@ export async function restoreCatalogRevision(props: {
     return { ok: false, code: 'invalid_snapshot' };
   }
 
-  await prisma.$transaction(
-    async (tx) => {
-      if (
-        props.resourceId === 'sailing_classes' &&
-        snapshot.resource === 'sailing_classes'
-      ) {
-        await tx.sailingClass.update({
-          data: {
-            classCategoryId: snapshot.classCategoryId,
-            description: snapshot.description,
-            imagePaths: snapshot.imagePaths,
-            isVisible: snapshot.isVisible,
-            level: snapshot.level,
-            name: snapshot.name,
-            slug: snapshot.slug,
-          },
-          where: { id: props.itemId },
-        });
-      } else if (
-        props.resourceId === 'fleet' &&
-        snapshot.resource === 'fleet'
-      ) {
-        await tx.fleetBoat.update({
-          data: {
-            capacity: snapshot.capacity,
-            description: snapshot.description,
-            imagePath: snapshot.imagePath,
-            name: snapshot.name,
-            requiredClassId: snapshot.requiredClassId,
-            slug: snapshot.slug,
-            type: snapshot.type,
-          },
-          where: { id: props.itemId },
-        });
-      }
+  try {
+    await prisma.$transaction(
+      async (tx) => {
+        if (
+          props.resourceId === 'sailing_classes' &&
+          snapshot.resource === 'sailing_classes'
+        ) {
+          await tx.sailingClass.update({
+            data: {
+              classCategoryId: snapshot.classCategoryId,
+              description: snapshot.description,
+              imagePaths: snapshot.imagePaths,
+              isVisible: snapshot.isVisible,
+              level: snapshot.level,
+              name: snapshot.name,
+              slug: snapshot.slug,
+            },
+            where: { id: props.itemId },
+          });
+        } else if (
+          props.resourceId === 'fleet' &&
+          snapshot.resource === 'fleet'
+        ) {
+          await tx.fleetBoat.update({
+            data: {
+              capacity: snapshot.capacity,
+              description: snapshot.description,
+              imagePath: snapshot.imagePath,
+              name: snapshot.name,
+              requiredClassId: snapshot.requiredClassId,
+              slug: snapshot.slug,
+              type: snapshot.type,
+            },
+            where: { id: props.itemId },
+          });
+        }
 
-      const latestRevision = await tx.userAudit.findFirst({
-        orderBy: [{ version: 'desc' }, { createdAt: 'desc' }],
-        select: { version: true },
-        where: {
-          auditableId: props.itemId,
-          auditableType: props.resourceId,
-        },
-      });
-      const restoredSnapshot = await loadCatalogRevisionSnapshot({
-        itemId: props.itemId,
-        resourceId: props.resourceId,
-        tx,
-      });
-      if (!restoredSnapshot) {
-        throw new Error('catalog restore: current snapshot missing');
-      }
-      await tx.userAudit.create({
-        data: {
-          action: 'restore',
-          auditableId: props.itemId,
-          auditableType: props.resourceId,
-          auditedChanges: restoredSnapshot,
-          ...auditUserData(props.context),
-          version: (latestRevision?.version ?? 0) + 1,
-        },
-      });
-    },
-    { isolationLevel: 'Serializable' }
-  );
+        const latestRevision = await tx.userAudit.findFirst({
+          orderBy: [{ version: 'desc' }, { createdAt: 'desc' }],
+          select: { version: true },
+          where: {
+            auditableId: props.itemId,
+            auditableType: props.resourceId,
+          },
+        });
+        const restoredSnapshot = await loadCatalogRevisionSnapshot({
+          itemId: props.itemId,
+          resourceId: props.resourceId,
+          tx,
+        });
+        if (!restoredSnapshot) {
+          throw new Error('catalog restore: current snapshot missing');
+        }
+        await tx.userAudit.create({
+          data: {
+            action: 'restore',
+            auditableId: props.itemId,
+            auditableType: props.resourceId,
+            auditedChanges: restoredSnapshot,
+            ...auditUserData(props.context),
+            version: (latestRevision?.version ?? 0) + 1,
+          },
+        });
+      },
+      { isolationLevel: 'Serializable' }
+    );
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2025'
+    ) {
+      return { ok: false, code: 'not_found' };
+    }
+    throw error;
+  }
   return { ok: true, slug: snapshot.slug };
 }

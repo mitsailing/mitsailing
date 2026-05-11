@@ -35,11 +35,17 @@ function cmsHrefHasAsciiControlOrDelete(href: string): boolean {
 
 function hasUnsafeCmsPathSegment(pathname: string): boolean {
   return pathname.split('/').some((segment) => {
-    if (segment === '.' || segment === '..') {
+    const decoded = decodedPathSegment(segment);
+    if (decoded === null) {
       return true;
     }
-    const decoded = decodedPathSegment(segment);
-    return decoded === null || decoded === '.' || decoded === '..';
+    if (decoded === '.' || decoded === '..') {
+      return true;
+    }
+    if (decoded.includes('/') || decoded.includes('\\')) {
+      return true;
+    }
+    return cmsHrefHasAsciiControlOrDelete(decoded);
   });
 }
 

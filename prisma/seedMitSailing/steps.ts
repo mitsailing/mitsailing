@@ -567,7 +567,7 @@ async function seedCmsMenuItem(
   item: CmsSeedMenuItem
 ): Promise<void> {
   const linkedPageId = item.kind === 'page_link' ? item.linkedPageId : null;
-  const url = item.kind === 'url_link' ? item.url : null;
+  const url = item.kind === 'url_link' ? (item.url ?? null) : null;
   const isExternal = item.kind === 'url_link' ? item.isExternal : false;
 
   await p.cmsMenuItem.upsert({
