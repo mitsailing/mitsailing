@@ -658,89 +658,6 @@ function cmsPageRevisionSnapshotBlocksSortedForCompare(
   });
 }
 
-function cmsPageRevisionSnapshotPageEqual(
-  a: CmsPageRevisionSnapshotPage,
-  b: CmsPageRevisionSnapshotPage
-): boolean {
-  return (
-    a.id === b.id &&
-    a.slug === b.slug &&
-    a.path === b.path &&
-    a.title === b.title &&
-    a.metaTitle === b.metaTitle &&
-    a.metaDescription === b.metaDescription &&
-    a.isPublished === b.isPublished
-  );
-}
-
-function cmsPageRevisionSnapshotBlockEqual(
-  left: CmsPageRevisionSnapshotBlock,
-  right: CmsPageRevisionSnapshotBlock
-): boolean {
-  return (
-    left.id === right.id &&
-    left.kind === right.kind &&
-    left.title === right.title &&
-    left.subtitle === right.subtitle &&
-    left.body === right.body &&
-    left.ctaLabel === right.ctaLabel &&
-    left.ctaUrl === right.ctaUrl &&
-    left.imageSrc === right.imageSrc &&
-    left.imageAlt === right.imageAlt &&
-    left.displayOrder === right.displayOrder &&
-    left.isVisible === right.isVisible
-  );
-}
-
-/**
- * Compares snapshots field-for-field including raw HTML bodies; ignores block JSON order.
- *
- * Used when deduping audit rows (`recordCmsPageRevisionFromSnapshotInTx`) or skipping
- * restore work. Rich-text normalization applies only to the admin diff viewer.
- *
- * @param a First revision snapshot.
- * @param b Second revision snapshot.
- * @returns Whether `a` and `b` describe the same content.
- */
-export function cmsPageRevisionSnapshotsEqual(
-  a: CmsPageRevisionSnapshot,
-  b: CmsPageRevisionSnapshot
-): boolean {
-  if (!cmsPageRevisionSnapshotPageEqual(a.page, b.page)) {
-    return false;
-  }
-  const blocksA = cmsPageRevisionSnapshotBlocksSortedForCompare(a.blocks);
-  const blocksB = cmsPageRevisionSnapshotBlocksSortedForCompare(b.blocks);
-  if (blocksA.length !== blocksB.length) {
-    return false;
-  }
-  for (let index = 0; index < blocksA.length; index += 1) {
-    const left = blocksA[index];
-    const right = blocksB[index];
-    if (
-      left === undefined ||
-      right === undefined ||
-      !cmsPageRevisionSnapshotBlockEqual(left, right)
-    ) {
-      return false;
-    }
-  }
-  return true;
-}
-
-function cmsPageRevisionSnapshotsHaveSameContent(
-  a: unknown,
-  b: unknown
-): boolean {
-  const aSnapshot = cmsPageRevisionSnapshotFromUnknown(a);
-  const bSnapshot = cmsPageRevisionSnapshotFromUnknown(b);
-  return Boolean(
-    aSnapshot &&
-    bSnapshot &&
-    cmsPageRevisionSnapshotsEqual(aSnapshot, bSnapshot)
-  );
-}
-
 function cmsPageRevisionSnapshot(
   row: CmsPageHistoryRow
 ): Prisma.InputJsonObject {
@@ -801,6 +718,57 @@ function cmsPageRevisionSnapshotJson(
       isVisible: block.isVisible,
     })),
   };
+}
+
+/**
+ * Revision JSON used for equality: same projection as `cmsPageRevisionSnapshotJson`, with
+ * blocks sorted so differing array order does not change the outcome (raw `JSON.stringify`
+ * would otherwise treat reorder as a change).
+ *
+ * @param snapshot Parsed CMS page snapshot.
+ * @returns Serializable payload comparable with `JSON.stringify`.
+ */
+function cmsPageRevisionSnapshotCanonicalJson(
+  snapshot: CmsPageRevisionSnapshot
+): Prisma.InputJsonObject {
+  return cmsPageRevisionSnapshotJson({
+    ...snapshot,
+    blocks: cmsPageRevisionSnapshotBlocksSortedForCompare(snapshot.blocks),
+  });
+}
+
+/**
+ * Compares snapshots by canonical revision JSON (full-fidelity `body` HTML and fields
+ * stored on revisions), not the admin plain-text diff. Block list order is ignored.
+ *
+ * Used when deduping audit rows (`recordCmsPageRevisionFromSnapshotInTx`) or skipping
+ * restore work.
+ *
+ * @param a First revision snapshot.
+ * @param b Second revision snapshot.
+ * @returns Whether `a` and `b` describe the same content.
+ */
+export function cmsPageRevisionSnapshotsEqual(
+  a: CmsPageRevisionSnapshot,
+  b: CmsPageRevisionSnapshot
+): boolean {
+  return (
+    JSON.stringify(cmsPageRevisionSnapshotCanonicalJson(a)) ===
+    JSON.stringify(cmsPageRevisionSnapshotCanonicalJson(b))
+  );
+}
+
+function cmsPageRevisionSnapshotsHaveSameContent(
+  a: unknown,
+  b: unknown
+): boolean {
+  const aSnapshot = cmsPageRevisionSnapshotFromUnknown(a);
+  const bSnapshot = cmsPageRevisionSnapshotFromUnknown(b);
+  return Boolean(
+    aSnapshot &&
+    bSnapshot &&
+    cmsPageRevisionSnapshotsEqual(aSnapshot, bSnapshot)
+  );
 }
 
 export async function loadCmsPageRevisionSnapshot(
