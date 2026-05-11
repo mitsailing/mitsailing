@@ -21,9 +21,10 @@ export default async function AdminEventNewPage(props: PageProps) {
   const { locale } = await props.params;
   const { error: errorCode } = await props.searchParams;
   setRequestLocale(locale);
-  const [categories, t] = await Promise.all([
+  const [categories, t, tCommon] = await Promise.all([
     listAdminEventCategories(),
     getTranslations({ locale, namespace: 'AdminEvents' }),
+    getTranslations({ locale, namespace: 'Common' }),
   ]);
   return (
     <AdminEventCreateFormView
@@ -31,6 +32,7 @@ export default async function AdminEventNewPage(props: PageProps) {
       errorCode={errorCode ?? null}
       locale={locale}
       t={t}
+      tCommon={tCommon}
     />
   );
 }

@@ -17,8 +17,23 @@ describe('AdminEventField', () => {
     const input = screen.getByLabelText('Event name');
     const hint = screen.getByText('Shown to screen readers on focus.');
 
-    expect(hint).toHaveAttribute('id', 'event-name-hint');
-    expect(input).toHaveAttribute('aria-describedby', 'event-name-hint');
+    expect(hint.id).toBeTruthy();
+    expect(input).toHaveAttribute('aria-describedby', hint.id);
+  });
+
+  it('merges aria-describedby when the control is a React element', () => {
+    render(
+      <AdminEventField hint="Extra guidance." htmlFor="event-slug" label="Slug">
+        <input aria-describedby="prior-help" id="event-slug" />
+      </AdminEventField>
+    );
+
+    const input = screen.getByLabelText('Slug');
+    const hint = screen.getByText('Extra guidance.');
+
+    expect(input.getAttribute('aria-describedby')).toBe(
+      `prior-help ${hint.id}`
+    );
   });
 
   it('passes undefined descriptions without a hint', () => {

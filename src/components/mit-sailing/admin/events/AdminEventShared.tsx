@@ -1,5 +1,6 @@
 import type { getTranslations } from 'next-intl/server';
 import * as React from 'react';
+import { useId } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -89,6 +90,38 @@ type AdminEventFieldChildren =
   | React.ReactNode
   | ((controlProps: AdminEventFieldControlProps) => React.ReactNode);
 
+/**
+ * Merges prior `aria-describedby` tokens with a hint id; order kept, ids deduped.
+ *
+ * @param existing - Prior id reference list from the control, if any
+ * @param hintId - Hint paragraph id when this field shows hint copy
+ * @returns Combined space-separated ids, or undefined when none apply
+ */
+function mergeAriaDescribedBy(
+  existing: string | undefined | null,
+  hintId: string | undefined
+): string | undefined {
+  const existingTokens =
+    typeof existing === 'string'
+      ? existing.trim().split(/\s+/).filter(Boolean)
+      : [];
+
+  if (!hintId) {
+    return existingTokens.length > 0 ? existingTokens.join(' ') : undefined;
+  }
+
+  const tokens = [...existingTokens, hintId];
+  const seen = new Set<string>();
+  const unique = tokens.filter((id) => {
+    if (seen.has(id)) {
+      return false;
+    }
+    seen.add(id);
+    return true;
+  });
+  return unique.join(' ');
+}
+
 export function AdminEventField(props: {
   children: AdminEventFieldChildren;
   label: React.ReactNode;
@@ -96,19 +129,40 @@ export function AdminEventField(props: {
   hint?: React.ReactNode;
   className?: string;
 }) {
-  const hintId =
-    props.hint && props.htmlFor ? `${props.htmlFor}-hint` : undefined;
+  const hintId = useId();
+  const resolvedHintId = props.hint ? hintId : undefined;
+
+  const controlProps: AdminEventFieldControlProps = {
+    'aria-describedby': mergeAriaDescribedBy(undefined, resolvedHintId),
+  };
+
+  let control: React.ReactNode;
+  if (typeof props.children === 'function') {
+    control = props.children(controlProps);
+  } else if (
+    React.isValidElement<{ 'aria-describedby'?: string }>(props.children) &&
+    props.children.type !== React.Fragment
+  ) {
+    const priorDescribedBy = props.children.props['aria-describedby'];
+    // eslint-disable-next-line react/no-clone-element -- Merge hint id into element children for `aria-describedby` without requiring a render-prop control.
+    control = React.cloneElement(props.children, {
+      'aria-describedby': mergeAriaDescribedBy(
+        priorDescribedBy,
+        resolvedHintId
+      ),
+    });
+  } else {
+    control = props.children;
+  }
 
   return (
     <div className={cn('flex flex-col gap-1.5', props.className)}>
       <Label className="text-foreground" htmlFor={props.htmlFor}>
         {props.label}
       </Label>
-      {typeof props.children === 'function'
-        ? props.children({ 'aria-describedby': hintId })
-        : props.children}
+      {control}
       {props.hint ? (
-        <p className="text-xs text-mit-readable-ink" id={hintId}>
+        <p className="text-xs text-mit-readable-ink" id={resolvedHintId}>
           {props.hint}
         </p>
       ) : null}

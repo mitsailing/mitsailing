@@ -8,8 +8,8 @@ import {
   AdminEventFormSection,
   adminEventFormErrorMessage,
 } from '@/components/mit-sailing/admin/events/AdminEventShared';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { SubmitButton } from '@/components/ui/submit-button';
 import { Textarea } from '@/components/ui/textarea';
 import { EventDetailPageKind } from '@/generated/prisma/enums';
 import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
@@ -21,11 +21,16 @@ type AdminEventCreateTranslations = Awaited<
   ReturnType<typeof getTranslations<'AdminEvents'>>
 >;
 
+type AdminEventCreateCommonTranslations = Awaited<
+  ReturnType<typeof getTranslations<'Common'>>
+>;
+
 type AdminEventCreateFormViewProps = {
   categories: AdminEventCategoryOption[];
   errorCode: string | null;
   locale: string;
   t: AdminEventCreateTranslations;
+  tCommon: AdminEventCreateCommonTranslations;
 };
 
 function AdminEventCreateErrorAlert(props: {
@@ -295,10 +300,14 @@ export function AdminEventCreateFormView(props: AdminEventCreateFormViewProps) {
         </AdminEventFormSection>
 
         <div className="flex justify-end gap-3">
-          <Button disabled={!hasCategories} type="submit" variant="mit">
+          <SubmitButton
+            disabled={!hasCategories}
+            pendingLabel={props.tCommon('pending_saving')}
+            variant="mit"
+          >
             <Save aria-hidden className="size-4" />
             {props.t('action_create_event')}
-          </Button>
+          </SubmitButton>
         </div>
       </form>
     </div>
