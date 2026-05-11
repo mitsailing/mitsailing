@@ -16,8 +16,11 @@ vi.mock('@/libs/DB', () => ({
   },
 }));
 
-const { getAdminCmsPageRevisionCompare, listAdminCmsPageRevisions } =
-  await import('@/libs/mit-sailing/cmsHistory');
+const {
+  cmsPageRevisionSnapshotsEqual,
+  getAdminCmsPageRevisionCompare,
+  listAdminCmsPageRevisions,
+} = await import('@/libs/mit-sailing/cmsHistory');
 
 beforeEach(() => {
   mocks.userAuditFindFirst.mockReset();
@@ -36,7 +39,7 @@ function cmsPageSnapshot(props?: { body?: string; metaDescription?: string }) {
         imageAlt: null,
         imageSrc: null,
         isVisible: true,
-        kind: 'text_section',
+        kind: 'text_section' as const,
         subtitle: null,
         title: 'Overview',
       },
@@ -146,7 +149,7 @@ describe('listAdminCmsPageRevisions', () => {
               imageAlt: null,
               imageSrc: null,
               isVisible: true,
-              kind: 'text_section',
+              kind: 'text_section' as const,
               subtitle: 'Section subtitle',
               title: 'Overview',
             },
@@ -175,6 +178,25 @@ describe('listAdminCmsPageRevisions', () => {
         }),
       }),
     ]);
+  });
+});
+
+describe('cmsPageRevisionSnapshotsEqual', () => {
+  it('returns false when body markup differs but plain text matches', () => {
+    const plain = cmsPageSnapshot({ body: '<p>Learn to sail.</p>' });
+    const emphasized = cmsPageSnapshot({
+      body: '<p><em>Learn to sail.</em></p>',
+    });
+    expect(cmsPageRevisionSnapshotsEqual(plain, emphasized)).toBe(false);
+  });
+
+  it('returns true when snapshots match exactly', () => {
+    const snapshot = cmsPageSnapshot({
+      body: '<p>Same <strong>markup</strong>.</p>',
+    });
+    expect(
+      cmsPageRevisionSnapshotsEqual(snapshot, structuredClone(snapshot))
+    ).toBe(true);
   });
 });
 

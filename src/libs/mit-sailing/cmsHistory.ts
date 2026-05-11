@@ -641,12 +641,91 @@ function cmsPageRevisionSummary(props: {
   };
 }
 
-function cmsPageRevisionSnapshotsEqual(
+/**
+ * Copies blocks into deterministic order (`displayOrder`, then id) for snapshots.
+ *
+ * @param blocks Blocks from one snapshot.
+ * @returns Sorted shallow copy without mutating the input.
+ */
+function cmsPageRevisionSnapshotBlocksSortedForCompare(
+  blocks: readonly CmsPageRevisionSnapshotBlock[]
+): CmsPageRevisionSnapshotBlock[] {
+  return [...blocks].toSorted((left, right) => {
+    if (left.displayOrder !== right.displayOrder) {
+      return left.displayOrder - right.displayOrder;
+    }
+    return left.id.localeCompare(right.id);
+  });
+}
+
+function cmsPageRevisionSnapshotPageEqual(
+  a: CmsPageRevisionSnapshotPage,
+  b: CmsPageRevisionSnapshotPage
+): boolean {
+  return (
+    a.id === b.id &&
+    a.slug === b.slug &&
+    a.path === b.path &&
+    a.title === b.title &&
+    a.metaTitle === b.metaTitle &&
+    a.metaDescription === b.metaDescription &&
+    a.isPublished === b.isPublished
+  );
+}
+
+function cmsPageRevisionSnapshotBlockEqual(
+  left: CmsPageRevisionSnapshotBlock,
+  right: CmsPageRevisionSnapshotBlock
+): boolean {
+  return (
+    left.id === right.id &&
+    left.kind === right.kind &&
+    left.title === right.title &&
+    left.subtitle === right.subtitle &&
+    left.body === right.body &&
+    left.ctaLabel === right.ctaLabel &&
+    left.ctaUrl === right.ctaUrl &&
+    left.imageSrc === right.imageSrc &&
+    left.imageAlt === right.imageAlt &&
+    left.displayOrder === right.displayOrder &&
+    left.isVisible === right.isVisible
+  );
+}
+
+/**
+ * Compares snapshots field-for-field including raw HTML bodies; ignores block JSON order.
+ *
+ * Used when deduping audit rows (`recordCmsPageRevisionFromSnapshotInTx`) or skipping
+ * restore work. Rich-text normalization applies only to the admin diff viewer.
+ *
+ * @param a First revision snapshot.
+ * @param b Second revision snapshot.
+ * @returns Whether `a` and `b` describe the same content.
+ */
+export function cmsPageRevisionSnapshotsEqual(
   a: CmsPageRevisionSnapshot,
   b: CmsPageRevisionSnapshot
 ): boolean {
-  const comparison = compareCmsPageRevisionSnapshots(a, b);
-  return comparison.changes.length === 0 && comparison.remainingCount === 0;
+  if (!cmsPageRevisionSnapshotPageEqual(a.page, b.page)) {
+    return false;
+  }
+  const blocksA = cmsPageRevisionSnapshotBlocksSortedForCompare(a.blocks);
+  const blocksB = cmsPageRevisionSnapshotBlocksSortedForCompare(b.blocks);
+  if (blocksA.length !== blocksB.length) {
+    return false;
+  }
+  for (let index = 0; index < blocksA.length; index += 1) {
+    const left = blocksA[index];
+    const right = blocksB[index];
+    if (
+      left === undefined ||
+      right === undefined ||
+      !cmsPageRevisionSnapshotBlockEqual(left, right)
+    ) {
+      return false;
+    }
+  }
+  return true;
 }
 
 function cmsPageRevisionSnapshotsHaveSameContent(

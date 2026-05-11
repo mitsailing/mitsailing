@@ -541,7 +541,10 @@ export async function MitSailingHomePageView(
                   </h3>
                   <div className="space-y-0">
                     {homeOverviewUpcomingDayGroups.length === 0 ? (
-                      <p className="text-[11px] leading-snug text-mit-text">
+                      <p
+                        className="text-[11px] leading-snug text-mit-text"
+                        role="status"
+                      >
                         {homeOverviewData.eventsEmptyText}
                       </p>
                     ) : (
