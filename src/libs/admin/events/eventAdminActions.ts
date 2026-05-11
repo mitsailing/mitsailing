@@ -6,7 +6,10 @@ import { revalidatePath, updateTag } from 'next/cache';
 import { redirect } from 'next/navigation';
 import type * as z from 'zod';
 import { Prisma } from '@/generated/prisma/client';
-import { EventAnswerType } from '@/generated/prisma/enums';
+import {
+  EventAnswerType,
+  EventRegistrationStatus,
+} from '@/generated/prisma/enums';
 import {
   adminEventDeletePath,
   adminEventEditPath,
@@ -38,6 +41,7 @@ import { getI18nPath } from '@/utils/Helpers';
 type EventAdminMutationCode =
   | 'validation_failed'
   | 'invalid_event_fee_amount'
+  | 'capacity_full'
   | 'not_found'
   | 'duplicate_slug'
   | 'foreign_key'
@@ -104,6 +108,16 @@ function editUrlWithError(
   code: EventAdminMutationCode
 ): string {
   return `${getI18nPath(adminEventEditPath(slug), locale)}?error=${encodeURIComponent(
+    code
+  )}`;
+}
+
+function registrationsUrlWithError(
+  locale: string,
+  slug: string,
+  code: EventAdminMutationCode
+): string {
+  return `${getI18nPath(adminEventRegistrationsPath(slug), locale)}?error=${encodeURIComponent(
     code
   )}`;
 }
@@ -666,19 +680,65 @@ export async function updateAdminEventRegistrationStatusAction(
     zodParse
   );
   if (!parsed.success) {
-    redirect(
-      `${getI18nPath(adminEventRegistrationsPath(slug), locale)}?error=${encodeURIComponent(
-        'validation_failed'
-      )}`
-    );
+    redirect(registrationsUrlWithError(locale, slug, 'validation_failed'));
   }
-  let updatedCount = 0;
+  let result: {
+    errorCode: EventAdminMutationCode | null;
+    updatedCount: number;
+  };
   try {
-    const result = await prisma.eventRegistration.updateMany({
-      where: { id: registrationId, event: { slug } },
-      data: { status: parsed.data.status },
-    });
-    updatedCount = result.count;
+    result = await prisma.$transaction(
+      async (tx) => {
+        const registration = await tx.eventRegistration.findFirst({
+          where: { id: registrationId, event: { slug } },
+          select: { eventId: true, status: true },
+        });
+        if (!registration) {
+          return { errorCode: null, updatedCount: 0 };
+        }
+
+        await tx.$queryRaw<{ id: string }[]>`
+          SELECT id
+          FROM events
+          WHERE id = ${registration.eventId}
+          FOR UPDATE
+        `;
+        const event = await tx.event.findUnique({
+          where: { id: registration.eventId },
+          select: { maxParticipants: true },
+        });
+        if (!event) {
+          return { errorCode: null, updatedCount: 0 };
+        }
+
+        if (
+          parsed.data.status === EventRegistrationStatus.approved &&
+          registration.status !== EventRegistrationStatus.approved &&
+          event.maxParticipants !== null
+        ) {
+          const approvedCount = await tx.eventRegistration.count({
+            where: {
+              eventId: registration.eventId,
+              id: { not: registrationId },
+              status: EventRegistrationStatus.approved,
+            },
+          });
+          if (approvedCount >= event.maxParticipants) {
+            return { errorCode: 'capacity_full', updatedCount: 0 };
+          }
+        }
+
+        const updateResult = await tx.eventRegistration.updateMany({
+          where: { id: registrationId, event: { slug } },
+          data: { status: parsed.data.status },
+        });
+        return { errorCode: null, updatedCount: updateResult.count };
+      },
+      {
+        maxWait: 5000,
+        timeout: 10_000,
+      }
+    );
   } catch (error) {
     logAdminEventMutationFailure({
       action: 'update-registration-status',
@@ -686,17 +746,14 @@ export async function updateAdminEventRegistrationStatusAction(
       slug,
     });
     redirect(
-      `${getI18nPath(adminEventRegistrationsPath(slug), locale)}?error=${encodeURIComponent(
-        mutationCodeFromPrisma(error)
-      )}`
+      registrationsUrlWithError(locale, slug, mutationCodeFromPrisma(error))
     );
   }
-  if (updatedCount === 0) {
-    redirect(
-      `${getI18nPath(adminEventRegistrationsPath(slug), locale)}?error=${encodeURIComponent(
-        'not_found'
-      )}`
-    );
+  if (result.errorCode) {
+    redirect(registrationsUrlWithError(locale, slug, result.errorCode));
+  }
+  if (result.updatedCount === 0) {
+    redirect(registrationsUrlWithError(locale, slug, 'not_found'));
   }
   revalidateEventAdminMutation(locale, [slug]);
   redirect(getI18nPath(adminEventRegistrationsPath(slug), locale));

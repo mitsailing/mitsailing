@@ -151,6 +151,9 @@ export function adminEventFormErrorMessage(
   if (code === 'invalid_event_fee_amount') {
     return t('form_error_invalid_event_fee_amount');
   }
+  if (code === 'capacity_full') {
+    return t('form_error_capacity_full');
+  }
   if (code === 'duplicate_slug') {
     return t('form_error_duplicate_slug');
   }

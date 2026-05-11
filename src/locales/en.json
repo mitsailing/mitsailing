@@ -835,6 +835,7 @@
     "form_error_duplicate_slug": "That slug is already in use.",
     "form_error_foreign_key": "That choice is no longer valid or conflicts with linked records.",
     "form_error_invalid_event_fee_amount": "Enter a valid dollar amount for the fee.",
+    "form_error_capacity_full": "This event is already at capacity.",
     "form_error_not_found": "That event row no longer exists.",
     "form_error_unknown": "Something went wrong.",
     "form_error_validation_failed": "Check the fields.",
