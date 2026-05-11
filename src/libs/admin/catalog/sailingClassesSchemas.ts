@@ -1,5 +1,10 @@
 import * as z from 'zod';
+import type { AdminCatalogResourceMessageKey } from '@/libs/admin/catalog/types';
 import { isSafeCmsAppPath } from '@/libs/mit-sailing/cmsHref';
+
+const sailingClassesValidationMessages = {
+  imagePaths: 'field_error_sailing_class_image_paths_safe_path',
+} satisfies Record<string, AdminCatalogResourceMessageKey>;
 
 const slugSchema = z
   .string()
@@ -36,7 +41,7 @@ export const sailingClassFormSchema = z.object({
     .transform(imagePathsFromLines)
     .refine(
       (paths) => paths.every((path) => isSafeCmsAppPath(path)),
-      'Class image paths must be safe app-relative paths without query strings or fragments'
+      sailingClassesValidationMessages.imagePaths
     ),
   isVisible: z.boolean(),
 });

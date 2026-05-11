@@ -1,5 +1,10 @@
 import * as z from 'zod';
+import type { AdminCatalogResourceMessageKey } from '@/libs/admin/catalog/types';
 import { isSafeCmsAppPath } from '@/libs/mit-sailing/cmsHref';
+
+const fleetBoatValidationMessages = {
+  imagePath: 'field_error_fleet_image_path_safe_path',
+} satisfies Record<string, AdminCatalogResourceMessageKey>;
 
 const slugSchema = z
   .string()
@@ -25,7 +30,7 @@ export const fleetBoatFormSchema = z.object({
     })
     .refine(
       (value) => value === null || isSafeCmsAppPath(value),
-      'Fleet image path must be a safe app-relative path without query strings or fragments'
+      fleetBoatValidationMessages.imagePath
     ),
 });
 

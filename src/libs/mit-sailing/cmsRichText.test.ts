@@ -11,6 +11,10 @@ describe('sanitizeCmsRichTextHtml', () => {
       '<p>First line<br />second line</p><p>Next</p>'
     );
     expect(sanitizeCmsRichTextHtml('5 < 7')).toBe('<p>5 &lt; 7</p>');
+    expect(sanitizeCmsRichTextHtml('Please email <support>')).toBe(
+      '<p>Please email &lt;support&gt;</p>'
+    );
+    expect(sanitizeCmsRichTextHtml('a<b')).toBe('<p>a&lt;b</p>');
   });
 
   it('keeps semantic rich text and safe links', () => {
@@ -64,13 +68,24 @@ describe('sanitizeCmsRichTextHtml', () => {
       )
     ).toBe('<p>Images</p>');
   });
+});
 
+describe('plainTextFromCmsRichTextHtml', () => {
   it('extracts plain text from rich text for previews', () => {
     expect(
       plainTextFromCmsRichTextHtml(
         '<h2>Intro</h2><p>First <strong>body</strong></p>'
       )
     ).toBe('Intro First body');
+  });
+
+  it('preserves line breaks from br in plain text extraction', () => {
+    expect(
+      plainTextFromCmsRichTextHtml('First line\nsecond line\n\nNext')
+    ).toBe('First line second line Next');
+    expect(plainTextFromCmsRichTextHtml('<p>a<br>b<br/>c<BR />d</p>')).toBe(
+      'a b c d'
+    );
   });
 });
 

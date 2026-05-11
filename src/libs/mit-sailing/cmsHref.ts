@@ -1,5 +1,8 @@
 const SAFE_CMS_HREF_PROTOCOLS = new Set(['http:', 'https:', 'mailto:', 'tel:']);
 
+/** Absolute links allowed for CMS menu items (paths validated via {@link isSafeCmsAppPath}). */
+const SAFE_CMS_MENU_ITEM_PROTOCOLS = new Set(['http:', 'https:', 'mailto:']);
+
 function pathPartEndIndex(value: string): number {
   const queryIndex = value.indexOf('?');
   const fragmentIndex = value.indexOf('#');
@@ -18,6 +21,16 @@ function decodedPathSegment(segment: string): string | null {
   } catch {
     return null;
   }
+}
+
+function cmsHrefHasAsciiControlOrDelete(href: string): boolean {
+  for (const unit of href) {
+    const c = unit.codePointAt(0);
+    if (c !== undefined && (c <= 31 || c === 127)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function hasUnsafeCmsPathSegment(pathname: string): boolean {
@@ -69,6 +82,64 @@ export function safeCmsHref(value: string | null | undefined): string | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Sanitizes CMS menu `href` values for public renderers: safe app paths, `http`/`https`,
+ * and `mailto`, with bare paths normalized to a leading `/`.
+ *
+ * @param value - Raw path or absolute URL from CMS
+ * @returns Usable `href` or `undefined` when unsafe or malformed
+ */
+export function safeCmsMenuItemHref(
+  value: string | null | undefined
+): string | undefined {
+  const href = value?.trim();
+  if (!href) {
+    return undefined;
+  }
+  if (cmsHrefHasAsciiControlOrDelete(href)) {
+    return undefined;
+  }
+  if (/\s/.test(href)) {
+    return undefined;
+  }
+  if (href === '#') {
+    return href;
+  }
+  if (href.includes('\\')) {
+    return undefined;
+  }
+  const lower = href.toLowerCase();
+  /* eslint-disable no-script-url -- block unsafe schemes from CMS-controlled hrefs */
+  if (
+    lower.startsWith('javascript:') ||
+    lower.startsWith('data:') ||
+    lower.startsWith('vbscript:')
+  ) {
+    /* eslint-enable no-script-url */
+    return undefined;
+  }
+  if (href.startsWith('//')) {
+    return undefined;
+  }
+
+  if (/^[a-z][a-z0-9+.-]*:/i.test(href)) {
+    try {
+      const url = new URL(href);
+      if (!SAFE_CMS_MENU_ITEM_PROTOCOLS.has(url.protocol)) {
+        return undefined;
+      }
+      return href;
+    } catch {
+      return undefined;
+    }
+  }
+
+  const path = href.startsWith('/') ? href : `/${href}`;
+  return isSafeCmsAppPath(path, { allowQueryAndFragment: true })
+    ? path
+    : undefined;
 }
 
 export function isAppRelativeCmsHref(href: string): boolean {

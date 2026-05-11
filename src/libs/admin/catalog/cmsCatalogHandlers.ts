@@ -178,8 +178,11 @@ function rawCmsMenuItemFromFormData(
   };
 }
 
-async function nextCmsBlockDisplayOrder(pageId: string): Promise<number> {
-  const agg = await prisma.cmsPageBlock.aggregate({
+async function nextCmsBlockDisplayOrder(
+  pageId: string,
+  db: typeof prisma | Prisma.TransactionClient = prisma
+): Promise<number> {
+  const agg = await db.cmsPageBlock.aggregate({
     where: { pageId },
     _max: { displayOrder: true },
   });
@@ -250,16 +253,23 @@ export const cmsPagesCatalogHandlers: CatalogServerHandlers = {
       return { ok: false, code: 'validation_failed' };
     }
     try {
-      const created = await prisma.cmsPage.create({
-        data: parsed.data,
-        select: { id: true },
-      });
-      await recordCmsPageRevision({
-        pageId: created.id,
-        action: 'create',
-        ...cmsRevisionContext(context),
-      });
-      return { ok: true, id: created.id };
+      const createdId = await prisma.$transaction(
+        async (tx) => {
+          const created = await tx.cmsPage.create({
+            data: parsed.data,
+            select: { id: true },
+          });
+          await recordCmsPageRevision({
+            pageId: created.id,
+            action: 'create',
+            ...cmsRevisionContext(context),
+            tx,
+          });
+          return created.id;
+        },
+        { isolationLevel: 'Serializable' }
+      );
+      return { ok: true, id: createdId };
     } catch (error: unknown) {
       return duplicateCode(error) ?? { ok: false, code: 'unknown' };
     }
@@ -278,13 +288,19 @@ export const cmsPagesCatalogHandlers: CatalogServerHandlers = {
     }
     try {
       const previousSnapshot = await loadCmsPageRevisionSnapshot(id);
-      await prisma.cmsPage.update({ where: { id }, data: parsed.data });
-      await recordCmsPageRevisionIfChanged({
-        pageId: id,
-        action: 'update',
-        previousSnapshot,
-        ...cmsRevisionContext(context),
-      });
+      await prisma.$transaction(
+        async (tx) => {
+          await tx.cmsPage.update({ where: { id }, data: parsed.data });
+          await recordCmsPageRevisionIfChanged({
+            pageId: id,
+            action: 'update',
+            previousSnapshot,
+            ...cmsRevisionContext(context),
+            tx,
+          });
+        },
+        { isolationLevel: 'Serializable' }
+      );
       return { ok: true };
     } catch (error: unknown) {
       return duplicateCode(error) ?? { ok: false, code: 'unknown' };
@@ -297,15 +313,21 @@ export const cmsPagesCatalogHandlers: CatalogServerHandlers = {
   ): Promise<CatalogMutationOk | CatalogMutationErr> {
     try {
       const snapshot = await loadCmsPageRevisionSnapshot(id);
-      await prisma.cmsPage.delete({ where: { id } });
-      if (snapshot) {
-        await recordCmsPageRevisionFromSnapshot({
-          pageId: id,
-          action: 'delete',
-          snapshot,
-          ...cmsRevisionContext(context),
-        });
-      }
+      await prisma.$transaction(
+        async (tx) => {
+          await tx.cmsPage.delete({ where: { id } });
+          if (snapshot) {
+            await recordCmsPageRevisionFromSnapshot({
+              pageId: id,
+              action: 'delete',
+              snapshot,
+              ...cmsRevisionContext(context),
+              tx,
+            });
+          }
+        },
+        { isolationLevel: 'Serializable' }
+      );
       return { ok: true };
     } catch (error: unknown) {
       return duplicateCode(error) ?? { ok: false, code: 'unknown' };
@@ -377,19 +399,29 @@ export const cmsPageBlocksCatalogHandlers: CatalogServerHandlers = {
       };
     }
     try {
-      const created = await prisma.cmsPageBlock.create({
-        data: {
-          ...cmsBlockMutationData(parsed.data),
-          displayOrder: await nextCmsBlockDisplayOrder(parsed.data.pageId),
+      const createdId = await prisma.$transaction(
+        async (tx) => {
+          const created = await tx.cmsPageBlock.create({
+            data: {
+              ...cmsBlockMutationData(parsed.data),
+              displayOrder: await nextCmsBlockDisplayOrder(
+                parsed.data.pageId,
+                tx
+              ),
+            },
+            select: { id: true },
+          });
+          await recordCmsPageRevision({
+            pageId: parsed.data.pageId,
+            action: 'update',
+            ...cmsRevisionContext(context),
+            tx,
+          });
+          return created.id;
         },
-        select: { id: true },
-      });
-      await recordCmsPageRevision({
-        pageId: parsed.data.pageId,
-        action: 'update',
-        ...cmsRevisionContext(context),
-      });
-      return { ok: true, id: created.id };
+        { isolationLevel: 'Serializable' }
+      );
+      return { ok: true, id: createdId };
     } catch (error: unknown) {
       return duplicateCode(error) ?? { ok: false, code: 'unknown' };
     }
@@ -424,37 +456,45 @@ export const cmsPageBlocksCatalogHandlers: CatalogServerHandlers = {
           : null;
       const movedToNewPage =
         existing !== null && existing.pageId !== parsed.data.pageId;
-      const updated = await prisma.cmsPageBlock.update({
-        where: { id },
-        data: {
-          ...cmsBlockMutationData(parsed.data),
-          ...(movedToNewPage
-            ? {
-                displayOrder: await nextCmsBlockDisplayOrder(
-                  parsed.data.pageId
-                ),
-              }
-            : {}),
+      await prisma.$transaction(
+        async (tx) => {
+          const updated = await tx.cmsPageBlock.update({
+            where: { id },
+            data: {
+              ...cmsBlockMutationData(parsed.data),
+              ...(movedToNewPage
+                ? {
+                    displayOrder: await nextCmsBlockDisplayOrder(
+                      parsed.data.pageId,
+                      tx
+                    ),
+                  }
+                : {}),
+            },
+            select: { pageId: true },
+          });
+          if (existing?.pageId && existing.pageId !== updated.pageId) {
+            await recordCmsPageRevisionIfChanged({
+              pageId: existing.pageId,
+              action: 'update',
+              previousSnapshot,
+              ...cmsRevisionContext(context),
+              tx,
+            });
+          }
+          await recordCmsPageRevisionIfChanged({
+            pageId: updated.pageId,
+            action: 'update',
+            previousSnapshot:
+              existing?.pageId === updated.pageId
+                ? previousSnapshot
+                : previousTargetSnapshot,
+            ...cmsRevisionContext(context),
+            tx,
+          });
         },
-        select: { pageId: true },
-      });
-      if (existing?.pageId && existing.pageId !== updated.pageId) {
-        await recordCmsPageRevisionIfChanged({
-          pageId: existing.pageId,
-          action: 'update',
-          previousSnapshot,
-          ...cmsRevisionContext(context),
-        });
-      }
-      await recordCmsPageRevisionIfChanged({
-        pageId: updated.pageId,
-        action: 'update',
-        previousSnapshot:
-          existing?.pageId === updated.pageId
-            ? previousSnapshot
-            : previousTargetSnapshot,
-        ...cmsRevisionContext(context),
-      });
+        { isolationLevel: 'Serializable' }
+      );
       return { ok: true };
     } catch (error: unknown) {
       return duplicateCode(error) ?? { ok: false, code: 'unknown' };
@@ -470,14 +510,20 @@ export const cmsPageBlocksCatalogHandlers: CatalogServerHandlers = {
         where: { id },
         select: { pageId: true },
       });
-      await prisma.cmsPageBlock.delete({ where: { id } });
-      if (existing) {
-        await recordCmsPageRevision({
-          pageId: existing.pageId,
-          action: 'update',
-          ...cmsRevisionContext(context),
-        });
-      }
+      await prisma.$transaction(
+        async (tx) => {
+          await tx.cmsPageBlock.delete({ where: { id } });
+          if (existing) {
+            await recordCmsPageRevision({
+              pageId: existing.pageId,
+              action: 'update',
+              ...cmsRevisionContext(context),
+              tx,
+            });
+          }
+        },
+        { isolationLevel: 'Serializable' }
+      );
       return { ok: true };
     } catch (error: unknown) {
       return duplicateCode(error) ?? { ok: false, code: 'unknown' };
@@ -512,19 +558,23 @@ export const cmsPageBlocksCatalogHandlers: CatalogServerHandlers = {
 
     try {
       const previousSnapshot = await loadCmsPageRevisionSnapshot(pageId);
-      await prisma.$transaction(async (tx) => {
-        for (let index = 0; index < orderedIds.length; index += 1) {
-          await tx.cmsPageBlock.update({
-            where: { id: orderedIds[index] },
-            data: { displayOrder: index },
+      await prisma.$transaction(
+        async (tx) => {
+          for (let index = 0; index < orderedIds.length; index += 1) {
+            await tx.cmsPageBlock.update({
+              where: { id: orderedIds[index] },
+              data: { displayOrder: index },
+            });
+          }
+          await recordCmsPageRevisionIfChanged({
+            pageId,
+            action: 'update',
+            previousSnapshot,
+            tx,
           });
-        }
-      });
-      await recordCmsPageRevisionIfChanged({
-        pageId,
-        action: 'update',
-        previousSnapshot,
-      });
+        },
+        { isolationLevel: 'Serializable' }
+      );
       return { ok: true };
     } catch {
       return { ok: false, code: 'unknown' };
@@ -808,6 +858,13 @@ export const cmsMenuItemsCatalogHandlers: CatalogServerHandlers = {
       rawCmsMenuItemFromFormData(formData)
     );
     if (!parsed.success) {
+      return { ok: false, code: 'validation_failed' };
+    }
+    const existing = await prisma.cmsMenuItem.findUnique({
+      where: { id },
+      select: { menuId: true },
+    });
+    if (existing?.menuId !== parsed.data.menuId) {
       return { ok: false, code: 'validation_failed' };
     }
     if (

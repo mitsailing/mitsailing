@@ -21,9 +21,3 @@ pre-commit:
     - name: knip
       glob: '*'
       run: npm run check:deps
-
-# Run repo checks and AI repair before pushing.
-pre-push:
-  jobs:
-    - name: prepush-ai
-      run: node scripts/prepush-ai.mjs

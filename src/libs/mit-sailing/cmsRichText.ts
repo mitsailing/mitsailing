@@ -10,7 +10,9 @@ const ALLOWED_HREF_PREFIXES = [
 const NEW_TAB_HREF_PREFIXES = ['http://', 'https://'] as const;
 const CMS_MEDIA_IMAGE_EXTENSIONS = ['.gif', '.jpg', '.jpeg', '.png', '.webp'];
 const CMS_MEDIA_IMAGE_PATH_RE = /^\/cms-media\/[^/?#]+\/[^/?#]+$/u;
-const HTML_TAG_RE = /<[a-z][\s\S]*>/iu;
+/** Opening or closing tags for CMS rich text (allowed + transformTags); avoids treating `<support>`-style text as HTML. */
+const HTML_TAG_RE =
+  /<\s*(?:\/\s*)?(?:strong|img|h[1-6]|ul|ol|li|p|em|br|a|b|i)\b[^>]*>/iu;
 const CMS_IMAGE_MIN_DIMENSION = 40;
 const CMS_IMAGE_MAX_DIMENSION = 1600;
 
@@ -228,7 +230,9 @@ export function plainTextFromCmsRichTextHtml(
   raw: string | null | undefined
 ): string {
   const sanitized = sanitizeCmsRichTextHtml(raw);
-  const spaced = sanitized.replaceAll(/<\/(h2|h3|h4|li|ol|p|ul)>/giu, ' </$1>');
+  const spaced = sanitized
+    .replaceAll(/<br\s*\/?>/giu, ' ')
+    .replaceAll(/<\/(h2|h3|h4|li|ol|p|ul)>/giu, ' </$1>');
   return sanitizeHtml(spaced, {
     allowedAttributes: {},
     allowedTags: [],

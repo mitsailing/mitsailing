@@ -45,6 +45,19 @@ describe('fleetBoatFormSchema', () => {
       );
     }
   });
+
+  it('returns translation key for unsafe image paths', () => {
+    const parsed = fleetBoatFormSchema.safeParse(
+      fleetInput('/images/../secret.jpg')
+    );
+
+    if (parsed.success) {
+      throw new Error('Expected unsafe image path validation to fail');
+    }
+    expect(parsed.error.issues[0]?.message).toBe(
+      'field_error_fleet_image_path_safe_path'
+    );
+  });
 });
 
 describe('sailingClassFormSchema', () => {
@@ -77,5 +90,18 @@ describe('sailingClassFormSchema', () => {
         sailingClassFormSchema.safeParse(sailingClassInput(imagePaths)).success
       ).toBe(false);
     }
+  });
+
+  it('returns translation key for unsafe image paths', () => {
+    const parsed = sailingClassFormSchema.safeParse(
+      sailingClassInput('/images/../secret.jpg')
+    );
+
+    if (parsed.success) {
+      throw new Error('Expected unsafe image path validation to fail');
+    }
+    expect(parsed.error.issues[0]?.message).toBe(
+      'field_error_sailing_class_image_paths_safe_path'
+    );
   });
 });

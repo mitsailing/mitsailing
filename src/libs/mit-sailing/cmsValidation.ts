@@ -2,57 +2,87 @@ import * as z from 'zod';
 import { parseCmsHomeOverviewBody } from '@/libs/mit-sailing/cmsHomeOverview';
 import { isSafeCmsAppPath, safeCmsHref } from '@/libs/mit-sailing/cmsHref';
 import { parseCmsPricingBody } from '@/libs/mit-sailing/cmsPricing';
+import type messages from '@/locales/en.json';
+
+type AdminCatalogResourceMessageKey =
+  keyof typeof messages.AdminCatalogResource;
+
+const cmsValidationMessages = {
+  ctaLabelRequired: 'field_error_cms_cta_label_required',
+  ctaUrlRequired: 'field_error_cms_cta_url_required',
+  homeOverviewBody: 'field_error_cms_home_overview_body',
+  homeOverviewEventsCtaUrl: 'field_error_cms_home_overview_events_cta_url',
+  imageAltRequired: 'field_error_cms_image_alt_required',
+  imagePath: 'field_error_cms_image_path_safe_path',
+  imageSrcRequired: 'field_error_cms_image_src_required',
+  path: 'field_error_cms_path_safe_path',
+  pricingBody: 'field_error_cms_pricing_body',
+  url: 'field_error_cms_url_safe_href',
+} satisfies Record<string, AdminCatalogResourceMessageKey>;
 
 function canonicalCmsAppPath(path: string): string {
   return path === '/' ? path : path.replace(/\/+$/u, '');
+}
+
+/**
+ * Index of the first `?` or `#`, or the string length when neither is present.
+ *
+ * @param value - App-relative href to measure
+ * @returns End index of the path segment (exclusive)
+ */
+function cmsHrefPathPartEndIndex(value: string): number {
+  const queryIndex = value.indexOf('?');
+  const fragmentIndex = value.indexOf('#');
+  if (queryIndex === -1) {
+    return fragmentIndex === -1 ? value.length : fragmentIndex;
+  }
+  if (fragmentIndex === -1) {
+    return queryIndex;
+  }
+  return Math.min(queryIndex, fragmentIndex);
+}
+
+/**
+ * Strips trailing slashes from the path segment only; leaves query and fragment bytes unchanged.
+ *
+ * @param href - CMS href starting with `/` or any non-app-relative value (returned unchanged)
+ * @returns Canonicalized href string
+ */
+function canonicalizeAppRelativeCmsHref(href: string): string {
+  if (!href.startsWith('/')) {
+    return href;
+  }
+  const end = cmsHrefPathPartEndIndex(href);
+  const pathPart = href.slice(0, end);
+  const rest = href.slice(end);
+  return canonicalCmsAppPath(pathPart) + rest;
 }
 
 const cmsPathSchema = z
   .string()
   .trim()
   .min(1)
-  .refine(
-    (value) => isSafeCmsAppPath(value),
-    'CMS paths must be safe app-relative paths without query strings or fragments'
-  )
+  .refine((value) => isSafeCmsAppPath(value), cmsValidationMessages.path)
   .transform((value) => canonicalCmsAppPath(value));
 
 const cmsImagePathSchema = z
   .string()
   .trim()
   .min(1)
-  .refine(
-    (value) => isSafeCmsAppPath(value),
-    'CMS image paths must be safe app-relative paths without query strings or fragments'
-  )
+  .refine((value) => isSafeCmsAppPath(value), cmsValidationMessages.imagePath)
   .transform((value) => canonicalCmsAppPath(value));
 
-const cmsUrlSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .refine((value) => {
-    if (value === '#') {
-      return true;
-    }
-    if (value.startsWith('/')) {
-      return isSafeCmsAppPath(value, { allowQueryAndFragment: true });
-    }
-    if (value.includes('\\')) {
-      return false;
-    }
-    try {
-      const url = new URL(value);
-      return url.protocol === 'https:' || url.protocol === 'http:';
-    } catch {
-      return false;
-    }
-  }, 'CMS links must be internal paths, #, or http(s) URLs')
-  .transform((value) =>
-    value.startsWith('/') && !value.startsWith('//')
-      ? canonicalCmsAppPath(value)
-      : value
-  );
+const cmsUrlSchema = z.string().transform((value, ctx) => {
+  const href = safeCmsHref(value);
+  if (!href) {
+    ctx.addIssue({
+      code: 'custom',
+      message: cmsValidationMessages.url,
+    });
+    return z.NEVER;
+  }
+  return canonicalizeAppRelativeCmsHref(href);
+});
 
 export const cmsPageInputSchema = z.object({
   slug: z
@@ -101,21 +131,25 @@ export const cmsBlockInputSchema = z
     if (Boolean(value.ctaLabel) !== Boolean(value.ctaUrl)) {
       ctx.addIssue({
         code: 'custom',
-        message: 'CMS CTA requires both label and URL',
+        message: value.ctaLabel
+          ? cmsValidationMessages.ctaUrlRequired
+          : cmsValidationMessages.ctaLabelRequired,
         path: value.ctaLabel ? ['ctaUrl'] : ['ctaLabel'],
       });
     }
     if (Boolean(value.imageSrc) !== Boolean(value.imageAlt)) {
       ctx.addIssue({
         code: 'custom',
-        message: 'CMS image requires both source and alt text',
+        message: value.imageSrc
+          ? cmsValidationMessages.imageAltRequired
+          : cmsValidationMessages.imageSrcRequired,
         path: value.imageSrc ? ['imageAlt'] : ['imageSrc'],
       });
     }
     if (value.kind === 'pricing' && !parseCmsPricingBody(value.body)) {
       ctx.addIssue({
         code: 'custom',
-        message: 'CMS pricing blocks require one to four pricing options',
+        message: cmsValidationMessages.pricingBody,
         path: ['body'],
       });
     }
@@ -124,7 +158,7 @@ export const cmsBlockInputSchema = z
       if (!homeOverview) {
         ctx.addIssue({
           code: 'custom',
-          message: 'CMS home overview blocks require valid overview settings',
+          message: cmsValidationMessages.homeOverviewBody,
           path: ['body'],
         });
         return;
@@ -132,7 +166,7 @@ export const cmsBlockInputSchema = z
       if (!safeCmsHref(homeOverview.eventsCtaUrl)) {
         ctx.addIssue({
           code: 'custom',
-          message: 'CMS home overview events CTA URL must be safe',
+          message: cmsValidationMessages.homeOverviewEventsCtaUrl,
           path: ['body'],
         });
       }

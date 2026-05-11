@@ -1,6 +1,7 @@
 import 'server-only';
 import { cache } from 'react';
 import { prisma } from '@/libs/DB';
+import { safeCmsMenuItemHref } from '@/libs/mit-sailing/cmsHref';
 
 export type CmsMenuLocation =
   | 'header'
@@ -75,8 +76,18 @@ type CmsMenuItemRow = {
   linkedPage: { path: string } | null;
 };
 
+/**
+ * Builds a public menu `href` from linked page path or explicit URL, then sanitizes via
+ * {@link safeCmsMenuItemHref} (safe app paths, `http`/`https`, `mailto`; no `javascript:`/`data:`/etc.).
+ *
+ * @param row - Menu row from Prisma (linked page and/or explicit URL)
+ * @returns Sanitized `href` when allowed, otherwise `undefined`
+ */
 function hrefForCmsMenuItem(row: CmsMenuItemRow): string | undefined {
-  return row.linkedPage?.path ?? row.url ?? undefined;
+  const linkedPath = row.linkedPage?.path?.trim();
+  const explicitUrl = row.url?.trim();
+  const candidate = linkedPath ?? explicitUrl ?? undefined;
+  return safeCmsMenuItemHref(candidate);
 }
 
 function mapCmsMenuTree(rows: CmsMenuItemRow[]): PublicCmsMenuItem[] {

@@ -127,4 +127,50 @@ describe('listAdminCmsPageRevisions', () => {
       where: { auditableId: 'page-1', auditableType: 'cms_pages' },
     });
   });
+
+  it('preview excerpt falls back to subtitle or title when body has no plain text', async () => {
+    mocks.userAuditFindMany.mockResolvedValue([
+      {
+        action: 'update',
+        auditedChanges: {
+          blocks: [
+            {
+              body: '<p></p>',
+              ctaLabel: null,
+              ctaUrl: null,
+              displayOrder: 1,
+              id: 'block-1',
+              imageAlt: null,
+              imageSrc: null,
+              isVisible: true,
+              kind: 'text_section',
+              subtitle: 'Section subtitle',
+              title: 'Overview',
+            },
+          ],
+          page: {
+            id: 'page-1',
+            isPublished: true,
+            metaDescription: 'Sailing overview',
+            metaTitle: 'MIT Sailing',
+            path: '/',
+            slug: 'home',
+            title: 'MIT Sailing',
+          },
+        },
+        createdAt: new Date('2026-05-10T12:00:00.000Z'),
+        id: 'audit-1',
+        user: null,
+        version: 2,
+      },
+    ]);
+
+    await expect(listAdminCmsPageRevisions('page-1')).resolves.toEqual([
+      expect.objectContaining({
+        preview: expect.objectContaining({
+          excerpt: 'Section subtitle',
+        }),
+      }),
+    ]);
+  });
 });

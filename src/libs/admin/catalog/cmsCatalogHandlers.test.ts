@@ -5,12 +5,16 @@ const mocks = vi.hoisted(() => ({
   cmsMenuItemCreate: vi.fn(),
   cmsMenuFindMany: vi.fn(),
   cmsMenuItemFindMany: vi.fn(),
+  cmsMenuItemFindUnique: vi.fn(),
   cmsMenuItemUpdate: vi.fn(),
   cmsPageBlockAggregate: vi.fn(),
   cmsPageBlockCreate: vi.fn(),
+  cmsPageBlockDelete: vi.fn(),
   cmsPageBlockFindUnique: vi.fn(),
   cmsPageBlockFindMany: vi.fn(),
   cmsPageBlockUpdate: vi.fn(),
+  cmsPageCreate: vi.fn(),
+  cmsPageDelete: vi.fn(),
   cmsPageFindUnique: vi.fn(),
   cmsPageFindMany: vi.fn(),
   cmsPageUpdate: vi.fn(),
@@ -31,9 +35,12 @@ vi.mock('@/libs/DB', () => ({
       aggregate: mocks.cmsMenuItemAggregate,
       create: mocks.cmsMenuItemCreate,
       findMany: mocks.cmsMenuItemFindMany,
+      findUnique: mocks.cmsMenuItemFindUnique,
       update: mocks.cmsMenuItemUpdate,
     },
     cmsPage: {
+      create: mocks.cmsPageCreate,
+      delete: mocks.cmsPageDelete,
       findMany: mocks.cmsPageFindMany,
       findUnique: mocks.cmsPageFindUnique,
       update: mocks.cmsPageUpdate,
@@ -41,6 +48,7 @@ vi.mock('@/libs/DB', () => ({
     cmsPageBlock: {
       aggregate: mocks.cmsPageBlockAggregate,
       create: mocks.cmsPageBlockCreate,
+      delete: mocks.cmsPageBlockDelete,
       findUnique: mocks.cmsPageBlockFindUnique,
       findMany: mocks.cmsPageBlockFindMany,
       update: mocks.cmsPageBlockUpdate,
@@ -71,12 +79,16 @@ beforeEach(() => {
   mocks.cmsMenuItemCreate.mockReset();
   mocks.cmsMenuFindMany.mockReset();
   mocks.cmsMenuItemFindMany.mockReset();
+  mocks.cmsMenuItemFindUnique.mockReset();
   mocks.cmsMenuItemUpdate.mockReset();
   mocks.cmsPageBlockAggregate.mockReset();
   mocks.cmsPageBlockCreate.mockReset();
+  mocks.cmsPageBlockDelete.mockReset();
   mocks.cmsPageBlockFindUnique.mockReset();
   mocks.cmsPageBlockFindMany.mockReset();
   mocks.cmsPageBlockUpdate.mockReset();
+  mocks.cmsPageCreate.mockReset();
+  mocks.cmsPageDelete.mockReset();
   mocks.cmsPageFindUnique.mockReset();
   mocks.cmsPageFindMany.mockReset();
   mocks.cmsPageUpdate.mockReset();
@@ -85,20 +97,33 @@ beforeEach(() => {
   mocks.userAuditFindFirst.mockReset();
   mocks.prismaTransaction.mockReset();
   mocks.prismaTransaction.mockImplementation(
-    async (transactionBody: (tx: unknown) => Promise<unknown>) => {
-      const result = await transactionBody({
-        userAudit: {
-          aggregate: mocks.userAuditAggregate,
-          create: mocks.userAuditCreate,
-          findFirst: mocks.userAuditFindFirst,
+    async (
+      transactionBody: (tx: unknown) => Promise<unknown>,
+      _options?: unknown
+    ) => {
+      const tx = {
+        cmsPage: {
+          create: mocks.cmsPageCreate,
+          delete: mocks.cmsPageDelete,
+          findUnique: mocks.cmsPageFindUnique,
+          update: mocks.cmsPageUpdate,
         },
         cmsPageBlock: {
+          aggregate: mocks.cmsPageBlockAggregate,
+          create: mocks.cmsPageBlockCreate,
+          delete: mocks.cmsPageBlockDelete,
           update: mocks.cmsPageBlockUpdate,
         },
         cmsMenuItem: {
           update: mocks.cmsMenuItemUpdate,
         },
-      });
+        userAudit: {
+          aggregate: mocks.userAuditAggregate,
+          create: mocks.userAuditCreate,
+          findFirst: mocks.userAuditFindFirst,
+        },
+      };
+      const result = await transactionBody(tx);
       return result;
     }
   );
@@ -424,7 +449,7 @@ describe('cmsPageBlocksCatalogHandlers', () => {
       ).resolves.toEqual({
         code: 'validation_failed',
         fieldErrors: {
-          imageAlt: 'CMS image requires both source and alt text',
+          imageAlt: 'field_error_cms_image_alt_required',
         },
         ok: false,
       });
@@ -617,6 +642,7 @@ describe('cmsMenuItemsCatalogHandlers', () => {
       formData.set('url', '/about');
       formData.set('isVisible', 'true');
 
+      mocks.cmsMenuItemFindUnique.mockResolvedValue({ menuId: 'menu-1' });
       mocks.cmsMenuItemFindMany.mockResolvedValue([
         { id: 'item-1', parentId: null },
       ]);
@@ -631,6 +657,23 @@ describe('cmsMenuItemsCatalogHandlers', () => {
         data: expect.not.objectContaining({ displayOrder: expect.any(Number) }),
         where: { id: 'item-1' },
       });
+    });
+
+    it('rejects updates that change menu id', async () => {
+      const formData = new FormData();
+      formData.set('menuId', 'menu-2');
+      formData.set('label', 'About MIT Sailing');
+      formData.set('url', '/about');
+      formData.set('isVisible', 'true');
+
+      mocks.cmsMenuItemFindUnique.mockResolvedValue({ menuId: 'menu-1' });
+
+      await expect(
+        cmsMenuItemsCatalogHandlers.updateFromForm('item-1', formData)
+      ).resolves.toEqual({ ok: false, code: 'validation_failed' });
+
+      expect(mocks.cmsMenuItemFindMany).not.toHaveBeenCalled();
+      expect(mocks.cmsMenuItemUpdate).not.toHaveBeenCalled();
     });
   });
 

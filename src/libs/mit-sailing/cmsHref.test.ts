@@ -3,6 +3,7 @@ import {
   externalCmsLinkProps,
   isAppRelativeCmsHref,
   safeCmsHref,
+  safeCmsMenuItemHref,
 } from '@/libs/mit-sailing/cmsHref';
 
 describe('cmsHref', () => {
@@ -33,6 +34,36 @@ describe('cmsHref', () => {
   it('marks only app relative cms hrefs as internal', () => {
     expect(isAppRelativeCmsHref('/about')).toBe(true);
     expect(isAppRelativeCmsHref('https://sailing.mit.edu')).toBe(false);
+  });
+
+  describe('safeCmsMenuItemHref', () => {
+    it('accepts normalized paths and allowed absolute urls', () => {
+      expect(safeCmsMenuItemHref('/classes')).toBe('/classes');
+      expect(safeCmsMenuItemHref('classes')).toBe('/classes');
+      expect(safeCmsMenuItemHref('#')).toBe('#');
+      expect(safeCmsMenuItemHref('https://sailing.mit.edu')).toBe(
+        'https://sailing.mit.edu'
+      );
+      expect(safeCmsMenuItemHref('mailto:sailing@mit.edu')).toBe(
+        'mailto:sailing@mit.edu'
+      );
+    });
+
+    it('rejects unsafe or unsupported menu hrefs', () => {
+      const unsafeScriptHref = `${['java', 'script'].join('')}:alert(1)`;
+
+      expect(safeCmsMenuItemHref(unsafeScriptHref)).toBeUndefined();
+      expect(safeCmsMenuItemHref('data:text/html,hello')).toBeUndefined();
+      expect(safeCmsMenuItemHref('//example.com')).toBeUndefined();
+      expect(safeCmsMenuItemHref('/classes/../admin')).toBeUndefined();
+      expect(safeCmsMenuItemHref('tel:+16172534880')).toBeUndefined();
+      expect(safeCmsMenuItemHref('/about bad')).toBeUndefined();
+    });
+
+    it('trims outer whitespace before validation', () => {
+      expect(safeCmsMenuItemHref('  /about  ')).toBe('/about');
+      expect(safeCmsMenuItemHref('\n/classes\t')).toBe('/classes');
+    });
   });
 
   it('opens http links with external protections', () => {

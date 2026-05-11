@@ -566,16 +566,20 @@ async function seedCmsMenuItem(
   menu: CmsSeedMenu,
   item: CmsSeedMenuItem
 ): Promise<void> {
+  const linkedPageId = item.kind === 'page_link' ? item.linkedPageId : null;
+  const url = item.kind === 'url_link' ? item.url : null;
+  const isExternal = item.kind === 'url_link' ? item.isExternal : false;
+
   await p.cmsMenuItem.upsert({
     where: { id: item.id },
     create: {
       id: item.id,
       menuId: menu.id,
       parentId: item.parentId ?? null,
-      linkedPageId: item.linkedPageId ?? null,
+      linkedPageId,
       label: item.label,
-      url: item.url ?? null,
-      isExternal: item.isExternal,
+      url,
+      isExternal,
       isVisible: item.isVisible,
       displayOrder: item.displayOrder,
       systemKey: item.systemKey ?? null,
@@ -583,10 +587,10 @@ async function seedCmsMenuItem(
     update: {
       menuId: menu.id,
       parentId: item.parentId ?? null,
-      linkedPageId: item.linkedPageId ?? null,
+      linkedPageId,
       label: item.label,
-      url: item.url ?? null,
-      isExternal: item.isExternal,
+      url,
+      isExternal,
       isVisible: item.isVisible,
       displayOrder: item.displayOrder,
       systemKey: item.systemKey ?? null,

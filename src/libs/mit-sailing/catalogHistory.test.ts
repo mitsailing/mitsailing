@@ -52,9 +52,11 @@ beforeEach(() => {
     async (transactionBody: (tx: unknown) => Promise<unknown>) => {
       const result = await transactionBody({
         fleetBoat: {
+          findUnique: mocks.fleetBoatFindUnique,
           update: mocks.fleetBoatUpdate,
         },
         sailingClass: {
+          findUnique: mocks.sailingClassFindUnique,
           update: mocks.sailingClassUpdate,
         },
         userAudit: {
@@ -236,7 +238,12 @@ describe('recordCatalogRevision', () => {
 describe('restoreCatalogRevision', () => {
   it('restores fleet image path and records a restore audit', async () => {
     mocks.userAuditFindFirst
-      .mockResolvedValueOnce({ auditedChanges: fleetSnapshot() })
+      .mockResolvedValueOnce({
+        auditedChanges: {
+          ...fleetSnapshot(),
+          requiredClassName: 'stale denormalized label',
+        },
+      })
       .mockResolvedValueOnce({
         auditedChanges: fleetSnapshot(),
         version: 2,
@@ -270,6 +277,9 @@ describe('restoreCatalogRevision', () => {
         action: 'restore',
         auditableId: 'boat-1',
         auditableType: 'fleet',
+        auditedChanges: expect.objectContaining({
+          requiredClassName: 'Intro Sailing 101',
+        }),
         userId: 'admin-1',
         version: 3,
       }),
@@ -278,7 +288,12 @@ describe('restoreCatalogRevision', () => {
 
   it('restores class form fields and records a restore audit', async () => {
     mocks.userAuditFindFirst
-      .mockResolvedValueOnce({ auditedChanges: sailingClassSnapshot() })
+      .mockResolvedValueOnce({
+        auditedChanges: {
+          ...sailingClassSnapshot(),
+          classCategoryName: 'stale denormalized label',
+        },
+      })
       .mockResolvedValueOnce({
         auditedChanges: sailingClassSnapshot(),
         version: 2,
@@ -315,6 +330,9 @@ describe('restoreCatalogRevision', () => {
         action: 'restore',
         auditableId: 'class-1',
         auditableType: 'sailing_classes',
+        auditedChanges: expect.objectContaining({
+          classCategoryName: 'Introduction',
+        }),
         impersonatedUserId: 'sailor-1',
         userId: 'admin-1',
         version: 3,

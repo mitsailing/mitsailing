@@ -139,6 +139,7 @@ CREATE UNIQUE INDEX "user_audit_auditable_type_auditable_id_version_key" ON "use
 CREATE INDEX "user_audit_auditable_type_auditable_id_created_at_idx" ON "user_audit"("auditable_type", "auditable_id", "created_at");
 CREATE INDEX "user_audit_user_id_idx" ON "user_audit"("user_id");
 CREATE INDEX "user_audit_impersonated_user_id_idx" ON "user_audit"("impersonated_user_id");
+CREATE INDEX "user_audit_action_idx" ON "user_audit"("action");
 
 ALTER TABLE "user_audit"
   ADD CONSTRAINT "user_audit_user_id_fkey"

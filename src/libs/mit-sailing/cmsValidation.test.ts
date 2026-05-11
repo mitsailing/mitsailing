@@ -84,6 +84,35 @@ describe('cms block validation', () => {
     expect(parsed.ctaUrl).toBe('/classes');
   });
 
+  it('accepts contact CTA URLs', () => {
+    for (const ctaUrl of ['mailto:sailing@mit.edu', 'tel:+16172534880']) {
+      const parsed = cmsBlockInputSchema.parse({
+        pageId: 'page-1',
+        kind: 'hero',
+        title: 'Hero',
+        ctaLabel: 'Contact',
+        ctaUrl,
+        isVisible: true,
+      });
+
+      expect(parsed.ctaUrl).toBe(ctaUrl);
+    }
+  });
+
+  it('preserves internal CTA query and fragment text', () => {
+    const ctaUrl = '/classes/?next=/membership/#/';
+    const parsed = cmsBlockInputSchema.parse({
+      pageId: 'page-1',
+      kind: 'hero',
+      title: 'Hero',
+      ctaLabel: 'Classes',
+      ctaUrl,
+      isVisible: true,
+    });
+
+    expect(parsed.ctaUrl).toBe('/classes?next=/membership/#/');
+  });
+
   it('rejects unsafe image paths', () => {
     const parsed = cmsBlockInputSchema.safeParse({
       pageId: 'page-1',

@@ -140,19 +140,22 @@ Back up uploaded media by archiving the volume contents from a temporary
 container:
 
 ```bash
+backup_file="mitsailing-cms-media-backup-$(date -u +%Y%m%dT%H%M%SZ).tgz"
 docker run --rm \
   -v mitsailing_cms_media:/media:ro \
   -v "$PWD":/backup \
-  alpine tar czf /backup/mitsailing-cms-media-$(date -u +%Y%m%dT%H%M%SZ).tgz -C /media .
+  alpine tar czf "/backup/${backup_file}" -C /media .
 ```
 
 Restore into the same external volume before starting app containers:
 
 ```bash
+backup_file="$(ls -t mitsailing-cms-media-backup-*.tgz | head -n 1)"
 docker run --rm \
   -v mitsailing_cms_media:/media \
   -v "$PWD":/backup \
-  alpine sh -c 'cd /media && tar xzf /backup/mitsailing-cms-media-<timestamp>.tgz'
+  -e BACKUP_FILE="$backup_file" \
+  alpine sh -c 'cd /media && tar xzf "/backup/${BACKUP_FILE}"'
 ```
 
 Do **not** use `docker compose down -v` on the production stack unless you have

@@ -854,12 +854,20 @@ export async function restoreCatalogRevision(props: {
           auditableType: props.resourceId,
         },
       });
+      const restoredSnapshot = await loadCatalogRevisionSnapshot({
+        itemId: props.itemId,
+        resourceId: props.resourceId,
+        tx,
+      });
+      if (!restoredSnapshot) {
+        throw new Error('catalog restore: current snapshot missing');
+      }
       await tx.userAudit.create({
         data: {
           action: 'restore',
           auditableId: props.itemId,
           auditableType: props.resourceId,
-          auditedChanges: catalogAuditSnapshotJson(snapshot),
+          auditedChanges: restoredSnapshot,
           ...auditUserData(props.context),
           version: (latestRevision?.version ?? 0) + 1,
         },

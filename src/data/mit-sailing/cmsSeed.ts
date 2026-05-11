@@ -34,17 +34,38 @@ export type CmsSeedMenu = {
   items: readonly CmsSeedMenuItem[];
 };
 
-export type CmsSeedMenuItem = {
+type CmsSeedMenuItemShared = {
   id: string;
   parentId?: string;
-  linkedPageId?: string;
   label: string;
-  url?: string;
-  isExternal: boolean;
   isVisible: boolean;
   displayOrder: number;
   systemKey?: string;
 };
+
+/** Parent-only row: no `url` and no `linkedPageId` in the database. */
+export type CmsSeedMenuItemGroup = CmsSeedMenuItemShared & {
+  kind: 'group';
+};
+
+/** Links to a CMS page by id; `url` is derived at render time from the page path. */
+export type CmsSeedMenuItemPageLink = CmsSeedMenuItemShared & {
+  kind: 'page_link';
+  linkedPageId: string;
+};
+
+/** Static path or external URL; `isExternal` matches `CmsMenuItem.is_external`. */
+export type CmsSeedMenuItemUrlLink = CmsSeedMenuItemShared & {
+  kind: 'url_link';
+  /** Omit for placeholder items (stored as null; no public href until set). */
+  url?: string;
+  isExternal: boolean;
+};
+
+export type CmsSeedMenuItem =
+  | CmsSeedMenuItemGroup
+  | CmsSeedMenuItemPageLink
+  | CmsSeedMenuItemUrlLink;
 
 export function orderedCmsSeedMenuItems(menu: CmsSeedMenu): CmsSeedMenuItem[] {
   const itemsById = new Map<string, CmsSeedMenuItem>();
@@ -489,6 +510,7 @@ export const CMS_MENU_SEED_ROWS: readonly CmsSeedMenu[] = [
     title: 'Header navigation',
     items: [
       {
+        kind: 'url_link',
         id: 'cms-menu-header-classes',
         label: 'Classes',
         url: '/classes',
@@ -498,6 +520,7 @@ export const CMS_MENU_SEED_ROWS: readonly CmsSeedMenu[] = [
         systemKey: 'classes',
       },
       {
+        kind: 'url_link',
         id: 'cms-menu-header-fleet',
         label: 'Fleet',
         url: '/fleet',
@@ -507,22 +530,23 @@ export const CMS_MENU_SEED_ROWS: readonly CmsSeedMenu[] = [
         systemKey: 'fleet',
       },
       {
+        kind: 'url_link',
         id: 'cms-menu-header-bluewater',
         label: 'Bluewater',
-        url: '#',
         isExternal: false,
         isVisible: false,
         displayOrder: 20,
       },
       {
+        kind: 'url_link',
         id: 'cms-menu-header-racing',
         label: 'Racing',
-        url: '#',
         isExternal: false,
         isVisible: false,
         displayOrder: 30,
       },
       {
+        kind: 'url_link',
         id: 'cms-menu-header-calendar',
         label: 'Calendar',
         url: '/events',
@@ -531,17 +555,17 @@ export const CMS_MENU_SEED_ROWS: readonly CmsSeedMenu[] = [
         displayOrder: 40,
       },
       {
+        kind: 'page_link',
         id: 'cms-menu-header-about',
         linkedPageId: 'cms-page-about',
         label: 'About',
-        isExternal: false,
         isVisible: true,
         displayOrder: 50,
       },
       {
+        kind: 'url_link',
         id: 'cms-menu-header-resources',
         label: 'Resources',
-        url: '#',
         isExternal: false,
         isVisible: false,
         displayOrder: 60,
@@ -554,22 +578,23 @@ export const CMS_MENU_SEED_ROWS: readonly CmsSeedMenu[] = [
     title: 'Mobile utility navigation',
     items: [
       {
+        kind: 'page_link',
         id: 'cms-menu-mobile-reserve',
         label: 'Reserve Pavilion',
         linkedPageId: 'cms-page-contact',
-        isExternal: false,
         isVisible: true,
         displayOrder: 0,
       },
       {
+        kind: 'page_link',
         id: 'cms-menu-mobile-directions',
         label: 'Directions',
         linkedPageId: 'cms-page-contact',
-        isExternal: false,
         isVisible: true,
         displayOrder: 10,
       },
       {
+        kind: 'url_link',
         id: 'cms-menu-mobile-donate',
         label: 'Donate',
         url: '/donate',
@@ -585,13 +610,14 @@ export const CMS_MENU_SEED_ROWS: readonly CmsSeedMenu[] = [
     title: 'Footer navigation',
     items: [
       {
+        kind: 'group',
         id: 'cms-menu-footer-learn',
         label: 'Learn',
-        isExternal: false,
         isVisible: true,
         displayOrder: 0,
       },
       {
+        kind: 'url_link',
         id: 'cms-menu-footer-classes',
         parentId: 'cms-menu-footer-learn',
         label: 'All Classes',
@@ -601,22 +627,23 @@ export const CMS_MENU_SEED_ROWS: readonly CmsSeedMenu[] = [
         displayOrder: 0,
       },
       {
+        kind: 'url_link',
         id: 'cms-menu-footer-learn-sail',
         parentId: 'cms-menu-footer-learn',
         label: 'Learn to Sail',
-        url: '#',
         isExternal: false,
         isVisible: false,
         displayOrder: 10,
       },
       {
+        kind: 'group',
         id: 'cms-menu-footer-sail',
         label: 'Sail',
-        isExternal: false,
         isVisible: true,
         displayOrder: 10,
       },
       {
+        kind: 'url_link',
         id: 'cms-menu-footer-fleet',
         parentId: 'cms-menu-footer-sail',
         label: 'Our Fleet',
@@ -626,6 +653,7 @@ export const CMS_MENU_SEED_ROWS: readonly CmsSeedMenu[] = [
         displayOrder: 0,
       },
       {
+        kind: 'url_link',
         id: 'cms-menu-footer-calendar',
         parentId: 'cms-menu-footer-sail',
         label: 'Calendar',
@@ -635,40 +663,41 @@ export const CMS_MENU_SEED_ROWS: readonly CmsSeedMenu[] = [
         displayOrder: 10,
       },
       {
+        kind: 'group',
         id: 'cms-menu-footer-about',
         label: 'About',
-        isExternal: false,
         isVisible: true,
         displayOrder: 20,
       },
       {
+        kind: 'url_link',
         id: 'cms-menu-footer-membership',
         parentId: 'cms-menu-footer-about',
         label: 'Membership',
-        url: '#',
         isExternal: false,
         isVisible: false,
         displayOrder: 0,
       },
       {
+        kind: 'page_link',
         id: 'cms-menu-footer-about-us',
         parentId: 'cms-menu-footer-about',
         linkedPageId: 'cms-page-about',
         label: 'About Us',
-        isExternal: false,
         isVisible: true,
         displayOrder: 10,
       },
       {
+        kind: 'page_link',
         id: 'cms-menu-footer-contact',
         parentId: 'cms-menu-footer-about',
         linkedPageId: 'cms-page-contact',
         label: 'Contact',
-        isExternal: false,
         isVisible: true,
         displayOrder: 20,
       },
       {
+        kind: 'url_link',
         id: 'cms-menu-footer-event-admin',
         parentId: 'cms-menu-footer-about',
         label: 'Event admin',
@@ -685,33 +714,33 @@ export const CMS_MENU_SEED_ROWS: readonly CmsSeedMenu[] = [
     title: 'Legal navigation',
     items: [
       {
+        kind: 'page_link',
         id: 'cms-menu-legal-privacy',
         linkedPageId: 'cms-page-privacy',
         label: 'Privacy',
-        isExternal: false,
         isVisible: true,
         displayOrder: 0,
       },
       {
+        kind: 'page_link',
         id: 'cms-menu-legal-terms',
         linkedPageId: 'cms-page-terms',
         label: 'Terms',
-        isExternal: false,
         isVisible: true,
         displayOrder: 10,
       },
       {
+        kind: 'page_link',
         id: 'cms-menu-legal-accessibility',
         linkedPageId: 'cms-page-accessibility',
         label: 'Accessibility',
-        isExternal: false,
         isVisible: true,
         displayOrder: 20,
       },
       {
+        kind: 'url_link',
         id: 'cms-menu-legal-help',
         label: 'Help',
-        url: '#',
         isExternal: false,
         isVisible: false,
         displayOrder: 30,
@@ -724,13 +753,14 @@ export const CMS_MENU_SEED_ROWS: readonly CmsSeedMenu[] = [
     title: 'Social links',
     items: [
       {
+        kind: 'group',
         id: 'cms-menu-social-recreational',
         label: 'Recreational',
-        isExternal: false,
         isVisible: true,
         displayOrder: 0,
       },
       {
+        kind: 'url_link',
         id: 'cms-menu-social-instagram',
         parentId: 'cms-menu-social-recreational',
         label: 'MIT Recreational Sailing on Instagram',
@@ -741,6 +771,7 @@ export const CMS_MENU_SEED_ROWS: readonly CmsSeedMenu[] = [
         systemKey: 'instagram',
       },
       {
+        kind: 'url_link',
         id: 'cms-menu-social-facebook',
         parentId: 'cms-menu-social-recreational',
         label: 'MIT Recreational Sailing on Facebook',
@@ -751,13 +782,14 @@ export const CMS_MENU_SEED_ROWS: readonly CmsSeedMenu[] = [
         systemKey: 'facebook',
       },
       {
+        kind: 'group',
         id: 'cms-menu-social-varsity',
         label: 'Varsity',
-        isExternal: false,
         isVisible: true,
         displayOrder: 10,
       },
       {
+        kind: 'url_link',
         id: 'cms-menu-social-varsity-instagram',
         parentId: 'cms-menu-social-varsity',
         label: 'MIT Varsity Sailing on Instagram',
