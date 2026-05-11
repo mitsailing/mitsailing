@@ -76,6 +76,17 @@ describe('publicEventReservationState', () => {
     ).toBe('closed');
   });
 
+  it('returns closed at the registration end instant', () => {
+    const registrationEnd = new Date('2026-06-30T12:00:00.000Z');
+    expect(
+      publicEventReservationState({
+        currentRegistration: null,
+        event: makeEvent({ registrationEnd }),
+        now: registrationEnd,
+      })
+    ).toBe('closed');
+  });
+
   it('returns available when max participants is unset even with many accepted', () => {
     expect(
       publicEventReservationState({

@@ -18,6 +18,7 @@ const event = {
   category: {
     id: 'cat-racing',
     name: 'Racing',
+    accentClassName: 'bg-mit-red',
   },
 };
 
@@ -35,6 +36,15 @@ describe('eventCalendar', () => {
     expect(
       parseEventCalendarMonthParam(
         '2026-13',
+        new Date('2026-05-15T12:00:00.000Z')
+      )
+    ).toEqual({ year: 2026, month: 5 });
+  });
+
+  it('falls back to reference month when year is out of range', () => {
+    expect(
+      parseEventCalendarMonthParam(
+        '0000-01',
         new Date('2026-05-15T12:00:00.000Z')
       )
     ).toEqual({ year: 2026, month: 5 });

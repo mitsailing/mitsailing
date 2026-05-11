@@ -15,6 +15,8 @@ export type EventCategory = {
   display_order: number;
   is_visible: boolean;
   created_at: string;
+  /** Tailwind `bg-*` for calendar/home category bar; omit for default tint. */
+  accent_class_name?: string | null;
 };
 
 export type AnswerType = 'text' | 'select' | 'checkbox';
@@ -265,6 +267,7 @@ export const EVENT_CATEGORIES: EventCategory[] = [
     display_order: 1,
     is_visible: true,
     created_at: NOW_ISO,
+    accent_class_name: 'bg-mit-cat',
   },
   {
     id: 'cat-dock-hours',
@@ -272,6 +275,7 @@ export const EVENT_CATEGORIES: EventCategory[] = [
     display_order: 2,
     is_visible: true,
     created_at: NOW_ISO,
+    accent_class_name: 'bg-mit-cat',
   },
   {
     id: 'cat-harbor-trips',
@@ -279,6 +283,7 @@ export const EVENT_CATEGORIES: EventCategory[] = [
     display_order: 3,
     is_visible: true,
     created_at: NOW_ISO,
+    accent_class_name: 'bg-mit-cat',
   },
   {
     id: 'cat-learn-to-series',
@@ -286,6 +291,7 @@ export const EVENT_CATEGORIES: EventCategory[] = [
     display_order: 4,
     is_visible: true,
     created_at: NOW_ISO,
+    accent_class_name: 'bg-mit-success',
   },
   {
     id: 'cat-mitna-meetings',
@@ -293,6 +299,7 @@ export const EVENT_CATEGORIES: EventCategory[] = [
     display_order: 5,
     is_visible: true,
     created_at: NOW_ISO,
+    accent_class_name: 'bg-mit-cat',
   },
   {
     id: 'cat-mitna-racing',
@@ -300,6 +307,7 @@ export const EVENT_CATEGORIES: EventCategory[] = [
     display_order: 6,
     is_visible: true,
     created_at: NOW_ISO,
+    accent_class_name: 'bg-mit-red',
   },
   {
     id: 'cat-mitna-regatta',
@@ -307,6 +315,7 @@ export const EVENT_CATEGORIES: EventCategory[] = [
     display_order: 7,
     is_visible: true,
     created_at: NOW_ISO,
+    accent_class_name: 'bg-mit-red',
   },
   {
     id: 'cat-moonlight-sailing',
@@ -314,6 +323,7 @@ export const EVENT_CATEGORIES: EventCategory[] = [
     display_order: 8,
     is_visible: true,
     created_at: NOW_ISO,
+    accent_class_name: 'bg-mit-cat',
   },
   {
     id: 'cat-pe-class',
@@ -321,6 +331,7 @@ export const EVENT_CATEGORIES: EventCategory[] = [
     display_order: 9,
     is_visible: true,
     created_at: NOW_ISO,
+    accent_class_name: 'bg-mit-success',
   },
   {
     id: 'cat-private-event',
@@ -328,6 +339,7 @@ export const EVENT_CATEGORIES: EventCategory[] = [
     display_order: 10,
     is_visible: false,
     created_at: NOW_ISO,
+    accent_class_name: 'bg-mit-cat',
   },
   {
     id: 'cat-sailing-team',
@@ -335,6 +347,7 @@ export const EVENT_CATEGORIES: EventCategory[] = [
     display_order: 11,
     is_visible: true,
     created_at: NOW_ISO,
+    accent_class_name: 'bg-mit-red',
   },
 ];
 

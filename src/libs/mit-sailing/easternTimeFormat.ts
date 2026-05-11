@@ -18,6 +18,7 @@ const dateNoYearFormatter = new Intl.DateTimeFormat('en-US', {
 const timeOnlyFormatter = new Intl.DateTimeFormat('en-US', {
   timeZone: EVENTS_TIME_ZONE,
   hour: 'numeric',
+  hour12: true,
   minute: '2-digit',
 });
 
@@ -84,8 +85,8 @@ export function formatEasternShortDateFromIsoCalendar(iso: string): string {
  *
  * Examples:
  * - `single`: `9:00 AM – 5:00 PM`
- * - `multi-start`: `9:00 AM – Sat, Mar 7, 5:00 PM ET`
- * - `multi-end` and `ongoing`: `Until 5:00 PM ET`
+ * - `multi-start` and `ongoing`: `9:00 AM – Sat, Mar 7, 5:00 PM ET`
+ * - `multi-end`: `Until 5:00 PM ET`
  *
  * @param params - Event occurrence segment
  * @returns Compact line for calendar rows
@@ -98,7 +99,7 @@ export function formatEasternEventCalendarLine(params: {
   if (params.segment === 'single') {
     return formatEasternSameDayTimeRange(params.start, params.end);
   }
-  if (params.segment === 'multi-end' || params.segment === 'ongoing') {
+  if (params.segment === 'multi-end') {
     return `Until ${timeOnlyFormatter.format(params.end)} ET`;
   }
 

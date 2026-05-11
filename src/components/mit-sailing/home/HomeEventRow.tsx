@@ -5,16 +5,6 @@ import {
 import { Link } from '@/libs/I18nNavigation';
 import type { HomeUpcomingRow } from '@/libs/mit-sailing/homeUpcomingFromPrisma';
 
-function categoryBarClass(categoryId: string | undefined): string {
-  if (categoryId === 'cat-racing') {
-    return 'bg-mit-red';
-  }
-  if (categoryId === 'cat-class') {
-    return 'bg-mit-success';
-  }
-  return 'bg-mit-cat';
-}
-
 type HomeEventRowProps = {
   row: HomeUpcomingRow;
   showBottomBorder: boolean;
@@ -37,9 +27,7 @@ export function HomeEventRow(props: HomeEventRowProps) {
     >
       <div
         aria-hidden
-        className={`w-[3px] shrink-0 rounded-sm ${categoryBarClass(
-          props.row.categoryId
-        )}`}
+        className={`w-[3px] shrink-0 rounded-sm ${props.row.categoryAccentClassName}`}
         title={props.row.categoryId}
       />
       <div className="min-w-0 flex-1">

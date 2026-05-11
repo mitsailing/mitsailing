@@ -19,6 +19,8 @@
  * @see https://docs.stripe.com/api/payment_intents/create — `amount`, `currency`
  */
 
+// Stripe's `amount` supports up to eight digits — `99999999` = $999,999.99 USD.
+// https://docs.stripe.com/api/payment_intents/create#create_payment_intent-amount
 const STRIPE_USD_MAX_MINOR_UNITS = 99_999_999;
 const STRIPE_USD_MAX_MAJOR_UNITS = STRIPE_USD_MAX_MINOR_UNITS / 100;
 
@@ -38,19 +40,36 @@ function assertValidUsdMinorUnits(options: {
 }
 
 /**
+ * US-style optional thousands separators before normalize; ASCII digits only (no `u` flag).
+ *
+ * - Grouped: `1,234` / `1,234.56` (each comma followed by exactly three digits).
+ * - Ungrouped: `1234` / `1234.5` (no commas).
+ * - Leading dot: `.99`
+ */
+const USD_DECIMAL_INPUT_RAW =
+  /^(?:\d{1,3}(?:,\d{3})*(?:\.\d{0,2})?|\d+(?:\.\d{0,2})?|\.\d{1,2})$/;
+
+/** After commas removed: major units, optional fraction, or cents-only `.dd`. */
+const USD_DECIMAL_NORMALIZED = /^(\d+)(?:\.(\d{0,2}))?$|^\.(\d{1,2})$/;
+
+/**
  * Parses a user-entered decimal dollar string into integer USD minor units.
  *
- * @param input - Raw string (commas allowed); major units, not cents
+ * @param input - Raw string; commas only as thousands groups (`1,234.56`), major units, not cents
  * @returns Minor units, or `null` when empty or invalid
  */
 export function parseUsdDecimalStringToMinorUnits(
   input: string
 ): number | null {
-  const normalized = input.trim().replaceAll(',', '');
-  if (!normalized) {
+  const trimmed = input.trim();
+  if (!trimmed) {
     return null;
   }
-  const match = /^(\d+)(?:\.(\d{0,2}))?$|^\.(\d{1,2})$/.exec(normalized);
+  if (!USD_DECIMAL_INPUT_RAW.test(trimmed)) {
+    return null;
+  }
+  const normalized = trimmed.replaceAll(',', '');
+  const match = USD_DECIMAL_NORMALIZED.exec(normalized);
   if (!match) {
     return null;
   }

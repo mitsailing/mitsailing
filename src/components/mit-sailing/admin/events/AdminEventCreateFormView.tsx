@@ -1,5 +1,6 @@
 import { ArrowLeft, Save } from 'lucide-react';
 import type { getTranslations } from 'next-intl/server';
+import { AdminErrorAlert } from '@/components/mit-sailing/admin/AdminErrorAlert';
 import {
   AdminEventBackLink,
   AdminEventCheckbox,
@@ -35,14 +36,7 @@ function AdminEventCreateErrorAlert(props: {
   if (!message) {
     return null;
   }
-  return (
-    <p
-      className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-950"
-      role="alert"
-    >
-      {message}
-    </p>
-  );
+  return <AdminErrorAlert>{message}</AdminErrorAlert>;
 }
 
 export function AdminEventCreateFormView(props: AdminEventCreateFormViewProps) {

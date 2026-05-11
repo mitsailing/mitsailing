@@ -190,12 +190,14 @@ model SiteTextOverride {
 // --- MIT Sailing domain (events, classes, fleet, about) ---
 
 model EventCategory {
-  id           String   @id
-  name         String
-  displayOrder Int      @map("display_order")
-  isVisible    Boolean  @map("is_visible")
-  createdAt    DateTime @map("created_at")
-  events       Event[]
+  id               String   @id
+  name             String
+  displayOrder     Int      @map("display_order")
+  isVisible        Boolean  @map("is_visible")
+  /** Tailwind `bg-*` utility for calendar/home category accent bar; null uses app default. */
+  accentClassName  String?  @map("accent_class_name") @db.VarChar(128)
+  createdAt        DateTime @map("created_at")
+  events           Event[]
 
   @@map("event_categories")
 }

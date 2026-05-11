@@ -4,7 +4,10 @@ import {
   EventDetailPageKind,
   EventRegistrationStatus,
 } from '@/generated/prisma/enums';
-import { instantForNyWallClock } from '@/lib/mit-sailing/nyTime';
+import {
+  EVENTS_TIME_ZONE,
+  instantForNyWallClock,
+} from '@/lib/mit-sailing/nyTime';
 import { parseUsdDecimalStringToMinorUnits } from '@/libs/money/stripeUsdMinorUnits';
 
 export {
@@ -50,7 +53,7 @@ export function splitEventAdminCsv(input: string): string[] {
 }
 
 const easternDateTimeLocalFormatter = new Intl.DateTimeFormat('en-US', {
-  timeZone: 'America/New_York',
+  timeZone: EVENTS_TIME_ZONE,
   year: 'numeric',
   month: '2-digit',
   day: '2-digit',
@@ -121,11 +124,21 @@ const requiredDateTimeLocalSchema = z
     (value) => parseEasternDateTimeLocal(value) ?? new Date(Number.NaN)
   );
 
-const optionalPositiveIntSchema = z
+/** Trimmed form text: blank → `null`, else `Number()` (pipe validates with `z.int()`). */
+const optionalTrimmedNumericStringSchema = z
   .string()
   .trim()
-  .transform((value) => (value === '' ? null : Number(value)))
-  .pipe(z.number().int().positive().nullable());
+  .transform((value) => (value === '' ? null : Number(value)));
+
+/** Empty field → `null` (no cap); otherwise a safe integer ≥ 1 — never `0`. */
+const optionalPositiveIntSchema = optionalTrimmedNumericStringSchema.pipe(
+  z.int().positive().nullable()
+);
+
+/** Blank → `null`; explicit `0` allowed (e.g. display order). */
+const optionalNonNegativeIntSchema = optionalTrimmedNumericStringSchema.pipe(
+  z.int().nonnegative().nullable()
+);
 
 const eventDetailPageKindSchema = z.enum([
   EventDetailPageKind.standard,
@@ -198,7 +211,7 @@ export const eventQuestionFormSchema = z
     answerType: eventAnswerTypeSchema,
     optionsCsv: z.string().trim(),
     required: z.boolean(),
-    displayOrder: optionalPositiveIntSchema,
+    displayOrder: optionalNonNegativeIntSchema,
   })
   .transform((value) => ({
     ...value,

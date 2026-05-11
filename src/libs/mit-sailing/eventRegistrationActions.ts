@@ -13,6 +13,7 @@ import { questionOptionsFromJson } from '@/libs/mit-sailing/eventQueries';
 import { parsePublicEventRegistrationAnswersFromForm } from '@/libs/mit-sailing/eventRegistrationAnswerValidation';
 import type { PublicRegistrationQuestionForValidation } from '@/libs/mit-sailing/eventRegistrationAnswerValidation';
 import type { EventRegistrationMutationCode } from '@/libs/mit-sailing/eventRegistrationErrors';
+import { isPublicEventRegistrationWindowOpen } from '@/libs/mit-sailing/eventRegistrationWindow';
 import { safeErrorCode, safeErrorName } from '@/libs/safeUnknownError';
 import { getI18nPath } from '@/utils/Helpers';
 
@@ -142,20 +143,6 @@ function eventRegistrationErrorUrl(
   )}`;
 }
 
-function isRegistrationOpen(options: {
-  now: Date;
-  registrationStart: Date | null;
-  registrationEnd: Date | null;
-}): boolean {
-  if (options.registrationStart && options.now < options.registrationStart) {
-    return false;
-  }
-  if (options.registrationEnd && options.now > options.registrationEnd) {
-    return false;
-  }
-  return true;
-}
-
 function mutationCodeFromPrisma(error: unknown): EventRegistrationMutationCode {
   if (
     error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -166,6 +153,15 @@ function mutationCodeFromPrisma(error: unknown): EventRegistrationMutationCode {
   return 'unknown';
 }
 
+/**
+ * Creates or updates the viewer's registration with server-side enforcement.
+ *
+ * @param locale - Active locale segment.
+ * @param slug - Event slug.
+ * @param _prevState - Previous form state from the action state hook.
+ * @param formData - Submitted registration form data.
+ * @returns Form state when validation fails before redirecting.
+ */
 export async function createPublicEventRegistrationAction(
   locale: string,
   slug: string,
@@ -220,7 +216,7 @@ export async function createPublicEventRegistrationAction(
     redirect(eventRegistrationErrorUrl(locale, slug, 'not_found'));
   }
   if (
-    !isRegistrationOpen({
+    !isPublicEventRegistrationWindowOpen({
       now,
       registrationStart: event.registrationStart,
       registrationEnd: event.registrationEnd,
@@ -278,7 +274,7 @@ export async function createPublicEventRegistrationAction(
           throw new EventRegistrationFlowError('not_found');
         }
         if (
-          !isRegistrationOpen({
+          !isPublicEventRegistrationWindowOpen({
             now,
             registrationStart: lockedEvent.registrationStart,
             registrationEnd: lockedEvent.registrationEnd,
@@ -368,6 +364,13 @@ export async function createPublicEventRegistrationAction(
   redirect(getI18nPath(`/events/${encodeURIComponent(slug)}`, locale));
 }
 
+/**
+ * Cancels the viewer's registrations for the event.
+ *
+ * @param locale - Active locale segment.
+ * @param slug - Event slug.
+ * @returns Nothing after redirecting to the event detail page.
+ */
 export async function cancelPublicEventRegistrationAction(
   locale: string,
   slug: string

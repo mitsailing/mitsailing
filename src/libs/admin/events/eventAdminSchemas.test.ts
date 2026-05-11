@@ -155,6 +155,18 @@ describe('eventAdminSchemas', () => {
     expect(parsed.displayOrder).toBe(0);
   });
 
+  it('accepts explicit zero question display order', () => {
+    const parsed = eventQuestionFormSchema.parse({
+      questionText: 'Shirt size',
+      answerType: EventAnswerType.text,
+      optionsCsv: '',
+      required: false,
+      displayOrder: '0',
+    });
+
+    expect(parsed.displayOrder).toBe(0);
+  });
+
   it('parses explicit question display order', () => {
     const parsed = eventQuestionFormSchema.parse({
       questionText: 'Dietary',

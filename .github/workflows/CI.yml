@@ -418,6 +418,6 @@ jobs:
         uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: playwright-report
+          name: playwright-report--attempt-${{ github.run_attempt }}
           path: playwright-report/
           retention-days: 7

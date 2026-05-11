@@ -28,6 +28,12 @@ type PageProps = {
   }>;
 };
 
+/**
+ * Resolves optional search param to the first value for repeated keys.
+ *
+ * @param value - Search param value from Next.js.
+ * @returns First value when repeated, otherwise the raw value.
+ */
 function firstSearchParamValue(
   value: string | string[] | undefined
 ): string | undefined {
@@ -45,12 +51,13 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
 
 export default async function EventsListPage(props: PageProps) {
   const { locale } = await props.params;
-  const searchParams = await props.searchParams;
+  const { month: monthParam, category: categoryParam } =
+    await props.searchParams;
   setRequestLocale(locale);
 
   const reference = new Date();
   const requestedMonth = parseEventCalendarMonthParam(
-    firstSearchParamValue(searchParams.month),
+    firstSearchParamValue(monthParam),
     reference
   );
   const [bounds, t] = await Promise.all([
@@ -63,9 +70,7 @@ export default async function EventsListPage(props: PageProps) {
     rangeStart: range.start,
     rangeEndExclusive: range.endExclusive,
   });
-  const selectedCategoryCandidate = firstSearchParamValue(
-    searchParams.category
-  );
+  const selectedCategoryCandidate = firstSearchParamValue(categoryParam);
   const selectedCategoryId = categories.some(
     (category) => category.id === selectedCategoryCandidate
   )

@@ -12,7 +12,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
+import type { AdminStatusSemanticTone } from '@/lib/mit-sailing/tokens';
+import {
+  adminEventListStatusBadgeBaseClassName,
+  adminEventListStatusBadgeToneClassName,
+  adminNativeSelectClassName,
+} from '@/lib/mit-sailing/tokens';
 import { cn } from '@/lib/utils';
 import {
   adminEventDeletePath,
@@ -74,14 +79,20 @@ function dateSummary(
 }
 
 /**
- * Confirmed-registration column. `capacity === null` means no cap; `0` is a
- * real limit. Branch before `t()` so `capacity` is never passed as null (ICU
- * args: next-intl disallows null).
+ * Renders the confirmed-registration column for the admin events table.
+ *
+ * `capacity === null` means no cap. When set, capacity is at least 1; admin
+ * `maxParticipants` is validated by
+ * {@link import("@/libs/admin/events/eventAdminSchemas").eventAdminBasicsFormSchema}.
+ *
+ * Branches before calling `t()` so limited-capacity messages never receive
+ * `null` for `capacity`: next-intl 4+ disallows `null` and `undefined` as ICU
+ * interpolation values.
  *
  * @param counts - Registration counts for the event
- * @param capacity - Event capacity, or null for no cap
- * @param t - Admin event translations
- * @returns Localized registration summary
+ * @param capacity - Positive cap, or null when uncapped
+ * @param t - Admin event list translations
+ * @returns Localized registration summary string
  */
 function registrationsSummary(
   counts: AdminEventRegistrationCounts,
@@ -103,21 +114,13 @@ function registrationsSummary(
 
 function StatusBadge(props: {
   children: React.ReactNode;
-  tone: 'green' | 'red' | 'neutral';
+  tone: AdminStatusSemanticTone;
 }) {
   return (
     <span
       className={cn(
-        'inline-flex w-fit items-center rounded-md border px-2 py-0.5 text-xs font-medium',
-        props.tone === 'green'
-          ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
-          : undefined,
-        props.tone === 'red'
-          ? 'border-red-200 bg-red-50 text-red-900'
-          : undefined,
-        props.tone === 'neutral'
-          ? 'border-border bg-muted/60 text-muted-foreground dark:text-white'
-          : undefined
+        adminEventListStatusBadgeBaseClassName,
+        adminEventListStatusBadgeToneClassName[props.tone]
       )}
     >
       {props.children}
@@ -131,13 +134,13 @@ function EventStatusBadges(props: {
 }) {
   return (
     <div className="flex flex-wrap gap-1.5">
-      <StatusBadge tone={props.event.isPublished ? 'green' : 'neutral'}>
+      <StatusBadge tone={props.event.isPublished ? 'success' : 'neutral'}>
         {props.event.isPublished
           ? props.t('status_published')
           : props.t('status_draft')}
       </StatusBadge>
       {props.event.isSpecial ? (
-        <StatusBadge tone="red">{props.t('status_special')}</StatusBadge>
+        <StatusBadge tone="danger">{props.t('status_special')}</StatusBadge>
       ) : null}
       {props.event.detailPageKind === 'external' ? (
         <StatusBadge tone="neutral">{props.t('status_external')}</StatusBadge>

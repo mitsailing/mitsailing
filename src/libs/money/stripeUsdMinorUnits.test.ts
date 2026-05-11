@@ -14,14 +14,21 @@ describe('stripeUsdMinorUnits', () => {
     expect(parseUsdDecimalStringToMinorUnits('150.50')).toBe(15_050);
     expect(parseUsdDecimalStringToMinorUnits('1,234.5')).toBe(123_450);
     expect(parseUsdDecimalStringToMinorUnits('1,234.56')).toBe(123_456);
+    expect(parseUsdDecimalStringToMinorUnits('.99')).toBe(99);
+    expect(parseUsdDecimalStringToMinorUnits('.5')).toBe(50);
   });
 
-  it('rejects invalid dollar inputs', () => {
-    expect(parseUsdDecimalStringToMinorUnits('')).toBeNull();
-    expect(parseUsdDecimalStringToMinorUnits('x')).toBeNull();
-    expect(parseUsdDecimalStringToMinorUnits('-1')).toBeNull();
-    expect(parseUsdDecimalStringToMinorUnits('19.999')).toBeNull();
-    expect(parseUsdDecimalStringToMinorUnits('1,000,000')).toBeNull();
+  it.each([
+    { reason: 'empty string', input: '' },
+    { reason: 'non-numeric', input: 'x' },
+    { reason: 'negative amount', input: '-1' },
+    { reason: 'more than two decimal places', input: '19.999' },
+    { reason: 'above stripe usd limit', input: '1,000,000' },
+    { reason: 'malformed comma pair', input: '12,34' },
+    { reason: 'double comma', input: '1,,234' },
+    { reason: 'multiple decimal points', input: '1.2.3' },
+  ])('returns null for $reason', ({ input }) => {
+    expect(parseUsdDecimalStringToMinorUnits(input)).toBeNull();
   });
 
   it('formats minor units for admin decimal inputs', () => {

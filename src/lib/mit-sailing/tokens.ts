@@ -75,6 +75,38 @@ export const authPrimaryButtonClassName = [
 export const authInlineLinkClassName =
   'text-mit-red-ink underline underline-offset-2 hover:text-mit-red-hover focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2 focus-visible:ring-offset-background';
 
+/**
+ * Admin catalog status pills (`AdminStatusPill`): `ring-1 ring-inset` chrome;
+ * colors from `mit-theme.css` (`mit-success*`, `mit-red*`, shadcn `muted` /
+ * `border`), not palette `emerald-*` / `slate-*` / `red-*`.
+ */
+export const adminStatusPillToneClassName = {
+  success: 'bg-mit-success/10 text-mit-success-ink ring-mit-success/30',
+  neutral: 'bg-muted text-muted-foreground ring-border',
+  danger:
+    'bg-mit-red-50 text-mit-red-900 ring-mit-red-300 dark:bg-mit-red-950/70 dark:text-mit-red-100 dark:ring-mit-red-700',
+} as const;
+
+/** Shared semantics for admin status UI (pills, bordered list badges). */
+export type AdminStatusSemanticTone = keyof typeof adminStatusPillToneClassName;
+
+/**
+ * Bordered rounded-rect chips for the admin events table; same tones as
+ * {@link adminStatusPillToneClassName}, different layout utilities.
+ */
+export const adminEventListStatusBadgeBaseClassName =
+  'inline-flex w-fit items-center rounded-md border px-2 py-0.5 text-xs font-medium';
+
+export const adminEventListStatusBadgeToneClassName: Record<
+  AdminStatusSemanticTone,
+  string
+> = {
+  success: 'border-mit-success/30 bg-mit-success/10 text-mit-success-ink',
+  danger:
+    'border-mit-red-200 bg-mit-red-50 text-mit-red-900 dark:border-mit-red-700 dark:bg-mit-red-950/70 dark:text-mit-red-100',
+  neutral: 'border-border bg-muted/60 text-muted-foreground dark:text-white',
+};
+
 /** Native `<select>` in admin catalog forms (server `FormData`; matches Input chrome). */
 export const adminNativeSelectClassName = [
   'flex h-8 w-full cursor-pointer appearance-none rounded-lg border border-input bg-transparent bg-[length:1rem] bg-[right_0.5rem_center] bg-no-repeat px-2.5 py-1 pr-9 text-sm text-foreground outline-none transition-colors',

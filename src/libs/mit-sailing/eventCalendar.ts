@@ -39,6 +39,8 @@ export type EventCalendarEvent = {
   category: {
     id: string;
     name: string;
+    /** Resolved Tailwind `bg-*` bar class (from DB or catalog defaults). */
+    accentClassName: string;
   };
 };
 
@@ -92,7 +94,7 @@ export function eventCalendarMonthFromDate(date: Date): EventCalendarMonth {
 }
 
 /**
- * @param monthParam - Optional URL month value (`YYYY-MM`)
+ * @param monthParam - Optional URL month value (`YYYY-MM`); year 1–9999, month 01–12
  * @param reference - Fallback instant when URL value is missing or invalid
  * @returns Calendar month in New York local time
  */
@@ -109,7 +111,14 @@ export function parseEventCalendarMonthParam(
 
   const year = Number(rawYear);
   const month = Number(rawMonth);
-  if (!Number.isInteger(year) || month < 1 || month > 12) {
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    year < 1 ||
+    year > 9999 ||
+    month < 1 ||
+    month > 12
+  ) {
     return eventCalendarMonthFromDate(reference);
   }
 

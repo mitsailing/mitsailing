@@ -67,7 +67,14 @@ function textAnswerSlice(
   if (typeof raw !== 'string') {
     return { status: 'fail', code: 'answers_invalid' };
   }
-  const parsedText = registrationTextBodySchema.safeParse(raw);
+  const normalized = raw.trim();
+  if (normalized.length === 0) {
+    if (question.required) {
+      return { status: 'fail', code: 'questions_required' };
+    }
+    return { status: 'skip' };
+  }
+  const parsedText = registrationTextBodySchema.safeParse(normalized);
   if (!parsedText.success) {
     return { status: 'fail', code: 'answers_invalid' };
   }

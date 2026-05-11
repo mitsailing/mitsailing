@@ -1,15 +1,12 @@
 import { expect, test } from '@playwright/test';
 import { Pool } from 'pg';
 import { signInAsAdmin } from '../helpers/e2e-admin-sign-in';
+import { e2ePgConnectionString } from '../helpers/e2e-database-url';
 
 const adminEmail =
   process.env.ADMIN_EMAIL?.trim().toLowerCase() ?? 'admin@example.com';
-const testDatabaseUrl =
-  process.env.TEST_DATABASE_URL ??
-  process.env.DATABASE_URL ??
-  'postgresql://postgres:postgres@localhost:5432/mitsailing_test';
 
-const pool = new Pool({ connectionString: testDatabaseUrl });
+const pool = new Pool({ connectionString: e2ePgConnectionString() });
 
 let pgPoolEnded = false;
 

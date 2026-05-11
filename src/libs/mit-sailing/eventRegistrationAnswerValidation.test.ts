@@ -29,6 +29,40 @@ describe('parsePublicEventRegistrationAnswersFromForm', () => {
     });
   });
 
+  it('treats whitespace-only text as missing when required', () => {
+    const fd = new FormData();
+    fd.set('question_q1', '   \t\n  ');
+    const result = parsePublicEventRegistrationAnswersFromForm(
+      [
+        {
+          id: 'q1',
+          required: true,
+          answerType: EventAnswerType.text,
+          options: [],
+        },
+      ],
+      fd
+    );
+    expect(result).toEqual({ ok: false, code: 'questions_required' });
+  });
+
+  it('skips optional text when value is whitespace-only', () => {
+    const fd = new FormData();
+    fd.set('question_q1', '   ');
+    const result = parsePublicEventRegistrationAnswersFromForm(
+      [
+        {
+          id: 'q1',
+          required: false,
+          answerType: EventAnswerType.text,
+          options: [],
+        },
+      ],
+      fd
+    );
+    expect(result).toEqual({ ok: true, answers: [] });
+  });
+
   it('rejects text over max length', () => {
     const fd = new FormData();
     fd.set(

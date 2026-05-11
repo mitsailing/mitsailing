@@ -3,6 +3,7 @@ import { cache } from 'react';
 import type { Prisma } from '@/generated/prisma/client';
 import { EventRegistrationStatus } from '@/generated/prisma/enums';
 import type { EventRegistrationStatus as EventRegistrationStatusValue } from '@/generated/prisma/enums';
+import { resolveEventCategoryCalendarAccentClassName } from '@/lib/mit-sailing/eventCategoryAccent';
 import { prisma } from '@/libs/DB';
 import { logger } from '@/libs/Logger';
 import { eventCalendarMonthFromDate } from '@/libs/mit-sailing/eventCalendar';
@@ -377,12 +378,25 @@ export async function listPublishedEventDatesForCalendarMonth(params: {
             name: true,
             slug: true,
             eventCategoryId: true,
-            category: { select: { id: true, name: true } },
+            category: {
+              select: { id: true, name: true, accentClassName: true },
+            },
           },
         },
       },
     });
-    return dates;
+    return dates.map((row) => ({
+      ...row,
+      event: {
+        ...row.event,
+        category: {
+          ...row.event.category,
+          accentClassName: resolveEventCategoryCalendarAccentClassName(
+            row.event.category
+          ),
+        },
+      },
+    }));
   } catch (error) {
     logPublicEventsQueryFailure({
       where: 'month_dates',

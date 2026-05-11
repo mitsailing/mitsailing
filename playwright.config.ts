@@ -2,15 +2,14 @@ import 'dotenv/config';
 import * as os from 'node:os';
 import type { ChromaticConfig } from '@chromatic-com/playwright';
 import { defineConfig, devices } from '@playwright/test';
+import { playwrightE2eDatabaseUrl } from './tests/helpers/e2e-database-url';
 
 // Cal.com–style: e2e uses a dedicated port (not `PORT` from `.env`, often 3000
 // for `npm run dev`). See https://github.com/calcom/cal.com/blob/main/playwright.config.ts
 const PORT = process.env.PLAYWRIGHT_E2E_PORT ?? '3008';
 const baseURL = `http://localhost:${PORT}`;
 
-const e2eDatabaseUrl =
-  process.env.TEST_DATABASE_URL ??
-  'postgresql://postgres:postgres@127.0.0.1:5432/test_db?sslmode=disable';
+const e2eDatabaseUrl = playwrightE2eDatabaseUrl();
 
 process.env.DATABASE_URL = e2eDatabaseUrl;
 

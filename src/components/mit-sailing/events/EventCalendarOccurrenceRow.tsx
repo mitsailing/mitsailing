@@ -4,15 +4,6 @@ import { Link } from '@/libs/I18nNavigation';
 import { formatEasternEventCalendarLine } from '@/libs/mit-sailing/easternTimeFormat';
 import type { EventCalendarOccurrenceRow as EventCalendarOccurrence } from '@/libs/mit-sailing/eventCalendar';
 
-const CATEGORY_ACCENT_CLASS_NAME_BY_ID: Record<string, string> = {
-  'cat-class': 'bg-mit-success',
-  'cat-racing': 'bg-mit-red',
-};
-
-function categoryAccentClassName(categoryId: string): string {
-  return CATEGORY_ACCENT_CLASS_NAME_BY_ID[categoryId] ?? 'bg-mit-cat';
-}
-
 type EventCalendarOccurrenceRowProps = {
   row: EventCalendarOccurrence;
   showBottomBorder: boolean;
@@ -37,7 +28,7 @@ export function EventCalendarOccurrenceRow(
         aria-hidden
         className={cn(
           'w-[3px] shrink-0 rounded-sm',
-          categoryAccentClassName(props.row.category.id)
+          props.row.category.accentClassName
         )}
       />
       <div className="min-w-0 flex-1">

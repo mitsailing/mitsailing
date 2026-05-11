@@ -3,6 +3,7 @@ import type {
   PublicEventDetail,
   PublicEventRegistrationState,
 } from '@/libs/mit-sailing/eventQueries';
+import { publicRegistrationWindowPhase } from '@/libs/mit-sailing/eventRegistrationWindow';
 
 export type PublicEventReservationState =
   | 'external'
@@ -48,16 +49,15 @@ export function publicEventReservationState(options: {
   if (options.currentRegistration?.status === EventRegistrationStatus.pending) {
     return 'pending';
   }
-  if (
-    options.event.registrationStart &&
-    options.now < options.event.registrationStart
-  ) {
+  const windowPhase = publicRegistrationWindowPhase({
+    now: options.now,
+    registrationStart: options.event.registrationStart,
+    registrationEnd: options.event.registrationEnd,
+  });
+  if (windowPhase === 'before_start') {
     return 'opening_later';
   }
-  if (
-    options.event.registrationEnd &&
-    options.now >= options.event.registrationEnd
-  ) {
+  if (windowPhase === 'after_end') {
     return 'closed';
   }
   if (publicEventIsAtAcceptedCapacity(options.event)) {
