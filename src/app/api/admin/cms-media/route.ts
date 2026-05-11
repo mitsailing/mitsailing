@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/libs/auth/dal';
 import { Role } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
+import { logger } from '@/libs/Logger';
 import {
   deleteCmsMediaFile,
   writeCmsMediaFile,
@@ -121,7 +122,7 @@ export async function POST(request: Request) {
       bytes,
     });
   } catch (error: unknown) {
-    console.error('Failed to write CMS media file', error);
+    logger.error('Failed to write CMS media file: {error}', { error });
     return NextResponse.json({ error: 'storage_failed' }, { status: 500 });
   }
   if (!writtenPath) {
@@ -154,9 +155,11 @@ export async function POST(request: Request) {
     try {
       await deleteCmsMediaFile({ id, filename: validation.storedFilename });
     } catch (cleanupError: unknown) {
-      console.error('Failed to remove orphaned CMS media file', cleanupError);
+      logger.error('Failed to remove orphaned CMS media file: {error}', {
+        error: cleanupError,
+      });
     }
-    console.error('Failed to record CMS media asset', error);
+    logger.error('Failed to record CMS media asset: {error}', { error });
     return NextResponse.json({ error: 'asset_create_failed' }, { status: 500 });
   }
 

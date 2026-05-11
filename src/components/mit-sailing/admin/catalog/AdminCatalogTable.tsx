@@ -103,7 +103,7 @@ function SortableRow(props: {
       ref={setNodeRef}
       style={style}
     >
-      <TableCell className="row-span-4 flex w-11 items-start justify-center px-2 py-3 align-middle md:table-cell md:w-10">
+      <TableCell className="row-span-full flex w-11 items-start justify-center px-2 py-3 align-middle md:table-cell md:w-10">
         <Button
           aria-label={props.dragLabel}
           className="cursor-grab touch-none text-muted-foreground hover:text-foreground"
@@ -331,7 +331,7 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
   return (
     <div className="flex flex-col gap-2">
       {reorderError ? (
-        <p className="text-sm text-red-700" role="alert">
+        <p className="text-sm text-destructive" role="alert">
           {reorderError}
         </p>
       ) : null}

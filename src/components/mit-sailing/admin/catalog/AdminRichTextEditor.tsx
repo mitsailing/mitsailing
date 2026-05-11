@@ -246,15 +246,19 @@ export function AdminRichTextEditor(props: {
   async function loadAssets() {
     setMediaBusy(true);
     setMediaError(null);
-    const loadedAssets = await loadCmsMediaAssets();
-    if (!loadedAssets) {
-      setMediaBusy(false);
+    try {
+      const loadedAssets = await loadCmsMediaAssets();
+      if (!loadedAssets) {
+        setMediaError(t('rich_text_media_error'));
+        return;
+      }
+      setAssets(loadedAssets);
+      setPickerOpen(true);
+    } catch {
       setMediaError(t('rich_text_media_error'));
-      return;
+    } finally {
+      setMediaBusy(false);
     }
-    setAssets(loadedAssets);
-    setPickerOpen(true);
-    setMediaBusy(false);
   }
 
   async function uploadImage(file: File) {
@@ -513,11 +517,7 @@ export function AdminRichTextEditor(props: {
                 setPickerOpen(false);
                 return;
               }
-              try {
-                await loadAssets();
-              } catch {
-                handleMediaFailure();
-              }
+              await loadAssets();
             }}
             size="icon"
             title={t('rich_text_select_image')}

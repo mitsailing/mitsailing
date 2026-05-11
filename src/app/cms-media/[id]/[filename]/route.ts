@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/libs/DB';
+import { logger } from '@/libs/Logger';
 import { readCmsMediaFile } from '@/libs/mit-sailing/cmsMediaStorage';
 import {
   buildCmsMediaPublicPath,
@@ -53,7 +54,7 @@ export async function GET(_request: Request, props: CmsMediaRouteProps) {
       },
     });
   } catch (error: unknown) {
-    console.error('Failed to fetch CMS media asset', error);
+    logger.error('Failed to fetch CMS media asset: {error}', { error });
     return new NextResponse(null, { status: 500 });
   }
 
@@ -69,7 +70,7 @@ export async function GET(_request: Request, props: CmsMediaRouteProps) {
   try {
     bytes = await readCmsMediaFile({ id, filename });
   } catch (error: unknown) {
-    console.error('Failed to read CMS media file', error);
+    logger.error('Failed to read CMS media file: {error}', { error });
     return new NextResponse(null, { status: 500 });
   }
   if (!bytes) {

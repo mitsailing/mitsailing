@@ -1031,7 +1031,7 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
               value={cmsBlockPreviewState.ctaLabel}
             />
             {ctaLabelErrorMessage ? (
-              <p className="text-sm text-red-700" id={cmsCtaLabelErrorId}>
+              <p className="text-sm text-destructive" id={cmsCtaLabelErrorId}>
                 {ctaLabelErrorMessage}
               </p>
             ) : null}
@@ -1054,7 +1054,7 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
               value={cmsBlockPreviewState.ctaUrl}
             />
             {ctaUrlErrorMessage ? (
-              <p className="text-sm text-red-700" id={cmsCtaUrlErrorId}>
+              <p className="text-sm text-destructive" id={cmsCtaUrlErrorId}>
                 {ctaUrlErrorMessage}
               </p>
             ) : null}
@@ -1125,7 +1125,7 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
               value={cmsBlockPreviewState.imageAlt}
             />
             {imageAltErrorMessage ? (
-              <p className="text-sm text-red-700" id={cmsImageAltErrorId}>
+              <p className="text-sm text-destructive" id={cmsImageAltErrorId}>
                 {imageAltErrorMessage}
               </p>
             ) : null}

@@ -332,7 +332,7 @@ export function AdminImageField(props: {
         />
       ) : null}
       {props.errorMessage ? (
-        <p className="text-sm text-red-700" id={props.errorId} role="alert">
+        <p className="text-sm text-destructive" id={props.errorId} role="alert">
           {props.errorMessage}
         </p>
       ) : null}
@@ -459,6 +459,11 @@ export function AdminImageListField(props: {
       <input
         accept="image/jpeg,image/png,image/webp,image/gif"
         className="sr-only"
+        data-testid={
+          props.fieldKey === 'imagePaths'
+            ? 'sailing-class-gallery-upload'
+            : `${props.fieldKey}-upload`
+        }
         onChange={async (event) => {
           const file = event.target.files?.[0];
           event.currentTarget.value = '';

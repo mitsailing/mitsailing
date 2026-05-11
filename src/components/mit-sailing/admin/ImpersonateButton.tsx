@@ -23,16 +23,21 @@ export function ImpersonateButton(props: ImpersonateButtonProps) {
   async function onClick() {
     setError(null);
     setSubmitting(true);
-    const res = await authClient.admin.impersonateUser({
-      userId: props.userId,
-    });
-    setSubmitting(false);
-    if (res.error) {
-      setError(res.error.message ?? t('impersonate_error'));
-      return;
+    try {
+      const res = await authClient.admin.impersonateUser({
+        userId: props.userId,
+      });
+      if (res.error) {
+        setError(res.error.message ?? t('impersonate_error'));
+        return;
+      }
+      router.push(props.redirectHref);
+      router.refresh();
+    } catch {
+      setError(t('impersonate_error'));
+    } finally {
+      setSubmitting(false);
     }
-    router.push(props.redirectHref);
-    router.refresh();
   }
 
   return (

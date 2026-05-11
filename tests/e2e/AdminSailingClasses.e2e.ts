@@ -51,7 +51,7 @@ test.describe('Admin sailing classes', () => {
     await editor.scrollIntoViewIfNeeded();
     await editor.click();
     await page.keyboard.type('E2E body');
-    await page.locator('input[type="file"]').nth(1).setInputFiles({
+    await page.getByTestId('sailing-class-gallery-upload').setInputFiles({
       buffer: PNG_BYTES,
       mimeType: 'image/png',
       name: 'e2e-class-gallery.png',
