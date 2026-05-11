@@ -352,7 +352,7 @@ function EventMetadataSection(props: {
     >
       <dl className="grid gap-4 md:grid-cols-3">
         <div>
-          <dt className="text-xs font-semibold text-muted-foreground uppercase dark:text-white">
+          <dt className="text-xs font-semibold text-mit-readable-ink uppercase">
             {props.t('metadata_created_at')}
           </dt>
           <dd className="mt-1 text-sm font-medium">
@@ -360,7 +360,7 @@ function EventMetadataSection(props: {
           </dd>
         </div>
         <div>
-          <dt className="text-xs font-semibold text-muted-foreground uppercase dark:text-white">
+          <dt className="text-xs font-semibold text-mit-readable-ink uppercase">
             {props.t('metadata_created_by')}
           </dt>
           <dd className="mt-1 text-sm font-medium">
@@ -368,7 +368,7 @@ function EventMetadataSection(props: {
           </dd>
         </div>
         <div>
-          <dt className="text-xs font-semibold text-muted-foreground uppercase dark:text-white">
+          <dt className="text-xs font-semibold text-mit-readable-ink uppercase">
             {props.t('metadata_registrations')}
           </dt>
           <dd className="mt-1 text-sm font-medium">

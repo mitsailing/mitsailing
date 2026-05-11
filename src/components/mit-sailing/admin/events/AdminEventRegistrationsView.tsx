@@ -199,7 +199,7 @@ function RegistrationCard(props: {
         <CardContent className="flex flex-col gap-4">
           <dl className="grid gap-3 text-sm md:grid-cols-2">
             <div>
-              <dt className="text-xs font-semibold text-muted-foreground uppercase dark:text-white">
+              <dt className="text-xs font-semibold text-mit-readable-ink uppercase">
                 {props.t('registration_created_at')}
               </dt>
               <dd className="mt-1">
@@ -207,15 +207,13 @@ function RegistrationCard(props: {
               </dd>
             </div>
             <div>
-              <dt className="text-xs font-semibold text-muted-foreground uppercase dark:text-white">
+              <dt className="text-xs font-semibold text-mit-readable-ink uppercase">
                 {props.t('registration_swim_agreement')}
               </dt>
               <dd className="mt-1">
-                {props.registration.swimAgreementAcceptedAt
-                  ? formatEasternDateTime(
-                      props.registration.swimAgreementAcceptedAt
-                    )
-                  : props.t('registration_swim_agreement_not_completed')}
+                {formatEasternDateTime(
+                  props.registration.swimAgreementAcceptedAt
+                )}
               </dd>
             </div>
           </dl>
@@ -347,7 +345,7 @@ export function AdminEventRegistrationsView(
       </AdminEventBackLink>
 
       <header className="flex flex-col gap-2">
-        <p className="text-xs font-semibold tracking-widest text-mit-red uppercase dark:text-white">
+        <p className="text-xs font-semibold tracking-widest text-mit-red-ink uppercase">
           {props.t('registrations_eyebrow')}
         </p>
         <h1 className="text-3xl font-semibold tracking-tight text-foreground">
