@@ -903,29 +903,26 @@ export async function getAdminCmsPageRevisionCompare(props: {
   pageId: string;
   revisionId: string;
 }): Promise<AdminCmsPageRevisionCompare | null> {
-  const [currentSnapshotValue, revision] = await Promise.all([
-    loadCmsPageRevisionSnapshot(props.pageId),
-    prisma.userAudit.findFirst({
-      select: {
-        id: true,
-        version: true,
-        action: true,
-        auditedChanges: true,
-        createdAt: true,
-        user: {
-          select: {
-            email: true,
-            name: true,
-          },
+  const revision = await prisma.userAudit.findFirst({
+    select: {
+      id: true,
+      version: true,
+      action: true,
+      auditedChanges: true,
+      createdAt: true,
+      user: {
+        select: {
+          email: true,
+          name: true,
         },
       },
-      where: {
-        auditableId: props.pageId,
-        auditableType: 'cms_pages',
-        id: props.revisionId,
-      },
-    }),
-  ]);
+    },
+    where: {
+      auditableId: props.pageId,
+      auditableType: 'cms_pages',
+      id: props.revisionId,
+    },
+  });
   if (!revision) {
     return null;
   }
@@ -943,7 +940,7 @@ export async function getAdminCmsPageRevisionCompare(props: {
   });
   const baseSnapshot = previousRevision
     ? cmsPageRevisionSnapshotFromUnknown(previousRevision.auditedChanges)
-    : cmsPageRevisionSnapshotFromUnknown(currentSnapshotValue);
+    : null;
   return {
     action: cmsPageRevisionActionFromAudit(revision.action),
     baseVersion: previousRevision?.version,

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
+  userAuditFindFirst: vi.fn(),
   userAuditFindMany: vi.fn(),
 }));
 
@@ -9,15 +10,17 @@ vi.mock('server-only', () => ({}));
 vi.mock('@/libs/DB', () => ({
   prisma: {
     userAudit: {
+      findFirst: mocks.userAuditFindFirst,
       findMany: mocks.userAuditFindMany,
     },
   },
 }));
 
-const { listAdminCmsPageRevisions } =
+const { getAdminCmsPageRevisionCompare, listAdminCmsPageRevisions } =
   await import('@/libs/mit-sailing/cmsHistory');
 
 beforeEach(() => {
+  mocks.userAuditFindFirst.mockReset();
   mocks.userAuditFindMany.mockReset();
 });
 
@@ -172,5 +175,54 @@ describe('listAdminCmsPageRevisions', () => {
         }),
       }),
     ]);
+  });
+});
+
+describe('getAdminCmsPageRevisionCompare', () => {
+  it('uses empty diff when the revision has no predecessor', async () => {
+    const snapshot = cmsPageSnapshot();
+    mocks.userAuditFindFirst
+      .mockResolvedValueOnce({
+        action: 'create',
+        auditedChanges: snapshot,
+        createdAt: new Date('2026-05-10T11:00:00.000Z'),
+        id: 'audit-1',
+        user: null,
+        version: 1,
+      })
+      .mockResolvedValueOnce(null);
+
+    const result = await getAdminCmsPageRevisionCompare({
+      pageId: 'page-1',
+      revisionId: 'audit-1',
+    });
+
+    expect(result?.comparison.changes).toEqual([]);
+    expect(result?.comparison.remainingCount).toBe(0);
+    expect(result?.baseVersion).toBeUndefined();
+    expect(mocks.userAuditFindFirst).toHaveBeenNthCalledWith(1, {
+      select: {
+        action: true,
+        auditedChanges: true,
+        createdAt: true,
+        id: true,
+        user: { select: { email: true, name: true } },
+        version: true,
+      },
+      where: {
+        auditableId: 'page-1',
+        auditableType: 'cms_pages',
+        id: 'audit-1',
+      },
+    });
+    expect(mocks.userAuditFindFirst).toHaveBeenNthCalledWith(2, {
+      orderBy: [{ version: 'desc' }, { createdAt: 'desc' }],
+      select: { auditedChanges: true, version: true },
+      where: {
+        auditableId: 'page-1',
+        auditableType: 'cms_pages',
+        version: { lt: 1 },
+      },
+    });
   });
 });
