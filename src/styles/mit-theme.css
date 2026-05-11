@@ -82,7 +82,7 @@
   --popover-foreground: #fafafa;
   --primary: #fafafa;
   --primary-foreground: #18181b;
-  --primary-ink: #fb7185;
+  --primary-ink: var(--primary);
   --secondary: #27272a;
   --secondary-foreground: #fafafa;
   --muted: #27272a;
@@ -105,8 +105,8 @@
   --sidebar-border: #27272a;
   --sidebar-ring: #d4d4d8;
   --mit-red-core: #750014;
-  /** Readable rose ink on dark surfaces (links/wordmarks); ramp stays shared below. */
-  --mit-red-ink: #fb7185;
+  /** White ink on dark surfaces for public text/link contrast; ramp stays shared below. */
+  --mit-red-ink: var(--foreground);
   --mit-red-hover: #fda4af;
   --mit-red-highlight: var(--accent);
   --mit-text: var(--foreground);

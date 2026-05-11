@@ -40,7 +40,6 @@ export function EventCalendarOccurrenceRow(
           'w-[3px] shrink-0 rounded-sm',
           categoryAccentClassName(props.row.category.id)
         )}
-        title={props.row.category.name}
       />
       <div className="min-w-0 flex-1">
         <Link

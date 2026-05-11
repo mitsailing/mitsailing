@@ -80,6 +80,19 @@ function statusLabel(
   return t('registration_status_cancelled');
 }
 
+function emptyStatusMessage(
+  status: Exclude<RegistrationFilter, 'all'>,
+  t: AdminEventRegistrationsTranslations
+): string {
+  if (status === EventRegistrationStatus.approved) {
+    return t('registrations_empty_status_approved');
+  }
+  if (status === EventRegistrationStatus.pending) {
+    return t('registrations_empty_status_pending');
+  }
+  return t('registrations_empty_status_cancelled');
+}
+
 function statusBadgeClassName(status: AdminEventRegistrationDto['status']) {
   if (status === EventRegistrationStatus.approved) {
     return 'border-emerald-200 bg-emerald-50 text-emerald-900';
@@ -87,7 +100,7 @@ function statusBadgeClassName(status: AdminEventRegistrationDto['status']) {
   if (status === EventRegistrationStatus.pending) {
     return 'border-amber-200 bg-amber-50 text-amber-950';
   }
-  return 'border-border bg-muted text-muted-foreground';
+  return 'border-border bg-muted text-muted-foreground dark:text-white';
 }
 
 function RegistrationFilters(props: {
@@ -169,7 +182,7 @@ function RegistrationCard(props: {
         <CardHeader className="gap-3 md:grid-cols-[1fr_auto]">
           <div className="min-w-0">
             <CardTitle>{props.registration.user.name}</CardTitle>
-            <p className="truncate text-sm text-muted-foreground">
+            <p className="truncate text-sm text-muted-foreground dark:text-white">
               {props.registration.user.email}
             </p>
           </div>
@@ -185,7 +198,7 @@ function RegistrationCard(props: {
         <CardContent className="flex flex-col gap-4">
           <dl className="grid gap-3 text-sm md:grid-cols-2">
             <div>
-              <dt className="text-xs font-semibold text-muted-foreground uppercase">
+              <dt className="text-xs font-semibold text-muted-foreground uppercase dark:text-white">
                 {props.t('registration_created_at')}
               </dt>
               <dd className="mt-1">
@@ -193,7 +206,7 @@ function RegistrationCard(props: {
               </dd>
             </div>
             <div>
-              <dt className="text-xs font-semibold text-muted-foreground uppercase">
+              <dt className="text-xs font-semibold text-muted-foreground uppercase dark:text-white">
                 {props.t('registration_swim_agreement')}
               </dt>
               <dd className="mt-1">
@@ -212,7 +225,7 @@ function RegistrationCard(props: {
               <dl className="mt-2 flex flex-col gap-2">
                 {props.registration.answers.map((answer) => (
                   <div key={answer.id}>
-                    <dt className="text-xs font-medium text-muted-foreground">
+                    <dt className="text-xs font-medium text-muted-foreground dark:text-white">
                       {answer.question.questionText}
                     </dt>
                     <dd className="text-sm text-foreground">{answer.value}</dd>
@@ -281,7 +294,7 @@ function BulkEmailPlaceholder(props: {
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground dark:text-white">
           {props.t('bulk_email_placeholder')}
         </p>
         <Input
@@ -295,7 +308,7 @@ function BulkEmailPlaceholder(props: {
           disabled
           placeholder={props.t('bulk_email_message')}
         />
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground dark:text-white">
           {props.t('bulk_email_recipients', { count: recipientCount })}
         </p>
         <Button disabled type="button" variant="mit">
@@ -338,7 +351,7 @@ export function AdminEventRegistrationsView(
       </AdminEventBackLink>
 
       <header className="flex flex-col gap-2">
-        <p className="text-xs font-semibold tracking-widest text-mit-red uppercase">
+        <p className="text-xs font-semibold tracking-widest text-mit-red uppercase dark:text-white">
           {props.t('registrations_eyebrow')}
         </p>
         <h1 className="text-3xl font-semibold tracking-tight text-foreground">
@@ -360,9 +373,7 @@ export function AdminEventRegistrationsView(
             <AdminEventEmptyState>
               {props.filter === 'all'
                 ? props.t('registrations_empty_all')
-                : props.t('registrations_empty_status', {
-                    status: statusLabel(props.filter, props.t).toLowerCase(),
-                  })}
+                : emptyStatusMessage(props.filter, props.t)}
             </AdminEventEmptyState>
           ) : (
             <ol className="m-0 flex list-none flex-col gap-3 p-0">

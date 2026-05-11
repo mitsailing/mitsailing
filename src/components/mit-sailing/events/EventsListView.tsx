@@ -130,7 +130,7 @@ export async function EventsListView(props: EventsListViewProps) {
             textFocusRingClassName,
             props.selectedCategoryId
               ? 'bg-background hover:bg-mit-surface'
-              : 'bg-mit-red-highlight text-mit-red-ink'
+              : 'bg-mit-red-highlight text-mit-red-ink dark:border-white/40 dark:bg-white/10 dark:text-white'
           )}
           href={eventsCalendarHref(props.visibleMonth)}
         >
@@ -145,7 +145,7 @@ export async function EventsListView(props: EventsListViewProps) {
                 'rounded-lg border border-mit-line px-3.5 py-2 text-xs font-semibold text-mit-text no-underline',
                 textFocusRingClassName,
                 isActive
-                  ? 'bg-mit-red-highlight text-mit-red-ink'
+                  ? 'bg-mit-red-highlight text-mit-red-ink dark:border-white/40 dark:bg-white/10 dark:text-white'
                   : 'bg-background hover:bg-mit-surface'
               )}
               href={eventsCalendarHref(props.visibleMonth, category.id)}

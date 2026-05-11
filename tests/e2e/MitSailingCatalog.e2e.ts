@@ -127,7 +127,7 @@ test.describe('MIT Sailing catalog', () => {
     ).toBeVisible();
   });
 
-  test('/events/[slug] submits registration from lightbox', async ({
+  test('/events/[slug]/register submits registration from checkout page', async ({
     page,
   }) => {
     const slug = 'intercollegiate-overnight-series';
@@ -145,7 +145,13 @@ test.describe('MIT Sailing catalog', () => {
         })
       ).toBeVisible();
       await page.getByRole('button', { name: 'Request to register' }).click();
-      await expect(page.getByRole('dialog')).toBeVisible();
+      await expect(page).toHaveURL(new RegExp(`/events/${slug}/register/?$`));
+      await expect(
+        page.getByRole('heading', {
+          level: 1,
+          name: 'Intercollegiate Overnight Series',
+        })
+      ).toBeVisible();
       await page.getByLabel('Current sailing rating').selectOption('Green');
       await page.getByLabel(/I can swim/).check();
       await page

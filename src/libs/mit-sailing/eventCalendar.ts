@@ -19,7 +19,11 @@ export type EventCalendarMonthBounds = {
   maxMonth: number;
 };
 
-export type EventCalendarListSegment = 'single' | 'multi-start' | 'multi-end';
+export type EventCalendarListSegment =
+  | 'single'
+  | 'multi-start'
+  | 'multi-end'
+  | 'ongoing';
 
 export type EventCalendarCategory = {
   id: string;
@@ -67,6 +71,12 @@ const monthParamPattern = /^(\d{4})-(\d{2})$/;
 
 function calendarMonthIndex(month: EventCalendarMonth): number {
   return month.year * 12 + (month.month - 1);
+}
+
+function eventCalendarMonthFromIndex(index: number): EventCalendarMonth {
+  const year = Math.floor(index / 12);
+  const monthIndex = index - year * 12;
+  return { year, month: monthIndex + 1 };
 }
 
 /**
@@ -126,11 +136,7 @@ export function addEventCalendarMonths(
   month: EventCalendarMonth,
   amount: number
 ): EventCalendarMonth {
-  const index = calendarMonthIndex(month) + amount;
-  return {
-    year: Math.floor(index / 12),
-    month: (index % 12) + 1,
-  };
+  return eventCalendarMonthFromIndex(calendarMonthIndex(month) + amount);
 }
 
 /**
@@ -151,10 +157,7 @@ export function clampEventCalendarMonth(
     month: bounds.maxMonth,
   });
   const clamped = Math.max(min, Math.min(max, calendarMonthIndex(month)));
-  return {
-    year: Math.floor(clamped / 12),
-    month: (clamped % 12) + 1,
-  };
+  return eventCalendarMonthFromIndex(clamped);
 }
 
 /**
@@ -305,12 +308,22 @@ export function buildEventCalendarOccurrenceRows(params: {
         listSegment: 'multi-end',
       });
     }
+
+    if (startKey < params.rangeStartKey && endKey > params.rangeEndKey) {
+      rows.push({
+        ...base,
+        rowKey: `${eventDate.id}-${params.rangeStartKey}-ongoing`,
+        displayDayKey: params.rangeStartKey,
+        listSegment: 'ongoing',
+      });
+    }
   }
 
   const segmentOrder: Record<EventCalendarListSegment, number> = {
     single: 0,
     'multi-start': 1,
-    'multi-end': 2,
+    ongoing: 2,
+    'multi-end': 3,
   };
   return rows.toSorted((a, b) => {
     const day = a.displayDayKey.localeCompare(b.displayDayKey);

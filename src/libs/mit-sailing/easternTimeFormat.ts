@@ -86,12 +86,12 @@ export function formatEasternShortDateFromIsoCalendar(iso: string): string {
 export function formatEasternEventCalendarLine(params: {
   start: Date;
   end: Date;
-  segment: 'single' | 'multi-start' | 'multi-end';
+  segment: 'single' | 'multi-start' | 'multi-end' | 'ongoing';
 }): string {
   if (params.segment === 'single') {
     return formatEasternSameDayTimeRange(params.start, params.end);
   }
-  if (params.segment === 'multi-end') {
+  if (params.segment === 'multi-end' || params.segment === 'ongoing') {
     return `Until ${timeOnlyFormatter.format(params.end)} ET`;
   }
 

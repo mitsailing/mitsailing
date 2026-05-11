@@ -764,7 +764,7 @@
     "basics_subtitle": "Core event copy, publishing, registration window, and capacity.",
     "bulk_email_heading": "Bulk email",
     "bulk_email_message": "Message",
-    "bulk_email_placeholder": "Email dispatch needs a Prisma audit/job model before it can send from this admin surface.",
+    "bulk_email_placeholder": "Bulk email will be available after message delivery is configured.",
     "bulk_email_recipients": "{count, plural, one {# eligible recipient} other {# eligible recipients}}",
     "bulk_email_send": "Send",
     "bulk_email_subject": "Subject",
@@ -792,6 +792,7 @@
     "fees_subtitle": "Shown on the public event page and registration flow when payment is enabled.",
     "field_answer_type": "Answer type",
     "field_category": "Event type",
+    "field_category_placeholder": "Choose an event type",
     "field_date_end": "Ends",
     "field_date_start": "Starts",
     "field_description": "Description",
@@ -865,7 +866,9 @@
     "registration_summary_heading": "Summary",
     "registration_swim_agreement": "Swim agreement",
     "registrations_empty_all": "No one has registered for this event yet.",
-    "registrations_empty_status": "No {status} registrations.",
+    "registrations_empty_status_approved": "No confirmed registrations.",
+    "registrations_empty_status_cancelled": "No cancelled registrations.",
+    "registrations_empty_status_pending": "No pending registrations.",
     "registrations_eyebrow": "Registrations",
     "section_admins": "Contacts / event admins",
     "section_basics": "Basics",
@@ -880,7 +883,7 @@
     "status_published": "Published",
     "status_special": "Special",
     "stripe_placeholder_body": "Stripe checkout is intentionally separate from the first event-admin port.",
-    "stripe_placeholder_status": "Payment configuration will attach here once checkout jobs and audit records exist."
+    "stripe_placeholder_status": "Payment configuration will appear here once payments are set up."
   },
   "AdminUsers": {
     "hub_label_users": "Users",

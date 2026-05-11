@@ -57,7 +57,7 @@ export default async function EventDetailPage(props: PageProps) {
         { label: event.name },
       ]}
     >
-      <SiteSectionMain variant="detail">
+      <SiteSectionMain variant="compactDetail">
         <EventDetailView
           currentRegistration={currentRegistration}
           errorCode={searchParams?.registration ?? null}

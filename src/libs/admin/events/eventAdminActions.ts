@@ -99,6 +99,45 @@ function editUrlWithError(
   )}`;
 }
 
+async function verifiedEventIdFromSlug(options: {
+  action: string;
+  eventId: string;
+  locale: string;
+  slug: string;
+}): Promise<string> {
+  let event: { id: string } | null;
+  try {
+    event = await prisma.event.findUnique({
+      where: { slug: options.slug },
+      select: { id: true },
+    });
+  } catch (error) {
+    logAdminEventMutationFailure({
+      action: options.action,
+      error,
+      slug: options.slug,
+    });
+    redirect(
+      editUrlWithError(
+        options.locale,
+        options.slug,
+        mutationCodeFromPrisma(error)
+      )
+    );
+  }
+  if (!event || event.id !== options.eventId) {
+    logAdminEventMutationFailure({
+      action: options.action,
+      error: new Error('Event id does not match slug'),
+      slug: options.slug,
+    });
+    redirect(
+      editUrlWithError(options.locale, options.slug, 'validation_failed')
+    );
+  }
+  return event.id;
+}
+
 function revalidateEventAdminMutation(
   locale: string,
   slugs: readonly string[]
@@ -242,11 +281,17 @@ export async function addAdminEventDateAction(
   if (!parsed.success) {
     redirect(editUrlWithError(locale, slug, 'validation_failed'));
   }
+  const verifiedEventId = await verifiedEventIdFromSlug({
+    action: 'add-date',
+    eventId,
+    locale,
+    slug,
+  });
   try {
     await prisma.eventDate.create({
       data: {
         id: randomUUID(),
-        eventId,
+        eventId: verifiedEventId,
         startDateTime: parsed.data.startDateTime,
         endDateTime: parsed.data.endDateTime,
       },
@@ -324,14 +369,20 @@ export async function updateAdminEventAdminsAction(
 ): Promise<void> {
   await requireAdmin(locale);
   const adminUserIds = [...new Set(rawEventAdminIdsFromFormData(formData))];
+  const verifiedEventId = await verifiedEventIdFromSlug({
+    action: 'update-admins',
+    eventId,
+    locale,
+    slug,
+  });
   try {
     await prisma.$transaction(async (tx) => {
-      await tx.eventAdmin.deleteMany({ where: { eventId } });
+      await tx.eventAdmin.deleteMany({ where: { eventId: verifiedEventId } });
       if (adminUserIds.length > 0) {
         await tx.eventAdmin.createMany({
           data: adminUserIds.map((adminUserId) => ({
             id: randomUUID(),
-            eventId,
+            eventId: verifiedEventId,
             adminUserId,
           })),
         });
@@ -358,16 +409,22 @@ export async function addAdminEventQuestionAction(
   if (!parsed.success) {
     redirect(editUrlWithError(locale, slug, 'validation_failed'));
   }
+  const verifiedEventId = await verifiedEventIdFromSlug({
+    action: 'add-question',
+    eventId,
+    locale,
+    slug,
+  });
   try {
     const maxOrder = await prisma.eventRegistrationQuestion.aggregate({
-      where: { eventId },
+      where: { eventId: verifiedEventId },
       _max: { displayOrder: true },
     });
     const nextOrder = (maxOrder._max.displayOrder ?? 0) + 1;
     await prisma.eventRegistrationQuestion.create({
       data: {
         id: randomUUID(),
-        eventId,
+        eventId: verifiedEventId,
         questionText: parsed.data.questionText,
         answerType: parsed.data.answerType,
         options:
@@ -462,11 +519,17 @@ export async function addAdminEventFeeAction(
   if (!parsed.success) {
     redirect(editUrlWithError(locale, slug, 'validation_failed'));
   }
+  const verifiedEventId = await verifiedEventIdFromSlug({
+    action: 'add-fee',
+    eventId,
+    locale,
+    slug,
+  });
   try {
     await prisma.eventEntryFee.create({
       data: {
         id: randomUUID(),
-        eventId,
+        eventId: verifiedEventId,
         description: parsed.data.description,
         amountCents: parsed.data.amountCents,
         isDeposit: parsed.data.isDeposit,

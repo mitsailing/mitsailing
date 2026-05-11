@@ -8,7 +8,7 @@ const adminPrimaryActionLinkClassName =
   'rounded-md bg-mit-red px-3 py-1.5 text-sm font-semibold text-white no-underline hover:bg-mit-red-hover';
 
 const adminSecondaryActionLinkClassName =
-  'rounded-md border border-mit-line bg-background px-3 py-1.5 text-sm font-semibold text-mit-red no-underline hover:bg-mit-red-highlight';
+  'rounded-md border border-mit-line bg-background px-3 py-1.5 text-sm font-semibold text-mit-red no-underline hover:bg-mit-red-highlight dark:border-white dark:text-white dark:hover:bg-white/10';
 
 /**
  * Locale-aware admin primary action styled as a compact red pill link.

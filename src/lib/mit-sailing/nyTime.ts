@@ -120,6 +120,17 @@ function prevNyYmd(ymd: string): string {
   return nyYmd(new Date(s.getTime() - 1));
 }
 
+function assertNyMonthParts(year: number, month: number): void {
+  if (!Number.isInteger(year) || year < 1 || year > 9999) {
+    throw new RangeError(`Invalid New York calendar year: ${year}`);
+  }
+  if (!Number.isInteger(month) || month < 1 || month > 12) {
+    throw new RangeError(
+      `Invalid New York calendar month: year=${year} month=${month}`
+    );
+  }
+}
+
 export function addNyCalendarDays(ymd: string, days: number): string {
   let k = ymd;
   const step = days >= 0 ? 1 : -1;
@@ -130,11 +141,13 @@ export function addNyCalendarDays(ymd: string, days: number): string {
 }
 
 export function nyMonthFirstYmd(year: number, month: number): string {
+  assertNyMonthParts(year, month);
   const m = String(month).padStart(2, '0');
-  return `${year}-${m}-01`;
+  return `${String(year).padStart(4, '0')}-${m}-01`;
 }
 
 export function listNyDayKeysInMonth(year: number, month: number): string[] {
+  assertNyMonthParts(year, month);
   const keys: string[] = [];
   let key = nyMonthFirstYmd(year, month);
   while (true) {
@@ -167,5 +180,9 @@ export function nyWeekdaySunday0(ymd: string): number {
     fri: 5,
     sat: 6,
   };
-  return map[key] ?? 0;
+  const weekday = map[key];
+  if (weekday === undefined) {
+    throw new Error(`Unexpected New York weekday for ${ymd}: ${raw}`);
+  }
+  return weekday;
 }

@@ -49,7 +49,11 @@ function firstAndLastDate(dates: AdminEventDateDto[]): {
   if (dates.length === 0) {
     return { first: null, last: null };
   }
-  return { first: dates[0] ?? null, last: dates.at(-1) ?? null };
+  const [first, ...rest] = dates;
+  if (!first) {
+    return { first: null, last: null };
+  }
+  return { first, last: rest.at(-1) ?? first };
 }
 
 function dateSummary(
@@ -101,7 +105,7 @@ function StatusBadge(props: {
           ? 'border-red-200 bg-red-50 text-red-900'
           : undefined,
         props.tone === 'neutral'
-          ? 'border-border bg-muted/60 text-muted-foreground'
+          ? 'border-border bg-muted/60 text-muted-foreground dark:text-white'
           : undefined
       )}
     >
@@ -150,13 +154,13 @@ function EventRow(props: {
           >
             {props.event.name}
           </Link>
-          <span className="text-xs text-muted-foreground">
+          <span className="text-xs text-muted-foreground dark:text-white">
             {props.event.shortName} · /events/{props.event.slug}
           </span>
           <EventStatusBadges event={props.event} t={props.t} />
         </div>
       </TableCell>
-      <TableCell className="px-4 py-3 align-top text-sm text-muted-foreground">
+      <TableCell className="px-4 py-3 align-top text-sm text-muted-foreground dark:text-white">
         {dateSummary(props.event.dates, props.t)}
       </TableCell>
       <TableCell className="px-4 py-3 align-top text-sm">
@@ -166,7 +170,7 @@ function EventRow(props: {
           props.t
         )}
       </TableCell>
-      <TableCell className="px-4 py-3 align-top text-sm text-muted-foreground">
+      <TableCell className="px-4 py-3 align-top text-sm text-muted-foreground dark:text-white">
         {props.event.requiresApproval
           ? props.t('approval_manual')
           : props.t('approval_auto')}
@@ -223,7 +227,7 @@ export function AdminEventsListView(props: AdminEventsListViewProps) {
           </span>
           <Search
             aria-hidden
-            className="pointer-events-none absolute bottom-2 left-2.5 size-4 text-muted-foreground"
+            className="pointer-events-none absolute bottom-2 left-2.5 size-4 text-muted-foreground dark:text-white"
           />
           <Input
             className="pl-8"
@@ -260,7 +264,7 @@ export function AdminEventsListView(props: AdminEventsListViewProps) {
         </div>
       </form>
 
-      <p className="text-sm text-muted-foreground">
+      <p className="text-sm text-muted-foreground dark:text-white">
         {props.t('list_count', { count: props.rows.length })}
       </p>
 
@@ -293,7 +297,7 @@ export function AdminEventsListView(props: AdminEventsListViewProps) {
               {props.rows.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    className="px-4 py-10 text-center text-sm text-muted-foreground"
+                    className="px-4 py-10 text-center text-sm text-muted-foreground dark:text-white"
                     colSpan={6}
                   >
                     {props.t('list_empty')}

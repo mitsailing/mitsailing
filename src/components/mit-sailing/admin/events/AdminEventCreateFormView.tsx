@@ -55,13 +55,13 @@ export function AdminEventCreateFormView(props: AdminEventCreateFormViewProps) {
       </AdminEventBackLink>
 
       <header className="flex flex-col gap-2">
-        <p className="text-xs font-semibold tracking-widest text-mit-red uppercase">
+        <p className="text-xs font-semibold tracking-widest text-mit-red uppercase dark:text-white">
           {props.t('new_eyebrow')}
         </p>
         <h1 className="text-3xl font-semibold tracking-tight text-foreground">
           {props.t('new_title')}
         </h1>
-        <p className="max-w-3xl text-sm text-muted-foreground">
+        <p className="max-w-3xl text-sm text-muted-foreground dark:text-white">
           {props.t('new_subtitle')}
         </p>
       </header>
@@ -103,6 +103,11 @@ export function AdminEventCreateFormView(props: AdminEventCreateFormViewProps) {
                 name="eventCategoryId"
                 required
               >
+                {props.categories.length === 0 ? (
+                  <option disabled value="">
+                    {props.t('field_category_placeholder')}
+                  </option>
+                ) : null}
                 {props.categories.map((category) => (
                   <option key={category.id} value={category.id}>
                     {category.name}
@@ -214,7 +219,7 @@ export function AdminEventCreateFormView(props: AdminEventCreateFormViewProps) {
                 <span className="font-medium">
                   {props.t('detail_standard_label')}
                 </span>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-muted-foreground dark:text-white">
                   {props.t('new_detail_standard_hint')}
                 </span>
               </span>
@@ -233,7 +238,7 @@ export function AdminEventCreateFormView(props: AdminEventCreateFormViewProps) {
                 <span className="font-medium">
                   {props.t('detail_external_label')}
                 </span>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-muted-foreground dark:text-white">
                   {props.t('detail_external_hint')}
                 </span>
               </span>

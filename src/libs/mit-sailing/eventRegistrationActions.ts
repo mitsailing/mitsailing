@@ -18,6 +18,13 @@ type EventRegistrationMutationCode =
   | 'swim_agreement_required'
   | 'unknown';
 
+class EventRegistrationFullError extends Error {
+  constructor() {
+    super('Event registration is full');
+    this.name = 'EventRegistrationFullError';
+  }
+}
+
 function safeErrorName(error: unknown): string {
   if (error instanceof Error) {
     return error.name;
@@ -65,6 +72,16 @@ function eventDetailErrorUrl(
   )}`;
 }
 
+function eventRegistrationErrorUrl(
+  locale: string,
+  slug: string,
+  code: EventRegistrationMutationCode
+): string {
+  return `${getI18nPath(`/events/${encodeURIComponent(slug)}/register`, locale)}?registration=${encodeURIComponent(
+    code
+  )}`;
+}
+
 function isNonEmptyFormValue(
   value: FormDataEntryValue | null
 ): value is string {
@@ -108,11 +125,13 @@ export async function createPublicEventRegistrationAction(
   slug: string,
   formData: FormData
 ): Promise<void> {
-  const callbackUrl = `/events/${encodeURIComponent(slug)}`;
+  const callbackUrl = `/events/${encodeURIComponent(slug)}/register`;
   const user = await requireCurrentUser(locale, callbackUrl);
   const swimAgreement = formData.get('swimAgreementAccepted');
   if (swimAgreement !== 'true') {
-    redirect(eventDetailErrorUrl(locale, slug, 'swim_agreement_required'));
+    redirect(
+      eventRegistrationErrorUrl(locale, slug, 'swim_agreement_required')
+    );
   }
 
   const now = new Date();
@@ -141,10 +160,12 @@ export async function createPublicEventRegistrationAction(
     });
   } catch (error) {
     logPublicEventRegistrationFailure({ action: 'load-event', error, slug });
-    redirect(eventDetailErrorUrl(locale, slug, mutationCodeFromPrisma(error)));
+    redirect(
+      eventRegistrationErrorUrl(locale, slug, mutationCodeFromPrisma(error))
+    );
   }
   if (!event) {
-    redirect(eventDetailErrorUrl(locale, slug, 'not_found'));
+    redirect(eventRegistrationErrorUrl(locale, slug, 'not_found'));
   }
   if (
     !isRegistrationOpen({
@@ -153,7 +174,7 @@ export async function createPublicEventRegistrationAction(
       registrationEnd: event.registrationEnd,
     })
   ) {
-    redirect(eventDetailErrorUrl(locale, slug, 'closed'));
+    redirect(eventRegistrationErrorUrl(locale, slug, 'closed'));
   }
 
   const missingRequiredAnswer = event.registrationQuestions.some(
@@ -162,44 +183,44 @@ export async function createPublicEventRegistrationAction(
       !isNonEmptyFormValue(formData.get(`question_${question.id}`))
   );
   if (missingRequiredAnswer) {
-    redirect(eventDetailErrorUrl(locale, slug, 'questions_required'));
-  }
-
-  let reservedSlots: number;
-  try {
-    reservedSlots = await prisma.eventRegistration.count({
-      where: {
-        eventId: event.id,
-        status: {
-          in: [
-            EventRegistrationStatus.approved,
-            EventRegistrationStatus.pending,
-          ],
-        },
-      },
-    });
-  } catch (error) {
-    logPublicEventRegistrationFailure({ action: 'count-slots', error, slug });
-    redirect(eventDetailErrorUrl(locale, slug, mutationCodeFromPrisma(error)));
-  }
-  if (
-    event.maxParticipants !== null &&
-    reservedSlots >= event.maxParticipants
-  ) {
-    redirect(eventDetailErrorUrl(locale, slug, 'full'));
+    redirect(eventRegistrationErrorUrl(locale, slug, 'questions_required'));
   }
 
   try {
     const status = event.requiresApproval
       ? EventRegistrationStatus.pending
       : EventRegistrationStatus.approved;
-    const existing = await prisma.eventRegistration.findFirst({
-      where: { eventId: event.id, userId: user.id },
-      orderBy: { createdAt: 'desc' },
-      select: { id: true },
-    });
-
     await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`
+        SELECT id
+        FROM events
+        WHERE id = ${event.id}
+        FOR UPDATE
+      `;
+      const existing = await tx.eventRegistration.findFirst({
+        where: { eventId: event.id, userId: user.id },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true },
+      });
+      const reservedSlots = await tx.eventRegistration.count({
+        where: {
+          eventId: event.id,
+          id: existing ? { not: existing.id } : undefined,
+          status: {
+            in: [
+              EventRegistrationStatus.approved,
+              EventRegistrationStatus.pending,
+            ],
+          },
+        },
+      });
+      if (
+        event.maxParticipants !== null &&
+        reservedSlots >= event.maxParticipants
+      ) {
+        throw new EventRegistrationFullError();
+      }
+
       const registrationId = existing?.id ?? randomUUID();
       if (existing) {
         await tx.eventRegistration.update({
@@ -238,8 +259,13 @@ export async function createPublicEventRegistrationAction(
       }
     });
   } catch (error) {
+    if (error instanceof EventRegistrationFullError) {
+      redirect(eventRegistrationErrorUrl(locale, slug, 'full'));
+    }
     logPublicEventRegistrationFailure({ action: 'create', error, slug });
-    redirect(eventDetailErrorUrl(locale, slug, mutationCodeFromPrisma(error)));
+    redirect(
+      eventRegistrationErrorUrl(locale, slug, mutationCodeFromPrisma(error))
+    );
   }
 
   revalidatePath(getI18nPath(`/events/${encodeURIComponent(slug)}`, locale));

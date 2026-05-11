@@ -25,13 +25,13 @@ type AdminEventFormSectionProps = {
 
 export function AdminEventFormSection(props: AdminEventFormSectionProps) {
   return (
-    <Card aria-labelledby={props.id} className="rounded-lg">
+    <Card aria-labelledby={props.id ?? undefined} className="rounded-lg">
       <CardHeader>
         <CardTitle>
           <h2 id={props.id}>{props.title}</h2>
         </CardTitle>
         {props.subtitle ? (
-          <CardDescription className="max-w-3xl">
+          <CardDescription className="max-w-3xl dark:text-white">
             {props.subtitle}
           </CardDescription>
         ) : null}
@@ -45,7 +45,7 @@ export function AdminEventFormSection(props: AdminEventFormSectionProps) {
 
 export function AdminEventEmptyState(props: { children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-dashed border-border bg-muted/40 px-4 py-6 text-center text-sm text-muted-foreground">
+    <div className="rounded-lg border border-dashed border-border bg-muted/40 px-4 py-6 text-center text-sm text-muted-foreground dark:text-white">
       {props.children}
     </div>
   );
@@ -65,7 +65,9 @@ export function AdminEventField(props: {
       </Label>
       {props.children}
       {props.hint ? (
-        <p className="text-xs text-muted-foreground">{props.hint}</p>
+        <p className="text-xs text-muted-foreground dark:text-white">
+          {props.hint}
+        </p>
       ) : null}
     </div>
   );
@@ -90,7 +92,9 @@ export function AdminEventCheckbox(props: {
       <span className="flex min-w-0 flex-col gap-0.5">
         <span className="font-medium">{props.label}</span>
         {props.hint ? (
-          <span className="text-xs text-muted-foreground">{props.hint}</span>
+          <span className="text-xs text-muted-foreground dark:text-white">
+            {props.hint}
+          </span>
         ) : null}
       </span>
     </label>

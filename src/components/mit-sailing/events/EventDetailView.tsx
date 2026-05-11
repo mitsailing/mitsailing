@@ -81,10 +81,12 @@ function SectionHeading(props: { children: React.ReactNode; id: string }) {
 function MetaRow(props: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-3">
-      <dt className="text-xs font-semibold tracking-wide text-mit-text/70 uppercase">
+      <dt className="text-xs font-semibold tracking-wide text-mit-text/70 uppercase dark:text-white">
         {props.label}
       </dt>
-      <dd className="m-0 text-right text-sm text-mit-text">{props.children}</dd>
+      <dd className="m-0 text-right text-sm text-mit-text dark:text-white">
+        {props.children}
+      </dd>
     </div>
   );
 }
@@ -154,7 +156,7 @@ export async function EventDetailView(props: EventDetailViewProps) {
       />
       <Link
         className={cn(
-          'mb-8 inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-mit-red-ink no-underline hover:underline',
+          'mb-8 inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-mit-red-ink no-underline hover:underline dark:text-white',
           textFocusRingClassName
         )}
         href="/events/"
@@ -166,7 +168,7 @@ export async function EventDetailView(props: EventDetailViewProps) {
       <div className="grid grid-cols-1 gap-x-12 gap-y-10 lg:grid-cols-[minmax(0,1fr)_320px]">
         <header className="lg:col-span-2">
           <div className="mb-3 flex flex-wrap items-center gap-2">
-            <span className="rounded-sm bg-mit-red-highlight px-2 py-1 text-xs font-bold tracking-wide text-mit-red-ink uppercase">
+            <span className="rounded-sm bg-mit-red-highlight px-2 py-1 text-xs font-bold tracking-wide text-mit-red-ink uppercase dark:text-white">
               {event.category.name}
             </span>
             {event.isSpecial ? (
@@ -179,7 +181,9 @@ export async function EventDetailView(props: EventDetailViewProps) {
             {event.name}
           </h1>
           {event.shortName && event.shortName !== event.name ? (
-            <p className="mt-2 text-lg text-mit-text/70">{event.shortName}</p>
+            <p className="mt-2 text-lg text-mit-text/70 dark:text-white">
+              {event.shortName}
+            </p>
           ) : null}
           <p className="mt-5 max-w-3xl text-base leading-relaxed whitespace-pre-wrap text-mit-text">
             {event.description}
@@ -187,8 +191,8 @@ export async function EventDetailView(props: EventDetailViewProps) {
         </header>
 
         <aside className="flex flex-col gap-6 lg:col-start-2 lg:row-start-2 lg:self-start">
-          <section className="rounded-lg border-2 border-mit-red bg-card p-5 shadow-sm shadow-mit-red/5">
-            <p className="mb-1 text-xs font-bold tracking-widest text-mit-red-ink uppercase">
+          <section className="rounded-lg border-2 border-mit-red bg-card p-5 shadow-sm shadow-mit-red/5 lg:sticky lg:top-24 dark:border-white/35">
+            <p className="mb-1 text-xs font-bold tracking-widest text-mit-red-ink uppercase dark:text-white">
               {t('section_registration')}
             </p>
             <h2 className="mb-4 font-mit-serif text-xl font-semibold tracking-tight text-mit-text">
@@ -238,7 +242,7 @@ export async function EventDetailView(props: EventDetailViewProps) {
               </MetaRow>
             </dl>
             {event.pendingRegistrationCount > 0 ? (
-              <p className="mt-4 text-xs text-mit-text/70">
+              <p className="mt-4 text-xs text-mit-text/70 dark:text-white">
                 {t('pending_review', {
                   count: event.pendingRegistrationCount,
                 })}
@@ -251,7 +255,9 @@ export async function EventDetailView(props: EventDetailViewProps) {
               {t('section_admins')}
             </h2>
             {event.admins.length === 0 ? (
-              <p className="text-sm text-mit-text/70">{t('admins_empty')}</p>
+              <p className="text-sm text-mit-text/70 dark:text-white">
+                {t('admins_empty')}
+              </p>
             ) : (
               <ul className="m-0 list-none space-y-3 p-0">
                 {event.admins.map((adminRow) => (
@@ -268,7 +274,7 @@ export async function EventDetailView(props: EventDetailViewProps) {
                       </p>
                       <a
                         className={cn(
-                          'block truncate text-xs text-mit-red-ink no-underline hover:underline',
+                          'block truncate text-xs text-mit-red-ink no-underline hover:underline dark:text-white',
                           textFocusRingClassName
                         )}
                         href={`mailto:${adminRow.admin.email}`}
@@ -308,7 +314,7 @@ export async function EventDetailView(props: EventDetailViewProps) {
               <SectionHeading id="event-registration-questions-heading">
                 {t('section_questions')}
               </SectionHeading>
-              <p className="mb-3 text-sm text-mit-text/70">
+              <p className="mb-3 text-sm text-mit-text/70 dark:text-white">
                 {t('questions_intro')}
               </p>
               <ul className="m-0 list-none divide-y divide-mit-line border-t border-mit-line p-0">
@@ -325,7 +331,7 @@ export async function EventDetailView(props: EventDetailViewProps) {
                         </span>
                       ) : null}
                     </p>
-                    <p className="mt-1 text-xs text-mit-text/60 capitalize">
+                    <p className="mt-1 text-xs text-mit-text/60 capitalize dark:text-white">
                       {questionTypeLabel({
                         answerType: question.answerType,
                         text: t('question_type_text'),
@@ -355,7 +361,7 @@ export async function EventDetailView(props: EventDetailViewProps) {
                         {fee.description}
                       </p>
                       {fee.isDeposit ? (
-                        <p className="mt-1 text-xs text-mit-text/60">
+                        <p className="mt-1 text-xs text-mit-text/60 dark:text-white">
                           {t('fee_deposit')}
                         </p>
                       ) : null}

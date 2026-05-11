@@ -272,7 +272,7 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
               <span className="font-medium">
                 {props.t('detail_standard_label')}
               </span>
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-muted-foreground dark:text-white">
                 {props.t('detail_standard_hint', {
                   slug: props.event.slug,
                 })}
@@ -294,7 +294,7 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
               <span className="font-medium">
                 {props.t('detail_external_label')}
               </span>
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-muted-foreground dark:text-white">
                 {props.t('detail_external_hint')}
               </span>
             </span>
@@ -336,7 +336,7 @@ function EventMetadataSection(props: {
     >
       <dl className="grid gap-4 md:grid-cols-3">
         <div>
-          <dt className="text-xs font-semibold text-muted-foreground uppercase">
+          <dt className="text-xs font-semibold text-muted-foreground uppercase dark:text-white">
             {props.t('metadata_created_at')}
           </dt>
           <dd className="mt-1 text-sm font-medium">
@@ -344,7 +344,7 @@ function EventMetadataSection(props: {
           </dd>
         </div>
         <div>
-          <dt className="text-xs font-semibold text-muted-foreground uppercase">
+          <dt className="text-xs font-semibold text-muted-foreground uppercase dark:text-white">
             {props.t('metadata_created_by')}
           </dt>
           <dd className="mt-1 text-sm font-medium">
@@ -352,7 +352,7 @@ function EventMetadataSection(props: {
           </dd>
         </div>
         <div>
-          <dt className="text-xs font-semibold text-muted-foreground uppercase">
+          <dt className="text-xs font-semibold text-muted-foreground uppercase dark:text-white">
             {props.t('metadata_registrations')}
           </dt>
           <dd className="mt-1 text-sm font-medium">
@@ -522,12 +522,12 @@ function EventAdminsSection(props: AdminEventFormViewProps) {
                     type="checkbox"
                     value={user.id}
                   />
-                  <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
+                  <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground dark:text-white">
                     {userInitials(user)}
                   </span>
                   <span className="flex min-w-0 flex-col">
                     <span className="truncate font-medium">{user.name}</span>
-                    <span className="truncate text-xs text-muted-foreground">
+                    <span className="truncate text-xs text-muted-foreground dark:text-white">
                       {user.email}
                     </span>
                   </span>
@@ -848,7 +848,7 @@ function StripePlaceholder(props: { t: AdminEventFormTranslations }) {
       subtitle={props.t('stripe_placeholder_body')}
       title={props.t('section_stripe')}
     >
-      <div className="flex items-center gap-3 rounded-lg border border-dashed border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+      <div className="flex items-center gap-3 rounded-lg border border-dashed border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground dark:text-white">
         <CreditCard aria-hidden className="size-5" />
         <span>{props.t('stripe_placeholder_status')}</span>
       </div>
@@ -865,7 +865,7 @@ export function AdminEventFormView(props: AdminEventFormViewProps) {
       </AdminEventBackLink>
 
       <header className="flex flex-col gap-2">
-        <p className="text-xs font-semibold tracking-widest text-mit-red uppercase">
+        <p className="text-xs font-semibold tracking-widest text-mit-red uppercase dark:text-white">
           {props.t('edit_eyebrow')}
         </p>
         <div className="flex flex-wrap items-end justify-between gap-3">
@@ -879,7 +879,7 @@ export function AdminEventFormView(props: AdminEventFormViewProps) {
             </Link>
           </Button>
         </div>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground dark:text-white">
           {props.t('edit_public_url', { slug: props.event.slug })}
         </p>
       </header>

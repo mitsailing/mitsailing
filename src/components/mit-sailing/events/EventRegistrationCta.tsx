@@ -10,8 +10,6 @@ import type {
 } from '@/libs/mit-sailing/eventQueries';
 import { cancelPublicEventRegistrationAction } from '@/libs/mit-sailing/eventRegistrationActions';
 import type { PublicEventReservationState } from '@/libs/mit-sailing/eventRegistrationState';
-import { EventRegistrationLightbox } from './EventRegistrationLightbox';
-import type { EventRegistrationLightboxLabels } from './EventRegistrationLightbox';
 
 type EventRegistrationTranslations = Awaited<
   ReturnType<typeof getTranslations<'MitSailingEvents'>>
@@ -54,33 +52,11 @@ function registrationErrorMessage(
   return null;
 }
 
-function lightboxLabels(
-  t: EventRegistrationTranslations
-): EventRegistrationLightboxLabels {
-  return {
-    autoApprovalNote: t('registration_auto_approval_note'),
-    cancel: t('registration_dialog_cancel'),
-    checkboxLabel: t('registration_checkbox_label'),
-    close: t('registration_dialog_close'),
-    confirmButton: t('registration_confirm_button'),
-    deposit: t('fee_deposit'),
-    dialogEyebrow: t('registration_dialog_eyebrow'),
-    feesHeading: t('section_fees'),
-    questionsHeading: t('section_questions'),
-    registerButton: t('registration_register_button'),
-    requestButton: t('registration_request_button'),
-    required: t('question_required'),
-    requiresApprovalNote: t('registration_requires_approval_note'),
-    selectPlaceholder: t('registration_select_placeholder'),
-    submitRequestButton: t('registration_submit_request_button'),
-    swimAgreementHeading: t('registration_swim_agreement_heading'),
-    swimAgreementLabel: t('registration_swim_agreement_label'),
-  };
-}
-
 function RegistrationNote(props: { children: React.ReactNode }) {
   return (
-    <p className="text-xs leading-relaxed text-mit-text/70">{props.children}</p>
+    <p className="text-xs leading-relaxed text-mit-text/70 dark:text-white">
+      {props.children}
+    </p>
   );
 }
 
@@ -104,7 +80,8 @@ function RegistrationStatusPill(props: {
 
 export function EventRegistrationCta(props: EventRegistrationCtaProps) {
   const errorMessage = registrationErrorMessage(props.errorCode, props.t);
-  const loginHref = `/login?callbackUrl=${encodeURIComponent(`/events/${props.event.slug}`)}`;
+  const registrationHref = `/events/${props.event.slug}/register`;
+  const loginHref = `/login?callbackUrl=${encodeURIComponent(registrationHref)}`;
 
   if (props.reservationState === 'approved') {
     const cancelAction = cancelPublicEventRegistrationAction.bind(
@@ -203,11 +180,13 @@ export function EventRegistrationCta(props: EventRegistrationCtaProps) {
           {errorMessage}
         </p>
       ) : null}
-      <EventRegistrationLightbox
-        event={props.event}
-        labels={lightboxLabels(props.t)}
-        locale={props.locale}
-      />
+      <Button asChild className="w-full" size="lg" variant="mit">
+        <Link href={registrationHref}>
+          {props.event.requiresApproval
+            ? props.t('registration_request_button')
+            : props.t('registration_register_button')}
+        </Link>
+      </Button>
     </div>
   );
 }

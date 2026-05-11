@@ -138,15 +138,17 @@ async function registrationCountsByEventId(
   if (eventIds.length === 0) {
     return new Map();
   }
+  const eventIdList = [...eventIds];
   const rows = await prisma.eventRegistration.groupBy({
     by: ['eventId', 'status'],
-    where: { eventId: { in: [...eventIds] } },
+    where: { eventId: { in: eventIdList } },
     _count: { id: true },
   });
   const counts = new Map<string, AdminEventRegistrationCounts>();
   for (const row of rows) {
     const existing = counts.get(row.eventId) ?? emptyRegistrationCounts();
-    existing[row.status] = row._count.id;
+    existing[row.status] =
+      typeof row._count === 'object' && row._count ? (row._count.id ?? 0) : 0;
     counts.set(row.eventId, existing);
   }
   return counts;

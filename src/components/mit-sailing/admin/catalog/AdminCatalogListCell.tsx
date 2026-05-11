@@ -29,7 +29,7 @@ function renderAdminCatalogNameListContent(props: {
     props.raw === null || props.raw === undefined ? '' : String(props.raw);
   const display = str.trim();
   if (display.length === 0) {
-    return <span className="text-slate-400">—</span>;
+    return <span className="text-slate-400 dark:text-slate-400">—</span>;
   }
   if (props.listNameEditHref) {
     return (
@@ -83,7 +83,7 @@ export function AdminCatalogListCell(
 
   if (props.kind === 'boolean') {
     if (raw === null || raw === undefined) {
-      return <span className="text-slate-400">—</span>;
+      return <span className="text-slate-400 dark:text-slate-400">—</span>;
     }
     const on = Boolean(raw);
     return (
@@ -130,7 +130,7 @@ export function AdminCatalogListCell(
   }
 
   if (raw === null || raw === undefined) {
-    return <span className="text-slate-400">—</span>;
+    return <span className="text-slate-400 dark:text-slate-400">—</span>;
   }
 
   return <span>{String(raw)}</span>;

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildEventCalendarOccurrenceRows,
   buildEventCalendarWeeks,
+  addEventCalendarMonths,
   clampEventCalendarMonth,
   eventCalendarMonthKey,
   eventsCalendarHref,
@@ -41,6 +42,13 @@ describe('eventCalendar', () => {
 
   it('formats month key with padded month', () => {
     expect(eventCalendarMonthKey({ year: 2026, month: 4 })).toBe('2026-04');
+  });
+
+  it('normalizes negative month offsets', () => {
+    expect(addEventCalendarMonths({ year: 0, month: 1 }, -1)).toEqual({
+      year: -1,
+      month: 12,
+    });
   });
 
   it('clamps month to catalog bounds', () => {
@@ -84,6 +92,26 @@ describe('eventCalendar', () => {
       '2026-03-07',
       '2026-03-08',
     ]);
+  });
+
+  it('lists ongoing rows for dates spanning the full range', () => {
+    const eventDates: EventCalendarDate[] = [
+      {
+        id: 'date-1',
+        startDateTime: new Date('2026-02-27T14:00:00.000Z'),
+        endDateTime: new Date('2026-04-02T20:00:00.000Z'),
+        event,
+      },
+    ];
+
+    const rows = buildEventCalendarOccurrenceRows({
+      eventDates,
+      rangeStartKey: '2026-03-01',
+      rangeEndKey: '2026-03-31',
+    });
+
+    expect(rows.map((row) => row.listSegment)).toEqual(['ongoing']);
+    expect(rows.map((row) => row.displayDayKey)).toEqual(['2026-03-01']);
   });
 
   it('builds calendar href with category filter', () => {
