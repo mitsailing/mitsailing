@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import type { PublicEventDetail } from '@/libs/mit-sailing/eventQueries';
 import { createPublicEventRegistrationAction } from '@/libs/mit-sailing/eventRegistrationActions';
+import { formatUsdMinorUnitsAsCurrency } from '@/libs/money/stripeUsdMinorUnits';
 
 type EventRegistrationTranslations = Awaited<
   ReturnType<typeof getTranslations<'MitSailingEvents'>>
@@ -59,9 +60,11 @@ function QuestionField(props: {
   labels: EventRegistrationFormLabels;
 }) {
   const name = `question_${props.question.id}`;
+  const checkboxId = `registration-question-${props.question.id}-checkbox`;
+
   return (
-    <label className="flex flex-col gap-1.5 text-sm text-mit-text">
-      <span className="font-semibold">
+    <fieldset className="m-0 flex min-w-0 flex-col gap-1.5 border-0 p-0 text-sm text-mit-text">
+      <legend className="w-full px-0 font-semibold text-mit-text">
         {props.question.questionText}
         {props.question.required ? (
           <span
@@ -71,7 +74,7 @@ function QuestionField(props: {
             *
           </span>
         ) : null}
-      </span>
+      </legend>
       {props.question.answerType === 'select' ? (
         <select
           className={registrationSelectClassName}
@@ -87,18 +90,25 @@ function QuestionField(props: {
         </select>
       ) : null}
       {props.question.answerType === 'checkbox' ? (
-        <span className="flex items-center gap-2">
+        <label
+          className="flex cursor-pointer items-center gap-2"
+          htmlFor={checkboxId}
+        >
           <input
+            aria-required={props.question.required ? true : undefined}
             className={registrationCheckboxClassName}
+            id={checkboxId}
             name={name}
-            required={props.question.required}
             type="checkbox"
             value="true"
           />
+          {props.question.required ? (
+            <input name={name} type="hidden" value="false" />
+          ) : null}
           <span className="text-xs text-mit-text/70 dark:text-white">
             {props.labels.checkboxLabel}
           </span>
-        </span>
+        </label>
       ) : null}
       {props.question.answerType === 'text' ? (
         <Textarea
@@ -107,7 +117,7 @@ function QuestionField(props: {
           required={props.question.required}
         />
       ) : null}
-    </label>
+    </fieldset>
   );
 }
 
@@ -208,10 +218,7 @@ function RegistrationFeeSummary(props: {
               ) : null}
             </dt>
             <dd className="m-0 font-semibold text-mit-text dark:text-white">
-              {new Intl.NumberFormat(props.locale, {
-                style: 'currency',
-                currency: 'USD',
-              }).format(fee.amountCents / 100)}
+              {formatUsdMinorUnitsAsCurrency(fee.amountCents, props.locale)}
             </dd>
           </div>
         ))}

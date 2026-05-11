@@ -5,6 +5,12 @@ import {
   EventRegistrationStatus,
 } from '@/generated/prisma/enums';
 import { instantForNyWallClock } from '@/lib/mit-sailing/nyTime';
+import { parseUsdDecimalStringToMinorUnits } from '@/libs/money/stripeUsdMinorUnits';
+
+export {
+  parseUsdDecimalStringToMinorUnits as dollarsToEventAdminCents,
+  usdMinorUnitsToDecimalInputString as eventAdminCentsToDollars,
+} from '@/libs/money/stripeUsdMinorUnits';
 
 const dateTimeLocalPattern = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;
 
@@ -41,22 +47,6 @@ export function splitEventAdminCsv(input: string): string[] {
     .split(',')
     .map((part) => part.trim())
     .filter(Boolean);
-}
-
-export function dollarsToEventAdminCents(input: string): number | null {
-  const normalized = input.trim().replaceAll(',', '');
-  if (!normalized) {
-    return null;
-  }
-  const parsed = Number(normalized);
-  if (!Number.isFinite(parsed) || parsed < 0) {
-    return null;
-  }
-  return Math.round(parsed * 100);
-}
-
-export function eventAdminCentsToDollars(cents: number): string {
-  return (cents / 100).toFixed(2);
 }
 
 const easternDateTimeLocalFormatter = new Intl.DateTimeFormat('en-US', {
@@ -224,15 +214,35 @@ export const eventQuestionFormSchema = z
     { path: ['optionsCsv'] }
   );
 
-export const eventFeeFormSchema = z.object({
-  description: z.string().trim().min(1),
-  amountCents: z
-    .string()
-    .trim()
-    .refine((value) => dollarsToEventAdminCents(value) !== null)
-    .transform((value) => dollarsToEventAdminCents(value) ?? 0),
-  isDeposit: z.boolean(),
-});
+/** Admin fee amount field: decimal dollar string from HTML → integer cents. */
+const eventAdminFeeDollarStringToCentsSchema = z
+  .string()
+  .trim()
+  .transform((value, ctx) => {
+    const cents = parseUsdDecimalStringToMinorUnits(value);
+    if (cents === null) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Invalid dollar amount for event fee.',
+        path: ['amountDollars'],
+      });
+      return z.NEVER;
+    }
+    return cents;
+  });
+
+export const eventFeeFormSchema = z
+  .object({
+    description: z.string().trim().min(1),
+    /** Decimal dollars as entered in the admin form (e.g. `150.00`), not integer cents. */
+    amountDollars: eventAdminFeeDollarStringToCentsSchema,
+    isDeposit: z.boolean(),
+  })
+  .transform(({ description, amountDollars: amountCents, isDeposit }) => ({
+    description,
+    amountCents,
+    isDeposit,
+  }));
 
 export const eventRegistrationStatusFormSchema = z.object({
   status: z.enum([
@@ -281,7 +291,7 @@ export function rawEventQuestionFromFormData(formData: FormData): unknown {
 export function rawEventFeeFromFormData(formData: FormData): unknown {
   return {
     description: formString(formData, 'description'),
-    amountCents: formString(formData, 'amountCents'),
+    amountDollars: formString(formData, 'amountDollars'),
     isDeposit: formCheckbox(formData, 'isDeposit'),
   };
 }

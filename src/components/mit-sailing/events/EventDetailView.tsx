@@ -13,6 +13,7 @@ import type {
 } from '@/libs/mit-sailing/eventQueries';
 import { publicEventReservationState } from '@/libs/mit-sailing/eventRegistrationState';
 import type { PublicEventReservationState } from '@/libs/mit-sailing/eventRegistrationState';
+import { formatUsdMinorUnitsAsCurrency } from '@/libs/money/stripeUsdMinorUnits';
 import { EventRegistrationCta } from './EventRegistrationCta';
 
 type EventDetailViewProps = {
@@ -33,13 +34,6 @@ function formatDateOnly(date: Date | null, locale: string): string {
     day: 'numeric',
     year: 'numeric',
   }).format(date);
-}
-
-function formatEntryFee(amountCents: number, locale: string): string {
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency: 'USD',
-  }).format(amountCents / 100);
 }
 
 function adminInitials(name: string): string {
@@ -70,7 +64,7 @@ function questionTypeLabel(props: {
 function SectionHeading(props: { children: React.ReactNode; id: string }) {
   return (
     <h2
-      className="mb-3 font-mit-serif text-xl font-semibold tracking-tight text-mit-text md:text-2xl"
+      className="mb-3 scroll-m-20 font-mit-serif text-xl font-semibold tracking-tight text-mit-text md:text-2xl"
       id={props.id}
     >
       {props.children}
@@ -81,10 +75,10 @@ function SectionHeading(props: { children: React.ReactNode; id: string }) {
 function MetaRow(props: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-3">
-      <dt className="text-xs font-semibold tracking-wide text-mit-text/70 uppercase dark:text-white">
+      <dt className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
         {props.label}
       </dt>
-      <dd className="m-0 text-right text-sm text-mit-text dark:text-white">
+      <dd className="m-0 text-right text-sm text-foreground">
         {props.children}
       </dd>
     </div>
@@ -177,11 +171,11 @@ export async function EventDetailView(props: EventDetailViewProps) {
               </span>
             ) : null}
           </div>
-          <h1 className="font-mit-serif text-[clamp(1.875rem,5vw,3rem)] leading-tight font-semibold tracking-tight text-mit-text">
+          <h1 className="scroll-m-20 font-mit-serif text-[clamp(1.875rem,5vw,3rem)] leading-tight font-semibold tracking-tight text-balance text-mit-text">
             {event.name}
           </h1>
           {event.shortName && event.shortName !== event.name ? (
-            <p className="mt-2 text-lg text-mit-text/70 dark:text-white">
+            <p className="mt-2 text-xl leading-7 text-muted-foreground">
               {event.shortName}
             </p>
           ) : null}
@@ -195,7 +189,7 @@ export async function EventDetailView(props: EventDetailViewProps) {
             <p className="mb-1 text-xs font-bold tracking-widest text-mit-red-ink uppercase dark:text-white">
               {t('section_registration')}
             </p>
-            <h2 className="mb-4 font-mit-serif text-xl font-semibold tracking-tight text-mit-text">
+            <h2 className="mb-4 scroll-m-20 font-mit-serif text-xl font-semibold tracking-tight text-mit-text">
               {registrationHeadingText}
             </h2>
             {event.detailPageKind === 'external' && event.externalDetailUrl ? (
@@ -242,7 +236,7 @@ export async function EventDetailView(props: EventDetailViewProps) {
               </MetaRow>
             </dl>
             {event.pendingRegistrationCount > 0 ? (
-              <p className="mt-4 text-xs text-mit-text/70 dark:text-white">
+              <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
                 {t('pending_review', {
                   count: event.pendingRegistrationCount,
                 })}
@@ -251,11 +245,11 @@ export async function EventDetailView(props: EventDetailViewProps) {
           </section>
 
           <section className="rounded-lg border border-mit-line bg-card p-5">
-            <h2 className="mb-3 font-mit-serif text-xl font-semibold tracking-tight text-mit-text">
+            <h2 className="mb-3 scroll-m-20 font-mit-serif text-xl font-semibold tracking-tight text-mit-text">
               {t('section_admins')}
             </h2>
             {event.admins.length === 0 ? (
-              <p className="text-sm text-mit-text/70 dark:text-white">
+              <p className="text-sm leading-7 text-muted-foreground">
                 {t('admins_empty')}
               </p>
             ) : (
@@ -314,7 +308,7 @@ export async function EventDetailView(props: EventDetailViewProps) {
               <SectionHeading id="event-registration-questions-heading">
                 {t('section_questions')}
               </SectionHeading>
-              <p className="mb-3 text-sm text-mit-text/70 dark:text-white">
+              <p className="mb-3 text-sm leading-7 text-muted-foreground">
                 {t('questions_intro')}
               </p>
               <ul className="m-0 list-none divide-y divide-mit-line border-t border-mit-line p-0">
@@ -331,7 +325,7 @@ export async function EventDetailView(props: EventDetailViewProps) {
                         </span>
                       ) : null}
                     </p>
-                    <p className="mt-1 text-xs text-mit-text/60 capitalize dark:text-white">
+                    <p className="mt-1 text-xs text-muted-foreground capitalize">
                       {questionTypeLabel({
                         answerType: question.answerType,
                         text: t('question_type_text'),
@@ -361,13 +355,16 @@ export async function EventDetailView(props: EventDetailViewProps) {
                         {fee.description}
                       </p>
                       {fee.isDeposit ? (
-                        <p className="mt-1 text-xs text-mit-text/60 dark:text-white">
+                        <p className="mt-1 text-xs text-muted-foreground">
                           {t('fee_deposit')}
                         </p>
                       ) : null}
                     </div>
                     <p className="m-0 text-sm font-semibold text-mit-text">
-                      {formatEntryFee(fee.amountCents, props.locale)}
+                      {formatUsdMinorUnitsAsCurrency(
+                        fee.amountCents,
+                        props.locale
+                      )}
                     </p>
                   </li>
                 ))}

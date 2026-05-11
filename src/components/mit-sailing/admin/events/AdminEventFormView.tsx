@@ -17,6 +17,7 @@ import {
 } from '@/components/mit-sailing/admin/events/AdminEventShared';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { SubmitButton } from '@/components/ui/submit-button';
 import { Textarea } from '@/components/ui/textarea';
 import { EventAnswerType, EventDetailPageKind } from '@/generated/prisma/enums';
 import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
@@ -53,6 +54,10 @@ type AdminEventFormTranslations = Awaited<
   ReturnType<typeof getTranslations<'AdminEvents'>>
 >;
 
+type AdminEventCommonTranslations = Awaited<
+  ReturnType<typeof getTranslations<'Common'>>
+>;
+
 type AdminEventFormViewProps = {
   event: AdminEventEditorDto;
   categories: AdminEventCategoryOption[];
@@ -60,6 +65,7 @@ type AdminEventFormViewProps = {
   errorCode: string | null;
   locale: string;
   t: AdminEventFormTranslations;
+  tCommon: AdminEventCommonTranslations;
 };
 
 function userInitials(user: AdminEventUserOption): string {
@@ -315,10 +321,13 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
       </AdminEventFormSection>
 
       <div className="flex justify-end">
-        <Button type="submit" variant="mit">
+        <SubmitButton
+          pendingLabel={props.tCommon('pending_saving')}
+          variant="mit"
+        >
           <Save aria-hidden className="size-4" />
           {props.t('action_save_event')}
-        </Button>
+        </SubmitButton>
       </div>
     </form>
   );
@@ -373,6 +382,7 @@ function DateRow(props: {
   event: AdminEventEditorDto;
   locale: string;
   t: AdminEventFormTranslations;
+  tCommon: AdminEventCommonTranslations;
 }) {
   const updateAction = updateAdminEventDateAction.bind(
     null,
@@ -413,18 +423,21 @@ function DateRow(props: {
             type="datetime-local"
           />
         </AdminEventField>
-        <Button type="submit" variant="outline">
+        <SubmitButton
+          pendingLabel={props.tCommon('pending_saving')}
+          variant="outline"
+        >
           {props.t('action_save')}
-        </Button>
+        </SubmitButton>
       </form>
       <form action={deleteAction}>
-        <Button
+        <SubmitButton
           aria-label={props.t('action_delete_date')}
-          type="submit"
+          pendingLabel={props.tCommon('pending_deleting')}
           variant="destructive"
         >
           <Trash2 aria-hidden className="size-4" />
-        </Button>
+        </SubmitButton>
       </form>
     </li>
   );
@@ -454,6 +467,7 @@ function EventDatesSection(props: AdminEventFormViewProps) {
               key={date.id}
               locale={props.locale}
               t={props.t}
+              tCommon={props.tCommon}
             />
           ))}
         </ol>
@@ -484,10 +498,13 @@ function EventDatesSection(props: AdminEventFormViewProps) {
             type="datetime-local"
           />
         </AdminEventField>
-        <Button type="submit" variant="mit">
+        <SubmitButton
+          pendingLabel={props.tCommon('pending_adding')}
+          variant="mit"
+        >
           <Plus aria-hidden className="size-4" />
           {props.t('action_add_date')}
-        </Button>
+        </SubmitButton>
       </form>
     </AdminEventFormSection>
   );
@@ -537,9 +554,12 @@ function EventAdminsSection(props: AdminEventFormViewProps) {
           })}
         </ul>
         <div className="flex justify-end">
-          <Button type="submit" variant="outline">
+          <SubmitButton
+            pendingLabel={props.tCommon('pending_saving')}
+            variant="outline"
+          >
             {props.t('action_save_admins')}
-          </Button>
+          </SubmitButton>
         </div>
       </form>
     </AdminEventFormSection>
@@ -552,6 +572,7 @@ function questionOptionsCsv(question: AdminEventQuestionDto): string {
 
 function QuestionFields(props: {
   question?: AdminEventQuestionDto;
+  suggestedDisplayOrder?: number;
   t: AdminEventFormTranslations;
 }) {
   const prefix = props.question?.id ?? 'new';
@@ -614,6 +635,12 @@ function QuestionFields(props: {
             id={`question-order-${prefix}`}
             min={1}
             name="displayOrder"
+            placeholder={
+              props.question === undefined &&
+              props.suggestedDisplayOrder !== undefined
+                ? String(props.suggestedDisplayOrder)
+                : undefined
+            }
             type="number"
           />
         </AdminEventField>
@@ -632,6 +659,7 @@ function QuestionRow(props: {
   locale: string;
   question: AdminEventQuestionDto;
   t: AdminEventFormTranslations;
+  tCommon: AdminEventCommonTranslations;
 }) {
   const updateAction = updateAdminEventQuestionAction.bind(
     null,
@@ -650,16 +678,22 @@ function QuestionRow(props: {
       <form action={updateAction} className="flex flex-col gap-3">
         <QuestionFields question={props.question} t={props.t} />
         <div className="flex justify-end gap-2">
-          <Button type="submit" variant="outline">
+          <SubmitButton
+            pendingLabel={props.tCommon('pending_saving')}
+            variant="outline"
+          >
             {props.t('action_save')}
-          </Button>
+          </SubmitButton>
         </div>
       </form>
       <form action={deleteAction} className="mt-2 flex justify-end">
-        <Button type="submit" variant="destructive">
+        <SubmitButton
+          pendingLabel={props.tCommon('pending_deleting')}
+          variant="destructive"
+        >
           <Trash2 aria-hidden className="size-4" />
           {props.t('action_delete_question')}
-        </Button>
+        </SubmitButton>
       </form>
     </li>
   );
@@ -672,6 +706,13 @@ function EventQuestionsSection(props: AdminEventFormViewProps) {
     props.event.slug,
     props.event.id
   );
+  let maxQuestionOrder = 0;
+  for (const question of props.event.registrationQuestions) {
+    if (question.displayOrder > maxQuestionOrder) {
+      maxQuestionOrder = question.displayOrder;
+    }
+  }
+  const suggestedDisplayOrder = maxQuestionOrder + 1;
   return (
     <AdminEventFormSection
       id="event-questions"
@@ -691,6 +732,7 @@ function EventQuestionsSection(props: AdminEventFormViewProps) {
               locale={props.locale}
               question={question}
               t={props.t}
+              tCommon={props.tCommon}
             />
           ))}
         </ol>
@@ -702,12 +744,18 @@ function EventQuestionsSection(props: AdminEventFormViewProps) {
         <h3 className="text-sm font-semibold text-foreground">
           {props.t('add_question_heading')}
         </h3>
-        <QuestionFields t={props.t} />
+        <QuestionFields
+          suggestedDisplayOrder={suggestedDisplayOrder}
+          t={props.t}
+        />
         <div className="flex justify-end">
-          <Button type="submit" variant="mit">
+          <SubmitButton
+            pendingLabel={props.tCommon('pending_adding')}
+            variant="mit"
+          >
             <Plus aria-hidden className="size-4" />
             {props.t('action_add_question')}
-          </Button>
+          </SubmitButton>
         </div>
       </form>
     </AdminEventFormSection>
@@ -742,7 +790,7 @@ function FeeFields(props: {
           }
           id={`fee-amount-${prefix}`}
           inputMode="decimal"
-          name="amountCents"
+          name="amountDollars"
           placeholder="150.00"
           required
         />
@@ -761,6 +809,7 @@ function FeeRow(props: {
   fee: AdminEventFeeDto;
   locale: string;
   t: AdminEventFormTranslations;
+  tCommon: AdminEventCommonTranslations;
 }) {
   const updateAction = updateAdminEventFeeAction.bind(
     null,
@@ -779,16 +828,22 @@ function FeeRow(props: {
       <form action={updateAction} className="flex flex-col gap-3">
         <FeeFields fee={props.fee} t={props.t} />
         <div className="flex justify-end">
-          <Button type="submit" variant="outline">
+          <SubmitButton
+            pendingLabel={props.tCommon('pending_saving')}
+            variant="outline"
+          >
             {props.t('action_save')}
-          </Button>
+          </SubmitButton>
         </div>
       </form>
       <form action={deleteAction} className="mt-2 flex justify-end">
-        <Button type="submit" variant="destructive">
+        <SubmitButton
+          pendingLabel={props.tCommon('pending_deleting')}
+          variant="destructive"
+        >
           <Trash2 aria-hidden className="size-4" />
           {props.t('action_delete_fee')}
-        </Button>
+        </SubmitButton>
       </form>
     </li>
   );
@@ -818,6 +873,7 @@ function EventFeesSection(props: AdminEventFormViewProps) {
               key={fee.id}
               locale={props.locale}
               t={props.t}
+              tCommon={props.tCommon}
             />
           ))}
         </ol>
@@ -831,10 +887,13 @@ function EventFeesSection(props: AdminEventFormViewProps) {
         </h3>
         <FeeFields t={props.t} />
         <div className="flex justify-end">
-          <Button type="submit" variant="mit">
+          <SubmitButton
+            pendingLabel={props.tCommon('pending_adding')}
+            variant="mit"
+          >
             <Plus aria-hidden className="size-4" />
             {props.t('action_add_fee')}
-          </Button>
+          </SubmitButton>
         </div>
       </form>
     </AdminEventFormSection>

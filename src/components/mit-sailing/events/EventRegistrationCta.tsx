@@ -9,6 +9,7 @@ import type {
   PublicEventRegistrationState,
 } from '@/libs/mit-sailing/eventQueries';
 import { cancelPublicEventRegistrationAction } from '@/libs/mit-sailing/eventRegistrationActions';
+import { eventRegistrationErrorMessage } from '@/libs/mit-sailing/eventRegistrationErrors';
 import type { PublicEventReservationState } from '@/libs/mit-sailing/eventRegistrationState';
 
 type EventRegistrationTranslations = Awaited<
@@ -27,31 +28,6 @@ type EventRegistrationCtaProps = {
   t: EventRegistrationTranslations;
 };
 
-function registrationErrorMessage(
-  code: string | null,
-  t: EventRegistrationTranslations
-): string | null {
-  if (code === 'closed') {
-    return t('registration_error_closed');
-  }
-  if (code === 'full') {
-    return t('registration_error_full');
-  }
-  if (code === 'questions_required') {
-    return t('registration_error_questions_required');
-  }
-  if (code === 'swim_agreement_required') {
-    return t('registration_error_swim_agreement_required');
-  }
-  if (code === 'not_found') {
-    return t('registration_error_not_found');
-  }
-  if (code === 'unknown') {
-    return t('registration_error_unknown');
-  }
-  return null;
-}
-
 function RegistrationNote(props: { children: React.ReactNode }) {
   return (
     <p className="text-xs leading-relaxed text-mit-text/70 dark:text-white">
@@ -60,17 +36,26 @@ function RegistrationNote(props: { children: React.ReactNode }) {
   );
 }
 
+type RegistrationStatusPillTone = 'good' | 'warning' | 'muted';
+
+const registrationStatusPillToneClassName: Record<
+  RegistrationStatusPillTone,
+  string
+> = {
+  good: 'bg-mit-success/10 text-mit-success',
+  warning: 'bg-mit-warning/10 text-mit-warning',
+  muted: 'bg-muted text-muted-foreground',
+};
+
 function RegistrationStatusPill(props: {
   children: React.ReactNode;
-  tone: 'good' | 'warning' | 'muted';
+  tone: RegistrationStatusPillTone;
 }) {
   return (
     <div
       className={cn(
         'inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold',
-        props.tone === 'good' ? 'bg-emerald-50 text-emerald-900' : null,
-        props.tone === 'warning' ? 'bg-amber-50 text-amber-900' : null,
-        props.tone === 'muted' ? 'bg-muted text-mit-text' : null
+        registrationStatusPillToneClassName[props.tone]
       )}
     >
       {props.children}
@@ -79,7 +64,7 @@ function RegistrationStatusPill(props: {
 }
 
 export function EventRegistrationCta(props: EventRegistrationCtaProps) {
-  const errorMessage = registrationErrorMessage(props.errorCode, props.t);
+  const errorMessage = eventRegistrationErrorMessage(props.errorCode, props.t);
   const registrationHref = `/events/${props.event.slug}/register`;
   const loginHref = `/login?callbackUrl=${encodeURIComponent(registrationHref)}`;
 

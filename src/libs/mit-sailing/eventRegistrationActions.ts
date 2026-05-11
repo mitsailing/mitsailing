@@ -5,43 +5,21 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { Prisma } from '@/generated/prisma/client';
 import { EventRegistrationStatus } from '@/generated/prisma/enums';
+import type { EventAnswerType } from '@/generated/prisma/enums';
 import { requireCurrentUser } from '@/libs/auth/dal';
 import { prisma } from '@/libs/DB';
 import { logger } from '@/libs/Logger';
+import { questionOptionsFromJson } from '@/libs/mit-sailing/eventQueries';
+import { parsePublicEventRegistrationAnswersFromForm } from '@/libs/mit-sailing/eventRegistrationAnswerValidation';
+import type { EventRegistrationMutationCode } from '@/libs/mit-sailing/eventRegistrationErrors';
+import { safeErrorCode, safeErrorName } from '@/libs/safeUnknownError';
 import { getI18nPath } from '@/utils/Helpers';
-
-type EventRegistrationMutationCode =
-  | 'closed'
-  | 'full'
-  | 'not_found'
-  | 'questions_required'
-  | 'swim_agreement_required'
-  | 'unknown';
 
 class EventRegistrationFullError extends Error {
   constructor() {
     super('Event registration is full');
     this.name = 'EventRegistrationFullError';
   }
-}
-
-function safeErrorName(error: unknown): string {
-  if (error instanceof Error) {
-    return error.name;
-  }
-  return typeof error;
-}
-
-function safeErrorCode(error: unknown): string | undefined {
-  if (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    typeof error.code === 'string'
-  ) {
-    return error.code;
-  }
-  return undefined;
 }
 
 function logPublicEventRegistrationFailure(options: {
@@ -80,20 +58,6 @@ function eventRegistrationErrorUrl(
   return `${getI18nPath(`/events/${encodeURIComponent(slug)}/register`, locale)}?registration=${encodeURIComponent(
     code
   )}`;
-}
-
-function isNonEmptyFormValue(
-  value: FormDataEntryValue | null
-): value is string {
-  return typeof value === 'string' && value.trim().length > 0;
-}
-
-function answerForQuestion(questionId: string, formData: FormData): string {
-  const value = formData.get(`question_${questionId}`);
-  if (typeof value !== 'string') {
-    return '';
-  }
-  return value.trim();
 }
 
 function isRegistrationOpen(options: {
@@ -141,7 +105,12 @@ export async function createPublicEventRegistrationAction(
     requiresApproval: boolean;
     registrationStart: Date | null;
     registrationEnd: Date | null;
-    registrationQuestions: { id: string; required: boolean }[];
+    registrationQuestions: {
+      id: string;
+      required: boolean;
+      answerType: EventAnswerType;
+      options: Prisma.JsonValue | null;
+    }[];
   } | null;
   try {
     event = await prisma.event.findFirst({
@@ -154,7 +123,7 @@ export async function createPublicEventRegistrationAction(
         registrationEnd: true,
         registrationQuestions: {
           orderBy: [{ displayOrder: 'asc' }, { questionText: 'asc' }],
-          select: { id: true, required: true },
+          select: { id: true, required: true, answerType: true, options: true },
         },
       },
     });
@@ -177,87 +146,98 @@ export async function createPublicEventRegistrationAction(
     redirect(eventRegistrationErrorUrl(locale, slug, 'closed'));
   }
 
-  const missingRequiredAnswer = event.registrationQuestions.some(
-    (question) =>
-      question.required &&
-      !isNonEmptyFormValue(formData.get(`question_${question.id}`))
+  const questionsForValidation = event.registrationQuestions.map(
+    (question) => ({
+      id: question.id,
+      required: question.required,
+      answerType: question.answerType,
+      options: questionOptionsFromJson(question.options),
+    })
   );
-  if (missingRequiredAnswer) {
-    redirect(eventRegistrationErrorUrl(locale, slug, 'questions_required'));
+  const parsedAnswers = parsePublicEventRegistrationAnswersFromForm(
+    questionsForValidation,
+    formData
+  );
+  if (!parsedAnswers.ok) {
+    redirect(eventRegistrationErrorUrl(locale, slug, parsedAnswers.code));
   }
 
   try {
     const status = event.requiresApproval
       ? EventRegistrationStatus.pending
       : EventRegistrationStatus.approved;
-    await prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`
-        SELECT id
-        FROM events
-        WHERE id = ${event.id}
-        FOR UPDATE
-      `;
-      const existing = await tx.eventRegistration.findFirst({
-        where: { eventId: event.id, userId: user.id },
-        orderBy: { createdAt: 'desc' },
-        select: { id: true },
-      });
-      const reservedSlots = await tx.eventRegistration.count({
-        where: {
-          eventId: event.id,
-          id: existing ? { not: existing.id } : undefined,
-          status: {
-            in: [
-              EventRegistrationStatus.approved,
-              EventRegistrationStatus.pending,
-            ],
-          },
-        },
-      });
-      if (
-        event.maxParticipants !== null &&
-        reservedSlots >= event.maxParticipants
-      ) {
-        throw new EventRegistrationFullError();
-      }
-
-      const registrationId = existing?.id ?? randomUUID();
-      if (existing) {
-        await tx.eventRegistration.update({
-          where: { id: existing.id },
-          data: {
-            status,
-            swimAgreementAcceptedAt: now,
-            registrationAnswers: { deleteMany: {} },
-          },
+    await prisma.$transaction(
+      async (tx) => {
+        await tx.$queryRaw`
+          SELECT id
+          FROM events
+          WHERE id = ${event.id}
+          FOR UPDATE
+        `;
+        const existing = await tx.eventRegistration.findFirst({
+          where: { eventId: event.id, userId: user.id },
+          orderBy: { createdAt: 'desc' },
+          select: { id: true },
         });
-      }
-      if (!existing) {
-        await tx.eventRegistration.create({
-          data: {
-            id: registrationId,
+        const reservedSlots = await tx.eventRegistration.count({
+          where: {
             eventId: event.id,
-            userId: user.id,
-            status,
-            createdAt: now,
-            swimAgreementAcceptedAt: now,
+            ...(existing ? { id: { not: existing.id } } : {}),
+            status: {
+              in: [
+                EventRegistrationStatus.approved,
+                EventRegistrationStatus.pending,
+              ],
+            },
           },
         });
-      }
+        if (
+          event.maxParticipants !== null &&
+          reservedSlots >= event.maxParticipants
+        ) {
+          throw new EventRegistrationFullError();
+        }
 
-      const answers = event.registrationQuestions
-        .map((question) => ({
+        const registrationId = existing?.id ?? randomUUID();
+        if (existing) {
+          await tx.eventRegistration.update({
+            where: { id: existing.id },
+            data: {
+              status,
+              swimAgreementAcceptedAt: now,
+              registrationAnswers: { deleteMany: {} },
+            },
+          });
+        }
+        if (!existing) {
+          await tx.eventRegistration.create({
+            data: {
+              id: registrationId,
+              eventId: event.id,
+              userId: user.id,
+              status,
+              createdAt: now,
+              swimAgreementAcceptedAt: now,
+            },
+          });
+        }
+
+        const answers = parsedAnswers.answers.map((answer) => ({
           id: randomUUID(),
           registrationId,
-          questionId: question.id,
-          value: answerForQuestion(question.id, formData),
-        }))
-        .filter((answer) => answer.value.length > 0);
+          questionId: answer.questionId,
+          value: answer.value,
+        }));
 
-      if (answers.length > 0) {
-        await tx.eventRegistrationAnswer.createMany({ data: answers });
+        if (answers.length > 0) {
+          await tx.eventRegistrationAnswer.createMany({ data: answers });
+        }
+      },
+      {
+        maxWait: 5000,
+        timeout: 10_000,
       }
-    });
+    );
   } catch (error) {
     if (error instanceof EventRegistrationFullError) {
       redirect(eventRegistrationErrorUrl(locale, slug, 'full'));

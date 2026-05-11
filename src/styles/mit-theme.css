@@ -68,7 +68,10 @@
   --mit-line: var(--border);
   --mit-footer-bg: #1a1b1e;
   --mit-hero-ink: #0a1628;
-  --mit-success: #16a34a;
+  /** Semantic status (Tailwind v4-style OKLCH; matches default green-600 / amber-700). */
+  --mit-success: oklch(62.7% 0.194 149.214);
+  /** Pending / caution ink; AA on `bg-mit-warning/10` with default surfaces. */
+  --mit-warning: oklch(55.5% 0.163 48.998);
   --mit-cat: #0f766e;
 }
 
@@ -136,6 +139,7 @@
   --color-mit-surface: var(--mit-surface);
   --color-mit-line: var(--mit-line);
   --color-mit-success: var(--mit-success);
+  --color-mit-warning: var(--mit-warning);
   --color-mit-cat: var(--mit-cat);
   --color-mit-hero-ink: var(--mit-hero-ink);
   --color-mit-footer: var(--mit-footer-bg);

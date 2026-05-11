@@ -4,6 +4,7 @@ import { prisma } from '@/libs/DB';
 import { Env } from '@/libs/Env';
 import { routing } from '@/libs/I18nRouting';
 import { logger } from '@/libs/Logger';
+import { safeErrorCode, safeErrorName } from '@/libs/safeUnknownError';
 import { getBaseUrl, getI18nPath } from '@/utils/Helpers';
 
 /** Align with `Cache-Control` on `/sitemap.xml` in `next.config.ts` (CDN `s-maxage`). */
@@ -23,25 +24,6 @@ export const sitemapCatalogCacheTag = 'sitemap-catalog';
 export const dynamic = 'force-dynamic';
 
 type SitemapSlugRow = { slug: string };
-
-function safeErrorName(error: unknown): string {
-  if (error instanceof Error) {
-    return error.name;
-  }
-  return typeof error;
-}
-
-function safeErrorCode(error: unknown): string | undefined {
-  if (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    typeof error.code === 'string'
-  ) {
-    return error.code;
-  }
-  return undefined;
-}
 
 function logSitemapQueryFailure(options: {
   where: string;

@@ -22,9 +22,10 @@ export default async function AdminEventEditPage(props: PageProps) {
   const { locale, slug } = await props.params;
   const { error: errorCode } = await props.searchParams;
   setRequestLocale(locale);
-  const [data, t] = await Promise.all([
+  const [data, t, tCommon] = await Promise.all([
     getAdminEventEditorDataBySlug(slug),
     getTranslations({ locale, namespace: 'AdminEvents' }),
+    getTranslations({ locale, namespace: 'Common' }),
   ]);
   if (!data.event) {
     notFound();
@@ -36,6 +37,7 @@ export default async function AdminEventEditPage(props: PageProps) {
       event={data.event}
       locale={locale}
       t={t}
+      tCommon={tCommon}
       users={data.users}
     />
   );

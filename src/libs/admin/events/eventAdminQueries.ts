@@ -54,6 +54,7 @@ export type AdminEventQuestionDto = {
 export type AdminEventFeeDto = {
   id: string;
   description: string;
+  /** USD minor units (integer cents); same as Stripe `amount` for `usd`. */
   amountCents: number;
   isDeposit: boolean;
 };

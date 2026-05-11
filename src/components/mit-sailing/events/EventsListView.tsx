@@ -47,6 +47,10 @@ function formatMonthTitle(month: EventCalendarMonth, locale: string): string {
   }).format(startOfNyCalendarDay(nyMonthFirstYmd(month.year, month.month)));
 }
 
+// Feb 1, 2026 is a Sunday; these seven consecutive YMDs yield Sun–Sat when each is
+// interpreted as a NY calendar day via startOfNyCalendarDay and formatted with
+// EVENTS_TIME_ZONE, matching grid column order. Static keys keep that order obvious;
+// they could be replaced by a small programmatic sequence if preferred.
 function weekdayLabels(locale: string): string[] {
   return [
     '2026-02-01',

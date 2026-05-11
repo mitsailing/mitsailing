@@ -14,6 +14,10 @@ import {
   getPublishedEventForPublicBySlug,
 } from '@/libs/mit-sailing/eventQueries';
 import type { PublicEventDetail } from '@/libs/mit-sailing/eventQueries';
+import {
+  eventRegistrationErrorMessage,
+  parseEventRegistrationMutationCode,
+} from '@/libs/mit-sailing/eventRegistrationErrors';
 import { publicEventReservationState } from '@/libs/mit-sailing/eventRegistrationState';
 import { getI18nPath } from '@/utils/Helpers';
 
@@ -21,55 +25,6 @@ type RegisterPageProps = {
   params: Promise<{ locale: string; slug: string }>;
   searchParams?: Promise<{ registration?: string }>;
 };
-
-type EventRegistrationMutationCode =
-  | 'closed'
-  | 'full'
-  | 'not_found'
-  | 'questions_required'
-  | 'swim_agreement_required'
-  | 'unknown';
-
-function registrationErrorMessage(
-  code: string | null,
-  t: Awaited<ReturnType<typeof getTranslations<'MitSailingEvents'>>>
-): string | null {
-  if (code === 'closed') {
-    return t('registration_error_closed');
-  }
-  if (code === 'full') {
-    return t('registration_error_full');
-  }
-  if (code === 'questions_required') {
-    return t('registration_error_questions_required');
-  }
-  if (code === 'swim_agreement_required') {
-    return t('registration_error_swim_agreement_required');
-  }
-  if (code === 'not_found') {
-    return t('registration_error_not_found');
-  }
-  if (code === 'unknown') {
-    return t('registration_error_unknown');
-  }
-  return null;
-}
-
-function registrationErrorCode(
-  code: string | undefined
-): EventRegistrationMutationCode | null {
-  if (
-    code === 'closed' ||
-    code === 'full' ||
-    code === 'not_found' ||
-    code === 'questions_required' ||
-    code === 'swim_agreement_required' ||
-    code === 'unknown'
-  ) {
-    return code;
-  }
-  return null;
-}
 
 function EventScheduleSummary(props: {
   event: PublicEventDetail;
@@ -132,7 +87,9 @@ export default async function EventRegisterPage(props: RegisterPageProps) {
     eventId: event.id,
     userId: currentUser.id,
   });
-  const errorCode = registrationErrorCode(searchParams?.registration);
+  const errorCode = parseEventRegistrationMutationCode(
+    searchParams?.registration
+  );
   const reservationState = publicEventReservationState({
     currentRegistration,
     event,
@@ -141,7 +98,7 @@ export default async function EventRegisterPage(props: RegisterPageProps) {
   if (reservationState !== 'available' && !errorCode) {
     redirect(getI18nPath(`/events/${encodeURIComponent(slug)}`, locale));
   }
-  const errorMessage = registrationErrorMessage(errorCode, t);
+  const errorMessage = eventRegistrationErrorMessage(errorCode, t);
 
   return (
     <SiteSectionShell

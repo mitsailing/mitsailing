@@ -11,6 +11,7 @@ import type {
   EventCalendarDate,
   EventCalendarMonthBounds,
 } from '@/libs/mit-sailing/eventCalendar';
+import { safeErrorCode, safeErrorName } from '@/libs/safeUnknownError';
 
 export type PublicEventDetail = {
   id: string;
@@ -50,6 +51,7 @@ export type PublicEventDetail = {
   entryFees: {
     id: string;
     description: string;
+    /** USD minor units (integer cents); same as Stripe `amount` for `usd`. */
     amountCents: number;
     isDeposit: boolean;
   }[];
@@ -61,25 +63,6 @@ export type PublicEventRegistrationState = {
   id: string;
   status: EventRegistrationStatusValue;
 };
-
-function safeErrorName(error: unknown): string {
-  if (error instanceof Error) {
-    return error.name;
-  }
-  return typeof error;
-}
-
-function safeErrorCode(error: unknown): string | undefined {
-  if (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    typeof error.code === 'string'
-  ) {
-    return error.code;
-  }
-  return undefined;
-}
 
 function logPublicEventsQueryFailure(options: {
   where: string;
@@ -109,7 +92,15 @@ function logPublicEventsEmptyFallback(options: {
   );
 }
 
-function questionOptionsFromJson(value: Prisma.JsonValue | null): string[] {
+/**
+ * Normalizes stored JSON options to a string list for public and admin DTOs.
+ *
+ * @param value - Raw JSON options from Prisma
+ * @returns List of string options
+ */
+export function questionOptionsFromJson(
+  value: Prisma.JsonValue | null
+): string[] {
   if (!Array.isArray(value)) {
     return [];
   }

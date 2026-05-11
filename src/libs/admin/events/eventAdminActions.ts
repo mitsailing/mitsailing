@@ -1,6 +1,7 @@
 'use server';
 
 import { randomUUID } from 'node:crypto';
+import { getTranslations } from 'next-intl/server';
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { Prisma } from '@/generated/prisma/client';
@@ -28,6 +29,7 @@ import {
 import { requireAdmin } from '@/libs/auth/dal';
 import { prisma } from '@/libs/DB';
 import { logger } from '@/libs/Logger';
+import { safeErrorCode, safeErrorName } from '@/libs/safeUnknownError';
 import { getI18nPath } from '@/utils/Helpers';
 
 type EventAdminMutationCode =
@@ -36,25 +38,6 @@ type EventAdminMutationCode =
   | 'duplicate_slug'
   | 'foreign_key'
   | 'unknown';
-
-function safeErrorName(error: unknown): string {
-  if (error instanceof Error) {
-    return error.name;
-  }
-  return typeof error;
-}
-
-function safeErrorCode(error: unknown): string | undefined {
-  if (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    typeof error.code === 'string'
-  ) {
-    return error.code;
-  }
-  return undefined;
-}
 
 function logAdminEventMutationFailure(options: {
   action: string;
@@ -138,6 +121,21 @@ async function verifiedEventIdFromSlug(options: {
   return event.id;
 }
 
+/**
+ * Zod parse params so issue messages use next-intl copy for the admin route
+ * locale (explicit `{ locale }` in Server Actions).
+ *
+ * @param locale - Active `[locale]` segment for `getTranslations`
+ * @returns Params for `schema.safeParse(data, params)` (Zod 4 `error` map)
+ * @see https://next-intl.dev/docs/environments/actions-metadata-route-handlers
+ */
+async function adminEventZodParseParams(locale: string) {
+  const t = await getTranslations({ locale, namespace: 'AdminEvents' });
+  return {
+    error: () => t('form_error_validation_failed'),
+  };
+}
+
 function revalidateEventAdminMutation(
   locale: string,
   slugs: readonly string[]
@@ -157,8 +155,10 @@ export async function createAdminEventAction(
   formData: FormData
 ): Promise<void> {
   const session = await requireAdmin(locale);
+  const zodParse = await adminEventZodParseParams(locale);
   const parsed = eventAdminBasicsFormSchema.safeParse(
-    rawEventBasicsFromFormData(formData)
+    rawEventBasicsFromFormData(formData),
+    zodParse
   );
   if (!parsed.success) {
     redirect(
@@ -208,8 +208,10 @@ export async function updateAdminEventBasicsAction(
   formData: FormData
 ): Promise<void> {
   await requireAdmin(locale);
+  const zodParse = await adminEventZodParseParams(locale);
   const parsed = eventAdminBasicsFormSchema.safeParse(
-    rawEventBasicsFromFormData(formData)
+    rawEventBasicsFromFormData(formData),
+    zodParse
   );
   if (!parsed.success) {
     redirect(editUrlWithError(locale, currentSlug, 'validation_failed'));
@@ -275,8 +277,10 @@ export async function addAdminEventDateAction(
   formData: FormData
 ): Promise<void> {
   await requireAdmin(locale);
+  const zodParse = await adminEventZodParseParams(locale);
   const parsed = eventDateFormSchema.safeParse(
-    rawEventDateFromFormData(formData)
+    rawEventDateFromFormData(formData),
+    zodParse
   );
   if (!parsed.success) {
     redirect(editUrlWithError(locale, slug, 'validation_failed'));
@@ -311,8 +315,10 @@ export async function updateAdminEventDateAction(
   formData: FormData
 ): Promise<void> {
   await requireAdmin(locale);
+  const zodParse = await adminEventZodParseParams(locale);
   const parsed = eventDateFormSchema.safeParse(
-    rawEventDateFromFormData(formData)
+    rawEventDateFromFormData(formData),
+    zodParse
   );
   if (!parsed.success) {
     redirect(editUrlWithError(locale, slug, 'validation_failed'));
@@ -403,8 +409,10 @@ export async function addAdminEventQuestionAction(
   formData: FormData
 ): Promise<void> {
   await requireAdmin(locale);
+  const zodParse = await adminEventZodParseParams(locale);
   const parsed = eventQuestionFormSchema.safeParse(
-    rawEventQuestionFromFormData(formData)
+    rawEventQuestionFromFormData(formData),
+    zodParse
   );
   if (!parsed.success) {
     redirect(editUrlWithError(locale, slug, 'validation_failed'));
@@ -421,6 +429,8 @@ export async function addAdminEventQuestionAction(
       _max: { displayOrder: true },
     });
     const nextOrder = (maxOrder._max.displayOrder ?? 0) + 1;
+    const displayOrder =
+      parsed.data.displayOrder > 0 ? parsed.data.displayOrder : nextOrder;
     await prisma.eventRegistrationQuestion.create({
       data: {
         id: randomUUID(),
@@ -432,7 +442,7 @@ export async function addAdminEventQuestionAction(
             ? parsed.data.options
             : Prisma.JsonNull,
         required: parsed.data.required,
-        displayOrder: nextOrder,
+        displayOrder,
       },
     });
   } catch (error) {
@@ -450,8 +460,10 @@ export async function updateAdminEventQuestionAction(
   formData: FormData
 ): Promise<void> {
   await requireAdmin(locale);
+  const zodParse = await adminEventZodParseParams(locale);
   const parsed = eventQuestionFormSchema.safeParse(
-    rawEventQuestionFromFormData(formData)
+    rawEventQuestionFromFormData(formData),
+    zodParse
   );
   if (!parsed.success) {
     redirect(editUrlWithError(locale, slug, 'validation_failed'));
@@ -513,8 +525,10 @@ export async function addAdminEventFeeAction(
   formData: FormData
 ): Promise<void> {
   await requireAdmin(locale);
+  const zodParse = await adminEventZodParseParams(locale);
   const parsed = eventFeeFormSchema.safeParse(
-    rawEventFeeFromFormData(formData)
+    rawEventFeeFromFormData(formData),
+    zodParse
   );
   if (!parsed.success) {
     redirect(editUrlWithError(locale, slug, 'validation_failed'));
@@ -550,8 +564,10 @@ export async function updateAdminEventFeeAction(
   formData: FormData
 ): Promise<void> {
   await requireAdmin(locale);
+  const zodParse = await adminEventZodParseParams(locale);
   const parsed = eventFeeFormSchema.safeParse(
-    rawEventFeeFromFormData(formData)
+    rawEventFeeFromFormData(formData),
+    zodParse
   );
   if (!parsed.success) {
     redirect(editUrlWithError(locale, slug, 'validation_failed'));
@@ -608,8 +624,10 @@ export async function updateAdminEventRegistrationStatusAction(
   formData: FormData
 ): Promise<void> {
   await requireAdmin(locale);
+  const zodParse = await adminEventZodParseParams(locale);
   const parsed = eventRegistrationStatusFormSchema.safeParse(
-    rawEventRegistrationStatusFromFormData(formData)
+    rawEventRegistrationStatusFromFormData(formData),
+    zodParse
   );
   if (!parsed.success) {
     redirect(

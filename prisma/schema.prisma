@@ -318,10 +318,14 @@ model EventRegistrationAnswer {
   @@map("event_registration_answers")
 }
 
+/// Event registration fee line item. **`amount_cents`** stores **integer USD cents**
+/// (e.g. `1999` for $19.99), matching Stripe `amount` for `currency: "usd"` and
+/// avoiding floating-point dollar columns in PostgreSQL.
 model EventEntryFee {
   id          String  @id
   eventId     String  @map("event_id")
   description String
+  /// USD minor units (integer cents). Same domain as Stripe `amount`; never persist `19.99` here.
   amountCents Int     @map("amount_cents")
   isDeposit   Boolean @map("is_deposit")
   event       Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)

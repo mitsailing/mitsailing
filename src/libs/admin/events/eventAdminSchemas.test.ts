@@ -4,8 +4,10 @@ import {
   dollarsToEventAdminCents,
   eventAdminBasicsFormSchema,
   eventDateFormSchema,
+  eventFeeFormSchema,
   eventQuestionFormSchema,
   parseEasternDateTimeLocal,
+  rawEventFeeFromFormData,
   slugifyEventAdmin,
   splitEventAdminCsv,
 } from '@/libs/admin/events/eventAdminSchemas';
@@ -73,6 +75,39 @@ describe('eventAdminSchemas', () => {
     expect(dollarsToEventAdminCents('150.50')).toBe(15_050);
   });
 
+  it('parses fee dollars field into integer cents', () => {
+    const parsed = eventFeeFormSchema.parse({
+      description: 'Entry fee',
+      amountDollars: '150.00',
+      isDeposit: false,
+    });
+
+    expect(parsed.amountCents).toBe(15_000);
+    expect(parsed.description).toBe('Entry fee');
+    expect(parsed.isDeposit).toBe(false);
+  });
+
+  it('maps fee form data using amountDollars field name', () => {
+    const formData = new FormData();
+    formData.set('description', 'Deposit');
+    formData.set('amountDollars', '25');
+    formData.set('isDeposit', 'true');
+    const raw = rawEventFeeFromFormData(formData);
+    const parsed = eventFeeFormSchema.parse(raw);
+
+    expect(parsed.amountCents).toBe(2500);
+  });
+
+  it('rejects fee form with invalid dollar amount', () => {
+    const parsed = eventFeeFormSchema.safeParse({
+      description: 'Entry fee',
+      amountDollars: 'not-a-number',
+      isDeposit: false,
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+
   it('splits comma options', () => {
     expect(splitEventAdminCsv('Helm, Navigation, Sail trim')).toEqual([
       'Helm',
@@ -95,5 +130,29 @@ describe('eventAdminSchemas', () => {
     });
 
     expect(parsed.options).toEqual(['Helm', 'Trim']);
+  });
+
+  it('maps empty question display order to zero for append default', () => {
+    const parsed = eventQuestionFormSchema.parse({
+      questionText: 'Shirt size',
+      answerType: EventAnswerType.text,
+      optionsCsv: '',
+      required: false,
+      displayOrder: '',
+    });
+
+    expect(parsed.displayOrder).toBe(0);
+  });
+
+  it('parses explicit question display order', () => {
+    const parsed = eventQuestionFormSchema.parse({
+      questionText: 'Dietary',
+      answerType: EventAnswerType.text,
+      optionsCsv: '',
+      required: false,
+      displayOrder: '4',
+    });
+
+    expect(parsed.displayOrder).toBe(4);
   });
 });
