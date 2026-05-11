@@ -376,7 +376,7 @@ function compareCatalogAuditSnapshots(
     );
     addFieldChange(
       changes,
-      'classCategory',
+      'classCategoryId',
       textChangeValue(before.classCategoryName),
       textChangeValue(after.classCategoryName)
     );
@@ -415,7 +415,7 @@ function compareCatalogAuditSnapshots(
     );
     addFieldChange(
       changes,
-      'requiredClassName',
+      'requiredClassId',
       textChangeValue(before.requiredClassName),
       textChangeValue(after.requiredClassName)
     );

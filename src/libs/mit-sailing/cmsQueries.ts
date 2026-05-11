@@ -195,8 +195,10 @@ async function loadPublishedCmsPageByPathUnchecked(
           body: true,
           ctaLabel: true,
           ctaUrl: true,
+          showCta: true,
           imageSrc: true,
           imageAlt: true,
+          showImage: true,
         },
       },
     },
@@ -217,10 +219,12 @@ async function loadPublishedCmsPageByPathUnchecked(
       title: block.title,
       subtitle: block.subtitle ?? undefined,
       body: block.body ?? undefined,
-      ctaLabel: block.ctaLabel ?? undefined,
-      ctaUrl: safeCmsMenuItemHref(block.ctaUrl?.trim()) ?? undefined,
-      imageSrc: block.imageSrc ?? undefined,
-      imageAlt: block.imageAlt ?? undefined,
+      ctaLabel: block.showCta ? (block.ctaLabel ?? undefined) : undefined,
+      ctaUrl: block.showCta
+        ? (safeCmsMenuItemHref(block.ctaUrl?.trim()) ?? undefined)
+        : undefined,
+      imageSrc: block.showImage ? (block.imageSrc ?? undefined) : undefined,
+      imageAlt: block.showImage ? (block.imageAlt ?? undefined) : undefined,
     })),
   };
 }

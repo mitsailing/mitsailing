@@ -24,8 +24,10 @@ const CMS_PAGE_HISTORY_SELECT = {
       body: true,
       ctaLabel: true,
       ctaUrl: true,
+      showCta: true,
       imageSrc: true,
       imageAlt: true,
+      showImage: true,
       displayOrder: true,
       isVisible: true,
       createdAt: true,
@@ -85,8 +87,10 @@ type CmsPageRevisionSnapshotBlock = {
   body: string | null;
   ctaLabel: string | null;
   ctaUrl: string | null;
+  showCta: boolean;
   imageSrc: string | null;
   imageAlt: string | null;
+  showImage: boolean;
   displayOrder: number;
   isVisible: boolean;
 };
@@ -119,6 +123,8 @@ export type AdminCmsPageRevisionBlockField =
   | 'imageSrc'
   | 'isVisible'
   | 'kind'
+  | 'showCta'
+  | 'showImage'
   | 'subtitle'
   | 'title';
 
@@ -265,6 +271,10 @@ function cmsPageRevisionPreview(
   };
 }
 
+function hasRevisionBlockValue(...values: (string | null)[]): boolean {
+  return values.some(Boolean);
+}
+
 function cmsPageRevisionBlockFromUnknown(
   value: unknown
 ): CmsPageRevisionSnapshotBlock | null {
@@ -275,6 +285,18 @@ function cmsPageRevisionBlockFromUnknown(
     propertyFromUnknown(value, 'displayOrder')
   );
   const isVisible = booleanFromUnknown(propertyFromUnknown(value, 'isVisible'));
+  const showCta =
+    booleanFromUnknown(propertyFromUnknown(value, 'showCta')) ??
+    hasRevisionBlockValue(
+      nullableStringFromUnknown(propertyFromUnknown(value, 'ctaLabel')) ?? null,
+      nullableStringFromUnknown(propertyFromUnknown(value, 'ctaUrl')) ?? null
+    );
+  const showImage =
+    booleanFromUnknown(propertyFromUnknown(value, 'showImage')) ??
+    hasRevisionBlockValue(
+      nullableStringFromUnknown(propertyFromUnknown(value, 'imageSrc')) ?? null,
+      nullableStringFromUnknown(propertyFromUnknown(value, 'imageAlt')) ?? null
+    );
   if (
     !id ||
     !kind ||
@@ -320,6 +342,8 @@ function cmsPageRevisionBlockFromUnknown(
     imageSrc,
     isVisible,
     kind,
+    showCta,
+    showImage,
     subtitle,
     title,
   };
@@ -568,6 +592,13 @@ function compareCmsPageRevisionSnapshots(
     compareBlockField(
       changes,
       block,
+      'showCta',
+      booleanChangeValue(previous.showCta),
+      booleanChangeValue(block.showCta)
+    );
+    compareBlockField(
+      changes,
+      block,
       'imageSrc',
       textChangeValue(previous.imageSrc),
       textChangeValue(block.imageSrc)
@@ -578,6 +609,13 @@ function compareCmsPageRevisionSnapshots(
       'imageAlt',
       textChangeValue(previous.imageAlt),
       textChangeValue(block.imageAlt)
+    );
+    compareBlockField(
+      changes,
+      block,
+      'showImage',
+      booleanChangeValue(previous.showImage),
+      booleanChangeValue(block.showImage)
     );
     compareBlockField(
       changes,
@@ -687,8 +725,10 @@ function cmsPageRevisionSnapshot(
       body: block.body,
       ctaLabel: block.ctaLabel,
       ctaUrl: block.ctaUrl,
+      showCta: block.showCta,
       imageSrc: block.imageSrc,
       imageAlt: block.imageAlt,
+      showImage: block.showImage,
       displayOrder: block.displayOrder,
       isVisible: block.isVisible,
       createdAt: block.createdAt.toISOString(),
@@ -718,8 +758,10 @@ function cmsPageRevisionSnapshotJson(
       body: block.body,
       ctaLabel: block.ctaLabel,
       ctaUrl: block.ctaUrl,
+      showCta: block.showCta,
       imageSrc: block.imageSrc,
       imageAlt: block.imageAlt,
+      showImage: block.showImage,
       displayOrder: block.displayOrder,
       isVisible: block.isVisible,
     })),
@@ -1097,6 +1139,8 @@ export async function restoreCmsPageRevision(props: {
             imageSrc: block.imageSrc,
             isVisible: block.isVisible,
             kind: block.kind,
+            showCta: block.showCta,
+            showImage: block.showImage,
             pageId: props.pageId,
             subtitle: block.subtitle,
             title: block.title,

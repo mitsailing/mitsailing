@@ -33,6 +33,8 @@ export async function AdminCmsHistoryPanel(props: {
         isPublished: t('field_cms_published'),
         isVisible: t('field_visible'),
         kind: t('field_cms_kind'),
+        showCta: t('cms_block_cta_toggle'),
+        showImage: t('cms_block_picture_toggle'),
         metaDescription: t('field_cms_meta_description'),
         metaTitle: t('field_cms_meta_title'),
         path: t('field_cms_path'),

@@ -20,8 +20,10 @@ export type CmsSeedPage = {
     body?: string;
     ctaLabel?: string;
     ctaUrl?: string;
+    showCta?: boolean;
     imageSrc?: string;
     imageAlt?: string;
+    showImage?: boolean;
     displayOrder: number;
     isVisible: boolean;
   }[];

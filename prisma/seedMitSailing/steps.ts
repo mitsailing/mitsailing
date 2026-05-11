@@ -497,6 +497,17 @@ export async function seedSiteAlerts(p: PrismaClient): Promise<void> {
   }
 }
 
+function hasSeedText(...values: (string | undefined)[]): boolean {
+  return values.some((value) => (value?.trim().length ?? 0) > 0);
+}
+
+function cmsSeedBlockDisplayFlags(block: CmsSeedPage['blocks'][number]) {
+  return {
+    showCta: block.showCta ?? hasSeedText(block.ctaLabel, block.ctaUrl),
+    showImage: block.showImage ?? hasSeedText(block.imageSrc, block.imageAlt),
+  };
+}
+
 async function seedCmsPageBlocks(props: {
   p: PrismaClient;
   page: CmsSeedPage;
@@ -504,6 +515,7 @@ async function seedCmsPageBlocks(props: {
   const { p, page } = props;
 
   for (const block of page.blocks) {
+    const { showCta, showImage } = cmsSeedBlockDisplayFlags(block);
     await p.cmsPageBlock.upsert({
       where: { id: block.id },
       create: {
@@ -515,8 +527,10 @@ async function seedCmsPageBlocks(props: {
         body: block.body ?? null,
         ctaLabel: block.ctaLabel ?? null,
         ctaUrl: block.ctaUrl ?? null,
+        showCta,
         imageSrc: block.imageSrc ?? null,
         imageAlt: block.imageAlt ?? null,
+        showImage,
         displayOrder: block.displayOrder,
         isVisible: block.isVisible,
       },
@@ -528,8 +542,10 @@ async function seedCmsPageBlocks(props: {
         body: block.body ?? null,
         ctaLabel: block.ctaLabel ?? null,
         ctaUrl: block.ctaUrl ?? null,
+        showCta,
         imageSrc: block.imageSrc ?? null,
         imageAlt: block.imageAlt ?? null,
+        showImage,
         displayOrder: block.displayOrder,
         isVisible: block.isVisible,
       },

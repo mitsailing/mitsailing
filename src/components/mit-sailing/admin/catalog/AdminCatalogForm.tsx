@@ -253,6 +253,8 @@ type CmsBlockPreviewState = {
   imageSrc: string;
   isVisible: boolean;
   kind: CmsBlockKind;
+  showCta: boolean;
+  showImage: boolean;
   subtitle: string;
   title: string;
 };
@@ -272,6 +274,10 @@ function hasCmsBlockPairErrors(errors: CmsBlockPairErrors) {
 
 function stringValue(value: CatalogRow[string]): string {
   return value !== undefined && value !== null ? String(value) : '';
+}
+
+function hasCmsOptionalValue(row: CatalogRow | undefined, fields: string[]) {
+  return fields.some((field) => stringValue(row?.[field]).trim().length > 0);
 }
 
 function cmsBlockKindValue(value: CatalogRow[string]): CmsBlockKind {
@@ -298,6 +304,14 @@ function initialCmsBlockPreviewState(row?: CatalogRow): CmsBlockPreviewState {
     imageSrc: stringValue(row?.imageSrc),
     isVisible: typeof row?.isVisible === 'boolean' ? row.isVisible : true,
     kind: cmsBlockKindValue(row?.kind),
+    showCta:
+      typeof row?.showCta === 'boolean'
+        ? row.showCta
+        : hasCmsOptionalValue(row, ['ctaLabel', 'ctaUrl']),
+    showImage:
+      typeof row?.showImage === 'boolean'
+        ? row.showImage
+        : hasCmsOptionalValue(row, ['imageSrc', 'imageAlt']),
     subtitle: stringValue(row?.subtitle),
     title: stringValue(row?.title),
   };
@@ -322,6 +336,10 @@ function AdminCmsBlockPreviewPanel(props: {
   }
   const previewHasStandaloneFields =
     props.previewState.kind !== 'home_overview';
+  const previewHasCta =
+    previewHasStandaloneFields && props.previewState.showCta;
+  const previewHasImage =
+    previewHasStandaloneFields && props.previewState.showImage;
   if (props.previewState.kind === 'home_overview') {
     previewBody = '';
   }
@@ -345,19 +363,11 @@ function AdminCmsBlockPreviewPanel(props: {
         <CmsPageBlockPreview
           block={{
             body: previewBody,
-            ctaLabel: previewHasStandaloneFields
-              ? props.previewState.ctaLabel
-              : undefined,
-            ctaUrl: previewHasStandaloneFields
-              ? props.previewState.ctaUrl
-              : undefined,
+            ctaLabel: previewHasCta ? props.previewState.ctaLabel : undefined,
+            ctaUrl: previewHasCta ? props.previewState.ctaUrl : undefined,
             id: 'admin-cms-block-preview',
-            imageAlt: previewHasStandaloneFields
-              ? props.previewState.imageAlt
-              : undefined,
-            imageSrc: previewHasStandaloneFields
-              ? props.previewState.imageSrc
-              : undefined,
+            imageAlt: previewHasImage ? props.previewState.imageAlt : undefined,
+            imageSrc: previewHasImage ? props.previewState.imageSrc : undefined,
             kind: props.previewState.kind,
             subtitle: props.previewState.subtitle,
             title: props.previewState.title,
@@ -767,13 +777,10 @@ function initialBooleanFields(
   return m;
 }
 
-function hasCmsOptionalValue(row: CatalogRow | undefined, fields: string[]) {
-  return fields.some((field) => stringValue(row?.[field]).trim().length > 0);
-}
-
 function AdminCmsOptionalGroup(props: {
   children: React.ReactNode;
   enabled: boolean;
+  fieldName: string;
   hiddenFields: readonly { name: string; value: string }[];
   legend: string;
   onToggle: (next: boolean) => void;
@@ -784,14 +791,17 @@ function AdminCmsOptionalGroup(props: {
       <legend className="px-1 font-medium text-foreground">
         {props.legend}
       </legend>
+      <input name={props.fieldName} type="hidden" value="false" />
       <label className="flex cursor-pointer items-center gap-2 text-sm text-mit-text">
         <input
           checked={props.enabled}
           className="size-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
+          name={props.fieldName}
           onChange={(event) => {
             props.onToggle(event.target.checked);
           }}
           type="checkbox"
+          value="true"
         />
         <span>{props.toggleLabel}</span>
       </label>
@@ -861,8 +871,14 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
     })
   );
   const [cmsBlockGroupsEnabled, setCmsBlockGroupsEnabled] = useState(() => ({
-    cta: hasCmsOptionalValue(props.row, ['ctaLabel', 'ctaUrl']),
-    image: hasCmsOptionalValue(props.row, ['imageSrc', 'imageAlt']),
+    cta:
+      typeof props.row?.showCta === 'boolean'
+        ? props.row.showCta
+        : hasCmsOptionalValue(props.row, ['ctaLabel', 'ctaUrl']),
+    image:
+      typeof props.row?.showImage === 'boolean'
+        ? props.row.showImage
+        : hasCmsOptionalValue(props.row, ['imageSrc', 'imageAlt']),
   }));
   const [cmsPricingEditorState, setCmsPricingEditorState] = useState(() =>
     initialCmsPricingEditorState(props.row)
@@ -1022,6 +1038,8 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
           imageAlt: '',
           imageSrc: '',
           kind,
+          showCta: false,
+          showImage: false,
         }));
         return;
       }
@@ -1056,6 +1074,11 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
     next: boolean
   ) {
     setCmsBlockGroupsEnabled((prev) => ({ ...prev, [group]: next }));
+    setCmsBlockPreviewState((prev) =>
+      group === 'cta'
+        ? { ...prev, showCta: next }
+        : { ...prev, showImage: next }
+    );
     if (next) {
       return;
     }
@@ -1077,9 +1100,10 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
     return (
       <AdminCmsOptionalGroup
         enabled={cmsBlockGroupsEnabled.cta}
+        fieldName="showCta"
         hiddenFields={[
-          { name: 'ctaLabel', value: '' },
-          { name: 'ctaUrl', value: '' },
+          { name: 'ctaLabel', value: cmsBlockPreviewState.ctaLabel },
+          { name: 'ctaUrl', value: cmsBlockPreviewState.ctaUrl },
         ]}
         key="cms-block-cta-group"
         legend={tCatalog('cms_block_cta_group')}
@@ -1151,9 +1175,10 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
     return (
       <AdminCmsOptionalGroup
         enabled={cmsBlockGroupsEnabled.image}
+        fieldName="showImage"
         hiddenFields={[
-          { name: 'imageSrc', value: '' },
-          { name: 'imageAlt', value: '' },
+          { name: 'imageSrc', value: cmsBlockPreviewState.imageSrc },
+          { name: 'imageAlt', value: cmsBlockPreviewState.imageAlt },
         ]}
         key="cms-block-image-group"
         legend={tCatalog('cms_block_picture_group')}

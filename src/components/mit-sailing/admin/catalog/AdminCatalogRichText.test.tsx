@@ -384,7 +384,7 @@ describe('AdminCatalogForm rich text fields', () => {
     );
   });
 
-  it('clears optional cms block group values when disabled', async () => {
+  it('hides optional cms block group values when disabled and restores them when re-enabled', async () => {
     const user = userEvent.setup();
     const view = render(
       <AdminCatalogForm
@@ -410,29 +410,39 @@ describe('AdminCatalogForm rich text fields', () => {
     await user.click(screen.getByRole('checkbox', { name: 'Add CTA' }));
     await user.click(screen.getByRole('checkbox', { name: 'Add picture' }));
 
+    expect(screen.getByRole('checkbox', { name: 'Add CTA' })).not.toBeChecked();
+    expect(
+      screen.getByRole('checkbox', { name: 'Add picture' })
+    ).not.toBeChecked();
     expect(screen.queryByLabelText('CTA label')).toBeNull();
     expect(screen.queryByLabelText('Image alt text')).toBeNull();
+    expect(
+      screen.queryByRole('link', { name: /Learn more/u })
+    ).not.toBeInTheDocument();
+    expect(screen.queryByAltText('Boats on the river')).not.toBeInTheDocument();
     expect(view.container.querySelector('input[name="ctaLabel"]')).toHaveValue(
-      ''
+      'Learn more'
     );
     expect(view.container.querySelector('input[name="ctaUrl"]')).toHaveValue(
-      ''
+      '/classes'
     );
     expect(view.container.querySelector('input[name="imageSrc"]')).toHaveValue(
-      ''
+      '/assets/images/home-hero-charles-sailing.jpg'
     );
     expect(view.container.querySelector('input[name="imageAlt"]')).toHaveValue(
-      ''
+      'Boats on the river'
     );
 
     await user.click(screen.getByRole('checkbox', { name: 'Add CTA' }));
     await user.click(screen.getByRole('checkbox', { name: 'Add picture' }));
 
-    expect(screen.getByLabelText('CTA label')).toHaveValue('');
-    expect(screen.getByLabelText('CTA URL')).toHaveValue('');
-    expect(screen.getByLabelText('Image alt text')).toHaveValue('');
+    expect(screen.getByLabelText('CTA label')).toHaveValue('Learn more');
+    expect(screen.getByLabelText('CTA URL')).toHaveValue('/classes');
+    expect(screen.getByLabelText('Image alt text')).toHaveValue(
+      'Boats on the river'
+    );
     expect(view.container.querySelector('input[name="imageSrc"]')).toHaveValue(
-      ''
+      '/assets/images/home-hero-charles-sailing.jpg'
     );
   });
 
@@ -779,7 +789,7 @@ describe('Admin catalog media fields', () => {
         url: '/cms-media/asset-5/hero.png',
       })
     );
-    const saveAction = vi.fn(async () => {
+    const saveAction = vi.fn(async (_formData: FormData) => {
       await Promise.resolve();
     });
     const user = userEvent.setup();
@@ -982,7 +992,7 @@ describe('Admin catalog media fields', () => {
   });
 
   it('submits disabled optional cms block groups with partial draft values', async () => {
-    const saveAction = vi.fn(async () => {
+    const saveAction = vi.fn(async (_formData: FormData) => {
       await Promise.resolve();
     });
     const user = userEvent.setup();
@@ -1011,6 +1021,13 @@ describe('Admin catalog media fields', () => {
     await waitFor(() => {
       expect(saveAction).toHaveBeenCalled();
     });
+    const formData = saveAction.mock.calls[0]?.[0];
+    expect(formData).toBeInstanceOf(FormData);
+    if (!(formData instanceof FormData)) {
+      throw new Error('Expected form data');
+    }
+    expect(formData.get('showCta')).toBe('false');
+    expect(formData.get('ctaLabel')).toBe('Learn more');
   });
 
   it('renders server-returned cms block pair field errors', () => {
@@ -1211,6 +1228,8 @@ describe('AdminCmsHistoryPanelView', () => {
           isPublished: 'Published',
           isVisible: 'Published',
           kind: 'Block type',
+          showCta: 'Add CTA',
+          showImage: 'Add picture',
           metaDescription: 'Meta description',
           metaTitle: 'Meta title',
           path: 'Path',
@@ -1299,6 +1318,8 @@ describe('AdminCmsHistoryPanelView', () => {
           isPublished: 'Published',
           isVisible: 'Published',
           kind: 'Block type',
+          showCta: 'Add CTA',
+          showImage: 'Add picture',
           metaDescription: 'Meta description',
           metaTitle: 'Meta title',
           path: 'Path',
@@ -1480,6 +1501,8 @@ describe('AdminCmsRevisionCompareView', () => {
           isPublished: 'Published',
           isVisible: 'Published',
           kind: 'Block type',
+          showCta: 'Add CTA',
+          showImage: 'Add picture',
           metaDescription: 'Meta description',
           metaTitle: 'Meta title',
           path: 'Path',

@@ -84,6 +84,135 @@ const cmsUrlSchema = z.string().transform((value, ctx) => {
   return canonicalizeAppRelativeCmsHref(href);
 });
 
+const optionalTrimmedStringSchema = z
+  .string()
+  .trim()
+  .optional()
+  .transform((value) => (value === '' ? undefined : value));
+
+function normalizedVisibleCmsUrl(
+  value: string | undefined,
+  isShown: boolean
+): string | undefined {
+  if (!isShown || !value) {
+    return value;
+  }
+  const parsed = cmsUrlSchema.safeParse(value);
+  return parsed.success ? parsed.data : value;
+}
+
+function normalizedVisibleCmsImagePath(
+  value: string | undefined,
+  isShown: boolean
+): string | undefined {
+  if (!isShown || !value) {
+    return value;
+  }
+  const parsed = cmsImagePathSchema.safeParse(value);
+  return parsed.success ? parsed.data : value;
+}
+
+function hasOptionalCmsPairValue(
+  first: string | undefined,
+  second: string | undefined
+): boolean {
+  return Boolean(first ?? second);
+}
+
+function cmsBlockShowCta(value: {
+  ctaLabel?: string;
+  ctaUrl?: string;
+  showCta?: boolean;
+}): boolean {
+  return value.showCta ?? hasOptionalCmsPairValue(value.ctaLabel, value.ctaUrl);
+}
+
+function cmsBlockShowImage(value: {
+  imageAlt?: string;
+  imageSrc?: string;
+  showImage?: boolean;
+}): boolean {
+  return (
+    value.showImage ?? hasOptionalCmsPairValue(value.imageSrc, value.imageAlt)
+  );
+}
+
+function addCmsBlockIssue(
+  ctx: z.RefinementCtx,
+  message: AdminCatalogResourceMessageKey,
+  path: string
+) {
+  ctx.addIssue({ code: 'custom', message, path: [path] });
+}
+
+function validateCmsBlockCtaGroup(
+  value: { ctaLabel?: string; ctaUrl?: string; showCta?: boolean },
+  ctx: z.RefinementCtx
+) {
+  if (!cmsBlockShowCta(value)) {
+    return;
+  }
+  if (Boolean(value.ctaLabel) !== Boolean(value.ctaUrl)) {
+    addCmsBlockIssue(
+      ctx,
+      value.ctaLabel
+        ? cmsValidationMessages.ctaUrlRequired
+        : cmsValidationMessages.ctaLabelRequired,
+      value.ctaLabel ? 'ctaUrl' : 'ctaLabel'
+    );
+    return;
+  }
+  if (value.ctaUrl && !cmsUrlSchema.safeParse(value.ctaUrl).success) {
+    addCmsBlockIssue(ctx, cmsValidationMessages.url, 'ctaUrl');
+  }
+}
+
+function validateCmsBlockImageGroup(
+  value: { imageAlt?: string; imageSrc?: string; showImage?: boolean },
+  ctx: z.RefinementCtx
+) {
+  if (!cmsBlockShowImage(value)) {
+    return;
+  }
+  if (Boolean(value.imageSrc) !== Boolean(value.imageAlt)) {
+    addCmsBlockIssue(
+      ctx,
+      value.imageSrc
+        ? cmsValidationMessages.imageAltRequired
+        : cmsValidationMessages.imageSrcRequired,
+      value.imageSrc ? 'imageAlt' : 'imageSrc'
+    );
+    return;
+  }
+  if (value.imageSrc && !cmsImagePathSchema.safeParse(value.imageSrc).success) {
+    addCmsBlockIssue(ctx, cmsValidationMessages.imagePath, 'imageSrc');
+  }
+}
+
+function validateCmsBlockStructuredBody(
+  value: { body?: string; kind: string },
+  ctx: z.RefinementCtx
+) {
+  if (value.kind === 'pricing' && !parseCmsPricingBody(value.body)) {
+    addCmsBlockIssue(ctx, cmsValidationMessages.pricingBody, 'body');
+  }
+  if (value.kind !== 'home_overview') {
+    return;
+  }
+  const homeOverview = parseCmsHomeOverviewBody(value.body);
+  if (!homeOverview) {
+    addCmsBlockIssue(ctx, cmsValidationMessages.homeOverviewBody, 'body');
+    return;
+  }
+  if (!safeCmsHref(homeOverview.eventsCtaUrl)) {
+    addCmsBlockIssue(
+      ctx,
+      cmsValidationMessages.homeOverviewEventsCtaUrl,
+      'body'
+    );
+  }
+}
+
 export const cmsPageInputSchema = z.object({
   slug: z
     .string()
@@ -109,68 +238,31 @@ export const cmsBlockInputSchema = z
       'home_classes',
     ]),
     title: z.string().trim().min(1),
-    subtitle: z.string().trim().optional(),
-    body: z.string().trim().optional(),
-    ctaLabel: z.string().trim().optional(),
-    ctaUrl: z
-      .string()
-      .trim()
-      .optional()
-      .transform((value) => (value === '' ? undefined : value))
-      .pipe(cmsUrlSchema.optional()),
-    imageSrc: z
-      .string()
-      .trim()
-      .optional()
-      .transform((value) => (value === '' ? undefined : value))
-      .pipe(cmsImagePathSchema.optional()),
-    imageAlt: z.string().trim().optional(),
+    subtitle: optionalTrimmedStringSchema,
+    body: optionalTrimmedStringSchema,
+    ctaLabel: optionalTrimmedStringSchema,
+    ctaUrl: optionalTrimmedStringSchema,
+    showCta: z.boolean().optional(),
+    imageSrc: optionalTrimmedStringSchema,
+    imageAlt: optionalTrimmedStringSchema,
+    showImage: z.boolean().optional(),
     isVisible: z.boolean(),
   })
   .superRefine((value, ctx) => {
-    if (Boolean(value.ctaLabel) !== Boolean(value.ctaUrl)) {
-      ctx.addIssue({
-        code: 'custom',
-        message: value.ctaLabel
-          ? cmsValidationMessages.ctaUrlRequired
-          : cmsValidationMessages.ctaLabelRequired,
-        path: value.ctaLabel ? ['ctaUrl'] : ['ctaLabel'],
-      });
-    }
-    if (Boolean(value.imageSrc) !== Boolean(value.imageAlt)) {
-      ctx.addIssue({
-        code: 'custom',
-        message: value.imageSrc
-          ? cmsValidationMessages.imageAltRequired
-          : cmsValidationMessages.imageSrcRequired,
-        path: value.imageSrc ? ['imageAlt'] : ['imageSrc'],
-      });
-    }
-    if (value.kind === 'pricing' && !parseCmsPricingBody(value.body)) {
-      ctx.addIssue({
-        code: 'custom',
-        message: cmsValidationMessages.pricingBody,
-        path: ['body'],
-      });
-    }
-    if (value.kind === 'home_overview') {
-      const homeOverview = parseCmsHomeOverviewBody(value.body);
-      if (!homeOverview) {
-        ctx.addIssue({
-          code: 'custom',
-          message: cmsValidationMessages.homeOverviewBody,
-          path: ['body'],
-        });
-        return;
-      }
-      if (!safeCmsHref(homeOverview.eventsCtaUrl)) {
-        ctx.addIssue({
-          code: 'custom',
-          message: cmsValidationMessages.homeOverviewEventsCtaUrl,
-          path: ['body'],
-        });
-      }
-    }
+    validateCmsBlockCtaGroup(value, ctx);
+    validateCmsBlockImageGroup(value, ctx);
+    validateCmsBlockStructuredBody(value, ctx);
+  })
+  .transform((value) => {
+    const showCta = cmsBlockShowCta(value);
+    const showImage = cmsBlockShowImage(value);
+    return {
+      ...value,
+      ctaUrl: normalizedVisibleCmsUrl(value.ctaUrl, showCta),
+      imageSrc: normalizedVisibleCmsImagePath(value.imageSrc, showImage),
+      showCta,
+      showImage,
+    };
   });
 
 export const cmsMenuItemInputSchema = z.object({
