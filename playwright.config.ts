@@ -15,7 +15,7 @@ const e2eDatabaseUrl =
 process.env.DATABASE_URL = e2eDatabaseUrl;
 
 const isCi = !!process.env.CI;
-const includeFirefox = isCi || process.env.PLAYWRIGHT_INCLUDE_FIREFOX === '1';
+const includeFirefox = process.env.PLAYWRIGHT_INCLUDE_FIREFOX === '1';
 
 // Fast (default): short limits but enough headroom for cold `next start` and
 // cal-style high parallelism. Set PLAYWRIGHT_SLOW=1 for 120s nav/expect/action.
@@ -97,8 +97,8 @@ export default defineConfig<ChromaticConfig>({
     navigationTimeout: defaultNavigationTimeout,
     actionTimeout: defaultActionTimeout,
   },
-  // Local runs default to Chromium only; CI adds Firefox before merge.
-  // PLAYWRIGHT_INCLUDE_FIREFOX=1 opts local runs into that browser coverage.
+  // E2E defaults to Chromium only in local and CI runs.
+  // PLAYWRIGHT_INCLUDE_FIREFOX=1 opts local runs into Firefox coverage.
   // `*.a11y.e2e.ts` is a separate project: axe scans many URLs × themes (slower than smoke e2e).
   projects: [
     {
