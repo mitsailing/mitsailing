@@ -91,16 +91,19 @@ export const sailingRatingsCatalogHandlers: CatalogServerHandlers = {
       return { ok: false, code: 'validation_failed' };
     }
     try {
-      const agg = await prisma.sailingRating.aggregate({
-        _max: { displayOrder: true },
-      });
-      const created = await prisma.sailingRating.create({
-        data: {
-          id: randomUUID(),
-          ...parsed.data,
-          displayOrder: (agg._max.displayOrder ?? -1) + 1,
-        },
-        select: { id: true },
+      const created = await prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('sailing_ratings_display_order'))`;
+        const agg = await tx.sailingRating.aggregate({
+          _max: { displayOrder: true },
+        });
+        return tx.sailingRating.create({
+          data: {
+            id: randomUUID(),
+            ...parsed.data,
+            displayOrder: (agg._max.displayOrder ?? -1) + 1,
+          },
+          select: { id: true },
+        });
       });
       return { ok: true, id: created.id };
     } catch (error) {

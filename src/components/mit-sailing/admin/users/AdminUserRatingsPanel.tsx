@@ -14,6 +14,14 @@ import {
 } from '@/libs/admin/users/adminUserRatingActions';
 import type { UserRatingAssignmentRow } from '@/libs/mit-sailing/sailingRatingQueries';
 
+/**
+ * Props for rendering a user's sailing rating assignment controls.
+ *
+ * @param locale - Active locale segment.
+ * @param userId - User receiving rating changes.
+ * @param rows - Rating assignment rows to display.
+ * @param errorCode - Optional mutation error code from the page query string.
+ */
 type AdminUserRatingsPanelProps = {
   locale: string;
   userId: string;
@@ -21,21 +29,20 @@ type AdminUserRatingsPanelProps = {
   errorCode?: string | null;
 };
 
+/**
+ * Renders admin controls for granting and revoking sailing ratings.
+ *
+ * @param props - User rating rows and mutation context.
+ * @returns Ratings admin table.
+ */
 export async function AdminUserRatingsPanel(props: AdminUserRatingsPanelProps) {
   const t = await getTranslations({
     locale: props.locale,
     namespace: 'AdminUsers',
   });
-  const grantAction = grantAdminUserRatingAction.bind(
-    null,
-    props.locale,
-    props.userId
-  );
-  const revokeAction = revokeAdminUserRatingAction.bind(
-    null,
-    props.locale,
-    props.userId
-  );
+  const actionProps = { locale: props.locale, userId: props.userId };
+  const grantAction = grantAdminUserRatingAction.bind(null, actionProps);
+  const revokeAction = revokeAdminUserRatingAction.bind(null, actionProps);
   let error: string | null = null;
   if (props.errorCode === 'missing_prerequisites') {
     error = t('rating_error_missing_prerequisites');

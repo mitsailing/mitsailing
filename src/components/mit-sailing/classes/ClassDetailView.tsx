@@ -21,6 +21,38 @@ type ClassDetailViewProps = {
   occurrenceBlocks: ClassRelatedEventBlock[];
 };
 
+type RatingsSectionProps = {
+  ratings: { id: string; slug: string; name: string }[];
+  title: string;
+  bodyClass: string;
+};
+
+function RatingsSection(props: RatingsSectionProps) {
+  if (props.ratings.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="mt-10">
+      <h2 className="mb-3 font-mit-serif text-xl font-semibold text-mit-text md:text-2xl">
+        {props.title}
+      </h2>
+      <ul className="m-0 list-disc space-y-2 pl-5">
+        {props.ratings.map((rating) => (
+          <li className={props.bodyClass} key={rating.id}>
+            <Link
+              className={`inline-flex items-center gap-1 font-semibold text-mit-red-ink hover:underline ${textFocusRingClassName}`}
+              href={`/ratings/#${rating.slug}`}
+            >
+              {rating.name} <ArrowRight aria-hidden size={14} />
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 /**
  * @param props - Class detail (mit-redesign ClassDetailPage parity)
  * @returns Single class marketing page
@@ -104,45 +136,17 @@ export async function ClassDetailView(props: ClassDetailViewProps) {
         sanitizedHtml={sanitizedDescription}
       />
 
-      {cl.requiredRatings.length > 0 ? (
-        <section className="mt-10">
-          <h2 className="mb-3 font-mit-serif text-xl font-semibold text-mit-text md:text-2xl">
-            {t('section_required_ratings')}
-          </h2>
-          <ul className="m-0 list-disc space-y-2 pl-5">
-            {cl.requiredRatings.map((rating) => (
-              <li className={bodyClass} key={rating.id}>
-                <Link
-                  className={`inline-flex items-center gap-1 font-semibold text-mit-red-ink hover:underline ${textFocusRingClassName}`}
-                  href={`/ratings/#${rating.slug}`}
-                >
-                  {rating.name} <ArrowRight aria-hidden size={14} />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
+      <RatingsSection
+        bodyClass={bodyClass}
+        ratings={cl.requiredRatings}
+        title={t('section_required_ratings')}
+      />
 
-      {cl.grantableRatings.length > 0 ? (
-        <section className="mt-10">
-          <h2 className="mb-3 font-mit-serif text-xl font-semibold text-mit-text md:text-2xl">
-            {t('section_grantable_ratings')}
-          </h2>
-          <ul className="m-0 list-disc space-y-2 pl-5">
-            {cl.grantableRatings.map((rating) => (
-              <li className={bodyClass} key={rating.id}>
-                <Link
-                  className={`inline-flex items-center gap-1 font-semibold text-mit-red-ink hover:underline ${textFocusRingClassName}`}
-                  href={`/ratings/#${rating.slug}`}
-                >
-                  {rating.name} <ArrowRight aria-hidden size={14} />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
+      <RatingsSection
+        bodyClass={bodyClass}
+        ratings={cl.grantableRatings}
+        title={t('section_grantable_ratings')}
+      />
 
       {cl.prerequisites.length > 0 ? (
         <section className="mt-10">

@@ -3,6 +3,7 @@
 import { randomUUID } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { Prisma } from '@/generated/prisma/client';
 import {
   adminUsersIndexPath,
   adminUsersShowPath,
@@ -28,59 +29,78 @@ function ratingIdFromFormData(formData: FormData): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+type AdminUserRatingActionProps = {
+  locale: string;
+  userId: string;
+};
+
 export async function grantAdminUserRatingAction(
-  locale: string,
-  userId: string,
+  props: AdminUserRatingActionProps,
   formData: FormData
 ): Promise<void> {
-  const session = await requireAdmin(locale);
+  const session = await requireAdmin(props.locale);
   const ratingId = ratingIdFromFormData(formData);
   if (!ratingId) {
     redirect(
-      `${getI18nPath(adminUsersShowPath(userId), locale)}?error=invalid`
+      `${getI18nPath(adminUsersShowPath(props.userId), props.locale)}?error=invalid`
     );
   }
 
   const eligibility = await userCanGrantSailingRating({
-    userId,
+    userId: props.userId,
     ratingId,
   });
   if (!eligibility?.eligible) {
     redirect(
-      `${getI18nPath(adminUsersShowPath(userId), locale)}?error=${encodeURIComponent(eligibility?.reason ?? 'invalid')}`
+      `${getI18nPath(adminUsersShowPath(props.userId), props.locale)}?error=${encodeURIComponent(eligibility?.reason ?? 'invalid')}`
     );
   }
 
-  await prisma.userSailingRating.create({
-    data: {
-      id: randomUUID(),
-      userId,
-      sailingRatingId: ratingId,
-      issuedByUserId: session.user.id,
-    },
-  });
+  try {
+    await prisma.userSailingRating.create({
+      data: {
+        id: randomUUID(),
+        userId: props.userId,
+        sailingRatingId: ratingId,
+        issuedByUserId: session.user.id,
+      },
+    });
+  } catch (error) {
+    if (
+      !(
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      )
+    ) {
+      throw error;
+    }
+  }
 
-  revalidateAfterRatingMutation(locale, userId);
-  redirect(getI18nPath(adminUsersShowPath(userId), locale));
+  revalidateAfterRatingMutation(props.locale, props.userId);
+  redirect(getI18nPath(adminUsersShowPath(props.userId), props.locale));
 }
 
 export async function revokeAdminUserRatingAction(
-  locale: string,
-  userId: string,
+  props: AdminUserRatingActionProps,
   formData: FormData
 ): Promise<void> {
-  await requireAdmin(locale);
+  await requireAdmin(props.locale);
   const ratingId = ratingIdFromFormData(formData);
   if (!ratingId) {
     redirect(
-      `${getI18nPath(adminUsersShowPath(userId), locale)}?error=invalid`
+      `${getI18nPath(adminUsersShowPath(props.userId), props.locale)}?error=invalid`
     );
   }
 
   await prisma.userSailingRating.delete({
-    where: { userId_sailingRatingId: { userId, sailingRatingId: ratingId } },
+    where: {
+      userId_sailingRatingId: {
+        userId: props.userId,
+        sailingRatingId: ratingId,
+      },
+    },
   });
 
-  revalidateAfterRatingMutation(locale, userId);
-  redirect(getI18nPath(adminUsersShowPath(userId), locale));
+  revalidateAfterRatingMutation(props.locale, props.userId);
+  redirect(getI18nPath(adminUsersShowPath(props.userId), props.locale));
 }

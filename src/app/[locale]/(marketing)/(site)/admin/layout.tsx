@@ -27,7 +27,7 @@ export default async function AdminSectionLayout(props: {
         variant="catalog"
       >
         <SiteSidebarLayout
-          density="collapsible"
+          density="content-fit"
           stretch
           sidebar={<AdminSideNav />}
         >

@@ -11,12 +11,20 @@ export type SailingRatingRuleGroup = {
 
 export type SailingRatingGrantEligibility =
   | { eligible: true }
+  | { eligible: false; reason: 'already_granted' }
+  | { eligible: false; reason: 'deprecated' }
   | {
       eligible: false;
-      reason: 'already_granted' | 'deprecated' | 'missing_prerequisites';
-      missingRatingIds?: string[];
+      reason: 'missing_prerequisites';
+      missingRatingIds: string[];
     };
 
+/**
+ * Groups rating rules by first-seen group key and sorts each group's ratings.
+ *
+ * @param rules - Rating rules to group.
+ * @returns Groups in first-seen order, with ratings sorted by display order then id.
+ */
 export function groupSailingRatingRules(
   rules: readonly SailingRatingRuleInput[]
 ): SailingRatingRuleGroup[] {

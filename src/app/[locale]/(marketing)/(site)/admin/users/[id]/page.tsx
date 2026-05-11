@@ -43,17 +43,17 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
             {t('action_edit')}
           </AdminPrimaryActionLink>
         }
-        title={String(user.name)}
+        title={user.name}
       />
       <div className="rounded-lg border border-border bg-card p-5 text-sm text-foreground">
         <dl className="m-0 grid gap-3 sm:grid-cols-3">
           <div>
             <dt className="font-semibold">{t('column_email')}</dt>
-            <dd className="m-0">{String(user.email)}</dd>
+            <dd className="m-0">{user.email}</dd>
           </div>
           <div>
             <dt className="font-semibold">{t('column_role')}</dt>
-            <dd className="m-0">{String(user.role)}</dd>
+            <dd className="m-0">{user.role}</dd>
           </div>
           <div>
             <dt className="font-semibold">{t('column_email_verified')}</dt>

@@ -494,7 +494,7 @@ model SailingRatingRule {
 
   sailingRating SailingRating @relation(fields: [sailingRatingId], references: [id], onDelete: Cascade)
 
-  @@unique([targetType, targetId, ruleType, groupKey, sailingRatingId])
+  @@unique([targetType, targetId, ruleType, groupKey, sailingRatingId], map: "sailing_rating_rules_composite_uq")
   @@index([targetType, targetId, ruleType])
   @@index([sailingRatingId])
   @@map("sailing_rating_rules")

@@ -103,7 +103,6 @@ export async function seedClassCategories(p: PrismaClient): Promise<void> {
       await p.classCategory.update({
         where: { slug: row.slug },
         data: {
-          id: row.id,
           name: row.name,
           displayOrder: row.displayOrder,
           isVisible: true,
@@ -263,8 +262,11 @@ export async function seedSailingClassesAndBoats(
 export async function seedSailingRatings(p: PrismaClient): Promise<void> {
   const now = new Date();
   const ratingIds = SAILING_RATINGS.map((rating) => rating.id);
+  const ruleIds = SAILING_RATING_RULES.map((rule) => rule.id);
 
-  await p.sailingRatingRule.deleteMany({});
+  await p.sailingRatingRule.deleteMany({
+    where: { id: { notIn: ruleIds } },
+  });
   await p.userSailingRating.deleteMany({
     where: { sailingRatingId: { notIn: ratingIds } },
   });
@@ -296,10 +298,20 @@ export async function seedSailingRatings(p: PrismaClient): Promise<void> {
   }
 
   if (SAILING_RATING_RULES.length > 0) {
-    await p.sailingRatingRule.createMany({
-      data: SAILING_RATING_RULES,
-      skipDuplicates: true,
-    });
+    for (const rule of SAILING_RATING_RULES) {
+      await p.sailingRatingRule.upsert({
+        where: { id: rule.id },
+        create: rule,
+        update: {
+          targetType: rule.targetType,
+          targetId: rule.targetId,
+          ruleType: rule.ruleType,
+          sailingRatingId: rule.sailingRatingId,
+          groupKey: rule.groupKey,
+          displayOrder: rule.displayOrder,
+        },
+      });
+    }
   }
 }
 

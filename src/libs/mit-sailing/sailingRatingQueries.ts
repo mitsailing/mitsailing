@@ -135,40 +135,31 @@ export const listPublicSailingRatings = cache(
   }
 );
 
-async function listActiveUserRatingIds(userId: string): Promise<Set<string>> {
-  const rows = await prisma.userSailingRating.findMany({
-    where: { userId },
-    select: { sailingRatingId: true },
-  });
-  return new Set(rows.map((row) => row.sailingRatingId));
-}
-
 export async function listUserRatingAssignmentRows(
   userId: string
 ): Promise<UserRatingAssignmentRow[]> {
-  const [publicRatings, grants, activeIds, prerequisiteRules] =
-    await Promise.all([
-      listPublicSailingRatings(),
-      prisma.userSailingRating.findMany({
-        where: { userId },
-        select: {
-          sailingRatingId: true,
-          issuedAt: true,
-          issuedBy: { select: { name: true } },
-        },
-      }),
-      listActiveUserRatingIds(userId),
-      prisma.sailingRatingRule.findMany({
-        where: { targetType: 'rating', ruleType: 'requires' },
-        select: {
-          targetId: true,
-          groupKey: true,
-          sailingRatingId: true,
-          displayOrder: true,
-        },
-      }),
-    ]);
+  const [publicRatings, grants, prerequisiteRules] = await Promise.all([
+    listPublicSailingRatings(),
+    prisma.userSailingRating.findMany({
+      where: { userId },
+      select: {
+        sailingRatingId: true,
+        issuedAt: true,
+        issuedBy: { select: { name: true } },
+      },
+    }),
+    prisma.sailingRatingRule.findMany({
+      where: { targetType: 'rating', ruleType: 'requires' },
+      select: {
+        targetId: true,
+        groupKey: true,
+        sailingRatingId: true,
+        displayOrder: true,
+      },
+    }),
+  ]);
 
+  const activeIds = new Set(grants.map((row) => row.sailingRatingId));
   const grantByRatingId = new Map(
     grants.map((row) => [row.sailingRatingId, row])
   );
@@ -180,7 +171,7 @@ export async function listUserRatingAssignmentRows(
     return {
       ...rating,
       issuedAt: grant?.issuedAt ?? null,
-      issuedByName: grant?.issuedBy.name ?? null,
+      issuedByName: grant?.issuedBy?.name ?? null,
       eligibility: evaluateSailingRatingGrantEligibility({
         rules,
         activeRatingIds: activeIds,

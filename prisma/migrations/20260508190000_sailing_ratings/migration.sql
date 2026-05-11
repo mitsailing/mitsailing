@@ -70,7 +70,7 @@ CREATE INDEX "user_sailing_ratings_sailing_rating_id_idx" ON "user_sailing_ratin
 CREATE INDEX "user_sailing_ratings_issued_by_user_id_idx" ON "user_sailing_ratings"("issued_by_user_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "sailing_rating_rules_target_type_target_id_rule_type_group_key_sailing_rating_id_key" ON "sailing_rating_rules"("target_type", "target_id", "rule_type", "group_key", "sailing_rating_id");
+CREATE UNIQUE INDEX "sailing_rating_rules_composite_uq" ON "sailing_rating_rules"("target_type", "target_id", "rule_type", "group_key", "sailing_rating_id");
 
 -- CreateIndex
 CREATE INDEX "sailing_rating_rules_target_type_target_id_rule_type_idx" ON "sailing_rating_rules"("target_type", "target_id", "rule_type");

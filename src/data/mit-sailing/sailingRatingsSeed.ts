@@ -260,7 +260,7 @@ export const SAILING_RATINGS: SailingRatingSeed[] = [
       'Board sailing rating for sailors who can rig beginner equipment, tack, and sail upwind in light to medium wind below 15 knots.',
     category: 'Windsurfing',
     level: '2',
-    windCondition: 'Medium-strong',
+    windCondition: 'Medium',
     guideUrl: 'https://sailing.mit.edu/windsurfing/',
     displayOrder: 15,
     isVisible: true,

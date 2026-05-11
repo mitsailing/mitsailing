@@ -52,21 +52,37 @@ export default async function ProfileRatingsPage(
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
-            <tr className="border-t border-mit-line" key={row.id}>
-              <th className="px-2 py-2 font-normal" scope="row">
-                {row.name}
-              </th>
-              <td className="px-2 py-2">
-                {row.issuedAt
-                  ? t('ratings_issued_by', {
-                      date: dateFormatter.format(row.issuedAt),
-                      name: row.issuedByName ?? '',
-                    })
-                  : ''}
+          {rows.length === 0 ? (
+            <tr className="border-t border-mit-line">
+              <td
+                className="text-mit-text-secondary px-2 py-4 text-center"
+                colSpan={2}
+              >
+                {t('ratings_empty_state')}
               </td>
             </tr>
-          ))}
+          ) : (
+            rows.map((row) => (
+              <tr className="border-t border-mit-line" key={row.id}>
+                <th className="px-2 py-2 font-normal" scope="row">
+                  {row.name}
+                </th>
+                <td className="px-2 py-2">
+                  {row.issuedAt && row.issuedByName
+                    ? t('ratings_issued_by', {
+                        date: dateFormatter.format(row.issuedAt),
+                        name: row.issuedByName,
+                      })
+                    : null}
+                  {row.issuedAt && !row.issuedByName
+                    ? t('ratings_issued_on', {
+                        date: dateFormatter.format(row.issuedAt),
+                      })
+                    : null}
+                </td>
+              </tr>
+            ))
+          )}
         </tbody>
       </table>
     </section>

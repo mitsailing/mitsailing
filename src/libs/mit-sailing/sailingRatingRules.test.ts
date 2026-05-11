@@ -74,7 +74,7 @@ describe('sailingRatingRules', () => {
     ).toEqual({ eligible: true });
   });
 
-  it('blocks grants for duplicates, deprecated ratings, and unmet prerequisites', () => {
+  it('blocks grants for already granted ratings', () => {
     expect(
       evaluateSailingRatingGrantEligibility({
         rules: [],
@@ -83,7 +83,9 @@ describe('sailingRatingRules', () => {
         isDeprecated: false,
       })
     ).toEqual({ eligible: false, reason: 'already_granted' });
+  });
 
+  it('blocks grants for deprecated ratings', () => {
     expect(
       evaluateSailingRatingGrantEligibility({
         rules: [],
@@ -92,7 +94,9 @@ describe('sailingRatingRules', () => {
         isDeprecated: true,
       })
     ).toEqual({ eligible: false, reason: 'deprecated' });
+  });
 
+  it('blocks grants for missing prerequisites', () => {
     expect(
       evaluateSailingRatingGrantEligibility({
         rules,

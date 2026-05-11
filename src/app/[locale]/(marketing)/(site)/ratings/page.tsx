@@ -13,6 +13,7 @@ export async function generateMetadata(
   props: RatingsPageProps
 ): Promise<Metadata> {
   const { locale } = await props.params;
+  // MitSailingRoutes is the shared namespace for public route labels and metadata.
   const t = await getTranslations({ locale, namespace: 'MitSailingRoutes' });
   return { title: t('meta_title_ratings') };
 }

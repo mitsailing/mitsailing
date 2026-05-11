@@ -177,7 +177,7 @@ export const SAILING_CLASSES: SailingClass[] = [
     category: 'rating checkoffs',
     level: 'beginner',
     description:
-      'Self-study and staff checkoff for safe Tech Dinghy handling on the Charles River, including basic maneuvers, rigging, safety precautions, rules of the road, and dock procedures.',
+      'Self-study and staff checkoff for safe Lynx Catboat and Laser handling on the Charles River, including basic maneuvers, rigging, safety precautions, rules of the road, and dock procedures.',
     prerequisites: [],
     relatedEventIds: [],
     unlockedBoatIds: ['boat-lynx-catboat', 'boat-laser'],
@@ -201,7 +201,7 @@ export const SAILING_CLASSES: SailingClass[] = [
     category: 'rating checkoffs',
     level: 'advanced',
     description:
-      'Strong-wind Tech Dinghy checkoff focused on solo upwind sailing, hiking technique, tiller extension use, controlled gybes, and man-overboard recovery.',
+      'Strong-wind Flying Junior checkoff focused on solo upwind sailing, hiking technique, tiller extension use, controlled gybes, and man-overboard recovery.',
     prerequisites: [],
     relatedEventIds: [],
     unlockedBoatIds: ['boat-flying-junior'],
