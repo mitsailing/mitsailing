@@ -130,9 +130,6 @@ export default async function AdminCatalogResourceEditPage(props: PageProps) {
   const { locale, resource, id } = await props.params;
   const searchParams = await props.searchParams;
   const { error: errorCode } = searchParams;
-  const fieldErrors = catalogFieldErrorsFromSearchParam(
-    searchParams.fieldError
-  );
   setRequestLocale(locale);
 
   const def = tryGetCatalogDefinition(resource);
@@ -168,6 +165,10 @@ export default async function AdminCatalogResourceEditPage(props: PageProps) {
     locale,
     namespace: 'AdminCatalogResource',
   });
+  const fieldErrors = catalogFieldErrorsFromSearchParam(
+    searchParams.fieldError,
+    { legacyFieldMessage: tr('form_error_validation_failed') }
+  );
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6">

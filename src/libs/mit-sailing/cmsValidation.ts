@@ -72,6 +72,22 @@ const cmsImagePathSchema = z
   .refine((value) => isSafeCmsAppPath(value), cmsValidationMessages.imagePath)
   .transform((value) => canonicalCmsAppPath(value));
 
+/**
+ * Validates and canonicalizes a CMS block image path for public page DTO emission.
+ *
+ * @param value - Raw image path from published CMS content
+ * @returns Canonical safe path, or `undefined` when missing or invalid
+ */
+export function safePublicCmsBlockImageSrc(
+  value: string | null | undefined
+): string | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  const parsed = cmsImagePathSchema.safeParse(value);
+  return parsed.success ? parsed.data : undefined;
+}
+
 const cmsUrlSchema = z.string().transform((value, ctx) => {
   const href = safeCmsHref(value);
   if (!href) {

@@ -497,14 +497,18 @@ export async function seedSiteAlerts(p: PrismaClient): Promise<void> {
   }
 }
 
-function hasSeedText(...values: (string | undefined)[]): boolean {
-  return values.some((value) => (value?.trim().length ?? 0) > 0);
+function hasSeedText(value: string | undefined): boolean {
+  return (value?.trim().length ?? 0) > 0;
 }
 
 function cmsSeedBlockDisplayFlags(block: CmsSeedPage['blocks'][number]) {
   return {
-    showCta: block.showCta ?? hasSeedText(block.ctaLabel, block.ctaUrl),
-    showImage: block.showImage ?? hasSeedText(block.imageSrc, block.imageAlt),
+    showCta:
+      block.showCta ??
+      (hasSeedText(block.ctaLabel) && hasSeedText(block.ctaUrl)),
+    showImage:
+      block.showImage ??
+      (hasSeedText(block.imageSrc) && hasSeedText(block.imageAlt)),
   };
 }
 

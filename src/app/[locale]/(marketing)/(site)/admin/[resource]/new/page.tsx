@@ -124,9 +124,6 @@ export default async function AdminCatalogResourceNewPage(props: PageProps) {
   const { locale, resource } = await props.params;
   const searchParams = await props.searchParams;
   const { error: errorCode } = searchParams;
-  const fieldErrors = catalogFieldErrorsFromSearchParam(
-    searchParams.fieldError
-  );
   setRequestLocale(locale);
 
   const def = tryGetCatalogDefinition(resource);
@@ -140,6 +137,10 @@ export default async function AdminCatalogResourceNewPage(props: PageProps) {
     locale,
     namespace: 'AdminCatalogResource',
   });
+  const fieldErrors = catalogFieldErrorsFromSearchParam(
+    searchParams.fieldError,
+    { legacyFieldMessage: tr('form_error_validation_failed') }
+  );
   const scopedList = await catalogScopedListState({
     resourceId: resource,
     searchParams,

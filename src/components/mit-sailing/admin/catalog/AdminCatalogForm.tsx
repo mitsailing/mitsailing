@@ -268,6 +268,32 @@ function cmsBlockUsesStandalonePairs(state: CmsBlockPreviewState) {
   return state.kind !== 'pricing' && state.kind !== 'home_overview';
 }
 
+function cmsBlockPairErrorsFromState(
+  state: CmsBlockPreviewState,
+  groupsEnabled: { cta: boolean; image: boolean }
+): CmsBlockPairErrors {
+  const ctaLabel = state.ctaLabel.trim();
+  const ctaUrl = state.ctaUrl.trim();
+  const imageAlt = state.imageAlt.trim();
+  const imageSrc = state.imageSrc.trim();
+  if (!cmsBlockUsesStandalonePairs(state)) {
+    return {
+      ctaLabel: false,
+      ctaUrl: false,
+      imageAlt: false,
+      imageSrc: false,
+    };
+  }
+  return {
+    ctaLabel: groupsEnabled.cta && ctaUrl.length > 0 && ctaLabel.length === 0,
+    ctaUrl: groupsEnabled.cta && ctaLabel.length > 0 && ctaUrl.length === 0,
+    imageAlt:
+      groupsEnabled.image && imageSrc.length > 0 && imageAlt.length === 0,
+    imageSrc:
+      groupsEnabled.image && imageAlt.length > 0 && imageSrc.length === 0,
+  };
+}
+
 function hasCmsBlockPairErrors(errors: CmsBlockPairErrors) {
   return errors.ctaLabel || errors.ctaUrl || errors.imageAlt || errors.imageSrc;
 }
@@ -862,24 +888,25 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
   const cmsCtaUrlInputRef = useRef<HTMLInputElement>(null);
   const cmsImageSrcUploadButtonRef = useRef<HTMLButtonElement>(null);
   const cmsImageAltInputRef = useRef<HTMLInputElement>(null);
-  const [cmsPairErrors, setCmsPairErrors] = useState<CmsBlockPairErrors>(
-    () => ({
-      ctaLabel: isCmsBlockForm && Boolean(props.fieldErrors?.ctaLabel),
-      ctaUrl: isCmsBlockForm && Boolean(props.fieldErrors?.ctaUrl),
-      imageAlt: isCmsBlockForm && Boolean(props.fieldErrors?.imageAlt),
-      imageSrc: isCmsBlockForm && Boolean(props.fieldErrors?.imageSrc),
-    })
-  );
-  const [cmsBlockGroupsEnabled, setCmsBlockGroupsEnabled] = useState(() => ({
-    cta:
-      typeof props.row?.showCta === 'boolean'
-        ? props.row.showCta
-        : hasCmsOptionalValue(props.row, ['ctaLabel', 'ctaUrl']),
-    image:
-      typeof props.row?.showImage === 'boolean'
-        ? props.row.showImage
-        : hasCmsOptionalValue(props.row, ['imageSrc', 'imageAlt']),
-  }));
+  const [cmsPairErrors, setCmsPairErrors] = useState<CmsBlockPairErrors>(() => {
+    if (!isCmsBlockForm) {
+      return {
+        ctaLabel: false,
+        ctaUrl: false,
+        imageAlt: false,
+        imageSrc: false,
+      };
+    }
+    const preview = initialCmsBlockPreviewState(props.row);
+    return cmsBlockPairErrorsFromState(preview, {
+      cta: preview.showCta,
+      image: preview.showImage,
+    });
+  });
+  const [cmsBlockGroupsEnabled, setCmsBlockGroupsEnabled] = useState(() => {
+    const preview = initialCmsBlockPreviewState(props.row);
+    return { cta: preview.showCta, image: preview.showImage };
+  });
   const [cmsPricingEditorState, setCmsPricingEditorState] = useState(() =>
     initialCmsPricingEditorState(props.row)
   );
@@ -931,37 +958,6 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
           : prev.imageSrc && imageSrc.length === 0,
       };
     });
-  }
-
-  function cmsBlockPairErrorsFromState(
-    state: CmsBlockPreviewState
-  ): CmsBlockPairErrors {
-    const ctaLabel = state.ctaLabel.trim();
-    const ctaUrl = state.ctaUrl.trim();
-    const imageAlt = state.imageAlt.trim();
-    const imageSrc = state.imageSrc.trim();
-    if (!cmsBlockUsesStandalonePairs(state)) {
-      return {
-        ctaLabel: false,
-        ctaUrl: false,
-        imageAlt: false,
-        imageSrc: false,
-      };
-    }
-    return {
-      ctaLabel:
-        cmsBlockGroupsEnabled.cta && ctaUrl.length > 0 && ctaLabel.length === 0,
-      ctaUrl:
-        cmsBlockGroupsEnabled.cta && ctaLabel.length > 0 && ctaUrl.length === 0,
-      imageAlt:
-        cmsBlockGroupsEnabled.image &&
-        imageSrc.length > 0 &&
-        imageAlt.length === 0,
-      imageSrc:
-        cmsBlockGroupsEnabled.image &&
-        imageAlt.length > 0 &&
-        imageSrc.length === 0,
-    };
   }
 
   function focusFirstCmsBlockPairError(errors: CmsBlockPairErrors) {
@@ -1090,12 +1086,18 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
   }
 
   function renderCmsBlockCtaGroup() {
-    const ctaLabelErrorMessage = cmsPairErrors.ctaLabel
-      ? tCatalog('field_error_cms_cta_label_required')
-      : null;
-    const ctaUrlErrorMessage = cmsPairErrors.ctaUrl
-      ? tCatalog('field_error_cms_cta_url_required')
-      : null;
+    const serverCtaLabelError = props.fieldErrors?.ctaLabel ?? null;
+    const serverCtaUrlError = props.fieldErrors?.ctaUrl ?? null;
+    const ctaLabelErrorMessage =
+      serverCtaLabelError ??
+      (cmsPairErrors.ctaLabel
+        ? tCatalog('field_error_cms_cta_label_required')
+        : null);
+    const ctaUrlErrorMessage =
+      serverCtaUrlError ??
+      (cmsPairErrors.ctaUrl
+        ? tCatalog('field_error_cms_cta_url_required')
+        : null);
 
     return (
       <AdminCmsOptionalGroup
@@ -1165,12 +1167,18 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
   }
 
   function renderCmsBlockImageGroup() {
-    const imageSrcErrorMessage = cmsPairErrors.imageSrc
-      ? tCatalog('field_error_cms_image_src_required')
-      : null;
-    const imageAltErrorMessage = cmsPairErrors.imageAlt
-      ? tCatalog('field_error_cms_image_alt_required')
-      : null;
+    const serverImageSrcError = props.fieldErrors?.imageSrc ?? null;
+    const serverImageAltError = props.fieldErrors?.imageAlt ?? null;
+    const imageSrcErrorMessage =
+      serverImageSrcError ??
+      (cmsPairErrors.imageSrc
+        ? tCatalog('field_error_cms_image_src_required')
+        : null);
+    const imageAltErrorMessage =
+      serverImageAltError ??
+      (cmsPairErrors.imageAlt
+        ? tCatalog('field_error_cms_image_alt_required')
+        : null);
 
     return (
       <AdminCmsOptionalGroup
@@ -2184,8 +2192,10 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
         if (!isCmsBlockForm) {
           return;
         }
-        const nextPairErrors =
-          cmsBlockPairErrorsFromState(cmsBlockPreviewState);
+        const nextPairErrors = cmsBlockPairErrorsFromState(
+          cmsBlockPreviewState,
+          cmsBlockGroupsEnabled
+        );
         if (hasCmsBlockPairErrors(nextPairErrors)) {
           event.preventDefault();
           setCmsPairErrors(nextPairErrors);

@@ -1034,7 +1034,10 @@ describe('Admin catalog media fields', () => {
     render(
       <AdminCatalogForm
         definition={catalogResourceDefinitions.cms_page_blocks}
-        fieldErrors={{ ctaUrl: 'true', imageSrc: 'true' }}
+        fieldErrors={{
+          ctaUrl: 'Add a CTA URL before saving.',
+          imageSrc: 'Add an image before saving.',
+        }}
         formAction={formAction}
         headingKey="edit_heading"
         row={{

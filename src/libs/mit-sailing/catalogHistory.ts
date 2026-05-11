@@ -336,6 +336,32 @@ function addFieldChange(
   }
 }
 
+/**
+ * Records a relation change keyed on FK id so a different id is always detected
+ * even when the denormalized display name happens to match, and a renamed
+ * relation row alone does not surface as a catalog change.
+ *
+ * @param changes - Mutable list of revision changes
+ * @param field - Field label for the relation
+ * @param before - Previous relation target id and display name
+ * @param after - Next relation target id and display name
+ */
+function addRelationChange(
+  changes: AdminCatalogRevisionChange[],
+  field: string,
+  before: { id: string; name: string },
+  after: { id: string; name: string }
+): void {
+  if (before.id === after.id) {
+    return;
+  }
+  changes.push({
+    after: textChangeValue(after.name),
+    before: textChangeValue(before.name),
+    field,
+  });
+}
+
 function compareCatalogAuditSnapshots(
   before: CatalogAuditSnapshot | null,
   after: CatalogAuditSnapshot | null,
@@ -374,11 +400,11 @@ function compareCatalogAuditSnapshots(
       imagePathsChangeValue(before.imagePaths),
       imagePathsChangeValue(after.imagePaths)
     );
-    addFieldChange(
+    addRelationChange(
       changes,
       'classCategoryId',
-      textChangeValue(before.classCategoryName),
-      textChangeValue(after.classCategoryName)
+      { id: before.classCategoryId, name: before.classCategoryName },
+      { id: after.classCategoryId, name: after.classCategoryName }
     );
     addFieldChange(
       changes,
@@ -413,11 +439,11 @@ function compareCatalogAuditSnapshots(
       numberChangeValue(before.capacity),
       numberChangeValue(after.capacity)
     );
-    addFieldChange(
+    addRelationChange(
       changes,
       'requiredClassId',
-      textChangeValue(before.requiredClassName),
-      textChangeValue(after.requiredClassName)
+      { id: before.requiredClassId, name: before.requiredClassName },
+      { id: after.requiredClassId, name: after.requiredClassName }
     );
   }
 
