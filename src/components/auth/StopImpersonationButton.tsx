@@ -43,7 +43,7 @@ export function StopImpersonationButton(props: StopImpersonationButtonProps) {
   return (
     <>
       <SubmitButton
-        className="h-auto min-h-0 px-0 py-0 font-semibold text-amber-900 underline shadow-none hover:bg-transparent hover:text-amber-950 hover:underline disabled:opacity-60"
+        className="h-auto min-h-0 px-0 py-0 font-semibold text-foreground underline shadow-none hover:bg-transparent hover:text-mit-red-hover hover:underline disabled:opacity-60"
         onClick={onClick}
         pending={submitting}
         pendingLabel={tCommon('pending_submitting')}

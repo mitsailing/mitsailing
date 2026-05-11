@@ -113,35 +113,34 @@ function RevisionChangeRow(props: {
   fieldLabels: CmsRevisionCompareFieldLabels;
   text: AdminCmsRevisionCompareViewProps['text'];
 }) {
-  const { change } = props;
-  if (change.kind === 'block_added') {
+  if (props.change.kind === 'block_added') {
     return (
       <li className="px-4 py-4">
         <p className="text-sm font-medium text-emerald-800 dark:text-emerald-200">
           <span>{props.text.added}</span>
-          {` - ${change.blockTitle}`}
+          {` - ${props.change.blockTitle}`}
         </p>
         <div className="mt-3 grid gap-4 md:grid-cols-2">
           <p className="min-h-10 rounded-md bg-muted px-3 py-2 text-sm break-words text-muted-foreground">
             {props.text.emptyValue}
           </p>
           <p className="min-h-10 rounded-md bg-emerald-50 px-3 py-2 text-sm break-words text-foreground dark:bg-emerald-950/30">
-            {change.blockTitle}
+            {props.change.blockTitle}
           </p>
         </div>
       </li>
     );
   }
-  if (change.kind === 'block_removed') {
+  if (props.change.kind === 'block_removed') {
     return (
       <li className="px-4 py-4">
         <p className="text-sm font-medium text-red-800 dark:text-red-200">
           <span>{props.text.removed}</span>
-          {` - ${change.blockTitle}`}
+          {` - ${props.change.blockTitle}`}
         </p>
         <div className="mt-3 grid gap-4 md:grid-cols-2">
           <p className="min-h-10 rounded-md bg-red-50 px-3 py-2 text-sm break-words text-foreground dark:bg-red-950/30">
-            {change.blockTitle}
+            {props.change.blockTitle}
           </p>
           <p className="min-h-10 rounded-md bg-muted px-3 py-2 text-sm break-words text-muted-foreground">
             {props.text.emptyValue}
@@ -154,14 +153,14 @@ function RevisionChangeRow(props: {
     <li className="px-4 py-4">
       <p className="text-sm font-medium text-foreground">
         <span>{props.text.changed}</span>
-        {` - ${changeLabel(change, props.fieldLabels)}`}
+        {` - ${changeLabel(props.change, props.fieldLabels)}`}
       </p>
       <div className="mt-3 grid gap-4 md:grid-cols-2">
         <p className="min-h-10 rounded-md bg-muted px-3 py-2 text-sm break-words text-foreground">
-          {changeValueText(change.before, props.text)}
+          {changeValueText(props.change.before, props.text)}
         </p>
         <p className="min-h-10 rounded-md bg-muted px-3 py-2 text-sm break-words text-foreground">
-          {changeValueText(change.after, props.text)}
+          {changeValueText(props.change.after, props.text)}
         </p>
       </div>
     </li>

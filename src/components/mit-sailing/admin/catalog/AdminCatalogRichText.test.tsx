@@ -91,6 +91,8 @@ afterAll(() => {
       'getClientRects',
       originalTextGetClientRects
     );
+  } else {
+    Reflect.deleteProperty(Text.prototype, 'getClientRects');
   }
   if (originalTextGetBoundingClientRect) {
     Object.defineProperty(
@@ -98,6 +100,8 @@ afterAll(() => {
       'getBoundingClientRect',
       originalTextGetBoundingClientRect
     );
+  } else {
+    Reflect.deleteProperty(Text.prototype, 'getBoundingClientRect');
   }
 });
 

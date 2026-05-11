@@ -1059,11 +1059,6 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
     if (next) {
       return;
     }
-    setCmsBlockPreviewState((prev) =>
-      group === 'cta'
-        ? { ...prev, ctaLabel: '', ctaUrl: '' }
-        : { ...prev, imageAlt: '', imageSrc: '' }
-    );
     setCmsPairErrors((prev) =>
       group === 'cta'
         ? { ...prev, ctaLabel: false, ctaUrl: false }
