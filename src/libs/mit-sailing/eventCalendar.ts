@@ -1,6 +1,7 @@
 import {
   EVENTS_TIME_ZONE,
   listNyDayKeysInMonth,
+  nextNyCalendarDay,
   nyMonthFirstYmd,
   nyWeekdaySunday0,
   nyYmd,
@@ -255,17 +256,6 @@ function dateKeyIsInRange(
   return dateKey >= rangeStartKey && dateKey <= rangeEndKey;
 }
 
-function nextDateKey(dateKey: string): string {
-  const next = new Date(
-    Date.UTC(
-      Number(dateKey.slice(0, 4)),
-      Number(dateKey.slice(5, 7)) - 1,
-      Number(dateKey.slice(8, 10)) + 1
-    )
-  );
-  return next.toISOString().slice(0, 10);
-}
-
 /**
  * @param params - Event date rows and inclusive New York day keys
  * @returns Rows for calendar/list rendering
@@ -325,7 +315,7 @@ export function buildEventCalendarOccurrenceRows(params: {
 
     let ongoingKey =
       startKey >= params.rangeStartKey
-        ? nextDateKey(startKey)
+        ? nextNyCalendarDay(startKey)
         : params.rangeStartKey;
     while (ongoingKey < endKey && ongoingKey <= params.rangeEndKey) {
       rows.push({
@@ -334,7 +324,7 @@ export function buildEventCalendarOccurrenceRows(params: {
         displayDayKey: ongoingKey,
         listSegment: 'ongoing',
       });
-      ongoingKey = nextDateKey(ongoingKey);
+      ongoingKey = nextNyCalendarDay(ongoingKey);
     }
   }
 

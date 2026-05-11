@@ -100,7 +100,13 @@ export function startOfNyCalendarDay(ymd: string): Date {
   return new Date(hi);
 }
 
-function nextNyYmd(ymd: string): string {
+/**
+ * Next calendar day after `ymd` in {@link EVENTS_TIME_ZONE}.
+ *
+ * @param ymd - New York civil date (`YYYY-MM-DD`)
+ * @returns Following `YYYY-MM-DD` in that zone
+ */
+export function nextNyCalendarDay(ymd: string): string {
   const s = startOfNyCalendarDay(ymd);
   let lo = s.getTime();
   let hi = s.getTime() + 72 * 60 * 60 * 1000;
@@ -135,7 +141,7 @@ export function addNyCalendarDays(ymd: string, days: number): string {
   let k = ymd;
   const step = days >= 0 ? 1 : -1;
   for (let i = 0; i < Math.abs(days); i += 1) {
-    k = step > 0 ? nextNyYmd(k) : prevNyYmd(k);
+    k = step > 0 ? nextNyCalendarDay(k) : prevNyYmd(k);
   }
   return k;
 }
@@ -157,7 +163,7 @@ export function listNyDayKeysInMonth(year: number, month: number): string[] {
       break;
     }
     keys.push(key);
-    key = nextNyYmd(key);
+    key = nextNyCalendarDay(key);
   }
   return keys;
 }
