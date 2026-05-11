@@ -43,6 +43,24 @@ describe('sanitizeCmsRichTextHtml', () => {
     ).toBe('<p>null tab</p>');
   });
 
+  it('strips internal links with path traversal segments', () => {
+    expect(
+      sanitizeCmsRichTextHtml('<p><a href="/about/../admin">x</a></p>')
+    ).toBe('<p>x</p>');
+  });
+
+  it('strips internal links with backslashes in path', () => {
+    expect(sanitizeCmsRichTextHtml('<p><a href="/foo\\bar">x</a></p>')).toBe(
+      '<p>x</p>'
+    );
+  });
+
+  it('keeps internal links with query and fragment on safe paths', () => {
+    expect(sanitizeCmsRichTextHtml('<p><a href="/ok?x=1#h">z</a></p>')).toBe(
+      '<p><a href="/ok?x=1#h">z</a></p>'
+    );
+  });
+
   it('keeps cms media images with normalized alignment', () => {
     expect(
       sanitizeCmsRichTextHtml(

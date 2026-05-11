@@ -161,11 +161,6 @@ describe('listAdminCatalogRevisions', () => {
 
 describe('getAdminCatalogRevisionCompare', () => {
   it('compares a fleet audit with the previous version', async () => {
-    mocks.fleetBoatFindUnique.mockResolvedValue({
-      ...fleetSnapshot({ capacity: 4 }),
-      requiredClass: { name: 'Intro Sailing 101' },
-      requiredClassId: 'class-1',
-    });
     mocks.userAuditFindFirst
       .mockResolvedValueOnce({
         action: 'update',
@@ -189,6 +184,32 @@ describe('getAdminCatalogRevisionCompare', () => {
     expect(compare?.comparison.changes).toContainEqual({
       after: { kind: 'number', value: 4 },
       before: { kind: 'number', value: 2 },
+      field: 'capacity',
+    });
+  });
+
+  it('diffs the first revision against empty snapshot not live row', async () => {
+    mocks.userAuditFindFirst
+      .mockResolvedValueOnce({
+        action: 'create',
+        auditedChanges: fleetSnapshot({ capacity: 2 }),
+        createdAt: new Date('2026-05-10T11:00:00.000Z'),
+        id: 'audit-1',
+        user: null,
+        version: 1,
+      })
+      .mockResolvedValueOnce(null);
+
+    const compare = await getAdminCatalogRevisionCompare({
+      itemId: 'boat-1',
+      resourceId: 'fleet',
+      revisionId: 'audit-1',
+    });
+
+    expect(mocks.fleetBoatFindUnique).not.toHaveBeenCalled();
+    expect(compare?.comparison.changes).toContainEqual({
+      after: { kind: 'number', value: 2 },
+      before: { kind: 'number', value: 0 },
       field: 'capacity',
     });
   });

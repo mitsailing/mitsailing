@@ -86,7 +86,10 @@ type CmsMenuItemRow = {
 function hrefForCmsMenuItem(row: CmsMenuItemRow): string | undefined {
   const linkedPath = row.linkedPage?.path?.trim();
   const explicitUrl = row.url?.trim();
-  const candidate = linkedPath ?? explicitUrl ?? undefined;
+  const candidate =
+    linkedPath !== undefined && linkedPath.length > 0
+      ? linkedPath
+      : (explicitUrl ?? undefined);
   return safeCmsMenuItemHref(candidate);
 }
 

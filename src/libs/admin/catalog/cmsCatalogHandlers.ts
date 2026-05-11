@@ -920,14 +920,17 @@ export const cmsMenuItemsCatalogHandlers: CatalogServerHandlers = {
     }
 
     try {
-      await prisma.$transaction(async (tx) => {
-        for (let index = 0; index < orderedIds.length; index += 1) {
-          await tx.cmsMenuItem.update({
-            where: { id: orderedIds[index] },
-            data: { displayOrder: index },
-          });
-        }
-      });
+      await prisma.$transaction(
+        async (tx) => {
+          for (let index = 0; index < orderedIds.length; index += 1) {
+            await tx.cmsMenuItem.update({
+              where: { id: orderedIds[index] },
+              data: { displayOrder: index },
+            });
+          }
+        },
+        { isolationLevel: 'Serializable' }
+      );
       return { ok: true };
     } catch {
       return { ok: false, code: 'unknown' };

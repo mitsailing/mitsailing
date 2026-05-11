@@ -1,5 +1,8 @@
 import sanitizeHtml from 'sanitize-html';
-import { isSafeCmsAppPath } from '@/libs/mit-sailing/cmsHref';
+import {
+  isAppRelativeCmsHref,
+  isSafeCmsAppPath,
+} from '@/libs/mit-sailing/cmsHref';
 
 const ALLOWED_HREF_PREFIXES = [
   'http://',
@@ -54,7 +57,7 @@ function isAllowedCmsRichTextHref(href: string): boolean {
     return true;
   }
   if (h.startsWith('/') && !h.startsWith('//')) {
-    return true;
+    return isAppRelativeCmsHref(h);
   }
   return ALLOWED_HREF_PREFIXES.some((p) => lower.startsWith(p));
 }

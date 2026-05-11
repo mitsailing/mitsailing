@@ -242,6 +242,43 @@ function catalogAuditSnapshotFromUnknown(
   return null;
 }
 
+/**
+ * Snapshot representing “no prior catalog version” for diffing the first stored revision.
+ *
+ * @param after Revision snapshot shape used to pick fleet vs sailing_classes empty template.
+ * @returns Empty-field snapshot matching `after`'s resource for baseline comparison.
+ */
+function emptyCatalogAuditSnapshotForCompare(
+  after: CatalogAuditSnapshot
+): CatalogAuditSnapshot {
+  if (after.resource === 'sailing_classes') {
+    return {
+      classCategoryId: '',
+      classCategoryName: '',
+      description: '',
+      id: after.id,
+      imagePaths: [],
+      isVisible: false,
+      level: '',
+      name: '',
+      resource: 'sailing_classes',
+      slug: '',
+    };
+  }
+  return {
+    capacity: 0,
+    description: '',
+    id: after.id,
+    imagePath: null,
+    name: '',
+    requiredClassId: '',
+    requiredClassName: '',
+    resource: 'fleet',
+    slug: '',
+    type: '',
+  };
+}
+
 function textChangeValue(value: string | null | undefined) {
   const normalized = value?.trim();
   return normalized
@@ -721,27 +758,21 @@ export async function getAdminCatalogRevisionCompare(props: {
   resourceId: CatalogHistoryResourceId;
   revisionId: string;
 }): Promise<AdminCatalogRevisionCompare | null> {
-  const [currentSnapshotValue, revision] = await Promise.all([
-    loadCatalogRevisionSnapshot({
-      itemId: props.itemId,
-      resourceId: props.resourceId,
-    }),
-    prisma.userAudit.findFirst({
-      select: {
-        action: true,
-        auditedChanges: true,
-        createdAt: true,
-        id: true,
-        user: { select: { email: true, name: true } },
-        version: true,
-      },
-      where: {
-        auditableId: props.itemId,
-        auditableType: props.resourceId,
-        id: props.revisionId,
-      },
-    }),
-  ]);
+  const revision = await prisma.userAudit.findFirst({
+    select: {
+      action: true,
+      auditedChanges: true,
+      createdAt: true,
+      id: true,
+      user: { select: { email: true, name: true } },
+      version: true,
+    },
+    where: {
+      auditableId: props.itemId,
+      auditableType: props.resourceId,
+      id: props.revisionId,
+    },
+  });
   if (!revision) {
     return null;
   }
@@ -757,10 +788,17 @@ export async function getAdminCatalogRevisionCompare(props: {
       version: { lt: revision.version },
     },
   });
-  const baseSnapshot = previousRevision
-    ? catalogAuditSnapshotFromUnknown(previousRevision.auditedChanges)
-    : catalogAuditSnapshotFromUnknown(currentSnapshotValue);
   const snapshot = catalogAuditSnapshotFromUnknown(revision.auditedChanges);
+  let baseSnapshot: CatalogAuditSnapshot | null;
+  if (previousRevision) {
+    baseSnapshot = catalogAuditSnapshotFromUnknown(
+      previousRevision.auditedChanges
+    );
+  } else if (snapshot) {
+    baseSnapshot = emptyCatalogAuditSnapshotForCompare(snapshot);
+  } else {
+    baseSnapshot = null;
+  }
   return {
     action: revision.action,
     baseVersion: previousRevision?.version,

@@ -151,6 +151,10 @@ Restore into the same external volume before starting app containers:
 
 ```bash
 backup_file="$(ls -t mitsailing-cms-media-backup-*.tgz | head -n 1)"
+if [ -z "$backup_file" ] || [ ! -f "$backup_file" ]; then
+  echo "No backup file found matching mitsailing-cms-media-backup-*.tgz" >&2
+  exit 1
+fi
 docker run --rm \
   -v mitsailing_cms_media:/media \
   -v "$PWD":/backup \
