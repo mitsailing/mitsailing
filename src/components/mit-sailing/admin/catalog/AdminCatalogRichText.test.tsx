@@ -692,18 +692,13 @@ describe('AdminRichTextEditor media controls', () => {
     await user.click(screen.getByRole('button', { name: 'Align image right' }));
 
     await waitFor(() => {
-      const doc = new DOMParser().parseFromString(
-        hiddenBodyValue(view.container),
-        'text/html'
-      );
-      const images = [
-        ...doc.querySelectorAll<HTMLImageElement>(
-          'img[src="/cms-media/asset-7/reused.jpg"]'
-        ),
-      ];
+      const images =
+        hiddenBodyValue(view.container).match(
+          /<img[^>]*src="\/cms-media\/asset-7\/reused\.jpg"[^>]*>/g
+        ) ?? [];
       expect(images).toHaveLength(2);
-      expect(images.at(0)?.dataset.align).toBe('center');
-      expect(images.at(1)?.dataset.align).toBe('right');
+      expect(images.at(0)).toContain('data-align="center"');
+      expect(images.at(1)).toContain('data-align="right"');
     });
   });
 
