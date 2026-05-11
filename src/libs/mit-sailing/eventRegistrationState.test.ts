@@ -33,6 +33,68 @@ function makeEvent(
 }
 
 describe('publicEventReservationState', () => {
+  it('returns external before viewer registration state', () => {
+    expect(
+      publicEventReservationState({
+        currentRegistration: {
+          id: 'reg-1',
+          status: EventRegistrationStatus.approved,
+        },
+        event: makeEvent({
+          detailPageKind: 'external',
+          externalDetailUrl: 'https://example.com/event',
+        }),
+        now: midJune,
+      })
+    ).toBe('external');
+  });
+
+  it('returns pending for pending registration before capacity', () => {
+    expect(
+      publicEventReservationState({
+        currentRegistration: {
+          id: 'reg-1',
+          status: EventRegistrationStatus.pending,
+        },
+        event: makeEvent({
+          approvedRegistrationCount: 10,
+          pendingRegistrationCount: 20,
+          maxParticipants: 10,
+          requiresApproval: false,
+        }),
+        now: midJune,
+      })
+    ).toBe('pending');
+  });
+
+  it('returns opening_later before capacity', () => {
+    expect(
+      publicEventReservationState({
+        currentRegistration: null,
+        event: makeEvent({
+          approvedRegistrationCount: 10,
+          maxParticipants: 10,
+          registrationStart: new Date('2026-06-20T12:00:00.000Z'),
+          requiresApproval: false,
+        }),
+        now: midJune,
+      })
+    ).toBe('opening_later');
+  });
+
+  it('returns available for cancelled registration when event is open', () => {
+    expect(
+      publicEventReservationState({
+        currentRegistration: {
+          id: 'reg-1',
+          status: EventRegistrationStatus.cancelled,
+        },
+        event: makeEvent(),
+        now: midJune,
+      })
+    ).toBe('available');
+  });
+
   it('returns available when pending exceeds spare accepted seats but accepted count is below capacity', () => {
     expect(
       publicEventReservationState({

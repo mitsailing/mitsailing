@@ -22,11 +22,26 @@ function publicEventIsAtAcceptedCapacity(event: PublicEventDetail): boolean {
   );
 }
 
+function currentRegistrationReservationState(
+  status: PublicEventRegistrationState['status'] | undefined
+): 'approved' | 'pending' | null {
+  if (status === EventRegistrationStatus.approved) {
+    return 'approved';
+  }
+  if (status === EventRegistrationStatus.pending) {
+    return 'pending';
+  }
+  if (status === EventRegistrationStatus.cancelled) {
+    return null;
+  }
+  return null;
+}
+
 /**
  * Resolves public registration state in priority order: external event detail,
- * existing approved or pending registration, registration window, registration
- * end, accepted capacity for auto-approved events (approved count only; pending
- * does not consume capacity), then available fallback.
+ * existing active registration, registration window, registration end, accepted
+ * capacity for auto-approved events (approved count only; pending does not
+ * consume capacity), then available fallback.
  *
  * @param options - Current registration, event detail, and comparison time
  * @returns Public reservation state for rendering and action guards
@@ -42,13 +57,11 @@ export function publicEventReservationState(options: {
   ) {
     return 'external';
   }
-  if (
-    options.currentRegistration?.status === EventRegistrationStatus.approved
-  ) {
-    return 'approved';
-  }
-  if (options.currentRegistration?.status === EventRegistrationStatus.pending) {
-    return 'pending';
+  const currentRegistrationState = currentRegistrationReservationState(
+    options.currentRegistration?.status
+  );
+  if (currentRegistrationState !== null) {
+    return currentRegistrationState;
   }
   const windowPhase = publicRegistrationWindowPhase({
     now: options.now,
