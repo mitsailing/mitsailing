@@ -28,6 +28,9 @@ import ProfileIndexPage from './profile/page';
 import ProfilePasswordPage, {
   generateMetadata as generateProfilePasswordMetadata,
 } from './profile/password/page';
+import ProfileRatingsPage, {
+  generateMetadata as generateProfileRatingsMetadata,
+} from './profile/ratings/page';
 import ProfileSecurityPage, {
   generateMetadata as generateProfileSecurityMetadata,
 } from './profile/security/page';
@@ -35,6 +38,7 @@ import ProfileSecurityPage, {
 const routeMocks = vi.hoisted(() => ({
   findUnique: vi.fn(),
   getTranslations: vi.fn(),
+  listUserRatingAssignmentRows: vi.fn(),
   redirect: vi.fn((href: string) => {
     throw new Error(`NEXT_REDIRECT:${href}`);
   }),
@@ -73,6 +77,10 @@ vi.mock('@/libs/DB', () => ({
       findUnique: routeMocks.findUnique,
     },
   },
+}));
+
+vi.mock('@/libs/mit-sailing/sailingRatingQueries', () => ({
+  listUserRatingAssignmentRows: routeMocks.listUserRatingAssignmentRows,
 }));
 
 vi.mock('@/components/mit-sailing/site/AuthCenterBrandMark', () => ({
@@ -213,6 +221,7 @@ beforeEach(() => {
     themePreference: 'DARK',
     unconfirmedEmail: 'pending@example.com',
   });
+  routeMocks.listUserRatingAssignmentRows.mockResolvedValue([]);
 });
 
 describe('auth route shells', () => {
@@ -541,6 +550,90 @@ describe('auth route shells', () => {
     );
     expect(
       screen.getByRole('region', { name: 'profile-password-client' })
+    ).toBeVisible();
+  });
+
+  it('profile ratings metadata uses localized copy', async () => {
+    await expect(generateProfileRatingsMetadata(routeProps())).resolves.toEqual(
+      {
+        description: 'UserProfilePage.ratings_meta_description',
+        title: 'UserProfilePage.ratings_meta_title',
+      }
+    );
+  });
+
+  it('profile ratings page renders filtered rating assignments', async () => {
+    routeMocks.listUserRatingAssignmentRows.mockResolvedValue([
+      {
+        id: 'keelboat',
+        isDeprecated: false,
+        issuedAt: new Date('2026-04-15T12:00:00Z'),
+        issuedByName: 'Instructor One',
+        name: 'Keelboat',
+      },
+      {
+        id: 'tech',
+        isDeprecated: false,
+        issuedAt: new Date('2026-04-16T12:00:00Z'),
+        issuedByName: null,
+        name: 'Tech dinghy',
+      },
+      {
+        id: 'legacy',
+        isDeprecated: true,
+        issuedAt: null,
+        issuedByName: null,
+        name: 'Legacy rating',
+      },
+    ]);
+
+    render(
+      await ProfileRatingsPage({
+        params: Promise.resolve({ locale: 'en' }),
+      })
+    );
+
+    expect(routeMocks.setRequestLocale).toHaveBeenCalledWith('en');
+    expect(routeMocks.requireCurrentUser).toHaveBeenCalledWith(
+      'en',
+      '/profile/ratings/'
+    );
+    expect(routeMocks.listUserRatingAssignmentRows).toHaveBeenCalledWith(
+      'user-1'
+    );
+    expect(
+      screen.getByRole('heading', {
+        name: 'UserProfilePage.ratings_page_heading',
+      })
+    ).toBeVisible();
+    expect(
+      screen.getByRole('columnheader', {
+        name: 'UserProfilePage.ratings_column_rating',
+      })
+    ).toBeVisible();
+    expect(
+      screen.getByRole('columnheader', {
+        name: 'UserProfilePage.ratings_column_assignment',
+      })
+    ).toBeVisible();
+    expect(screen.getByRole('rowheader', { name: 'Keelboat' })).toBeVisible();
+    expect(
+      screen.getByRole('rowheader', { name: 'Tech dinghy' })
+    ).toBeVisible();
+    expect(screen.queryByText('Legacy rating')).not.toBeInTheDocument();
+    expect(screen.getByText('UserProfilePage.ratings_issued_by')).toBeVisible();
+    expect(screen.getByText('UserProfilePage.ratings_issued_on')).toBeVisible();
+  });
+
+  it('profile ratings page renders empty state', async () => {
+    render(
+      await ProfileRatingsPage({
+        params: Promise.resolve({ locale: 'en' }),
+      })
+    );
+
+    expect(
+      screen.getByText('UserProfilePage.ratings_empty_state')
     ).toBeVisible();
   });
 
