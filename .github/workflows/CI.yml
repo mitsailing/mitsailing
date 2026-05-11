@@ -285,7 +285,7 @@ jobs:
         shardIndex: [1, 2, 3]
         shardTotal: [3]
 
-    name: Run E2E tests (${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
+    name: Run E2E shard (${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build]
@@ -368,7 +368,7 @@ jobs:
   # semantics). Exposes one stable check name for branch rulesets; shard labels
   # stay on the matrix jobs for debugging.
   e2e-required:
-    name: Run E2E tests
+    name: Run E2E tests (24.x)
     runs-on: ubuntu-latest
     timeout-minutes: 2
     needs: [e2e]

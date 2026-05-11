@@ -41,7 +41,7 @@
           { "context": "Run unit tests (24.x)" },
           { "context": "Run static checks (24.x)" },
           { "context": "Run Storybook (24.x)" },
-          { "context": "Run E2E tests" }
+          { "context": "Run E2E tests (24.x)" }
         ]
       }
     }

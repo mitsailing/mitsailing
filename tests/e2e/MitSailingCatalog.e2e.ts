@@ -165,7 +165,11 @@ test.describe('MIT Sailing catalog', () => {
         })
       ).toBeVisible();
       await page.getByLabel(/Current sailing rating/).selectOption('Green');
-      await page.getByLabel(/I can swim/).check();
+      await page
+        .getByRole('switch', {
+          name: /Swim Agreement and Liability Release/,
+        })
+        .check();
       await page
         .getByRole('button', { name: 'Submit registration request' })
         .click();
