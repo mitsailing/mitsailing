@@ -1,16 +1,46 @@
 /**
- * Cal.com–style: build the Next app with e2e DB and flags before `playwright` runs
- * `next start` in webServer. In GitHub Actions, the `build` job already produced
- * `.next` (see CI.yml + cache restore on the e2e job) — set `E2E_SKIP_BUILD=1` to
- * avoid a second full `next build`.
+ * Build the Next app with e2e DB and flags before Playwright starts the
+ * standalone server. In GitHub Actions, the `build` job already produced `.next`
+ * (see CI.yml + cache restore on the e2e job) — set `E2E_SKIP_BUILD=1` to avoid
+ * a second full `next build`.
  */
 const { spawnSync } = require('node:child_process');
+const fs = require('node:fs');
 const path = require('node:path');
+
+const repoRoot = path.join(__dirname, '..');
+
+function prepareStandaloneAssets() {
+  const standaloneDir = path.join(repoRoot, '.next', 'standalone');
+  const standaloneStaticDir = path.join(standaloneDir, '.next', 'static');
+  const nextStaticDir = path.join(repoRoot, '.next', 'static');
+  const publicDir = path.join(repoRoot, 'public');
+  const standalonePublicDir = path.join(standaloneDir, 'public');
+
+  if (!fs.existsSync(standaloneDir)) {
+    console.warn(
+      '[e2e-build] .next/standalone is missing; run e2e build without E2E_SKIP_BUILD=1.'
+    );
+    return;
+  }
+
+  if (fs.existsSync(nextStaticDir)) {
+    fs.rmSync(standaloneStaticDir, { force: true, recursive: true });
+    fs.mkdirSync(path.dirname(standaloneStaticDir), { recursive: true });
+    fs.cpSync(nextStaticDir, standaloneStaticDir, { recursive: true });
+  }
+
+  if (fs.existsSync(publicDir)) {
+    fs.rmSync(standalonePublicDir, { force: true, recursive: true });
+    fs.cpSync(publicDir, standalonePublicDir, { recursive: true });
+  }
+}
 
 if (process.env.E2E_SKIP_BUILD === '1') {
   console.log(
     '[e2e-build] E2E_SKIP_BUILD=1 — using existing .next (e.g. CI cache).'
   );
+  prepareStandaloneAssets();
   process.exit(0);
 }
 
@@ -39,8 +69,12 @@ const buildEnv = {
 
 const result = spawnSync('npx', ['next', 'build'], {
   stdio: 'inherit',
-  cwd: path.join(__dirname, '..'),
+  cwd: repoRoot,
   env: buildEnv,
 });
+
+if (result.status === 0) {
+  prepareStandaloneAssets();
+}
 
 process.exit(result.status ?? 1);

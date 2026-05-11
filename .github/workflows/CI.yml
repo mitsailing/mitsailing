@@ -99,6 +99,7 @@ jobs:
         env:
           NEXT_PUBLIC_SENTRY_DISABLED: 'true' # Only upload Sentry source maps in deployment
           NEXT_PUBLIC_APP_URL: http://localhost:3008
+          NEXT_PUBLIC_IS_E2E: '1'
 
       - if: success()
         name: Cache Next.js build output
@@ -276,10 +277,13 @@ jobs:
 
   e2e:
     strategy:
+      fail-fast: false
       matrix:
         node-version: [24.x]
+        shardIndex: [1, 2, 3]
+        shardTotal: [3]
 
-    name: Run E2E tests
+    name: Run E2E tests (${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
     runs-on: ubuntu-latest
     timeout-minutes: 25
     needs: [build]
@@ -307,12 +311,19 @@ jobs:
       # reach the docker-compose services on localhost:5432 / localhost:1025
       # (a `uses: docker://` step would run in an isolated container that
       # cannot reach host services).
-      - name: Run E2E tests
-        run: npm run test:e2e
+      - name: Run E2E preflight
+        run: npm run e2e:preflight
+
+      - name: Prepare cached E2E build
+        run: npm run e2e:build
         env:
           E2E_SKIP_BUILD: '1' # .next restored from the `build` job; cal.com also builds before e2e, not inside the e2e script
 
+      - name: Run E2E tests
+        run: npm run e2e -- --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+
       - name: Fix test results permission # Give permissions to test results needed by Chromatic
+        if: always() && hashFiles('test-results/**') != ''
         run: |
           sudo chmod -R 777 test-results
 
@@ -329,12 +340,58 @@ jobs:
 
       - name: Upload test results
         uses: actions/upload-artifact@v7
-        if: always()
+        if: always() && hashFiles('test-results/**') != ''
         with:
-          name: test-results
+          name: test-results-${{ matrix.shardIndex }}
           path: test-results/
+          retention-days: 7
+
+      - name: Upload blob report
+        uses: actions/upload-artifact@v7
+        if: always() && hashFiles('blob-report/**') != ''
+        with:
+          name: blob-report-${{ matrix.shardIndex }}
+          path: blob-report/
           retention-days: 7
 
       - name: Always teardown E2E DB services
         if: always()
         run: npm run db:test:down
+
+  merge-e2e-reports:
+    name: Merge E2E reports
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [e2e]
+    if: ${{ !cancelled() }}
+
+    permissions:
+      contents: read
+      actions: read
+      artifact-metadata: write
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Node.js environment
+        uses: ./.github/actions/setup-project
+        with:
+          node-version: 24.x
+
+      - name: Download blob reports
+        uses: actions/download-artifact@v7
+        with:
+          pattern: blob-report-*
+          path: all-blob-reports
+          merge-multiple: true
+
+      - name: Merge Playwright reports
+        run: npx playwright merge-reports --reporter html ./all-blob-reports
+
+      - name: Upload merged E2E report
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

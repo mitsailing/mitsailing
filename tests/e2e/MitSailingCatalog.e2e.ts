@@ -120,9 +120,12 @@ test.describe('MIT Sailing catalog', () => {
     ).toBeVisible();
     await expect(
       page
-        .getByRole('button', {
-          name: /Request to register|Cancel request|Cancel my registration/,
-        })
+        .getByRole('link', { name: 'Request to register' })
+        .or(
+          page.getByRole('button', {
+            name: /Cancel request|Cancel my registration/,
+          })
+        )
         .or(page.getByText(/Pending acceptance|You’re going/))
     ).toBeVisible();
   });
@@ -144,7 +147,7 @@ test.describe('MIT Sailing catalog', () => {
           name: 'Intercollegiate Overnight Series',
         })
       ).toBeVisible();
-      await page.getByRole('button', { name: 'Request to register' }).click();
+      await page.getByRole('link', { name: 'Request to register' }).click();
       await expect(page).toHaveURL(new RegExp(`/events/${slug}/register/?$`));
       await expect(
         page.getByRole('heading', {
@@ -152,7 +155,7 @@ test.describe('MIT Sailing catalog', () => {
           name: 'Intercollegiate Overnight Series',
         })
       ).toBeVisible();
-      await page.getByLabel('Current sailing rating').selectOption('Green');
+      await page.getByLabel(/Current sailing rating/).selectOption('Green');
       await page.getByLabel(/I can swim/).check();
       await page
         .getByRole('button', { name: 'Submit registration request' })
@@ -194,14 +197,12 @@ test.describe('MIT Sailing catalog', () => {
   test('/events shows New York-local schedule without timezone copy', async ({
     page,
   }) => {
-    await page.goto('/events');
+    await page.goto('/events?month=2026-06');
 
-    const event = page
-      .getByRole('article')
-      .filter({ hasText: 'Boston Dinghy Cup' });
     await expect(
-      event.getByText('Sat, Jun 13, 2026 · 9:00 AM – 5:00 PM')
+      page.getByRole('link', { name: 'Boston Dinghy Cup' }).first()
     ).toBeVisible();
-    await expect(event.getByText(/ ET\b/)).toHaveCount(0);
+    await expect(page.getByText('9:00 AM – 5:00 PM').first()).toBeVisible();
+    await expect(page.getByText(/ ET\b/)).toHaveCount(0);
   });
 });

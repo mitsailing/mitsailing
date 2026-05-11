@@ -60,64 +60,98 @@ function QuestionField(props: {
   labels: EventRegistrationFormLabels;
 }) {
   const name = `question_${props.question.id}`;
+  const controlId = `registration-question-${props.question.id}`;
   const checkboxId = `registration-question-${props.question.id}-checkbox`;
+  const checkboxLabelId = `registration-question-${props.question.id}-checkbox-label`;
+  const questionLabel = (
+    <>
+      {props.question.questionText}
+      {props.question.required ? (
+        <span
+          aria-label={props.labels.required}
+          className="ml-1 text-mit-red-ink"
+        >
+          *
+        </span>
+      ) : null}
+    </>
+  );
 
   return (
-    <fieldset className="m-0 flex min-w-0 flex-col gap-1.5 border-0 p-0 text-sm text-mit-text">
-      <legend className="w-full px-0 font-semibold text-mit-text">
-        {props.question.questionText}
-        {props.question.required ? (
-          <span
-            aria-label={props.labels.required}
-            className="ml-1 text-mit-red-ink"
-          >
-            *
-          </span>
-        ) : null}
-      </legend>
+    <div className="flex min-w-0 flex-col gap-1.5 text-sm text-mit-text">
       {props.question.answerType === 'select' ? (
-        <select
-          className={registrationSelectClassName}
-          name={name}
-          required={props.question.required}
-        >
-          <option value="">{props.labels.selectPlaceholder}</option>
-          {props.question.options.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
+        <>
+          <label
+            className="w-full px-0 font-semibold text-mit-text"
+            htmlFor={controlId}
+          >
+            {questionLabel}
+          </label>
+          <select
+            className={registrationSelectClassName}
+            id={controlId}
+            name={name}
+            required={props.question.required}
+          >
+            <option value="">{props.labels.selectPlaceholder}</option>
+            {props.question.options.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </>
       ) : null}
       {props.question.answerType === 'checkbox' ? (
-        <label
-          className="flex cursor-pointer items-center gap-2"
-          htmlFor={checkboxId}
-        >
-          <input
-            aria-required={props.question.required ? true : undefined}
-            className={registrationCheckboxClassName}
-            id={checkboxId}
-            name={name}
-            type="checkbox"
-            value="true"
-          />
-          {props.question.required ? (
-            <input name={name} type="hidden" value="false" />
-          ) : null}
-          <span className="text-xs text-mit-text/70 dark:text-white">
-            {props.labels.checkboxLabel}
-          </span>
-        </label>
+        <>
+          <p
+            className="m-0 w-full px-0 font-semibold text-mit-text"
+            id={controlId}
+          >
+            {questionLabel}
+          </p>
+          <label
+            className="flex cursor-pointer items-center gap-2"
+            htmlFor={checkboxId}
+          >
+            <input
+              aria-labelledby={`${controlId} ${checkboxLabelId}`}
+              aria-required={props.question.required ? true : undefined}
+              className={registrationCheckboxClassName}
+              id={checkboxId}
+              name={name}
+              type="checkbox"
+              value="true"
+            />
+            {props.question.required ? (
+              <input name={name} type="hidden" value="false" />
+            ) : null}
+            <span
+              className="text-xs text-mit-text/70 dark:text-white"
+              id={checkboxLabelId}
+            >
+              {props.labels.checkboxLabel}
+            </span>
+          </label>
+        </>
       ) : null}
       {props.question.answerType === 'text' ? (
-        <Textarea
-          className="min-h-20"
-          name={name}
-          required={props.question.required}
-        />
+        <>
+          <label
+            className="w-full px-0 font-semibold text-mit-text"
+            htmlFor={controlId}
+          >
+            {questionLabel}
+          </label>
+          <Textarea
+            className="min-h-20"
+            id={controlId}
+            name={name}
+            required={props.question.required}
+          />
+        </>
       ) : null}
-    </fieldset>
+    </div>
   );
 }
 

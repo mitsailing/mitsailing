@@ -15,6 +15,7 @@ const e2eDatabaseUrl =
 process.env.DATABASE_URL = e2eDatabaseUrl;
 
 const isCi = !!process.env.CI;
+const includeFirefox = isCi || process.env.PLAYWRIGHT_INCLUDE_FIREFOX === '1';
 
 // Fast (default): short limits but enough headroom for cold `next start` and
 // cal-style high parallelism. Set PLAYWRIGHT_SLOW=1 for 120s nav/expect/action.
@@ -50,22 +51,22 @@ export default defineConfig<ChromaticConfig>({
   forbidOnly: isCi,
   retries: isCi ? 2 : 0,
   fullyParallel: true,
-  // Keep production `next start` + Postgres + Argon2 auth flows inside a stable
+  // Keep production Next + Postgres + Argon2 auth flows inside a stable
   // local/CI budget. `PLAYWRIGHT_WORKERS=8` can raise this on beefier runners.
   workers: playwrightWorkers(),
   maxFailures: isCi ? 10 : undefined,
-  reporter: isCi ? 'github' : 'list',
+  reporter: isCi ? [['github'], ['blob']] : 'list',
   expect: {
     timeout: defaultExpectTimeout,
   },
-  // DB prep is `e2e:preflight` + `e2e:build` in `npm run test:e2e`. Web server is
-  // `next start` (production) like cal.com, not `next dev` — avoids the single
-  // `next dev` per project lock and matches deployment behavior.
+  // DB prep is `e2e:preflight` + `e2e:build` in `npm run test:e2e`.
+  // Next's standalone production server matches the Docker runtime path and
+  // keeps CI e2e on the same server entrypoint as deploys.
   webServer: {
-    command: `npm run start -- -p ${PORT}`,
+    command: 'node .next/standalone/server.js',
     port: Number(PORT),
     timeout: 60_000,
-    // Always spawn a fresh `next start` tied to this Playwright run so the
+    // Always spawn a fresh standalone server tied to this Playwright run so the
     // server uses the build env from `e2e:build` (correct NEXT_PUBLIC_APP_URL,
     // e2e DB, etc.). Reusing a stale listener — left over from a crashed run
     // or a `npm run dev` — would serve a bundle with a different baked
@@ -83,18 +84,21 @@ export default defineConfig<ChromaticConfig>({
       NEXT_PUBLIC_SENTRY_DISABLED: 'true',
       NEXT_PUBLIC_APP_URL: baseURL,
       PORT: String(PORT),
+      HOSTNAME: '0.0.0.0',
       DATABASE_URL: e2eDatabaseUrl,
     },
   },
   use: {
     baseURL,
-    trace: isCi ? 'on' : 'retain-on-failure',
+    trace: isCi ? 'on-first-retry' : 'retain-on-failure',
+    screenshot: isCi ? 'only-on-failure' : undefined,
     video: isCi ? 'retain-on-failure' : undefined,
     disableAutoSnapshot: true,
     navigationTimeout: defaultNavigationTimeout,
     actionTimeout: defaultActionTimeout,
   },
-  // Local: Chromium only (fast default). CI: add Firefox for engine coverage before merge.
+  // Local runs default to Chromium only; CI adds Firefox before merge.
+  // PLAYWRIGHT_INCLUDE_FIREFOX=1 opts local runs into that browser coverage.
   // `*.a11y.e2e.ts` is a separate project: axe scans many URLs × themes (slower than smoke e2e).
   projects: [
     {
@@ -102,7 +106,7 @@ export default defineConfig<ChromaticConfig>({
       testIgnore: '**/*.a11y.e2e.ts',
       use: { ...devices['Desktop Chrome'] },
     },
-    ...(isCi
+    ...(includeFirefox
       ? [
           {
             name: 'firefox',
