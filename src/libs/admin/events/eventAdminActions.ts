@@ -460,8 +460,7 @@ export async function addAdminEventQuestionAction(
       _max: { displayOrder: true },
     });
     const nextOrder = (maxOrder._max.displayOrder ?? 0) + 1;
-    const displayOrder =
-      parsed.data.displayOrder > 0 ? parsed.data.displayOrder : nextOrder;
+    const displayOrder = parsed.data.displayOrder ?? nextOrder;
     await prisma.eventRegistrationQuestion.create({
       data: {
         id: randomUUID(),
@@ -511,7 +510,7 @@ export async function updateAdminEventQuestionAction(
             ? parsed.data.options
             : Prisma.JsonNull,
         required: parsed.data.required,
-        displayOrder: parsed.data.displayOrder,
+        displayOrder: parsed.data.displayOrder ?? 0,
       },
     });
     updatedCount = result.count;

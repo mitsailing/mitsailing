@@ -231,6 +231,7 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
               id="event-max-participants"
               min={1}
               name="maxParticipants"
+              step={1}
               type="number"
             />
           </AdminEventField>
@@ -645,8 +646,9 @@ function QuestionFields(props: {
           <Input
             defaultValue={props.question?.displayOrder ?? ''}
             id={`question-order-${prefix}`}
-            min={1}
+            min={0}
             name="displayOrder"
+            step={1}
             placeholder={
               props.question === undefined &&
               props.suggestedDisplayOrder !== undefined

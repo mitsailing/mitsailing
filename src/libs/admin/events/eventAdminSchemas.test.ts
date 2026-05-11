@@ -57,6 +57,27 @@ describe('eventAdminSchemas', () => {
     expect(parsed.success).toBe(false);
   });
 
+  it('rejects external detail page with non-http URL', () => {
+    const parsed = eventAdminBasicsFormSchema.safeParse({
+      name: 'External event',
+      shortName: '',
+      slug: 'external-event',
+      eventCategoryId: 'cat-cruising',
+      description: '',
+      isSpecial: false,
+      requiresApproval: false,
+      maxParticipants: '',
+      registrationStart: '',
+      registrationEnd: '',
+      detailPageKind: EventDetailPageKind.external,
+      externalDetailUrl: 'ftp://example.com/info',
+      internalNotes: '',
+      isPublished: true,
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+
   it('parses eastern datetime local values', () => {
     const result = parseEasternDateTimeLocal('2026-05-16T09:30');
 
@@ -171,7 +192,7 @@ describe('eventAdminSchemas', () => {
     expect(parsed.options).toEqual(['Boston, MA', 'Cambridge, MA']);
   });
 
-  it('maps empty question display order to zero for append default', () => {
+  it('maps empty question display order to null for append default', () => {
     const parsed = eventQuestionFormSchema.parse({
       questionText: 'Shirt size',
       answerType: EventAnswerType.text,
@@ -180,7 +201,7 @@ describe('eventAdminSchemas', () => {
       displayOrder: '',
     });
 
-    expect(parsed.displayOrder).toBe(0);
+    expect(parsed.displayOrder).toBeNull();
   });
 
   it('accepts explicit zero question display order', () => {

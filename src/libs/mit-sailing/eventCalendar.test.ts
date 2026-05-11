@@ -54,9 +54,9 @@ describe('eventCalendar', () => {
     expect(eventCalendarMonthKey({ year: 2026, month: 4 })).toBe('2026-04');
   });
 
-  it('normalizes negative month offsets', () => {
-    expect(addEventCalendarMonths({ year: 0, month: 1 }, -1)).toEqual({
-      year: -1,
+  it('normalizes negative month offsets across year boundary', () => {
+    expect(addEventCalendarMonths({ year: 2026, month: 3 }, -3)).toEqual({
+      year: 2025,
       month: 12,
     });
   });
@@ -159,6 +159,36 @@ describe('eventCalendar', () => {
       '2026-03-01',
       '2026-03-02',
       '2026-03-03',
+    ]);
+  });
+
+  it('orders same-day rows by list segment before start instant', () => {
+    const longEvent = { ...event, id: 'event-long', slug: 'long-series' };
+    const eventDates: EventCalendarDate[] = [
+      {
+        id: 'date-long',
+        startDateTime: new Date('2026-03-01T10:00:00.000Z'),
+        endDateTime: new Date('2026-03-31T20:00:00.000Z'),
+        event: longEvent,
+      },
+      {
+        id: 'date-single',
+        startDateTime: new Date('2026-03-15T14:00:00.000Z'),
+        endDateTime: new Date('2026-03-15T18:00:00.000Z'),
+        event,
+      },
+    ];
+
+    const rows = buildEventCalendarOccurrenceRows({
+      eventDates,
+      rangeStartKey: '2026-03-15',
+      rangeEndKey: '2026-03-15',
+    });
+
+    expect(rows.map((row) => row.listSegment)).toEqual(['single', 'ongoing']);
+    expect(rows.map((row) => row.displayDayKey)).toEqual([
+      '2026-03-15',
+      '2026-03-15',
     ]);
   });
 

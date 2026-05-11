@@ -151,6 +151,8 @@ const eventAnswerTypeSchema = z.enum([
   EventAnswerType.checkbox,
 ]);
 
+const eventAdminExternalHttpUrlSchema = z.httpUrl();
+
 export const eventAdminBasicsFormSchema = z
   .object({
     name: z.string().trim().min(1),
@@ -184,7 +186,8 @@ export const eventAdminBasicsFormSchema = z
   .refine(
     (value) =>
       value.detailPageKind !== EventDetailPageKind.external ||
-      z.url().safeParse(value.externalDetailUrl).success,
+      eventAdminExternalHttpUrlSchema.safeParse(value.externalDetailUrl)
+        .success,
     { path: ['externalDetailUrl'] }
   )
   .refine(
@@ -215,7 +218,6 @@ export const eventQuestionFormSchema = z
   })
   .transform((value) => ({
     ...value,
-    displayOrder: value.displayOrder ?? 0,
     options:
       value.answerType === EventAnswerType.select
         ? splitEventAdminOptionLines(value.optionsText)

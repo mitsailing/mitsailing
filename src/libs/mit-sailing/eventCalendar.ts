@@ -79,6 +79,12 @@ function calendarMonthIndex(month: EventCalendarMonth): number {
 function eventCalendarMonthFromIndex(index: number): EventCalendarMonth {
   const year = Math.floor(index / 12);
   const monthIndex = index - year * 12;
+  if (year < 1) {
+    return { year: 1, month: 1 };
+  }
+  if (year > 9999) {
+    return { year: 9999, month: 12 };
+  }
   return { year, month: monthIndex + 1 };
 }
 
@@ -339,11 +345,11 @@ export function buildEventCalendarOccurrenceRows(params: {
     if (day !== 0) {
       return day;
     }
-    const time = a.start.getTime() - b.start.getTime();
-    if (time !== 0) {
-      return time;
+    const segment = segmentOrder[a.listSegment] - segmentOrder[b.listSegment];
+    if (segment !== 0) {
+      return segment;
     }
-    return segmentOrder[a.listSegment] - segmentOrder[b.listSegment];
+    return a.start.getTime() - b.start.getTime();
   });
 }
 
