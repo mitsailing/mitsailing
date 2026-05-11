@@ -4,26 +4,20 @@ import { CmsPageBlocks } from '@/components/mit-sailing/cms/CmsPageBlocks';
 import { ContactPageView } from '@/components/mit-sailing/contact/ContactPageView';
 import { loadPublishedCmsPageByPath } from '@/libs/mit-sailing/cmsQueries';
 import { submitContactFormAction } from '@/libs/mit-sailing/contactActions';
+import { calendarYearInContactFormTimeZone } from '@/libs/mit-sailing/contactForm';
 
 type ContactPageProps = {
   params: Promise<{ locale: string }>;
   searchParams?: Promise<{ status?: string }>;
 };
 
-function contactStatus(value?: string): 'invalid' | 'sent' | undefined {
-  if (value === 'invalid' || value === 'sent') {
+function contactStatus(
+  value?: string
+): 'error' | 'invalid' | 'sent' | undefined {
+  if (value === 'error' || value === 'invalid' || value === 'sent') {
     return value;
   }
   return undefined;
-}
-
-function currentNewYorkYear(): number {
-  return Number(
-    new Intl.DateTimeFormat('en-US', {
-      timeZone: 'America/New_York',
-      year: 'numeric',
-    }).format(new Date())
-  );
 }
 
 export async function generateMetadata(
@@ -63,8 +57,9 @@ export default async function ContactPage(props: ContactPageProps) {
   const formAction = submitContactFormAction.bind(null, locale);
   const pageView = (
     <ContactPageView
-      currentYear={currentNewYorkYear()}
+      currentYear={calendarYearInContactFormTimeZone(new Date())}
       formAction={formAction}
+      locale={locale}
       status={contactStatus(searchParams?.status)}
     />
   );

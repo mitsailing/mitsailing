@@ -31,9 +31,7 @@ test.describe('Donate page', () => {
       .locator('+ ul');
     const fundTitles = fundSection.getByRole('heading', { level: 3 });
 
-    expect(await fundTitles.count()).toBeGreaterThanOrEqual(
-      expectedVisible.length
-    );
+    await expect(fundTitles).toHaveCount(expectedVisible.length);
 
     for (const [index, row] of expectedVisible.entries()) {
       await expect(fundTitles.nth(index)).toHaveText(row.name);

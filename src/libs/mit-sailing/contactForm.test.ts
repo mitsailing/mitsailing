@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildContactEmail,
+  calendarYearInContactFormTimeZone,
   contactTopics,
   parseContactSubmission,
   recipientForContactTopic,
@@ -39,6 +40,19 @@ describe('parseContactSubmission', () => {
         subject: 'Hello',
       });
     }
+  });
+
+  it('accepts calendar year in America/New_York when UTC calendar year differs', () => {
+    const instant = new Date('2026-01-01T00:00:00.000Z');
+    expect(instant.getUTCFullYear()).toBe(2026);
+    expect(calendarYearInContactFormTimeZone(instant)).toBe(2025);
+
+    const parsed = parseContactSubmission(
+      contactFormData({ currentYear: '2025' }),
+      instant
+    );
+
+    expect(parsed.success).toBe(true);
   });
 
   it.each([

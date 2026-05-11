@@ -164,7 +164,6 @@ function configuredMobileUtilityItems(props: {
 }
 
 function PrimaryNavBranch(props: {
-  disclosureEpoch?: number;
   flatLinkClass: string;
   item: SiteHeaderMenuItem;
   onNavigate?: () => void;
@@ -244,7 +243,6 @@ export function SiteHeader(props: SiteHeaderProps) {
   const sessionState = authClient.useSession();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobilePortalReady, setMobilePortalReady] = useState(false);
-  const [mobileDisclosureEpoch, setMobileDisclosureEpoch] = useState(0);
 
   const mobileMenuToggleRef = useRef<HTMLButtonElement>(null);
   const mobileOverlayRef = useRef<HTMLDivElement>(null);
@@ -294,7 +292,6 @@ export function SiteHeader(props: SiteHeaderProps) {
 
   function closeMobile() {
     setMobileMenuOpen(false);
-    setMobileDisclosureEpoch((n) => n + 1);
   }
 
   const closeMobileRef = useRef(closeMobile);
@@ -404,7 +401,6 @@ export function SiteHeader(props: SiteHeaderProps) {
           })}
           {navItems.map((item) => (
             <PrimaryNavBranch
-              disclosureEpoch={mobileDisclosureEpoch}
               flatLinkClass={mobileLinkClassName}
               fleetOverviewLabel={t('nav_fleet_dropdown_overview')}
               item={item}

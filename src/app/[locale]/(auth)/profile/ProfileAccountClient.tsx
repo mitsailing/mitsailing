@@ -294,7 +294,7 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
                   />
                   <SubmitButton
                     className="h-11 w-fit rounded-full px-5"
-                    disabled={confirmingEmail || emailCode.length !== 6}
+                    disabled={emailCode.length !== 6}
                     pending={confirmingEmail}
                     pendingLabel={tCommon('pending_submitting')}
                     variant="mit"

@@ -25,6 +25,7 @@ export async function FleetBoatDetailView(props: FleetBoatDetailViewProps) {
   });
 
   const bodyClass = 'text-base leading-relaxed text-mit-text';
+  const descriptionHasImage = /<img\b/iu.test(boat.description);
   const isLocalImagePath =
     boat.imagePath?.startsWith('/') === true &&
     !boat.imagePath.startsWith('//');
@@ -60,7 +61,7 @@ export async function FleetBoatDetailView(props: FleetBoatDetailViewProps) {
         </Link>
       </section>
 
-      {boat.imagePath ? (
+      {boat.imagePath && !descriptionHasImage ? (
         <div className="relative mb-6 aspect-[16/10] max-h-[420px] overflow-hidden rounded-xl bg-mit-line">
           <Image
             alt={boat.name}

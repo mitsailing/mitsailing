@@ -2,13 +2,14 @@
 
 import { redirect } from 'next/navigation';
 import { sendTransactionalEmail } from '@/libs/email/sendTransactional';
+import { logger } from '@/libs/Logger';
 import {
   buildContactEmail,
   parseContactSubmission,
 } from '@/libs/mit-sailing/contactForm';
 import { getI18nPath } from '@/utils/Helpers';
 
-type ContactFormStatus = 'invalid' | 'sent';
+type ContactFormStatus = 'error' | 'invalid' | 'sent';
 
 function contactFormRedirect(locale: string, status: ContactFormStatus): never {
   redirect(`${getI18nPath('/contact', locale)}?status=${status}#contact-form`);
@@ -29,6 +30,11 @@ export async function submitContactFormAction(
     contactFormRedirect(locale, 'invalid');
   }
 
-  await sendTransactionalEmail(buildContactEmail(submission.data));
+  try {
+    await sendTransactionalEmail(buildContactEmail(submission.data));
+  } catch (error: unknown) {
+    logger.error('Failed to send contact form email: {error}', { error });
+    contactFormRedirect(locale, 'error');
+  }
   contactFormRedirect(locale, 'sent');
 }

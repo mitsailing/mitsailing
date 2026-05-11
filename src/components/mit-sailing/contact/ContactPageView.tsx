@@ -1,4 +1,5 @@
 import { Mail, MapPin, Navigation, Phone } from 'lucide-react';
+import { getTranslations } from 'next-intl/server';
 import type * as React from 'react';
 import { ContactFormDialog } from '@/components/mit-sailing/contact/ContactFormDialog';
 import {
@@ -15,11 +16,21 @@ import type { PavilionAddressBlock } from '@/data/mit-sailing/pavilionInfoSeed';
 type ContactPageViewProps = {
   currentYear: number;
   formAction: (formData: FormData) => Promise<void>;
-  status?: 'invalid' | 'sent';
+  locale: string;
+  status?: 'error' | 'invalid' | 'sent';
 };
 
 const sectionClassName = 'border-t border-mit-line py-10 md:py-12';
 const helperClassName = 'text-sm leading-relaxed text-muted-foreground';
+
+function keyedStaticValues(values: readonly string[]) {
+  const seen = new Map<string, number>();
+  return values.map((value) => {
+    const count = seen.get(value) ?? 0;
+    seen.set(value, count + 1);
+    return { key: `${value}-${count}`, value };
+  });
+}
 
 function SectionHeading(props: {
   eyebrow?: string;
@@ -48,18 +59,21 @@ function SectionHeading(props: {
 function AddressLines(props: { lines: readonly string[] }) {
   return (
     <address className="space-y-1 text-sm leading-relaxed text-mit-text not-italic">
-      {props.lines.map((line) => (
-        <div key={line}>{line}</div>
+      {keyedStaticValues(props.lines).map((line) => (
+        <div key={line.key}>{line.value}</div>
       ))}
     </address>
   );
 }
 
-function AddressSummary(props: { address: PavilionAddressBlock }) {
+function AddressSummary(props: {
+  address: PavilionAddressBlock;
+  title: string;
+}) {
   return (
     <section className="border-t border-mit-line pt-4">
       <h3 className="mb-2 text-sm font-semibold text-mit-text">
-        {props.address.title}
+        {props.title}
       </h3>
       <AddressLines lines={props.address.lines} />
     </section>
@@ -84,8 +98,8 @@ function DirectionList(props: {
             : 'list-disc space-y-2 pl-5 text-sm leading-relaxed text-mit-text'
         }
       >
-        {props.items.map((item) => (
-          <li key={item}>{item}</li>
+        {keyedStaticValues(props.items).map((item) => (
+          <li key={item.key}>{item.value}</li>
         ))}
       </ListTag>
     </div>
@@ -112,15 +126,17 @@ function MapLink(props: { href: string; children: React.ReactNode }) {
  * @param props - Contact form action, submit status, and current year
  * @returns Three-path contact UI, compact address details, and directions
  */
-export function ContactPageView(props: ContactPageViewProps) {
+export async function ContactPageView(props: ContactPageViewProps) {
+  const t = await getTranslations({
+    locale: props.locale,
+    namespace: 'MitSailingContact',
+  });
+
   return (
     <div className="space-y-0">
       <section className={sectionClassName}>
-        <SectionHeading eyebrow="Start here" title="How can we help?">
-          <p>
-            Choose the path that best matches your question. Each option opens a
-            short form with the right topic selected.
-          </p>
+        <SectionHeading eyebrow={t('start_eyebrow')} title={t('start_title')}>
+          <p>{t('start_intro')}</p>
         </SectionHeading>
         <ContactFormDialog
           currentYear={props.currentYear}
@@ -140,22 +156,18 @@ export function ContactPageView(props: ContactPageViewProps) {
             href="mailto:sailing@mit.edu"
           >
             <Mail aria-hidden className="size-4" />
-            sailing@mit.edu
+            {t('email_display')}
           </a>
           <span className="inline-flex items-center gap-2">
             <Navigation aria-hidden className="size-4 text-primary-ink" />
-            134 Memorial Dr, Cambridge
+            {t('pavilion_short_address')}
           </span>
         </div>
       </section>
 
       <section className={sectionClassName} id="pavilion-directions">
-        <SectionHeading title="Visit the Pavilion">
-          <p>
-            The Pavilion is on Memorial Drive in Cambridge. Mashnee and
-            Bluewater events use Boston Waterboat Marina near Long Wharf
-            instead.
-          </p>
+        <SectionHeading title={t('visit_title')}>
+          <p>{t('visit_intro')}</p>
         </SectionHeading>
         <div className="grid gap-5 lg:grid-cols-2">
           <section className="rounded-lg border border-mit-line bg-background p-5">
@@ -168,7 +180,7 @@ export function ContactPageView(props: ContactPageViewProps) {
             <DirectionList
               items={pavilionDirections.steps}
               ordered
-              title="Getting there"
+              title={t('directions_getting_there')}
             />
             <div className="mt-5">
               <MapLink href={pavilionDirections.mapsUrl}>
@@ -181,7 +193,7 @@ export function ContactPageView(props: ContactPageViewProps) {
             id="mashnee-directions"
           >
             <p className="mb-3 text-xs font-bold tracking-widest text-primary-ink uppercase">
-              Bluewater location
+              {t('bluewater_location')}
             </p>
             <h3 className="mb-3 text-base font-semibold text-mit-text">
               {mashneeDirections.title}
@@ -216,20 +228,24 @@ export function ContactPageView(props: ContactPageViewProps) {
       </section>
 
       <section className={sectionClassName}>
-        <SectionHeading title="Addresses">
-          <p>
-            Use the street address for visits and maps, the shipping address for
-            deliveries, and the legal address for formal MIT records.
-          </p>
+        <SectionHeading title={t('addresses_title')}>
+          <p>{t('addresses_intro')}</p>
         </SectionHeading>
         <div className="grid gap-5 rounded-lg border border-mit-line bg-background p-5 md:grid-cols-3">
-          <AddressSummary address={pavilionStreetAddress} />
-          <AddressSummary address={pavilionShippingAddress} />
-          <AddressSummary address={pavilionLegalAddress} />
+          <AddressSummary
+            address={pavilionStreetAddress}
+            title={t('street_address_title')}
+          />
+          <AddressSummary
+            address={pavilionShippingAddress}
+            title={t('shipping_address_title')}
+          />
+          <AddressSummary
+            address={pavilionLegalAddress}
+            title={t('legal_address_title')}
+          />
         </div>
-        <p className={`mt-4 ${helperClassName}`}>
-          Do not send mail or packages to the Memorial Drive street address.
-        </p>
+        <p className={`mt-4 ${helperClassName}`}>{t('addresses_warning')}</p>
       </section>
     </div>
   );

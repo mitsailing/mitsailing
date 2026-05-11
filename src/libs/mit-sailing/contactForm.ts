@@ -1,6 +1,24 @@
 import * as z from 'zod';
 
+/** IANA zone used for the contact form “current year” honeypot (matches the public contact page). */
+const CONTACT_FORM_CALENDAR_TIME_ZONE = 'America/New_York';
+
 const sailingContactEmail = 'sailing@mit.edu';
+
+/**
+ * Gregorian calendar year for an instant in `America/New_York` (contact honeypot zone).
+ *
+ * @param now - Instant to evaluate (typically `new Date()`)
+ * @returns Calendar year in the contact form timezone.
+ */
+export function calendarYearInContactFormTimeZone(now: Date): number {
+  return Number(
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: CONTACT_FORM_CALENDAR_TIME_ZONE,
+      year: 'numeric',
+    }).format(now)
+  );
+}
 
 export const contactTopics = [
   'General questions',
@@ -25,12 +43,20 @@ export type ContactSubmission = {
   currentYear: string;
 };
 
+export type ContactEmailPayload = {
+  to: string;
+  replyTo: string;
+  subject: string;
+  html: string;
+  text: string;
+};
+
 type ContactSubmissionResult =
   | { success: true; data: ContactSubmission }
   | { success: false };
 
 function contactFormSchema(now: Date) {
-  const currentYear = String(now.getFullYear());
+  const currentYear = String(calendarYearInContactFormTimeZone(now));
   return z.object({
     topic: z.enum(contactTopics),
     name: z.string().trim().min(1),
@@ -73,7 +99,7 @@ function htmlParagraph(label: string, value: string): string {
  * Parses the public contact form into normalized fields.
  *
  * @param formData - Submitted contact form data
- * @param now - Server clock used for the anti-spam year check
+ * @param now - Server clock used for the anti-spam year check (same calendar zone as the contact page)
  * @returns Success with normalized values or failure
  */
 export function parseContactSubmission(
@@ -110,7 +136,9 @@ export function recipientForContactTopic(topic: ContactTopic): string {
  * @param submission - Validated contact form fields
  * @returns Email payload for the transactional email gateway
  */
-export function buildContactEmail(submission: ContactSubmission) {
+export function buildContactEmail(
+  submission: ContactSubmission
+): ContactEmailPayload {
   const subjectText = sanitizeEmailHeader(submission.subject);
   const subject = `[MIT Sailing Contact] ${submission.topic}: ${subjectText}`;
   const text = [

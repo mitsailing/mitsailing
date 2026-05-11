@@ -5,12 +5,7 @@ import { ContactFormDialog } from '@/components/mit-sailing/contact/ContactFormD
 
 function renderDialog() {
   return render(
-    <ContactFormDialog
-      currentYear={2026}
-      formAction={vi.fn(async () => {
-        await Promise.resolve();
-      })}
-    />
+    <ContactFormDialog currentYear={2026} formAction={vi.fn(async () => {})} />
   );
 }
 

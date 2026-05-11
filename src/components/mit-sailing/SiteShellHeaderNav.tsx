@@ -40,7 +40,7 @@ export async function SiteShellHeaderNav(props: SiteShellHeaderNavProps) {
   const headerMenuItems: SiteHeaderMenuItem[] = headerMenu.map((item) => ({
     id: item.id,
     label: item.label,
-    href: item.href,
+    href: safeCmsHref(item.href) ?? undefined,
     isExternal: item.isExternal,
     systemKey: item.systemKey,
     items:
@@ -52,18 +52,19 @@ export async function SiteShellHeaderNav(props: SiteShellHeaderNavProps) {
         : undefined,
   }));
   const mobileUtilityItems: SiteHeaderMobileUtilityItem[] =
-    mobileUtilityMenu.flatMap((item) =>
-      item.href
+    mobileUtilityMenu.flatMap((item) => {
+      const href = safeCmsHref(item.href);
+      return href
         ? [
             {
               id: item.id,
               label: item.label,
-              href: item.href,
+              href,
               isExternal: item.isExternal,
             },
           ]
-        : []
-    );
+        : [];
+    });
 
   return (
     <SiteHeader

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { calendarYearInContactFormTimeZone } from '@/libs/mit-sailing/contactForm';
 
 const sendTransactionalEmailMock = vi.hoisted(() => vi.fn());
 const redirectMock = vi.hoisted(() =>
@@ -22,13 +23,16 @@ function validContactFormData(): FormData {
   formData.set('email', 'grace@mit.edu');
   formData.set('subject', 'Pavilion event');
   formData.set('message', 'Could we reserve the Pavilion next month?');
-  formData.set('currentYear', String(new Date().getFullYear()));
+  formData.set(
+    'currentYear',
+    String(calendarYearInContactFormTimeZone(new Date()))
+  );
   return formData;
 }
 
 describe('submitContactFormAction', () => {
   beforeEach(() => {
-    sendTransactionalEmailMock.mockReset();
+    sendTransactionalEmailMock.mockClear();
     redirectMock.mockClear();
   });
 
@@ -53,12 +57,24 @@ describe('submitContactFormAction', () => {
     const { submitContactFormAction } =
       await import('@/libs/mit-sailing/contactActions');
     const formData = validContactFormData();
-    formData.set('currentYear', '2025');
+    formData.set('currentYear', '1900');
 
     await expect(submitContactFormAction('en', formData)).rejects.toThrow(
       'NEXT_REDIRECT:/contact?status=invalid#contact-form'
     );
 
     expect(sendTransactionalEmailMock).not.toHaveBeenCalled();
+  });
+
+  it('redirects with error when contact email sending fails', async () => {
+    sendTransactionalEmailMock.mockRejectedValueOnce(new Error('mail down'));
+    const { submitContactFormAction } =
+      await import('@/libs/mit-sailing/contactActions');
+
+    await expect(
+      submitContactFormAction('en', validContactFormData())
+    ).rejects.toThrow('NEXT_REDIRECT:/contact?status=error#contact-form');
+
+    expect(sendTransactionalEmailMock).toHaveBeenCalledTimes(1);
   });
 });

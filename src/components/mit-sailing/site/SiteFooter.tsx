@@ -74,7 +74,10 @@ export async function SiteFooter() {
   return (
     <footer className="mt-auto bg-mit-footer py-16 text-white">
       <div className="mx-auto max-w-7xl px-6">
-        <FooterSocialStrip groups={socialGroups} />
+        <FooterSocialStrip
+          groups={socialGroups}
+          socialLinksLabel={t('footer_social_links_suffix')}
+        />
 
         <div className="mb-16 grid grid-cols-1 gap-12 md:grid-cols-2 lg:grid-cols-5">
           <div className="lg:col-span-2">
@@ -102,19 +105,27 @@ export async function SiteFooter() {
                 {col.label}
               </h4>
               <ul className="space-y-4">
-                {col.children.map((link) =>
-                  link.href ? (
+                {col.children.map((link) => {
+                  if (!link.href) {
+                    return null;
+                  }
+                  const href = safeCmsHref(link.href);
+                  if (!href) {
+                    return null;
+                  }
+
+                  return (
                     <li key={link.id}>
                       <FooterMaybeInternalLink
                         className={`${footerLinkClassName} ${footerNavLinkClassName} no-underline`}
-                        href={link.href}
+                        href={href}
                         isExternal={link.isExternal}
                       >
                         {link.label}
                       </FooterMaybeInternalLink>
                     </li>
-                  ) : null
-                )}
+                  );
+                })}
               </ul>
             </div>
           ))}

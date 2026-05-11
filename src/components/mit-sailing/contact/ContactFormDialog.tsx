@@ -16,44 +16,36 @@ import type { ContactTopic } from '@/libs/mit-sailing/contactForm';
 type ContactFormDialogProps = {
   currentYear: number;
   formAction: (formData: FormData) => Promise<void>;
-  status?: 'invalid' | 'sent';
+  status?: 'error' | 'invalid' | 'sent';
 };
 
 type ContactCard = {
   topic: ContactTopic;
+  translationKey: 'general' | 'reserve' | 'visit';
+  icon: typeof HelpCircle;
+};
+
+type ContactCardContent = {
   title: string;
   description: string;
-  examples: readonly string[];
+  examples: string[];
   buttonLabel: string;
-  icon: typeof HelpCircle;
 };
 
 const contactCards: readonly ContactCard[] = [
   {
     topic: 'General questions',
-    title: 'General questions',
-    description:
-      'Classes, ratings, fleet access, membership, volunteering, and day-to-day Pavilion operations.',
-    examples: ['Learning to sail', 'Membership help', 'Volunteer questions'],
-    buttonLabel: 'Contact about general questions',
+    translationKey: 'general',
     icon: HelpCircle,
   },
   {
     topic: 'Visit the Pavilion',
-    title: 'Visit the Pavilion',
-    description:
-      'Find the right waterfront location, confirm where to go, and avoid mixing up Pavilion and Mashnee events.',
-    examples: ['Pavilion directions', 'Mashnee location', 'Visitor logistics'],
-    buttonLabel: 'Contact about a visit',
+    translationKey: 'visit',
     icon: MapPinned,
   },
   {
     topic: 'Reserve Pavilion',
-    title: 'Reserve Pavilion',
-    description:
-      'Ask about facility reservations, hosted events, partnerships, and waterfront gathering options.',
-    examples: ['Private events', 'MIT department events', 'Facility requests'],
-    buttonLabel: 'Contact about reservations',
+    translationKey: 'reserve',
     icon: CalendarDays,
   },
 ] as const;
@@ -62,18 +54,88 @@ const labelClassName = 'text-mit-text';
 const helperClassName = 'text-sm leading-relaxed text-muted-foreground';
 const fieldClassName = 'space-y-2';
 
+function contactTopicLabel(
+  t: ReturnType<typeof useTranslations<'MitSailingContact'>>,
+  topic: ContactTopic
+): string {
+  if (topic === 'Visit the Pavilion') {
+    return t('topic_visit');
+  }
+  if (topic === 'Reserve Pavilion') {
+    return t('topic_reserve');
+  }
+  return t('topic_general');
+}
+
+function contactCardContent(
+  t: ReturnType<typeof useTranslations<'MitSailingContact'>>,
+  key: ContactCard['translationKey']
+): ContactCardContent {
+  if (key === 'visit') {
+    return {
+      buttonLabel: t('card_visit_button'),
+      description: t('card_visit_description'),
+      examples: [
+        t('card_visit_example_0'),
+        t('card_visit_example_1'),
+        t('card_visit_example_2'),
+      ],
+      title: t('card_visit_title'),
+    };
+  }
+  if (key === 'reserve') {
+    return {
+      buttonLabel: t('card_reserve_button'),
+      description: t('card_reserve_description'),
+      examples: [
+        t('card_reserve_example_0'),
+        t('card_reserve_example_1'),
+        t('card_reserve_example_2'),
+      ],
+      title: t('card_reserve_title'),
+    };
+  }
+  return {
+    buttonLabel: t('card_general_button'),
+    description: t('card_general_description'),
+    examples: [
+      t('card_general_example_0'),
+      t('card_general_example_1'),
+      t('card_general_example_2'),
+    ],
+    title: t('card_general_title'),
+  };
+}
+
 function StatusMessage(props: { status?: ContactFormDialogProps['status'] }) {
+  const t = useTranslations('MitSailingContact');
   if (props.status === 'sent') {
     return (
-      <p className="rounded-lg border border-green-700/20 bg-green-50 px-4 py-3 text-sm font-medium text-green-950">
-        Thanks. Your message has been sent to MIT Sailing.
+      <p
+        className="rounded-lg border border-green-700/20 bg-green-50 px-4 py-3 text-sm font-medium text-green-950"
+        role="status"
+      >
+        {t('status_sent')}
       </p>
     );
   }
   if (props.status === 'invalid') {
     return (
-      <p className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm font-medium text-red-950">
-        Check the required fields and enter the current calendar year.
+      <p
+        className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm font-medium text-red-950"
+        role="alert"
+      >
+        {t('status_invalid')}
+      </p>
+    );
+  }
+  if (props.status === 'error') {
+    return (
+      <p
+        className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm font-medium text-red-950"
+        role="alert"
+      >
+        {t('status_error')}
       </p>
     );
   }
@@ -84,20 +146,23 @@ function ContactCardButton(props: {
   card: ContactCard;
   onSelect: (topic: ContactTopic) => void;
 }) {
+  const t = useTranslations('MitSailingContact');
   const Icon = props.card.icon;
+  const key = props.card.translationKey;
+  const content = contactCardContent(t, key);
   return (
     <section className="flex min-h-80 flex-col rounded-lg border border-mit-line bg-background p-5 shadow-sm">
       <div className="mb-5 flex size-11 items-center justify-center rounded-lg bg-mit-red-highlight text-primary-ink">
         <Icon aria-hidden className="size-5" />
       </div>
       <h3 className="mb-3 font-mit-serif text-xl font-semibold text-mit-text">
-        {props.card.title}
+        {content.title}
       </h3>
       <p className="text-sm leading-relaxed text-mit-text">
-        {props.card.description}
+        {content.description}
       </p>
       <ul className="mt-5 space-y-2 text-sm leading-relaxed text-muted-foreground">
-        {props.card.examples.map((example) => (
+        {content.examples.map((example) => (
           <li className="flex gap-2" key={example}>
             <span
               aria-hidden
@@ -116,7 +181,7 @@ function ContactCardButton(props: {
         variant="mit"
       >
         <Send aria-hidden className="size-4" />
-        {props.card.buttonLabel}
+        {content.buttonLabel}
       </Button>
     </section>
   );
@@ -129,6 +194,7 @@ function ContactForm(
   }
 ) {
   const tCommon = useTranslations('Common');
+  const t = useTranslations('MitSailingContact');
 
   return (
     <form
@@ -140,7 +206,7 @@ function ContactForm(
       <StatusMessage status={props.status} />
       <div className={fieldClassName}>
         <Label className={labelClassName} htmlFor="topic">
-          Topic
+          {t('field_topic')}
         </Label>
         <select
           className={adminNativeSelectClassName}
@@ -152,7 +218,7 @@ function ContactForm(
         >
           {contactTopics.map((topic) => (
             <option key={topic} value={topic}>
-              {topic}
+              {contactTopicLabel(t, topic)}
             </option>
           ))}
         </select>
@@ -160,13 +226,13 @@ function ContactForm(
       <div className="grid gap-5 md:grid-cols-2">
         <div className={fieldClassName}>
           <Label className={labelClassName} htmlFor="name">
-            Your name
+            {t('field_name')}
           </Label>
           <Input autoComplete="name" id="name" name="name" required />
         </div>
         <div className={fieldClassName}>
           <Label className={labelClassName} htmlFor="email">
-            Your email
+            {t('field_email')}
           </Label>
           <Input
             autoComplete="email"
@@ -175,24 +241,24 @@ function ContactForm(
             required
             type="email"
           />
-          <p className={helperClassName}>Required if you want a response.</p>
+          <p className={helperClassName}>{t('field_email_help')}</p>
         </div>
       </div>
       <div className={fieldClassName}>
         <Label className={labelClassName} htmlFor="subject">
-          Subject
+          {t('field_subject')}
         </Label>
         <Input id="subject" name="subject" required />
       </div>
       <div className={fieldClassName}>
         <Label className={labelClassName} htmlFor="message">
-          Message
+          {t('field_message')}
         </Label>
         <Textarea className="min-h-32" id="message" name="message" required />
       </div>
       <div className={fieldClassName}>
         <Label className={labelClassName} htmlFor="currentYear">
-          Current year
+          {t('field_current_year')}
         </Label>
         <Input
           className="max-w-40"
@@ -202,9 +268,7 @@ function ContactForm(
           pattern={`^${props.currentYear}$`}
           required
         />
-        <p className={helperClassName}>
-          Enter the current calendar year to prove you are not a robot spammer.
-        </p>
+        <p className={helperClassName}>{t('field_current_year_help')}</p>
       </div>
       <SubmitButton
         className="h-10 px-4"
@@ -212,7 +276,7 @@ function ContactForm(
         variant="mit"
       >
         <Send aria-hidden className="size-4" />
-        Send message
+        {t('send_message')}
       </SubmitButton>
     </form>
   );
@@ -225,6 +289,7 @@ function ContactForm(
  * @returns Three action cards plus modal form
  */
 export function ContactFormDialog(props: ContactFormDialogProps) {
+  const t = useTranslations('MitSailingContact');
   const titleId = useId();
   const firstFieldRef = useRef<HTMLSelectElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
@@ -282,17 +347,17 @@ export function ContactFormDialog(props: ContactFormDialogProps) {
             <div className="flex items-start justify-between gap-4 border-b border-mit-line px-5 py-4">
               <div>
                 <p className="mb-1 text-xs font-bold tracking-widest text-primary-ink uppercase">
-                  Contact MIT Sailing
+                  {t('dialog_eyebrow')}
                 </p>
                 <h2
                   className="font-mit-serif text-2xl font-semibold text-mit-text"
                   id={titleId}
                 >
-                  {selectedTopic}
+                  {contactTopicLabel(t, selectedTopic)}
                 </h2>
               </div>
               <Button
-                aria-label="Close contact form"
+                aria-label={t('close_contact_form')}
                 onClick={closeForm}
                 size="icon"
                 type="button"

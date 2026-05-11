@@ -15,6 +15,15 @@ type ClassDetailViewProps = {
   occurrenceBlocks: ClassRelatedEventBlock[];
 };
 
+function keyedImagePaths(paths: readonly string[]) {
+  const seen = new Map<string, number>();
+  return paths.map((src) => {
+    const count = seen.get(src) ?? 0;
+    seen.set(src, count + 1);
+    return { key: `${src}-${count}`, src };
+  });
+}
+
 /**
  * @param props - Class detail (mit-redesign ClassDetailPage parity)
  * @returns Single class marketing page
@@ -65,18 +74,18 @@ export async function ClassDetailView(props: ClassDetailViewProps) {
 
       {moreImages.length > 0 ? (
         <ul className="m-0 mb-10 grid list-none grid-cols-2 gap-3 p-0">
-          {moreImages.map((src) => (
+          {keyedImagePaths(moreImages).map((image) => (
             <li
               className="relative aspect-[4/3] overflow-hidden rounded-lg bg-mit-line"
-              key={src}
+              key={image.key}
             >
               <Image
                 alt={t('additional_image_alt', { name: cl.name })}
                 className="object-cover"
                 fill
                 sizes="(max-width: 768px) 50vw, 320px"
-                src={src}
-                unoptimized={src.startsWith('/')}
+                src={image.src}
+                unoptimized={image.src.startsWith('/')}
               />
             </li>
           ))}
