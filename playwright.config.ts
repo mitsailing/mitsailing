@@ -16,6 +16,8 @@ process.env.DATABASE_URL = e2eDatabaseUrl;
 const isCi = !!process.env.CI;
 /** Second browser project; off unless explicitly enabled (local or CI). */
 const includeFirefox = process.env.PLAYWRIGHT_INCLUDE_FIREFOX === '1';
+/** Safari-engine smoke coverage; off unless explicitly enabled (local or CI). */
+const includeWebkit = process.env.PLAYWRIGHT_INCLUDE_WEBKIT === '1';
 
 // Fast (default): short limits but enough headroom for cold standalone
 // `server.js` and cal-style high parallelism. Set PLAYWRIGHT_SLOW=1 for 120s nav/expect/action.
@@ -106,8 +108,10 @@ export default defineConfig<ChromaticConfig>({
     navigationTimeout: defaultNavigationTimeout,
     actionTimeout: defaultActionTimeout,
   },
-  // E2E defaults to Chromium only in local and CI runs; Firefox is fully opt-in.
+  // E2E defaults to Chromium only in local and CI runs; extra browsers are opt-in.
   // Set PLAYWRIGHT_INCLUDE_FIREFOX=1 (local or CI) to add the `firefox` project.
+  // Set PLAYWRIGHT_INCLUDE_WEBKIT=1 to run Safari-engine coverage for the
+  // registration switch regression only, keeping the default suite fast.
   // `*.a11y.e2e.ts` is a separate project: axe scans many URLs × themes (slower than smoke e2e).
   projects: [
     {
@@ -121,6 +125,15 @@ export default defineConfig<ChromaticConfig>({
             name: 'firefox',
             testIgnore: '**/*.a11y.e2e.ts',
             use: { ...devices['Desktop Firefox'] },
+          },
+        ]
+      : []),
+    ...(includeWebkit
+      ? [
+          {
+            name: 'webkit-registration',
+            testMatch: '**/EventRegistrationSwitches.e2e.ts',
+            use: { ...devices['Desktop Safari'] },
           },
         ]
       : []),

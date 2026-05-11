@@ -3,7 +3,6 @@
 import * as React from 'react';
 import { useActionState } from 'react';
 import { RegistrationBooleanSwitch } from '@/components/mit-sailing/events/RegistrationBooleanSwitch';
-import { Label } from '@/components/ui/label';
 import { SubmitButton } from '@/components/ui/submit-button';
 import { Textarea } from '@/components/ui/textarea';
 import type { PublicEventDetail } from '@/libs/mit-sailing/eventQueries';
@@ -214,14 +213,14 @@ function QuestionField(props: {
               id={switchId}
               name={name}
             />
-            <Label
+            <label
               className="min-w-0 flex-1 cursor-pointer leading-relaxed font-normal text-mit-text"
               htmlFor={switchId}
             >
               <span className="font-semibold text-mit-text" id={controlId}>
                 {questionLabel}
               </span>
-            </Label>
+            </label>
           </div>
           <FieldError id={errorId} message={errorMessage} />
         </>
@@ -292,13 +291,13 @@ function SwimAgreementField(props: {
           id="event-registration-swim-agreement-switch"
           name="swimAgreementAccepted"
         />
-        <Label
-          className="min-w-0 flex-1 cursor-pointer items-start leading-relaxed font-normal text-mit-text"
+        <label
+          className="min-w-0 flex-1 cursor-pointer leading-relaxed font-normal text-mit-text"
           htmlFor="event-registration-swim-agreement-switch"
           id="event-registration-swim-agreement-copy"
         >
           {props.labels.swimAgreementLabel}
-        </Label>
+        </label>
       </div>
       <FieldError id={errorId} message={errorMessage} />
     </section>

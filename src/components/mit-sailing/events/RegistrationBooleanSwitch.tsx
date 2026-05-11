@@ -22,15 +22,19 @@ export function RegistrationBooleanSwitch(
   props: RegistrationBooleanSwitchProps
 ) {
   return (
-    <span
-      className={cn('relative inline-flex h-7 w-12 shrink-0', props.className)}
+    <label
+      className={cn(
+        'relative inline-flex h-7 w-12 shrink-0 cursor-pointer',
+        props.className
+      )}
+      htmlFor={props.id}
     >
       <input
         aria-describedby={props['aria-describedby']}
         aria-invalid={props['aria-invalid'] ? true : undefined}
         aria-labelledby={props['aria-labelledby']}
         aria-required={props['aria-required'] ? true : undefined}
-        className="peer absolute inset-0 z-20 cursor-pointer opacity-0"
+        className="peer sr-only"
         defaultChecked={props.defaultChecked}
         id={props.id}
         name={props.name}
@@ -44,9 +48,9 @@ export function RegistrationBooleanSwitch(
       />
       <span
         aria-hidden
-        className="pointer-events-none absolute top-1/2 left-0.5 block size-5 -translate-y-1/2 rounded-full border border-black/15 bg-white shadow-md ring-0 transition-transform will-change-transform peer-checked:translate-x-6 dark:border-black/25"
+        className="pointer-events-none absolute top-1 left-0.5 block size-5 rounded-full border border-black/15 bg-white shadow-md ring-0 transition-[left] peer-checked:left-[1.625rem] dark:border-black/25"
       />
       <input name={props.name} type="hidden" value="false" />
-    </span>
+    </label>
   );
 }

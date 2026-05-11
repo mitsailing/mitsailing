@@ -80,6 +80,31 @@ function formValues(formData: FormData): Record<string, string[]> {
 }
 
 describe('EventRegistrationForm', () => {
+  it('toggles swim agreement from the agreement row text', async () => {
+    const user = userEvent.setup();
+    const action = vi.fn();
+
+    render(
+      <EventRegistrationForm
+        createRegistrationAction={action}
+        event={event}
+        formPermalink="/events/learn-to-sail/register"
+        labels={labels}
+        locale="en"
+      />
+    );
+
+    await user.click(
+      screen.getByText('I agree to the Swim Agreement and Liability Release.')
+    );
+
+    expect(
+      screen.getByRole('switch', {
+        name: 'Swim agreementRequired I agree to the Swim Agreement and Liability Release.',
+      })
+    ).toBeChecked();
+  });
+
   it('renders inline swim error and keeps selected answers', async () => {
     const user = userEvent.setup();
     const scrollIntoView = vi.fn();
