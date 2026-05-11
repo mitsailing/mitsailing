@@ -6,7 +6,7 @@ export type NameSlugNavSource = Pick<
 
 /**
  * @param rows - Pre-sorted rows (caller’s query defines order)
- * @param hrefForSlug - Slug-only href builder (`/classes/#…` vs `/fleet/…`)
+ * @param hrefForSlug - Slug-only href builder (`/classes#…` vs `/fleet/…`)
  * @returns `{ label, href }` pairs in the same order as `rows`
  */
 export function mapNameSlugRowsToNavLinks(
@@ -23,10 +23,10 @@ export function mapNameSlugRowsToNavLinks(
  * Classes dropdown: anchored category sections.
  *
  * @param slug - Category slug for the `#` fragment.
- * @returns Path to `/classes/` with slug hash.
+ * @returns Path to `/classes` with slug hash.
  */
 export function hrefClassesCategoryFromSlug(slug: string) {
-  return `/classes/#${slug}`;
+  return `/classes#${encodeURIComponent(slug)}`;
 }
 
 /**
@@ -36,5 +36,5 @@ export function hrefClassesCategoryFromSlug(slug: string) {
  * @returns Canonical fleet detail URL.
  */
 export function hrefFleetBoatFromSlug(slug: string) {
-  return `/fleet/${slug}/`;
+  return `/fleet/${encodeURIComponent(slug)}`;
 }

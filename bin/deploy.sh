@@ -21,6 +21,9 @@ readonly DEPLOY_DIR="${DEPLOY_DIR:-$HOME/apps/mitsailing}"
 # a full flag sequence, e.g. `DEPLOY_COMPOSE_FILES='-f compose.yaml -f compose.prod.yaml'`.
 readonly COMPOSE_FILES="${DEPLOY_COMPOSE_FILES:--f compose.yaml -f compose.prod.yaml}"
 readonly ENV_FILE="${DEPLOY_ENV_FILE:-.env.production}"
+readonly CMS_MEDIA_VOLUME_NAME="mitsailing_cms_media"
+readonly CMS_MEDIA_TARGET="/var/lib/mitsailing/cms-media"
+readonly CMS_MEDIA_RUNTIME_UID_GID="1001:1001"
 
 log() { printf '[deploy %s] %s\n' "$(date -u +'%FT%TZ')" "$*"; }
 fail() { log "ERROR: $*" >&2; exit 1; }
@@ -50,6 +53,39 @@ ensure_prereqs() {
     || fail "compose files missing in $DEPLOY_DIR — re-run the bootstrap from docs/deploy.md"
   [[ -f "$ENV_FILE" ]] \
     || fail "${ENV_FILE} missing in $DEPLOY_DIR — copy .env.production.example and fill it in"
+}
+
+ensure_cms_media_volume() {
+  log "ensuring CMS media volume exists"
+  docker volume inspect "$CMS_MEDIA_VOLUME_NAME" >/dev/null 2>&1 \
+    || docker volume create "$CMS_MEDIA_VOLUME_NAME" >/dev/null
+  log "ensuring CMS media volume is writable by runtime uid:gid $CMS_MEDIA_RUNTIME_UID_GID"
+  docker run \
+    --rm \
+    --user 0:0 \
+    --volume "${CMS_MEDIA_VOLUME_NAME}:${CMS_MEDIA_TARGET}" \
+    "$APP_IMAGE" \
+    sh -c "mkdir -p '${CMS_MEDIA_TARGET}' && chown -R '${CMS_MEDIA_RUNTIME_UID_GID}' '${CMS_MEDIA_TARGET}' && chmod 775 '${CMS_MEDIA_TARGET}'"
+}
+
+verify_cms_media_mount() {
+  local service="$1"
+  local container mount_name
+  log "verifying CMS media mount for $service at $CMS_MEDIA_TARGET"
+  # shellcheck disable=SC2086
+  container=$(docker compose $COMPOSE_FILES --env-file "$ENV_FILE" ps -q "$service")
+  [[ -n "$container" ]] || fail "$service container did not start"
+
+  mount_name=$(docker inspect \
+    --format "{{range .Mounts}}{{if eq .Destination \"${CMS_MEDIA_TARGET}\"}}{{.Name}}{{end}}{{end}}" \
+    "$container")
+  [[ "$mount_name" == "$CMS_MEDIA_VOLUME_NAME" ]] \
+    || fail "$service CMS media mount must use $CMS_MEDIA_VOLUME_NAME at $CMS_MEDIA_TARGET (actual: ${mount_name:-none})"
+}
+
+verify_cms_media_mounts() {
+  verify_cms_media_mount app
+  verify_cms_media_mount worker
 }
 
 pin_image() {
@@ -96,6 +132,7 @@ run_deploy() {
       --pull always \
       app \
       worker
+  verify_cms_media_mounts
 }
 
 wait_for_app_health() {
@@ -136,6 +173,7 @@ main() {
   cd "$DEPLOY_DIR" || fail "DEPLOY_DIR not found: $DEPLOY_DIR"
   ensure_prereqs
   pin_image "$ref"
+  ensure_cms_media_volume
 
   case "$cmd" in
     migrate)

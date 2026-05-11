@@ -1,43 +1,12 @@
 import { prisma } from '@/libs/DB';
+import { plainTextFromCmsRichTextHtml } from '@/libs/mit-sailing/cmsRichText';
 
 /**
- * Featured fleet rows for the home page (stable slug order).
- *
- * @param orderedSlugs - Slugs in display order
- * @returns Matching boats in the same order
- */
-export async function loadHomeFeaturedFleetBoats(
-  orderedSlugs: readonly string[]
-) {
-  if (orderedSlugs.length === 0) {
-    return [];
-  }
-  const boats = await prisma.fleetBoat.findMany({
-    where: { slug: { in: [...orderedSlugs] } },
-    select: {
-      id: true,
-      name: true,
-      slug: true,
-      type: true,
-      capacity: true,
-      description: true,
-      imagePaths: true,
-      requiredClassId: true,
-      requiredClass: { select: { id: true, name: true, slug: true } },
-    },
-  });
-  const bySlug = new Map(boats.map((b) => [b.slug, b]));
-  return orderedSlugs
-    .map((slug) => bySlug.get(slug))
-    .filter((b): b is NonNullable<typeof b> => b !== undefined);
-}
-
-/**
- * Introduction-category classes for the home page grid.
+ * Introduction-category classes for the home Learn to Sail block.
  *
  * @returns Intro sailing classes
  */
-export async function loadHomeIntroductionClasses() {
+export async function loadHomeLearnToSailIntroductionClasses() {
   const rows = await prisma.sailingClass.findMany({
     where: {
       isVisible: true,
@@ -63,7 +32,7 @@ export async function loadHomeIntroductionClasses() {
     name: r.name,
     slug: r.slug,
     level: r.level,
-    description: r.description,
+    description: plainTextFromCmsRichTextHtml(r.description),
     prerequisiteIds:
       r.prerequisiteEdges[0] === undefined
         ? []
@@ -72,12 +41,14 @@ export async function loadHomeIntroductionClasses() {
 }
 
 /**
- * “Next” classes on the home page (stable slug order).
+ * Next classes for the home Learn to Sail block.
  *
  * @param orderedSlugs - Slugs in display order
  * @returns Matching classes in the same order
  */
-export async function loadHomeClassesBySlugs(orderedSlugs: readonly string[]) {
+export async function loadHomeLearnToSailNextClassesBySlugs(
+  orderedSlugs: readonly string[]
+) {
   if (orderedSlugs.length === 0) {
     return [];
   }
@@ -106,7 +77,7 @@ export async function loadHomeClassesBySlugs(orderedSlugs: readonly string[]) {
       name: r.name,
       slug: r.slug,
       level: r.level,
-      description: r.description,
+      description: plainTextFromCmsRichTextHtml(r.description),
       prerequisiteIds:
         r.prerequisiteEdges[0] === undefined
           ? []
@@ -115,12 +86,12 @@ export async function loadHomeClassesBySlugs(orderedSlugs: readonly string[]) {
 }
 
 /**
- * Resolve prerequisite display for home “next” cards (first prerequisite name).
+ * Resolve prerequisite display for home Learn to Sail next cards.
  *
  * @param ids - Sailing class ids
- * @returns Map id → display name
+ * @returns Map id to display name
  */
-export async function loadSailingClassNamesByIds(
+export async function loadHomeLearnToSailPrerequisiteNamesByIds(
   ids: string[]
 ): Promise<Map<string, string>> {
   if (ids.length === 0) {

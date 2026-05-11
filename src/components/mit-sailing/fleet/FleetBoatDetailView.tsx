@@ -1,7 +1,10 @@
 import { ArrowLeft } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import Image from 'next/image';
+import { PublicAdminEditLink } from '@/components/mit-sailing/admin/PublicAdminEditLink';
+import { CmsRichText } from '@/components/mit-sailing/cms/CmsRichText';
 import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
+import { adminCatalogResourceEditPath } from '@/libs/admin/catalog/adminCatalogPaths';
 import { Link } from '@/libs/I18nNavigation';
 import type { FleetBoatDetail } from '@/libs/mit-sailing/fleetQueries';
 
@@ -21,14 +24,19 @@ export async function FleetBoatDetailView(props: FleetBoatDetailViewProps) {
     namespace: 'MitSailingFleet',
   });
 
-  const [primaryImage, ...moreImages] = boat.imagePaths;
   const bodyClass = 'text-base leading-relaxed text-mit-text';
+  const isLocalImagePath =
+    boat.imagePath?.startsWith('/') === true &&
+    !boat.imagePath.startsWith('//');
 
   return (
     <>
+      <PublicAdminEditLink
+        href={adminCatalogResourceEditPath('fleet', boat.id)}
+      />
       <Link
         className={`mb-8 inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-mit-red-ink no-underline hover:underline ${textFocusRingClassName}`}
-        href="/fleet/"
+        href="/fleet"
       >
         <ArrowLeft aria-hidden size={16} />
         {t('back_to_fleet')}
@@ -46,46 +54,26 @@ export async function FleetBoatDetailView(props: FleetBoatDetailViewProps) {
         </h2>
         <Link
           className={`inline-flex font-semibold text-mit-red-ink hover:underline ${textFocusRingClassName}`}
-          href={`/classes/${boat.requiredClass.slug}/`}
+          href={`/classes/${encodeURIComponent(boat.requiredClass.slug)}`}
         >
           {boat.requiredClass.name}
         </Link>
       </section>
 
-      {primaryImage ? (
+      {boat.imagePath ? (
         <div className="relative mb-6 aspect-[16/10] max-h-[420px] overflow-hidden rounded-xl bg-mit-line">
           <Image
             alt={boat.name}
             className="object-cover"
             fill
             sizes="(max-width: 768px) 100vw, 1024px"
-            src={primaryImage}
-            unoptimized={primaryImage.startsWith('/')}
+            src={boat.imagePath}
+            unoptimized={isLocalImagePath}
           />
         </div>
       ) : null}
 
-      {moreImages.length > 0 ? (
-        <ul className="m-0 mb-10 grid list-none grid-cols-2 gap-3 p-0">
-          {moreImages.map((src) => (
-            <li
-              className="relative aspect-[4/3] overflow-hidden rounded-lg bg-mit-line"
-              key={src}
-            >
-              <Image
-                alt={`${boat.name} additional`}
-                className="object-cover"
-                fill
-                sizes="(max-width: 768px) 50vw, 320px"
-                src={src}
-                unoptimized={src.startsWith('/')}
-              />
-            </li>
-          ))}
-        </ul>
-      ) : null}
-
-      <p className={bodyClass}>{boat.description}</p>
+      <CmsRichText className={bodyClass} html={boat.description} />
     </>
   );
 }

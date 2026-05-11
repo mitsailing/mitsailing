@@ -1,6 +1,7 @@
 import { cache } from 'react';
 import { prisma } from '@/libs/DB';
 import { cacheDbListOrEmpty } from '@/libs/mit-sailing/cacheDbListOrEmpty';
+import { plainTextFromCmsRichTextHtml } from '@/libs/mit-sailing/cmsRichText';
 import {
   hrefFleetBoatFromSlug,
   mapNameSlugRowsToNavLinks,
@@ -14,6 +15,7 @@ export type FleetBoatListRow = {
   type: string;
   capacity: number;
   description: string;
+  imagePath: string | null;
   requiredClass: { name: string; slug: string };
 };
 
@@ -29,9 +31,8 @@ export function mapFleetBoatsToNavDropdownItems(
   return mapNameSlugRowsToNavLinks(boats, hrefFleetBoatFromSlug);
 }
 
-// eslint-disable-next-line @typescript-eslint/promise-function-async -- thin Prisma wrapper
-const loadFleetBoatsForPublicUnchecked = (): Promise<FleetBoatListRow[]> =>
-  prisma.fleetBoat.findMany({
+async function loadFleetBoatsForPublicUnchecked(): Promise<FleetBoatListRow[]> {
+  const rows = await prisma.fleetBoat.findMany({
     orderBy: prismaOrderByDisplayOrderAscNameAsc,
     select: {
       id: true,
@@ -40,9 +41,15 @@ const loadFleetBoatsForPublicUnchecked = (): Promise<FleetBoatListRow[]> =>
       type: true,
       capacity: true,
       description: true,
+      imagePath: true,
       requiredClass: { select: { name: true, slug: true } },
     },
   });
+  return rows.map((row) => ({
+    ...row,
+    description: plainTextFromCmsRichTextHtml(row.description),
+  }));
+}
 
 /**
  * All fleet boats for public list (single query). Request-cached; returns an
@@ -63,7 +70,7 @@ export type FleetBoatDetail = {
   type: string;
   capacity: number;
   description: string;
-  imagePaths: string[];
+  imagePath: string | null;
   requiredClass: { id: string; name: string; slug: string };
 };
 
@@ -79,7 +86,7 @@ export const getFleetBoatForPublicBySlug = cache(
         type: true,
         capacity: true,
         description: true,
-        imagePaths: true,
+        imagePath: true,
         requiredClass: { select: { id: true, name: true, slug: true } },
       },
     });

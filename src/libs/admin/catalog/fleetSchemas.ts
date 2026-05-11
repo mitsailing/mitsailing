@@ -1,4 +1,10 @@
 import * as z from 'zod';
+import type { AdminCatalogResourceMessageKey } from '@/libs/admin/catalog/types';
+import { isSafeCmsAppPath } from '@/libs/mit-sailing/cmsHref';
+
+const fleetBoatValidationMessages = {
+  imagePath: 'field_error_fleet_image_path_safe_path',
+} satisfies Record<string, AdminCatalogResourceMessageKey>;
 
 const slugSchema = z
   .string()
@@ -16,12 +22,16 @@ export const fleetBoatFormSchema = z.object({
   capacity: z.coerce.number().int().min(1),
   requiredClassId: z.string().trim().min(1),
   description: z.string(),
-  imagePaths: z.string().transform((raw) =>
-    raw
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0)
-  ),
+  imagePath: z
+    .string()
+    .transform((raw) => {
+      const trimmed = raw.trim();
+      return trimmed.length > 0 ? trimmed : null;
+    })
+    .refine(
+      (value) => value === null || isSafeCmsAppPath(value),
+      fleetBoatValidationMessages.imagePath
+    ),
 });
 
 /**
@@ -40,6 +50,6 @@ export function rawFleetBoatFromFormData(
     capacity: formData.get('capacity'),
     requiredClassId: formData.get('requiredClassId'),
     description: formData.get('description') ?? '',
-    imagePaths: formData.get('imagePaths') ?? '',
+    imagePath: formData.get('imagePath') ?? '',
   };
 }

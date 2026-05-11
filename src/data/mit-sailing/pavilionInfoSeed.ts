@@ -75,13 +75,50 @@ export const pavilionLegalAddress: PavilionAddressBlock = {
   ),
 };
 
+export const pavilionDirections = {
+  title: 'Directions to the MIT Sailing Pavilion',
+  summary:
+    'The Walter C. Wood Sailing Pavilion is MIT Building 51 on Memorial Drive, across from Walker Memorial. Parking on Memorial Drive is limited, so transit to Kendall/MIT is usually the simplest option.',
+  steps: [
+    'Use the street address for walking, transit, rideshare, or map directions to the Pavilion.',
+    'From Kendall/MIT, walk south through campus toward Walker Memorial, then cross Memorial Drive to the river side.',
+    'If you drive, plan extra time for Cambridge parking and construction changes near Memorial Drive.',
+  ],
+  ctaLabel: 'Open Pavilion map',
+  mapsUrl: pavilionStreetAddress.mapsUrl,
+} as const;
+
 /** Mashnee — MIT Bluewater Sailing events (separate location from the Charles River pavilion). */
 export const mashneeBluewaterLocation = {
   title: 'Mashnee — Bluewater sailing events',
   summary:
     'Mashnee is berthed at Boston Waterboat Marina near Long Wharf. Bluewater sailing events meet there, not at the Walter C. Wood Sailing Pavilion on the Charles River.',
-  lines: ['Boston Waterboat Marina', 'Long Wharf area', 'Boston, MA'] as const,
-  mapsUrl: mapsSearchUrl('Boston Waterboat Marina, Long Wharf, Boston, MA'),
+  lines: [
+    'Boston Waterboat Marina',
+    '66 Long Wharf',
+    'Boston, MA 02110',
+  ] as const,
+  mapsUrl: mapsSearchUrl('66 Long Wharf, Boston, MA 02110'),
 } as const;
 
-export const mashneeDirectionsPath = '/contact/mashnee-directions' as const;
+export const mashneeDirections = {
+  title: 'Directions to Mashnee',
+  warning:
+    'Mashnee is kept at Boston Waterboat Marina near Long Wharf. Bluewater/Mashnee events do not meet at the MIT Sailing Pavilion on Memorial Drive.',
+  walkingTitle: 'Walking from the MBTA',
+  walkingSteps: [
+    'Take the Blue Line to Aquarium, the closest MBTA station to Boston Waterboat Marina.',
+    'Head toward Long Wharf, just north of the New England Aquarium.',
+    'Look for the long red-brick Marriott building, continue past the Chart House, then turn left into the parking area behind it.',
+    'The Boston Waterboat Marina entrance is on the right, marked by a fence near the marina gate.',
+  ],
+  parkingTitle: 'Parking near Long Wharf',
+  parkingNotes: [
+    'Most nearby meters run into the evening on weekdays and Saturdays. Read posted signs carefully.',
+    'Street parking is sometimes available in the Financial District around High Street, India Street, and Broad Street, especially evenings and weekends.',
+    'Nearby garages and lots change rates frequently. One International Place and Seaport/Northern Avenue lots are common backups, but check current pricing before you leave your car.',
+    'Weekend and overnight trips can trigger different parking rules, so confirm the lot allows the full time you need.',
+  ],
+  ctaLabel: 'Open Waterboat Marina map',
+  mapsUrl: mashneeBluewaterLocation.mapsUrl,
+} as const;

@@ -1,6 +1,12 @@
 import 'server-only';
 import type { CatalogResourceId } from '@/libs/admin/catalog/catalogDefinitions';
 import { classCategoriesCatalogHandlers } from '@/libs/admin/catalog/classCategoriesHandlers';
+import {
+  cmsMenuItemsCatalogHandlers,
+  cmsMenusCatalogHandlers,
+  cmsPageBlocksCatalogHandlers,
+  cmsPagesCatalogHandlers,
+} from '@/libs/admin/catalog/cmsCatalogHandlers';
 import { donationFundsCatalogHandlers } from '@/libs/admin/catalog/donationFundsHandlers';
 import { eventCategoriesCatalogHandlers } from '@/libs/admin/catalog/eventCategoriesHandlers';
 import { fleetCatalogHandlers } from '@/libs/admin/catalog/fleetCatalogHandlers';
@@ -19,6 +25,10 @@ const catalogServerHandlers: Record<CatalogResourceId, CatalogServerHandlers> =
     sailing_classes: sailingClassesCatalogHandlers,
     fleet: fleetCatalogHandlers,
     site_alerts: siteAlertsCatalogHandlers,
+    cms_pages: cmsPagesCatalogHandlers,
+    cms_page_blocks: cmsPageBlocksCatalogHandlers,
+    cms_menus: cmsMenusCatalogHandlers,
+    cms_menu_items: cmsMenuItemsCatalogHandlers,
   };
 
 /**

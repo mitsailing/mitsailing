@@ -124,7 +124,65 @@ fully unattended image builds.
 **Cloudflare public hostname:** point your apex (e.g. `mitsailing.com`) to
 `http://app:3000` on the tunnel. Production compose does **not** expose Mailpit.
 
-### 4. GHCR pull authentication
+### 4. Create the production CMS media volume
+
+Production uploads live in the external Docker volume
+`mitsailing_cms_media`, mounted inside both `app` and `worker` at
+`/var/lib/mitsailing/cms-media`. The deploy script creates the volume if it is
+missing, but creating it explicitly during bootstrap makes the persistence
+contract visible before the first deploy:
+
+```bash
+docker volume inspect mitsailing_cms_media >/dev/null 2>&1 || docker volume create mitsailing_cms_media
+```
+
+Back up uploaded media by archiving the volume contents from a temporary
+container:
+
+```bash
+backup_file="mitsailing-cms-media-backup-$(date -u +%Y%m%dT%H%M%SZ).tgz"
+docker run --rm \
+  -v mitsailing_cms_media:/media:ro \
+  -v "$PWD":/backup \
+  alpine tar czf "/backup/${backup_file}" -C /media .
+```
+
+Restore into the same external volume before starting app containers:
+
+```bash
+backup_file="$(ls -t mitsailing-cms-media-backup-*.tgz | head -n 1)"
+if [ -z "$backup_file" ] || [ ! -f "$backup_file" ]; then
+  echo "No backup file found matching mitsailing-cms-media-backup-*.tgz" >&2
+  exit 1
+fi
+docker run --rm \
+  -v mitsailing_cms_media:/media \
+  -v "$PWD":/backup \
+  -e BACKUP_FILE="$backup_file" \
+  alpine sh -c 'cd /media && tar xzf "/backup/${BACKUP_FILE}"'
+```
+
+That restore **overlays** the tarball onto whatever is already in the volume:
+paths in the archive replace same-path objects, but files that exist only under
+`/media` and not in the backup are **not** removed, so stale assets can remain.
+Use overlay restores when you intentionally merge or patch content.
+
+For a **point-in-time** restore that matches the backup only (no leftover
+paths), stop the app and worker, then clear `/media` before extraction—for
+example:
+
+```bash
+docker run --rm \
+  -v mitsailing_cms_media:/media \
+  -v "$PWD":/backup \
+  -e BACKUP_FILE="$backup_file" \
+  alpine sh -c 'find /media -mindepth 1 -delete && tar xzf "/backup/${BACKUP_FILE}" -C /media'
+```
+
+Do **not** use `docker compose down -v` on the production stack unless you have
+a current, verified media backup and intend to delete all uploaded CMS media.
+
+### 5. GHCR pull authentication
 
 ```bash
 # PAT needs read:packages for private images; public images may pull anonymously.
@@ -134,7 +192,7 @@ EOF
 docker login ghcr.io --username YOUR_GITHUB_USERNAME --password-stdin < ~/.ghcr-token
 ```
 
-### 5. Lock down the deploy SSH key
+### 6. Lock down the deploy SSH key
 
 Generate a **dedicated** key pair for GitHub Actions (not your personal key):
 
@@ -157,7 +215,7 @@ If `deploy.sh` lives elsewhere, change the path before `$SSH_ORIGINAL_COMMAND`.
 Keep your **personal** SSH key in `authorized_keys` **without** `command=` so
 you can still open a normal shell.
 
-### 6. First bring-up (Postgres + Redis, then migrate + app/worker)
+### 7. First bring-up (Postgres + Redis, then migrate + app/worker)
 
 Postgres and Redis must exist and be healthy before the app and worker
 containers start.
@@ -165,7 +223,7 @@ containers start.
 ```bash
 cd ~/apps/mitsailing
 
-# First time only — creates volumes and runs init.sql
+# First time only — creates data volumes and runs init.sql
 docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production up -d postgres redis
 
 docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production ps
@@ -184,7 +242,7 @@ Migrate and deploy jobs **scp** `compose.yaml` and `compose.prod.yaml` to
 worker healthchecks) stay aligned with the branch, not only whatever was copied
 at initial bootstrap.
 
-### 7. GitHub repository configuration
+### 8. GitHub repository configuration
 
 Create environment **`production`** (Settings → Environments) with URL
 `https://mitsailing.com` if you like. Add **Required reviewers** on that

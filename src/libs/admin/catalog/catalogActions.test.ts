@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CatalogServerHandlers } from '@/libs/admin/catalog/types';
 
+vi.mock('server-only', () => ({}));
+
 const {
   createFromForm,
   getCatalogServerHandlers,
@@ -8,6 +10,9 @@ const {
   requireAdmin,
   revalidatePath,
   revalidateTag,
+  restoreCatalogRevision,
+  restoreCmsPageRevision,
+  updateFromForm,
 } = vi.hoisted(() => ({
   createFromForm: vi.fn(),
   getCatalogServerHandlers: vi.fn(),
@@ -17,6 +22,9 @@ const {
   requireAdmin: vi.fn(),
   revalidatePath: vi.fn(),
   revalidateTag: vi.fn(),
+  restoreCatalogRevision: vi.fn(),
+  restoreCmsPageRevision: vi.fn(),
+  updateFromForm: vi.fn(),
 }));
 
 vi.mock('next/cache', () => ({
@@ -36,6 +44,16 @@ vi.mock('@/libs/auth/dal', () => ({
   requireAdmin,
 }));
 
+vi.mock('@/libs/mit-sailing/catalogHistory', () => ({
+  isCatalogHistoryResourceId: (resourceId: string) =>
+    resourceId === 'fleet' || resourceId === 'sailing_classes',
+  restoreCatalogRevision,
+}));
+
+vi.mock('@/libs/mit-sailing/cmsHistory', () => ({
+  restoreCmsPageRevision,
+}));
+
 vi.mock('@/libs/mit-sailing/siteAlertQueries', () => ({
   SITE_ALERTS_CACHE_TAG: 'site-alerts',
 }));
@@ -50,10 +68,7 @@ const handlers: CatalogServerHandlers = {
     return null;
   },
   createFromForm,
-  updateFromForm: async () => {
-    await Promise.resolve();
-    return { ok: true };
-  },
+  updateFromForm,
   delete: async () => {
     await Promise.resolve();
     return { ok: true };
@@ -67,12 +82,19 @@ beforeEach(() => {
   requireAdmin.mockReset();
   revalidatePath.mockClear();
   revalidateTag.mockClear();
+  restoreCatalogRevision.mockReset();
+  restoreCmsPageRevision.mockReset();
+  updateFromForm.mockReset();
 
   createFromForm.mockResolvedValue({ ok: true, id: 'row-1' });
   getCatalogServerHandlers.mockReturnValue(handlers);
   requireAdmin.mockImplementation(async () => {
     await Promise.resolve();
+    return { session: { impersonatedBy: null }, user: { id: 'admin-1' } };
   });
+  restoreCatalogRevision.mockResolvedValue({ ok: true, slug: 'boat-1' });
+  restoreCmsPageRevision.mockResolvedValue({ ok: true });
+  updateFromForm.mockResolvedValue({ ok: true });
 });
 
 describe('createCatalogResourceAction', () => {
@@ -96,5 +118,64 @@ describe('createCatalogResourceAction', () => {
     ).rejects.toThrow('NEXT_REDIRECT');
 
     expect(revalidateTag).not.toHaveBeenCalled();
+  });
+
+  it('opens the edit screen after creating a CMS page block', async () => {
+    const { createCatalogResourceAction } =
+      await import('@/libs/admin/catalog/catalogActions');
+    const formData = new FormData();
+    formData.set('pageId', 'page-2');
+
+    await expect(
+      createCatalogResourceAction('en', 'cms_page_blocks', formData)
+    ).rejects.toThrow('NEXT_REDIRECT');
+
+    expect(redirect).toHaveBeenCalledWith(
+      '/admin/cms_page_blocks/row-1/edit?page=page-2'
+    );
+  });
+
+  it('preserves menu scope on CMS menu item validation errors', async () => {
+    const { createCatalogResourceAction } =
+      await import('@/libs/admin/catalog/catalogActions');
+    const formData = new FormData();
+    formData.set('menuId', 'menu-2');
+    createFromForm.mockResolvedValue({ code: 'validation_failed', ok: false });
+
+    await expect(
+      createCatalogResourceAction('en', 'cms_menu_items', formData)
+    ).rejects.toThrow('NEXT_REDIRECT');
+
+    expect(redirect).toHaveBeenCalledWith(
+      '/admin/cms_menu_items/new?menu=menu-2&error=validation_failed'
+    );
+  });
+});
+
+describe('updateCatalogResourceAction', () => {
+  it('stays on the edit screen after updating a catalog row', async () => {
+    const { updateCatalogResourceAction } =
+      await import('@/libs/admin/catalog/catalogActions');
+
+    await expect(
+      updateCatalogResourceAction('en', 'fleet', 'boat-1', new FormData())
+    ).rejects.toThrow('NEXT_REDIRECT');
+
+    expect(redirect).toHaveBeenCalledWith('/admin/fleet/boat-1/edit');
+  });
+
+  it('preserves page scope after updating a CMS page block', async () => {
+    const { updateCatalogResourceAction } =
+      await import('@/libs/admin/catalog/catalogActions');
+    const formData = new FormData();
+    formData.set('pageId', 'page-2');
+
+    await expect(
+      updateCatalogResourceAction('en', 'cms_page_blocks', 'block-1', formData)
+    ).rejects.toThrow('NEXT_REDIRECT');
+
+    expect(redirect).toHaveBeenCalledWith(
+      '/admin/cms_page_blocks/block-1/edit?page=page-2'
+    );
   });
 });

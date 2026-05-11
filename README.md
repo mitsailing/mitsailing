@@ -4,7 +4,7 @@ The public site and internal app for the [MIT Sailing Pavilion](https://mitsaili
 
 - **Production:** <https://mitsailing.com>
 - **Repo:** <https://github.com/mitsailing/mitsailing>
-- **Upstream boilerplate:** <https://github.com/ixartz/Next-js-Boilerplate> (this codebase began as a fork; see [Git remotes](#git-remotes) below)
+- **CMS architecture reference:** <https://github.com/docmost/docmost> (page history and attachment/media patterns; MIT Sailing implementation is written in this repo rather than vendoring Docmost source)
 
 Built with Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, next-intl, Prisma + PostgreSQL, and Better Auth. End-to-end tests with Playwright, unit tests with Vitest, and synthetic monitoring with Checkly.
 
@@ -104,14 +104,13 @@ Docker prints **`Bind for 0.0.0.0:… failed: port is already allocated`** when 
 
 ---
 
-## Git remotes
+## Git remote
 
-This repo uses the standard two-remote workflow that [GitHub recommends for forks](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/configuring-a-remote-repository-for-a-fork):
+This repo uses `origin` as the canonical MIT Sailing remote:
 
-| Remote     | URL                                                   | What it's for                                                            |
-| ---------- | ----------------------------------------------------- | ------------------------------------------------------------------------ |
-| `origin`   | `https://github.com/mitsailing/mitsailing`            | Our app. Day-to-day `push` / `pull` target.                              |
-| `upstream` | `https://github.com/ixartz/Next-js-Boilerplate`       | The original boilerplate. Fetch updates from here, then merge into ours. |
+| Remote   | URL                                        | What it's for                               |
+| -------- | ------------------------------------------ | ------------------------------------------- |
+| `origin` | `https://github.com/mitsailing/mitsailing` | Day-to-day `push` / `pull` target.          |
 
 Verify your local remotes:
 
@@ -119,25 +118,14 @@ Verify your local remotes:
 git remote -v
 ```
 
-You should see `origin` pointing at `mitsailing/mitsailing` and `upstream` pointing at `ixartz/Next-js-Boilerplate`.
-
-### Pulling updates from the upstream boilerplate
-
-```shell
-git fetch upstream
-git merge upstream/main   # or: git rebase upstream/main
-git push origin
-```
-
-Resolve conflicts as usual. Prefer `merge` for shared branches; `rebase` if you want a linear history on a personal branch.
+You should see `origin` pointing at `mitsailing/mitsailing`.
 
 ### If you cloned **before** the repo moved
 
-If your `origin` still points at `ixartz/Next-js-Boilerplate`, re-point it once:
+If your `origin` does not point at MIT Sailing, re-point it once:
 
 ```shell
-git remote rename origin upstream
-git remote add origin https://github.com/mitsailing/mitsailing.git
+git remote set-url origin https://github.com/mitsailing/mitsailing.git
 git fetch origin
 git branch --set-upstream-to=origin/main main
 ```
@@ -247,9 +235,3 @@ Quick reference for the types we accept; see the [Conventional Commits spec](htt
 | `revert`   | Reverts a previous commit                      |
 
 Format: `<type>(<optional scope>): <short imperative summary>` — for example, `feat(fleet): add 420 boat detail page` or `fix(auth): redirect unauthenticated users to /login`.
-
----
-
-## Credits
-
-This project started as a fork of [ixartz/Next-js-Boilerplate](https://github.com/ixartz/Next-js-Boilerplate) and retains its `LICENSE`. Thanks to the upstream maintainers for the starting point.
