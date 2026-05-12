@@ -11,6 +11,10 @@ const optionalWindCondition = z
     z.literal(''),
   ])
   .transform((value) => value || null);
+const optionalDisplayOrder = z.preprocess(
+  (value) => (value === '' || value === null ? undefined : value),
+  z.coerce.number().int().min(0).optional()
+);
 
 /**
  * Reads a boolean from admin {@link FormData} when the field uses the hidden
@@ -66,6 +70,7 @@ export const sailingRatingRuleFormSchema = z.object({
   ruleType: z.enum(['requires', 'grants']),
   sailingRatingId: requiredString,
   groupKey: requiredString.default('default'),
+  displayOrder: optionalDisplayOrder,
 });
 
 export function rawSailingRatingRuleFromFormData(formData: FormData) {
@@ -75,5 +80,6 @@ export function rawSailingRatingRuleFromFormData(formData: FormData) {
     ruleType: formData.get('ruleType'),
     sailingRatingId: formData.get('sailingRatingId'),
     groupKey: formData.get('groupKey') ?? 'default',
+    displayOrder: formData.get('displayOrder'),
   };
 }

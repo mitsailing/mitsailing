@@ -43,6 +43,22 @@ function sailingRatingRuleTarget(row: {
   return { targetType: 'rating', targetId: row.ratingId ?? '' };
 }
 
+async function nextSailingRatingRuleDisplayOrder(props: {
+  target: ReturnType<typeof sailingRatingRuleTargetFields>;
+  ruleType: 'requires' | 'grants';
+  groupKey: string;
+}): Promise<number> {
+  const agg = await prisma.sailingRatingRule.aggregate({
+    _max: { displayOrder: true },
+    where: {
+      ...props.target,
+      ruleType: props.ruleType,
+      groupKey: props.groupKey,
+    },
+  });
+  return (agg._max.displayOrder ?? -1) + 1;
+}
+
 function mapPrismaErr(error: unknown): CatalogMutationErr | null {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     if (error.code === 'P2002') {
@@ -182,7 +198,14 @@ export const sailingRatingsCatalogHandlers: CatalogServerHandlers = {
 export const sailingRatingRulesCatalogHandlers: CatalogServerHandlers = {
   async list(): Promise<CatalogRow[]> {
     const rows = await prisma.sailingRatingRule.findMany({
-      orderBy: [{ boatId: 'asc' }, { classId: 'asc' }, { ratingId: 'asc' }],
+      orderBy: [
+        { boatId: 'asc' },
+        { classId: 'asc' },
+        { ratingId: 'asc' },
+        { ruleType: 'asc' },
+        { groupKey: 'asc' },
+        { displayOrder: 'asc' },
+      ],
       select: {
         id: true,
         boatId: true,
@@ -214,6 +237,7 @@ export const sailingRatingRulesCatalogHandlers: CatalogServerHandlers = {
         ruleType: true,
         sailingRatingId: true,
         groupKey: true,
+        displayOrder: true,
       },
     });
     return row ? { ...row, ...sailingRatingRuleTarget(row) } : null;
@@ -234,6 +258,13 @@ export const sailingRatingRulesCatalogHandlers: CatalogServerHandlers = {
           ruleType: parsed.data.ruleType,
           sailingRatingId: parsed.data.sailingRatingId,
           groupKey: parsed.data.groupKey,
+          displayOrder:
+            parsed.data.displayOrder ??
+            (await nextSailingRatingRuleDisplayOrder({
+              target,
+              ruleType: parsed.data.ruleType,
+              groupKey: parsed.data.groupKey,
+            })),
         },
         select: { id: true },
       });
@@ -261,6 +292,9 @@ export const sailingRatingRulesCatalogHandlers: CatalogServerHandlers = {
           ruleType: parsed.data.ruleType,
           sailingRatingId: parsed.data.sailingRatingId,
           groupKey: parsed.data.groupKey,
+          ...(parsed.data.displayOrder === undefined
+            ? {}
+            : { displayOrder: parsed.data.displayOrder }),
         },
       });
       return { ok: true };

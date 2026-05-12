@@ -2,7 +2,7 @@
 
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { normalizeNavPath } from '@/lib/mit-sailing/navPathMatch';
 import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
@@ -104,6 +104,8 @@ const rowFocus = textFocusRingClassName;
 
 /** Stable id linking the collapse control to the nav region for assistive tech. */
 const ADMIN_SIDE_NAV_REGION_ID = 'admin-sidenav';
+const ADMIN_SIDE_NAV_COLLAPSED_STORAGE_KEY =
+  'mitsailing-admin-sidenav-collapsed';
 
 /**
  * Tailwind Plus–style vertical rail (text rows) inside the marketing shell.
@@ -116,6 +118,17 @@ export function AdminSideNav() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const toggleLabel = collapsed ? t('expand_label') : t('collapse_label');
+
+  useEffect(() => {
+    try {
+      setCollapsed(
+        window.localStorage.getItem(ADMIN_SIDE_NAV_COLLAPSED_STORAGE_KEY) ===
+          'true'
+      );
+    } catch {
+      setCollapsed(false);
+    }
+  }, []);
 
   return (
     <div
@@ -137,7 +150,18 @@ export function AdminSideNav() {
           type="button"
           variant="ghost"
           onClick={() => {
-            setCollapsed((value) => !value);
+            setCollapsed((value) => {
+              const next = !value;
+              try {
+                window.localStorage.setItem(
+                  ADMIN_SIDE_NAV_COLLAPSED_STORAGE_KEY,
+                  String(next)
+                );
+              } catch {
+                return next;
+              }
+              return next;
+            });
           }}
         >
           {collapsed ? (

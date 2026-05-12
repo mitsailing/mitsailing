@@ -518,6 +518,11 @@ const sailingRatingRulesDefinition = {
       required: true,
       labelKey: 'field_group_key',
     },
+    {
+      field: 'displayOrder',
+      kind: 'number',
+      labelKey: 'field_display_order',
+    },
   ],
   capabilities: { create: true, update: true, delete: true, reorder: false },
 } as const satisfies CatalogResourceDefinition;

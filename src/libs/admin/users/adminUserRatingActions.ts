@@ -119,7 +119,8 @@ export async function grantAdminUserRatingAction(
         throw error;
       }
       if (attempt === GRANT_RATING_TX_MAX_ATTEMPTS - 1) {
-        throw error;
+        grantError = 'conflict';
+        break;
       }
       await sleep(GRANT_RATING_TX_BACKOFF_MS * 2 ** attempt);
     }

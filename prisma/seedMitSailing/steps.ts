@@ -190,14 +190,10 @@ export async function seedSailingClassesAndBoats(
   }
 
   const boatIds = FLEET_BOATS.map((boat) => boat.id);
-  const boatSlugs = FLEET_BOATS.map((boat) => boat.slug);
   await p.sailingClassUnlockedBoat.deleteMany({
     where: {
       fleetBoat: {
-        OR: [
-          { id: { notIn: boatIds } },
-          { slug: { in: boatSlugs }, id: { notIn: boatIds } },
-        ],
+        id: { notIn: boatIds },
       },
     },
   });
@@ -208,10 +204,7 @@ export async function seedSailingClassesAndBoats(
   });
   await p.fleetBoat.deleteMany({
     where: {
-      OR: [
-        { id: { notIn: boatIds } },
-        { slug: { in: boatSlugs }, id: { notIn: boatIds } },
-      ],
+      id: { notIn: boatIds },
     },
   });
 
