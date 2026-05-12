@@ -36,7 +36,7 @@ export default async function AdminUsersEditPage(props: PageProps) {
   const updateAction = updateAdminUserAction.bind(null, locale, id);
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-6">
+    <div className="flex w-full max-w-5xl flex-col gap-6">
       <AdminCatalogForm
         key={`user-${id}`}
         definition={usersAdminEditDefinition}

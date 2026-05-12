@@ -38,7 +38,7 @@ export default async function AdminIndexPage(props: AdminIndexPageProps) {
   });
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-8">
+    <div className="flex w-full max-w-5xl flex-col gap-8">
       <div>
         <h1 className="text-2xl font-semibold text-mit-text">{t('title')}</h1>
         <p className="mt-2 text-sm text-mit-text">{t('intro')}</p>
@@ -54,7 +54,7 @@ export default async function AdminIndexPage(props: AdminIndexPageProps) {
         <ul className="mt-3 list-none space-y-2 p-0">
           <li>
             <Link
-              className="font-medium text-mit-red-ink no-underline hover:underline"
+              className="font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
               href="/admin/events"
             >
               {t('link_events')}
@@ -62,7 +62,7 @@ export default async function AdminIndexPage(props: AdminIndexPageProps) {
           </li>
           <li>
             <Link
-              className="font-medium text-mit-red-ink no-underline hover:underline"
+              className="font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
               href="/admin/site_text"
             >
               {t('link_site_text')}
@@ -84,7 +84,7 @@ export default async function AdminIndexPage(props: AdminIndexPageProps) {
         <ul className="mt-3 list-none space-y-2 p-0">
           <li>
             <Link
-              className="font-medium text-mit-red-ink no-underline hover:underline"
+              className="font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
               href={ADMIN_USERS_PATH}
             >
               {t('hub_label_users')}
@@ -98,7 +98,7 @@ export default async function AdminIndexPage(props: AdminIndexPageProps) {
             return (
               <li key={id}>
                 <Link
-                  className="font-medium text-mit-red-ink no-underline hover:underline"
+                  className="font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
                   href={adminCatalogResourceIndexPath(id)}
                 >
                   {tCatalog(def.hubLabelKey)}

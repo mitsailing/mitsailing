@@ -77,7 +77,7 @@ function fleetSnapshot(props?: { capacity?: number; name?: string }) {
     description: '<p>Fast boat</p>',
     id: 'boat-1',
     imagePath: '/fleet.png',
-    name: props?.name ?? 'Tech Dinghy',
+    name: props?.name ?? 'Tech dinghy',
     requiredClassId: 'class-1',
     requiredClassName: 'Intro Sailing 101',
     resource: 'fleet',
@@ -134,7 +134,7 @@ describe('listAdminCatalogRevisions', () => {
         preview: {
           excerpt: 'Fast boat',
           subtitle: 'Intro Sailing 101',
-          title: 'Tech Dinghy',
+          title: 'Tech dinghy',
         },
         summary: {
           changes: [{ field: 'capacity' }],
@@ -152,7 +152,7 @@ describe('listAdminCatalogRevisions', () => {
         preview: {
           excerpt: 'Fast boat',
           subtitle: 'Intro Sailing 101',
-          title: 'Tech Dinghy',
+          title: 'Tech dinghy',
         },
         summary: { kind: 'created' },
         version: 1,
@@ -548,7 +548,7 @@ describe('restoreCatalogRevision', () => {
     expect(mocks.fleetBoatUpdate).toHaveBeenCalledWith({
       data: expect.objectContaining({
         imagePath: '/fleet.png',
-        name: 'Tech Dinghy',
+        name: 'Tech dinghy',
         slug: 'tech-dinghy',
       }),
       where: { id: 'boat-1' },

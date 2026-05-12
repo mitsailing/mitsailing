@@ -30,6 +30,11 @@ This app ships as **`output: 'standalone'`** (see [next.config.ts](next.config.t
 
 - Session and `next-intl` behavior should stay compatible with a **stateful** Node server; avoid assuming “cold start on every request.”
 
+## URLs: trailing slashes and `#` fragments
+
+- This app’s [next.config.ts](../../next.config.ts) does **not** set `trailingSlash: true`. Per [Next.js `trailingSlash`](https://nextjs.org/docs/app/api-reference/config/next-config-js/trailingSlash), the **default** redirects `/about/` → `/about` (no trailing slash on the pathname).
+- When linking to a route plus a fragment, use **`/path#fragment`** so the pathname is `/path`. Avoid **`/path/#fragment`**, which encodes pathname `/path/` (trailing slash before `#`) and disagrees with the default unless `trailingSlash: true` is enabled. `next-intl` only normalizes trailing slashes when that Next option is set ([next-intl routing configuration](https://next-intl.dev/docs/routing/configuration)).
+
 ## What to avoid
 
 - **Static export** (`output: 'export'`) for this product—it breaks server features this stack relies on.

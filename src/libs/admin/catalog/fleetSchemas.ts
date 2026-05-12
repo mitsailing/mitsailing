@@ -1,23 +1,18 @@
 import * as z from 'zod';
 import type { AdminCatalogResourceMessageKey } from '@/libs/admin/catalog/types';
 import { isSafeCmsAppPath } from '@/libs/mit-sailing/cmsHref';
+import { catalogUrlFragmentSlugSchema } from '@/libs/validation/catalogUrlFragmentSlugSchema';
 
 const fleetBoatValidationMessages = {
   imagePath: 'field_error_fleet_image_path_safe_path',
 } satisfies Record<string, AdminCatalogResourceMessageKey>;
-
-const slugSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
 
 /**
  * Validates fleet boat create/update payloads parsed from admin forms.
  */
 export const fleetBoatFormSchema = z.object({
   name: z.string().trim().min(1),
-  slug: slugSchema,
+  slug: catalogUrlFragmentSlugSchema,
   type: z.string().trim().min(1),
   capacity: z.coerce.number().int().min(1),
   requiredClassId: z.string().trim().min(1),

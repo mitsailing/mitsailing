@@ -32,7 +32,7 @@ test.describe('Admin catalog lists', () => {
       page.getByRole('heading', { name: 'Fleet', exact: true })
     ).toBeVisible();
     await expect(
-      page.getByRole('table').getByText('Tech Dinghy')
+      page.getByRole('table').getByText('Tech dinghy')
     ).toBeVisible();
     await expect(page.getByRole('link', { name: 'Add row' })).toBeVisible();
   });

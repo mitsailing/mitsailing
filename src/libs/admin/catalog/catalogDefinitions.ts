@@ -398,6 +398,135 @@ const siteAlertsDefinition = {
   },
 } as const satisfies CatalogResourceDefinition;
 
+const sailingRatingsDefinition = {
+  id: 'sailing_ratings',
+  titleKey: 'title_admin_catalog_sailing_ratings',
+  metaTitleKey: 'meta_title_admin_catalog_sailing_ratings',
+  hubLabelKey: 'hub_label_sailing_ratings',
+  listColumns: [
+    { field: 'name', kind: 'string', headerKey: 'column_name_label' },
+    { field: 'slug', kind: 'string', headerKey: 'column_slug_label' },
+    { field: 'category', kind: 'string', headerKey: 'column_category_label' },
+    { field: 'level', kind: 'string', headerKey: 'column_level_label' },
+    {
+      field: 'windCondition',
+      kind: 'string',
+      headerKey: 'column_wind_condition_label',
+    },
+    { field: 'isVisible', kind: 'visibility', headerKey: 'column_status' },
+    {
+      field: 'isDeprecated',
+      kind: 'boolean',
+      headerKey: 'column_deprecated_label',
+      booleanPolarity: 'badWhenTrue',
+    },
+    {
+      field: 'displayOrder',
+      kind: 'number',
+      headerKey: 'column_display_order_label',
+    },
+  ],
+  formFields: [
+    { field: 'name', kind: 'string', required: true, labelKey: 'field_name' },
+    { field: 'slug', kind: 'string', required: true, labelKey: 'field_slug' },
+    { field: 'shortName', kind: 'string', labelKey: 'field_short_name' },
+    {
+      field: 'description',
+      kind: 'text',
+      required: true,
+      labelKey: 'field_description',
+    },
+    { field: 'category', kind: 'string', labelKey: 'field_category' },
+    { field: 'level', kind: 'string', labelKey: 'field_level' },
+    {
+      field: 'windCondition',
+      kind: 'select',
+      labelKey: 'field_wind_condition',
+      selectOptions: [
+        { value: '', labelKey: 'select_wind_condition_placeholder' },
+        { value: 'Low', labelKey: 'wind_condition_low' },
+        { value: 'Medium', labelKey: 'wind_condition_medium' },
+        { value: 'Medium-strong', labelKey: 'wind_condition_medium_strong' },
+        { value: 'Strong', labelKey: 'wind_condition_strong' },
+        { value: 'All', labelKey: 'wind_condition_all' },
+      ],
+    },
+    { field: 'guideUrl', kind: 'url', labelKey: 'field_guide_url' },
+    { field: 'isVisible', kind: 'boolean', labelKey: 'field_visible' },
+    {
+      field: 'isDeprecated',
+      kind: 'boolean',
+      labelKey: 'field_deprecated',
+    },
+  ],
+  capabilities: { create: true, update: true, delete: true, reorder: true },
+} as const satisfies CatalogResourceDefinition;
+
+const sailingRatingRulesDefinition = {
+  id: 'sailing_rating_rules',
+  titleKey: 'title_admin_catalog_sailing_rating_rules',
+  metaTitleKey: 'meta_title_admin_catalog_sailing_rating_rules',
+  hubLabelKey: 'hub_label_sailing_rating_rules',
+  listColumns: [
+    { field: 'targetType', kind: 'string', headerKey: 'column_target_type' },
+    { field: 'targetId', kind: 'string', headerKey: 'column_target_id' },
+    { field: 'ruleType', kind: 'string', headerKey: 'column_rule_type' },
+    {
+      field: 'sailingRatingName',
+      kind: 'string',
+      headerKey: 'column_rating_label',
+    },
+    { field: 'groupKey', kind: 'string', headerKey: 'column_group_key' },
+  ],
+  formFields: [
+    {
+      field: 'targetType',
+      kind: 'select',
+      required: true,
+      labelKey: 'field_target_type',
+      selectOptions: [
+        { value: 'boat', labelKey: 'target_type_boat' },
+        { value: 'class', labelKey: 'target_type_class' },
+        { value: 'rating', labelKey: 'target_type_rating' },
+      ],
+    },
+    {
+      field: 'targetId',
+      kind: 'string',
+      required: true,
+      labelKey: 'field_target_id',
+    },
+    {
+      field: 'ruleType',
+      kind: 'select',
+      required: true,
+      labelKey: 'field_rule_type',
+      selectOptions: [
+        { value: 'requires', labelKey: 'rule_type_requires' },
+        { value: 'grants', labelKey: 'rule_type_grants' },
+      ],
+    },
+    {
+      field: 'sailingRatingId',
+      kind: 'select',
+      required: true,
+      labelKey: 'field_rating',
+    },
+    {
+      field: 'groupKey',
+      kind: 'string',
+      required: true,
+      labelKey: 'field_group_key',
+    },
+    {
+      field: 'displayOrder',
+      kind: 'number',
+      labelKey: 'field_display_order',
+    },
+  ],
+  capabilities: { create: true, update: true, delete: true, reorder: false },
+} as const satisfies CatalogResourceDefinition;
+
 const cmsPagesDefinition = {
   id: 'cms_pages',
   titleKey: 'title_admin_catalog_cms_pages',
@@ -551,6 +680,8 @@ export const CATALOG_RESOURCE_IDS = [
   'event_categories',
   'class_categories',
   'sailing_classes',
+  'sailing_ratings',
+  'sailing_rating_rules',
   'fleet',
   'site_alerts',
   'cms_pages',
@@ -569,6 +700,8 @@ export const catalogResourceDefinitions: Record<
   event_categories: eventCategoriesDefinition,
   class_categories: classCategoriesDefinition,
   sailing_classes: sailingClassesDefinition,
+  sailing_ratings: sailingRatingsDefinition,
+  sailing_rating_rules: sailingRatingRulesDefinition,
   fleet: fleetDefinition,
   site_alerts: siteAlertsDefinition,
   cms_pages: cmsPagesDefinition,

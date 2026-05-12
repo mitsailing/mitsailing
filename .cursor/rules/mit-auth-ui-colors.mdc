@@ -12,7 +12,7 @@ Auth pages and components under `src/app/[locale]/(auth)/` and `src/components/a
 
 - **Submit / primary institute actions** (sign in, sign up, save password, save profile): use shadcn [`Button`](src/components/ui/button.tsx) with **`variant="mit"`** so CTAs stay **MIT web red** in both light and dark. (`variant="default"` follows theme `--primary`: neutral high-contrast in dark mode per [docs/mit-color-strategy.md](../../docs/mit-color-strategy.md).)
 - **Fields**: [`Label`](src/components/ui/label.tsx) + [`Input`](src/components/ui/input.tsx) so borders, rings, and typography use **shadcn semantic tokens** (`border-input`, `ring-ring`, `text-foreground`).
-- **Text links** (forgot password, sign up, sign in): use [`authInlineLinkClassName`](src/lib/mit-sailing/tokens.ts) or `text-mit-red-ink` / theme utilities—not raw hex.
+- **Text links** (forgot password, sign up, sign in): use [`authInlineLinkClassName`](src/lib/mit-sailing/tokens.ts) or **`text-mit-red`** / theme utilities—not raw hex. See [mit-red-ink-usage.mdc](mit-red-ink-usage.mdc).
 - **Rare non-`Input` fields:** [`authInputClassName`](src/lib/mit-sailing/tokens.ts) matches `Input` styling.
 - **Informational banners** (non-error): prefer `bg-mit-red-highlight` + `text-foreground` over generic blue backgrounds.
 

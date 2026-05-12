@@ -57,7 +57,7 @@ export async function ClassesCatalogView(props: ClassesCatalogViewProps) {
                     <p className="mb-4 line-clamp-3 text-sm leading-snug text-mit-text">
                       {c.description}
                     </p>
-                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-mit-red-ink">
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-mit-red dark:text-mit-red-ink">
                       {t('catalog_card_cta')}{' '}
                       <ArrowRight aria-hidden size={14} />
                     </span>

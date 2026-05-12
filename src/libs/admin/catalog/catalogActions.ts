@@ -62,6 +62,8 @@ const CATALOG_EXTRA_PUBLIC_PATHS: Partial<
   event_categories: ['/events'],
   class_categories: ['/classes'],
   sailing_classes: ['/classes'],
+  sailing_ratings: ['/ratings', '/classes', '/fleet'],
+  sailing_rating_rules: ['/ratings', '/classes', '/fleet'],
   fleet: ['/fleet'],
   site_alerts: ['/', '/alerts'],
   cms_pages: ['/', '/about'],

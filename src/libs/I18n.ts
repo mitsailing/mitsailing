@@ -17,6 +17,7 @@ export default getRequestConfig(async ({ requestLocale }) => {
   return {
     locale,
     messages: await getMergedSiteTextMessages(locale),
+    // Venue clock: program times stay in US Eastern for every visitor (see `.cursor/rules/dates-us-eastern.mdc`).
     timeZone: EVENTS_TIME_ZONE,
   };
 });

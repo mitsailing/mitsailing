@@ -159,7 +159,7 @@ export async function EventDetailView(props: EventDetailViewProps) {
       <PublicCatalogDetailTopNav>
         <Link
           className={cn(
-            'inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-mit-red-ink no-underline hover:underline',
+            'inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-mit-red no-underline hover:underline dark:text-mit-red-ink',
             textFocusRingClassName
           )}
           href="/events/"
@@ -176,7 +176,7 @@ export async function EventDetailView(props: EventDetailViewProps) {
       <div className="grid grid-cols-1 gap-x-12 gap-y-10 lg:grid-cols-[minmax(0,1fr)_320px]">
         <header className="lg:col-span-2">
           <div className="mb-3 flex flex-wrap items-center gap-2">
-            <span className="rounded-sm bg-mit-red-highlight px-2 py-1 text-xs font-bold tracking-wide text-mit-red-ink uppercase dark:text-white">
+            <span className="rounded-sm bg-mit-red-highlight px-2 py-1 text-xs font-bold tracking-wide text-mit-red uppercase dark:text-white">
               {props.event.category.name}
             </span>
             {props.event.isSpecial ? (
@@ -201,7 +201,7 @@ export async function EventDetailView(props: EventDetailViewProps) {
 
         <aside className="flex flex-col gap-6 lg:col-start-2 lg:row-start-2 lg:self-start">
           <section className="rounded-lg border-2 border-mit-red bg-card p-5 shadow-sm shadow-mit-red/5 lg:sticky lg:top-24 dark:border-white/35">
-            <p className="mb-1 text-xs font-bold tracking-widest text-mit-red-ink uppercase dark:text-white">
+            <p className="mb-1 text-xs font-bold tracking-widest text-mit-red uppercase dark:text-white">
               {t('section_registration')}
             </p>
             <h2 className="mb-4 scroll-m-20 font-mit-serif text-xl font-semibold tracking-tight text-mit-text">
@@ -285,7 +285,7 @@ export async function EventDetailView(props: EventDetailViewProps) {
                       </p>
                       <a
                         className={cn(
-                          'block truncate text-xs text-mit-red-ink no-underline hover:underline dark:text-white',
+                          'block truncate text-xs text-mit-red no-underline hover:underline dark:text-white',
                           textFocusRingClassName
                         )}
                         href={`mailto:${adminRow.admin.email}`}

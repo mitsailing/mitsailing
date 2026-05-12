@@ -125,7 +125,7 @@ function SiteTextRow(props: {
           <span
             className={
               hasOverride
-                ? 'mt-2 inline-flex rounded-full bg-mit-red-50 px-2 py-0.5 text-xs font-medium text-mit-red-ink'
+                ? 'mt-2 inline-flex rounded-full bg-mit-red-50 px-2 py-0.5 text-xs font-medium text-mit-red dark:text-mit-red-ink'
                 : 'mt-2 inline-flex rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground'
             }
           >
@@ -228,7 +228,7 @@ export default async function AdminSiteTextPage(props: AdminSiteTextPageProps) {
   const message = statusMessage(status, t);
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-6">
+    <div className="flex w-full flex-col gap-6">
       <AdminPageHeader title={t('title')} />
       <p className="max-w-3xl text-sm text-muted-foreground">{t('intro')}</p>
 

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { mapClassCategoriesToNavDropdownItems } from './classQueries';
 import { mapFleetBoatsToNavDropdownItems } from './fleetQueries';
 import {
@@ -6,6 +6,8 @@ import {
   hrefFleetBoatFromSlug,
   mapNameSlugRowsToNavLinks,
 } from './mapNavLinksFromNameSlug';
+
+vi.mock('server-only', () => ({}));
 
 describe('mapNameSlugRowsToNavLinks', () => {
   it('preserves caller order', () => {

@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { SiteSidebarMobileNav } from '@/components/mit-sailing/SiteSidebarMobileNav';
 import { cn } from '@/lib/utils';
 
-type SiteSidebarDensity = 'comfortable' | 'compact';
+type SiteSidebarDensity = 'comfortable' | 'compact' | 'content-fit';
 
 type SiteSidebarLayoutProps = {
   /** Left column (navigation rail, filters, etc.). */
@@ -20,8 +20,8 @@ type SiteSidebarLayoutProps = {
    */
   stretch?: boolean;
   /**
-   * `comfortable` — wider rail + tighter gaps (admin). `compact` — MITNA-style
-   * about subnav widths.
+   * `comfortable` - wider rail + tighter gaps (admin). `compact` - MITNA-style
+   * about subnav widths. `content-fit` - sidebar width follows its content.
    */
   density?: SiteSidebarDensity;
   /** Mobile disclosure trigger; defaults to {@link SiteSidebarLayout} i18n. */
@@ -35,6 +35,9 @@ const densityGrid: Record<SiteSidebarDensity, { grid: string }> = {
   },
   compact: {
     grid: 'grid-cols-1 gap-6 md:grid-cols-[minmax(0,14rem)_minmax(0,1fr)] md:gap-x-8 md:gap-y-0',
+  },
+  'content-fit': {
+    grid: 'grid-cols-1 gap-4 md:grid-cols-[max-content_minmax(0,1fr)] md:gap-x-6 md:gap-y-0',
   },
 };
 

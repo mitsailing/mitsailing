@@ -73,7 +73,7 @@ export const authPrimaryButtonClassName = [
 ].join(' ');
 
 export const authInlineLinkClassName =
-  'text-mit-red-ink underline underline-offset-2 hover:text-mit-red-hover focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2 focus-visible:ring-offset-background';
+  'text-mit-red underline underline-offset-2 hover:text-mit-red-hover dark:text-mit-red-ink focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2 focus-visible:ring-offset-background';
 
 /**
  * Admin catalog status pills (`AdminStatusPill`): `ring-1 ring-inset` chrome;

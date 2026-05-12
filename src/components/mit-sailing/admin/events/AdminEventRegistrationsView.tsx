@@ -338,14 +338,14 @@ export function AdminEventRegistrationsView(
     (registration) => registrationVisible(registration, props.filter)
   );
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-6">
+    <div className="flex w-full flex-col gap-6">
       <AdminEventBackLink href={adminEventsIndexPath()}>
         <ArrowLeft aria-hidden className="size-4" />
         {props.t('back_to_events')}
       </AdminEventBackLink>
 
       <header className="flex flex-col gap-2">
-        <p className="text-xs font-semibold tracking-widest text-mit-red-ink uppercase">
+        <p className="text-xs font-semibold tracking-widest text-mit-red uppercase dark:text-mit-red-ink">
           {props.t('registrations_eyebrow')}
         </p>
         <h1 className="text-3xl font-semibold tracking-tight text-foreground">

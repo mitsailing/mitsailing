@@ -29,7 +29,7 @@ export default async function AdminUsersNewPage(props: PageProps) {
   const createAction = createAdminUserAction.bind(null, locale);
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-6">
+    <div className="flex w-full max-w-5xl flex-col gap-6">
       <AdminCatalogForm
         key="user-new"
         definition={usersAdminDefinition}

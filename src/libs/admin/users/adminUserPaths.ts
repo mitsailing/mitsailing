@@ -20,6 +20,14 @@ export function adminUsersNewPath(): string {
 
 /**
  * @param id - User id
+ * @returns Path to user show page
+ */
+export function adminUsersShowPath(id: string): string {
+  return `${ADMIN_USERS_PATH}/${encodeURIComponent(id)}`;
+}
+
+/**
+ * @param id - User id
  * @returns Path to edit user
  */
 export function adminUsersEditPath(id: string): string {

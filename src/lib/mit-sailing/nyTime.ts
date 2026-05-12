@@ -22,6 +22,22 @@ export function nyYmd(d: Date): string {
   return ymdFormatter.format(d);
 }
 
+/**
+ * Gregorian calendar year for an instant on the {@link EVENTS_TIME_ZONE} wall clock
+ * (venue time; see `.cursor/rules/dates-us-eastern.mdc`).
+ *
+ * @param now - Instant to evaluate (typically `new Date()`)
+ * @returns Four-digit calendar year in the events time zone.
+ */
+export function calendarYearInEventsTimeZone(now: Date): number {
+  return Number(
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: EVENTS_TIME_ZONE,
+      year: 'numeric',
+    }).format(now)
+  );
+}
+
 type NyParts = {
   year: number;
   month: number;

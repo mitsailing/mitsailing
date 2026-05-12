@@ -48,14 +48,14 @@ export function AdminEventCreateFormView(props: AdminEventCreateFormViewProps) {
   const createAction = createAdminEventAction.bind(null, props.locale);
   const hasCategories = props.categories.length > 0;
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-6">
+    <div className="flex w-full max-w-4xl flex-col gap-6">
       <AdminEventBackLink href={adminEventsIndexPath()}>
         <ArrowLeft aria-hidden className="size-4" />
         {props.t('back_to_events')}
       </AdminEventBackLink>
 
       <header className="flex flex-col gap-2">
-        <p className="text-xs font-semibold tracking-widest text-mit-red-ink uppercase">
+        <p className="text-xs font-semibold tracking-widest text-mit-red uppercase dark:text-mit-red-ink">
           {props.t('new_eyebrow')}
         </p>
         <h1 className="text-3xl font-semibold tracking-tight text-foreground">

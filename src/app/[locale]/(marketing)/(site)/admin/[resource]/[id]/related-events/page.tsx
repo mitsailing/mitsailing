@@ -122,13 +122,13 @@ export default async function AdminSailingClassRelatedEventsPage(
   const assocErrorMessage = sailingClassAssocQueryErrorMessage(errorCode, t);
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6">
+    <div className="flex w-full max-w-3xl flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold text-mit-text">
           {t('assoc_page_related_events_title')} — {sailingClass.name}
         </h1>
         <Link
-          className="text-sm font-medium text-mit-red-ink no-underline hover:underline"
+          className="text-sm font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
           href={adminCatalogResourceEditPath(resource, id)}
         >
           {t('assoc_back_to_edit')}
@@ -257,7 +257,7 @@ export default async function AdminSailingClassRelatedEventsPage(
           <div className="flex gap-3">
             {safePage > 1 ? (
               <Link
-                className="font-medium text-mit-red-ink no-underline hover:underline"
+                className="font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
                 href={`${basePath}?page=${safePage - 1}`}
               >
                 {t('assoc_pagination_prev')}
@@ -269,7 +269,7 @@ export default async function AdminSailingClassRelatedEventsPage(
             )}
             {safePage < totalPages ? (
               <Link
-                className="font-medium text-mit-red-ink no-underline hover:underline"
+                className="font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
                 href={`${basePath}?page=${safePage + 1}`}
               >
                 {t('assoc_pagination_next')}

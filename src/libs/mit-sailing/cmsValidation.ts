@@ -2,6 +2,7 @@ import * as z from 'zod';
 import { parseCmsHomeOverviewBody } from '@/libs/mit-sailing/cmsHomeOverview';
 import { isSafeCmsAppPath, safeCmsHref } from '@/libs/mit-sailing/cmsHref';
 import { parseCmsPricingBody } from '@/libs/mit-sailing/cmsPricing';
+import { catalogUrlFragmentSlugSchema } from '@/libs/validation/catalogUrlFragmentSlugSchema';
 import type messages from '@/locales/en.json';
 
 type AdminCatalogResourceMessageKey =
@@ -236,11 +237,7 @@ function validateCmsBlockStructuredBody(
 }
 
 export const cmsPageInputSchema = z.object({
-  slug: z
-    .string()
-    .trim()
-    .min(1)
-    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+  slug: catalogUrlFragmentSlugSchema,
   path: cmsPathSchema,
   title: z.string().trim().min(1),
   metaTitle: z.string().trim().min(1),

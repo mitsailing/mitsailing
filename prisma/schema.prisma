@@ -49,7 +49,9 @@ model User {
   eventRegistrations EventRegistration[]
   eventComments      EventComment[]
   eventAdmins        EventAdmin[]
-  eventsCreated      Event[]             @relation("EventCreatedBy")
+  eventsCreated      Event[]              @relation("EventCreatedBy")
+  sailingRatings     UserSailingRating[]  @relation("UserSailingRatings")
+  issuedSailingRatings UserSailingRating[] @relation("IssuedSailingRatings")
 
   @@map("user")
 }
@@ -382,6 +384,7 @@ model SailingClass {
   prerequisiteEdges   SailingClassPrerequisite[] @relation("ClassRequiresPrerequisite")
   prerequisiteOfEdges SailingClassPrerequisite[] @relation("ClassIsPrerequisiteFor")
   unlockedBoatLinks   SailingClassUnlockedBoat[]
+  ratingRules         SailingRatingRule[]
 
   @@index([classCategoryId])
   @@index([classCategoryId, displayOrder])
@@ -421,6 +424,86 @@ model SailingClassUnlockedBoat {
   @@map("sailing_class_unlocked_boats")
 }
 
+model SailingRating {
+  id           String   @id
+  slug         String   @unique
+  name         String
+  shortName    String?  @map("short_name")
+  description  String   @db.Text
+  category     String?
+  level        String?
+  windCondition String?  @map("wind_condition")
+  guideUrl     String?  @map("guide_url")
+  displayOrder Int      @default(0) @map("display_order")
+  isVisible    Boolean  @default(true) @map("is_visible")
+  isDeprecated Boolean  @default(false) @map("is_deprecated")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  userRatings UserSailingRating[]
+  rules       SailingRatingRule[] @relation("RuleSailingRating")
+  targetRules SailingRatingRule[] @relation("RuleTargetRating")
+
+  @@index([isVisible, displayOrder])
+  @@map("sailing_ratings")
+}
+
+model UserSailingRating {
+  id              String   @id
+  userId          String   @map("user_id")
+  sailingRatingId String   @map("sailing_rating_id")
+  issuedByUserId  String   @map("issued_by_user_id")
+  issuedAt        DateTime @default(now()) @map("issued_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  user          User          @relation("UserSailingRatings", fields: [userId], references: [id], onDelete: Cascade)
+  sailingRating SailingRating @relation(fields: [sailingRatingId], references: [id], onDelete: Restrict)
+  issuedBy      User          @relation("IssuedSailingRatings", fields: [issuedByUserId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, sailingRatingId])
+  @@index([userId])
+  @@index([sailingRatingId])
+  @@index([issuedByUserId])
+  @@map("user_sailing_ratings")
+}
+
+enum SailingRatingRuleType {
+  requires
+  grants
+
+  @@map("sailing_rating_rule_type")
+}
+
+/// Targets exactly one of boat, class, or rating (`boatId`, `classId`, or `ratingId`).
+/// Enforced in Postgres by `sailing_rating_rules_exactly_one_target_chk` (migration `20260511193000_sailing_rating_rule_target_fks`).
+model SailingRatingRule {
+  id              String                @id
+  boatId          String?               @map("boat_id")
+  classId         String?               @map("class_id")
+  ratingId        String?               @map("rating_id")
+  ruleType        SailingRatingRuleType @map("rule_type")
+  sailingRatingId String                @map("sailing_rating_id")
+  groupKey        String                @default("default") @map("group_key")
+  displayOrder    Int                   @default(0) @map("display_order")
+  createdAt       DateTime              @default(now()) @map("created_at")
+  updatedAt       DateTime              @updatedAt @map("updated_at")
+
+  boat          FleetBoat?     @relation(fields: [boatId], references: [id], onDelete: Cascade)
+  sailingClass  SailingClass?  @relation(fields: [classId], references: [id], onDelete: Cascade)
+  targetRating  SailingRating? @relation("RuleTargetRating", fields: [ratingId], references: [id], onDelete: Cascade)
+  sailingRating SailingRating  @relation("RuleSailingRating", fields: [sailingRatingId], references: [id], onDelete: Cascade)
+
+  @@unique([boatId, ruleType, groupKey, sailingRatingId], map: "sailing_rating_rules_boat_uq")
+  @@unique([classId, ruleType, groupKey, sailingRatingId], map: "sailing_rating_rules_class_uq")
+  @@unique([ratingId, ruleType, groupKey, sailingRatingId], map: "sailing_rating_rules_rating_uq")
+  @@index([boatId, ruleType])
+  @@index([classId, ruleType])
+  @@index([ratingId, ruleType])
+  @@index([sailingRatingId])
+  @@map("sailing_rating_rules")
+}
+
 model FleetBoat {
   id                String                     @id
   name              String
@@ -433,6 +516,7 @@ model FleetBoat {
   imagePath         String?                    @map("image_path")
   requiredClass     SailingClass               @relation(fields: [requiredClassId], references: [id], onDelete: Restrict)
   unlockedByClasses SailingClassUnlockedBoat[]
+  ratingRules       SailingRatingRule[]
 
   @@index([requiredClassId])
   @@map("fleet_boats")
