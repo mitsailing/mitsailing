@@ -1,16 +1,11 @@
 import * as z from 'zod';
 import type { AdminCatalogResourceMessageKey } from '@/libs/admin/catalog/types';
 import { isSafeCmsAppPath } from '@/libs/mit-sailing/cmsHref';
+import { catalogUrlFragmentSlugSchema } from '@/libs/validation/catalogUrlFragmentSlugSchema';
 
 const sailingClassesValidationMessages = {
   imagePaths: 'field_error_sailing_class_image_paths_safe_path',
 } satisfies Record<string, AdminCatalogResourceMessageKey>;
-
-const slugSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
 
 function imagePathsFromLines(raw: string): string[] {
   const paths: string[] = [];
@@ -32,7 +27,7 @@ function imagePathsFromLines(raw: string): string[] {
  */
 export const sailingClassFormSchema = z.object({
   name: z.string().trim().min(1),
-  slug: slugSchema,
+  slug: catalogUrlFragmentSlugSchema,
   classCategoryId: z.string().trim().min(1),
   level: z.string().trim().min(1),
   description: z.string(),

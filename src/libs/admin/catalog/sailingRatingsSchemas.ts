@@ -1,4 +1,23 @@
 import * as z from 'zod';
+import { catalogUrlFragmentSlugSchema } from '@/libs/validation/catalogUrlFragmentSlugSchema';
+
+/**
+ * Maps admin {@link FormData} empty values to `undefined` before Zod coercion so
+ * optional fields do not turn `null`, `''`, or whitespace-only strings into
+ * unintended parsed values.
+ *
+ * @param value - Raw entry from `FormData#get` or similar
+ * @returns `undefined` when blank; otherwise the original value
+ */
+function formOptionalBlankToUndefined(value: unknown): unknown {
+  if (value === null) {
+    return undefined;
+  }
+  if (typeof value === 'string' && value.trim() === '') {
+    return undefined;
+  }
+  return value;
+}
 
 const requiredString = z.string().trim().min(1);
 const optionalString = z
@@ -11,15 +30,31 @@ const optionalWindCondition = z
     z.literal(''),
   ])
   .transform((value) => value || null);
+
+/**
+ * Blank → `null`; otherwise an absolute web URL only. Uses {@link z.url} with a
+ * strict `protocol` regex so values like `javascript:…`, `data:…`, or relative
+ * paths are rejected (same intent as manual http/https + host checks; Zod uses
+ * WHATWG parsing).
+ */
+const optionalGuideUrl = z
+  .string()
+  .trim()
+  .transform((value) => value || null)
+  .pipe(
+    z.union([
+      z.null(),
+      z.url({
+        protocol: /^https?$/,
+      }),
+    ])
+  );
 const optionalDisplayOrder = z.preprocess(
-  (value) => (value === '' || value === null ? undefined : value),
+  formOptionalBlankToUndefined,
   z.coerce.number().int().min(0).optional()
 );
 const defaultedGroupKey = z.preprocess(
-  (value) =>
-    value === null || (typeof value === 'string' && value.trim() === '')
-      ? undefined
-      : value,
+  formOptionalBlankToUndefined,
   requiredString.default('default')
 );
 
@@ -38,14 +73,14 @@ function catalogCheckboxBoolean(formData: FormData, field: string): boolean {
 }
 
 export const sailingRatingFormSchema = z.object({
-  slug: requiredString,
+  slug: catalogUrlFragmentSlugSchema,
   name: requiredString,
   shortName: optionalString,
   description: requiredString,
   category: optionalString,
   level: optionalString,
   windCondition: optionalWindCondition,
-  guideUrl: optionalString,
+  guideUrl: optionalGuideUrl,
   isVisible: z.boolean(),
   isDeprecated: z.boolean(),
 });

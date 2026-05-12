@@ -44,7 +44,9 @@ async function revokeTechRatingForProfileTest() {
 }
 
 test.describe('Sailing ratings', () => {
-  test.describe.configure({ mode: 'serial' });
+  // Override root `fullyParallel`: shared `user-ak` / `rating-tech` rows must not
+  // race with concurrent hooks/tests from this file on other workers.
+  test.describe.configure({ mode: 'default' });
 
   test.beforeEach(async () => {
     await revokeTechRatingForProfileTest();

@@ -1,5 +1,6 @@
 import 'server-only';
 import { randomUUID } from 'node:crypto';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { Prisma } from '@/generated/prisma/client';
 import {
   rawSailingRatingFromFormData,
@@ -17,6 +18,10 @@ import type {
 } from '@/libs/admin/catalog/types';
 import { prismaUniqueTargetIncludes } from '@/libs/admin/prismaUniqueTargetIncludes';
 import { prisma } from '@/libs/DB';
+
+/** Interactive transaction bounds (Prisma docs: maxWait, timeout). */
+const PRISMA_INTERACTIVE_TX_MAX_WAIT_MS = 5000;
+const PRISMA_INTERACTIVE_TX_TIMEOUT_MS = 10_000;
 
 type SailingRatingRuleDisplayOrderClient = Pick<
   typeof prisma,
@@ -152,20 +157,26 @@ export const sailingRatingsCatalogHandlers: CatalogServerHandlers = {
       return { ok: false, code: 'validation_failed' };
     }
     try {
-      const created = await prisma.$transaction(async (tx) => {
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('sailing_ratings_display_order'))`;
-        const agg = await tx.sailingRating.aggregate({
-          _max: { displayOrder: true },
-        });
-        return tx.sailingRating.create({
-          data: {
-            id: randomUUID(),
-            ...parsed.data,
-            displayOrder: (agg._max.displayOrder ?? -1) + 1,
-          },
-          select: { id: true },
-        });
-      });
+      const created = await prisma.$transaction(
+        async (tx) => {
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('sailing_ratings_display_order'))`;
+          const agg = await tx.sailingRating.aggregate({
+            _max: { displayOrder: true },
+          });
+          return tx.sailingRating.create({
+            data: {
+              id: randomUUID(),
+              ...parsed.data,
+              displayOrder: (agg._max.displayOrder ?? -1) + 1,
+            },
+            select: { id: true },
+          });
+        },
+        {
+          maxWait: PRISMA_INTERACTIVE_TX_MAX_WAIT_MS,
+          timeout: PRISMA_INTERACTIVE_TX_TIMEOUT_MS,
+        }
+      );
       return { ok: true, id: created.id };
     } catch (error) {
       return mapPrismaErr(error) ?? { ok: false, code: 'unknown' };
@@ -215,6 +226,13 @@ export const sailingRatingsCatalogHandlers: CatalogServerHandlers = {
     }
   },
 };
+
+/**
+ * Serializable rule create; P2034 retry plus interactive tx maxWait/timeout per Prisma
+ * transaction guidance.
+ */
+const SAILING_RATING_RULE_CREATE_TX_MAX_ATTEMPTS = 3;
+const SAILING_RATING_RULE_CREATE_TX_BACKOFF_MS = 25;
 
 export const sailingRatingRulesCatalogHandlers: CatalogServerHandlers = {
   async list(): Promise<CatalogRow[]> {
@@ -270,42 +288,61 @@ export const sailingRatingRulesCatalogHandlers: CatalogServerHandlers = {
     if (!parsed.success) {
       return { ok: false, code: 'validation_failed' };
     }
-    try {
-      const target = sailingRatingRuleTargetFields(parsed.data);
-      const { displayOrder, groupKey, ruleType, sailingRatingId } = parsed.data;
-      const created = await prisma.$transaction(
-        async (tx) => {
-          const lockKey = sailingRatingRuleDisplayOrderLockKey({
-            target,
-            ruleType,
-            groupKey,
-          });
-          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
-
-          return tx.sailingRatingRule.create({
-            data: {
-              id: randomUUID(),
-              ...target,
+    const target = sailingRatingRuleTargetFields(parsed.data);
+    const { displayOrder, groupKey, ruleType, sailingRatingId } = parsed.data;
+    let retryCount = 0;
+    for (;;) {
+      try {
+        const created = await prisma.$transaction(
+          async (tx) => {
+            const lockKey = sailingRatingRuleDisplayOrderLockKey({
+              target,
               ruleType,
-              sailingRatingId,
               groupKey,
-              displayOrder:
-                displayOrder ??
-                (await nextSailingRatingRuleDisplayOrder({
-                  client: tx,
-                  target,
-                  ruleType,
-                  groupKey,
-                })),
-            },
-            select: { id: true },
-          });
-        },
-        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
-      );
-      return { ok: true, id: created.id };
-    } catch (error) {
-      return mapPrismaErr(error) ?? { ok: false, code: 'unknown' };
+            });
+            await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+
+            return tx.sailingRatingRule.create({
+              data: {
+                id: randomUUID(),
+                ...target,
+                ruleType,
+                sailingRatingId,
+                groupKey,
+                displayOrder:
+                  displayOrder ??
+                  (await nextSailingRatingRuleDisplayOrder({
+                    client: tx,
+                    target,
+                    ruleType,
+                    groupKey,
+                  })),
+              },
+              select: { id: true },
+            });
+          },
+          {
+            isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+            maxWait: PRISMA_INTERACTIVE_TX_MAX_WAIT_MS,
+            timeout: PRISMA_INTERACTIVE_TX_TIMEOUT_MS,
+          }
+        );
+        return { ok: true, id: created.id };
+      } catch (error) {
+        const isWriteConflict =
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2034';
+        if (!isWriteConflict) {
+          return mapPrismaErr(error) ?? { ok: false, code: 'unknown' };
+        }
+        retryCount += 1;
+        if (retryCount >= SAILING_RATING_RULE_CREATE_TX_MAX_ATTEMPTS) {
+          return mapPrismaErr(error) ?? { ok: false, code: 'unknown' };
+        }
+        await sleep(
+          SAILING_RATING_RULE_CREATE_TX_BACKOFF_MS * 2 ** (retryCount - 1)
+        );
+      }
     }
   },
   async updateFromForm(
