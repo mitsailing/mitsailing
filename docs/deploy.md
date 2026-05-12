@@ -22,7 +22,8 @@ Ingress in this repo is **Cloudflare Tunnel** (`cloudflared` in
 | Docker Engine + Compose v2 | Rootless is fine; same user runs `docker compose` |
 | SSH access | Interactive key for you; **separate** deploy key for CI |
 | `docker login ghcr.io` | Once per user, PAT with `read:packages` if the image is private |
-| Directory `~/apps/mitsailing/` | Holds `compose.yaml`, `compose.prod.yaml`, `docker/postgres/init.sql`, `.env.production`, `deploy.sh` |
+| Directory `~/apps/mitsailing/` | Holds `compose.yaml`, `compose.prod.yaml`, optional `compose.db-admin.yaml`, `docker/postgres/init.sql`, `.env.production`, `deploy.sh` |
+| Directory `/srv/mitsailing-data/` | Host-owned production data root for Postgres, Redis, and CMS media bind mounts |
 
 **Multiple projects on one host:** each app should use a **unique Compose
 project name**. This repo sets `name: mitsailing` in `compose.yaml`. A second
@@ -81,9 +82,9 @@ Fill at least:
 - `BETTER_AUTH_SECRET` (32+ random chars)
 - `DATABASE_URL` — must match Postgres in Compose: user `postgres`, host
   `postgres`, password `POSTGRES_PASSWORD`. Production defaults to database
-  name **`mitsailing_prod`** (`compose.prod.yaml`). If your volume was created
-  earlier with `dev_db`, keep `POSTGRES_DB=dev_db` and point `DATABASE_URL` at
-  `dev_db` until you migrate.
+  name **`mitsailing_prod`** (`compose.prod.yaml`). If your production data
+  directory was created earlier with `dev_db`, keep `POSTGRES_DB=dev_db` and
+  point `DATABASE_URL` at `dev_db` until you migrate.
 - `POSTGRES_PASSWORD` — strong password; same value embedded in `DATABASE_URL`
 - `REDIS_URL` — e.g. `redis://redis:6379` for the BullMQ **worker** service
   (`compose.yaml` / `compose.prod.yaml`)
@@ -196,63 +197,53 @@ docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production \
   "select count(*) from information_schema.tables where table_schema = 'legacy';"
 ```
 
-### 4. Create the production CMS media volume
+### 4. Create the production data root
 
-Production uploads live in the external Docker volume
-`mitsailing_cms_media`, mounted inside both `app` and `worker` at
-`/var/lib/mitsailing/cms-media`. The deploy script creates the volume if it is
-missing, but creating it explicitly during bootstrap makes the persistence
-contract visible before the first deploy:
+Production state lives in explicit host directories, not Docker-managed named
+volumes:
 
-```bash
-docker volume inspect mitsailing_cms_media >/dev/null 2>&1 || docker volume create mitsailing_cms_media
+```text
+/srv/mitsailing-data/postgres
+/srv/mitsailing-data/redis
+/srv/mitsailing-data/cms-media
 ```
 
-Back up uploaded media by archiving the volume contents from a temporary
-container:
+Create the root once as an admin, then give ownership to the deploy user:
+
+```bash
+sudo mkdir -p /srv/mitsailing-data/{postgres,redis,cms-media}
+sudo chown -R DEPLOY_USER:DEPLOY_USER /srv/mitsailing-data
+sudo chmod 700 /srv/mitsailing-data
+sudo chmod 700 /srv/mitsailing-data/postgres
+sudo chmod 700 /srv/mitsailing-data/redis
+sudo chmod 700 /srv/mitsailing-data/cms-media
+```
+
+`bin/deploy.sh` requires `/srv/mitsailing-data` to exist and be writable by the
+deploy user. It creates missing `postgres`, `redis`, and `cms-media`
+subdirectories, then verifies the running containers use bind mounts at:
+
+| Host path | Container path | Services |
+| --- | --- | --- |
+| `/srv/mitsailing-data/postgres` | `/var/lib/postgresql` | `postgres` |
+| `/srv/mitsailing-data/redis` | `/data` | `redis` |
+| `/srv/mitsailing-data/cms-media` | `/var/lib/mitsailing/cms-media` | `app`, `worker` |
+
+The deploy script also prepares CMS media for the app runtime UID/GID
+`1001:1001` and verifies write access from `postgres`, `redis`, `app`, and
+`worker`.
+
+Because these are ordinary host directories, `docker compose down -v` can remove
+Compose-managed development volumes, but it does **not** delete
+`/srv/mitsailing-data/postgres`, `/srv/mitsailing-data/redis`, or
+`/srv/mitsailing-data/cms-media`.
+
+Back up CMS media directly from the host path:
 
 ```bash
 backup_file="mitsailing-cms-media-backup-$(date -u +%Y%m%dT%H%M%SZ).tgz"
-docker run --rm \
-  -v mitsailing_cms_media:/media:ro \
-  -v "$PWD":/backup \
-  alpine tar czf "/backup/${backup_file}" -C /media .
+sudo tar czf "$backup_file" -C /srv/mitsailing-data/cms-media .
 ```
-
-Restore into the same external volume before starting app containers:
-
-```bash
-backup_file="$(ls -t mitsailing-cms-media-backup-*.tgz | head -n 1)"
-if [ -z "$backup_file" ] || [ ! -f "$backup_file" ]; then
-  echo "No backup file found matching mitsailing-cms-media-backup-*.tgz" >&2
-  exit 1
-fi
-docker run --rm \
-  -v mitsailing_cms_media:/media \
-  -v "$PWD":/backup \
-  -e BACKUP_FILE="$backup_file" \
-  alpine sh -c 'cd /media && tar xzf "/backup/${BACKUP_FILE}"'
-```
-
-That restore **overlays** the tarball onto whatever is already in the volume:
-paths in the archive replace same-path objects, but files that exist only under
-`/media` and not in the backup are **not** removed, so stale assets can remain.
-Use overlay restores when you intentionally merge or patch content.
-
-For a **point-in-time** restore that matches the backup only (no leftover
-paths), stop the app and worker, then clear `/media` before extraction—for
-example:
-
-```bash
-docker run --rm \
-  -v mitsailing_cms_media:/media \
-  -v "$PWD":/backup \
-  -e BACKUP_FILE="$backup_file" \
-  alpine sh -c 'find /media -mindepth 1 -delete && tar xzf "/backup/${BACKUP_FILE}" -C /media'
-```
-
-Do **not** use `docker compose down -v` on the production stack unless you have
-a current, verified media backup and intend to delete all uploaded CMS media.
 
 ### 5. GHCR pull authentication
 
@@ -295,7 +286,7 @@ containers start.
 ```bash
 cd ~/apps/mitsailing
 
-# First time only — creates data volumes and runs init.sql
+# First time only — initializes host bind-mounted data directories and runs init.sql
 docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production up -d postgres redis
 
 docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production ps

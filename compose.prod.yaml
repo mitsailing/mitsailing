@@ -5,9 +5,11 @@
 #   - App command is `node server.js`; database migrations run in CI/CD
 #     before deployment (see `.github/workflows/deploy.yml`).
 #   - Database default name `mitsailing_prod` (override with POSTGRES_DB if
-#     an existing volume was initialized with `dev_db`).
+#     an existing production data directory was initialized with `dev_db`).
+#   - Runtime state uses explicit host bind mounts under `/srv/mitsailing-data`
+#     so `docker compose down -v` cannot delete production data.
 #   - If heavy ISR / `use cache` needs a shared or durable data cache, add a
-#     named volume on `app` for the Next data directory (see Next.js
+#     dedicated host mount on `app` for the Next data directory (see Next.js
 #     self-hosting) or a custom `incrementalCacheHandlerPath` — not enabled by
 #     default.
 #
@@ -20,6 +22,17 @@ services:
   postgres:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-mitsailing_prod}
+    volumes:
+      - type: bind
+        source: /srv/mitsailing-data/postgres
+        target: /var/lib/postgresql
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
+
+  redis:
+    volumes:
+      - type: bind
+        source: /srv/mitsailing-data/redis
+        target: /data
 
   app:
     image: ${APP_IMAGE}
@@ -37,8 +50,8 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      - type: volume
-        source: cms_media
+      - type: bind
+        source: /srv/mitsailing-data/cms-media
         target: /var/lib/mitsailing/cms-media
     stop_grace_period: 30s
     command: ['node', 'server.js']
@@ -80,8 +93,8 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      - type: volume
-        source: cms_media
+      - type: bind
+        source: /srv/mitsailing-data/cms-media
         target: /var/lib/mitsailing/cms-media
     stop_grace_period: 30s
     command: ['node', 'worker.mjs']
@@ -125,8 +138,3 @@ services:
       options:
         max-size: '10m'
         max-file: '3'
-
-volumes:
-  cms_media:
-    name: mitsailing_cms_media
-    external: true

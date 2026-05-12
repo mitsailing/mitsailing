@@ -21,7 +21,12 @@ readonly DEPLOY_DIR="${DEPLOY_DIR:-$HOME/apps/mitsailing}"
 # a full flag sequence, e.g. `DEPLOY_COMPOSE_FILES='-f compose.yaml -f compose.prod.yaml'`.
 readonly COMPOSE_FILES="${DEPLOY_COMPOSE_FILES:--f compose.yaml -f compose.prod.yaml}"
 readonly ENV_FILE="${DEPLOY_ENV_FILE:-.env.production}"
-readonly CMS_MEDIA_VOLUME_NAME="mitsailing_cms_media"
+readonly PRODUCTION_DATA_ROOT="/srv/mitsailing-data"
+readonly POSTGRES_DATA_SOURCE="${PRODUCTION_DATA_ROOT}/postgres"
+readonly REDIS_DATA_SOURCE="${PRODUCTION_DATA_ROOT}/redis"
+readonly CMS_MEDIA_SOURCE="${PRODUCTION_DATA_ROOT}/cms-media"
+readonly POSTGRES_DATA_TARGET="/var/lib/postgresql"
+readonly REDIS_DATA_TARGET="/data"
 readonly CMS_MEDIA_TARGET="/var/lib/mitsailing/cms-media"
 readonly CMS_MEDIA_RUNTIME_UID_GID="1001:1001"
 
@@ -55,37 +60,70 @@ ensure_prereqs() {
     || fail "${ENV_FILE} missing in $DEPLOY_DIR — copy .env.production.example and fill it in"
 }
 
-ensure_cms_media_volume() {
-  log "ensuring CMS media volume exists"
-  docker volume inspect "$CMS_MEDIA_VOLUME_NAME" >/dev/null 2>&1 \
-    || docker volume create "$CMS_MEDIA_VOLUME_NAME" >/dev/null
-  log "ensuring CMS media volume is writable by runtime uid:gid $CMS_MEDIA_RUNTIME_UID_GID"
+ensure_production_data_dirs() {
+  [[ -d "$PRODUCTION_DATA_ROOT" ]] \
+    || fail "${PRODUCTION_DATA_ROOT} missing — create it from docs/deploy.md before deploying"
+  [[ -w "$PRODUCTION_DATA_ROOT" ]] \
+    || fail "${PRODUCTION_DATA_ROOT} must be writable by the deploy user"
+
+  log "ensuring production data directories exist under $PRODUCTION_DATA_ROOT"
+  mkdir -p "$POSTGRES_DATA_SOURCE" "$REDIS_DATA_SOURCE" "$CMS_MEDIA_SOURCE"
+  chmod 700 "$PRODUCTION_DATA_ROOT"
+}
+
+ensure_cms_media_permissions() {
+  log "ensuring CMS media bind mount is writable by runtime uid:gid $CMS_MEDIA_RUNTIME_UID_GID"
   docker run \
     --rm \
     --user 0:0 \
-    --volume "${CMS_MEDIA_VOLUME_NAME}:${CMS_MEDIA_TARGET}" \
+    --volume "${CMS_MEDIA_SOURCE}:${CMS_MEDIA_TARGET}" \
     "$APP_IMAGE" \
-    sh -c "mkdir -p '${CMS_MEDIA_TARGET}' && chown -R '${CMS_MEDIA_RUNTIME_UID_GID}' '${CMS_MEDIA_TARGET}' && chmod 775 '${CMS_MEDIA_TARGET}'"
+    sh -c "mkdir -p '${CMS_MEDIA_TARGET}' && chown -R '${CMS_MEDIA_RUNTIME_UID_GID}' '${CMS_MEDIA_TARGET}' && chmod 700 '${CMS_MEDIA_TARGET}'"
 }
 
-verify_cms_media_mount() {
+verify_bind_mount() {
   local service="$1"
-  local container mount_name
-  log "verifying CMS media mount for $service at $CMS_MEDIA_TARGET"
+  local target="$2"
+  local source="$3"
+  local container mount_type mount_source
+  log "verifying $service bind mount $source -> $target"
   # shellcheck disable=SC2086
   container=$(docker compose $COMPOSE_FILES --env-file "$ENV_FILE" ps -q "$service")
   [[ -n "$container" ]] || fail "$service container did not start"
 
-  mount_name=$(docker inspect \
-    --format "{{range .Mounts}}{{if eq .Destination \"${CMS_MEDIA_TARGET}\"}}{{.Name}}{{end}}{{end}}" \
+  mount_type=$(docker inspect \
+    --format "{{range .Mounts}}{{if eq .Destination \"${target}\"}}{{.Type}}{{end}}{{end}}" \
     "$container")
-  [[ "$mount_name" == "$CMS_MEDIA_VOLUME_NAME" ]] \
-    || fail "$service CMS media mount must use $CMS_MEDIA_VOLUME_NAME at $CMS_MEDIA_TARGET (actual: ${mount_name:-none})"
+  mount_source=$(docker inspect \
+    --format "{{range .Mounts}}{{if eq .Destination \"${target}\"}}{{.Source}}{{end}}{{end}}" \
+    "$container")
+  [[ "$mount_type" == "bind" && "$mount_source" == "$source" ]] \
+    || fail "$service mount at $target must be bind source $source (actual: ${mount_type:-none} ${mount_source:-none})"
+}
+
+verify_container_write_access() {
+  local service="$1"
+  local user="$2"
+  local target="$3"
+  local marker="${target}/.mitsailing-write-test"
+  log "verifying $service can write $target as $user"
+  # shellcheck disable=SC2086
+  docker compose $COMPOSE_FILES --env-file "$ENV_FILE" exec -T --user "$user" "$service" \
+    sh -c "touch '${marker}' && rm -f '${marker}'"
+}
+
+verify_data_service_mounts() {
+  verify_bind_mount postgres "$POSTGRES_DATA_TARGET" "$POSTGRES_DATA_SOURCE"
+  verify_bind_mount redis "$REDIS_DATA_TARGET" "$REDIS_DATA_SOURCE"
+  verify_container_write_access postgres postgres "$POSTGRES_DATA_TARGET"
+  verify_container_write_access redis redis "$REDIS_DATA_TARGET"
 }
 
 verify_cms_media_mounts() {
-  verify_cms_media_mount app
-  verify_cms_media_mount worker
+  verify_bind_mount app "$CMS_MEDIA_TARGET" "$CMS_MEDIA_SOURCE"
+  verify_bind_mount worker "$CMS_MEDIA_TARGET" "$CMS_MEDIA_SOURCE"
+  verify_container_write_access app "$CMS_MEDIA_RUNTIME_UID_GID" "$CMS_MEDIA_TARGET"
+  verify_container_write_access worker "$CMS_MEDIA_RUNTIME_UID_GID" "$CMS_MEDIA_TARGET"
 }
 
 pin_image() {
@@ -105,9 +143,10 @@ pin_image() {
 
 run_migrations() {
   local image="$1"
-  log "ensuring postgres is up before migrations"
+  log "ensuring postgres and redis are up before migrations"
   # shellcheck disable=SC2086
-  docker compose $COMPOSE_FILES --env-file "$ENV_FILE" up -d postgres
+  docker compose $COMPOSE_FILES --env-file "$ENV_FILE" up -d postgres redis
+  verify_data_service_mounts
 
   log "running prisma migrate deploy from image $image"
   # shellcheck disable=SC2086
@@ -172,8 +211,9 @@ main() {
 
   cd "$DEPLOY_DIR" || fail "DEPLOY_DIR not found: $DEPLOY_DIR"
   ensure_prereqs
+  ensure_production_data_dirs
   pin_image "$ref"
-  ensure_cms_media_volume
+  ensure_cms_media_permissions
 
   case "$cmd" in
     migrate)

@@ -43,7 +43,7 @@ This document is the operational target for **mitsailing** on a **shared Linux h
 - **App**: existing Next.js standalone image (`compose.prod.yaml` pattern).
 - **Worker**: separate service, **same image** (or slim variant), different `command` — runs BullMQ processors and scheduled jobs (see §7).
 - **Redis**: job broker + short-lived dedupe keys; **not** exposed to the internet; optional Redis ACL password in env.
-- **Postgres**: one instance per “stack” (production vs each PR preview stack); data in **named volume** only.
+- **Postgres**: one instance per “stack” (production vs each PR preview stack); production data uses explicit host storage under `/srv/mitsailing-data/postgres`, while local and preview stacks can keep Docker-managed volumes.
 
 ---
 
