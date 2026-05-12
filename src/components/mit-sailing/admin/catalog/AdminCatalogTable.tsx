@@ -71,7 +71,7 @@ type AdminCatalogTableProps = {
     currentUserId: string;
     selfLabel: string;
   };
-  /** Message bundle for column headers and actions (default catalog resource). */
+  /** Message bundle for column headers, mobile labels, and actions (not list cell pills). */
   messageNamespace?: 'AdminCatalogResource' | 'AdminUsers';
 };
 
@@ -278,7 +278,6 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
             field={col.field}
             kind={col.kind}
             listNameEditHref={listNameEditHref}
-            messageNamespace={props.messageNamespace}
             row={row}
           />
         </TableCell>

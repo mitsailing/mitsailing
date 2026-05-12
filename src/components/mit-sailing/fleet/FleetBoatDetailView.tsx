@@ -19,7 +19,9 @@ type FleetBoatDetailViewProps = {
 };
 
 /**
- * @param props - Single boat detail page
+ * Renders a fleet boat detail page with ratings, class requirement, and rich text body.
+ *
+ * @param props - Locale and loaded boat row
  * @returns Boat detail marketing page
  */
 export async function FleetBoatDetailView(props: FleetBoatDetailViewProps) {
@@ -84,7 +86,7 @@ export async function FleetBoatDetailView(props: FleetBoatDetailViewProps) {
           </h2>
           <Link
             className={`inline-flex items-center gap-1 font-semibold text-mit-red hover:underline ${textFocusRingClassName} dark:text-mit-red-ink`}
-            href={`/classes/${boat.requiredClass.slug}/`}
+            href={`/classes/${boat.requiredClass.slug}`}
           >
             {boat.requiredClass.name} <ArrowRight aria-hidden size={14} />
           </Link>
@@ -112,7 +114,7 @@ export async function FleetBoatDetailView(props: FleetBoatDetailViewProps) {
       ) : null}
 
       {boat.imagePath && !descriptionHasImage ? (
-        <div className="relative mb-6 aspect-[16/10] max-h-[420px] overflow-hidden rounded-xl bg-mit-line">
+        <div className="relative mb-6 aspect-16/10 max-h-[420px] overflow-hidden rounded-xl bg-mit-line">
           <Image
             alt={boat.name}
             className="object-cover"

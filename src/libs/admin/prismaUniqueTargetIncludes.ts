@@ -7,7 +7,7 @@ import type { Prisma } from '@/generated/prisma/client';
  *
  * @param error Prisma known request error (for example after a unique violation).
  * @param field Model field name to match against `meta.target`.
- * @returns True when `target` is an array containing `field`, or a string that includes `field`.
+ * @returns True when `target` is an array containing `field`, or a string equal to `field`.
  */
 export function prismaUniqueTargetIncludes(
   error: Prisma.PrismaClientKnownRequestError,
@@ -17,5 +17,5 @@ export function prismaUniqueTargetIncludes(
   if (Array.isArray(target)) {
     return target.some((value) => value === field);
   }
-  return typeof target === 'string' && target.includes(field);
+  return typeof target === 'string' && target === field;
 }

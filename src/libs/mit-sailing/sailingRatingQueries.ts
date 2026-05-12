@@ -55,6 +55,10 @@ function isPresent<T>(value: T | null | undefined): value is T {
   return value !== undefined && value !== null;
 }
 
+function dedupeById<T extends { id: string }>(items: T[]): T[] {
+  return [...new Map(items.map((item) => [item.id, item])).values()];
+}
+
 function targetRuleWhere(props: {
   targetType: SailingRatingTargetType;
   targetId: string;
@@ -161,14 +165,18 @@ async function listPublicSailingRatingsForClient(
 
   return ratings.map((rating) => ({
     ...rating,
-    grantableClasses: classRules
-      .filter((rule) => rule.sailingRatingId === rating.id)
-      .map((rule) => (rule.classId ? classById.get(rule.classId) : undefined))
-      .filter(isPresent),
-    unlockedBoats: boatRules
-      .filter((rule) => rule.sailingRatingId === rating.id)
-      .map((rule) => (rule.boatId ? boatById.get(rule.boatId) : undefined))
-      .filter(isPresent),
+    grantableClasses: dedupeById(
+      classRules
+        .filter((rule) => rule.sailingRatingId === rating.id)
+        .map((rule) => (rule.classId ? classById.get(rule.classId) : undefined))
+        .filter(isPresent)
+    ),
+    unlockedBoats: dedupeById(
+      boatRules
+        .filter((rule) => rule.sailingRatingId === rating.id)
+        .map((rule) => (rule.boatId ? boatById.get(rule.boatId) : undefined))
+        .filter(isPresent)
+    ),
   }));
 }
 

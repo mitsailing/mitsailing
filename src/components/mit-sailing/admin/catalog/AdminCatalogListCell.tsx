@@ -57,8 +57,6 @@ type AdminCatalogListCellProps = {
   row: CatalogRow;
   /** When `kind` is `boolean`, maps true/false to pill tones. */
   booleanPolarity?: AdminBooleanListPolarity;
-  /** When `AdminUsers`, boolean headers come from that namespace. */
-  messageNamespace?: 'AdminCatalogResource' | 'AdminUsers';
   /**
    * When set on the `name` list column and the value is non-empty, renders an
    * edit link (same target as the row's Edit action).
@@ -68,6 +66,10 @@ type AdminCatalogListCellProps = {
 
 /**
  * Renders one catalog list cell (visibility badge, links, plain text, numbers).
+ *
+ * Boolean pills use `AdminCatalog` (`yes` / `no`); visibility uses `AdminCatalogResource`
+ * (`status_live` / `status_draft`). The admin catalog table's `messageNamespace` prop
+ * affects column headers and actions only, not these cell labels.
  *
  * @param props - Field metadata and row payload
  * @returns Table cell inner content

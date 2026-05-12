@@ -12,6 +12,20 @@ const optionalWindCondition = z
   ])
   .transform((value) => value || null);
 
+/**
+ * Reads a boolean from admin {@link FormData} when the field uses the hidden
+ * `false` plus checkbox pattern (see `CatalogBooleanField`); supports both
+ * `value="true"` and the HTML default submitted value `on`.
+ *
+ * @param formData - Parsed admin form body
+ * @param field - Checkbox field name
+ * @returns True when the field includes a checked value (`true` or `on`)
+ */
+function catalogCheckboxBoolean(formData: FormData, field: string): boolean {
+  const values = formData.getAll(field);
+  return values.includes('true') || values.includes('on');
+}
+
 export const sailingRatingFormSchema = z.object({
   slug: requiredString,
   name: requiredString,
@@ -25,6 +39,12 @@ export const sailingRatingFormSchema = z.object({
   isDeprecated: z.boolean(),
 });
 
+/**
+ * Parses {@link FormData} from the sailing rating admin form for Zod validation.
+ *
+ * @param formData - Submitted form body
+ * @returns Parsed object before schema refinement
+ */
 export function rawSailingRatingFromFormData(formData: FormData) {
   return {
     slug: formData.get('slug'),
@@ -35,8 +55,8 @@ export function rawSailingRatingFromFormData(formData: FormData) {
     level: formData.get('level'),
     windCondition: formData.get('windCondition'),
     guideUrl: formData.get('guideUrl'),
-    isVisible: formData.get('isVisible') === 'true',
-    isDeprecated: formData.get('isDeprecated') === 'true',
+    isVisible: catalogCheckboxBoolean(formData, 'isVisible'),
+    isDeprecated: catalogCheckboxBoolean(formData, 'isDeprecated'),
   };
 }
 
