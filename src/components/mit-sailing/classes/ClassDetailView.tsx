@@ -42,7 +42,7 @@ function RatingsSection(props: RatingsSectionProps) {
           <li className={props.bodyClass} key={rating.id}>
             <Link
               className={`inline-flex items-center gap-1 font-semibold text-mit-red-ink hover:underline ${textFocusRingClassName}`}
-              href={`/ratings/#${rating.slug}`}
+              href={`/ratings#${rating.slug}`}
             >
               {rating.name} <ArrowRight aria-hidden size={14} />
             </Link>

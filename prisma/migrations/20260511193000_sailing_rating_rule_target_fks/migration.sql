@@ -9,8 +9,10 @@ SET
   "class_id" = CASE WHEN "target_type" = 'class' THEN "target_id" ELSE NULL END,
   "rating_id" = CASE WHEN "target_type" = 'rating' THEN "target_id" ELSE NULL END;
 
-DROP INDEX "sailing_rating_rules_composite_uq";
-DROP INDEX "sailing_rating_rules_target_type_target_id_rule_type_idx";
+-- Prisma may emit a truncated index name on Postgres (63-byte limit); cover both.
+DROP INDEX IF EXISTS "sailing_rating_rules_composite_uq";
+DROP INDEX IF EXISTS "sailing_rating_rules_target_type_target_id_rule_type_group_key_";
+DROP INDEX IF EXISTS "sailing_rating_rules_target_type_target_id_rule_type_idx";
 
 ALTER TABLE "sailing_rating_rules" DROP COLUMN "target_type";
 ALTER TABLE "sailing_rating_rules" DROP COLUMN "target_id";
