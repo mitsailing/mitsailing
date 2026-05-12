@@ -142,12 +142,15 @@ export const getFleetBoatForPublicBySlug = cache(
     const sortedRatingRules = ratingRules.toSorted(
       (a, b) => a.displayOrder - b.displayOrder
     );
+    const activeRatingRules = sortedRatingRules.filter(
+      (rule) => !rule.sailingRating.isDeprecated
+    );
     return {
       ...boat,
-      requiredRatings: sortedRatingRules
+      requiredRatings: activeRatingRules
         .filter((rule) => rule.groupKey !== 'advanced')
         .map((rule) => rule.sailingRating),
-      advancedRatings: sortedRatingRules
+      advancedRatings: activeRatingRules
         .filter((rule) => rule.groupKey === 'advanced')
         .map((rule) => rule.sailingRating),
     };
