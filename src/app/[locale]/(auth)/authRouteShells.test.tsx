@@ -75,6 +75,7 @@ function userRatingAssignmentRowFixture(
 
 const routeMocks = vi.hoisted(() => ({
   findUnique: vi.fn(),
+  getFormatter: vi.fn(),
   getTranslations: vi.fn(),
   listUserRatingAssignmentRows:
     vi.fn() as MockedFunction<ListUserRatingAssignmentRowsFn>,
@@ -97,6 +98,7 @@ function createTranslator(namespace: string): Translator {
 }
 
 vi.mock('next-intl/server', () => ({
+  getFormatter: routeMocks.getFormatter,
   getTranslations: routeMocks.getTranslations,
   setRequestLocale: routeMocks.setRequestLocale,
 }));
@@ -242,6 +244,16 @@ function routeProps(searchParams: Record<string, string | undefined> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  routeMocks.getFormatter.mockImplementation(async () => {
+    await Promise.resolve();
+    return {
+      dateTime: (date: Date, options?: Intl.DateTimeFormatOptions) =>
+        new Intl.DateTimeFormat('en-US', {
+          timeZone: 'America/New_York',
+          ...options,
+        }).format(date),
+    };
+  });
   routeMocks.getTranslations.mockImplementation(
     async (props: { namespace: string }) => {
       await Promise.resolve();

@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { pavilionShippingAddress } from '@/data/mit-sailing/pavilionInfoSeed';
+import { calendarYearInEventsTimeZone } from '@/lib/mit-sailing/nyTime';
 import {
   footerCopyrightBarClassName,
   footerLegalLinkClassName,
@@ -53,7 +54,7 @@ export async function SiteFooter() {
     loadCmsMenu('legal'),
     loadCmsMenu('social'),
   ]);
-  const year = new Date().getFullYear();
+  const year = calendarYearInEventsTimeZone(new Date());
   const socialGroups = socialMenu.map((group) => ({
     id: group.id,
     label: group.label,

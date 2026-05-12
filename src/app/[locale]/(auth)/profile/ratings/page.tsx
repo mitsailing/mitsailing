@@ -1,6 +1,9 @@
 import type { Metadata } from 'next';
-import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { EVENTS_TIME_ZONE } from '@/lib/mit-sailing/nyTime';
+import {
+  getFormatter,
+  getTranslations,
+  setRequestLocale,
+} from 'next-intl/server';
 import { requireCurrentUser } from '@/libs/auth/dal';
 import { Link } from '@/libs/I18nNavigation';
 import { listUserRatingAssignmentRows } from '@/libs/mit-sailing/sailingRatingQueries';
@@ -34,10 +37,7 @@ export default async function ProfileRatingsPage(
     includeDeprecated: false,
   });
   const t = await getTranslations({ locale, namespace: 'UserProfilePage' });
-  const dateFormatter = new Intl.DateTimeFormat(locale, {
-    dateStyle: 'medium',
-    timeZone: EVENTS_TIME_ZONE,
-  });
+  const format = await getFormatter({ locale });
 
   return (
     <section className="mx-auto max-w-5xl">
@@ -74,13 +74,17 @@ export default async function ProfileRatingsPage(
                 <td className="px-2 py-2">
                   {row.issuedAt && row.issuedByName
                     ? t('ratings_issued_by', {
-                        date: dateFormatter.format(row.issuedAt),
+                        date: format.dateTime(row.issuedAt, {
+                          dateStyle: 'medium',
+                        }),
                         name: row.issuedByName,
                       })
                     : null}
                   {row.issuedAt && !row.issuedByName
                     ? t('ratings_issued_on', {
-                        date: dateFormatter.format(row.issuedAt),
+                        date: format.dateTime(row.issuedAt, {
+                          dateStyle: 'medium',
+                        }),
                       })
                     : null}
                   {row.issuedAt ? null : (

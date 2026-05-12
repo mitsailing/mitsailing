@@ -1,4 +1,4 @@
-import { getTranslations } from 'next-intl/server';
+import { getFormatter, getTranslations } from 'next-intl/server';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -8,7 +8,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { EVENTS_TIME_ZONE } from '@/lib/mit-sailing/nyTime';
 import {
   grantAdminUserRatingAction,
   revokeAdminUserRatingAction,
@@ -36,6 +35,7 @@ export async function AdminUserRatingsPanel(props: AdminUserRatingsPanelProps) {
     locale: props.locale,
     namespace: 'AdminUsers',
   });
+  const format = await getFormatter({ locale: props.locale });
   const actionProps = { locale: props.locale, userId: props.userId };
   const grantAction = grantAdminUserRatingAction.bind(null, actionProps);
   const revokeAction = revokeAdminUserRatingAction.bind(null, actionProps);
@@ -105,10 +105,7 @@ export async function AdminUserRatingsPanel(props: AdminUserRatingsPanelProps) {
                 </TableCell>
                 <TableCell>
                   {row.issuedAt
-                    ? new Intl.DateTimeFormat(props.locale, {
-                        dateStyle: 'medium',
-                        timeZone: EVENTS_TIME_ZONE,
-                      }).format(row.issuedAt)
+                    ? format.dateTime(row.issuedAt, { dateStyle: 'medium' })
                     : t('rating_status_missing')}
                 </TableCell>
                 <TableCell>{row.issuedByName ?? '—'}</TableCell>

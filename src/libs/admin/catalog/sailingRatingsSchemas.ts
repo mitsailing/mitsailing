@@ -15,6 +15,13 @@ const optionalDisplayOrder = z.preprocess(
   (value) => (value === '' || value === null ? undefined : value),
   z.coerce.number().int().min(0).optional()
 );
+const defaultedGroupKey = z.preprocess(
+  (value) =>
+    value === null || (typeof value === 'string' && value.trim() === '')
+      ? undefined
+      : value,
+  requiredString.default('default')
+);
 
 /**
  * Reads a boolean from admin {@link FormData} when the field uses the hidden
@@ -69,7 +76,7 @@ export const sailingRatingRuleFormSchema = z.object({
   targetId: requiredString,
   ruleType: z.enum(['requires', 'grants']),
   sailingRatingId: requiredString,
-  groupKey: requiredString.default('default'),
+  groupKey: defaultedGroupKey,
   displayOrder: optionalDisplayOrder,
 });
 
@@ -79,7 +86,7 @@ export function rawSailingRatingRuleFromFormData(formData: FormData) {
     targetId: formData.get('targetId'),
     ruleType: formData.get('ruleType'),
     sailingRatingId: formData.get('sailingRatingId'),
-    groupKey: formData.get('groupKey') ?? 'default',
+    groupKey: formData.get('groupKey'),
     displayOrder: formData.get('displayOrder'),
   };
 }

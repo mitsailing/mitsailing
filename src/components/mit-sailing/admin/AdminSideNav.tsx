@@ -2,7 +2,7 @@
 
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 import { Button } from '@/components/ui/button';
 import { normalizeNavPath } from '@/lib/mit-sailing/navPathMatch';
 import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
@@ -107,6 +107,61 @@ const ADMIN_SIDE_NAV_REGION_ID = 'admin-sidenav';
 const ADMIN_SIDE_NAV_COLLAPSED_STORAGE_KEY =
   'mitsailing-admin-sidenav-collapsed';
 
+/** Same-tab signal: `storage` does not fire in the document that called `setItem`. */
+const ADMIN_SIDE_NAV_COLLAPSED_CHANGED_EVENT =
+  'mitsailing:admin-sidenav-collapsed-changed';
+
+/** When `setItem` throws, snapshot still reflects the toggled value until storage or another tab updates. */
+let adminSideNavCollapsedPersistenceFault: boolean | null = null;
+
+function readAdminSideNavCollapsedFromStorage(): boolean {
+  if (adminSideNavCollapsedPersistenceFault !== null) {
+    return adminSideNavCollapsedPersistenceFault;
+  }
+  try {
+    return (
+      window.localStorage.getItem(ADMIN_SIDE_NAV_COLLAPSED_STORAGE_KEY) ===
+      'true'
+    );
+  } catch {
+    return false;
+  }
+}
+
+function getAdminSideNavCollapsedServerSnapshot(): boolean {
+  return false;
+}
+
+// Subscribes to cross-tab `storage` and the same-tab collapse sync event.
+// With `getServerSnapshot`, React does not call this during SSR.
+function subscribeAdminSideNavCollapsed(onStoreChange: () => void): () => void {
+  const onStorage = (event: StorageEvent) => {
+    if (
+      event.key !== null &&
+      event.key !== ADMIN_SIDE_NAV_COLLAPSED_STORAGE_KEY
+    ) {
+      return;
+    }
+    adminSideNavCollapsedPersistenceFault = null;
+    onStoreChange();
+  };
+  const onLocalChange = () => {
+    onStoreChange();
+  };
+  window.addEventListener('storage', onStorage);
+  window.addEventListener(
+    ADMIN_SIDE_NAV_COLLAPSED_CHANGED_EVENT,
+    onLocalChange
+  );
+  return () => {
+    window.removeEventListener('storage', onStorage);
+    window.removeEventListener(
+      ADMIN_SIDE_NAV_COLLAPSED_CHANGED_EVENT,
+      onLocalChange
+    );
+  };
+}
+
 /**
  * Tailwind Plus–style vertical rail (text rows) inside the marketing shell.
  * Renders only under {@link requireAdmin}.
@@ -116,19 +171,12 @@ const ADMIN_SIDE_NAV_COLLAPSED_STORAGE_KEY =
 export function AdminSideNav() {
   const t = useTranslations('AdminSideNav');
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
+  const collapsed = useSyncExternalStore(
+    subscribeAdminSideNavCollapsed,
+    readAdminSideNavCollapsedFromStorage,
+    getAdminSideNavCollapsedServerSnapshot
+  );
   const toggleLabel = collapsed ? t('expand_label') : t('collapse_label');
-
-  useEffect(() => {
-    try {
-      setCollapsed(
-        window.localStorage.getItem(ADMIN_SIDE_NAV_COLLAPSED_STORAGE_KEY) ===
-          'true'
-      );
-    } catch {
-      setCollapsed(false);
-    }
-  }, []);
 
   return (
     <div
@@ -150,18 +198,19 @@ export function AdminSideNav() {
           type="button"
           variant="ghost"
           onClick={() => {
-            setCollapsed((value) => {
-              const next = !value;
-              try {
-                window.localStorage.setItem(
-                  ADMIN_SIDE_NAV_COLLAPSED_STORAGE_KEY,
-                  String(next)
-                );
-              } catch {
-                return next;
-              }
-              return next;
-            });
+            const next = !collapsed;
+            adminSideNavCollapsedPersistenceFault = null;
+            try {
+              window.localStorage.setItem(
+                ADMIN_SIDE_NAV_COLLAPSED_STORAGE_KEY,
+                String(next)
+              );
+            } catch {
+              adminSideNavCollapsedPersistenceFault = next;
+            }
+            window.dispatchEvent(
+              new Event(ADMIN_SIDE_NAV_COLLAPSED_CHANGED_EVENT)
+            );
           }}
         >
           {collapsed ? (

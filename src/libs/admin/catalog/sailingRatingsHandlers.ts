@@ -18,6 +18,11 @@ import type {
 import { prismaUniqueTargetIncludes } from '@/libs/admin/prismaUniqueTargetIncludes';
 import { prisma } from '@/libs/DB';
 
+type SailingRatingRuleDisplayOrderClient = Pick<
+  typeof prisma,
+  'sailingRatingRule'
+>;
+
 function sailingRatingRuleTargetFields(props: {
   targetType: 'boat' | 'class' | 'rating';
   targetId: string;
@@ -44,11 +49,12 @@ function sailingRatingRuleTarget(row: {
 }
 
 async function nextSailingRatingRuleDisplayOrder(props: {
+  client: SailingRatingRuleDisplayOrderClient;
   target: ReturnType<typeof sailingRatingRuleTargetFields>;
   ruleType: 'requires' | 'grants';
   groupKey: string;
 }): Promise<number> {
-  const agg = await prisma.sailingRatingRule.aggregate({
+  const agg = await props.client.sailingRatingRule.aggregate({
     _max: { displayOrder: true },
     where: {
       ...props.target,
@@ -57,6 +63,21 @@ async function nextSailingRatingRuleDisplayOrder(props: {
     },
   });
   return (agg._max.displayOrder ?? -1) + 1;
+}
+
+function sailingRatingRuleDisplayOrderLockKey(props: {
+  target: ReturnType<typeof sailingRatingRuleTargetFields>;
+  ruleType: 'requires' | 'grants';
+  groupKey: string;
+}): string {
+  return [
+    'sailing_rating_rules_display_order',
+    props.target.boatId ?? '-',
+    props.target.classId ?? '-',
+    props.target.ratingId ?? '-',
+    props.ruleType,
+    props.groupKey,
+  ].join(':');
 }
 
 function mapPrismaErr(error: unknown): CatalogMutationErr | null {
@@ -251,23 +272,37 @@ export const sailingRatingRulesCatalogHandlers: CatalogServerHandlers = {
     }
     try {
       const target = sailingRatingRuleTargetFields(parsed.data);
-      const created = await prisma.sailingRatingRule.create({
-        data: {
-          id: randomUUID(),
-          ...target,
-          ruleType: parsed.data.ruleType,
-          sailingRatingId: parsed.data.sailingRatingId,
-          groupKey: parsed.data.groupKey,
-          displayOrder:
-            parsed.data.displayOrder ??
-            (await nextSailingRatingRuleDisplayOrder({
-              target,
-              ruleType: parsed.data.ruleType,
-              groupKey: parsed.data.groupKey,
-            })),
+      const { displayOrder, groupKey, ruleType, sailingRatingId } = parsed.data;
+      const created = await prisma.$transaction(
+        async (tx) => {
+          const lockKey = sailingRatingRuleDisplayOrderLockKey({
+            target,
+            ruleType,
+            groupKey,
+          });
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+
+          return tx.sailingRatingRule.create({
+            data: {
+              id: randomUUID(),
+              ...target,
+              ruleType,
+              sailingRatingId,
+              groupKey,
+              displayOrder:
+                displayOrder ??
+                (await nextSailingRatingRuleDisplayOrder({
+                  client: tx,
+                  target,
+                  ruleType,
+                  groupKey,
+                })),
+            },
+            select: { id: true },
+          });
         },
-        select: { id: true },
-      });
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+      );
       return { ok: true, id: created.id };
     } catch (error) {
       return mapPrismaErr(error) ?? { ok: false, code: 'unknown' };
