@@ -2,6 +2,8 @@ import { staff } from '../../src/data/mit-sailing/aboutContent';
 import {
   CLASS_CATEGORY_ROWS,
   classCategoryIdFromSeedKey,
+  overrideClassCategorySeedId,
+  resetClassCategorySeedKeyMap,
 } from '../../src/data/mit-sailing/classCategoriesSeed';
 import {
   FLEET_BOATS,
@@ -30,6 +32,10 @@ import {
   GLOBAL_EVENT_DATES,
   STUB_USERS,
 } from '../../src/data/mit-sailing/eventsSeed';
+import {
+  SAILING_RATING_RULES,
+  SAILING_RATINGS,
+} from '../../src/data/mit-sailing/sailingRatingsSeed';
 import { SITE_ALERT_SEED_ROWS } from '../../src/data/mit-sailing/siteAlertsSeed';
 import { Prisma } from '../../src/generated/prisma/client';
 import type { PrismaClient } from '../../src/generated/prisma/client';
@@ -86,11 +92,31 @@ export async function seedEventCategories(p: PrismaClient): Promise<void> {
 }
 
 /**
+ * Idempotent: upserts categories and reconciles slug collisions so `classCategoryIdFromSeedKey` matches the database.
+ *
  * @param p - Prisma client
  */
 export async function seedClassCategories(p: PrismaClient): Promise<void> {
+  resetClassCategorySeedKeyMap();
   const now = new Date();
   for (const row of CLASS_CATEGORY_ROWS) {
+    const existingBySlug = await p.classCategory.findUnique({
+      where: { slug: row.slug },
+      select: { id: true },
+    });
+    if (existingBySlug && existingBySlug.id !== row.id) {
+      overrideClassCategorySeedId(row.seedKey, existingBySlug.id);
+      await p.classCategory.update({
+        where: { slug: row.slug },
+        data: {
+          name: row.name,
+          displayOrder: row.displayOrder,
+          isVisible: true,
+        },
+      });
+      continue;
+    }
+
     await p.classCategory.upsert({
       where: { id: row.id },
       create: {
@@ -137,7 +163,7 @@ export async function seedSailingClassesAndBoats(
         level: cl.level,
         description: cl.description,
         displayOrder,
-        isVisible: true,
+        isVisible: cl.isVisible ?? true,
       },
       update: {
         name: cl.name,
@@ -145,7 +171,7 @@ export async function seedSailingClassesAndBoats(
         level: cl.level,
         description: cl.description,
         displayOrder,
-        isVisible: true,
+        isVisible: cl.isVisible ?? true,
       },
     });
 
@@ -162,6 +188,25 @@ export async function seedSailingClassesAndBoats(
       });
     }
   }
+
+  const boatIds = FLEET_BOATS.map((boat) => boat.id);
+  await p.sailingClassUnlockedBoat.deleteMany({
+    where: {
+      fleetBoat: {
+        id: { notIn: boatIds },
+      },
+    },
+  });
+  await p.sailingRatingRule.deleteMany({
+    where: {
+      boatId: { notIn: boatIds },
+    },
+  });
+  await p.fleetBoat.deleteMany({
+    where: {
+      id: { notIn: boatIds },
+    },
+  });
 
   for (const b of FLEET_BOATS) {
     await p.fleetBoat.upsert({
@@ -204,6 +249,82 @@ export async function seedSailingClassesAndBoats(
           fleetBoatId: b.id,
         })),
         skipDuplicates: true,
+      });
+    }
+  }
+}
+
+function sailingRatingRuleTargetData(
+  rule: (typeof SAILING_RATING_RULES)[number]
+) {
+  return {
+    boatId: rule.targetType === 'boat' ? rule.targetId : null,
+    classId: rule.targetType === 'class' ? rule.targetId : null,
+    ratingId: rule.targetType === 'rating' ? rule.targetId : null,
+  };
+}
+
+/**
+ * @param p - Prisma client
+ */
+export async function seedSailingRatings(p: PrismaClient): Promise<void> {
+  const now = new Date();
+  const ratingIds = SAILING_RATINGS.map((rating) => rating.id);
+  const ruleIds = SAILING_RATING_RULES.map((rule) => rule.id);
+
+  await p.sailingRatingRule.deleteMany({
+    where: { id: { notIn: ruleIds } },
+  });
+  await p.userSailingRating.deleteMany({
+    where: { sailingRatingId: { notIn: ratingIds } },
+  });
+  await p.sailingRating.deleteMany({
+    where: { id: { notIn: ratingIds } },
+  });
+
+  for (const rating of SAILING_RATINGS) {
+    await p.sailingRating.upsert({
+      where: { id: rating.id },
+      create: {
+        ...rating,
+        createdAt: now,
+      },
+      update: {
+        slug: rating.slug,
+        name: rating.name,
+        shortName: rating.shortName,
+        description: rating.description,
+        category: rating.category,
+        level: rating.level,
+        windCondition: rating.windCondition,
+        guideUrl: rating.guideUrl,
+        displayOrder: rating.displayOrder,
+        isVisible: rating.isVisible,
+        isDeprecated: rating.isDeprecated,
+      },
+    });
+  }
+
+  if (SAILING_RATING_RULES.length > 0) {
+    for (const rule of SAILING_RATING_RULES) {
+      const target = sailingRatingRuleTargetData(rule);
+      await p.sailingRatingRule.upsert({
+        where: { id: rule.id },
+        create: {
+          id: rule.id,
+          ...target,
+          ruleType: rule.ruleType,
+          sailingRatingId: rule.sailingRatingId,
+          groupKey: rule.groupKey,
+          displayOrder: rule.displayOrder,
+        },
+        update: {
+          ...target,
+          ruleType: rule.ruleType,
+          sailingRatingId: rule.sailingRatingId,
+          groupKey: rule.groupKey,
+          displayOrder: rule.displayOrder,
+        },
       });
     }
   }

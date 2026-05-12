@@ -18,7 +18,7 @@ import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
 import { Link } from '@/libs/I18nNavigation';
 import type { PublicCmsPage } from '@/libs/mit-sailing/cmsQueries';
 
-const accent = `font-semibold text-mit-red-ink no-underline hover:underline ${textFocusRingClassName}`;
+const accent = `font-semibold text-mit-red no-underline hover:underline ${textFocusRingClassName} dark:text-mit-red-ink`;
 
 /** Matches {@link SiteSectionMain} default column; inner wrapper while section bands stay full-viewport. */
 const aboutSectionInner = 'mx-auto w-full max-w-5xl px-6';
@@ -66,7 +66,7 @@ function StaffCardImage(props: {
     <div className="border-b border-mit-line px-8 pt-8 pb-2">
       <div
         aria-hidden
-        className="flex h-14 w-14 items-center justify-center rounded-full bg-mit-red-highlight font-mit-serif text-xl font-bold text-mit-red-ink"
+        className="flex h-14 w-14 items-center justify-center rounded-full bg-mit-red-highlight font-mit-serif text-xl font-bold text-mit-red dark:text-mit-red-ink"
       >
         {props.name
           .split(' ')
@@ -195,7 +195,7 @@ export function AboutPageView(props: { cmsPage?: PublicCmsPage | null }) {
             {historyBlocks.map((block) => (
               <div className="flex items-start gap-4" key={block.text}>
                 {block.year ? (
-                  <span className="shrink-0 rounded-md bg-mit-red-highlight px-3 py-1 text-[11px] font-bold tracking-wider text-mit-red-ink uppercase">
+                  <span className="shrink-0 rounded-md bg-mit-red-highlight px-3 py-1 text-[11px] font-bold tracking-wider text-mit-red uppercase dark:text-mit-red-ink">
                     {block.year}
                   </span>
                 ) : (

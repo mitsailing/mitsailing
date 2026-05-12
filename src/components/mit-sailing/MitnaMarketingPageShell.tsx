@@ -68,7 +68,7 @@ export async function MitnaMarketingPageShell(
 
   const backLink = (
     <Link
-      className={`inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-mit-red-ink no-underline hover:underline ${textFocusRingClassName}`}
+      className={`inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-mit-red no-underline hover:underline ${textFocusRingClassName} dark:text-mit-red-ink`}
       href={backHref}
     >
       <ArrowLeft aria-hidden size={16} />

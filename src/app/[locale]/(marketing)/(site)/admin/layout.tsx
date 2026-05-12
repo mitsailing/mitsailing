@@ -22,11 +22,15 @@ export default async function AdminSectionLayout(props: {
       segments={[{ label: t('section_admin') }]}
     >
       <SiteSectionMain
-        className="pt-5 pb-10 md:pt-6 md:pb-12"
-        maxWidth="7xl"
+        className="mx-0 pt-5 pb-10 md:pt-6 md:pb-12 lg:px-8"
+        maxWidth="admin"
         variant="catalog"
       >
-        <SiteSidebarLayout stretch sidebar={<AdminSideNav />}>
+        <SiteSidebarLayout
+          density="content-fit"
+          stretch
+          sidebar={<AdminSideNav />}
+        >
           {props.children}
         </SiteSidebarLayout>
       </SiteSectionMain>

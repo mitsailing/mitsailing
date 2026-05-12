@@ -47,7 +47,7 @@ export const footerNavColumns: readonly FooterNavColumn[] = [
     links: [
       { labelKey: 'footer_link_our_fleet', href: '/fleet' },
       { labelKey: 'footer_link_calendar', href: '/events' },
-      { labelKey: 'footer_link_sailing_ratings', href: '#' },
+      { labelKey: 'footer_link_sailing_ratings', href: '/ratings' },
       { labelKey: 'footer_link_river_webcam', href: '#' },
       { labelKey: 'footer_link_conditions', href: '#' },
     ],

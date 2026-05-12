@@ -11,7 +11,7 @@ import type {
 import { Link } from '@/libs/I18nNavigation';
 
 const nameEditLinkClassName =
-  'text-sm font-medium text-mit-red-ink no-underline hover:underline';
+  'text-sm font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink';
 
 type CatalogCellValue = CatalogRow[string];
 
@@ -57,8 +57,6 @@ type AdminCatalogListCellProps = {
   row: CatalogRow;
   /** When `kind` is `boolean`, maps true/false to pill tones. */
   booleanPolarity?: AdminBooleanListPolarity;
-  /** When `AdminUsers`, boolean headers come from that namespace. */
-  messageNamespace?: 'AdminCatalogResource' | 'AdminUsers';
   /**
    * When set on the `name` list column and the value is non-empty, renders an
    * edit link (same target as the row's Edit action).
@@ -69,6 +67,10 @@ type AdminCatalogListCellProps = {
 /**
  * Renders one catalog list cell (visibility badge, links, plain text, numbers).
  *
+ * Boolean pills use `AdminCatalog` (`yes` / `no`); visibility uses `AdminCatalogResource`
+ * (`status_live` / `status_draft`). The admin catalog table's `messageNamespace` prop
+ * affects column headers and actions only, not these cell labels.
+ *
  * @param props - Field metadata and row payload
  * @returns Table cell inner content
  */
@@ -76,8 +78,6 @@ export function AdminCatalogListCell(
   props: AdminCatalogListCellProps
 ): React.ReactElement {
   const tCatalog = useTranslations('AdminCatalogResource');
-  const tUsers = useTranslations('AdminUsers');
-  const t = props.messageNamespace === 'AdminUsers' ? tUsers : tCatalog;
   const tc = useTranslations('AdminCatalog');
   const raw = props.row[props.field];
 
@@ -97,7 +97,7 @@ export function AdminCatalogListCell(
     const visible = Boolean(raw);
     return (
       <AdminStatusPill tone={visible ? 'success' : 'neutral'}>
-        {visible ? t('status_live') : t('status_draft')}
+        {visible ? tCatalog('status_live') : tCatalog('status_draft')}
       </AdminStatusPill>
     );
   }
@@ -105,7 +105,7 @@ export function AdminCatalogListCell(
   if (props.kind === 'url' && typeof raw === 'string' && raw.length > 0) {
     return (
       <a
-        className="text-mit-red-ink underline decoration-mit-red/30 underline-offset-2 hover:decoration-mit-red"
+        className="text-mit-red underline decoration-mit-red/30 underline-offset-2 hover:decoration-mit-red dark:text-mit-red-ink"
         href={raw}
         rel="noopener noreferrer"
         target="_blank"

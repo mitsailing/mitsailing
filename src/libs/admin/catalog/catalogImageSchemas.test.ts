@@ -7,7 +7,7 @@ function fleetInput(imagePath: string) {
     capacity: '2',
     description: '<p>Fast boat</p>',
     imagePath,
-    name: 'Tech Dinghy',
+    name: 'Tech dinghy',
     requiredClassId: 'class-1',
     slug: 'tech-dinghy',
     type: 'Dinghy',

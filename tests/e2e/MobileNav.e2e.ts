@@ -54,17 +54,20 @@ test.describe('Desktop navigation', () => {
     await page.goto('/');
 
     const nav = page.getByRole('navigation', { name: 'Main navigation' });
+    const classesButton = nav.getByRole('button', { name: /classes/i });
+    const introductionLink = nav.getByRole('link', {
+      name: 'Introduction',
+      exact: true,
+    });
 
-    await nav.getByRole('button', { name: 'Classes' }).focus();
-    await page.keyboard.press('ArrowDown');
-    await expect(
-      nav.getByRole('link', { name: 'Introduction', exact: true })
-    ).toBeVisible();
+    await classesButton.click();
+    await expect(classesButton).toHaveAttribute('aria-expanded', 'true');
+    await expect(introductionLink).toBeVisible();
 
-    await nav.getByRole('link', { name: 'Introduction', exact: true }).click();
+    await introductionLink.click();
     await expect(page).toHaveURL(/\/classes\/?#introduction$/u);
     await expect(
-      page.getByRole('heading', { level: 1, name: 'Classes' })
+      page.getByRole('heading', { level: 1, name: /classes/i })
     ).toBeVisible();
   });
 
@@ -74,17 +77,20 @@ test.describe('Desktop navigation', () => {
     await page.goto('/');
 
     const nav = page.getByRole('navigation', { name: 'Main navigation' });
+    const fleetButton = nav.getByRole('button', { name: 'Fleet' });
+    const techDinghyLink = nav.getByRole('link', {
+      name: 'Tech dinghy',
+      exact: true,
+    });
 
-    await nav.getByRole('button', { name: 'Fleet' }).focus();
-    await page.keyboard.press('ArrowDown');
-    await expect(
-      nav.getByRole('link', { name: 'Tech Dinghy', exact: true })
-    ).toBeVisible();
+    await fleetButton.click();
+    await expect(fleetButton).toHaveAttribute('aria-expanded', 'true');
+    await expect(techDinghyLink).toBeVisible();
 
-    await nav.getByRole('link', { name: 'Tech Dinghy', exact: true }).click();
+    await techDinghyLink.click();
     await expect(page).toHaveURL(/\/fleet\/tech-dinghy\/?$/u);
     await expect(
-      page.getByRole('heading', { level: 1, name: 'Tech Dinghy' })
+      page.getByRole('heading', { level: 1, name: 'Tech dinghy' })
     ).toBeVisible();
   });
 });

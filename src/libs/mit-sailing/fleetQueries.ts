@@ -7,6 +7,8 @@ import {
   mapNameSlugRowsToNavLinks,
 } from '@/libs/mit-sailing/mapNavLinksFromNameSlug';
 import { prismaOrderByDisplayOrderAscNameAsc } from '@/libs/mit-sailing/prismaOrderPublicNav';
+import { listRequiredRatingsForTarget } from '@/libs/mit-sailing/sailingRatingQueries';
+import type { SailingRatingBrief } from '@/libs/mit-sailing/sailingRatingQueries';
 
 export type FleetBoatListRow = {
   id: string;
@@ -17,6 +19,7 @@ export type FleetBoatListRow = {
   description: string;
   imagePath: string | null;
   requiredClass: { name: string; slug: string };
+  requiredRatings: SailingRatingBrief[];
 };
 
 /**
@@ -36,25 +39,55 @@ export function mapFleetBoatsToNavDropdownItems(
  * (`catalogFieldUsesRichText('fleet','description')` is true, but `/fleet` cards
  * stay text-only for layout and nested-link UX).
  *
- * @returns Fleet rows with plain-text description excerpts for list cards
+ * @returns Fleet rows with plain-text description excerpts and required ratings
  */
 async function loadFleetBoatsForPublicUnchecked(): Promise<FleetBoatListRow[]> {
-  const rows = await prisma.fleetBoat.findMany({
-    orderBy: prismaOrderByDisplayOrderAscNameAsc,
-    select: {
-      id: true,
-      name: true,
-      slug: true,
-      type: true,
-      capacity: true,
-      description: true,
-      imagePath: true,
-      requiredClass: { select: { name: true, slug: true } },
-    },
-  });
-  return rows.map((row) => ({
-    ...row,
-    description: plainTextFromCmsRichTextHtml(row.description),
+  const [boats, rules] = await Promise.all([
+    prisma.fleetBoat.findMany({
+      orderBy: prismaOrderByDisplayOrderAscNameAsc,
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        type: true,
+        capacity: true,
+        description: true,
+        imagePath: true,
+        requiredClass: { select: { name: true, slug: true } },
+      },
+    }),
+    prisma.sailingRatingRule.findMany({
+      where: {
+        boatId: { not: null },
+        ruleType: 'requires',
+        sailingRating: { isVisible: true },
+      },
+      orderBy: [{ displayOrder: 'asc' }],
+      select: {
+        boatId: true,
+        groupKey: true,
+        displayOrder: true,
+        sailingRating: {
+          select: {
+            id: true,
+            slug: true,
+            name: true,
+            shortName: true,
+            isDeprecated: true,
+          },
+        },
+      },
+    }),
+  ]);
+  return boats.map((boat) => ({
+    ...boat,
+    description: plainTextFromCmsRichTextHtml(boat.description),
+    requiredRatings: rules
+      .filter((rule) => rule.boatId === boat.id)
+      .filter((rule) => !rule.sailingRating.isDeprecated)
+      .filter((rule) => rule.groupKey !== 'advanced')
+      .toSorted((a, b) => a.displayOrder - b.displayOrder)
+      .map((rule) => rule.sailingRating),
   }));
 }
 
@@ -79,6 +112,8 @@ export type FleetBoatDetail = {
   description: string;
   imagePath: string | null;
   requiredClass: { id: string; name: string; slug: string };
+  requiredRatings: SailingRatingBrief[];
+  advancedRatings: SailingRatingBrief[];
 };
 
 export const getFleetBoatForPublicBySlug = cache(
@@ -96,6 +131,28 @@ export const getFleetBoatForPublicBySlug = cache(
         requiredClass: { select: { id: true, name: true, slug: true } },
       },
     });
-    return boat;
+    if (!boat) {
+      return null;
+    }
+    const ratingRules = await listRequiredRatingsForTarget({
+      targetType: 'boat',
+      targetId: boat.id,
+      ruleType: 'requires',
+    });
+    const sortedRatingRules = ratingRules.toSorted(
+      (a, b) => a.displayOrder - b.displayOrder
+    );
+    const activeRatingRules = sortedRatingRules.filter(
+      (rule) => !rule.sailingRating.isDeprecated
+    );
+    return {
+      ...boat,
+      requiredRatings: activeRatingRules
+        .filter((rule) => rule.groupKey !== 'advanced')
+        .map((rule) => rule.sailingRating),
+      advancedRatings: activeRatingRules
+        .filter((rule) => rule.groupKey === 'advanced')
+        .map((rule) => rule.sailingRating),
+    };
   }
 );

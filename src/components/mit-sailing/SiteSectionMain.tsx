@@ -4,8 +4,8 @@ import { cn } from '@/lib/utils';
 /** Vertical rhythm for marketing pages below {@link SiteSectionShell} breadcrumbs. */
 type SiteSectionMainVariant = 'catalog' | 'detail' | 'compactDetail';
 
-/** Max width aligns with breadcrumbs (`max-w-7xl`) or typical catalog columns (`max-w-5xl`). */
-type SiteSectionMainMaxWidth = '5xl' | '7xl';
+/** Max width aligns with breadcrumbs, catalog columns, or admin workspaces. */
+type SiteSectionMainMaxWidth = '5xl' | '7xl' | 'admin';
 
 type SiteSectionMainProps = {
   children: ReactNode;
@@ -25,6 +25,7 @@ const variantPadding: Record<SiteSectionMainVariant, string> = {
 const maxWidthClass: Record<SiteSectionMainMaxWidth, string> = {
   '5xl': 'max-w-5xl',
   '7xl': 'max-w-7xl',
+  admin: 'max-w-[112rem]',
 };
 
 /**

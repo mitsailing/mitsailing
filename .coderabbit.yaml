@@ -72,6 +72,13 @@ reviews:
         "Too many requests. Wait a few minutes."; this is intentional and is not
         a prohibited "try again" variant.
         Flag deviations and security-sensitive mistakes (auth, SQL, secrets).
+        URL shape: `next.config.ts` does not set `trailingSlash: true`, so Next.js
+        defaults to redirecting `/path/` to `/path` (no trailing slash on the
+        pathname). For in-app links and Playwright `href` assertions to the same
+        page plus a fragment, use `/path#fragment` (pathname `/path`, hash
+        `fragment`). Do **not** suggest `/path/#fragment`—that implies a pathname
+        ending in `/` before `#`, which fights the default and mismatches fleet
+        and class rating links that use `/ratings` plus `#` and the slug.
     - path: '**/*.{test,spec,e2e}.{ts,tsx}'
       instructions: >-
         Do not flag lowercase `it(...)` titles. This repository accepts concise
@@ -81,6 +88,10 @@ reviews:
         "Try again."; do not request removing it from assertions or UI.
         Rate-limit assertions may expect "Wait a few minutes." copy; do not
         request shortening it solely under the no "try again" rule.
+        When asserting `href` on same-origin links with hash targets (e.g. ratings
+        anchors), expect `/ratings#slug` not `/ratings/#slug` unless the project
+        explicitly enables `trailingSlash: true` (it does not). See the general
+        `**/*.{ts,tsx}` path_instructions URL shape note.
     - path: 'src/locales/en.json'
       instructions: >-
         The `UserProfilePage.sign_out_all_error` copy intentionally reads

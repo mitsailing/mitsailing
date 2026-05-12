@@ -43,7 +43,10 @@ export function ImpersonateButton(props: ImpersonateButtonProps) {
   return (
     <span className="inline-flex flex-wrap items-center gap-2">
       {error ? (
-        <span className="text-xs text-mit-red-ink" role="alert">
+        <span
+          className="text-xs text-mit-red dark:text-mit-red-ink"
+          role="alert"
+        >
           {error}
         </span>
       ) : null}

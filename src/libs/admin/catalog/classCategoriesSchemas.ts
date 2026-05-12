@@ -1,16 +1,11 @@
 import * as z from 'zod';
-
-const slugSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+import { catalogUrlFragmentSlugSchema } from '@/libs/validation/catalogUrlFragmentSlugSchema';
 
 /**
  * Validates class category create/update payloads parsed from admin forms.
  */
 export const classCategoryFormSchema = z.object({
-  slug: slugSchema,
+  slug: catalogUrlFragmentSlugSchema,
   name: z.string().trim().min(1),
   isVisible: z.boolean(),
 });

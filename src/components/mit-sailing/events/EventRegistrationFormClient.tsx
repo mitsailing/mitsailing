@@ -163,7 +163,10 @@ function QuestionField(props: {
       {props.question.questionText}
       {props.question.required ? (
         <>
-          <span aria-hidden="true" className="ml-1 text-mit-red-ink">
+          <span
+            aria-hidden="true"
+            className="ml-1 text-mit-red dark:text-mit-red-ink"
+          >
             *
           </span>
           <span className="sr-only"> {props.labels.required}</span>
@@ -267,7 +270,10 @@ function SwimAgreementField(props: {
         id="event-registration-swim-heading"
       >
         {props.labels.swimAgreementHeading}
-        <span aria-hidden="true" className="ml-1 text-mit-red-ink">
+        <span
+          aria-hidden="true"
+          className="ml-1 text-mit-red dark:text-mit-red-ink"
+        >
           *
         </span>
         <span className="sr-only"> {props.labels.required}</span>
@@ -359,7 +365,7 @@ function RegistrationFeeSummary(props: {
             <dt className="text-mit-text">
               {fee.description}
               {fee.isDeposit ? (
-                <span className="ml-2 rounded-sm bg-mit-red-highlight px-1.5 py-0.5 text-xs font-semibold text-mit-red-ink">
+                <span className="ml-2 rounded-sm bg-mit-red-highlight px-1.5 py-0.5 text-xs font-semibold text-mit-red dark:text-mit-red-ink">
                   {props.labels.deposit}
                 </span>
               ) : null}

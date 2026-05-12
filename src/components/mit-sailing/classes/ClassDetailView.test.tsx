@@ -16,7 +16,9 @@ vi.mock('next-intl/server', () => ({
         related_events_calendar: 'calendar',
         related_events_empty: 'No dates',
         section_fleet_access: 'Fleet access',
+        section_grantable_ratings: 'Earned ratings',
         section_prerequisites: 'Prerequisites',
+        section_required_ratings: 'Required ratings',
         section_related_events: 'Related events',
       })[key] ?? key;
   }),
@@ -42,6 +44,8 @@ function baseSailingClass(
     imagePaths: ['/images/classes/hero.jpg'],
     level: 'Beginner',
     name: 'Intro Sailing',
+    grantableRatings: [],
+    requiredRatings: [],
     prerequisiteIds: [],
     prerequisites: [],
     relatedEventIds: [],
@@ -100,7 +104,7 @@ describe('ClassDetailView', () => {
                 '<p>Boat blurb</p><img alt="Hull" src="/cms-media/asset-1/hull.png" />',
               id: 'boat-1',
               imagePath: null,
-              name: 'Tech Dinghy',
+              name: 'Tech dinghy',
               slug: 'tech-dinghy',
               type: 'dinghy',
             },
@@ -110,7 +114,7 @@ describe('ClassDetailView', () => {
     );
 
     expect(screen.getByRole('heading', { name: 'Fleet access' })).toBeVisible();
-    expect(screen.getByRole('link', { name: 'Tech Dinghy' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Tech dinghy' })).toHaveAttribute(
       'href',
       '/fleet/tech-dinghy'
     );

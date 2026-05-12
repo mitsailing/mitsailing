@@ -1,6 +1,9 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import React from 'react';
+import type { MockedFunction } from 'vitest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { listUserRatingAssignmentRows } from '@/libs/mit-sailing/sailingRatingQueries';
+import type { UserRatingAssignmentRow } from '@/libs/mit-sailing/sailingRatingQueries';
 import ForgotPasswordPage, {
   generateMetadata as generateForgotPasswordMetadata,
 } from './(center)/forgot-password/page';
@@ -28,13 +31,54 @@ import ProfileIndexPage from './profile/page';
 import ProfilePasswordPage, {
   generateMetadata as generateProfilePasswordMetadata,
 } from './profile/password/page';
+import ProfileRatingsPage, {
+  generateMetadata as generateProfileRatingsMetadata,
+} from './profile/ratings/page';
 import ProfileSecurityPage, {
   generateMetadata as generateProfileSecurityMetadata,
 } from './profile/security/page';
 
+type ListUserRatingAssignmentRowsFn = (
+  userId: string,
+  options?: { includeDeprecated?: boolean; client?: unknown }
+) => Promise<UserRatingAssignmentRow[]>;
+
+/**
+ * Builds a {@link UserRatingAssignmentRow} for route-shell tests; production rows
+ * always include public rating fields plus assignment metadata.
+ *
+ * @param row - Required `id` and `name`, plus any optional fields to override defaults.
+ * @returns A fully populated assignment row for the profile ratings page tests.
+ */
+function userRatingAssignmentRowFixture(
+  row: Pick<UserRatingAssignmentRow, 'id' | 'name'> &
+    Partial<Omit<UserRatingAssignmentRow, 'id' | 'name'>>
+): UserRatingAssignmentRow {
+  return {
+    slug: row.slug ?? row.id,
+    shortName: row.shortName ?? null,
+    description: row.description ?? '',
+    category: row.category ?? null,
+    level: row.level ?? null,
+    windCondition: row.windCondition ?? null,
+    guideUrl: row.guideUrl ?? null,
+    grantableClasses: row.grantableClasses ?? [],
+    unlockedBoats: row.unlockedBoats ?? [],
+    isDeprecated: row.isDeprecated ?? false,
+    issuedAt: row.issuedAt ?? null,
+    issuedByName: row.issuedByName ?? null,
+    eligibility: row.eligibility ?? { eligible: true },
+    id: row.id,
+    name: row.name,
+  };
+}
+
 const routeMocks = vi.hoisted(() => ({
   findUnique: vi.fn(),
+  getFormatter: vi.fn(),
   getTranslations: vi.fn(),
+  listUserRatingAssignmentRows:
+    vi.fn() as MockedFunction<ListUserRatingAssignmentRowsFn>,
   redirect: vi.fn((href: string) => {
     throw new Error(`NEXT_REDIRECT:${href}`);
   }),
@@ -54,6 +98,7 @@ function createTranslator(namespace: string): Translator {
 }
 
 vi.mock('next-intl/server', () => ({
+  getFormatter: routeMocks.getFormatter,
   getTranslations: routeMocks.getTranslations,
   setRequestLocale: routeMocks.setRequestLocale,
 }));
@@ -73,6 +118,10 @@ vi.mock('@/libs/DB', () => ({
       findUnique: routeMocks.findUnique,
     },
   },
+}));
+
+vi.mock('@/libs/mit-sailing/sailingRatingQueries', () => ({
+  listUserRatingAssignmentRows: routeMocks.listUserRatingAssignmentRows,
 }));
 
 vi.mock('@/components/mit-sailing/site/AuthCenterBrandMark', () => ({
@@ -195,6 +244,16 @@ function routeProps(searchParams: Record<string, string | undefined> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  routeMocks.getFormatter.mockImplementation(async () => {
+    await Promise.resolve();
+    return {
+      dateTime: (date: Date, options?: Intl.DateTimeFormatOptions) =>
+        new Intl.DateTimeFormat('en-US', {
+          timeZone: 'America/New_York',
+          ...options,
+        }).format(date),
+    };
+  });
   routeMocks.getTranslations.mockImplementation(
     async (props: { namespace: string }) => {
       await Promise.resolve();
@@ -213,6 +272,9 @@ beforeEach(() => {
     themePreference: 'DARK',
     unconfirmedEmail: 'pending@example.com',
   });
+  vi.mocked(listUserRatingAssignmentRows).mockResolvedValue(
+    [] satisfies UserRatingAssignmentRow[]
+  );
 });
 
 describe('auth route shells', () => {
@@ -541,6 +603,110 @@ describe('auth route shells', () => {
     );
     expect(
       screen.getByRole('region', { name: 'profile-password-client' })
+    ).toBeVisible();
+  });
+
+  it('profile ratings metadata uses localized copy', async () => {
+    await expect(generateProfileRatingsMetadata(routeProps())).resolves.toEqual(
+      {
+        description: 'UserProfilePage.ratings_meta_description',
+        title: 'UserProfilePage.ratings_meta_title',
+      }
+    );
+  });
+
+  it('profile ratings page renders active rating assignments', async () => {
+    vi.mocked(listUserRatingAssignmentRows).mockResolvedValue([
+      userRatingAssignmentRowFixture({
+        id: 'keelboat',
+        issuedAt: new Date('2026-04-15T12:00:00Z'),
+        issuedByName: 'Instructor One',
+        name: 'Keelboat',
+        unlockedBoats: [
+          {
+            id: 'boat-tech-dinghy',
+            name: 'Tech dinghy',
+            slug: 'tech-dinghy',
+          },
+        ],
+      }),
+      userRatingAssignmentRowFixture({
+        id: 'club-420',
+        issuedAt: new Date('2026-04-16T12:00:00Z'),
+        name: 'Club 420',
+      }),
+      userRatingAssignmentRowFixture({
+        id: 'tech',
+        name: 'Tech dinghy',
+      }),
+    ]);
+
+    render(
+      await ProfileRatingsPage({
+        params: Promise.resolve({ locale: 'en' }),
+      })
+    );
+
+    expect(routeMocks.setRequestLocale).toHaveBeenCalledWith('en');
+    expect(routeMocks.requireCurrentUser).toHaveBeenCalledWith(
+      'en',
+      '/profile/ratings'
+    );
+    expect(listUserRatingAssignmentRows).toBe(
+      routeMocks.listUserRatingAssignmentRows
+    );
+    expect(vi.mocked(listUserRatingAssignmentRows)).toHaveBeenCalledWith(
+      'user-1',
+      { includeDeprecated: false }
+    );
+    expect(
+      screen.getByRole('heading', {
+        name: 'UserProfilePage.ratings_page_heading',
+      })
+    ).toBeVisible();
+
+    const ratingsTable = screen.getByRole('table');
+    const inTable = within(ratingsTable);
+    expect(
+      inTable.getByRole('columnheader', {
+        name: 'UserProfilePage.ratings_column_rating',
+      })
+    ).toBeVisible();
+    expect(
+      inTable.getByRole('columnheader', {
+        name: 'UserProfilePage.ratings_column_assignment',
+      })
+    ).toBeVisible();
+    expect(inTable.getByRole('rowheader', { name: 'Keelboat' })).toBeVisible();
+    expect(inTable.getByRole('rowheader', { name: 'Club 420' })).toBeVisible();
+    expect(
+      inTable.getByRole('rowheader', { name: 'Tech dinghy' })
+    ).toBeVisible();
+    expect(
+      inTable.getByText('UserProfilePage.ratings_issued_by')
+    ).toBeVisible();
+    expect(
+      inTable.getByText('UserProfilePage.ratings_issued_on')
+    ).toBeVisible();
+    expect(
+      inTable.getByText('UserProfilePage.ratings_no_issue_date')
+    ).toBeVisible();
+    expect(inTable.getByRole('link', { name: 'Tech dinghy' })).toHaveAttribute(
+      'href',
+      '/fleet/tech-dinghy'
+    );
+  });
+
+  it('profile ratings page renders empty state', async () => {
+    render(
+      await ProfileRatingsPage({
+        params: Promise.resolve({ locale: 'en' }),
+      })
+    );
+
+    const ratingsTable = screen.getByRole('table');
+    expect(
+      within(ratingsTable).getByText('UserProfilePage.ratings_empty_state')
     ).toBeVisible();
   });
 

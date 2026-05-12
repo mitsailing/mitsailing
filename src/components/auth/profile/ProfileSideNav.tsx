@@ -8,11 +8,17 @@ import { Link, usePathname } from '@/libs/I18nNavigation';
 
 type ProfileNavItem = {
   href: string;
-  labelKey: 'nav_account' | 'nav_password' | 'nav_security' | 'nav_delete';
+  labelKey:
+    | 'nav_account'
+    | 'nav_ratings'
+    | 'nav_password'
+    | 'nav_security'
+    | 'nav_delete';
 };
 
 const PROFILE_NAV: ProfileNavItem[] = [
   { href: '/profile/account', labelKey: 'nav_account' },
+  { href: '/profile/ratings', labelKey: 'nav_ratings' },
   { href: '/profile/password', labelKey: 'nav_password' },
   { href: '/profile/security', labelKey: 'nav_security' },
   { href: '/profile/delete', labelKey: 'nav_delete' },
@@ -63,7 +69,7 @@ export function ProfileSideNav() {
                         'block rounded-md px-2 py-1.5 text-left text-sm font-semibold text-mit-text leading-6 no-underline',
                         rowFocus,
                         active
-                          ? 'bg-mit-surface text-mit-red-ink'
+                          ? 'bg-mit-surface text-mit-red dark:text-mit-red-ink'
                           : 'hover:bg-mit-surface'
                       )}
                       href={item.href}

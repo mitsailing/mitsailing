@@ -78,7 +78,7 @@ export async function SailingClassEditAssociations(
             )}
           </ul>
           <Link
-            className="text-sm font-medium text-mit-red-ink no-underline hover:underline"
+            className="text-sm font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
             href={assocHref('related-events')}
           >
             {t('assoc_manage_related_events')}
@@ -103,7 +103,7 @@ export async function SailingClassEditAssociations(
             )}
           </ul>
           <Link
-            className="text-sm font-medium text-mit-red-ink no-underline hover:underline"
+            className="text-sm font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
             href={assocHref('prerequisites')}
           >
             {t('assoc_manage_prerequisites')}
@@ -126,7 +126,7 @@ export async function SailingClassEditAssociations(
             )}
           </ul>
           <Link
-            className="text-sm font-medium text-mit-red-ink no-underline hover:underline"
+            className="text-sm font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
             href={assocHref('unlocked-boats')}
           >
             {t('assoc_manage_unlocked_boats')}

@@ -1,23 +1,16 @@
 import * as z from 'zod';
-
-/** IANA zone used for the contact form “current year” honeypot (matches the public contact page). */
-const CONTACT_FORM_CALENDAR_TIME_ZONE = 'America/New_York';
+import { calendarYearInEventsTimeZone } from '@/lib/mit-sailing/nyTime';
 
 const sailingContactEmail = 'sailing@mit.edu';
 
 /**
- * Gregorian calendar year for an instant in `America/New_York` (contact honeypot zone).
+ * Gregorian calendar year for an instant in {@link EVENTS_TIME_ZONE} (contact honeypot).
  *
  * @param now - Instant to evaluate (typically `new Date()`)
- * @returns Calendar year in the contact form timezone.
+ * @returns Calendar year on the Pavilion wall clock
  */
 export function calendarYearInContactFormTimeZone(now: Date): number {
-  return Number(
-    new Intl.DateTimeFormat('en-US', {
-      timeZone: CONTACT_FORM_CALENDAR_TIME_ZONE,
-      year: 'numeric',
-    }).format(now)
-  );
+  return calendarYearInEventsTimeZone(now);
 }
 
 export const contactTopics = [
