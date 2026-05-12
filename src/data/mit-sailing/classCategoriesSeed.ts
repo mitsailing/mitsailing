@@ -65,10 +65,31 @@ export const CLASS_CATEGORY_ROWS: ClassCategoryRow[] = [
   },
 ];
 
-const seedKeyToId = new Map<ClassCategory, string>(
-  CLASS_CATEGORY_ROWS.map((r) => [r.seedKey, r.id])
-);
+const seedKeyToId = new Map<ClassCategory, string>();
 
+function rebuildCanonicalClassCategorySeedKeyMap(): void {
+  seedKeyToId.clear();
+  for (const row of CLASS_CATEGORY_ROWS) {
+    seedKeyToId.set(row.seedKey, row.id);
+  }
+}
+
+rebuildCanonicalClassCategorySeedKeyMap();
+
+/**
+ * Resets seed-key → `class_categories.id` resolution to canonical ids from `CLASS_CATEGORY_ROWS`.
+ * Call at the start of each seed run so a long-lived process does not keep stale collision overrides.
+ */
+export function resetClassCategorySeedKeyMap(): void {
+  rebuildCanonicalClassCategorySeedKeyMap();
+}
+
+/**
+ * Points `classCategoryIdFromSeedKey` at an existing row id (e.g. slug collision where the DB pk differs from seed).
+ *
+ * @param seedKey - Same key as `SailingClass.category` in fleet seed data
+ * @param id - Actual `class_categories.id` to use for downstream upserts
+ */
 export function overrideClassCategorySeedId(
   seedKey: ClassCategory,
   id: string

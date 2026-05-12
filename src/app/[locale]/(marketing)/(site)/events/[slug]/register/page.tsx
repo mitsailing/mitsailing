@@ -111,7 +111,7 @@ export default async function EventRegisterPage(props: RegisterPageProps) {
     >
       <SiteSectionMain variant="compactDetail">
         <div className="mx-auto max-w-3xl">
-          <p className="mb-2 text-xs font-bold tracking-widest text-mit-red-ink uppercase dark:text-white">
+          <p className="mb-2 text-xs font-bold tracking-widest text-mit-red uppercase dark:text-white">
             {t('registration_dialog_eyebrow')}
           </p>
           <h1 className="mb-6 font-mit-serif text-[clamp(1.875rem,5vw,2.75rem)] leading-tight font-semibold tracking-tight text-mit-text">

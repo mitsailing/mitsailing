@@ -475,6 +475,8 @@ enum SailingRatingRuleType {
   @@map("sailing_rating_rule_type")
 }
 
+/// Targets exactly one of boat, class, or rating (`boatId`, `classId`, or `ratingId`).
+/// Enforced in Postgres by `sailing_rating_rules_exactly_one_target_chk` (migration `20260511193000_sailing_rating_rule_target_fks`).
 model SailingRatingRule {
   id              String                @id
   boatId          String?               @map("boat_id")

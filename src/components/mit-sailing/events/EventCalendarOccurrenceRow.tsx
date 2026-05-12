@@ -34,7 +34,7 @@ export function EventCalendarOccurrenceRow(
       <div className="min-w-0 flex-1">
         <Link
           className={cn(
-            'block text-sm leading-tight font-semibold text-mit-red-ink no-underline hover:underline',
+            'block text-sm leading-tight font-semibold text-mit-red no-underline hover:underline dark:text-mit-red-ink',
             textFocusRingClassName,
             props.wrapTitle
               ? '[overflow-wrap:anywhere] whitespace-normal'

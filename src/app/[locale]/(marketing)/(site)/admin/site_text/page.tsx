@@ -125,7 +125,7 @@ function SiteTextRow(props: {
           <span
             className={
               hasOverride
-                ? 'mt-2 inline-flex rounded-full bg-mit-red-50 px-2 py-0.5 text-xs font-medium text-mit-red-ink'
+                ? 'mt-2 inline-flex rounded-full bg-mit-red-50 px-2 py-0.5 text-xs font-medium text-mit-red dark:text-mit-red-ink'
                 : 'mt-2 inline-flex rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground'
             }
           >

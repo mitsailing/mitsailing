@@ -69,7 +69,7 @@ export async function FleetListView(props: FleetListViewProps) {
                 <p className="mb-4 line-clamp-3 text-sm leading-snug text-mit-text">
                   {boat.description}
                 </p>
-                <span className="inline-flex items-center gap-1 text-xs font-semibold text-mit-red-ink">
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-mit-red dark:text-mit-red-ink">
                   {t('card_cta')} <ArrowRight aria-hidden size={14} />
                 </span>
                 <p className="mt-3 mb-0 text-xs text-mit-text">

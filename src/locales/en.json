@@ -964,6 +964,7 @@
     "rating_error_already_granted": "That rating has already been granted.",
     "rating_error_deprecated": "Deprecated ratings cannot be granted.",
     "rating_error_unknown": "Could not update that rating.",
+    "rating_load_failed": "Could not load ratings.",
     "rating_grant_disabled_missing_prerequisites": "Missing prerequisite rating.",
     "rating_grant_disabled_deprecated": "Deprecated ratings cannot be granted.",
     "rating_grant_disabled_already_granted": "Already granted.",

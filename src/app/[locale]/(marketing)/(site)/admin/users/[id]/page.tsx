@@ -35,9 +35,11 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
     notFound();
   }
   let rows: UserRatingAssignmentRow[] = [];
+  let ratingsLoadError = false;
   try {
     rows = await listUserRatingAssignmentRows(id);
   } catch (error) {
+    ratingsLoadError = true;
     logger.error('Failed to load admin user rating rows: {error}', {
       error,
       userId: id,
@@ -76,6 +78,7 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
       <AdminUserRatingsPanel
         errorCode={searchParams.error}
         locale={locale}
+        ratingsLoadFailed={ratingsLoadError}
         rows={rows}
         userId={id}
       />

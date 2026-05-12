@@ -70,7 +70,7 @@ export function ProfileDeleteAccountClient(
         className="rounded-lg border border-mit-red bg-mit-red-highlight p-6 shadow-sm"
       >
         <h2
-          className="text-lg font-medium text-mit-red-ink"
+          className="text-lg font-medium text-mit-red dark:text-mit-red-ink"
           id="delete-account-heading"
         >
           {t('delete_account_heading')}

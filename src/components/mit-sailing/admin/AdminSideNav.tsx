@@ -170,7 +170,7 @@ export function AdminSideNav() {
                         'block rounded-md px-2 py-1.5 text-left text-sm font-semibold text-mit-text leading-6 no-underline',
                         rowFocus,
                         active
-                          ? 'bg-mit-surface text-mit-red-ink'
+                          ? 'bg-mit-surface text-mit-red dark:text-mit-red-ink'
                           : 'hover:bg-mit-surface'
                       )}
                       href={item.href}

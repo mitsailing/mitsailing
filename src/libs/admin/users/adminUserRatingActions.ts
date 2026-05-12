@@ -14,9 +14,11 @@ import { userCanGrantSailingRating } from '@/libs/mit-sailing/sailingRatingQueri
 import { getI18nPath } from '@/utils/Helpers';
 
 function revalidateAfterRatingMutation(locale: string, userId: string): void {
+  const userShowPath = adminUsersShowPath(userId);
+  const localizedUserShowPath = getI18nPath(userShowPath, locale);
   const paths = [
     adminUsersIndexPath(),
-    adminUsersShowPath(userId),
+    userShowPath,
     '/profile/ratings/',
     '/ratings/',
   ];
@@ -24,6 +26,8 @@ function revalidateAfterRatingMutation(locale: string, userId: string): void {
     revalidatePath(path);
     revalidatePath(getI18nPath(path, locale));
   }
+  revalidatePath(userShowPath, 'page');
+  revalidatePath(localizedUserShowPath, 'page');
   revalidatePath(getI18nPath(adminUsersIndexPath(), locale), 'layout');
 }
 

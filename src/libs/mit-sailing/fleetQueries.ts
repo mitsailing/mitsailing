@@ -84,6 +84,7 @@ async function loadFleetBoatsForPublicUnchecked(): Promise<FleetBoatListRow[]> {
     description: plainTextFromCmsRichTextHtml(boat.description),
     requiredRatings: rules
       .filter((rule) => rule.boatId === boat.id)
+      .filter((rule) => !rule.sailingRating.isDeprecated)
       .filter((rule) => rule.groupKey !== 'advanced')
       .toSorted((a, b) => a.displayOrder - b.displayOrder)
       .map((rule) => rule.sailingRating),

@@ -149,7 +149,7 @@ function EventRow(props: {
       <TableCell className="px-4 py-3 align-top">
         <div className="flex min-w-0 flex-col gap-1">
           <Link
-            className="font-semibold text-mit-red-ink no-underline hover:underline"
+            className="font-semibold text-mit-red no-underline hover:underline dark:text-mit-red-ink"
             href={adminEventEditPath(props.event.slug)}
           >
             {props.event.name}
@@ -178,19 +178,19 @@ function EventRow(props: {
       <TableCell className="px-4 py-3 align-top">
         <div className="flex flex-wrap gap-x-3 gap-y-1">
           <Link
-            className="text-sm font-medium text-mit-red-ink no-underline hover:underline"
+            className="text-sm font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
             href={adminEventEditPath(props.event.slug)}
           >
             {props.t('action_edit')}
           </Link>
           <Link
-            className="text-sm font-medium text-mit-red-ink no-underline hover:underline"
+            className="text-sm font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
             href={adminEventRegistrationsPath(props.event.slug)}
           >
             {props.t('action_registrations')}
           </Link>
           <Link
-            className="text-sm font-medium text-mit-red-ink no-underline hover:underline"
+            className="text-sm font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
             href={adminEventDeletePath(props.event.slug)}
           >
             {props.t('action_delete')}

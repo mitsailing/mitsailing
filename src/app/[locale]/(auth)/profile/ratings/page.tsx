@@ -28,7 +28,7 @@ export default async function ProfileRatingsPage(
   setRequestLocale(locale);
   const user = await requireCurrentUser(
     locale,
-    getI18nPath('/profile/ratings/', locale)
+    getI18nPath('/profile/ratings', locale)
   );
   const rows = await listUserRatingAssignmentRows(user.id, {
     includeDeprecated: false,
@@ -83,13 +83,17 @@ export default async function ProfileRatingsPage(
                         date: dateFormatter.format(row.issuedAt),
                       })
                     : null}
-                  {row.issuedAt ? null : t('ratings_no_issue_date')}
+                  {row.issuedAt ? null : (
+                    <span className="text-mit-text-secondary">
+                      {t('ratings_no_issue_date')}
+                    </span>
+                  )}
                   {row.unlockedBoats.length > 0 ? (
                     <ul className="mt-2 mb-0 list-disc space-y-1 pl-5">
                       {row.unlockedBoats.map((boat) => (
                         <li key={boat.id}>
                           <Link
-                            className="font-semibold text-mit-red-ink hover:underline"
+                            className="font-semibold text-mit-red hover:underline dark:text-mit-red-ink"
                             href={`/fleet/${boat.slug}`}
                           >
                             {boat.name}

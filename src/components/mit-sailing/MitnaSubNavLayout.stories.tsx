@@ -18,7 +18,7 @@ export const SubNavAndContent: Story = {
     <div className="mx-auto max-w-7xl rounded-lg border border-mit-line bg-card p-6">
       <MitnaSubNavLayout
         leading={
-          <span className="text-sm font-semibold text-mit-red-ink">
+          <span className="text-sm font-semibold text-mit-red dark:text-mit-red-ink">
             ← Back to About
           </span>
         }
@@ -27,8 +27,14 @@ export const SubNavAndContent: Story = {
           <h1 className="font-mit-serif text-2xl font-semibold">Overview</h1>
           <p className="mt-2 text-sm leading-6">
             Main column — same composition as{' '}
-            <code className="text-mit-red-ink">MitnaMarketingPageShell</code>{' '}
-            routes under <code className="text-mit-red-ink">/about/mitna</code>.
+            <code className="text-mit-red dark:text-mit-red-ink">
+              MitnaMarketingPageShell
+            </code>{' '}
+            routes under{' '}
+            <code className="text-mit-red dark:text-mit-red-ink">
+              /about/mitna
+            </code>
+            .
           </p>
         </div>
       </MitnaSubNavLayout>

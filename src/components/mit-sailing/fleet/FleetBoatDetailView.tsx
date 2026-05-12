@@ -41,7 +41,7 @@ export async function FleetBoatDetailView(props: FleetBoatDetailViewProps) {
     <>
       <PublicCatalogDetailTopNav>
         <Link
-          className={`inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-mit-red-ink no-underline hover:underline ${textFocusRingClassName}`}
+          className={`inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-mit-red no-underline hover:underline ${textFocusRingClassName} dark:text-mit-red-ink`}
           href="/fleet"
         >
           <ArrowLeft aria-hidden size={16} />
@@ -68,7 +68,7 @@ export async function FleetBoatDetailView(props: FleetBoatDetailViewProps) {
             {boat.requiredRatings.map((rating) => (
               <li key={rating.id}>
                 <Link
-                  className={`inline-flex items-center gap-1 font-semibold text-mit-red-ink hover:underline ${textFocusRingClassName}`}
+                  className={`inline-flex items-center gap-1 font-semibold text-mit-red hover:underline ${textFocusRingClassName} dark:text-mit-red-ink`}
                   href={`/ratings#${rating.slug}`}
                 >
                   {rating.name} <ArrowRight aria-hidden size={14} />
@@ -83,7 +83,7 @@ export async function FleetBoatDetailView(props: FleetBoatDetailViewProps) {
             {t('required_class_heading')}
           </h2>
           <Link
-            className={`inline-flex items-center gap-1 font-semibold text-mit-red-ink hover:underline ${textFocusRingClassName}`}
+            className={`inline-flex items-center gap-1 font-semibold text-mit-red hover:underline ${textFocusRingClassName} dark:text-mit-red-ink`}
             href={`/classes/${boat.requiredClass.slug}/`}
           >
             {boat.requiredClass.name} <ArrowRight aria-hidden size={14} />
@@ -100,7 +100,7 @@ export async function FleetBoatDetailView(props: FleetBoatDetailViewProps) {
             {boat.advancedRatings.map((rating) => (
               <li key={rating.id}>
                 <Link
-                  className={`inline-flex items-center gap-1 font-semibold text-mit-red-ink hover:underline ${textFocusRingClassName}`}
+                  className={`inline-flex items-center gap-1 font-semibold text-mit-red hover:underline ${textFocusRingClassName} dark:text-mit-red-ink`}
                   href={`/ratings#${rating.slug}`}
                 >
                   {rating.name} <ArrowRight aria-hidden size={14} />

@@ -43,7 +43,7 @@ export default async function AboutStaffPage(props: PageProps) {
   return (
     <>
       <Link
-        className={`mb-8 inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-mit-red-ink no-underline hover:underline ${textFocusRingClassName}`}
+        className={`mb-8 inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-mit-red no-underline hover:underline ${textFocusRingClassName} dark:text-mit-red-ink`}
         href="/about"
       >
         <ArrowLeft aria-hidden size={16} />

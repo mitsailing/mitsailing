@@ -1,16 +1,12 @@
 import { expect, test } from '@playwright/test';
 import { Pool } from 'pg';
 import { signInAsAdmin } from '../helpers/e2e-admin-sign-in';
-
-const testDatabaseUrl =
-  process.env.TEST_DATABASE_URL ??
-  process.env.DATABASE_URL ??
-  'postgresql://postgres:postgres@127.0.0.1:5432/test_db?sslmode=disable';
+import { e2ePgConnectionString } from '../helpers/e2e-database-url';
 
 const adminEmail =
   process.env.ADMIN_EMAIL?.trim().toLowerCase() ?? 'admin@example.com';
 
-const pool = new Pool({ connectionString: testDatabaseUrl });
+const pool = new Pool({ connectionString: e2ePgConnectionString() });
 
 test.afterAll(async () => {
   await pool.end();
@@ -39,16 +35,24 @@ async function grantTechRatingForProfileTest() {
   );
 }
 
+async function revokeTechRatingForProfileTest() {
+  await pool.query('DELETE FROM "user_sailing_ratings" WHERE "id" = $1', [
+    'e2e-user-ak-tech-rating',
+  ]);
+}
+
 test.describe('Sailing ratings', () => {
   test.describe.configure({ mode: 'serial' });
 
   test('/ratings shows public rating catalog', async ({ page }) => {
-    await page.goto('/ratings/');
+    await page.goto('/ratings');
 
     await expect(
       page.getByRole('heading', { level: 1, name: 'Sailing ratings' })
     ).toBeVisible();
-    await expect(page.getByText('Tech Rating')).toBeVisible();
+    await expect(
+      page.getByRole('rowheader', { name: /Tech Rating/ })
+    ).toBeVisible();
     await expect(
       page.getByRole('columnheader', { name: 'Rating' })
     ).toBeVisible();
@@ -70,11 +74,13 @@ test.describe('Sailing ratings', () => {
     await expect(
       page.getByRole('rowheader', { name: /Bluewater Skipper/ })
     ).toBeVisible();
-    await expect(page.getByText('Deprecated ratings')).toHaveCount(0);
+    await expect(
+      page.getByRole('heading', { name: 'Deprecated ratings' })
+    ).toHaveCount(0);
   });
 
   test('boat detail shows required rating', async ({ page }) => {
-    await page.goto('/fleet/tech-dinghy/');
+    await page.goto('/fleet/tech-dinghy');
 
     await expect(
       page.getByRole('heading', { level: 2, name: 'Required rating' })
@@ -91,7 +97,7 @@ test.describe('Sailing ratings', () => {
   test('class detail shows required and grantable ratings', async ({
     page,
   }) => {
-    await page.goto('/classes/intro-sailing-101/');
+    await page.goto('/classes/intro-sailing-101');
 
     await expect(
       page.getByRole('heading', { name: 'Ratings staff may grant' })
@@ -106,7 +112,7 @@ test.describe('Sailing ratings', () => {
     page,
   }) => {
     await signInAsAdmin(page);
-    await page.goto('/admin/users/');
+    await page.goto('/admin/users');
 
     await page
       .getByRole('row')
@@ -133,7 +139,7 @@ test.describe('Sailing ratings', () => {
     page,
   }) => {
     await signInAsAdmin(page);
-    await page.goto('/admin/users/user-ak/edit/');
+    await page.goto('/admin/users/user-ak/edit');
 
     await expect(
       page.getByRole('heading', { name: 'Edit user' })
@@ -144,39 +150,50 @@ test.describe('Sailing ratings', () => {
     await expect(page.getByRole('heading', { name: 'Ratings' })).toHaveCount(0);
   });
 
-  test('profile ratings show issuer and date', async ({ page }) => {
-    await grantTechRatingForProfileTest();
-    await signInAsAdmin(page);
-
-    await page.goto('/admin/users/');
-    await page
-      .getByRole('row')
-      .filter({ hasText: 'ak@mit.edu' })
-      .getByRole('button', { name: 'View as user' })
-      .click();
-    await expect.poll(() => new URL(page.url()).pathname).toBe('/');
-
-    await page.goto('/profile/ratings/');
-    await expect(
-      page.getByRole('heading', { name: 'Sailing ratings' })
-    ).toBeVisible();
-    await expect(page.getByText('Tech Rating')).toBeVisible();
-    await expect(
-      page.getByText(/Issued [A-Z][a-z]{2} \d{1,2}, 20\d{2} by Administrator/)
-    ).toBeVisible();
-    const techRatingRow = page.getByRole('row').filter({
-      has: page.getByRole('rowheader', { name: 'Tech Rating' }),
+  test.describe('profile ratings with tech grant', () => {
+    test.beforeEach(async () => {
+      await grantTechRatingForProfileTest();
     });
-    await expect(
-      techRatingRow.getByRole('link', { name: 'Tech dinghy' })
-    ).toBeVisible();
-    await expect(
-      techRatingRow.getByRole('link', { name: 'Mashnee' })
-    ).toBeVisible();
+
+    test.afterEach(async () => {
+      await revokeTechRatingForProfileTest();
+    });
+
+    test('profile ratings show issuer and date', async ({ page }) => {
+      await signInAsAdmin(page);
+
+      await page.goto('/admin/users');
+      await page
+        .getByRole('row')
+        .filter({ hasText: 'ak@mit.edu' })
+        .getByRole('button', { name: 'View as user' })
+        .click();
+      await expect.poll(() => new URL(page.url()).pathname).toBe('/');
+
+      await page.goto('/profile/ratings');
+      await expect(
+        page.getByRole('heading', { name: 'Sailing ratings' })
+      ).toBeVisible();
+      await expect(
+        page.getByRole('rowheader', { name: 'Tech Rating' })
+      ).toBeVisible();
+      await expect(
+        page.getByText(/Issued [A-Z][a-z]{2} \d{1,2}, 20\d{2} by Administrator/)
+      ).toBeVisible();
+      const techRatingRow = page.getByRole('row').filter({
+        has: page.getByRole('rowheader', { name: 'Tech Rating' }),
+      });
+      await expect(
+        techRatingRow.getByRole('link', { name: 'Tech dinghy' })
+      ).toBeVisible();
+      await expect(
+        techRatingRow.getByRole('link', { name: 'Mashnee' })
+      ).toBeVisible();
+    });
   });
 
   test('melges detail shows advanced 420 rating', async ({ page }) => {
-    await page.goto('/fleet/melges-15/');
+    await page.goto('/fleet/melges-15');
 
     await expect(
       page.getByRole('heading', { level: 1, name: 'Melges 15' })
@@ -189,7 +206,7 @@ test.describe('Sailing ratings', () => {
   test('mashnee detail separates access and skipper ratings', async ({
     page,
   }) => {
-    await page.goto('/fleet/mashnee/');
+    await page.goto('/fleet/mashnee');
 
     const requiredSection = page
       .locator('section')

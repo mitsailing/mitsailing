@@ -15,6 +15,7 @@ import type {
   CatalogRow,
   CatalogServerHandlers,
 } from '@/libs/admin/catalog/types';
+import { prismaUniqueTargetIncludes } from '@/libs/admin/prismaUniqueTargetIncludes';
 import { prisma } from '@/libs/DB';
 
 function sailingRatingRuleTargetFields(props: {
@@ -43,17 +44,15 @@ function sailingRatingRuleTarget(row: {
 }
 
 function mapPrismaErr(error: unknown): CatalogMutationErr | null {
-  if (
-    error instanceof Prisma.PrismaClientKnownRequestError &&
-    error.code === 'P2002'
-  ) {
-    return { ok: false, code: 'duplicate_slug' };
-  }
-  if (
-    error instanceof Prisma.PrismaClientKnownRequestError &&
-    error.code === 'P2003'
-  ) {
-    return { ok: false, code: 'foreign_key' };
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error.code === 'P2002') {
+      return prismaUniqueTargetIncludes(error, 'slug')
+        ? { ok: false, code: 'duplicate_slug' }
+        : { ok: false, code: 'unknown' };
+    }
+    if (error.code === 'P2003') {
+      return { ok: false, code: 'foreign_key' };
+    }
   }
   return null;
 }

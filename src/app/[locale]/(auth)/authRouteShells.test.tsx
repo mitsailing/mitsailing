@@ -1,6 +1,9 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import React from 'react';
+import type { MockedFunction } from 'vitest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { listUserRatingAssignmentRows } from '@/libs/mit-sailing/sailingRatingQueries';
+import type { UserRatingAssignmentRow } from '@/libs/mit-sailing/sailingRatingQueries';
 import ForgotPasswordPage, {
   generateMetadata as generateForgotPasswordMetadata,
 } from './(center)/forgot-password/page';
@@ -35,10 +38,46 @@ import ProfileSecurityPage, {
   generateMetadata as generateProfileSecurityMetadata,
 } from './profile/security/page';
 
+type ListUserRatingAssignmentRowsFn = (
+  userId: string,
+  options?: { includeDeprecated?: boolean; client?: unknown }
+) => Promise<UserRatingAssignmentRow[]>;
+
+/**
+ * Builds a {@link UserRatingAssignmentRow} for route-shell tests; production rows
+ * always include public rating fields plus assignment metadata.
+ *
+ * @param row - Required `id` and `name`, plus any optional fields to override defaults.
+ * @returns A fully populated assignment row for the profile ratings page tests.
+ */
+function userRatingAssignmentRowFixture(
+  row: Pick<UserRatingAssignmentRow, 'id' | 'name'> &
+    Partial<Omit<UserRatingAssignmentRow, 'id' | 'name'>>
+): UserRatingAssignmentRow {
+  return {
+    slug: row.slug ?? row.id,
+    shortName: row.shortName ?? null,
+    description: row.description ?? '',
+    category: row.category ?? null,
+    level: row.level ?? null,
+    windCondition: row.windCondition ?? null,
+    guideUrl: row.guideUrl ?? null,
+    grantableClasses: row.grantableClasses ?? [],
+    unlockedBoats: row.unlockedBoats ?? [],
+    isDeprecated: row.isDeprecated ?? false,
+    issuedAt: row.issuedAt ?? null,
+    issuedByName: row.issuedByName ?? null,
+    eligibility: row.eligibility ?? { eligible: true },
+    id: row.id,
+    name: row.name,
+  };
+}
+
 const routeMocks = vi.hoisted(() => ({
   findUnique: vi.fn(),
   getTranslations: vi.fn(),
-  listUserRatingAssignmentRows: vi.fn(),
+  listUserRatingAssignmentRows:
+    vi.fn() as MockedFunction<ListUserRatingAssignmentRowsFn>,
   redirect: vi.fn((href: string) => {
     throw new Error(`NEXT_REDIRECT:${href}`);
   }),
@@ -221,7 +260,9 @@ beforeEach(() => {
     themePreference: 'DARK',
     unconfirmedEmail: 'pending@example.com',
   });
-  routeMocks.listUserRatingAssignmentRows.mockResolvedValue([]);
+  vi.mocked(listUserRatingAssignmentRows).mockResolvedValue(
+    [] satisfies UserRatingAssignmentRow[]
+  );
 });
 
 describe('auth route shells', () => {
@@ -563,28 +604,29 @@ describe('auth route shells', () => {
   });
 
   it('profile ratings page renders active rating assignments', async () => {
-    routeMocks.listUserRatingAssignmentRows.mockResolvedValue([
-      {
+    vi.mocked(listUserRatingAssignmentRows).mockResolvedValue([
+      userRatingAssignmentRowFixture({
         id: 'keelboat',
-        isDeprecated: false,
         issuedAt: new Date('2026-04-15T12:00:00Z'),
         issuedByName: 'Instructor One',
         name: 'Keelboat',
-      },
-      {
+        unlockedBoats: [
+          {
+            id: 'boat-tech-dinghy',
+            name: 'Tech dinghy',
+            slug: 'tech-dinghy',
+          },
+        ],
+      }),
+      userRatingAssignmentRowFixture({
         id: 'club-420',
-        isDeprecated: false,
         issuedAt: new Date('2026-04-16T12:00:00Z'),
-        issuedByName: null,
         name: 'Club 420',
-      },
-      {
+      }),
+      userRatingAssignmentRowFixture({
         id: 'tech',
-        isDeprecated: false,
-        issuedAt: null,
-        issuedByName: null,
         name: 'Tech dinghy',
-      },
+      }),
     ]);
 
     render(
@@ -596,9 +638,12 @@ describe('auth route shells', () => {
     expect(routeMocks.setRequestLocale).toHaveBeenCalledWith('en');
     expect(routeMocks.requireCurrentUser).toHaveBeenCalledWith(
       'en',
-      '/profile/ratings/'
+      '/profile/ratings'
     );
-    expect(routeMocks.listUserRatingAssignmentRows).toHaveBeenCalledWith(
+    expect(listUserRatingAssignmentRows).toBe(
+      routeMocks.listUserRatingAssignmentRows
+    );
+    expect(vi.mocked(listUserRatingAssignmentRows)).toHaveBeenCalledWith(
       'user-1',
       { includeDeprecated: false }
     );
@@ -607,26 +652,37 @@ describe('auth route shells', () => {
         name: 'UserProfilePage.ratings_page_heading',
       })
     ).toBeVisible();
+
+    const ratingsTable = screen.getByRole('table');
+    const inTable = within(ratingsTable);
     expect(
-      screen.getByRole('columnheader', {
+      inTable.getByRole('columnheader', {
         name: 'UserProfilePage.ratings_column_rating',
       })
     ).toBeVisible();
     expect(
-      screen.getByRole('columnheader', {
+      inTable.getByRole('columnheader', {
         name: 'UserProfilePage.ratings_column_assignment',
       })
     ).toBeVisible();
-    expect(screen.getByRole('rowheader', { name: 'Keelboat' })).toBeVisible();
-    expect(screen.getByRole('rowheader', { name: 'Club 420' })).toBeVisible();
+    expect(inTable.getByRole('rowheader', { name: 'Keelboat' })).toBeVisible();
+    expect(inTable.getByRole('rowheader', { name: 'Club 420' })).toBeVisible();
     expect(
-      screen.getByRole('rowheader', { name: 'Tech dinghy' })
+      inTable.getByRole('rowheader', { name: 'Tech dinghy' })
     ).toBeVisible();
-    expect(screen.getByText('UserProfilePage.ratings_issued_by')).toBeVisible();
-    expect(screen.getByText('UserProfilePage.ratings_issued_on')).toBeVisible();
     expect(
-      screen.getByText('UserProfilePage.ratings_no_issue_date')
+      inTable.getByText('UserProfilePage.ratings_issued_by')
     ).toBeVisible();
+    expect(
+      inTable.getByText('UserProfilePage.ratings_issued_on')
+    ).toBeVisible();
+    expect(
+      inTable.getByText('UserProfilePage.ratings_no_issue_date')
+    ).toBeVisible();
+    expect(inTable.getByRole('link', { name: 'Tech dinghy' })).toHaveAttribute(
+      'href',
+      '/fleet/tech-dinghy'
+    );
   });
 
   it('profile ratings page renders empty state', async () => {
@@ -636,8 +692,9 @@ describe('auth route shells', () => {
       })
     );
 
+    const ratingsTable = screen.getByRole('table');
     expect(
-      screen.getByText('UserProfilePage.ratings_empty_state')
+      within(ratingsTable).getByText('UserProfilePage.ratings_empty_state')
     ).toBeVisible();
   });
 

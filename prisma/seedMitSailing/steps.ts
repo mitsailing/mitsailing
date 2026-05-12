@@ -3,6 +3,7 @@ import {
   CLASS_CATEGORY_ROWS,
   classCategoryIdFromSeedKey,
   overrideClassCategorySeedId,
+  resetClassCategorySeedKeyMap,
 } from '../../src/data/mit-sailing/classCategoriesSeed';
 import {
   FLEET_BOATS,
@@ -91,9 +92,12 @@ export async function seedEventCategories(p: PrismaClient): Promise<void> {
 }
 
 /**
+ * Idempotent: upserts categories and reconciles slug collisions so `classCategoryIdFromSeedKey` matches the database.
+ *
  * @param p - Prisma client
  */
 export async function seedClassCategories(p: PrismaClient): Promise<void> {
+  resetClassCategorySeedKeyMap();
   const now = new Date();
   for (const row of CLASS_CATEGORY_ROWS) {
     const existingBySlug = await p.classCategory.findUnique({

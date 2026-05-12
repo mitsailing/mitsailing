@@ -31,6 +31,7 @@ import {
   rawEventQuestionFromFormData,
   rawEventRegistrationStatusFromFormData,
 } from '@/libs/admin/events/eventAdminSchemas';
+import { prismaUniqueTargetIncludes } from '@/libs/admin/prismaUniqueTargetIncludes';
 import { requireAdmin } from '@/libs/auth/dal';
 import { prisma } from '@/libs/DB';
 import { logger } from '@/libs/Logger';
@@ -63,17 +64,6 @@ function logAdminEventMutationFailure(options: {
       .filter((part): part is string => typeof part === 'string')
       .join(' ')
   );
-}
-
-function prismaUniqueTargetIncludes(
-  error: Prisma.PrismaClientKnownRequestError,
-  field: string
-): boolean {
-  const target = error.meta?.target;
-  if (Array.isArray(target)) {
-    return target.some((value) => value === field);
-  }
-  return typeof target === 'string' && target.includes(field);
 }
 
 function mutationCodeFromPrisma(error: unknown): EventAdminMutationCode {

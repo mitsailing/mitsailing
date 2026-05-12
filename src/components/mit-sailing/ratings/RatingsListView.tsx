@@ -16,7 +16,7 @@ function RatingGuideLink(props: { guideUrl: string | null; label: string }) {
 
   return (
     <a
-      className={`inline-flex items-center gap-1 font-semibold text-mit-red-ink hover:underline ${textFocusRingClassName}`}
+      className={`inline-flex items-center gap-1 font-semibold text-mit-red hover:underline ${textFocusRingClassName} dark:text-mit-red-ink`}
       href={props.guideUrl}
       rel="noopener noreferrer"
       target="_blank"
@@ -39,8 +39,8 @@ function RatingBoatLinks(props: {
       {props.boats.map((boat) => (
         <li key={boat.id}>
           <Link
-            className={`inline-flex items-center gap-1 font-semibold text-mit-red-ink hover:underline ${textFocusRingClassName}`}
-            href={`/fleet/${boat.slug}/`}
+            className={`inline-flex items-center gap-1 font-semibold text-mit-red hover:underline ${textFocusRingClassName} dark:text-mit-red-ink`}
+            href={`/fleet/${boat.slug}`}
           >
             {boat.name} <ArrowRight aria-hidden size={14} />
           </Link>
@@ -63,8 +63,8 @@ function RatingClassLinks(props: {
       {props.classes.map((sailingClass) => (
         <li key={sailingClass.id}>
           <Link
-            className={`inline-flex items-center gap-1 font-semibold text-mit-red-ink hover:underline ${textFocusRingClassName}`}
-            href={`/classes/${sailingClass.slug}/`}
+            className={`inline-flex items-center gap-1 font-semibold text-mit-red hover:underline ${textFocusRingClassName} dark:text-mit-red-ink`}
+            href={`/classes/${sailingClass.slug}`}
           >
             {sailingClass.name} <ArrowRight aria-hidden size={14} />
           </Link>
@@ -85,6 +85,23 @@ export async function RatingsListView(props: RatingsListViewProps) {
     (rating) => rating.isDeprecated
   );
 
+  if (props.ratings.length === 0) {
+    return (
+      <>
+        <h1 className="mb-3 font-mit-serif text-[clamp(1.75rem,4vw,2.25rem)] leading-tight font-semibold tracking-tight text-mit-text">
+          {t('list_heading')}
+        </h1>
+        <div className="mb-8 max-w-3xl space-y-4 text-base leading-relaxed text-mit-text">
+          <p>{t('list_intro')}</p>
+          <p>{t('list_staff_note')}</p>
+        </div>
+        <p className="m-0 max-w-3xl text-base text-mit-text" role="status">
+          {t('empty')}
+        </p>
+      </>
+    );
+  }
+
   return (
     <>
       <h1 className="mb-3 font-mit-serif text-[clamp(1.75rem,4vw,2.25rem)] leading-tight font-semibold tracking-tight text-mit-text">
@@ -95,85 +112,89 @@ export async function RatingsListView(props: RatingsListViewProps) {
         <p>{t('list_staff_note')}</p>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-mit-line bg-mit-surface">
-        <table className="w-full min-w-[1040px] border-collapse text-left text-sm leading-relaxed text-mit-text">
-          <thead className="bg-mit-red-highlight text-xs font-bold tracking-wider text-mit-text uppercase">
-            <tr>
-              <th className="w-[15%] px-4 py-3" scope="col">
-                {t('column_rating')}
-              </th>
-              <th className="w-[6%] px-4 py-3" scope="col">
-                {t('column_level')}
-              </th>
-              <th className="w-[27%] px-4 py-3" scope="col">
-                {t('column_description')}
-              </th>
-              <th className="w-[18%] px-4 py-3" scope="col">
-                {t('column_classes')}
-              </th>
-              <th className="w-[14%] px-4 py-3" scope="col">
-                {t('column_boats')}
-              </th>
-              <th className="w-[8%] px-4 py-3" scope="col">
-                {t('column_wind')}
-              </th>
-              <th className="w-[18%] px-4 py-3" scope="col">
-                {t('column_guide')}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {activeRatings.map((rating) => (
-              <tr
-                className="scroll-mt-28 border-t border-mit-line align-top"
-                id={rating.slug}
-                key={rating.id}
-              >
-                <th className="px-4 py-4 font-semibold" scope="row">
-                  <div>{rating.name}</div>
-                  {rating.category ? (
-                    <div className="mt-1 text-xs font-medium text-mit-text">
-                      {rating.category}
-                    </div>
-                  ) : null}
+      {activeRatings.length > 0 ? (
+        <div className="overflow-x-auto rounded-xl border border-mit-line bg-mit-surface">
+          <table className="w-full min-w-[1040px] table-fixed border-collapse text-left text-sm leading-relaxed text-mit-text">
+            <thead className="bg-mit-red-highlight text-xs font-bold tracking-wider text-mit-text uppercase">
+              <tr>
+                <th className="w-[15%] px-4 py-3" scope="col">
+                  {t('column_rating')}
                 </th>
-                <td className="px-4 py-4">
-                  {rating.level ?? t('not_applicable')}
-                </td>
-                <td className="px-4 py-4">{rating.description}</td>
-                <td className="px-4 py-4">
-                  <RatingClassLinks
-                    classes={rating.grantableClasses}
-                    emptyLabel={t('not_applicable')}
-                  />
-                </td>
-                <td className="px-4 py-4">
-                  <RatingBoatLinks
-                    boats={rating.unlockedBoats}
-                    emptyLabel={t('not_applicable')}
-                  />
-                </td>
-                <td className="px-4 py-4">
-                  {rating.windCondition ?? t('not_applicable')}
-                </td>
-                <td className="px-4 py-4">
-                  {rating.guideUrl ? (
-                    <RatingGuideLink
-                      guideUrl={rating.guideUrl}
-                      label={t('guide_link')}
-                    />
-                  ) : (
-                    t('not_applicable')
-                  )}
-                </td>
+                <th className="w-[5%] px-4 py-3" scope="col">
+                  {t('column_level')}
+                </th>
+                <th className="w-[27%] px-4 py-3" scope="col">
+                  {t('column_description')}
+                </th>
+                <th className="w-[18%] px-4 py-3" scope="col">
+                  {t('column_classes')}
+                </th>
+                <th className="w-[14%] px-4 py-3" scope="col">
+                  {t('column_boats')}
+                </th>
+                <th className="w-[8%] px-4 py-3" scope="col">
+                  {t('column_wind')}
+                </th>
+                <th className="w-[13%] px-4 py-3" scope="col">
+                  {t('column_guide')}
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {activeRatings.map((rating) => (
+                <tr
+                  className="scroll-mt-28 border-t border-mit-line align-top"
+                  id={rating.slug}
+                  key={rating.id}
+                >
+                  <th className="px-4 py-4 font-semibold" scope="row">
+                    <div>{rating.name}</div>
+                    {rating.category ? (
+                      <div className="mt-1 text-xs font-medium text-mit-text">
+                        {rating.category}
+                      </div>
+                    ) : null}
+                  </th>
+                  <td className="px-4 py-4">
+                    {rating.level ?? t('not_applicable')}
+                  </td>
+                  <td className="px-4 py-4">{rating.description}</td>
+                  <td className="px-4 py-4">
+                    <RatingClassLinks
+                      classes={rating.grantableClasses}
+                      emptyLabel={t('not_applicable')}
+                    />
+                  </td>
+                  <td className="px-4 py-4">
+                    <RatingBoatLinks
+                      boats={rating.unlockedBoats}
+                      emptyLabel={t('not_applicable')}
+                    />
+                  </td>
+                  <td className="px-4 py-4">
+                    {rating.windCondition ?? t('not_applicable')}
+                  </td>
+                  <td className="px-4 py-4">
+                    {rating.guideUrl ? (
+                      <RatingGuideLink
+                        guideUrl={rating.guideUrl}
+                        label={t('guide_link')}
+                      />
+                    ) : (
+                      t('not_applicable')
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
 
       {deprecatedRatings.length > 0 ? (
-        <section className="mt-12">
+        <section
+          className={activeRatings.length > 0 ? 'mt-12' : 'mt-0 max-w-3xl'}
+        >
           <h2 className="mb-3 font-mit-serif text-xl font-semibold text-mit-text md:text-2xl">
             {t('section_deprecated')}
           </h2>

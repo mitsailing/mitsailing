@@ -134,7 +134,7 @@ export async function EventsListView(props: EventsListViewProps) {
             textFocusRingClassName,
             props.selectedCategoryId
               ? 'bg-background hover:bg-mit-surface'
-              : 'bg-mit-red-highlight text-mit-red-ink dark:border-white/40 dark:bg-white/10 dark:text-white'
+              : 'bg-mit-red-highlight text-mit-red dark:border-white/40 dark:bg-white/10 dark:text-white'
           )}
           href={eventsCalendarHref(props.visibleMonth)}
         >
@@ -149,7 +149,7 @@ export async function EventsListView(props: EventsListViewProps) {
                 'rounded-lg border border-mit-line px-3.5 py-2 text-xs font-semibold text-mit-text no-underline',
                 textFocusRingClassName,
                 isActive
-                  ? 'bg-mit-red-highlight text-mit-red-ink dark:border-white/40 dark:bg-white/10 dark:text-white'
+                  ? 'bg-mit-red-highlight text-mit-red dark:border-white/40 dark:bg-white/10 dark:text-white'
                   : 'bg-background hover:bg-mit-surface'
               )}
               href={eventsCalendarHref(props.visibleMonth, category.id)}
@@ -223,7 +223,7 @@ export async function EventsListView(props: EventsListViewProps) {
             <Link
               aria-label={t('return_to_month', { month: resetMonthTitle })}
               className={cn(
-                'rounded-md px-2 py-1 font-mit-serif text-xl font-semibold text-mit-red-ink no-underline hover:underline md:text-2xl',
+                'rounded-md px-2 py-1 font-mit-serif text-xl font-semibold text-mit-red no-underline hover:underline md:text-2xl dark:text-mit-red-ink',
                 textFocusRingClassName
               )}
               href={eventsCalendarHref(resetMonth, props.selectedCategoryId)}
@@ -270,7 +270,7 @@ export async function EventsListView(props: EventsListViewProps) {
                           className={cn(
                             'mb-1 text-xs font-semibold text-mit-text',
                             dateKey === props.todayKey
-                              ? 'text-mit-red-ink underline'
+                              ? 'text-mit-red underline dark:text-mit-red-ink'
                               : undefined
                           )}
                         >
@@ -322,7 +322,9 @@ export async function EventsListView(props: EventsListViewProps) {
                 <h3
                   className={cn(
                     'border-b border-mit-line pb-1 text-xs font-semibold text-mit-text',
-                    group.isToday ? 'text-mit-red-ink underline' : undefined
+                    group.isToday
+                      ? 'text-mit-red underline dark:text-mit-red-ink'
+                      : undefined
                   )}
                   id={`events-day-${group.dateKey}`}
                 >

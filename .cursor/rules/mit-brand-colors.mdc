@@ -31,5 +31,6 @@ The guide’s **expanded palette** (blues, greens, purples, grays, etc.) is avai
 ## Related rules
 
 - [app-design-tokens-colors.mdc](app-design-tokens-colors.mdc) — foreground and token usage in TSX
+- [mit-red-ink-usage.mdc](mit-red-ink-usage.mdc) — `text-mit-red` vs `text-mit-red-ink` in components
 - [mit-auth-ui-colors.mdc](mit-auth-ui-colors.mdc) — auth flows
 - [ada-color-accessibility.mdc](ada-color-accessibility.mdc) — WCAG contrast
