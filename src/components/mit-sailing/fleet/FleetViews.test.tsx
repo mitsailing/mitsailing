@@ -87,8 +87,8 @@ describe('FleetListView', () => {
       })
     );
 
-    expect(screen.getByText('Required rating:')).toBeVisible();
-    expect(screen.getByText('Tech Rating')).toBeVisible();
+    expect(screen.getByText('Required class:')).toBeVisible();
+    expect(screen.getByText('Intro Sailing 101 — Tech Rating')).toBeVisible();
   });
 });
 

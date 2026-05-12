@@ -36,13 +36,23 @@ async function grantTechRatingForProfileTest() {
 }
 
 async function revokeTechRatingForProfileTest() {
-  await pool.query('DELETE FROM "user_sailing_ratings" WHERE "id" = $1', [
-    'e2e-user-ak-tech-rating',
-  ]);
+  await pool.query(
+    `DELETE FROM "user_sailing_ratings"
+     WHERE "user_id" = $1 AND "sailing_rating_id" = $2`,
+    ['user-ak', 'rating-tech']
+  );
 }
 
 test.describe('Sailing ratings', () => {
   test.describe.configure({ mode: 'serial' });
+
+  test.beforeEach(async () => {
+    await revokeTechRatingForProfileTest();
+  });
+
+  test.afterEach(async () => {
+    await revokeTechRatingForProfileTest();
+  });
 
   test('/ratings shows public rating catalog', async ({ page }) => {
     await page.goto('/ratings');
@@ -128,10 +138,13 @@ test.describe('Sailing ratings', () => {
     const techRow = page.getByRole('row').filter({ hasText: 'Tech Rating' });
     await expect(techRow.getByText('Not yet obtained')).toBeVisible();
     await techRow.getByRole('button', { name: 'Give Rating' }).click();
-    await expect(techRow.getByText('Not yet obtained')).toHaveCount(0);
     await expect(techRow.getByRole('button', { name: 'Revoke' })).toBeVisible();
+    await expect(techRow.getByText('Not yet obtained')).toHaveCount(0);
 
     await techRow.getByRole('button', { name: 'Revoke' }).click();
+    await expect(
+      techRow.getByRole('button', { name: 'Give Rating' })
+    ).toBeVisible();
     await expect(techRow.getByText('Not yet obtained')).toBeVisible();
   });
 

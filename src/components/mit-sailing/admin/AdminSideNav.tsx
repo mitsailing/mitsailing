@@ -102,6 +102,9 @@ function isAdminNavItemActive(
 
 const rowFocus = textFocusRingClassName;
 
+/** Stable id linking the collapse control to the nav region for assistive tech. */
+const ADMIN_SIDE_NAV_REGION_ID = 'admin-sidenav';
+
 /**
  * Tailwind Plus–style vertical rail (text rows) inside the marketing shell.
  * Renders only under {@link requireAdmin}.
@@ -125,8 +128,9 @@ export function AdminSideNav() {
     >
       <div className="mb-2 hidden justify-end md:flex">
         <Button
-          aria-label={toggleLabel}
+          aria-controls={ADMIN_SIDE_NAV_REGION_ID}
           aria-expanded={!collapsed}
+          aria-label={toggleLabel}
           className="text-muted-foreground hover:text-foreground"
           size="icon-sm"
           title={toggleLabel}
@@ -149,6 +153,7 @@ export function AdminSideNav() {
           'relative flex min-h-0 flex-1 flex-col',
           collapsed && 'md:hidden'
         )}
+        id={ADMIN_SIDE_NAV_REGION_ID}
       >
         <ul
           className="m-0 flex min-h-0 flex-1 list-none flex-col gap-y-2 p-0"
