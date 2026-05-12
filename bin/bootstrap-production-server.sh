@@ -16,8 +16,8 @@ Usage:
 Environment:
   PRODUCTION_SSH_TARGET  SSH target for the production host (default: ak@sailing-dock.mit.edu)
   DEPLOY_USER            Linux user that owns production data (default: SSH user)
+  DEPLOY_GROUP           Linux group for deploy-owned files (default: DEPLOY_USER primary group)
   DEPLOY_DIR             Remote app directory (default: /home/$DEPLOY_USER/apps/mitsailing)
-  PRODUCTION_DATA_ROOT   Remote production data root (default: /srv/mitsailing-data)
 
 Optional:
   --check-only                  Validate local Compose config and print the resolved target, then exit.
@@ -55,8 +55,9 @@ if [[ "$ssh_user" == "$SSH_TARGET" ]]; then
   ssh_user="$USER"
 fi
 readonly DEPLOY_USER="${DEPLOY_USER:-$ssh_user}"
+readonly DEPLOY_GROUP="${DEPLOY_GROUP:-}"
 readonly DEPLOY_DIR="${DEPLOY_DIR:-/home/${DEPLOY_USER}/apps/mitsailing}"
-readonly PRODUCTION_DATA_ROOT="${PRODUCTION_DATA_ROOT:-$DEFAULT_DATA_ROOT}"
+readonly PRODUCTION_DATA_ROOT="$DEFAULT_DATA_ROOT"
 
 require_safe_value() {
   local name="$1"
@@ -116,7 +117,7 @@ process.stdin.on("end", () => {
 run_remote_bootstrap() {
   log "connecting to ${SSH_TARGET}"
   ssh -tt "$SSH_TARGET" \
-    "DEPLOY_USER='$DEPLOY_USER' DEPLOY_DIR='$DEPLOY_DIR' PRODUCTION_DATA_ROOT='$PRODUCTION_DATA_ROOT' REMOVE_OLD_DOCKER_VOLUMES='$remove_old_docker_volumes' bash -s" <<'REMOTE'
+    "DEPLOY_USER='$DEPLOY_USER' DEPLOY_GROUP='$DEPLOY_GROUP' DEPLOY_DIR='$DEPLOY_DIR' PRODUCTION_DATA_ROOT='$PRODUCTION_DATA_ROOT' REMOVE_OLD_DOCKER_VOLUMES='$remove_old_docker_volumes' bash -s" <<'REMOTE'
 set -Eeuo pipefail
 
 log() { printf '[remote bootstrap] %s\n' "$*"; }
@@ -128,24 +129,40 @@ fail() {
 readonly POSTGRES_DIR="${PRODUCTION_DATA_ROOT}/postgres"
 readonly REDIS_DIR="${PRODUCTION_DATA_ROOT}/redis"
 readonly CMS_MEDIA_DIR="${PRODUCTION_DATA_ROOT}/cms-media"
+readonly POSTGRES_IMAGE="postgres:18-alpine"
+readonly REDIS_IMAGE="redis:7-alpine"
+DEPLOY_GROUP="${DEPLOY_GROUP:-$(id -gn "$DEPLOY_USER")}"
 
 log "creating production data directories under ${PRODUCTION_DATA_ROOT}"
-sudo install -d -o "$DEPLOY_USER" -g "$DEPLOY_USER" -m 700 "$PRODUCTION_DATA_ROOT"
-sudo install -d -o "$DEPLOY_USER" -g "$DEPLOY_USER" -m 700 "$POSTGRES_DIR"
-sudo install -d -o "$DEPLOY_USER" -g "$DEPLOY_USER" -m 700 "$REDIS_DIR"
-sudo install -d -o "$DEPLOY_USER" -g "$DEPLOY_USER" -m 700 "$CMS_MEDIA_DIR"
-sudo install -d -o "$DEPLOY_USER" -g "$DEPLOY_USER" -m 755 "$DEPLOY_DIR"
-sudo install -d -o "$DEPLOY_USER" -g "$DEPLOY_USER" -m 755 "${DEPLOY_DIR}/docker"
-sudo install -d -o "$DEPLOY_USER" -g "$DEPLOY_USER" -m 755 "${DEPLOY_DIR}/docker/postgres"
+sudo install -d -o "$DEPLOY_USER" -g "$DEPLOY_GROUP" -m 700 "$PRODUCTION_DATA_ROOT"
+sudo install -d -o "$DEPLOY_USER" -g "$DEPLOY_GROUP" -m 700 "$POSTGRES_DIR"
+sudo install -d -o "$DEPLOY_USER" -g "$DEPLOY_GROUP" -m 700 "$REDIS_DIR"
+sudo install -d -o "$DEPLOY_USER" -g "$DEPLOY_GROUP" -m 700 "$CMS_MEDIA_DIR"
+sudo install -d -o "$DEPLOY_USER" -g "$DEPLOY_GROUP" -m 755 "$DEPLOY_DIR"
+sudo install -d -o "$DEPLOY_USER" -g "$DEPLOY_GROUP" -m 755 "${DEPLOY_DIR}/docker"
+sudo install -d -o "$DEPLOY_USER" -g "$DEPLOY_GROUP" -m 755 "${DEPLOY_DIR}/docker/postgres"
 
 for path in "$PRODUCTION_DATA_ROOT" "$POSTGRES_DIR" "$REDIS_DIR" "$CMS_MEDIA_DIR"; do
   owner="$(stat -c '%U:%G' "$path")"
   mode="$(stat -c '%a' "$path")"
-  [[ "$owner" == "${DEPLOY_USER}:${DEPLOY_USER}" ]] \
-    || fail "$path owner is $owner, expected ${DEPLOY_USER}:${DEPLOY_USER}"
+  [[ "$owner" == "${DEPLOY_USER}:${DEPLOY_GROUP}" ]] \
+    || fail "$path owner is $owner, expected ${DEPLOY_USER}:${DEPLOY_GROUP}"
   [[ "$mode" == "700" ]] \
     || fail "$path mode is $mode, expected 700"
 done
+
+log "preparing postgres and redis bind mounts with official image users"
+docker run --rm --user 0:0 --volume "${POSTGRES_DIR}:/var/lib/postgresql" "$POSTGRES_IMAGE" \
+  sh -c "mkdir -p /var/lib/postgresql && chown -R postgres:postgres /var/lib/postgresql && chmod 700 /var/lib/postgresql"
+docker run --rm --user 0:0 --volume "${REDIS_DIR}:/data" "$REDIS_IMAGE" \
+  sh -c "mkdir -p /data && chown -R redis:redis /data && chmod 700 /data"
+sudo chmod 700 "$PRODUCTION_DATA_ROOT"
+
+if [[ -f "${DEPLOY_DIR}/.env.production" ]]; then
+  log "locking down ${DEPLOY_DIR}/.env.production"
+  sudo chown "$DEPLOY_USER:$DEPLOY_GROUP" "${DEPLOY_DIR}/.env.production"
+  sudo chmod 600 "${DEPLOY_DIR}/.env.production"
+fi
 
 if [[ "$REMOVE_OLD_DOCKER_VOLUMES" == "true" ]]; then
   log "removing old Docker-managed production data volumes"
@@ -170,12 +187,16 @@ REMOTE
 
 require_safe_value "PRODUCTION_SSH_TARGET" "$SSH_TARGET"
 require_safe_value "DEPLOY_USER" "$DEPLOY_USER"
+if [[ -n "$DEPLOY_GROUP" ]]; then
+  require_safe_value "DEPLOY_GROUP" "$DEPLOY_GROUP"
+fi
 require_safe_path "DEPLOY_DIR" "$DEPLOY_DIR"
 require_safe_path "PRODUCTION_DATA_ROOT" "$PRODUCTION_DATA_ROOT"
 validate_compose_config
 if [[ "$check_only" == "true" ]]; then
   log "check-only target: ${SSH_TARGET}"
   log "check-only deploy user: ${DEPLOY_USER}"
+  log "check-only deploy group: ${DEPLOY_GROUP:-remote primary group for ${DEPLOY_USER}}"
   log "check-only deploy dir: ${DEPLOY_DIR}"
   log "check-only production data root: ${PRODUCTION_DATA_ROOT}"
   exit 0

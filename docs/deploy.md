@@ -210,7 +210,9 @@ volumes:
 
 From your laptop, run the bootstrap script once. It validates the rendered
 production Compose config locally, creates the remote directories with `sudo`,
-copies `docker/postgres/init.sql`, sets that host file readable, and verifies
+prepares the Postgres and Redis bind mounts with the official image users,
+locks down `.env.production` to mode `600` when it exists, copies
+`docker/postgres/init.sql`, sets that host file readable, and verifies
 ownership/mode. The init SQL is mounted read-only by `compose.prod.yaml`:
 
 ```bash
@@ -229,6 +231,16 @@ The script defaults to `ak@sailing-dock.mit.edu`. Override when needed:
 ```bash
 PRODUCTION_SSH_TARGET=DEPLOY_USER@YOUR_HOST \
 DEPLOY_USER=DEPLOY_USER \
+bin/bootstrap-production-server.sh
+```
+
+If the deploy user's primary group is not the same as the username, set
+`DEPLOY_GROUP` explicitly:
+
+```bash
+PRODUCTION_SSH_TARGET=DEPLOY_USER@YOUR_HOST \
+DEPLOY_USER=DEPLOY_USER \
+DEPLOY_GROUP=DEPLOY_GROUP \
 bin/bootstrap-production-server.sh
 ```
 
