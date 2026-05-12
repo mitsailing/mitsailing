@@ -83,7 +83,7 @@ log() { printf '[bootstrap] %s\n' "$*"; }
 
 validate_compose_config() {
   log "validating rendered production Compose config"
-  docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production.example config --format json |
+  docker compose -f compose.yaml -f compose.prod.yaml --profile release --env-file .env.production.example config --format json |
     node -e '
 let input = "";
 process.stdin.on("data", (chunk) => {
@@ -94,7 +94,8 @@ process.stdin.on("end", () => {
   const expected = [
     ["postgres", "/var/lib/postgresql", "/srv/mitsailing-data/postgres"],
     ["redis", "/data", "/srv/mitsailing-data/redis"],
-    ["app", "/var/lib/mitsailing/cms-media", "/srv/mitsailing-data/cms-media"],
+    ["web_blue", "/var/lib/mitsailing/cms-media", "/srv/mitsailing-data/cms-media"],
+    ["web_green", "/var/lib/mitsailing/cms-media", "/srv/mitsailing-data/cms-media"],
     ["worker", "/var/lib/mitsailing/cms-media", "/srv/mitsailing-data/cms-media"],
   ];
   for (const [service, target, source] of expected) {
@@ -108,6 +109,23 @@ process.stdin.on("end", () => {
   );
   if (!initSql || initSql.type !== "bind" || initSql.read_only !== true) {
     throw new Error("postgres init SQL must be a read-only bind mount");
+  }
+  const nginxConf = config.services.app.volumes.find(
+    (volume) => volume.target === "/etc/nginx/conf.d"
+  );
+  if (!nginxConf || nginxConf.type !== "bind" || nginxConf.source !== `${process.cwd()}/.deploy/nginx`) {
+    throw new Error(`app must bind .deploy/nginx to /etc/nginx/conf.d, got ${JSON.stringify(nginxConf)}`);
+  }
+  if (config.services.app.image !== "nginx:1.29-alpine") {
+    throw new Error(`app service must be nginx proxy, got ${config.services.app.image}`);
+  }
+  for (const [serviceName, serviceConfig] of Object.entries(config.services)) {
+    if (serviceConfig.ports?.length) {
+      throw new Error(`${serviceName} must not expose host ports in production`);
+    }
+  }
+  if (config.services.web_blue.image !== config.services.web_green.image) {
+    throw new Error("web_blue and web_green must use the same app image");
   }
   console.log("production Compose bind mounts verified");
 });
@@ -129,6 +147,8 @@ fail() {
 readonly POSTGRES_DIR="${PRODUCTION_DATA_ROOT}/postgres"
 readonly REDIS_DIR="${PRODUCTION_DATA_ROOT}/redis"
 readonly CMS_MEDIA_DIR="${PRODUCTION_DATA_ROOT}/cms-media"
+readonly DEPLOY_STATE_DIR="${DEPLOY_DIR}/.deploy"
+readonly NGINX_STATE_DIR="${DEPLOY_STATE_DIR}/nginx"
 readonly POSTGRES_IMAGE="postgres:18-alpine"
 readonly REDIS_IMAGE="redis:7-alpine"
 DEPLOY_GROUP="${DEPLOY_GROUP:-$(id -gn "$DEPLOY_USER")}"
@@ -141,6 +161,8 @@ sudo install -d -o "$DEPLOY_USER" -g "$DEPLOY_GROUP" -m 700 "$CMS_MEDIA_DIR"
 sudo install -d -o "$DEPLOY_USER" -g "$DEPLOY_GROUP" -m 755 "$DEPLOY_DIR"
 sudo install -d -o "$DEPLOY_USER" -g "$DEPLOY_GROUP" -m 755 "${DEPLOY_DIR}/docker"
 sudo install -d -o "$DEPLOY_USER" -g "$DEPLOY_GROUP" -m 755 "${DEPLOY_DIR}/docker/postgres"
+sudo install -d -o "$DEPLOY_USER" -g "$DEPLOY_GROUP" -m 755 "$DEPLOY_STATE_DIR"
+sudo install -d -o "$DEPLOY_USER" -g "$DEPLOY_GROUP" -m 755 "$NGINX_STATE_DIR"
 
 for path in "$PRODUCTION_DATA_ROOT" "$POSTGRES_DIR" "$REDIS_DIR" "$CMS_MEDIA_DIR"; do
   owner="$(stat -c '%U:%G' "$path")"

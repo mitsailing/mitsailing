@@ -8,8 +8,9 @@
 # so a compromised deploy key cannot turn into a shell or file transfer.)
 #
 # Protocol:
-#   - `migrate <image-tag>` runs Prisma migrations from that image.
-#   - `deploy <image-tag>` recreates app/worker with that image.
+#   - `release <image-tag>` runs migrations, blue/green cutover, worker restart.
+#   - `rollback <previous|image-tag>` cuts app/worker back without DB rollback.
+#   - `migrate <image-tag>` and `deploy <image-tag>` remain manual/debug commands.
 
 set -Eeuo pipefail
 
@@ -29,28 +30,50 @@ readonly POSTGRES_DATA_TARGET="/var/lib/postgresql"
 readonly REDIS_DATA_TARGET="/data"
 readonly CMS_MEDIA_TARGET="/var/lib/mitsailing/cms-media"
 readonly CMS_MEDIA_RUNTIME_UID_GID="1001:1001"
+readonly DEPLOY_STATE_DIR="${DEPLOY_DIR}/.deploy"
+readonly NGINX_STATE_DIR="${DEPLOY_STATE_DIR}/nginx"
+readonly NGINX_CONFIG_FILE="${NGINX_STATE_DIR}/default.conf"
+readonly ACTIVE_COLOR_FILE="${DEPLOY_STATE_DIR}/active_color"
+readonly CURRENT_REF_FILE="${DEPLOY_STATE_DIR}/current_ref"
+readonly PREVIOUS_REF_FILE="${DEPLOY_STATE_DIR}/previous_ref"
+readonly DEPLOY_LOCK_FILE="${DEPLOY_STATE_DIR}/deploy.lock"
+readonly DEPLOY_HEALTH_TIMEOUT_SECONDS="${DEPLOY_HEALTH_TIMEOUT_SECONDS:-120}"
+readonly DEPLOY_DRAIN_SECONDS="${DEPLOY_DRAIN_SECONDS:-900}"
 
 log() { printf '[deploy %s] %s\n' "$(date -u +'%FT%TZ')" "$*"; }
 fail() { log "ERROR: $*" >&2; exit 1; }
 
-# Reject anything that isn't `deploy <ref>` or `migrate <ref>`. Refuses
-# arbitrary shell even
-# when invoked through authorized_keys, as a second line of defense on top
-# of the `command=` restriction.
+valid_ref() {
+  local ref="$1"
+  [[ "$ref" =~ ^[a-zA-Z0-9._:@/\-]+$ ]]
+}
+
+# Reject anything that isn't a supported command. Refuses arbitrary shell even
+# when invoked through authorized_keys, as a second line of defense on top of
+# the `command=` restriction.
 parse_cmd() {
-  # $SSH_ORIGINAL_COMMAND is whatever the remote side sent; authorized_keys
-  # forces it through this script as $1..$N.
   local cmd="${1:-}"
   local ref="${2:-}"
 
-  [[ "$cmd" == "deploy" || "$cmd" == "migrate" ]] \
-    || fail "unknown command: $cmd (allowed: 'migrate <ref>' or 'deploy <ref>')"
-  [[ -n "$ref" ]] || fail "usage: <migrate|deploy> <image-ref>"
-  # Image ref allowed set: 0-9a-z plus . _ - : / @
-  # That covers `staging`, `sha-abc123`, `main@sha256:...`, etc. without
-  # permitting shell metacharacters.
-  [[ "$ref" =~ ^[a-zA-Z0-9._:@/\-]+$ ]] || fail "invalid ref: $ref"
+  case "$cmd" in
+    deploy|migrate|release)
+      [[ -n "$ref" ]] || fail "usage: <deploy|migrate|release> <image-ref>"
+      valid_ref "$ref" || fail "invalid ref: $ref"
+      ;;
+    rollback)
+      [[ -n "$ref" ]] || fail "usage: rollback <previous|image-ref>"
+      [[ "$ref" == "previous" ]] || valid_ref "$ref" || fail "invalid rollback ref: $ref"
+      ;;
+    *)
+      fail "unknown command: $cmd (allowed: 'release <ref>', 'rollback <previous|ref>', 'migrate <ref>', or 'deploy <ref>')"
+      ;;
+  esac
   printf '%s %s\n' "$cmd" "$ref"
+}
+
+compose() {
+  # shellcheck disable=SC2086
+  docker compose $COMPOSE_FILES --profile release --env-file "$ENV_FILE" "$@"
 }
 
 ensure_prereqs() {
@@ -58,6 +81,16 @@ ensure_prereqs() {
     || fail "compose files missing in $DEPLOY_DIR — re-run the bootstrap from docs/deploy.md"
   [[ -f "$ENV_FILE" ]] \
     || fail "${ENV_FILE} missing in $DEPLOY_DIR — copy .env.production.example and fill it in"
+  command -v flock >/dev/null 2>&1 || fail "flock is required for deploy locking"
+}
+
+ensure_deploy_state() {
+  mkdir -p "$DEPLOY_STATE_DIR" "$NGINX_STATE_DIR"
+}
+
+acquire_deploy_lock() {
+  exec 9>"$DEPLOY_LOCK_FILE"
+  flock -n 9 || fail "another deploy is already running"
 }
 
 ensure_production_data_dirs() {
@@ -87,8 +120,7 @@ verify_bind_mount() {
   local source="$3"
   local container mount_type mount_source
   log "verifying $service bind mount $source -> $target"
-  # shellcheck disable=SC2086
-  container=$(docker compose $COMPOSE_FILES --env-file "$ENV_FILE" ps -q "$service")
+  container=$(compose ps -q "$service")
   [[ -n "$container" ]] || fail "$service container did not start"
 
   mount_type=$(docker inspect \
@@ -107,8 +139,7 @@ verify_container_write_access() {
   local target="$3"
   local marker="${target}/.mitsailing-write-test"
   log "verifying $service can write $target as $user"
-  # shellcheck disable=SC2086
-  docker compose $COMPOSE_FILES --env-file "$ENV_FILE" exec -T --user "$user" "$service" \
+  compose exec -T --user "$user" "$service" \
     sh -c "touch '${marker}' && rm -f '${marker}'"
 }
 
@@ -119,11 +150,10 @@ verify_data_service_mounts() {
   verify_container_write_access redis redis "$REDIS_DATA_TARGET"
 }
 
-verify_cms_media_mounts() {
-  verify_bind_mount app "$CMS_MEDIA_TARGET" "$CMS_MEDIA_SOURCE"
-  verify_bind_mount worker "$CMS_MEDIA_TARGET" "$CMS_MEDIA_SOURCE"
-  verify_container_write_access app "$CMS_MEDIA_RUNTIME_UID_GID" "$CMS_MEDIA_TARGET"
-  verify_container_write_access worker "$CMS_MEDIA_RUNTIME_UID_GID" "$CMS_MEDIA_TARGET"
+verify_web_mount() {
+  local service="$1"
+  verify_bind_mount "$service" "$CMS_MEDIA_TARGET" "$CMS_MEDIA_SOURCE"
+  verify_container_write_access "$service" "$CMS_MEDIA_RUNTIME_UID_GID" "$CMS_MEDIA_TARGET"
 }
 
 pin_image() {
@@ -132,7 +162,7 @@ pin_image() {
   image="ghcr.io/${GHCR_OWNER:-mitsailing}/mitsailing:${ref}"
   log "pinning image $image"
 
-  printf 'APP_IMAGE=%s\n' "$image" > .env.image
+  printf 'APP_IMAGE=%s\nDEPLOYMENT_VERSION=%s\n' "$image" "$ref" > .env.image
   set -a
   # shellcheck disable=SC1091
   . .env.image
@@ -141,66 +171,236 @@ pin_image() {
   docker pull "$image"
 }
 
-run_migrations() {
-  local image="$1"
-  log "ensuring postgres and redis are up before migrations"
-  # shellcheck disable=SC2086
-  docker compose $COMPOSE_FILES --env-file "$ENV_FILE" up -d postgres redis
-  verify_data_service_mounts
-
-  log "running prisma migrate deploy from image $image"
-  # shellcheck disable=SC2086
-  docker compose \
-    $COMPOSE_FILES \
-    --env-file "$ENV_FILE" \
-    run --rm --no-deps app node ./node_modules/prisma/build/index.js migrate deploy
+normalize_color() {
+  local color="$1"
+  case "$color" in
+    blue|green) printf '%s\n' "$color" ;;
+    *) return 1 ;;
+  esac
 }
 
-run_deploy() {
-  local image="$1"
-  log "deploying services with image $image"
-
-  # shellcheck disable=SC2086
-  docker compose \
-    $COMPOSE_FILES \
-    --env-file "$ENV_FILE" \
-    up \
-      --detach \
-      --no-deps \
-      --force-recreate \
-      --pull always \
-      app \
-      worker
-  verify_cms_media_mounts
+read_active_color() {
+  if [[ -f "$ACTIVE_COLOR_FILE" ]]; then
+    normalize_color "$(tr -d '[:space:]' < "$ACTIVE_COLOR_FILE")" || true
+  fi
 }
 
-wait_for_app_health() {
-  local ref
-  ref="$1"
+inactive_color() {
+  local active="$1"
+  if [[ "$active" == "blue" ]]; then
+    printf 'green\n'
+  else
+    printf 'blue\n'
+  fi
+}
 
-  # Wait up to 60s for HEALTHCHECK so CI fails loudly on a broken deploy.
-  local container
-  # shellcheck disable=SC2086
-  container=$(docker compose $COMPOSE_FILES --env-file "$ENV_FILE" ps -q app)
-  [[ -n "$container" ]] || fail "app container did not start"
+color_service() {
+  local color="$1"
+  printf 'web_%s\n' "$color"
+}
 
-  local deadline=$((SECONDS + 60))
+read_state_ref() {
+  local file="$1"
+  if [[ -f "$file" ]]; then
+    tr -d '[:space:]' < "$file"
+  fi
+}
+
+record_release_state() {
+  local color="$1"
+  local ref="$2"
+  local old_ref="$3"
+  printf '%s\n' "$color" > "$ACTIVE_COLOR_FILE"
+  printf '%s\n' "$ref" > "$CURRENT_REF_FILE"
+  if [[ -n "$old_ref" ]]; then
+    printf '%s\n' "$old_ref" > "$PREVIOUS_REF_FILE"
+  fi
+}
+
+write_nginx_config() {
+  local upstream_service="$1"
+  log "writing nginx upstream config for $upstream_service"
+  cat > "$NGINX_CONFIG_FILE" <<EOF
+map \$http_upgrade \$connection_upgrade {
+  default upgrade;
+  '' '';
+}
+
+map \$http_x_forwarded_proto \$forwarded_proto {
+  default \$http_x_forwarded_proto;
+  '' \$scheme;
+}
+
+upstream mitsailing_next {
+  server ${upstream_service}:3000;
+  keepalive 32;
+}
+
+server {
+  listen 3000;
+  server_name _;
+  server_tokens off;
+
+  client_max_body_size 500m;
+  client_body_timeout 900s;
+  send_timeout 900s;
+  keepalive_timeout 75s;
+
+  location / {
+    proxy_pass http://mitsailing_next;
+    proxy_http_version 1.1;
+    proxy_request_buffering off;
+    proxy_buffering on;
+    proxy_connect_timeout 30s;
+    proxy_send_timeout 900s;
+    proxy_read_timeout 900s;
+    proxy_next_upstream off;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Host \$host;
+    proxy_set_header X-Forwarded-Proto \$forwarded_proto;
+    proxy_set_header Upgrade \$http_upgrade;
+    proxy_set_header Connection \$connection_upgrade;
+  }
+}
+EOF
+}
+
+wait_for_service_health() {
+  local service="$1"
+  local timeout_seconds="$2"
+  local deadline container status
+  deadline=$((SECONDS + timeout_seconds))
+
   while (( SECONDS < deadline )); do
-    local status
-    status=$(docker inspect --format '{{.State.Health.Status}}' "$container" 2>/dev/null || echo "starting")
-    if [[ "$status" == "healthy" ]]; then
-      log "app is healthy (ref=$ref)"
-      # Housekeeping: purge dangling images/layers so the host doesn't
-      # accumulate the entire tag history.
-      docker image prune --force --filter 'until=168h' >/dev/null || true
-      exit 0
+    container=$(compose ps -q "$service")
+    if [[ -n "$container" ]]; then
+      status=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$container" 2>/dev/null || echo "missing")
+      if [[ "$status" == "healthy" || "$status" == "running" ]]; then
+        log "$service is healthy"
+        return 0
+      fi
+      if [[ "$status" == "unhealthy" || "$status" == "exited" || "$status" == "dead" ]]; then
+        log "$service status is $status"
+      fi
     fi
     sleep 2
   done
 
-  log "app did not reach healthy within 60s; tail of last 50 lines:"
-  docker logs --tail 50 "$container" >&2 || true
-  fail "deploy failed healthcheck"
+  if [[ -n "${container:-}" ]]; then
+    log "$service did not become healthy; tail of last 50 lines:"
+    docker logs --tail 50 "$container" >&2 || true
+  fi
+  fail "$service failed healthcheck"
+}
+
+start_web_color() {
+  local color="$1"
+  local service
+  service=$(color_service "$color")
+  log "starting $service"
+  compose up --detach --no-deps --force-recreate --pull always "$service"
+  wait_for_service_health "$service" "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
+  verify_web_mount "$service"
+}
+
+reload_or_start_proxy() {
+  log "starting/reloading nginx proxy"
+  compose up --detach --no-deps app
+  compose exec -T app nginx -t
+  compose exec -T app nginx -s reload
+  wait_for_service_health app "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
+}
+
+restart_worker() {
+  log "restarting worker"
+  compose up --detach --no-deps --force-recreate --pull always worker
+  wait_for_service_health worker "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
+  verify_bind_mount worker "$CMS_MEDIA_TARGET" "$CMS_MEDIA_SOURCE"
+  verify_container_write_access worker "$CMS_MEDIA_RUNTIME_UID_GID" "$CMS_MEDIA_TARGET"
+}
+
+run_migrations_for_service() {
+  local service="$1"
+  log "ensuring postgres and redis are up before migrations"
+  compose up --detach postgres redis
+  verify_data_service_mounts
+
+  log "running prisma migrate deploy from $service image"
+  compose run --rm --no-deps "$service" node ./node_modules/prisma/build/index.js migrate deploy
+}
+
+switch_to_ref() {
+  local ref="$1"
+  local old_color="$2"
+  local target_color="$3"
+  local old_ref target_service
+  old_ref="$(read_state_ref "$CURRENT_REF_FILE")"
+  target_service="$(color_service "$target_color")"
+
+  start_web_color "$target_color"
+  write_nginx_config "$target_service"
+  reload_or_start_proxy
+  record_release_state "$target_color" "$ref" "$old_ref"
+  restart_worker
+
+  if [[ -n "$old_color" && "$old_color" != "$target_color" ]]; then
+    log "draining web_${old_color} for ${DEPLOY_DRAIN_SECONDS}s before stop"
+    sleep "$DEPLOY_DRAIN_SECONDS"
+    compose stop "$(color_service "$old_color")" || true
+  fi
+
+  docker image prune --force --filter 'until=168h' >/dev/null || true
+}
+
+release_ref() {
+  local ref="$1"
+  local active target service
+  active="$(read_active_color)"
+  target="$(inactive_color "$active")"
+  service="$(color_service "$target")"
+
+  pin_image "$ref"
+  ensure_cms_media_permissions
+  run_migrations_for_service "$service"
+  switch_to_ref "$ref" "$active" "$target"
+}
+
+deploy_ref_without_migrations() {
+  local ref="$1"
+  local active target
+  active="$(read_active_color)"
+  target="$(inactive_color "$active")"
+
+  pin_image "$ref"
+  ensure_cms_media_permissions
+  switch_to_ref "$ref" "$active" "$target"
+}
+
+migrate_ref_only() {
+  local ref="$1"
+  local active target service
+  active="$(read_active_color)"
+  target="${active:-blue}"
+  service="$(color_service "$target")"
+
+  pin_image "$ref"
+  run_migrations_for_service "$service"
+}
+
+rollback_ref() {
+  local requested="$1"
+  local ref
+  if [[ "$requested" == "previous" ]]; then
+    ref="$(read_state_ref "$PREVIOUS_REF_FILE")"
+    [[ -n "$ref" ]] || fail "no previous ref recorded for rollback"
+  else
+    ref="$requested"
+  fi
+
+  log "rolling back to $ref (database migrations are not reversed)"
+  deploy_ref_without_migrations "$ref"
 }
 
 main() {
@@ -211,18 +411,23 @@ main() {
 
   cd "$DEPLOY_DIR" || fail "DEPLOY_DIR not found: $DEPLOY_DIR"
   ensure_prereqs
+  ensure_deploy_state
+  acquire_deploy_lock
   ensure_production_data_dirs
-  pin_image "$ref"
-  ensure_cms_media_permissions
 
   case "$cmd" in
+    release)
+      release_ref "$ref"
+      ;;
+    rollback)
+      rollback_ref "$ref"
+      ;;
     migrate)
-      run_migrations "$APP_IMAGE"
+      migrate_ref_only "$ref"
       log "migrations completed for ref=$ref"
       ;;
     deploy)
-      run_deploy "$APP_IMAGE"
-      wait_for_app_health "$ref"
+      deploy_ref_without_migrations "$ref"
       ;;
   esac
 }

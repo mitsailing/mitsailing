@@ -1,8 +1,8 @@
 /**
- * TCP reachability check for Redis using `REDIS_URL` (host + port only).
+ * Redis PING check using `REDIS_URL`.
  * Used by `compose.prod.yaml` for the BullMQ worker; the app image has no HTTP on :3000.
  */
-const net = require('node:net');
+const IORedis = require('ioredis');
 
 const redisUrlRaw = process.env.REDIS_URL;
 if (typeof redisUrlRaw !== 'string' || redisUrlRaw.length === 0) {
@@ -20,27 +20,32 @@ try {
   process.exit(1);
 }
 
-const host = u.hostname;
-const port = u.port ? Number(u.port) : 6379;
-if (!host) {
+if (!u.hostname) {
   process.stderr.write('worker-redis-healthcheck: missing host in REDIS_URL\n');
   process.exit(1);
 }
 
-const deadlineMs = 4500;
-const timer = setTimeout(() => {
-  process.stderr.write('worker-redis-healthcheck: connect timeout\n');
-  process.exit(1);
-}, deadlineMs);
+async function main() {
+  const client = new IORedis(redisUrlRaw, {
+    connectTimeout: 4500,
+    enableOfflineQueue: false,
+    lazyConnect: true,
+    maxRetriesPerRequest: 0,
+    retryStrategy: () => null,
+  });
 
-const socket = net.connect({ host, port }, () => {
-  clearTimeout(timer);
-  socket.end();
-  process.exit(0);
-});
+  try {
+    await client.connect();
+    await client.ping();
+    process.exit(0);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    process.stderr.write(`worker-redis-healthcheck: ${message}\n`);
+    process.exit(1);
+  } finally {
+    client.disconnect();
+  }
+}
 
-socket.on('error', (err) => {
-  clearTimeout(timer);
-  process.stderr.write(`worker-redis-healthcheck: ${err.message}\n`);
-  process.exit(1);
-});
+// eslint-disable-next-line @typescript-eslint/no-floating-promises -- main catches failures and exits with the health status.
+main();

@@ -3,8 +3,7 @@
 This app ships as a **Docker image** on GitHub Container Registry (GHCR). Each
 push to `main` builds and tags `ghcr.io/mitsailing/mitsailing:sha-<short>` and
 `:latest`, then GitHub Actions SSHs to your Linux host to run
-`migrate <sha-short>` followed by `deploy <sha-short>` (see `bin/deploy.sh`
-and `.github/workflows/deploy.yml`).
+`release <sha-short>` (see `bin/deploy.sh` and `.github/workflows/deploy.yml`).
 
 The server can run **rootless Docker** (no `sudo` for day-to-day). You only need
 `sudo` once if your distro requires **loginctl linger** so the Docker user
@@ -22,7 +21,7 @@ Ingress in this repo is **Cloudflare Tunnel** (`cloudflared` in
 | Docker Engine + Compose v2 | Rootless is fine; same user runs `docker compose` |
 | SSH access | Interactive key for you; **separate** deploy key for CI |
 | `docker login ghcr.io` | Once per user, PAT with `read:packages` if the image is private |
-| Directory `~/apps/mitsailing/` | Holds `compose.yaml`, `compose.prod.yaml`, optional `compose.db-admin.yaml`, `docker/postgres/init.sql`, `.env.production`, `deploy.sh` |
+| Directory `~/apps/mitsailing/` | Holds `compose.yaml`, `compose.prod.yaml`, optional `compose.db-admin.yaml`, `docker/postgres/init.sql`, `.env.production`, `.deploy/`, `deploy.sh` |
 | Directory `/srv/mitsailing-data/` | Host-owned production data root for Postgres, Redis, and CMS media bind mounts |
 
 **Multiple projects on one host:** each app should use a **unique Compose
@@ -80,6 +79,8 @@ $EDITOR .env.production
 Fill at least:
 
 - `BETTER_AUTH_SECRET` (32+ random chars)
+- `HEALTHCHECK_SECRET` (32+ random chars; used only by protected readiness
+  checks, not by public `/api/health/live`)
 - `DATABASE_URL` — must match Postgres in Compose: user `postgres`, host
   `postgres`, password `POSTGRES_PASSWORD`. Production defaults to database
   name **`mitsailing_prod`** (`compose.prod.yaml`). If your production data
@@ -88,7 +89,7 @@ Fill at least:
 - `POSTGRES_PASSWORD` — strong password; same value embedded in `DATABASE_URL`
 - `REDIS_URL` — e.g. `redis://redis:6379` for the BullMQ **worker** service
   (`compose.yaml` / `compose.prod.yaml`)
-- Optional **`DEPLOYMENT_VERSION`** — same string on every `app` container when
+- Optional **`DEPLOYMENT_VERSION`** — same string on every web container when
   using rolling deploys or multiple replicas (wired to Next.js `deploymentId`;
   image tag or git SHA is typical).
 - Optional **`NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`** — required before running
@@ -123,7 +124,9 @@ relax rules or duplicate these values as **repository** secrets if you need
 fully unattended image builds.
 
 **Cloudflare public hostname:** point your apex (e.g. `mitsailing.com`) to
-`http://app:3000` on the tunnel. Production compose does **not** expose Mailpit.
+`http://app:3000` on the tunnel. In production `app` is the internal nginx
+proxy; `web_blue` and `web_green` are the real Next.js app containers.
+Production compose does **not** expose Mailpit.
 
 ### Legacy MySQL mirror worker secrets
 
@@ -270,11 +273,11 @@ subdirectories, then verifies the running containers use bind mounts at:
 | --- | --- | --- |
 | `/srv/mitsailing-data/postgres` | `/var/lib/postgresql` | `postgres` |
 | `/srv/mitsailing-data/redis` | `/data` | `redis` |
-| `/srv/mitsailing-data/cms-media` | `/var/lib/mitsailing/cms-media` | `app`, `worker` |
+| `/srv/mitsailing-data/cms-media` | `/var/lib/mitsailing/cms-media` | `web_blue`, `web_green`, `worker` |
 
 The deploy script also prepares CMS media for the app runtime UID/GID
-`1001:1001` and verifies write access from `postgres`, `redis`, `app`, and
-`worker`.
+`1001:1001` and verifies write access from `postgres`, `redis`, the active web
+color, and `worker`.
 
 Because these are ordinary host directories, `docker compose down -v` can remove
 Compose-managed development volumes, but it does **not** delete
@@ -309,7 +312,7 @@ ssh-keygen -t ed25519 -f ./mitsailing-deploy -C 'mitsailing gh actions deploy' -
 
 On the server, add the **public** key to `~/.ssh/authorized_keys` with a
 `command=` restriction so that key can only run this script's
-`migrate <ref>` / `deploy <ref>` commands. Use a
+`release <ref>` / `rollback <previous|ref>` commands. Use a
 **literal absolute path** (OpenSSH does not expand `$HOME` here):
 
 ```
@@ -321,7 +324,7 @@ If `deploy.sh` lives elsewhere, change the path before `$SSH_ORIGINAL_COMMAND`.
 Keep your **personal** SSH key in `authorized_keys` **without** `command=` so
 you can still open a normal shell.
 
-### 7. First bring-up (Postgres + Redis, then migrate + app/worker)
+### 7. First bring-up (Postgres + Redis, then release)
 
 Postgres and Redis must exist and be healthy before the app and worker
 containers start.
@@ -336,17 +339,23 @@ docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production p
 # Wait until postgres and redis are healthy, then:
 
 # Pin the same image tag CI will send (use `latest` or a concrete sha- tag from GHCR)
-~/deploy.sh migrate latest
-~/deploy.sh deploy latest
+~/deploy.sh release latest
 ```
 
 After the first successful deploy, day-to-day updates are **only** from GitHub
 (`push` to `main` or **Actions → Deploy (production) → Run workflow**).
 
-Migrate and deploy jobs **scp** `compose.yaml` and `compose.prod.yaml` to
+Release jobs **scp** `compose.yaml` and `compose.prod.yaml` to
 `~/apps/mitsailing/` on each run so production Compose overlays (for example
-worker healthchecks) stay aligned with the branch, not only whatever was copied
-at initial bootstrap.
+worker healthchecks and nginx proxy shape) stay aligned with the branch, not
+only whatever was copied at initial bootstrap.
+
+Production releases are blue/green behind the internal `app` nginx proxy. The
+release command runs Prisma migrations before proxy cutover while the previous
+web color continues serving traffic. Keep migrations backward-compatible across
+at least one release: add before using, avoid same-release destructive
+drops/renames, and remove old columns only after deployed code no longer reads
+them.
 
 ### 8. GitHub repository configuration
 
@@ -411,11 +420,23 @@ production database.
 - **Deploy:** merge to `main` (automatic, after **production** environment
   approval if configured) or run the Deploy workflow with a specific `ref` SHA
   for rollback.
+- **Rollback app/worker to the previous image (does not reverse DB migrations):**
+
+  ```bash
+  ssh deployer@sailing-dock.mit.edu '~/deploy.sh rollback previous'
+  ```
+
+- **Rollback app/worker to an explicit image tag:**
+
+  ```bash
+  ssh deployer@sailing-dock.mit.edu '~/deploy.sh rollback sha-abc123def456'
+  ```
+
 - **Logs:**
 
   ```bash
   cd ~/apps/mitsailing
-  docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production logs -f --tail 100 app
+  docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production logs -f --tail 100 app web_blue web_green
   docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production logs -f --tail 100 worker
   ```
 

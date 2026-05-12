@@ -229,6 +229,22 @@ Configuration lives in `src/libs/auth/` and environment variables in `src/libs/E
 
 See [`docs/deploy.md`](docs/deploy.md) for production deploy steps and environment configuration. The canonical production URL is **https://mitsailing.com**.
 
+### Production rollback
+
+Rollback is a server-side app/worker image switch. It does **not** reverse
+database migrations, so production migrations must stay backward-compatible
+across at least one release.
+
+```shell
+ssh deployer@sailing-dock.mit.edu '~/deploy.sh rollback previous'
+```
+
+To roll back to a specific pushed image tag:
+
+```shell
+ssh deployer@sailing-dock.mit.edu '~/deploy.sh rollback sha-abc123def456'
+```
+
 ---
 
 ## Contributing

@@ -2,8 +2,10 @@
 # differences from staging:
 #   - No Mailpit service: outbound mail goes to Resend
 #     (MAIL_TRANSPORT=resend via .env.production).
-#   - App command is `node server.js`; database migrations run in CI/CD
-#     before deployment (see `.github/workflows/deploy.yml`).
+#   - The `app` service is a stable internal nginx proxy for Cloudflare Tunnel;
+#     real Next.js app containers run as `web_blue` / `web_green`.
+#   - App command is `node server.js`; database migrations run during
+#     `deploy.sh release <ref>` before proxy cutover.
 #   - Database default name `mitsailing_prod` (override with POSTGRES_DB if
 #     an existing production data directory was initialized with `dev_db`).
 #   - Runtime state uses explicit host bind mounts under `/srv/mitsailing-data`
@@ -17,6 +19,44 @@
 #   docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production up -d
 #
 # Worker reuses the app image; `worker.healthcheck` runs `worker-redis-healthcheck.cjs` (see Dockerfile) instead of the image HTTP probe.
+
+x-web: &web
+  image: ${APP_IMAGE}
+  profiles: ['release']
+  restart: unless-stopped
+  networks:
+    - internal
+  env_file:
+    - path: .env.production
+      required: false
+    - path: .env.image
+      required: false
+  environment:
+    CMS_MEDIA_ROOT: /var/lib/mitsailing/cms-media
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  volumes:
+    - type: bind
+      source: /srv/mitsailing-data/cms-media
+      target: /var/lib/mitsailing/cms-media
+  stop_grace_period: 30s
+  command: ['node', 'server.js']
+  deploy:
+    resources:
+      limits:
+        cpus: '1.0'
+        memory: 1536M
+      reservations:
+        cpus: '0.25'
+        memory: 512M
+  logging:
+    driver: json-file
+    options:
+      max-size: '10m'
+      max-file: '5'
 
 services:
   postgres:
@@ -35,39 +75,43 @@ services:
         target: /data
 
   app:
-    image: ${APP_IMAGE}
+    image: nginx:1.29-alpine
     restart: unless-stopped
     networks:
       - internal
-    env_file:
-      - path: .env.production
-        required: false
-    environment:
-      CMS_MEDIA_ROOT: /var/lib/mitsailing/cms-media
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     volumes:
       - type: bind
-        source: /srv/mitsailing-data/cms-media
-        target: /var/lib/mitsailing/cms-media
-    stop_grace_period: 30s
-    command: ['node', 'server.js']
+        source: ./.deploy/nginx
+        target: /etc/nginx/conf.d
+        read_only: true
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'wget --quiet --tries=1 --spider http://127.0.0.1:3000/api/health/live',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
     deploy:
       resources:
         limits:
-          cpus: '1.0'
-          memory: 1536M
-        reservations:
           cpus: '0.25'
-          memory: 512M
+          memory: 128M
+        reservations:
+          cpus: '0.05'
+          memory: 32M
     logging:
       driver: json-file
       options:
         max-size: '10m'
         max-file: '5'
+
+  web_blue:
+    <<: *web
+
+  web_green:
+    <<: *web
 
   worker:
     image: ${APP_IMAGE}
@@ -84,6 +128,8 @@ services:
       - path: .env.production
         required: false
       - path: .env.production.worker
+        required: false
+      - path: .env.image
         required: false
     environment:
       CMS_MEDIA_ROOT: /var/lib/mitsailing/cms-media
@@ -124,7 +170,8 @@ services:
       - --token
       - ${CLOUDFLARE_TUNNEL_TOKEN}
     depends_on:
-      - app
+      app:
+        condition: service_healthy
     deploy:
       resources:
         limits:

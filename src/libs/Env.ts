@@ -17,6 +17,7 @@ export const Env = createEnv({
     BETTER_AUTH_SECRET: z.string().min(32),
     DATABASE_URL: z.string().min(1),
     NEWSLETTER_REVALIDATE_SECRET: z.string().min(32).optional(),
+    HEALTHCHECK_SECRET: z.string().min(32).optional(),
 
     // BullMQ worker + optional API enqueue; Redis is internal to Compose in prod.
     REDIS_URL: z.url().optional(),
@@ -98,6 +99,7 @@ export const Env = createEnv({
     // compose.staging.yaml / compose.prod.yaml. Required in staging+prod,
     // unset locally.
     CLOUDFLARE_TUNNEL_TOKEN: z.string().min(1).optional(),
+    DEPLOYMENT_VERSION: z.string().min(1).optional(),
   },
   client: {
     NEXT_PUBLIC_APP_URL: z.string().min(1),
@@ -153,12 +155,33 @@ export const Env = createEnv({
           });
         }
       }
+      if (
+        (env.APP_ENV === 'staging' || env.APP_ENV === 'production') &&
+        !env.HEALTHCHECK_SECRET
+      ) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'HEALTHCHECK_SECRET is required in staging and production.',
+          path: ['HEALTHCHECK_SECRET'],
+        });
+      }
+      if (
+        (env.APP_ENV === 'staging' || env.APP_ENV === 'production') &&
+        !env.REDIS_URL
+      ) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'REDIS_URL is required in staging and production.',
+          path: ['REDIS_URL'],
+        });
+      }
     }),
   runtimeEnv: {
     ARCJET_KEY: process.env.ARCJET_KEY,
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
     DATABASE_URL: process.env.DATABASE_URL,
     NEWSLETTER_REVALIDATE_SECRET: process.env.NEWSLETTER_REVALIDATE_SECRET,
+    HEALTHCHECK_SECRET: process.env.HEALTHCHECK_SECRET,
     REDIS_URL: process.env.REDIS_URL,
     LEGACY_MYSQL_SYNC_ENABLED: process.env.LEGACY_MYSQL_SYNC_ENABLED,
     LEGACY_MYSQL_SYNC_CRON: process.env.LEGACY_MYSQL_SYNC_CRON,
@@ -178,6 +201,7 @@ export const Env = createEnv({
     NEWSLETTER_WORKER_CONCURRENCY: process.env.NEWSLETTER_WORKER_CONCURRENCY,
     RESEND_WEBHOOK_SECRET: process.env.RESEND_WEBHOOK_SECRET,
     CLOUDFLARE_TUNNEL_TOKEN: process.env.CLOUDFLARE_TUNNEL_TOKEN,
+    DEPLOYMENT_VERSION: process.env.DEPLOYMENT_VERSION,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
     NEXT_PUBLIC_LOGGING_LEVEL: process.env.NEXT_PUBLIC_LOGGING_LEVEL,
     NEXT_PUBLIC_BETTER_STACK_SOURCE_TOKEN:

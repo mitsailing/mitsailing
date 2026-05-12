@@ -8,6 +8,7 @@ env:
   CHECKLY_REPO_URL: https://github.com/mitsailing/mitsailing
   CHECKLY_TEST_ENVIRONMENT: production
   ENVIRONMENT_URL: https://mitsailing.com
+  HEALTHCHECK_SECRET: ${{ secrets.HEALTHCHECK_SECRET }}
 
 jobs:
   test-e2e:

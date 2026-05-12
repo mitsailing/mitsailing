@@ -140,86 +140,14 @@ jobs:
           sbom-path: sbom.spdx.json
           push-to-registry: true
 
-  # ─────────────────── Stage 2 — migrations ───────────────────
-  # Run Prisma migrations before app rollout. This follows Prisma's
-  # recommended "migrate deploy in CI/CD" pattern while still executing on
-  # the production host network over SSH.
-  migrate:
-    name: Run production migrations
+  # ─────────────────── Stage 2 — release ───────────────────
+  # `deploy.sh release` holds a server-side flock across migrations, blue/green
+  # cutover, worker restart, and upload drain so no second deploy can interleave.
+  deploy:
+    name: Release production
     runs-on: ubuntu-latest
     needs: build
-    timeout-minutes: 10
-    environment:
-      name: production
-      url: https://mitsailing.com
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ inputs.ref || github.sha }}
-
-      - name: Set up SSH
-        run: |
-          mkdir -p ~/.ssh
-          printf '%s\n' "${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}" > ~/.ssh/id_deploy
-          chmod 600 ~/.ssh/id_deploy
-          printf '%s\n' "${{ secrets.PRODUCTION_SSH_HOST_KEY }}" > ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/known_hosts
-
-      # Keep `compose.yaml` / `compose.prod.yaml` on the host in sync with the branch (overlays, healthchecks).
-      - name: Sync compose files
-        env:
-          PRODUCTION_USER: ${{ secrets.PRODUCTION_SSH_USER }}
-          PRODUCTION_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
-        run: |
-          scp \
-            -i ~/.ssh/id_deploy \
-            -o BatchMode=yes \
-            -o ConnectTimeout=15 \
-            compose.yaml \
-            compose.prod.yaml \
-            "${PRODUCTION_USER}@${PRODUCTION_HOST}:~/apps/mitsailing/"
-
-      - name: Sync deploy script
-        env:
-          PRODUCTION_USER: ${{ secrets.PRODUCTION_SSH_USER }}
-          PRODUCTION_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
-        run: |
-          scp \
-            -i ~/.ssh/id_deploy \
-            -o BatchMode=yes \
-            -o ConnectTimeout=15 \
-            bin/deploy.sh \
-            "${PRODUCTION_USER}@${PRODUCTION_HOST}:~/deploy.sh"
-          ssh \
-            -i ~/.ssh/id_deploy \
-            -o BatchMode=yes \
-            -o ConnectTimeout=15 \
-            "${PRODUCTION_USER}@${PRODUCTION_HOST}" \
-            "chmod +x ~/deploy.sh"
-
-      - name: Run prisma migrate deploy
-        env:
-          PRODUCTION_USER: ${{ secrets.PRODUCTION_SSH_USER }}
-          PRODUCTION_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
-          IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
-        run: |
-          ssh \
-            -i ~/.ssh/id_deploy \
-            -o BatchMode=yes \
-            -o ConnectTimeout=15 \
-            "${PRODUCTION_USER}@${PRODUCTION_HOST}" \
-            "~/deploy.sh migrate ${IMAGE_TAG}"
-
-  # ─────────────────── Stage 3 — deploy ───────────────────
-  # Separate job so a failed deploy doesn't block later pushes from
-  # rebuilding the image. Uses `environment: production` so GitHub surfaces
-  # the deploy in the Environments tab with a link + logs.
-  deploy:
-    name: Deploy production
-    runs-on: ubuntu-latest
-    needs: [build, migrate]
-    timeout-minutes: 10
+    timeout-minutes: 35
     environment:
       name: production
       url: https://mitsailing.com
@@ -274,19 +202,19 @@ jobs:
             "${PRODUCTION_USER}@${PRODUCTION_HOST}" \
             "chmod +x ~/deploy.sh"
 
-      - name: Deploy
+      - name: Release
         env:
           PRODUCTION_USER: ${{ secrets.PRODUCTION_SSH_USER }}
           PRODUCTION_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
           IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
         # The remote side enforces `command="deploy.sh ..."` in
         # authorized_keys, so whatever we send here is re-parsed by the
-        # deploy script. The script rejects anything that isn't
-        # `deploy <ref>`.
+        # deploy script. The script rejects anything that isn't an allowed
+        # deploy command.
         run: |
           ssh \
             -i ~/.ssh/id_deploy \
             -o BatchMode=yes \
             -o ConnectTimeout=15 \
             "${PRODUCTION_USER}@${PRODUCTION_HOST}" \
-            "~/deploy.sh deploy ${IMAGE_TAG}"
+            "~/deploy.sh release ${IMAGE_TAG}"
