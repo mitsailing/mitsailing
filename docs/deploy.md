@@ -208,7 +208,38 @@ volumes:
 /srv/mitsailing-data/cms-media
 ```
 
-Create the root once as an admin, then give ownership to the deploy user:
+From your laptop, run the bootstrap script once. It validates the rendered
+production Compose config locally, creates the remote directories with `sudo`,
+copies `docker/postgres/init.sql`, sets that host file readable, and verifies
+ownership/mode. The init SQL is mounted read-only by `compose.prod.yaml`:
+
+```bash
+bin/bootstrap-production-server.sh
+```
+
+Check the local Compose validation and resolved defaults without touching the
+server:
+
+```bash
+bin/bootstrap-production-server.sh --check-only
+```
+
+The script defaults to `ak@sailing-dock.mit.edu`. Override when needed:
+
+```bash
+PRODUCTION_SSH_TARGET=DEPLOY_USER@YOUR_HOST \
+DEPLOY_USER=DEPLOY_USER \
+bin/bootstrap-production-server.sh
+```
+
+If this is an intentional reset and you want to remove the old Docker-managed
+production volumes at the same time:
+
+```bash
+bin/bootstrap-production-server.sh --remove-old-docker-volumes
+```
+
+Manual equivalent:
 
 ```bash
 sudo mkdir -p /srv/mitsailing-data/{postgres,redis,cms-media}
