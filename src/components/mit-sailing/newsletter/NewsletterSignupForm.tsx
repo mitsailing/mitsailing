@@ -56,9 +56,18 @@ export function NewsletterSignupForm(props: NewsletterSignupFormProps) {
     action,
     initialNewsletterSignupFormState
   );
+  const emailError = state.ok ? undefined : state.fieldErrors?.email;
+  const emailErrorId = emailError ? 'newsletter-email-error' : undefined;
+  const formErrorId =
+    !state.ok && state.formError ? 'newsletter-signup-error' : undefined;
 
   return (
-    <form action={formAction} className="space-y-6" noValidate>
+    <form
+      action={formAction}
+      aria-describedby={formErrorId}
+      className="space-y-6"
+      noValidate
+    >
       {state.ok ? (
         <p
           className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-900"
@@ -70,6 +79,7 @@ export function NewsletterSignupForm(props: NewsletterSignupFormProps) {
       {!state.ok && state.formError ? (
         <p
           className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive"
+          id="newsletter-signup-error"
           role="alert"
         >
           {state.formError === 'rate_limited'
@@ -111,6 +121,8 @@ export function NewsletterSignupForm(props: NewsletterSignupFormProps) {
           </Label>
           <Input
             autoComplete="email"
+            aria-describedby={emailErrorId}
+            aria-invalid={emailError ? true : undefined}
             className="min-h-11 bg-background"
             id="newsletter-email"
             inputMode="email"
@@ -118,9 +130,13 @@ export function NewsletterSignupForm(props: NewsletterSignupFormProps) {
             required
             type="email"
           />
-          {!state.ok && state.fieldErrors?.email ? (
-            <p className="text-sm text-destructive" role="alert">
-              {state.fieldErrors.email === 'invalid_email'
+          {emailError ? (
+            <p
+              className="text-sm text-destructive"
+              id="newsletter-email-error"
+              role="alert"
+            >
+              {emailError === 'invalid_email'
                 ? t('signup_error_email_invalid')
                 : t('signup_error_email_required')}
             </p>

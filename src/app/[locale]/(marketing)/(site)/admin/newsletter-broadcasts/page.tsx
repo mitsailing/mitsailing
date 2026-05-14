@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { connection } from 'next/server';
 import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader';
 import { Button } from '@/components/ui/button';
 import {
@@ -35,7 +36,33 @@ function formatDate(value: Date | null): string {
   }).format(value);
 }
 
+function broadcastStatusKey(status: string) {
+  if (status === 'cancelled') {
+    return 'status_cancelled';
+  }
+  if (status === 'draft') {
+    return 'status_draft';
+  }
+  if (status === 'failed') {
+    return 'status_failed';
+  }
+  if (status === 'paused') {
+    return 'status_paused';
+  }
+  if (status === 'queued') {
+    return 'status_queued';
+  }
+  if (status === 'sending') {
+    return 'status_sending';
+  }
+  if (status === 'sent') {
+    return 'status_sent';
+  }
+  return 'status_unknown';
+}
+
 export default async function AdminNewsletterBroadcastsPage(props: PageProps) {
+  await connection();
   const { locale } = await props.params;
   const { status = '' } = await props.searchParams;
   setRequestLocale(locale);
@@ -86,7 +113,7 @@ export default async function AdminNewsletterBroadcastsPage(props: PageProps) {
                     .map((target) => target.list.name)
                     .join(', ')}
                 </TableCell>
-                <TableCell>{broadcast.status}</TableCell>
+                <TableCell>{t(broadcastStatusKey(broadcast.status))}</TableCell>
                 <TableCell>{broadcast._count.deliveries}</TableCell>
                 <TableCell>{formatDate(broadcast.sentAt)}</TableCell>
               </TableRow>

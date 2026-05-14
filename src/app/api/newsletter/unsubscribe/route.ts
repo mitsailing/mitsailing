@@ -14,30 +14,39 @@ function jsonString(value: unknown, key: string): string {
   return typeof entry?.[1] === 'string' ? entry[1] : '';
 }
 
-async function unsubscribe(request: Request): Promise<{
+function unsubscribeParamsFromUrl(request: Request): {
   listId: string;
   token: string;
-}> {
-  if (request.method === 'POST') {
-    const contentType = request.headers.get('content-type') ?? '';
-    if (contentType.includes('application/json')) {
-      const body: unknown = await request.json();
-      return {
-        listId: jsonString(body, 'list'),
-        token: jsonString(body, 'token'),
-      };
-    }
-    const body = await request.formData();
-    const list = body.get('list');
-    const token = body.get('token');
-    return {
-      listId: typeof list === 'string' ? list : paramFromUrl(request, 'list'),
-      token: typeof token === 'string' ? token : paramFromUrl(request, 'token'),
-    };
-  }
+} {
   return {
     listId: paramFromUrl(request, 'list'),
     token: paramFromUrl(request, 'token'),
+  };
+}
+
+async function unsubscribeParamsFromPost(request: Request): Promise<{
+  listId: string;
+  token: string;
+}> {
+  const urlParams = unsubscribeParamsFromUrl(request);
+  if (urlParams.listId.length > 0 && urlParams.token.length > 0) {
+    return urlParams;
+  }
+
+  const contentType = request.headers.get('content-type') ?? '';
+  if (contentType.includes('application/json')) {
+    const body: unknown = await request.json();
+    return {
+      listId: jsonString(body, 'list') || urlParams.listId,
+      token: jsonString(body, 'token') || urlParams.token,
+    };
+  }
+  const body = await request.formData();
+  const list = body.get('list');
+  const token = body.get('token');
+  return {
+    listId: typeof list === 'string' ? list : urlParams.listId,
+    token: typeof token === 'string' ? token : urlParams.token,
   };
 }
 
@@ -48,7 +57,7 @@ async function unsubscribe(request: Request): Promise<{
  * @returns Empty success response or manage-page redirect for browser GETs
  */
 export async function POST(request: Request) {
-  const params = await unsubscribe(request);
+  const params = await unsubscribeParamsFromPost(request);
   if (params.token.length === 0 || params.listId.length === 0) {
     return NextResponse.json({ ok: false }, { status: 400 });
   }
@@ -66,12 +75,9 @@ export async function POST(request: Request) {
  * Browser fallback for unsubscribe links.
  *
  * @param request - Incoming unsubscribe request
- * @returns Redirect to manage preferences after applying the list unsubscribe
+ * @returns Redirect to manage preferences without mutating subscriptions
  */
-export async function GET(request: Request) {
-  const params = await unsubscribe(request);
-  if (params.token.length > 0 && params.listId.length > 0) {
-    await unsubscribeNewsletterTokenFromList(params.token, params.listId);
-  }
+export function GET(request: Request) {
+  const params = unsubscribeParamsFromUrl(request);
   return NextResponse.redirect(newsletterManageUrl(params.token));
 }

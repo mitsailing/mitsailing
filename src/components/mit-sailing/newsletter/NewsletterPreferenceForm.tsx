@@ -57,6 +57,8 @@ export function NewsletterPreferenceForm(props: NewsletterPreferenceFormProps) {
     },
     initialState
   );
+  const errorId =
+    state.ok === false ? 'newsletter-preference-error' : undefined;
 
   return (
     <form action={formAction} className="space-y-5">
@@ -71,42 +73,48 @@ export function NewsletterPreferenceForm(props: NewsletterPreferenceFormProps) {
       {state.ok === false ? (
         <p
           className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive"
+          id="newsletter-preference-error"
           role="alert"
         >
           {props.errorLabel}
         </p>
       ) : null}
-      <div className="grid gap-3 sm:grid-cols-2">
-        {props.lists.map((list) => (
-          <label
-            aria-label={list.name}
-            className="rounded-lg border border-border bg-card p-4 text-sm"
-            htmlFor={`newsletter-preference-${list.id}`}
-            key={list.id}
-          >
-            <span className="flex items-start gap-3">
-              <input
-                className="mt-1"
-                defaultChecked={list.subscribed}
-                id={`newsletter-preference-${list.id}`}
-                name="listId"
-                type="checkbox"
-                value={list.id}
-              />
-              <span>
-                <span className="block font-medium text-foreground">
-                  {list.name}
-                </span>
-                {list.description ? (
-                  <span className="mt-1 block text-muted-foreground">
-                    {list.description}
+      <fieldset
+        aria-describedby={errorId}
+        aria-invalid={errorId ? true : undefined}
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
+          {props.lists.map((list) => (
+            <label
+              aria-label={list.name}
+              className="rounded-lg border border-border bg-card p-4 text-sm"
+              htmlFor={`newsletter-preference-${list.id}`}
+              key={list.id}
+            >
+              <span className="flex items-start gap-3">
+                <input
+                  className="mt-1"
+                  defaultChecked={list.subscribed}
+                  id={`newsletter-preference-${list.id}`}
+                  name="listId"
+                  type="checkbox"
+                  value={list.id}
+                />
+                <span>
+                  <span className="block font-medium text-foreground">
+                    {list.name}
                   </span>
-                ) : null}
+                  {list.description ? (
+                    <span className="mt-1 block text-muted-foreground">
+                      {list.description}
+                    </span>
+                  ) : null}
+                </span>
               </span>
-            </span>
-          </label>
-        ))}
-      </div>
+            </label>
+          ))}
+        </div>
+      </fieldset>
       <SubmitButton label={props.submitLabel} />
     </form>
   );

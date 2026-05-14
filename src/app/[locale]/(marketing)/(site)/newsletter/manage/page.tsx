@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { connection } from 'next/server';
 import { NewsletterPreferenceForm } from '@/components/mit-sailing/newsletter/NewsletterPreferenceForm';
 import { SiteSectionMain } from '@/components/mit-sailing/SiteSectionMain';
 import { SiteSectionShell } from '@/components/mit-sailing/SiteSectionShell';
@@ -51,6 +52,7 @@ function preferenceRows(
 export default async function NewsletterManagePage(
   props: NewsletterManagePageProps
 ) {
+  await connection();
   const { locale } = await props.params;
   const { token = '' } = await props.searchParams;
   setRequestLocale(locale);

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { connection } from 'next/server';
 import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader';
 import { Button } from '@/components/ui/button';
 import {
@@ -24,7 +25,22 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
   return { title: t('lists_meta_title') };
 }
 
+function defaultSubscriptionKey(value: string) {
+  if (value === 'opt_in') {
+    return 'default_opt_in';
+  }
+  return 'default_opt_out';
+}
+
+function visibilityKey(value: string) {
+  if (value === 'private') {
+    return 'visibility_private';
+  }
+  return 'visibility_public';
+}
+
 export default async function AdminNewsletterListsPage(props: PageProps) {
+  await connection();
   const { locale } = await props.params;
   const { status = '' } = await props.searchParams;
   setRequestLocale(locale);
@@ -65,8 +81,10 @@ export default async function AdminNewsletterListsPage(props: PageProps) {
               <TableRow key={list.id}>
                 <TableCell className="font-medium">{list.name}</TableCell>
                 <TableCell>{list.slug}</TableCell>
-                <TableCell>{list.defaultSubscription}</TableCell>
-                <TableCell>{list.visibility}</TableCell>
+                <TableCell>
+                  {t(defaultSubscriptionKey(list.defaultSubscription))}
+                </TableCell>
+                <TableCell>{t(visibilityKey(list.visibility))}</TableCell>
                 <TableCell>{list._count.subscriptions}</TableCell>
               </TableRow>
             ))}

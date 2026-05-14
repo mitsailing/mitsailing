@@ -1,4 +1,5 @@
 import 'server-only';
+import { revalidatePath } from 'next/cache';
 import type { Prisma } from '@/generated/prisma/client';
 import { prisma } from '@/libs/DB';
 import { Env } from '@/libs/Env';
@@ -12,6 +13,7 @@ import { getBaseUrl } from '@/utils/Helpers';
 const NEWSLETTER_DELIVERY_BATCH_SIZE = 50;
 const NEWSLETTER_CONTINUATION_DELAY_MS = 1000;
 const NEWSLETTER_DELIVERY_MAX_ATTEMPTS = 3;
+const NEWSLETTER_ARCHIVE_PATH = '/newsletter/archive';
 
 type CreateBroadcastParams = {
   body: string;
@@ -29,7 +31,12 @@ export type CreateNewsletterBroadcastResult =
   | { ok: true; broadcastId: string; queued: boolean }
   | {
       ok: false;
-      error: 'invalid_lists' | 'invalid_template' | 'no_recipients';
+      error:
+        | 'enqueue_failed'
+        | 'invalid_lists'
+        | 'invalid_template'
+        | 'no_recipients'
+        | 'redis_unavailable';
     };
 
 function uniqueStrings(values: readonly string[]): string[] {
@@ -48,14 +55,9 @@ function retryableDeliveryWhere(
   broadcastId: string
 ): Prisma.NewsletterDeliveryWhereInput {
   return {
+    attemptCount: { lt: NEWSLETTER_DELIVERY_MAX_ATTEMPTS },
     broadcastId,
-    OR: [
-      { status: 'queued' },
-      {
-        attemptCount: { lt: NEWSLETTER_DELIVERY_MAX_ATTEMPTS },
-        status: 'failed',
-      },
-    ],
+    status: { in: ['failed', 'queued'] },
   };
 }
 
@@ -197,6 +199,33 @@ export async function getAdminNewsletterTemplates() {
   return templates;
 }
 
+async function markNewsletterBroadcastEnqueueFailed(params: {
+  broadcastId: string;
+  error: 'enqueue_failed' | 'redis_unavailable';
+}) {
+  const failedAt = new Date();
+  await prisma.$transaction([
+    prisma.newsletterBroadcast.update({
+      data: {
+        queuedAt: null,
+        status: 'failed',
+      },
+      where: { id: params.broadcastId },
+    }),
+    prisma.newsletterDelivery.updateMany({
+      data: {
+        failedAt,
+        lastError: params.error,
+        status: 'failed',
+      },
+      where: {
+        broadcastId: params.broadcastId,
+        status: { in: ['queued', 'sending'] },
+      },
+    }),
+  ]);
+}
+
 /**
  * Creates a broadcast and, when requested, materializes per-subscriber deliveries.
  *
@@ -292,7 +321,7 @@ export async function createNewsletterBroadcast(
       data: {
         actorUserId: params.createdByUserId,
         broadcastId: created.id,
-        type: params.queueForSending ? 'broadcast_queued' : 'broadcast_created',
+        type: 'broadcast_created',
       },
     });
 
@@ -312,9 +341,24 @@ export async function createNewsletterBroadcast(
   });
 
   if (params.queueForSending) {
-    await enqueueNewsletterBroadcast({
+    const enqueueResult = await enqueueNewsletterBroadcast({
       broadcastId: broadcast.id,
       scheduledAt,
+    });
+    if (!enqueueResult.ok) {
+      await markNewsletterBroadcastEnqueueFailed({
+        broadcastId: broadcast.id,
+        error: enqueueResult.error,
+      });
+      return { ok: false, error: enqueueResult.error };
+    }
+
+    await prisma.newsletterEvent.create({
+      data: {
+        actorUserId: params.createdByUserId,
+        broadcastId: broadcast.id,
+        type: 'broadcast_queued',
+      },
     });
   }
 
@@ -433,13 +477,8 @@ async function claimNewsletterDelivery(deliveryId: string): Promise<boolean> {
     },
     where: {
       id: deliveryId,
-      OR: [
-        { status: 'queued' },
-        {
-          attemptCount: { lt: NEWSLETTER_DELIVERY_MAX_ATTEMPTS },
-          status: 'failed',
-        },
-      ],
+      attemptCount: { lt: NEWSLETTER_DELIVERY_MAX_ATTEMPTS },
+      status: { in: ['failed', 'queued'] },
     },
   });
   return claimed.count > 0;
@@ -634,6 +673,20 @@ async function requeueNewsletterContinuation(
   return true;
 }
 
+function revalidateNewsletterArchive() {
+  try {
+    revalidatePath(NEWSLETTER_ARCHIVE_PATH);
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message.includes('static generation store missing')
+    ) {
+      return;
+    }
+    throw error;
+  }
+}
+
 async function finishNewsletterBroadcast(broadcastId: string) {
   const failed = await prisma.newsletterDelivery.count({
     where: { broadcastId, status: 'failed' },
@@ -650,6 +703,7 @@ async function finishNewsletterBroadcast(broadcastId: string) {
       `Newsletter broadcast ${broadcastId} has failed deliveries`
     );
   }
+  revalidateNewsletterArchive();
 }
 
 /**

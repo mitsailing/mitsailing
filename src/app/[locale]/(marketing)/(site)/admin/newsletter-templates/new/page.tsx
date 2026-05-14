@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { connection } from 'next/server';
 import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,6 +20,7 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
 }
 
 export default async function AdminNewsletterTemplateNewPage(props: PageProps) {
+  await connection();
   const { locale } = await props.params;
   const { status = '' } = await props.searchParams;
   setRequestLocale(locale);
@@ -29,7 +31,7 @@ export default async function AdminNewsletterTemplateNewPage(props: PageProps) {
       <AdminPageHeader title={t('templates_new')} />
       {status ? (
         <p
-          className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-950"
+          className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
           role="alert"
         >
           {status === 'duplicate_template'

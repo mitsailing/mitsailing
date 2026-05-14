@@ -1,6 +1,10 @@
 import 'server-only';
 import type { WebhookEventPayload } from 'resend';
+import type { Prisma } from '@/generated/prisma/client';
+import type { NewsletterDeliveryStatus } from '@/generated/prisma/enums';
 import { prisma } from '@/libs/DB';
+import type { ResendWebhookContext } from '@/libs/email/emailMessages';
+import { recordResendEmailMessageEvent } from '@/libs/email/emailMessages';
 
 type EmailEventPayload = Extract<
   WebhookEventPayload,
@@ -10,6 +14,22 @@ type EmailEventPayload = Extract<
     };
   }
 >;
+
+const terminalDeliveryStatuses: NewsletterDeliveryStatus[] = [
+  'delivered',
+  'bounced',
+  'complained',
+  'failed',
+  'suppressed',
+  'cancelled',
+] satisfies NewsletterDeliveryStatus[];
+
+const failureDeliveryStatuses: NewsletterDeliveryStatus[] = [
+  'bounced',
+  'complained',
+  'failed',
+  'suppressed',
+] satisfies NewsletterDeliveryStatus[];
 
 function deliveryIdFromTags(tags: unknown): string {
   if (!tags || typeof tags !== 'object' || Array.isArray(tags)) {
@@ -119,12 +139,30 @@ function suppressionReason(type: EmailEventPayload['type']) {
   return 'suppressed';
 }
 
-function eventMetadata(event: EmailEventPayload) {
+function eventMetadata(params: {
+  event: EmailEventPayload;
+  providerEventId: string | null;
+}) {
   return {
-    resendEventType: event.type,
-    resendEventCreatedAt: event.created_at,
-    subject: event.data.subject,
+    providerEventId: params.providerEventId,
+    resendEventCreatedAt: params.event.created_at,
+    resendEventType: params.event.type,
+    subject: params.event.data.subject,
   };
+}
+
+function eventOccurredAt(event: EmailEventPayload): Date {
+  return new Date(event.created_at);
+}
+
+function providerEventIdForWebhook(
+  event: EmailEventPayload,
+  context?: ResendWebhookContext
+): string | null {
+  if (context?.providerEventId) {
+    return context.providerEventId;
+  }
+  return 'id' in event && typeof event.id === 'string' ? event.id : null;
 }
 
 function isEmailEvent(event: WebhookEventPayload): event is EmailEventPayload {
@@ -135,11 +173,42 @@ function emailEventTags(event: EmailEventPayload): unknown {
   return 'tags' in event.data ? event.data.tags : undefined;
 }
 
+function deliveryStatusUpdateConditions(params: {
+  occurredAt: Date;
+  status: NonNullable<ReturnType<typeof deliveryStatusForEmailEvent>>;
+}): Prisma.NewsletterDeliveryWhereInput[] {
+  if (isFailureStatus(params.status)) {
+    return [
+      { status: { notIn: terminalDeliveryStatuses } },
+      {
+        failedAt: { lte: params.occurredAt },
+        status: { in: failureDeliveryStatuses },
+      },
+      { status: 'delivered', deliveredAt: { lte: params.occurredAt } },
+      {
+        deliveredAt: null,
+        failedAt: null,
+        status: { in: terminalDeliveryStatuses },
+      },
+    ];
+  }
+
+  if (params.status === 'delivered') {
+    return [
+      { status: { notIn: terminalDeliveryStatuses } },
+      { status: 'delivered', deliveredAt: { lte: params.occurredAt } },
+    ];
+  }
+
+  return [{ status: { notIn: terminalDeliveryStatuses } }];
+}
+
 async function findNewsletterDelivery(params: {
+  tx: Prisma.TransactionClient;
   deliveryId: string;
   providerMessageId: string;
 }) {
-  const delivery = await prisma.newsletterDelivery.findFirst({
+  const delivery = await params.tx.newsletterDelivery.findFirst({
     include: { subscriber: true },
     where: {
       OR: [
@@ -153,58 +222,83 @@ async function findNewsletterDelivery(params: {
 
 async function updateDeliveryStatus(params: {
   delivery: Awaited<ReturnType<typeof findNewsletterDelivery>>;
+  occurredAt: Date;
   providerMessageId: string;
   status: ReturnType<typeof deliveryStatusForEmailEvent>;
+  tx: Prisma.TransactionClient;
 }): Promise<void> {
   if (!params.delivery || !params.status) {
     return;
   }
 
-  await prisma.newsletterDelivery.update({
+  await params.tx.newsletterDelivery.updateMany({
     data: {
-      deliveredAt: params.status === 'delivered' ? new Date() : undefined,
-      failedAt: isFailureStatus(params.status) ? new Date() : undefined,
+      deliveredAt:
+        params.status === 'delivered' ? params.occurredAt : undefined,
+      failedAt: isFailureStatus(params.status) ? params.occurredAt : undefined,
       providerMessageId: params.providerMessageId,
+      sentAt: params.status === 'sent' ? params.occurredAt : undefined,
       status: params.status,
     },
-    where: { id: params.delivery.id },
+    where: {
+      id: params.delivery.id,
+      OR: deliveryStatusUpdateConditions({
+        occurredAt: params.occurredAt,
+        status: params.status,
+      }),
+    },
   });
 }
 
 async function suppressSubscriber(params: {
   delivery: Awaited<ReturnType<typeof findNewsletterDelivery>>;
+  occurredAt: Date;
+  tx: Prisma.TransactionClient;
   type: EmailEventPayload['type'];
 }): Promise<void> {
   if (!params.delivery || !isSuppressingEvent(params.type)) {
     return;
   }
 
-  await prisma.newsletterSubscriber.update({
+  await params.tx.newsletterSubscriber.updateMany({
     data: {
-      suppressedAt: new Date(),
+      suppressedAt: params.occurredAt,
       suppressionReason: suppressionReason(params.type),
     },
-    where: { id: params.delivery.subscriberId },
+    where: {
+      id: params.delivery.subscriberId,
+      OR: [
+        { suppressedAt: null },
+        { suppressedAt: { lte: params.occurredAt } },
+      ],
+    },
   });
 }
 
 async function createNewsletterEvent(params: {
   delivery: Awaited<ReturnType<typeof findNewsletterDelivery>>;
   event: EmailEventPayload;
+  occurredAt: Date;
+  providerEventId: string | null;
   providerMessageId: string;
+  tx: Prisma.TransactionClient;
   type: ReturnType<typeof eventTypeForEmailEvent>;
 }): Promise<void> {
   if (!params.type) {
     return;
   }
 
-  await prisma.newsletterEvent.create({
+  await params.tx.newsletterEvent.create({
     data: {
       broadcastId: params.delivery?.broadcastId ?? null,
+      createdAt: params.occurredAt,
       deliveryId: params.delivery?.id ?? null,
       email: params.event.data.to[0] ?? params.delivery?.email ?? null,
       listId: params.delivery?.primaryListId ?? null,
-      metadata: eventMetadata(params.event),
+      metadata: eventMetadata({
+        event: params.event,
+        providerEventId: params.providerEventId,
+      }),
       providerMessageId: params.providerMessageId,
       subscriberId: params.delivery?.subscriberId ?? null,
       type: params.type,
@@ -216,9 +310,11 @@ async function createNewsletterEvent(params: {
  * Records Resend email delivery webhooks against newsletter deliveries.
  *
  * @param event - Verified Resend webhook payload
+ * @param context - Verified webhook metadata from Svix headers
  */
 export async function handleResendNewsletterWebhook(
-  event: WebhookEventPayload
+  event: WebhookEventPayload,
+  context?: ResendWebhookContext
 ): Promise<void> {
   if (!isEmailEvent(event)) {
     return;
@@ -226,14 +322,55 @@ export async function handleResendNewsletterWebhook(
 
   const providerMessageId = event.data.email_id;
   const deliveryId = deliveryIdFromTags(emailEventTags(event));
-  const delivery = await findNewsletterDelivery({
-    deliveryId,
-    providerMessageId,
-  });
   const status = deliveryStatusForEmailEvent(event.type);
   const type = eventTypeForEmailEvent(event.type);
+  if (!status && !type) {
+    return;
+  }
+  const occurredAt = eventOccurredAt(event);
+  const providerEventId = providerEventIdForWebhook(event, context);
 
-  await updateDeliveryStatus({ delivery, providerMessageId, status });
-  await suppressSubscriber({ delivery, type: event.type });
-  await createNewsletterEvent({ delivery, event, providerMessageId, type });
+  await prisma.$transaction(async (tx) => {
+    if (!context?.skipDedupe) {
+      const isNewEvent = await recordResendEmailMessageEvent({
+        client: tx,
+        emailMessageId: null,
+        event,
+        occurredAt,
+        providerEventId,
+        providerMessageId,
+      });
+      if (!isNewEvent) {
+        return;
+      }
+    }
+
+    const delivery = await findNewsletterDelivery({
+      tx,
+      deliveryId,
+      providerMessageId,
+    });
+    await updateDeliveryStatus({
+      delivery,
+      occurredAt,
+      providerMessageId,
+      status,
+      tx,
+    });
+    await suppressSubscriber({
+      delivery,
+      occurredAt,
+      tx,
+      type: event.type,
+    });
+    await createNewsletterEvent({
+      delivery,
+      event,
+      occurredAt,
+      providerEventId,
+      providerMessageId,
+      tx,
+      type,
+    });
+  });
 }

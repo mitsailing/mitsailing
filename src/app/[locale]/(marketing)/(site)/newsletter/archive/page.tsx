@@ -4,6 +4,8 @@ import { SiteSectionMain } from '@/components/mit-sailing/SiteSectionMain';
 import { SiteSectionShell } from '@/components/mit-sailing/SiteSectionShell';
 import { prisma } from '@/libs/DB';
 
+export const revalidate = 300;
+
 type NewsletterArchivePageProps = {
   params: Promise<{ locale: string }>;
 };
@@ -68,7 +70,7 @@ export default async function NewsletterArchivePage(
                   className="rounded-lg border border-border bg-card p-5"
                   key={broadcast.id}
                 >
-                  <p className="text-xs font-semibold text-mit-red-ink">
+                  <p className="text-xs font-semibold text-mit-red dark:text-mit-red-ink">
                     {broadcast.primaryList.name}
                   </p>
                   <h2 className="mt-1 text-xl font-semibold text-mit-text">

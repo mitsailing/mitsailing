@@ -26,13 +26,28 @@ export async function POST(request: Request) {
   }
 
   const resend = new Resend(Env.RESEND_API_KEY);
-  const event = resend.webhooks.verify({
-    headers: svixHeaders(request),
-    payload,
-    webhookSecret: Env.RESEND_WEBHOOK_SECRET,
-  });
-  await handleResendEmailMessageWebhook(event);
-  await handleResendNewsletterWebhook(event);
-  await handleResendAccountEmailWebhook(event);
+  let event: ReturnType<typeof resend.webhooks.verify>;
+  try {
+    event = resend.webhooks.verify({
+      headers: svixHeaders(request),
+      payload,
+      webhookSecret: Env.RESEND_WEBHOOK_SECRET,
+    });
+  } catch {
+    return NextResponse.json({ ok: false }, { status: 400 });
+  }
+
+  const context = { providerEventId: request.headers.get('svix-id') };
+  const shouldHandleState = await handleResendEmailMessageWebhook(
+    event,
+    context
+  );
+  if (shouldHandleState) {
+    await handleResendNewsletterWebhook(event, {
+      ...context,
+      skipDedupe: true,
+    });
+    await handleResendAccountEmailWebhook(event, context);
+  }
   return NextResponse.json({ ok: true });
 }

@@ -1,11 +1,12 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { connection } from 'next/server';
 import { NewsletterPreferenceForm } from '@/components/mit-sailing/newsletter/NewsletterPreferenceForm';
 import { requireCurrentUser } from '@/libs/auth/dal';
 import { updateProfileNewsletterPreferencesAction } from '@/libs/newsletter/newsletterActions';
 import {
+  getExistingSubscriberPreferenceStateForUser,
   getPublicNewsletterLists,
-  getSubscriberPreferenceStateForUser,
 } from '@/libs/newsletter/newsletterSubscriptions';
 import { getI18nPath } from '@/utils/Helpers';
 
@@ -26,12 +27,12 @@ export async function generateMetadata(
 
 function preferenceRows(
   lists: Awaited<ReturnType<typeof getPublicNewsletterLists>>,
-  subscriber: NonNullable<
-    Awaited<ReturnType<typeof getSubscriberPreferenceStateForUser>>
+  subscriber: Awaited<
+    ReturnType<typeof getExistingSubscriberPreferenceStateForUser>
   >
 ) {
   const subscriptions = new Map(
-    subscriber.subscriptions.map((subscription) => [
+    subscriber?.subscriptions.map((subscription) => [
       subscription.listId,
       subscription.status,
     ])
@@ -53,17 +54,14 @@ function preferenceRows(
 export default async function ProfileNewsletterPage(
   props: ProfileNewsletterPageProps
 ) {
+  await connection();
   const { locale } = await props.params;
   setRequestLocale(locale);
   const href = getI18nPath('/profile/newsletter/', locale);
   const user = await requireCurrentUser(locale, href);
   const t = await getTranslations({ locale, namespace: 'UserProfilePage' });
   const lists = await getPublicNewsletterLists();
-  const subscriber = await getSubscriberPreferenceStateForUser(user.id);
-
-  if (!subscriber) {
-    return null;
-  }
+  const subscriber = await getExistingSubscriberPreferenceStateForUser(user.id);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">

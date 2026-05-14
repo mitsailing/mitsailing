@@ -550,7 +550,13 @@ describe('auth route shells', () => {
       '/profile/account'
     );
     expect(routeMocks.findUnique).toHaveBeenCalledWith({
-      select: { themePreference: true, unconfirmedEmail: true },
+      select: {
+        emailBouncedAt: true,
+        emailSuppressedAt: true,
+        emailSuppressionReason: true,
+        themePreference: true,
+        unconfirmedEmail: true,
+      },
       where: { id: 'user-1' },
     });
     expect(

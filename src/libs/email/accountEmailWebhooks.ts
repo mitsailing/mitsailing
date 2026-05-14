@@ -1,6 +1,7 @@
 import 'server-only';
 import type { WebhookEventPayload } from 'resend';
 import { prisma } from '@/libs/DB';
+import type { ResendWebhookContext } from '@/libs/email/emailMessages';
 import { normalizeNewsletterEmail } from '@/libs/newsletter/newsletterValidation';
 
 type EmailEventPayload = Extract<
@@ -30,6 +31,10 @@ function deliverabilityReason(event: EmailEventPayload): string | null {
   return null;
 }
 
+function eventOccurredAt(event: EmailEventPayload): Date {
+  return new Date(event.created_at);
+}
+
 /**
  * Records account-email deliverability state from Resend webhooks.
  *
@@ -37,9 +42,11 @@ function deliverabilityReason(event: EmailEventPayload): string | null {
  * helper only stores compact account-level status for admin/user visibility.
  *
  * @param event - Verified Resend webhook payload
+ * @param _context - Verified webhook metadata from Svix headers
  */
 export async function handleResendAccountEmailWebhook(
-  event: WebhookEventPayload
+  event: WebhookEventPayload,
+  _context?: ResendWebhookContext
 ): Promise<void> {
   if (!isEmailEvent(event)) {
     return;
@@ -51,13 +58,19 @@ export async function handleResendAccountEmailWebhook(
   }
 
   const email = normalizeNewsletterEmail(recipient);
-  const now = new Date();
+  const occurredAt = eventOccurredAt(event);
   await prisma.user.updateMany({
     data: {
-      emailBouncedAt: reason === 'bounced' ? now : undefined,
-      emailSuppressedAt: now,
+      emailBouncedAt: reason === 'bounced' ? occurredAt : undefined,
+      emailSuppressedAt: occurredAt,
       emailSuppressionReason: reason,
     },
-    where: { email },
+    where: {
+      email,
+      OR: [
+        { emailSuppressedAt: null },
+        { emailSuppressedAt: { lte: occurredAt } },
+      ],
+    },
   });
 }

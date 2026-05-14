@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
+import { connection } from 'next/server';
 import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -117,6 +118,7 @@ function deliveryStatusKey(status: string) {
 export default async function AdminNewsletterBroadcastDetailPage(
   props: PageProps
 ) {
+  await connection();
   const { locale, id } = await props.params;
   const { status = '' } = await props.searchParams;
   setRequestLocale(locale);

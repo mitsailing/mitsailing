@@ -209,13 +209,14 @@ export async function ensureNewsletterSubscriberForUser(
 }
 
 /**
- * Returns a subscriber preference view for an authenticated user.
+ * Returns a read-only subscriber preference view for an authenticated user.
  *
  * @param userId - Account id
  * @returns Subscriber plus public lists and subscriptions
  */
-export async function getSubscriberPreferenceStateForUser(userId: string) {
-  await ensureNewsletterSubscriberForUser(userId);
+export async function getExistingSubscriberPreferenceStateForUser(
+  userId: string
+) {
   const user = await prisma.user.findUnique({
     select: { email: true },
     where: { id: userId },
@@ -233,6 +234,17 @@ export async function getSubscriberPreferenceStateForUser(userId: string) {
     },
     where: { email: user.email },
   });
+}
+
+/**
+ * Ensures then returns a subscriber preference view for an authenticated user.
+ *
+ * @param userId - Account id
+ * @returns Subscriber plus public lists and subscriptions
+ */
+export async function getSubscriberPreferenceStateForUser(userId: string) {
+  await ensureNewsletterSubscriberForUser(userId);
+  return getExistingSubscriberPreferenceStateForUser(userId);
 }
 
 /**
@@ -280,90 +292,99 @@ export async function getSubscriberPreferenceStateByToken(token: string) {
 export async function updateNewsletterPreferences(
   params: UpdatePreferencesParams
 ): Promise<void> {
-  const publicLists = await getPublicNewsletterLists();
-  const selected = new Set(params.listIds);
-  const subscriber = await prisma.newsletterSubscriber.findUnique({
-    select: { email: true, id: true },
-    where: { id: params.subscriberId },
-  });
-  if (!subscriber) {
-    return;
-  }
-
-  const anySelected = params.listIds.length > 0;
-  await prisma.newsletterSubscriber.update({
-    data: { globalUnsubscribedAt: anySelected ? null : new Date() },
-    where: { id: params.subscriberId },
-  });
-
-  for (const list of publicLists) {
-    const isSelected = selected.has(list.id);
-    const existing = await prisma.newsletterSubscription.findUnique({
-      select: { status: true },
-      where: {
-        subscriberId_listId: {
-          listId: list.id,
-          subscriberId: params.subscriberId,
-        },
-      },
+  await prisma.$transaction(async (tx) => {
+    const publicLists = await tx.newsletterList.findMany({
+      orderBy: { displayOrder: 'asc' },
+      where: { isArchived: false, visibility: 'public' },
     });
-    await prisma.newsletterSubscription.upsert({
-      create: {
-        listId: list.id,
-        source: params.source,
-        status: isSelected ? 'subscribed' : 'unsubscribed',
-        subscriberId: params.subscriberId,
-        unsubscribedAt: isSelected ? null : new Date(),
-      },
-      update: {
-        source: params.source,
-        status: isSelected ? 'subscribed' : 'unsubscribed',
-        subscribedAt: isSelected ? new Date() : undefined,
-        unsubscribedAt: isSelected ? null : new Date(),
-      },
-      where: {
-        subscriberId_listId: {
-          listId: list.id,
-          subscriberId: params.subscriberId,
-        },
-      },
+    const selected = new Set(params.listIds);
+    const selectedPublicListIds = new Set(
+      publicLists.filter((list) => selected.has(list.id)).map((list) => list.id)
+    );
+    const subscriber = await tx.newsletterSubscriber.findUnique({
+      select: { email: true, id: true },
+      where: { id: params.subscriberId },
     });
-
-    if (existing?.status === (isSelected ? 'subscribed' : 'unsubscribed')) {
-      continue;
+    if (!subscriber) {
+      return;
     }
 
-    await prisma.newsletterEvent.create({
-      data: {
-        actorUserId: params.actorUserId ?? null,
-        email: subscriber.email,
-        listId: list.id,
-        subscriberId: subscriber.id,
-        type: isSelected
-          ? eventTypeForSubscribed(existing?.status ?? null)
-          : 'unsubscribed',
-      },
+    const now = new Date();
+    const anySelected = selectedPublicListIds.size > 0;
+    await tx.newsletterSubscriber.update({
+      data: { globalUnsubscribedAt: anySelected ? null : now },
+      where: { id: params.subscriberId },
     });
-  }
 
-  if (!anySelected) {
-    await prisma.newsletterEvent.create({
-      data: {
-        actorUserId: params.actorUserId ?? null,
-        email: subscriber.email,
-        subscriberId: subscriber.id,
-        type: 'unsubscribed_all',
-      },
-    });
-  }
+    for (const list of publicLists) {
+      const isSelected = selectedPublicListIds.has(list.id);
+      const existing = await tx.newsletterSubscription.findUnique({
+        select: { status: true },
+        where: {
+          subscriberId_listId: {
+            listId: list.id,
+            subscriberId: params.subscriberId,
+          },
+        },
+      });
+      await tx.newsletterSubscription.upsert({
+        create: {
+          listId: list.id,
+          source: params.source,
+          status: isSelected ? 'subscribed' : 'unsubscribed',
+          subscriberId: params.subscriberId,
+          unsubscribedAt: isSelected ? null : now,
+        },
+        update: {
+          source: params.source,
+          status: isSelected ? 'subscribed' : 'unsubscribed',
+          subscribedAt: isSelected ? now : undefined,
+          unsubscribedAt: isSelected ? null : now,
+        },
+        where: {
+          subscriberId_listId: {
+            listId: list.id,
+            subscriberId: params.subscriberId,
+          },
+        },
+      });
+
+      if (existing?.status === (isSelected ? 'subscribed' : 'unsubscribed')) {
+        continue;
+      }
+
+      await tx.newsletterEvent.create({
+        data: {
+          actorUserId: params.actorUserId ?? null,
+          email: subscriber.email,
+          listId: list.id,
+          subscriberId: subscriber.id,
+          type: isSelected
+            ? eventTypeForSubscribed(existing?.status ?? null)
+            : 'unsubscribed',
+        },
+      });
+    }
+
+    if (!anySelected) {
+      await tx.newsletterEvent.create({
+        data: {
+          actorUserId: params.actorUserId ?? null,
+          email: subscriber.email,
+          subscriberId: subscriber.id,
+          type: 'unsubscribed_all',
+        },
+      });
+    }
+  });
 }
 
 /**
- * Unsubscribes a tokenized subscriber from one list.
+ * Unsubscribes a tokenized subscriber from one public list.
  *
  * @param token - Raw manage token from email
  * @param listId - Newsletter list id
- * @returns Subscriber state after the update, or null for invalid token
+ * @returns Subscriber state after the update, or null for invalid token or list
  */
 export async function unsubscribeNewsletterTokenFromList(
   token: string,
@@ -374,30 +395,41 @@ export async function unsubscribeNewsletterTokenFromList(
     return null;
   }
 
-  await prisma.newsletterSubscription.upsert({
-    create: {
-      listId,
-      source: NEWSLETTER_FORM_SOURCE.oneClickUnsubscribe,
-      status: 'unsubscribed',
-      subscriberId: subscriber.id,
-      unsubscribedAt: new Date(),
-    },
-    update: {
-      source: NEWSLETTER_FORM_SOURCE.oneClickUnsubscribe,
-      status: 'unsubscribed',
-      unsubscribedAt: new Date(),
-    },
-    where: {
-      subscriberId_listId: { listId, subscriberId: subscriber.id },
-    },
+  const list = await prisma.newsletterList.findFirst({
+    select: { id: true },
+    where: { id: listId, isArchived: false, visibility: 'public' },
   });
-  await prisma.newsletterEvent.create({
-    data: {
-      email: subscriber.email,
-      listId,
-      subscriberId: subscriber.id,
-      type: 'unsubscribed',
-    },
+  if (!list) {
+    return null;
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const now = new Date();
+    await tx.newsletterSubscription.upsert({
+      create: {
+        listId: list.id,
+        source: NEWSLETTER_FORM_SOURCE.oneClickUnsubscribe,
+        status: 'unsubscribed',
+        subscriberId: subscriber.id,
+        unsubscribedAt: now,
+      },
+      update: {
+        source: NEWSLETTER_FORM_SOURCE.oneClickUnsubscribe,
+        status: 'unsubscribed',
+        unsubscribedAt: now,
+      },
+      where: {
+        subscriberId_listId: { listId: list.id, subscriberId: subscriber.id },
+      },
+    });
+    await tx.newsletterEvent.create({
+      data: {
+        email: subscriber.email,
+        listId: list.id,
+        subscriberId: subscriber.id,
+        type: 'unsubscribed',
+      },
+    });
   });
 
   return getSubscriberPreferenceStateByToken(token);

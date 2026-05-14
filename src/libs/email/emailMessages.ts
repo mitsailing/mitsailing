@@ -33,7 +33,7 @@ type RecordSentEmailMessageParams = {
   userId?: string | null;
 };
 
-type EmailEventPayload = Extract<
+export type ResendEmailEventPayload = Extract<
   WebhookEventPayload,
   {
     data: {
@@ -41,6 +41,11 @@ type EmailEventPayload = Extract<
     };
   }
 >;
+
+export type ResendWebhookContext = {
+  providerEventId: string | null;
+  skipDedupe?: boolean;
+};
 
 export type AdminUserEmailMessageRow = {
   bouncedAt: Date | null;
@@ -66,12 +71,24 @@ function jsonb(value: Record<string, unknown> | WebhookEventPayload | null) {
     : Prisma.sql`NULL`;
 }
 
-function isEmailEvent(event: WebhookEventPayload): event is EmailEventPayload {
+function isEmailEvent(
+  event: WebhookEventPayload
+): event is ResendEmailEventPayload {
   return event.type.startsWith('email.');
 }
 
 function eventId(event: WebhookEventPayload): string | null {
   return 'id' in event && typeof event.id === 'string' ? event.id : null;
+}
+
+function providerEventIdForWebhook(
+  event: WebhookEventPayload,
+  context?: ResendWebhookContext
+): string | null {
+  if (context?.providerEventId) {
+    return context.providerEventId;
+  }
+  return eventId(event);
 }
 
 function eventOccurredAt(event: WebhookEventPayload): Date {
@@ -81,7 +98,7 @@ function eventOccurredAt(event: WebhookEventPayload): Date {
   return new Date();
 }
 
-function eventErrorMessage(event: EmailEventPayload): string | null {
+function eventErrorMessage(event: ResendEmailEventPayload): string | null {
   const { data } = event;
   if ('error' in data && typeof data.error === 'string') {
     return data.error;
@@ -176,17 +193,23 @@ async function emailMessageIdForProviderMessage(
   return rows.at(0)?.id ?? null;
 }
 
-async function recordEmailMessageEvent(params: {
+type EmailMessageEventClient = {
+  $queryRaw: typeof prisma.$queryRaw;
+};
+
+export async function recordResendEmailMessageEvent(params: {
+  client?: EmailMessageEventClient;
   emailMessageId: string | null;
-  event: EmailEventPayload;
+  event: ResendEmailEventPayload;
   occurredAt: Date;
   providerEventId: string | null;
   providerMessageId: string;
-}): Promise<void> {
+}): Promise<boolean> {
+  const client = params.client ?? prisma;
   const id = randomUUID();
   const payload = jsonb(params.event);
 
-  await prisma.$executeRaw`
+  const rows = await client.$queryRaw<{ id: string }[]>`
     INSERT INTO "email_message_events" (
       "id",
       "email_message_id",
@@ -208,12 +231,14 @@ async function recordEmailMessageEvent(params: {
       ${payload}
     )
     ON CONFLICT ("provider_event_id") DO NOTHING
+    RETURNING "id"
   `;
+  return rows.length > 0;
 }
 
 async function updateEmailMessageFromEvent(params: {
   emailMessageId: string | null;
-  event: EmailEventPayload;
+  event: ResendEmailEventPayload;
   lastError: string | null;
   occurredAt: Date;
 }): Promise<void> {
@@ -235,6 +260,7 @@ async function updateEmailMessageFromEvent(params: {
       "last_error" = COALESCE(${params.lastError}, "last_error"),
       "updated_at" = CURRENT_TIMESTAMP
     WHERE "id" = ${params.emailMessageId}
+      AND ("last_event_at" IS NULL OR "last_event_at" <= ${params.occurredAt})
   `;
 }
 
@@ -242,31 +268,38 @@ async function updateEmailMessageFromEvent(params: {
  * Copies Resend email webhooks into the outbound email ledger.
  *
  * @param event - Verified Resend webhook payload
+ * @param context - Verified webhook metadata from Svix headers
+ * @returns Whether downstream state handlers should process the event
  */
 export async function handleResendEmailMessageWebhook(
-  event: WebhookEventPayload
-): Promise<void> {
+  event: WebhookEventPayload,
+  context?: ResendWebhookContext
+): Promise<boolean> {
   if (!isEmailEvent(event)) {
-    return;
+    return true;
   }
 
   const providerMessageId = event.data.email_id;
   const emailMessageId =
     await emailMessageIdForProviderMessage(providerMessageId);
   const occurredAt = eventOccurredAt(event);
-  await recordEmailMessageEvent({
+  const isNewEvent = await recordResendEmailMessageEvent({
     emailMessageId,
     event,
     occurredAt,
-    providerEventId: eventId(event),
+    providerEventId: providerEventIdForWebhook(event, context),
     providerMessageId,
   });
+  if (!isNewEvent) {
+    return false;
+  }
   await updateEmailMessageFromEvent({
     emailMessageId,
     event,
     lastError: eventErrorMessage(event),
     occurredAt,
   });
+  return true;
 }
 
 /**

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { connection } from 'next/server';
 import { NewsletterPreferenceForm } from '@/components/mit-sailing/newsletter/NewsletterPreferenceForm';
 import { NewsletterSignupForm } from '@/components/mit-sailing/newsletter/NewsletterSignupForm';
 import { SiteSectionMain } from '@/components/mit-sailing/SiteSectionMain';
@@ -7,8 +8,8 @@ import { SiteSectionShell } from '@/components/mit-sailing/SiteSectionShell';
 import { getCurrentUser } from '@/libs/auth/dal';
 import { updateProfileNewsletterPreferencesAction } from '@/libs/newsletter/newsletterActions';
 import {
+  getExistingSubscriberPreferenceStateForUser,
   getPublicNewsletterLists,
-  getSubscriberPreferenceStateForUser,
 } from '@/libs/newsletter/newsletterSubscriptions';
 
 type NewsletterPageProps = {
@@ -28,7 +29,9 @@ export async function generateMetadata(
 
 function preferenceRows(
   lists: Awaited<ReturnType<typeof getPublicNewsletterLists>>,
-  subscriber: Awaited<ReturnType<typeof getSubscriberPreferenceStateForUser>>
+  subscriber: Awaited<
+    ReturnType<typeof getExistingSubscriberPreferenceStateForUser>
+  >
 ) {
   const subscriptions = new Map(
     subscriber?.subscriptions.map((subscription) => [
@@ -51,6 +54,7 @@ function preferenceRows(
  * @returns Newsletter page
  */
 export default async function NewsletterPage(props: NewsletterPageProps) {
+  await connection();
   const { locale } = await props.params;
   setRequestLocale(locale);
   const t = await getTranslations({ locale, namespace: 'NewsletterPage' });
@@ -61,7 +65,7 @@ export default async function NewsletterPage(props: NewsletterPageProps) {
   const lists = await getPublicNewsletterLists();
   const user = await getCurrentUser();
   const subscriber = user
-    ? await getSubscriberPreferenceStateForUser(user.id)
+    ? await getExistingSubscriberPreferenceStateForUser(user.id)
     : null;
 
   return (

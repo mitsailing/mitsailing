@@ -117,6 +117,9 @@ describe('usersAdminHandlers', () => {
         {
           banned: null,
           email: 'sailor@example.com',
+          emailBouncedAt: null,
+          emailSuppressedAt: null,
+          emailSuppressionReason: null,
           emailVerified: true,
           id: 'user-1',
           name: 'Sailor',
@@ -125,6 +128,9 @@ describe('usersAdminHandlers', () => {
         {
           banned: true,
           email: 'admin@example.com',
+          emailBouncedAt: new Date('2026-05-01T12:00:00.000Z'),
+          emailSuppressedAt: null,
+          emailSuppressionReason: null,
           emailVerified: false,
           id: 'user-2',
           name: 'Admin',
@@ -136,6 +142,10 @@ describe('usersAdminHandlers', () => {
         {
           banned: false,
           email: 'sailor@example.com',
+          emailBouncedAt: null,
+          emailDeliverabilityStatus: 'ok',
+          emailSuppressedAt: null,
+          emailSuppressionReason: null,
           emailVerified: true,
           id: 'user-1',
           name: 'Sailor',
@@ -144,6 +154,10 @@ describe('usersAdminHandlers', () => {
         {
           banned: true,
           email: 'admin@example.com',
+          emailBouncedAt: '2026-05-01T12:00:00.000Z',
+          emailDeliverabilityStatus: 'bounced',
+          emailSuppressedAt: null,
+          emailSuppressionReason: null,
           emailVerified: false,
           id: 'user-2',
           name: 'Admin',
@@ -159,6 +173,9 @@ describe('usersAdminHandlers', () => {
         .mockResolvedValueOnce({
           banned: false,
           email: 'sailor@example.com',
+          emailBouncedAt: null,
+          emailSuppressedAt: new Date('2026-05-02T12:00:00.000Z'),
+          emailSuppressionReason: 'complained',
           emailVerified: true,
           id: 'user-1',
           name: 'Sailor',
@@ -170,6 +187,10 @@ describe('usersAdminHandlers', () => {
         {
           banned: false,
           email: 'sailor@example.com',
+          emailBouncedAt: null,
+          emailDeliverabilityStatus: 'suppressed',
+          emailSuppressedAt: '2026-05-02T12:00:00.000Z',
+          emailSuppressionReason: 'complained',
           id: 'user-1',
         }
       );
@@ -232,6 +253,9 @@ describe('usersAdminHandlers', () => {
         body: {
           data: {
             email: 'updated-sailor@example.com',
+            emailBouncedAt: null,
+            emailSuppressedAt: null,
+            emailSuppressionReason: null,
             emailVerified: true,
             name: 'Updated Sailor',
             role: Role.USER,

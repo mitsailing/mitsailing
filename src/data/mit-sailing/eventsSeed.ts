@@ -459,7 +459,7 @@ export const EVENTS: Event[] = [
     max_participants: 24,
     requires_approval: true,
     registration_start: '2026-04-01T04:00:00.000Z',
-    registration_end: '2026-05-13T03:59:59.000Z',
+    registration_end: '2026-09-03T03:59:59.000Z',
     created_by: 'user-tbarros',
     created_at: '2026-01-07T13:00:00.000Z',
     is_published: true,
