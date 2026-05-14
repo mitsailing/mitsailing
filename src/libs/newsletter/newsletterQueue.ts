@@ -6,6 +6,13 @@ import { NEWSLETTER_QUEUE_NAME } from '@/libs/newsletter/newsletterConstants';
 
 export type NewsletterBroadcastJob = {
   broadcastId: string;
+  scheduledAt?: string;
+};
+
+type EnqueueNewsletterBroadcastParams = {
+  broadcastId: string;
+  continuationKey?: string;
+  scheduledAt?: Date | null;
 };
 
 export type EnqueueNewsletterBroadcastResult =
@@ -15,15 +22,24 @@ export type EnqueueNewsletterBroadcastResult =
 /**
  * Enqueues a broadcast send job for the worker process.
  *
- * @param broadcastId - Newsletter broadcast id
+ * @param params - Newsletter broadcast id or enqueue options
  * @returns Queue result or configuration error
  */
 export async function enqueueNewsletterBroadcast(
-  broadcastId: string
+  params: EnqueueNewsletterBroadcastParams | string
 ): Promise<EnqueueNewsletterBroadcastResult> {
   if (!Env.REDIS_URL) {
     return { ok: false, error: 'redis_unavailable' };
   }
+
+  const enqueueParams =
+    typeof params === 'string' ? { broadcastId: params } : params;
+  const scheduledAt = enqueueParams.scheduledAt ?? null;
+  const delay = scheduledAt
+    ? Math.max(0, scheduledAt.getTime() - Date.now())
+    : 0;
+  const scheduleKey = scheduledAt ? scheduledAt.getTime() : 'now';
+  const continuationKey = enqueueParams.continuationKey ?? 'initial';
 
   const connection = new IORedis(Env.REDIS_URL, {
     maxRetriesPerRequest: null,
@@ -34,10 +50,14 @@ export async function enqueueNewsletterBroadcast(
   try {
     await queue.add(
       'send-broadcast',
-      { broadcastId },
+      {
+        broadcastId: enqueueParams.broadcastId,
+        ...(scheduledAt ? { scheduledAt: scheduledAt.toISOString() } : {}),
+      },
       {
         attempts: 3,
-        jobId: `newsletter-broadcast:${broadcastId}`,
+        delay,
+        jobId: `newsletter-broadcast:${enqueueParams.broadcastId}:${scheduleKey}:${continuationKey}`,
         removeOnComplete: 100,
         removeOnFail: 500,
       }

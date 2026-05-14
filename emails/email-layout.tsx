@@ -2,7 +2,6 @@ import type * as React from 'react';
 import {
   Body,
   Container,
-  Head,
   Hr,
   Html,
   Link,
@@ -14,6 +13,15 @@ import {
 export type EmailLayoutProps = {
   previewText: string;
   children: React.ReactNode;
+};
+
+export type MarketingEmailLayoutProps = {
+  children: React.ReactNode;
+  listName: string;
+  manageUrl: string;
+  postalAddress: string;
+  previewText: string;
+  unsubscribeUrl: string;
 };
 
 const body: React.CSSProperties = {
@@ -34,7 +42,7 @@ const container: React.CSSProperties = {
 };
 
 const header: React.CSSProperties = {
-  backgroundColor: '#0f172a',
+  backgroundColor: '#8a1538',
   padding: '20px 24px',
 };
 
@@ -62,7 +70,7 @@ const hr: React.CSSProperties = {
 };
 
 const link: React.CSSProperties = {
-  color: '#2563eb',
+  color: '#8a1538',
 };
 
 /**
@@ -75,25 +83,64 @@ const link: React.CSSProperties = {
 export function EmailLayout(props: EmailLayoutProps) {
   return (
     <Html lang="en">
-      <Head />
       <Preview>{props.previewText}</Preview>
       <Body style={body}>
         <Container style={container}>
           <Section style={header}>
-            <Text style={brand}>Your app</Text>
+            <Text style={brand}>MIT Sailing</Text>
           </Section>
           {props.children}
           <Hr style={hr} />
           <Section style={footer}>
             <Text style={muted}>
-              You received this email because of an action on your account.
+              You received this email because of an action on your MIT Sailing
+              account.
             </Text>
             <Text style={muted}>
-              <Link href="https://authjs.dev" style={link}>
-                Auth.js
+              <Link href="mailto:support@mitsailing.com" style={link}>
+                Contact MIT Sailing support
               </Link>{' '}
-              · Secure authentication
             </Text>
+          </Section>
+        </Container>
+      </Body>
+    </Html>
+  );
+}
+
+/**
+ * Shared compliance chrome for marketing newsletter templates.
+ *
+ * @param props - Layout configuration and unsubscribe links.
+ * @returns Complete HTML email document tree.
+ */
+export function MarketingEmailLayout(props: MarketingEmailLayoutProps) {
+  const unsubscribeLabel = `Unsubscribe from ${props.listName}`;
+  return (
+    <Html lang="en">
+      <Preview>{props.previewText}</Preview>
+      <Body style={body}>
+        <Container style={container}>
+          <Section style={header}>
+            <Text style={brand}>MIT Sailing</Text>
+          </Section>
+          {props.children}
+          <Hr style={hr} />
+          <Section style={footer}>
+            <Text style={muted}>
+              You received this {props.listName} broadcast because you
+              subscribed to MIT Sailing newsletters.
+            </Text>
+            <Text style={muted}>
+              <Link href={props.unsubscribeUrl} style={link}>
+                {unsubscribeLabel}
+              </Link>
+              {' · '}
+              <Link href={props.manageUrl} style={link}>
+                Manage email newsletters
+              </Link>
+            </Text>
+            <Text style={muted}>{props.postalAddress}</Text>
           </Section>
         </Container>
       </Body>

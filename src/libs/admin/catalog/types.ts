@@ -31,6 +31,8 @@ export type AdminFieldKind =
   | 'datetimeLocal'
   | 'date';
 
+export type AdminEmailDeliverabilityStatus = 'ok' | 'bounced' | 'suppressed';
+
 export type AdminSelectOption = {
   value: string;
   labelKey: AdminCatalogResourceMessageKey | AdminUsersMessageKey;
@@ -96,6 +98,10 @@ export type CatalogRow = Record<
 export type AdminUserRow = {
   id: string;
   email: string;
+  emailBouncedAt: string | null;
+  emailDeliverabilityStatus: AdminEmailDeliverabilityStatus;
+  emailSuppressedAt: string | null;
+  emailSuppressionReason: string | null;
   name: string;
   role: string;
   emailVerified: boolean;

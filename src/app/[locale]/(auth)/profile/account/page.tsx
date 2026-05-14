@@ -9,6 +9,27 @@ type ProfileAccountPageProps = {
   params: Promise<{ locale: string }>;
 };
 
+type EmailDeliverabilityStatus = 'ok' | 'bounced' | 'suppressed';
+
+function emailDeliverabilityStatus(
+  user: {
+    emailBouncedAt: Date | null;
+    emailSuppressedAt: Date | null;
+    emailSuppressionReason: string | null;
+  } | null
+): EmailDeliverabilityStatus {
+  if (!user) {
+    return 'ok';
+  }
+  if (user.emailSuppressedAt || user.emailSuppressionReason) {
+    return 'suppressed';
+  }
+  if (user.emailBouncedAt) {
+    return 'bounced';
+  }
+  return 'ok';
+}
+
 export async function generateMetadata(
   props: ProfileAccountPageProps
 ): Promise<Metadata> {
@@ -31,13 +52,20 @@ export default async function ProfileAccountPage(
   const user = await requireCurrentUser(locale, profileAccountHref);
 
   const dbUser = await prisma.user.findUnique({
-    select: { themePreference: true, unconfirmedEmail: true },
+    select: {
+      emailBouncedAt: true,
+      emailSuppressedAt: true,
+      emailSuppressionReason: true,
+      themePreference: true,
+      unconfirmedEmail: true,
+    },
     where: { id: user.id },
   });
 
   return (
     <ProfileAccountClient
       initialEmail={user.email ?? ''}
+      initialEmailDeliverabilityStatus={emailDeliverabilityStatus(dbUser)}
       initialName={user.name}
       initialThemePreference={dbUser?.themePreference ?? 'SYSTEM'}
       initialUnconfirmedEmail={dbUser?.unconfirmedEmail ?? null}

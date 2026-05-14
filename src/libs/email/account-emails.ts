@@ -95,6 +95,7 @@ export async function sendEmailOtpCode(params: {
         PasswordResetEmailTemplate({ code: params.otp, copy })
       );
       await sendTransactionalEmail({
+        category: 'password_reset',
         to: email,
         subject: copy.reset_password_subject,
         html,
@@ -114,6 +115,7 @@ export async function sendEmailOtpCode(params: {
         })
       );
       await sendTransactionalEmail({
+        category: 'email_change',
         to: email,
         subject: copy.change_email_subject,
         html,
@@ -134,6 +136,7 @@ export async function sendEmailOtpCode(params: {
         })
       );
       await sendTransactionalEmail({
+        category: 'sign_in_otp',
         to: email,
         subject: copy.sign_in_otp_subject,
         html,
@@ -154,6 +157,7 @@ export async function sendEmailOtpCode(params: {
         })
       );
       await sendTransactionalEmail({
+        category: 'verify_email',
         to: email,
         subject: copy.verify_subject,
         html,
@@ -229,6 +233,7 @@ export async function sendEmailChangeRequestedNotice(params: {
     })
   );
   await sendTransactionalEmail({
+    category: 'email_change',
     to: currentEmail,
     subject: copy.change_email_notice_subject,
     html,
@@ -257,6 +262,7 @@ export async function sendDeleteAccountVerificationEmail(
   assertNonEmptyValue(url, 'Expected a delete-account confirmation URL.');
   const html = await render(DeleteAccountEmailTemplate({ confirmUrl: url }));
   await sendTransactionalEmail({
+    category: 'delete_account',
     to: normalizedEmail,
     subject: copy.delete_account_subject,
     html,
@@ -282,6 +288,7 @@ export async function sendAccountLockedEmail(email: string) {
     AccountUnlockEmailTemplate({ unlockUrl, supportEmail: SUPPORT_EMAIL })
   );
   await sendTransactionalEmail({
+    category: 'account_locked',
     to: normalizedEmail,
     subject: copy.account_locked_subject,
     html,
@@ -306,6 +313,7 @@ export async function sendPasswordChangedNotice(email: string) {
     PasswordChangedNoticeTemplate({ supportEmail: SUPPORT_EMAIL })
   );
   await sendTransactionalEmail({
+    category: 'password_changed',
     to: normalizedEmail,
     subject: copy.password_changed_subject,
     html,

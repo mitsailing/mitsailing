@@ -204,6 +204,7 @@ vi.mock('./(center)/verify-email/VerifyEmailForm', () => ({
 vi.mock('./profile/ProfileAccountClient', () => ({
   ProfileAccountClient: (props: {
     initialEmail: string;
+    initialEmailDeliverabilityStatus: string;
     initialName: string | null;
     initialThemePreference: string;
     initialUnconfirmedEmail: string | null;
@@ -211,6 +212,7 @@ vi.mock('./profile/ProfileAccountClient', () => ({
     <section
       aria-label="profile-account-client"
       data-email={props.initialEmail}
+      data-email-deliverability={props.initialEmailDeliverabilityStatus}
       data-name={props.initialName ?? ''}
       data-theme={props.initialThemePreference}
       data-unconfirmed-email={props.initialUnconfirmedEmail ?? ''}

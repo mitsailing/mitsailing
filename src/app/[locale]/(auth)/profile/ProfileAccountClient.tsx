@@ -20,6 +20,7 @@ import {
 
 type ProfileAccountClientProps = {
   initialEmail: string;
+  initialEmailDeliverabilityStatus: 'ok' | 'bounced' | 'suppressed';
   initialName: string | null;
   initialThemePreference: ThemePreferenceValue;
   initialUnconfirmedEmail: string | null;
@@ -243,6 +244,15 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-6 px-4 py-8">
       <h1 className="text-2xl font-semibold">{t('account_page_heading')}</h1>
+      {props.initialEmailDeliverabilityStatus === 'ok' ? null : (
+        <div
+          className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"
+          role="status"
+        >
+          <p className="font-semibold">{t('email_deliverability_title')}</p>
+          <p className="mt-1">{t('email_deliverability_body')}</p>
+        </div>
+      )}
 
       <div className="rounded-lg border border-mit-line bg-card p-6 shadow-sm">
         <dl className="flex flex-col gap-3">

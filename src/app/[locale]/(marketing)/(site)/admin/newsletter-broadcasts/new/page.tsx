@@ -31,6 +31,7 @@ function errorMessageKey(
   | 'form_error_preview_required'
   | 'form_error_preview_too_long'
   | 'form_error_redis_unavailable'
+  | 'form_error_scheduled_at_invalid'
   | 'form_error_subject_required'
   | 'form_error_subject_too_long'
   | 'form_error_template_required'
@@ -68,6 +69,9 @@ function errorMessageKey(
     }
     case 'redis_unavailable': {
       return 'form_error_redis_unavailable';
+    }
+    case 'scheduled_at_invalid': {
+      return 'form_error_scheduled_at_invalid';
     }
     case 'subject_required': {
       return 'form_error_subject_required';
@@ -136,6 +140,19 @@ export default async function AdminNewsletterBroadcastNewPage(
             name="previewText"
             required
           />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="newsletter-broadcast-scheduled-at">
+            {t('field_scheduled_at')}
+          </Label>
+          <Input
+            id="newsletter-broadcast-scheduled-at"
+            name="scheduledAt"
+            type="datetime-local"
+          />
+          <p className="text-xs text-muted-foreground">
+            {t('field_scheduled_at_hint')}
+          </p>
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="newsletter-broadcast-template">

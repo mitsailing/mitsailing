@@ -14,6 +14,7 @@ const newsletterBroadcastFieldNames = {
   listId: 'listId',
   name: 'name',
   previewText: 'previewText',
+  scheduledAt: 'scheduledAt',
   subject: 'subject',
   templateId: 'templateId',
 } as const;
@@ -137,6 +138,7 @@ export type NewsletterBroadcastValidationError =
   | 'lists_required'
   | 'preview_required'
   | 'preview_too_long'
+  | 'scheduled_at_invalid'
   | 'subject_required'
   | 'subject_too_long'
   | 'template_required';
@@ -149,6 +151,7 @@ export type NewsletterBroadcastValidationResult =
         listIds: string[];
         name: string | null;
         previewText: string;
+        scheduledAt: Date | null;
         subject: string;
         templateId: string;
       };
@@ -174,6 +177,10 @@ export function validateNewsletterBroadcastFormData(
   );
   const body = formString(formData, newsletterBroadcastFieldNames.body);
   const name = formString(formData, newsletterBroadcastFieldNames.name);
+  const scheduledAtRaw = formString(
+    formData,
+    newsletterBroadcastFieldNames.scheduledAt
+  );
   const templateId = formString(
     formData,
     newsletterBroadcastFieldNames.templateId
@@ -209,6 +216,12 @@ export function validateNewsletterBroadcastFormData(
     errors.push('lists_required');
   }
 
+  const scheduledAt =
+    scheduledAtRaw.length > 0 ? new Date(scheduledAtRaw) : null;
+  if (scheduledAt && Number.isNaN(scheduledAt.getTime())) {
+    errors.push('scheduled_at_invalid');
+  }
+
   if (errors.length > 0) {
     return { ok: false, errors };
   }
@@ -220,6 +233,7 @@ export function validateNewsletterBroadcastFormData(
       listIds,
       name: name.length > 0 ? name.slice(0, BROADCAST_SHORT_MAX_LENGTH) : null,
       previewText,
+      scheduledAt,
       subject,
       templateId,
     },

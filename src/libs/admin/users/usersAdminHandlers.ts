@@ -2,6 +2,7 @@ import 'server-only';
 import { APIError } from 'better-auth';
 import { headers } from 'next/headers';
 import type {
+  AdminEmailDeliverabilityStatus,
   AdminUserRow,
   CatalogCreateResult,
   CatalogMutationErr,
@@ -27,10 +28,23 @@ function rowFromDb(user: {
   role: string;
   emailVerified: boolean;
   banned: boolean | null;
+  emailBouncedAt: Date | null;
+  emailSuppressedAt: Date | null;
+  emailSuppressionReason: string | null;
 }): AdminUserRow {
+  let emailDeliverabilityStatus: AdminEmailDeliverabilityStatus = 'ok';
+  if (user.emailSuppressedAt || user.emailSuppressionReason) {
+    emailDeliverabilityStatus = 'suppressed';
+  } else if (user.emailBouncedAt) {
+    emailDeliverabilityStatus = 'bounced';
+  }
   return {
     id: user.id,
     email: user.email,
+    emailBouncedAt: user.emailBouncedAt?.toISOString() ?? null,
+    emailDeliverabilityStatus,
+    emailSuppressedAt: user.emailSuppressedAt?.toISOString() ?? null,
+    emailSuppressionReason: user.emailSuppressionReason,
     name: user.name,
     role: user.role,
     emailVerified: user.emailVerified,
@@ -134,6 +148,9 @@ export const usersAdminHandlers: CatalogServerHandlers = {
         role: true,
         emailVerified: true,
         banned: true,
+        emailBouncedAt: true,
+        emailSuppressedAt: true,
+        emailSuppressionReason: true,
       },
     });
     return rows.map(rowFromDb);
@@ -149,6 +166,9 @@ export const usersAdminHandlers: CatalogServerHandlers = {
         role: true,
         emailVerified: true,
         banned: true,
+        emailBouncedAt: true,
+        emailSuppressedAt: true,
+        emailSuppressionReason: true,
       },
     });
     return row ? rowFromDb(row) : null;
@@ -210,7 +230,7 @@ export const usersAdminHandlers: CatalogServerHandlers = {
 
     const existing = await prisma.user.findUnique({
       where: { id },
-      select: { banned: true, role: true },
+      select: { banned: true, email: true, role: true },
     });
     if (!existing) {
       return { ok: false, code: 'not_found' };
@@ -232,11 +252,20 @@ export const usersAdminHandlers: CatalogServerHandlers = {
 
     const hdrs = await headers();
     const trimmedPassword = newPassword.trim();
+    const emailDeliverabilityResetData =
+      email === existing.email
+        ? {}
+        : {
+            emailBouncedAt: null,
+            emailSuppressedAt: null,
+            emailSuppressionReason: null,
+          };
     const data: Record<string, unknown> = {
       email,
       name,
       role,
       emailVerified,
+      ...emailDeliverabilityResetData,
     };
     const wasBanned = Boolean(existing.banned);
     const banStateChanged = wasBanned !== banned;

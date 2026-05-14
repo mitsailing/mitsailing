@@ -21,11 +21,13 @@ const mocks = vi.hoisted(() => {
     error: vi.fn(),
     info: vi.fn(),
   };
+  const recordSentEmailMessage = vi.fn();
 
   return {
     createTransport,
     env,
     logger,
+    recordSentEmailMessage,
     Resend,
     resendSend,
     sendMail,
@@ -50,6 +52,10 @@ vi.mock('@/libs/Env', () => ({
 
 vi.mock('@/libs/Logger', () => ({
   logger: mocks.logger,
+}));
+
+vi.mock('@/libs/email/emailMessages', () => ({
+  recordSentEmailMessage: mocks.recordSentEmailMessage,
 }));
 
 const message = {
@@ -78,6 +84,7 @@ async function sendWithEnv(env: EnvMock) {
 beforeEach(() => {
   vi.resetModules();
   vi.clearAllMocks();
+  mocks.recordSentEmailMessage.mockResolvedValue('email_message_123');
   mocks.sendMail.mockResolvedValue({});
   mocks.resendSend.mockResolvedValue({ data: { id: 'email_123' } });
 });
@@ -88,6 +95,15 @@ describe('sendTransactionalEmail', () => {
 
     expect(mocks.logger.info).toHaveBeenCalledWith(
       '[mail:log] → sailor@example.com — Account notice'
+    );
+    expect(mocks.recordSentEmailMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        category: 'other',
+        provider: 'log',
+        providerMessageId: null,
+        subject: 'Account notice',
+        toEmail: 'sailor@example.com',
+      })
     );
     expect(mocks.createTransport).not.toHaveBeenCalled();
     expect(mocks.Resend).not.toHaveBeenCalled();
@@ -135,6 +151,7 @@ describe('sendTransactionalEmail', () => {
     expect(mocks.createTransport).toHaveBeenCalledTimes(1);
     expect(mocks.createTransport).toHaveBeenCalledWith('smtp://127.0.0.1:1025');
     expect(mocks.sendMail).toHaveBeenCalledTimes(2);
+    expect(mocks.recordSentEmailMessage).toHaveBeenCalledTimes(2);
     expect(mocks.sendMail).toHaveBeenCalledWith({
       from: 'MIT Sailing <noreply@example.com>',
       html: '<p>Hello sailor</p>',
@@ -207,6 +224,29 @@ describe('sendTransactionalEmail', () => {
       text: 'Hello sailor',
       to: 'sailor@example.com',
     });
+    expect(mocks.recordSentEmailMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: 'resend',
+        providerMessageId: 'email_123',
+      })
+    );
+  });
+
+  it('does not fail delivery when email ledger recording fails', async () => {
+    mocks.recordSentEmailMessage.mockRejectedValueOnce(new Error('db down'));
+
+    await expect(
+      sendWithEnv({
+        EMAIL_FROM: 'MIT Sailing <noreply@example.com>',
+        MAIL_TRANSPORT: 'resend',
+        RESEND_API_KEY: 're_test',
+      })
+    ).resolves.toEqual({ providerMessageId: 'email_123' });
+
+    expect(mocks.logger.error).toHaveBeenCalledWith(
+      'Failed to record outbound email message: {error}',
+      expect.objectContaining({ error: expect.any(Error) })
+    );
   });
 
   it('logs and throws resend delivery errors', async () => {
@@ -225,6 +265,7 @@ describe('sendTransactionalEmail', () => {
     expect(mocks.logger.error).toHaveBeenCalledWith(
       'Resend error: Domain is not verified'
     );
+    expect(mocks.recordSentEmailMessage).not.toHaveBeenCalled();
   });
 
   it('throws when an unknown transport reaches the exhaustive branch', async () => {

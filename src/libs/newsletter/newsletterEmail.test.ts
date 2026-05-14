@@ -1,0 +1,141 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+type SendPayload = {
+  category?: string;
+  headers?: Record<string, string>;
+  html: string;
+  metadata?: Record<string, unknown>;
+  newsletterBroadcastId?: string | null;
+  newsletterDeliveryId?: string | null;
+  newsletterSubscriberId?: string | null;
+  subject: string;
+  tags?: { name: string; value: string }[];
+  text?: string;
+  to: string;
+  topicId?: string | null;
+};
+
+type SendEmailMock = (
+  params: SendPayload
+) => Promise<{ providerMessageId: string | null }>;
+
+const mocks = vi.hoisted(() => ({
+  env: {
+    BETTER_AUTH_SECRET: 'test-secret',
+    NEWSLETTER_POSTAL_ADDRESS: 'MIT Sailing Pavilion, Cambridge, MA',
+  },
+  getBaseUrl: vi.fn(() => 'https://mitsailing.test'),
+  sendTransactionalEmail: vi.fn<SendEmailMock>(),
+}));
+
+vi.mock('server-only', () => ({}));
+
+vi.mock('@/libs/Env', () => ({
+  Env: mocks.env,
+}));
+
+vi.mock('@/libs/email/sendTransactional', () => ({
+  sendTransactionalEmail: mocks.sendTransactionalEmail,
+}));
+
+vi.mock('@/utils/Helpers', () => ({
+  getBaseUrl: mocks.getBaseUrl,
+}));
+
+function sentPayload(): SendPayload {
+  const call = mocks.sendTransactionalEmail.mock.calls.at(-1);
+  if (!call) {
+    throw new Error('Expected an email to be sent.');
+  }
+  const [payload] = call;
+  return payload;
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.getBaseUrl.mockReturnValue('https://mitsailing.test');
+  mocks.sendTransactionalEmail.mockResolvedValue({ providerMessageId: null });
+});
+
+describe('newsletter email', () => {
+  it('renders broadcast preview html and plaintext links', async () => {
+    const { renderNewsletterBroadcastEmail } =
+      await import('@/libs/newsletter/newsletterEmail');
+
+    const rendered = await renderNewsletterBroadcastEmail({
+      body: 'The pavilion is open.\n\nRacing starts Friday.',
+      listName: 'General',
+      manageUrl: 'https://example.test/manage',
+      postalAddress: 'MIT Sailing Pavilion, Cambridge, MA',
+      previewText: 'News from the pavilion',
+      subject: 'Spring sailing',
+      unsubscribeUrl: 'https://example.test/unsubscribe',
+    });
+
+    expect(rendered.html).toContain('Spring sailing');
+    expect(rendered.html).toContain('Racing starts Friday.');
+    expect(rendered.text).toContain(
+      'Unsubscribe from General: https://example.test/unsubscribe'
+    );
+    expect(rendered.text).toContain(
+      'Manage email newsletters: https://example.test/manage'
+    );
+  });
+
+  it('sends test copies without delivery tracking headers', async () => {
+    const { sendNewsletterBroadcastTestEmail } =
+      await import('@/libs/newsletter/newsletterEmail');
+
+    await sendNewsletterBroadcastTestEmail({
+      body: 'The pavilion is open.',
+      email: 'admin@example.com',
+      listName: 'General',
+      previewText: 'News from the pavilion',
+      subject: 'Spring sailing',
+    });
+
+    const payload = sentPayload();
+    expect(payload).toMatchObject({
+      subject: '[TEST] Spring sailing',
+      to: 'admin@example.com',
+    });
+    expect(payload.headers).toBeUndefined();
+    expect(payload.tags).toBeUndefined();
+    expect(payload.html).toContain('https://mitsailing.test/newsletter/');
+  });
+
+  it('sends live deliveries with one-click unsubscribe metadata', async () => {
+    const { sendNewsletterBroadcastEmail } =
+      await import('@/libs/newsletter/newsletterEmail');
+
+    await sendNewsletterBroadcastEmail({
+      body: 'The pavilion is open.',
+      broadcastId: 'broadcast_123',
+      deliveryId: 'delivery_123',
+      email: 'sailor@example.com',
+      listId: 'list_123',
+      listName: 'General',
+      manageTokenHash: 'stored-token-hash',
+      previewText: 'News from the pavilion',
+      subject: 'Spring sailing',
+      subscriberId: 'subscriber_123',
+      topicId: 'topic_123',
+    });
+
+    const payload = sentPayload();
+    expect(payload.headers?.['List-Unsubscribe']).toContain(
+      '/api/newsletter/unsubscribe/'
+    );
+    expect(payload.headers?.['List-Unsubscribe-Post']).toBe(
+      'List-Unsubscribe=One-Click'
+    );
+    expect(payload.tags).toEqual([
+      { name: 'newsletter_delivery_id', value: 'delivery_123' },
+      { name: 'newsletter_subscriber_id', value: 'subscriber_123' },
+    ]);
+    expect(payload.newsletterBroadcastId).toBe('broadcast_123');
+    expect(payload.newsletterDeliveryId).toBe('delivery_123');
+    expect(payload.newsletterSubscriberId).toBe('subscriber_123');
+    expect(payload.topicId).toBe('topic_123');
+  });
+});

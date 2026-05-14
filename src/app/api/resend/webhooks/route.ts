@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
+import { handleResendAccountEmailWebhook } from '@/libs/email/accountEmailWebhooks';
+import { handleResendEmailMessageWebhook } from '@/libs/email/emailMessages';
 import { Env } from '@/libs/Env';
 import { handleResendNewsletterWebhook } from '@/libs/newsletter/newsletterWebhooks';
 
@@ -29,6 +31,8 @@ export async function POST(request: Request) {
     payload,
     webhookSecret: Env.RESEND_WEBHOOK_SECRET,
   });
+  await handleResendEmailMessageWebhook(event);
   await handleResendNewsletterWebhook(event);
+  await handleResendAccountEmailWebhook(event);
   return NextResponse.json({ ok: true });
 }

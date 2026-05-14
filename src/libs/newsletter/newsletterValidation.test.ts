@@ -53,6 +53,7 @@ describe('newsletter validation', () => {
         listIds: ['general'],
         name: null,
         previewText: 'News from the pavilion',
+        scheduledAt: null,
         subject: 'Spring sailing',
         templateId: 'standard',
       },

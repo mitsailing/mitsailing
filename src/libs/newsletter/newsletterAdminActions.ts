@@ -5,10 +5,15 @@ import { redirect } from 'next/navigation';
 import { requireAdmin } from '@/libs/auth/dal';
 import { prisma } from '@/libs/DB';
 import { Env } from '@/libs/Env';
+import { logger } from '@/libs/Logger';
 import { createNewsletterBroadcast } from '@/libs/newsletter/newsletterBroadcasts';
 import type { CreateNewsletterBroadcastResult } from '@/libs/newsletter/newsletterBroadcasts';
-import { enqueueNewsletterBroadcast } from '@/libs/newsletter/newsletterQueue';
+import { sendNewsletterBroadcastTestEmail } from '@/libs/newsletter/newsletterEmail';
 import { validateNewsletterBroadcastFormData } from '@/libs/newsletter/newsletterValidation';
+import {
+  isValidMarketingEmail,
+  normalizeMarketingEmail,
+} from '@/utils/emailValidation';
 import { getI18nPath } from '@/utils/Helpers';
 
 const ADMIN_LISTS_PATH = '/admin/newsletter-lists/';
@@ -36,6 +41,10 @@ function slugFromName(value: string): string {
 
 function broadcastErrorCode(result: CreateNewsletterBroadcastResult): string {
   return result.ok ? 'saved' : result.error;
+}
+
+function adminBroadcastPath(broadcastId: string): string {
+  return `${ADMIN_BROADCASTS_PATH}${broadcastId}/`;
 }
 
 /**
@@ -160,29 +169,56 @@ export async function createNewsletterBroadcastAction(
     );
   }
 
-  if (result.queued) {
-    const queueResult = await enqueueNewsletterBroadcast(result.broadcastId);
-    if (!queueResult.ok) {
-      await prisma.newsletterBroadcast.update({
-        data: { status: 'failed' },
-        where: { id: result.broadcastId },
-      });
-      await prisma.newsletterDelivery.updateMany({
-        data: {
-          failedAt: new Date(),
-          lastError: queueResult.error,
-          status: 'failed',
-        },
-        where: { broadcastId: result.broadcastId, status: 'queued' },
-      });
-      adminRedirect(locale, `${ADMIN_BROADCASTS_PATH}new/`, queueResult.error);
-    }
-  }
-
   revalidatePath(getI18nPath(ADMIN_BROADCASTS_PATH, locale));
   adminRedirect(
     locale,
     ADMIN_BROADCASTS_PATH,
     result.queued ? 'queued' : 'created'
   );
+}
+
+/**
+ * Sends one admin test copy of a saved newsletter broadcast.
+ *
+ * @param locale - Active locale
+ * @param broadcastId - Broadcast id
+ * @param formData - Submitted recipient form
+ */
+export async function sendNewsletterBroadcastTestAction(
+  locale: string,
+  broadcastId: string,
+  formData: FormData
+): Promise<void> {
+  await requireAdmin(locale);
+  const email = normalizeMarketingEmail(formString(formData, 'email'));
+  const redirectPath = adminBroadcastPath(broadcastId);
+  if (!isValidMarketingEmail(email)) {
+    adminRedirect(locale, redirectPath, 'invalid_test_email');
+  }
+
+  const broadcast = await prisma.newsletterBroadcast.findUnique({
+    include: { primaryList: true },
+    where: { id: broadcastId },
+  });
+  if (!broadcast) {
+    adminRedirect(locale, ADMIN_BROADCASTS_PATH, 'not_found');
+  }
+
+  try {
+    await sendNewsletterBroadcastTestEmail({
+      body: broadcast.body,
+      email,
+      listName: broadcast.primaryList.name,
+      previewText: broadcast.previewText,
+      subject: broadcast.subject,
+    });
+  } catch (error) {
+    logger.error('Failed to send newsletter test broadcast: {error}', {
+      broadcastId,
+      error,
+    });
+    adminRedirect(locale, redirectPath, 'test_failed');
+  }
+
+  adminRedirect(locale, redirectPath, 'test_sent');
 }

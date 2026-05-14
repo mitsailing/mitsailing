@@ -77,7 +77,9 @@ export default async function AdminNewsletterBroadcastsPage(props: PageProps) {
             {broadcasts.map((broadcast) => (
               <TableRow key={broadcast.id}>
                 <TableCell className="font-medium">
-                  {broadcast.subject}
+                  <Link href={`/admin/newsletter-broadcasts/${broadcast.id}/`}>
+                    {broadcast.subject}
+                  </Link>
                 </TableCell>
                 <TableCell>
                   {broadcast.targetLists

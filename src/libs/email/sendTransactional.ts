@@ -3,6 +3,8 @@ import nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 import { Resend } from 'resend';
 import sanitizeHtml from 'sanitize-html';
+import { recordSentEmailMessage } from '@/libs/email/emailMessages';
+import type { EmailMessageCategory } from '@/libs/email/emailMessages';
 import { Env } from '@/libs/Env';
 import { logger } from '@/libs/Logger';
 
@@ -25,12 +27,18 @@ import { logger } from '@/libs/Logger';
 type Params = {
   to: string;
   subject: string;
+  category?: EmailMessageCategory;
   html: string;
   replyTo?: string;
   text?: string;
   headers?: Record<string, string>;
+  metadata?: Record<string, unknown>;
+  newsletterBroadcastId?: string | null;
+  newsletterDeliveryId?: string | null;
+  newsletterSubscriberId?: string | null;
   tags?: { name: string; value: string }[];
   topicId?: string | null;
+  userId?: string | null;
 };
 
 export type SendEmailResult = {
@@ -135,18 +143,24 @@ export async function sendTransactionalEmail(
   params: Params
 ): Promise<SendEmailResult> {
   const message = withPlainTextFallback(params);
+  let provider: 'log' | 'resend' | 'smtp';
+  let result: SendEmailResult;
 
   switch (Env.MAIL_TRANSPORT) {
     case 'smtp': {
-      const result = await sendViaSmtp(message);
-      return result;
+      provider = 'smtp';
+      result = await sendViaSmtp(message);
+      break;
     }
     case 'resend': {
-      const result = await sendViaResend(message);
-      return result;
+      provider = 'resend';
+      result = await sendViaResend(message);
+      break;
     }
     case 'log': {
-      return logOnly(message);
+      provider = 'log';
+      result = logOnly(message);
+      break;
     }
     default: {
       // Exhaustiveness check — MAIL_TRANSPORT is a closed enum in Env.ts, so
@@ -156,4 +170,22 @@ export async function sendTransactionalEmail(
       throw new Error(`Unknown MAIL_TRANSPORT: ${String(_exhaustive)}`);
     }
   }
+
+  try {
+    await recordSentEmailMessage({
+      category: params.category ?? 'other',
+      metadata: params.metadata ?? null,
+      newsletterBroadcastId: params.newsletterBroadcastId ?? null,
+      newsletterDeliveryId: params.newsletterDeliveryId ?? null,
+      newsletterSubscriberId: params.newsletterSubscriberId ?? null,
+      provider,
+      providerMessageId: result.providerMessageId,
+      subject: params.subject,
+      toEmail: params.to,
+      userId: params.userId ?? null,
+    });
+  } catch (error: unknown) {
+    logger.error('Failed to record outbound email message: {error}', { error });
+  }
+  return result;
 }
