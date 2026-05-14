@@ -156,8 +156,6 @@ CREATE UNIQUE INDEX "newsletter_subscribers_email_key" ON "newsletter_subscriber
 CREATE UNIQUE INDEX "newsletter_subscribers_user_id_key" ON "newsletter_subscribers"("user_id");
 CREATE UNIQUE INDEX "newsletter_subscribers_resend_contact_id_key" ON "newsletter_subscribers"("resend_contact_id");
 CREATE UNIQUE INDEX "newsletter_subscribers_manage_token_hash_key" ON "newsletter_subscribers"("manage_token_hash");
-CREATE INDEX "newsletter_subscribers_email_idx" ON "newsletter_subscribers"("email");
-CREATE INDEX "newsletter_subscribers_user_id_idx" ON "newsletter_subscribers"("user_id");
 CREATE INDEX "newsletter_subscribers_suppressed_at_idx" ON "newsletter_subscribers"("suppressed_at");
 
 -- CreateIndex
@@ -180,6 +178,7 @@ CREATE UNIQUE INDEX "newsletter_broadcasts_resend_broadcast_id_key" ON "newslett
 CREATE INDEX "newsletter_broadcasts_status_created_at_idx" ON "newsletter_broadcasts"("status", "created_at");
 CREATE INDEX "newsletter_broadcasts_created_by_user_id_idx" ON "newsletter_broadcasts"("created_by_user_id");
 CREATE INDEX "newsletter_broadcasts_primary_list_id_idx" ON "newsletter_broadcasts"("primary_list_id");
+CREATE INDEX "newsletter_broadcasts_template_id_idx" ON "newsletter_broadcasts"("template_id");
 
 -- CreateIndex
 CREATE INDEX "newsletter_broadcast_lists_list_id_idx" ON "newsletter_broadcast_lists"("list_id");
@@ -194,6 +193,7 @@ CREATE INDEX "newsletter_deliveries_primary_list_id_idx" ON "newsletter_deliveri
 -- CreateIndex
 CREATE INDEX "newsletter_events_type_created_at_idx" ON "newsletter_events"("type", "created_at");
 CREATE INDEX "newsletter_events_subscriber_id_created_at_idx" ON "newsletter_events"("subscriber_id", "created_at");
+CREATE INDEX "newsletter_events_list_id_created_at_idx" ON "newsletter_events"("list_id", "created_at");
 CREATE INDEX "newsletter_events_broadcast_id_created_at_idx" ON "newsletter_events"("broadcast_id", "created_at");
 CREATE INDEX "newsletter_events_delivery_id_idx" ON "newsletter_events"("delivery_id");
 CREATE INDEX "newsletter_events_provider_message_id_idx" ON "newsletter_events"("provider_message_id");

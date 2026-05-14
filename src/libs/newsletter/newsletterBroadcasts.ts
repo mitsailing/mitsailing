@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache';
 import type { Prisma } from '@/generated/prisma/client';
 import { prisma } from '@/libs/DB';
 import { Env } from '@/libs/Env';
+import { logger } from '@/libs/Logger';
 import {
   renderNewsletterBroadcastEmail,
   sendNewsletterBroadcastEmail,
@@ -142,7 +143,7 @@ export async function renderAdminNewsletterBroadcastPreviewHtml(broadcast: {
   primaryList: { name: string };
   subject: string;
 }) {
-  const newsletterUrl = `${getBaseUrl()}/newsletter/`;
+  const newsletterUrl = `${getBaseUrl().replace(/\/$/, '')}/newsletter`;
   const rendered = await renderNewsletterBroadcastEmail({
     body: broadcast.body,
     listName: broadcast.primaryList.name,
@@ -297,7 +298,8 @@ export async function createNewsletterBroadcast(
   }
 
   const broadcast = await prisma.$transaction(async (tx) => {
-    const queuedAt = params.queueForSending ? new Date() : null;
+    const deliveryQueuedAt = new Date();
+    const queuedAt = params.queueForSending ? deliveryQueuedAt : null;
     const created = await tx.newsletterBroadcast.create({
       data: {
         body: params.body,
@@ -331,7 +333,7 @@ export async function createNewsletterBroadcast(
           broadcastId: created.id,
           email: recipient.subscriber.email,
           primaryListId: recipient.listId,
-          queuedAt: queuedAt ?? new Date(),
+          queuedAt: deliveryQueuedAt,
           subscriberId: recipient.subscriber.id,
         })),
       });
@@ -596,27 +598,37 @@ async function sendClaimedNewsletterDelivery(
   broadcast: NewsletterBroadcastRow,
   delivery: ClaimedNewsletterDelivery
 ) {
+  let providerMessageId: string | null;
   try {
-    const result = await sendNewsletterBroadcastEmail({
-      body: broadcast.body,
-      broadcastId: broadcast.id,
-      deliveryId: delivery.id,
-      email: delivery.email,
-      listId: delivery.primaryListId,
-      listName: delivery.primaryList.name,
-      manageTokenHash: delivery.subscriber.manageTokenHash,
-      previewText: broadcast.previewText,
-      subject: broadcast.subject,
-      subscriberId: delivery.subscriberId,
-      topicId: delivery.primaryList.resendTopicId,
-    });
-    await markNewsletterDeliverySent(
-      broadcast.id,
-      delivery,
-      result.providerMessageId
-    );
+    const { providerMessageId: sentProviderMessageId } =
+      await sendNewsletterBroadcastEmail({
+        body: broadcast.body,
+        broadcastId: broadcast.id,
+        deliveryId: delivery.id,
+        email: delivery.email,
+        listId: delivery.primaryListId,
+        listName: delivery.primaryList.name,
+        manageTokenHash: delivery.subscriber.manageTokenHash,
+        previewText: broadcast.previewText,
+        subject: broadcast.subject,
+        subscriberId: delivery.subscriberId,
+        topicId: delivery.primaryList.resendTopicId,
+      });
+    providerMessageId = sentProviderMessageId;
   } catch (error) {
     await markNewsletterDeliveryFailed(broadcast.id, delivery, error);
+    return;
+  }
+
+  try {
+    await markNewsletterDeliverySent(broadcast.id, delivery, providerMessageId);
+  } catch (error) {
+    logger.error('Failed to mark newsletter delivery sent: {error}', {
+      broadcastId: broadcast.id,
+      deliveryId: delivery.id,
+      error,
+      providerMessageId,
+    });
   }
 }
 

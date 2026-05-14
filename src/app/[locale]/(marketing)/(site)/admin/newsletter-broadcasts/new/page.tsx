@@ -166,11 +166,20 @@ export default async function AdminNewsletterBroadcastNewPage(
             name="templateId"
             required
           >
-            {templates.map((template) => (
-              <option key={template.id} value={template.id}>
-                {template.name}
+            {templates.length === 0 ? (
+              <option disabled value="">
+                {t('field_template_empty')}
               </option>
-            ))}
+            ) : (
+              <>
+                <option value="">{t('field_template_placeholder')}</option>
+                {templates.map((template) => (
+                  <option key={template.id} value={template.id}>
+                    {template.name}
+                  </option>
+                ))}
+              </>
+            )}
           </select>
         </div>
         <fieldset className="space-y-3">
@@ -182,7 +191,7 @@ export default async function AdminNewsletterBroadcastNewPage(
               .filter((list) => !list.isArchived)
               .map((list) => (
                 <label
-                  aria-label={list.name}
+                  aria-labelledby={`newsletter-broadcast-list-${list.id}-label`}
                   className="rounded-lg border border-border bg-background p-3 text-sm"
                   htmlFor={`newsletter-broadcast-list-${list.id}`}
                   key={list.id}
@@ -196,7 +205,12 @@ export default async function AdminNewsletterBroadcastNewPage(
                       value={list.id}
                     />
                     <span>
-                      <span className="block font-medium">{list.name}</span>
+                      <span
+                        className="block font-medium"
+                        id={`newsletter-broadcast-list-${list.id}-label`}
+                      >
+                        {list.name}
+                      </span>
                       {list.description ? (
                         <span className="mt-1 block text-muted-foreground">
                           {list.description}

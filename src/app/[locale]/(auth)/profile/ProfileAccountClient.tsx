@@ -26,6 +26,21 @@ type ProfileAccountClientProps = {
   initialUnconfirmedEmail: string | null;
 };
 
+type ActiveEmailDeliverabilityStatus = Exclude<
+  ProfileAccountClientProps['initialEmailDeliverabilityStatus'],
+  'ok'
+>;
+
+const emailDeliverabilityTitleKeys = {
+  bounced: 'email_deliverability_bounced_title',
+  suppressed: 'email_deliverability_suppressed_title',
+} as const satisfies Record<ActiveEmailDeliverabilityStatus, string>;
+
+const emailDeliverabilityBodyKeys = {
+  bounced: 'email_deliverability_bounced_body',
+  suppressed: 'email_deliverability_suppressed_body',
+} as const satisfies Record<ActiveEmailDeliverabilityStatus, string>;
+
 export function ProfileAccountClient(props: ProfileAccountClientProps) {
   const tCommon = useTranslations('Common');
   const t = useTranslations('UserProfilePage');
@@ -53,6 +68,10 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
   const [updatingName, setUpdatingName] = useState(false);
   const resendTimerRef = useRef<number | null>(null);
   const resendIntervalRef = useRef<number | null>(null);
+  const deliverabilityStatus =
+    props.initialEmailDeliverabilityStatus === 'ok'
+      ? null
+      : props.initialEmailDeliverabilityStatus;
 
   function lockEmailResend() {
     clearTimeout(resendTimerRef.current ?? undefined);
@@ -244,15 +263,19 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-6 px-4 py-8">
       <h1 className="text-2xl font-semibold">{t('account_page_heading')}</h1>
-      {props.initialEmailDeliverabilityStatus === 'ok' ? null : (
+      {deliverabilityStatus ? (
         <div
           className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"
-          role="status"
+          role="alert"
         >
-          <p className="font-semibold">{t('email_deliverability_title')}</p>
-          <p className="mt-1">{t('email_deliverability_body')}</p>
+          <p className="font-semibold">
+            {t(emailDeliverabilityTitleKeys[deliverabilityStatus])}
+          </p>
+          <p className="mt-1">
+            {t(emailDeliverabilityBodyKeys[deliverabilityStatus])}
+          </p>
         </div>
-      )}
+      ) : null}
 
       <div className="rounded-lg border border-mit-line bg-card p-6 shadow-sm">
         <dl className="flex flex-col gap-3">

@@ -76,13 +76,23 @@ function uniqueNewsletterSlugs(
 }
 
 /**
+ * Normalizes an email address for storage and matching.
+ *
+ * @param email - Raw email
+ * @returns Lowercase email
+ */
+export function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+/**
  * Normalizes a submitted email for newsletter storage.
  *
  * @param email - Raw email
  * @returns Lowercase email
  */
 export function normalizeNewsletterEmail(email: string): string {
-  return email.trim().toLocaleLowerCase();
+  return normalizeEmail(email);
 }
 
 /**
@@ -185,7 +195,9 @@ export function validateNewsletterBroadcastFormData(
     formData,
     newsletterBroadcastFieldNames.templateId
   );
-  const listIds = [...new Set(formStrings(formData, 'listId'))];
+  const listIds = [
+    ...new Set(formStrings(formData, newsletterBroadcastFieldNames.listId)),
+  ];
   const errors: NewsletterBroadcastValidationError[] = [];
 
   if (subject.length === 0) {

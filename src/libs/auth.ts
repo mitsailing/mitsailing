@@ -111,9 +111,14 @@ export const auth = betterAuth({
       try {
         await ensureNewsletterSubscriberForUser(user.id);
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
         logger.error(
-          `Failed to create default newsletter preference: ${message}`
+          'Failed to create default newsletter preference: {error}',
+          {
+            email: user.email,
+            error,
+            operation: 'ensureNewsletterSubscriberForUser',
+            userId: user.id,
+          }
         );
       }
     },

@@ -31,7 +31,7 @@ function preferenceRows(
   lists: Awaited<ReturnType<typeof getPublicNewsletterLists>>,
   subscriber: Awaited<
     ReturnType<typeof getExistingSubscriberPreferenceStateForUser>
-  >
+  > | null
 ) {
   const subscriptions = new Map(
     subscriber?.subscriptions.map((subscription) => [
@@ -62,8 +62,10 @@ export default async function NewsletterPage(props: NewsletterPageProps) {
     locale,
     namespace: 'MitSailingRoutes',
   });
-  const lists = await getPublicNewsletterLists();
-  const user = await getCurrentUser();
+  const [lists, user] = await Promise.all([
+    getPublicNewsletterLists(),
+    getCurrentUser(),
+  ]);
   const subscriber = user
     ? await getExistingSubscriberPreferenceStateForUser(user.id)
     : null;

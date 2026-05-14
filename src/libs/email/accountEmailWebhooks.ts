@@ -2,7 +2,8 @@ import 'server-only';
 import type { WebhookEventPayload } from 'resend';
 import { prisma } from '@/libs/DB';
 import type { ResendWebhookContext } from '@/libs/email/emailMessages';
-import { normalizeNewsletterEmail } from '@/libs/newsletter/newsletterValidation';
+import { logger } from '@/libs/Logger';
+import { normalizeEmail } from '@/libs/newsletter/newsletterValidation';
 
 type EmailEventPayload = Extract<
   WebhookEventPayload,
@@ -31,8 +32,9 @@ function deliverabilityReason(event: EmailEventPayload): string | null {
   return null;
 }
 
-function eventOccurredAt(event: EmailEventPayload): Date {
-  return new Date(event.created_at);
+function eventOccurredAt(event: EmailEventPayload): Date | null {
+  const date = new Date(event.created_at);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 /**
@@ -57,20 +59,44 @@ export async function handleResendAccountEmailWebhook(
     return;
   }
 
-  const email = normalizeNewsletterEmail(recipient);
+  const email = normalizeEmail(recipient);
   const occurredAt = eventOccurredAt(event);
-  await prisma.user.updateMany({
-    data: {
-      emailBouncedAt: reason === 'bounced' ? occurredAt : undefined,
-      emailSuppressedAt: occurredAt,
-      emailSuppressionReason: reason,
-    },
-    where: {
+  if (!occurredAt) {
+    logger.warn('Skipping account email webhook with invalid timestamp', {
       email,
-      OR: [
-        { emailSuppressedAt: null },
-        { emailSuppressedAt: { lte: occurredAt } },
-      ],
-    },
-  });
+      timestamp: event.created_at,
+      type: event.type,
+    });
+    return;
+  }
+  try {
+    const update = await prisma.user.updateMany({
+      data: {
+        emailBouncedAt: reason === 'bounced' ? occurredAt : undefined,
+        emailSuppressedAt: occurredAt,
+        emailSuppressionReason: reason,
+      },
+      where: {
+        email,
+        OR: [
+          { emailSuppressedAt: null },
+          { emailSuppressedAt: { lte: occurredAt } },
+        ],
+      },
+    });
+    logger.info('Processed account email deliverability webhook', {
+      email,
+      occurredAt: occurredAt.toISOString(),
+      reason,
+      updatedCount: update.count,
+    });
+  } catch (error) {
+    logger.error('Failed to process account email webhook: {error}', {
+      email,
+      error,
+      occurredAt: occurredAt.toISOString(),
+      reason,
+      type: event.type,
+    });
+  }
 }

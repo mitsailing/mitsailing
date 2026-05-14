@@ -46,6 +46,7 @@ CREATE INDEX "email_messages_to_email_created_at_idx" ON "email_messages"("to_em
 CREATE INDEX "email_messages_category_created_at_idx" ON "email_messages"("category", "created_at");
 CREATE INDEX "email_messages_last_event_type_created_at_idx" ON "email_messages"("last_event_type", "created_at");
 CREATE INDEX "email_messages_newsletter_broadcast_id_idx" ON "email_messages"("newsletter_broadcast_id");
+CREATE INDEX "email_messages_newsletter_subscriber_id_created_at_idx" ON "email_messages"("newsletter_subscriber_id", "created_at");
 
 CREATE UNIQUE INDEX "email_message_events_provider_event_id_key" ON "email_message_events"("provider_event_id");
 CREATE INDEX "email_message_events_email_message_id_occurred_at_idx" ON "email_message_events"("email_message_id", "occurred_at");

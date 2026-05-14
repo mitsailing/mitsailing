@@ -33,9 +33,17 @@ const paragraph: React.CSSProperties = {
 
 function bodyParagraphs(body: string): string[] {
   return body
+    .replaceAll('\r\n', '\n')
     .split(/\n{2,}/)
     .map((part) => part.trim())
     .filter((part) => part.length > 0);
+}
+
+function bodyParagraphItems(body: string): { key: string; text: string }[] {
+  return bodyParagraphs(body).map((text, index) => ({
+    key: `p-${index}`,
+    text,
+  }));
 }
 
 /**
@@ -47,7 +55,7 @@ function bodyParagraphs(body: string): string[] {
 export function NewsletterBroadcastTemplate(
   props: NewsletterBroadcastTemplateProps
 ) {
-  const paragraphs = bodyParagraphs(props.body);
+  const paragraphs = bodyParagraphItems(props.body);
   return (
     <MarketingEmailLayout
       listName={props.listName}
@@ -60,9 +68,9 @@ export function NewsletterBroadcastTemplate(
         <Heading as="h1" style={heading}>
           {props.subject}
         </Heading>
-        {paragraphs.map((text) => (
-          <Text key={text} style={paragraph}>
-            {text}
+        {paragraphs.map((item) => (
+          <Text key={item.key} style={paragraph}>
+            {item.text}
           </Text>
         ))}
       </Section>

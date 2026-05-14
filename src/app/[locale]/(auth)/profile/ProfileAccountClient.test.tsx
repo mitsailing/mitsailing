@@ -87,7 +87,7 @@ describe('ProfileAccountClient', () => {
     renderAccountClient({ initialEmailDeliverabilityStatus: 'bounced' });
 
     expect(
-      screen.getByText('We could not deliver recent email to this address.')
+      screen.getByText('Recent email to this address bounced.')
     ).toBeVisible();
     expect(
       screen.getByText(

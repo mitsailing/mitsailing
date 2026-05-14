@@ -4,6 +4,7 @@ type SendPayload = {
   category?: string;
   headers?: Record<string, string>;
   html: string;
+  idempotencyKey?: string;
   metadata?: Record<string, unknown>;
   newsletterBroadcastId?: string | null;
   newsletterDeliveryId?: string | null;
@@ -101,7 +102,7 @@ describe('newsletter email', () => {
     });
     expect(payload.headers).toBeUndefined();
     expect(payload.tags).toBeUndefined();
-    expect(payload.html).toContain('https://mitsailing.test/newsletter/');
+    expect(payload.html).toContain('https://mitsailing.test/newsletter');
   });
 
   it('sends live deliveries with one-click unsubscribe metadata', async () => {
@@ -123,11 +124,13 @@ describe('newsletter email', () => {
     });
 
     const payload = sentPayload();
-    expect(payload.headers?.['List-Unsubscribe']).toContain(
-      '/api/newsletter/unsubscribe/'
-    );
-    expect(payload.headers?.['List-Unsubscribe-Post']).toBe(
-      'List-Unsubscribe=One-Click'
+    expect(payload.headers).toEqual(
+      expect.objectContaining({
+        'List-Unsubscribe': expect.stringContaining(
+          '/api/newsletter/unsubscribe?'
+        ),
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+      })
     );
     expect(payload.tags).toEqual([
       { name: 'newsletter_delivery_id', value: 'delivery_123' },
@@ -136,6 +139,7 @@ describe('newsletter email', () => {
     expect(payload.newsletterBroadcastId).toBe('broadcast_123');
     expect(payload.newsletterDeliveryId).toBe('delivery_123');
     expect(payload.newsletterSubscriberId).toBe('subscriber_123');
+    expect(payload.idempotencyKey).toBe('newsletter-delivery/delivery_123');
     expect(payload.topicId).toBe('topic_123');
   });
 });

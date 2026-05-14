@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { WebhookEventPayload } from 'resend';
 import { Prisma } from '@/generated/prisma/client';
 import { prisma } from '@/libs/DB';
+import { logger } from '@/libs/Logger';
 import { normalizeMarketingEmail } from '@/utils/emailValidation';
 
 export type EmailMessageCategory =
@@ -91,9 +92,10 @@ function providerEventIdForWebhook(
   return eventId(event);
 }
 
-function eventOccurredAt(event: WebhookEventPayload): Date {
+function eventOccurredAt(event: WebhookEventPayload): Date | null {
   if ('created_at' in event && typeof event.created_at === 'string') {
-    return new Date(event.created_at);
+    const date = new Date(event.created_at);
+    return Number.isNaN(date.getTime()) ? null : date;
   }
   return new Date();
 }
@@ -132,7 +134,7 @@ export async function recordSentEmailMessage(
   const userId = params.userId ?? (await userIdForEmail(toEmail));
   const metadata = jsonb(params.metadata ?? null);
 
-  await prisma.$executeRaw`
+  const rows = await prisma.$queryRaw<{ id: string }[]>`
     INSERT INTO "email_messages" (
       "id",
       "provider",
@@ -176,9 +178,10 @@ export async function recordSentEmailMessage(
       "newsletter_broadcast_id" = COALESCE("email_messages"."newsletter_broadcast_id", EXCLUDED."newsletter_broadcast_id"),
       "newsletter_delivery_id" = COALESCE("email_messages"."newsletter_delivery_id", EXCLUDED."newsletter_delivery_id"),
       "updated_at" = EXCLUDED."updated_at"
+    RETURNING "id"
   `;
 
-  return id;
+  return rows.at(0)?.id ?? id;
 }
 
 async function emailMessageIdForProviderMessage(
@@ -208,6 +211,9 @@ export async function recordResendEmailMessageEvent(params: {
   const client = params.client ?? prisma;
   const id = randomUUID();
   const payload = jsonb(params.event);
+  const providerEventId =
+    params.providerEventId ??
+    `${params.providerMessageId}:${params.event.type}:${params.occurredAt.toISOString()}`;
 
   const rows = await client.$queryRaw<{ id: string }[]>`
     INSERT INTO "email_message_events" (
@@ -224,7 +230,7 @@ export async function recordResendEmailMessageEvent(params: {
       ${id},
       ${params.emailMessageId},
       ${'resend'},
-      ${params.providerEventId},
+      ${providerEventId},
       ${params.event.type},
       ${params.providerMessageId},
       ${params.occurredAt},
@@ -283,6 +289,14 @@ export async function handleResendEmailMessageWebhook(
   const emailMessageId =
     await emailMessageIdForProviderMessage(providerMessageId);
   const occurredAt = eventOccurredAt(event);
+  if (!occurredAt) {
+    logger.warn('Skipping Resend email event with invalid timestamp', {
+      providerMessageId,
+      timestamp: event.created_at,
+      type: event.type,
+    });
+    return false;
+  }
   const isNewEvent = await recordResendEmailMessageEvent({
     emailMessageId,
     event,
@@ -291,6 +305,10 @@ export async function handleResendEmailMessageWebhook(
     providerMessageId,
   });
   if (!isNewEvent) {
+    logger.info('Skipping duplicate Resend email event', {
+      providerMessageId,
+      type: event.type,
+    });
     return false;
   }
   await updateEmailMessageFromEvent({

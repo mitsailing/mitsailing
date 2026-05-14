@@ -107,8 +107,8 @@ export default async function AdminIndexPage(props: AdminIndexPageProps) {
           </li>
           <li>
             <Link
-              className="font-medium text-mit-red-ink no-underline hover:underline"
-              href="/admin/newsletter-subscribers/"
+              className="font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
+              href="/admin/newsletter-subscribers"
             >
               {t('link_newsletter_subscribers')}
             </Link>
@@ -118,8 +118,8 @@ export default async function AdminIndexPage(props: AdminIndexPageProps) {
           </li>
           <li>
             <Link
-              className="font-medium text-mit-red-ink no-underline hover:underline"
-              href="/admin/newsletter-lists/"
+              className="font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
+              href="/admin/newsletter-lists"
             >
               {t('link_newsletter_lists')}
             </Link>
@@ -129,8 +129,8 @@ export default async function AdminIndexPage(props: AdminIndexPageProps) {
           </li>
           <li>
             <Link
-              className="font-medium text-mit-red-ink no-underline hover:underline"
-              href="/admin/newsletter-broadcasts/"
+              className="font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
+              href="/admin/newsletter-broadcasts"
             >
               {t('link_newsletter_broadcasts')}
             </Link>

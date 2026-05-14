@@ -25,6 +25,10 @@ const mocks = vi.hoisted(() => {
       ),
     },
     recordResendEmailMessageEvent: vi.fn(),
+    logger: {
+      info: vi.fn(),
+      warn: vi.fn(),
+    },
     tx,
   };
 });
@@ -37,6 +41,10 @@ vi.mock('@/libs/DB', () => ({
 
 vi.mock('@/libs/email/emailMessages', () => ({
   recordResendEmailMessageEvent: mocks.recordResendEmailMessageEvent,
+}));
+
+vi.mock('@/libs/Logger', () => ({
+  logger: mocks.logger,
 }));
 
 function baseEmailData() {
@@ -165,5 +173,24 @@ describe('handleResendNewsletterWebhook', () => {
         type: 'bounced',
       }),
     });
+  });
+
+  it('skips events with invalid timestamps before persisting dates', async () => {
+    await handleResendNewsletterWebhook(
+      {
+        created_at: 'not-a-date',
+        data: baseEmailData(),
+        type: 'email.delivered',
+      } satisfies Extract<WebhookEventPayload, { type: 'email.delivered' }>,
+      { providerEventId: 'svix_123', skipDedupe: true }
+    );
+
+    expect(mocks.tx.newsletterDelivery.updateMany).not.toHaveBeenCalled();
+    expect(mocks.tx.newsletterDelivery.findFirst).not.toHaveBeenCalled();
+    expect(mocks.tx.newsletterEvent.create).not.toHaveBeenCalled();
+    expect(mocks.logger.warn).toHaveBeenCalledWith(
+      'Skipping newsletter webhook with invalid timestamp',
+      expect.objectContaining({ timestamp: 'not-a-date' })
+    );
   });
 });

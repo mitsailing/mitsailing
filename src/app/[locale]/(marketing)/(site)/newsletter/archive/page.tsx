@@ -45,7 +45,7 @@ export default async function NewsletterArchivePage(
     <SiteSectionShell
       locale={locale}
       segments={[
-        { label: routes('section_newsletter'), href: '/newsletter/' },
+        { label: routes('section_newsletter'), href: '/newsletter' },
         { label: t('archive_heading') },
       ]}
     >

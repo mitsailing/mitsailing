@@ -152,6 +152,13 @@ describe('sendTransactionalEmail', () => {
     expect(mocks.createTransport).toHaveBeenCalledWith('smtp://127.0.0.1:1025');
     expect(mocks.sendMail).toHaveBeenCalledTimes(2);
     expect(mocks.recordSentEmailMessage).toHaveBeenCalledTimes(2);
+    expect(mocks.recordSentEmailMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: 'smtp',
+        subject: 'Account notice',
+        toEmail: 'sailor@example.com',
+      })
+    );
     expect(mocks.sendMail).toHaveBeenCalledWith({
       from: 'MIT Sailing <noreply@example.com>',
       html: '<p>Hello sailor</p>',
@@ -216,14 +223,17 @@ describe('sendTransactionalEmail', () => {
     });
 
     expect(mocks.Resend).toHaveBeenCalledWith('re_test');
-    expect(mocks.resendSend).toHaveBeenCalledWith({
-      from: 'MIT Sailing <noreply@example.com>',
-      html: '<p>Hello sailor</p>',
-      replyTo: 'sailor@mit.edu',
-      subject: 'Account notice',
-      text: 'Hello sailor',
-      to: 'sailor@example.com',
-    });
+    expect(mocks.resendSend).toHaveBeenCalledWith(
+      {
+        from: 'MIT Sailing <noreply@example.com>',
+        html: '<p>Hello sailor</p>',
+        replyTo: 'sailor@mit.edu',
+        subject: 'Account notice',
+        text: 'Hello sailor',
+        to: 'sailor@example.com',
+      },
+      undefined
+    );
     expect(mocks.recordSentEmailMessage).toHaveBeenCalledWith(
       expect.objectContaining({
         provider: 'resend',

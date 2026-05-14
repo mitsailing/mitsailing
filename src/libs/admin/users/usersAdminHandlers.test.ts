@@ -300,6 +300,31 @@ describe('usersAdminHandlers', () => {
       ).resolves.toEqual({ code: 'no_data_to_update', ok: false });
     });
 
+    it('preserves deliverability fields when email is unchanged', async () => {
+      mocks.userFindUnique.mockResolvedValue({
+        banned: false,
+        email: 'updated-sailor@example.com',
+        role: Role.USER,
+      });
+
+      await expect(
+        usersAdminHandlers.updateFromForm('user-1', updateFormData())
+      ).resolves.toEqual({ ok: true });
+
+      expect(mocks.updateUser).toHaveBeenCalledWith({
+        body: {
+          data: {
+            email: 'updated-sailor@example.com',
+            emailVerified: true,
+            name: 'Updated Sailor',
+            role: Role.USER,
+          },
+          userId: 'user-1',
+        },
+        headers: expect.any(Headers),
+      });
+    });
+
     it('blocks last admin demotion and ban', async () => {
       mocks.userFindUnique.mockResolvedValue({
         banned: false,

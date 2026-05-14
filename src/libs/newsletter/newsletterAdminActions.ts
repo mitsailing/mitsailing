@@ -16,9 +16,9 @@ import {
 } from '@/utils/emailValidation';
 import { getI18nPath } from '@/utils/Helpers';
 
-const ADMIN_LISTS_PATH = '/admin/newsletter-lists/';
-const ADMIN_BROADCASTS_PATH = '/admin/newsletter-broadcasts/';
-const ADMIN_TEMPLATES_PATH = '/admin/newsletter-templates/';
+const ADMIN_LISTS_PATH = '/admin/newsletter-lists';
+const ADMIN_BROADCASTS_PATH = '/admin/newsletter-broadcasts';
+const ADMIN_TEMPLATES_PATH = '/admin/newsletter-templates';
 
 function formString(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -33,7 +33,7 @@ function adminRedirect(locale: string, path: string, status?: string): never {
 function slugFromName(value: string): string {
   return value
     .trim()
-    .toLocaleLowerCase()
+    .toLowerCase()
     .replaceAll(/[^a-z0-9]+/g, '-')
     .replaceAll(/^-+|-+$/g, '')
     .slice(0, 80);
@@ -44,7 +44,7 @@ function broadcastErrorCode(result: CreateNewsletterBroadcastResult): string {
 }
 
 function adminBroadcastPath(broadcastId: string): string {
-  return `${ADMIN_BROADCASTS_PATH}${broadcastId}/`;
+  return `${ADMIN_BROADCASTS_PATH}/${broadcastId}`;
 }
 
 /**
@@ -70,7 +70,7 @@ export async function createNewsletterListAction(
     formString(formData, 'visibility') === 'private' ? 'private' : 'public';
 
   if (name.length === 0 || slug.length === 0) {
-    adminRedirect(locale, `${ADMIN_LISTS_PATH}new/`, 'validation_failed');
+    adminRedirect(locale, `${ADMIN_LISTS_PATH}/new`, 'validation_failed');
   }
 
   const existingList = await prisma.newsletterList.findFirst({
@@ -80,7 +80,7 @@ export async function createNewsletterListAction(
     },
   });
   if (existingList) {
-    adminRedirect(locale, `${ADMIN_LISTS_PATH}new/`, 'duplicate_list');
+    adminRedirect(locale, `${ADMIN_LISTS_PATH}/new`, 'duplicate_list');
   }
 
   await prisma.newsletterList.create({
@@ -113,7 +113,7 @@ export async function createNewsletterTemplateAction(
   const slug = slugFromName(formString(formData, 'slug') || name);
   const description = formString(formData, 'description');
   if (name.length === 0 || slug.length === 0) {
-    adminRedirect(locale, `${ADMIN_TEMPLATES_PATH}new/`, 'validation_failed');
+    adminRedirect(locale, `${ADMIN_TEMPLATES_PATH}/new`, 'validation_failed');
   }
 
   const existingTemplate = await prisma.newsletterTemplate.findUnique({
@@ -121,7 +121,7 @@ export async function createNewsletterTemplateAction(
     where: { slug },
   });
   if (existingTemplate) {
-    adminRedirect(locale, `${ADMIN_TEMPLATES_PATH}new/`, 'duplicate_template');
+    adminRedirect(locale, `${ADMIN_TEMPLATES_PATH}/new`, 'duplicate_template');
   }
 
   await prisma.newsletterTemplate.create({
@@ -148,12 +148,16 @@ export async function createNewsletterBroadcastAction(
   const session = await requireAdmin(locale);
   const shouldQueue = formString(formData, 'intent') === 'queue';
   if (shouldQueue && !Env.REDIS_URL) {
-    adminRedirect(locale, `${ADMIN_BROADCASTS_PATH}new/`, 'redis_unavailable');
+    adminRedirect(locale, `${ADMIN_BROADCASTS_PATH}/new`, 'redis_unavailable');
   }
 
   const parsed = validateNewsletterBroadcastFormData(formData);
   if (!parsed.ok) {
-    adminRedirect(locale, `${ADMIN_BROADCASTS_PATH}new/`, parsed.errors[0]);
+    adminRedirect(
+      locale,
+      `${ADMIN_BROADCASTS_PATH}/new`,
+      parsed.errors[0] ?? 'validation_failed'
+    );
   }
 
   const result = await createNewsletterBroadcast({
@@ -164,7 +168,7 @@ export async function createNewsletterBroadcastAction(
   if (!result.ok) {
     adminRedirect(
       locale,
-      `${ADMIN_BROADCASTS_PATH}new/`,
+      `${ADMIN_BROADCASTS_PATH}/new`,
       broadcastErrorCode(result)
     );
   }

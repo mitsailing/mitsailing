@@ -32,7 +32,7 @@ Cal.com was used as a product/architecture reference, especially for typed email
 
 ### Broadcast scheduling and delivery
 
-Implemented by subagent Worker 1:
+Broadcast scheduling and delivery implementation:
 
 - `prisma/schema.prisma`
   - Added `NewsletterBroadcast.scheduledAt`, `startedAt`, `pausedAt`, `cancelledAt`.
@@ -101,7 +101,7 @@ Implemented by subagent Worker 1:
 - Last targeted test command to rerun:
 
 ```sh
-npm run test -- emails/email-templates.test.tsx 'src/app/[locale]/(auth)/profile/ProfileAccountClient.test.tsx' src/libs/newsletter/newsletterValidation.test.ts
+npm run test -- 'emails/email-templates.test.tsx' 'src/app/[locale]/(auth)/profile/ProfileAccountClient.test.tsx' 'src/libs/newsletter/newsletterValidation.test.ts'
 ```
 
 ## Current Changed Files

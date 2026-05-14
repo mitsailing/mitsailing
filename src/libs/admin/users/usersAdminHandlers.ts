@@ -33,6 +33,7 @@ function rowFromDb(user: {
   emailSuppressionReason: string | null;
 }): AdminUserRow {
   let emailDeliverabilityStatus: AdminEmailDeliverabilityStatus = 'ok';
+  // Suppression wins over bounce because providers may suppress after a bounce.
   if (user.emailSuppressedAt || user.emailSuppressionReason) {
     emailDeliverabilityStatus = 'suppressed';
   } else if (user.emailBouncedAt) {

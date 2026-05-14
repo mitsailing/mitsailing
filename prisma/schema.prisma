@@ -295,8 +295,6 @@ model NewsletterSubscriber {
   events        NewsletterEvent[]
   emailMessages EmailMessage[]
 
-  @@index([email])
-  @@index([userId])
   @@index([suppressedAt])
   @@map("newsletter_subscribers")
 }
@@ -392,6 +390,7 @@ model NewsletterBroadcast {
   @@index([status, scheduledAt])
   @@index([createdByUserId])
   @@index([primaryListId])
+  @@index([templateId])
   @@map("newsletter_broadcasts")
 }
 
@@ -458,6 +457,7 @@ model NewsletterEvent {
 
   @@index([type, createdAt])
   @@index([subscriberId, createdAt])
+  @@index([listId, createdAt])
   @@index([broadcastId, createdAt])
   @@index([deliveryId])
   @@index([providerMessageId])
@@ -499,6 +499,7 @@ model EmailMessage {
   @@index([category, createdAt])
   @@index([lastEventType, createdAt])
   @@index([newsletterBroadcastId])
+  @@index([newsletterSubscriberId, createdAt])
   @@map("email_messages")
 }
 

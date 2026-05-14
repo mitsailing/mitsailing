@@ -271,6 +271,9 @@ beforeEach(() => {
     name: 'Sailor',
   });
   routeMocks.findUnique.mockResolvedValue({
+    emailBouncedAt: new Date('2026-01-01T12:00:00Z'),
+    emailSuppressedAt: null,
+    emailSuppressionReason: null,
     themePreference: 'DARK',
     unconfirmedEmail: 'pending@example.com',
   });
@@ -564,6 +567,9 @@ describe('auth route shells', () => {
     ).toHaveAttribute('data-theme', 'DARK');
     expect(
       screen.getByRole('region', { name: 'profile-account-client' })
+    ).toHaveAttribute('data-email-deliverability', 'bounced');
+    expect(
+      screen.getByRole('region', { name: 'profile-account-client' })
     ).toHaveAttribute('data-unconfirmed-email', 'pending@example.com');
   });
 
@@ -573,7 +579,13 @@ describe('auth route shells', () => {
       id: 'user-1',
       name: null,
     });
-    routeMocks.findUnique.mockResolvedValue(null);
+    routeMocks.findUnique.mockResolvedValue({
+      emailBouncedAt: null,
+      emailSuppressedAt: null,
+      emailSuppressionReason: null,
+      themePreference: null,
+      unconfirmedEmail: null,
+    });
 
     render(
       await ProfileAccountPage({

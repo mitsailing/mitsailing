@@ -6,6 +6,7 @@ import { headers } from 'next/headers';
 import arcjet from '@/libs/Arcjet';
 import { requireCurrentUser } from '@/libs/auth/dal';
 import { Env } from '@/libs/Env';
+import { logger } from '@/libs/Logger';
 import { NEWSLETTER_FORM_SOURCE } from '@/libs/newsletter/newsletterConstants';
 import {
   getSubscriberPreferenceStateForUser,
@@ -38,7 +39,7 @@ export type NewsletterSignupFormState =
 
 export type NewsletterPreferenceActionResult =
   | { ok: true }
-  | { ok: false; error: 'invalid_token' | 'unauthorized' };
+  | { ok: false; error: 'invalid_token' | 'unauthorized' | 'unknown' };
 
 const newsletterSignupRateLimit = arcjet.withRule(
   fixedWindow({
@@ -114,16 +115,23 @@ export async function submitNewsletterSignupAction(
     truncateMetadata(headerList.get('x-real-ip'));
   const userAgent = truncateMetadata(headerList.get('user-agent'));
 
-  await subscribeEmailToNewsletterLists({
-    email: parsed.data.email,
-    ipAddress,
-    listSlugs: parsed.data.listSlugs,
-    name: parsed.data.name,
-    source: NEWSLETTER_FORM_SOURCE.publicSignup,
-    userAgent,
-  });
+  try {
+    await subscribeEmailToNewsletterLists({
+      email: parsed.data.email,
+      ipAddress,
+      listSlugs: parsed.data.listSlugs,
+      name: parsed.data.name,
+      source: NEWSLETTER_FORM_SOURCE.publicSignup,
+      userAgent,
+    });
+  } catch (error) {
+    logger.error('Failed to save public newsletter signup: {error}', {
+      error,
+    });
+    return { ok: false, formError: 'unknown' };
+  }
 
-  revalidatePath(getI18nPath('/newsletter/', locale));
+  revalidatePath(getI18nPath('/newsletter', locale));
   return { ok: true };
 }
 
@@ -138,19 +146,27 @@ export async function updateProfileNewsletterPreferencesAction(
   locale: string,
   formData: FormData
 ): Promise<NewsletterPreferenceActionResult> {
-  const user = await requireCurrentUser(locale, '/profile/newsletter/');
-  const subscriber = await getSubscriberPreferenceStateForUser(user.id);
-  if (!subscriber) {
-    return { ok: false, error: 'unauthorized' };
+  const user = await requireCurrentUser(locale, '/profile/newsletter');
+  try {
+    const subscriber = await getSubscriberPreferenceStateForUser(user.id);
+    if (!subscriber) {
+      return { ok: false, error: 'unauthorized' };
+    }
+    await updateNewsletterPreferences({
+      actorUserId: user.id,
+      listIds: selectedListIds(formData),
+      source: NEWSLETTER_FORM_SOURCE.profile,
+      subscriberId: subscriber.id,
+    });
+  } catch (error) {
+    logger.error('Failed to update profile newsletter preferences: {error}', {
+      error,
+      userId: user.id,
+    });
+    return { ok: false, error: 'unknown' };
   }
-  await updateNewsletterPreferences({
-    actorUserId: user.id,
-    listIds: selectedListIds(formData),
-    source: NEWSLETTER_FORM_SOURCE.profile,
-    subscriberId: subscriber.id,
-  });
-  revalidatePath(getI18nPath('/profile/newsletter/', locale));
-  revalidatePath(getI18nPath('/newsletter/', locale));
+  revalidatePath(getI18nPath('/profile/newsletter', locale));
+  revalidatePath(getI18nPath('/newsletter', locale));
   return { ok: true };
 }
 
@@ -165,15 +181,22 @@ export async function updateTokenNewsletterPreferencesAction(
   token: string,
   formData: FormData
 ): Promise<NewsletterPreferenceActionResult> {
-  const subscriber = await getSubscriberPreferenceStateByToken(token);
-  if (!subscriber) {
-    return { ok: false, error: 'invalid_token' };
+  try {
+    const subscriber = await getSubscriberPreferenceStateByToken(token);
+    if (!subscriber) {
+      return { ok: false, error: 'invalid_token' };
+    }
+    await updateNewsletterPreferences({
+      listIds: selectedListIds(formData),
+      source: NEWSLETTER_FORM_SOURCE.tokenManage,
+      subscriberId: subscriber.id,
+    });
+  } catch (error) {
+    logger.error('Failed to update token newsletter preferences: {error}', {
+      error,
+    });
+    return { ok: false, error: 'unknown' };
   }
-  await updateNewsletterPreferences({
-    listIds: selectedListIds(formData),
-    source: NEWSLETTER_FORM_SOURCE.tokenManage,
-    subscriberId: subscriber.id,
-  });
-  revalidatePath('/newsletter/manage/');
+  revalidatePath('/newsletter/manage');
   return { ok: true };
 }

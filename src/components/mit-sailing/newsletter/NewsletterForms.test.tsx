@@ -50,6 +50,7 @@ vi.mock('next-intl', () => ({
       signup_privacy: 'You can unsubscribe.',
       signup_submit: 'Subscribe',
       signup_submit_pending: 'Subscribing',
+      signup_success: 'You are subscribed.',
     };
     return messages[key] ?? key;
   },
@@ -121,10 +122,19 @@ describe('NewsletterSignupForm', () => {
       'newsletter-signup-error'
     );
   });
+
+  it('hides signup fields after success', () => {
+    actionStateMock.state = { ok: true };
+
+    render(<NewsletterSignupForm lists={newsletterLists} locale="en" />);
+
+    expect(screen.getByText('You are subscribed.')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Email')).not.toBeInTheDocument();
+  });
 });
 
 describe('NewsletterPreferenceForm', () => {
-  it('marks preference group invalid when saving fails', () => {
+  it('describes preference errors when saving fails', () => {
     actionStateMock.state = { error: 'unauthorized', ok: false };
 
     const view = render(
@@ -137,10 +147,6 @@ describe('NewsletterPreferenceForm', () => {
       />
     );
 
-    expect(view.container.querySelector('fieldset')).toHaveAttribute(
-      'aria-invalid',
-      'true'
-    );
     expect(view.container.querySelector('fieldset')).toHaveAttribute(
       'aria-describedby',
       'newsletter-preference-error'

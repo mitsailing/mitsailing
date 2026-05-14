@@ -38,79 +38,78 @@ const emailStatusMessageKeys = {
   suppressed: 'email_status_suppressed',
 } as const satisfies Record<EmailDeliverabilityStatus, string>;
 
-function formatDate(value: Date | null): string {
+function formatDate(value: Date | null, locale: string): string {
   if (!value) {
     return '';
   }
-  return new Intl.DateTimeFormat('en-US', {
+  // MIT Sailing admin timestamps are shown in the venue timezone.
+  return new Intl.DateTimeFormat(locale, {
     dateStyle: 'medium',
     timeStyle: 'short',
     timeZone: 'America/New_York',
   }).format(value);
 }
 
-function emailEventMessageKey(eventType: string | null) {
-  if (eventType === 'email.bounced') {
-    return 'email_event_bounced';
-  }
-  if (eventType === 'email.complained') {
-    return 'email_event_complained';
-  }
-  if (eventType === 'email.delivered') {
-    return 'email_event_delivered';
-  }
-  if (eventType === 'email.delivery_delayed') {
-    return 'email_event_delivery_delayed';
-  }
-  if (eventType === 'email.failed') {
-    return 'email_event_failed';
-  }
-  if (eventType === 'email.sent') {
-    return 'email_event_sent';
-  }
-  if (eventType === 'email.suppressed') {
-    return 'email_event_suppressed';
-  }
-  return 'email_event_unknown';
+type EmailEventMessageKey =
+  | 'email_event_bounced'
+  | 'email_event_complained'
+  | 'email_event_delivered'
+  | 'email_event_delivery_delayed'
+  | 'email_event_failed'
+  | 'email_event_sent'
+  | 'email_event_suppressed'
+  | 'email_event_unknown';
+
+const emailEventMessageKeys: ReadonlyMap<string, EmailEventMessageKey> =
+  new Map([
+    ['email.bounced', 'email_event_bounced'],
+    ['email.complained', 'email_event_complained'],
+    ['email.delivered', 'email_event_delivered'],
+    ['email.delivery_delayed', 'email_event_delivery_delayed'],
+    ['email.failed', 'email_event_failed'],
+    ['email.sent', 'email_event_sent'],
+    ['email.suppressed', 'email_event_suppressed'],
+  ]);
+
+function emailEventMessageKey(eventType: string | null): EmailEventMessageKey {
+  return emailEventMessageKeys.get(eventType ?? '') ?? 'email_event_unknown';
 }
 
-function emailCategoryMessageKey(category: string) {
-  if (category === 'account_locked') {
-    return 'email_category_account_locked';
-  }
-  if (category === 'contact') {
-    return 'email_category_contact';
-  }
-  if (category === 'delete_account') {
-    return 'email_category_delete_account';
-  }
-  if (category === 'email_change') {
-    return 'email_category_email_change';
-  }
-  if (category === 'newsletter') {
-    return 'email_category_newsletter';
-  }
-  if (category === 'newsletter_test') {
-    return 'email_category_newsletter_test';
-  }
-  if (category === 'password_changed') {
-    return 'email_category_password_changed';
-  }
-  if (category === 'password_reset') {
-    return 'email_category_password_reset';
-  }
-  if (category === 'sign_in_otp') {
-    return 'email_category_sign_in_otp';
-  }
-  if (category === 'verify_email') {
-    return 'email_category_verify_email';
-  }
-  return 'email_category_other';
+type EmailCategoryMessageKey =
+  | 'email_category_account_locked'
+  | 'email_category_contact'
+  | 'email_category_delete_account'
+  | 'email_category_email_change'
+  | 'email_category_newsletter'
+  | 'email_category_newsletter_test'
+  | 'email_category_other'
+  | 'email_category_password_changed'
+  | 'email_category_password_reset'
+  | 'email_category_sign_in_otp'
+  | 'email_category_verify_email';
+
+const emailCategoryMessageKeys: ReadonlyMap<string, EmailCategoryMessageKey> =
+  new Map([
+    ['account_locked', 'email_category_account_locked'],
+    ['contact', 'email_category_contact'],
+    ['delete_account', 'email_category_delete_account'],
+    ['email_change', 'email_category_email_change'],
+    ['newsletter', 'email_category_newsletter'],
+    ['newsletter_test', 'email_category_newsletter_test'],
+    ['password_changed', 'email_category_password_changed'],
+    ['password_reset', 'email_category_password_reset'],
+    ['sign_in_otp', 'email_category_sign_in_otp'],
+    ['verify_email', 'email_category_verify_email'],
+  ]);
+
+function emailCategoryMessageKey(category: string): EmailCategoryMessageKey {
+  return emailCategoryMessageKeys.get(category) ?? 'email_category_other';
 }
 
 function AdminUserEmailsPanel(props: {
   emails: AdminUserEmailMessageRow[];
   loadFailed: boolean;
+  locale: string;
   t: Awaited<ReturnType<typeof getTranslations>>;
 }) {
   return (
@@ -153,7 +152,7 @@ function AdminUserEmailsPanel(props: {
                     {props.t(emailEventMessageKey(email.lastEventType))}
                   </TableCell>
                   <TableCell>
-                    {formatDate(email.sentAt ?? email.createdAt)}
+                    {formatDate(email.sentAt ?? email.createdAt, props.locale)}
                   </TableCell>
                   <TableCell>
                     {email.lastError ?? props.t('empty_value')}
@@ -275,6 +274,7 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
       <AdminUserEmailsPanel
         emails={emailMessages}
         loadFailed={emailMessagesLoadError}
+        locale={locale}
         t={t}
       />
     </div>

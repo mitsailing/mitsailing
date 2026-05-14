@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { requireCurrentUser } from '@/libs/auth/dal';
 import { prisma } from '@/libs/DB';
+import { logger } from '@/libs/Logger';
 import { getI18nPath } from '@/utils/Helpers';
 import { ProfileAccountClient } from '../ProfileAccountClient';
 
@@ -11,16 +12,21 @@ type ProfileAccountPageProps = {
 
 type EmailDeliverabilityStatus = 'ok' | 'bounced' | 'suppressed';
 
+type EmailDeliverabilityUser = {
+  emailBouncedAt: Date | null;
+  emailSuppressedAt: Date | null;
+  emailSuppressionReason: string | null;
+};
+
+/**
+ * Maps provider deliverability fields to the account warning state.
+ *
+ * @param user - User deliverability fields from Resend webhooks
+ * @returns Suppressed before bounced because complaints/suppressions are terminal
+ */
 function emailDeliverabilityStatus(
-  user: {
-    emailBouncedAt: Date | null;
-    emailSuppressedAt: Date | null;
-    emailSuppressionReason: string | null;
-  } | null
+  user: EmailDeliverabilityUser
 ): EmailDeliverabilityStatus {
-  if (!user) {
-    return 'ok';
-  }
   if (user.emailSuppressedAt || user.emailSuppressionReason) {
     return 'suppressed';
   }
@@ -61,14 +67,21 @@ export default async function ProfileAccountPage(
     },
     where: { id: user.id },
   });
+  if (!dbUser) {
+    logger.warn('Missing database user after profile auth', {
+      email: user.email,
+      userId: user.id,
+    });
+    throw new Error('Missing db user after auth');
+  }
 
   return (
     <ProfileAccountClient
       initialEmail={user.email ?? ''}
       initialEmailDeliverabilityStatus={emailDeliverabilityStatus(dbUser)}
       initialName={user.name}
-      initialThemePreference={dbUser?.themePreference ?? 'SYSTEM'}
-      initialUnconfirmedEmail={dbUser?.unconfirmedEmail ?? null}
+      initialThemePreference={dbUser.themePreference ?? 'SYSTEM'}
+      initialUnconfirmedEmail={dbUser.unconfirmedEmail ?? null}
     />
   );
 }

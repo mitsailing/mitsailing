@@ -32,7 +32,7 @@ function preferenceRows(
   >
 ) {
   const subscriptions = new Map(
-    subscriber?.subscriptions.map((subscription) => [
+    (subscriber?.subscriptions ?? []).map((subscription) => [
       subscription.listId,
       subscription.status,
     ])
@@ -57,11 +57,13 @@ export default async function ProfileNewsletterPage(
   await connection();
   const { locale } = await props.params;
   setRequestLocale(locale);
-  const href = getI18nPath('/profile/newsletter/', locale);
+  const href = getI18nPath('/profile/newsletter', locale);
   const user = await requireCurrentUser(locale, href);
   const t = await getTranslations({ locale, namespace: 'UserProfilePage' });
-  const lists = await getPublicNewsletterLists();
-  const subscriber = await getExistingSubscriberPreferenceStateForUser(user.id);
+  const [lists, subscriber] = await Promise.all([
+    getPublicNewsletterLists(),
+    getExistingSubscriberPreferenceStateForUser(user.id),
+  ]);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">

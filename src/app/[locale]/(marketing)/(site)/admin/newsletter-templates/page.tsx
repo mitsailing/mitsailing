@@ -34,7 +34,7 @@ export default async function AdminNewsletterTemplatesPage(props: PageProps) {
       <AdminPageHeader
         actions={
           <Button asChild variant="mit">
-            <Link href="/admin/newsletter-templates/new/">
+            <Link href="/admin/newsletter-templates/new">
               {t('templates_new')}
             </Link>
           </Button>
@@ -51,13 +51,26 @@ export default async function AdminNewsletterTemplatesPage(props: PageProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {templates.map((template) => (
-              <TableRow key={template.id}>
-                <TableCell className="font-medium">{template.name}</TableCell>
-                <TableCell>{template.slug}</TableCell>
-                <TableCell>{template.isDefault ? t('yes') : t('no')}</TableCell>
+            {templates.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  className="py-8 text-center text-muted-foreground"
+                  colSpan={3}
+                >
+                  {t('no_templates')}
+                </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              templates.map((template) => (
+                <TableRow key={template.id}>
+                  <TableCell className="font-medium">{template.name}</TableCell>
+                  <TableCell>{template.slug}</TableCell>
+                  <TableCell>
+                    {template.isDefault ? t('yes') : t('no')}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>

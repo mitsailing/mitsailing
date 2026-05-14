@@ -66,10 +66,12 @@ export function verifyNewsletterManageToken(
   token: string,
   manageTokenHash: string
 ): string | null {
-  const [subscriberId, signature] = token.split('.');
-  if (!subscriberId || !signature) {
+  const separatorIndex = token.lastIndexOf('.');
+  if (separatorIndex <= 0 || separatorIndex === token.length - 1) {
     return null;
   }
+  const subscriberId = token.slice(0, separatorIndex);
+  const signature = token.slice(separatorIndex + 1);
   const expected = tokenSignature(subscriberId, manageTokenHash);
   const expectedBuffer = Buffer.from(expected);
   const signatureBuffer = Buffer.from(signature);

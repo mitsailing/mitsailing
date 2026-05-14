@@ -121,6 +121,9 @@ describe('updateNewsletterPreferences', () => {
         create: expect.objectContaining({ listId: 'private_id' }),
       })
     );
+    expect(
+      mocks.transaction.newsletterSubscription.upsert
+    ).toHaveBeenCalledTimes(2);
   });
 
   it('globally unsubscribes when no submitted ids are public', async () => {

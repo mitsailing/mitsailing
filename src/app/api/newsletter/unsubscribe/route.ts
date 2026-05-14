@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { logger } from '@/libs/Logger';
 import { unsubscribeNewsletterTokenFromList } from '@/libs/newsletter/newsletterSubscriptions';
 import { newsletterManageUrl } from '@/libs/newsletter/newsletterUrls';
 
@@ -10,8 +11,8 @@ function jsonString(value: unknown, key: string): string {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return '';
   }
-  const entry = Object.entries(value).find(([entryKey]) => entryKey === key);
-  return typeof entry?.[1] === 'string' ? entry[1] : '';
+  const prop: unknown = Reflect.get(value, key);
+  return typeof prop === 'string' ? prop : '';
 }
 
 function unsubscribeParamsFromUrl(request: Request): {
@@ -41,6 +42,12 @@ async function unsubscribeParamsFromPost(request: Request): Promise<{
       token: jsonString(body, 'token') || urlParams.token,
     };
   }
+  if (
+    !contentType.includes('application/x-www-form-urlencoded') &&
+    !contentType.includes('multipart/form-data')
+  ) {
+    return urlParams;
+  }
   const body = await request.formData();
   const list = body.get('list');
   const token = body.get('token');
@@ -57,14 +64,31 @@ async function unsubscribeParamsFromPost(request: Request): Promise<{
  * @returns Empty success response or manage-page redirect for browser GETs
  */
 export async function POST(request: Request) {
-  const params = await unsubscribeParamsFromPost(request);
+  let params: { listId: string; token: string };
+  try {
+    params = await unsubscribeParamsFromPost(request);
+  } catch (error) {
+    logger.warn('Failed to parse newsletter unsubscribe request', { error });
+    return NextResponse.json({ ok: false }, { status: 400 });
+  }
   if (params.token.length === 0 || params.listId.length === 0) {
     return NextResponse.json({ ok: false }, { status: 400 });
   }
-  const subscriber = await unsubscribeNewsletterTokenFromList(
-    params.token,
-    params.listId
-  );
+  let subscriber: Awaited<
+    ReturnType<typeof unsubscribeNewsletterTokenFromList>
+  >;
+  try {
+    subscriber = await unsubscribeNewsletterTokenFromList(
+      params.token,
+      params.listId
+    );
+  } catch (error) {
+    logger.error('Failed to unsubscribe newsletter token: {error}', {
+      error,
+      listId: params.listId,
+    });
+    return NextResponse.json({ ok: false, error: 'internal' }, { status: 500 });
+  }
   if (!subscriber) {
     return NextResponse.json({ ok: false }, { status: 404 });
   }
@@ -79,5 +103,8 @@ export async function POST(request: Request) {
  */
 export function GET(request: Request) {
   const params = unsubscribeParamsFromUrl(request);
+  if (params.token.length === 0) {
+    return NextResponse.json({ ok: false }, { status: 400 });
+  }
   return NextResponse.redirect(newsletterManageUrl(params.token));
 }

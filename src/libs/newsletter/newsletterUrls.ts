@@ -7,7 +7,7 @@ type NewsletterUrlParams = {
 };
 
 function absoluteUrl(path: string): string {
-  return `${getBaseUrl()}${path}`;
+  return `${getBaseUrl().replace(/\/$/, '')}${path}`;
 }
 
 /**
@@ -17,7 +17,8 @@ function absoluteUrl(path: string): string {
  * @returns Absolute URL
  */
 export function newsletterManageUrl(token: string): string {
-  return absoluteUrl(`/newsletter/manage/?token=${encodeURIComponent(token)}`);
+  const search = new URLSearchParams({ token });
+  return absoluteUrl(`/newsletter/manage?${search.toString()}`);
 }
 
 /**
@@ -33,5 +34,5 @@ export function newsletterOneClickUnsubscribeUrl(
     list: params.listId,
     token: params.token,
   });
-  return absoluteUrl(`/api/newsletter/unsubscribe/?${search.toString()}`);
+  return absoluteUrl(`/api/newsletter/unsubscribe?${search.toString()}`);
 }

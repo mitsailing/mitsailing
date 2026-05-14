@@ -23,6 +23,5 @@ export const NEWSLETTER_MANAGE_TOKEN_BYTES = 32;
 export function isNewsletterListSlug(
   value: string
 ): value is NewsletterListSlug {
-  const slugs: readonly string[] = NEWSLETTER_LIST_SLUGS;
-  return slugs.includes(value);
+  return (NEWSLETTER_LIST_SLUGS as readonly string[]).includes(value);
 }

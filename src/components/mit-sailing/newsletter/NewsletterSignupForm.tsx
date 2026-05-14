@@ -41,6 +41,18 @@ function SubmitButton() {
   );
 }
 
+function emailErrorMessageKey(
+  error: NonNullable<NewsletterSignupFormState['fieldErrors']>['email']
+) {
+  if (error === 'invalid_email') {
+    return 'signup_error_email_invalid';
+  }
+  if (error === 'required') {
+    return 'signup_error_email_required';
+  }
+  return 'signup_error_unknown';
+}
+
 /**
  * Public newsletter signup form.
  *
@@ -88,110 +100,112 @@ export function NewsletterSignupForm(props: NewsletterSignupFormProps) {
         </p>
       ) : null}
 
-      <div
-        aria-hidden
-        className="absolute top-auto left-[-10000px] h-px w-px overflow-hidden"
-      >
-        <Label htmlFor="newsletter-company">{t('signup_company')}</Label>
-        <Input
-          autoComplete="off"
-          id="newsletter-company"
-          name={newsletterSignupFieldNames.company}
-          tabIndex={-1}
-          type="text"
-        />
-      </div>
+      {state.ok ? null : (
+        <>
+          <div
+            aria-hidden
+            className="absolute top-auto left-[-10000px] h-px w-px overflow-hidden"
+          >
+            <Label htmlFor="newsletter-company">{t('signup_company')}</Label>
+            <Input
+              autoComplete="off"
+              id="newsletter-company"
+              name={newsletterSignupFieldNames.company}
+              tabIndex={-1}
+              type="text"
+            />
+          </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-1.5">
-          <Label className="text-foreground" htmlFor="newsletter-name">
-            {t('signup_name')}
-          </Label>
-          <Input
-            autoComplete="name"
-            className="min-h-11 bg-background"
-            id="newsletter-name"
-            name={newsletterSignupFieldNames.name}
-            type="text"
-          />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label className="text-foreground" htmlFor="newsletter-email">
-            {t('signup_email')}
-          </Label>
-          <Input
-            autoComplete="email"
-            aria-describedby={emailErrorId}
-            aria-invalid={emailError ? true : undefined}
-            className="min-h-11 bg-background"
-            id="newsletter-email"
-            inputMode="email"
-            name={newsletterSignupFieldNames.email}
-            required
-            type="email"
-          />
-          {emailError ? (
-            <p
-              className="text-sm text-destructive"
-              id="newsletter-email-error"
-              role="alert"
-            >
-              {emailError === 'invalid_email'
-                ? t('signup_error_email_invalid')
-                : t('signup_error_email_required')}
-            </p>
-          ) : null}
-        </div>
-      </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-foreground" htmlFor="newsletter-name">
+                {t('signup_name')}
+              </Label>
+              <Input
+                autoComplete="name"
+                className="min-h-11 bg-background"
+                id="newsletter-name"
+                name={newsletterSignupFieldNames.name}
+                type="text"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-foreground" htmlFor="newsletter-email">
+                {t('signup_email')}
+              </Label>
+              <Input
+                autoComplete="email"
+                aria-describedby={emailErrorId}
+                aria-invalid={emailError ? true : undefined}
+                className="min-h-11 bg-background"
+                id="newsletter-email"
+                inputMode="email"
+                name={newsletterSignupFieldNames.email}
+                required
+                type="email"
+              />
+              {emailError ? (
+                <p
+                  className="text-sm text-destructive"
+                  id="newsletter-email-error"
+                  role="alert"
+                >
+                  {t(emailErrorMessageKey(emailError))}
+                </p>
+              ) : null}
+            </div>
+          </div>
 
-      <fieldset className="space-y-3">
-        <legend className="text-sm font-semibold text-foreground">
-          {t('lists_label')}
-        </legend>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {props.lists.map((list) => (
-            <label
-              className="rounded-lg border border-border bg-card p-4 text-sm"
-              key={list.id}
-            >
-              <span className="flex items-start gap-3">
-                <input
-                  className="mt-1"
-                  defaultChecked={list.slug === 'general'}
-                  disabled={list.slug === 'general'}
-                  name={newsletterSignupFieldNames.list}
-                  type="checkbox"
-                  value={list.slug}
-                />
-                {list.slug === 'general' ? (
-                  <input
-                    name={newsletterSignupFieldNames.list}
-                    type="hidden"
-                    value={list.slug}
-                  />
-                ) : null}
-                <span>
-                  <span className="block font-medium text-foreground">
-                    {list.name}
-                  </span>
-                  {list.description ? (
-                    <span className="mt-1 block text-muted-foreground">
-                      {list.description}
+          <fieldset className="space-y-3">
+            <legend className="text-sm font-semibold text-foreground">
+              {t('lists_label')}
+            </legend>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {props.lists.map((list) => (
+                <label
+                  className="rounded-lg border border-border bg-card p-4 text-sm"
+                  key={list.id}
+                >
+                  <span className="flex items-start gap-3">
+                    <input
+                      className="mt-1"
+                      defaultChecked={list.slug === 'general'}
+                      disabled={list.slug === 'general'}
+                      name={newsletterSignupFieldNames.list}
+                      type="checkbox"
+                      value={list.slug}
+                    />
+                    {list.slug === 'general' ? (
+                      <input
+                        name={newsletterSignupFieldNames.list}
+                        type="hidden"
+                        value={list.slug}
+                      />
+                    ) : null}
+                    <span>
+                      <span className="block font-medium text-foreground">
+                        {list.name}
+                      </span>
+                      {list.description ? (
+                        <span className="mt-1 block text-muted-foreground">
+                          {list.description}
+                        </span>
+                      ) : null}
                     </span>
-                  ) : null}
-                </span>
-              </span>
-            </label>
-          ))}
-        </div>
-      </fieldset>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
 
-      <div className="flex flex-col-reverse gap-4 pt-2 sm:flex-row sm:items-center sm:justify-between">
-        <p className="m-0 text-sm leading-relaxed text-mit-text">
-          {t('signup_privacy')}
-        </p>
-        <SubmitButton />
-      </div>
+          <div className="flex flex-col-reverse gap-4 pt-2 sm:flex-row sm:items-center sm:justify-between">
+            <p className="m-0 text-sm leading-relaxed text-mit-text">
+              {t('signup_privacy')}
+            </p>
+            <SubmitButton />
+          </div>
+        </>
+      )}
     </form>
   );
 }

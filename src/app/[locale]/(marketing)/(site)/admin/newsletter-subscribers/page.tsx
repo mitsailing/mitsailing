@@ -56,24 +56,35 @@ export default async function AdminNewsletterSubscribersPage(props: PageProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {subscribers.map((subscriber) => (
-              <TableRow key={subscriber.id}>
-                <TableCell className="font-medium">
-                  {subscriber.email}
-                </TableCell>
-                <TableCell>
-                  {subscriber.subscriptions
-                    .filter(
-                      (subscription) => subscription.status === 'subscribed'
-                    )
-                    .map((subscription) => subscription.list.name)
-                    .join(', ') || t('empty_lists')}
-                </TableCell>
-                <TableCell>
-                  {t(suppressionReasonKey(subscriber.suppressionReason))}
+            {subscribers.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  className="py-8 text-center text-muted-foreground"
+                  colSpan={3}
+                >
+                  {t('no_subscribers')}
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              subscribers.map((subscriber) => (
+                <TableRow key={subscriber.id}>
+                  <TableCell className="font-medium">
+                    {subscriber.email}
+                  </TableCell>
+                  <TableCell>
+                    {subscriber.subscriptions
+                      .filter(
+                        (subscription) => subscription.status === 'subscribed'
+                      )
+                      .map((subscription) => subscription.list.name)
+                      .join(', ') || t('empty_lists')}
+                  </TableCell>
+                  <TableCell>
+                    {t(suppressionReasonKey(subscriber.suppressionReason))}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>

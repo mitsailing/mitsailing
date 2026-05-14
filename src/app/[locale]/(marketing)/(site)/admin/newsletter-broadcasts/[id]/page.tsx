@@ -32,87 +32,78 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
   return { title: t('broadcast_detail_meta_title') };
 }
 
-function formatDate(value: Date | null): string {
+const STATUS_MESSAGE_KEYS = {
+  invalid_test_email: 'form_error_invalid_test_email',
+  test_failed: 'form_error_test_failed',
+  test_sent: 'broadcast_test_sent',
+} as const;
+
+const BROADCAST_STATUS_KEYS = {
+  cancelled: 'status_cancelled',
+  draft: 'status_draft',
+  failed: 'status_failed',
+  paused: 'status_paused',
+  queued: 'status_queued',
+  sending: 'status_sending',
+  sent: 'status_sent',
+} as const;
+
+const DELIVERY_STATUS_KEYS = {
+  bounced: 'delivery_status_bounced',
+  cancelled: 'delivery_status_cancelled',
+  complained: 'delivery_status_complained',
+  delivered: 'delivery_status_delivered',
+  delivery_delayed: 'delivery_status_delivery_delayed',
+  failed: 'delivery_status_failed',
+  queued: 'delivery_status_queued',
+  sending: 'delivery_status_sending',
+  sent: 'delivery_status_sent',
+  suppressed: 'delivery_status_suppressed',
+} as const;
+
+function formatDate(value: Date | null, locale: string): string {
   if (!value) {
     return '';
   }
-  return new Intl.DateTimeFormat('en-US', {
+  return new Intl.DateTimeFormat(locale, {
     dateStyle: 'medium',
     timeStyle: 'short',
     timeZone: 'America/New_York',
   }).format(value);
 }
 
+function isStatusMessage(
+  status: string
+): status is keyof typeof STATUS_MESSAGE_KEYS {
+  return status in STATUS_MESSAGE_KEYS;
+}
+
+function isBroadcastStatus(
+  status: string
+): status is keyof typeof BROADCAST_STATUS_KEYS {
+  return status in BROADCAST_STATUS_KEYS;
+}
+
+function isDeliveryStatus(
+  status: string
+): status is keyof typeof DELIVERY_STATUS_KEYS {
+  return status in DELIVERY_STATUS_KEYS;
+}
+
 function statusMessageKey(status: string) {
-  if (status === 'test_sent') {
-    return 'broadcast_test_sent';
-  }
-  if (status === 'test_failed') {
-    return 'form_error_test_failed';
-  }
-  if (status === 'invalid_test_email') {
-    return 'form_error_invalid_test_email';
-  }
-  return null;
+  return isStatusMessage(status) ? STATUS_MESSAGE_KEYS[status] : null;
 }
 
 function broadcastStatusKey(status: string) {
-  if (status === 'cancelled') {
-    return 'status_cancelled';
-  }
-  if (status === 'draft') {
-    return 'status_draft';
-  }
-  if (status === 'failed') {
-    return 'status_failed';
-  }
-  if (status === 'paused') {
-    return 'status_paused';
-  }
-  if (status === 'queued') {
-    return 'status_queued';
-  }
-  if (status === 'sending') {
-    return 'status_sending';
-  }
-  if (status === 'sent') {
-    return 'status_sent';
-  }
-  return 'status_unknown';
+  return isBroadcastStatus(status)
+    ? BROADCAST_STATUS_KEYS[status]
+    : 'status_unknown';
 }
 
 function deliveryStatusKey(status: string) {
-  if (status === 'bounced') {
-    return 'delivery_status_bounced';
-  }
-  if (status === 'cancelled') {
-    return 'delivery_status_cancelled';
-  }
-  if (status === 'complained') {
-    return 'delivery_status_complained';
-  }
-  if (status === 'delivered') {
-    return 'delivery_status_delivered';
-  }
-  if (status === 'delivery_delayed') {
-    return 'delivery_status_delivery_delayed';
-  }
-  if (status === 'failed') {
-    return 'delivery_status_failed';
-  }
-  if (status === 'queued') {
-    return 'delivery_status_queued';
-  }
-  if (status === 'sending') {
-    return 'delivery_status_sending';
-  }
-  if (status === 'sent') {
-    return 'delivery_status_sent';
-  }
-  if (status === 'suppressed') {
-    return 'delivery_status_suppressed';
-  }
-  return 'delivery_status_unknown';
+  return isDeliveryStatus(status)
+    ? DELIVERY_STATUS_KEYS[status]
+    : 'delivery_status_unknown';
 }
 
 export default async function AdminNewsletterBroadcastDetailPage(
@@ -189,14 +180,14 @@ export default async function AdminNewsletterBroadcastDetailPage(
           <p className="text-xs font-semibold text-muted-foreground uppercase">
             {t('detail_created_at')}
           </p>
-          <p className="mt-1">{formatDate(broadcast.createdAt)}</p>
+          <p className="mt-1">{formatDate(broadcast.createdAt, locale)}</p>
         </div>
         <div>
           <p className="text-xs font-semibold text-muted-foreground uppercase">
             {t('detail_scheduled_at')}
           </p>
           <p className="mt-1">
-            {formatDate(broadcast.scheduledAt) || t('empty_value')}
+            {formatDate(broadcast.scheduledAt, locale) || t('empty_value')}
           </p>
         </div>
         <div>
@@ -204,7 +195,7 @@ export default async function AdminNewsletterBroadcastDetailPage(
             {t('detail_sent_at')}
           </p>
           <p className="mt-1">
-            {formatDate(broadcast.sentAt) || t('empty_value')}
+            {formatDate(broadcast.sentAt, locale) || t('empty_value')}
           </p>
         </div>
       </section>
@@ -294,7 +285,9 @@ export default async function AdminNewsletterBroadcastDetailPage(
                       {t(deliveryStatusKey(delivery.status))}
                     </TableCell>
                     <TableCell>{delivery.attemptCount}</TableCell>
-                    <TableCell>{formatDate(delivery.updatedAt)}</TableCell>
+                    <TableCell>
+                      {formatDate(delivery.updatedAt, locale)}
+                    </TableCell>
                     <TableCell>
                       {delivery.lastError ?? t('empty_value')}
                     </TableCell>

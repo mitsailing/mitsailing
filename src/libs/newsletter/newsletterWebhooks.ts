@@ -5,6 +5,7 @@ import type { NewsletterDeliveryStatus } from '@/generated/prisma/enums';
 import { prisma } from '@/libs/DB';
 import type { ResendWebhookContext } from '@/libs/email/emailMessages';
 import { recordResendEmailMessageEvent } from '@/libs/email/emailMessages';
+import { logger } from '@/libs/Logger';
 
 type EmailEventPayload = Extract<
   WebhookEventPayload,
@@ -113,12 +114,7 @@ function deliveryStatusForEmailEvent(type: EmailEventPayload['type']) {
 function isFailureStatus(
   status: NonNullable<ReturnType<typeof deliveryStatusForEmailEvent>>
 ): boolean {
-  return (
-    status === 'bounced' ||
-    status === 'complained' ||
-    status === 'failed' ||
-    status === 'suppressed'
-  );
+  return failureDeliveryStatuses.includes(status);
 }
 
 function isSuppressingEvent(type: EmailEventPayload['type']) {
@@ -151,18 +147,22 @@ function eventMetadata(params: {
   };
 }
 
-function eventOccurredAt(event: EmailEventPayload): Date {
-  return new Date(event.created_at);
+function eventOccurredAt(event: EmailEventPayload): Date | null {
+  const date = new Date(event.created_at);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function providerEventIdForWebhook(
   event: EmailEventPayload,
   context?: ResendWebhookContext
-): string | null {
+): string {
   if (context?.providerEventId) {
     return context.providerEventId;
   }
-  return 'id' in event && typeof event.id === 'string' ? event.id : null;
+  if ('id' in event && typeof event.id === 'string') {
+    return event.id;
+  }
+  return `${event.data.email_id}:${event.type}:${event.created_at}`;
 }
 
 function isEmailEvent(event: WebhookEventPayload): event is EmailEventPayload {
@@ -231,7 +231,7 @@ async function updateDeliveryStatus(params: {
     return;
   }
 
-  await params.tx.newsletterDelivery.updateMany({
+  const update = await params.tx.newsletterDelivery.updateMany({
     data: {
       deliveredAt:
         params.status === 'delivered' ? params.occurredAt : undefined,
@@ -248,6 +248,14 @@ async function updateDeliveryStatus(params: {
       }),
     },
   });
+  if (update.count === 0) {
+    logger.info('Skipped stale newsletter delivery webhook', {
+      deliveryId: params.delivery.id,
+      occurredAt: params.occurredAt.toISOString(),
+      providerMessageId: params.providerMessageId,
+      status: params.status,
+    });
+  }
 }
 
 async function suppressSubscriber(params: {
@@ -260,7 +268,7 @@ async function suppressSubscriber(params: {
     return;
   }
 
-  await params.tx.newsletterSubscriber.updateMany({
+  const update = await params.tx.newsletterSubscriber.updateMany({
     data: {
       suppressedAt: params.occurredAt,
       suppressionReason: suppressionReason(params.type),
@@ -273,13 +281,20 @@ async function suppressSubscriber(params: {
       ],
     },
   });
+  if (update.count === 0) {
+    logger.info('Skipped stale newsletter subscriber suppression webhook', {
+      occurredAt: params.occurredAt.toISOString(),
+      subscriberId: params.delivery.subscriberId,
+      type: params.type,
+    });
+  }
 }
 
 async function createNewsletterEvent(params: {
   delivery: Awaited<ReturnType<typeof findNewsletterDelivery>>;
   event: EmailEventPayload;
   occurredAt: Date;
-  providerEventId: string | null;
+  providerEventId: string;
   providerMessageId: string;
   tx: Prisma.TransactionClient;
   type: ReturnType<typeof eventTypeForEmailEvent>;
@@ -328,6 +343,14 @@ export async function handleResendNewsletterWebhook(
     return;
   }
   const occurredAt = eventOccurredAt(event);
+  if (!occurredAt) {
+    logger.warn('Skipping newsletter webhook with invalid timestamp', {
+      providerMessageId,
+      timestamp: event.created_at,
+      type: event.type,
+    });
+    return;
+  }
   const providerEventId = providerEventIdForWebhook(event, context);
 
   await prisma.$transaction(async (tx) => {
@@ -341,6 +364,11 @@ export async function handleResendNewsletterWebhook(
         providerMessageId,
       });
       if (!isNewEvent) {
+        logger.info('Skipping duplicate newsletter webhook event', {
+          providerEventId,
+          providerMessageId,
+          type: event.type,
+        });
         return;
       }
     }

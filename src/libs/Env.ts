@@ -85,6 +85,12 @@ export const Env = createEnv({
       .string()
       .min(1)
       .default('MIT Sailing Pavilion, 134 Memorial Drive, Cambridge, MA 02139'),
+    NEWSLETTER_WORKER_CONCURRENCY: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(10)
+      .default(2),
     RESEND_WEBHOOK_SECRET: z.string().min(1).optional(),
 
     // Cloudflare Tunnel credential consumed by the cloudflared service in
@@ -167,6 +173,7 @@ export const Env = createEnv({
     IS_E2E: process.env.IS_E2E,
     SUPPORT_EMAIL: process.env.SUPPORT_EMAIL,
     NEWSLETTER_POSTAL_ADDRESS: process.env.NEWSLETTER_POSTAL_ADDRESS,
+    NEWSLETTER_WORKER_CONCURRENCY: process.env.NEWSLETTER_WORKER_CONCURRENCY,
     RESEND_WEBHOOK_SECRET: process.env.RESEND_WEBHOOK_SECRET,
     CLOUDFLARE_TUNNEL_TOKEN: process.env.CLOUDFLARE_TUNNEL_TOKEN,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,

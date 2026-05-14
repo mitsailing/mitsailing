@@ -69,7 +69,7 @@ export default async function NewsletterManagePage(
     <SiteSectionShell
       locale={locale}
       segments={[
-        { label: routes('section_newsletter'), href: '/newsletter/' },
+        { label: routes('section_newsletter'), href: '/newsletter' },
         { label: t('manage_heading') },
       ]}
     >

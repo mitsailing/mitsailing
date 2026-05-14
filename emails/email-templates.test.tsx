@@ -55,7 +55,7 @@ describe('email templates', () => {
   it('renders newsletter broadcast with compliance footer', async () => {
     const html = await render(
       <NewsletterBroadcastTemplate
-        body={'First paragraph.\\n\\nSecond paragraph.'}
+        body={'First paragraph.\n\nSecond paragraph.'}
         listName="General news"
         manageUrl="https://mitsailing.example.com/newsletter/manage?token=abc"
         postalAddress="MIT Sailing Pavilion, Cambridge, MA"

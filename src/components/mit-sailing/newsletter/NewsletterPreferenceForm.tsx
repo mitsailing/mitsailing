@@ -79,10 +79,7 @@ export function NewsletterPreferenceForm(props: NewsletterPreferenceFormProps) {
           {props.errorLabel}
         </p>
       ) : null}
-      <fieldset
-        aria-describedby={errorId}
-        aria-invalid={errorId ? true : undefined}
-      >
+      <fieldset aria-describedby={errorId}>
         <div className="grid gap-3 sm:grid-cols-2">
           {props.lists.map((list) => (
             <label

@@ -120,6 +120,7 @@ export async function sendNewsletterBroadcastEmail(
       'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
     },
     subject: params.subject,
+    idempotencyKey: `newsletter-delivery/${params.deliveryId}`,
     metadata: { listId: params.listId },
     newsletterBroadcastId: params.broadcastId,
     newsletterDeliveryId: params.deliveryId,
@@ -144,7 +145,7 @@ export async function sendNewsletterBroadcastEmail(
 export async function sendNewsletterBroadcastTestEmail(
   params: NewsletterTestEmailParams
 ) {
-  const newsletterUrl = `${getBaseUrl()}/newsletter/`;
+  const newsletterUrl = `${getBaseUrl().replace(/\/$/, '')}/newsletter`;
   const rendered = await renderNewsletterBroadcastEmail({
     body: params.body,
     listName: params.listName,

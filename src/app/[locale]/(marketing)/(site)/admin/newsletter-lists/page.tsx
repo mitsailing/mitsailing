@@ -29,14 +29,20 @@ function defaultSubscriptionKey(value: string) {
   if (value === 'opt_in') {
     return 'default_opt_in';
   }
-  return 'default_opt_out';
+  if (value === 'opt_out') {
+    return 'default_opt_out';
+  }
+  return 'default_unknown';
 }
 
 function visibilityKey(value: string) {
   if (value === 'private') {
     return 'visibility_private';
   }
-  return 'visibility_public';
+  if (value === 'public') {
+    return 'visibility_public';
+  }
+  return 'visibility_unknown';
 }
 
 export default async function AdminNewsletterListsPage(props: PageProps) {
@@ -52,7 +58,7 @@ export default async function AdminNewsletterListsPage(props: PageProps) {
       <AdminPageHeader
         actions={
           <Button asChild variant="mit">
-            <Link href="/admin/newsletter-lists/new/">{t('lists_new')}</Link>
+            <Link href="/admin/newsletter-lists/new">{t('lists_new')}</Link>
           </Button>
         }
         title={t('lists_title')}
@@ -77,17 +83,28 @@ export default async function AdminNewsletterListsPage(props: PageProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {lists.map((list) => (
-              <TableRow key={list.id}>
-                <TableCell className="font-medium">{list.name}</TableCell>
-                <TableCell>{list.slug}</TableCell>
-                <TableCell>
-                  {t(defaultSubscriptionKey(list.defaultSubscription))}
+            {lists.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  className="py-8 text-center text-muted-foreground"
+                  colSpan={5}
+                >
+                  {t('lists_empty')}
                 </TableCell>
-                <TableCell>{t(visibilityKey(list.visibility))}</TableCell>
-                <TableCell>{list._count.subscriptions}</TableCell>
               </TableRow>
-            ))}
+            ) : (
+              lists.map((list) => (
+                <TableRow key={list.id}>
+                  <TableCell className="font-medium">{list.name}</TableCell>
+                  <TableCell>{list.slug}</TableCell>
+                  <TableCell>
+                    {t(defaultSubscriptionKey(list.defaultSubscription))}
+                  </TableCell>
+                  <TableCell>{t(visibilityKey(list.visibility))}</TableCell>
+                  <TableCell>{list._count.subscriptions}</TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>

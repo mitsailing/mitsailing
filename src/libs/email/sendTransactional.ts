@@ -29,6 +29,7 @@ type Params = {
   subject: string;
   category?: EmailMessageCategory;
   html: string;
+  idempotencyKey?: string;
   replyTo?: string;
   text?: string;
   headers?: Record<string, string>;
@@ -111,17 +112,22 @@ async function sendViaResend(params: Params): Promise<SendEmailResult> {
     );
   }
   const resend = new Resend(Env.RESEND_API_KEY);
-  const result = await resend.emails.send({
-    from: Env.EMAIL_FROM,
-    ...(params.replyTo ? { replyTo: params.replyTo } : {}),
-    to: params.to,
-    subject: params.subject,
-    html: params.html,
-    text: params.text,
-    headers: params.headers,
-    tags: params.tags,
-    topicId: params.topicId,
-  });
+  const result = await resend.emails.send(
+    {
+      from: Env.EMAIL_FROM,
+      ...(params.replyTo ? { replyTo: params.replyTo } : {}),
+      to: params.to,
+      subject: params.subject,
+      html: params.html,
+      text: params.text,
+      headers: params.headers,
+      tags: params.tags,
+      ...(params.topicId ? { topicId: params.topicId } : {}),
+    },
+    params.idempotencyKey
+      ? { idempotencyKey: params.idempotencyKey }
+      : undefined
+  );
   if (result.error) {
     logger.error(`Resend error: ${result.error.message}`);
     throw new Error(result.error.message);

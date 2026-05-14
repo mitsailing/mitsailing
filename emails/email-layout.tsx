@@ -99,7 +99,7 @@ export function EmailLayout(props: EmailLayoutProps) {
             <Text style={muted}>
               <Link href="mailto:support@mitsailing.com" style={link}>
                 Contact MIT Sailing support
-              </Link>{' '}
+              </Link>
             </Text>
           </Section>
         </Container>

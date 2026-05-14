@@ -9,6 +9,12 @@ const mocks = vi.hoisted(() => ({
   handleResendAccountEmailWebhook: vi.fn(),
   handleResendEmailMessageWebhook: vi.fn(),
   handleResendNewsletterWebhook: vi.fn(),
+  logger: {
+    error: vi.fn(),
+  },
+  sentry: {
+    captureException: vi.fn(),
+  },
   verify: vi.fn(),
 }));
 
@@ -22,8 +28,14 @@ vi.mock('resend', () => ({
   }),
 }));
 
+vi.mock('@sentry/nextjs', () => mocks.sentry);
+
 vi.mock('@/libs/Env', () => ({
   Env: mocks.env,
+}));
+
+vi.mock('@/libs/Logger', () => ({
+  logger: mocks.logger,
 }));
 
 vi.mock('@/libs/email/accountEmailWebhooks', () => ({
@@ -39,7 +51,7 @@ vi.mock('@/libs/newsletter/newsletterWebhooks', () => ({
 }));
 
 function webhookRequest() {
-  return new Request('https://mitsailing.test/api/resend/webhooks/', {
+  return new Request('https://mitsailing.test/api/resend/webhooks', {
     body: '{"type":"email.delivered"}',
     headers: {
       'svix-id': 'event_123',
@@ -60,12 +72,8 @@ describe('resend webhook route', () => {
       type: 'email.delivered',
     });
     mocks.handleResendEmailMessageWebhook.mockResolvedValue(true);
-    mocks.handleResendNewsletterWebhook.mockImplementation(async () => {
-      await Promise.resolve();
-    });
-    mocks.handleResendAccountEmailWebhook.mockImplementation(async () => {
-      await Promise.resolve();
-    });
+    mocks.handleResendNewsletterWebhook.mockImplementation(async () => {});
+    mocks.handleResendAccountEmailWebhook.mockImplementation(async () => {});
   });
 
   it('returns unavailable when webhook secret is missing', async () => {
@@ -91,6 +99,9 @@ describe('resend webhook route', () => {
     expect(mocks.handleResendEmailMessageWebhook).not.toHaveBeenCalled();
     expect(mocks.handleResendNewsletterWebhook).not.toHaveBeenCalled();
     expect(mocks.handleResendAccountEmailWebhook).not.toHaveBeenCalled();
+    expect(mocks.sentry.captureException).toHaveBeenCalledWith(
+      expect.any(Error)
+    );
   });
 
   it('passes raw payload and svix id to state handlers', async () => {
