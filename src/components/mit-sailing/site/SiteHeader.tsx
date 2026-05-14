@@ -126,7 +126,7 @@ function defaultMobileUtilityItems(
     {
       id: 'reserve-pavilion',
       label: t('util_reserve_pavilion'),
-      href: '/contact',
+      href: '/reserve-pavilion',
     },
     { id: 'directions', label: t('util_directions'), href: '/contact' },
     { id: 'donate', label: t('util_donate'), href: '/donate' },

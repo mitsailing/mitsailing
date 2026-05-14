@@ -52,6 +52,7 @@ model User {
   eventsCreated      Event[]              @relation("EventCreatedBy")
   sailingRatings     UserSailingRating[]  @relation("UserSailingRatings")
   issuedSailingRatings UserSailingRating[] @relation("IssuedSailingRatings")
+  reviewedPavilionReservationRequests PavilionReservationRequest[] @relation("PavilionReservationReviewedBy")
 
   @@map("user")
 }
@@ -668,6 +669,143 @@ model DonationFund {
 
   @@index([isVisible, displayOrder])
   @@map("donation_funds")
+}
+
+enum PavilionReservationPersona {
+  mit_academic
+  mit_student
+  mit_community
+  non_mit
+
+  @@map("pavilion_reservation_persona")
+}
+
+enum PavilionReservationStatus {
+  pending
+  approved
+  declined
+  cancelled
+
+  @@map("pavilion_reservation_status")
+}
+
+enum PavilionReservableItemKind {
+  space
+  service
+
+  @@map("pavilion_reservable_item_kind")
+}
+
+enum PavilionPricingType {
+  hourly
+  flat
+  tbd
+
+  @@map("pavilion_pricing_type")
+}
+
+model PavilionReservableItem {
+  id               String                     @id @default(cuid())
+  slug             String                     @unique
+  kind             PavilionReservableItemKind
+  name             String
+  description      String                     @db.Text
+  imageUrl         String?                    @map("image_url") @db.Text
+  pricingType      PavilionPricingType        @map("pricing_type")
+  minDurationHours Int?                       @map("min_duration_hours")
+  displayOrder     Int                        @default(0) @map("display_order")
+  isVisible        Boolean                    @default(true) @map("is_visible")
+  createdAt        DateTime                   @default(now()) @map("created_at")
+  updatedAt        DateTime                   @updatedAt @map("updated_at")
+
+  prices             PavilionReservableItemPrice[]
+  reservationSlots   PavilionReservationSlot[]
+  reservationServices PavilionReservationService[]
+
+  @@index([kind, isVisible, displayOrder])
+  @@map("pavilion_reservable_items")
+}
+
+model PavilionReservableItemPrice {
+  id          String                      @id @default(cuid())
+  itemId      String                      @map("item_id")
+  persona     PavilionReservationPersona
+  amountCents Int?                        @map("amount_cents")
+
+  item PavilionReservableItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, persona])
+  @@map("pavilion_reservable_item_prices")
+}
+
+model PavilionReservationRequest {
+  id                  String                      @id @default(cuid())
+  referenceCode       String                      @unique @map("reference_code")
+  status              PavilionReservationStatus   @default(pending)
+  persona             PavilionReservationPersona
+  requesterEmail      String                      @map("requester_email")
+  firstName           String                      @map("first_name")
+  lastName            String                      @map("last_name")
+  phone               String
+  eventName           String                      @map("event_name")
+  groupName           String?                     @map("group_name")
+  groupSize           Int?                        @map("group_size")
+  description         String                      @db.Text
+  hasTent             Boolean                     @map("has_tent")
+  servesAlcohol       Boolean                     @map("serves_alcohol")
+  projectTitle        String?                     @map("project_title")
+  advisorName         String?                     @map("advisor_name")
+  advisorEmail        String?                     @map("advisor_email")
+  costCenter          String?                     @map("cost_center")
+  mitId               String?                     @map("mit_id")
+  mitAccount          String?                     @map("mit_account")
+  estimatedTotalCents Int?                        @map("estimated_total_cents")
+  createdAt           DateTime                    @default(now()) @map("created_at")
+  updatedAt           DateTime                    @updatedAt @map("updated_at")
+  reviewedByUserId    String?                     @map("reviewed_by_user_id")
+  reviewedAt          DateTime?                   @map("reviewed_at")
+  adminNotes          String?                     @map("admin_notes") @db.Text
+
+  reviewedBy User? @relation("PavilionReservationReviewedBy", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+  slots      PavilionReservationSlot[]
+  services   PavilionReservationService[]
+
+  @@index([status, createdAt])
+  @@index([requesterEmail])
+  @@index([reviewedByUserId])
+  @@map("pavilion_reservation_requests")
+}
+
+model PavilionReservationSlot {
+  id                   String   @id @default(cuid())
+  requestId            String   @map("request_id")
+  itemId               String   @map("item_id")
+  requestedDate        DateTime @map("requested_date") @db.Date
+  startMinutes         Int      @map("start_minutes")
+  endMinutes           Int      @map("end_minutes")
+  estimatedAmountCents Int?     @map("estimated_amount_cents")
+  displayOrder         Int      @default(0) @map("display_order")
+
+  request PavilionReservationRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  item    PavilionReservableItem     @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@index([requestId, displayOrder])
+  @@index([itemId, requestedDate])
+  @@map("pavilion_reservation_slots")
+}
+
+model PavilionReservationService {
+  id                   String @id @default(cuid())
+  requestId            String @map("request_id")
+  itemId               String @map("item_id")
+  estimatedAmountCents Int?   @map("estimated_amount_cents")
+
+  request PavilionReservationRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  item    PavilionReservableItem     @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@unique([requestId, itemId])
+  @@index([itemId])
+  @@map("pavilion_reservation_services")
 }
 
 model StaffMember {

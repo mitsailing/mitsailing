@@ -105,7 +105,7 @@ describe('WeatherConditionsBar', () => {
 
     expect(
       screen.getByRole('link', { name: 'Reserve Pavilion' })
-    ).toHaveAttribute('href', '/contact');
+    ).toHaveAttribute('href', '/reserve-pavilion');
     expect(screen.getByRole('link', { name: 'Directions' })).toHaveAttribute(
       'href',
       '/contact'

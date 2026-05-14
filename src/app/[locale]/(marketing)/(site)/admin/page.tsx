@@ -5,6 +5,7 @@ import {
   catalogResourceDefinitions,
   CATALOG_RESOURCE_IDS,
 } from '@/libs/admin/catalog/catalogDefinitions';
+import { adminPavilionReservationIndexPath } from '@/libs/admin/pavilion-reservations/pavilionReservationAdminPaths';
 import { ADMIN_USERS_PATH } from '@/libs/admin/users/adminUserPaths';
 import { Link } from '@/libs/I18nNavigation';
 
@@ -59,6 +60,17 @@ export default async function AdminIndexPage(props: AdminIndexPageProps) {
             >
               {t('link_events')}
             </Link>
+          </li>
+          <li>
+            <Link
+              className="font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
+              href={adminPavilionReservationIndexPath()}
+            >
+              {t('link_pavilion_reservations')}
+            </Link>
+            <p className="mt-0.5 text-sm text-mit-text">
+              {t('link_pavilion_reservations_blurb')}
+            </p>
           </li>
           <li>
             <Link

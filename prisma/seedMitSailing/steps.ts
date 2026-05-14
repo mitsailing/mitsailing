@@ -32,6 +32,8 @@ import {
   GLOBAL_EVENT_DATES,
   STUB_USERS,
 } from '../../src/data/mit-sailing/eventsSeed';
+import { PAVILION_RESERVABLE_ITEM_SEED_ROWS } from '../../src/data/mit-sailing/pavilionReservationCatalogSeed';
+import type { PavilionReservationPersonaSeed } from '../../src/data/mit-sailing/pavilionReservationCatalogSeed';
 import {
   SAILING_RATING_RULES,
   SAILING_RATINGS,
@@ -42,6 +44,13 @@ import type { PrismaClient } from '../../src/generated/prisma/client';
 import type { EventRegistrationStatus } from '../../src/generated/prisma/enums';
 import { toDetailPageKind } from './detailPageKind';
 import { toDate } from './toPrismaDate';
+
+const pavilionReservationPersonas = [
+  'mit_academic',
+  'mit_student',
+  'mit_community',
+  'non_mit',
+] as const satisfies readonly PavilionReservationPersonaSeed[];
 
 /**
  * @param p - Prisma client (injected for tests; production uses `src/libs/DB`)
@@ -593,6 +602,55 @@ export async function seedDonationFunds(p: PrismaClient): Promise<void> {
         isVisible: row.isVisible,
       },
     });
+  }
+}
+
+/**
+ * @param p - Prisma client
+ */
+export async function seedPavilionReservationCatalog(
+  p: PrismaClient
+): Promise<void> {
+  for (const row of PAVILION_RESERVABLE_ITEM_SEED_ROWS) {
+    await p.pavilionReservableItem.upsert({
+      where: { id: row.id },
+      create: {
+        id: row.id,
+        slug: row.slug,
+        kind: row.kind,
+        name: row.name,
+        description: row.description,
+        imageUrl: row.imageUrl,
+        pricingType: row.pricingType,
+        minDurationHours: row.minDurationHours,
+        displayOrder: row.displayOrder,
+        isVisible: row.isVisible,
+      },
+      update: {
+        slug: row.slug,
+        kind: row.kind,
+        name: row.name,
+        description: row.description,
+        imageUrl: row.imageUrl,
+        pricingType: row.pricingType,
+        minDurationHours: row.minDurationHours,
+        displayOrder: row.displayOrder,
+        isVisible: row.isVisible,
+      },
+    });
+
+    for (const persona of pavilionReservationPersonas) {
+      const amountCents = row.prices[persona];
+      await p.pavilionReservableItemPrice.upsert({
+        where: { itemId_persona: { itemId: row.id, persona } },
+        create: {
+          itemId: row.id,
+          persona,
+          amountCents,
+        },
+        update: { amountCents },
+      });
+    }
   }
 }
 
