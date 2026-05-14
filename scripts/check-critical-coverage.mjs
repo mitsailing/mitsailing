@@ -47,6 +47,7 @@ const authCoverageFiles = [
   'src/app/[locale]/(auth)/profile/layout.tsx',
   'src/app/[locale]/(auth)/profile/page.tsx',
   'src/app/[locale]/(auth)/profile/account/page.tsx',
+  'src/app/[locale]/(auth)/profile/newsletter/page.tsx',
   'src/app/[locale]/(auth)/profile/password/page.tsx',
   'src/app/[locale]/(auth)/profile/security/page.tsx',
   'src/app/[locale]/(auth)/profile/delete/page.tsx',

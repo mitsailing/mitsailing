@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { sendTransactionalEmail } from '@/libs/email/sendTransactional';
 
 type MailTransport = 'smtp' | 'resend' | 'log' | 'unknown';
 
@@ -8,6 +9,10 @@ type EnvMock = {
   EMAIL_FROM?: string;
   RESEND_API_KEY?: string;
 };
+
+type SendTransactionalEmailParams = Parameters<
+  typeof sendTransactionalEmail
+>[0];
 
 const mocks = vi.hoisted(() => {
   const env: EnvMock = { MAIL_TRANSPORT: 'log' };
@@ -58,7 +63,7 @@ vi.mock('@/libs/email/emailMessages', () => ({
   recordSentEmailMessage: mocks.recordSentEmailMessage,
 }));
 
-const message = {
+const message: SendTransactionalEmailParams = {
   html: '<p>Hello sailor</p>',
   replyTo: 'sailor@mit.edu',
   subject: 'Account notice',
@@ -66,7 +71,10 @@ const message = {
   to: 'sailor@example.com',
 };
 
-async function sendWithEnv(env: EnvMock) {
+async function sendWithEnv(
+  env: EnvMock,
+  params: SendTransactionalEmailParams = message
+) {
   Object.assign(mocks.env, {
     EMAIL_FROM: undefined,
     MAIL_TRANSPORT: 'log' satisfies MailTransport,
@@ -78,7 +86,7 @@ async function sendWithEnv(env: EnvMock) {
   const { sendTransactionalEmail } =
     await import('@/libs/email/sendTransactional');
 
-  return sendTransactionalEmail(message);
+  return sendTransactionalEmail(params);
 }
 
 beforeEach(() => {
@@ -240,6 +248,67 @@ describe('sendTransactionalEmail', () => {
         providerMessageId: 'email_123',
       })
     );
+  });
+
+  it('passes resend delivery options to the api client and ledger', async () => {
+    await sendWithEnv(
+      {
+        EMAIL_FROM: 'MIT Sailing <noreply@example.com>',
+        MAIL_TRANSPORT: 'resend',
+        RESEND_API_KEY: 're_test',
+      },
+      {
+        ...message,
+        category: 'newsletter',
+        headers: { 'List-Unsubscribe': '<https://example.com/unsubscribe>' },
+        idempotencyKey: 'broadcast-1-delivery-1',
+        metadata: { campaign: 'spring' },
+        newsletterBroadcastId: 'broadcast-1',
+        newsletterDeliveryId: 'delivery-1',
+        newsletterSubscriberId: 'subscriber-1',
+        tags: [{ name: 'category', value: 'newsletter' }],
+        topicId: 'broadcasts',
+        userId: 'user-1',
+      }
+    );
+
+    expect(mocks.resendSend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        headers: { 'List-Unsubscribe': '<https://example.com/unsubscribe>' },
+        tags: [{ name: 'category', value: 'newsletter' }],
+        topicId: 'broadcasts',
+      }),
+      { idempotencyKey: 'broadcast-1-delivery-1' }
+    );
+    expect(mocks.recordSentEmailMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        category: 'newsletter',
+        metadata: { campaign: 'spring' },
+        newsletterBroadcastId: 'broadcast-1',
+        newsletterDeliveryId: 'delivery-1',
+        newsletterSubscriberId: 'subscriber-1',
+        userId: 'user-1',
+      })
+    );
+  });
+
+  it('reports resend provider errors before recording delivery', async () => {
+    mocks.resendSend.mockResolvedValueOnce({
+      error: { message: 'resend down' },
+    });
+
+    await expect(
+      sendWithEnv({
+        EMAIL_FROM: 'MIT Sailing <noreply@example.com>',
+        MAIL_TRANSPORT: 'resend',
+        RESEND_API_KEY: 're_test',
+      })
+    ).rejects.toThrow('resend down');
+
+    expect(mocks.logger.error).toHaveBeenCalledWith(
+      'Resend error: resend down'
+    );
+    expect(mocks.recordSentEmailMessage).not.toHaveBeenCalled();
   });
 
   it('does not fail delivery when email ledger recording fails', async () => {
