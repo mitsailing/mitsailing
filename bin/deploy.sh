@@ -272,12 +272,16 @@ wait_for_service_health() {
   local timeout_seconds="$2"
   local deadline container status
   deadline=$((SECONDS + timeout_seconds))
+  local require_healthy_only='false'
+  if [[ "$service" == 'app' || "$service" == web_* ]]; then
+    require_healthy_only='true'
+  fi
 
   while (( SECONDS < deadline )); do
     container=$(compose ps -q "$service")
     if [[ -n "$container" ]]; then
       status=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$container" 2>/dev/null || echo "missing")
-      if [[ "$status" == "healthy" || "$status" == "running" ]]; then
+      if [[ "$status" == 'healthy' || ( "$status" == 'running' && "$require_healthy_only" != 'true' ) ]]; then
         log "$service is healthy"
         return 0
       fi
@@ -340,6 +344,24 @@ switch_to_ref() {
   target_service="$(color_service "$target_color")"
 
   start_web_color "$target_color"
+  # Smoke-check dependency readiness before switching nginx upstream.
+  # This is protected by HEALTHCHECK_SECRET; if it isn't set, we skip.
+  compose exec -T "$target_service" node -e '(async () => {
+    const secret = process.env.HEALTHCHECK_SECRET;
+    if (!secret) {
+      console.log("skipping readiness smoke (HEALTHCHECK_SECRET not set)");
+      return;
+    }
+
+    const res = await fetch("http://127.0.0.1:3000/api/health/ready", {
+      headers: { Authorization: `Bearer ${secret}` },
+    });
+
+    if (!res.ok) {
+      console.error("readiness smoke failed", res.status);
+      process.exit(1);
+    }
+  })().catch((e) => { console.error(e); process.exit(1); });'
   write_nginx_config "$target_service"
   reload_or_start_proxy
   record_release_state "$target_color" "$ref" "$old_ref"

@@ -2,7 +2,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import IORedis from 'ioredis';
 import { prisma } from '@/libs/DB';
 import { Env } from '@/libs/Env';
-import { healthTimeoutMs } from './constants';
+import { healthPostgresStatementTimeoutMs, healthTimeoutMs } from './constants';
 
 export type HealthCheckStatus = 'ok' | 'fail' | 'skip';
 
@@ -56,7 +56,11 @@ function redisIsRequired(appEnv: string): boolean {
 }
 
 async function checkPostgres(): Promise<void> {
-  await prisma.$queryRaw<{ ok: number }[]>`SELECT 1 AS ok`;
+  await prisma.$transaction(async (tx) => {
+    // Ensure hung Postgres can’t monopolize Prisma connections longer than the JS timeout.
+    await tx.$executeRaw`SET LOCAL statement_timeout = ${healthPostgresStatementTimeoutMs}`;
+    await tx.$queryRaw<{ ok: number }[]>`SELECT 1 AS ok`;
+  });
 }
 
 async function checkRedis(redisUrl: string): Promise<void> {

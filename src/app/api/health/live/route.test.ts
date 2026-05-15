@@ -3,7 +3,7 @@ import { GET, HEAD } from './route';
 
 describe('GET /api/health/live', () => {
   it('returns public liveness status', async () => {
-    const response = GET();
+    const response = await GET();
     const body = await response.json();
 
     expect(response.status).toBe(200);
@@ -16,7 +16,7 @@ describe('GET /api/health/live', () => {
   });
 
   it('returns head without body', async () => {
-    const response = HEAD();
+    const response = await HEAD();
 
     expect(response.status).toBe(200);
     expect(response.headers.get('cache-control')).toContain('no-store');

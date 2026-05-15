@@ -92,6 +92,9 @@ Fill at least:
 - Optional **`DEPLOYMENT_VERSION`** — same string on every web container when
   using rolling deploys or multiple replicas (wired to Next.js `deploymentId`;
   image tag or git SHA is typical).
+- If you see Sentry noise from monitoring probes, exclude `/api/health/*`
+  from tracing/error capture in `src/instrumentation.ts` (the deploy liveness
+  and readiness checks are intentionally frequent).
 - Optional **`NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`** — required before running
   **more than one** `app` replica or overlapping rolling deploys (see Next.js
   data security docs).
@@ -356,6 +359,18 @@ web color continues serving traffic. Keep migrations backward-compatible across
 at least one release: add before using, avoid same-release destructive
 drops/renames, and remove old columns only after deployed code no longer reads
 them.
+
+Expand/contract checklist (for schema changes):
+- Add new columns/tables/enums values in the first migration; backfill as needed.
+- Deploy code that can read the old schema and the expanded schema.
+- Only after the next release (when all instances are on the new code): contract
+  (drop/rename old columns, remove legacy enum labels, etc.).
+
+Health readiness (`/api/health/ready`) uses the app’s Prisma client/`pg` pool to run
+a `SELECT 1` Postgres check. Because the deploy runs with two web containers
+(`web_blue` + `web_green`) plus the worker during cutover, make sure Postgres
+`max_connections` comfortably exceeds total concurrent Prisma clients and keep
+the readiness probe bounded (it applies a server-side `statement_timeout`).
 
 ### 8. GitHub repository configuration
 
