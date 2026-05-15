@@ -58,6 +58,50 @@ async function resetAdminEventRegistration(slug: string): Promise<void> {
   }
 }
 
+async function openEventRegistrationWindow(slug: string): Promise<void> {
+  try {
+    await pool.query(
+      `
+        UPDATE "events"
+        SET "registration_start" = now() - interval '1 day',
+            "registration_end" = now() + interval '30 days'
+        WHERE "slug" = $1
+      `,
+      [slug]
+    );
+  } catch (error) {
+    throw new Error(`openEventRegistrationWindow failed for slug=${slug}.`, {
+      cause: error,
+    });
+  }
+}
+
+async function resetPavilionReservationRequest(props: {
+  eventName: string;
+  requesterEmail: string;
+}): Promise<void> {
+  try {
+    await pool.query(
+      `
+        DELETE FROM "pavilion_reservation_requests"
+        WHERE "event_name" = $1
+          AND lower("requester_email") = $2
+      `,
+      [props.eventName, props.requesterEmail.toLowerCase()]
+    );
+  } catch (error) {
+    throw new Error(
+      `resetPavilionReservationRequest failed for eventName=${props.eventName} requesterEmail=${props.requesterEmail}.`,
+      { cause: error }
+    );
+  }
+}
+
+function isoDateDaysFromNow(days: number): string {
+  const date = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+  return date.toISOString().slice(0, 10);
+}
+
 test.afterAll(async () => {
   await closePgPool();
 });
@@ -104,6 +148,8 @@ test.describe('MIT Sailing catalog', () => {
   test('/events/[slug] shows registration CTA when signed out', async ({
     page,
   }) => {
+    await openEventRegistrationWindow('bluewater-boston-provincetown');
+
     await page.goto('/events/bluewater-boston-provincetown');
 
     await expect(
@@ -121,6 +167,7 @@ test.describe('MIT Sailing catalog', () => {
     page,
   }) => {
     await resetAdminEventRegistration('bluewater-boston-provincetown');
+    await openEventRegistrationWindow('bluewater-boston-provincetown');
     await signInAsAdmin(page);
 
     await page.goto('/events/bluewater-boston-provincetown');
@@ -141,6 +188,7 @@ test.describe('MIT Sailing catalog', () => {
   }) => {
     const slug = 'intercollegiate-overnight-series';
     await resetAdminEventRegistration(slug);
+    await openEventRegistrationWindow(slug);
 
     try {
       await signInAsAdmin(page);
@@ -186,6 +234,66 @@ test.describe('MIT Sailing catalog', () => {
     await expect(
       page.getByRole('heading', { level: 1, name: 'Intro Sailing 101' })
     ).toBeVisible();
+  });
+
+  test('/reserve-pavilion submits public reservation request', async ({
+    page,
+  }) => {
+    const eventName = `E2E Pavilion Request ${Date.now()}`;
+    const requesterEmail = `${eventName
+      .toLowerCase()
+      .replaceAll(' ', '-')}@example.com`;
+
+    try {
+      await resetPavilionReservationRequest({ eventName, requesterEmail });
+      await page.goto('/reserve-pavilion');
+
+      await expect(
+        page.getByRole('heading', {
+          level: 1,
+          name: 'Reserve a Pavilion',
+        })
+      ).toBeVisible();
+      await page.getByLabel('Email address').fill(requesterEmail);
+      await page
+        .getByRole('article')
+        .filter({ hasText: 'Casual party space' })
+        .getByRole('button', { name: 'Select this space' })
+        .click();
+      await page.getByLabel('Date').fill(isoDateDaysFromNow(14));
+      await page.getByLabel('Start time').selectOption('600');
+      await page.getByLabel('End time').selectOption('720');
+      await page
+        .getByRole('button', { name: 'Next: contact information' })
+        .click();
+
+      await page.getByLabel('First name').fill('Pavilion');
+      await page.getByLabel('Last name').fill('Requester');
+      await page.getByLabel('Phone').fill('617-555-0142');
+      await page.getByLabel('Event name').fill(eventName);
+      await page.getByLabel('Event description').fill('E2E waterfront event.');
+      await page.getByLabel('Project title').fill('E2E reservation coverage');
+      await page.getByLabel('Faculty advisor name').fill('Professor Sail');
+      await page
+        .getByLabel('Faculty advisor email')
+        .fill('advisor@example.com');
+      await page.getByLabel('Cost center').fill('1234567');
+      await page.getByRole('button', { name: 'Review your request' }).click();
+
+      await expect(
+        page.getByRole('heading', { name: 'Review your reservation' })
+      ).toBeVisible();
+      await page
+        .getByRole('button', { name: 'Submit reservation request' })
+        .click();
+
+      await expect(
+        page.getByRole('heading', { name: 'Request received' })
+      ).toBeVisible();
+      await expect(page.getByText(/^PAV-/)).toBeVisible();
+    } finally {
+      await resetPavilionReservationRequest({ eventName, requesterEmail });
+    }
   });
 
   test('/fleet lists boats', async ({ page }) => {

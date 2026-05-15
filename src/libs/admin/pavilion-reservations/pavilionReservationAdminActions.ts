@@ -11,6 +11,7 @@ import {
 } from '@/libs/admin/pavilion-reservations/pavilionReservationAdminQueries';
 import { requireAdmin } from '@/libs/auth/dal';
 import { prisma } from '@/libs/DB';
+import { getI18nPath } from '@/utils/Helpers';
 
 function formText(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -48,6 +49,6 @@ export async function updatePavilionReservationAdminAction(
     },
   });
 
-  revalidatePath(adminPavilionReservationIndexPath());
-  revalidatePath(adminPavilionReservationDetailPath(id));
+  revalidatePath(getI18nPath(adminPavilionReservationIndexPath(), locale));
+  revalidatePath(getI18nPath(adminPavilionReservationDetailPath(id), locale));
 }

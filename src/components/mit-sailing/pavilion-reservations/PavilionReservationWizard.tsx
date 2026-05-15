@@ -58,6 +58,7 @@ type PavilionReservationWizardProps = {
   ) => Promise<PavilionReservationSubmitState>;
   initialState: PavilionReservationSubmitState;
   items: PavilionReservableItemDto[];
+  permalink: string;
 };
 
 const personas = [
@@ -1358,7 +1359,8 @@ export function PavilionReservationWizard(
   const t = useTranslations('PavilionReservationPage');
   const [actionState, formAction, pending] = useActionState(
     props.action,
-    props.initialState
+    props.initialState,
+    props.permalink
   );
   const [step, setStep] = useState<WizardStep>('spaces');
   const [persona, setPersona] =

@@ -25,12 +25,6 @@ const PAVILION_REFERENCE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const MIN_NOTICE_HOURS = 48;
 const DUPLICATE_REQUEST_WINDOW_MINUTES = 5;
 
-function initialActionState(): PavilionReservationSubmitState {
-  return { status: 'idle', errors: [] };
-}
-
-export const initialPavilionReservationSubmitState = initialActionState();
-
 function referenceCodeFromBytes(bytes: Buffer): string {
   const chars = Array.from(bytes, (byte) => {
     const index = byte % PAVILION_REFERENCE_ALPHABET.length;

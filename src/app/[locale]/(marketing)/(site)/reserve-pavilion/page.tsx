@@ -3,11 +3,10 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { PavilionReservationWizard } from '@/components/mit-sailing/pavilion-reservations/PavilionReservationWizard';
 import { SiteSectionMain } from '@/components/mit-sailing/SiteSectionMain';
 import { SiteSectionShell } from '@/components/mit-sailing/SiteSectionShell';
-import {
-  initialPavilionReservationSubmitState,
-  submitPavilionReservationRequestAction,
-} from '@/libs/mit-sailing/pavilionReservationActions';
+import { submitPavilionReservationRequestAction } from '@/libs/mit-sailing/pavilionReservationActions';
 import { listVisiblePavilionReservableItems } from '@/libs/mit-sailing/pavilionReservationQueries';
+import { initialPavilionReservationSubmitState } from '@/libs/mit-sailing/pavilionReservationState';
+import { getI18nPath } from '@/utils/Helpers';
 
 type ReservePavilionPageProps = {
   params: Promise<{ locale: string }>;
@@ -48,6 +47,7 @@ export default async function ReservePavilionPage(
           action={action}
           initialState={initialPavilionReservationSubmitState}
           items={items}
+          permalink={getI18nPath('/reserve-pavilion', locale)}
         />
       </SiteSectionMain>
     </SiteSectionShell>
