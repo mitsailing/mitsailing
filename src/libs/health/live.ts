@@ -14,8 +14,6 @@ export function getLiveHealth(): LiveHealthResponse {
     service: 'nextjs',
     appEnv: Env.APP_ENV,
     timestamp: new Date().toISOString(),
-    ...(Env.DEPLOYMENT_VERSION
-      ? { deploymentVersion: Env.DEPLOYMENT_VERSION }
-      : {}),
+    deploymentVersion: Env.DEPLOYMENT_VERSION,
   };
 }

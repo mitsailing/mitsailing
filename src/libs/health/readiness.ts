@@ -46,10 +46,8 @@ type ReadinessOptions = {
 function defaultEnv(): ReadinessEnv {
   return {
     appEnv: Env.APP_ENV,
-    ...(Env.DEPLOYMENT_VERSION
-      ? { deploymentVersion: Env.DEPLOYMENT_VERSION }
-      : {}),
-    ...(Env.REDIS_URL ? { redisUrl: Env.REDIS_URL } : {}),
+    deploymentVersion: Env.DEPLOYMENT_VERSION,
+    redisUrl: Env.REDIS_URL,
   };
 }
 
@@ -147,9 +145,7 @@ export async function getReadinessHealth(
     ? measureCheck({
         required: isRedisRequired,
         timeoutMs,
-        run: async () => {
-          await checkers.redis(redisUrl);
-        },
+        run: () => checkers.redis(redisUrl),
       })
     : Promise.resolve(skippedRedisCheck(isRedisRequired));
 
@@ -166,8 +162,6 @@ export async function getReadinessHealth(
     timestamp: new Date().toISOString(),
     latencyMs: Math.round(performance.now() - startedAt),
     checks: { postgres, redis },
-    ...(env.deploymentVersion
-      ? { deploymentVersion: env.deploymentVersion }
-      : {}),
+    deploymentVersion: env.deploymentVersion,
   };
 }

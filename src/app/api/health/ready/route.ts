@@ -42,12 +42,10 @@ async function readyResponse(params: {
   return Response.json(health, responseInit);
 }
 
-export async function GET(request: Request) {
-  const response = await readyResponse({ request, includeBody: true });
-  return response;
+export function GET(request: Request) {
+  return readyResponse({ request, includeBody: true });
 }
 
-export async function HEAD(request: Request) {
-  const response = await readyResponse({ request, includeBody: false });
-  return response;
+export function HEAD(request: Request) {
+  return readyResponse({ request, includeBody: false });
 }
