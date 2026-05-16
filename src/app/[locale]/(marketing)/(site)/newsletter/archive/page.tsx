@@ -38,7 +38,11 @@ export default async function NewsletterArchivePage(
     include: { primaryList: true },
     orderBy: { sentAt: 'desc' },
     take: 50,
-    where: { sentAt: { not: null }, status: 'sent' },
+    where: {
+      primaryList: { is: { visibility: 'public' } },
+      sentAt: { not: null },
+      status: 'sent',
+    },
   });
 
   return (
