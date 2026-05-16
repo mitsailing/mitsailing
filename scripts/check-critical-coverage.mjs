@@ -71,6 +71,7 @@ const authCoverageFiles = [
   'src/libs/auth/devAuthShortcut.ts',
   'src/libs/auth/dal.ts',
   'src/libs/auth/hooks.ts',
+  'src/libs/auth/passwordHashing.ts',
   'src/libs/auth/password-compromise.ts',
   'src/libs/auth/reportAuthClientError.ts',
   'src/libs/auth/roles.ts',
