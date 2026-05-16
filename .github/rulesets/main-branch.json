@@ -39,9 +39,25 @@
         "required_status_checks": [
           { "context": "Build with 24.x" },
           { "context": "Run unit tests (24.x)" },
+          { "context": "Run integration tests (24.x)" },
           { "context": "Run static checks (24.x)" },
           { "context": "Run Storybook (24.x)" },
-          { "context": "Run E2E tests (24.x)" }
+          { "context": "Run E2E tests (24.x)" },
+          { "context": "Codacy Static Code Analysis" },
+          { "context": "codecov/patch" }
+        ]
+      }
+    },
+    { "type": "required_signatures" },
+    {
+      "type": "code_scanning",
+      "parameters": {
+        "code_scanning_tools": [
+          {
+            "tool": "CodeQL",
+            "security_alerts_threshold": "high_or_higher",
+            "alerts_threshold": "errors"
+          }
         ]
       }
     }

@@ -1,0 +1,13 @@
+# https://github.com/ankane/pgsync — skill: .cursor/skills/pgsync-prod-to-local/SKILL.md
+# Data only: run `npm run db:migrate` on local `dev_db` before sync.
+# CLI flags (not in this file): --defer-constraints --truncate --jobs 1
+
+from: $(echo $PGSYNC_FROM_URL)
+to: $(echo $DATABASE_URL)
+
+schemas:
+  - public
+  - legacy
+
+exclude:
+  - _prisma_migrations

@@ -15,6 +15,7 @@
 
 # testing
 /coverage
+/usability
 /vitest-test-results
 /test-report.junit.xml
 .vitest-attachments/
@@ -26,6 +27,7 @@
 # production
 /build
 /worker.cjs
+/worker.mjs
 
 # misc
 .DS_Store
@@ -37,6 +39,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+
+# IDE secrets (e.g. sourcery.token) — keep in Cursor User settings, not committed
+.vscode/settings.local.json
 
 # local env files — committed only when suffixed `.example`
 .env
@@ -73,3 +78,10 @@ build-archive.log
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+
+#Ignore cursor AI rules
+.cursor/rules/codacy.mdc
+
+# Codacy CLI local state
+.codacy/

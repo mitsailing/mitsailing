@@ -1,0 +1,13 @@
+---
+description: Dev-only /api/dev-login for Cursor browser agents on npm run dev — not Playwright login/sign-up specs
+globs: AGENTS.md,tests/e2e/**/*.ts,tests/helpers/e2e-*.ts
+alwaysApply: false
+---
+
+# Dev browser authentication
+
+**Sources:** [AGENTS.md](../../AGENTS.md) (Dev authentication section).
+
+On **`npm run dev`** only (`APP_ENV=local`, not `IS_E2E`), sign in via **`GET /api/dev-login`** with `email`, `password`, and optional `redirect` (defaults match seeded admin; use values from your `.env` after `npm run db:seed`).
+
+**Do not** use this route in Playwright specs that test **`/login`**, sign-up, or email/password UI — e2e disables the shortcut (`IS_E2E=1`); keep [`signInAsAdmin`](../../tests/helpers/e2e-admin-sign-in.ts) and form flows in [`Auth.e2e.ts`](../../tests/e2e/Auth.e2e.ts).

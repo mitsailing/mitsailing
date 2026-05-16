@@ -1,5 +1,11 @@
 # MIT Sailing
 
+[![CI](https://github.com/mitsailing/mitsailing/actions/workflows/CI.yml/badge.svg)](https://github.com/mitsailing/mitsailing/actions/workflows/CI.yml)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=mitsailing&metric=sqale_rating)](https://sonarcloud.io/summary/overall?id=mitsailing)
+[![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=mitsailing&metric=duplicated_lines_density)](https://sonarcloud.io/summary/overall?id=mitsailing)
+
+<!-- Public badges intentionally exclude security ratings, vulnerability counts, security hotspot counts, and bug counts. -->
+
 The public site and internal app for the [MIT Sailing Pavilion](https://mitsailing.com) — pavilion and programs on the Charles.
 
 - **Production:** <https://mitsailing.com>
@@ -65,6 +71,8 @@ This matches **2026 Next.js** practice: **`next dev` runs on your computer** (fa
 **`npm run db:down` then `npm run dev`** only restarts the **database/mail** containers, then starts **`next dev` again on the host**. Use that when you changed ports in **`.env`** or need a clean slate—not every day.
 
 **Typical day:** Docker running → **`npm run dev`** from the repo root (that runs **`db:up`** → **`db:wait`** → **`db:migrate`** → **`next dev`**). You do **not** need **`db:down`** before each session.
+
+**Refresh `dev_db` from production:** [`.cursor/skills/pgsync-prod-to-local/SKILL.md`](.cursor/skills/pgsync-prod-to-local/SKILL.md) (SSH tunnel + [pgsync](https://github.com/ankane/pgsync); optional `PGSYNC_FROM_URL` in `.env`).
 
 **Production** uses **`next build`** / **`next start`** or the **Docker** image — see [`docs/deploy.md`](docs/deploy.md).
 
@@ -162,6 +170,19 @@ npm run db:studio        # prisma studio
 
 ---
 
+## Codacy
+
+Codacy can use the repository-level config in [`.codacy.yaml`](.codacy.yaml) and the existing Vitest LCOV output from `npm run test:coverage`.
+
+To finish enabling it in GitHub Actions, add one of these repository or organization secrets:
+
+- `CODACY_PROJECT_TOKEN` for a single-repository Codacy setup
+- `CODACY_API_TOKEN` for an account-level setup across multiple repositories
+
+The CI workflow uploads `coverage/lcov.info` to Codacy when either secret is present.
+
+---
+
 ## Database
 
 The project uses Prisma (`@prisma/client` + `@prisma/adapter-pg`) against PostgreSQL. Local development and E2E tests run against Docker Compose; production points at a managed Postgres (e.g. Neon).
@@ -200,7 +221,7 @@ npm run db:migrate:dev   # create + apply a new migration, regenerate client
 
 This app uses **[Better Auth](https://www.better-auth.com/)** (self-hosted) with the Prisma adapter. It is **not** Clerk — any leftover Clerk references in older docs or branches are out of date.
 
-Configuration lives in `src/libs/auth/` and environment variables in `src/libs/Env.ts`. See **`.env.example`** for OAuth, SMTP, and other keys. **Local sign-in:** set **`ADMIN_EMAIL`** / **`ADMIN_PASSWORD`** in **`.env`** (see [Getting started step 4](#first-time-on-this-repo-checklist)), run **`npm run db:seed`**, then open **`/login`** with those same values.
+Configuration lives in `src/libs/auth/` and environment variables in `src/libs/Env.ts`. See **`.env.example`** for OAuth, SMTP, and other keys. **Local sign-in:** set **`ADMIN_EMAIL`** / **`ADMIN_PASSWORD`** in **`.env`** (see [Getting started step 4](#first-time-on-this-repo-checklist)), run **`npm run db:seed`**, then open **`/login`** with those same values. For AI browser automation on **`npm run dev`** only, see **`/api/dev-login`** in [AGENTS.md](AGENTS.md) (Playwright e2e keeps using the real login UI).
 
 ---
 

@@ -14,9 +14,6 @@
 # Bring up with:
 #   docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production up -d
 #
-# Optional loopback DB port for SSH tunnel admin (see compose.db-admin.yaml):
-#   docker compose -f compose.yaml -f compose.prod.yaml -f compose.db-admin.yaml --env-file .env.production up -d
-#
 # Worker reuses the app image; `worker.healthcheck` runs `worker-redis-healthcheck.cjs` (see Dockerfile) instead of the image HTTP probe.
 
 services:
@@ -73,6 +70,8 @@ services:
     env_file:
       - path: .env.production
         required: false
+      - path: .env.production.worker
+        required: false
     environment:
       CMS_MEDIA_ROOT: /var/lib/mitsailing/cms-media
     depends_on:
@@ -85,7 +84,7 @@ services:
         source: cms_media
         target: /var/lib/mitsailing/cms-media
     stop_grace_period: 30s
-    command: ['node', 'worker.cjs']
+    command: ['node', 'worker.mjs']
     deploy:
       resources:
         limits:

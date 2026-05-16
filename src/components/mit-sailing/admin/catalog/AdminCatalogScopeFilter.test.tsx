@@ -17,6 +17,7 @@ describe('AdminCatalogScopeFilter', () => {
   it('renders a page dropdown for page block indexes', () => {
     render(
       <AdminCatalogScopeFilter
+        action="/admin/cms_page_blocks"
         actionLabel="Filter"
         label="Page"
         options={[
@@ -38,6 +39,7 @@ describe('AdminCatalogScopeFilter', () => {
   it('renders a menu dropdown for menu item indexes', () => {
     render(
       <AdminCatalogScopeFilter
+        action="/admin/cms_menu_items"
         actionLabel="Filter"
         label="Menu"
         options={[{ label: 'Header (header)', value: 'menu-1' }]}

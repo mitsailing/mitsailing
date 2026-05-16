@@ -10,6 +10,6 @@ alwaysApply: false
 
 **Before PR:** Prefer `cr review --agent --base main` when you use the CodeRabbit CLI; fix high-confidence issues, skip noise with a short reason, keep diffs small, run the **allowed** `npm run` checks from AGENTS.md.
 
-**Stack specifics** live in other rules — do not duplicate them here: `nextjs-node-server-2026.mdc`, `react-form-events.mdc`, `ada-color-accessibility.mdc`, `tdd.mdc`, `e2e-verification.mdc`.
+**Stack specifics** live in other rules — do not duplicate them here: `nextjs-node-server-2026.mdc`, `next-intl-single-locale-routing.mdc`, `react-form-events.mdc`, `ada-color-accessibility.mdc`, `tdd.mdc`, `e2e-verification.mdc`.
 
 **CodeRabbit config:** [`.coderabbit.yaml`](../../.coderabbit.yaml) `path_instructions` include URL-shape guidance (default no `trailingSlash`; use `/path#hash` not `/path/#hash` for assertions and in-app links) so the bot does not repeat mistaken `/ratings/#…` review suggestions.

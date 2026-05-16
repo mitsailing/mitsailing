@@ -134,7 +134,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
-COPY --from=builder --chown=nextjs:nodejs /app/worker.cjs ./worker.cjs
+COPY --from=builder --chown=nextjs:nodejs /app/worker.mjs ./worker.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/worker-redis-healthcheck.cjs ./worker-redis-healthcheck.cjs
 
 USER nextjs
@@ -142,7 +142,7 @@ EXPOSE 3000
 
 # HEALTHCHECK uses the Next.js response rather than exec'ing curl so we
 # don't have to install another package. Any 2xx/3xx on `/` counts.
-# The BullMQ worker (`worker.cjs`) reuses this image but does not serve HTTP;
+# The BullMQ worker (`worker.mjs`) reuses this image but does not serve HTTP;
 # compose.prod.yaml overrides healthcheck for the `worker` service (Redis reachability via REDIS_URL).
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:3000').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"

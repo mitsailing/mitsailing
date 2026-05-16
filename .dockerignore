@@ -4,6 +4,8 @@
 # Build output / local caches
 .next/
 out/
+worker.cjs
+worker.mjs
 coverage/
 vitest-test-results/
 playwright-report/

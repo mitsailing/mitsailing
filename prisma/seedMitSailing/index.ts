@@ -6,6 +6,7 @@ import {
   seedEventCategories,
   seedEventRelatedRows,
   seedEvents,
+  seedPavilionReservationCatalog,
   seedSailingClassRelatedEventsFromSeed,
   seedSailingClassesAndBoats,
   seedSailingRatings,
@@ -31,6 +32,7 @@ export async function seedMitSailing(): Promise<void> {
   await seedSailingClassRelatedEventsFromSeed(prisma);
   await seedEventRelatedRows(prisma);
   await seedDonationFunds(prisma);
+  await seedPavilionReservationCatalog(prisma);
   await seedSiteAlerts(prisma);
   await seedCmsContent(prisma);
 }

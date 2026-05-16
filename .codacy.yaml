@@ -1,0 +1,16 @@
+---
+# TSX excluded because Codacy misclassifies React components; TSX stays covered by
+# ESLint/oxlint, Vitest, Playwright, and CodeRabbit (see .coderabbit.yaml).
+exclude_paths:
+  - '.next/**'
+  - 'out/**'
+  - 'coverage/**'
+  - 'playwright-report/**'
+  - 'blob-report/**'
+  - 'test-results/**'
+  - 'vitest-test-results/**'
+  - 'storybook-static/**'
+  - 'node_modules/**'
+  - 'src/generated/**'
+  - 'prisma/migrations/**'
+  - '**/*.tsx'
