@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { importLegacyPavilionReservationRows, importLegacyPavilionReservationsFromSchema, legacyPavilionReservationRowsFromCsv, legacyReservationReferenceCode, legacyReservationSlotDeleteWhere, minutesFromMysqlTime } from '@/libs/legacy-sync/legacyPavilionReservationImport';
+import {
+  importLegacyPavilionReservationRows,
+  importLegacyPavilionReservationsFromSchema,
+  legacyPavilionReservationRowsFromCsv,
+  legacyReservationReferenceCode,
+  legacyReservationSlotDeleteWhere,
+  minutesFromMysqlTime,
+} from '@/libs/legacy-sync/legacyPavilionReservationImport';
 import type { LegacyReservationDbRow } from '@/libs/legacy-sync/legacyPavilionReservationImport';
 
 describe('legacyPavilionReservationImport', () => {
