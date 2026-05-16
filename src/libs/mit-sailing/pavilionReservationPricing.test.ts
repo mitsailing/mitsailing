@@ -120,23 +120,6 @@ describe('priceForPersona', () => {
     ).toBeNull();
   });
 
-  it('returns null when item pricing is confirmed after review', () => {
-    expect(
-      priceForPersona(
-        {
-          pricingType: 'tbd',
-          prices: {
-            mit_academic: 10_000,
-            mit_student: 10_000,
-            mit_community: 10_000,
-            non_mit: 10_000,
-          },
-        },
-        'mit_academic'
-      )
-    ).toBeNull();
-  });
-
   it('returns zero when persona price is complimentary', () => {
     expect(
       priceForPersona(
@@ -170,11 +153,11 @@ describe('formatPavilionReservationMoney', () => {
 });
 
 describe('estimatedServiceAmountCents', () => {
-  it('returns null for services priced after review', () => {
+  it('returns null for services when persona price is unset', () => {
     expect(
       estimatedServiceAmountCents({
         item: {
-          pricingType: 'tbd',
+          pricingType: 'flat',
           prices: {
             mit_academic: null,
             mit_student: 10_000,

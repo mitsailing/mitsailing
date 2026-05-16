@@ -709,7 +709,6 @@ enum PavilionReservableItemKind {
 enum PavilionPricingType {
   hourly
   flat
-  tbd
 
   @@map("pavilion_pricing_type")
 }

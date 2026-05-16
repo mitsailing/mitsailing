@@ -18,7 +18,7 @@ export type PavilionReservationPaymentStatusValue =
   | 'paid'
   | 'waived';
 
-export type PavilionPricingTypeValue = 'hourly' | 'flat' | 'tbd';
+export type PavilionPricingTypeValue = 'hourly' | 'flat';
 
 export type PavilionReservableItemKindValue = 'space' | 'service';
 

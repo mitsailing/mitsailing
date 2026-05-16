@@ -25,9 +25,6 @@ export function priceForPersona(
   item: PavilionReservableItemPricing,
   persona: PavilionReservationPersonaValue
 ): number | null {
-  if (item.pricingType === 'tbd') {
-    return null;
-  }
   return item.prices[persona];
 }
 
@@ -80,9 +77,6 @@ export function estimatedSlotAmountCents(props: {
         startMinutes: props.slot.startMinutes,
       });
     }
-    case 'tbd': {
-      return null;
-    }
     default: {
       const exhaustivePricingType: never = props.item.pricingType;
       return exhaustivePricingType;
@@ -102,7 +96,7 @@ export function priceLabel(props: {
   pricingType: PavilionPricingTypeValue;
   tbdLabel: string;
 }): string {
-  if (props.amountCents === null || props.pricingType === 'tbd') {
+  if (props.amountCents === null) {
     return props.tbdLabel;
   }
   const formatted = formatPavilionReservationMoney(props.amountCents);

@@ -11,7 +11,7 @@ export type PavilionReservableItemSeed = {
   name: string;
   description: string;
   imageUrl: string | null;
-  pricingType: 'hourly' | 'flat' | 'tbd';
+  pricingType: 'hourly' | 'flat';
   minDurationHours: number | null;
   displayOrder: number;
   isVisible: boolean;

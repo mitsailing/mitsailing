@@ -108,10 +108,10 @@ reviews:
     - path: 'src/data/mit-sailing/pavilionReservationCatalogSeed.ts'
       instructions: >-
         Seed/bootstrap catalog only; production pricing is edited in admin/DB.
-        Items negotiated with the Sailing Master may stay `pricingType: 'tbd'`
-        with null persona prices until product copy is finalized (see GitHub
-        issue #69). Do not block on republishing seed rows as `$0` flat fees when
-        the description says fees are arranged separately.
+        `pricingType` is only `hourly` or `flat` (billing shape). Negotiated
+        Sailing Master fees use `flat` with null persona prices until rates are
+        published (see GitHub issue #69). Do not block on republishing seed rows
+        as `$0` flat fees when the description says fees are arranged separately.
     - path: 'src/libs/admin/pavilion-reservations/pavilionReservationAdminActions.ts'
       instructions: >-
         Pavilion reservation amounts are whole dollars only (admin inputs use

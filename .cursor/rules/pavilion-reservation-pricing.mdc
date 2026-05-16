@@ -8,7 +8,7 @@ alwaysApply: false
 
 **Contract (matches DB `amount_cents IS NULL OR amount_cents >= 0`):**
 
-- `null` — TBD / unset / priced after review (`pricingType: 'tbd'` or missing persona row)
+- `null` — TBD / unset / priced after review (missing persona amount; `pricingType` is still `hourly` or `flat`)
 - `0` — complimentary (show `$0`, include in estimates)
 - `> 0` — whole-dollar USD only, stored as integer **cents** that are always a multiple of `100` (no fractional cents)
 
@@ -18,6 +18,8 @@ alwaysApply: false
 
 **Services:** `estimatedServiceAmountCents` returns the flat persona unit price; no hourly slot proration.
 
-**Seed vs production:** `pavilionReservationCatalogSeed.ts` is bootstrap only. Negotiated Sailing Master fees are tracked in GitHub issue #69; do not suggest re-seeding as `$0` flat when copy says fees are arranged separately.
+**Pricing types:** Only `hourly` and `flat` in the DB enum — billing shape, not “quote pending.” Use null persona amounts for unset/negotiated catalog quotes.
+
+**Seed vs production:** `pavilionReservationCatalogSeed.ts` is bootstrap only. Negotiated Sailing Master fees (e.g. lab access) use `flat` + null prices per GitHub issue #69; do not suggest re-seeding as `$0` when copy says fees are arranged separately.
 
 **Codacy:** `.codacy.yaml` excludes `**/*.tsx` intentionally (Codacy TSX misclassification); TSX is still linted/tested elsewhere.

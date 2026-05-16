@@ -109,6 +109,13 @@ describe('PAVILION_RESERVABLE_ITEM_SEED_ROWS', () => {
     }
   });
 
+  it('uses flat pricing with unset amounts for lab access', () => {
+    expect(rowBySlug('lab_access')).toMatchObject({
+      pricingType: 'flat',
+      prices: expectedPricesBySlug.lab_access,
+    });
+  });
+
   it('hides duplicate wedding service row', () => {
     expect(rowBySlug('wedding_service')).toMatchObject({
       isVisible: false,
