@@ -14,7 +14,11 @@ Mirror the old MIT Sailing website MySQL database `sailing` from `ak@sailing.mit
 
 ## Architecture
 
-The production worker owns the nightly sync. It opens an SSH connection to `ak@sailing.mit.edu`, tunnels to MySQL, introspects every base table and column in database `sailing`, recreates Postgres schema `legacy`, and bulk inserts every row into mirrored tables under that schema.
+The production worker owns the hourly sync. It opens an SSH connection to `ak@sailing.mit.edu`, tunnels to MySQL, introspects every base table and column in database `sailing`, recreates Postgres schema `legacy`, and bulk inserts every row into mirrored tables under that schema.
+
+The sync brings over all 52 tables together every hour, including `dw`. `dw` appears to change daily, but keeping it in the same full refresh avoids split schedules, per-table freshness rules, and partial mirror semantics in v1. The source database is about 174 MB, so a full hourly refresh is acceptable unless production measurements show it consistently overlaps the next run.
+
+The MySQL user has read-only access to production database `sailing`, so v1 does not use triggers, source-side change tables, or binlog streaming. Change monitoring would be polling, and reliable content polling would approach the cost of a full refresh. The default is therefore full hourly refresh.
 
 The sync is intentionally destructive only inside `legacy`:
 
@@ -42,7 +46,7 @@ Reservation mapping may upsert app-owned rows with legacy reference codes, but i
 
 The MySQL password and SSH private key are production-only secrets. They should not be committed and should not be passed on command lines. The worker should read them through validated environment variables and a mounted key file.
 
-The scheduler should register only when `APP_ENV=production` and `LEGACY_MYSQL_SYNC_ENABLED=true`. Local and test environments can run the sync manually through unit-tested functions, but should not schedule it.
+The scheduler should register only when `APP_ENV=production` and `LEGACY_MYSQL_SYNC_ENABLED=true`. The default schedule is hourly at minute zero. Local and test environments can run the sync manually through unit-tested functions, but should not schedule it.
 
 ## Implementation Shape
 
@@ -62,7 +66,7 @@ Core units:
 
 Failures should mark the sync run as failed with a short error summary and leave the worker alive for the next scheduled attempt. Because the design drops `legacy` at the beginning, a failed sync can leave `legacy` absent or partial until the next successful run. That is accepted by this design.
 
-The worker should use BullMQ retries for transient failures, but the mirror loader should not retry individual SQL statements internally in a way that hides partial-state problems.
+The worker should use BullMQ retries for transient failures, but the mirror loader should not retry individual SQL statements internally in a way that hides partial-state problems. Each run must acquire a Postgres advisory lock before dropping `legacy`; if the lock is already held, the worker records a skipped sync run and exits without touching `legacy` or running reservation mapping.
 
 ## Verification
 
@@ -75,6 +79,7 @@ Unit tests cover:
 - MySQL row value conversion for raw mirror inserts
 - Legacy reservation row mapping from typed `legacy.reservations` rows, including proof that native app reservations are not deleted
 - Scheduler registration only in production when explicitly enabled
+- Advisory-lock overlap prevention that skips a run without resetting `legacy`
 
 Manual production verification:
 

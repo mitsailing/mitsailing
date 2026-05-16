@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Mirror the old website MySQL database `sailing` from `ak@sailing.mit.edu` into Postgres schema `legacy` nightly, then map `legacy.reservations` into the existing Pavilion reservation tables.
+**Goal:** Mirror the old website MySQL database `sailing` from `ak@sailing.mit.edu` into Postgres schema `legacy` hourly, then map `legacy.reservations` into the existing Pavilion reservation tables.
 
-**Architecture:** Add a production-only BullMQ scheduled job in the existing worker. The job opens an SSH tunnel, reads MySQL metadata and rows with `mysql2`, drops and recreates only Postgres schema `legacy`, bulk inserts all source tables, records sync status, and runs the legacy reservation mapper.
+**Architecture:** Add a production-only BullMQ hourly scheduled job in the existing worker. The job opens an SSH tunnel, reads MySQL metadata and rows with `mysql2`, acquires a Postgres advisory lock, drops and recreates only Postgres schema `legacy`, bulk inserts all source tables together, records sync status, and runs the legacy reservation mapper.
 
 **Tech Stack:** Next.js 16 app, Node 24 worker, BullMQ 5 `upsertJobScheduler`, Redis, Prisma/Postgres, `pg`, `ssh2`, `mysql2`, Vitest.
 
@@ -60,7 +60,7 @@ Add these server fields:
 
 ```ts
 LEGACY_MYSQL_SYNC_ENABLED: z.enum(['true', 'false']).default('false'),
-LEGACY_MYSQL_SYNC_CRON: z.string().min(1).default('0 30 8 * * *'),
+LEGACY_MYSQL_SYNC_CRON: z.string().min(1).default('0 0 * * * *'),
 LEGACY_MYSQL_SSH_HOST: z.string().min(1).optional(),
 LEGACY_MYSQL_SSH_PORT: z.coerce.number().int().positive().default(22),
 LEGACY_MYSQL_SSH_USER: z.string().min(1).optional(),
@@ -124,7 +124,7 @@ if (env.LEGACY_MYSQL_SYNC_ENABLED === 'true') {
 # on the production host. Never commit the filled file.
 
 LEGACY_MYSQL_SYNC_ENABLED=true
-LEGACY_MYSQL_SYNC_CRON=0 30 8 * * *
+LEGACY_MYSQL_SYNC_CRON=0 0 * * * *
 LEGACY_MYSQL_SSH_HOST=sailing.mit.edu
 LEGACY_MYSQL_SSH_PORT=22
 LEGACY_MYSQL_SSH_USER=ak
@@ -170,6 +170,7 @@ enum LegacyMysqlSyncStatus {
   running
   succeeded
   failed
+  skipped
 
   @@map("legacy_mysql_sync_status")
 }
@@ -193,7 +194,7 @@ model LegacyMysqlSyncRun {
 - [ ] **Step 2: Create migration SQL**
 
 ```sql
-CREATE TYPE "legacy_mysql_sync_status" AS ENUM ('running', 'succeeded', 'failed');
+CREATE TYPE "legacy_mysql_sync_status" AS ENUM ('running', 'succeeded', 'failed', 'skipped');
 
 CREATE TABLE "legacy_mysql_sync_runs" (
   "id" TEXT NOT NULL,
@@ -993,7 +994,11 @@ git commit -m "feat: connect to legacy MySQL over SSH"
 
 ```ts
 import { describe, expect, it } from 'vitest';
-import { legacyMysqlSyncConfigFromEnv } from '@/libs/legacy-sync/legacyMysqlSync';
+import {
+  legacyMysqlSyncConfigFromEnv,
+  releaseLegacyMysqlSyncLock,
+  tryAcquireLegacyMysqlSyncLock,
+} from '@/libs/legacy-sync/legacyMysqlSync';
 
 describe('legacyMysqlSyncConfigFromEnv', () => {
   it('returns disabled config when sync flag is false', () => {
@@ -1003,6 +1008,47 @@ describe('legacyMysqlSyncConfigFromEnv', () => {
         LEGACY_MYSQL_SYNC_ENABLED: 'false',
       })
     ).toEqual({ enabled: false });
+  });
+
+  it('uses hourly cron by default when enabled', () => {
+    expect(
+      legacyMysqlSyncConfigFromEnv({
+        APP_ENV: 'production',
+        LEGACY_MYSQL_DATABASE: 'sailing',
+        LEGACY_MYSQL_PASSWORD: 'secret',
+        LEGACY_MYSQL_PORT: 3306,
+        LEGACY_MYSQL_SSH_HOST: 'sailing.mit.edu',
+        LEGACY_MYSQL_SSH_PORT: 22,
+        LEGACY_MYSQL_SSH_PRIVATE_KEY_PATH: '/run/secrets/key',
+        LEGACY_MYSQL_SSH_USER: 'ak',
+        LEGACY_MYSQL_SYNC_ENABLED: 'true',
+        LEGACY_MYSQL_USER: 'ak',
+      }).cron
+    ).toBe('0 0 * * * *');
+  });
+
+  it('uses a fixed advisory lock for overlap prevention', async () => {
+    const queries: Array<{ sql: string; values: unknown[] }> = [];
+    const pg = {
+      query: async <T,>(sql: string, values: unknown[] = []) => {
+        queries.push({ sql, values });
+        return { rows: [{ acquired: true } as T] };
+      },
+    };
+
+    await expect(tryAcquireLegacyMysqlSyncLock(pg)).resolves.toBe(true);
+    await releaseLegacyMysqlSyncLock(pg);
+
+    expect(queries).toEqual([
+      {
+        sql: 'SELECT pg_try_advisory_lock($1, $2) AS acquired',
+        values: [20260516, 1],
+      },
+      {
+        sql: 'SELECT pg_advisory_unlock($1, $2)',
+        values: [20260516, 1],
+      },
+    ]);
   });
 });
 ```
@@ -1034,6 +1080,29 @@ import {
   resetLegacySchema,
 } from '@/libs/legacy-sync/postgresMirrorLoader';
 
+const LEGACY_MYSQL_SYNC_ADVISORY_LOCK = {
+  classId: 20260516,
+  objectId: 1,
+} as const;
+
+type AdvisoryLockClient = {
+  query: <T>(sql: string, values?: unknown[]) => Promise<{ rows: T[] }>;
+};
+
+type LegacyMysqlSyncEnv = {
+  APP_ENV?: string;
+  LEGACY_MYSQL_DATABASE?: string;
+  LEGACY_MYSQL_PASSWORD?: string;
+  LEGACY_MYSQL_PORT?: number;
+  LEGACY_MYSQL_SSH_HOST?: string;
+  LEGACY_MYSQL_SSH_PORT?: number;
+  LEGACY_MYSQL_SSH_PRIVATE_KEY_PATH?: string;
+  LEGACY_MYSQL_SSH_USER?: string;
+  LEGACY_MYSQL_SYNC_CRON?: string;
+  LEGACY_MYSQL_SYNC_ENABLED?: string;
+  LEGACY_MYSQL_USER?: string;
+};
+
 export type LegacyMysqlSyncConfig =
   | { enabled: false }
   | {
@@ -1049,39 +1118,81 @@ export type LegacyMysqlSyncConfig =
       sshUser: string;
     };
 
-export function legacyMysqlSyncConfigFromEnv(env = Env): LegacyMysqlSyncConfig {
+export function legacyMysqlSyncConfigFromEnv(
+  env: LegacyMysqlSyncEnv = Env
+): LegacyMysqlSyncConfig {
   if (env.LEGACY_MYSQL_SYNC_ENABLED !== 'true') {
     return { enabled: false };
   }
   return {
     enabled: true,
-    cron: env.LEGACY_MYSQL_SYNC_CRON,
+    cron: env.LEGACY_MYSQL_SYNC_CRON ?? '0 0 * * * *',
     database: env.LEGACY_MYSQL_DATABASE ?? 'sailing',
     mysqlPassword: env.LEGACY_MYSQL_PASSWORD ?? '',
-    mysqlPort: env.LEGACY_MYSQL_PORT,
+    mysqlPort: env.LEGACY_MYSQL_PORT ?? 3306,
     mysqlUser: env.LEGACY_MYSQL_USER ?? 'ak',
     sshHost: env.LEGACY_MYSQL_SSH_HOST ?? 'sailing.mit.edu',
-    sshPort: env.LEGACY_MYSQL_SSH_PORT,
+    sshPort: env.LEGACY_MYSQL_SSH_PORT ?? 22,
     sshPrivateKeyPath: env.LEGACY_MYSQL_SSH_PRIVATE_KEY_PATH ?? '',
     sshUser: env.LEGACY_MYSQL_SSH_USER ?? 'ak',
   };
 }
 
+export async function tryAcquireLegacyMysqlSyncLock(
+  pg: AdvisoryLockClient
+): Promise<boolean> {
+  const result = await pg.query<{ acquired: boolean }>(
+    'SELECT pg_try_advisory_lock($1, $2) AS acquired',
+    [
+      LEGACY_MYSQL_SYNC_ADVISORY_LOCK.classId,
+      LEGACY_MYSQL_SYNC_ADVISORY_LOCK.objectId,
+    ]
+  );
+  return result.rows[0]?.acquired === true;
+}
+
+export async function releaseLegacyMysqlSyncLock(
+  pg: AdvisoryLockClient
+): Promise<void> {
+  await pg.query('SELECT pg_advisory_unlock($1, $2)', [
+    LEGACY_MYSQL_SYNC_ADVISORY_LOCK.classId,
+    LEGACY_MYSQL_SYNC_ADVISORY_LOCK.objectId,
+  ]);
+}
+
 export async function runLegacyMysqlSync(
   config: Extract<LegacyMysqlSyncConfig, { enabled: true }>
-): Promise<{ rowCount: bigint; tableCount: number }> {
-  const run = await prisma.legacyMysqlSyncRun.create({
-    data: {
-      status: 'running',
-      sourceDatabase: config.database,
-      sourceHost: config.sshHost,
-    },
-    select: { id: true },
-  });
-
+): Promise<{ rowCount: bigint; skipped: boolean; tableCount: number }> {
+  const pg = new PgPool({ connectionString: Env.DATABASE_URL });
+  let acquired = false;
   let rowCount = 0n;
+  let runId: string | null = null;
   try {
-    const pg = new PgPool({ connectionString: Env.DATABASE_URL });
+    acquired = await tryAcquireLegacyMysqlSyncLock(pg);
+    if (!acquired) {
+      await prisma.legacyMysqlSyncRun.create({
+        data: {
+          errorMessage:
+            'Skipped because another legacy MySQL sync is still running.',
+          finishedAt: new Date(),
+          sourceDatabase: config.database,
+          sourceHost: config.sshHost,
+          status: 'skipped',
+        },
+      });
+      return { rowCount: 0n, skipped: true, tableCount: 0 };
+    }
+
+    const run = await prisma.legacyMysqlSyncRun.create({
+      data: {
+        status: 'running',
+        sourceDatabase: config.database,
+        sourceHost: config.sshHost,
+      },
+      select: { id: true },
+    });
+    runId = run.id;
+
     const legacyMysql = await openLegacyMysqlConnection({
       database: config.database,
       mysqlPassword: config.mysqlPassword,
@@ -1122,22 +1233,29 @@ export async function runLegacyMysqlSync(
           tableCount: tableNames.length,
         },
       });
-      return { rowCount, tableCount: tableNames.length };
+      return { rowCount, skipped: false, tableCount: tableNames.length };
     } finally {
       await legacyMysql.close();
-      await pg.end();
     }
   } catch (error: unknown) {
-    await prisma.legacyMysqlSyncRun.update({
-      where: { id: run.id },
-      data: {
-        errorMessage: error instanceof Error ? error.message : 'Unknown error',
-        finishedAt: new Date(),
-        rowCount,
-        status: 'failed',
-      },
-    });
+    if (runId) {
+      await prisma.legacyMysqlSyncRun.update({
+        where: { id: runId },
+        data: {
+          errorMessage:
+            error instanceof Error ? error.message : 'Unknown error',
+          finishedAt: new Date(),
+          rowCount,
+          status: 'failed',
+        },
+      });
+    }
     throw error;
+  } finally {
+    if (acquired) {
+      await releaseLegacyMysqlSyncLock(pg);
+    }
+    await pg.end();
   }
 }
 ```
@@ -1353,7 +1471,7 @@ import {
 import { importLegacyPavilionReservationsFromSchema } from '@/libs/legacy-sync/legacyPavilionReservationImport';
 
 export const LEGACY_MYSQL_SYNC_JOB_NAME = 'legacy-mysql-sync';
-export const LEGACY_MYSQL_SYNC_SCHEDULER_ID = 'legacy-mysql-sync-nightly';
+export const LEGACY_MYSQL_SYNC_SCHEDULER_ID = 'legacy-mysql-sync-hourly';
 
 export async function registerLegacyMysqlSyncScheduler(
   queue: Queue
@@ -1384,7 +1502,10 @@ export async function processLegacyMysqlSyncJob(): Promise<void> {
   if (!config.enabled) {
     return;
   }
-  await runLegacyMysqlSync(config);
+  const result = await runLegacyMysqlSync(config);
+  if (result.skipped) {
+    return;
+  }
   await importLegacyPavilionReservationsFromSchema();
 }
 ```
@@ -1596,6 +1717,11 @@ rg -n "DROP SCHEMA|DROP TABLE|TRUNCATE|DELETE FROM" src scripts prisma/migration
 
 Expected: The only new destructive schema operation is `DROP SCHEMA IF EXISTS "legacy" CASCADE`; reservation slot deletion remains scoped by request id as in the existing importer.
 
+Known pre-existing matches are allowed and must not be attributed to this work:
+
+- `prisma/migrations/20260423000000_drop_counter/migration.sql`
+- `scripts/migrate-test-db.mjs`
+
 - [ ] **Step 6: Commit final fixes if any**
 
 If verification required fixes:
@@ -1612,4 +1738,4 @@ If no fixes were needed, do not create an empty commit.
 
 - Spec coverage: The plan covers production-only sync, SSH/MySQL access, all-table mirroring into `legacy`, destructive refresh without staging, metadata, reservation mapping, secrets, Compose, docs, and verification.
 - Placeholder scan: No placeholder task remains; environment examples leave secret values intentionally blank in an uncommitted host file.
-- Type consistency: `LegacyMysqlSyncRun`, `LegacyMysqlSyncStatus`, `legacyMysqlSyncConfigFromEnv`, `runLegacyMysqlSync`, and `importLegacyPavilionReservationsFromSchema` are named consistently across tasks.
+- Type consistency: `LegacyMysqlSyncRun`, `LegacyMysqlSyncStatus`, `legacyMysqlSyncConfigFromEnv`, `runLegacyMysqlSync`, skipped sync results, and `importLegacyPavilionReservationsFromSchema` are named consistently across tasks.
