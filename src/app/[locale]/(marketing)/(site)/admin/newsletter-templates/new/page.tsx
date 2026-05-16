@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { requireAdmin } from '@/libs/auth/dal';
 import { createNewsletterTemplateAction } from '@/libs/newsletter/newsletterAdminActions';
 
 type PageProps = {
@@ -22,6 +23,7 @@ export default async function AdminNewsletterTemplateNewPage(props: PageProps) {
   const { locale } = await props.params;
   const { status = '' } = await props.searchParams;
   setRequestLocale(locale);
+  await requireAdmin(locale);
   const t = await getTranslations({ locale, namespace: 'AdminNewsletters' });
 
   return (

@@ -11,6 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { requireAdmin } from '@/libs/auth/dal';
 import { Link } from '@/libs/I18nNavigation';
 import { getAdminNewsletterLists } from '@/libs/newsletter/newsletterBroadcasts';
 
@@ -50,6 +51,7 @@ export default async function AdminNewsletterListsPage(props: PageProps) {
   const { locale } = await props.params;
   const { status = '' } = await props.searchParams;
   setRequestLocale(locale);
+  await requireAdmin(locale);
   const t = await getTranslations({ locale, namespace: 'AdminNewsletters' });
   const lists = await getAdminNewsletterLists();
 

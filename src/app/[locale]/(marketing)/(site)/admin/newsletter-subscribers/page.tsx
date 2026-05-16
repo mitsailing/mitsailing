@@ -10,6 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { requireAdmin } from '@/libs/auth/dal';
 import { getAdminNewsletterSubscribers } from '@/libs/newsletter/newsletterBroadcasts';
 
 type PageProps = { params: Promise<{ locale: string }> };
@@ -40,6 +41,7 @@ export default async function AdminNewsletterSubscribersPage(props: PageProps) {
   await connection();
   const { locale } = await props.params;
   setRequestLocale(locale);
+  await requireAdmin(locale);
   const t = await getTranslations({ locale, namespace: 'AdminNewsletters' });
   const subscribers = await getAdminNewsletterSubscribers();
 
