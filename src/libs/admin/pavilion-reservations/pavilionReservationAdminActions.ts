@@ -275,7 +275,7 @@ function slotSignature(
       (slot) =>
         `${slot.itemId}:${isoCalendarDateFromPrismaDate(slot.requestedDate)}:${slot.startMinutes}:${slot.endMinutes}`
     )
-    .toSorted()
+    .toSorted((first, second) => first.localeCompare(second))
     .join('|');
 }
 

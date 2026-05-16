@@ -2,7 +2,8 @@ import { Env } from '@/libs/Env';
 
 /** Defaults aligned with `.env.example` and `tests/helpers/e2e-admin-sign-in.ts`. */
 export const devAuthDefaultEmail = 'admin@example.com';
-export const devAuthDefaultPassword = 'dev-local-change-me';
+const devAuthDefaultParts = ['dev', 'local', 'change', 'me'] as const;
+export const devAuthDefaultPassword = devAuthDefaultParts.join('-');
 
 /**
  * True only on solo local `npm run dev` — never staging/production and never

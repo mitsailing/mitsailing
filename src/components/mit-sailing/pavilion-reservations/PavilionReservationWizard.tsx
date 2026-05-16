@@ -368,6 +368,17 @@ function canFinishSlotEditing(props: { phase: SlotPhase; slot: ClientSlot }) {
   return props.phase === 'all' && completeSlot(props.slot);
 }
 
+function endMinutesForStartChange(props: {
+  currentEndMinutes: number;
+  nextEndChoices: TimeOption[];
+}) {
+  return props.nextEndChoices.some(
+    (option) => option.minutes === props.currentEndMinutes
+  )
+    ? props.currentEndMinutes
+    : 0;
+}
+
 function pickerPromptKey(phase: SlotPhase) {
   if (phase === 'start') {
     return 'picker_start_title';
@@ -433,6 +444,12 @@ function spacesStepProblemReasonKey(
 
 function scrollElementIntoView(element: HTMLElement | null) {
   element?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+
+function scrollElementIntoViewOnNextFrame(element: HTMLElement | null) {
+  globalThis.requestAnimationFrame(() => {
+    scrollElementIntoView(element);
+  });
 }
 
 function rangeConflicts(
@@ -1031,6 +1048,302 @@ function SlotAllSelection(props: {
   );
 }
 
+function SlotTimePanelActions(props: {
+  canFinishEditing: boolean;
+  phase: SlotPhase;
+  selectedDate: string;
+  setIsEditing: React.Dispatch<React.SetStateAction<boolean>>;
+  setPhase: React.Dispatch<React.SetStateAction<SlotPhase>>;
+}) {
+  const t = useTranslations('PavilionReservationPage');
+
+  if (!props.selectedDate) {
+    return null;
+  }
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {props.phase === 'end' ? (
+        <Button
+          size="sm"
+          type="button"
+          variant="ghost"
+          onClick={() => {
+            props.setPhase('start');
+          }}
+        >
+          {t('picker_change_start')}
+        </Button>
+      ) : null}
+      <Button
+        size="sm"
+        type="button"
+        variant="ghost"
+        onClick={() => {
+          props.setPhase('date');
+        }}
+      >
+        {t('picker_change_date')}
+      </Button>
+      {props.canFinishEditing ? (
+        <Button
+          size="sm"
+          type="button"
+          variant="mit"
+          onClick={() => {
+            props.setIsEditing(false);
+          }}
+        >
+          <Check aria-hidden className="size-4" />
+          {t('picker_done_editing')}
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
+function SlotTimePanelHeader(props: {
+  canFinishEditing: boolean;
+  phase: SlotPhase;
+  selectedDate: string;
+  selectedDateLabel: string;
+  setIsEditing: React.Dispatch<React.SetStateAction<boolean>>;
+  setPhase: React.Dispatch<React.SetStateAction<SlotPhase>>;
+}) {
+  const t = useTranslations('PavilionReservationPage');
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-mit-line bg-mit-surface p-4">
+      <div>
+        <p className="text-sm font-semibold text-mit-text">
+          {props.selectedDateLabel}
+        </p>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          {t(pickerPromptKey(props.phase))}
+        </p>
+      </div>
+      <SlotTimePanelActions
+        canFinishEditing={props.canFinishEditing}
+        phase={props.phase}
+        selectedDate={props.selectedDate}
+        setIsEditing={props.setIsEditing}
+        setPhase={props.setPhase}
+      />
+    </div>
+  );
+}
+
+function SlotTimePanelBody(props: {
+  blockedRanges: PavilionReservationBlockedRange[];
+  endChoices: TimeOption[];
+  onUpdate: (slot: ClientSlot) => void;
+  phase: SlotPhase;
+  setIsEditing: React.Dispatch<React.SetStateAction<boolean>>;
+  setPhase: React.Dispatch<React.SetStateAction<SlotPhase>>;
+  slot: ClientSlot;
+  startChoices: TimeOption[];
+}) {
+  const t = useTranslations('PavilionReservationPage');
+
+  if (!props.slot.date) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-6 text-center text-sm text-muted-foreground">
+        {t('picker_select_date_first')}
+      </div>
+    );
+  }
+
+  if (props.phase === 'start') {
+    return (
+      <SlotStartSelection
+        selectedStartMinutes={props.slot.startMinutes}
+        startChoices={props.startChoices}
+        onSelectStart={(startMinutes) => {
+          props.onUpdate({
+            ...props.slot,
+            startMinutes,
+            endMinutes: 0,
+          });
+          props.setPhase('end');
+        }}
+      />
+    );
+  }
+
+  if (props.phase === 'all') {
+    return (
+      <SlotAllSelection
+        endChoices={props.endChoices}
+        selectedEndMinutes={props.slot.endMinutes}
+        selectedStartMinutes={props.slot.startMinutes}
+        startChoices={props.startChoices}
+        onSelectStart={(startMinutes) => {
+          const nextEndChoices = availableEndOptions({
+            blockedRanges: props.blockedRanges,
+            startMinutes,
+          });
+          props.onUpdate({
+            ...props.slot,
+            startMinutes,
+            endMinutes: endMinutesForStartChange({
+              currentEndMinutes: props.slot.endMinutes,
+              nextEndChoices,
+            }),
+          });
+        }}
+        onSelectEnd={(endMinutes) => {
+          props.onUpdate({
+            ...props.slot,
+            endMinutes,
+          });
+          props.setIsEditing(false);
+        }}
+      />
+    );
+  }
+
+  if (props.phase === 'end') {
+    return (
+      <SlotEndSelection
+        endChoices={props.endChoices}
+        selectedEndMinutes={props.slot.endMinutes}
+        startMinutes={props.slot.startMinutes}
+        onChangeStart={() => {
+          props.setPhase('start');
+        }}
+        onSelectEnd={(endMinutes) => {
+          props.onUpdate({
+            ...props.slot,
+            endMinutes,
+          });
+          props.setIsEditing(false);
+        }}
+      />
+    );
+  }
+
+  return null;
+}
+
+function SlotTimePanel(props: {
+  blockedRanges: PavilionReservationBlockedRange[];
+  canFinishEditing: boolean;
+  endChoices: TimeOption[];
+  onUpdate: (slot: ClientSlot) => void;
+  phase: SlotPhase;
+  selectedDateLabel: string;
+  setIsEditing: React.Dispatch<React.SetStateAction<boolean>>;
+  setPhase: React.Dispatch<React.SetStateAction<SlotPhase>>;
+  slot: ClientSlot;
+  startChoices: TimeOption[];
+}) {
+  return (
+    <div className="flex flex-col md:min-h-96">
+      <SlotTimePanelHeader
+        canFinishEditing={props.canFinishEditing}
+        phase={props.phase}
+        selectedDate={props.slot.date}
+        selectedDateLabel={props.selectedDateLabel}
+        setIsEditing={props.setIsEditing}
+        setPhase={props.setPhase}
+      />
+      <SlotTimePanelBody
+        blockedRanges={props.blockedRanges}
+        endChoices={props.endChoices}
+        phase={props.phase}
+        setIsEditing={props.setIsEditing}
+        setPhase={props.setPhase}
+        slot={props.slot}
+        startChoices={props.startChoices}
+        onUpdate={props.onUpdate}
+      />
+    </div>
+  );
+}
+
+function SlotEditorForm(props: {
+  allBlockedRanges: PavilionReservationBlockedRange[];
+  blockedRanges: PavilionReservationBlockedRange[];
+  calendarMonth: CalendarMonth;
+  canFinishEditing: boolean;
+  cells: CalendarCell[];
+  endChoices: TimeOption[];
+  handleCalendarMonthChange: React.Dispatch<
+    React.SetStateAction<CalendarMonth>
+  >;
+  invalid: boolean;
+  minimumDate: string;
+  now: Date;
+  phase: SlotPhase;
+  selectedDateLabel: string;
+  setIsEditing: React.Dispatch<React.SetStateAction<boolean>>;
+  setPhase: React.Dispatch<React.SetStateAction<SlotPhase>>;
+  slot: ClientSlot;
+  slots: ClientSlot[];
+  startChoices: TimeOption[];
+  title: string;
+  onRemove: () => void;
+  onUpdate: (slot: ClientSlot) => void;
+}) {
+  const t = useTranslations('PavilionReservationPage');
+
+  return (
+    <div className="rounded-lg border border-mit-line bg-mit-surface p-4">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <h5 className="text-sm font-semibold text-mit-text">{props.title}</h5>
+        <div className="flex gap-2">
+          <SlotRemoveButton onRemove={props.onRemove} />
+        </div>
+      </div>
+      <div
+        className={cn(
+          'overflow-hidden rounded-lg border bg-background',
+          props.invalid ? 'border-destructive' : 'border-mit-line'
+        )}
+      >
+        <div className="grid md:grid-cols-[minmax(18rem,22rem)_1fr]">
+          <SlotCalendarPanel
+            calendarMonth={props.calendarMonth}
+            cells={props.cells}
+            minimumDate={props.minimumDate}
+            phase={props.phase}
+            selectedDate={props.slot.date}
+            onMonthChange={props.handleCalendarMonthChange}
+            onSelectDate={(date) => {
+              const nextSlot = slotWithDatePreservingValidTimes({
+                blockedRanges: props.allBlockedRanges,
+                date,
+                now: props.now,
+                slot: props.slot,
+                slots: props.slots,
+              });
+              props.onUpdate(nextSlot);
+              props.setPhase(nextSlot.startMinutes > 0 ? 'all' : 'start');
+            }}
+          />
+          <SlotTimePanel
+            blockedRanges={props.blockedRanges}
+            canFinishEditing={props.canFinishEditing}
+            endChoices={props.endChoices}
+            phase={props.phase}
+            selectedDateLabel={props.selectedDateLabel}
+            setIsEditing={props.setIsEditing}
+            setPhase={props.setPhase}
+            slot={props.slot}
+            startChoices={props.startChoices}
+            onUpdate={props.onUpdate}
+          />
+        </div>
+      </div>
+      {props.invalid ? (
+        <p className="mt-2 text-sm font-medium text-destructive">
+          {t('error_slot_datetime')}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 function SlotEditor(props: {
   blockedRanges: PavilionReservationBlockedRange[];
   onRemove: () => void;
@@ -1049,6 +1362,7 @@ function SlotEditor(props: {
   const [isEditing, setIsEditing] = useState(
     !props.slot.date || props.slot.endMinutes <= props.slot.startMinutes
   );
+  const handleCalendarMonthChange = setCalendarMonth;
   const now = new Date();
   const invalid = slotEditorInvalid({
     showErrors: props.showErrors,
@@ -1075,7 +1389,6 @@ function SlotEditor(props: {
     : t('picker_no_date');
   const isComplete = completeSlot(props.slot);
   const canFinishEditing = canFinishSlotEditing({ phase, slot: props.slot });
-  const pickerPrompt = t(pickerPromptKey(phase));
 
   if (isComplete && !isEditing) {
     return (
@@ -1094,165 +1407,28 @@ function SlotEditor(props: {
   }
 
   return (
-    <div className="rounded-lg border border-mit-line bg-mit-surface p-4">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <h5 className="text-sm font-semibold text-mit-text">{props.title}</h5>
-        <div className="flex gap-2">
-          <SlotRemoveButton onRemove={props.onRemove} />
-        </div>
-      </div>
-      <div
-        className={cn(
-          'overflow-hidden rounded-lg border bg-background',
-          invalid ? 'border-destructive' : 'border-mit-line'
-        )}
-      >
-        <div className="grid md:grid-cols-[minmax(18rem,22rem)_1fr]">
-          <SlotCalendarPanel
-            calendarMonth={calendarMonth}
-            cells={cells}
-            minimumDate={minimumDate}
-            phase={phase}
-            selectedDate={props.slot.date}
-            onMonthChange={setCalendarMonth}
-            onSelectDate={(date) => {
-              const nextSlot = slotWithDatePreservingValidTimes({
-                blockedRanges: props.blockedRanges,
-                date,
-                now,
-                slot: props.slot,
-                slots: props.slots,
-              });
-              props.onUpdate(nextSlot);
-              setPhase(nextSlot.startMinutes > 0 ? 'all' : 'start');
-            }}
-          />
-          <div className="flex flex-col md:min-h-96">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-mit-line bg-mit-surface p-4">
-              <div>
-                <p className="text-sm font-semibold text-mit-text">
-                  {selectedDateLabel}
-                </p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {pickerPrompt}
-                </p>
-              </div>
-              {props.slot.date ? (
-                <div className="flex flex-wrap gap-2">
-                  {phase === 'end' ? (
-                    <Button
-                      size="sm"
-                      type="button"
-                      variant="ghost"
-                      onClick={() => {
-                        setPhase('start');
-                      }}
-                    >
-                      {t('picker_change_start')}
-                    </Button>
-                  ) : null}
-                  <Button
-                    size="sm"
-                    type="button"
-                    variant="ghost"
-                    onClick={() => {
-                      setPhase('date');
-                    }}
-                  >
-                    {t('picker_change_date')}
-                  </Button>
-                  {canFinishEditing ? (
-                    <Button
-                      size="sm"
-                      type="button"
-                      variant="mit"
-                      onClick={() => {
-                        setIsEditing(false);
-                      }}
-                    >
-                      <Check aria-hidden className="size-4" />
-                      {t('picker_done_editing')}
-                    </Button>
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
-            {props.slot.date ? null : (
-              <div className="flex flex-1 items-center justify-center p-6 text-center text-sm text-muted-foreground">
-                {t('picker_select_date_first')}
-              </div>
-            )}
-            {props.slot.date && phase === 'start' ? (
-              <SlotStartSelection
-                selectedStartMinutes={props.slot.startMinutes}
-                startChoices={startChoices}
-                onSelectStart={(startMinutes) => {
-                  props.onUpdate({
-                    ...props.slot,
-                    startMinutes,
-                    endMinutes: 0,
-                  });
-                  setPhase('end');
-                }}
-              />
-            ) : null}
-            {props.slot.date && phase === 'all' ? (
-              <SlotAllSelection
-                endChoices={endChoices}
-                selectedEndMinutes={props.slot.endMinutes}
-                selectedStartMinutes={props.slot.startMinutes}
-                startChoices={startChoices}
-                onSelectStart={(startMinutes) => {
-                  const nextEndChoices = availableEndOptions({
-                    blockedRanges,
-                    startMinutes,
-                  });
-                  const endMinutes = nextEndChoices.some(
-                    (option) => option.minutes === props.slot.endMinutes
-                  )
-                    ? props.slot.endMinutes
-                    : 0;
-                  props.onUpdate({
-                    ...props.slot,
-                    startMinutes,
-                    endMinutes,
-                  });
-                }}
-                onSelectEnd={(endMinutes) => {
-                  props.onUpdate({
-                    ...props.slot,
-                    endMinutes,
-                  });
-                  setIsEditing(false);
-                }}
-              />
-            ) : null}
-            {props.slot.date && phase === 'end' ? (
-              <SlotEndSelection
-                endChoices={endChoices}
-                selectedEndMinutes={props.slot.endMinutes}
-                startMinutes={props.slot.startMinutes}
-                onChangeStart={() => {
-                  setPhase('start');
-                }}
-                onSelectEnd={(endMinutes) => {
-                  props.onUpdate({
-                    ...props.slot,
-                    endMinutes,
-                  });
-                  setIsEditing(false);
-                }}
-              />
-            ) : null}
-          </div>
-        </div>
-      </div>
-      {invalid ? (
-        <p className="mt-2 text-sm font-medium text-destructive">
-          {t('error_slot_datetime')}
-        </p>
-      ) : null}
-    </div>
+    <SlotEditorForm
+      allBlockedRanges={props.blockedRanges}
+      blockedRanges={blockedRanges}
+      calendarMonth={calendarMonth}
+      canFinishEditing={canFinishEditing}
+      cells={cells}
+      endChoices={endChoices}
+      handleCalendarMonthChange={handleCalendarMonthChange}
+      invalid={invalid}
+      minimumDate={minimumDate}
+      now={now}
+      phase={phase}
+      selectedDateLabel={selectedDateLabel}
+      setIsEditing={setIsEditing}
+      setPhase={setPhase}
+      slot={props.slot}
+      slots={props.slots}
+      startChoices={startChoices}
+      title={props.title}
+      onRemove={props.onRemove}
+      onUpdate={props.onUpdate}
+    />
   );
 }
 
@@ -1394,6 +1570,86 @@ function PavilionReservationActionError(props: {
   ) : null;
 }
 
+function SelectedSpaceSlotSection(props: {
+  blockedRanges: PavilionReservationBlockedRange[];
+  setShowErrors: React.Dispatch<React.SetStateAction<boolean>>;
+  setSlots: React.Dispatch<React.SetStateAction<ClientSlot[]>>;
+  showErrors: boolean;
+  slots: ClientSlot[];
+  spaceId: string;
+  spaces: PavilionReservableItemDto[];
+}) {
+  const t = useTranslations('PavilionReservationPage');
+  const space = itemById(props.spaces, props.spaceId);
+
+  if (!space) {
+    return null;
+  }
+
+  const spaceSlots = props.slots.filter(
+    (slot) => slot.itemId === props.spaceId
+  );
+
+  return (
+    <section className="rounded-lg border border-mit-line bg-card p-4 md:p-5">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 border-b border-mit-line pb-3">
+        <h3 className="font-semibold text-mit-text">{space.name}</h3>
+        <Button
+          size="sm"
+          type="button"
+          variant="ghost"
+          onClick={() => {
+            props.setSlots((current) =>
+              removeSpaceSlots({ itemId: props.spaceId, slots: current })
+            );
+          }}
+        >
+          <Trash2 aria-hidden className="size-4" />
+          {t('action_remove_space')}
+        </Button>
+      </div>
+      <div className="space-y-4">
+        {spaceSlots.map((slot, index) => (
+          <SlotEditor
+            blockedRanges={props.blockedRanges}
+            key={slot.id}
+            showErrors={props.showErrors}
+            slot={slot}
+            slots={props.slots}
+            title={t('slot_title', { number: index + 1 })}
+            onRemove={() => {
+              props.setSlots((current) =>
+                removeSlotFromSpace({
+                  slotCount: spaceSlots.length,
+                  slotId: slot.id,
+                  slots: current,
+                  spaceId: props.spaceId,
+                })
+              );
+            }}
+            onUpdate={(updated) => {
+              props.setShowErrors(false);
+              props.setSlots((current) =>
+                updateSlotInSlots({ slots: current, updated })
+              );
+            }}
+          />
+        ))}
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => {
+            props.setSlots((current) => [...current, newSlot(props.spaceId)]);
+          }}
+        >
+          <Plus aria-hidden className="size-4" />
+          {t('action_add_slot')}
+        </Button>
+      </div>
+    </section>
+  );
+}
+
 function SelectedSlotEditors(props: {
   blockedRanges: PavilionReservationBlockedRange[];
   selectedSpaceIds: string[];
@@ -1416,78 +1672,196 @@ function SelectedSlotEditors(props: {
           {t('selected_slots_intro')}
         </p>
       </div>
-      {props.selectedSpaceIds.map((spaceId) => {
-        const space = itemById(props.spaces, spaceId);
-        if (!space) {
-          return null;
-        }
-        const spaceSlots = props.slots.filter(
-          (slot) => slot.itemId === spaceId
-        );
-        return (
-          <section
-            className="rounded-lg border border-mit-line bg-card p-4 md:p-5"
-            key={spaceId}
-          >
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-3 border-b border-mit-line pb-3">
-              <h3 className="font-semibold text-mit-text">{space.name}</h3>
-              <Button
-                size="sm"
-                type="button"
-                variant="ghost"
-                onClick={() => {
-                  props.setSlots((current) =>
-                    removeSpaceSlots({ itemId: spaceId, slots: current })
-                  );
-                }}
-              >
-                <Trash2 aria-hidden className="size-4" />
-                {t('action_remove_space')}
-              </Button>
-            </div>
-            <div className="space-y-4">
-              {spaceSlots.map((slot, index) => (
-                <SlotEditor
-                  blockedRanges={props.blockedRanges}
-                  key={slot.id}
-                  showErrors={props.showErrors}
-                  slot={slot}
-                  slots={props.slots}
-                  title={t('slot_title', { number: index + 1 })}
-                  onRemove={() => {
-                    props.setSlots((current) =>
-                      removeSlotFromSpace({
-                        slotCount: spaceSlots.length,
-                        slotId: slot.id,
-                        slots: current,
-                        spaceId,
-                      })
-                    );
-                  }}
-                  onUpdate={(updated) => {
-                    props.setShowErrors(false);
-                    props.setSlots((current) =>
-                      updateSlotInSlots({ slots: current, updated })
-                    );
-                  }}
-                />
-              ))}
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => {
-                  props.setSlots((current) => [...current, newSlot(spaceId)]);
-                }}
-              >
-                <Plus aria-hidden className="size-4" />
-                {t('action_add_slot')}
-              </Button>
-            </div>
-          </section>
-        );
-      })}
+      {props.selectedSpaceIds.map((spaceId) => (
+        <SelectedSpaceSlotSection
+          blockedRanges={props.blockedRanges}
+          key={spaceId}
+          setShowErrors={props.setShowErrors}
+          setSlots={props.setSlots}
+          showErrors={props.showErrors}
+          slots={props.slots}
+          spaceId={spaceId}
+          spaces={props.spaces}
+        />
+      ))}
     </section>
   ) : null;
+}
+
+function PavilionReservationSpaceCardActions(props: {
+  selected: boolean;
+  setShowErrors: React.Dispatch<React.SetStateAction<boolean>>;
+  setSlots: React.Dispatch<React.SetStateAction<ClientSlot[]>>;
+  slotsRef: React.RefObject<HTMLDivElement | null>;
+  spaceId: string;
+}) {
+  const t = useTranslations('PavilionReservationPage');
+
+  if (props.selected) {
+    return (
+      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => {
+            scrollElementIntoView(props.slotsRef.current);
+          }}
+        >
+          <Pencil aria-hidden className="size-4" />
+          {t('action_edit_time')}
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => {
+            props.setShowErrors(false);
+            props.setSlots((current) =>
+              removeSpaceSlots({
+                itemId: props.spaceId,
+                slots: current,
+              })
+            );
+          }}
+        >
+          <Trash2 aria-hidden className="size-4" />
+          {t('action_remove_space')}
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <Button
+      className="mt-4 w-full"
+      type="button"
+      variant="mit"
+      onClick={() => {
+        props.setShowErrors(false);
+        props.setSlots((current) =>
+          addSpaceSlot({
+            itemId: props.spaceId,
+            slots: current,
+          })
+        );
+        scrollElementIntoViewOnNextFrame(props.slotsRef.current);
+      }}
+    >
+      {t('action_select_space')}
+    </Button>
+  );
+}
+
+function PavilionReservationSpaceCard(props: {
+  persona: PavilionReservationPersonaValue;
+  selected: boolean;
+  setShowErrors: React.Dispatch<React.SetStateAction<boolean>>;
+  setSlots: React.Dispatch<React.SetStateAction<ClientSlot[]>>;
+  slotsRef: React.RefObject<HTMLDivElement | null>;
+  space: PavilionReservableItemDto;
+}) {
+  const t = useTranslations('PavilionReservationPage');
+  const price = priceForPersona(props.space, props.persona);
+
+  return (
+    <article
+      className={cn(
+        'overflow-hidden rounded-lg border bg-card transition-colors',
+        props.selected
+          ? 'border-mit-red ring-1 ring-mit-red'
+          : 'border-mit-line'
+      )}
+    >
+      {props.space.imageUrl && !props.selected ? (
+        <div className="relative h-36 bg-mit-surface md:h-48">
+          <Image
+            alt={props.space.name}
+            className="object-cover"
+            fill
+            sizes="(min-width: 1280px) 33vw, (min-width: 768px) 50vw, 100vw"
+            src={props.space.imageUrl}
+          />
+        </div>
+      ) : null}
+      <div
+        className={cn(
+          'flex flex-col p-4 md:p-5',
+          props.selected ? 'min-h-0' : 'min-h-0 md:min-h-64'
+        )}
+      >
+        <h4 className="font-semibold text-mit-text">{props.space.name}</h4>
+        <p
+          className={cn(
+            'mt-2 text-sm text-muted-foreground',
+            props.selected ? 'line-clamp-2' : 'flex-1'
+          )}
+        >
+          {props.space.description}
+        </p>
+        <p className="mt-4 text-lg font-bold text-primary-ink">
+          {priceLabel({
+            amountCents: price,
+            pricingType: props.space.pricingType,
+            tbdLabel: t('price_tbd'),
+          })}
+        </p>
+        {price === null ? (
+          <p className="mt-1 text-xs text-muted-foreground">
+            {t('price_tbd_note')}
+          </p>
+        ) : null}
+        {props.space.minDurationHours ? (
+          <p className="mt-1 text-xs text-muted-foreground">
+            {t('minimum_hours', {
+              count: props.space.minDurationHours,
+            })}
+          </p>
+        ) : null}
+        <PavilionReservationSpaceCardActions
+          selected={props.selected}
+          setShowErrors={props.setShowErrors}
+          setSlots={props.setSlots}
+          slotsRef={props.slotsRef}
+          spaceId={props.space.id}
+        />
+      </div>
+    </article>
+  );
+}
+
+function PavilionReservationSpaceGroup(props: {
+  group: ReturnType<typeof groupedSpaceOptions>[number];
+  persona: PavilionReservationPersonaValue;
+  selectedSpaceIds: string[];
+  setShowErrors: React.Dispatch<React.SetStateAction<boolean>>;
+  setSlots: React.Dispatch<React.SetStateAction<ClientSlot[]>>;
+  slotsRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  const t = useTranslations('PavilionReservationPage');
+
+  if (props.group.options.length === 0) {
+    return null;
+  }
+
+  return (
+    <section>
+      <h3 className="mb-3 text-sm font-bold tracking-wide text-mit-text uppercase">
+        {t(props.group.labelKey)}
+      </h3>
+      <div className="grid gap-4 md:grid-cols-2 md:gap-6 xl:grid-cols-3">
+        {props.group.options.map((space) => (
+          <PavilionReservationSpaceCard
+            key={space.id}
+            persona={props.persona}
+            selected={props.selectedSpaceIds.includes(space.id)}
+            setShowErrors={props.setShowErrors}
+            setSlots={props.setSlots}
+            slotsRef={props.slotsRef}
+            space={space}
+          />
+        ))}
+      </div>
+    </section>
+  );
 }
 
 function PavilionReservationSpacesStep(props: {
@@ -1604,134 +1978,81 @@ function PavilionReservationSpacesStep(props: {
           {t('spaces_title')}
         </h2>
         <div className="space-y-5 md:space-y-8">
-          {groups.map((group) =>
-            group.options.length > 0 ? (
-              <section key={group.id}>
-                <h3 className="mb-3 text-sm font-bold tracking-wide text-mit-text uppercase">
-                  {t(group.labelKey)}
-                </h3>
-                <div className="grid gap-4 md:grid-cols-2 md:gap-6 xl:grid-cols-3">
-                  {group.options.map((space) => {
-                    const selected = props.selectedSpaceIds.includes(space.id);
-                    const price = priceForPersona(space, props.persona);
-                    return (
-                      <article
-                        className={cn(
-                          'overflow-hidden rounded-lg border bg-card transition-colors',
-                          selected
-                            ? 'border-mit-red ring-1 ring-mit-red'
-                            : 'border-mit-line'
-                        )}
-                        key={space.id}
-                      >
-                        {space.imageUrl && !selected ? (
-                          <div className="relative h-36 bg-mit-surface md:h-48">
-                            <Image
-                              alt={space.name}
-                              className="object-cover"
-                              fill
-                              sizes="(min-width: 1280px) 33vw, (min-width: 768px) 50vw, 100vw"
-                              src={space.imageUrl}
-                            />
-                          </div>
-                        ) : null}
-                        <div
-                          className={cn(
-                            'flex flex-col p-4 md:p-5',
-                            selected ? 'min-h-0' : 'min-h-0 md:min-h-64'
-                          )}
-                        >
-                          <h4 className="font-semibold text-mit-text">
-                            {space.name}
-                          </h4>
-                          <p
-                            className={cn(
-                              'mt-2 text-sm text-muted-foreground',
-                              selected ? 'line-clamp-2' : 'flex-1'
-                            )}
-                          >
-                            {space.description}
-                          </p>
-                          <p className="mt-4 text-lg font-bold text-primary-ink">
-                            {priceLabel({
-                              amountCents: price,
-                              pricingType: space.pricingType,
-                              tbdLabel: t('price_tbd'),
-                            })}
-                          </p>
-                          {price === null ? (
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              {t('price_tbd_note')}
-                            </p>
-                          ) : null}
-                          {space.minDurationHours ? (
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              {t('minimum_hours', {
-                                count: space.minDurationHours,
-                              })}
-                            </p>
-                          ) : null}
-                          {selected ? (
-                            <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                              <Button
-                                type="button"
-                                variant="secondary"
-                                onClick={() => {
-                                  scrollElementIntoView(props.slotsRef.current);
-                                }}
-                              >
-                                <Pencil aria-hidden className="size-4" />
-                                {t('action_edit_time')}
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                onClick={() => {
-                                  props.setShowErrors(false);
-                                  props.setSlots((current) =>
-                                    removeSpaceSlots({
-                                      itemId: space.id,
-                                      slots: current,
-                                    })
-                                  );
-                                }}
-                              >
-                                <Trash2 aria-hidden className="size-4" />
-                                {t('action_remove_space')}
-                              </Button>
-                            </div>
-                          ) : (
-                            <Button
-                              className="mt-4 w-full"
-                              type="button"
-                              variant="mit"
-                              onClick={() => {
-                                props.setShowErrors(false);
-                                props.setSlots((current) =>
-                                  addSpaceSlot({
-                                    itemId: space.id,
-                                    slots: current,
-                                  })
-                                );
-                                window.requestAnimationFrame(() => {
-                                  scrollElementIntoView(props.slotsRef.current);
-                                });
-                              }}
-                            >
-                              {t('action_select_space')}
-                            </Button>
-                          )}
-                        </div>
-                      </article>
-                    );
-                  })}
-                </div>
-              </section>
-            ) : null
-          )}
+          {groups.map((group) => (
+            <PavilionReservationSpaceGroup
+              group={group}
+              key={group.id}
+              persona={props.persona}
+              selectedSpaceIds={props.selectedSpaceIds}
+              setShowErrors={props.setShowErrors}
+              setSlots={props.setSlots}
+              slotsRef={props.slotsRef}
+            />
+          ))}
         </div>
       </section>
     </>
+  );
+}
+
+function PavilionReservationServiceOption(props: {
+  persona: PavilionReservationPersonaValue;
+  selected: boolean;
+  service: PavilionReservableItemDto;
+  setSelectedServiceIds: React.Dispatch<React.SetStateAction<string[]>>;
+}) {
+  const t = useTranslations('PavilionReservationPage');
+  const price = priceForPersona(props.service, props.persona);
+
+  return (
+    <label
+      className={cn(
+        'flex items-start gap-4 rounded-lg border p-4 transition-colors md:items-center',
+        price === null
+          ? 'cursor-not-allowed border-mit-line bg-mit-surface opacity-75'
+          : 'cursor-pointer',
+        props.selected ? 'border-mit-red bg-mit-red-highlight' : null,
+        price !== null && !props.selected ? 'border-mit-line' : null
+      )}
+    >
+      <input
+        checked={props.selected}
+        className="mt-1 md:mt-0"
+        disabled={price === null}
+        type="checkbox"
+        onChange={() => {
+          props.setSelectedServiceIds((current) =>
+            props.selected
+              ? current.filter((id) => id !== props.service.id)
+              : [...current, props.service.id]
+          );
+        }}
+      />
+      <span className="min-w-0 flex-1">
+        <span
+          className={cn(
+            'block font-medium text-mit-text',
+            price === null ? 'text-muted-foreground line-through' : null
+          )}
+        >
+          {props.service.name}
+        </span>
+        <span className="mt-1 block text-xs text-muted-foreground">
+          {price === null
+            ? t('service_unavailable')
+            : props.service.description}
+        </span>
+      </span>
+      <span className="font-semibold text-primary-ink">
+        {price === null
+          ? t('service_unavailable_price')
+          : priceLabel({
+              amountCents: price,
+              pricingType: props.service.pricingType,
+              tbdLabel: t('price_tbd'),
+            })}
+      </span>
+    </label>
   );
 }
 
@@ -2069,63 +2390,15 @@ function PavilionReservationContactStep(props: {
               {t('services_title')}
             </h3>
             <div className="mt-4 space-y-3">
-              {props.services.map((service) => {
-                const price = priceForPersona(service, props.persona);
-                const selected = props.selectedServiceIds.includes(service.id);
-                return (
-                  <label
-                    className={cn(
-                      'flex items-start gap-4 rounded-lg border p-4 transition-colors md:items-center',
-                      price === null
-                        ? 'cursor-not-allowed border-mit-line bg-mit-surface opacity-75'
-                        : 'cursor-pointer',
-                      selected ? 'border-mit-red bg-mit-red-highlight' : null,
-                      price !== null && !selected ? 'border-mit-line' : null
-                    )}
-                    key={service.id}
-                  >
-                    <input
-                      checked={selected}
-                      className="mt-1 md:mt-0"
-                      disabled={price === null}
-                      type="checkbox"
-                      onChange={() => {
-                        props.setSelectedServiceIds((current) =>
-                          selected
-                            ? current.filter((id) => id !== service.id)
-                            : [...current, service.id]
-                        );
-                      }}
-                    />
-                    <span className="min-w-0 flex-1">
-                      <span
-                        className={cn(
-                          'block font-medium text-mit-text',
-                          price === null
-                            ? 'text-muted-foreground line-through'
-                            : null
-                        )}
-                      >
-                        {service.name}
-                      </span>
-                      <span className="mt-1 block text-xs text-muted-foreground">
-                        {price === null
-                          ? t('service_unavailable')
-                          : service.description}
-                      </span>
-                    </span>
-                    <span className="font-semibold text-primary-ink">
-                      {price === null
-                        ? t('service_unavailable_price')
-                        : priceLabel({
-                            amountCents: price,
-                            pricingType: service.pricingType,
-                            tbdLabel: t('price_tbd'),
-                          })}
-                    </span>
-                  </label>
-                );
-              })}
+              {props.services.map((service) => (
+                <PavilionReservationServiceOption
+                  key={service.id}
+                  persona={props.persona}
+                  selected={props.selectedServiceIds.includes(service.id)}
+                  service={service}
+                  setSelectedServiceIds={props.setSelectedServiceIds}
+                />
+              ))}
             </div>
           </section>
         ) : null}
