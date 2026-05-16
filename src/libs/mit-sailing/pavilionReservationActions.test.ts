@@ -21,6 +21,7 @@ const {
   enqueuePavilionReservationSubmittedEmail,
   getDefaultQueue,
   listVisiblePavilionReservableItems,
+  loggerError,
   revalidatePath,
   requestCreate,
   transaction,
@@ -36,6 +37,7 @@ const {
   enqueuePavilionReservationSubmittedEmail: vi.fn(),
   getDefaultQueue: vi.fn(),
   listVisiblePavilionReservableItems: vi.fn(),
+  loggerError: vi.fn(),
   revalidatePath: vi.fn(),
   requestCreate: vi.fn(),
   transaction: vi.fn(),
@@ -52,6 +54,12 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('next/server', () => ({
   after,
+}));
+
+vi.mock('@/libs/Logger', () => ({
+  logger: {
+    error: loggerError,
+  },
 }));
 
 vi.mock('@/libs/DB', () => ({
@@ -125,6 +133,7 @@ beforeEach(() => {
   enqueuePavilionReservationSubmittedEmail.mockReset();
   getDefaultQueue.mockReset();
   listVisiblePavilionReservableItems.mockReset();
+  loggerError.mockClear();
   revalidatePath.mockClear();
   requestCreate.mockReset();
   transaction.mockReset();
@@ -301,6 +310,37 @@ describe('submitPavilionReservationRequestAction', () => {
     const result = await Promise.race([resultPromise, blocked.promise]);
 
     expect(result).toEqual(expect.objectContaining({ status: 'confirmed' }));
+  });
+
+  it('logs submitted email enqueue failures after confirmation', async () => {
+    setPavilionReservationSystemTime();
+    const error = Object.assign(new Error('Redis unavailable'), {
+      code: 'ECONNREFUSED',
+    });
+    enqueuePavilionReservationSubmittedEmail.mockRejectedValue(error);
+    const { submitPavilionReservationRequestAction } =
+      await import('@/libs/mit-sailing/pavilionReservationActions');
+
+    const result = await submitPavilionReservationRequestAction(
+      'en',
+      { errors: [], status: 'idle' } satisfies PavilionReservationSubmitState,
+      validFormData()
+    );
+
+    expect(result).toEqual(expect.objectContaining({ status: 'confirmed' }));
+    const [scheduled] = afterCallbacks;
+    if (!scheduled) {
+      throw new Error('Expected submitted email enqueue callback');
+    }
+    await expect(scheduled()).resolves.toBeUndefined();
+    expect(loggerError).toHaveBeenCalledWith(
+      '[pavilion-reservation:create-email-enqueue] reference_code={referenceCode} error_name={errorName} error_code={errorCode}',
+      {
+        errorCode: 'ECONNREFUSED',
+        errorName: 'Error',
+        referenceCode: expect.stringMatching(/^PAV-/),
+      }
+    );
   });
 
   it('includes hourly services in estimated totals and persisted service rows', async () => {
