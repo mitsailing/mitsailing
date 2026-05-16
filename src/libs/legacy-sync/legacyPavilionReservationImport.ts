@@ -256,7 +256,7 @@ function inferSpaceSlugs(row: LegacyReservationDbRow): string[] {
   if (/\b(group sailing|sailing lesson)\b/u.test(hay)) {
     add('group_sailing');
   }
-  return slugs.length > 0 ? slugs : ['roof_deck'];
+  return slugs;
 }
 
 function parseLegacyDateTimeTimeOfDay(value: string | null): number | null {

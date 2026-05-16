@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   importLegacyPavilionReservationRows,
   importLegacyPavilionReservationsFromSchema,
@@ -9,6 +9,24 @@ import {
   minutesFromMysqlTime,
 } from '@/libs/legacy-sync/legacyPavilionReservationImport';
 import type { LegacyReservationDbRow } from '@/libs/legacy-sync/legacyPavilionReservationImport';
+
+const { prisma } = vi.hoisted(() => ({
+  prisma: {
+    $transaction: vi.fn(async () => {
+      await Promise.resolve();
+    }),
+    pavilionReservableItem: {
+      findMany: vi.fn(async () => {
+        await Promise.resolve();
+        return [{ id: 'roof-item', slug: 'roof_deck' }];
+      }),
+    },
+  },
+}));
+
+vi.mock('@/libs/DB', () => ({
+  prisma,
+}));
 
 describe('legacyPavilionReservationImport', () => {
   it('exposes import entrypoints', () => {
@@ -38,6 +56,44 @@ describe('legacyPavilionReservationImport', () => {
     expect(() => legacyPavilionReservationRowsFromCsv(csv)).toThrow(
       'wrong field count'
     );
+  });
+
+  it('skips rows when space text cannot be inferred', async () => {
+    const result = await importLegacyPavilionReservationRows([
+      {
+        resid: 'legacy-unknown',
+        first: 'First',
+        last: 'Last',
+        mitid: null,
+        email: 'unknown@example.com',
+        phone: '555',
+        affil: 'student',
+        groupname: 'Unclear group',
+        title: 'Ambiguous event',
+        acadfac: null,
+        acadfacemail: null,
+        acct: null,
+        date1: '2026-07-01',
+        start1: '10:00:00',
+        end1: '12:00:00',
+        date2: null,
+        start2: null,
+        end2: null,
+        datesel: 1,
+        comments: 'No pavilion space keyword here',
+        infotent: 0,
+        infoalcohol: 0,
+        groupsize: '10',
+        active: 1,
+        tentative: 0,
+        confirmed: 0,
+        paid: 0,
+        contacted: 1,
+      },
+    ]);
+
+    expect(result).toEqual({ imported: 0, skipped: 1 });
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
   it('builds stable legacy reference codes', () => {
