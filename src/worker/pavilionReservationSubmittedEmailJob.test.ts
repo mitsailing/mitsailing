@@ -33,6 +33,7 @@ const jobData = {
   scheduleLines: ['Casual party space: Wed, Jul 1, 2026'],
 };
 
+// biome-ignore lint/security/noSecrets: Test subject name contains no credential.
 describe('enqueuePavilionReservationSubmittedEmail', () => {
   it('adds submitted email job with retry backoff', async () => {
     const queue: PavilionReservationSubmittedEmailQueue = {
@@ -53,6 +54,7 @@ describe('enqueuePavilionReservationSubmittedEmail', () => {
   });
 });
 
+// biome-ignore lint/security/noSecrets: Test subject name contains no credential.
 describe('processPavilionReservationSubmittedEmailJob', () => {
   it('sends submitted email from job data', async () => {
     sendPavilionReservationSubmittedEmail.mockImplementation(async () => {});

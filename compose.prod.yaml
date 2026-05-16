@@ -84,7 +84,7 @@ services:
         source: cms_media
         target: /var/lib/mitsailing/cms-media
     stop_grace_period: 30s
-    command: ['node', 'worker.cjs']
+    command: ['node', 'worker.mjs']
     deploy:
       resources:
         limits:
