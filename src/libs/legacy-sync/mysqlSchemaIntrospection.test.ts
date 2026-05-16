@@ -33,12 +33,10 @@ describe('mysqlColumnsToMirrorTable', () => {
   it('lists mysql base tables', async () => {
     const queries: { sql: string; values?: readonly unknown[] }[] = [];
     const mysql: MysqlQueryClient = {
-      query:  async (sql, values) => {
+      query: async (sql, values) => {
         queries.push({ sql, values });
-        return Promise.resolve([
-          [{ tableName: 'members' }, { tableName: 'reservations' }],
-          [],
-        ]);
+        await Promise.resolve();
+        return [[{ tableName: 'members' }, { tableName: 'reservations' }], []];
       },
     };
 
@@ -50,8 +48,9 @@ describe('mysqlColumnsToMirrorTable', () => {
 
   it('reads mysql table definitions', async () => {
     const mysql: MysqlQueryClient = {
-      query:  async () =>
-        Promise.resolve([
+      query: async () => {
+        await Promise.resolve();
+        return [
           [
             {
               columnName: 'resid',
@@ -60,7 +59,8 @@ describe('mysqlColumnsToMirrorTable', () => {
             },
           ],
           [],
-        ]),
+        ];
+      },
     };
 
     await expect(
