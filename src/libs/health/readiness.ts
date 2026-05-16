@@ -33,8 +33,8 @@ type ReadinessEnv = {
 };
 
 type ReadinessCheckers = {
-  postgres: () => Promise<void>;
-  redis: (redisUrl: string) => Promise<void>;
+  postgres: (timeoutMs: number) => Promise<void>;
+  redis: (redisUrl: string, timeoutMs: number) => Promise<void>;
 };
 
 type ReadinessOptions = {
@@ -55,17 +55,22 @@ function redisIsRequired(appEnv: string): boolean {
   return appEnv === 'staging' || appEnv === 'production';
 }
 
-async function checkPostgres(): Promise<void> {
-  await prisma.$transaction(async (tx) => {
-    // Ensure hung Postgres can’t monopolize Prisma connections longer than the JS timeout.
-    await tx.$executeRaw`SET LOCAL statement_timeout = ${healthPostgresStatementTimeoutMs}`;
-    await tx.$queryRaw<{ ok: number }[]>`SELECT 1 AS ok`;
-  });
+async function checkPostgres(timeoutMs: number): Promise<void> {
+  await prisma.$transaction(
+    async (tx) => {
+      await tx.$executeRaw`SET LOCAL statement_timeout = ${healthPostgresStatementTimeoutMs}`;
+      await tx.$queryRaw<{ ok: number }[]>`SELECT 1 AS ok`;
+    },
+    {
+      maxWait: timeoutMs,
+      timeout: timeoutMs,
+    }
+  );
 }
 
-async function checkRedis(redisUrl: string): Promise<void> {
+async function checkRedis(redisUrl: string, timeoutMs: number): Promise<void> {
   const client = new IORedis(redisUrl, {
-    connectTimeout: healthTimeoutMs,
+    connectTimeout: timeoutMs,
     enableOfflineQueue: false,
     lazyConnect: true,
     maxRetriesPerRequest: 0,
@@ -91,13 +96,13 @@ async function timeoutFailure(
 async function measureCheck(params: {
   required: boolean;
   timeoutMs: number;
-  run: () => Promise<void>;
+  run: (timeoutMs: number) => Promise<void>;
 }): Promise<DependencyHealth> {
   const startedAt = performance.now();
   const timeout = new AbortController();
   try {
     await Promise.race([
-      params.run(),
+      params.run(params.timeoutMs),
       timeoutFailure(params.timeoutMs, timeout.signal),
     ]);
     return {
@@ -149,7 +154,9 @@ export async function getReadinessHealth(
     ? measureCheck({
         required: isRedisRequired,
         timeoutMs,
-        run: () => checkers.redis(redisUrl),
+        run: async (checkTimeoutMs) => {
+          await checkers.redis(redisUrl, checkTimeoutMs);
+        },
       })
     : Promise.resolve(skippedRedisCheck(isRedisRequired));
 

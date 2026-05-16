@@ -329,6 +329,8 @@ run_migrations_for_service() {
   local service="$1"
   log "ensuring postgres and redis are up before migrations"
   compose up --detach postgres redis
+  wait_for_service_health postgres "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
+  wait_for_service_health redis "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
   verify_data_service_mounts
 
   log "running prisma migrate deploy from $service image"

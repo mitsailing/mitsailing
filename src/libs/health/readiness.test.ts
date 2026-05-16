@@ -1,8 +1,43 @@
 import { setTimeout as delay } from 'node:timers/promises';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getReadinessHealth } from './readiness';
 
+const { executeRawMock, queryRawMock, transactionMock } = vi.hoisted(() => ({
+  executeRawMock: vi.fn(),
+  queryRawMock: vi.fn(),
+  transactionMock: vi.fn(),
+}));
+
+vi.mock('@/libs/DB', () => ({
+  prisma: {
+    $transaction: transactionMock,
+  },
+}));
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
 describe('getReadinessHealth', () => {
+  it('bounds postgres readiness queries with prisma transaction timeout', async () => {
+    transactionMock.mockImplementation(async (transaction) => {
+      await transaction({
+        $executeRaw: executeRawMock,
+        $queryRaw: queryRawMock,
+      });
+    });
+
+    await getReadinessHealth({
+      env: { appEnv: 'local' },
+      timeoutMs: 17,
+    });
+
+    expect(transactionMock).toHaveBeenCalledWith(expect.any(Function), {
+      maxWait: 17,
+      timeout: 17,
+    });
+  });
+
   it('returns ok when required checks pass', async () => {
     const health = await getReadinessHealth({
       env: {

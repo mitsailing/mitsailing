@@ -52,6 +52,15 @@ describe('GET /api/health/ready', () => {
     expect(getReadinessHealthMock).not.toHaveBeenCalled();
   });
 
+  it('rejects missing bearer auth for head', async () => {
+    const { HEAD } = await importRoute();
+    const response = await HEAD(readyRequest());
+
+    expect(response.status).toBe(401);
+    expect(await response.text()).toBe('');
+    expect(getReadinessHealthMock).not.toHaveBeenCalled();
+  });
+
   it('returns ok readiness status', async () => {
     const { GET } = await importRoute();
     const response = await GET(
