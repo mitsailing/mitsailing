@@ -32,6 +32,8 @@ services:
     env_file:
       - path: .env.production
         required: false
+      - path: .env.production.worker
+        required: false
     environment:
       CMS_MEDIA_ROOT: /var/lib/mitsailing/cms-media
     depends_on:

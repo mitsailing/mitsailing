@@ -124,6 +124,40 @@ fully unattended image builds.
 **Cloudflare public hostname:** point your apex (e.g. `mitsailing.com`) to
 `http://app:3000` on the tunnel. Production compose does **not** expose Mailpit.
 
+### Legacy MySQL mirror worker secrets
+
+The worker can mirror the old website MySQL database `sailing` from the
+production host network into Postgres schema `legacy`.
+
+Create a worker-only env file on the production host:
+
+```bash
+cd ~/apps/mitsailing
+cp .env.production.worker.example .env.production.worker
+$EDITOR .env.production.worker
+```
+
+Set `LEGACY_MYSQL_URL` in that file to
+`mysql://dock_readonly:<password>@sailing.pavilion.lan:3306/sailing`. Do not
+put the filled URL in shell history or GitHub Actions secrets unless deployment
+automation needs to manage this file.
+
+The worker connects directly to `sailing.pavilion.lan:3306` from
+`sailing-dock.mit.edu`. Verify that the MySQL server allows `dock_readonly`
+from the production host or container network before enabling
+`LEGACY_MYSQL_SYNC_ENABLED=true`.
+
+```bash
+docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production run --rm worker node -e "const mysql = require('mysql2/promise'); const url = new URL(process.env.LEGACY_MYSQL_URL); mysql.createConnection({host: url.hostname, port: Number(url.port || 3306), user: decodeURIComponent(url.username), password: decodeURIComponent(url.password), database: url.pathname.slice(1)}).then((connection) => connection.query('select 1').finally(() => connection.end()))"
+```
+
+Manual verification after deploy:
+
+```bash
+docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production logs -f --tail 100 worker
+docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production exec postgres psql "$DATABASE_URL" -c "select count(*) from information_schema.tables where table_schema = 'legacy';"
+```
+
 ### 4. Create the production CMS media volume
 
 Production uploads live in the external Docker volume
