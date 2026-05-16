@@ -69,7 +69,7 @@ function renderWizard(props: {
       blockedRanges={props.blockedRanges ?? []}
       initialState={{ status: 'idle', errors: [] }}
       items={props.items ?? [space]}
-      permalink="/reserve-pavilion"
+      permalink="/reserve"
     />
   );
 }

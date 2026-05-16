@@ -252,9 +252,7 @@ test.describe('MIT Sailing catalog', () => {
     ).toBeVisible();
   });
 
-  test('/reserve-pavilion submits public reservation request', async ({
-    page,
-  }) => {
+  test('/reserve submits public reservation request', async ({ page }) => {
     const eventName = `E2E Pavilion Request ${Date.now()}`;
     const requesterEmail = `${eventName
       .toLowerCase()
@@ -262,7 +260,7 @@ test.describe('MIT Sailing catalog', () => {
 
     try {
       await resetPavilionReservationRequest({ eventName, requesterEmail });
-      await page.goto('/reserve-pavilion');
+      await page.goto('/reserve');
 
       await expect(
         page.getByRole('heading', {

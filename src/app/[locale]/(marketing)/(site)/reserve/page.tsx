@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { getTranslations } from 'next-intl/server';
 import { PavilionReservationWizard } from '@/components/mit-sailing/pavilion-reservations/PavilionReservationWizard';
 import { SiteSectionMain } from '@/components/mit-sailing/SiteSectionMain';
 import { SiteSectionShell } from '@/components/mit-sailing/SiteSectionShell';
@@ -9,35 +9,23 @@ import {
   listVisiblePavilionReservableItems,
 } from '@/libs/mit-sailing/pavilionReservationQueries';
 import { initialPavilionReservationSubmitState } from '@/libs/mit-sailing/pavilionReservationState';
-import { getI18nPath } from '@/utils/Helpers';
+import { AppConfig } from '@/utils/AppConfig';
 
-type ReservePavilionPageProps = {
-  params: Promise<{ locale: string }>;
-};
+const locale = AppConfig.i18n.defaultLocale;
 
-export async function generateMetadata(
-  props: ReservePavilionPageProps
-): Promise<Metadata> {
-  const { locale } = await props.params;
-  const t = await getTranslations({
-    locale,
-    namespace: 'PavilionReservationPage',
-  });
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('PavilionReservationPage');
   return {
     title: t('meta_title'),
     description: t('meta_description'),
   };
 }
 
-export default async function ReservePavilionPage(
-  props: ReservePavilionPageProps
-) {
-  const { locale } = await props.params;
-  setRequestLocale(locale);
+export default async function ReservePage() {
   const [items, blockedRanges, t] = await Promise.all([
     listVisiblePavilionReservableItems(),
     listPavilionReservationBlockedRanges(),
-    getTranslations({ locale, namespace: 'MitSailingRoutes' }),
+    getTranslations('MitSailingRoutes'),
   ]);
   const action = submitPavilionReservationRequestAction.bind(null, locale);
 
@@ -52,7 +40,7 @@ export default async function ReservePavilionPage(
           blockedRanges={blockedRanges}
           initialState={initialPavilionReservationSubmitState}
           items={items}
-          permalink={getI18nPath('/reserve-pavilion', locale)}
+          permalink="/reserve"
         />
       </SiteSectionMain>
     </SiteSectionShell>

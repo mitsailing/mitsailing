@@ -1287,7 +1287,7 @@ function PavilionReservationConfirmation(props: { referenceCode: string }) {
         </ul>
       </div>
       <Button asChild className="mt-8" variant="outline">
-        <Link href="/reserve-pavilion">{t('action_start_over')}</Link>
+        <Link href="/reserve">{t('action_start_over')}</Link>
       </Button>
     </div>
   );

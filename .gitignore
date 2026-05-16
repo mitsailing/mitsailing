@@ -15,6 +15,7 @@
 
 # testing
 /coverage
+/usability
 /vitest-test-results
 /test-report.junit.xml
 .vitest-attachments/
