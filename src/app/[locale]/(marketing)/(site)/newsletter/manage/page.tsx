@@ -4,6 +4,7 @@ import { connection } from 'next/server';
 import { NewsletterPreferenceForm } from '@/components/mit-sailing/newsletter/NewsletterPreferenceForm';
 import { SiteSectionMain } from '@/components/mit-sailing/SiteSectionMain';
 import { SiteSectionShell } from '@/components/mit-sailing/SiteSectionShell';
+import { logger } from '@/libs/Logger';
 import { updateTokenNewsletterPreferencesAction } from '@/libs/newsletter/newsletterActions';
 import { newsletterPreferenceRows } from '@/libs/newsletter/newsletterPreferenceRows';
 import {
@@ -13,8 +14,25 @@ import {
 
 type NewsletterManagePageProps = Readonly<{
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ token?: string }>;
+  searchParams: Promise<{ token?: string | string[] }>;
 }>;
+
+function newsletterManageToken(value?: string | string[]): string | undefined {
+  if (Array.isArray(value)) {
+    if (value.length > 1) {
+      logger.warn(
+        'Rejected newsletter manage request with repeated token params',
+        {
+          tokenCount: value.length,
+        }
+      );
+      return undefined;
+    }
+    const [token] = value;
+    return token && token.length > 0 ? token : undefined;
+  }
+  return value && value.length > 0 ? value : undefined;
+}
 
 export async function generateMetadata(
   props: NewsletterManagePageProps
@@ -35,15 +53,17 @@ export default async function NewsletterManagePage(
 ) {
   await connection();
   const { locale } = await props.params;
-  const { token = '' } = await props.searchParams;
+  const searchParams = await props.searchParams;
+  const token = newsletterManageToken(searchParams.token);
   setRequestLocale(locale);
   const t = await getTranslations({ locale, namespace: 'NewsletterPage' });
   const routes = await getTranslations({
     locale,
     namespace: 'MitSailingRoutes',
   });
-  const subscriber =
-    token.length > 0 ? await getSubscriberPreferenceStateByToken(token) : null;
+  const subscriber = token
+    ? await getSubscriberPreferenceStateByToken(token)
+    : null;
   const lists = await getPublicNewsletterLists();
 
   return (
@@ -66,7 +86,7 @@ export default async function NewsletterManagePage(
                 : t('manage_invalid')}
             </p>
           </div>
-          {subscriber ? (
+          {token && subscriber ? (
             <NewsletterPreferenceForm
               action={updateTokenNewsletterPreferencesAction.bind(
                 null,
