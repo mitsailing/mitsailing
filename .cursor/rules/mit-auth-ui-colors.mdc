@@ -1,6 +1,6 @@
 ---
 description: MIT palette for auth flows — shadcn inputs, institute CTAs, links; no raw MIT hex or Tailwind blue in auth UI
-globs: src/app/[locale]/(auth)/**/*,src/components/auth/**/*
+globs: src/app/[[]locale[]]/(auth)/**/*,src/components/auth/**/*
 alwaysApply: false
 ---
 

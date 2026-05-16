@@ -32,8 +32,12 @@ ALTER TABLE "pavilion_reservation_services"
 
 ALTER TABLE "pavilion_reservation_slots"
   ADD CONSTRAINT "pavilion_reservation_slots_item_id_item_kind_fkey"
-  FOREIGN KEY ("item_id", "item_kind") REFERENCES "pavilion_reservable_items" ("id", "kind") ON DELETE RESTRICT ON UPDATE CASCADE;
+  FOREIGN KEY ("item_id", "item_kind") REFERENCES "pavilion_reservable_items" ("id", "kind") ON DELETE RESTRICT ON UPDATE CASCADE,
+  ADD CONSTRAINT "pavilion_reservation_slots_item_kind_check"
+  CHECK ("item_kind" = 'space');
 
 ALTER TABLE "pavilion_reservation_services"
   ADD CONSTRAINT "pavilion_reservation_services_item_id_item_kind_fkey"
-  FOREIGN KEY ("item_id", "item_kind") REFERENCES "pavilion_reservable_items" ("id", "kind") ON DELETE RESTRICT ON UPDATE CASCADE;
+  FOREIGN KEY ("item_id", "item_kind") REFERENCES "pavilion_reservable_items" ("id", "kind") ON DELETE RESTRICT ON UPDATE CASCADE,
+  ADD CONSTRAINT "pavilion_reservation_services_item_kind_check"
+  CHECK ("item_kind" = 'service');

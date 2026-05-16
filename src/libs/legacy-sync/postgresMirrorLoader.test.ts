@@ -1,18 +1,31 @@
 import { describe, expect, it } from 'vitest';
-import type { MysqlQueryClient } from '@/libs/legacy-sync/mysqlSchemaIntrospection';
 import {
   chunkRows,
   copyMysqlTableToPostgres,
   createMirrorTable,
   flattenRowsForInsert,
-  quoteMysqlIdentifier,
+  MIRROR_ROW_BATCH_SIZE,
   resetLegacySchema,
 } from '@/libs/legacy-sync/postgresMirrorLoader';
 import type { MirrorPgClient } from '@/libs/legacy-sync/postgresMirrorLoader';
 
+async function* mirrorBatchRows() {
+  await Promise.resolve();
+  yield { a: 'one', b: 1 };
+}
+
 describe('postgresMirrorLoader', () => {
   it('chunks rows', () => {
     expect(chunkRows([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]]);
+  });
+
+  it('throws RangeError when chunk size is not a positive integer', () => {
+    for (const size of [0, -1, 1.5, Number.NaN]) {
+      expect(() => chunkRows([1], size)).toThrow(RangeError);
+      expect(() => chunkRows([1], size)).toThrow(
+        `chunkRows size must be a positive integer, received ${size}`
+      );
+    }
   });
 
   it('flattens row objects by column order', () => {
@@ -25,10 +38,6 @@ describe('postgresMirrorLoader', () => {
         ['a', 'b']
       )
     ).toEqual(['one', 1, 'two', 2]);
-  });
-
-  it('quotes mysql identifiers', () => {
-    expect(quoteMysqlIdentifier('odd`name')).toBe('`odd``name`');
   });
 
   it('resets the legacy schema', async () => {
@@ -72,14 +81,8 @@ describe('postgresMirrorLoader', () => {
     ]);
   });
 
-  it('copies mysql rows into postgres', async () => {
+  it('copies streamed mysql rows into postgres in batches', async () => {
     const pgQueries: { sql: string; values?: unknown[] }[] = [];
-    const mysql: MysqlQueryClient = {
-      query: async () => {
-        await Promise.resolve();
-        return [[{ a: 'one', b: 1 }], []];
-      },
-    };
     const pg: MirrorPgClient = {
       query: async (sql, values) => {
         pgQueries.push({ sql, values });
@@ -90,8 +93,8 @@ describe('postgresMirrorLoader', () => {
 
     await expect(
       copyMysqlTableToPostgres({
-        mysql,
         pg,
+        rows: mirrorBatchRows(),
         table: {
           tableName: 'example',
           columns: [
@@ -107,5 +110,39 @@ describe('postgresMirrorLoader', () => {
         values: ['one', 1],
       },
     ]);
+  });
+
+  it('buffers streamed rows up to mirror batch size', async () => {
+    const pgInsertCount = { value: 0 };
+    const pg: MirrorPgClient = {
+      query: async () => {
+        pgInsertCount.value += 1;
+        await Promise.resolve();
+        return { rows: [] };
+      },
+    };
+
+    async function* rows() {
+      for (let index = 0; index < MIRROR_ROW_BATCH_SIZE; index += 1) {
+        yield { a: `row-${index}`, b: index };
+      }
+      yield { a: 'last', b: MIRROR_ROW_BATCH_SIZE };
+    }
+
+    await expect(
+      copyMysqlTableToPostgres({
+        pg,
+        rows: rows(),
+        table: {
+          tableName: 'example',
+          columns: [
+            { name: 'a', nullable: true, postgresType: 'text' },
+            { name: 'b', nullable: true, postgresType: 'integer' },
+          ],
+        },
+      })
+    ).resolves.toBe(MIRROR_ROW_BATCH_SIZE + 1);
+
+    expect(pgInsertCount.value).toBe(2);
   });
 });

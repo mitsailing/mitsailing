@@ -175,6 +175,83 @@ export function buildAdminPavilionReservationConflictGraph(
   return graph;
 }
 
+function listOverlappingAdminPavilionReservationSlots(
+  slot: AdminPavilionReservationScheduleSlot,
+  candidates: readonly AdminPavilionReservationScheduleSlot[]
+): AdminPavilionReservationScheduleSlot[] {
+  return candidates.filter(
+    (candidate) =>
+      candidate.requestId !== slot.requestId &&
+      adminPavilionReservationSlotsOverlap(slot, candidate)
+  );
+}
+
+function conflictingAdminPavilionReservationRequestIds(
+  overlappingSlots: readonly AdminPavilionReservationScheduleSlot[]
+): string[] {
+  return [...new Set(overlappingSlots.map((candidate) => candidate.requestId))];
+}
+
+function adminPavilionReservationConflictSeverityForSlot(
+  slot: AdminPavilionReservationScheduleSlot,
+  overlappingSlots: readonly AdminPavilionReservationScheduleSlot[]
+): AdminPavilionReservationConflictSeverity | null {
+  let severity: AdminPavilionReservationConflictSeverity | null = null;
+  for (const candidate of overlappingSlots) {
+    const pairSeverity = adminPavilionReservationSlotConflictSeverity(
+      slot.status,
+      candidate.status
+    );
+    if (pairSeverity === 'hard') {
+      return 'hard';
+    }
+    if (pairSeverity === 'soft') {
+      severity = 'soft';
+    }
+  }
+  return severity;
+}
+
+export type AdminPavilionReservationRequestConflictEntry = {
+  hard: Set<string>;
+  soft: Set<string>;
+};
+
+export function adminPavilionReservationConflictSeverityFromGraphEntry(
+  conflicts: AdminPavilionReservationRequestConflictEntry | undefined
+): AdminPavilionReservationConflictSeverity | null {
+  if (!conflicts) {
+    return null;
+  }
+  if (conflicts.hard.size > 0) {
+    return 'hard';
+  }
+  return conflicts.soft.size > 0 ? 'soft' : null;
+}
+
+export type AdminPavilionReservationSlotConflicts = {
+  conflictSeverity: AdminPavilionReservationConflictSeverity | null;
+  conflictingRequestIds: string[];
+};
+
+export function adminPavilionReservationSlotConflicts(
+  slot: AdminPavilionReservationScheduleSlot,
+  candidates: readonly AdminPavilionReservationScheduleSlot[]
+): AdminPavilionReservationSlotConflicts {
+  const overlappingSlots = listOverlappingAdminPavilionReservationSlots(
+    slot,
+    candidates
+  );
+  return {
+    conflictSeverity: adminPavilionReservationConflictSeverityForSlot(
+      slot,
+      overlappingSlots
+    ),
+    conflictingRequestIds:
+      conflictingAdminPavilionReservationRequestIds(overlappingSlots),
+  };
+}
+
 export function listAdminPavilionReservationCalendarSegments(
   slots: readonly AdminPavilionReservationScheduleSlot[],
   dateKeys: readonly string[]

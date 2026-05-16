@@ -15,6 +15,9 @@ function mapIntegerType(normalized: string): string | null {
   if (normalized.startsWith('bigint') && normalized.includes('unsigned')) {
     return 'numeric(20,0)';
   }
+  if (normalized.startsWith('bigint')) {
+    return 'bigint';
+  }
   if (normalized.startsWith('int') && normalized.includes('unsigned')) {
     return 'bigint';
   }

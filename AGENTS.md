@@ -18,11 +18,22 @@
 
 - Skip recaps unless the result is ambiguous or you need more input.
 - **Cursor rules** ([Cursor docs](https://cursor.com/docs/rules)): keep each `.mdc` **focused, actionable, well-scoped** — **reference** code or docs instead of duplicating prose (official guidance allows up to **500 lines per rule**; stay **well below** that). Prefer **`globs` + `alwaysApply: false`**; use **`alwaysApply: true`** only for short universal policy. **Cite** `.cursor/rules/…` paths; do not paste full rule bodies (including in **sub-agent** prompts). **`@tdd`** for strict test-first.
-- **Which rule:** `.coderabbit.yaml` (CodeRabbit on PRs) + `coderabbit-review.mdc` (same expectations for local agents / `cr review`). `nextjs-node-server-2026.mdc` (Next cache/DB/runtime, `src/app` + `src/libs`). `e2e-verification.mdc` (`test:e2e` gate). `tdd.mdc` (`tests/**`, `*.test.*`). `agent-workflow.mdc` (inspect-first, `src/**`). `ada-color-accessibility.mdc` (UI contrast/tokens). `app-design-tokens-colors.mdc` + `mit-red-ink-usage.mdc` (MIT red text utilities). `dates-us-eastern.mdc` (venue US Eastern; `I18n.ts` `timeZone`). `mitsailing-single-tenant-chrome.mdc` (chrome copy).
+- **Which rule:** `.coderabbit.yaml` (CodeRabbit on PRs) + `coderabbit-review.mdc` (same expectations for local agents / `cr review`). `nextjs-node-server-2026.mdc` (Next cache/DB/runtime, `src/app` + `src/libs`). `e2e-verification.mdc` (`test:e2e` gate). `dev-browser-auth.mdc` (local `/api/dev-login` for Cursor browser agents only). `tdd.mdc` (`tests/**`, `*.test.*`). `agent-workflow.mdc` (inspect-first, `src/**`). `ada-color-accessibility.mdc` (UI contrast/tokens). `app-design-tokens-colors.mdc` + `mit-red-ink-usage.mdc` (MIT red text utilities). `dates-us-eastern.mdc` (venue US Eastern; `I18n.ts` `timeZone`). `mitsailing-single-tenant-chrome.mdc` (chrome copy).
 
 ## Commands
 
 Only these `npm run` scripts: `build-local`, `lint`, `check:types`, `check:deps`, `check:i18n`, `test`, `test:coverage`, `test:e2e`.
+
+## Dev authentication (browser agents)
+
+For **Cursor browser MCP** or manual agent browsing on **`npm run dev`** only — not a substitute for claiming `npm run test:e2e` complete, and **not** for specs that assert `/login`, sign-up, or email/password UI (those stay on real forms; see `tests/e2e/Auth.e2e.ts` and `tests/helpers/e2e-admin-sign-in.ts`).
+
+1. Run `npm run db:seed` with your `.env` `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
+2. Open (replace with your seeded credentials):
+
+   `http://localhost:3000/api/dev-login?email=YOUR_ADMIN_EMAIL&password=YOUR_PASSWORD&redirect=/admin`
+
+`GET /api/dev-login` returns **404** when `APP_ENV` is staging/production, when `IS_E2E=1` (Playwright), or when `APP_ENV` is not `local`. Re-scaffold after auth changes: `npx skills add pbakaus/burn-after-login`.
 
 ## Git Commits
 
@@ -64,6 +75,8 @@ Tailwind v4 utility classes. Reuse shared components. Responsive. No unnecessary
 - Context-specific keys (`card_title`, `meta_description`). Use `t.rich(...)` for markup.
 - Use sentence case for translations.
 - Error messages: short, no "try again" variants.
+- Single locale (`en`) with `localePrefix: 'never'`: locale never appears in public URLs (`/admin`, not `/en/admin`). Keep `src/app/[locale]/`; see `.cursor/rules/next-intl-single-locale-routing.mdc`.
+- `revalidatePath`, redirects, and links: `getI18nPath(path, locale)` from `@/utils/Helpers`, not `` `/${locale}${path}` ``.
 
 ## JSDoc
 

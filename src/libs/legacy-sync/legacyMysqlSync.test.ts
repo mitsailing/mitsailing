@@ -28,26 +28,23 @@ describe('legacyMysqlSyncConfigFromEnv', () => {
   it('uses hourly cron by default when enabled', () => {
     const config = legacyMysqlSyncConfigFromEnv({
       APP_ENV: 'production',
-      LEGACY_MYSQL_URL:
-        'mysql://dock_readonly:secret@sailing.pavilion.lan:3306/sailing',
+      LEGACY_MYSQL_PASSWORD: 'secret',
       LEGACY_MYSQL_SYNC_ENABLED: 'true',
     });
 
     expect(config.enabled ? config.cron : null).toBe('0 0 * * * *');
   });
 
-  it('derives source metadata from the MySQL URL', () => {
+  it('derives source metadata from the fixed legacy mysql source', () => {
     expect(
       legacyMysqlSyncConfigFromEnv({
         APP_ENV: 'production',
-        LEGACY_MYSQL_URL:
-          'mysql://dock_readonly:secret@sailing.pavilion.lan:3306/sailing',
+        LEGACY_MYSQL_PASSWORD: 'secret',
         LEGACY_MYSQL_SYNC_ENABLED: 'true',
       })
     ).toMatchObject({
       database: 'sailing',
-      mysqlUrl:
-        'mysql://dock_readonly:secret@sailing.pavilion.lan:3306/sailing',
+      mysqlPassword: 'secret',
       sourceHost: 'sailing.pavilion.lan',
     });
   });

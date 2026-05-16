@@ -14,10 +14,11 @@ export const getBaseUrl = () => {
 };
 
 /**
- * Builds a locale-aware path by prefixing non-default locales.
+ * Builds the public path for a route per next-intl `localePrefix` (`never` in AppConfig).
+ * Default locale (`en`) stays unprefixed; only non-default locales get a `/{locale}` prefix.
  * @param url - The base application-relative path starting with a slash.
  * @param locale - The active locale identifier.
- * @returns The localized path, prefixed when the locale is not the default locale.
+ * @returns The path browsers and `revalidatePath` should use.
  */
 export const getI18nPath = (url: string, locale: string) => {
   if (locale === routing.defaultLocale) {

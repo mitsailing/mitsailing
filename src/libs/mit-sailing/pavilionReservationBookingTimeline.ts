@@ -2,7 +2,12 @@ import { formatPavilionReservationTimeLabel } from '@/libs/mit-sailing/pavilionR
 import type { PavilionReservationSlotInput } from '@/libs/mit-sailing/pavilionReservationTypes';
 
 const PAVILION_RESERVATION_START_MINUTES = 7 * 60;
-/** Last bookable minute-of-day on the pavilion timeline (26:00 same calendar day). */
+/**
+ * Last bookable minute on the pavilion timeline. `26 * 60` is 26:00 on the
+ * booking-day axis (2:00 AM the following calendar day).
+ * `logicalInstantFromDayNumber` rolls to the next date via `dayOffset` when
+ * minutes exceed one day.
+ */
 export const PAVILION_RESERVATION_END_MINUTES = 26 * 60;
 const PAVILION_RESERVATION_TIME_STEP_MINUTES = 30;
 

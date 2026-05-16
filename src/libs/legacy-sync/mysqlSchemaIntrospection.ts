@@ -29,8 +29,28 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-function rowsFromMysqlResult(rows: unknown): unknown[] {
-  return Array.isArray(rows) ? rows : [];
+function parseMysqlQueryRows(rows: unknown, context: string): unknown[] {
+  if (!Array.isArray(rows)) {
+    throw new TypeError(
+      `Invalid MySQL ${context}: expected query rows to be an array, received ${typeof rows}.`
+    );
+  }
+  return rows;
+}
+
+function isMysqlTableNameRow(row: unknown): row is { tableName: string } {
+  return isRecord(row) && typeof row.tableName === 'string';
+}
+
+function parseMysqlTableNameRows(rows: unknown[], context: string): string[] {
+  return rows.map((row, index) => {
+    if (!isMysqlTableNameRow(row)) {
+      throw new Error(
+        `Invalid MySQL ${context}: row at index ${index} must be an object with string tableName.`
+      );
+    }
+    return row.tableName;
+  });
 }
 
 function isMysqlColumnRow(row: unknown): row is MysqlColumnRow {
@@ -40,6 +60,20 @@ function isMysqlColumnRow(row: unknown): row is MysqlColumnRow {
     typeof row.columnType === 'string' &&
     (row.isNullable === 'YES' || row.isNullable === 'NO')
   );
+}
+
+function parseMysqlColumnRows(
+  rows: unknown[],
+  context: string
+): MysqlColumnRow[] {
+  return rows.map((row, index) => {
+    if (!isMysqlColumnRow(row)) {
+      throw new Error(
+        `Invalid MySQL ${context}: row at index ${index} must include string columnName, string columnType, and isNullable YES or NO.`
+      );
+    }
+    return row;
+  });
 }
 
 export async function listMysqlBaseTables(props: {
@@ -53,9 +87,8 @@ export async function listMysqlBaseTables(props: {
      ORDER BY TABLE_NAME`,
     [props.database]
   );
-  return rowsFromMysqlResult(rows).flatMap((row) =>
-    isRecord(row) && typeof row.tableName === 'string' ? [row.tableName] : []
-  );
+  const context = 'information_schema.TABLES';
+  return parseMysqlTableNameRows(parseMysqlQueryRows(rows, context), context);
 }
 
 export async function readMysqlTableDefinition(props: {
@@ -72,8 +105,9 @@ export async function readMysqlTableDefinition(props: {
      ORDER BY ORDINAL_POSITION`,
     [props.database, props.tableName]
   );
+  const context = 'information_schema.COLUMNS';
   return mysqlColumnsToMirrorTable(
     props.tableName,
-    rowsFromMysqlResult(rows).filter(isMysqlColumnRow)
+    parseMysqlColumnRows(parseMysqlQueryRows(rows, context), context)
   );
 }

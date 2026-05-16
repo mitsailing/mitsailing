@@ -2,7 +2,11 @@ import { Pool as PgPool } from 'pg';
 import type { PoolClient } from 'pg';
 import { prisma } from '@/libs/DB';
 import { Env } from '@/libs/Env';
-import { openLegacyMysqlConnection } from '@/libs/legacy-sync/mysqlConnection';
+import {
+  LEGACY_MYSQL_SOURCE,
+  openLegacyMysqlConnection,
+  streamLegacyMysqlTableRows,
+} from '@/libs/legacy-sync/mysqlConnection';
 import {
   listMysqlBaseTables,
   readMysqlTableDefinition,
@@ -31,19 +35,19 @@ export type MirrorTransactionClient = {
 
 type LegacyMysqlSyncEnv = {
   APP_ENV?: string;
+  LEGACY_MYSQL_PASSWORD?: string;
   LEGACY_MYSQL_SYNC_CRON?: string;
   LEGACY_MYSQL_SYNC_ENABLED?: string;
-  LEGACY_MYSQL_URL?: string;
 };
 
 export type LegacyMysqlSyncConfig =
   | { enabled: false }
   | {
       cron: string;
-      database: string;
+      database: typeof LEGACY_MYSQL_SOURCE.database;
       enabled: true;
-      mysqlUrl: string;
-      sourceHost: string;
+      mysqlPassword: string;
+      sourceHost: typeof LEGACY_MYSQL_SOURCE.host;
     };
 
 function isAdvisoryLockRow(row: unknown): row is { acquired: boolean } {
@@ -61,18 +65,17 @@ export function legacyMysqlSyncConfigFromEnv(
   if (env.LEGACY_MYSQL_SYNC_ENABLED !== 'true') {
     return { enabled: false };
   }
-  if (env.LEGACY_MYSQL_URL === undefined) {
+  if (env.LEGACY_MYSQL_PASSWORD === undefined) {
     throw new Error(
-      'LEGACY_MYSQL_URL is required when legacy sync is enabled.'
+      'LEGACY_MYSQL_PASSWORD is required when legacy sync is enabled.'
     );
   }
-  const mysqlUrl = new URL(env.LEGACY_MYSQL_URL);
   return {
     enabled: true,
     cron: env.LEGACY_MYSQL_SYNC_CRON ?? '0 0 * * * *',
-    database: mysqlUrl.pathname.slice(1),
-    mysqlUrl: env.LEGACY_MYSQL_URL,
-    sourceHost: mysqlUrl.hostname,
+    database: LEGACY_MYSQL_SOURCE.database,
+    mysqlPassword: env.LEGACY_MYSQL_PASSWORD,
+    sourceHost: LEGACY_MYSQL_SOURCE.host,
   };
 }
 
@@ -149,7 +152,7 @@ export async function runLegacyMysqlSync(
     runId = run.id;
 
     const legacyMysql = openLegacyMysqlConnection({
-      mysqlUrl: config.mysqlUrl,
+      password: config.mysqlPassword,
     });
     try {
       const tableNames = await listMysqlBaseTables({
@@ -175,8 +178,11 @@ export async function runLegacyMysqlSync(
             await createMirrorTable({ pg, table });
             loadedRows += BigInt(
               await copyMysqlTableToPostgres({
-                mysql: legacyMysql.mysql,
                 pg,
+                rows: streamLegacyMysqlTableRows(
+                  legacyMysql.mysql,
+                  table.tableName
+                ),
                 table,
               })
             );

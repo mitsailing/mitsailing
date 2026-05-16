@@ -13,6 +13,8 @@ describe('mysqlColumnToPostgresType', () => {
     expect(mysqlColumnToPostgresType('bigint(20) unsigned')).toBe(
       'numeric(20,0)'
     );
+    expect(mysqlColumnToPostgresType('bigint')).toBe('bigint');
+    expect(mysqlColumnToPostgresType('bigint(20)')).toBe('bigint');
   });
 
   it('maps temporal and text types', () => {

@@ -81,8 +81,8 @@ reviews:
         and class rating links that use `/ratings` plus `#` and the slug.
         Localized app paths in server code: use `getI18nPath(path, locale)` from
         `@/utils/Helpers` for `revalidatePath` and similar; do not concatenate
-        `/${locale}/...` (wrong shape for default locale with `localePrefix: 'as-needed'`).
-    - path: 'src/app/[locale]/**'
+        `/${locale}/...` (wrong shape with `localePrefix: 'never'`—locale is not in public URLs).
+    - path: 'src/app/[[]locale[]]/**'
       instructions: >-
         Single-locale English site (`AppConfig.i18n.locales` is only `en`).
         next-intl keys are not a reason to introduce multi-locale URL prefixes or

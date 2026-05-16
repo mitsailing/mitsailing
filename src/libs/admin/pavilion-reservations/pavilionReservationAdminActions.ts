@@ -198,6 +198,24 @@ function statusFromForm(
   );
 }
 
+function missingPavilionReservationAdminRequiredFieldNames(props: {
+  paymentStatus: PavilionReservationPaymentStatusValue | undefined;
+  persona: PavilionReservationPersonaValue | undefined;
+  status: PavilionReservationStatusValue | undefined;
+}): string[] {
+  const missing: string[] = [];
+  if (!props.status) {
+    missing.push('workflowStatus');
+  }
+  if (!props.paymentStatus) {
+    missing.push('paymentStatus');
+  }
+  if (!props.persona) {
+    missing.push('persona');
+  }
+  return missing;
+}
+
 function statusLabel(status: PavilionReservationStatusValue): string {
   switch (status) {
     case 'approved': {
@@ -274,7 +292,15 @@ export async function updatePavilionReservationAdminAction(
   const persona = parsePersona(formText(formData, 'persona'));
 
   if (!status || !paymentStatus || !persona) {
-    return;
+    const missingRequiredFields =
+      missingPavilionReservationAdminRequiredFieldNames({
+        paymentStatus,
+        persona,
+        status,
+      });
+    throw new Error(
+      `Missing required fields: ${missingRequiredFields.join(', ')}`
+    );
   }
 
   const slotRows = parseSlotRows(formData);

@@ -1,7 +1,8 @@
 import 'server-only';
 import type { Prisma } from '@/generated/prisma/client';
 import {
-  adminPavilionReservationDateKey,
+  adminPavilionReservationConflictSeverityFromGraphEntry,
+  adminPavilionReservationSlotConflicts,
   buildAdminPavilionReservationConflictGraph,
   listAdminPavilionReservationCalendarSegments,
 } from '@/libs/admin/pavilion-reservations/pavilionReservationAdminSchedule';
@@ -212,23 +213,6 @@ function firstSlot(
     : null;
 }
 
-function conflictSeverityFromGraphEntry(
-  conflicts:
-    | {
-        hard: Set<string>;
-        soft: Set<string>;
-      }
-    | undefined
-): AdminPavilionReservationConflictSeverity | null {
-  if (!conflicts) {
-    return null;
-  }
-  if (conflicts.hard.size > 0) {
-    return 'hard';
-  }
-  return conflicts.soft.size > 0 ? 'soft' : null;
-}
-
 function compareNullableNumber(
   left: number | null,
   right: number | null
@@ -384,9 +368,10 @@ export async function listAdminPavilionReservationRows(
     buildAdminPavilionReservationConflictGraph(scheduleSlots);
   const mappedRows = rows.map((row) => {
     const rowFirstSlot = firstSlot(row.slots);
-    const conflictSeverity = conflictSeverityFromGraphEntry(
-      conflictGraph.get(row.id)
-    );
+    const conflictSeverity =
+      adminPavilionReservationConflictSeverityFromGraphEntry(
+        conflictGraph.get(row.id)
+      );
     return {
       id: row.id,
       referenceCode: row.referenceCode,
@@ -519,30 +504,23 @@ export async function getAdminPavilionReservationById(
       startMinutes: slot.startMinutes,
       endMinutes: slot.endMinutes,
     }));
-  const conflictGraph =
-    buildAdminPavilionReservationConflictGraph(scheduleSlots);
-
   const slots = reservation.slots.map((slot) => {
-    const slotDateKey = adminPavilionReservationDateKey(slot.requestedDate);
-    const conflictingSlots = scheduleSlots.filter(
-      (candidate) =>
-        candidate.requestId !== reservation.id &&
-        candidate.itemId === slot.item.id &&
-        adminPavilionReservationDateKey(candidate.requestedDate) ===
-          slotDateKey &&
-        candidate.startMinutes < slot.endMinutes &&
-        slot.startMinutes < candidate.endMinutes
-    );
-    const conflictingRequestIds = [
-      ...new Set(conflictingSlots.map((candidate) => candidate.requestId)),
-    ];
-    const conflictSeverity = conflictSeverityFromGraphEntry(
-      conflictGraph.get(reservation.id)
-    );
+    const scheduleSlot: AdminPavilionReservationScheduleSlot = {
+      id: slot.id,
+      requestId: reservation.id,
+      referenceCode: reservation.referenceCode,
+      eventName: reservation.eventName,
+      status: reservation.status,
+      paymentStatus: reservation.paymentStatus,
+      itemId: slot.item.id,
+      itemName: slot.item.name,
+      requestedDate: slot.requestedDate,
+      startMinutes: slot.startMinutes,
+      endMinutes: slot.endMinutes,
+    };
     return {
       ...slot,
-      conflictSeverity,
-      conflictingRequestIds,
+      ...adminPavilionReservationSlotConflicts(scheduleSlot, scheduleSlots),
     };
   });
   const first = firstSlot(reservation.slots);

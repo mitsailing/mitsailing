@@ -30,19 +30,17 @@ describe('Env legacy MySQL sync validation', () => {
     stubRequiredBaseEnv();
     vi.stubEnv('APP_ENV', 'local');
     vi.stubEnv('LEGACY_MYSQL_SYNC_ENABLED', 'true');
-    vi.stubEnv(
-      'LEGACY_MYSQL_URL',
-      'mysql://dock_readonly:secret@sailing.pavilion.lan:3306/sailing'
-    );
+    vi.stubEnv('LEGACY_MYSQL_PASSWORD', 'secret');
 
     await expect(import('@/libs/Env')).rejects.toThrow(
       'Invalid environment variables'
     );
   });
 
-  it('requires MySQL connection secrets when sync is enabled', async () => {
+  it('requires MySQL password when sync is enabled', async () => {
     stubRequiredBaseEnv();
     vi.stubEnv('APP_ENV', 'production');
+    vi.stubEnv('CMS_MEDIA_ROOT', '/var/lib/mitsailing/cms-media');
     vi.stubEnv('LEGACY_MYSQL_SYNC_ENABLED', 'true');
 
     await expect(import('@/libs/Env')).rejects.toThrow(
@@ -50,17 +48,16 @@ describe('Env legacy MySQL sync validation', () => {
     );
   });
 
-  it('rejects legacy MySQL URLs outside the expected source', async () => {
+  it('accepts legacy mysql sync in production when password is set', async () => {
     stubRequiredBaseEnv();
     vi.stubEnv('APP_ENV', 'production');
+    vi.stubEnv('CMS_MEDIA_ROOT', '/var/lib/mitsailing/cms-media');
     vi.stubEnv('LEGACY_MYSQL_SYNC_ENABLED', 'true');
-    vi.stubEnv(
-      'LEGACY_MYSQL_URL',
-      'mysql://dock_readonly:secret@wrong.example.com:3306/sailing'
-    );
+    vi.stubEnv('LEGACY_MYSQL_PASSWORD', 'secret');
 
-    await expect(import('@/libs/Env')).rejects.toThrow(
-      'Invalid environment variables'
-    );
+    const { Env } = await import('@/libs/Env');
+
+    expect(Env.LEGACY_MYSQL_SYNC_ENABLED).toBe('true');
+    expect(Env.LEGACY_MYSQL_PASSWORD).toBe('secret');
   });
 });

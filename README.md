@@ -66,6 +66,8 @@ This matches **2026 Next.js** practice: **`next dev` runs on your computer** (fa
 
 **Typical day:** Docker running → **`npm run dev`** from the repo root (that runs **`db:up`** → **`db:wait`** → **`db:migrate`** → **`next dev`**). You do **not** need **`db:down`** before each session.
 
+**Refresh `dev_db` from production:** [docs/pull-prod-db.md](docs/pull-prod-db.md) (manual port on/off on sailing-dock, SSH tunnel, then `pgsync`).
+
 **Production** uses **`next build`** / **`next start`** or the **Docker** image — see [`docs/deploy.md`](docs/deploy.md).
 
 **Docker Compose (local) — conventions**
@@ -200,7 +202,7 @@ npm run db:migrate:dev   # create + apply a new migration, regenerate client
 
 This app uses **[Better Auth](https://www.better-auth.com/)** (self-hosted) with the Prisma adapter. It is **not** Clerk — any leftover Clerk references in older docs or branches are out of date.
 
-Configuration lives in `src/libs/auth/` and environment variables in `src/libs/Env.ts`. See **`.env.example`** for OAuth, SMTP, and other keys. **Local sign-in:** set **`ADMIN_EMAIL`** / **`ADMIN_PASSWORD`** in **`.env`** (see [Getting started step 4](#first-time-on-this-repo-checklist)), run **`npm run db:seed`**, then open **`/login`** with those same values.
+Configuration lives in `src/libs/auth/` and environment variables in `src/libs/Env.ts`. See **`.env.example`** for OAuth, SMTP, and other keys. **Local sign-in:** set **`ADMIN_EMAIL`** / **`ADMIN_PASSWORD`** in **`.env`** (see [Getting started step 4](#first-time-on-this-repo-checklist)), run **`npm run db:seed`**, then open **`/login`** with those same values. For AI browser automation on **`npm run dev`** only, see **`/api/dev-login`** in [AGENTS.md](AGENTS.md) (Playwright e2e keeps using the real login UI).
 
 ---
 

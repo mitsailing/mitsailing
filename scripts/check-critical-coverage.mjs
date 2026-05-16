@@ -29,6 +29,7 @@ const metricNames = /** @type {MetricName[]} */ ([
 
 const authCoverageFiles = [
   'src/app/api/auth/[...all]/route.ts',
+  'src/app/api/dev-login/route.ts',
   'src/app/api/unlock-account/route.ts',
   'src/app/[locale]/(auth)/layout.tsx',
   'src/app/[locale]/(auth)/(center)/layout.tsx',
@@ -66,6 +67,7 @@ const authCoverageFiles = [
   'src/libs/auth-client.ts',
   'src/libs/auth/adminHeaderLink.ts',
   'src/libs/auth/callbackUrl.ts',
+  'src/libs/auth/devAuthShortcut.ts',
   'src/libs/auth/dal.ts',
   'src/libs/auth/hooks.ts',
   'src/libs/auth/password-compromise.ts',
@@ -476,7 +478,8 @@ function isAuthOwnedPath(projectPath) {
     normalizedProjectPath === 'src/libs/auth.ts' ||
     normalizedProjectPath === 'src/libs/auth-client.ts' ||
     normalizedProjectPath === 'src/app/api/auth/[...all]/route.ts' ||
-    normalizedProjectPath === 'src/app/api/unlock-account/route.ts'
+    normalizedProjectPath === 'src/app/api/unlock-account/route.ts' ||
+    normalizedProjectPath === 'src/app/api/dev-login/route.ts'
   );
 }
 

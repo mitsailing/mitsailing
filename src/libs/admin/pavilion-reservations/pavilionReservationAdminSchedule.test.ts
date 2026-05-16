@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   adminPavilionReservationAddDays,
+  adminPavilionReservationSlotConflicts,
   adminPavilionReservationWeekKeys,
   buildAdminPavilionReservationConflictGraph,
 } from '@/libs/admin/pavilion-reservations/pavilionReservationAdminSchedule';
@@ -49,6 +50,57 @@ describe('pavilionReservationAdminSchedule', () => {
     expect(graph.get('pending-a')?.hard.has('needs-info-b')).toBe(true);
     expect(graph.get('pending-a')?.hard.has('approved-c')).toBe(true);
     expect(graph.get('approved-c')?.hard.has('needs-info-b')).toBe(true);
+  });
+
+  it('derives per-slot conflict severity from overlapping slots only', () => {
+    const itemId = 'pavilion';
+    const date = new Date('2026-05-15T00:00:00Z');
+    const scheduleSlots = [
+      slot({
+        id: 'mine-early',
+        requestId: 'mine',
+        status: 'pending',
+        requestedDate: date,
+        startMinutes: 9 * 60,
+        endMinutes: 10 * 60,
+        itemId,
+      }),
+      slot({
+        id: 'mine-late',
+        requestId: 'mine',
+        status: 'pending',
+        requestedDate: date,
+        startMinutes: 14 * 60,
+        endMinutes: 16 * 60,
+        itemId,
+      }),
+      slot({
+        id: 'other',
+        requestId: 'other',
+        status: 'approved',
+        requestedDate: date,
+        startMinutes: 9 * 60 + 30,
+        endMinutes: 11 * 60,
+        itemId,
+      }),
+    ];
+    const [mineEarly, mineLate] = scheduleSlots;
+    if (!mineEarly || !mineLate) {
+      throw new Error('Expected schedule slots.');
+    }
+
+    expect(
+      adminPavilionReservationSlotConflicts(mineEarly, scheduleSlots)
+    ).toEqual({
+      conflictSeverity: 'hard',
+      conflictingRequestIds: ['other'],
+    });
+    expect(
+      adminPavilionReservationSlotConflicts(mineLate, scheduleSlots)
+    ).toEqual({
+      conflictSeverity: null,
+      conflictingRequestIds: [],
+    });
   });
 
   it('builds sunday-based week keys', () => {

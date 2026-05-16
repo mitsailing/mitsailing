@@ -44,7 +44,7 @@ Reservation mapping may upsert app-owned rows with legacy reference codes, but i
 
 ## Secrets And Production Scope
 
-The MySQL connection URL is a production-only secret because it contains the `dock_readonly` password. It should not be committed and should not be passed on command lines. The worker should read it through validated environment variables. No SSH tunnel, SSH key, or host `mysql-client` package is required for the planned runtime.
+The `dock_readonly` MySQL password is a production-only secret (`LEGACY_MYSQL_PASSWORD`). Host, user, and database are fixed in code. It should not be committed and should not be passed on command lines. The worker reads it through validated environment variables. No SSH tunnel, SSH key, or host `mysql-client` package is required for the planned runtime.
 
 The scheduler should register only when `APP_ENV=production` and `LEGACY_MYSQL_SYNC_ENABLED=true`. The default schedule is hourly at minute zero. Local and test environments can run the sync manually through unit-tested functions, but should not schedule it.
 

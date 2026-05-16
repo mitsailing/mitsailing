@@ -46,6 +46,93 @@ describe('mysqlColumnsToMirrorTable', () => {
     expect(queries[0]?.values).toEqual(['sailing']);
   });
 
+  describe('listMysqlBaseTables', () => {
+    it('rejects non-array query results', async () => {
+      const mysql: MysqlQueryClient = {
+        query: async () => {
+          await Promise.resolve();
+          return [{ tableName: 'members' }, []];
+        },
+      };
+
+      await expect(
+        listMysqlBaseTables({ database: 'sailing', mysql })
+      ).rejects.toThrow('expected query rows to be an array');
+    });
+
+    it('rejects rows missing tableName', async () => {
+      const mysql: MysqlQueryClient = {
+        query: async () => {
+          await Promise.resolve();
+          return [[{ tableName: 'members' }, { notTableName: 'x' }], []];
+        },
+      };
+
+      await expect(
+        listMysqlBaseTables({ database: 'sailing', mysql })
+      ).rejects.toThrow('string tableName');
+    });
+
+    it('accepts an empty table list', async () => {
+      const mysql: MysqlQueryClient = {
+        query: async () => {
+          await Promise.resolve();
+          return [[], []];
+        },
+      };
+
+      await expect(
+        listMysqlBaseTables({ database: 'sailing', mysql })
+      ).resolves.toEqual([]);
+    });
+  });
+
+  describe('readMysqlTableDefinition', () => {
+    it('rejects non-array query results', async () => {
+      const mysql: MysqlQueryClient = {
+        query: async () => {
+          await Promise.resolve();
+          return [null, []];
+        },
+      };
+
+      await expect(
+        readMysqlTableDefinition({
+          database: 'sailing',
+          mysql,
+          tableName: 'reservations',
+        })
+      ).rejects.toThrow('expected query rows to be an array');
+    });
+
+    it('rejects rows with invalid column metadata', async () => {
+      const mysql: MysqlQueryClient = {
+        query: async () => {
+          await Promise.resolve();
+          return [
+            [
+              {
+                columnName: 'resid',
+                columnType: 'char(24)',
+                isNullable: 'NO',
+              },
+              { columnName: 'bad', columnType: 1, isNullable: 'MAYBE' },
+            ],
+            [],
+          ];
+        },
+      };
+
+      await expect(
+        readMysqlTableDefinition({
+          database: 'sailing',
+          mysql,
+          tableName: 'reservations',
+        })
+      ).rejects.toThrow('columnName');
+    });
+  });
+
   it('reads mysql table definitions', async () => {
     const mysql: MysqlQueryClient = {
       query: async () => {
