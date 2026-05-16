@@ -10,7 +10,9 @@ export async function requestNewsletterArchiveRevalidation(): Promise<boolean> {
     const response = await fetch(
       new URL(NEWSLETTER_ARCHIVE_REVALIDATION_PATH, getBaseUrl()),
       {
-        headers: { authorization: `Bearer ${Env.BETTER_AUTH_SECRET}` },
+        headers: {
+          authorization: `Bearer ${Env.NEWSLETTER_REVALIDATE_SECRET}`,
+        },
         method: 'POST',
       }
     );

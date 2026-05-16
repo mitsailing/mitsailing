@@ -11,7 +11,7 @@ function bearerToken(request: Request) {
 }
 
 export function POST(request: Request) {
-  if (bearerToken(request) !== Env.BETTER_AUTH_SECRET) {
+  if (bearerToken(request) !== Env.NEWSLETTER_REVALIDATE_SECRET) {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
 

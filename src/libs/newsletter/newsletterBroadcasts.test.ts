@@ -45,6 +45,8 @@ vi.mock('@/libs/DB', () => ({
 vi.mock('@/libs/Env', () => ({
   Env: {
     BETTER_AUTH_SECRET: 'test-secret-that-is-at-least-thirty-two-chars',
+    NEWSLETTER_REVALIDATE_SECRET:
+      'test-newsletter-revalidate-secret-with-thirty-two-chars',
     NEWSLETTER_POSTAL_ADDRESS: 'MIT Sailing Pavilion',
     REDIS_URL: 'redis://localhost:6379',
   },
@@ -228,7 +230,8 @@ describe('newsletter broadcasts', () => {
       ),
       {
         headers: {
-          authorization: 'Bearer test-secret-that-is-at-least-thirty-two-chars',
+          authorization:
+            'Bearer test-newsletter-revalidate-secret-with-thirty-two-chars',
         },
         method: 'POST',
       }

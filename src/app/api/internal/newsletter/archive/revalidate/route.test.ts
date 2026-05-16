@@ -11,7 +11,8 @@ vi.mock('next/cache', () => ({
 
 vi.mock('@/libs/Env', () => ({
   Env: {
-    BETTER_AUTH_SECRET: 'test-secret-that-is-at-least-thirty-two-chars',
+    NEWSLETTER_REVALIDATE_SECRET:
+      'test-newsletter-revalidate-secret-with-thirty-two-chars',
   },
 }));
 
@@ -34,7 +35,9 @@ describe('newsletter archive revalidation route', () => {
 
   it('revalidates the archive with the internal bearer token', async () => {
     const response = POST(
-      revalidateRequest('Bearer test-secret-that-is-at-least-thirty-two-chars')
+      revalidateRequest(
+        'Bearer test-newsletter-revalidate-secret-with-thirty-two-chars'
+      )
     );
 
     await expect(response.json()).resolves.toEqual({ ok: true });

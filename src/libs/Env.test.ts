@@ -10,6 +10,10 @@ function stubRequiredBaseEnv(): void {
     'DATABASE_URL',
     'postgresql://postgres:postgres@localhost:5432/dev_db?sslmode=disable'
   );
+  vi.stubEnv(
+    'NEWSLETTER_REVALIDATE_SECRET',
+    'test-newsletter-revalidate-secret-with-thirty-two-chars'
+  );
   vi.stubEnv('NEXT_PUBLIC_APP_URL', 'http://localhost:3000');
 }
 

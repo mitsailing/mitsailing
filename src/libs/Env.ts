@@ -16,6 +16,7 @@ export const Env = createEnv({
     ARCJET_KEY: z.string().startsWith('ajkey_').optional(),
     BETTER_AUTH_SECRET: z.string().min(32),
     DATABASE_URL: z.string().min(1),
+    NEWSLETTER_REVALIDATE_SECRET: z.string().min(32),
 
     // BullMQ worker + optional API enqueue; Redis is internal to Compose in prod.
     REDIS_URL: z.url().optional(),
@@ -157,6 +158,7 @@ export const Env = createEnv({
     ARCJET_KEY: process.env.ARCJET_KEY,
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
     DATABASE_URL: process.env.DATABASE_URL,
+    NEWSLETTER_REVALIDATE_SECRET: process.env.NEWSLETTER_REVALIDATE_SECRET,
     REDIS_URL: process.env.REDIS_URL,
     LEGACY_MYSQL_SYNC_ENABLED: process.env.LEGACY_MYSQL_SYNC_ENABLED,
     LEGACY_MYSQL_SYNC_CRON: process.env.LEGACY_MYSQL_SYNC_CRON,
