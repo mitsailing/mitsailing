@@ -15,6 +15,9 @@ export const Env = createEnv({
 
     // BullMQ worker + optional API enqueue; Redis is internal to Compose in prod.
     REDIS_URL: z.url().optional(),
+    LEGACY_MYSQL_SYNC_ENABLED: z.enum(['true', 'false']).default('false'),
+    LEGACY_MYSQL_SYNC_CRON: z.string().min(1).default('0 0 * * * *'),
+    LEGACY_MYSQL_URL: z.url().optional(),
 
     // APP_ENV is orthogonal to NODE_ENV: it names the deployment target
     // (staging runs a production build but behaves like staging — Mailpit
@@ -108,12 +111,48 @@ export const Env = createEnv({
           path: ['CMS_MEDIA_ROOT'],
         });
       }
+      if (env.LEGACY_MYSQL_SYNC_ENABLED === 'true') {
+        if (env.LEGACY_MYSQL_URL) {
+          const url = new URL(env.LEGACY_MYSQL_URL);
+          if (
+            url.protocol !== 'mysql:' ||
+            url.hostname !== 'sailing.pavilion.lan' ||
+            url.port !== '3306' ||
+            url.username !== 'dock_readonly' ||
+            url.pathname !== '/sailing'
+          ) {
+            ctx.addIssue({
+              code: 'custom',
+              message:
+                'LEGACY_MYSQL_URL must be mysql://dock_readonly:<password>@sailing.pavilion.lan:3306/sailing.',
+              path: ['LEGACY_MYSQL_URL'],
+            });
+          }
+        } else {
+          ctx.addIssue({
+            code: 'custom',
+            message:
+              'LEGACY_MYSQL_URL is required when LEGACY_MYSQL_SYNC_ENABLED=true.',
+            path: ['LEGACY_MYSQL_URL'],
+          });
+        }
+        if (env.APP_ENV !== 'production') {
+          ctx.addIssue({
+            code: 'custom',
+            message: 'Legacy MySQL sync can only be enabled in production.',
+            path: ['LEGACY_MYSQL_SYNC_ENABLED'],
+          });
+        }
+      }
     }),
   runtimeEnv: {
     ARCJET_KEY: process.env.ARCJET_KEY,
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
     DATABASE_URL: process.env.DATABASE_URL,
     REDIS_URL: process.env.REDIS_URL,
+    LEGACY_MYSQL_SYNC_ENABLED: process.env.LEGACY_MYSQL_SYNC_ENABLED,
+    LEGACY_MYSQL_SYNC_CRON: process.env.LEGACY_MYSQL_SYNC_CRON,
+    LEGACY_MYSQL_URL: process.env.LEGACY_MYSQL_URL,
     APP_ENV: process.env.APP_ENV,
     MAIL_TRANSPORT: process.env.MAIL_TRANSPORT,
     RESEND_API_KEY: process.env.RESEND_API_KEY,
