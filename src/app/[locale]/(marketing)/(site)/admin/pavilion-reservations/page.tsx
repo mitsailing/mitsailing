@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import Form from 'next/form';
 import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,7 +36,7 @@ import {
   adminPavilionReservationWeekKeys,
   adminPavilionReservationWeekStart,
 } from '@/libs/admin/pavilion-reservations/pavilionReservationAdminSchedule';
-import { Link } from '@/libs/I18nNavigation';
+import { getPathname, Link } from '@/libs/I18nNavigation';
 import { formatEasternShortDateFromIsoCalendar } from '@/libs/mit-sailing/easternTimeFormat';
 import { formatPavilionReservationMoney } from '@/libs/mit-sailing/pavilionReservationPricing';
 import { formatPavilionReservationTimeLabel } from '@/libs/mit-sailing/pavilionReservationTimeLabel';
@@ -59,30 +60,28 @@ function filterHref(params: {
   sort?: AdminPavilionReservationSortKey;
   status?: string;
   week?: string;
-}) {
-  const searchParams = new URLSearchParams();
+}): string | { pathname: string; query: Record<string, string> } {
+  const pathname = adminPavilionReservationIndexPath();
+  const query: Record<string, string> = {};
   if (params.status) {
-    searchParams.set('status', params.status);
+    query.status = params.status;
   }
   if (params.date) {
-    searchParams.set('date', params.date);
+    query.date = params.date;
   }
   if (params.search) {
-    searchParams.set('search', params.search);
+    query.search = params.search;
   }
   if (params.sort) {
-    searchParams.set('sort', params.sort);
+    query.sort = params.sort;
   }
   if (params.direction) {
-    searchParams.set('direction', params.direction);
+    query.direction = params.direction;
   }
   if (params.week) {
-    searchParams.set('week', params.week);
+    query.week = params.week;
   }
-  const query = searchParams.toString();
-  return query
-    ? `${adminPavilionReservationIndexPath()}?${query}`
-    : adminPavilionReservationIndexPath();
+  return Object.keys(query).length === 0 ? pathname : { pathname, query };
 }
 
 function firstSlotLabel(props: {
@@ -121,8 +120,8 @@ export default async function AdminPavilionReservationsPage(
   props: AdminPavilionReservationsPageProps
 ) {
   const { locale } = await props.params;
-  const searchParams = await props.searchParams;
   setRequestLocale(locale);
+  const searchParams = await props.searchParams;
   const status = parseAdminPavilionReservationStatus(searchParams.status);
   const date = parseAdminPavilionReservationDateFilter(searchParams.date);
   const search = parseAdminPavilionReservationSearch(searchParams.search);
@@ -144,14 +143,25 @@ export default async function AdminPavilionReservationsPage(
     getTranslations({ locale, namespace: 'AdminPavilionReservations' }),
   ]);
 
-  const commonHrefParams = { date, direction, search, status, week: weekStart };
+  const commonHrefParams = {
+    date,
+    direction,
+    search,
+    sort,
+    status,
+    week: weekStart,
+  };
+  const pavilionReservationListPath = getPathname({
+    href: adminPavilionReservationIndexPath(),
+    locale,
+  });
 
   return (
     <div className="flex w-full flex-col gap-6">
       <AdminPageHeader title={t('list_title')} />
 
-      <form
-        action={adminPavilionReservationIndexPath()}
+      <Form
+        action={pavilionReservationListPath}
         className="grid gap-3 rounded-lg border border-border bg-card p-4 lg:grid-cols-[minmax(180px,240px)_minmax(180px,240px)_minmax(220px,1fr)_auto]"
       >
         <input name="sort" type="hidden" value={sort} />
@@ -201,7 +211,7 @@ export default async function AdminPavilionReservationsPage(
             </Link>
           </Button>
         </div>
-      </form>
+      </Form>
 
       <section className="rounded-lg border border-border bg-card p-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -311,6 +321,7 @@ export default async function AdminPavilionReservationsPage(
       <div className="overflow-hidden rounded-lg border border-border bg-card">
         <div className="overflow-x-auto">
           <Table className="min-w-[1100px] text-left">
+            <caption className="sr-only">{t('table_caption')}</caption>
             <TableHeader>
               <TableRow className="border-b bg-muted/50 hover:bg-muted/50">
                 <TableHead className="px-4 py-3">

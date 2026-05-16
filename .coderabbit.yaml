@@ -79,6 +79,20 @@ reviews:
         `fragment`). Do **not** suggest `/path/#fragment`—that implies a pathname
         ending in `/` before `#`, which fights the default and mismatches fleet
         and class rating links that use `/ratings` plus `#` and the slug.
+        Localized app paths in server code: use `getI18nPath(path, locale)` from
+        `@/utils/Helpers` for `revalidatePath` and similar; do not concatenate
+        `/${locale}/...` (wrong shape for default locale with `localePrefix: 'as-needed'`).
+    - path: 'src/app/[locale]/**'
+      instructions: >-
+        Single-locale English site (`AppConfig.i18n.locales` is only `en`).
+        next-intl keys are not a reason to introduce multi-locale URL prefixes or
+        `/en/...` in public paths. The `src/app/[locale]/` segment is intentional
+        for next-intl + proxy routing; do not suggest removing it as cleanup without
+        an explicit full migration off next-intl routing. For server pages here,
+        prefer `await props.params`, `setRequestLocale(locale)`, and
+        `getTranslations({ locale, namespace })` over a module-level
+        `AppConfig.i18n.defaultLocale` for consistency. For `revalidatePath` and
+        link targets, use `getI18nPath` from `@/utils/Helpers`, not `/${locale}/...`.
     - path: '**/*.{test,spec,e2e}.{ts,tsx}'
       instructions: >-
         Do not flag lowercase `it(...)` titles. This repository accepts concise

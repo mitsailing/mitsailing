@@ -34,6 +34,38 @@ type LegacyCsvRow = {
   contacted: 0 | 1;
 };
 
+/** Column names expected on the first row of the legacy export CSV. */
+const LEGACY_PAVILION_CSV_REQUIRED_HEADERS = [
+  'resid',
+  'first',
+  'last',
+  'mitid',
+  'email',
+  'phone',
+  'affil',
+  'groupname',
+  'title',
+  'acadfac',
+  'acadfacemail',
+  'acct',
+  'date1',
+  'start1',
+  'end1',
+  'date2',
+  'start2',
+  'end2',
+  'datesel',
+  'comments',
+  'infotent',
+  'infoalcohol',
+  'groupsize',
+  'active',
+  'tentative',
+  'confirmed',
+  'paid',
+  'contacted',
+] as const satisfies readonly (keyof LegacyCsvRow)[];
+
 type LegacySlot = {
   date: string;
   endMinutes: number;
@@ -52,9 +84,6 @@ type LegacyPersona =
   | 'mit_community'
   | 'mit_student'
   | 'non_mit';
-
-const DEFAULT_CSV_PATH =
-  '/Users/andrewkelley/GitHub/reservations/src/app/admin/legacy/reservations.csv';
 
 function parseCsvRecords(csv: string): string[][] {
   const rows: string[][] = [];
@@ -111,12 +140,28 @@ function as01(value: string): 0 | 1 {
   return value.trim() === '1' ? 1 : 0;
 }
 
+function assertLegacyPavilionCsvHeaders(headers: string[]): void {
+  if (headers.length === 0) {
+    throw new Error('Legacy pavilion CSV has no header row.');
+  }
+  const headerSet = new Set(headers);
+  const missing = LEGACY_PAVILION_CSV_REQUIRED_HEADERS.filter(
+    (required) => !headerSet.has(required)
+  );
+  if (missing.length > 0) {
+    throw new Error(
+      `Legacy pavilion CSV is missing required columns: ${missing.join(', ')}.`
+    );
+  }
+}
+
 function rowsFromCsv(csv: string): LegacyCsvRow[] {
   const byteOrderMark = 65_279;
   const records = parseCsvRecords(
     csv.codePointAt(0) === byteOrderMark ? csv.slice(1) : csv
   );
   const headers = records[0]?.map((header) => header.trim()) ?? [];
+  assertLegacyPavilionCsvHeaders(headers);
   return records.slice(1).flatMap((fields) => {
     const record = Object.fromEntries(
       headers.map((header, index) => [header, fields[index] ?? ''])
@@ -309,7 +354,12 @@ function intOrNull(value: string): number | null {
 }
 
 async function main(): Promise<void> {
-  const csvPath = process.argv[2] ?? DEFAULT_CSV_PATH;
+  const csvPath = process.argv[2]?.trim();
+  if (!csvPath) {
+    throw new Error(
+      'Legacy Pavilion reservations CSV path is required.\nUsage: tsx scripts/import-legacy-pavilion-reservations.ts <path-to.csv>'
+    );
+  }
   const csv = await readFile(csvPath, 'utf8');
   const rows = rowsFromCsv(csv);
   const items = await prisma.pavilionReservableItem.findMany({
@@ -372,16 +422,6 @@ async function main(): Promise<void> {
           adminNotes: `Imported from legacy reservation CSV row ${row.resid}. Space list inferred from text.`,
           paymentStatus,
           paidAt: paymentStatus === 'paid' ? createdAt : null,
-          slots: {
-            create: itemIds.map((itemId, index) => ({
-              itemId,
-              requestedDate,
-              startMinutes: slot.startMinutes,
-              endMinutes: slot.endMinutes,
-              estimatedAmountCents: null,
-              displayOrder: index,
-            })),
-          },
         },
         update: {
           status,
@@ -399,6 +439,7 @@ async function main(): Promise<void> {
         data: itemIds.map((itemId, index) => ({
           requestId: request.id,
           itemId,
+          itemKind: 'space',
           requestedDate,
           startMinutes: slot.startMinutes,
           endMinutes: slot.endMinutes,

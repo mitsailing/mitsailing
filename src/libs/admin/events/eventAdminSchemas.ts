@@ -5,7 +5,7 @@ import {
   EventRegistrationStatus,
 } from '@/generated/prisma/enums';
 import {
-  EVENTS_TIME_ZONE,
+  formatNyDateTimeLocalInput,
   instantForNyWallClock,
 } from '@/lib/mit-sailing/nyTime';
 import { parseUsdDecimalStringToMinorUnits } from '@/libs/money/stripeUsdMinorUnits';
@@ -52,27 +52,11 @@ export function splitEventAdminOptionLines(input: string): string[] {
     .filter(Boolean);
 }
 
-const easternDateTimeLocalFormatter = new Intl.DateTimeFormat('en-US', {
-  timeZone: EVENTS_TIME_ZONE,
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: false,
-  hourCycle: 'h23',
-});
-
 export function formatEasternDateTimeLocal(date: Date | null): string {
   if (!date) {
     return '';
   }
-  const parts = easternDateTimeLocalFormatter.formatToParts(date);
-  const get = (type: Intl.DateTimeFormatPartTypes) =>
-    parts.find((part) => part.type === type)?.value ?? '';
-  return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get(
-    'minute'
-  )}`;
+  return formatNyDateTimeLocalInput(date);
 }
 
 export function parseEasternDateTimeLocal(value: string): Date | null {

@@ -1,10 +1,12 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import Form from 'next/form';
 import { notFound } from 'next/navigation';
 import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { formatNyDateTimeLocalInput } from '@/lib/mit-sailing/nyTime';
 import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 import { updatePavilionReservationAdminAction } from '@/libs/admin/pavilion-reservations/pavilionReservationAdminActions';
 import {
@@ -101,7 +103,7 @@ export default async function AdminPavilionReservationDetailPage(
         title={t('detail_title', { reference: reservation.referenceCode })}
       />
 
-      <form action={action} className="grid gap-6 lg:grid-cols-[1fr_340px]">
+      <Form action={action} className="grid gap-6 lg:grid-cols-[1fr_340px]">
         <div className="space-y-6">
           <section className="rounded-lg border border-border bg-card p-5">
             <h2 className="text-lg font-semibold text-mit-text">
@@ -485,7 +487,7 @@ export default async function AdminPavilionReservationDetailPage(
               <Input
                 defaultValue={
                   reservation.paidAt
-                    ? reservation.paidAt.toISOString().slice(0, 16)
+                    ? formatNyDateTimeLocalInput(reservation.paidAt)
                     : ''
                 }
                 name="paidAt"
@@ -524,7 +526,7 @@ export default async function AdminPavilionReservationDetailPage(
             </Button>
           </section>
         </aside>
-      </form>
+      </Form>
 
       <div>
         <Link

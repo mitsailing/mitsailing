@@ -8,5 +8,5 @@ CREATE TYPE "pavilion_reservation_payment_status" AS ENUM (
 );
 
 ALTER TABLE "pavilion_reservation_requests"
-  ADD COLUMN "payment_status" "pavilion_reservation_payment_status",
+  ADD COLUMN "payment_status" "pavilion_reservation_payment_status" NOT NULL DEFAULT 'unpaid',
   ADD COLUMN "paid_at" TIMESTAMP(3);

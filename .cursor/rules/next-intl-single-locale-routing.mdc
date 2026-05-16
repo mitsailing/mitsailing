@@ -1,0 +1,17 @@
+---
+description: English-only next-intl; keep [locale] App segment; params + getI18nPath conventions
+globs: src/app/[locale]/**/*,src/libs/I18n.ts,src/libs/I18nRouting.ts,src/proxy.ts,src/utils/Helpers.ts
+alwaysApply: false
+---
+
+# Single-locale next-intl routing
+
+**Product:** Only `en` in [`AppConfig`](../../src/utils/AppConfig.ts) `i18n.locales`. Message files and `next-intl` organize **structured copy**, not multiple public languages.
+
+**Filesystem:** Keep the App Router **`[locale]`** segment under `src/app/[locale]/` while using [`createIntlMiddleware`](../../src/proxy.ts) and [`I18nRouting`](../../src/libs/I18nRouting.ts). Do not treat the folder name as “multi-language URLs”—it matches next-intl’s routing setup.
+
+**Public URLs:** With `localePrefix: 'as-needed'` and a single default locale, paths look like `/reserve`, `/admin`, not `/en/...`. Do not “fix” by adding `/en/` to links, `revalidatePath`, or tests.
+
+**Server pages under `src/app/[locale]/`:** `await props.params`, extract `locale`, call `setRequestLocale(locale)` in the page, and use `getTranslations({ locale, namespace: '...' })` (and the same pattern in `generateMetadata`). See [AGENTS.md](../../AGENTS.md) locale-page guidance.
+
+**Revalidation and server-built paths:** Use [`getI18nPath`](../../src/utils/Helpers.ts) from `@/utils/Helpers`, not string concatenation such as `` `/${locale}/admin/...` ``—default locale must stay unprefixed.

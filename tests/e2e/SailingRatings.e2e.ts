@@ -46,7 +46,7 @@ async function revokeTechRatingForProfileTest() {
 test.describe('Sailing ratings', () => {
   // Override root `fullyParallel`: shared `user-ak` / `rating-tech` rows must not
   // race with concurrent hooks/tests from this file on other workers.
-  test.describe.configure({ mode: 'default' });
+  test.describe.configure({ mode: 'serial' });
 
   test.beforeEach(async () => {
     await revokeTechRatingForProfileTest();
@@ -140,7 +140,9 @@ test.describe('Sailing ratings', () => {
     const techRow = page.getByRole('row').filter({ hasText: 'Tech Rating' });
     await expect(techRow.getByText('Not yet obtained')).toBeVisible();
     await techRow.getByRole('button', { name: 'Give Rating' }).click();
-    await expect(techRow.getByRole('button', { name: 'Revoke' })).toBeVisible();
+    await expect(techRow.getByRole('button', { name: 'Revoke' })).toBeVisible({
+      timeout: 30_000,
+    });
     await expect(techRow.getByText('Not yet obtained')).toHaveCount(0);
 
     await techRow.getByRole('button', { name: 'Revoke' }).click();

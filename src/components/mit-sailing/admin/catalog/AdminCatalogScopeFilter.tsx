@@ -1,3 +1,4 @@
+import Form from 'next/form';
 import { SubmitButton } from '@/components/ui/submit-button';
 import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 
@@ -7,6 +8,8 @@ type AdminCatalogScopeFilterOption = {
 };
 
 type AdminCatalogScopeFilterProps = {
+  /** Localized pathname for GET filter submission (see `getPathname`). */
+  action: string;
   actionLabel: string;
   label: string;
   options: readonly AdminCatalogScopeFilterOption[];
@@ -17,7 +20,7 @@ type AdminCatalogScopeFilterProps = {
 
 export function AdminCatalogScopeFilter(props: AdminCatalogScopeFilterProps) {
   return (
-    <form className="flex max-w-sm items-end gap-3" method="get">
+    <Form action={props.action} className="flex max-w-sm items-end gap-3">
       <label className="flex flex-1 flex-col gap-1.5 text-sm">
         <span className="font-medium text-mit-text">{props.label}</span>
         <select
@@ -40,6 +43,6 @@ export function AdminCatalogScopeFilter(props: AdminCatalogScopeFilterProps) {
       >
         {props.actionLabel}
       </SubmitButton>
-    </form>
+    </Form>
   );
 }

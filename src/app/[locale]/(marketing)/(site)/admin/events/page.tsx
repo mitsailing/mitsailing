@@ -1,10 +1,12 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { AdminEventsListView } from '@/components/mit-sailing/admin/events/AdminEventsListView';
+import { adminEventsIndexPath } from '@/libs/admin/events/eventAdminPaths';
 import {
   listAdminEventCategories,
   listAdminEventRows,
 } from '@/libs/admin/events/eventAdminQueries';
+import { getPathname } from '@/libs/I18nNavigation';
 
 type PageProps = {
   params: Promise<{ locale: string }>;
@@ -32,9 +34,14 @@ export default async function AdminEventsListPage(props: PageProps) {
     }),
     getTranslations({ locale, namespace: 'AdminEvents' }),
   ]);
+  const eventsListFilterAction = getPathname({
+    href: adminEventsIndexPath(),
+    locale,
+  });
   return (
     <AdminEventsListView
       categories={categories}
+      filterAction={eventsListFilterAction}
       filters={{
         categoryId: searchParams.category,
         query: searchParams.q,

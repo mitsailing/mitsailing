@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { Pool } from 'pg';
+import { nyYmd } from '@/lib/mit-sailing/nyTime';
 import { signInAsAdmin } from '../helpers/e2e-admin-sign-in';
 import { e2ePgConnectionString } from '../helpers/e2e-database-url';
 
@@ -59,8 +60,29 @@ async function resetAdminEventRegistration(slug: string): Promise<void> {
   }
 }
 
-async function openEventRegistrationWindow(slug: string): Promise<void> {
+type EventRegistrationWindowSnapshot = {
+  registration_start: Date | null;
+  registration_end: Date | null;
+};
+
+async function openEventRegistrationWindow(
+  slug: string
+): Promise<EventRegistrationWindowSnapshot> {
   try {
+    const selectResult = await pool.query<EventRegistrationWindowSnapshot>(
+      `
+        SELECT "registration_start", "registration_end"
+        FROM "events"
+        WHERE "slug" = $1
+      `,
+      [slug]
+    );
+    const [original] = selectResult.rows;
+    if (!original) {
+      throw new Error(
+        `openEventRegistrationWindow: no event row for slug=${slug}.`
+      );
+    }
     await pool.query(
       `
         UPDATE "events"
@@ -70,8 +92,39 @@ async function openEventRegistrationWindow(slug: string): Promise<void> {
       `,
       [slug]
     );
+    return {
+      registration_start: original.registration_start,
+      registration_end: original.registration_end,
+    };
   } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message.startsWith('openEventRegistrationWindow:')
+    ) {
+      throw error;
+    }
     throw new Error(`openEventRegistrationWindow failed for slug=${slug}.`, {
+      cause: error,
+    });
+  }
+}
+
+async function restoreEventRegistrationWindow(
+  slug: string,
+  original: EventRegistrationWindowSnapshot
+): Promise<void> {
+  try {
+    await pool.query(
+      `
+        UPDATE "events"
+        SET "registration_start" = $2,
+            "registration_end" = $3
+        WHERE "slug" = $1
+      `,
+      [slug, original.registration_start, original.registration_end]
+    );
+  } catch (error) {
+    throw new Error(`restoreEventRegistrationWindow failed for slug=${slug}.`, {
       cause: error,
     });
   }
@@ -100,7 +153,7 @@ async function resetPavilionReservationRequest(props: {
 
 function isoDateDaysFromNow(days: number): string {
   const date = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
-  return date.toISOString().slice(0, 10);
+  return nyYmd(date);
 }
 
 async function selectPavilionReservationPickerDate(
@@ -164,39 +217,48 @@ test.describe('MIT Sailing catalog', () => {
   test('/events/[slug] shows registration CTA when signed out', async ({
     page,
   }) => {
-    await openEventRegistrationWindow('bluewater-boston-provincetown');
+    const slug = 'bluewater-boston-provincetown';
+    const registrationWindow = await openEventRegistrationWindow(slug);
+    try {
+      await page.goto(`/events/${slug}`);
 
-    await page.goto('/events/bluewater-boston-provincetown');
-
-    await expect(
-      page.getByRole('heading', {
-        level: 1,
-        name: 'Bluewater: Boston to Provincetown Passage',
-      })
-    ).toBeVisible();
-    await expect(
-      page.getByRole('link', { name: 'Log in to register' })
-    ).toBeVisible();
+      await expect(
+        page.getByRole('heading', {
+          level: 1,
+          name: 'Bluewater: Boston to Provincetown Passage',
+        })
+      ).toBeVisible();
+      await expect(
+        page.getByRole('link', { name: 'Log in to register' })
+      ).toBeVisible();
+    } finally {
+      await restoreEventRegistrationWindow(slug, registrationWindow);
+    }
   });
 
   test('/events/[slug] shows registration state when signed in', async ({
     page,
   }) => {
-    await resetAdminEventRegistration('bluewater-boston-provincetown');
-    await openEventRegistrationWindow('bluewater-boston-provincetown');
-    await signInAsAdmin(page);
+    const slug = 'bluewater-boston-provincetown';
+    await resetAdminEventRegistration(slug);
+    const registrationWindow = await openEventRegistrationWindow(slug);
+    try {
+      await signInAsAdmin(page);
 
-    await page.goto('/events/bluewater-boston-provincetown');
+      await page.goto(`/events/${slug}`);
 
-    await expect(
-      page.getByRole('heading', {
-        level: 1,
-        name: 'Bluewater: Boston to Provincetown Passage',
-      })
-    ).toBeVisible();
-    await expect(
-      page.getByRole('link', { name: 'Request to register' })
-    ).toBeVisible();
+      await expect(
+        page.getByRole('heading', {
+          level: 1,
+          name: 'Bluewater: Boston to Provincetown Passage',
+        })
+      ).toBeVisible();
+      await expect(
+        page.getByRole('link', { name: 'Request to register' })
+      ).toBeVisible();
+    } finally {
+      await restoreEventRegistrationWindow(slug, registrationWindow);
+    }
   });
 
   test('/events/[slug]/register submits registration from checkout page', async ({
@@ -204,7 +266,7 @@ test.describe('MIT Sailing catalog', () => {
   }) => {
     const slug = 'intercollegiate-overnight-series';
     await resetAdminEventRegistration(slug);
-    await openEventRegistrationWindow(slug);
+    const registrationWindow = await openEventRegistrationWindow(slug);
 
     try {
       await signInAsAdmin(page);
@@ -240,6 +302,7 @@ test.describe('MIT Sailing catalog', () => {
       ).toBeVisible();
       await expect(page.getByText('Pending acceptance')).toBeVisible();
     } finally {
+      await restoreEventRegistrationWindow(slug, registrationWindow);
       await resetAdminEventRegistration(slug);
     }
   });

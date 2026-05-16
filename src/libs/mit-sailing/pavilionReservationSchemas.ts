@@ -1,4 +1,5 @@
 import * as z from 'zod';
+import { PAVILION_RESERVATION_END_MINUTES } from '@/libs/mit-sailing/pavilionReservationBookingTimeline';
 
 const textField = z.string().trim().min(1);
 const optionalTextField = z
@@ -9,8 +10,8 @@ const optionalTextField = z
 const slotSchema = z.object({
   itemId: textField,
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  startMinutes: z.number().int().min(0).max(1439),
-  endMinutes: z.number().int().min(1).max(1560),
+  startMinutes: z.number().int().min(0).max(PAVILION_RESERVATION_END_MINUTES),
+  endMinutes: z.number().int().min(1).max(PAVILION_RESERVATION_END_MINUTES),
 });
 
 const slotsPayloadSchema = z

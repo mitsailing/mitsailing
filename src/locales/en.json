@@ -1509,6 +1509,7 @@
   },
   "AdminPavilionReservations": {
     "list_title": "Pavilion reservations",
+    "table_caption": "Pavilion reservation requests",
     "detail_title": "Pavilion reservation {reference}",
     "filter_status_label": "Status",
     "filter_status_all": "All statuses",

@@ -3,7 +3,12 @@
 import { randomBytes } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { unstable_rethrow } from 'next/navigation';
-import { instantForNyWallClock } from '@/lib/mit-sailing/nyTime';
+import type { PrismaClient } from '@/generated/prisma/client';
+import {
+  addNyCalendarDays,
+  instantForNyWallClock,
+} from '@/lib/mit-sailing/nyTime';
+import { adminPavilionReservationIndexPath } from '@/libs/admin/pavilion-reservations/pavilionReservationAdminPaths';
 import { prisma } from '@/libs/DB';
 import { sendPavilionReservationSubmittedEmail } from '@/libs/email/pavilion-reservation-emails';
 import { logger } from '@/libs/Logger';
@@ -23,10 +28,13 @@ import type {
   PavilionReservationSubmitState,
 } from '@/libs/mit-sailing/pavilionReservationTypes';
 import { safeErrorCode, safeErrorName } from '@/libs/safeUnknownError';
+import { getI18nPath } from '@/utils/Helpers';
 
 const PAVILION_REFERENCE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const MIN_NOTICE_HOURS = 48;
 const DUPLICATE_REQUEST_WINDOW_MINUTES = 5;
+const PAVILION_RESERVATION_SUBMIT_TX_MAX_WAIT_MS = 5000;
+const PAVILION_RESERVATION_SUBMIT_TX_TIMEOUT_MS = 10_000;
 
 function referenceCodeFromBytes(bytes: Buffer): string {
   const chars = Array.from(bytes, (byte) => {
@@ -36,10 +44,12 @@ function referenceCodeFromBytes(bytes: Buffer): string {
   return `PAV-${chars}`;
 }
 
-async function generateReferenceCode(): Promise<string> {
+async function generateReferenceCode(
+  db: Pick<PrismaClient, 'pavilionReservationRequest'>
+): Promise<string> {
   for (let attempts = 0; attempts < 10; attempts += 1) {
     const referenceCode = referenceCodeFromBytes(randomBytes(8));
-    const existing = await prisma.pavilionReservationRequest.findUnique({
+    const existing = await db.pavilionReservationRequest.findUnique({
       where: { referenceCode },
       select: { id: true },
     });
@@ -51,15 +61,21 @@ async function generateReferenceCode(): Promise<string> {
 }
 
 function slotStartInstant(slot: PavilionReservationSlotInput): Date | null {
-  const date = prismaDateFromIsoCalendar(slot.date);
+  const dateKey =
+    slot.startMinutes >= 24 * 60 ? addNyCalendarDays(slot.date, 1) : slot.date;
+  const minutes =
+    slot.startMinutes >= 24 * 60
+      ? slot.startMinutes - 24 * 60
+      : slot.startMinutes;
+  const date = prismaDateFromIsoCalendar(dateKey);
   if (!date) {
     return null;
   }
   const year = date.getUTCFullYear();
   const month = date.getUTCMonth() + 1;
   const day = date.getUTCDate();
-  const hour = Math.floor(slot.startMinutes / 60);
-  const minute = slot.startMinutes % 60;
+  const hour = Math.floor(minutes / 60);
+  const minute = minutes % 60;
   return instantForNyWallClock(year, month, day, hour, minute);
 }
 
@@ -95,7 +111,18 @@ function unknownErrorState(error: unknown): PavilionReservationSubmitState {
   return { status: 'error', errors: ['error_unknown'] };
 }
 
+function pavilionReservationDedupeLockKey(props: {
+  eventName: string;
+  requesterEmail: string;
+}): string {
+  return `pavilion_reservation_submit_dedupe:v1:${JSON.stringify([
+    props.requesterEmail,
+    props.eventName,
+  ])}`;
+}
+
 async function hasRecentMatchingReservationRequest(props: {
+  db: Pick<PrismaClient, 'pavilionReservationRequest'>;
   eventName: string;
   now: Date;
   requesterEmail: string;
@@ -103,7 +130,7 @@ async function hasRecentMatchingReservationRequest(props: {
   const createdAt = new Date(
     props.now.getTime() - DUPLICATE_REQUEST_WINDOW_MINUTES * 60 * 1000
   );
-  const recentRequest = await prisma.pavilionReservationRequest.findFirst({
+  const recentRequest = await props.db.pavilionReservationRequest.findFirst({
     where: {
       createdAt: { gte: createdAt },
       eventName: props.eventName,
@@ -159,17 +186,6 @@ export async function submitPavilionReservationRequestAction(
     return { status: 'error', errors: ['error_catalog'] };
   }
 
-  if (
-    await hasRecentMatchingReservationRequest({
-      eventName: parsed.data.eventName,
-      now,
-      requesterEmail: parsed.data.requesterEmail,
-    })
-  ) {
-    return { status: 'error', errors: ['error_rate_limited'] };
-  }
-
-  const referenceCode = await generateReferenceCode();
   const slotIndexByItemId = new Map<string, number>();
   const slotRows = slots.map((slot, index) => {
     const item = itemById.get(slot.itemId);
@@ -181,6 +197,7 @@ export async function submitPavilionReservationRequestAction(
     }
     return {
       itemId: slot.itemId,
+      itemKind: item.kind,
       requestedDate,
       startMinutes: slot.startMinutes,
       endMinutes: slot.endMinutes,
@@ -206,6 +223,7 @@ export async function submitPavilionReservationRequestAction(
     return [
       {
         itemId: serviceId,
+        itemKind: item.kind,
         estimatedAmountCents: estimatedServiceAmountCents({
           item,
           persona: parsed.data.persona,
@@ -227,39 +245,73 @@ export async function submitPavilionReservationRequestAction(
     }
   }
 
+  let referenceCode: string;
   try {
-    await prisma.pavilionReservationRequest.create({
-      data: {
-        referenceCode,
-        persona: parsed.data.persona,
-        requesterEmail: parsed.data.requesterEmail,
-        firstName: parsed.data.firstName,
-        lastName: parsed.data.lastName,
-        phone: parsed.data.phone,
-        eventName: parsed.data.eventName,
-        groupName: parsed.data.groupName,
-        groupSize: parsed.data.groupSize,
-        description: parsed.data.description,
-        hasTent: parsed.data.hasTent,
-        servesAlcohol: parsed.data.servesAlcohol,
-        projectTitle: parsed.data.projectTitle,
-        advisorName: parsed.data.advisorName,
-        advisorEmail: parsed.data.advisorEmail,
-        costCenter: parsed.data.costCenter,
-        mitId: parsed.data.mitId,
-        mitAccount: parsed.data.mitAccount,
-        estimatedTotalCents,
-        slots: {
-          create: slotRows.map((row) => {
-            if (row === null) {
-              throw new Error('Invalid Pavilion reservation slot row');
-            }
-            return row;
-          }),
-        },
-        services: { create: serviceRows },
+    const persistence = await prisma.$transaction(
+      async (tx) => {
+        const lockKey = pavilionReservationDedupeLockKey({
+          eventName: parsed.data.eventName,
+          requesterEmail: parsed.data.requesterEmail,
+        });
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+
+        if (
+          await hasRecentMatchingReservationRequest({
+            db: tx,
+            eventName: parsed.data.eventName,
+            now,
+            requesterEmail: parsed.data.requesterEmail,
+          })
+        ) {
+          return { kind: 'rate_limited' as const };
+        }
+
+        const nextReferenceCode = await generateReferenceCode(tx);
+        await tx.pavilionReservationRequest.create({
+          data: {
+            referenceCode: nextReferenceCode,
+            persona: parsed.data.persona,
+            requesterEmail: parsed.data.requesterEmail,
+            firstName: parsed.data.firstName,
+            lastName: parsed.data.lastName,
+            phone: parsed.data.phone,
+            eventName: parsed.data.eventName,
+            groupName: parsed.data.groupName,
+            groupSize: parsed.data.groupSize,
+            description: parsed.data.description,
+            hasTent: parsed.data.hasTent,
+            servesAlcohol: parsed.data.servesAlcohol,
+            projectTitle: parsed.data.projectTitle,
+            advisorName: parsed.data.advisorName,
+            advisorEmail: parsed.data.advisorEmail,
+            costCenter: parsed.data.costCenter,
+            mitId: parsed.data.mitId,
+            mitAccount: parsed.data.mitAccount,
+            estimatedTotalCents,
+            slots: {
+              create: slotRows.map((row) => {
+                if (row === null) {
+                  throw new Error('Invalid Pavilion reservation slot row');
+                }
+                return row;
+              }),
+            },
+            services: { create: serviceRows },
+          },
+        });
+
+        return { kind: 'created' as const, referenceCode: nextReferenceCode };
       },
-    });
+      {
+        maxWait: PAVILION_RESERVATION_SUBMIT_TX_MAX_WAIT_MS,
+        timeout: PAVILION_RESERVATION_SUBMIT_TX_TIMEOUT_MS,
+      }
+    );
+
+    if (persistence.kind === 'rate_limited') {
+      return { status: 'error', errors: ['error_rate_limited'] };
+    }
+    ({ referenceCode } = persistence);
   } catch (error) {
     unstable_rethrow(error);
     return unknownErrorState(error);
@@ -283,6 +335,6 @@ export async function submitPavilionReservationRequestAction(
     );
   }
 
-  revalidatePath(`/${locale}/admin/pavilion-reservations`);
+  revalidatePath(getI18nPath(adminPavilionReservationIndexPath(), locale));
   return { status: 'confirmed', referenceCode, errors: [] };
 }

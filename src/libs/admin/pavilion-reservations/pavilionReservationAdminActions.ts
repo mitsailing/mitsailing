@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { parseEasternDateTimeLocal } from '@/libs/admin/events/eventAdminSchemas';
 import {
   adminPavilionReservationDetailPath,
   adminPavilionReservationIndexPath,
@@ -83,8 +84,8 @@ function paidAtFromForm(
   if (!value) {
     return new Date();
   }
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? new Date() : date;
+  const parsed = parseEasternDateTimeLocal(value);
+  return parsed ?? new Date();
 }
 
 function parsePersona(
@@ -164,6 +165,29 @@ function parseServiceRows(formData: FormData) {
       },
     ];
   });
+}
+
+function catalogKindMismatches(props: {
+  expectedKindByItemId: Map<string, 'service' | 'space'>;
+  serviceRows: readonly { itemId: string }[];
+  slotRows: readonly { itemId: string }[];
+}): {
+  actualKind: string;
+  expectedKind: 'service' | 'space';
+  itemId: string;
+}[] {
+  return [
+    ...props.slotRows.map((row) => ({
+      actualKind: props.expectedKindByItemId.get(row.itemId) ?? 'missing',
+      expectedKind: 'space' as const,
+      itemId: row.itemId,
+    })),
+    ...props.serviceRows.map((row) => ({
+      actualKind: props.expectedKindByItemId.get(row.itemId) ?? 'missing',
+      expectedKind: 'service' as const,
+      itemId: row.itemId,
+    })),
+  ].filter((row) => row.actualKind !== row.expectedKind);
 }
 
 function statusFromForm(
@@ -255,6 +279,37 @@ export async function updatePavilionReservationAdminAction(
 
   const slotRows = parseSlotRows(formData);
   const serviceRows = parseServiceRows(formData);
+  const catalogItemIds = [
+    ...new Set([
+      ...slotRows.map((row) => row.itemId),
+      ...serviceRows.map((row) => row.itemId),
+    ]),
+  ];
+  const catalogItems =
+    catalogItemIds.length > 0
+      ? await prisma.pavilionReservableItem.findMany({
+          where: { id: { in: catalogItemIds } },
+          select: { id: true, kind: true },
+        })
+      : [];
+  const kindByItemId = new Map(
+    catalogItems.map((item) => [item.id, item.kind] as const)
+  );
+  const mismatchedCatalogKinds = catalogKindMismatches({
+    expectedKindByItemId: kindByItemId,
+    serviceRows,
+    slotRows,
+  });
+  if (mismatchedCatalogKinds.length > 0) {
+    logger.warn(
+      '[pavilion-reservation:admin-update] request_id={requestId} catalog_item_kind_mismatches={catalogItemKindMismatches}',
+      {
+        catalogItemKindMismatches: mismatchedCatalogKinds,
+        requestId: id,
+      }
+    );
+    throw new Error('Catalog item kind mismatch for Pavilion reservation edit');
+  }
   const estimatedTotalCents = totalCentsFromRows([...slotRows, ...serviceRows]);
   const before = await prisma.pavilionReservationRequest.findUnique({
     where: { id },
@@ -310,7 +365,11 @@ export async function updatePavilionReservationAdminAction(
     await tx.pavilionReservationSlot.deleteMany({ where: { requestId: id } });
     if (slotRows.length > 0) {
       await tx.pavilionReservationSlot.createMany({
-        data: slotRows.map((row) => ({ ...row, requestId: id })),
+        data: slotRows.map((row) => ({
+          ...row,
+          requestId: id,
+          itemKind: 'space',
+        })),
       });
     }
     await tx.pavilionReservationService.deleteMany({
@@ -318,7 +377,11 @@ export async function updatePavilionReservationAdminAction(
     });
     if (serviceRows.length > 0) {
       await tx.pavilionReservationService.createMany({
-        data: serviceRows.map((row) => ({ ...row, requestId: id })),
+        data: serviceRows.map((row) => ({
+          ...row,
+          requestId: id,
+          itemKind: 'service',
+        })),
       });
     }
 

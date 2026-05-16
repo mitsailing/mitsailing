@@ -732,6 +732,7 @@ model PavilionReservableItem {
   reservationSlots   PavilionReservationSlot[]
   reservationServices PavilionReservationService[]
 
+  @@unique([id, kind])
   @@index([kind, isVisible, displayOrder])
   @@map("pavilion_reservable_items")
 }
@@ -789,17 +790,18 @@ model PavilionReservationRequest {
 }
 
 model PavilionReservationSlot {
-  id                   String   @id @default(cuid())
-  requestId            String   @map("request_id")
-  itemId               String   @map("item_id")
-  requestedDate        DateTime @map("requested_date") @db.Date
-  startMinutes         Int      @map("start_minutes")
-  endMinutes           Int      @map("end_minutes")
-  estimatedAmountCents Int?     @map("estimated_amount_cents")
-  displayOrder         Int      @default(0) @map("display_order")
+  id                   String                     @id @default(cuid())
+  requestId            String                     @map("request_id")
+  itemId               String                     @map("item_id")
+  itemKind             PavilionReservableItemKind @map("item_kind")
+  requestedDate        DateTime                   @map("requested_date") @db.Date
+  startMinutes         Int                        @map("start_minutes")
+  endMinutes           Int                        @map("end_minutes")
+  estimatedAmountCents Int?                       @map("estimated_amount_cents")
+  displayOrder         Int                        @default(0) @map("display_order")
 
   request PavilionReservationRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  item    PavilionReservableItem     @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  item    PavilionReservableItem     @relation(fields: [itemId, itemKind], references: [id, kind], onDelete: Restrict)
 
   @@index([requestId, displayOrder])
   @@index([itemId, requestedDate])
@@ -807,13 +809,14 @@ model PavilionReservationSlot {
 }
 
 model PavilionReservationService {
-  id                   String @id @default(cuid())
-  requestId            String @map("request_id")
-  itemId               String @map("item_id")
-  estimatedAmountCents Int?   @map("estimated_amount_cents")
+  id                   String                     @id @default(cuid())
+  requestId            String                     @map("request_id")
+  itemId               String                     @map("item_id")
+  itemKind             PavilionReservableItemKind @map("item_kind")
+  estimatedAmountCents Int?                       @map("estimated_amount_cents")
 
   request PavilionReservationRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  item    PavilionReservableItem     @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  item    PavilionReservableItem     @relation(fields: [itemId, itemKind], references: [id, kind], onDelete: Restrict)
 
   @@unique([requestId, itemId])
   @@index([itemId])
