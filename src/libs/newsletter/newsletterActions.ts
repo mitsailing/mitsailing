@@ -174,11 +174,13 @@ export async function updateProfileNewsletterPreferencesAction(
  * Persists tokenized public newsletter preferences.
  *
  * @param token - Manage token from email
+ * @param locale - Active locale
  * @param formData - Submitted preference form
  * @returns Action result
  */
 export async function updateTokenNewsletterPreferencesAction(
   token: string,
+  locale: string,
   formData: FormData
 ): Promise<NewsletterPreferenceActionResult> {
   try {
@@ -197,6 +199,6 @@ export async function updateTokenNewsletterPreferencesAction(
     });
     return { ok: false, error: 'unknown' };
   }
-  revalidatePath('/newsletter/manage');
+  revalidatePath(getI18nPath('/newsletter/manage', locale));
   return { ok: true };
 }

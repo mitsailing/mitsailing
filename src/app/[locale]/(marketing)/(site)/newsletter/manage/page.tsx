@@ -68,7 +68,11 @@ export default async function NewsletterManagePage(
           </div>
           {subscriber ? (
             <NewsletterPreferenceForm
-              action={updateTokenNewsletterPreferencesAction.bind(null, token)}
+              action={updateTokenNewsletterPreferencesAction.bind(
+                null,
+                token,
+                locale
+              )}
               errorLabel={t('preferences_error')}
               legendLabel={t('lists_label')}
               lists={newsletterPreferenceRows(lists, subscriber)}
