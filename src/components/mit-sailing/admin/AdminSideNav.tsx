@@ -23,6 +23,10 @@ type AdminNavItem = {
     | 'nav_sailing_ratings'
     | 'nav_sailing_rating_rules'
     | 'nav_fleet'
+    | 'nav_newsletter_broadcasts'
+    | 'nav_newsletter_lists'
+    | 'nav_newsletter_subscribers'
+    | 'nav_newsletter_templates'
     | 'nav_site_alerts'
     | 'nav_site_text'
     | 'nav_cms_pages'
@@ -40,6 +44,26 @@ const ADMIN_SITE_NAV: AdminNavItem[] = [
   {
     href: '/admin/pavilion-reservations',
     labelKey: 'nav_pavilion_reservations',
+    match: 'prefix',
+  },
+  {
+    href: '/admin/newsletter-subscribers',
+    labelKey: 'nav_newsletter_subscribers',
+    match: 'prefix',
+  },
+  {
+    href: '/admin/newsletter-lists',
+    labelKey: 'nav_newsletter_lists',
+    match: 'prefix',
+  },
+  {
+    href: '/admin/newsletter-broadcasts',
+    labelKey: 'nav_newsletter_broadcasts',
+    match: 'prefix',
+  },
+  {
+    href: '/admin/newsletter-templates',
+    labelKey: 'nav_newsletter_templates',
     match: 'prefix',
   },
   {
@@ -258,6 +282,7 @@ export function AdminSideNav() {
                           : 'hover:bg-mit-surface'
                       )}
                       href={item.href}
+                      prefetch={false}
                     >
                       {t(item.labelKey)}
                     </Link>

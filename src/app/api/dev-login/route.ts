@@ -7,7 +7,7 @@ import {
   devAuthDefaultPassword,
   isDevAuthShortcutEnabled,
 } from '@/libs/auth/devAuthShortcut';
-import { normalizeMarketingEmail } from '@/utils/emailValidation';
+import { normalizeEmailAddress } from '@/utils/emailValidation';
 import { getBaseUrl } from '@/utils/Helpers';
 
 function disabledDevLoginResponse() {
@@ -21,7 +21,7 @@ function unauthorizedDevLoginResponse() {
 function devLoginCredentials(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   return {
-    email: normalizeMarketingEmail(
+    email: normalizeEmailAddress(
       params.get('email')?.trim() ?? devAuthDefaultEmail
     ),
     password: params.get('password') ?? devAuthDefaultPassword,

@@ -51,7 +51,7 @@ import type {
   PavilionReservationSlotInput,
   PavilionReservationSubmitState,
 } from '@/libs/mit-sailing/pavilionReservationTypes';
-import { isValidMarketingEmail } from '@/utils/emailValidation';
+import { isValidEmailAddress } from '@/utils/emailValidation';
 
 type ClientSlot = PavilionReservationSlotInput & {
   id: string;
@@ -403,7 +403,7 @@ function spacesStepProblem(props: {
   requesterEmail: string;
   slots: ClientSlot[];
 }): SpacesStepProblem | null {
-  if (!isValidMarketingEmail(props.requesterEmail)) {
+  if (!isValidEmailAddress(props.requesterEmail)) {
     return 'email';
   }
   if (
@@ -1916,7 +1916,7 @@ function PavilionReservationSpacesStep(props: {
           <Field id="requester-email" label={t('field_email')} required>
             <Input
               aria-invalid={
-                props.showErrors && !isValidMarketingEmail(props.requesterEmail)
+                props.showErrors && !isValidEmailAddress(props.requesterEmail)
               }
               aria-required
               id="requester-email"

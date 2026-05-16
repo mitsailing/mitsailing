@@ -1,0 +1,1 @@
+-- Scheduling columns and indexes are created in 20260508120000_newsletters.

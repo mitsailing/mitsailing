@@ -21,6 +21,7 @@ console.log(
 const seedEnv = {
   ...process.env,
   DATABASE_URL: testDatabaseUrl,
+  IS_E2E: '1',
   TEST_DATABASE_URL: '',
 };
 

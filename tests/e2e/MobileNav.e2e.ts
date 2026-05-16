@@ -1,4 +1,11 @@
 import { expect, test } from '@playwright/test';
+import type { Page } from '@playwright/test';
+
+async function waitForSiteHeaderHydration(page: Page) {
+  await expect(
+    page.locator('button[aria-controls="site-header-mobile-menu"]')
+  ).toBeEnabled();
+}
 
 test.describe('Mobile navigation', () => {
   test.use({ viewport: { width: 390, height: 844 } });
@@ -52,6 +59,7 @@ test.describe('Desktop navigation', () => {
     page,
   }) => {
     await page.goto('/');
+    await waitForSiteHeaderHydration(page);
 
     const nav = page.getByRole('navigation', { name: 'Main navigation' });
     const classesButton = nav.getByRole('button', { name: /classes/i });
@@ -75,6 +83,7 @@ test.describe('Desktop navigation', () => {
     page,
   }) => {
     await page.goto('/');
+    await waitForSiteHeaderHydration(page);
 
     const nav = page.getByRole('navigation', { name: 'Main navigation' });
     const fleetButton = nav.getByRole('button', { name: 'Fleet' });

@@ -1,7 +1,6 @@
 import 'server-only';
 import { i18n } from '@better-auth/i18n';
 import { prismaAdapter } from '@better-auth/prisma-adapter';
-import type { Options } from '@node-rs/argon2';
 import { hash, verify } from '@node-rs/argon2';
 import { betterAuth } from 'better-auth';
 import { auditLog } from 'better-auth-audit-logs';
@@ -9,6 +8,7 @@ import { nextCookies } from 'better-auth/next-js';
 import { admin, emailOTP, haveIBeenPwned } from 'better-auth/plugins';
 import { signInEmailHooks } from '@/libs/auth/hooks';
 import { passwordCompromiseCheckEnabled } from '@/libs/auth/password-compromise';
+import { selectPasswordHashingOptions } from '@/libs/auth/passwordHashing';
 import { prisma } from '@/libs/DB';
 import {
   markPendingEmailChange,
@@ -19,19 +19,8 @@ import {
 } from '@/libs/email/account-emails';
 import { Env } from '@/libs/Env';
 import { logger } from '@/libs/Logger';
+import { ensureNewsletterSubscriberForUser } from '@/libs/newsletter/newsletterSubscriptions';
 import enMessages from '@/locales/en.json';
-
-/**
- * Argon2id parameters. Mirrors the previous standalone password helper so the
- * upgrade does not invalidate any hashes that already exist in the database.
- */
-const argonOpts: Options = {
-  memoryCost: 65_536,
-  timeCost: 3,
-  parallelism: 4,
-  outputLen: 32,
-  algorithm: 2,
-};
 
 const isProd = Env.NODE_ENV === 'production';
 // Playwright runs the production Next server (standalone `webServer` in
@@ -43,6 +32,7 @@ const isProd = Env.NODE_ENV === 'production';
 // reach the logic they care about. Use server-only `IS_E2E` (not
 // `NEXT_PUBLIC_*`) so CI `.next` cache is not build-tainted for other jobs.
 const isE2E = Env.IS_E2E === '1';
+const argonOpts = selectPasswordHashingOptions({ isE2E });
 
 export const auth = betterAuth({
   baseURL: Env.NEXT_PUBLIC_APP_URL,
@@ -107,6 +97,19 @@ export const auth = betterAuth({
         where: { id: user.id, unconfirmedEmail: { not: null } },
         data: { unconfirmedEmail: null },
       });
+      try {
+        await ensureNewsletterSubscriberForUser(user.id);
+      } catch (error) {
+        logger.error(
+          'Failed to create default newsletter preference: {error}',
+          {
+            email: user.email,
+            error,
+            operation: 'ensureNewsletterSubscriberForUser',
+            userId: user.id,
+          }
+        );
+      }
     },
   },
   user: {

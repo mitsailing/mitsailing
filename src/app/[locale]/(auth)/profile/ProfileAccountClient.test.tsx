@@ -52,6 +52,7 @@ function renderAccountClient(
     <AppThemeProvider defaultTheme="light">
       <ProfileAccountClient
         initialEmail="owner@mit.edu"
+        initialEmailDeliverabilityStatus="ok"
         initialName="Old Name"
         initialThemePreference="LIGHT"
         initialUnconfirmedEmail={null}
@@ -82,6 +83,22 @@ function requestConfirmationCodeWithFireEvent(email: string) {
 }
 
 describe('ProfileAccountClient', () => {
+  it('profile owner sees non-blocking email deliverability notice', () => {
+    renderAccountClient({ initialEmailDeliverabilityStatus: 'bounced' });
+
+    expect(
+      screen.getByText('Recent email to this address bounced.')
+    ).toBeVisible();
+    expect(
+      screen.getByText(
+        'You can keep using the site, but update your email to receive account notices.'
+      )
+    ).toBeVisible();
+    expect(
+      screen.getByRole('button', { name: 'Send confirmation code' })
+    ).toBeEnabled();
+  });
+
   it('profile owner updates their display name', async () => {
     const user = userEvent.setup();
     renderAccountClient();

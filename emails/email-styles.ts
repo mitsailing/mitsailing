@@ -1,8 +1,8 @@
 import * as React from 'react';
 import { Link } from 'react-email';
 import {
-  isValidMarketingEmail,
-  normalizeMarketingEmail,
+  isValidEmailAddress,
+  normalizeEmailAddress,
 } from '@/utils/emailValidation';
 
 /**
@@ -110,7 +110,7 @@ export function supportMessage(props: {
     return replaceAuthEmailValues(props.message, { email: props.supportEmail });
   }
 
-  const normalizedSupportEmail = normalizeMarketingEmail(props.supportEmail);
+  const normalizedSupportEmail = normalizeEmailAddress(props.supportEmail);
   const beforeSupport = props.message.slice(0, openIndex);
   const supportText = props.message.slice(
     openIndex + openTag.length,
@@ -118,7 +118,7 @@ export function supportMessage(props: {
   );
   const afterSupport = props.message.slice(closeIndex + closeTag.length);
 
-  if (!isValidMarketingEmail(normalizedSupportEmail)) {
+  if (!isValidEmailAddress(normalizedSupportEmail)) {
     return replaceAuthEmailValues(
       `${beforeSupport}${supportText}${afterSupport}`,
       { email: normalizedSupportEmail }

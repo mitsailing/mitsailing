@@ -6,6 +6,7 @@ import {
   sendAccountLockedEmail,
   sendPasswordChangedNotice,
 } from '@/libs/email/account-emails';
+import { normalizeEmailAddress } from '@/utils/emailValidation';
 
 /** Maximum failed password attempts inside the rolling window before lockout. */
 const MAX_FAILED_ATTEMPTS = 5;
@@ -16,7 +17,7 @@ const MIN_PASSWORD_LENGTH = 8;
 const MAX_PASSWORD_LENGTH = 128;
 
 function normalizeEmail(value: unknown): string {
-  return typeof value === 'string' ? value.trim().toLowerCase() : '';
+  return typeof value === 'string' ? normalizeEmailAddress(value) : '';
 }
 
 async function countRecentFailures(email: string): Promise<number> {
