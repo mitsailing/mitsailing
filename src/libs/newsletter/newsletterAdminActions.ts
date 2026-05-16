@@ -25,18 +25,29 @@ function formString(formData: FormData, key: string): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+function trimEdgeDashes(value: string): string {
+  let start = 0;
+  let end = value.length;
+  while (start < end && value[start] === '-') {
+    start += 1;
+  }
+  while (end > start && value[end - 1] === '-') {
+    end -= 1;
+  }
+  return value.slice(start, end);
+}
+
 function adminRedirect(locale: string, path: string, status?: string): never {
   const href = status ? `${path}?status=${encodeURIComponent(status)}` : path;
   redirect(getI18nPath(href, locale));
 }
 
 function slugFromName(value: string): string {
-  return value
+  const dashedSlug = value
     .trim()
     .toLowerCase()
-    .replaceAll(/[^a-z0-9]+/g, '-')
-    .replaceAll(/^-+|-+$/g, '')
-    .slice(0, 80);
+    .replaceAll(/[^a-z0-9]+/g, '-');
+  return trimEdgeDashes(dashedSlug).slice(0, 80);
 }
 
 function broadcastErrorCode(result: CreateNewsletterBroadcastResult): string {
