@@ -9,7 +9,12 @@ import { Env } from '@/libs/Env';
 import { logger } from '@/libs/Logger';
 import { handleResendNewsletterWebhook } from '@/libs/newsletter/newsletterWebhooks';
 
-const resend = new Resend(Env.RESEND_API_KEY);
+let resendClient: Resend | null = null;
+
+function getResendClient(apiKey: string) {
+  resendClient ??= new Resend(apiKey);
+  return resendClient;
+}
 
 function svixHeaders(request: Request) {
   return {
@@ -19,32 +24,41 @@ function svixHeaders(request: Request) {
   };
 }
 
-function eventId(event: WebhookEventPayload): string | null {
+function eventId(event: WebhookEventPayload) {
   return 'id' in event && typeof event.id === 'string' ? event.id : null;
 }
 
-function emailProviderEventId(event: WebhookEventPayload): string | null {
-  const data =
-    'data' in event && event.data && typeof event.data === 'object'
-      ? event.data
-      : null;
-  if (
-    !event.type.startsWith('email.') ||
-    !data ||
-    !('email_id' in data) ||
-    typeof data.email_id !== 'string' ||
-    !('created_at' in event) ||
-    typeof event.created_at !== 'string'
-  ) {
+function eventCreatedAt(event: WebhookEventPayload) {
+  if (!('created_at' in event) || typeof event.created_at !== 'string') {
     return null;
   }
 
   const occurredAt = new Date(event.created_at);
-  if (Number.isNaN(occurredAt.getTime())) {
+  return Number.isNaN(occurredAt.getTime()) ? null : occurredAt;
+}
+
+function emailIdFromEvent(event: WebhookEventPayload) {
+  if (!('data' in event) || !event.data || typeof event.data !== 'object') {
     return null;
   }
 
-  return `${data.email_id}:${event.type}:${occurredAt.toISOString()}`;
+  return 'email_id' in event.data && typeof event.data.email_id === 'string'
+    ? event.data.email_id
+    : null;
+}
+
+function emailProviderEventId(event: WebhookEventPayload) {
+  if (!event.type.startsWith('email.')) {
+    return null;
+  }
+
+  const emailId = emailIdFromEvent(event);
+  const occurredAt = eventCreatedAt(event);
+  if (!emailId || !occurredAt) {
+    return null;
+  }
+
+  return `${emailId}:${event.type}:${occurredAt.toISOString()}`;
 }
 
 function providerEventIdForWebhook(
@@ -69,10 +83,13 @@ export async function POST(request: Request) {
   if (!Env.RESEND_WEBHOOK_SECRET) {
     return NextResponse.json({ ok: false }, { status: 503 });
   }
+  if (!Env.RESEND_API_KEY) {
+    return NextResponse.json({ ok: false }, { status: 503 });
+  }
 
   let event: WebhookEventPayload;
   try {
-    event = resend.webhooks.verify({
+    event = getResendClient(Env.RESEND_API_KEY).webhooks.verify({
       headers: svixHeaders(request),
       payload,
       webhookSecret: Env.RESEND_WEBHOOK_SECRET,

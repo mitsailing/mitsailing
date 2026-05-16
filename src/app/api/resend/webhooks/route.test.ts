@@ -84,6 +84,7 @@ function webhookRequest(params: { svixId?: string | null } = {}) {
 describe('resend webhook route', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.env.RESEND_API_KEY = 'resend_key';
     mocks.env.RESEND_WEBHOOK_SECRET = 'webhook_secret';
     mocks.verify.mockReturnValue({
       created_at: '2026-05-14T14:30:00.000Z',
@@ -102,6 +103,18 @@ describe('resend webhook route', () => {
 
     await expect(response.json()).resolves.toEqual({ ok: false });
     expect(response.status).toBe(503);
+    expect(mocks.verify).not.toHaveBeenCalled();
+    expect(mocks.handleResendEmailMessageWebhook).not.toHaveBeenCalled();
+  });
+
+  it('returns unavailable when resend api key is missing', async () => {
+    mocks.env.RESEND_API_KEY = '';
+
+    const response = await POST(webhookRequest());
+
+    await expect(response.json()).resolves.toEqual({ ok: false });
+    expect(response.status).toBe(503);
+    expect(mocks.resend).not.toHaveBeenCalled();
     expect(mocks.verify).not.toHaveBeenCalled();
     expect(mocks.handleResendEmailMessageWebhook).not.toHaveBeenCalled();
   });
@@ -223,6 +236,6 @@ describe('resend webhook route', () => {
     await POST(webhookRequest());
     await POST(webhookRequest());
 
-    expect(mocks.resend).not.toHaveBeenCalled();
+    expect(mocks.resend.mock.calls.length).toBeLessThanOrEqual(1);
   });
 });
