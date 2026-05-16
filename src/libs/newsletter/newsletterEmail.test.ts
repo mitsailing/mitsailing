@@ -23,9 +23,15 @@ type SendEmailMock = (
 const mocks = vi.hoisted(() => ({
   env: {
     BETTER_AUTH_SECRET: 'test-secret',
-    NEWSLETTER_POSTAL_ADDRESS: 'MIT Sailing Pavilion, Cambridge, MA',
   },
   getBaseUrl: vi.fn(() => 'https://mitsailing.test'),
+  getTranslations: vi.fn(() =>
+    vi.fn((key: string) =>
+      key === 'postal_address'
+        ? 'MIT Sailing Pavilion, 134 Memorial Drive, Cambridge, MA 02139'
+        : key
+    )
+  ),
   sendTransactionalEmail: vi.fn<SendEmailMock>(),
 }));
 
@@ -37,6 +43,10 @@ vi.mock('@/libs/Env', () => ({
 
 vi.mock('@/libs/email/sendTransactional', () => ({
   sendTransactionalEmail: mocks.sendTransactionalEmail,
+}));
+
+vi.mock('next-intl/server', () => ({
+  getTranslations: mocks.getTranslations,
 }));
 
 vi.mock('@/utils/Helpers', () => ({
@@ -103,6 +113,7 @@ describe('newsletter email', () => {
     expect(payload.headers).toBeUndefined();
     expect(payload.tags).toBeUndefined();
     expect(payload.html).toContain('https://mitsailing.test/newsletter');
+    expect(payload.text).toContain('134 Memorial Drive');
   });
 
   it('sends live deliveries with one-click unsubscribe metadata', async () => {
@@ -147,5 +158,6 @@ describe('newsletter email', () => {
     expect(payload.newsletterSubscriberId).toBe('subscriber_123');
     expect(payload.idempotencyKey).toBe('newsletter-delivery/delivery_123');
     expect(payload.topicId).toBe('topic_123');
+    expect(payload.text).toContain('134 Memorial Drive');
   });
 });

@@ -83,6 +83,7 @@ log() { printf '[bootstrap] %s\n' "$*"; }
 
 validate_compose_config() {
   log "validating rendered production Compose config"
+  # shellcheck disable=SC2016
   docker compose -f compose.yaml -f compose.prod.yaml --profile release --env-file .env.production.example config --format json |
     node -e '
 let input = "";
@@ -134,9 +135,19 @@ process.stdin.on("end", () => {
 
 run_remote_bootstrap() {
   log "connecting to ${SSH_TARGET}"
-  ssh -tt "$SSH_TARGET" \
-    "DEPLOY_USER='$DEPLOY_USER' DEPLOY_GROUP='$DEPLOY_GROUP' DEPLOY_DIR='$DEPLOY_DIR' PRODUCTION_DATA_ROOT='$PRODUCTION_DATA_ROOT' REMOVE_OLD_DOCKER_VOLUMES='$remove_old_docker_volumes' bash -s" <<'REMOTE'
+  ssh -tt "$SSH_TARGET" bash -s -- \
+    "$DEPLOY_USER" \
+    "$DEPLOY_GROUP" \
+    "$DEPLOY_DIR" \
+    "$PRODUCTION_DATA_ROOT" \
+    "$remove_old_docker_volumes" <<'REMOTE'
 set -Eeuo pipefail
+
+readonly DEPLOY_USER="$1"
+readonly DEPLOY_GROUP_ARG="$2"
+readonly DEPLOY_DIR="$3"
+readonly PRODUCTION_DATA_ROOT="$4"
+readonly REMOVE_OLD_DOCKER_VOLUMES="$5"
 
 log() { printf '[remote bootstrap] %s\n' "$*"; }
 fail() {
@@ -151,7 +162,7 @@ readonly DEPLOY_STATE_DIR="${DEPLOY_DIR}/.deploy"
 readonly NGINX_STATE_DIR="${DEPLOY_STATE_DIR}/nginx"
 readonly POSTGRES_IMAGE="postgres:18-alpine"
 readonly REDIS_IMAGE="redis:7-alpine"
-DEPLOY_GROUP="${DEPLOY_GROUP:-$(id -gn "$DEPLOY_USER")}"
+DEPLOY_GROUP="${DEPLOY_GROUP_ARG:-$(id -gn "$DEPLOY_USER")}"
 
 log "creating production data directories under ${PRODUCTION_DATA_ROOT}"
 sudo install -d -o "$DEPLOY_USER" -g "$DEPLOY_GROUP" -m 700 "$PRODUCTION_DATA_ROOT"
@@ -200,9 +211,9 @@ REMOTE
 sync_init_sql() {
   log "copying postgres init SQL to ${SSH_TARGET}:${DEPLOY_DIR}/docker/postgres/init.sql"
   scp docker/postgres/init.sql "${SSH_TARGET}:${DEPLOY_DIR}/docker/postgres/init.sql"
-  ssh "$SSH_TARGET" \
-    "DEPLOY_DIR='$DEPLOY_DIR' bash -s" <<'REMOTE'
+  ssh "$SSH_TARGET" bash -s -- "$DEPLOY_DIR" <<'REMOTE'
 set -Eeuo pipefail
+readonly DEPLOY_DIR="$1"
 chmod 644 "${DEPLOY_DIR}/docker/postgres/init.sql"
 REMOTE
 }

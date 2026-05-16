@@ -12,6 +12,15 @@ function stubRequiredBaseEnv(): void {
   vi.stubEnv('NEXT_PUBLIC_APP_URL', 'http://localhost:3000');
 }
 
+function stubRequiredDeployedEnv(): void {
+  vi.stubEnv('CMS_MEDIA_ROOT', '/var/cms-media');
+  vi.stubEnv(
+    'HEALTHCHECK_SECRET',
+    'test-healthcheck-secret-with-thirty-two-chars'
+  );
+  vi.stubEnv('REDIS_URL', 'redis://redis:6379');
+}
+
 describe('isDevAuthShortcutEnabled', () => {
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -31,7 +40,7 @@ describe('isDevAuthShortcutEnabled', () => {
   it('returns false for APP_ENV staging', async () => {
     stubRequiredBaseEnv();
     vi.stubEnv('APP_ENV', 'staging');
-    vi.stubEnv('CMS_MEDIA_ROOT', '/var/cms-media');
+    stubRequiredDeployedEnv();
 
     const { isDevAuthShortcutEnabled } =
       await import('@/libs/auth/devAuthShortcut');
@@ -42,7 +51,7 @@ describe('isDevAuthShortcutEnabled', () => {
   it('returns false for APP_ENV production', async () => {
     stubRequiredBaseEnv();
     vi.stubEnv('APP_ENV', 'production');
-    vi.stubEnv('CMS_MEDIA_ROOT', '/var/cms-media');
+    stubRequiredDeployedEnv();
 
     const { isDevAuthShortcutEnabled } =
       await import('@/libs/auth/devAuthShortcut');

@@ -20,6 +20,15 @@ function stubNewsletterRevalidateSecret(): void {
   );
 }
 
+function stubRequiredProductionEnv(): void {
+  vi.stubEnv('CMS_MEDIA_ROOT', '/var/lib/mitsailing/cms-media');
+  vi.stubEnv(
+    'HEALTHCHECK_SECRET',
+    'test-healthcheck-secret-with-thirty-two-chars'
+  );
+  vi.stubEnv('REDIS_URL', 'redis://redis:6379');
+}
+
 describe('Env legacy MySQL sync validation', () => {
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -60,7 +69,7 @@ describe('Env legacy MySQL sync validation', () => {
     stubRequiredBaseEnv();
     stubNewsletterRevalidateSecret();
     vi.stubEnv('APP_ENV', 'production');
-    vi.stubEnv('CMS_MEDIA_ROOT', '/var/lib/mitsailing/cms-media');
+    stubRequiredProductionEnv();
     vi.stubEnv('LEGACY_MYSQL_SYNC_ENABLED', 'true');
 
     await expect(import('@/libs/Env')).rejects.toThrow(
@@ -92,7 +101,7 @@ describe('Env legacy MySQL sync validation', () => {
     stubRequiredBaseEnv();
     stubNewsletterRevalidateSecret();
     vi.stubEnv('APP_ENV', 'production');
-    vi.stubEnv('CMS_MEDIA_ROOT', '/var/lib/mitsailing/cms-media');
+    stubRequiredProductionEnv();
     vi.stubEnv('LEGACY_MYSQL_SYNC_ENABLED', 'true');
     vi.stubEnv('LEGACY_MYSQL_PASSWORD', 'secret');
 

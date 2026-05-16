@@ -83,10 +83,6 @@ export const Env = createEnv({
     SUPPORT_EMAIL: z.email().default('support@mitsailing.com'),
 
     // Marketing footer and Resend webhook settings for newsletter broadcasts.
-    NEWSLETTER_POSTAL_ADDRESS: z
-      .string()
-      .min(1)
-      .default('MIT Sailing Pavilion, 134 Memorial Drive, Cambridge, MA 02139'),
     NEWSLETTER_WORKER_CONCURRENCY: z.coerce
       .number()
       .int()
@@ -197,7 +193,6 @@ export const Env = createEnv({
     DEBUG_CLEANUP: process.env.DEBUG_CLEANUP,
     IS_E2E: process.env.IS_E2E,
     SUPPORT_EMAIL: process.env.SUPPORT_EMAIL,
-    NEWSLETTER_POSTAL_ADDRESS: process.env.NEWSLETTER_POSTAL_ADDRESS,
     NEWSLETTER_WORKER_CONCURRENCY: process.env.NEWSLETTER_WORKER_CONCURRENCY,
     RESEND_WEBHOOK_SECRET: process.env.RESEND_WEBHOOK_SECRET,
     CLOUDFLARE_TUNNEL_TOKEN: process.env.CLOUDFLARE_TUNNEL_TOKEN,

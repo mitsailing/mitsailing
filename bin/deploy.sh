@@ -348,6 +348,7 @@ switch_to_ref() {
   start_web_color "$target_color"
   # Smoke-check dependency readiness before switching nginx upstream.
   # This is protected by HEALTHCHECK_SECRET; if it isn't set, we skip.
+  # shellcheck disable=SC2016
   compose exec -T "$target_service" node -e '(async () => {
     const secret = process.env.HEALTHCHECK_SECRET;
     if (!secret) {

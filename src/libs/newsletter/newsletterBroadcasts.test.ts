@@ -15,6 +15,10 @@ const mocks = vi.hoisted(() => {
     enqueueNewsletterBroadcast: vi.fn(),
     fetch: vi.fn(),
     logger: { error: vi.fn(), warn: vi.fn() },
+    getNewsletterPostalAddress: vi.fn(async () => {
+      await Promise.resolve();
+      return 'MIT Sailing Pavilion';
+    }),
     prisma: {
       $transaction: vi.fn(),
       newsletterBroadcast: {
@@ -53,7 +57,6 @@ vi.mock('@/libs/Env', () => ({
     BETTER_AUTH_SECRET: 'test-secret-that-is-at-least-thirty-two-chars',
     NEWSLETTER_REVALIDATE_SECRET:
       'test-newsletter-revalidate-secret-with-thirty-two-chars',
-    NEWSLETTER_POSTAL_ADDRESS: 'MIT Sailing Pavilion',
     REDIS_URL: 'redis://localhost:6379',
   },
 }));
@@ -63,6 +66,7 @@ vi.mock('@/libs/Logger', () => ({
 }));
 
 vi.mock('@/libs/newsletter/newsletterEmail', () => ({
+  getNewsletterPostalAddress: mocks.getNewsletterPostalAddress,
   renderNewsletterBroadcastEmail: mocks.renderNewsletterBroadcastEmail,
   sendNewsletterBroadcastEmail: mocks.sendNewsletterBroadcastEmail,
 }));

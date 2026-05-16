@@ -1,7 +1,8 @@
 import 'server-only';
+import { getTranslations } from 'next-intl/server';
 import { render } from 'react-email';
 import { sendTransactionalEmail } from '@/libs/email/sendTransactional';
-import { Env } from '@/libs/Env';
+import { routing } from '@/libs/I18nRouting';
 import { buildNewsletterManageToken } from '@/libs/newsletter/newsletterTokens';
 import {
   newsletterManageUrl,
@@ -41,6 +42,14 @@ type NewsletterTestEmailParams = {
   previewText: string;
   subject: string;
 };
+
+export async function getNewsletterPostalAddress(): Promise<string> {
+  const t = await getTranslations({
+    locale: routing.defaultLocale,
+    namespace: 'NewsletterEmail',
+  });
+  return t('postal_address');
+}
 
 function bodyToText(params: {
   body: string;
@@ -107,7 +116,7 @@ export async function sendNewsletterBroadcastEmail(
     body: params.body,
     listName: params.listName,
     manageUrl,
-    postalAddress: Env.NEWSLETTER_POSTAL_ADDRESS,
+    postalAddress: await getNewsletterPostalAddress(),
     subject: params.subject,
     unsubscribeUrl,
     previewText: params.previewText,
@@ -150,7 +159,7 @@ export async function sendNewsletterBroadcastTestEmail(
     body: params.body,
     listName: params.listName,
     manageUrl: newsletterUrl,
-    postalAddress: Env.NEWSLETTER_POSTAL_ADDRESS,
+    postalAddress: await getNewsletterPostalAddress(),
     previewText: params.previewText,
     subject: params.subject,
     unsubscribeUrl: newsletterUrl,
