@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { requestNewsletterArchiveRevalidation } from '@/libs/newsletter/newsletterArchiveCache';
 
 const mockEnv = vi.hoisted(() => ({
@@ -17,6 +17,10 @@ describe('requestNewsletterArchiveRevalidation', () => {
   beforeEach(() => {
     mockEnv.NEWSLETTER_REVALIDATE_SECRET = undefined;
     vi.stubGlobal('fetch', vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it('skips internal request without a revalidation secret', async () => {
