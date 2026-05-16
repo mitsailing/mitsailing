@@ -12,8 +12,8 @@ import type { CreateNewsletterBroadcastResult } from '@/libs/newsletter/newslett
 import { sendNewsletterBroadcastTestEmail } from '@/libs/newsletter/newsletterEmail';
 import { validateNewsletterBroadcastFormData } from '@/libs/newsletter/newsletterValidation';
 import {
-  isValidMarketingEmail,
-  normalizeMarketingEmail,
+  isValidEmailAddress,
+  normalizeEmailAddress,
 } from '@/utils/emailValidation';
 import { getI18nPath } from '@/utils/Helpers';
 
@@ -213,9 +213,9 @@ export async function sendNewsletterBroadcastTestAction(
   formData: FormData
 ): Promise<void> {
   await requireAdmin(locale);
-  const email = normalizeMarketingEmail(formString(formData, 'email'));
+  const email = normalizeEmailAddress(formString(formData, 'email'));
   const redirectPath = adminBroadcastPath(broadcastId);
-  if (!isValidMarketingEmail(email)) {
+  if (!isValidEmailAddress(email)) {
     adminRedirect(locale, redirectPath, 'invalid_test_email');
   }
 

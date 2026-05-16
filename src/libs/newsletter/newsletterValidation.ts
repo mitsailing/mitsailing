@@ -4,7 +4,10 @@ import {
 } from '@/lib/mit-sailing/nyTime';
 import { isNewsletterListSlug } from '@/libs/newsletter/newsletterConstants';
 import type { NewsletterListSlug } from '@/libs/newsletter/newsletterConstants';
-import { isValidMarketingEmail } from '@/utils/emailValidation';
+import {
+  isValidEmailAddress,
+  normalizeEmailAddress,
+} from '@/utils/emailValidation';
 
 export const newsletterSignupFieldNames = {
   company: 'company',
@@ -101,26 +104,6 @@ function parseNyDateTimeLocal(value: string): Date {
 }
 
 /**
- * Normalizes an email address for storage and matching.
- *
- * @param email - Raw email
- * @returns Lowercase email
- */
-export function normalizeEmail(email: string): string {
-  return email.trim().toLowerCase();
-}
-
-/**
- * Normalizes a submitted email for newsletter storage.
- *
- * @param email - Raw email
- * @returns Lowercase email
- */
-export function normalizeNewsletterEmail(email: string): string {
-  return normalizeEmail(email);
-}
-
-/**
  * Parses and validates the public newsletter signup form.
  *
  * @param formData - Raw browser form body
@@ -129,7 +112,7 @@ export function normalizeNewsletterEmail(email: string): string {
 export function validateNewsletterSignupFormData(
   formData: FormData
 ): NewsletterSignupValidationResult {
-  const email = normalizeNewsletterEmail(
+  const email = normalizeEmailAddress(
     formString(formData, newsletterSignupFieldNames.email)
   );
   const nameRaw = formString(formData, newsletterSignupFieldNames.name);
@@ -142,7 +125,7 @@ export function validateNewsletterSignupFormData(
     fieldErrors.email = 'required';
   } else if (email.length > NEWSLETTER_EMAIL_MAX_LENGTH) {
     fieldErrors.email = 'too_long';
-  } else if (!isValidMarketingEmail(email)) {
+  } else if (!isValidEmailAddress(email)) {
     fieldErrors.email = 'invalid_email';
   }
 

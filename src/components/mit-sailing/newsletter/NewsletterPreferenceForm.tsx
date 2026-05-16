@@ -64,7 +64,7 @@ export function NewsletterPreferenceForm(props: NewsletterPreferenceFormProps) {
   return (
     <form action={formAction} className="space-y-5">
       {state.ok === true ? (
-        <output className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-900">
+        <output className="rounded-lg border border-mit-success/30 bg-mit-success/10 px-4 py-3 text-sm font-medium text-mit-success-ink">
           {props.successLabel}
         </output>
       ) : null}

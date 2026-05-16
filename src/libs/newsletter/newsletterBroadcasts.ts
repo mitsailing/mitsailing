@@ -1,6 +1,9 @@
 import 'server-only';
-import type { Prisma } from '@/generated/prisma/client';
-import type { NewsletterDeliveryStatus } from '@/generated/prisma/enums';
+import { Prisma } from '@/generated/prisma/client';
+import type {
+  NewsletterBroadcastStatus,
+  NewsletterDeliveryStatus,
+} from '@/generated/prisma/enums';
 import { prisma } from '@/libs/DB';
 import { Env } from '@/libs/Env';
 import { logger } from '@/libs/Logger';
@@ -22,6 +25,107 @@ const NEWSLETTER_DELIVERY_FAILURE_STATUSES = [
   'failed',
   'suppressed',
 ] satisfies NewsletterDeliveryStatus[];
+
+const NEWSLETTER_BROADCAST_SENDABLE_STATUSES = [
+  'failed',
+  'queued',
+  'sending',
+] satisfies NewsletterBroadcastStatus[];
+
+type NewsletterBroadcastSendGate = Readonly<{
+  cancelledAt: Date | null;
+  pausedAt: Date | null;
+  status: NewsletterBroadcastStatus;
+}>;
+
+function newsletterBroadcastSendBlocked(
+  broadcast: NewsletterBroadcastSendGate
+): boolean {
+  return (
+    broadcast.cancelledAt !== null ||
+    broadcast.status === 'cancelled' ||
+    broadcast.pausedAt !== null ||
+    broadcast.status === 'paused'
+  );
+}
+
+function isSendableNewsletterBroadcastStatus(
+  status: NewsletterBroadcastStatus
+): boolean {
+  return NEWSLETTER_BROADCAST_SENDABLE_STATUSES.some(
+    (sendableStatus) => sendableStatus === status
+  );
+}
+
+function activeNewsletterBroadcastWhere(): Prisma.NewsletterBroadcastWhereInput {
+  return {
+    cancelledAt: null,
+    pausedAt: null,
+  };
+}
+
+function startableNewsletterBroadcastWhere(
+  broadcastId: string
+): Prisma.NewsletterBroadcastWhereInput {
+  return {
+    id: broadcastId,
+    ...activeNewsletterBroadcastWhere(),
+    status: { in: [...NEWSLETTER_BROADCAST_SENDABLE_STATUSES] },
+  };
+}
+
+/**
+ * Applies a broadcast update only when the current row matches the guard.
+ *
+ * @param where - Row filter that must match for the update to run
+ * @param data - Fields to write when the guard matches
+ * @returns Whether any row was updated
+ */
+async function updateNewsletterBroadcastWhen(
+  where: Prisma.NewsletterBroadcastWhereInput,
+  data: Prisma.NewsletterBroadcastUpdateManyMutationInput
+): Promise<boolean> {
+  const result = await prisma.newsletterBroadcast.updateMany({ data, where });
+  return result.count > 0;
+}
+
+const NON_TERMINAL_NEWSLETTER_DELIVERY_STATUSES = [
+  'queued',
+  'sending',
+] satisfies NewsletterDeliveryStatus[];
+
+type NewsletterBroadcastDeliveryFinishCounts = Readonly<{
+  failedDeliveryCount: number;
+  nonTerminal: number;
+}>;
+
+type NewsletterDeliveryFinishAggregate = Readonly<{
+  failed_delivery_count: number;
+  non_terminal_count: number;
+}>;
+
+const NEWSLETTER_BROADCAST_FINISH_TRANSACTION_OPTIONS = {
+  isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
+} as const;
+
+function newsletterDeliveryStatusSqlList(
+  statuses: readonly NewsletterDeliveryStatus[]
+) {
+  return Prisma.join(
+    statuses.map((status) => Prisma.sql`${status}`),
+    ', '
+  );
+}
+
+function newsletterBroadcastFinishUpdate(
+  counts: NewsletterBroadcastDeliveryFinishCounts
+): Pick<Prisma.NewsletterBroadcastUpdateInput, 'sentAt' | 'status'> {
+  const succeeded = counts.failedDeliveryCount === 0;
+  return {
+    sentAt: succeeded ? new Date() : null,
+    status: succeeded ? 'sent' : 'failed',
+  };
+}
 
 type CreateBroadcastParams = {
   body: string;
@@ -406,26 +510,47 @@ type NewsletterBroadcastRow = NonNullable<
   Awaited<ReturnType<typeof findNewsletterBroadcast>>
 >;
 
+async function reconcileCancelledNewsletterBroadcast(
+  broadcast: NewsletterBroadcastRow
+) {
+  await updateNewsletterBroadcastWhen(
+    {
+      id: broadcast.id,
+      OR: [{ cancelledAt: { not: null } }, { status: 'cancelled' }],
+    },
+    {
+      cancelledAt: broadcast.cancelledAt ?? new Date(),
+      status: 'cancelled',
+    }
+  );
+  await cancelQueuedNewsletterDeliveries(broadcast.id);
+}
+
+async function reconcilePausedNewsletterBroadcast(
+  broadcast: NewsletterBroadcastRow
+) {
+  await updateNewsletterBroadcastWhen(
+    {
+      id: broadcast.id,
+      OR: [{ pausedAt: { not: null } }, { status: 'paused' }],
+    },
+    {
+      pausedAt: broadcast.pausedAt ?? new Date(),
+      status: 'paused',
+    }
+  );
+}
+
 async function stopInactiveNewsletterBroadcast(
   broadcast: NewsletterBroadcastRow
 ): Promise<boolean> {
   if (broadcast.cancelledAt || broadcast.status === 'cancelled') {
-    await prisma.newsletterBroadcast.update({
-      data: {
-        cancelledAt: broadcast.cancelledAt ?? new Date(),
-        status: 'cancelled',
-      },
-      where: { id: broadcast.id },
-    });
-    await cancelQueuedNewsletterDeliveries(broadcast.id);
+    await reconcileCancelledNewsletterBroadcast(broadcast);
     return true;
   }
 
   if (broadcast.pausedAt || broadcast.status === 'paused') {
-    await prisma.newsletterBroadcast.update({
-      data: { pausedAt: broadcast.pausedAt ?? new Date(), status: 'paused' },
-      where: { id: broadcast.id },
-    });
+    await reconcilePausedNewsletterBroadcast(broadcast);
     return true;
   }
 
@@ -451,11 +576,23 @@ async function requeueFutureNewsletterBroadcast(
   return true;
 }
 
-async function startNewsletterBroadcast(broadcast: NewsletterBroadcastRow) {
-  await prisma.newsletterBroadcast.update({
-    data: { startedAt: broadcast.startedAt ?? new Date(), status: 'sending' },
-    where: { id: broadcast.id },
-  });
+/**
+ * Atomically marks a broadcast as sending only when it is still active.
+ *
+ * @param broadcast - Broadcast row loaded before the transition
+ * @returns Whether the broadcast transitioned to sending
+ */
+async function startNewsletterBroadcast(
+  broadcast: NewsletterBroadcastRow
+): Promise<boolean> {
+  const transitioned = await updateNewsletterBroadcastWhen(
+    startableNewsletterBroadcastWhere(broadcast.id),
+    {
+      startedAt: broadcast.startedAt ?? new Date(),
+      status: 'sending',
+    }
+  );
+  return transitioned;
 }
 
 async function getNewsletterDeliveryBatch(broadcastId: string) {
@@ -475,12 +612,27 @@ async function currentBroadcastAllowsSending(
     select: { cancelledAt: true, pausedAt: true, status: true },
     where: { id: broadcastId },
   });
-  if (!broadcast || broadcast.cancelledAt || broadcast.status === 'cancelled') {
+  if (!broadcast) {
+    return false;
+  }
+  if (broadcast.cancelledAt || broadcast.status === 'cancelled') {
     await cancelQueuedNewsletterDeliveries(broadcastId);
     return false;
   }
-
-  return !broadcast.pausedAt && broadcast.status !== 'paused';
+  if (newsletterBroadcastSendBlocked(broadcast)) {
+    if (broadcast.pausedAt && broadcast.status !== 'paused') {
+      await updateNewsletterBroadcastWhen(
+        {
+          id: broadcastId,
+          pausedAt: { not: null },
+          status: { not: 'paused' },
+        },
+        { status: 'paused' }
+      );
+    }
+    return false;
+  }
+  return true;
 }
 
 async function claimNewsletterDelivery(deliveryId: string): Promise<boolean> {
@@ -722,31 +874,67 @@ async function requeueNewsletterContinuation(
   return true;
 }
 
+/**
+ * Locks delivery rows and reads finish counts in one database snapshot.
+ *
+ * @param tx - Open interactive transaction client
+ * @param broadcastId - Broadcast id
+ * @returns Aggregated non-terminal and failure delivery counts
+ */
+async function loadNewsletterBroadcastDeliveryFinishSnapshot(
+  tx: Prisma.TransactionClient,
+  broadcastId: string
+): Promise<NewsletterBroadcastDeliveryFinishCounts> {
+  await tx.$queryRaw`
+    SELECT id
+    FROM newsletter_deliveries
+    WHERE broadcast_id = ${broadcastId}
+    FOR UPDATE
+  `;
+
+  const nonTerminalStatuses = newsletterDeliveryStatusSqlList(
+    NON_TERMINAL_NEWSLETTER_DELIVERY_STATUSES
+  );
+  const failureStatuses = newsletterDeliveryStatusSqlList(
+    NEWSLETTER_DELIVERY_FAILURE_STATUSES
+  );
+  const [aggregate] = await tx.$queryRaw<NewsletterDeliveryFinishAggregate[]>`
+    SELECT
+      COUNT(*) FILTER (
+        WHERE status::text IN (${nonTerminalStatuses})
+      )::int AS non_terminal_count,
+      COUNT(*) FILTER (
+        WHERE status::text IN (${failureStatuses})
+      )::int AS failed_delivery_count
+    FROM newsletter_deliveries
+    WHERE broadcast_id = ${broadcastId}
+  `;
+
+  return {
+    failedDeliveryCount: aggregate?.failed_delivery_count ?? 0,
+    nonTerminal: aggregate?.non_terminal_count ?? 0,
+  };
+}
+
 async function finishNewsletterBroadcast(broadcastId: string) {
-  const [nonTerminal, failedDeliveryCount] = await Promise.all([
-    prisma.newsletterDelivery.count({
-      where: { broadcastId, status: { in: ['queued', 'sending'] } },
-    }),
-    prisma.newsletterDelivery.count({
-      where: {
-        broadcastId,
-        status: { in: NEWSLETTER_DELIVERY_FAILURE_STATUSES },
-      },
-    }),
-  ]);
-  if (nonTerminal > 0) {
-    throw new Error(
-      `Newsletter broadcast ${broadcastId} has unfinished deliveries`
+  const counts = await prisma.$transaction(async (tx) => {
+    const snapshot = await loadNewsletterBroadcastDeliveryFinishSnapshot(
+      tx,
+      broadcastId
     );
-  }
-  await prisma.newsletterBroadcast.update({
-    data: {
-      sentAt: failedDeliveryCount === 0 ? new Date() : null,
-      status: failedDeliveryCount === 0 ? 'sent' : 'failed',
-    },
-    where: { id: broadcastId },
-  });
-  if (failedDeliveryCount > 0) {
+    if (snapshot.nonTerminal > 0) {
+      throw new Error(
+        `Newsletter broadcast ${broadcastId} has unfinished deliveries`
+      );
+    }
+    await tx.newsletterBroadcast.update({
+      data: newsletterBroadcastFinishUpdate(snapshot),
+      where: { id: broadcastId },
+    });
+    return snapshot;
+  }, NEWSLETTER_BROADCAST_FINISH_TRANSACTION_OPTIONS);
+
+  if (counts.failedDeliveryCount > 0) {
     return;
   }
   const revalidated = await requestNewsletterArchiveRevalidation();
@@ -772,14 +960,16 @@ export async function processNewsletterBroadcast(
   if (!broadcast || (await stopInactiveNewsletterBroadcast(broadcast))) {
     return;
   }
-  if (!['failed', 'queued', 'sending'].includes(broadcast.status)) {
+  if (!isSendableNewsletterBroadcastStatus(broadcast.status)) {
     return;
   }
   if (await requeueFutureNewsletterBroadcast(broadcast)) {
     return;
   }
 
-  await startNewsletterBroadcast(broadcast);
+  if (!(await startNewsletterBroadcast(broadcast))) {
+    return;
+  }
   await processNewsletterDeliveryBatch(broadcast);
   if (await requeueNewsletterContinuation(broadcast.id)) {
     return;

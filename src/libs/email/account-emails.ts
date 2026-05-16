@@ -5,8 +5,8 @@ import { sendTransactionalEmail } from '@/libs/email/sendTransactional';
 import { Env } from '@/libs/Env';
 import enMessages from '@/locales/en.json';
 import {
-  isValidMarketingEmail,
-  normalizeMarketingEmail,
+  isValidEmailAddress,
+  normalizeEmailAddress,
 } from '@/utils/emailValidation';
 import { getBaseUrl } from '@/utils/Helpers';
 import { AccountUnlockEmailTemplate } from '../../../emails/account-unlock';
@@ -33,8 +33,8 @@ type AuthEmailMessages = typeof enMessages.AuthEmails;
 const authEmailMessages = enMessages.AuthEmails;
 
 function normalizeAuthEmail(value: string): string {
-  const email = normalizeMarketingEmail(value);
-  if (!isValidMarketingEmail(email)) {
+  const email = normalizeEmailAddress(value);
+  if (!isValidEmailAddress(email)) {
     throw new Error('Expected a valid email address.');
   }
   return email;
@@ -194,7 +194,7 @@ export async function markPendingEmailChange(params: {
     select: { email: true },
   });
 
-  if (!user || normalizeMarketingEmail(user.email) === newEmail) {
+  if (!user || normalizeEmailAddress(user.email) === newEmail) {
     return false;
   }
 

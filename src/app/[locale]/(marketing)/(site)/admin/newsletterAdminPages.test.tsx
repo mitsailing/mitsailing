@@ -77,11 +77,31 @@ vi.mock('@/libs/newsletter/newsletterBroadcasts', () => ({
   getAdminNewsletterTemplates: mocks.getAdminNewsletterTemplates,
 }));
 
+type AdminPageModule = {
+  default: (props: ReturnType<typeof pageProps>) => Promise<unknown>;
+};
+
+function isAdminPageModule(value: unknown): value is AdminPageModule {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    typeof Reflect.get(value, 'default') === 'function'
+  );
+}
+
 function pageProps() {
   return {
     params: Promise.resolve({ locale: 'en' }),
     searchParams: Promise.resolve({}),
   };
+}
+
+async function loadAdminPage(path: string) {
+  const pageModule: unknown = await import(path);
+  if (!isAdminPageModule(pageModule)) {
+    throw new TypeError(`Expected ${path} to export a page component.`);
+  }
+  return pageModule.default;
 }
 
 beforeEach(() => {
@@ -97,55 +117,13 @@ beforeEach(() => {
 describe('newsletter admin pages', () => {
   it('requires admin before rendering sensitive newsletter pages', async () => {
     const pages = [
-      {
-        load: async () => {
-          const pageModule = await import('./newsletter-broadcasts/page');
-          return pageModule.default;
-        },
-        name: 'broadcasts',
-      },
-      {
-        load: async () => {
-          const pageModule = await import('./newsletter-broadcasts/new/page');
-          return pageModule.default;
-        },
-        name: 'new broadcast',
-      },
-      {
-        load: async () => {
-          const pageModule = await import('./newsletter-lists/page');
-          return pageModule.default;
-        },
-        name: 'lists',
-      },
-      {
-        load: async () => {
-          const pageModule = await import('./newsletter-lists/new/page');
-          return pageModule.default;
-        },
-        name: 'new list',
-      },
-      {
-        load: async () => {
-          const pageModule = await import('./newsletter-subscribers/page');
-          return pageModule.default;
-        },
-        name: 'subscribers',
-      },
-      {
-        load: async () => {
-          const pageModule = await import('./newsletter-templates/page');
-          return pageModule.default;
-        },
-        name: 'templates',
-      },
-      {
-        load: async () => {
-          const pageModule = await import('./newsletter-templates/new/page');
-          return pageModule.default;
-        },
-        name: 'new template',
-      },
+      { name: 'broadcasts', path: './newsletter-broadcasts/page' },
+      { name: 'new broadcast', path: './newsletter-broadcasts/new/page' },
+      { name: 'lists', path: './newsletter-lists/page' },
+      { name: 'new list', path: './newsletter-lists/new/page' },
+      { name: 'subscribers', path: './newsletter-subscribers/page' },
+      { name: 'templates', path: './newsletter-templates/page' },
+      { name: 'new template', path: './newsletter-templates/new/page' },
     ];
 
     for (const page of pages) {
@@ -153,7 +131,7 @@ describe('newsletter admin pages', () => {
       mocks.getTranslations.mockResolvedValue((key: string) => key);
       mocks.requireAdmin.mockRejectedValue(new Error('admin required'));
 
-      const Page = await page.load();
+      const Page = await loadAdminPage(page.path);
       await expect(Page(pageProps())).rejects.toThrow('admin required');
       expect(mocks.requireAdmin, page.name).toHaveBeenCalledWith('en');
       expect(

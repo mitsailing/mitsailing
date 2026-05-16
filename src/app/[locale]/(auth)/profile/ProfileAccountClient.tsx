@@ -14,8 +14,8 @@ import { SubmitButton } from '@/components/ui/submit-button';
 import type { ThemePreferenceValue } from '@/lib/mit-sailing/themePreference';
 import { authClient } from '@/libs/auth-client';
 import {
-  isValidMarketingEmail,
-  normalizeMarketingEmail,
+  isValidEmailAddress,
+  normalizeEmailAddress,
 } from '@/utils/emailValidation';
 
 type ProfileAccountClientProps = {
@@ -110,9 +110,9 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
 
   async function onChangeEmail(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
-    const normalizedNewEmail = normalizeMarketingEmail(newEmail);
-    const normalizedCurrentEmail = normalizeMarketingEmail(currentEmail);
-    if (!normalizedNewEmail || !isValidMarketingEmail(normalizedNewEmail)) {
+    const normalizedNewEmail = normalizeEmailAddress(newEmail);
+    const normalizedCurrentEmail = normalizeEmailAddress(currentEmail);
+    if (!normalizedNewEmail || !isValidEmailAddress(normalizedNewEmail)) {
       setEmailBanner({ kind: 'error', message: t('email_validation_error') });
       return;
     }

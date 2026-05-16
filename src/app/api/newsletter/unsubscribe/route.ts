@@ -30,10 +30,6 @@ async function unsubscribeParamsFromPost(request: Request): Promise<{
   token: string;
 }> {
   const urlParams = unsubscribeParamsFromUrl(request);
-  if (urlParams.listId.length > 0 && urlParams.token.length > 0) {
-    return urlParams;
-  }
-
   const contentType = request.headers.get('content-type') ?? '';
   if (contentType.includes('application/json')) {
     const body: unknown = await request.json();
@@ -46,6 +42,9 @@ async function unsubscribeParamsFromPost(request: Request): Promise<{
     !contentType.includes('application/x-www-form-urlencoded') &&
     !contentType.includes('multipart/form-data')
   ) {
+    throw new TypeError('Unsupported newsletter unsubscribe content type');
+  }
+  if (urlParams.listId.length > 0 && urlParams.token.length > 0) {
     return urlParams;
   }
   const body = await request.formData();

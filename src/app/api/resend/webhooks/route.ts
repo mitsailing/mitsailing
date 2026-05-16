@@ -5,6 +5,10 @@ import { Resend } from 'resend';
 import { prisma } from '@/libs/DB';
 import { handleResendAccountEmailWebhook } from '@/libs/email/accountEmailWebhooks';
 import { handleResendEmailMessageWebhook } from '@/libs/email/emailMessages';
+import {
+  resendEmailProviderEventId,
+  resendWebhookEventId,
+} from '@/libs/email/resendWebhookEvents';
 import { Env } from '@/libs/Env';
 import { logger } from '@/libs/Logger';
 import { handleResendNewsletterWebhook } from '@/libs/newsletter/newsletterWebhooks';
@@ -24,43 +28,6 @@ function svixHeaders(request: Request) {
   };
 }
 
-function eventId(event: WebhookEventPayload) {
-  return 'id' in event && typeof event.id === 'string' ? event.id : null;
-}
-
-function eventCreatedAt(event: WebhookEventPayload) {
-  if (!('created_at' in event) || typeof event.created_at !== 'string') {
-    return null;
-  }
-
-  const occurredAt = new Date(event.created_at);
-  return Number.isNaN(occurredAt.getTime()) ? null : occurredAt;
-}
-
-function emailIdFromEvent(event: WebhookEventPayload) {
-  if (!('data' in event) || !event.data || typeof event.data !== 'object') {
-    return null;
-  }
-
-  return 'email_id' in event.data && typeof event.data.email_id === 'string'
-    ? event.data.email_id
-    : null;
-}
-
-function emailProviderEventId(event: WebhookEventPayload) {
-  if (!event.type.startsWith('email.')) {
-    return null;
-  }
-
-  const emailId = emailIdFromEvent(event);
-  const occurredAt = eventCreatedAt(event);
-  if (!emailId || !occurredAt) {
-    return null;
-  }
-
-  return `${emailId}:${event.type}:${occurredAt.toISOString()}`;
-}
-
 function nonEmptyHeader(value: string | null) {
   const normalized = value?.trim();
   if (!normalized) {
@@ -75,8 +42,8 @@ function providerEventIdForWebhook(
 ): string | null {
   return (
     nonEmptyHeader(request.headers.get('svix-id')) ??
-    eventId(event) ??
-    emailProviderEventId(event)
+    resendWebhookEventId(event) ??
+    resendEmailProviderEventId(event)
   );
 }
 

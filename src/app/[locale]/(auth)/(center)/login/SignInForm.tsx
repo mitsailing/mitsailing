@@ -11,8 +11,8 @@ import { authInlineLinkClassName } from '@/lib/mit-sailing/tokens';
 import { authClient } from '@/libs/auth-client';
 import { authHrefWithCallback } from '@/libs/auth/callbackUrl';
 import {
-  isValidMarketingEmail,
-  normalizeMarketingEmail,
+  isValidEmailAddress,
+  normalizeEmailAddress,
 } from '@/utils/emailValidation';
 
 type SignInFormProps = {
@@ -78,9 +78,9 @@ export function SignInForm(props: SignInFormProps) {
     event.preventDefault();
     setError(null);
     setResent(false);
-    const normalizedEmail = normalizeMarketingEmail(email);
+    const normalizedEmail = normalizeEmailAddress(email);
     setEmail(normalizedEmail);
-    if (!isValidMarketingEmail(normalizedEmail)) {
+    if (!isValidEmailAddress(normalizedEmail)) {
       setError({ kind: 'generic', message: t('error_invalid_email') });
       return;
     }
@@ -140,8 +140,8 @@ export function SignInForm(props: SignInFormProps) {
       return;
     }
 
-    const normalizedEmail = normalizeMarketingEmail(email);
-    if (!isValidMarketingEmail(normalizedEmail)) {
+    const normalizedEmail = normalizeEmailAddress(email);
+    if (!isValidEmailAddress(normalizedEmail)) {
       setError({ kind: 'generic', message: t('error_invalid_email') });
       return;
     }
@@ -177,7 +177,7 @@ export function SignInForm(props: SignInFormProps) {
     }
   }
 
-  const normalizedForgotPasswordEmail = normalizeMarketingEmail(email);
+  const normalizedForgotPasswordEmail = normalizeEmailAddress(email);
 
   return (
     <>

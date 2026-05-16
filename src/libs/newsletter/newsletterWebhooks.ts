@@ -8,6 +8,10 @@ import type {
   ResendWebhookContext,
 } from '@/libs/email/emailMessages';
 import { recordResendEmailMessageEvent } from '@/libs/email/emailMessages';
+import {
+  resendWebhookEventId,
+  resendWebhookOccurredAt,
+} from '@/libs/email/resendWebhookEvents';
 import { logger } from '@/libs/Logger';
 
 type EmailEventPayload = Extract<
@@ -158,11 +162,6 @@ function eventMetadata(params: {
   };
 }
 
-function eventOccurredAt(event: EmailEventPayload): Date | null {
-  const date = new Date(event.created_at);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
 function providerEventIdForWebhook(
   event: EmailEventPayload,
   context?: ResendWebhookContext
@@ -170,8 +169,9 @@ function providerEventIdForWebhook(
   if (context?.providerEventId) {
     return context.providerEventId;
   }
-  if ('id' in event && typeof event.id === 'string') {
-    return event.id;
+  const eventId = resendWebhookEventId(event);
+  if (eventId) {
+    return eventId;
   }
   return `${event.data.email_id}:${event.type}:${event.created_at}`;
 }
@@ -397,7 +397,7 @@ export async function handleResendNewsletterWebhook(
   if (!status && !type) {
     return;
   }
-  const occurredAt = eventOccurredAt(event);
+  const occurredAt = resendWebhookOccurredAt(event);
   if (!occurredAt) {
     logger.warn('Skipping newsletter webhook with invalid timestamp', {
       providerMessageId,

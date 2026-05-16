@@ -11,7 +11,7 @@ import {
   verifyNewsletterManageToken,
 } from '@/libs/newsletter/newsletterTokens';
 import { uniqueStrings } from '@/libs/newsletter/newsletterUtils';
-import { normalizeNewsletterEmail } from '@/libs/newsletter/newsletterValidation';
+import { normalizeEmailAddress } from '@/utils/emailValidation';
 
 type RequestMetadata = {
   ipAddress?: string | null;
@@ -102,7 +102,7 @@ async function upsertSubscriberForEmail(
   client: NewsletterSubscriptionClient,
   params: SubscribeParams
 ) {
-  const email = normalizeNewsletterEmail(params.email);
+  const email = normalizeEmailAddress(params.email);
   const accountUserId = await findAccountIdForEmail(client, email);
   const existing = await client.newsletterSubscriber.findUnique({
     where: { email },

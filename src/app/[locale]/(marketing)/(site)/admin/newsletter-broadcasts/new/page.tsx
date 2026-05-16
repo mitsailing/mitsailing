@@ -19,9 +19,7 @@ type PageProps = Readonly<{
   searchParams: Promise<{ status?: string }>;
 }>;
 
-function errorMessageKey(
-  status: string
-):
+type ErrorMessageKey =
   | 'form_error_body_required'
   | 'form_error_body_too_long'
   | 'form_error_body_too_short'
@@ -37,57 +35,28 @@ function errorMessageKey(
   | 'form_error_subject_required'
   | 'form_error_subject_too_long'
   | 'form_error_template_required'
-  | 'form_error_validation_failed' {
-  switch (status) {
-    case 'body_required': {
-      return 'form_error_body_required';
-    }
-    case 'body_too_long': {
-      return 'form_error_body_too_long';
-    }
-    case 'body_too_short': {
-      return 'form_error_body_too_short';
-    }
-    case 'enqueue_failed': {
-      return 'form_error_enqueue_failed';
-    }
-    case 'invalid_lists': {
-      return 'form_error_invalid_lists';
-    }
-    case 'invalid_template': {
-      return 'form_error_invalid_template';
-    }
-    case 'lists_required': {
-      return 'form_error_lists_required';
-    }
-    case 'no_recipients': {
-      return 'form_error_no_recipients';
-    }
-    case 'preview_required': {
-      return 'form_error_preview_required';
-    }
-    case 'preview_too_long': {
-      return 'form_error_preview_too_long';
-    }
-    case 'redis_unavailable': {
-      return 'form_error_redis_unavailable';
-    }
-    case 'scheduled_at_invalid': {
-      return 'form_error_scheduled_at_invalid';
-    }
-    case 'subject_required': {
-      return 'form_error_subject_required';
-    }
-    case 'subject_too_long': {
-      return 'form_error_subject_too_long';
-    }
-    case 'template_required': {
-      return 'form_error_template_required';
-    }
-    default: {
-      return 'form_error_validation_failed';
-    }
-  }
+  | 'form_error_validation_failed';
+
+const errorMessageKeyByStatus: Record<string, ErrorMessageKey> = {
+  body_required: 'form_error_body_required',
+  body_too_long: 'form_error_body_too_long',
+  body_too_short: 'form_error_body_too_short',
+  enqueue_failed: 'form_error_enqueue_failed',
+  invalid_lists: 'form_error_invalid_lists',
+  invalid_template: 'form_error_invalid_template',
+  lists_required: 'form_error_lists_required',
+  no_recipients: 'form_error_no_recipients',
+  preview_required: 'form_error_preview_required',
+  preview_too_long: 'form_error_preview_too_long',
+  redis_unavailable: 'form_error_redis_unavailable',
+  scheduled_at_invalid: 'form_error_scheduled_at_invalid',
+  subject_required: 'form_error_subject_required',
+  subject_too_long: 'form_error_subject_too_long',
+  template_required: 'form_error_template_required',
+};
+
+function errorMessageKey(status: string): ErrorMessageKey {
+  return errorMessageKeyByStatus[status] ?? 'form_error_validation_failed';
 }
 
 export async function generateMetadata(props: PageProps): Promise<Metadata> {
@@ -198,7 +167,7 @@ export default async function AdminNewsletterBroadcastNewPage(
               .filter((list) => !list.isArchived)
               .map((list) => (
                 <label
-                  aria-labelledby={`newsletter-broadcast-list-${list.id}-label`}
+                  aria-label={list.name}
                   className="rounded-lg border border-border bg-background p-3 text-sm"
                   htmlFor={`newsletter-broadcast-list-${list.id}`}
                   key={list.id}
@@ -212,12 +181,7 @@ export default async function AdminNewsletterBroadcastNewPage(
                       value={list.id}
                     />
                     <span>
-                      <span
-                        className="block font-medium"
-                        id={`newsletter-broadcast-list-${list.id}-label`}
-                      >
-                        {list.name}
-                      </span>
+                      <span className="block font-medium">{list.name}</span>
                       {list.description ? (
                         <span className="mt-1 block text-muted-foreground">
                           {list.description}

@@ -66,7 +66,7 @@ export default async function AdminNewsletterBroadcastsPage(props: PageProps) {
         title={t('broadcasts_title')}
       />
       {notificationKey ? (
-        <output className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-950">
+        <output className="rounded-lg border border-border bg-card p-3 text-sm text-foreground">
           {t(notificationKey)}
         </output>
       ) : null}

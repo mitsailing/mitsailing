@@ -3,8 +3,9 @@ import type { WebhookEventPayload } from 'resend';
 import type { Prisma } from '@/generated/prisma/client';
 import { prisma } from '@/libs/DB';
 import type { ResendWebhookContext } from '@/libs/email/emailMessages';
+import { resendWebhookOccurredAt } from '@/libs/email/resendWebhookEvents';
 import { logger } from '@/libs/Logger';
-import { normalizeEmail } from '@/libs/newsletter/newsletterValidation';
+import { normalizeEmailAddress } from '@/utils/emailValidation';
 
 type EmailEventPayload = Extract<
   WebhookEventPayload,
@@ -44,11 +45,6 @@ function deliverabilityReason(event: EmailEventPayload): string | null {
     return 'suppressed';
   }
   return null;
-}
-
-function eventOccurredAt(event: EmailEventPayload): Date | null {
-  const date = new Date(event.created_at);
-  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function accountDeliverabilityUpdateWhere(params: {
@@ -97,8 +93,8 @@ export async function handleResendAccountEmailWebhook(
     return;
   }
 
-  const email = normalizeEmail(recipient);
-  const occurredAt = eventOccurredAt(event);
+  const email = normalizeEmailAddress(recipient);
+  const occurredAt = resendWebhookOccurredAt(event);
   if (!occurredAt) {
     logger.warn('Skipping account email webhook with invalid timestamp', {
       email,

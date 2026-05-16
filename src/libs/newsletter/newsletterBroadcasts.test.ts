@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => {
   const tx = {
-    newsletterBroadcast: { create: vi.fn() },
+    $queryRaw: vi.fn(),
+    newsletterBroadcast: { create: vi.fn(), update: vi.fn() },
     newsletterDelivery: { createMany: vi.fn() },
     newsletterEvent: { create: vi.fn() },
   };
@@ -16,6 +17,7 @@ const mocks = vi.hoisted(() => {
         findMany: vi.fn(),
         findUnique: vi.fn(),
         update: vi.fn(),
+        updateMany: vi.fn(),
       },
       newsletterDelivery: {
         count: vi.fn(),
@@ -93,6 +95,27 @@ function resetTransactionMock() {
   });
 }
 
+function mockDeliveryFinishSnapshot(params: {
+  failedDeliveryCount?: number;
+  nonTerminal?: number;
+}) {
+  mocks.tx.$queryRaw.mockImplementation(
+    async (strings: TemplateStringsArray) => {
+      await Promise.resolve();
+      const sql = strings.join('');
+      if (sql.includes('FOR UPDATE')) {
+        return [];
+      }
+      return [
+        {
+          failed_delivery_count: params.failedDeliveryCount ?? 0,
+          non_terminal_count: params.nonTerminal ?? 0,
+        },
+      ];
+    }
+  );
+}
+
 function broadcastParams() {
   return {
     body: 'The pavilion is open.',
@@ -120,6 +143,45 @@ function queuedBroadcastRow() {
   };
 }
 
+function sendingBroadcastState() {
+  return {
+    cancelledAt: null,
+    pausedAt: null,
+    status: 'sending',
+  };
+}
+
+function queuedDeliveryBatch() {
+  return [{ id: 'delivery_1' }];
+}
+
+function newsletterDeliveryDetail(
+  params: {
+    emailVerified?: boolean;
+    subscriptionStatus?: 'subscribed' | 'unsubscribed';
+  } = {}
+) {
+  const subscriptionStatus = params.subscriptionStatus ?? 'subscribed';
+  const account =
+    params.emailVerified === undefined
+      ? {}
+      : { user: { emailVerified: params.emailVerified }, userId: 'user_1' };
+  return {
+    email: 'sailor@example.com',
+    id: 'delivery_1',
+    primaryList: { name: 'General', resendTopicId: null },
+    primaryListId: 'list_1',
+    subscriber: {
+      globalUnsubscribedAt: null,
+      manageTokenHash: 'token_hash',
+      subscriptions: [{ listId: 'list_1', status: subscriptionStatus }],
+      suppressedAt: null,
+      ...account,
+    },
+    subscriberId: 'subscriber_1',
+  };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   vi.stubGlobal('fetch', mocks.fetch);
@@ -139,6 +201,7 @@ beforeEach(() => {
   mocks.prisma.newsletterBroadcast.update.mockResolvedValue({
     id: 'broadcast_1',
   });
+  mocks.prisma.newsletterBroadcast.updateMany.mockResolvedValue({ count: 1 });
   mocks.prisma.newsletterDelivery.count.mockResolvedValue(0);
   mocks.prisma.newsletterDelivery.findMany.mockResolvedValue([]);
   mocks.prisma.newsletterDelivery.updateMany.mockResolvedValue({ count: 1 });
@@ -147,6 +210,8 @@ beforeEach(() => {
     id: 'broadcast_1',
   });
   mocks.tx.newsletterDelivery.createMany.mockResolvedValue({ count: 1 });
+  mockDeliveryFinishSnapshot({});
+  mocks.tx.newsletterBroadcast.update.mockResolvedValue({ id: 'broadcast_1' });
   mocks.tx.newsletterEvent.create.mockResolvedValue({ id: 'event_1' });
   mocks.enqueueNewsletterBroadcast.mockResolvedValue({ ok: true });
   mocks.fetch.mockResolvedValue(new Response(null, { status: 200 }));
@@ -228,6 +293,31 @@ describe('newsletter broadcasts', () => {
     );
   });
 
+  it('does not start sending when broadcast was paused before transition', async () => {
+    mocks.prisma.newsletterBroadcast.findUnique.mockResolvedValueOnce(
+      queuedBroadcastRow()
+    );
+    mocks.prisma.newsletterBroadcast.updateMany.mockResolvedValueOnce({
+      count: 0,
+    });
+
+    const { processNewsletterBroadcast } =
+      await import('@/libs/newsletter/newsletterBroadcasts');
+    await processNewsletterBroadcast('broadcast_1');
+
+    expect(mocks.prisma.newsletterBroadcast.updateMany).toHaveBeenCalledWith({
+      data: { startedAt: expect.any(Date), status: 'sending' },
+      where: {
+        cancelledAt: null,
+        id: 'broadcast_1',
+        pausedAt: null,
+        status: { in: ['failed', 'queued', 'sending'] },
+      },
+    });
+    expect(mocks.prisma.newsletterDelivery.findMany).not.toHaveBeenCalled();
+    expect(mocks.sendNewsletterBroadcastEmail).not.toHaveBeenCalled();
+  });
+
   it('limits queued delivery retries by max attempts', async () => {
     mocks.prisma.newsletterBroadcast.findUnique.mockResolvedValueOnce(
       queuedBroadcastRow()
@@ -265,27 +355,13 @@ describe('newsletter broadcasts', () => {
   it('suppresses unsubscribed deliveries before sending', async () => {
     mocks.prisma.newsletterBroadcast.findUnique
       .mockResolvedValueOnce(queuedBroadcastRow())
-      .mockResolvedValueOnce({
-        cancelledAt: null,
-        pausedAt: null,
-        status: 'sending',
-      });
-    mocks.prisma.newsletterDelivery.findMany.mockResolvedValueOnce([
-      { id: 'delivery_1' },
-    ]);
-    mocks.prisma.newsletterDelivery.findUnique.mockResolvedValueOnce({
-      email: 'sailor@example.com',
-      id: 'delivery_1',
-      primaryList: { name: 'General', resendTopicId: null },
-      primaryListId: 'list_1',
-      subscriber: {
-        globalUnsubscribedAt: null,
-        manageTokenHash: 'token_hash',
-        subscriptions: [{ listId: 'list_1', status: 'unsubscribed' }],
-        suppressedAt: null,
-      },
-      subscriberId: 'subscriber_1',
-    });
+      .mockResolvedValueOnce(sendingBroadcastState());
+    mocks.prisma.newsletterDelivery.findMany.mockResolvedValueOnce(
+      queuedDeliveryBatch()
+    );
+    mocks.prisma.newsletterDelivery.findUnique.mockResolvedValueOnce(
+      newsletterDeliveryDetail({ subscriptionStatus: 'unsubscribed' })
+    );
 
     const { processNewsletterBroadcast } =
       await import('@/libs/newsletter/newsletterBroadcasts');
@@ -311,27 +387,13 @@ describe('newsletter broadcasts', () => {
   it('keeps suppressed delivery state when suppressed event insert fails', async () => {
     mocks.prisma.newsletterBroadcast.findUnique
       .mockResolvedValueOnce(queuedBroadcastRow())
-      .mockResolvedValueOnce({
-        cancelledAt: null,
-        pausedAt: null,
-        status: 'sending',
-      });
-    mocks.prisma.newsletterDelivery.findMany.mockResolvedValueOnce([
-      { id: 'delivery_1' },
-    ]);
-    mocks.prisma.newsletterDelivery.findUnique.mockResolvedValueOnce({
-      email: 'sailor@example.com',
-      id: 'delivery_1',
-      primaryList: { name: 'General', resendTopicId: null },
-      primaryListId: 'list_1',
-      subscriber: {
-        globalUnsubscribedAt: null,
-        manageTokenHash: 'token_hash',
-        subscriptions: [{ listId: 'list_1', status: 'unsubscribed' }],
-        suppressedAt: null,
-      },
-      subscriberId: 'subscriber_1',
-    });
+      .mockResolvedValueOnce(sendingBroadcastState());
+    mocks.prisma.newsletterDelivery.findMany.mockResolvedValueOnce(
+      queuedDeliveryBatch()
+    );
+    mocks.prisma.newsletterDelivery.findUnique.mockResolvedValueOnce(
+      newsletterDeliveryDetail({ subscriptionStatus: 'unsubscribed' })
+    );
     mocks.prisma.newsletterEvent.create.mockRejectedValueOnce(
       new Error('audit failed')
     );
@@ -363,29 +425,13 @@ describe('newsletter broadcasts', () => {
   it('suppresses unverified account deliveries before sending', async () => {
     mocks.prisma.newsletterBroadcast.findUnique
       .mockResolvedValueOnce(queuedBroadcastRow())
-      .mockResolvedValueOnce({
-        cancelledAt: null,
-        pausedAt: null,
-        status: 'sending',
-      });
-    mocks.prisma.newsletterDelivery.findMany.mockResolvedValueOnce([
-      { id: 'delivery_1' },
-    ]);
-    mocks.prisma.newsletterDelivery.findUnique.mockResolvedValueOnce({
-      email: 'sailor@example.com',
-      id: 'delivery_1',
-      primaryList: { name: 'General', resendTopicId: null },
-      primaryListId: 'list_1',
-      subscriber: {
-        globalUnsubscribedAt: null,
-        manageTokenHash: 'token_hash',
-        subscriptions: [{ listId: 'list_1', status: 'subscribed' }],
-        suppressedAt: null,
-        user: { emailVerified: false },
-        userId: 'user_1',
-      },
-      subscriberId: 'subscriber_1',
-    });
+      .mockResolvedValueOnce(sendingBroadcastState());
+    mocks.prisma.newsletterDelivery.findMany.mockResolvedValueOnce(
+      queuedDeliveryBatch()
+    );
+    mocks.prisma.newsletterDelivery.findUnique.mockResolvedValueOnce(
+      newsletterDeliveryDetail({ emailVerified: false })
+    );
 
     const { processNewsletterBroadcast } =
       await import('@/libs/newsletter/newsletterBroadcasts');
@@ -421,27 +467,13 @@ describe('newsletter broadcasts', () => {
   it('keeps sent delivery state when sent event insert fails', async () => {
     mocks.prisma.newsletterBroadcast.findUnique
       .mockResolvedValueOnce(queuedBroadcastRow())
-      .mockResolvedValueOnce({
-        cancelledAt: null,
-        pausedAt: null,
-        status: 'sending',
-      });
-    mocks.prisma.newsletterDelivery.findMany.mockResolvedValueOnce([
-      { id: 'delivery_1' },
-    ]);
-    mocks.prisma.newsletterDelivery.findUnique.mockResolvedValueOnce({
-      email: 'sailor@example.com',
-      id: 'delivery_1',
-      primaryList: { name: 'General', resendTopicId: null },
-      primaryListId: 'list_1',
-      subscriber: {
-        globalUnsubscribedAt: null,
-        manageTokenHash: 'token_hash',
-        subscriptions: [{ listId: 'list_1', status: 'subscribed' }],
-        suppressedAt: null,
-      },
-      subscriberId: 'subscriber_1',
-    });
+      .mockResolvedValueOnce(sendingBroadcastState());
+    mocks.prisma.newsletterDelivery.findMany.mockResolvedValueOnce(
+      queuedDeliveryBatch()
+    );
+    mocks.prisma.newsletterDelivery.findUnique.mockResolvedValueOnce(
+      newsletterDeliveryDetail()
+    );
     mocks.prisma.newsletterEvent.create.mockRejectedValueOnce(
       new Error('audit failed')
     );
@@ -464,27 +496,13 @@ describe('newsletter broadcasts', () => {
   it('stops processing when sent delivery state cannot persist', async () => {
     mocks.prisma.newsletterBroadcast.findUnique
       .mockResolvedValueOnce(queuedBroadcastRow())
-      .mockResolvedValueOnce({
-        cancelledAt: null,
-        pausedAt: null,
-        status: 'sending',
-      });
-    mocks.prisma.newsletterDelivery.findMany.mockResolvedValueOnce([
-      { id: 'delivery_1' },
-    ]);
-    mocks.prisma.newsletterDelivery.findUnique.mockResolvedValueOnce({
-      email: 'sailor@example.com',
-      id: 'delivery_1',
-      primaryList: { name: 'General', resendTopicId: null },
-      primaryListId: 'list_1',
-      subscriber: {
-        globalUnsubscribedAt: null,
-        manageTokenHash: 'token_hash',
-        subscriptions: [{ listId: 'list_1', status: 'subscribed' }],
-        suppressedAt: null,
-      },
-      subscriberId: 'subscriber_1',
-    });
+      .mockResolvedValueOnce(sendingBroadcastState());
+    mocks.prisma.newsletterDelivery.findMany.mockResolvedValueOnce(
+      queuedDeliveryBatch()
+    );
+    mocks.prisma.newsletterDelivery.findUnique.mockResolvedValueOnce(
+      newsletterDeliveryDetail()
+    );
     mocks.prisma.newsletterDelivery.update.mockRejectedValueOnce(
       new Error('state failed')
     );
@@ -502,9 +520,7 @@ describe('newsletter broadcasts', () => {
     mocks.prisma.newsletterBroadcast.findUnique.mockResolvedValueOnce(
       queuedBroadcastRow()
     );
-    mocks.prisma.newsletterDelivery.count
-      .mockResolvedValueOnce(0)
-      .mockResolvedValueOnce(1);
+    mockDeliveryFinishSnapshot({ nonTerminal: 1 });
 
     const { processNewsletterBroadcast } =
       await import('@/libs/newsletter/newsletterBroadcasts');
@@ -512,11 +528,24 @@ describe('newsletter broadcasts', () => {
       'Newsletter broadcast broadcast_1 has unfinished deliveries'
     );
 
-    expect(mocks.prisma.newsletterBroadcast.update).toHaveBeenCalledTimes(1);
-    expect(mocks.prisma.newsletterBroadcast.update).toHaveBeenCalledWith({
+    expect(mocks.prisma.$transaction).toHaveBeenCalledWith(
+      expect.any(Function),
+      { isolationLevel: 'RepeatableRead' }
+    );
+    expect(mocks.tx.$queryRaw).toHaveBeenCalledTimes(2);
+    expect(mocks.prisma.newsletterBroadcast.updateMany).toHaveBeenCalledTimes(
+      1
+    );
+    expect(mocks.prisma.newsletterBroadcast.updateMany).toHaveBeenCalledWith({
       data: { startedAt: expect.any(Date), status: 'sending' },
-      where: { id: 'broadcast_1' },
+      where: {
+        cancelledAt: null,
+        id: 'broadcast_1',
+        pausedAt: null,
+        status: { in: ['failed', 'queued', 'sending'] },
+      },
     });
+    expect(mocks.tx.newsletterBroadcast.update).not.toHaveBeenCalled();
     expect(mocks.fetch).not.toHaveBeenCalled();
   });
 
@@ -524,10 +553,7 @@ describe('newsletter broadcasts', () => {
     mocks.prisma.newsletterBroadcast.findUnique.mockResolvedValueOnce(
       queuedBroadcastRow()
     );
-    mocks.prisma.newsletterDelivery.count
-      .mockResolvedValueOnce(0)
-      .mockResolvedValueOnce(0)
-      .mockResolvedValueOnce(1);
+    mockDeliveryFinishSnapshot({ failedDeliveryCount: 1 });
 
     const { processNewsletterBroadcast } =
       await import('@/libs/newsletter/newsletterBroadcasts');
@@ -535,7 +561,7 @@ describe('newsletter broadcasts', () => {
       undefined
     );
 
-    expect(mocks.prisma.newsletterBroadcast.update).toHaveBeenCalledWith({
+    expect(mocks.tx.newsletterBroadcast.update).toHaveBeenCalledWith({
       data: { sentAt: null, status: 'failed' },
       where: { id: 'broadcast_1' },
     });
@@ -546,25 +572,34 @@ describe('newsletter broadcasts', () => {
     mocks.prisma.newsletterBroadcast.findUnique.mockResolvedValueOnce(
       queuedBroadcastRow()
     );
-    mocks.prisma.newsletterDelivery.count
-      .mockResolvedValueOnce(0)
-      .mockResolvedValueOnce(0)
-      .mockResolvedValueOnce(1);
+    mockDeliveryFinishSnapshot({ failedDeliveryCount: 1 });
 
     const { processNewsletterBroadcast } =
       await import('@/libs/newsletter/newsletterBroadcasts');
     await processNewsletterBroadcast('broadcast_1');
 
-    expect(mocks.prisma.newsletterDelivery.count).toHaveBeenCalledWith({
-      where: {
-        broadcastId: 'broadcast_1',
-        status: { in: ['bounced', 'complained', 'failed', 'suppressed'] },
-      },
-    });
-    expect(mocks.prisma.newsletterBroadcast.update).toHaveBeenCalledWith({
+    expect(mocks.tx.$queryRaw).toHaveBeenCalledTimes(2);
+    expect(mocks.tx.newsletterBroadcast.update).toHaveBeenCalledWith({
       data: { sentAt: null, status: 'failed' },
       where: { id: 'broadcast_1' },
     });
     expect(mocks.fetch).not.toHaveBeenCalled();
+  });
+
+  it('locks deliveries and aggregates finish counts inside repeatable-read transaction', async () => {
+    mocks.prisma.newsletterBroadcast.findUnique.mockResolvedValueOnce(
+      queuedBroadcastRow()
+    );
+
+    const { processNewsletterBroadcast } =
+      await import('@/libs/newsletter/newsletterBroadcasts');
+    await processNewsletterBroadcast('broadcast_1');
+
+    expect(mocks.prisma.$transaction).toHaveBeenCalledWith(
+      expect.any(Function),
+      { isolationLevel: 'RepeatableRead' }
+    );
+    expect(mocks.tx.$queryRaw).toHaveBeenCalledTimes(2);
+    expect(mocks.prisma.newsletterDelivery.count).toHaveBeenCalledTimes(1);
   });
 });

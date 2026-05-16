@@ -122,6 +122,23 @@ describe('newsletter one-click unsubscribe route', () => {
     expect(mocks.unsubscribeNewsletterTokenFromList).not.toHaveBeenCalled();
   });
 
+  it('rejects unsupported content types with url identity', async () => {
+    const response = await POST(
+      new Request(
+        'https://mitsailing.test/api/newsletter/unsubscribe?token=token_123&list=list_123',
+        {
+          body: 'List-Unsubscribe=One-Click',
+          headers: { 'content-type': 'text/plain' },
+          method: 'POST',
+        }
+      )
+    );
+
+    await expect(response.json()).resolves.toEqual({ ok: false });
+    expect(response.status).toBe(400);
+    expect(mocks.unsubscribeNewsletterTokenFromList).not.toHaveBeenCalled();
+  });
+
   it('returns internal errors for persistence failures', async () => {
     mocks.unsubscribeNewsletterTokenFromList.mockRejectedValueOnce(
       new Error('db down')

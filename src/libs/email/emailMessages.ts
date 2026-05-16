@@ -3,8 +3,12 @@ import { randomUUID } from 'node:crypto';
 import type { WebhookEventPayload } from 'resend';
 import { Prisma } from '@/generated/prisma/client';
 import { prisma } from '@/libs/DB';
+import {
+  resendWebhookEventId,
+  resendWebhookOccurredAt,
+} from '@/libs/email/resendWebhookEvents';
 import { logger } from '@/libs/Logger';
-import { normalizeMarketingEmail } from '@/utils/emailValidation';
+import { normalizeEmailAddress } from '@/utils/emailValidation';
 
 export type EmailMessageCategory =
   | 'account_locked'
@@ -100,10 +104,6 @@ function isEmailEvent(
   );
 }
 
-function eventId(event: WebhookEventPayload): string | null {
-  return 'id' in event && typeof event.id === 'string' ? event.id : null;
-}
-
 function providerEventIdForWebhook(
   event: WebhookEventPayload,
   context?: ResendWebhookContext
@@ -111,15 +111,7 @@ function providerEventIdForWebhook(
   if (context?.providerEventId) {
     return context.providerEventId;
   }
-  return eventId(event);
-}
-
-function eventOccurredAt(event: WebhookEventPayload): Date | null {
-  if ('created_at' in event && typeof event.created_at === 'string') {
-    const date = new Date(event.created_at);
-    return Number.isNaN(date.getTime()) ? null : date;
-  }
-  return null;
+  return resendWebhookEventId(event);
 }
 
 function eventErrorMessage(event: ResendEmailEventPayload): string | null {
@@ -152,7 +144,7 @@ export async function recordSentEmailMessage(
 ): Promise<string> {
   const id = randomUUID();
   const now = new Date();
-  const toEmail = normalizeMarketingEmail(params.toEmail);
+  const toEmail = normalizeEmailAddress(params.toEmail);
   const userId = params.userId ?? (await userIdForEmail(toEmail));
   const metadata = jsonb(params.metadata ?? null);
 
@@ -236,7 +228,7 @@ export async function recordResendEmailMessageEvent(params: {
   const payload = jsonb(params.event);
   const providerEventId =
     params.providerEventId ??
-    `${params.providerMessageId}:${params.event.type}:${params.occurredAt.toISOString()}`;
+    `${params.providerMessageId}:${params.event.type}:${params.occurredAt.toISOString()}:synthetic:${randomUUID()}`;
 
   const rows = await client.$queryRaw<{ id: string }[]>`
     INSERT INTO "email_message_events" (
@@ -317,7 +309,7 @@ export async function handleResendEmailMessageWebhook(
     providerMessageId,
     client
   );
-  const occurredAt = eventOccurredAt(event);
+  const occurredAt = resendWebhookOccurredAt(event);
   if (!occurredAt) {
     logger.warn('Skipping Resend email event with invalid timestamp', {
       providerMessageId,
@@ -361,7 +353,7 @@ export async function getAdminUserEmailMessages(params: {
   email: string;
   userId: string;
 }): Promise<AdminUserEmailMessageRow[]> {
-  const email = normalizeMarketingEmail(params.email);
+  const email = normalizeEmailAddress(params.email);
   const rows = await prisma.$queryRaw<AdminUserEmailMessageRow[]>`
     SELECT
       "id",

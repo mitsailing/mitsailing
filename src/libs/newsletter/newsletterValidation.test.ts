@@ -5,6 +5,31 @@ import {
   validateNewsletterSignupFormData,
 } from '@/libs/newsletter/newsletterValidation';
 
+function broadcastFormData(params: { scheduledAt?: string } = {}) {
+  const formData = new FormData();
+  formData.set('subject', 'Spring sailing');
+  formData.set('previewText', 'News from the pavilion');
+  formData.set('body', 'The pavilion is open for the season.');
+  if (params.scheduledAt) {
+    formData.set('scheduledAt', params.scheduledAt);
+  }
+  formData.set('templateId', NEWSLETTER_TEMPLATE_ID);
+  formData.append('listId', 'general');
+  return formData;
+}
+
+function expectedBroadcastData(params: { scheduledAt: Date | null }) {
+  return {
+    body: 'The pavilion is open for the season.',
+    listIds: ['general'],
+    name: null,
+    previewText: 'News from the pavilion',
+    scheduledAt: params.scheduledAt,
+    subject: 'Spring sailing',
+    templateId: NEWSLETTER_TEMPLATE_ID,
+  };
+}
+
 describe('newsletter validation', () => {
   it('adds general to public signup lists', () => {
     const formData = new FormData();
@@ -38,64 +63,31 @@ describe('newsletter validation', () => {
   });
 
   it('accepts a complete broadcast', () => {
-    const formData = new FormData();
-    formData.set('subject', 'Spring sailing');
-    formData.set('previewText', 'News from the pavilion');
-    formData.set('body', 'The pavilion is open for the season.');
-    formData.set('templateId', NEWSLETTER_TEMPLATE_ID);
-    formData.append('listId', 'general');
-
-    const result = validateNewsletterBroadcastFormData(formData);
+    const result = validateNewsletterBroadcastFormData(broadcastFormData());
 
     expect(result).toEqual({
       ok: true,
-      data: {
-        body: 'The pavilion is open for the season.',
-        listIds: ['general'],
-        name: null,
-        previewText: 'News from the pavilion',
-        scheduledAt: null,
-        subject: 'Spring sailing',
-        templateId: NEWSLETTER_TEMPLATE_ID,
-      },
+      data: expectedBroadcastData({ scheduledAt: null }),
     });
   });
 
   it('parses scheduled broadcasts in New York time', () => {
-    const formData = new FormData();
-    formData.set('subject', 'Spring sailing');
-    formData.set('previewText', 'News from the pavilion');
-    formData.set('body', 'The pavilion is open for the season.');
-    formData.set('scheduledAt', '2026-05-14T09:00');
-    formData.set('templateId', NEWSLETTER_TEMPLATE_ID);
-    formData.append('listId', 'general');
-
-    const result = validateNewsletterBroadcastFormData(formData);
+    const result = validateNewsletterBroadcastFormData(
+      broadcastFormData({ scheduledAt: '2026-05-14T09:00' })
+    );
 
     expect(result).toEqual({
       ok: true,
-      data: {
-        body: 'The pavilion is open for the season.',
-        listIds: ['general'],
-        name: null,
-        previewText: 'News from the pavilion',
+      data: expectedBroadcastData({
         scheduledAt: new Date('2026-05-14T13:00:00.000Z'),
-        subject: 'Spring sailing',
-        templateId: NEWSLETTER_TEMPLATE_ID,
-      },
+      }),
     });
   });
 
   it('rejects invalid scheduled broadcast dates', () => {
-    const formData = new FormData();
-    formData.set('subject', 'Spring sailing');
-    formData.set('previewText', 'News from the pavilion');
-    formData.set('body', 'The pavilion is open for the season.');
-    formData.set('scheduledAt', '2026-02-31T09:00');
-    formData.set('templateId', NEWSLETTER_TEMPLATE_ID);
-    formData.append('listId', 'general');
-
-    const result = validateNewsletterBroadcastFormData(formData);
+    const result = validateNewsletterBroadcastFormData(
+      broadcastFormData({ scheduledAt: '2026-02-31T09:00' })
+    );
 
     expect(result).toEqual({
       ok: false,

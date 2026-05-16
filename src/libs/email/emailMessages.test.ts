@@ -1,3 +1,4 @@
+import type { WebhookEventPayload } from 'resend';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -93,5 +94,52 @@ describe('email messages', () => {
     expect(result).toBe(false);
     expect(mocks.prisma.emailMessageEvent.create).not.toHaveBeenCalled();
     expect(mocks.prisma.$executeRaw).not.toHaveBeenCalled();
+  });
+
+  it('creates unique fallback ids for Resend events without provider ids', async () => {
+    const { recordResendEmailMessageEvent } =
+      await import('@/libs/email/emailMessages');
+    const event = {
+      created_at: '2026-05-14T14:30:00.000Z',
+      data: {
+        created_at: '2026-05-14T14:29:59.000Z',
+        email_id: 'message_1',
+        from: 'launch@mitsailing.example',
+        subject: 'Spring sailing',
+        to: ['sailor@example.com'],
+      },
+      type: 'email.delivered',
+    } satisfies Extract<WebhookEventPayload, { type: 'email.delivered' }>;
+
+    await recordResendEmailMessageEvent({
+      emailMessageId: 'email_message_1',
+      event,
+      occurredAt: new Date('2026-05-14T14:30:00.000Z'),
+      providerEventId: null,
+      providerMessageId: 'message_1',
+    });
+    await recordResendEmailMessageEvent({
+      emailMessageId: 'email_message_1',
+      event,
+      occurredAt: new Date('2026-05-14T14:30:00.000Z'),
+      providerEventId: null,
+      providerMessageId: 'message_1',
+    });
+
+    const providerEventIds = mocks.prisma.$queryRaw.mock.calls.map((call) => {
+      const providerEventId: unknown = call.at(4);
+      if (typeof providerEventId !== 'string') {
+        throw new TypeError('Expected provider event id SQL parameter.');
+      }
+      return providerEventId;
+    });
+    expect(providerEventIds).toHaveLength(2);
+    expect(providerEventIds[0]).toMatch(
+      /^message_1:email\.delivered:2026-05-14T14:30:00\.000Z:synthetic:/
+    );
+    expect(providerEventIds[1]).toMatch(
+      /^message_1:email\.delivered:2026-05-14T14:30:00\.000Z:synthetic:/
+    );
+    expect(providerEventIds[0]).not.toBe(providerEventIds[1]);
   });
 });
