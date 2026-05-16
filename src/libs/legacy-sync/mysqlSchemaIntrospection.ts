@@ -2,10 +2,7 @@ import { mysqlColumnToPostgresType } from '@/libs/legacy-sync/mysqlTypeMapping';
 import type { MirrorTableDefinition } from '@/libs/legacy-sync/postgresMirrorSql';
 
 export type MysqlQueryClient = {
-  query: (
-    sql: string,
-    values?: readonly unknown[]
-  ) => Promise<[unknown, unknown]>;
+  query: (sql: string, values?: unknown[]) => Promise<[unknown, unknown]>;
 };
 
 export type MysqlColumnRow = {
