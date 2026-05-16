@@ -95,4 +95,29 @@ describe('GET /api/dev-login', () => {
       asResponse: true,
     });
   });
+
+  it('falls back to root when redirect query is not a safe internal path', async () => {
+    const response = await GET(
+      devLoginRequest({ redirect: 'https://evil.example.test/phish' })
+    );
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toBe(`${getBaseUrl()}/`);
+  });
+
+  it('copies every auth set-cookie header to the redirect response', async () => {
+    const headers = new Headers();
+    headers.append('set-cookie', 'session_token=abc; Path=/; HttpOnly');
+    headers.append('set-cookie', 'csrf=xyz; Path=/; Secure');
+    signInEmailMock.mockResolvedValue(
+      new Response(null, { status: 200, headers })
+    );
+
+    const response = await GET(devLoginRequest({ redirect: '/admin' }));
+
+    expect(response.headers.getSetCookie()).toEqual([
+      'session_token=abc; Path=/; HttpOnly',
+      'csrf=xyz; Path=/; Secure',
+    ]);
+  });
 });

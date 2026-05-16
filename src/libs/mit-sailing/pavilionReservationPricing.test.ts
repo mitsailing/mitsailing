@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  estimatedServiceAmountCents,
   estimatedSlotAmountCents,
   formatPavilionReservationMoney,
   priceLabel,
@@ -100,6 +101,42 @@ describe('estimatedSlotAmountCents', () => {
 describe('formatPavilionReservationMoney', () => {
   it('formats whole dollars without cents', () => {
     expect(formatPavilionReservationMoney(32_000)).toBe('$320');
+  });
+});
+
+describe('estimatedServiceAmountCents', () => {
+  it('returns null for services priced after review', () => {
+    expect(
+      estimatedServiceAmountCents({
+        item: {
+          pricingType: 'tbd',
+          prices: {
+            mit_academic: null,
+            mit_student: 10_000,
+            mit_community: 10_000,
+            non_mit: 10_000,
+          },
+        },
+        persona: 'mit_academic',
+      })
+    ).toBeNull();
+  });
+
+  it('returns persona price for non-flat service pricing types', () => {
+    expect(
+      estimatedServiceAmountCents({
+        item: {
+          pricingType: 'hourly',
+          prices: {
+            mit_academic: 12_000,
+            mit_student: 10_000,
+            mit_community: 11_000,
+            non_mit: 20_000,
+          },
+        },
+        persona: 'mit_community',
+      })
+    ).toBe(11_000);
   });
 });
 
