@@ -7,6 +7,8 @@ export const NEWSLETTER_LIST_SLUGS = [
 
 export type NewsletterListSlug = (typeof NEWSLETTER_LIST_SLUGS)[number];
 
+export const NEWSLETTER_TEMPLATE_ID = 'standard' as const;
+
 export const NEWSLETTER_FORM_SOURCE = {
   accountSignup: 'account_signup',
   admin: 'admin',

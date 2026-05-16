@@ -9,6 +9,7 @@ import {
   Section,
   Text,
 } from 'react-email';
+import { tokens } from '@/lib/mit-sailing/tokens';
 
 export type EmailLayoutProps = {
   previewText: string;
@@ -42,7 +43,7 @@ const container: React.CSSProperties = {
 };
 
 const header: React.CSSProperties = {
-  backgroundColor: '#8a1538',
+  backgroundColor: tokens.colors.mitEmailRed,
   padding: '20px 24px',
 };
 
@@ -70,7 +71,7 @@ const hr: React.CSSProperties = {
 };
 
 const link: React.CSSProperties = {
-  color: '#8a1538',
+  color: tokens.colors.mitEmailRed,
 };
 
 /**

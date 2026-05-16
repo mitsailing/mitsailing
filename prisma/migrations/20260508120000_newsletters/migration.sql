@@ -98,6 +98,10 @@ CREATE TABLE "newsletter_broadcasts" (
     "created_by_user_id" TEXT NOT NULL,
     "resend_broadcast_id" TEXT,
     "queued_at" TIMESTAMP(3),
+    "scheduled_at" TIMESTAMP(3),
+    "started_at" TIMESTAMP(3),
+    "paused_at" TIMESTAMP(3),
+    "cancelled_at" TIMESTAMP(3),
     "sent_at" TIMESTAMP(3),
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
@@ -177,6 +181,7 @@ CREATE UNIQUE INDEX "newsletter_templates_single_default_key" ON "newsletter_tem
 -- CreateIndex
 CREATE UNIQUE INDEX "newsletter_broadcasts_resend_broadcast_id_key" ON "newsletter_broadcasts"("resend_broadcast_id");
 CREATE INDEX "newsletter_broadcasts_status_created_at_idx" ON "newsletter_broadcasts"("status", "created_at");
+CREATE INDEX "newsletter_broadcasts_status_scheduled_at_idx" ON "newsletter_broadcasts"("status", "scheduled_at");
 CREATE INDEX "newsletter_broadcasts_created_by_user_id_idx" ON "newsletter_broadcasts"("created_by_user_id");
 CREATE INDEX "newsletter_broadcasts_primary_list_id_idx" ON "newsletter_broadcasts"("primary_list_id");
 CREATE INDEX "newsletter_broadcasts_template_id_idx" ON "newsletter_broadcasts"("template_id");

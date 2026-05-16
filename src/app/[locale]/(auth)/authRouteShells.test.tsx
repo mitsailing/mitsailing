@@ -694,7 +694,7 @@ describe('auth route shells', () => {
   it('profile account page prefers suppressed deliverability state', async () => {
     routeMocks.findUnique.mockResolvedValue({
       emailBouncedAt: new Date('2026-01-01T12:00:00Z'),
-      emailSuppressedAt: null,
+      emailSuppressedAt: new Date('2026-01-01T12:00:00Z'),
       emailSuppressionReason: 'complained',
       themePreference: 'DARK',
       unconfirmedEmail: null,

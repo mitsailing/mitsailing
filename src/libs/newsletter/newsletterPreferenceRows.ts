@@ -6,13 +6,20 @@ type NewsletterPreferenceList = {
 
 type NewsletterPreferenceSubscription = {
   listId: string;
-  status: string;
+  status: 'subscribed' | 'unsubscribed';
 };
 
 type NewsletterPreferenceSubscriber = {
   subscriptions: readonly NewsletterPreferenceSubscription[];
 } | null;
 
+/**
+ * Maps newsletter lists and subscriber subscriptions into preference rows.
+ *
+ * @param lists - Newsletter lists to display
+ * @param subscriber - Subscriber with list subscriptions
+ * @returns Preference rows with subscribed set from subscription status
+ */
 export function newsletterPreferenceRows(
   lists: readonly NewsletterPreferenceList[],
   subscriber: NewsletterPreferenceSubscriber

@@ -106,7 +106,7 @@ function eventOccurredAt(event: WebhookEventPayload): Date | null {
     const date = new Date(event.created_at);
     return Number.isNaN(date.getTime()) ? null : date;
   }
-  return new Date();
+  return null;
 }
 
 function eventErrorMessage(event: ResendEmailEventPayload): string | null {

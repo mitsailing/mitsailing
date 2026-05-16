@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { NEWSLETTER_TEMPLATE_ID } from '@/libs/newsletter/newsletterConstants';
 import {
   validateNewsletterBroadcastFormData,
   validateNewsletterSignupFormData,
@@ -41,7 +42,7 @@ describe('newsletter validation', () => {
     formData.set('subject', 'Spring sailing');
     formData.set('previewText', 'News from the pavilion');
     formData.set('body', 'The pavilion is open for the season.');
-    formData.set('templateId', 'standard');
+    formData.set('templateId', NEWSLETTER_TEMPLATE_ID);
     formData.append('listId', 'general');
 
     const result = validateNewsletterBroadcastFormData(formData);
@@ -55,7 +56,7 @@ describe('newsletter validation', () => {
         previewText: 'News from the pavilion',
         scheduledAt: null,
         subject: 'Spring sailing',
-        templateId: 'standard',
+        templateId: NEWSLETTER_TEMPLATE_ID,
       },
     });
   });
@@ -66,7 +67,7 @@ describe('newsletter validation', () => {
     formData.set('previewText', 'News from the pavilion');
     formData.set('body', 'The pavilion is open for the season.');
     formData.set('scheduledAt', '2026-05-14T09:00');
-    formData.set('templateId', 'standard');
+    formData.set('templateId', NEWSLETTER_TEMPLATE_ID);
     formData.append('listId', 'general');
 
     const result = validateNewsletterBroadcastFormData(formData);
@@ -80,7 +81,7 @@ describe('newsletter validation', () => {
         previewText: 'News from the pavilion',
         scheduledAt: new Date('2026-05-14T13:00:00.000Z'),
         subject: 'Spring sailing',
-        templateId: 'standard',
+        templateId: NEWSLETTER_TEMPLATE_ID,
       },
     });
   });
@@ -91,7 +92,7 @@ describe('newsletter validation', () => {
     formData.set('previewText', 'News from the pavilion');
     formData.set('body', 'The pavilion is open for the season.');
     formData.set('scheduledAt', '2026-02-31T09:00');
-    formData.set('templateId', 'standard');
+    formData.set('templateId', NEWSLETTER_TEMPLATE_ID);
     formData.append('listId', 'general');
 
     const result = validateNewsletterBroadcastFormData(formData);

@@ -6,6 +6,7 @@ export const tokens = {
   colors: {
     /** Light foreground; matches `:root --foreground` in mit-theme.css. */
     text: '#09090b',
+    mitEmailRed: '#8a1538',
     mitRed: '#750014',
     mitRedHover: '#590010',
     mitRedHighlight: '#fef2f2',

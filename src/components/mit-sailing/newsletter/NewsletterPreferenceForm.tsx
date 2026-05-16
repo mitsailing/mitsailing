@@ -84,14 +84,17 @@ export function NewsletterPreferenceForm(props: NewsletterPreferenceFormProps) {
         <legend className="sr-only">{props.legendLabel}</legend>
         <div className="grid gap-3 sm:grid-cols-2">
           {props.lists.map((list) => (
-            <label
-              aria-labelledby={`newsletter-preference-${list.id}-label`}
+            <div
               className="rounded-lg border border-border bg-card p-4 text-sm"
-              htmlFor={`newsletter-preference-${list.id}`}
               key={list.id}
             >
               <span className="flex items-start gap-3">
                 <input
+                  aria-describedby={
+                    list.description
+                      ? `newsletter-preference-${list.id}-description`
+                      : undefined
+                  }
                   className="mt-1"
                   defaultChecked={list.subscribed}
                   id={`newsletter-preference-${list.id}`}
@@ -100,20 +103,23 @@ export function NewsletterPreferenceForm(props: NewsletterPreferenceFormProps) {
                   value={list.id}
                 />
                 <span>
-                  <span
+                  <label
                     className="block font-medium text-foreground"
-                    id={`newsletter-preference-${list.id}-label`}
+                    htmlFor={`newsletter-preference-${list.id}`}
                   >
                     {list.name}
-                  </span>
+                  </label>
                   {list.description ? (
-                    <span className="mt-1 block text-muted-foreground">
+                    <span
+                      className="mt-1 block text-muted-foreground"
+                      id={`newsletter-preference-${list.id}-description`}
+                    >
                       {list.description}
                     </span>
                   ) : null}
                 </span>
               </span>
-            </label>
+            </div>
           ))}
         </div>
       </fieldset>

@@ -18,6 +18,16 @@ describe('newsletter database constraints', () => {
     );
   });
 
+  it('keeps newsletter broadcast lifecycle columns in the initial migration', () => {
+    expect(newsletterMigration).toContain('"scheduled_at" TIMESTAMP(3)');
+    expect(newsletterMigration).toContain('"started_at" TIMESTAMP(3)');
+    expect(newsletterMigration).toContain('"paused_at" TIMESTAMP(3)');
+    expect(newsletterMigration).toContain('"cancelled_at" TIMESTAMP(3)');
+    expect(newsletterMigration).toContain(
+      'CREATE INDEX "newsletter_broadcasts_status_scheduled_at_idx" ON "newsletter_broadcasts"("status", "scheduled_at");'
+    );
+  });
+
   it('scopes email provider ids by provider in schema and migrations', () => {
     expect(schema).toContain('@@unique([provider, providerMessageId])');
     expect(schema).toContain('@@unique([provider, providerEventId])');

@@ -2,7 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   prisma: {
+    $executeRaw: vi.fn(),
     $queryRaw: vi.fn(),
+    emailMessageEvent: {
+      create: vi.fn(),
+    },
     user: {
       findUnique: vi.fn(),
     },
@@ -42,7 +46,9 @@ function capturedSql() {
 describe('email messages', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.prisma.$executeRaw.mockResolvedValue(0);
     mocks.prisma.$queryRaw.mockResolvedValue([{ id: 'email_message_1' }]);
+    mocks.prisma.emailMessageEvent.create.mockResolvedValue({});
     mocks.prisma.user.findUnique.mockResolvedValue(null);
   });
 
@@ -66,5 +72,26 @@ describe('email messages', () => {
     expect(sql).toContain('ON CONFLICT ("provider", "provider_message_id")');
     expect(sql).not.toContain('"last_event_type" = \'email.sent\'');
     expect(sql).not.toContain('"last_event_at" = EXCLUDED."last_event_at"');
+  });
+
+  it('skips Resend email events without valid timestamps', async () => {
+    const { handleResendEmailMessageWebhook } =
+      await import('@/libs/email/emailMessages');
+
+    const result = await handleResendEmailMessageWebhook({
+      created_at: 'not-a-date',
+      data: {
+        created_at: '2026-05-14T14:30:00.000Z',
+        email_id: 'message_1',
+        from: 'launch@mitsailing.example',
+        subject: 'Spring sailing',
+        to: ['sailor@example.com'],
+      },
+      type: 'email.delivered',
+    });
+
+    expect(result).toBe(false);
+    expect(mocks.prisma.emailMessageEvent.create).not.toHaveBeenCalled();
+    expect(mocks.prisma.$executeRaw).not.toHaveBeenCalled();
   });
 });

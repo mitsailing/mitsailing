@@ -92,16 +92,6 @@ export async function createNewsletterListAction(
     adminRedirect(locale, `${ADMIN_LISTS_PATH}/new`, 'validation_failed');
   }
 
-  const existingList = await prisma.newsletterList.findFirst({
-    select: { id: true },
-    where: {
-      OR: [{ slug }, ...(resendTopicId.length > 0 ? [{ resendTopicId }] : [])],
-    },
-  });
-  if (existingList) {
-    adminRedirect(locale, `${ADMIN_LISTS_PATH}/new`, 'duplicate_list');
-  }
-
   try {
     await prisma.newsletterList.create({
       data: {
@@ -140,14 +130,6 @@ export async function createNewsletterTemplateAction(
   const description = formString(formData, 'description');
   if (name.length === 0 || slug.length === 0) {
     adminRedirect(locale, `${ADMIN_TEMPLATES_PATH}/new`, 'validation_failed');
-  }
-
-  const existingTemplate = await prisma.newsletterTemplate.findUnique({
-    select: { id: true },
-    where: { slug },
-  });
-  if (existingTemplate) {
-    adminRedirect(locale, `${ADMIN_TEMPLATES_PATH}/new`, 'duplicate_template');
   }
 
   try {

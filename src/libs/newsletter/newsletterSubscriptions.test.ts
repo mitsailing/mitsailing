@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  subscribeEmailToNewsletterLists,
   unsubscribeNewsletterTokenFromList,
   updateNewsletterPreferences,
 } from '@/libs/newsletter/newsletterSubscriptions';
@@ -13,6 +14,7 @@ const mocks = vi.hoisted(() => {
     findMany: vi.fn(),
   };
   const newsletterSubscriber = {
+    create: vi.fn(),
     findUnique: vi.fn(),
     update: vi.fn(),
   };
@@ -21,11 +23,15 @@ const mocks = vi.hoisted(() => {
     findUnique: vi.fn(),
     upsert: vi.fn(),
   };
+  const user = {
+    findUnique: vi.fn(),
+  };
   const transaction = {
     newsletterEvent,
     newsletterList,
     newsletterSubscriber,
     newsletterSubscription,
+    user,
   };
 
   return {
@@ -40,9 +46,7 @@ const mocks = vi.hoisted(() => {
       newsletterList,
       newsletterSubscriber,
       newsletterSubscription,
-      user: {
-        findUnique: vi.fn(),
-      },
+      user,
     },
     transaction,
   };
@@ -80,6 +84,10 @@ beforeEach(() => {
     manageTokenHash: 'token_hash',
   });
   mocks.transaction.newsletterSubscriber.update.mockResolvedValue({});
+  mocks.transaction.newsletterSubscriber.create.mockResolvedValue({
+    email: 'sailor@example.com',
+    id: 'subscriber_123',
+  });
   mocks.transaction.newsletterSubscription.count.mockResolvedValue(1);
   mocks.transaction.newsletterSubscription.findUnique.mockResolvedValue(null);
   mocks.transaction.newsletterSubscription.upsert.mockResolvedValue({});
@@ -88,6 +96,46 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+});
+
+describe('subscribeEmailToNewsletterLists', () => {
+  it('preserves subscribed timestamp for idempotent signup', async () => {
+    mocks.prisma.user.findUnique.mockResolvedValue(null);
+    mocks.transaction.newsletterList.findMany.mockResolvedValue([
+      { id: 'general_id' },
+    ]);
+    mocks.transaction.newsletterSubscriber.findUnique.mockResolvedValue({
+      consentIpAddress: null,
+      consentUserAgent: null,
+      email: 'sailor@example.com',
+      id: 'subscriber_123',
+      name: null,
+      userId: null,
+    });
+    mocks.transaction.newsletterSubscriber.update.mockResolvedValue({
+      email: 'sailor@example.com',
+      id: 'subscriber_123',
+    });
+    mocks.transaction.newsletterSubscription.findUnique.mockResolvedValue({
+      status: 'subscribed',
+    });
+
+    await subscribeEmailToNewsletterLists({
+      email: 'sailor@example.com',
+      listSlugs: ['general'],
+      source: 'public_signup',
+    });
+
+    expect(
+      mocks.transaction.newsletterSubscription.upsert
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.not.objectContaining({
+          subscribedAt: expect.any(Date),
+        }),
+      })
+    );
+  });
 });
 
 describe('updateNewsletterPreferences', () => {
@@ -190,6 +238,30 @@ describe('updateNewsletterPreferences', () => {
         type: 'unsubscribed',
       }),
     });
+  });
+
+  it('preserves timestamps when saved preferences do not change status', async () => {
+    mocks.transaction.newsletterSubscription.findUnique
+      .mockResolvedValueOnce({ status: 'subscribed' })
+      .mockResolvedValueOnce({ status: 'unsubscribed' });
+
+    await updateNewsletterPreferences({
+      actorUserId: 'user_123',
+      listIds: ['general_id'],
+      source: 'profile',
+      subscriberId: 'subscriber_123',
+    });
+
+    expect(
+      mocks.transaction.newsletterSubscription.upsert
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.not.objectContaining({
+          subscribedAt: expect.any(Date),
+          unsubscribedAt: expect.any(Date),
+        }),
+      })
+    );
   });
 });
 

@@ -160,6 +160,7 @@ export async function subscribeEmailToNewsletterLists(params: SubscribeParams) {
           },
         },
       });
+      const isAlreadySubscribed = existing?.status === 'subscribed';
       await tx.newsletterSubscription.upsert({
         create: {
           listId: list.id,
@@ -169,8 +170,9 @@ export async function subscribeEmailToNewsletterLists(params: SubscribeParams) {
         update: {
           source: params.source,
           status: 'subscribed',
-          subscribedAt: new Date(),
-          unsubscribedAt: null,
+          ...(isAlreadySubscribed
+            ? {}
+            : { subscribedAt: new Date(), unsubscribedAt: null }),
         },
         where: {
           subscriberId_listId: {
@@ -353,6 +355,7 @@ export async function updateNewsletterPreferences(
 
     for (const list of publicLists) {
       const isSelected = selectedPublicListIds.has(list.id);
+      const nextStatus = isSelected ? 'subscribed' : 'unsubscribed';
       const existing = await tx.newsletterSubscription.findUnique({
         select: { status: true },
         where: {
@@ -366,15 +369,19 @@ export async function updateNewsletterPreferences(
         create: {
           listId: list.id,
           source: params.source,
-          status: isSelected ? 'subscribed' : 'unsubscribed',
+          status: nextStatus,
           subscriberId: params.subscriberId,
           unsubscribedAt: isSelected ? null : now,
         },
         update: {
           source: params.source,
-          status: isSelected ? 'subscribed' : 'unsubscribed',
-          subscribedAt: isSelected ? now : undefined,
-          unsubscribedAt: isSelected ? null : now,
+          status: nextStatus,
+          ...(existing?.status === nextStatus
+            ? {}
+            : {
+                subscribedAt: isSelected ? now : undefined,
+                unsubscribedAt: isSelected ? null : now,
+              }),
         },
         where: {
           subscriberId_listId: {

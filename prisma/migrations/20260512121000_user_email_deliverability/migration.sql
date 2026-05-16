@@ -10,5 +10,5 @@ ALTER TABLE "user"
 DROP INDEX IF EXISTS "user_email_suppressed_at_idx";
 DROP INDEX IF EXISTS "user_email_bounced_at_idx";
 
-CREATE INDEX "user_email_suppressed_at_idx" ON "user"("email_suppressed_at") WHERE "email_suppressed_at" IS NOT NULL;
-CREATE INDEX "user_email_bounced_at_idx" ON "user"("email_bounced_at") WHERE "email_bounced_at" IS NOT NULL;
+CREATE INDEX IF NOT EXISTS "user_email_suppressed_at_idx" ON "user"("email_suppressed_at") WHERE "email_suppressed_at" IS NOT NULL;
+CREATE INDEX IF NOT EXISTS "user_email_bounced_at_idx" ON "user"("email_bounced_at") WHERE "email_bounced_at" IS NOT NULL;
