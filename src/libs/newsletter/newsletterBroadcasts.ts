@@ -87,11 +87,13 @@ const NON_TERMINAL_NEWSLETTER_DELIVERY_STATUSES = [
 type NewsletterBroadcastDeliveryFinishCounts = Readonly<{
   failedDeliveryCount: number;
   nonTerminal: number;
+  totalDeliveryCount: number;
 }>;
 
 type NewsletterDeliveryFinishAggregate = Readonly<{
   failed_delivery_count: number;
   non_terminal_count: number;
+  total_delivery_count: number;
 }>;
 
 const NEWSLETTER_BROADCAST_FINISH_TRANSACTION_OPTIONS = {
@@ -107,10 +109,19 @@ function newsletterDeliveryStatusSqlList(
   );
 }
 
+function newsletterBroadcastFinishedAsSent(
+  counts: NewsletterBroadcastDeliveryFinishCounts
+): boolean {
+  return (
+    counts.totalDeliveryCount === 0 ||
+    counts.failedDeliveryCount < counts.totalDeliveryCount
+  );
+}
+
 function newsletterBroadcastFinishUpdate(
   counts: NewsletterBroadcastDeliveryFinishCounts
 ): Pick<Prisma.NewsletterBroadcastUpdateInput, 'sentAt' | 'status'> {
-  const succeeded = counts.failedDeliveryCount === 0;
+  const succeeded = newsletterBroadcastFinishedAsSent(counts);
   return {
     sentAt: succeeded ? new Date() : null,
     status: succeeded ? 'sent' : 'failed',
@@ -896,7 +907,8 @@ async function loadNewsletterBroadcastDeliveryFinishSnapshot(
       )::int AS non_terminal_count,
       COUNT(*) FILTER (
         WHERE status::text IN (${failureStatuses})
-      )::int AS failed_delivery_count
+      )::int AS failed_delivery_count,
+      COUNT(*)::int AS total_delivery_count
     FROM newsletter_deliveries
     WHERE broadcast_id = ${broadcastId}
   `;
@@ -904,6 +916,7 @@ async function loadNewsletterBroadcastDeliveryFinishSnapshot(
   return {
     failedDeliveryCount: aggregate?.failed_delivery_count ?? 0,
     nonTerminal: aggregate?.non_terminal_count ?? 0,
+    totalDeliveryCount: aggregate?.total_delivery_count ?? 0,
   };
 }
 
@@ -928,7 +941,7 @@ async function finishNewsletterBroadcast(broadcastId: string) {
     return null;
   }, NEWSLETTER_BROADCAST_FINISH_TRANSACTION_OPTIONS);
 
-  if (!counts || counts.failedDeliveryCount > 0) {
+  if (!counts || !newsletterBroadcastFinishedAsSent(counts)) {
     return;
   }
   const revalidated = await requestNewsletterArchiveRevalidation();

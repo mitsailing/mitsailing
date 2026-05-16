@@ -102,6 +102,7 @@ function resetTransactionMock() {
 function mockDeliveryFinishSnapshot(params: {
   failedDeliveryCount?: number;
   nonTerminal?: number;
+  totalDeliveryCount?: number;
 }) {
   mocks.tx.$queryRaw.mockImplementation(
     async (strings: TemplateStringsArray) => {
@@ -114,6 +115,9 @@ function mockDeliveryFinishSnapshot(params: {
         {
           failed_delivery_count: params.failedDeliveryCount ?? 0,
           non_terminal_count: params.nonTerminal ?? 0,
+          total_delivery_count:
+            params.totalDeliveryCount ??
+            (params.failedDeliveryCount ?? 0) + (params.nonTerminal ?? 0),
         },
       ];
     }
@@ -608,6 +612,42 @@ describe('newsletter broadcasts', () => {
       },
     });
     expect(mocks.fetch).not.toHaveBeenCalled();
+  });
+
+  it('marks broadcasts sent when at least one delivery succeeds', async () => {
+    mocks.prisma.newsletterBroadcast.findUnique.mockResolvedValueOnce(
+      queuedBroadcastRow()
+    );
+    mockDeliveryFinishSnapshot({
+      failedDeliveryCount: 1,
+      totalDeliveryCount: 2,
+    });
+
+    const { processNewsletterBroadcast } =
+      await import('@/libs/newsletter/newsletterBroadcasts');
+    await processNewsletterBroadcast('broadcast_1');
+
+    expect(mocks.tx.newsletterBroadcast.updateMany).toHaveBeenCalledWith({
+      data: { sentAt: expect.any(Date), status: 'sent' },
+      where: {
+        cancelledAt: null,
+        id: 'broadcast_1',
+        pausedAt: null,
+        status: 'sending',
+      },
+    });
+    expect(mocks.fetch).toHaveBeenCalledWith(
+      new URL(
+        'https://mitsailing.test/api/internal/newsletter/archive/revalidate'
+      ),
+      {
+        headers: {
+          authorization:
+            'Bearer test-newsletter-revalidate-secret-with-thirty-two-chars',
+        },
+        method: 'POST',
+      }
+    );
   });
 
   it('marks all-suppressed broadcasts failed without archive revalidation', async () => {
