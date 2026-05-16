@@ -5,6 +5,7 @@ import { NewsletterPreferenceForm } from '@/components/mit-sailing/newsletter/Ne
 import { SiteSectionMain } from '@/components/mit-sailing/SiteSectionMain';
 import { SiteSectionShell } from '@/components/mit-sailing/SiteSectionShell';
 import { updateTokenNewsletterPreferencesAction } from '@/libs/newsletter/newsletterActions';
+import { newsletterPreferenceRows } from '@/libs/newsletter/newsletterPreferenceRows';
 import {
   getPublicNewsletterLists,
   getSubscriberPreferenceStateByToken,
@@ -21,26 +22,6 @@ export async function generateMetadata(
   const { locale } = await props.params;
   const t = await getTranslations({ locale, namespace: 'NewsletterPage' });
   return { title: t('manage_meta_title') };
-}
-
-function preferenceRows(
-  lists: Awaited<ReturnType<typeof getPublicNewsletterLists>>,
-  subscriber: NonNullable<
-    Awaited<ReturnType<typeof getSubscriberPreferenceStateByToken>>
-  >
-) {
-  const subscriptions = new Map(
-    subscriber.subscriptions.map((subscription) => [
-      subscription.listId,
-      subscription.status,
-    ])
-  );
-  return lists.map((list) => ({
-    description: list.description,
-    id: list.id,
-    name: list.name,
-    subscribed: subscriptions.get(list.id) === 'subscribed',
-  }));
 }
 
 /**
@@ -90,7 +71,7 @@ export default async function NewsletterManagePage(
               action={updateTokenNewsletterPreferencesAction.bind(null, token)}
               errorLabel={t('preferences_error')}
               legendLabel={t('lists_label')}
-              lists={preferenceRows(lists, subscriber)}
+              lists={newsletterPreferenceRows(lists, subscriber)}
               successLabel={t('preferences_saved')}
               submitLabel={t('preferences_submit')}
             />

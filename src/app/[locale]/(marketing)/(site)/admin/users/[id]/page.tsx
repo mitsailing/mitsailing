@@ -12,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { formatAdminDate } from '@/libs/admin/adminDateFormatting';
 import { adminUsersEditPath } from '@/libs/admin/users/adminUserPaths';
 import { usersAdminHandlers } from '@/libs/admin/users/usersAdminHandlers';
 import { requireAdmin } from '@/libs/auth/dal';
@@ -37,18 +38,6 @@ const emailStatusMessageKeys = {
   ok: 'email_status_ok',
   suppressed: 'email_status_suppressed',
 } as const satisfies Record<EmailDeliverabilityStatus, string>;
-
-function formatDate(value: Date | null, locale: string): string {
-  if (!value) {
-    return '';
-  }
-  // MIT Sailing admin timestamps are shown in the venue timezone.
-  return new Intl.DateTimeFormat(locale, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-    timeZone: 'America/New_York',
-  }).format(value);
-}
 
 type EmailEventMessageKey =
   | 'email_event_bounced'
@@ -152,7 +141,10 @@ function AdminUserEmailsPanel(props: {
                     {props.t(emailEventMessageKey(email.lastEventType))}
                   </TableCell>
                   <TableCell>
-                    {formatDate(email.sentAt ?? email.createdAt, props.locale)}
+                    {formatAdminDate(
+                      email.sentAt ?? email.createdAt,
+                      props.locale
+                    )}
                   </TableCell>
                   <TableCell>
                     {email.lastError ?? props.t('empty_value')}

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { connection } from 'next/server';
 import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +21,7 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
 }
 
 export default async function AdminNewsletterTemplateNewPage(props: PageProps) {
+  await connection();
   const { locale } = await props.params;
   const { status = '' } = await props.searchParams;
   setRequestLocale(locale);

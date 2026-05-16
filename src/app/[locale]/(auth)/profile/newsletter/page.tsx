@@ -4,6 +4,7 @@ import { connection } from 'next/server';
 import { NewsletterPreferenceForm } from '@/components/mit-sailing/newsletter/NewsletterPreferenceForm';
 import { requireCurrentUser } from '@/libs/auth/dal';
 import { updateProfileNewsletterPreferencesAction } from '@/libs/newsletter/newsletterActions';
+import { newsletterPreferenceRows } from '@/libs/newsletter/newsletterPreferenceRows';
 import {
   getExistingSubscriberPreferenceStateForUser,
   getPublicNewsletterLists,
@@ -23,26 +24,6 @@ export async function generateMetadata(
     title: t('newsletter_meta_title'),
     description: t('newsletter_meta_description'),
   };
-}
-
-function preferenceRows(
-  lists: Awaited<ReturnType<typeof getPublicNewsletterLists>>,
-  subscriber: Awaited<
-    ReturnType<typeof getExistingSubscriberPreferenceStateForUser>
-  >
-) {
-  const subscriptions = new Map(
-    (subscriber?.subscriptions ?? []).map((subscription) => [
-      subscription.listId,
-      subscription.status,
-    ])
-  );
-  return lists.map((list) => ({
-    description: list.description,
-    id: list.id,
-    name: list.name,
-    subscribed: subscriptions.get(list.id) === 'subscribed',
-  }));
 }
 
 /**
@@ -79,7 +60,7 @@ export default async function ProfileNewsletterPage(
         action={updateProfileNewsletterPreferencesAction.bind(null, locale)}
         errorLabel={t('newsletter_preferences_error')}
         legendLabel={t('newsletter_lists_label')}
-        lists={preferenceRows(lists, subscriber)}
+        lists={newsletterPreferenceRows(lists, subscriber)}
         successLabel={t('newsletter_preferences_saved')}
         submitLabel={t('newsletter_submit')}
       />

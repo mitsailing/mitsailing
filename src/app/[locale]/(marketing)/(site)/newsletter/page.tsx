@@ -7,6 +7,7 @@ import { SiteSectionMain } from '@/components/mit-sailing/SiteSectionMain';
 import { SiteSectionShell } from '@/components/mit-sailing/SiteSectionShell';
 import { getCurrentUser } from '@/libs/auth/dal';
 import { updateProfileNewsletterPreferencesAction } from '@/libs/newsletter/newsletterActions';
+import { newsletterPreferenceRows } from '@/libs/newsletter/newsletterPreferenceRows';
 import {
   getExistingSubscriberPreferenceStateForUser,
   getPublicNewsletterLists,
@@ -25,26 +26,6 @@ export async function generateMetadata(
     title: t('meta_title'),
     description: t('meta_description'),
   };
-}
-
-function preferenceRows(
-  lists: Awaited<ReturnType<typeof getPublicNewsletterLists>>,
-  subscriber: Awaited<
-    ReturnType<typeof getExistingSubscriberPreferenceStateForUser>
-  > | null
-) {
-  const subscriptions = new Map(
-    subscriber?.subscriptions.map((subscription) => [
-      subscription.listId,
-      subscription.status,
-    ])
-  );
-  return lists.map((list) => ({
-    description: list.description,
-    id: list.id,
-    name: list.name,
-    subscribed: subscriptions.get(list.id) === 'subscribed',
-  }));
 }
 
 /**
@@ -93,7 +74,7 @@ export default async function NewsletterPage(props: NewsletterPageProps) {
               )}
               errorLabel={t('preferences_error')}
               legendLabel={t('lists_label')}
-              lists={preferenceRows(lists, subscriber)}
+              lists={newsletterPreferenceRows(lists, subscriber)}
               successLabel={t('preferences_saved')}
               submitLabel={t('preferences_submit')}
             />

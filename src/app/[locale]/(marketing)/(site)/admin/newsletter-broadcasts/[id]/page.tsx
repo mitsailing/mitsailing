@@ -14,8 +14,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { formatAdminDate } from '@/libs/admin/adminDateFormatting';
 import { requireAdmin } from '@/libs/auth/dal';
 import { sendNewsletterBroadcastTestAction } from '@/libs/newsletter/newsletterAdminActions';
+import { newsletterBroadcastStatusKey } from '@/libs/newsletter/newsletterAdminDisplay';
 import {
   getAdminNewsletterBroadcastDetail,
   renderAdminNewsletterBroadcastPreviewHtml,
@@ -38,16 +40,6 @@ const STATUS_MESSAGE_KEYS = {
   test_sent: 'broadcast_test_sent',
 } as const;
 
-const BROADCAST_STATUS_KEYS = {
-  cancelled: 'status_cancelled',
-  draft: 'status_draft',
-  failed: 'status_failed',
-  paused: 'status_paused',
-  queued: 'status_queued',
-  sending: 'status_sending',
-  sent: 'status_sent',
-} as const;
-
 const DELIVERY_STATUS_KEYS = {
   bounced: 'delivery_status_bounced',
   cancelled: 'delivery_status_cancelled',
@@ -61,27 +53,10 @@ const DELIVERY_STATUS_KEYS = {
   suppressed: 'delivery_status_suppressed',
 } as const;
 
-function formatDate(value: Date | null, locale: string): string {
-  if (!value) {
-    return '';
-  }
-  return new Intl.DateTimeFormat(locale, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-    timeZone: 'America/New_York',
-  }).format(value);
-}
-
 function isStatusMessage(
   status: string
 ): status is keyof typeof STATUS_MESSAGE_KEYS {
   return status in STATUS_MESSAGE_KEYS;
-}
-
-function isBroadcastStatus(
-  status: string
-): status is keyof typeof BROADCAST_STATUS_KEYS {
-  return status in BROADCAST_STATUS_KEYS;
 }
 
 function isDeliveryStatus(
@@ -92,12 +67,6 @@ function isDeliveryStatus(
 
 function statusMessageKey(status: string) {
   return isStatusMessage(status) ? STATUS_MESSAGE_KEYS[status] : null;
-}
-
-function broadcastStatusKey(status: string) {
-  return isBroadcastStatus(status)
-    ? BROADCAST_STATUS_KEYS[status]
-    : 'status_unknown';
 }
 
 function deliveryStatusKey(status: string) {
@@ -146,7 +115,9 @@ export default async function AdminNewsletterBroadcastDetailPage(
           <p className="text-xs font-semibold text-muted-foreground uppercase">
             {t('detail_status')}
           </p>
-          <p className="mt-1">{t(broadcastStatusKey(broadcast.status))}</p>
+          <p className="mt-1">
+            {t(newsletterBroadcastStatusKey(broadcast.status))}
+          </p>
         </div>
         <div>
           <p className="text-xs font-semibold text-muted-foreground uppercase">
@@ -180,14 +151,14 @@ export default async function AdminNewsletterBroadcastDetailPage(
           <p className="text-xs font-semibold text-muted-foreground uppercase">
             {t('detail_created_at')}
           </p>
-          <p className="mt-1">{formatDate(broadcast.createdAt, locale)}</p>
+          <p className="mt-1">{formatAdminDate(broadcast.createdAt, locale)}</p>
         </div>
         <div>
           <p className="text-xs font-semibold text-muted-foreground uppercase">
             {t('detail_scheduled_at')}
           </p>
           <p className="mt-1">
-            {formatDate(broadcast.scheduledAt, locale) || t('empty_value')}
+            {formatAdminDate(broadcast.scheduledAt, locale) || t('empty_value')}
           </p>
         </div>
         <div>
@@ -195,7 +166,7 @@ export default async function AdminNewsletterBroadcastDetailPage(
             {t('detail_sent_at')}
           </p>
           <p className="mt-1">
-            {formatDate(broadcast.sentAt, locale) || t('empty_value')}
+            {formatAdminDate(broadcast.sentAt, locale) || t('empty_value')}
           </p>
         </div>
       </section>
@@ -286,7 +257,7 @@ export default async function AdminNewsletterBroadcastDetailPage(
                     </TableCell>
                     <TableCell>{delivery.attemptCount}</TableCell>
                     <TableCell>
-                      {formatDate(delivery.updatedAt, locale)}
+                      {formatAdminDate(delivery.updatedAt, locale)}
                     </TableCell>
                     <TableCell>
                       {delivery.lastError ?? t('empty_value')}

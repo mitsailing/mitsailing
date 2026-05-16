@@ -11,9 +11,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { EVENTS_TIME_ZONE } from '@/lib/mit-sailing/nyTime';
+import { formatAdminDate } from '@/libs/admin/adminDateFormatting';
 import { requireAdmin } from '@/libs/auth/dal';
 import { Link } from '@/libs/I18nNavigation';
+import { newsletterBroadcastStatusKey } from '@/libs/newsletter/newsletterAdminDisplay';
 import { getAdminNewsletterBroadcasts } from '@/libs/newsletter/newsletterBroadcasts';
 
 type PageProps = {
@@ -25,39 +26,6 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
   const { locale } = await props.params;
   const t = await getTranslations({ locale, namespace: 'AdminNewsletters' });
   return { title: t('broadcasts_meta_title') };
-}
-
-const BROADCAST_STATUS_KEYS = {
-  cancelled: 'status_cancelled',
-  draft: 'status_draft',
-  failed: 'status_failed',
-  paused: 'status_paused',
-  queued: 'status_queued',
-  sending: 'status_sending',
-  sent: 'status_sent',
-} as const;
-
-function formatDate(value: Date | null, locale: string): string {
-  if (!value) {
-    return '';
-  }
-  return new Intl.DateTimeFormat(locale, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-    timeZone: EVENTS_TIME_ZONE,
-  }).format(value);
-}
-
-function isBroadcastStatus(
-  status: string
-): status is keyof typeof BROADCAST_STATUS_KEYS {
-  return status in BROADCAST_STATUS_KEYS;
-}
-
-function broadcastStatusKey(status: string) {
-  return isBroadcastStatus(status)
-    ? BROADCAST_STATUS_KEYS[status]
-    : 'status_unknown';
 }
 
 export default async function AdminNewsletterBroadcastsPage(props: PageProps) {
@@ -124,10 +92,12 @@ export default async function AdminNewsletterBroadcastsPage(props: PageProps) {
                       .join(', ')}
                   </TableCell>
                   <TableCell>
-                    {t(broadcastStatusKey(broadcast.status))}
+                    {t(newsletterBroadcastStatusKey(broadcast.status))}
                   </TableCell>
                   <TableCell>{broadcast._count.deliveries}</TableCell>
-                  <TableCell>{formatDate(broadcast.sentAt, locale)}</TableCell>
+                  <TableCell>
+                    {formatAdminDate(broadcast.sentAt, locale)}
+                  </TableCell>
                 </TableRow>
               ))
             )}
