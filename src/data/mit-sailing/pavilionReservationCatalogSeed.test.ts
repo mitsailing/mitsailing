@@ -51,10 +51,10 @@ const expectedPricesBySlug = {
     non_mit: dollarsToCents(4500),
   },
   lab_access: {
-    mit_academic: 0,
-    mit_community: 0,
-    mit_student: 0,
-    non_mit: 0,
+    mit_academic: null,
+    mit_community: null,
+    mit_student: null,
+    non_mit: null,
   },
   party_boat: {
     mit_academic: dollarsToCents(130),

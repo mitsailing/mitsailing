@@ -25,7 +25,8 @@ export function priceForPersona(
   item: Pick<PavilionReservableItemDto, 'prices'>,
   persona: PavilionReservationPersonaValue
 ): number | null {
-  return item.prices[persona];
+  const price = item.prices[persona];
+  return price === 0 ? null : price;
 }
 
 function hourlyAmountCents(props: {

@@ -143,10 +143,10 @@ export const PAVILION_RESERVABLE_ITEM_SEED_ROWS: readonly PavilionReservableItem
       displayOrder: 70,
       isVisible: true,
       prices: centsByPersona({
-        mit_academic: 0,
-        mit_student: 0,
-        mit_community: 0,
-        non_mit: 0,
+        mit_academic: null,
+        mit_student: null,
+        mit_community: null,
+        non_mit: null,
       }),
     },
     {

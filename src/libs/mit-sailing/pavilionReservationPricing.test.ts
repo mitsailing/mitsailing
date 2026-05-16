@@ -72,7 +72,7 @@ describe('estimatedSlotAmountCents', () => {
     ).toBe(26_700);
   });
 
-  it('preserves zero-dollar flat prices', () => {
+  it('skips zero-dollar flat prices', () => {
     expect(
       estimatedSlotAmountCents({
         item: item({
@@ -94,7 +94,7 @@ describe('estimatedSlotAmountCents', () => {
         },
         slotIndexForItem: 0,
       })
-    ).toBe(0);
+    ).toBeNull();
   });
 });
 
@@ -137,6 +137,23 @@ describe('estimatedServiceAmountCents', () => {
         persona: 'mit_community',
       })
     ).toBe(11_000);
+  });
+
+  it('skips zero-dollar service prices', () => {
+    expect(
+      estimatedServiceAmountCents({
+        item: {
+          pricingType: 'flat',
+          prices: {
+            mit_academic: 0,
+            mit_student: 0,
+            mit_community: 0,
+            non_mit: 0,
+          },
+        },
+        persona: 'mit_academic',
+      })
+    ).toBeNull();
   });
 });
 
