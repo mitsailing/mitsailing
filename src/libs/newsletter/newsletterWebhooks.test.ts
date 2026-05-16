@@ -6,10 +6,12 @@ const mocks = vi.hoisted(() => {
   const tx = {
     newsletterDelivery: {
       findFirst: vi.fn(),
+      findUnique: vi.fn(),
       updateMany: vi.fn(),
     },
     newsletterEvent: {
       create: vi.fn(),
+      findFirst: vi.fn(),
     },
     newsletterSubscriber: {
       updateMany: vi.fn(),
@@ -93,7 +95,15 @@ describe('handleResendNewsletterWebhook', () => {
       primaryListId: 'list_123',
       subscriberId: 'subscriber_123',
     });
+    mocks.tx.newsletterDelivery.findUnique.mockResolvedValue({
+      broadcastId: 'broadcast_123',
+      email: 'fallback@example.com',
+      id: 'delivery_from_tag',
+      primaryListId: 'list_123',
+      subscriberId: 'subscriber_from_tag',
+    });
     mocks.tx.newsletterDelivery.updateMany.mockResolvedValue({ count: 1 });
+    mocks.tx.newsletterEvent.findFirst.mockResolvedValue(null);
     mocks.tx.newsletterEvent.create.mockResolvedValue({ id: 'event_123' });
     mocks.tx.newsletterSubscriber.updateMany.mockResolvedValue({ count: 1 });
   });
@@ -146,6 +156,56 @@ describe('handleResendNewsletterWebhook', () => {
         ],
       },
     });
+  });
+
+  it('prefers provider message matches over delivery tag matches', async () => {
+    await handleResendNewsletterWebhook(deliveredEvent(), {
+      providerEventId: 'svix_123',
+      skipDedupe: true,
+    });
+
+    expect(mocks.tx.newsletterDelivery.findFirst).toHaveBeenCalledWith({
+      include: { subscriber: true },
+      where: { providerMessageId: 'email_123' },
+    });
+    expect(mocks.tx.newsletterDelivery.findUnique).not.toHaveBeenCalled();
+    expect(mocks.tx.newsletterDelivery.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: 'delivery_123' }),
+      })
+    );
+  });
+
+  it('falls back to delivery tag when provider message is unknown', async () => {
+    mocks.tx.newsletterDelivery.findFirst.mockResolvedValueOnce(null);
+
+    await handleResendNewsletterWebhook(deliveredEvent(), {
+      providerEventId: 'svix_123',
+      skipDedupe: true,
+    });
+
+    expect(mocks.tx.newsletterDelivery.findUnique).toHaveBeenCalledWith({
+      include: { subscriber: true },
+      where: { id: 'delivery_123' },
+    });
+    expect(mocks.tx.newsletterDelivery.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: 'delivery_from_tag' }),
+      })
+    );
+  });
+
+  it('skips duplicate newsletter event replays', async () => {
+    mocks.tx.newsletterEvent.findFirst.mockResolvedValueOnce({
+      id: 'event_123',
+    });
+
+    await handleResendNewsletterWebhook(deliveredEvent(), {
+      providerEventId: 'svix_123',
+      skipDedupe: true,
+    });
+
+    expect(mocks.tx.newsletterEvent.create).not.toHaveBeenCalled();
   });
 
   it('suppresses subscribers with event timestamps', async () => {

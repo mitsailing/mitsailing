@@ -16,8 +16,21 @@ type EmailEventPayload = Extract<
   }
 >;
 
+function eventData(event: WebhookEventPayload): object | null {
+  if (!('data' in event) || !event.data || typeof event.data !== 'object') {
+    return null;
+  }
+  return event.data;
+}
+
 function isEmailEvent(event: WebhookEventPayload): event is EmailEventPayload {
-  return event.type.startsWith('email.');
+  const data = eventData(event);
+  return (
+    event.type.startsWith('email.') &&
+    data !== null &&
+    'to' in data &&
+    Array.isArray(data.to)
+  );
 }
 
 function deliverabilityReason(event: EmailEventPayload): string | null {

@@ -166,7 +166,18 @@ function providerEventIdForWebhook(
 }
 
 function isEmailEvent(event: WebhookEventPayload): event is EmailEventPayload {
-  return event.type.startsWith('email.');
+  const data =
+    'data' in event && event.data && typeof event.data === 'object'
+      ? event.data
+      : null;
+  return (
+    event.type.startsWith('email.') &&
+    data !== null &&
+    'email_id' in data &&
+    typeof data.email_id === 'string' &&
+    'to' in data &&
+    Array.isArray(data.to)
+  );
 }
 
 function emailEventTags(event: EmailEventPayload): unknown {
@@ -208,14 +219,19 @@ async function findNewsletterDelivery(params: {
   deliveryId: string;
   providerMessageId: string;
 }) {
-  const delivery = await params.tx.newsletterDelivery.findFirst({
+  const deliveryByProviderMessageId =
+    await params.tx.newsletterDelivery.findFirst({
+      include: { subscriber: true },
+      where: { providerMessageId: params.providerMessageId },
+    });
+
+  if (deliveryByProviderMessageId || params.deliveryId.length === 0) {
+    return deliveryByProviderMessageId;
+  }
+
+  const delivery = await params.tx.newsletterDelivery.findUnique({
     include: { subscriber: true },
-    where: {
-      OR: [
-        { providerMessageId: params.providerMessageId },
-        ...(params.deliveryId.length > 0 ? [{ id: params.deliveryId }] : []),
-      ],
-    },
+    where: { id: params.deliveryId },
   });
   return delivery;
 }
@@ -300,6 +316,21 @@ async function createNewsletterEvent(params: {
   type: ReturnType<typeof eventTypeForEmailEvent>;
 }): Promise<void> {
   if (!params.type) {
+    return;
+  }
+  const existingEvent = await params.tx.newsletterEvent.findFirst({
+    where: {
+      createdAt: params.occurredAt,
+      deliveryId: params.delivery?.id ?? null,
+      providerMessageId: params.providerMessageId,
+      type: params.type,
+    },
+  });
+  if (existingEvent) {
+    logger.info('Skipping duplicate newsletter event replay', {
+      providerMessageId: params.providerMessageId,
+      type: params.type,
+    });
     return;
   }
   const [eventRecipient] = params.event.data.to;

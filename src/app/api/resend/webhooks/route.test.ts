@@ -117,10 +117,6 @@ describe('resend webhook route', () => {
       payload: '{"type":"email.delivered"}',
       webhookSecret: 'webhook_secret',
     });
-    expect(mocks.handleResendEmailMessageWebhook).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'email.delivered' }),
-      { providerEventId: 'event_123' }
-    );
     expect(mocks.handleResendNewsletterWebhook).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'email.delivered' }),
       { providerEventId: 'event_123', skipDedupe: true }
@@ -129,15 +125,19 @@ describe('resend webhook route', () => {
       expect.objectContaining({ type: 'email.delivered' }),
       { providerEventId: 'event_123' }
     );
+    expect(mocks.handleResendEmailMessageWebhook).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'email.delivered' }),
+      { providerEventId: 'event_123' }
+    );
   });
 
-  it('skips state handlers for duplicate svix ids', async () => {
+  it('lets replayable handlers run before duplicate svix ids are recorded', async () => {
     mocks.handleResendEmailMessageWebhook.mockResolvedValueOnce(false);
 
     const response = await POST(webhookRequest());
 
     expect(response.status).toBe(200);
-    expect(mocks.handleResendNewsletterWebhook).not.toHaveBeenCalled();
-    expect(mocks.handleResendAccountEmailWebhook).not.toHaveBeenCalled();
+    expect(mocks.handleResendNewsletterWebhook).toHaveBeenCalled();
+    expect(mocks.handleResendAccountEmailWebhook).toHaveBeenCalled();
   });
 });

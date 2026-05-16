@@ -75,7 +75,16 @@ function jsonb(value: Record<string, unknown> | WebhookEventPayload | null) {
 function isEmailEvent(
   event: WebhookEventPayload
 ): event is ResendEmailEventPayload {
-  return event.type.startsWith('email.');
+  const data =
+    'data' in event && event.data && typeof event.data === 'object'
+      ? event.data
+      : null;
+  return (
+    event.type.startsWith('email.') &&
+    data !== null &&
+    'email_id' in data &&
+    typeof data.email_id === 'string'
+  );
 }
 
 function eventId(event: WebhookEventPayload): string | null {

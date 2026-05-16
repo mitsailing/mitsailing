@@ -105,4 +105,13 @@ describe('handleResendAccountEmailWebhook', () => {
       },
     });
   });
+
+  it('skips malformed email events without recipients', async () => {
+    const event = bouncedEvent();
+    Reflect.deleteProperty(event.data, 'to');
+
+    await handleResendAccountEmailWebhook(event);
+
+    expect(mocks.prisma.user.updateMany).not.toHaveBeenCalled();
+  });
 });

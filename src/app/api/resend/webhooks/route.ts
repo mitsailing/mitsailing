@@ -44,17 +44,12 @@ export async function POST(request: Request) {
 
   const context = { providerEventId: request.headers.get('svix-id') };
   try {
-    const shouldHandleState = await handleResendEmailMessageWebhook(
-      event,
-      context
-    );
-    if (shouldHandleState) {
-      await handleResendNewsletterWebhook(event, {
-        ...context,
-        skipDedupe: true,
-      });
-      await handleResendAccountEmailWebhook(event, context);
-    }
+    await handleResendNewsletterWebhook(event, {
+      ...context,
+      skipDedupe: true,
+    });
+    await handleResendAccountEmailWebhook(event, context);
+    await handleResendEmailMessageWebhook(event, context);
   } catch (error) {
     logger.error('Failed to process Resend webhook: {error}', {
       error,
