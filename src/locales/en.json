@@ -1469,6 +1469,7 @@
     "action_submit": "Submit reservation request",
     "pending_submitting": "Submitting...",
     "footer_fix_email": "Enter a valid email address to continue.",
+    "footer_fix_overlap": "Adjust overlapping time slots to continue.",
     "footer_fix_slot": "Finish the selected date and time to continue.",
     "footer_fix_space": "Select an option to continue.",
     "action_start_over": "Start a new reservation",

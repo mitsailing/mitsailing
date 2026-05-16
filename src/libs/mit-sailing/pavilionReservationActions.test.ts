@@ -149,6 +149,54 @@ beforeEach(() => {
 });
 
 describe('submitPavilionReservationRequestAction', () => {
+  it('does not run dedupe checks when payload validation fails', async () => {
+    const { submitPavilionReservationRequestAction } =
+      await import('@/libs/mit-sailing/pavilionReservationActions');
+
+    const invalid = validFormData();
+    invalid.set('slots', '[]');
+
+    const result = await submitPavilionReservationRequestAction(
+      'en',
+      { errors: [], status: 'idle' } satisfies PavilionReservationSubmitState,
+      invalid
+    );
+
+    expect(result).toEqual({ status: 'error', errors: ['error_validation'] });
+    expect(transaction).not.toHaveBeenCalled();
+    expect(findFirstReservation).not.toHaveBeenCalled();
+    expect(requestCreate).not.toHaveBeenCalled();
+  });
+
+  it('allows corrected submission after validation error', async () => {
+    vi.setSystemTime(new Date('2026-06-29T04:00:00.000Z'));
+    const { submitPavilionReservationRequestAction } =
+      await import('@/libs/mit-sailing/pavilionReservationActions');
+
+    const invalid = validFormData();
+    invalid.set('slots', '[]');
+
+    const invalidResult = await submitPavilionReservationRequestAction(
+      'en',
+      { errors: [], status: 'idle' } satisfies PavilionReservationSubmitState,
+      invalid
+    );
+
+    const validResult = await submitPavilionReservationRequestAction(
+      'en',
+      { errors: [], status: 'idle' } satisfies PavilionReservationSubmitState,
+      validFormData()
+    );
+
+    expect(invalidResult).toEqual({
+      status: 'error',
+      errors: ['error_validation'],
+    });
+    expect(validResult.status).toBe('confirmed');
+    expect(findFirstReservation).toHaveBeenCalledTimes(1);
+    expect(requestCreate).toHaveBeenCalledTimes(1);
+  });
+
   it('submits after-midnight reservations with a PostgreSQL-safe lock key', async () => {
     vi.setSystemTime(new Date('2026-06-29T04:00:00.000Z'));
     const { submitPavilionReservationRequestAction } =

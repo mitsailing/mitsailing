@@ -372,6 +372,22 @@ describe('PavilionReservationWizard slot picker', () => {
     expect(scrollIntoView).toHaveBeenCalled();
   });
 
+  it('keeps malformed email on the first step', () => {
+    renderWizard({});
+
+    fireEvent.change(screen.getByLabelText('Email address*'), {
+      target: { value: 'sailor@' },
+    });
+    selectCompletedSlot();
+
+    expect(
+      screen.getByText('Enter a valid email address to continue.')
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Next: contact information' })
+    ).toBeDisabled();
+  });
+
   it('shows submit pending state on final submit', async () => {
     vi.useRealTimers();
     const deferred = Promise.withResolvers<PavilionReservationSubmitState>();

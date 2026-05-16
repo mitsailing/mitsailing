@@ -100,6 +100,10 @@ function fieldErrorsFromParseError(): PavilionReservationErrorKey[] {
   return ['error_validation'];
 }
 
+function validationErrorState(): PavilionReservationSubmitState {
+  return { status: 'error', errors: fieldErrorsFromParseError() };
+}
+
 function unknownErrorState(error: unknown): PavilionReservationSubmitState {
   logger.error(
     '[pavilion-reservation:create] error_name={errorName} error_code={errorCode}',
@@ -166,7 +170,7 @@ export async function submitPavilionReservationRequestAction(
 ): Promise<PavilionReservationSubmitState> {
   const parsed = parsePavilionReservationFormData(formData);
   if (!parsed.success) {
-    return { status: 'error', errors: fieldErrorsFromParseError() };
+    return validationErrorState();
   }
 
   const catalog = await listVisiblePavilionReservableItems();
@@ -212,7 +216,7 @@ export async function submitPavilionReservationRequestAction(
   });
 
   if (slotRows.some((row) => row === null)) {
-    return { status: 'error', errors: ['error_validation'] };
+    return validationErrorState();
   }
 
   const serviceRows = serviceIds.flatMap((serviceId) => {

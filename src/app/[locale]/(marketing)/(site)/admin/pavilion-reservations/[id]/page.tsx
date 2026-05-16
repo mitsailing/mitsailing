@@ -336,7 +336,7 @@ export default async function AdminPavilionReservationDetailPage(
                         defaultValue={dollarsValue(slot.estimatedAmountCents)}
                         min="0"
                         name="slotAmount"
-                        step="0.01"
+                        step="1"
                         type="number"
                       />
                     </label>
@@ -392,12 +392,7 @@ export default async function AdminPavilionReservationDetailPage(
                   </label>
                   <label className="space-y-1.5 text-sm">
                     <span className="font-medium">{t('field_amount')}</span>
-                    <Input
-                      min="0"
-                      name="slotAmount"
-                      step="0.01"
-                      type="number"
-                    />
+                    <Input min="0" name="slotAmount" step="1" type="number" />
                   </label>
                 </div>
               </div>
@@ -438,7 +433,7 @@ export default async function AdminPavilionReservationDetailPage(
                         )}
                         min="0"
                         name="serviceAmount"
-                        step="0.01"
+                        step="1"
                         type="number"
                       />
                     </label>

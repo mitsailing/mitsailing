@@ -47,6 +47,7 @@ import type {
   PavilionReservationSlotInput,
   PavilionReservationSubmitState,
 } from '@/libs/mit-sailing/pavilionReservationTypes';
+import { isValidMarketingEmail } from '@/utils/emailValidation';
 
 type ClientSlot = PavilionReservationSlotInput & {
   id: string;
@@ -79,10 +80,11 @@ type ContactFields = {
 
 type WizardStep = 'spaces' | 'contact';
 
-type SpacesStepProblem = 'email' | 'slot' | 'space';
+type SpacesStepProblem = 'email' | 'overlap' | 'slot' | 'space';
 
 type SpacesStepProblemReasonKey =
   | 'footer_fix_email'
+  | 'footer_fix_overlap'
   | 'footer_fix_slot'
   | 'footer_fix_space';
 
@@ -403,16 +405,17 @@ function spacesStepProblem(props: {
   requesterEmail: string;
   slots: ClientSlot[];
 }): SpacesStepProblem | null {
-  const email = props.requesterEmail.trim();
-  if (!email?.includes('@')) {
+  if (!isValidMarketingEmail(props.requesterEmail)) {
     return 'email';
   }
   if (
     props.slots.length > 0 &&
-    (props.slots.some((slot) => !completeSlot(slot)) ||
-      hasSameSpaceSlotOverlap(props.slots))
+    props.slots.some((slot) => !completeSlot(slot))
   ) {
     return 'slot';
+  }
+  if (props.slots.length > 0 && hasSameSpaceSlotOverlap(props.slots)) {
+    return 'overlap';
   }
   if (props.slots.length === 0) {
     return 'space';
@@ -428,6 +431,9 @@ function spacesStepProblemReasonKey(
   }
   if (problem === 'slot') {
     return 'footer_fix_slot';
+  }
+  if (problem === 'overlap') {
+    return 'footer_fix_overlap';
   }
   return 'footer_fix_space';
 }
@@ -1885,7 +1891,7 @@ function PavilionReservationSpacesStep(props: {
           <Field id="requester-email" label={t('field_email')} required>
             <Input
               aria-invalid={
-                props.showErrors && !props.requesterEmail.includes('@')
+                props.showErrors && !isValidMarketingEmail(props.requesterEmail)
               }
               aria-required
               id="requester-email"
@@ -2277,7 +2283,7 @@ function PavilionReservationContactStep(props: {
         </div>
 
         {props.persona === 'mit_academic' ? (
-          <section className="mt-6 rounded-lg border border-blue-200 bg-blue-50/70 p-5">
+          <section className="mt-6 rounded-lg border border-mit-line bg-mit-surface p-5">
             <h3 className="text-sm font-bold tracking-wide text-mit-text uppercase">
               {t('academic_title')}
             </h3>
