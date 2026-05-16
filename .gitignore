@@ -39,6 +39,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# IDE secrets (e.g. sourcery.token) — keep in Cursor User settings, not committed
+.vscode/settings.local.json
+
 # local env files — committed only when suffixed `.example`
 .env
 .env.*
@@ -74,3 +77,7 @@ build-archive.log
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+
+#Ignore cursor AI rules
+.cursor/rules/codacy.mdc

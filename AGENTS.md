@@ -18,12 +18,34 @@
 
 - Skip recaps unless the result is ambiguous or you need more input.
 - **Cursor rules** ([Cursor docs](https://cursor.com/docs/rules)): keep each `.mdc` **focused, actionable, well-scoped** — **reference** code or docs instead of duplicating prose (official guidance allows up to **500 lines per rule**; stay **well below** that). Prefer **`globs` + `alwaysApply: false`**; use **`alwaysApply: true`** only for short universal policy. **Cite** `.cursor/rules/…` paths; do not paste full rule bodies (including in **sub-agent** prompts). **`@tdd`** for strict test-first.
-- **Which rule:** `.coderabbit.yaml` (CodeRabbit on PRs) + `coderabbit-review.mdc` (same expectations for local agents / `cr review`). `nextjs-node-server-2026.mdc` (Next cache/DB/runtime, `src/app` + `src/libs`). `e2e-verification.mdc` (`test:e2e` gate). `dev-browser-auth.mdc` (local `/api/dev-login` for Cursor browser agents only). `tdd.mdc` (`tests/**`, `*.test.*`). `agent-workflow.mdc` (inspect-first, `src/**`). `ada-color-accessibility.mdc` (UI contrast/tokens). `app-design-tokens-colors.mdc` + `mit-red-ink-usage.mdc` (MIT red text utilities). `dates-us-eastern.mdc` (venue US Eastern; `I18n.ts` `timeZone`). `mitsailing-single-tenant-chrome.mdc` (chrome copy).
+- **Which rule:** `.coderabbit.yaml` (CodeRabbit on PRs) + `coderabbit-review.mdc` (same expectations for local agents / `cr review`). `sonarqube-review.mdc` (SonarQube MCP triage; app style/design rules win over generic code smells). `nextjs-node-server-2026.mdc` (Next cache/DB/runtime, `src/app` + `src/libs`). `e2e-verification.mdc` (`test:e2e` gate). `dev-browser-auth.mdc` (local `/api/dev-login` for Cursor browser agents only). `tdd.mdc` (`tests/**`, `*.test.*`). `agent-workflow.mdc` (inspect-first, `src/**`). `ada-color-accessibility.mdc` (UI contrast/tokens). `app-design-tokens-colors.mdc` + `mit-red-ink-usage.mdc` (MIT red text utilities). `dates-us-eastern.mdc` (venue US Eastern; `I18n.ts` `timeZone`). `mitsailing-single-tenant-chrome.mdc` (chrome copy).
 - **Prod → local DB:** `.cursor/skills/pgsync-prod-to-local/SKILL.md` (`.pgsync.yml`, optional `PGSYNC_FROM_URL` in `.env`).
 
 ## Commands
 
 Only these `npm run` scripts: `build-local`, `lint`, `check:types`, `check:deps`, `check:i18n`, `test`, `test:coverage`, `test:e2e`.
+
+## Static Analysis
+
+- Shared for Codex and Cursor: this `AGENTS.md` is the source of truth. `.cursor/rules/sonarqube-review.mdc` only helps Cursor load the same Sonar guidance.
+- SonarQube MCP: resolve the project from `.sonarlint/connectedMode.json`, list PRs when needed, then check quality gate + open issues. Do not change the remote Sonar profile unless explicitly asked.
+- Fix order: vulnerabilities/security hotspots, bugs/reliability gate blockers, high-impact maintainability that simplifies code, then low-risk style cleanups. Do not chase coverage, duplication, or broad complexity metrics unless the gate fails on them.
+- App style/design rules win over generic Sonar code smells. UI fixes must keep Tailwind v4 utilities, shared components, translation keys, app color tokens, accessibility rules, and existing responsive behavior. Do not introduce raw colors, new visual patterns, hard-coded user-visible strings, prop destructuring, unnecessary hooks, or formatting churn just to silence Sonar.
+- Current TypeScript Sonar alignment: no real secrets in source; local dev placeholders must be `Env`-gated and documented. Use explicit sort comparators (`localeCompare` for strings). Reduce complexity with named helpers/components, early returns, and tests. Use readonly React props only when touching a component and it preserves the single `props` parameter pattern; do not bulk-convert TSX for low-severity `S6759` alone. Optional chaining, `.includes()`, `RegExp.exec()`, `export...from`, `globalThis`, `TypeError`, and unused-prop fixes are fine when they make code clearer.
+- Report when Sonar results may be stale until CI re-analyzes the PR.
+
+### Sonar Setup Top 10
+
+1. Keep local project identity in `.sonarlint/connectedMode.json` and scanner defaults in `sonar-project.properties`.
+2. Use Sonar way quality gate/profile and Clean as You Code: gate new code first, not historical debt.
+3. PR analysis belongs in CI with the PR branch checked out, target branch fetched, intact `.git` metadata, and no synthetic merge-preview edits before scanning.
+4. Keep `sonar.sources`, `sonar.tests`, and `sonar.test.inclusions` explicit; a file must be source or test, never both.
+5. Import JS/TS coverage from `coverage/lcov.info`; Sonar does not generate coverage.
+6. Exclude build outputs, dependency folders, reports, generated artifacts, migrations, and tests from metrics where they are low signal.
+7. Keep Sonar tokens and host URLs in CI secrets/variables, never in repo files.
+8. Treat quality-gate failures as blocking; treat low-severity code smells as cleanup only when they improve clarity.
+9. Do not tune Sonar to override app UX, accessibility, i18n, or React conventions.
+10. After fixes, run targeted tests plus `npm run lint` and `npm run check:types`, then wait for CI/Sonar re-analysis before claiming the remote gate is clean.
 
 ## Dev authentication (browser agents)
 

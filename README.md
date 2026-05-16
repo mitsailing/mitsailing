@@ -1,5 +1,11 @@
 # MIT Sailing
 
+[![CI](https://github.com/mitsailing/mitsailing/actions/workflows/CI.yml/badge.svg)](https://github.com/mitsailing/mitsailing/actions/workflows/CI.yml)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=mitsailing&metric=sqale_rating)](https://sonarcloud.io/summary/overall?id=mitsailing)
+[![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=mitsailing&metric=duplicated_lines_density)](https://sonarcloud.io/summary/overall?id=mitsailing)
+
+<!-- Public badges intentionally exclude security ratings, vulnerability counts, security hotspot counts, and bug counts. -->
+
 The public site and internal app for the [MIT Sailing Pavilion](https://mitsailing.com) — pavilion and programs on the Charles.
 
 - **Production:** <https://mitsailing.com>

@@ -1,0 +1,15 @@
+---
+description: SonarQube MCP triage for PR quality gates while preserving app React, i18n, and design rules
+globs: **/*.{ts,tsx,js,jsx,json,yml,yaml,md,mdc}
+alwaysApply: false
+---
+
+# SonarQube review
+
+**Shared policy:** [AGENTS.md](../../AGENTS.md) `Static Analysis` is the source of truth for Codex and Cursor. This Cursor rule exists only so Cursor agents load the SonarQube guidance at the right time.
+
+**Sources:** project key in [`.sonarlint/connectedMode.json`](../../.sonarlint/connectedMode.json); scanner defaults in [`sonar-project.properties`](../../sonar-project.properties); UI rules in [app-design-tokens-colors.mdc](app-design-tokens-colors.mdc), [ada-color-accessibility.mdc](ada-color-accessibility.mdc), [mit-red-ink-usage.mdc](mit-red-ink-usage.mdc); React patterns in [AGENTS.md](../../AGENTS.md) and [react-form-events.mdc](react-form-events.mdc); PR review shape in [coderabbit-review.mdc](coderabbit-review.mdc). Cite paths rather than copying rule bodies.
+
+**Cursor rule shape:** Keep this file focused and agent-requested/glob-scoped. Cursor project rules are MDC files with `description`, `globs`, and `alwaysApply`; prefer short internal-doc rules over large duplicated policy.
+
+**Workflow:** Use the SonarQube MCP, then follow [AGENTS.md](../../AGENTS.md) `Static Analysis`: app style/design rules win over generic Sonar code smells, security/reliability gate blockers come first, and low-severity cleanups should stay simple.
