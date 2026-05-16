@@ -358,13 +358,24 @@ export async function createNewsletterBroadcast(
       return { ok: false, error: enqueueResult.error };
     }
 
-    await prisma.newsletterEvent.create({
-      data: {
-        actorUserId: params.createdByUserId,
-        broadcastId: broadcast.id,
-        type: 'broadcast_queued',
-      },
-    });
+    try {
+      await prisma.newsletterEvent.create({
+        data: {
+          actorUserId: params.createdByUserId,
+          broadcastId: broadcast.id,
+          type: 'broadcast_queued',
+        },
+      });
+    } catch (error) {
+      logger.error(
+        'Failed to record newsletter broadcast queued event: {error}',
+        {
+          actorUserId: params.createdByUserId,
+          broadcastId: broadcast.id,
+          error,
+        }
+      );
+    }
   }
 
   return {
@@ -539,16 +550,25 @@ async function suppressNewsletterDelivery(
     },
     where: { id: delivery.id },
   });
-  await prisma.newsletterEvent.create({
-    data: {
+  try {
+    await prisma.newsletterEvent.create({
+      data: {
+        broadcastId,
+        deliveryId: delivery.id,
+        email: delivery.email,
+        listId: delivery.primaryListId,
+        subscriberId: delivery.subscriberId,
+        type: 'suppressed',
+      },
+    });
+  } catch (error) {
+    logger.error('Failed to record newsletter suppressed event: {error}', {
       broadcastId,
       deliveryId: delivery.id,
       email: delivery.email,
-      listId: delivery.primaryListId,
-      subscriberId: delivery.subscriberId,
-      type: 'suppressed',
-    },
-  });
+      error,
+    });
+  }
 }
 
 async function markNewsletterDeliverySent(

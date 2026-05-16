@@ -204,6 +204,30 @@ describe('newsletter broadcasts', () => {
     });
   });
 
+  it('returns success when queued event insert fails after enqueue', async () => {
+    mocks.prisma.newsletterEvent.create.mockRejectedValueOnce(
+      new Error('audit failed')
+    );
+
+    const { createNewsletterBroadcast } =
+      await import('@/libs/newsletter/newsletterBroadcasts');
+    const result = await createNewsletterBroadcast(broadcastParams());
+
+    expect(result).toEqual({
+      broadcastId: 'broadcast_1',
+      ok: true,
+      queued: true,
+    });
+    expect(mocks.logger.error).toHaveBeenCalledWith(
+      'Failed to record newsletter broadcast queued event: {error}',
+      {
+        actorUserId: 'user_1',
+        broadcastId: 'broadcast_1',
+        error: expect.any(Error),
+      }
+    );
+  });
+
   it('limits queued delivery retries by max attempts', async () => {
     mocks.prisma.newsletterBroadcast.findUnique.mockResolvedValueOnce(
       queuedBroadcastRow()
@@ -282,6 +306,58 @@ describe('newsletter broadcasts', () => {
         type: 'suppressed',
       }),
     });
+  });
+
+  it('keeps suppressed delivery state when suppressed event insert fails', async () => {
+    mocks.prisma.newsletterBroadcast.findUnique
+      .mockResolvedValueOnce(queuedBroadcastRow())
+      .mockResolvedValueOnce({
+        cancelledAt: null,
+        pausedAt: null,
+        status: 'sending',
+      });
+    mocks.prisma.newsletterDelivery.findMany.mockResolvedValueOnce([
+      { id: 'delivery_1' },
+    ]);
+    mocks.prisma.newsletterDelivery.findUnique.mockResolvedValueOnce({
+      email: 'sailor@example.com',
+      id: 'delivery_1',
+      primaryList: { name: 'General', resendTopicId: null },
+      primaryListId: 'list_1',
+      subscriber: {
+        globalUnsubscribedAt: null,
+        manageTokenHash: 'token_hash',
+        subscriptions: [{ listId: 'list_1', status: 'unsubscribed' }],
+        suppressedAt: null,
+      },
+      subscriberId: 'subscriber_1',
+    });
+    mocks.prisma.newsletterEvent.create.mockRejectedValueOnce(
+      new Error('audit failed')
+    );
+
+    const { processNewsletterBroadcast } =
+      await import('@/libs/newsletter/newsletterBroadcasts');
+    await processNewsletterBroadcast('broadcast_1');
+
+    expect(mocks.prisma.newsletterDelivery.update).toHaveBeenCalledWith({
+      data: {
+        failedAt: expect.any(Date),
+        lastError: 'recipient not eligible at send time',
+        status: 'suppressed',
+      },
+      where: { id: 'delivery_1' },
+    });
+    expect(mocks.prisma.newsletterDelivery.count).toHaveBeenCalled();
+    expect(mocks.logger.error).toHaveBeenCalledWith(
+      'Failed to record newsletter suppressed event: {error}',
+      {
+        broadcastId: 'broadcast_1',
+        deliveryId: 'delivery_1',
+        email: 'sailor@example.com',
+        error: expect.any(Error),
+      }
+    );
   });
 
   it('suppresses unverified account deliveries before sending', async () => {
