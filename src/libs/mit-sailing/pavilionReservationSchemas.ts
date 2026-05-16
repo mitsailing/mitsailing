@@ -1,11 +1,16 @@
 import * as z from 'zod';
 import {
+  comparePavilionReservationCalendarDates,
   isPavilionReservationTimelineMinutes,
   PAVILION_RESERVATION_END_MINUTES,
   PAVILION_RESERVATION_START_MINUTES,
 } from '@/libs/mit-sailing/pavilionReservationBookingTimeline';
 
 const textField = z.string().trim().min(1);
+const normalizedEmailField = z.string().trim().toLowerCase().pipe(z.email());
+const normalizedEventNameField = textField.transform((value) =>
+  value.toLowerCase()
+);
 const optionalTextField = z
   .string()
   .trim()
@@ -18,7 +23,13 @@ const optionalEmailField = optionalTextField.refine(
 const slotSchema = z
   .object({
     itemId: textField,
-    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    date: z
+      .string()
+      .refine(
+        (value) =>
+          comparePavilionReservationCalendarDates(value, value) !== null,
+        { message: 'invalid_slot_date' }
+      ),
     startMinutes: z
       .number()
       .int()
@@ -56,11 +67,11 @@ const mitAccountField = optionalTextField.refine(
 );
 
 const commonReservationFields = {
-  requesterEmail: z.string().trim().pipe(z.email()),
+  requesterEmail: normalizedEmailField,
   firstName: textField,
   lastName: textField,
   phone: textField,
-  eventName: textField,
+  eventName: normalizedEventNameField,
   groupName: optionalTextField,
   groupSize: z
     .string()
@@ -83,7 +94,7 @@ const mitAcademicReservationSchema = z.object({
   persona: z.literal('mit_academic'),
   projectTitle: textField,
   advisorName: textField,
-  advisorEmail: z.string().trim().pipe(z.email()),
+  advisorEmail: normalizedEmailField,
   costCenter: textField,
 });
 

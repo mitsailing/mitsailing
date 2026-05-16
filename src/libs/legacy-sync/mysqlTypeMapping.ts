@@ -49,11 +49,15 @@ export function mysqlColumnToPostgresType(columnType: string): string {
   if (normalized === 'date') {
     return 'date';
   }
-  if (normalized === 'time') {
-    return 'time';
+  const timeMatch = /^time(?:\((\d+)\))?$/u.exec(normalized);
+  if (timeMatch) {
+    return timeMatch[1] ? `time(${timeMatch[1]})` : 'time';
   }
-  if (normalized === 'datetime' || normalized === 'timestamp') {
-    return 'timestamp';
+  const timestampMatch =
+    /^timestamp(?:\((\d+)\))?$/u.exec(normalized) ??
+    /^datetime(?:\((\d+)\))?$/u.exec(normalized);
+  if (timestampMatch) {
+    return timestampMatch[1] ? `timestamp(${timestampMatch[1]})` : 'timestamp';
   }
   if (TEXT_TYPES.has(normalized)) {
     return 'text';

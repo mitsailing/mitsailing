@@ -28,6 +28,7 @@ import type {
 } from '@/libs/mit-sailing/pavilionReservationTypes';
 import { safeErrorCode, safeErrorName } from '@/libs/safeUnknownError';
 import enMessages from '@/locales/en.json';
+import { isValidMarketingEmail } from '@/utils/emailValidation';
 import { getI18nPath } from '@/utils/Helpers';
 
 function formText(formData: FormData, key: string): string {
@@ -58,11 +59,48 @@ function wholeDollarsCentsOrNull(value: string): number | null {
   if (!value) {
     return null;
   }
-  const normalized = value.replaceAll(/[$,]/g, '');
+  const normalized = value.replaceAll(/[$,]/g, '').trim();
+  if (!/^\d+(\.\d+)?$/u.test(normalized)) {
+    return null;
+  }
   const parsed = Number.parseFloat(normalized);
   return Number.isFinite(parsed) && parsed >= 0
     ? Math.round(parsed) * 100
     : null;
+}
+
+function requireAdminContactFields(props: {
+  description: string;
+  eventName: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  requesterEmail: string;
+}): void {
+  const missing: string[] = [];
+  if (!props.requesterEmail) {
+    missing.push('requesterEmail');
+  } else if (!isValidMarketingEmail(props.requesterEmail)) {
+    throw new Error('Invalid requester email');
+  }
+  if (!props.firstName) {
+    missing.push('firstName');
+  }
+  if (!props.lastName) {
+    missing.push('lastName');
+  }
+  if (!props.phone) {
+    missing.push('phone');
+  }
+  if (!props.eventName) {
+    missing.push('eventName');
+  }
+  if (!props.description) {
+    missing.push('description');
+  }
+  if (missing.length > 0) {
+    throw new Error(`Missing required fields: ${missing.join(', ')}`);
+  }
 }
 
 function dateFromFormToken(value: string): Date | null {
@@ -331,6 +369,21 @@ export async function updatePavilionReservationAdminAction(
     );
   }
 
+  const requesterEmail = formText(formData, 'requesterEmail');
+  const firstName = formText(formData, 'firstName');
+  const lastName = formText(formData, 'lastName');
+  const phone = formText(formData, 'phone');
+  const eventName = formText(formData, 'eventName');
+  const description = formText(formData, 'description');
+  requireAdminContactFields({
+    description,
+    eventName,
+    firstName,
+    lastName,
+    phone,
+    requesterEmail,
+  });
+
   const slotRows = parseSlotRows(formData);
   const serviceRows = parseServiceRows(formData);
   const updatedAt = dateFromFormToken(formText(formData, 'updatedAt'));
@@ -402,14 +455,14 @@ export async function updatePavilionReservationAdminAction(
         paymentStatus,
         paidAt: paidAtFromForm(paymentStatus, formText(formData, 'paidAt')),
         persona,
-        requesterEmail: formText(formData, 'requesterEmail'),
-        firstName: formText(formData, 'firstName'),
-        lastName: formText(formData, 'lastName'),
-        phone: formText(formData, 'phone'),
-        eventName: formText(formData, 'eventName'),
+        requesterEmail,
+        firstName,
+        lastName,
+        phone,
+        eventName,
         groupName: optionalText(formText(formData, 'groupName')),
         groupSize: positiveIntOrNull(formText(formData, 'groupSize')),
-        description: formText(formData, 'description'),
+        description,
         hasTent: formData.get('hasTent') === 'on',
         servesAlcohol: formData.get('servesAlcohol') === 'on',
         projectTitle: optionalText(formText(formData, 'projectTitle')),

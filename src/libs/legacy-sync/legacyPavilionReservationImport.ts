@@ -243,8 +243,7 @@ function inferSpaceSlugs(row: LegacyReservationDbRow): string[] {
   }
   if (/\b(party boat|riverboat|cruise|charles river|boat dock)\b/u.test(hay)) {
     add('party_boat');
-  }
-  if (/\b(dock|grill|patio)\b/u.test(hay)) {
+  } else if (/\b(dock|grill|patio)\b/u.test(hay)) {
     add('casual_dock');
   }
   if (/\b(wedding|ceremony|reception)\b/u.test(hay)) {

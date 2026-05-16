@@ -150,6 +150,37 @@ describe('pavilionReservationFormSchema', () => {
     expect(result.success).toBe(false);
   });
 
+  it('rejects impossible slot calendar dates', () => {
+    const result = pavilionReservationFormSchema.safeParse({
+      ...validInput(),
+      slots: [
+        {
+          itemId: 'pavilion',
+          date: '2026-02-31',
+          startMinutes: 9 * 60,
+          endMinutes: 11 * 60,
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('normalizes requester email and event name casing', () => {
+    const result = pavilionReservationFormSchema.safeParse({
+      ...validInput(),
+      requesterEmail: 'Sailor@MIT.edu',
+      eventName: 'Summer Picnic',
+    });
+
+    expect(result.success).toBe(true);
+    if (!result.success) {
+      return;
+    }
+    expect(result.data.requesterEmail).toBe('sailor@mit.edu');
+    expect(result.data.eventName).toBe('summer picnic');
+  });
+
   it('accepts bookable operating-hours slots', () => {
     const result = pavilionReservationFormSchema.safeParse({
       ...validInput(),

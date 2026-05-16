@@ -20,7 +20,10 @@ describe('mysqlColumnToPostgresType', () => {
   it('maps temporal and text types', () => {
     expect(mysqlColumnToPostgresType('date')).toBe('date');
     expect(mysqlColumnToPostgresType('time')).toBe('time');
+    expect(mysqlColumnToPostgresType('time(6)')).toBe('time(6)');
     expect(mysqlColumnToPostgresType('datetime')).toBe('timestamp');
+    expect(mysqlColumnToPostgresType('datetime(6)')).toBe('timestamp(6)');
+    expect(mysqlColumnToPostgresType('timestamp(3)')).toBe('timestamp(3)');
     expect(mysqlColumnToPostgresType('mediumtext')).toBe('text');
   });
 

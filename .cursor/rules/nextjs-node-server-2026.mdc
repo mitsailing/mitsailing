@@ -13,7 +13,7 @@ Use current App Router docs as the baseline: async Server Components, async `par
 ## Runtime
 
 - **Default the Node.js runtime** for `Route Handler`s, `Server Actions`, and RSC that use Prisma, the filesystem, or native `pg`—do not opt into **`runtime = 'edge'`** unless you have a specific need (e.g. geo at the edge) and can avoid unsupported APIs.
-- Prefer **React Server Components** and **data access on the server**; colocate fetches in server components or small server-only modules. Treat `useEffect` as an escape hatch for external systems, not a data-loading, event-handling, or transformation tool (see [AGENTS.md](AGENTS.md) React section).
+- Prefer **React Server Components** and **data access on the server**; colocate fetches in server components or small server-only modules. Treat `useEffect` as an escape hatch for external systems, not a data-loading, event-handling, or transformation tool (see [AGENTS.md](../../AGENTS.md) React section).
 
 ## Caching and revalidation
 

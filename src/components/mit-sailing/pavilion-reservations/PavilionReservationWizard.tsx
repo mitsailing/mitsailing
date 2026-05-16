@@ -2051,7 +2051,7 @@ function PavilionReservationServiceOption(props: {
         type="checkbox"
         onChange={() => {
           props.setSelectedServiceIds((current) =>
-            props.selected
+            current.includes(props.service.id)
               ? current.filter((id) => id !== props.service.id)
               : [...current, props.service.id]
           );

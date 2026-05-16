@@ -170,6 +170,13 @@ describe('adminPavilionReservationTodayKey', () => {
 });
 
 describe('adminPavilionReservationWeekStart', () => {
+  it('falls back to today for impossible calendar dates', () => {
+    const weekStart = adminPavilionReservationWeekStart('2026-02-31');
+    expect(weekStart).toBe(
+      adminPavilionReservationWeekStart(adminPavilionReservationTodayKey())
+    );
+  });
+
   it('starts sunday week for eastern today', () => {
     expect(
       adminPavilionReservationWeekStart(

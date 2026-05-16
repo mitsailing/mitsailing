@@ -12,4 +12,10 @@ describe('formatPavilionReservationTimeLabel', () => {
       '12:30 AM (next day)'
     );
   });
+
+  it('wraps display hour for offsets beyond 24 hours', () => {
+    expect(formatPavilionReservationTimeLabel(48 * 60 + 30)).toBe(
+      '12:30 AM (next day)'
+    );
+  });
 });

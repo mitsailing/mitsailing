@@ -77,7 +77,7 @@ function renderWizard(props: {
 function slotsInput(container: HTMLElement) {
   const input = container.querySelector('input[name="slots"]');
   if (!(input instanceof HTMLInputElement)) {
-    throw new Error('Expected slots input.');
+    throw new TypeError('Expected slots input.');
   }
   return input;
 }
@@ -85,7 +85,7 @@ function slotsInput(container: HTMLElement) {
 function hiddenInput(container: HTMLElement, name: string) {
   const input = container.querySelector(`input[name="${name}"]`);
   if (!(input instanceof HTMLInputElement)) {
-    throw new Error(`Expected ${name} input.`);
+    throw new TypeError(`Expected ${name} input.`);
   }
   return input;
 }

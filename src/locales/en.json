@@ -1514,6 +1514,8 @@
     "detail_title": "Pavilion reservation {reference}",
     "filter_status_label": "Status",
     "filter_status_all": "All statuses",
+    "filter_payment_label": "Payment",
+    "filter_payment_all": "All payment states",
     "filter_date_label": "Reservation date",
     "filter_search_label": "Search",
     "filter_search_placeholder": "Reference, requester, event, or group",

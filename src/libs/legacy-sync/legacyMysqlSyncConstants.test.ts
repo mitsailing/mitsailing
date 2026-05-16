@@ -23,4 +23,8 @@ describe('isLegacyMysqlSyncCronPattern', () => {
     expect(isLegacyMysqlSyncCronPattern('')).toBe(false);
     expect(isLegacyMysqlSyncCronPattern('not-a-cron')).toBe(false);
   });
+
+  it('rejects semantically invalid cron fields', () => {
+    expect(isLegacyMysqlSyncCronPattern('60 0 0 0 0 0')).toBe(false);
+  });
 });

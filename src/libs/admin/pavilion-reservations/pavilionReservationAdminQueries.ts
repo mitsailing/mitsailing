@@ -34,6 +34,7 @@ export type AdminPavilionReservationSortDirection = 'asc' | 'desc';
 
 export type AdminPavilionReservationListFilters = {
   date?: string;
+  paymentStatus?: PavilionReservationPaymentStatusValue;
   search?: string;
   sort: AdminPavilionReservationSortKey;
   status?: PavilionReservationStatusValue;
@@ -314,6 +315,9 @@ export async function listAdminPavilionReservationRows(
   const rows = await prisma.pavilionReservationRequest.findMany({
     where: {
       ...(filters.status ? { status: filters.status } : {}),
+      ...(filters.paymentStatus
+        ? { paymentStatus: filters.paymentStatus }
+        : {}),
       ...searchWhere,
       ...(filters.date
         ? {

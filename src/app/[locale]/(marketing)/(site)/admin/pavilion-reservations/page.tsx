@@ -24,9 +24,11 @@ import type {
   AdminPavilionReservationSortKey,
 } from '@/libs/admin/pavilion-reservations/pavilionReservationAdminQueries';
 import {
+  adminPavilionReservationPaymentStatuses,
   adminPavilionReservationStatuses,
   listAdminPavilionReservationRows,
   parseAdminPavilionReservationDateFilter,
+  parseAdminPavilionReservationPaymentStatus,
   parseAdminPavilionReservationSearch,
   parseAdminPavilionReservationSortDirection,
   parseAdminPavilionReservationSortKey,
@@ -51,6 +53,7 @@ type AdminPavilionReservationsPageProps = {
     direction?: string | string[];
     search?: string | string[];
     sort?: string | string[];
+    paymentStatus?: string | string[];
     status?: string | string[];
     week?: string | string[];
   }>;
@@ -59,6 +62,7 @@ type AdminPavilionReservationsPageProps = {
 function filterHref(params: {
   date?: string;
   direction?: AdminPavilionReservationSortDirection;
+  paymentStatus?: string;
   search?: string;
   sort?: AdminPavilionReservationSortKey;
   status?: string;
@@ -68,6 +72,9 @@ function filterHref(params: {
   const query: Record<string, string> = {};
   if (params.status) {
     query.status = params.status;
+  }
+  if (params.paymentStatus) {
+    query.paymentStatus = params.paymentStatus;
   }
   if (params.date) {
     query.date = params.date;
@@ -126,6 +133,9 @@ export default async function AdminPavilionReservationsPage(
   setRequestLocale(locale);
   const searchParams = await props.searchParams;
   const status = parseAdminPavilionReservationStatus(searchParams.status);
+  const paymentStatus = parseAdminPavilionReservationPaymentStatus(
+    searchParams.paymentStatus
+  );
   const date = parseAdminPavilionReservationDateFilter(searchParams.date);
   const search = parseAdminPavilionReservationSearch(searchParams.search);
   const sort = parseAdminPavilionReservationSortKey(searchParams.sort);
@@ -140,7 +150,7 @@ export default async function AdminPavilionReservationsPage(
   const weekKeys = adminPavilionReservationWeekKeys(weekStart);
   const [result, t] = await Promise.all([
     listAdminPavilionReservationRows(
-      { date, direction, search, sort, status },
+      { date, direction, paymentStatus, search, sort, status },
       weekKeys
     ),
     getTranslations({ locale, namespace: 'AdminPavilionReservations' }),
@@ -149,6 +159,7 @@ export default async function AdminPavilionReservationsPage(
   const commonHrefParams = {
     date,
     direction,
+    paymentStatus,
     search,
     sort,
     status,
@@ -177,7 +188,7 @@ export default async function AdminPavilionReservationsPage(
 
       <Form
         action={pavilionReservationListPath}
-        className="grid gap-3 rounded-lg border border-border bg-card p-4 lg:grid-cols-[minmax(180px,240px)_minmax(180px,240px)_minmax(220px,1fr)_auto]"
+        className="grid gap-3 rounded-lg border border-border bg-card p-4 lg:grid-cols-[minmax(180px,240px)_minmax(180px,240px)_minmax(180px,240px)_minmax(220px,1fr)_auto]"
       >
         <input name="sort" type="hidden" value={sort} />
         <input name="direction" type="hidden" value={direction} />
@@ -195,6 +206,23 @@ export default async function AdminPavilionReservationsPage(
             {adminPavilionReservationStatuses.map((statusOption) => (
               <option key={statusOption} value={statusOption}>
                 {t(`status_${statusOption}`)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex min-w-0 flex-col gap-1.5 text-sm">
+          <span className="font-medium text-foreground">
+            {t('filter_payment_label')}
+          </span>
+          <select
+            className={adminNativeSelectClassName}
+            defaultValue={paymentStatus ?? ''}
+            name="paymentStatus"
+          >
+            <option value="">{t('filter_payment_all')}</option>
+            {adminPavilionReservationPaymentStatuses.map((paymentOption) => (
+              <option key={paymentOption} value={paymentOption}>
+                {t(`payment_${paymentOption}`)}
               </option>
             ))}
           </select>

@@ -4,7 +4,10 @@ import {
   nyWeekdaySunday0,
   nyYmd,
 } from '@/lib/mit-sailing/nyTime';
-import { isoCalendarDateFromPrismaDate } from '@/libs/mit-sailing/isoCalendarDate';
+import {
+  isoCalendarDateFromPrismaDate,
+  prismaDateFromIsoCalendar,
+} from '@/libs/mit-sailing/isoCalendarDate';
 import type {
   PavilionReservationPaymentStatusValue,
   PavilionReservationStatusValue,
@@ -69,7 +72,8 @@ export function adminPavilionReservationTodayKey(
 }
 
 export function adminPavilionReservationWeekStart(dateKey: string): string {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
+  const requestedDate = prismaDateFromIsoCalendar(dateKey);
+  if (!requestedDate) {
     return adminPavilionReservationWeekStart(
       adminPavilionReservationTodayKey()
     );

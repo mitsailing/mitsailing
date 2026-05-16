@@ -90,6 +90,16 @@ vi.mock('next/cache', () => ({
   revalidatePath: vi.fn(),
 }));
 
+function withRequiredAdminContactFields(formData: FormData) {
+  formData.set('requesterEmail', 'sailor@example.com');
+  formData.set('firstName', 'Sally');
+  formData.set('lastName', 'Sailor');
+  formData.set('phone', '617-555-0100');
+  formData.set('eventName', 'Dock event');
+  formData.set('description', 'Notes');
+  return formData;
+}
+
 describe('updatePavilionReservationAdminAction', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -115,7 +125,7 @@ describe('updatePavilionReservationAdminAction', () => {
   });
 
   it('rejects malformed paid timestamps', async () => {
-    const formData = new FormData();
+    const formData = withRequiredAdminContactFields(new FormData());
     formData.set('workflowStatus', 'pending');
     formData.set('paymentStatus', 'paid');
     formData.set('persona', 'mit_student');
@@ -132,7 +142,7 @@ describe('updatePavilionReservationAdminAction', () => {
   });
 
   it('preserves canonical cross-midnight slot minutes', async () => {
-    const formData = new FormData();
+    const formData = withRequiredAdminContactFields(new FormData());
     formData.set('workflowStatus', 'pending');
     formData.set('paymentStatus', 'unpaid');
     formData.set('persona', 'mit_student');
@@ -161,7 +171,7 @@ describe('updatePavilionReservationAdminAction', () => {
   });
 
   it('rejects malformed slot rows before replacing slots', async () => {
-    const formData = new FormData();
+    const formData = withRequiredAdminContactFields(new FormData());
     formData.set('workflowStatus', 'pending');
     formData.set('paymentStatus', 'unpaid');
     formData.set('persona', 'mit_student');
@@ -181,7 +191,7 @@ describe('updatePavilionReservationAdminAction', () => {
   });
 
   it('stores admin slot amounts as whole-dollar cents', async () => {
-    const formData = new FormData();
+    const formData = withRequiredAdminContactFields(new FormData());
     formData.set('workflowStatus', 'pending');
     formData.set('paymentStatus', 'unpaid');
     formData.set('persona', 'mit_student');
@@ -208,8 +218,36 @@ describe('updatePavilionReservationAdminAction', () => {
     );
   });
 
+  it('rejects partially numeric amount tokens as null cents', async () => {
+    const formData = withRequiredAdminContactFields(new FormData());
+    formData.set('workflowStatus', 'pending');
+    formData.set('paymentStatus', 'unpaid');
+    formData.set('persona', 'mit_student');
+    formData.set('updatedAt', new Date('2026-05-01T12:00:00Z').toISOString());
+    formData.set('slotItemId', 'space-1');
+    formData.set('slotDate', '2026-07-01');
+    formData.set('slotStart', '540');
+    formData.set('slotEnd', '600');
+    formData.set('slotAmount', '12abc');
+    prisma.pavilionReservableItem.findMany.mockResolvedValueOnce([
+      { id: 'space-1', kind: 'space' },
+    ]);
+
+    await updatePavilionReservationAdminAction('en', 'req-1', formData);
+
+    expect(prisma.__tx.pavilionReservationSlot.createMany).toHaveBeenCalledWith(
+      {
+        data: [
+          expect.objectContaining({
+            estimatedAmountCents: null,
+          }),
+        ],
+      }
+    );
+  });
+
   it('rejects stale admin edit tokens before replacing child rows', async () => {
-    const formData = new FormData();
+    const formData = withRequiredAdminContactFields(new FormData());
     formData.set('workflowStatus', 'pending');
     formData.set('paymentStatus', 'unpaid');
     formData.set('persona', 'mit_student');
