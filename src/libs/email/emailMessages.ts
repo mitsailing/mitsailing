@@ -39,6 +39,13 @@ type RecordSentEmailMessageParams = {
   userId?: string | null;
 };
 
+type UpsertEmailMessageParams = RecordSentEmailMessageParams & {
+  client?: Pick<ResendWebhookClient, '$queryRaw'>;
+  lastEventAt: Date | null;
+  lastEventType: string | null;
+  sentAt: Date | null;
+};
+
 export type ResendEmailEventPayload = Extract<
   WebhookEventPayload,
   {
@@ -124,22 +131,16 @@ async function userIdForEmail(email: string): Promise<string | null> {
   return user?.id ?? null;
 }
 
-/**
- * Records one outbound email after the active transport accepts it.
- *
- * @param params - Message metadata and provider ids
- * @returns Stored email message id
- */
-export async function recordSentEmailMessage(
-  params: RecordSentEmailMessageParams
+async function upsertEmailMessage(
+  params: UpsertEmailMessageParams
 ): Promise<string> {
+  const client = params.client ?? prisma;
   const id = randomUUID();
   const now = new Date();
   const toEmail = normalizeEmailAddress(params.toEmail);
-  const userId = params.userId ?? (await userIdForEmail(toEmail));
   const metadata = jsonb(params.metadata ?? null);
 
-  const rows = await prisma.$queryRaw<{ id: string }[]>`
+  const rows = await client.$queryRaw<{ id: string }[]>`
     INSERT INTO "email_messages" (
       "id",
       "provider",
@@ -161,16 +162,16 @@ export async function recordSentEmailMessage(
       ${id},
       ${params.provider},
       ${params.providerMessageId},
-      ${userId},
+      ${params.userId ?? null},
       ${params.newsletterSubscriberId ?? null},
       ${params.newsletterBroadcastId ?? null},
       ${params.newsletterDeliveryId ?? null},
       ${toEmail},
       ${params.subject},
       ${params.category},
-      ${'email.sent'},
-      ${now},
-      ${now},
+      ${params.lastEventType},
+      ${params.sentAt},
+      ${params.lastEventAt},
       ${metadata},
       ${now}
     )
@@ -180,11 +181,38 @@ export async function recordSentEmailMessage(
       "newsletter_subscriber_id" = COALESCE("email_messages"."newsletter_subscriber_id", EXCLUDED."newsletter_subscriber_id"),
       "newsletter_broadcast_id" = COALESCE("email_messages"."newsletter_broadcast_id", EXCLUDED."newsletter_broadcast_id"),
       "newsletter_delivery_id" = COALESCE("email_messages"."newsletter_delivery_id", EXCLUDED."newsletter_delivery_id"),
+      "to_email" = COALESCE(NULLIF("email_messages"."to_email", ''), EXCLUDED."to_email"),
+      "subject" = COALESCE(NULLIF("email_messages"."subject", ''), EXCLUDED."subject"),
+      "category" = CASE WHEN "email_messages"."category" = 'other' THEN EXCLUDED."category" ELSE "email_messages"."category" END,
+      "metadata" = COALESCE("email_messages"."metadata", EXCLUDED."metadata"),
       "updated_at" = EXCLUDED."updated_at"
     RETURNING "id"
   `;
 
   return rows.at(0)?.id ?? id;
+}
+
+/**
+ * Records one outbound email after the active transport accepts it.
+ *
+ * @param params - Message metadata and provider ids
+ * @returns Stored email message id
+ */
+export async function recordSentEmailMessage(
+  params: RecordSentEmailMessageParams
+): Promise<string> {
+  const toEmail = normalizeEmailAddress(params.toEmail);
+  const userId = params.userId ?? (await userIdForEmail(toEmail));
+  const sentAt = new Date();
+
+  return upsertEmailMessage({
+    ...params,
+    lastEventAt: sentAt,
+    lastEventType: 'email.sent',
+    sentAt,
+    toEmail,
+    userId,
+  });
 }
 
 async function emailMessageIdForProviderMessage(
@@ -208,7 +236,7 @@ type EmailMessageEventClient = {
 
 export async function recordResendEmailMessageEvent(params: {
   client?: EmailMessageEventClient;
-  emailMessageId: string | null;
+  emailMessageId: string;
   event: ResendEmailEventPayload;
   occurredAt: Date;
   providerEventId: string | null;
@@ -252,17 +280,53 @@ export async function recordResendEmailMessageEvent(params: {
   return rows.length > 0;
 }
 
+function firstResendRecipient(event: ResendEmailEventPayload): string {
+  const recipients = 'to' in event.data ? event.data.to : null;
+  if (Array.isArray(recipients)) {
+    return recipients.find((recipient) => typeof recipient === 'string') ?? '';
+  }
+  return typeof recipients === 'string' ? recipients : '';
+}
+
+function resendEmailSubject(event: ResendEmailEventPayload): string {
+  const subject = 'subject' in event.data ? event.data.subject : null;
+  return typeof subject === 'string' ? subject : '';
+}
+
+export async function emailMessageIdForResendEvent(params: {
+  client: Pick<ResendWebhookClient, '$queryRaw'>;
+  event: ResendEmailEventPayload;
+  providerMessageId: string;
+}): Promise<string> {
+  const existingId = await emailMessageIdForProviderMessage(
+    'resend',
+    params.providerMessageId,
+    params.client
+  );
+  if (existingId) {
+    return existingId;
+  }
+
+  return upsertEmailMessage({
+    category: 'other',
+    client: params.client,
+    lastEventAt: null,
+    lastEventType: null,
+    provider: 'resend',
+    providerMessageId: params.providerMessageId,
+    sentAt: null,
+    subject: resendEmailSubject(params.event),
+    toEmail: firstResendRecipient(params.event),
+  });
+}
+
 async function updateEmailMessageFromEvent(params: {
   client?: Pick<ResendWebhookClient, '$executeRaw'>;
-  emailMessageId: string | null;
+  emailMessageId: string;
   event: ResendEmailEventPayload;
   lastError: string | null;
   occurredAt: Date;
 }): Promise<void> {
-  if (!params.emailMessageId) {
-    return;
-  }
-
   const client = params.client ?? prisma;
   await client.$executeRaw`
     UPDATE "email_messages"
@@ -299,11 +363,6 @@ export async function handleResendEmailMessageWebhook(
 
   const providerMessageId = event.data.email_id;
   const client = context?.client ?? prisma;
-  const emailMessageId = await emailMessageIdForProviderMessage(
-    'resend',
-    providerMessageId,
-    client
-  );
   const occurredAt = resendWebhookOccurredAt(event);
   if (!occurredAt) {
     logger.warn('Skipping Resend email event with invalid timestamp', {
@@ -313,6 +372,11 @@ export async function handleResendEmailMessageWebhook(
     });
     return false;
   }
+  const emailMessageId = await emailMessageIdForResendEvent({
+    client,
+    event,
+    providerMessageId,
+  });
   const isNewEvent = await recordResendEmailMessageEvent({
     client,
     emailMessageId,

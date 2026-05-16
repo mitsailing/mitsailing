@@ -5,7 +5,7 @@ import type { updateNewsletterPreferences as updateNewsletterPreferencesFn } fro
 
 vi.mock('server-only', () => ({}));
 
-describe.skipIf(!process.env.TEST_DATABASE_URL)(
+describe.skipIf(process.env.RUN_DATABASE_TESTS !== '1')(
   'updateNewsletterPreferences rollback',
   () => {
     let prisma: typeof dbPrisma | null = null;

@@ -31,6 +31,7 @@ const mocks = vi.hoisted(() => {
         }
       ),
     },
+    emailMessageIdForResendEvent: vi.fn(),
     recordResendEmailMessageEvent: vi.fn(),
     logger: {
       info: vi.fn(),
@@ -47,6 +48,7 @@ vi.mock('@/libs/DB', () => ({
 }));
 
 vi.mock('@/libs/email/emailMessages', () => ({
+  emailMessageIdForResendEvent: mocks.emailMessageIdForResendEvent,
   recordResendEmailMessageEvent: mocks.recordResendEmailMessageEvent,
 }));
 
@@ -92,6 +94,7 @@ function bouncedEvent(params: { to?: string[] } = {}) {
 describe('handleResendNewsletterWebhook', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.emailMessageIdForResendEvent.mockResolvedValue('email_message_123');
     mocks.recordResendEmailMessageEvent.mockResolvedValue(true);
     mocks.tx.newsletterDelivery.findFirst.mockResolvedValue({
       broadcastId: 'broadcast_123',
@@ -118,6 +121,7 @@ describe('handleResendNewsletterWebhook', () => {
 
     expect(mocks.recordResendEmailMessageEvent).toHaveBeenCalledWith(
       expect.objectContaining({
+        emailMessageId: 'email_message_123',
         providerEventId: 'email_123:email.delivered:2026-05-14T14:30:00.000Z',
       })
     );

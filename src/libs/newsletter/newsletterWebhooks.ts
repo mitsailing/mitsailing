@@ -7,7 +7,10 @@ import type {
   ResendWebhookClient,
   ResendWebhookContext,
 } from '@/libs/email/emailMessages';
-import { recordResendEmailMessageEvent } from '@/libs/email/emailMessages';
+import {
+  emailMessageIdForResendEvent,
+  recordResendEmailMessageEvent,
+} from '@/libs/email/emailMessages';
 import {
   resendProviderEventIdForWebhook,
   resendWebhookOccurredAt,
@@ -411,9 +414,14 @@ export async function handleResendNewsletterWebhook(
     context,
     operation: async (tx) => {
       if (!context?.skipDedupe) {
+        const emailMessageId = await emailMessageIdForResendEvent({
+          client: tx,
+          event,
+          providerMessageId,
+        });
         const isNewEvent = await recordResendEmailMessageEvent({
           client: tx,
-          emailMessageId: null,
+          emailMessageId,
           event,
           occurredAt,
           providerEventId,
