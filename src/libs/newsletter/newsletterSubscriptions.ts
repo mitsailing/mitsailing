@@ -410,7 +410,7 @@ export async function updateNewsletterPreferences(
       publicLists,
     });
     const subscriber = await tx.newsletterSubscriber.findUnique({
-      select: { email: true, id: true },
+      select: { email: true, globalUnsubscribedAt: true, id: true },
       where: { id: params.subscriberId },
     });
     if (!subscriber) {
@@ -438,7 +438,7 @@ export async function updateNewsletterPreferences(
       });
     }
 
-    if (!anySelected) {
+    if (!anySelected && !subscriber.globalUnsubscribedAt) {
       await tx.newsletterEvent.create({
         data: {
           actorUserId: params.actorUserId ?? null,

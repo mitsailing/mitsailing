@@ -16,7 +16,6 @@ import { requireAdmin } from '@/libs/auth/dal';
 import { Link } from '@/libs/I18nNavigation';
 import { newsletterBroadcastStatusKey } from '@/libs/newsletter/newsletterAdminDisplay';
 import { getAdminNewsletterBroadcasts } from '@/libs/newsletter/newsletterBroadcasts';
-import { getI18nPath } from '@/utils/Helpers';
 
 type PageProps = Readonly<{
   params: Promise<{ locale: string }>;
@@ -59,9 +58,7 @@ export default async function AdminNewsletterBroadcastsPage(props: PageProps) {
       <AdminPageHeader
         actions={
           <Button asChild variant="mit">
-            <Link
-              href={getI18nPath('/admin/newsletter-broadcasts/new', locale)}
-            >
+            <Link href="/admin/newsletter-broadcasts/new">
               {t('broadcasts_new')}
             </Link>
           </Button>
@@ -98,12 +95,7 @@ export default async function AdminNewsletterBroadcastsPage(props: PageProps) {
               broadcasts.map((broadcast) => (
                 <TableRow key={broadcast.id}>
                   <TableCell className="font-medium">
-                    <Link
-                      href={getI18nPath(
-                        `/admin/newsletter-broadcasts/${broadcast.id}`,
-                        locale
-                      )}
-                    >
+                    <Link href={`/admin/newsletter-broadcasts/${broadcast.id}`}>
                       {broadcast.subject}
                     </Link>
                   </TableCell>

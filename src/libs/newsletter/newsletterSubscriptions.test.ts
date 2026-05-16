@@ -224,6 +224,27 @@ describe('updateNewsletterPreferences', () => {
     });
   });
 
+  it('omits global unsubscribe event when already globally unsubscribed', async () => {
+    mocks.transaction.newsletterSubscriber.findUnique.mockResolvedValue({
+      email: 'sailor@example.com',
+      globalUnsubscribedAt: new Date('2026-05-13T14:30:00.000Z'),
+      id: 'subscriber_123',
+    });
+
+    await updateNewsletterPreferences({
+      listIds: [],
+      source: 'token_manage',
+      subscriberId: 'subscriber_123',
+    });
+
+    expect(mocks.transaction.newsletterEvent.create).not.toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        subscriberId: 'subscriber_123',
+        type: 'unsubscribed_all',
+      }),
+    });
+  });
+
   it('omits unsubscribe event for lists without prior subscription', async () => {
     await updateNewsletterPreferences({
       listIds: ['general_id'],
