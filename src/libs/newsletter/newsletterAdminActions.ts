@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { Prisma } from '@/generated/prisma/client';
 import { requireAdmin } from '@/libs/auth/dal';
 import { prisma } from '@/libs/DB';
 import { Env } from '@/libs/Env';
@@ -58,6 +59,13 @@ function adminBroadcastPath(broadcastId: string): string {
   return `${ADMIN_BROADCASTS_PATH}/${broadcastId}`;
 }
 
+function isUniqueConstraintError(error: unknown): boolean {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === 'P2002'
+  );
+}
+
 /**
  * Creates a newsletter list/topic from the admin area.
  *
@@ -94,17 +102,24 @@ export async function createNewsletterListAction(
     adminRedirect(locale, `${ADMIN_LISTS_PATH}/new`, 'duplicate_list');
   }
 
-  await prisma.newsletterList.create({
-    data: {
-      defaultSubscription,
-      description: description.length > 0 ? description : null,
-      displayOrder: 100,
-      name,
-      resendTopicId: resendTopicId.length > 0 ? resendTopicId : null,
-      slug,
-      visibility,
-    },
-  });
+  try {
+    await prisma.newsletterList.create({
+      data: {
+        defaultSubscription,
+        description: description.length > 0 ? description : null,
+        displayOrder: 100,
+        name,
+        resendTopicId: resendTopicId.length > 0 ? resendTopicId : null,
+        slug,
+        visibility,
+      },
+    });
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      adminRedirect(locale, `${ADMIN_LISTS_PATH}/new`, 'duplicate_list');
+    }
+    throw error;
+  }
   revalidatePath(getI18nPath(ADMIN_LISTS_PATH, locale));
   adminRedirect(locale, ADMIN_LISTS_PATH, 'created');
 }
@@ -135,13 +150,24 @@ export async function createNewsletterTemplateAction(
     adminRedirect(locale, `${ADMIN_TEMPLATES_PATH}/new`, 'duplicate_template');
   }
 
-  await prisma.newsletterTemplate.create({
-    data: {
-      description: description.length > 0 ? description : null,
-      name,
-      slug,
-    },
-  });
+  try {
+    await prisma.newsletterTemplate.create({
+      data: {
+        description: description.length > 0 ? description : null,
+        name,
+        slug,
+      },
+    });
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      adminRedirect(
+        locale,
+        `${ADMIN_TEMPLATES_PATH}/new`,
+        'duplicate_template'
+      );
+    }
+    throw error;
+  }
   revalidatePath(getI18nPath(ADMIN_TEMPLATES_PATH, locale));
   adminRedirect(locale, ADMIN_TEMPLATES_PATH, 'created');
 }

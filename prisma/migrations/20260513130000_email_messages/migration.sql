@@ -39,7 +39,7 @@ CREATE TABLE "email_message_events" (
     CONSTRAINT "email_message_events_pkey" PRIMARY KEY ("id")
 );
 
-CREATE UNIQUE INDEX "email_messages_provider_message_id_key" ON "email_messages"("provider_message_id");
+CREATE UNIQUE INDEX "email_messages_provider_provider_message_id_key" ON "email_messages"("provider", "provider_message_id");
 CREATE UNIQUE INDEX "email_messages_newsletter_delivery_id_key" ON "email_messages"("newsletter_delivery_id");
 CREATE INDEX "email_messages_user_id_created_at_idx" ON "email_messages"("user_id", "created_at");
 CREATE INDEX "email_messages_to_email_created_at_idx" ON "email_messages"("to_email", "created_at");
@@ -48,7 +48,7 @@ CREATE INDEX "email_messages_last_event_type_created_at_idx" ON "email_messages"
 CREATE INDEX "email_messages_newsletter_broadcast_id_idx" ON "email_messages"("newsletter_broadcast_id");
 CREATE INDEX "email_messages_newsletter_subscriber_id_created_at_idx" ON "email_messages"("newsletter_subscriber_id", "created_at");
 
-CREATE UNIQUE INDEX "email_message_events_provider_event_id_key" ON "email_message_events"("provider_event_id");
+CREATE UNIQUE INDEX "email_message_events_provider_provider_event_id_key" ON "email_message_events"("provider", "provider_event_id");
 CREATE INDEX "email_message_events_email_message_id_occurred_at_idx" ON "email_message_events"("email_message_id", "occurred_at");
 CREATE INDEX "email_message_events_provider_message_id_occurred_at_idx" ON "email_message_events"("provider_message_id", "occurred_at");
 CREATE INDEX "email_message_events_provider_event_type_occurred_at_idx" ON "email_message_events"("provider_event_type", "occurred_at");

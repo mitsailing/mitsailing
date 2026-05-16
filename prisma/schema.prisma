@@ -467,7 +467,7 @@ model NewsletterEvent {
 model EmailMessage {
   id                     String   @id @default(cuid())
   provider               String
-  providerMessageId      String?  @unique @map("provider_message_id")
+  providerMessageId      String?  @map("provider_message_id")
   userId                 String?  @map("user_id")
   newsletterSubscriberId String?  @map("newsletter_subscriber_id")
   newsletterBroadcastId  String?  @map("newsletter_broadcast_id")
@@ -500,6 +500,7 @@ model EmailMessage {
   @@index([lastEventType, createdAt])
   @@index([newsletterBroadcastId])
   @@index([newsletterSubscriberId, createdAt])
+  @@unique([provider, providerMessageId])
   @@map("email_messages")
 }
 
@@ -507,7 +508,7 @@ model EmailMessageEvent {
   id                String   @id @default(cuid())
   emailMessageId    String?  @map("email_message_id")
   provider          String
-  providerEventId   String?  @unique @map("provider_event_id")
+  providerEventId   String?  @map("provider_event_id")
   providerEventType String   @map("provider_event_type")
   providerMessageId String?  @map("provider_message_id")
   occurredAt        DateTime @map("occurred_at")
@@ -519,6 +520,7 @@ model EmailMessageEvent {
   @@index([emailMessageId, occurredAt])
   @@index([providerMessageId, occurredAt])
   @@index([providerEventType, occurredAt])
+  @@unique([provider, providerEventId])
   @@map("email_message_events")
 }
 

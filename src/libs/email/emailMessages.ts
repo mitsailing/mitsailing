@@ -178,7 +178,7 @@ export async function recordSentEmailMessage(
       ${metadata},
       ${now}
     )
-    ON CONFLICT ("provider_message_id") DO UPDATE SET
+    ON CONFLICT ("provider", "provider_message_id") DO UPDATE SET
       "last_event_type" = 'email.sent',
       "sent_at" = COALESCE("email_messages"."sent_at", EXCLUDED."sent_at"),
       "last_event_at" = EXCLUDED."last_event_at",
@@ -194,12 +194,14 @@ export async function recordSentEmailMessage(
 }
 
 async function emailMessageIdForProviderMessage(
+  provider: EmailProvider,
   providerMessageId: string
 ): Promise<string | null> {
   const rows = await prisma.$queryRaw<{ id: string }[]>`
     SELECT "id"
     FROM "email_messages"
-    WHERE "provider_message_id" = ${providerMessageId}
+    WHERE "provider" = ${provider}
+      AND "provider_message_id" = ${providerMessageId}
     LIMIT 1
   `;
   return rows.at(0)?.id ?? null;
@@ -245,7 +247,7 @@ export async function recordResendEmailMessageEvent(params: {
       ${params.occurredAt},
       ${payload}
     )
-    ON CONFLICT ("provider_event_id") DO NOTHING
+    ON CONFLICT ("provider", "provider_event_id") DO NOTHING
     RETURNING "id"
   `;
   return rows.length > 0;
@@ -295,8 +297,10 @@ export async function handleResendEmailMessageWebhook(
   }
 
   const providerMessageId = event.data.email_id;
-  const emailMessageId =
-    await emailMessageIdForProviderMessage(providerMessageId);
+  const emailMessageId = await emailMessageIdForProviderMessage(
+    'resend',
+    providerMessageId
+  );
   const occurredAt = eventOccurredAt(event);
   if (!occurredAt) {
     logger.warn('Skipping Resend email event with invalid timestamp', {

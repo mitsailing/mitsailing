@@ -172,6 +172,7 @@ CREATE INDEX "newsletter_subscriptions_status_updated_at_idx" ON "newsletter_sub
 -- CreateIndex
 CREATE UNIQUE INDEX "newsletter_templates_slug_key" ON "newsletter_templates"("slug");
 CREATE INDEX "newsletter_templates_is_default_idx" ON "newsletter_templates"("is_default");
+CREATE UNIQUE INDEX "newsletter_templates_single_default_key" ON "newsletter_templates"("is_default") WHERE "is_default" = true;
 
 -- CreateIndex
 CREATE UNIQUE INDEX "newsletter_broadcasts_resend_broadcast_id_key" ON "newsletter_broadcasts"("resend_broadcast_id");
