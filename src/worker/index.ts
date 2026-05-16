@@ -1,18 +1,30 @@
+import type { Job } from 'bullmq';
 import { Queue, Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import { Env } from '@/libs/Env';
+import { DEFAULT_QUEUE_NAME } from '@/worker/defaultQueue';
 import {
   LEGACY_MYSQL_SYNC_JOB_NAME,
   processLegacyMysqlSyncJob,
   registerLegacyMysqlSyncScheduler,
 } from '@/worker/legacyMysqlSyncJob';
+import {
+  PAVILION_RESERVATION_SUBMITTED_EMAIL_JOB_NAME,
+  processPavilionReservationSubmittedEmailJob,
+} from '@/worker/pavilionReservationSubmittedEmailJob';
 
-async function processJob(name: string): Promise<void> {
-  if (name === LEGACY_MYSQL_SYNC_JOB_NAME) {
+async function processJob(
+  job: Pick<Job<unknown>, 'data' | 'name'>
+): Promise<void> {
+  if (job.name === LEGACY_MYSQL_SYNC_JOB_NAME) {
     await processLegacyMysqlSyncJob();
     return;
   }
-  throw new Error(`Unknown worker job: ${name}`);
+  if (job.name === PAVILION_RESERVATION_SUBMITTED_EMAIL_JOB_NAME) {
+    await processPavilionReservationSubmittedEmailJob(job.data);
+    return;
+  }
+  throw new Error(`Unknown worker job: ${job.name}`);
 }
 
 async function main(): Promise<void> {
@@ -25,13 +37,13 @@ async function main(): Promise<void> {
     maxRetriesPerRequest: null,
   });
 
-  const queue = new Queue('default', { connection });
+  const queue = new Queue(DEFAULT_QUEUE_NAME, { connection });
   await registerLegacyMysqlSyncScheduler(queue);
 
   const worker = new Worker(
-    'default',
+    DEFAULT_QUEUE_NAME,
     async (job) => {
-      await processJob(job.name);
+      await processJob(job);
     },
     { connection, concurrency: 1 }
   );

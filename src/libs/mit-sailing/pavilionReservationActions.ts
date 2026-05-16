@@ -3,6 +3,7 @@
 import { randomBytes } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { unstable_rethrow } from 'next/navigation';
+import { after } from 'next/server';
 import type { PrismaClient } from '@/generated/prisma/client';
 import {
   addNyCalendarDays,
@@ -10,7 +11,6 @@ import {
 } from '@/lib/mit-sailing/nyTime';
 import { adminPavilionReservationIndexPath } from '@/libs/admin/pavilion-reservations/pavilionReservationAdminPaths';
 import { prisma } from '@/libs/DB';
-import { sendPavilionReservationSubmittedEmail } from '@/libs/email/pavilion-reservation-emails';
 import { logger } from '@/libs/Logger';
 import { formatEasternShortDateFromIsoCalendar } from '@/libs/mit-sailing/easternTimeFormat';
 import { prismaDateFromIsoCalendar } from '@/libs/mit-sailing/isoCalendarDate';
@@ -29,6 +29,8 @@ import type {
 } from '@/libs/mit-sailing/pavilionReservationTypes';
 import { safeErrorCode, safeErrorName } from '@/libs/safeUnknownError';
 import { getI18nPath } from '@/utils/Helpers';
+import { getDefaultQueue } from '@/worker/defaultQueue';
+import { enqueuePavilionReservationSubmittedEmail } from '@/worker/pavilionReservationSubmittedEmailJob';
 
 const PAVILION_REFERENCE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const MIN_NOTICE_HOURS = 48;
@@ -321,23 +323,25 @@ export async function submitPavilionReservationRequestAction(
     return unknownErrorState(error);
   }
 
-  try {
-    await sendPavilionReservationSubmittedEmail({
-      eventName: parsed.data.eventName,
-      referenceCode,
-      requesterEmail: parsed.data.requesterEmail,
-      scheduleLines: scheduleLinesForEmail({ itemById, slots }),
-    });
-  } catch (error) {
-    logger.error(
-      '[pavilion-reservation:create-email] reference_code={referenceCode} error_name={errorName} error_code={errorCode}',
-      {
-        errorCode: safeErrorCode(error) ?? 'unknown',
-        errorName: safeErrorName(error),
+  after(async () => {
+    try {
+      await enqueuePavilionReservationSubmittedEmail(getDefaultQueue(), {
+        eventName: parsed.data.eventName,
         referenceCode,
-      }
-    );
-  }
+        requesterEmail: parsed.data.requesterEmail,
+        scheduleLines: scheduleLinesForEmail({ itemById, slots }),
+      });
+    } catch (error) {
+      logger.error(
+        '[pavilion-reservation:create-email-enqueue] reference_code={referenceCode} error_name={errorName} error_code={errorCode}',
+        {
+          errorCode: safeErrorCode(error) ?? 'unknown',
+          errorName: safeErrorName(error),
+          referenceCode,
+        }
+      );
+    }
+  });
 
   revalidatePath(getI18nPath(adminPavilionReservationIndexPath(), locale));
   return { status: 'confirmed', referenceCode, errors: [] };

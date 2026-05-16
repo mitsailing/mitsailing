@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PavilionReservationSubmitState } from '@/libs/mit-sailing/pavilionReservationTypes';
 
 type TestTransactionClient = {
@@ -13,21 +13,31 @@ type TestTransactionClient = {
 type TestTransactionRunner = (tx: TestTransactionClient) => Promise<unknown>;
 
 const {
+  after,
+  afterCallbacks,
   findFirstReservation,
   findUniqueReservation,
+  defaultQueue,
+  enqueuePavilionReservationSubmittedEmail,
+  getDefaultQueue,
   listVisiblePavilionReservableItems,
   revalidatePath,
   requestCreate,
-  sendPavilionReservationSubmittedEmail,
   transaction,
   txExecuteRaw,
 } = vi.hoisted(() => ({
+  after: vi.fn((scheduledWork: () => Promise<void> | void) => {
+    afterCallbacks.push(scheduledWork);
+  }),
+  afterCallbacks: [] as (() => Promise<void> | void)[],
   findFirstReservation: vi.fn(),
   findUniqueReservation: vi.fn(),
+  defaultQueue: { add: vi.fn() },
+  enqueuePavilionReservationSubmittedEmail: vi.fn(),
+  getDefaultQueue: vi.fn(),
   listVisiblePavilionReservableItems: vi.fn(),
   revalidatePath: vi.fn(),
   requestCreate: vi.fn(),
-  sendPavilionReservationSubmittedEmail: vi.fn(),
   transaction: vi.fn(),
   txExecuteRaw: vi.fn(),
 }));
@@ -40,14 +50,22 @@ vi.mock('next/navigation', () => ({
   unstable_rethrow: vi.fn(),
 }));
 
+vi.mock('next/server', () => ({
+  after,
+}));
+
 vi.mock('@/libs/DB', () => ({
   prisma: {
     $transaction: transaction,
   },
 }));
 
-vi.mock('@/libs/email/pavilion-reservation-emails', () => ({
-  sendPavilionReservationSubmittedEmail,
+vi.mock('@/worker/defaultQueue', () => ({
+  getDefaultQueue,
+}));
+
+vi.mock('@/worker/pavilionReservationSubmittedEmailJob', () => ({
+  enqueuePavilionReservationSubmittedEmail,
 }));
 
 vi.mock('@/libs/mit-sailing/pavilionReservationQueries', () => ({
@@ -94,13 +112,21 @@ function formDataWithServices(serviceIds: string[]): FormData {
   return formData;
 }
 
+function setPavilionReservationSystemTime() {
+  vi.setSystemTime(new Date('2026-06-29T04:00:00.000Z'));
+}
+
 beforeEach(() => {
+  after.mockClear();
+  afterCallbacks.length = 0;
   findFirstReservation.mockReset();
   findUniqueReservation.mockReset();
+  defaultQueue.add.mockReset();
+  enqueuePavilionReservationSubmittedEmail.mockReset();
+  getDefaultQueue.mockReset();
   listVisiblePavilionReservableItems.mockReset();
   revalidatePath.mockClear();
   requestCreate.mockReset();
-  sendPavilionReservationSubmittedEmail.mockReset();
   transaction.mockReset();
   txExecuteRaw.mockReset();
 
@@ -126,9 +152,8 @@ beforeEach(() => {
     },
   ]);
   requestCreate.mockResolvedValue({ id: 'request-1' });
-  sendPavilionReservationSubmittedEmail.mockImplementation(async () => {
-    await Promise.resolve();
-  });
+  getDefaultQueue.mockReturnValue(defaultQueue);
+  enqueuePavilionReservationSubmittedEmail.mockImplementation(async () => {});
   txExecuteRaw.mockImplementation(
     async (_strings: TemplateStringsArray, lockKey: string) => {
       await Promise.resolve();
@@ -154,6 +179,10 @@ beforeEach(() => {
   );
 });
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe('submitPavilionReservationRequestAction', () => {
   it('does not run dedupe checks when payload validation fails', async () => {
     const { submitPavilionReservationRequestAction } =
@@ -175,7 +204,7 @@ describe('submitPavilionReservationRequestAction', () => {
   });
 
   it('allows corrected submission after validation error', async () => {
-    vi.setSystemTime(new Date('2026-06-29T04:00:00.000Z'));
+    setPavilionReservationSystemTime();
     const { submitPavilionReservationRequestAction } =
       await import('@/libs/mit-sailing/pavilionReservationActions');
 
@@ -204,7 +233,7 @@ describe('submitPavilionReservationRequestAction', () => {
   });
 
   it('submits after-midnight reservations with a PostgreSQL-safe lock key', async () => {
-    vi.setSystemTime(new Date('2026-06-29T04:00:00.000Z'));
+    setPavilionReservationSystemTime();
     const { submitPavilionReservationRequestAction } =
       await import('@/libs/mit-sailing/pavilionReservationActions');
 
@@ -222,8 +251,60 @@ describe('submitPavilionReservationRequestAction', () => {
     expect(txExecuteRaw.mock.calls[0]?.[1]).not.toContain('\0');
   });
 
+  it('schedules submitted email for background retry after confirmed persistence', async () => {
+    setPavilionReservationSystemTime();
+    const { submitPavilionReservationRequestAction } =
+      await import('@/libs/mit-sailing/pavilionReservationActions');
+
+    const result = await submitPavilionReservationRequestAction(
+      'en',
+      { errors: [], status: 'idle' } satisfies PavilionReservationSubmitState,
+      validFormData()
+    );
+
+    expect(result.status).toBe('confirmed');
+    expect(after).toHaveBeenCalledTimes(1);
+    await afterCallbacks[0]?.();
+    expect(getDefaultQueue).toHaveBeenCalledTimes(1);
+    expect(enqueuePavilionReservationSubmittedEmail).toHaveBeenCalledWith(
+      defaultQueue,
+      {
+        eventName: 'Late night pavilion booking',
+        referenceCode: expect.stringMatching(/^PAV-/),
+        requesterEmail: 'pavilion-requester@example.com',
+        scheduleLines: [
+          'Casual party space: Wed, Jul 1, 2026 · 1:00 AM (next day) - 2:00 AM (next day)',
+        ],
+      }
+    );
+  });
+
+  it('returns confirmation before submitted email enqueue resolves', async () => {
+    setPavilionReservationSystemTime();
+    const pendingEnqueue = Promise.withResolvers<undefined>();
+    enqueuePavilionReservationSubmittedEmail.mockImplementation(async () => {
+      await pendingEnqueue.promise;
+    });
+    const { submitPavilionReservationRequestAction } =
+      await import('@/libs/mit-sailing/pavilionReservationActions');
+
+    const resultPromise = submitPavilionReservationRequestAction(
+      'en',
+      { errors: [], status: 'idle' } satisfies PavilionReservationSubmitState,
+      validFormData()
+    );
+
+    const blocked = Promise.withResolvers<'blocked'>();
+    setTimeout(() => {
+      blocked.resolve('blocked');
+    }, 0);
+    const result = await Promise.race([resultPromise, blocked.promise]);
+
+    expect(result).toEqual(expect.objectContaining({ status: 'confirmed' }));
+  });
+
   it('includes hourly services in estimated totals and persisted service rows', async () => {
-    vi.setSystemTime(new Date('2026-06-29T04:00:00.000Z'));
+    setPavilionReservationSystemTime();
     listVisiblePavilionReservableItems.mockResolvedValue([
       {
         description: 'A casual pavilion reservation space.',
@@ -289,7 +370,7 @@ describe('submitPavilionReservationRequestAction', () => {
   });
 
   it('deduplicates repeated hourly service ids before pricing', async () => {
-    vi.setSystemTime(new Date('2026-06-29T04:00:00.000Z'));
+    setPavilionReservationSystemTime();
     listVisiblePavilionReservableItems.mockResolvedValue([
       {
         description: 'A casual pavilion reservation space.',
