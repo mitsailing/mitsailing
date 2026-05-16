@@ -29,7 +29,7 @@ The sync is intentionally destructive only inside `legacy`:
 5. Record a sync-run row in app-owned metadata
 6. Run legacy Pavilion reservation mapping from `legacy.reservations`
 
-No staging schema is retained. During the sync, the `legacy` schema may be missing or partially loaded. This is acceptable because the mirror is operational raw data, not the app's source of truth.
+No staging schema is retained. The destructive mirror refresh should run inside one Postgres transaction after the worker has acquired a dedicated-session advisory lock. If a previous successful mirror exists, a failed run rolls back to that prior `legacy` schema instead of leaving a partial mirror. On the first run, `legacy` may still be absent until a sync succeeds.
 
 ## Data Safety
 
@@ -64,9 +64,9 @@ Core units:
 
 ## Error Handling
 
-Failures should mark the sync run as failed with a short error summary and leave the worker alive for the next scheduled attempt. Because the design drops `legacy` at the beginning, a failed sync can leave `legacy` absent or partial until the next successful run. That is accepted by this design.
+Failures should mark the sync run as failed with a short error summary and leave the worker alive for the next scheduled attempt. Because the mirror reset and load run in one Postgres transaction, a failed sync should preserve the previous successful `legacy` schema when one exists.
 
-The worker should use BullMQ retries for transient failures, but the mirror loader should not retry individual SQL statements internally in a way that hides partial-state problems. Each run must acquire a Postgres advisory lock before dropping `legacy`; if the lock is already held, the worker records a skipped sync run and exits without touching `legacy` or running reservation mapping.
+The worker should use BullMQ retries for transient failures, but the mirror loader should not retry individual SQL statements internally in a way that hides failed-run metadata. Each run must acquire a Postgres advisory lock on a checked-out `pg` client before dropping `legacy`; if the lock is already held, the worker records a skipped sync run and exits without touching `legacy` or running reservation mapping.
 
 ## Verification
 
@@ -77,6 +77,7 @@ Unit tests cover:
 - Create-table and insert SQL generation that always targets `"legacy"."table_name"`
 - Mirror SQL safety checks that reject `public`, arbitrary schemas, `TRUNCATE`, and unexpected destructive SQL
 - MySQL row value conversion for raw mirror inserts
+- Transaction wrapper that commits successful mirror refreshes and rolls back failed refreshes
 - Legacy reservation row mapping from typed `legacy.reservations` rows, including proof that native app reservations are not deleted
 - Scheduler registration only in production when explicitly enabled
 - Advisory-lock overlap prevention that skips a run without resetting `legacy`

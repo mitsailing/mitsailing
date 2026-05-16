@@ -4,7 +4,7 @@
 
 **Goal:** Mirror the old website MySQL database `sailing` into Postgres schema `legacy` hourly from direct MySQL access on `sailing-dock.mit.edu`, then map `legacy.reservations` into the existing Pavilion reservation tables.
 
-**Architecture:** Add a production-only BullMQ hourly scheduled job in the existing worker. The job connects directly to MySQL with `mysql2` as user `dock_readonly`, acquires a Postgres advisory lock, drops and recreates only Postgres schema `legacy`, bulk inserts all source tables together, records sync status, and runs the legacy reservation mapper.
+**Architecture:** Add a production-only BullMQ hourly scheduled job in the existing worker. The job connects directly to MySQL with `mysql2` as user `dock_readonly`, acquires a Postgres advisory lock on one checked-out `pg` client, drops and recreates only Postgres schema `legacy` inside one transaction, bulk inserts all source tables together, records sync status, and runs the legacy reservation mapper.
 
 **Tech Stack:** Next.js 16 app, Node 24 worker, BullMQ 5 `upsertJobScheduler`, Redis, Prisma/Postgres, `pg`, `mysql2`, Vitest.
 
@@ -955,11 +955,16 @@ export async function openLegacyMysqlConnection(props: {
   mysqlUser: string;
 }): Promise<LegacyMysqlConnection> {
   const pool = mysql.createPool({
+    charset: 'utf8mb4',
+    connectTimeout: 10_000,
     database: props.database,
     dateStrings: true,
+    enableKeepAlive: true,
     host: props.mysqlHost,
+    keepAliveInitialDelay: 0,
     password: props.mysqlPassword,
     port: props.mysqlPort,
+    timezone: 'Z',
     user: props.mysqlUser,
     waitForConnections: true,
     connectionLimit: 2,
@@ -997,12 +1002,13 @@ git commit -m "feat: connect directly to legacy MySQL"
 - Create: `src/libs/legacy-sync/legacyMysqlSync.ts`
 - Create: `src/libs/legacy-sync/legacyMysqlSync.test.ts`
 
-- [ ] **Step 1: Write failing config test**
+- [ ] **Step 1: Write failing orchestrator tests**
 
 ```ts
 import { describe, expect, it } from 'vitest';
 import {
   legacyMysqlSyncConfigFromEnv,
+  runLegacyMirrorTransaction,
   releaseLegacyMysqlSyncLock,
   tryAcquireLegacyMysqlSyncLock,
 } from '@/libs/legacy-sync/legacyMysqlSync';
@@ -1054,6 +1060,46 @@ describe('legacyMysqlSyncConfigFromEnv', () => {
       },
     ]);
   });
+
+  it('rolls back the mirror transaction when loading fails', async () => {
+    const queries: string[] = [];
+    const pg = {
+      query: async (sql: string) => {
+        queries.push(sql);
+        return { rows: [] };
+      },
+    };
+
+    await expect(
+      runLegacyMirrorTransaction({
+        pg,
+        load: async () => {
+          throw new Error('copy failed');
+        },
+      })
+    ).rejects.toThrow('copy failed');
+
+    expect(queries).toEqual(['BEGIN', 'ROLLBACK']);
+  });
+
+  it('commits the mirror transaction when loading succeeds', async () => {
+    const queries: string[] = [];
+    const pg = {
+      query: async (sql: string) => {
+        queries.push(sql);
+        return { rows: [] };
+      },
+    };
+
+    await expect(
+      runLegacyMirrorTransaction({
+        pg,
+        load: async () => ({ rowCount: 12n, tableCount: 3 }),
+      })
+    ).resolves.toEqual({ rowCount: 12n, tableCount: 3 });
+
+    expect(queries).toEqual(['BEGIN', 'COMMIT']);
+  });
 });
 ```
 
@@ -1070,7 +1116,7 @@ Expected: FAIL because the module does not exist.
 - [ ] **Step 3: Implement orchestrator**
 
 ```ts
-import { Pool as PgPool } from 'pg';
+import { Pool as PgPool, type PoolClient } from 'pg';
 import { Env } from '@/libs/Env';
 import { prisma } from '@/libs/DB';
 import { openLegacyMysqlConnection } from '@/libs/legacy-sync/mysqlConnection';
@@ -1083,6 +1129,7 @@ import {
   createMirrorTable,
   resetLegacySchema,
 } from '@/libs/legacy-sync/postgresMirrorLoader';
+import type { MirrorTableDefinition } from '@/libs/legacy-sync/postgresMirrorSql';
 
 const LEGACY_MYSQL_SYNC_ADVISORY_LOCK = {
   classId: 20260516,
@@ -1091,6 +1138,10 @@ const LEGACY_MYSQL_SYNC_ADVISORY_LOCK = {
 
 type AdvisoryLockClient = {
   query: <T>(sql: string, values?: unknown[]) => Promise<{ rows: T[] }>;
+};
+
+type MirrorTransactionClient = {
+  query: (sql: string, values?: unknown[]) => Promise<{ rows: unknown[] }>;
 };
 
 type LegacyMysqlSyncEnv = {
@@ -1155,10 +1206,26 @@ export async function releaseLegacyMysqlSyncLock(
   ]);
 }
 
+export async function runLegacyMirrorTransaction(props: {
+  load: () => Promise<{ rowCount: bigint; tableCount: number }>;
+  pg: MirrorTransactionClient;
+}): Promise<{ rowCount: bigint; tableCount: number }> {
+  await props.pg.query('BEGIN');
+  try {
+    const result = await props.load();
+    await props.pg.query('COMMIT');
+    return result;
+  } catch (error: unknown) {
+    await props.pg.query('ROLLBACK');
+    throw error;
+  }
+}
+
 export async function runLegacyMysqlSync(
   config: Extract<LegacyMysqlSyncConfig, { enabled: true }>
 ): Promise<{ rowCount: bigint; skipped: boolean; tableCount: number }> {
-  const pg = new PgPool({ connectionString: Env.DATABASE_URL });
+  const pgPool = new PgPool({ connectionString: Env.DATABASE_URL });
+  const pg: PoolClient = await pgPool.connect();
   let acquired = false;
   let rowCount = 0n;
   let runId: string | null = null;
@@ -1196,36 +1263,53 @@ export async function runLegacyMysqlSync(
       mysqlUser: config.mysqlUser,
     });
     try {
-      await resetLegacySchema(pg);
       const tableNames = await listMysqlBaseTables({
         database: config.database,
         mysql: legacyMysql.mysql,
       });
+      const tables: MirrorTableDefinition[] = [];
       for (const tableName of tableNames) {
-        const table = await readMysqlTableDefinition({
-          database: config.database,
-          mysql: legacyMysql.mysql,
-          tableName,
-        });
-        await createMirrorTable({ pg, table });
-        rowCount += BigInt(
-          await copyMysqlTableToPostgres({
+        tables.push(
+          await readMysqlTableDefinition({
+            database: config.database,
             mysql: legacyMysql.mysql,
-            pg,
-            table,
+            tableName,
           })
         );
       }
+      const mirrorResult = await runLegacyMirrorTransaction({
+        pg,
+        load: async () => {
+          await resetLegacySchema(pg);
+          let loadedRows = 0n;
+          for (const table of tables) {
+            await createMirrorTable({ pg, table });
+            loadedRows += BigInt(
+              await copyMysqlTableToPostgres({
+                mysql: legacyMysql.mysql,
+                pg,
+                table,
+              })
+            );
+          }
+          return { rowCount: loadedRows, tableCount: tables.length };
+        },
+      });
+      rowCount = mirrorResult.rowCount;
       await prisma.legacyMysqlSyncRun.update({
         where: { id: run.id },
         data: {
           finishedAt: new Date(),
           rowCount,
           status: 'succeeded',
-          tableCount: tableNames.length,
+          tableCount: mirrorResult.tableCount,
         },
       });
-      return { rowCount, skipped: false, tableCount: tableNames.length };
+      return {
+        rowCount,
+        skipped: false,
+        tableCount: mirrorResult.tableCount,
+      };
     } finally {
       await legacyMysql.close();
     }
@@ -1247,10 +1331,13 @@ export async function runLegacyMysqlSync(
     if (acquired) {
       await releaseLegacyMysqlSyncLock(pg);
     }
-    await pg.end();
+    pg.release();
+    await pgPool.end();
   }
 }
 ```
+
+Keep the advisory lock on the checked-out `PoolClient`; do not call `pgPool.query` for the lock or unlock. The `BEGIN`/`COMMIT` wrapper is intentionally around only the Postgres mirror reset/load, not the public metadata writes.
 
 - [ ] **Step 4: Run tests and typecheck**
 
@@ -1475,8 +1562,8 @@ export async function registerLegacyMysqlSyncScheduler(
   const opts: JobsOptions = {
     attempts: 2,
     backoff: { type: 'exponential', delay: 60_000 },
-    removeOnComplete: 10,
-    removeOnFail: 20,
+    removeOnComplete: { count: 10 },
+    removeOnFail: { count: 20 },
   };
   await queue.upsertJobScheduler(
     LEGACY_MYSQL_SYNC_SCHEDULER_ID,
@@ -1509,6 +1596,7 @@ Replace the empty processor in `src/worker/index.ts` with named routing:
 ```ts
 import { Queue, Worker } from 'bullmq';
 import IORedis from 'ioredis';
+import { Env } from '@/libs/Env';
 import {
   LEGACY_MYSQL_SYNC_JOB_NAME,
   processLegacyMysqlSyncJob,
@@ -1520,34 +1608,64 @@ async function processJob(name: string): Promise<void> {
     await processLegacyMysqlSyncJob();
     return;
   }
+  throw new Error(`Unknown worker job: ${name}`);
 }
 ```
 
-Inside `main`, after Redis connection:
+Change `main` to `async`, use validated environment access, register the scheduler before accepting work, and close both the worker and queue on shutdown:
 
 ```ts
-const queue = new Queue('default', { connection });
-registerLegacyMysqlSyncScheduler(queue).catch((error: unknown) => {
+async function main(): Promise<void> {
+  const redisUrl = Env.REDIS_URL;
+  if (!redisUrl) {
+    throw new Error('REDIS_URL is required for the BullMQ worker');
+  }
+
+  const connection = new IORedis(redisUrl, {
+    maxRetriesPerRequest: null,
+  });
+
+  const queue = new Queue('default', { connection });
+  await registerLegacyMysqlSyncScheduler(queue);
+
+  const worker = new Worker(
+    'default',
+    async (job) => {
+      await processJob(job.name);
+    },
+    { connection, concurrency: 1 }
+  );
+
+  const shutdown = async (): Promise<void> => {
+    await worker.close();
+    await queue.close();
+    await connection.quit();
+    process.exit(0);
+  };
+
+  const handleSignal = async (): Promise<void> => {
+    try {
+      await shutdown();
+    } catch (error: unknown) {
+      console.error(error);
+      process.exit(1);
+    }
+  };
+
+  process.on('SIGTERM', () => {
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    handleSignal();
+  });
+  process.on('SIGINT', () => {
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    handleSignal();
+  });
+}
+
+main().catch((error: unknown) => {
   console.error(error);
+  process.exit(1);
 });
-```
-
-Create the worker with:
-
-```ts
-const worker = new Worker(
-  'default',
-  async (job) => {
-    await processJob(job.name);
-  },
-  { connection, concurrency: 1 }
-);
-```
-
-Close the queue in shutdown:
-
-```ts
-await queue.close();
 ```
 
 - [ ] **Step 3: Verify worker bundle**
@@ -1700,7 +1818,17 @@ Known pre-existing matches are allowed and must not be attributed to this work:
 - `prisma/migrations/20260423000000_drop_counter/migration.sql`
 - `scripts/migrate-test-db.mjs`
 
-- [ ] **Step 6: Commit final fixes if any**
+- [ ] **Step 6: Review direct environment access**
+
+Run:
+
+```bash
+rg -n "process\\.env\\.(REDIS_URL|LEGACY_MYSQL|DATABASE_URL)" src/worker src/libs --glob '!src/libs/Env.ts'
+```
+
+Expected: no matches. All new worker and sync code must read validated values through `Env`.
+
+- [ ] **Step 7: Commit final fixes if any**
 
 If verification required fixes:
 
@@ -1717,3 +1845,6 @@ If no fixes were needed, do not create an empty commit.
 - Spec coverage: The plan covers production-only sync, direct MySQL access, all-table mirroring into `legacy`, destructive refresh without staging, metadata, reservation mapping, secrets, Compose, docs, and verification.
 - Placeholder scan: No placeholder task remains; environment examples leave secret values intentionally blank in an uncommitted host file.
 - Type consistency: `LegacyMysqlSyncRun`, `LegacyMysqlSyncStatus`, `legacyMysqlSyncConfigFromEnv`, `runLegacyMysqlSync`, skipped sync results, and `importLegacyPavilionReservationsFromSchema` are named consistently across tasks.
+- Best-practice pass 1: BullMQ scheduling uses `upsertJobScheduler`, bounded retries, exponential backoff, retained job limits, and graceful `Worker`/`Queue` shutdown.
+- Best-practice pass 2: MySQL access uses a direct `mysql2/promise` pool with explicit charset, UTC date handling, connect timeout, keepalive, small connection limit, and `pool.end()`.
+- Best-practice pass 3: Postgres destructive mirror work uses one checked-out advisory-lock client, wraps reset/load in `BEGIN`/`COMMIT`, rolls back failed loads, and keeps app metadata in `public`.
