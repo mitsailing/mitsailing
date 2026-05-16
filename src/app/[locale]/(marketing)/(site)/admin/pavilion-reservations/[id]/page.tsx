@@ -25,7 +25,10 @@ import {
   formatEasternDateTime,
   formatEasternShortDateFromIsoCalendar,
 } from '@/libs/mit-sailing/easternTimeFormat';
-import { listPavilionReservationTimeOptions } from '@/libs/mit-sailing/pavilionReservationBookingTimeline';
+import {
+  listPavilionReservationTimeOptions,
+  PAVILION_RESERVATION_END_MINUTES,
+} from '@/libs/mit-sailing/pavilionReservationBookingTimeline';
 import {
   formatPavilionReservationMoney,
   PAVILION_RESERVATION_PERSONAS,
@@ -43,8 +46,14 @@ function dollarsValue(amountCents: number | null): string {
 function TimeSelect(props: {
   blank?: string;
   defaultValue?: number;
+  includeEnd?: boolean;
   name: string;
 }) {
+  const options = listPavilionReservationTimeOptions().filter(
+    (option) =>
+      props.includeEnd === true ||
+      option.minutes < PAVILION_RESERVATION_END_MINUTES
+  );
   return (
     <select
       className={adminNativeSelectClassName}
@@ -52,7 +61,7 @@ function TimeSelect(props: {
       name={props.name}
     >
       {props.blank ? <option value="">{props.blank}</option> : null}
-      {listPavilionReservationTimeOptions().map((option) => (
+      {options.map((option) => (
         <option key={option.minutes} value={option.minutes}>
           {option.label}
         </option>
@@ -308,6 +317,7 @@ export default async function AdminPavilionReservationDetailPage(
                       <span className="font-medium">{t('field_end')}</span>
                       <TimeSelect
                         defaultValue={slot.endMinutes}
+                        includeEnd
                         name="slotEnd"
                       />
                     </label>
@@ -369,7 +379,7 @@ export default async function AdminPavilionReservationDetailPage(
                   </label>
                   <label className="space-y-1.5 text-sm">
                     <span className="font-medium">{t('field_end')}</span>
-                    <TimeSelect blank={t('blank')} name="slotEnd" />
+                    <TimeSelect blank={t('blank')} includeEnd name="slotEnd" />
                   </label>
                   <label className="space-y-1.5 text-sm">
                     <span className="font-medium">{t('field_amount')}</span>

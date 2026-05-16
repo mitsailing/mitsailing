@@ -31,6 +31,7 @@ import {
   estimatedServiceAmountCents,
   estimatedSlotAmountCents,
   formatPavilionReservationMoney,
+  PAVILION_RESERVATION_PERSONAS,
   priceForPersona,
   priceLabel,
 } from '@/libs/mit-sailing/pavilionReservationPricing';
@@ -100,12 +101,7 @@ type PavilionReservationWizardProps = {
   permalink: string;
 };
 
-const personas = [
-  'mit_academic',
-  'mit_student',
-  'mit_community',
-  'non_mit',
-] as const satisfies readonly PavilionReservationPersonaValue[];
+const personas = PAVILION_RESERVATION_PERSONAS;
 
 function parsePersona(value: string): PavilionReservationPersonaValue | null {
   return personas.find((persona) => persona === value) ?? null;
