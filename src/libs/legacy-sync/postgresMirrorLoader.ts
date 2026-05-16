@@ -7,10 +7,26 @@ import type { MirrorTableDefinition } from '@/libs/legacy-sync/postgresMirrorSql
 
 /** Postgres insert batch size; also used as mysql2 stream `highWaterMark`. */
 export const MIRROR_ROW_BATCH_SIZE = 1000;
+export const POSTGRES_MAX_PARAMETERS = 65_535;
 
 export type MirrorPgClient = {
   query: (sql: string, values?: unknown[]) => Promise<{ rows: unknown[] }>;
 };
+
+export function mirrorInsertBatchSize(columnCount: number): number {
+  if (!Number.isInteger(columnCount) || columnCount <= 0) {
+    throw new RangeError(
+      `mirrorInsertBatchSize columnCount must be a positive integer, received ${columnCount}`
+    );
+  }
+  return Math.max(
+    1,
+    Math.min(
+      MIRROR_ROW_BATCH_SIZE,
+      Math.floor(POSTGRES_MAX_PARAMETERS / columnCount)
+    )
+  );
+}
 
 export function chunkRows<T>(rows: readonly T[], size: number): T[][] {
   if (!Number.isInteger(size) || size <= 0) {
@@ -136,6 +152,7 @@ export async function copyMysqlTableToPostgres(props: {
   table: MirrorTableDefinition;
 }): Promise<number> {
   const columnNames = props.table.columns.map((column) => column.name);
+  const insertBatchSize = mirrorInsertBatchSize(columnNames.length);
   let batch: Record<string, unknown>[] = [];
   let totalRows = 0;
 
@@ -147,7 +164,7 @@ export async function copyMysqlTableToPostgres(props: {
         tableName: props.table.tableName,
       })
     );
-    if (batch.length >= MIRROR_ROW_BATCH_SIZE) {
+    if (batch.length >= insertBatchSize) {
       await insertMirrorRowBatch({
         columnNames,
         pg: props.pg,

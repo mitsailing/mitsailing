@@ -4,7 +4,9 @@ import {
   copyMysqlTableToPostgres,
   createMirrorTable,
   flattenRowsForInsert,
+  mirrorInsertBatchSize,
   MIRROR_ROW_BATCH_SIZE,
+  POSTGRES_MAX_PARAMETERS,
   resetLegacySchema,
 } from '@/libs/legacy-sync/postgresMirrorLoader';
 import type { MirrorPgClient } from '@/libs/legacy-sync/postgresMirrorLoader';
@@ -50,6 +52,14 @@ describe('postgresMirrorLoader', () => {
       flattenRowsForInsert([{ a: 'one', b: 1 }, { a: 'two' }], ['a', 'b'])
     ).toThrow(
       'flattenRowsForInsert: row 1 is missing column "b" (expected: a, b)'
+    );
+  });
+
+  it('caps insert batch size by the postgres parameter limit', () => {
+    expect(mirrorInsertBatchSize(1)).toBe(MIRROR_ROW_BATCH_SIZE);
+    expect(mirrorInsertBatchSize(2)).toBe(MIRROR_ROW_BATCH_SIZE);
+    expect(mirrorInsertBatchSize(100)).toBe(
+      Math.floor(POSTGRES_MAX_PARAMETERS / 100)
     );
   });
 
@@ -181,6 +191,52 @@ describe('postgresMirrorLoader', () => {
       })
     ).rejects.toThrow(
       'Invalid MySQL mirror row for legacy."example" at stream index 1: expected a non-null object, received null.'
+    );
+  });
+
+  it('splits wide-table inserts to stay below postgres parameter limit', async () => {
+    const columnCount = 70;
+    const safeBatchSize = Math.floor(POSTGRES_MAX_PARAMETERS / columnCount);
+    const columnNames = Array.from(
+      { length: columnCount },
+      (_, index) => `c${index + 1}`
+    );
+    const row = Object.fromEntries(
+      columnNames.map((name, index) => [name, index])
+    );
+    const capturedValuesPerInsert: number[] = [];
+    const pg: MirrorPgClient = {
+      query: async (_sql, values) => {
+        capturedValuesPerInsert.push(values?.length ?? 0);
+        await Promise.resolve();
+        return { rows: [] };
+      },
+    };
+
+    async function* rows() {
+      for (let index = 0; index < safeBatchSize + 1; index += 1) {
+        yield row;
+      }
+    }
+
+    await expect(
+      copyMysqlTableToPostgres({
+        pg,
+        rows: rows(),
+        table: {
+          tableName: 'example',
+          columns: columnNames.map((name) => ({
+            name,
+            nullable: true,
+            postgresType: 'integer',
+          })),
+        },
+      })
+    ).resolves.toBe(safeBatchSize + 1);
+
+    expect(capturedValuesPerInsert).toEqual([safeBatchSize * columnCount, 70]);
+    expect(Math.max(...capturedValuesPerInsert)).toBeLessThanOrEqual(
+      POSTGRES_MAX_PARAMETERS
     );
   });
 });
