@@ -495,6 +495,9 @@ async function findClaimedNewsletterDelivery(deliveryId: string) {
           subscriptions: {
             select: { listId: true, status: true },
           },
+          user: {
+            select: { emailVerified: true },
+          },
         },
       },
     },
@@ -511,6 +514,9 @@ function isNewsletterDeliveryEligible(delivery: ClaimedNewsletterDelivery) {
   const subscription = delivery.subscriber.subscriptions.find(
     (item) => item.listId === delivery.primaryListId
   );
+  if (delivery.subscriber.userId && !delivery.subscriber.user?.emailVerified) {
+    return false;
+  }
   return (
     !delivery.subscriber.globalUnsubscribedAt &&
     !delivery.subscriber.suppressedAt &&
@@ -700,9 +706,19 @@ function revalidateNewsletterArchive() {
 }
 
 async function finishNewsletterBroadcast(broadcastId: string) {
-  const failed = await prisma.newsletterDelivery.count({
-    where: { broadcastId, status: 'failed' },
-  });
+  const [nonTerminal, failed] = await Promise.all([
+    prisma.newsletterDelivery.count({
+      where: { broadcastId, status: { in: ['queued', 'sending'] } },
+    }),
+    prisma.newsletterDelivery.count({
+      where: { broadcastId, status: 'failed' },
+    }),
+  ]);
+  if (nonTerminal > 0) {
+    throw new Error(
+      `Newsletter broadcast ${broadcastId} has unfinished deliveries`
+    );
+  }
   await prisma.newsletterBroadcast.update({
     data: {
       sentAt: failed === 0 ? new Date() : null,

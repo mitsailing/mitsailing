@@ -179,9 +179,7 @@ export async function recordSentEmailMessage(
       ${now}
     )
     ON CONFLICT ("provider", "provider_message_id") DO UPDATE SET
-      "last_event_type" = 'email.sent',
       "sent_at" = COALESCE("email_messages"."sent_at", EXCLUDED."sent_at"),
-      "last_event_at" = EXCLUDED."last_event_at",
       "user_id" = COALESCE("email_messages"."user_id", EXCLUDED."user_id"),
       "newsletter_subscriber_id" = COALESCE("email_messages"."newsletter_subscriber_id", EXCLUDED."newsletter_subscriber_id"),
       "newsletter_broadcast_id" = COALESCE("email_messages"."newsletter_broadcast_id", EXCLUDED."newsletter_broadcast_id"),

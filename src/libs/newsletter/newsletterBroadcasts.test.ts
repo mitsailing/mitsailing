@@ -266,6 +266,64 @@ describe('newsletter broadcasts', () => {
     });
   });
 
+  it('suppresses unverified account deliveries before sending', async () => {
+    mocks.prisma.newsletterBroadcast.findUnique
+      .mockResolvedValueOnce(queuedBroadcastRow())
+      .mockResolvedValueOnce({
+        cancelledAt: null,
+        pausedAt: null,
+        status: 'sending',
+      });
+    mocks.prisma.newsletterDelivery.findMany.mockResolvedValueOnce([
+      { id: 'delivery_1' },
+    ]);
+    mocks.prisma.newsletterDelivery.findUnique.mockResolvedValueOnce({
+      email: 'sailor@example.com',
+      id: 'delivery_1',
+      primaryList: { name: 'General', resendTopicId: null },
+      primaryListId: 'list_1',
+      subscriber: {
+        globalUnsubscribedAt: null,
+        manageTokenHash: 'token_hash',
+        subscriptions: [{ listId: 'list_1', status: 'subscribed' }],
+        suppressedAt: null,
+        user: { emailVerified: false },
+        userId: 'user_1',
+      },
+      subscriberId: 'subscriber_1',
+    });
+
+    const { processNewsletterBroadcast } =
+      await import('@/libs/newsletter/newsletterBroadcasts');
+    await processNewsletterBroadcast('broadcast_1');
+
+    expect(mocks.prisma.newsletterDelivery.findUnique).toHaveBeenCalledWith({
+      include: {
+        primaryList: true,
+        subscriber: {
+          include: {
+            subscriptions: {
+              select: { listId: true, status: true },
+            },
+            user: {
+              select: { emailVerified: true },
+            },
+          },
+        },
+      },
+      where: { id: 'delivery_1' },
+    });
+    expect(mocks.sendNewsletterBroadcastEmail).not.toHaveBeenCalled();
+    expect(mocks.prisma.newsletterDelivery.update).toHaveBeenCalledWith({
+      data: {
+        failedAt: expect.any(Date),
+        lastError: 'recipient not eligible at send time',
+        status: 'suppressed',
+      },
+      where: { id: 'delivery_1' },
+    });
+  });
+
   it('keeps sent delivery state when sent event insert fails', async () => {
     mocks.prisma.newsletterBroadcast.findUnique
       .mockResolvedValueOnce(queuedBroadcastRow())
@@ -344,5 +402,27 @@ describe('newsletter broadcasts', () => {
     );
 
     expect(mocks.prisma.newsletterDelivery.count).not.toHaveBeenCalled();
+  });
+
+  it('leaves broadcasts sending when deliveries remain non-terminal', async () => {
+    mocks.prisma.newsletterBroadcast.findUnique.mockResolvedValueOnce(
+      queuedBroadcastRow()
+    );
+    mocks.prisma.newsletterDelivery.count
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(1);
+
+    const { processNewsletterBroadcast } =
+      await import('@/libs/newsletter/newsletterBroadcasts');
+    await expect(processNewsletterBroadcast('broadcast_1')).rejects.toThrow(
+      'Newsletter broadcast broadcast_1 has unfinished deliveries'
+    );
+
+    expect(mocks.prisma.newsletterBroadcast.update).toHaveBeenCalledTimes(1);
+    expect(mocks.prisma.newsletterBroadcast.update).toHaveBeenCalledWith({
+      data: { startedAt: expect.any(Date), status: 'sending' },
+      where: { id: 'broadcast_1' },
+    });
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
   });
 });
