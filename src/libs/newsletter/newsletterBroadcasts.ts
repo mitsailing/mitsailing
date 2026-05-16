@@ -597,16 +597,24 @@ async function markNewsletterDeliveryFailed(
     },
     where: { id: delivery.id },
   });
-  await prisma.newsletterEvent.create({
-    data: {
+  try {
+    await prisma.newsletterEvent.create({
+      data: {
+        broadcastId,
+        deliveryId: delivery.id,
+        email: delivery.email,
+        listId: delivery.primaryListId,
+        subscriberId: delivery.subscriberId,
+        type: 'failed',
+      },
+    });
+  } catch (eventError) {
+    logger.error('Failed to record newsletter failed event: {error}', {
       broadcastId,
       deliveryId: delivery.id,
-      email: delivery.email,
-      listId: delivery.primaryListId,
-      subscriberId: delivery.subscriberId,
-      type: 'failed',
-    },
-  });
+      error: eventError,
+    });
+  }
 }
 
 async function sendClaimedNewsletterDelivery(
