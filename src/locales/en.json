@@ -307,6 +307,7 @@
     "security_page_heading": "Security",
     "newsletter_page_heading": "Newsletter preferences",
     "newsletter_page_intro": "Choose the MIT Sailing newsletter lists you want to receive.",
+    "newsletter_lists_label": "Newsletter lists",
     "newsletter_submit": "Save preferences",
     "newsletter_preferences_saved": "Newsletter preferences saved.",
     "newsletter_preferences_error": "Could not save newsletter preferences.",

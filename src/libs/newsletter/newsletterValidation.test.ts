@@ -59,4 +59,46 @@ describe('newsletter validation', () => {
       },
     });
   });
+
+  it('parses scheduled broadcasts in New York time', () => {
+    const formData = new FormData();
+    formData.set('subject', 'Spring sailing');
+    formData.set('previewText', 'News from the pavilion');
+    formData.set('body', 'The pavilion is open for the season.');
+    formData.set('scheduledAt', '2026-05-14T09:00');
+    formData.set('templateId', 'standard');
+    formData.append('listId', 'general');
+
+    const result = validateNewsletterBroadcastFormData(formData);
+
+    expect(result).toEqual({
+      ok: true,
+      data: {
+        body: 'The pavilion is open for the season.',
+        listIds: ['general'],
+        name: null,
+        previewText: 'News from the pavilion',
+        scheduledAt: new Date('2026-05-14T13:00:00.000Z'),
+        subject: 'Spring sailing',
+        templateId: 'standard',
+      },
+    });
+  });
+
+  it('rejects invalid scheduled broadcast dates', () => {
+    const formData = new FormData();
+    formData.set('subject', 'Spring sailing');
+    formData.set('previewText', 'News from the pavilion');
+    formData.set('body', 'The pavilion is open for the season.');
+    formData.set('scheduledAt', '2026-02-31T09:00');
+    formData.set('templateId', 'standard');
+    formData.append('listId', 'general');
+
+    const result = validateNewsletterBroadcastFormData(formData);
+
+    expect(result).toEqual({
+      ok: false,
+      errors: ['scheduled_at_invalid'],
+    });
+  });
 });

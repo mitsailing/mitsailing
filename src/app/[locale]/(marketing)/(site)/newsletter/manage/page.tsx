@@ -89,6 +89,7 @@ export default async function NewsletterManagePage(
             <NewsletterPreferenceForm
               action={updateTokenNewsletterPreferencesAction.bind(null, token)}
               errorLabel={t('preferences_error')}
+              legendLabel={t('lists_label')}
               lists={preferenceRows(lists, subscriber)}
               successLabel={t('preferences_saved')}
               submitLabel={t('preferences_submit')}

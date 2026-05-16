@@ -66,7 +66,7 @@ function deliveredEvent() {
   } satisfies Extract<WebhookEventPayload, { type: 'email.delivered' }>;
 }
 
-function bouncedEvent() {
+function bouncedEvent(params: { to?: string[] } = {}) {
   return {
     created_at: '2026-05-14T14:30:00.000Z',
     data: {
@@ -76,6 +76,7 @@ function bouncedEvent() {
         subType: 'General',
         type: 'Permanent',
       },
+      to: params.to ?? baseEmailData().to,
     },
     type: 'email.bounced',
   } satisfies Extract<WebhookEventPayload, { type: 'email.bounced' }>;
@@ -170,6 +171,20 @@ describe('handleResendNewsletterWebhook', () => {
       data: expect.objectContaining({
         createdAt: new Date('2026-05-14T14:30:00.000Z'),
         metadata: expect.objectContaining({ providerEventId: 'svix_123' }),
+        type: 'bounced',
+      }),
+    });
+  });
+
+  it('falls back to delivery email when event recipient is missing', async () => {
+    await handleResendNewsletterWebhook(bouncedEvent({ to: [] }), {
+      providerEventId: 'svix_123',
+      skipDedupe: true,
+    });
+
+    expect(mocks.tx.newsletterEvent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        email: 'sailor@example.com',
         type: 'bounced',
       }),
     });

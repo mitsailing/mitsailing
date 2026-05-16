@@ -1,5 +1,6 @@
 import 'server-only';
 import type { WebhookEventPayload } from 'resend';
+import type { Prisma } from '@/generated/prisma/client';
 import { prisma } from '@/libs/DB';
 import type { ResendWebhookContext } from '@/libs/email/emailMessages';
 import { logger } from '@/libs/Logger';
@@ -35,6 +36,30 @@ function deliverabilityReason(event: EmailEventPayload): string | null {
 function eventOccurredAt(event: EmailEventPayload): Date | null {
   const date = new Date(event.created_at);
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function accountDeliverabilityUpdateWhere(params: {
+  email: string;
+  occurredAt: Date;
+  reason: string;
+}): Prisma.UserWhereInput {
+  if (params.reason === 'bounced') {
+    return {
+      email: params.email,
+      OR: [
+        { emailBouncedAt: null },
+        { emailBouncedAt: { lte: params.occurredAt } },
+      ],
+    };
+  }
+
+  return {
+    email: params.email,
+    OR: [
+      { emailSuppressedAt: null },
+      { emailSuppressedAt: { lte: params.occurredAt } },
+    ],
+  };
 }
 
 /**
@@ -73,16 +98,14 @@ export async function handleResendAccountEmailWebhook(
     const update = await prisma.user.updateMany({
       data: {
         emailBouncedAt: reason === 'bounced' ? occurredAt : undefined,
-        emailSuppressedAt: occurredAt,
-        emailSuppressionReason: reason,
+        emailSuppressedAt: reason === 'bounced' ? undefined : occurredAt,
+        emailSuppressionReason: reason === 'bounced' ? undefined : reason,
       },
-      where: {
+      where: accountDeliverabilityUpdateWhere({
         email,
-        OR: [
-          { emailSuppressedAt: null },
-          { emailSuppressedAt: { lte: occurredAt } },
-        ],
-      },
+        occurredAt,
+        reason,
+      }),
     });
     logger.info('Processed account email deliverability webhook', {
       email,

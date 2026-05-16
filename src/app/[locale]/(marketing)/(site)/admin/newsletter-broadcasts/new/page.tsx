@@ -112,12 +112,16 @@ export default async function AdminNewsletterBroadcastNewPage(
       {status ? (
         <p
           className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
+          id="newsletter-broadcast-form-error"
           role="alert"
         >
           {t(errorMessageKey(status))}
         </p>
       ) : null}
       <form
+        aria-describedby={
+          status ? 'newsletter-broadcast-form-error' : undefined
+        }
         action={createNewsletterBroadcastAction.bind(null, locale)}
         className="space-y-5 rounded-lg border border-border bg-card p-5"
       >

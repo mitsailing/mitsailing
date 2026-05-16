@@ -13,6 +13,7 @@ type NewsletterPreferenceFormState =
 type NewsletterPreferenceFormProps = {
   action: (formData: FormData) => Promise<NewsletterPreferenceActionResult>;
   errorLabel: string;
+  legendLabel: string;
   lists: {
     description: string | null;
     id: string;
@@ -80,10 +81,11 @@ export function NewsletterPreferenceForm(props: NewsletterPreferenceFormProps) {
         </p>
       ) : null}
       <fieldset aria-describedby={errorId}>
+        <legend className="sr-only">{props.legendLabel}</legend>
         <div className="grid gap-3 sm:grid-cols-2">
           {props.lists.map((list) => (
             <label
-              aria-label={list.name}
+              aria-labelledby={`newsletter-preference-${list.id}-label`}
               className="rounded-lg border border-border bg-card p-4 text-sm"
               htmlFor={`newsletter-preference-${list.id}`}
               key={list.id}
@@ -98,7 +100,10 @@ export function NewsletterPreferenceForm(props: NewsletterPreferenceFormProps) {
                   value={list.id}
                 />
                 <span>
-                  <span className="block font-medium text-foreground">
+                  <span
+                    className="block font-medium text-foreground"
+                    id={`newsletter-preference-${list.id}-label`}
+                  >
                     {list.name}
                   </span>
                   {list.description ? (

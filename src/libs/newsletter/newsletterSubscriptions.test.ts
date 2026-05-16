@@ -1,11 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { updateNewsletterPreferences } from '@/libs/newsletter/newsletterSubscriptions';
+import {
+  unsubscribeNewsletterTokenFromList,
+  updateNewsletterPreferences,
+} from '@/libs/newsletter/newsletterSubscriptions';
 
 const mocks = vi.hoisted(() => {
   const newsletterEvent = {
     create: vi.fn(),
   };
   const newsletterList = {
+    findFirst: vi.fn(),
     findMany: vi.fn(),
   };
   const newsletterSubscriber = {
@@ -13,6 +17,7 @@ const mocks = vi.hoisted(() => {
     update: vi.fn(),
   };
   const newsletterSubscription = {
+    count: vi.fn(),
     findUnique: vi.fn(),
     upsert: vi.fn(),
   };
@@ -65,11 +70,17 @@ beforeEach(() => {
     { id: 'general_id' },
     { id: 'racing_id' },
   ]);
+  mocks.transaction.newsletterList.findFirst.mockResolvedValue({
+    id: 'general_id',
+  });
   mocks.transaction.newsletterSubscriber.findUnique.mockResolvedValue({
     email: 'sailor@example.com',
+    globalUnsubscribedAt: null,
     id: 'subscriber_123',
+    manageTokenHash: 'token_hash',
   });
   mocks.transaction.newsletterSubscriber.update.mockResolvedValue({});
+  mocks.transaction.newsletterSubscription.count.mockResolvedValue(1);
   mocks.transaction.newsletterSubscription.findUnique.mockResolvedValue(null);
   mocks.transaction.newsletterSubscription.upsert.mockResolvedValue({});
   mocks.transaction.newsletterEvent.create.mockResolvedValue({});
@@ -80,10 +91,10 @@ afterEach(() => {
 });
 
 describe('updateNewsletterPreferences', () => {
-  it('filters selected ids to public lists in transaction', async () => {
+  it('updates selected public lists in transaction', async () => {
     await updateNewsletterPreferences({
       actorUserId: 'user_123',
-      listIds: ['general_id', 'private_id'],
+      listIds: ['general_id'],
       source: 'profile',
       subscriberId: 'subscriber_123',
     });
@@ -126,9 +137,27 @@ describe('updateNewsletterPreferences', () => {
     ).toHaveBeenCalledTimes(2);
   });
 
-  it('globally unsubscribes when no submitted ids are public', async () => {
+  it('rejects invalid list ids before mutating preferences', async () => {
+    await expect(
+      updateNewsletterPreferences({
+        listIds: ['private_id'],
+        source: 'token_manage',
+        subscriberId: 'subscriber_123',
+      })
+    ).rejects.toThrow('Invalid newsletter list selection: private_id');
+
+    expect(
+      mocks.transaction.newsletterSubscriber.update
+    ).not.toHaveBeenCalled();
+    expect(
+      mocks.transaction.newsletterSubscription.upsert
+    ).not.toHaveBeenCalled();
+    expect(mocks.transaction.newsletterEvent.create).not.toHaveBeenCalled();
+  });
+
+  it('globally unsubscribes when no lists are selected', async () => {
     await updateNewsletterPreferences({
-      listIds: ['private_id'],
+      listIds: [],
       source: 'token_manage',
       subscriberId: 'subscriber_123',
     });
@@ -144,6 +173,41 @@ describe('updateNewsletterPreferences', () => {
         subscriberId: 'subscriber_123',
         type: 'unsubscribed_all',
       }),
+    });
+  });
+});
+
+describe('unsubscribeNewsletterTokenFromList', () => {
+  it('sets global unsubscribe when the final public subscription is removed', async () => {
+    mocks.transaction.newsletterSubscription.count.mockResolvedValue(0);
+
+    await unsubscribeNewsletterTokenFromList(
+      'subscriber_123.raw_token',
+      'general_id'
+    );
+
+    expect(
+      mocks.transaction.newsletterSubscription.upsert
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({
+          status: 'unsubscribed',
+          unsubscribedAt: new Date('2026-05-14T14:30:00.000Z'),
+        }),
+      })
+    );
+    expect(mocks.transaction.newsletterSubscriber.update).toHaveBeenCalledWith({
+      data: {
+        globalUnsubscribedAt: new Date('2026-05-14T14:30:00.000Z'),
+      },
+      where: { id: 'subscriber_123' },
+    });
+    expect(mocks.transaction.newsletterEvent.create).toHaveBeenCalledWith({
+      data: {
+        email: 'sailor@example.com',
+        subscriberId: 'subscriber_123',
+        type: 'unsubscribed_all',
+      },
     });
   });
 });

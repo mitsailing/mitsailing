@@ -141,6 +141,7 @@ describe('NewsletterPreferenceForm', () => {
       <NewsletterPreferenceForm
         action={vi.fn()}
         errorLabel="Could not save newsletter preferences."
+        legendLabel="Newsletter lists"
         lists={preferenceLists}
         submitLabel="Save preferences"
         successLabel="Newsletter preferences saved."

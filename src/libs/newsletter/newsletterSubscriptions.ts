@@ -313,9 +313,16 @@ export async function updateNewsletterPreferences(
       where: { isArchived: false, visibility: 'public' },
     });
     const selected = new Set(params.listIds);
-    const selectedPublicListIds = new Set(
-      publicLists.filter((list) => selected.has(list.id)).map((list) => list.id)
+    const publicListIds = new Set(publicLists.map((list) => list.id));
+    const invalidListIds = [...selected].filter(
+      (listId) => !publicListIds.has(listId)
     );
+    if (invalidListIds.length > 0) {
+      throw new Error(
+        `Invalid newsletter list selection: ${invalidListIds.join(', ')}`
+      );
+    }
+    const selectedPublicListIds = new Set(selected);
     const subscriber = await tx.newsletterSubscriber.findUnique({
       select: { email: true, id: true },
       where: { id: params.subscriberId },
@@ -422,6 +429,10 @@ export async function unsubscribeNewsletterTokenFromList(
 
   await prisma.$transaction(async (tx) => {
     const now = new Date();
+    const subscriberRow = await tx.newsletterSubscriber.findUnique({
+      select: { globalUnsubscribedAt: true },
+      where: { id: subscriber.id },
+    });
     const existingSubscription = await tx.newsletterSubscription.findUnique({
       where: {
         subscriberId_listId: { listId: list.id, subscriberId: subscriber.id },
@@ -453,17 +464,29 @@ export async function unsubscribeNewsletterTokenFromList(
           type: 'unsubscribed',
         },
       });
-      return;
     }
 
-    await tx.newsletterEvent.create({
-      data: {
-        email: subscriber.email,
-        listId: list.id,
+    const remainingSubscribed = await tx.newsletterSubscription.count({
+      where: {
+        list: { isArchived: false, visibility: 'public' },
+        status: 'subscribed',
         subscriberId: subscriber.id,
-        type: 'unsubscribed',
       },
     });
+    const isGloballyUnsubscribed = remainingSubscribed === 0;
+    await tx.newsletterSubscriber.update({
+      data: { globalUnsubscribedAt: isGloballyUnsubscribed ? now : null },
+      where: { id: subscriber.id },
+    });
+    if (isGloballyUnsubscribed && !subscriberRow?.globalUnsubscribedAt) {
+      await tx.newsletterEvent.create({
+        data: {
+          email: subscriber.email,
+          subscriberId: subscriber.id,
+          type: 'unsubscribed_all',
+        },
+      });
+    }
   });
 
   return getSubscriberPreferenceStateByToken(token);

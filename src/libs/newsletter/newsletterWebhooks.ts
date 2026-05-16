@@ -302,13 +302,14 @@ async function createNewsletterEvent(params: {
   if (!params.type) {
     return;
   }
+  const [eventRecipient] = params.event.data.to;
 
   await params.tx.newsletterEvent.create({
     data: {
       broadcastId: params.delivery?.broadcastId ?? null,
       createdAt: params.occurredAt,
       deliveryId: params.delivery?.id ?? null,
-      email: params.event.data.to[0] ?? params.delivery?.email ?? null,
+      email: eventRecipient ?? params.delivery?.email ?? null,
       listId: params.delivery?.primaryListId ?? null,
       metadata: eventMetadata({
         event: params.event,

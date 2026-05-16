@@ -78,6 +78,7 @@ export default async function ProfileNewsletterPage(
       <NewsletterPreferenceForm
         action={updateProfileNewsletterPreferencesAction.bind(null, locale)}
         errorLabel={t('newsletter_preferences_error')}
+        legendLabel={t('newsletter_lists_label')}
         lists={preferenceRows(lists, subscriber)}
         successLabel={t('newsletter_preferences_saved')}
         submitLabel={t('newsletter_submit')}

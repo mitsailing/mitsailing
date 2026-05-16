@@ -33,6 +33,7 @@ export default async function AdminNewsletterListNewPage(props: PageProps) {
       {status ? (
         <p
           className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
+          id="newsletter-list-form-error"
           role="alert"
         >
           {status === 'duplicate_list'
@@ -41,6 +42,7 @@ export default async function AdminNewsletterListNewPage(props: PageProps) {
         </p>
       ) : null}
       <form
+        aria-describedby={status ? 'newsletter-list-form-error' : undefined}
         action={createNewsletterListAction.bind(null, locale)}
         className="space-y-5 rounded-lg border border-border bg-card p-5"
       >

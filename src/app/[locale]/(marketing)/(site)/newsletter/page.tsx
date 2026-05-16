@@ -92,6 +92,7 @@ export default async function NewsletterPage(props: NewsletterPageProps) {
                 locale
               )}
               errorLabel={t('preferences_error')}
+              legendLabel={t('lists_label')}
               lists={preferenceRows(lists, subscriber)}
               successLabel={t('preferences_saved')}
               submitLabel={t('preferences_submit')}

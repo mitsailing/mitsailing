@@ -1,3 +1,7 @@
+import {
+  formatNyDateTimeLocalInput,
+  instantForNyWallClock,
+} from '@/lib/mit-sailing/nyTime';
 import { isNewsletterListSlug } from '@/libs/newsletter/newsletterConstants';
 import type { NewsletterListSlug } from '@/libs/newsletter/newsletterConstants';
 import { isValidMarketingEmail } from '@/utils/emailValidation';
@@ -73,6 +77,27 @@ function uniqueNewsletterSlugs(
     }
   }
   return [...slugs];
+}
+
+function parseNyDateTimeLocal(value: string): Date {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value);
+  if (!match) {
+    return new Date(Number.NaN);
+  }
+  const [, year, month, day, hour, minute] = match;
+  if (!year || !month || !day || !hour || !minute) {
+    return new Date(Number.NaN);
+  }
+  const date = instantForNyWallClock(
+    Number(year),
+    Number(month),
+    Number(day),
+    Number(hour),
+    Number(minute)
+  );
+  return formatNyDateTimeLocalInput(date) === value
+    ? date
+    : new Date(Number.NaN);
 }
 
 /**
@@ -229,7 +254,7 @@ export function validateNewsletterBroadcastFormData(
   }
 
   const scheduledAt =
-    scheduledAtRaw.length > 0 ? new Date(scheduledAtRaw) : null;
+    scheduledAtRaw.length > 0 ? parseNyDateTimeLocal(scheduledAtRaw) : null;
   if (scheduledAt && Number.isNaN(scheduledAt.getTime())) {
     errors.push('scheduled_at_invalid');
   }
