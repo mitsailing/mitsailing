@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import Form from 'next/form';
 import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,7 +13,7 @@ import {
   saveSiteTextOverrideAction,
 } from '@/libs/admin/site-text/siteTextActions';
 import { getSiteTextAdminRows } from '@/libs/admin/site-text/siteTextQueries';
-import { Link } from '@/libs/I18nNavigation';
+import { Link, getPathname } from '@/libs/I18nNavigation';
 import type { SiteTextEntry } from '@/libs/site-text/siteTextMessages';
 
 type AdminSiteTextPageProps = {
@@ -226,6 +227,10 @@ export default async function AdminSiteTextPage(props: AdminSiteTextPageProps) {
   const t = await getTranslations({ locale, namespace: 'AdminSiteText' });
   const tCommon = await getTranslations({ locale, namespace: 'Common' });
   const message = statusMessage(status, t);
+  const siteTextFilterAction = getPathname({
+    href: '/admin/site_text',
+    locale,
+  });
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -261,7 +266,10 @@ export default async function AdminSiteTextPage(props: AdminSiteTextPageProps) {
         </section>
       ) : null}
 
-      <form className="grid gap-3 rounded-lg border border-border bg-card p-4 md:grid-cols-[16rem_1fr_auto_auto]">
+      <Form
+        action={siteTextFilterAction}
+        className="grid gap-3 rounded-lg border border-border bg-card p-4 md:grid-cols-[16rem_1fr_auto_auto]"
+      >
         <div className="flex flex-col gap-1.5">
           <Label className="text-foreground" htmlFor="site-text-namespace">
             {t('filter_label')}
@@ -306,7 +314,7 @@ export default async function AdminSiteTextPage(props: AdminSiteTextPageProps) {
             <Link href="/admin/site_text">{t('clear_filters')}</Link>
           </Button>
         </div>
-      </form>
+      </Form>
 
       {entries.length > 0 ? (
         <ul className="flex list-none flex-col gap-4 p-0">

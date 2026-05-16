@@ -26,20 +26,27 @@ reviews:
     - path: '**/*.{ts,tsx}'
       instructions: >-
         Follow repository AGENTS.md and .cursor/rules: TypeScript strictness,
-        React patterns (single props param, no useMemo/useCallback), Next.js App Router
-        and server/client boundaries, next-intl (no hard-coded user-visible strings),
-        accessibility and contrast (ADA rule). This app uses React 19 types:
-        `React.FormEvent` and `React.FormEventHandler` are deprecated in
-        `@types/react`; for form submit handlers, prefer
-        `React.SubmitEvent<HTMLFormElement>` or inferred JSX handler types.
-        Do not suggest replacing `React.SubmitEvent` with `React.FormEvent`.
-        Context7 official React TypeScript docs say to use handler hover
-        information or the installed React event types; local React 19 typings
-        mark `FormEvent`/`FormEventHandler` deprecated and type `onSubmit` as
-        `SubmitEventHandler`.
+        React patterns (single props param, React Compiler handles routine memoization),
+        Next.js App Router and server/client boundaries, next-intl (no hard-coded
+        user-visible strings), accessibility and contrast (ADA rule). Do not suggest
+        `useEffect` for user events, data transformation, derived state, or
+        server-loadable data; it is an escape hatch for synchronizing with external
+        systems.
+        Do not suggest
+        `React.cloneElement` to inject form/accessibility props; put `id`, `required`,
+        `aria-required`, and related attributes directly on the actual input/select/
+        textarea or shared control call site. For form event annotations, prefer
+        inferred JSX handler types or the types accepted by installed React typings;
+        do not churn between `FormEvent` and `SubmitEvent` unless local lint/types
+        require it.
         Context7 Next.js App Router docs show `next/navigation` router push,
         replace, and refresh as imperative transition methods; do not request
         awaiting App Router navigation calls.
+        Next.js 2026 guidance for this app is server-first App Router on a long-running
+        Node host: prefer RSC/server data access, Server Actions for mutations,
+        `connection()` for request-bound rendering instead of broad `force-dynamic`,
+        explicit cache/revalidation choices, and Node runtime for Prisma/pg/FS.
+        Do not suggest Pages Router patterns for new App Router code.
         For Next.js layout passthrough components, allow an explicit
         `React.ReactNode` return annotation when the configured linter requires
         an explicit return type to avoid inferred promise ambiguity.
@@ -79,6 +86,57 @@ reviews:
         `fragment`). Do **not** suggest `/path/#fragment`—that implies a pathname
         ending in `/` before `#`, which fights the default and mismatches fleet
         and class rating links that use `/ratings` plus `#` and the slug.
+        Localized app paths in server code: use `getI18nPath(path, locale)` from
+        `@/utils/Helpers` for `revalidatePath` and similar; do not concatenate
+        `/${locale}/...` (wrong shape with `localePrefix: 'never'`—locale is not in public URLs).
+    - path: 'src/libs/mit-sailing/pavilionReservationPricing.ts'
+      instructions: >-
+        Pavilion reservation money is integer USD cents only (whole dollars in
+        the UI). `null` in persona price maps means TBD/unset; `0` means
+        complimentary/free — never conflate them. `priceForPersona` and
+        `personaPriceDisplay` are the canonical resolvers. Service add-ons use
+        flat persona unit pricing via `estimatedServiceAmountCents` (no slot
+        duration proration); do not request hourly proration for services or
+        rename tests to imply hourly service billing. Production catalog prices
+        are whole-dollar cents; seed/bootstrap decimals are out of scope for
+        this PR.
+    - path: 'src/libs/mit-sailing/pavilionReservationPricing.test.ts'
+      instructions: >-
+        Tests document the null-vs-zero pricing contract. Service estimate tests
+        should use `pricingType: 'flat'` unless product adds hourly service
+        billing. Do not suggest expecting `null` for complimentary `0` prices.
+    - path: 'src/data/mit-sailing/pavilionReservationCatalogSeed.ts'
+      instructions: >-
+        Seed/bootstrap catalog only; production pricing is edited in admin/DB.
+        `pricingType` is only `hourly` or `flat` (billing shape). Negotiated
+        Sailing Master fees use `flat` with null persona prices until rates are
+        published (see GitHub issue #69). Do not block on republishing seed rows
+        as `$0` flat fees when the description says fees are arranged separately.
+    - path: 'src/libs/admin/pavilion-reservations/pavilionReservationAdminActions.ts'
+      instructions: >-
+        Pavilion reservation amounts are whole dollars only (admin inputs use
+        `step="1"`). `wholeDollarsCentsOrNull` must use `Math.round(parsed) * 100`,
+        not `Math.round(parsed * 100)` — fractional dollar input is rounded to the
+        nearest whole dollar before storing cents. DB columns stay `*_cents` with
+        values that are multiples of 100; do not request sub-cent pricing or
+        renaming columns to dollars.
+    - path: '.codacy.yaml'
+      instructions: >-
+        `exclude_paths: '**/*.tsx'` is intentional: Codacy's TS engine misclassifies
+        React TSX in this repo. App-owned TSX remains covered by ESLint, oxlint,
+        Vitest, Playwright, and CodeRabbit. Do not request removing the TSX
+        exclusion unless Codacy adds reliable React/TSX analysis for this stack.
+    - path: 'src/app/[[]locale[]]/**'
+      instructions: >-
+        Single-locale English site (`AppConfig.i18n.locales` is only `en`).
+        next-intl keys are not a reason to introduce multi-locale URL prefixes or
+        `/en/...` in public paths. The `src/app/[locale]/` segment is intentional
+        for next-intl + proxy routing; do not suggest removing it as cleanup without
+        an explicit full migration off next-intl routing. For server pages here,
+        prefer `await props.params`, `setRequestLocale(locale)`, and
+        `getTranslations({ locale, namespace })` over a module-level
+        `AppConfig.i18n.defaultLocale` for consistency. For `revalidatePath` and
+        link targets, use `getI18nPath` from `@/utils/Helpers`, not `/${locale}/...`.
     - path: '**/*.{test,spec,e2e}.{ts,tsx}'
       instructions: >-
         Do not flag lowercase `it(...)` titles. This repository accepts concise

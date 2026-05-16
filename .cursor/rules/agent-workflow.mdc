@@ -6,7 +6,7 @@ alwaysApply: false
 
 # Agent workflow
 
-**Sources:** [AGENTS.md](../../AGENTS.md); [nextjs-node-server-2026.mdc](nextjs-node-server-2026.mdc); [tdd.mdc](tdd.mdc) (tests + `*.test.*`). Cite paths — do not paste bodies. Playwright / claiming e2e: **e2e-verification.mdc**; PR style: **coderabbit-review.mdc**. **`@tdd`** for strict test-first.
+**Sources:** [AGENTS.md](../../AGENTS.md); [nextjs-node-server-2026.mdc](nextjs-node-server-2026.mdc); [tdd.mdc](tdd.mdc) (tests + `*.test.*`). Cite paths — do not paste bodies. Playwright / claiming e2e: **e2e-verification.mdc**; PR style: **coderabbit-review.mdc**; SonarQube MCP: **sonarqube-review.mdc**. **`@tdd`** for strict test-first.
 
 **Workflow:** Inspect before edits; match repo patterns; small diffs; preserve UI unless asked; end with files / tests / assumptions.
 

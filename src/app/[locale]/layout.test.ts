@@ -52,7 +52,7 @@ vi.mock('@/utils/AppConfig', () => ({
     name: 'Test',
     i18n: {
       defaultLocale: 'en',
-      localePrefix: 'as-needed',
+      localePrefix: 'never',
       locales: ['en'],
     },
   },

@@ -1,0 +1,25 @@
+---
+description: Pavilion reservation pricing — null TBD vs zero complimentary; do not re-flag
+globs: src/libs/mit-sailing/pavilionReservationPricing.ts,src/libs/mit-sailing/pavilionReservationPricing.test.ts,src/data/mit-sailing/pavilionReservationCatalogSeed.ts,src/components/mit-sailing/pavilion-reservations/**/*
+alwaysApply: false
+---
+
+# Pavilion reservation pricing
+
+**Contract (matches DB `amount_cents IS NULL OR amount_cents >= 0`):**
+
+- `null` — TBD / unset / priced after review (missing persona amount; `pricingType` is still `hourly` or `flat`)
+- `0` — complimentary (show `$0`, include in estimates)
+- `> 0` — whole-dollar USD only, stored as integer **cents** that are always a multiple of `100` (no fractional cents)
+
+**Admin edits:** `wholeDollarsCentsOrNull` in `pavilionReservationAdminActions.ts` rounds the dollar amount, then multiplies by 100 (`Math.round(parsed) * 100`). Do not use `Math.round(parsed * 100)` — pavilion amounts are not priced to the cent.
+
+**Canonical APIs:** `priceForPersona`, `personaPriceDisplay`, `isPersonaPriceAvailable` (`!== null`, never falsy checks on `0`). Hourly estimates use `roundPavilionEstimateToWholeDollarsCents` in `pavilionReservationPricing.ts`.
+
+**Services:** `estimatedServiceAmountCents` returns the flat persona unit price; no hourly slot proration.
+
+**Pricing types:** Only `hourly` and `flat` in the DB enum — billing shape, not “quote pending.” Use null persona amounts for unset/negotiated catalog quotes.
+
+**Seed vs production:** `pavilionReservationCatalogSeed.ts` is bootstrap only. Negotiated Sailing Master fees (e.g. lab access) use `flat` + null prices per GitHub issue #69; do not suggest re-seeding as `$0` when copy says fees are arranged separately.
+
+**Codacy:** `.codacy.yaml` excludes `**/*.tsx` intentionally (Codacy TSX misclassification); TSX is still linted/tested elsewhere.

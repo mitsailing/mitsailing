@@ -1,6 +1,33 @@
 /** IANA zone for US Eastern (EST + EDT). */
 export const EVENTS_TIME_ZONE = 'America/New_York';
 
+const dateTimeLocalInputFormatter = new Intl.DateTimeFormat('en-US', {
+  timeZone: EVENTS_TIME_ZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+  hourCycle: 'h23',
+});
+
+/**
+ * Formats an instant as `YYYY-MM-DDTHH:mm` for `input type="datetime-local"`
+ * in the New York venue wall clock.
+ *
+ * @param date - Instant to format
+ * @returns Value suitable for `datetime-local` `defaultValue` / `value`
+ */
+export function formatNyDateTimeLocalInput(date: Date): string {
+  const parts = dateTimeLocalInputFormatter.formatToParts(date);
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? '';
+  return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get(
+    'minute'
+  )}`;
+}
+
 const ymdFormatter = new Intl.DateTimeFormat('en-CA', {
   timeZone: EVENTS_TIME_ZONE,
   year: 'numeric',

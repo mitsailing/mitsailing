@@ -1,0 +1,21 @@
+---
+description: English-only next-intl; keep [locale] App segment; params + getI18nPath conventions
+globs: src/app/[[]locale[]]/**/*,src/libs/I18n.ts,src/libs/I18nRouting.ts,src/proxy.ts,src/utils/Helpers.ts
+alwaysApply: false
+---
+
+# Single-locale next-intl routing
+
+Aligned with [next-intl App Router routing](https://github.com/amannn/next-intl/blob/main/docs/src/pages/docs/routing/setup.mdx) (`[locale]` segment + middleware) and [`localePrefix: 'never'`](https://github.com/amannn/next-intl/blob/main/docs/src/pages/docs/routing/configuration.mdx) (locale is rewritten internally, never shown in the URL). English-only forever: keep this model; do not migrate to [without-i18n-routing](https://github.com/amannn/next-intl/blob/main/examples/example-app-router-without-i18n-routing/README.md) unless explicitly planned.
+
+**Product:** Only `en` in [`AppConfig`](../../src/utils/AppConfig.ts) `i18n.locales`. Message files and `next-intl` organize **structured copy**, not multiple public languages.
+
+**Filesystem:** Keep the App Router **`[locale]`** segment under `src/app/[locale]/` while using [`createIntlMiddleware`](../../src/proxy.ts) and [`I18nRouting`](../../src/libs/I18nRouting.ts). Do not treat the folder name as “multi-language URLs”—it matches next-intl’s routing setup.
+
+**Public URLs:** With `localePrefix: 'never'`, paths are always `/reserve`, `/admin`—never `/en/...`. Middleware rewrites to `src/app/[locale]/` internally. Do not add locale segments to links, `revalidatePath`, or tests.
+
+**Request config:** [`I18n.ts`](../../src/libs/I18n.ts) uses `requestLocale` + `hasLocale` per [configuration](https://github.com/amannn/next-intl/blob/main/docs/src/pages/docs/usage/configuration.mdx)—do not hard-code `'en'` in `getRequestConfig` while keeping the `[locale]` segment.
+
+**Server pages under `src/app/[locale]/`:** `await props.params`, extract `locale`, call `setRequestLocale(locale)` in the page, and use `getTranslations({ locale, namespace: '...' })` (and the same pattern in `generateMetadata`). See [AGENTS.md](../../AGENTS.md) locale-page guidance.
+
+**Revalidation and server-built paths:** Use [`getI18nPath`](../../src/utils/Helpers.ts) from `@/utils/Helpers`, not string concatenation such as `` `/${locale}/admin/...` ``—default locale must stay unprefixed.

@@ -1,5 +1,6 @@
 import { Plus, Search } from 'lucide-react';
 import type { getTranslations } from 'next-intl/server';
+import Form from 'next/form';
 import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader';
 import { AdminEventListStatusBadge } from '@/components/mit-sailing/admin/events/AdminEventShared';
 import { Button } from '@/components/ui/button';
@@ -36,6 +37,8 @@ type AdminEventsListTranslations = Awaited<
 
 type AdminEventsListViewProps = {
   categories: AdminEventCategoryOption[];
+  /** Localized pathname for the events list GET filter (see `getPathname`). */
+  filterAction: string;
   filters: AdminEventListFilters;
   rows: AdminEventListRow[];
   t: AdminEventsListTranslations;
@@ -216,8 +219,8 @@ export function AdminEventsListView(props: AdminEventsListViewProps) {
         title={props.t('list_title')}
       />
 
-      <form
-        action=""
+      <Form
+        action={props.filterAction}
         className="grid gap-3 rounded-lg border border-border bg-card p-4 md:grid-cols-[minmax(0,1fr)_minmax(220px,280px)_auto]"
         role="search"
       >
@@ -262,7 +265,7 @@ export function AdminEventsListView(props: AdminEventsListViewProps) {
             <Link href={adminEventsIndexPath()}>{props.t('action_reset')}</Link>
           </Button>
         </div>
-      </form>
+      </Form>
 
       <p className="text-sm text-mit-readable-ink">
         {props.t('list_count', { count: props.rows.length })}

@@ -1,5 +1,9 @@
 import { createEnv } from '@t3-oss/env-nextjs';
 import * as z from 'zod';
+import {
+  isLegacyMysqlSyncCronPattern,
+  LEGACY_MYSQL_SYNC_DEFAULT_CRON,
+} from './legacy-sync/legacyMysqlSyncConstants';
 
 const isStorybookNpmScript =
   process.env.npm_lifecycle_event === 'storybook' ||
@@ -15,6 +19,16 @@ export const Env = createEnv({
 
     // BullMQ worker + optional API enqueue; Redis is internal to Compose in prod.
     REDIS_URL: z.url().optional(),
+    LEGACY_MYSQL_SYNC_ENABLED: z.enum(['true', 'false']).default('false'),
+    LEGACY_MYSQL_SYNC_CRON: z
+      .string()
+      .min(1)
+      .default(LEGACY_MYSQL_SYNC_DEFAULT_CRON)
+      .refine(isLegacyMysqlSyncCronPattern, {
+        message:
+          'LEGACY_MYSQL_SYNC_CRON must be a six-field BullMQ cron (seconds first), e.g. 0 0 * * * *.',
+      }),
+    LEGACY_MYSQL_PASSWORD: z.string().min(1).optional(),
 
     // APP_ENV is orthogonal to NODE_ENV: it names the deployment target
     // (staging runs a production build but behaves like staging — Mailpit
@@ -108,12 +122,32 @@ export const Env = createEnv({
           path: ['CMS_MEDIA_ROOT'],
         });
       }
+      if (env.LEGACY_MYSQL_SYNC_ENABLED === 'true') {
+        if (!env.LEGACY_MYSQL_PASSWORD) {
+          ctx.addIssue({
+            code: 'custom',
+            message:
+              'LEGACY_MYSQL_PASSWORD is required when LEGACY_MYSQL_SYNC_ENABLED=true.',
+            path: ['LEGACY_MYSQL_PASSWORD'],
+          });
+        }
+        if (env.APP_ENV !== 'production') {
+          ctx.addIssue({
+            code: 'custom',
+            message: 'Legacy MySQL sync can only be enabled in production.',
+            path: ['LEGACY_MYSQL_SYNC_ENABLED'],
+          });
+        }
+      }
     }),
   runtimeEnv: {
     ARCJET_KEY: process.env.ARCJET_KEY,
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
     DATABASE_URL: process.env.DATABASE_URL,
     REDIS_URL: process.env.REDIS_URL,
+    LEGACY_MYSQL_SYNC_ENABLED: process.env.LEGACY_MYSQL_SYNC_ENABLED,
+    LEGACY_MYSQL_SYNC_CRON: process.env.LEGACY_MYSQL_SYNC_CRON,
+    LEGACY_MYSQL_PASSWORD: process.env.LEGACY_MYSQL_PASSWORD,
     APP_ENV: process.env.APP_ENV,
     MAIL_TRANSPORT: process.env.MAIL_TRANSPORT,
     RESEND_API_KEY: process.env.RESEND_API_KEY,

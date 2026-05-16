@@ -14,6 +14,7 @@ type AdminNavItem = {
   labelKey:
     | 'nav_admin'
     | 'nav_users'
+    | 'nav_pavilion_reservations'
     | 'nav_donation_funds'
     | 'nav_events'
     | 'nav_event_categories'
@@ -36,6 +37,11 @@ const ADMIN_SITE_NAV: AdminNavItem[] = [
   { href: '/admin', labelKey: 'nav_admin', match: 'exact' },
   { href: '/admin/site_text', labelKey: 'nav_site_text', match: 'prefix' },
   { href: '/admin/users', labelKey: 'nav_users', match: 'prefix' },
+  {
+    href: '/admin/pavilion-reservations',
+    labelKey: 'nav_pavilion_reservations',
+    match: 'prefix',
+  },
   {
     href: '/admin/donation_funds',
     labelKey: 'nav_donation_funds',

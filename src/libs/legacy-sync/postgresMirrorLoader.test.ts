@@ -1,0 +1,242 @@
+import { describe, expect, it } from 'vitest';
+import {
+  chunkRows,
+  copyMysqlTableToPostgres,
+  createMirrorTable,
+  flattenRowsForInsert,
+  mirrorInsertBatchSize,
+  MIRROR_ROW_BATCH_SIZE,
+  POSTGRES_MAX_PARAMETERS,
+  resetLegacySchema,
+} from '@/libs/legacy-sync/postgresMirrorLoader';
+import type { MirrorPgClient } from '@/libs/legacy-sync/postgresMirrorLoader';
+
+async function* mirrorBatchRows() {
+  await Promise.resolve();
+  yield { a: 'one', b: 1 };
+}
+
+async function* invalidMirrorRowStream() {
+  yield { a: 'ok', b: 1 };
+  yield null;
+}
+
+describe('postgresMirrorLoader', () => {
+  it('chunks rows', () => {
+    expect(chunkRows([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]]);
+  });
+
+  it('throws RangeError when chunk size is not a positive integer', () => {
+    for (const size of [0, -1, 1.5, Number.NaN]) {
+      expect(() => chunkRows([1], size)).toThrow(RangeError);
+      expect(() => chunkRows([1], size)).toThrow(
+        `chunkRows size must be a positive integer, received ${size}`
+      );
+    }
+  });
+
+  it('flattens row objects by column order', () => {
+    expect(
+      flattenRowsForInsert(
+        [
+          { a: 'one', b: 1 },
+          { a: 'two', b: 2 },
+        ],
+        ['a', 'b']
+      )
+    ).toEqual(['one', 1, 'two', 2]);
+  });
+
+  it('throws when row omits required column', () => {
+    expect(() =>
+      flattenRowsForInsert([{ a: 'one', b: 1 }, { a: 'two' }], ['a', 'b'])
+    ).toThrow(
+      'flattenRowsForInsert: row 1 is missing column "b" (expected: a, b)'
+    );
+  });
+
+  it('caps insert batch size by the postgres parameter limit', () => {
+    expect(mirrorInsertBatchSize(1)).toBe(MIRROR_ROW_BATCH_SIZE);
+    expect(mirrorInsertBatchSize(2)).toBe(MIRROR_ROW_BATCH_SIZE);
+    expect(mirrorInsertBatchSize(100)).toBe(
+      Math.floor(POSTGRES_MAX_PARAMETERS / 100)
+    );
+  });
+
+  it('resets the legacy schema', async () => {
+    const queries: string[] = [];
+    const pg: MirrorPgClient = {
+      query: async (sql) => {
+        queries.push(sql);
+        await Promise.resolve();
+        return { rows: [] };
+      },
+    };
+
+    await resetLegacySchema(pg);
+
+    expect(queries).toEqual([
+      'DROP SCHEMA IF EXISTS "legacy" CASCADE',
+      'CREATE SCHEMA "legacy"',
+    ]);
+  });
+
+  it('creates mirror tables', async () => {
+    const queries: string[] = [];
+    const pg: MirrorPgClient = {
+      query: async (sql) => {
+        queries.push(sql);
+        await Promise.resolve();
+        return { rows: [] };
+      },
+    };
+
+    await createMirrorTable({
+      pg,
+      table: {
+        tableName: 'members',
+        columns: [{ name: 'record', nullable: false, postgresType: 'bigint' }],
+      },
+    });
+
+    expect(queries).toEqual([
+      'CREATE TABLE "legacy"."members" ("record" bigint NOT NULL)',
+    ]);
+  });
+
+  it('copies streamed mysql rows into postgres in batches', async () => {
+    const pgQueries: { sql: string; values?: unknown[] }[] = [];
+    const pg: MirrorPgClient = {
+      query: async (sql, values) => {
+        pgQueries.push({ sql, values });
+        await Promise.resolve();
+        return { rows: [] };
+      },
+    };
+
+    await expect(
+      copyMysqlTableToPostgres({
+        pg,
+        rows: mirrorBatchRows(),
+        table: {
+          tableName: 'example',
+          columns: [
+            { name: 'a', nullable: true, postgresType: 'text' },
+            { name: 'b', nullable: true, postgresType: 'integer' },
+          ],
+        },
+      })
+    ).resolves.toBe(1);
+    expect(pgQueries).toEqual([
+      {
+        sql: 'INSERT INTO "legacy"."example" ("a", "b") VALUES ($1, $2)',
+        values: ['one', 1],
+      },
+    ]);
+  });
+
+  it('buffers streamed rows up to mirror batch size', async () => {
+    const pgInsertCount = { value: 0 };
+    const pg: MirrorPgClient = {
+      query: async () => {
+        pgInsertCount.value += 1;
+        await Promise.resolve();
+        return { rows: [] };
+      },
+    };
+
+    async function* rows() {
+      for (let index = 0; index < MIRROR_ROW_BATCH_SIZE; index += 1) {
+        yield { a: `row-${index}`, b: index };
+      }
+      yield { a: 'last', b: MIRROR_ROW_BATCH_SIZE };
+    }
+
+    await expect(
+      copyMysqlTableToPostgres({
+        pg,
+        rows: rows(),
+        table: {
+          tableName: 'example',
+          columns: [
+            { name: 'a', nullable: true, postgresType: 'text' },
+            { name: 'b', nullable: true, postgresType: 'integer' },
+          ],
+        },
+      })
+    ).resolves.toBe(MIRROR_ROW_BATCH_SIZE + 1);
+
+    expect(pgInsertCount.value).toBe(2);
+  });
+
+  it('throws when streamed row is not a non-null object', async () => {
+    const pg: MirrorPgClient = {
+      query: async () => {
+        await Promise.resolve();
+        return { rows: [] };
+      },
+    };
+
+    await expect(
+      copyMysqlTableToPostgres({
+        pg,
+        rows: invalidMirrorRowStream(),
+        table: {
+          tableName: 'example',
+          columns: [
+            { name: 'a', nullable: true, postgresType: 'text' },
+            { name: 'b', nullable: true, postgresType: 'integer' },
+          ],
+        },
+      })
+    ).rejects.toThrow(
+      'Invalid MySQL mirror row for legacy."example" at stream index 1: expected a non-null object, received null.'
+    );
+  });
+
+  it('splits wide-table inserts to stay below postgres parameter limit', async () => {
+    const columnCount = 70;
+    const safeBatchSize = Math.floor(POSTGRES_MAX_PARAMETERS / columnCount);
+    const columnNames = Array.from(
+      { length: columnCount },
+      (_, index) => `c${index + 1}`
+    );
+    const row = Object.fromEntries(
+      columnNames.map((name, index) => [name, index])
+    );
+    const capturedValuesPerInsert: number[] = [];
+    const pg: MirrorPgClient = {
+      query: async (_sql, values) => {
+        capturedValuesPerInsert.push(values?.length ?? 0);
+        await Promise.resolve();
+        return { rows: [] };
+      },
+    };
+
+    async function* rows() {
+      for (let index = 0; index < safeBatchSize + 1; index += 1) {
+        yield row;
+      }
+    }
+
+    await expect(
+      copyMysqlTableToPostgres({
+        pg,
+        rows: rows(),
+        table: {
+          tableName: 'example',
+          columns: columnNames.map((name) => ({
+            name,
+            nullable: true,
+            postgresType: 'integer',
+          })),
+        },
+      })
+    ).resolves.toBe(safeBatchSize + 1);
+
+    expect(capturedValuesPerInsert).toEqual([safeBatchSize * columnCount, 70]);
+    expect(Math.max(...capturedValuesPerInsert)).toBeLessThanOrEqual(
+      POSTGRES_MAX_PARAMETERS
+    );
+  });
+});

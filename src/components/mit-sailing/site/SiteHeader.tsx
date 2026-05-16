@@ -124,9 +124,9 @@ function defaultMobileUtilityItems(
 ): SiteHeaderMobileUtilityItem[] {
   return [
     {
-      id: 'reserve-pavilion',
+      id: 'reserve',
       label: t('util_reserve_pavilion'),
-      href: '/contact',
+      href: '/reserve',
     },
     { id: 'directions', label: t('util_directions'), href: '/contact' },
     { id: 'donate', label: t('util_donate'), href: '/donate' },

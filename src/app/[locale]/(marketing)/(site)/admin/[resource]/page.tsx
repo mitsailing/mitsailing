@@ -9,7 +9,10 @@ import {
 import { AdminCatalogScopeFilter } from '@/components/mit-sailing/admin/catalog/AdminCatalogScopeFilter';
 import { AdminCatalogTable } from '@/components/mit-sailing/admin/catalog/AdminCatalogTable';
 import { AdminSailingClassesGroupedTables } from '@/components/mit-sailing/admin/catalog/AdminSailingClassesGroupedTables';
-import { adminCatalogResourceNewPath } from '@/libs/admin/catalog/adminCatalogPaths';
+import {
+  adminCatalogResourceIndexPath,
+  adminCatalogResourceNewPath,
+} from '@/libs/admin/catalog/adminCatalogPaths';
 import {
   isCatalogResourceId,
   tryGetCatalogDefinition,
@@ -21,6 +24,7 @@ import {
   catalogScopedCreatePath,
   catalogScopedListState,
 } from '@/libs/admin/catalog/scopedCatalogLists';
+import { getPathname } from '@/libs/I18nNavigation';
 import { isAppRelativeCmsHref, safeCmsHref } from '@/libs/mit-sailing/cmsHref';
 
 type PageProps = {
@@ -96,6 +100,10 @@ export default async function AdminCatalogResourceIndexPage(props: PageProps) {
     basePath: adminCatalogResourceNewPath(resource),
     state: scopedList,
   });
+  const catalogScopeFilterAction = getPathname({
+    href: adminCatalogResourceIndexPath(resource),
+    locale,
+  });
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -119,6 +127,7 @@ export default async function AdminCatalogResourceIndexPage(props: PageProps) {
 
       {scopedList ? (
         <AdminCatalogScopeFilter
+          action={catalogScopeFilterAction}
           actionLabel={tr('action_filter')}
           label={tr(scopedList.definition.labelKey)}
           options={scopedList.options}

@@ -11,6 +11,7 @@ vi.mock('@sentry/nextjs', () => ({
 describe('syncSentryUserFromSession', () => {
   beforeEach(() => {
     vi.unstubAllEnvs();
+    vi.stubEnv('NEXT_PUBLIC_SENTRY_DISABLED', '');
     vi.mocked(Sentry.setUser).mockClear();
   });
 

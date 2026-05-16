@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-labelledby="title desc">
+  <title id="title">Pavilion reservation placeholder</title>
+  <desc id="desc">Abstract placeholder for MIT Sailing pavilion reservation cards.</desc>
+  <defs>
+    <linearGradient id="sky" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#dbeafe" />
+      <stop offset="0.52" stop-color="#f8fafc" />
+      <stop offset="1" stop-color="#e0f2fe" />
+    </linearGradient>
+    <linearGradient id="water" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#0f766e" />
+      <stop offset="0.5" stop-color="#0369a1" />
+      <stop offset="1" stop-color="#164e63" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="800" fill="url(#sky)" />
+  <path d="M0 535c115-34 232-34 350 0s235 34 350 0 232-34 350 0c50 15 100 23 150 23v242H0Z" fill="url(#water)" />
+  <path d="M210 505h780l-72 86H282Z" fill="#f8fafc" opacity="0.92" />
+  <path d="M338 332h524l110 173H228Z" fill="#94a3b8" opacity="0.35" />
+  <path d="M402 332h396l74 116H328Z" fill="#f8fafc" />
+  <path d="M600 170v278" stroke="#7f1d1d" stroke-linecap="round" stroke-width="24" />
+  <path d="M600 190 788 430H600Z" fill="#a31f34" />
+  <path d="M600 214 432 430h168Z" fill="#f1f5f9" />
+  <path d="M300 606c94-28 188-28 282 0s188 28 282 0 188-28 282 0" fill="none" opacity="0.55" stroke="#bae6fd" stroke-linecap="round" stroke-width="18" />
+</svg>
