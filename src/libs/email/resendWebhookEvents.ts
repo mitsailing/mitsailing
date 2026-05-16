@@ -1,8 +1,6 @@
 import type { WebhookEventPayload } from 'resend';
 
-export function resendWebhookEventId(
-  event: WebhookEventPayload
-): string | null {
+function resendWebhookEventId(event: WebhookEventPayload): string | null {
   return 'id' in event && typeof event.id === 'string' ? event.id : null;
 }
 
@@ -27,9 +25,7 @@ function emailIdFromEvent(event: WebhookEventPayload): string | null {
     : null;
 }
 
-export function resendEmailProviderEventId(
-  event: WebhookEventPayload
-): string | null {
+function resendEmailProviderEventId(event: WebhookEventPayload): string | null {
   if (!event.type.startsWith('email.')) {
     return null;
   }
@@ -41,4 +37,51 @@ export function resendEmailProviderEventId(
   }
 
   return `${emailId}:${event.type}:${occurredAt.toISOString()}`;
+}
+
+export function resendEmailProviderEventIdFromParts(params: {
+  occurredAt: Date;
+  providerMessageId: string;
+  type: string;
+}): string {
+  return `${params.providerMessageId}:${params.type}:${params.occurredAt.toISOString()}`;
+}
+
+export function resendProviderEventIdForWebhook(params: {
+  event: WebhookEventPayload;
+  occurredAt?: Date | null;
+  providerEventId?: string | null;
+  providerMessageId?: string | null;
+}): string | null {
+  const explicitProviderEventId = params.providerEventId?.trim();
+  if (explicitProviderEventId) {
+    return explicitProviderEventId;
+  }
+
+  const webhookEventId = resendWebhookEventId(params.event);
+  if (webhookEventId) {
+    return webhookEventId;
+  }
+
+  const emailProviderEventId = resendEmailProviderEventId(params.event);
+  if (emailProviderEventId) {
+    return emailProviderEventId;
+  }
+
+  if (!params.event.type.startsWith('email.')) {
+    return null;
+  }
+
+  const occurredAt = params.occurredAt ?? resendWebhookOccurredAt(params.event);
+  const providerMessageId =
+    params.providerMessageId ?? emailIdFromEvent(params.event);
+  if (!occurredAt || !providerMessageId) {
+    return null;
+  }
+
+  return resendEmailProviderEventIdFromParts({
+    occurredAt,
+    providerMessageId,
+    type: params.event.type,
+  });
 }

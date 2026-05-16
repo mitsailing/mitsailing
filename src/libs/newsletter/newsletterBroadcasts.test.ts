@@ -3,7 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => {
   const tx = {
     $queryRaw: vi.fn(),
-    newsletterBroadcast: { create: vi.fn(), update: vi.fn() },
+    newsletterBroadcast: {
+      create: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
+    },
     newsletterDelivery: { createMany: vi.fn() },
     newsletterEvent: { create: vi.fn() },
   };
@@ -212,6 +216,7 @@ beforeEach(() => {
   mocks.tx.newsletterDelivery.createMany.mockResolvedValue({ count: 1 });
   mockDeliveryFinishSnapshot({});
   mocks.tx.newsletterBroadcast.update.mockResolvedValue({ id: 'broadcast_1' });
+  mocks.tx.newsletterBroadcast.updateMany.mockResolvedValue({ count: 1 });
   mocks.tx.newsletterEvent.create.mockResolvedValue({ id: 'event_1' });
   mocks.enqueueNewsletterBroadcast.mockResolvedValue({ ok: true });
   mocks.fetch.mockResolvedValue(new Response(null, { status: 200 }));
@@ -545,7 +550,7 @@ describe('newsletter broadcasts', () => {
         status: { in: ['failed', 'queued', 'sending'] },
       },
     });
-    expect(mocks.tx.newsletterBroadcast.update).not.toHaveBeenCalled();
+    expect(mocks.tx.newsletterBroadcast.updateMany).not.toHaveBeenCalled();
     expect(mocks.fetch).not.toHaveBeenCalled();
   });
 
@@ -561,9 +566,14 @@ describe('newsletter broadcasts', () => {
       undefined
     );
 
-    expect(mocks.tx.newsletterBroadcast.update).toHaveBeenCalledWith({
+    expect(mocks.tx.newsletterBroadcast.updateMany).toHaveBeenCalledWith({
       data: { sentAt: null, status: 'failed' },
-      where: { id: 'broadcast_1' },
+      where: {
+        cancelledAt: null,
+        id: 'broadcast_1',
+        pausedAt: null,
+        status: 'sending',
+      },
     });
     expect(mocks.fetch).not.toHaveBeenCalled();
   });
@@ -579,9 +589,37 @@ describe('newsletter broadcasts', () => {
     await processNewsletterBroadcast('broadcast_1');
 
     expect(mocks.tx.$queryRaw).toHaveBeenCalledTimes(2);
-    expect(mocks.tx.newsletterBroadcast.update).toHaveBeenCalledWith({
+    expect(mocks.tx.newsletterBroadcast.updateMany).toHaveBeenCalledWith({
       data: { sentAt: null, status: 'failed' },
-      where: { id: 'broadcast_1' },
+      where: {
+        cancelledAt: null,
+        id: 'broadcast_1',
+        pausedAt: null,
+        status: 'sending',
+      },
+    });
+    expect(mocks.fetch).not.toHaveBeenCalled();
+  });
+
+  it('does not finish broadcast when paused before terminal update', async () => {
+    mocks.prisma.newsletterBroadcast.findUnique.mockResolvedValueOnce(
+      queuedBroadcastRow()
+    );
+    mocks.tx.newsletterBroadcast.updateMany.mockResolvedValueOnce({ count: 0 });
+    mockDeliveryFinishSnapshot({});
+
+    const { processNewsletterBroadcast } =
+      await import('@/libs/newsletter/newsletterBroadcasts');
+    await processNewsletterBroadcast('broadcast_1');
+
+    expect(mocks.tx.newsletterBroadcast.updateMany).toHaveBeenCalledWith({
+      data: expect.objectContaining({ status: 'sent' }),
+      where: {
+        cancelledAt: null,
+        id: 'broadcast_1',
+        pausedAt: null,
+        status: 'sending',
+      },
     });
     expect(mocks.fetch).not.toHaveBeenCalled();
   });

@@ -9,7 +9,7 @@ import type {
 } from '@/libs/email/emailMessages';
 import { recordResendEmailMessageEvent } from '@/libs/email/emailMessages';
 import {
-  resendWebhookEventId,
+  resendProviderEventIdForWebhook,
   resendWebhookOccurredAt,
 } from '@/libs/email/resendWebhookEvents';
 import { logger } from '@/libs/Logger';
@@ -160,20 +160,6 @@ function eventMetadata(params: {
     resendEventType: params.event.type,
     subject: params.event.data.subject,
   };
-}
-
-function providerEventIdForWebhook(
-  event: EmailEventPayload,
-  context?: ResendWebhookContext
-): string {
-  if (context?.providerEventId) {
-    return context.providerEventId;
-  }
-  const eventId = resendWebhookEventId(event);
-  if (eventId) {
-    return eventId;
-  }
-  return `${event.data.email_id}:${event.type}:${event.created_at}`;
 }
 
 function isEmailEvent(event: WebhookEventPayload): event is EmailEventPayload {
@@ -406,7 +392,20 @@ export async function handleResendNewsletterWebhook(
     });
     return;
   }
-  const providerEventId = providerEventIdForWebhook(event, context);
+  const providerEventId = resendProviderEventIdForWebhook({
+    event,
+    occurredAt,
+    providerEventId: context?.providerEventId,
+    providerMessageId,
+  });
+  if (!providerEventId) {
+    logger.warn('Skipping newsletter webhook without provider event id', {
+      providerMessageId,
+      timestamp: event.created_at,
+      type: event.type,
+    });
+    return;
+  }
 
   await runNewsletterWebhookTransaction({
     context,

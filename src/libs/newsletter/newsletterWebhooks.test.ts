@@ -113,6 +113,23 @@ describe('handleResendNewsletterWebhook', () => {
     mocks.tx.newsletterSubscriber.updateMany.mockResolvedValue({ count: 1 });
   });
 
+  it('records deterministic provider event ids without svix ids', async () => {
+    await handleResendNewsletterWebhook(deliveredEvent());
+
+    expect(mocks.recordResendEmailMessageEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerEventId: 'email_123:email.delivered:2026-05-14T14:30:00.000Z',
+      })
+    );
+    expect(mocks.tx.newsletterEvent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        metadata: expect.objectContaining({
+          providerEventId: 'email_123:email.delivered:2026-05-14T14:30:00.000Z',
+        }),
+      }),
+    });
+  });
+
   it('skips duplicate svix events transactionally', async () => {
     mocks.recordResendEmailMessageEvent.mockResolvedValueOnce(false);
 

@@ -96,7 +96,7 @@ describe('email messages', () => {
     expect(mocks.prisma.$executeRaw).not.toHaveBeenCalled();
   });
 
-  it('creates unique fallback ids for Resend events without provider ids', async () => {
+  it('creates deterministic fallback ids for Resend events without provider ids', async () => {
     const { recordResendEmailMessageEvent } =
       await import('@/libs/email/emailMessages');
     const event = {
@@ -133,13 +133,9 @@ describe('email messages', () => {
       }
       return providerEventId;
     });
-    expect(providerEventIds).toHaveLength(2);
-    expect(providerEventIds[0]).toMatch(
-      /^message_1:email\.delivered:2026-05-14T14:30:00\.000Z:synthetic:/
-    );
-    expect(providerEventIds[1]).toMatch(
-      /^message_1:email\.delivered:2026-05-14T14:30:00\.000Z:synthetic:/
-    );
-    expect(providerEventIds[0]).not.toBe(providerEventIds[1]);
+    expect(providerEventIds).toEqual([
+      'message_1:email.delivered:2026-05-14T14:30:00.000Z',
+      'message_1:email.delivered:2026-05-14T14:30:00.000Z',
+    ]);
   });
 });

@@ -52,20 +52,15 @@ function isSendableNewsletterBroadcastStatus(
   return NEWSLETTER_BROADCAST_SENDABLE_STATUSES.includes(status);
 }
 
-function activeNewsletterBroadcastWhere(): Prisma.NewsletterBroadcastWhereInput {
-  return {
-    cancelledAt: null,
-    pausedAt: null,
-  };
-}
-
-function startableNewsletterBroadcastWhere(
-  broadcastId: string
+function activeNewsletterBroadcastWhere(
+  broadcastId: string,
+  status: Prisma.NewsletterBroadcastWhereInput['status']
 ): Prisma.NewsletterBroadcastWhereInput {
   return {
     id: broadcastId,
-    ...activeNewsletterBroadcastWhere(),
-    status: { in: [...NEWSLETTER_BROADCAST_SENDABLE_STATUSES] },
+    cancelledAt: null,
+    pausedAt: null,
+    status,
   };
 }
 
@@ -577,17 +572,18 @@ async function requeueFutureNewsletterBroadcast(
  * @param broadcast - Broadcast row loaded before the transition
  * @returns Whether the broadcast transitioned to sending
  */
-async function startNewsletterBroadcast(
+ async function startNewsletterBroadcast(
   broadcast: NewsletterBroadcastRow
 ): Promise<boolean> {
-  const transitioned = await updateNewsletterBroadcastWhen(
-    startableNewsletterBroadcastWhere(broadcast.id),
+  return updateNewsletterBroadcastWhen(
+    activeNewsletterBroadcastWhere(broadcast.id, {
+      in: [...NEWSLETTER_BROADCAST_SENDABLE_STATUSES],
+    }),
     {
       startedAt: broadcast.startedAt ?? new Date(),
       status: 'sending',
     }
   );
-  return transitioned;
 }
 
 async function getNewsletterDeliveryBatch(broadcastId: string) {
@@ -610,24 +606,22 @@ async function currentBroadcastAllowsSending(
   if (!broadcast) {
     return false;
   }
+  if (!newsletterBroadcastSendBlocked(broadcast)) {
+    return true;
+  }
   if (broadcast.cancelledAt || broadcast.status === 'cancelled') {
     await cancelQueuedNewsletterDeliveries(broadcastId);
-    return false;
+  } else if (broadcast.pausedAt && broadcast.status !== 'paused') {
+    await updateNewsletterBroadcastWhen(
+      {
+        id: broadcastId,
+        pausedAt: { not: null },
+        status: { not: 'paused' },
+      },
+      { status: 'paused' }
+    );
   }
-  if (newsletterBroadcastSendBlocked(broadcast)) {
-    if (broadcast.pausedAt && broadcast.status !== 'paused') {
-      await updateNewsletterBroadcastWhen(
-        {
-          id: broadcastId,
-          pausedAt: { not: null },
-          status: { not: 'paused' },
-        },
-        { status: 'paused' }
-      );
-    }
-    return false;
-  }
-  return true;
+  return false;
 }
 
 async function claimNewsletterDelivery(deliveryId: string): Promise<boolean> {
@@ -922,14 +916,17 @@ async function finishNewsletterBroadcast(broadcastId: string) {
         `Newsletter broadcast ${broadcastId} has unfinished deliveries`
       );
     }
-    await tx.newsletterBroadcast.update({
+    const finished = await tx.newsletterBroadcast.updateMany({
       data: newsletterBroadcastFinishUpdate(snapshot),
-      where: { id: broadcastId },
+      where: activeNewsletterBroadcastWhere(broadcastId, 'sending'),
     });
-    return snapshot;
+    if (finished.count > 0) {
+      return snapshot;
+    }
+    return null;
   }, NEWSLETTER_BROADCAST_FINISH_TRANSACTION_OPTIONS);
 
-  if (counts.failedDeliveryCount > 0) {
+  if (!counts || counts.failedDeliveryCount > 0) {
     return;
   }
   const revalidated = await requestNewsletterArchiveRevalidation();

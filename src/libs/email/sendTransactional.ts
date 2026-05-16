@@ -89,13 +89,8 @@ function getSmtpTransport(): Transporter {
   return cachedSmtpTransport;
 }
 
-function getResendClient(): Resend {
-  if (!Env.RESEND_API_KEY) {
-    throw new Error(
-      'MAIL_TRANSPORT=resend requires both RESEND_API_KEY and EMAIL_FROM.'
-    );
-  }
-  cachedResendClient ??= new Resend(Env.RESEND_API_KEY);
+function getResendClient(apiKey: string): Resend {
+  cachedResendClient ??= new Resend(apiKey);
   return cachedResendClient;
 }
 
@@ -122,7 +117,7 @@ async function sendViaResend(params: Params): Promise<SendEmailResult> {
       'MAIL_TRANSPORT=resend requires both RESEND_API_KEY and EMAIL_FROM.'
     );
   }
-  const resend = getResendClient();
+  const resend = getResendClient(Env.RESEND_API_KEY);
   const result = await resend.emails.send(
     {
       from: Env.EMAIL_FROM,

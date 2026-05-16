@@ -4,7 +4,8 @@ import type { WebhookEventPayload } from 'resend';
 import { Prisma } from '@/generated/prisma/client';
 import { prisma } from '@/libs/DB';
 import {
-  resendWebhookEventId,
+  resendEmailProviderEventIdFromParts,
+  resendProviderEventIdForWebhook,
   resendWebhookOccurredAt,
 } from '@/libs/email/resendWebhookEvents';
 import { logger } from '@/libs/Logger';
@@ -102,16 +103,6 @@ function isEmailEvent(
     'email_id' in data &&
     typeof data.email_id === 'string'
   );
-}
-
-function providerEventIdForWebhook(
-  event: WebhookEventPayload,
-  context?: ResendWebhookContext
-): string | null {
-  if (context?.providerEventId) {
-    return context.providerEventId;
-  }
-  return resendWebhookEventId(event);
 }
 
 function eventErrorMessage(event: ResendEmailEventPayload): string | null {
@@ -228,7 +219,11 @@ export async function recordResendEmailMessageEvent(params: {
   const payload = jsonb(params.event);
   const providerEventId =
     params.providerEventId ??
-    `${params.providerMessageId}:${params.event.type}:${params.occurredAt.toISOString()}:synthetic:${randomUUID()}`;
+    resendEmailProviderEventIdFromParts({
+      occurredAt: params.occurredAt,
+      providerMessageId: params.providerMessageId,
+      type: params.event.type,
+    });
 
   const rows = await client.$queryRaw<{ id: string }[]>`
     INSERT INTO "email_message_events" (
@@ -323,7 +318,12 @@ export async function handleResendEmailMessageWebhook(
     emailMessageId,
     event,
     occurredAt,
-    providerEventId: providerEventIdForWebhook(event, context),
+    providerEventId: resendProviderEventIdForWebhook({
+      event,
+      occurredAt,
+      providerEventId: context?.providerEventId,
+      providerMessageId,
+    }),
     providerMessageId,
   });
   if (!isNewEvent) {

@@ -5,10 +5,7 @@ import { Resend } from 'resend';
 import { prisma } from '@/libs/DB';
 import { handleResendAccountEmailWebhook } from '@/libs/email/accountEmailWebhooks';
 import { handleResendEmailMessageWebhook } from '@/libs/email/emailMessages';
-import {
-  resendEmailProviderEventId,
-  resendWebhookEventId,
-} from '@/libs/email/resendWebhookEvents';
+import { resendProviderEventIdForWebhook } from '@/libs/email/resendWebhookEvents';
 import { Env } from '@/libs/Env';
 import { logger } from '@/libs/Logger';
 import { handleResendNewsletterWebhook } from '@/libs/newsletter/newsletterWebhooks';
@@ -34,17 +31,6 @@ function nonEmptyHeader(value: string | null) {
     return null;
   }
   return normalized;
-}
-
-function providerEventIdForWebhook(
-  request: Request,
-  event: WebhookEventPayload
-): string | null {
-  return (
-    nonEmptyHeader(request.headers.get('svix-id')) ??
-    resendWebhookEventId(event) ??
-    resendEmailProviderEventId(event)
-  );
 }
 
 /**
@@ -76,7 +62,10 @@ export async function POST(request: Request) {
   }
 
   const context = {
-    providerEventId: providerEventIdForWebhook(request, event),
+    providerEventId: resendProviderEventIdForWebhook({
+      event,
+      providerEventId: nonEmptyHeader(request.headers.get('svix-id')),
+    }),
   };
   try {
     await prisma.$transaction(async (client) => {
