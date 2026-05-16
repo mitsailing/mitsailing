@@ -16,7 +16,7 @@ export const Env = createEnv({
     ARCJET_KEY: z.string().startsWith('ajkey_').optional(),
     BETTER_AUTH_SECRET: z.string().min(32),
     DATABASE_URL: z.string().min(1),
-    NEWSLETTER_REVALIDATE_SECRET: z.string().min(32),
+    NEWSLETTER_REVALIDATE_SECRET: z.string().min(32).optional(),
 
     // BullMQ worker + optional API enqueue; Redis is internal to Compose in prod.
     REDIS_URL: z.url().optional(),
