@@ -120,6 +120,11 @@ function timeButtonAt(name: string, index: number) {
   return button;
 }
 
+const originalScrollIntoViewDescriptor = Object.getOwnPropertyDescriptor(
+  Element.prototype,
+  'scrollIntoView'
+);
+
 describe('PavilionReservationWizard slot picker', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -127,6 +132,15 @@ describe('PavilionReservationWizard slot picker', () => {
   });
 
   afterEach(() => {
+    if (originalScrollIntoViewDescriptor) {
+      Object.defineProperty(
+        Element.prototype,
+        'scrollIntoView',
+        originalScrollIntoViewDescriptor
+      );
+    } else {
+      Reflect.deleteProperty(Element.prototype, 'scrollIntoView');
+    }
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
