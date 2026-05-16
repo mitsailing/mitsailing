@@ -6,9 +6,9 @@ import { prisma } from '@/libs/DB';
 
 export const revalidate = 300;
 
-type NewsletterArchivePageProps = {
+type NewsletterArchivePageProps = Readonly<{
   params: Promise<{ locale: string }>;
-};
+}>;
 
 export async function generateMetadata(
   props: NewsletterArchivePageProps

@@ -14,10 +14,10 @@ import {
   getAdminNewsletterTemplates,
 } from '@/libs/newsletter/newsletterBroadcasts';
 
-type PageProps = {
+type PageProps = Readonly<{
   params: Promise<{ locale: string }>;
   searchParams: Promise<{ status?: string }>;
-};
+}>;
 
 function errorMessageKey(
   status: string

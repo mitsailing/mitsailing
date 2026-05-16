@@ -58,6 +58,23 @@ function shouldRecordPreferenceEvent(
   return isSelected || existingStatus === 'subscribed';
 }
 
+function selectedPublicListIdsForUpdate(params: {
+  listIds: readonly string[];
+  publicLists: { id: string }[];
+}) {
+  const selected = new Set(params.listIds);
+  const publicListIds = new Set(params.publicLists.map((list) => list.id));
+  const invalidListIds = [...selected].filter(
+    (listId) => !publicListIds.has(listId)
+  );
+  if (invalidListIds.length > 0) {
+    throw new Error(
+      `Invalid newsletter list selection: ${invalidListIds.join(', ')}`
+    );
+  }
+  return selected;
+}
+
 async function publicNewsletterListsBySlug(
   client: NewsletterSubscriptionClient,
   slugs: readonly NewsletterListSlug[]
@@ -312,6 +329,69 @@ export async function getSubscriberPreferenceStateByToken(token: string) {
   });
 }
 
+async function applyNewsletterPreference(params: {
+  actorUserId?: string | null;
+  list: { id: string };
+  now: Date;
+  selectedPublicListIds: Set<string>;
+  source: string;
+  subscriber: { email: string; id: string };
+  tx: Prisma.TransactionClient;
+}) {
+  const isSelected = params.selectedPublicListIds.has(params.list.id);
+  const nextStatus = isSelected ? 'subscribed' : 'unsubscribed';
+  const existing = await params.tx.newsletterSubscription.findUnique({
+    select: { status: true },
+    where: {
+      subscriberId_listId: {
+        listId: params.list.id,
+        subscriberId: params.subscriber.id,
+      },
+    },
+  });
+  await params.tx.newsletterSubscription.upsert({
+    create: {
+      listId: params.list.id,
+      source: params.source,
+      status: nextStatus,
+      subscriberId: params.subscriber.id,
+      unsubscribedAt: isSelected ? null : params.now,
+    },
+    update: {
+      source: params.source,
+      status: nextStatus,
+      ...(existing?.status === nextStatus
+        ? {}
+        : {
+            subscribedAt: isSelected ? params.now : undefined,
+            unsubscribedAt: isSelected ? null : params.now,
+          }),
+    },
+    where: {
+      subscriberId_listId: {
+        listId: params.list.id,
+        subscriberId: params.subscriber.id,
+      },
+    },
+  });
+
+  if (!shouldRecordPreferenceEvent(existing?.status ?? null, isSelected)) {
+    return;
+  }
+
+  await params.tx.newsletterEvent.create({
+    data: {
+      actorUserId: params.actorUserId ?? null,
+      email: params.subscriber.email,
+      listId: params.list.id,
+      subscriberId: params.subscriber.id,
+      type: isSelected
+        ? eventTypeForSubscribed(existing?.status ?? null)
+        : 'unsubscribed',
+    },
+  });
+}
+
 /**
  * Applies an exact public-list preference set for a subscriber.
  *
@@ -325,17 +405,10 @@ export async function updateNewsletterPreferences(
       orderBy: { displayOrder: 'asc' },
       where: { isArchived: false, visibility: 'public' },
     });
-    const selected = new Set(params.listIds);
-    const publicListIds = new Set(publicLists.map((list) => list.id));
-    const invalidListIds = [...selected].filter(
-      (listId) => !publicListIds.has(listId)
-    );
-    if (invalidListIds.length > 0) {
-      throw new Error(
-        `Invalid newsletter list selection: ${invalidListIds.join(', ')}`
-      );
-    }
-    const selectedPublicListIds = new Set(selected);
+    const selectedPublicListIds = selectedPublicListIdsForUpdate({
+      listIds: params.listIds,
+      publicLists,
+    });
     const subscriber = await tx.newsletterSubscriber.findUnique({
       select: { email: true, id: true },
       where: { id: params.subscriberId },
@@ -354,57 +427,14 @@ export async function updateNewsletterPreferences(
     });
 
     for (const list of publicLists) {
-      const isSelected = selectedPublicListIds.has(list.id);
-      const nextStatus = isSelected ? 'subscribed' : 'unsubscribed';
-      const existing = await tx.newsletterSubscription.findUnique({
-        select: { status: true },
-        where: {
-          subscriberId_listId: {
-            listId: list.id,
-            subscriberId: params.subscriberId,
-          },
-        },
-      });
-      await tx.newsletterSubscription.upsert({
-        create: {
-          listId: list.id,
-          source: params.source,
-          status: nextStatus,
-          subscriberId: params.subscriberId,
-          unsubscribedAt: isSelected ? null : now,
-        },
-        update: {
-          source: params.source,
-          status: nextStatus,
-          ...(existing?.status === nextStatus
-            ? {}
-            : {
-                subscribedAt: isSelected ? now : undefined,
-                unsubscribedAt: isSelected ? null : now,
-              }),
-        },
-        where: {
-          subscriberId_listId: {
-            listId: list.id,
-            subscriberId: params.subscriberId,
-          },
-        },
-      });
-
-      if (!shouldRecordPreferenceEvent(existing?.status ?? null, isSelected)) {
-        continue;
-      }
-
-      await tx.newsletterEvent.create({
-        data: {
-          actorUserId: params.actorUserId ?? null,
-          email: subscriber.email,
-          listId: list.id,
-          subscriberId: subscriber.id,
-          type: isSelected
-            ? eventTypeForSubscribed(existing?.status ?? null)
-            : 'unsubscribed',
-        },
+      await applyNewsletterPreference({
+        actorUserId: params.actorUserId,
+        list,
+        now,
+        selectedPublicListIds,
+        source: params.source,
+        subscriber,
+        tx,
       });
     }
 

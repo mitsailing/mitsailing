@@ -3,7 +3,10 @@ import type { WebhookEventPayload } from 'resend';
 import type { Prisma } from '@/generated/prisma/client';
 import type { NewsletterDeliveryStatus } from '@/generated/prisma/enums';
 import { prisma } from '@/libs/DB';
-import type { ResendWebhookContext } from '@/libs/email/emailMessages';
+import type {
+  ResendWebhookClient,
+  ResendWebhookContext,
+} from '@/libs/email/emailMessages';
 import { recordResendEmailMessageEvent } from '@/libs/email/emailMessages';
 import { logger } from '@/libs/Logger';
 
@@ -14,6 +17,14 @@ type EmailEventPayload = Extract<
       email_id: string;
     };
   }
+>;
+
+type NewsletterWebhookClient = Pick<
+  ResendWebhookClient,
+  | '$queryRaw'
+  | 'newsletterDelivery'
+  | 'newsletterEvent'
+  | 'newsletterSubscriber'
 >;
 
 const terminalDeliveryStatuses: NewsletterDeliveryStatus[] = [
@@ -215,7 +226,7 @@ function deliveryStatusUpdateConditions(params: {
 }
 
 async function findNewsletterDelivery(params: {
-  tx: Prisma.TransactionClient;
+  tx: NewsletterWebhookClient;
   deliveryId: string;
   providerMessageId: string;
 }) {
@@ -241,7 +252,7 @@ async function updateDeliveryStatus(params: {
   occurredAt: Date;
   providerMessageId: string;
   status: ReturnType<typeof deliveryStatusForEmailEvent>;
-  tx: Prisma.TransactionClient;
+  tx: NewsletterWebhookClient;
 }): Promise<void> {
   if (!params.delivery || !params.status) {
     return;
@@ -277,7 +288,7 @@ async function updateDeliveryStatus(params: {
 async function suppressSubscriber(params: {
   delivery: Awaited<ReturnType<typeof findNewsletterDelivery>>;
   occurredAt: Date;
-  tx: Prisma.TransactionClient;
+  tx: NewsletterWebhookClient;
   type: EmailEventPayload['type'];
 }): Promise<void> {
   if (!params.delivery || !isSuppressingEvent(params.type)) {
@@ -312,7 +323,7 @@ async function createNewsletterEvent(params: {
   occurredAt: Date;
   providerEventId: string;
   providerMessageId: string;
-  tx: Prisma.TransactionClient;
+  tx: NewsletterWebhookClient;
   type: ReturnType<typeof eventTypeForEmailEvent>;
 }): Promise<void> {
   if (!params.type) {
@@ -353,6 +364,18 @@ async function createNewsletterEvent(params: {
   });
 }
 
+async function runNewsletterWebhookTransaction(params: {
+  context?: ResendWebhookContext;
+  operation: (tx: NewsletterWebhookClient) => Promise<void>;
+}) {
+  if (params.context?.client) {
+    await params.operation(params.context.client);
+    return;
+  }
+
+  await prisma.$transaction(params.operation);
+}
+
 /**
  * Records Resend email delivery webhooks against newsletter deliveries.
  *
@@ -385,52 +408,55 @@ export async function handleResendNewsletterWebhook(
   }
   const providerEventId = providerEventIdForWebhook(event, context);
 
-  await prisma.$transaction(async (tx) => {
-    if (!context?.skipDedupe) {
-      const isNewEvent = await recordResendEmailMessageEvent({
-        client: tx,
-        emailMessageId: null,
+  await runNewsletterWebhookTransaction({
+    context,
+    operation: async (tx) => {
+      if (!context?.skipDedupe) {
+        const isNewEvent = await recordResendEmailMessageEvent({
+          client: tx,
+          emailMessageId: null,
+          event,
+          occurredAt,
+          providerEventId,
+          providerMessageId,
+        });
+        if (!isNewEvent) {
+          logger.info('Skipping duplicate newsletter webhook event', {
+            providerEventId,
+            providerMessageId,
+            type: event.type,
+          });
+          return;
+        }
+      }
+
+      const delivery = await findNewsletterDelivery({
+        tx,
+        deliveryId,
+        providerMessageId,
+      });
+      await updateDeliveryStatus({
+        delivery,
+        occurredAt,
+        providerMessageId,
+        status,
+        tx,
+      });
+      await suppressSubscriber({
+        delivery,
+        occurredAt,
+        tx,
+        type: event.type,
+      });
+      await createNewsletterEvent({
+        delivery,
         event,
         occurredAt,
         providerEventId,
         providerMessageId,
+        tx,
+        type,
       });
-      if (!isNewEvent) {
-        logger.info('Skipping duplicate newsletter webhook event', {
-          providerEventId,
-          providerMessageId,
-          type: event.type,
-        });
-        return;
-      }
-    }
-
-    const delivery = await findNewsletterDelivery({
-      tx,
-      deliveryId,
-      providerMessageId,
-    });
-    await updateDeliveryStatus({
-      delivery,
-      occurredAt,
-      providerMessageId,
-      status,
-      tx,
-    });
-    await suppressSubscriber({
-      delivery,
-      occurredAt,
-      tx,
-      type: event.type,
-    });
-    await createNewsletterEvent({
-      delivery,
-      event,
-      occurredAt,
-      providerEventId,
-      providerMessageId,
-      tx,
-      type,
-    });
+    },
   });
 }

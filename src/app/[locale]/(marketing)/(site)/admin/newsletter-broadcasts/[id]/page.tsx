@@ -23,10 +23,10 @@ import {
   renderAdminNewsletterBroadcastPreviewHtml,
 } from '@/libs/newsletter/newsletterBroadcasts';
 
-type PageProps = {
+type PageProps = Readonly<{
   params: Promise<{ locale: string; id: string }>;
   searchParams: Promise<{ status?: string }>;
-};
+}>;
 
 export async function generateMetadata(props: PageProps): Promise<Metadata> {
   const { locale } = await props.params;
@@ -97,17 +97,21 @@ export default async function AdminNewsletterBroadcastDetailPage(
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6">
       <AdminPageHeader title={broadcast.subject} />
-      {notificationKey ? (
+      {notificationKey &&
+      (status === 'test_failed' || status === 'invalid_test_email') ? (
         <p
           className="rounded-lg border border-border bg-card p-3 text-sm text-foreground"
-          role={
-            status === 'test_failed' || status === 'invalid_test_email'
-              ? 'alert'
-              : 'status'
-          }
+          role="alert"
         >
           {t(notificationKey)}
         </p>
+      ) : null}
+      {notificationKey &&
+      status !== 'test_failed' &&
+      status !== 'invalid_test_email' ? (
+        <output className="rounded-lg border border-border bg-card p-3 text-sm text-foreground">
+          {t(notificationKey)}
+        </output>
       ) : null}
 
       <section className="grid gap-4 rounded-lg border border-border bg-card p-5 text-sm text-foreground sm:grid-cols-2 lg:grid-cols-4">

@@ -15,10 +15,10 @@ import { requireAdmin } from '@/libs/auth/dal';
 import { Link } from '@/libs/I18nNavigation';
 import { getAdminNewsletterLists } from '@/libs/newsletter/newsletterBroadcasts';
 
-type PageProps = {
+type PageProps = Readonly<{
   params: Promise<{ locale: string }>;
   searchParams: Promise<{ status?: string }>;
-};
+}>;
 
 export async function generateMetadata(props: PageProps): Promise<Metadata> {
   const { locale } = await props.params;
@@ -66,12 +66,9 @@ export default async function AdminNewsletterListsPage(props: PageProps) {
         title={t('lists_title')}
       />
       {status === 'created' ? (
-        <p
-          className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-950"
-          role="status"
-        >
+        <output className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-950">
           {t('list_created')}
-        </p>
+        </output>
       ) : null}
       <div className="overflow-hidden rounded-lg border border-border bg-card">
         <Table>

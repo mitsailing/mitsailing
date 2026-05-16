@@ -10,10 +10,10 @@ import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 import { requireAdmin } from '@/libs/auth/dal';
 import { createNewsletterListAction } from '@/libs/newsletter/newsletterAdminActions';
 
-type PageProps = {
+type PageProps = Readonly<{
   params: Promise<{ locale: string }>;
   searchParams: Promise<{ status?: string }>;
-};
+}>;
 
 export async function generateMetadata(props: PageProps): Promise<Metadata> {
   const { locale } = await props.params;

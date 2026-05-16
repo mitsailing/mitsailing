@@ -10,7 +10,7 @@ type NewsletterPreferenceFormState =
   | NewsletterPreferenceActionResult
   | { ok: null };
 
-type NewsletterPreferenceFormProps = {
+type NewsletterPreferenceFormProps = Readonly<{
   action: (formData: FormData) => Promise<NewsletterPreferenceActionResult>;
   errorLabel: string;
   legendLabel: string;
@@ -22,11 +22,11 @@ type NewsletterPreferenceFormProps = {
   }[];
   successLabel: string;
   submitLabel: string;
-};
+}>;
 
 const initialState: NewsletterPreferenceFormState = { ok: null };
 
-function SubmitButton(props: { label: string }) {
+function SubmitButton(props: Readonly<{ label: string }>) {
   const status = useFormStatus();
   return (
     <Button
@@ -64,12 +64,9 @@ export function NewsletterPreferenceForm(props: NewsletterPreferenceFormProps) {
   return (
     <form action={formAction} className="space-y-5">
       {state.ok === true ? (
-        <p
-          className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-900"
-          role="status"
-        >
+        <output className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-900">
           {props.successLabel}
-        </p>
+        </output>
       ) : null}
       {state.ok === false ? (
         <p

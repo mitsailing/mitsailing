@@ -1,31 +1,42 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { POST } from './route';
 
-const mocks = vi.hoisted(() => ({
-  env: {
-    RESEND_API_KEY: 'resend_key',
-    RESEND_WEBHOOK_SECRET: 'webhook_secret',
-  },
-  handleResendAccountEmailWebhook: vi.fn(),
-  handleResendEmailMessageWebhook: vi.fn(),
-  handleResendNewsletterWebhook: vi.fn(),
-  logger: {
-    error: vi.fn(),
-  },
-  sentry: {
-    captureException: vi.fn(),
-  },
-  verify: vi.fn(),
-}));
+const mocks = vi.hoisted(() => {
+  const verify = vi.fn();
+  return {
+    env: {
+      RESEND_API_KEY: 'resend_key',
+      RESEND_WEBHOOK_SECRET: 'webhook_secret',
+    },
+    handleResendAccountEmailWebhook: vi.fn(),
+    handleResendEmailMessageWebhook: vi.fn(),
+    handleResendNewsletterWebhook: vi.fn(),
+    logger: {
+      error: vi.fn(),
+    },
+    prisma: {
+      $transaction: vi.fn(
+        async (operation: (client: object) => Promise<void>) => {
+          await operation({ transaction: true });
+        }
+      ),
+    },
+    resend: vi.fn(function Resend() {
+      return {
+        webhooks: { verify },
+      };
+    }),
+    sentry: {
+      captureException: vi.fn(),
+    },
+    verify,
+  };
+});
 
 vi.mock('server-only', () => ({}));
 
 vi.mock('resend', () => ({
-  Resend: vi.fn(function Resend() {
-    return {
-      webhooks: { verify: mocks.verify },
-    };
-  }),
+  Resend: mocks.resend,
 }));
 
 vi.mock('@sentry/nextjs', () => mocks.sentry);
@@ -36,6 +47,10 @@ vi.mock('@/libs/Env', () => ({
 
 vi.mock('@/libs/Logger', () => ({
   logger: mocks.logger,
+}));
+
+vi.mock('@/libs/DB', () => ({
+  prisma: mocks.prisma,
 }));
 
 vi.mock('@/libs/email/accountEmailWebhooks', () => ({
@@ -50,14 +65,18 @@ vi.mock('@/libs/newsletter/newsletterWebhooks', () => ({
   handleResendNewsletterWebhook: mocks.handleResendNewsletterWebhook,
 }));
 
-function webhookRequest() {
+function webhookRequest(params: { svixId?: string | null } = {}) {
+  const headers = new Headers({
+    'svix-signature': 'sig_123',
+    'svix-timestamp': '2026-05-14T14:30:00.000Z',
+  });
+  if (params.svixId !== null) {
+    headers.set('svix-id', params.svixId ?? 'event_123');
+  }
+
   return new Request('https://mitsailing.test/api/resend/webhooks', {
     body: '{"type":"email.delivered"}',
-    headers: {
-      'svix-id': 'event_123',
-      'svix-signature': 'sig_123',
-      'svix-timestamp': '2026-05-14T14:30:00.000Z',
-    },
+    headers,
     method: 'POST',
   });
 }
@@ -119,15 +138,40 @@ describe('resend webhook route', () => {
     });
     expect(mocks.handleResendNewsletterWebhook).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'email.delivered' }),
-      { providerEventId: 'event_123', skipDedupe: true }
+      expect.objectContaining({
+        providerEventId: 'event_123',
+        skipDedupe: true,
+      })
     );
     expect(mocks.handleResendAccountEmailWebhook).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'email.delivered' }),
-      { providerEventId: 'event_123' }
+      expect.objectContaining({ providerEventId: 'event_123' })
     );
     expect(mocks.handleResendEmailMessageWebhook).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'email.delivered' }),
-      { providerEventId: 'event_123' }
+      expect.objectContaining({ providerEventId: 'event_123' })
+    );
+  });
+
+  it('derives a shared fallback provider event id without a svix id', async () => {
+    mocks.verify.mockReturnValueOnce({
+      created_at: '2026-05-14T14:30:00.000Z',
+      data: { email_id: 'email_123', to: ['sailor@example.com'] },
+      type: 'email.delivered',
+    });
+
+    const response = await POST(webhookRequest({ svixId: null }));
+
+    expect(response.status).toBe(200);
+    const expectedProviderEventId =
+      'email_123:email.delivered:2026-05-14T14:30:00.000Z';
+    expect(mocks.handleResendNewsletterWebhook).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'email.delivered' }),
+      expect.objectContaining({ providerEventId: expectedProviderEventId })
+    );
+    expect(mocks.handleResendEmailMessageWebhook).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'email.delivered' }),
+      expect.objectContaining({ providerEventId: expectedProviderEventId })
     );
   });
 
@@ -139,5 +183,46 @@ describe('resend webhook route', () => {
     expect(response.status).toBe(200);
     expect(mocks.handleResendNewsletterWebhook).toHaveBeenCalled();
     expect(mocks.handleResendAccountEmailWebhook).toHaveBeenCalled();
+  });
+
+  it('processes handlers inside one database transaction', async () => {
+    const response = await POST(webhookRequest());
+
+    expect(response.status).toBe(200);
+    expect(mocks.prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(mocks.handleResendNewsletterWebhook).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'email.delivered' }),
+      expect.objectContaining({ client: { transaction: true } })
+    );
+    expect(mocks.handleResendAccountEmailWebhook).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'email.delivered' }),
+      expect.objectContaining({ client: { transaction: true } })
+    );
+    expect(mocks.handleResendEmailMessageWebhook).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'email.delivered' }),
+      expect.objectContaining({ client: { transaction: true } })
+    );
+  });
+
+  it('returns server error when a transaction handler fails', async () => {
+    mocks.handleResendAccountEmailWebhook.mockRejectedValueOnce(
+      new Error('account failed')
+    );
+
+    const response = await POST(webhookRequest());
+
+    await expect(response.json()).resolves.toEqual({ ok: false });
+    expect(response.status).toBe(500);
+    expect(mocks.handleResendEmailMessageWebhook).not.toHaveBeenCalled();
+    expect(mocks.sentry.captureException).toHaveBeenCalledWith(
+      expect.any(Error)
+    );
+  });
+
+  it('reuses the resend client across webhook requests', async () => {
+    await POST(webhookRequest());
+    await POST(webhookRequest());
+
+    expect(mocks.resend).not.toHaveBeenCalled();
   });
 });

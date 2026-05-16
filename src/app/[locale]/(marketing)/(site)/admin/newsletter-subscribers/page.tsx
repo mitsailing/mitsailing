@@ -13,7 +13,7 @@ import {
 import { requireAdmin } from '@/libs/auth/dal';
 import { getAdminNewsletterSubscribers } from '@/libs/newsletter/newsletterBroadcasts';
 
-type PageProps = { params: Promise<{ locale: string }> };
+type PageProps = Readonly<{ params: Promise<{ locale: string }> }>;
 
 export async function generateMetadata(props: PageProps): Promise<Metadata> {
   const { locale } = await props.params;

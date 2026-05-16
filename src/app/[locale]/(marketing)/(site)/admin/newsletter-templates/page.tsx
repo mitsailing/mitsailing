@@ -15,7 +15,7 @@ import { requireAdmin } from '@/libs/auth/dal';
 import { Link } from '@/libs/I18nNavigation';
 import { getAdminNewsletterTemplates } from '@/libs/newsletter/newsletterBroadcasts';
 
-type PageProps = { params: Promise<{ locale: string }> };
+type PageProps = Readonly<{ params: Promise<{ locale: string }> }>;
 
 export async function generateMetadata(props: PageProps): Promise<Metadata> {
   const { locale } = await props.params;

@@ -18,10 +18,10 @@ import { newsletterBroadcastStatusKey } from '@/libs/newsletter/newsletterAdminD
 import { getAdminNewsletterBroadcasts } from '@/libs/newsletter/newsletterBroadcasts';
 import { getI18nPath } from '@/utils/Helpers';
 
-type PageProps = {
+type PageProps = Readonly<{
   params: Promise<{ locale: string }>;
   searchParams: Promise<{ status?: string }>;
-};
+}>;
 
 const STATUS_MESSAGE_KEYS = {
   created: 'broadcast_created',
@@ -69,12 +69,9 @@ export default async function AdminNewsletterBroadcastsPage(props: PageProps) {
         title={t('broadcasts_title')}
       />
       {notificationKey ? (
-        <p
-          className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-950"
-          role="status"
-        >
+        <output className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-950">
           {t(notificationKey)}
-        </p>
+        </output>
       ) : null}
       <div className="overflow-hidden rounded-lg border border-border bg-card">
         <Table>

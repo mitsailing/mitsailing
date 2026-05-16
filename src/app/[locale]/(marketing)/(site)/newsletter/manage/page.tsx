@@ -11,10 +11,10 @@ import {
   getSubscriberPreferenceStateByToken,
 } from '@/libs/newsletter/newsletterSubscriptions';
 
-type NewsletterManagePageProps = {
+type NewsletterManagePageProps = Readonly<{
   params: Promise<{ locale: string }>;
   searchParams: Promise<{ token?: string }>;
-};
+}>;
 
 export async function generateMetadata(
   props: NewsletterManagePageProps

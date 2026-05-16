@@ -107,32 +107,23 @@ export async function handleResendAccountEmailWebhook(
     });
     return;
   }
-  try {
-    const update = await prisma.user.updateMany({
-      data: {
-        emailBouncedAt: reason === 'bounced' ? occurredAt : undefined,
-        emailSuppressedAt: reason === 'bounced' ? undefined : occurredAt,
-        emailSuppressionReason: reason === 'bounced' ? undefined : reason,
-      },
-      where: accountDeliverabilityUpdateWhere({
-        email,
-        occurredAt,
-        reason,
-      }),
-    });
-    logger.info('Processed account email deliverability webhook', {
+  const client = _context?.client ?? prisma;
+  const update = await client.user.updateMany({
+    data: {
+      emailBouncedAt: reason === 'bounced' ? occurredAt : undefined,
+      emailSuppressedAt: reason === 'bounced' ? undefined : occurredAt,
+      emailSuppressionReason: reason === 'bounced' ? undefined : reason,
+    },
+    where: accountDeliverabilityUpdateWhere({
       email,
-      occurredAt: occurredAt.toISOString(),
+      occurredAt,
       reason,
-      updatedCount: update.count,
-    });
-  } catch (error) {
-    logger.error('Failed to process account email webhook: {error}', {
-      email,
-      error,
-      occurredAt: occurredAt.toISOString(),
-      reason,
-      type: event.type,
-    });
-  }
+    }),
+  });
+  logger.info('Processed account email deliverability webhook', {
+    email,
+    occurredAt: occurredAt.toISOString(),
+    reason,
+    updatedCount: update.count,
+  });
 }

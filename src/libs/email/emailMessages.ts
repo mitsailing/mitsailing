@@ -43,7 +43,20 @@ export type ResendEmailEventPayload = Extract<
   }
 >;
 
+export type ResendWebhookClient = {
+  $executeRaw: typeof prisma.$executeRaw;
+  $queryRaw: typeof prisma.$queryRaw;
+  newsletterDelivery: Pick<
+    typeof prisma.newsletterDelivery,
+    'findFirst' | 'findUnique' | 'updateMany'
+  >;
+  newsletterEvent: Pick<typeof prisma.newsletterEvent, 'create' | 'findFirst'>;
+  newsletterSubscriber: Pick<typeof prisma.newsletterSubscriber, 'updateMany'>;
+  user: Pick<typeof prisma.user, 'updateMany'>;
+};
+
 export type ResendWebhookContext = {
+  client?: ResendWebhookClient;
   providerEventId: string | null;
   skipDedupe?: boolean;
 };
@@ -193,9 +206,10 @@ export async function recordSentEmailMessage(
 
 async function emailMessageIdForProviderMessage(
   provider: EmailProvider,
-  providerMessageId: string
+  providerMessageId: string,
+  client: Pick<ResendWebhookClient, '$queryRaw'> = prisma
 ): Promise<string | null> {
-  const rows = await prisma.$queryRaw<{ id: string }[]>`
+  const rows = await client.$queryRaw<{ id: string }[]>`
     SELECT "id"
     FROM "email_messages"
     WHERE "provider" = ${provider}
@@ -252,6 +266,7 @@ export async function recordResendEmailMessageEvent(params: {
 }
 
 async function updateEmailMessageFromEvent(params: {
+  client?: Pick<ResendWebhookClient, '$executeRaw'>;
   emailMessageId: string | null;
   event: ResendEmailEventPayload;
   lastError: string | null;
@@ -261,7 +276,8 @@ async function updateEmailMessageFromEvent(params: {
     return;
   }
 
-  await prisma.$executeRaw`
+  const client = params.client ?? prisma;
+  await client.$executeRaw`
     UPDATE "email_messages"
     SET
       "last_event_type" = ${params.event.type},
@@ -295,9 +311,11 @@ export async function handleResendEmailMessageWebhook(
   }
 
   const providerMessageId = event.data.email_id;
+  const client = context?.client ?? prisma;
   const emailMessageId = await emailMessageIdForProviderMessage(
     'resend',
-    providerMessageId
+    providerMessageId,
+    client
   );
   const occurredAt = eventOccurredAt(event);
   if (!occurredAt) {
@@ -309,6 +327,7 @@ export async function handleResendEmailMessageWebhook(
     return false;
   }
   const isNewEvent = await recordResendEmailMessageEvent({
+    client,
     emailMessageId,
     event,
     occurredAt,
@@ -323,6 +342,7 @@ export async function handleResendEmailMessageWebhook(
     return false;
   }
   await updateEmailMessageFromEvent({
+    client,
     emailMessageId,
     event,
     lastError: eventErrorMessage(event),

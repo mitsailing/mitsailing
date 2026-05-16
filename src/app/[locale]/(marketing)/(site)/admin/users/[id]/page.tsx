@@ -24,10 +24,10 @@ import type { UserRatingAssignmentRow } from '@/libs/mit-sailing/sailingRatingQu
 
 type EmailDeliverabilityStatus = 'ok' | 'bounced' | 'suppressed';
 
-type AdminUserShowPageProps = {
+type AdminUserShowPageProps = Readonly<{
   params: Promise<{ locale: string; id: string }>;
   searchParams: Promise<{ error?: string }>;
-};
+}>;
 
 function emailDeliverabilityStatus(value: unknown): EmailDeliverabilityStatus {
   return value === 'bounced' || value === 'suppressed' ? value : 'ok';
@@ -95,22 +95,21 @@ function emailCategoryMessageKey(category: string): EmailCategoryMessageKey {
   return emailCategoryMessageKeys.get(category) ?? 'email_category_other';
 }
 
-function AdminUserEmailsPanel(props: {
+type AdminUserEmailsPanelProps = Readonly<{
   emails: AdminUserEmailMessageRow[];
   loadFailed: boolean;
   locale: string;
   t: Awaited<ReturnType<typeof getTranslations>>;
-}) {
+}>;
+
+function AdminUserEmailsPanel(props: AdminUserEmailsPanelProps) {
   return (
     <section className="flex flex-col gap-3">
       <h2 className="text-lg font-semibold">{props.t('emails_heading')}</h2>
       {props.loadFailed ? (
-        <p
-          className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950"
-          role="status"
-        >
+        <output className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
           {props.t('emails_load_failed')}
-        </p>
+        </output>
       ) : null}
       <div className="overflow-hidden rounded-lg border border-border bg-card">
         <Table>
@@ -244,17 +243,14 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
         </dl>
       </div>
       {hasEmailDeliverabilityWarning ? (
-        <div
-          className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"
-          role="status"
-        >
+        <output className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
           <p className="font-semibold">{t('email_status_warning_title')}</p>
           <p className="mt-1">
             {t('email_status_warning_body', {
               reason: emailStatusReason,
             })}
           </p>
-        </div>
+        </output>
       ) : null}
       <AdminUserRatingsPanel
         errorCode={searchParams.error}

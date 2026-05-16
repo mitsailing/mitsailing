@@ -11,19 +11,19 @@ import {
 } from 'react-email';
 import { tokens } from '@/lib/mit-sailing/tokens';
 
-export type EmailLayoutProps = {
+export type EmailLayoutProps = Readonly<{
   previewText: string;
   children: React.ReactNode;
-};
+}>;
 
-export type MarketingEmailLayoutProps = {
+export type MarketingEmailLayoutProps = Readonly<{
   children: React.ReactNode;
   listName: string;
   manageUrl: string;
   postalAddress: string;
   previewText: string;
   unsubscribeUrl: string;
-};
+}>;
 
 const body: React.CSSProperties = {
   backgroundColor: '#f6f9fc',

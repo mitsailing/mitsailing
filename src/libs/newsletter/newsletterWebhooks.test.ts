@@ -4,6 +4,8 @@ import { handleResendNewsletterWebhook } from '@/libs/newsletter/newsletterWebho
 
 const mocks = vi.hoisted(() => {
   const tx = {
+    $executeRaw: vi.fn(),
+    $queryRaw: vi.fn(),
     newsletterDelivery: {
       findFirst: vi.fn(),
       findUnique: vi.fn(),
@@ -14,6 +16,9 @@ const mocks = vi.hoisted(() => {
       findFirst: vi.fn(),
     },
     newsletterSubscriber: {
+      updateMany: vi.fn(),
+    },
+    user: {
       updateMany: vi.fn(),
     },
   };
@@ -156,6 +161,21 @@ describe('handleResendNewsletterWebhook', () => {
         ],
       },
     });
+  });
+
+  it('uses an existing webhook transaction client', async () => {
+    await handleResendNewsletterWebhook(deliveredEvent(), {
+      client: mocks.tx,
+      providerEventId: 'svix_123',
+      skipDedupe: true,
+    });
+
+    expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
+    expect(mocks.tx.newsletterDelivery.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: 'delivery_123' }),
+      })
+    );
   });
 
   it('prefers provider message matches over delivery tag matches', async () => {

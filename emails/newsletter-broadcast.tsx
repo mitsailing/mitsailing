@@ -2,7 +2,7 @@ import type * as React from 'react';
 import { Heading, Section, Text } from 'react-email';
 import { MarketingEmailLayout } from './email-layout';
 
-export type NewsletterBroadcastTemplateProps = {
+export type NewsletterBroadcastTemplateProps = Readonly<{
   body: string;
   listName: string;
   manageUrl: string;
@@ -10,7 +10,7 @@ export type NewsletterBroadcastTemplateProps = {
   previewText: string;
   subject: string;
   unsubscribeUrl: string;
-};
+}>;
 
 const content: React.CSSProperties = {
   padding: '30px 28px 26px',

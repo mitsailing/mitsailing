@@ -11,7 +11,7 @@ import { submitNewsletterSignupAction } from '@/libs/newsletter/newsletterAction
 import type { NewsletterSignupFormState } from '@/libs/newsletter/newsletterActions';
 import { newsletterSignupFieldNames } from '@/libs/newsletter/newsletterValidation';
 
-type NewsletterSignupFormProps = {
+type NewsletterSignupFormProps = Readonly<{
   locale: string;
   lists: {
     description: string | null;
@@ -19,7 +19,7 @@ type NewsletterSignupFormProps = {
     name: string;
     slug: string;
   }[];
-};
+}>;
 
 const initialNewsletterSignupFormState: NewsletterSignupFormState = {
   ok: false,
@@ -81,12 +81,9 @@ export function NewsletterSignupForm(props: NewsletterSignupFormProps) {
       noValidate
     >
       {state.ok ? (
-        <p
-          className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-900"
-          role="status"
-        >
+        <output className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-900">
           {t('signup_success')}
-        </p>
+        </output>
       ) : null}
       {!state.ok && state.formError ? (
         <p

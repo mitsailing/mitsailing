@@ -11,9 +11,9 @@ import {
 } from '@/libs/newsletter/newsletterSubscriptions';
 import { getI18nPath } from '@/utils/Helpers';
 
-type ProfileNewsletterPageProps = {
+type ProfileNewsletterPageProps = Readonly<{
   params: Promise<{ locale: string }>;
-};
+}>;
 
 export async function generateMetadata(
   props: ProfileNewsletterPageProps

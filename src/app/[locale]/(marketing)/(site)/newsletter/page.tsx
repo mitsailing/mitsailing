@@ -13,9 +13,9 @@ import {
   getPublicNewsletterLists,
 } from '@/libs/newsletter/newsletterSubscriptions';
 
-type NewsletterPageProps = {
+type NewsletterPageProps = Readonly<{
   params: Promise<{ locale: string }>;
-};
+}>;
 
 export async function generateMetadata(
   props: NewsletterPageProps
