@@ -47,6 +47,51 @@ describe('legacyPavilionReservationImport', () => {
     expect(row?.email).toBe('email@example.com');
   });
 
+  it('parses quoted legacy csv fields with escaped characters', () => {
+    const row = [
+      'legacy-quoted',
+      'First',
+      'Last',
+      '123',
+      'email@example.com',
+      '555',
+      'student',
+      '"Group, with comma"',
+      '"Roof ""deck"" event"',
+      '',
+      '',
+      '',
+      '2026-07-01',
+      '2026-07-01 10:00:00',
+      '2026-07-01 12:00:00',
+      '',
+      '',
+      '',
+      '1',
+      '"Line one, with comma\nLine two with ""quote"""',
+      '1',
+      '0',
+      '25',
+      '1',
+      '0',
+      '0',
+      '0',
+      '1',
+    ].join(',');
+    const csv = [
+      'resid,first,last,mitid,email,phone,affil,groupname,title,acadfac,acadfacemail,acct,date1,start1,end1,date2,start2,end2,datesel,comments,infotent,infoalcohol,groupsize,active,tentative,confirmed,paid,contacted',
+      row,
+    ].join('\n');
+
+    const rows = legacyPavilionReservationRowsFromCsv(csv);
+
+    expect(rows[0]?.groupname).toBe('Group, with comma');
+    expect(rows[0]?.title).toBe('Roof "deck" event');
+    expect(rows[0]?.comments).toBe(
+      'Line one, with comma\nLine two with "quote"'
+    );
+  });
+
   it('rejects legacy csv rows with the wrong field count', () => {
     const csv = [
       'resid,first,last,mitid,email,phone,affil,groupname,title,acadfac,acadfacemail,acct,date1,start1,end1,date2,start2,end2,datesel,comments,infotent,infoalcohol,groupsize,active,tentative,confirmed,paid,contacted',

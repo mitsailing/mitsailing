@@ -3,6 +3,7 @@ import {
   listAdminPavilionReservationRows,
   parseAdminPavilionReservationDateFilter,
 } from '@/libs/admin/pavilion-reservations/pavilionReservationAdminQueries';
+import type { AdminPavilionReservationListFilters } from '@/libs/admin/pavilion-reservations/pavilionReservationAdminQueries';
 
 const { pavilionReservationRequestFindMany, pavilionReservationSlotFindMany } =
   vi.hoisted(() => ({
@@ -168,6 +169,57 @@ describe('listAdminPavilionReservationRows', () => {
         where: { requestedDate: { in: [reservationDate] } },
       })
     );
+    expect(result.rows[0]?.conflictSeverity).toBe('hard');
+  });
+
+  it.each([
+    {
+      filters: {
+        paymentStatus: 'unpaid',
+        sort: 'createdAt',
+        direction: 'desc',
+      },
+      name: 'payment filters',
+    },
+    {
+      filters: {
+        search: 'dock',
+        sort: 'createdAt',
+        direction: 'desc',
+      },
+      name: 'search filters',
+    },
+    {
+      filters: {
+        date: '2026-05-15',
+        sort: 'createdAt',
+        direction: 'desc',
+      },
+      name: 'date filters',
+    },
+  ] satisfies {
+    filters: AdminPavilionReservationListFilters;
+    name: string;
+  }[])('marks conflicts under $name', async (props) => {
+    pavilionReservationRequestFindMany.mockResolvedValue([
+      listRequestRow({ status: 'pending' }),
+    ]);
+    pavilionReservationSlotFindMany.mockResolvedValue([
+      conflictSlot({ status: 'approved' }),
+      conflictSlot({
+        id: 'pending-slot',
+        requestId: 'pending-1',
+        status: 'pending',
+        referenceCode: 'PAV-PENDING',
+        startMinutes: 9 * 60,
+        endMinutes: 11 * 60,
+      }),
+    ]);
+
+    const result = await listAdminPavilionReservationRows(props.filters, [
+      '2026-05-10',
+    ]);
+
     expect(result.rows[0]?.conflictSeverity).toBe('hard');
   });
 });
