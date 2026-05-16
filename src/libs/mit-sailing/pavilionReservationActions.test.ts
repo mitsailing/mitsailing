@@ -88,6 +88,12 @@ function validFormData(): FormData {
   return formData;
 }
 
+function formDataWithServices(serviceIds: string[]): FormData {
+  const formData = validFormData();
+  formData.set('services', JSON.stringify(serviceIds));
+  return formData;
+}
+
 beforeEach(() => {
   findFirstReservation.mockReset();
   findUniqueReservation.mockReset();
@@ -214,5 +220,135 @@ describe('submitPavilionReservationRequestAction', () => {
       expect.any(String)
     );
     expect(txExecuteRaw.mock.calls[0]?.[1]).not.toContain('\0');
+  });
+
+  it('includes hourly services in estimated totals and persisted service rows', async () => {
+    vi.setSystemTime(new Date('2026-06-29T04:00:00.000Z'));
+    listVisiblePavilionReservableItems.mockResolvedValue([
+      {
+        description: 'A casual pavilion reservation space.',
+        displayOrder: 1,
+        id: 'space-1',
+        imageUrl: null,
+        kind: 'space',
+        minDurationHours: null,
+        name: 'Casual party space',
+        prices: {
+          mit_academic: 1000,
+          mit_community: 1000,
+          mit_student: 1000,
+          non_mit: 1000,
+        },
+        pricingType: 'hourly',
+        slug: 'casual-party-space',
+      },
+      {
+        description: 'Staffing support billed hourly.',
+        displayOrder: 2,
+        id: 'service-hourly',
+        imageUrl: null,
+        kind: 'service',
+        minDurationHours: null,
+        name: 'Event staffing',
+        prices: {
+          mit_academic: 2500,
+          mit_community: 2500,
+          mit_student: 2500,
+          non_mit: 2500,
+        },
+        pricingType: 'hourly',
+        slug: 'event-staffing',
+      },
+    ]);
+
+    const { submitPavilionReservationRequestAction } =
+      await import('@/libs/mit-sailing/pavilionReservationActions');
+
+    const result = await submitPavilionReservationRequestAction(
+      'en',
+      { errors: [], status: 'idle' } satisfies PavilionReservationSubmitState,
+      formDataWithServices(['service-hourly'])
+    );
+
+    expect(result.status).toBe('confirmed');
+    expect(requestCreate).toHaveBeenCalledTimes(1);
+    expect(requestCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        estimatedTotalCents: 3500,
+        services: {
+          create: [
+            {
+              itemId: 'service-hourly',
+              itemKind: 'service',
+              estimatedAmountCents: 2500,
+            },
+          ],
+        },
+      }),
+    });
+  });
+
+  it('deduplicates repeated hourly service ids before pricing', async () => {
+    vi.setSystemTime(new Date('2026-06-29T04:00:00.000Z'));
+    listVisiblePavilionReservableItems.mockResolvedValue([
+      {
+        description: 'A casual pavilion reservation space.',
+        displayOrder: 1,
+        id: 'space-1',
+        imageUrl: null,
+        kind: 'space',
+        minDurationHours: null,
+        name: 'Casual party space',
+        prices: {
+          mit_academic: 1000,
+          mit_community: 1000,
+          mit_student: 1000,
+          non_mit: 1000,
+        },
+        pricingType: 'hourly',
+        slug: 'casual-party-space',
+      },
+      {
+        description: 'Staffing support billed hourly.',
+        displayOrder: 2,
+        id: 'service-hourly',
+        imageUrl: null,
+        kind: 'service',
+        minDurationHours: null,
+        name: 'Event staffing',
+        prices: {
+          mit_academic: 2500,
+          mit_community: 2500,
+          mit_student: 2500,
+          non_mit: 2500,
+        },
+        pricingType: 'hourly',
+        slug: 'event-staffing',
+      },
+    ]);
+
+    const { submitPavilionReservationRequestAction } =
+      await import('@/libs/mit-sailing/pavilionReservationActions');
+
+    await submitPavilionReservationRequestAction(
+      'en',
+      { errors: [], status: 'idle' } satisfies PavilionReservationSubmitState,
+      formDataWithServices(['service-hourly', 'service-hourly'])
+    );
+
+    expect(requestCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        estimatedTotalCents: 3500,
+        services: {
+          create: [
+            {
+              itemId: 'service-hourly',
+              itemKind: 'service',
+              estimatedAmountCents: 2500,
+            },
+          ],
+        },
+      }),
+    });
   });
 });

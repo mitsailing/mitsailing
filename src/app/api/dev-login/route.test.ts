@@ -96,6 +96,24 @@ describe('GET /api/dev-login', () => {
     });
   });
 
+  it('trims email query and keeps default password when password is omitted', async () => {
+    const response = await GET(
+      devLoginRequest({
+        email: '  Agent@Example.com  ',
+      })
+    );
+
+    expect(signInEmailMock).toHaveBeenCalledWith({
+      body: {
+        email: 'agent@example.com',
+        password: 'dev-local-change-me',
+      },
+      asResponse: true,
+    });
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toBe(`${getBaseUrl()}/`);
+  });
+
   it('falls back to root when redirect query is not a safe internal path', async () => {
     const response = await GET(
       devLoginRequest({ redirect: 'https://evil.example.test/phish' })
