@@ -106,6 +106,36 @@ describe('handleResendAccountEmailWebhook', () => {
     });
   });
 
+  it('uses the provided webhook client when processing in a transaction', async () => {
+    const client = {
+      $executeRaw: vi.fn(),
+      $queryRaw: vi.fn(),
+      newsletterDelivery: {
+        findFirst: vi.fn(),
+        findUnique: vi.fn(),
+        updateMany: vi.fn(),
+      },
+      newsletterEvent: {
+        create: vi.fn(),
+        findFirst: vi.fn(),
+      },
+      newsletterSubscriber: {
+        updateMany: vi.fn(),
+      },
+      user: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+
+    await handleResendAccountEmailWebhook(bouncedEvent(), {
+      client,
+      providerEventId: null,
+    });
+
+    expect(client.user.updateMany).toHaveBeenCalledOnce();
+    expect(mocks.prisma.user.updateMany).not.toHaveBeenCalled();
+  });
+
   it('skips malformed email events without recipients', async () => {
     const event = bouncedEvent();
     Reflect.deleteProperty(event.data, 'to');

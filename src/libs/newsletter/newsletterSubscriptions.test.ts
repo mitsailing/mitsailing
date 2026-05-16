@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  getSubscriberPreferenceStateByToken,
   subscribeEmailToNewsletterLists,
   unsubscribeNewsletterTokenFromList,
   updateNewsletterPreferences,
@@ -63,7 +64,9 @@ vi.mock('@/libs/newsletter/newsletterTokens', () => ({
     hash: 'token_hash',
     token: 'subscriber_123.raw_token',
   })),
-  verifyNewsletterManageToken: vi.fn(() => 'subscriber_123'),
+  verifyNewsletterManageToken: vi.fn((token: string) =>
+    token.slice(0, token.lastIndexOf('.'))
+  ),
 }));
 
 beforeEach(() => {
@@ -283,6 +286,39 @@ describe('updateNewsletterPreferences', () => {
         }),
       })
     );
+  });
+});
+
+describe('getSubscriberPreferenceStateByToken', () => {
+  it('uses the token segment before the final dot as the subscriber id', async () => {
+    const subscriber = {
+      email: 'sailor@example.com',
+      globalUnsubscribedAt: null,
+      id: 'subscriber.123',
+      manageTokenHash: 'token_hash',
+      subscriptions: [],
+    };
+    mocks.prisma.newsletterSubscriber.findUnique
+      .mockResolvedValueOnce({ manageTokenHash: 'token_hash' })
+      .mockResolvedValueOnce(subscriber);
+
+    const result = await getSubscriberPreferenceStateByToken(
+      'subscriber.123.signature'
+    );
+
+    expect(
+      mocks.prisma.newsletterSubscriber.findUnique
+    ).toHaveBeenNthCalledWith(1, {
+      select: { manageTokenHash: true },
+      where: { id: 'subscriber.123' },
+    });
+    expect(
+      mocks.prisma.newsletterSubscriber.findUnique
+    ).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ where: { id: 'subscriber.123' } })
+    );
+    expect(result).toBe(subscriber);
   });
 });
 

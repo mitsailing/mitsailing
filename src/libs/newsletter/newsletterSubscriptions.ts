@@ -299,10 +299,11 @@ export async function getSubscriberPreferenceStateForUser(userId: string) {
  * @returns Subscriber plus public list subscriptions
  */
 export async function getSubscriberPreferenceStateByToken(token: string) {
-  const [subscriberId] = token.split('.');
-  if (!subscriberId) {
+  const separatorIndex = token.lastIndexOf('.');
+  if (separatorIndex <= 0) {
     return null;
   }
+  const subscriberId = token.slice(0, separatorIndex);
   const subscriber = await prisma.newsletterSubscriber.findUnique({
     select: { manageTokenHash: true },
     where: { id: subscriberId },

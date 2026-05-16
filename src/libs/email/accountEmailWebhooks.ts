@@ -82,11 +82,11 @@ function accountDeliverabilityUpdateWhere(params: {
  * helper only stores compact account-level status for admin/user visibility.
  *
  * @param event - Verified Resend webhook payload
- * @param _context - Verified webhook metadata from Svix headers
+ * @param context - Verified webhook metadata from Svix headers
  */
 export async function handleResendAccountEmailWebhook(
   event: WebhookEventPayload,
-  _context?: ResendWebhookContext
+  context?: ResendWebhookContext
 ): Promise<void> {
   if (!isEmailEvent(event)) {
     return;
@@ -107,7 +107,7 @@ export async function handleResendAccountEmailWebhook(
     });
     return;
   }
-  const client = _context?.client ?? prisma;
+  const client = context?.client ?? prisma;
   const update = await client.user.updateMany({
     data: {
       emailBouncedAt: reason === 'bounced' ? occurredAt : undefined,
