@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { Pool } from 'pg';
 import { signInAsAdmin } from '../helpers/e2e-admin-sign-in';
 import { e2ePgConnectionString } from '../helpers/e2e-database-url';
@@ -100,6 +101,21 @@ async function resetPavilionReservationRequest(props: {
 function isoDateDaysFromNow(days: number): string {
   const date = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
   return date.toISOString().slice(0, 10);
+}
+
+async function selectPavilionReservationPickerDate(
+  page: Page,
+  isoDate: string
+): Promise<void> {
+  if (isoDate.slice(0, 7) !== isoDateDaysFromNow(2).slice(0, 7)) {
+    await page.getByRole('button', { name: 'Next month' }).click();
+  }
+  await page
+    .getByRole('button', {
+      exact: true,
+      name: String(Number(isoDate.slice(8, 10))),
+    })
+    .click();
 }
 
 test.afterAll(async () => {
@@ -258,27 +274,24 @@ test.describe('MIT Sailing catalog', () => {
       await page
         .getByRole('article')
         .filter({ hasText: 'Casual party space' })
-        .getByRole('button', { name: 'Select this space' })
+        .getByRole('button', { name: 'Select this option' })
         .click();
-      await page.getByLabel('Date').fill(isoDateDaysFromNow(14));
-      await page.getByLabel('Start time').selectOption('600');
-      await page.getByLabel('End time').selectOption('720');
+      await selectPavilionReservationPickerDate(page, isoDateDaysFromNow(14));
+      await page.getByRole('button', { name: '10:00 AM' }).click();
+      await page.getByRole('button', { name: '12:00 PM' }).click();
       await page
         .getByRole('button', { name: 'Next: contact information' })
         .click();
 
+      await expect(page.getByLabel('Email address')).toHaveValue(
+        requesterEmail
+      );
+      await page.getByLabel('Group type').selectOption('mit_student');
       await page.getByLabel('First name').fill('Pavilion');
       await page.getByLabel('Last name').fill('Requester');
       await page.getByLabel('Phone').fill('617-555-0142');
       await page.getByLabel('Event name').fill(eventName);
       await page.getByLabel('Event description').fill('E2E waterfront event.');
-      await page.getByLabel('Project title').fill('E2E reservation coverage');
-      await page.getByLabel('Faculty advisor name').fill('Professor Sail');
-      await page
-        .getByLabel('Faculty advisor email')
-        .fill('advisor@example.com');
-      await page.getByLabel('Cost center').fill('1234567');
-      await page.getByRole('button', { name: 'Review your request' }).click();
 
       await expect(
         page.getByRole('heading', { name: 'Review your reservation' })

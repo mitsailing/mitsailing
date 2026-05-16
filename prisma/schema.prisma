@@ -682,11 +682,21 @@ enum PavilionReservationPersona {
 
 enum PavilionReservationStatus {
   pending
+  needs_info
   approved
   declined
   cancelled
 
   @@map("pavilion_reservation_status")
+}
+
+enum PavilionReservationPaymentStatus {
+  unpaid
+  partial
+  paid
+  waived
+
+  @@map("pavilion_reservation_payment_status")
 }
 
 enum PavilionReservableItemKind {
@@ -760,6 +770,8 @@ model PavilionReservationRequest {
   mitId               String?                     @map("mit_id")
   mitAccount          String?                     @map("mit_account")
   estimatedTotalCents Int?                        @map("estimated_total_cents")
+  paymentStatus       PavilionReservationPaymentStatus @default(unpaid) @map("payment_status")
+  paidAt              DateTime?                   @map("paid_at")
   createdAt           DateTime                    @default(now()) @map("created_at")
   updatedAt           DateTime                    @updatedAt @map("updated_at")
   reviewedByUserId    String?                     @map("reviewed_by_user_id")

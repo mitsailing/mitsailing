@@ -1,7 +1,19 @@
 'use client';
 
-import { Check, CheckCircle, Copy, Info, Plus, Trash2 } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import {
+  CalendarDays,
+  Check,
+  CheckCircle,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Copy,
+  Info,
+  Pencil,
+  Plus,
+  Trash2,
+} from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
 import Image from 'next/image';
 import type * as React from 'react';
 import { useActionState, useRef, useState } from 'react';
@@ -9,7 +21,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
+import {
+  addNyCalendarDays,
+  instantForNyWallClock,
+  nyYmd,
+} from '@/lib/mit-sailing/nyTime';
 import { cn } from '@/lib/utils';
 import { Link } from '@/libs/I18nNavigation';
 import {
@@ -31,6 +47,13 @@ type ClientSlot = PavilionReservationSlotInput & {
   id: string;
 };
 
+type PavilionReservationBlockedRange = {
+  itemId: string;
+  date: string;
+  startMinutes: number;
+  endMinutes: number;
+};
+
 type ContactFields = {
   firstName: string;
   lastName: string;
@@ -49,13 +72,30 @@ type ContactFields = {
   mitAccount: string;
 };
 
-type WizardStep = 'spaces' | 'contact' | 'review';
+type WizardStep = 'spaces' | 'contact';
+
+type SpacesStepErrorKey =
+  | 'error_email_invalid'
+  | 'error_email_required'
+  | 'error_slot_overlap'
+  | 'error_slots_required'
+  | 'error_space_required';
+
+type SpaceOptionGroup = {
+  id: 'event_options' | 'programs' | 'ungrouped' | 'venue';
+  labelKey:
+    | 'space_group_event_options'
+    | 'space_group_programs'
+    | 'space_group_venue';
+  slugs: string[];
+};
 
 type PavilionReservationWizardProps = {
   action: (
     state: PavilionReservationSubmitState,
     formData: FormData
   ) => Promise<PavilionReservationSubmitState>;
+  blockedRanges: PavilionReservationBlockedRange[];
   initialState: PavilionReservationSubmitState;
   items: PavilionReservableItemDto[];
   permalink: string;
@@ -67,6 +107,10 @@ const personas = [
   'mit_community',
   'non_mit',
 ] as const satisfies readonly PavilionReservationPersonaValue[];
+
+function parsePersona(value: string): PavilionReservationPersonaValue | null {
+  return personas.find((persona) => persona === value) ?? null;
+}
 
 const initialContact: ContactFields = {
   firstName: '',
@@ -91,19 +135,16 @@ function newSlot(itemId: string): ClientSlot {
     id: crypto.randomUUID(),
     itemId,
     date: '',
-    startMinutes: 9 * 60,
-    endMinutes: 10 * 60,
+    startMinutes: 0,
+    endMinutes: 0,
   };
 }
 
 function slotTimeOptions(props: { includeEnd: boolean }) {
   const options: { labelKey: string; minutes: number }[] = [];
-  const last = props.includeEnd ? 26 : 23.5;
+  const last = props.includeEnd ? 26 : 25.5;
   for (let hour = 7; hour <= last; hour += 0.5) {
     const minutes = Math.round(hour * 60);
-    if (!props.includeEnd && minutes >= 24 * 60) {
-      continue;
-    }
     options.push({
       labelKey: String(minutes),
       minutes,
@@ -115,8 +156,343 @@ function slotTimeOptions(props: { includeEnd: boolean }) {
 const startOptions = slotTimeOptions({ includeEnd: false });
 const endOptions = slotTimeOptions({ includeEnd: true });
 
+type CalendarMonth = {
+  monthIndex: number;
+  year: number;
+};
+
+type CalendarCell = {
+  day: number | null;
+  iso: string;
+};
+
+type SlotPhase = 'date' | 'end' | 'start';
+
+function isoFromCalendarDate(params: {
+  day: number;
+  monthIndex: number;
+  year: number;
+}): string {
+  return `${params.year}-${String(params.monthIndex + 1).padStart(2, '0')}-${String(params.day).padStart(2, '0')}`;
+}
+
+function calendarMonthFromIso(iso: string): CalendarMonth | null {
+  const match = iso.match(/^(\d{4})-(\d{2})-\d{2}$/u);
+  if (!match) {
+    return null;
+  }
+  const year = Number(match[1]);
+  const monthIndex = Number(match[2]) - 1;
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(monthIndex) ||
+    monthIndex < 0 ||
+    monthIndex > 11
+  ) {
+    return null;
+  }
+  return { monthIndex, year };
+}
+
+function minimumSlotDateIso(): string {
+  return addNyCalendarDays(nyYmd(new Date()), 2);
+}
+
+function initialCalendarMonth(date: string): CalendarMonth {
+  const selectedMonth = calendarMonthFromIso(date);
+  if (selectedMonth) {
+    return selectedMonth;
+  }
+  const minimumMonth = calendarMonthFromIso(minimumSlotDateIso());
+  return minimumMonth ?? { monthIndex: 0, year: new Date().getUTCFullYear() };
+}
+
+function shiftedCalendarMonth(
+  month: CalendarMonth,
+  amount: number
+): CalendarMonth {
+  const next = new Date(Date.UTC(month.year, month.monthIndex + amount, 1));
+  return {
+    monthIndex: next.getUTCMonth(),
+    year: next.getUTCFullYear(),
+  };
+}
+
+function buildCalendarCells(month: CalendarMonth): CalendarCell[] {
+  const firstWeekday = new Date(
+    Date.UTC(month.year, month.monthIndex, 1)
+  ).getUTCDay();
+  const daysInMonth = new Date(
+    Date.UTC(month.year, month.monthIndex + 1, 0)
+  ).getUTCDate();
+  const cells: CalendarCell[] = Array.from(
+    { length: firstWeekday },
+    (_, emptyDay) => ({
+      day: null,
+      iso: `empty-before-${month.year}-${month.monthIndex}-${emptyDay}`,
+    })
+  );
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    cells.push({
+      day,
+      iso: isoFromCalendarDate({
+        day,
+        monthIndex: month.monthIndex,
+        year: month.year,
+      }),
+    });
+  }
+  while (cells.length % 7 !== 0) {
+    cells.push({
+      day: null,
+      iso: `empty-after-${month.year}-${month.monthIndex}-${cells.length}`,
+    });
+  }
+  return cells;
+}
+
+function initialSlotPhase(slot: ClientSlot): SlotPhase {
+  if (!slot.date) {
+    return 'date';
+  }
+  return slot.endMinutes > slot.startMinutes || slot.startMinutes > 0
+    ? 'end'
+    : 'start';
+}
+
+function formatCalendarMonth(month: CalendarMonth, locale: string): string {
+  return new Intl.DateTimeFormat(locale, {
+    month: 'long',
+    timeZone: 'UTC',
+    year: 'numeric',
+  }).format(new Date(Date.UTC(month.year, month.monthIndex, 1)));
+}
+
+function formatSlotDateShort(iso: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+    weekday: 'long',
+  }).format(new Date(`${iso}T12:00:00Z`));
+}
+
+function parseIsoCalendarDate(iso: string) {
+  const match = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/u);
+  if (!match) {
+    return null;
+  }
+  return {
+    day: Number(match[3]),
+    month: Number(match[2]),
+    year: Number(match[1]),
+  };
+}
+
+function slotSatisfiesNotice(props: {
+  date: string;
+  minutes: number;
+  now: Date;
+}) {
+  const date =
+    props.minutes >= 24 * 60 ? addNyCalendarDays(props.date, 1) : props.date;
+  const minutes =
+    props.minutes >= 24 * 60 ? props.minutes - 24 * 60 : props.minutes;
+  const parts = parseIsoCalendarDate(date);
+  if (!parts) {
+    return false;
+  }
+  const instant = instantForNyWallClock(
+    parts.year,
+    parts.month,
+    parts.day,
+    Math.floor(minutes / 60),
+    minutes % 60
+  );
+  return instant.getTime() >= props.now.getTime() + 48 * 60 * 60 * 1000;
+}
+
+function rangesOverlap(
+  a: { endMinutes: number; startMinutes: number },
+  b: { endMinutes: number; startMinutes: number }
+) {
+  return a.startMinutes < b.endMinutes && b.startMinutes < a.endMinutes;
+}
+
+function completeSlot(slot: ClientSlot) {
+  return Boolean(slot.date && slot.endMinutes > slot.startMinutes);
+}
+
+function hasSameSpaceSlotOverlap(slots: ClientSlot[]) {
+  return slots.some((slot, index) => {
+    if (!completeSlot(slot)) {
+      return false;
+    }
+    return slots
+      .slice(index + 1)
+      .some(
+        (candidate) =>
+          completeSlot(candidate) &&
+          candidate.itemId === slot.itemId &&
+          candidate.date === slot.date &&
+          rangesOverlap(slot, candidate)
+      );
+  });
+}
+
+function spacesStepErrorKeys(props: {
+  requesterEmail: string;
+  slots: ClientSlot[];
+}): SpacesStepErrorKey[] {
+  const errors: SpacesStepErrorKey[] = [];
+  const email = props.requesterEmail.trim();
+  if (!email) {
+    errors.push('error_email_required');
+  } else if (!email.includes('@')) {
+    errors.push('error_email_invalid');
+  }
+  if (props.slots.length === 0) {
+    errors.push('error_space_required');
+  }
+  if (
+    props.slots.length > 0 &&
+    props.slots.some((slot) => !completeSlot(slot))
+  ) {
+    errors.push('error_slots_required');
+  }
+  if (hasSameSpaceSlotOverlap(props.slots)) {
+    errors.push('error_slot_overlap');
+  }
+  return errors;
+}
+
+function rangeConflicts(
+  range: { endMinutes: number; startMinutes: number },
+  ranges: { endMinutes: number; startMinutes: number }[]
+) {
+  return ranges.some((candidate) => rangesOverlap(range, candidate));
+}
+
+function blockedRangesForSlot(props: {
+  blockedRanges: PavilionReservationBlockedRange[];
+  slot: ClientSlot;
+  slots: ClientSlot[];
+}) {
+  const serverRanges = props.blockedRanges.filter(
+    (range) =>
+      range.itemId === props.slot.itemId && range.date === props.slot.date
+  );
+  const clientRanges = props.slots.filter(
+    (candidate) =>
+      candidate.id !== props.slot.id &&
+      candidate.itemId === props.slot.itemId &&
+      candidate.date === props.slot.date &&
+      candidate.endMinutes > candidate.startMinutes
+  );
+  return [...serverRanges, ...clientRanges];
+}
+
+function availableStartOptions(props: {
+  blockedRanges: { endMinutes: number; startMinutes: number }[];
+  date: string;
+  now: Date;
+}) {
+  if (!props.date) {
+    return [];
+  }
+  return startOptions.filter((startOption) => {
+    if (
+      !slotSatisfiesNotice({
+        date: props.date,
+        minutes: startOption.minutes,
+        now: props.now,
+      })
+    ) {
+      return false;
+    }
+    return endOptions.some(
+      (endOption) =>
+        endOption.minutes > startOption.minutes &&
+        !rangeConflicts(
+          {
+            startMinutes: startOption.minutes,
+            endMinutes: endOption.minutes,
+          },
+          props.blockedRanges
+        )
+    );
+  });
+}
+
+function availableEndOptions(props: {
+  blockedRanges: { endMinutes: number; startMinutes: number }[];
+  startMinutes: number;
+}) {
+  if (props.startMinutes <= 0) {
+    return [];
+  }
+  return endOptions.filter(
+    (endOption) =>
+      endOption.minutes > props.startMinutes &&
+      !rangeConflicts(
+        {
+          startMinutes: props.startMinutes,
+          endMinutes: endOption.minutes,
+        },
+        props.blockedRanges
+      )
+  );
+}
+
+const spaceOptionGroups = [
+  {
+    id: 'venue',
+    labelKey: 'space_group_venue',
+    slugs: ['casual_dock', 'roof_deck', 'party_boat'],
+  },
+  {
+    id: 'event_options',
+    labelKey: 'space_group_event_options',
+    slugs: ['grill', 'wedding_space', 'after_10', 'after_midnight'],
+  },
+  {
+    id: 'programs',
+    labelKey: 'space_group_programs',
+    slugs: ['lab_access', 'group_sailing'],
+  },
+] as const satisfies readonly SpaceOptionGroup[];
+
 function itemById(items: PavilionReservableItemDto[], id: string) {
   return items.find((item) => item.id === id) ?? null;
+}
+
+function groupedSpaceOptions(spaces: PavilionReservableItemDto[]) {
+  const groupedIds = new Set<string>();
+  const groups = spaceOptionGroups.map((group) => {
+    const options = group.slugs
+      .map((slug) => spaces.find((space) => space.slug === slug) ?? null)
+      .filter((space) => space !== null);
+    for (const option of options) {
+      groupedIds.add(option.id);
+    }
+    return {
+      id: group.id,
+      labelKey: group.labelKey,
+      options,
+    };
+  });
+  const ungrouped = spaces.filter((space) => !groupedIds.has(space.id));
+  if (ungrouped.length === 0) {
+    return groups;
+  }
+  return [
+    ...groups,
+    {
+      id: 'ungrouped' as const,
+      labelKey: 'space_group_event_options' as const,
+      options: ungrouped,
+    },
+  ];
 }
 
 function sumEstimatedTotal(props: {
@@ -173,7 +549,6 @@ function StepHeader(props: { step: WizardStep }) {
   const steps: { id: WizardStep; label: string }[] = [
     { id: 'spaces', label: t('step_spaces') },
     { id: 'contact', label: t('step_contact') },
-    { id: 'review', label: t('step_review') },
   ];
   const activeIndex = steps.findIndex((step) => step.id === props.step);
   return (
@@ -227,105 +602,510 @@ function Field(props: {
   );
 }
 
+function SlotActionButtons(props: {
+  onDuplicate: () => void;
+  onRemove: () => void;
+}) {
+  const t = useTranslations('PavilionReservationPage');
+
+  return (
+    <>
+      <Button
+        size="sm"
+        type="button"
+        variant="ghost"
+        onClick={props.onDuplicate}
+      >
+        <Copy aria-hidden className="size-4" />
+        {t('action_duplicate_slot')}
+      </Button>
+      <Button size="sm" type="button" variant="ghost" onClick={props.onRemove}>
+        <Trash2 aria-hidden className="size-4" />
+        {t('action_remove')}
+      </Button>
+    </>
+  );
+}
+
+function CompletedSlotSummary(props: {
+  invalid: boolean;
+  onDuplicate: () => void;
+  onEdit: () => void;
+  onRemove: () => void;
+  selectedDateLabel: string;
+  slot: ClientSlot;
+  title: string;
+}) {
+  const t = useTranslations('PavilionReservationPage');
+
+  return (
+    <div
+      className={cn(
+        'rounded-lg border bg-background p-4',
+        props.invalid ? 'border-destructive' : 'border-mit-line'
+      )}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h5 className="text-sm font-semibold text-mit-text">{props.title}</h5>
+          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+            <span>{props.selectedDateLabel}</span>
+            <span aria-hidden>-</span>
+            <span className="inline-flex items-center gap-1 font-medium text-mit-text">
+              <Clock aria-hidden className="size-4 text-primary-ink" />
+              {formatPavilionReservationTimeLabel(props.slot.startMinutes)} -{' '}
+              {formatPavilionReservationTimeLabel(props.slot.endMinutes)}
+            </span>
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <SlotActionButtons
+            onDuplicate={props.onDuplicate}
+            onRemove={props.onRemove}
+          />
+          <Button
+            size="sm"
+            type="button"
+            variant="ghost"
+            onClick={props.onEdit}
+          >
+            <Pencil aria-hidden className="size-4" />
+            {t('action_edit_slot')}
+          </Button>
+        </div>
+      </div>
+      {props.invalid ? (
+        <p className="mt-2 text-sm font-medium text-destructive">
+          {t('error_slot_datetime')}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function SlotCalendarPanel(props: {
+  calendarMonth: CalendarMonth;
+  cells: CalendarCell[];
+  minimumDate: string;
+  onMonthChange: (month: CalendarMonth) => void;
+  onSelectDate: (date: string) => void;
+  phase: SlotPhase;
+  selectedDate: string;
+}) {
+  const t = useTranslations('PavilionReservationPage');
+  const locale = useLocale();
+
+  return (
+    <div
+      className={cn(
+        'border-b border-mit-line p-4 md:border-r md:border-b-0',
+        props.phase === 'date' ? '' : 'hidden md:block md:opacity-70'
+      )}
+    >
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <h6 className="font-semibold text-mit-text">
+            {t('picker_date_title')}
+          </h6>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {t('picker_notice')}
+          </p>
+        </div>
+        <CalendarDays aria-hidden className="mt-0.5 size-5 text-primary-ink" />
+      </div>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <Button
+          aria-label={t('picker_previous_month')}
+          size="icon"
+          type="button"
+          variant="ghost"
+          onClick={() => {
+            props.onMonthChange(shiftedCalendarMonth(props.calendarMonth, -1));
+          }}
+        >
+          <ChevronLeft aria-hidden className="size-4" />
+        </Button>
+        <p className="text-sm font-semibold text-mit-text">
+          {formatCalendarMonth(props.calendarMonth, locale)}
+        </p>
+        <Button
+          aria-label={t('picker_next_month')}
+          size="icon"
+          type="button"
+          variant="ghost"
+          onClick={() => {
+            props.onMonthChange(shiftedCalendarMonth(props.calendarMonth, 1));
+          }}
+        >
+          <ChevronRight aria-hidden className="size-4" />
+        </Button>
+      </div>
+      <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-muted-foreground">
+        {[
+          t('picker_weekday_sun'),
+          t('picker_weekday_mon'),
+          t('picker_weekday_tue'),
+          t('picker_weekday_wed'),
+          t('picker_weekday_thu'),
+          t('picker_weekday_fri'),
+          t('picker_weekday_sat'),
+        ].map((label) => (
+          <span key={label}>{label}</span>
+        ))}
+      </div>
+      <div className="mt-2 grid grid-cols-7 gap-1">
+        {props.cells.map((cell) => {
+          if (cell.day === null) {
+            return <span aria-hidden key={cell.iso} />;
+          }
+          const selected = props.selectedDate === cell.iso;
+          const disabled = cell.iso < props.minimumDate;
+          return (
+            <button
+              aria-pressed={selected}
+              className={cn(
+                'flex aspect-square items-center justify-center rounded-md border text-sm font-medium transition-colors',
+                selected
+                  ? 'border-mit-red bg-mit-red text-white'
+                  : 'border-transparent text-mit-text hover:border-mit-red/40 hover:bg-mit-red-highlight',
+                disabled
+                  ? 'cursor-not-allowed text-muted-foreground/50 line-through hover:border-transparent hover:bg-transparent'
+                  : ''
+              )}
+              disabled={disabled}
+              key={cell.iso}
+              type="button"
+              onClick={() => {
+                props.onSelectDate(cell.iso);
+              }}
+            >
+              {cell.day}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function SlotStartSelection(props: {
+  onSelectStart: (minutes: number) => void;
+  selectedStartMinutes: number;
+  startChoices: { labelKey: string; minutes: number }[];
+  timeGroups: {
+    id: string;
+    label: string;
+    options: { labelKey: string; minutes: number }[];
+  }[];
+}) {
+  return (
+    <div className="flex-1 space-y-6 overflow-y-auto p-4">
+      {props.timeGroups.map((group) => (
+        <section key={group.id}>
+          <h6 className="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            {group.label}
+          </h6>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+            {group.options.map((option) => {
+              const available = props.startChoices.some(
+                (choice) => choice.minutes === option.minutes
+              );
+              const selected = props.selectedStartMinutes === option.minutes;
+              if (!available) {
+                return (
+                  <div
+                    className="rounded-md border border-mit-line bg-mit-surface px-3 py-2 text-center text-sm text-muted-foreground/60 line-through"
+                    key={option.labelKey}
+                  >
+                    {formatPavilionReservationTimeLabel(option.minutes)}
+                  </div>
+                );
+              }
+              return (
+                <button
+                  className={cn(
+                    'rounded-md border px-3 py-2 text-sm font-semibold transition-colors',
+                    selected
+                      ? 'border-mit-red bg-mit-red text-white'
+                      : 'border-mit-line bg-background text-primary-ink hover:border-mit-red hover:bg-mit-red-highlight'
+                  )}
+                  key={option.labelKey}
+                  type="button"
+                  onClick={() => {
+                    props.onSelectStart(option.minutes);
+                  }}
+                >
+                  {formatPavilionReservationTimeLabel(option.minutes)}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function SlotEndSelection(props: {
+  endChoices: { labelKey: string; minutes: number }[];
+  onChangeStart: () => void;
+  onSelectEnd: (minutes: number) => void;
+  selectedEndMinutes: number;
+  startMinutes: number;
+}) {
+  const t = useTranslations('PavilionReservationPage');
+
+  return (
+    <div className="flex-1 overflow-y-auto p-4">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-sm font-medium text-mit-text">
+          <Clock aria-hidden className="size-4 text-primary-ink" />
+          {props.startMinutes > 0
+            ? formatPavilionReservationTimeLabel(props.startMinutes)
+            : t('picker_no_start')}
+        </div>
+        <Button
+          size="sm"
+          type="button"
+          variant="ghost"
+          onClick={props.onChangeStart}
+        >
+          {t('picker_change_start')}
+        </Button>
+      </div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+        {props.endChoices.map((option) => {
+          const selected = props.selectedEndMinutes === option.minutes;
+          return (
+            <button
+              className={cn(
+                'rounded-md border px-3 py-2 text-sm font-semibold transition-colors',
+                selected
+                  ? 'border-mit-red bg-mit-red text-white'
+                  : 'border-mit-line bg-background text-mit-text hover:border-mit-red hover:bg-mit-red-highlight'
+              )}
+              key={option.labelKey}
+              type="button"
+              onClick={() => {
+                props.onSelectEnd(option.minutes);
+              }}
+            >
+              {formatPavilionReservationTimeLabel(option.minutes)}
+            </button>
+          );
+        })}
+      </div>
+      {props.endChoices.length === 0 ? (
+        <p className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          {t('picker_no_end_times')}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 function SlotEditor(props: {
+  blockedRanges: PavilionReservationBlockedRange[];
   onDuplicate: () => void;
   onRemove: () => void;
   onUpdate: (slot: ClientSlot) => void;
   showErrors: boolean;
   slot: ClientSlot;
+  slots: ClientSlot[];
   title: string;
 }) {
   const t = useTranslations('PavilionReservationPage');
-  const invalid = props.showErrors && !props.slot.date;
+  const locale = useLocale();
+  const [calendarMonth, setCalendarMonth] = useState(
+    initialCalendarMonth(props.slot.date)
+  );
+  const [phase, setPhase] = useState<SlotPhase>(initialSlotPhase(props.slot));
+  const [isEditing, setIsEditing] = useState(
+    !props.slot.date || props.slot.endMinutes <= props.slot.startMinutes
+  );
+  const now = new Date();
+  const invalid =
+    props.showErrors &&
+    (!props.slot.date || props.slot.endMinutes <= props.slot.startMinutes);
+  const cells = buildCalendarCells(calendarMonth);
+  const minimumDate = minimumSlotDateIso();
+  const blockedRanges = blockedRangesForSlot({
+    blockedRanges: props.blockedRanges,
+    slot: props.slot,
+    slots: props.slots,
+  });
+  const startChoices = availableStartOptions({
+    blockedRanges,
+    date: props.slot.date,
+    now,
+  });
+  const endChoices = availableEndOptions({
+    blockedRanges,
+    startMinutes: props.slot.startMinutes,
+  });
+  const selectedDateLabel = props.slot.date
+    ? formatSlotDateShort(props.slot.date, locale)
+    : t('picker_no_date');
+  const isComplete =
+    props.slot.date && props.slot.endMinutes > props.slot.startMinutes;
+  let pickerPrompt = t('picker_date_prompt');
+  if (phase === 'start') {
+    pickerPrompt = t('picker_start_title');
+  } else if (phase === 'end') {
+    pickerPrompt = t('picker_end_title');
+  }
+  const timeGroups = [
+    {
+      id: 'morning',
+      label: t('picker_morning'),
+      options: startOptions.filter((option) => option.minutes < 12 * 60),
+    },
+    {
+      id: 'afternoon',
+      label: t('picker_afternoon'),
+      options: startOptions.filter(
+        (option) => option.minutes >= 12 * 60 && option.minutes < 17 * 60
+      ),
+    },
+    {
+      id: 'evening',
+      label: t('picker_evening'),
+      options: startOptions.filter((option) => option.minutes >= 17 * 60),
+    },
+  ];
+
+  if (isComplete && !isEditing) {
+    return (
+      <CompletedSlotSummary
+        invalid={invalid}
+        selectedDateLabel={selectedDateLabel}
+        slot={props.slot}
+        title={props.title}
+        onDuplicate={props.onDuplicate}
+        onEdit={() => {
+          setIsEditing(true);
+          setPhase('date');
+        }}
+        onRemove={props.onRemove}
+      />
+    );
+  }
+
   return (
     <div className="rounded-lg border border-mit-line bg-mit-surface p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <h5 className="text-sm font-semibold text-mit-text">{props.title}</h5>
         <div className="flex gap-2">
-          <Button
-            size="sm"
-            type="button"
-            variant="ghost"
-            onClick={props.onDuplicate}
-          >
-            <Copy aria-hidden className="size-4" />
-            {t('action_duplicate_slot')}
-          </Button>
-          <Button
-            size="sm"
-            type="button"
-            variant="ghost"
-            onClick={props.onRemove}
-          >
-            <Trash2 aria-hidden className="size-4" />
-            {t('action_remove')}
-          </Button>
+          <SlotActionButtons
+            onDuplicate={props.onDuplicate}
+            onRemove={props.onRemove}
+          />
         </div>
       </div>
-      <div className="grid gap-3 md:grid-cols-3">
-        <Field id={`${props.slot.id}-date`} label={t('field_date')} required>
-          <Input
-            aria-invalid={invalid}
-            id={`${props.slot.id}-date`}
-            min={new Date(Date.now() + 48 * 60 * 60 * 1000)
-              .toISOString()
-              .slice(0, 10)}
-            type="date"
-            value={props.slot.date}
-            onChange={(event) => {
+      <div
+        className={cn(
+          'overflow-hidden rounded-lg border bg-background',
+          invalid ? 'border-destructive' : 'border-mit-line'
+        )}
+      >
+        <div className="grid md:grid-cols-[minmax(18rem,22rem)_1fr]">
+          <SlotCalendarPanel
+            calendarMonth={calendarMonth}
+            cells={cells}
+            minimumDate={minimumDate}
+            phase={phase}
+            selectedDate={props.slot.date}
+            onMonthChange={setCalendarMonth}
+            onSelectDate={(date) => {
               props.onUpdate({
                 ...props.slot,
-                date: event.currentTarget.value,
+                date,
+                startMinutes: 0,
+                endMinutes: 0,
               });
+              setPhase('start');
             }}
           />
-        </Field>
-        <Field id={`${props.slot.id}-start`} label={t('field_start')} required>
-          <select
-            className={adminNativeSelectClassName}
-            id={`${props.slot.id}-start`}
-            value={props.slot.startMinutes}
-            onChange={(event) => {
-              const startMinutes = Number(event.currentTarget.value);
-              props.onUpdate({
-                ...props.slot,
-                startMinutes,
-                endMinutes: Math.max(props.slot.endMinutes, startMinutes + 30),
-              });
-            }}
-          >
-            {startOptions.map((option) => (
-              <option key={option.labelKey} value={option.minutes}>
-                {formatPavilionReservationTimeLabel(option.minutes)}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field id={`${props.slot.id}-end`} label={t('field_end')} required>
-          <select
-            className={adminNativeSelectClassName}
-            id={`${props.slot.id}-end`}
-            value={props.slot.endMinutes}
-            onChange={(event) => {
-              props.onUpdate({
-                ...props.slot,
-                endMinutes: Number(event.currentTarget.value),
-              });
-            }}
-          >
-            {endOptions
-              .filter((option) => option.minutes > props.slot.startMinutes)
-              .map((option) => (
-                <option key={option.labelKey} value={option.minutes}>
-                  {formatPavilionReservationTimeLabel(option.minutes)}
-                </option>
-              ))}
-          </select>
-        </Field>
+          <div className="flex min-h-96 flex-col">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-mit-line bg-mit-surface p-4">
+              <div>
+                <p className="text-sm font-semibold text-mit-text">
+                  {selectedDateLabel}
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {pickerPrompt}
+                </p>
+              </div>
+              {props.slot.date ? (
+                <div className="flex flex-wrap gap-2">
+                  {phase === 'end' ? (
+                    <Button
+                      size="sm"
+                      type="button"
+                      variant="ghost"
+                      onClick={() => {
+                        setPhase('start');
+                      }}
+                    >
+                      {t('picker_change_start')}
+                    </Button>
+                  ) : null}
+                  <Button
+                    size="sm"
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      setPhase('date');
+                    }}
+                  >
+                    {t('picker_change_date')}
+                  </Button>
+                </div>
+              ) : null}
+            </div>
+            {props.slot.date ? null : (
+              <div className="flex flex-1 items-center justify-center p-6 text-center text-sm text-muted-foreground">
+                {t('picker_select_date_first')}
+              </div>
+            )}
+            {props.slot.date && phase === 'start' ? (
+              <SlotStartSelection
+                selectedStartMinutes={props.slot.startMinutes}
+                startChoices={startChoices}
+                timeGroups={timeGroups}
+                onSelectStart={(startMinutes) => {
+                  props.onUpdate({
+                    ...props.slot,
+                    startMinutes,
+                    endMinutes: 0,
+                  });
+                  setPhase('end');
+                }}
+              />
+            ) : null}
+            {props.slot.date && phase === 'end' ? (
+              <SlotEndSelection
+                endChoices={endChoices}
+                selectedEndMinutes={props.slot.endMinutes}
+                startMinutes={props.slot.startMinutes}
+                onChangeStart={() => {
+                  setPhase('start');
+                }}
+                onSelectEnd={(endMinutes) => {
+                  props.onUpdate({
+                    ...props.slot,
+                    endMinutes,
+                  });
+                  setIsEditing(false);
+                }}
+              />
+            ) : null}
+          </div>
+        </div>
       </div>
       {invalid ? (
         <p className="mt-2 text-sm font-medium text-destructive">
-          {t('error_slot_date')}
+          {t('error_slot_datetime')}
         </p>
       ) : null}
     </div>
@@ -469,12 +1249,11 @@ function PavilionReservationActionError(props: {
 }
 
 function PavilionReservationSpacesStep(props: {
+  blockedRanges: PavilionReservationBlockedRange[];
   persona: PavilionReservationPersonaValue;
   requesterEmail: string;
   selectedSpaceIds: string[];
-  setPersona: React.Dispatch<
-    React.SetStateAction<PavilionReservationPersonaValue>
-  >;
+  setPersona: (persona: PavilionReservationPersonaValue) => void;
   setRequesterEmail: React.Dispatch<React.SetStateAction<string>>;
   setShowErrors: React.Dispatch<React.SetStateAction<boolean>>;
   setSlots: React.Dispatch<React.SetStateAction<ClientSlot[]>>;
@@ -484,6 +1263,7 @@ function PavilionReservationSpacesStep(props: {
   spaces: PavilionReservableItemDto[];
 }) {
   const t = useTranslations('PavilionReservationPage');
+  const groups = groupedSpaceOptions(props.spaces);
 
   return (
     <>
@@ -573,87 +1353,107 @@ function PavilionReservationSpacesStep(props: {
         <h2 className="mb-4 text-xl font-semibold text-mit-text">
           {t('spaces_title')}
         </h2>
-        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {props.spaces.map((space) => {
-            const selected = props.selectedSpaceIds.includes(space.id);
-            const price = priceForPersona(space, props.persona);
-            return (
-              <article
-                className={cn(
-                  'overflow-hidden rounded-lg border bg-card transition-colors',
-                  selected
-                    ? 'border-mit-red ring-1 ring-mit-red'
-                    : 'border-mit-line'
-                )}
-                key={space.id}
-              >
-                {space.imageUrl ? (
-                  <div className="relative h-48 bg-mit-surface">
-                    <Image
-                      alt={space.name}
-                      className="object-cover"
-                      fill
-                      sizes="(min-width: 1280px) 33vw, (min-width: 768px) 50vw, 100vw"
-                      src={space.imageUrl}
-                    />
-                  </div>
-                ) : null}
-                <div className="flex min-h-72 flex-col p-5">
-                  <h3 className="font-semibold text-mit-text">{space.name}</h3>
-                  <p className="mt-2 flex-1 text-sm text-muted-foreground">
-                    {space.description}
-                  </p>
-                  <p className="mt-4 text-lg font-bold text-primary-ink">
-                    {priceLabel({
-                      amountCents: price,
-                      pricingType: space.pricingType,
-                      tbdLabel: t('price_tbd'),
-                    })}
-                  </p>
-                  {space.minDurationHours ? (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {t('minimum_hours', {
-                        count: space.minDurationHours,
-                      })}
-                    </p>
-                  ) : null}
-                  <Button
-                    className="mt-4 w-full"
-                    type="button"
-                    variant={selected ? 'secondary' : 'mit'}
-                    onClick={() => {
-                      props.setShowErrors(false);
-                      if (selected) {
-                        props.setSlots((current) =>
-                          current.filter((slot) => slot.itemId !== space.id)
-                        );
-                        return;
-                      }
-                      props.setSlots((current) => [
-                        ...current,
-                        newSlot(space.id),
-                      ]);
-                      window.requestAnimationFrame(() => {
-                        props.slotsRef.current?.scrollIntoView({
-                          block: 'start',
-                          behavior: 'smooth',
-                        });
-                      });
-                    }}
-                  >
-                    {selected ? (
-                      <>
-                        <Check aria-hidden className="size-4" />
-                        {t('action_selected')}
-                      </>
-                    ) : (
-                      t('action_select_space')
-                    )}
-                  </Button>
+        <div className="space-y-8">
+          {groups.map((group) =>
+            group.options.length > 0 ? (
+              <section key={group.id}>
+                <h3 className="mb-3 text-sm font-bold tracking-wide text-mit-text uppercase">
+                  {t(group.labelKey)}
+                </h3>
+                <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                  {group.options.map((space) => {
+                    const selected = props.selectedSpaceIds.includes(space.id);
+                    const price = priceForPersona(space, props.persona);
+                    return (
+                      <article
+                        className={cn(
+                          'overflow-hidden rounded-lg border bg-card transition-colors',
+                          selected
+                            ? 'border-mit-red ring-1 ring-mit-red'
+                            : 'border-mit-line'
+                        )}
+                        key={space.id}
+                      >
+                        {space.imageUrl ? (
+                          <div className="relative h-48 bg-mit-surface">
+                            <Image
+                              alt={space.name}
+                              className="object-cover"
+                              fill
+                              sizes="(min-width: 1280px) 33vw, (min-width: 768px) 50vw, 100vw"
+                              src={space.imageUrl}
+                            />
+                          </div>
+                        ) : null}
+                        <div className="flex min-h-72 flex-col p-5">
+                          <h4 className="font-semibold text-mit-text">
+                            {space.name}
+                          </h4>
+                          <p className="mt-2 flex-1 text-sm text-muted-foreground">
+                            {space.description}
+                          </p>
+                          <p className="mt-4 text-lg font-bold text-primary-ink">
+                            {priceLabel({
+                              amountCents: price,
+                              pricingType: space.pricingType,
+                              tbdLabel: t('price_tbd'),
+                            })}
+                          </p>
+                          {price === null ? (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {t('price_tbd_note')}
+                            </p>
+                          ) : null}
+                          {space.minDurationHours ? (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {t('minimum_hours', {
+                                count: space.minDurationHours,
+                              })}
+                            </p>
+                          ) : null}
+                          <Button
+                            className="mt-4 w-full"
+                            type="button"
+                            variant={selected ? 'secondary' : 'mit'}
+                            onClick={() => {
+                              props.setShowErrors(false);
+                              if (selected) {
+                                props.setSlots((current) =>
+                                  current.filter(
+                                    (slot) => slot.itemId !== space.id
+                                  )
+                                );
+                                return;
+                              }
+                              props.setSlots((current) => [
+                                ...current,
+                                newSlot(space.id),
+                              ]);
+                              window.requestAnimationFrame(() => {
+                                props.slotsRef.current?.scrollIntoView({
+                                  block: 'start',
+                                  behavior: 'smooth',
+                                });
+                              });
+                            }}
+                          >
+                            {selected ? (
+                              <>
+                                <Check aria-hidden className="size-4" />
+                                {t('action_selected')}
+                              </>
+                            ) : (
+                              t('action_select_space')
+                            )}
+                          </Button>
+                        </div>
+                      </article>
+                    );
+                  })}
                 </div>
-              </article>
-            );
-          })}
+              </section>
+            ) : null
+          )}
         </div>
       </section>
 
@@ -699,9 +1499,11 @@ function PavilionReservationSpacesStep(props: {
                 <div className="space-y-4">
                   {spaceSlots.map((slot, index) => (
                     <SlotEditor
+                      blockedRanges={props.blockedRanges}
                       key={slot.id}
                       showErrors={props.showErrors}
                       slot={slot}
+                      slots={props.slots}
                       title={t('slot_title', { number: index + 1 })}
                       onDuplicate={() => {
                         props.setSlots((current) => [
@@ -711,9 +1513,15 @@ function PavilionReservationSpacesStep(props: {
                       }}
                       onRemove={() => {
                         props.setSlots((current) =>
-                          current.filter(
-                            (candidate) => candidate.id !== slot.id
-                          )
+                          spaceSlots.length === 1
+                            ? current.map((candidate) =>
+                                candidate.id === slot.id
+                                  ? newSlot(spaceId)
+                                  : candidate
+                              )
+                            : current.filter(
+                                (candidate) => candidate.id !== slot.id
+                              )
                         );
                       }}
                       onUpdate={(updated) => {
@@ -752,327 +1560,399 @@ function PavilionReservationSpacesStep(props: {
 function PavilionReservationContactStep(props: {
   contact: ContactFields;
   persona: PavilionReservationPersonaValue;
+  requesterEmail: string;
   selectedServiceIds: string[];
   services: PavilionReservableItemDto[];
+  setPersona: (persona: PavilionReservationPersonaValue) => void;
   setContact: React.Dispatch<React.SetStateAction<ContactFields>>;
   setSelectedServiceIds: React.Dispatch<React.SetStateAction<string[]>>;
 }) {
   const t = useTranslations('PavilionReservationPage');
 
   return (
-    <section className="rounded-lg border border-mit-line bg-card p-6 md:p-8">
-      <h2 className="text-xl font-semibold text-mit-text">
-        {t('contact_title')}
-      </h2>
-      <p className="mt-1 text-sm text-muted-foreground">{t('contact_intro')}</p>
-      <div className="mt-6 grid gap-5 md:grid-cols-2">
-        <Field id="firstName" label={t('field_first_name')} required>
-          <Input
-            id="firstName"
-            value={props.contact.firstName}
-            onChange={(event) => {
-              props.setContact({
-                ...props.contact,
-                firstName: event.currentTarget.value,
-              });
-            }}
-          />
-        </Field>
-        <Field id="lastName" label={t('field_last_name')} required>
-          <Input
-            id="lastName"
-            value={props.contact.lastName}
-            onChange={(event) => {
-              props.setContact({
-                ...props.contact,
-                lastName: event.currentTarget.value,
-              });
-            }}
-          />
-        </Field>
-        <Field id="phone" label={t('field_phone')} required>
-          <Input
-            id="phone"
-            type="tel"
-            value={props.contact.phone}
-            onChange={(event) => {
-              props.setContact({
-                ...props.contact,
-                phone: event.currentTarget.value,
-              });
-            }}
-          />
-        </Field>
-        <Field id="eventName" label={t('field_event_name')} required>
-          <Input
-            id="eventName"
-            value={props.contact.eventName}
-            onChange={(event) => {
-              props.setContact({
-                ...props.contact,
-                eventName: event.currentTarget.value,
-              });
-            }}
-          />
-        </Field>
-        <Field id="groupName" label={t('field_group_name')}>
-          <Input
-            id="groupName"
-            value={props.contact.groupName}
-            onChange={(event) => {
-              props.setContact({
-                ...props.contact,
-                groupName: event.currentTarget.value,
-              });
-            }}
-          />
-        </Field>
-        <Field id="groupSize" label={t('field_group_size')}>
-          <Input
-            id="groupSize"
-            min="1"
-            type="number"
-            value={props.contact.groupSize}
-            onChange={(event) => {
-              props.setContact({
-                ...props.contact,
-                groupSize: event.currentTarget.value,
-              });
-            }}
-          />
-        </Field>
-        <div className="md:col-span-2">
-          <Field id="description" label={t('field_description')} required>
-            <Textarea
-              id="description"
-              rows={4}
-              value={props.contact.description}
+    <div className="space-y-8">
+      <section className="rounded-lg border border-mit-line bg-card p-6 md:p-8">
+        <h2 className="text-xl font-semibold text-mit-text">
+          {t('contact_title')}
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {t('contact_intro')}
+        </p>
+        <div className="mt-6 grid gap-5 md:grid-cols-2">
+          <Field id="contact-persona" label={t('persona_title')} required>
+            <select
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              id="contact-persona"
+              value={props.persona}
+              onChange={(event) => {
+                const nextPersona = parsePersona(event.currentTarget.value);
+                if (nextPersona) {
+                  props.setPersona(nextPersona);
+                }
+              }}
+            >
+              {personas.map((personaOption) => (
+                <option key={personaOption} value={personaOption}>
+                  {t(`persona_${personaOption}_label`)}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              {t('contact_persona_helper')}
+            </p>
+          </Field>
+          <Field id="contact-email" label={t('field_email')} required>
+            <Input
+              aria-describedby="contact-email-helper"
+              id="contact-email"
+              readOnly
+              type="email"
+              value={props.requesterEmail}
+            />
+            <p
+              className="mt-1.5 text-xs text-muted-foreground"
+              id="contact-email-helper"
+            >
+              {t('contact_email_helper')}
+            </p>
+          </Field>
+        </div>
+        <div className="mt-6 grid gap-5 md:grid-cols-2">
+          <Field id="firstName" label={t('field_first_name')} required>
+            <Input
+              id="firstName"
+              value={props.contact.firstName}
               onChange={(event) => {
                 props.setContact({
                   ...props.contact,
-                  description: event.currentTarget.value,
+                  firstName: event.currentTarget.value,
                 });
               }}
             />
           </Field>
+          <Field id="lastName" label={t('field_last_name')} required>
+            <Input
+              id="lastName"
+              value={props.contact.lastName}
+              onChange={(event) => {
+                props.setContact({
+                  ...props.contact,
+                  lastName: event.currentTarget.value,
+                });
+              }}
+            />
+          </Field>
+          <Field id="phone" label={t('field_phone')} required>
+            <Input
+              id="phone"
+              type="tel"
+              value={props.contact.phone}
+              onChange={(event) => {
+                props.setContact({
+                  ...props.contact,
+                  phone: event.currentTarget.value,
+                });
+              }}
+            />
+          </Field>
+          <Field id="eventName" label={t('field_event_name')} required>
+            <Input
+              id="eventName"
+              value={props.contact.eventName}
+              onChange={(event) => {
+                props.setContact({
+                  ...props.contact,
+                  eventName: event.currentTarget.value,
+                });
+              }}
+            />
+          </Field>
+          <Field id="groupName" label={t('field_group_name')}>
+            <Input
+              id="groupName"
+              value={props.contact.groupName}
+              onChange={(event) => {
+                props.setContact({
+                  ...props.contact,
+                  groupName: event.currentTarget.value,
+                });
+              }}
+            />
+          </Field>
+          <Field id="groupSize" label={t('field_group_size')}>
+            <Input
+              id="groupSize"
+              min="1"
+              type="number"
+              value={props.contact.groupSize}
+              onChange={(event) => {
+                props.setContact({
+                  ...props.contact,
+                  groupSize: event.currentTarget.value,
+                });
+              }}
+            />
+          </Field>
+          <div className="md:col-span-2">
+            <Field id="description" label={t('field_description')} required>
+              <Textarea
+                id="description"
+                rows={4}
+                value={props.contact.description}
+                onChange={(event) => {
+                  props.setContact({
+                    ...props.contact,
+                    description: event.currentTarget.value,
+                  });
+                }}
+              />
+            </Field>
+          </div>
         </div>
-      </div>
 
-      <div className="mt-6 grid gap-4 md:grid-cols-2">
-        {[
-          {
-            key: 'hasTent' as const,
-            title: t('field_tent'),
-            hint: null,
-          },
-          {
-            key: 'servesAlcohol' as const,
-            title: t('field_alcohol'),
-            hint: t('field_alcohol_hint'),
-          },
-        ].map((option) => (
-          <fieldset
-            className="rounded-lg border border-mit-line bg-mit-surface p-4"
-            key={option.key}
-          >
-            <legend className="text-sm font-semibold text-mit-text">
-              {option.title}
-            </legend>
-            {option.hint ? (
-              <p className="mt-1 text-xs text-muted-foreground">
-                {option.hint}
-              </p>
-            ) : null}
-            <div className="mt-3 flex gap-4">
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  checked={props.contact[option.key]}
-                  name={option.key}
-                  type="radio"
-                  onChange={() => {
-                    props.setContact({ ...props.contact, [option.key]: true });
-                  }}
-                />
-                {t('yes')}
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  checked={!props.contact[option.key]}
-                  name={option.key}
-                  type="radio"
-                  onChange={() => {
+        <div className="mt-6 grid gap-4 md:grid-cols-2">
+          {[
+            {
+              key: 'hasTent' as const,
+              title: t('field_tent'),
+              hint: null,
+            },
+            {
+              key: 'servesAlcohol' as const,
+              title: t('field_alcohol'),
+              hint: t('field_alcohol_hint'),
+            },
+          ].map((option) => (
+            <fieldset
+              className="rounded-lg border border-mit-line bg-mit-surface p-4"
+              key={option.key}
+            >
+              <legend className="text-sm font-semibold text-mit-text">
+                {option.title}
+              </legend>
+              {option.hint ? (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {option.hint}
+                </p>
+              ) : null}
+              <div className="mt-3 flex gap-4">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    checked={props.contact[option.key]}
+                    name={option.key}
+                    type="radio"
+                    onChange={() => {
+                      props.setContact({
+                        ...props.contact,
+                        [option.key]: true,
+                      });
+                    }}
+                  />
+                  {t('yes')}
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    checked={!props.contact[option.key]}
+                    name={option.key}
+                    type="radio"
+                    onChange={() => {
+                      props.setContact({
+                        ...props.contact,
+                        [option.key]: false,
+                      });
+                    }}
+                  />
+                  {t('no')}
+                </label>
+              </div>
+            </fieldset>
+          ))}
+        </div>
+
+        {props.persona === 'mit_academic' ? (
+          <section className="mt-6 rounded-lg border border-blue-200 bg-blue-50/70 p-5">
+            <h3 className="text-sm font-bold tracking-wide text-mit-text uppercase">
+              {t('academic_title')}
+            </h3>
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <div className="md:col-span-2">
+                <Field
+                  id="projectTitle"
+                  label={t('field_project_title')}
+                  required
+                >
+                  <Input
+                    id="projectTitle"
+                    value={props.contact.projectTitle}
+                    onChange={(event) => {
+                      props.setContact({
+                        ...props.contact,
+                        projectTitle: event.currentTarget.value,
+                      });
+                    }}
+                  />
+                </Field>
+              </div>
+              <Field id="advisorName" label={t('field_advisor_name')} required>
+                <Input
+                  id="advisorName"
+                  value={props.contact.advisorName}
+                  onChange={(event) => {
                     props.setContact({
                       ...props.contact,
-                      [option.key]: false,
+                      advisorName: event.currentTarget.value,
                     });
                   }}
                 />
-                {t('no')}
-              </label>
-            </div>
-          </fieldset>
-        ))}
-      </div>
-
-      {props.persona === 'mit_academic' ? (
-        <section className="mt-6 rounded-lg border border-blue-200 bg-blue-50/70 p-5">
-          <h3 className="text-sm font-bold tracking-wide text-mit-text uppercase">
-            {t('academic_title')}
-          </h3>
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <div className="md:col-span-2">
+              </Field>
               <Field
-                id="projectTitle"
-                label={t('field_project_title')}
+                id="advisorEmail"
+                label={t('field_advisor_email')}
                 required
               >
                 <Input
-                  id="projectTitle"
-                  value={props.contact.projectTitle}
+                  id="advisorEmail"
+                  type="email"
+                  value={props.contact.advisorEmail}
                   onChange={(event) => {
                     props.setContact({
                       ...props.contact,
-                      projectTitle: event.currentTarget.value,
+                      advisorEmail: event.currentTarget.value,
                     });
                   }}
                 />
               </Field>
+              <div className="md:col-span-2">
+                <Field id="costCenter" label={t('field_cost_center')} required>
+                  <Input
+                    id="costCenter"
+                    value={props.contact.costCenter}
+                    onChange={(event) => {
+                      props.setContact({
+                        ...props.contact,
+                        costCenter: event.currentTarget.value,
+                      });
+                    }}
+                  />
+                </Field>
+              </div>
             </div>
-            <Field id="advisorName" label={t('field_advisor_name')} required>
-              <Input
-                id="advisorName"
-                value={props.contact.advisorName}
-                onChange={(event) => {
-                  props.setContact({
-                    ...props.contact,
-                    advisorName: event.currentTarget.value,
-                  });
-                }}
-              />
-            </Field>
-            <Field id="advisorEmail" label={t('field_advisor_email')} required>
-              <Input
-                id="advisorEmail"
-                type="email"
-                value={props.contact.advisorEmail}
-                onChange={(event) => {
-                  props.setContact({
-                    ...props.contact,
-                    advisorEmail: event.currentTarget.value,
-                  });
-                }}
-              />
-            </Field>
-            <div className="md:col-span-2">
-              <Field id="costCenter" label={t('field_cost_center')} required>
+          </section>
+        ) : null}
+
+        {props.persona === 'mit_student' ||
+        props.persona === 'mit_community' ? (
+          <section className="mt-6 rounded-lg border border-mit-line bg-mit-surface p-5">
+            <h3 className="text-sm font-semibold text-mit-text">
+              {t('mit_affiliation_title')}
+            </h3>
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <Field id="mitId" label={t('field_mit_id')}>
                 <Input
-                  id="costCenter"
-                  value={props.contact.costCenter}
+                  id="mitId"
+                  inputMode="numeric"
+                  pattern="\\d{9}"
+                  value={props.contact.mitId}
                   onChange={(event) => {
                     props.setContact({
                       ...props.contact,
-                      costCenter: event.currentTarget.value,
+                      mitId: event.currentTarget.value,
+                    });
+                  }}
+                />
+              </Field>
+              <Field id="mitAccount" label={t('field_mit_account')}>
+                <Input
+                  id="mitAccount"
+                  inputMode="numeric"
+                  pattern="\\d{7}"
+                  value={props.contact.mitAccount}
+                  onChange={(event) => {
+                    props.setContact({
+                      ...props.contact,
+                      mitAccount: event.currentTarget.value,
                     });
                   }}
                 />
               </Field>
             </div>
-          </div>
-        </section>
-      ) : null}
+          </section>
+        ) : null}
 
-      {props.persona === 'mit_student' || props.persona === 'mit_community' ? (
-        <section className="mt-6 rounded-lg border border-mit-line bg-mit-surface p-5">
-          <h3 className="text-sm font-semibold text-mit-text">
-            {t('mit_affiliation_title')}
-          </h3>
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <Field id="mitId" label={t('field_mit_id')}>
-              <Input
-                id="mitId"
-                inputMode="numeric"
-                pattern="\\d{9}"
-                value={props.contact.mitId}
-                onChange={(event) => {
-                  props.setContact({
-                    ...props.contact,
-                    mitId: event.currentTarget.value,
-                  });
-                }}
-              />
-            </Field>
-            <Field id="mitAccount" label={t('field_mit_account')}>
-              <Input
-                id="mitAccount"
-                inputMode="numeric"
-                pattern="\\d{7}"
-                value={props.contact.mitAccount}
-                onChange={(event) => {
-                  props.setContact({
-                    ...props.contact,
-                    mitAccount: event.currentTarget.value,
-                  });
-                }}
-              />
-            </Field>
+        {props.persona === 'non_mit' ? (
+          <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            {t('non_mit_note')}
           </div>
-        </section>
-      ) : null}
+        ) : null}
 
-      <section className="mt-8">
-        <h3 className="text-lg font-semibold text-mit-text">
-          {t('services_title')}
-        </h3>
-        <div className="mt-4 space-y-3">
-          {props.services.map((service) => {
-            const price = priceForPersona(service, props.persona);
-            const selected = props.selectedServiceIds.includes(service.id);
-            return (
-              <label
-                className={cn(
-                  'flex cursor-pointer items-start gap-4 rounded-lg border p-4 transition-colors md:items-center',
-                  selected
-                    ? 'border-mit-red bg-mit-red-highlight'
-                    : 'border-mit-line'
-                )}
-                key={service.id}
-              >
-                <input
-                  checked={selected}
-                  className="mt-1 md:mt-0"
-                  disabled={price === null}
-                  type="checkbox"
-                  onChange={() => {
-                    props.setSelectedServiceIds((current) =>
-                      selected
-                        ? current.filter((id) => id !== service.id)
-                        : [...current, service.id]
-                    );
-                  }}
-                />
-                <span className="min-w-0 flex-1">
-                  <span className="block font-medium text-mit-text">
-                    {service.name}
-                  </span>
-                  <span className="mt-1 block text-xs text-muted-foreground">
-                    {price === null
-                      ? t('service_unavailable')
-                      : service.description}
-                  </span>
-                </span>
-                <span className="font-semibold text-primary-ink">
-                  {priceLabel({
-                    amountCents: price,
-                    pricingType: service.pricingType,
-                    tbdLabel: t('price_tbd'),
-                  })}
-                </span>
-              </label>
-            );
-          })}
-        </div>
+        {props.services.length > 0 ? (
+          <section className="mt-8">
+            <h3 className="text-lg font-semibold text-mit-text">
+              {t('services_title')}
+            </h3>
+            <div className="mt-4 space-y-3">
+              {props.services.map((service) => {
+                const price = priceForPersona(service, props.persona);
+                const selected = props.selectedServiceIds.includes(service.id);
+                return (
+                  <label
+                    className={cn(
+                      'flex items-start gap-4 rounded-lg border p-4 transition-colors md:items-center',
+                      price === null
+                        ? 'cursor-not-allowed border-mit-line bg-mit-surface opacity-75'
+                        : 'cursor-pointer',
+                      selected ? 'border-mit-red bg-mit-red-highlight' : null,
+                      price !== null && !selected ? 'border-mit-line' : null
+                    )}
+                    key={service.id}
+                  >
+                    <input
+                      checked={selected}
+                      className="mt-1 md:mt-0"
+                      disabled={price === null}
+                      type="checkbox"
+                      onChange={() => {
+                        props.setSelectedServiceIds((current) =>
+                          selected
+                            ? current.filter((id) => id !== service.id)
+                            : [...current, service.id]
+                        );
+                      }}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span
+                        className={cn(
+                          'block font-medium text-mit-text',
+                          price === null
+                            ? 'text-muted-foreground line-through'
+                            : null
+                        )}
+                      >
+                        {service.name}
+                      </span>
+                      <span className="mt-1 block text-xs text-muted-foreground">
+                        {price === null
+                          ? t('service_unavailable')
+                          : service.description}
+                      </span>
+                    </span>
+                    <span className="font-semibold text-primary-ink">
+                      {price === null
+                        ? t('service_unavailable_price')
+                        : priceLabel({
+                            amountCents: price,
+                            pricingType: service.pricingType,
+                            tbdLabel: t('price_tbd'),
+                          })}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
       </section>
-    </section>
+    </div>
   );
 }
 
@@ -1129,6 +2009,63 @@ function PavilionReservationReviewStep(props: {
                 {props.contact.description}
               </dd>
             </div>
+            {props.persona === 'mit_academic' ? (
+              <>
+                <div className="md:col-span-2">
+                  <dt className="font-medium text-muted-foreground">
+                    {t('field_project_title')}
+                  </dt>
+                  <dd className="font-semibold text-mit-text">
+                    {props.contact.projectTitle || t('blank')}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="font-medium text-muted-foreground">
+                    {t('field_advisor_name')}
+                  </dt>
+                  <dd className="font-semibold text-mit-text">
+                    {props.contact.advisorName || t('blank')}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="font-medium text-muted-foreground">
+                    {t('field_advisor_email')}
+                  </dt>
+                  <dd className="font-semibold text-mit-text">
+                    {props.contact.advisorEmail || t('blank')}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="font-medium text-muted-foreground">
+                    {t('field_cost_center')}
+                  </dt>
+                  <dd className="font-semibold text-mit-text">
+                    {props.contact.costCenter || t('blank')}
+                  </dd>
+                </div>
+              </>
+            ) : null}
+            {props.persona === 'mit_student' ||
+            props.persona === 'mit_community' ? (
+              <>
+                <div>
+                  <dt className="font-medium text-muted-foreground">
+                    {t('field_mit_id')}
+                  </dt>
+                  <dd className="font-semibold text-mit-text">
+                    {props.contact.mitId || t('blank')}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="font-medium text-muted-foreground">
+                    {t('field_mit_account')}
+                  </dt>
+                  <dd className="font-semibold text-mit-text">
+                    {props.contact.mitAccount || t('blank')}
+                  </dd>
+                </div>
+              </>
+            ) : null}
           </dl>
         </div>
 
@@ -1273,14 +2210,31 @@ function PavilionReservationFooter(props: {
   selectedSpaceIds: string[];
   setShowErrors: React.Dispatch<React.SetStateAction<boolean>>;
   setStep: React.Dispatch<React.SetStateAction<WizardStep>>;
+  spacesStepErrors: SpacesStepErrorKey[];
   slots: ClientSlot[];
   spacesStepValid: boolean;
   step: WizardStep;
+  showErrors: boolean;
 }) {
   const t = useTranslations('PavilionReservationPage');
+  const fixedToViewport = props.step === 'spaces';
 
   return (
-    <div className="sticky bottom-0 z-40 -mx-6 border-t border-mit-line bg-background/95 px-6 py-4 backdrop-blur">
+    <div
+      className={cn(
+        'z-40 border-t border-mit-line bg-background/95 backdrop-blur',
+        fixedToViewport
+          ? 'fixed inset-x-0 bottom-0 px-4 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:px-6'
+          : 'sticky bottom-0 -mx-6 px-6 py-4'
+      )}
+    >
+      {fixedToViewport && props.showErrors ? (
+        <div className="mx-auto mb-3 max-w-5xl space-y-1 text-sm font-medium text-destructive">
+          {props.spacesStepErrors.map((errorKey) => (
+            <p key={errorKey}>{t(errorKey)}</p>
+          ))}
+        </div>
+      ) : null}
       <div className="mx-auto flex max-w-5xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm font-medium text-muted-foreground">
@@ -1304,7 +2258,7 @@ function PavilionReservationFooter(props: {
               variant="outline"
               onClick={() => {
                 props.setShowErrors(false);
-                props.setStep(props.step === 'review' ? 'contact' : 'spaces');
+                props.setStep('spaces');
               }}
             >
               {t('action_back')}
@@ -1328,22 +2282,18 @@ function PavilionReservationFooter(props: {
           ) : null}
           {props.step === 'contact' ? (
             <Button
-              type="button"
+              disabled={props.pending}
+              type="submit"
               variant="mit"
-              onClick={() => {
+              onClick={(event) => {
                 if (!props.contactStepValid) {
+                  event.preventDefault();
                   props.setShowErrors(true);
                   return;
                 }
                 props.setShowErrors(false);
-                props.setStep('review');
               }}
             >
-              {t('action_next_review')}
-            </Button>
-          ) : null}
-          {props.step === 'review' ? (
-            <Button disabled={props.pending} type="submit" variant="mit">
               {props.pending ? t('pending_submitting') : t('action_submit')}
             </Button>
           ) : null}
@@ -1375,16 +2325,25 @@ export function PavilionReservationWizard(
   const spaces = props.items.filter((item) => item.kind === 'space');
   const services = props.items.filter((item) => item.kind === 'service');
   const selectedSpaceIds = [...new Set(slots.map((slot) => slot.itemId))];
+  const updatePersona = (nextPersona: PavilionReservationPersonaValue) => {
+    setPersona(nextPersona);
+    setSelectedServiceIds((current) =>
+      current.filter((serviceId) => {
+        const service = itemById(services, serviceId);
+        return (
+          service !== null && priceForPersona(service, nextPersona) !== null
+        );
+      })
+    );
+  };
   const estimate = sumEstimatedTotal({
     items: props.items,
     persona,
     selectedServiceIds,
     slots,
   });
-  const spacesStepValid =
-    requesterEmail.includes('@') &&
-    slots.length > 0 &&
-    slots.every((slot) => slot.date && slot.endMinutes > slot.startMinutes);
+  const spacesStepErrors = spacesStepErrorKeys({ requesterEmail, slots });
+  const spacesStepValid = spacesStepErrors.length === 0;
   const contactStepValid = Boolean(
     contact.firstName.trim() &&
     contact.lastName.trim() &&
@@ -1407,7 +2366,10 @@ export function PavilionReservationWizard(
   }
 
   return (
-    <form action={formAction} className="space-y-8">
+    <form
+      action={formAction}
+      className={cn('space-y-8', step === 'spaces' ? 'pb-44 sm:pb-32' : '')}
+    >
       <PavilionReservationHiddenFields
         contact={contact}
         persona={persona}
@@ -1419,10 +2381,11 @@ export function PavilionReservationWizard(
       <PavilionReservationActionError actionState={actionState} />
       {step === 'spaces' ? (
         <PavilionReservationSpacesStep
+          blockedRanges={props.blockedRanges}
           persona={persona}
           requesterEmail={requesterEmail}
           selectedSpaceIds={selectedSpaceIds}
-          setPersona={setPersona}
+          setPersona={updatePersona}
           setRequesterEmail={setRequesterEmail}
           setShowErrors={setShowErrors}
           setSlots={setSlots}
@@ -1433,31 +2396,33 @@ export function PavilionReservationWizard(
         />
       ) : null}
       {step === 'contact' ? (
-        <PavilionReservationContactStep
-          contact={contact}
-          persona={persona}
-          selectedServiceIds={selectedServiceIds}
-          services={services}
-          setContact={setContact}
-          setSelectedServiceIds={setSelectedServiceIds}
-        />
+        <>
+          <PavilionReservationContactStep
+            contact={contact}
+            persona={persona}
+            requesterEmail={requesterEmail}
+            selectedServiceIds={selectedServiceIds}
+            services={services}
+            setPersona={updatePersona}
+            setContact={setContact}
+            setSelectedServiceIds={setSelectedServiceIds}
+          />
+          <PavilionReservationReviewStep
+            contact={contact}
+            estimate={estimate}
+            persona={persona}
+            requesterEmail={requesterEmail}
+            selectedServiceIds={selectedServiceIds}
+            selectedSpaceIds={selectedSpaceIds}
+            services={services}
+            slots={slots}
+            spaces={spaces}
+          />
+        </>
       ) : null}
-      {step === 'review' ? (
-        <PavilionReservationReviewStep
-          contact={contact}
-          estimate={estimate}
-          persona={persona}
-          requesterEmail={requesterEmail}
-          selectedServiceIds={selectedServiceIds}
-          selectedSpaceIds={selectedSpaceIds}
-          services={services}
-          slots={slots}
-          spaces={spaces}
-        />
-      ) : null}
-      {showErrors ? (
+      {showErrors && step !== 'spaces' ? (
         <p className="text-sm font-medium text-destructive">
-          {step === 'spaces' ? t('error_spaces_step') : t('error_contact_step')}
+          {t('error_contact_step')}
         </p>
       ) : null}
       <PavilionReservationFooter
@@ -1467,9 +2432,11 @@ export function PavilionReservationWizard(
         selectedSpaceIds={selectedSpaceIds}
         setShowErrors={setShowErrors}
         setStep={setStep}
+        spacesStepErrors={spacesStepErrors}
         slots={slots}
-        spacesStepValid={Boolean(spacesStepValid)}
+        spacesStepValid={spacesStepValid}
         step={step}
+        showErrors={showErrors}
       />
     </form>
   );

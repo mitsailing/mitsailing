@@ -4,7 +4,10 @@ import { PavilionReservationWizard } from '@/components/mit-sailing/pavilion-res
 import { SiteSectionMain } from '@/components/mit-sailing/SiteSectionMain';
 import { SiteSectionShell } from '@/components/mit-sailing/SiteSectionShell';
 import { submitPavilionReservationRequestAction } from '@/libs/mit-sailing/pavilionReservationActions';
-import { listVisiblePavilionReservableItems } from '@/libs/mit-sailing/pavilionReservationQueries';
+import {
+  listPavilionReservationBlockedRanges,
+  listVisiblePavilionReservableItems,
+} from '@/libs/mit-sailing/pavilionReservationQueries';
 import { initialPavilionReservationSubmitState } from '@/libs/mit-sailing/pavilionReservationState';
 import { getI18nPath } from '@/utils/Helpers';
 
@@ -31,8 +34,9 @@ export default async function ReservePavilionPage(
 ) {
   const { locale } = await props.params;
   setRequestLocale(locale);
-  const [items, t] = await Promise.all([
+  const [items, blockedRanges, t] = await Promise.all([
     listVisiblePavilionReservableItems(),
+    listPavilionReservationBlockedRanges(),
     getTranslations({ locale, namespace: 'MitSailingRoutes' }),
   ]);
   const action = submitPavilionReservationRequestAction.bind(null, locale);
@@ -45,6 +49,7 @@ export default async function ReservePavilionPage(
       <SiteSectionMain maxWidth="7xl" variant="catalog">
         <PavilionReservationWizard
           action={action}
+          blockedRanges={blockedRanges}
           initialState={initialPavilionReservationSubmitState}
           items={items}
           permalink={getI18nPath('/reserve-pavilion', locale)}

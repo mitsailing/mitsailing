@@ -6,6 +6,13 @@ import type {
   PavilionReservationPriceMap,
 } from '@/libs/mit-sailing/pavilionReservationTypes';
 
+export type PavilionReservationBlockedRangeDto = {
+  itemId: string;
+  date: string;
+  startMinutes: number;
+  endMinutes: number;
+};
+
 function emptyPriceMap(): PavilionReservationPriceMap {
   return {
     mit_academic: null,
@@ -63,4 +70,22 @@ export async function listVisiblePavilionReservableItems(): Promise<
     displayOrder: row.displayOrder,
     prices: priceMapFromRows(row.prices),
   }));
+}
+
+export async function listPavilionReservationBlockedRanges(): Promise<
+  PavilionReservationBlockedRangeDto[]
+> {
+  const ranges = await prisma.$queryRaw<PavilionReservationBlockedRangeDto[]>`
+    SELECT
+      slot.item_id AS "itemId",
+      to_char(slot.requested_date, 'YYYY-MM-DD') AS "date",
+      slot.start_minutes AS "startMinutes",
+      slot.end_minutes AS "endMinutes"
+    FROM pavilion_reservation_slots slot
+    INNER JOIN pavilion_reservation_requests reservation_request
+      ON reservation_request.id = slot.request_id
+    WHERE reservation_request.status::text IN ('needs_info', 'approved')
+    ORDER BY slot.requested_date ASC, slot.item_id ASC, slot.start_minutes ASC
+  `;
+  return ranges;
 }

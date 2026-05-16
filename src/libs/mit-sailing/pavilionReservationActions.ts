@@ -5,7 +5,9 @@ import { revalidatePath } from 'next/cache';
 import { unstable_rethrow } from 'next/navigation';
 import { instantForNyWallClock } from '@/lib/mit-sailing/nyTime';
 import { prisma } from '@/libs/DB';
+import { sendPavilionReservationSubmittedEmail } from '@/libs/email/pavilion-reservation-emails';
 import { logger } from '@/libs/Logger';
+import { formatEasternShortDateFromIsoCalendar } from '@/libs/mit-sailing/easternTimeFormat';
 import { prismaDateFromIsoCalendar } from '@/libs/mit-sailing/isoCalendarDate';
 import {
   estimatedServiceAmountCents,
@@ -13,6 +15,7 @@ import {
 } from '@/libs/mit-sailing/pavilionReservationPricing';
 import { listVisiblePavilionReservableItems } from '@/libs/mit-sailing/pavilionReservationQueries';
 import { parsePavilionReservationFormData } from '@/libs/mit-sailing/pavilionReservationSchemas';
+import { formatPavilionReservationTimeLabel } from '@/libs/mit-sailing/pavilionReservationTimeLabel';
 import type {
   PavilionReservationErrorKey,
   PavilionReservableItemDto,
@@ -109,6 +112,16 @@ async function hasRecentMatchingReservationRequest(props: {
     select: { id: true },
   });
   return recentRequest !== null;
+}
+
+function scheduleLinesForEmail(props: {
+  itemById: Map<string, PavilionReservableItemDto>;
+  slots: PavilionReservationSlotInput[];
+}): string[] {
+  return props.slots.map((slot) => {
+    const itemName = props.itemById.get(slot.itemId)?.name ?? 'Pavilion space';
+    return `${itemName}: ${formatEasternShortDateFromIsoCalendar(slot.date)} · ${formatPavilionReservationTimeLabel(slot.startMinutes)} - ${formatPavilionReservationTimeLabel(slot.endMinutes)}`;
+  });
 }
 
 /**
@@ -250,6 +263,24 @@ export async function submitPavilionReservationRequestAction(
   } catch (error) {
     unstable_rethrow(error);
     return unknownErrorState(error);
+  }
+
+  try {
+    await sendPavilionReservationSubmittedEmail({
+      eventName: parsed.data.eventName,
+      referenceCode,
+      requesterEmail: parsed.data.requesterEmail,
+      scheduleLines: scheduleLinesForEmail({ itemById, slots }),
+    });
+  } catch (error) {
+    logger.error(
+      '[pavilion-reservation:create-email] reference_code={referenceCode} error_name={errorName} error_code={errorCode}',
+      {
+        errorCode: safeErrorCode(error) ?? 'unknown',
+        errorName: safeErrorName(error),
+        referenceCode,
+      }
+    );
   }
 
   revalidatePath(`/${locale}/admin/pavilion-reservations`);

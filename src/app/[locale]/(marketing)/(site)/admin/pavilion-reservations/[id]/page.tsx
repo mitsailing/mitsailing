@@ -3,31 +3,48 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 import { updatePavilionReservationAdminAction } from '@/libs/admin/pavilion-reservations/pavilionReservationAdminActions';
 import {
-  adminPavilionReservationIndexPath,
   adminPavilionReservationDetailPath,
+  adminPavilionReservationIndexPath,
 } from '@/libs/admin/pavilion-reservations/pavilionReservationAdminPaths';
 import {
+  adminPavilionReservationPaymentStatuses,
   adminPavilionReservationStatuses,
   getAdminPavilionReservationById,
+  listAdminPavilionReservableItemOptions,
 } from '@/libs/admin/pavilion-reservations/pavilionReservationAdminQueries';
 import { Link } from '@/libs/I18nNavigation';
 import {
   formatEasternDateTime,
   formatEasternShortDateFromIsoCalendar,
 } from '@/libs/mit-sailing/easternTimeFormat';
-import { formatPavilionReservationMoney } from '@/libs/mit-sailing/pavilionReservationPricing';
+import {
+  formatPavilionReservationMoney,
+  PAVILION_RESERVATION_PERSONAS,
+} from '@/libs/mit-sailing/pavilionReservationPricing';
 import { formatPavilionReservationTimeLabel } from '@/libs/mit-sailing/pavilionReservationTimeLabel';
 
 type AdminPavilionReservationDetailPageProps = {
   params: Promise<{ id: string; locale: string }>;
 };
 
-function dateLabel(date: Date): string {
-  return formatEasternShortDateFromIsoCalendar(date.toISOString().slice(0, 10));
+function dateKey(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function timeValue(minutes: number): string {
+  const normalized = minutes >= 24 * 60 ? minutes - 24 * 60 : minutes;
+  const hour = Math.floor(normalized / 60);
+  const minute = normalized % 60;
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+
+function dollarsValue(amountCents: number | null): string {
+  return amountCents === null ? '' : (amountCents / 100).toFixed(2);
 }
 
 function MoneyCell(props: { amountCents: number | null; tbd: string }) {
@@ -52,8 +69,9 @@ export default async function AdminPavilionReservationDetailPage(
 ) {
   const { id, locale } = await props.params;
   setRequestLocale(locale);
-  const [reservation, t] = await Promise.all([
+  const [reservation, itemOptions, t] = await Promise.all([
     getAdminPavilionReservationById(id),
+    listAdminPavilionReservableItemOptions(),
     getTranslations({ locale, namespace: 'AdminPavilionReservations' }),
   ]);
 
@@ -62,9 +80,14 @@ export default async function AdminPavilionReservationDetailPage(
   }
 
   const action = updatePavilionReservationAdminAction.bind(null, locale, id);
+  const spaceOptions = itemOptions.filter((item) => item.kind === 'space');
+  const serviceOptions = itemOptions.filter((item) => item.kind === 'service');
+  const selectedServiceByItemId = new Map(
+    reservation.services.map((service) => [service.item.id, service])
+  );
 
   return (
-    <div className="flex w-full max-w-5xl flex-col gap-6">
+    <div className="flex w-full max-w-6xl flex-col gap-6">
       <div>
         <Link
           className="text-sm font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
@@ -78,88 +101,137 @@ export default async function AdminPavilionReservationDetailPage(
         title={t('detail_title', { reference: reservation.referenceCode })}
       />
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+      <form action={action} className="grid gap-6 lg:grid-cols-[1fr_340px]">
         <div className="space-y-6">
           <section className="rounded-lg border border-border bg-card p-5">
             <h2 className="text-lg font-semibold text-mit-text">
               {t('section_contact')}
             </h2>
-            <dl className="mt-4 grid gap-3 text-sm md:grid-cols-2">
-              <div>
-                <dt className="font-medium text-muted-foreground">
-                  {t('field_name')}
-                </dt>
-                <dd className="font-semibold text-mit-text">
-                  {reservation.firstName} {reservation.lastName}
-                </dd>
-              </div>
-              <div>
-                <dt className="font-medium text-muted-foreground">
-                  {t('field_email')}
-                </dt>
-                <dd>{reservation.requesterEmail}</dd>
-              </div>
-              <div>
-                <dt className="font-medium text-muted-foreground">
-                  {t('field_phone')}
-                </dt>
-                <dd>{reservation.phone}</dd>
-              </div>
-              <div>
-                <dt className="font-medium text-muted-foreground">
-                  {t('field_persona')}
-                </dt>
-                <dd>{t(`persona_${reservation.persona}`)}</dd>
-              </div>
-            </dl>
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <label className="space-y-1.5 text-sm">
+                <span className="font-medium">{t('field_first_name')}</span>
+                <Input defaultValue={reservation.firstName} name="firstName" />
+              </label>
+              <label className="space-y-1.5 text-sm">
+                <span className="font-medium">{t('field_last_name')}</span>
+                <Input defaultValue={reservation.lastName} name="lastName" />
+              </label>
+              <label className="space-y-1.5 text-sm">
+                <span className="font-medium">{t('field_email')}</span>
+                <Input
+                  defaultValue={reservation.requesterEmail}
+                  name="requesterEmail"
+                  type="email"
+                />
+              </label>
+              <label className="space-y-1.5 text-sm">
+                <span className="font-medium">{t('field_phone')}</span>
+                <Input defaultValue={reservation.phone} name="phone" />
+              </label>
+              <label className="space-y-1.5 text-sm md:col-span-2">
+                <span className="font-medium">{t('field_persona')}</span>
+                <select
+                  className={adminNativeSelectClassName}
+                  defaultValue={reservation.persona}
+                  name="persona"
+                >
+                  {PAVILION_RESERVATION_PERSONAS.map((persona) => (
+                    <option key={persona} value={persona}>
+                      {t(`persona_${persona}`)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
           </section>
 
           <section className="rounded-lg border border-border bg-card p-5">
             <h2 className="text-lg font-semibold text-mit-text">
               {t('section_event')}
             </h2>
-            <dl className="mt-4 grid gap-3 text-sm md:grid-cols-2">
-              <div>
-                <dt className="font-medium text-muted-foreground">
-                  {t('field_event_name')}
-                </dt>
-                <dd className="font-semibold text-mit-text">
-                  {reservation.eventName}
-                </dd>
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <label className="space-y-1.5 text-sm">
+                <span className="font-medium">{t('field_event_name')}</span>
+                <Input defaultValue={reservation.eventName} name="eventName" />
+              </label>
+              <label className="space-y-1.5 text-sm">
+                <span className="font-medium">{t('field_group_name')}</span>
+                <Input
+                  defaultValue={reservation.groupName ?? ''}
+                  name="groupName"
+                />
+              </label>
+              <label className="space-y-1.5 text-sm">
+                <span className="font-medium">{t('field_group_size')}</span>
+                <Input
+                  defaultValue={reservation.groupSize ?? ''}
+                  min="1"
+                  name="groupSize"
+                  type="number"
+                />
+              </label>
+              <div className="flex items-end gap-6 text-sm">
+                <label className="flex items-center gap-2">
+                  <input
+                    defaultChecked={reservation.hasTent}
+                    name="hasTent"
+                    type="checkbox"
+                  />
+                  <span>{t('field_tent')}</span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    defaultChecked={reservation.servesAlcohol}
+                    name="servesAlcohol"
+                    type="checkbox"
+                  />
+                  <span>{t('field_alcohol')}</span>
+                </label>
               </div>
-              <div>
-                <dt className="font-medium text-muted-foreground">
-                  {t('field_group_name')}
-                </dt>
-                <dd>{reservation.groupName ?? t('blank')}</dd>
-              </div>
-              <div>
-                <dt className="font-medium text-muted-foreground">
-                  {t('field_group_size')}
-                </dt>
-                <dd>{reservation.groupSize ?? t('blank')}</dd>
-              </div>
-              <div>
-                <dt className="font-medium text-muted-foreground">
-                  {t('field_tent')}
-                </dt>
-                <dd>{reservation.hasTent ? t('yes') : t('no')}</dd>
-              </div>
-              <div>
-                <dt className="font-medium text-muted-foreground">
-                  {t('field_alcohol')}
-                </dt>
-                <dd>{reservation.servesAlcohol ? t('yes') : t('no')}</dd>
-              </div>
-              <div className="md:col-span-2">
-                <dt className="font-medium text-muted-foreground">
-                  {t('field_description')}
-                </dt>
-                <dd className="whitespace-pre-wrap">
-                  {reservation.description}
-                </dd>
-              </div>
-            </dl>
+              <label className="space-y-1.5 text-sm md:col-span-2">
+                <span className="font-medium">{t('field_description')}</span>
+                <Textarea
+                  defaultValue={reservation.description}
+                  name="description"
+                  rows={5}
+                />
+              </label>
+            </div>
+          </section>
+
+          <section className="rounded-lg border border-border bg-card p-5">
+            <h2 className="text-lg font-semibold text-mit-text">
+              {t('section_mit_billing')}
+            </h2>
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              {(
+                [
+                  [
+                    'projectTitle',
+                    'field_project_title',
+                    reservation.projectTitle,
+                  ],
+                  [
+                    'advisorName',
+                    'field_advisor_name',
+                    reservation.advisorName,
+                  ],
+                  [
+                    'advisorEmail',
+                    'field_advisor_email',
+                    reservation.advisorEmail,
+                  ],
+                  ['costCenter', 'field_cost_center', reservation.costCenter],
+                  ['mitId', 'field_mit_id', reservation.mitId],
+                  ['mitAccount', 'field_mit_account', reservation.mitAccount],
+                ] as const
+              ).map(([name, label, value]) => (
+                <label className="space-y-1.5 text-sm" key={name}>
+                  <span className="font-medium">{t(label)}</span>
+                  <Input defaultValue={value ?? ''} name={name} />
+                </label>
+              ))}
+            </div>
           </section>
 
           <section className="rounded-lg border border-border bg-card p-5">
@@ -169,41 +241,172 @@ export default async function AdminPavilionReservationDetailPage(
             <div className="mt-4 space-y-4">
               {reservation.slots.map((slot) => (
                 <div
-                  className="rounded-lg border border-border bg-muted/30 p-3 text-sm"
+                  className="rounded-lg border border-border bg-muted/30 p-3"
                   key={slot.id}
                 >
-                  <div className="font-semibold text-mit-text">
-                    {slot.item.name}
+                  <input name="slotId" type="hidden" value={slot.id} />
+                  <label className="mb-3 flex items-center gap-2 text-sm text-mit-readable-ink">
+                    <input
+                      name="removeSlotId"
+                      type="checkbox"
+                      value={slot.id}
+                    />
+                    <span>{t('action_remove_slot')}</span>
+                  </label>
+                  <div className="grid gap-3 md:grid-cols-[1.3fr_1fr_1fr_1fr_1fr]">
+                    <label className="space-y-1.5 text-sm">
+                      <span className="font-medium">{t('field_space')}</span>
+                      <select
+                        className={adminNativeSelectClassName}
+                        defaultValue={slot.item.id}
+                        name="slotItemId"
+                      >
+                        {spaceOptions.map((item) => (
+                          <option key={item.id} value={item.id}>
+                            {item.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="space-y-1.5 text-sm">
+                      <span className="font-medium">{t('field_date')}</span>
+                      <Input
+                        defaultValue={dateKey(slot.requestedDate)}
+                        name="slotDate"
+                        type="date"
+                      />
+                    </label>
+                    <label className="space-y-1.5 text-sm">
+                      <span className="font-medium">{t('field_start')}</span>
+                      <Input
+                        defaultValue={timeValue(slot.startMinutes)}
+                        name="slotStart"
+                        type="time"
+                      />
+                    </label>
+                    <label className="space-y-1.5 text-sm">
+                      <span className="font-medium">{t('field_end')}</span>
+                      <Input
+                        defaultValue={timeValue(slot.endMinutes)}
+                        name="slotEnd"
+                        type="time"
+                      />
+                    </label>
+                    <label className="space-y-1.5 text-sm">
+                      <span className="font-medium">{t('field_amount')}</span>
+                      <Input
+                        defaultValue={dollarsValue(slot.estimatedAmountCents)}
+                        min="0"
+                        name="slotAmount"
+                        step="0.01"
+                        type="number"
+                      />
+                    </label>
                   </div>
-                  <div className="mt-1 text-mit-readable-ink">
-                    {dateLabel(slot.requestedDate)} ·{' '}
+                  <p className="mt-2 text-xs text-mit-readable-ink">
+                    {formatEasternShortDateFromIsoCalendar(
+                      dateKey(slot.requestedDate)
+                    )}{' '}
                     {formatPavilionReservationTimeLabel(slot.startMinutes)} -{' '}
-                    {formatPavilionReservationTimeLabel(slot.endMinutes)}
-                  </div>
-                  <div className="mt-1 font-medium text-primary-ink">
+                    {formatPavilionReservationTimeLabel(slot.endMinutes)} ·{' '}
                     <MoneyCell
                       amountCents={slot.estimatedAmountCents}
                       tbd={t('price_tbd')}
                     />
-                  </div>
+                  </p>
+                  {slot.conflictSeverity ? (
+                    <p className="mt-2 text-xs font-medium text-mit-red dark:text-mit-red-ink">
+                      {t(`conflict_${slot.conflictSeverity}`)}
+                    </p>
+                  ) : null}
                 </div>
               ))}
-              {reservation.services.map((service) => (
-                <div
-                  className="rounded-lg border border-border bg-muted/30 p-3 text-sm"
-                  key={service.id}
-                >
-                  <div className="font-semibold text-mit-text">
-                    {service.item.name}
-                  </div>
-                  <div className="mt-1 font-medium text-primary-ink">
-                    <MoneyCell
-                      amountCents={service.estimatedAmountCents}
-                      tbd={t('price_tbd')}
+              <div className="rounded-lg border border-dashed border-border p-3">
+                <p className="text-sm font-medium text-mit-text">
+                  {t('new_slot_title')}
+                </p>
+                <div className="mt-3 grid gap-3 md:grid-cols-[1.3fr_1fr_1fr_1fr_1fr]">
+                  <label className="space-y-1.5 text-sm">
+                    <span className="font-medium">{t('field_space')}</span>
+                    <select
+                      className={adminNativeSelectClassName}
+                      name="slotItemId"
+                    >
+                      <option value="">{t('blank')}</option>
+                      {spaceOptions.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="space-y-1.5 text-sm">
+                    <span className="font-medium">{t('field_date')}</span>
+                    <Input name="slotDate" type="date" />
+                  </label>
+                  <label className="space-y-1.5 text-sm">
+                    <span className="font-medium">{t('field_start')}</span>
+                    <Input name="slotStart" type="time" />
+                  </label>
+                  <label className="space-y-1.5 text-sm">
+                    <span className="font-medium">{t('field_end')}</span>
+                    <Input name="slotEnd" type="time" />
+                  </label>
+                  <label className="space-y-1.5 text-sm">
+                    <span className="font-medium">{t('field_amount')}</span>
+                    <Input
+                      min="0"
+                      name="slotAmount"
+                      step="0.01"
+                      type="number"
                     />
-                  </div>
+                  </label>
                 </div>
-              ))}
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-lg border border-border bg-card p-5">
+            <h2 className="text-lg font-semibold text-mit-text">
+              {t('section_services')}
+            </h2>
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              {serviceOptions.map((service) => {
+                const selected = selectedServiceByItemId.get(service.id);
+                return (
+                  <div
+                    className="rounded-md border border-border bg-background p-3"
+                    key={service.id}
+                  >
+                    <label className="flex items-center gap-2 text-sm font-medium">
+                      <input
+                        defaultChecked={Boolean(selected)}
+                        name="serviceItemId"
+                        type="checkbox"
+                        value={service.id}
+                      />
+                      <span>{service.name}</span>
+                    </label>
+                    <input
+                      name="serviceAmountItemId"
+                      type="hidden"
+                      value={service.id}
+                    />
+                    <label className="mt-2 block space-y-1.5 text-sm">
+                      <span className="font-medium">{t('field_amount')}</span>
+                      <Input
+                        defaultValue={dollarsValue(
+                          selected?.estimatedAmountCents ?? null
+                        )}
+                        min="0"
+                        name="serviceAmount"
+                        step="0.01"
+                        type="number"
+                      />
+                    </label>
+                  </div>
+                );
+              })}
             </div>
           </section>
         </div>
@@ -219,6 +422,12 @@ export default async function AdminPavilionReservationDetailPage(
                   {t('column_status')}
                 </dt>
                 <dd>{t(`status_${reservation.status}`)}</dd>
+              </div>
+              <div>
+                <dt className="font-medium text-muted-foreground">
+                  {t('column_payment')}
+                </dt>
+                <dd>{t(`payment_${reservation.paymentStatus}`)}</dd>
               </div>
               <div>
                 <dt className="font-medium text-muted-foreground">
@@ -250,45 +459,72 @@ export default async function AdminPavilionReservationDetailPage(
             </dl>
           </section>
 
-          <form
-            action={action}
-            className="space-y-4 rounded-lg border border-border bg-card p-5"
-          >
+          <section className="rounded-lg border border-border bg-card p-5">
             <h2 className="text-lg font-semibold text-mit-text">
               {t('section_admin_update')}
             </h2>
-            <label className="block space-y-1.5 text-sm">
-              <span className="font-medium text-foreground">
-                {t('filter_status_label')}
-              </span>
+            <input name="status" type="hidden" value={reservation.status} />
+            <label className="mt-4 block space-y-1.5 text-sm">
+              <span className="font-medium">{t('field_payment_status')}</span>
               <select
                 className={adminNativeSelectClassName}
-                defaultValue={reservation.status}
-                name="status"
+                defaultValue={reservation.paymentStatus}
+                name="paymentStatus"
               >
-                {adminPavilionReservationStatuses.map((status) => (
-                  <option key={status} value={status}>
-                    {t(`status_${status}`)}
-                  </option>
-                ))}
+                {adminPavilionReservationPaymentStatuses.map(
+                  (paymentStatus) => (
+                    <option key={paymentStatus} value={paymentStatus}>
+                      {t(`payment_${paymentStatus}`)}
+                    </option>
+                  )
+                )}
               </select>
             </label>
-            <label className="block space-y-1.5 text-sm">
-              <span className="font-medium text-foreground">
-                {t('field_admin_notes')}
-              </span>
+            <label className="mt-4 block space-y-1.5 text-sm">
+              <span className="font-medium">{t('field_paid_at')}</span>
+              <Input
+                defaultValue={
+                  reservation.paidAt
+                    ? reservation.paidAt.toISOString().slice(0, 16)
+                    : ''
+                }
+                name="paidAt"
+                type="datetime-local"
+              />
+            </label>
+            <label className="mt-4 block space-y-1.5 text-sm">
+              <span className="font-medium">{t('field_admin_notes')}</span>
               <Textarea
                 defaultValue={reservation.adminNotes ?? ''}
                 name="adminNotes"
                 rows={5}
               />
             </label>
-            <Button type="submit" variant="mit">
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              {adminPavilionReservationStatuses.map((status) => (
+                <Button
+                  key={status}
+                  name="workflowStatus"
+                  type="submit"
+                  value={status}
+                  variant={status === 'approved' ? 'mit' : 'outline'}
+                >
+                  {t(`action_status_${status}`)}
+                </Button>
+              ))}
+            </div>
+            <Button
+              className="mt-3 w-full"
+              name="workflowStatus"
+              type="submit"
+              value={reservation.status}
+              variant="secondary"
+            >
               {t('action_save')}
             </Button>
-          </form>
+          </section>
         </aside>
-      </div>
+      </form>
 
       <div>
         <Link

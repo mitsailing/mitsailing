@@ -6,9 +6,16 @@ export type PavilionReservationPersonaValue =
 
 export type PavilionReservationStatusValue =
   | 'pending'
+  | 'needs_info'
   | 'approved'
   | 'declined'
   | 'cancelled';
+
+export type PavilionReservationPaymentStatusValue =
+  | 'unpaid'
+  | 'partial'
+  | 'paid'
+  | 'waived';
 
 export type PavilionPricingTypeValue = 'hourly' | 'flat' | 'tbd';
 
