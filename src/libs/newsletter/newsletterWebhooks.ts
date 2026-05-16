@@ -8,7 +8,7 @@ import type {
   ResendWebhookContext,
 } from '@/libs/email/emailMessages';
 import {
-  emailMessageIdForResendEvent,
+  ensureEmailMessageIdForResendEvent,
   recordResendEmailMessageEvent,
 } from '@/libs/email/emailMessages';
 import {
@@ -414,7 +414,7 @@ export async function handleResendNewsletterWebhook(
     context,
     operation: async (tx) => {
       if (!context?.skipDedupe) {
-        const emailMessageId = await emailMessageIdForResendEvent({
+        const emailMessageId = await ensureEmailMessageIdForResendEvent({
           client: tx,
           event,
           providerMessageId,

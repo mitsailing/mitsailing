@@ -5,10 +5,15 @@ import type { updateNewsletterPreferences as updateNewsletterPreferencesFn } fro
 
 vi.mock('server-only', () => ({}));
 
-describe.skipIf(process.env.RUN_DATABASE_TESTS !== '1')(
+const shouldRunRollbackDatabaseTest =
+  process.env.RUN_DATABASE_TESTS === '1' &&
+  Boolean(process.env.TEST_DATABASE_URL);
+
+describe.skipIf(!shouldRunRollbackDatabaseTest)(
   'updateNewsletterPreferences rollback',
   () => {
     let prisma: typeof dbPrisma | null = null;
+    let setupCompleted = false;
     let updateNewsletterPreferences: typeof updateNewsletterPreferencesFn;
     const idPrefix = `newsletter_rollback_${randomUUID()}`;
     const subscriberId = `${idPrefix}_subscriber`;
@@ -29,6 +34,18 @@ describe.skipIf(process.env.RUN_DATABASE_TESTS !== '1')(
       } else {
         process.env.TEST_DATABASE_URL = originalTestDatabaseUrl;
       }
+    }
+
+    async function deleteRollbackFixtures(client: typeof dbPrisma) {
+      await client.newsletterSubscription.deleteMany({
+        where: { subscriberId },
+      });
+      await client.newsletterSubscriber.deleteMany({
+        where: { id: subscriberId },
+      });
+      await client.newsletterList.deleteMany({
+        where: { id: { in: [existingListId, selectedListId] } },
+      });
     }
 
     beforeAll(async () => {
@@ -72,20 +89,15 @@ describe.skipIf(process.env.RUN_DATABASE_TESTS !== '1')(
           },
         },
       });
+      setupCompleted = true;
     });
 
     afterAll(async () => {
       const client = prisma;
+      if (client && setupCompleted) {
+        await deleteRollbackFixtures(client);
+      }
       if (client) {
-        await client.newsletterSubscription.deleteMany({
-          where: { subscriberId },
-        });
-        await client.newsletterSubscriber.deleteMany({
-          where: { id: subscriberId },
-        });
-        await client.newsletterList.deleteMany({
-          where: { id: { in: [existingListId, selectedListId] } },
-        });
         await client.$disconnect();
       }
       restoreDatabaseEnv();

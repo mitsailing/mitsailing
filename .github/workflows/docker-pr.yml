@@ -111,6 +111,9 @@ jobs:
             docker rm -f worker-smoke worker-smoke-redis >/dev/null 2>&1 || true
             docker network rm worker-smoke-net >/dev/null 2>&1 || true
           }
+          worker_smoke_is_running() {
+            docker ps --filter name=worker-smoke --format '{{.Names}}' | grep -qx worker-smoke
+          }
           trap cleanup EXIT
 
           docker network create worker-smoke-net
@@ -150,11 +153,17 @@ jobs:
           docker kill --signal=SIGTERM worker-smoke
 
           for _ in $(seq 1 15); do
-            if ! docker ps --filter name=worker-smoke --format '{{.Names}}' | grep -qx worker-smoke; then
+            if ! worker_smoke_is_running; then
               break
             fi
             sleep 1
           done
+
+          if worker_smoke_is_running; then
+            echo "::error::worker-smoke still running after SIGTERM wait"
+            docker logs --tail 200 worker-smoke || true
+            exit 1
+          fi
 
           exit_code="$(docker inspect --format '{{.State.ExitCode}}' worker-smoke)"
           echo "worker exited with code ${exit_code}"

@@ -293,7 +293,7 @@ function resendEmailSubject(event: ResendEmailEventPayload): string {
   return typeof subject === 'string' ? subject : '';
 }
 
-export async function emailMessageIdForResendEvent(params: {
+export async function ensureEmailMessageIdForResendEvent(params: {
   client: Pick<ResendWebhookClient, '$queryRaw'>;
   event: ResendEmailEventPayload;
   providerMessageId: string;
@@ -372,7 +372,7 @@ export async function handleResendEmailMessageWebhook(
     });
     return false;
   }
-  const emailMessageId = await emailMessageIdForResendEvent({
+  const emailMessageId = await ensureEmailMessageIdForResendEvent({
     client,
     event,
     providerMessageId,
