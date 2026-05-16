@@ -58,6 +58,44 @@ describe('legacyPavilionReservationImport', () => {
     );
   });
 
+  it('skips rows when inferred slugs do not all resolve in catalog', async () => {
+    const result = await importLegacyPavilionReservationRows([
+      {
+        resid: 'legacy-partial-slugs',
+        first: 'First',
+        last: 'Last',
+        mitid: null,
+        email: 'partial@example.com',
+        phone: '555',
+        affil: 'student',
+        groupname: 'Group',
+        title: 'Roof deck party on the dock',
+        acadfac: null,
+        acadfacemail: null,
+        acct: null,
+        date1: '2026-07-01',
+        start1: '10:00:00',
+        end1: '12:00:00',
+        date2: null,
+        start2: null,
+        end2: null,
+        datesel: 1,
+        comments: '',
+        infotent: 0,
+        infoalcohol: 0,
+        groupsize: '10',
+        active: 1,
+        tentative: 0,
+        confirmed: 0,
+        paid: 0,
+        contacted: 1,
+      },
+    ]);
+
+    expect(result).toEqual({ imported: 0, skipped: 1 });
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
   it('skips rows when space text cannot be inferred', async () => {
     const result = await importLegacyPavilionReservationRows([
       {

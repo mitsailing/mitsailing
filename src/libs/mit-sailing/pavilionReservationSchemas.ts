@@ -5,6 +5,7 @@ import {
   PAVILION_RESERVATION_END_MINUTES,
   PAVILION_RESERVATION_START_MINUTES,
 } from '@/libs/mit-sailing/pavilionReservationBookingTimeline';
+import { isPavilionReservationStoredSlotRange } from '@/libs/mit-sailing/pavilionReservationSlotMinutes';
 
 const textField = z.string().trim().min(1);
 const normalizedEmailField = z.string().trim().toLowerCase().pipe(z.email());
@@ -45,6 +46,9 @@ const slotSchema = z
   .refine((slot) => isPavilionReservationTimelineMinutes(slot.endMinutes), {
     path: ['endMinutes'],
     message: 'invalid_slot_minutes',
+  })
+  .refine((slot) => isPavilionReservationStoredSlotRange(slot), {
+    message: 'invalid_slot_range',
   });
 
 const slotsPayloadSchema = z

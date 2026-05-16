@@ -278,7 +278,7 @@ describe('submitPavilionReservationRequestAction', () => {
     expect(enqueuePavilionReservationSubmittedEmail).toHaveBeenCalledWith(
       defaultQueue,
       {
-        eventName: 'Late night pavilion booking',
+        eventName: 'late night pavilion booking',
         referenceCode: expect.stringMatching(/^PAV-/),
         requesterEmail: 'pavilion-requester@example.com',
         scheduleLines: [

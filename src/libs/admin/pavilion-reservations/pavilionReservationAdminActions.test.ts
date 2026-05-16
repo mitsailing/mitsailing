@@ -170,6 +170,29 @@ describe('updatePavilionReservationAdminAction', () => {
     );
   });
 
+  it('rejects slot start at closing boundary before replacing slots', async () => {
+    const formData = withRequiredAdminContactFields(new FormData());
+    formData.set('workflowStatus', 'pending');
+    formData.set('paymentStatus', 'unpaid');
+    formData.set('persona', 'mit_student');
+    formData.set('updatedAt', new Date('2026-05-01T12:00:00Z').toISOString());
+    formData.set('slotItemId', 'space-1');
+    formData.set('slotDate', '2026-07-01');
+    formData.set('slotStart', '1560');
+    formData.set('slotEnd', '1560');
+    prisma.pavilionReservableItem.findMany.mockResolvedValueOnce([
+      { id: 'space-1', kind: 'space' },
+    ]);
+
+    await expect(
+      updatePavilionReservationAdminAction('en', 'req-1', formData)
+    ).rejects.toThrow('Invalid Pavilion reservation slot row');
+
+    expect(
+      prisma.__tx.pavilionReservationSlot.deleteMany
+    ).not.toHaveBeenCalled();
+  });
+
   it('rejects malformed slot rows before replacing slots', async () => {
     const formData = withRequiredAdminContactFields(new FormData());
     formData.set('workflowStatus', 'pending');
@@ -216,6 +239,52 @@ describe('updatePavilionReservationAdminAction', () => {
         ],
       }
     );
+  });
+
+  it('rejects checked services missing paired amount rows before replacing services', async () => {
+    const formData = withRequiredAdminContactFields(new FormData());
+    formData.set('workflowStatus', 'pending');
+    formData.set('paymentStatus', 'unpaid');
+    formData.set('persona', 'mit_student');
+    formData.set('updatedAt', new Date('2026-05-01T12:00:00Z').toISOString());
+    formData.set('serviceItemId', 'service-orphan');
+
+    await expect(
+      updatePavilionReservationAdminAction('en', 'req-1', formData)
+    ).rejects.toThrow('Invalid Pavilion reservation service row');
+
+    expect(
+      prisma.__tx.pavilionReservationService.deleteMany
+    ).not.toHaveBeenCalled();
+  });
+
+  it('parses checked services from amount row index', async () => {
+    const formData = withRequiredAdminContactFields(new FormData());
+    formData.set('workflowStatus', 'pending');
+    formData.set('paymentStatus', 'unpaid');
+    formData.set('persona', 'mit_student');
+    formData.set('updatedAt', new Date('2026-05-01T12:00:00Z').toISOString());
+    formData.set('serviceItemId', 'service-2');
+    formData.append('serviceAmountItemId', 'service-1');
+    formData.append('serviceAmount', '10');
+    formData.append('serviceAmountItemId', 'service-2');
+    formData.append('serviceAmount', '25');
+    prisma.pavilionReservableItem.findMany.mockResolvedValueOnce([
+      { id: 'service-2', kind: 'service' },
+    ]);
+
+    await updatePavilionReservationAdminAction('en', 'req-1', formData);
+
+    expect(
+      prisma.__tx.pavilionReservationService.createMany
+    ).toHaveBeenCalledWith({
+      data: [
+        expect.objectContaining({
+          itemId: 'service-2',
+          estimatedAmountCents: 2500,
+        }),
+      ],
+    });
   });
 
   it('rejects partially numeric amount tokens as null cents', async () => {

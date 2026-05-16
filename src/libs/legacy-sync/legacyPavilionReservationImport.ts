@@ -1,5 +1,7 @@
 import { prisma } from '@/libs/DB';
+import { logger } from '@/libs/Logger';
 import { prismaDateFromIsoCalendar } from '@/libs/mit-sailing/isoCalendarDate';
+import { pavilionReservationStoredSlotMinutesFromRaw } from '@/libs/mit-sailing/pavilionReservationSlotMinutes';
 
 export type LegacyReservationDbRow = {
   acct: string | null;
@@ -258,6 +260,32 @@ function inferSpaceSlugs(row: LegacyReservationDbRow): string[] {
   return slugs;
 }
 
+function resolveInferredSpaceItemIds(props: {
+  itemIdBySlug: Map<string, string>;
+  row: LegacyReservationDbRow;
+}): { itemIds: string[]; ok: true } | { missingSlugs: string[]; ok: false } {
+  const slugs = inferSpaceSlugs(props.row);
+  if (slugs.length === 0) {
+    return { missingSlugs: [], ok: false };
+  }
+
+  const itemIds: string[] = [];
+  const missingSlugs: string[] = [];
+  for (const slug of slugs) {
+    const itemId = props.itemIdBySlug.get(slug);
+    if (itemId) {
+      itemIds.push(itemId);
+    } else {
+      missingSlugs.push(slug);
+    }
+  }
+
+  if (missingSlugs.length > 0) {
+    return { missingSlugs, ok: false };
+  }
+  return { itemIds, ok: true };
+}
+
 function parseLegacyDateTimeTimeOfDay(value: string | null): number | null {
   const match = stringValue(value)
     .trim()
@@ -311,12 +339,18 @@ function optionSlot(
   if (!date || startMinutes === null || rawEndMinutes === null) {
     return null;
   }
-  const endMinutes =
-    rawEndMinutes <= startMinutes ? rawEndMinutes + 24 * 60 : rawEndMinutes;
-  if (endMinutes > 26 * 60 || endMinutes <= startMinutes) {
+  const slotMinutes = pavilionReservationStoredSlotMinutesFromRaw({
+    startMinutes,
+    rawEndMinutes,
+  });
+  if (slotMinutes === null) {
     return null;
   }
-  return { date, endMinutes, startMinutes };
+  return {
+    date,
+    endMinutes: slotMinutes.endMinutes,
+    startMinutes: slotMinutes.startMinutes,
+  };
 }
 
 function resolveSlot(row: LegacyReservationDbRow): LegacySlot | null {
@@ -422,13 +456,21 @@ export async function importLegacyPavilionReservationRows(
       continue;
     }
 
-    const itemIds = inferSpaceSlugs(row)
-      .map((slug) => itemIdBySlug.get(slug) ?? null)
-      .filter((itemId): itemId is string => itemId !== null);
-    if (itemIds.length === 0) {
+    const spaceResolution = resolveInferredSpaceItemIds({ itemIdBySlug, row });
+    if (!spaceResolution.ok) {
+      if (spaceResolution.missingSlugs.length > 0) {
+        logger.warn(
+          '[legacy-pavilion-reservation-import] resid={resid} missing_catalog_slugs={missingCatalogSlugs}',
+          {
+            missingCatalogSlugs: spaceResolution.missingSlugs,
+            resid: row.resid,
+          }
+        );
+      }
       skipped += 1;
       continue;
     }
+    const { itemIds } = spaceResolution;
 
     const { paymentStatus, status } = statusFromRow(row);
     const referenceCode = legacyReservationReferenceCode(row.resid);

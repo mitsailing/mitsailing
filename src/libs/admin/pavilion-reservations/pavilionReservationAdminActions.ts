@@ -20,6 +20,7 @@ import {
   prismaDateFromIsoCalendar,
 } from '@/libs/mit-sailing/isoCalendarDate';
 import { parsePavilionReservationPersona } from '@/libs/mit-sailing/pavilionReservationPersonas';
+import { pavilionReservationStoredSlotMinutesFromTokens } from '@/libs/mit-sailing/pavilionReservationSlotMinutes';
 import { formatPavilionReservationTimeLabel } from '@/libs/mit-sailing/pavilionReservationTimeLabel';
 import type {
   PavilionReservationPaymentStatusValue,
@@ -111,26 +112,6 @@ function dateFromFormToken(value: string): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-function minutesFromTime(value: string): number | null {
-  const trimmed = value.trim();
-  if (/^\d+$/.test(trimmed)) {
-    const minutes = Number.parseInt(trimmed, 10);
-    return Number.isInteger(minutes) && minutes >= 0 && minutes <= 26 * 60
-      ? minutes
-      : null;
-  }
-  const match = /^(\d{2}):(\d{2})$/.exec(trimmed);
-  if (!match) {
-    return null;
-  }
-  const hour = Number.parseInt(match[1] ?? '', 10);
-  const minute = Number.parseInt(match[2] ?? '', 10);
-  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
-    return null;
-  }
-  return hour * 60 + minute;
-}
-
 function paidAtFromForm(
   paymentStatus: PavilionReservationPaymentStatusValue,
   value: string
@@ -186,27 +167,19 @@ function parseSlotRows(formData: FormData) {
       return [];
     }
     const requestedDate = prismaDateFromIsoCalendar(date);
-    const startMinutes = minutesFromTime(start);
-    const rawEndMinutes = minutesFromTime(end);
-    if (
-      !itemId ||
-      !requestedDate ||
-      startMinutes === null ||
-      rawEndMinutes === null
-    ) {
-      throw new Error('Invalid Pavilion reservation slot row');
-    }
-    const endMinutes =
-      rawEndMinutes < startMinutes ? rawEndMinutes + 24 * 60 : rawEndMinutes;
-    if (endMinutes <= startMinutes || endMinutes > 26 * 60) {
+    const slotMinutes = pavilionReservationStoredSlotMinutesFromTokens({
+      startToken: start,
+      endToken: end,
+    });
+    if (!itemId || !requestedDate || slotMinutes === null) {
       throw new Error('Invalid Pavilion reservation slot row');
     }
     return [
       {
         itemId,
         requestedDate,
-        startMinutes,
-        endMinutes,
+        startMinutes: slotMinutes.startMinutes,
+        endMinutes: slotMinutes.endMinutes,
         estimatedAmountCents: wholeDollarsCentsOrNull(amount),
         displayOrder: index,
       },
@@ -215,19 +188,19 @@ function parseSlotRows(formData: FormData) {
 }
 
 function parseServiceRows(formData: FormData) {
-  const selectedItemIds = new Set(formTextList(formData, 'serviceItemId'));
-  const itemIds = formTextList(formData, 'serviceAmountItemId');
+  const selectedItemIds = formTextList(formData, 'serviceItemId');
+  const amountItemIds = formTextList(formData, 'serviceAmountItemId');
   const amounts = formTextList(formData, 'serviceAmount');
-  return itemIds.flatMap((itemId, index) => {
-    if (!selectedItemIds.has(itemId)) {
-      return [];
+
+  return selectedItemIds.map((itemId) => {
+    const amountIndex = amountItemIds.indexOf(itemId);
+    if (amountIndex === -1) {
+      throw new Error('Invalid Pavilion reservation service row');
     }
-    return [
-      {
-        itemId,
-        estimatedAmountCents: wholeDollarsCentsOrNull(amounts[index] ?? ''),
-      },
-    ];
+    return {
+      itemId,
+      estimatedAmountCents: wholeDollarsCentsOrNull(amounts[amountIndex] ?? ''),
+    };
   });
 }
 
