@@ -1,5 +1,6 @@
 import 'server-only';
 import type { Prisma } from '@/generated/prisma/client';
+import type { NewsletterDeliveryStatus } from '@/generated/prisma/enums';
 import { prisma } from '@/libs/DB';
 import { Env } from '@/libs/Env';
 import { logger } from '@/libs/Logger';
@@ -14,6 +15,12 @@ import { getBaseUrl } from '@/utils/Helpers';
 const NEWSLETTER_DELIVERY_BATCH_SIZE = 50;
 const NEWSLETTER_CONTINUATION_DELAY_MS = 1000;
 const NEWSLETTER_DELIVERY_MAX_ATTEMPTS = 3;
+const NEWSLETTER_DELIVERY_FAILURE_STATUSES = [
+  'bounced',
+  'complained',
+  'failed',
+  'suppressed',
+] satisfies NewsletterDeliveryStatus[];
 
 type CreateBroadcastParams = {
   body: string;
@@ -699,12 +706,15 @@ async function requeueNewsletterContinuation(
 }
 
 async function finishNewsletterBroadcast(broadcastId: string) {
-  const [nonTerminal, failed] = await Promise.all([
+  const [nonTerminal, failedDeliveryCount] = await Promise.all([
     prisma.newsletterDelivery.count({
       where: { broadcastId, status: { in: ['queued', 'sending'] } },
     }),
     prisma.newsletterDelivery.count({
-      where: { broadcastId, status: 'failed' },
+      where: {
+        broadcastId,
+        status: { in: NEWSLETTER_DELIVERY_FAILURE_STATUSES },
+      },
     }),
   ]);
   if (nonTerminal > 0) {
@@ -714,12 +724,12 @@ async function finishNewsletterBroadcast(broadcastId: string) {
   }
   await prisma.newsletterBroadcast.update({
     data: {
-      sentAt: failed === 0 ? new Date() : null,
-      status: failed === 0 ? 'sent' : 'failed',
+      sentAt: failedDeliveryCount === 0 ? new Date() : null,
+      status: failedDeliveryCount === 0 ? 'sent' : 'failed',
     },
     where: { id: broadcastId },
   });
-  if (failed > 0) {
+  if (failedDeliveryCount > 0) {
     return;
   }
   const revalidated = await requestNewsletterArchiveRevalidation();

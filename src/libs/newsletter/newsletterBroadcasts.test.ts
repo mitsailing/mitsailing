@@ -465,4 +465,30 @@ describe('newsletter broadcasts', () => {
     });
     expect(mocks.fetch).not.toHaveBeenCalled();
   });
+
+  it('marks all-suppressed broadcasts failed without archive revalidation', async () => {
+    mocks.prisma.newsletterBroadcast.findUnique.mockResolvedValueOnce(
+      queuedBroadcastRow()
+    );
+    mocks.prisma.newsletterDelivery.count
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(1);
+
+    const { processNewsletterBroadcast } =
+      await import('@/libs/newsletter/newsletterBroadcasts');
+    await processNewsletterBroadcast('broadcast_1');
+
+    expect(mocks.prisma.newsletterDelivery.count).toHaveBeenCalledWith({
+      where: {
+        broadcastId: 'broadcast_1',
+        status: { in: ['bounced', 'complained', 'failed', 'suppressed'] },
+      },
+    });
+    expect(mocks.prisma.newsletterBroadcast.update).toHaveBeenCalledWith({
+      data: { sentAt: null, status: 'failed' },
+      where: { id: 'broadcast_1' },
+    });
+    expect(mocks.fetch).not.toHaveBeenCalled();
+  });
 });
