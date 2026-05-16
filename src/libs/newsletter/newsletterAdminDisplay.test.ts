@@ -9,4 +9,8 @@ describe('newsletter admin display', () => {
   it('maps unknown broadcast statuses', () => {
     expect(newsletterBroadcastStatusKey('deferred')).toBe('status_unknown');
   });
+
+  it('rejects prototype keys as broadcast statuses', () => {
+    expect(newsletterBroadcastStatusKey('toString')).toBe('status_unknown');
+  });
 });

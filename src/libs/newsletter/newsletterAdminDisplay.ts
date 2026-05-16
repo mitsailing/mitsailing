@@ -11,7 +11,7 @@ const NEWSLETTER_BROADCAST_STATUS_KEYS = {
 function isNewsletterBroadcastStatus(
   status: string
 ): status is keyof typeof NEWSLETTER_BROADCAST_STATUS_KEYS {
-  return status in NEWSLETTER_BROADCAST_STATUS_KEYS;
+  return Object.hasOwn(NEWSLETTER_BROADCAST_STATUS_KEYS, status);
 }
 
 export function newsletterBroadcastStatusKey(status: string) {

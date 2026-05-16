@@ -16,11 +16,27 @@ import { requireAdmin } from '@/libs/auth/dal';
 import { Link } from '@/libs/I18nNavigation';
 import { newsletterBroadcastStatusKey } from '@/libs/newsletter/newsletterAdminDisplay';
 import { getAdminNewsletterBroadcasts } from '@/libs/newsletter/newsletterBroadcasts';
+import { getI18nPath } from '@/utils/Helpers';
 
 type PageProps = {
   params: Promise<{ locale: string }>;
   searchParams: Promise<{ status?: string }>;
 };
+
+const STATUS_MESSAGE_KEYS = {
+  created: 'broadcast_created',
+  queued: 'broadcast_queued',
+} as const;
+
+function isStatusMessage(
+  status: string
+): status is keyof typeof STATUS_MESSAGE_KEYS {
+  return Object.hasOwn(STATUS_MESSAGE_KEYS, status);
+}
+
+function statusMessageKey(status: string) {
+  return isStatusMessage(status) ? STATUS_MESSAGE_KEYS[status] : null;
+}
 
 export async function generateMetadata(props: PageProps): Promise<Metadata> {
   const { locale } = await props.params;
@@ -36,25 +52,28 @@ export default async function AdminNewsletterBroadcastsPage(props: PageProps) {
   await requireAdmin(locale);
   const t = await getTranslations({ locale, namespace: 'AdminNewsletters' });
   const broadcasts = await getAdminNewsletterBroadcasts();
+  const notificationKey = statusMessageKey(status);
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6">
       <AdminPageHeader
         actions={
           <Button asChild variant="mit">
-            <Link href="/admin/newsletter-broadcasts/new">
+            <Link
+              href={getI18nPath('/admin/newsletter-broadcasts/new', locale)}
+            >
               {t('broadcasts_new')}
             </Link>
           </Button>
         }
         title={t('broadcasts_title')}
       />
-      {status ? (
+      {notificationKey ? (
         <p
           className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-950"
           role="status"
         >
-          {status === 'queued' ? t('broadcast_queued') : t('broadcast_created')}
+          {t(notificationKey)}
         </p>
       ) : null}
       <div className="overflow-hidden rounded-lg border border-border bg-card">
@@ -82,7 +101,12 @@ export default async function AdminNewsletterBroadcastsPage(props: PageProps) {
               broadcasts.map((broadcast) => (
                 <TableRow key={broadcast.id}>
                   <TableCell className="font-medium">
-                    <Link href={`/admin/newsletter-broadcasts/${broadcast.id}`}>
+                    <Link
+                      href={getI18nPath(
+                        `/admin/newsletter-broadcasts/${broadcast.id}`,
+                        locale
+                      )}
+                    >
                       {broadcast.subject}
                     </Link>
                   </TableCell>

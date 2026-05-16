@@ -56,13 +56,13 @@ const DELIVERY_STATUS_KEYS = {
 function isStatusMessage(
   status: string
 ): status is keyof typeof STATUS_MESSAGE_KEYS {
-  return status in STATUS_MESSAGE_KEYS;
+  return Object.hasOwn(STATUS_MESSAGE_KEYS, status);
 }
 
 function isDeliveryStatus(
   status: string
 ): status is keyof typeof DELIVERY_STATUS_KEYS {
-  return status in DELIVERY_STATUS_KEYS;
+  return Object.hasOwn(DELIVERY_STATUS_KEYS, status);
 }
 
 function statusMessageKey(status: string) {
