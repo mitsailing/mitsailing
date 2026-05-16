@@ -720,9 +720,7 @@ async function finishNewsletterBroadcast(broadcastId: string) {
     where: { id: broadcastId },
   });
   if (failed > 0) {
-    throw new Error(
-      `Newsletter broadcast ${broadcastId} has failed deliveries`
-    );
+    return;
   }
   const revalidated = await requestNewsletterArchiveRevalidation();
   if (!revalidated) {

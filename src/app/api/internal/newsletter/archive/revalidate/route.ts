@@ -1,3 +1,4 @@
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { NextResponse } from 'next/server';
 import { Env } from '@/libs/Env';
@@ -10,8 +11,23 @@ function bearerToken(request: Request) {
     : null;
 }
 
+function tokenDigest(value: string): Buffer {
+  return createHash('sha256').update(value).digest();
+}
+
+function matchesRevalidationSecret(token: string | null): boolean {
+  if (!token || !Env.NEWSLETTER_REVALIDATE_SECRET) {
+    return false;
+  }
+
+  return timingSafeEqual(
+    tokenDigest(token),
+    tokenDigest(Env.NEWSLETTER_REVALIDATE_SECRET)
+  );
+}
+
 export function POST(request: Request) {
-  if (bearerToken(request) !== Env.NEWSLETTER_REVALIDATE_SECRET) {
+  if (!matchesRevalidationSecret(bearerToken(request))) {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
 

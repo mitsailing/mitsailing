@@ -52,4 +52,12 @@ describe('newsletter archive revalidation route', () => {
     expect(response.status).toBe(401);
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
   });
+
+  it('rejects malformed bearer tokens without throwing', async () => {
+    const response = POST(revalidateRequest('Bearer short'));
+
+    await expect(response.json()).resolves.toEqual({ ok: false });
+    expect(response.status).toBe(401);
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
 });

@@ -443,4 +443,26 @@ describe('newsletter broadcasts', () => {
     });
     expect(mocks.fetch).not.toHaveBeenCalled();
   });
+
+  it('completes terminal failed broadcasts without retrying the worker job', async () => {
+    mocks.prisma.newsletterBroadcast.findUnique.mockResolvedValueOnce(
+      queuedBroadcastRow()
+    );
+    mocks.prisma.newsletterDelivery.count
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(1);
+
+    const { processNewsletterBroadcast } =
+      await import('@/libs/newsletter/newsletterBroadcasts');
+    await expect(processNewsletterBroadcast('broadcast_1')).resolves.toBe(
+      undefined
+    );
+
+    expect(mocks.prisma.newsletterBroadcast.update).toHaveBeenCalledWith({
+      data: { sentAt: null, status: 'failed' },
+      where: { id: 'broadcast_1' },
+    });
+    expect(mocks.fetch).not.toHaveBeenCalled();
+  });
 });
