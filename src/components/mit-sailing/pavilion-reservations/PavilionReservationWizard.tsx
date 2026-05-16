@@ -446,9 +446,11 @@ function scrollElementIntoView(element: HTMLElement | null) {
   element?.scrollIntoView({ block: 'center', behavior: 'smooth' });
 }
 
-function scrollElementIntoViewOnNextFrame(element: HTMLElement | null) {
+function scrollElementIntoViewOnNextFrame(
+  ref: React.RefObject<HTMLElement | null>
+) {
   globalThis.requestAnimationFrame(() => {
-    scrollElementIntoView(element);
+    scrollElementIntoView(ref.current);
   });
 }
 
@@ -1743,7 +1745,7 @@ function PavilionReservationSpaceCardActions(props: {
             slots: current,
           })
         );
-        scrollElementIntoViewOnNextFrame(props.slotsRef.current);
+        scrollElementIntoViewOnNextFrame(props.slotsRef);
       }}
     >
       {t('action_select_space')}

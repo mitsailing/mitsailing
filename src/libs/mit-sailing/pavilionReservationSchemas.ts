@@ -24,7 +24,7 @@ const slotSchema = z
       .int()
       .min(0)
       .min(PAVILION_RESERVATION_START_MINUTES)
-      .max(PAVILION_RESERVATION_END_MINUTES),
+      .max(PAVILION_RESERVATION_END_MINUTES - 30),
     endMinutes: z.number().int().min(0).max(PAVILION_RESERVATION_END_MINUTES),
   })
   .refine((slot) => isPavilionReservationTimelineMinutes(slot.startMinutes), {

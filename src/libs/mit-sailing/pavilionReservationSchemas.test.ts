@@ -134,6 +134,22 @@ describe('pavilionReservationFormSchema', () => {
     expect(result.success).toBe(false);
   });
 
+  it('rejects start time at closing boundary', () => {
+    const result = pavilionReservationFormSchema.safeParse({
+      ...validInput(),
+      slots: [
+        {
+          itemId: 'pavilion',
+          date: '2026-07-01',
+          startMinutes: PAVILION_RESERVATION_END_MINUTES,
+          endMinutes: PAVILION_RESERVATION_END_MINUTES,
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+  });
+
   it('accepts bookable operating-hours slots', () => {
     const result = pavilionReservationFormSchema.safeParse({
       ...validInput(),
