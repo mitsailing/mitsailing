@@ -124,6 +124,24 @@ describe('updatePavilionReservationAdminAction', () => {
     ).rejects.toThrow('Missing required fields: persona');
   });
 
+  it('reads status from status field when workflowStatus is absent', async () => {
+    const formData = withRequiredAdminContactFields(new FormData());
+    formData.set('status', 'approved');
+    formData.set('paymentStatus', 'unpaid');
+    formData.set('persona', 'mit_student');
+    formData.set('updatedAt', new Date('2026-05-01T12:00:00Z').toISOString());
+
+    await updatePavilionReservationAdminAction('en', 'req-1', formData);
+
+    expect(
+      prisma.__tx.pavilionReservationRequest.updateMany
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: 'approved' }),
+      })
+    );
+  });
+
   it('rejects malformed paid timestamps', async () => {
     const formData = withRequiredAdminContactFields(new FormData());
     formData.set('workflowStatus', 'pending');

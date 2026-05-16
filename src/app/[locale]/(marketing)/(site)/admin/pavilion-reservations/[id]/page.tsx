@@ -494,7 +494,20 @@ export default async function AdminPavilionReservationDetailPage(
             <h2 className="text-lg font-semibold text-mit-text">
               {t('section_admin_update')}
             </h2>
-            <input name="status" type="hidden" value={reservation.status} />
+            <label className="mt-4 block space-y-1.5 text-sm">
+              <span className="font-medium">{t('column_status')}</span>
+              <select
+                className={adminNativeSelectClassName}
+                defaultValue={reservation.status}
+                name="status"
+              >
+                {adminPavilionReservationStatuses.map((status) => (
+                  <option key={status} value={status}>
+                    {t(`status_${status}`)}
+                  </option>
+                ))}
+              </select>
+            </label>
             <label className="mt-4 block space-y-1.5 text-sm">
               <span className="font-medium">{t('field_payment_status')}</span>
               <select
@@ -532,13 +545,7 @@ export default async function AdminPavilionReservationDetailPage(
               />
             </label>
             <div className="mt-4 grid grid-cols-2 gap-2">
-              <Button
-                className="col-span-2"
-                name="workflowStatus"
-                type="submit"
-                value={reservation.status}
-                variant="secondary"
-              >
+              <Button className="col-span-2" type="submit" variant="secondary">
                 {t('action_save')}
               </Button>
               {adminPavilionReservationStatuses.map((status) => (
