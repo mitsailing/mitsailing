@@ -1,0 +1,75 @@
+---
+description: Long PR bot-comment loop via agent-reviews — orchestrator + one fresh sub-agent per iteration; do not stop early
+globs: AGENTS.md,.github/**/*
+alwaysApply: false
+---
+
+# PR agent-reviews loop (orchestrator + sub-agents)
+
+**Tool:** [agent-reviews](https://github.com/pbakaus/agent-reviews) (`npx agent-reviews`). **CI gate:** `finish-pr-context7` script `scripts/inspect_pr_state.py` (cite skill path; do not paste script bodies).
+
+## Roles
+
+- **Orchestrator (this chat):** Tiny context. Shell checks, state file, spawn **one** `generalPurpose` sub-agent per iteration. **Never** implement fixes or load `--expanded` for all comments.
+- **Worker (sub-agent):** One theme only (≤3 related comment IDs or one failing check). Fix, test, commit, push, `reply --resolve`, return JSON.
+
+## DONE (orchestrator stops only when all true)
+
+1. `npx agent-reviews --bots-only --unanswered` — no actionable `CODE` / review threads. **Codacy/Codecov issue-list comments** and **Low/Info Codacy inline threads** are not actionable (resolve with won’t-fix or leave informational; see [Codacy triage](#codacy-triage-non-blocking-lows)).
+2. `inspect_pr_state.py` — `failing_checks` empty **or** only non-blocking Codacy noise (pending OK). A red **Codacy** GitHub check alone does **not** block DONE when blocking severities are clear (see Codacy triage).
+3. Last worker: `status` `done` or `no_changes` with push if code changed.
+
+**Not done:** one commit, one watch cycle, or “most comments replied.”
+
+## Codacy triage (non-blocking lows)
+
+**PR loop gate:** **Low** and **Info** Codacy findings do **not** block merge readiness. Do not spawn workers or keep the loop open solely to clear them.
+
+| Treat as blocking (fix or escalate) | Treat as non-blocking (no code churn) |
+| --- | --- |
+| Critical, High, Medium | Low, Info |
+| Security / SRM items | Style-only or metric noise (coverage, duplication) |
+| Confirmed bugs in touched code | `.codacy.yaml` exclusions (e.g. `**/*.tsx`) |
+| | Generic analyzer noise when [AGENTS.md](../../AGENTS.md) / app rules say won’t fix |
+
+**Comments:** Parse severity from the Codacy bot body when present. **Low/Info** → `npx agent-reviews --reply <id> "Won't fix: low Codacy severity; …" --resolve` (cite app rule if applicable). **Medium+** → fix only when valid; same for security.
+
+**Failing Codacy check:** If `inspect_pr_state.py` lists Codacy in `failing_checks`, confirm blocking issues are gone before treating the PR as blocked — e.g. Codacy MCP `codacy_list_pull_request_issues` (`status: new`) or the PR Issues UI. If only Low/Info (or zero new issues) remain, record `codacy_non_blocking: true` in loop state and continue; do **not** treat that check as a work unit.
+
+**Align with:** [AGENTS.md](../../AGENTS.md) `Static Analysis` (security and real bugs first; app rules win over generic smells).
+
+## State file (outside repo)
+
+`~/.codex/tmp/finish-pr-context7/<owner>-<repo>-<pr>.json` — or `write_loop_state.py` from finish-pr-context7 skill.
+
+Track: `loop`, `last_commit`, `processed_comment_ids`, `failing_checks`, `codacy_non_blocking`, `status`.
+
+## Orchestrator loop
+
+1. Parallel: `agent-reviews --bots-only --unanswered` + `inspect_pr_state.py --repo "." --pr <N>`.
+2. If DONE → stop with summary.
+3. Pick **one** work unit (priority): failing CI (skip non-blocking Codacy-only failures) → oldest actionable CODE comment cluster (same file/theme; skip Low/Info Codacy).
+4. Increment `loop`; spawn sub-agent with worker prompt (below).
+5. Merge worker JSON into state; goto 1. **Do not stop** after one worker unless DONE or `blocked`.
+
+Workers **do not** run `--watch`. Orchestrator may use `--watch --timeout 600` once per session between loops, not inside workers.
+
+## Worker prompt (fill placeholders)
+
+```
+Worker iteration {LOOP_N}. Repo: {ABS_REPO_PATH}. Branch: {BRANCH}. Last commit: {LAST_COMMIT}.
+Theme: {THEME}. Comment IDs: {COMMENT_IDS}. Failing check: {FAILING_CHECK or none}.
+
+Scope only the above. Cite .cursor/rules and AGENTS.md by path. Context7: 3 passes when library/API behavior matters.
+Verify each finding; minimal fix. Codacy Low/Info: won't-fix + --resolve, no code change (see pr-agent-reviews-loop Codacy triage). Medium+ / security: fix when valid.
+Tests: targeted npm run test, then check:types + lint (+ check:i18n if copy).
+Commit + push if changed. Per ID: npx agent-reviews --reply <id> "Fixed in <hash>. …" --resolve OR "Won't fix: …" --resolve.
+Use --detail <id> only for assigned IDs. No --watch. No full PR diff.
+
+Return only JSON:
+{"status":"done|no_changes|blocked","commit":"<short-hash|null>","fixed_ids":[],"wont_fix_ids":[],"tests_run":[],"blocker":null}
+```
+
+## Repo commands (workers)
+
+Only `npm run` scripts from [AGENTS.md](../../AGENTS.md). App rules win over generic bot suggestions — see `pavilion-reservation-pricing.mdc`, `sonarqube-review.mdc`, etc.
