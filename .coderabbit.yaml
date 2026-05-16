@@ -89,6 +89,35 @@ reviews:
         Localized app paths in server code: use `getI18nPath(path, locale)` from
         `@/utils/Helpers` for `revalidatePath` and similar; do not concatenate
         `/${locale}/...` (wrong shape with `localePrefix: 'never'`—locale is not in public URLs).
+    - path: 'src/libs/mit-sailing/pavilionReservationPricing.ts'
+      instructions: >-
+        Pavilion reservation money is integer USD cents only (whole dollars in
+        the UI). `null` in persona price maps means TBD/unset; `0` means
+        complimentary/free — never conflate them. `priceForPersona` and
+        `personaPriceDisplay` are the canonical resolvers. Service add-ons use
+        flat persona unit pricing via `estimatedServiceAmountCents` (no slot
+        duration proration); do not request hourly proration for services or
+        rename tests to imply hourly service billing. Production catalog prices
+        are whole-dollar cents; seed/bootstrap decimals are out of scope for
+        this PR.
+    - path: 'src/libs/mit-sailing/pavilionReservationPricing.test.ts'
+      instructions: >-
+        Tests document the null-vs-zero pricing contract. Service estimate tests
+        should use `pricingType: 'flat'` unless product adds hourly service
+        billing. Do not suggest expecting `null` for complimentary `0` prices.
+    - path: 'src/data/mit-sailing/pavilionReservationCatalogSeed.ts'
+      instructions: >-
+        Seed/bootstrap catalog only; production pricing is edited in admin/DB.
+        Items negotiated with the Sailing Master may stay `pricingType: 'tbd'`
+        with null persona prices until product copy is finalized (see GitHub
+        issue #69). Do not block on republishing seed rows as `$0` flat fees when
+        the description says fees are arranged separately.
+    - path: '.codacy.yaml'
+      instructions: >-
+        `exclude_paths: '**/*.tsx'` is intentional: Codacy's TS engine misclassifies
+        React TSX in this repo. App-owned TSX remains covered by ESLint, oxlint,
+        Vitest, Playwright, and CodeRabbit. Do not request removing the TSX
+        exclusion unless Codacy adds reliable React/TSX analysis for this stack.
     - path: 'src/app/[[]locale[]]/**'
       instructions: >-
         Single-locale English site (`AppConfig.i18n.locales` is only `en`).

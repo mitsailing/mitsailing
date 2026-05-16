@@ -1,0 +1,21 @@
+---
+description: Pavilion reservation pricing — null TBD vs zero complimentary; do not re-flag
+globs: src/libs/mit-sailing/pavilionReservationPricing.ts,src/libs/mit-sailing/pavilionReservationPricing.test.ts,src/data/mit-sailing/pavilionReservationCatalogSeed.ts,src/components/mit-sailing/pavilion-reservations/**/*
+alwaysApply: false
+---
+
+# Pavilion reservation pricing
+
+**Contract (matches DB `amount_cents IS NULL OR amount_cents >= 0`):**
+
+- `null` — TBD / unset / priced after review (`pricingType: 'tbd'` or missing persona row)
+- `0` — complimentary (show `$0`, include in estimates)
+- `> 0` — whole-dollar USD cents only
+
+**Canonical APIs:** `priceForPersona`, `personaPriceDisplay`, `isPersonaPriceAvailable` (`!== null`, never falsy checks on `0`).
+
+**Services:** `estimatedServiceAmountCents` returns the flat persona unit price; no hourly slot proration.
+
+**Seed vs production:** `pavilionReservationCatalogSeed.ts` is bootstrap only. Negotiated Sailing Master fees are tracked in GitHub issue #69; do not suggest re-seeding as `$0` flat when copy says fees are arranged separately.
+
+**Codacy:** `.codacy.yaml` excludes `**/*.tsx` intentionally (Codacy TSX misclassification); TSX is still linted/tested elsewhere.

@@ -1,8 +1,9 @@
-export type PavilionReservationPersonaValue =
-  | 'mit_academic'
-  | 'mit_student'
-  | 'mit_community'
-  | 'non_mit';
+import type { PavilionReservationPriceMap } from '@/libs/mit-sailing/pavilionReservationPersonas';
+
+export type {
+  PavilionReservationPersonaValue,
+  PavilionReservationPriceMap,
+} from '@/libs/mit-sailing/pavilionReservationPersonas';
 
 export type PavilionReservationStatusValue =
   | 'pending'
@@ -21,11 +22,6 @@ export type PavilionPricingTypeValue = 'hourly' | 'flat' | 'tbd';
 
 export type PavilionReservableItemKindValue = 'space' | 'service';
 
-export type PavilionReservationPriceMap = Record<
-  PavilionReservationPersonaValue,
-  number | null
->;
-
 export type PavilionReservableItemDto = {
   id: string;
   slug: string;
@@ -37,6 +33,25 @@ export type PavilionReservableItemDto = {
   minDurationHours: number | null;
   displayOrder: number;
   prices: PavilionReservationPriceMap;
+};
+
+/** Persona price map and pricing mode (`null` = TBD, `0` = complimentary). */
+export type PavilionReservableItemPricing = Pick<
+  PavilionReservableItemDto,
+  'prices' | 'pricingType'
+>;
+
+/** Fields required to estimate space slot totals. */
+export type PavilionReservableItemSlotPricing = Pick<
+  PavilionReservableItemDto,
+  'minDurationHours' | 'prices' | 'pricingType'
+>;
+
+/** Resolved persona quote for catalog UI (null = TBD, zero = complimentary). */
+export type PavilionPersonaPriceDisplay = {
+  available: boolean;
+  label: string;
+  priceCents: number | null;
 };
 
 export type PavilionReservationSlotInput = {

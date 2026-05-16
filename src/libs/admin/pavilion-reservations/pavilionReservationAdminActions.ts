@@ -19,7 +19,7 @@ import {
   isoCalendarDateFromPrismaDate,
   prismaDateFromIsoCalendar,
 } from '@/libs/mit-sailing/isoCalendarDate';
-import { PAVILION_RESERVATION_PERSONAS } from '@/libs/mit-sailing/pavilionReservationPricing';
+import { parsePavilionReservationPersona } from '@/libs/mit-sailing/pavilionReservationPersonas';
 import { formatPavilionReservationTimeLabel } from '@/libs/mit-sailing/pavilionReservationTimeLabel';
 import type {
   PavilionReservationPaymentStatusValue,
@@ -107,12 +107,6 @@ function paidAtFromForm(
     throw new Error('Invalid paidAt');
   }
   return parsed;
-}
-
-function parsePersona(
-  value: string
-): PavilionReservationPersonaValue | undefined {
-  return PAVILION_RESERVATION_PERSONAS.find((persona) => persona === value);
 }
 
 function totalCentsFromRows(
@@ -320,7 +314,9 @@ export async function updatePavilionReservationAdminAction(
   const paymentStatus = parseAdminPavilionReservationPaymentStatus(
     formText(formData, 'paymentStatus')
   );
-  const persona = parsePersona(formText(formData, 'persona'));
+  const persona = parsePavilionReservationPersona(
+    formText(formData, 'persona')
+  );
 
   if (!status || !paymentStatus || !persona) {
     const missingRequiredFields =

@@ -1,8 +1,8 @@
-export type PavilionReservationPersonaSeed =
-  | 'mit_academic'
-  | 'mit_student'
-  | 'mit_community'
-  | 'non_mit';
+import {
+  emptyPavilionReservationPriceMap,
+  PAVILION_RESERVATION_PERSONAS,
+} from '@/libs/mit-sailing/pavilionReservationPersonas';
+import type { PavilionReservationPersonaValue } from '@/libs/mit-sailing/pavilionReservationPersonas';
 
 export type PavilionReservableItemSeed = {
   id: string;
@@ -15,27 +15,15 @@ export type PavilionReservableItemSeed = {
   minDurationHours: number | null;
   displayOrder: number;
   isVisible: boolean;
-  prices: Record<PavilionReservationPersonaSeed, number | null>;
+  prices: Record<PavilionReservationPersonaValue, number | null>;
 };
 
-const personas = [
-  'mit_academic',
-  'mit_student',
-  'mit_community',
-  'non_mit',
-] as const satisfies readonly PavilionReservationPersonaSeed[];
-
 function centsByPersona(
-  dollarsByPersona: Record<PavilionReservationPersonaSeed, number | null>
-): Record<PavilionReservationPersonaSeed, number | null> {
-  const cents: Record<PavilionReservationPersonaSeed, number | null> = {
-    mit_academic: null,
-    mit_student: null,
-    mit_community: null,
-    non_mit: null,
-  };
+  dollarsByPersona: Record<PavilionReservationPersonaValue, number | null>
+): Record<PavilionReservationPersonaValue, number | null> {
+  const cents = emptyPavilionReservationPriceMap();
 
-  for (const persona of personas) {
+  for (const persona of PAVILION_RESERVATION_PERSONAS) {
     const dollars = dollarsByPersona[persona];
     if (dollars === null) {
       cents[persona] = null;

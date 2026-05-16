@@ -5,7 +5,10 @@ import {
   isoCalendarDateFromPrismaDate,
   prismaDateFromIsoCalendar,
 } from '@/libs/mit-sailing/isoCalendarDate';
-import { PAVILION_RESERVATION_PERSONAS } from '@/libs/mit-sailing/pavilionReservationPricing';
+import {
+  emptyPavilionReservationPriceMap,
+  PAVILION_RESERVATION_PERSONAS,
+} from '@/libs/mit-sailing/pavilionReservationPersonas';
 import type {
   PavilionReservableItemDto,
   PavilionReservationPriceMap,
@@ -18,22 +21,13 @@ export type PavilionReservationBlockedRangeDto = {
   endMinutes: number;
 };
 
-function emptyPriceMap(): PavilionReservationPriceMap {
-  return {
-    mit_academic: null,
-    mit_student: null,
-    mit_community: null,
-    non_mit: null,
-  };
-}
-
 function priceMapFromRows(
   rows: {
     persona: keyof PavilionReservationPriceMap;
     amountCents: number | null;
   }[]
 ): PavilionReservationPriceMap {
-  const prices = emptyPriceMap();
+  const prices = emptyPavilionReservationPriceMap();
   for (const row of rows) {
     prices[row.persona] = row.amountCents;
   }

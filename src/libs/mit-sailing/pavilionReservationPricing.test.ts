@@ -3,7 +3,11 @@ import {
   estimatedServiceAmountCents,
   estimatedSlotAmountCents,
   formatPavilionReservationMoney,
+  isPersonaPriceAvailable,
+  personaPriceDisplay,
+  priceForPersona,
   priceLabel,
+  priceLabelForPersona,
 } from '@/libs/mit-sailing/pavilionReservationPricing';
 import type { PavilionReservableItemDto } from '@/libs/mit-sailing/pavilionReservationTypes';
 
@@ -72,7 +76,7 @@ describe('estimatedSlotAmountCents', () => {
     ).toBe(26_700);
   });
 
-  it('skips zero-dollar flat prices', () => {
+  it('returns zero for complimentary flat prices', () => {
     expect(
       estimatedSlotAmountCents({
         item: item({
@@ -94,7 +98,68 @@ describe('estimatedSlotAmountCents', () => {
         },
         slotIndexForItem: 0,
       })
+    ).toBe(0);
+  });
+});
+
+describe('priceForPersona', () => {
+  it('returns null when persona price is unset', () => {
+    expect(
+      priceForPersona(
+        {
+          pricingType: 'flat',
+          prices: {
+            mit_academic: null,
+            mit_student: 10_000,
+            mit_community: 10_000,
+            non_mit: 10_000,
+          },
+        },
+        'mit_academic'
+      )
     ).toBeNull();
+  });
+
+  it('returns null when item pricing is confirmed after review', () => {
+    expect(
+      priceForPersona(
+        {
+          pricingType: 'tbd',
+          prices: {
+            mit_academic: 10_000,
+            mit_student: 10_000,
+            mit_community: 10_000,
+            non_mit: 10_000,
+          },
+        },
+        'mit_academic'
+      )
+    ).toBeNull();
+  });
+
+  it('returns zero when persona price is complimentary', () => {
+    expect(
+      priceForPersona(
+        {
+          pricingType: 'flat',
+          prices: {
+            mit_academic: 0,
+            mit_student: 10_000,
+            mit_community: 10_000,
+            non_mit: 10_000,
+          },
+        },
+        'mit_academic'
+      )
+    ).toBe(0);
+  });
+});
+
+describe('isPersonaPriceAvailable', () => {
+  it('treats null as unavailable and zero as available', () => {
+    expect(isPersonaPriceAvailable(null)).toBe(false);
+    expect(isPersonaPriceAvailable(0)).toBe(true);
+    expect(isPersonaPriceAvailable(10_000)).toBe(true);
   });
 });
 
@@ -122,11 +187,11 @@ describe('estimatedServiceAmountCents', () => {
     ).toBeNull();
   });
 
-  it('returns persona price for non-flat service pricing types', () => {
+  it('returns persona price for flat service pricing', () => {
     expect(
       estimatedServiceAmountCents({
         item: {
-          pricingType: 'hourly',
+          pricingType: 'flat',
           prices: {
             mit_academic: 12_000,
             mit_student: 10_000,
@@ -139,7 +204,7 @@ describe('estimatedServiceAmountCents', () => {
     ).toBe(11_000);
   });
 
-  it('skips zero-dollar service prices', () => {
+  it('returns zero for complimentary service prices', () => {
     expect(
       estimatedServiceAmountCents({
         item: {
@@ -153,11 +218,105 @@ describe('estimatedServiceAmountCents', () => {
         },
         persona: 'mit_academic',
       })
-    ).toBeNull();
+    ).toBe(0);
+  });
+});
+
+describe('personaPriceDisplay', () => {
+  it('resolves label and availability from one persona lookup', () => {
+    expect(
+      personaPriceDisplay({
+        item: {
+          pricingType: 'flat',
+          prices: {
+            mit_academic: 0,
+            mit_student: 10_000,
+            mit_community: 10_000,
+            non_mit: 10_000,
+          },
+        },
+        persona: 'mit_academic',
+        tbdLabel: 'Pricing confirmed after review',
+      })
+    ).toEqual({
+      available: true,
+      label: '$0',
+      priceCents: 0,
+    });
+  });
+
+  it('marks unset persona price unavailable', () => {
+    expect(
+      personaPriceDisplay({
+        item: {
+          pricingType: 'flat',
+          prices: {
+            mit_academic: null,
+            mit_student: 10_000,
+            mit_community: 10_000,
+            non_mit: 10_000,
+          },
+        },
+        persona: 'mit_academic',
+        tbdLabel: 'Pricing confirmed after review',
+      })
+    ).toEqual({
+      available: false,
+      label: 'Pricing confirmed after review',
+      priceCents: null,
+    });
+  });
+});
+
+describe('priceLabelForPersona', () => {
+  it('formats complimentary persona price as dollars', () => {
+    expect(
+      priceLabelForPersona({
+        item: {
+          pricingType: 'flat',
+          prices: {
+            mit_academic: 0,
+            mit_student: 10_000,
+            mit_community: 10_000,
+            non_mit: 10_000,
+          },
+        },
+        persona: 'mit_academic',
+        tbdLabel: 'Pricing confirmed after review',
+      })
+    ).toBe('$0');
+  });
+
+  it('uses review-pricing label when persona price is unset', () => {
+    expect(
+      priceLabelForPersona({
+        item: {
+          pricingType: 'flat',
+          prices: {
+            mit_academic: null,
+            mit_student: 10_000,
+            mit_community: 10_000,
+            non_mit: 10_000,
+          },
+        },
+        persona: 'mit_academic',
+        tbdLabel: 'Pricing confirmed after review',
+      })
+    ).toBe('Pricing confirmed after review');
   });
 });
 
 describe('priceLabel', () => {
+  it('formats zero as free dollars', () => {
+    expect(
+      priceLabel({
+        amountCents: 0,
+        pricingType: 'flat',
+        tbdLabel: 'Pricing confirmed after review',
+      })
+    ).toBe('$0');
+  });
+
   it('uses review-pricing label for null prices', () => {
     expect(
       priceLabel({

@@ -33,12 +33,16 @@ import {
 } from '@/libs/mit-sailing/pavilionReservationBookingTimeline';
 import type { PavilionReservationTimeOption } from '@/libs/mit-sailing/pavilionReservationBookingTimeline';
 import {
+  PAVILION_RESERVATION_PERSONAS,
+  parsePavilionReservationPersona,
+} from '@/libs/mit-sailing/pavilionReservationPersonas';
+import {
   estimatedServiceAmountCents,
   estimatedSlotAmountCents,
   formatPavilionReservationMoney,
-  PAVILION_RESERVATION_PERSONAS,
+  isPersonaPriceAvailable,
+  personaPriceDisplay,
   priceForPersona,
-  priceLabel,
 } from '@/libs/mit-sailing/pavilionReservationPricing';
 import { formatPavilionReservationTimeLabel } from '@/libs/mit-sailing/pavilionReservationTimeLabel';
 import type {
@@ -107,12 +111,6 @@ type PavilionReservationWizardProps = {
   items: PavilionReservableItemDto[];
   permalink: string;
 };
-
-const personas = PAVILION_RESERVATION_PERSONAS;
-
-function parsePersona(value: string): PavilionReservationPersonaValue | null {
-  return personas.find((persona) => persona === value) ?? null;
-}
 
 const initialContact: ContactFields = {
   firstName: '',
@@ -1758,7 +1756,11 @@ function PavilionReservationSpaceCard(props: {
   space: PavilionReservableItemDto;
 }) {
   const t = useTranslations('PavilionReservationPage');
-  const price = priceForPersona(props.space, props.persona);
+  const priceDisplay = personaPriceDisplay({
+    item: props.space,
+    persona: props.persona,
+    tbdLabel: t('price_tbd'),
+  });
 
   return (
     <article
@@ -1796,17 +1798,13 @@ function PavilionReservationSpaceCard(props: {
           {props.space.description}
         </p>
         <p className="mt-4 text-lg font-bold text-primary-ink">
-          {priceLabel({
-            amountCents: price,
-            pricingType: props.space.pricingType,
-            tbdLabel: t('price_tbd'),
-          })}
+          {priceDisplay.label}
         </p>
-        {price === null ? (
+        {priceDisplay.available ? null : (
           <p className="mt-1 text-xs text-muted-foreground">
             {t('price_tbd_note')}
           </p>
-        ) : null}
+        )}
         {props.space.minDurationHours ? (
           <p className="mt-1 text-xs text-muted-foreground">
             {t('minimum_hours', {
@@ -1915,7 +1913,7 @@ function PavilionReservationSpacesStep(props: {
             {t('persona_intro')}
           </p>
           <div className="mt-3 grid gap-2 md:mt-4 md:grid-cols-2 md:gap-4">
-            {personas.map((personaOption) => (
+            {PAVILION_RESERVATION_PERSONAS.map((personaOption) => (
               <label
                 className={cn(
                   'cursor-pointer rounded-lg border-2 p-3 transition-colors md:p-4',
@@ -2002,23 +2000,27 @@ function PavilionReservationServiceOption(props: {
   setSelectedServiceIds: React.Dispatch<React.SetStateAction<string[]>>;
 }) {
   const t = useTranslations('PavilionReservationPage');
-  const price = priceForPersona(props.service, props.persona);
+  const priceDisplay = personaPriceDisplay({
+    item: props.service,
+    persona: props.persona,
+    tbdLabel: t('price_tbd'),
+  });
 
   return (
     <label
       className={cn(
         'flex items-start gap-4 rounded-lg border p-4 transition-colors md:items-center',
-        price === null
-          ? 'cursor-not-allowed border-mit-line bg-mit-surface opacity-75'
-          : 'cursor-pointer',
+        priceDisplay.available
+          ? 'cursor-pointer'
+          : 'cursor-not-allowed border-mit-line bg-mit-surface opacity-75',
         props.selected ? 'border-mit-red bg-mit-red-highlight' : null,
-        price !== null && !props.selected ? 'border-mit-line' : null
+        priceDisplay.available && !props.selected ? 'border-mit-line' : null
       )}
     >
       <input
         checked={props.selected}
         className="mt-1 md:mt-0"
-        disabled={price === null}
+        disabled={priceDisplay.priceCents === null}
         type="checkbox"
         onChange={() => {
           props.setSelectedServiceIds((current) =>
@@ -2032,25 +2034,21 @@ function PavilionReservationServiceOption(props: {
         <span
           className={cn(
             'block font-medium text-mit-text',
-            price === null ? 'text-muted-foreground line-through' : null
+            priceDisplay.available ? null : 'text-muted-foreground line-through'
           )}
         >
           {props.service.name}
         </span>
         <span className="mt-1 block text-xs text-muted-foreground">
-          {price === null
-            ? t('service_unavailable')
-            : props.service.description}
+          {priceDisplay.available
+            ? props.service.description
+            : t('service_unavailable')}
         </span>
       </span>
       <span className="font-semibold text-primary-ink">
-        {price === null
-          ? t('service_unavailable_price')
-          : priceLabel({
-              amountCents: price,
-              pricingType: props.service.pricingType,
-              tbdLabel: t('price_tbd'),
-            })}
+        {priceDisplay.available
+          ? priceDisplay.label
+          : t('service_unavailable_price')}
       </span>
     </label>
   );
@@ -2086,13 +2084,15 @@ function PavilionReservationContactStep(props: {
               required
               value={props.persona}
               onChange={(event) => {
-                const nextPersona = parsePersona(event.currentTarget.value);
+                const nextPersona =
+                  parsePavilionReservationPersona(event.currentTarget.value) ??
+                  null;
                 if (nextPersona) {
                   props.setPersona(nextPersona);
                 }
               }}
             >
-              {personas.map((personaOption) => (
+              {PAVILION_RESERVATION_PERSONAS.map((personaOption) => (
                 <option key={personaOption} value={personaOption}>
                   {t(`persona_${personaOption}_label`)}
                 </option>
@@ -2834,7 +2834,8 @@ export function PavilionReservationWizard(
       current.filter((serviceId) => {
         const service = itemById(services, serviceId);
         return (
-          service !== null && priceForPersona(service, nextPersona) !== null
+          service !== null &&
+          isPersonaPriceAvailable(priceForPersona(service, nextPersona))
         );
       })
     );

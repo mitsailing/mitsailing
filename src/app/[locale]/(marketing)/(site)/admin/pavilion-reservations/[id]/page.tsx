@@ -27,10 +27,8 @@ import {
   formatEasternShortDateFromIsoCalendar,
 } from '@/libs/mit-sailing/easternTimeFormat';
 import { buildPavilionReservationTimeSelectOptions } from '@/libs/mit-sailing/pavilionReservationBookingTimeline';
-import {
-  formatPavilionReservationMoney,
-  PAVILION_RESERVATION_PERSONAS,
-} from '@/libs/mit-sailing/pavilionReservationPricing';
+import { PAVILION_RESERVATION_PERSONAS } from '@/libs/mit-sailing/pavilionReservationPersonas';
+import { formatPavilionReservationMoney } from '@/libs/mit-sailing/pavilionReservationPricing';
 import { formatPavilionReservationTimeLabel } from '@/libs/mit-sailing/pavilionReservationTimeLabel';
 
 type AdminPavilionReservationDetailPageProps = {

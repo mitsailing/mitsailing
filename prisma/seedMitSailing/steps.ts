@@ -33,7 +33,6 @@ import {
   STUB_USERS,
 } from '../../src/data/mit-sailing/eventsSeed';
 import { PAVILION_RESERVABLE_ITEM_SEED_ROWS } from '../../src/data/mit-sailing/pavilionReservationCatalogSeed';
-import type { PavilionReservationPersonaSeed } from '../../src/data/mit-sailing/pavilionReservationCatalogSeed';
 import {
   SAILING_RATING_RULES,
   SAILING_RATINGS,
@@ -42,15 +41,9 @@ import { SITE_ALERT_SEED_ROWS } from '../../src/data/mit-sailing/siteAlertsSeed'
 import { Prisma } from '../../src/generated/prisma/client';
 import type { PrismaClient } from '../../src/generated/prisma/client';
 import type { EventRegistrationStatus } from '../../src/generated/prisma/enums';
+import { PAVILION_RESERVATION_PERSONAS } from '../../src/libs/mit-sailing/pavilionReservationPersonas';
 import { toDetailPageKind } from './detailPageKind';
 import { toDate } from './toPrismaDate';
-
-const pavilionReservationPersonas = [
-  'mit_academic',
-  'mit_student',
-  'mit_community',
-  'non_mit',
-] as const satisfies readonly PavilionReservationPersonaSeed[];
 
 /**
  * @param p - Prisma client (injected for tests; production uses `src/libs/DB`)
@@ -639,7 +632,7 @@ export async function seedPavilionReservationCatalog(
       },
     });
 
-    for (const persona of pavilionReservationPersonas) {
+    for (const persona of PAVILION_RESERVATION_PERSONAS) {
       const amountCents = row.prices[persona];
       await p.pavilionReservableItemPrice.upsert({
         where: { itemId_persona: { itemId: row.id, persona } },

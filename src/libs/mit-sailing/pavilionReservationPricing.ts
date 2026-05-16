@@ -1,32 +1,44 @@
 import type {
+  PavilionPersonaPriceDisplay,
   PavilionPricingTypeValue,
-  PavilionReservableItemDto,
+  PavilionReservableItemPricing,
+  PavilionReservableItemSlotPricing,
   PavilionReservationPersonaValue,
   PavilionReservationSlotInput,
 } from '@/libs/mit-sailing/pavilionReservationTypes';
 
-export const PAVILION_RESERVATION_PERSONAS = [
-  'mit_academic',
-  'mit_student',
-  'mit_community',
-  'non_mit',
-] as const satisfies readonly PavilionReservationPersonaValue[];
+const CENTS_PER_DOLLAR = 100;
+const MINUTES_PER_HOUR = 60;
+
+const pavilionReservationUsdFormatter = new Intl.NumberFormat('en-US', {
+  currency: 'USD',
+  maximumFractionDigits: 0,
+  minimumFractionDigits: 0,
+  style: 'currency',
+});
 
 export function formatPavilionReservationMoney(amountCents: number): string {
-  return new Intl.NumberFormat('en-US', {
-    currency: 'USD',
-    maximumFractionDigits: 0,
-    minimumFractionDigits: 0,
-    style: 'currency',
-  }).format(amountCents / 100);
+  return pavilionReservationUsdFormatter.format(amountCents / CENTS_PER_DOLLAR);
 }
 
 export function priceForPersona(
-  item: Pick<PavilionReservableItemDto, 'prices'>,
+  item: PavilionReservableItemPricing,
   persona: PavilionReservationPersonaValue
 ): number | null {
-  const price = item.prices[persona];
-  return price === 0 ? null : price;
+  if (item.pricingType === 'tbd') {
+    return null;
+  }
+  return item.prices[persona];
+}
+
+export function isPersonaPriceAvailable(
+  priceCents: number | null
+): priceCents is number {
+  return priceCents !== null;
+}
+
+function roundPavilionEstimateToWholeDollarsCents(amountCents: number): number {
+  return Math.round(amountCents / CENTS_PER_DOLLAR) * CENTS_PER_DOLLAR;
 }
 
 function hourlyAmountCents(props: {
@@ -37,43 +49,51 @@ function hourlyAmountCents(props: {
 }): number {
   const durationMinutes = Math.max(
     props.endMinutes - props.startMinutes,
-    (props.minDurationHours ?? 0) * 60
+    (props.minDurationHours ?? 0) * MINUTES_PER_HOUR
   );
-  const proratedCents = Math.round((props.amountCents * durationMinutes) / 60);
-  return Math.round(proratedCents / 100) * 100;
+  const proratedCents = Math.round(
+    (props.amountCents * durationMinutes) / MINUTES_PER_HOUR
+  );
+  return roundPavilionEstimateToWholeDollarsCents(proratedCents);
 }
 
 export function estimatedSlotAmountCents(props: {
-  item: Pick<
-    PavilionReservableItemDto,
-    'id' | 'minDurationHours' | 'prices' | 'pricingType'
-  >;
+  item: PavilionReservableItemSlotPricing;
   persona: PavilionReservationPersonaValue;
   slot: PavilionReservationSlotInput;
   slotIndexForItem: number;
 }): number | null {
-  const price = priceForPersona(props.item, props.persona);
-  if (price === null || props.item.pricingType === 'tbd') {
+  const unitPriceCents = priceForPersona(props.item, props.persona);
+  if (unitPriceCents === null) {
     return null;
   }
-  if (props.item.pricingType === 'flat') {
-    return props.slotIndexForItem === 0 ? price : 0;
+
+  switch (props.item.pricingType) {
+    case 'flat': {
+      return props.slotIndexForItem === 0 ? unitPriceCents : 0;
+    }
+    case 'hourly': {
+      return hourlyAmountCents({
+        amountCents: unitPriceCents,
+        endMinutes: props.slot.endMinutes,
+        minDurationHours: props.item.minDurationHours,
+        startMinutes: props.slot.startMinutes,
+      });
+    }
+    case 'tbd': {
+      return null;
+    }
+    default: {
+      const exhaustivePricingType: never = props.item.pricingType;
+      return exhaustivePricingType;
+    }
   }
-  return hourlyAmountCents({
-    amountCents: price,
-    endMinutes: props.slot.endMinutes,
-    minDurationHours: props.item.minDurationHours,
-    startMinutes: props.slot.startMinutes,
-  });
 }
 
 export function estimatedServiceAmountCents(props: {
-  item: Pick<PavilionReservableItemDto, 'prices' | 'pricingType'>;
+  item: PavilionReservableItemPricing;
   persona: PavilionReservationPersonaValue;
 }): number | null {
-  if (props.item.pricingType === 'tbd') {
-    return null;
-  }
   return priceForPersona(props.item, props.persona);
 }
 
@@ -87,4 +107,29 @@ export function priceLabel(props: {
   }
   const formatted = formatPavilionReservationMoney(props.amountCents);
   return props.pricingType === 'hourly' ? `${formatted}/hour` : formatted;
+}
+
+export function personaPriceDisplay(props: {
+  item: PavilionReservableItemPricing;
+  persona: PavilionReservationPersonaValue;
+  tbdLabel: string;
+}): PavilionPersonaPriceDisplay {
+  const priceCents = priceForPersona(props.item, props.persona);
+  return {
+    available: isPersonaPriceAvailable(priceCents),
+    label: priceLabel({
+      amountCents: priceCents,
+      pricingType: props.item.pricingType,
+      tbdLabel: props.tbdLabel,
+    }),
+    priceCents,
+  };
+}
+
+export function priceLabelForPersona(props: {
+  item: PavilionReservableItemPricing;
+  persona: PavilionReservationPersonaValue;
+  tbdLabel: string;
+}): string {
+  return personaPriceDisplay(props).label;
 }

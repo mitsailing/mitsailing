@@ -1,4 +1,6 @@
 ---
+# TSX excluded because Codacy misclassifies React components; TSX stays covered by
+# ESLint/oxlint, Vitest, Playwright, and CodeRabbit (see .coderabbit.yaml).
 exclude_paths:
   - '.next/**'
   - 'out/**'

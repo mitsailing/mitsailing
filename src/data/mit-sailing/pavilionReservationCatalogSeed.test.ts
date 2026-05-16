@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PAVILION_RESERVABLE_ITEM_SEED_ROWS } from '@/data/mit-sailing/pavilionReservationCatalogSeed';
+import { PAVILION_RESERVATION_PERSONAS } from '@/libs/mit-sailing/pavilionReservationPersonas';
 
 const visibleSpaces = PAVILION_RESERVABLE_ITEM_SEED_ROWS.filter(
   (row) => row.isVisible && row.kind === 'space'
@@ -75,6 +76,16 @@ const expectedPricesBySlug = {
     non_mit: dollarsToCents(825),
   },
 } as const;
+
+describe('PAVILION_RESERVATION_PERSONAS', () => {
+  it('lists every persona key on each seed row', () => {
+    for (const row of PAVILION_RESERVABLE_ITEM_SEED_ROWS) {
+      for (const persona of PAVILION_RESERVATION_PERSONAS) {
+        expect(row.prices).toHaveProperty(persona);
+      }
+    }
+  });
+});
 
 describe('PAVILION_RESERVABLE_ITEM_SEED_ROWS', () => {
   it('matches live rental rows for visible reservation options', () => {
