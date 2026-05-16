@@ -162,11 +162,11 @@ function rowsFromCsv(csv: string): LegacyCsvRow[] {
 
 function decodeBasicEntities(value: string): string {
   return value
-    .replaceAll('&amp;', '&')
     .replaceAll('&lt;', '<')
     .replaceAll('&gt;', '>')
     .replaceAll('&#39;', "'")
-    .replaceAll('&quot;', '"');
+    .replaceAll('&quot;', '"')
+    .replaceAll('&amp;', '&');
 }
 
 function inferSpaceSlugs(row: LegacyCsvRow): string[] {
