@@ -26,11 +26,8 @@ const NEWSLETTER_DELIVERY_FAILURE_STATUSES = [
   'suppressed',
 ] satisfies NewsletterDeliveryStatus[];
 
-const NEWSLETTER_BROADCAST_SENDABLE_STATUSES = [
-  'failed',
-  'queued',
-  'sending',
-] satisfies NewsletterBroadcastStatus[];
+const NEWSLETTER_BROADCAST_SENDABLE_STATUSES: readonly NewsletterBroadcastStatus[] =
+  ['failed', 'queued', 'sending'] as const;
 
 type NewsletterBroadcastSendGate = Readonly<{
   cancelledAt: Date | null;
@@ -52,9 +49,7 @@ function newsletterBroadcastSendBlocked(
 function isSendableNewsletterBroadcastStatus(
   status: NewsletterBroadcastStatus
 ): boolean {
-  return NEWSLETTER_BROADCAST_SENDABLE_STATUSES.some(
-    (sendableStatus) => sendableStatus === status
-  );
+  return NEWSLETTER_BROADCAST_SENDABLE_STATUSES.includes(status);
 }
 
 function activeNewsletterBroadcastWhere(): Prisma.NewsletterBroadcastWhereInput {

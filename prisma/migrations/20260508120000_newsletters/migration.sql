@@ -1,17 +1,17 @@
 -- CreateEnum
-CREATE TYPE "newsletter_list_default_subscription" AS ENUM ('opt_in', 'opt_out');
+CREATE TYPE "newsletter_list_default_subscription" AS ENUM ('opt_in', 'opt_out'); -- NOSONAR: Prisma-generated enum DDL repeats valid enum values.
 
 -- CreateEnum
-CREATE TYPE "newsletter_list_visibility" AS ENUM ('public', 'private');
+CREATE TYPE "newsletter_list_visibility" AS ENUM ('public', 'private'); -- NOSONAR: Prisma-generated enum DDL repeats valid enum values.
 
 -- CreateEnum
-CREATE TYPE "newsletter_subscriber_suppression_reason" AS ENUM ('bounced', 'complained', 'suppressed', 'admin');
+CREATE TYPE "newsletter_subscriber_suppression_reason" AS ENUM ('bounced', 'complained', 'suppressed', 'admin'); -- NOSONAR: Prisma-generated enum DDL repeats valid enum values.
 
 -- CreateEnum
-CREATE TYPE "newsletter_subscription_status" AS ENUM ('subscribed', 'unsubscribed');
+CREATE TYPE "newsletter_subscription_status" AS ENUM ('subscribed', 'unsubscribed'); -- NOSONAR: Prisma-generated enum DDL repeats valid enum values.
 
 -- CreateEnum
-CREATE TYPE "newsletter_broadcast_status" AS ENUM ('draft', 'queued', 'sending', 'sent', 'paused', 'cancelled', 'failed');
+CREATE TYPE "newsletter_broadcast_status" AS ENUM ('draft', 'queued', 'sending', 'sent', 'paused', 'cancelled', 'failed'); -- NOSONAR: Prisma-generated enum DDL repeats valid enum values.
 
 -- CreateEnum
 CREATE TYPE "newsletter_delivery_status" AS ENUM ('queued', 'sending', 'sent', 'delivered', 'delivery_delayed', 'bounced', 'complained', 'failed', 'suppressed', 'cancelled');
