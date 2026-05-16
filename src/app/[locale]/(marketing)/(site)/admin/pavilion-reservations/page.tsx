@@ -156,6 +156,18 @@ export default async function AdminPavilionReservationsPage(
     href: adminPavilionReservationIndexPath(),
     locale,
   });
+  const calendarSegmentsByDate = new Map<
+    string,
+    (typeof result.calendarSegments)[number][]
+  >();
+  for (const segment of result.calendarSegments) {
+    const dateSegments = calendarSegmentsByDate.get(segment.dateKey);
+    if (dateSegments) {
+      dateSegments.push(segment);
+    } else {
+      calendarSegmentsByDate.set(segment.dateKey, [segment]);
+    }
+  }
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -265,25 +277,23 @@ export default async function AdminPavilionReservationsPage(
           </div>
         </div>
         <div className="mt-4 grid min-w-0 gap-2 md:grid-cols-7">
-          {weekKeys.map((dateKey) => (
-            <div
-              className="min-h-32 rounded-md border border-border bg-background p-2"
-              key={dateKey}
-            >
-              <div className="text-xs font-semibold text-muted-foreground">
-                {formatEasternShortDateFromIsoCalendar(dateKey)}
-              </div>
-              <div className="mt-2 space-y-2">
-                {result.calendarSegments.filter(
-                  (segment) => segment.dateKey === dateKey
-                ).length === 0 ? (
-                  <p className="text-xs text-muted-foreground">
-                    {t('calendar_empty_day')}
-                  </p>
-                ) : (
-                  result.calendarSegments
-                    .filter((segment) => segment.dateKey === dateKey)
-                    .map((segment) => (
+          {weekKeys.map((dateKey) => {
+            const dateSegments = calendarSegmentsByDate.get(dateKey) ?? [];
+            return (
+              <div
+                className="min-h-32 rounded-md border border-border bg-background p-2"
+                key={dateKey}
+              >
+                <div className="text-xs font-semibold text-muted-foreground">
+                  {formatEasternShortDateFromIsoCalendar(dateKey)}
+                </div>
+                <div className="mt-2 space-y-2">
+                  {dateSegments.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                      {t('calendar_empty_day')}
+                    </p>
+                  ) : (
+                    dateSegments.map((segment) => (
                       <Link
                         className="block rounded-md bg-muted p-2 text-xs no-underline hover:bg-muted/70"
                         href={adminPavilionReservationDetailPath(
@@ -308,10 +318,11 @@ export default async function AdminPavilionReservationsPage(
                         </span>
                       </Link>
                     ))
-                )}
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 

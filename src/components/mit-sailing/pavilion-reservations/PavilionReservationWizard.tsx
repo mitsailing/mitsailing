@@ -1897,9 +1897,11 @@ function PavilionReservationSpacesStep(props: {
               aria-invalid={
                 props.showErrors && !props.requesterEmail.includes('@')
               }
+              aria-required
               id="requester-email"
               placeholder={t('field_email_placeholder')}
               ref={props.emailRef}
+              required
               type="email"
               value={props.requesterEmail}
               onChange={(event) => {
@@ -2082,8 +2084,10 @@ function PavilionReservationContactStep(props: {
         <div className="mt-6 grid gap-5 md:grid-cols-2">
           <Field id="contact-persona" label={t('persona_title')} required>
             <select
+              aria-required
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
               id="contact-persona"
+              required
               value={props.persona}
               onChange={(event) => {
                 const nextPersona = parsePersona(event.currentTarget.value);
@@ -2105,8 +2109,10 @@ function PavilionReservationContactStep(props: {
           <Field id="contact-email" label={t('field_email')} required>
             <Input
               aria-describedby="contact-email-helper"
+              aria-required
               id="contact-email"
               readOnly
+              required
               type="email"
               value={props.requesterEmail}
             />
@@ -2121,7 +2127,9 @@ function PavilionReservationContactStep(props: {
         <div className="mt-6 grid gap-5 md:grid-cols-2">
           <Field id="firstName" label={t('field_first_name')} required>
             <Input
+              aria-required
               id="firstName"
+              required
               value={props.contact.firstName}
               onChange={(event) => {
                 props.setContact({
@@ -2133,7 +2141,9 @@ function PavilionReservationContactStep(props: {
           </Field>
           <Field id="lastName" label={t('field_last_name')} required>
             <Input
+              aria-required
               id="lastName"
+              required
               value={props.contact.lastName}
               onChange={(event) => {
                 props.setContact({
@@ -2145,7 +2155,9 @@ function PavilionReservationContactStep(props: {
           </Field>
           <Field id="phone" label={t('field_phone')} required>
             <Input
+              aria-required
               id="phone"
+              required
               type="tel"
               value={props.contact.phone}
               onChange={(event) => {
@@ -2158,7 +2170,9 @@ function PavilionReservationContactStep(props: {
           </Field>
           <Field id="eventName" label={t('field_event_name')} required>
             <Input
+              aria-required
               id="eventName"
+              required
               value={props.contact.eventName}
               onChange={(event) => {
                 props.setContact({
@@ -2197,7 +2211,9 @@ function PavilionReservationContactStep(props: {
           <div className="md:col-span-2">
             <Field id="description" label={t('field_description')} required>
               <Textarea
+                aria-required
                 id="description"
+                required
                 rows={4}
                 value={props.contact.description}
                 onChange={(event) => {
@@ -2283,7 +2299,9 @@ function PavilionReservationContactStep(props: {
                   required
                 >
                   <Input
+                    aria-required
                     id="projectTitle"
+                    required
                     value={props.contact.projectTitle}
                     onChange={(event) => {
                       props.setContact({
@@ -2296,7 +2314,9 @@ function PavilionReservationContactStep(props: {
               </div>
               <Field id="advisorName" label={t('field_advisor_name')} required>
                 <Input
+                  aria-required
                   id="advisorName"
+                  required
                   value={props.contact.advisorName}
                   onChange={(event) => {
                     props.setContact({
@@ -2312,7 +2332,9 @@ function PavilionReservationContactStep(props: {
                 required
               >
                 <Input
+                  aria-required
                   id="advisorEmail"
+                  required
                   type="email"
                   value={props.contact.advisorEmail}
                   onChange={(event) => {
@@ -2326,7 +2348,9 @@ function PavilionReservationContactStep(props: {
               <div className="md:col-span-2">
                 <Field id="costCenter" label={t('field_cost_center')} required>
                   <Input
+                    aria-required
                     id="costCenter"
+                    required
                     value={props.contact.costCenter}
                     onChange={(event) => {
                       props.setContact({
