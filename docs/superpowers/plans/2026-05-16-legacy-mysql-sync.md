@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Mirror the old website MySQL database `sailing` into Postgres schema `legacy` hourly from direct MySQL access on `sailing-dock.mit.edu`, then map `legacy.reservations` into the existing Pavilion reservation tables.
+**Goal:** Mirror the old website MySQL database `sailing` into Postgres schema `legacy` hourly from direct MySQL URL access on `sailing-dock.mit.edu`, then map `legacy.reservations` into the existing Pavilion reservation tables.
 
-**Architecture:** Add a production-only BullMQ hourly scheduled job in the existing worker. The job connects directly to MySQL with `mysql2` as user `dock_readonly`, acquires a Postgres advisory lock on one checked-out `pg` client, drops and recreates only Postgres schema `legacy` inside one transaction, bulk inserts all source tables together, records sync status, and runs the legacy reservation mapper.
+**Architecture:** Add a production-only BullMQ hourly scheduled job in the existing worker. The job connects directly to `mysql://dock_readonly:<password>@sailing.pavilion.lan:3306/sailing` with `mysql2`, acquires a Postgres advisory lock on one checked-out `pg` client, drops and recreates only Postgres schema `legacy` inside one transaction, bulk inserts all source tables together, records sync status, and runs the legacy reservation mapper.
 
 **Tech Stack:** Next.js 16 app, Node 24 worker, BullMQ 5 `upsertJobScheduler`, Redis, Prisma/Postgres, `pg`, `mysql2`, Vitest.
 
@@ -19,7 +19,8 @@
 - Create `src/libs/legacy-sync/mysqlSchemaIntrospection.ts`: read MySQL table and column metadata.
 - Create `src/libs/legacy-sync/postgresMirrorSql.ts`: build `DROP SCHEMA`, `CREATE SCHEMA`, `CREATE TABLE`, and `INSERT` SQL.
 - Create `src/libs/legacy-sync/postgresMirrorLoader.ts`: write mirrored schemas and rows into Postgres using `pg`.
-- Create `src/libs/legacy-sync/mysqlConnection.ts`: open a direct MySQL connection pool.
+- Create `src/libs/legacy-sync/mysqlConnection.ts`: parse the legacy MySQL URL and open a direct MySQL connection pool.
+- Create `src/libs/legacy-sync/mysqlConnection.test.ts`: verify production URL parsing.
 - Create `src/libs/legacy-sync/legacyMysqlSync.ts`: orchestrate one sync run and metadata updates.
 - Create `src/libs/legacy-sync/legacyPavilionReservationImport.ts`: import Pavilion reservations from `legacy.reservations`.
 - Modify `scripts/import-legacy-pavilion-reservations.ts`: keep CSV import support, add a `--source=legacy-schema` path that calls the shared importer.
@@ -87,10 +88,10 @@ describe('Env legacy MySQL sync validation', () => {
     stubRequiredBaseEnv();
     vi.stubEnv('APP_ENV', 'local');
     vi.stubEnv('LEGACY_MYSQL_SYNC_ENABLED', 'true');
-    vi.stubEnv('LEGACY_MYSQL_HOST', 'sailing.mit.edu');
-    vi.stubEnv('LEGACY_MYSQL_DATABASE', 'sailing');
-    vi.stubEnv('LEGACY_MYSQL_USER', 'dock_readonly');
-    vi.stubEnv('LEGACY_MYSQL_PASSWORD', 'secret');
+    vi.stubEnv(
+      'LEGACY_MYSQL_URL',
+      'mysql://dock_readonly:secret@sailing.pavilion.lan:3306/sailing'
+    );
 
     await expect(import('@/libs/Env')).rejects.toThrow(
       'Invalid environment variables'
@@ -101,6 +102,20 @@ describe('Env legacy MySQL sync validation', () => {
     stubRequiredBaseEnv();
     vi.stubEnv('APP_ENV', 'production');
     vi.stubEnv('LEGACY_MYSQL_SYNC_ENABLED', 'true');
+
+    await expect(import('@/libs/Env')).rejects.toThrow(
+      'Invalid environment variables'
+    );
+  });
+
+  it('rejects legacy MySQL URLs outside the expected source', async () => {
+    stubRequiredBaseEnv();
+    vi.stubEnv('APP_ENV', 'production');
+    vi.stubEnv('LEGACY_MYSQL_SYNC_ENABLED', 'true');
+    vi.stubEnv(
+      'LEGACY_MYSQL_URL',
+      'mysql://dock_readonly:secret@wrong.example.com:3306/sailing'
+    );
 
     await expect(import('@/libs/Env')).rejects.toThrow(
       'Invalid environment variables'
@@ -126,11 +141,7 @@ Add these server fields:
 ```ts
 LEGACY_MYSQL_SYNC_ENABLED: z.enum(['true', 'false']).default('false'),
 LEGACY_MYSQL_SYNC_CRON: z.string().min(1).default('0 0 * * * *'),
-LEGACY_MYSQL_HOST: z.string().min(1).optional(),
-LEGACY_MYSQL_DATABASE: z.string().min(1).optional(),
-LEGACY_MYSQL_USER: z.string().min(1).optional(),
-LEGACY_MYSQL_PASSWORD: z.string().min(1).optional(),
-LEGACY_MYSQL_PORT: z.coerce.number().int().positive().default(3306),
+LEGACY_MYSQL_URL: z.url().optional(),
 ```
 
 Add these runtime mappings:
@@ -138,28 +149,33 @@ Add these runtime mappings:
 ```ts
 LEGACY_MYSQL_SYNC_ENABLED: process.env.LEGACY_MYSQL_SYNC_ENABLED,
 LEGACY_MYSQL_SYNC_CRON: process.env.LEGACY_MYSQL_SYNC_CRON,
-LEGACY_MYSQL_HOST: process.env.LEGACY_MYSQL_HOST,
-LEGACY_MYSQL_DATABASE: process.env.LEGACY_MYSQL_DATABASE,
-LEGACY_MYSQL_USER: process.env.LEGACY_MYSQL_USER,
-LEGACY_MYSQL_PASSWORD: process.env.LEGACY_MYSQL_PASSWORD,
-LEGACY_MYSQL_PORT: process.env.LEGACY_MYSQL_PORT,
+LEGACY_MYSQL_URL: process.env.LEGACY_MYSQL_URL,
 ```
 
 Add this `superRefine` block:
 
 ```ts
 if (env.LEGACY_MYSQL_SYNC_ENABLED === 'true') {
-  for (const key of [
-    'LEGACY_MYSQL_HOST',
-    'LEGACY_MYSQL_DATABASE',
-    'LEGACY_MYSQL_USER',
-    'LEGACY_MYSQL_PASSWORD',
-  ] as const) {
-    if (!env[key]) {
+  if (!env.LEGACY_MYSQL_URL) {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'LEGACY_MYSQL_URL is required when LEGACY_MYSQL_SYNC_ENABLED=true.',
+      path: ['LEGACY_MYSQL_URL'],
+    });
+  } else {
+    const url = new URL(env.LEGACY_MYSQL_URL);
+    if (
+      url.protocol !== 'mysql:' ||
+      url.hostname !== 'sailing.pavilion.lan' ||
+      url.port !== '3306' ||
+      url.username !== 'dock_readonly' ||
+      url.pathname !== '/sailing'
+    ) {
       ctx.addIssue({
         code: 'custom',
-        message: `${key} is required when LEGACY_MYSQL_SYNC_ENABLED=true.`,
-        path: [key],
+        message:
+          'LEGACY_MYSQL_URL must be mysql://dock_readonly:<password>@sailing.pavilion.lan:3306/sailing.',
+        path: ['LEGACY_MYSQL_URL'],
       });
     }
   }
@@ -181,11 +197,9 @@ if (env.LEGACY_MYSQL_SYNC_ENABLED === 'true') {
 
 LEGACY_MYSQL_SYNC_ENABLED=true
 LEGACY_MYSQL_SYNC_CRON=0 0 * * * *
-LEGACY_MYSQL_HOST=sailing.mit.edu
-LEGACY_MYSQL_DATABASE=sailing
-LEGACY_MYSQL_USER=dock_readonly
-LEGACY_MYSQL_PASSWORD=
-LEGACY_MYSQL_PORT=3306
+LEGACY_MYSQL_URL=
+# Expected value shape:
+# mysql://dock_readonly:<password>@sailing.pavilion.lan:3306/sailing
 ```
 
 - [ ] **Step 6: Run env test and verify types**
@@ -936,39 +950,76 @@ git commit -m "feat: load legacy mirror tables into Postgres"
 
 **Files:**
 - Create: `src/libs/legacy-sync/mysqlConnection.ts`
+- Create: `src/libs/legacy-sync/mysqlConnection.test.ts`
 
-- [ ] **Step 1: Implement connection factory**
+- [ ] **Step 1: Write failing URL parsing test**
 
 ```ts
-import mysql from 'mysql2/promise';
+import { describe, expect, it } from 'vitest';
+import { legacyMysqlPoolOptionsFromUrl } from '@/libs/legacy-sync/mysqlConnection';
+
+describe('legacyMysqlPoolOptionsFromUrl', () => {
+  it('parses the production legacy MySQL URL', () => {
+    expect(
+      legacyMysqlPoolOptionsFromUrl(
+        'mysql://dock_readonly:secret@sailing.pavilion.lan:3306/sailing'
+      )
+    ).toMatchObject({
+      database: 'sailing',
+      host: 'sailing.pavilion.lan',
+      password: 'secret',
+      port: 3306,
+      user: 'dock_readonly',
+    });
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify failure**
+
+Run:
+
+```bash
+npm run test -- src/libs/legacy-sync/mysqlConnection.test.ts
+```
+
+Expected: FAIL because the module does not exist.
+
+- [ ] **Step 3: Implement connection factory**
+
+```ts
+import mysql, { type PoolOptions } from 'mysql2/promise';
 
 export type LegacyMysqlConnection = {
   close: () => Promise<void>;
   mysql: mysql.Pool;
 };
 
-export async function openLegacyMysqlConnection(props: {
-  database: string;
-  mysqlHost: string;
-  mysqlPassword: string;
-  mysqlPort: number;
-  mysqlUser: string;
-}): Promise<LegacyMysqlConnection> {
-  const pool = mysql.createPool({
+export function legacyMysqlPoolOptionsFromUrl(
+  mysqlUrl: string
+): PoolOptions {
+  const url = new URL(mysqlUrl);
+  return {
     charset: 'utf8mb4',
     connectTimeout: 10_000,
-    database: props.database,
+    database: url.pathname.slice(1),
     dateStrings: true,
     enableKeepAlive: true,
-    host: props.mysqlHost,
+    host: url.hostname,
     keepAliveInitialDelay: 0,
-    password: props.mysqlPassword,
-    port: props.mysqlPort,
+    password: decodeURIComponent(url.password),
+    port: url.port ? Number(url.port) : 3306,
     timezone: 'Z',
-    user: props.mysqlUser,
+    user: decodeURIComponent(url.username),
     waitForConnections: true,
     connectionLimit: 2,
-  });
+  };
+}
+
+export async function openLegacyMysqlConnection(props: {
+  mysqlUrl: string;
+}): Promise<LegacyMysqlConnection> {
+  const pool = mysql.createPool(legacyMysqlPoolOptionsFromUrl(props.mysqlUrl));
 
   return {
     mysql: pool,
@@ -979,20 +1030,21 @@ export async function openLegacyMysqlConnection(props: {
 }
 ```
 
-- [ ] **Step 2: Verify types**
+- [ ] **Step 4: Verify tests and types**
 
 Run:
 
 ```bash
+npm run test -- src/libs/legacy-sync/mysqlConnection.test.ts
 npm run check:types
 ```
 
-Expected: PASS.
+Expected: both PASS.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add src/libs/legacy-sync/mysqlConnection.ts
+git add src/libs/legacy-sync/mysqlConnection.ts src/libs/legacy-sync/mysqlConnection.test.ts
 git commit -m "feat: connect directly to legacy MySQL"
 ```
 
@@ -1027,14 +1079,27 @@ describe('legacyMysqlSyncConfigFromEnv', () => {
     expect(
       legacyMysqlSyncConfigFromEnv({
         APP_ENV: 'production',
-        LEGACY_MYSQL_DATABASE: 'sailing',
-        LEGACY_MYSQL_HOST: 'sailing.mit.edu',
-        LEGACY_MYSQL_PASSWORD: 'secret',
-        LEGACY_MYSQL_PORT: 3306,
+        LEGACY_MYSQL_URL:
+          'mysql://dock_readonly:secret@sailing.pavilion.lan:3306/sailing',
         LEGACY_MYSQL_SYNC_ENABLED: 'true',
-        LEGACY_MYSQL_USER: 'dock_readonly',
       }).cron
     ).toBe('0 0 * * * *');
+  });
+
+  it('derives source metadata from the MySQL URL', () => {
+    expect(
+      legacyMysqlSyncConfigFromEnv({
+        APP_ENV: 'production',
+        LEGACY_MYSQL_URL:
+          'mysql://dock_readonly:secret@sailing.pavilion.lan:3306/sailing',
+        LEGACY_MYSQL_SYNC_ENABLED: 'true',
+      })
+    ).toMatchObject({
+      database: 'sailing',
+      mysqlUrl:
+        'mysql://dock_readonly:secret@sailing.pavilion.lan:3306/sailing',
+      sourceHost: 'sailing.pavilion.lan',
+    });
   });
 
   it('uses a fixed advisory lock for overlap prevention', async () => {
@@ -1146,13 +1211,9 @@ type MirrorTransactionClient = {
 
 type LegacyMysqlSyncEnv = {
   APP_ENV?: string;
-  LEGACY_MYSQL_DATABASE?: string;
-  LEGACY_MYSQL_HOST?: string;
-  LEGACY_MYSQL_PASSWORD?: string;
-  LEGACY_MYSQL_PORT?: number;
   LEGACY_MYSQL_SYNC_CRON?: string;
   LEGACY_MYSQL_SYNC_ENABLED?: string;
-  LEGACY_MYSQL_USER?: string;
+  LEGACY_MYSQL_URL?: string;
 };
 
 export type LegacyMysqlSyncConfig =
@@ -1161,10 +1222,8 @@ export type LegacyMysqlSyncConfig =
       cron: string;
       database: string;
       enabled: true;
-      mysqlHost: string;
-      mysqlPassword: string;
-      mysqlPort: number;
-      mysqlUser: string;
+      mysqlUrl: string;
+      sourceHost: string;
     };
 
 export function legacyMysqlSyncConfigFromEnv(
@@ -1173,14 +1232,16 @@ export function legacyMysqlSyncConfigFromEnv(
   if (env.LEGACY_MYSQL_SYNC_ENABLED !== 'true') {
     return { enabled: false };
   }
+  if (!env.LEGACY_MYSQL_URL) {
+    throw new Error('LEGACY_MYSQL_URL is required when legacy sync is enabled.');
+  }
+  const mysqlUrl = new URL(env.LEGACY_MYSQL_URL);
   return {
     enabled: true,
     cron: env.LEGACY_MYSQL_SYNC_CRON ?? '0 0 * * * *',
-    database: env.LEGACY_MYSQL_DATABASE ?? 'sailing',
-    mysqlHost: env.LEGACY_MYSQL_HOST ?? 'sailing.mit.edu',
-    mysqlPassword: env.LEGACY_MYSQL_PASSWORD ?? '',
-    mysqlPort: env.LEGACY_MYSQL_PORT ?? 3306,
-    mysqlUser: env.LEGACY_MYSQL_USER ?? 'dock_readonly',
+    database: mysqlUrl.pathname.slice(1),
+    mysqlUrl: env.LEGACY_MYSQL_URL,
+    sourceHost: mysqlUrl.hostname,
   };
 }
 
@@ -1238,7 +1299,7 @@ export async function runLegacyMysqlSync(
             'Skipped because another legacy MySQL sync is still running.',
           finishedAt: new Date(),
           sourceDatabase: config.database,
-          sourceHost: config.mysqlHost,
+          sourceHost: config.sourceHost,
           status: 'skipped',
         },
       });
@@ -1249,18 +1310,14 @@ export async function runLegacyMysqlSync(
       data: {
         status: 'running',
         sourceDatabase: config.database,
-        sourceHost: config.mysqlHost,
+        sourceHost: config.sourceHost,
       },
       select: { id: true },
     });
     runId = run.id;
 
     const legacyMysql = await openLegacyMysqlConnection({
-      database: config.database,
-      mysqlHost: config.mysqlHost,
-      mysqlPassword: config.mysqlPassword,
-      mysqlPort: config.mysqlPort,
-      mysqlUser: config.mysqlUser,
+      mysqlUrl: config.mysqlUrl,
     });
     try {
       const tableNames = await listMysqlBaseTables({
@@ -1720,16 +1777,18 @@ cp .env.production.worker.example .env.production.worker
 $EDITOR .env.production.worker
 ```
 
-Set `LEGACY_MYSQL_PASSWORD` in that file. Do not put it in shell history or
-GitHub Actions secrets unless deployment automation needs to manage this file.
+Set `LEGACY_MYSQL_URL` in that file to
+`mysql://dock_readonly:<password>@sailing.pavilion.lan:3306/sailing`. Do not put
+the filled URL in shell history or GitHub Actions secrets unless deployment
+automation needs to manage this file.
 
-The worker uses MySQL user `dock_readonly` and connects directly to
-`LEGACY_MYSQL_HOST` from `sailing-dock.mit.edu`. Verify that the MySQL server
-allows that user from the production host or container network before enabling
+The worker connects directly to `sailing.pavilion.lan:3306` from
+`sailing-dock.mit.edu`. Verify that the MySQL server allows `dock_readonly`
+from the production host or container network before enabling
 `LEGACY_MYSQL_SYNC_ENABLED=true`.
 
 ```bash
-docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production run --rm worker node -e "const mysql = require('mysql2/promise'); mysql.createConnection({host: process.env.LEGACY_MYSQL_HOST, port: Number(process.env.LEGACY_MYSQL_PORT || 3306), user: process.env.LEGACY_MYSQL_USER, password: process.env.LEGACY_MYSQL_PASSWORD, database: process.env.LEGACY_MYSQL_DATABASE}).then((connection) => connection.query('select 1').finally(() => connection.end()))"
+docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production run --rm worker node -e "const mysql = require('mysql2/promise'); const url = new URL(process.env.LEGACY_MYSQL_URL); mysql.createConnection({host: url.hostname, port: Number(url.port || 3306), user: decodeURIComponent(url.username), password: decodeURIComponent(url.password), database: url.pathname.slice(1)}).then((connection) => connection.query('select 1').finally(() => connection.end()))"
 ```
 
 Manual verification after deploy:
@@ -1846,5 +1905,5 @@ If no fixes were needed, do not create an empty commit.
 - Placeholder scan: No placeholder task remains; environment examples leave secret values intentionally blank in an uncommitted host file.
 - Type consistency: `LegacyMysqlSyncRun`, `LegacyMysqlSyncStatus`, `legacyMysqlSyncConfigFromEnv`, `runLegacyMysqlSync`, skipped sync results, and `importLegacyPavilionReservationsFromSchema` are named consistently across tasks.
 - Best-practice pass 1: BullMQ scheduling uses `upsertJobScheduler`, bounded retries, exponential backoff, retained job limits, and graceful `Worker`/`Queue` shutdown.
-- Best-practice pass 2: MySQL access uses a direct `mysql2/promise` pool with explicit charset, UTC date handling, connect timeout, keepalive, small connection limit, and `pool.end()`.
+- Best-practice pass 2: MySQL access uses one validated `LEGACY_MYSQL_URL`, a unit-tested URL parser, and a direct `mysql2/promise` pool with explicit charset, UTC date handling, connect timeout, keepalive, small connection limit, and `pool.end()`.
 - Best-practice pass 3: Postgres destructive mirror work uses one checked-out advisory-lock client, wraps reset/load in `BEGIN`/`COMMIT`, rolls back failed loads, and keeps app metadata in `public`.

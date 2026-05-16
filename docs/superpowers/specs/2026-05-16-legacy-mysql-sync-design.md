@@ -6,7 +6,7 @@ Mirror the old MIT Sailing website MySQL database `sailing` into the new Mitsail
 
 ## Source And Destination
 
-- Remote source: MySQL database `sailing`, reachable directly from `sailing-dock.mit.edu` with MySQL user `dock_readonly`.
+- Remote source: MySQL database URL `mysql://dock_readonly:<password>@sailing.pavilion.lan:3306/sailing`, reachable directly from `sailing-dock.mit.edu`.
 - Local destination: the production Postgres database already used by the Mitsailing app.
 - Local mirror schema: `legacy`.
 - Source scope: all 52 base tables in MySQL database `sailing`; no MySQL views were found.
@@ -14,7 +14,7 @@ Mirror the old MIT Sailing website MySQL database `sailing` into the new Mitsail
 
 ## Architecture
 
-The production worker owns the hourly sync. It connects directly to MySQL from `sailing-dock.mit.edu`, introspects every base table and column in database `sailing`, recreates Postgres schema `legacy`, and bulk inserts every row into mirrored tables under that schema.
+The production worker owns the hourly sync. It connects directly to MySQL at `sailing.pavilion.lan:3306` from `sailing-dock.mit.edu`, introspects every base table and column in database `sailing`, recreates Postgres schema `legacy`, and bulk inserts every row into mirrored tables under that schema.
 
 The sync brings over all 52 tables together every hour, including `dw`. `dw` appears to change daily, but keeping it in the same full refresh avoids split schedules, per-table freshness rules, and partial mirror semantics in v1. The source database is about 174 MB, so a full hourly refresh is acceptable unless production measurements show it consistently overlaps the next run.
 
@@ -44,7 +44,7 @@ Reservation mapping may upsert app-owned rows with legacy reference codes, but i
 
 ## Secrets And Production Scope
 
-The MySQL password is a production-only secret. It should not be committed and should not be passed on command lines. The worker should read it through validated environment variables. No SSH tunnel, SSH key, or host `mysql-client` package is required for the planned runtime.
+The MySQL connection URL is a production-only secret because it contains the `dock_readonly` password. It should not be committed and should not be passed on command lines. The worker should read it through validated environment variables. No SSH tunnel, SSH key, or host `mysql-client` package is required for the planned runtime.
 
 The scheduler should register only when `APP_ENV=production` and `LEGACY_MYSQL_SYNC_ENABLED=true`. The default schedule is hourly at minute zero. Local and test environments can run the sync manually through unit-tested functions, but should not schedule it.
 
