@@ -10,6 +10,7 @@ import {
   sendNewsletterBroadcastEmail,
 } from '@/libs/newsletter/newsletterEmail';
 import { enqueueNewsletterBroadcast } from '@/libs/newsletter/newsletterQueue';
+import { uniqueStrings } from '@/libs/newsletter/newsletterUtils';
 import { getBaseUrl } from '@/utils/Helpers';
 
 const NEWSLETTER_DELIVERY_BATCH_SIZE = 50;
@@ -45,10 +46,6 @@ export type CreateNewsletterBroadcastResult =
         | 'no_recipients'
         | 'redis_unavailable';
     };
-
-function uniqueStrings(values: readonly string[]): string[] {
-  return [...new Set(values)];
-}
 
 function futureScheduledAt(params: CreateBroadcastParams): Date | null {
   if (!params.queueForSending || !params.scheduledAt) {

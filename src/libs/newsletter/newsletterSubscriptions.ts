@@ -10,6 +10,7 @@ import {
   createNewsletterTokenPair,
   verifyNewsletterManageToken,
 } from '@/libs/newsletter/newsletterTokens';
+import { uniqueStrings } from '@/libs/newsletter/newsletterUtils';
 import { normalizeNewsletterEmail } from '@/libs/newsletter/newsletterValidation';
 
 type RequestMetadata = {
@@ -36,10 +37,6 @@ type SubscriberWithPreferences = Awaited<
 >;
 
 type NewsletterSubscriptionClient = Prisma.TransactionClient | typeof prisma;
-
-function uniqueStrings(values: readonly string[]): string[] {
-  return [...new Set(values)];
-}
 
 function eventTypeForSubscribed(
   previousStatus: 'subscribed' | 'unsubscribed' | null

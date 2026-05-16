@@ -250,6 +250,29 @@ describe('sendTransactionalEmail', () => {
     );
   });
 
+  it('sends resend email through a cached api client', async () => {
+    Object.assign(mocks.env, {
+      EMAIL_FROM: 'MIT Sailing <noreply@example.com>',
+      MAIL_TRANSPORT: 'resend' satisfies MailTransport,
+      RESEND_API_KEY: 're_test',
+      SMTP_URL: undefined,
+    });
+
+    const { sendTransactionalEmail } =
+      await import('@/libs/email/sendTransactional');
+
+    await sendTransactionalEmail(message);
+    await sendTransactionalEmail({
+      ...message,
+      subject: 'Second notice',
+    });
+
+    expect(mocks.Resend).toHaveBeenCalledTimes(1);
+    expect(mocks.Resend).toHaveBeenCalledWith('re_test');
+    expect(mocks.resendSend).toHaveBeenCalledTimes(2);
+    expect(mocks.recordSentEmailMessage).toHaveBeenCalledTimes(2);
+  });
+
   it('passes resend delivery options to the api client and ledger', async () => {
     await sendWithEnv(
       {

@@ -47,6 +47,7 @@ export type SendEmailResult = {
 };
 
 let cachedSmtpTransport: Transporter | null = null;
+let cachedResendClient: Resend | null = null;
 
 function htmlToPlainText(html: string): string {
   const withReadableLinks = html.replaceAll(
@@ -88,6 +89,16 @@ function getSmtpTransport(): Transporter {
   return cachedSmtpTransport;
 }
 
+function getResendClient(): Resend {
+  if (!Env.RESEND_API_KEY) {
+    throw new Error(
+      'MAIL_TRANSPORT=resend requires both RESEND_API_KEY and EMAIL_FROM.'
+    );
+  }
+  cachedResendClient ??= new Resend(Env.RESEND_API_KEY);
+  return cachedResendClient;
+}
+
 async function sendViaSmtp(params: Params): Promise<SendEmailResult> {
   if (!Env.EMAIL_FROM) {
     throw new Error('MAIL_TRANSPORT=smtp but EMAIL_FROM is not set.');
@@ -111,7 +122,7 @@ async function sendViaResend(params: Params): Promise<SendEmailResult> {
       'MAIL_TRANSPORT=resend requires both RESEND_API_KEY and EMAIL_FROM.'
     );
   }
-  const resend = new Resend(Env.RESEND_API_KEY);
+  const resend = getResendClient();
   const result = await resend.emails.send(
     {
       from: Env.EMAIL_FROM,
