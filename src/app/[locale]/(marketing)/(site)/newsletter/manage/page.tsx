@@ -64,7 +64,7 @@ export default async function NewsletterManagePage(
   const subscriber = token
     ? await getSubscriberPreferenceStateByToken(token)
     : null;
-  const lists = await getPublicNewsletterLists();
+  const lists = token && subscriber ? await getPublicNewsletterLists() : [];
 
   return (
     <SiteSectionShell

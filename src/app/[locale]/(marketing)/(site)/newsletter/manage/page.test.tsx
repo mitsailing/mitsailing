@@ -112,11 +112,34 @@ describe('NewsletterManagePage', () => {
     );
 
     expect(mocks.getSubscriberPreferenceStateByToken).not.toHaveBeenCalled();
+    expect(mocks.getPublicNewsletterLists).not.toHaveBeenCalled();
     expect(mocks.updateTokenNewsletterPreferencesAction).not.toHaveBeenCalled();
     expect(mocks.preferenceFormProps).toBeNull();
     expect(mocks.loggerWarn).toHaveBeenCalledWith(
       'Rejected newsletter manage request with repeated token params',
       { tokenCount: 2 }
     );
+  });
+
+  it('skips public list lookup without token', async () => {
+    const pageModule = await import('./page');
+
+    renderToStaticMarkup(await pageModule.default(pageProps()));
+
+    expect(mocks.getSubscriberPreferenceStateByToken).not.toHaveBeenCalled();
+    expect(mocks.getPublicNewsletterLists).not.toHaveBeenCalled();
+    expect(mocks.preferenceFormProps).toBeNull();
+  });
+
+  it('skips public list lookup when token has no subscriber', async () => {
+    const pageModule = await import('./page');
+
+    renderToStaticMarkup(await pageModule.default(pageProps('token_123')));
+
+    expect(mocks.getSubscriberPreferenceStateByToken).toHaveBeenCalledWith(
+      'token_123'
+    );
+    expect(mocks.getPublicNewsletterLists).not.toHaveBeenCalled();
+    expect(mocks.preferenceFormProps).toBeNull();
   });
 });
