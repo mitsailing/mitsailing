@@ -32,6 +32,8 @@ Only these `npm run` scripts: `build-local`, `lint`, `check:types`, `check:deps`
 - Fix order: vulnerabilities/security hotspots, bugs/reliability gate blockers, high-impact maintainability that simplifies code, then low-risk style cleanups. Do not chase coverage, duplication, or broad complexity metrics unless the gate fails on them.
 - App style/design rules win over generic Sonar code smells. UI fixes must keep Tailwind v4 utilities, shared components, translation keys, app color tokens, accessibility rules, and existing responsive behavior. Do not introduce raw colors, new visual patterns, hard-coded user-visible strings, prop destructuring, unnecessary hooks, or formatting churn just to silence Sonar.
 - Current TypeScript Sonar alignment: no real secrets in source; local dev placeholders must be `Env`-gated and documented. Use explicit sort comparators (`localeCompare` for strings). Reduce complexity with named helpers/components, early returns, and tests. Use readonly React props only when touching a component and it preserves the single `props` parameter pattern; do not bulk-convert TSX for low-severity `S6759` alone. Optional chaining, `.includes()`, `RegExp.exec()`, `export...from`, `globalThis`, `TypeError`, and unused-prop fixes are fine when they make code clearer.
+- Codacy/PR analyzer triage: do not exclude app-owned source files to hide findings. Exclude only generated/build artifacts, vendored files, migrations, reports, or a narrowly documented tool/analyzer mismatch. Prefer fixing real issues in source; when a generic analyzer conflicts with React/Next conventions, document the mismatch and keep other analyzers covering the file.
+- Do not add root config files for tools not used by local scripts just to influence PR analysis. If a remote tool needs configuration, scope it to that tool and verify `npm run lint` still uses the repo's configured stack.
 - Report when Sonar results may be stale until CI re-analyzes the PR.
 
 ### Sonar Setup Top 10
@@ -72,10 +74,13 @@ Tailwind v4 utility classes. Reuse shared components. Responsive. No unnecessary
 
 ## React
 
-- No `useMemo`/`useCallback` (React compiler handles it). Avoid `useEffect`.
+- React Compiler is enabled for this codebase's style: do not add `useMemo`, `useCallback`, `React.memo`, or derived-state `useEffect` unless profiling or an external-system effect requires it.
+- Avoid `useEffect` for data loading, derivation, or event reactions that can be handled by RSC, Server Actions, render-time calculation, or event handlers.
 - Single `props` param with inline type; access as `props.foo` (no destructuring).
 - Use `React.ReactNode`, not `ReactNode`.
 - Inline short event handlers; extract only when complex.
+- Do not use `React.cloneElement` to inject form or accessibility props. Put `id`, `required`, `aria-required`, `aria-describedby`, and validation props directly on the actual control or redesign the component API.
+- Prefer native form semantics first: a visual required marker must be backed by `required`/`aria-required` on the control when browser validation or assistive-tech announcement is expected.
 
 ## Next.js (Node server, not serverless)
 

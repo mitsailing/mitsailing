@@ -26,20 +26,23 @@ reviews:
     - path: '**/*.{ts,tsx}'
       instructions: >-
         Follow repository AGENTS.md and .cursor/rules: TypeScript strictness,
-        React patterns (single props param, no useMemo/useCallback), Next.js App Router
-        and server/client boundaries, next-intl (no hard-coded user-visible strings),
-        accessibility and contrast (ADA rule). This app uses React 19 types:
-        `React.FormEvent` and `React.FormEventHandler` are deprecated in
-        `@types/react`; for form submit handlers, prefer
-        `React.SubmitEvent<HTMLFormElement>` or inferred JSX handler types.
-        Do not suggest replacing `React.SubmitEvent` with `React.FormEvent`.
-        Context7 official React TypeScript docs say to use handler hover
-        information or the installed React event types; local React 19 typings
-        mark `FormEvent`/`FormEventHandler` deprecated and type `onSubmit` as
-        `SubmitEventHandler`.
+        React patterns (single props param, React Compiler handles routine memoization),
+        Next.js App Router and server/client boundaries, next-intl (no hard-coded
+        user-visible strings), accessibility and contrast (ADA rule). Do not suggest
+        `React.cloneElement` to inject form/accessibility props; put `id`, `required`,
+        `aria-required`, and related attributes directly on the actual input/select/
+        textarea or shared control call site. For form event annotations, prefer
+        inferred JSX handler types or the types accepted by installed React typings;
+        do not churn between `FormEvent` and `SubmitEvent` unless local lint/types
+        require it.
         Context7 Next.js App Router docs show `next/navigation` router push,
         replace, and refresh as imperative transition methods; do not request
         awaiting App Router navigation calls.
+        Next.js 2026 guidance for this app is server-first App Router on a long-running
+        Node host: prefer RSC/server data access, Server Actions for mutations,
+        `connection()` for request-bound rendering instead of broad `force-dynamic`,
+        explicit cache/revalidation choices, and Node runtime for Prisma/pg/FS.
+        Do not suggest Pages Router patterns for new App Router code.
         For Next.js layout passthrough components, allow an explicit
         `React.ReactNode` return annotation when the configured linter requires
         an explicit return type to avoid inferred promise ambiguity.

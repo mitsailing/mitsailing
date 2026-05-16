@@ -13,3 +13,5 @@ alwaysApply: false
 **Cursor rule shape:** Keep this file focused and agent-requested/glob-scoped. Cursor project rules are MDC files with `description`, `globs`, and `alwaysApply`; prefer short internal-doc rules over large duplicated policy.
 
 **Workflow:** Use the SonarQube MCP, then follow [AGENTS.md](../../AGENTS.md) `Static Analysis`: app style/design rules win over generic Sonar code smells, security/reliability gate blockers come first, and low-severity cleanups should stay simple.
+
+**2026 triage:** Do not rewrite idiomatic React/Next code solely for generic analyzer preferences. In particular, do not introduce `React.cloneElement`, manual memoization, broad `force-dynamic`, client fetch/effect data loading, raw locale path concatenation, or broad source exclusions unless the app rules explicitly call for them.

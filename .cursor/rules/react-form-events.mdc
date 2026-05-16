@@ -1,24 +1,21 @@
 ---
-description: React 19 — use SubmitEvent for onSubmit; FormEvent is deprecated
+description: React 19 forms — native semantics, current event types, no cloneElement prop injection
 globs: **/*.tsx
 alwaysApply: false
 ---
 
-# React 19 form event types
+# React 19 form patterns
 
-On `react@19` / `@types/react@19.2+`, **`React.FormEvent` / `React.FormEventHandler` are deprecated** for submit flows. Use **`React.SubmitEvent<HTMLFormElement>`** (and `SubmitEventHandler`) — see `@types/react` deprecation on `FormEvent` and `HTMLAttributes.onSubmit` typing.
+Follow [AGENTS.md](../../AGENTS.md) `React` first. Keep form code idiomatic for React 19 and this app's lint stack.
 
-## Typing `onSubmit`
+## Event typing
 
-Use a **named** handler with `React.SubmitEvent<HTMLFormElement>`; avoid anonymous wrappers that split `preventDefault` from submit logic. **`useActionState` + `<form action>`** when the submit is a Server Action; keep a typed **`onSubmit`** for client SDK flows (e.g. `authClient.*`) — do not migrate those to `useActionState` only because it is newer.
+Prefer inferred JSX handler types for short inline handlers. If a named submit handler needs an annotation, use the type accepted by the installed React typings and local lint rules; do not churn between `FormEvent` and `SubmitEvent` unless `npm run lint` or `npm run check:types` requires it.
 
-```tsx
-async function onSubmit(event: React.SubmitEvent<HTMLFormElement>) {
-  event.preventDefault();
-  // ...
-}
+Use **`useActionState` + `<form action>`** when the submit is a Server Action. Keep a typed `onSubmit` for client SDK flows (for example `authClient.*`); do not migrate those to Server Actions only because the API is newer.
 
-<form onSubmit={onSubmit}>
-```
+## Required fields
 
-`React.SyntheticEvent<HTMLFormElement>` is a weaker fallback; prefer **`SubmitEvent`**.
+A visual required marker must be backed by native semantics on the control when the browser or assistive tech should treat it as required. Put `required`, `aria-required`, `id`, and `aria-describedby` directly on `<input>`, `<select>`, `<textarea>`, or the shared control component call site.
+
+Do **not** use `React.cloneElement` to inject form props from a wrapper component; this codebase treats that as fragile and lint blocks it.
