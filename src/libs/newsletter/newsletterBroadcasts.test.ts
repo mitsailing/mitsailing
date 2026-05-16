@@ -265,4 +265,84 @@ describe('newsletter broadcasts', () => {
       }),
     });
   });
+
+  it('keeps sent delivery state when sent event insert fails', async () => {
+    mocks.prisma.newsletterBroadcast.findUnique
+      .mockResolvedValueOnce(queuedBroadcastRow())
+      .mockResolvedValueOnce({
+        cancelledAt: null,
+        pausedAt: null,
+        status: 'sending',
+      });
+    mocks.prisma.newsletterDelivery.findMany.mockResolvedValueOnce([
+      { id: 'delivery_1' },
+    ]);
+    mocks.prisma.newsletterDelivery.findUnique.mockResolvedValueOnce({
+      email: 'sailor@example.com',
+      id: 'delivery_1',
+      primaryList: { name: 'General', resendTopicId: null },
+      primaryListId: 'list_1',
+      subscriber: {
+        globalUnsubscribedAt: null,
+        manageTokenHash: 'token_hash',
+        subscriptions: [{ listId: 'list_1', status: 'subscribed' }],
+        suppressedAt: null,
+      },
+      subscriberId: 'subscriber_1',
+    });
+    mocks.prisma.newsletterEvent.create.mockRejectedValueOnce(
+      new Error('audit failed')
+    );
+
+    const { processNewsletterBroadcast } =
+      await import('@/libs/newsletter/newsletterBroadcasts');
+    await processNewsletterBroadcast('broadcast_1');
+
+    expect(mocks.prisma.newsletterDelivery.update).toHaveBeenCalledWith({
+      data: {
+        providerMessageId: 'message_1',
+        sentAt: expect.any(Date),
+        status: 'sent',
+      },
+      where: { id: 'delivery_1' },
+    });
+    expect(mocks.prisma.newsletterDelivery.count).toHaveBeenCalled();
+  });
+
+  it('stops processing when sent delivery state cannot persist', async () => {
+    mocks.prisma.newsletterBroadcast.findUnique
+      .mockResolvedValueOnce(queuedBroadcastRow())
+      .mockResolvedValueOnce({
+        cancelledAt: null,
+        pausedAt: null,
+        status: 'sending',
+      });
+    mocks.prisma.newsletterDelivery.findMany.mockResolvedValueOnce([
+      { id: 'delivery_1' },
+    ]);
+    mocks.prisma.newsletterDelivery.findUnique.mockResolvedValueOnce({
+      email: 'sailor@example.com',
+      id: 'delivery_1',
+      primaryList: { name: 'General', resendTopicId: null },
+      primaryListId: 'list_1',
+      subscriber: {
+        globalUnsubscribedAt: null,
+        manageTokenHash: 'token_hash',
+        subscriptions: [{ listId: 'list_1', status: 'subscribed' }],
+        suppressedAt: null,
+      },
+      subscriberId: 'subscriber_1',
+    });
+    mocks.prisma.newsletterDelivery.update.mockRejectedValueOnce(
+      new Error('state failed')
+    );
+
+    const { processNewsletterBroadcast } =
+      await import('@/libs/newsletter/newsletterBroadcasts');
+    await expect(processNewsletterBroadcast('broadcast_1')).rejects.toThrow(
+      'state failed'
+    );
+
+    expect(mocks.prisma.newsletterDelivery.count).not.toHaveBeenCalled();
+  });
 });

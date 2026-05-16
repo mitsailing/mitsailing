@@ -47,6 +47,17 @@ function eventTypeForSubscribed(
   return previousStatus === 'unsubscribed' ? 'resubscribed' : 'subscribed';
 }
 
+function shouldRecordPreferenceEvent(
+  existingStatus: 'subscribed' | 'unsubscribed' | null,
+  isSelected: boolean
+) {
+  const nextStatus = isSelected ? 'subscribed' : 'unsubscribed';
+  if (existingStatus === nextStatus) {
+    return false;
+  }
+  return isSelected || existingStatus === 'subscribed';
+}
+
 async function publicNewsletterListsBySlug(
   client: NewsletterSubscriptionClient,
   slugs: readonly NewsletterListSlug[]
@@ -373,7 +384,7 @@ export async function updateNewsletterPreferences(
         },
       });
 
-      if (existing?.status === (isSelected ? 'subscribed' : 'unsubscribed')) {
+      if (!shouldRecordPreferenceEvent(existing?.status ?? null, isSelected)) {
         continue;
       }
 

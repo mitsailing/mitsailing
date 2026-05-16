@@ -20,6 +20,29 @@ export type EnqueueNewsletterBroadcastResult =
   | { ok: true }
   | { ok: false; error: 'enqueue_failed' | 'redis_unavailable' };
 
+let cachedConnection: IORedis | null = null;
+let cachedQueue: Queue<NewsletterBroadcastJob> | null = null;
+
+function getNewsletterQueueConnection(redisUrl: string): IORedis {
+  if (cachedConnection) {
+    return cachedConnection;
+  }
+  cachedConnection = new IORedis(redisUrl, {
+    maxRetriesPerRequest: null,
+  });
+  return cachedConnection;
+}
+
+function getNewsletterQueue(redisUrl: string): Queue<NewsletterBroadcastJob> {
+  if (cachedQueue) {
+    return cachedQueue;
+  }
+  cachedQueue = new Queue<NewsletterBroadcastJob>(NEWSLETTER_QUEUE_NAME, {
+    connection: getNewsletterQueueConnection(redisUrl),
+  });
+  return cachedQueue;
+}
+
 /**
  * Enqueues a broadcast send job for the worker process.
  *
@@ -42,12 +65,7 @@ export async function enqueueNewsletterBroadcast(
   const scheduleKey = scheduledAt ? scheduledAt.getTime() : 'now';
   const continuationKey = enqueueParams.continuationKey ?? 'initial';
 
-  const connection = new IORedis(Env.REDIS_URL, {
-    maxRetriesPerRequest: null,
-  });
-  const queue = new Queue<NewsletterBroadcastJob>(NEWSLETTER_QUEUE_NAME, {
-    connection,
-  });
+  const queue = getNewsletterQueue(Env.REDIS_URL);
   try {
     await queue.add(
       'send-broadcast',
@@ -69,22 +87,6 @@ export async function enqueueNewsletterBroadcast(
       error,
     });
     return { ok: false, error: 'enqueue_failed' };
-  } finally {
-    const cleanupResults = await Promise.allSettled([
-      queue.close(),
-      connection.quit(),
-    ]);
-    for (const [index, result] of cleanupResults.entries()) {
-      if (result.status === 'fulfilled') {
-        continue;
-      }
-      const resource = index === 0 ? 'queue' : 'redis';
-      logger.error('Failed to close newsletter queue resource: {error}', {
-        broadcastId: enqueueParams.broadcastId,
-        error: result.reason,
-        resource,
-      });
-    }
   }
 
   return { ok: true };

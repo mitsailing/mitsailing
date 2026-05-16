@@ -175,6 +175,22 @@ describe('updateNewsletterPreferences', () => {
       }),
     });
   });
+
+  it('omits unsubscribe event for lists without prior subscription', async () => {
+    await updateNewsletterPreferences({
+      listIds: ['general_id'],
+      source: 'profile',
+      subscriberId: 'subscriber_123',
+    });
+
+    expect(mocks.transaction.newsletterEvent.create).toHaveBeenCalledTimes(1);
+    expect(mocks.transaction.newsletterEvent.create).not.toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        listId: 'racing_id',
+        type: 'unsubscribed',
+      }),
+    });
+  });
 });
 
 describe('unsubscribeNewsletterTokenFromList', () => {
