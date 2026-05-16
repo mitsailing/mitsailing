@@ -29,6 +29,10 @@ reviews:
         React patterns (single props param, React Compiler handles routine memoization),
         Next.js App Router and server/client boundaries, next-intl (no hard-coded
         user-visible strings), accessibility and contrast (ADA rule). Do not suggest
+        `useEffect` for user events, data transformation, derived state, or
+        server-loadable data; it is an escape hatch for synchronizing with external
+        systems.
+        Do not suggest
         `React.cloneElement` to inject form/accessibility props; put `id`, `required`,
         `aria-required`, and related attributes directly on the actual input/select/
         textarea or shared control call site. For form event annotations, prefer

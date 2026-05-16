@@ -75,7 +75,7 @@ Tailwind v4 utility classes. Reuse shared components. Responsive. No unnecessary
 ## React
 
 - React Compiler is enabled for this codebase's style: do not add `useMemo`, `useCallback`, `React.memo`, or derived-state `useEffect` unless profiling or an external-system effect requires it.
-- Avoid `useEffect` for data loading, derivation, or event reactions that can be handled by RSC, Server Actions, render-time calculation, or event handlers.
+- Treat `useEffect` as an escape hatch for synchronizing with external systems (browser APIs, subscriptions, third-party widgets, imperative SDKs). Do not use it for user events, data transformation, derived state, or server-loadable data; use event handlers, render-time calculation, RSC, or Server Actions instead.
 - Single `props` param with inline type; access as `props.foo` (no destructuring).
 - Use `React.ReactNode`, not `ReactNode`.
 - Inline short event handlers; extract only when complex.
