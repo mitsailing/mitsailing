@@ -3,6 +3,7 @@
  * list cell formatting (visibility badges, plain text, numbers).
  */
 
+import type { EmailDeliverabilityStatus } from '@/libs/email/emailDeliverabilityStatus';
 import type messages from '@/locales/en.json';
 
 /** Keys under `AdminCatalogResource` in locale JSON (strict next-intl typing). */
@@ -31,7 +32,7 @@ export type AdminFieldKind =
   | 'datetimeLocal'
   | 'date';
 
-export type AdminEmailDeliverabilityStatus = 'ok' | 'bounced' | 'suppressed';
+export type AdminEmailDeliverabilityStatus = EmailDeliverabilityStatus;
 
 export type AdminSelectOption = {
   value: string;

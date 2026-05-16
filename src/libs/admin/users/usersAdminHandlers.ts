@@ -2,7 +2,6 @@ import 'server-only';
 import { APIError } from 'better-auth';
 import { headers } from 'next/headers';
 import type {
-  AdminEmailDeliverabilityStatus,
   AdminUserRow,
   CatalogCreateResult,
   CatalogMutationErr,
@@ -20,6 +19,7 @@ import {
 import { auth } from '@/libs/auth';
 import { Role } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
+import { emailDeliverabilityStatus } from '@/libs/email/emailDeliverabilityStatus';
 
 function rowFromDb(user: {
   id: string;
@@ -32,18 +32,11 @@ function rowFromDb(user: {
   emailSuppressedAt: Date | null;
   emailSuppressionReason: string | null;
 }): AdminUserRow {
-  let emailDeliverabilityStatus: AdminEmailDeliverabilityStatus = 'ok';
-  // Suppression wins over bounce because providers may suppress after a bounce.
-  if (user.emailSuppressedAt || user.emailSuppressionReason) {
-    emailDeliverabilityStatus = 'suppressed';
-  } else if (user.emailBouncedAt) {
-    emailDeliverabilityStatus = 'bounced';
-  }
   return {
     id: user.id,
     email: user.email,
     emailBouncedAt: user.emailBouncedAt?.toISOString() ?? null,
-    emailDeliverabilityStatus,
+    emailDeliverabilityStatus: emailDeliverabilityStatus(user),
     emailSuppressedAt: user.emailSuppressedAt?.toISOString() ?? null,
     emailSuppressionReason: user.emailSuppressionReason,
     name: user.name,

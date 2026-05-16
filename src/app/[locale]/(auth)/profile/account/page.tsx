@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { requireCurrentUser } from '@/libs/auth/dal';
 import { prisma } from '@/libs/DB';
+import { emailDeliverabilityStatus } from '@/libs/email/emailDeliverabilityStatus';
 import { logger } from '@/libs/Logger';
 import { getI18nPath } from '@/utils/Helpers';
 import { ProfileAccountClient } from '../ProfileAccountClient';
@@ -9,32 +10,6 @@ import { ProfileAccountClient } from '../ProfileAccountClient';
 type ProfileAccountPageProps = {
   params: Promise<{ locale: string }>;
 };
-
-type EmailDeliverabilityStatus = 'ok' | 'bounced' | 'suppressed';
-
-type EmailDeliverabilityUser = {
-  emailBouncedAt: Date | null;
-  emailSuppressedAt: Date | null;
-  emailSuppressionReason: string | null;
-};
-
-/**
- * Maps provider deliverability fields to the account warning state.
- *
- * @param user - User deliverability fields from Resend webhooks
- * @returns Suppressed before bounced because complaints/suppressions are terminal
- */
-function emailDeliverabilityStatus(
-  user: EmailDeliverabilityUser
-): EmailDeliverabilityStatus {
-  if (user.emailSuppressedAt || user.emailSuppressionReason) {
-    return 'suppressed';
-  }
-  if (user.emailBouncedAt) {
-    return 'bounced';
-  }
-  return 'ok';
-}
 
 export async function generateMetadata(
   props: ProfileAccountPageProps
