@@ -3,7 +3,7 @@ import * as z from 'zod';
 import {
   isLegacyMysqlSyncCronPattern,
   LEGACY_MYSQL_SYNC_DEFAULT_CRON,
-} from '@/libs/legacy-sync/legacyMysqlSyncConstants';
+} from './legacy-sync/legacyMysqlSyncConstants';
 
 const isStorybookNpmScript =
   process.env.npm_lifecycle_event === 'storybook' ||

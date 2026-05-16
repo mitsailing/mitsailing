@@ -8,6 +8,10 @@ import { applyLegacyMysqlSyncScheduler } from '@/worker/legacyMysqlSyncJob';
 import type { LegacyMysqlSyncSchedulerQueue } from '@/worker/legacyMysqlSyncJob';
 
 function schedulerQueueMock(): LegacyMysqlSyncSchedulerQueue {
+  const removeJobScheduler =
+    vi.fn<LegacyMysqlSyncSchedulerQueue['removeJobScheduler']>();
+  removeJobScheduler.mockResolvedValue(true);
+
   const upsertJobScheduler =
     vi.fn<LegacyMysqlSyncSchedulerQueue['upsertJobScheduler']>();
   // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- BullMQ Job test double
@@ -16,7 +20,7 @@ function schedulerQueueMock(): LegacyMysqlSyncSchedulerQueue {
   } as unknown as Job);
 
   return {
-    removeJobScheduler: vi.fn( async () => Promise.resolve(true)),
+    removeJobScheduler,
     upsertJobScheduler,
   };
 }
