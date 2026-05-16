@@ -29,9 +29,9 @@ function centsByPersona(
       cents[persona] = null;
       continue;
     }
-    if (!Number.isInteger(dollars)) {
+    if (!Number.isInteger(dollars) || dollars < 0) {
       throw new TypeError(
-        `Pavilion seed price must be whole dollars (${persona}=${dollars})`
+        `Pavilion seed price must be non-negative whole dollars (${persona}=${dollars})`
       );
     }
     cents[persona] = dollars * 100;
