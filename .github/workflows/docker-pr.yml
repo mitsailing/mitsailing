@@ -101,9 +101,9 @@ jobs:
           fi
 
       # Worker smoke is intentionally separate from the HTTP sanity check:
-      # it proves the built ESM worker entrypoint boots in the production
+      # it proves the built worker entrypoint boots in the production
       # image, talks to Redis, and exits cleanly through BullMQ close().
-      - name: Worker ESM runtime smoke
+      - name: Worker runtime smoke
         run: |
           set -euo pipefail
 
@@ -117,7 +117,7 @@ jobs:
           trap cleanup EXIT
 
           docker network create worker-smoke-net
-          docker run -d --name worker-smoke-redis --network worker-smoke-net redis:7-alpine
+          docker run -d --name worker-smoke-redis --network worker-smoke-net redis:8-alpine
 
           for _ in $(seq 1 20); do
             if docker exec worker-smoke-redis redis-cli ping | grep -qx PONG; then
