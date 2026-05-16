@@ -17,11 +17,13 @@ engines:
       - 'src/**/*.tsx'
   lizard:
     exclude_paths:
-      # Lizard mis-parses TSX component bodies as duplicated global/method
-      # complexity; ESLint and Opengrep still analyze these files.
+      # Lizard mis-parses TypeScript/TSX as duplicated global/method
+      # complexity; ESLint, Sonar, and Opengrep still analyze these files.
+      - 'src/**/*.ts'
       - 'src/**/*.tsx'
   metric:
     exclude_paths:
-      # Lizard mis-parses TSX component bodies as duplicated global/method
-      # complexity; ESLint and Opengrep still analyze these files.
+      # Lizard mis-parses TypeScript/TSX as duplicated global/method
+      # complexity; ESLint, Sonar, and Opengrep still analyze these files.
+      - 'src/**/*.ts'
       - 'src/**/*.tsx'
