@@ -1,9 +1,9 @@
 import 'server-only';
-import { revalidatePath } from 'next/cache';
 import type { Prisma } from '@/generated/prisma/client';
 import { prisma } from '@/libs/DB';
 import { Env } from '@/libs/Env';
 import { logger } from '@/libs/Logger';
+import { requestNewsletterArchiveRevalidation } from '@/libs/newsletter/newsletterArchiveCache';
 import {
   renderNewsletterBroadcastEmail,
   sendNewsletterBroadcastEmail,
@@ -14,7 +14,6 @@ import { getBaseUrl } from '@/utils/Helpers';
 const NEWSLETTER_DELIVERY_BATCH_SIZE = 50;
 const NEWSLETTER_CONTINUATION_DELAY_MS = 1000;
 const NEWSLETTER_DELIVERY_MAX_ATTEMPTS = 3;
-const NEWSLETTER_ARCHIVE_PATH = '/newsletter/archive';
 
 type CreateBroadcastParams = {
   body: string;
@@ -699,20 +698,6 @@ async function requeueNewsletterContinuation(
   return true;
 }
 
-function revalidateNewsletterArchive() {
-  try {
-    revalidatePath(NEWSLETTER_ARCHIVE_PATH);
-  } catch (error) {
-    if (
-      error instanceof Error &&
-      error.message.includes('static generation store missing')
-    ) {
-      return;
-    }
-    throw error;
-  }
-}
-
 async function finishNewsletterBroadcast(broadcastId: string) {
   const [nonTerminal, failed] = await Promise.all([
     prisma.newsletterDelivery.count({
@@ -739,7 +724,15 @@ async function finishNewsletterBroadcast(broadcastId: string) {
       `Newsletter broadcast ${broadcastId} has failed deliveries`
     );
   }
-  revalidateNewsletterArchive();
+  const revalidated = await requestNewsletterArchiveRevalidation();
+  if (!revalidated) {
+    logger.warn(
+      'Failed to revalidate newsletter archive after broadcast send',
+      {
+        broadcastId,
+      }
+    );
+  }
 }
 
 /**

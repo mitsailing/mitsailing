@@ -8,6 +8,8 @@ const mocks = vi.hoisted(() => {
   };
   return {
     enqueueNewsletterBroadcast: vi.fn(),
+    fetch: vi.fn(),
+    logger: { error: vi.fn(), warn: vi.fn() },
     prisma: {
       $transaction: vi.fn(),
       newsletterBroadcast: {
@@ -29,7 +31,6 @@ const mocks = vi.hoisted(() => {
       newsletterTemplate: { findUnique: vi.fn() },
     },
     renderNewsletterBroadcastEmail: vi.fn(),
-    revalidatePath: vi.fn(),
     sendNewsletterBroadcastEmail: vi.fn(),
     tx,
   };
@@ -37,19 +38,20 @@ const mocks = vi.hoisted(() => {
 
 vi.mock('server-only', () => ({}));
 
-vi.mock('next/cache', () => ({
-  revalidatePath: mocks.revalidatePath,
-}));
-
 vi.mock('@/libs/DB', () => ({
   prisma: mocks.prisma,
 }));
 
 vi.mock('@/libs/Env', () => ({
   Env: {
+    BETTER_AUTH_SECRET: 'test-secret-that-is-at-least-thirty-two-chars',
     NEWSLETTER_POSTAL_ADDRESS: 'MIT Sailing Pavilion',
     REDIS_URL: 'redis://localhost:6379',
   },
+}));
+
+vi.mock('@/libs/Logger', () => ({
+  logger: mocks.logger,
 }));
 
 vi.mock('@/libs/newsletter/newsletterEmail', () => ({
@@ -118,6 +120,7 @@ function queuedBroadcastRow() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.stubGlobal('fetch', mocks.fetch);
   resetTransactionMock();
   mocks.prisma.newsletterList.findMany.mockResolvedValue([
     { displayOrder: 1, id: 'list_1' },
@@ -144,6 +147,7 @@ beforeEach(() => {
   mocks.tx.newsletterDelivery.createMany.mockResolvedValue({ count: 1 });
   mocks.tx.newsletterEvent.create.mockResolvedValue({ id: 'event_1' });
   mocks.enqueueNewsletterBroadcast.mockResolvedValue({ ok: true });
+  mocks.fetch.mockResolvedValue(new Response(null, { status: 200 }));
   mocks.sendNewsletterBroadcastEmail.mockResolvedValue({
     providerMessageId: 'message_1',
   });
@@ -217,7 +221,18 @@ describe('newsletter broadcasts', () => {
       })
     );
     expect(mocks.prisma.newsletterDelivery.updateMany).not.toHaveBeenCalled();
-    expect(mocks.revalidatePath).toHaveBeenCalledWith('/newsletter/archive');
+    expect(mocks.fetch).toHaveBeenCalledWith(
+      new URL(
+        '/api/internal/newsletter/archive/revalidate',
+        'https://mitsailing.test'
+      ),
+      {
+        headers: {
+          authorization: 'Bearer test-secret-that-is-at-least-thirty-two-chars',
+        },
+        method: 'POST',
+      }
+    );
   });
 
   it('suppresses unsubscribed deliveries before sending', async () => {
@@ -423,6 +438,6 @@ describe('newsletter broadcasts', () => {
       data: { startedAt: expect.any(Date), status: 'sending' },
       where: { id: 'broadcast_1' },
     });
-    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+    expect(mocks.fetch).not.toHaveBeenCalled();
   });
 });

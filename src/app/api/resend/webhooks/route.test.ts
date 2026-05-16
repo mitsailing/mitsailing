@@ -188,6 +188,22 @@ describe('resend webhook route', () => {
     );
   });
 
+  it('derives a shared fallback provider event id with a blank svix id', async () => {
+    const response = await POST(webhookRequest({ svixId: '   ' }));
+
+    expect(response.status).toBe(200);
+    const expectedProviderEventId =
+      'email_123:email.delivered:2026-05-14T14:30:00.000Z';
+    expect(mocks.handleResendNewsletterWebhook).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'email.delivered' }),
+      expect.objectContaining({ providerEventId: expectedProviderEventId })
+    );
+    expect(mocks.handleResendEmailMessageWebhook).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'email.delivered' }),
+      expect.objectContaining({ providerEventId: expectedProviderEventId })
+    );
+  });
+
   it('lets replayable handlers run before duplicate svix ids are recorded', async () => {
     mocks.handleResendEmailMessageWebhook.mockResolvedValueOnce(false);
 

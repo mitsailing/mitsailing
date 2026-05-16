@@ -61,12 +61,20 @@ function emailProviderEventId(event: WebhookEventPayload) {
   return `${emailId}:${event.type}:${occurredAt.toISOString()}`;
 }
 
+function nonEmptyHeader(value: string | null) {
+  const normalized = value?.trim();
+  if (!normalized) {
+    return null;
+  }
+  return normalized;
+}
+
 function providerEventIdForWebhook(
   request: Request,
   event: WebhookEventPayload
 ): string | null {
   return (
-    request.headers.get('svix-id') ??
+    nonEmptyHeader(request.headers.get('svix-id')) ??
     eventId(event) ??
     emailProviderEventId(event)
   );
