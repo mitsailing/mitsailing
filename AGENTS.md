@@ -28,10 +28,10 @@ Only these `npm run` scripts: `build-local`, `lint`, `check:types`, `check:deps`
 ## Static Analysis
 
 - Shared for Codex and Cursor: this `AGENTS.md` is the source of truth. `.cursor/rules/sonarqube-review.mdc` only helps Cursor load the same Sonar guidance.
-- SonarQube MCP: resolve the project from `.sonarlint/connectedMode.json`, list PRs when needed, then check quality gate + open issues. Do not change the remote Sonar profile unless explicitly asked.
+- SonarQube MCP: resolve the project from `.sonarlint/connectedMode.json`; list PRs when the current PR cannot be inferred or the user asks for PR state, then check quality gate + open issues. Do not change the remote Sonar profile unless explicitly asked.
 - Fix order: vulnerabilities/security hotspots, bugs/reliability gate blockers, high-impact maintainability that simplifies code, then low-risk style cleanups. Do not chase coverage, duplication, or broad complexity metrics unless the gate fails on them.
-- App style/design rules win over generic Sonar code smells. UI fixes must keep Tailwind v4 utilities, shared components, translation keys, app color tokens, accessibility rules, and existing responsive behavior. Do not introduce raw colors, new visual patterns, hard-coded user-visible strings, prop destructuring, unnecessary hooks, or formatting churn just to silence Sonar.
-- Current TypeScript Sonar alignment: no real secrets in source; local dev placeholders must be `Env`-gated and documented. Use explicit sort comparators (`localeCompare` for strings). Reduce complexity with named helpers/components, early returns, and tests. Use readonly React props only when touching a component and it preserves the single `props` parameter pattern; do not bulk-convert TSX for low-severity `S6759` alone. Optional chaining, `.includes()`, `RegExp.exec()`, `export...from`, `globalThis`, `TypeError`, and unused-prop fixes are fine when they make code clearer.
+- App style/design rules win over generic Sonar code smells. UI fixes must keep Tailwind v4 utilities, shared components, translation keys, app color tokens, accessibility rules, and existing responsive behavior; if a confirmed bug or security fix conflicts with a style rule, document the tradeoff and ask before widening scope. Do not introduce raw colors, new visual patterns, hard-coded user-visible strings, prop destructuring, unnecessary hooks, or formatting churn just to silence Sonar.
+- Current TypeScript Sonar alignment: no real secrets in source; local dev placeholders must be `Env`-gated and documented unless a test fixture needs an explicitly fake value. Use explicit sort comparators (`localeCompare` for strings). Reduce complexity with named helpers/components, early returns, and tests. Use readonly React props only when touching a component and it preserves the single `props` parameter pattern; do not bulk-convert TSX for low-severity `S6759` alone. Optional chaining, `.includes()`, `RegExp.exec()`, `export...from`, `globalThis`, `TypeError`, and unused-prop fixes are fine when they make code clearer.
 - Codacy/PR analyzer triage: do not exclude app-owned source files to hide findings. Exclude only generated/build artifacts, vendored files, migrations, reports, or a narrowly documented tool/analyzer mismatch. Prefer fixing real issues in source; when a generic analyzer conflicts with React/Next conventions, document the mismatch and keep other analyzers covering the file.
 - Do not add root config files for tools not used by local scripts just to influence PR analysis. If a remote tool needs configuration, scope it to that tool and verify `npm run lint` still uses the repo's configured stack.
 - Report when Sonar results may be stale until CI re-analyzes the PR.
@@ -41,7 +41,7 @@ Only these `npm run` scripts: `build-local`, `lint`, `check:types`, `check:deps`
 1. Keep local project identity in `.sonarlint/connectedMode.json` and scanner defaults in `sonar-project.properties`.
 2. Use Sonar way quality gate/profile and Clean as You Code: gate new code first, not historical debt.
 3. PR analysis belongs in CI with the PR branch checked out, target branch fetched, intact `.git` metadata, and no synthetic merge-preview edits before scanning.
-4. Keep `sonar.sources`, `sonar.tests`, and `sonar.test.inclusions` explicit; a file must be source or test, never both.
+4. Keep `sonar.sources`, `sonar.tests`, and `sonar.test.inclusions` explicit unless Sonar changes the property contract; a file must be source or test, never both.
 5. Import JS/TS coverage from `coverage/lcov.info`; Sonar does not generate coverage.
 6. Exclude build outputs, dependency folders, reports, generated artifacts, migrations, and tests from metrics where they are low signal.
 7. Keep Sonar tokens and host URLs in CI secrets/variables, never in repo files.
@@ -80,7 +80,7 @@ Tailwind v4 utility classes. Reuse shared components. Responsive. No unnecessary
 - Use `React.ReactNode`, not `ReactNode`.
 - Inline short event handlers; extract only when complex.
 - Do not use `React.cloneElement` to inject form or accessibility props. Put `id`, `required`, `aria-required`, `aria-describedby`, and validation props directly on the actual control or redesign the component API.
-- Prefer native form semantics first: a visual required marker must be backed by `required`/`aria-required` on the control when browser validation or assistive-tech announcement is expected.
+- Prefer native form semantics first: a visual required marker must be backed by `required`/`aria-required` on the control when browser validation or assistive-tech announcement is expected; if the control cannot support native semantics, document the component API/accessibility reason.
 
 ## Next.js (Node server, not serverless)
 
@@ -103,7 +103,7 @@ Tailwind v4 utility classes. Reuse shared components. Responsive. No unnecessary
 - Context-specific keys (`card_title`, `meta_description`). Use `t.rich(...)` for markup.
 - Use sentence case for translations.
 - Error messages: short, no "try again" variants.
-- Single locale (`en`) with `localePrefix: 'never'`: locale never appears in public URLs (`/admin`, not `/en/admin`). Keep `src/app/[locale]/`; see `.cursor/rules/next-intl-single-locale-routing.mdc`.
+- Single locale (`en`) with `localePrefix: 'never'`: locale never appears in public URLs (`/admin`, not `/en/admin`) unless product requirements add public locale prefixes. Keep `src/app/[locale]/`; see `.cursor/rules/next-intl-single-locale-routing.mdc`.
 - `revalidatePath`, redirects, and links: `getI18nPath(path, locale)` from `@/utils/Helpers`, not `` `/${locale}${path}` ``.
 
 ## JSDoc

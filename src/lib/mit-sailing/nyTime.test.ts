@@ -12,6 +12,7 @@ describe('calendarYearInEventsTimeZone', () => {
   });
 });
 
+// biome-ignore lint/security/noSecrets: Test subject name contains no credential.
 describe('formatNyDateTimeLocalInput', () => {
   it('uses America/New_York wall clock, not UTC slice', () => {
     const instant = new Date('2026-01-01T04:00:00.000Z');

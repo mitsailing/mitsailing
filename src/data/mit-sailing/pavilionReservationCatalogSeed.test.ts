@@ -15,6 +15,63 @@ function rowBySlug(slug: string) {
   return row;
 }
 
+const expectedPricesBySlug = {
+  after_10: {
+    mit_academic: null,
+    mit_community: 41_000,
+    mit_student: 32_500,
+    non_mit: 57_500,
+  },
+  after_midnight: {
+    mit_academic: null,
+    mit_community: 65_000,
+    mit_student: 58_500,
+    non_mit: 77_500,
+  },
+  casual_dock: {
+    mit_academic: 32_000,
+    mit_community: 32_000,
+    mit_student: 20_000,
+    non_mit: 58_000,
+  },
+  grill: {
+    mit_academic: 3000,
+    mit_community: 3000,
+    mit_student: 3000,
+    non_mit: 3000,
+  },
+  group_sailing: {
+    mit_academic: 350_000,
+    mit_community: 350_000,
+    mit_student: 350_000,
+    non_mit: 450_000,
+  },
+  lab_access: {
+    mit_academic: 0,
+    mit_community: 0,
+    mit_student: 0,
+    non_mit: 0,
+  },
+  party_boat: {
+    mit_academic: 13_000,
+    mit_community: 13_000,
+    mit_student: 13_000,
+    non_mit: 13_000,
+  },
+  roof_deck: {
+    mit_academic: 32_000,
+    mit_community: 32_000,
+    mit_student: 20_000,
+    non_mit: 61_000,
+  },
+  wedding_space: {
+    mit_academic: null,
+    mit_community: 65_000,
+    mit_student: 65_000,
+    non_mit: 82_500,
+  },
+} as const;
+
 describe('PAVILION_RESERVABLE_ITEM_SEED_ROWS', () => {
   it('matches live rental rows for visible reservation options', () => {
     expect(visibleSpaces.map((row) => row.slug)).toEqual([
@@ -32,60 +89,9 @@ describe('PAVILION_RESERVABLE_ITEM_SEED_ROWS', () => {
   });
 
   it('sets live rental prices by persona', () => {
-    expect(rowBySlug('grill').prices).toMatchObject({
-      mit_academic: 3000,
-      mit_student: 3000,
-      mit_community: 3000,
-      non_mit: 3000,
-    });
-    expect(rowBySlug('casual_dock').prices).toMatchObject({
-      mit_academic: 32_000,
-      mit_student: 20_000,
-      mit_community: 32_000,
-      non_mit: 58_000,
-    });
-    expect(rowBySlug('roof_deck').prices).toMatchObject({
-      mit_academic: 32_000,
-      mit_student: 20_000,
-      mit_community: 32_000,
-      non_mit: 61_000,
-    });
-    expect(rowBySlug('party_boat').prices).toMatchObject({
-      mit_academic: 13_000,
-      mit_student: 13_000,
-      mit_community: 13_000,
-      non_mit: 13_000,
-    });
-    expect(rowBySlug('wedding_space').prices).toMatchObject({
-      mit_academic: null,
-      mit_student: 65_000,
-      mit_community: 65_000,
-      non_mit: 82_500,
-    });
-    expect(rowBySlug('after_10').prices).toMatchObject({
-      mit_academic: null,
-      mit_student: 32_500,
-      mit_community: 41_000,
-      non_mit: 57_500,
-    });
-    expect(rowBySlug('after_midnight').prices).toMatchObject({
-      mit_academic: null,
-      mit_student: 58_500,
-      mit_community: 65_000,
-      non_mit: 77_500,
-    });
-    expect(rowBySlug('lab_access').prices).toMatchObject({
-      mit_academic: 0,
-      mit_student: 0,
-      mit_community: 0,
-      non_mit: 0,
-    });
-    expect(rowBySlug('group_sailing').prices).toMatchObject({
-      mit_academic: 350_000,
-      mit_student: 350_000,
-      mit_community: 350_000,
-      non_mit: 450_000,
-    });
+    for (const [slug, prices] of Object.entries(expectedPricesBySlug)) {
+      expect(rowBySlug(slug).prices).toMatchObject(prices);
+    }
   });
 
   it('hides duplicate wedding service row', () => {

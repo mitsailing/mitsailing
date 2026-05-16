@@ -12,6 +12,7 @@ import { updatePavilionReservationAdminAction } from '@/libs/admin/pavilion-rese
 import {
   adminPavilionReservationDetailPath,
   adminPavilionReservationIndexPath,
+  validateAdminPavilionReservationHref,
 } from '@/libs/admin/pavilion-reservations/pavilionReservationAdminPaths';
 import {
   adminPavilionReservationPaymentStatuses,
@@ -566,7 +567,9 @@ export default async function AdminPavilionReservationDetailPage(
       <div>
         <Link
           className="text-sm font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
-          href={adminPavilionReservationDetailPath(reservation.id)}
+          href={validateAdminPavilionReservationHref(
+            adminPavilionReservationDetailPath(reservation.id)
+          )}
         >
           {t('action_permalink')}
         </Link>

@@ -16,7 +16,9 @@ import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 import {
   adminPavilionReservationDetailPath,
   adminPavilionReservationIndexPath,
+  validateAdminPavilionReservationHref,
 } from '@/libs/admin/pavilion-reservations/pavilionReservationAdminPaths';
+import type { AdminPavilionReservationHref } from '@/libs/admin/pavilion-reservations/pavilionReservationAdminPaths';
 import type {
   AdminPavilionReservationSortDirection,
   AdminPavilionReservationSortKey,
@@ -61,7 +63,7 @@ function filterHref(params: {
   sort?: AdminPavilionReservationSortKey;
   status?: string;
   week?: string;
-}): string | { pathname: string; query: Record<string, string> } {
+}): AdminPavilionReservationHref {
   const pathname = adminPavilionReservationIndexPath();
   const query: Record<string, string> = {};
   if (params.status) {
@@ -244,32 +246,38 @@ export default async function AdminPavilionReservationsPage(
           <div className="flex flex-wrap gap-2">
             <Button asChild size="sm" variant="outline">
               <Link
-                href={filterHref({
-                  ...commonHrefParams,
-                  week: adminPavilionReservationAddDays(weekStart, -7),
-                })}
+                href={validateAdminPavilionReservationHref(
+                  filterHref({
+                    ...commonHrefParams,
+                    week: adminPavilionReservationAddDays(weekStart, -7),
+                  })
+                )}
               >
                 {t('calendar_previous_week')}
               </Link>
             </Button>
             <Button asChild size="sm" variant="outline">
               <Link
-                href={filterHref({
-                  ...commonHrefParams,
-                  week: adminPavilionReservationWeekStart(
-                    adminPavilionReservationTodayKey()
-                  ),
-                })}
+                href={validateAdminPavilionReservationHref(
+                  filterHref({
+                    ...commonHrefParams,
+                    week: adminPavilionReservationWeekStart(
+                      adminPavilionReservationTodayKey()
+                    ),
+                  })
+                )}
               >
                 {t('calendar_current_week')}
               </Link>
             </Button>
             <Button asChild size="sm" variant="outline">
               <Link
-                href={filterHref({
-                  ...commonHrefParams,
-                  week: adminPavilionReservationAddDays(weekStart, 7),
-                })}
+                href={validateAdminPavilionReservationHref(
+                  filterHref({
+                    ...commonHrefParams,
+                    week: adminPavilionReservationAddDays(weekStart, 7),
+                  })
+                )}
               >
                 {t('calendar_next_week')}
               </Link>
@@ -296,8 +304,8 @@ export default async function AdminPavilionReservationsPage(
                     dateSegments.map((segment) => (
                       <Link
                         className="block rounded-md bg-muted p-2 text-xs no-underline hover:bg-muted/70"
-                        href={adminPavilionReservationDetailPath(
-                          segment.requestId
+                        href={validateAdminPavilionReservationHref(
+                          adminPavilionReservationDetailPath(segment.requestId)
                         )}
                         key={segment.id}
                       >
@@ -352,11 +360,13 @@ export default async function AdminPavilionReservationsPage(
                   <TableHead className="px-4 py-3" key={sortKey}>
                     <Link
                       className="font-medium text-foreground no-underline hover:underline"
-                      href={filterHref({
-                        ...commonHrefParams,
-                        direction: nextDirection(sortKey, sort, direction),
-                        sort: sortKey,
-                      })}
+                      href={validateAdminPavilionReservationHref(
+                        filterHref({
+                          ...commonHrefParams,
+                          direction: nextDirection(sortKey, sort, direction),
+                          sort: sortKey,
+                        })
+                      )}
                     >
                       {t(labelKey)}
                     </Link>
@@ -430,7 +440,9 @@ export default async function AdminPavilionReservationsPage(
                     <TableCell className="px-4 py-3 align-top">
                       <Link
                         className="text-sm font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
-                        href={adminPavilionReservationDetailPath(row.id)}
+                        href={validateAdminPavilionReservationHref(
+                          adminPavilionReservationDetailPath(row.id)
+                        )}
                       >
                         {t('action_view')}
                       </Link>
