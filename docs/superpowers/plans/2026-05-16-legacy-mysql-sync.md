@@ -37,6 +37,7 @@
 - Modify: `package.json`
 - Modify: `package-lock.json`
 - Modify: `src/libs/Env.ts`
+- Create: `src/libs/Env.test.ts`
 - Create: `.env.production.worker.example`
 
 - [ ] **Step 1: Add dependencies**
@@ -50,11 +51,81 @@ npm install --save-dev @types/ssh2
 
 Expected: `package.json` lists `mysql2` and `ssh2` under `dependencies`, and `@types/ssh2` under `devDependencies`.
 
-- [ ] **Step 2: Add failing env validation tests by inspection**
+- [ ] **Step 2: Write failing env validation tests**
 
-This repo does not currently have direct tests for `Env.ts`, so make the code change small and verify with `npm run check:types` in Step 4.
+Create `src/libs/Env.test.ts`:
 
-- [ ] **Step 3: Extend `src/libs/Env.ts`**
+```ts
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+function stubRequiredBaseEnv(): void {
+  vi.stubEnv(
+    'BETTER_AUTH_SECRET',
+    'test-secret-that-is-at-least-thirty-two-chars'
+  );
+  vi.stubEnv(
+    'DATABASE_URL',
+    'postgresql://postgres:postgres@localhost:5432/dev_db?sslmode=disable'
+  );
+  vi.stubEnv('NEXT_PUBLIC_APP_URL', 'http://localhost:3000');
+}
+
+describe('Env legacy MySQL sync validation', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  it('defaults legacy MySQL sync to disabled with an hourly cron', async () => {
+    stubRequiredBaseEnv();
+    const { Env } = await import('@/libs/Env');
+
+    expect(Env.LEGACY_MYSQL_SYNC_ENABLED).toBe('false');
+    expect(Env.LEGACY_MYSQL_SYNC_CRON).toBe('0 0 * * * *');
+  });
+
+  it('rejects enabled legacy MySQL sync outside production', async () => {
+    stubRequiredBaseEnv();
+    vi.stubEnv('APP_ENV', 'local');
+    vi.stubEnv('LEGACY_MYSQL_SYNC_ENABLED', 'true');
+    vi.stubEnv('LEGACY_MYSQL_SSH_HOST', 'sailing.mit.edu');
+    vi.stubEnv('LEGACY_MYSQL_SSH_USER', 'ak');
+    vi.stubEnv(
+      'LEGACY_MYSQL_SSH_PRIVATE_KEY_PATH',
+      '/run/secrets/legacy_mysql_ssh_key'
+    );
+    vi.stubEnv('LEGACY_MYSQL_DATABASE', 'sailing');
+    vi.stubEnv('LEGACY_MYSQL_USER', 'ak');
+    vi.stubEnv('LEGACY_MYSQL_PASSWORD', 'secret');
+
+    await expect(import('@/libs/Env')).rejects.toThrow(
+      'Invalid environment variables'
+    );
+  });
+
+  it('requires MySQL connection secrets when sync is enabled', async () => {
+    stubRequiredBaseEnv();
+    vi.stubEnv('APP_ENV', 'production');
+    vi.stubEnv('LEGACY_MYSQL_SYNC_ENABLED', 'true');
+
+    await expect(import('@/libs/Env')).rejects.toThrow(
+      'Invalid environment variables'
+    );
+  });
+});
+```
+
+- [ ] **Step 3: Run test to verify failure**
+
+Run:
+
+```bash
+npm run test -- src/libs/Env.test.ts
+```
+
+Expected: FAIL because `Env.LEGACY_MYSQL_SYNC_ENABLED` and `Env.LEGACY_MYSQL_SYNC_CRON` are not defined yet.
+
+- [ ] **Step 4: Extend `src/libs/Env.ts`**
 
 Add these server fields:
 
@@ -117,7 +188,7 @@ if (env.LEGACY_MYSQL_SYNC_ENABLED === 'true') {
 }
 ```
 
-- [ ] **Step 4: Create `.env.production.worker.example`**
+- [ ] **Step 5: Create `.env.production.worker.example`**
 
 ```dotenv
 # Worker-only legacy MySQL mirror secrets. Copy to `.env.production.worker`
@@ -138,20 +209,21 @@ LEGACY_MYSQL_PORT=3306
 LEGACY_MYSQL_SSH_KEY_HOST_PATH=./secrets/legacy_mysql_ssh_key
 ```
 
-- [ ] **Step 5: Verify types**
+- [ ] **Step 6: Run env test and verify types**
 
 Run:
 
 ```bash
+npm run test -- src/libs/Env.test.ts
 npm run check:types
 ```
 
-Expected: PASS.
+Expected: both PASS.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add package.json package-lock.json src/libs/Env.ts .env.production.worker.example
+git add package.json package-lock.json src/libs/Env.ts src/libs/Env.test.ts .env.production.worker.example
 git commit -m "build: add legacy MySQL sync configuration"
 ```
 
