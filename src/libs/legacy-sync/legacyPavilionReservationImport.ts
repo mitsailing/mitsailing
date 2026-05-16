@@ -121,6 +121,9 @@ function parseCsvRecords(csv: string): string[][] {
     }
   }
 
+  if (inQuotes) {
+    throw new Error('Legacy pavilion CSV ends inside a quoted field.');
+  }
   if (field.length > 0 || row.length > 0) {
     row.push(field);
     rows.push(row);
@@ -402,12 +405,19 @@ function personaFromAffil(affil: string | null): LegacyPersona {
   return 'non_mit';
 }
 
+const LEGACY_RESID_FALLBACK_CREATED_AT = new Date('2025-06-01T12:00:00.000Z');
+
 function createdAtFromResid(resid: string): Date {
   const match = resid.match(/^(\d{4}-\d{2}-\d{2}):(\d{2}):(\d{2}):(\d{2})-/u);
   if (!match) {
-    return new Date('2025-06-01T12:00:00.000Z');
+    return LEGACY_RESID_FALLBACK_CREATED_AT;
   }
-  return new Date(`${match[1]}T${match[2]}:${match[3]}:${match[4]}.000Z`);
+  const createdAt = new Date(
+    `${match[1]}T${match[2]}:${match[3]}:${match[4]}.000Z`
+  );
+  return Number.isNaN(createdAt.getTime())
+    ? LEGACY_RESID_FALLBACK_CREATED_AT
+    : createdAt;
 }
 
 export function legacyReservationReferenceCode(resid: string): string {

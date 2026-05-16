@@ -92,6 +92,17 @@ describe('legacyPavilionReservationImport', () => {
     );
   });
 
+  it('rejects legacy csv that ends inside a quoted field', () => {
+    const csv = [
+      'resid,first,last,mitid,email,phone,affil,groupname,title,acadfac,acadfacemail,acct,date1,start1,end1,date2,start2,end2,datesel,comments,infotent,infoalcohol,groupsize,active,tentative,confirmed,paid,contacted',
+      'legacy-1,First,Last,123,email@example.com,555,student,"unclosed',
+    ].join('\n');
+
+    expect(() => legacyPavilionReservationRowsFromCsv(csv)).toThrow(
+      'ends inside a quoted field'
+    );
+  });
+
   it('rejects legacy csv rows with the wrong field count', () => {
     const csv = [
       'resid,first,last,mitid,email,phone,affil,groupname,title,acadfac,acadfacemail,acct,date1,start1,end1,date2,start2,end2,datesel,comments,infotent,infoalcohol,groupsize,active,tentative,confirmed,paid,contacted',
@@ -183,6 +194,44 @@ describe('legacyPavilionReservationImport', () => {
     expect(legacyReservationReferenceCode('2010-04-16:14:30:38-feb')).toBe(
       'LEG-2010-04-16-14-30-38-feb'
     );
+  });
+
+  it('imports rows when resid timestamp is malformed but regex-shaped', async () => {
+    const result = await importLegacyPavilionReservationRows([
+      {
+        resid: '2025-13-40:99:99:99-bad',
+        first: 'First',
+        last: 'Last',
+        mitid: null,
+        email: 'bad-resid@example.com',
+        phone: '555',
+        affil: 'student',
+        groupname: 'Group',
+        title: 'Roof deck event',
+        acadfac: null,
+        acadfacemail: null,
+        acct: null,
+        date1: '2026-07-01',
+        start1: '10:00:00',
+        end1: '12:00:00',
+        date2: null,
+        start2: null,
+        end2: null,
+        datesel: 1,
+        comments: '',
+        infotent: 0,
+        infoalcohol: 0,
+        groupsize: '10',
+        active: 1,
+        tentative: 0,
+        confirmed: 0,
+        paid: 0,
+        contacted: 1,
+      },
+    ]);
+
+    expect(result).toEqual({ imported: 1, skipped: 0 });
+    expect(prisma.$transaction).toHaveBeenCalled();
   });
 
   it('parses mysql time strings to minutes', () => {
