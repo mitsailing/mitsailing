@@ -386,6 +386,7 @@ describe('PavilionReservationWizard slot picker', () => {
     expect(
       screen.getByRole('button', { name: 'Next: contact information' })
     ).toBeDisabled();
+    expect(screen.getByLabelText('Email address*')).toHaveValue('sailor@');
   });
 
   it('shows submit pending state on final submit', async () => {

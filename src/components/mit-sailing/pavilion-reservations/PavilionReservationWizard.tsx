@@ -2866,7 +2866,10 @@ export function PavilionReservationWizard(
       emailRef.current?.focus();
       return;
     }
-    if (firstSpacesStepProblem === 'slot') {
+    if (
+      firstSpacesStepProblem === 'slot' ||
+      firstSpacesStepProblem === 'overlap'
+    ) {
       scrollElementIntoView(slotsRef.current);
       return;
     }
