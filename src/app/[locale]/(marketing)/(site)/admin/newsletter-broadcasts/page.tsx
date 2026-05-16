@@ -11,6 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { EVENTS_TIME_ZONE } from '@/lib/mit-sailing/nyTime';
 import { requireAdmin } from '@/libs/auth/dal';
 import { Link } from '@/libs/I18nNavigation';
 import { getAdminNewsletterBroadcasts } from '@/libs/newsletter/newsletterBroadcasts';
@@ -43,7 +44,7 @@ function formatDate(value: Date | null, locale: string): string {
   return new Intl.DateTimeFormat(locale, {
     dateStyle: 'medium',
     timeStyle: 'short',
-    timeZone: 'America/New_York',
+    timeZone: EVENTS_TIME_ZONE,
   }).format(value);
 }
 

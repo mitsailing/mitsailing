@@ -159,7 +159,8 @@ export default async function AdminNewsletterBroadcastNewPage(
             type="datetime-local"
           />
           <p className="text-xs text-muted-foreground">
-            {t('field_scheduled_at_hint')}
+            {t('field_scheduled_at_hint')}{' '}
+            {t('field_scheduled_at_timezone_note')}
           </p>
         </div>
         <div className="flex flex-col gap-1.5">

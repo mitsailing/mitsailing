@@ -1200,6 +1200,7 @@
     "field_target_lists": "Recipient lists",
     "field_scheduled_at": "Schedule for",
     "field_scheduled_at_hint": "Optional. Leave blank to send as soon as the worker picks it up.",
+    "field_scheduled_at_timezone_note": "Times are interpreted in Eastern Time (America/New_York).",
     "field_test_email": "Test recipient",
     "field_body": "Body",
     "default_opt_in": "Opt in",
