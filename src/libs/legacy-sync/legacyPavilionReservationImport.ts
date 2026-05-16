@@ -169,7 +169,12 @@ export function legacyPavilionReservationRowsFromCsv(
   );
   const headers = records[0]?.map((header) => header.trim()) ?? [];
   assertLegacyPavilionCsvHeaders(headers);
-  return records.slice(1).flatMap((fields) => {
+  return records.slice(1).flatMap((fields, rowIndex) => {
+    if (fields.length !== headers.length) {
+      throw new Error(
+        `Legacy pavilion CSV row ${rowIndex + 2} has wrong field count: expected ${headers.length}, received ${fields.length}.`
+      );
+    }
     const record = Object.fromEntries(
       headers.map((header, index) => [header, fields[index] ?? ''])
     );

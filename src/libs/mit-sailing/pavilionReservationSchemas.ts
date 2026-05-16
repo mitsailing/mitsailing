@@ -10,6 +10,10 @@ const optionalTextField = z
   .string()
   .trim()
   .transform((value) => (value.length > 0 ? value : null));
+const optionalEmailField = optionalTextField.refine(
+  (value) => value === null || z.email().safeParse(value).success,
+  { message: 'invalid_email' }
+);
 
 const slotSchema = z
   .object({
@@ -88,7 +92,7 @@ const nonAcademicReservationSchema = z.object({
   persona: z.enum(['mit_student', 'mit_community', 'non_mit']),
   projectTitle: optionalTextField,
   advisorName: optionalTextField,
-  advisorEmail: optionalTextField,
+  advisorEmail: optionalEmailField,
   costCenter: optionalTextField,
 });
 

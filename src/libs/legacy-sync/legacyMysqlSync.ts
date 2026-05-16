@@ -53,7 +53,14 @@ export async function tryAcquireLegacyMysqlSyncLock(
     ]
   );
   const [row] = result.rows;
-  return isAdvisoryLockRow(row) && row.acquired;
+  if (!isAdvisoryLockRow(row)) {
+    throw new Error(
+      `Invalid advisory lock response for tryAcquireLegacyMysqlSyncLock: expected AdvisoryLockClient row with boolean acquired for LEGACY_MYSQL_SYNC_ADVISORY_LOCK ${JSON.stringify(
+        LEGACY_MYSQL_SYNC_ADVISORY_LOCK
+      )}.`
+    );
+  }
+  return row.acquired;
 }
 
 export async function releaseLegacyMysqlSyncLock(

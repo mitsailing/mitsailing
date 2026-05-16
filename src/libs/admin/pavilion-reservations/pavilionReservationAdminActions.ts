@@ -65,7 +65,14 @@ function centsOrNull(value: string): number | null {
 }
 
 function minutesFromTime(value: string): number | null {
-  const match = /^(\d{2}):(\d{2})$/.exec(value);
+  const trimmed = value.trim();
+  if (/^\d+$/.test(trimmed)) {
+    const minutes = Number.parseInt(trimmed, 10);
+    return Number.isInteger(minutes) && minutes >= 0 && minutes <= 26 * 60
+      ? minutes
+      : null;
+  }
+  const match = /^(\d{2}):(\d{2})$/.exec(trimmed);
   if (!match) {
     return null;
   }
@@ -88,7 +95,10 @@ function paidAtFromForm(
     return new Date();
   }
   const parsed = parseEasternDateTimeLocal(value);
-  return parsed ?? new Date();
+  if (!parsed) {
+    throw new Error('Invalid paidAt');
+  }
+  return parsed;
 }
 
 function parsePersona(
@@ -124,21 +134,31 @@ function parseSlotRows(formData: FormData) {
     if (slotId && removedSlotIds.has(slotId)) {
       return [];
     }
-    const requestedDate = prismaDateFromIsoCalendar(dates[index] ?? '');
-    const startMinutes = minutesFromTime(starts[index] ?? '');
-    const rawEndMinutes = minutesFromTime(ends[index] ?? '');
+    const date = dates[index] ?? '';
+    const start = starts[index] ?? '';
+    const end = ends[index] ?? '';
+    const amount = amounts[index] ?? '';
+    const hasSlotInput = [slotId, itemId, date, start, end, amount].some(
+      (value) => value.length > 0
+    );
+    if (!hasSlotInput) {
+      return [];
+    }
+    const requestedDate = prismaDateFromIsoCalendar(date);
+    const startMinutes = minutesFromTime(start);
+    const rawEndMinutes = minutesFromTime(end);
     if (
       !itemId ||
       !requestedDate ||
       startMinutes === null ||
       rawEndMinutes === null
     ) {
-      return [];
+      throw new Error('Invalid Pavilion reservation slot row');
     }
     const endMinutes =
-      rawEndMinutes <= startMinutes ? rawEndMinutes + 24 * 60 : rawEndMinutes;
+      rawEndMinutes < startMinutes ? rawEndMinutes + 24 * 60 : rawEndMinutes;
     if (endMinutes <= startMinutes || endMinutes > 26 * 60) {
-      return [];
+      throw new Error('Invalid Pavilion reservation slot row');
     }
     return [
       {
@@ -146,7 +166,7 @@ function parseSlotRows(formData: FormData) {
         requestedDate,
         startMinutes,
         endMinutes,
-        estimatedAmountCents: centsOrNull(amounts[index] ?? ''),
+        estimatedAmountCents: centsOrNull(amount),
         displayOrder: index,
       },
     ];

@@ -88,7 +88,7 @@ CREATE TABLE "pavilion_reservation_slots" (
   "display_order" INTEGER NOT NULL DEFAULT 0,
 
   CONSTRAINT "pavilion_reservation_slots_pkey" PRIMARY KEY ("id"),
-  CONSTRAINT "pavilion_reservation_slots_minutes_check" CHECK ("start_minutes" >= 0 AND "start_minutes" < 1440 AND "end_minutes" > 0 AND "end_minutes" <= 1560 AND "end_minutes" > "start_minutes"),
+  CONSTRAINT "pavilion_reservation_slots_minutes_check" CHECK ("start_minutes" >= 0 AND "start_minutes" < 1560 AND "end_minutes" > 0 AND "end_minutes" <= 1560 AND "end_minutes" > "start_minutes"),
   CONSTRAINT "pavilion_reservation_slots_estimated_amount_cents_check" CHECK ("estimated_amount_cents" IS NULL OR "estimated_amount_cents" >= 0)
 );
 

@@ -12,6 +12,7 @@ import type {
   AdminPavilionReservationScheduleSlot,
 } from '@/libs/admin/pavilion-reservations/pavilionReservationAdminSchedule';
 import { prisma } from '@/libs/DB';
+import { prismaDateFromIsoCalendar } from '@/libs/mit-sailing/isoCalendarDate';
 import type {
   PavilionPricingTypeValue,
   PavilionReservableItemKindValue,
@@ -189,7 +190,7 @@ export function parseAdminPavilionReservationDateFilter(
   value: string | string[] | undefined
 ): string | undefined {
   const first = firstString(value);
-  return first && /^\d{4}-\d{2}-\d{2}$/.test(first) ? first : undefined;
+  return first && prismaDateFromIsoCalendar(first) ? first : undefined;
 }
 
 export function parseAdminPavilionReservationSearch(

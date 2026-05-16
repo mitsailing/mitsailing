@@ -41,6 +41,19 @@ describe('legacy mysql sync advisory lock', () => {
       },
     ]);
   });
+
+  it('rejects malformed advisory lock rows', async () => {
+    const pg: AdvisoryLockClient = {
+      query: async () => {
+        await Promise.resolve();
+        return { rows: [{ locked: true }] };
+      },
+    };
+
+    await expect(tryAcquireLegacyMysqlSyncLock(pg)).rejects.toThrow(
+      'Invalid advisory lock response'
+    );
+  });
 });
 
 describe('runLegacyMirrorTransaction', () => {

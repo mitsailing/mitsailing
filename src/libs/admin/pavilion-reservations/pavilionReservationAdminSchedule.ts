@@ -205,9 +205,22 @@ function listOverlappingAdminPavilionReservationSlots(
 }
 
 function conflictingAdminPavilionReservationRequestIds(
+  slot: AdminPavilionReservationScheduleSlot,
   overlappingSlots: readonly AdminPavilionReservationScheduleSlot[]
 ): string[] {
-  return [...new Set(overlappingSlots.map((candidate) => candidate.requestId))];
+  return [
+    ...new Set(
+      overlappingSlots
+        .filter(
+          (candidate) =>
+            adminPavilionReservationSlotConflictSeverity(
+              slot.status,
+              candidate.status
+            ) !== null
+        )
+        .map((candidate) => candidate.requestId)
+    ),
+  ];
 }
 
 function adminPavilionReservationConflictSeverityForSlot(
@@ -265,8 +278,10 @@ export function adminPavilionReservationSlotConflicts(
       slot,
       overlappingSlots
     ),
-    conflictingRequestIds:
-      conflictingAdminPavilionReservationRequestIds(overlappingSlots),
+    conflictingRequestIds: conflictingAdminPavilionReservationRequestIds(
+      slot,
+      overlappingSlots
+    ),
   };
 }
 

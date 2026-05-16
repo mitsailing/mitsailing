@@ -25,6 +25,7 @@ import {
   formatEasternDateTime,
   formatEasternShortDateFromIsoCalendar,
 } from '@/libs/mit-sailing/easternTimeFormat';
+import { listPavilionReservationTimeOptions } from '@/libs/mit-sailing/pavilionReservationBookingTimeline';
 import {
   formatPavilionReservationMoney,
   PAVILION_RESERVATION_PERSONAS,
@@ -35,15 +36,29 @@ type AdminPavilionReservationDetailPageProps = {
   params: Promise<{ id: string; locale: string }>;
 };
 
-function timeValue(minutes: number): string {
-  const normalized = minutes >= 24 * 60 ? minutes - 24 * 60 : minutes;
-  const hour = Math.floor(normalized / 60);
-  const minute = normalized % 60;
-  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-}
-
 function dollarsValue(amountCents: number | null): string {
   return amountCents === null ? '' : (amountCents / 100).toFixed(2);
+}
+
+function TimeSelect(props: {
+  blank?: string;
+  defaultValue?: number;
+  name: string;
+}) {
+  return (
+    <select
+      className={adminNativeSelectClassName}
+      defaultValue={props.defaultValue?.toString() ?? ''}
+      name={props.name}
+    >
+      {props.blank ? <option value="">{props.blank}</option> : null}
+      {listPavilionReservationTimeOptions().map((option) => (
+        <option key={option.minutes} value={option.minutes}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+  );
 }
 
 function MoneyCell(props: { amountCents: number | null; tbd: string }) {
@@ -279,18 +294,16 @@ export default async function AdminPavilionReservationDetailPage(
                     </label>
                     <label className="space-y-1.5 text-sm">
                       <span className="font-medium">{t('field_start')}</span>
-                      <Input
-                        defaultValue={timeValue(slot.startMinutes)}
+                      <TimeSelect
+                        defaultValue={slot.startMinutes}
                         name="slotStart"
-                        type="time"
                       />
                     </label>
                     <label className="space-y-1.5 text-sm">
                       <span className="font-medium">{t('field_end')}</span>
-                      <Input
-                        defaultValue={timeValue(slot.endMinutes)}
+                      <TimeSelect
+                        defaultValue={slot.endMinutes}
                         name="slotEnd"
-                        type="time"
                       />
                     </label>
                     <label className="space-y-1.5 text-sm">
@@ -347,11 +360,11 @@ export default async function AdminPavilionReservationDetailPage(
                   </label>
                   <label className="space-y-1.5 text-sm">
                     <span className="font-medium">{t('field_start')}</span>
-                    <Input name="slotStart" type="time" />
+                    <TimeSelect blank={t('blank')} name="slotStart" />
                   </label>
                   <label className="space-y-1.5 text-sm">
                     <span className="font-medium">{t('field_end')}</span>
-                    <Input name="slotEnd" type="time" />
+                    <TimeSelect blank={t('blank')} name="slotEnd" />
                   </label>
                   <label className="space-y-1.5 text-sm">
                     <span className="font-medium">{t('field_amount')}</span>

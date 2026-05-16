@@ -83,6 +83,25 @@ describe('pavilionReservationFormSchema', () => {
     expect(result.data.mitAccount).toBeNull();
   });
 
+  it('rejects malformed optional nonacademic advisor email', () => {
+    const result = pavilionReservationFormSchema.safeParse({
+      ...validInput(),
+      persona: 'non_mit',
+      projectTitle: '',
+      advisorName: '',
+      advisorEmail: 'not-an-email',
+      costCenter: '',
+    });
+
+    expect(result.success).toBe(false);
+    if (result.success) {
+      return;
+    }
+    expect(result.error.issues.map((issue) => issue.path.join('.'))).toContain(
+      'advisorEmail'
+    );
+  });
+
   it('rejects slot minutes outside operating hours or grid', () => {
     const result = pavilionReservationFormSchema.safeParse({
       ...validInput(),

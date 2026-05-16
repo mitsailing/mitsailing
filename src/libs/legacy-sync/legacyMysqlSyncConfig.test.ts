@@ -34,4 +34,14 @@ describe('legacyMysqlSyncConfigFromEnv', () => {
       sourceHost: 'sailing.pavilion.lan',
     });
   });
+
+  it('rejects invalid cron overrides', () => {
+    expect(() =>
+      legacyMysqlSyncConfigFromEnv({
+        LEGACY_MYSQL_PASSWORD: 'secret',
+        LEGACY_MYSQL_SYNC_CRON: 'daily',
+        LEGACY_MYSQL_SYNC_ENABLED: 'true',
+      })
+    ).toThrow('LEGACY_MYSQL_SYNC_CRON must be a valid six-field BullMQ cron');
+  });
 });

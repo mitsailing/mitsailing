@@ -29,6 +29,17 @@ describe('legacyPavilionReservationImport', () => {
     expect(row?.email).toBe('email@example.com');
   });
 
+  it('rejects legacy csv rows with the wrong field count', () => {
+    const csv = [
+      'resid,first,last,mitid,email,phone,affil,groupname,title,acadfac,acadfacemail,acct,date1,start1,end1,date2,start2,end2,datesel,comments,infotent,infoalcohol,groupsize,active,tentative,confirmed,paid,contacted',
+      'legacy-1,First,Last,123,email@example.com,555,student,Group,Roof deck event,,,,2026-07-01,2026-07-01 10:00:00,2026-07-01 12:00:00,,,,Notes,1,0,25,1,0,0,0',
+    ].join('\n');
+
+    expect(() => legacyPavilionReservationRowsFromCsv(csv)).toThrow(
+      'wrong field count'
+    );
+  });
+
   it('builds stable legacy reference codes', () => {
     expect(legacyReservationReferenceCode('2010-04-16:14:30:38-feb')).toBe(
       'LEG-2010-04-16-14-30-38-feb'

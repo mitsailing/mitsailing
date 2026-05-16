@@ -110,6 +110,32 @@ describe('adminPavilionReservationSlotConflicts', () => {
       conflictingRequestIds: [],
     });
   });
+
+  it('omits non-conflicting status overlaps from conflict ids', () => {
+    const date = new Date('2026-05-15T00:00:00Z');
+    const pending = slot({
+      requestId: 'pending',
+      status: 'pending',
+      requestedDate: date,
+      startMinutes: 9 * 60,
+      endMinutes: 11 * 60,
+    });
+    const cancelled = slot({
+      id: 'cancelled-slot',
+      requestId: 'cancelled',
+      status: 'cancelled',
+      requestedDate: date,
+      startMinutes: 10 * 60,
+      endMinutes: 12 * 60,
+    });
+
+    expect(
+      adminPavilionReservationSlotConflicts(pending, [pending, cancelled])
+    ).toEqual({
+      conflictSeverity: null,
+      conflictingRequestIds: [],
+    });
+  });
 });
 
 describe('adminPavilionReservationWeekKeys', () => {
