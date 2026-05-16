@@ -1,8 +1,22 @@
-import { Worker } from 'bullmq';
+import { Queue, Worker } from 'bullmq';
 import IORedis from 'ioredis';
+import { Env } from '@/libs/Env';
+import {
+  LEGACY_MYSQL_SYNC_JOB_NAME,
+  processLegacyMysqlSyncJob,
+  registerLegacyMysqlSyncScheduler,
+} from '@/worker/legacyMysqlSyncJob';
 
-function main(): void {
-  const redisUrl = process.env.REDIS_URL;
+async function processJob(name: string): Promise<void> {
+  if (name === LEGACY_MYSQL_SYNC_JOB_NAME) {
+    await processLegacyMysqlSyncJob();
+    return;
+  }
+  throw new Error(`Unknown worker job: ${name}`);
+}
+
+async function main(): Promise<void> {
+  const redisUrl = Env.REDIS_URL;
   if (!redisUrl) {
     throw new Error('REDIS_URL is required for the BullMQ worker');
   }
@@ -11,16 +25,20 @@ function main(): void {
     maxRetriesPerRequest: null,
   });
 
+  const queue = new Queue('default', { connection });
+  await registerLegacyMysqlSyncScheduler(queue);
+
   const worker = new Worker(
     'default',
-    async () => {
-      // Domain processors (email, sync, etc.) register here.
+    async (job) => {
+      await processJob(job.name);
     },
-    { connection, concurrency: 2 }
+    { connection, concurrency: 1 }
   );
 
   const shutdown = async (): Promise<void> => {
     await worker.close();
+    await queue.close();
     await connection.quit();
     process.exit(0);
   };
@@ -35,7 +53,6 @@ function main(): void {
   };
 
   process.on('SIGTERM', () => {
-    // Node signal listeners must be synchronous; run async shutdown aside.
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
     handleSignal();
   });
@@ -45,9 +62,14 @@ function main(): void {
   });
 }
 
-try {
-  main();
-} catch (error: unknown) {
-  console.error(error);
-  process.exit(1);
+async function run(): Promise<void> {
+  try {
+    await main();
+  } catch (error: unknown) {
+    console.error(error);
+    process.exit(1);
+  }
 }
+
+// eslint-disable-next-line @typescript-eslint/no-floating-promises
+run();
