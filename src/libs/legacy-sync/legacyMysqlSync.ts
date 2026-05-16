@@ -82,7 +82,13 @@ export async function runLegacyMirrorTransaction(props: {
     await props.pg.query('COMMIT');
     return result;
   } catch (error: unknown) {
-    await props.pg.query('ROLLBACK');
+    try {
+      await props.pg.query('ROLLBACK');
+    } catch (rollbackError: unknown) {
+      if (error instanceof Error) {
+        error.cause = rollbackError;
+      }
+    }
     throw error;
   }
 }

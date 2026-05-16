@@ -4,9 +4,19 @@ import { updatePavilionReservationAdminAction } from '@/libs/admin/pavilion-rese
 const { prisma, requireAdmin } = vi.hoisted(() => {
   const transactionClient = {
     pavilionReservationRequest: {
-      update: vi.fn(async () => {
+      findUnique: vi.fn(async () => {
         await Promise.resolve();
-        return {};
+        return {
+          eventName: 'Dock event',
+          referenceCode: 'PAV-0001',
+          requesterEmail: 'sailor@example.com',
+          slots: [],
+          status: 'pending' as const,
+        };
+      }),
+      updateMany: vi.fn(async () => {
+        await Promise.resolve();
+        return { count: 1 };
       }),
     },
     pavilionReservationService: {
@@ -55,12 +65,6 @@ const { prisma, requireAdmin } = vi.hoisted(() => {
             return [];
           }
         ),
-      },
-      pavilionReservationRequest: {
-        findUnique: vi.fn(async () => {
-          await Promise.resolve();
-          return null;
-        }),
       },
       __tx: transactionClient,
     },
@@ -116,13 +120,14 @@ describe('updatePavilionReservationAdminAction', () => {
     formData.set('paymentStatus', 'paid');
     formData.set('persona', 'mit_student');
     formData.set('paidAt', 'not-a-date');
+    formData.set('updatedAt', new Date('2026-05-01T12:00:00Z').toISOString());
 
     await expect(
       updatePavilionReservationAdminAction('en', 'req-1', formData)
     ).rejects.toThrow('Invalid paidAt');
 
     expect(
-      prisma.__tx.pavilionReservationRequest.update
+      prisma.__tx.pavilionReservationRequest.updateMany
     ).not.toHaveBeenCalled();
   });
 
@@ -131,6 +136,7 @@ describe('updatePavilionReservationAdminAction', () => {
     formData.set('workflowStatus', 'pending');
     formData.set('paymentStatus', 'unpaid');
     formData.set('persona', 'mit_student');
+    formData.set('updatedAt', new Date('2026-05-01T12:00:00Z').toISOString());
     formData.set('slotItemId', 'space-1');
     formData.set('slotDate', '2026-07-01');
     formData.set('slotStart', '1380');
@@ -159,6 +165,7 @@ describe('updatePavilionReservationAdminAction', () => {
     formData.set('workflowStatus', 'pending');
     formData.set('paymentStatus', 'unpaid');
     formData.set('persona', 'mit_student');
+    formData.set('updatedAt', new Date('2026-05-01T12:00:00Z').toISOString());
     formData.set('slotItemId', 'space-1');
     formData.set('slotDate', '2026-99-99');
     formData.set('slotStart', '540');
@@ -167,6 +174,25 @@ describe('updatePavilionReservationAdminAction', () => {
     await expect(
       updatePavilionReservationAdminAction('en', 'req-1', formData)
     ).rejects.toThrow('Invalid Pavilion reservation slot row');
+
+    expect(
+      prisma.__tx.pavilionReservationSlot.deleteMany
+    ).not.toHaveBeenCalled();
+  });
+
+  it('rejects stale admin edit tokens before replacing child rows', async () => {
+    const formData = new FormData();
+    formData.set('workflowStatus', 'pending');
+    formData.set('paymentStatus', 'unpaid');
+    formData.set('persona', 'mit_student');
+    formData.set('updatedAt', new Date('2026-05-01T12:00:00Z').toISOString());
+    prisma.__tx.pavilionReservationRequest.updateMany.mockResolvedValueOnce({
+      count: 0,
+    });
+
+    await expect(
+      updatePavilionReservationAdminAction('en', 'req-1', formData)
+    ).rejects.toThrow('Pavilion reservation changed while editing');
 
     expect(
       prisma.__tx.pavilionReservationSlot.deleteMany

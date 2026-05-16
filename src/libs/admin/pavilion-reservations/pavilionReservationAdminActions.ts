@@ -64,6 +64,14 @@ function centsOrNull(value: string): number | null {
     : null;
 }
 
+function dateFromFormToken(value: string): Date | null {
+  if (!value) {
+    return null;
+  }
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 function minutesFromTime(value: string): number | null {
   const trimmed = value.trim();
   if (/^\d+$/.test(trimmed)) {
@@ -328,6 +336,10 @@ export async function updatePavilionReservationAdminAction(
 
   const slotRows = parseSlotRows(formData);
   const serviceRows = parseServiceRows(formData);
+  const updatedAt = dateFromFormToken(formText(formData, 'updatedAt'));
+  if (!updatedAt) {
+    throw new Error('Missing Pavilion reservation edit token');
+  }
   const catalogItemIds = [
     ...new Set([
       ...slotRows.map((row) => row.itemId),
@@ -360,30 +372,34 @@ export async function updatePavilionReservationAdminAction(
     throw new Error('Catalog item kind mismatch for Pavilion reservation edit');
   }
   const estimatedTotalCents = totalCentsFromRows([...slotRows, ...serviceRows]);
-  const before = await prisma.pavilionReservationRequest.findUnique({
-    where: { id },
-    select: {
-      referenceCode: true,
-      status: true,
-      requesterEmail: true,
-      eventName: true,
-      slots: {
-        select: {
-          itemId: true,
-          requestedDate: true,
-          startMinutes: true,
-          endMinutes: true,
+
+  const result = await prisma.$transaction(async (tx) => {
+    const before = await tx.pavilionReservationRequest.findUnique({
+      where: { id },
+      select: {
+        referenceCode: true,
+        status: true,
+        requesterEmail: true,
+        eventName: true,
+        slots: {
+          select: {
+            itemId: true,
+            requestedDate: true,
+            startMinutes: true,
+            endMinutes: true,
+          },
         },
       },
-    },
-  });
-  const statusChanged = before?.status !== status;
-  const scheduleChanged =
-    slotSignature(before?.slots ?? []) !== slotSignature(slotRows);
+    });
+    if (!before) {
+      throw new Error('Pavilion reservation not found');
+    }
+    const statusChanged = before.status !== status;
+    const scheduleChanged =
+      slotSignature(before.slots) !== slotSignature(slotRows);
 
-  await prisma.$transaction(async (tx) => {
-    await tx.pavilionReservationRequest.update({
-      where: { id },
+    const updateResult = await tx.pavilionReservationRequest.updateMany({
+      where: { id, updatedAt },
       data: {
         status,
         paymentStatus,
@@ -411,6 +427,11 @@ export async function updatePavilionReservationAdminAction(
         reviewedByUserId: session.user.id,
       },
     });
+    if (updateResult.count !== 1) {
+      throw new Error(
+        'Pavilion reservation changed while editing. Reload before saving again.'
+      );
+    }
     await tx.pavilionReservationSlot.deleteMany({ where: { requestId: id } });
     if (slotRows.length > 0) {
       await tx.pavilionReservationSlot.createMany({
@@ -467,9 +488,10 @@ export async function updatePavilionReservationAdminAction(
         version: (latestAudit?.version ?? 0) + 1,
       },
     });
+    return { before, scheduleChanged, statusChanged };
   });
 
-  if (before && (statusChanged || scheduleChanged)) {
+  if (result.statusChanged || result.scheduleChanged) {
     try {
       const items = await prisma.pavilionReservableItem.findMany({
         where: { id: { in: slotRows.map((slot) => slot.itemId) } },
@@ -477,10 +499,10 @@ export async function updatePavilionReservationAdminAction(
       });
       const itemNameById = new Map(items.map((item) => [item.id, item.name]));
       await sendPavilionReservationStatusEmail({
-        eventName: formText(formData, 'eventName') || before.eventName,
-        referenceCode: before.referenceCode,
+        eventName: formText(formData, 'eventName') || result.before.eventName,
+        referenceCode: result.before.referenceCode,
         requesterEmail:
-          formText(formData, 'requesterEmail') || before.requesterEmail,
+          formText(formData, 'requesterEmail') || result.before.requesterEmail,
         scheduleLines: scheduleLinesForEmail(
           slotRows.map((slot) => ({
             ...slot,

@@ -85,6 +85,7 @@ export type AdminPavilionReservationDetail = Omit<
   mitId: string | null;
   mitAccount: string | null;
   reviewedAt: Date | null;
+  updatedAt: Date;
   adminNotes: string | null;
   reviewedBy: { id: string; name: string; email: string } | null;
   slots: {
@@ -438,6 +439,7 @@ export async function getAdminPavilionReservationById(
       mitAccount: true,
       estimatedTotalCents: true,
       createdAt: true,
+      updatedAt: true,
       reviewedAt: true,
       adminNotes: true,
       reviewedBy: { select: { id: true, name: true, email: true } },

@@ -40,14 +40,11 @@ export type AdminPavilionReservationCalendarSegment = {
   endMinutes: number;
 };
 
-const adminPavilionReservationHardBlockingStatuses = [
-  'approved',
-  'needs_info',
-] as const satisfies readonly PavilionReservationStatusValue[];
+const adminPavilionReservationHardBlockingStatuses =
+  new Set<PavilionReservationStatusValue>(['approved', 'needs_info']);
 
-const adminPavilionReservationSoftConflictStatuses = [
-  'pending',
-] as const satisfies readonly PavilionReservationStatusValue[];
+const adminPavilionReservationSoftConflictStatuses =
+  new Set<PavilionReservationStatusValue>(['pending']);
 
 /**
  * Civil calendar key for a Prisma `@db.Date` reservation day (UTC-midnight storage).
@@ -97,12 +94,8 @@ function isAdminPavilionReservationConflictStatus(
   status: PavilionReservationStatusValue
 ): boolean {
   return (
-    adminPavilionReservationHardBlockingStatuses.some(
-      (blockingStatus) => blockingStatus === status
-    ) ||
-    adminPavilionReservationSoftConflictStatuses.some(
-      (blockingStatus) => blockingStatus === status
-    )
+    adminPavilionReservationHardBlockingStatuses.has(status) ||
+    adminPavilionReservationSoftConflictStatuses.has(status)
   );
 }
 
@@ -116,9 +109,8 @@ function adminPavilionReservationSlotConflictSeverity(
   ) {
     return null;
   }
-  return adminPavilionReservationHardBlockingStatuses.some(
-    (status) => status === left || status === right
-  )
+  return adminPavilionReservationHardBlockingStatuses.has(left) ||
+    adminPavilionReservationHardBlockingStatuses.has(right)
     ? 'hard'
     : 'soft';
 }

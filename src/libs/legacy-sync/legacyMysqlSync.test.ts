@@ -80,6 +80,31 @@ describe('runLegacyMirrorTransaction', () => {
     expect(queries).toEqual(['BEGIN', 'ROLLBACK']);
   });
 
+  it('reports rollback failure with the load failure attached', async () => {
+    const pg: MirrorTransactionClient = {
+      query: async (sql) => {
+        await Promise.resolve();
+        if (sql === 'ROLLBACK') {
+          throw new Error('rollback failed');
+        }
+        return { rows: [] };
+      },
+    };
+
+    await expect(
+      runLegacyMirrorTransaction({
+        pg,
+        load: async () => {
+          await Promise.resolve();
+          throw new Error('copy failed');
+        },
+      })
+    ).rejects.toMatchObject({
+      cause: expect.objectContaining({ message: 'rollback failed' }),
+      message: 'copy failed',
+    });
+  });
+
   it('commits the mirror transaction when loading succeeds', async () => {
     const queries: string[] = [];
     const expectedRowCount = BigInt(Number.parseInt('12', 10));

@@ -116,6 +116,11 @@ export default async function AdminPavilionReservationDetailPage(
       />
 
       <Form action={action} className="grid gap-6 lg:grid-cols-[1fr_340px]">
+        <input
+          name="updatedAt"
+          type="hidden"
+          value={reservation.updatedAt.toISOString()}
+        />
         <div className="space-y-6">
           <section className="rounded-lg border border-border bg-card p-5">
             <h2 className="text-lg font-semibold text-mit-text">
@@ -515,6 +520,15 @@ export default async function AdminPavilionReservationDetailPage(
               />
             </label>
             <div className="mt-4 grid grid-cols-2 gap-2">
+              <Button
+                className="col-span-2"
+                name="workflowStatus"
+                type="submit"
+                value={reservation.status}
+                variant="secondary"
+              >
+                {t('action_save')}
+              </Button>
               {adminPavilionReservationStatuses.map((status) => (
                 <Button
                   key={status}
@@ -527,15 +541,6 @@ export default async function AdminPavilionReservationDetailPage(
                 </Button>
               ))}
             </div>
-            <Button
-              className="mt-3 w-full"
-              name="workflowStatus"
-              type="submit"
-              value={reservation.status}
-              variant="secondary"
-            >
-              {t('action_save')}
-            </Button>
           </section>
         </aside>
       </Form>
