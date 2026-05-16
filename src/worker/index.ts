@@ -2,6 +2,8 @@ import type { Job } from 'bullmq';
 import { Queue, Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import { Env } from '@/libs/Env';
+import { logger } from '@/libs/Logger';
+import { safeErrorCode, safeErrorName } from '@/libs/safeUnknownError';
 import { DEFAULT_QUEUE_NAME } from '@/worker/defaultQueue';
 import {
   LEGACY_MYSQL_SYNC_JOB_NAME,
@@ -25,6 +27,20 @@ async function processJob(
     return;
   }
   throw new Error(`Unknown worker job: ${job.name}`);
+}
+
+function logWorkerLifecycleFailure(options: {
+  context: 'shutdown' | 'startup';
+  error: unknown;
+}): void {
+  logger.error(
+    '[worker:{context}] worker {context} failed error_name={errorName} error_code={errorCode}',
+    {
+      context: options.context,
+      errorCode: safeErrorCode(options.error) ?? 'unknown',
+      errorName: safeErrorName(options.error),
+    }
+  );
 }
 
 async function main(): Promise<void> {
@@ -59,7 +75,7 @@ async function main(): Promise<void> {
     try {
       await shutdown();
     } catch (error: unknown) {
-      console.error(error);
+      logWorkerLifecycleFailure({ context: 'shutdown', error });
       process.exit(1);
     }
   };
@@ -78,7 +94,7 @@ async function run(): Promise<void> {
   try {
     await main();
   } catch (error: unknown) {
-    console.error(error);
+    logWorkerLifecycleFailure({ context: 'startup', error });
     process.exit(1);
   }
 }
