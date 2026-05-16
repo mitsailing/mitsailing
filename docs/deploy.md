@@ -22,7 +22,7 @@ Ingress in this repo is **Cloudflare Tunnel** (`cloudflared` in
 | Docker Engine + Compose v2 | Rootless is fine; same user runs `docker compose` |
 | SSH access | Interactive key for you; **separate** deploy key for CI |
 | `docker login ghcr.io` | Once per user, PAT with `read:packages` if the image is private |
-| Directory `~/apps/mitsailing/` | Holds `compose.yaml`, `compose.prod.yaml`, optional `compose.db-admin.yaml`, `docker/postgres/init.sql`, `.env.production`, `deploy.sh` |
+| Directory `~/apps/mitsailing/` | Holds `compose.yaml`, `compose.prod.yaml`, `docker/postgres/init.sql`, `.env.production`, `deploy.sh` |
 
 **Multiple projects on one host:** each app should use a **unique Compose
 project name**. This repo sets `name: mitsailing` in `compose.yaml`. A second
@@ -55,9 +55,9 @@ mkdir -p ~/apps/mitsailing/docker/postgres
 cd ~/apps/mitsailing
 
 # From a clone of this repo on your laptop, scp or cp:
-#   compose.yaml compose.prod.yaml compose.db-admin.yaml docker/postgres/init.sql bin/deploy.sh
+#   compose.yaml compose.prod.yaml docker/postgres/init.sql bin/deploy.sh
 # Example from your workstation:
-#   scp compose.yaml compose.prod.yaml compose.db-admin.yaml YOUR_USER@YOUR_HOST:~/apps/mitsailing/
+#   scp compose.yaml compose.prod.yaml YOUR_USER@YOUR_HOST:~/apps/mitsailing/
 #   scp docker/postgres/init.sql YOUR_USER@YOUR_HOST:~/apps/mitsailing/docker/postgres/
 #   scp bin/deploy.sh YOUR_USER@YOUR_HOST:~/deploy.sh
 
@@ -137,25 +137,46 @@ cp .env.production.worker.example .env.production.worker
 $EDITOR .env.production.worker
 ```
 
-Set `LEGACY_MYSQL_URL` in that file to
-`mysql://dock_readonly:<password>@sailing.pavilion.lan:3306/sailing`. Do not
-put the filled URL in shell history or GitHub Actions secrets unless deployment
-automation needs to manage this file.
+Set `LEGACY_MYSQL_PASSWORD` for the read-only `dock_readonly` user (host
+`sailing.pavilion.lan:3306`, database `sailing` — fixed in app code). Do not
+commit the filled worker env file.
 
-The worker connects directly to `sailing.pavilion.lan:3306` from
-`sailing-dock.mit.edu`. Verify that the MySQL server allows `dock_readonly`
-from the production host or container network before enabling
+The worker connects from `sailing-dock.mit.edu`. Confirm MySQL allows
+`dock_readonly` from the production host or container network before setting
 `LEGACY_MYSQL_SYNC_ENABLED=true`.
 
+Connectivity check (uses both env files; password stays in the worker file):
+
 ```bash
-docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production run --rm worker node -e "const mysql = require('mysql2/promise'); const url = new URL(process.env.LEGACY_MYSQL_URL); mysql.createConnection({host: url.hostname, port: Number(url.port || 3306), user: decodeURIComponent(url.username), password: decodeURIComponent(url.password), database: url.pathname.slice(1)}).then((connection) => connection.query('select 1').finally(() => connection.end()))"
+cd ~/apps/mitsailing
+docker compose -f compose.yaml -f compose.prod.yaml \
+  --env-file .env.production --env-file .env.production.worker \
+  run --rm worker node - <<'NODE'
+const mysql = require('mysql2/promise');
+const password = process.env.LEGACY_MYSQL_PASSWORD;
+if (!password) throw new Error('LEGACY_MYSQL_PASSWORD missing');
+mysql
+  .createConnection({
+    database: 'sailing',
+    host: 'sailing.pavilion.lan',
+    password,
+    port: 3306,
+    user: 'dock_readonly',
+  })
+  .then(async (connection) => {
+    await connection.query('select 1');
+    await connection.end();
+  });
+NODE
 ```
 
-Manual verification after deploy:
+After deploy:
 
 ```bash
 docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production logs -f --tail 100 worker
-docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production exec postgres psql "$DATABASE_URL" -c "select count(*) from information_schema.tables where table_schema = 'legacy';"
+docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production \
+  exec postgres psql -U postgres -d "${POSTGRES_DB:-mitsailing_prod}" -c \
+  "select count(*) from information_schema.tables where table_schema = 'legacy';"
 ```
 
 ### 4. Create the production CMS media volume
@@ -308,28 +329,19 @@ runs `preview-down <number>` over SSH; implement that command on the server
 
 ---
 
-## Database admin access (SSH tunnel)
+## Database admin access
 
-Production Postgres is **not** published on the host by default. For one-off
-access from your laptop (GUI or `psql`), use **your personal SSH key** (not the
-CI deploy key) and optionally add the **`compose.db-admin.yaml`** overlay so
-Postgres listens on loopback only:
+Production Postgres is **not** published on the host by default (Compose network
+only). Use your **personal** SSH key (not the CI deploy key).
 
-```bash
-cd ~/apps/mitsailing
-docker compose -f compose.yaml -f compose.prod.yaml -f compose.db-admin.yaml --env-file .env.production up -d
-```
+On **`sailing-dock.mit.edu`**, open an ephemeral **127.0.0.1** forward on the
+server, tunnel from your laptop, then connect GUI tools or `psql` at
+`127.0.0.1:15432`. Full steps (including mandatory cleanup) are in
+[`.cursor/skills/pgsync-prod-to-local/SKILL.md`](../.cursor/skills/pgsync-prod-to-local/SKILL.md)
+(steps 1–2 for admin access; step 3 is optional [pgsync](https://github.com/ankane/pgsync)
+prod → local `dev_db` only).
 
-Then tunnel:
-
-```bash
-ssh -N -L 15432:127.0.0.1:15432 YOUR_USER@SERVER
-```
-
-Point tools at `127.0.0.1:15432` (see `compose.db-admin.yaml` for the default
-port). When finished, remove the admin overlay so the port is not left open.
-
-More context: [docs/devops_plan.md](./devops_plan.md) §5.5.
+Broader patterns (Cloudflare private TCP, generic SSH forward): [devops_plan.md](./devops_plan.md) §5.5.
 
 ---
 

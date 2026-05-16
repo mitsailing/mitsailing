@@ -129,13 +129,13 @@ Today `compose.yaml` uses `POSTGRES_DB: dev_db`. For production clarity (and to 
 
 ### 5.5 Database access when needed (tunnel)
 
-Pick **one** pattern and document it in the team runbook. Concrete steps (Option A
-and `compose.db-admin.yaml`) live in [deploy.md](./deploy.md#database-admin-access-ssh-tunnel).
+Pick **one** pattern and document it in the team runbook. See
+[deploy.md](./deploy.md#database-admin-access).
 
 **Option A — SSH TCP forward (operator laptop → DB)**  
 Requires SSH with a **normal shell** (personal key), **not** the CI `command=` deploy key.
 
-1. **On the server**, start a **localhost-only** port forward to Postgres for the duration of the session. Prefer a Compose **profile** (e.g. `db-admin`) on `postgres` that adds `ports: ["127.0.0.1:15432:5432"]` **only** when explicitly invoked — never bind `0.0.0.0`.
+1. **On the server**, expose Postgres on **localhost only** for the session — never bind `0.0.0.0`. On `sailing-dock.mit.edu`, use the ephemeral socat sidecar in [`.cursor/skills/pgsync-prod-to-local/SKILL.md`](../.cursor/skills/pgsync-prod-to-local/SKILL.md) (step 1).
 
 2. **On your laptop**:
 
@@ -149,7 +149,7 @@ ssh -N -L 15432:127.0.0.1:15432 youruser@SERVER_IP
 postgresql://USER:PASS@127.0.0.1:15432/DBNAME?sslmode=require
 ```
 
-4. When finished, stop the profile / `compose down` so **15432** is closed again.
+4. When finished, tear down the server-side forward and end the SSH session so **15432** is closed.
 
 **Option B — Cloudflare Tunnel private TCP**  
 Cloudflare Zero Trust can expose a **private TCP** route to `postgres:5432` for authenticated team members. Useful if SSH port forwarding is undesirable. **Still** require strong auth (Cloudflare Access + short-lived credentials).

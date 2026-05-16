@@ -66,7 +66,7 @@ This matches **2026 Next.js** practice: **`next dev` runs on your computer** (fa
 
 **Typical day:** Docker running → **`npm run dev`** from the repo root (that runs **`db:up`** → **`db:wait`** → **`db:migrate`** → **`next dev`**). You do **not** need **`db:down`** before each session.
 
-**Refresh `dev_db` from production:** [docs/pull-prod-db.md](docs/pull-prod-db.md) (manual port on/off on sailing-dock, SSH tunnel, then `pgsync`).
+**Refresh `dev_db` from production:** [`.cursor/skills/pgsync-prod-to-local/SKILL.md`](.cursor/skills/pgsync-prod-to-local/SKILL.md) (SSH tunnel + [pgsync](https://github.com/ankane/pgsync); optional `PGSYNC_FROM_URL` in `.env`).
 
 **Production** uses **`next build`** / **`next start`** or the **Docker** image — see [`docs/deploy.md`](docs/deploy.md).
 
