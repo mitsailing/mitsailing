@@ -23,10 +23,13 @@ vi.mock('@/libs/Logger', () => ({
   },
 }));
 
+const testReferenceCode = 'PAV-TESTREF';
+const testRequesterEmail = 'test.requester@example.com';
+
 const jobData = {
   eventName: 'Late night pavilion booking',
-  referenceCode: 'PAV-12345678',
-  requesterEmail: 'pavilion-requester@example.com',
+  referenceCode: testReferenceCode,
+  requesterEmail: testRequesterEmail,
   scheduleLines: ['Casual party space: Wed, Jul 1, 2026'],
 };
 
@@ -44,7 +47,7 @@ describe('enqueuePavilionReservationSubmittedEmail', () => {
       expect.objectContaining({
         attempts: 5,
         backoff: { type: 'exponential', delay: 60_000 },
-        jobId: 'pavilion-reservation-submitted-email:PAV-12345678',
+        jobId: `${PAVILION_RESERVATION_SUBMITTED_EMAIL_JOB_NAME}:${testReferenceCode}`,
       })
     );
   });
@@ -74,7 +77,7 @@ describe('processPavilionReservationSubmittedEmailJob', () => {
       {
         errorCode: 'ETIMEDOUT',
         errorName: 'Error',
-        referenceCode: 'PAV-12345678',
+        referenceCode: testReferenceCode,
       }
     );
   });
