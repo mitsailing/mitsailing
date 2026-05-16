@@ -15,7 +15,7 @@ const PAVILION_RESERVATION_MIN_GRID = 30;
 
 const minutesPerDay = 24 * 60;
 
-type PavilionReservationTimeOption = {
+export type PavilionReservationTimeOption = {
   minutes: number;
   label: string;
 };
@@ -82,6 +82,41 @@ export function listPavilionReservationTimeOptions() {
     });
   }
   return options;
+}
+
+/**
+ * Pavilion time options for HTML selects: grid-aligned choices plus an optional
+ * preserved value when legacy data is not on the half-hour grid.
+ *
+ * @param props - Select option builder inputs.
+ * @param props.includeEnd - When true, include the closing instant (26:00).
+ * @param props.preserveMinutes - Off-grid value to keep selectable without coercion.
+ * @param props.preserveLabel - Label for the preserved option; defaults to formatted time.
+ * @returns Grid-aligned options, with a leading preserved value when needed.
+ */
+export function buildPavilionReservationTimeSelectOptions(props: {
+  includeEnd?: boolean;
+  preserveMinutes?: number;
+  preserveLabel?: (minutes: number) => string;
+}) {
+  const gridOptions = listPavilionReservationTimeOptions().filter(
+    (option) =>
+      props.includeEnd === true ||
+      option.minutes < PAVILION_RESERVATION_END_MINUTES
+  );
+  const preserve = props.preserveMinutes;
+  if (
+    preserve !== undefined &&
+    !gridOptions.some((option) => option.minutes === preserve)
+  ) {
+    const formatLabel =
+      props.preserveLabel ?? formatPavilionReservationTimeLabel;
+    return [
+      { minutes: preserve, label: formatLabel(preserve) },
+      ...gridOptions,
+    ];
+  }
+  return gridOptions;
 }
 
 /**

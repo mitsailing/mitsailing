@@ -28,6 +28,11 @@ import {
 import { cn } from '@/lib/utils';
 import { Link } from '@/libs/I18nNavigation';
 import {
+  listPavilionReservationTimeOptions,
+  PAVILION_RESERVATION_END_MINUTES,
+} from '@/libs/mit-sailing/pavilionReservationBookingTimeline';
+import type { PavilionReservationTimeOption } from '@/libs/mit-sailing/pavilionReservationBookingTimeline';
+import {
   estimatedServiceAmountCents,
   estimatedSlotAmountCents,
   formatPavilionReservationMoney,
@@ -168,26 +173,11 @@ function updateSlotInSlots(props: {
   );
 }
 
-type TimeOption = {
-  labelKey: string;
-  minutes: number;
-};
-
-function slotTimeOptions(props: { includeEnd: boolean }) {
-  const options: TimeOption[] = [];
-  const last = props.includeEnd ? 26 : 25.5;
-  for (let hour = 7; hour <= last; hour += 0.5) {
-    const minutes = Math.round(hour * 60);
-    options.push({
-      labelKey: String(minutes),
-      minutes,
-    });
-  }
-  return options;
-}
-
-const startOptions = slotTimeOptions({ includeEnd: false });
-const endOptions = slotTimeOptions({ includeEnd: true });
+const pavilionTimeOptions = listPavilionReservationTimeOptions();
+const startOptions = pavilionTimeOptions.filter(
+  (option) => option.minutes < PAVILION_RESERVATION_END_MINUTES
+);
+const endOptions = pavilionTimeOptions;
 
 type CalendarMonth = {
   monthIndex: number;
@@ -366,7 +356,7 @@ function canFinishSlotEditing(props: { phase: SlotPhase; slot: ClientSlot }) {
 
 function endMinutesForStartChange(props: {
   currentEndMinutes: number;
-  nextEndChoices: TimeOption[];
+  nextEndChoices: PavilionReservationTimeOption[];
 }) {
   return props.nextEndChoices.some(
     (option) => option.minutes === props.currentEndMinutes
@@ -907,7 +897,7 @@ function SlotCalendarPanel(props: {
 
 function TimeOptionGrid(props: {
   emptyLabel?: string;
-  options: TimeOption[];
+  options: PavilionReservationTimeOption[];
   onSelect: (minutes: number) => void;
   selectedMinutes: number;
 }) {
@@ -932,7 +922,7 @@ function TimeOptionGrid(props: {
                 ? 'border-mit-red bg-mit-red text-white'
                 : 'border-mit-line bg-background text-primary-ink hover:border-mit-red hover:bg-mit-red-highlight'
             )}
-            key={option.labelKey}
+            key={option.minutes}
             type="button"
             onClick={() => {
               props.onSelect(option.minutes);
@@ -949,7 +939,7 @@ function TimeOptionGrid(props: {
 function SlotStartSelection(props: {
   onSelectStart: (minutes: number) => void;
   selectedStartMinutes: number;
-  startChoices: TimeOption[];
+  startChoices: PavilionReservationTimeOption[];
 }) {
   const t = useTranslations('PavilionReservationPage');
 
@@ -966,7 +956,7 @@ function SlotStartSelection(props: {
 }
 
 function SlotEndSelection(props: {
-  endChoices: TimeOption[];
+  endChoices: PavilionReservationTimeOption[];
   onChangeStart: () => void;
   onSelectEnd: (minutes: number) => void;
   selectedEndMinutes: number;
@@ -1003,12 +993,12 @@ function SlotEndSelection(props: {
 }
 
 function SlotAllSelection(props: {
-  endChoices: TimeOption[];
+  endChoices: PavilionReservationTimeOption[];
   onSelectEnd: (minutes: number) => void;
   onSelectStart: (minutes: number) => void;
   selectedEndMinutes: number;
   selectedStartMinutes: number;
-  startChoices: TimeOption[];
+  startChoices: PavilionReservationTimeOption[];
 }) {
   const t = useTranslations('PavilionReservationPage');
 
@@ -1133,13 +1123,13 @@ function SlotTimePanelHeader(props: {
 
 function SlotTimePanelBody(props: {
   blockedRanges: PavilionReservationBlockedRange[];
-  endChoices: TimeOption[];
+  endChoices: PavilionReservationTimeOption[];
   onUpdate: (slot: ClientSlot) => void;
   phase: SlotPhase;
   setIsEditing: React.Dispatch<React.SetStateAction<boolean>>;
   setPhase: React.Dispatch<React.SetStateAction<SlotPhase>>;
   slot: ClientSlot;
-  startChoices: TimeOption[];
+  startChoices: PavilionReservationTimeOption[];
 }) {
   const t = useTranslations('PavilionReservationPage');
 
@@ -1226,14 +1216,14 @@ function SlotTimePanelBody(props: {
 function SlotTimePanel(props: {
   blockedRanges: PavilionReservationBlockedRange[];
   canFinishEditing: boolean;
-  endChoices: TimeOption[];
+  endChoices: PavilionReservationTimeOption[];
   onUpdate: (slot: ClientSlot) => void;
   phase: SlotPhase;
   selectedDateLabel: string;
   setIsEditing: React.Dispatch<React.SetStateAction<boolean>>;
   setPhase: React.Dispatch<React.SetStateAction<SlotPhase>>;
   slot: ClientSlot;
-  startChoices: TimeOption[];
+  startChoices: PavilionReservationTimeOption[];
 }) {
   return (
     <div className="flex flex-col md:min-h-96">
@@ -1265,7 +1255,7 @@ function SlotEditorForm(props: {
   calendarMonth: CalendarMonth;
   canFinishEditing: boolean;
   cells: CalendarCell[];
-  endChoices: TimeOption[];
+  endChoices: PavilionReservationTimeOption[];
   handleCalendarMonthChange: React.Dispatch<
     React.SetStateAction<CalendarMonth>
   >;
@@ -1278,7 +1268,7 @@ function SlotEditorForm(props: {
   setPhase: React.Dispatch<React.SetStateAction<SlotPhase>>;
   slot: ClientSlot;
   slots: ClientSlot[];
-  startChoices: TimeOption[];
+  startChoices: PavilionReservationTimeOption[];
   title: string;
   onRemove: () => void;
   onUpdate: (slot: ClientSlot) => void;

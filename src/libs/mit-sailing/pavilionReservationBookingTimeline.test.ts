@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildPavilionReservationTimeSelectOptions,
   listPavilionReservationTimeOptions,
   pavilionReservationLogicalRangeFromSlot,
   pavilionReservationRangesOverlap,
@@ -14,6 +15,27 @@ describe('pavilionReservationBookingTimeline', () => {
       minutes: 26 * 60,
       label: '2:00 AM (next day)',
     });
+    expect(options).toHaveLength(39);
+  });
+
+  it('builds start select options without the closing instant', () => {
+    const options = buildPavilionReservationTimeSelectOptions({});
+
+    expect(options.at(-1)?.minutes).toBe(25 * 60 + 30);
+    expect(options).toHaveLength(38);
+  });
+
+  it('preserves off-grid minutes in select options', () => {
+    const options = buildPavilionReservationTimeSelectOptions({
+      preserveMinutes: 9 * 60 + 15,
+      preserveLabel: (minutes) => `legacy ${minutes}`,
+    });
+
+    expect(options[0]).toEqual({
+      minutes: 9 * 60 + 15,
+      label: `legacy ${9 * 60 + 15}`,
+    });
+    expect(options.some((option) => option.minutes === 9 * 60 + 15)).toBe(true);
     expect(options).toHaveLength(39);
   });
 

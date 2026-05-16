@@ -25,10 +25,7 @@ import {
   formatEasternDateTime,
   formatEasternShortDateFromIsoCalendar,
 } from '@/libs/mit-sailing/easternTimeFormat';
-import {
-  listPavilionReservationTimeOptions,
-  PAVILION_RESERVATION_END_MINUTES,
-} from '@/libs/mit-sailing/pavilionReservationBookingTimeline';
+import { buildPavilionReservationTimeSelectOptions } from '@/libs/mit-sailing/pavilionReservationBookingTimeline';
 import {
   formatPavilionReservationMoney,
   PAVILION_RESERVATION_PERSONAS,
@@ -46,14 +43,15 @@ function dollarsValue(amountCents: number | null): string {
 function TimeSelect(props: {
   blank?: string;
   defaultValue?: number;
+  formatOffGridTimeLabel?: (minutes: number) => string;
   includeEnd?: boolean;
   name: string;
 }) {
-  const options = listPavilionReservationTimeOptions().filter(
-    (option) =>
-      props.includeEnd === true ||
-      option.minutes < PAVILION_RESERVATION_END_MINUTES
-  );
+  const options = buildPavilionReservationTimeSelectOptions({
+    includeEnd: props.includeEnd,
+    preserveMinutes: props.defaultValue,
+    preserveLabel: props.formatOffGridTimeLabel,
+  });
   return (
     <select
       className={adminNativeSelectClassName}
@@ -310,6 +308,11 @@ export default async function AdminPavilionReservationDetailPage(
                       <span className="font-medium">{t('field_start')}</span>
                       <TimeSelect
                         defaultValue={slot.startMinutes}
+                        formatOffGridTimeLabel={(minutes) =>
+                          t('time_off_grid_option', {
+                            time: formatPavilionReservationTimeLabel(minutes),
+                          })
+                        }
                         name="slotStart"
                       />
                     </label>
@@ -317,6 +320,11 @@ export default async function AdminPavilionReservationDetailPage(
                       <span className="font-medium">{t('field_end')}</span>
                       <TimeSelect
                         defaultValue={slot.endMinutes}
+                        formatOffGridTimeLabel={(minutes) =>
+                          t('time_off_grid_option', {
+                            time: formatPavilionReservationTimeLabel(minutes),
+                          })
+                        }
                         includeEnd
                         name="slotEnd"
                       />

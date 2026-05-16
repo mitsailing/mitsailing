@@ -1602,7 +1602,8 @@
     "new_slot_title": "Add a schedule slot",
     "yes": "Yes",
     "no": "No",
-    "blank": "—"
+    "blank": "—",
+    "time_off_grid_option": "{time} (off grid)"
   },
   "MitSailingAlerts": {
     "meta_title": "Alerts",
