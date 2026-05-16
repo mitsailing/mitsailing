@@ -51,6 +51,10 @@ async function mockSubmitAction(): Promise<PavilionReservationSubmitState> {
 }
 
 function renderWizard(props: {
+  action?: (
+    state: PavilionReservationSubmitState,
+    formData: FormData
+  ) => Promise<PavilionReservationSubmitState>;
   blockedRanges?: {
     itemId: string;
     date: string;
@@ -61,7 +65,7 @@ function renderWizard(props: {
 }) {
   return render(
     <PavilionReservationWizard
-      action={mockSubmitAction}
+      action={props.action ?? mockSubmitAction}
       blockedRanges={props.blockedRanges ?? []}
       initialState={{ status: 'idle', errors: [] }}
       items={props.items ?? [space]}
@@ -86,6 +90,36 @@ function hiddenInput(container: HTMLElement, name: string) {
   return input;
 }
 
+function selectCompletedSlot() {
+  fireEvent.click(screen.getByRole('button', { name: 'Select this option' }));
+  fireEvent.click(screen.getByRole('button', { name: '20' }));
+  fireEvent.click(screen.getByRole('button', { name: '9:00 AM' }));
+  fireEvent.click(screen.getByRole('button', { name: '10:00 AM' }));
+}
+
+function parsedSlots(container: HTMLElement): unknown {
+  const slots: unknown = JSON.parse(slotsInput(container).value);
+  return slots;
+}
+
+function selectedTimeButton(name: string) {
+  const button = screen
+    .getAllByRole('button', { name })
+    .find((element) => element.getAttribute('aria-pressed') === 'true');
+  if (!button) {
+    throw new Error(`Expected selected time button ${name}.`);
+  }
+  return button;
+}
+
+function timeButtonAt(name: string, index: number) {
+  const button = screen.getAllByRole('button', { name })[index];
+  if (!button) {
+    throw new Error(`Expected time button ${name} at index ${index}.`);
+  }
+  return button;
+}
+
 describe('PavilionReservationWizard slot picker', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -94,6 +128,7 @@ describe('PavilionReservationWizard slot picker', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it('exposes two public stages', () => {
@@ -107,15 +142,149 @@ describe('PavilionReservationWizard slot picker', () => {
   it('writes selected calendar and time grid values', () => {
     const { container } = renderWizard({});
 
+    selectCompletedSlot();
+
+    expect(parsedSlots(container)).toEqual([
+      {
+        itemId: 'space-1',
+        date: '2026-05-20',
+        startMinutes: 540,
+        endMinutes: 600,
+      },
+    ]);
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Duplicate' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '11:00 AM' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+
+    expect(
+      screen.getByText('Change the date, start time, or end time.')
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Change date' })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Done editing' })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: '20', pressed: true })
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Morning')).toBeNull();
+    expect(screen.queryByText('Afternoon')).toBeNull();
+    expect(screen.queryByText('Evening')).toBeNull();
+    expect(selectedTimeButton('9:00 AM')).toBeInTheDocument();
+    expect(selectedTimeButton('10:00 AM')).toBeInTheDocument();
+    expect(parsedSlots(container)).toEqual([
+      {
+        itemId: 'space-1',
+        date: '2026-05-20',
+        startMinutes: 540,
+        endMinutes: 600,
+      },
+    ]);
+  });
+
+  it('updates end time while preserving date and start time', () => {
+    const { container } = renderWizard({});
+
+    selectCompletedSlot();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.click(timeButtonAt('11:00 AM', 1));
+
+    expect(parsedSlots(container)).toEqual([
+      {
+        itemId: 'space-1',
+        date: '2026-05-20',
+        startMinutes: 540,
+        endMinutes: 660,
+      },
+    ]);
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '9:00 AM' })).toBeNull();
+  });
+
+  it('updates start time while preserving valid end time', () => {
+    const { container } = renderWizard({});
+
+    selectCompletedSlot();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.click(timeButtonAt('9:30 AM', 0));
+
+    expect(parsedSlots(container)).toEqual([
+      {
+        itemId: 'space-1',
+        date: '2026-05-20',
+        startMinutes: 570,
+        endMinutes: 600,
+      },
+    ]);
+    expect(selectedTimeButton('9:30 AM')).toBeInTheDocument();
+    expect(selectedTimeButton('10:00 AM')).toBeInTheDocument();
+  });
+
+  it('preserves valid times when changing the date', () => {
+    const { container } = renderWizard({});
+
+    selectCompletedSlot();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.click(screen.getByRole('button', { name: '22' }));
+
+    expect(parsedSlots(container)).toEqual([
+      {
+        itemId: 'space-1',
+        date: '2026-05-22',
+        startMinutes: 540,
+        endMinutes: 600,
+      },
+    ]);
+    expect(selectedTimeButton('9:00 AM')).toBeInTheDocument();
+    expect(selectedTimeButton('10:00 AM')).toBeInTheDocument();
+  });
+
+  it('clears invalid end time when changing to a conflicting date', () => {
+    const { container } = renderWizard({
+      blockedRanges: [
+        {
+          itemId: 'space-1',
+          date: '2026-05-21',
+          startMinutes: 570,
+          endMinutes: 630,
+        },
+      ],
+    });
+
+    selectCompletedSlot();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.click(screen.getByRole('button', { name: '21' }));
+
+    expect(parsedSlots(container)).toEqual([
+      {
+        itemId: 'space-1',
+        date: '2026-05-21',
+        startMinutes: 540,
+        endMinutes: 0,
+      },
+    ]);
+    expect(selectedTimeButton('9:00 AM')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '10:00 AM' })).toBeNull();
+  });
+
+  it('writes selected guided calendar and time grid values', () => {
+    const { container } = renderWizard({});
+
     fireEvent.click(screen.getByRole('button', { name: 'Select this option' }));
     fireEvent.click(screen.getByRole('button', { name: '20' }));
+    expect(screen.queryByText('Morning')).toBeNull();
+    expect(screen.queryByText('Afternoon')).toBeNull();
+    expect(screen.queryByText('Evening')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: '9:00 AM' }));
     expect(
       screen.getAllByRole('button', { name: 'Change start' })[0]
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '10:00 AM' }));
 
-    expect(JSON.parse(slotsInput(container).value)).toEqual([
+    expect(parsedSlots(container)).toEqual([
       {
         itemId: 'space-1',
         date: '2026-05-20',
@@ -125,12 +294,6 @@ describe('PavilionReservationWizard slot picker', () => {
     ]);
     expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '11:00 AM' })).toBeNull();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
-
-    expect(
-      screen.getByRole('button', { name: 'Change date' })
-    ).toBeInTheDocument();
   });
 
   it('disables blocked and under-notice start times', () => {
@@ -161,15 +324,94 @@ describe('PavilionReservationWizard slot picker', () => {
   it('shows spaces validation in the fixed footer', () => {
     const { container } = renderWizard({});
 
+    expect(
+      screen.getByRole('button', { name: 'Next: contact information' })
+    ).toBeDisabled();
+    expect(
+      screen.getByText('Enter a valid email address to continue.')
+    ).toBeInTheDocument();
+    expect(container.querySelector('.fixed.inset-x-0.bottom-0')).not.toBeNull();
+  });
+
+  it('prioritizes first-step fix targets', () => {
+    renderWizard({});
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+
+    fireEvent.click(screen.getByRole('button', { name: 'Fix this' }));
+
+    expect(screen.getByLabelText('Email address*')).toHaveFocus();
+
+    fireEvent.change(screen.getByLabelText('Email address*'), {
+      target: { value: 'sailor@example.edu' },
+    });
+
+    expect(
+      screen.getByText('Select an option to continue.')
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Select this option' }));
+
+    expect(
+      screen.getByText('Finish the selected date and time to continue.')
+    ).toBeInTheDocument();
+    expect(scrollIntoView).toHaveBeenCalled();
+  });
+
+  it('shows submit pending state on final submit', async () => {
+    vi.useRealTimers();
+    const deferred = Promise.withResolvers<PavilionReservationSubmitState>();
+    const action = vi.fn(async () => {
+      const state = await deferred.promise;
+      return state;
+    });
+    renderWizard({ action });
+
+    fireEvent.change(screen.getByLabelText('Email address*'), {
+      target: { value: 'sailor@example.edu' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Select this option' }));
+    fireEvent.click(screen.getByRole('button', { name: '20' }));
+    fireEvent.click(screen.getByRole('button', { name: '9:00 AM' }));
+    fireEvent.click(screen.getByRole('button', { name: '10:00 AM' }));
     fireEvent.click(
       screen.getByRole('button', { name: 'Next: contact information' })
     );
+    fireEvent.change(screen.getByLabelText('First name*'), {
+      target: { value: 'Avery' },
+    });
+    fireEvent.change(screen.getByLabelText('Last name*'), {
+      target: { value: 'Sailor' },
+    });
+    fireEvent.change(screen.getByLabelText('Phone*'), {
+      target: { value: '617-555-0100' },
+    });
+    fireEvent.change(screen.getByLabelText('Event name*'), {
+      target: { value: 'Dock talk' },
+    });
+    fireEvent.change(screen.getByLabelText('Event description*'), {
+      target: { value: 'A short academic waterfront event.' },
+    });
+    fireEvent.change(screen.getByLabelText('Project title*'), {
+      target: { value: 'Hydrodynamics' },
+    });
+    fireEvent.change(screen.getByLabelText('Faculty advisor name*'), {
+      target: { value: 'Taylor Advisor' },
+    });
+    fireEvent.change(screen.getByLabelText('Faculty advisor email*'), {
+      target: { value: 'advisor@example.edu' },
+    });
+    fireEvent.change(screen.getByLabelText('Cost center*'), {
+      target: { value: '1234567' },
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Submit reservation request' })
+    );
 
-    expect(screen.getByText('Email address is required.')).toBeInTheDocument();
     expect(
-      screen.getByText('Select at least one option before continuing.')
+      await screen.findByRole('button', { name: 'Submitting...' })
     ).toBeInTheDocument();
-    expect(container.querySelector('.fixed.inset-x-0.bottom-0')).not.toBeNull();
+    deferred.resolve({ status: 'idle', errors: [] });
   });
 
   it('clears unavailable services when group type changes on contact', () => {
