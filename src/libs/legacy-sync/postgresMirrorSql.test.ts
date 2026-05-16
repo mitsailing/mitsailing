@@ -33,6 +33,24 @@ describe('postgresMirrorSql', () => {
     );
   });
 
+  it('rejects invalid buildInsertSql inputs before quoting', () => {
+    expect(() => buildInsertSql('', ['id'], 1)).toThrow(
+      'tableName must be a non-empty string'
+    );
+    expect(() => buildInsertSql('t', [], 1)).toThrow(
+      'columnNames must be non-empty'
+    );
+    expect(() => buildInsertSql('t', ['id'], 0)).toThrow(
+      'rowCount must be > 0'
+    );
+    expect(() => buildInsertSql('t', ['id'], -1)).toThrow(
+      'rowCount must be > 0'
+    );
+    expect(() => buildInsertSql('t', ['id'], 1.5)).toThrow(
+      'rowCount must be > 0'
+    );
+  });
+
   it('does not generate destructive SQL for public or arbitrary schemas', () => {
     const generatedSql = [
       ...legacySchemaResetSql(),

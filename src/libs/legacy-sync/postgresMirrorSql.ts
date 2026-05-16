@@ -39,6 +39,23 @@ export function buildInsertSql(
   columnNames: readonly string[],
   rowCount: number
 ): string {
+  if (typeof tableName !== 'string' || tableName.length === 0) {
+    throw new Error('tableName must be a non-empty string');
+  }
+  if (columnNames.length === 0) {
+    throw new Error('columnNames must be non-empty');
+  }
+  for (const [index, columnName] of columnNames.entries()) {
+    if (typeof columnName !== 'string') {
+      throw new TypeError(
+        `columnNames[${index}] must be a string, received ${typeof columnName}`
+      );
+    }
+  }
+  if (!Number.isInteger(rowCount) || rowCount <= 0) {
+    throw new RangeError('rowCount must be > 0');
+  }
+
   const columns = columnNames.map(quotePgIdentifier).join(', ');
   const values = Array.from({ length: rowCount }, (_row, rowIndex) => {
     const placeholders = columnNames.map(

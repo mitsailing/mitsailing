@@ -2,8 +2,8 @@ import { Pool as PgPool } from 'pg';
 import type { PoolClient } from 'pg';
 import { prisma } from '@/libs/DB';
 import { Env } from '@/libs/Env';
+import type { LegacyMysqlSyncConfig } from '@/libs/legacy-sync/legacyMysqlSyncConfig';
 import {
-  LEGACY_MYSQL_SOURCE,
   openLegacyMysqlConnection,
   streamLegacyMysqlTableRows,
 } from '@/libs/legacy-sync/mysqlConnection';
@@ -33,23 +33,6 @@ export type MirrorTransactionClient = {
   query: (sql: string, values?: unknown[]) => Promise<{ rows: unknown[] }>;
 };
 
-type LegacyMysqlSyncEnv = {
-  APP_ENV?: string;
-  LEGACY_MYSQL_PASSWORD?: string;
-  LEGACY_MYSQL_SYNC_CRON?: string;
-  LEGACY_MYSQL_SYNC_ENABLED?: string;
-};
-
-export type LegacyMysqlSyncConfig =
-  | { enabled: false }
-  | {
-      cron: string;
-      database: typeof LEGACY_MYSQL_SOURCE.database;
-      enabled: true;
-      mysqlPassword: string;
-      sourceHost: typeof LEGACY_MYSQL_SOURCE.host;
-    };
-
 function isAdvisoryLockRow(row: unknown): row is { acquired: boolean } {
   return (
     typeof row === 'object' &&
@@ -57,26 +40,6 @@ function isAdvisoryLockRow(row: unknown): row is { acquired: boolean } {
     'acquired' in row &&
     typeof row.acquired === 'boolean'
   );
-}
-
-export function legacyMysqlSyncConfigFromEnv(
-  env: LegacyMysqlSyncEnv = Env
-): LegacyMysqlSyncConfig {
-  if (env.LEGACY_MYSQL_SYNC_ENABLED !== 'true') {
-    return { enabled: false };
-  }
-  if (env.LEGACY_MYSQL_PASSWORD === undefined) {
-    throw new Error(
-      'LEGACY_MYSQL_PASSWORD is required when legacy sync is enabled.'
-    );
-  }
-  return {
-    enabled: true,
-    cron: env.LEGACY_MYSQL_SYNC_CRON ?? '0 0 * * * *',
-    database: LEGACY_MYSQL_SOURCE.database,
-    mysqlPassword: env.LEGACY_MYSQL_PASSWORD,
-    sourceHost: LEGACY_MYSQL_SOURCE.host,
-  };
 }
 
 export async function tryAcquireLegacyMysqlSyncLock(

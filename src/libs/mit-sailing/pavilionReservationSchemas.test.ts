@@ -1,4 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import {
+  PAVILION_RESERVATION_END_MINUTES,
+  PAVILION_RESERVATION_START_MINUTES,
+} from '@/libs/mit-sailing/pavilionReservationBookingTimeline';
 import { pavilionReservationFormSchema } from '@/libs/mit-sailing/pavilionReservationSchemas';
 
 function validInput() {
@@ -77,5 +81,53 @@ describe('pavilionReservationFormSchema', () => {
     expect(result.data.projectTitle).toBeNull();
     expect(result.data.mitId).toBeNull();
     expect(result.data.mitAccount).toBeNull();
+  });
+
+  it('rejects slot minutes outside operating hours or grid', () => {
+    const result = pavilionReservationFormSchema.safeParse({
+      ...validInput(),
+      slots: [
+        {
+          itemId: 'pavilion',
+          date: '2026-07-01',
+          startMinutes: 1,
+          endMinutes: PAVILION_RESERVATION_START_MINUTES + 60,
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects slot end before or equal to start after per-slot checks', () => {
+    const result = pavilionReservationFormSchema.safeParse({
+      ...validInput(),
+      slots: [
+        {
+          itemId: 'pavilion',
+          date: '2026-07-01',
+          startMinutes: PAVILION_RESERVATION_START_MINUTES + 60,
+          endMinutes: PAVILION_RESERVATION_START_MINUTES + 60,
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts bookable operating-hours slots', () => {
+    const result = pavilionReservationFormSchema.safeParse({
+      ...validInput(),
+      slots: [
+        {
+          itemId: 'pavilion',
+          date: '2026-07-01',
+          startMinutes: PAVILION_RESERVATION_START_MINUTES,
+          endMinutes: PAVILION_RESERVATION_END_MINUTES,
+        },
+      ],
+    });
+
+    expect(result.success).toBe(true);
   });
 });

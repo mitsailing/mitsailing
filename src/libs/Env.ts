@@ -1,5 +1,9 @@
 import { createEnv } from '@t3-oss/env-nextjs';
 import * as z from 'zod';
+import {
+  isLegacyMysqlSyncCronPattern,
+  LEGACY_MYSQL_SYNC_DEFAULT_CRON,
+} from '@/libs/legacy-sync/legacyMysqlSyncConstants';
 
 const isStorybookNpmScript =
   process.env.npm_lifecycle_event === 'storybook' ||
@@ -16,7 +20,14 @@ export const Env = createEnv({
     // BullMQ worker + optional API enqueue; Redis is internal to Compose in prod.
     REDIS_URL: z.url().optional(),
     LEGACY_MYSQL_SYNC_ENABLED: z.enum(['true', 'false']).default('false'),
-    LEGACY_MYSQL_SYNC_CRON: z.string().min(1).default('0 0 * * * *'),
+    LEGACY_MYSQL_SYNC_CRON: z
+      .string()
+      .min(1)
+      .default(LEGACY_MYSQL_SYNC_DEFAULT_CRON)
+      .refine(isLegacyMysqlSyncCronPattern, {
+        message:
+          'LEGACY_MYSQL_SYNC_CRON must be a six-field BullMQ cron (seconds first), e.g. 0 0 * * * *.',
+      }),
     LEGACY_MYSQL_PASSWORD: z.string().min(1).optional(),
 
     // APP_ENV is orthogonal to NODE_ENV: it names the deployment target

@@ -1376,7 +1376,7 @@
     "space_group_programs": "Programs & special use",
     "price_tbd": "Pricing confirmed after review",
     "price_tbd_note": "Submit your preferred time and the Sailing team will follow up with final pricing before anything is confirmed.",
-    "minimum_hours": "Minimum: {count} hour",
+    "minimum_hours": "Minimum: {count, plural, one {# hour} other {# hours}}",
     "action_selected": "Selected",
     "action_select_space": "Select this option",
     "selected_slots_title": "Selected options & time slots",

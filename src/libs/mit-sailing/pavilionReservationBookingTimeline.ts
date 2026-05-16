@@ -1,7 +1,8 @@
 import { formatPavilionReservationTimeLabel } from '@/libs/mit-sailing/pavilionReservationTimeLabel';
 import type { PavilionReservationSlotInput } from '@/libs/mit-sailing/pavilionReservationTypes';
 
-const PAVILION_RESERVATION_START_MINUTES = 7 * 60;
+/** First bookable minute on the pavilion day axis (7:00 AM). */
+export const PAVILION_RESERVATION_START_MINUTES = 7 * 60;
 /**
  * Last bookable minute on the pavilion timeline. `26 * 60` is 26:00 on the
  * booking-day axis (2:00 AM the following calendar day).
@@ -9,7 +10,8 @@ const PAVILION_RESERVATION_START_MINUTES = 7 * 60;
  * minutes exceed one day.
  */
 export const PAVILION_RESERVATION_END_MINUTES = 26 * 60;
-const PAVILION_RESERVATION_TIME_STEP_MINUTES = 30;
+/** Half-hour grid for bookable start and end times. */
+const PAVILION_RESERVATION_MIN_GRID = 30;
 
 const minutesPerDay = 24 * 60;
 
@@ -72,7 +74,7 @@ export function listPavilionReservationTimeOptions() {
   for (
     let minutes = PAVILION_RESERVATION_START_MINUTES;
     minutes <= PAVILION_RESERVATION_END_MINUTES;
-    minutes += PAVILION_RESERVATION_TIME_STEP_MINUTES
+    minutes += PAVILION_RESERVATION_MIN_GRID
   ) {
     options.push({
       minutes,
@@ -82,13 +84,20 @@ export function listPavilionReservationTimeOptions() {
   return options;
 }
 
-function isPavilionReservationTimelineMinutes(minutes: number) {
+/**
+ * Returns whether `minutes` is on the pavilion operating-hours grid.
+ *
+ * @param minutes - Minutes from midnight on the booking-day axis.
+ * @returns True when within operating hours on the half-hour grid.
+ */
+export function isPavilionReservationTimelineMinutes(minutes: number) {
   return (
     Number.isInteger(minutes) &&
+    minutes >= 0 &&
     minutes >= PAVILION_RESERVATION_START_MINUTES &&
     minutes <= PAVILION_RESERVATION_END_MINUTES &&
     (minutes - PAVILION_RESERVATION_START_MINUTES) %
-      PAVILION_RESERVATION_TIME_STEP_MINUTES ===
+      PAVILION_RESERVATION_MIN_GRID ===
       0
   );
 }

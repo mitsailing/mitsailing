@@ -257,7 +257,7 @@ function inferSpaceSlugs(row: LegacyReservationDbRow): string[] {
 function parseLegacyDateTimeTimeOfDay(value: string | null): number | null {
   const match = stringValue(value)
     .trim()
-    .match(/^\d{4}-\d{2}-\d{2}\s+(\d{1,2}):(\d{2}):\d{2}\s/u);
+    .match(/^\d{4}-\d{2}-\d{2}\s+(\d{1,2}):(\d{2}):\d{2}$/u);
   if (!match) {
     return null;
   }
@@ -289,7 +289,7 @@ export function minutesFromMysqlTime(value: string | null): number | null {
   return hour * 60 + minute;
 }
 
-function minutesFromLegacyTime(value: string | null): number | null {
+export function minutesFromLegacyTime(value: string | null): number | null {
   return minutesFromMysqlTime(value) ?? parseLegacyDateTimeTimeOfDay(value);
 }
 

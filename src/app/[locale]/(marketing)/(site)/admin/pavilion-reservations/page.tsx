@@ -33,6 +33,7 @@ import {
 import {
   adminPavilionReservationAddDays,
   adminPavilionReservationDateKey,
+  adminPavilionReservationTodayKey,
   adminPavilionReservationWeekKeys,
   adminPavilionReservationWeekStart,
 } from '@/libs/admin/pavilion-reservations/pavilionReservationAdminSchedule';
@@ -132,7 +133,7 @@ export default async function AdminPavilionReservationsPage(
   const weekStart = adminPavilionReservationWeekStart(
     parseAdminPavilionReservationDateFilter(searchParams.week) ??
       date ??
-      adminPavilionReservationDateKey(new Date())
+      adminPavilionReservationTodayKey()
   );
   const weekKeys = adminPavilionReservationWeekKeys(weekStart);
   const [result, t] = await Promise.all([
@@ -244,7 +245,7 @@ export default async function AdminPavilionReservationsPage(
                 href={filterHref({
                   ...commonHrefParams,
                   week: adminPavilionReservationWeekStart(
-                    adminPavilionReservationDateKey(new Date())
+                    adminPavilionReservationTodayKey()
                   ),
                 })}
               >

@@ -8,6 +8,9 @@ const adminEmail =
 
 const pool = new Pool({ connectionString: e2ePgConnectionString() });
 
+const e2eUserAkId = 'user-ak';
+const e2eTechRatingId = 'rating-tech';
+
 test.afterAll(async () => {
   await pool.end();
 });
@@ -31,7 +34,7 @@ async function grantTechRatingForProfileTest() {
      SET "issued_by_user_id" = EXCLUDED."issued_by_user_id",
          "issued_at" = EXCLUDED."issued_at",
          "updated_at" = NOW()`,
-    ['e2e-user-ak-tech-rating', 'user-ak', 'rating-tech', adminId]
+    ['e2e-user-ak-tech-rating', e2eUserAkId, e2eTechRatingId, adminId]
   );
 }
 
@@ -39,8 +42,34 @@ async function revokeTechRatingForProfileTest() {
   await pool.query(
     `DELETE FROM "user_sailing_ratings"
      WHERE "user_id" = $1 AND "sailing_rating_id" = $2`,
-    ['user-ak', 'rating-tech']
+    [e2eUserAkId, e2eTechRatingId]
   );
+}
+
+/**
+ * Waits until the seeded user has or lacks the tech rating row (e2e `pg` pool, not Prisma).
+ *
+ * @param present - When true, poll until the row exists; when false, until absent.
+ */
+async function waitForTechRatingRowPresent(present: boolean) {
+  const stateLabel = present ? 'granted' : 'revoked';
+  await expect
+    .poll(
+      async () => {
+        const result = await pool.query<{ exists: boolean }>(
+          `SELECT EXISTS (
+             SELECT 1
+               FROM "user_sailing_ratings"
+              WHERE "user_id" = $1
+                AND "sailing_rating_id" = $2
+           ) AS "exists"`,
+          [e2eUserAkId, e2eTechRatingId]
+        );
+        return result.rows[0]?.exists ?? false;
+      },
+      { message: `tech rating ${stateLabel} in e2e database` }
+    )
+    .toBe(present);
 }
 
 test.describe('Sailing ratings', () => {
@@ -140,12 +169,15 @@ test.describe('Sailing ratings', () => {
     const techRow = page.getByRole('row').filter({ hasText: 'Tech Rating' });
     await expect(techRow.getByText('Not yet obtained')).toBeVisible();
     await techRow.getByRole('button', { name: 'Give Rating' }).click();
-    await expect(techRow.getByRole('button', { name: 'Revoke' })).toBeVisible({
-      timeout: 30_000,
-    });
+    await waitForTechRatingRowPresent(true);
+    await expect(techRow.getByRole('button', { name: 'Revoke' })).toBeVisible();
     await expect(techRow.getByText('Not yet obtained')).toHaveCount(0);
 
     await techRow.getByRole('button', { name: 'Revoke' }).click();
+    await waitForTechRatingRowPresent(false);
+    await expect(techRow.getByRole('button', { name: 'Revoke' })).toHaveCount(
+      0
+    );
     await expect(
       techRow.getByRole('button', { name: 'Give Rating' })
     ).toBeVisible();

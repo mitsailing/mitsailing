@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  legacyMysqlSyncConfigFromEnv,
   releaseLegacyMysqlSyncLock,
   runLegacyMirrorTransaction,
   runLegacyMysqlSync,
@@ -11,44 +10,13 @@ import type {
   MirrorTransactionClient,
 } from '@/libs/legacy-sync/legacyMysqlSync';
 
-describe('legacyMysqlSyncConfigFromEnv', () => {
+describe('runLegacyMysqlSync', () => {
   it('exposes the production sync runner', () => {
     expect(runLegacyMysqlSync).toBeTypeOf('function');
   });
+});
 
-  it('returns disabled config when sync flag is false', () => {
-    expect(
-      legacyMysqlSyncConfigFromEnv({
-        APP_ENV: 'production',
-        LEGACY_MYSQL_SYNC_ENABLED: 'false',
-      })
-    ).toEqual({ enabled: false });
-  });
-
-  it('uses hourly cron by default when enabled', () => {
-    const config = legacyMysqlSyncConfigFromEnv({
-      APP_ENV: 'production',
-      LEGACY_MYSQL_PASSWORD: 'secret',
-      LEGACY_MYSQL_SYNC_ENABLED: 'true',
-    });
-
-    expect(config.enabled ? config.cron : null).toBe('0 0 * * * *');
-  });
-
-  it('derives source metadata from the fixed legacy mysql source', () => {
-    expect(
-      legacyMysqlSyncConfigFromEnv({
-        APP_ENV: 'production',
-        LEGACY_MYSQL_PASSWORD: 'secret',
-        LEGACY_MYSQL_SYNC_ENABLED: 'true',
-      })
-    ).toMatchObject({
-      database: 'sailing',
-      mysqlPassword: 'secret',
-      sourceHost: 'sailing.pavilion.lan',
-    });
-  });
-
+describe('legacy mysql sync advisory lock', () => {
   it('uses a fixed advisory lock for overlap prevention', async () => {
     const queries: { sql: string; values?: unknown[] }[] = [];
     const pg: AdvisoryLockClient = {
@@ -73,7 +41,9 @@ describe('legacyMysqlSyncConfigFromEnv', () => {
       },
     ]);
   });
+});
 
+describe('runLegacyMirrorTransaction', () => {
   it('rolls back the mirror transaction when loading fails', async () => {
     const queries: string[] = [];
     const pg: MirrorTransactionClient = {

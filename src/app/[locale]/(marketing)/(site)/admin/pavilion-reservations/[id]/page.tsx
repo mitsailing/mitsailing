@@ -19,6 +19,7 @@ import {
   getAdminPavilionReservationById,
   listAdminPavilionReservableItemOptions,
 } from '@/libs/admin/pavilion-reservations/pavilionReservationAdminQueries';
+import { adminPavilionReservationDateKey } from '@/libs/admin/pavilion-reservations/pavilionReservationAdminSchedule';
 import { Link } from '@/libs/I18nNavigation';
 import {
   formatEasternDateTime,
@@ -33,10 +34,6 @@ import { formatPavilionReservationTimeLabel } from '@/libs/mit-sailing/pavilionR
 type AdminPavilionReservationDetailPageProps = {
   params: Promise<{ id: string; locale: string }>;
 };
-
-function dateKey(date: Date): string {
-  return date.toISOString().slice(0, 10);
-}
 
 function timeValue(minutes: number): string {
   const normalized = minutes >= 24 * 60 ? minutes - 24 * 60 : minutes;
@@ -273,7 +270,9 @@ export default async function AdminPavilionReservationDetailPage(
                     <label className="space-y-1.5 text-sm">
                       <span className="font-medium">{t('field_date')}</span>
                       <Input
-                        defaultValue={dateKey(slot.requestedDate)}
+                        defaultValue={adminPavilionReservationDateKey(
+                          slot.requestedDate
+                        )}
                         name="slotDate"
                         type="date"
                       />
@@ -307,7 +306,7 @@ export default async function AdminPavilionReservationDetailPage(
                   </div>
                   <p className="mt-2 text-xs text-mit-readable-ink">
                     {formatEasternShortDateFromIsoCalendar(
-                      dateKey(slot.requestedDate)
+                      adminPavilionReservationDateKey(slot.requestedDate)
                     )}{' '}
                     {formatPavilionReservationTimeLabel(slot.startMinutes)} -{' '}
                     {formatPavilionReservationTimeLabel(slot.endMinutes)} ·{' '}

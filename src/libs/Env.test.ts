@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { LEGACY_MYSQL_SYNC_DEFAULT_CRON } from '@/libs/legacy-sync/legacyMysqlSyncConstants';
 
 function stubRequiredBaseEnv(): void {
   vi.stubEnv(
@@ -23,7 +24,7 @@ describe('Env legacy MySQL sync validation', () => {
     const { Env } = await import('@/libs/Env');
 
     expect(Env.LEGACY_MYSQL_SYNC_ENABLED).toBe('false');
-    expect(Env.LEGACY_MYSQL_SYNC_CRON).toBe('0 0 * * * *');
+    expect(Env.LEGACY_MYSQL_SYNC_CRON).toBe(LEGACY_MYSQL_SYNC_DEFAULT_CRON);
   });
 
   it('rejects enabled legacy MySQL sync outside production', async () => {
@@ -46,6 +47,24 @@ describe('Env legacy MySQL sync validation', () => {
     await expect(import('@/libs/Env')).rejects.toThrow(
       'Invalid environment variables'
     );
+  });
+
+  it('rejects malformed legacy mysql sync cron', async () => {
+    stubRequiredBaseEnv();
+    vi.stubEnv('LEGACY_MYSQL_SYNC_CRON', '0 0 * * *');
+
+    await expect(import('@/libs/Env')).rejects.toThrow(
+      'Invalid environment variables'
+    );
+  });
+
+  it('accepts custom six-field legacy mysql sync cron', async () => {
+    stubRequiredBaseEnv();
+    vi.stubEnv('LEGACY_MYSQL_SYNC_CRON', '0 15 * * * *');
+
+    const { Env } = await import('@/libs/Env');
+
+    expect(Env.LEGACY_MYSQL_SYNC_CRON).toBe('0 15 * * * *');
   });
 
   it('accepts legacy mysql sync in production when password is set', async () => {

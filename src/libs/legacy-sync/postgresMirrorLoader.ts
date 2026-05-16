@@ -29,6 +29,21 @@ export function flattenRowsForInsert(
   rows: readonly Record<string, unknown>[],
   columnNames: readonly string[]
 ): unknown[] {
+  for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
+    const row = rows[rowIndex];
+    if (row === undefined) {
+      throw new Error(
+        `flattenRowsForInsert: row ${rowIndex} is missing (expected ${rows.length} rows)`
+      );
+    }
+    for (const columnName of columnNames) {
+      if (!Object.hasOwn(row, columnName)) {
+        throw new Error(
+          `flattenRowsForInsert: row ${rowIndex} is missing column "${columnName}" (expected: ${columnNames.join(', ')})`
+        );
+      }
+    }
+  }
   return rows.flatMap((row) =>
     columnNames.map((columnName) => row[columnName])
   );
@@ -36,6 +51,49 @@ export function flattenRowsForInsert(
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
+}
+
+function mirrorRowPreview(value: unknown): string {
+  if (value === null) {
+    return 'null';
+  }
+  if (value === undefined) {
+    return 'undefined';
+  }
+  if (typeof value === 'string') {
+    return `string ${value}`;
+  }
+  if (typeof value === 'number') {
+    return `number ${value}`;
+  }
+  if (typeof value === 'boolean') {
+    return `boolean ${value}`;
+  }
+  if (typeof value === 'bigint') {
+    return `bigint ${value.toString()}`;
+  }
+  if (typeof value === 'symbol' || typeof value === 'function') {
+    return typeof value;
+  }
+  const serialized = JSON.stringify(value);
+  const maxLength = 200;
+  if (serialized.length <= maxLength) {
+    return `object ${serialized}`;
+  }
+  return `object ${serialized.slice(0, maxLength)}…`;
+}
+
+function requireMirrorRow(props: {
+  row: unknown;
+  rowIndex: number;
+  tableName: string;
+}): Record<string, unknown> {
+  if (isRecord(props.row)) {
+    return props.row;
+  }
+  throw new Error(
+    `Invalid MySQL mirror row for legacy."${props.tableName}" at stream index ${props.rowIndex}: expected a non-null object, received ${mirrorRowPreview(props.row)}.`
+  );
 }
 
 export async function resetLegacySchema(pg: MirrorPgClient): Promise<void> {
@@ -82,10 +140,13 @@ export async function copyMysqlTableToPostgres(props: {
   let totalRows = 0;
 
   for await (const row of props.rows) {
-    if (!isRecord(row)) {
-      continue;
-    }
-    batch.push(row);
+    batch.push(
+      requireMirrorRow({
+        row,
+        rowIndex: totalRows + batch.length,
+        tableName: props.table.tableName,
+      })
+    );
     if (batch.length >= MIRROR_ROW_BATCH_SIZE) {
       await insertMirrorRowBatch({
         columnNames,

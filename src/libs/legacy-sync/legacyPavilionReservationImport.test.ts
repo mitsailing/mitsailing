@@ -5,6 +5,7 @@ import {
   legacyPavilionReservationRowsFromCsv,
   legacyReservationReferenceCode,
   legacyReservationSlotDeleteWhere,
+  minutesFromLegacyTime,
   minutesFromMysqlTime,
 } from '@/libs/legacy-sync/legacyPavilionReservationImport';
 import type { LegacyReservationDbRow } from '@/libs/legacy-sync/legacyPavilionReservationImport';
@@ -36,6 +37,11 @@ describe('legacyPavilionReservationImport', () => {
 
   it('parses mysql time strings to minutes', () => {
     expect(minutesFromMysqlTime('20:30:00')).toBe(1230);
+  });
+
+  it('parses legacy datetime strings to minutes of day', () => {
+    expect(minutesFromLegacyTime('2026-07-01 10:00:00')).toBe(600);
+    expect(minutesFromLegacyTime('2026-07-01 10:00:00 ')).toBe(600);
   });
 
   it('builds request-scoped slot deletion filters', () => {

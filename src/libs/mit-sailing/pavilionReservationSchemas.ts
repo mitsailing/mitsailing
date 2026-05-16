@@ -1,5 +1,9 @@
 import * as z from 'zod';
-import { PAVILION_RESERVATION_END_MINUTES } from '@/libs/mit-sailing/pavilionReservationBookingTimeline';
+import {
+  isPavilionReservationTimelineMinutes,
+  PAVILION_RESERVATION_END_MINUTES,
+  PAVILION_RESERVATION_START_MINUTES,
+} from '@/libs/mit-sailing/pavilionReservationBookingTimeline';
 
 const textField = z.string().trim().min(1);
 const optionalTextField = z
@@ -7,18 +11,33 @@ const optionalTextField = z
   .trim()
   .transform((value) => (value.length > 0 ? value : null));
 
-const slotSchema = z.object({
-  itemId: textField,
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  startMinutes: z.number().int().min(0).max(PAVILION_RESERVATION_END_MINUTES),
-  endMinutes: z.number().int().min(1).max(PAVILION_RESERVATION_END_MINUTES),
-});
+const slotSchema = z
+  .object({
+    itemId: textField,
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    startMinutes: z
+      .number()
+      .int()
+      .min(0)
+      .min(PAVILION_RESERVATION_START_MINUTES)
+      .max(PAVILION_RESERVATION_END_MINUTES),
+    endMinutes: z.number().int().min(0).max(PAVILION_RESERVATION_END_MINUTES),
+  })
+  .refine((slot) => isPavilionReservationTimelineMinutes(slot.startMinutes), {
+    path: ['startMinutes'],
+    message: 'invalid_slot_minutes',
+  })
+  .refine((slot) => isPavilionReservationTimelineMinutes(slot.endMinutes), {
+    path: ['endMinutes'],
+    message: 'invalid_slot_minutes',
+  });
 
 const slotsPayloadSchema = z
   .array(slotSchema)
   .min(1)
-  .refine((slots) =>
-    slots.every((slot) => slot.endMinutes > slot.startMinutes)
+  .refine(
+    (slots) => slots.every((slot) => slot.endMinutes > slot.startMinutes),
+    { message: 'invalid_slot_range' }
   );
 
 const servicePayloadSchema = z.array(textField);

@@ -141,6 +141,23 @@ Set `LEGACY_MYSQL_PASSWORD` for the read-only `dock_readonly` user (host
 `sailing.pavilion.lan:3306`, database `sailing` — fixed in app code). Do not
 commit the filled worker env file.
 
+**Enable / disable:** Set `LEGACY_MYSQL_SYNC_ENABLED=true` only after MySQL
+connectivity is confirmed (example file ships with `false`). That is the master
+switch — do not blank or comment out `LEGACY_MYSQL_SYNC_CRON` to turn sync off.
+When disabled, the worker removes any existing BullMQ scheduler on startup.
+
+**Schedule:** When enabled, the worker registers a BullMQ job scheduler (not
+system `crontab`). Default `LEGACY_MYSQL_SYNC_CRON` is hourly at minute 0
+(`"0 0 * * * *"` — six fields, seconds first). Quote the value in
+`.env.production.worker` so loaders keep the full expression. To change the
+schedule, edit that file and recreate the worker:
+
+```bash
+docker compose -f compose.yaml -f compose.prod.yaml \
+  --env-file .env.production --env-file .env.production.worker \
+  up -d --force-recreate worker
+```
+
 The worker connects from `sailing-dock.mit.edu`. Confirm MySQL allows
 `dock_readonly` from the production host or container network before setting
 `LEGACY_MYSQL_SYNC_ENABLED=true`.

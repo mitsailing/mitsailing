@@ -15,7 +15,10 @@ import { prisma } from '@/libs/DB';
 import { sendPavilionReservationStatusEmail } from '@/libs/email/pavilion-reservation-emails';
 import { logger } from '@/libs/Logger';
 import { formatEasternShortDateFromIsoCalendar } from '@/libs/mit-sailing/easternTimeFormat';
-import { prismaDateFromIsoCalendar } from '@/libs/mit-sailing/isoCalendarDate';
+import {
+  isoCalendarDateFromPrismaDate,
+  prismaDateFromIsoCalendar,
+} from '@/libs/mit-sailing/isoCalendarDate';
 import { PAVILION_RESERVATION_PERSONAS } from '@/libs/mit-sailing/pavilionReservationPricing';
 import { formatPavilionReservationTimeLabel } from '@/libs/mit-sailing/pavilionReservationTimeLabel';
 import type {
@@ -250,7 +253,7 @@ function slotSignature(
   return slots
     .map(
       (slot) =>
-        `${slot.itemId}:${slot.requestedDate.toISOString().slice(0, 10)}:${slot.startMinutes}:${slot.endMinutes}`
+        `${slot.itemId}:${isoCalendarDateFromPrismaDate(slot.requestedDate)}:${slot.startMinutes}:${slot.endMinutes}`
     )
     .toSorted()
     .join('|');
@@ -267,7 +270,7 @@ function scheduleLinesForEmail(
   return slots.map(
     (slot) =>
       `${slot.itemName}: ${formatEasternShortDateFromIsoCalendar(
-        slot.requestedDate.toISOString().slice(0, 10)
+        isoCalendarDateFromPrismaDate(slot.requestedDate)
       )} · ${formatPavilionReservationTimeLabel(slot.startMinutes)} - ${formatPavilionReservationTimeLabel(slot.endMinutes)}`
   );
 }

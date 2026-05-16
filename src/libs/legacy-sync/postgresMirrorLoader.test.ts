@@ -14,6 +14,11 @@ async function* mirrorBatchRows() {
   yield { a: 'one', b: 1 };
 }
 
+async function* invalidMirrorRowStream() {
+  yield { a: 'ok', b: 1 };
+  yield null;
+}
+
 describe('postgresMirrorLoader', () => {
   it('chunks rows', () => {
     expect(chunkRows([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]]);
@@ -38,6 +43,14 @@ describe('postgresMirrorLoader', () => {
         ['a', 'b']
       )
     ).toEqual(['one', 1, 'two', 2]);
+  });
+
+  it('throws when row omits required column', () => {
+    expect(() =>
+      flattenRowsForInsert([{ a: 'one', b: 1 }, { a: 'two' }], ['a', 'b'])
+    ).toThrow(
+      'flattenRowsForInsert: row 1 is missing column "b" (expected: a, b)'
+    );
   });
 
   it('resets the legacy schema', async () => {
@@ -144,5 +157,30 @@ describe('postgresMirrorLoader', () => {
     ).resolves.toBe(MIRROR_ROW_BATCH_SIZE + 1);
 
     expect(pgInsertCount.value).toBe(2);
+  });
+
+  it('throws when streamed row is not a non-null object', async () => {
+    const pg: MirrorPgClient = {
+      query: async () => {
+        await Promise.resolve();
+        return { rows: [] };
+      },
+    };
+
+    await expect(
+      copyMysqlTableToPostgres({
+        pg,
+        rows: invalidMirrorRowStream(),
+        table: {
+          tableName: 'example',
+          columns: [
+            { name: 'a', nullable: true, postgresType: 'text' },
+            { name: 'b', nullable: true, postgresType: 'integer' },
+          ],
+        },
+      })
+    ).rejects.toThrow(
+      'Invalid MySQL mirror row for legacy."example" at stream index 1: expected a non-null object, received null.'
+    );
   });
 });

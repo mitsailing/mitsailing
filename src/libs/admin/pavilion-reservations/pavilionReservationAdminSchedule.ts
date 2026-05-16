@@ -1,4 +1,10 @@
 import 'server-only';
+import {
+  addNyCalendarDays,
+  nyWeekdaySunday0,
+  nyYmd,
+} from '@/lib/mit-sailing/nyTime';
+import { isoCalendarDateFromPrismaDate } from '@/libs/mit-sailing/isoCalendarDate';
 import type {
   PavilionReservationPaymentStatusValue,
   PavilionReservationStatusValue,
@@ -43,36 +49,48 @@ const adminPavilionReservationSoftConflictStatuses = [
   'pending',
 ] as const satisfies readonly PavilionReservationStatusValue[];
 
+/**
+ * Civil calendar key for a Prisma `@db.Date` reservation day (UTC-midnight storage).
+ *
+ * @param date - Reservation date from Prisma
+ * @returns `YYYY-MM-DD` matching the stored civil date
+ */
 export function adminPavilionReservationDateKey(date: Date): string {
-  return date.toISOString().slice(0, 10);
+  return isoCalendarDateFromPrismaDate(date);
+}
+
+/**
+ * Eastern “today” for admin week defaults and filters.
+ *
+ * @param reference - Instant to evaluate (defaults to now)
+ * @returns New York civil date `YYYY-MM-DD`
+ */
+export function adminPavilionReservationTodayKey(
+  reference: Date = new Date()
+): string {
+  return nyYmd(reference);
 }
 
 export function adminPavilionReservationWeekStart(dateKey: string): string {
-  const date = new Date(`${dateKey}T12:00:00Z`);
-  if (Number.isNaN(date.getTime())) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
     return adminPavilionReservationWeekStart(
-      adminPavilionReservationDateKey(new Date())
+      adminPavilionReservationTodayKey()
     );
   }
-  date.setUTCDate(date.getUTCDate() - date.getUTCDay());
-  return adminPavilionReservationDateKey(date);
+  return addNyCalendarDays(dateKey, -nyWeekdaySunday0(dateKey));
 }
 
 export function adminPavilionReservationWeekKeys(weekStartKey: string) {
-  return Array.from({ length: 7 }, (_, index) => {
-    const date = new Date(`${weekStartKey}T12:00:00Z`);
-    date.setUTCDate(date.getUTCDate() + index);
-    return adminPavilionReservationDateKey(date);
-  });
+  return Array.from({ length: 7 }, (_, index) =>
+    addNyCalendarDays(weekStartKey, index)
+  );
 }
 
 export function adminPavilionReservationAddDays(
   dateKey: string,
   days: number
 ): string {
-  const date = new Date(`${dateKey}T12:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return adminPavilionReservationDateKey(date);
+  return addNyCalendarDays(dateKey, days);
 }
 
 function isAdminPavilionReservationConflictStatus(
