@@ -74,7 +74,7 @@ export const PAVILION_RESERVABLE_ITEM_SEED_ROWS: readonly PavilionReservableItem
       pricingType: 'hourly',
       minDurationHours: 1,
       imageUrl:
-        'https://images.unsplash.com/photo-1643151762788-9d30c38788f4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3b29kZW4lMjBkb2NrJTIwbGFrZXxlbnwxfHx8fDE3NzgzNTk4OTV8MA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral',
+        'https://images.unsplash.com/photo-1643151762788-9d30c38788f4?auto=format&fit=crop&q=80&w=1080',
       displayOrder: 10,
       isVisible: true,
       prices: centsByPersona({
@@ -94,7 +94,7 @@ export const PAVILION_RESERVABLE_ITEM_SEED_ROWS: readonly PavilionReservableItem
       pricingType: 'hourly',
       minDurationHours: 1,
       imageUrl:
-        'https://images.unsplash.com/photo-1660020485325-bd838be85f57?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxyb29mdG9wJTIwZGVjayUyMGJ1aWxkaW5nfGVufDF8fHx8MTc3ODM1OTg5NXww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral',
+        'https://images.unsplash.com/photo-1660020485325-bd838be85f57?auto=format&fit=crop&q=80&w=1080',
       displayOrder: 20,
       isVisible: true,
       prices: centsByPersona({
@@ -113,7 +113,7 @@ export const PAVILION_RESERVABLE_ITEM_SEED_ROWS: readonly PavilionReservableItem
       pricingType: 'flat',
       minDurationHours: null,
       imageUrl:
-        'https://images.unsplash.com/photo-1614790875363-9ebf01ecdc85?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwYXJ0eSUyMGJvYXQlMjBkb2NrfGVufDF8fHx8MTc3ODM1OTg5NXww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral',
+        'https://images.unsplash.com/photo-1614790875363-9ebf01ecdc85?auto=format&fit=crop&q=80&w=1080',
       displayOrder: 30,
       isVisible: true,
       prices: centsByPersona({
@@ -132,7 +132,7 @@ export const PAVILION_RESERVABLE_ITEM_SEED_ROWS: readonly PavilionReservableItem
       pricingType: 'flat',
       minDurationHours: null,
       imageUrl:
-        'https://images.unsplash.com/photo-1724860755552-55f1c46f763d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsYWIlMjBleHBlcmltZW50fGVufDF8fHx8MTc3ODM1OTg5NXww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral',
+        'https://images.unsplash.com/photo-1724860755552-55f1c46f763d?auto=format&fit=crop&q=80&w=1080',
       displayOrder: 70,
       isVisible: true,
       prices: centsByPersona({
@@ -151,7 +151,7 @@ export const PAVILION_RESERVABLE_ITEM_SEED_ROWS: readonly PavilionReservableItem
       pricingType: 'flat',
       minDurationHours: null,
       imageUrl:
-        'https://images.unsplash.com/photo-1767986012154-db9a321c8832?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3ZWRkaW5nJTIwcmVjZXB0aW9uJTIwc2V0dXB8ZW58MXx8fHwxNzc4MzU5ODk1fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral',
+        'https://images.unsplash.com/photo-1767986012154-db9a321c8832?auto=format&fit=crop&q=80&w=1080',
       displayOrder: 40,
       isVisible: true,
       prices: centsByPersona({
@@ -209,7 +209,7 @@ export const PAVILION_RESERVABLE_ITEM_SEED_ROWS: readonly PavilionReservableItem
       pricingType: 'flat',
       minDurationHours: null,
       imageUrl:
-        'https://images.unsplash.com/photo-1616011919027-b3e07e32ffb9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzYWlsYm9hdHMlMjBvbiUyMHdhdGVyfGVufDF8fHx8MTc3ODM1OTg5NXww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral',
+        'https://images.unsplash.com/photo-1616011919027-b3e07e32ffb9?auto=format&fit=crop&q=80&w=1080',
       displayOrder: 80,
       isVisible: true,
       prices: centsByPersona({

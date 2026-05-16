@@ -170,6 +170,19 @@ npm run db:studio        # prisma studio
 
 ---
 
+## Codacy
+
+Codacy can use the repository-level config in [`.codacy.yaml`](.codacy.yaml) and the existing Vitest LCOV output from `npm run test:coverage`.
+
+To finish enabling it in GitHub Actions, add one of these repository or organization secrets:
+
+- `CODACY_PROJECT_TOKEN` for a single-repository Codacy setup
+- `CODACY_API_TOKEN` for an account-level setup across multiple repositories
+
+The CI workflow uploads `coverage/lcov.info` to Codacy when either secret is present.
+
+---
+
 ## Database
 
 The project uses Prisma (`@prisma/client` + `@prisma/adapter-pg`) against PostgreSQL. Local development and E2E tests run against Docker Compose; production points at a managed Postgres (e.g. Neon).

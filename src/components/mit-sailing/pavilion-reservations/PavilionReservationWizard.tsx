@@ -414,7 +414,7 @@ function spacesStepProblem(props: {
   slots: ClientSlot[];
 }): SpacesStepProblem | null {
   const email = props.requesterEmail.trim();
-  if (!email || !email.includes('@')) {
+  if (!email?.includes('@')) {
     return 'email';
   }
   if (

@@ -92,7 +92,7 @@
     "dotenv": "^17.4.2",
     "ioredis": "^5.10.1",
     "lucide-react": "^0.503.0",
-    "mysql2": "^3.22.3",
+    "mysql2": "3.22.3",
     "next": "^16.2.4",
     "next-intl": "^4.8.3",
     "nodemailer": "^8.0.5",

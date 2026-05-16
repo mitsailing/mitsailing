@@ -1,0 +1,17 @@
+---
+exclude_paths:
+  - '.next/**'
+  - 'out/**'
+  - 'coverage/**'
+  - 'playwright-report/**'
+  - 'blob-report/**'
+  - 'test-results/**'
+  - 'vitest-test-results/**'
+  - 'storybook-static/**'
+  - 'node_modules/**'
+  - 'src/generated/**'
+  - 'prisma/migrations/**'
+engines:
+  biome:
+    exclude_paths:
+      - 'src/**/*.tsx'

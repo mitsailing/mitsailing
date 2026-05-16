@@ -81,3 +81,6 @@ build-archive.log
 
 #Ignore cursor AI rules
 .cursor/rules/codacy.mdc
+
+# Codacy CLI local state
+.codacy/
