@@ -282,6 +282,7 @@ export function AdminSideNav() {
                           : 'hover:bg-mit-surface'
                       )}
                       href={item.href}
+                      prefetch={false}
                     >
                       {t(item.labelKey)}
                     </Link>
