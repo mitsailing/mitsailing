@@ -714,6 +714,15 @@ enum PavilionPricingType {
   @@map("pavilion_pricing_type")
 }
 
+enum LegacyMysqlSyncStatus {
+  running
+  succeeded
+  failed
+  skipped
+
+  @@map("legacy_mysql_sync_status")
+}
+
 model PavilionReservableItem {
   id               String                     @id @default(cuid())
   slug             String                     @unique
@@ -821,6 +830,21 @@ model PavilionReservationService {
   @@unique([requestId, itemId])
   @@index([itemId])
   @@map("pavilion_reservation_services")
+}
+
+model LegacyMysqlSyncRun {
+  id             String                @id @default(cuid())
+  status         LegacyMysqlSyncStatus
+  sourceHost     String                @map("source_host")
+  sourceDatabase String                @map("source_database")
+  tableCount     Int                   @default(0) @map("table_count")
+  rowCount       BigInt                @default(0) @map("row_count")
+  errorMessage   String?               @map("error_message") @db.Text
+  startedAt      DateTime              @default(now()) @map("started_at")
+  finishedAt     DateTime?             @map("finished_at")
+
+  @@index([status, startedAt])
+  @@map("legacy_mysql_sync_runs")
 }
 
 model StaffMember {
