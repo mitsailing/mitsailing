@@ -80,7 +80,7 @@ Tailwind v4 utility classes. Reuse shared components. Responsive. No unnecessary
 - Use `React.ReactNode`, not `ReactNode`.
 - Inline short event handlers; extract only when complex.
 - Do not use `React.cloneElement` to inject form or accessibility props. Put `id`, `required`, `aria-required`, `aria-describedby`, and validation props directly on the actual control or redesign the component API.
-- Prefer native form semantics first: a visual required marker must be backed by `required`/`aria-required` on the control when browser validation or assistive-tech announcement is expected; if the control cannot support native semantics, document the component API/accessibility reason.
+- Prefer native form semantics first: back visual required markers with `required`/`aria-required` on the control when browser validation or assistive-tech announcement is expected; if the control cannot support native semantics, document the component API/accessibility reason.
 
 ## Next.js (Node server, not serverless)
 

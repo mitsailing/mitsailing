@@ -15,6 +15,11 @@ engines:
   biome:
     exclude_paths:
       - 'src/**/*.tsx'
+  lizard:
+    exclude_paths:
+      # Lizard mis-parses TSX component bodies as duplicated global/method
+      # complexity; ESLint and Opengrep still analyze these files.
+      - 'src/**/*.tsx'
   metric:
     exclude_paths:
       # Lizard mis-parses TSX component bodies as duplicated global/method

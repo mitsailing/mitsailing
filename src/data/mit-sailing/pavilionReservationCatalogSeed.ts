@@ -26,7 +26,7 @@ const personas = [
 ] as const satisfies readonly PavilionReservationPersonaSeed[];
 
 function centsByPersona(
-  prices: Record<PavilionReservationPersonaSeed, number | null>
+  dollarsByPersona: Record<PavilionReservationPersonaSeed, number | null>
 ): Record<PavilionReservationPersonaSeed, number | null> {
   const cents: Record<PavilionReservationPersonaSeed, number | null> = {
     mit_academic: null,
@@ -36,12 +36,23 @@ function centsByPersona(
   };
 
   for (const persona of personas) {
-    const dollars = prices[persona];
-    cents[persona] = dollars === null ? null : dollars * 100;
+    const dollars = dollarsByPersona[persona];
+    if (dollars === null) {
+      cents[persona] = null;
+      continue;
+    }
+    if (!Number.isInteger(dollars)) {
+      throw new TypeError(
+        `Pavilion seed price must be whole dollars (${persona}=${dollars})`
+      );
+    }
+    cents[persona] = dollars * 100;
   }
 
   return cents;
 }
+
+const pavilionImageUrl = '/assets/images/pavilion-reservation-placeholder.svg';
 
 export const PAVILION_RESERVABLE_ITEM_SEED_ROWS: readonly PavilionReservableItemSeed[] =
   [
@@ -73,9 +84,7 @@ export const PAVILION_RESERVABLE_ITEM_SEED_ROWS: readonly PavilionReservableItem
         'Perfect for casual gatherings and events with up to 50 people.',
       pricingType: 'hourly',
       minDurationHours: 1,
-      // biome-ignore lint/security/noSecrets: Public Unsplash image URL, not a credential.
-      imageUrl:
-        'https://images.unsplash.com/photo-1643151762788-9d30c38788f4?auto=format&fit=crop&q=80&w=1080',
+      imageUrl: pavilionImageUrl,
       displayOrder: 10,
       isVisible: true,
       prices: centsByPersona({
@@ -94,9 +103,7 @@ export const PAVILION_RESERVABLE_ITEM_SEED_ROWS: readonly PavilionReservableItem
         'Spacious roof deck area ideal for larger events with up to 100 people.',
       pricingType: 'hourly',
       minDurationHours: 1,
-      // biome-ignore lint/security/noSecrets: Public Unsplash image URL, not a credential.
-      imageUrl:
-        'https://images.unsplash.com/photo-1660020485325-bd838be85f57?auto=format&fit=crop&q=80&w=1080',
+      imageUrl: pavilionImageUrl,
       displayOrder: 20,
       isVisible: true,
       prices: centsByPersona({
@@ -114,9 +121,7 @@ export const PAVILION_RESERVABLE_ITEM_SEED_ROWS: readonly PavilionReservableItem
       description: 'Boat dock access for your event transportation needs.',
       pricingType: 'flat',
       minDurationHours: null,
-      // biome-ignore lint/security/noSecrets: Public Unsplash image URL, not a credential.
-      imageUrl:
-        'https://images.unsplash.com/photo-1614790875363-9ebf01ecdc85?auto=format&fit=crop&q=80&w=1080',
+      imageUrl: pavilionImageUrl,
       displayOrder: 30,
       isVisible: true,
       prices: centsByPersona({
@@ -134,9 +139,7 @@ export const PAVILION_RESERVABLE_ITEM_SEED_ROWS: readonly PavilionReservableItem
       description: 'Fees arranged with Sailing Master.',
       pricingType: 'flat',
       minDurationHours: null,
-      // biome-ignore lint/security/noSecrets: Public Unsplash image URL, not a credential.
-      imageUrl:
-        'https://images.unsplash.com/photo-1724860755552-55f1c46f763d?auto=format&fit=crop&q=80&w=1080',
+      imageUrl: pavilionImageUrl,
       displayOrder: 70,
       isVisible: true,
       prices: centsByPersona({
@@ -154,9 +157,7 @@ export const PAVILION_RESERVABLE_ITEM_SEED_ROWS: readonly PavilionReservableItem
       description: 'Special wedding package space reservation.',
       pricingType: 'flat',
       minDurationHours: null,
-      // biome-ignore lint/security/noSecrets: Public Unsplash image URL, not a credential.
-      imageUrl:
-        'https://images.unsplash.com/photo-1767986012154-db9a321c8832?auto=format&fit=crop&q=80&w=1080',
+      imageUrl: pavilionImageUrl,
       displayOrder: 40,
       isVisible: true,
       prices: centsByPersona({
@@ -213,9 +214,7 @@ export const PAVILION_RESERVABLE_ITEM_SEED_ROWS: readonly PavilionReservableItem
         'Group sailing lessons for 20-40 people, available in summer.',
       pricingType: 'flat',
       minDurationHours: null,
-      // biome-ignore lint/security/noSecrets: Public Unsplash image URL, not a credential.
-      imageUrl:
-        'https://images.unsplash.com/photo-1616011919027-b3e07e32ffb9?auto=format&fit=crop&q=80&w=1080',
+      imageUrl: pavilionImageUrl,
       displayOrder: 80,
       isVisible: true,
       prices: centsByPersona({

@@ -15,36 +15,40 @@ function rowBySlug(slug: string) {
   return row;
 }
 
+function dollarsToCents(dollars: number) {
+  return dollars * 100;
+}
+
 const expectedPricesBySlug = {
   after_10: {
     mit_academic: null,
-    mit_community: 41_000,
-    mit_student: 32_500,
-    non_mit: 57_500,
+    mit_community: dollarsToCents(410),
+    mit_student: dollarsToCents(325),
+    non_mit: dollarsToCents(575),
   },
   after_midnight: {
     mit_academic: null,
-    mit_community: 65_000,
-    mit_student: 58_500,
-    non_mit: 77_500,
+    mit_community: dollarsToCents(650),
+    mit_student: dollarsToCents(585),
+    non_mit: dollarsToCents(775),
   },
   casual_dock: {
-    mit_academic: 32_000,
-    mit_community: 32_000,
-    mit_student: 20_000,
-    non_mit: 58_000,
+    mit_academic: dollarsToCents(320),
+    mit_community: dollarsToCents(320),
+    mit_student: dollarsToCents(200),
+    non_mit: dollarsToCents(580),
   },
   grill: {
-    mit_academic: 3000,
-    mit_community: 3000,
-    mit_student: 3000,
-    non_mit: 3000,
+    mit_academic: dollarsToCents(30),
+    mit_community: dollarsToCents(30),
+    mit_student: dollarsToCents(30),
+    non_mit: dollarsToCents(30),
   },
   group_sailing: {
-    mit_academic: 350_000,
-    mit_community: 350_000,
-    mit_student: 350_000,
-    non_mit: 450_000,
+    mit_academic: dollarsToCents(3500),
+    mit_community: dollarsToCents(3500),
+    mit_student: dollarsToCents(3500),
+    non_mit: dollarsToCents(4500),
   },
   lab_access: {
     mit_academic: 0,
@@ -53,22 +57,22 @@ const expectedPricesBySlug = {
     non_mit: 0,
   },
   party_boat: {
-    mit_academic: 13_000,
-    mit_community: 13_000,
-    mit_student: 13_000,
-    non_mit: 13_000,
+    mit_academic: dollarsToCents(130),
+    mit_community: dollarsToCents(130),
+    mit_student: dollarsToCents(130),
+    non_mit: dollarsToCents(130),
   },
   roof_deck: {
-    mit_academic: 32_000,
-    mit_community: 32_000,
-    mit_student: 20_000,
-    non_mit: 61_000,
+    mit_academic: dollarsToCents(320),
+    mit_community: dollarsToCents(320),
+    mit_student: dollarsToCents(200),
+    non_mit: dollarsToCents(610),
   },
   wedding_space: {
     mit_academic: null,
-    mit_community: 65_000,
-    mit_student: 65_000,
-    non_mit: 82_500,
+    mit_community: dollarsToCents(650),
+    mit_student: dollarsToCents(650),
+    non_mit: dollarsToCents(825),
   },
 } as const;
 
@@ -99,5 +103,15 @@ describe('PAVILION_RESERVABLE_ITEM_SEED_ROWS', () => {
       isVisible: false,
       kind: 'service',
     });
+  });
+
+  it('stores whole-dollar amounts only', () => {
+    for (const row of PAVILION_RESERVABLE_ITEM_SEED_ROWS) {
+      for (const amountCents of Object.values(row.prices)) {
+        if (amountCents !== null) {
+          expect(amountCents % 100).toBe(0);
+        }
+      }
+    }
   });
 });
