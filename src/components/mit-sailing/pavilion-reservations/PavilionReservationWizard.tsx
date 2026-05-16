@@ -291,11 +291,15 @@ function formatCalendarMonth(month: CalendarMonth, locale: string): string {
   }).format(new Date(Date.UTC(month.year, month.monthIndex, 1)));
 }
 
-function formatSlotDateShort(iso: string, locale: string): string {
+function formatSlotDateShort(
+  iso: string,
+  locale: string,
+  timeZone = 'UTC'
+): string {
   return new Intl.DateTimeFormat(locale, {
     day: 'numeric',
     month: 'short',
-    timeZone: 'UTC',
+    timeZone,
     weekday: 'long',
   }).format(new Date(`${iso}T12:00:00Z`));
 }
@@ -2431,6 +2435,7 @@ function PavilionReservationReviewStep(props: {
   spaces: PavilionReservableItemDto[];
 }) {
   const t = useTranslations('PavilionReservationPage');
+  const locale = useLocale();
 
   return (
     <section className="rounded-lg border border-mit-line bg-card p-6 md:p-8">
@@ -2553,7 +2558,12 @@ function PavilionReservationReviewStep(props: {
                       .filter((slot) => slot.itemId === spaceId)
                       .map((slot) => (
                         <li key={slot.id}>
-                          {slot.date} -{' '}
+                          {formatSlotDateShort(
+                            slot.date,
+                            locale,
+                            'America/New_York'
+                          )}{' '}
+                          -{' '}
                           {formatPavilionReservationTimeLabel(
                             slot.startMinutes
                           )}{' '}
@@ -2600,7 +2610,11 @@ function PavilionReservationReviewStep(props: {
                     <tr key={slot.id}>
                       <td className="py-3 pr-4 text-mit-text">{space.name}</td>
                       <td className="py-3 text-muted-foreground">
-                        {slot.date}{' '}
+                        {formatSlotDateShort(
+                          slot.date,
+                          locale,
+                          'America/New_York'
+                        )}{' '}
                         {formatPavilionReservationTimeLabel(slot.startMinutes)}{' '}
                         - {formatPavilionReservationTimeLabel(slot.endMinutes)}
                       </td>

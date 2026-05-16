@@ -38,7 +38,7 @@ type AdminPavilionReservationDetailPageProps = {
 };
 
 function dollarsValue(amountCents: number | null): string {
-  return amountCents === null ? '' : (amountCents / 100).toFixed(2);
+  return amountCents === null ? '' : String(amountCents / 100);
 }
 
 function TimeSelect(props: {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   estimatedSlotAmountCents,
+  formatPavilionReservationMoney,
   priceLabel,
 } from '@/libs/mit-sailing/pavilionReservationPricing';
 import type { PavilionReservableItemDto } from '@/libs/mit-sailing/pavilionReservationTypes';
@@ -45,6 +46,31 @@ describe('estimatedSlotAmountCents', () => {
     ).toBeNull();
   });
 
+  it('rounds hourly estimates to whole dollars', () => {
+    expect(
+      estimatedSlotAmountCents({
+        item: item({
+          minDurationHours: null,
+          pricingType: 'hourly',
+          prices: {
+            mit_academic: 32_000,
+            mit_student: 20_000,
+            mit_community: 32_000,
+            non_mit: 58_000,
+          },
+        }),
+        persona: 'mit_academic',
+        slot: {
+          itemId: 'item',
+          date: '2026-07-01',
+          startMinutes: 9 * 60,
+          endMinutes: 9 * 60 + 50,
+        },
+        slotIndexForItem: 0,
+      })
+    ).toBe(26_700);
+  });
+
   it('preserves zero-dollar flat prices', () => {
     expect(
       estimatedSlotAmountCents({
@@ -68,6 +94,12 @@ describe('estimatedSlotAmountCents', () => {
         slotIndexForItem: 0,
       })
     ).toBe(0);
+  });
+});
+
+describe('formatPavilionReservationMoney', () => {
+  it('formats whole dollars without cents', () => {
+    expect(formatPavilionReservationMoney(32_000)).toBe('$320');
   });
 });
 

@@ -15,8 +15,8 @@ export const PAVILION_RESERVATION_PERSONAS = [
 export function formatPavilionReservationMoney(amountCents: number): string {
   return new Intl.NumberFormat('en-US', {
     currency: 'USD',
-    maximumFractionDigits: 2,
-    minimumFractionDigits: 2,
+    maximumFractionDigits: 0,
+    minimumFractionDigits: 0,
     style: 'currency',
   }).format(amountCents / 100);
 }
@@ -38,7 +38,8 @@ function hourlyAmountCents(props: {
     props.endMinutes - props.startMinutes,
     (props.minDurationHours ?? 0) * 60
   );
-  return Math.round((props.amountCents * durationMinutes) / 60);
+  const proratedCents = Math.round((props.amountCents * durationMinutes) / 60);
+  return Math.round(proratedCents / 100) * 100;
 }
 
 export function estimatedSlotAmountCents(props: {

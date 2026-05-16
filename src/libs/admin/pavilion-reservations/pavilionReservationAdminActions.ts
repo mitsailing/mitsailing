@@ -60,7 +60,7 @@ function centsOrNull(value: string): number | null {
   const normalized = value.replaceAll(/[$,]/g, '');
   const parsed = Number.parseFloat(normalized);
   return Number.isFinite(parsed) && parsed >= 0
-    ? Math.round(parsed * 100)
+    ? Math.round(parsed) * 100
     : null;
 }
 
