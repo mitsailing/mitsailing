@@ -10,8 +10,8 @@ import { SubmitButton } from '@/components/ui/submit-button';
 import { authClient } from '@/libs/auth-client';
 import { safeAuthCallbackUrl } from '@/libs/auth/callbackUrl';
 import {
-  isValidMarketingEmail,
-  normalizeMarketingEmail,
+  isValidEmailAddress,
+  normalizeEmailAddress,
 } from '@/utils/emailValidation';
 
 type VerifyEmailFormProps = {
@@ -29,12 +29,10 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
   const tCommon = useTranslations('Common');
   const t = useTranslations('VerifyEmailPage');
   const router = useRouter();
-  const hasInitialEmail = isValidMarketingEmail(
-    normalizeMarketingEmail(props.initialEmail)
+  const hasInitialEmail = isValidEmailAddress(
+    normalizeEmailAddress(props.initialEmail)
   );
-  const [email, setEmail] = useState(
-    normalizeMarketingEmail(props.initialEmail)
-  );
+  const [email, setEmail] = useState(normalizeEmailAddress(props.initialEmail));
   const [code, setCode] = useState('');
   const [banner, setBanner] = useState<BannerState>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -118,9 +116,9 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
   async function onSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setBanner(null);
-    const normalizedEmail = normalizeMarketingEmail(email);
+    const normalizedEmail = normalizeEmailAddress(email);
     setEmail(normalizedEmail);
-    if (!isValidMarketingEmail(normalizedEmail)) {
+    if (!isValidEmailAddress(normalizedEmail)) {
       setBanner({ kind: 'error', message: t('error_invalid_email') });
       return;
     }
@@ -147,9 +145,9 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
 
   async function onResendCode() {
     setBanner(null);
-    const normalizedEmail = normalizeMarketingEmail(email);
+    const normalizedEmail = normalizeEmailAddress(email);
     setEmail(normalizedEmail);
-    if (!isValidMarketingEmail(normalizedEmail)) {
+    if (!isValidEmailAddress(normalizedEmail)) {
       setBanner({ kind: 'error', message: t('error_invalid_email') });
       return;
     }
@@ -184,7 +182,7 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
         <p className="max-w-md text-xl leading-relaxed text-pretty text-muted-foreground">
           {hasInitialEmail
             ? t('pending_body', {
-                email: normalizeMarketingEmail(props.initialEmail),
+                email: normalizeEmailAddress(props.initialEmail),
               })
             : t('pending_body_fallback')}
         </p>

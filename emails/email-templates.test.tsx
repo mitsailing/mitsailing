@@ -5,7 +5,8 @@ import { AccountUnlockEmailTemplate } from './account-unlock';
 import { ConfirmEmailChangeTemplate } from './confirm-email-change';
 import { DeleteAccountEmailTemplate } from './delete-account';
 import { EmailChangeRequestedNoticeTemplate } from './email-change-requested';
-import { EmailLayout } from './email-layout';
+import { EmailLayout, MarketingEmailLayout } from './email-layout';
+import { NewsletterBroadcastTemplate } from './newsletter-broadcast';
 import { PasswordChangedNoticeTemplate } from './password-changed';
 import { PasswordResetEmailTemplate } from './password-reset';
 import { SignInOtpEmailPlaintext, SignInOtpEmailTemplate } from './sign-in-otp';
@@ -22,11 +23,54 @@ describe('email templates', () => {
     );
 
     expect(html).toContain('Inbox preview');
-    expect(html).toContain('Your app');
+    expect(html).toContain('MIT Sailing');
     expect(html).toContain('Inner account notice');
     expect(html).toContain(
-      'You received this email because of an action on your account.'
+      'You received this email because of an action on your MIT Sailing'
     );
+    expect(html).toContain('Contact MIT Sailing support');
+    expect(html).not.toContain('Auth.js');
+  });
+
+  it('renders marketing layout with unsubscribe and postal address', async () => {
+    const html = await render(
+      <MarketingEmailLayout
+        listName="Regatta updates"
+        manageUrl="https://mitsailing.example.com/newsletter/manage?token=abc"
+        postalAddress="MIT Sailing Pavilion, Cambridge, MA"
+        previewText="Marketing preview"
+        unsubscribeUrl="https://mitsailing.example.com/api/newsletter/unsubscribe?token=abc"
+      >
+        <p>Marketing body</p>
+      </MarketingEmailLayout>
+    );
+
+    expect(html).toContain('Marketing preview');
+    expect(html).toContain('Marketing body');
+    expect(html).toContain('Unsubscribe from Regatta updates');
+    expect(html).toContain('Manage email newsletters');
+    expect(html).toContain('MIT Sailing Pavilion, Cambridge, MA');
+  });
+
+  it('renders newsletter broadcast with compliance footer', async () => {
+    const html = await render(
+      <NewsletterBroadcastTemplate
+        body={'First paragraph.\n\nSecond paragraph.'}
+        listName="General news"
+        manageUrl="https://mitsailing.example.com/newsletter/manage?token=abc"
+        postalAddress="MIT Sailing Pavilion, Cambridge, MA"
+        previewText="A preview"
+        subject="Spring launch"
+        unsubscribeUrl="https://mitsailing.example.com/api/newsletter/unsubscribe?token=abc"
+      />
+    );
+
+    expect(html).toContain('Spring launch');
+    expect(html).toContain('First paragraph.');
+    expect(html).toContain('Second paragraph.');
+    expect(html).toContain('Unsubscribe from General news');
+    expect(html).toContain('Manage email newsletters');
+    expect(html).toContain('MIT Sailing Pavilion, Cambridge, MA');
   });
 
   it('renders verification code content for new sailors', async () => {

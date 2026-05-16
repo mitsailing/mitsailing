@@ -5,7 +5,7 @@
  * @param raw - Candidate email string from user input
  * @returns True when the address has a plausible public domain (dot + TLD segment)
  */
-export function isValidMarketingEmail(raw: string): boolean {
+export function isValidEmailAddress(raw: string): boolean {
   const trimmed = raw.trim();
   if (trimmed.length === 0) {
     return false;
@@ -28,12 +28,10 @@ export function isValidMarketingEmail(raw: string): boolean {
 
 /**
  * Normalize user-entered email addresses before validation or submission.
- * Callers should normalize first, then pass the normalized value to
- * `isValidMarketingEmail` and submit that same normalized value.
  *
  * @param raw - Candidate email string from user input
  * @returns The trimmed, lowercase address
  */
-export function normalizeMarketingEmail(raw: string): string {
+export function normalizeEmailAddress(raw: string): string {
   return raw.trim().toLowerCase();
 }

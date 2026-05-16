@@ -49,7 +49,10 @@ export async function submitContactFormAction(
   }
 
   try {
-    await sendTransactionalEmail(buildContactEmail(submission.data));
+    await sendTransactionalEmail({
+      ...buildContactEmail(submission.data),
+      category: 'contact',
+    });
   } catch (error: unknown) {
     logger.error('Failed to send contact form email: {error}', { error });
     contactFormRedirect(locale, 'error', submission.data.topic);

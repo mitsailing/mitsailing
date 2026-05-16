@@ -12,8 +12,8 @@ import { authHrefWithCallback } from '@/libs/auth/callbackUrl';
 import { reportUnknownAuthClientError } from '@/libs/auth/reportAuthClientError';
 import { Link as I18nLink } from '@/libs/I18nNavigation';
 import {
-  isValidMarketingEmail,
-  normalizeMarketingEmail,
+  isValidEmailAddress,
+  normalizeEmailAddress,
 } from '@/utils/emailValidation';
 
 type ErrorState = {
@@ -76,9 +76,9 @@ export function SignUpForm(props: SignUpFormProps) {
       });
       return;
     }
-    const normalizedEmail = normalizeMarketingEmail(email);
+    const normalizedEmail = normalizeEmailAddress(email);
     setEmail(normalizedEmail);
-    if (!isValidMarketingEmail(normalizedEmail)) {
+    if (!isValidEmailAddress(normalizedEmail)) {
       setError({
         message: t('error_invalid_email'),
         showSignInLinks: false,

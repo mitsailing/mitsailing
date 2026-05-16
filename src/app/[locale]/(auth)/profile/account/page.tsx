@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { requireCurrentUser } from '@/libs/auth/dal';
 import { prisma } from '@/libs/DB';
+import { emailDeliverabilityStatus } from '@/libs/email/emailDeliverabilityStatus';
+import { logger } from '@/libs/Logger';
 import { getI18nPath } from '@/utils/Helpers';
 import { ProfileAccountClient } from '../ProfileAccountClient';
 
@@ -31,16 +33,30 @@ export default async function ProfileAccountPage(
   const user = await requireCurrentUser(locale, profileAccountHref);
 
   const dbUser = await prisma.user.findUnique({
-    select: { themePreference: true, unconfirmedEmail: true },
+    select: {
+      emailBouncedAt: true,
+      emailSuppressedAt: true,
+      emailSuppressionReason: true,
+      themePreference: true,
+      unconfirmedEmail: true,
+    },
     where: { id: user.id },
   });
+  if (!dbUser) {
+    logger.warn('Missing database user after profile auth', {
+      email: user.email,
+      userId: user.id,
+    });
+    throw new Error('Missing db user after auth');
+  }
 
   return (
     <ProfileAccountClient
       initialEmail={user.email ?? ''}
+      initialEmailDeliverabilityStatus={emailDeliverabilityStatus(dbUser)}
       initialName={user.name}
-      initialThemePreference={dbUser?.themePreference ?? 'SYSTEM'}
-      initialUnconfirmedEmail={dbUser?.unconfirmedEmail ?? null}
+      initialThemePreference={dbUser.themePreference ?? 'SYSTEM'}
+      initialUnconfirmedEmail={dbUser.unconfirmedEmail ?? null}
     />
   );
 }

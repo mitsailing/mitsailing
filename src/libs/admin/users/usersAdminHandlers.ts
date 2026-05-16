@@ -19,6 +19,7 @@ import {
 import { auth } from '@/libs/auth';
 import { Role } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
+import { emailDeliverabilityStatus } from '@/libs/email/emailDeliverabilityStatus';
 
 function rowFromDb(user: {
   id: string;
@@ -27,10 +28,17 @@ function rowFromDb(user: {
   role: string;
   emailVerified: boolean;
   banned: boolean | null;
+  emailBouncedAt: Date | null;
+  emailSuppressedAt: Date | null;
+  emailSuppressionReason: string | null;
 }): AdminUserRow {
   return {
     id: user.id,
     email: user.email,
+    emailBouncedAt: user.emailBouncedAt?.toISOString() ?? null,
+    emailDeliverabilityStatus: emailDeliverabilityStatus(user),
+    emailSuppressedAt: user.emailSuppressedAt?.toISOString() ?? null,
+    emailSuppressionReason: user.emailSuppressionReason,
     name: user.name,
     role: user.role,
     emailVerified: user.emailVerified,
@@ -134,6 +142,9 @@ export const usersAdminHandlers: CatalogServerHandlers = {
         role: true,
         emailVerified: true,
         banned: true,
+        emailBouncedAt: true,
+        emailSuppressedAt: true,
+        emailSuppressionReason: true,
       },
     });
     return rows.map(rowFromDb);
@@ -149,6 +160,9 @@ export const usersAdminHandlers: CatalogServerHandlers = {
         role: true,
         emailVerified: true,
         banned: true,
+        emailBouncedAt: true,
+        emailSuppressedAt: true,
+        emailSuppressionReason: true,
       },
     });
     return row ? rowFromDb(row) : null;
@@ -210,7 +224,7 @@ export const usersAdminHandlers: CatalogServerHandlers = {
 
     const existing = await prisma.user.findUnique({
       where: { id },
-      select: { banned: true, role: true },
+      select: { banned: true, email: true, role: true },
     });
     if (!existing) {
       return { ok: false, code: 'not_found' };
@@ -232,11 +246,20 @@ export const usersAdminHandlers: CatalogServerHandlers = {
 
     const hdrs = await headers();
     const trimmedPassword = newPassword.trim();
+    const emailDeliverabilityResetData =
+      email === existing.email
+        ? {}
+        : {
+            emailBouncedAt: null,
+            emailSuppressedAt: null,
+            emailSuppressionReason: null,
+          };
     const data: Record<string, unknown> = {
       email,
       name,
       role,
       emailVerified,
+      ...emailDeliverabilityResetData,
     };
     const wasBanned = Boolean(existing.banned);
     const banStateChanged = wasBanned !== banned;

@@ -30,7 +30,7 @@ import type {
 } from '@/libs/mit-sailing/pavilionReservationTypes';
 import { safeErrorCode, safeErrorName } from '@/libs/safeUnknownError';
 import enMessages from '@/locales/en.json';
-import { isValidMarketingEmail } from '@/utils/emailValidation';
+import { isValidEmailAddress } from '@/utils/emailValidation';
 import { getI18nPath } from '@/utils/Helpers';
 
 function formText(formData: FormData, key: string): string {
@@ -82,7 +82,7 @@ function requireAdminContactFields(props: {
   const missing: string[] = [];
   if (!props.requesterEmail) {
     missing.push('requesterEmail');
-  } else if (!isValidMarketingEmail(props.requesterEmail)) {
+  } else if (!isValidEmailAddress(props.requesterEmail)) {
     throw new Error('Invalid requester email');
   }
   if (!props.firstName) {

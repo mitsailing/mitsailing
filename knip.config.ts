@@ -14,6 +14,8 @@ const config: KnipConfig = {
     'scripts/import-legacy-pavilion-reservations.ts',
     // Invoked by Docker Compose healthcheck + Dockerfile COPY; not a Node import graph entry
     'scripts/worker-redis-healthcheck.cjs',
+    // Invoked by esbuild's `server-only` alias in `npm run build:worker`.
+    'src/worker/serverOnlyShim.ts',
     // Catalog + time helpers: partially consumed by prisma seed; getters/types fill in when UI is ported
     'src/data/mit-sailing/**',
     'src/lib/mit-sailing/**',

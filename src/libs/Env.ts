@@ -16,6 +16,7 @@ export const Env = createEnv({
     ARCJET_KEY: z.string().startsWith('ajkey_').optional(),
     BETTER_AUTH_SECRET: z.string().min(32),
     DATABASE_URL: z.string().min(1),
+    NEWSLETTER_REVALIDATE_SECRET: z.string().min(32).optional(),
 
     // BullMQ worker + optional API enqueue; Redis is internal to Compose in prod.
     REDIS_URL: z.url().optional(),
@@ -79,6 +80,19 @@ export const Env = createEnv({
     // Support mailbox surfaced in transactional copy and on the sign-in page.
     // Overridable so different deployments can point at different teams.
     SUPPORT_EMAIL: z.email().default('support@mitsailing.com'),
+
+    // Marketing footer and Resend webhook settings for newsletter broadcasts.
+    NEWSLETTER_POSTAL_ADDRESS: z
+      .string()
+      .min(1)
+      .default('MIT Sailing Pavilion, 134 Memorial Drive, Cambridge, MA 02139'),
+    NEWSLETTER_WORKER_CONCURRENCY: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(10)
+      .default(2),
+    RESEND_WEBHOOK_SECRET: z.string().min(1).optional(),
 
     // Cloudflare Tunnel credential consumed by the cloudflared service in
     // compose.staging.yaml / compose.prod.yaml. Required in staging+prod,
@@ -144,6 +158,7 @@ export const Env = createEnv({
     ARCJET_KEY: process.env.ARCJET_KEY,
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
     DATABASE_URL: process.env.DATABASE_URL,
+    NEWSLETTER_REVALIDATE_SECRET: process.env.NEWSLETTER_REVALIDATE_SECRET,
     REDIS_URL: process.env.REDIS_URL,
     LEGACY_MYSQL_SYNC_ENABLED: process.env.LEGACY_MYSQL_SYNC_ENABLED,
     LEGACY_MYSQL_SYNC_CRON: process.env.LEGACY_MYSQL_SYNC_CRON,
@@ -159,6 +174,9 @@ export const Env = createEnv({
     DEBUG_CLEANUP: process.env.DEBUG_CLEANUP,
     IS_E2E: process.env.IS_E2E,
     SUPPORT_EMAIL: process.env.SUPPORT_EMAIL,
+    NEWSLETTER_POSTAL_ADDRESS: process.env.NEWSLETTER_POSTAL_ADDRESS,
+    NEWSLETTER_WORKER_CONCURRENCY: process.env.NEWSLETTER_WORKER_CONCURRENCY,
+    RESEND_WEBHOOK_SECRET: process.env.RESEND_WEBHOOK_SECRET,
     CLOUDFLARE_TUNNEL_TOKEN: process.env.CLOUDFLARE_TUNNEL_TOKEN,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
     NEXT_PUBLIC_LOGGING_LEVEL: process.env.NEXT_PUBLIC_LOGGING_LEVEL,

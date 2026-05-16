@@ -14,16 +14,32 @@ import { SubmitButton } from '@/components/ui/submit-button';
 import type { ThemePreferenceValue } from '@/lib/mit-sailing/themePreference';
 import { authClient } from '@/libs/auth-client';
 import {
-  isValidMarketingEmail,
-  normalizeMarketingEmail,
+  isValidEmailAddress,
+  normalizeEmailAddress,
 } from '@/utils/emailValidation';
 
 type ProfileAccountClientProps = {
   initialEmail: string;
+  initialEmailDeliverabilityStatus: 'ok' | 'bounced' | 'suppressed';
   initialName: string | null;
   initialThemePreference: ThemePreferenceValue;
   initialUnconfirmedEmail: string | null;
 };
+
+type ActiveEmailDeliverabilityStatus = Exclude<
+  ProfileAccountClientProps['initialEmailDeliverabilityStatus'],
+  'ok'
+>;
+
+const emailDeliverabilityTitleKeys = {
+  bounced: 'email_deliverability_bounced_title',
+  suppressed: 'email_deliverability_suppressed_title',
+} as const satisfies Record<ActiveEmailDeliverabilityStatus, string>;
+
+const emailDeliverabilityBodyKeys = {
+  bounced: 'email_deliverability_bounced_body',
+  suppressed: 'email_deliverability_suppressed_body',
+} as const satisfies Record<ActiveEmailDeliverabilityStatus, string>;
 
 export function ProfileAccountClient(props: ProfileAccountClientProps) {
   const tCommon = useTranslations('Common');
@@ -52,6 +68,10 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
   const [updatingName, setUpdatingName] = useState(false);
   const resendTimerRef = useRef<number | null>(null);
   const resendIntervalRef = useRef<number | null>(null);
+  const deliverabilityStatus =
+    props.initialEmailDeliverabilityStatus === 'ok'
+      ? null
+      : props.initialEmailDeliverabilityStatus;
 
   function lockEmailResend() {
     clearTimeout(resendTimerRef.current ?? undefined);
@@ -90,9 +110,9 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
 
   async function onChangeEmail(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
-    const normalizedNewEmail = normalizeMarketingEmail(newEmail);
-    const normalizedCurrentEmail = normalizeMarketingEmail(currentEmail);
-    if (!normalizedNewEmail || !isValidMarketingEmail(normalizedNewEmail)) {
+    const normalizedNewEmail = normalizeEmailAddress(newEmail);
+    const normalizedCurrentEmail = normalizeEmailAddress(currentEmail);
+    if (!normalizedNewEmail || !isValidEmailAddress(normalizedNewEmail)) {
       setEmailBanner({ kind: 'error', message: t('email_validation_error') });
       return;
     }
@@ -243,6 +263,19 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-6 px-4 py-8">
       <h1 className="text-2xl font-semibold">{t('account_page_heading')}</h1>
+      {deliverabilityStatus ? (
+        <div
+          className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"
+          role="alert"
+        >
+          <p className="font-semibold">
+            {t(emailDeliverabilityTitleKeys[deliverabilityStatus])}
+          </p>
+          <p className="mt-1">
+            {t(emailDeliverabilityBodyKeys[deliverabilityStatus])}
+          </p>
+        </div>
+      ) : null}
 
       <div className="rounded-lg border border-mit-line bg-card p-6 shadow-sm">
         <dl className="flex flex-col gap-3">

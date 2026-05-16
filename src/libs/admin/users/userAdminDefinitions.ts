@@ -31,6 +31,11 @@ export const usersAdminDefinition = {
       headerKey: 'column_email_verified',
     },
     {
+      field: 'emailDeliverabilityStatus',
+      kind: 'string',
+      headerKey: 'column_email_status',
+    },
+    {
       field: 'banned',
       kind: 'boolean',
       headerKey: 'column_banned',

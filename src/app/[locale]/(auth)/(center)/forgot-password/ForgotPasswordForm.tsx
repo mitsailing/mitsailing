@@ -9,8 +9,8 @@ import { SubmitButton } from '@/components/ui/submit-button';
 import { authClient } from '@/libs/auth-client';
 import { authHrefWithCallback } from '@/libs/auth/callbackUrl';
 import {
-  isValidMarketingEmail,
-  normalizeMarketingEmail,
+  isValidEmailAddress,
+  normalizeEmailAddress,
 } from '@/utils/emailValidation';
 
 type ForgotPasswordFormProps = {
@@ -26,18 +26,16 @@ export function ForgotPasswordForm(props: ForgotPasswordFormProps) {
   const t = useTranslations('ForgotPasswordPage');
   const tCommon = useTranslations('Common');
   const router = useRouter();
-  const [email, setEmail] = useState(
-    normalizeMarketingEmail(props.initialEmail)
-  );
+  const [email, setEmail] = useState(normalizeEmailAddress(props.initialEmail));
   const [submitting, setSubmitting] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
 
   async function onSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setEmailError(null);
-    const normalizedEmail = normalizeMarketingEmail(email);
+    const normalizedEmail = normalizeEmailAddress(email);
     setEmail(normalizedEmail);
-    if (!isValidMarketingEmail(normalizedEmail)) {
+    if (!isValidEmailAddress(normalizedEmail)) {
       setEmailError(t('error_invalid_email'));
       return;
     }

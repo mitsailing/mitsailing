@@ -16,8 +16,8 @@ import {
 import { reportUnknownAuthClientError } from '@/libs/auth/reportAuthClientError';
 import { Link as I18nLink } from '@/libs/I18nNavigation';
 import {
-  isValidMarketingEmail,
-  normalizeMarketingEmail,
+  isValidEmailAddress,
+  normalizeEmailAddress,
 } from '@/utils/emailValidation';
 
 type ResetPasswordFormProps = {
@@ -32,8 +32,8 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
   const t = useTranslations('ResetPasswordPage');
   const router = useRouter();
   const safeCallbackUrl = safeAuthCallbackUrl(props.callbackUrl, '/');
-  const normalizedInitialEmail = normalizeMarketingEmail(props.initialEmail);
-  const hasInitialEmail = isValidMarketingEmail(normalizedInitialEmail);
+  const normalizedInitialEmail = normalizeEmailAddress(props.initialEmail);
+  const hasInitialEmail = isValidEmailAddress(normalizedInitialEmail);
   const [email, setEmail] = useState(normalizedInitialEmail);
   const [resetCode, setResetCode] = useState('');
   const [step, setStep] = useState<'code' | 'password'>('code');
@@ -137,9 +137,9 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
     event.preventDefault();
     setError(null);
     setStatus(null);
-    const normalizedEmail = normalizeMarketingEmail(email);
+    const normalizedEmail = normalizeEmailAddress(email);
     setEmail(normalizedEmail);
-    if (!isValidMarketingEmail(normalizedEmail)) {
+    if (!isValidEmailAddress(normalizedEmail)) {
       setError(t('error_invalid_email'));
       return;
     }
@@ -176,9 +176,9 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
     }
     setError(null);
     setStatus(null);
-    const normalizedEmail = normalizeMarketingEmail(email);
+    const normalizedEmail = normalizeEmailAddress(email);
     setEmail(normalizedEmail);
-    if (!isValidMarketingEmail(normalizedEmail)) {
+    if (!isValidEmailAddress(normalizedEmail)) {
       setError(t('error_invalid_email'));
       return;
     }
@@ -213,7 +213,7 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
     event.preventDefault();
     setError(null);
     setStatus(null);
-    const normalizedEmail = normalizeMarketingEmail(email);
+    const normalizedEmail = normalizeEmailAddress(email);
     setEmail(normalizedEmail);
     if (password !== passwordConfirmation) {
       setError(t('error_password_mismatch'));

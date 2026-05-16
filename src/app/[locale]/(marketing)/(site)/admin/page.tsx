@@ -105,6 +105,42 @@ export default async function AdminIndexPage(props: AdminIndexPageProps) {
               {t('link_users_blurb')}
             </p>
           </li>
+          <li>
+            <Link
+              className="font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
+              href="/admin/newsletter-subscribers"
+              prefetch={false}
+            >
+              {t('link_newsletter_subscribers')}
+            </Link>
+            <p className="mt-0.5 text-sm text-mit-text">
+              {t('link_newsletter_subscribers_blurb')}
+            </p>
+          </li>
+          <li>
+            <Link
+              className="font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
+              href="/admin/newsletter-lists"
+              prefetch={false}
+            >
+              {t('link_newsletter_lists')}
+            </Link>
+            <p className="mt-0.5 text-sm text-mit-text">
+              {t('link_newsletter_lists_blurb')}
+            </p>
+          </li>
+          <li>
+            <Link
+              className="font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
+              href="/admin/newsletter-broadcasts"
+              prefetch={false}
+            >
+              {t('link_newsletter_broadcasts')}
+            </Link>
+            <p className="mt-0.5 text-sm text-mit-text">
+              {t('link_newsletter_broadcasts_blurb')}
+            </p>
+          </li>
           {CATALOG_RESOURCE_IDS.map((id) => {
             const def = catalogResourceDefinitions[id];
             return (

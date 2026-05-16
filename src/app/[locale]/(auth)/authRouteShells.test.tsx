@@ -27,6 +27,9 @@ import ProfileDeletePage, {
   generateMetadata as generateProfileDeleteMetadata,
 } from './profile/delete/page';
 import ProfileLayout from './profile/layout';
+import ProfileNewsletterPage, {
+  generateMetadata as generateProfileNewsletterMetadata,
+} from './profile/newsletter/page';
 import ProfileIndexPage from './profile/page';
 import ProfilePasswordPage, {
   generateMetadata as generateProfilePasswordMetadata,
@@ -74,17 +77,22 @@ function userRatingAssignmentRowFixture(
 }
 
 const routeMocks = vi.hoisted(() => ({
+  connection: vi.fn(),
   findUnique: vi.fn(),
   getFormatter: vi.fn(),
+  getExistingSubscriberPreferenceStateForUser: vi.fn(),
+  getPublicNewsletterLists: vi.fn(),
   getTranslations: vi.fn(),
   listUserRatingAssignmentRows:
     vi.fn() as MockedFunction<ListUserRatingAssignmentRowsFn>,
+  loggerWarn: vi.fn(),
   redirect: vi.fn((href: string) => {
     throw new Error(`NEXT_REDIRECT:${href}`);
   }),
   redirectIfAuthenticated: vi.fn(),
   requireCurrentUser: vi.fn(),
   setRequestLocale: vi.fn(),
+  updateProfileNewsletterPreferencesAction: vi.fn(),
 }));
 
 type Translator = ((key: string) => string) & {
@@ -107,6 +115,10 @@ vi.mock('next/navigation', () => ({
   redirect: routeMocks.redirect,
 }));
 
+vi.mock('next/server', () => ({
+  connection: routeMocks.connection,
+}));
+
 vi.mock('@/libs/auth/dal', () => ({
   redirectIfAuthenticated: routeMocks.redirectIfAuthenticated,
   requireCurrentUser: routeMocks.requireCurrentUser,
@@ -120,8 +132,25 @@ vi.mock('@/libs/DB', () => ({
   },
 }));
 
+vi.mock('@/libs/Logger', () => ({
+  logger: {
+    warn: routeMocks.loggerWarn,
+  },
+}));
+
 vi.mock('@/libs/mit-sailing/sailingRatingQueries', () => ({
   listUserRatingAssignmentRows: routeMocks.listUserRatingAssignmentRows,
+}));
+
+vi.mock('@/libs/newsletter/newsletterActions', () => ({
+  updateProfileNewsletterPreferencesAction:
+    routeMocks.updateProfileNewsletterPreferencesAction,
+}));
+
+vi.mock('@/libs/newsletter/newsletterSubscriptions', () => ({
+  getExistingSubscriberPreferenceStateForUser:
+    routeMocks.getExistingSubscriberPreferenceStateForUser,
+  getPublicNewsletterLists: routeMocks.getPublicNewsletterLists,
 }));
 
 vi.mock('@/components/mit-sailing/site/AuthCenterBrandMark', () => ({
@@ -204,6 +233,7 @@ vi.mock('./(center)/verify-email/VerifyEmailForm', () => ({
 vi.mock('./profile/ProfileAccountClient', () => ({
   ProfileAccountClient: (props: {
     initialEmail: string;
+    initialEmailDeliverabilityStatus: string;
     initialName: string | null;
     initialThemePreference: string;
     initialUnconfirmedEmail: string | null;
@@ -211,6 +241,7 @@ vi.mock('./profile/ProfileAccountClient', () => ({
     <section
       aria-label="profile-account-client"
       data-email={props.initialEmail}
+      data-email-deliverability={props.initialEmailDeliverabilityStatus}
       data-name={props.initialName ?? ''}
       data-theme={props.initialThemePreference}
       data-unconfirmed-email={props.initialUnconfirmedEmail ?? ''}
@@ -233,6 +264,40 @@ vi.mock('./profile/ProfilePasswordClient', () => ({
 
 vi.mock('./profile/ProfileSecurityClient', () => ({
   ProfileSecurityClient: () => <section aria-label="profile-security-client" />,
+}));
+
+vi.mock('@/components/mit-sailing/newsletter/NewsletterPreferenceForm', () => ({
+  NewsletterPreferenceForm: (props: {
+    errorLabel: string;
+    lists: {
+      description: string | null;
+      id: string;
+      name: string;
+      subscribed: boolean;
+    }[];
+    successLabel: string;
+    submitLabel: string;
+  }) => (
+    <section
+      aria-label="newsletter-preference-form"
+      data-error-label={props.errorLabel}
+      data-success-label={props.successLabel}
+    >
+      <ul>
+        {props.lists.map((list) => (
+          <li
+            data-description={list.description ?? ''}
+            data-list-id={list.id}
+            data-subscribed={String(list.subscribed)}
+            key={list.id}
+          >
+            {list.name}
+          </li>
+        ))}
+      </ul>
+      <button type="button">{props.submitLabel}</button>
+    </section>
+  ),
 }));
 
 function routeProps(searchParams: Record<string, string | undefined> = {}) {
@@ -263,18 +328,48 @@ beforeEach(() => {
   routeMocks.redirectIfAuthenticated.mockImplementation(async () => {
     await Promise.resolve();
   });
+  routeMocks.connection.mockImplementation(async () => {
+    await Promise.resolve();
+  });
   routeMocks.requireCurrentUser.mockResolvedValue({
     email: 'sailor@example.com',
     id: 'user-1',
     name: 'Sailor',
   });
   routeMocks.findUnique.mockResolvedValue({
+    emailBouncedAt: new Date('2026-01-01T12:00:00Z'),
+    emailSuppressedAt: null,
+    emailSuppressionReason: null,
     themePreference: 'DARK',
     unconfirmedEmail: 'pending@example.com',
   });
   vi.mocked(listUserRatingAssignmentRows).mockResolvedValue(
     [] satisfies UserRatingAssignmentRow[]
   );
+  routeMocks.getPublicNewsletterLists.mockResolvedValue([
+    {
+      description: 'Weekly race updates',
+      id: 'list-racing',
+      name: 'Racing',
+    },
+    {
+      description: 'Harbor operations',
+      id: 'list-harbor',
+      name: 'Harbor',
+    },
+  ]);
+  routeMocks.getExistingSubscriberPreferenceStateForUser.mockResolvedValue({
+    subscriptions: [
+      {
+        listId: 'list-racing',
+        status: 'subscribed',
+      },
+      {
+        listId: 'list-harbor',
+        status: 'unsubscribed',
+      },
+    ],
+  });
 });
 
 describe('auth route shells', () => {
@@ -548,12 +643,21 @@ describe('auth route shells', () => {
       '/profile/account'
     );
     expect(routeMocks.findUnique).toHaveBeenCalledWith({
-      select: { themePreference: true, unconfirmedEmail: true },
+      select: {
+        emailBouncedAt: true,
+        emailSuppressedAt: true,
+        emailSuppressionReason: true,
+        themePreference: true,
+        unconfirmedEmail: true,
+      },
       where: { id: 'user-1' },
     });
     expect(
       screen.getByRole('region', { name: 'profile-account-client' })
     ).toHaveAttribute('data-theme', 'DARK');
+    expect(
+      screen.getByRole('region', { name: 'profile-account-client' })
+    ).toHaveAttribute('data-email-deliverability', 'bounced');
     expect(
       screen.getByRole('region', { name: 'profile-account-client' })
     ).toHaveAttribute('data-unconfirmed-email', 'pending@example.com');
@@ -565,7 +669,13 @@ describe('auth route shells', () => {
       id: 'user-1',
       name: null,
     });
-    routeMocks.findUnique.mockResolvedValue(null);
+    routeMocks.findUnique.mockResolvedValue({
+      emailBouncedAt: null,
+      emailSuppressedAt: null,
+      emailSuppressionReason: null,
+      themePreference: null,
+      unconfirmedEmail: null,
+    });
 
     render(
       await ProfileAccountPage({
@@ -579,6 +689,124 @@ describe('auth route shells', () => {
     expect(
       screen.getByRole('region', { name: 'profile-account-client' })
     ).toHaveAttribute('data-theme', 'SYSTEM');
+  });
+
+  it('profile account page prefers suppressed deliverability state', async () => {
+    routeMocks.findUnique.mockResolvedValue({
+      emailBouncedAt: new Date('2026-01-01T12:00:00Z'),
+      emailSuppressedAt: new Date('2026-01-01T12:00:00Z'),
+      emailSuppressionReason: 'complained',
+      themePreference: 'DARK',
+      unconfirmedEmail: null,
+    });
+
+    render(
+      await ProfileAccountPage({
+        params: Promise.resolve({ locale: 'en' }),
+      })
+    );
+
+    expect(
+      screen.getByRole('region', { name: 'profile-account-client' })
+    ).toHaveAttribute('data-email-deliverability', 'suppressed');
+  });
+
+  it('profile account page reports missing database users', async () => {
+    routeMocks.findUnique.mockResolvedValue(null);
+
+    await expect(
+      ProfileAccountPage({
+        params: Promise.resolve({ locale: 'en' }),
+      })
+    ).rejects.toThrow('Missing db user after auth');
+
+    expect(routeMocks.loggerWarn).toHaveBeenCalledWith(
+      'Missing database user after profile auth',
+      {
+        email: 'sailor@example.com',
+        userId: 'user-1',
+      }
+    );
+  });
+
+  it('profile newsletter metadata uses localized copy', async () => {
+    await expect(
+      generateProfileNewsletterMetadata(routeProps())
+    ).resolves.toEqual({
+      description: 'UserProfilePage.newsletter_meta_description',
+      title: 'UserProfilePage.newsletter_meta_title',
+    });
+  });
+
+  it('profile newsletter page renders current preferences', async () => {
+    render(
+      await ProfileNewsletterPage({
+        params: Promise.resolve({ locale: 'en' }),
+      })
+    );
+
+    expect(routeMocks.connection).toHaveBeenCalled();
+    expect(routeMocks.requireCurrentUser).toHaveBeenCalledWith(
+      'en',
+      '/profile/newsletter'
+    );
+    expect(
+      routeMocks.getExistingSubscriberPreferenceStateForUser
+    ).toHaveBeenCalledWith('user-1');
+    expect(
+      screen.getByRole('heading', {
+        name: 'UserProfilePage.newsletter_page_heading',
+      })
+    ).toBeVisible();
+
+    const form = screen.getByRole('region', {
+      name: 'newsletter-preference-form',
+    });
+    expect(form).toHaveAttribute(
+      'data-error-label',
+      'UserProfilePage.newsletter_preferences_error'
+    );
+    expect(form).toHaveAttribute(
+      'data-success-label',
+      'UserProfilePage.newsletter_preferences_saved'
+    );
+    expect(within(form).getByText('Racing')).toHaveAttribute(
+      'data-subscribed',
+      'true'
+    );
+    expect(within(form).getByText('Harbor')).toHaveAttribute(
+      'data-subscribed',
+      'false'
+    );
+    expect(
+      within(form).getByRole('button', {
+        name: 'UserProfilePage.newsletter_submit',
+      })
+    ).toBeVisible();
+  });
+
+  it('profile newsletter page defaults missing subscriber preferences', async () => {
+    routeMocks.getExistingSubscriberPreferenceStateForUser.mockResolvedValue(
+      null
+    );
+
+    render(
+      await ProfileNewsletterPage({
+        params: Promise.resolve({ locale: 'en' }),
+      })
+    );
+
+    const form = screen.getByRole('region', {
+      name: 'newsletter-preference-form',
+    });
+    expect(within(form).getByText('Racing')).toHaveAttribute(
+      'data-subscribed',
+      'false'
+    );
+    expect(within(form).getByText('Harbor')).toHaveAttribute(
+      'data-subscribed',
+      'false'
+    );
   });
 
   it('profile password metadata uses localized copy', async () => {

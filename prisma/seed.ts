@@ -1,18 +1,14 @@
 import 'dotenv/config';
 import { randomUUID } from 'node:crypto';
-import type { Options } from '@node-rs/argon2';
 import { hash } from '@node-rs/argon2';
+import { selectPasswordHashingOptions } from '../src/libs/auth/passwordHashing';
 import { Role } from '../src/libs/auth/roles';
 import { prisma } from '../src/libs/DB';
 import { seedMitSailing } from './seedMitSailing/index';
 
-const argonOpts: Options = {
-  memoryCost: 65_536,
-  timeCost: 3,
-  parallelism: 4,
-  outputLen: 32,
-  algorithm: 2,
-};
+const argonOpts = selectPasswordHashingOptions({
+  isE2E: process.env.IS_E2E === '1',
+});
 
 /**
  * Admin bootstrap when `ADMIN_EMAIL` and `ADMIN_PASSWORD` are set (defaults

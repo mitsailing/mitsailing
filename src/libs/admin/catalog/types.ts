@@ -3,6 +3,7 @@
  * list cell formatting (visibility badges, plain text, numbers).
  */
 
+import type { EmailDeliverabilityStatus } from '@/libs/email/emailDeliverabilityStatus';
 import type messages from '@/locales/en.json';
 
 /** Keys under `AdminCatalogResource` in locale JSON (strict next-intl typing). */
@@ -30,6 +31,8 @@ export type AdminFieldKind =
   | 'select'
   | 'datetimeLocal'
   | 'date';
+
+export type AdminEmailDeliverabilityStatus = EmailDeliverabilityStatus;
 
 export type AdminSelectOption = {
   value: string;
@@ -92,10 +95,20 @@ export type CatalogRow = Record<
   string | string[] | number | boolean | null | undefined
 >;
 
-/** Admin user row for `/admin/users` lists and forms (assignable to {@link CatalogRow}). */
+/**
+ * Admin user row for `/admin/users` lists and forms.
+ *
+ * Deliverability-related fields are nullable because webhook updates and legacy
+ * rows can temporarily expose partial state while the admin surface stays
+ * read-only for these fields.
+ */
 export type AdminUserRow = {
   id: string;
   email: string;
+  emailBouncedAt: string | null;
+  emailDeliverabilityStatus: AdminEmailDeliverabilityStatus;
+  emailSuppressedAt: string | null;
+  emailSuppressionReason: string | null;
   name: string;
   role: string;
   emailVerified: boolean;

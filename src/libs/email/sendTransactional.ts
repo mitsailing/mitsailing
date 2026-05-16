@@ -3,6 +3,8 @@ import nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 import { Resend } from 'resend';
 import sanitizeHtml from 'sanitize-html';
+import { recordSentEmailMessage } from '@/libs/email/emailMessages';
+import type { EmailMessageCategory } from '@/libs/email/emailMessages';
 import { Env } from '@/libs/Env';
 import { logger } from '@/libs/Logger';
 
@@ -25,12 +27,27 @@ import { logger } from '@/libs/Logger';
 type Params = {
   to: string;
   subject: string;
+  category?: EmailMessageCategory;
   html: string;
+  idempotencyKey?: string;
   replyTo?: string;
   text?: string;
+  headers?: Record<string, string>;
+  metadata?: Record<string, unknown>;
+  newsletterBroadcastId?: string | null;
+  newsletterDeliveryId?: string | null;
+  newsletterSubscriberId?: string | null;
+  tags?: { name: string; value: string }[];
+  topicId?: string | null;
+  userId?: string | null;
+};
+
+export type SendEmailResult = {
+  providerMessageId: string | null;
 };
 
 let cachedSmtpTransport: Transporter | null = null;
+let cachedResendClient: Resend | null = null;
 
 function htmlToPlainText(html: string): string {
   const withReadableLinks = html.replaceAll(
@@ -72,65 +89,90 @@ function getSmtpTransport(): Transporter {
   return cachedSmtpTransport;
 }
 
-async function sendViaSmtp(params: Params): Promise<void> {
+function getResendClient(apiKey: string): Resend {
+  cachedResendClient ??= new Resend(apiKey);
+  return cachedResendClient;
+}
+
+async function sendViaSmtp(params: Params): Promise<SendEmailResult> {
   if (!Env.EMAIL_FROM) {
     throw new Error('MAIL_TRANSPORT=smtp but EMAIL_FROM is not set.');
   }
   const transport = getSmtpTransport();
-  await transport.sendMail({
+  const info = await transport.sendMail({
     from: Env.EMAIL_FROM,
     ...(params.replyTo ? { replyTo: params.replyTo } : {}),
     to: params.to,
     subject: params.subject,
     html: params.html,
     text: params.text,
+    headers: params.headers,
   });
+  return { providerMessageId: info.messageId ?? null };
 }
 
-async function sendViaResend(params: Params): Promise<void> {
+async function sendViaResend(params: Params): Promise<SendEmailResult> {
   if (!Env.RESEND_API_KEY || !Env.EMAIL_FROM) {
     throw new Error(
       'MAIL_TRANSPORT=resend requires both RESEND_API_KEY and EMAIL_FROM.'
     );
   }
-  const resend = new Resend(Env.RESEND_API_KEY);
-  const result = await resend.emails.send({
-    from: Env.EMAIL_FROM,
-    ...(params.replyTo ? { replyTo: params.replyTo } : {}),
-    to: params.to,
-    subject: params.subject,
-    html: params.html,
-    text: params.text,
-  });
+  const resend = getResendClient(Env.RESEND_API_KEY);
+  const result = await resend.emails.send(
+    {
+      from: Env.EMAIL_FROM,
+      ...(params.replyTo ? { replyTo: params.replyTo } : {}),
+      to: params.to,
+      subject: params.subject,
+      html: params.html,
+      text: params.text,
+      headers: params.headers,
+      tags: params.tags,
+      ...(params.topicId ? { topicId: params.topicId } : {}),
+    },
+    params.idempotencyKey
+      ? { idempotencyKey: params.idempotencyKey }
+      : undefined
+  );
   if (result.error) {
     logger.error(`Resend error: ${result.error.message}`);
     throw new Error(result.error.message);
   }
+  return { providerMessageId: result.data?.id ?? null };
 }
 
-function logOnly(params: Params): void {
+function logOnly(params: Params): SendEmailResult {
   logger.info(`[mail:log] → ${params.to} — ${params.subject}`);
+  return { providerMessageId: null };
 }
 
 /**
  * Sends a transactional email through the active transport.
  * @param params - Outbound message payload.
+ * @returns Provider message id for transports that expose one.
  */
-export async function sendTransactionalEmail(params: Params): Promise<void> {
+export async function sendTransactionalEmail(
+  params: Params
+): Promise<SendEmailResult> {
   const message = withPlainTextFallback(params);
+  let provider: 'log' | 'resend' | 'smtp';
+  let result: SendEmailResult;
 
   switch (Env.MAIL_TRANSPORT) {
     case 'smtp': {
-      await sendViaSmtp(message);
-      return;
+      provider = 'smtp';
+      result = await sendViaSmtp(message);
+      break;
     }
     case 'resend': {
-      await sendViaResend(message);
-      return;
+      provider = 'resend';
+      result = await sendViaResend(message);
+      break;
     }
     case 'log': {
-      logOnly(message);
-      return;
+      provider = 'log';
+      result = logOnly(message);
+      break;
     }
     default: {
       // Exhaustiveness check — MAIL_TRANSPORT is a closed enum in Env.ts, so
@@ -140,4 +182,22 @@ export async function sendTransactionalEmail(params: Params): Promise<void> {
       throw new Error(`Unknown MAIL_TRANSPORT: ${String(_exhaustive)}`);
     }
   }
+
+  try {
+    await recordSentEmailMessage({
+      category: params.category ?? 'other',
+      metadata: params.metadata ?? null,
+      newsletterBroadcastId: params.newsletterBroadcastId ?? null,
+      newsletterDeliveryId: params.newsletterDeliveryId ?? null,
+      newsletterSubscriberId: params.newsletterSubscriberId ?? null,
+      provider,
+      providerMessageId: result.providerMessageId,
+      subject: params.subject,
+      toEmail: params.to,
+      userId: params.userId ?? null,
+    });
+  } catch (error: unknown) {
+    logger.error('Failed to record outbound email message: {error}', { error });
+  }
+  return result;
 }
