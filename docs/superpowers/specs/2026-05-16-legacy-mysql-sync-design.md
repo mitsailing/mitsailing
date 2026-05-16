@@ -29,7 +29,12 @@ No staging schema is retained. During the sync, the `legacy` schema may be missi
 
 ## Data Safety
 
-The sync must never drop, truncate, or recreate objects in `public`. SQL helpers must quote identifiers and must hard-code the destination schema name to `legacy` rather than accepting arbitrary schema input.
+The sync must never drop, truncate, or recreate objects in `public`. SQL helpers must quote identifiers and must hard-code the destination schema name to `legacy` through a single exported `LEGACY_SCHEMA` constant. Mirror DDL and DML helpers must not accept a destination schema from config, env, CLI input, or function parameters.
+
+All destructive DDL must route through one reset helper that returns exactly:
+
+1. `DROP SCHEMA IF EXISTS "legacy" CASCADE`
+2. `CREATE SCHEMA "legacy"`
 
 Reservation mapping may upsert app-owned rows with legacy reference codes, but it must not delete native app reservation rows. Existing app data in `public` remains the durable source of truth for new website behavior.
 
@@ -64,10 +69,11 @@ The worker should use BullMQ retries for transient failures, but the mirror load
 Unit tests cover:
 
 - MySQL column type to Postgres type mapping
-- Identifier quoting and refusal to operate outside `legacy`
-- Create-table SQL generation
+- Identifier quoting, legacy-qualified table names, and refusal to operate outside `legacy`
+- Create-table and insert SQL generation that always targets `"legacy"."table_name"`
+- Mirror SQL safety checks that reject `public`, arbitrary schemas, `TRUNCATE`, and unexpected destructive SQL
 - MySQL row value conversion for raw mirror inserts
-- Legacy reservation row mapping from typed `legacy.reservations` rows
+- Legacy reservation row mapping from typed `legacy.reservations` rows, including proof that native app reservations are not deleted
 - Scheduler registration only in production when explicitly enabled
 
 Manual production verification:
@@ -76,4 +82,3 @@ Manual production verification:
 - Query `public.legacy_mysql_sync_runs`.
 - Confirm `SELECT count(*) FROM information_schema.tables WHERE table_schema = 'legacy';` returns 52.
 - Spot-check `legacy.reservations`, `legacy.members`, and `legacy.dw`.
-

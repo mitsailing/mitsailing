@@ -14,7 +14,7 @@
 
 - Modify `package.json` and `package-lock.json`: add direct runtime dependencies `mysql2` and `ssh2`, plus dev type dependency `@types/ssh2`.
 - Modify `src/libs/Env.ts`: validate production-only legacy MySQL sync environment variables.
-- Create `src/libs/legacy-sync/sqlIdentifiers.ts`: quote Postgres identifiers and constrain destructive schema operations to `legacy`.
+- Create `src/libs/legacy-sync/sqlIdentifiers.ts`: quote Postgres identifiers and expose only legacy-qualified table names for mirror SQL.
 - Create `src/libs/legacy-sync/mysqlTypeMapping.ts`: map MySQL column metadata to Postgres column SQL.
 - Create `src/libs/legacy-sync/mysqlSchemaIntrospection.ts`: read MySQL table and column metadata.
 - Create `src/libs/legacy-sync/postgresMirrorSql.ts`: build `DROP SCHEMA`, `CREATE SCHEMA`, `CREATE TABLE`, and `INSERT` SQL.
@@ -252,17 +252,22 @@ git commit -m "feat: add legacy MySQL sync run tracking"
 import { describe, expect, it } from 'vitest';
 import {
   assertLegacySchema,
+  LEGACY_SCHEMA,
+  quoteLegacyPgQualifiedName,
   quotePgIdentifier,
-  quotePgQualifiedName,
 } from '@/libs/legacy-sync/sqlIdentifiers';
 
 describe('sqlIdentifiers', () => {
+  it('exposes a single legacy schema constant', () => {
+    expect(LEGACY_SCHEMA).toBe('legacy');
+  });
+
   it('quotes postgres identifiers with embedded quotes', () => {
     expect(quotePgIdentifier('odd"name')).toBe('"odd""name"');
   });
 
-  it('quotes qualified names', () => {
-    expect(quotePgQualifiedName('legacy', 'reservations')).toBe(
+  it('quotes legacy-qualified names without accepting a schema argument', () => {
+    expect(quoteLegacyPgQualifiedName('reservations')).toBe(
       '"legacy"."reservations"'
     );
   });
@@ -273,6 +278,12 @@ describe('sqlIdentifiers', () => {
 
   it('rejects public schema', () => {
     expect(() => assertLegacySchema('public')).toThrow(
+      'Refusing to operate outside the legacy schema.'
+    );
+  });
+
+  it('rejects arbitrary schema names', () => {
+    expect(() => assertLegacySchema('legacy_backup')).toThrow(
       'Refusing to operate outside the legacy schema.'
     );
   });
@@ -292,9 +303,9 @@ Expected: FAIL because the module does not exist.
 - [ ] **Step 3: Implement helpers**
 
 ```ts
-const LEGACY_SCHEMA = 'legacy';
+export const LEGACY_SCHEMA = 'legacy';
 
-export function assertLegacySchema(schema: string): 'legacy' {
+export function assertLegacySchema(schema: string): typeof LEGACY_SCHEMA {
   if (schema !== LEGACY_SCHEMA) {
     throw new Error('Refusing to operate outside the legacy schema.');
   }
@@ -308,10 +319,8 @@ export function quotePgIdentifier(identifier: string): string {
   return `"${identifier.replaceAll('"', '""')}"`;
 }
 
-export function quotePgQualifiedName(schema: string, table: string): string {
-  return `${quotePgIdentifier(assertLegacySchema(schema))}.${quotePgIdentifier(
-    table
-  )}`;
+export function quoteLegacyPgQualifiedName(table: string): string {
+  return `${quotePgIdentifier(LEGACY_SCHEMA)}.${quotePgIdentifier(table)}`;
 }
 ```
 
@@ -502,6 +511,24 @@ describe('postgresMirrorSql', () => {
       'INSERT INTO "legacy"."reservations" ("resid", "comments") VALUES ($1, $2), ($3, $4)'
     );
   });
+
+  it('does not generate destructive SQL for public or arbitrary schemas', () => {
+    const generatedSql = [
+      ...legacySchemaResetSql(),
+      buildCreateTableSql({
+        tableName: 'members',
+        columns: [{ name: 'record', postgresType: 'bigint', nullable: false }],
+      }),
+      buildInsertSql('members', ['record'], 1),
+    ].join('\n');
+
+    expect(generatedSql).toContain('DROP SCHEMA IF EXISTS "legacy" CASCADE');
+    expect(generatedSql).not.toContain('DROP SCHEMA IF EXISTS "public"');
+    expect(generatedSql).not.toContain('DROP SCHEMA "public"');
+    expect(generatedSql).not.toContain('TRUNCATE');
+    expect(generatedSql).not.toContain('DROP TABLE');
+    expect(generatedSql).not.toContain('legacy_backup');
+  });
 });
 ```
 
@@ -519,8 +546,9 @@ Expected: FAIL because the module does not exist.
 
 ```ts
 import {
+  LEGACY_SCHEMA,
   quotePgIdentifier,
-  quotePgQualifiedName,
+  quoteLegacyPgQualifiedName,
 } from '@/libs/legacy-sync/sqlIdentifiers';
 
 export type MirrorColumnDefinition = {
@@ -535,7 +563,10 @@ export type MirrorTableDefinition = {
 };
 
 export function legacySchemaResetSql(): string[] {
-  return ['DROP SCHEMA IF EXISTS "legacy" CASCADE', 'CREATE SCHEMA "legacy"'];
+  return [
+    `DROP SCHEMA IF EXISTS ${quotePgIdentifier(LEGACY_SCHEMA)} CASCADE`,
+    `CREATE SCHEMA ${quotePgIdentifier(LEGACY_SCHEMA)}`,
+  ];
 }
 
 export function buildCreateTableSql(table: MirrorTableDefinition): string {
@@ -547,10 +578,7 @@ export function buildCreateTableSql(table: MirrorTableDefinition): string {
         }`
     )
     .join(', ');
-  return `CREATE TABLE ${quotePgQualifiedName(
-    'legacy',
-    table.tableName
-  )} (${columns})`;
+  return `CREATE TABLE ${quoteLegacyPgQualifiedName(table.tableName)} (${columns})`;
 }
 
 export function buildInsertSql(
@@ -565,8 +593,7 @@ export function buildInsertSql(
     );
     return `(${placeholders.join(', ')})`;
   });
-  return `INSERT INTO ${quotePgQualifiedName(
-    'legacy',
+  return `INSERT INTO ${quoteLegacyPgQualifiedName(
     tableName
   )} (${columns}) VALUES ${values.join(', ')}`;
 }
@@ -1145,6 +1172,7 @@ git commit -m "feat: orchestrate legacy MySQL mirror sync"
 ```ts
 import { describe, expect, it } from 'vitest';
 import {
+  legacyReservationSlotDeleteWhere,
   legacyReservationReferenceCode,
   minutesFromMysqlTime,
 } from '@/libs/legacy-sync/legacyPavilionReservationImport';
@@ -1158,6 +1186,18 @@ describe('legacyPavilionReservationImport', () => {
 
   it('parses mysql time strings to minutes', () => {
     expect(minutesFromMysqlTime('20:30:00')).toBe(1230);
+  });
+
+  it('builds request-scoped slot deletion filters', () => {
+    expect(legacyReservationSlotDeleteWhere('legacy-request-id')).toEqual({
+      requestId: 'legacy-request-id',
+    });
+  });
+
+  it('rejects empty slot deletion filters', () => {
+    expect(() => legacyReservationSlotDeleteWhere('')).toThrow(
+      'A request id is required to replace legacy reservation slots.'
+    );
   });
 });
 ```
@@ -1228,6 +1268,17 @@ export function minutesFromMysqlTime(value: string | null): number | null {
   }
   return hour * 60 + minute;
 }
+
+export function legacyReservationSlotDeleteWhere(requestId: string): {
+  requestId: string;
+} {
+  if (!requestId) {
+    throw new Error(
+      'A request id is required to replace legacy reservation slots.'
+    );
+  }
+  return { requestId };
+}
 ```
 
 Then add:
@@ -1246,7 +1297,7 @@ export async function importLegacyPavilionReservationsFromSchema(): Promise<{
 }
 ```
 
-Keep the existing importer semantics: upsert `referenceCode` beginning with `LEG-`, delete and recreate slots only for that legacy request, and skip rows without slot, date, email, or inferred item.
+Keep the existing importer semantics: upsert `referenceCode` beginning with `LEG-`, delete and recreate slots only for that legacy request, and skip rows without slot, date, email, or inferred item. Use `legacyReservationSlotDeleteWhere(request.id)` for slot replacement. Do not call `pavilionReservationRequest.delete`, `pavilionReservationRequest.deleteMany`, or any unscoped reservation delete from this importer.
 
 - [ ] **Step 4: Update script entrypoint**
 
