@@ -232,6 +232,178 @@ function compareNullableNumber(
   return left - right;
 }
 
+const adminPavilionReservationListRequestSelect = {
+  id: true,
+  referenceCode: true,
+  status: true,
+  paymentStatus: true,
+  paidAt: true,
+  persona: true,
+  requesterEmail: true,
+  firstName: true,
+  lastName: true,
+  eventName: true,
+  groupSize: true,
+  estimatedTotalCents: true,
+  createdAt: true,
+  slots: {
+    select: {
+      id: true,
+      requestedDate: true,
+      startMinutes: true,
+      endMinutes: true,
+      item: { select: { id: true, name: true } },
+    },
+  },
+  _count: { select: { slots: true, services: true } },
+} as const satisfies Prisma.PavilionReservationRequestSelect;
+
+type AdminPavilionReservationListRequestRow =
+  Prisma.PavilionReservationRequestGetPayload<{
+    select: typeof adminPavilionReservationListRequestSelect;
+  }>;
+
+function adminPavilionReservationListSearchWhere(
+  search: string | undefined
+): Prisma.PavilionReservationRequestWhereInput {
+  if (!search) {
+    return {};
+  }
+  return {
+    OR: [
+      { referenceCode: { contains: search, mode: 'insensitive' } },
+      { requesterEmail: { contains: search, mode: 'insensitive' } },
+      { firstName: { contains: search, mode: 'insensitive' } },
+      { lastName: { contains: search, mode: 'insensitive' } },
+      { eventName: { contains: search, mode: 'insensitive' } },
+      { groupName: { contains: search, mode: 'insensitive' } },
+    ],
+  };
+}
+
+function adminPavilionReservationListWhere(
+  filters: AdminPavilionReservationListFilters
+): Prisma.PavilionReservationRequestWhereInput {
+  return {
+    ...(filters.status ? { status: filters.status } : {}),
+    ...(filters.paymentStatus ? { paymentStatus: filters.paymentStatus } : {}),
+    ...adminPavilionReservationListSearchWhere(filters.search),
+    ...(filters.date
+      ? {
+          slots: {
+            some: { requestedDate: new Date(`${filters.date}T00:00:00Z`) },
+          },
+        }
+      : {}),
+  };
+}
+
+function scheduleSlotsFromListRequestRow(
+  row: AdminPavilionReservationListRequestRow
+): AdminPavilionReservationScheduleSlot[] {
+  return row.slots.map((slot) => ({
+    id: slot.id,
+    requestId: row.id,
+    referenceCode: row.referenceCode,
+    eventName: row.eventName,
+    status: row.status,
+    paymentStatus: row.paymentStatus,
+    itemId: slot.item.id,
+    itemName: slot.item.name,
+    requestedDate: slot.requestedDate,
+    startMinutes: slot.startMinutes,
+    endMinutes: slot.endMinutes,
+  }));
+}
+
+function uniqueRequestedDatesFromListRows(
+  rows: AdminPavilionReservationListRequestRow[]
+): Date[] {
+  const seen = new Set<number>();
+  const dates: Date[] = [];
+  for (const row of rows) {
+    for (const slot of row.slots) {
+      const time = slot.requestedDate.getTime();
+      if (!seen.has(time)) {
+        seen.add(time);
+        dates.push(slot.requestedDate);
+      }
+    }
+  }
+  return dates;
+}
+
+async function listAdminPavilionReservationConflictScheduleSlots(
+  requestedDates: Date[]
+): Promise<AdminPavilionReservationScheduleSlot[]> {
+  if (requestedDates.length === 0) {
+    return [];
+  }
+  const slots = await prisma.pavilionReservationSlot.findMany({
+    where: { requestedDate: { in: requestedDates } },
+    select: {
+      id: true,
+      requestId: true,
+      requestedDate: true,
+      startMinutes: true,
+      endMinutes: true,
+      item: { select: { id: true, name: true } },
+      request: {
+        select: {
+          referenceCode: true,
+          eventName: true,
+          status: true,
+          paymentStatus: true,
+        },
+      },
+    },
+  });
+  return slots.map((slot) => ({
+    id: slot.id,
+    requestId: slot.requestId,
+    referenceCode: slot.request.referenceCode,
+    eventName: slot.request.eventName,
+    status: slot.request.status,
+    paymentStatus: slot.request.paymentStatus,
+    itemId: slot.item.id,
+    itemName: slot.item.name,
+    requestedDate: slot.requestedDate,
+    startMinutes: slot.startMinutes,
+    endMinutes: slot.endMinutes,
+  }));
+}
+
+function mapAdminPavilionReservationListRow(
+  row: AdminPavilionReservationListRequestRow,
+  conflictGraph: ReturnType<typeof buildAdminPavilionReservationConflictGraph>
+): AdminPavilionReservationListRow {
+  const rowFirstSlot = firstSlot(row.slots);
+  const conflictSeverity =
+    adminPavilionReservationConflictSeverityFromGraphEntry(
+      conflictGraph.get(row.id)
+    );
+  return {
+    id: row.id,
+    referenceCode: row.referenceCode,
+    status: row.status,
+    paymentStatus: row.paymentStatus,
+    paidAt: row.paidAt,
+    persona: row.persona,
+    requesterEmail: row.requesterEmail,
+    firstName: row.firstName,
+    lastName: row.lastName,
+    eventName: row.eventName,
+    groupSize: row.groupSize,
+    estimatedTotalCents: row.estimatedTotalCents,
+    createdAt: row.createdAt,
+    firstSlotDate: rowFirstSlot?.date ?? null,
+    firstSlotStartMinutes: rowFirstSlot?.startMinutes ?? null,
+    slotCount: row._count.slots,
+    serviceCount: row._count.services,
+    conflictSeverity,
+  };
+}
+
 function sortAdminPavilionReservationRows(
   rows: AdminPavilionReservationListRow[],
   sort: AdminPavilionReservationSortKey,
@@ -295,110 +467,22 @@ export async function listAdminPavilionReservationRows(
   filters: AdminPavilionReservationListFilters,
   weekDateKeys: readonly string[]
 ): Promise<AdminPavilionReservationListResult> {
-  const searchWhere: Prisma.PavilionReservationRequestWhereInput =
-    filters.search
-      ? {
-          OR: [
-            {
-              referenceCode: { contains: filters.search, mode: 'insensitive' },
-            },
-            {
-              requesterEmail: { contains: filters.search, mode: 'insensitive' },
-            },
-            { firstName: { contains: filters.search, mode: 'insensitive' } },
-            { lastName: { contains: filters.search, mode: 'insensitive' } },
-            { eventName: { contains: filters.search, mode: 'insensitive' } },
-            { groupName: { contains: filters.search, mode: 'insensitive' } },
-          ],
-        }
-      : {};
   const rows = await prisma.pavilionReservationRequest.findMany({
-    where: {
-      ...(filters.status ? { status: filters.status } : {}),
-      ...(filters.paymentStatus
-        ? { paymentStatus: filters.paymentStatus }
-        : {}),
-      ...searchWhere,
-      ...(filters.date
-        ? {
-            slots: {
-              some: { requestedDate: new Date(`${filters.date}T00:00:00Z`) },
-            },
-          }
-        : {}),
-    },
-    select: {
-      id: true,
-      referenceCode: true,
-      status: true,
-      paymentStatus: true,
-      paidAt: true,
-      persona: true,
-      requesterEmail: true,
-      firstName: true,
-      lastName: true,
-      eventName: true,
-      groupSize: true,
-      estimatedTotalCents: true,
-      createdAt: true,
-      slots: {
-        select: {
-          id: true,
-          requestedDate: true,
-          startMinutes: true,
-          endMinutes: true,
-          item: { select: { id: true, name: true } },
-        },
-      },
-      _count: { select: { slots: true, services: true } },
-    },
+    where: adminPavilionReservationListWhere(filters),
+    select: adminPavilionReservationListRequestSelect,
   });
 
-  const scheduleSlots: AdminPavilionReservationScheduleSlot[] = rows.flatMap(
-    (row) =>
-      row.slots.map((slot) => ({
-        id: slot.id,
-        requestId: row.id,
-        referenceCode: row.referenceCode,
-        eventName: row.eventName,
-        status: row.status,
-        paymentStatus: row.paymentStatus,
-        itemId: slot.item.id,
-        itemName: slot.item.name,
-        requestedDate: slot.requestedDate,
-        startMinutes: slot.startMinutes,
-        endMinutes: slot.endMinutes,
-      }))
+  const calendarScheduleSlots = rows.flatMap(scheduleSlotsFromListRequestRow);
+  const conflictScheduleSlots =
+    await listAdminPavilionReservationConflictScheduleSlots(
+      uniqueRequestedDatesFromListRows(rows)
+    );
+  const conflictGraph = buildAdminPavilionReservationConflictGraph(
+    conflictScheduleSlots
   );
-  const conflictGraph =
-    buildAdminPavilionReservationConflictGraph(scheduleSlots);
-  const mappedRows = rows.map((row) => {
-    const rowFirstSlot = firstSlot(row.slots);
-    const conflictSeverity =
-      adminPavilionReservationConflictSeverityFromGraphEntry(
-        conflictGraph.get(row.id)
-      );
-    return {
-      id: row.id,
-      referenceCode: row.referenceCode,
-      status: row.status,
-      paymentStatus: row.paymentStatus,
-      paidAt: row.paidAt,
-      persona: row.persona,
-      requesterEmail: row.requesterEmail,
-      firstName: row.firstName,
-      lastName: row.lastName,
-      eventName: row.eventName,
-      groupSize: row.groupSize,
-      estimatedTotalCents: row.estimatedTotalCents,
-      createdAt: row.createdAt,
-      firstSlotDate: rowFirstSlot?.date ?? null,
-      firstSlotStartMinutes: rowFirstSlot?.startMinutes ?? null,
-      slotCount: row._count.slots,
-      serviceCount: row._count.services,
-      conflictSeverity,
-    };
-  });
+  const mappedRows = rows.map((row) =>
+    mapAdminPavilionReservationListRow(row, conflictGraph)
+  );
 
   return {
     rows: sortAdminPavilionReservationRows(
@@ -407,7 +491,7 @@ export async function listAdminPavilionReservationRows(
       filters.direction
     ),
     calendarSegments: listAdminPavilionReservationCalendarSegments(
-      scheduleSlots,
+      calendarScheduleSlots,
       weekDateKeys
     ),
   };
