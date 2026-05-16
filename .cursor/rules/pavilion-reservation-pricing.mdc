@@ -10,9 +10,11 @@ alwaysApply: false
 
 - `null` — TBD / unset / priced after review (`pricingType: 'tbd'` or missing persona row)
 - `0` — complimentary (show `$0`, include in estimates)
-- `> 0` — whole-dollar USD cents only
+- `> 0` — whole-dollar USD only, stored as integer **cents** that are always a multiple of `100` (no fractional cents)
 
-**Canonical APIs:** `priceForPersona`, `personaPriceDisplay`, `isPersonaPriceAvailable` (`!== null`, never falsy checks on `0`).
+**Admin edits:** `wholeDollarsCentsOrNull` in `pavilionReservationAdminActions.ts` rounds the dollar amount, then multiplies by 100 (`Math.round(parsed) * 100`). Do not use `Math.round(parsed * 100)` — pavilion amounts are not priced to the cent.
+
+**Canonical APIs:** `priceForPersona`, `personaPriceDisplay`, `isPersonaPriceAvailable` (`!== null`, never falsy checks on `0`). Hourly estimates use `roundPavilionEstimateToWholeDollarsCents` in `pavilionReservationPricing.ts`.
 
 **Services:** `estimatedServiceAmountCents` returns the flat persona unit price; no hourly slot proration.
 

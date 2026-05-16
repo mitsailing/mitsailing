@@ -53,7 +53,8 @@ function positiveIntOrNull(value: string): number | null {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
-function centsOrNull(value: string): number | null {
+// Whole-dollar USD only; stored as integer cents (always a multiple of 100).
+function wholeDollarsCentsOrNull(value: string): number | null {
   if (!value) {
     return null;
   }
@@ -168,7 +169,7 @@ function parseSlotRows(formData: FormData) {
         requestedDate,
         startMinutes,
         endMinutes,
-        estimatedAmountCents: centsOrNull(amount),
+        estimatedAmountCents: wholeDollarsCentsOrNull(amount),
         displayOrder: index,
       },
     ];
@@ -186,7 +187,7 @@ function parseServiceRows(formData: FormData) {
     return [
       {
         itemId,
-        estimatedAmountCents: centsOrNull(amounts[index] ?? ''),
+        estimatedAmountCents: wholeDollarsCentsOrNull(amounts[index] ?? ''),
       },
     ];
   });

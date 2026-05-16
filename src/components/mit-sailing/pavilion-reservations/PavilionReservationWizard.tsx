@@ -621,6 +621,33 @@ function groupedSpaceOptions(spaces: PavilionReservableItemDto[]) {
   ];
 }
 
+function contactFieldsClearedForPersona(
+  contact: ContactFields,
+  persona: PavilionReservationPersonaValue
+): ContactFields {
+  if (persona === 'mit_academic') {
+    return { ...contact, mitAccount: '', mitId: '' };
+  }
+  if (persona === 'mit_student' || persona === 'mit_community') {
+    return {
+      ...contact,
+      advisorEmail: '',
+      advisorName: '',
+      costCenter: '',
+      projectTitle: '',
+    };
+  }
+  return {
+    ...contact,
+    advisorEmail: '',
+    advisorName: '',
+    costCenter: '',
+    mitAccount: '',
+    mitId: '',
+    projectTitle: '',
+  };
+}
+
 function sumEstimatedTotal(props: {
   items: PavilionReservableItemDto[];
   persona: PavilionReservationPersonaValue;
@@ -2830,6 +2857,9 @@ export function PavilionReservationWizard(
   const selectedSpaceIds = [...new Set(slots.map((slot) => slot.itemId))];
   const updatePersona = (nextPersona: PavilionReservationPersonaValue) => {
     setPersona(nextPersona);
+    setContact((current) =>
+      contactFieldsClearedForPersona(current, nextPersona)
+    );
     setSelectedServiceIds((current) =>
       current.filter((serviceId) => {
         const service = itemById(services, serviceId);

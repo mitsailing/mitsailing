@@ -180,6 +180,34 @@ describe('updatePavilionReservationAdminAction', () => {
     ).not.toHaveBeenCalled();
   });
 
+  it('stores admin slot amounts as whole-dollar cents', async () => {
+    const formData = new FormData();
+    formData.set('workflowStatus', 'pending');
+    formData.set('paymentStatus', 'unpaid');
+    formData.set('persona', 'mit_student');
+    formData.set('updatedAt', new Date('2026-05-01T12:00:00Z').toISOString());
+    formData.set('slotItemId', 'space-1');
+    formData.set('slotDate', '2026-07-01');
+    formData.set('slotStart', '540');
+    formData.set('slotEnd', '600');
+    formData.set('slotAmount', '12.34');
+    prisma.pavilionReservableItem.findMany.mockResolvedValueOnce([
+      { id: 'space-1', kind: 'space' },
+    ]);
+
+    await updatePavilionReservationAdminAction('en', 'req-1', formData);
+
+    expect(prisma.__tx.pavilionReservationSlot.createMany).toHaveBeenCalledWith(
+      {
+        data: [
+          expect.objectContaining({
+            estimatedAmountCents: 1200,
+          }),
+        ],
+      }
+    );
+  });
+
   it('rejects stale admin edit tokens before replacing child rows', async () => {
     const formData = new FormData();
     formData.set('workflowStatus', 'pending');
