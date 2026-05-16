@@ -6,6 +6,10 @@ const NEWSLETTER_ARCHIVE_REVALIDATION_PATH =
   '/api/internal/newsletter/archive/revalidate';
 
 export async function requestNewsletterArchiveRevalidation(): Promise<boolean> {
+  if (!Env.NEWSLETTER_REVALIDATE_SECRET) {
+    return false;
+  }
+
   try {
     const response = await fetch(
       new URL(NEWSLETTER_ARCHIVE_REVALIDATION_PATH, getBaseUrl()),
