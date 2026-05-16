@@ -2,24 +2,24 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Mirror the old website MySQL database `sailing` from `ak@sailing.mit.edu` into Postgres schema `legacy` hourly, then map `legacy.reservations` into the existing Pavilion reservation tables.
+**Goal:** Mirror the old website MySQL database `sailing` into Postgres schema `legacy` hourly from direct MySQL access on `sailing-dock.mit.edu`, then map `legacy.reservations` into the existing Pavilion reservation tables.
 
-**Architecture:** Add a production-only BullMQ hourly scheduled job in the existing worker. The job opens an SSH tunnel, reads MySQL metadata and rows with `mysql2`, acquires a Postgres advisory lock, drops and recreates only Postgres schema `legacy`, bulk inserts all source tables together, records sync status, and runs the legacy reservation mapper.
+**Architecture:** Add a production-only BullMQ hourly scheduled job in the existing worker. The job connects directly to MySQL with `mysql2` as user `dock_readonly`, acquires a Postgres advisory lock, drops and recreates only Postgres schema `legacy`, bulk inserts all source tables together, records sync status, and runs the legacy reservation mapper.
 
-**Tech Stack:** Next.js 16 app, Node 24 worker, BullMQ 5 `upsertJobScheduler`, Redis, Prisma/Postgres, `pg`, `ssh2`, `mysql2`, Vitest.
+**Tech Stack:** Next.js 16 app, Node 24 worker, BullMQ 5 `upsertJobScheduler`, Redis, Prisma/Postgres, `pg`, `mysql2`, Vitest.
 
 ---
 
 ## File Structure
 
-- Modify `package.json` and `package-lock.json`: add direct runtime dependencies `mysql2` and `ssh2`, plus dev type dependency `@types/ssh2`.
+- Modify `package.json` and `package-lock.json`: add direct runtime dependency `mysql2`.
 - Modify `src/libs/Env.ts`: validate production-only legacy MySQL sync environment variables.
 - Create `src/libs/legacy-sync/sqlIdentifiers.ts`: quote Postgres identifiers and expose only legacy-qualified table names for mirror SQL.
 - Create `src/libs/legacy-sync/mysqlTypeMapping.ts`: map MySQL column metadata to Postgres column SQL.
 - Create `src/libs/legacy-sync/mysqlSchemaIntrospection.ts`: read MySQL table and column metadata.
 - Create `src/libs/legacy-sync/postgresMirrorSql.ts`: build `DROP SCHEMA`, `CREATE SCHEMA`, `CREATE TABLE`, and `INSERT` SQL.
 - Create `src/libs/legacy-sync/postgresMirrorLoader.ts`: write mirrored schemas and rows into Postgres using `pg`.
-- Create `src/libs/legacy-sync/mysqlSshConnection.ts`: open SSH tunnel and MySQL connection pool.
+- Create `src/libs/legacy-sync/mysqlConnection.ts`: open a direct MySQL connection pool.
 - Create `src/libs/legacy-sync/legacyMysqlSync.ts`: orchestrate one sync run and metadata updates.
 - Create `src/libs/legacy-sync/legacyPavilionReservationImport.ts`: import Pavilion reservations from `legacy.reservations`.
 - Modify `scripts/import-legacy-pavilion-reservations.ts`: keep CSV import support, add a `--source=legacy-schema` path that calls the shared importer.
@@ -28,7 +28,7 @@
 - Modify `prisma/schema.prisma`: add `LegacyMysqlSyncRun` and `LegacyMysqlSyncStatus`.
 - Create `prisma/migrations/20260518120000_legacy_mysql_sync_runs/migration.sql`: create enum/table for sync run metadata.
 - Create `.env.production.worker.example`: document worker-only secrets.
-- Modify `compose.prod.yaml`: load `.env.production.worker` only in the worker and mount the SSH private key read-only.
+- Modify `compose.prod.yaml`: load `.env.production.worker` only in the worker.
 - Modify `docs/deploy.md`: document secret setup and manual verification.
 
 ## Task 1: Add Dependencies And Environment Contract
@@ -45,11 +45,10 @@
 Run:
 
 ```bash
-npm install mysql2 ssh2
-npm install --save-dev @types/ssh2
+npm install mysql2
 ```
 
-Expected: `package.json` lists `mysql2` and `ssh2` under `dependencies`, and `@types/ssh2` under `devDependencies`.
+Expected: `package.json` lists `mysql2` under `dependencies`.
 
 - [ ] **Step 2: Write failing env validation tests**
 
@@ -88,14 +87,9 @@ describe('Env legacy MySQL sync validation', () => {
     stubRequiredBaseEnv();
     vi.stubEnv('APP_ENV', 'local');
     vi.stubEnv('LEGACY_MYSQL_SYNC_ENABLED', 'true');
-    vi.stubEnv('LEGACY_MYSQL_SSH_HOST', 'sailing.mit.edu');
-    vi.stubEnv('LEGACY_MYSQL_SSH_USER', 'ak');
-    vi.stubEnv(
-      'LEGACY_MYSQL_SSH_PRIVATE_KEY_PATH',
-      '/run/secrets/legacy_mysql_ssh_key'
-    );
+    vi.stubEnv('LEGACY_MYSQL_HOST', 'sailing.mit.edu');
     vi.stubEnv('LEGACY_MYSQL_DATABASE', 'sailing');
-    vi.stubEnv('LEGACY_MYSQL_USER', 'ak');
+    vi.stubEnv('LEGACY_MYSQL_USER', 'dock_readonly');
     vi.stubEnv('LEGACY_MYSQL_PASSWORD', 'secret');
 
     await expect(import('@/libs/Env')).rejects.toThrow(
@@ -132,10 +126,7 @@ Add these server fields:
 ```ts
 LEGACY_MYSQL_SYNC_ENABLED: z.enum(['true', 'false']).default('false'),
 LEGACY_MYSQL_SYNC_CRON: z.string().min(1).default('0 0 * * * *'),
-LEGACY_MYSQL_SSH_HOST: z.string().min(1).optional(),
-LEGACY_MYSQL_SSH_PORT: z.coerce.number().int().positive().default(22),
-LEGACY_MYSQL_SSH_USER: z.string().min(1).optional(),
-LEGACY_MYSQL_SSH_PRIVATE_KEY_PATH: z.string().min(1).optional(),
+LEGACY_MYSQL_HOST: z.string().min(1).optional(),
 LEGACY_MYSQL_DATABASE: z.string().min(1).optional(),
 LEGACY_MYSQL_USER: z.string().min(1).optional(),
 LEGACY_MYSQL_PASSWORD: z.string().min(1).optional(),
@@ -147,11 +138,7 @@ Add these runtime mappings:
 ```ts
 LEGACY_MYSQL_SYNC_ENABLED: process.env.LEGACY_MYSQL_SYNC_ENABLED,
 LEGACY_MYSQL_SYNC_CRON: process.env.LEGACY_MYSQL_SYNC_CRON,
-LEGACY_MYSQL_SSH_HOST: process.env.LEGACY_MYSQL_SSH_HOST,
-LEGACY_MYSQL_SSH_PORT: process.env.LEGACY_MYSQL_SSH_PORT,
-LEGACY_MYSQL_SSH_USER: process.env.LEGACY_MYSQL_SSH_USER,
-LEGACY_MYSQL_SSH_PRIVATE_KEY_PATH:
-  process.env.LEGACY_MYSQL_SSH_PRIVATE_KEY_PATH,
+LEGACY_MYSQL_HOST: process.env.LEGACY_MYSQL_HOST,
 LEGACY_MYSQL_DATABASE: process.env.LEGACY_MYSQL_DATABASE,
 LEGACY_MYSQL_USER: process.env.LEGACY_MYSQL_USER,
 LEGACY_MYSQL_PASSWORD: process.env.LEGACY_MYSQL_PASSWORD,
@@ -163,9 +150,7 @@ Add this `superRefine` block:
 ```ts
 if (env.LEGACY_MYSQL_SYNC_ENABLED === 'true') {
   for (const key of [
-    'LEGACY_MYSQL_SSH_HOST',
-    'LEGACY_MYSQL_SSH_USER',
-    'LEGACY_MYSQL_SSH_PRIVATE_KEY_PATH',
+    'LEGACY_MYSQL_HOST',
     'LEGACY_MYSQL_DATABASE',
     'LEGACY_MYSQL_USER',
     'LEGACY_MYSQL_PASSWORD',
@@ -196,17 +181,11 @@ if (env.LEGACY_MYSQL_SYNC_ENABLED === 'true') {
 
 LEGACY_MYSQL_SYNC_ENABLED=true
 LEGACY_MYSQL_SYNC_CRON=0 0 * * * *
-LEGACY_MYSQL_SSH_HOST=sailing.mit.edu
-LEGACY_MYSQL_SSH_PORT=22
-LEGACY_MYSQL_SSH_USER=ak
-LEGACY_MYSQL_SSH_PRIVATE_KEY_PATH=/run/secrets/legacy_mysql_ssh_key
+LEGACY_MYSQL_HOST=sailing.mit.edu
 LEGACY_MYSQL_DATABASE=sailing
-LEGACY_MYSQL_USER=ak
+LEGACY_MYSQL_USER=dock_readonly
 LEGACY_MYSQL_PASSWORD=
 LEGACY_MYSQL_PORT=3306
-
-# Host path mounted by compose.prod.yaml into LEGACY_MYSQL_SSH_PRIVATE_KEY_PATH.
-LEGACY_MYSQL_SSH_KEY_HOST_PATH=./secrets/legacy_mysql_ssh_key
 ```
 
 - [ ] **Step 6: Run env test and verify types**
@@ -953,18 +932,15 @@ git add src/libs/legacy-sync/postgresMirrorLoader.ts src/libs/legacy-sync/postgr
 git commit -m "feat: load legacy mirror tables into Postgres"
 ```
 
-## Task 8: Open SSH Tunnel And MySQL Pool
+## Task 8: Open Direct MySQL Pool
 
 **Files:**
-- Create: `src/libs/legacy-sync/mysqlSshConnection.ts`
+- Create: `src/libs/legacy-sync/mysqlConnection.ts`
 
 - [ ] **Step 1: Implement connection factory**
 
 ```ts
-import { readFile } from 'node:fs/promises';
-import { createServer, type AddressInfo } from 'node:net';
 import mysql from 'mysql2/promise';
-import { Client } from 'ssh2';
 
 export type LegacyMysqlConnection = {
   close: () => Promise<void>;
@@ -973,56 +949,17 @@ export type LegacyMysqlConnection = {
 
 export async function openLegacyMysqlConnection(props: {
   database: string;
+  mysqlHost: string;
   mysqlPassword: string;
   mysqlPort: number;
   mysqlUser: string;
-  sshHost: string;
-  sshPort: number;
-  sshPrivateKeyPath: string;
-  sshUser: string;
 }): Promise<LegacyMysqlConnection> {
-  const privateKey = await readFile(props.sshPrivateKeyPath, 'utf8');
-  const ssh = new Client();
-  await new Promise<void>((resolve, reject) => {
-    ssh
-      .on('ready', resolve)
-      .on('error', reject)
-      .connect({
-        host: props.sshHost,
-        port: props.sshPort,
-        username: props.sshUser,
-        privateKey,
-      });
-  });
-
-  const server = createServer((socket) => {
-    ssh.forwardOut(
-      socket.remoteAddress ?? '127.0.0.1',
-      socket.remotePort ?? 0,
-      '127.0.0.1',
-      props.mysqlPort,
-      (error, stream) => {
-        if (error) {
-          socket.destroy(error);
-          return;
-        }
-        socket.pipe(stream).pipe(socket);
-      }
-    );
-  });
-
-  await new Promise<void>((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', resolve);
-  });
-
-  const address = server.address() as AddressInfo;
   const pool = mysql.createPool({
     database: props.database,
     dateStrings: true,
-    host: '127.0.0.1',
+    host: props.mysqlHost,
     password: props.mysqlPassword,
-    port: address.port,
+    port: props.mysqlPort,
     user: props.mysqlUser,
     waitForConnections: true,
     connectionLimit: 2,
@@ -1032,8 +969,6 @@ export async function openLegacyMysqlConnection(props: {
     mysql: pool,
     close: async () => {
       await pool.end();
-      await new Promise<void>((resolve) => server.close(() => resolve()));
-      ssh.end();
     },
   };
 }
@@ -1052,8 +987,8 @@ Expected: PASS.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add src/libs/legacy-sync/mysqlSshConnection.ts
-git commit -m "feat: connect to legacy MySQL over SSH"
+git add src/libs/legacy-sync/mysqlConnection.ts
+git commit -m "feat: connect directly to legacy MySQL"
 ```
 
 ## Task 9: Orchestrate One Sync Run
@@ -1087,14 +1022,11 @@ describe('legacyMysqlSyncConfigFromEnv', () => {
       legacyMysqlSyncConfigFromEnv({
         APP_ENV: 'production',
         LEGACY_MYSQL_DATABASE: 'sailing',
+        LEGACY_MYSQL_HOST: 'sailing.mit.edu',
         LEGACY_MYSQL_PASSWORD: 'secret',
         LEGACY_MYSQL_PORT: 3306,
-        LEGACY_MYSQL_SSH_HOST: 'sailing.mit.edu',
-        LEGACY_MYSQL_SSH_PORT: 22,
-        LEGACY_MYSQL_SSH_PRIVATE_KEY_PATH: '/run/secrets/key',
-        LEGACY_MYSQL_SSH_USER: 'ak',
         LEGACY_MYSQL_SYNC_ENABLED: 'true',
-        LEGACY_MYSQL_USER: 'ak',
+        LEGACY_MYSQL_USER: 'dock_readonly',
       }).cron
     ).toBe('0 0 * * * *');
   });
@@ -1141,7 +1073,7 @@ Expected: FAIL because the module does not exist.
 import { Pool as PgPool } from 'pg';
 import { Env } from '@/libs/Env';
 import { prisma } from '@/libs/DB';
-import { openLegacyMysqlConnection } from '@/libs/legacy-sync/mysqlSshConnection';
+import { openLegacyMysqlConnection } from '@/libs/legacy-sync/mysqlConnection';
 import {
   listMysqlBaseTables,
   readMysqlTableDefinition,
@@ -1164,12 +1096,9 @@ type AdvisoryLockClient = {
 type LegacyMysqlSyncEnv = {
   APP_ENV?: string;
   LEGACY_MYSQL_DATABASE?: string;
+  LEGACY_MYSQL_HOST?: string;
   LEGACY_MYSQL_PASSWORD?: string;
   LEGACY_MYSQL_PORT?: number;
-  LEGACY_MYSQL_SSH_HOST?: string;
-  LEGACY_MYSQL_SSH_PORT?: number;
-  LEGACY_MYSQL_SSH_PRIVATE_KEY_PATH?: string;
-  LEGACY_MYSQL_SSH_USER?: string;
   LEGACY_MYSQL_SYNC_CRON?: string;
   LEGACY_MYSQL_SYNC_ENABLED?: string;
   LEGACY_MYSQL_USER?: string;
@@ -1181,13 +1110,10 @@ export type LegacyMysqlSyncConfig =
       cron: string;
       database: string;
       enabled: true;
+      mysqlHost: string;
       mysqlPassword: string;
       mysqlPort: number;
       mysqlUser: string;
-      sshHost: string;
-      sshPort: number;
-      sshPrivateKeyPath: string;
-      sshUser: string;
     };
 
 export function legacyMysqlSyncConfigFromEnv(
@@ -1200,13 +1126,10 @@ export function legacyMysqlSyncConfigFromEnv(
     enabled: true,
     cron: env.LEGACY_MYSQL_SYNC_CRON ?? '0 0 * * * *',
     database: env.LEGACY_MYSQL_DATABASE ?? 'sailing',
+    mysqlHost: env.LEGACY_MYSQL_HOST ?? 'sailing.mit.edu',
     mysqlPassword: env.LEGACY_MYSQL_PASSWORD ?? '',
     mysqlPort: env.LEGACY_MYSQL_PORT ?? 3306,
-    mysqlUser: env.LEGACY_MYSQL_USER ?? 'ak',
-    sshHost: env.LEGACY_MYSQL_SSH_HOST ?? 'sailing.mit.edu',
-    sshPort: env.LEGACY_MYSQL_SSH_PORT ?? 22,
-    sshPrivateKeyPath: env.LEGACY_MYSQL_SSH_PRIVATE_KEY_PATH ?? '',
-    sshUser: env.LEGACY_MYSQL_SSH_USER ?? 'ak',
+    mysqlUser: env.LEGACY_MYSQL_USER ?? 'dock_readonly',
   };
 }
 
@@ -1248,7 +1171,7 @@ export async function runLegacyMysqlSync(
             'Skipped because another legacy MySQL sync is still running.',
           finishedAt: new Date(),
           sourceDatabase: config.database,
-          sourceHost: config.sshHost,
+          sourceHost: config.mysqlHost,
           status: 'skipped',
         },
       });
@@ -1259,7 +1182,7 @@ export async function runLegacyMysqlSync(
       data: {
         status: 'running',
         sourceDatabase: config.database,
-        sourceHost: config.sshHost,
+        sourceHost: config.mysqlHost,
       },
       select: { id: true },
     });
@@ -1267,13 +1190,10 @@ export async function runLegacyMysqlSync(
 
     const legacyMysql = await openLegacyMysqlConnection({
       database: config.database,
+      mysqlHost: config.mysqlHost,
       mysqlPassword: config.mysqlPassword,
       mysqlPort: config.mysqlPort,
       mysqlUser: config.mysqlUser,
-      sshHost: config.sshHost,
-      sshPort: config.sshPort,
-      sshPrivateKeyPath: config.sshPrivateKeyPath,
-      sshUser: config.sshUser,
     });
     try {
       await resetLegacySchema(pg);
@@ -1653,7 +1573,7 @@ git commit -m "feat: schedule legacy MySQL sync in worker"
 - Modify: `compose.prod.yaml`
 - Modify: `docs/deploy.md`
 
-- [ ] **Step 1: Update worker env files and key mount**
+- [ ] **Step 1: Update worker env file wiring**
 
 In `compose.prod.yaml`, under `worker.env_file`, add:
 
@@ -1662,14 +1582,7 @@ In `compose.prod.yaml`, under `worker.env_file`, add:
         required: false
 ```
 
-Under `worker.volumes`, add:
-
-```yaml
-      - type: bind
-        source: ${LEGACY_MYSQL_SSH_KEY_HOST_PATH:-./secrets/legacy_mysql_ssh_key}
-        target: /run/secrets/legacy_mysql_ssh_key
-        read_only: true
-```
+Do not add a bind mount or host package dependency for MySQL access. The worker connects directly with the `mysql2` dependency already installed in the application image.
 
 - [ ] **Step 2: Update deploy docs**
 
@@ -1679,7 +1592,7 @@ Add a section under production environment setup:
 ### Legacy MySQL mirror worker secrets
 
 The worker can mirror the old website MySQL database `sailing` from
-`ak@sailing.mit.edu` into Postgres schema `legacy`.
+the production host network into Postgres schema `legacy`.
 
 Create a worker-only env file on the production host:
 
@@ -1692,20 +1605,13 @@ $EDITOR .env.production.worker
 Set `LEGACY_MYSQL_PASSWORD` in that file. Do not put it in shell history or
 GitHub Actions secrets unless deployment automation needs to manage this file.
 
-Install the SSH private key used by the worker. If the key does not already
-exist on the production host, generate it first and add the public key to
-`ak@sailing.mit.edu:~/.ssh/authorized_keys`:
+The worker uses MySQL user `dock_readonly` and connects directly to
+`LEGACY_MYSQL_HOST` from `sailing-dock.mit.edu`. Verify that the MySQL server
+allows that user from the production host or container network before enabling
+`LEGACY_MYSQL_SYNC_ENABLED=true`.
 
 ```bash
-ssh-keygen -t ed25519 -f ~/.ssh/mitsailing-legacy-mysql-sync -C 'mitsailing legacy mysql sync' -N ''
-ssh-copy-id -i ~/.ssh/mitsailing-legacy-mysql-sync.pub ak@sailing.mit.edu
-```
-
-Then copy the private key into the app secrets directory:
-
-```bash
-mkdir -p ~/apps/mitsailing/secrets
-install -m 600 ~/.ssh/mitsailing-legacy-mysql-sync ~/apps/mitsailing/secrets/legacy_mysql_ssh_key
+docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production run --rm worker node -e "const mysql = require('mysql2/promise'); mysql.createConnection({host: process.env.LEGACY_MYSQL_HOST, port: Number(process.env.LEGACY_MYSQL_PORT || 3306), user: process.env.LEGACY_MYSQL_USER, password: process.env.LEGACY_MYSQL_PASSWORD, database: process.env.LEGACY_MYSQL_DATABASE}).then((connection) => connection.query('select 1').finally(() => connection.end()))"
 ```
 
 Manual verification after deploy:
@@ -1808,6 +1714,6 @@ If no fixes were needed, do not create an empty commit.
 
 ## Self-Review
 
-- Spec coverage: The plan covers production-only sync, SSH/MySQL access, all-table mirroring into `legacy`, destructive refresh without staging, metadata, reservation mapping, secrets, Compose, docs, and verification.
+- Spec coverage: The plan covers production-only sync, direct MySQL access, all-table mirroring into `legacy`, destructive refresh without staging, metadata, reservation mapping, secrets, Compose, docs, and verification.
 - Placeholder scan: No placeholder task remains; environment examples leave secret values intentionally blank in an uncommitted host file.
 - Type consistency: `LegacyMysqlSyncRun`, `LegacyMysqlSyncStatus`, `legacyMysqlSyncConfigFromEnv`, `runLegacyMysqlSync`, skipped sync results, and `importLegacyPavilionReservationsFromSchema` are named consistently across tasks.

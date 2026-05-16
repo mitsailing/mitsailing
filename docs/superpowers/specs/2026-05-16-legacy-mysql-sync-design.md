@@ -2,11 +2,11 @@
 
 ## Goal
 
-Mirror the old MIT Sailing website MySQL database `sailing` from `ak@sailing.mit.edu` into the new Mitsailing Postgres database under schema `legacy`, then use `legacy.reservations` as the raw source for legacy Pavilion reservation mapping.
+Mirror the old MIT Sailing website MySQL database `sailing` into the new Mitsailing Postgres database under schema `legacy`, then use `legacy.reservations` as the raw source for legacy Pavilion reservation mapping.
 
 ## Source And Destination
 
-- Remote source: MySQL database `sailing` on `ak@sailing.mit.edu`, accessed over SSH as `ak`.
+- Remote source: MySQL database `sailing`, reachable directly from `sailing-dock.mit.edu` with MySQL user `dock_readonly`.
 - Local destination: the production Postgres database already used by the Mitsailing app.
 - Local mirror schema: `legacy`.
 - Source scope: all 52 base tables in MySQL database `sailing`; no MySQL views were found.
@@ -14,7 +14,7 @@ Mirror the old MIT Sailing website MySQL database `sailing` from `ak@sailing.mit
 
 ## Architecture
 
-The production worker owns the hourly sync. It opens an SSH connection to `ak@sailing.mit.edu`, tunnels to MySQL, introspects every base table and column in database `sailing`, recreates Postgres schema `legacy`, and bulk inserts every row into mirrored tables under that schema.
+The production worker owns the hourly sync. It connects directly to MySQL from `sailing-dock.mit.edu`, introspects every base table and column in database `sailing`, recreates Postgres schema `legacy`, and bulk inserts every row into mirrored tables under that schema.
 
 The sync brings over all 52 tables together every hour, including `dw`. `dw` appears to change daily, but keeping it in the same full refresh avoids split schedules, per-table freshness rules, and partial mirror semantics in v1. The source database is about 174 MB, so a full hourly refresh is acceptable unless production measurements show it consistently overlaps the next run.
 
@@ -44,7 +44,7 @@ Reservation mapping may upsert app-owned rows with legacy reference codes, but i
 
 ## Secrets And Production Scope
 
-The MySQL password and SSH private key are production-only secrets. They should not be committed and should not be passed on command lines. The worker should read them through validated environment variables and a mounted key file.
+The MySQL password is a production-only secret. It should not be committed and should not be passed on command lines. The worker should read it through validated environment variables. No SSH tunnel, SSH key, or host `mysql-client` package is required for the planned runtime.
 
 The scheduler should register only when `APP_ENV=production` and `LEGACY_MYSQL_SYNC_ENABLED=true`. The default schedule is hourly at minute zero. Local and test environments can run the sync manually through unit-tested functions, but should not schedule it.
 
@@ -56,7 +56,7 @@ Core units:
 
 - MySQL metadata to Postgres column type mapping
 - Safe Postgres identifier quoting and legacy-schema DDL helpers
-- SSH tunnel and MySQL connection factory
+- Direct MySQL connection factory
 - Postgres mirror loader
 - Sync orchestrator with run metadata
 - BullMQ scheduler registration
