@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { after } from 'next/server';
 import { parseEasternDateTimeLocal } from '@/libs/admin/events/eventAdminSchemas';
 import {
   adminPavilionReservationDetailPath,
@@ -515,36 +516,41 @@ export async function updatePavilionReservationAdminAction(
   });
 
   if (result.statusChanged || result.scheduleChanged) {
-    try {
-      const items = await prisma.pavilionReservableItem.findMany({
-        where: { id: { in: slotRows.map((slot) => slot.itemId) } },
-        select: { id: true, name: true },
-      });
-      const itemNameById = new Map(items.map((item) => [item.id, item.name]));
-      await sendPavilionReservationStatusEmail({
-        eventName: formText(formData, 'eventName') || result.before.eventName,
-        referenceCode: result.before.referenceCode,
-        requesterEmail:
-          formText(formData, 'requesterEmail') || result.before.requesterEmail,
-        scheduleLines: scheduleLinesForEmail(
-          slotRows.map((slot) => ({
-            ...slot,
-            itemName: itemNameById.get(slot.itemId) ?? 'Pavilion space',
-          }))
-        ),
-        status,
-        statusLabel: statusLabel(status),
-      });
-    } catch (error) {
-      logger.error(
-        '[pavilion-reservation:admin-email] request_id={requestId} error_name={errorName} error_code={errorCode}',
-        {
-          errorCode: safeErrorCode(error) ?? 'unknown',
-          errorName: safeErrorName(error),
-          requestId: id,
-        }
-      );
-    }
+    const emailEventName =
+      formText(formData, 'eventName') || result.before.eventName;
+    const emailRequester =
+      formText(formData, 'requesterEmail') || result.before.requesterEmail;
+    after(async () => {
+      try {
+        const items = await prisma.pavilionReservableItem.findMany({
+          where: { id: { in: slotRows.map((slot) => slot.itemId) } },
+          select: { id: true, name: true },
+        });
+        const itemNameById = new Map(items.map((item) => [item.id, item.name]));
+        await sendPavilionReservationStatusEmail({
+          eventName: emailEventName,
+          referenceCode: result.before.referenceCode,
+          requesterEmail: emailRequester,
+          scheduleLines: scheduleLinesForEmail(
+            slotRows.map((slot) => ({
+              ...slot,
+              itemName: itemNameById.get(slot.itemId) ?? 'Pavilion space',
+            }))
+          ),
+          status,
+          statusLabel: statusLabel(status),
+        });
+      } catch (error) {
+        logger.error(
+          '[pavilion-reservation:admin-email] request_id={requestId} error_name={errorName} error_code={errorCode}',
+          {
+            errorCode: safeErrorCode(error) ?? 'unknown',
+            errorName: safeErrorName(error),
+            requestId: id,
+          }
+        );
+      }
+    });
   }
 
   revalidatePath(getI18nPath(adminPavilionReservationIndexPath(), locale));

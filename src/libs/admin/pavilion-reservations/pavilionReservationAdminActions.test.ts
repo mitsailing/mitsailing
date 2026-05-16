@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { updatePavilionReservationAdminAction } from '@/libs/admin/pavilion-reservations/pavilionReservationAdminActions';
 
-const { prisma, requireAdmin } = vi.hoisted(() => {
+const { after, prisma, requireAdmin } = vi.hoisted(() => {
+  const afterFn = vi.fn(async (scheduledWork: () => Promise<void> | void) => {
+    await scheduledWork();
+  });
   const transactionClient = {
     pavilionReservationRequest: {
       findUnique: vi.fn(async () => {
@@ -51,6 +54,7 @@ const { prisma, requireAdmin } = vi.hoisted(() => {
     },
   };
   return {
+    after: afterFn,
     prisma: {
       $transaction: vi.fn(
         async (work: (tx: typeof transactionClient) => Promise<unknown>) => {
@@ -88,6 +92,10 @@ vi.mock('@/libs/email/pavilion-reservation-emails', () => ({
 
 vi.mock('next/cache', () => ({
   revalidatePath: vi.fn(),
+}));
+
+vi.mock('next/server', () => ({
+  after,
 }));
 
 function withRequiredAdminContactFields(formData: FormData) {
