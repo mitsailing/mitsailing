@@ -572,10 +572,10 @@ async function requeueFutureNewsletterBroadcast(
  * @param broadcast - Broadcast row loaded before the transition
  * @returns Whether the broadcast transitioned to sending
  */
- async function startNewsletterBroadcast(
+async function startNewsletterBroadcast(
   broadcast: NewsletterBroadcastRow
 ): Promise<boolean> {
-  return updateNewsletterBroadcastWhen(
+  const transitioned = await updateNewsletterBroadcastWhen(
     activeNewsletterBroadcastWhere(broadcast.id, {
       in: [...NEWSLETTER_BROADCAST_SENDABLE_STATUSES],
     }),
@@ -584,6 +584,7 @@ async function requeueFutureNewsletterBroadcast(
       status: 'sending',
     }
   );
+  return transitioned;
 }
 
 async function getNewsletterDeliveryBatch(broadcastId: string) {
@@ -673,6 +674,7 @@ function isNewsletterDeliveryEligible(delivery: ClaimedNewsletterDelivery) {
     return false;
   }
   return (
+    delivery.email === delivery.subscriber.email &&
     !delivery.subscriber.globalUnsubscribedAt &&
     !delivery.subscriber.suppressedAt &&
     subscription?.status === 'subscribed'

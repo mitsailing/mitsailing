@@ -69,13 +69,19 @@ export async function POST(request: Request) {
   };
   try {
     await prisma.$transaction(async (client) => {
+      const isNewEvent = await handleResendEmailMessageWebhook(event, {
+        ...context,
+        client,
+      });
+      if (!isNewEvent) {
+        return;
+      }
       await handleResendNewsletterWebhook(event, {
         ...context,
         client,
         skipDedupe: true,
       });
       await handleResendAccountEmailWebhook(event, { ...context, client });
-      await handleResendEmailMessageWebhook(event, { ...context, client });
     });
   } catch (error) {
     logger.error('Failed to process Resend webhook: {error}', {

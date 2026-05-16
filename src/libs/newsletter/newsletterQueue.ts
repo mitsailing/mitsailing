@@ -10,6 +10,8 @@ export type NewsletterBroadcastJob = {
   scheduledAt?: string;
 };
 
+const NEWSLETTER_QUEUE_BACKOFF_MS = 30_000;
+
 type EnqueueNewsletterBroadcastParams = {
   broadcastId: string;
   continuationKey?: string;
@@ -75,6 +77,7 @@ export async function enqueueNewsletterBroadcast(
       },
       {
         attempts: 3,
+        backoff: { delay: NEWSLETTER_QUEUE_BACKOFF_MS, type: 'exponential' },
         delay,
         jobId: `newsletter-broadcast:${enqueueParams.broadcastId}:${scheduleKey}:${continuationKey}`,
         removeOnComplete: 100,

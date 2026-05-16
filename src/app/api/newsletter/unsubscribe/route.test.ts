@@ -76,6 +76,54 @@ describe('newsletter one-click unsubscribe route', () => {
     );
   });
 
+  it('unsubscribes post requests using form identity', async () => {
+    const response = await POST(
+      unsubscribeRequest({
+        body: 'List-Unsubscribe=One-Click&token=token_456&list=list_456',
+        method: 'POST',
+        url: 'https://mitsailing.test/api/newsletter/unsubscribe',
+      })
+    );
+
+    await expect(response.json()).resolves.toEqual({ ok: true });
+    expect(response.status).toBe(200);
+    expect(mocks.unsubscribeNewsletterTokenFromList).toHaveBeenCalledWith(
+      'token_456',
+      'list_456'
+    );
+  });
+
+  it('rejects form posts without one-click semantics', async () => {
+    const response = await POST(
+      unsubscribeRequest({
+        body: 'token=token_456&list=list_456',
+        method: 'POST',
+        url: 'https://mitsailing.test/api/newsletter/unsubscribe',
+      })
+    );
+
+    await expect(response.json()).resolves.toEqual({ ok: false });
+    expect(response.status).toBe(400);
+    expect(mocks.unsubscribeNewsletterTokenFromList).not.toHaveBeenCalled();
+  });
+
+  it('rejects json post bodies', async () => {
+    const response = await POST(
+      new Request(
+        'https://mitsailing.test/api/newsletter/unsubscribe?token=token_123&list=list_123',
+        {
+          body: JSON.stringify({ ListUnsubscribe: 'One-Click' }),
+          headers: { 'content-type': 'application/json' },
+          method: 'POST',
+        }
+      )
+    );
+
+    await expect(response.json()).resolves.toEqual({ ok: false });
+    expect(response.status).toBe(400);
+    expect(mocks.unsubscribeNewsletterTokenFromList).not.toHaveBeenCalled();
+  });
+
   it('rejects post requests with missing identity', async () => {
     const response = await POST(
       unsubscribeRequest({

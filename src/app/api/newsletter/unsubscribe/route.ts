@@ -7,14 +7,6 @@ function paramFromUrl(request: Request, key: string): string {
   return new URL(request.url).searchParams.get(key)?.trim() ?? '';
 }
 
-function jsonString(value: unknown, key: string): string {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return '';
-  }
-  const prop: unknown = Reflect.get(value, key);
-  return typeof prop === 'string' ? prop : '';
-}
-
 function unsubscribeParamsFromUrl(request: Request): {
   listId: string;
   token: string;
@@ -31,28 +23,21 @@ async function unsubscribeParamsFromPost(request: Request): Promise<{
 }> {
   const urlParams = unsubscribeParamsFromUrl(request);
   const contentType = request.headers.get('content-type') ?? '';
-  if (contentType.includes('application/json')) {
-    const body: unknown = await request.json();
-    return {
-      listId: jsonString(body, 'list') || urlParams.listId,
-      token: jsonString(body, 'token') || urlParams.token,
-    };
-  }
   if (
     !contentType.includes('application/x-www-form-urlencoded') &&
     !contentType.includes('multipart/form-data')
   ) {
     throw new TypeError('Unsupported newsletter unsubscribe content type');
   }
-  if (urlParams.listId.length > 0 && urlParams.token.length > 0) {
-    return urlParams;
-  }
   const body = await request.formData();
+  if (body.get('List-Unsubscribe') !== 'One-Click') {
+    throw new TypeError('Unsupported newsletter unsubscribe semantics');
+  }
   const list = body.get('list');
   const token = body.get('token');
   return {
-    listId: typeof list === 'string' ? list : urlParams.listId,
-    token: typeof token === 'string' ? token : urlParams.token,
+    listId: typeof list === 'string' ? list.trim() : urlParams.listId,
+    token: typeof token === 'string' ? token.trim() : urlParams.token,
   };
 }
 

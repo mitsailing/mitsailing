@@ -132,6 +132,12 @@ describe('newsletter email', () => {
         'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
       })
     );
+    const unsubscribeHeader = payload.headers?.['List-Unsubscribe'] ?? '';
+    const unsubscribeUrl = new URL(unsubscribeHeader.slice(1, -1));
+    expect(unsubscribeUrl.searchParams.get('list')).toBe('list_123');
+    expect(unsubscribeUrl.searchParams.get('token')).toContain(
+      'subscriber_123'
+    );
     expect(payload.tags).toEqual([
       { name: 'newsletter_delivery_id', value: 'delivery_123' },
       { name: 'newsletter_subscriber_id', value: 'subscriber_123' },

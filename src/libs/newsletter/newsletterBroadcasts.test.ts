@@ -161,7 +161,9 @@ function queuedDeliveryBatch() {
 
 function newsletterDeliveryDetail(
   params: {
+    deliveryEmail?: string;
     emailVerified?: boolean;
+    subscriberEmail?: string;
     subscriptionStatus?: 'subscribed' | 'unsubscribed';
   } = {}
 ) {
@@ -171,11 +173,12 @@ function newsletterDeliveryDetail(
       ? {}
       : { user: { emailVerified: params.emailVerified }, userId: 'user_1' };
   return {
-    email: 'sailor@example.com',
+    email: params.deliveryEmail ?? 'sailor@example.com',
     id: 'delivery_1',
     primaryList: { name: 'General', resendTopicId: null },
     primaryListId: 'list_1',
     subscriber: {
+      email: params.subscriberEmail ?? 'sailor@example.com',
       globalUnsubscribedAt: null,
       manageTokenHash: 'token_hash',
       subscriptions: [{ listId: 'list_1', status: subscriptionStatus }],
@@ -458,6 +461,35 @@ describe('newsletter broadcasts', () => {
       },
       where: { id: 'delivery_1' },
     });
+    expect(mocks.sendNewsletterBroadcastEmail).not.toHaveBeenCalled();
+    expect(mocks.prisma.newsletterDelivery.update).toHaveBeenCalledWith({
+      data: {
+        failedAt: expect.any(Date),
+        lastError: 'recipient not eligible at send time',
+        status: 'suppressed',
+      },
+      where: { id: 'delivery_1' },
+    });
+  });
+
+  it('suppresses deliveries with stale queued emails before sending', async () => {
+    mocks.prisma.newsletterBroadcast.findUnique
+      .mockResolvedValueOnce(queuedBroadcastRow())
+      .mockResolvedValueOnce(sendingBroadcastState());
+    mocks.prisma.newsletterDelivery.findMany.mockResolvedValueOnce(
+      queuedDeliveryBatch()
+    );
+    mocks.prisma.newsletterDelivery.findUnique.mockResolvedValueOnce(
+      newsletterDeliveryDetail({
+        deliveryEmail: 'old-sailor@example.com',
+        subscriberEmail: 'sailor@example.com',
+      })
+    );
+
+    const { processNewsletterBroadcast } =
+      await import('@/libs/newsletter/newsletterBroadcasts');
+    await processNewsletterBroadcast('broadcast_1');
+
     expect(mocks.sendNewsletterBroadcastEmail).not.toHaveBeenCalled();
     expect(mocks.prisma.newsletterDelivery.update).toHaveBeenCalledWith({
       data: {

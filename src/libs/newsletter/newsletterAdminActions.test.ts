@@ -4,6 +4,8 @@ import { Prisma } from '@/generated/prisma/client';
 vi.mock('server-only', () => ({}));
 
 const {
+  createNewsletterBroadcast,
+  env,
   listCreate,
   listFindFirst,
   redirect,
@@ -12,6 +14,10 @@ const {
   templateCreate,
   templateFindUnique,
 } = vi.hoisted(() => ({
+  createNewsletterBroadcast: vi.fn(),
+  env: {
+    REDIS_URL: 'redis://localhost:6379',
+  },
   listCreate: vi.fn(),
   listFindFirst: vi.fn(),
   redirect: vi.fn((href: string) => {
@@ -35,6 +41,10 @@ vi.mock('@/libs/auth/dal', () => ({
   requireAdmin,
 }));
 
+vi.mock('@/libs/Env', () => ({
+  Env: env,
+}));
+
 vi.mock('@/libs/DB', () => ({
   prisma: {
     newsletterList: {
@@ -46,6 +56,10 @@ vi.mock('@/libs/DB', () => ({
       findUnique: templateFindUnique,
     },
   },
+}));
+
+vi.mock('@/libs/newsletter/newsletterBroadcasts', () => ({
+  createNewsletterBroadcast,
 }));
 
 function uniqueConstraintError(): Prisma.PrismaClientKnownRequestError {
@@ -69,7 +83,19 @@ function templateFormData(): FormData {
   return formData;
 }
 
+function broadcastFormData(): FormData {
+  const formData = new FormData();
+  formData.set('body', 'The pavilion is open for spring sailing.');
+  formData.set('intent', 'queue');
+  formData.set('listId', 'general_id');
+  formData.set('previewText', 'News from the pavilion');
+  formData.set('subject', 'Spring sailing');
+  formData.set('templateId', 'template_1');
+  return formData;
+}
+
 beforeEach(() => {
+  createNewsletterBroadcast.mockReset();
   listCreate.mockReset();
   listFindFirst.mockReset();
   redirect.mockClear();
@@ -79,6 +105,12 @@ beforeEach(() => {
   templateFindUnique.mockReset();
 
   listFindFirst.mockResolvedValue(null);
+  createNewsletterBroadcast.mockResolvedValue({
+    broadcastId: 'broadcast_1',
+    ok: true,
+    queued: true,
+  });
+  env.REDIS_URL = 'redis://localhost:6379';
   requireAdmin.mockResolvedValue({ user: { id: 'admin-1' } });
   templateFindUnique.mockResolvedValue(null);
 });
@@ -108,5 +140,24 @@ describe('createNewsletterTemplateAction', () => {
     ).rejects.toThrow(
       'NEXT_REDIRECT:/admin/newsletter-templates/new?status=duplicate_template'
     );
+  });
+});
+
+describe('createNewsletterBroadcastAction', () => {
+  it('redirects enqueue failures from queued broadcast creation', async () => {
+    createNewsletterBroadcast.mockResolvedValueOnce({
+      error: 'enqueue_failed',
+      ok: false,
+    });
+    const { createNewsletterBroadcastAction } =
+      await import('@/libs/newsletter/newsletterAdminActions');
+
+    await expect(
+      createNewsletterBroadcastAction('en', broadcastFormData())
+    ).rejects.toThrow(
+      'NEXT_REDIRECT:/admin/newsletter-broadcasts/new?status=enqueue_failed'
+    );
+
+    expect(revalidatePath).not.toHaveBeenCalled();
   });
 });

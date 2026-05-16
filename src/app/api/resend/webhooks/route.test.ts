@@ -164,6 +164,14 @@ describe('resend webhook route', () => {
       expect.objectContaining({ type: 'email.delivered' }),
       expect.objectContaining({ providerEventId: 'event_123' })
     );
+    const [emailMessageCallOrder] =
+      mocks.handleResendEmailMessageWebhook.mock.invocationCallOrder;
+    const [newsletterCallOrder] =
+      mocks.handleResendNewsletterWebhook.mock.invocationCallOrder;
+    if (!emailMessageCallOrder || !newsletterCallOrder) {
+      throw new Error('Expected webhook handlers to be called.');
+    }
+    expect(emailMessageCallOrder).toBeLessThan(newsletterCallOrder);
   });
 
   it('derives a shared fallback provider event id without a svix id', async () => {
@@ -204,14 +212,15 @@ describe('resend webhook route', () => {
     );
   });
 
-  it('lets replayable handlers run before duplicate svix ids are recorded', async () => {
+  it('skips downstream handlers for duplicate svix ids', async () => {
     mocks.handleResendEmailMessageWebhook.mockResolvedValueOnce(false);
 
     const response = await POST(webhookRequest());
 
     expect(response.status).toBe(200);
-    expect(mocks.handleResendNewsletterWebhook).toHaveBeenCalled();
-    expect(mocks.handleResendAccountEmailWebhook).toHaveBeenCalled();
+    await expect(response.json()).resolves.toEqual({ ok: true });
+    expect(mocks.handleResendNewsletterWebhook).not.toHaveBeenCalled();
+    expect(mocks.handleResendAccountEmailWebhook).not.toHaveBeenCalled();
   });
 
   it('processes handlers inside one database transaction', async () => {
@@ -242,7 +251,8 @@ describe('resend webhook route', () => {
 
     await expect(response.json()).resolves.toEqual({ ok: false });
     expect(response.status).toBe(500);
-    expect(mocks.handleResendEmailMessageWebhook).not.toHaveBeenCalled();
+    expect(mocks.handleResendEmailMessageWebhook).toHaveBeenCalled();
+    expect(mocks.handleResendNewsletterWebhook).toHaveBeenCalled();
     expect(mocks.sentry.captureException).toHaveBeenCalledWith(
       expect.any(Error)
     );

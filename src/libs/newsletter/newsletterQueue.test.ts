@@ -62,4 +62,30 @@ describe('enqueueNewsletterBroadcast', () => {
     expect(mocks.close).not.toHaveBeenCalled();
     expect(mocks.quit).not.toHaveBeenCalled();
   });
+
+  it('sets retry backoff and stable job ids', async () => {
+    const { enqueueNewsletterBroadcast } =
+      await import('@/libs/newsletter/newsletterQueue');
+
+    await enqueueNewsletterBroadcast({
+      broadcastId: 'broadcast_1',
+      continuationKey: 'delivery_1',
+      scheduledAt: new Date('2026-05-14T14:30:00.000Z'),
+    });
+
+    expect(mocks.add).toHaveBeenCalledWith(
+      'send-broadcast',
+      {
+        broadcastId: 'broadcast_1',
+        scheduledAt: '2026-05-14T14:30:00.000Z',
+      },
+      expect.objectContaining({
+        attempts: 3,
+        backoff: { delay: 30_000, type: 'exponential' },
+        jobId: 'newsletter-broadcast:broadcast_1:1778769000000:delivery_1',
+        removeOnComplete: 100,
+        removeOnFail: 500,
+      })
+    );
+  });
 });

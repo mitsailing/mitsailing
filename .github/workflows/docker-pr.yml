@@ -100,6 +100,71 @@ jobs:
             exit 1
           fi
 
+      # Worker smoke is intentionally separate from the HTTP sanity check:
+      # it proves the built ESM worker entrypoint boots in the production
+      # image, talks to Redis, and exits cleanly through BullMQ close().
+      - name: Worker ESM runtime smoke
+        run: |
+          set -euo pipefail
+
+          cleanup() {
+            docker rm -f worker-smoke worker-smoke-redis >/dev/null 2>&1 || true
+            docker network rm worker-smoke-net >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          docker network create worker-smoke-net
+          docker run -d --name worker-smoke-redis --network worker-smoke-net redis:7-alpine
+
+          for _ in $(seq 1 20); do
+            if docker exec worker-smoke-redis redis-cli ping | grep -qx PONG; then
+              break
+            fi
+            sleep 1
+          done
+
+          if ! docker exec worker-smoke-redis redis-cli ping | grep -qx PONG; then
+            echo "::error::Redis did not become ready for worker smoke"
+            docker logs --tail 100 worker-smoke-redis || true
+            exit 1
+          fi
+
+          docker run -d --name worker-smoke --network worker-smoke-net \
+            -e DATABASE_URL='postgresql://smoke:smoke@127.0.0.1:5432/smoke?sslmode=disable' \
+            -e BETTER_AUTH_SECRET='smoke-placeholder-that-is-at-least-thirty-two-chars-long' \
+            -e NEXT_PUBLIC_SENTRY_DISABLED='true' \
+            -e REDIS_URL='redis://worker-smoke-redis:6379' \
+            mitsailing-pr:ci node worker.mjs
+
+          sleep 10
+
+          if ! docker ps --filter name=worker-smoke --filter status=running --format '{{.Names}}' | grep -qx worker-smoke; then
+            echo "::error::worker exited before 10 s — startup failure"
+            echo '--- docker logs worker-smoke (last 200 lines) ---'
+            docker logs --tail 200 worker-smoke || true
+            echo '--- docker inspect ---'
+            docker inspect worker-smoke --format 'exit={{.State.ExitCode}} oom={{.State.OOMKilled}} error={{.State.Error}}' || true
+            exit 1
+          fi
+
+          docker kill --signal=SIGTERM worker-smoke
+
+          for _ in $(seq 1 15); do
+            if ! docker ps --filter name=worker-smoke --format '{{.Names}}' | grep -qx worker-smoke; then
+              break
+            fi
+            sleep 1
+          done
+
+          exit_code="$(docker inspect --format '{{.State.ExitCode}}' worker-smoke)"
+          echo "worker exited with code ${exit_code}"
+
+          if [ "${exit_code}" != "0" ]; then
+            echo "::error::unclean worker SIGTERM exit (${exit_code})"
+            docker logs --tail 200 worker-smoke || true
+            exit 1
+          fi
+
   # ─────────────────── Trivy vulnerability scan ───────────────────
   # Runs in its own job so the scan status check is distinct from the build
   # check — makes it easy to spot "build is green, scan surfaced a CVE" vs.
