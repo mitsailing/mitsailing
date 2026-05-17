@@ -2,7 +2,6 @@
 
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
@@ -10,6 +9,7 @@ const DEFAULT_REMOTE_DIR = 'apps/mitsailing';
 const DEFAULT_LOCAL_ROOT = 'local/cms-media';
 const REMOTE_MEDIA_ROOT = '/var/lib/mitsailing/cms-media';
 const SAFE_REMOTE_DIR_PATTERN = /^\/?[A-Za-z0-9._~/-]+$/;
+const MKDIR_BIN = '/bin/mkdir';
 const SSH_BIN = '/usr/bin/ssh';
 const TAR_BIN = '/usr/bin/tar';
 
@@ -311,13 +311,27 @@ async function syncReadyMedia(options) {
   if (!localRoot.startsWith(`${process.cwd()}${path.sep}`)) {
     throw new Error('--local-root must resolve inside this repo');
   }
-  mkdirSync(localRoot, { recursive: true });
+  await createLocalRoot(localRoot);
   await extractRemoteReadyMedia({
     localRoot,
     remoteCommand: remoteTarCommand(options.remoteDir),
     sshTarget: options.sshTarget,
   });
   process.stdout.write(`Synced production ready media into ${localRoot}\n`);
+}
+
+/**
+ * @param {string} localRoot Local media root.
+ * @returns {Promise<void>} Resolves when the local root exists.
+ */
+async function createLocalRoot(localRoot) {
+  const mkdir = spawn(MKDIR_BIN, ['-p', localRoot], {
+    stdio: ['ignore', 'ignore', 'inherit'],
+  });
+  const status = await waitForChildProcess({ child: mkdir, name: 'mkdir' });
+  if (status !== 0) {
+    throw new Error(`mkdir failed with exit code ${status}`);
+  }
 }
 
 /**

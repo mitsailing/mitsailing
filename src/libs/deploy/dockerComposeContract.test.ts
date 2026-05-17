@@ -146,6 +146,13 @@ describe('production media sync script', () => {
     expect(syncScript).not.toContain("spawn('tar'");
   });
 
+  it('avoids nonliteral node fs mkdir calls', () => {
+    expect(syncScript).not.toContain("from 'node:fs'");
+    expect(syncScript).not.toContain('mkdirSync(');
+    expect(syncScript).toContain("const MKDIR_BIN = '/bin/mkdir';");
+    expect(syncScript).toContain('spawn(MKDIR_BIN');
+  });
+
   it('rejects shell metacharacters in the remote app directory', () => {
     expect(syncScript).toContain('SAFE_REMOTE_DIR_PATTERN');
     expect(syncScript).toContain('remote directory path with safe characters');
