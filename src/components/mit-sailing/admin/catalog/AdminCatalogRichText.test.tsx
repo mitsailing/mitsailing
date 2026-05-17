@@ -558,7 +558,7 @@ describe('AdminRichTextEditor media controls', () => {
       '/cms-media/asset-1/race.png'
     );
     expect(fetchMock).toHaveBeenCalledWith(
-      '/api/admin/cms-media',
+      '/api/admin/cms-media/uploads',
       expect.objectContaining({ method: 'POST' })
     );
     fetchMock.mockRestore();

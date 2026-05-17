@@ -7,6 +7,10 @@ import { processNewsletterBroadcast } from '@/libs/newsletter/newsletterBroadcas
 import { NEWSLETTER_QUEUE_NAME } from '@/libs/newsletter/newsletterConstants';
 import type { NewsletterBroadcastJob } from '@/libs/newsletter/newsletterQueue';
 import { safeErrorCode, safeErrorName } from '@/libs/safeUnknownError';
+import {
+  CMS_MEDIA_PROCESSING_JOB_NAME,
+  processCmsMediaProcessingJob,
+} from '@/worker/cmsMediaProcessingJob';
 import { DEFAULT_QUEUE_NAME } from '@/worker/defaultQueue';
 import {
   LEGACY_MYSQL_SYNC_JOB_NAME,
@@ -27,6 +31,10 @@ async function processJob(
   }
   if (job.name === PAVILION_RESERVATION_SUBMITTED_EMAIL_JOB_NAME) {
     await processPavilionReservationSubmittedEmailJob(job.data);
+    return;
+  }
+  if (job.name === CMS_MEDIA_PROCESSING_JOB_NAME) {
+    await processCmsMediaProcessingJob(job.data);
     return;
   }
   throw new Error(`Unknown worker job: ${job.name}`);

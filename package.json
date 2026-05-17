@@ -25,6 +25,7 @@
     "dev": "run-s db:up db:wait db:migrate dev:app",
     "build:next": "next build",
     "build:worker": "esbuild src/worker/index.ts --bundle --platform=node --target=node24 --outfile=worker.mjs --format=esm --alias:server-only=./src/worker/serverOnlyShim.ts --banner:js=\"import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\" --log-level=warning",
+    "build:upload-service": "esbuild src/upload-service/index.ts --bundle --platform=node --target=node24 --outfile=upload-service.mjs --format=esm --alias:server-only=./src/worker/serverOnlyShim.ts --banner:js=\"import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\" --log-level=warning",
     "worker:dev": "tsx src/worker/index.ts",
     "build-local": "node scripts/build-local.mjs",
     "build": "run-s db:migrate build:next",

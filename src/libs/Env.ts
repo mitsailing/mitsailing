@@ -19,6 +19,7 @@ type FinalEnv = {
   MEDIA_PUBLIC_BASE_URL?: string;
   MEDIA_STORAGE_ROOT: string;
   MEDIA_UPLOAD_BASE_URL?: string;
+  MEDIA_UPLOAD_SHARED_SECRET?: string;
   NEXT_SERVER_ACTIONS_ENCRYPTION_KEY?: string;
   REDIS_URL?: string;
   TEST_DATABASE_URL?: string;
@@ -111,6 +112,13 @@ function validateDeploymentEnv(env: FinalEnv, ctx: z.RefinementCtx): void {
       ctx,
       'MEDIA_PUBLIC_BASE_URL',
       'MEDIA_PUBLIC_BASE_URL is required in staging and production.'
+    );
+  }
+  if (!env.MEDIA_UPLOAD_SHARED_SECRET) {
+    addEnvIssue(
+      ctx,
+      'MEDIA_UPLOAD_SHARED_SECRET',
+      'MEDIA_UPLOAD_SHARED_SECRET is required in staging and production.'
     );
   }
   if (!env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY) {

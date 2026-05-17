@@ -27,6 +27,7 @@ describe('durable CMS media schema contract', () => {
     expect(schema).toContain('server_folder');
     expect(schema).toContain('storageProvider');
     expect(schema).toContain('rawUploadId');
+    expect(schema).toContain('byteSize            BigInt');
     expect(schema).toContain('rawFilePath');
     expect(schema).toContain('readyFilePath');
     expect(schema).toContain('thumbnailFilePath');

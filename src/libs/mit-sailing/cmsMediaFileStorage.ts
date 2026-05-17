@@ -30,11 +30,18 @@ export function buildCmsMediaReadyPath(props: {
   return containedPath(props.root, 'ready', props.assetId, props.filename);
 }
 
-export function resolveTusUploadFilePath(props: {
+export function resolveCmsMediaUploadFilePath(props: {
   root: string;
   uploadId: string;
 }): string | null {
   return containedPath(props.root, 'uploads', props.uploadId);
+}
+
+export function resolveTusUploadFilePath(props: {
+  root: string;
+  uploadId: string;
+}): string | null {
+  return resolveCmsMediaUploadFilePath(props);
 }
 
 export function buildCmsMediaReadyUrl(props: {

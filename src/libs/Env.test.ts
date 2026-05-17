@@ -30,6 +30,10 @@ function stubRequiredProductionEnv(): void {
   vi.stubEnv('MEDIA_STORAGE_ROOT', '/srv/mitsailing-data/cms-media');
   vi.stubEnv('MEDIA_UPLOAD_BASE_URL', 'https://uploads.mitsailing.com');
   vi.stubEnv(
+    'MEDIA_UPLOAD_SHARED_SECRET',
+    'test-upload-secret-with-at-least-thirty-two-chars'
+  );
+  vi.stubEnv(
     'NEXT_SERVER_ACTIONS_ENCRYPTION_KEY',
     'test-server-actions-key-with-thirty-two-chars'
   );
@@ -145,6 +149,10 @@ describe('Env legacy MySQL sync validation', () => {
     vi.stubEnv('MEDIA_PUBLIC_BASE_URL', 'https://media.mitsailing.com');
     vi.stubEnv('MEDIA_STORAGE_ROOT', '/srv/mitsailing-data/cms-media');
     vi.stubEnv('MEDIA_UPLOAD_BASE_URL', 'https://uploads.mitsailing.com');
+    vi.stubEnv(
+      'MEDIA_UPLOAD_SHARED_SECRET',
+      'test-upload-secret-with-at-least-thirty-two-chars'
+    );
     vi.stubEnv('NEXT_SERVER_ACTIONS_ENCRYPTION_KEY', 'x'.repeat(32));
     vi.stubEnv('REDIS_URL', 'redis://10.0.0.10:6379');
 

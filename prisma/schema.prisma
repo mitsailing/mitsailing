@@ -965,7 +965,7 @@ model CmsMediaAsset {
   storedFilename      String                  @map("stored_filename")
   originalFilename    String                  @map("original_filename")
   mimeType            String                  @map("mime_type")
-  byteSize            Int                     @map("byte_size")
+  byteSize            BigInt                  @map("byte_size")
   publicPath          String                  @unique @map("public_path")
   uploadedByUserId    String?                 @map("uploaded_by_user_id")
   status              CmsMediaStatus          @default(ready)

@@ -47,6 +47,12 @@ describe('worker Docker contract', () => {
       'Worker-safe replacement'
     );
     expect(dockerfile).toContain('/app/worker.mjs ./worker.mjs');
+    expect(scripts['build:upload-service']).toContain(
+      'esbuild src/upload-service/index.ts --bundle --platform=node --target=node24 --outfile=upload-service.mjs --format=esm'
+    );
+    expect(dockerfile).toContain(
+      '/app/upload-service.mjs ./upload-service.mjs'
+    );
     expect(dockerWorkflow).toContain('mitsailing-pr:ci node worker.mjs');
   });
 

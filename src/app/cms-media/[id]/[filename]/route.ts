@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/libs/DB';
+import { Env } from '@/libs/Env';
 import { logger } from '@/libs/Logger';
+import { buildCmsMediaReadyUrl } from '@/libs/mit-sailing/cmsMediaFileStorage';
 import { readCmsMediaFile } from '@/libs/mit-sailing/cmsMediaStorage';
 import {
   buildCmsMediaPublicPath,
@@ -14,7 +16,9 @@ type CmsMediaRouteProps = {
 };
 
 type CmsMediaAssetRouteRecord = {
+  status: 'failed' | 'processing' | 'queued' | 'ready' | 'uploading';
   storedFilename: string;
+  storageProvider: 'local' | 'server_folder';
   mimeType: string;
   publicPath: string;
 } | null;
@@ -48,9 +52,11 @@ export async function GET(_request: Request, props: CmsMediaRouteProps) {
     asset = await prisma.cmsMediaAsset.findUnique({
       where: { id },
       select: {
-        storedFilename: true,
         mimeType: true,
         publicPath: true,
+        status: true,
+        storageProvider: true,
+        storedFilename: true,
       },
     });
   } catch (error: unknown) {
@@ -60,10 +66,20 @@ export async function GET(_request: Request, props: CmsMediaRouteProps) {
 
   if (
     !asset ||
+    asset.status !== 'ready' ||
     asset.storedFilename !== filename ||
     asset.publicPath !== buildCmsMediaPublicPath({ id, filename })
   ) {
     return new NextResponse(null, { status: 404 });
+  }
+
+  if (asset.storageProvider === 'server_folder' && Env.MEDIA_PUBLIC_BASE_URL) {
+    return NextResponse.redirect(
+      buildCmsMediaReadyUrl({
+        baseUrl: Env.MEDIA_PUBLIC_BASE_URL,
+        publicPath: asset.publicPath,
+      })
+    );
   }
 
   let bytes: Awaited<ReturnType<typeof readCmsMediaFile>>;

@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/libs/auth/dal';
 import { Role } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
+import { Env } from '@/libs/Env';
 import { logger } from '@/libs/Logger';
 import {
   deleteCmsMediaFile,
@@ -24,7 +25,7 @@ type CreatedCmsMediaAsset = {
   id: string;
   originalFilename: string;
   mimeType: string;
-  byteSize: number;
+  byteSize: bigint;
   publicPath: string;
   createdAt: Date;
 };
@@ -42,7 +43,7 @@ export async function GET(request: Request) {
   const assets = await prisma.cmsMediaAsset.findMany({
     orderBy: [{ createdAt: 'desc' }],
     take: 100,
-    where: pageId ? { pageId } : undefined,
+    where: pageId ? { pageId, status: 'ready' } : { status: 'ready' },
     select: {
       id: true,
       originalFilename: true,
@@ -58,7 +59,7 @@ export async function GET(request: Request) {
       id: asset.id,
       originalFilename: asset.originalFilename,
       mimeType: asset.mimeType,
-      byteSize: asset.byteSize,
+      byteSize: Number(asset.byteSize),
       publicPath: asset.publicPath,
       createdAt: asset.createdAt.toISOString(),
     })),
@@ -75,6 +76,12 @@ export async function POST(request: Request) {
   const userId = await currentAdminUserId();
   if (!userId) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  }
+  if (Env.APP_ENV === 'production' || Env.APP_ENV === 'staging') {
+    return NextResponse.json(
+      { error: 'direct_upload_disabled' },
+      { status: 409 }
+    );
   }
 
   let formData: FormData;
@@ -143,8 +150,12 @@ export async function POST(request: Request) {
         storedFilename: validation.storedFilename,
         originalFilename: file.name,
         mimeType: validation.mimeType,
-        byteSize: bytes.byteLength,
+        byteSize: BigInt(bytes.byteLength),
+        mediaKind: 'image',
+        processedAt: new Date(),
         publicPath,
+        status: 'ready',
+        storageProvider: 'local',
         uploadedByUserId: userId,
       },
       select: {
@@ -172,7 +183,7 @@ export async function POST(request: Request) {
     id: asset.id,
     originalFilename: asset.originalFilename,
     mimeType: asset.mimeType,
-    byteSize: asset.byteSize,
+    byteSize: Number(asset.byteSize),
     publicPath: asset.publicPath,
     url: asset.publicPath,
     createdAt: asset.createdAt.toISOString(),
