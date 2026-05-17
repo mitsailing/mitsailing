@@ -35,7 +35,9 @@ readonly DEPLOY_HEALTH_TIMEOUT_SECONDS="${DEPLOY_HEALTH_TIMEOUT_SECONDS:-120}"
 readonly DEPLOY_DRAIN_SECONDS="${DEPLOY_DRAIN_SECONDS:-900}"
 # A server admin must create this root-owned tree before deploy. The deploy
 # user may not be able to traverse it, so validate mounts through Docker only.
-readonly PRODUCTION_DATA_ROOT="/srv/mitsailing-data"
+readonly PRODUCTION_POSTGRES_DIR="/srv/mitsailing-data/postgres"
+readonly PRODUCTION_REDIS_DIR="/srv/mitsailing-data/redis"
+readonly PRODUCTION_CMS_MEDIA_DIR="/srv/mitsailing-data/cms-media"
 
 log() { printf '[deploy %s] %s\n' "$(date -u +'%FT%TZ')" "$*"; }
 fail() { log "ERROR: $*" >&2; exit 1; }

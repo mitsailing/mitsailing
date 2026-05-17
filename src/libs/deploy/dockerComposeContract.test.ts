@@ -1,9 +1,21 @@
+import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 function readRepoFile(path: string): string {
   return readFileSync(join(process.cwd(), path), 'utf8');
+}
+
+function readYamlServiceBlock(source: string, service: string): string {
+  const marker = `  ${service}:`;
+  const start = source.indexOf(marker);
+  expect(start).toBeGreaterThanOrEqual(0);
+  const nextService = source.slice(start + marker.length).search(/\n {2}\w/u);
+  if (nextService === -1) {
+    return source.slice(start);
+  }
+  return source.slice(start, start + marker.length + nextService);
 }
 
 function composeVariable(value: string): string {
@@ -90,13 +102,17 @@ describe('production docker compose', () => {
   });
 
   it('routes the MIT Sailing tunnel to in-stack docker services', () => {
+    const cloudflaredBlock = readYamlServiceBlock(
+      productionCompose,
+      'cloudflared'
+    );
     expect(productionCompose).toContain('cloudflare/cloudflared');
     expect(productionCompose).toContain('CLOUDFLARE_TUNNEL_TOKEN');
-    expect(productionCompose).toContain('depends_on:');
-    expect(productionCompose).toContain('app:');
-    expect(productionCompose).toContain('tusd:');
-    expect(productionCompose).toContain('media:');
-    expect(productionCompose).not.toContain('ports:');
+    expect(cloudflaredBlock).toContain('depends_on:');
+    expect(cloudflaredBlock).toContain('app:');
+    expect(cloudflaredBlock).toContain('tusd:');
+    expect(cloudflaredBlock).toContain('media:');
+    expect(cloudflaredBlock).not.toContain('ports:');
   });
 });
 
@@ -112,10 +128,17 @@ describe('production deploy script', () => {
     expect(deployScript).not.toContain('[[ -d "$dir" ]]');
   });
 
-  it('uses the fixed production data root', () => {
+  it('uses fixed production data paths', () => {
     expect(deployScript).toContain(
-      'readonly PRODUCTION_DATA_ROOT="/srv/mitsailing-data"'
+      'readonly PRODUCTION_POSTGRES_DIR="/srv/mitsailing-data/postgres"'
     );
+    expect(deployScript).toContain(
+      'readonly PRODUCTION_REDIS_DIR="/srv/mitsailing-data/redis"'
+    );
+    expect(deployScript).toContain(
+      'readonly PRODUCTION_CMS_MEDIA_DIR="/srv/mitsailing-data/cms-media"'
+    );
+    expect(deployScript).not.toContain('PRODUCTION_DATA_ROOT=');
     expect(deployScript).not.toContain('PRODUCTION_DATA_OWNER');
     expect(deployScript).not.toContain('PRODUCTION_DATA_GROUP');
   });
@@ -181,6 +204,10 @@ describe('production media sync script', () => {
     expect(syncScript).not.toContain("spawnSync('mkdir'");
     expect(syncScript).not.toContain("spawn('ssh'");
     expect(syncScript).not.toContain("spawn('tar'");
+    expect(syncScript).toContain("const SSH_BIN = '/usr/bin/ssh';");
+    expect(syncScript).toContain("const TAR_BIN = '/usr/bin/tar';");
+    expect(syncScript).toContain('spawn(SSH_BIN');
+    expect(syncScript).toContain('spawn(TAR_BIN');
   });
 
   it('uses an absolute mkdir command for local media roots', () => {
@@ -193,5 +220,23 @@ describe('production media sync script', () => {
   it('rejects shell metacharacters in the remote app directory', () => {
     expect(syncScript).toContain('SAFE_REMOTE_DIR_PATTERN');
     expect(syncScript).toContain('remote directory path with safe characters');
+  });
+
+  it('rejects dangling ssh target at signs before connecting', () => {
+    for (const target of ['@host', 'user@']) {
+      const result = spawnSync(
+        process.execPath,
+        ['scripts/sync-prod-media.mjs', '--ssh-target', target, '--help'],
+        {
+          cwd: process.cwd(),
+          encoding: 'utf8',
+        }
+      );
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(
+        '--ssh-target must be a host target such as host or user@host'
+      );
+    }
   });
 });

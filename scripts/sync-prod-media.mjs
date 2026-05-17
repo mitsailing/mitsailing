@@ -65,11 +65,14 @@ function parseSshTarget(value) {
  * @returns {boolean} Whether the SSH target parts are valid.
  */
 function validSshTargetParts(props) {
+  const hasUserSeparator = props.value.includes('@');
   const hostValue = props.host || props.hostOrUser;
   const userValue = props.host ? props.hostOrUser : '';
   return (
     !props.value.includes(':') &&
     props.value.split('@').length <= 2 &&
+    (!hasUserSeparator ||
+      (props.host.length > 0 && props.hostOrUser.length > 0)) &&
     validSshToken(hostValue) &&
     validOptionalSshUser(userValue)
   );
