@@ -22,6 +22,18 @@ type CmsMediaUploadRouteAsset = {
   status: 'failed' | 'processing' | 'queued' | 'ready' | 'uploading';
 };
 
+const cmsMediaUploadRouteAssetSelect = {
+  byteSize: true,
+  createdAt: true,
+  id: true,
+  mediaKind: true,
+  mimeType: true,
+  originalFilename: true,
+  processingErrorCode: true,
+  publicPath: true,
+  status: true,
+};
+
 async function currentAdminUserId(): Promise<string | null> {
   const currentUser = await getCurrentUser();
   return currentUser?.role === Role.ADMIN ? currentUser.id : null;
@@ -43,26 +55,28 @@ function assetResponse(asset: CmsMediaUploadRouteAsset) {
   };
 }
 
+function uploadNotCancellableResponse() {
+  return NextResponse.json(
+    { error: 'upload_not_cancellable' },
+    { status: 409 }
+  );
+}
+
+async function findUploadAsset(id: string) {
+  const asset = await prisma.cmsMediaAsset.findUnique({
+    select: cmsMediaUploadRouteAssetSelect,
+    where: { id },
+  });
+  return asset;
+}
+
 export async function GET(_request: Request, props: CmsMediaUploadRouteProps) {
   const userId = await currentAdminUserId();
   if (!userId) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
   const { id } = await props.params;
-  const asset = await prisma.cmsMediaAsset.findUnique({
-    select: {
-      byteSize: true,
-      createdAt: true,
-      id: true,
-      mediaKind: true,
-      mimeType: true,
-      originalFilename: true,
-      processingErrorCode: true,
-      publicPath: true,
-      status: true,
-    },
-    where: { id },
-  });
+  const asset = await findUploadAsset(id);
   if (!asset) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 });
   }
@@ -79,47 +93,27 @@ export async function DELETE(
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
   const { id } = await props.params;
-  const asset = await prisma.cmsMediaAsset.findUnique({
-    select: {
-      byteSize: true,
-      createdAt: true,
-      id: true,
-      mediaKind: true,
-      mimeType: true,
-      originalFilename: true,
-      processingErrorCode: true,
-      publicPath: true,
-      status: true,
-    },
-    where: { id },
-  });
+  const asset = await findUploadAsset(id);
   if (!asset) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 });
   }
   if (asset.status !== 'uploading') {
-    return NextResponse.json(
-      { error: 'upload_not_cancellable' },
-      { status: 409 }
-    );
+    return uploadNotCancellableResponse();
   }
-  const cancelledAsset = await prisma.cmsMediaAsset.update({
+  const result = await prisma.cmsMediaAsset.updateMany({
     data: {
       processingErrorCode: 'upload_cancelled',
       status: 'failed',
     },
-    select: {
-      byteSize: true,
-      createdAt: true,
-      id: true,
-      mediaKind: true,
-      mimeType: true,
-      originalFilename: true,
-      processingErrorCode: true,
-      publicPath: true,
-      status: true,
-    },
-    where: { id },
+    where: { id, status: 'uploading' },
   });
+  if (result.count !== 1) {
+    return uploadNotCancellableResponse();
+  }
+  const cancelledAsset = await findUploadAsset(id);
+  if (!cancelledAsset) {
+    return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  }
 
   return NextResponse.json(assetResponse(cancelledAsset));
 }

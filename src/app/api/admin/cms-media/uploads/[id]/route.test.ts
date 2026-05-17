@@ -4,7 +4,7 @@ import { DELETE } from './route';
 const mocks = vi.hoisted(() => ({
   findUnique: vi.fn(),
   getCurrentUser: vi.fn(),
-  update: vi.fn(),
+  updateMany: vi.fn(),
 }));
 
 vi.mock('@/libs/auth/dal', () => ({
@@ -15,7 +15,7 @@ vi.mock('@/libs/DB', () => ({
   prisma: {
     cmsMediaAsset: {
       findUnique: mocks.findUnique,
-      update: mocks.update,
+      updateMany: mocks.updateMany,
     },
   },
 }));
@@ -66,8 +66,10 @@ function stubAdminUser(): void {
 describe('cms media upload route', () => {
   it('marks uploading assets as cancelled', async () => {
     stubAdminUser();
-    mocks.findUnique.mockResolvedValue(asset('uploading'));
-    mocks.update.mockResolvedValue(asset('failed', 'upload_cancelled'));
+    mocks.findUnique
+      .mockResolvedValueOnce(asset('uploading'))
+      .mockResolvedValueOnce(asset('failed', 'upload_cancelled'));
+    mocks.updateMany.mockResolvedValue({ count: 1 });
 
     const response = await DELETE(cancelRequest(), routeProps());
 
@@ -79,13 +81,13 @@ describe('cms media upload route', () => {
       },
     });
     expect(response.status).toBe(200);
-    expect(mocks.update).toHaveBeenCalledWith(
+    expect(mocks.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         data: {
           processingErrorCode: 'upload_cancelled',
           status: 'failed',
         },
-        where: { id: 'asset-1' },
+        where: { id: 'asset-1', status: 'uploading' },
       })
     );
   });
@@ -100,6 +102,19 @@ describe('cms media upload route', () => {
       error: 'upload_not_cancellable',
     });
     expect(response.status).toBe(409);
-    expect(mocks.update).not.toHaveBeenCalled();
+    expect(mocks.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('does not cancel when the asset leaves uploading during the write', async () => {
+    stubAdminUser();
+    mocks.findUnique.mockResolvedValue(asset('uploading'));
+    mocks.updateMany.mockResolvedValue({ count: 0 });
+
+    const response = await DELETE(cancelRequest(), routeProps());
+
+    await expect(response.json()).resolves.toEqual({
+      error: 'upload_not_cancellable',
+    });
+    expect(response.status).toBe(409);
   });
 });

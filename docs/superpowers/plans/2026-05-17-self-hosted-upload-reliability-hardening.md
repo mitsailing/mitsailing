@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use subagent-driven development or execute this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace the custom single-request media upload service with pinned `tusd` + `tus-js-client`, then harden media processing, backups, and external readiness checks without replacing Redis or adding same-host monitoring.
+**Goal:** Replace the custom single-request media upload service with pinned `tusd` + `tus-js-client`, then harden media processing and external readiness checks without replacing Redis or adding same-host monitoring; backup tooling is deferred to a follow-up.
 
 **Architecture:** The app creates DB-backed media assets and signed tus upload metadata, the browser uploads bytes directly to `tusd` on the data/media host, and the app finalizes only after a tus `HEAD` proves the upload offset equals the expected length. The BullMQ worker treats the database as the source of truth by reconciling queued and stale processing assets on startup. Backup tooling is intentionally deferred until the team chooses a maintained restore-tested approach.
 

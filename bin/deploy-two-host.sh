@@ -18,7 +18,7 @@ set -Eeuo pipefail
 readonly REMOTE_APP_DIR="${REMOTE_APP_DIR:-apps/mitsailing}"
 readonly GHCR_OWNER="${GHCR_OWNER:-mitsailing}"
 readonly DEPLOY_HEALTH_TIMEOUT_SECONDS="${DEPLOY_HEALTH_TIMEOUT_SECONDS:-120}"
-readonly DEPLOY_DRAIN_SECONDS="${DEPLOY_DRAIN_SECONDS:-120}"
+readonly DEPLOY_DRAIN_SECONDS="${DEPLOY_DRAIN_SECONDS:-900}"
 readonly APP_COMPOSE_FILE="compose.prod.app-host.yaml"
 readonly DATA_COMPOSE_FILE="compose.prod.data.yaml"
 readonly DEPLOY_SSH_KEY="${DEPLOY_SSH_KEY:-${HOME}/.ssh/id_deploy}"
@@ -261,12 +261,19 @@ const readyPath = process.argv[1];
     console.error("HEALTHCHECK_SECRET is required for readiness");
     process.exit(1);
   }
-  const res = await fetch(`http://127.0.0.1:3000${readyPath}`, {
-    headers: { Authorization: `Bearer ${secret}` },
-  });
-  if (!res.ok) {
-    console.error("readiness failed", res.status);
-    process.exit(1);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+  try {
+    const res = await fetch(`http://127.0.0.1:3000${readyPath}`, {
+      headers: { Authorization: `Bearer ${secret}` },
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      console.error("readiness failed", res.status);
+      process.exit(1);
+    }
+  } finally {
+    clearTimeout(timeout);
   }
 })().catch((error) => {
   console.error(error);
@@ -386,6 +393,7 @@ promote_ref() {
   log "promoting $target host"
   set_app_traffic "$target_host" true
   wait_for_readiness "$target_host" public
+  record_state "$target" "$ref" "$current_ref"
 
   if [[ -n "$active" && "$active" != "$target" ]]; then
     active_host="$(color_host "$active")"
@@ -395,7 +403,6 @@ promote_ref() {
     sleep "$DEPLOY_DRAIN_SECONDS"
   fi
 
-  record_state "$target" "$ref" "$current_ref"
 }
 
 release_ref() {
@@ -451,10 +458,10 @@ rollback_ref() {
   log "promoting rollback target $target"
   set_app_traffic "$(color_host "$target")" true
   wait_for_readiness "$(color_host "$target")" public
+  record_state "$target" "$ref" "$current_ref"
   set_app_traffic "$(color_host "$active")" false
   log "draining $active host for ${DEPLOY_DRAIN_SECONDS}s"
   sleep "$DEPLOY_DRAIN_SECONDS"
-  record_state "$target" "$ref" "$current_ref"
 }
 
 main() {

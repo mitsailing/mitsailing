@@ -81,6 +81,32 @@ describe('two host deploy script', () => {
     expect(readinessIndex).toBeGreaterThan(workerIndex);
   });
 
+  it('persists promoted host state before draining the old host', () => {
+    const promoteRef = readShellFunction(script, 'promote_ref');
+    const rollbackRef = readShellFunction(script, 'rollback_ref');
+
+    expect(
+      promoteRef.indexOf('record_state "$target" "$ref" "$current_ref"')
+    ).toBeGreaterThan(
+      promoteRef.indexOf('wait_for_readiness "$target_host" public')
+    );
+    expect(promoteRef.indexOf('log "draining $active host')).toBeGreaterThan(
+      promoteRef.indexOf('record_state "$target" "$ref" "$current_ref"')
+    );
+    expect(
+      rollbackRef.indexOf('record_state "$target" "$ref" "$current_ref"')
+    ).toBeGreaterThan(
+      rollbackRef.indexOf('wait_for_readiness "$(color_host "$target")" public')
+    );
+    expect(rollbackRef.indexOf('log "draining $active host')).toBeGreaterThan(
+      rollbackRef.indexOf('record_state "$target" "$ref" "$current_ref"')
+    );
+  });
+
+  it('uses a 900 second default drain window for large uploads', () => {
+    expect(script).toContain('DEPLOY_DRAIN_SECONDS:-900');
+  });
+
   it('warns rollback does not reverse database migrations', () => {
     const rollbackRefIndex = script.indexOf('rollback_ref()');
 

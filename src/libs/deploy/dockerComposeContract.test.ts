@@ -72,7 +72,13 @@ describe('production docker compose split', () => {
       '-cors-expose-headers=location,tus-resumable,upload-offset,upload-length,upload-metadata,upload-expires'
     );
     expect(dataCompose).toContain(
-      `'${composeVariable('UPLOAD_SERVICE_BIND_HOST:-127.0.0.1')}:${composeVariable('UPLOAD_SERVICE_PORT:-3001')}:1080'`
+      `'${composeVariable('UPLOAD_SERVICE_BIND_HOST:?set UPLOAD_SERVICE_BIND_HOST')}:${composeVariable('UPLOAD_SERVICE_PORT:-3001')}:1080'`
+    );
+    expect(dataCompose).toContain(
+      `'${composeVariable('DATA_PRIVATE_BIND_HOST:?set DATA_PRIVATE_BIND_HOST')}:${composeVariable('POSTGRES_PORT:-5432')}:5432'`
+    );
+    expect(dataCompose).toContain(
+      `'${composeVariable('MEDIA_HTTP_BIND_HOST:?set MEDIA_HTTP_BIND_HOST')}:${composeVariable('MEDIA_HTTP_PORT:-8080')}:8080'`
     );
   });
 

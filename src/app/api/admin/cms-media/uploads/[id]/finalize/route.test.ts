@@ -146,6 +146,39 @@ describe('cms media upload finalize route', () => {
     expect(mocks.enqueueCmsMediaProcessingJob).not.toHaveBeenCalled();
   });
 
+  it('repairs queued status when enqueue fails', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(
+          headResponse({ 'Upload-Length': '1024', 'Upload-Offset': '1024' })
+        )
+    );
+    stubAdminUser();
+    mocks.findUnique
+      .mockResolvedValueOnce(asset())
+      .mockResolvedValueOnce(asset('queued'));
+    mocks.updateMany.mockResolvedValue({ count: 1 });
+    mocks.enqueueCmsMediaProcessingJob.mockRejectedValue(
+      new Error('redis down')
+    );
+
+    const response = await POST(finalizeRequest(), routeProps());
+
+    await expect(response.json()).resolves.toEqual({
+      error: 'processing_queue_unavailable',
+    });
+    expect(response.status).toBe(503);
+    expect(mocks.updateMany).toHaveBeenLastCalledWith({
+      data: {
+        processingErrorCode: null,
+        status: 'uploading',
+      },
+      where: { id: 'asset-1', status: 'queued' },
+    });
+  });
+
   it('returns 409 when the tus offset is incomplete', async () => {
     vi.stubGlobal(
       'fetch',

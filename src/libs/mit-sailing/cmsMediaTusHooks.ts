@@ -66,7 +66,7 @@ function objectField(
 }
 
 function stringField(value: unknown, field: string): string | null {
-  if (typeof value !== 'object' || value === null) {
+  if (!isRecord(value)) {
     return null;
   }
   const fieldValue = Reflect.get(value, field);
@@ -76,7 +76,7 @@ function stringField(value: unknown, field: string): string | null {
 }
 
 function numberField(value: unknown, field: string): number | null {
-  if (typeof value !== 'object' || value === null) {
+  if (!isRecord(value)) {
     return null;
   }
   const fieldValue = Reflect.get(value, field);

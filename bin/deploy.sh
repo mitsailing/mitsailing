@@ -38,7 +38,7 @@ readonly CURRENT_REF_FILE="${DEPLOY_STATE_DIR}/current_ref"
 readonly PREVIOUS_REF_FILE="${DEPLOY_STATE_DIR}/previous_ref"
 readonly DEPLOY_LOCK_FILE="${DEPLOY_STATE_DIR}/deploy.lock"
 readonly DEPLOY_HEALTH_TIMEOUT_SECONDS="${DEPLOY_HEALTH_TIMEOUT_SECONDS:-120}"
-readonly DEPLOY_DRAIN_SECONDS="${DEPLOY_DRAIN_SECONDS:-120}"
+readonly DEPLOY_DRAIN_SECONDS="${DEPLOY_DRAIN_SECONDS:-900}"
 
 log() { printf '[deploy %s] %s\n' "$(date -u +'%FT%TZ')" "$*"; }
 fail() { log "ERROR: $*" >&2; exit 1; }

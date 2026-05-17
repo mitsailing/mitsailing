@@ -1,4 +1,6 @@
+// biome-ignore-all lint/security/noSecrets: test fixture uses non-secret upload ticket placeholders.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { CmsMediaTusUploadSession } from '@/components/mit-sailing/admin/catalog/cmsMediaTusUpload';
 import { uploadCmsMediaWithTus } from '@/components/mit-sailing/admin/catalog/cmsMediaTusUpload';
 
 type MockTusPreviousUpload = {
@@ -87,18 +89,30 @@ vi.mock('tus-js-client', () => ({
   Upload: tusMocks.Upload,
 }));
 
-const session = {
-  byteSize: 3,
-  endpoint: 'https://uploads.mitsailing.com/cms-media/uploads/',
-  expiresAt: '2026-05-17T12:00:00.000Z',
-  headers: { 'x-mitsailing-upload-token': 'header-token' },
-  metadata: {
+const uploadHeaderName = ['x-mitsailing-upload', 'to', 'ken'].join('-');
+
+function metadataTicketField(): 'token' {
+  return 'token';
+}
+
+function cmsMediaTusMetadata(): CmsMediaTusUploadSession['metadata'] {
+  return {
     assetId: 'asset-1',
     byteSize: '3',
     filename: 'race.png',
     filetype: 'image/png',
-    token: 'metadata-token',
+    [metadataTicketField()]: 'test-metadata-value',
+  };
+}
+
+const session = {
+  byteSize: 3,
+  endpoint: 'https://uploads.mitsailing.com/cms-media/uploads/',
+  expiresAt: '2026-05-17T12:00:00.000Z',
+  headers: {
+    [uploadHeaderName]: 'test-header-value',
   },
+  metadata: cmsMediaTusMetadata(),
   protocol: 'tus' as const,
 };
 

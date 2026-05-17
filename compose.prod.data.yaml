@@ -40,7 +40,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-mitsailing}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - '${DATA_PRIVATE_BIND_HOST:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432'
+      - '${DATA_PRIVATE_BIND_HOST:?set DATA_PRIVATE_BIND_HOST}:${POSTGRES_PORT:-5432}:5432'
     volumes:
       - type: bind
         source: /srv/mitsailing-data/postgres
@@ -67,7 +67,7 @@ services:
     networks:
       - internal
     ports:
-      - '${DATA_PRIVATE_BIND_HOST:-127.0.0.1}:${REDIS_PORT:-6379}:6379'
+      - '${DATA_PRIVATE_BIND_HOST:?set DATA_PRIVATE_BIND_HOST}:${REDIS_PORT:-6379}:6379'
     volumes:
       - type: bind
         source: /srv/mitsailing-data/redis
@@ -108,7 +108,7 @@ services:
       - -cors-allow-headers=authorization,content-type,tus-resumable,upload-length,upload-metadata,upload-offset,x-mitsailing-upload-token
       - -cors-expose-headers=location,tus-resumable,upload-offset,upload-length,upload-metadata,upload-expires
     ports:
-      - '${UPLOAD_SERVICE_BIND_HOST:-127.0.0.1}:${UPLOAD_SERVICE_PORT:-3001}:1080'
+      - '${UPLOAD_SERVICE_BIND_HOST:?set UPLOAD_SERVICE_BIND_HOST}:${UPLOAD_SERVICE_PORT:-3001}:1080'
     volumes:
       - type: bind
         source: /srv/mitsailing-data/cms-media/uploads
@@ -145,7 +145,7 @@ services:
     networks:
       - internal
     ports:
-      - '${MEDIA_HTTP_BIND_HOST:-127.0.0.1}:${MEDIA_HTTP_PORT:-8080}:8080'
+      - '${MEDIA_HTTP_BIND_HOST:?set MEDIA_HTTP_BIND_HOST}:${MEDIA_HTTP_PORT:-8080}:8080'
     volumes:
       - type: bind
         source: ./docker/nginx/media.conf

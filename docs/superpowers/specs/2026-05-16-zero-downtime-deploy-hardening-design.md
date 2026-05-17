@@ -230,9 +230,10 @@ proxy:
    - data/media server upload-service check;
    - media-serving check.
    For staging and production, `HEALTHCHECK_SECRET` is mandatory and the deploy
-   script must fail early when it is missing. The two-host deploy script invokes
-   readiness from inside the target `web` container with `docker compose exec -T
-   web node -e`, fetches `http://127.0.0.1:3000/api/health/ready?mode=service`,
+   script must fail early when it is missing. The single-host deploy script
+   invokes readiness from inside the target `web_blue` or `web_green` container
+   with `docker compose exec -T`, fetches
+   `http://127.0.0.1:3000/api/health/ready`,
    and sends `Authorization: Bearer $HEALTHCHECK_SECRET`. If a future
    orchestrator replaces Compose, use the same container-local request from an
    exec session or an equivalent private container-to-container call; do not

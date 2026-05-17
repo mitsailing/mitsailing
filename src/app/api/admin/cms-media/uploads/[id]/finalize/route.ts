@@ -45,13 +45,16 @@ function assetResponse(asset: {
   };
 }
 
-async function queueAssetForProcessing(id: string) {
+async function queueAssetForProcessing(props: {
+  id: string;
+  processingErrorCode: string | null;
+}) {
   const result = await prisma.cmsMediaAsset.updateMany({
     data: {
       processingErrorCode: null,
       status: 'queued',
     },
-    where: { id, status: 'uploading' },
+    where: { id: props.id, status: 'uploading' },
   });
   if (result.count !== 1) {
     return null;
@@ -68,12 +71,25 @@ async function queueAssetForProcessing(id: string) {
       publicPath: true,
       status: true,
     },
-    where: { id },
+    where: { id: props.id },
   });
   if (!queuedAsset) {
     return null;
   }
-  await enqueueCmsMediaProcessingJob(getDefaultQueue(), { assetId: id });
+  try {
+    await enqueueCmsMediaProcessingJob(getDefaultQueue(), {
+      assetId: props.id,
+    });
+  } catch (error) {
+    await prisma.cmsMediaAsset.updateMany({
+      data: {
+        processingErrorCode: props.processingErrorCode,
+        status: 'uploading',
+      },
+      where: { id: props.id, status: 'queued' },
+    });
+    throw error;
+  }
   return queuedAsset;
 }
 
@@ -128,7 +144,18 @@ export async function POST(
   if (!uploadStatus.complete) {
     return NextResponse.json({ error: 'upload_incomplete' }, { status: 409 });
   }
-  const queuedAsset = await queueAssetForProcessing(id);
+  let queuedAsset: Awaited<ReturnType<typeof queueAssetForProcessing>>;
+  try {
+    queuedAsset = await queueAssetForProcessing({
+      id,
+      processingErrorCode: asset.processingErrorCode,
+    });
+  } catch {
+    return NextResponse.json(
+      { error: 'processing_queue_unavailable' },
+      { status: 503 }
+    );
+  }
   if (!queuedAsset) {
     return NextResponse.json(
       { error: 'upload_not_cancellable' },

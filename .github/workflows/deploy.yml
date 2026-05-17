@@ -216,6 +216,7 @@ jobs:
           APP_HOST_BLUE: ${{ secrets.PRODUCTION_APP_HOST_BLUE }}
           APP_HOST_GREEN: ${{ secrets.PRODUCTION_APP_HOST_GREEN }}
           DATA_MEDIA_HOST: ${{ secrets.PRODUCTION_DATA_MEDIA_HOST }}
+          HEALTHCHECK_SECRET: ${{ secrets.HEALTHCHECK_SECRET }}
           IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
           REMOTE_APP_DIR: ${{ vars.PRODUCTION_REMOTE_APP_DIR || 'apps/mitsailing' }}
         run: |

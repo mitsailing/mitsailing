@@ -558,13 +558,19 @@ production database.
 - **Rollback app/worker to the previous image (does not reverse DB migrations):**
 
   ```bash
-  ssh deployer@sailing-dock.mit.edu '~/deploy.sh rollback previous'
+  APP_HOST_BLUE=deployer@app-blue.mitsailing.internal \
+    APP_HOST_GREEN=deployer@app-green.mitsailing.internal \
+    DATA_MEDIA_HOST=deployer@sailing-dock.mit.edu \
+    bin/deploy-two-host.sh rollback previous
   ```
 
 - **Rollback app/worker to an explicit image tag:**
 
   ```bash
-  ssh deployer@sailing-dock.mit.edu '~/deploy.sh rollback sha-abc123def456'
+  APP_HOST_BLUE=deployer@app-blue.mitsailing.internal \
+    APP_HOST_GREEN=deployer@app-green.mitsailing.internal \
+    DATA_MEDIA_HOST=deployer@sailing-dock.mit.edu \
+    bin/deploy-two-host.sh rollback sha-abc123def456
   ```
 
   Blue/green rollback or switching traffic back to the other app host can
