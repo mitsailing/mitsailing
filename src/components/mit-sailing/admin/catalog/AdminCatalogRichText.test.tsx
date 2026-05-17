@@ -255,7 +255,7 @@ function mockCmsMediaUploadFetch(
         (typeof input === 'string' || input instanceof URL
           ? undefined
           : input.method);
-      if (url === '/api/admin/cms-media/uploads') {
+      if (url === '/api/admin/cms-media/uploads' && method === 'POST') {
         return cmsMediaTusSessionResponse(props);
       }
       if (
@@ -273,7 +273,8 @@ function mockCmsMediaUploadFetch(
       }
       if (
         url ===
-        `/api/admin/cms-media/uploads/${encodeURIComponent(props.finalizeAssetId ?? props.assetId)}/finalize`
+          `/api/admin/cms-media/uploads/${encodeURIComponent(props.finalizeAssetId ?? props.assetId)}/finalize` &&
+        method === 'POST'
       ) {
         return finalizedCmsMediaAssetResponse({
           ...props,

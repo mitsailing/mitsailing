@@ -21,7 +21,7 @@ vi.mock('@/libs/DB', () => ({
 vi.mock('@/libs/Env', () => ({
   Env: {
     APP_ENV: 'staging',
-    CMS_MEDIA_ROOT: '/tmp/mitsailing-test-cms-media',
+    CMS_MEDIA_ROOT: '.test-cms-media-unused',
   },
 }));
 
