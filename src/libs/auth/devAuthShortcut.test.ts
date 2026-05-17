@@ -18,6 +18,17 @@ function stubRequiredDeployedEnv(): void {
     'HEALTHCHECK_SECRET',
     'test-healthcheck-secret-with-thirty-two-chars'
   );
+  vi.stubEnv('MEDIA_PUBLIC_BASE_URL', 'https://media.mitsailing.com');
+  vi.stubEnv('MEDIA_STORAGE_ROOT', '/srv/mitsailing-data/cms-media');
+  vi.stubEnv('MEDIA_UPLOAD_BASE_URL', 'https://uploads.mitsailing.com');
+  vi.stubEnv(
+    'MEDIA_UPLOAD_SHARED_SECRET',
+    'test-media-upload-secret-with-thirty-two-chars'
+  );
+  vi.stubEnv(
+    'NEXT_SERVER_ACTIONS_ENCRYPTION_KEY',
+    'test-server-actions-key-with-thirty-two-chars'
+  );
   vi.stubEnv('REDIS_URL', 'redis://redis:6379');
 }
 

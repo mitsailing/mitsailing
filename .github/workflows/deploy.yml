@@ -2,9 +2,12 @@ name: Deploy (production)
 
 # Repository → Settings → Environments → `production`:
 #   Add **Required reviewers** so the deploy job waits for human approval before
-#   SSH (recommended). Secrets live on that environment: PRODUCTION_SSH_*,
-#   NEXT_PUBLIC_SENTRY_DSN, SENTRY_AUTH_TOKEN (see docs/deploy.md). The `build`
-#   job uses this environment so those values reach Docker build-args.
+#   SSH (recommended). Secrets live on that environment:
+#   PRODUCTION_APP_HOST_BLUE, PRODUCTION_APP_HOST_GREEN,
+#   PRODUCTION_DATA_MEDIA_HOST, PRODUCTION_SSH_PRIVATE_KEY,
+#   PRODUCTION_SSH_HOST_KEY, NEXT_PUBLIC_SENTRY_DSN, SENTRY_AUTH_TOKEN
+#   (see docs/deploy.md). The `build` job uses this environment so those values
+#   reach Docker build-args.
 #
 # Auto-deploy to the sailing-dock production host when main changes. We also
 # expose a manual `workflow_dispatch` trigger so operators can deploy an
@@ -141,8 +144,8 @@ jobs:
           push-to-registry: true
 
   # ─────────────────── Stage 2 — release ───────────────────
-  # `deploy.sh release` holds a server-side flock across migrations, blue/green
-  # cutover, worker restart, and upload drain so no second deploy can interleave.
+  # `deploy-two-host.sh release` holds a data/media-server lock across
+  # migrations, host promotion, worker restart, and upload-safe app-host drain.
   deploy:
     name: Release production
     runs-on: ubuntu-latest
@@ -158,63 +161,61 @@ jobs:
           ref: ${{ inputs.ref || github.sha }}
 
       - name: Set up SSH
-        # We do NOT use ssh-agent for this; the deploy key is bound to a
-        # single command on the server side (see docs/deploy.md), so only
-        # the one authorized invocation below is possible.
         run: |
           mkdir -p ~/.ssh
           printf '%s\n' "${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}" > ~/.ssh/id_deploy
           chmod 600 ~/.ssh/id_deploy
-          # Pin the host key to prevent MITM; the admin records this once
-          # via `ssh-keyscan sailing-dock.mit.edu` and puts it in secrets.
+          # Pin all production host keys to prevent MITM. This secret may hold
+          # multiple ssh-keyscan lines: blue app host, green app host, data/media host.
           printf '%s\n' "${{ secrets.PRODUCTION_SSH_HOST_KEY }}" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
-      # Keep `compose.yaml` / `compose.prod.yaml` on the host in sync with the branch (overlays, healthchecks).
-      - name: Sync compose files
+      - name: Sync two-host deploy files
         env:
-          PRODUCTION_USER: ${{ secrets.PRODUCTION_SSH_USER }}
-          PRODUCTION_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
+          APP_HOST_BLUE: ${{ secrets.PRODUCTION_APP_HOST_BLUE }}
+          APP_HOST_GREEN: ${{ secrets.PRODUCTION_APP_HOST_GREEN }}
+          DATA_MEDIA_HOST: ${{ secrets.PRODUCTION_DATA_MEDIA_HOST }}
+          REMOTE_APP_DIR: ${{ vars.PRODUCTION_REMOTE_APP_DIR || 'apps/mitsailing' }}
         run: |
-          scp \
-            -i ~/.ssh/id_deploy \
-            -o BatchMode=yes \
-            -o ConnectTimeout=15 \
-            compose.yaml \
-            compose.prod.yaml \
-            "${PRODUCTION_USER}@${PRODUCTION_HOST}:~/apps/mitsailing/"
+          set -euo pipefail
+          for target in "$APP_HOST_BLUE" "$APP_HOST_GREEN" "$DATA_MEDIA_HOST"; do
+            ssh \
+              -i ~/.ssh/id_deploy \
+              -o BatchMode=yes \
+              -o ConnectTimeout=15 \
+              "$target" \
+              "mkdir -p '${REMOTE_APP_DIR}/docker/postgres' '${REMOTE_APP_DIR}/docker/nginx'"
 
-      - name: Sync deploy script
-        env:
-          PRODUCTION_USER: ${{ secrets.PRODUCTION_SSH_USER }}
-          PRODUCTION_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
-        run: |
-          scp \
-            -i ~/.ssh/id_deploy \
-            -o BatchMode=yes \
-            -o ConnectTimeout=15 \
-            bin/deploy.sh \
-            "${PRODUCTION_USER}@${PRODUCTION_HOST}:~/deploy.sh"
-          ssh \
-            -i ~/.ssh/id_deploy \
-            -o BatchMode=yes \
-            -o ConnectTimeout=15 \
-            "${PRODUCTION_USER}@${PRODUCTION_HOST}" \
-            "chmod +x ~/deploy.sh"
+            scp \
+              -i ~/.ssh/id_deploy \
+              -o BatchMode=yes \
+              -o ConnectTimeout=15 \
+              compose.prod.app-host.yaml \
+              compose.prod.data.yaml \
+              "$target:${REMOTE_APP_DIR}/"
+
+            scp \
+              -i ~/.ssh/id_deploy \
+              -o BatchMode=yes \
+              -o ConnectTimeout=15 \
+              docker/postgres/init.sql \
+              "$target:${REMOTE_APP_DIR}/docker/postgres/init.sql"
+
+            scp \
+              -i ~/.ssh/id_deploy \
+              -o BatchMode=yes \
+              -o ConnectTimeout=15 \
+              docker/nginx/media.conf \
+              "$target:${REMOTE_APP_DIR}/docker/nginx/media.conf"
+          done
 
       - name: Release
         env:
-          PRODUCTION_USER: ${{ secrets.PRODUCTION_SSH_USER }}
-          PRODUCTION_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
+          APP_HOST_BLUE: ${{ secrets.PRODUCTION_APP_HOST_BLUE }}
+          APP_HOST_GREEN: ${{ secrets.PRODUCTION_APP_HOST_GREEN }}
+          DATA_MEDIA_HOST: ${{ secrets.PRODUCTION_DATA_MEDIA_HOST }}
           IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
-        # The remote side enforces `command="deploy.sh ..."` in
-        # authorized_keys, so whatever we send here is re-parsed by the
-        # deploy script. The script rejects anything that isn't an allowed
-        # deploy command.
+          REMOTE_APP_DIR: ${{ vars.PRODUCTION_REMOTE_APP_DIR || 'apps/mitsailing' }}
         run: |
-          ssh \
-            -i ~/.ssh/id_deploy \
-            -o BatchMode=yes \
-            -o ConnectTimeout=15 \
-            "${PRODUCTION_USER}@${PRODUCTION_HOST}" \
-            "~/deploy.sh release ${IMAGE_TAG}"
+          chmod +x bin/deploy-two-host.sh
+          ./bin/deploy-two-host.sh release "$IMAGE_TAG"

@@ -2,6 +2,7 @@ import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { CmsMediaProcessingQueue } from '@/worker/cmsMediaProcessingJob';
 
 const update = vi.fn();
 const findUnique = vi.fn();
@@ -44,7 +45,7 @@ describe('cms media processing job', () => {
   it('enqueues processing jobs with stable asset ids', async () => {
     const { enqueueCmsMediaProcessingJob } =
       await import('@/worker/cmsMediaProcessingJob');
-    const add = vi.fn( async () => Promise.resolve());
+    const add = vi.fn<CmsMediaProcessingQueue['add']>().mockResolvedValue(null);
 
     await enqueueCmsMediaProcessingJob({ add }, { assetId: 'asset-1' });
 

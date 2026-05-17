@@ -1,30 +1,25 @@
-import { connection } from 'next/server';
+import { NextResponse } from 'next/server';
 import { Env } from '@/libs/Env';
 import { isAuthorizedHealthRequest } from '@/libs/health/auth';
 import { healthNoStoreHeaders } from '@/libs/health/constants';
+import type { ReadinessMode } from '@/libs/health/readiness';
 import { getReadinessHealth } from '@/libs/health/readiness';
+import { safeConnection } from '@/libs/health/utils';
 
 export const runtime = 'nodejs';
-
-async function safeConnection(): Promise<void> {
-  try {
-    await connection();
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : '';
-    if (message.includes('outside a request scope')) {
-      return;
-    }
-    throw error;
-  }
-}
 
 function unauthorizedResponse(includeBody: boolean) {
   const responseInit = { status: 401, headers: healthNoStoreHeaders };
   if (!includeBody) {
-    return new Response(null, responseInit);
+    return new NextResponse(null, responseInit);
   }
 
-  return Response.json({ status: 'unauthorized' }, responseInit);
+  return NextResponse.json({ status: 'unauthorized' }, responseInit);
+}
+
+function readinessModeForRequest(request: Request): ReadinessMode {
+  const requestedMode = new URL(request.url).searchParams.get('mode');
+  return requestedMode === 'service' ? 'service' : 'public';
 }
 
 async function readyResponse(params: {
@@ -43,17 +38,19 @@ async function readyResponse(params: {
   // Tie readiness to the request so Prisma/db work isn't incorrectly cached.
   await safeConnection();
 
-  const health = await getReadinessHealth();
+  const health = await getReadinessHealth({
+    mode: readinessModeForRequest(params.request),
+  });
   const responseInit = {
     status: health.status === 'ok' ? 200 : 503,
     headers: healthNoStoreHeaders,
   };
 
   if (!params.includeBody) {
-    return new Response(null, responseInit);
+    return new NextResponse(null, responseInit);
   }
 
-  return Response.json(health, responseInit);
+  return NextResponse.json(health, responseInit);
 }
 
 export async function GET(request: Request) {

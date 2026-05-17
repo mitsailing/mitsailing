@@ -12,6 +12,50 @@ daemon survives logout/reboot (see below).
 Ingress in this repo is **Cloudflare Tunnel** (`cloudflared` in
 `compose.prod.yaml`) so the host does not need inbound firewall ports for HTTP.
 
+## Target production architecture
+
+The target production topology is **two app hosts behind a proxy/load balancer**
+(Cloudflare, a reverse proxy, or equivalent) plus **one Docker data/media
+server**. The data/media server runs Postgres, Redis, the upload service, the
+BullMQ worker, and static media nginx.
+
+This gives zero-downtime app deployments and resilience to one app host going
+away. It is **not** full data-tier high availability: Postgres, Redis, media
+writes, media serving, and the upload service still depend on the single
+data/media server.
+
+Role split:
+
+| Role | Runs |
+| --- | --- |
+| App host A / app host B | Next.js app containers behind the public proxy/load balancer |
+| Data/media server | `postgres`, `redis`, upload service, `worker`, static media nginx |
+
+Media storage is local to the data/media server. Do **not** add R2, S3, MinIO,
+or another object store for this architecture. Uploaded media lives under:
+
+```text
+/srv/mitsailing-data/cms-media
+```
+
+Upload flow:
+
+1. The browser asks an app host to create an upload session.
+2. The browser uploads bytes directly to the data/media server upload service.
+3. The app host finalizes the session and enqueues BullMQ processing.
+4. The worker moves validated files into ready media paths under
+   `/srv/mitsailing-data/cms-media`.
+5. Static media nginx on the data/media server serves ready media.
+
+The app hosts only create/finalize sessions and enqueue BullMQ work; upload
+request bodies do not stream through the app hosts. That prevents app deploys
+or app-host cutovers from interrupting active upload bodies.
+
+Remaining upload limitation: the current direct PUT upload path is durable
+across app-host deploys, but it is not resumable after a browser, client
+network, or data/media-server upload connection interruption. Large uploads must
+restart unless a resumable protocol is added later.
+
 ---
 
 ## What you need on the server
@@ -51,29 +95,48 @@ for your UID, or accept starting Docker after login.
 On the server as your deploy user:
 
 ```bash
-mkdir -p ~/apps/mitsailing/docker/postgres
+mkdir -p ~/apps/mitsailing/docker/postgres ~/apps/mitsailing/docker/nginx
 cd ~/apps/mitsailing
 
 # From a clone of this repo on your laptop, scp or cp:
-#   compose.yaml compose.prod.yaml docker/postgres/init.sql bin/deploy.sh
+#   compose.yaml compose.prod.yaml compose.prod.app-host.yaml
+#   compose.prod.data.yaml docker/postgres/init.sql docker/nginx/media.conf
+#   bin/deploy.sh bin/deploy-two-host.sh
 # Example from your workstation:
-#   scp compose.yaml compose.prod.yaml YOUR_USER@YOUR_HOST:~/apps/mitsailing/
+#   scp compose.yaml compose.prod*.yaml YOUR_USER@YOUR_HOST:~/apps/mitsailing/
 #   scp docker/postgres/init.sql YOUR_USER@YOUR_HOST:~/apps/mitsailing/docker/postgres/
-#   scp bin/deploy.sh YOUR_USER@YOUR_HOST:~/deploy.sh
+#   scp docker/nginx/media.conf YOUR_USER@YOUR_HOST:~/apps/mitsailing/docker/nginx/
+#   scp bin/deploy*.sh YOUR_USER@YOUR_HOST:~/
 
-chmod +x ~/deploy.sh
+chmod +x ~/deploy.sh ~/deploy-two-host.sh
 ```
 
 `bin/deploy.sh` defaults to `DEPLOY_DIR=$HOME/apps/mitsailing`. If you use a
 different path, set `DEPLOY_DIR` in the `authorized_keys` line (see below) or
-edit the script.
+edit the script. For the two-app-host topology, `bin/deploy-two-host.sh` is a
+controller script run by CI or an operator and SSHs into both app hosts plus
+the data/media server.
 
-### 3. Configure `.env.production`
+### 3. Configure production env files
+
+For the two-app-host topology, copy `.env.production.example` to
+`.env.production.app-host` on each app host and copy
+`.env.production.data.example` to `.env.production.data` on the data/media
+server. The legacy single-host compose path can still use `.env.production`.
 
 ```bash
+# On each app host
 cd ~/apps/mitsailing
-cp /path/to/repo/.env.production.example .env.production
-$EDITOR .env.production
+cp /path/to/repo/.env.production.example .env.production.app-host
+mkdir -p .deploy
+printf 'false\n' > .deploy/traffic-enabled
+$EDITOR .env.production.app-host
+
+# On the data/media server
+cd ~/apps/mitsailing
+cp /path/to/repo/.env.production.data.example .env.production.data
+cp /path/to/repo/.env.production.worker.example .env.production.worker
+$EDITOR .env.production.data
 ```
 
 Fill at least:
@@ -81,14 +144,12 @@ Fill at least:
 - `BETTER_AUTH_SECRET` (32+ random chars)
 - `HEALTHCHECK_SECRET` (32+ random chars; used only by protected readiness
   checks, not by public `/api/health/live`)
-- `DATABASE_URL` — must match Postgres in Compose: user `postgres`, host
-  `postgres`, password `POSTGRES_PASSWORD`. Production defaults to database
-  name **`mitsailing_prod`** (`compose.prod.yaml`). If your production data
-  directory was created earlier with `dev_db`, keep `POSTGRES_DB=dev_db` and
-  point `DATABASE_URL` at `dev_db` until you migrate.
+- `DATABASE_URL` — on app hosts, point this at the data/media server private
+  IP or private DNS name. On the data/media server, use Compose host
+  `postgres`. Production defaults to database name **`mitsailing_prod`**.
 - `POSTGRES_PASSWORD` — strong password; same value embedded in `DATABASE_URL`
-- `REDIS_URL` — e.g. `redis://redis:6379` for the BullMQ **worker** service
-  (`compose.yaml` / `compose.prod.yaml`)
+- `REDIS_URL` — on app hosts, point this at the data/media server private IP
+  or private DNS name. On the data/media server, use `redis://redis:6379`.
 - Optional **`DEPLOYMENT_VERSION`** — same string on every web container when
   using rolling deploys or multiple replicas (wired to Next.js `deploymentId`;
   image tag or git SHA is typical).
@@ -102,7 +163,9 @@ Fill at least:
   into the image by GitHub Actions (`deploy.yml` `build-arg`); the production
   host’s `.env.production` should use the **same** value for runtime `Env`
   (the host file is **not** read during the CI image build).
-- `CLOUDFLARE_TUNNEL_TOKEN` from the Cloudflare Zero Trust dashboard
+- `HOST_TRAFFIC_STATE_FILE=/run/mitsailing/traffic-enabled` on app hosts; the
+  deploy script flips the mounted `.deploy/traffic-enabled` file without
+  restarting the app so the load balancer can drain/promote hosts cleanly.
 - `RESEND_API_KEY`, `EMAIL_FROM`, `SUPPORT_EMAIL` (real mail; there is no
   Mailpit in production)
 
@@ -148,16 +211,27 @@ Set `LEGACY_MYSQL_PASSWORD` for the read-only `dock_readonly` user (host
 `sailing.pavilion.lan:3306`, database `sailing` — fixed in app code). Do not
 commit the filled worker env file.
 
-**Enable / disable:** Set `LEGACY_MYSQL_SYNC_ENABLED=true` only after MySQL
+**Enable / disable:** Production cron is disabled by env right now. Set
+`LEGACY_MYSQL_SYNC_ENABLED=true` on the worker/data-server env only after MySQL
 connectivity is confirmed (example file ships with `false`). That is the master
 switch — do not blank or comment out `LEGACY_MYSQL_SYNC_CRON` to turn sync off.
-When disabled, the worker removes any existing BullMQ scheduler on startup.
+BullMQ runs jobs, but cron scheduling still needs this env flag. When disabled,
+the worker removes any existing BullMQ scheduler on startup.
 
 **Schedule:** When enabled, the worker registers a BullMQ job scheduler (not
 system `crontab`). Default `LEGACY_MYSQL_SYNC_CRON` is hourly at minute 0
 (`"0 0 * * * *"` — six fields, seconds first). Quote the value in
-`.env.production.worker` so loaders keep the full expression. To change the
-schedule, edit that file and recreate the worker:
+`.env.production.worker` so loaders keep the full expression.
+
+To turn production cron on later, edit the worker/data-server env file:
+
+```dotenv
+LEGACY_MYSQL_SYNC_ENABLED=true
+LEGACY_MYSQL_SYNC_CRON="0 0 * * * *"
+```
+
+Use a different quoted six-field cron value if needed. Then recreate/restart
+only the worker container:
 
 ```bash
 docker compose -f compose.yaml -f compose.prod.yaml \
@@ -214,19 +288,17 @@ volumes:
 /srv/mitsailing-data/cms-media
 ```
 
-From your laptop, run the bootstrap script once. It validates the rendered
-production Compose config locally, creates the remote directories with `sudo`,
-prepares the Postgres and Redis bind mounts with the official image users,
-locks down `.env.production` to mode `600` when it exists, copies
-`docker/postgres/init.sql`, sets that host file readable, and verifies
-ownership/mode. The init SQL is mounted read-only by `compose.prod.yaml`:
+For the two-host topology, create these directories on the data/media server.
+The existing bootstrap script is still useful for the legacy single-host stack,
+but it is not a full two-host setup because it targets `compose.prod.yaml`.
+The init SQL is mounted read-only by `compose.prod.data.yaml`:
 
 ```bash
 bin/bootstrap-production-server.sh
 ```
 
-Check the local Compose validation and resolved defaults without touching the
-server:
+If you are maintaining the legacy single-host stack, you can still check the
+local Compose validation and resolved defaults without touching the server:
 
 ```bash
 bin/bootstrap-production-server.sh --check-only
@@ -268,19 +340,20 @@ sudo chmod 700 /srv/mitsailing-data/redis
 sudo chmod 700 /srv/mitsailing-data/cms-media
 ```
 
-`bin/deploy.sh` requires `/srv/mitsailing-data` to exist and be writable by the
-deploy user. It creates missing `postgres`, `redis`, and `cms-media`
-subdirectories, then verifies the running containers use bind mounts at:
+The data/media server requires `/srv/mitsailing-data` to exist and be writable
+by the deploy user before `compose.prod.data.yaml` starts. Create the
+`postgres`, `redis`, and `cms-media` subdirectories, then verify the running
+containers use bind mounts at:
 
 | Host path | Container path | Services |
 | --- | --- | --- |
 | `/srv/mitsailing-data/postgres` | `/var/lib/postgresql` | `postgres` |
 | `/srv/mitsailing-data/redis` | `/data` | `redis` |
-| `/srv/mitsailing-data/cms-media` | `/var/lib/mitsailing/cms-media` | `web_blue`, `web_green`, `worker` |
+| `/srv/mitsailing-data/cms-media` | `/srv/mitsailing-data/cms-media` | `upload-service`, `worker`, `media` |
 
-The deploy script also prepares CMS media for the app runtime UID/GID
-`1001:1001` and verifies write access from `postgres`, `redis`, the active web
-color, and `worker`.
+CMS media must be writable by the upload service and worker containers and
+readable by the static media nginx container. App hosts do not mount this
+folder.
 
 Because these are ordinary host directories, `docker compose down -v` can remove
 Compose-managed development volumes, but it does **not** delete
@@ -313,52 +386,70 @@ Generate a **dedicated** key pair for GitHub Actions (not your personal key):
 ssh-keygen -t ed25519 -f ./mitsailing-deploy -C 'mitsailing gh actions deploy' -N ''
 ```
 
-On the server, add the **public** key to `~/.ssh/authorized_keys` with a
-`command=` restriction so that key can only run this script's
-`release <ref>` / `rollback <previous|ref>` commands. Use a
-**literal absolute path** (OpenSSH does not expand `$HOME` here):
+On all three production hosts, add the **public** key to `~/.ssh/authorized_keys`
+for the deploy user. The two-host controller must run SSH, `scp`,
+`docker pull`, `docker compose`, and small file writes on each host, so do not
+use the legacy single-command `deploy.sh` restriction for this key. Keep the
+usual non-interactive restrictions:
 
 ```
-command="/home/YOUR_USER/deploy.sh $SSH_ORIGINAL_COMMAND",no-pty,no-port-forwarding,no-agent-forwarding,no-X11-forwarding,no-user-rc ssh-ed25519 AAAA...rest-of-public-key... comment
+no-pty,no-port-forwarding,no-agent-forwarding,no-X11-forwarding,no-user-rc ssh-ed25519 AAAA...rest-of-public-key... comment
 ```
 
-If `deploy.sh` lives elsewhere, change the path before `$SSH_ORIGINAL_COMMAND`.
+If you keep the legacy single-host `bin/deploy.sh` path for another environment,
+that environment can still use a forced-command deploy key. Do not reuse that
+restricted key for the two-host controller.
 
 Keep your **personal** SSH key in `authorized_keys` **without** `command=` so
 you can still open a normal shell.
 
-### 7. First bring-up (Postgres + Redis, then release)
+### 7. First bring-up (data/media server, app hosts, then release)
 
-Postgres and Redis must exist and be healthy before the app and worker
-containers start.
+Postgres, Redis, the upload service, static media nginx, and the worker run on
+the data/media server. Each app host runs the stateless `web` service from
+`compose.prod.app-host.yaml`.
 
 ```bash
+# On the data/media server
 cd ~/apps/mitsailing
+docker compose -f compose.prod.data.yaml \
+  --env-file .env.production.data --env-file .env.production.worker \
+  up -d postgres redis upload-service media worker
 
-# First time only — initializes host bind-mounted data directories and runs init.sql
-docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production up -d postgres redis
+# On each app host
+cd ~/apps/mitsailing
+printf 'false\n' > .deploy/traffic-enabled
+APP_IMAGE=ghcr.io/mitsailing/mitsailing:latest docker compose \
+  -f compose.prod.app-host.yaml \
+  --env-file .env.production.app-host up -d web
+```
 
-docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production ps
-# Wait until postgres and redis are healthy, then:
+After the containers are healthy, run the first release from CI or an operator
+machine that can SSH to all three hosts:
 
-# Pin the same image tag CI will send (use `latest` or a concrete sha- tag from GHCR)
-~/deploy.sh release latest
+```bash
+APP_HOST_BLUE=deploy@app-blue.example \
+APP_HOST_GREEN=deploy@app-green.example \
+DATA_MEDIA_HOST=deploy@app-data.example \
+bin/deploy-two-host.sh release latest
 ```
 
 After the first successful deploy, day-to-day updates are **only** from GitHub
 (`push` to `main` or **Actions → Deploy (production) → Run workflow**).
 
-Release jobs **scp** `compose.yaml` and `compose.prod.yaml` to
-`~/apps/mitsailing/` on each run so production Compose overlays (for example
-worker healthchecks and nginx proxy shape) stay aligned with the branch, not
-only whatever was copied at initial bootstrap.
+Release jobs **scp** `compose.prod.app-host.yaml`, `compose.prod.data.yaml`,
+`docker/postgres/init.sql`, and `docker/nginx/media.conf` to each production
+host on every run so production Docker shape stays aligned with the branch.
 
-Production releases are blue/green behind the internal `app` nginx proxy. The
-release command runs Prisma migrations before proxy cutover while the previous
-web color continues serving traffic. Keep migrations backward-compatible across
-at least one release: add before using, avoid same-release destructive
-drops/renames, and remove old columns only after deployed code no longer reads
-them.
+Production releases are host-level blue/green. The release command writes
+`.env.image` on both app hosts and the data/media server, runs Prisma migrations
+once from the data/media server image, recreates the data/media worker, checks
+the inactive app host with `/api/health/ready?mode=service`, flips the inactive
+host’s `.deploy/traffic-enabled` file to `true`, waits for public readiness,
+then drains the previous app host by writing `false` to its traffic file. Keep
+migrations backward-compatible across at least one release: add before using,
+avoid same-release destructive drops/renames, and remove old columns only after
+deployed code no longer reads them.
 
 Expand/contract checklist (for schema changes):
 - Add new columns/tables/enums values in the first migration; backfill as needed.
@@ -366,11 +457,13 @@ Expand/contract checklist (for schema changes):
 - Only after the next release (when all instances are on the new code): contract
   (drop/rename old columns, remove legacy enum labels, etc.).
 
-Health readiness (`/api/health/ready`) uses the app’s Prisma client/`pg` pool to run
-a `SELECT 1` Postgres check. Because the deploy runs with two web containers
-(`web_blue` + `web_green`) plus the worker during cutover, make sure Postgres
-`max_connections` comfortably exceeds total concurrent Prisma clients and keep
-the readiness probe bounded (it applies a server-side `statement_timeout`).
+Health readiness (`/api/health/ready`) checks Postgres, Redis, the data/media
+upload service, static media nginx, and the host traffic gate. `mode=service`
+skips only the traffic gate so deploy automation can validate an inactive host
+before it receives public traffic. Make sure Postgres `max_connections`
+comfortably exceeds concurrent Prisma clients across both app hosts and the
+worker; readiness probes are bounded and apply a server-side
+`statement_timeout`.
 
 ### 8. GitHub repository configuration
 
@@ -382,10 +475,17 @@ Add secrets used by `.github/workflows/deploy.yml`:
 
 | Secret | Value |
 | --- | --- |
-| `PRODUCTION_SSH_USER` | Linux username (e.g. `deploy`) |
-| `PRODUCTION_SSH_HOST` | Hostname or IP |
+| `PRODUCTION_APP_HOST_BLUE` | SSH target for the blue app host, e.g. `deploy@app-blue.example` |
+| `PRODUCTION_APP_HOST_GREEN` | SSH target for the green app host, e.g. `deploy@app-green.example` |
+| `PRODUCTION_DATA_MEDIA_HOST` | SSH target for the data/media server, e.g. `deploy@app-data.example` |
 | `PRODUCTION_SSH_PRIVATE_KEY` | Full PEM of **mitsailing-deploy** private key |
-| `PRODUCTION_SSH_HOST_KEY` | One line from `ssh-keyscan YOUR_HOST` |
+| `PRODUCTION_SSH_HOST_KEY` | One or more pinned lines from `ssh-keyscan` for all three production hosts |
+
+Optional environment variable:
+
+| Variable | Value |
+| --- | --- |
+| `PRODUCTION_REMOTE_APP_DIR` | Remote app directory relative to the deploy user home; defaults to `apps/mitsailing` |
 
 Optional **PR preview** host (`.github/workflows/preview.yml`) — use **repository**
 secrets so jobs can run without environment protection deadlocks:
@@ -447,6 +547,10 @@ production database.
   ssh deployer@sailing-dock.mit.edu '~/deploy.sh rollback sha-abc123def456'
   ```
 
+  Blue/green rollback or switching traffic back to the other app host can
+  recover app code quickly. It cannot undo already-applied DB migrations,
+  deleted media, data corruption, or non-backward-compatible schema changes.
+
 - **Logs:**
 
   ```bash
@@ -460,6 +564,54 @@ production database.
   ```bash
   docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production ps
   ```
+
+## Operations checklist
+
+- **Deploy:** confirm both app hosts can reach Postgres, Redis, the upload
+  service, and media nginx on the data/media server; deploy the inactive
+  app host first; wait for readiness; switch proxy/load-balancer traffic; then
+  update the other app host.
+- **Rollback:** switch proxy/load-balancer traffic back to the previous healthy
+  app host or previous blue/green color; do not assume rollback reverses
+  migrations, media deletes, data corruption, or incompatible schema changes.
+- **File permissions:** keep `/srv/mitsailing-data` and subdirectories owned by
+  the deploy/runtime user expected by Docker; verify `cms-media` is writable by
+  the upload service and worker, and readable by static media nginx.
+- **Postgres:** keep it on the data/media server; verify health before app
+  cutover; keep migrations backward-compatible across at least one release; back
+  up before risky schema changes.
+- **Redis:** keep append-only persistence enabled; verify worker connectivity
+  and BullMQ queues after deploy; remember cron scheduling requires
+  `LEGACY_MYSQL_SYNC_ENABLED=true`.
+- **Media storage:** store uploads only in `/srv/mitsailing-data/cms-media`; do
+  not configure R2, S3, or MinIO; verify direct browser uploads hit the
+  data/media server upload service, not an app host.
+- **Backups:** back up Postgres, Redis persistence if needed for queue recovery,
+  and `/srv/mitsailing-data/cms-media`; test restores before relying on the
+  backup procedure.
+
+## Post-push PR verification loop
+
+After this branch is pushed and a PR exists, hand off PR completion to a fresh
+subagent using the installed `finish-pr-context7` skill at
+`/Users/andrewkelley/.codex/skills/finish-pr-context7/SKILL.md`. Do not run the
+loop in the implementation-planning session.
+
+The subagent should:
+
+- Resolve the PR with GitHub/`gh`.
+- Inspect failing checks first.
+- Fix checks before reading or addressing review comments.
+- Only after checks have no failures, fetch unresolved actionable PR review
+  comments.
+- Use Context7 exactly as the skill requires for each library, framework, SDK,
+  CLI, or API fix cluster.
+- Run `npm run check:types`, `npm run lint`, and `npm run test`; also run
+  `npm run check:i18n` when copy or translation keys change.
+- Commit and push follow-up fixes with Conventional Commit messages.
+- Poll or schedule a heartbeat if required checks are pending.
+- Stop only when required checks pass and no unresolved actionable comments
+  remain, or when only documented non-actionable items remain.
 
 ---
 

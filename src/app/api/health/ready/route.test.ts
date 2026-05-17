@@ -19,12 +19,12 @@ async function importRoute() {
   return route;
 }
 
-function readyRequest(secret?: string) {
+function readyRequest(secret?: string, path = '/api/health/ready') {
   const headers = new Headers();
   if (secret) {
     headers.set('authorization', `Bearer ${secret}`);
   }
-  return new Request('https://example.test/api/health/ready', { headers });
+  return new Request(`https://example.test${path}`, { headers });
 }
 
 beforeEach(() => {
@@ -71,7 +71,20 @@ describe('GET /api/health/ready', () => {
     expect(response.status).toBe(200);
     expect(response.headers.get('cache-control')).toContain('no-store');
     expect(body.status).toBe('ok');
-    expect(getReadinessHealthMock).toHaveBeenCalledTimes(1);
+    expect(getReadinessHealthMock).toHaveBeenCalledWith({ mode: 'public' });
+  });
+
+  it('passes service readiness mode', async () => {
+    const { GET } = await importRoute();
+    const response = await GET(
+      readyRequest(
+        'ready-secret-that-is-long-enough-000',
+        '/api/health/ready?mode=service'
+      )
+    );
+
+    expect(response.status).toBe(200);
+    expect(getReadinessHealthMock).toHaveBeenCalledWith({ mode: 'service' });
   });
 
   it('returns unavailable readiness status', async () => {

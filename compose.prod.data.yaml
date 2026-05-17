@@ -1,0 +1,159 @@
+name: mitsailing-data
+
+networks:
+  internal:
+    driver: bridge
+
+x-app-image: &app-image
+  image: ${APP_IMAGE}
+  restart: unless-stopped
+  networks:
+    - internal
+  env_file:
+    - path: .env.production.data
+      required: false
+    - path: .env.production.worker
+      required: false
+    - path: .env.image
+      required: false
+  environment:
+    CMS_MEDIA_ROOT: /srv/mitsailing-data/cms-media
+    MEDIA_STORAGE_ROOT: /srv/mitsailing-data/cms-media
+  logging:
+    driver: json-file
+    options:
+      max-size: '10m'
+      max-file: '5'
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    networks:
+      - internal
+    env_file:
+      - path: .env.production.data
+        required: false
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-mitsailing_prod}
+      POSTGRES_USER: ${POSTGRES_USER:-mitsailing}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - '${DATA_PRIVATE_BIND_HOST:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - type: bind
+        source: /srv/mitsailing-data/postgres
+        target: /var/lib/postgresql
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U "$${POSTGRES_USER:-mitsailing}" -d "$${POSTGRES_DB:-mitsailing_prod}"',
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '5'
+
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    networks:
+      - internal
+    ports:
+      - '${DATA_PRIVATE_BIND_HOST:-127.0.0.1}:${REDIS_PORT:-6379}:6379'
+    volumes:
+      - type: bind
+        source: /srv/mitsailing-data/redis
+        target: /data
+    command: >-
+      redis-server
+      --appendonly yes
+      --maxmemory ${REDIS_MAXMEMORY:-256mb}
+      --maxmemory-policy noeviction
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '5'
+
+  upload-service:
+    <<: *app-image
+    command: ['node', 'upload-service.mjs']
+    ports:
+      - '${UPLOAD_SERVICE_BIND_HOST:-127.0.0.1}:${UPLOAD_SERVICE_PORT:-3001}:3000'
+    volumes:
+      - type: bind
+        source: /srv/mitsailing-data/cms-media
+        target: /srv/mitsailing-data/cms-media
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'node -e "fetch(''http://127.0.0.1:3000/api/health/live'').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"',
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+  worker:
+    <<: *app-image
+    command: ['node', 'worker.mjs']
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - type: bind
+        source: /srv/mitsailing-data/cms-media
+        target: /srv/mitsailing-data/cms-media
+    healthcheck:
+      test: ['CMD', 'node', 'worker-redis-healthcheck.cjs']
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    stop_grace_period: 30s
+
+  media:
+    image: nginx:1.29-alpine
+    restart: unless-stopped
+    networks:
+      - internal
+    ports:
+      - '${MEDIA_HTTP_BIND_HOST:-127.0.0.1}:${MEDIA_HTTP_PORT:-8080}:8080'
+    volumes:
+      - type: bind
+        source: ./docker/nginx/media.conf
+        target: /etc/nginx/conf.d/default.conf
+        read_only: true
+      - type: bind
+        source: /srv/mitsailing-data/cms-media
+        target: /srv/mitsailing-data/cms-media
+        read_only: true
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'wget --quiet --tries=1 --spider http://127.0.0.1:8080/healthz',
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '5'

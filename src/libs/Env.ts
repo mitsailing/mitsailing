@@ -23,6 +23,7 @@ type FinalEnv = {
   NEXT_SERVER_ACTIONS_ENCRYPTION_KEY?: string;
   REDIS_URL?: string;
   TEST_DATABASE_URL?: string;
+  HOST_TRAFFIC_STATE_FILE?: string;
 };
 
 function isStagingOrProduction(env: FinalEnv): boolean {
@@ -198,6 +199,7 @@ export const Env = createEnv({
 
     HOST_COLOR: z.enum(['blue', 'green']).optional(),
     HOST_TRAFFIC_ENABLED: z.enum(['true', 'false']).default('true'),
+    HOST_TRAFFIC_STATE_FILE: z.string().min(1).optional(),
     MEDIA_PUBLIC_BASE_URL: z.url().optional(),
     MEDIA_STORAGE_ROOT: z.string().min(1).default('local/cms-media'),
     MEDIA_UPLOAD_BASE_URL: z.url().optional(),
@@ -270,6 +272,7 @@ export const Env = createEnv({
     CMS_MEDIA_ROOT: process.env.CMS_MEDIA_ROOT,
     HOST_COLOR: process.env.HOST_COLOR,
     HOST_TRAFFIC_ENABLED: process.env.HOST_TRAFFIC_ENABLED,
+    HOST_TRAFFIC_STATE_FILE: process.env.HOST_TRAFFIC_STATE_FILE,
     MEDIA_PUBLIC_BASE_URL: process.env.MEDIA_PUBLIC_BASE_URL,
     MEDIA_STORAGE_ROOT: process.env.MEDIA_STORAGE_ROOT,
     MEDIA_UPLOAD_BASE_URL: process.env.MEDIA_UPLOAD_BASE_URL,

@@ -2035,6 +2035,35 @@ git add docs/deploy.md
 git commit -m "docs: add zero downtime docker rehearsal"
 ```
 
+### Task 15: Hand Off Post-push PR Verification
+
+**Files:**
+- None.
+
+- [ ] **Step 1: Start a fresh PR verification subagent after push**
+
+After this branch has been committed and pushed and a PR exists, start a fresh
+subagent using the installed `finish-pr-context7` skill at
+`/Users/andrewkelley/.codex/skills/finish-pr-context7/SKILL.md`. This is a
+post-push handoff step, not an action to run during implementation.
+
+The subagent should:
+
+- Resolve the PR with GitHub/`gh` after push.
+- Poll GitHub for failing checks and all unresolved/actionable PR comments.
+- Inspect failing checks first and fix them before reading review comments.
+- Once checks are non-failing, fetch unresolved actionable PR comments/review
+  threads.
+- Use Context7 as required by the skill for library, framework, SDK, CLI, or
+  API fix clusters.
+- Run `npm run check:types`, `npm run lint`, and `npm run test`; add
+  `npm run check:i18n` when copy or i18n changes.
+- Commit and push follow-up fixes.
+- If checks are pending, poll or create a heartbeat follow-up rather than
+  keeping a huge chat context open.
+- Stop only when required checks pass and no unresolved actionable comments
+  remain, or when remaining items are documented as non-actionable.
+
 ## Acceptance Criteria
 
 - Postgres runs in Docker on the data/media server with persistent storage under `/srv/mitsailing-data/postgres`.

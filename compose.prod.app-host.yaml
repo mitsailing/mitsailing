@@ -1,0 +1,48 @@
+name: mitsailing-app-host
+
+networks:
+  internal:
+    driver: bridge
+
+x-web: &web
+  image: ${APP_IMAGE}
+  restart: unless-stopped
+  networks:
+    - internal
+  env_file:
+    - path: .env.production
+      required: false
+    - path: .env.production.app-host
+      required: false
+    - path: .env.image
+      required: false
+  environment:
+    HOST_TRAFFIC_STATE_FILE: /run/mitsailing/traffic-enabled
+  command: ['node', 'server.js']
+  volumes:
+    - type: bind
+      source: ./.deploy/traffic-enabled
+      target: /run/mitsailing/traffic-enabled
+      read_only: true
+  healthcheck:
+    test:
+      [
+        'CMD-SHELL',
+        'node -e "fetch(''http://127.0.0.1:3000/api/health/live'').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"',
+      ]
+    interval: 30s
+    timeout: 5s
+    start_period: 30s
+    retries: 3
+  stop_grace_period: 30s
+  logging:
+    driver: json-file
+    options:
+      max-size: '10m'
+      max-file: '5'
+
+services:
+  web:
+    <<: *web
+    ports:
+      - '${APP_HOST_BIND_HOST:-127.0.0.1}:${WEB_PORT:-3000}:3000'

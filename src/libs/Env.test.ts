@@ -146,6 +146,7 @@ describe('Env legacy MySQL sync validation', () => {
     );
     vi.stubEnv('HEALTHCHECK_SECRET', 'x'.repeat(32));
     vi.stubEnv('HOST_TRAFFIC_ENABLED', 'false');
+    vi.stubEnv('HOST_TRAFFIC_STATE_FILE', '/run/mitsailing/traffic-enabled');
     vi.stubEnv('MEDIA_PUBLIC_BASE_URL', 'https://media.mitsailing.com');
     vi.stubEnv('MEDIA_STORAGE_ROOT', '/srv/mitsailing-data/cms-media');
     vi.stubEnv('MEDIA_UPLOAD_BASE_URL', 'https://uploads.mitsailing.com');
@@ -159,6 +160,7 @@ describe('Env legacy MySQL sync validation', () => {
     const { Env } = await import('@/libs/Env');
 
     expect(Env.HOST_TRAFFIC_ENABLED).toBe('false');
+    expect(Env.HOST_TRAFFIC_STATE_FILE).toBe('/run/mitsailing/traffic-enabled');
     expect(Env.MEDIA_PUBLIC_BASE_URL).toBe('https://media.mitsailing.com');
     expect(Env.MEDIA_STORAGE_ROOT).toBe('/srv/mitsailing-data/cms-media');
     expect(Env.MEDIA_UPLOAD_BASE_URL).toBe('https://uploads.mitsailing.com');
