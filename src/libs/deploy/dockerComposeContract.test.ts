@@ -145,6 +145,14 @@ describe('production deploy script', () => {
     expect(deployScript).not.toContain('PRODUCTION_DATA_OWNER');
     expect(deployScript).not.toContain('PRODUCTION_DATA_GROUP');
   });
+
+  it('sets deploy state directory modes explicitly', () => {
+    expect(deployScript).toContain('ensure_deploy_state');
+    expect(deployScript).toContain('DEPLOY_STATE_DIR');
+    expect(deployScript).toContain('NGINX_STATE_DIR');
+    expect(deployScript).toContain('chmod 700 "$DEPLOY_STATE_DIR"');
+    expect(deployScript).toContain('chmod 700 "$NGINX_STATE_DIR"');
+  });
 });
 
 describe('local docker compose', () => {
@@ -213,6 +221,16 @@ describe('production media sync script', () => {
     expect(syncScript).toContain("const TAR_BIN = '/usr/bin/tar';");
     expect(syncScript).toContain('spawn(SSH_BIN');
     expect(syncScript).toContain('spawn(TAR_BIN');
+  });
+
+  it('removes child process listeners after waiting for close or error', () => {
+    expect(syncScript).toContain('waitForChildProcess');
+    expect(syncScript).toContain("options.child.on('close'");
+    expect(syncScript).toContain("options.child.on('error'");
+    expect(syncScript).toContain("options.child.removeListener('close'");
+    expect(syncScript).toContain("options.child.removeListener('error'");
+    expect(syncScript).not.toContain("once(options.child, 'close')");
+    expect(syncScript).not.toContain("once(options.child, 'error')");
   });
 
   it('uses an absolute mkdir command for local media roots', () => {

@@ -87,7 +87,9 @@ ensure_prereqs() {
 }
 
 ensure_deploy_state() {
-  mkdir -p -m 700 "$DEPLOY_STATE_DIR" "$NGINX_STATE_DIR"
+  mkdir -p "$DEPLOY_STATE_DIR" "$NGINX_STATE_DIR"
+  chmod 700 "$DEPLOY_STATE_DIR"
+  chmod 700 "$NGINX_STATE_DIR"
 }
 
 verify_bind_mount() {

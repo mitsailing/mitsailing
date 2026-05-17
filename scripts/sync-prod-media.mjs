@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 import { spawn, spawnSync } from 'node:child_process';
-import { once } from 'node:events';
 import path from 'node:path';
 import process from 'node:process';
 
@@ -388,23 +387,43 @@ async function extractRemoteReadyMedia(options) {
  * @returns {Promise<number | null>} Resolves with the exit code.
  */
 async function waitForChildProcess(options) {
-  const [codeOrError, signal] = await Promise.race([
-    once(options.child, 'close'),
-    once(options.child, 'error'),
-  ]);
-  if (codeOrError instanceof Error) {
-    throw codeOrError;
+  /** @type {PromiseWithResolvers<{ code: number | null; signal: NodeJS.Signals | null }>} */
+  const closeDeferred = Promise.withResolvers();
+  /** @type {PromiseWithResolvers<{ code: Error; signal: undefined }>} */
+  const errorDeferred = Promise.withResolvers();
+  /** @type {(code: number | null, signal: NodeJS.Signals | null) => void} */
+  const onClose = (code, signal) => {
+    closeDeferred.resolve({ code, signal });
+  };
+  /** @type {(error: Error) => void} */
+  const onError = (error) => {
+    errorDeferred.resolve({ code: error, signal: undefined });
+  };
+  options.child.on('close', onClose);
+  options.child.on('error', onError);
+  try {
+    /** @type {{ code: number | null | Error; signal: NodeJS.Signals | null | undefined }} */
+    const result = await Promise.race([
+      closeDeferred.promise,
+      errorDeferred.promise,
+    ]);
+    if (result.code instanceof Error) {
+      throw result.code;
+    }
+    if (result.signal) {
+      throw new Error(`${options.name} failed with signal ${result.signal}`);
+    }
+    if (typeof result.code === 'number') {
+      return result.code;
+    }
+    if (result.code === null) {
+      return null;
+    }
+    throw new TypeError(`${options.name} exited without a status code`);
+  } finally {
+    options.child.removeListener('close', onClose);
+    options.child.removeListener('error', onError);
   }
-  if (signal) {
-    throw new Error(`${options.name} failed with signal ${signal}`);
-  }
-  if (typeof codeOrError === 'number') {
-    return codeOrError;
-  }
-  if (codeOrError === null) {
-    return null;
-  }
-  throw new TypeError(`${options.name} exited without a status code`);
 }
 
 async function main() {
