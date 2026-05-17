@@ -21,4 +21,26 @@ describe('single host deploy script', () => {
     expect(script).toContain(`proxy_send_timeout ${deployDrainSeconds};`);
     expect(script).toContain(`proxy_read_timeout ${deployDrainSeconds};`);
   });
+
+  it('does not require sudo-owned production bind mounts', () => {
+    expect(script).not.toContain('/srv/mitsailing-data');
+    expect(script).not.toContain('ensure_production_data_dirs');
+    expect(script).not.toContain('ensure_cms_media_permissions');
+    expect(script).not.toContain('verify_bind_mount');
+  });
+
+  it('starts ingress and media services without recreating media during app releases', () => {
+    expect(script).toContain('ensure_ingress_services');
+    expect(script).toContain(
+      'compose up --detach --no-recreate postgres redis'
+    );
+    expect(script).toContain(
+      'compose up --detach --no-recreate postgres redis tusd media'
+    );
+    expect(script).toContain('compose up --detach --no-deps cloudflared');
+    expect(script).toContain('media-maintenance)');
+    expect(script).toContain('tusd-maintenance)');
+    expect(script).not.toMatch(/release_ref\(\)[\s\S]*--force-recreate tusd/u);
+    expect(script).not.toMatch(/release_ref\(\)[\s\S]*--force-recreate media/u);
+  });
 });

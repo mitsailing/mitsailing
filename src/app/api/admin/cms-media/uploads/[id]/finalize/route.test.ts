@@ -26,7 +26,7 @@ vi.mock('@/libs/DB', () => ({
 
 vi.mock('@/libs/Env', () => ({
   Env: {
-    MEDIA_UPLOAD_BASE_URL: 'https://uploads.mitsailing.com',
+    MEDIA_UPLOAD_BASE_URL: 'https://mitsailing.com',
   },
 }));
 
@@ -109,7 +109,7 @@ describe('cms media upload finalize route', () => {
     });
     expect(response.status).toBe(200);
     expect(fetchMock).toHaveBeenCalledWith(
-      'https://uploads.mitsailing.com/cms-media/uploads/asset-1',
+      'https://mitsailing.com/cms-media/uploads/asset-1',
       expect.objectContaining({ method: 'HEAD' })
     );
     expect(mocks.updateMany).toHaveBeenCalledWith(

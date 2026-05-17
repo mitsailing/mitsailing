@@ -208,7 +208,7 @@ function cmsMediaTusSessionResponse(props: CmsMediaUploadFixture): Response {
     asset: cmsMediaAssetFixture(props),
     upload: {
       byteSize,
-      endpoint: 'https://uploads.mitsailing.com/cms-media/uploads/',
+      endpoint: 'https://mitsailing.com/cms-media/uploads/',
       expiresAt: '2026-05-17T12:15:00.000Z',
       headers: { 'x-mitsailing-upload-token': 'header-token' },
       metadata: {
@@ -219,7 +219,7 @@ function cmsMediaTusSessionResponse(props: CmsMediaUploadFixture): Response {
         token: 'metadata-token',
       },
       protocol: 'tus',
-      url: `https://uploads.mitsailing.com/cms-media/uploads/${props.assetId}`,
+      url: `https://mitsailing.com/cms-media/uploads/${props.assetId}`,
     },
   });
 }
@@ -771,7 +771,7 @@ describe('AdminRichTextEditor media controls', () => {
         expect.objectContaining({
           file,
           session: expect.objectContaining({
-            endpoint: 'https://uploads.mitsailing.com/cms-media/uploads/',
+            endpoint: 'https://mitsailing.com/cms-media/uploads/',
             protocol: 'tus',
           }),
         })
@@ -804,7 +804,7 @@ describe('AdminRichTextEditor media controls', () => {
       expect.objectContaining({ method: 'POST' })
     );
     expect(fetchMock).not.toHaveBeenCalledWith(
-      'https://uploads.mitsailing.com/cms-media/uploads/asset-1',
+      'https://mitsailing.com/cms-media/uploads/asset-1',
       expect.objectContaining({ method: 'PUT' })
     );
     fetchMock.mockRestore();

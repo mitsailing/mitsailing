@@ -306,7 +306,7 @@ export async function getReadinessHealth(
     baseUrl: env.mediaPublicBaseUrl,
     checkers,
     method: 'GET',
-    path: '/healthz',
+    path: '/cms-media/healthz',
     required: isExternalDependencyRequired,
     timeoutMs,
   });

@@ -10,90 +10,117 @@ function composeVariable(value: string): string {
   return `${String.fromCodePoint(36)}{${value}}`;
 }
 
-describe('production docker compose split', () => {
-  const appHostCompose = readRepoFile('compose.prod.app-host.yaml');
-  const dataCompose = readRepoFile('compose.prod.data.yaml');
+describe('production docker compose', () => {
+  const productionCompose = readRepoFile('compose.prod.yaml');
   const mediaNginx = readRepoFile('docker/nginx/media.conf');
 
-  it('keeps durable services on the data and media server', () => {
-    expect(dataCompose).toContain('postgres:');
-    expect(dataCompose).toContain('redis:');
-    expect(dataCompose).toContain('tusd:');
-    expect(dataCompose).toContain('image: tusproject/tusd:v2.9.2');
-    expect(dataCompose).not.toContain('upload-service:');
-    expect(dataCompose).not.toContain('media-worker:');
-    expect(dataCompose).not.toContain('media-upload:');
-    expect(dataCompose).toContain('worker:');
-    expect(dataCompose).toContain("command: ['node', 'worker.mjs']");
-    expect(dataCompose).toContain('media:');
-    expect(dataCompose).toContain('docker/nginx/media.conf');
-    expect(dataCompose).toContain('source: /srv/mitsailing-data/postgres');
-    expect(dataCompose).toContain('source: /srv/mitsailing-data/redis');
+  it('defines one docker-only production stack', () => {
+    expect(productionCompose).toContain('app:');
+    expect(productionCompose).toContain('image: nginx:1.29-alpine');
+    expect(productionCompose).toContain('web_blue:');
+    expect(productionCompose).toContain('web_green:');
+    expect(productionCompose).toContain('worker:');
+    expect(productionCompose).toContain("command: ['node', 'worker.mjs']");
+    expect(productionCompose).toContain('tusd:');
+    expect(productionCompose).toContain('image: tusproject/tusd:v2.9.2');
+    expect(productionCompose).toContain('media:');
+    expect(productionCompose).toContain('cloudflared:');
+    expect(productionCompose).not.toContain('/srv/mitsailing-data');
+    expect(productionCompose).not.toContain('upload-service:');
+    expect(productionCompose).not.toContain('media-worker:');
+    expect(productionCompose).not.toContain('media-upload:');
   });
 
   it('uses one media storage path for upload processing and serving', () => {
-    expect(dataCompose).toContain(
-      'MEDIA_STORAGE_ROOT: /srv/mitsailing-data/cms-media'
+    expect(productionCompose).toContain(
+      'MEDIA_STORAGE_ROOT: /var/lib/mitsailing/cms-media'
     );
-    expect(dataCompose).toContain('source: /srv/mitsailing-data/cms-media');
-    expect(dataCompose).toContain('target: /srv/mitsailing-data/cms-media');
-    expect(mediaNginx).toContain('location = /healthz');
-    expect(mediaNginx).toContain('alias /srv/mitsailing-data/cms-media/ready/');
+    expect(productionCompose).toContain(
+      'cms_media:/var/lib/mitsailing/cms-media'
+    );
+    expect(mediaNginx).toContain('location = /cms-media/healthz');
+    expect(mediaNginx).toContain('alias /var/lib/mitsailing/cms-media/ready/');
   });
 
   it('runs tusd with local disk storage and upload hardening', () => {
-    expect(dataCompose).toContain('tusd:');
-    expect(dataCompose).toContain(
-      'source: /srv/mitsailing-data/cms-media/uploads'
+    expect(productionCompose).toContain('tusd:');
+    expect(productionCompose).toContain(
+      '-upload-dir=/var/lib/mitsailing/cms-media/uploads'
     );
-    expect(dataCompose).toContain(
-      'target: /srv/mitsailing-data/cms-media/uploads'
-    );
-    expect(dataCompose).toContain(
-      '-upload-dir=/srv/mitsailing-data/cms-media/uploads'
-    );
-    expect(dataCompose).toContain('-base-path=/cms-media/uploads/');
-    expect(dataCompose).toContain('-disable-download');
-    expect(dataCompose).toContain('-behind-proxy');
-    expect(dataCompose).toContain(
+    expect(productionCompose).toContain('-base-path=/cms-media/uploads/');
+    expect(productionCompose).toContain('-disable-download');
+    expect(productionCompose).toContain('-behind-proxy');
+    expect(productionCompose).toContain(
       `-max-size=${composeVariable('MEDIA_UPLOAD_MAX_BYTES:-104857600')}`
     );
-    expect(dataCompose).toContain(
+    expect(productionCompose).toContain(
       `-hooks-http=${composeVariable('TUSD_HOOKS_HTTP_URL:?set TUSD_HOOKS_HTTP_URL')}`
     );
-    expect(dataCompose).toContain(
+    expect(productionCompose).toContain(
       '-hooks-http-forward-headers=x-mitsailing-upload-token'
     );
-    expect(dataCompose).toContain(
+    expect(productionCompose).toContain(
       `-cors-allow-origin=${composeVariable('MEDIA_UPLOAD_CORS_ALLOW_ORIGIN:-https://mitsailing.com')}`
     );
-    expect(dataCompose).toContain(
+    expect(productionCompose).toContain(
       '-cors-allow-headers=authorization,content-type,tus-resumable,upload-length,upload-metadata,upload-offset,x-mitsailing-upload-token'
     );
-    expect(dataCompose).toContain(
+    expect(productionCompose).toContain(
       '-cors-expose-headers=location,tus-resumable,upload-offset,upload-length,upload-metadata,upload-expires'
-    );
-    expect(dataCompose).toContain(
-      `'${composeVariable('UPLOAD_SERVICE_BIND_HOST:?set UPLOAD_SERVICE_BIND_HOST')}:${composeVariable('UPLOAD_SERVICE_PORT:-3001')}:1080'`
-    );
-    expect(dataCompose).toContain(
-      `'${composeVariable('DATA_PRIVATE_BIND_HOST:?set DATA_PRIVATE_BIND_HOST')}:${composeVariable('POSTGRES_PORT:-5432')}:5432'`
-    );
-    expect(dataCompose).toContain(
-      `'${composeVariable('MEDIA_HTTP_BIND_HOST:?set MEDIA_HTTP_BIND_HOST')}:${composeVariable('MEDIA_HTTP_PORT:-8080')}:8080'`
     );
   });
 
-  it('keeps app hosts stateless for uploaded media', () => {
-    expect(appHostCompose).toContain('web:');
-    expect(appHostCompose).toContain('.env.production');
-    expect(appHostCompose).toContain('.env.production.app-host');
-    expect(appHostCompose).toContain('HOST_TRAFFIC_STATE_FILE');
-    expect(appHostCompose).toContain('/run/mitsailing/traffic-enabled');
-    expect(appHostCompose).not.toContain('upload-service:');
-    expect(appHostCompose).not.toContain('worker:');
-    expect(appHostCompose).not.toContain('postgres:');
-    expect(appHostCompose).not.toContain('redis:');
-    expect(appHostCompose).not.toContain('/srv/mitsailing-data/cms-media');
+  it('routes the MIT Sailing tunnel to in-stack docker services', () => {
+    expect(productionCompose).toContain('cloudflare/cloudflared');
+    expect(productionCompose).toContain('CLOUDFLARE_TUNNEL_TOKEN');
+    expect(productionCompose).toContain('depends_on:');
+    expect(productionCompose).toContain('app:');
+    expect(productionCompose).toContain('tusd:');
+    expect(productionCompose).toContain('media:');
+    expect(productionCompose).not.toContain('ports:');
+  });
+});
+
+describe('local docker compose', () => {
+  const localCompose = readRepoFile('compose.override.yaml');
+
+  it('starts local upload and media services on loopback ports', () => {
+    expect(localCompose).toContain('tusd:');
+    expect(localCompose).toContain('image: tusproject/tusd:v2.9.2');
+    expect(localCompose).toContain(
+      `'127.0.0.1:${composeVariable('MEDIA_UPLOAD_PUBLISH_PORT:-1080')}:1080'`
+    );
+    expect(localCompose).toContain(
+      '-upload-dir=/var/lib/mitsailing/cms-media/uploads'
+    );
+    expect(localCompose).toContain(
+      '-hooks-http=http://host.docker.internal:3000/api/internal/cms-media/tusd/hooks'
+    );
+    expect(localCompose).toContain('media:');
+    expect(localCompose).toContain('image: nginx:1.29-alpine');
+    expect(localCompose).toContain(
+      `'127.0.0.1:${composeVariable('MEDIA_PUBLIC_PUBLISH_PORT:-8088')}:8080'`
+    );
+  });
+
+  it('uses the gitignored local media tree for upload processing and serving', () => {
+    expect(localCompose).toContain('source: ./local/cms-media');
+    expect(localCompose).toContain('target: /var/lib/mitsailing/cms-media');
+    expect(localCompose).toContain('source: ./docker/nginx/media.conf');
+  });
+});
+
+describe('production media sync script', () => {
+  const syncScript = readRepoFile('scripts/sync-prod-media.mjs');
+
+  it('documents guarded defaults for ready-media downloads', () => {
+    expect(syncScript).toContain('DEFAULT_SSH_TARGET');
+    expect(syncScript).toContain('sailing-dock.mit.edu');
+    expect(syncScript).toContain('DEFAULT_REMOTE_DIR');
+    expect(syncScript).toContain('apps/mitsailing');
+    expect(syncScript).toContain('DEFAULT_LOCAL_ROOT');
+    expect(syncScript).toContain('local/cms-media');
+    expect(syncScript).toContain('ready');
+    expect(syncScript).not.toContain('--delete');
   });
 });

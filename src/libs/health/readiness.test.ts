@@ -70,8 +70,8 @@ function productionReadinessEnv() {
   return {
     appEnv: 'production',
     hostTrafficEnabled: 'true' as const,
-    mediaPublicBaseUrl: 'https://media.mitsailing.com',
-    mediaUploadBaseUrl: 'https://uploads.mitsailing.com',
+    mediaPublicBaseUrl: 'https://mitsailing.com',
+    mediaUploadBaseUrl: 'https://mitsailing.com',
     redisUrl: 'redis://redis:6379',
   };
 }
@@ -150,8 +150,8 @@ describe('getReadinessHealth', () => {
         appEnv: 'production',
         deploymentVersion: 'sha-test',
         hostTrafficEnabled: 'true',
-        mediaPublicBaseUrl: 'https://media.mitsailing.com',
-        mediaUploadBaseUrl: 'https://uploads.mitsailing.com',
+        mediaPublicBaseUrl: 'https://mitsailing.com',
+        mediaUploadBaseUrl: 'https://mitsailing.com',
         redisUrl: 'redis://redis:6379',
       },
       checkers: {
@@ -178,8 +178,8 @@ describe('getReadinessHealth', () => {
       env: {
         appEnv: 'production',
         hostTrafficEnabled: 'true',
-        mediaPublicBaseUrl: 'https://media.mitsailing.com',
-        mediaUploadBaseUrl: 'https://uploads.mitsailing.com',
+        mediaPublicBaseUrl: 'https://mitsailing.com',
+        mediaUploadBaseUrl: 'https://mitsailing.com',
         redisUrl: 'redis://redis:6379',
       },
       timeoutMs: 31,
@@ -191,12 +191,12 @@ describe('getReadinessHealth', () => {
     });
 
     expect(httpCheck).toHaveBeenCalledWith(
-      'https://uploads.mitsailing.com/cms-media/uploads/',
+      'https://mitsailing.com/cms-media/uploads/',
       31,
       expect.objectContaining({ method: 'OPTIONS' })
     );
     expect(httpCheck).toHaveBeenCalledWith(
-      'https://media.mitsailing.com/healthz',
+      'https://mitsailing.com/cms-media/healthz',
       31,
       expect.objectContaining({ method: 'GET' })
     );
@@ -207,7 +207,7 @@ describe('getReadinessHealth', () => {
       env: {
         appEnv: 'production',
         hostTrafficEnabled: 'true',
-        mediaPublicBaseUrl: 'https://media.mitsailing.com',
+        mediaPublicBaseUrl: 'https://mitsailing.com',
         redisUrl: 'redis://redis:6379',
       },
       checkers: {

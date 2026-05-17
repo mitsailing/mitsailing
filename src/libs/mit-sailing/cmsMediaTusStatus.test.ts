@@ -23,13 +23,13 @@ describe('cms media tus status', () => {
 
     const status = await getCmsMediaTusUploadStatus({
       assetId: 'asset-1',
-      baseUrl: 'https://uploads.mitsailing.com',
+      baseUrl: 'https://mitsailing.com',
       byteSize: 1024,
     });
 
     expect(status).toEqual({ complete: true });
     expect(fetchMock).toHaveBeenCalledWith(
-      'https://uploads.mitsailing.com/cms-media/uploads/asset-1',
+      'https://mitsailing.com/cms-media/uploads/asset-1',
       expect.objectContaining({
         method: 'HEAD',
         signal: expect.any(AbortSignal),
@@ -50,7 +50,7 @@ describe('cms media tus status', () => {
     await expect(
       getCmsMediaTusUploadStatus({
         assetId: 'asset-1',
-        baseUrl: 'https://uploads.mitsailing.com',
+        baseUrl: 'https://mitsailing.com',
         byteSize: 1024,
       })
     ).resolves.toEqual({
@@ -68,7 +68,7 @@ describe('cms media tus status', () => {
     await expect(
       getCmsMediaTusUploadStatus({
         assetId: 'asset-1',
-        baseUrl: 'https://uploads.mitsailing.com',
+        baseUrl: 'https://mitsailing.com',
         byteSize: 1024,
       })
     ).resolves.toEqual({
@@ -86,7 +86,7 @@ describe('cms media tus status', () => {
     await expect(
       getCmsMediaTusUploadStatus({
         assetId: 'asset-1',
-        baseUrl: 'https://uploads.mitsailing.com',
+        baseUrl: 'https://mitsailing.com',
         byteSize: 1024,
       })
     ).resolves.toEqual({
@@ -104,7 +104,7 @@ describe('cms media tus status', () => {
     await expect(
       getCmsMediaTusUploadStatus({
         assetId: 'asset-1',
-        baseUrl: 'https://uploads.mitsailing.com',
+        baseUrl: 'https://mitsailing.com',
         byteSize: 1024,
       })
     ).resolves.toEqual({

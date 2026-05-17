@@ -2,14 +2,15 @@
 #
 # Production deploy script, executed on the Linux host (rootless Docker OK).
 #
-# Intentional shape: this is the ONLY command the deploy SSH key is allowed
-# to run (pin it in ~/.ssh/authorized_keys with
-#   command="/home/USER/deploy.sh $SSH_ORIGINAL_COMMAND",no-pty,no-port-forwarding,no-agent-forwarding,no-X11-forwarding
-# so a compromised deploy key cannot turn into a shell or file transfer.)
+# The GitHub deploy workflow uses SSH and SCP to sync compose files and run this
+# script. Do not pin that key to a forced command unless file sync moves to a
+# separate mechanism.
 #
 # Protocol:
 #   - `release <image-tag>` runs migrations, blue/green cutover, worker restart.
 #   - `rollback <previous|image-tag>` cuts app/worker back without DB rollback.
+#   - `media-maintenance <image-tag>` restarts only static media nginx.
+#   - `tusd-maintenance <image-tag>` restarts only tusd during an operator window.
 #   - `migrate <image-tag>` and `deploy <image-tag>` remain manual/debug commands.
 
 set -Eeuo pipefail
@@ -22,14 +23,6 @@ readonly DEPLOY_DIR="${DEPLOY_DIR:-$HOME/apps/mitsailing}"
 # a full flag sequence, e.g. `DEPLOY_COMPOSE_FILES='-f compose.yaml -f compose.prod.yaml'`.
 readonly COMPOSE_FILES="${DEPLOY_COMPOSE_FILES:--f compose.yaml -f compose.prod.yaml}"
 readonly ENV_FILE="${DEPLOY_ENV_FILE:-.env.production}"
-readonly PRODUCTION_DATA_ROOT="/srv/mitsailing-data"
-readonly POSTGRES_DATA_SOURCE="${PRODUCTION_DATA_ROOT}/postgres"
-readonly REDIS_DATA_SOURCE="${PRODUCTION_DATA_ROOT}/redis"
-readonly CMS_MEDIA_SOURCE="${PRODUCTION_DATA_ROOT}/cms-media"
-readonly POSTGRES_DATA_TARGET="/var/lib/postgresql"
-readonly REDIS_DATA_TARGET="/data"
-readonly CMS_MEDIA_TARGET="/var/lib/mitsailing/cms-media"
-readonly CMS_MEDIA_RUNTIME_UID_GID="1001:1001"
 readonly DEPLOY_STATE_DIR="${DEPLOY_DIR}/.deploy"
 readonly NGINX_STATE_DIR="${DEPLOY_STATE_DIR}/nginx"
 readonly NGINX_CONFIG_FILE="${NGINX_STATE_DIR}/default.conf"
@@ -48,15 +41,13 @@ valid_ref() {
   [[ "$ref" =~ ^[a-zA-Z0-9._:@/\-]+$ ]]
 }
 
-# Reject anything that isn't a supported command. Refuses arbitrary shell even
-# when invoked through authorized_keys, as a second line of defense on top of
-# the `command=` restriction.
+# Reject anything that isn't a supported command.
 parse_cmd() {
   local cmd="${1:-}"
   local ref="${2:-}"
 
   case "$cmd" in
-    deploy|migrate|release)
+    deploy|media-maintenance|migrate|release|tusd-maintenance)
       [[ -n "$ref" ]] || fail "usage: <deploy|migrate|release> <image-ref>"
       valid_ref "$ref" || fail "invalid ref: $ref"
       ;;
@@ -65,15 +56,20 @@ parse_cmd() {
       [[ "$ref" == "previous" ]] || valid_ref "$ref" || fail "invalid rollback ref: $ref"
       ;;
     *)
-      fail "unknown command: $cmd (allowed: 'release <ref>', 'rollback <previous|ref>', 'migrate <ref>', or 'deploy <ref>')"
+      fail "unknown command: $cmd (allowed: 'release <ref>', 'rollback <previous|ref>', 'migrate <ref>', 'deploy <ref>', 'media-maintenance <ref>', or 'tusd-maintenance <ref>')"
       ;;
   esac
   printf '%s %s\n' "$cmd" "$ref"
 }
 
 compose() {
+  local env_files
+  env_files=(--env-file "$ENV_FILE")
+  if [[ -f .env.image ]]; then
+    env_files+=(--env-file .env.image)
+  fi
   # shellcheck disable=SC2086
-  docker compose $COMPOSE_FILES --profile release --env-file "$ENV_FILE" "$@"
+  docker compose $COMPOSE_FILES --profile release "${env_files[@]}" "$@"
 }
 
 ensure_prereqs() {
@@ -91,69 +87,6 @@ ensure_deploy_state() {
 acquire_deploy_lock() {
   exec 9>"$DEPLOY_LOCK_FILE"
   flock -n 9 || fail "another deploy is already running"
-}
-
-ensure_production_data_dirs() {
-  [[ -d "$PRODUCTION_DATA_ROOT" ]] \
-    || fail "${PRODUCTION_DATA_ROOT} missing — create it from docs/deploy.md before deploying"
-  [[ -w "$PRODUCTION_DATA_ROOT" ]] \
-    || fail "${PRODUCTION_DATA_ROOT} must be writable by the deploy user"
-
-  log "ensuring production data directories exist under $PRODUCTION_DATA_ROOT"
-  mkdir -p "$POSTGRES_DATA_SOURCE" "$REDIS_DATA_SOURCE" "$CMS_MEDIA_SOURCE"
-  chmod 700 "$PRODUCTION_DATA_ROOT"
-}
-
-ensure_cms_media_permissions() {
-  log "ensuring CMS media bind mount top level is writable by runtime uid:gid $CMS_MEDIA_RUNTIME_UID_GID"
-  docker run \
-    --rm \
-    --user 0:0 \
-    --volume "${CMS_MEDIA_SOURCE}:${CMS_MEDIA_TARGET}" \
-    "$APP_IMAGE" \
-    sh -c "mkdir -p '${CMS_MEDIA_TARGET}' && chown '${CMS_MEDIA_RUNTIME_UID_GID}' '${CMS_MEDIA_TARGET}' && chmod 700 '${CMS_MEDIA_TARGET}'"
-}
-
-verify_bind_mount() {
-  local service="$1"
-  local target="$2"
-  local source="$3"
-  local container mount_type mount_source
-  log "verifying $service bind mount $source -> $target"
-  container=$(compose ps -q "$service")
-  [[ -n "$container" ]] || fail "$service container did not start"
-
-  mount_type=$(docker inspect \
-    --format "{{range .Mounts}}{{if eq .Destination \"${target}\"}}{{.Type}}{{end}}{{end}}" \
-    "$container")
-  mount_source=$(docker inspect \
-    --format "{{range .Mounts}}{{if eq .Destination \"${target}\"}}{{.Source}}{{end}}{{end}}" \
-    "$container")
-  [[ "$mount_type" == "bind" && "$mount_source" == "$source" ]] \
-    || fail "$service mount at $target must be bind source $source (actual: ${mount_type:-none} ${mount_source:-none})"
-}
-
-verify_container_write_access() {
-  local service="$1"
-  local user="$2"
-  local target="$3"
-  local marker="${target}/.mitsailing-write-test"
-  log "verifying $service can write $target as $user"
-  compose exec -T --user "$user" "$service" \
-    sh -c "touch '${marker}' && rm -f '${marker}'"
-}
-
-verify_data_service_mounts() {
-  verify_bind_mount postgres "$POSTGRES_DATA_TARGET" "$POSTGRES_DATA_SOURCE"
-  verify_bind_mount redis "$REDIS_DATA_TARGET" "$REDIS_DATA_SOURCE"
-  verify_container_write_access postgres postgres "$POSTGRES_DATA_TARGET"
-  verify_container_write_access redis redis "$REDIS_DATA_TARGET"
-}
-
-verify_web_mount() {
-  local service="$1"
-  verify_bind_mount "$service" "$CMS_MEDIA_TARGET" "$CMS_MEDIA_SOURCE"
-  verify_container_write_access "$service" "$CMS_MEDIA_RUNTIME_UID_GID" "$CMS_MEDIA_TARGET"
 }
 
 pin_image() {
@@ -306,7 +239,6 @@ start_web_color() {
   log "starting $service"
   compose up --detach --no-deps --force-recreate --pull always "$service"
   wait_for_service_health "$service" "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
-  verify_web_mount "$service"
 }
 
 reload_or_start_proxy() {
@@ -321,20 +253,38 @@ restart_worker() {
   log "restarting worker"
   compose up --detach --no-deps --force-recreate --pull always worker
   wait_for_service_health worker "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
-  verify_bind_mount worker "$CMS_MEDIA_TARGET" "$CMS_MEDIA_SOURCE"
-  verify_container_write_access worker "$CMS_MEDIA_RUNTIME_UID_GID" "$CMS_MEDIA_TARGET"
 }
 
 run_migrations_for_service() {
   local service="$1"
   log "ensuring postgres and redis are up before migrations"
-  compose up --detach postgres redis
+  compose up --detach --no-recreate postgres redis
   wait_for_service_health postgres "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
   wait_for_service_health redis "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
-  verify_data_service_mounts
 
   log "running prisma migrate deploy from $service image"
   compose run --rm --no-deps "$service" node ./node_modules/prisma/build/index.js migrate deploy
+}
+
+ensure_ingress_services() {
+  log "ensuring data, upload, and media services are running"
+  compose up --detach --no-recreate postgres redis tusd media
+  wait_for_service_health postgres "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
+  wait_for_service_health redis "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
+  wait_for_service_health media "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
+  log "ensuring MIT Sailing cloudflared connector is running"
+  compose up --detach --no-deps cloudflared
+}
+
+restart_media_maintenance() {
+  log "restarting static media nginx during explicit maintenance"
+  compose up --detach --no-deps --force-recreate media
+  wait_for_service_health media "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
+}
+
+restart_tusd_maintenance() {
+  log "restarting tusd during explicit maintenance"
+  compose up --detach --no-deps --force-recreate tusd
 }
 
 switch_to_ref() {
@@ -387,8 +337,8 @@ release_ref() {
   service="$(color_service "$target")"
 
   pin_image "$ref"
-  ensure_cms_media_permissions
   run_migrations_for_service "$service"
+  ensure_ingress_services
   switch_to_ref "$ref" "$active" "$target"
 }
 
@@ -399,7 +349,7 @@ deploy_ref_without_migrations() {
   target="$(inactive_color "$active")"
 
   pin_image "$ref"
-  ensure_cms_media_permissions
+  ensure_ingress_services
   switch_to_ref "$ref" "$active" "$target"
 }
 
@@ -438,7 +388,6 @@ main() {
   ensure_prereqs
   ensure_deploy_state
   acquire_deploy_lock
-  ensure_production_data_dirs
 
   case "$cmd" in
     release)
@@ -453,6 +402,14 @@ main() {
       ;;
     deploy)
       deploy_ref_without_migrations "$ref"
+      ;;
+    media-maintenance)
+      pin_image "$ref"
+      restart_media_maintenance
+      ;;
+    tusd-maintenance)
+      pin_image "$ref"
+      restart_tusd_maintenance
       ;;
   esac
 }

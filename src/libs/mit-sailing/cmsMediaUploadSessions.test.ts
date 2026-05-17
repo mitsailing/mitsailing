@@ -11,9 +11,9 @@ describe('cms media upload sessions', () => {
   it('builds stable tus upload endpoints', () => {
     expect(
       buildCmsMediaTusEndpoint({
-        baseUrl: 'https://uploads.mitsailing.com/',
+        baseUrl: 'https://mitsailing.com/',
       })
-    ).toBe('https://uploads.mitsailing.com/cms-media/uploads/');
+    ).toBe('https://mitsailing.com/cms-media/uploads/');
   });
 
   it('returns signed tus upload details for tus-js-client', () => {
@@ -28,7 +28,7 @@ describe('cms media upload sessions', () => {
         publicPath: '/cms-media/asset-1/race-day.png',
         status: 'uploading',
       },
-      baseUrl: 'https://uploads.mitsailing.com',
+      baseUrl: 'https://mitsailing.com',
       now: new Date(Date.UTC(2026, 4, 17, 12)),
       secret,
       storedFilename: 'race-day.png',
@@ -36,7 +36,7 @@ describe('cms media upload sessions', () => {
 
     expect(session.upload.protocol).toBe('tus');
     expect(session.upload.endpoint).toBe(
-      'https://uploads.mitsailing.com/cms-media/uploads/'
+      'https://mitsailing.com/cms-media/uploads/'
     );
     expect(session.upload.metadata.assetId).toBe('asset-1');
     expect(session.upload.metadata.byteSize).toBe('1024');

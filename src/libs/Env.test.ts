@@ -26,9 +26,9 @@ function stubRequiredProductionEnv(): void {
     'HEALTHCHECK_SECRET',
     'test-healthcheck-secret-with-thirty-two-chars'
   );
-  vi.stubEnv('MEDIA_PUBLIC_BASE_URL', 'https://media.mitsailing.com');
-  vi.stubEnv('MEDIA_STORAGE_ROOT', '/srv/mitsailing-data/cms-media');
-  vi.stubEnv('MEDIA_UPLOAD_BASE_URL', 'https://uploads.mitsailing.com');
+  vi.stubEnv('MEDIA_PUBLIC_BASE_URL', 'https://mitsailing.com');
+  vi.stubEnv('MEDIA_STORAGE_ROOT', '/var/lib/mitsailing/cms-media');
+  vi.stubEnv('MEDIA_UPLOAD_BASE_URL', 'https://mitsailing.com');
   vi.stubEnv(
     'MEDIA_UPLOAD_SHARED_SECRET',
     'test-upload-secret-with-at-least-thirty-two-chars'
@@ -136,7 +136,7 @@ describe('Env legacy MySQL sync validation', () => {
     );
   });
 
-  it('accepts private docker data server endpoints', async () => {
+  it('accepts docker stack production media endpoints', async () => {
     stubRequiredBaseEnv();
     stubNewsletterRevalidateSecret();
     vi.stubEnv('APP_ENV', 'production');
@@ -147,9 +147,9 @@ describe('Env legacy MySQL sync validation', () => {
     vi.stubEnv('HEALTHCHECK_SECRET', 'x'.repeat(32));
     vi.stubEnv('HOST_TRAFFIC_ENABLED', 'false');
     vi.stubEnv('HOST_TRAFFIC_STATE_FILE', '/run/mitsailing/traffic-enabled');
-    vi.stubEnv('MEDIA_PUBLIC_BASE_URL', 'https://media.mitsailing.com');
-    vi.stubEnv('MEDIA_STORAGE_ROOT', '/srv/mitsailing-data/cms-media');
-    vi.stubEnv('MEDIA_UPLOAD_BASE_URL', 'https://uploads.mitsailing.com');
+    vi.stubEnv('MEDIA_PUBLIC_BASE_URL', 'https://mitsailing.com');
+    vi.stubEnv('MEDIA_STORAGE_ROOT', '/var/lib/mitsailing/cms-media');
+    vi.stubEnv('MEDIA_UPLOAD_BASE_URL', 'https://mitsailing.com');
     vi.stubEnv(
       'MEDIA_UPLOAD_SHARED_SECRET',
       'test-upload-secret-with-at-least-thirty-two-chars'
@@ -161,8 +161,8 @@ describe('Env legacy MySQL sync validation', () => {
 
     expect(Env.HOST_TRAFFIC_ENABLED).toBe('false');
     expect(Env.HOST_TRAFFIC_STATE_FILE).toBe('/run/mitsailing/traffic-enabled');
-    expect(Env.MEDIA_PUBLIC_BASE_URL).toBe('https://media.mitsailing.com');
-    expect(Env.MEDIA_STORAGE_ROOT).toBe('/srv/mitsailing-data/cms-media');
-    expect(Env.MEDIA_UPLOAD_BASE_URL).toBe('https://uploads.mitsailing.com');
+    expect(Env.MEDIA_PUBLIC_BASE_URL).toBe('https://mitsailing.com');
+    expect(Env.MEDIA_STORAGE_ROOT).toBe('/var/lib/mitsailing/cms-media');
+    expect(Env.MEDIA_UPLOAD_BASE_URL).toBe('https://mitsailing.com');
   });
 });

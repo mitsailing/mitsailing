@@ -3,9 +3,8 @@ name: Deploy (production)
 # Repository → Settings → Environments → `production`:
 #   Add **Required reviewers** so the deploy job waits for human approval before
 #   SSH (recommended). Secrets live on that environment:
-#   PRODUCTION_APP_HOST_BLUE, PRODUCTION_APP_HOST_GREEN,
-#   PRODUCTION_DATA_MEDIA_HOST, PRODUCTION_SSH_PRIVATE_KEY,
-#   PRODUCTION_SSH_HOST_KEY, NEXT_PUBLIC_SENTRY_DSN, SENTRY_AUTH_TOKEN
+#   PRODUCTION_SSH_TARGET, PRODUCTION_SSH_PRIVATE_KEY, PRODUCTION_SSH_HOST_KEY,
+#   NEXT_PUBLIC_SENTRY_DSN, SENTRY_AUTH_TOKEN
 #   (see docs/deploy.md). The `build` job uses this environment so those values
 #   reach Docker build-args.
 #
@@ -144,8 +143,8 @@ jobs:
           push-to-registry: true
 
   # ─────────────────── Stage 2 — release ───────────────────
-  # `deploy-two-host.sh release` holds a data/media-server lock across
-  # migrations, host promotion, worker restart, and upload-safe app-host drain.
+  # `bin/deploy.sh release` runs the replacement MIT Sailing stack on the
+  # production host. WordPress has a separate tunnel/deploy path.
   deploy:
     name: Release production
     runs-on: ubuntu-latest
@@ -166,59 +165,68 @@ jobs:
           printf '%s\n' "${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}" > ~/.ssh/id_deploy
           chmod 600 ~/.ssh/id_deploy
           # Pin all production host keys to prevent MITM. This secret may hold
-          # multiple ssh-keyscan lines: blue app host, green app host, data/media host.
+          # multiple ssh-keyscan lines for sailing-dock, including rotated host keys.
           printf '%s\n' "${{ secrets.PRODUCTION_SSH_HOST_KEY }}" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
-      - name: Sync two-host deploy files
+      - name: Sync production deploy files
         env:
-          APP_HOST_BLUE: ${{ secrets.PRODUCTION_APP_HOST_BLUE }}
-          APP_HOST_GREEN: ${{ secrets.PRODUCTION_APP_HOST_GREEN }}
-          DATA_MEDIA_HOST: ${{ secrets.PRODUCTION_DATA_MEDIA_HOST }}
+          PRODUCTION_SSH_TARGET: ${{ secrets.PRODUCTION_SSH_TARGET }}
           REMOTE_APP_DIR: ${{ vars.PRODUCTION_REMOTE_APP_DIR || 'apps/mitsailing' }}
         run: |
           set -euo pipefail
-          for target in "$APP_HOST_BLUE" "$APP_HOST_GREEN" "$DATA_MEDIA_HOST"; do
-            ssh \
-              -i ~/.ssh/id_deploy \
-              -o BatchMode=yes \
-              -o ConnectTimeout=15 \
-              "$target" \
-              "mkdir -p '${REMOTE_APP_DIR}/docker/postgres' '${REMOTE_APP_DIR}/docker/nginx'"
+          ssh \
+            -i ~/.ssh/id_deploy \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            "$PRODUCTION_SSH_TARGET" \
+            "mkdir -p '${REMOTE_APP_DIR}/bin' '${REMOTE_APP_DIR}/docker/postgres' '${REMOTE_APP_DIR}/docker/nginx'"
 
-            scp \
-              -i ~/.ssh/id_deploy \
-              -o BatchMode=yes \
-              -o ConnectTimeout=15 \
-              compose.yaml \
-              compose.prod.yaml \
-              compose.prod.app-host.yaml \
-              compose.prod.data.yaml \
-              "$target:${REMOTE_APP_DIR}/"
+          scp \
+            -i ~/.ssh/id_deploy \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            compose.yaml \
+            compose.prod.yaml \
+            "$PRODUCTION_SSH_TARGET:${REMOTE_APP_DIR}/"
 
-            scp \
-              -i ~/.ssh/id_deploy \
-              -o BatchMode=yes \
-              -o ConnectTimeout=15 \
-              docker/postgres/init.sql \
-              "$target:${REMOTE_APP_DIR}/docker/postgres/init.sql"
+          scp \
+            -i ~/.ssh/id_deploy \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            bin/deploy.sh \
+            "$PRODUCTION_SSH_TARGET:${REMOTE_APP_DIR}/bin/deploy.sh"
 
-            scp \
-              -i ~/.ssh/id_deploy \
-              -o BatchMode=yes \
-              -o ConnectTimeout=15 \
-              docker/nginx/media.conf \
-              "$target:${REMOTE_APP_DIR}/docker/nginx/media.conf"
-          done
+          scp \
+            -i ~/.ssh/id_deploy \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            docker/postgres/init.sql \
+            "$PRODUCTION_SSH_TARGET:${REMOTE_APP_DIR}/docker/postgres/init.sql"
+
+          scp \
+            -i ~/.ssh/id_deploy \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            docker/nginx/media.conf \
+            "$PRODUCTION_SSH_TARGET:${REMOTE_APP_DIR}/docker/nginx/media.conf"
+
+          ssh \
+            -i ~/.ssh/id_deploy \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            "$PRODUCTION_SSH_TARGET" \
+            "chmod +x '${REMOTE_APP_DIR}/bin/deploy.sh'"
 
       - name: Release
         env:
-          APP_HOST_BLUE: ${{ secrets.PRODUCTION_APP_HOST_BLUE }}
-          APP_HOST_GREEN: ${{ secrets.PRODUCTION_APP_HOST_GREEN }}
-          DATA_MEDIA_HOST: ${{ secrets.PRODUCTION_DATA_MEDIA_HOST }}
-          HEALTHCHECK_SECRET: ${{ secrets.HEALTHCHECK_SECRET }}
+          PRODUCTION_SSH_TARGET: ${{ secrets.PRODUCTION_SSH_TARGET }}
           IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
           REMOTE_APP_DIR: ${{ vars.PRODUCTION_REMOTE_APP_DIR || 'apps/mitsailing' }}
         run: |
-          chmod +x bin/deploy-two-host.sh
-          ./bin/deploy-two-host.sh release "$IMAGE_TAG"
+          ssh \
+            -i ~/.ssh/id_deploy \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            "$PRODUCTION_SSH_TARGET" \
+            "DEPLOY_DIR='${REMOTE_APP_DIR}' '${REMOTE_APP_DIR}/bin/deploy.sh' release '${IMAGE_TAG}'"

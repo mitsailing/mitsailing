@@ -6,7 +6,7 @@ import {
 } from '@/libs/mit-sailing/cmsMediaFileStorage';
 
 describe('cms media server-folder storage', () => {
-  const root = '/srv/mitsailing-data/cms-media';
+  const root = '/var/lib/mitsailing/cms-media';
 
   it('builds root-contained ready paths', () => {
     expect(
@@ -15,7 +15,7 @@ describe('cms media server-folder storage', () => {
         filename: 'race-day.jpg',
         root,
       })
-    ).toBe('/srv/mitsailing-data/cms-media/ready/asset-1/race-day.jpg');
+    ).toBe('/var/lib/mitsailing/cms-media/ready/asset-1/race-day.jpg');
   });
 
   it('rejects unsafe tus upload ids', () => {
@@ -30,9 +30,9 @@ describe('cms media server-folder storage', () => {
   it('maps ready file paths to media URLs', () => {
     expect(
       buildCmsMediaReadyUrl({
-        baseUrl: 'https://media.mitsailing.com/',
+        baseUrl: 'https://mitsailing.com/',
         publicPath: '/cms-media/asset-1/race-day.jpg',
       })
-    ).toBe('https://media.mitsailing.com/cms-media/asset-1/race-day.jpg');
+    ).toBe('https://mitsailing.com/cms-media/asset-1/race-day.jpg');
   });
 });

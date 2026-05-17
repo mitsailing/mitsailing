@@ -18,9 +18,9 @@ function stubRequiredDeployedEnv(): void {
   const envVars: readonly (readonly [string, string])[] = [
     ['CMS_MEDIA_ROOT', '/var/cms-media'],
     ['HEALTHCHECK_SECRET', 'test-healthcheck-secret-with-thirty-two-chars'],
-    ['MEDIA_PUBLIC_BASE_URL', 'https://media.mitsailing.com'],
-    ['MEDIA_STORAGE_ROOT', '/srv/mitsailing-data/cms-media'],
-    ['MEDIA_UPLOAD_BASE_URL', 'https://uploads.mitsailing.com'],
+    ['MEDIA_PUBLIC_BASE_URL', 'https://mitsailing.com'],
+    ['MEDIA_STORAGE_ROOT', '/var/lib/mitsailing/cms-media'],
+    ['MEDIA_UPLOAD_BASE_URL', 'https://mitsailing.com'],
     [
       'MEDIA_UPLOAD_SHARED_SECRET',
       'test-media-upload-secret-with-thirty-two-chars',

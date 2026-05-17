@@ -194,7 +194,7 @@ export const Env = createEnv({
 
     // Legacy local filesystem root for direct CMS image uploads. Local dev can
     // use the git-ignored `local/` tree. Production media uploads use the
-    // Docker data/media server settings below instead of app-host-local writes.
+    // Docker stack media settings below.
     CMS_MEDIA_ROOT: z.string().min(1).default('local/cms-media'),
 
     HOST_COLOR: z.enum(['blue', 'green']).optional(),

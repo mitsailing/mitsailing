@@ -107,7 +107,7 @@ function cmsMediaTusMetadata(): CmsMediaTusUploadSession['metadata'] {
 
 const session = {
   byteSize: 3,
-  endpoint: 'https://uploads.mitsailing.com/cms-media/uploads/',
+  endpoint: 'https://mitsailing.com/cms-media/uploads/',
   expiresAt: '2026-05-17T12:00:00.000Z',
   headers: {
     [uploadHeaderName]: 'test-header-value',
@@ -170,12 +170,12 @@ describe('uploadCmsMediaWithTus', () => {
     const oldUpload = {
       creationTime: '2026-05-17T12:00:00.000Z',
       metadata: { assetId: 'asset-1' },
-      uploadUrl: 'https://uploads.mitsailing.com/cms-media/uploads/old',
+      uploadUrl: 'https://mitsailing.com/cms-media/uploads/old',
     };
     const newUpload = {
       creationTime: '2026-05-17T12:10:00.000Z',
       metadata: { assetId: 'asset-1' },
-      uploadUrl: 'https://uploads.mitsailing.com/cms-media/uploads/new',
+      uploadUrl: 'https://mitsailing.com/cms-media/uploads/new',
     };
     tusMocks.previousUploads.push(oldUpload, newUpload);
 
@@ -200,7 +200,7 @@ describe('uploadCmsMediaWithTus', () => {
     tusMocks.previousUploads.push({
       creationTime: '2026-05-17T12:10:00.000Z',
       metadata: { assetId: 'asset-old' },
-      uploadUrl: 'https://uploads.mitsailing.com/cms-media/uploads/old',
+      uploadUrl: 'https://mitsailing.com/cms-media/uploads/old',
     });
 
     const uploadPromise = uploadCmsMediaWithTus({
