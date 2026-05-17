@@ -33,8 +33,15 @@ describe('two host deploy script', () => {
 
   it('runs prisma migrations once from the data host image', () => {
     expect(script).toContain('up -d postgres redis');
+    expect(script).toContain('wait_for_service_health postgres');
+    expect(script).toContain('wait_for_service_health redis');
     expect(script).toContain('node ./node_modules/prisma/build/index.js');
     expect(script).toContain('migrate deploy');
+  });
+
+  it('uses the configured deploy ssh identity for remote operations', () => {
+    expect(script).toContain('DEPLOY_SSH_KEY');
+    expect(script).toContain('ssh -i "$DEPLOY_SSH_KEY"');
   });
 
   it('restarts the data media worker before app host promotion', () => {
@@ -54,6 +61,13 @@ describe('two host deploy script', () => {
   });
 
   it('warns rollback does not reverse database migrations', () => {
+    const rollbackRefIndex = script.indexOf('rollback_ref()');
+
     expect(script).toContain('database migrations are not reversed');
+    expect(
+      script.indexOf('restart_data_worker', rollbackRefIndex)
+    ).toBeGreaterThan(
+      script.indexOf('pin_image_everywhere "$ref"', rollbackRefIndex)
+    );
   });
 });

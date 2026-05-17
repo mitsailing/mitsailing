@@ -20,6 +20,7 @@ readonly DEPLOY_HEALTH_TIMEOUT_SECONDS="${DEPLOY_HEALTH_TIMEOUT_SECONDS:-120}"
 readonly DEPLOY_DRAIN_SECONDS="${DEPLOY_DRAIN_SECONDS:-120}"
 readonly APP_COMPOSE_FILE="compose.prod.app-host.yaml"
 readonly DATA_COMPOSE_FILE="compose.prod.data.yaml"
+readonly DEPLOY_SSH_KEY="${DEPLOY_SSH_KEY:-${HOME}/.ssh/id_deploy}"
 readonly TRAFFIC_STATE_FILE=".deploy/traffic-enabled"
 readonly CONTAINER_TRAFFIC_STATE_FILE="/run/mitsailing/traffic-enabled"
 readonly ACTIVE_HOST_FILE=".deploy/two-host-active"
@@ -71,7 +72,7 @@ parse_cmd() {
 ssh_remote() {
   local host="$1"
   shift
-  ssh -o BatchMode=yes -o RequestTTY=no -- "$host" "$@"
+  ssh -i "$DEPLOY_SSH_KEY" -o BatchMode=yes -o RequestTTY=no -- "$host" "$@"
 }
 
 remote_bash() {
@@ -260,13 +261,42 @@ REMOTE
 
 run_migrations() {
   log "running Prisma migrations from $DATA_MEDIA_HOST"
-  remote_bash "$DATA_MEDIA_HOST" "$REMOTE_APP_DIR" "$DATA_COMPOSE_FILE" <<'REMOTE'
+  remote_bash "$DATA_MEDIA_HOST" "$REMOTE_APP_DIR" "$DATA_COMPOSE_FILE" "$DEPLOY_HEALTH_TIMEOUT_SECONDS" <<'REMOTE'
 set -Eeuo pipefail
 remote_app_dir="$1"
 data_compose_file="$2"
+health_timeout_seconds="$3"
 cd "$remote_app_dir"
+compose() {
+  docker compose -f "$data_compose_file" --env-file .env.production.data --env-file .env.production.worker --env-file .env.image "$@"
+}
+wait_for_service_health() {
+  service="$1"
+  timeout_seconds="$2"
+  deadline=$((SECONDS + timeout_seconds))
+  while (( SECONDS < deadline )); do
+    container="$(compose ps -q "$service")"
+    if [ -n "$container" ]; then
+      status="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$container" 2>/dev/null || echo missing)"
+      if [ "$status" = healthy ] || [ "$status" = running ]; then
+        return 0
+      fi
+      if [ "$status" = unhealthy ] || [ "$status" = exited ] || [ "$status" = dead ]; then
+        echo "$service status is $status" >&2
+      fi
+    fi
+    sleep 2
+  done
+  if [ -n "${container:-}" ]; then
+    docker logs --tail 50 "$container" >&2 || true
+  fi
+  echo "$service failed healthcheck" >&2
+  exit 1
+}
 docker compose -f "$data_compose_file" --env-file .env.production.data --env-file .env.production.worker --env-file .env.image up -d postgres redis
-docker compose -f "$data_compose_file" --env-file .env.production.data --env-file .env.production.worker --env-file .env.image run --rm --no-deps worker node ./node_modules/prisma/build/index.js migrate deploy
+wait_for_service_health postgres "$health_timeout_seconds"
+wait_for_service_health redis "$health_timeout_seconds"
+compose run --rm --no-deps worker node ./node_modules/prisma/build/index.js migrate deploy
 REMOTE
 }
 
@@ -379,6 +409,7 @@ rollback_ref() {
   ensure_app_traffic_file "$APP_HOST_BLUE"
   ensure_app_traffic_file "$APP_HOST_GREEN"
 
+  restart_data_worker
   start_app_host "$(color_host "$target")"
   wait_for_readiness "$(color_host "$target")" service
 
