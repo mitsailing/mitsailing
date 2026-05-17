@@ -161,7 +161,7 @@ readonly CMS_MEDIA_DIR="${PRODUCTION_DATA_ROOT}/cms-media"
 readonly DEPLOY_STATE_DIR="${DEPLOY_DIR}/.deploy"
 readonly NGINX_STATE_DIR="${DEPLOY_STATE_DIR}/nginx"
 readonly POSTGRES_IMAGE="postgres:18-alpine"
-readonly REDIS_IMAGE="redis:7-alpine"
+readonly REDIS_IMAGE="redis:8-alpine"
 DEPLOY_GROUP="${DEPLOY_GROUP_ARG:-$(id -gn "$DEPLOY_USER")}"
 
 log "creating production data directories under ${PRODUCTION_DATA_ROOT}"

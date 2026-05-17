@@ -190,6 +190,8 @@ jobs:
               -i ~/.ssh/id_deploy \
               -o BatchMode=yes \
               -o ConnectTimeout=15 \
+              compose.yaml \
+              compose.prod.yaml \
               compose.prod.app-host.yaml \
               compose.prod.data.yaml \
               "$target:${REMOTE_APP_DIR}/"

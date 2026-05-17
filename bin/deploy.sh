@@ -105,13 +105,13 @@ ensure_production_data_dirs() {
 }
 
 ensure_cms_media_permissions() {
-  log "ensuring CMS media bind mount is writable by runtime uid:gid $CMS_MEDIA_RUNTIME_UID_GID"
+  log "ensuring CMS media bind mount top level is writable by runtime uid:gid $CMS_MEDIA_RUNTIME_UID_GID"
   docker run \
     --rm \
     --user 0:0 \
     --volume "${CMS_MEDIA_SOURCE}:${CMS_MEDIA_TARGET}" \
     "$APP_IMAGE" \
-    sh -c "mkdir -p '${CMS_MEDIA_TARGET}' && chown -R '${CMS_MEDIA_RUNTIME_UID_GID}' '${CMS_MEDIA_TARGET}' && chmod 700 '${CMS_MEDIA_TARGET}'"
+    sh -c "mkdir -p '${CMS_MEDIA_TARGET}' && chown '${CMS_MEDIA_RUNTIME_UID_GID}' '${CMS_MEDIA_TARGET}' && chmod 700 '${CMS_MEDIA_TARGET}'"
 }
 
 verify_bind_mount() {
@@ -347,13 +347,13 @@ switch_to_ref() {
 
   start_web_color "$target_color"
   # Smoke-check dependency readiness before switching nginx upstream.
-  # This is protected by HEALTHCHECK_SECRET; if it isn't set, we skip.
+  # This is protected by HEALTHCHECK_SECRET and must fail closed if unset.
   # shellcheck disable=SC2016
   compose exec -T "$target_service" node -e '(async () => {
     const secret = process.env.HEALTHCHECK_SECRET;
     if (!secret) {
-      console.log("skipping readiness smoke (HEALTHCHECK_SECRET not set)");
-      return;
+      console.error("HEALTHCHECK_SECRET is required for readiness smoke");
+      process.exit(1);
     }
 
     const res = await fetch("http://127.0.0.1:3000/api/health/ready", {
