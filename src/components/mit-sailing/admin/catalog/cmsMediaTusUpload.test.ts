@@ -152,15 +152,15 @@ describe('uploadCmsMediaWithTus', () => {
     await expect(uploadPromise).resolves.toEqual({ assetId: 'asset-1' });
   });
 
-  it('resumes the newest previous upload before starting', async () => {
+  it('resumes the newest previous upload for the current asset before starting', async () => {
     const oldUpload = {
       creationTime: '2026-05-17T12:00:00.000Z',
-      metadata: { assetId: 'asset-old' },
+      metadata: { assetId: 'asset-1' },
       uploadUrl: 'https://uploads.mitsailing.com/cms-media/uploads/old',
     };
     const newUpload = {
       creationTime: '2026-05-17T12:10:00.000Z',
-      metadata: { assetId: 'asset-new' },
+      metadata: { assetId: 'asset-1' },
       uploadUrl: 'https://uploads.mitsailing.com/cms-media/uploads/new',
     };
     tusMocks.previousUploads.push(oldUpload, newUpload);
@@ -179,7 +179,30 @@ describe('uploadCmsMediaWithTus', () => {
 
     upload.options.onSuccess();
 
-    await expect(uploadPromise).resolves.toEqual({ assetId: 'asset-new' });
+    await expect(uploadPromise).resolves.toEqual({ assetId: 'asset-1' });
+  });
+
+  it('ignores previous uploads for another asset session', async () => {
+    tusMocks.previousUploads.push({
+      creationTime: '2026-05-17T12:10:00.000Z',
+      metadata: { assetId: 'asset-old' },
+      uploadUrl: 'https://uploads.mitsailing.com/cms-media/uploads/old',
+    });
+
+    const uploadPromise = uploadCmsMediaWithTus({
+      file: new File(['png'], 'race.png', { type: 'image/png' }),
+      session,
+    });
+    await vi.waitFor(() => {
+      expect(lastTusUpload().start).toHaveBeenCalled();
+    });
+    const upload = lastTusUpload();
+
+    expect(upload.resumeFromPreviousUpload).not.toHaveBeenCalled();
+
+    upload.options.onSuccess();
+
+    await expect(uploadPromise).resolves.toEqual({ assetId: 'asset-1' });
   });
 
   it('rejects when tus reports an upload error', async () => {

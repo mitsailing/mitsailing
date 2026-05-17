@@ -11,6 +11,7 @@ import {
 } from '@/libs/mit-sailing/cmsMediaStorage';
 import {
   buildCmsMediaPublicPath,
+  cmsMediaByteSizeToNumber,
   validateCmsMediaUpload,
 } from '@/libs/mit-sailing/cmsMediaValidation';
 
@@ -59,7 +60,7 @@ export async function GET(request: Request) {
       id: asset.id,
       originalFilename: asset.originalFilename,
       mimeType: asset.mimeType,
-      byteSize: Number(asset.byteSize),
+      byteSize: cmsMediaByteSizeToNumber(asset.byteSize),
       publicPath: asset.publicPath,
       createdAt: asset.createdAt.toISOString(),
     })),
@@ -80,7 +81,7 @@ export async function POST(request: Request) {
   if (Env.APP_ENV === 'production' || Env.APP_ENV === 'staging') {
     return NextResponse.json(
       { error: 'direct_upload_disabled' },
-      { status: 409 }
+      { status: 403 }
     );
   }
 
@@ -183,7 +184,7 @@ export async function POST(request: Request) {
     id: asset.id,
     originalFilename: asset.originalFilename,
     mimeType: asset.mimeType,
-    byteSize: Number(asset.byteSize),
+    byteSize: cmsMediaByteSizeToNumber(asset.byteSize),
     publicPath: asset.publicPath,
     url: asset.publicPath,
     createdAt: asset.createdAt.toISOString(),

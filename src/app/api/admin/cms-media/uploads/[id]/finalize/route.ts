@@ -4,6 +4,7 @@ import { Role } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
 import { Env } from '@/libs/Env';
 import { getCmsMediaTusUploadStatus } from '@/libs/mit-sailing/cmsMediaTusStatus';
+import { cmsMediaByteSizeToNumber } from '@/libs/mit-sailing/cmsMediaValidation';
 import { enqueueCmsMediaProcessingJob } from '@/worker/cmsMediaProcessingJob';
 import { getDefaultQueue } from '@/worker/defaultQueue';
 
@@ -31,7 +32,7 @@ function assetResponse(asset: {
 }) {
   return {
     asset: {
-      byteSize: Number(asset.byteSize),
+      byteSize: cmsMediaByteSizeToNumber(asset.byteSize),
       createdAt: asset.createdAt.toISOString(),
       id: asset.id,
       mediaKind: asset.mediaKind,
@@ -45,11 +46,17 @@ function assetResponse(asset: {
 }
 
 async function queueAssetForProcessing(id: string) {
-  const queuedAsset = await prisma.cmsMediaAsset.update({
+  const result = await prisma.cmsMediaAsset.updateMany({
     data: {
       processingErrorCode: null,
       status: 'queued',
     },
+    where: { id, status: 'uploading' },
+  });
+  if (result.count !== 1) {
+    return null;
+  }
+  const queuedAsset = await prisma.cmsMediaAsset.findUnique({
     select: {
       byteSize: true,
       createdAt: true,
@@ -63,6 +70,9 @@ async function queueAssetForProcessing(id: string) {
     },
     where: { id },
   });
+  if (!queuedAsset) {
+    return null;
+  }
   await enqueueCmsMediaProcessingJob(getDefaultQueue(), { assetId: id });
   return queuedAsset;
 }
@@ -113,12 +123,18 @@ export async function POST(
   const uploadStatus = await getCmsMediaTusUploadStatus({
     assetId: id,
     baseUrl: Env.MEDIA_UPLOAD_BASE_URL,
-    byteSize: Number(asset.byteSize),
+    byteSize: cmsMediaByteSizeToNumber(asset.byteSize),
   });
   if (!uploadStatus.complete) {
     return NextResponse.json({ error: 'upload_incomplete' }, { status: 409 });
   }
   const queuedAsset = await queueAssetForProcessing(id);
+  if (!queuedAsset) {
+    return NextResponse.json(
+      { error: 'upload_not_cancellable' },
+      { status: 409 }
+    );
+  }
 
   return NextResponse.json(assetResponse(queuedAsset));
 }

@@ -230,7 +230,7 @@ async function createCmsMediaUploadSession(props: {
     headers: { 'Content-Type': 'application/json' },
     method: 'POST',
   });
-  if (response.status === 404 || response.status === 503) {
+  if (response.status === 503) {
     return null;
   }
   if (!response.ok) {
@@ -289,7 +289,11 @@ export async function uploadCmsMediaFile(props: {
   if (finalized) {
     return finalized;
   }
-  return upload.assetId === session.asset.id ? session.asset : null;
+  console.warn('CMS media upload finalize failed', {
+    sessionAssetId: session.asset.id,
+    uploadAssetId: upload.assetId,
+  });
+  return null;
 }
 
 function MediaAssetButton(props: {

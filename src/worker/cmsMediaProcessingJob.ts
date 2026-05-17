@@ -1,7 +1,8 @@
-import type { Stats } from 'node:fs';
+import type { BigIntStats } from 'node:fs';
 import { mkdir, open, rename, stat } from 'node:fs/promises';
 import path from 'node:path';
 import type { JobsOptions } from 'bullmq';
+import type { Prisma } from '@/generated/prisma/client';
 import { prisma } from '@/libs/DB';
 import { Env } from '@/libs/Env';
 import { logger } from '@/libs/Logger';
@@ -22,6 +23,7 @@ const CMS_MEDIA_PROCESSING_JOB_OPTS: JobsOptions = {
 };
 
 const CMS_MEDIA_PROCESSING_STALE_MS = 15 * 60 * 1000;
+const CMS_MEDIA_RECONCILE_BATCH_SIZE = 500;
 
 type CmsMediaProcessingJobData = {
   assetId: string;
@@ -98,9 +100,9 @@ async function fileExists(filePath: string): Promise<boolean> {
   }
 }
 
-async function fileStat(filePath: string): Promise<Stats | null> {
+async function fileStat(filePath: string): Promise<BigIntStats | null> {
   try {
-    return await stat(filePath);
+    return await stat(filePath, { bigint: true });
   } catch {
     return null;
   }
@@ -161,7 +163,7 @@ async function processServerFolderAsset(
     await markCmsMediaFailed({ assetId: asset.id, code: 'missing_upload' });
     throw new Error('CMS media upload file is missing');
   }
-  if (rawStat.size !== Number(asset.byteSize)) {
+  if (rawStat.size !== asset.byteSize) {
     await markCmsMediaFailed({
       assetId: asset.id,
       code: 'byte_size_mismatch',
@@ -194,22 +196,38 @@ export async function enqueueCmsMediaProcessingJob(
 
 export async function reconcileCmsMediaProcessingJobs(
   queue: CmsMediaProcessingQueue,
-  now: Date
+  now: Date,
+  options: { batchSize?: number } = {}
 ): Promise<void> {
   const staleBefore = new Date(now.getTime() - CMS_MEDIA_PROCESSING_STALE_MS);
-  const assets = await prisma.cmsMediaAsset.findMany({
-    orderBy: [{ updatedAt: 'asc' }],
-    select: { id: true },
-    where: {
-      OR: [
-        { status: 'queued' },
-        { status: 'processing', updatedAt: { lt: staleBefore } },
-      ],
-      storageProvider: 'server_folder',
-    },
-  });
-  for (const asset of assets) {
-    await enqueueCmsMediaProcessingJob(queue, { assetId: asset.id });
+  const batchSize = options.batchSize ?? CMS_MEDIA_RECONCILE_BATCH_SIZE;
+  const where: Prisma.CmsMediaAssetWhereInput = {
+    OR: [
+      { status: 'queued' },
+      { status: 'processing', updatedAt: { lt: staleBefore } },
+    ],
+    storageProvider: 'server_folder',
+  };
+  let cursor: { id: string } | undefined;
+  for (;;) {
+    const assets = await prisma.cmsMediaAsset.findMany({
+      ...(cursor ? { cursor, skip: 1 } : {}),
+      orderBy: [{ updatedAt: 'asc' }],
+      select: { id: true },
+      take: batchSize,
+      where,
+    });
+    for (const asset of assets) {
+      await enqueueCmsMediaProcessingJob(queue, { assetId: asset.id });
+    }
+    if (assets.length < batchSize) {
+      return;
+    }
+    const lastAsset = assets.at(-1);
+    if (!lastAsset) {
+      return;
+    }
+    cursor = { id: lastAsset.id };
   }
 }
 

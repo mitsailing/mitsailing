@@ -12,6 +12,7 @@ import type { CmsMediaUploadSessionAsset } from '@/libs/mit-sailing/cmsMediaType
 import { createCmsMediaUploadSession } from '@/libs/mit-sailing/cmsMediaUploadSessions';
 import {
   buildCmsMediaPublicPath,
+  cmsMediaByteSizeToNumber,
   validateCmsMediaMetadata,
 } from '@/libs/mit-sailing/cmsMediaValidation';
 
@@ -88,7 +89,7 @@ function sessionAssetFromRecord(asset: {
   status: CmsMediaUploadSessionAsset['status'];
 }): CmsMediaUploadSessionAsset {
   return {
-    byteSize: Number(asset.byteSize),
+    byteSize: cmsMediaByteSizeToNumber(asset.byteSize),
     createdAt: asset.createdAt.toISOString(),
     id: asset.id,
     mediaKind: asset.mediaKind,

@@ -204,7 +204,7 @@ export async function handleCmsMediaTusHook(props: {
     return rejectUpload(403, 'asset_not_uploading');
   }
   if (
-    Number(asset.byteSize) !== parsed.metadata.byteSize ||
+    asset.byteSize !== BigInt(parsed.metadata.byteSize) ||
     parsed.size !== parsed.metadata.byteSize
   ) {
     return rejectUpload(400, 'byte_size_mismatch');

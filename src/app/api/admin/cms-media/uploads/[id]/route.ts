@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/libs/auth/dal';
 import { Role } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
+import { cmsMediaByteSizeToNumber } from '@/libs/mit-sailing/cmsMediaValidation';
 
 export const runtime = 'nodejs';
 
@@ -29,7 +30,7 @@ async function currentAdminUserId(): Promise<string | null> {
 function assetResponse(asset: CmsMediaUploadRouteAsset) {
   return {
     asset: {
-      byteSize: Number(asset.byteSize),
+      byteSize: cmsMediaByteSizeToNumber(asset.byteSize),
       createdAt: asset.createdAt.toISOString(),
       id: asset.id,
       mediaKind: asset.mediaKind,

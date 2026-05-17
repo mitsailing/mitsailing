@@ -58,6 +58,7 @@ readonly DEPLOY_USER="${DEPLOY_USER:-$ssh_user}"
 readonly DEPLOY_GROUP="${DEPLOY_GROUP:-}"
 readonly DEPLOY_DIR="${DEPLOY_DIR:-/home/${DEPLOY_USER}/apps/mitsailing}"
 readonly PRODUCTION_DATA_ROOT="$DEFAULT_DATA_ROOT"
+readonly EXPECTED_NGINX_IMAGE="nginx:1.29-alpine"
 
 require_safe_value() {
   local name="$1"
@@ -84,8 +85,8 @@ log() { printf '[bootstrap] %s\n' "$*"; }
 validate_compose_config() {
   log "validating rendered production Compose config"
   # shellcheck disable=SC2016
-  docker compose -f compose.yaml -f compose.prod.yaml --profile release --env-file .env.production.example config --format json |
-    node -e '
+  EXPECTED_NGINX_IMAGE="$EXPECTED_NGINX_IMAGE" docker compose -f compose.yaml -f compose.prod.yaml --profile release --env-file .env.production.example config --format json |
+    EXPECTED_NGINX_IMAGE="$EXPECTED_NGINX_IMAGE" node -e '
 let input = "";
 process.stdin.on("data", (chunk) => {
   input += chunk;
@@ -117,8 +118,9 @@ process.stdin.on("end", () => {
   if (!nginxConf || nginxConf.type !== "bind" || nginxConf.source !== `${process.cwd()}/.deploy/nginx`) {
     throw new Error(`app must bind .deploy/nginx to /etc/nginx/conf.d, got ${JSON.stringify(nginxConf)}`);
   }
-  if (config.services.app.image !== "nginx:1.29-alpine") {
-    throw new Error(`app service must be nginx proxy, got ${config.services.app.image}`);
+  const expectedNginxImage = process.env.EXPECTED_NGINX_IMAGE;
+  if (config.services.app.image !== expectedNginxImage) {
+    throw new Error(`app service must be nginx proxy ${expectedNginxImage}, got ${config.services.app.image}`);
   }
   for (const [serviceName, serviceConfig] of Object.entries(config.services)) {
     if (serviceConfig.ports?.length) {
@@ -135,7 +137,7 @@ process.stdin.on("end", () => {
 
 run_remote_bootstrap() {
   log "connecting to ${SSH_TARGET}"
-  ssh -tt "$SSH_TARGET" bash -s -- \
+  ssh -t "$SSH_TARGET" bash -s -- \
     "$DEPLOY_USER" \
     "$DEPLOY_GROUP" \
     "$DEPLOY_DIR" \

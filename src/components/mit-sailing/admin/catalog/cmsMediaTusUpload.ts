@@ -37,18 +37,25 @@ function previousUploadAssetId(
   previousUpload: CmsMediaTusPreviousUpload
 ): string | undefined {
   const { metadata } = previousUpload;
+  if (!metadata) {
+    return undefined;
+  }
   const { assetId } = metadata;
   return typeof assetId === 'string' && assetId.length > 0
     ? assetId
     : undefined;
 }
 
-function newestPreviousUpload(
-  previousUploads: CmsMediaTusPreviousUpload[]
-): CmsMediaTusPreviousUpload | null {
+function newestPreviousUpload(props: {
+  assetId: string;
+  previousUploads: CmsMediaTusPreviousUpload[];
+}): CmsMediaTusPreviousUpload | null {
   return (
-    previousUploads
-      .filter((previousUpload) => previousUploadAssetId(previousUpload))
+    props.previousUploads
+      .filter(
+        (previousUpload) =>
+          previousUploadAssetId(previousUpload) === props.assetId
+      )
       .toSorted(
         (left, right) => previousUploadTime(right) - previousUploadTime(left)
       )[0] ?? null
@@ -81,7 +88,10 @@ export async function uploadCmsMediaWithTus(props: {
 
   try {
     const previousUploads = await upload.findPreviousUploads();
-    const previousUpload = newestPreviousUpload(previousUploads);
+    const previousUpload = newestPreviousUpload({
+      assetId: props.session.metadata.assetId,
+      previousUploads,
+    });
     if (previousUpload) {
       resumedAssetId = previousUploadAssetId(previousUpload);
       upload.resumeFromPreviousUpload(previousUpload);

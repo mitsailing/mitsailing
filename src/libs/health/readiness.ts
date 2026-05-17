@@ -141,7 +141,12 @@ async function readTrafficStateFile(
   }
   const fileContents = await readFile(stateFile, 'utf8');
   const value = fileContents.trim();
-  return value === 'true' ? 'true' : 'false';
+  if (value === 'true' || value === 'false') {
+    return value;
+  }
+  throw new Error(
+    `Invalid traffic state file content for ${stateFile}: "${value}"`
+  );
 }
 
 async function timeoutFailure(
@@ -315,10 +320,18 @@ export async function getReadinessHealth(
         mode,
       });
     } catch {
-      return trafficCheck({
-        hostTrafficEnabled: 'false',
-        mode,
-      });
+      if (mode === 'service') {
+        return trafficCheck({
+          hostTrafficEnabled: 'false',
+          mode,
+        });
+      }
+      return {
+        status: 'fail',
+        required: true,
+        latencyMs: 0,
+        code: 'unreachable',
+      } satisfies DependencyHealth;
     }
   })();
 

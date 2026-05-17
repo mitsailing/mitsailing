@@ -17,6 +17,7 @@ x-app-image: &app-image
     - path: .env.image
       required: false
   environment:
+    # Worker upload paths and app media paths intentionally share this bind mount.
     CMS_MEDIA_ROOT: /srv/mitsailing-data/cms-media
     MEDIA_STORAGE_ROOT: /srv/mitsailing-data/cms-media
   logging:

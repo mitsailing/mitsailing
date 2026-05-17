@@ -28,6 +28,7 @@ readonly ACTIVE_HOST_FILE=".deploy/two-host-active"
 readonly CURRENT_REF_FILE=".deploy/two-host-current-ref"
 readonly PREVIOUS_REF_FILE=".deploy/two-host-previous-ref"
 readonly LOCK_DIR=".deploy/two-host-deploy.lock"
+readonly LOCK_STALE_SECONDS="${LOCK_STALE_SECONDS:-7200}"
 
 lock_acquired=false
 
@@ -122,13 +123,33 @@ REMOTE
 }
 
 acquire_lock() {
-  remote_bash "$DATA_MEDIA_HOST" "$REMOTE_APP_DIR" "$LOCK_DIR" <<'REMOTE'
+  remote_bash "$DATA_MEDIA_HOST" "$REMOTE_APP_DIR" "$LOCK_DIR" "$LOCK_STALE_SECONDS" <<'REMOTE'
 set -Eeuo pipefail
 remote_app_dir="$1"
 lock_dir="$2"
+lock_stale_seconds="$3"
 cd "$remote_app_dir"
 mkdir -p .deploy
+if [[ -d "$lock_dir" ]]; then
+  owner_file="$lock_dir/owner"
+  if [[ -f "$owner_file" ]]; then
+    created_at="$(awk 'NR == 1 { print $1 }' "$owner_file")"
+    now="$(date +%s)"
+    if [[ "$created_at" =~ ^[0-9]+$ && $((now - created_at)) -gt "$lock_stale_seconds" ]]; then
+      rm -rf "$lock_dir"
+    else
+      printf 'deploy lock is held: %s\n' "$(tr '\n' ' ' < "$owner_file")" >&2
+      exit 1
+    fi
+  else
+    rm -rf "$lock_dir"
+  fi
+fi
 mkdir "$lock_dir"
+{
+  date +%s
+  printf 'host=%s user=%s\n' "$(hostname)" "${USER:-unknown}"
+} > "$lock_dir/owner"
 REMOTE
   lock_acquired=true
 }
@@ -142,6 +163,7 @@ set -Eeuo pipefail
 remote_app_dir="$1"
 lock_dir="$2"
 cd "$remote_app_dir"
+rm -f "$lock_dir/owner"
 rmdir "$lock_dir"
 REMOTE
 }

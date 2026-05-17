@@ -1,4 +1,5 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import type * as FsPromises from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -176,6 +177,54 @@ describe('cms media processing job', () => {
     });
   });
 
+  it('compares raw upload byte size without unsafe bigint coercion', async () => {
+    const root = await createMediaRoot();
+    const rawSize = Number.MAX_SAFE_INTEGER + 1;
+    const rawPath = path.join(root, 'uploads', 'asset-1');
+    const readyPath = path.join(root, 'ready', 'asset-1', 'race-day.png');
+    let statCalls = 0;
+    vi.resetModules();
+    vi.doMock('node:fs/promises', async (importActual) => {
+      const actual = await importActual<typeof FsPromises>();
+      return {
+        ...actual,
+        stat: vi.fn(async () => {
+          statCalls += 1;
+          if (statCalls === 1) {
+            throw new Error('missing ready file');
+          }
+          const size = await Promise.resolve(rawSize);
+          return { size };
+        }),
+      };
+    });
+    const { processCmsMediaProcessingJob } =
+      await import('@/worker/cmsMediaProcessingJob');
+    await mkdir(path.dirname(rawPath), { recursive: true });
+    await writeFile(rawPath, Buffer.from([0]));
+    findUnique.mockResolvedValue({
+      ...processingAsset({
+        byteSize: BigInt(rawSize) + BigInt(Number.parseInt('1', 10)),
+        rawPath,
+        readyPath,
+      }),
+      mediaKind: 'file',
+      mimeType: 'application/pdf',
+    });
+
+    await expect(
+      processCmsMediaProcessingJob({ assetId: 'asset-1' })
+    ).rejects.toThrow('byte size');
+
+    expect(update).toHaveBeenCalledWith({
+      data: {
+        processingErrorCode: 'byte_size_mismatch',
+        status: 'failed',
+      },
+      where: { id: 'asset-1' },
+    });
+  });
+
   it('re-enqueues queued and stale processing server-folder assets', async () => {
     const { reconcileCmsMediaProcessingJobs } =
       await import('@/worker/cmsMediaProcessingJob');
@@ -188,6 +237,7 @@ describe('cms media processing job', () => {
     expect(findMany).toHaveBeenCalledWith({
       orderBy: [{ updatedAt: 'asc' }],
       select: { id: true },
+      take: 500,
       where: {
         OR: [
           { status: 'queued' },
@@ -218,6 +268,36 @@ describe('cms media processing job', () => {
     );
   });
 
+  it('reconciles stale processing jobs in cursor batches', async () => {
+    const { reconcileCmsMediaProcessingJobs } =
+      await import('@/worker/cmsMediaProcessingJob');
+    const now = new Date(Date.UTC(2026, 4, 17, 12, 30));
+    const add = vi.fn<CmsMediaProcessingQueue['add']>().mockResolvedValue(null);
+    findMany
+      .mockResolvedValueOnce([{ id: 'asset-1' }, { id: 'asset-2' }])
+      .mockResolvedValueOnce([{ id: 'asset-3' }]);
+
+    await reconcileCmsMediaProcessingJobs({ add }, now, { batchSize: 2 });
+
+    expect(findMany).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        orderBy: [{ updatedAt: 'asc' }],
+        take: 2,
+      })
+    );
+    expect(findMany).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        cursor: { id: 'asset-2' },
+        orderBy: [{ updatedAt: 'asc' }],
+        skip: 1,
+        take: 2,
+      })
+    );
+    expect(add).toHaveBeenCalledTimes(3);
+  });
+
   it('does not re-enqueue recent processing, uploading, ready, or local assets', async () => {
     const { reconcileCmsMediaProcessingJobs } =
       await import('@/worker/cmsMediaProcessingJob');
@@ -231,6 +311,7 @@ describe('cms media processing job', () => {
 
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({
+        take: 500,
         where: expect.objectContaining({
           OR: [
             { status: 'queued' },

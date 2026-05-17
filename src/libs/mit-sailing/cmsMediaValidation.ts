@@ -1,9 +1,8 @@
 import path from 'node:path';
 import type { CmsMediaKind } from '@/libs/mit-sailing/cmsMediaTypes';
 
-const CMS_MEDIA_MAX_IMAGE_BYTES = 25 * 1024 * 1024;
-const CMS_MEDIA_MAX_FILE_BYTES = 100 * 1024 * 1024;
-const CMS_MEDIA_MAX_VIDEO_BYTES = 2 * 1024 * 1024 * 1024;
+const CMS_MEDIA_MAX_BYTES = 100 * 1024 * 1024;
+const CMS_MEDIA_SIGNATURE_SCAN_BYTES = 64;
 
 export const CMS_MEDIA_ALLOWED_MIME_TYPES = [
   'image/jpeg',
@@ -99,6 +98,33 @@ function bytesStartWith(bytes: Uint8Array, signature: readonly number[]) {
     return false;
   }
   return signature.every((byte, index) => bytes[index] === byte);
+}
+
+export function cmsMediaByteSizeToNumber(byteSize: bigint): number {
+  if (
+    byteSize < BigInt(Number.parseInt('0', 10)) ||
+    byteSize > BigInt(Number.MAX_SAFE_INTEGER)
+  ) {
+    throw new RangeError('CMS media byteSize must be a safe integer');
+  }
+  return Number(byteSize);
+}
+
+function bytesContainSignature(
+  bytes: Uint8Array,
+  signature: readonly number[],
+  limit = CMS_MEDIA_SIGNATURE_SCAN_BYTES
+): boolean {
+  const scanLength = Math.min(bytes.byteLength, limit);
+  if (scanLength < signature.length) {
+    return false;
+  }
+  for (let index = 0; index <= scanLength - signature.length; index += 1) {
+    if (signature.every((byte, offset) => bytes[index + offset] === byte)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
@@ -249,7 +275,7 @@ export function validateCmsMediaUpload(props: {
   if (props.bytes.byteLength === 0) {
     return { ok: false, code: 'empty_file' };
   }
-  if (props.bytes.byteLength > CMS_MEDIA_MAX_IMAGE_BYTES) {
+  if (props.bytes.byteLength > CMS_MEDIA_MAX_BYTES) {
     return { ok: false, code: 'too_large' };
   }
   if (
@@ -288,16 +314,6 @@ export function mediaKindFromMimeType(mimeType: string): CmsMediaKind | null {
   return null;
 }
 
-function mediaMaxBytes(kind: CmsMediaKind): number {
-  if (kind === 'image') {
-    return CMS_MEDIA_MAX_IMAGE_BYTES;
-  }
-  if (kind === 'video') {
-    return CMS_MEDIA_MAX_VIDEO_BYTES;
-  }
-  return CMS_MEDIA_MAX_FILE_BYTES;
-}
-
 export function validateCmsMediaMetadata(props: {
   byteSize: number;
   declaredMimeType: string;
@@ -317,7 +333,7 @@ export function validateCmsMediaMetadata(props: {
   if (!mediaKind) {
     return { ok: false, code: 'unsupported_type' };
   }
-  if (props.byteSize > mediaMaxBytes(mediaKind)) {
+  if (props.byteSize > CMS_MEDIA_MAX_BYTES) {
     return { ok: false, code: 'too_large' };
   }
   return {
@@ -346,13 +362,7 @@ export function detectCmsMediaKind(
     declaredMimeType === 'video/mp4' ||
     declaredMimeType === 'video/quicktime'
   ) {
-    return bytes.byteLength >= 12 &&
-      bytes[4] === 102 &&
-      bytes[5] === 116 &&
-      bytes[6] === 121 &&
-      bytes[7] === 112
-      ? 'video'
-      : null;
+    return bytesContainSignature(bytes, [102, 116, 121, 112]) ? 'video' : null;
   }
   if (declaredMimeType === 'video/webm') {
     return bytesStartWith(bytes, [26, 69, 223, 163]) ? 'video' : null;

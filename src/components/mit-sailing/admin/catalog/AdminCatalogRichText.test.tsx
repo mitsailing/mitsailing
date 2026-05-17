@@ -645,6 +645,37 @@ describe('AdminCatalogForm rich text fields', () => {
 });
 
 describe('AdminRichTextEditor media controls', () => {
+  it('rejects 404 upload session responses without direct fallback', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async (input) => {
+        await Promise.resolve();
+        const url = requestInputUrl(input);
+        if (url === '/api/admin/cms-media/uploads') {
+          return new Response(null, { status: 404 });
+        }
+        if (url === '/api/admin/cms-media') {
+          return Response.json({
+            createdAt: '2026-05-17T12:00:00.000Z',
+            id: 'asset-direct',
+            originalFilename: 'race.png',
+            publicPath: '/cms-media/asset-direct/race.png',
+          });
+        }
+        return new Response(null, { status: 500 });
+      });
+
+    await expect(
+      uploadCmsMediaFile({
+        file: new File(['png'], 'race.png', { type: 'image/png' }),
+      })
+    ).rejects.toThrow('CMS media upload session failed');
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      '/api/admin/cms-media',
+      expect.anything()
+    );
+  });
+
   it('cancels a newly-created session after resuming an earlier tus upload', async () => {
     uploadCmsMediaWithTusMock.mockResolvedValue({ assetId: 'asset-resumed' });
     const fetchMock = mockCmsMediaUploadFetch({
@@ -671,6 +702,36 @@ describe('AdminRichTextEditor media controls', () => {
       '/api/admin/cms-media/uploads/asset-resumed/finalize',
       expect.objectContaining({ method: 'POST' })
     );
+  });
+
+  it('returns null when tus finalize fails for the session asset', async () => {
+    uploadCmsMediaWithTusMock.mockResolvedValue({ assetId: 'asset-1' });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      await Promise.resolve();
+      const url = requestInputUrl(input);
+      if (url === '/api/admin/cms-media/uploads') {
+        return cmsMediaTusSessionResponse({
+          assetId: 'asset-1',
+          originalFilename: 'race.png',
+          publicPath: '/cms-media/asset-1/race.png',
+        });
+      }
+      if (url === '/api/admin/cms-media/uploads/asset-1/finalize') {
+        return new Response(null, { status: 503 });
+      }
+      return new Response(null, { status: 500 });
+    });
+
+    await expect(
+      uploadCmsMediaFile({
+        file: new File(['png'], 'race.png', { type: 'image/png' }),
+      })
+    ).resolves.toBeNull();
+    expect(warn).toHaveBeenCalledWith('CMS media upload finalize failed', {
+      sessionAssetId: 'asset-1',
+      uploadAssetId: 'asset-1',
+    });
   });
 
   it('submits uploaded aligned cms image html', async () => {

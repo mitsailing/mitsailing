@@ -1,5 +1,9 @@
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { healthPostgresStatementTimeoutMs } from './constants';
 import { getReadinessHealth } from './readiness';
 
 const {
@@ -22,6 +26,8 @@ const {
   transactionMock: vi.fn(),
 }));
 
+let tempDirectories: string[] = [];
+
 vi.mock('ioredis', () => ({
   default: redisConstructorMock,
 }));
@@ -41,6 +47,15 @@ beforeEach(() => {
       ping: redisPingMock,
     };
   });
+});
+
+afterEach(async () => {
+  await Promise.all(
+    tempDirectories.map(async (directory) => {
+      await rm(directory, { force: true, recursive: true });
+    })
+  );
+  tempDirectories = [];
 });
 
 function passingCheckers() {
@@ -96,8 +111,9 @@ describe('getReadinessHealth', () => {
       timeoutMs: 17,
     });
 
+    const expectedTimeout = healthPostgresStatementTimeoutMs;
     expect(executeRawUnsafeMock).toHaveBeenCalledWith(
-      'SET LOCAL statement_timeout = 1000'
+      `SET LOCAL statement_timeout = ${expectedTimeout}`
     );
     expect(executeRawMock).not.toHaveBeenCalled();
   });
@@ -250,6 +266,30 @@ describe('getReadinessHealth', () => {
     expect(trafficState).toHaveBeenCalledWith(
       '/run/mitsailing/traffic-enabled'
     );
+  });
+
+  it('fails host traffic state file with invalid contents as unreachable', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'mitsailing-readiness-'));
+    tempDirectories.push(directory);
+    const stateFile = join(directory, 'traffic-enabled');
+    await writeFile(stateFile, 'yes\n');
+
+    const health = await getReadinessHealth({
+      env: {
+        ...productionReadinessEnv(),
+        hostTrafficEnabled: 'true',
+        hostTrafficStateFile: stateFile,
+      },
+      checkers: passingCheckers(),
+    });
+
+    expect(health.status).toBe('fail');
+    expect(health.checks.traffic).toEqual({
+      status: 'fail',
+      required: true,
+      latencyMs: 0,
+      code: 'unreachable',
+    });
   });
 
   it('skips host traffic gate for service readiness mode', async () => {

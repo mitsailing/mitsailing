@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   getCurrentUser: vi.fn(),
   getDefaultQueue: vi.fn(() => ({ name: 'default' })),
   update: vi.fn(),
+  updateMany: vi.fn(),
 }));
 
 vi.mock('@/libs/auth/dal', () => ({
@@ -18,6 +19,7 @@ vi.mock('@/libs/DB', () => ({
     cmsMediaAsset: {
       findUnique: mocks.findUnique,
       update: mocks.update,
+      updateMany: mocks.updateMany,
     },
   },
 }));
@@ -92,8 +94,10 @@ describe('cms media upload finalize route', () => {
       );
     vi.stubGlobal('fetch', fetchMock);
     stubAdminUser();
-    mocks.findUnique.mockResolvedValue(asset());
-    mocks.update.mockResolvedValue(asset('queued'));
+    mocks.findUnique
+      .mockResolvedValueOnce(asset())
+      .mockResolvedValueOnce(asset('queued'));
+    mocks.updateMany.mockResolvedValue({ count: 1 });
 
     const response = await POST(finalizeRequest(), routeProps());
 
@@ -108,16 +112,38 @@ describe('cms media upload finalize route', () => {
       'https://uploads.mitsailing.com/cms-media/uploads/asset-1',
       expect.objectContaining({ method: 'HEAD' })
     );
-    expect(mocks.update).toHaveBeenCalledWith(
+    expect(mocks.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ status: 'queued' }),
-        where: { id: 'asset-1' },
+        where: { id: 'asset-1', status: 'uploading' },
       })
     );
     expect(mocks.enqueueCmsMediaProcessingJob).toHaveBeenCalledWith(
       { name: 'default' },
       { assetId: 'asset-1' }
     );
+  });
+
+  it('does not queue processing when the asset leaves uploading before update', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(
+          headResponse({ 'Upload-Length': '1024', 'Upload-Offset': '1024' })
+        )
+    );
+    stubAdminUser();
+    mocks.findUnique.mockResolvedValue(asset());
+    mocks.updateMany.mockResolvedValue({ count: 0 });
+
+    const response = await POST(finalizeRequest(), routeProps());
+
+    await expect(response.json()).resolves.toEqual({
+      error: 'upload_not_cancellable',
+    });
+    expect(response.status).toBe(409);
+    expect(mocks.enqueueCmsMediaProcessingJob).not.toHaveBeenCalled();
   });
 
   it('returns 409 when the tus offset is incomplete', async () => {
@@ -138,7 +164,7 @@ describe('cms media upload finalize route', () => {
       error: 'upload_incomplete',
     });
     expect(response.status).toBe(409);
-    expect(mocks.update).not.toHaveBeenCalled();
+    expect(mocks.updateMany).not.toHaveBeenCalled();
     expect(mocks.enqueueCmsMediaProcessingJob).not.toHaveBeenCalled();
   });
 
@@ -156,7 +182,7 @@ describe('cms media upload finalize route', () => {
       error: 'upload_incomplete',
     });
     expect(response.status).toBe(409);
-    expect(mocks.update).not.toHaveBeenCalled();
+    expect(mocks.updateMany).not.toHaveBeenCalled();
   });
 
   it('returns 409 when tusd cannot find the upload', async () => {
@@ -173,7 +199,7 @@ describe('cms media upload finalize route', () => {
       error: 'upload_incomplete',
     });
     expect(response.status).toBe(409);
-    expect(mocks.update).not.toHaveBeenCalled();
+    expect(mocks.updateMany).not.toHaveBeenCalled();
   });
 
   it('returns 409 when tusd status cannot be read', async () => {
@@ -190,6 +216,6 @@ describe('cms media upload finalize route', () => {
       error: 'upload_incomplete',
     });
     expect(response.status).toBe(409);
-    expect(mocks.update).not.toHaveBeenCalled();
+    expect(mocks.updateMany).not.toHaveBeenCalled();
   });
 });
