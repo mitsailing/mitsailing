@@ -242,8 +242,8 @@ server {
   server_tokens off;
 
   client_max_body_size 500m;
-  client_body_timeout 900s;
-  send_timeout 900s;
+  client_body_timeout ${DEPLOY_DRAIN_SECONDS}s;
+  send_timeout ${DEPLOY_DRAIN_SECONDS}s;
   keepalive_timeout 75s;
 
   location / {
@@ -252,8 +252,8 @@ server {
     proxy_request_buffering off;
     proxy_buffering on;
     proxy_connect_timeout 30s;
-    proxy_send_timeout 900s;
-    proxy_read_timeout 900s;
+    proxy_send_timeout ${DEPLOY_DRAIN_SECONDS}s;
+    proxy_read_timeout ${DEPLOY_DRAIN_SECONDS}s;
     proxy_next_upstream off;
     proxy_set_header Host \$host;
     proxy_set_header X-Real-IP \$remote_addr;
