@@ -11,6 +11,7 @@
 #   - release <image-ref> runs migrations, promotes inactive app host, drains old host.
 #   - rollback <previous|image-ref> promotes the inactive host without DB rollback.
 #   - migrate <image-ref> runs only Prisma migrations from the data/media host image.
+#   - tusd-maintenance <image-ref> restarts tusd during an operator window.
 
 set -Eeuo pipefail
 
@@ -53,7 +54,7 @@ parse_cmd() {
   local ref="${2:-}"
 
   case "$cmd" in
-    release|migrate)
+    release|migrate|tusd-maintenance)
       [[ -n "$ref" ]] || fail "usage: $cmd <image-ref>"
       valid_ref "$ref" || fail "invalid ref: $ref"
       ;;
@@ -62,7 +63,7 @@ parse_cmd() {
       [[ "$ref" == "previous" ]] || valid_ref "$ref" || fail "invalid rollback ref: $ref"
       ;;
     *)
-      fail "unknown command: $cmd (allowed: 'release <ref>', 'rollback <previous|ref>', or 'migrate <ref>')"
+      fail "unknown command: $cmd (allowed: 'release <ref>', 'rollback <previous|ref>', 'migrate <ref>', or 'tusd-maintenance <ref>')"
       ;;
   esac
 
@@ -311,6 +312,18 @@ docker compose -f "$data_compose_file" --env-file .env.production.data --env-fil
 REMOTE
 }
 
+restart_tusd_maintenance() {
+  local ref="$1"
+  log "restarting tusd during explicit maintenance for ref=$ref on $DATA_MEDIA_HOST"
+  remote_bash "$DATA_MEDIA_HOST" "$REMOTE_APP_DIR" "$DATA_COMPOSE_FILE" <<'REMOTE'
+set -Eeuo pipefail
+remote_app_dir="$1"
+data_compose_file="$2"
+cd "$remote_app_dir"
+docker compose -f "$data_compose_file" --env-file .env.production.data --env-file .env.production.worker --env-file .env.image up -d --no-deps --force-recreate tusd
+REMOTE
+}
+
 record_state() {
   local active="$1"
   local ref="$2"
@@ -447,6 +460,9 @@ main() {
       ;;
     rollback)
       rollback_ref "$ref"
+      ;;
+    tusd-maintenance)
+      restart_tusd_maintenance "$ref"
       ;;
     *)
       fail "unknown command: $cmd"

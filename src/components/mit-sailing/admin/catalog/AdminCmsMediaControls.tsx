@@ -7,6 +7,8 @@ import type * as React from 'react';
 import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import type { CmsMediaTusUploadSession } from './cmsMediaTusUpload';
+import { uploadCmsMediaWithTus } from './cmsMediaTusUpload';
 
 export type CmsMediaAsset = {
   id: string;
@@ -42,12 +44,23 @@ export function stringField(value: unknown, field: string): string | undefined {
   return typeof descriptor?.value === 'string' ? descriptor.value : undefined;
 }
 
+function numberField(value: unknown, field: string): number | undefined {
+  if (typeof value !== 'object' || value === null) {
+    return undefined;
+  }
+  const descriptor = Object.getOwnPropertyDescriptor(value, field);
+  return typeof descriptor?.value === 'number' &&
+    Number.isFinite(descriptor.value)
+    ? descriptor.value
+    : undefined;
+}
+
 export function cmsMediaAssetFromUnknown(value: unknown): CmsMediaAsset | null {
   const id = stringField(value, 'id');
   const originalFilename = stringField(value, 'originalFilename');
   const publicPath = stringField(value, 'publicPath');
   const createdAt = stringField(value, 'createdAt');
-  if (!id || !originalFilename || !publicPath || !createdAt) {
+  if (!id || !originalFilename || !isCmsMediaPath(publicPath) || !createdAt) {
     return null;
   }
   return { createdAt, id, originalFilename, publicPath };
@@ -140,12 +153,6 @@ async function uploadCmsMediaFileDirect(props: {
   return cmsMediaUploadedAssetFromUnknown({ file: props.file, value: data });
 }
 
-type CmsMediaUploadDetails = {
-  headers: Record<string, string>;
-  method: 'PUT';
-  url: string;
-};
-
 function stringRecordFromUnknown(
   value: unknown
 ): Record<string, string> | null {
@@ -159,34 +166,60 @@ function stringRecordFromUnknown(
   return Object.fromEntries(entries);
 }
 
-function uploadDetailsFromUnknown(
+function cmsMediaTusMetadataFromUnknown(
   value: unknown
-): CmsMediaUploadDetails | null {
-  const upload = objectField(value, 'upload');
-  const url = stringField(upload, 'url');
-  const method = stringField(upload, 'method');
-  const headers = stringRecordFromUnknown(objectField(upload, 'headers'));
-  if (!url || method !== 'PUT' || !headers) {
+): CmsMediaTusUploadSession['metadata'] | null {
+  const assetId = stringField(value, 'assetId');
+  const byteSize = stringField(value, 'byteSize');
+  const filename = stringField(value, 'filename');
+  const filetype = stringField(value, 'filetype');
+  const token = stringField(value, 'token');
+  if (!assetId || !byteSize || !filename || !filetype || !token) {
     return null;
   }
-  return { headers, method, url };
+  return { assetId, byteSize, filename, filetype, token };
+}
+
+function uploadDetailsFromUnknown(
+  value: unknown
+): CmsMediaTusUploadSession | null {
+  const upload = objectField(value, 'upload');
+  const byteSize = numberField(upload, 'byteSize');
+  const endpoint = stringField(upload, 'endpoint');
+  const expiresAt = stringField(upload, 'expiresAt');
+  const headers = stringRecordFromUnknown(objectField(upload, 'headers'));
+  const metadata = cmsMediaTusMetadataFromUnknown(
+    objectField(upload, 'metadata')
+  );
+  const protocol = stringField(upload, 'protocol');
+  if (
+    protocol !== 'tus' ||
+    !endpoint ||
+    !headers ||
+    !metadata ||
+    byteSize === undefined ||
+    byteSize < 0 ||
+    !expiresAt
+  ) {
+    return null;
+  }
+  return {
+    byteSize,
+    endpoint,
+    expiresAt,
+    headers,
+    metadata,
+    protocol,
+  };
 }
 
 async function createCmsMediaUploadSession(props: {
   file: File;
   pageId?: string;
-}): Promise<
-  | {
-      asset: CmsMediaAsset;
-      kind: 'direct';
-    }
-  | {
-      asset: CmsMediaAsset;
-      kind: 'session';
-      upload: CmsMediaUploadDetails;
-    }
-  | null
-> {
+}): Promise<{
+  asset: CmsMediaAsset;
+  upload: CmsMediaTusUploadSession;
+} | null> {
   const response = await fetch('/api/admin/cms-media/uploads', {
     body: JSON.stringify({
       byteSize: props.file.size,
@@ -210,16 +243,16 @@ async function createCmsMediaUploadSession(props: {
   });
   const upload = uploadDetailsFromUnknown(data);
   if (asset && upload) {
-    return { asset, kind: 'session', upload };
+    return { asset, upload };
   }
-  return asset ? { asset, kind: 'direct' } : null;
+  throw new Error('CMS media upload session response invalid');
 }
 
 async function finalizeCmsMediaUpload(
-  asset: CmsMediaAsset
+  assetId: string
 ): Promise<CmsMediaAsset | null> {
   const response = await fetch(
-    `/api/admin/cms-media/uploads/${encodeURIComponent(asset.id)}/finalize`,
+    `/api/admin/cms-media/uploads/${encodeURIComponent(assetId)}/finalize`,
     {
       method: 'POST',
     }
@@ -231,6 +264,12 @@ async function finalizeCmsMediaUpload(
   return cmsMediaAssetFromApiResponse(data);
 }
 
+async function cancelCmsMediaUpload(assetId: string): Promise<void> {
+  await fetch(`/api/admin/cms-media/uploads/${encodeURIComponent(assetId)}`, {
+    method: 'DELETE',
+  });
+}
+
 export async function uploadCmsMediaFile(props: {
   file: File;
   pageId?: string;
@@ -239,19 +278,18 @@ export async function uploadCmsMediaFile(props: {
   if (!session) {
     return uploadCmsMediaFileDirect(props);
   }
-  if (session.kind === 'direct') {
-    return session.asset;
-  }
-  const uploadResponse = await fetch(session.upload.url, {
-    body: props.file,
-    headers: session.upload.headers,
-    method: session.upload.method,
+  const upload = await uploadCmsMediaWithTus({
+    file: props.file,
+    session: session.upload,
   });
-  if (!uploadResponse.ok) {
-    return null;
+  if (upload.assetId !== session.asset.id) {
+    await cancelCmsMediaUpload(session.asset.id);
   }
-  const finalized = await finalizeCmsMediaUpload(session.asset);
-  return finalized ?? session.asset;
+  const finalized = await finalizeCmsMediaUpload(upload.assetId);
+  if (finalized) {
+    return finalized;
+  }
+  return upload.assetId === session.asset.id ? session.asset : null;
 }
 
 function MediaAssetButton(props: {

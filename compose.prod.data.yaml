@@ -87,25 +87,36 @@ services:
         max-size: '10m'
         max-file: '5'
 
-  upload-service:
-    <<: *app-image
-    command: ['node', 'upload-service.mjs']
+  tusd:
+    image: tusproject/tusd:v2.9.2
+    restart: unless-stopped
+    networks:
+      - internal
+    env_file:
+      - path: .env.production.data
+        required: false
+    command:
+      - -upload-dir=/srv/mitsailing-data/cms-media/uploads
+      - -base-path=/cms-media/uploads/
+      - -disable-download
+      - -behind-proxy
+      - -max-size=${MEDIA_UPLOAD_MAX_BYTES:-104857600}
+      - -hooks-http=${TUSD_HOOKS_HTTP_URL:?set TUSD_HOOKS_HTTP_URL}
+      - -hooks-http-forward-headers=x-mitsailing-upload-token
+      - -cors-allow-origin=${MEDIA_UPLOAD_CORS_ALLOW_ORIGIN:-https://mitsailing.com}
+      - -cors-allow-headers=authorization,content-type,tus-resumable,upload-length,upload-metadata,upload-offset,x-mitsailing-upload-token
+      - -cors-expose-headers=location,tus-resumable,upload-offset,upload-length,upload-metadata,upload-expires
     ports:
-      - '${UPLOAD_SERVICE_BIND_HOST:-127.0.0.1}:${UPLOAD_SERVICE_PORT:-3001}:3000'
+      - '${UPLOAD_SERVICE_BIND_HOST:-127.0.0.1}:${UPLOAD_SERVICE_PORT:-3001}:1080'
     volumes:
       - type: bind
-        source: /srv/mitsailing-data/cms-media
-        target: /srv/mitsailing-data/cms-media
-    healthcheck:
-      test:
-        [
-          'CMD-SHELL',
-          'node -e "fetch(''http://127.0.0.1:3000/api/health/live'').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"',
-        ]
-      interval: 30s
-      timeout: 5s
-      start_period: 30s
-      retries: 3
+        source: /srv/mitsailing-data/cms-media/uploads
+        target: /srv/mitsailing-data/cms-media/uploads
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '5'
 
   worker:
     <<: *app-image

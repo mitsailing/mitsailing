@@ -26,9 +26,16 @@ test.describe('Health endpoints', () => {
 
     expect(response.status()).toBe(200);
     expect(response.headers()['cache-control']).toContain('no-store');
-    await expect(response.json()).resolves.toMatchObject({
+    const body = await response.json();
+    expect(body).toMatchObject({
       status: 'ok',
       service: 'nextjs',
+      checks: {
+        mediaPublic: expect.any(Object),
+        mediaUpload: expect.any(Object),
+        postgres: expect.any(Object),
+        redis: expect.any(Object),
+      },
     });
   });
 });

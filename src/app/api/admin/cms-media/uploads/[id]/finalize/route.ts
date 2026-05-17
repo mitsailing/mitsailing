@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/libs/auth/dal';
 import { Role } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
+import { Env } from '@/libs/Env';
+import { getCmsMediaTusUploadStatus } from '@/libs/mit-sailing/cmsMediaTusStatus';
 import { enqueueCmsMediaProcessingJob } from '@/worker/cmsMediaProcessingJob';
 import { getDefaultQueue } from '@/worker/defaultQueue';
 
@@ -101,6 +103,20 @@ export async function POST(
     asset.status === 'queued'
   ) {
     return NextResponse.json(assetResponse(asset));
+  }
+  if (!Env.MEDIA_UPLOAD_BASE_URL) {
+    return NextResponse.json(
+      { error: 'upload_service_not_configured' },
+      { status: 503 }
+    );
+  }
+  const uploadStatus = await getCmsMediaTusUploadStatus({
+    assetId: id,
+    baseUrl: Env.MEDIA_UPLOAD_BASE_URL,
+    byteSize: Number(asset.byteSize),
+  });
+  if (!uploadStatus.complete) {
+    return NextResponse.json({ error: 'upload_incomplete' }, { status: 409 });
   }
   const queuedAsset = await queueAssetForProcessing(id);
 

@@ -10,6 +10,7 @@ import { safeErrorCode, safeErrorName } from '@/libs/safeUnknownError';
 import {
   CMS_MEDIA_PROCESSING_JOB_NAME,
   processCmsMediaProcessingJob,
+  reconcileCmsMediaProcessingJobs,
 } from '@/worker/cmsMediaProcessingJob';
 import { DEFAULT_QUEUE_NAME } from '@/worker/defaultQueue';
 import {
@@ -66,6 +67,7 @@ async function main(): Promise<void> {
 
   const queue = new Queue(DEFAULT_QUEUE_NAME, { connection });
   await registerLegacyMysqlSyncScheduler(queue);
+  await reconcileCmsMediaProcessingJobs(queue, new Date());
 
   const worker = new Worker(
     DEFAULT_QUEUE_NAME,

@@ -36,6 +36,8 @@ beforeEach(() => {
     timestamp: '2026-05-12T00:00:00.000Z',
     latencyMs: 12,
     checks: {
+      mediaPublic: { status: 'ok', required: true, latencyMs: 3 },
+      mediaUpload: { status: 'ok', required: true, latencyMs: 5 },
       postgres: { status: 'ok', required: true, latencyMs: 4 },
       redis: { status: 'ok', required: true, latencyMs: 8 },
     },
@@ -71,6 +73,12 @@ describe('GET /api/health/ready', () => {
     expect(response.status).toBe(200);
     expect(response.headers.get('cache-control')).toContain('no-store');
     expect(body.status).toBe('ok');
+    expect(body.checks).toMatchObject({
+      mediaPublic: { status: 'ok' },
+      mediaUpload: { status: 'ok' },
+      postgres: { status: 'ok' },
+      redis: { status: 'ok' },
+    });
     expect(getReadinessHealthMock).toHaveBeenCalledWith({ mode: 'public' });
   });
 
@@ -95,6 +103,8 @@ describe('GET /api/health/ready', () => {
       timestamp: '2026-05-12T00:00:00.000Z',
       latencyMs: 12,
       checks: {
+        mediaPublic: { status: 'ok', required: true, latencyMs: 3 },
+        mediaUpload: { status: 'ok', required: true, latencyMs: 5 },
         postgres: { status: 'fail', required: true, latencyMs: 4 },
         redis: { status: 'ok', required: true, latencyMs: 8 },
       },

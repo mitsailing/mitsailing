@@ -3,13 +3,8 @@ import { createCmsMediaUploadToken } from '@/libs/mit-sailing/cmsMediaUploadToke
 
 const CMS_MEDIA_UPLOAD_TOKEN_TTL_MS = 15 * 60 * 1000;
 
-export function buildCmsMediaUploadUrl(props: {
-  assetId: string;
-  baseUrl: string;
-}): string {
-  return `${props.baseUrl.replace(/\/$/u, '')}/cms-media/uploads/${encodeURIComponent(
-    props.assetId
-  )}`;
+export function buildCmsMediaTusEndpoint(props: { baseUrl: string }): string {
+  return `${props.baseUrl.replace(/\/$/u, '')}/cms-media/uploads/`;
 }
 
 export function createCmsMediaUploadSession(props: {
@@ -21,38 +16,50 @@ export function createCmsMediaUploadSession(props: {
 }): {
   asset: CmsMediaUploadSessionAsset;
   upload: {
+    byteSize: number;
+    endpoint: string;
     expiresAt: string;
-    headers: {
-      'content-type': string;
-      'x-mitsailing-upload-token': string;
+    headers: Record<string, string>;
+    metadata: {
+      assetId: string;
+      byteSize: string;
+      filename: string;
+      filetype: string;
+      token: string;
     };
-    method: 'PUT';
-    url: string;
+    protocol: 'tus';
   };
 } {
   const expiresAt = props.now.getTime() + CMS_MEDIA_UPLOAD_TOKEN_TTL_MS;
+  const token = createCmsMediaUploadToken({
+    payload: {
+      assetId: props.asset.id,
+      byteSize: props.asset.byteSize,
+      expiresAt,
+      mimeType: props.asset.mimeType,
+      storedFilename: props.storedFilename,
+    },
+    secret: props.secret,
+  });
   return {
     asset: props.asset,
     upload: {
-      expiresAt: new Date(expiresAt).toISOString(),
-      headers: {
-        'content-type': props.asset.mimeType,
-        'x-mitsailing-upload-token': createCmsMediaUploadToken({
-          payload: {
-            assetId: props.asset.id,
-            byteSize: props.asset.byteSize,
-            expiresAt,
-            mimeType: props.asset.mimeType,
-            storedFilename: props.storedFilename,
-          },
-          secret: props.secret,
-        }),
-      },
-      method: 'PUT',
-      url: buildCmsMediaUploadUrl({
-        assetId: props.asset.id,
+      byteSize: props.asset.byteSize,
+      endpoint: buildCmsMediaTusEndpoint({
         baseUrl: props.baseUrl,
       }),
+      expiresAt: new Date(expiresAt).toISOString(),
+      headers: {
+        'x-mitsailing-upload-token': token,
+      },
+      metadata: {
+        assetId: props.asset.id,
+        byteSize: String(props.asset.byteSize),
+        filename: props.storedFilename,
+        filetype: props.asset.mimeType,
+        token,
+      },
+      protocol: 'tus',
     },
   };
 }

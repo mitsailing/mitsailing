@@ -1,3 +1,4 @@
+import type { Stats } from 'node:fs';
 import { mkdir, open, rename, stat } from 'node:fs/promises';
 import path from 'node:path';
 import type { JobsOptions } from 'bullmq';
@@ -20,11 +21,14 @@ const CMS_MEDIA_PROCESSING_JOB_OPTS: JobsOptions = {
   removeOnFail: { count: 200 },
 };
 
+const CMS_MEDIA_PROCESSING_STALE_MS = 15 * 60 * 1000;
+
 type CmsMediaProcessingJobData = {
   assetId: string;
 };
 
 type CmsMediaProcessingAsset = {
+  byteSize: bigint;
   id: string;
   mediaKind: 'file' | 'image' | 'video';
   mimeType: string;
@@ -34,6 +38,7 @@ type CmsMediaProcessingAsset = {
   status: 'failed' | 'processing' | 'queued' | 'ready' | 'uploading';
   storageProvider: 'local' | 'server_folder';
   storedFilename: string;
+  updatedAt: Date;
 };
 
 export type CmsMediaProcessingQueue = Pick<
@@ -93,6 +98,14 @@ async function fileExists(filePath: string): Promise<boolean> {
   }
 }
 
+async function fileStat(filePath: string): Promise<Stats | null> {
+  try {
+    return await stat(filePath);
+  } catch {
+    return null;
+  }
+}
+
 async function readHeader(filePath: string): Promise<Uint8Array> {
   const handle = await open(filePath, 'r');
   try {
@@ -143,9 +156,17 @@ async function processServerFolderAsset(
     await markCmsMediaReady(asset.id);
     return;
   }
-  if (!(await fileExists(paths.rawPath))) {
+  const rawStat = await fileStat(paths.rawPath);
+  if (!rawStat) {
     await markCmsMediaFailed({ assetId: asset.id, code: 'missing_upload' });
     throw new Error('CMS media upload file is missing');
+  }
+  if (rawStat.size !== Number(asset.byteSize)) {
+    await markCmsMediaFailed({
+      assetId: asset.id,
+      code: 'byte_size_mismatch',
+    });
+    throw new Error('CMS media upload byte size does not match metadata');
   }
   const header = await readHeader(paths.rawPath);
   if (detectCmsMediaKind(header, asset.mimeType) !== asset.mediaKind) {
@@ -171,12 +192,34 @@ export async function enqueueCmsMediaProcessingJob(
   });
 }
 
+export async function reconcileCmsMediaProcessingJobs(
+  queue: CmsMediaProcessingQueue,
+  now: Date
+): Promise<void> {
+  const staleBefore = new Date(now.getTime() - CMS_MEDIA_PROCESSING_STALE_MS);
+  const assets = await prisma.cmsMediaAsset.findMany({
+    orderBy: [{ updatedAt: 'asc' }],
+    select: { id: true },
+    where: {
+      OR: [
+        { status: 'queued' },
+        { status: 'processing', updatedAt: { lt: staleBefore } },
+      ],
+      storageProvider: 'server_folder',
+    },
+  });
+  for (const asset of assets) {
+    await enqueueCmsMediaProcessingJob(queue, { assetId: asset.id });
+  }
+}
+
 export async function processCmsMediaProcessingJob(
   data: unknown
 ): Promise<void> {
   const params = cmsMediaProcessingJobDataFromUnknown(data);
   const asset = await prisma.cmsMediaAsset.findUnique({
     select: {
+      byteSize: true,
       id: true,
       mediaKind: true,
       mimeType: true,
@@ -186,6 +229,7 @@ export async function processCmsMediaProcessingJob(
       status: true,
       storageProvider: true,
       storedFilename: true,
+      updatedAt: true,
     },
     where: { id: params.assetId },
   });

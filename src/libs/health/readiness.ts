@@ -49,10 +49,18 @@ type ReadinessEnv = {
 };
 
 type ReadinessCheckers = {
-  http: (url: string, timeoutMs: number) => Promise<void>;
+  http: (
+    url: string,
+    timeoutMs: number,
+    options?: ReadinessHttpCheckOptions
+  ) => Promise<void>;
   postgres: (timeoutMs: number) => Promise<void>;
   redis: (redisUrl: string, timeoutMs: number) => Promise<void>;
   trafficState: (stateFile?: string) => Promise<'true' | 'false' | undefined>;
+};
+
+type ReadinessHttpCheckOptions = {
+  method?: 'GET' | 'OPTIONS';
 };
 
 type ReadinessOptions = {
@@ -110,10 +118,14 @@ async function checkRedis(redisUrl: string, timeoutMs: number): Promise<void> {
   }
 }
 
-async function checkHttp(url: string, timeoutMs: number): Promise<void> {
+async function checkHttp(
+  url: string,
+  timeoutMs: number,
+  options: ReadinessHttpCheckOptions = {}
+): Promise<void> {
   const response = await fetch(url, {
     cache: 'no-store',
-    method: 'GET',
+    method: options.method ?? 'GET',
     signal: AbortSignal.timeout(timeoutMs),
   });
   if (!response.ok) {
@@ -227,6 +239,7 @@ function healthUrl(baseUrl: string, pathname: string): string {
 function optionalHttpCheck(params: {
   baseUrl?: string;
   checkers: ReadinessCheckers;
+  method: 'GET' | 'OPTIONS';
   path: string;
   required: boolean;
   timeoutMs: number;
@@ -239,7 +252,9 @@ function optionalHttpCheck(params: {
     required: params.required,
     timeoutMs: params.timeoutMs,
     run: async (checkTimeoutMs) => {
-      await params.checkers.http(url, checkTimeoutMs);
+      await params.checkers.http(url, checkTimeoutMs, {
+        method: params.method,
+      });
     },
   });
 }
@@ -277,13 +292,15 @@ export async function getReadinessHealth(
   const mediaUploadPromise = optionalHttpCheck({
     baseUrl: env.mediaUploadBaseUrl,
     checkers,
-    path: '/api/health/live',
+    method: 'OPTIONS',
+    path: '/cms-media/uploads/',
     required: isExternalDependencyRequired,
     timeoutMs,
   });
   const mediaPublicPromise = optionalHttpCheck({
     baseUrl: env.mediaPublicBaseUrl,
     checkers,
+    method: 'GET',
     path: '/healthz',
     required: isExternalDependencyRequired,
     timeoutMs,

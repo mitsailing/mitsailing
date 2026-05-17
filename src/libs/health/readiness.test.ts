@@ -175,12 +175,14 @@ describe('getReadinessHealth', () => {
     });
 
     expect(httpCheck).toHaveBeenCalledWith(
-      'https://uploads.mitsailing.com/api/health/live',
-      31
+      'https://uploads.mitsailing.com/cms-media/uploads/',
+      31,
+      expect.objectContaining({ method: 'OPTIONS' })
     );
     expect(httpCheck).toHaveBeenCalledWith(
       'https://media.mitsailing.com/healthz',
-      31
+      31,
+      expect.objectContaining({ method: 'GET' })
     );
   });
 

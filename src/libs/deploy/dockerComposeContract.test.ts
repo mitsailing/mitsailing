@@ -6,6 +6,10 @@ function readRepoFile(path: string): string {
   return readFileSync(join(process.cwd(), path), 'utf8');
 }
 
+function composeVariable(value: string): string {
+  return `${String.fromCodePoint(36)}{${value}}`;
+}
+
 describe('production docker compose split', () => {
   const appHostCompose = readRepoFile('compose.prod.app-host.yaml');
   const dataCompose = readRepoFile('compose.prod.data.yaml');
@@ -14,8 +18,9 @@ describe('production docker compose split', () => {
   it('keeps durable services on the data and media server', () => {
     expect(dataCompose).toContain('postgres:');
     expect(dataCompose).toContain('redis:');
-    expect(dataCompose).toContain('upload-service:');
-    expect(dataCompose).toContain("command: ['node', 'upload-service.mjs']");
+    expect(dataCompose).toContain('tusd:');
+    expect(dataCompose).toContain('image: tusproject/tusd:v2.9.2');
+    expect(dataCompose).not.toContain('upload-service:');
     expect(dataCompose).toContain('worker:');
     expect(dataCompose).toContain("command: ['node', 'worker.mjs']");
     expect(dataCompose).toContain('media:');
@@ -32,6 +37,43 @@ describe('production docker compose split', () => {
     expect(dataCompose).toContain('target: /srv/mitsailing-data/cms-media');
     expect(mediaNginx).toContain('location = /healthz');
     expect(mediaNginx).toContain('alias /srv/mitsailing-data/cms-media/ready/');
+  });
+
+  it('runs tusd with local disk storage and upload hardening', () => {
+    expect(dataCompose).toContain('tusd:');
+    expect(dataCompose).toContain(
+      'source: /srv/mitsailing-data/cms-media/uploads'
+    );
+    expect(dataCompose).toContain(
+      'target: /srv/mitsailing-data/cms-media/uploads'
+    );
+    expect(dataCompose).toContain(
+      '-upload-dir=/srv/mitsailing-data/cms-media/uploads'
+    );
+    expect(dataCompose).toContain('-base-path=/cms-media/uploads/');
+    expect(dataCompose).toContain('-disable-download');
+    expect(dataCompose).toContain('-behind-proxy');
+    expect(dataCompose).toContain(
+      `-max-size=${composeVariable('MEDIA_UPLOAD_MAX_BYTES:-104857600')}`
+    );
+    expect(dataCompose).toContain(
+      `-hooks-http=${composeVariable('TUSD_HOOKS_HTTP_URL:?set TUSD_HOOKS_HTTP_URL')}`
+    );
+    expect(dataCompose).toContain(
+      '-hooks-http-forward-headers=x-mitsailing-upload-token'
+    );
+    expect(dataCompose).toContain(
+      `-cors-allow-origin=${composeVariable('MEDIA_UPLOAD_CORS_ALLOW_ORIGIN:-https://mitsailing.com')}`
+    );
+    expect(dataCompose).toContain(
+      '-cors-allow-headers=authorization,content-type,tus-resumable,upload-length,upload-metadata,upload-offset,x-mitsailing-upload-token'
+    );
+    expect(dataCompose).toContain(
+      '-cors-expose-headers=location,tus-resumable,upload-offset,upload-length,upload-metadata,upload-expires'
+    );
+    expect(dataCompose).toContain(
+      `'${composeVariable('UPLOAD_SERVICE_BIND_HOST:-127.0.0.1')}:${composeVariable('UPLOAD_SERVICE_PORT:-3001')}:1080'`
+    );
   });
 
   it('keeps app hosts stateless for uploaded media', () => {

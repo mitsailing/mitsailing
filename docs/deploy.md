@@ -16,12 +16,12 @@ Ingress in this repo is **Cloudflare Tunnel** (`cloudflared` in
 
 The target production topology is **two app hosts behind a proxy/load balancer**
 (Cloudflare, a reverse proxy, or equivalent) plus **one Docker data/media
-server**. The data/media server runs Postgres, Redis, the upload service, the
+server**. The data/media server runs Postgres, Redis, `tusd`, the
 BullMQ worker, and static media nginx.
 
 This gives zero-downtime app deployments and resilience to one app host going
 away. It is **not** full data-tier high availability: Postgres, Redis, media
-writes, media serving, and the upload service still depend on the single
+writes, media serving, and `tusd` uploads still depend on the single
 data/media server.
 
 Role split:
@@ -29,7 +29,7 @@ Role split:
 | Role | Runs |
 | --- | --- |
 | App host A / app host B | Next.js app containers behind the public proxy/load balancer |
-| Data/media server | `postgres`, `redis`, upload service, `worker`, static media nginx |
+| Data/media server | `postgres`, `redis`, `tusd`, `worker`, static media nginx |
 
 Media storage is local to the data/media server. Do **not** add R2, S3, MinIO,
 or another object store for this architecture. Uploaded media lives under:
@@ -41,7 +41,7 @@ or another object store for this architecture. Uploaded media lives under:
 Upload flow:
 
 1. The browser asks an app host to create an upload session.
-2. The browser uploads bytes directly to the data/media server upload service.
+2. The browser uploads bytes directly to `tusd` on the data/media server.
 3. The app host finalizes the session and enqueues BullMQ processing.
 4. The worker moves validated files into ready media paths under
    `/srv/mitsailing-data/cms-media`.
@@ -51,10 +51,10 @@ The app hosts only create/finalize sessions and enqueue BullMQ work; upload
 request bodies do not stream through the app hosts. That prevents app deploys
 or app-host cutovers from interrupting active upload bodies.
 
-Remaining upload limitation: the current direct PUT upload path is durable
-across app-host deploys, but it is not resumable after a browser, client
-network, or data/media-server upload connection interruption. Large uploads must
-restart unless a resumable protocol is added later.
+Uploads use pinned `tusd` (`tusproject/tusd:v2.9.2`) with local disk storage
+under `/srv/mitsailing-data/cms-media/uploads`. App deploys and rollbacks must
+not recreate `tusd`; only an explicit late-night maintenance window should
+restart or upgrade it, because active uploads can be disrupted.
 
 ---
 
@@ -150,6 +150,13 @@ Fill at least:
 - `POSTGRES_PASSWORD` — strong password; same value embedded in `DATABASE_URL`
 - `REDIS_URL` — on app hosts, point this at the data/media server private IP
   or private DNS name. On the data/media server, use `redis://redis:6379`.
+- `TUSD_HOOKS_HTTP_URL` — on the data/media server, point this at
+  `https://mitsailing.com/api/internal/cms-media/tusd/hooks` or a private
+  load-balanced app ingress reachable from the data/media server. Do not point
+  it at Docker service name `web`; `tusd` runs in the data/media Compose
+  project, not the app-host project.
+- `MEDIA_UPLOAD_MAX_BYTES` and `MEDIA_UPLOAD_CORS_ALLOW_ORIGIN` — data/media
+  server settings consumed by `tusd`.
 - Optional **`DEPLOYMENT_VERSION`** — same string on every web container when
   using rolling deploys or multiple replicas (wired to Next.js `deploymentId`;
   image tag or git SHA is typical).
@@ -332,28 +339,29 @@ bin/bootstrap-production-server.sh --remove-old-docker-volumes
 Manual equivalent:
 
 ```bash
-sudo mkdir -p /srv/mitsailing-data/{postgres,redis,cms-media}
+sudo mkdir -p /srv/mitsailing-data/{postgres,redis,cms-media/uploads}
 sudo chown -R DEPLOY_USER:DEPLOY_USER /srv/mitsailing-data
 sudo chmod 700 /srv/mitsailing-data
 sudo chmod 700 /srv/mitsailing-data/postgres
 sudo chmod 700 /srv/mitsailing-data/redis
 sudo chmod 700 /srv/mitsailing-data/cms-media
+sudo chmod 700 /srv/mitsailing-data/cms-media/uploads
 ```
 
 The data/media server requires `/srv/mitsailing-data` to exist and be writable
 by the deploy user before `compose.prod.data.yaml` starts. Create the
-`postgres`, `redis`, and `cms-media` subdirectories, then verify the running
-containers use bind mounts at:
+`postgres`, `redis`, `cms-media`, and `cms-media/uploads` subdirectories, then
+verify the running containers use bind mounts at:
 
 | Host path | Container path | Services |
 | --- | --- | --- |
 | `/srv/mitsailing-data/postgres` | `/var/lib/postgresql` | `postgres` |
 | `/srv/mitsailing-data/redis` | `/data` | `redis` |
-| `/srv/mitsailing-data/cms-media` | `/srv/mitsailing-data/cms-media` | `upload-service`, `worker`, `media` |
+| `/srv/mitsailing-data/cms-media/uploads` | `/srv/mitsailing-data/cms-media/uploads` | `tusd` |
+| `/srv/mitsailing-data/cms-media` | `/srv/mitsailing-data/cms-media` | `worker`, `media` |
 
-CMS media must be writable by the upload service and worker containers and
-readable by the static media nginx container. App hosts do not mount this
-folder.
+CMS media must be writable by `tusd` and worker containers and readable by the
+static media nginx container. App hosts do not mount this folder.
 
 Because these are ordinary host directories, `docker compose down -v` can remove
 Compose-managed development volumes, but it does **not** delete
@@ -405,8 +413,8 @@ you can still open a normal shell.
 
 ### 7. First bring-up (data/media server, app hosts, then release)
 
-Postgres, Redis, the upload service, static media nginx, and the worker run on
-the data/media server. Each app host runs the stateless `web` service from
+Postgres, Redis, `tusd`, static media nginx, and the worker run on the
+data/media server. Each app host runs the stateless `web` service from
 `compose.prod.app-host.yaml`.
 
 ```bash
@@ -414,7 +422,7 @@ the data/media server. Each app host runs the stateless `web` service from
 cd ~/apps/mitsailing
 docker compose -f compose.prod.data.yaml \
   --env-file .env.production.data --env-file .env.production.worker \
-  up -d postgres redis upload-service media worker
+  up -d postgres redis tusd media worker
 
 # On each app host
 cd ~/apps/mitsailing
@@ -451,6 +459,18 @@ migrations backward-compatible across at least one release: add before using,
 avoid same-release destructive drops/renames, and remove old columns only after
 deployed code no longer reads them.
 
+Normal `release` and `rollback` runs recreate app hosts plus the worker only;
+they do not recreate `tusd`. Restart `tusd` only through an explicit
+maintenance command, after scheduling a low-traffic window because active tus
+uploads can be interrupted:
+
+```bash
+APP_HOST_BLUE=deploy@app-blue.example \
+APP_HOST_GREEN=deploy@app-green.example \
+DATA_MEDIA_HOST=deploy@app-data.example \
+bin/deploy-two-host.sh tusd-maintenance latest
+```
+
 Expand/contract checklist (for schema changes):
 - Add new columns/tables/enums values in the first migration; backfill as needed.
 - Deploy code that can read the old schema and the expanded schema.
@@ -458,9 +478,9 @@ Expand/contract checklist (for schema changes):
   (drop/rename old columns, remove legacy enum labels, etc.).
 
 Health readiness (`/api/health/ready`) checks Postgres, Redis, the data/media
-upload service, static media nginx, and the host traffic gate. `mode=service`
-skips only the traffic gate so deploy automation can validate an inactive host
-before it receives public traffic. Make sure Postgres `max_connections`
+`tusd` upload service, static media nginx, and the host traffic gate.
+`mode=service` skips only the traffic gate so deploy automation can validate an
+inactive host before it receives public traffic. Make sure Postgres `max_connections`
 comfortably exceeds concurrent Prisma clients across both app hosts and the
 worker; readiness probes are bounded and apply a server-side
 `statement_timeout`.
@@ -567,8 +587,8 @@ production database.
 
 ## Operations checklist
 
-- **Deploy:** confirm both app hosts can reach Postgres, Redis, the upload
-  service, and media nginx on the data/media server; deploy the inactive
+- **Deploy:** confirm both app hosts can reach Postgres, Redis, `tusd`, and
+  media nginx on the data/media server; deploy the inactive
   app host first; wait for readiness; switch proxy/load-balancer traffic; then
   update the other app host.
 - **Rollback:** switch proxy/load-balancer traffic back to the previous healthy
@@ -576,7 +596,7 @@ production database.
   migrations, media deletes, data corruption, or incompatible schema changes.
 - **File permissions:** keep `/srv/mitsailing-data` and subdirectories owned by
   the deploy/runtime user expected by Docker; verify `cms-media` is writable by
-  the upload service and worker, and readable by static media nginx.
+  `tusd` and worker, and readable by static media nginx.
 - **Postgres:** keep it on the data/media server; verify health before app
   cutover; keep migrations backward-compatible across at least one release; back
   up before risky schema changes.
@@ -585,7 +605,7 @@ production database.
   `LEGACY_MYSQL_SYNC_ENABLED=true`.
 - **Media storage:** store uploads only in `/srv/mitsailing-data/cms-media`; do
   not configure R2, S3, or MinIO; verify direct browser uploads hit the
-  data/media server upload service, not an app host.
+  data/media server `tusd` service, not an app host.
 - **Backups:** back up Postgres, Redis persistence if needed for queue recovery,
   and `/srv/mitsailing-data/cms-media`; test restores before relying on the
   backup procedure.

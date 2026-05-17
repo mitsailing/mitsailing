@@ -6,6 +6,27 @@ function readRepoFile(path: string): string {
   return readFileSync(join(process.cwd(), path), 'utf8');
 }
 
+function readShellFunction(script: string, name: string): string {
+  const startIndex = script.indexOf(`${name}() {`);
+  if (startIndex === -1) {
+    return '';
+  }
+
+  const remainingScript = script.slice(startIndex + name.length);
+  const nextFunctionMatch = /\n[a-zA-Z_][a-zA-Z0-9_]*\(\) \{/u.exec(
+    remainingScript
+  );
+
+  if (!nextFunctionMatch) {
+    return script.slice(startIndex);
+  }
+
+  return script.slice(
+    startIndex,
+    startIndex + name.length + nextFunctionMatch.index
+  );
+}
+
 describe('two host deploy script', () => {
   const script = readRepoFile('bin/deploy-two-host.sh');
 
@@ -69,5 +90,28 @@ describe('two host deploy script', () => {
     ).toBeGreaterThan(
       script.indexOf('pin_image_everywhere "$ref"', rollbackRefIndex)
     );
+  });
+
+  it('restarts tusd only through an explicit maintenance command', () => {
+    const promoteRef = readShellFunction(script, 'promote_ref');
+    const releaseRef = readShellFunction(script, 'release_ref');
+    const rollbackRef = readShellFunction(script, 'rollback_ref');
+    const restartDataWorker = readShellFunction(script, 'restart_data_worker');
+    const restartTusdMaintenance = readShellFunction(
+      script,
+      'restart_tusd_maintenance'
+    );
+
+    expect(script).toContain('tusd-maintenance)');
+    expect(restartTusdMaintenance).toContain('--force-recreate tusd');
+    expect(restartDataWorker).toContain('--force-recreate worker');
+    expect(restartDataWorker).not.toContain('tusd');
+    expect(promoteRef).toContain('restart_data_worker');
+    expect(promoteRef).not.toContain('restart_tusd_maintenance');
+    expect(promoteRef).not.toContain('--force-recreate tusd');
+    expect(releaseRef).not.toContain('restart_tusd_maintenance');
+    expect(rollbackRef).toContain('restart_data_worker');
+    expect(rollbackRef).not.toContain('restart_tusd_maintenance');
+    expect(rollbackRef).not.toContain('--force-recreate tusd');
   });
 });

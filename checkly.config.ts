@@ -71,6 +71,8 @@ export const healthReadyApi = new ApiCheck('health-ready-api', {
       AssertionBuilder.jsonBody('$.status').equals('ok'),
       AssertionBuilder.jsonBody('$.checks.postgres.status').equals('ok'),
       AssertionBuilder.jsonBody('$.checks.redis.status').equals('ok'),
+      AssertionBuilder.jsonBody('$.checks.mediaUpload.status').equals('ok'),
+      AssertionBuilder.jsonBody('$.checks.mediaPublic.status').equals('ok'),
       AssertionBuilder.headers('cache-control').contains('no-store'),
     ],
   },

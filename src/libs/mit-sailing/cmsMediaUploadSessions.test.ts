@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  buildCmsMediaUploadUrl,
+  buildCmsMediaTusEndpoint,
   createCmsMediaUploadSession,
 } from '@/libs/mit-sailing/cmsMediaUploadSessions';
 import { verifyCmsMediaUploadToken } from '@/libs/mit-sailing/cmsMediaUploadTokens';
@@ -8,16 +8,15 @@ import { verifyCmsMediaUploadToken } from '@/libs/mit-sailing/cmsMediaUploadToke
 describe('cms media upload sessions', () => {
   const secret = 'test-upload-secret-with-at-least-thirty-two-chars';
 
-  it('builds stable data-server upload URLs', () => {
+  it('builds stable tus upload endpoints', () => {
     expect(
-      buildCmsMediaUploadUrl({
-        assetId: 'asset-1',
+      buildCmsMediaTusEndpoint({
         baseUrl: 'https://uploads.mitsailing.com/',
       })
-    ).toBe('https://uploads.mitsailing.com/cms-media/uploads/asset-1');
+    ).toBe('https://uploads.mitsailing.com/cms-media/uploads/');
   });
 
-  it('returns signed PUT details for the Docker upload service', () => {
+  it('returns signed tus upload details for tus-js-client', () => {
     const session = createCmsMediaUploadSession({
       asset: {
         byteSize: 1024,
@@ -35,16 +34,20 @@ describe('cms media upload sessions', () => {
       storedFilename: 'race-day.png',
     });
 
-    expect(session.upload.method).toBe('PUT');
-    expect(session.upload.url).toBe(
-      'https://uploads.mitsailing.com/cms-media/uploads/asset-1'
+    expect(session.upload.protocol).toBe('tus');
+    expect(session.upload.endpoint).toBe(
+      'https://uploads.mitsailing.com/cms-media/uploads/'
     );
-    expect(session.upload.headers['content-type']).toBe('image/png');
+    expect(session.upload.metadata.assetId).toBe('asset-1');
+    expect(session.upload.metadata.byteSize).toBe('1024');
+    expect(session.upload.metadata.filetype).toBe('image/png');
+    expect(session.upload.metadata.filename).toBe('race-day.png');
+    expect(session.upload.byteSize).toBe(1024);
     expect(
       verifyCmsMediaUploadToken({
         now: new Date(Date.UTC(2026, 4, 17, 12, 5)),
         secret,
-        token: session.upload.headers['x-mitsailing-upload-token'],
+        token: session.upload.metadata.token,
       })
     ).toMatchObject({
       assetId: 'asset-1',
