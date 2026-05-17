@@ -152,6 +152,7 @@ export async function POST(request: Request) {
   });
   const asset = await prisma.cmsMediaAsset.create({
     data: {
+      id,
       byteSize: BigInt(body.byteSize),
       mediaKind: validation.mediaKind,
       mimeType: validation.mimeType,

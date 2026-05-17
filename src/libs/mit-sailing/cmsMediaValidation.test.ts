@@ -133,4 +133,13 @@ describe('cms media validation', () => {
 
     expect(detectCmsMediaKind(mp4Bytes, 'video/mp4')).toBe('video');
   });
+
+  it('rejects known file types with invalid signatures', () => {
+    const textBytes = new TextEncoder().encode('not the declared file type');
+
+    expect(detectCmsMediaKind(textBytes, 'application/pdf')).toBeNull();
+    expect(detectCmsMediaKind(textBytes, 'video/mp4')).toBeNull();
+    expect(detectCmsMediaKind(textBytes, 'video/quicktime')).toBeNull();
+    expect(detectCmsMediaKind(textBytes, 'video/webm')).toBeNull();
+  });
 });

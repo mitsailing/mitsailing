@@ -313,9 +313,9 @@ promote_ref() {
   local active_host
   target_host="$(color_host "$target")"
 
-  start_app_host "$target_host"
   run_migrations
   restart_data_worker
+  start_app_host "$target_host"
   wait_for_readiness "$target_host" service
 
   log "promoting $target host"
@@ -416,6 +416,9 @@ main() {
       ;;
     rollback)
       rollback_ref "$ref"
+      ;;
+    *)
+      fail "unknown command: $cmd"
       ;;
   esac
 }

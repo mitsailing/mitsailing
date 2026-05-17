@@ -38,14 +38,17 @@ describe('two host deploy script', () => {
   });
 
   it('restarts the data media worker before app host promotion', () => {
-    const migrationIndex = script.indexOf('run_migrations');
-    const workerIndex = script.indexOf('restart_data_worker');
-    const readinessIndex = script.indexOf(
+    const promoteRef = script.slice(script.indexOf('promote_ref()'));
+    const migrationIndex = promoteRef.indexOf('run_migrations');
+    const workerIndex = promoteRef.indexOf('restart_data_worker');
+    const startIndex = promoteRef.indexOf('start_app_host "$target_host"');
+    const readinessIndex = promoteRef.indexOf(
       'wait_for_readiness "$target_host" service'
     );
 
     expect(script).toContain('--force-recreate worker');
     expect(migrationIndex).toBeGreaterThanOrEqual(0);
+    expect(startIndex).toBeGreaterThan(workerIndex);
     expect(workerIndex).toBeGreaterThan(migrationIndex);
     expect(readinessIndex).toBeGreaterThan(workerIndex);
   });

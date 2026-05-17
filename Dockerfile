@@ -132,7 +132,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # transitive dependencies during `prisma migrate deploy` in production.
 # Prisma 7 pulls runtime modules (for example `effect`) that are not present
 # when only copying `@prisma` and `prisma` directories.
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nextjs:nodejs --chmod=0555 /app/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
 COPY --from=builder --chown=nextjs:nodejs /app/worker.mjs ./worker.mjs

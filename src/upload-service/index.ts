@@ -16,6 +16,8 @@ const service = createCmsMediaUploadService({
   secret: uploadSecret,
 });
 
+const INTERNAL_BASE_URL = 'http://127.0.0.1';
+
 function requestHeaders(request: IncomingMessage): Headers {
   const headers = new Headers();
   for (const [key, value] of Object.entries(request.headers)) {
@@ -56,22 +58,27 @@ type StreamingRequestInit = RequestInit & {
 };
 
 const server = createServer(async (request, response) => {
-  const host = request.headers.host ?? '127.0.0.1:3000';
-  const url = new URL(request.url ?? '/', `http://${host}`);
-  const hasBody = request.method !== 'GET' && request.method !== 'HEAD';
-  const requestInit: StreamingRequestInit = {
-    body: hasBody ? requestBody(request) : undefined,
-    duplex: 'half',
-    headers: requestHeaders(request),
-    method: request.method,
-  };
-  const serviceResponse = await service.handle(new Request(url, requestInit));
+  try {
+    const url = new URL(request.url ?? '/', INTERNAL_BASE_URL);
+    const hasBody = request.method !== 'GET' && request.method !== 'HEAD';
+    const requestInit: StreamingRequestInit = {
+      body: hasBody ? requestBody(request) : undefined,
+      duplex: 'half',
+      headers: requestHeaders(request),
+      method: request.method,
+    };
+    const serviceResponse = await service.handle(new Request(url, requestInit));
 
-  response.statusCode = serviceResponse.status;
-  for (const [key, value] of serviceResponse.headers.entries()) {
-    response.setHeader(key, value);
+    response.statusCode = serviceResponse.status;
+    for (const [key, value] of serviceResponse.headers.entries()) {
+      response.setHeader(key, value);
+    }
+    response.end();
+  } catch (error: unknown) {
+    logger.error('[upload-service] request handling failed', { error });
+    response.statusCode = 500;
+    response.end();
   }
-  response.end();
 });
 
 server.listen(3000, '0.0.0.0', () => {

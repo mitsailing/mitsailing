@@ -1629,8 +1629,6 @@ services:
     env_file:
       - path: .env.production.data
         required: true
-    ports:
-      - '5432:5432'
     volumes:
       - type: bind
         source: /srv/mitsailing-data/postgres
@@ -1645,8 +1643,6 @@ services:
     image: redis:8-alpine
     restart: unless-stopped
     command: ['redis-server', '--appendonly', 'yes']
-    ports:
-      - '6379:6379'
     volumes:
       - type: bind
         source: /srv/mitsailing-data/redis
@@ -1666,8 +1662,6 @@ services:
       - -base-path=/files/
       - -upload-dir=/srv/mitsailing-data/cms-media/uploads
       - -behind-proxy
-    ports:
-      - '1080:1080'
     volumes:
       - type: bind
         source: /srv/mitsailing-data/cms-media/uploads
@@ -1697,8 +1691,6 @@ services:
   media:
     image: nginx:1.29-alpine
     restart: unless-stopped
-    ports:
-      - '8080:80'
     volumes:
       - ./docker/nginx/media.conf:/etc/nginx/conf.d/default.conf:ro
       - type: bind
@@ -1977,7 +1969,7 @@ git commit -m "test: verify durable docker media uploads"
 
 Add to `docs/deploy.md`:
 
-```md
+````md
 ## Zero-downtime rehearsal
 
 1. Start the data/media server:
@@ -2011,7 +2003,7 @@ Add to `docs/deploy.md`:
 
 9. Stop the active app host and confirm Cloudflare/proxy routes to the other
    healthy host.
-```
+````
 
 - [ ] **Step 2: Run docs and final local checks**
 
@@ -2034,35 +2026,6 @@ Run:
 git add docs/deploy.md
 git commit -m "docs: add zero downtime docker rehearsal"
 ```
-
-### Task 15: Hand Off Post-push PR Verification
-
-**Files:**
-- None.
-
-- [ ] **Step 1: Start a fresh PR verification subagent after push**
-
-After this branch has been committed and pushed and a PR exists, start a fresh
-subagent using the installed `finish-pr-context7` skill at
-`/Users/andrewkelley/.codex/skills/finish-pr-context7/SKILL.md`. This is a
-post-push handoff step, not an action to run during implementation.
-
-The subagent should:
-
-- Resolve the PR with GitHub/`gh` after push.
-- Poll GitHub for failing checks and all unresolved/actionable PR comments.
-- Inspect failing checks first and fix them before reading review comments.
-- Once checks are non-failing, fetch unresolved actionable PR comments/review
-  threads.
-- Use Context7 as required by the skill for library, framework, SDK, CLI, or
-  API fix clusters.
-- Run `npm run check:types`, `npm run lint`, and `npm run test`; add
-  `npm run check:i18n` when copy or i18n changes.
-- Commit and push follow-up fixes.
-- If checks are pending, poll or create a heartbeat follow-up rather than
-  keeping a huge chat context open.
-- Stop only when required checks pass and no unresolved actionable comments
-  remain, or when remaining items are documented as non-actionable.
 
 ## Acceptance Criteria
 

@@ -15,7 +15,19 @@ type UploadValidation =
   | {
       ok: true;
       byteSize: number;
+      uploadId: string;
       uploadPath: string;
+    }
+  | {
+      ok: false;
+      status: number;
+    };
+
+type UploadTokenValidation =
+  | {
+      ok: true;
+      byteSize: number;
+      uploadId: string;
     }
   | {
       ok: false;
@@ -45,14 +57,27 @@ function validationResponse(status: number): UploadValidation {
   return { ok: false, status };
 }
 
-function validateUploadRequest(
-  request: Request,
-  options: CmsMediaUploadServiceOptions
-): UploadValidation {
-  const uploadId = uploadIdFromUrl(request.url);
-  if (!uploadId) {
+function validateUploadDestination(options: {
+  root: string;
+  uploadId: string | null;
+}): { ok: true; uploadPath: string; uploadId: string } | UploadValidation {
+  if (!options.uploadId) {
     return validationResponse(404);
   }
+  const uploadPath = resolveCmsMediaUploadFilePath({
+    root: options.root,
+    uploadId: options.uploadId,
+  });
+  if (!uploadPath) {
+    return validationResponse(400);
+  }
+  return { ok: true, uploadId: options.uploadId, uploadPath };
+}
+
+function validateUploadToken(
+  request: Request,
+  options: CmsMediaUploadServiceOptions & { uploadId: string }
+): UploadTokenValidation {
   const token = request.headers.get('x-mitsailing-upload-token');
   if (!token) {
     return validationResponse(401);
@@ -62,7 +87,7 @@ function validateUploadRequest(
     secret: options.secret,
     token,
   });
-  if (!payload || payload.assetId !== uploadId) {
+  if (!payload || payload.assetId !== options.uploadId) {
     return validationResponse(403);
   }
   const requestLength = contentLength(request);
@@ -75,14 +100,32 @@ function validateUploadRequest(
   if (request.headers.get('content-type') !== payload.mimeType) {
     return validationResponse(415);
   }
-  const uploadPath = resolveCmsMediaUploadFilePath({
+  return {
+    byteSize: payload.byteSize,
+    ok: true,
+    uploadId: options.uploadId,
+  };
+}
+
+function validateUploadRequest(
+  request: Request,
+  options: CmsMediaUploadServiceOptions
+): UploadValidation {
+  const destination = validateUploadDestination({
     root: options.root,
-    uploadId,
+    uploadId: uploadIdFromUrl(request.url),
   });
-  if (!uploadPath) {
-    return validationResponse(400);
+  if (!destination.ok) {
+    return destination;
   }
-  return { byteSize: payload.byteSize, ok: true, uploadPath };
+  const token = validateUploadToken(request, {
+    ...options,
+    uploadId: destination.uploadId,
+  });
+  if (!token.ok) {
+    return token;
+  }
+  return { ...token, uploadPath: destination.uploadPath };
 }
 
 function responseWithCors(
@@ -93,7 +136,7 @@ function responseWithCors(
   const headers = new Headers(init.headers);
   const origin = request.headers.get('origin');
   if (options.allowedOrigin && origin === options.allowedOrigin) {
-    headers.set('Access-Control-Allow-Origin', origin);
+    headers.set('Access-Control-Allow-Origin', options.allowedOrigin);
     headers.set('Vary', 'Origin');
   }
   return new Response(null, { ...init, headers });
@@ -131,7 +174,18 @@ async function writeRequestBody(props: {
       if (actualBytes > props.expectedBytes) {
         return 413;
       }
-      await handle.write(result.value);
+      let offset = 0;
+      while (offset < result.value.byteLength) {
+        const { bytesWritten } = await handle.write(
+          result.value,
+          offset,
+          result.value.byteLength - offset
+        );
+        if (bytesWritten <= 0) {
+          return 500;
+        }
+        offset += bytesWritten;
+      }
     }
   } finally {
     await handle.close();

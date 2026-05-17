@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { createCmsMediaUploadToken } from '@/libs/mit-sailing/cmsMediaUploadTokens';
 import { createCmsMediaUploadService } from '@/upload-service/server';
 
-const secret = 'test-upload-secret-with-at-least-thirty-two-chars';
+const secret = crypto.randomUUID().replaceAll('-', '') + crypto.randomUUID();
 
 let tempRoot: string | null = null;
 

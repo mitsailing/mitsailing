@@ -219,7 +219,7 @@ async function finalizeCmsMediaUpload(
   asset: CmsMediaAsset
 ): Promise<CmsMediaAsset | null> {
   const response = await fetch(
-    `/api/admin/cms-media/uploads/${asset.id}/finalize`,
+    `/api/admin/cms-media/uploads/${encodeURIComponent(asset.id)}/finalize`,
     {
       method: 'POST',
     }

@@ -392,7 +392,7 @@ for the deploy user. The two-host controller must run SSH, `scp`,
 use the legacy single-command `deploy.sh` restriction for this key. Keep the
 usual non-interactive restrictions:
 
-```
+```text
 no-pty,no-port-forwarding,no-agent-forwarding,no-X11-forwarding,no-user-rc ssh-ed25519 AAAA...rest-of-public-key... comment
 ```
 
@@ -589,31 +589,6 @@ production database.
 - **Backups:** back up Postgres, Redis persistence if needed for queue recovery,
   and `/srv/mitsailing-data/cms-media`; test restores before relying on the
   backup procedure.
-
-## Post-push PR verification loop
-
-After this branch is pushed and a PR exists, hand off PR completion to a fresh
-subagent using the installed `finish-pr-context7` skill at
-`/Users/andrewkelley/.codex/skills/finish-pr-context7/SKILL.md`. Do not run the
-loop in the implementation-planning session.
-
-The subagent should:
-
-- Resolve the PR with GitHub/`gh`.
-- Inspect failing checks first.
-- Fix checks before reading or addressing review comments.
-- Only after checks have no failures, fetch unresolved actionable PR review
-  comments.
-- Use Context7 exactly as the skill requires for each library, framework, SDK,
-  CLI, or API fix cluster.
-- Run `npm run check:types`, `npm run lint`, and `npm run test`; also run
-  `npm run check:i18n` when copy or translation keys change.
-- Commit and push follow-up fixes with Conventional Commit messages.
-- Poll or schedule a heartbeat if required checks are pending.
-- Stop only when required checks pass and no unresolved actionable comments
-  remain, or when only documented non-actionable items remain.
-
----
 
 ## Optional: staging stack (Mailpit)
 

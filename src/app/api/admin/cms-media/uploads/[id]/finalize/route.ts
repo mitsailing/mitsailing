@@ -42,6 +42,29 @@ function assetResponse(asset: {
   };
 }
 
+async function queueAssetForProcessing(id: string) {
+  const queuedAsset = await prisma.cmsMediaAsset.update({
+    data: {
+      processingErrorCode: null,
+      status: 'queued',
+    },
+    select: {
+      byteSize: true,
+      createdAt: true,
+      id: true,
+      mediaKind: true,
+      mimeType: true,
+      originalFilename: true,
+      processingErrorCode: true,
+      publicPath: true,
+      status: true,
+    },
+    where: { id },
+  });
+  await enqueueCmsMediaProcessingJob(getDefaultQueue(), { assetId: id });
+  return queuedAsset;
+}
+
 export async function POST(
   _request: Request,
   props: CmsMediaUploadFinalizeRouteProps
@@ -72,28 +95,14 @@ export async function POST(
   if (asset.storageProvider !== 'server_folder') {
     return NextResponse.json({ error: 'unsupported_storage' }, { status: 409 });
   }
-  if (asset.status === 'ready' || asset.status === 'processing') {
+  if (
+    asset.status === 'ready' ||
+    asset.status === 'processing' ||
+    asset.status === 'queued'
+  ) {
     return NextResponse.json(assetResponse(asset));
   }
-  const queuedAsset = await prisma.cmsMediaAsset.update({
-    data: {
-      processingErrorCode: null,
-      status: 'queued',
-    },
-    select: {
-      byteSize: true,
-      createdAt: true,
-      id: true,
-      mediaKind: true,
-      mimeType: true,
-      originalFilename: true,
-      processingErrorCode: true,
-      publicPath: true,
-      status: true,
-    },
-    where: { id },
-  });
-  await enqueueCmsMediaProcessingJob(getDefaultQueue(), { assetId: id });
+  const queuedAsset = await queueAssetForProcessing(id);
 
   return NextResponse.json(assetResponse(queuedAsset));
 }

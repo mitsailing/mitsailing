@@ -1,4 +1,4 @@
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -35,8 +35,7 @@ afterEach(async () => {
 });
 
 async function createMediaRoot(): Promise<string> {
-  mediaRoot = path.join(tmpdir(), `mitsailing-media-${crypto.randomUUID()}`);
-  await mkdir(mediaRoot, { recursive: true });
+  mediaRoot = await mkdtemp(path.join(tmpdir(), 'mitsailing-media-'));
   vi.stubEnv('MEDIA_STORAGE_ROOT', mediaRoot);
   return mediaRoot;
 }

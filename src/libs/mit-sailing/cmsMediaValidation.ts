@@ -340,28 +340,23 @@ export function detectCmsMediaKind(
   if (detectCmsMediaMimeType(bytes)) {
     return 'image';
   }
-  if (
-    declaredMimeType === 'application/pdf' &&
-    bytesStartWith(bytes, [37, 80, 68, 70])
-  ) {
-    return 'file';
+  if (declaredMimeType === 'application/pdf') {
+    return bytesStartWith(bytes, [37, 80, 68, 70]) ? 'file' : null;
   }
   if (
-    (declaredMimeType === 'video/mp4' ||
-      declaredMimeType === 'video/quicktime') &&
-    bytes.byteLength >= 12 &&
-    bytes[4] === 102 &&
-    bytes[5] === 116 &&
-    bytes[6] === 121 &&
-    bytes[7] === 112
+    declaredMimeType === 'video/mp4' ||
+    declaredMimeType === 'video/quicktime'
   ) {
-    return 'video';
+    return bytes.byteLength >= 12 &&
+      bytes[4] === 102 &&
+      bytes[5] === 116 &&
+      bytes[6] === 121 &&
+      bytes[7] === 112
+      ? 'video'
+      : null;
   }
-  if (
-    declaredMimeType === 'video/webm' &&
-    bytesStartWith(bytes, [26, 69, 223, 163])
-  ) {
-    return 'video';
+  if (declaredMimeType === 'video/webm') {
+    return bytesStartWith(bytes, [26, 69, 223, 163]) ? 'video' : null;
   }
   return mediaKindFromMimeType(declaredMimeType);
 }
