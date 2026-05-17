@@ -22,11 +22,11 @@ describe('single host deploy script', () => {
     expect(script).toContain(`proxy_read_timeout ${deployDrainSeconds};`);
   });
 
-  it('does not require sudo-owned production bind mounts', () => {
-    expect(script).not.toContain('/srv/mitsailing-data');
-    expect(script).not.toContain('ensure_production_data_dirs');
-    expect(script).not.toContain('ensure_cms_media_permissions');
-    expect(script).not.toContain('verify_bind_mount');
+  it('enforces production bind-mount directories and permissions', () => {
+    expect(script).toContain('/srv/mitsailing-data');
+    expect(script).toContain('ensure_production_data_dirs');
+    expect(script).toContain('ensure_cms_media_permissions');
+    expect(script).toContain('verify_bind_mount');
   });
 
   it('starts ingress and media services without recreating media during app releases', () => {

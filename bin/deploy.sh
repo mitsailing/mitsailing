@@ -32,6 +32,10 @@ readonly PREVIOUS_REF_FILE="${DEPLOY_STATE_DIR}/previous_ref"
 readonly DEPLOY_LOCK_FILE="${DEPLOY_STATE_DIR}/deploy.lock"
 readonly DEPLOY_HEALTH_TIMEOUT_SECONDS="${DEPLOY_HEALTH_TIMEOUT_SECONDS:-120}"
 readonly DEPLOY_DRAIN_SECONDS="${DEPLOY_DRAIN_SECONDS:-900}"
+readonly PRODUCTION_DATA_ROOT="${PRODUCTION_DATA_ROOT:-/srv/mitsailing-data}"
+readonly PRODUCTION_POSTGRES_DIR="${PRODUCTION_DATA_ROOT}/postgres"
+readonly PRODUCTION_REDIS_DIR="${PRODUCTION_DATA_ROOT}/redis"
+readonly PRODUCTION_CMS_MEDIA_DIR="${PRODUCTION_DATA_ROOT}/cms-media"
 
 log() { printf '[deploy %s] %s\n' "$(date -u +'%FT%TZ')" "$*"; }
 fail() { log "ERROR: $*" >&2; exit 1; }
@@ -82,6 +86,34 @@ ensure_prereqs() {
 
 ensure_deploy_state() {
   mkdir -p "$DEPLOY_STATE_DIR" "$NGINX_STATE_DIR"
+}
+
+ensure_production_data_dirs() {
+  log "ensuring production bind-mount directories under ${PRODUCTION_DATA_ROOT}"
+  sudo install -d -m 0750 "$PRODUCTION_DATA_ROOT"
+  sudo install -d -m 0700 "$PRODUCTION_POSTGRES_DIR"
+  sudo install -d -m 0700 "$PRODUCTION_REDIS_DIR"
+  sudo install -d -m 0755 "$PRODUCTION_CMS_MEDIA_DIR"
+  ensure_cms_media_permissions
+}
+
+ensure_cms_media_permissions() {
+  sudo chown -R 1001:1001 "$PRODUCTION_CMS_MEDIA_DIR"
+}
+
+verify_bind_mount() {
+  local service="$1"
+  local target="$2"
+  local mount_source
+  mount_source="$(compose exec -T "$service" findmnt -n --target "$target" --output SOURCE)"
+  [[ "$mount_source" == "${PRODUCTION_DATA_ROOT}"/* ]] \
+    || fail "$service mount for $target is $mount_source, expected ${PRODUCTION_DATA_ROOT}"
+}
+
+verify_production_bind_mounts() {
+  verify_bind_mount postgres /var/lib/postgresql
+  verify_bind_mount redis /data
+  verify_bind_mount media /var/lib/mitsailing/cms-media
 }
 
 acquire_deploy_lock() {
@@ -272,6 +304,7 @@ ensure_ingress_services() {
   wait_for_service_health postgres "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
   wait_for_service_health redis "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
   wait_for_service_health media "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
+  verify_production_bind_mounts
   log "ensuring MIT Sailing cloudflared connector is running"
   compose up --detach --no-deps cloudflared
 }
@@ -387,6 +420,7 @@ main() {
   cd "$DEPLOY_DIR" || fail "DEPLOY_DIR not found: $DEPLOY_DIR"
   ensure_prereqs
   ensure_deploy_state
+  ensure_production_data_dirs
   acquire_deploy_lock
 
   case "$cmd" in

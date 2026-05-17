@@ -5,7 +5,6 @@ import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
-const DEFAULT_SSH_TARGET = 'sailing-dock.mit.edu';
 const DEFAULT_REMOTE_DIR = 'apps/mitsailing';
 const DEFAULT_LOCAL_ROOT = 'local/cms-media';
 const REMOTE_MEDIA_ROOT = '/var/lib/mitsailing/cms-media';
@@ -17,7 +16,7 @@ const SSH_TARGET_PATTERN =
  * @property {string} localRoot Local CMS media root.
  * @property {string} remoteDir Remote app directory.
  * @property {boolean} showHelp Whether to print help and exit.
- * @property {string} sshTarget SSH target for the production host.
+ * @property {string | undefined} sshTarget SSH target for the production host.
  */
 
 /**
@@ -30,7 +29,7 @@ Downloads production CMS ready media into the local gitignored media tree.
 
 Options:
   --ssh-target <target>  SSH target for the production host.
-                         Default: ${DEFAULT_SSH_TARGET}
+                         Defaults to PRODUCTION_SSH_TARGET.
   --remote-dir <path>    App directory on the production host.
                          Default: ${DEFAULT_REMOTE_DIR}
   --local-root <path>    Local CMS media root. The script extracts ready/ here.
@@ -64,6 +63,20 @@ function parseSshTarget(value) {
     );
   }
   return value;
+}
+
+/**
+ * @param {string | undefined} cliTarget CLI target override.
+ * @returns {string} Resolved SSH target.
+ */
+function resolveSshTarget(cliTarget) {
+  const target = cliTarget ?? process.env.PRODUCTION_SSH_TARGET;
+  if (!target) {
+    throw new Error(
+      'Set PRODUCTION_SSH_TARGET or pass --ssh-target before syncing media.'
+    );
+  }
+  return parseSshTarget(target);
 }
 
 /**
@@ -103,15 +116,15 @@ function parseLocalRoot(value) {
  */
 function withOption(options, flag, value) {
   if (flag === '--ssh-target') {
-    Object.assign(options, { sshTarget: parseSshTarget(value) });
+    options.sshTarget = parseSshTarget(value);
     return;
   }
   if (flag === '--remote-dir') {
-    Object.assign(options, { remoteDir: parseRemoteDir(value) });
+    options.remoteDir = parseRemoteDir(value);
     return;
   }
   if (flag === '--local-root') {
-    Object.assign(options, { localRoot: parseLocalRoot(value) });
+    options.localRoot = parseLocalRoot(value);
     return;
   }
   throw new Error(`Unknown option: ${flag}`);
@@ -126,9 +139,14 @@ function parseInlineOption(arg) {
   if (equalsIndex === -1) {
     return null;
   }
+  const flag = arg.slice(0, equalsIndex);
+  const value = arg.slice(equalsIndex + 1);
+  if (value.length === 0) {
+    throw new Error(`${flag} requires a value`);
+  }
   return {
-    flag: arg.slice(0, equalsIndex),
-    value: arg.slice(equalsIndex + 1),
+    flag,
+    value,
   };
 }
 
@@ -141,12 +159,12 @@ function parseArgs(args) {
     localRoot: parseLocalRoot(DEFAULT_LOCAL_ROOT),
     remoteDir: parseRemoteDir(DEFAULT_REMOTE_DIR),
     showHelp: false,
-    sshTarget: parseSshTarget(DEFAULT_SSH_TARGET),
+    sshTarget: undefined,
   };
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
     if (arg === '--help' || arg === '-h') {
-      Object.assign(options, { showHelp: true });
+      options.showHelp = true;
       continue;
     }
     const inlineOption = parseInlineOption(arg);
@@ -217,7 +235,10 @@ function main() {
     process.stdout.write(usage());
     return;
   }
-  syncReadyMedia(options);
+  syncReadyMedia({
+    ...options,
+    sshTarget: resolveSshTarget(options.sshTarget),
+  });
 }
 
 try {

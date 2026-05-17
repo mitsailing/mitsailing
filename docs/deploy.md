@@ -6,21 +6,22 @@ untouched at `wp.mitsailing.com`.
 
 ## Target Shape
 
-Production runs one MIT Sailing Docker Compose stack on `sailing-dock`:
+Production runs one MIT Sailing Docker Compose stack on the production host:
 
 | Service | Purpose |
 | --- | --- |
 | `cloudflared` | MIT Sailing tunnel connector only |
 | `app` | Stable nginx ingress for blue/green Next.js containers |
 | `web_blue`, `web_green` | Next.js standalone app; one active at a time |
-| `postgres` | App database in a Docker named volume |
-| `redis` | BullMQ Redis in a Docker named volume |
+| `postgres` | App database on `/srv/mitsailing-data/postgres` |
+| `redis` | BullMQ Redis on `/srv/mitsailing-data/redis` |
 | `tusd` | Resumable CMS upload endpoint |
 | `worker` | BullMQ worker and media processor |
 | `media` | nginx serving ready CMS media |
 
-Persistent state uses Docker named volumes. Do not require `/srv/mitsailing-data`
-or host-installed nginx/cloudflared.
+Persistent state uses host bind mounts under `/srv/mitsailing-data`. The deploy
+script creates and verifies `/srv/mitsailing-data/{postgres,redis,cms-media}`;
+CMS media is owned by container UID/GID `1001:1001`.
 
 ## No-Sudo Boundary
 
@@ -37,8 +38,12 @@ docker compose -f compose.yaml -f compose.prod.yaml --profile release \
 The deploy user cannot assume this without an admin:
 
 - install Docker, nginx, cloudflared, or system packages;
-- create or chown `/srv/...`;
 - enable rootless Docker linger after logout/reboot.
+
+The deploy script uses `sudo install`/`sudo chown` to maintain
+`/srv/mitsailing-data`. Grant the deploy user passwordless access to those
+commands for `/srv/mitsailing-data/*`, or pre-create the directories with the
+same ownership and permissions before the first release.
 
 If rootless Docker stops when the user logs out or the host reboots, ask an
 admin to run this once:
@@ -79,7 +84,7 @@ and media must be checked before the app catch-all.
 
 ## Environment
 
-Copy `.env.production.example` to `.env.production` on `sailing-dock` and fill
+Copy `.env.production.example` to `.env.production` on the production host and fill
 real secrets. Important production values:
 
 ```dotenv
@@ -103,7 +108,7 @@ the production host. Required production environment secrets:
 
 | Secret | Purpose |
 | --- | --- |
-| `PRODUCTION_SSH_TARGET` | SSH target, for example `ak@sailing-dock.mit.edu` |
+| `PRODUCTION_SSH_TARGET` | SSH target, for example `deploy-user@example.com` |
 | `PRODUCTION_SSH_PRIVATE_KEY` | Deploy SSH key |
 | `PRODUCTION_SSH_HOST_KEY` | Pinned host key lines |
 | `NEXT_PUBLIC_SENTRY_DSN` | Build-time Sentry DSN |
@@ -115,16 +120,26 @@ Optional variable:
 | --- | --- |
 | `PRODUCTION_REMOTE_APP_DIR` | `apps/mitsailing` |
 
+For a new deployment, replace these example values:
+
+| Example | Replace with |
+| --- | --- |
+| `deploy-user@example.com` | The SSH target from the server admin, in `user@host` form |
+| `apps/mitsailing` | The deploy directory, if the server admin chose a different path |
+| `sha-abc123def456` | The image tag or rollback tag you intend to deploy |
+
 Manual release from a checked-out repo:
 
 ```bash
-ssh ak@sailing-dock.mit.edu 'mkdir -p apps/mitsailing'
-scp compose.yaml compose.prod.yaml ak@sailing-dock.mit.edu:apps/mitsailing/
-scp bin/deploy.sh ak@sailing-dock.mit.edu:apps/mitsailing/bin/deploy.sh
-scp docker/postgres/init.sql ak@sailing-dock.mit.edu:apps/mitsailing/docker/postgres/init.sql
-scp docker/nginx/media.conf ak@sailing-dock.mit.edu:apps/mitsailing/docker/nginx/media.conf
-ssh ak@sailing-dock.mit.edu 'chmod +x apps/mitsailing/bin/deploy.sh'
-ssh ak@sailing-dock.mit.edu 'DEPLOY_DIR=apps/mitsailing apps/mitsailing/bin/deploy.sh release sha-abc123def456'
+export PRODUCTION_SSH_TARGET=deploy-user@example.com
+
+ssh "$PRODUCTION_SSH_TARGET" 'mkdir -p apps/mitsailing'
+scp compose.yaml compose.prod.yaml "$PRODUCTION_SSH_TARGET:apps/mitsailing/"
+scp bin/deploy.sh "$PRODUCTION_SSH_TARGET:apps/mitsailing/bin/deploy.sh"
+scp docker/postgres/init.sql "$PRODUCTION_SSH_TARGET:apps/mitsailing/docker/postgres/init.sql"
+scp docker/nginx/media.conf "$PRODUCTION_SSH_TARGET:apps/mitsailing/docker/nginx/media.conf"
+ssh "$PRODUCTION_SSH_TARGET" 'chmod +x apps/mitsailing/bin/deploy.sh'
+ssh "$PRODUCTION_SSH_TARGET" 'DEPLOY_DIR=apps/mitsailing apps/mitsailing/bin/deploy.sh release sha-abc123def456'
 ```
 
 `bin/deploy.sh release <ref>`:
@@ -141,7 +156,7 @@ ssh ak@sailing-dock.mit.edu 'DEPLOY_DIR=apps/mitsailing apps/mitsailing/bin/depl
 Rollback:
 
 ```bash
-ssh ak@sailing-dock.mit.edu 'DEPLOY_DIR=apps/mitsailing apps/mitsailing/bin/deploy.sh rollback previous'
+ssh "$PRODUCTION_SSH_TARGET" 'DEPLOY_DIR=apps/mitsailing apps/mitsailing/bin/deploy.sh rollback previous'
 ```
 
 Rollback switches app traffic only. It does not reverse database migrations.
@@ -156,14 +171,14 @@ preflight checklist, verification, and recovery steps.
 Restart static media nginx when `docker/nginx/media.conf` changes:
 
 ```bash
-ssh ak@sailing-dock.mit.edu 'DEPLOY_DIR=apps/mitsailing apps/mitsailing/bin/deploy.sh media-maintenance sha-abc123def456'
+ssh "$PRODUCTION_SSH_TARGET" 'DEPLOY_DIR=apps/mitsailing apps/mitsailing/bin/deploy.sh media-maintenance sha-abc123def456'
 ```
 
 Restart `tusd` when upload protocol config, max upload size, CORS headers, tusd
 image version, or upload storage settings change:
 
 ```bash
-ssh ak@sailing-dock.mit.edu 'DEPLOY_DIR=apps/mitsailing apps/mitsailing/bin/deploy.sh tusd-maintenance sha-abc123def456'
+ssh "$PRODUCTION_SSH_TARGET" 'DEPLOY_DIR=apps/mitsailing apps/mitsailing/bin/deploy.sh tusd-maintenance sha-abc123def456'
 ```
 
 Restarting `tusd` can interrupt active uploads. That is why app deploys do not
@@ -194,11 +209,11 @@ docker compose -f compose.yaml -f compose.prod.yaml --profile release \
 
 ## Backups
 
-Back up Docker named volumes for:
+Back up these host paths:
 
-- `postgres_data`
-- `redis_data`
-- `cms_media`
+- `/srv/mitsailing-data/postgres`
+- `/srv/mitsailing-data/redis`
+- `/srv/mitsailing-data/cms-media`
 
-Use a tested Docker-volume backup/restore process before relying on production
+Use a tested filesystem backup/restore process before relying on production
 data. Do not back up or restore the WordPress stack as part of this app runbook.

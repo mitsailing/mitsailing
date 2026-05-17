@@ -34,7 +34,8 @@ ingress:
 `/cms-media/uploads/*` must match before `/cms-media/*`; otherwise upload
 traffic reaches static media nginx and fails as 404/405 instead of tus.
 
-Production media state lives in the Docker named volume `cms_media`, mounted at
+Production media state lives in the host bind mount
+`/srv/mitsailing-data/cms-media`, mounted in containers at
 `/var/lib/mitsailing/cms-media`:
 
 | Path | Owner | Purpose |
@@ -92,7 +93,9 @@ Use the current deployed app image tag unless intentionally changing it. On the
 host, read it before running maintenance:
 
 ```bash
-ssh ak@sailing-dock.mit.edu 'cat apps/mitsailing/.deploy/current_ref'
+export PRODUCTION_SSH_TARGET=deploy-user@example.com
+
+ssh "$PRODUCTION_SSH_TARGET" 'cat apps/mitsailing/.deploy/current_ref'
 ```
 
 Use that concrete tag, such as `sha-abc123def456`, in the commands below. Avoid
@@ -111,18 +114,18 @@ Before starting:
   `MEDIA_PUBLIC_BASE_URL`, `MEDIA_STORAGE_ROOT`,
   `MEDIA_UPLOAD_SHARED_SECRET`, and `TUSD_HOOKS_HTTP_URL`;
 - confirm Cloudflare Tunnel route order matches the rules above;
-- confirm the latest backup/restore policy covers `cms_media` if storage layout
-  changes;
+- confirm the latest backup/restore policy covers
+  `/srv/mitsailing-data/cms-media` if storage layout changes;
 - check the current stack state:
 
 ```bash
-ssh ak@sailing-dock.mit.edu 'cd apps/mitsailing && docker compose -f compose.yaml -f compose.prod.yaml --profile release --env-file .env.production --env-file .env.image ps'
+ssh "$PRODUCTION_SSH_TARGET" 'cd apps/mitsailing && docker compose -f compose.yaml -f compose.prod.yaml --profile release --env-file .env.production --env-file .env.image ps'
 ```
 
 Tail logs in another terminal:
 
 ```bash
-ssh ak@sailing-dock.mit.edu 'cd apps/mitsailing && docker compose -f compose.yaml -f compose.prod.yaml --profile release --env-file .env.production --env-file .env.image logs -f --tail 100 tusd media worker app cloudflared'
+ssh "$PRODUCTION_SSH_TARGET" 'cd apps/mitsailing && docker compose -f compose.yaml -f compose.prod.yaml --profile release --env-file .env.production --env-file .env.image logs -f --tail 100 tusd media worker app cloudflared'
 ```
 
 ## Commands
@@ -130,13 +133,13 @@ ssh ak@sailing-dock.mit.edu 'cd apps/mitsailing && docker compose -f compose.yam
 Restart static media nginx:
 
 ```bash
-ssh ak@sailing-dock.mit.edu 'DEPLOY_DIR=apps/mitsailing apps/mitsailing/bin/deploy.sh media-maintenance sha-abc123def456'
+ssh "$PRODUCTION_SSH_TARGET" 'DEPLOY_DIR=apps/mitsailing apps/mitsailing/bin/deploy.sh media-maintenance sha-abc123def456'
 ```
 
 Restart tusd:
 
 ```bash
-ssh ak@sailing-dock.mit.edu 'DEPLOY_DIR=apps/mitsailing apps/mitsailing/bin/deploy.sh tusd-maintenance sha-abc123def456'
+ssh "$PRODUCTION_SSH_TARGET" 'DEPLOY_DIR=apps/mitsailing apps/mitsailing/bin/deploy.sh tusd-maintenance sha-abc123def456'
 ```
 
 Expected impact:
@@ -167,7 +170,7 @@ readiness from the host and confirm `mediaUpload.status = ok` and
 `mediaPublic.status = ok`:
 
 ```bash
-ssh ak@sailing-dock.mit.edu 'cd apps/mitsailing && set -a && . ./.env.production && set +a && curl -fsS -H "Authorization: Bearer ${HEALTHCHECK_SECRET}" https://mitsailing.com/api/health/ready'
+ssh "$PRODUCTION_SSH_TARGET" 'cd apps/mitsailing && set -a && . ./.env.production && set +a && curl -fsS -H "Authorization: Bearer ${HEALTHCHECK_SECRET}" https://mitsailing.com/api/health/ready'
 ```
 
 ## Recovery
@@ -190,8 +193,9 @@ If tusd fails:
 6. Re-run OPTIONS and a real authenticated upload.
 
 Do not use `bin/deploy.sh rollback` as a media data recovery tool. Rollback
-switches app/worker image traffic only; it does not restore `cms_media`, delete
-raw uploads, undo ready files, or reverse database migrations.
+switches app/worker image traffic only; it does not restore
+`/srv/mitsailing-data/cms-media`, delete raw uploads, undo ready files, or
+reverse database migrations.
 
 ## Data Hygiene
 

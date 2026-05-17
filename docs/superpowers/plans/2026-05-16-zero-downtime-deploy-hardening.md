@@ -12,8 +12,8 @@ Current source of truth:
 
 Current production decisions:
 
-- One Docker Compose stack runs on `ak@sailing-dock.mit.edu`.
-- Docker named volumes hold Postgres, Redis, and CMS media.
+- One Docker Compose stack runs on `deploy-user@example.com`.
+- Host bind mounts under `/srv/mitsailing-data` hold Postgres, Redis, and CMS media.
 - The MIT Sailing Cloudflare Tunnel routes same-origin `mitsailing.com` paths to
   app, upload, and media services.
 - There is no host-installed nginx or host-installed cloudflared requirement.

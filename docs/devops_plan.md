@@ -1,13 +1,13 @@
 # DevOps Plan
 
-The production target is a Docker-only MIT Sailing stack on `sailing-dock`.
+The production target is a Docker-only MIT Sailing stack on the production host.
 WordPress is a separate stack and tunnel at `wp.mitsailing.com`; do not connect
 this app to that tunnel or compose network.
 
 ## Principles
 
 - No host nginx or host cloudflared installs.
-- No `/srv` requirement; persistent state uses Docker named volumes.
+- Persistent state uses host bind mounts under `/srv/mitsailing-data`.
 - One MIT Sailing Cloudflare Tunnel routes `mitsailing.com`.
 - App deploys are zero-downtime through Dockerized nginx switching between
   `web_blue` and `web_green`.

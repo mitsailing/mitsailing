@@ -52,17 +52,21 @@ Use the repo pgsync workflow:
 1. Install [`pgsync`](https://github.com/ankane/pgsync), for example `brew install pgsync`.
 2. Ensure `.env` has local `DATABASE_URL` pointing at `127.0.0.1` or `localhost` / `dev_db`.
 3. Set `PGSYNC_FROM_URL` in `.env` to the SSH-tunneled production database URL described in [.cursor/skills/pgsync-prod-to-local/SKILL.md](.cursor/skills/pgsync-prod-to-local/SKILL.md); it should point at local tunnel port `127.0.0.1:15432`.
-4. Follow that skill exactly: open the temporary loopback container on `sailing-dock.mit.edu`, open the SSH tunnel, run `pgsync --defer-constraints --truncate --jobs 1`, then clean up the tunnel and loopback container.
+4. Follow that skill exactly: open the temporary loopback container on `example.com`, open the SSH tunnel, run `pgsync --defer-constraints --truncate --jobs 1`, then clean up the tunnel and loopback container.
 
 `pgsync` copies data only and truncates/replaces local data. Run local migrations first so `dev_db` already has the expected schema.
 
 To make synced CMS pages render production media locally, download public ready media files over SSH:
 
 ```shell
-node scripts/sync-prod-media.mjs --ssh-target ak@sailing-dock.mit.edu
+export PRODUCTION_SSH_TARGET=deploy-user@example.com
+node scripts/sync-prod-media.mjs
 ```
 
-The media sync copies only production `cms_media/ready` into `local/cms-media/ready`; it does not copy raw in-progress uploads.
+Replace `deploy-user@example.com` with the SSH target from the production deploy
+issue before running the command.
+
+The media sync copies only production `/srv/mitsailing-data/cms-media/ready` into `local/cms-media/ready`; it does not copy raw in-progress uploads.
 
 ## Checks
 
@@ -84,7 +88,7 @@ npm run test:e2e
 
 Pull requests run build/static checks, unit coverage, integration tests, Storybook checks, sharded Playwright e2e, Docker smoke/security checks, CodeQL, coverage upload, and optional previews. `main` runs semantic-release and the production deploy workflow.
 
-Production deploys are normally automatic after merge to `main`: GitHub Actions builds and attests a GHCR image, syncs deploy files to `ak@sailing-dock.mit.edu`, then runs `bin/deploy.sh release <image-tag>`. The deploy job may wait for GitHub `production` environment approval when required reviewers are configured.
+Production deploys are normally automatic after merge to `main`: GitHub Actions builds and attests a GHCR image, syncs deploy files to `PRODUCTION_SSH_TARGET`, then runs `bin/deploy.sh release <image-tag>`. The deploy job may wait for GitHub `production` environment approval when required reviewers are configured.
 
 Manual work is needed when:
 
@@ -111,7 +115,7 @@ WordPress at `wp.mitsailing.com` is a separate stack and tunnel. Do not connect 
 npm run dev            # local infra + migrations + Next dev server
 npm run db:seed        # local fixture data and admin user
 npm run worker:dev     # local BullMQ worker when needed
-node scripts/sync-prod-media.mjs --ssh-target ak@sailing-dock.mit.edu
+PRODUCTION_SSH_TARGET=deploy-user@example.com node scripts/sync-prod-media.mjs
 npm run test:e2e       # Playwright end-to-end gate
 ```
 

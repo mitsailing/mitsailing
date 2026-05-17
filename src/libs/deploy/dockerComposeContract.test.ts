@@ -25,7 +25,9 @@ describe('production docker compose', () => {
     expect(productionCompose).toContain('image: tusproject/tusd:v2.9.2');
     expect(productionCompose).toContain('media:');
     expect(productionCompose).toContain('cloudflared:');
-    expect(productionCompose).not.toContain('/srv/mitsailing-data');
+    expect(productionCompose).toContain('/srv/mitsailing-data/postgres');
+    expect(productionCompose).toContain('/srv/mitsailing-data/redis');
+    expect(productionCompose).toContain('/srv/mitsailing-data/cms-media');
     expect(productionCompose).not.toContain('upload-service:');
     expect(productionCompose).not.toContain('media-worker:');
     expect(productionCompose).not.toContain('media-upload:');
@@ -35,7 +37,8 @@ describe('production docker compose', () => {
     expect(productionCompose).toContain(
       'MEDIA_STORAGE_ROOT: /var/lib/mitsailing/cms-media'
     );
-    expect(productionCompose).toContain(
+    expect(productionCompose).not.toContain('cms_media:');
+    expect(productionCompose).not.toContain(
       'cms_media:/var/lib/mitsailing/cms-media'
     );
     expect(mediaNginx).toContain('location = /cms-media/healthz');
@@ -112,10 +115,18 @@ describe('local docker compose', () => {
 
 describe('production media sync script', () => {
   const syncScript = readRepoFile('scripts/sync-prod-media.mjs');
+  const legacyProductionHost = [
+    ['sailing', 'dock'].join('-'),
+    'mit',
+    'edu',
+  ].join('.');
 
-  it('documents guarded defaults for ready-media downloads', () => {
-    expect(syncScript).toContain('DEFAULT_SSH_TARGET');
-    expect(syncScript).toContain('sailing-dock.mit.edu');
+  it('requires an explicit ready-media ssh target', () => {
+    expect(syncScript).toContain('PRODUCTION_SSH_TARGET');
+    expect(syncScript).toContain('resolveSshTarget');
+    expect(syncScript).toContain('--ssh-target');
+    expect(syncScript).not.toContain('DEFAULT_SSH_TARGET');
+    expect(syncScript).not.toContain(legacyProductionHost);
     expect(syncScript).toContain('DEFAULT_REMOTE_DIR');
     expect(syncScript).toContain('apps/mitsailing');
     expect(syncScript).toContain('DEFAULT_LOCAL_ROOT');
