@@ -171,6 +171,7 @@ services:
       - path: .env.production
         required: false
     command:
+      - -port=1080
       - -upload-dir=/var/lib/mitsailing/cms-media/uploads
       - -base-path=/cms-media/uploads/
       - -disable-download
@@ -187,6 +188,20 @@ services:
         target: /var/lib/mitsailing/cms-media
         bind:
           create_host_path: false
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'wget',
+          '--quiet',
+          '--tries=1',
+          '-O',
+          '/dev/null',
+          'http://127.0.0.1:1080/metrics',
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     logging:
       driver: json-file
       options:
@@ -241,7 +256,7 @@ services:
       media:
         condition: service_healthy
       tusd:
-        condition: service_started
+        condition: service_healthy
     deploy:
       resources:
         limits:

@@ -75,6 +75,7 @@ describe('production docker compose', () => {
 
   it('runs tusd with local disk storage and upload hardening', () => {
     expect(productionCompose).toContain('tusd:');
+    expect(productionCompose).toContain('-port=1080');
     expect(productionCompose).toContain(
       '-upload-dir=/var/lib/mitsailing/cms-media/uploads'
     );
@@ -99,6 +100,7 @@ describe('production docker compose', () => {
     expect(productionCompose).toContain(
       '-cors-expose-headers=location,tus-resumable,upload-offset,upload-length,upload-metadata,upload-expires'
     );
+    expect(productionCompose).toContain('http://127.0.0.1:1080/metrics');
   });
 
   it('routes the MIT Sailing tunnel to in-stack docker services', () => {
@@ -112,6 +114,7 @@ describe('production docker compose', () => {
     expect(cloudflaredBlock).toContain('app:');
     expect(cloudflaredBlock).toContain('tusd:');
     expect(cloudflaredBlock).toContain('media:');
+    expect(cloudflaredBlock).toMatch(/tusd:\s+condition: service_healthy/u);
     expect(cloudflaredBlock).not.toContain('ports:');
   });
 });
@@ -153,12 +156,14 @@ describe('local docker compose', () => {
     expect(localCompose).toContain(
       `'127.0.0.1:${composeVariable('MEDIA_UPLOAD_PUBLISH_PORT:-1080')}:1080'`
     );
+    expect(localCompose).toContain('-port=1080');
     expect(localCompose).toContain(
       '-upload-dir=/var/lib/mitsailing/cms-media/uploads'
     );
     expect(localCompose).toContain(
       '-hooks-http=http://host.docker.internal:3000/api/internal/cms-media/tusd/hooks'
     );
+    expect(localCompose).toContain('http://127.0.0.1:1080/metrics');
     expect(localCompose).toContain('media:');
     expect(localCompose).toContain('image: nginx:1.29-alpine');
     expect(localCompose).toContain(

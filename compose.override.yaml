@@ -61,6 +61,7 @@ services:
     extra_hosts:
       - 'host.docker.internal:host-gateway'
     command:
+      - -port=1080
       - -upload-dir=/var/lib/mitsailing/cms-media/uploads
       - -base-path=/cms-media/uploads/
       - -disable-download
@@ -75,6 +76,20 @@ services:
       - type: bind
         source: ./local/cms-media
         target: /var/lib/mitsailing/cms-media
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'wget',
+          '--quiet',
+          '--tries=1',
+          '-O',
+          '/dev/null',
+          'http://127.0.0.1:1080/metrics',
+        ]
+      interval: 2s
+      timeout: 5s
+      retries: 30
 
   media:
     image: nginx:1.29-alpine
