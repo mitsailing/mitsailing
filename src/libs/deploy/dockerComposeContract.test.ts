@@ -21,6 +21,8 @@ describe('production docker compose split', () => {
     expect(dataCompose).toContain('tusd:');
     expect(dataCompose).toContain('image: tusproject/tusd:v2.9.2');
     expect(dataCompose).not.toContain('upload-service:');
+    expect(dataCompose).not.toContain('media-worker:');
+    expect(dataCompose).not.toContain('media-upload:');
     expect(dataCompose).toContain('worker:');
     expect(dataCompose).toContain("command: ['node', 'worker.mjs']");
     expect(dataCompose).toContain('media:');

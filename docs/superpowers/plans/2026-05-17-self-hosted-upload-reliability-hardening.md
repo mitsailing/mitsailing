@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use subagent-driven development or execute this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+**Status (shipped):** Production `compose.prod.data.yaml` uses Compose service key `tusd` (not `upload-service` or `media-upload`). The custom `src/upload-service/**` tree and `build:upload-service` artifacts are removed.
+
 **Goal:** Replace the custom single-request media upload service with pinned `tusd` + `tus-js-client`, then harden media processing and external readiness checks without replacing Redis or adding same-host monitoring; backup tooling is deferred to a follow-up.
 
 **Architecture:** The app creates DB-backed media assets and signed tus upload metadata, the browser uploads bytes directly to `tusd` on the data/media host, and the app finalizes only after a tus `HEAD` proves the upload offset equals the expected length. The BullMQ worker treats the database as the source of truth by reconciling queued and stale processing assets on startup. Backup tooling is intentionally deferred until the team chooses a maintained restore-tested approach.
@@ -12,12 +14,12 @@
 
 ## Current Context
 
-- Existing custom service: `src/upload-service/**`, built by `npm run build:upload-service`, copied into the production image as `upload-service.mjs`, and run by `compose.prod.data.yaml` as `upload-service`.
-- Existing upload API: `src/app/api/admin/cms-media/uploads/route.ts` returns a signed `PUT` session via `src/libs/mit-sailing/cmsMediaUploadSessions.ts`.
-- Existing finalize API: `src/app/api/admin/cms-media/uploads/[id]/finalize/route.ts` queues processing without checking upload completion.
-- Existing worker: `src/worker/cmsMediaProcessingJob.ts` moves `uploads/<assetId>` to `ready/<assetId>/<filename>` after MIME sniffing.
-- Existing readiness: `src/libs/health/readiness.ts` already models `postgres`, `redis`, `mediaPublic`, and `mediaUpload`, but `mediaUpload` probes old `/api/health/live`.
-- Current Checkly assertions only enforce `postgres` and `redis`.
+- **Removed:** custom `upload-service` Compose key and `src/upload-service/**`; production upload is `tusd` (`tusproject/tusd:v2.9.2`) in `compose.prod.data.yaml`.
+- Upload API: `src/app/api/admin/cms-media/uploads/route.ts` creates tus sessions via `src/libs/mit-sailing/cmsMediaUploadSessions.ts`.
+- Finalize API: `src/app/api/admin/cms-media/uploads/[id]/finalize/route.ts` verifies tus completion before enqueueing.
+- Worker: `src/worker/cmsMediaProcessingJob.ts` on Compose service `worker` moves `uploads/<assetId>` to `ready/<assetId>/<filename>` after MIME sniffing.
+- Readiness: `src/libs/health/readiness.ts` checks `mediaUpload` with `OPTIONS /cms-media/uploads/` and `mediaPublic` with `GET /healthz`.
+- Checkly: extend assertions for `mediaUpload` and `mediaPublic` when this plan’s monitoring tasks run.
 
 ## Version And Source Notes
 
@@ -36,7 +38,7 @@ Owns:
 - `Dockerfile`
 - `package.json`
 - `package-lock.json`
-- `src/upload-service/**` deletion
+- confirm `src/upload-service/**` stays deleted (no resurrection of `upload-service` Compose key)
 - `src/libs/deploy/dockerComposeContract.test.ts`
 - `src/libs/deploy/twoHostDeployScript.test.ts`
 - `bin/deploy-two-host.sh`
@@ -152,6 +154,8 @@ Only then may the route set status to `queued` and enqueue `cms-media-processing
 
 ## Task 1: Deploy/Compose/Docs Worker
 
+> **Shipped:** Steps 1–6 below are complete in `main`. Keep contract tests and docs aligned with `tusd` / `worker`; do not reintroduce `upload-service`, `media-upload`, or `media-worker` Compose keys.
+
 **Files:**
 - Modify: `src/libs/deploy/dockerComposeContract.test.ts`
 - Modify: `src/libs/deploy/twoHostDeployScript.test.ts`
@@ -159,9 +163,7 @@ Only then may the route set status to `queued` and enqueue `cms-media-processing
 - Modify: `Dockerfile`
 - Modify: `package.json`
 - Modify: `package-lock.json`
-- Delete: `src/upload-service/index.ts`
-- Delete: `src/upload-service/server.ts`
-- Delete: `src/upload-service/server.test.ts`
+- Deleted (keep absent): `src/upload-service/index.ts`, `server.ts`, `server.test.ts`
 - Modify: `bin/deploy-two-host.sh`
 - Modify: `docs/deploy.md`
 
@@ -177,11 +179,11 @@ Run:
 npm run test -- src/libs/deploy/dockerComposeContract.test.ts src/libs/deploy/twoHostDeployScript.test.ts
 ```
 
-Expected: fail because compose still runs `upload-service` and package/Docker still build it.
+Expected (pre-ship): fail when compose still ran `upload-service`. **Now:** PASS — see `compose.prod.data.yaml` service `tusd`.
 
-- [ ] **Step 2: Replace custom data service with pinned tusd**
+- [x] **Step 2: Replace custom data service with pinned tusd**
 
-In `compose.prod.data.yaml`, replace `upload-service` with `tusd`. Use the same internal network and data env files. Configure the command as a YAML list:
+Shipped in `compose.prod.data.yaml` as service `tusd`. Authoritative `command` list:
 
 ```yaml
 command:
@@ -199,9 +201,9 @@ command:
 
 Expose it on `${UPLOAD_SERVICE_BIND_HOST:-127.0.0.1}:${UPLOAD_SERVICE_PORT:-3001}:1080`. Keep Redis and Postgres unchanged.
 
-- [ ] **Step 3: Remove upload-service image build artifacts**
+- [x] **Step 3: Remove upload-service image build artifacts**
 
-Remove `build:upload-service` from `package.json`, remove `RUN npm run build:upload-service` and `COPY ... upload-service.mjs` from `Dockerfile`, and update `package-lock.json` through npm.
+Removed `build:upload-service` from `package.json`, removed upload-service build/copy from `Dockerfile`.
 
 Run:
 
@@ -211,17 +213,17 @@ npm install tus-js-client@4.3.1 --save-exact
 
 Expected: `package.json` and `package-lock.json` include exact `tus-js-client` and no `build:upload-service` script remains.
 
-- [ ] **Step 4: Delete custom upload service source and tests**
+- [x] **Step 4: Delete custom upload service source and tests**
 
-Delete `src/upload-service/index.ts`, `src/upload-service/server.ts`, and `src/upload-service/server.test.ts`. Confirm `rg "upload-service|upload-service.mjs|build:upload-service" package.json Dockerfile src compose.prod.data.yaml` returns no active references except historical docs if retained with explicit migration wording.
+Deleted `src/upload-service/**`. Confirm `rg "upload-service:|build:upload-service|upload-service.mjs" package.json Dockerfile src compose.prod.data.yaml` returns no matches (plans may mention retired keys).
 
-- [ ] **Step 5: Protect tusd from normal app deploy restarts**
+- [x] **Step 5: Protect tusd from normal app deploy restarts**
 
 Add a `restart_tusd_maintenance()` function to `bin/deploy-two-host.sh` that runs only when explicitly requested by an operator command such as `tusd-maintenance <ref>`. Normal `release`, `promote_ref`, and `rollback_ref` must keep using `restart_data_worker` only.
 
-- [ ] **Step 6: Update deploy docs**
+- [x] **Step 6: Update deploy docs**
 
-In `docs/deploy.md`, replace the custom upload service wording with tusd. Include the operator rule: app deploys and rollbacks recreate app hosts plus worker only; tusd upgrades happen in late-night maintenance because active uploads can be disrupted.
+`docs/deploy.md` documents `tusd` and the rule: app deploys and rollbacks recreate app hosts plus `worker` only; `tusd` upgrades use explicit maintenance because active uploads can be disrupted.
 
 - [ ] **Step 7: Run deploy tests**
 

@@ -130,7 +130,8 @@ describe('two host deploy script', () => {
 
     expect(script).toContain('tusd-maintenance)');
     expect(restartTusdMaintenance).toContain('--force-recreate tusd');
-    expect(restartDataWorker).toContain('--force-recreate worker');
+    expect(restartDataWorker).toContain('--no-deps --force-recreate worker');
+    expect(restartDataWorker).toContain('--env-file .env.image');
     expect(restartDataWorker).not.toContain('tusd');
     expect(promoteRef).toContain('restart_data_worker');
     expect(promoteRef).not.toContain('restart_tusd_maintenance');

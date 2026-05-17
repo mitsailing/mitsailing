@@ -112,6 +112,9 @@ app container on either blue/green host.
 
 ## Data/media server services
 
+Compose service keys in production are `postgres`, `redis`, `tusd`, `worker`, and
+`media`. Retired keys: `media-upload`, `media-worker`, `upload-service`.
+
 The data/media server is the durable state host:
 
 - `postgres`
@@ -125,11 +128,11 @@ The data/media server is the durable state host:
   - Run with append-only persistence.
   - Network exposure: private network only, restricted to app-host IPs and
     deploy automation.
-- `media-upload`
-  - Docker image: `tusd` or the app image running an upload-service command.
+- `tusd` (Compose service key on the data/media server; resumable upload endpoint)
+  - Docker image: `tusd` or the app image running a dedicated upload command (not a Compose service named `upload-service`).
   - Persistent path: `/srv/mitsailing-data/cms-media/uploads`.
   - Handles large file/video uploads without involving app hosts.
-- `media-worker`
+- `worker` (Compose service key on the data/media server; BullMQ media processor)
   - Docker image: the same app image as the release.
   - Persistent path: `/srv/mitsailing-data/cms-media`.
   - Reads uploaded files, validates content, writes ready files and thumbnails,
@@ -143,6 +146,40 @@ The data/media server is the durable state host:
 Postgres and Redis can remain on one server if that residual risk is accepted.
 That preserves zero-downtime app deploys, but the data/media server remains a
 single point of failure for database, queue, and media writes.
+
+## Public hostnames and ingress
+
+**MIT production runs on one physical host** (`sailing-dock.mit.edu`). The
+two-app-host + data-server split is logical: `compose.prod.data.yaml` and
+`compose.prod.app-host.yaml` on the same machine, with Cloudflare Tunnel public
+hostnames pointing at `127.0.0.1` ports. See
+[`docs/deploy.md`](../../deploy.md#mit-production-today-one-server-sailing-dock).
+
+Production CMS media requires **three HTTPS names** (examples use the
+`mitsailing.com` zone):
+
+| Hostname | Traffic | Docker on data/media server |
+| --- | --- | --- |
+| `mitsailing.com` | App (sessions, finalize, admin, tus hooks) | None — runs on app hosts (`web`) |
+| `uploads.mitsailing.com` | Browser tus upload bytes | `tusd` (Compose service `tusd`) |
+| `media.mitsailing.com` | Ready asset URLs | `media` (nginx) |
+
+Ingress is **not** defined in `compose.prod.app-host.yaml` or
+`compose.prod.data.yaml`. Operators configure Cloudflare Load Balancing, Cloudflare
+Tunnel public hostnames, or another reverse proxy so:
+
+- app hostnames reach each app host’s `web` container (port 3000);
+- `uploads.*` reaches the data host’s tus bind port (`UPLOAD_SERVICE_PORT`, default 3001);
+- `media.*` reaches the data host’s media nginx bind port (`MEDIA_HTTP_PORT`, default 8080).
+
+Env vars `MEDIA_UPLOAD_BASE_URL`, `MEDIA_PUBLIC_BASE_URL`, and
+`MEDIA_UPLOAD_SHARED_SECRET` must match on app hosts and the data server.
+`TUSD_HOOKS_HTTP_URL` on the data server must use a URL reachable from that host
+(for example `https://mitsailing.com/api/internal/cms-media/tusd/hooks`), not the
+Docker service name `web`.
+
+Step-by-step Cloudflare/DNS checks and `curl` verification live in
+[`docs/deploy.md`](../../deploy.md#public-hostnames-cloudflare-or-equivalent).
 
 ## Upload pipeline
 
@@ -227,7 +264,7 @@ proxy:
    - protected readiness;
    - Postgres check;
    - Redis check;
-   - data/media server upload-service check;
+   - data/media server `tusd` upload check (`MEDIA_UPLOAD_BASE_URL`, path `/cms-media/uploads/`);
    - media-serving check.
    For staging and production, `HEALTHCHECK_SECRET` is mandatory and the deploy
    script must fail early when it is missing. The single-host deploy script
@@ -246,7 +283,7 @@ proxy:
 
 Worker policy for the first implementation:
 
-- Prefer one active `media-worker` service on the data/media server because it
+- Prefer one active `worker` service on the data/media server because it
   has local access to `/srv/mitsailing-data/cms-media`.
 - Use stable BullMQ job ids and idempotent processors.
 - Before allowing multiple media workers, prove every processor is safe under
@@ -310,12 +347,16 @@ LEGACY_MYSQL_PASSWORD=<real readonly mysql password>
 Then recreate the worker with the pinned image and production worker env:
 
 ```bash
-docker compose -f compose.prod.data.yaml --env-file .env.production.data up -d media-worker
+docker compose -f compose.prod.data.yaml \
+  --env-file .env.production.data --env-file .env.production.worker \
+  --env-file .env.image \
+  up -d --no-deps --force-recreate worker
 ```
 
-If legacy sync workers run on an app host instead of the data/media server, run
-the equivalent `docker compose -f compose.prod.app-host.yaml ... up -d worker`
-command on that host.
+Shipped production topology runs legacy MySQL sync only on the data/media server
+(`compose.prod.data.yaml` service `worker`). `compose.prod.app-host.yaml` defines
+`web` only; do not run `up worker` on app hosts unless a future compose file adds
+that service.
 
 The cron string is six fields, seconds first. The default
 `0 0 * * * *` runs at the top of each hour.
@@ -371,14 +412,16 @@ Unit and integration coverage:
 - BullMQ stable job ids;
 - worker transitions from `queued` to `processing` to `ready` or `failed`;
 - MIME/signature rejection;
-- health readiness including Postgres, Redis, upload-service, and media-serving
-  checks.
+- health readiness including Postgres, Redis, `tusd` upload (`mediaUpload`), and
+  `media` serving (`mediaPublic`) checks.
 
 Production rehearsal:
 
+- Confirm all three public hostnames resolve and pass the `curl` checks in
+  [`docs/deploy.md`](../../deploy.md#public-hostnames-cloudflare-or-equivalent).
 - Start a large image/file/video upload during deploy.
-- Confirm browser upload traffic goes to the data/media server upload endpoint,
-  not the app host.
+- Confirm browser upload traffic goes to the `uploads.*` hostname (data/media
+  `tusd`), not the app host.
 - Promote the other app host while the upload continues.
 - Confirm finalize can retry on the active app host.
 - Confirm the uploaded asset reaches `ready` or `failed` deterministically.

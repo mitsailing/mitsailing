@@ -2,34 +2,61 @@
 
 This app ships as a **Docker image** on GitHub Container Registry (GHCR). Each
 push to `main` builds and tags `ghcr.io/mitsailing/mitsailing:sha-<short>` and
-`:latest`, then GitHub Actions SSHs to your Linux host to run
-`release <sha-short>` (see `bin/deploy.sh` and `.github/workflows/deploy.yml`).
+`:latest`, then GitHub Actions SSHs to production and runs
+`bin/deploy-two-host.sh release <sha-short>` (see `.github/workflows/deploy.yml`).
+The legacy `bin/deploy.sh` path remains for older single-compose stacks.
 
 The server can run **rootless Docker** (no `sudo` for day-to-day). You only need
 `sudo` once if your distro requires **loginctl linger** so the Docker user
 daemon survives logout/reboot (see below).
 
-Ingress in this repo is **Cloudflare Tunnel** (`cloudflared` in
-`compose.prod.yaml`) so the host does not need inbound firewall ports for HTTP.
+Ingress is usually **Cloudflare Tunnel** on the production host. CMS media still
+needs **three public hostnames** (see [Public hostnames](#public-hostnames-cloudflare-or-equivalent)).
 
-## Target production architecture
+## MIT production today: one server (`sailing-dock`)
 
-The target production topology is **two app hosts behind a proxy/load balancer**
-(Cloudflare, a reverse proxy, or equivalent) plus **one Docker data/media
-server**. The data/media server runs Postgres, Redis, `tusd`, the
-BullMQ worker, and static media nginx.
+**Physical production is a single Linux host:** `ak@sailing-dock.mit.edu` (see
+`bin/bootstrap-production-server.sh`). There are not three separate machines in
+the datacenter — the repo’s “two app hosts + data server” names are **logical
+roles** that can all SSH to the same box.
 
-This gives zero-downtime app deployments and resilience to one app host going
-away. It is **not** full data-tier high availability: Postgres, Redis, media
-writes, media serving, and `tusd` uploads still depend on the single
-data/media server.
+On that one server you typically run **two Compose projects** in
+`~/apps/mitsailing/`:
 
-Role split:
+| Compose project | File | Services |
+| --- | --- | --- |
+| `mitsailing-data` | `compose.prod.data.yaml` | `postgres`, `redis`, `tusd`, `worker`, `media` |
+| `mitsailing` (app) | `compose.prod.app-host.yaml` | `web` (Next.js) |
+
+GitHub Actions can set all three deploy secrets to the **same** SSH target, for
+example `ak@sailing-dock.mit.edu`. `bin/deploy-two-host.sh` still tracks blue/green
+**state** (`.deploy/two-host-active`, traffic file) on that host; it does not
+require two physical app servers.
+
+**Do not** run `compose.prod.data.yaml` **and** the old
+`compose.yaml` + `compose.prod.yaml` Postgres/Redis at the same time — you would
+start two databases on one machine. Migrate off the legacy stack (below) or stay
+on legacy until tusd/media are added there.
+
+**Older stack (still in repo):** `compose.yaml` + `compose.prod.yaml` on one host
+with `web_blue` / `web_green`, `worker`, and `cloudflared` → internal `app` nginx.
+That path uses `bin/deploy.sh` and does **not** include `tusd` or static media
+nginx until you migrate.
+
+## Logical roles (same idea on one or many machines)
+
+Whether everything runs on `sailing-dock` or is split across VMs later, the roles
+are:
 
 | Role | Runs |
 | --- | --- |
-| App host A / app host B | Next.js app containers behind the public proxy/load balancer |
-| Data/media server | `postgres`, `redis`, `tusd`, `worker`, static media nginx |
+| App (blue/green or single `web`) | Next.js — sessions, finalize, admin |
+| Data/media | `postgres`, `redis`, `tusd`, `worker`, `media` (nginx for ready files) |
+
+Multi-host production (optional future) puts app containers on two hosts behind
+Cloudflare Load Balancing and keeps Postgres/`tusd`/worker/media on
+`sailing-dock` or another data host. That adds failover for app deploys only;
+the data server remains a single point of failure until you add data-tier HA.
 
 Media storage is local to the data/media server. Do **not** add R2, S3, MinIO,
 or another object store for this architecture. Uploaded media lives under:
@@ -56,6 +83,95 @@ under `/srv/mitsailing-data/cms-media/uploads`. App deploys and rollbacks must
 not recreate `tusd`; only an explicit late-night maintenance window should
 restart or upgrade it, because active uploads can be disrupted.
 
+## Production topologies
+
+| Topology | When | Compose | Deploy |
+| --- | --- | --- | --- |
+| **Single-server (MIT today)** | One host (`sailing-dock`) | `compose.prod.data.yaml` + `compose.prod.app-host.yaml` in the same `~/apps/mitsailing` | `bin/deploy-two-host.sh`; CI secrets may all be `ak@sailing-dock.mit.edu` |
+| **Multi-host (optional)** | Separate app VMs later | Data compose on data host; app compose on each app host | Same script; different SSH targets per secret |
+| **Legacy single-compose** | Pre-tusd / pre-split | `compose.yaml` + `compose.prod.yaml` | `bin/deploy.sh`; `cloudflared` → `app` nginx → `web_blue` / `web_green` |
+
+Unless a section says **legacy single-compose**, it assumes the **split compose
+files on one or more hosts** (data + app).
+
+## Public hostnames (Cloudflare or equivalent)
+
+CMS media needs **three public HTTPS names**. Env examples use
+`mitsailing.com`, `uploads.mitsailing.com`, and `media.mitsailing.com`; replace
+with your real zone.
+
+| Public hostname | Serves | On **sailing-dock** (one server) | On **multi-host** (future) |
+| --- | --- | --- | --- |
+| `mitsailing.com` | Next.js (`web`) | Tunnel/LB → `http://127.0.0.1:3000` (app compose) or legacy `http://app:3000` | Tunnel/LB → each app host `:3000` |
+| `uploads.mitsailing.com` | `tusd` | Tunnel → `http://127.0.0.1:3001` (or `${UPLOAD_SERVICE_PORT}`) | Tunnel/LB → data host tus port |
+| `media.mitsailing.com` | nginx `media` | Tunnel → `http://127.0.0.1:8080` (or `${MEDIA_HTTP_PORT}`) | Tunnel/LB → data host media port |
+
+`compose.prod.data.yaml` publishes tus and media on the host via
+`UPLOAD_SERVICE_BIND_HOST` / `MEDIA_HTTP_BIND_HOST`. On a single server, set
+both to `127.0.0.1` and add **extra public hostnames** on the existing Cloudflare
+Tunnel (Zero Trust → your tunnel → Public Hostname). Postgres and Redis use
+`DATA_PRIVATE_BIND_HOST` (also `127.0.0.1` on one box); do not expose them on the
+public internet.
+
+**What runs in Docker (data/media server):** service keys `postgres`, `redis`,
+`tusd`, `worker`, and `media`. The BullMQ processor is **`worker`** (not
+`media-worker`).
+
+### Env vars that must match across hosts
+
+Set on **each app host** (`.env.production.app-host`) and on the **data/media
+server** (`.env.production.data`) where noted:
+
+| Variable | Example | Notes |
+| --- | --- | --- |
+| `MEDIA_UPLOAD_BASE_URL` | `https://uploads.mitsailing.com` | Browser tus endpoint; readiness checks `…/cms-media/uploads/` |
+| `MEDIA_PUBLIC_BASE_URL` | `https://media.mitsailing.com` | Public URLs for ready assets |
+| `MEDIA_UPLOAD_SHARED_SECRET` | 32+ random chars | **Same value** on app hosts and data server |
+| `MEDIA_UPLOAD_CORS_ALLOW_ORIGIN` | `https://mitsailing.com` | Data server only; `tusd` CORS |
+| `TUSD_HOOKS_HTTP_URL` | `https://mitsailing.com/api/internal/cms-media/tusd/hooks` | Data server only; must be reachable **from the data host** (LB or tunnel to app, not Docker service name `web`) |
+| `NEXT_PUBLIC_APP_URL` | `https://mitsailing.com` | App hosts |
+
+### Cloudflare setup on `sailing-dock`
+
+1. Open **Cloudflare Zero Trust** → **Networks** → **Tunnels** → the tunnel that
+   already serves `mitsailing.com` (legacy stack uses `cloudflared` in
+   `compose.prod.yaml`; after migration you may run `cloudflared` on the host or
+   keep it in compose — either way, hostnames are configured in the dashboard).
+2. Add **Public Hostname** routes (all on the same tunnel):
+   - `mitsailing.com` → `http://127.0.0.1:3000` (split stack `web`) **or**
+     `http://app:3000` (legacy nginx proxy) — use whichever stack is live.
+   - `uploads.mitsailing.com` → `http://127.0.0.1:3001` (requires `tusd` from
+     `compose.prod.data.yaml`).
+   - `media.mitsailing.com` → `http://127.0.0.1:8080` (requires `media` nginx from
+     `compose.prod.data.yaml`).
+3. TLS: **Full** or **Full (strict)** at Cloudflare; `tusd` uses `-behind-proxy`.
+4. Confirm `MEDIA_UPLOAD_CORS_ALLOW_ORIGIN=https://mitsailing.com` on the data
+   env file.
+5. Large uploads use tus chunks; confirm Cloudflare limits fit
+   `MEDIA_UPLOAD_MAX_BYTES` (default 100 MiB).
+
+`compose.prod.app-host.yaml` and `compose.prod.data.yaml` do **not** bundle
+`cloudflared`; the tunnel connector may still be the legacy `cloudflared` service
+until you move it. Extra hostnames are dashboard config, not a second server.
+
+### Verify hostnames before go-live
+
+From your workstation (replace hostnames if different):
+
+```bash
+curl -fsSI "https://mitsailing.com/api/health/live"
+curl -fsSI "https://uploads.mitsailing.com/cms-media/uploads/"
+curl -fsSI "https://media.mitsailing.com/healthz"
+```
+
+From the **data/media server** (hooks must reach a live app, not a Docker name
+on the data compose network):
+
+```bash
+curl -fsSI "https://mitsailing.com/api/internal/cms-media/tusd/hooks"
+# Expect 405 Method Not Allowed for GET — that still proves TLS + routing work.
+```
+
 ---
 
 ## What you need on the server
@@ -65,8 +181,10 @@ restart or upgrade it, because active uploads can be disrupted.
 | Docker Engine + Compose v2 | Rootless is fine; same user runs `docker compose` |
 | SSH access | Interactive key for you; **separate** deploy key for CI |
 | `docker login ghcr.io` | Once per user, PAT with `read:packages` if the image is private |
-| Directory `~/apps/mitsailing/` | Holds `compose.yaml`, `compose.prod.yaml`, optional `compose.db-admin.yaml`, `docker/postgres/init.sql`, `.env.production`, `.deploy/`, `deploy.sh` |
-| Directory `/srv/mitsailing-data/` | Host-owned production data root for Postgres, Redis, and CMS media bind mounts |
+| **Production host** | One machine today: `sailing-dock.mit.edu` (see [MIT production today](#mit-production-today-one-server-sailing-dock)) |
+| Directory `~/apps/mitsailing/` | Split stack: `compose.prod.data.yaml`, `compose.prod.app-host.yaml`, env files, `bin/deploy-two-host.sh`; legacy also keeps `compose.yaml` + `compose.prod.yaml` until removed |
+| Directory `/srv/mitsailing-data/` | Postgres, Redis, CMS media bind mounts (create on `sailing-dock`) |
+| Cloudflare (or equivalent) | Three public hostnames — [Public hostnames](#public-hostnames-cloudflare-or-equivalent) |
 
 **Multiple projects on one host:** each app should use a **unique Compose
 project name**. This repo sets `name: mitsailing` in `compose.yaml`. A second
@@ -144,19 +262,26 @@ Fill at least:
 - `BETTER_AUTH_SECRET` (32+ random chars)
 - `HEALTHCHECK_SECRET` (32+ random chars; used only by protected readiness
   checks, not by public `/api/health/live`)
-- `DATABASE_URL` — on app hosts, point this at the data/media server private
-  IP or private DNS name. On the data/media server, use Compose host
-  `postgres`. Production defaults to database name **`mitsailing_prod`**.
+- `DATABASE_URL` — on the app compose (`web`), point at Postgres on the same
+  machine, e.g. `postgresql://…@127.0.0.1:5432/mitsailing_prod` when
+  `DATA_PRIVATE_BIND_HOST=127.0.0.1`. On the data compose, use host `postgres`.
+  Production defaults to database name **`mitsailing_prod`**.
 - `POSTGRES_PASSWORD` — strong password; same value embedded in `DATABASE_URL`
-- `REDIS_URL` — on app hosts, point this at the data/media server private IP
-  or private DNS name. On the data/media server, use `redis://redis:6379`.
+- `REDIS_URL` — on the app compose, e.g. `redis://127.0.0.1:6379` when Redis is
+  published on localhost; on the data compose use `redis://redis:6379`.
 - `TUSD_HOOKS_HTTP_URL` — on the data/media server, point this at
   `https://mitsailing.com/api/internal/cms-media/tusd/hooks` or a private
   load-balanced app ingress reachable from the data/media server. Do not point
   it at Docker service name `web`; `tusd` runs in the data/media Compose
   project, not the app-host project.
+- `MEDIA_UPLOAD_BASE_URL`, `MEDIA_PUBLIC_BASE_URL`, and `MEDIA_UPLOAD_SHARED_SECRET`
+  — set on **app hosts and** the data/media server (same secret everywhere).
+  See [Public hostnames](#public-hostnames-cloudflare-or-equivalent).
 - `MEDIA_UPLOAD_MAX_BYTES` and `MEDIA_UPLOAD_CORS_ALLOW_ORIGIN` — data/media
   server settings consumed by `tusd`.
+- `UPLOAD_SERVICE_BIND_HOST`, `UPLOAD_SERVICE_PORT`, `MEDIA_HTTP_BIND_HOST`,
+  `MEDIA_HTTP_PORT`, `DATA_PRIVATE_BIND_HOST` — data/media server bind addresses
+  for `tusd`, static media nginx, and private Postgres/Redis.
 - Optional **`DEPLOYMENT_VERSION`** — same string on every web container when
   using rolling deploys or multiple replicas (wired to Next.js `deploymentId`;
   image tag or git SHA is typical).
@@ -196,10 +321,14 @@ Sentry disabled in the `Dockerfile`. If the `production` environment uses
 relax rules or duplicate these values as **repository** secrets if you need
 fully unattended image builds.
 
-**Cloudflare public hostname:** point your apex (e.g. `mitsailing.com`) to
-`http://app:3000` on the tunnel. In production `app` is the internal nginx
-proxy; `web_blue` and `web_green` are the real Next.js app containers.
-Production compose does **not** expose Mailpit.
+**Cloudflare / DNS:** configure all three public hostnames before relying on
+admin uploads. See [Public hostnames](#public-hostnames-cloudflare-or-equivalent).
+
+**Legacy single-host only:** point `mitsailing.com` at `http://app:3000` on the
+tunnel (`cloudflared` in `compose.prod.yaml`). Internal `app` is nginx;
+`web_blue` and `web_green` are the Next.js containers. Upload/media subdomains
+still apply if you run `tusd` and `media` on that host or on a separate data
+server — use the same hostname table.
 
 ### Legacy MySQL mirror worker secrets
 
@@ -238,19 +367,60 @@ LEGACY_MYSQL_SYNC_CRON="0 0 * * * *"
 ```
 
 Use a different quoted six-field cron value if needed. Then recreate/restart
-only the worker container:
+only the worker container.
+
+**Two-app-host topology (data/media server):**
+
+```bash
+cd ~/apps/mitsailing
+docker compose -f compose.prod.data.yaml \
+  --env-file .env.production.data --env-file .env.production.worker \
+  --env-file .env.image \
+  up -d --no-deps --force-recreate worker
+```
+
+**Legacy single-host topology:**
 
 ```bash
 docker compose -f compose.yaml -f compose.prod.yaml \
   --env-file .env.production --env-file .env.production.worker \
-  up -d --force-recreate worker
+  up -d --no-deps --force-recreate worker
 ```
 
 The worker connects from `sailing-dock.mit.edu`. Confirm MySQL allows
 `dock_readonly` from the production host or container network before setting
 `LEGACY_MYSQL_SYNC_ENABLED=true`.
 
-Connectivity check (uses both env files; password stays in the worker file):
+Connectivity check (uses worker env files; password stays in the worker file).
+
+**Two-app-host topology (data/media server):**
+
+```bash
+cd ~/apps/mitsailing
+docker compose -f compose.prod.data.yaml \
+  --env-file .env.production.data --env-file .env.production.worker \
+  run --rm --no-deps worker node - <<'NODE'
+const mysql = require('mysql2/promise');
+const password = process.env.LEGACY_MYSQL_PASSWORD;
+if (!password) throw new Error('LEGACY_MYSQL_PASSWORD missing');
+mysql
+  .createConnection({
+    database: 'sailing',
+    host: 'sailing.pavilion.lan',
+    password,
+    port: 3306,
+    user: 'dock_readonly',
+  })
+  .then((c) => c.query('SELECT 1').then(() => c.end()))
+  .then(() => console.log('ok'))
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
+NODE
+```
+
+**Legacy single-host topology:**
 
 ```bash
 cd ~/apps/mitsailing
@@ -411,50 +581,51 @@ restricted key for the two-host controller.
 Keep your **personal** SSH key in `authorized_keys` **without** `command=` so
 you can still open a normal shell.
 
-### 7. First bring-up (data/media server, app hosts, then release)
+### 7. First bring-up on `sailing-dock` (one SSH session)
 
-Postgres, Redis, `tusd`, static media nginx, and the worker run on the
-data/media server. Each app host runs the stateless `web` service from
-`compose.prod.app-host.yaml`.
+SSH `ak@sailing-dock.mit.edu`, then start the **data** stack, then the **app**
+stack. Use `127.0.0.1` bind hosts in `.env.production.data` when everything is
+on one machine.
 
 ```bash
-# On the data/media server
 cd ~/apps/mitsailing
+
+# Data plane (project name mitsailing-data)
 docker compose -f compose.prod.data.yaml \
   --env-file .env.production.data --env-file .env.production.worker \
   up -d postgres redis tusd media worker
 
-# On each app host
-cd ~/apps/mitsailing
+# App plane (project name mitsailing)
+mkdir -p .deploy
 printf 'false\n' > .deploy/traffic-enabled
 APP_IMAGE=ghcr.io/mitsailing/mitsailing:latest docker compose \
   -f compose.prod.app-host.yaml \
   --env-file .env.production.app-host up -d web
 ```
 
-After the containers are healthy, run the first release from CI or an operator
-machine that can SSH to all three hosts:
+Configure Cloudflare tunnel hostnames (see [Cloudflare setup on sailing-dock](#cloudflare-setup-on-sailing-dock)) before testing admin uploads.
+
+After the containers are healthy, run the first release from CI or your laptop
+(SSH to `sailing-dock`; all three env vars can be the same host):
 
 ```bash
-APP_HOST_BLUE=deploy@app-blue.example \
-APP_HOST_GREEN=deploy@app-green.example \
-DATA_MEDIA_HOST=deploy@app-data.example \
+APP_HOST_BLUE=ak@sailing-dock.mit.edu \
+APP_HOST_GREEN=ak@sailing-dock.mit.edu \
+DATA_MEDIA_HOST=ak@sailing-dock.mit.edu \
 bin/deploy-two-host.sh release latest
 ```
 
 After the first successful deploy, day-to-day updates are **only** from GitHub
 (`push` to `main` or **Actions → Deploy (production) → Run workflow**).
 
-Release jobs **scp** `compose.prod.app-host.yaml`, `compose.prod.data.yaml`,
-`docker/postgres/init.sql`, and `docker/nginx/media.conf` to each production
-host on every run so production Docker shape stays aligned with the branch.
+Release jobs **scp** deploy files to every SSH target in the workflow (on MIT
+prod that is the same `sailing-dock` path three times).
 
-Production releases are host-level blue/green. The release command writes
-`.env.image` on both app hosts and the data/media server, runs Prisma migrations
-once from the data/media server image, recreates the data/media worker, checks
-the inactive app host with `/api/health/ready?mode=service`, flips the inactive
-host’s `.deploy/traffic-enabled` file to `true`, waits for public readiness,
-then drains the previous app host by writing `false` to its traffic file. Keep
+Production releases use blue/green **state** on disk. The release command writes
+`.env.image`, runs Prisma migrations once from the data compose, recreates the
+`worker`, checks `web` with `/api/health/ready?mode=service`, flips
+`.deploy/traffic-enabled`, and waits for public readiness. On one server that is
+still a single `web` container — the traffic file gates public readiness. Keep
 migrations backward-compatible across at least one release: add before using,
 avoid same-release destructive drops/renames, and remove old columns only after
 deployed code no longer reads them.
@@ -465,9 +636,9 @@ maintenance command, after scheduling a low-traffic window because active tus
 uploads can be interrupted:
 
 ```bash
-APP_HOST_BLUE=deploy@app-blue.example \
-APP_HOST_GREEN=deploy@app-green.example \
-DATA_MEDIA_HOST=deploy@app-data.example \
+APP_HOST_BLUE=ak@sailing-dock.mit.edu \
+APP_HOST_GREEN=ak@sailing-dock.mit.edu \
+DATA_MEDIA_HOST=ak@sailing-dock.mit.edu \
 bin/deploy-two-host.sh tusd-maintenance latest
 ```
 
@@ -495,11 +666,11 @@ Add secrets used by `.github/workflows/deploy.yml`:
 
 | Secret | Value |
 | --- | --- |
-| `PRODUCTION_APP_HOST_BLUE` | SSH target for the blue app host, e.g. `deploy@app-blue.example` |
-| `PRODUCTION_APP_HOST_GREEN` | SSH target for the green app host, e.g. `deploy@app-green.example` |
-| `PRODUCTION_DATA_MEDIA_HOST` | SSH target for the data/media server, e.g. `deploy@app-data.example` |
+| `PRODUCTION_APP_HOST_BLUE` | SSH target for blue app role — on MIT prod use `ak@sailing-dock.mit.edu` (same host is OK) |
+| `PRODUCTION_APP_HOST_GREEN` | SSH target for green app role — same as blue on one server |
+| `PRODUCTION_DATA_MEDIA_HOST` | SSH target for data/media role — `ak@sailing-dock.mit.edu` |
 | `PRODUCTION_SSH_PRIVATE_KEY` | Full PEM of **mitsailing-deploy** private key |
-| `PRODUCTION_SSH_HOST_KEY` | One or more pinned lines from `ssh-keyscan` for all three production hosts |
+| `PRODUCTION_SSH_HOST_KEY` | Pinned `ssh-keyscan` line(s) for `sailing-dock.mit.edu` (one line is enough when all roles share one host) |
 
 Optional environment variable:
 
@@ -558,23 +729,23 @@ production database.
 - **Rollback app/worker to the previous image (does not reverse DB migrations):**
 
   ```bash
-  APP_HOST_BLUE=deployer@app-blue.mitsailing.internal \
-    APP_HOST_GREEN=deployer@app-green.mitsailing.internal \
-    DATA_MEDIA_HOST=deployer@sailing-dock.mit.edu \
+  APP_HOST_BLUE=ak@sailing-dock.mit.edu \
+    APP_HOST_GREEN=ak@sailing-dock.mit.edu \
+    DATA_MEDIA_HOST=ak@sailing-dock.mit.edu \
     bin/deploy-two-host.sh rollback previous
   ```
 
 - **Rollback app/worker to an explicit image tag:**
 
   ```bash
-  APP_HOST_BLUE=deployer@app-blue.mitsailing.internal \
-    APP_HOST_GREEN=deployer@app-green.mitsailing.internal \
-    DATA_MEDIA_HOST=deployer@sailing-dock.mit.edu \
+  APP_HOST_BLUE=ak@sailing-dock.mit.edu \
+    APP_HOST_GREEN=ak@sailing-dock.mit.edu \
+    DATA_MEDIA_HOST=ak@sailing-dock.mit.edu \
     bin/deploy-two-host.sh rollback sha-abc123def456
   ```
 
-  Blue/green rollback or switching traffic back to the other app host can
-  recover app code quickly. It cannot undo already-applied DB migrations,
+  Rollback flips deploy state and recreates containers on `sailing-dock`. It
+  cannot undo already-applied DB migrations,
   deleted media, data corruption, or non-backward-compatible schema changes.
 
 - **Logs:**
@@ -593,12 +764,13 @@ production database.
 
 ## Operations checklist
 
-- **Deploy:** confirm both app hosts can reach Postgres, Redis, `tusd`, and
-  media nginx on the data/media server; deploy the inactive
-  app host first; wait for readiness; switch proxy/load-balancer traffic; then
-  update the other app host.
-- **Rollback:** switch proxy/load-balancer traffic back to the previous healthy
-  app host or previous blue/green color; do not assume rollback reverses
+- **DNS / Cloudflare:** `mitsailing.com`, `uploads.mitsailing.com`, and
+  `media.mitsailing.com` route to the correct origins; run the verification
+  commands in [Public hostnames](#public-hostnames-cloudflare-or-equivalent).
+- **Deploy:** on `sailing-dock`, confirm `web` can reach Postgres/Redis on
+  localhost, readiness sees `tusd` and `media`, then run CI or
+  `bin/deploy-two-host.sh release`.
+- **Rollback:** `bin/deploy-two-host.sh rollback` on the same host; do not assume rollback reverses
   migrations, media deletes, data corruption, or incompatible schema changes.
 - **File permissions:** keep `/srv/mitsailing-data` and subdirectories owned by
   the deploy/runtime user expected by Docker; verify `cms-media` is writable by

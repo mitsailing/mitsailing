@@ -4,7 +4,9 @@
 
 **Goal:** Build a Docker-only production path where merged PR deploys preserve web availability and admin image, file, and video uploads while uploaded files stay on our own server folder.
 
-**Architecture:** Run two stateless headless app hosts behind Cloudflare Load Balancing or an equivalent health-checking proxy. Run a separate Docker data/media server for Postgres, Redis, resumable media upload, media processing, and media serving; all durable state lives under `/srv/mitsailing-data`. Browser uploads go directly to the Dockerized media upload service, then the app finalizes the upload and BullMQ processes the file from the shared media folder.
+**Architecture:** Run two stateless headless app hosts behind Cloudflare Load Balancing or an equivalent health-checking proxy. Run a separate Docker data/media server for Postgres, Redis, resumable upload (`tusd`), BullMQ processing (`worker`), and static media serving (`media`); all durable state lives under `/srv/mitsailing-data`. Browser uploads go directly to `tusd`, then the app finalizes the upload and `worker` processes the file from the shared media folder.
+
+**Compose service keys (data/media server):** `postgres`, `redis`, `tusd`, `worker`, `media`. Legacy names `media-upload`, `media-worker`, and `upload-service` are not used in shipped production Compose.
 
 **Tech Stack:** Next.js 16 standalone output, TypeScript, Prisma/Postgres, Redis/BullMQ, Docker Compose v2, Cloudflare Load Balancing or Dockerized proxy, Dockerized `tusd` resumable uploads, nginx static media serving, Vitest, Playwright, t3-env.
 
@@ -22,7 +24,7 @@ The data/media server is still a single point of failure for Postgres, Redis, an
 - Create `prisma/migrations/<timestamp>_durable_cms_media/migration.sql`: add non-destructive media fields and indexes.
 - Modify `src/libs/Env.ts` and `src/libs/Env.test.ts`: validate data/media server URLs, local storage root, traffic gate, Redis, Postgres, and stable Server Actions key.
 - Modify `.env.production.example`: point production app hosts to external Docker Postgres/Redis and media endpoints.
-- Create `.env.production.data.example`: data/media server env for Docker Postgres, Redis, upload service, media server, and worker.
+- Create `.env.production.data.example`: data/media server env for Docker Postgres, Redis, `tusd`, `media`, and `worker`.
 - Create `src/libs/mit-sailing/cmsMediaTypes.ts`: shared status, kind, upload-session, and upload-result types.
 - Modify `src/libs/mit-sailing/cmsMediaValidation.ts` and tests: support image, file, and video upload policy.
 - Create `src/libs/mit-sailing/cmsMediaFileStorage.ts` and tests: root-contained paths under `/srv/mitsailing-data/cms-media`, tus upload path validation, ready-file paths, and URL mapping.
@@ -39,8 +41,8 @@ The data/media server is still a single point of failure for Postgres, Redis, an
 - Create `src/components/mit-sailing/admin/media/AdminMediaLibrary.tsx` and tests: image/file/video media library.
 - Create `src/app/[locale]/(marketing)/(site)/admin/media/page.tsx`: authenticated admin media page.
 - Modify `src/locales/en.json`: add admin media status labels and errors.
-- Modify `src/libs/health/readiness.ts`, tests, and `/api/health/ready`: include Postgres, Redis, media upload service, media server, and `HOST_TRAFFIC_ENABLED`.
-- Create `compose.prod.data.yaml`: Dockerized Postgres, Redis, tusd upload service, media worker, and media-serving nginx.
+- Modify `src/libs/health/readiness.ts`, tests, and `/api/health/ready`: include Postgres, Redis, `tusd` upload (`mediaUpload`), `media` serving (`mediaPublic`), and `HOST_TRAFFIC_ENABLED`.
+- Create `compose.prod.data.yaml`: Dockerized Postgres, Redis, `tusd`, `worker`, and `media` (nginx).
 - Create `compose.prod.app-host.yaml`: Dockerized stateless web, optional worker, and cloudflared/proxy connector per app host.
 - Modify `compose.prod.yaml`: mark the existing single-host overlay as legacy.
 - Create `bin/deploy-two-host.sh`: deploy inactive app host, migrate once, promote, demote, rollback.
@@ -1519,7 +1521,7 @@ Add tests that prove:
 
 - `HOST_TRAFFIC_ENABLED=false` makes public readiness fail;
 - `mode=service` skips traffic gate for deploy pre-promotion checks;
-- readiness checks Postgres, Redis, media upload service, and media public URL.
+- readiness checks Postgres, Redis, `tusd` upload (`mediaUpload`), and `media` public URL (`mediaPublic`).
 
 - [ ] **Step 2: Run readiness tests and verify failure**
 
@@ -1588,8 +1590,8 @@ describe('production docker topology', () => {
     const dataCompose = readRepoFile('compose.prod.data.yaml');
     expect(dataCompose).toContain('postgres:');
     expect(dataCompose).toContain('redis:');
-    expect(dataCompose).toContain('media-upload:');
-    expect(dataCompose).toContain('media-worker:');
+    expect(dataCompose).toContain('tusd:');
+    expect(dataCompose).toContain('worker:');
     expect(dataCompose).toContain('media:');
     expect(dataCompose).toContain('/srv/mitsailing-data/postgres');
     expect(dataCompose).toContain('/srv/mitsailing-data/redis');
@@ -1619,87 +1621,19 @@ Expected: FAIL because the split Compose files do not exist.
 
 - [ ] **Step 3: Add data/media server Compose**
 
-Create `compose.prod.data.yaml`:
+Create `compose.prod.data.yaml` and `docker/nginx/media.conf` from the **shipped files in the repo** — do not copy older inline examples from this plan. Required Compose **service keys**:
 
-```yaml
-services:
-  postgres:
-    image: postgres:18-alpine
-    restart: unless-stopped
-    env_file:
-      - path: .env.production.data
-        required: true
-    volumes:
-      - type: bind
-        source: /srv/mitsailing-data/postgres
-        target: /var/lib/postgresql/data
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
-      interval: 10s
-      timeout: 5s
-      retries: 6
+| Key | Role |
+| --- | --- |
+| `postgres` | Docker Postgres; bind `/srv/mitsailing-data/postgres` → `/var/lib/postgresql` |
+| `redis` | AOF Redis; bind `/srv/mitsailing-data/redis` |
+| `tusd` | Resumable uploads (`tusproject/tusd:v2.9.2`, `-upload-dir`, `-base-path=/cms-media/uploads/`, hooks, CORS) |
+| `worker` | BullMQ processor (`node worker.mjs`, shared `/srv/mitsailing-data/cms-media`) |
+| `media` | nginx ready assets (`docker/nginx/media.conf`, `/healthz`, `/cms-media/` → `ready/`) |
 
-  redis:
-    image: redis:8-alpine
-    restart: unless-stopped
-    command: ['redis-server', '--appendonly', 'yes']
-    volumes:
-      - type: bind
-        source: /srv/mitsailing-data/redis
-        target: /data
-    healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
-      interval: 10s
-      timeout: 5s
-      retries: 6
+Retired keys: `media-upload`, `media-worker`, `upload-service`.
 
-  media-upload:
-    image: tusproject/tusd:v2.8
-    restart: unless-stopped
-    command:
-      - -host=0.0.0.0
-      - -port=1080
-      - -base-path=/files/
-      - -upload-dir=/srv/mitsailing-data/cms-media/uploads
-      - -behind-proxy
-    volumes:
-      - type: bind
-        source: /srv/mitsailing-data/cms-media/uploads
-        target: /srv/mitsailing-data/cms-media/uploads
-
-  media-worker:
-    image: ${APP_IMAGE}
-    restart: unless-stopped
-    env_file:
-      - path: .env.production.data
-        required: true
-      - path: .env.production.worker
-        required: false
-      - path: .env.image
-        required: true
-    command: ['node', 'worker.mjs']
-    volumes:
-      - type: bind
-        source: /srv/mitsailing-data/cms-media
-        target: /srv/mitsailing-data/cms-media
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-
-  media:
-    image: nginx:1.29-alpine
-    restart: unless-stopped
-    volumes:
-      - ./docker/nginx/media.conf:/etc/nginx/conf.d/default.conf:ro
-      - type: bind
-        source: /srv/mitsailing-data/cms-media/ready
-        target: /usr/share/nginx/html/cms-media
-        read_only: true
-```
-
-Create `docker/nginx/media.conf` with a `/healthz` route and immutable static file serving under `/cms-media/`.
+Contract tests in `src/libs/deploy/dockerComposeContract.test.ts` assert `tusd:` and `worker:` and forbid retired keys `upload-service:`, `media-worker:`, and `media-upload:`.
 
 - [ ] **Step 4: Add app-host Compose**
 
@@ -1855,7 +1789,10 @@ LEGACY_MYSQL_PASSWORD=<real readonly mysql password>
 Then:
 
 ```bash
-docker compose -f compose.prod.data.yaml --env-file .env.production.data up -d media-worker
+docker compose -f compose.prod.data.yaml \
+  --env-file .env.production.data --env-file .env.production.worker \
+  --env-file .env.image \
+  up -d --no-deps --force-recreate worker
 ```
 
 Explain that BullMQ schedules cron jobs after the worker registers the scheduler during startup.
@@ -1926,13 +1863,13 @@ Run:
 npm run test:e2e -- --grep "admin media uploads"
 ```
 
-Expected: FAIL until local Docker has the upload service, media worker, and media page wired.
+Expected: FAIL until local Docker has `tusd`, `worker`, and the admin media page wired.
 
 - [ ] **Step 3: Wire local Docker media services**
 
 Use local Docker services equivalent to production:
 
-- `media-upload` with local `local/cms-media/uploads`;
+- `tusd` with local `local/cms-media/uploads`;
 - `media` with local `local/cms-media/ready`;
 - worker with `MEDIA_STORAGE_ROOT=local/cms-media`;
 - app with `MEDIA_UPLOAD_BASE_URL=http://127.0.0.1:1080` and `MEDIA_PUBLIC_BASE_URL=http://127.0.0.1:8080`.
@@ -2033,15 +1970,15 @@ git commit -m "docs: add zero downtime docker rehearsal"
 - Redis runs in Docker on the data/media server with append-only persistence under `/srv/mitsailing-data/redis`.
 - Uploaded files are stored on the data/media server under `/srv/mitsailing-data/cms-media`.
 - App hosts do not have independent writable CMS media folders.
-- Browser uploads images, files, and videos directly to the Dockerized media upload service.
+- Browser uploads images, files, and videos directly to `tusd` on the data/media server.
 - BullMQ starts after upload completion; it handles processing, retries, and cron, not the raw upload transfer.
 - Finalize is retry-safe and enqueueing uses stable BullMQ job ids.
 - Public `/cms-media/:id/:filename` serves only `ready` assets via the Docker media server.
 - Rich text and image fields insert only ready images.
 - Admin media library supports image, file, and video uploads.
-- `compose.prod.data.yaml` runs Dockerized Postgres, Redis, media upload, media worker, and media serving.
+- `compose.prod.data.yaml` runs Dockerized Postgres, Redis, `tusd`, `worker`, and `media`.
 - `compose.prod.app-host.yaml` runs Dockerized stateless web and ingress connector on each app host.
-- Readiness includes Postgres, Redis, media upload service, media serving, and `HOST_TRAFFIC_ENABLED`.
+- Readiness includes Postgres, Redis, `tusd` upload (`mediaUpload`), `media` serving (`mediaPublic`), and `HOST_TRAFFIC_ENABLED`.
 - Rollback is a traffic switch and does not claim to reverse migrations or file writes.
 - Cron remains disabled by default and is enabled by editing `.env.production.worker` plus recreating the Docker worker.
 - Final verification passes: `npm run lint`, `npm run check:types`, `npm run test`, `npm run test:e2e`, and `npm run build-local`.
