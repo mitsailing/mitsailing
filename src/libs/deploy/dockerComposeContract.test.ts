@@ -223,14 +223,13 @@ describe('production media sync script', () => {
     expect(syncScript).toContain('spawn(TAR_BIN');
   });
 
-  it('removes child process listeners after waiting for close or error', () => {
+  it('aborts child process listeners after waiting for close or error', () => {
     expect(syncScript).toContain('waitForChildProcess');
-    expect(syncScript).toContain("options.child.on('close'");
-    expect(syncScript).toContain("options.child.on('error'");
-    expect(syncScript).toContain("options.child.removeListener('close'");
-    expect(syncScript).toContain("options.child.removeListener('error'");
-    expect(syncScript).not.toContain("once(options.child, 'close')");
-    expect(syncScript).not.toContain("once(options.child, 'error')");
+    expect(syncScript).toContain("import { once } from 'node:events';");
+    expect(syncScript).toContain("once(options.child, 'close'");
+    expect(syncScript).toContain("once(options.child, 'error'");
+    expect(syncScript).toContain('new globalThis.AbortController()');
+    expect(syncScript).toContain('events.abort()');
   });
 
   it('uses an absolute mkdir command for local media roots', () => {

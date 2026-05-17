@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { spawn, spawnSync } from 'node:child_process';
+import { once } from 'node:events';
 import path from 'node:path';
 import process from 'node:process';
 
@@ -383,29 +384,38 @@ async function extractRemoteReadyMedia(options) {
 }
 
 /**
+ * @param {[number | null, NodeJS.Signals | null]} closeEvent Child process close event.
+ * @returns {{ code: number | null; signal: NodeJS.Signals | null }} Process status.
+ */
+function toCloseStatus(closeEvent) {
+  const [code, signal] = closeEvent;
+  return { code, signal };
+}
+
+/**
+ * @param {[Error]} errorEvent Child process error event.
+ * @returns {{ code: Error; signal: undefined }} Process error status.
+ */
+function toErrorStatus(errorEvent) {
+  const [error] = errorEvent;
+  return { code: error, signal: undefined };
+}
+
+/**
  * @param {{ child: import('node:child_process').ChildProcess; name: string }} options Child process.
  * @returns {Promise<number | null>} Resolves with the exit code.
  */
 async function waitForChildProcess(options) {
-  /** @type {PromiseWithResolvers<{ code: number | null; signal: NodeJS.Signals | null }>} */
-  const closeDeferred = Promise.withResolvers();
-  /** @type {PromiseWithResolvers<{ code: Error; signal: undefined }>} */
-  const errorDeferred = Promise.withResolvers();
-  /** @type {(code: number | null, signal: NodeJS.Signals | null) => void} */
-  const onClose = (code, signal) => {
-    closeDeferred.resolve({ code, signal });
-  };
-  /** @type {(error: Error) => void} */
-  const onError = (error) => {
-    errorDeferred.resolve({ code: error, signal: undefined });
-  };
-  options.child.on('close', onClose);
-  options.child.on('error', onError);
+  const events = new globalThis.AbortController();
   try {
     /** @type {{ code: number | null | Error; signal: NodeJS.Signals | null | undefined }} */
     const result = await Promise.race([
-      closeDeferred.promise,
-      errorDeferred.promise,
+      once(options.child, 'close', { signal: events.signal }).then(
+        toCloseStatus
+      ),
+      once(options.child, 'error', { signal: events.signal }).then(
+        toErrorStatus
+      ),
     ]);
     if (result.code instanceof Error) {
       throw result.code;
@@ -421,8 +431,7 @@ async function waitForChildProcess(options) {
     }
     throw new TypeError(`${options.name} exited without a status code`);
   } finally {
-    options.child.removeListener('close', onClose);
-    options.child.removeListener('error', onError);
+    events.abort();
   }
 }
 
