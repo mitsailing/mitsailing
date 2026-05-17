@@ -2,7 +2,11 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/libs/auth/dal';
 import { Role } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
-import { cmsMediaByteSizeToNumber } from '@/libs/mit-sailing/cmsMediaValidation';
+import {
+  cmsMediaUploadRouteAssetResponse,
+  findCmsMediaUploadRouteAsset,
+  isUploadCancelIdempotentSuccess,
+} from '@/libs/mit-sailing/cmsMediaUploadRoute';
 
 export const runtime = 'nodejs';
 
@@ -10,49 +14,9 @@ type CmsMediaUploadRouteProps = {
   params: Promise<{ id: string }>;
 };
 
-type CmsMediaUploadRouteAsset = {
-  byteSize: bigint;
-  createdAt: Date;
-  id: string;
-  mediaKind: 'file' | 'image' | 'video';
-  mimeType: string;
-  originalFilename: string;
-  processingErrorCode: string | null;
-  publicPath: string;
-  status: 'failed' | 'processing' | 'queued' | 'ready' | 'uploading';
-};
-
-const cmsMediaUploadRouteAssetSelect = {
-  byteSize: true,
-  createdAt: true,
-  id: true,
-  mediaKind: true,
-  mimeType: true,
-  originalFilename: true,
-  processingErrorCode: true,
-  publicPath: true,
-  status: true,
-};
-
 async function currentAdminUserId(): Promise<string | null> {
   const currentUser = await getCurrentUser();
   return currentUser?.role === Role.ADMIN ? currentUser.id : null;
-}
-
-function assetResponse(asset: CmsMediaUploadRouteAsset) {
-  return {
-    asset: {
-      byteSize: cmsMediaByteSizeToNumber(asset.byteSize),
-      createdAt: asset.createdAt.toISOString(),
-      id: asset.id,
-      mediaKind: asset.mediaKind,
-      mimeType: asset.mimeType,
-      originalFilename: asset.originalFilename,
-      processingErrorCode: asset.processingErrorCode,
-      publicPath: asset.publicPath,
-      status: asset.status,
-    },
-  };
 }
 
 function uploadNotCancellableResponse() {
@@ -62,12 +26,22 @@ function uploadNotCancellableResponse() {
   );
 }
 
-async function findUploadAsset(id: string) {
-  const asset = await prisma.cmsMediaAsset.findUnique({
-    select: cmsMediaUploadRouteAssetSelect,
-    where: { id },
+async function cancelUploadAsset(id: string) {
+  const result = await prisma.cmsMediaAsset.updateMany({
+    data: {
+      processingErrorCode: 'upload_cancelled',
+      status: 'failed',
+    },
+    where: { id, status: 'uploading' },
   });
-  return asset;
+  if (result.count !== 1) {
+    const existingAsset = await findCmsMediaUploadRouteAsset(id);
+    if (existingAsset && isUploadCancelIdempotentSuccess(existingAsset)) {
+      return existingAsset;
+    }
+    return null;
+  }
+  return findCmsMediaUploadRouteAsset(id);
 }
 
 export async function GET(_request: Request, props: CmsMediaUploadRouteProps) {
@@ -76,12 +50,12 @@ export async function GET(_request: Request, props: CmsMediaUploadRouteProps) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
   const { id } = await props.params;
-  const asset = await findUploadAsset(id);
+  const asset = await findCmsMediaUploadRouteAsset(id);
   if (!asset) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 });
   }
 
-  return NextResponse.json(assetResponse(asset));
+  return NextResponse.json(cmsMediaUploadRouteAssetResponse(asset));
 }
 
 export async function DELETE(
@@ -93,27 +67,24 @@ export async function DELETE(
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
   const { id } = await props.params;
-  const asset = await findUploadAsset(id);
+  const asset = await findCmsMediaUploadRouteAsset(id);
   if (!asset) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 });
   }
   if (asset.status !== 'uploading') {
+    if (isUploadCancelIdempotentSuccess(asset)) {
+      return NextResponse.json(cmsMediaUploadRouteAssetResponse(asset));
+    }
     return uploadNotCancellableResponse();
   }
-  const result = await prisma.cmsMediaAsset.updateMany({
-    data: {
-      processingErrorCode: 'upload_cancelled',
-      status: 'failed',
-    },
-    where: { id, status: 'uploading' },
-  });
-  if (result.count !== 1) {
-    return uploadNotCancellableResponse();
-  }
-  const cancelledAsset = await findUploadAsset(id);
+  const cancelledAsset = await cancelUploadAsset(id);
   if (!cancelledAsset) {
-    return NextResponse.json({ error: 'not_found' }, { status: 404 });
+    const existingAsset = await findCmsMediaUploadRouteAsset(id);
+    if (!existingAsset) {
+      return NextResponse.json({ error: 'not_found' }, { status: 404 });
+    }
+    return uploadNotCancellableResponse();
   }
 
-  return NextResponse.json(assetResponse(cancelledAsset));
+  return NextResponse.json(cmsMediaUploadRouteAssetResponse(cancelledAsset));
 }

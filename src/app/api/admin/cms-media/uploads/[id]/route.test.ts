@@ -105,6 +105,42 @@ describe('cms media upload route', () => {
     expect(mocks.updateMany).not.toHaveBeenCalled();
   });
 
+  it('returns cancelled asset when another delete already updated status', async () => {
+    stubAdminUser();
+    mocks.findUnique
+      .mockResolvedValueOnce(asset('uploading'))
+      .mockResolvedValueOnce(asset('failed', 'upload_cancelled'));
+    mocks.updateMany.mockResolvedValue({ count: 0 });
+
+    const response = await DELETE(cancelRequest(), routeProps());
+
+    await expect(response.json()).resolves.toMatchObject({
+      asset: {
+        id: 'asset-1',
+        processingErrorCode: 'upload_cancelled',
+        status: 'failed',
+      },
+    });
+    expect(response.status).toBe(200);
+  });
+
+  it('returns cancelled asset when delete is repeated', async () => {
+    stubAdminUser();
+    mocks.findUnique.mockResolvedValue(asset('failed', 'upload_cancelled'));
+
+    const response = await DELETE(cancelRequest(), routeProps());
+
+    await expect(response.json()).resolves.toMatchObject({
+      asset: {
+        id: 'asset-1',
+        processingErrorCode: 'upload_cancelled',
+        status: 'failed',
+      },
+    });
+    expect(response.status).toBe(200);
+    expect(mocks.updateMany).not.toHaveBeenCalled();
+  });
+
   it('does not cancel when the asset leaves uploading during the write', async () => {
     stubAdminUser();
     mocks.findUnique.mockResolvedValue(asset('uploading'));

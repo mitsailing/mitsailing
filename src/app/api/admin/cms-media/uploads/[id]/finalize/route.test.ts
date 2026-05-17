@@ -124,6 +124,50 @@ describe('cms media upload finalize route', () => {
     );
   });
 
+  it('returns queued asset when finalize is called again', async () => {
+    stubAdminUser();
+    mocks.findUnique.mockResolvedValue(asset('queued'));
+
+    const response = await POST(finalizeRequest(), routeProps());
+
+    await expect(response.json()).resolves.toMatchObject({
+      asset: {
+        id: 'asset-1',
+        status: 'queued',
+      },
+    });
+    expect(response.status).toBe(200);
+    expect(mocks.updateMany).not.toHaveBeenCalled();
+    expect(mocks.enqueueCmsMediaProcessingJob).not.toHaveBeenCalled();
+  });
+
+  it('returns queued asset when another finalize already updated status', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(
+          headResponse({ 'Upload-Length': '1024', 'Upload-Offset': '1024' })
+        )
+    );
+    stubAdminUser();
+    mocks.findUnique
+      .mockResolvedValueOnce(asset())
+      .mockResolvedValueOnce(asset('queued'));
+    mocks.updateMany.mockResolvedValue({ count: 0 });
+
+    const response = await POST(finalizeRequest(), routeProps());
+
+    await expect(response.json()).resolves.toMatchObject({
+      asset: {
+        id: 'asset-1',
+        status: 'queued',
+      },
+    });
+    expect(response.status).toBe(200);
+    expect(mocks.enqueueCmsMediaProcessingJob).not.toHaveBeenCalled();
+  });
+
   it('does not queue processing when the asset leaves uploading before update', async () => {
     vi.stubGlobal(
       'fetch',
@@ -140,7 +184,7 @@ describe('cms media upload finalize route', () => {
     const response = await POST(finalizeRequest(), routeProps());
 
     await expect(response.json()).resolves.toEqual({
-      error: 'upload_not_cancellable',
+      error: 'upload_finalize_conflict',
     });
     expect(response.status).toBe(409);
     expect(mocks.enqueueCmsMediaProcessingJob).not.toHaveBeenCalled();
