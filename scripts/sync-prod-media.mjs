@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 import { spawnSync } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
@@ -34,20 +33,6 @@ Options:
                          Default: ${DEFAULT_LOCAL_ROOT}
   --help                 Show this help text.
 `;
-}
-
-/**
- * @param {string[]} args CLI arguments.
- * @param {number} index Current flag index.
- * @param {string} flag Flag that requires a value.
- * @returns {string} Parsed flag value.
- */
-function parseArgValue(args, index, flag) {
-  const value = args[index + 1];
-  if (!value || value.startsWith('--')) {
-    throw new Error(`${flag} requires a value`);
-  }
-  return value;
 }
 
 /**
@@ -98,15 +83,57 @@ function validSshToken(value) {
     return false;
   }
   for (let index = 0; index < value.length; index += 1) {
-    if (
-      !'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._~-'.includes(
-        value.charAt(index)
-      )
-    ) {
+    const code = value.codePointAt(index);
+    if (code === undefined || !validSshTokenCharacter(code)) {
       return false;
     }
   }
   return true;
+}
+
+/**
+ * @param {number} code Character code.
+ * @returns {boolean} Whether the character is safe for an SSH target token.
+ */
+function validSshTokenCharacter(code) {
+  return (
+    isAsciiUppercase(code) ||
+    isAsciiLowercase(code) ||
+    isAsciiDigit(code) ||
+    isSshTokenPunctuation(code)
+  );
+}
+
+/**
+ * @param {number} code Character code.
+ * @returns {boolean} Whether the character is A-Z.
+ */
+function isAsciiUppercase(code) {
+  return code >= 65 && code <= 90;
+}
+
+/**
+ * @param {number} code Character code.
+ * @returns {boolean} Whether the character is a-z.
+ */
+function isAsciiLowercase(code) {
+  return code >= 97 && code <= 122;
+}
+
+/**
+ * @param {number} code Character code.
+ * @returns {boolean} Whether the character is 0-9.
+ */
+function isAsciiDigit(code) {
+  return code >= 48 && code <= 57;
+}
+
+/**
+ * @param {number} code Character code.
+ * @returns {boolean} Whether the character is safe punctuation.
+ */
+function isSshTokenPunctuation(code) {
+  return code === 46 || code === 95 || code === 126 || code === 45;
 }
 
 /**
@@ -233,8 +260,8 @@ function parseArgs(args) {
     showHelp: false,
     sshTarget: undefined,
   };
-  for (let index = 0; index < args.length; index += 1) {
-    const arg = args[index];
+  const iterator = args.values();
+  for (const arg of iterator) {
     if (arg === '--help' || arg === '-h') {
       options.showHelp = true;
       continue;
@@ -245,13 +272,25 @@ function parseArgs(args) {
       continue;
     }
     if (arg.startsWith('--')) {
-      withOption(options, arg, parseArgValue(args, index, arg));
-      index += 1;
+      withOption(options, arg, parseIteratorArgValue(iterator, arg));
       continue;
     }
     throw new Error(`Unknown option: ${arg}`);
   }
   return options;
+}
+
+/**
+ * @param {ArrayIterator<string>} iterator CLI argument iterator.
+ * @param {string} flag Flag that requires a value.
+ * @returns {string} Parsed flag value.
+ */
+function parseIteratorArgValue(iterator, flag) {
+  const result = iterator.next();
+  if (result.done || result.value.startsWith('--')) {
+    throw new Error(`${flag} requires a value`);
+  }
+  return result.value;
 }
 
 /**
@@ -282,7 +321,15 @@ function syncReadyMedia(options) {
   if (!localRoot.startsWith(`${process.cwd()}${path.sep}`)) {
     throw new Error('--local-root must resolve inside this repo');
   }
-  mkdirSync(localRoot, { recursive: true, mode: 0o755 });
+  const mkdirResult = spawnSync('mkdir', ['-p', localRoot], {
+    stdio: 'inherit',
+  });
+  if (mkdirResult.error) {
+    throw mkdirResult.error;
+  }
+  if (mkdirResult.status !== 0) {
+    throw new Error(`mkdir failed with exit code ${mkdirResult.status}`);
+  }
   const command = [
     'ssh',
     shellQuote(options.sshTarget),
