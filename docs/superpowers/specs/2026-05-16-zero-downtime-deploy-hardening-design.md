@@ -21,17 +21,34 @@ not the final architecture for this requirement because:
 
 ## Required target architecture
 
-Use two app hosts with external durable state:
+Use two headless app hosts behind a proxy/load-balancing layer with external
+durable state:
 
 - `server-blue` and `server-green` each run the same app/worker image through
   Docker Compose.
-- Cloudflare Load Balancing routes public traffic to the active app host and
-  uses health checks to fail over when the active host is unhealthy.
-- Postgres is external to the app hosts.
+- The app hosts are headless Linux servers operated over SSH and Docker Compose;
+  they do not need or expose a local desktop/browser workflow.
+- Every runtime service we operate must run through Docker/Compose. That
+  includes the Next.js app, BullMQ worker, nginx/cloudflared ingress connector,
+  self-hosted Postgres, self-hosted Redis, and any future media-processing tools
+  such as thumbnailers or video transcoders.
+- Cloudflare Load Balancing is the preferred public proxy. It routes public
+  traffic to the active app host and uses health checks to fail over when the
+  active host is unhealthy.
+- Each app host can run its own `cloudflared` connector or expose a locked-down
+  origin endpoint for Cloudflare. The chosen ingress must have one health target
+  per app host.
+- Postgres is external to the app hosts. It can be self-hosted on an existing
+  data server.
 - Redis is external to the app hosts and durable enough for BullMQ jobs,
-  retries, and schedulers.
+  retries, and schedulers. It can be self-hosted on the same data server as
+  Postgres if that residual risk is accepted.
 - Media uploads go to S3-compatible object storage, preferably Cloudflare R2.
 - App hosts are stateless with respect to uploaded media.
+
+External platform services such as Cloudflare Load Balancing and R2 are managed
+services, not processes we run. Everything deployed onto our Linux servers must
+be containerized.
 
 Cloudflare R2 is the recommended storage target because it is S3-compatible,
 fits the existing Cloudflare deployment surface, and supports presigned URLs and
@@ -78,10 +95,10 @@ References:
 
 ## Recommended approach
 
-Use a two-server active/passive blue/green deployment with stateless app hosts.
-The inactive host is updated first, health and readiness pass, Cloudflare traffic
-shifts to it, and the previous active host remains available for rollback until
-the release is accepted.
+Use a two-server active/passive blue/green deployment with stateless headless
+app hosts. The inactive host is updated first, health and readiness pass,
+Cloudflare traffic shifts to it, and the previous active host remains available
+for rollback until the release is accepted.
 
 Uploads do not stream through the app host. The app issues short-lived upload
 instructions for object storage, the browser uploads directly to object storage,
@@ -160,7 +177,8 @@ usage or migrate it to the object-storage pipeline.
 ## Deployment model
 
 The deploy flow changes from single-host color switching to host-level
-active/passive blue/green:
+active/passive blue/green behind Cloudflare Load Balancing or an equivalent
+public proxy:
 
 1. Build and push immutable image `sha-<short>`.
 2. Deploy the image to the inactive app host.
@@ -173,14 +191,15 @@ active/passive blue/green:
    - Redis check;
    - object-storage connectivity check;
    - worker Redis health.
-6. Shift Cloudflare Load Balancer traffic to the inactive host.
+6. Shift the proxy/load balancer traffic to the inactive host.
 7. Keep the previous host running for rollback.
 8. Restart or update worker placement according to the chosen worker policy.
 
 Worker policy for the first implementation:
 
 - Keep one active worker service to avoid duplicate processor surprises.
-- Run it on the active app host or a separate worker host.
+- Run it as a Docker/Compose service on the active app host or a separate
+  Docker-based worker host.
 - Use stable BullMQ job ids and idempotent processors.
 - Before allowing multiple workers, prove every processor is safe under
   concurrency.
@@ -203,7 +222,9 @@ To make rollback safe:
 ## Redis, worker, and cron
 
 Redis is production state because BullMQ jobs, retries, and schedulers live
-there. It must be external to the app hosts for two-host deployment.
+there. It must be external to the app hosts for two-host deployment. If Redis
+stays single-node on the existing data server, app deploys can still be
+zero-downtime, but Redis/data-server failure remains a known availability risk.
 
 BullMQ schedules cron jobs automatically after a scheduler is registered in
 Redis. It does not automatically notice that an operator changed
@@ -238,9 +259,11 @@ The cron string is six fields, seconds first. The default
 ## Postgres and migrations
 
 Production Postgres must be external to app hosts. It can be managed Postgres or
-a self-managed database host with its own backup/failover plan. Do not run the
-only production Postgres inside either app host if host-level resilience is a
-requirement.
+a self-managed Postgres container on a database host with its own backup/failover
+plan. If Postgres stays single-node on the existing Docker-based data server,
+app deploys can still be zero-downtime, but data-server failure remains a known
+availability risk. Do not run the only production Postgres inside either app
+host if host-level resilience is a requirement.
 
 Deploy-time migrations run before traffic cutover. Because old and new app
 versions overlap, migrations must follow expand/contract discipline:
@@ -277,6 +300,8 @@ temporary rollback aid until all production media has moved to object storage.
 
 Any remaining local state on app hosts must be rebuildable from GitHub,
 environment files, external Postgres, external Redis, and object storage.
+Operators manage app hosts through SSH, Docker, Compose, logs, and health
+checks; the app hosts are headless runtime nodes.
 
 ## Error handling and recovery
 
