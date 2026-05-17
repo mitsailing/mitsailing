@@ -43,6 +43,24 @@ beforeEach(() => {
   });
 });
 
+function passingCheckers() {
+  return {
+    http: vi.fn(async () => {}),
+    postgres: vi.fn(async () => {}),
+    redis: vi.fn(async () => {}),
+  };
+}
+
+function productionReadinessEnv() {
+  return {
+    appEnv: 'production',
+    hostTrafficEnabled: 'true' as const,
+    mediaPublicBaseUrl: 'https://media.mitsailing.com',
+    mediaUploadBaseUrl: 'https://uploads.mitsailing.com',
+    redisUrl: 'redis://redis:6379',
+  };
+}
+
 describe('getReadinessHealth', () => {
   it('bounds postgres readiness queries with prisma transaction timeout', async () => {
     transactionMock.mockImplementation(async (transaction) => {
@@ -193,17 +211,10 @@ describe('getReadinessHealth', () => {
   it('fails public readiness when host traffic is disabled', async () => {
     const health = await getReadinessHealth({
       env: {
-        appEnv: 'production',
+        ...productionReadinessEnv(),
         hostTrafficEnabled: 'false',
-        mediaPublicBaseUrl: 'https://media.mitsailing.com',
-        mediaUploadBaseUrl: 'https://uploads.mitsailing.com',
-        redisUrl: 'redis://redis:6379',
       },
-      checkers: {
-        http: vi.fn(async () => {}),
-        postgres: vi.fn(async () => {}),
-        redis: vi.fn(async () => {}),
-      },
+      checkers: passingCheckers(),
     });
 
     expect(health.status).toBe('fail');
@@ -222,17 +233,12 @@ describe('getReadinessHealth', () => {
 
     const health = await getReadinessHealth({
       env: {
-        appEnv: 'production',
+        ...productionReadinessEnv(),
         hostTrafficEnabled: 'true',
         hostTrafficStateFile: '/run/mitsailing/traffic-enabled',
-        mediaPublicBaseUrl: 'https://media.mitsailing.com',
-        mediaUploadBaseUrl: 'https://uploads.mitsailing.com',
-        redisUrl: 'redis://redis:6379',
       },
       checkers: {
-        http: vi.fn(async () => {}),
-        postgres: vi.fn(async () => {}),
-        redis: vi.fn(async () => {}),
+        ...passingCheckers(),
         trafficState,
       },
     });
@@ -248,17 +254,10 @@ describe('getReadinessHealth', () => {
     const health = await getReadinessHealth({
       mode: 'service',
       env: {
-        appEnv: 'production',
+        ...productionReadinessEnv(),
         hostTrafficEnabled: 'false',
-        mediaPublicBaseUrl: 'https://media.mitsailing.com',
-        mediaUploadBaseUrl: 'https://uploads.mitsailing.com',
-        redisUrl: 'redis://redis:6379',
       },
-      checkers: {
-        http: vi.fn(async () => {}),
-        postgres: vi.fn(async () => {}),
-        redis: vi.fn(async () => {}),
-      },
+      checkers: passingCheckers(),
     });
 
     expect(health.status).toBe('ok');
@@ -308,7 +307,7 @@ describe('getReadinessHealth', () => {
     const health = await getReadinessHealth({
       env: { appEnv: 'local' },
       checkers: {
-        postgres: vi.fn(async () => {}),
+        ...passingCheckers(),
         redis: vi.fn().mockRejectedValue(new Error('unused')),
       },
     });
@@ -326,7 +325,7 @@ describe('getReadinessHealth', () => {
     const health = await getReadinessHealth({
       env: { appEnv: 'production' },
       checkers: {
-        postgres: vi.fn(async () => {}),
+        ...passingCheckers(),
         redis: vi.fn().mockRejectedValue(new Error('unused')),
       },
     });

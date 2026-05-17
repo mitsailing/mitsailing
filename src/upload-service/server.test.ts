@@ -39,6 +39,30 @@ function uploadToken(props: {
   });
 }
 
+function uploadRequest(props: {
+  body: Uint8Array;
+  routeId: string;
+  tokenAssetId: string;
+}): Request {
+  return new Request(
+    `https://uploads.mitsailing.com/cms-media/uploads/${props.routeId}`,
+    {
+      body: Buffer.from(props.body),
+      headers: {
+        'content-length': props.body.byteLength.toString(),
+        'content-type': 'image/png',
+        'x-mitsailing-upload-token': uploadToken({
+          assetId: props.tokenAssetId,
+          byteSize: props.body.byteLength,
+          mimeType: 'image/png',
+          storedFilename: 'race-day.png',
+        }),
+      },
+      method: 'PUT',
+    }
+  );
+}
+
 describe('cms media upload service', () => {
   it('stores authorized upload bytes in the shared upload folder', async () => {
     const root = await createTempRoot();
@@ -47,23 +71,11 @@ describe('cms media upload service', () => {
       root,
       secret,
     });
-    const request = new Request(
-      'https://uploads.mitsailing.com/cms-media/uploads/asset-1',
-      {
-        body: new Uint8Array([1, 2, 3, 4]),
-        headers: {
-          'content-length': '4',
-          'content-type': 'image/png',
-          'x-mitsailing-upload-token': uploadToken({
-            assetId: 'asset-1',
-            byteSize: 4,
-            mimeType: 'image/png',
-            storedFilename: 'race-day.png',
-          }),
-        },
-        method: 'PUT',
-      }
-    );
+    const request = uploadRequest({
+      body: new Uint8Array([1, 2, 3, 4]),
+      routeId: 'asset-1',
+      tokenAssetId: 'asset-1',
+    });
 
     const response = await service.handle(request);
 
@@ -80,23 +92,11 @@ describe('cms media upload service', () => {
       root,
       secret,
     });
-    const request = new Request(
-      'https://uploads.mitsailing.com/cms-media/uploads/asset-2',
-      {
-        body: new Uint8Array([1, 2, 3, 4]),
-        headers: {
-          'content-length': '4',
-          'content-type': 'image/png',
-          'x-mitsailing-upload-token': uploadToken({
-            assetId: 'asset-1',
-            byteSize: 4,
-            mimeType: 'image/png',
-            storedFilename: 'race-day.png',
-          }),
-        },
-        method: 'PUT',
-      }
-    );
+    const request = uploadRequest({
+      body: new Uint8Array([1, 2, 3, 4]),
+      routeId: 'asset-2',
+      tokenAssetId: 'asset-1',
+    });
 
     const response = await service.handle(request);
 
