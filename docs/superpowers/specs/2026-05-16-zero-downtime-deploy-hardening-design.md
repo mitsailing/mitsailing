@@ -229,6 +229,14 @@ proxy:
    - Redis check;
    - data/media server upload-service check;
    - media-serving check.
+   For staging and production, `HEALTHCHECK_SECRET` is mandatory and the deploy
+   script must fail early when it is missing. The two-host deploy script invokes
+   readiness from inside the target `web` container with `docker compose exec -T
+   web node -e`, fetches `http://127.0.0.1:3000/api/health/ready?mode=service`,
+   and sends `Authorization: Bearer $HEALTHCHECK_SECRET`. If a future
+   orchestrator replaces Compose, use the same container-local request from an
+   exec session or an equivalent private container-to-container call; do not
+   expose a public host port only for readiness.
 6. Shift proxy traffic to the inactive host.
 7. Keep the previous app host running for rollback.
 8. Update the data/media server worker to the new image after compatibility
@@ -242,6 +250,15 @@ Worker policy for the first implementation:
 - Use stable BullMQ job ids and idempotent processors.
 - Before allowing multiple media workers, prove every processor is safe under
   concurrency and shared-folder locking.
+- If the app host has been promoted but the data/media worker cannot restart on
+  the new image, prioritize worker recovery before further traffic changes. Fix
+  env/secrets, recreate `worker` with `.env.image`, and confirm worker health
+  before treating the release as complete.
+- Engineers must keep migration and job payload changes tolerant of a short
+  web/worker version-skew window. Use expand/contract migrations, stable and
+  idempotent job payloads, feature flags for incompatible behavior, and tolerant
+  deserialization so a new web image and an old or temporarily down worker do not
+  corrupt queued work.
 
 ## Rollback
 
