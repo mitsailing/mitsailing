@@ -9,6 +9,125 @@ const isStorybookNpmScript =
   process.env.npm_lifecycle_event === 'storybook' ||
   process.env.npm_lifecycle_event === 'build-storybook';
 
+type FinalEnv = {
+  APP_ENV: 'local' | 'production' | 'staging' | 'test';
+  DATABASE_URL: string;
+  HEALTHCHECK_SECRET?: string;
+  IS_E2E?: '1';
+  LEGACY_MYSQL_PASSWORD?: string;
+  LEGACY_MYSQL_SYNC_ENABLED: 'false' | 'true';
+  MEDIA_PUBLIC_BASE_URL?: string;
+  MEDIA_STORAGE_ROOT: string;
+  MEDIA_UPLOAD_BASE_URL?: string;
+  NEXT_SERVER_ACTIONS_ENCRYPTION_KEY?: string;
+  REDIS_URL?: string;
+  TEST_DATABASE_URL?: string;
+};
+
+function isStagingOrProduction(env: FinalEnv): boolean {
+  return env.APP_ENV === 'staging' || env.APP_ENV === 'production';
+}
+
+function addEnvIssue(
+  ctx: z.RefinementCtx,
+  path: keyof FinalEnv,
+  message: string
+): void {
+  ctx.addIssue({
+    code: 'custom',
+    message,
+    path: [path],
+  });
+}
+
+function validateTestDatabaseEnv(env: FinalEnv, ctx: z.RefinementCtx): void {
+  if (
+    env.IS_E2E !== '1' &&
+    env.TEST_DATABASE_URL !== undefined &&
+    env.TEST_DATABASE_URL === env.DATABASE_URL
+  ) {
+    addEnvIssue(
+      ctx,
+      'TEST_DATABASE_URL',
+      'TEST_DATABASE_URL must not equal DATABASE_URL.'
+    );
+  }
+}
+
+function validateLegacyMysqlSyncEnv(env: FinalEnv, ctx: z.RefinementCtx): void {
+  if (env.LEGACY_MYSQL_SYNC_ENABLED !== 'true') {
+    return;
+  }
+  if (!env.LEGACY_MYSQL_PASSWORD) {
+    addEnvIssue(
+      ctx,
+      'LEGACY_MYSQL_PASSWORD',
+      'LEGACY_MYSQL_PASSWORD is required when LEGACY_MYSQL_SYNC_ENABLED=true.'
+    );
+  }
+  if (env.APP_ENV !== 'production') {
+    addEnvIssue(
+      ctx,
+      'LEGACY_MYSQL_SYNC_ENABLED',
+      'Legacy MySQL sync can only be enabled in production.'
+    );
+  }
+}
+
+function validateDeploymentEnv(env: FinalEnv, ctx: z.RefinementCtx): void {
+  if (!isStagingOrProduction(env)) {
+    return;
+  }
+  if (!env.MEDIA_STORAGE_ROOT.startsWith('/')) {
+    addEnvIssue(
+      ctx,
+      'MEDIA_STORAGE_ROOT',
+      'MEDIA_STORAGE_ROOT must be an absolute path in staging and production.'
+    );
+  }
+  if (!env.HEALTHCHECK_SECRET) {
+    addEnvIssue(
+      ctx,
+      'HEALTHCHECK_SECRET',
+      'HEALTHCHECK_SECRET is required in staging and production.'
+    );
+  }
+  if (!env.REDIS_URL) {
+    addEnvIssue(
+      ctx,
+      'REDIS_URL',
+      'REDIS_URL is required in staging and production.'
+    );
+  }
+  if (!env.MEDIA_UPLOAD_BASE_URL) {
+    addEnvIssue(
+      ctx,
+      'MEDIA_UPLOAD_BASE_URL',
+      'MEDIA_UPLOAD_BASE_URL is required in staging and production.'
+    );
+  }
+  if (!env.MEDIA_PUBLIC_BASE_URL) {
+    addEnvIssue(
+      ctx,
+      'MEDIA_PUBLIC_BASE_URL',
+      'MEDIA_PUBLIC_BASE_URL is required in staging and production.'
+    );
+  }
+  if (!env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY) {
+    addEnvIssue(
+      ctx,
+      'NEXT_SERVER_ACTIONS_ENCRYPTION_KEY',
+      'NEXT_SERVER_ACTIONS_ENCRYPTION_KEY is required in staging and production.'
+    );
+  }
+}
+
+function validateFinalEnv(env: FinalEnv, ctx: z.RefinementCtx): void {
+  validateTestDatabaseEnv(env, ctx);
+  validateLegacyMysqlSyncEnv(env, ctx);
+  validateDeploymentEnv(env, ctx);
+}
+
 export const Env = createEnv({
   skipValidation:
     process.env.SKIP_ENV_VALIDATION === 'true' || isStorybookNpmScript,
@@ -64,9 +183,17 @@ export const Env = createEnv({
     // Dedicated test database for destructive Playwright cleanup helpers.
     TEST_DATABASE_URL: z.string().min(1).optional(),
 
-    // Persistent local filesystem root for CMS uploads. Local dev can use the
-    // git-ignored `local/` tree; staging/prod should set an absolute mounted path.
+    // Legacy local filesystem root for direct CMS image uploads. Local dev can
+    // use the git-ignored `local/` tree. Production media uploads use the
+    // Docker data/media server settings below instead of app-host-local writes.
     CMS_MEDIA_ROOT: z.string().min(1).default('local/cms-media'),
+
+    HOST_COLOR: z.enum(['blue', 'green']).optional(),
+    HOST_TRAFFIC_ENABLED: z.enum(['true', 'false']).default('true'),
+    MEDIA_PUBLIC_BASE_URL: z.url().optional(),
+    MEDIA_STORAGE_ROOT: z.string().min(1).default('local/cms-media'),
+    MEDIA_UPLOAD_BASE_URL: z.url().optional(),
+    MEDIA_UPLOAD_SHARED_SECRET: z.string().min(32).optional(),
 
     // Optional cleanup logging for e2e teardown helpers.
     DEBUG_CLEANUP: z.enum(['1', 'true']).optional(),
@@ -96,6 +223,7 @@ export const Env = createEnv({
     // unset locally.
     CLOUDFLARE_TUNNEL_TOKEN: z.string().min(1).optional(),
     DEPLOYMENT_VERSION: z.string().min(1).optional(),
+    NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: z.string().min(32).optional(),
   },
   client: {
     NEXT_PUBLIC_APP_URL: z.string().min(1),
@@ -112,65 +240,7 @@ export const Env = createEnv({
   },
   createFinalSchema: (shape) =>
     z.object(shape).superRefine((env, ctx) => {
-      if (
-        env.IS_E2E !== '1' &&
-        env.TEST_DATABASE_URL !== undefined &&
-        env.TEST_DATABASE_URL === env.DATABASE_URL
-      ) {
-        ctx.addIssue({
-          code: 'custom',
-          message: 'TEST_DATABASE_URL must not equal DATABASE_URL.',
-          path: ['TEST_DATABASE_URL'],
-        });
-      }
-      if (
-        (env.APP_ENV === 'staging' || env.APP_ENV === 'production') &&
-        !env.CMS_MEDIA_ROOT.startsWith('/')
-      ) {
-        ctx.addIssue({
-          code: 'custom',
-          message:
-            'CMS_MEDIA_ROOT must be an absolute persistent path in staging and production.',
-          path: ['CMS_MEDIA_ROOT'],
-        });
-      }
-      if (env.LEGACY_MYSQL_SYNC_ENABLED === 'true') {
-        if (!env.LEGACY_MYSQL_PASSWORD) {
-          ctx.addIssue({
-            code: 'custom',
-            message:
-              'LEGACY_MYSQL_PASSWORD is required when LEGACY_MYSQL_SYNC_ENABLED=true.',
-            path: ['LEGACY_MYSQL_PASSWORD'],
-          });
-        }
-        if (env.APP_ENV !== 'production') {
-          ctx.addIssue({
-            code: 'custom',
-            message: 'Legacy MySQL sync can only be enabled in production.',
-            path: ['LEGACY_MYSQL_SYNC_ENABLED'],
-          });
-        }
-      }
-      if (
-        (env.APP_ENV === 'staging' || env.APP_ENV === 'production') &&
-        !env.HEALTHCHECK_SECRET
-      ) {
-        ctx.addIssue({
-          code: 'custom',
-          message: 'HEALTHCHECK_SECRET is required in staging and production.',
-          path: ['HEALTHCHECK_SECRET'],
-        });
-      }
-      if (
-        (env.APP_ENV === 'staging' || env.APP_ENV === 'production') &&
-        !env.REDIS_URL
-      ) {
-        ctx.addIssue({
-          code: 'custom',
-          message: 'REDIS_URL is required in staging and production.',
-          path: ['REDIS_URL'],
-        });
-      }
+      validateFinalEnv(env, ctx);
     }),
   runtimeEnv: {
     ARCJET_KEY: process.env.ARCJET_KEY,
@@ -190,6 +260,12 @@ export const Env = createEnv({
     MAILPIT_API_URL: process.env.MAILPIT_API_URL,
     TEST_DATABASE_URL: process.env.TEST_DATABASE_URL,
     CMS_MEDIA_ROOT: process.env.CMS_MEDIA_ROOT,
+    HOST_COLOR: process.env.HOST_COLOR,
+    HOST_TRAFFIC_ENABLED: process.env.HOST_TRAFFIC_ENABLED,
+    MEDIA_PUBLIC_BASE_URL: process.env.MEDIA_PUBLIC_BASE_URL,
+    MEDIA_STORAGE_ROOT: process.env.MEDIA_STORAGE_ROOT,
+    MEDIA_UPLOAD_BASE_URL: process.env.MEDIA_UPLOAD_BASE_URL,
+    MEDIA_UPLOAD_SHARED_SECRET: process.env.MEDIA_UPLOAD_SHARED_SECRET,
     DEBUG_CLEANUP: process.env.DEBUG_CLEANUP,
     IS_E2E: process.env.IS_E2E,
     SUPPORT_EMAIL: process.env.SUPPORT_EMAIL,
@@ -197,6 +273,8 @@ export const Env = createEnv({
     RESEND_WEBHOOK_SECRET: process.env.RESEND_WEBHOOK_SECRET,
     CLOUDFLARE_TUNNEL_TOKEN: process.env.CLOUDFLARE_TUNNEL_TOKEN,
     DEPLOYMENT_VERSION: process.env.DEPLOYMENT_VERSION,
+    NEXT_SERVER_ACTIONS_ENCRYPTION_KEY:
+      process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
     NEXT_PUBLIC_LOGGING_LEVEL: process.env.NEXT_PUBLIC_LOGGING_LEVEL,
     NEXT_PUBLIC_BETTER_STACK_SOURCE_TOKEN:
