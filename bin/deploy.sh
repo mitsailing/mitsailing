@@ -33,10 +33,9 @@ readonly PREVIOUS_REF_FILE="${DEPLOY_STATE_DIR}/previous_ref"
 readonly DEPLOY_LOCK_FILE="${DEPLOY_STATE_DIR}/deploy.lock"
 readonly DEPLOY_HEALTH_TIMEOUT_SECONDS="${DEPLOY_HEALTH_TIMEOUT_SECONDS:-120}"
 readonly DEPLOY_DRAIN_SECONDS="${DEPLOY_DRAIN_SECONDS:-900}"
+# A server admin must create this root-owned tree before deploy. The deploy
+# user may not be able to traverse it, so validate mounts through Docker only.
 readonly PRODUCTION_DATA_ROOT="/srv/mitsailing-data"
-readonly PRODUCTION_POSTGRES_DIR="${PRODUCTION_DATA_ROOT}/postgres"
-readonly PRODUCTION_REDIS_DIR="${PRODUCTION_DATA_ROOT}/redis"
-readonly PRODUCTION_CMS_MEDIA_DIR="${PRODUCTION_DATA_ROOT}/cms-media"
 
 log() { printf '[deploy %s] %s\n' "$(date -u +'%FT%TZ')" "$*"; }
 fail() { log "ERROR: $*" >&2; exit 1; }
@@ -87,19 +86,6 @@ ensure_prereqs() {
 
 ensure_deploy_state() {
   mkdir -p -m 700 "$DEPLOY_STATE_DIR" "$NGINX_STATE_DIR"
-}
-
-verify_production_data_dirs() {
-  local dir
-  for dir in "$PRODUCTION_DATA_ROOT" "$PRODUCTION_POSTGRES_DIR" "$PRODUCTION_REDIS_DIR" "$PRODUCTION_CMS_MEDIA_DIR"; do
-    [[ -d "$dir" ]] || fail "production bind-mount directory missing: $dir
-The server admin must create /srv/mitsailing-data before deploy."
-  done
-}
-
-ensure_production_data_dirs() {
-  log "ensuring production bind-mount directories under ${PRODUCTION_DATA_ROOT}"
-  verify_production_data_dirs
 }
 
 verify_bind_mount() {
@@ -424,7 +410,6 @@ main() {
   cd "$DEPLOY_DIR" || fail "DEPLOY_DIR not found: $DEPLOY_DIR"
   ensure_prereqs
   ensure_deploy_state
-  ensure_production_data_dirs
   acquire_deploy_lock
 
   case "$cmd" in

@@ -3,10 +3,11 @@
 # WordPress runs in its own compose/tunnel and is intentionally not referenced here.
 #
 # Bring up with:
-#   docker compose -f compose.yaml -f compose.prod.yaml --profile release --env-file .env.production up -d
+#   docker compose -f compose.yaml -f compose.prod.yaml --profile release --env-file .env.production --env-file .env.image up -d
 #
 # Persistent state uses host bind mounts under /srv/mitsailing-data so
-# `docker compose down -v` cannot remove production data.
+# `docker compose down -v` cannot remove production data. Missing production
+# bind paths fail fast instead of being auto-created by Docker Compose.
 
 x-web: &web
   image: ${APP_IMAGE}
@@ -31,6 +32,8 @@ x-web: &web
     - type: bind
       source: /srv/mitsailing-data/cms-media
       target: /var/lib/mitsailing/cms-media
+      bind:
+        create_host_path: false
       read_only: true
   stop_grace_period: 30s
   command: ['node', 'server.js']
@@ -56,6 +59,8 @@ services:
       - type: bind
         source: /srv/mitsailing-data/postgres
         target: /var/lib/postgresql
+        bind:
+          create_host_path: false
       - type: bind
         source: ./docker/postgres/init.sql
         target: /docker-entrypoint-initdb.d/00-init.sql
@@ -66,6 +71,8 @@ services:
       - type: bind
         source: /srv/mitsailing-data/redis
         target: /data
+        bind:
+          create_host_path: false
 
   app:
     image: nginx:1.29-alpine
@@ -136,6 +143,8 @@ services:
       - type: bind
         source: /srv/mitsailing-data/cms-media
         target: /var/lib/mitsailing/cms-media
+        bind:
+          create_host_path: false
     stop_grace_period: 30s
     command: ['node', 'worker.mjs']
     deploy:
@@ -176,6 +185,8 @@ services:
       - type: bind
         source: /srv/mitsailing-data/cms-media
         target: /var/lib/mitsailing/cms-media
+        bind:
+          create_host_path: false
     logging:
       driver: json-file
       options:
@@ -195,6 +206,8 @@ services:
       - type: bind
         source: /srv/mitsailing-data/cms-media
         target: /var/lib/mitsailing/cms-media
+        bind:
+          create_host_path: false
         read_only: true
     healthcheck:
       test:

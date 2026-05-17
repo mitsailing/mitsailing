@@ -48,6 +48,19 @@ describe('production docker compose', () => {
     expect(mediaNginx).toContain('alias /var/lib/mitsailing/cms-media/ready/');
   });
 
+  it('requires admin-created production bind mount paths', () => {
+    expect(productionCompose).toContain('create_host_path: false');
+    expect(productionCompose).toMatch(
+      /source: \/srv\/mitsailing-data\/postgres\s+target: \/var\/lib\/postgresql\s+bind:\s+create_host_path: false/u
+    );
+    expect(productionCompose).toMatch(
+      /source: \/srv\/mitsailing-data\/redis\s+target: \/data\s+bind:\s+create_host_path: false/u
+    );
+    expect(productionCompose).toMatch(
+      /source: \/srv\/mitsailing-data\/cms-media\s+target: \/var\/lib\/mitsailing\/cms-media\s+bind:\s+create_host_path: false/u
+    );
+  });
+
   it('runs tusd with local disk storage and upload hardening', () => {
     expect(productionCompose).toContain('tusd:');
     expect(productionCompose).toContain(
@@ -91,10 +104,12 @@ describe('production deploy script', () => {
   const deployScript = readRepoFile('bin/deploy.sh');
 
   it('requires admin-created production data directories without sudo', () => {
-    expect(deployScript).toContain('verify_production_data_dirs');
     expect(deployScript).toContain('server admin must create');
+    expect(deployScript).toContain('verify_production_bind_mounts');
     expect(deployScript).not.toContain('sudo ');
     expect(deployScript).not.toContain('install_production_data_dirs');
+    expect(deployScript).not.toContain('verify_production_data_dirs');
+    expect(deployScript).not.toContain('[[ -d "$dir" ]]');
   });
 
   it('uses the fixed production data root', () => {

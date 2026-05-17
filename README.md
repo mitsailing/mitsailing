@@ -100,7 +100,8 @@ Manual work is needed when:
 
 - production environment secrets or variables change;
 - Cloudflare Tunnel hostname/path routing changes;
-- Docker/rootless host prerequisites change, including linger;
+- Docker/rootless host prerequisites change, including linger or
+  `/srv/mitsailing-data` ownership and ACLs;
 - backup/restore procedures need rehearsal;
 - a release with database migrations needs a rollback decision;
 - media or upload services need maintenance. App deploys do not restart `tusd` or media nginx, so use the explicit night-maintenance policy in [docs/media-maintenance.md](docs/media-maintenance.md).

@@ -19,10 +19,11 @@ Production runs one MIT Sailing Docker Compose stack on the production host:
 | `worker` | BullMQ worker and media processor |
 | `media` | nginx serving ready CMS media |
 
-Persistent state uses host bind mounts under `/srv/mitsailing-data`. The deploy
-script verifies `/srv/mitsailing-data/{postgres,redis,cms-media}` but does not
-create, chown, or chmod server-owned data paths. A sudo-capable server admin
-must create those paths before the first production release.
+Persistent state uses host bind mounts under `/srv/mitsailing-data`. Compose is
+configured not to create missing production bind paths, and the deploy script
+verifies mounted container sources through Docker after services start. It does
+not stat, create, chown, or chmod server-owned data paths. A sudo-capable server
+admin must create those paths before the first production release.
 
 ## No-Sudo Boundary
 

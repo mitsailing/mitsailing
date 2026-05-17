@@ -66,7 +66,9 @@ Restarting `tusd` can interrupt uploads, so schedule tusd maintenance at night.
 
 The deploy user needs Docker access. It can create files under
 `~/apps/mitsailing` and run Docker Compose. It cannot install packages, bind
-privileged ports directly, create `/srv`, or enable rootless Docker linger.
+privileged ports directly, create `/srv`, inspect locked-down production data
+paths directly, or enable rootless Docker linger.
 
-Ask an admin only for host prerequisites such as Docker installation and, if
-needed, `loginctl enable-linger DEPLOY_USER`.
+Ask an admin only for host prerequisites such as Docker installation,
+`/srv/mitsailing-data` ownership and ACLs, and, if needed,
+`loginctl enable-linger DEPLOY_USER`.

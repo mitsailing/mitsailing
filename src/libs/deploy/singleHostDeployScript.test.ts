@@ -22,11 +22,13 @@ describe('single host deploy script', () => {
     expect(script).toContain(`proxy_read_timeout ${deployDrainSeconds};`);
   });
 
-  it('enforces production bind-mount directories and permissions', () => {
+  it('keeps production data paths outside deploy user control', () => {
     expect(script).toContain('/srv/mitsailing-data');
-    expect(script).toContain('ensure_production_data_dirs');
-    expect(script).toContain('PRODUCTION_DATA_OWNER');
-    expect(script).toContain('-m 0750 "$PRODUCTION_CMS_MEDIA_DIR"');
+    expect(script).toContain('server admin must create');
+    expect(script).not.toContain('ensure_production_data_dirs');
+    expect(script).not.toContain('PRODUCTION_DATA_OWNER');
+    expect(script).not.toContain('-m 0750 "$PRODUCTION_CMS_MEDIA_DIR"');
+    expect(script).not.toContain('[[ -d "$dir" ]]');
     expect(script).toContain('verify_bind_mount');
     expect(script).toContain('docker inspect --format');
   });
