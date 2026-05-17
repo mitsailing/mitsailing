@@ -16,7 +16,7 @@ ALTER TABLE "cms_media_assets"
 
 UPDATE "cms_media_assets"
 SET "processed_at" = "created_at"
-WHERE "processed_at" IS NULL AND "status" = 'ready';
+WHERE "processed_at" IS NULL;
 
 CREATE INDEX "cms_media_assets_status_created_at_idx"
   ON "cms_media_assets"("status", "created_at");

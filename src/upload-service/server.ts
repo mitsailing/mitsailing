@@ -87,7 +87,7 @@ function validateUploadToken(
     secret: options.secret,
     token,
   });
-  if (!payload || payload.assetId !== options.uploadId) {
+  if (payload?.assetId !== options.uploadId) {
     return validationResponse(403);
   }
   const requestLength = contentLength(request);
