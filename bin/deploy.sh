@@ -296,6 +296,7 @@ ensure_ingress_services() {
   compose up --detach --no-recreate postgres redis tusd media
   wait_for_service_health postgres "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
   wait_for_service_health redis "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
+  wait_for_service_health tusd "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
   wait_for_service_health media "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
   verify_production_bind_mounts
   log "ensuring MIT Sailing cloudflared connector is running"

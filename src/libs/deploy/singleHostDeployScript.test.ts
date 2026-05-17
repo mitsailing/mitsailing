@@ -50,6 +50,9 @@ describe('single host deploy script', () => {
     expect(script).toContain(
       'compose up --detach --no-recreate postgres redis tusd media'
     );
+    expect(script).toMatch(
+      /ensure_ingress_services\(\) \{[\s\S]*wait_for_service_health tusd "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"[\s\S]*verify_production_bind_mounts/u
+    );
     expect(script).toContain('compose up --detach --no-deps cloudflared');
     expect(script).toContain('media-maintenance)');
     expect(script).toContain('tusd-maintenance)');

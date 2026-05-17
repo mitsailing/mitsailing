@@ -65,17 +65,34 @@ function parseSshTarget(value) {
  * @returns {boolean} Whether the SSH target parts are valid.
  */
 function validSshTargetParts(props) {
+  if (!validSshTargetShape(props)) {
+    return false;
+  }
+  return validSshTargetTokens(props);
+}
+
+/**
+ * @param {{ host: string; hostOrUser: string; value: string }} props SSH target parts.
+ * @returns {boolean} Whether the target has a valid host/user shape.
+ */
+function validSshTargetShape(props) {
   const hasUserSeparator = props.value.includes('@');
-  const hostValue = props.host || props.hostOrUser;
-  const userValue = props.host ? props.hostOrUser : '';
   return (
     !props.value.includes(':') &&
     props.value.split('@').length <= 2 &&
     (!hasUserSeparator ||
-      (props.host.length > 0 && props.hostOrUser.length > 0)) &&
-    validSshToken(hostValue) &&
-    validOptionalSshUser(userValue)
+      (props.host.length > 0 && props.hostOrUser.length > 0))
   );
+}
+
+/**
+ * @param {{ host: string; hostOrUser: string }} props SSH target parts.
+ * @returns {boolean} Whether the host and optional user tokens are valid.
+ */
+function validSshTargetTokens(props) {
+  const hostValue = props.host || props.hostOrUser;
+  const userValue = props.host ? props.hostOrUser : '';
+  return validSshToken(hostValue) && validOptionalSshUser(userValue);
 }
 
 /**
