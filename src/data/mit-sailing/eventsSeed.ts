@@ -142,7 +142,7 @@ export const STUB_USERS: StubUser[] = [
     id: 'username',
     name: 'Username',
     email: 'username@example.com',
-    initials: 'AK',
+    initials: 'U',
   },
   {
     id: 'user-tbarros',

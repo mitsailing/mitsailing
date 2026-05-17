@@ -23,11 +23,14 @@ describe('production docker compose', () => {
     expect(productionCompose).toContain("command: ['node', 'worker.mjs']");
     expect(productionCompose).toContain('tusd:');
     expect(productionCompose).toContain('image: tusproject/tusd:v2.9.2');
+    expect(productionCompose).toContain("user: '1001:1001'");
     expect(productionCompose).toContain('media:');
     expect(productionCompose).toContain('cloudflared:');
     expect(productionCompose).toContain('/srv/mitsailing-data/postgres');
     expect(productionCompose).toContain('/srv/mitsailing-data/redis');
     expect(productionCompose).toContain('/srv/mitsailing-data/cms-media');
+    expect(productionCompose).not.toContain('PRODUCTION_DATA_ROOT');
+    expect(productionCompose).not.toContain('PRODUCTION_RUNTIME_UID');
     expect(productionCompose).not.toContain('upload-service:');
     expect(productionCompose).not.toContain('media-worker:');
     expect(productionCompose).not.toContain('media-upload:');
@@ -81,6 +84,25 @@ describe('production docker compose', () => {
     expect(productionCompose).toContain('tusd:');
     expect(productionCompose).toContain('media:');
     expect(productionCompose).not.toContain('ports:');
+  });
+});
+
+describe('production deploy script', () => {
+  const deployScript = readRepoFile('bin/deploy.sh');
+
+  it('requires admin-created production data directories without sudo', () => {
+    expect(deployScript).toContain('verify_production_data_dirs');
+    expect(deployScript).toContain('server admin must create');
+    expect(deployScript).not.toContain('sudo ');
+    expect(deployScript).not.toContain('install_production_data_dirs');
+  });
+
+  it('uses the fixed production data root', () => {
+    expect(deployScript).toContain(
+      'readonly PRODUCTION_DATA_ROOT="/srv/mitsailing-data"'
+    );
+    expect(deployScript).not.toContain('PRODUCTION_DATA_OWNER');
+    expect(deployScript).not.toContain('PRODUCTION_DATA_GROUP');
   });
 });
 

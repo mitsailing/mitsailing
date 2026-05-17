@@ -20,8 +20,9 @@ Production runs one MIT Sailing Docker Compose stack on the production host:
 | `media` | nginx serving ready CMS media |
 
 Persistent state uses host bind mounts under `/srv/mitsailing-data`. The deploy
-script creates and verifies `/srv/mitsailing-data/{postgres,redis,cms-media}`;
-CMS media is owned by container UID/GID `1001:1001`.
+script verifies `/srv/mitsailing-data/{postgres,redis,cms-media}` but does not
+create, chown, or chmod server-owned data paths. A sudo-capable server admin
+must create those paths before the first production release.
 
 ## No-Sudo Boundary
 
@@ -40,10 +41,50 @@ The deploy user cannot assume this without an admin:
 - install Docker, nginx, cloudflared, or system packages;
 - enable rootless Docker linger after logout/reboot.
 
-The deploy script uses `sudo install`/`sudo chown` to maintain
-`/srv/mitsailing-data`. Grant the deploy user passwordless access to those
-commands for `/srv/mitsailing-data/*`, or pre-create the directories with the
-same ownership and permissions before the first release.
+The deploy script does not use sudo. A server admin must create
+`/srv/mitsailing-data` and grant only the container users that need data access.
+Use POSIX ACLs where available so the host paths are not readable by ordinary
+server users.
+
+Server admin setup:
+
+```bash
+sudo useradd --create-home --shell /bin/bash deploy 2>/dev/null || true
+sudo passwd -l deploy
+sudo usermod -aG docker deploy
+
+sudo install -d -o deploy -g deploy -m 0700 /home/deploy/.ssh
+sudo install -d -o deploy -g deploy -m 0700 /home/deploy/apps
+sudo install -d -o deploy -g deploy -m 0700 /home/deploy/apps/mitsailing
+sudo install -d -o deploy -g deploy -m 0700 /home/deploy/apps/mitsailing/bin
+sudo install -d -o deploy -g deploy -m 0700 /home/deploy/apps/mitsailing/docker/postgres
+sudo install -d -o deploy -g deploy -m 0700 /home/deploy/apps/mitsailing/docker/nginx
+
+sudo tee /home/deploy/.ssh/authorized_keys >/dev/null <<'KEY'
+PASTE_PUBLIC_KEY_HERE
+KEY
+sudo chown deploy:deploy /home/deploy/.ssh/authorized_keys
+sudo chmod 0600 /home/deploy/.ssh/authorized_keys
+
+command -v setfacl >/dev/null || {
+  echo "Install POSIX ACL tools first, then rerun this block." >&2
+  exit 1
+}
+
+sudo install -d -o root -g root -m 0700 /srv/mitsailing-data
+sudo install -d -o 70 -g 70 -m 0700 /srv/mitsailing-data/postgres
+sudo install -d -o 999 -g 1000 -m 0700 /srv/mitsailing-data/redis
+sudo install -d -o 1001 -g 1001 -m 0700 /srv/mitsailing-data/cms-media
+sudo install -d -o 1001 -g 1001 -m 0700 /srv/mitsailing-data/cms-media/uploads
+sudo install -d -o 1001 -g 1001 -m 0700 /srv/mitsailing-data/cms-media/ready
+
+sudo setfacl -m u:70:--x,u:999:--x,u:1001:--x,u:101:--x /srv/mitsailing-data
+sudo setfacl -m u:101:--x /srv/mitsailing-data/cms-media
+sudo setfacl -m u:101:rx /srv/mitsailing-data/cms-media/ready
+sudo setfacl -d -m u:101:rx /srv/mitsailing-data/cms-media/ready
+
+sudo -iu deploy docker compose version
+```
 
 If rootless Docker stops when the user logs out or the host reboots, ask an
 admin to run this once:
@@ -133,7 +174,7 @@ Manual release from a checked-out repo:
 ```bash
 export PRODUCTION_SSH_TARGET=deploy@example.com
 
-ssh "$PRODUCTION_SSH_TARGET" 'mkdir -p apps/mitsailing'
+ssh "$PRODUCTION_SSH_TARGET" 'mkdir -p apps/mitsailing/bin apps/mitsailing/docker/postgres apps/mitsailing/docker/nginx'
 scp compose.yaml compose.prod.yaml "$PRODUCTION_SSH_TARGET:apps/mitsailing/"
 scp bin/deploy.sh "$PRODUCTION_SSH_TARGET:apps/mitsailing/bin/deploy.sh"
 scp docker/postgres/init.sql "$PRODUCTION_SSH_TARGET:apps/mitsailing/docker/postgres/init.sql"

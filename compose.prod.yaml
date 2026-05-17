@@ -154,6 +154,7 @@ services:
 
   tusd:
     image: tusproject/tusd:v2.9.2
+    user: '1001:1001'
     restart: unless-stopped
     networks:
       - internal
