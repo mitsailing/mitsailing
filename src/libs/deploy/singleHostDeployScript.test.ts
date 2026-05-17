@@ -31,6 +31,15 @@ describe('single host deploy script', () => {
     expect(script).not.toContain('[[ -d "$dir" ]]');
     expect(script).toContain('verify_bind_mount');
     expect(script).toContain('docker inspect --format');
+    expect(script).toContain(
+      'verify_bind_mount postgres /var/lib/postgresql "$PRODUCTION_POSTGRES_DIR"'
+    );
+    expect(script).toContain(
+      'verify_bind_mount redis /data "$PRODUCTION_REDIS_DIR"'
+    );
+    expect(script).toContain(
+      'verify_bind_mount media /var/lib/mitsailing/cms-media "$PRODUCTION_CMS_MEDIA_DIR"'
+    );
   });
 
   it('starts ingress and media services without recreating media during app releases', () => {
@@ -46,5 +55,14 @@ describe('single host deploy script', () => {
     expect(script).toContain('tusd-maintenance)');
     expect(script).not.toMatch(/release_ref\(\)[\s\S]*--force-recreate tusd/u);
     expect(script).not.toMatch(/release_ref\(\)[\s\S]*--force-recreate media/u);
+  });
+
+  it('waits for media maintenance services to pass health checks', () => {
+    expect(script).toMatch(
+      /restart_media_maintenance\(\) \{[\s\S]*wait_for_service_health media "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"/u
+    );
+    expect(script).toMatch(
+      /restart_tusd_maintenance\(\) \{[\s\S]*wait_for_service_health tusd "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"/u
+    );
   });
 });

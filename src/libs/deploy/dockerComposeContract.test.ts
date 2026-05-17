@@ -183,11 +183,11 @@ describe('production media sync script', () => {
     expect(syncScript).not.toContain("spawn('tar'");
   });
 
-  it('avoids nonliteral node fs mkdir calls', () => {
+  it('uses an absolute mkdir command for local media roots', () => {
     expect(syncScript).not.toContain("from 'node:fs'");
     expect(syncScript).not.toContain('mkdirSync(');
     expect(syncScript).toContain("const MKDIR_BIN = '/bin/mkdir';");
-    expect(syncScript).toContain('spawn(MKDIR_BIN');
+    expect(syncScript).toContain('spawnSync(MKDIR_BIN');
   });
 
   it('rejects shell metacharacters in the remote app directory', () => {

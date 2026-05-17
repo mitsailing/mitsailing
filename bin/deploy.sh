@@ -91,19 +91,20 @@ ensure_deploy_state() {
 verify_bind_mount() {
   local service="$1"
   local target="$2"
+  local expected_source="$3"
   local container mount_source
   container="$(compose ps -q "$service")"
   [[ -n "$container" ]] || fail "$service container did not start"
   mount_source="$(docker inspect --format "{{range .Mounts}}{{if eq .Destination \"$target\"}}{{.Source}}{{end}}{{end}}" "$container")"
   [[ -n "$mount_source" ]] || fail "$service mount for $target was not found"
-  [[ "$mount_source" == "${PRODUCTION_DATA_ROOT}"/* ]] \
-    || fail "$service mount for $target is $mount_source, expected ${PRODUCTION_DATA_ROOT}"
+  [[ "$mount_source" == "$expected_source" ]] \
+    || fail "$service mount for $target is $mount_source, expected $expected_source"
 }
 
 verify_production_bind_mounts() {
-  verify_bind_mount postgres /var/lib/postgresql
-  verify_bind_mount redis /data
-  verify_bind_mount media /var/lib/mitsailing/cms-media
+  verify_bind_mount postgres /var/lib/postgresql "$PRODUCTION_POSTGRES_DIR"
+  verify_bind_mount redis /data "$PRODUCTION_REDIS_DIR"
+  verify_bind_mount media /var/lib/mitsailing/cms-media "$PRODUCTION_CMS_MEDIA_DIR"
 }
 
 acquire_deploy_lock() {
@@ -308,6 +309,7 @@ restart_media_maintenance() {
 restart_tusd_maintenance() {
   log "restarting tusd during explicit maintenance"
   compose up --detach --no-deps --force-recreate tusd
+  wait_for_service_health tusd "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
 }
 
 switch_to_ref() {

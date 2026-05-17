@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
 import path from 'node:path';
 import process from 'node:process';
@@ -311,7 +311,7 @@ async function syncReadyMedia(options) {
   if (!localRoot.startsWith(`${process.cwd()}${path.sep}`)) {
     throw new Error('--local-root must resolve inside this repo');
   }
-  await createLocalRoot(localRoot);
+  createLocalRoot(localRoot);
   await extractRemoteReadyMedia({
     localRoot,
     remoteCommand: remoteTarCommand(options.remoteDir),
@@ -322,15 +322,17 @@ async function syncReadyMedia(options) {
 
 /**
  * @param {string} localRoot Local media root.
- * @returns {Promise<void>} Resolves when the local root exists.
+ * @returns {void}
  */
-async function createLocalRoot(localRoot) {
-  const mkdir = spawn(MKDIR_BIN, ['-p', localRoot], {
-    stdio: ['ignore', 'ignore', 'inherit'],
+function createLocalRoot(localRoot) {
+  const result = spawnSync(MKDIR_BIN, ['-p', localRoot], {
+    stdio: ['ignore', 'inherit', 'inherit'],
   });
-  const status = await waitForChildProcess({ child: mkdir, name: 'mkdir' });
-  if (status !== 0) {
-    throw new Error(`mkdir failed with exit code ${status}`);
+  if (result.error) {
+    throw result.error;
+  }
+  if (result.status !== 0) {
+    throw new Error(`mkdir failed with exit code ${result.status}`);
   }
 }
 
