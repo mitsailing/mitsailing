@@ -134,4 +134,20 @@ describe('production media sync script', () => {
     expect(syncScript).toContain('ready');
     expect(syncScript).not.toContain('--delete');
   });
+
+  it('does not pipe unsanitized arguments through a local shell', () => {
+    expect(syncScript).not.toContain("spawnSync('sh'");
+    expect(syncScript).not.toContain("'-c'");
+  });
+
+  it('does not search PATH for local sync commands', () => {
+    expect(syncScript).not.toContain("spawnSync('mkdir'");
+    expect(syncScript).not.toContain("spawn('ssh'");
+    expect(syncScript).not.toContain("spawn('tar'");
+  });
+
+  it('rejects shell metacharacters in the remote app directory', () => {
+    expect(syncScript).toContain('SAFE_REMOTE_DIR_PATTERN');
+    expect(syncScript).toContain('remote directory path with safe characters');
+  });
 });

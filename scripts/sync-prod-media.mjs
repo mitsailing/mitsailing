@@ -1,12 +1,17 @@
 #!/usr/bin/env node
 
-import { spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
+import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
 const DEFAULT_REMOTE_DIR = 'apps/mitsailing';
 const DEFAULT_LOCAL_ROOT = 'local/cms-media';
 const REMOTE_MEDIA_ROOT = '/var/lib/mitsailing/cms-media';
+const SAFE_REMOTE_DIR_PATTERN = /^\/?[A-Za-z0-9._~/-]+$/;
+const SSH_BIN = '/usr/bin/ssh';
+const TAR_BIN = '/usr/bin/tar';
 
 /**
  * @typedef {object} SyncOptions
@@ -159,8 +164,16 @@ function resolveSshTarget(cliTarget) {
  * @returns {string} Validated remote directory.
  */
 function parseRemoteDir(value) {
-  if (value.startsWith('-') || value.includes('\0')) {
-    throw new Error('--remote-dir must be a remote directory path');
+  if (
+    value.startsWith('-') ||
+    value === '..' ||
+    value.startsWith('../') ||
+    value.includes('/../') ||
+    !SAFE_REMOTE_DIR_PATTERN.test(value)
+  ) {
+    throw new Error(
+      '--remote-dir must be a remote directory path with safe characters'
+    );
   }
   return value;
 }
@@ -291,56 +304,87 @@ function remoteTarCommand(remoteDir) {
 
 /**
  * @param {SyncOptions} options Parsed sync options.
+ * @returns {Promise<void>} Resolves when media sync completes.
  */
-function syncReadyMedia(options) {
+async function syncReadyMedia(options) {
   const localRoot = path.resolve(options.localRoot);
   if (!localRoot.startsWith(`${process.cwd()}${path.sep}`)) {
     throw new Error('--local-root must resolve inside this repo');
   }
-  const mkdirResult = spawnSync('mkdir', ['-p', localRoot], {
-    stdio: 'inherit',
+  mkdirSync(localRoot, { recursive: true });
+  await extractRemoteReadyMedia({
+    localRoot,
+    remoteCommand: remoteTarCommand(options.remoteDir),
+    sshTarget: options.sshTarget,
   });
-  if (mkdirResult.error) {
-    throw mkdirResult.error;
-  }
-  if (mkdirResult.status !== 0) {
-    throw new Error(`mkdir failed with exit code ${mkdirResult.status}`);
-  }
-  const command = [
-    'ssh',
-    shellQuote(options.sshTarget),
-    shellQuote(remoteTarCommand(options.remoteDir)),
-    '|',
-    'tar',
-    '-xpf',
-    '-',
-    '-C',
-    shellQuote(localRoot),
-  ].join(' ');
-  const result = spawnSync('sh', ['-c', command], { stdio: 'inherit' });
-  if (result.error) {
-    throw result.error;
-  }
-  if (result.status !== 0) {
-    throw new Error(`media sync failed with exit code ${result.status}`);
-  }
   process.stdout.write(`Synced production ready media into ${localRoot}\n`);
 }
 
-function main() {
+/**
+ * @param {{ localRoot: string; remoteCommand: string; sshTarget: string }} options Extraction options.
+ * @returns {Promise<void>} Resolves when both child processes complete.
+ */
+async function extractRemoteReadyMedia(options) {
+  const ssh = spawn(SSH_BIN, [options.sshTarget, options.remoteCommand], {
+    stdio: ['ignore', 'pipe', 'inherit'],
+  });
+  const tar = spawn(TAR_BIN, ['-xpf', '-', '-C', options.localRoot], {
+    stdio: ['pipe', 'inherit', 'inherit'],
+  });
+  if (ssh.stdout === null || tar.stdin === null) {
+    throw new Error('media sync failed to create process pipe');
+  }
+  ssh.stdout.pipe(tar.stdin);
+  const [sshStatus, tarStatus] = await Promise.all([
+    waitForChildProcess({ child: ssh, name: 'ssh' }),
+    waitForChildProcess({ child: tar, name: 'tar' }),
+  ]);
+  if (sshStatus !== 0) {
+    throw new Error(`ssh failed with exit code ${sshStatus}`);
+  }
+  if (tarStatus !== 0) {
+    throw new Error(`tar failed with exit code ${tarStatus}`);
+  }
+}
+
+/**
+ * @param {{ child: import('node:child_process').ChildProcess; name: string }} options Child process.
+ * @returns {Promise<number | null>} Resolves with the exit code.
+ */
+async function waitForChildProcess(options) {
+  const [codeOrError, signal] = await Promise.race([
+    once(options.child, 'close'),
+    once(options.child, 'error'),
+  ]);
+  if (codeOrError instanceof Error) {
+    throw codeOrError;
+  }
+  if (signal) {
+    throw new Error(`${options.name} failed with signal ${signal}`);
+  }
+  if (typeof codeOrError === 'number') {
+    return codeOrError;
+  }
+  if (codeOrError === null) {
+    return null;
+  }
+  throw new TypeError(`${options.name} exited without a status code`);
+}
+
+async function main() {
   const options = parseArgs(process.argv.slice(2));
   if (options.showHelp) {
     process.stdout.write(usage());
     return;
   }
-  syncReadyMedia({
+  await syncReadyMedia({
     ...options,
     sshTarget: resolveSshTarget(options.sshTarget),
   });
 }
 
 try {
-  main();
+  await main();
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);
   process.stderr.write(`${message}\n`);
