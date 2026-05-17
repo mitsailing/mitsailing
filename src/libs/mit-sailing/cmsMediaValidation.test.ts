@@ -62,6 +62,32 @@ describe('cms media validation', () => {
     expect(result.ok).toBe(true);
   });
 
+  it('allows image uploads through the image metadata limit', () => {
+    const bytes = new Uint8Array(10 * 1024 * 1024 + 1);
+    bytes.set(PNG_BYTES);
+
+    expect(
+      validateCmsMediaUpload({
+        bytes,
+        declaredMimeType: 'image/png',
+        originalFilename: 'photo.png',
+      })
+    ).toMatchObject({ ok: true });
+  });
+
+  it('rejects image uploads above the image metadata limit', () => {
+    const bytes = new Uint8Array(25 * 1024 * 1024 + 1);
+    bytes.set(PNG_BYTES);
+
+    expect(
+      validateCmsMediaUpload({
+        bytes,
+        declaredMimeType: 'image/png',
+        originalFilename: 'photo.png',
+      })
+    ).toEqual({ ok: false, code: 'too_large' });
+  });
+
   it('sanitizes filenames and uses detected extensions', () => {
     expect(
       sanitizeCmsMediaFilename('../Race Day FINAL!!.PNG', 'image/png')

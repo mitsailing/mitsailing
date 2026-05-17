@@ -1,7 +1,6 @@
 import path from 'node:path';
 import type { CmsMediaKind } from '@/libs/mit-sailing/cmsMediaTypes';
 
-const CMS_MEDIA_MAX_BYTES = 10 * 1024 * 1024;
 const CMS_MEDIA_MAX_IMAGE_BYTES = 25 * 1024 * 1024;
 const CMS_MEDIA_MAX_FILE_BYTES = 100 * 1024 * 1024;
 const CMS_MEDIA_MAX_VIDEO_BYTES = 2 * 1024 * 1024 * 1024;
@@ -250,7 +249,7 @@ export function validateCmsMediaUpload(props: {
   if (props.bytes.byteLength === 0) {
     return { ok: false, code: 'empty_file' };
   }
-  if (props.bytes.byteLength > CMS_MEDIA_MAX_BYTES) {
+  if (props.bytes.byteLength > CMS_MEDIA_MAX_IMAGE_BYTES) {
     return { ok: false, code: 'too_large' };
   }
   if (

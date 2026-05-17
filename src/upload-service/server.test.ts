@@ -129,4 +129,20 @@ describe('cms media upload service', () => {
       'PUT'
     );
   });
+
+  it('allows head liveness probes', async () => {
+    const root = await createTempRoot();
+    const service = createCmsMediaUploadService({
+      root,
+      secret,
+    });
+
+    const response = await service.handle(
+      new Request('https://uploads.mitsailing.com/api/health/live', {
+        method: 'HEAD',
+      })
+    );
+
+    expect(response.status).toBe(204);
+  });
 });

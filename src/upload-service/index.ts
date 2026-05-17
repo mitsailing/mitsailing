@@ -1,5 +1,6 @@
+import { once } from 'node:events';
 import { createServer } from 'node:http';
-import type { IncomingMessage } from 'node:http';
+import type { IncomingMessage, ServerResponse } from 'node:http';
 import { Env } from '@/libs/Env';
 import { logger } from '@/libs/Logger';
 import { createCmsMediaUploadService } from '@/upload-service/server';
@@ -57,6 +58,31 @@ type StreamingRequestInit = RequestInit & {
   duplex: 'half';
 };
 
+async function writeResponseBody(props: {
+  body: ReadableStream<Uint8Array> | null;
+  response: ServerResponse;
+}): Promise<void> {
+  if (!props.body) {
+    props.response.end();
+    return;
+  }
+  const reader = props.body.getReader();
+  try {
+    while (true) {
+      const result = await reader.read();
+      if (result.done) {
+        break;
+      }
+      if (!props.response.write(result.value)) {
+        await once(props.response, 'drain');
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  props.response.end();
+}
+
 const server = createServer(async (request, response) => {
   try {
     const url = new URL(request.url ?? '/', INTERNAL_BASE_URL);
@@ -73,9 +99,16 @@ const server = createServer(async (request, response) => {
     for (const [key, value] of serviceResponse.headers.entries()) {
       response.setHeader(key, value);
     }
-    response.end();
+    await writeResponseBody({
+      body: serviceResponse.body,
+      response,
+    });
   } catch (error: unknown) {
     logger.error('[upload-service] request handling failed', { error });
+    if (response.headersSent) {
+      response.destroy(error instanceof Error ? error : undefined);
+      return;
+    }
     response.statusCode = 500;
     response.end();
   }

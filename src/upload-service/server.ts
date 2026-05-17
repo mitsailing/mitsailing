@@ -233,7 +233,7 @@ export function createCmsMediaUploadService(
   return {
     async handle(request: Request): Promise<Response> {
       if (
-        request.method === 'GET' &&
+        (request.method === 'GET' || request.method === 'HEAD') &&
         new URL(request.url).pathname === '/api/health/live'
       ) {
         return responseWithCors(request, options, { status: 204 });
