@@ -8,63 +8,58 @@ syncs production deployment files, and runs a release command.
 
 The required target is enterprise zero downtime for production deploys. That
 includes active users uploading images, files, and videos. Upload continuity is
-not optional and cannot depend on a single app host staying alive.
+not optional.
 
-The existing single-host Compose stack is useful as a stepping stone, but it is
-not the final architecture for this requirement because:
-
-- a single Linux host is still a single point of failure;
-- container-local uploads do not survive color switch or host failure;
-- a local bind mount works only while all active app containers run on the same
-  host;
-- long uploads can outlive a short deploy drain window.
+The current branch already creates a server folder for uploaded media. That
+folder remains the storage target. We are not using Cloudflare R2, AWS S3, MinIO,
+or another S3-compatible object-storage server.
 
 ## Required target architecture
 
-Use two headless app hosts behind a proxy/load-balancing layer with external
-durable state:
+Use two headless app hosts behind a proxy/load-balancing layer, plus a separate
+Docker data/media server:
 
-- `server-blue` and `server-green` each run the same app/worker image through
-  Docker Compose.
-- The app hosts are headless Linux servers operated over SSH and Docker Compose;
-  they do not need or expose a local desktop/browser workflow.
+- `server-blue` and `server-green` are stateless app hosts.
+- Each app host runs the Next.js web container, optional app-local worker
+  container, and ingress connector through Docker Compose.
+- A separate data/media server runs Docker Compose services for Postgres, Redis,
+  media upload, media processing, and media serving.
 - Every runtime service we operate must run through Docker/Compose. That
-  includes the Next.js app, BullMQ worker, nginx/cloudflared ingress connector,
-  self-hosted Postgres, self-hosted Redis, and any future media-processing tools
-  such as thumbnailers or video transcoders.
-- Cloudflare Load Balancing is the preferred public proxy. It routes public
-  traffic to the active app host and uses health checks to fail over when the
-  active host is unhealthy.
-- Each app host can run its own `cloudflared` connector or expose a locked-down
-  origin endpoint for Cloudflare. The chosen ingress must have one health target
-  per app host.
-- Postgres is external to the app hosts. It can be self-hosted on an existing
-  data server.
-- Redis is external to the app hosts and durable enough for BullMQ jobs,
-  retries, and schedulers. It can be self-hosted on the same data server as
-  Postgres if that residual risk is accepted.
-- Media uploads go to S3-compatible object storage, preferably Cloudflare R2.
-- App hosts are stateless with respect to uploaded media.
+  includes Next.js, BullMQ workers, proxy/connector services, Postgres, Redis,
+  the upload endpoint, media-serving nginx, and future media-processing tools.
+- Cloudflare Load Balancing is the preferred public proxy. A Dockerized nginx or
+  HAProxy layer is also acceptable if it health-checks each app host and can
+  shift traffic without a desktop/browser UI.
+- Postgres is external to app hosts and runs as a Docker container on the
+  data/media server.
+- Redis is external to app hosts and runs as a Docker container on the
+  data/media server with append-only persistence enabled.
+- Uploaded media is stored under a shared durable path on the data/media server,
+  for example `/srv/mitsailing-data/cms-media`.
+- App hosts must not keep independent uploaded-media folders.
 
-External platform services such as Cloudflare Load Balancing and R2 are managed
-services, not processes we run. Everything deployed onto our Linux servers must
-be containerized.
+This design gives zero-downtime app deploys and app-host failover while uploads
+continue. It does not remove the data/media server as an availability risk. If
+that server fails, Postgres, Redis, and uploads are affected. That is a separate
+resilience problem from blue/green app deployment.
 
-Cloudflare R2 is the recommended storage target because it is S3-compatible,
-fits the existing Cloudflare deployment surface, and supports presigned URLs and
-multipart uploads for large objects. AWS S3 remains a compatible fallback if R2
-is unavailable.
+## Why uploads cannot stay on app-host local folders
 
-References:
+If `server-blue` and `server-green` each write uploads to their own local
+`/srv/mitsailing-data/cms-media`, a blue/green switch can strand files on the
+old host. Public pages and workers on the new host may not see them. That fails
+the zero-downtime upload requirement.
 
-- Cloudflare R2 multipart and presigned upload docs:
-  `https://developers.cloudflare.com/r2/objects/multipart-objects/`
-- Cloudflare R2 S3 compatibility:
-  `https://developers.cloudflare.com/r2/get-started/s3/`
-- Cloudflare Load Balancing health/failover docs:
-  `https://developers.cloudflare.com/load-balancing/understand-basics/health-details/`
-- Next.js self-hosting requires `output: 'standalone'`, stable deployment IDs,
-  and shared cache handling when process-local cache is not enough.
+If uploads stream through the active Next.js app host, a deploy can be made safe
+only by draining long enough for requests to finish. That does not protect an
+upload from app-host failure, and it makes deploy timing depend on the largest
+active upload. Therefore the durable target is:
+
+- the browser sends media bytes to a Dockerized upload endpoint on the data/media
+  server;
+- the app creates and finalizes upload sessions through short retryable requests;
+- workers process files from the shared media folder;
+- public traffic serves ready media from a Dockerized media-serving service.
 
 ## Goals
 
@@ -73,9 +68,9 @@ References:
 - Preserve upload continuity across app-host failover.
 - Keep app and worker services on the requested immutable SHA.
 - Keep Redis and Postgres outside the app hosts.
-- Keep uploaded media outside app hosts in object storage.
+- Keep uploaded media outside the app hosts on the data/media server.
 - Process uploaded media through BullMQ workers for validation, metadata,
-  thumbnails, and video transcoding.
+  thumbnails, and video hooks.
 - Keep cron-backed legacy MySQL sync disabled by default, with an explicit
   operator path to enable it.
 - Keep migrations backward-compatible across overlapping old/new app versions.
@@ -84,73 +79,114 @@ References:
 
 ## Non-goals
 
-- Add Kubernetes, Nomad, or Swarm in this change.
-- Keep durable production uploads on local host bind mounts.
+- Add Kubernetes, Nomad, or Swarm.
+- Add R2, S3, MinIO, or another S3-compatible media server.
+- Keep durable production uploads on app-host-local bind mounts.
 - Add automated database rollback.
 - Enable legacy MySQL sync by default.
-- Make every historical migration reversible.
-- Implement every possible media derivative immediately. The first production
-  version needs durable upload, queue processing, ready/failed states, and a
-  clear extension point for thumbnails/transcoding.
+- Make the single data/media server highly available in this phase.
+- Implement every media derivative immediately. The first production version
+  needs durable upload, queue processing, ready/failed states, and a clear
+  extension point for thumbnails/transcoding.
 
 ## Recommended approach
 
-Use a two-server active/passive blue/green deployment with stateless headless
-app hosts. The inactive host is updated first, health and readiness pass,
-Cloudflare traffic shifts to it, and the previous active host remains available
-for rollback until the release is accepted.
+Use a two-server active/passive blue/green app deployment with a third
+data/media server. The inactive app host is updated first, readiness passes,
+proxy traffic shifts to it, and the previous app host remains available for
+rollback until the release is accepted.
 
-Uploads do not stream through the app host. The app issues short-lived upload
-instructions for object storage, the browser uploads directly to object storage,
-then the app records/finalizes the asset and enqueues a BullMQ processing job.
-Workers process media from object storage and mark assets `ready` or `failed`.
-The admin UI shows `processing`, `ready`, and `failed` states. Public pages serve
-only `ready` media.
+Uploads do not stream through the app host. The app issues an upload session,
+the browser uploads directly to a Dockerized upload service on the data/media
+server, then the app finalizes the asset and enqueues a BullMQ processing job.
+Workers process media from the server folder and mark assets `ready` or
+`failed`. The admin UI shows `uploading`, `queued`, `processing`, `ready`, and
+`failed` states. Public pages serve only `ready` media.
 
-This removes deploy drain from the upload data path. A deploy or app host
-failover may interrupt a short metadata/finalize request, but it must not corrupt
-or lose the uploaded object. The client can retry finalize against whichever app
-host is active.
+Use a proven resumable upload service for large files and videos. The preferred
+Docker service is `tusd` with file storage rooted under
+`/srv/mitsailing-data/cms-media/uploads`. If the team prefers not to add `tusd`,
+build a small Node upload service in the same app image and run it on the
+data/media server. In either case, the upload service is not the public Next.js
+app container on either blue/green host.
+
+## Data/media server services
+
+The data/media server is the durable state host:
+
+- `postgres`
+  - Docker image: official Postgres image.
+  - Persistent path: `/srv/mitsailing-data/postgres`.
+  - Network exposure: private network only, restricted to app-host IPs and
+    deploy automation.
+- `redis`
+  - Docker image: official Redis image.
+  - Persistent path: `/srv/mitsailing-data/redis`.
+  - Run with append-only persistence.
+  - Network exposure: private network only, restricted to app-host IPs and
+    deploy automation.
+- `media-upload`
+  - Docker image: `tusd` or the app image running an upload-service command.
+  - Persistent path: `/srv/mitsailing-data/cms-media/uploads`.
+  - Handles large file/video uploads without involving app hosts.
+- `media-worker`
+  - Docker image: the same app image as the release.
+  - Persistent path: `/srv/mitsailing-data/cms-media`.
+  - Reads uploaded files, validates content, writes ready files and thumbnails,
+    and updates Postgres.
+- `media`
+  - Docker image: nginx or equivalent static file server.
+  - Read-only path: `/srv/mitsailing-data/cms-media/ready`.
+  - Serves ready assets through `https://media.mitsailing.com` or an equivalent
+    proxy route.
+
+Postgres and Redis can remain on one server if that residual risk is accepted.
+That preserves zero-downtime app deploys, but the data/media server remains a
+single point of failure for database, queue, and media writes.
 
 ## Upload pipeline
 
 The upload pipeline has four durable stages:
 
 1. **Create upload session**
-   - Admin UI sends filename, size, content type, and intended usage.
+   - Admin UI sends filename, size, content type, media kind, and intended usage.
    - App validates size/type policy and creates a DB row with status
      `uploading`.
-   - App returns presigned object-storage upload instructions.
-   - Small files can use a presigned PUT URL.
-   - Large files and videos use multipart upload instructions.
+   - App returns an upload URL and headers for the Dockerized media upload
+     service.
+   - Large files and videos use resumable upload protocol support from the
+     upload service.
 
-2. **Browser uploads to object storage**
-   - The browser sends bytes directly to R2/S3-compatible storage.
+2. **Browser uploads to the data/media server**
+   - The browser sends bytes directly to the media upload service.
    - App hosts do not proxy the bytes.
-   - Object keys are generated by the app and scoped by asset id, for example
-     `media/raw/<assetId>/<safe-filename>`.
+   - Raw upload files are stored below a path such as
+     `/srv/mitsailing-data/cms-media/uploads/<assetId>`.
 
 3. **Finalize upload**
    - Browser tells the app the upload completed.
-   - App verifies the object exists and matches expected size/content metadata
-     where the storage API supports it.
-   - App changes DB status to `queued` and enqueues a BullMQ job with a stable
-     job id based on the asset id.
+   - App verifies the upload exists on the data/media server, changes DB status
+     to `queued`, and enqueues a BullMQ job with a stable job id based on the
+     asset id.
+   - Finalize is idempotent. Retrying it against either app host is safe.
 
 4. **Worker processing**
-   - Worker downloads or streams the raw object from object storage.
+   - Worker reads the raw file from the data/media server folder.
    - Worker validates MIME signature and policy.
    - Worker extracts metadata.
    - Worker creates required derivatives:
-     - images: normalized image metadata and optional thumbnail;
-     - files: metadata and safe download record;
-     - videos: queued processing contract and future transcoding hook.
-   - Worker writes derivatives back to object storage.
+     - images: ready image and optional thumbnail;
+     - files: ready download record;
+     - videos: ready original plus future transcoding hook.
+   - Worker writes ready output under
+     `/srv/mitsailing-data/cms-media/ready/<assetId>/<safe-filename>`.
    - Worker marks the asset `ready`.
    - If processing fails after retries, worker marks the asset `failed` with a
      safe error code.
 
-The request path is short and retryable. Heavy work happens in the worker.
+BullMQ does not perform the upload automatically. BullMQ starts after the bytes
+are durably stored. It coordinates processing, retries, and cron-like jobs in
+Redis.
 
 ## Admin media surface
 
@@ -162,69 +198,73 @@ The current production admin upload surface is:
 - `src/libs/mit-sailing/cmsMediaStorage.ts`
 
 Those controls currently accept JPEG, PNG, WebP, and GIF images and write to
-local CMS media storage. The target design replaces that storage path with the
-object-storage upload pipeline.
+local CMS media storage. The target design keeps the server-folder storage model
+but moves durable writes to the data/media server and uses queue-only processing
+for images, files, and videos.
 
 Video support must use the same pipeline. Do not add video upload by increasing
-local body size limits or proxying large request bodies through Next.js route
-handlers.
+Next.js route handler body size limits or proxying large request bodies through
+the app hosts.
 
 `src/app/api/email-assets/route.ts` currently writes to container-local
 `public/email-assets`. It is not production-persistent. Before relying on that
 route in production admin workflows, either gate it to local/dev email preview
-usage or migrate it to the object-storage pipeline.
+usage or migrate it to the data/media server media pipeline.
 
 ## Deployment model
 
 The deploy flow changes from single-host color switching to host-level
 active/passive blue/green behind Cloudflare Load Balancing or an equivalent
-public proxy:
+proxy:
 
 1. Build and push immutable image `sha-<short>`.
 2. Deploy the image to the inactive app host.
-3. Run migrations from the target image against external Postgres.
-4. Start app and worker services on the inactive host.
-5. Run health/readiness checks:
+3. Run migrations from the target image against external Postgres on the
+   data/media server.
+4. Start app services on the inactive host.
+5. Run app-host readiness:
    - Next.js liveness;
    - protected readiness;
    - Postgres check;
    - Redis check;
-   - object-storage connectivity check;
-   - worker Redis health.
-6. Shift the proxy/load balancer traffic to the inactive host.
-7. Keep the previous host running for rollback.
-8. Restart or update worker placement according to the chosen worker policy.
+   - data/media server upload-service check;
+   - media-serving check.
+6. Shift proxy traffic to the inactive host.
+7. Keep the previous app host running for rollback.
+8. Update the data/media server worker to the new image after compatibility
+   checks pass, or run app-host workers only after proving processors are safe
+   with shared folder access.
 
 Worker policy for the first implementation:
 
-- Keep one active worker service to avoid duplicate processor surprises.
-- Run it as a Docker/Compose service on the active app host or a separate
-  Docker-based worker host.
+- Prefer one active `media-worker` service on the data/media server because it
+  has local access to `/srv/mitsailing-data/cms-media`.
 - Use stable BullMQ job ids and idempotent processors.
-- Before allowing multiple workers, prove every processor is safe under
-  concurrency.
+- Before allowing multiple media workers, prove every processor is safe under
+  concurrency and shared-folder locking.
 
 ## Rollback
 
-Rollback shifts Cloudflare traffic back to the previous host/image after that
-host passes readiness. Rollback does not reverse database migrations or object
-storage writes.
+Rollback shifts proxy traffic back to the previous app host/image after that
+host passes readiness. Rollback does not reverse database migrations or file
+writes on the data/media server.
 
 To make rollback safe:
 
 - migrations must be expand/contract;
 - media DB rows and job payloads must be backward-compatible across at least one
   release;
-- object keys must remain stable;
+- upload session records must be finalized idempotently;
 - old and new code must both tolerate `uploading`, `queued`, `processing`,
   `ready`, and `failed` media states.
 
 ## Redis, worker, and cron
 
 Redis is production state because BullMQ jobs, retries, and schedulers live
-there. It must be external to the app hosts for two-host deployment. If Redis
-stays single-node on the existing data server, app deploys can still be
-zero-downtime, but Redis/data-server failure remains a known availability risk.
+there. It must be external to the app hosts for two-host deployment. It runs as
+a Docker service on the data/media server with persistent storage. If Redis
+stays single-node on that server, app deploys can still be zero-downtime, but
+Redis/data-server failure remains a known availability risk.
 
 BullMQ schedules cron jobs automatically after a scheduler is registered in
 Redis. It does not automatically notice that an operator changed
@@ -234,7 +274,7 @@ Redis. It does not automatically notice that an operator changed
 - `LEGACY_MYSQL_SYNC_ENABLED=true`: calls `upsertJobScheduler(...)`
 
 Therefore enabling cron requires changing `.env.production.worker` and
-recreating the worker so startup re-applies the scheduler:
+recreating the Docker worker so startup re-applies the scheduler:
 
 ```bash
 cd ~/apps/mitsailing
@@ -249,103 +289,79 @@ LEGACY_MYSQL_SYNC_CRON="0 0 * * * *"
 LEGACY_MYSQL_PASSWORD=<real readonly mysql password>
 ```
 
-Then recreate the worker with the pinned image and production worker env. The
-exact command depends on whether workers run on the active app host or a separate
-worker host, but it must include the deploy-owned image env file.
+Then recreate the worker with the pinned image and production worker env:
+
+```bash
+docker compose -f compose.prod.data.yaml --env-file .env.production.data up -d media-worker
+```
+
+If legacy sync workers run on an app host instead of the data/media server, run
+the equivalent `docker compose -f compose.prod.app-host.yaml ... up -d worker`
+command on that host.
 
 The cron string is six fields, seconds first. The default
 `0 0 * * * *` runs at the top of each hour.
 
 ## Postgres and migrations
 
-Production Postgres must be external to app hosts. It can be managed Postgres or
-a self-managed Postgres container on a database host with its own backup/failover
-plan. If Postgres stays single-node on the existing Docker-based data server,
-app deploys can still be zero-downtime, but data-server failure remains a known
-availability risk. Do not run the only production Postgres inside either app
-host if host-level resilience is a requirement.
+Production Postgres is a Docker service on the data/media server. App hosts use
+`DATABASE_URL` pointing to the data/media server's private IP or private DNS
+name. The Postgres port must not be public internet-accessible.
 
-Deploy-time migrations run before traffic cutover. Because old and new app
-versions overlap, migrations must follow expand/contract discipline:
+Migrations run once from the target image before the new app host is promoted.
+Migrations must be backward-compatible because the previous app image may keep
+serving traffic during the promotion window and rollback may shift traffic back
+without reversing the migration.
 
-- Add columns, tables, indexes, and enum values before new code depends on them.
-- Deploy code that works against both previous and expanded schemas.
-- Avoid same-release destructive drops, renames, and enum removals.
-- Contract only after a later release proves old code no longer reads the old
-  shape.
+## Next.js production requirements
 
-## Next.js self-hosting requirements
+Keep `output: 'standalone'` for production Docker images.
 
-The app must keep `output: 'standalone'` and run `node server.js` in production.
+Set a stable `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` across both app hosts before
+overlapping web versions. Otherwise Server Actions payloads can fail when a
+request lands on a different app instance than the one that generated the page.
 
-`DEPLOYMENT_VERSION` must be set from the pinned SHA and passed to Next.js
-`deploymentId` so clients can hard-navigate across version skew during
-multi-instance deploys.
-
-`NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` must be set to one stable generated value
-for production before overlapping app hosts are used.
-
-The default Next.js cache is process-local. Any route whose correctness depends
-on cross-host cache coherence must avoid process-local cache assumptions or use a
-custom shared cache handler backed by Redis or another durable store.
+Set `DEPLOYMENT_VERSION` to the image SHA and feed it to `deploymentId` in
+`next.config.ts` so clients and server assets are tied to the release.
 
 Health and upload route handlers must run on the Node.js runtime. Do not use
-Edge runtime for Prisma, Redis, or S3 SDK access.
+Edge runtime for Prisma, Redis, filesystem coordination, or upload-session
+checks.
 
-## File permissions and local storage
+## Error handling
 
-The final two-host app design treats app hosts as stateless for uploaded media.
-Local `/srv/mitsailing-data/cms-media` may remain only as a migration source or
-temporary rollback aid until all production media has moved to object storage.
+- If upload-session creation fails, no upload begins.
+- If browser upload succeeds but finalize fails, the client can retry finalize.
+- If an app host is removed during upload, the upload continues because bytes
+  are flowing to the data/media server, not the app host.
+- If processing fails, the asset is marked `failed` and remains inspectable in
+  admin.
+- If Redis is down, finalize cannot enqueue processing and returns a retryable
+  error.
+- If the data/media server is down, upload and media serving fail. That is the
+  accepted residual risk unless we add data/media HA later.
+- Rollback changes serving version only and must not delete uploaded files or
+  worker outputs.
 
-Any remaining local state on app hosts must be rebuildable from GitHub,
-environment files, external Postgres, external Redis, and object storage.
-Operators manage app hosts through SSH, Docker, Compose, logs, and health
-checks; the app hosts are headless runtime nodes.
+## Testing requirements
 
-## Error handling and recovery
+Unit and integration coverage:
 
-- If object-storage upload session creation fails, no object upload begins.
-- If browser upload succeeds but finalize fails, client can retry finalize.
-- If finalize succeeds but worker processing fails, asset status becomes
-  `failed`; raw object remains available for retry.
-- If deploy readiness fails on the inactive host, traffic stays on the active
-  host.
-- If Cloudflare cutover fails, traffic stays on or returns to the active host.
-- If worker update fails, web traffic can remain healthy while operators repair
-  worker deployment; queued jobs remain in Redis.
-- Rollback changes serving version only and must not delete object-storage media
-  or reverse database migrations.
-
-## Testing and verification
-
-Add tests for:
-
-- object-storage env validation;
+- env validation for data/media server paths and URLs;
 - upload session creation policy;
 - finalize idempotency;
-- BullMQ enqueue job id stability;
-- worker status transitions from `queued` to `processing` to `ready`/`failed`;
-- rejection of unsupported MIME signatures;
-- deploy/runbook contracts for two-host external storage requirements;
-- health readiness including object-storage connectivity.
+- BullMQ stable job ids;
+- worker transitions from `queued` to `processing` to `ready` or `failed`;
+- MIME/signature rejection;
+- health readiness including Postgres, Redis, upload-service, and media-serving
+  checks.
 
-Run local verification after implementation:
+Production rehearsal:
 
-- `npm run test`
-- `npm run lint`
-- `npm run check:types`
-- `npm run check:deps`
-
-Production verification before declaring enterprise zero downtime:
-
-- Cloudflare health checks can route to either app host.
-- A deploy can shift traffic from one host to the other with no failed health
-  check.
-- An admin can start a large image/file/video upload during deploy and complete
-  it after traffic shifts.
-- The uploaded asset reaches `ready` or `failed` deterministically.
-- Killing one app host during upload does not lose the object; finalize is
-  retryable on the surviving host.
-- Cron remains disabled unless `.env.production.worker` explicitly sets
-  `LEGACY_MYSQL_SYNC_ENABLED=true`.
+- Start a large image/file/video upload during deploy.
+- Confirm browser upload traffic goes to the data/media server upload endpoint,
+  not the app host.
+- Promote the other app host while the upload continues.
+- Confirm finalize can retry on the active app host.
+- Confirm the uploaded asset reaches `ready` or `failed` deterministically.
+- Confirm rollback does not delete media files or DB rows.
