@@ -2,9 +2,12 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   buildCmsMediaPublicPath,
+  detectCmsMediaKind,
   detectCmsMediaMimeType,
+  mediaKindFromMimeType,
   resolveCmsMediaStoragePath,
   sanitizeCmsMediaFilename,
+  validateCmsMediaMetadata,
   validateCmsMediaUpload,
 } from '@/libs/mit-sailing/cmsMediaValidation';
 
@@ -99,5 +102,35 @@ describe('cms media validation', () => {
         filename: '../secret.png',
       })
     ).toBeNull();
+  });
+
+  it('classifies image, file, and video mime types', () => {
+    expect(mediaKindFromMimeType('image/png')).toBe('image');
+    expect(mediaKindFromMimeType('application/pdf')).toBe('file');
+    expect(mediaKindFromMimeType('video/mp4')).toBe('video');
+    expect(mediaKindFromMimeType('application/x-msdownload')).toBeNull();
+  });
+
+  it('validates upload metadata before opening a server-folder upload', () => {
+    expect(
+      validateCmsMediaMetadata({
+        byteSize: 1024,
+        declaredMimeType: 'application/pdf',
+        originalFilename: 'sailing-handbook.pdf',
+      })
+    ).toEqual({
+      ok: true,
+      mediaKind: 'file',
+      mimeType: 'application/pdf',
+      storedFilename: 'sailing-handbook.pdf',
+    });
+  });
+
+  it('detects common video signatures during worker processing', () => {
+    const mp4Bytes = new Uint8Array([
+      0, 0, 0, 24, 102, 116, 121, 112, 109, 112, 52, 50,
+    ]);
+
+    expect(detectCmsMediaKind(mp4Bytes, 'video/mp4')).toBe('video');
   });
 });
