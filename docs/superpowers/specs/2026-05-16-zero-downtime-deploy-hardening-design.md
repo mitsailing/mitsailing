@@ -12,7 +12,7 @@ Current source of truth:
 
 Current production decisions:
 
-- One Docker Compose stack runs on `ak@sailing-dock.mit.edu`.
+- One Docker Compose stack runs on `deploy@example.com`.
 - Dockerized nginx switches between blue and green app containers for app
   release continuity.
 - The MIT Sailing Cloudflare Tunnel routes same-origin `mitsailing.com` paths to

@@ -108,7 +108,7 @@ the production host. Required production environment secrets:
 
 | Secret | Purpose |
 | --- | --- |
-| `PRODUCTION_SSH_TARGET` | SSH target, for example `deploy-user@example.com` |
+| `PRODUCTION_SSH_TARGET` | SSH target, for example `deploy@example.com` |
 | `PRODUCTION_SSH_PRIVATE_KEY` | Deploy SSH key |
 | `PRODUCTION_SSH_HOST_KEY` | Pinned host key lines |
 | `NEXT_PUBLIC_SENTRY_DSN` | Build-time Sentry DSN |
@@ -124,14 +124,14 @@ For a new deployment, replace these example values:
 
 | Example | Replace with |
 | --- | --- |
-| `deploy-user@example.com` | The SSH target from the server admin, in `user@host` form |
+| `deploy@example.com` | The SSH target from the server admin, in `user@host` form |
 | `apps/mitsailing` | The deploy directory, if the server admin chose a different path |
 | `sha-abc123def456` | The image tag or rollback tag you intend to deploy |
 
 Manual release from a checked-out repo:
 
 ```bash
-export PRODUCTION_SSH_TARGET=deploy-user@example.com
+export PRODUCTION_SSH_TARGET=deploy@example.com
 
 ssh "$PRODUCTION_SSH_TARGET" 'mkdir -p apps/mitsailing'
 scp compose.yaml compose.prod.yaml "$PRODUCTION_SSH_TARGET:apps/mitsailing/"

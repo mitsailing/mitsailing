@@ -93,7 +93,7 @@ Use the current deployed app image tag unless intentionally changing it. On the
 host, read it before running maintenance:
 
 ```bash
-export PRODUCTION_SSH_TARGET=deploy-user@example.com
+export PRODUCTION_SSH_TARGET=deploy@example.com
 
 ssh "$PRODUCTION_SSH_TARGET" 'cat apps/mitsailing/.deploy/current_ref'
 ```

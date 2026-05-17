@@ -12,7 +12,7 @@ Current source of truth:
 
 Current production decisions:
 
-- One Docker Compose stack runs on `ak@sailing-dock.mit.edu`.
+- One Docker Compose stack runs on `deploy@example.com`.
 - The production stack uses the `tusd` service in `compose.prod.yaml`.
 - App releases do not restart upload or media-serving services.
 - Upload and media maintenance are explicit night-deploy operations.

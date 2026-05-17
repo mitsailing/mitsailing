@@ -8,7 +8,7 @@ name: Deploy (production)
 #   (see docs/deploy.md). The `build` job uses this environment so those values
 #   reach Docker build-args.
 #
-# Auto-deploy to the sailing-dock production host when main changes. We also
+# Auto-deploy to the production host when main changes. We also
 # expose a manual `workflow_dispatch` trigger so operators can deploy an
 # arbitrary commit without having to git-push (useful for hotfix replays
 # and rollback by SHA).
@@ -165,7 +165,7 @@ jobs:
           printf '%s\n' "${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}" > ~/.ssh/id_deploy
           chmod 600 ~/.ssh/id_deploy
           # Pin all production host keys to prevent MITM. This secret may hold
-          # multiple ssh-keyscan lines for sailing-dock, including rotated host keys.
+          # multiple ssh-keyscan lines for the production host, including rotated host keys.
           printf '%s\n' "${{ secrets.PRODUCTION_SSH_HOST_KEY }}" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 

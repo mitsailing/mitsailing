@@ -10,7 +10,7 @@ operations, use:
 
 Current production shape:
 
-- one Docker Compose stack on `deploy-user@example.com`;
+- one Docker Compose stack on `deploy@example.com`;
 - host bind mounts under `/srv/mitsailing-data` for Postgres, Redis, and CMS media;
 - same-origin Cloudflare Tunnel routes on `mitsailing.com`;
 - no separate upload or media subdomains;

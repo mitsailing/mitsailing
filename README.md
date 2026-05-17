@@ -59,12 +59,12 @@ Use the repo pgsync workflow:
 To make synced CMS pages render production media locally, download public ready media files over SSH:
 
 ```shell
-export PRODUCTION_SSH_TARGET=deploy-user@example.com
+export PRODUCTION_SSH_TARGET=username@example.com
 node scripts/sync-prod-media.mjs
 ```
 
-Replace `deploy-user@example.com` with the SSH target from the production deploy
-issue before running the command.
+Replace `username@example.com` with your SSH login for the production host
+before running the command.
 
 The media sync copies only production `/srv/mitsailing-data/cms-media/ready` into `local/cms-media/ready`; it does not copy raw in-progress uploads.
 
@@ -89,6 +89,12 @@ npm run test:e2e
 Pull requests run build/static checks, unit coverage, integration tests, Storybook checks, sharded Playwright e2e, Docker smoke/security checks, CodeQL, coverage upload, and optional previews. `main` runs semantic-release and the production deploy workflow.
 
 Production deploys are normally automatic after merge to `main`: GitHub Actions builds and attests a GHCR image, syncs deploy files to `PRODUCTION_SSH_TARGET`, then runs `bin/deploy.sh release <image-tag>`. The deploy job may wait for GitHub `production` environment approval when required reviewers are configured.
+
+Example placeholders in docs and tests:
+
+- `username@example.com` means your SSH login for pulling production data or media to your local computer. In app data examples, it is also the simple fake user email.
+- `username` means a simple fake app user ID.
+- `deploy@example.com` means the GitHub CI deploy SSH target: user `deploy` on host `example.com`.
 
 Manual work is needed when:
 
@@ -115,7 +121,7 @@ WordPress at `wp.mitsailing.com` is a separate stack and tunnel. Do not connect 
 npm run dev            # local infra + migrations + Next dev server
 npm run db:seed        # local fixture data and admin user
 npm run worker:dev     # local BullMQ worker when needed
-PRODUCTION_SSH_TARGET=deploy-user@example.com node scripts/sync-prod-media.mjs
+PRODUCTION_SSH_TARGET=username@example.com node scripts/sync-prod-media.mjs
 npm run test:e2e       # Playwright end-to-end gate
 ```
 

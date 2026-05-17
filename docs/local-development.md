@@ -115,12 +115,12 @@ Docker volume.
 Then download public ready CMS media over SSH:
 
 ```shell
-export PRODUCTION_SSH_TARGET=deploy-user@example.com
+export PRODUCTION_SSH_TARGET=username@example.com
 node scripts/sync-prod-media.mjs
 ```
 
-Replace `deploy-user@example.com` with the SSH target from the production deploy
-issue before running the command.
+Replace `username@example.com` with your SSH login for the production host
+before running the command.
 
 Defaults and inputs:
 
@@ -143,7 +143,7 @@ Override paths when needed:
 
 ```shell
 node scripts/sync-prod-media.mjs \
-  --ssh-target deploy-user@example.com \
+  --ssh-target username@example.com \
   --remote-dir apps/mitsailing \
   --local-root local/cms-media
 ```
