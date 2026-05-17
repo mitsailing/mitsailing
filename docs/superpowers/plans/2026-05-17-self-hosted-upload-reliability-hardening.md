@@ -467,8 +467,8 @@ Expected: pass.
 - [ ] Run API/worker targeted tests after integrating API worker.
 - [ ] Review Admin Client worker changed paths and ensure no non-owned files were edited.
 - [ ] Run admin client targeted tests after integrating Admin worker.
-- [ ] Review Backup/Readiness worker changed paths and ensure no non-owned files were edited.
-- [ ] Run readiness targeted tests after integrating Backup worker.
+- [ ] Review Readiness worker changed paths and ensure no non-owned files were edited.
+- [ ] Run readiness-targeted tests after integrating Readiness worker.
 - [ ] Run `npm run lint`.
 - [ ] Run `npm run check:types`.
 - [ ] Run `npm run test`.

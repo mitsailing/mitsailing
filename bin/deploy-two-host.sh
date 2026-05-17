@@ -18,7 +18,7 @@ set -Eeuo pipefail
 readonly REMOTE_APP_DIR="${REMOTE_APP_DIR:-apps/mitsailing}"
 readonly GHCR_OWNER="${GHCR_OWNER:-mitsailing}"
 readonly DEPLOY_HEALTH_TIMEOUT_SECONDS="${DEPLOY_HEALTH_TIMEOUT_SECONDS:-120}"
-readonly DEPLOY_DRAIN_SECONDS="${DEPLOY_DRAIN_SECONDS:-900}"
+readonly DEPLOY_DRAIN_SECONDS="${DEPLOY_DRAIN_SECONDS:-120}"
 readonly APP_COMPOSE_FILE="compose.prod.app-host.yaml"
 readonly DATA_COMPOSE_FILE="compose.prod.data.yaml"
 readonly DEPLOY_SSH_KEY="${DEPLOY_SSH_KEY:-${HOME}/.ssh/id_deploy}"

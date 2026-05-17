@@ -13,9 +13,7 @@ function readShellFunction(script: string, name: string): string {
   }
 
   const remainingScript = script.slice(startIndex + name.length);
-  const nextFunctionMatch = /\n[a-zA-Z_][a-zA-Z0-9_]*\(\) \{/u.exec(
-    remainingScript
-  );
+  const nextFunctionMatch = /\n[a-zA-Z_]\w*\(\) \{/u.exec(remainingScript);
 
   if (!nextFunctionMatch) {
     return script.slice(startIndex);
@@ -103,8 +101,8 @@ describe('two host deploy script', () => {
     );
   });
 
-  it('uses a 900 second default drain window for large uploads', () => {
-    expect(script).toContain('DEPLOY_DRAIN_SECONDS:-900');
+  it('uses the aligned default drain window', () => {
+    expect(script).toContain('DEPLOY_DRAIN_SECONDS:-120');
   });
 
   it('warns rollback does not reverse database migrations', () => {

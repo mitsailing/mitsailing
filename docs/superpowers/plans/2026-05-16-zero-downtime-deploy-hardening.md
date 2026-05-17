@@ -1649,8 +1649,8 @@ services:
         required: true
       - path: .env.image
         required: true
-    ports:
-      - '3000:3000'
+    expose:
+      - '3000'
     stop_grace_period: 60s
     command: ['node', 'server.js']
     healthcheck:
@@ -1831,7 +1831,7 @@ Create `tests/e2e/admin-media-upload.e2e.ts`:
 
 ```ts
 import { expect, test } from '@playwright/test';
-import { signInAsAdmin } from './helpers/e2e-admin-sign-in';
+import { signInAsAdmin } from '../helpers/e2e-admin-sign-in';
 
 test.describe('admin media uploads', () => {
   test('uploads media through the docker media server pipeline', async ({

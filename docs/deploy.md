@@ -752,14 +752,15 @@ production database.
 
   ```bash
   cd ~/apps/mitsailing
-  docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production logs -f --tail 100 app web_blue web_green
-  docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production logs -f --tail 100 worker
+  docker compose -f compose.prod.app-host.yaml --env-file .env.production.app-host logs -f --tail 100 web
+  docker compose -f compose.prod.data.yaml --env-file .env.production.data --env-file .env.production.worker logs -f --tail 100 worker
   ```
 
 - **Status:**
 
   ```bash
-  docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production ps
+  docker compose -f compose.prod.app-host.yaml --env-file .env.production.app-host ps
+  docker compose -f compose.prod.data.yaml --env-file .env.production.data --env-file .env.production.worker ps
   ```
 
 ## Operations checklist
