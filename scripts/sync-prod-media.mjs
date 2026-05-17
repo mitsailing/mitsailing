@@ -8,8 +8,6 @@ import process from 'node:process';
 const DEFAULT_REMOTE_DIR = 'apps/mitsailing';
 const DEFAULT_LOCAL_ROOT = 'local/cms-media';
 const REMOTE_MEDIA_ROOT = '/var/lib/mitsailing/cms-media';
-const SSH_TARGET_PATTERN =
-  /^(?:[A-Za-z0-9._~-]+@)?[A-Za-z0-9._~-]+(?::[0-9]{1,5})?$/;
 
 /**
  * @typedef {object} SyncOptions
@@ -57,12 +55,86 @@ function parseArgValue(args, index, flag) {
  * @returns {string} Validated SSH target.
  */
 function parseSshTarget(value) {
-  if (!SSH_TARGET_PATTERN.test(value)) {
+  const [targetWithoutPort, port = ''] = value.split(':');
+  const [hostOrUser, host = ''] = targetWithoutPort.split('@');
+  if (
+    !validSshTargetParts({
+      host,
+      hostOrUser,
+      port,
+      targetWithoutPort,
+      value,
+    })
+  ) {
     throw new Error(
       '--ssh-target must be a host target such as host, user@host, or host:22'
     );
   }
   return value;
+}
+
+/**
+ * @param {{ host: string; hostOrUser: string; port: string; targetWithoutPort: string; value: string }} props SSH target parts.
+ * @returns {boolean} Whether the SSH target parts are valid.
+ */
+function validSshTargetParts(props) {
+  const hostValue = props.host || props.hostOrUser;
+  const userValue = props.host ? props.hostOrUser : '';
+  return (
+    props.value.split(':').length <= 2 &&
+    props.targetWithoutPort.split('@').length <= 2 &&
+    validSshToken(hostValue) &&
+    validOptionalSshUser(userValue) &&
+    validOptionalPort(props.port)
+  );
+}
+
+/**
+ * @param {string} value SSH username or host token.
+ * @returns {boolean} Whether the token is safe for an SSH target.
+ */
+function validSshToken(value) {
+  if (value.length === 0 || value.startsWith('-')) {
+    return false;
+  }
+  for (let index = 0; index < value.length; index += 1) {
+    if (
+      !'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._~-'.includes(
+        value.charAt(index)
+      )
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * @param {string} value Optional SSH username token.
+ * @returns {boolean} Whether the optional user is valid.
+ */
+function validOptionalSshUser(value) {
+  return value.length === 0 || validSshToken(value);
+}
+
+/**
+ * @param {string} value SSH port token.
+ * @returns {boolean} Whether the port is a valid TCP port.
+ */
+function validPort(value) {
+  if (!Number.isInteger(Number(value))) {
+    return false;
+  }
+  const port = Number(value);
+  return port > 0 && port <= 65_535;
+}
+
+/**
+ * @param {string} value Optional SSH port token.
+ * @returns {boolean} Whether the optional port is valid.
+ */
+function validOptionalPort(value) {
+  return value.length === 0 || validPort(value);
 }
 
 /**
@@ -207,7 +279,10 @@ function remoteTarCommand(remoteDir) {
  */
 function syncReadyMedia(options) {
   const localRoot = path.resolve(options.localRoot);
-  mkdirSync(localRoot, { recursive: true });
+  if (!localRoot.startsWith(`${process.cwd()}${path.sep}`)) {
+    throw new Error('--local-root must resolve inside this repo');
+  }
+  mkdirSync(localRoot, { recursive: true, mode: 0o755 });
   const command = [
     'ssh',
     shellQuote(options.sshTarget),
