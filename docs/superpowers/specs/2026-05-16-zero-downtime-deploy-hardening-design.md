@@ -4,30 +4,61 @@
 
 Production deploys happen after a PR merges to `main`. GitHub Actions builds one
 Docker image for the merged SHA, pushes `ghcr.io/mitsailing/mitsailing:sha-<short>`,
-syncs the production Compose files and deploy script to the Linux host, and runs
-`~/deploy.sh release <sha-short>`.
+syncs production deployment files, and runs a release command.
 
-The production stack is Docker Compose on one Linux host:
+The required target is enterprise zero downtime for production deploys. That
+includes active users uploading images, files, and videos. Upload continuity is
+not optional and cannot depend on a single app host staying alive.
 
-- `app` is a stable internal nginx proxy reached by Cloudflare Tunnel.
-- `web_blue` and `web_green` are the real Next.js standalone containers.
-- `worker` runs BullMQ processors from the same app image.
-- `postgres` and `redis` are durable host bind mounts under `/srv/mitsailing-data`.
-- CMS media files are durable host bind mounts under `/srv/mitsailing-data/cms-media`.
+The existing single-host Compose stack is useful as a stepping stone, but it is
+not the final architecture for this requirement because:
 
-The current target is not per-PR preview deployment. It is production-grade,
-zero-downtime release after merge, with operator runbooks for rollback and for
-turning cron-driven background work on later.
+- a single Linux host is still a single point of failure;
+- container-local uploads do not survive color switch or host failure;
+- a local bind mount works only while all active app containers run on the same
+  host;
+- long uploads can outlive a short deploy drain window.
+
+## Required target architecture
+
+Use two app hosts with external durable state:
+
+- `server-blue` and `server-green` each run the same app/worker image through
+  Docker Compose.
+- Cloudflare Load Balancing routes public traffic to the active app host and
+  uses health checks to fail over when the active host is unhealthy.
+- Postgres is external to the app hosts.
+- Redis is external to the app hosts and durable enough for BullMQ jobs,
+  retries, and schedulers.
+- Media uploads go to S3-compatible object storage, preferably Cloudflare R2.
+- App hosts are stateless with respect to uploaded media.
+
+Cloudflare R2 is the recommended storage target because it is S3-compatible,
+fits the existing Cloudflare deployment surface, and supports presigned URLs and
+multipart uploads for large objects. AWS S3 remains a compatible fallback if R2
+is unavailable.
+
+References:
+
+- Cloudflare R2 multipart and presigned upload docs:
+  `https://developers.cloudflare.com/r2/objects/multipart-objects/`
+- Cloudflare R2 S3 compatibility:
+  `https://developers.cloudflare.com/r2/get-started/s3/`
+- Cloudflare Load Balancing health/failover docs:
+  `https://developers.cloudflare.com/load-balancing/understand-basics/health-details/`
+- Next.js self-hosting requires `output: 'standalone'`, stable deployment IDs,
+  and shared cache handling when process-local cache is not enough.
 
 ## Goals
 
 - Preserve public web availability during production releases.
-- Preserve in-flight admin media uploads during production releases.
-- Keep `web_blue`, `web_green`, and `worker` on the requested immutable SHA.
-- Keep Redis and Postgres durable across deploys and accidental
-  `docker compose down -v`.
-- Keep the BullMQ worker single-instance until job processors are proven safe to
-  run concurrently.
+- Preserve in-flight image, file, and video uploads during production releases.
+- Preserve upload continuity across app-host failover.
+- Keep app and worker services on the requested immutable SHA.
+- Keep Redis and Postgres outside the app hosts.
+- Keep uploaded media outside app hosts in object storage.
+- Process uploaded media through BullMQ workers for validation, metadata,
+  thumbnails, and video transcoding.
 - Keep cron-backed legacy MySQL sync disabled by default, with an explicit
   operator path to enable it.
 - Keep migrations backward-compatible across overlapping old/new app versions.
@@ -36,128 +67,145 @@ turning cron-driven background work on later.
 
 ## Non-goals
 
-- Add Kubernetes, Nomad, Swarm, or another orchestrator.
-- Build per-PR preview infrastructure.
+- Add Kubernetes, Nomad, or Swarm in this change.
+- Keep durable production uploads on local host bind mounts.
 - Add automated database rollback.
 - Enable legacy MySQL sync by default.
 - Make every historical migration reversible.
-- Replace local CMS media storage with object storage in this change.
+- Implement every possible media derivative immediately. The first production
+  version needs durable upload, queue processing, ready/failed states, and a
+  clear extension point for thumbnails/transcoding.
 
 ## Recommended approach
 
-Keep the explicit blue/green Compose design and harden the deploy script and
-runbooks around it.
+Use a two-server active/passive blue/green deployment with stateless app hosts.
+The inactive host is updated first, health and readiness pass, Cloudflare traffic
+shifts to it, and the previous active host remains available for rollback until
+the release is accepted.
 
-The production release must start the inactive web color with the pinned
-image, wait for container health, verify the CMS media bind mount, run a
-protected readiness smoke against Postgres and Redis, write nginx upstream
-config for the new color, reload nginx, record release state, restart the
-single worker on the same image, then drain the old web color before stopping
-it.
+Uploads do not stream through the app host. The app issues short-lived upload
+instructions for object storage, the browser uploads directly to object storage,
+then the app records/finalizes the asset and enqueues a BullMQ processing job.
+Workers process media from object storage and mark assets `ready` or `failed`.
+The admin UI shows `processing`, `ready`, and `failed` states. Public pages serve
+only `ready` media.
 
-This is simpler and more auditable than Compose service scaling. The stable
-nginx `app` container gives Cloudflare Tunnel one internal target, while
-`web_blue`/`web_green` make image identity and rollback explicit.
+This removes deploy drain from the upload data path. A deploy or app host
+failover may interrupt a short metadata/finalize request, but it must not corrupt
+or lose the uploaded object. The client can retry finalize against whichever app
+host is active.
 
-## Production release flow
+## Upload pipeline
 
-1. `release <sha>` validates the command, takes a `flock`, and refuses
-   unsupported shell input.
-2. The script writes `.env.image` with:
-   - `APP_IMAGE=ghcr.io/mitsailing/mitsailing:<sha>`
-   - `DEPLOYMENT_VERSION=<sha>`
-3. The script pulls the image and prepares the CMS media mount for runtime
-   UID/GID `1001:1001`.
-4. The script starts Postgres and Redis, waits for health, and verifies their
-   bind mounts and write access.
-5. Prisma migrations run from the target app image before proxy cutover.
-6. The inactive web color starts with the target app image.
-7. The script waits for the inactive web color to become healthy and verifies
-   the CMS media bind mount and write access.
-8. The script calls the protected readiness endpoint inside the target web
-   container when `HEALTHCHECK_SECRET` is set. Readiness must prove required
-   Postgres and Redis checks pass.
-9. The script writes nginx config pointing to the target web color, validates
-   config with `nginx -t`, reloads nginx, and waits for `app` health.
-10. The script records active color, current ref, and previous ref in `.deploy/`.
-11. The script recreates the single `worker` with the same `.env.image`, waits
-    for the worker healthcheck, and verifies CMS media access.
-12. The script waits through an upload-safe drain window before stopping the old
-    web color.
+The upload pipeline has four durable stages:
 
-Rollback uses the same deploy-without-migrations path and does not reverse
-database migrations.
+1. **Create upload session**
+   - Admin UI sends filename, size, content type, and intended usage.
+   - App validates size/type policy and creates a DB row with status
+     `uploading`.
+   - App returns presigned object-storage upload instructions.
+   - Small files can use a presigned PUT URL.
+   - Large files and videos use multipart upload instructions.
 
-## Image pinning
+2. **Browser uploads to object storage**
+   - The browser sends bytes directly to R2/S3-compatible storage.
+   - App hosts do not proxy the bytes.
+   - Object keys are generated by the app and scoped by asset id, for example
+     `media/raw/<assetId>/<safe-filename>`.
 
-`.env.image` is deploy-owned state. It is rewritten by `bin/deploy.sh` on every
-`release`, `deploy`, `migrate`, and `rollback` path.
+3. **Finalize upload**
+   - Browser tells the app the upload completed.
+   - App verifies the object exists and matches expected size/content metadata
+     where the storage API supports it.
+   - App changes DB status to `queued` and enqueues a BullMQ job with a stable
+     job id based on the asset id.
 
-`.env.production` and `.env.production.example` must not define
-`APP_IMAGE=latest`. A stale `APP_IMAGE=latest` in the host env can cause manual
-Compose commands to recreate `worker` or a web color from the floating tag.
+4. **Worker processing**
+   - Worker downloads or streams the raw object from object storage.
+   - Worker validates MIME signature and policy.
+   - Worker extracts metadata.
+   - Worker creates required derivatives:
+     - images: normalized image metadata and optional thumbnail;
+     - files: metadata and safe download record;
+     - videos: queued processing contract and future transcoding hook.
+   - Worker writes derivatives back to object storage.
+   - Worker marks the asset `ready`.
+   - If processing fails after retries, worker marks the asset `failed` with a
+     safe error code.
 
-The deploy script and docs must make safe manual commands include `.env.image`
-whenever app or worker services are started, recreated, inspected, or logged.
+The request path is short and retryable. Heavy work happens in the worker.
 
-## Upload-safe cutover
+## Admin media surface
 
-Admin media upload availability has two separate requirements:
-
-- Durable storage: both web colors and the worker mount the same host path,
-  `/srv/mitsailing-data/cms-media`, at `/var/lib/mitsailing/cms-media`.
-- Connection draining: the old web color must not be stopped while it may still
-  be handling an upload accepted before nginx reload.
-
-The current production admin upload surface is the catalog/CMS media flow:
+The current production admin upload surface is:
 
 - `src/components/mit-sailing/admin/catalog/AdminRichTextEditor.tsx`
 - `src/components/mit-sailing/admin/catalog/AdminCmsMediaControls.tsx`
 - `src/app/api/admin/cms-media/route.ts`
 - `src/libs/mit-sailing/cmsMediaStorage.ts`
 
-Those controls currently accept JPEG, PNG, WebP, and GIF images. The route writes
-to the shared bind mount using a temporary file and `rename`, then records the DB
-asset. That storage pattern is compatible with blue/green as long as both web
-colors use the same mount and the old color is not stopped mid-request.
+Those controls currently accept JPEG, PNG, WebP, and GIF images and write to
+local CMS media storage. The target design replaces that storage path with the
+object-storage upload pipeline.
 
-If video upload is added to the admin CMS media flow, it must use the same
-shared-storage contract. The drain window and proxy timeouts must then be sized
-for the largest supported videos and the slowest expected upload clients, or the
-upload route must become resumable/direct-to-object-storage before the drain
-window is shortened.
+Video support must use the same pipeline. Do not add video upload by increasing
+local body size limits or proxying large request bodies through Next.js route
+handlers.
 
-`src/app/api/email-assets/route.ts` is not compatible with production-persistent
-uploads as currently shaped because it writes to container-local
-`public/email-assets`. Before relying on that route in production admin
-workflows, either gate it to local/dev email preview usage or move it to the same
-persistent media storage pattern.
+`src/app/api/email-assets/route.ts` currently writes to container-local
+`public/email-assets`. It is not production-persistent. Before relying on that
+route in production admin workflows, either gate it to local/dev email preview
+usage or migrate it to the object-storage pipeline.
 
-The deploy default drain window must be at least as long as the upload-facing
-proxy timeouts unless the deploy script learns to observe active upstream
-connections. With the current nginx settings, `client_body_timeout`,
-`send_timeout`, and `proxy_read_timeout` are 900 seconds, so the default
-`DEPLOY_DRAIN_SECONDS` must remain 900 seconds. A shorter default, such as
-120 seconds, is not upload-safe for slow or large uploads.
+## Deployment model
 
-If operators later reduce maximum upload size or timeout policy, they can lower
-the drain window in the same change. If upload volume becomes high enough that a
-15-minute old-color overlap is operationally painful, add an active drain check
-before shortening the default.
+The deploy flow changes from single-host color switching to host-level
+active/passive blue/green:
+
+1. Build and push immutable image `sha-<short>`.
+2. Deploy the image to the inactive app host.
+3. Run migrations from the target image against external Postgres.
+4. Start app and worker services on the inactive host.
+5. Run health/readiness checks:
+   - Next.js liveness;
+   - protected readiness;
+   - Postgres check;
+   - Redis check;
+   - object-storage connectivity check;
+   - worker Redis health.
+6. Shift Cloudflare Load Balancer traffic to the inactive host.
+7. Keep the previous host running for rollback.
+8. Restart or update worker placement according to the chosen worker policy.
+
+Worker policy for the first implementation:
+
+- Keep one active worker service to avoid duplicate processor surprises.
+- Run it on the active app host or a separate worker host.
+- Use stable BullMQ job ids and idempotent processors.
+- Before allowing multiple workers, prove every processor is safe under
+  concurrency.
+
+## Rollback
+
+Rollback shifts Cloudflare traffic back to the previous host/image after that
+host passes readiness. Rollback does not reverse database migrations or object
+storage writes.
+
+To make rollback safe:
+
+- migrations must be expand/contract;
+- media DB rows and job payloads must be backward-compatible across at least one
+  release;
+- object keys must remain stable;
+- old and new code must both tolerate `uploading`, `queued`, `processing`,
+  `ready`, and `failed` media states.
 
 ## Redis, worker, and cron
 
 Redis is production state because BullMQ jobs, retries, and schedulers live
-there. Production Redis must keep the explicit host bind mount at
-`/srv/mitsailing-data/redis -> /data`, use append-only persistence, and be
-excluded from Docker-managed volume deletion.
+there. It must be external to the app hosts for two-host deployment.
 
-The worker owns two background-job surfaces:
-
-- immediate/durable jobs, such as newsletter and pavilion reservation email work
-- scheduled jobs, such as legacy MySQL sync when enabled
-
-BullMQ does schedule cron jobs automatically after a scheduler is registered in
+BullMQ schedules cron jobs automatically after a scheduler is registered in
 Redis. It does not automatically notice that an operator changed
 `.env.production.worker`. The worker reads env on startup, then:
 
@@ -180,123 +228,82 @@ LEGACY_MYSQL_SYNC_CRON="0 0 * * * *"
 LEGACY_MYSQL_PASSWORD=<real readonly mysql password>
 ```
 
-Then recreate the worker with the pinned image:
-
-```bash
-docker compose -f compose.yaml -f compose.prod.yaml \
-  --profile release \
-  --env-file .env.production \
-  --env-file .env.image \
-  --env-file .env.production.worker \
-  up -d --force-recreate worker
-```
-
-Check health and logs:
-
-```bash
-docker compose -f compose.yaml -f compose.prod.yaml \
-  --profile release \
-  --env-file .env.production \
-  --env-file .env.image \
-  ps worker
-
-docker compose -f compose.yaml -f compose.prod.yaml \
-  --profile release \
-  --env-file .env.production \
-  --env-file .env.image \
-  logs -f --tail 100 worker
-```
+Then recreate the worker with the pinned image and production worker env. The
+exact command depends on whether workers run on the active app host or a separate
+worker host, but it must include the deploy-owned image env file.
 
 The cron string is six fields, seconds first. The default
 `0 0 * * * *` runs at the top of each hour.
 
 ## Postgres and migrations
 
-Production Postgres uses `/srv/mitsailing-data/postgres -> /var/lib/postgresql`
-and must not be replaced by Docker-managed named volumes.
+Production Postgres must be external to app hosts. It can be managed Postgres or
+a self-managed database host with its own backup/failover plan. Do not run the
+only production Postgres inside either app host if host-level resilience is a
+requirement.
 
-Deploy-time migrations run before web cutover. Because the old and new web colors
-overlap, migrations must follow expand/contract discipline:
+Deploy-time migrations run before traffic cutover. Because old and new app
+versions overlap, migrations must follow expand/contract discipline:
 
 - Add columns, tables, indexes, and enum values before new code depends on them.
-- Deploy code that works against both the previous and expanded schema when
-  possible.
+- Deploy code that works against both previous and expanded schemas.
 - Avoid same-release destructive drops, renames, and enum removals.
 - Contract only after a later release proves old code no longer reads the old
   shape.
 
-Readiness checks must be bounded so a slow or locked database does not hang a
-release indefinitely. The app-level readiness endpoint must run a small
-Postgres check with a server-side statement timeout and a Prisma transaction
-timeout.
-
 ## Next.js self-hosting requirements
 
-The app must keep `output: 'standalone'` and run `node server.js` in the
-production image.
+The app must keep `output: 'standalone'` and run `node server.js` in production.
 
 `DEPLOYMENT_VERSION` must be set from the pinned SHA and passed to Next.js
 `deploymentId` so clients can hard-navigate across version skew during
 multi-instance deploys.
 
 `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` must be set to one stable generated value
-for production before overlapping web containers are used. This prevents Server
-Actions encryption mismatch across old/new instances.
+for production before overlapping app hosts are used.
 
-The default Next.js cache is process-local. This stack can tolerate that for
-current low-risk ISR/use-cache behavior, but any future heavy shared cache
-requirement must add a custom cache handler backed by Redis or another durable
-store. Until then, app data that must be immediately consistent must keep
-using request-bound rendering, server actions with `revalidatePath`/`updateTag`,
-or database reads that do not depend on process-local cache coherence.
+The default Next.js cache is process-local. Any route whose correctness depends
+on cross-host cache coherence must avoid process-local cache assumptions or use a
+custom shared cache handler backed by Redis or another durable store.
 
-## File permissions and data ownership
+Health and upload route handlers must run on the Node.js runtime. Do not use
+Edge runtime for Prisma, Redis, or S3 SDK access.
 
-The bootstrap script remains the one-time authority for host directory creation:
+## File permissions and local storage
 
-- `/srv/mitsailing-data`
-- `/srv/mitsailing-data/postgres`
-- `/srv/mitsailing-data/redis`
-- `/srv/mitsailing-data/cms-media`
+The final two-host app design treats app hosts as stateless for uploaded media.
+Local `/srv/mitsailing-data/cms-media` may remain only as a migration source or
+temporary rollback aid until all production media has moved to object storage.
 
-Those paths must be mode `700` and owned by the deploy user/group on the host.
-The bootstrap and deploy scripts must prepare container-internal ownership with
-the relevant official image users:
-
-- Postgres data writable by `postgres`
-- Redis data writable by `redis`
-- CMS media writable by app runtime UID/GID `1001:1001`
-
-Each release must verify bind mounts and write access before cutover.
+Any remaining local state on app hosts must be rebuildable from GitHub,
+environment files, external Postgres, external Redis, and object storage.
 
 ## Error handling and recovery
 
-- If prerequisites or bind mounts are missing, fail before cutting over.
-- If migrations fail, keep the old web color serving traffic.
-- If the inactive web color fails health or readiness, keep the old web color
-  serving traffic and print logs.
-- If nginx config validation fails, keep the old config and fail the deploy.
-- If worker restart fails after web cutover, fail the deploy and leave web
-  serving on the new color; operator recovery is to fix worker env/secrets and
-  recreate worker with `.env.image`.
-- Rollback changes app/worker image only and must state that database migrations
-  are not reversed.
+- If object-storage upload session creation fails, no object upload begins.
+- If browser upload succeeds but finalize fails, client can retry finalize.
+- If finalize succeeds but worker processing fails, asset status becomes
+  `failed`; raw object remains available for retry.
+- If deploy readiness fails on the inactive host, traffic stays on the active
+  host.
+- If Cloudflare cutover fails, traffic stays on or returns to the active host.
+- If worker update fails, web traffic can remain healthy while operators repair
+  worker deployment; queued jobs remain in Redis.
+- Rollback changes serving version only and must not delete object-storage media
+  or reverse database migrations.
 
 ## Testing and verification
 
-Add static deploy-contract tests for:
+Add tests for:
 
-- `.env.production.example` does not define `APP_IMAGE=latest`.
-- Production docs tell operators not to recreate app or worker with only
-  `.env.production`.
-- Manual worker recreate commands include `.env.image` and `.env.production.worker`.
-- Deploy script keeps a 900-second default drain or implements active connection
-  draining.
-- Deploy script writes `.env.image`, starts the inactive color, runs readiness
-  before cutover, reloads nginx, restarts worker, and drains before stopping the
-  old color.
-- Compose production config keeps Postgres, Redis, and CMS media as explicit bind
-  mounts under `/srv/mitsailing-data`.
+- object-storage env validation;
+- upload session creation policy;
+- finalize idempotency;
+- BullMQ enqueue job id stability;
+- worker status transitions from `queued` to `processing` to `ready`/`failed`;
+- rejection of unsupported MIME signatures;
+- deploy/runbook contracts for two-host external storage requirements;
+- health readiness including object-storage connectivity.
 
 Run local verification after implementation:
 
@@ -305,14 +312,15 @@ Run local verification after implementation:
 - `npm run check:types`
 - `npm run check:deps`
 
-Production verification after merge:
+Production verification before declaring enterprise zero downtime:
 
-- Confirm `.env.image` contains the current `sha-<short>` tag.
-- Confirm `docker compose ... ps` shows healthy `app`, active web color,
-  `worker`, `postgres`, and `redis`.
-- Upload an admin CMS image during a low-risk deploy rehearsal and confirm the
-  request completes and the asset is readable after cutover.
-- If video uploads are enabled later, repeat the same rehearsal with a
-  near-maximum-size video before lowering upload timeouts or drain duration.
-- Confirm cron remains disabled unless `.env.production.worker` explicitly sets
+- Cloudflare health checks can route to either app host.
+- A deploy can shift traffic from one host to the other with no failed health
+  check.
+- An admin can start a large image/file/video upload during deploy and complete
+  it after traffic shifts.
+- The uploaded asset reaches `ready` or `failed` deterministically.
+- Killing one app host during upload does not lose the object; finalize is
+  retryable on the surviving host.
+- Cron remains disabled unless `.env.production.worker` explicitly sets
   `LEGACY_MYSQL_SYNC_ENABLED=true`.
