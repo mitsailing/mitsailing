@@ -36,6 +36,8 @@ readonly PRODUCTION_DATA_ROOT="${PRODUCTION_DATA_ROOT:-/srv/mitsailing-data}"
 readonly PRODUCTION_POSTGRES_DIR="${PRODUCTION_DATA_ROOT}/postgres"
 readonly PRODUCTION_REDIS_DIR="${PRODUCTION_DATA_ROOT}/redis"
 readonly PRODUCTION_CMS_MEDIA_DIR="${PRODUCTION_DATA_ROOT}/cms-media"
+readonly PRODUCTION_DATA_OWNER="${PRODUCTION_DATA_OWNER:-${SUDO_USER:-$USER}}"
+readonly PRODUCTION_DATA_GROUP="${PRODUCTION_DATA_GROUP:-$(id -gn "$PRODUCTION_DATA_OWNER")}"
 
 log() { printf '[deploy %s] %s\n' "$(date -u +'%FT%TZ')" "$*"; }
 fail() { log "ERROR: $*" >&2; exit 1; }
@@ -90,22 +92,20 @@ ensure_deploy_state() {
 
 ensure_production_data_dirs() {
   log "ensuring production bind-mount directories under ${PRODUCTION_DATA_ROOT}"
-  sudo install -d -m 0750 "$PRODUCTION_DATA_ROOT"
-  sudo install -d -m 0700 "$PRODUCTION_POSTGRES_DIR"
-  sudo install -d -m 0700 "$PRODUCTION_REDIS_DIR"
-  sudo install -d -m 0755 "$PRODUCTION_CMS_MEDIA_DIR"
-  ensure_cms_media_permissions
-}
-
-ensure_cms_media_permissions() {
-  sudo chown -R 1001:1001 "$PRODUCTION_CMS_MEDIA_DIR"
+  sudo install -d -o "$PRODUCTION_DATA_OWNER" -g "$PRODUCTION_DATA_GROUP" -m 0750 "$PRODUCTION_DATA_ROOT"
+  sudo install -d -o "$PRODUCTION_DATA_OWNER" -g "$PRODUCTION_DATA_GROUP" -m 0700 "$PRODUCTION_POSTGRES_DIR"
+  sudo install -d -o "$PRODUCTION_DATA_OWNER" -g "$PRODUCTION_DATA_GROUP" -m 0700 "$PRODUCTION_REDIS_DIR"
+  sudo install -d -o "$PRODUCTION_DATA_OWNER" -g "$PRODUCTION_DATA_GROUP" -m 0750 "$PRODUCTION_CMS_MEDIA_DIR"
 }
 
 verify_bind_mount() {
   local service="$1"
   local target="$2"
-  local mount_source
-  mount_source="$(compose exec -T "$service" findmnt -n --target "$target" --output SOURCE)"
+  local container mount_source
+  container="$(compose ps -q "$service")"
+  [[ -n "$container" ]] || fail "$service container did not start"
+  mount_source="$(docker inspect --format "{{range .Mounts}}{{if eq .Destination \"$target\"}}{{.Source}}{{end}}{{end}}" "$container")"
+  [[ -n "$mount_source" ]] || fail "$service mount for $target was not found"
   [[ "$mount_source" == "${PRODUCTION_DATA_ROOT}"/* ]] \
     || fail "$service mount for $target is $mount_source, expected ${PRODUCTION_DATA_ROOT}"
 }

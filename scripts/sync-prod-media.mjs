@@ -40,37 +40,33 @@ Options:
  * @returns {string} Validated SSH target.
  */
 function parseSshTarget(value) {
-  const [targetWithoutPort, port = ''] = value.split(':');
-  const [hostOrUser, host = ''] = targetWithoutPort.split('@');
+  const [hostOrUser, host = ''] = value.split('@');
   if (
     !validSshTargetParts({
       host,
       hostOrUser,
-      port,
-      targetWithoutPort,
       value,
     })
   ) {
     throw new Error(
-      '--ssh-target must be a host target such as host, user@host, or host:22'
+      '--ssh-target must be a host target such as host or user@host'
     );
   }
   return value;
 }
 
 /**
- * @param {{ host: string; hostOrUser: string; port: string; targetWithoutPort: string; value: string }} props SSH target parts.
+ * @param {{ host: string; hostOrUser: string; value: string }} props SSH target parts.
  * @returns {boolean} Whether the SSH target parts are valid.
  */
 function validSshTargetParts(props) {
   const hostValue = props.host || props.hostOrUser;
   const userValue = props.host ? props.hostOrUser : '';
   return (
-    props.value.split(':').length <= 2 &&
-    props.targetWithoutPort.split('@').length <= 2 &&
+    !props.value.includes(':') &&
+    props.value.split('@').length <= 2 &&
     validSshToken(hostValue) &&
-    validOptionalSshUser(userValue) &&
-    validOptionalPort(props.port)
+    validOptionalSshUser(userValue)
   );
 }
 
@@ -142,26 +138,6 @@ function isSshTokenPunctuation(code) {
  */
 function validOptionalSshUser(value) {
   return value.length === 0 || validSshToken(value);
-}
-
-/**
- * @param {string} value SSH port token.
- * @returns {boolean} Whether the port is a valid TCP port.
- */
-function validPort(value) {
-  if (!Number.isInteger(Number(value))) {
-    return false;
-  }
-  const port = Number(value);
-  return port > 0 && port <= 65_535;
-}
-
-/**
- * @param {string} value Optional SSH port token.
- * @returns {boolean} Whether the optional port is valid.
- */
-function validOptionalPort(value) {
-  return value.length === 0 || validPort(value);
 }
 
 /**

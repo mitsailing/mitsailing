@@ -25,8 +25,10 @@ describe('single host deploy script', () => {
   it('enforces production bind-mount directories and permissions', () => {
     expect(script).toContain('/srv/mitsailing-data');
     expect(script).toContain('ensure_production_data_dirs');
-    expect(script).toContain('ensure_cms_media_permissions');
+    expect(script).toContain('PRODUCTION_DATA_OWNER');
+    expect(script).toContain('-m 0750 "$PRODUCTION_CMS_MEDIA_DIR"');
     expect(script).toContain('verify_bind_mount');
+    expect(script).toContain('docker inspect --format');
   });
 
   it('starts ingress and media services without recreating media during app releases', () => {
