@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/nextjs';
 import type { CmsMediaTusUploadSession } from './cmsMediaTusUpload';
 import { uploadCmsMediaWithTus } from './cmsMediaTusUpload';
 
@@ -308,9 +309,20 @@ async function cancelCmsMediaUpload(assetId: string): Promise<void> {
     return;
   }
   // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
-  await fetch(path, {
-    method: 'DELETE',
-  });
+  try {
+    await fetch(path, {
+      method: 'DELETE',
+    });
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: { cmsMediaAction: 'cancelUpload' },
+      contexts: {
+        cmsMediaUpload: {
+          assetId,
+        },
+      },
+    });
+  }
 }
 
 export async function uploadCmsMediaFile(props: {
@@ -339,9 +351,15 @@ export async function uploadCmsMediaFile(props: {
   if (finalized) {
     return finalized;
   }
-  console.warn('CMS media upload finalize failed', {
-    sessionAssetId: session.asset.id,
-    uploadAssetId: upload.assetId,
+  Sentry.captureMessage('CMS media upload finalize failed', {
+    level: 'warning',
+    tags: { cmsMediaAction: 'finalizeUpload' },
+    contexts: {
+      cmsMediaUpload: {
+        sessionAssetId: session.asset.id,
+        uploadAssetId: upload.assetId,
+      },
+    },
   });
   return null;
 }

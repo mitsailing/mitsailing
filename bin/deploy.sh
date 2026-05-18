@@ -32,7 +32,7 @@ readonly CURRENT_REF_FILE="${DEPLOY_STATE_DIR}/current_ref"
 readonly PREVIOUS_REF_FILE="${DEPLOY_STATE_DIR}/previous_ref"
 readonly DEPLOY_LOCK_FILE="${DEPLOY_STATE_DIR}/deploy.lock"
 readonly DEPLOY_HEALTH_TIMEOUT_SECONDS="${DEPLOY_HEALTH_TIMEOUT_SECONDS:-120}"
-readonly DEPLOY_DRAIN_SECONDS="${DEPLOY_DRAIN_SECONDS:-900}"
+readonly DEPLOY_DRAIN_SECONDS="${DEPLOY_DRAIN_SECONDS:-120}"
 # A server admin must create this root-owned tree before deploy. The deploy
 # user may not be able to traverse it, so validate mounts through Docker only.
 readonly PRODUCTION_POSTGRES_DIR="/srv/mitsailing-data/postgres"
@@ -118,6 +118,8 @@ verify_started_app_cms_media_bind_mounts() {
         container="$(compose ps -q "$service")"
         [[ -n "$container" ]] || continue
         verify_bind_mount "$service" /var/lib/mitsailing/cms-media "$PRODUCTION_CMS_MEDIA_DIR"
+        ;;
+      *)
         ;;
     esac
   done < <(compose config --services)

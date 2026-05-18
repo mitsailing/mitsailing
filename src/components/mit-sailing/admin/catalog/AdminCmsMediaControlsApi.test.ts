@@ -1,6 +1,12 @@
+import * as Sentry from '@sentry/nextjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { uploadCmsMediaFile } from './AdminCmsMediaControlsApi';
 import { uploadCmsMediaWithTus } from './cmsMediaTusUpload';
+
+vi.mock('@sentry/nextjs', () => ({
+  captureException: vi.fn(),
+  captureMessage: vi.fn(),
+}));
 
 vi.mock(import('./cmsMediaTusUpload'), () => ({
   uploadCmsMediaWithTus: vi.fn(),
@@ -132,8 +138,121 @@ describe('uploadCmsMediaFile', () => {
       { method: 'DELETE' }
     );
     expect(fetchMock).not.toHaveBeenCalledWith(
-      '/api/admin/cms-media/uploads/session-asset/finalize',
-      { method: 'POST' }
+      expect.stringMatching(
+        /^\/api\/admin\/cms-media\/uploads\/[^/]+\/finalize$/u
+      ),
+      expect.objectContaining({ method: 'POST' })
+    );
+  });
+
+  it('preserves upload error when cancel fails', async () => {
+    const file = new File(['image-bytes'], 'hero.png', { type: 'image/png' });
+    const uploadError = new Error('Upload failed');
+    const cancelError = new Error('Cancel failed');
+    vi.mocked(uploadCmsMediaWithTus).mockRejectedValueOnce(uploadError);
+
+    const fetchMock = vi.fn<typeof fetch>(async (input, init) => {
+      const path = fetchInputPath(input);
+      if (path === '/api/admin/cms-media/uploads' && init?.method === 'POST') {
+        await Promise.resolve();
+        return Response.json({
+          asset: {
+            createdAt: '2026-05-17T12:00:00.000Z',
+            id: 'session-asset',
+            originalFilename: file.name,
+            publicPath: '/cms-media/session-asset.png',
+          },
+          upload: {
+            byteSize: file.size,
+            endpoint: '/uploads',
+            expiresAt: '2026-05-17T12:05:00.000Z',
+            headers: { Authorization: 'Bearer test-token' },
+            metadata: {
+              assetId: 'session-asset',
+              byteSize: String(file.size),
+              filename: file.name,
+              filetype: file.type,
+              token: 'test-token',
+            },
+            protocol: 'tus',
+          },
+        });
+      }
+      if (
+        path === '/api/admin/cms-media/uploads/session-asset' &&
+        init?.method === 'DELETE'
+      ) {
+        await Promise.resolve();
+        throw cancelError;
+      }
+      await Promise.resolve();
+      return Response.json({ asset: null });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(uploadCmsMediaFile({ file })).rejects.toThrow('Upload failed');
+
+    expect(Sentry.captureException).toHaveBeenCalledWith(
+      cancelError,
+      expect.objectContaining({
+        tags: { cmsMediaAction: 'cancelUpload' },
+      })
+    );
+  });
+
+  it('reports finalize failure', async () => {
+    const file = new File(['image-bytes'], 'hero.png', { type: 'image/png' });
+    vi.mocked(uploadCmsMediaWithTus).mockResolvedValue({
+      assetId: 'session-asset',
+    });
+
+    const fetchMock = vi.fn<typeof fetch>(async (input, init) => {
+      const path = fetchInputPath(input);
+      if (path === '/api/admin/cms-media/uploads' && init?.method === 'POST') {
+        await Promise.resolve();
+        return Response.json({
+          asset: {
+            createdAt: '2026-05-17T12:00:00.000Z',
+            id: 'session-asset',
+            originalFilename: file.name,
+            publicPath: '/cms-media/session-asset.png',
+          },
+          upload: {
+            byteSize: file.size,
+            endpoint: '/uploads',
+            expiresAt: '2026-05-17T12:05:00.000Z',
+            headers: { Authorization: 'Bearer test-token' },
+            metadata: {
+              assetId: 'session-asset',
+              byteSize: String(file.size),
+              filename: file.name,
+              filetype: file.type,
+              token: 'test-token',
+            },
+            protocol: 'tus',
+          },
+        });
+      }
+      if (
+        path === '/api/admin/cms-media/uploads/session-asset/finalize' &&
+        init?.method === 'POST'
+      ) {
+        await Promise.resolve();
+        return new Response(null, { status: 500 });
+      }
+      await Promise.resolve();
+      return Response.json({ asset: null });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(uploadCmsMediaFile({ file })).resolves.toBeNull();
+
+    expect(Sentry.captureMessage).toHaveBeenCalledWith(
+      'CMS media upload finalize failed',
+      expect.objectContaining({
+        level: 'warning',
+        tags: { cmsMediaAction: 'finalizeUpload' },
+      })
     );
   });
 });
