@@ -333,6 +333,7 @@ export async function uploadCmsMediaFile(props: {
   }
   if (upload.assetId !== session.asset.id) {
     await cancelCmsMediaUpload(session.asset.id);
+    return null;
   }
   const finalized = await finalizeCmsMediaUpload(upload.assetId);
   if (finalized) {

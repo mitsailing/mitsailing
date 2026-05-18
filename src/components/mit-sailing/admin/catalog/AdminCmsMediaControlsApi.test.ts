@@ -22,7 +22,7 @@ describe('uploadCmsMediaFile', () => {
     vi.unstubAllGlobals();
   });
 
-  it('cancels session asset before finalizing resumed asset mismatch', async () => {
+  it('cancels session asset without finalizing resumed asset mismatch', async () => {
     const file = new File(['image-bytes'], 'hero.png', { type: 'image/png' });
     vi.mocked(uploadCmsMediaWithTus).mockResolvedValue({
       assetId: 'resumed-asset',
@@ -76,15 +76,12 @@ describe('uploadCmsMediaFile', () => {
 
     const asset = await uploadCmsMediaFile({ file });
 
-    expect(asset).toMatchObject({
-      id: 'resumed-asset',
-      publicPath: '/cms-media/resumed-asset.png',
-    });
+    expect(asset).toBeNull();
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/admin/cms-media/uploads/session-asset',
       { method: 'DELETE' }
     );
-    expect(fetchMock).toHaveBeenCalledWith(
+    expect(fetchMock).not.toHaveBeenCalledWith(
       '/api/admin/cms-media/uploads/resumed-asset/finalize',
       { method: 'POST' }
     );

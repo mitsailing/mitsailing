@@ -694,7 +694,7 @@ describe('AdminRichTextEditor media controls', () => {
     );
   });
 
-  it('cancels a newly-created session after resuming an earlier tus upload', async () => {
+  it('cancels a newly-created session without finalizing an earlier tus upload', async () => {
     uploadCmsMediaWithTusMock.mockResolvedValue({ assetId: 'asset-resumed' });
     const fetchMock = mockCmsMediaUploadFetch({
       assetId: 'asset-new',
@@ -707,16 +707,13 @@ describe('AdminRichTextEditor media controls', () => {
       uploadCmsMediaFile({
         file: new File(['png'], 'race.png', { type: 'image/png' }),
       })
-    ).resolves.toMatchObject({
-      id: 'asset-resumed',
-      publicPath: '/cms-media/asset-resumed/race.png',
-    });
+    ).resolves.toBeNull();
 
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/admin/cms-media/uploads/asset-new',
       expect.objectContaining({ method: 'DELETE' })
     );
-    expect(fetchMock).toHaveBeenCalledWith(
+    expect(fetchMock).not.toHaveBeenCalledWith(
       '/api/admin/cms-media/uploads/asset-resumed/finalize',
       expect.objectContaining({ method: 'POST' })
     );
