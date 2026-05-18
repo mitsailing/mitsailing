@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/nextjs';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
@@ -16,6 +17,11 @@ import { AdminCmsHistoryPanelView } from '@/components/mit-sailing/admin/catalog
 import { uploadCmsMediaFile } from '@/components/mit-sailing/admin/catalog/AdminCmsMediaControls';
 import { AdminCmsRevisionCompareView } from '@/components/mit-sailing/admin/catalog/AdminCmsRevisionCompareView';
 import { catalogResourceDefinitions } from '@/libs/admin/catalog/catalogDefinitions';
+
+vi.mock('@sentry/nextjs', () => ({
+  captureException: vi.fn(),
+  captureMessage: vi.fn(),
+}));
 
 type TusUploadMockProps = {
   session: {
@@ -742,7 +748,6 @@ describe('AdminRichTextEditor media controls', () => {
 
   it('returns null when tus finalize fails for the session asset', async () => {
     uploadCmsMediaWithTusMock.mockResolvedValue({ assetId: 'asset-1' });
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
       await Promise.resolve();
       const url = requestInputUrl(input);
@@ -764,10 +769,19 @@ describe('AdminRichTextEditor media controls', () => {
         file: new File(['png'], 'race.png', { type: 'image/png' }),
       })
     ).resolves.toBeNull();
-    expect(warn).toHaveBeenCalledWith('CMS media upload finalize failed', {
-      sessionAssetId: 'asset-1',
-      uploadAssetId: 'asset-1',
-    });
+    expect(Sentry.captureMessage).toHaveBeenCalledWith(
+      'CMS media upload finalize failed',
+      expect.objectContaining({
+        contexts: {
+          cmsMediaUpload: {
+            sessionAssetId: 'asset-1',
+            uploadAssetId: 'asset-1',
+          },
+        },
+        level: 'warning',
+        tags: { cmsMediaAction: 'finalizeUpload' },
+      })
+    );
   });
 
   it('submits uploaded aligned cms image html', async () => {
