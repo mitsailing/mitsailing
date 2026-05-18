@@ -139,10 +139,10 @@ const NOW_ISO = '2026-01-15T12:00:00.000Z';
 
 export const STUB_USERS: StubUser[] = [
   {
-    id: 'user-ak',
-    name: 'Andrew Kelley',
-    email: 'ak@mit.edu',
-    initials: 'AK',
+    id: 'username',
+    name: 'Username',
+    email: 'username@example.com',
+    initials: 'U',
   },
   {
     id: 'user-tbarros',
@@ -254,7 +254,7 @@ export function getPublishedCatalogMonthBounds(publishedEvents: Event[]): {
 }
 
 /** Hard-coded stub viewer. In a real app this comes from the auth session. */
-export const CURRENT_USER_ID = 'user-ak';
+export const CURRENT_USER_ID = 'username';
 
 /* -------------------------------------------------------------------------- */
 /* Event categories — 11 MITNA categories in display order (1-indexed).       */
@@ -1037,7 +1037,7 @@ export const EVENT_ADMINS: EventAdmin[] = [
   {
     id: 'ea-spring-gm-2',
     event_id: 'evt-mitna-spring-meeting',
-    admin_user_id: 'user-ak',
+    admin_user_id: 'username',
   },
 ];
 
@@ -1158,9 +1158,9 @@ const RAW_EVENT_REGISTRATIONS: Omit<
 >[] = [
   /* Bluewater — approval required, mix of states */
   {
-    id: 'reg-bw-ak',
+    id: 'reg-bw-username',
     event_id: 'evt-bluewater-boston-provincetown',
-    user_id: 'user-ak',
+    user_id: 'username',
     status: 'pending',
     created_at: '2026-04-05T14:30:00.000Z',
   },

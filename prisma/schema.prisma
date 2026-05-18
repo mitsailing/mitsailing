@@ -870,6 +870,31 @@ model SiteAlert {
   @@map("site_alerts")
 }
 
+enum CmsMediaStatus {
+  uploading
+  queued
+  processing
+  ready
+  failed
+
+  @@map("cms_media_status")
+}
+
+enum CmsMediaKind {
+  image
+  file
+  video
+
+  @@map("cms_media_kind")
+}
+
+enum CmsMediaStorageProvider {
+  local
+  server_folder
+
+  @@map("cms_media_storage_provider")
+}
+
 enum CmsBlockKind {
   hero
   text_section
@@ -935,22 +960,35 @@ model CmsPageBlock {
 }
 
 model CmsMediaAsset {
-  id               String   @id @default(cuid())
-  pageId           String?  @map("page_id")
-  storedFilename   String   @map("stored_filename")
-  originalFilename String   @map("original_filename")
-  mimeType         String   @map("mime_type")
-  byteSize         Int      @map("byte_size")
-  publicPath       String   @unique @map("public_path")
-  uploadedByUserId String?  @map("uploaded_by_user_id")
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
+  id                  String                  @id @default(cuid())
+  pageId              String?                 @map("page_id")
+  storedFilename      String                  @map("stored_filename")
+  originalFilename    String                  @map("original_filename")
+  mimeType            String                  @map("mime_type")
+  byteSize            BigInt                  @map("byte_size")
+  publicPath          String                  @unique @map("public_path")
+  uploadedByUserId    String?                 @map("uploaded_by_user_id")
+  status              CmsMediaStatus          @default(ready)
+  mediaKind           CmsMediaKind            @default(image) @map("media_kind")
+  storageProvider     CmsMediaStorageProvider @default(local) @map("storage_provider")
+  rawUploadId         String?                 @map("raw_upload_id")
+  rawFilePath         String?                 @map("raw_file_path")
+  readyFilePath       String?                 @map("ready_file_path")
+  thumbnailFilePath   String?                 @map("thumbnail_file_path")
+  processingErrorCode String?                 @map("processing_error_code")
+  metadata            Json?
+  processedAt         DateTime?               @map("processed_at")
+  createdAt           DateTime                @default(now()) @map("created_at")
+  updatedAt           DateTime                @updatedAt @map("updated_at")
 
   page       CmsPage? @relation(fields: [pageId], references: [id], onDelete: SetNull)
   uploadedBy User?    @relation("CmsMediaUploadedBy", fields: [uploadedByUserId], references: [id], onDelete: SetNull)
 
   @@index([pageId, createdAt])
   @@index([uploadedByUserId])
+  @@index([status, createdAt])
+  @@index([storageProvider, status])
+  @@index([rawUploadId])
   @@map("cms_media_assets")
 }
 

@@ -47,6 +47,8 @@ describe('worker Docker contract', () => {
       'Worker-safe replacement'
     );
     expect(dockerfile).toContain('/app/worker.mjs ./worker.mjs');
+    expect(scripts).not.toHaveProperty('build:upload-service');
+    expect(dockerfile).not.toContain('upload-service.mjs');
     expect(dockerWorkflow).toContain('mitsailing-pr:ci node worker.mjs');
   });
 

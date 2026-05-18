@@ -17,7 +17,7 @@ At runtime, `src/libs/I18n.ts` loads messages through the site text loader:
 
 Admin saves clear the in-process cache and revalidate the app layout, so the
 next request sees the new text. GitHub CI deploys also clear the cache naturally
-because Docker recreates the app container.
+because Docker starts a new web color for each release.
 
 ## Deploys and new defaults
 

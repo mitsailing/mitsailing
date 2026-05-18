@@ -1130,6 +1130,9 @@
     "archive_intro": "Recent public MIT Sailing newsletter broadcasts.",
     "archive_empty": "No public broadcasts have been sent yet."
   },
+  "NewsletterEmail": {
+    "postal_address": "MIT Sailing Pavilion, 134 Memorial Drive, Cambridge, MA 02139"
+  },
   "AdminNewsletters": {
     "lists_meta_title": "Newsletter lists (admin)",
     "lists_new_meta_title": "New newsletter list (admin)",

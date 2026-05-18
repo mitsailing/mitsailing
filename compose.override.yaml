@@ -4,6 +4,7 @@
 #     services at 127.0.0.1:<POSTGRES_PUBLISH_PORT> / <MAILPIT_SMTP_PUBLISH_PORT> /
 #     <MAILPIT_HTTP_PUBLISH_PORT> (defaults in `.env.example`; Compose reads `.env`).
 #   - Mailpit for email capture (no auth — loopback-only).
+#   - tusd + media nginx for production-like CMS uploads/media on loopback.
 #
 # Notably does NOT start the Next.js app container. Local workflow runs
 # `npm run dev` on the host so HMR, source maps, and IDE integration all
@@ -47,6 +48,72 @@ services:
           '--tries=1',
           '--spider',
           'http://localhost:8025/readyz',
+        ]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  tusd:
+    image: tusproject/tusd:v2.9.2
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:${MEDIA_UPLOAD_PUBLISH_PORT:-1080}:1080'
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    command:
+      - -port=1080
+      - -upload-dir=/var/lib/mitsailing/cms-media/uploads
+      - -base-path=/cms-media/uploads/
+      - -disable-download
+      - -behind-proxy
+      - -max-size=${MEDIA_UPLOAD_MAX_BYTES:-104857600}
+      - -hooks-http=http://host.docker.internal:3000/api/internal/cms-media/tusd/hooks
+      - -hooks-http-forward-headers=x-mitsailing-upload-token
+      - -cors-allow-origin=${MEDIA_UPLOAD_CORS_ALLOW_ORIGIN:-http://localhost:3000}
+      - -cors-allow-headers=authorization,content-type,tus-resumable,upload-length,upload-metadata,upload-offset,x-mitsailing-upload-token
+      - -cors-expose-headers=location,tus-resumable,upload-offset,upload-length,upload-metadata,upload-expires
+    volumes:
+      - type: bind
+        source: ./local/cms-media
+        target: /var/lib/mitsailing/cms-media
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'wget',
+          '--quiet',
+          '--tries=1',
+          '-O',
+          '/dev/null',
+          'http://127.0.0.1:1080/metrics',
+        ]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  media:
+    image: nginx:1.29-alpine
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:${MEDIA_PUBLIC_PUBLISH_PORT:-8088}:8080'
+    volumes:
+      - type: bind
+        source: ./docker/nginx/media.conf
+        target: /etc/nginx/conf.d/default.conf
+        read_only: true
+      - type: bind
+        source: ./local/cms-media
+        target: /var/lib/mitsailing/cms-media
+        read_only: true
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'wget',
+          '--quiet',
+          '--tries=1',
+          '--spider',
+          'http://localhost:8080/cms-media/healthz',
         ]
       interval: 2s
       timeout: 5s

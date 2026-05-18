@@ -7,111 +7,25 @@ import type * as React from 'react';
 import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import type { CmsMediaAsset } from './AdminCmsMediaControlsApi';
+import {
+  currentPageId,
+  isAdminImagePath,
+  loadCmsMediaAssets,
+  parseImageListValue,
+  uploadCmsMediaFile,
+} from './AdminCmsMediaControlsApi';
 
-export type CmsMediaAsset = {
-  id: string;
-  originalFilename: string;
-  publicPath: string;
-  createdAt: string;
-};
-
-export function isCmsMediaPath(value: string | undefined): value is string {
-  return typeof value === 'string' && value.startsWith('/cms-media/');
-}
-
-function isAdminImagePath(value: string | undefined): value is string {
-  if (typeof value !== 'string') {
-    return false;
-  }
-  return /^\/(?!\/).+\.(?:gif|jpe?g|png|webp)$/iu.test(value.trim());
-}
-
-export function currentPageId(form: HTMLFormElement | null): string {
-  if (!form) {
-    return '';
-  }
-  const value = new FormData(form).get('pageId');
-  return typeof value === 'string' ? value : '';
-}
-
-export function stringField(value: unknown, field: string): string | undefined {
-  if (typeof value !== 'object' || value === null) {
-    return undefined;
-  }
-  const descriptor = Object.getOwnPropertyDescriptor(value, field);
-  return typeof descriptor?.value === 'string' ? descriptor.value : undefined;
-}
-
-export function cmsMediaAssetFromUnknown(value: unknown): CmsMediaAsset | null {
-  const id = stringField(value, 'id');
-  const originalFilename = stringField(value, 'originalFilename');
-  const publicPath = stringField(value, 'publicPath');
-  const createdAt = stringField(value, 'createdAt');
-  if (!id || !originalFilename || !publicPath || !createdAt) {
-    return null;
-  }
-  return { createdAt, id, originalFilename, publicPath };
-}
-
-export function cmsMediaAssetsFromUnknown(value: unknown): CmsMediaAsset[] {
-  if (typeof value !== 'object' || value === null) {
-    return [];
-  }
-  const descriptor = Object.getOwnPropertyDescriptor(value, 'assets');
-  if (!Array.isArray(descriptor?.value)) {
-    return [];
-  }
-  return descriptor.value.flatMap((item: unknown) => {
-    const asset = cmsMediaAssetFromUnknown(item);
-    return asset ? [asset] : [];
-  });
-}
-
-export async function loadCmsMediaAssets(
-  props: {
-    pageId?: string;
-  } = {}
-): Promise<CmsMediaAsset[] | null> {
-  const query = props.pageId
-    ? `?${new URLSearchParams({ pageId: props.pageId })}`
-    : '';
-  const response = await fetch(`/api/admin/cms-media${query}`);
-  if (!response.ok) {
-    return null;
-  }
-  const data: unknown = await response.json();
-  return cmsMediaAssetsFromUnknown(data);
-}
-
-export async function uploadCmsMediaFile(props: {
-  file: File;
-  pageId?: string;
-}): Promise<CmsMediaAsset | null> {
-  const formData = new FormData();
-  formData.set('file', props.file);
-  if (props.pageId) {
-    formData.set('pageId', props.pageId);
-  }
-  const response = await fetch('/api/admin/cms-media', {
-    body: formData,
-    method: 'POST',
-  });
-  if (!response.ok) {
-    return null;
-  }
-  const data: unknown = await response.json();
-  const publicPath =
-    stringField(data, 'publicPath') ?? stringField(data, 'url');
-  if (!isCmsMediaPath(publicPath)) {
-    return null;
-  }
-  return {
-    createdAt: stringField(data, 'createdAt') ?? new Date().toISOString(),
-    id: stringField(data, 'id') ?? publicPath,
-    originalFilename: stringField(data, 'originalFilename') ?? props.file.name,
-    publicPath,
-  };
-}
+export type { CmsMediaAsset } from './AdminCmsMediaControlsApi';
+export {
+  cmsMediaAssetFromUnknown,
+  cmsMediaAssetsFromUnknown,
+  currentPageId,
+  isCmsMediaPath,
+  loadCmsMediaAssets,
+  stringField,
+  uploadCmsMediaFile,
+} from './AdminCmsMediaControlsApi';
 
 function MediaAssetButton(props: {
   asset: CmsMediaAsset;
@@ -159,16 +73,6 @@ export function AdminCmsMediaPickerPanel(props: {
       )}
     </div>
   );
-}
-
-function parseImageListValue(value: string | string[]): string[] {
-  if (Array.isArray(value)) {
-    return value.filter(isAdminImagePath);
-  }
-  return value
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(isAdminImagePath);
 }
 
 function imagePreview(src: string, alt: string) {

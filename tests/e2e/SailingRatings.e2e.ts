@@ -8,7 +8,7 @@ const adminEmail =
 
 const pool = new Pool({ connectionString: e2ePgConnectionString() });
 
-const e2eUserAkId = 'user-ak';
+const usernameId = 'username';
 const e2eTechRatingId = 'rating-tech';
 
 test.afterAll(async () => {
@@ -34,7 +34,7 @@ async function grantTechRatingForProfileTest() {
      SET "issued_by_user_id" = EXCLUDED."issued_by_user_id",
          "issued_at" = EXCLUDED."issued_at",
          "updated_at" = NOW()`,
-    ['e2e-user-ak-tech-rating', e2eUserAkId, e2eTechRatingId, adminId]
+    ['e2e-username-tech-rating', usernameId, e2eTechRatingId, adminId]
   );
 }
 
@@ -42,7 +42,7 @@ async function revokeTechRatingForProfileTest() {
   await pool.query(
     `DELETE FROM "user_sailing_ratings"
      WHERE "user_id" = $1 AND "sailing_rating_id" = $2`,
-    [e2eUserAkId, e2eTechRatingId]
+    [usernameId, e2eTechRatingId]
   );
 }
 
@@ -63,7 +63,7 @@ async function waitForTechRatingRowPresent(present: boolean) {
               WHERE "user_id" = $1
                 AND "sailing_rating_id" = $2
            ) AS "exists"`,
-          [e2eUserAkId, e2eTechRatingId]
+          [usernameId, e2eTechRatingId]
         );
         return result.rows[0]?.exists ?? false;
       },
@@ -73,7 +73,7 @@ async function waitForTechRatingRowPresent(present: boolean) {
 }
 
 test.describe('Sailing ratings', () => {
-  // Override root `fullyParallel`: shared `user-ak` / `rating-tech` rows must not
+  // Override root `fullyParallel`: shared `username` / `rating-tech` rows must not
   // race with concurrent hooks/tests from this file on other workers.
   test.describe.configure({ mode: 'serial' });
 
@@ -157,13 +157,11 @@ test.describe('Sailing ratings', () => {
 
     await page
       .getByRole('row')
-      .filter({ hasText: 'ak@mit.edu' })
-      .getByRole('link', { name: 'Andrew Kelley' })
+      .filter({ hasText: 'username@example.com' })
+      .getByRole('link', { name: 'Username' })
       .click();
 
-    await expect(
-      page.getByRole('heading', { name: 'Andrew Kelley' })
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Username' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Ratings' })).toBeVisible();
 
     const techRow = page.getByRole('row').filter({ hasText: 'Tech Rating' });
@@ -188,7 +186,7 @@ test.describe('Sailing ratings', () => {
     page,
   }) => {
     await signInAsAdmin(page);
-    await page.goto('/admin/users/user-ak/edit');
+    await page.goto('/admin/users/username/edit');
 
     await expect(
       page.getByRole('heading', { name: 'Edit user' })
@@ -214,7 +212,7 @@ test.describe('Sailing ratings', () => {
       await page.goto('/admin/users');
       await page
         .getByRole('row')
-        .filter({ hasText: 'ak@mit.edu' })
+        .filter({ hasText: 'username@example.com' })
         .getByRole('button', { name: 'View as user' })
         .click();
       await expect.poll(() => new URL(page.url()).pathname).toBe('/');

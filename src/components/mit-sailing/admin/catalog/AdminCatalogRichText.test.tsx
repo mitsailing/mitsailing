@@ -1,9 +1,11 @@
+import * as Sentry from '@sentry/nextjs';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
   afterAll,
   afterEach,
   beforeAll,
+  beforeEach,
   describe,
   expect,
   it,
@@ -12,8 +14,35 @@ import {
 import { AdminCatalogForm } from '@/components/mit-sailing/admin/catalog/AdminCatalogForm';
 import { AdminCatalogHistoryPanelView } from '@/components/mit-sailing/admin/catalog/AdminCatalogHistoryPanelView';
 import { AdminCmsHistoryPanelView } from '@/components/mit-sailing/admin/catalog/AdminCmsHistoryPanelView';
+import { uploadCmsMediaFile } from '@/components/mit-sailing/admin/catalog/AdminCmsMediaControls';
 import { AdminCmsRevisionCompareView } from '@/components/mit-sailing/admin/catalog/AdminCmsRevisionCompareView';
 import { catalogResourceDefinitions } from '@/libs/admin/catalog/catalogDefinitions';
+
+vi.mock('@sentry/nextjs', () => ({
+  captureException: vi.fn(),
+  captureMessage: vi.fn(),
+}));
+
+type TusUploadMockProps = {
+  session: {
+    metadata: {
+      assetId: string;
+    };
+  };
+};
+
+const uploadCmsMediaWithTusMock = vi.hoisted(() =>
+  vi.fn(async (props: TusUploadMockProps) => {
+    await Promise.resolve();
+    return {
+      assetId: props.session.metadata.assetId,
+    };
+  })
+);
+
+vi.mock('@/components/mit-sailing/admin/catalog/cmsMediaTusUpload', () => ({
+  uploadCmsMediaWithTus: uploadCmsMediaWithTusMock,
+}));
 
 function emptyBoundingRect(): DOMRect {
   return new DOMRect(0, 0, 0, 0);
@@ -59,8 +88,20 @@ beforeAll(() => {
   });
 });
 
+beforeEach(() => {
+  uploadCmsMediaWithTusMock.mockImplementation(
+    async (props: TusUploadMockProps) => {
+      await Promise.resolve();
+      return {
+        assetId: props.session.metadata.assetId,
+      };
+    }
+  );
+});
+
 afterEach(() => {
   vi.restoreAllMocks();
+  uploadCmsMediaWithTusMock.mockReset();
 });
 
 afterAll(() => {
@@ -128,6 +169,53 @@ function renderCmsBlockForm(body = '<p>Existing body</p>') {
   );
 }
 
+function renderCmsBlockPictureForm(props: {
+  formAction: (formData: FormData) => Promise<void>;
+}) {
+  return render(
+    <AdminCatalogForm
+      definition={catalogResourceDefinitions.cms_page_blocks}
+      dynamicSelectOptions={{
+        pageId: [{ label: 'Home', value: 'page-1' }],
+      }}
+      formAction={props.formAction}
+      headingKey="edit_heading"
+      row={{
+        body: '<p>Existing body</p>',
+        displayOrder: 1,
+        id: 'block-1',
+        isVisible: true,
+        kind: 'hero',
+        pageId: 'page-1',
+        title: 'Hero',
+      }}
+    />
+  );
+}
+
+function renderFleetBoatForm() {
+  return render(
+    <AdminCatalogForm
+      definition={catalogResourceDefinitions.fleet}
+      dynamicSelectOptions={{
+        requiredClassId: [{ label: 'Intro', value: 'class-1' }],
+      }}
+      formAction={formAction}
+      headingKey="edit_heading"
+      row={{
+        capacity: 2,
+        description: '<p>Existing fleet body</p>',
+        id: 'boat-1',
+        imagePath: '/images/boats/tech.jpg',
+        name: 'Tech',
+        requiredClassId: 'class-1',
+        slug: 'tech',
+        type: 'dinghy',
+      }}
+    />
+  );
+}
+
 function hiddenBodyValue(container: HTMLElement): string {
   const input = container.querySelector('input[name="body"]');
   if (!(input instanceof HTMLInputElement)) {
@@ -147,6 +235,134 @@ function repeatedCmsImageAssetResponse(): Response {
       },
     ],
   });
+}
+
+type CmsMediaUploadFixture = {
+  assetId: string;
+  byteSize?: number;
+  filetype?: string;
+  originalFilename: string;
+  publicPath: string;
+};
+
+function cmsMediaAssetFixture(props: CmsMediaUploadFixture) {
+  return {
+    createdAt: '2026-05-17T12:00:00.000Z',
+    id: props.assetId,
+    originalFilename: props.originalFilename,
+    publicPath: props.publicPath,
+  };
+}
+
+function cmsMediaTusSessionResponse(props: CmsMediaUploadFixture): Response {
+  const byteSize = props.byteSize ?? 3;
+  const filetype = props.filetype ?? 'image/png';
+  return Response.json({
+    asset: cmsMediaAssetFixture(props),
+    upload: {
+      byteSize,
+      endpoint: 'https://mitsailing.com/cms-media/uploads/',
+      expiresAt: '2026-05-17T12:15:00.000Z',
+      headers: { 'x-mitsailing-upload-token': 'header-token' },
+      metadata: {
+        assetId: props.assetId,
+        byteSize: String(byteSize),
+        filename: props.originalFilename,
+        filetype,
+        token: 'metadata-token',
+      },
+      protocol: 'tus',
+      url: `https://mitsailing.com/cms-media/uploads/${props.assetId}`,
+    },
+  });
+}
+
+function finalizedCmsMediaAssetResponse(
+  props: CmsMediaUploadFixture
+): Response {
+  return Response.json({
+    asset: cmsMediaAssetFixture(props),
+  });
+}
+
+function requestInputUrl(input: Parameters<typeof fetch>[0]): string {
+  if (typeof input === 'string') {
+    return input;
+  }
+  if (input instanceof URL) {
+    return input.toString();
+  }
+  return input.url;
+}
+
+function requestInputMethod(
+  input: Parameters<typeof fetch>[0],
+  init: Parameters<typeof fetch>[1]
+): string | undefined {
+  if (init?.method) {
+    return init.method;
+  }
+  if (typeof input === 'string' || input instanceof URL) {
+    return undefined;
+  }
+  return input.method;
+}
+
+function cmsMediaUploadMockResponse(props: {
+  fixture: CmsMediaUploadFixture & { finalizeAssetId?: string };
+  input: Parameters<typeof fetch>[0];
+  init: Parameters<typeof fetch>[1];
+}): Response {
+  const url = requestInputUrl(props.input);
+  const method = requestInputMethod(props.input, props.init);
+  const assetPath = `/api/admin/cms-media/uploads/${encodeURIComponent(
+    props.fixture.assetId
+  )}`;
+  const finalizeAssetId =
+    props.fixture.finalizeAssetId ?? props.fixture.assetId;
+  const finalizePath = `/api/admin/cms-media/uploads/${encodeURIComponent(
+    finalizeAssetId
+  )}/finalize`;
+  if (url === '/api/admin/cms-media/uploads' && method === 'POST') {
+    return cmsMediaTusSessionResponse(props.fixture);
+  }
+  if (url === assetPath && method === 'DELETE') {
+    return Response.json({
+      asset: {
+        ...cmsMediaAssetFixture(props.fixture),
+        processingErrorCode: 'upload_cancelled',
+        status: 'failed',
+      },
+    });
+  }
+  if (url === finalizePath && method === 'POST') {
+    return finalizedCmsMediaAssetResponse({
+      ...props.fixture,
+      assetId: finalizeAssetId,
+    });
+  }
+  return new Response(null, { status: 500 });
+}
+
+function mockCmsMediaUploadFetch(
+  props: CmsMediaUploadFixture & { finalizeAssetId?: string }
+) {
+  return vi
+    .spyOn(globalThis, 'fetch')
+    .mockImplementation(async (input, init) => {
+      await Promise.resolve();
+      return cmsMediaUploadMockResponse({ fixture: props, init, input });
+    });
+}
+
+function fileInputAt(container: HTMLElement, index: number): HTMLInputElement {
+  const uploadInput = container
+    .querySelectorAll('input[type="file"]')
+    .item(index);
+  if (!(uploadInput instanceof HTMLInputElement)) {
+    throw new Error('Expected file upload input');
+  }
+  return uploadInput;
 }
 
 function textNodeContaining(root: HTMLElement, text: string): Text {
@@ -510,14 +726,129 @@ describe('AdminCatalogForm rich text fields', () => {
 });
 
 describe('AdminRichTextEditor media controls', () => {
-  it('submits uploaded aligned cms image html', async () => {
-    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      Response.json({
-        originalFilename: 'race.png',
-        publicPath: '/cms-media/asset-1/race.png',
-        url: '/cms-media/asset-1/race.png',
+  it('rejects 404 upload session responses without direct fallback', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async (input) => {
+        await Promise.resolve();
+        const url = requestInputUrl(input);
+        if (url === '/api/admin/cms-media/uploads') {
+          return new Response(null, { status: 404 });
+        }
+        if (url === '/api/admin/cms-media') {
+          return Response.json({
+            createdAt: '2026-05-17T12:00:00.000Z',
+            id: 'asset-direct',
+            originalFilename: 'race.png',
+            publicPath: '/cms-media/asset-direct/race.png',
+          });
+        }
+        return new Response(null, { status: 500 });
+      });
+
+    await expect(
+      uploadCmsMediaFile({
+        file: new File(['png'], 'race.png', { type: 'image/png' }),
+      })
+    ).rejects.toThrow('CMS media upload session failed');
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      '/api/admin/cms-media',
+      expect.anything()
+    );
+  });
+
+  it('cancels a newly-created session without finalizing an earlier tus upload', async () => {
+    uploadCmsMediaWithTusMock.mockResolvedValue({ assetId: 'asset-resumed' });
+    const fetchMock = mockCmsMediaUploadFetch({
+      assetId: 'asset-new',
+      finalizeAssetId: 'asset-resumed',
+      originalFilename: 'race.png',
+      publicPath: '/cms-media/asset-resumed/race.png',
+    });
+
+    await expect(
+      uploadCmsMediaFile({
+        file: new File(['png'], 'race.png', { type: 'image/png' }),
+      })
+    ).resolves.toBeNull();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/admin/cms-media/uploads/asset-new',
+      expect.objectContaining({ method: 'DELETE' })
+    );
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      '/api/admin/cms-media/uploads/asset-resumed/finalize',
+      expect.objectContaining({ method: 'POST' })
+    );
+  });
+
+  it('rejects unsafe tus asset ids before finalize fetches', async () => {
+    uploadCmsMediaWithTusMock.mockResolvedValue({
+      assetId: 'https://example.test/upload',
+    });
+    const fetchMock = mockCmsMediaUploadFetch({
+      assetId: 'asset-1',
+      originalFilename: 'race.png',
+      publicPath: '/cms-media/asset-1/race.png',
+    });
+
+    await expect(
+      uploadCmsMediaFile({
+        file: new File(['png'], 'race.png', { type: 'image/png' }),
+      })
+    ).resolves.toBeNull();
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      '/api/admin/cms-media/uploads/https%3A%2F%2Fexample.test%2Fupload/finalize',
+      expect.objectContaining({ method: 'POST' })
+    );
+  });
+
+  it('returns null when tus finalize fails for the session asset', async () => {
+    uploadCmsMediaWithTusMock.mockResolvedValue({ assetId: 'asset-1' });
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      await Promise.resolve();
+      const url = requestInputUrl(input);
+      if (url === '/api/admin/cms-media/uploads') {
+        return cmsMediaTusSessionResponse({
+          assetId: 'asset-1',
+          originalFilename: 'race.png',
+          publicPath: '/cms-media/asset-1/race.png',
+        });
+      }
+      if (url === '/api/admin/cms-media/uploads/asset-1/finalize') {
+        return new Response(null, { status: 503 });
+      }
+      return new Response(null, { status: 500 });
+    });
+
+    await expect(
+      uploadCmsMediaFile({
+        file: new File(['png'], 'race.png', { type: 'image/png' }),
+      })
+    ).resolves.toBeNull();
+    expect(Sentry.captureMessage).toHaveBeenCalledWith(
+      'CMS media upload finalize failed',
+      expect.objectContaining({
+        contexts: {
+          cmsMediaUpload: {
+            sessionAssetId: 'asset-1',
+            uploadAssetId: 'asset-1',
+          },
+        },
+        level: 'warning',
+        tags: { cmsMediaAction: 'finalizeUpload' },
       })
     );
+  });
+
+  it('submits uploaded aligned cms image html', async () => {
+    const uploadDeferred = Promise.withResolvers<{ assetId: string }>();
+    uploadCmsMediaWithTusMock.mockReturnValue(uploadDeferred.promise);
+    const fetchMock = mockCmsMediaUploadFetch({
+      assetId: 'asset-1',
+      originalFilename: 'race.png',
+      publicPath: '/cms-media/asset-1/race.png',
+    });
     const user = userEvent.setup();
     const view = render(
       <AdminCatalogForm
@@ -540,10 +871,24 @@ describe('AdminRichTextEditor media controls', () => {
     if (!(uploadInput instanceof HTMLInputElement)) {
       throw new Error('Expected file input');
     }
-    await user.upload(
-      uploadInput,
-      new File(['png'], 'race.png', { type: 'image/png' })
+    const file = new File(['png'], 'race.png', { type: 'image/png' });
+    await user.upload(uploadInput, file);
+    await waitFor(() => {
+      expect(uploadCmsMediaWithTusMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          file,
+          session: expect.objectContaining({
+            endpoint: 'https://mitsailing.com/cms-media/uploads/',
+            protocol: 'tus',
+          }),
+        })
+      );
+    });
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      '/api/admin/cms-media/uploads/asset-1/finalize',
+      expect.objectContaining({ method: 'POST' })
     );
+    uploadDeferred.resolve({ assetId: 'asset-1' });
     await user.click(screen.getByRole('button', { name: 'Align image right' }));
     await user.selectOptions(
       screen.getByRole('combobox', { name: 'Image size' }),
@@ -558,20 +903,26 @@ describe('AdminRichTextEditor media controls', () => {
       '/cms-media/asset-1/race.png'
     );
     expect(fetchMock).toHaveBeenCalledWith(
-      '/api/admin/cms-media',
+      '/api/admin/cms-media/uploads',
       expect.objectContaining({ method: 'POST' })
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/admin/cms-media/uploads/asset-1/finalize',
+      expect.objectContaining({ method: 'POST' })
+    );
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      'https://mitsailing.com/cms-media/uploads/asset-1',
+      expect.objectContaining({ method: 'PUT' })
     );
     fetchMock.mockRestore();
   });
 
   it('centers image alignment and resets image width', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      Response.json({
-        originalFilename: 'burgee.png',
-        publicPath: '/cms-media/asset-3/burgee.png',
-        url: '/cms-media/asset-3/burgee.png',
-      })
-    );
+    mockCmsMediaUploadFetch({
+      assetId: 'asset-3',
+      originalFilename: 'burgee.png',
+      publicPath: '/cms-media/asset-3/burgee.png',
+    });
     const user = userEvent.setup();
     const view = renderCmsBlockForm();
 
@@ -609,13 +960,11 @@ describe('AdminRichTextEditor media controls', () => {
   });
 
   it('ignores invalid image width selections', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      Response.json({
-        originalFilename: 'harbor.png',
-        publicPath: '/cms-media/asset-4/harbor.png',
-        url: '/cms-media/asset-4/harbor.png',
-      })
-    );
+    mockCmsMediaUploadFetch({
+      assetId: 'asset-4',
+      originalFilename: 'harbor.png',
+      publicPath: '/cms-media/asset-4/harbor.png',
+    });
     const user = userEvent.setup();
     const view = renderCmsBlockForm();
 
@@ -788,53 +1137,28 @@ describe('AdminRichTextEditor media controls', () => {
 
 describe('Admin catalog media fields', () => {
   it('requires alt text for cms block pictures', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      Response.json({
-        originalFilename: 'hero.png',
-        publicPath: '/cms-media/asset-5/hero.png',
-        url: '/cms-media/asset-5/hero.png',
-      })
-    );
+    mockCmsMediaUploadFetch({
+      assetId: 'asset-5',
+      originalFilename: 'hero.png',
+      publicPath: '/cms-media/asset-5/hero.png',
+    });
     const saveAction = vi.fn(async (_formData: FormData) => {
       await Promise.resolve();
     });
     const user = userEvent.setup();
-    const view = render(
-      <AdminCatalogForm
-        definition={catalogResourceDefinitions.cms_page_blocks}
-        dynamicSelectOptions={{
-          pageId: [{ label: 'Home', value: 'page-1' }],
-        }}
-        formAction={saveAction}
-        headingKey="edit_heading"
-        row={{
-          body: '<p>Existing body</p>',
-          displayOrder: 1,
-          id: 'block-1',
-          isVisible: true,
-          kind: 'hero',
-          pageId: 'page-1',
-          title: 'Hero',
-        }}
-      />
-    );
+    const view = renderCmsBlockPictureForm({ formAction: saveAction });
     await user.click(screen.getByRole('checkbox', { name: 'Add picture' }));
     const form = view.container.querySelector('form');
     const imageAltInput = screen.getByLabelText('Image alt text');
-    const uploadInputs = view.container.querySelectorAll('input[type="file"]');
-    const imageFieldUpload = uploadInputs.item(1);
     if (!(form instanceof HTMLFormElement)) {
       throw new Error('Expected form');
     }
     if (!(imageAltInput instanceof HTMLInputElement)) {
       throw new Error('Expected image alt input');
     }
-    if (!(imageFieldUpload instanceof HTMLInputElement)) {
-      throw new Error('Expected image field upload input');
-    }
 
     await user.upload(
-      imageFieldUpload,
+      fileInputAt(view.container, 1),
       new File(['png'], 'hero.png', { type: 'image/png' })
     );
 
@@ -1069,13 +1393,11 @@ describe('Admin catalog media fields', () => {
   });
 
   it('uploads a single cms image field', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      Response.json({
-        originalFilename: 'hero.png',
-        publicPath: '/cms-media/asset-5/hero.png',
-        url: '/cms-media/asset-5/hero.png',
-      })
-    );
+    mockCmsMediaUploadFetch({
+      assetId: 'asset-5',
+      originalFilename: 'hero.png',
+      publicPath: '/cms-media/asset-5/hero.png',
+    });
     const user = userEvent.setup();
     const view = renderCmsBlockForm();
     await user.click(screen.getByRole('checkbox', { name: 'Add picture' }));
@@ -1098,34 +1420,13 @@ describe('Admin catalog media fields', () => {
   });
 
   it('renders fleet boat sections and uploads one fleet image', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      Response.json({
-        originalFilename: 'fleet.png',
-        publicPath: '/cms-media/asset-6/fleet.png',
-        url: '/cms-media/asset-6/fleet.png',
-      })
-    );
+    mockCmsMediaUploadFetch({
+      assetId: 'asset-6',
+      originalFilename: 'fleet.png',
+      publicPath: '/cms-media/asset-6/fleet.png',
+    });
     const user = userEvent.setup();
-    const view = render(
-      <AdminCatalogForm
-        definition={catalogResourceDefinitions.fleet}
-        dynamicSelectOptions={{
-          requiredClassId: [{ label: 'Intro', value: 'class-1' }],
-        }}
-        formAction={formAction}
-        headingKey="edit_heading"
-        row={{
-          capacity: 2,
-          description: '<p>Existing fleet body</p>',
-          id: 'boat-1',
-          imagePath: '/images/boats/tech.jpg',
-          name: 'Tech',
-          requiredClassId: 'class-1',
-          slug: 'tech',
-          type: 'dinghy',
-        }}
-      />
-    );
+    const view = renderFleetBoatForm();
 
     expect(screen.getByRole('heading', { name: 'Boat basics' })).toBeVisible();
     expect(
@@ -1150,14 +1451,8 @@ describe('Admin catalog media fields', () => {
       '/images/boats/tech.jpg'
     );
 
-    const uploadInputs = view.container.querySelectorAll('input[type="file"]');
-    const fleetImageUpload = uploadInputs.item(0);
-    if (!(fleetImageUpload instanceof HTMLInputElement)) {
-      throw new Error('Expected fleet image upload input');
-    }
-
     await user.upload(
-      fleetImageUpload,
+      fileInputAt(view.container, 0),
       new File(['png'], 'fleet.png', { type: 'image/png' })
     );
 

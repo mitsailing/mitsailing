@@ -29,7 +29,7 @@ alwaysApply: false
 | --- | --- |
 | Critical, High, Medium | Low, Info |
 | Security / SRM items | Style-only or metric noise (coverage, duplication) |
-| Confirmed bugs in touched code | `.codacy.yaml` exclusions (e.g. `**/*.tsx`) |
+| Confirmed bugs in touched code | Generic framework analyzer noise covered by `.biome.json` |
 | | Generic analyzer noise when [AGENTS.md](../../AGENTS.md) / app rules say won’t fix |
 
 **Comments:** Parse severity from the Codacy bot body when present. **Low/Info** → `npx agent-reviews --reply <id> "Won't fix: low Codacy severity; …" --resolve` (cite app rule if applicable). **Medium+** → fix only when valid; same for security.
