@@ -308,8 +308,8 @@ async function cancelCmsMediaUpload(assetId: string): Promise<void> {
   if (!path) {
     return;
   }
-  // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
   try {
+    // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf -- path is a same-origin upload API route built from an allowlisted asset id.
     await fetch(path, {
       method: 'DELETE',
     });
