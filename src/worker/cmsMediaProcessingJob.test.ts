@@ -92,7 +92,7 @@ describe('cms media processing job', () => {
       Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3])
     );
     findUnique.mockResolvedValue({
-      byteSize: BigInt(Number.parseInt('11', 10)),
+      byteSize: BigInt(Number('11')),
       id: 'asset-1',
       mediaKind: 'image',
       mimeType: 'image/png',
@@ -129,7 +129,7 @@ describe('cms media processing job', () => {
     await writeFile(rawPath, Buffer.from([0]));
     findUnique.mockResolvedValue(
       processingAsset({
-        byteSize: BigInt(Number.parseInt('1024', 10)),
+        byteSize: BigInt(Number('1024')),
         rawPath,
         readyPath,
       })
@@ -158,7 +158,7 @@ describe('cms media processing job', () => {
     await writeFile(rawPath, Buffer.alloc(2048));
     findUnique.mockResolvedValue(
       processingAsset({
-        byteSize: BigInt(Number.parseInt('1024', 10)),
+        byteSize: BigInt(Number('1024')),
         rawPath,
         readyPath,
       })
@@ -204,7 +204,7 @@ describe('cms media processing job', () => {
     await writeFile(rawPath, Buffer.from([0]));
     findUnique.mockResolvedValue({
       ...processingAsset({
-        byteSize: BigInt(rawSize) + BigInt(Number.parseInt('1', 10)),
+        byteSize: BigInt(rawSize) + BigInt(Number('1')),
         rawPath,
         readyPath,
       }),

@@ -22,4 +22,4 @@ alwaysApply: false
 
 **Seed vs production:** `pavilionReservationCatalogSeed.ts` is bootstrap only. Negotiated Sailing Master fees (e.g. lab access) use `flat` + null prices per GitHub issue #69; do not suggest re-seeding as `$0` when copy says fees are arranged separately.
 
-**Codacy:** `.codacy.yaml` excludes `**/*.tsx` intentionally (Codacy TSX misclassification); TSX is still linted/tested elsewhere.
+**Codacy:** `.biome.json` keeps Codacy's Biome analyzer on the React domain and disables Qwik/Solid domains; do not restore a blanket TSX exclusion.

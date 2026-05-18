@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   findUnique: vi.fn(),
   getCurrentUser: vi.fn(),
   getDefaultQueue: vi.fn(() => ({ name: 'default' })),
+  loggerError: vi.fn(),
   update: vi.fn(),
   updateMany: vi.fn(),
 }));
@@ -27,6 +28,12 @@ vi.mock('@/libs/DB', () => ({
 vi.mock('@/libs/Env', () => ({
   Env: {
     MEDIA_UPLOAD_BASE_URL: 'https://mitsailing.com',
+  },
+}));
+
+vi.mock('@/libs/Logger', () => ({
+  logger: {
+    error: mocks.loggerError,
   },
 }));
 
@@ -86,6 +93,18 @@ function stubAdminUser(): void {
 }
 
 describe('cms media upload finalize route', () => {
+  it('rejects unauthenticated upload finalization', async () => {
+    mocks.getCurrentUser.mockResolvedValue(null);
+
+    const response = await POST(finalizeRequest(), routeProps());
+
+    await expect(response.json()).resolves.toEqual({ error: 'unauthorized' });
+    expect(response.status).toBe(401);
+    expect(mocks.findUnique).not.toHaveBeenCalled();
+    expect(mocks.updateMany).not.toHaveBeenCalled();
+    expect(mocks.enqueueCmsMediaProcessingJob).not.toHaveBeenCalled();
+  });
+
   it('queues processing when tusd reports a complete upload', async () => {
     const fetchMock = vi
       .fn<typeof fetch>()
@@ -221,6 +240,42 @@ describe('cms media upload finalize route', () => {
       },
       where: { id: 'asset-1', status: 'queued' },
     });
+  });
+
+  it('logs repair failures after enqueue fails', async () => {
+    const enqueueError = new Error('redis down');
+    const repairError = new Error('postgres down');
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(
+          headResponse({ 'Upload-Length': '1024', 'Upload-Offset': '1024' })
+        )
+    );
+    stubAdminUser();
+    mocks.findUnique
+      .mockResolvedValueOnce(asset())
+      .mockResolvedValueOnce(asset('queued'));
+    mocks.updateMany
+      .mockResolvedValueOnce({ count: 1 })
+      .mockRejectedValueOnce(repairError);
+    mocks.enqueueCmsMediaProcessingJob.mockRejectedValue(enqueueError);
+
+    const response = await POST(finalizeRequest(), routeProps());
+
+    await expect(response.json()).resolves.toEqual({
+      error: 'processing_queue_unavailable',
+    });
+    expect(response.status).toBe(503);
+    expect(mocks.loggerError).toHaveBeenCalledWith(
+      'Failed to repair CMS media asset queue state: {error}',
+      {
+        assetId: 'asset-1',
+        error: repairError,
+        processingErrorCode: null,
+      }
+    );
   });
 
   it('returns 409 when the tus offset is incomplete', async () => {

@@ -1,11 +1,6 @@
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-
-function readRepoFile(path: string): string {
-  return readFileSync(join(process.cwd(), path), 'utf8');
-}
+import { readRepoFile } from '@/libs/test/readRepoFile';
 
 function readYamlServiceBlock(source: string, service: string): string {
   const marker = `  ${service}:`;
@@ -19,7 +14,7 @@ function readYamlServiceBlock(source: string, service: string): string {
 }
 
 function composeVariable(value: string): string {
-  return `${String.fromCodePoint(36)}{${value}}`;
+  return `\${${value}}`;
 }
 
 describe('production docker compose', () => {

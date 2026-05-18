@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { DELETE } from './route';
+import { DELETE, GET } from './route';
 
 const mocks = vi.hoisted(() => ({
   findUnique: vi.fn(),
@@ -64,6 +64,27 @@ function stubAdminUser(): void {
 }
 
 describe('cms media upload route', () => {
+  it('rejects unauthenticated upload status reads', async () => {
+    mocks.getCurrentUser.mockResolvedValue(null);
+
+    const response = await GET(cancelRequest(), routeProps());
+
+    await expect(response.json()).resolves.toEqual({ error: 'unauthorized' });
+    expect(response.status).toBe(401);
+    expect(mocks.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('rejects unauthenticated upload cancellation', async () => {
+    mocks.getCurrentUser.mockResolvedValue(null);
+
+    const response = await DELETE(cancelRequest(), routeProps());
+
+    await expect(response.json()).resolves.toEqual({ error: 'unauthorized' });
+    expect(response.status).toBe(401);
+    expect(mocks.findUnique).not.toHaveBeenCalled();
+    expect(mocks.updateMany).not.toHaveBeenCalled();
+  });
+
   it('marks uploading assets as cancelled', async () => {
     stubAdminUser();
     mocks.findUnique

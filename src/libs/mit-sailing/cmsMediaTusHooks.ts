@@ -197,10 +197,10 @@ export async function handleCmsMediaTusHook(props: {
   if (!asset) {
     return rejectUpload(404, 'asset_not_found');
   }
-  if (
-    asset.storageProvider !== 'server_folder' ||
-    asset.status !== 'uploading'
-  ) {
+  if (asset.storageProvider !== 'server_folder') {
+    return rejectUpload(403, 'unsupported_storage_provider');
+  }
+  if (asset.status !== 'uploading') {
     return rejectUpload(403, 'asset_not_uploading');
   }
   if (

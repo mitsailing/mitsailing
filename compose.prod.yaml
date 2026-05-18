@@ -85,6 +85,9 @@ services:
         target: /etc/nginx/conf.d
         read_only: true
     healthcheck:
+      # deploy.sh smoke-checks the selected web_* upstream before starting or
+      # reloading this proxy, so this proxied liveness check should only run
+      # after nginx has a healthy target.
       test:
         [
           'CMD-SHELL',

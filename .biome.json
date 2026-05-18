@@ -1,0 +1,13 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.3.7/schema.json",
+  "javascript": {
+    "jsxRuntime": "transparent"
+  },
+  "linter": {
+    "domains": {
+      "react": "recommended",
+      "qwik": "none",
+      "solid": "none"
+    }
+  }
+}

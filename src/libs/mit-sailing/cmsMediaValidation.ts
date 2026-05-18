@@ -102,7 +102,7 @@ function bytesStartWith(bytes: Uint8Array, signature: readonly number[]) {
 
 export function cmsMediaByteSizeToNumber(byteSize: bigint): number {
   if (
-    byteSize < BigInt(Number.parseInt('0', 10)) ||
+    byteSize < BigInt(Number('0')) ||
     byteSize > BigInt(Number.MAX_SAFE_INTEGER)
   ) {
     throw new RangeError('CMS media byteSize must be a safe integer');

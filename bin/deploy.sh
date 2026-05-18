@@ -112,6 +112,8 @@ verify_production_bind_mounts() {
 }
 
 acquire_deploy_lock() {
+  # flock is attached to fd 9, so a stale lock file from a crashed deploy is harmless.
+  # Operators do not need to remove DEPLOY_LOCK_FILE unless a running process holds it.
   exec 9>"$DEPLOY_LOCK_FILE"
   flock -n 9 || fail "another deploy is already running"
 }
@@ -354,6 +356,10 @@ switch_to_ref() {
     log "draining web_${old_color} for ${DEPLOY_DRAIN_SECONDS}s before stop"
     sleep "$DEPLOY_DRAIN_SECONDS"
     compose stop "$(color_service "$old_color")" || true
+  elif [[ -z "$old_color" ]]; then
+    log "skipping drain: no previous color"
+  else
+    log "skipping drain: old_color == target_color"
   fi
 
   docker image prune --force --filter 'until=168h' >/dev/null || true

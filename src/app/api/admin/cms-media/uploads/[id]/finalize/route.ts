@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/libs/auth/dal';
 import { Role } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
 import { Env } from '@/libs/Env';
+import { logger } from '@/libs/Logger';
 import { getCmsMediaTusUploadStatus } from '@/libs/mit-sailing/cmsMediaTusStatus';
 import {
   cmsMediaUploadRouteAssetResponse,
@@ -54,13 +55,21 @@ async function queueAssetForProcessing(props: {
       assetId: props.id,
     });
   } catch (error) {
-    await prisma.cmsMediaAsset.updateMany({
-      data: {
+    try {
+      await prisma.cmsMediaAsset.updateMany({
+        data: {
+          processingErrorCode: props.processingErrorCode,
+          status: 'uploading',
+        },
+        where: { id: props.id, status: 'queued' },
+      });
+    } catch (repairError) {
+      logger.error('Failed to repair CMS media asset queue state: {error}', {
+        assetId: props.id,
+        error: repairError,
         processingErrorCode: props.processingErrorCode,
-        status: 'uploading',
-      },
-      where: { id: props.id, status: 'queued' },
-    });
+      });
+    }
     throw error;
   }
   return queuedAsset;

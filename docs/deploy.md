@@ -190,10 +190,14 @@ ssh "$PRODUCTION_SSH_TARGET" 'DEPLOY_DIR=apps/mitsailing apps/mitsailing/bin/dep
 2. starts Postgres/Redis and runs Prisma migrations;
 3. starts `tusd`, `media`, and `cloudflared` without recreating upload/media;
 4. starts the inactive `web_*` container;
-5. readiness-checks the new app;
+5. smoke-checks the new app's protected `/api/health/ready` endpoint with `HEALTHCHECK_SECRET`;
 6. rewrites/reloads `app` nginx to point at the new container;
 7. restarts `worker`;
 8. drains and stops the old `web_*` container.
+
+The smoke-check is an authenticated readiness request, not the Docker
+HEALTHCHECK. Set `HEALTHCHECK_SECRET` in production so the deploy script can
+verify the new container before re-pointing nginx.
 
 Rollback:
 
@@ -259,3 +263,6 @@ Back up these host paths:
 
 Use a tested filesystem backup/restore process before relying on production
 data. Do not back up or restore the WordPress stack as part of this app runbook.
+Use daily automated snapshots for these paths, retain 30 daily backups and 12
+monthly archives, and run a validated test restore at least quarterly. Target
+RTO is under 4 hours; target RPO is under 1 hour.

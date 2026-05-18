@@ -1,10 +1,5 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-
-function readRepoFile(path: string): string {
-  return readFileSync(join(process.cwd(), path), 'utf8');
-}
+import { readRepoFile } from '@/libs/test/readRepoFile';
 
 describe('checkly health ready config', () => {
   const checklyConfig = readRepoFile('checkly.config.ts');

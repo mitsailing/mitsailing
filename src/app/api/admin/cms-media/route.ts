@@ -79,6 +79,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
   if (Env.APP_ENV === 'production' || Env.APP_ENV === 'staging') {
+    logger.warn(
+      'Blocked direct CMS media upload outside local app environment',
+      {
+        appEnv: Env.APP_ENV,
+        userId,
+      }
+    );
     return NextResponse.json(
       { error: 'direct_upload_disabled' },
       { status: 403 }

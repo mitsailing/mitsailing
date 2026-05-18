@@ -9,14 +9,14 @@ type TestAsset = {
   byteSize: bigint;
   id: string;
   mimeType: string;
-  status: 'uploading';
-  storageProvider: 'server_folder';
+  status: 'failed' | 'processing' | 'queued' | 'ready' | 'uploading';
+  storageProvider: 'local' | 'server_folder';
   storedFilename: string;
 };
 
 function asset(overrides: Partial<TestAsset> = {}): TestAsset {
   return {
-    byteSize: BigInt(Number.parseInt('1024', 10)),
+    byteSize: BigInt(Number('1024')),
     id: 'asset-1',
     mimeType: 'image/png',
     status: 'uploading',
@@ -179,6 +179,24 @@ describe('cms media tus hooks', () => {
     expect(result.status).toBe(404);
     expect(result.body).toMatchObject({
       HTTPResponse: { StatusCode: 404 },
+      RejectUpload: true,
+    });
+  });
+
+  it('rejects unsupported storage providers with 403', async () => {
+    const result = await handleHook({
+      body: preCreateHook(metadata()),
+      findAsset: vi
+        .fn<(assetId: string) => Promise<TestAsset | null>>()
+        .mockResolvedValue(asset({ storageProvider: 'local' })),
+    });
+
+    expect(result.status).toBe(403);
+    expect(result.body).toMatchObject({
+      HTTPResponse: {
+        Body: JSON.stringify({ error: 'unsupported_storage_provider' }),
+        StatusCode: 403,
+      },
       RejectUpload: true,
     });
   });

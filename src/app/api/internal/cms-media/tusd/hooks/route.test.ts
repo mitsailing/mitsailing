@@ -58,7 +58,41 @@ function preCreateHook() {
   };
 }
 
+function preCreateHookWithoutToken() {
+  return {
+    Event: {
+      Upload: {
+        MetaData: {
+          assetId: 'asset-1',
+          byteSize: '1024',
+          filename: 'race-day.png',
+          filetype: 'image/png',
+        },
+        Size: 1024,
+      },
+    },
+    Type: 'pre-create',
+  };
+}
+
 describe('cms media tusd hook route', () => {
+  it('rejects pre-create uploads without an app-minted token', async () => {
+    const response = await POST(hookRequest(preCreateHookWithoutToken()));
+
+    await expect(response.json()).resolves.toEqual({
+      HTTPResponse: {
+        Body: JSON.stringify({ error: 'missing_token' }),
+        Header: {
+          'Content-Type': 'application/json',
+        },
+        StatusCode: 401,
+      },
+      RejectUpload: true,
+    });
+    expect(response.status).toBe(401);
+    expect(mocks.findUnique).not.toHaveBeenCalled();
+  });
+
   it('returns the tusd pre-create file info change', async () => {
     mocks.findUnique.mockResolvedValue({
       byteSize: BigInt(Number.parseInt('1024', 10)),

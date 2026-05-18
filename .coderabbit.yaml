@@ -122,10 +122,15 @@ reviews:
         renaming columns to dollars.
     - path: '.codacy.yaml'
       instructions: >-
-        `exclude_paths: '**/*.tsx'` is intentional: Codacy's TS engine misclassifies
-        React TSX in this repo. App-owned TSX remains covered by ESLint, oxlint,
-        Vitest, Playwright, and CodeRabbit. Do not request removing the TSX
-        exclusion unless Codacy adds reliable React/TSX analysis for this stack.
+        Do not restore a blanket `**/*.tsx` exclusion. Codacy analyzes React TSX
+        through Biome with React enabled and Qwik/Solid disabled in `.biome.json`.
+        If Codacy flags framework-specific TSX noise, adjust that tool config
+        instead of hiding app-owned TSX from analysis.
+    - path: '.biome.json'
+      instructions: >-
+        This file is for Codacy's Biome analyzer. Keep `linter.domains.react`
+        enabled and `qwik` / `solid` disabled so React TSX is not reviewed as
+        another JSX framework.
     - path: 'src/app/[[]locale[]]/**'
       instructions: >-
         Single-locale English site (`AppConfig.i18n.locales` is only `en`).

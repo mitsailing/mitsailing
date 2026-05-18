@@ -54,15 +54,6 @@ describe('GET /api/health/ready', () => {
     expect(getReadinessHealthMock).not.toHaveBeenCalled();
   });
 
-  it('rejects missing bearer auth for head', async () => {
-    const { HEAD } = await importRoute();
-    const response = await HEAD(readyRequest());
-
-    expect(response.status).toBe(401);
-    expect(await response.text()).toBe('');
-    expect(getReadinessHealthMock).not.toHaveBeenCalled();
-  });
-
   it('returns ok readiness status', async () => {
     const { GET } = await importRoute();
     const response = await GET(
@@ -119,8 +110,19 @@ describe('GET /api/health/ready', () => {
     const body = await response.json();
     expect(body.status).toBe('fail');
   });
+});
 
-  it('runs readiness check for head', async () => {
+describe('HEAD /api/health/ready', () => {
+  it('rejects missing bearer auth', async () => {
+    const { HEAD } = await importRoute();
+    const response = await HEAD(readyRequest());
+
+    expect(response.status).toBe(401);
+    expect(await response.text()).toBe('');
+    expect(getReadinessHealthMock).not.toHaveBeenCalled();
+  });
+
+  it('runs readiness check', async () => {
     const { HEAD } = await importRoute();
     const response = await HEAD(
       readyRequest('ready-secret-that-is-long-enough-000')
