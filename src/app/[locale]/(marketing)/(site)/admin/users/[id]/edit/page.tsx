@@ -5,6 +5,8 @@ import { AdminCatalogForm } from '@/components/mit-sailing/admin/catalog/AdminCa
 import { updateAdminUserAction } from '@/libs/admin/users/adminUserActions';
 import { usersAdminEditDefinition } from '@/libs/admin/users/userAdminDefinitions';
 import { usersAdminHandlers } from '@/libs/admin/users/usersAdminHandlers';
+import { requirePermission } from '@/libs/auth/dal';
+import { Permission } from '@/libs/auth/permissions';
 
 type PageProps = {
   params: Promise<{ locale: string; id: string }>;
@@ -27,6 +29,7 @@ export default async function AdminUsersEditPage(props: PageProps) {
   const { locale, id } = await props.params;
   const { error: errorCode } = await props.searchParams;
   setRequestLocale(locale);
+  await requirePermission(Permission.USERS_EDIT, locale);
 
   const row = await usersAdminHandlers.getById(id);
   if (!row) {

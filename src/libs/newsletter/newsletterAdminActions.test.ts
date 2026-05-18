@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Prisma } from '@/generated/prisma/client';
+import { Permission } from '@/libs/auth/permissions';
 
 vi.mock('server-only', () => ({}));
 
@@ -9,7 +10,7 @@ const {
   listCreate,
   listFindFirst,
   redirect,
-  requireAdmin,
+  requirePermission,
   revalidatePath,
   templateCreate,
   templateFindUnique,
@@ -23,7 +24,7 @@ const {
   redirect: vi.fn((href: string) => {
     throw new Error(`NEXT_REDIRECT:${href}`);
   }),
-  requireAdmin: vi.fn(),
+  requirePermission: vi.fn(),
   revalidatePath: vi.fn(),
   templateCreate: vi.fn(),
   templateFindUnique: vi.fn(),
@@ -38,7 +39,7 @@ vi.mock('next/navigation', () => ({
 }));
 
 vi.mock('@/libs/auth/dal', () => ({
-  requireAdmin,
+  requirePermission,
 }));
 
 vi.mock('@/libs/Env', () => ({
@@ -99,7 +100,7 @@ beforeEach(() => {
   listCreate.mockReset();
   listFindFirst.mockReset();
   redirect.mockClear();
-  requireAdmin.mockReset();
+  requirePermission.mockReset();
   revalidatePath.mockClear();
   templateCreate.mockReset();
   templateFindUnique.mockReset();
@@ -111,7 +112,7 @@ beforeEach(() => {
     queued: true,
   });
   env.REDIS_URL = 'redis://localhost:6379';
-  requireAdmin.mockResolvedValue({ user: { id: 'admin-1' } });
+  requirePermission.mockResolvedValue({ user: { id: 'admin-1' } });
   templateFindUnique.mockResolvedValue(null);
 });
 
@@ -126,6 +127,10 @@ describe('createNewsletterListAction', () => {
     ).rejects.toThrow(
       'NEXT_REDIRECT:/admin/newsletter-lists/new?status=duplicate_list'
     );
+    expect(requirePermission).toHaveBeenCalledWith(
+      Permission.NEWSLETTER_MANAGE,
+      'en'
+    );
   });
 });
 
@@ -139,6 +144,10 @@ describe('createNewsletterTemplateAction', () => {
       createNewsletterTemplateAction('en', templateFormData())
     ).rejects.toThrow(
       'NEXT_REDIRECT:/admin/newsletter-templates/new?status=duplicate_template'
+    );
+    expect(requirePermission).toHaveBeenCalledWith(
+      Permission.NEWSLETTER_MANAGE,
+      'en'
     );
   });
 });
@@ -158,6 +167,10 @@ describe('createNewsletterBroadcastAction', () => {
       'NEXT_REDIRECT:/admin/newsletter-broadcasts/new?status=enqueue_failed'
     );
 
+    expect(requirePermission).toHaveBeenCalledWith(
+      Permission.NEWSLETTER_MANAGE,
+      'en'
+    );
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 });

@@ -13,6 +13,7 @@ import {
 } from '@/libs/admin/catalog/catalogDefinitions';
 import type { CatalogResourceId } from '@/libs/admin/catalog/catalogDefinitions';
 import { catalogFieldErrorsFromSearchParam } from '@/libs/admin/catalog/catalogFieldErrors';
+import { catalogPermissionForOperation } from '@/libs/admin/catalog/catalogPermissions';
 import { getCatalogServerHandlers } from '@/libs/admin/catalog/catalogServerRegistry';
 import {
   cmsMenuParentSelectOptions,
@@ -25,6 +26,7 @@ import { fleetRequiredClassSelectOptions } from '@/libs/admin/catalog/fleetCatal
 import { sailingClassCategorySelectOptions } from '@/libs/admin/catalog/sailingClassesHandlers';
 import { sailingRatingSelectOptions } from '@/libs/admin/catalog/sailingRatingsHandlers';
 import type { CatalogRow } from '@/libs/admin/catalog/types';
+import { requirePermission } from '@/libs/auth/dal';
 import { isCatalogHistoryResourceId } from '@/libs/mit-sailing/catalogHistory';
 import { isAppRelativeCmsHref, safeCmsHref } from '@/libs/mit-sailing/cmsHref';
 
@@ -142,6 +144,13 @@ export default async function AdminCatalogResourceEditPage(props: PageProps) {
   if (!def || !isCatalogResourceId(resource) || !def.capabilities.update) {
     notFound();
   }
+  await requirePermission(
+    catalogPermissionForOperation({
+      operation: 'update',
+      resourceId: resource,
+    }),
+    locale
+  );
 
   const handlers = getCatalogServerHandlers(resource);
   const row = await handlers.getById(id);

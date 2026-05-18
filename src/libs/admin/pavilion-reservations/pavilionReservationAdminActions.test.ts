@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { updatePavilionReservationAdminAction } from '@/libs/admin/pavilion-reservations/pavilionReservationAdminActions';
+import { Permission } from '@/libs/auth/permissions';
 
-const { after, prisma, requireAdmin } = vi.hoisted(() => {
+const { after, prisma, requirePermission } = vi.hoisted(() => {
   const afterFn = vi.fn(async (scheduledWork: () => Promise<void> | void) => {
     await scheduledWork();
   });
@@ -72,14 +73,14 @@ const { after, prisma, requireAdmin } = vi.hoisted(() => {
       },
       __tx: transactionClient,
     },
-    requireAdmin: vi.fn(() => ({ user: { id: 'user-1' } })),
+    requirePermission: vi.fn(() => ({ user: { id: 'user-1' } })),
   };
 });
 
 vi.mock('server-only', () => ({}));
 
 vi.mock('@/libs/auth/dal', () => ({
-  requireAdmin,
+  requirePermission,
 }));
 
 vi.mock('@/libs/DB', () => ({
@@ -111,6 +112,18 @@ function withRequiredAdminContactFields(formData: FormData) {
 describe('updatePavilionReservationAdminAction', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('requires pavilion reservation management permission', async () => {
+    await expect(
+      updatePavilionReservationAdminAction('en', 'req-1', new FormData())
+    ).rejects.toThrow(
+      'Missing required fields: workflowStatus, paymentStatus, persona'
+    );
+    expect(requirePermission).toHaveBeenCalledWith(
+      Permission.PAVILION_RESERVATIONS_MANAGE,
+      'en'
+    );
   });
 
   it('throws with missing required field names when workflow fields are absent', async () => {

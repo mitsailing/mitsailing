@@ -3,9 +3,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PublicAdminEditLink } from '@/components/mit-sailing/admin/PublicAdminEditLink';
 
 const getSessionMock = vi.hoisted(() => vi.fn());
+const listRolePermissionGrantsMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/libs/auth/dal', () => ({
   getSession: getSessionMock,
+}));
+
+vi.mock('@/libs/auth/rolePermissionGrants', () => ({
+  listRolePermissionGrants: listRolePermissionGrantsMock,
 }));
 
 vi.mock('next-intl/server', () => ({
@@ -17,6 +22,7 @@ vi.mock('next-intl/server', () => ({
 
 afterEach(() => {
   getSessionMock.mockReset();
+  listRolePermissionGrantsMock.mockReset();
 });
 
 describe('PublicAdminEditLink', () => {
@@ -25,6 +31,7 @@ describe('PublicAdminEditLink', () => {
       session: {},
       user: { id: 'admin-1', role: 'admin' },
     });
+    listRolePermissionGrantsMock.mockResolvedValue([]);
 
     render(
       await PublicAdminEditLink({
@@ -42,6 +49,7 @@ describe('PublicAdminEditLink', () => {
       session: {},
       user: { id: 'user-1', role: 'user' },
     });
+    listRolePermissionGrantsMock.mockResolvedValue([]);
 
     const view = render(
       await PublicAdminEditLink({
@@ -57,6 +65,7 @@ describe('PublicAdminEditLink', () => {
       session: { impersonatedBy: 'admin-1' },
       user: { id: 'user-1', role: 'admin' },
     });
+    listRolePermissionGrantsMock.mockResolvedValue([]);
 
     const view = render(
       await PublicAdminEditLink({
@@ -65,5 +74,25 @@ describe('PublicAdminEditLink', () => {
     );
 
     expect(view.container).toBeEmptyDOMElement();
+  });
+
+  it('renders an edit link for staff with cms edit permission', async () => {
+    getSessionMock.mockResolvedValue({
+      session: {},
+      user: { id: 'staff-1', role: 'volunteer_instructor' },
+    });
+    listRolePermissionGrantsMock.mockResolvedValue([
+      { roleKey: 'volunteer_instructor', permissionKey: 'cms.edit' },
+    ]);
+
+    render(
+      await PublicAdminEditLink({
+        href: '/admin/cms_pages/page-1/edit',
+      })
+    );
+
+    expect(
+      screen.getByRole('link', { name: /edit this page/i })
+    ).toHaveAttribute('href', '/admin/cms_pages/page-1/edit');
   });
 });

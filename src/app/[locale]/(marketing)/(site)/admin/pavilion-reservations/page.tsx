@@ -41,6 +41,8 @@ import {
   adminPavilionReservationWeekKeys,
   adminPavilionReservationWeekStart,
 } from '@/libs/admin/pavilion-reservations/pavilionReservationAdminSchedule';
+import { requirePermission } from '@/libs/auth/dal';
+import { Permission } from '@/libs/auth/permissions';
 import { getPathname, Link } from '@/libs/I18nNavigation';
 import { formatEasternShortDateFromIsoCalendar } from '@/libs/mit-sailing/easternTimeFormat';
 import { formatPavilionReservationMoney } from '@/libs/mit-sailing/pavilionReservationPricing';
@@ -131,6 +133,7 @@ export default async function AdminPavilionReservationsPage(
 ) {
   const { locale } = await props.params;
   setRequestLocale(locale);
+  await requirePermission(Permission.PAVILION_RESERVATIONS_MANAGE, locale);
   const searchParams = await props.searchParams;
   const status = parseAdminPavilionReservationStatus(searchParams.status);
   const paymentStatus = parseAdminPavilionReservationPaymentStatus(

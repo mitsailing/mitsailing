@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeRole, Role } from '@/libs/auth/roles';
+import { normalizeRole, parseRoles, Role } from '@/libs/auth/roles';
 
 describe('normalizeRole', () => {
   it('preserves known roles for admin and user', () => {
@@ -13,5 +13,19 @@ describe('normalizeRole', () => {
     expect(normalizeRole(null)).toBe(Role.USER);
     expect(normalizeRole(missingRole)).toBe(Role.USER);
     expect(normalizeRole('')).toBe(Role.USER);
+  });
+});
+
+describe('parseRoles', () => {
+  it('parses comma-separated Better Auth roles', () => {
+    expect(
+      parseRoles('volunteer_instructor,dock_staff,unknown, volunteer')
+    ).toEqual([Role.VOLUNTEER_INSTRUCTOR, Role.DOCK_STAFF, Role.VOLUNTEER]);
+  });
+
+  it('defaults missing and empty role strings to user', () => {
+    expect(parseRoles(null)).toEqual([Role.USER]);
+    expect(parseRoles('')).toEqual([Role.USER]);
+    expect(parseRoles('unknown')).toEqual([Role.USER]);
   });
 });

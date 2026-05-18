@@ -9,7 +9,8 @@ import {
   adminUsersIndexPath,
   adminUsersShowPath,
 } from '@/libs/admin/users/adminUserPaths';
-import { requireAdmin } from '@/libs/auth/dal';
+import { requirePermission } from '@/libs/auth/dal';
+import { Permission } from '@/libs/auth/permissions';
 import { prisma } from '@/libs/DB';
 import { userCanGrantSailingRating } from '@/libs/mit-sailing/sailingRatingQueries';
 import { getI18nPath } from '@/utils/Helpers';
@@ -59,7 +60,10 @@ export async function grantAdminUserRatingAction(
   props: AdminUserRatingActionProps,
   formData: FormData
 ): Promise<void> {
-  const session = await requireAdmin(props.locale);
+  const session = await requirePermission(
+    Permission.RATINGS_ASSIGN,
+    props.locale
+  );
   const ratingId = ratingIdFromFormData(formData);
   if (!ratingId) {
     redirect(
@@ -144,7 +148,7 @@ export async function revokeAdminUserRatingAction(
   props: AdminUserRatingActionProps,
   formData: FormData
 ): Promise<void> {
-  await requireAdmin(props.locale);
+  await requirePermission(Permission.RATINGS_ASSIGN, props.locale);
   const ratingId = ratingIdFromFormData(formData);
   if (!ratingId) {
     redirect(

@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
-import { requireAdmin } from '@/libs/auth/dal';
+import { requirePermission } from '@/libs/auth/dal';
+import { Permission } from '@/libs/auth/permissions';
 import { createNewsletterBroadcastAction } from '@/libs/newsletter/newsletterAdminActions';
 import {
   getAdminNewsletterLists,
@@ -72,7 +73,7 @@ export default async function AdminNewsletterBroadcastNewPage(
   const { locale } = await props.params;
   const { status = '' } = await props.searchParams;
   setRequestLocale(locale);
-  await requireAdmin(locale);
+  await requirePermission(Permission.NEWSLETTER_MANAGE, locale);
   const t = await getTranslations({ locale, namespace: 'AdminNewsletters' });
   const lists = await getAdminNewsletterLists();
   const templates = await getAdminNewsletterTemplates();

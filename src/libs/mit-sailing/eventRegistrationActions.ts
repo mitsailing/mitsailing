@@ -1,12 +1,14 @@
 'use server';
 
 import { randomUUID } from 'node:crypto';
+import { accessibleBy } from '@casl/prisma';
 import { revalidatePath } from 'next/cache';
 import { redirect, unstable_rethrow } from 'next/navigation';
 import { Prisma } from '@/generated/prisma/client';
 import { EventRegistrationStatus } from '@/generated/prisma/enums';
 import type { EventAnswerType } from '@/generated/prisma/enums';
 import { requireCurrentUser } from '@/libs/auth/dal';
+import { AuthAction, createAuthAbility } from '@/libs/auth/permissions';
 import { prisma } from '@/libs/DB';
 import { logger } from '@/libs/Logger';
 import { questionOptionsFromJson } from '@/libs/mit-sailing/eventQueries';
@@ -170,6 +172,14 @@ export async function createPublicEventRegistrationAction(
 ): Promise<PublicEventRegistrationFormState> {
   const callbackUrl = `/events/${encodeURIComponent(slug)}/register`;
   const user = await requireCurrentUser(locale, callbackUrl);
+  const registrationAccessWhere = accessibleBy(
+    createAuthAbility({
+      grants: [],
+      role: user.role,
+      userId: user.id,
+    }),
+    AuthAction.UPDATE
+  ).EventRegistration;
 
   const now = new Date();
   let event: {
@@ -287,7 +297,9 @@ export async function createPublicEventRegistrationAction(
           : EventRegistrationStatus.approved;
 
         const existing = await tx.eventRegistration.findFirst({
-          where: { eventId: event.id, userId: user.id },
+          where: {
+            AND: [{ eventId: event.id }, registrationAccessWhere],
+          },
           orderBy: { createdAt: 'desc' },
           select: { id: true },
         });
@@ -377,6 +389,14 @@ export async function cancelPublicEventRegistrationAction(
 ): Promise<void> {
   const callbackUrl = `/events/${encodeURIComponent(slug)}`;
   const user = await requireCurrentUser(locale, callbackUrl);
+  const registrationAccessWhere = accessibleBy(
+    createAuthAbility({
+      grants: [],
+      role: user.role,
+      userId: user.id,
+    }),
+    AuthAction.UPDATE
+  ).EventRegistration;
   let event: { id: string } | null;
   try {
     event = await prisma.event.findFirst({
@@ -397,7 +417,7 @@ export async function cancelPublicEventRegistrationAction(
   }
   try {
     await prisma.eventRegistration.updateMany({
-      where: { eventId: event.id, userId: user.id },
+      where: { AND: [{ eventId: event.id }, registrationAccessWhere] },
       data: { status: EventRegistrationStatus.cancelled },
     });
   } catch (error) {

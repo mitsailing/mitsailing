@@ -22,14 +22,15 @@ import {
 } from '@/libs/admin/catalog/adminCatalogPaths';
 import type { CatalogResourceId } from '@/libs/admin/catalog/catalogDefinitions';
 import { isCatalogResourceId } from '@/libs/admin/catalog/catalogDefinitions';
+import { catalogPermissionForOperation } from '@/libs/admin/catalog/catalogPermissions';
 import { getCatalogServerHandlers } from '@/libs/admin/catalog/catalogServerRegistry';
 import type {
   CatalogMutationContext,
   CatalogReorderScope,
   CatalogRow,
 } from '@/libs/admin/catalog/types';
-import { requireAdmin } from '@/libs/auth/dal';
 import type { AuthSession } from '@/libs/auth/dal';
+import { requirePermission } from '@/libs/auth/dal';
 import {
   isCatalogHistoryResourceId,
   restoreCatalogRevision,
@@ -203,10 +204,16 @@ export async function createCatalogResourceAction(
   resourceId: string,
   formData: FormData
 ): Promise<void> {
-  const session = await requireAdmin(locale);
   if (!isCatalogResourceId(resourceId)) {
     redirect(getI18nPath(ADMIN_INDEX_PATH, locale));
   }
+  const session = await requirePermission(
+    catalogPermissionForOperation({
+      operation: 'create',
+      resourceId,
+    }),
+    locale
+  );
   const handlers = getCatalogServerHandlers(resourceId);
   const scope = scopedCatalogMutationSearchParam(resourceId, formData);
   const result = await handlers.createFromForm(
@@ -254,10 +261,16 @@ export async function updateCatalogResourceAction(
   id: string,
   formData: FormData
 ): Promise<void> {
-  const session = await requireAdmin(locale);
   if (!isCatalogResourceId(resourceId)) {
     redirect(getI18nPath(ADMIN_INDEX_PATH, locale));
   }
+  const session = await requirePermission(
+    catalogPermissionForOperation({
+      operation: 'update',
+      resourceId,
+    }),
+    locale
+  );
   const handlers = getCatalogServerHandlers(resourceId);
   const scope = scopedCatalogMutationSearchParam(resourceId, formData);
   const oldSlug = slugFromCatalogRow(await handlers.getById(id));
@@ -309,10 +322,16 @@ export async function deleteCatalogResourceAction(
   resourceId: string,
   id: string
 ): Promise<void> {
-  const session = await requireAdmin(locale);
   if (!isCatalogResourceId(resourceId)) {
     redirect(getI18nPath(ADMIN_INDEX_PATH, locale));
   }
+  const session = await requirePermission(
+    catalogPermissionForOperation({
+      operation: 'delete',
+      resourceId,
+    }),
+    locale
+  );
   const handlers = getCatalogServerHandlers(resourceId);
   const oldSlug = slugFromCatalogRow(await handlers.getById(id));
   const result = await handlers.delete(
@@ -343,7 +362,13 @@ export async function restoreCmsPageRevisionAction(
   revisionId: string,
   formData: FormData
 ): Promise<void> {
-  const session = await requireAdmin(locale);
+  const session = await requirePermission(
+    catalogPermissionForOperation({
+      operation: 'restore',
+      resourceId: 'cms_pages',
+    }),
+    locale
+  );
   if (formData.get('confirmRestore') !== 'true') {
     redirect(
       `${getI18nPath(adminCatalogResourceEditPath('cms_pages', pageId), locale)}?error=validation_failed`
@@ -383,10 +408,16 @@ export async function restoreCatalogResourceRevisionAction(
   revisionId: string,
   formData: FormData
 ): Promise<void> {
-  const session = await requireAdmin(locale);
   if (!isCatalogResourceId(resourceId)) {
     redirect(getI18nPath(ADMIN_INDEX_PATH, locale));
   }
+  const session = await requirePermission(
+    catalogPermissionForOperation({
+      operation: 'restore',
+      resourceId,
+    }),
+    locale
+  );
   if (!isCatalogHistoryResourceId(resourceId)) {
     redirect(getI18nPath(adminCatalogResourceEditPath(resourceId, id), locale));
   }
@@ -434,10 +465,16 @@ export async function reorderCatalogResourceAction(
   orderedIds: unknown,
   reorderScope?: unknown
 ): Promise<{ ok: true } | { ok: false; code: string }> {
-  await requireAdmin(locale);
   if (!isCatalogResourceId(resourceId)) {
     return { ok: false, code: 'unknown_resource' };
   }
+  await requirePermission(
+    catalogPermissionForOperation({
+      operation: 'reorder',
+      resourceId,
+    }),
+    locale
+  );
   const handlers = getCatalogServerHandlers(resourceId);
   if (!handlers.reorder) {
     return { ok: false, code: 'reorder_disabled' };

@@ -10,7 +10,8 @@ import {
   adminUsersNewPath,
 } from '@/libs/admin/users/adminUserPaths';
 import { usersAdminHandlers } from '@/libs/admin/users/usersAdminHandlers';
-import { requireAdmin } from '@/libs/auth/dal';
+import { requirePermission } from '@/libs/auth/dal';
+import { Permission } from '@/libs/auth/permissions';
 import { getI18nPath } from '@/utils/Helpers';
 
 function revalidateAfterUserMutation(locale: string): void {
@@ -28,7 +29,7 @@ export async function createAdminUserAction(
   locale: string,
   formData: FormData
 ): Promise<void> {
-  await requireAdmin(locale);
+  await requirePermission(Permission.USERS_EDIT, locale);
   const result = await usersAdminHandlers.createFromForm(formData);
   if (!result.ok) {
     redirect(
@@ -51,7 +52,7 @@ export async function updateAdminUserAction(
   userId: string,
   formData: FormData
 ): Promise<void> {
-  await requireAdmin(locale);
+  await requirePermission(Permission.USERS_EDIT, locale);
   const result = await usersAdminHandlers.updateFromForm(userId, formData);
   if (!result.ok) {
     redirect(
@@ -72,7 +73,7 @@ export async function deleteAdminUserAction(
   locale: string,
   userId: string
 ): Promise<void> {
-  await requireAdmin(locale);
+  await requirePermission(Permission.USERS_DELETE, locale);
   const result = await usersAdminHandlers.delete(userId);
   if (!result.ok) {
     redirect(

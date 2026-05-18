@@ -1,14 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { authGetSession, headers, redirect, syncSentryUserFromSession } =
-  vi.hoisted(() => ({
-    authGetSession: vi.fn(),
-    headers: vi.fn(),
-    redirect: vi.fn((href: string) => {
-      throw new Error(`NEXT_REDIRECT:${href}`);
-    }),
-    syncSentryUserFromSession: vi.fn(),
-  }));
+const {
+  authGetSession,
+  headers,
+  listRolePermissionGrants,
+  redirect,
+  syncSentryUserFromSession,
+} = vi.hoisted(() => ({
+  authGetSession: vi.fn(),
+  headers: vi.fn(),
+  listRolePermissionGrants: vi.fn(),
+  redirect: vi.fn((href: string) => {
+    throw new Error(`NEXT_REDIRECT:${href}`);
+  }),
+  syncSentryUserFromSession: vi.fn(),
+}));
 
 vi.mock('server-only', () => ({}));
 
@@ -26,12 +32,28 @@ vi.mock('next/navigation', () => ({
   redirect,
 }));
 
+vi.mock('@/utils/AppConfig', () => ({
+  AppConfig: {
+    i18n: {
+      defaultLocale: 'en',
+    },
+  },
+}));
+
+vi.mock('@/utils/Helpers', () => ({
+  getI18nPath: (path: string) => path,
+}));
+
 vi.mock('@/libs/auth', () => ({
   auth: {
     api: {
       getSession: authGetSession,
     },
   },
+}));
+
+vi.mock('@/libs/auth/rolePermissionGrants', () => ({
+  listRolePermissionGrants,
 }));
 
 vi.mock('@/libs/sentry-user-server', () => ({
@@ -61,11 +83,13 @@ function createSession(user: TestSession['user']): TestSession {
 beforeEach(() => {
   authGetSession.mockReset();
   headers.mockReset();
+  listRolePermissionGrants.mockReset();
   redirect.mockClear();
   syncSentryUserFromSession.mockClear();
 
   headers.mockResolvedValue(new Headers([['x-auth-test', '1']]));
   authGetSession.mockResolvedValue(null);
+  listRolePermissionGrants.mockResolvedValue([]);
 });
 
 describe('getSession', () => {
@@ -172,6 +196,7 @@ describe('requireAdmin', () => {
     await expect(requireAdmin('en')).rejects.toThrow('NEXT_REDIRECT:/');
 
     expect(redirect).toHaveBeenCalledWith('/');
+    expect(listRolePermissionGrants).toHaveBeenCalledOnce();
   });
 
   it('redirect impersonating admin from admin routes', async () => {
@@ -182,6 +207,47 @@ describe('requireAdmin', () => {
     const { requireAdmin } = await import('@/libs/auth/dal');
 
     await expect(requireAdmin('en')).rejects.toThrow('NEXT_REDIRECT:/');
+
+    expect(redirect).toHaveBeenCalledWith('/');
+  });
+});
+
+describe('requirePermission', () => {
+  it('allow staff with granted permission', async () => {
+    const session = createSession({
+      id: 'staff-1',
+      role: 'volunteer_instructor',
+    });
+    authGetSession.mockResolvedValue(session);
+    listRolePermissionGrants.mockResolvedValue([
+      { roleKey: 'volunteer_instructor', permissionKey: 'cms.edit' },
+    ]);
+    const { requirePermission } = await import('@/libs/auth/dal');
+    const { Permission } = await import('@/libs/auth/permissions');
+
+    await expect(requirePermission(Permission.CMS_EDIT, 'en')).resolves.toBe(
+      session
+    );
+
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it('uses one normalized role for legacy comma-separated role strings', async () => {
+    authGetSession.mockResolvedValue(
+      createSession({
+        id: 'staff-1',
+        role: 'volunteer,dock_staff',
+      })
+    );
+    listRolePermissionGrants.mockResolvedValue([
+      { roleKey: 'dock_staff', permissionKey: 'cms.edit' },
+    ]);
+    const { requirePermission } = await import('@/libs/auth/dal');
+    const { Permission } = await import('@/libs/auth/permissions');
+
+    await expect(requirePermission(Permission.CMS_EDIT, 'en')).rejects.toThrow(
+      'NEXT_REDIRECT:/'
+    );
 
     expect(redirect).toHaveBeenCalledWith('/');
   });

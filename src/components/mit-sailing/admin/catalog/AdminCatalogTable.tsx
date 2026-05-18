@@ -254,6 +254,7 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
 
   const displayColumns = listColumnsWithNameFirst(props.definition.listColumns);
   const canUpdate = props.definition.capabilities.update;
+  const canDelete = props.definition.capabilities.delete;
 
   function renderCells(row: CatalogRow) {
     const cols = displayColumns.map((col) => {
@@ -298,18 +299,22 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
               {t('action_view_page')}
             </Link>
           ) : null}
-          <Link
-            className="text-sm font-medium text-mit-red no-underline hover:underline dark:text-white"
-            href={editHref(String(row.id))}
-          >
-            {t('action_edit')}
-          </Link>
-          <Link
-            className="text-sm font-medium text-mit-red no-underline hover:underline dark:text-white"
-            href={deleteHref(String(row.id))}
-          >
-            {t('action_delete')}
-          </Link>
+          {canUpdate ? (
+            <Link
+              className="text-sm font-medium text-mit-red no-underline hover:underline dark:text-white"
+              href={editHref(String(row.id))}
+            >
+              {t('action_edit')}
+            </Link>
+          ) : null}
+          {canDelete ? (
+            <Link
+              className="text-sm font-medium text-mit-red no-underline hover:underline dark:text-white"
+              href={deleteHref(String(row.id))}
+            >
+              {t('action_delete')}
+            </Link>
+          ) : null}
           {props.userImpersonation &&
           String(row.id) === props.userImpersonation.currentUserId ? (
             <span className="text-xs text-mit-text">

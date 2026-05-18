@@ -3,7 +3,8 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { Prisma } from '@/generated/prisma/client';
-import { requireAdmin } from '@/libs/auth/dal';
+import { requirePermission } from '@/libs/auth/dal';
+import { Permission } from '@/libs/auth/permissions';
 import { prisma } from '@/libs/DB';
 import { Env } from '@/libs/Env';
 import { logger } from '@/libs/Logger';
@@ -76,7 +77,7 @@ export async function createNewsletterListAction(
   locale: string,
   formData: FormData
 ): Promise<void> {
-  await requireAdmin(locale);
+  await requirePermission(Permission.NEWSLETTER_MANAGE, locale);
   const name = formString(formData, 'name');
   const slug = slugFromName(formString(formData, 'slug') || name);
   const description = formString(formData, 'description');
@@ -124,7 +125,7 @@ export async function createNewsletterTemplateAction(
   locale: string,
   formData: FormData
 ): Promise<void> {
-  await requireAdmin(locale);
+  await requirePermission(Permission.NEWSLETTER_MANAGE, locale);
   const name = formString(formData, 'name');
   const slug = slugFromName(formString(formData, 'slug') || name);
   const description = formString(formData, 'description');
@@ -164,7 +165,7 @@ export async function createNewsletterBroadcastAction(
   locale: string,
   formData: FormData
 ): Promise<void> {
-  const session = await requireAdmin(locale);
+  const session = await requirePermission(Permission.NEWSLETTER_MANAGE, locale);
   const shouldQueue = formString(formData, 'intent') === 'queue';
   if (shouldQueue && !Env.REDIS_URL) {
     adminRedirect(locale, `${ADMIN_BROADCASTS_PATH}/new`, 'redis_unavailable');
@@ -212,7 +213,7 @@ export async function sendNewsletterBroadcastTestAction(
   broadcastId: string,
   formData: FormData
 ): Promise<void> {
-  await requireAdmin(locale);
+  await requirePermission(Permission.NEWSLETTER_MANAGE, locale);
   const email = normalizeEmailAddress(formString(formData, 'email'));
   const redirectPath = adminBroadcastPath(broadcastId);
   if (!isValidEmailAddress(email)) {

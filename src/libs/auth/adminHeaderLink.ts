@@ -1,4 +1,10 @@
-import { normalizeRole, Role } from '@/libs/auth/roles';
+import {
+  AuthSubject,
+  createAuthAbility,
+  Permission,
+  permissionGrantsForSeed,
+} from '@/libs/auth/permissions';
+import { normalizeRole } from '@/libs/auth/roles';
 
 /** Minimal session fields for deciding whether the global header shows Admin. */
 export type AdminHeaderLinkSessionInput = {
@@ -8,8 +14,9 @@ export type AdminHeaderLinkSessionInput = {
 };
 
 /**
- * Whether the marketing header should show the Admin link: signed-in admin who
- * is not impersonating. Safe for server and client (no `server-only` imports).
+ * Whether the marketing header should show the Admin link: signed-in user with
+ * any staff/admin role who is not impersonating. Safe for server and client
+ * (no `server-only` imports).
  *
  * @param input - User id, role, and impersonation marker from Better Auth session
  * @returns True when the Admin nav entry should render
@@ -20,7 +27,12 @@ export function adminHeaderLinkVisibleFromSession(
   if (typeof input.userId !== 'string' || input.userId.length === 0) {
     return false;
   }
-  if (normalizeRole(input.userRole) !== Role.ADMIN) {
+  const ability = createAuthAbility({
+    grants: permissionGrantsForSeed(),
+    role: normalizeRole(input.userRole),
+    userId: input.userId,
+  });
+  if (!ability.can(Permission.ADMIN_VIEW, AuthSubject.PERMISSION)) {
     return false;
   }
   if (input.impersonatedBy) {

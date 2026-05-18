@@ -79,6 +79,36 @@ describe('AdminCatalogTable scoped CMS definitions', () => {
     );
   });
 
+  it('hides mutation links when the definition is view only', () => {
+    render(
+      <AdminCatalogTable
+        definition={{
+          ...catalogResourceDefinitions.cms_pages,
+          capabilities: {
+            create: false,
+            delete: false,
+            reorder: false,
+            update: false,
+          },
+        }}
+        locale="en"
+        resourceId="cms_pages"
+        rows={[
+          {
+            id: 'page-1',
+            isPublished: true,
+            path: '/about',
+            title: 'About',
+          },
+        ]}
+      />
+    );
+
+    expect(screen.queryByRole('link', { name: 'Edit' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Delete' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'View page' })).toBeVisible();
+  });
+
   it('omits the page path column from page blocks', () => {
     render(
       <AdminCatalogTable

@@ -30,6 +30,7 @@ model User {
   emailBouncedAt   DateTime?       @map("email_bounced_at")
   emailSuppressedAt DateTime?      @map("email_suppressed_at")
   emailSuppressionReason String?   @map("email_suppression_reason")
+  gymMembershipVerifiedAt DateTime? @map("gym_membership_verified_at")
   image            String?
   createdAt        DateTime        @default(now()) @map("created_at")
   updatedAt        DateTime        @updatedAt @map("updated_at")
@@ -62,6 +63,18 @@ model User {
   emailMessages                       EmailMessage[]
 
   @@map("user")
+}
+
+model RolePermissionGrant {
+  id            String   @id @default(cuid())
+  roleKey       String   @map("role_key")
+  permissionKey String   @map("permission_key")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@unique([roleKey, permissionKey])
+  @@index([permissionKey])
+  @@map("role_permission_grants")
 }
 
 model Session {

@@ -10,6 +10,8 @@ import {
   EventAnswerType,
   EventRegistrationStatus,
 } from '@/generated/prisma/enums';
+import type { AdminEventAccess } from '@/libs/admin/events/eventAdminAuthorization';
+import { requireAdminEventAccess } from '@/libs/admin/events/eventAdminAuthorization';
 import {
   adminEventDeletePath,
   adminEventEditPath,
@@ -32,7 +34,8 @@ import {
   rawEventRegistrationStatusFromFormData,
 } from '@/libs/admin/events/eventAdminSchemas';
 import { prismaUniqueTargetIncludes } from '@/libs/admin/prismaUniqueTargetIncludes';
-import { requireAdmin } from '@/libs/auth/dal';
+import { requireAnyPermission } from '@/libs/auth/dal';
+import { Permission } from '@/libs/auth/permissions';
 import { prisma } from '@/libs/DB';
 import { logger } from '@/libs/Logger';
 import { sitemapCatalogCacheTag } from '@/libs/mit-sailing/sitemapCache';
@@ -112,33 +115,14 @@ function registrationsUrlWithError(
   )}`;
 }
 
-async function verifiedEventIdFromSlug(options: {
+function verifiedEventIdFromAccess(options: {
   action: string;
+  access: AdminEventAccess;
   eventId: string;
   locale: string;
   slug: string;
-}): Promise<string> {
-  let event: { id: string } | null;
-  try {
-    event = await prisma.event.findUnique({
-      where: { slug: options.slug },
-      select: { id: true },
-    });
-  } catch (error) {
-    logAdminEventMutationFailure({
-      action: options.action,
-      error,
-      slug: options.slug,
-    });
-    redirect(
-      editUrlWithError(
-        options.locale,
-        options.slug,
-        mutationCodeFromPrisma(error)
-      )
-    );
-  }
-  if (!event || event.id !== options.eventId) {
+}): string {
+  if (options.access.event.id !== options.eventId) {
     logAdminEventMutationFailure({
       action: options.action,
       error: new Error('Event id does not match slug'),
@@ -148,7 +132,29 @@ async function verifiedEventIdFromSlug(options: {
       editUrlWithError(options.locale, options.slug, 'validation_failed')
     );
   }
-  return event.id;
+  return options.access.event.id;
+}
+
+async function requireEditableAdminEvent(
+  locale: string,
+  slug: string
+): Promise<AdminEventAccess> {
+  const access = await requireAdminEventAccess({ locale, slug });
+  if (!access) {
+    redirect(editUrlWithError(locale, slug, 'not_found'));
+  }
+  return access;
+}
+
+async function requireRegistrationsAdminEvent(
+  locale: string,
+  slug: string
+): Promise<AdminEventAccess> {
+  const access = await requireAdminEventAccess({ locale, slug });
+  if (!access) {
+    redirect(registrationsUrlWithError(locale, slug, 'not_found'));
+  }
+  return access;
 }
 
 /**
@@ -189,7 +195,10 @@ export async function createAdminEventAction(
   locale: string,
   formData: FormData
 ): Promise<void> {
-  const session = await requireAdmin(locale);
+  const session = await requireAnyPermission(
+    [Permission.EVENTS_CREATE, Permission.EVENTS_MANAGE],
+    locale
+  );
   const zodParse = await adminEventZodParseParams(locale);
   const parsed = eventAdminBasicsFormSchema.safeParse(
     rawEventBasicsFromFormData(formData),
@@ -223,6 +232,12 @@ export async function createAdminEventAction(
         externalDetailUrl: data.externalDetailUrl || null,
         internalNotes: data.internalNotes || null,
         isPublished: data.isPublished,
+        admins: {
+          create: {
+            id: randomUUID(),
+            adminUserId: session.user.id,
+          },
+        },
       },
     });
   } catch (error) {
@@ -242,7 +257,7 @@ export async function updateAdminEventBasicsAction(
   currentSlug: string,
   formData: FormData
 ): Promise<void> {
-  await requireAdmin(locale);
+  await requireEditableAdminEvent(locale, currentSlug);
   const zodParse = await adminEventZodParseParams(locale);
   const parsed = eventAdminBasicsFormSchema.safeParse(
     rawEventBasicsFromFormData(formData),
@@ -290,7 +305,7 @@ export async function deleteAdminEventAction(
   locale: string,
   slug: string
 ): Promise<void> {
-  await requireAdmin(locale);
+  await requireEditableAdminEvent(locale, slug);
   try {
     await prisma.event.delete({ where: { slug } });
   } catch (error) {
@@ -311,7 +326,7 @@ export async function addAdminEventDateAction(
   eventId: string,
   formData: FormData
 ): Promise<void> {
-  await requireAdmin(locale);
+  const access = await requireEditableAdminEvent(locale, slug);
   const zodParse = await adminEventZodParseParams(locale);
   const parsed = eventDateFormSchema.safeParse(
     rawEventDateFromFormData(formData),
@@ -320,8 +335,9 @@ export async function addAdminEventDateAction(
   if (!parsed.success) {
     redirect(editUrlWithError(locale, slug, 'validation_failed'));
   }
-  const verifiedEventId = await verifiedEventIdFromSlug({
+  const verifiedEventId = verifiedEventIdFromAccess({
     action: 'add-date',
+    access,
     eventId,
     locale,
     slug,
@@ -349,7 +365,7 @@ export async function updateAdminEventDateAction(
   dateId: string,
   formData: FormData
 ): Promise<void> {
-  await requireAdmin(locale);
+  await requireEditableAdminEvent(locale, slug);
   const zodParse = await adminEventZodParseParams(locale);
   const parsed = eventDateFormSchema.safeParse(
     rawEventDateFromFormData(formData),
@@ -384,7 +400,7 @@ export async function deleteAdminEventDateAction(
   slug: string,
   dateId: string
 ): Promise<void> {
-  await requireAdmin(locale);
+  await requireEditableAdminEvent(locale, slug);
   let deletedCount = 0;
   try {
     const result = await prisma.eventDate.deleteMany({
@@ -408,10 +424,11 @@ export async function updateAdminEventAdminsAction(
   eventId: string,
   formData: FormData
 ): Promise<void> {
-  await requireAdmin(locale);
+  const access = await requireEditableAdminEvent(locale, slug);
   const adminUserIds = [...new Set(rawEventAdminIdsFromFormData(formData))];
-  const verifiedEventId = await verifiedEventIdFromSlug({
+  const verifiedEventId = verifiedEventIdFromAccess({
     action: 'update-admins',
+    access,
     eventId,
     locale,
     slug,
@@ -443,7 +460,7 @@ export async function addAdminEventQuestionAction(
   eventId: string,
   formData: FormData
 ): Promise<void> {
-  await requireAdmin(locale);
+  const access = await requireEditableAdminEvent(locale, slug);
   const zodParse = await adminEventZodParseParams(locale);
   const parsed = eventQuestionFormSchema.safeParse(
     rawEventQuestionFromFormData(formData),
@@ -452,8 +469,9 @@ export async function addAdminEventQuestionAction(
   if (!parsed.success) {
     redirect(editUrlWithError(locale, slug, 'validation_failed'));
   }
-  const verifiedEventId = await verifiedEventIdFromSlug({
+  const verifiedEventId = verifiedEventIdFromAccess({
     action: 'add-question',
+    access,
     eventId,
     locale,
     slug,
@@ -493,7 +511,7 @@ export async function updateAdminEventQuestionAction(
   questionId: string,
   formData: FormData
 ): Promise<void> {
-  await requireAdmin(locale);
+  await requireEditableAdminEvent(locale, slug);
   const zodParse = await adminEventZodParseParams(locale);
   const parsed = eventQuestionFormSchema.safeParse(
     rawEventQuestionFromFormData(formData),
@@ -536,7 +554,7 @@ export async function deleteAdminEventQuestionAction(
   slug: string,
   questionId: string
 ): Promise<void> {
-  await requireAdmin(locale);
+  await requireEditableAdminEvent(locale, slug);
   let deletedCount = 0;
   try {
     const result = await prisma.eventRegistrationQuestion.deleteMany({
@@ -560,7 +578,7 @@ export async function addAdminEventFeeAction(
   eventId: string,
   formData: FormData
 ): Promise<void> {
-  await requireAdmin(locale);
+  const access = await requireEditableAdminEvent(locale, slug);
   const zodParse = await adminEventZodParseParams(locale);
   const parsed = eventFeeFormSchema.safeParse(
     rawEventFeeFromFormData(formData),
@@ -571,8 +589,9 @@ export async function addAdminEventFeeAction(
       editUrlWithError(locale, slug, eventFeeFormMutationCode(parsed.error))
     );
   }
-  const verifiedEventId = await verifiedEventIdFromSlug({
+  const verifiedEventId = verifiedEventIdFromAccess({
     action: 'add-fee',
+    access,
     eventId,
     locale,
     slug,
@@ -601,7 +620,7 @@ export async function updateAdminEventFeeAction(
   feeId: string,
   formData: FormData
 ): Promise<void> {
-  await requireAdmin(locale);
+  await requireEditableAdminEvent(locale, slug);
   const zodParse = await adminEventZodParseParams(locale);
   const parsed = eventFeeFormSchema.safeParse(
     rawEventFeeFromFormData(formData),
@@ -639,7 +658,7 @@ export async function deleteAdminEventFeeAction(
   slug: string,
   feeId: string
 ): Promise<void> {
-  await requireAdmin(locale);
+  await requireEditableAdminEvent(locale, slug);
   let deletedCount = 0;
   try {
     const result = await prisma.eventEntryFee.deleteMany({
@@ -663,7 +682,7 @@ export async function updateAdminEventRegistrationStatusAction(
   registrationId: string,
   formData: FormData
 ): Promise<void> {
-  await requireAdmin(locale);
+  await requireRegistrationsAdminEvent(locale, slug);
   const zodParse = await adminEventZodParseParams(locale);
   const parsed = eventRegistrationStatusFormSchema.safeParse(
     rawEventRegistrationStatusFromFormData(formData),

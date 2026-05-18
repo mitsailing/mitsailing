@@ -15,7 +15,14 @@ import {
 import { formatAdminDate } from '@/libs/admin/adminDateFormatting';
 import { adminUsersEditPath } from '@/libs/admin/users/adminUserPaths';
 import { usersAdminHandlers } from '@/libs/admin/users/usersAdminHandlers';
-import { requireAdmin } from '@/libs/auth/dal';
+import { requirePermission } from '@/libs/auth/dal';
+import {
+  AuthSubject,
+  createAuthAbility,
+  Permission,
+} from '@/libs/auth/permissions';
+import { listRolePermissionGrants } from '@/libs/auth/rolePermissionGrants';
+import { normalizeRole, Role } from '@/libs/auth/roles';
 import { getAdminUserEmailMessages } from '@/libs/email/emailMessages';
 import type { AdminUserEmailMessageRow } from '@/libs/email/emailMessages';
 import { logger } from '@/libs/Logger';
@@ -170,7 +177,19 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
   const { locale, id } = await props.params;
   const searchParams = await props.searchParams;
   setRequestLocale(locale);
-  await requireAdmin(locale);
+  const session = await requirePermission(Permission.USERS_VIEW, locale);
+  const role = normalizeRole(session.user.role);
+  const canAdmin = role === Role.ADMIN;
+  const grants = await listRolePermissionGrants();
+  const ability = createAuthAbility({
+    grants,
+    role,
+    userId: session.user.id,
+  });
+  const canAssignRatings = ability.can(
+    Permission.RATINGS_ASSIGN,
+    AuthSubject.PERMISSION
+  );
 
   const user = await usersAdminHandlers.getById(id);
   if (!user) {
@@ -214,9 +233,11 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
     <div className="flex w-full max-w-5xl flex-col gap-6">
       <AdminPageHeader
         actions={
-          <AdminPrimaryActionLink href={adminUsersEditPath(id)}>
-            {t('action_edit')}
-          </AdminPrimaryActionLink>
+          canAdmin ? (
+            <AdminPrimaryActionLink href={adminUsersEditPath(id)}>
+              {t('action_edit')}
+            </AdminPrimaryActionLink>
+          ) : undefined
         }
         title={user.name}
       />
@@ -253,6 +274,7 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
         </output>
       ) : null}
       <AdminUserRatingsPanel
+        canAssignRatings={canAssignRatings}
         errorCode={searchParams.error}
         locale={locale}
         ratingsLoadFailed={ratingsLoadError}

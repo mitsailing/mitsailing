@@ -5,6 +5,8 @@ import { AdminCatalogRevisionCompareView } from '@/components/mit-sailing/admin/
 import { adminCatalogResourceEditPath } from '@/libs/admin/catalog/adminCatalogPaths';
 import { restoreCatalogResourceRevisionAction } from '@/libs/admin/catalog/catalogActions';
 import { isCatalogResourceId } from '@/libs/admin/catalog/catalogDefinitions';
+import { catalogPermissionForOperation } from '@/libs/admin/catalog/catalogPermissions';
+import { requirePermission } from '@/libs/auth/dal';
 import {
   getAdminCatalogRevisionCompare,
   isCatalogHistoryResourceId,
@@ -37,6 +39,13 @@ export default async function AdminCatalogRevisionComparePage(
   if (!isCatalogResourceId(resource) || !isCatalogHistoryResourceId(resource)) {
     notFound();
   }
+  await requirePermission(
+    catalogPermissionForOperation({
+      operation: 'restore',
+      resourceId: resource,
+    }),
+    locale
+  );
 
   const compare = await getAdminCatalogRevisionCompare({
     itemId: id,

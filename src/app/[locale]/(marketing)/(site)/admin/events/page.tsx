@@ -6,6 +6,8 @@ import {
   listAdminEventCategories,
   listAdminEventRows,
 } from '@/libs/admin/events/eventAdminQueries';
+import { requirePermission } from '@/libs/auth/dal';
+import { Permission } from '@/libs/auth/permissions';
 import { getPathname } from '@/libs/I18nNavigation';
 
 type PageProps = {
@@ -26,6 +28,7 @@ export default async function AdminEventsListPage(props: PageProps) {
   const { locale } = await props.params;
   const searchParams = await props.searchParams;
   setRequestLocale(locale);
+  await requirePermission(Permission.EVENTS_MANAGE, locale);
   const [categories, rows, t] = await Promise.all([
     listAdminEventCategories(),
     listAdminEventRows({

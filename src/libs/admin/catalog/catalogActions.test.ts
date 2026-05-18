@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CatalogServerHandlers } from '@/libs/admin/catalog/types';
+import { Permission } from '@/libs/auth/permissions';
 
 vi.mock('server-only', () => ({}));
 
@@ -7,7 +8,7 @@ const {
   createFromForm,
   getCatalogServerHandlers,
   redirect,
-  requireAdmin,
+  requirePermission,
   revalidatePath,
   restoreCatalogRevision,
   restoreCmsPageRevision,
@@ -19,7 +20,7 @@ const {
   redirect: vi.fn(() => {
     throw new Error('NEXT_REDIRECT');
   }),
-  requireAdmin: vi.fn(),
+  requirePermission: vi.fn(),
   revalidatePath: vi.fn(),
   restoreCatalogRevision: vi.fn(),
   restoreCmsPageRevision: vi.fn(),
@@ -41,7 +42,7 @@ vi.mock('@/libs/admin/catalog/catalogServerRegistry', () => ({
 }));
 
 vi.mock('@/libs/auth/dal', () => ({
-  requireAdmin,
+  requirePermission,
 }));
 
 vi.mock('@/libs/mit-sailing/catalogHistory', () => ({
@@ -79,7 +80,7 @@ beforeEach(() => {
   createFromForm.mockReset();
   getCatalogServerHandlers.mockReset();
   redirect.mockClear();
-  requireAdmin.mockReset();
+  requirePermission.mockReset();
   revalidatePath.mockClear();
   updateTag.mockClear();
   restoreCatalogRevision.mockReset();
@@ -88,9 +89,9 @@ beforeEach(() => {
 
   createFromForm.mockResolvedValue({ ok: true, id: 'row-1' });
   getCatalogServerHandlers.mockReturnValue(handlers);
-  requireAdmin.mockImplementation(async () => {
+  requirePermission.mockImplementation(async () => {
     await Promise.resolve();
-    return { session: { impersonatedBy: null }, user: { id: 'admin-1' } };
+    return { session: { impersonatedBy: null }, user: { id: 'staff-1' } };
   });
   restoreCatalogRevision.mockResolvedValue({ ok: true, slug: 'boat-1' });
   restoreCmsPageRevision.mockResolvedValue({ ok: true });
@@ -189,5 +190,6 @@ describe('updateCatalogResourceAction', () => {
     expect(redirect).toHaveBeenCalledWith(
       '/admin/cms_page_blocks/block-1/edit?page=page-2'
     );
+    expect(requirePermission).toHaveBeenCalledWith(Permission.CMS_EDIT, 'en');
   });
 });

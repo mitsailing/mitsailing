@@ -17,7 +17,7 @@ import {
   rawAdminUserUpdateFromFormData,
 } from '@/libs/admin/users/usersAdminSchemas';
 import { auth } from '@/libs/auth';
-import { Role } from '@/libs/auth/roles';
+import { parseRoles, Role } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
 import { emailDeliverabilityStatus } from '@/libs/email/emailDeliverabilityStatus';
 
@@ -53,10 +53,12 @@ async function assertCanRemoveOrDemoteAdmin(
     where: { id: targetUserId },
     select: { role: true },
   });
-  if (!target || target.role !== Role.ADMIN) {
+  if (!target || !parseRoles(target.role).includes(Role.ADMIN)) {
     return null;
   }
-  const admins = await prisma.user.count({ where: { role: Role.ADMIN } });
+  const admins = await prisma.user.count({
+    where: { role: { contains: Role.ADMIN } },
+  });
   if (admins <= 1) {
     return { ok: false, code: 'last_admin' };
   }
@@ -230,14 +232,17 @@ export const usersAdminHandlers: CatalogServerHandlers = {
       return { ok: false, code: 'not_found' };
     }
 
-    if (existing.role === Role.ADMIN && role === Role.USER) {
+    if (
+      parseRoles(existing.role).includes(Role.ADMIN) &&
+      !parseRoles(role).includes(Role.ADMIN)
+    ) {
       const block = await assertCanRemoveOrDemoteAdmin(id);
       if (block) {
         return block;
       }
     }
 
-    if (existing.role === Role.ADMIN && banned) {
+    if (parseRoles(existing.role).includes(Role.ADMIN) && banned) {
       const block = await assertCanRemoveOrDemoteAdmin(id);
       if (block) {
         return block;

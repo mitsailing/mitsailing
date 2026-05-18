@@ -52,6 +52,36 @@ describe('adminHeaderLinkVisibleFromSession', () => {
       })
     ).toBe(true);
   });
+
+  it('hides admin header link from roles with no launch admin permissions', () => {
+    expect(
+      adminHeaderLinkVisibleFromSession({
+        impersonatedBy: null,
+        userId: 'volunteer-1',
+        userRole: Role.VOLUNTEER,
+      })
+    ).toBe(false);
+  });
+
+  it('shows admin header link to staff roles with launch admin permissions', () => {
+    expect(
+      adminHeaderLinkVisibleFromSession({
+        impersonatedBy: null,
+        userId: 'instructor-1',
+        userRole: Role.VOLUNTEER_INSTRUCTOR,
+      })
+    ).toBe(true);
+  });
+
+  it('uses one normalized role instead of every comma-separated role', () => {
+    expect(
+      adminHeaderLinkVisibleFromSession({
+        impersonatedBy: null,
+        userId: 'volunteer-1',
+        userRole: `${Role.VOLUNTEER},${Role.DOCK_STAFF}`,
+      })
+    ).toBe(false);
+  });
 });
 
 describe('adminHeaderLinkVisibleFromClientSessionData', () => {

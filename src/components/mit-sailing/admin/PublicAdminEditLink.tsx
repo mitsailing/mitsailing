@@ -1,8 +1,14 @@
 import { Pencil } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import { cn } from '@/lib/utils';
-import { adminHeaderLinkVisibleFromSession } from '@/libs/auth/adminHeaderLink';
 import { getSession } from '@/libs/auth/dal';
+import {
+  AuthSubject,
+  createAuthAbility,
+  Permission,
+} from '@/libs/auth/permissions';
+import { listRolePermissionGrants } from '@/libs/auth/rolePermissionGrants';
+import { normalizeRole } from '@/libs/auth/roles';
 import { Link } from '@/libs/I18nNavigation';
 
 type PublicAdminEditLinkSession = {
@@ -11,13 +17,22 @@ type PublicAdminEditLinkSession = {
 } | null;
 
 function publicAdminEditLinkVisible(
-  session: PublicAdminEditLinkSession
+  session: PublicAdminEditLinkSession,
+  grants: Awaited<ReturnType<typeof listRolePermissionGrants>>
 ): boolean {
-  return adminHeaderLinkVisibleFromSession({
-    impersonatedBy: session?.session?.impersonatedBy,
-    userId: session?.user?.id,
-    userRole: session?.user?.role,
+  const userId = session?.user?.id;
+  if (typeof userId !== 'string' || userId.length === 0) {
+    return false;
+  }
+  if (session?.session?.impersonatedBy) {
+    return false;
+  }
+  const ability = createAuthAbility({
+    grants,
+    role: normalizeRole(session?.user?.role),
+    userId,
   });
+  return ability.can(Permission.CMS_EDIT, AuthSubject.PERMISSION);
 }
 
 /**
@@ -31,7 +46,8 @@ export async function PublicAdminEditLink(props: {
   href: string;
 }) {
   const session = await getSession();
-  if (!publicAdminEditLinkVisible(session)) {
+  const grants = await listRolePermissionGrants();
+  if (!publicAdminEditLinkVisible(session, grants)) {
     return null;
   }
 

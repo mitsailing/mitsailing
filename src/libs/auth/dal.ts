@@ -7,6 +7,12 @@ import {
   authHrefWithCallback,
   safeAuthCallbackUrl,
 } from '@/libs/auth/callbackUrl';
+import {
+  AuthSubject,
+  createAuthAbility,
+  Permission,
+} from '@/libs/auth/permissions';
+import { listRolePermissionGrants } from '@/libs/auth/rolePermissionGrants';
 import { normalizeRole, Role } from '@/libs/auth/roles';
 import { syncSentryUserFromSession } from '@/libs/sentry-user-server';
 import { AppConfig } from '@/utils/AppConfig';
@@ -93,6 +99,42 @@ export async function verifySession(
   return session;
 }
 
+export async function requireAnyPermission(
+  permissions: readonly Permission[],
+  locale: string = AppConfig.i18n.defaultLocale
+): Promise<NonNullable<AuthSession>> {
+  const homeHref = getI18nPath('/', locale);
+  const session = await verifySession(locale, homeHref);
+  const role = normalizeRole(session.user.role);
+
+  if (session.session.impersonatedBy) {
+    redirect(homeHref);
+  }
+
+  const grants = role === Role.ADMIN ? [] : await listRolePermissionGrants();
+  const ability = createAuthAbility({
+    grants,
+    role,
+    userId: session.user.id,
+  });
+  if (
+    !permissions.some((permission) =>
+      ability.can(permission, AuthSubject.PERMISSION)
+    )
+  ) {
+    redirect(homeHref);
+  }
+  return session;
+}
+
+export async function requirePermission(
+  permission: Permission,
+  locale: string = AppConfig.i18n.defaultLocale
+): Promise<NonNullable<AuthSession>> {
+  const session = await requireAnyPermission([permission], locale);
+  return session;
+}
+
 /**
  * Requires an admin who is not currently impersonating another user.
  * Redirects to the site home otherwise so admins never land on pages they are
@@ -104,14 +146,7 @@ export async function verifySession(
 export async function requireAdmin(
   locale: string = AppConfig.i18n.defaultLocale
 ): Promise<NonNullable<AuthSession>> {
-  const homeHref = getI18nPath('/', locale);
-  const session = await verifySession(locale, homeHref);
-  const role = normalizeRole(session.user.role);
-
-  if (role !== Role.ADMIN || session.session.impersonatedBy) {
-    redirect(homeHref);
-  }
-
+  const session = await requirePermission(Permission.ADMIN_VIEW, locale);
   return session;
 }
 
