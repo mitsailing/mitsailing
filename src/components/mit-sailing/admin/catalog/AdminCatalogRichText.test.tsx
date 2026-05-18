@@ -722,6 +722,27 @@ describe('AdminRichTextEditor media controls', () => {
     );
   });
 
+  it('rejects unsafe tus asset ids before finalize fetches', async () => {
+    uploadCmsMediaWithTusMock.mockResolvedValue({
+      assetId: 'https://example.test/upload',
+    });
+    const fetchMock = mockCmsMediaUploadFetch({
+      assetId: 'asset-1',
+      originalFilename: 'race.png',
+      publicPath: '/cms-media/asset-1/race.png',
+    });
+
+    await expect(
+      uploadCmsMediaFile({
+        file: new File(['png'], 'race.png', { type: 'image/png' }),
+      })
+    ).resolves.toBeNull();
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      '/api/admin/cms-media/uploads/https%3A%2F%2Fexample.test%2Fupload/finalize',
+      expect.objectContaining({ method: 'POST' })
+    );
+  });
+
   it('returns null when tus finalize fails for the session asset', async () => {
     uploadCmsMediaWithTusMock.mockResolvedValue({ assetId: 'asset-1' });
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});

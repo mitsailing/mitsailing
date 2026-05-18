@@ -3,6 +3,7 @@ import { uploadCmsMediaWithTus } from './cmsMediaTusUpload';
 
 const ADMIN_CMS_MEDIA_PATH = '/api/admin/cms-media';
 const ADMIN_CMS_MEDIA_UPLOADS_PATH = '/api/admin/cms-media/uploads';
+const CMS_MEDIA_UPLOAD_ASSET_ID_PATTERN = /^[a-z0-9_-]+$/iu;
 
 export type CmsMediaAsset = {
   id: string;
@@ -265,18 +266,32 @@ async function createCmsMediaUploadSession(props: {
   throw new Error('CMS media upload session response invalid');
 }
 
-function cmsMediaUploadPath(assetId: string): string {
-  return [ADMIN_CMS_MEDIA_UPLOADS_PATH, encodeURIComponent(assetId)].join('/');
+function cmsMediaUploadAssetIdPathSegment(assetId: string): string | null {
+  return CMS_MEDIA_UPLOAD_ASSET_ID_PATTERN.test(assetId)
+    ? encodeURIComponent(assetId)
+    : null;
 }
 
-function cmsMediaUploadFinalizePath(assetId: string): string {
-  return [cmsMediaUploadPath(assetId), 'finalize'].join('/');
+function cmsMediaUploadPath(assetId: string): string | null {
+  const pathSegment = cmsMediaUploadAssetIdPathSegment(assetId);
+  return pathSegment
+    ? [ADMIN_CMS_MEDIA_UPLOADS_PATH, pathSegment].join('/')
+    : null;
+}
+
+function cmsMediaUploadFinalizePath(assetId: string): string | null {
+  const uploadPath = cmsMediaUploadPath(assetId);
+  return uploadPath ? [uploadPath, 'finalize'].join('/') : null;
 }
 
 async function finalizeCmsMediaUpload(
   assetId: string
 ): Promise<CmsMediaAsset | null> {
-  const response = await fetch(cmsMediaUploadFinalizePath(assetId), {
+  const path = cmsMediaUploadFinalizePath(assetId);
+  if (!path) {
+    return null;
+  }
+  const response = await fetch(path, {
     method: 'POST',
   });
   if (!response.ok) {
@@ -287,7 +302,11 @@ async function finalizeCmsMediaUpload(
 }
 
 async function cancelCmsMediaUpload(assetId: string): Promise<void> {
-  await fetch(cmsMediaUploadPath(assetId), {
+  const path = cmsMediaUploadPath(assetId);
+  if (!path) {
+    return;
+  }
+  await fetch(path, {
     method: 'DELETE',
   });
 }

@@ -110,18 +110,32 @@ verify_cms_media_bind_mount() {
   verify_bind_mount "$service" /var/lib/mitsailing/cms-media "$PRODUCTION_CMS_MEDIA_DIR"
 }
 
+verify_started_app_cms_media_bind_mounts() {
+  local service container
+  while IFS= read -r service; do
+    case "$service" in
+      web_*|worker)
+        container="$(compose ps -q "$service")"
+        [[ -n "$container" ]] || continue
+        verify_bind_mount "$service" /var/lib/mitsailing/cms-media "$PRODUCTION_CMS_MEDIA_DIR"
+        ;;
+    esac
+  done < <(compose config --services)
+}
+
 verify_production_bind_mounts() {
   verify_bind_mount postgres /var/lib/postgresql "$PRODUCTION_POSTGRES_DIR"
   verify_bind_mount redis /data "$PRODUCTION_REDIS_DIR"
   verify_cms_media_bind_mount tusd
   verify_cms_media_bind_mount media
+  verify_started_app_cms_media_bind_mounts
 }
 
 verify_migration_data_mounts() {
   log "verifying production data mounts before migrations"
   verify_bind_mount postgres /var/lib/postgresql "$PRODUCTION_POSTGRES_DIR"
   verify_bind_mount redis /data "$PRODUCTION_REDIS_DIR"
-  compose exec -T postgres sh -ec 'test -n "${PGDATA:-}" && test -s "${PGDATA}/PG_VERSION"' \
+  compose exec -T postgres sh -ec "test -n \"\${PGDATA:-}\" && test -s \"\${PGDATA}/PG_VERSION\"" \
     || fail "postgres persistent data marker missing at PGDATA/PG_VERSION"
   compose exec -T redis sh -ec 'test -d /data && { test -d /data/appendonlydir || test -s /data/dump.rdb || test -s /data/appendonly.aof; }' \
     || fail "redis persistent data marker missing under /data"
@@ -284,7 +298,7 @@ start_web_color() {
   log "starting $service"
   compose up --detach --no-deps --force-recreate --pull always "$service"
   wait_for_service_health "$service" "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
-  verify_cms_media_bind_mount "$service"
+  verify_production_bind_mounts
 }
 
 reload_or_start_proxy() {
@@ -299,7 +313,7 @@ restart_worker() {
   log "restarting worker"
   compose up --detach --no-deps --force-recreate --pull always worker
   wait_for_service_health worker "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
-  verify_cms_media_bind_mount worker
+  verify_production_bind_mounts
 }
 
 run_migrations_for_service() {

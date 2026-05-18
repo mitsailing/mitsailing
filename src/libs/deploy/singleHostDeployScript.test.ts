@@ -13,6 +13,7 @@ function shellVariable(value: string): string {
 describe('single host deploy script', () => {
   const script = readRepoFile('bin/deploy.sh');
   const deployDrainSeconds = `${shellVariable('DEPLOY_DRAIN_SECONDS')}s`;
+  const shellEscape = String.fromCodePoint(92);
 
   it('keeps nginx upload timeouts aligned with the drain window default', () => {
     expect(script).toContain('DEPLOY_DRAIN_SECONDS:-900');
@@ -39,8 +40,31 @@ describe('single host deploy script', () => {
     );
     expect(script).toContain('verify_cms_media_bind_mount tusd');
     expect(script).toContain('verify_cms_media_bind_mount media');
-    expect(script).toContain('verify_cms_media_bind_mount "$service"');
-    expect(script).toContain('verify_cms_media_bind_mount worker');
+    expect(script).toContain('verify_started_app_cms_media_bind_mounts');
+  });
+
+  it('keeps pgdata marker expansion inside the postgres container shell', () => {
+    const pgdata = `${shellEscape}${shellVariable('PGDATA')}`;
+    const pgdataWithFallback = `${shellEscape}${shellVariable('PGDATA:-')}`;
+
+    expect(script).toContain(
+      `compose exec -T postgres sh -ec "test -n \\"${pgdataWithFallback}\\" && test -s \\"${pgdata}/PG_VERSION\\""`
+    );
+  });
+
+  it('verifies CMS media mounts for started web and worker containers', () => {
+    expect(script).toMatch(
+      /verify_started_app_cms_media_bind_mounts\(\) \{[\s\S]*web_\*\|worker[\s\S]*verify_bind_mount "\$service" \/var\/lib\/mitsailing\/cms-media "\$PRODUCTION_CMS_MEDIA_DIR"[\s\S]*compose config --services/u
+    );
+    expect(script).toMatch(
+      /verify_production_bind_mounts\(\) \{[\s\S]*verify_started_app_cms_media_bind_mounts/u
+    );
+    expect(script).toMatch(
+      /start_web_color\(\) \{[\s\S]*wait_for_service_health "\$service" "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"[\s\S]*verify_production_bind_mounts/u
+    );
+    expect(script).toMatch(
+      /restart_worker\(\) \{[\s\S]*wait_for_service_health worker "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"[\s\S]*verify_production_bind_mounts/u
+    );
   });
 
   it('starts ingress and media services without recreating media during app releases', () => {
