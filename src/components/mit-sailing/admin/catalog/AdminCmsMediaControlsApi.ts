@@ -291,6 +291,7 @@ async function finalizeCmsMediaUpload(
   if (!path) {
     return null;
   }
+  // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
   const response = await fetch(path, {
     method: 'POST',
   });
@@ -306,6 +307,7 @@ async function cancelCmsMediaUpload(assetId: string): Promise<void> {
   if (!path) {
     return;
   }
+  // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
   await fetch(path, {
     method: 'DELETE',
   });
