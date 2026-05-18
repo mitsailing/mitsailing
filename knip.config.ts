@@ -24,10 +24,6 @@ const config: KnipConfig = {
   ignoreDependencies: [
     '@commitlint/types',
     '@swc/helpers', // Avoid error in CI: "`npm ci` can only install packages when your package.json and package-lock.json or npm-shrinkwrap.json are in sync."
-    'oxfmt',
-    'oxlint-tsgolint',
-    'postcss',
-    'vite',
   ],
   // Binaries to ignore during analysis
   ignoreBinaries: [
@@ -35,6 +31,31 @@ const config: KnipConfig = {
   ],
   compilers: {
     css: (text: string) => [...text.matchAll(/(?<=@)import[^;]+/g)].join('\n'),
+  },
+  ignoreIssues: {
+    'src/components/mit-sailing/donate/DonateAlternateGivingSection.tsx': [
+      'types',
+    ],
+    'src/components/mit-sailing/site/NavigationDropdown.tsx': ['types'],
+    'src/libs/admin/catalog/scopedCatalogLists.ts': ['types'],
+    'src/libs/admin/catalog/types.ts': ['types'],
+    'src/libs/admin/events/eventAdminQueries.ts': ['types'],
+    'src/libs/admin/pavilion-reservations/pavilionReservationAdminQueries.ts': [
+      'types',
+    ],
+    'src/libs/health/readiness.ts': ['types'],
+    'src/libs/legacy-sync/postgresMirrorSql.ts': ['types'],
+    'src/libs/mit-sailing/catalogHistory.ts': ['types'],
+    'src/libs/mit-sailing/classQueries.ts': ['types'],
+    'src/libs/mit-sailing/classRelatedOccurrences.ts': ['types'],
+    'src/libs/mit-sailing/cmsHistory.ts': ['types'],
+    'src/libs/mit-sailing/cmsHomeOverview.ts': ['types'],
+    'src/libs/mit-sailing/cmsMediaTypes.ts': ['exports'],
+    'src/libs/mit-sailing/eventCalendar.ts': ['types'],
+    'src/libs/mit-sailing/pavilionReservationBookingTimeline.ts': ['types'],
+    'src/libs/newsletter/newsletterActions.ts': ['types'],
+    'src/libs/newsletter/newsletterConstants.ts': ['exports'],
+    'src/libs/newsletter/newsletterValidation.ts': ['types'],
   },
 };
 

@@ -1,4 +1,4 @@
-import { parseExpression } from 'cron-parser';
+import { CronExpressionParser } from 'cron-parser';
 
 /** BullMQ six-field cron (seconds first): top of each hour. */
 export const LEGACY_MYSQL_SYNC_DEFAULT_CRON = '0 0 * * * *';
@@ -16,7 +16,7 @@ export function isLegacyMysqlSyncCronPattern(value: string): boolean {
     return false;
   }
   try {
-    parseExpression(trimmed);
+    CronExpressionParser.parse(trimmed);
     return true;
   } catch {
     return false;
