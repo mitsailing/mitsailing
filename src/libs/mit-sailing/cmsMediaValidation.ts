@@ -1,6 +1,8 @@
 import path from 'node:path';
+import type { CmsMediaKind } from '@/libs/mit-sailing/cmsMediaTypes';
 
-const CMS_MEDIA_MAX_BYTES = 10 * 1024 * 1024;
+const CMS_MEDIA_MAX_BYTES = 100 * 1024 * 1024;
+const CMS_MEDIA_SIGNATURE_SCAN_BYTES = 64;
 
 export const CMS_MEDIA_ALLOWED_MIME_TYPES = [
   'image/jpeg',
@@ -10,6 +12,23 @@ export const CMS_MEDIA_ALLOWED_MIME_TYPES = [
 ] as const;
 
 export type CmsMediaMimeType = (typeof CMS_MEDIA_ALLOWED_MIME_TYPES)[number];
+
+const CMS_MEDIA_ALLOWED_FILE_MIME_TYPES = [
+  'application/pdf',
+  'text/plain',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+] as const;
+
+const CMS_MEDIA_ALLOWED_VIDEO_MIME_TYPES = [
+  'video/mp4',
+  'video/quicktime',
+  'video/webm',
+] as const;
 
 export type CmsMediaValidationErrorCode =
   | 'empty_file'
@@ -25,10 +44,53 @@ const CMS_MEDIA_EXTENSIONS: Record<CmsMediaMimeType, string> = {
   'image/webp': '.webp',
 };
 
+const CMS_MEDIA_FILE_EXTENSIONS: Record<
+  (typeof CMS_MEDIA_ALLOWED_FILE_MIME_TYPES)[number],
+  string
+> = {
+  'application/msword': '.doc',
+  'application/pdf': '.pdf',
+  'application/vnd.ms-excel': '.xls',
+  'application/vnd.ms-powerpoint': '.ppt',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation':
+    '.pptx',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+    '.docx',
+  'text/plain': '.txt',
+};
+
+const CMS_MEDIA_VIDEO_EXTENSIONS: Record<
+  (typeof CMS_MEDIA_ALLOWED_VIDEO_MIME_TYPES)[number],
+  string
+> = {
+  'video/mp4': '.mp4',
+  'video/quicktime': '.mov',
+  'video/webm': '.webm',
+};
+
 const ALLOWED_MIME_TYPE_SET = new Set<string>(CMS_MEDIA_ALLOWED_MIME_TYPES);
+const ALLOWED_FILE_MIME_TYPE_SET = new Set<string>(
+  CMS_MEDIA_ALLOWED_FILE_MIME_TYPES
+);
+const ALLOWED_VIDEO_MIME_TYPE_SET = new Set<string>(
+  CMS_MEDIA_ALLOWED_VIDEO_MIME_TYPES
+);
 
 function isCmsMediaMimeType(value: string): value is CmsMediaMimeType {
   return ALLOWED_MIME_TYPE_SET.has(value);
+}
+
+function isCmsMediaFileMimeType(
+  value: string
+): value is (typeof CMS_MEDIA_ALLOWED_FILE_MIME_TYPES)[number] {
+  return ALLOWED_FILE_MIME_TYPE_SET.has(value);
+}
+
+function isCmsMediaVideoMimeType(
+  value: string
+): value is (typeof CMS_MEDIA_ALLOWED_VIDEO_MIME_TYPES)[number] {
+  return ALLOWED_VIDEO_MIME_TYPE_SET.has(value);
 }
 
 function bytesStartWith(bytes: Uint8Array, signature: readonly number[]) {
@@ -36,6 +98,33 @@ function bytesStartWith(bytes: Uint8Array, signature: readonly number[]) {
     return false;
   }
   return signature.every((byte, index) => bytes[index] === byte);
+}
+
+export function cmsMediaByteSizeToNumber(byteSize: bigint): number {
+  if (
+    byteSize < BigInt(Number('0')) ||
+    byteSize > BigInt(Number.MAX_SAFE_INTEGER)
+  ) {
+    throw new RangeError('CMS media byteSize must be a safe integer');
+  }
+  return Number(byteSize);
+}
+
+function bytesContainSignature(
+  bytes: Uint8Array,
+  signature: readonly number[],
+  limit = CMS_MEDIA_SIGNATURE_SCAN_BYTES
+): boolean {
+  const scanLength = Math.min(bytes.byteLength, limit);
+  if (scanLength < signature.length) {
+    return false;
+  }
+  for (let index = 0; index <= scanLength - signature.length; index += 1) {
+    if (signature.every((byte, offset) => bytes[index + offset] === byte)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
@@ -72,18 +161,13 @@ export function detectCmsMediaMimeType(
   return null;
 }
 
-/**
- * Produces a stable, URL-friendly filename while preserving the detected type.
- *
- * @param originalFilename - Browser-provided filename
- * @param mimeType - Detected allowed MIME type
- * @returns Safe stored filename
- */
-export function sanitizeCmsMediaFilename(
-  originalFilename: string,
-  mimeType: CmsMediaMimeType
-): string {
-  const basename = path.posix.basename(originalFilename.replaceAll('\\', '/'));
+function sanitizeCmsMediaFilenameWithExtension(props: {
+  extension: string;
+  originalFilename: string;
+}): string {
+  const basename = path.posix.basename(
+    props.originalFilename.replaceAll('\\', '/')
+  );
   const normalized = basename
     .normalize('NFKD')
     .replaceAll(/[^\w.-]+/g, '-')
@@ -96,7 +180,50 @@ export function sanitizeCmsMediaFilename(
       .replace(/\.[a-z0-9]+$/u, '')
       .replaceAll(/\.+$/g, '')
       .replaceAll(/^-+|-+$/g, '') || 'upload';
-  return `${stem.slice(0, 96)}${CMS_MEDIA_EXTENSIONS[mimeType]}`;
+  return `${stem.slice(0, 96)}${props.extension}`;
+}
+
+/**
+ * Produces a stable, URL-friendly filename while preserving the detected type.
+ *
+ * @param originalFilename - Browser-provided filename
+ * @param mimeType - Detected allowed MIME type
+ * @returns Safe stored filename
+ */
+export function sanitizeCmsMediaFilename(
+  originalFilename: string,
+  mimeType: CmsMediaMimeType
+): string {
+  return sanitizeCmsMediaFilenameWithExtension({
+    extension: CMS_MEDIA_EXTENSIONS[mimeType],
+    originalFilename,
+  });
+}
+
+function sanitizeCmsMediaFilenameForKind(props: {
+  mediaKind: CmsMediaKind;
+  mimeType: string;
+  originalFilename: string;
+}): string {
+  if (props.mediaKind === 'image' && isCmsMediaMimeType(props.mimeType)) {
+    return sanitizeCmsMediaFilename(props.originalFilename, props.mimeType);
+  }
+  if (props.mediaKind === 'file' && isCmsMediaFileMimeType(props.mimeType)) {
+    return sanitizeCmsMediaFilenameWithExtension({
+      extension: CMS_MEDIA_FILE_EXTENSIONS[props.mimeType],
+      originalFilename: props.originalFilename,
+    });
+  }
+  if (props.mediaKind === 'video' && isCmsMediaVideoMimeType(props.mimeType)) {
+    return sanitizeCmsMediaFilenameWithExtension({
+      extension: CMS_MEDIA_VIDEO_EXTENSIONS[props.mimeType],
+      originalFilename: props.originalFilename,
+    });
+  }
+  return sanitizeCmsMediaFilenameWithExtension({
+    extension: '.bin',
+    originalFilename: props.originalFilename,
+  });
 }
 
 export function buildCmsMediaPublicPath(props: {
@@ -172,4 +299,76 @@ export function validateCmsMediaUpload(props: {
     mimeType: detected,
     storedFilename: sanitizeCmsMediaFilename(props.originalFilename, detected),
   };
+}
+
+export function mediaKindFromMimeType(mimeType: string): CmsMediaKind | null {
+  if (isCmsMediaMimeType(mimeType)) {
+    return 'image';
+  }
+  if (isCmsMediaFileMimeType(mimeType)) {
+    return 'file';
+  }
+  if (isCmsMediaVideoMimeType(mimeType)) {
+    return 'video';
+  }
+  return null;
+}
+
+export function validateCmsMediaMetadata(props: {
+  byteSize: number;
+  declaredMimeType: string;
+  originalFilename: string;
+}):
+  | {
+      ok: true;
+      mediaKind: CmsMediaKind;
+      mimeType: string;
+      storedFilename: string;
+    }
+  | { ok: false; code: CmsMediaValidationErrorCode } {
+  if (!Number.isSafeInteger(props.byteSize)) {
+    return { ok: false, code: 'too_large' };
+  }
+  if (props.byteSize <= 0) {
+    return { ok: false, code: 'empty_file' };
+  }
+  const mediaKind = mediaKindFromMimeType(props.declaredMimeType);
+  if (!mediaKind) {
+    return { ok: false, code: 'unsupported_type' };
+  }
+  if (props.byteSize > CMS_MEDIA_MAX_BYTES) {
+    return { ok: false, code: 'too_large' };
+  }
+  return {
+    ok: true,
+    mediaKind,
+    mimeType: props.declaredMimeType,
+    storedFilename: sanitizeCmsMediaFilenameForKind({
+      mediaKind,
+      mimeType: props.declaredMimeType,
+      originalFilename: props.originalFilename,
+    }),
+  };
+}
+
+export function detectCmsMediaKind(
+  bytes: Uint8Array,
+  declaredMimeType: string
+): CmsMediaKind | null {
+  if (detectCmsMediaMimeType(bytes)) {
+    return 'image';
+  }
+  if (declaredMimeType === 'application/pdf') {
+    return bytesStartWith(bytes, [37, 80, 68, 70]) ? 'file' : null;
+  }
+  if (
+    declaredMimeType === 'video/mp4' ||
+    declaredMimeType === 'video/quicktime'
+  ) {
+    return bytesContainSignature(bytes, [102, 116, 121, 112]) ? 'video' : null;
+  }
+  if (declaredMimeType === 'video/webm') {
+    return bytesStartWith(bytes, [26, 69, 223, 163]) ? 'video' : null;
+  }
+  return mediaKindFromMimeType(declaredMimeType);
 }

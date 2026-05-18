@@ -2,7 +2,7 @@
 name: pgsync-prod-to-local
 description: >-
   Copy MIT Sailing production Postgres into local dev_db via pgsync: open
-  sailing-dock loopback port, SSH tunnel, run pgsync, then close port and tunnel.
+  production host loopback port, SSH tunnel, run pgsync, then close port and tunnel.
   Use when the user asks to pgsync, pull prod data, sync production database to
   local, or refresh dev_db from production.
 ---
@@ -15,11 +15,14 @@ Agent-run workflow for this repo. Uses [pgsync](https://github.com/ankane/pgsync
 
 | Setting | Value |
 | --- | --- |
-| SSH host | `sailing-dock.mit.edu` |
+| SSH target | `username@example.com` |
 | Docker network | `mitsailing_internal` |
 | Loopback container | `mitsailing-pg-loopback` |
 | Host port | `15432` |
 | Prod DB name | `mitsailing_prod` |
+
+Before running the commands, replace `username@example.com` with your SSH login
+for the production host.
 
 ## Before starting
 
@@ -33,22 +36,22 @@ Agent-run workflow for this repo. Uses [pgsync](https://github.com/ankane/pgsync
 
 Run steps in order. Use a `trap` or `finally`-style cleanup so step 4 always runs.
 
-### 1. Open port on sailing-dock
+### 1. Open port on production host
 
 ```bash
-ssh sailing-dock.mit.edu 'docker rm -f mitsailing-pg-loopback 2>/dev/null; docker run -d --name mitsailing-pg-loopback \
+ssh username@example.com 'docker rm -f mitsailing-pg-loopback 2>/dev/null; docker run -d --name mitsailing-pg-loopback \
   --network mitsailing_internal \
   -p 127.0.0.1:15432:5432 \
   alpine:3.21 \
   sh -c "apk add --no-cache socat >/dev/null && exec socat TCP-LISTEN:5432,fork,reuseaddr TCP:postgres:5432"'
 ```
 
-Verify: `ssh sailing-dock.mit.edu 'ss -tln | grep 15432 || netstat -tln 2>/dev/null | grep 15432'`
+Verify: `ssh username@example.com 'ss -tln | grep 15432 || netstat -tln 2>/dev/null | grep 15432'`
 
 ### 2. SSH tunnel (laptop, background)
 
 ```bash
-ssh -f -N -o ExitOnForwardFailure=yes -L 15432:127.0.0.1:15432 sailing-dock.mit.edu
+ssh -f -N -o ExitOnForwardFailure=yes -L 15432:127.0.0.1:15432 username@example.com
 ```
 
 Verify: `nc -z 127.0.0.1 15432`
@@ -70,8 +73,8 @@ pgsync --defer-constraints --truncate --jobs 1
 ### 4. Cleanup (required)
 
 ```bash
-pkill -f 'ssh.*-L 15432:127.0.0.1:15432.*sailing-dock' 2>/dev/null || true
-ssh sailing-dock.mit.edu 'docker stop mitsailing-pg-loopback && docker rm mitsailing-pg-loopback' 2>/dev/null || true
+pkill -f 'ssh.*-L 15432:127.0.0.1:15432.*example.com' 2>/dev/null || true
+ssh username@example.com 'docker stop mitsailing-pg-loopback && docker rm mitsailing-pg-loopback' 2>/dev/null || true
 ```
 
 ## Safety

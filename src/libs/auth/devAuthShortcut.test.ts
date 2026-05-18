@@ -1,15 +1,39 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 function stubRequiredBaseEnv(): void {
-  vi.stubEnv(
-    'BETTER_AUTH_SECRET',
-    'test-secret-that-is-at-least-thirty-two-chars'
-  );
-  vi.stubEnv(
-    'DATABASE_URL',
-    'postgresql://postgres:postgres@localhost:5432/dev_db?sslmode=disable'
-  );
-  vi.stubEnv('NEXT_PUBLIC_APP_URL', 'http://localhost:3000');
+  const envVars: readonly (readonly [string, string])[] = [
+    ['BETTER_AUTH_SECRET', 'test-secret-that-is-at-least-thirty-two-chars'],
+    [
+      'DATABASE_URL',
+      'postgresql://postgres:postgres@localhost:5432/dev_db?sslmode=disable',
+    ],
+    ['NEXT_PUBLIC_APP_URL', 'http://localhost:3000'],
+  ];
+  for (const [key, value] of envVars) {
+    vi.stubEnv(key, value);
+  }
+}
+
+function stubRequiredDeployedEnv(): void {
+  const envVars: readonly (readonly [string, string])[] = [
+    ['CMS_MEDIA_ROOT', '/var/cms-media'],
+    ['HEALTHCHECK_SECRET', 'test-healthcheck-secret-with-thirty-two-chars'],
+    ['MEDIA_PUBLIC_BASE_URL', 'https://mitsailing.com'],
+    ['MEDIA_STORAGE_ROOT', '/var/lib/mitsailing/cms-media'],
+    ['MEDIA_UPLOAD_BASE_URL', 'https://mitsailing.com'],
+    [
+      'MEDIA_UPLOAD_SHARED_SECRET',
+      'test-media-upload-secret-with-thirty-two-chars',
+    ],
+    [
+      'NEXT_SERVER_ACTIONS_ENCRYPTION_KEY',
+      'test-server-actions-key-with-thirty-two-chars',
+    ],
+    ['REDIS_URL', 'redis://redis:6379'],
+  ];
+  for (const [key, value] of envVars) {
+    vi.stubEnv(key, value);
+  }
 }
 
 describe('isDevAuthShortcutEnabled', () => {
@@ -31,7 +55,7 @@ describe('isDevAuthShortcutEnabled', () => {
   it('returns false for APP_ENV staging', async () => {
     stubRequiredBaseEnv();
     vi.stubEnv('APP_ENV', 'staging');
-    vi.stubEnv('CMS_MEDIA_ROOT', '/var/cms-media');
+    stubRequiredDeployedEnv();
 
     const { isDevAuthShortcutEnabled } =
       await import('@/libs/auth/devAuthShortcut');
@@ -42,7 +66,7 @@ describe('isDevAuthShortcutEnabled', () => {
   it('returns false for APP_ENV production', async () => {
     stubRequiredBaseEnv();
     vi.stubEnv('APP_ENV', 'production');
-    vi.stubEnv('CMS_MEDIA_ROOT', '/var/cms-media');
+    stubRequiredDeployedEnv();
 
     const { isDevAuthShortcutEnabled } =
       await import('@/libs/auth/devAuthShortcut');

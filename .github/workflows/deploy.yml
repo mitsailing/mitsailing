@@ -2,11 +2,13 @@ name: Deploy (production)
 
 # Repository → Settings → Environments → `production`:
 #   Add **Required reviewers** so the deploy job waits for human approval before
-#   SSH (recommended). Secrets live on that environment: PRODUCTION_SSH_*,
-#   NEXT_PUBLIC_SENTRY_DSN, SENTRY_AUTH_TOKEN (see docs/deploy.md). The `build`
-#   job uses this environment so those values reach Docker build-args.
+#   SSH (recommended). Secrets live on that environment:
+#   PRODUCTION_SSH_TARGET, PRODUCTION_SSH_PRIVATE_KEY, PRODUCTION_SSH_HOST_KEY,
+#   NEXT_PUBLIC_SENTRY_DSN, SENTRY_AUTH_TOKEN
+#   (see docs/deploy.md). The `build` job uses this environment so those values
+#   reach Docker build-args.
 #
-# Auto-deploy to the sailing-dock production host when main changes. We also
+# Auto-deploy to the production host when main changes. We also
 # expose a manual `workflow_dispatch` trigger so operators can deploy an
 # arbitrary commit without having to git-push (useful for hotfix replays
 # and rollback by SHA).
@@ -140,15 +142,14 @@ jobs:
           sbom-path: sbom.spdx.json
           push-to-registry: true
 
-  # ─────────────────── Stage 2 — migrations ───────────────────
-  # Run Prisma migrations before app rollout. This follows Prisma's
-  # recommended "migrate deploy in CI/CD" pattern while still executing on
-  # the production host network over SSH.
-  migrate:
-    name: Run production migrations
+  # ─────────────────── Stage 2 — release ───────────────────
+  # `bin/deploy.sh release` runs the replacement MIT Sailing stack on the
+  # production host. WordPress has a separate tunnel/deploy path.
+  deploy:
+    name: Release production
     runs-on: ubuntu-latest
     needs: build
-    timeout-minutes: 10
+    timeout-minutes: 35
     environment:
       name: production
       url: https://mitsailing.com
@@ -163,130 +164,69 @@ jobs:
           mkdir -p ~/.ssh
           printf '%s\n' "${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}" > ~/.ssh/id_deploy
           chmod 600 ~/.ssh/id_deploy
+          # Pin all production host keys to prevent MITM. This secret may hold
+          # multiple ssh-keyscan lines for the production host, including rotated host keys.
           printf '%s\n' "${{ secrets.PRODUCTION_SSH_HOST_KEY }}" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
-      # Keep `compose.yaml` / `compose.prod.yaml` on the host in sync with the branch (overlays, healthchecks).
-      - name: Sync compose files
+      - name: Sync production deploy files
         env:
-          PRODUCTION_USER: ${{ secrets.PRODUCTION_SSH_USER }}
-          PRODUCTION_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
+          PRODUCTION_SSH_TARGET: ${{ secrets.PRODUCTION_SSH_TARGET }}
+          REMOTE_APP_DIR: ${{ vars.PRODUCTION_REMOTE_APP_DIR || 'apps/mitsailing' }}
         run: |
+          set -euo pipefail
+          ssh \
+            -i ~/.ssh/id_deploy \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            "$PRODUCTION_SSH_TARGET" \
+            "mkdir -p '${REMOTE_APP_DIR}/bin' '${REMOTE_APP_DIR}/docker/postgres' '${REMOTE_APP_DIR}/docker/nginx'"
+
           scp \
             -i ~/.ssh/id_deploy \
             -o BatchMode=yes \
             -o ConnectTimeout=15 \
             compose.yaml \
             compose.prod.yaml \
-            "${PRODUCTION_USER}@${PRODUCTION_HOST}:~/apps/mitsailing/"
+            "$PRODUCTION_SSH_TARGET:${REMOTE_APP_DIR}/"
 
-      - name: Sync deploy script
-        env:
-          PRODUCTION_USER: ${{ secrets.PRODUCTION_SSH_USER }}
-          PRODUCTION_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
-        run: |
           scp \
             -i ~/.ssh/id_deploy \
             -o BatchMode=yes \
             -o ConnectTimeout=15 \
             bin/deploy.sh \
-            "${PRODUCTION_USER}@${PRODUCTION_HOST}:~/deploy.sh"
-          ssh \
-            -i ~/.ssh/id_deploy \
-            -o BatchMode=yes \
-            -o ConnectTimeout=15 \
-            "${PRODUCTION_USER}@${PRODUCTION_HOST}" \
-            "chmod +x ~/deploy.sh"
+            "$PRODUCTION_SSH_TARGET:${REMOTE_APP_DIR}/bin/deploy.sh"
 
-      - name: Run prisma migrate deploy
-        env:
-          PRODUCTION_USER: ${{ secrets.PRODUCTION_SSH_USER }}
-          PRODUCTION_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
-          IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
-        run: |
-          ssh \
-            -i ~/.ssh/id_deploy \
-            -o BatchMode=yes \
-            -o ConnectTimeout=15 \
-            "${PRODUCTION_USER}@${PRODUCTION_HOST}" \
-            "~/deploy.sh migrate ${IMAGE_TAG}"
-
-  # ─────────────────── Stage 3 — deploy ───────────────────
-  # Separate job so a failed deploy doesn't block later pushes from
-  # rebuilding the image. Uses `environment: production` so GitHub surfaces
-  # the deploy in the Environments tab with a link + logs.
-  deploy:
-    name: Deploy production
-    runs-on: ubuntu-latest
-    needs: [build, migrate]
-    timeout-minutes: 10
-    environment:
-      name: production
-      url: https://mitsailing.com
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ inputs.ref || github.sha }}
-
-      - name: Set up SSH
-        # We do NOT use ssh-agent for this; the deploy key is bound to a
-        # single command on the server side (see docs/deploy.md), so only
-        # the one authorized invocation below is possible.
-        run: |
-          mkdir -p ~/.ssh
-          printf '%s\n' "${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}" > ~/.ssh/id_deploy
-          chmod 600 ~/.ssh/id_deploy
-          # Pin the host key to prevent MITM; the admin records this once
-          # via `ssh-keyscan sailing-dock.mit.edu` and puts it in secrets.
-          printf '%s\n' "${{ secrets.PRODUCTION_SSH_HOST_KEY }}" > ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/known_hosts
-
-      # Keep `compose.yaml` / `compose.prod.yaml` on the host in sync with the branch (overlays, healthchecks).
-      - name: Sync compose files
-        env:
-          PRODUCTION_USER: ${{ secrets.PRODUCTION_SSH_USER }}
-          PRODUCTION_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
-        run: |
           scp \
             -i ~/.ssh/id_deploy \
             -o BatchMode=yes \
             -o ConnectTimeout=15 \
-            compose.yaml \
-            compose.prod.yaml \
-            "${PRODUCTION_USER}@${PRODUCTION_HOST}:~/apps/mitsailing/"
+            docker/postgres/init.sql \
+            "$PRODUCTION_SSH_TARGET:${REMOTE_APP_DIR}/docker/postgres/init.sql"
 
-      - name: Sync deploy script
-        env:
-          PRODUCTION_USER: ${{ secrets.PRODUCTION_SSH_USER }}
-          PRODUCTION_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
-        run: |
           scp \
             -i ~/.ssh/id_deploy \
             -o BatchMode=yes \
             -o ConnectTimeout=15 \
-            bin/deploy.sh \
-            "${PRODUCTION_USER}@${PRODUCTION_HOST}:~/deploy.sh"
+            docker/nginx/media.conf \
+            "$PRODUCTION_SSH_TARGET:${REMOTE_APP_DIR}/docker/nginx/media.conf"
+
           ssh \
             -i ~/.ssh/id_deploy \
             -o BatchMode=yes \
             -o ConnectTimeout=15 \
-            "${PRODUCTION_USER}@${PRODUCTION_HOST}" \
-            "chmod +x ~/deploy.sh"
+            "$PRODUCTION_SSH_TARGET" \
+            "chmod +x '${REMOTE_APP_DIR}/bin/deploy.sh'"
 
-      - name: Deploy
+      - name: Release
         env:
-          PRODUCTION_USER: ${{ secrets.PRODUCTION_SSH_USER }}
-          PRODUCTION_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
+          PRODUCTION_SSH_TARGET: ${{ secrets.PRODUCTION_SSH_TARGET }}
           IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
-        # The remote side enforces `command="deploy.sh ..."` in
-        # authorized_keys, so whatever we send here is re-parsed by the
-        # deploy script. The script rejects anything that isn't
-        # `deploy <ref>`.
+          REMOTE_APP_DIR: ${{ vars.PRODUCTION_REMOTE_APP_DIR || 'apps/mitsailing' }}
         run: |
           ssh \
             -i ~/.ssh/id_deploy \
             -o BatchMode=yes \
             -o ConnectTimeout=15 \
-            "${PRODUCTION_USER}@${PRODUCTION_HOST}" \
-            "~/deploy.sh deploy ${IMAGE_TAG}"
+            "$PRODUCTION_SSH_TARGET" \
+            "DEPLOY_DIR='${REMOTE_APP_DIR}' '${REMOTE_APP_DIR}/bin/deploy.sh' release '${IMAGE_TAG}'"

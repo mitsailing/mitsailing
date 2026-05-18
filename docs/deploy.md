@@ -1,411 +1,274 @@
-# Production deploy runbook
+# Production Deploy Runbook
 
-This app ships as a **Docker image** on GitHub Container Registry (GHCR). Each
-push to `main` builds and tags `ghcr.io/mitsailing/mitsailing:sha-<short>` and
-`:latest`, then GitHub Actions SSHs to your Linux host to run
-`migrate <sha-short>` followed by `deploy <sha-short>` (see `bin/deploy.sh`
-and `.github/workflows/deploy.yml`).
+This runbook defines the MIT Sailing production deployment target. There is no
+MIT Sailing redirect/cutover path to preserve. WordPress remains separate and
+untouched at `wp.mitsailing.com`.
 
-The server can run **rootless Docker** (no `sudo` for day-to-day). You only need
-`sudo` once if your distro requires **loginctl linger** so the Docker user
-daemon survives logout/reboot (see below).
+## Target Shape
 
-Ingress in this repo is **Cloudflare Tunnel** (`cloudflared` in
-`compose.prod.yaml`) so the host does not need inbound firewall ports for HTTP.
+Production runs one MIT Sailing Docker Compose stack on the production host:
 
----
-
-## What you need on the server
-
-| Requirement | Notes |
+| Service | Purpose |
 | --- | --- |
-| Docker Engine + Compose v2 | Rootless is fine; same user runs `docker compose` |
-| SSH access | Interactive key for you; **separate** deploy key for CI |
-| `docker login ghcr.io` | Once per user, PAT with `read:packages` if the image is private |
-| Directory `~/apps/mitsailing/` | Holds `compose.yaml`, `compose.prod.yaml`, `docker/postgres/init.sql`, `.env.production`, `deploy.sh` |
+| `cloudflared` | MIT Sailing tunnel connector only |
+| `app` | Stable nginx ingress for blue/green Next.js containers |
+| `web_blue`, `web_green` | Next.js standalone app; one active at a time |
+| `postgres` | App database on `/srv/mitsailing-data/postgres` |
+| `redis` | BullMQ Redis on `/srv/mitsailing-data/redis` |
+| `tusd` | Resumable CMS upload endpoint |
+| `worker` | BullMQ worker and media processor |
+| `media` | nginx serving ready CMS media |
 
-**Multiple projects on one host:** each app should use a **unique Compose
-project name**. This repo sets `name: mitsailing` in `compose.yaml`. A second
-copy of the same file would collide; either use a separate machine, or change
-`name:` (or set `COMPOSE_PROJECT_NAME` when invoking compose — not wired into
-`deploy.sh` today).
+Persistent state uses host bind mounts under `/srv/mitsailing-data`. Compose is
+configured not to create missing production bind paths, and the deploy script
+verifies mounted container sources through Docker after services start. It does
+not stat, create, chown, or chmod server-owned data paths. A sudo-capable server
+admin must create those paths before the first production release.
 
----
+## No-Sudo Boundary
 
-## One-time setup (no `sudo` except optional linger)
-
-### 1. Optional — keep rootless Docker alive after reboot (one-time admin)
-
-If containers die after you log out or reboot until someone logs in again, an
-admin with `sudo` runs **once**:
-
-```bash
-sudo loginctl enable-linger YOUR_LINUX_USERNAME
-```
-
-If you truly have **no** `sudo` anywhere, ask the host admin to enable linger
-for your UID, or accept starting Docker after login.
-
-### 2. Create the app directory and copy files
-
-On the server as your deploy user:
+The deploy user can do this without sudo:
 
 ```bash
-mkdir -p ~/apps/mitsailing/docker/postgres
-cd ~/apps/mitsailing
-
-# From a clone of this repo on your laptop, scp or cp:
-#   compose.yaml compose.prod.yaml docker/postgres/init.sql bin/deploy.sh
-# Example from your workstation:
-#   scp compose.yaml compose.prod.yaml YOUR_USER@YOUR_HOST:~/apps/mitsailing/
-#   scp docker/postgres/init.sql YOUR_USER@YOUR_HOST:~/apps/mitsailing/docker/postgres/
-#   scp bin/deploy.sh YOUR_USER@YOUR_HOST:~/deploy.sh
-
-chmod +x ~/deploy.sh
+mkdir -p ~/apps/mitsailing/bin ~/apps/mitsailing/docker/postgres ~/apps/mitsailing/docker/nginx
+# After `bin/deploy.sh release ...` creates `.env.image`, operators can inspect
+# or restart the stack with Compose directly:
+docker compose -f compose.yaml -f compose.prod.yaml --profile release \
+  --env-file .env.production --env-file .env.image up -d
 ```
 
-`bin/deploy.sh` defaults to `DEPLOY_DIR=$HOME/apps/mitsailing`. If you use a
-different path, set `DEPLOY_DIR` in the `authorized_keys` line (see below) or
-edit the script.
+The deploy user cannot assume this without an admin:
 
-### 3. Configure `.env.production`
+- install Docker, nginx, cloudflared, or system packages;
+- enable rootless Docker linger after logout/reboot.
+
+The deploy script does not use sudo. A server admin must create
+`/srv/mitsailing-data` and grant only the container users that need data access.
+Use POSIX ACLs where available so the host paths are not readable by ordinary
+server users.
+
+Server admin setup:
 
 ```bash
-cd ~/apps/mitsailing
-cp /path/to/repo/.env.production.example .env.production
-$EDITOR .env.production
+sudo useradd --create-home --shell /bin/bash deploy 2>/dev/null || true
+sudo passwd -l deploy
+sudo usermod -aG docker deploy
+
+sudo install -d -o deploy -g deploy -m 0700 /home/deploy/.ssh
+sudo install -d -o deploy -g deploy -m 0700 /home/deploy/apps
+sudo install -d -o deploy -g deploy -m 0700 /home/deploy/apps/mitsailing
+sudo install -d -o deploy -g deploy -m 0700 /home/deploy/apps/mitsailing/bin
+sudo install -d -o deploy -g deploy -m 0700 /home/deploy/apps/mitsailing/docker/postgres
+sudo install -d -o deploy -g deploy -m 0700 /home/deploy/apps/mitsailing/docker/nginx
+
+sudo tee /home/deploy/.ssh/authorized_keys >/dev/null <<'KEY'
+PASTE_PUBLIC_KEY_HERE
+KEY
+sudo chown deploy:deploy /home/deploy/.ssh/authorized_keys
+sudo chmod 0600 /home/deploy/.ssh/authorized_keys
+
+command -v setfacl >/dev/null || {
+  echo "Install POSIX ACL tools first, then rerun this block." >&2
+  exit 1
+}
+
+sudo install -d -o root -g root -m 0700 /srv/mitsailing-data
+sudo install -d -o 70 -g 70 -m 0700 /srv/mitsailing-data/postgres
+sudo install -d -o 999 -g 1000 -m 0700 /srv/mitsailing-data/redis
+sudo install -d -o 1001 -g 1001 -m 0700 /srv/mitsailing-data/cms-media
+sudo install -d -o 1001 -g 1001 -m 0700 /srv/mitsailing-data/cms-media/uploads
+sudo install -d -o 1001 -g 1001 -m 0700 /srv/mitsailing-data/cms-media/ready
+
+sudo setfacl -m u:70:--x,u:999:--x,u:1001:--x,u:101:--x /srv/mitsailing-data
+sudo setfacl -m u:101:--x /srv/mitsailing-data/cms-media
+sudo setfacl -m u:101:rx /srv/mitsailing-data/cms-media/ready
+sudo setfacl -d -m u:101:rx /srv/mitsailing-data/cms-media/ready
+
+sudo -iu deploy docker compose version
 ```
 
-Fill at least:
+If rootless Docker stops when the user logs out or the host reboots, ask an
+admin to run this once:
 
-- `BETTER_AUTH_SECRET` (32+ random chars)
-- `DATABASE_URL` — must match Postgres in Compose: user `postgres`, host
-  `postgres`, password `POSTGRES_PASSWORD`. Production defaults to database
-  name **`mitsailing_prod`** (`compose.prod.yaml`). If your volume was created
-  earlier with `dev_db`, keep `POSTGRES_DB=dev_db` and point `DATABASE_URL` at
-  `dev_db` until you migrate.
-- `POSTGRES_PASSWORD` — strong password; same value embedded in `DATABASE_URL`
-- `REDIS_URL` — e.g. `redis://redis:6379` for the BullMQ **worker** service
-  (`compose.yaml` / `compose.prod.yaml`)
-- Optional **`DEPLOYMENT_VERSION`** — same string on every `app` container when
-  using rolling deploys or multiple replicas (wired to Next.js `deploymentId`;
-  image tag or git SHA is typical).
-- Optional **`NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`** — required before running
-  **more than one** `app` replica or overlapping rolling deploys (see Next.js
-  data security docs).
-- `NEXT_PUBLIC_APP_URL=https://mitsailing.com` — must match the URL baked
-  into the image by GitHub Actions (`deploy.yml` `build-arg`); the production
-  host’s `.env.production` should use the **same** value for runtime `Env`
-  (the host file is **not** read during the CI image build).
-- `CLOUDFLARE_TUNNEL_TOKEN` from the Cloudflare Zero Trust dashboard
-- `RESEND_API_KEY`, `EMAIL_FROM`, `SUPPORT_EMAIL` (real mail; there is no
-  Mailpit in production)
+```bash
+sudo loginctl enable-linger DEPLOY_USER
+```
 
-**Sentry (errors + source maps):** The production image is built in GitHub
-Actions (`.github/workflows/deploy.yml`), not on the VM. Add these on the
-**`production` environment** (same place as deploy SSH secrets) so the Docker
-build can inline the DSN and upload source maps during `next build`:
+## Cloudflare
+
+Keep the WordPress tunnel untouched:
+
+```text
+wp.mitsailing.com -> existing WordPress tunnel/origin
+```
+
+Configure a separate MIT Sailing tunnel using this stack's `cloudflared` token.
+In Cloudflare Zero Trust, add public hostname/path rules in this order:
+
+```yaml
+ingress:
+  - hostname: mitsailing.com
+    path: ^/cms-media/uploads(/.*)?$
+    service: http://tusd:1080
+
+  - hostname: mitsailing.com
+    path: ^/cms-media(/.*)?$
+    service: http://media:8080
+
+  - hostname: mitsailing.com
+    service: http://app:3000
+
+  - service: http_status:404
+```
+
+The order is load-bearing. Upload routes must be checked before general media,
+and media must be checked before the app catch-all.
+
+## Environment
+
+Copy `.env.production.example` to `.env.production` on the production host and fill
+real secrets. Important production values:
+
+```dotenv
+NEXT_PUBLIC_APP_URL=https://mitsailing.com
+MEDIA_UPLOAD_BASE_URL=https://mitsailing.com
+MEDIA_PUBLIC_BASE_URL=https://mitsailing.com
+MEDIA_STORAGE_ROOT=/var/lib/mitsailing/cms-media
+CMS_MEDIA_ROOT=/var/lib/mitsailing/cms-media
+TUSD_HOOKS_HTTP_URL=https://mitsailing.com/api/internal/cms-media/tusd/hooks
+DATABASE_URL=postgresql://postgres:...@postgres:5432/mitsailing_prod?schema=public
+REDIS_URL=redis://redis:6379
+```
+
+`CLOUDFLARE_TUNNEL_TOKEN` must be the MIT Sailing app tunnel token, not the
+WordPress tunnel token.
+
+## Deploy
+
+GitHub Actions builds `ghcr.io/mitsailing/mitsailing:sha-<short>` and SSHs to
+the production host. Required production environment secrets:
 
 | Secret | Purpose |
 | --- | --- |
-| `NEXT_PUBLIC_SENTRY_DSN` | Client/server SDK DSN; baked into the bundle at build time. |
-| `SENTRY_AUTH_TOKEN` | Build-only auth for `@sentry/webpack-plugin` (do **not** put this in `.env.production` on the host). |
+| `PRODUCTION_SSH_TARGET` | SSH target, for example `deploy@example.com` |
+| `PRODUCTION_SSH_PRIVATE_KEY` | Deploy SSH key |
+| `PRODUCTION_SSH_HOST_KEY` | Pinned host key lines |
+| `NEXT_PUBLIC_SENTRY_DSN` | Build-time Sentry DSN |
+| `SENTRY_AUTH_TOKEN` | Build-time source map upload token |
 
-Optional `NEXT_PUBLIC_SENTRY_DSN` on the server is documented in
-`.env.production.example`; it does **not** replace CI for inlined `NEXT_PUBLIC_*`.
+Optional variable:
 
-The workflow passes `NEXT_PUBLIC_SENTRY_DISABLED` as empty for that build so
-Sentry and `withSentryConfig` are active. PR and local Docker builds default to
-Sentry disabled in the `Dockerfile`. If the `production` environment uses
-**required reviewers**, the **Build + push image** job also waits on approval;
-relax rules or duplicate these values as **repository** secrets if you need
-fully unattended image builds.
-
-**Cloudflare public hostname:** point your apex (e.g. `mitsailing.com`) to
-`http://app:3000` on the tunnel. Production compose does **not** expose Mailpit.
-
-### Legacy MySQL mirror worker secrets
-
-The worker can mirror the old website MySQL database `sailing` from the
-production host network into Postgres schema `legacy`.
-
-Create a worker-only env file on the production host:
-
-```bash
-cd ~/apps/mitsailing
-cp .env.production.worker.example .env.production.worker
-$EDITOR .env.production.worker
-```
-
-Set `LEGACY_MYSQL_PASSWORD` for the read-only `dock_readonly` user (host
-`sailing.pavilion.lan:3306`, database `sailing` — fixed in app code). Do not
-commit the filled worker env file.
-
-**Enable / disable:** Set `LEGACY_MYSQL_SYNC_ENABLED=true` only after MySQL
-connectivity is confirmed (example file ships with `false`). That is the master
-switch — do not blank or comment out `LEGACY_MYSQL_SYNC_CRON` to turn sync off.
-When disabled, the worker removes any existing BullMQ scheduler on startup.
-
-**Schedule:** When enabled, the worker registers a BullMQ job scheduler (not
-system `crontab`). Default `LEGACY_MYSQL_SYNC_CRON` is hourly at minute 0
-(`"0 0 * * * *"` — six fields, seconds first). Quote the value in
-`.env.production.worker` so loaders keep the full expression. To change the
-schedule, edit that file and recreate the worker:
-
-```bash
-docker compose -f compose.yaml -f compose.prod.yaml \
-  --env-file .env.production --env-file .env.production.worker \
-  up -d --force-recreate worker
-```
-
-The worker connects from `sailing-dock.mit.edu`. Confirm MySQL allows
-`dock_readonly` from the production host or container network before setting
-`LEGACY_MYSQL_SYNC_ENABLED=true`.
-
-Connectivity check (uses both env files; password stays in the worker file):
-
-```bash
-cd ~/apps/mitsailing
-docker compose -f compose.yaml -f compose.prod.yaml \
-  --env-file .env.production --env-file .env.production.worker \
-  run --rm worker node - <<'NODE'
-const mysql = require('mysql2/promise');
-const password = process.env.LEGACY_MYSQL_PASSWORD;
-if (!password) throw new Error('LEGACY_MYSQL_PASSWORD missing');
-mysql
-  .createConnection({
-    database: 'sailing',
-    host: 'sailing.pavilion.lan',
-    password,
-    port: 3306,
-    user: 'dock_readonly',
-  })
-  .then(async (connection) => {
-    await connection.query('select 1');
-    await connection.end();
-  });
-NODE
-```
-
-After deploy:
-
-```bash
-docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production logs -f --tail 100 worker
-docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production \
-  exec postgres psql -U postgres -d "${POSTGRES_DB:-mitsailing_prod}" -c \
-  "select count(*) from information_schema.tables where table_schema = 'legacy';"
-```
-
-### 4. Create the production CMS media volume
-
-Production uploads live in the external Docker volume
-`mitsailing_cms_media`, mounted inside both `app` and `worker` at
-`/var/lib/mitsailing/cms-media`. The deploy script creates the volume if it is
-missing, but creating it explicitly during bootstrap makes the persistence
-contract visible before the first deploy:
-
-```bash
-docker volume inspect mitsailing_cms_media >/dev/null 2>&1 || docker volume create mitsailing_cms_media
-```
-
-Back up uploaded media by archiving the volume contents from a temporary
-container:
-
-```bash
-backup_file="mitsailing-cms-media-backup-$(date -u +%Y%m%dT%H%M%SZ).tgz"
-docker run --rm \
-  -v mitsailing_cms_media:/media:ro \
-  -v "$PWD":/backup \
-  alpine tar czf "/backup/${backup_file}" -C /media .
-```
-
-Restore into the same external volume before starting app containers:
-
-```bash
-backup_file="$(ls -t mitsailing-cms-media-backup-*.tgz | head -n 1)"
-if [ -z "$backup_file" ] || [ ! -f "$backup_file" ]; then
-  echo "No backup file found matching mitsailing-cms-media-backup-*.tgz" >&2
-  exit 1
-fi
-docker run --rm \
-  -v mitsailing_cms_media:/media \
-  -v "$PWD":/backup \
-  -e BACKUP_FILE="$backup_file" \
-  alpine sh -c 'cd /media && tar xzf "/backup/${BACKUP_FILE}"'
-```
-
-That restore **overlays** the tarball onto whatever is already in the volume:
-paths in the archive replace same-path objects, but files that exist only under
-`/media` and not in the backup are **not** removed, so stale assets can remain.
-Use overlay restores when you intentionally merge or patch content.
-
-For a **point-in-time** restore that matches the backup only (no leftover
-paths), stop the app and worker, then clear `/media` before extraction—for
-example:
-
-```bash
-docker run --rm \
-  -v mitsailing_cms_media:/media \
-  -v "$PWD":/backup \
-  -e BACKUP_FILE="$backup_file" \
-  alpine sh -c 'find /media -mindepth 1 -delete && tar xzf "/backup/${BACKUP_FILE}" -C /media'
-```
-
-Do **not** use `docker compose down -v` on the production stack unless you have
-a current, verified media backup and intend to delete all uploaded CMS media.
-
-### 5. GHCR pull authentication
-
-```bash
-# PAT needs read:packages for private images; public images may pull anonymously.
-install -m 600 /dev/stdin ~/.ghcr-token <<'EOF'
-ghp_your_token_here
-EOF
-docker login ghcr.io --username YOUR_GITHUB_USERNAME --password-stdin < ~/.ghcr-token
-```
-
-### 6. Lock down the deploy SSH key
-
-Generate a **dedicated** key pair for GitHub Actions (not your personal key):
-
-```bash
-# On your workstation
-ssh-keygen -t ed25519 -f ./mitsailing-deploy -C 'mitsailing gh actions deploy' -N ''
-```
-
-On the server, add the **public** key to `~/.ssh/authorized_keys` with a
-`command=` restriction so that key can only run this script's
-`migrate <ref>` / `deploy <ref>` commands. Use a
-**literal absolute path** (OpenSSH does not expand `$HOME` here):
-
-```
-command="/home/YOUR_USER/deploy.sh $SSH_ORIGINAL_COMMAND",no-pty,no-port-forwarding,no-agent-forwarding,no-X11-forwarding,no-user-rc ssh-ed25519 AAAA...rest-of-public-key... comment
-```
-
-If `deploy.sh` lives elsewhere, change the path before `$SSH_ORIGINAL_COMMAND`.
-
-Keep your **personal** SSH key in `authorized_keys` **without** `command=` so
-you can still open a normal shell.
-
-### 7. First bring-up (Postgres + Redis, then migrate + app/worker)
-
-Postgres and Redis must exist and be healthy before the app and worker
-containers start.
-
-```bash
-cd ~/apps/mitsailing
-
-# First time only — creates data volumes and runs init.sql
-docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production up -d postgres redis
-
-docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production ps
-# Wait until postgres and redis are healthy, then:
-
-# Pin the same image tag CI will send (use `latest` or a concrete sha- tag from GHCR)
-~/deploy.sh migrate latest
-~/deploy.sh deploy latest
-```
-
-After the first successful deploy, day-to-day updates are **only** from GitHub
-(`push` to `main` or **Actions → Deploy (production) → Run workflow**).
-
-Migrate and deploy jobs **scp** `compose.yaml` and `compose.prod.yaml` to
-`~/apps/mitsailing/` on each run so production Compose overlays (for example
-worker healthchecks) stay aligned with the branch, not only whatever was copied
-at initial bootstrap.
-
-### 8. GitHub repository configuration
-
-Create environment **`production`** (Settings → Environments) with URL
-`https://mitsailing.com` if you like. Add **Required reviewers** on that
-environment so production deploys wait for explicit approval (recommended).
-
-Add secrets used by `.github/workflows/deploy.yml`:
-
-| Secret | Value |
+| Variable | Default |
 | --- | --- |
-| `PRODUCTION_SSH_USER` | Linux username (e.g. `deploy`) |
-| `PRODUCTION_SSH_HOST` | Hostname or IP |
-| `PRODUCTION_SSH_PRIVATE_KEY` | Full PEM of **mitsailing-deploy** private key |
-| `PRODUCTION_SSH_HOST_KEY` | One line from `ssh-keyscan YOUR_HOST` |
+| `PRODUCTION_REMOTE_APP_DIR` | `apps/mitsailing` |
 
-Optional **PR preview** host (`.github/workflows/preview.yml`) — use **repository**
-secrets so jobs can run without environment protection deadlocks:
+For a new deployment, replace these example values:
 
-| Secret | Value |
+| Example | Replace with |
 | --- | --- |
-| `PREVIEW_SSH_USER` | Linux username on the preview host |
-| `PREVIEW_SSH_HOST` | Hostname or IP |
-| `PREVIEW_SSH_PRIVATE_KEY` | Dedicated key for preview/teardown |
-| `PREVIEW_SSH_HOST_KEY` | One line from `ssh-keyscan PREVIEW_HOST` |
+| `deploy@example.com` | The SSH target from the server admin, in `user@host` form |
+| `apps/mitsailing` | The deploy directory, if the server admin chose a different path |
+| `sha-abc123def456` | The image tag or rollback tag you intend to deploy |
 
-Each deploy pushes an image tag `pr-<number>-<12-char-sha>`. The teardown job
-runs `preview-down <number>` over SSH; implement that command on the server
-(e.g. `docker compose -p mitsailing-pr-<number> down`) and lock it in
-`authorized_keys` the same way as `deploy.sh`.
+Manual release from a checked-out repo:
 
----
+```bash
+export PRODUCTION_SSH_TARGET=deploy@example.com
 
-## Database admin access
+ssh "$PRODUCTION_SSH_TARGET" 'mkdir -p apps/mitsailing/bin apps/mitsailing/docker/postgres apps/mitsailing/docker/nginx'
+scp compose.yaml compose.prod.yaml "$PRODUCTION_SSH_TARGET:apps/mitsailing/"
+scp bin/deploy.sh "$PRODUCTION_SSH_TARGET:apps/mitsailing/bin/deploy.sh"
+scp docker/postgres/init.sql "$PRODUCTION_SSH_TARGET:apps/mitsailing/docker/postgres/init.sql"
+scp docker/nginx/media.conf "$PRODUCTION_SSH_TARGET:apps/mitsailing/docker/nginx/media.conf"
+ssh "$PRODUCTION_SSH_TARGET" 'chmod +x apps/mitsailing/bin/deploy.sh'
+ssh "$PRODUCTION_SSH_TARGET" 'DEPLOY_DIR=apps/mitsailing apps/mitsailing/bin/deploy.sh release sha-abc123def456'
+```
 
-Production Postgres is **not** published on the host by default (Compose network
-only). Use your **personal** SSH key (not the CI deploy key).
+`bin/deploy.sh release <ref>`:
 
-On **`sailing-dock.mit.edu`**, open an ephemeral **127.0.0.1** forward on the
-server, tunnel from your laptop, then connect GUI tools or `psql` at
-`127.0.0.1:15432`. Full steps (including mandatory cleanup) are in
-[`.cursor/skills/pgsync-prod-to-local/SKILL.md`](../.cursor/skills/pgsync-prod-to-local/SKILL.md)
-(steps 1–2 for admin access; step 3 is optional [pgsync](https://github.com/ankane/pgsync)
-prod → local `dev_db` only).
+1. pins `.env.image` to the GHCR image;
+2. starts Postgres/Redis and runs Prisma migrations;
+3. starts `tusd`, `media`, and `cloudflared` without recreating upload/media;
+4. starts the inactive `web_*` container;
+5. smoke-checks the new app's protected `/api/health/ready` endpoint with `HEALTHCHECK_SECRET`;
+6. rewrites/reloads `app` nginx to point at the new container;
+7. restarts `worker`;
+8. drains the old `web_*` container for the `DEPLOY_DRAIN_SECONDS` default of 120 seconds, then stops it.
 
-Broader patterns (Cloudflare private TCP, generic SSH forward): [devops_plan.md](./devops_plan.md) §5.5.
+The app drain is intentionally short because `tusd` and media nginx stay outside
+the blue/green web cutover and continue serving long upload/media traffic.
+Generated nginx app upload timeouts track `DEPLOY_DRAIN_SECONDS`; change the
+script default and deploy contract test together if operations needs a different
+cutover drain.
 
----
+The smoke-check is an authenticated readiness request, not the Docker
+HEALTHCHECK. Set `HEALTHCHECK_SECRET` in production so the deploy script can
+verify the new container before re-pointing nginx.
 
-## PR preview deployments
+Rollback:
 
-When `PREVIEW_SSH_*` secrets are set, `.github/workflows/preview.yml` builds and
-pushes a GHCR image per PR and runs teardown on `pull_request` **closed**. Wire
-the preview host to pull that tag and run Compose with a dedicated
-`COMPOSE_PROJECT_NAME` or stack name per PR; never point previews at the
-production database.
+```bash
+ssh "$PRODUCTION_SSH_TARGET" 'DEPLOY_DIR=apps/mitsailing apps/mitsailing/bin/deploy.sh rollback previous'
+```
 
----
+Rollback switches app traffic only. It does not reverse database migrations.
 
-## Day-to-day
+## Media Maintenance
 
-- **Deploy:** merge to `main` (automatic, after **production** environment
-  approval if configured) or run the Deploy workflow with a specific `ref` SHA
-  for rollback.
-- **Logs:**
+Normal app releases should not restart active upload/media services. Use these
+commands only during a planned low-traffic window. See
+[`docs/media-maintenance.md`](media-maintenance.md) for the full policy,
+preflight checklist, verification, and recovery steps.
 
-  ```bash
-  cd ~/apps/mitsailing
-  docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production logs -f --tail 100 app
-  docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production logs -f --tail 100 worker
-  ```
+Restart static media nginx when `docker/nginx/media.conf` changes:
 
-- **Status:**
+```bash
+ssh "$PRODUCTION_SSH_TARGET" 'DEPLOY_DIR=apps/mitsailing apps/mitsailing/bin/deploy.sh media-maintenance sha-abc123def456'
+```
 
-  ```bash
-  docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production ps
-  ```
+Restart `tusd` when upload protocol config, max upload size, CORS headers, tusd
+image version, or upload storage settings change:
 
----
+```bash
+ssh "$PRODUCTION_SSH_TARGET" 'DEPLOY_DIR=apps/mitsailing apps/mitsailing/bin/deploy.sh tusd-maintenance sha-abc123def456'
+```
 
-## Optional: staging stack (Mailpit)
+Restarting `tusd` can interrupt active uploads. That is why app deploys do not
+recreate it automatically.
 
-For a **non-production** environment with captured email, use
-`compose.staging.yaml` and `.env.staging` instead. That path is **not** wired into
-`deploy.sh` anymore; keep staging on a separate host or swap the compose files
-in a fork. See `compose.staging.yaml` and `.env.staging.example`.
+Worker code changes are handled by normal app releases because the worker runs
+the app image and is safe to restart after migrations.
 
----
+## Verification
 
-## Key rotation
+After configuring Cloudflare and deploying:
 
-1. `ssh-keygen -t ed25519 -f /tmp/deploy-new -C 'mitsailing gh deploy'`
-2. Append the new **public** key to `authorized_keys` with the same `command=`
-   line as the old key.
-3. Update `PRODUCTION_SSH_PRIVATE_KEY` in GitHub.
-4. After a successful deploy, remove the old public key line.
+```bash
+curl -fsSI https://mitsailing.com/api/health/live
+curl -fsSI -X OPTIONS https://mitsailing.com/cms-media/uploads/
+curl -fsSI https://mitsailing.com/cms-media/healthz
+```
+
+Useful server checks:
+
+```bash
+cd ~/apps/mitsailing
+docker compose -f compose.yaml -f compose.prod.yaml --profile release \
+  --env-file .env.production --env-file .env.image ps
+docker compose -f compose.yaml -f compose.prod.yaml --profile release \
+  --env-file .env.production --env-file .env.image logs -f --tail 100 cloudflared app worker tusd media
+```
+
+## Backups
+
+Back up these host paths:
+
+- `/srv/mitsailing-data/postgres`
+- `/srv/mitsailing-data/redis`
+- `/srv/mitsailing-data/cms-media`
+
+Use a tested filesystem backup/restore process before relying on production
+data. Do not back up or restore the WordPress stack as part of this app runbook.
+Use daily automated snapshots for these paths, retain 30 daily backups and 12
+monthly archives, and run a validated test restore at least quarterly. Target
+RTO is under 4 hours; target RPO is under 1 hour.

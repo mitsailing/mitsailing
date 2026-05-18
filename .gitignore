@@ -28,6 +28,7 @@
 /build
 /worker.cjs
 /worker.mjs
+/.deploy/
 
 # misc
 .DS_Store

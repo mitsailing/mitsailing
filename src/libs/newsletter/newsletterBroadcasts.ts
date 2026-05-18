@@ -5,10 +5,10 @@ import type {
   NewsletterDeliveryStatus,
 } from '@/generated/prisma/enums';
 import { prisma } from '@/libs/DB';
-import { Env } from '@/libs/Env';
 import { logger } from '@/libs/Logger';
 import { requestNewsletterArchiveRevalidation } from '@/libs/newsletter/newsletterArchiveCache';
 import {
+  getNewsletterPostalAddress,
   renderNewsletterBroadcastEmail,
   sendNewsletterBroadcastEmail,
 } from '@/libs/newsletter/newsletterEmail';
@@ -256,7 +256,7 @@ export async function renderAdminNewsletterBroadcastPreviewHtml(broadcast: {
     body: broadcast.body,
     listName: broadcast.primaryList.name,
     manageUrl: newsletterUrl,
-    postalAddress: Env.NEWSLETTER_POSTAL_ADDRESS,
+    postalAddress: await getNewsletterPostalAddress(),
     previewText: broadcast.previewText,
     subject: broadcast.subject,
     unsubscribeUrl: newsletterUrl,

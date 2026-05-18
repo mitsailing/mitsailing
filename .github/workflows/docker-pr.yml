@@ -108,7 +108,7 @@ jobs:
           set -euo pipefail
 
           cleanup() {
-            docker rm -f worker-smoke worker-smoke-redis >/dev/null 2>&1 || true
+            docker rm -f worker-smoke worker-smoke-postgres worker-smoke-redis >/dev/null 2>&1 || true
             docker network rm worker-smoke-net >/dev/null 2>&1 || true
           }
           worker_smoke_is_running() {
@@ -117,6 +117,11 @@ jobs:
           trap cleanup EXIT
 
           docker network create worker-smoke-net
+          docker run -d --name worker-smoke-postgres --network worker-smoke-net \
+            -e POSTGRES_DB=smoke \
+            -e POSTGRES_USER=smoke \
+            -e POSTGRES_PASSWORD=smoke \
+            postgres:18-alpine
           docker run -d --name worker-smoke-redis --network worker-smoke-net redis:8-alpine
 
           for _ in $(seq 1 20); do
@@ -132,8 +137,27 @@ jobs:
             exit 1
           fi
 
+          for _ in $(seq 1 30); do
+            if docker exec worker-smoke-postgres pg_isready -U smoke -d smoke | grep -q 'accepting connections'; then
+              break
+            fi
+            sleep 1
+          done
+
+          if ! docker exec worker-smoke-postgres pg_isready -U smoke -d smoke | grep -q 'accepting connections'; then
+            echo "::error::Postgres did not become ready for worker smoke"
+            docker logs --tail 100 worker-smoke-postgres || true
+            exit 1
+          fi
+
+          docker run --rm --network worker-smoke-net \
+            -e DATABASE_URL='postgresql://smoke:smoke@worker-smoke-postgres:5432/smoke?sslmode=disable' \
+            -e BETTER_AUTH_SECRET='smoke-placeholder-that-is-at-least-thirty-two-chars-long' \
+            -e NEXT_PUBLIC_SENTRY_DISABLED='true' \
+            mitsailing-pr:ci node ./node_modules/prisma/build/index.js migrate deploy
+
           docker run -d --name worker-smoke --network worker-smoke-net \
-            -e DATABASE_URL='postgresql://smoke:smoke@127.0.0.1:5432/smoke?sslmode=disable' \
+            -e DATABASE_URL='postgresql://smoke:smoke@worker-smoke-postgres:5432/smoke?sslmode=disable' \
             -e BETTER_AUTH_SECRET='smoke-placeholder-that-is-at-least-thirty-two-chars-long' \
             -e NEXT_PUBLIC_SENTRY_DISABLED='true' \
             -e REDIS_URL='redis://worker-smoke-redis:6379' \

@@ -1,60 +1,120 @@
-# Production overlay — scaffolded for the eventual prod stack. Key
-# differences from staging:
-#   - No Mailpit service: outbound mail goes to Resend
-#     (MAIL_TRANSPORT=resend via .env.production).
-#   - App command is `node server.js`; database migrations run in CI/CD
-#     before deployment (see `.github/workflows/deploy.yml`).
-#   - Database default name `mitsailing_prod` (override with POSTGRES_DB if
-#     an existing volume was initialized with `dev_db`).
-#   - If heavy ISR / `use cache` needs a shared or durable data cache, add a
-#     named volume on `app` for the Next data directory (see Next.js
-#     self-hosting) or a custom `incrementalCacheHandlerPath` — not enabled by
-#     default.
+# Production overlay for the MIT Sailing stack.
+#
+# WordPress runs in its own compose/tunnel and is intentionally not referenced here.
 #
 # Bring up with:
-#   docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.production up -d
+#   docker compose -f compose.yaml -f compose.prod.yaml --profile release --env-file .env.production --env-file .env.image up -d
 #
-# Worker reuses the app image; `worker.healthcheck` runs `worker-redis-healthcheck.cjs` (see Dockerfile) instead of the image HTTP probe.
+# Persistent state uses host bind mounts under /srv/mitsailing-data so
+# `docker compose down -v` cannot remove production data. Missing production
+# bind paths fail fast instead of being auto-created by Docker Compose.
+
+x-web: &web
+  image: ${APP_IMAGE}
+  profiles: ['release']
+  restart: unless-stopped
+  networks:
+    - internal
+  env_file:
+    - path: .env.production
+      required: false
+    - path: .env.image
+      required: false
+  environment:
+    CMS_MEDIA_ROOT: /var/lib/mitsailing/cms-media
+    MEDIA_STORAGE_ROOT: /var/lib/mitsailing/cms-media
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  volumes:
+    - type: bind
+      source: /srv/mitsailing-data/cms-media
+      target: /var/lib/mitsailing/cms-media
+      bind:
+        create_host_path: false
+      read_only: true
+  stop_grace_period: 30s
+  command: ['node', 'server.js']
+  deploy:
+    resources:
+      limits:
+        cpus: '1.0'
+        memory: 1536M
+      reservations:
+        cpus: '0.25'
+        memory: 512M
+  logging:
+    driver: json-file
+    options:
+      max-size: '10m'
+      max-file: '5'
 
 services:
   postgres:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-mitsailing_prod}
+    volumes:
+      - type: bind
+        source: /srv/mitsailing-data/postgres
+        target: /var/lib/postgresql
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./docker/postgres/init.sql
+        target: /docker-entrypoint-initdb.d/00-init.sql
+        read_only: true
+
+  redis:
+    volumes:
+      - type: bind
+        source: /srv/mitsailing-data/redis
+        target: /data
+        bind:
+          create_host_path: false
 
   app:
-    image: ${APP_IMAGE}
+    image: nginx:1.29-alpine
     restart: unless-stopped
     networks:
       - internal
-    env_file:
-      - path: .env.production
-        required: false
-    environment:
-      CMS_MEDIA_ROOT: /var/lib/mitsailing/cms-media
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     volumes:
-      - type: volume
-        source: cms_media
-        target: /var/lib/mitsailing/cms-media
-    stop_grace_period: 30s
-    command: ['node', 'server.js']
+      - type: bind
+        source: ./.deploy/nginx
+        target: /etc/nginx/conf.d
+        read_only: true
+    healthcheck:
+      # deploy.sh smoke-checks the selected web_* upstream before starting or
+      # reloading this proxy, so this proxied liveness check should only run
+      # after nginx has a healthy target.
+      test:
+        [
+          'CMD-SHELL',
+          'wget --quiet --tries=1 --spider http://127.0.0.1:3000/api/health/live',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
     deploy:
       resources:
         limits:
-          cpus: '1.0'
-          memory: 1536M
-        reservations:
           cpus: '0.25'
-          memory: 512M
+          memory: 128M
+        reservations:
+          cpus: '0.05'
+          memory: 32M
     logging:
       driver: json-file
       options:
         max-size: '10m'
         max-file: '5'
+
+  web_blue:
+    <<: *web
+
+  web_green:
+    <<: *web
 
   worker:
     image: ${APP_IMAGE}
@@ -72,17 +132,22 @@ services:
         required: false
       - path: .env.production.worker
         required: false
+      - path: .env.image
+        required: false
     environment:
       CMS_MEDIA_ROOT: /var/lib/mitsailing/cms-media
+      MEDIA_STORAGE_ROOT: /var/lib/mitsailing/cms-media
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     volumes:
-      - type: volume
-        source: cms_media
+      - type: bind
+        source: /srv/mitsailing-data/cms-media
         target: /var/lib/mitsailing/cms-media
+        bind:
+          create_host_path: false
     stop_grace_period: 30s
     command: ['node', 'worker.mjs']
     deploy:
@@ -93,6 +158,84 @@ services:
         reservations:
           cpus: '0.25'
           memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '5'
+
+  tusd:
+    image: tusproject/tusd:v2.9.2
+    user: '1001:1001'
+    restart: unless-stopped
+    networks:
+      - internal
+    env_file:
+      - path: .env.production
+        required: false
+    command:
+      - -port=1080
+      - -upload-dir=/var/lib/mitsailing/cms-media/uploads
+      - -base-path=/cms-media/uploads/
+      - -disable-download
+      - -behind-proxy
+      - -max-size=${MEDIA_UPLOAD_MAX_BYTES:-104857600}
+      - -hooks-http=${TUSD_HOOKS_HTTP_URL:?set TUSD_HOOKS_HTTP_URL}
+      - -hooks-http-forward-headers=x-mitsailing-upload-token
+      - -cors-allow-origin=${MEDIA_UPLOAD_CORS_ALLOW_ORIGIN:-https://mitsailing.com}
+      - -cors-allow-headers=authorization,content-type,tus-resumable,upload-length,upload-metadata,upload-offset,x-mitsailing-upload-token
+      - -cors-expose-headers=location,tus-resumable,upload-offset,upload-length,upload-metadata,upload-expires
+    volumes:
+      - type: bind
+        source: /srv/mitsailing-data/cms-media
+        target: /var/lib/mitsailing/cms-media
+        bind:
+          create_host_path: false
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'wget',
+          '--quiet',
+          '--tries=1',
+          '-O',
+          '/dev/null',
+          'http://127.0.0.1:1080/metrics',
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '5'
+
+  media:
+    image: nginx:1.29-alpine
+    restart: unless-stopped
+    networks:
+      - internal
+    volumes:
+      - type: bind
+        source: ./docker/nginx/media.conf
+        target: /etc/nginx/conf.d/default.conf
+        read_only: true
+      - type: bind
+        source: /srv/mitsailing-data/cms-media
+        target: /var/lib/mitsailing/cms-media
+        bind:
+          create_host_path: false
+        read_only: true
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'wget --quiet --tries=1 --spider http://127.0.0.1:8080/cms-media/healthz',
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     logging:
       driver: json-file
       options:
@@ -111,7 +254,12 @@ services:
       - --token
       - ${CLOUDFLARE_TUNNEL_TOKEN}
     depends_on:
-      - app
+      app:
+        condition: service_healthy
+      media:
+        condition: service_healthy
+      tusd:
+        condition: service_healthy
     deploy:
       resources:
         limits:
@@ -125,8 +273,3 @@ services:
       options:
         max-size: '10m'
         max-file: '3'
-
-volumes:
-  cms_media:
-    name: mitsailing_cms_media
-    external: true
