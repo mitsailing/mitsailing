@@ -128,9 +128,7 @@ reviews:
         instead of hiding app-owned TSX from analysis.
     - path: '.biome.json'
       instructions: >-
-        This file is for Codacy's Biome analyzer. Keep `linter.domains.react`
-        enabled and `qwik` / `solid` disabled so React TSX is not reviewed as
-        another JSX framework.
+        Codacy-only Biome config for React TSX; do not require local Biome deps.
     - path: 'src/app/[[]locale[]]/**'
       instructions: >-
         Single-locale English site (`AppConfig.i18n.locales` is only `en`).
