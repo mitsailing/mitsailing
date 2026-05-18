@@ -107,8 +107,10 @@ describe('uploadCmsMediaFile', () => {
       { method: 'DELETE' }
     );
     expect(fetchMock).not.toHaveBeenCalledWith(
-      '/api/admin/cms-media/uploads/resumed-asset/finalize',
-      { method: 'POST' }
+      expect.stringMatching(
+        /^\/api\/admin\/cms-media\/uploads\/[^/]+\/finalize$/u
+      ),
+      expect.objectContaining({ method: 'POST' })
     );
   });
 
@@ -178,6 +180,50 @@ describe('uploadCmsMediaFile', () => {
     expect(loggerMocks.warn).toHaveBeenCalledWith(
       'Failed to cancel CMS media upload: {error}',
       { assetId: 'session-asset', error: cancelError }
+    );
+  });
+
+  it('reports non-ok cancel response', async () => {
+    const file = new File(['image-bytes'], 'hero.png', { type: 'image/png' });
+    vi.mocked(uploadCmsMediaWithTus).mockResolvedValue({
+      assetId: 'resumed-asset',
+    });
+
+    const fetchMock = vi.fn<typeof fetch>(async (input, init) => {
+      const path = fetchInputPath(input);
+      if (path === '/api/admin/cms-media/uploads' && init?.method === 'POST') {
+        await Promise.resolve();
+        return uploadSessionResponse(file);
+      }
+      if (
+        path === '/api/admin/cms-media/uploads/session-asset' &&
+        init?.method === 'DELETE'
+      ) {
+        await Promise.resolve();
+        return new Response(null, {
+          status: 500,
+          statusText: 'Internal Server Error',
+        });
+      }
+      await Promise.resolve();
+      return Response.json({ asset: null });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(uploadCmsMediaFile({ file })).resolves.toBeNull();
+
+    const error = expect.objectContaining({
+      message: 'CMS media upload cancel failed: 500 Internal Server Error',
+    });
+    expect(Sentry.captureException).toHaveBeenCalledWith(
+      error,
+      expect.objectContaining({
+        tags: { cmsMediaAction: 'cancelUpload' },
+      })
+    );
+    expect(loggerMocks.warn).toHaveBeenCalledWith(
+      'Failed to cancel CMS media upload: {error}',
+      { assetId: 'session-asset', error }
     );
   });
 

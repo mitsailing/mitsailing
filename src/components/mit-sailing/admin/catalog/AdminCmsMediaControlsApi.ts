@@ -311,9 +311,14 @@ async function cancelCmsMediaUpload(assetId: string): Promise<void> {
   }
   try {
     // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf -- path is a same-origin upload API route built from an allowlisted asset id.
-    await fetch(path, {
+    const response = await fetch(path, {
       method: 'DELETE',
     });
+    if (!response.ok) {
+      throw new Error(
+        `CMS media upload cancel failed: ${response.status} ${response.statusText}`
+      );
+    }
   } catch (error) {
     logger.warn('Failed to cancel CMS media upload: {error}', {
       assetId,
