@@ -1,4 +1,3 @@
-import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -117,23 +116,29 @@ describe('single host deploy script', () => {
   it('accepts only OCI image tags as deploy refs', () => {
     const validRefFunction = script.match(/valid_ref\(\) \{[\s\S]*?\n\}/u);
     expect(validRefFunction).not.toBeNull();
+    const patternSource = validRefFunction?.[0].match(
+      /\[\[ "\$ref" =~ \^([\s\S]+)\$ \]\]/u
+    )?.[1];
+    expect(patternSource).toBe('[A-Za-z0-9_][A-Za-z0-9._-]{0,127}');
+    const deployRefPattern = new RegExp(`^${patternSource ?? ''}$`, 'u');
 
-    const result = spawnSync(
-      'bash',
-      [
-        '-c',
-        `${validRefFunction?.[0] ?? ''}\n` +
-          `for ref in sha-abc123def456 v1.0.0 _build ${'a'.repeat(128)}; do\n` +
-          '  valid_ref "$ref" || exit 1\n' +
-          'done\n' +
-          `for ref in '' feature/foo sha256:abc user@digest -bad ${'a'.repeat(129)}; do\n` +
-          '  ! valid_ref "$ref" || exit 2\n' +
-          'done\n',
-      ],
-      { encoding: 'utf8' }
-    );
-
-    expect(result.stderr).toBe('');
-    expect(result.status).toBe(0);
+    for (const ref of [
+      'sha-abc123def456',
+      'v1.0.0',
+      '_build',
+      'a'.repeat(128),
+    ]) {
+      expect(deployRefPattern.test(ref)).toBe(true);
+    }
+    for (const ref of [
+      '',
+      'feature/foo',
+      'sha256:abc',
+      'user@digest',
+      '-bad',
+      'a'.repeat(129),
+    ]) {
+      expect(deployRefPattern.test(ref)).toBe(false);
+    }
   });
 });

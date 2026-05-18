@@ -239,12 +239,13 @@ describe('cms media processing job', () => {
       const actual = await importActual<typeof FsPromises>();
       return {
         ...actual,
-        stat: vi.fn( async (...args: Parameters<typeof actual.stat>) => {
+        stat: vi.fn(async (...args: Parameters<typeof actual.stat>) => {
           const [filePath] = args;
           if (filePath === readyPath) {
             throw statError;
           }
-          return actual.stat(...args);
+          const statResult = await actual.stat(...args);
+          return statResult;
         }),
       };
     });
@@ -282,7 +283,7 @@ describe('cms media processing job', () => {
       const actual = await importActual<typeof FsPromises>();
       return {
         ...actual,
-        stat: vi.fn( async (...args: Parameters<typeof actual.stat>) => {
+        stat: vi.fn(async (...args: Parameters<typeof actual.stat>) => {
           const [filePath] = args;
           if (filePath === readyPath) {
             throw Object.assign(new Error('missing ready file'), {
@@ -292,7 +293,8 @@ describe('cms media processing job', () => {
           if (filePath === rawPath) {
             throw statError;
           }
-          return actual.stat(...args);
+          const statResult = await actual.stat(...args);
+          return statResult;
         }),
       };
     });
