@@ -40,14 +40,7 @@ vi.mock('@/components/mit-sailing/admin/catalog/AdminCatalogForm', () => ({
 
 vi.mock('@/components/mit-sailing/admin/catalog/AdminCatalogTable', () => ({
   AdminCatalogTable: (props: { rows: unknown[] }) => (
-    <table data-row-count={props.rows.length}>
-      <thead>
-        <tr>
-          <th scope="col">User</th>
-        </tr>
-      </thead>
-      <tbody />
-    </table>
+    <div data-row-count={props.rows.length} />
   ),
 }));
 
