@@ -22,6 +22,35 @@ function fetchInputPath(input: Parameters<typeof fetch>[0]): string {
   return input.url;
 }
 
+function uploadSessionAsset(file: File) {
+  return {
+    createdAt: '2026-05-17T12:00:00.000Z',
+    id: 'session-asset',
+    originalFilename: file.name,
+    publicPath: '/cms-media/session-asset.png',
+  };
+}
+
+function uploadSessionResponse(file: File) {
+  return Response.json({
+    asset: uploadSessionAsset(file),
+    upload: {
+      byteSize: file.size,
+      endpoint: '/uploads',
+      expiresAt: '2026-05-17T12:05:00.000Z',
+      headers: { Authorization: 'Bearer test-token' },
+      metadata: {
+        assetId: 'session-asset',
+        byteSize: String(file.size),
+        filename: file.name,
+        filetype: file.type,
+        token: 'test-token',
+      },
+      protocol: 'tus',
+    },
+  });
+}
+
 describe('uploadCmsMediaFile', () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -38,28 +67,7 @@ describe('uploadCmsMediaFile', () => {
       const path = fetchInputPath(input);
       if (path === '/api/admin/cms-media/uploads' && init?.method === 'POST') {
         await Promise.resolve();
-        return Response.json({
-          asset: {
-            createdAt: '2026-05-17T12:00:00.000Z',
-            id: 'session-asset',
-            originalFilename: file.name,
-            publicPath: '/cms-media/session-asset.png',
-          },
-          upload: {
-            byteSize: file.size,
-            endpoint: '/uploads',
-            expiresAt: '2026-05-17T12:05:00.000Z',
-            headers: { Authorization: 'Bearer test-token' },
-            metadata: {
-              assetId: 'session-asset',
-              byteSize: String(file.size),
-              filename: file.name,
-              filetype: file.type,
-              token: 'test-token',
-            },
-            protocol: 'tus',
-          },
-        });
+        return uploadSessionResponse(file);
       }
       if (
         path === '/api/admin/cms-media/uploads/resumed-asset/finalize' &&
@@ -103,28 +111,7 @@ describe('uploadCmsMediaFile', () => {
       const path = fetchInputPath(input);
       if (path === '/api/admin/cms-media/uploads' && init?.method === 'POST') {
         await Promise.resolve();
-        return Response.json({
-          asset: {
-            createdAt: '2026-05-17T12:00:00.000Z',
-            id: 'session-asset',
-            originalFilename: file.name,
-            publicPath: '/cms-media/session-asset.png',
-          },
-          upload: {
-            byteSize: file.size,
-            endpoint: '/uploads',
-            expiresAt: '2026-05-17T12:05:00.000Z',
-            headers: { Authorization: 'Bearer test-token' },
-            metadata: {
-              assetId: 'session-asset',
-              byteSize: String(file.size),
-              filename: file.name,
-              filetype: file.type,
-              token: 'test-token',
-            },
-            protocol: 'tus',
-          },
-        });
+        return uploadSessionResponse(file);
       }
       await Promise.resolve();
       return Response.json({ asset: null });
@@ -155,28 +142,7 @@ describe('uploadCmsMediaFile', () => {
       const path = fetchInputPath(input);
       if (path === '/api/admin/cms-media/uploads' && init?.method === 'POST') {
         await Promise.resolve();
-        return Response.json({
-          asset: {
-            createdAt: '2026-05-17T12:00:00.000Z',
-            id: 'session-asset',
-            originalFilename: file.name,
-            publicPath: '/cms-media/session-asset.png',
-          },
-          upload: {
-            byteSize: file.size,
-            endpoint: '/uploads',
-            expiresAt: '2026-05-17T12:05:00.000Z',
-            headers: { Authorization: 'Bearer test-token' },
-            metadata: {
-              assetId: 'session-asset',
-              byteSize: String(file.size),
-              filename: file.name,
-              filetype: file.type,
-              token: 'test-token',
-            },
-            protocol: 'tus',
-          },
-        });
+        return uploadSessionResponse(file);
       }
       if (
         path === '/api/admin/cms-media/uploads/session-asset' &&
@@ -210,28 +176,7 @@ describe('uploadCmsMediaFile', () => {
       const path = fetchInputPath(input);
       if (path === '/api/admin/cms-media/uploads' && init?.method === 'POST') {
         await Promise.resolve();
-        return Response.json({
-          asset: {
-            createdAt: '2026-05-17T12:00:00.000Z',
-            id: 'session-asset',
-            originalFilename: file.name,
-            publicPath: '/cms-media/session-asset.png',
-          },
-          upload: {
-            byteSize: file.size,
-            endpoint: '/uploads',
-            expiresAt: '2026-05-17T12:05:00.000Z',
-            headers: { Authorization: 'Bearer test-token' },
-            metadata: {
-              assetId: 'session-asset',
-              byteSize: String(file.size),
-              filename: file.name,
-              filetype: file.type,
-              token: 'test-token',
-            },
-            protocol: 'tus',
-          },
-        });
+        return uploadSessionResponse(file);
       }
       if (
         path === '/api/admin/cms-media/uploads/session-asset/finalize' &&
