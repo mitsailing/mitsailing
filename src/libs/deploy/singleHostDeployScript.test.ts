@@ -48,7 +48,7 @@ describe('single host deploy script', () => {
     const pgdataWithFallback = `${shellEscape}${shellVariable('PGDATA:-')}`;
 
     expect(script).toContain(
-      `compose exec -T postgres sh -ec "test -n \\"${pgdataWithFallback}\\" && test -s \\"${pgdata}/PG_VERSION\\""`
+      String.raw`compose exec -T postgres sh -ec "test -n \"${pgdataWithFallback}\" && test -s \"${pgdata}/PG_VERSION\""`
     );
   });
 
@@ -114,10 +114,10 @@ describe('single host deploy script', () => {
   });
 
   it('accepts only OCI image tags as deploy refs', () => {
-    const validRefFunction = script.match(/valid_ref\(\) \{[\s\S]*?\n\}/u);
+    const validRefFunction = /valid_ref\(\) \{[\s\S]*?\n\}/u.exec(script);
     expect(validRefFunction).not.toBeNull();
-    const patternSource = validRefFunction?.[0].match(
-      /\[\[ "\$ref" =~ \^([\s\S]+)\$ \]\]/u
+    const patternSource = /\[\[ "\$ref" =~ \^([\s\S]+)\$ \]\]/u.exec(
+      validRefFunction?.[0] ?? ''
     )?.[1];
     expect(patternSource).toBe('[A-Za-z0-9_][A-Za-z0-9._-]{0,127}');
     const deployRefPattern = new RegExp(`^${patternSource ?? ''}$`, 'u');
