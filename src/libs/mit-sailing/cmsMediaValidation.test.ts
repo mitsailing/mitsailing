@@ -161,6 +161,18 @@ describe('cms media validation', () => {
     });
   });
 
+  it('rejects invalid metadata byte sizes', () => {
+    for (const byteSize of [Number.NaN, 1024.5]) {
+      expect(
+        validateCmsMediaMetadata({
+          byteSize,
+          declaredMimeType: 'application/pdf',
+          originalFilename: 'sailing-handbook.pdf',
+        })
+      ).toEqual({ ok: false, code: 'too_large' });
+    }
+  });
+
   it('rejects video metadata above the shared upload limit', () => {
     expect(
       validateCmsMediaMetadata({

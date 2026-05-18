@@ -326,6 +326,9 @@ export function validateCmsMediaMetadata(props: {
       storedFilename: string;
     }
   | { ok: false; code: CmsMediaValidationErrorCode } {
+  if (!Number.isSafeInteger(props.byteSize)) {
+    return { ok: false, code: 'too_large' };
+  }
   if (props.byteSize <= 0) {
     return { ok: false, code: 'empty_file' };
   }

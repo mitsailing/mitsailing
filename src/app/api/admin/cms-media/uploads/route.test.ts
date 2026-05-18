@@ -24,7 +24,7 @@ vi.mock('@/libs/DB', () => ({
 
 vi.mock('@/libs/Env', () => ({
   Env: {
-    MEDIA_STORAGE_ROOT: '/tmp/mitsailing-cms-media-test',
+    MEDIA_STORAGE_ROOT: `${process.cwd()}/local/mitsailing-cms-media-test`,
     MEDIA_UPLOAD_BASE_URL: 'https://mitsailing.com',
     MEDIA_UPLOAD_SHARED_SECRET:
       'test-upload-secret-with-at-least-thirty-two-chars',

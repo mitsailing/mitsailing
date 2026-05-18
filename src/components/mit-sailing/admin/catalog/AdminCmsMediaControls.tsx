@@ -7,294 +7,25 @@ import type * as React from 'react';
 import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import type { CmsMediaTusUploadSession } from './cmsMediaTusUpload';
-import { uploadCmsMediaWithTus } from './cmsMediaTusUpload';
+import type { CmsMediaAsset } from './AdminCmsMediaControlsApi';
+import {
+  currentPageId,
+  isAdminImagePath,
+  loadCmsMediaAssets,
+  parseImageListValue,
+  uploadCmsMediaFile,
+} from './AdminCmsMediaControlsApi';
 
-export type CmsMediaAsset = {
-  id: string;
-  originalFilename: string;
-  publicPath: string;
-  createdAt: string;
-};
-
-export function isCmsMediaPath(value: string | undefined): value is string {
-  return typeof value === 'string' && value.startsWith('/cms-media/');
-}
-
-function isAdminImagePath(value: string | undefined): value is string {
-  if (typeof value !== 'string') {
-    return false;
-  }
-  return /^\/(?!\/).+\.(?:gif|jpe?g|png|webp)$/iu.test(value.trim());
-}
-
-export function currentPageId(form: HTMLFormElement | null): string {
-  if (!form) {
-    return '';
-  }
-  const value = new FormData(form).get('pageId');
-  return typeof value === 'string' ? value : '';
-}
-
-export function stringField(value: unknown, field: string): string | undefined {
-  if (typeof value !== 'object' || value === null) {
-    return undefined;
-  }
-  const descriptor = Object.getOwnPropertyDescriptor(value, field);
-  return typeof descriptor?.value === 'string' ? descriptor.value : undefined;
-}
-
-function numberField(value: unknown, field: string): number | undefined {
-  if (typeof value !== 'object' || value === null) {
-    return undefined;
-  }
-  const descriptor = Object.getOwnPropertyDescriptor(value, field);
-  return typeof descriptor?.value === 'number' &&
-    Number.isFinite(descriptor.value)
-    ? descriptor.value
-    : undefined;
-}
-
-export function cmsMediaAssetFromUnknown(value: unknown): CmsMediaAsset | null {
-  const id = stringField(value, 'id');
-  const originalFilename = stringField(value, 'originalFilename');
-  const publicPath = stringField(value, 'publicPath');
-  const createdAt = stringField(value, 'createdAt');
-  if (!id || !originalFilename || !isCmsMediaPath(publicPath) || !createdAt) {
-    return null;
-  }
-  return { createdAt, id, originalFilename, publicPath };
-}
-
-export function cmsMediaAssetsFromUnknown(value: unknown): CmsMediaAsset[] {
-  if (typeof value !== 'object' || value === null) {
-    return [];
-  }
-  const descriptor = Object.getOwnPropertyDescriptor(value, 'assets');
-  if (!Array.isArray(descriptor?.value)) {
-    return [];
-  }
-  return descriptor.value.flatMap((item: unknown) => {
-    const asset = cmsMediaAssetFromUnknown(item);
-    return asset ? [asset] : [];
-  });
-}
-
-function objectField(value: unknown, field: string): unknown {
-  if (typeof value !== 'object' || value === null) {
-    return null;
-  }
-  return Reflect.get(value, field);
-}
-
-function cmsMediaAssetFromApiResponse(value: unknown): CmsMediaAsset | null {
-  return (
-    cmsMediaAssetFromUnknown(objectField(value, 'asset')) ??
-    cmsMediaAssetFromUnknown(value)
-  );
-}
-
-function cmsMediaUploadedAssetFromUnknown(props: {
-  file: File;
-  value: unknown;
-}): CmsMediaAsset | null {
-  const parsed = cmsMediaAssetFromApiResponse(props.value);
-  if (parsed) {
-    return parsed;
-  }
-  const publicPath =
-    stringField(props.value, 'publicPath') ?? stringField(props.value, 'url');
-  if (!isCmsMediaPath(publicPath)) {
-    return null;
-  }
-  return {
-    createdAt:
-      stringField(props.value, 'createdAt') ?? new Date().toISOString(),
-    id: stringField(props.value, 'id') ?? publicPath,
-    originalFilename:
-      stringField(props.value, 'originalFilename') ?? props.file.name,
-    publicPath,
-  };
-}
-
-export async function loadCmsMediaAssets(
-  props: {
-    pageId?: string;
-  } = {}
-): Promise<CmsMediaAsset[] | null> {
-  const query = props.pageId
-    ? `?${new URLSearchParams({ pageId: props.pageId })}`
-    : '';
-  const response = await fetch(`/api/admin/cms-media${query}`);
-  if (!response.ok) {
-    return null;
-  }
-  const data: unknown = await response.json();
-  return cmsMediaAssetsFromUnknown(data);
-}
-
-async function uploadCmsMediaFileDirect(props: {
-  file: File;
-  pageId?: string;
-}): Promise<CmsMediaAsset | null> {
-  const formData = new FormData();
-  formData.set('file', props.file);
-  if (props.pageId) {
-    formData.set('pageId', props.pageId);
-  }
-  const response = await fetch('/api/admin/cms-media', {
-    body: formData,
-    method: 'POST',
-  });
-  if (!response.ok) {
-    return null;
-  }
-  const data: unknown = await response.json();
-  return cmsMediaUploadedAssetFromUnknown({ file: props.file, value: data });
-}
-
-function stringRecordFromUnknown(
-  value: unknown
-): Record<string, string> | null {
-  if (typeof value !== 'object' || value === null) {
-    return null;
-  }
-  const entries = Object.entries(value);
-  if (!entries.every((entry) => typeof entry[1] === 'string')) {
-    return null;
-  }
-  return Object.fromEntries(entries);
-}
-
-function cmsMediaTusMetadataFromUnknown(
-  value: unknown
-): CmsMediaTusUploadSession['metadata'] | null {
-  const assetId = stringField(value, 'assetId');
-  const byteSize = stringField(value, 'byteSize');
-  const filename = stringField(value, 'filename');
-  const filetype = stringField(value, 'filetype');
-  const token = stringField(value, 'token');
-  if (!assetId || !byteSize || !filename || !filetype || !token) {
-    return null;
-  }
-  return { assetId, byteSize, filename, filetype, token };
-}
-
-function uploadDetailsFromUnknown(
-  value: unknown
-): CmsMediaTusUploadSession | null {
-  const upload = objectField(value, 'upload');
-  const byteSize = numberField(upload, 'byteSize');
-  const endpoint = stringField(upload, 'endpoint');
-  const expiresAt = stringField(upload, 'expiresAt');
-  const headers = stringRecordFromUnknown(objectField(upload, 'headers'));
-  const metadata = cmsMediaTusMetadataFromUnknown(
-    objectField(upload, 'metadata')
-  );
-  const protocol = stringField(upload, 'protocol');
-  if (
-    protocol !== 'tus' ||
-    !endpoint ||
-    !headers ||
-    !metadata ||
-    byteSize === undefined ||
-    byteSize < 0 ||
-    !expiresAt
-  ) {
-    return null;
-  }
-  return {
-    byteSize,
-    endpoint,
-    expiresAt,
-    headers,
-    metadata,
-    protocol,
-  };
-}
-
-async function createCmsMediaUploadSession(props: {
-  file: File;
-  pageId?: string;
-}): Promise<{
-  asset: CmsMediaAsset;
-  upload: CmsMediaTusUploadSession;
-} | null> {
-  const response = await fetch('/api/admin/cms-media/uploads', {
-    body: JSON.stringify({
-      byteSize: props.file.size,
-      originalFilename: props.file.name,
-      pageId: props.pageId,
-      type: props.file.type,
-    }),
-    headers: { 'Content-Type': 'application/json' },
-    method: 'POST',
-  });
-  if (response.status === 503) {
-    return null;
-  }
-  if (!response.ok) {
-    throw new Error('CMS media upload session failed');
-  }
-  const data: unknown = await response.json();
-  const asset = cmsMediaUploadedAssetFromUnknown({
-    file: props.file,
-    value: data,
-  });
-  const upload = uploadDetailsFromUnknown(data);
-  if (asset && upload) {
-    return { asset, upload };
-  }
-  throw new Error('CMS media upload session response invalid');
-}
-
-async function finalizeCmsMediaUpload(
-  assetId: string
-): Promise<CmsMediaAsset | null> {
-  const response = await fetch(
-    `/api/admin/cms-media/uploads/${encodeURIComponent(assetId)}/finalize`,
-    {
-      method: 'POST',
-    }
-  );
-  if (!response.ok) {
-    return null;
-  }
-  const data: unknown = await response.json();
-  return cmsMediaAssetFromApiResponse(data);
-}
-
-async function cancelCmsMediaUpload(assetId: string): Promise<void> {
-  await fetch(`/api/admin/cms-media/uploads/${encodeURIComponent(assetId)}`, {
-    method: 'DELETE',
-  });
-}
-
-export async function uploadCmsMediaFile(props: {
-  file: File;
-  pageId?: string;
-}): Promise<CmsMediaAsset | null> {
-  const session = await createCmsMediaUploadSession(props);
-  if (!session) {
-    return uploadCmsMediaFileDirect(props);
-  }
-  const upload = await uploadCmsMediaWithTus({
-    file: props.file,
-    session: session.upload,
-  });
-  if (upload.assetId !== session.asset.id) {
-    await cancelCmsMediaUpload(session.asset.id);
-  }
-  const finalized = await finalizeCmsMediaUpload(upload.assetId);
-  if (finalized) {
-    return finalized;
-  }
-  console.warn('CMS media upload finalize failed', {
-    sessionAssetId: session.asset.id,
-    uploadAssetId: upload.assetId,
-  });
-  return null;
-}
+export type { CmsMediaAsset } from './AdminCmsMediaControlsApi';
+export {
+  cmsMediaAssetFromUnknown,
+  cmsMediaAssetsFromUnknown,
+  currentPageId,
+  isCmsMediaPath,
+  loadCmsMediaAssets,
+  stringField,
+  uploadCmsMediaFile,
+} from './AdminCmsMediaControlsApi';
 
 function MediaAssetButton(props: {
   asset: CmsMediaAsset;
@@ -342,16 +73,6 @@ export function AdminCmsMediaPickerPanel(props: {
       )}
     </div>
   );
-}
-
-function parseImageListValue(value: string | string[]): string[] {
-  if (Array.isArray(value)) {
-    return value.filter(isAdminImagePath);
-  }
-  return value
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(isAdminImagePath);
 }
 
 function imagePreview(src: string, alt: string) {

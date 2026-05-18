@@ -212,7 +212,7 @@ export async function reconcileCmsMediaProcessingJobs(
   for (;;) {
     const assets = await prisma.cmsMediaAsset.findMany({
       ...(cursor ? { cursor, skip: 1 } : {}),
-      orderBy: [{ updatedAt: 'asc' }],
+      orderBy: [{ updatedAt: 'asc' }, { id: 'asc' }],
       select: { id: true },
       take: batchSize,
       where,

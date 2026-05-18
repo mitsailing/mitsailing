@@ -9,7 +9,7 @@ function isOutsideRequestScopeError(error: unknown): boolean {
   if (digest.includes('DYNAMIC_SERVER_USAGE')) {
     return true;
   }
-  return /outside a request scope/u.test(error.message);
+  return /outside a request scope/iu.test(error.message);
 }
 
 export async function safeConnection(): Promise<void> {

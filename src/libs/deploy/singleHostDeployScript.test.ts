@@ -37,9 +37,10 @@ describe('single host deploy script', () => {
     expect(script).toContain(
       'verify_bind_mount redis /data "$PRODUCTION_REDIS_DIR"'
     );
-    expect(script).toContain(
-      'verify_bind_mount media /var/lib/mitsailing/cms-media "$PRODUCTION_CMS_MEDIA_DIR"'
-    );
+    expect(script).toContain('verify_cms_media_bind_mount tusd');
+    expect(script).toContain('verify_cms_media_bind_mount media');
+    expect(script).toContain('verify_cms_media_bind_mount "$service"');
+    expect(script).toContain('verify_cms_media_bind_mount worker');
   });
 
   it('starts ingress and media services without recreating media during app releases', () => {
@@ -54,6 +55,9 @@ describe('single host deploy script', () => {
       /ensure_ingress_services\(\) \{[\s\S]*wait_for_service_health tusd "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"[\s\S]*verify_production_bind_mounts/u
     );
     expect(script).toContain('compose up --detach --no-deps cloudflared');
+    expect(script).toMatch(
+      /ensure_ingress_services\(\) \{[\s\S]*compose up --detach --no-deps cloudflared[\s\S]*wait_for_service_health cloudflared "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"/u
+    );
     expect(script).toContain('media-maintenance)');
     expect(script).toContain('tusd-maintenance)');
     expect(script).not.toMatch(/release_ref\(\)[\s\S]*--force-recreate tusd/u);

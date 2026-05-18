@@ -242,6 +242,55 @@ function requestInputUrl(input: Parameters<typeof fetch>[0]): string {
   return input.url;
 }
 
+function requestInputMethod(
+  input: Parameters<typeof fetch>[0],
+  init: Parameters<typeof fetch>[1]
+): string | undefined {
+  if (init?.method) {
+    return init.method;
+  }
+  if (typeof input === 'string' || input instanceof URL) {
+    return undefined;
+  }
+  return input.method;
+}
+
+function cmsMediaUploadMockResponse(props: {
+  fixture: CmsMediaUploadFixture & { finalizeAssetId?: string };
+  input: Parameters<typeof fetch>[0];
+  init: Parameters<typeof fetch>[1];
+}): Response {
+  const url = requestInputUrl(props.input);
+  const method = requestInputMethod(props.input, props.init);
+  const assetPath = `/api/admin/cms-media/uploads/${encodeURIComponent(
+    props.fixture.assetId
+  )}`;
+  const finalizeAssetId =
+    props.fixture.finalizeAssetId ?? props.fixture.assetId;
+  const finalizePath = `/api/admin/cms-media/uploads/${encodeURIComponent(
+    finalizeAssetId
+  )}/finalize`;
+  if (url === '/api/admin/cms-media/uploads' && method === 'POST') {
+    return cmsMediaTusSessionResponse(props.fixture);
+  }
+  if (url === assetPath && method === 'DELETE') {
+    return Response.json({
+      asset: {
+        ...cmsMediaAssetFixture(props.fixture),
+        processingErrorCode: 'upload_cancelled',
+        status: 'failed',
+      },
+    });
+  }
+  if (url === finalizePath && method === 'POST') {
+    return finalizedCmsMediaAssetResponse({
+      ...props.fixture,
+      assetId: finalizeAssetId,
+    });
+  }
+  return new Response(null, { status: 500 });
+}
+
 function mockCmsMediaUploadFetch(
   props: CmsMediaUploadFixture & { finalizeAssetId?: string }
 ) {
@@ -249,39 +298,7 @@ function mockCmsMediaUploadFetch(
     .spyOn(globalThis, 'fetch')
     .mockImplementation(async (input, init) => {
       await Promise.resolve();
-      const url = requestInputUrl(input);
-      const method =
-        init?.method ??
-        (typeof input === 'string' || input instanceof URL
-          ? undefined
-          : input.method);
-      if (url === '/api/admin/cms-media/uploads' && method === 'POST') {
-        return cmsMediaTusSessionResponse(props);
-      }
-      if (
-        url ===
-          `/api/admin/cms-media/uploads/${encodeURIComponent(props.assetId)}` &&
-        method === 'DELETE'
-      ) {
-        return Response.json({
-          asset: {
-            ...cmsMediaAssetFixture(props),
-            processingErrorCode: 'upload_cancelled',
-            status: 'failed',
-          },
-        });
-      }
-      if (
-        url ===
-          `/api/admin/cms-media/uploads/${encodeURIComponent(props.finalizeAssetId ?? props.assetId)}/finalize` &&
-        method === 'POST'
-      ) {
-        return finalizedCmsMediaAssetResponse({
-          ...props,
-          assetId: props.finalizeAssetId ?? props.assetId,
-        });
-      }
-      return new Response(null, { status: 500 });
+      return cmsMediaUploadMockResponse({ fixture: props, init, input });
     });
 }
 

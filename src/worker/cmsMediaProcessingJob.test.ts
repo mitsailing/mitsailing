@@ -235,7 +235,7 @@ describe('cms media processing job', () => {
     await reconcileCmsMediaProcessingJobs({ add }, now);
 
     expect(findMany).toHaveBeenCalledWith({
-      orderBy: [{ updatedAt: 'asc' }],
+      orderBy: [{ updatedAt: 'asc' }, { id: 'asc' }],
       select: { id: true },
       take: 500,
       where: {
@@ -282,7 +282,7 @@ describe('cms media processing job', () => {
     expect(findMany).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
-        orderBy: [{ updatedAt: 'asc' }],
+        orderBy: [{ updatedAt: 'asc' }, { id: 'asc' }],
         take: 2,
       })
     );
@@ -290,7 +290,7 @@ describe('cms media processing job', () => {
       2,
       expect.objectContaining({
         cursor: { id: 'asset-2' },
-        orderBy: [{ updatedAt: 'asc' }],
+        orderBy: [{ updatedAt: 'asc' }, { id: 'asc' }],
         skip: 1,
         take: 2,
       })

@@ -19,6 +19,7 @@ function composeVariable(value: string): string {
 
 describe('production docker compose', () => {
   const productionCompose = readRepoFile('compose.prod.yaml');
+  const deployRunbook = readRepoFile('docs/deploy.md');
   const mediaNginx = readRepoFile('docker/nginx/media.conf');
 
   it('defines one docker-only production stack', () => {
@@ -111,6 +112,9 @@ describe('production docker compose', () => {
     expect(cloudflaredBlock).toContain('media:');
     expect(cloudflaredBlock).toMatch(/tusd:\s+condition: service_healthy/u);
     expect(cloudflaredBlock).not.toContain('ports:');
+    expect(deployRunbook).toContain('service: http://tusd:1080');
+    expect(deployRunbook).toContain('service: http://media:8080');
+    expect(deployRunbook).toContain('service: http://app:3000');
   });
 });
 
@@ -147,6 +151,21 @@ describe('production deploy script', () => {
     expect(deployScript).toContain('NGINX_STATE_DIR');
     expect(deployScript).toContain('chmod 700 "$DEPLOY_STATE_DIR"');
     expect(deployScript).toContain('chmod 700 "$NGINX_STATE_DIR"');
+  });
+
+  it('verifies production data mounts before running migrations', () => {
+    expect(deployScript).toContain('verify_migration_data_mounts');
+    expect(deployScript).toContain(
+      'verify_bind_mount postgres /var/lib/postgresql "$PRODUCTION_POSTGRES_DIR"'
+    );
+    expect(deployScript).toContain(
+      'verify_bind_mount redis /data "$PRODUCTION_REDIS_DIR"'
+    );
+    expect(deployScript).toContain('PG_VERSION');
+    expect(deployScript).toContain('appendonlydir');
+    expect(deployScript).toMatch(
+      /run_migrations_for_service\(\) \{[\s\S]*wait_for_service_health postgres "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"[\s\S]*wait_for_service_health redis "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"[\s\S]*verify_migration_data_mounts[\s\S]*compose run --rm --no-deps "\$service" node \.\/node_modules\/prisma\/build\/index\.js migrate deploy/u
+    );
   });
 });
 
@@ -237,6 +256,50 @@ describe('production media sync script', () => {
   it('rejects shell metacharacters in the remote app directory', () => {
     expect(syncScript).toContain('SAFE_REMOTE_DIR_PATTERN');
     expect(syncScript).toContain('remote directory path with safe characters');
+  });
+
+  it('rejects parent segments in the remote app directory', () => {
+    const result = spawnSync(
+      process.execPath,
+      [
+        'scripts/sync-prod-media.mjs',
+        '--remote-dir',
+        'apps/mitsailing/..',
+        '--help',
+      ],
+      {
+        cwd: process.cwd(),
+        encoding: 'utf8',
+      }
+    );
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      '--remote-dir must be a remote directory path with safe characters'
+    );
+  });
+
+  it('rejects unexpanded tilde segments in the remote app directory', () => {
+    const tildeRemoteDirError = [
+      '--remote-dir must not contain unexpanded ~ segments;',
+      'expand the tilde locally or pass an absolute path',
+    ].join(' ');
+
+    expect(syncScript).not.toContain('._~/-');
+
+    for (const remoteDir of ['~/apps/mitsailing', 'apps/~/mitsailing']) {
+      const result = spawnSync(
+        process.execPath,
+        ['scripts/sync-prod-media.mjs', '--remote-dir', remoteDir, '--help'],
+        {
+          cwd: process.cwd(),
+          encoding: 'utf8',
+        }
+      );
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(tildeRemoteDirError);
+    }
   });
 
   it('rejects dangling ssh target at signs before connecting', () => {

@@ -8,7 +8,7 @@ import process from 'node:process';
 const DEFAULT_REMOTE_DIR = 'apps/mitsailing';
 const DEFAULT_LOCAL_ROOT = 'local/cms-media';
 const REMOTE_MEDIA_ROOT = '/var/lib/mitsailing/cms-media';
-const SAFE_REMOTE_DIR_PATTERN = /^\/?[A-Za-z0-9._~/-]+$/;
+const SAFE_REMOTE_DIR_PATTERN = /^\/?[A-Za-z0-9._/-]+$/;
 const MKDIR_BIN = '/bin/mkdir';
 const SSH_BIN = '/usr/bin/ssh';
 const TAR_BIN = '/usr/bin/tar';
@@ -184,11 +184,14 @@ function resolveSshTarget(cliTarget) {
  * @returns {string} Validated remote directory.
  */
 function parseRemoteDir(value) {
+  if (value.split('/').some((segment) => segment.startsWith('~'))) {
+    throw new Error(
+      '--remote-dir must not contain unexpanded ~ segments; expand the tilde locally or pass an absolute path'
+    );
+  }
   if (
     value.startsWith('-') ||
-    value === '..' ||
-    value.startsWith('../') ||
-    value.includes('/../') ||
+    value.split('/').includes('..') ||
     !SAFE_REMOTE_DIR_PATTERN.test(value)
   ) {
     throw new Error(

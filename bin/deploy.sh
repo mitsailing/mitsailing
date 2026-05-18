@@ -105,10 +105,26 @@ verify_bind_mount() {
     || fail "$service mount for $target is $mount_source, expected $expected_source"
 }
 
+verify_cms_media_bind_mount() {
+  local service="$1"
+  verify_bind_mount "$service" /var/lib/mitsailing/cms-media "$PRODUCTION_CMS_MEDIA_DIR"
+}
+
 verify_production_bind_mounts() {
   verify_bind_mount postgres /var/lib/postgresql "$PRODUCTION_POSTGRES_DIR"
   verify_bind_mount redis /data "$PRODUCTION_REDIS_DIR"
-  verify_bind_mount media /var/lib/mitsailing/cms-media "$PRODUCTION_CMS_MEDIA_DIR"
+  verify_cms_media_bind_mount tusd
+  verify_cms_media_bind_mount media
+}
+
+verify_migration_data_mounts() {
+  log "verifying production data mounts before migrations"
+  verify_bind_mount postgres /var/lib/postgresql "$PRODUCTION_POSTGRES_DIR"
+  verify_bind_mount redis /data "$PRODUCTION_REDIS_DIR"
+  compose exec -T postgres sh -ec 'test -n "${PGDATA:-}" && test -s "${PGDATA}/PG_VERSION"' \
+    || fail "postgres persistent data marker missing at PGDATA/PG_VERSION"
+  compose exec -T redis sh -ec 'test -d /data && { test -d /data/appendonlydir || test -s /data/dump.rdb || test -s /data/appendonly.aof; }' \
+    || fail "redis persistent data marker missing under /data"
 }
 
 acquire_deploy_lock() {
@@ -268,6 +284,7 @@ start_web_color() {
   log "starting $service"
   compose up --detach --no-deps --force-recreate --pull always "$service"
   wait_for_service_health "$service" "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
+  verify_cms_media_bind_mount "$service"
 }
 
 reload_or_start_proxy() {
@@ -282,6 +299,7 @@ restart_worker() {
   log "restarting worker"
   compose up --detach --no-deps --force-recreate --pull always worker
   wait_for_service_health worker "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
+  verify_cms_media_bind_mount worker
 }
 
 run_migrations_for_service() {
@@ -290,6 +308,7 @@ run_migrations_for_service() {
   compose up --detach --no-recreate postgres redis
   wait_for_service_health postgres "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
   wait_for_service_health redis "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
+  verify_migration_data_mounts
 
   log "running prisma migrate deploy from $service image"
   compose run --rm --no-deps "$service" node ./node_modules/prisma/build/index.js migrate deploy
@@ -303,8 +322,9 @@ ensure_ingress_services() {
   wait_for_service_health tusd "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
   wait_for_service_health media "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
   verify_production_bind_mounts
-  log "ensuring MIT Sailing cloudflared connector is running"
+  log "starting and verifying MIT Sailing cloudflared connector"
   compose up --detach --no-deps cloudflared
+  wait_for_service_health cloudflared "$DEPLOY_HEALTH_TIMEOUT_SECONDS"
 }
 
 restart_media_maintenance() {

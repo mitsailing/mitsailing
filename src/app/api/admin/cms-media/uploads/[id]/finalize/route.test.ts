@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   getCurrentUser: vi.fn(),
   getDefaultQueue: vi.fn(() => ({ name: 'default' })),
   loggerError: vi.fn(),
+  loggerWarn: vi.fn(),
   update: vi.fn(),
   updateMany: vi.fn(),
 }));
@@ -34,6 +35,7 @@ vi.mock('@/libs/Env', () => ({
 vi.mock('@/libs/Logger', () => ({
   logger: {
     error: mocks.loggerError,
+    warn: mocks.loggerWarn,
   },
 }));
 
@@ -334,7 +336,7 @@ describe('cms media upload finalize route', () => {
     expect(mocks.updateMany).not.toHaveBeenCalled();
   });
 
-  it('returns 409 when tusd status cannot be read', async () => {
+  it('returns 503 when tusd status cannot be read', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn<typeof fetch>().mockRejectedValue(new Error('network down'))
@@ -345,9 +347,10 @@ describe('cms media upload finalize route', () => {
     const response = await POST(finalizeRequest(), routeProps());
 
     await expect(response.json()).resolves.toEqual({
-      error: 'upload_incomplete',
+      error: 'upload_status_unavailable',
     });
-    expect(response.status).toBe(409);
+    expect(response.status).toBe(503);
     expect(mocks.updateMany).not.toHaveBeenCalled();
+    expect(mocks.enqueueCmsMediaProcessingJob).not.toHaveBeenCalled();
   });
 });

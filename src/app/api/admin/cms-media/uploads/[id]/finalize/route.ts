@@ -25,6 +25,22 @@ async function currentAdminUserId(): Promise<string | null> {
   return currentUser?.role === Role.ADMIN ? currentUser.id : null;
 }
 
+async function readCmsMediaTusUploadStatus(props: {
+  assetId: string;
+  baseUrl: string;
+  byteSize: number;
+}): Promise<Awaited<ReturnType<typeof getCmsMediaTusUploadStatus>> | null> {
+  try {
+    return await getCmsMediaTusUploadStatus(props);
+  } catch (error) {
+    logger.warn('Failed to read tusd upload status before finalize: {error}', {
+      assetId: props.assetId,
+      error,
+    });
+    return null;
+  }
+}
+
 async function queueAssetForProcessing(props: {
   id: string;
   processingErrorCode: string | null;
@@ -100,12 +116,27 @@ export async function POST(
       { status: 503 }
     );
   }
-  const uploadStatus = await getCmsMediaTusUploadStatus({
+  const uploadStatus = await readCmsMediaTusUploadStatus({
     assetId: id,
     baseUrl: Env.MEDIA_UPLOAD_BASE_URL,
     byteSize: cmsMediaByteSizeToNumber(asset.byteSize),
   });
+  if (!uploadStatus) {
+    return NextResponse.json(
+      { error: 'upload_status_unavailable' },
+      { status: 503 }
+    );
+  }
   if (!uploadStatus.complete) {
+    if (uploadStatus.reason === 'upload_status_unavailable') {
+      logger.warn('tusd upload status unavailable before finalize', {
+        assetId: id,
+      });
+      return NextResponse.json(
+        { error: 'upload_status_unavailable' },
+        { status: 503 }
+      );
+    }
     return NextResponse.json({ error: 'upload_incomplete' }, { status: 409 });
   }
   let queuedAsset: Awaited<ReturnType<typeof queueAssetForProcessing>>;
