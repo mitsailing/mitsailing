@@ -15,6 +15,16 @@ describe('isLegacyMysqlSyncCronPattern', () => {
     expect(isLegacyMysqlSyncCronPattern('  0  15  *  *  *  *  ')).toBe(true);
   });
 
+  it('rejects cron-parser v5 hashed syntax unsupported by BullMQ', () => {
+    expect(isLegacyMysqlSyncCronPattern('H 0 * * * *')).toBe(false);
+    expect(isLegacyMysqlSyncCronPattern('0 H/15 * * * *')).toBe(false);
+    expect(isLegacyMysqlSyncCronPattern('0 0 1-H * * *')).toBe(false);
+  });
+
+  it('keeps day aliases that contain h characters', () => {
+    expect(isLegacyMysqlSyncCronPattern('0 0 * * * THU')).toBe(true);
+  });
+
   it('rejects five-field cron', () => {
     expect(isLegacyMysqlSyncCronPattern('0 0 * * *')).toBe(false);
   });
