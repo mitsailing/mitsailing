@@ -3,9 +3,19 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { uploadCmsMediaFile } from './AdminCmsMediaControlsApi';
 import { uploadCmsMediaWithTus } from './cmsMediaTusUpload';
 
+const loggerMocks = vi.hoisted(() => ({
+  warn: vi.fn(),
+}));
+
 vi.mock('@sentry/nextjs', () => ({
   captureException: vi.fn(),
   captureMessage: vi.fn(),
+}));
+
+vi.mock('@/libs/Logger', () => ({
+  logger: {
+    warn: loggerMocks.warn,
+  },
 }));
 
 vi.mock(import('./cmsMediaTusUpload'), () => ({
@@ -53,6 +63,7 @@ function uploadSessionResponse(file: File) {
 
 describe('uploadCmsMediaFile', () => {
   afterEach(() => {
+    vi.clearAllMocks();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
@@ -164,6 +175,10 @@ describe('uploadCmsMediaFile', () => {
         tags: { cmsMediaAction: 'cancelUpload' },
       })
     );
+    expect(loggerMocks.warn).toHaveBeenCalledWith(
+      'Failed to cancel CMS media upload: {error}',
+      { assetId: 'session-asset', error: cancelError }
+    );
   });
 
   it('reports finalize failure', async () => {
@@ -198,6 +213,13 @@ describe('uploadCmsMediaFile', () => {
         level: 'warning',
         tags: { cmsMediaAction: 'finalizeUpload' },
       })
+    );
+    expect(loggerMocks.warn).toHaveBeenCalledWith(
+      'CMS media upload finalize failed',
+      {
+        sessionAssetId: 'session-asset',
+        uploadAssetId: 'session-asset',
+      }
     );
   });
 });

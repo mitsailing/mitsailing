@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/nextjs';
+import { logger } from '@/libs/Logger';
 import type { CmsMediaTusUploadSession } from './cmsMediaTusUpload';
 import { uploadCmsMediaWithTus } from './cmsMediaTusUpload';
 
@@ -314,6 +315,10 @@ async function cancelCmsMediaUpload(assetId: string): Promise<void> {
       method: 'DELETE',
     });
   } catch (error) {
+    logger.warn('Failed to cancel CMS media upload: {error}', {
+      assetId,
+      error,
+    });
     Sentry.captureException(error, {
       tags: { cmsMediaAction: 'cancelUpload' },
       contexts: {
@@ -351,6 +356,10 @@ export async function uploadCmsMediaFile(props: {
   if (finalized) {
     return finalized;
   }
+  logger.warn('CMS media upload finalize failed', {
+    sessionAssetId: session.asset.id,
+    uploadAssetId: upload.assetId,
+  });
   Sentry.captureMessage('CMS media upload finalize failed', {
     level: 'warning',
     tags: { cmsMediaAction: 'finalizeUpload' },
