@@ -13,7 +13,7 @@ import {
   Permission,
 } from '@/libs/auth/permissions';
 import { listRolePermissionGrants } from '@/libs/auth/rolePermissionGrants';
-import { normalizeRole, Role } from '@/libs/auth/roles';
+import { normalizeRole, parseRoles, Role } from '@/libs/auth/roles';
 import { syncSentryUserFromSession } from '@/libs/sentry-user-server';
 import { AppConfig } from '@/utils/AppConfig';
 import { getI18nPath } from '@/utils/Helpers';
@@ -105,16 +105,18 @@ export async function requireAnyPermission(
 ): Promise<NonNullable<AuthSession>> {
   const homeHref = getI18nPath('/', locale);
   const session = await verifySession(locale, homeHref);
-  const role = normalizeRole(session.user.role);
+  const roles = parseRoles(session.user.role);
 
   if (session.session.impersonatedBy) {
     redirect(homeHref);
   }
 
-  const grants = role === Role.ADMIN ? [] : await listRolePermissionGrants();
+  const grants = roles.includes(Role.ADMIN)
+    ? []
+    : await listRolePermissionGrants();
   const ability = createAuthAbility({
     grants,
-    role,
+    roles,
     userId: session.user.id,
   });
   if (

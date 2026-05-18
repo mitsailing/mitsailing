@@ -1,6 +1,7 @@
 import 'server-only';
 import { APIError } from 'better-auth';
 import { headers } from 'next/headers';
+import type { Prisma } from '@/generated/prisma/client';
 import type {
   AdminUserRow,
   CatalogCreateResult,
@@ -20,6 +21,15 @@ import { auth } from '@/libs/auth';
 import { parseRoles, Role } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
 import { emailDeliverabilityStatus } from '@/libs/email/emailDeliverabilityStatus';
+
+const ADMIN_ROLE_FILTER = {
+  OR: [
+    { role: Role.ADMIN },
+    { role: { startsWith: `${Role.ADMIN},` } },
+    { role: { endsWith: `,${Role.ADMIN}` } },
+    { role: { contains: `,${Role.ADMIN},` } },
+  ],
+} satisfies Prisma.UserWhereInput;
 
 function rowFromDb(user: {
   id: string;
@@ -56,13 +66,10 @@ async function assertCanRemoveOrDemoteAdmin(
   if (!target || !parseRoles(target.role).includes(Role.ADMIN)) {
     return null;
   }
-  const adminCandidates = await prisma.user.findMany({
-    select: { role: true },
+  const adminCount = await prisma.user.count({
+    where: ADMIN_ROLE_FILTER,
   });
-  const admins = adminCandidates.filter((user) =>
-    parseRoles(user.role).includes(Role.ADMIN)
-  ).length;
-  if (admins <= 1) {
+  if (adminCount <= 1) {
     return { ok: false, code: 'last_admin' };
   }
   return null;

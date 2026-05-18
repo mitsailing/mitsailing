@@ -1,17 +1,10 @@
 import type { CatalogResourceDefinition } from '@/libs/admin/catalog/types';
-import { Role } from '@/libs/auth/roles';
+import { ROLE_DEFINITIONS } from '@/libs/auth/roles';
 
-const ROLE_SELECT_OPTIONS = [
-  { value: Role.USER, labelKey: 'role_option_user' },
-  { value: Role.VOLUNTEER, labelKey: 'role_option_volunteer' },
-  {
-    value: Role.VOLUNTEER_INSTRUCTOR,
-    labelKey: 'role_option_volunteer_instructor',
-  },
-  { value: Role.DOCK_STAFF, labelKey: 'role_option_dock_staff' },
-  { value: Role.DOCK_MASTER, labelKey: 'role_option_dock_master' },
-  { value: Role.ADMIN, labelKey: 'role_option_admin' },
-] as const;
+const ROLE_SELECT_OPTIONS = ROLE_DEFINITIONS.map((definition) => ({
+  labelKey: definition.labelKey,
+  value: definition.key,
+}));
 
 /**
  * Catalog-shaped definition for `/admin/users` (explicit routes; not in catalog registry).

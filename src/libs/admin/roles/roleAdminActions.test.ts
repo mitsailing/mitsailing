@@ -1,13 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { Permission } from '@/libs/auth/permissions';
+import {
+  Permission,
+  ROLE_PERMISSION_GRANT_ROLES,
+} from '@/libs/auth/permissions';
 import { Role } from '@/libs/auth/roles';
 
 const {
-  authSetRole,
   createMany,
   deleteMany,
   findUnique,
-  headers,
   invalidateRolePermissionGrants,
   redirect,
   requirePermission,
@@ -15,14 +16,9 @@ const {
   update,
   userCount,
 } = vi.hoisted(() => ({
-  authSetRole: vi.fn(),
   createMany: vi.fn(),
   deleteMany: vi.fn(),
   findUnique: vi.fn(),
-  headers: vi.fn(async () => {
-    await Promise.resolve();
-    return new Headers({ 'x-test': '1' });
-  }),
   invalidateRolePermissionGrants: vi.fn(),
   redirect: vi.fn((href: string) => {
     throw new Error(`NEXT_REDIRECT:${href}`);
@@ -37,18 +33,6 @@ vi.mock('server-only', () => ({}));
 
 vi.mock('next/navigation', () => ({
   redirect,
-}));
-
-vi.mock('next/headers', () => ({
-  headers,
-}));
-
-vi.mock('@/libs/auth', () => ({
-  auth: {
-    api: {
-      setRole: authSetRole,
-    },
-  },
 }));
 
 vi.mock('@/libs/auth/dal', () => ({
@@ -83,11 +67,9 @@ function formData(entries: [string, string][]): FormData {
 }
 
 beforeEach(() => {
-  authSetRole.mockReset();
   createMany.mockReset();
   deleteMany.mockReset();
   findUnique.mockReset();
-  headers.mockClear();
   invalidateRolePermissionGrants.mockReset();
   redirect.mockClear();
   requirePermission.mockReset();
@@ -95,7 +77,8 @@ beforeEach(() => {
   update.mockReset();
   userCount.mockReset();
 
-  authSetRole.mockResolvedValue({ user: { id: 'user-1' } });
+  findUnique.mockResolvedValue({ role: Role.USER });
+  update.mockResolvedValue({ id: 'user-1' });
   requirePermission.mockResolvedValue({
     session: { impersonatedBy: null },
     user: { id: 'admin-1', role: Role.ADMIN },
@@ -105,6 +88,11 @@ beforeEach(() => {
       rolePermissionGrant: {
         createMany,
         deleteMany,
+      },
+      user: {
+        count: userCount,
+        findUnique,
+        update,
       },
     });
   });
@@ -138,12 +126,7 @@ describe('saveRolePermissionGrantsAction', () => {
     expect(deleteMany).toHaveBeenCalledWith({
       where: {
         roleKey: {
-          in: [
-            Role.VOLUNTEER,
-            Role.VOLUNTEER_INSTRUCTOR,
-            Role.DOCK_STAFF,
-            Role.DOCK_MASTER,
-          ],
+          in: [...ROLE_PERMISSION_GRANT_ROLES],
         },
       },
     });
@@ -161,7 +144,7 @@ describe('saveRolePermissionGrantsAction', () => {
 });
 
 describe('updateUserRolesAction', () => {
-  it('updates the role through Better Auth', async () => {
+  it('updates the role in a transaction', async () => {
     findUnique.mockResolvedValue({ role: Role.USER });
     const { updateUserRolesAction } =
       await import('@/libs/admin/roles/roleAdminActions');
@@ -178,14 +161,11 @@ describe('updateUserRolesAction', () => {
       Permission.ROLES_ASSIGN,
       'en'
     );
-    expect(authSetRole).toHaveBeenCalledWith({
-      body: {
-        role: Role.VOLUNTEER,
-        userId: 'user-1',
-      },
-      headers: expect.any(Headers),
+    expect(transaction).toHaveBeenCalledOnce();
+    expect(update).toHaveBeenCalledWith({
+      data: { role: Role.VOLUNTEER },
+      where: { id: 'user-1' },
     });
-    expect(update).not.toHaveBeenCalled();
   });
 
   it('keeps at least one admin role assigned', async () => {
@@ -198,7 +178,35 @@ describe('updateUserRolesAction', () => {
       updateUserRolesAction('en', 'admin-1', formData([['role', Role.USER]]))
     ).rejects.toThrow('NEXT_REDIRECT:/admin/roles?status=last_admin');
 
-    expect(userCount).toHaveBeenCalledWith({ where: { role: Role.ADMIN } });
+    expect(userCount).toHaveBeenCalledWith({
+      where: { role: { contains: Role.ADMIN } },
+    });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('checks last-admin demotion inside a transaction', async () => {
+    transaction.mockImplementationOnce(async (runTransaction) => {
+      await runTransaction({
+        user: {
+          count: userCount,
+          findUnique,
+          update,
+        },
+      });
+    });
+    findUnique.mockResolvedValue({ role: Role.ADMIN });
+    userCount.mockResolvedValue(1);
+    const { updateUserRolesAction } =
+      await import('@/libs/admin/roles/roleAdminActions');
+
+    await expect(
+      updateUserRolesAction('en', 'admin-1', formData([['role', Role.USER]]))
+    ).rejects.toThrow('NEXT_REDIRECT:/admin/roles?status=last_admin');
+
+    expect(transaction).toHaveBeenCalledOnce();
+    expect(userCount).toHaveBeenCalledWith({
+      where: { role: { contains: Role.ADMIN } },
+    });
     expect(update).not.toHaveBeenCalled();
   });
 });

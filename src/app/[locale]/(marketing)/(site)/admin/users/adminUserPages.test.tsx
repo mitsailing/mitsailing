@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Permission } from '@/libs/auth/permissions';
+import { Role } from '@/libs/auth/roles';
 
 const mocks = vi.hoisted(() => ({
   createAdminUserAction: vi.fn(),
@@ -39,7 +40,14 @@ vi.mock('@/components/mit-sailing/admin/catalog/AdminCatalogForm', () => ({
 
 vi.mock('@/components/mit-sailing/admin/catalog/AdminCatalogTable', () => ({
   AdminCatalogTable: (props: { rows: unknown[] }) => (
-    <table data-row-count={props.rows.length} />
+    <table data-row-count={props.rows.length}>
+      <thead>
+        <tr>
+          <th scope="col">User</th>
+        </tr>
+      </thead>
+      <tbody />
+    </table>
   ),
 }));
 
@@ -187,6 +195,10 @@ describe('admin user pages', () => {
   });
 
   it('keeps the user detail page behind the view-users permission', async () => {
+    mocks.requirePermission.mockResolvedValue({
+      session: { impersonatedBy: null },
+      user: { id: 'staff-1', role: Role.DOCK_STAFF },
+    });
     const { default: AdminUserShowPage } = await import('./[id]/page');
 
     await AdminUserShowPage({

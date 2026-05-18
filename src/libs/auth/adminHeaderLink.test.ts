@@ -73,14 +73,14 @@ describe('adminHeaderLinkVisibleFromSession', () => {
     ).toBe(true);
   });
 
-  it('uses one normalized role instead of every comma-separated role', () => {
+  it('uses every comma-separated role for admin visibility', () => {
     expect(
       adminHeaderLinkVisibleFromSession({
         impersonatedBy: null,
         userId: 'volunteer-1',
         userRole: `${Role.VOLUNTEER},${Role.DOCK_STAFF}`,
       })
-    ).toBe(false);
+    ).toBe(true);
   });
 });
 

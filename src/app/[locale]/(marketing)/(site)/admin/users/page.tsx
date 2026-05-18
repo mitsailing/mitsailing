@@ -10,7 +10,12 @@ import {
 import { usersAdminDefinition } from '@/libs/admin/users/userAdminDefinitions';
 import { usersAdminHandlers } from '@/libs/admin/users/usersAdminHandlers';
 import { requirePermission } from '@/libs/auth/dal';
-import { Permission } from '@/libs/auth/permissions';
+import {
+  AuthSubject,
+  createAuthAbility,
+  Permission,
+} from '@/libs/auth/permissions';
+import { listRolePermissionGrants } from '@/libs/auth/rolePermissionGrants';
 import { parseRoles, Role } from '@/libs/auth/roles';
 import { getI18nPath } from '@/utils/Helpers';
 
@@ -40,7 +45,23 @@ export default async function AdminUsersIndexPage(
 
   const session = await requirePermission(Permission.USERS_VIEW, locale);
   const currentUserId = session.user.id;
-  const canAdmin = parseRoles(session.user.role).includes(Role.ADMIN);
+  const currentUserRoles = parseRoles(session.user.role);
+  const grants = currentUserRoles.includes(Role.ADMIN)
+    ? []
+    : await listRolePermissionGrants();
+  const ability = createAuthAbility({
+    grants,
+    roles: currentUserRoles,
+    userId: currentUserId,
+  });
+  const canEditUsers = ability.can(
+    Permission.USERS_EDIT,
+    AuthSubject.PERMISSION
+  );
+  const canDeleteUsers = ability.can(
+    Permission.USERS_DELETE,
+    AuthSubject.PERMISSION
+  );
   const accountHref = getI18nPath('/', locale);
 
   const rows = await usersAdminHandlers.list();
@@ -52,7 +73,7 @@ export default async function AdminUsersIndexPage(
     <div className="flex w-full flex-col gap-6">
       <AdminPageHeader
         actions={
-          canAdmin ? (
+          canEditUsers ? (
             <AdminPrimaryActionLink href={adminUsersNewPath()}>
               {tr('action_create')}
             </AdminPrimaryActionLink>
@@ -63,25 +84,21 @@ export default async function AdminUsersIndexPage(
 
       <AdminCatalogTable
         adminBasePath={ADMIN_USERS_PATH}
-        definition={
-          canAdmin
-            ? usersAdminDefinition
-            : {
-                ...usersAdminDefinition,
-                capabilities: {
-                  create: false,
-                  delete: false,
-                  reorder: false,
-                  update: false,
-                },
-              }
-        }
+        definition={{
+          ...usersAdminDefinition,
+          capabilities: {
+            create: canEditUsers,
+            delete: canDeleteUsers,
+            reorder: false,
+            update: canEditUsers,
+          },
+        }}
         locale={locale}
         messageNamespace="AdminUsers"
         resourceId={usersAdminDefinition.id}
         rows={rows}
         userImpersonation={
-          canAdmin
+          canEditUsers
             ? {
                 accountRedirectHref: accountHref,
                 currentUserId,

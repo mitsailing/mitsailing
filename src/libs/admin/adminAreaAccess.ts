@@ -11,7 +11,7 @@ import {
   Permission,
 } from '@/libs/auth/permissions';
 import { listRolePermissionGrants } from '@/libs/auth/rolePermissionGrants';
-import { normalizeRole, Role } from '@/libs/auth/roles';
+import { normalizeRole, parseRoles, Role } from '@/libs/auth/roles';
 import { getI18nPath } from '@/utils/Helpers';
 
 export type AdminAreaAccess = {
@@ -30,11 +30,14 @@ export async function requireAdminAreaAccess(
     redirect(homeHref);
   }
 
+  const roles = parseRoles(session.user.role);
   const role = normalizeRole(session.user.role);
-  const grants = role === Role.ADMIN ? [] : await listRolePermissionGrants();
+  const grants = roles.includes(Role.ADMIN)
+    ? []
+    : await listRolePermissionGrants();
   const ability = createAuthAbility({
     grants,
-    role,
+    roles,
     userId: session.user.id,
   });
   if (!ability.can(Permission.ADMIN_VIEW, AuthSubject.PERMISSION)) {

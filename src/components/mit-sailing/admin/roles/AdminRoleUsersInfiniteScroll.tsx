@@ -30,7 +30,7 @@ export function AdminRoleUsersInfiniteScroll() {
     let infiniteScroll: InfiniteScroll | null = null;
     let cancelled = false;
 
-    const animationFrame = window.requestAnimationFrame(async () => {
+    const animationFrame = globalThis.requestAnimationFrame(async () => {
       const container = document.querySelector(ROLE_USERS_CONTAINER_SELECTOR);
       const nextLink = document.querySelector(ROLE_USERS_NEXT_SELECTOR);
       if (!(container && nextLink)) {
@@ -59,7 +59,7 @@ export function AdminRoleUsersInfiniteScroll() {
 
     return () => {
       cancelled = true;
-      window.cancelAnimationFrame(animationFrame);
+      globalThis.cancelAnimationFrame(animationFrame);
       infiniteScroll?.destroy();
     };
   }, []);

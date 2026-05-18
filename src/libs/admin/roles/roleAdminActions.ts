@@ -1,8 +1,6 @@
 'use server';
 
-import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { auth } from '@/libs/auth';
 import { requirePermission } from '@/libs/auth/dal';
 import type { RolePermissionGrant } from '@/libs/auth/permissions';
 import {
@@ -18,6 +16,8 @@ import { prisma } from '@/libs/DB';
 import { getI18nPath } from '@/utils/Helpers';
 
 const ADMIN_ROLES_PATH = '/admin/roles';
+
+class LastAdminRoleChangeError extends Error {}
 
 function adminRolesRedirect(locale: string, status: string): never {
   redirect(`${getI18nPath(ADMIN_ROLES_PATH, locale)}?status=${status}`);
@@ -60,29 +60,6 @@ function selectedRole(formData: FormData): Role {
   return formData.getAll('role').find(isRole) ?? Role.USER;
 }
 
-async function wouldRemoveLastAdmin(props: {
-  userId: string;
-  nextRole: Role;
-}): Promise<boolean> {
-  const target = await prisma.user.findUnique({
-    where: { id: props.userId },
-    select: { role: true },
-  });
-  if (!target) {
-    return false;
-  }
-  if (
-    normalizeRole(target.role) !== Role.ADMIN ||
-    props.nextRole === Role.ADMIN
-  ) {
-    return false;
-  }
-  const adminCount = await prisma.user.count({
-    where: { role: Role.ADMIN },
-  });
-  return adminCount <= 1;
-}
-
 export async function saveRolePermissionGrantsAction(
   locale: string,
   formData: FormData
@@ -109,12 +86,34 @@ export async function updateUserRolesAction(
 ): Promise<void> {
   await requirePermission(Permission.ROLES_ASSIGN, locale);
   const role = selectedRole(formData);
-  if (await wouldRemoveLastAdmin({ userId, nextRole: role })) {
-    adminRolesRedirect(locale, 'last_admin');
+  try {
+    await prisma.$transaction(async (tx) => {
+      const target = await tx.user.findUnique({
+        where: { id: userId },
+        select: { role: true },
+      });
+      if (
+        target &&
+        normalizeRole(target.role) === Role.ADMIN &&
+        role !== Role.ADMIN
+      ) {
+        const adminCount = await tx.user.count({
+          where: { role: { contains: Role.ADMIN } },
+        });
+        if (adminCount <= 1) {
+          throw new LastAdminRoleChangeError();
+        }
+      }
+      await tx.user.update({
+        where: { id: userId },
+        data: { role },
+      });
+    });
+  } catch (error) {
+    if (error instanceof LastAdminRoleChangeError) {
+      adminRolesRedirect(locale, 'last_admin');
+    }
+    throw error;
   }
-  await auth.api.setRole({
-    body: { role, userId },
-    headers: await headers(),
-  });
   adminRolesRedirect(locale, 'user_saved');
 }

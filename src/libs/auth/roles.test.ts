@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeRole, parseRoles, Role } from '@/libs/auth/roles';
+import {
+  normalizeRole,
+  parseRoles,
+  Role,
+  ROLE_DEFINITIONS,
+} from '@/libs/auth/roles';
 
 describe('normalizeRole', () => {
   it('preserves known roles for admin and user', () => {
@@ -27,5 +32,14 @@ describe('parseRoles', () => {
     expect(parseRoles(null)).toEqual([Role.USER]);
     expect(parseRoles('')).toEqual([Role.USER]);
     expect(parseRoles('unknown')).toEqual([Role.USER]);
+  });
+});
+
+describe('ROLE_DEFINITIONS', () => {
+  it('keeps role labels as translation keys', () => {
+    expect(ROLE_DEFINITIONS).toContainEqual({
+      key: Role.DOCK_STAFF,
+      labelKey: 'role_dock_staff',
+    });
   });
 });

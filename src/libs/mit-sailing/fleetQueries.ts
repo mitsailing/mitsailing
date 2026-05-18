@@ -9,6 +9,10 @@ import {
 import { prismaOrderByDisplayOrderAscNameAsc } from '@/libs/mit-sailing/prismaOrderPublicNav';
 import { listRequiredRatingsForTarget } from '@/libs/mit-sailing/sailingRatingQueries';
 import type { SailingRatingBrief } from '@/libs/mit-sailing/sailingRatingQueries';
+import {
+  SITE_NAV_CACHE_REVALIDATE_SECONDS,
+  siteNavFleetCacheTag,
+} from '@/libs/mit-sailing/siteNavCache';
 
 export type FleetBoatListRow = {
   id: string;
@@ -22,6 +26,8 @@ export type FleetBoatListRow = {
   requiredRatings: SailingRatingBrief[];
 };
 
+type FleetBoatNavRow = Pick<FleetBoatListRow, 'id' | 'name' | 'slug'>;
+
 /**
  * Maps fleet rows (already ordered) to header dropdown items.
  *
@@ -33,6 +39,28 @@ export function mapFleetBoatsToNavDropdownItems(
 ): { label: string; href: string }[] {
   return mapNameSlugRowsToNavLinks(boats, hrefFleetBoatFromSlug);
 }
+
+async function loadFleetBoatsForNavUnchecked(): Promise<FleetBoatNavRow[]> {
+  const rows = await prisma.fleetBoat.findMany({
+    orderBy: prismaOrderByDisplayOrderAscNameAsc,
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+    },
+  });
+  return rows;
+}
+
+export const listFleetBoatsForNav = cacheDbListOrEmpty(
+  'fleet boats for site nav',
+  loadFleetBoatsForNavUnchecked,
+  {
+    keyParts: [siteNavFleetCacheTag],
+    revalidate: SITE_NAV_CACHE_REVALIDATE_SECONDS,
+    tags: [siteNavFleetCacheTag],
+  }
+);
 
 /**
  * Loads fleet rows; `description` is converted to plain excerpts for list cards

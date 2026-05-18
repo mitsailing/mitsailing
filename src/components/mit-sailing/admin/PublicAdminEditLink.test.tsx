@@ -60,6 +60,19 @@ describe('PublicAdminEditLink', () => {
     expect(view.container).toBeEmptyDOMElement();
   });
 
+  it('skips grant lookup for anonymous sessions', async () => {
+    getSessionMock.mockResolvedValue(null);
+
+    const view = render(
+      await PublicAdminEditLink({
+        href: '/admin/cms_pages/page-1/edit',
+      })
+    );
+
+    expect(view.container).toBeEmptyDOMElement();
+    expect(listRolePermissionGrantsMock).not.toHaveBeenCalled();
+  });
+
   it('omits the edit link for impersonating admins', async () => {
     getSessionMock.mockResolvedValue({
       session: { impersonatedBy: 'admin-1' },

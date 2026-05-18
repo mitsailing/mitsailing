@@ -49,7 +49,7 @@ describe('admin route structure', () => {
     for (const file of files) {
       const source = await readFile(file, 'utf8');
       if (
-        !/require(Admin|AdminAreaAccess|Permission|AnyPermission|CatalogPermission|AdminEventAccess)\(/.test(
+        !/require(Admin|AdminAreaAccess|Permission|AnyPermission|CatalogPermission|AdminEventAccess|AdminEventListAccess)\(/.test(
           source
         )
       ) {

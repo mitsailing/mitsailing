@@ -12,7 +12,7 @@ import {
   Permission,
 } from '@/libs/auth/permissions';
 import { listRolePermissionGrants } from '@/libs/auth/rolePermissionGrants';
-import { normalizeRole, Role } from '@/libs/auth/roles';
+import { parseRoles, Role } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
 import { getI18nPath } from '@/utils/Helpers';
 
@@ -40,11 +40,13 @@ export type AdminEventListAccess = {
 async function createEventAdminAbility(
   session: NonNullable<AuthSession>
 ): Promise<AuthAbility> {
-  const role = normalizeRole(session.user.role);
-  const grants = role === Role.ADMIN ? [] : await listRolePermissionGrants();
+  const roles = parseRoles(session.user.role);
+  const grants = roles.includes(Role.ADMIN)
+    ? []
+    : await listRolePermissionGrants();
   return createAuthAbility({
     grants,
-    role,
+    roles,
     userId: session.user.id,
   });
 }

@@ -132,6 +132,17 @@ describe('createCatalogResourceAction', () => {
     expect(updateTag).toHaveBeenCalledWith('sitemap-catalog');
   });
 
+  it('invalidates class nav cache after creating class_categories', async () => {
+    const { createCatalogResourceAction } =
+      await import('@/libs/admin/catalog/catalogActions');
+
+    await expect(
+      createCatalogResourceAction('en', 'class_categories', new FormData())
+    ).rejects.toThrow('NEXT_REDIRECT');
+
+    expect(updateTag).toHaveBeenCalledWith('site-nav-classes');
+  });
+
   it('opens the edit screen after creating a CMS page block', async () => {
     const { createCatalogResourceAction } =
       await import('@/libs/admin/catalog/catalogActions');
@@ -175,6 +186,7 @@ describe('updateCatalogResourceAction', () => {
 
     expect(redirect).toHaveBeenCalledWith('/admin/fleet/boat-1/edit');
     expect(updateTag).toHaveBeenCalledWith('sitemap-catalog');
+    expect(updateTag).toHaveBeenCalledWith('site-nav-fleet');
   });
 
   it('preserves page scope after updating a CMS page block', async () => {

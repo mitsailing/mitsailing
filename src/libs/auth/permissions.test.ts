@@ -6,6 +6,7 @@ import {
   createEventAbilitySubject,
   createEventRegistrationAbilitySubject,
   Permission,
+  PERMISSION_DEFINITIONS,
   normalizeRolePermissionGrant,
   permissionGrantsForSeed,
 } from '@/libs/auth/permissions';
@@ -40,6 +41,20 @@ describe('createAuthAbility', () => {
     expect(
       ability.can(Permission.ROLES_MANAGE_PERMISSIONS, AuthSubject.PERMISSION)
     ).toBe(true);
+  });
+
+  it('applies grants from every assigned role', () => {
+    const ability = createAuthAbility({
+      grants: [
+        {
+          permissionKey: Permission.CMS_EDIT,
+          roleKey: Role.DOCK_STAFF,
+        },
+      ],
+      roles: [Role.VOLUNTEER, Role.DOCK_STAFF],
+    });
+
+    expect(ability.can(Permission.CMS_EDIT, AuthSubject.PERMISSION)).toBe(true);
   });
 
   it('limits registration edits to the owning user', () => {
@@ -186,6 +201,16 @@ describe('permissionGrantsForSeed', () => {
     expect(grants).not.toContainEqual(
       expect.objectContaining({ roleKey: Role.ADMIN })
     );
+  });
+});
+
+describe('PERMISSION_DEFINITIONS', () => {
+  it('keeps permission labels and groups as translation keys', () => {
+    expect(PERMISSION_DEFINITIONS).toContainEqual({
+      groupKey: 'group_cms',
+      key: Permission.CMS_EDIT,
+      labelKey: 'permission_cms_edit',
+    });
   });
 });
 

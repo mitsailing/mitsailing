@@ -20,8 +20,10 @@ import {
   normalizeRolePermissionGrant,
   Permission,
   PERMISSION_DEFINITIONS,
+  ROLE_PERMISSION_GRANT_ROLES,
 } from '@/libs/auth/permissions';
-import { normalizeRole, Role, ROLE_DEFINITIONS } from '@/libs/auth/roles';
+import type { Role } from '@/libs/auth/roles';
+import { parseRoles, ROLE_DEFINITIONS } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
 import type messages from '@/locales/en.json';
 import { getI18nPath } from '@/utils/Helpers';
@@ -33,13 +35,6 @@ type AdminRolesPageProps = {
 
 const ADMIN_ROLES_PATH = '/admin/roles';
 const ROLE_ADMIN_USERS_PAGE_SIZE = 100;
-
-const EDITABLE_GRANT_ROLES = [
-  Role.VOLUNTEER,
-  Role.VOLUNTEER_INSTRUCTOR,
-  Role.DOCK_STAFF,
-  Role.DOCK_MASTER,
-] as const;
 
 type AdminRolesKey = keyof typeof messages.AdminRoles;
 type AdminRolesTranslator = Awaited<
@@ -58,69 +53,6 @@ type RoleAdminUsersPage = {
   totalCount: number;
 };
 
-const ROLE_LABEL_KEYS = {
-  [Role.USER]: 'role_user',
-  [Role.VOLUNTEER]: 'role_volunteer',
-  [Role.VOLUNTEER_INSTRUCTOR]: 'role_volunteer_instructor',
-  [Role.DOCK_STAFF]: 'role_dock_staff',
-  [Role.DOCK_MASTER]: 'role_dock_master',
-  [Role.ADMIN]: 'role_admin',
-} as const satisfies Record<Role, AdminRolesKey>;
-
-const PERMISSION_LABEL_KEYS = {
-  [Permission.ADMIN_VIEW]: 'permission_admin_view',
-  [Permission.USERS_VIEW]: 'permission_users_view',
-  [Permission.USERS_EDIT]: 'permission_users_edit',
-  [Permission.USERS_DELETE]: 'permission_users_delete',
-  [Permission.EVENTS_CREATE]: 'permission_events_create',
-  [Permission.EVENTS_MANAGE]: 'permission_events_manage',
-  [Permission.PAVILION_RESERVATIONS_MANAGE]:
-    'permission_pavilionReservations_manage',
-  [Permission.NEWSLETTER_MANAGE]: 'permission_newsletter_manage',
-  [Permission.DONATION_FUNDS_MANAGE]: 'permission_donationFunds_manage',
-  [Permission.EVENT_CATEGORIES_MANAGE]: 'permission_eventCategories_manage',
-  [Permission.CLASS_CATEGORIES_MANAGE]: 'permission_classCategories_manage',
-  [Permission.FLEET_MANAGE]: 'permission_fleet_manage',
-  [Permission.SAILING_CLASSES_MANAGE]: 'permission_sailingClasses_manage',
-  [Permission.SAILING_RATINGS_MANAGE]: 'permission_sailingRatings_manage',
-  [Permission.SAILING_RATING_RULES_MANAGE]:
-    'permission_sailingRatingRules_manage',
-  [Permission.SITE_ALERTS_MANAGE]: 'permission_siteAlerts_manage',
-  [Permission.CMS_VIEW]: 'permission_cms_view',
-  [Permission.CMS_EDIT]: 'permission_cms_edit',
-  [Permission.CMS_DELETE]: 'permission_cms_delete',
-  [Permission.RATINGS_ASSIGN]: 'permission_ratings_assign',
-  [Permission.CARDS_REVIEW]: 'permission_cards_review',
-  [Permission.CARDS_APPROVE]: 'permission_cards_approve',
-  [Permission.CARDS_ASSIGN_NUMBER]: 'permission_cards_assignNumber',
-  [Permission.CARDS_PRINT]: 'permission_cards_print',
-  [Permission.CARDS_EXPIRE]: 'permission_cards_expire',
-  [Permission.PAYMENTS_VIEW]: 'permission_payments_view',
-  [Permission.PAYMENTS_OVERRIDE]: 'permission_payments_override',
-  [Permission.WAREHOUSE_VIEW]: 'permission_warehouse_view',
-  [Permission.WAREHOUSE_SYNC]: 'permission_warehouse_sync',
-  [Permission.ROLES_ASSIGN]: 'permission_roles_assign',
-  [Permission.ROLES_MANAGE_PERMISSIONS]: 'permission_roles_managePermissions',
-  [Permission.ELIGIBILITY_VERIFY_GYM_MEMBERSHIP]:
-    'permission_eligibility_verifyGymMembership',
-} as const satisfies Record<Permission, AdminRolesKey>;
-
-const GROUP_LABEL_KEYS = {
-  Administration: 'group_administration',
-  Users: 'group_users',
-  Events: 'group_events',
-  Reservations: 'group_reservations',
-  Newsletters: 'group_newsletters',
-  Catalog: 'group_catalog',
-  CMS: 'group_cms',
-  Ratings: 'group_ratings',
-  Cards: 'group_cards',
-  Payments: 'group_payments',
-  Warehouse: 'group_warehouse',
-  Permissions: 'group_permissions',
-  Eligibility: 'group_eligibility',
-} as const satisfies Record<PermissionDefinition['group'], AdminRolesKey>;
-
 const STATUS_MESSAGE_KEYS: Partial<Record<string, AdminRolesKey>> = {
   last_admin: 'status_last_admin',
   saved: 'status_saved',
@@ -136,21 +68,27 @@ export async function generateMetadata(
 }
 
 function roleLabel(role: Role, t: AdminRolesTranslator): string {
-  return t(ROLE_LABEL_KEYS[role]);
+  const definition = ROLE_DEFINITIONS.find(
+    (candidate) => candidate.key === role
+  );
+  return t((definition?.labelKey ?? 'role_user') as AdminRolesKey);
 }
 
 function permissionLabel(
   permission: Permission,
   t: AdminRolesTranslator
 ): string {
-  return t(PERMISSION_LABEL_KEYS[permission]);
+  const definition = PERMISSION_DEFINITIONS.find(
+    (candidate) => candidate.key === permission
+  );
+  return t((definition?.labelKey ?? 'permission_admin_view') as AdminRolesKey);
 }
 
 function groupLabel(
-  group: PermissionDefinition['group'],
+  groupKey: PermissionDefinition['groupKey'],
   t: AdminRolesTranslator
 ): string {
-  return t(GROUP_LABEL_KEYS[group]);
+  return t(groupKey as AdminRolesKey);
 }
 
 function statusMessage(status: string, t: AdminRolesTranslator): string | null {
@@ -167,19 +105,19 @@ function grantKey(role: Role, permission: Permission): string {
 }
 
 function permissionGroups(): [
-  PermissionDefinition['group'],
+  PermissionDefinition['groupKey'],
   PermissionDefinition[],
 ][] {
   const groups = new Map<
-    PermissionDefinition['group'],
+    PermissionDefinition['groupKey'],
     PermissionDefinition[]
   >();
   const grantableDefinitions = PERMISSION_DEFINITIONS.filter((definition) =>
     isRoleGrantablePermission(definition.key)
   );
   for (const definition of grantableDefinitions) {
-    const current = groups.get(definition.group) ?? [];
-    groups.set(definition.group, [...current, definition]);
+    const current = groups.get(definition.groupKey) ?? [];
+    groups.set(definition.groupKey, [...current, definition]);
   }
   return [...groups.entries()];
 }
@@ -246,10 +184,10 @@ export default async function AdminRolesPage(props: AdminRolesPageProps) {
     listRoleAdminGrants(),
     listRoleAdminUsers(searchParams.cursor),
   ]);
-  const currentUserRole = normalizeRole(session.user.role);
+  const currentUserRoles = parseRoles(session.user.role);
   const ability = createAuthAbility({
     grants,
-    role: currentUserRole,
+    roles: currentUserRoles,
     userId: session.user.id,
   });
   const canAssignRoles = ability.can(
@@ -293,7 +231,7 @@ export default async function AdminRolesPage(props: AdminRolesPageProps) {
               <thead className="bg-muted/50 text-xs font-semibold text-muted-foreground uppercase">
                 <tr>
                   <th className="px-3 py-2">{t('column_permission')}</th>
-                  {EDITABLE_GRANT_ROLES.map((role) => (
+                  {ROLE_PERMISSION_GRANT_ROLES.map((role) => (
                     <th className="px-3 py-2 text-center" key={role}>
                       {roleLabel(role, t)}
                     </th>
@@ -316,7 +254,7 @@ export default async function AdminRolesPage(props: AdminRolesPageProps) {
                             <span className="font-medium text-mit-text">
                               {permissionLabel(definition.key, t)}
                             </span>
-                            {EDITABLE_GRANT_ROLES.map((role) => (
+                            {ROLE_PERMISSION_GRANT_ROLES.map((role) => (
                               <label
                                 className="flex justify-center"
                                 key={grantKey(role, definition.key)}
@@ -397,7 +335,7 @@ export default async function AdminRolesPage(props: AdminRolesPageProps) {
             </thead>
             <tbody className="js-role-admin-users">
               {usersPage.rows.map((user) => {
-                const userRole = normalizeRole(user.role);
+                const userRoles = parseRoles(user.role);
                 return (
                   <tr
                     className="js-role-admin-user-row border-t border-border"
@@ -425,7 +363,9 @@ export default async function AdminRolesPage(props: AdminRolesPageProps) {
                           >
                             <input
                               className="size-4 accent-mit-red"
-                              defaultChecked={userRole === definition.key}
+                              defaultChecked={userRoles.includes(
+                                definition.key
+                              )}
                               disabled={!canAssignRoles}
                               name="role"
                               required
@@ -459,24 +399,29 @@ export default async function AdminRolesPage(props: AdminRolesPageProps) {
         <AdminRoleUsersInfiniteScroll />
         {nextUsersHref ? (
           <>
-            <div
+            <output
               className="js-role-admin-users-status text-sm text-muted-foreground"
-              role="status"
               style={{ display: 'none' }}
             >
-              <p
+              <span
                 className="infinite-scroll-request"
                 style={{ display: 'none' }}
               >
                 {t('loading_users')}
-              </p>
-              <p className="infinite-scroll-last" style={{ display: 'none' }}>
+              </span>
+              <span
+                className="infinite-scroll-last"
+                style={{ display: 'none' }}
+              >
                 {t('all_users_loaded')}
-              </p>
-              <p className="infinite-scroll-error" style={{ display: 'none' }}>
+              </span>
+              <span
+                className="infinite-scroll-error"
+                style={{ display: 'none' }}
+              >
                 {t('load_users_error')}
-              </p>
-            </div>
+              </span>
+            </output>
             <nav className="js-role-admin-users-nav text-sm">
               <a
                 className="js-role-admin-users-next font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"

@@ -68,7 +68,7 @@ describe('requireAdminAreaAccess', () => {
     expect(mocks.requireAnyPermission).not.toHaveBeenCalled();
   });
 
-  it('uses one normalized role instead of granting every comma-separated role', async () => {
+  it('uses every comma-separated role for admin area access', async () => {
     mocks.verifySession.mockResolvedValue({
       session: { impersonatedBy: null },
       user: { id: 'user-1', role: `${Role.VOLUNTEER},${Role.DOCK_STAFF}` },
@@ -82,9 +82,10 @@ describe('requireAdminAreaAccess', () => {
     const { requireAdminAreaAccess } =
       await import('@/libs/admin/adminAreaAccess');
 
-    await requireAdminAreaAccess('en');
+    const access = await requireAdminAreaAccess('en');
 
-    expect(mocks.redirect).toHaveBeenCalledWith('/');
+    expect(mocks.redirect).not.toHaveBeenCalled();
+    expect(access.navItems.map((item) => item.href)).toContain('/admin');
     expect(mocks.requireAnyPermission).not.toHaveBeenCalled();
   });
 

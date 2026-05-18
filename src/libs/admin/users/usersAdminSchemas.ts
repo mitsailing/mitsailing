@@ -1,14 +1,7 @@
 import * as z from 'zod';
 import { Role } from '@/libs/auth/roles';
 
-const roleSchema = z.enum([
-  Role.USER,
-  Role.VOLUNTEER,
-  Role.VOLUNTEER_INSTRUCTOR,
-  Role.DOCK_STAFF,
-  Role.DOCK_MASTER,
-  Role.ADMIN,
-]);
+const roleSchema = z.enum(Role);
 
 function booleanFromFormData(
   formData: FormData,

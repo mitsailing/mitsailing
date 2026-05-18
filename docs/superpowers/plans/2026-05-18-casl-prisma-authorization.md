@@ -4,7 +4,7 @@
 
 **Goal:** Finish the CASL migration by making CASL the single authorization API while using `@casl/prisma` conditions for record ownership and query filtering.
 
-**Architecture:** `src/libs/auth/permissions.ts` owns the Prisma-backed ability type and subject helpers. Admin event access uses `accessibleBy` so event admins only query events they own or administer. Registration ownership stays expressed through CASL conditions and can be reused by mutations or queries.
+**Architecture:** `src/libs/auth/permissions.ts` owns the Prisma-backed ability type and subject helpers. Admin event access uses `accessibleBy` so users with scoped event access only query events where they have `EventAdmin` membership; `createdByUserId` remains provenance metadata and must not grant edit access. Registration ownership stays expressed through CASL conditions and can be reused by mutations or queries.
 
 **Tech Stack:** TypeScript, Prisma 7, `@casl/ability`, `@casl/prisma`, Vitest.
 
@@ -24,15 +24,15 @@ Run: `node -e "const p=require('./package.json'); console.log(p.dependencies['@c
 
 Expected: prints an installed `@casl/prisma` version. If it prints `undefined`, run `npm install @casl/prisma` before continuing.
 
-- [ ] **Step 2: Update the failing ownership tests**
+- [ ] **Step 2: Update the failing event access tests**
 
-In `src/libs/auth/permissions.test.ts`, assert event rules use Prisma-compatible relation conditions:
+In `src/libs/auth/permissions.test.ts`, assert event rules use Prisma-compatible relation conditions and do not grant access from `createdByUserId` alone:
 
 ```ts
 expect(ability.can(AuthAction.UPDATE, createEventAbilitySubject({
   createdByUserId: 'user-1',
   admins: [],
-}))).toBe(true);
+}))).toBe(false);
 expect(ability.can(AuthAction.UPDATE, createEventAbilitySubject({
   createdByUserId: 'creator-1',
   admins: [{ adminUserId: 'user-1' }],
@@ -47,11 +47,11 @@ expect(ability.can(AuthAction.UPDATE, createEventAbilitySubject({
 
 Run: `npm run test -- src/libs/auth/permissions.test.ts`
 
-Expected: FAIL because `createEventAbilitySubject` still expects `adminUserIds`.
+Expected: FAIL because the event ability still grants access from creator provenance or still expects `adminUserIds`.
 
 - [ ] **Step 4: Implement Prisma ability types and rules**
 
-In `src/libs/auth/permissions.ts`, import `createPrismaAbility`, `PrismaQuery`, and `Subjects` from `@casl/prisma`. Define `AuthAbility` as `PureAbility<[AbilityAction, AbilitySubject], PrismaQuery>`. Represent event ownership as `{ createdByUserId: userId }` OR `{ admins: { some: { adminUserId: userId } } }`; represent registration ownership as `{ userId }`. Build abilities with `new AbilityBuilder<AuthAbility>(createPrismaAbility)`.
+In `src/libs/auth/permissions.ts`, import `createPrismaAbility`, `PrismaQuery`, and `Subjects` from `@casl/prisma`. Define `AuthAbility` as `PureAbility<[AbilityAction, AbilitySubject], PrismaQuery>`. Represent scoped event access as `{ admins: { some: { adminUserId: userId } } }` only; represent registration ownership as `{ userId }`. Build abilities with `new AbilityBuilder<AuthAbility>(createPrismaAbility)`.
 
 - [ ] **Step 5: Run the focused test green**
 
@@ -59,7 +59,7 @@ Run: `npm run test -- src/libs/auth/permissions.test.ts`
 
 Expected: PASS.
 
-### Task 2: Use accessibleBy for event admin lookup
+## Task 2: Use accessibleBy for event admin lookup
 
 **Files:**
 - Modify: `src/libs/admin/events/eventAdminAuthorization.ts`
@@ -85,7 +85,7 @@ Run: `npm run test -- src/libs/admin/events/eventAdminAuthorization.test.ts`
 
 Expected: PASS.
 
-### Task 3: Verify the migration surface
+## Task 3: Verify the migration surface
 
 **Files:**
 - Modify only files already touched by Tasks 1-2 unless a type error identifies another direct migration caller.
@@ -96,13 +96,23 @@ Run: `rg "adminUserIds|conditionsMatcher|MatchConditions|findUnique\\(\\{\\s*whe
 
 Expected: no stale CASL ownership helpers or event slug authorization fetches remain.
 
-- [ ] **Step 2: Run targeted tests**
+- [ ] **Step 2: Search docs and rules for stale event creator ownership claims**
+
+Run:
+
+```bash
+rg -n "createdByUserId|created_by|creator|owner|ownership|own or administer|events they own" docs .cursor AGENTS.md --glob "*.md" --glob "*.mdc"
+```
+
+Expected: any remaining event `createdByUserId` references describe provenance metadata, seed/migration history, or the later event-hosts migration; no docs or rules claim creator provenance grants event edit access.
+
+- [ ] **Step 3: Run targeted tests**
 
 Run: `npm run test -- src/libs/auth/permissions.test.ts src/libs/admin/events/eventAdminAuthorization.test.ts`
 
 Expected: PASS.
 
-- [ ] **Step 3: Run required checks**
+- [ ] **Step 4: Run required checks**
 
 Run:
 

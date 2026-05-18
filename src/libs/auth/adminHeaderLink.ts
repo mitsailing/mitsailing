@@ -4,7 +4,7 @@ import {
   Permission,
   permissionGrantsForSeed,
 } from '@/libs/auth/permissions';
-import { normalizeRole } from '@/libs/auth/roles';
+import { parseRoles } from '@/libs/auth/roles';
 
 /** Minimal session fields for deciding whether the global header shows Admin. */
 export type AdminHeaderLinkSessionInput = {
@@ -29,7 +29,7 @@ export function adminHeaderLinkVisibleFromSession(
   }
   const ability = createAuthAbility({
     grants: permissionGrantsForSeed(),
-    role: normalizeRole(input.userRole),
+    roles: parseRoles(input.userRole),
     userId: input.userId,
   });
   if (!ability.can(Permission.ADMIN_VIEW, AuthSubject.PERMISSION)) {

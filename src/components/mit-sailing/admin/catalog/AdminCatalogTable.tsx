@@ -301,7 +301,7 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
           ) : null}
           {canUpdate ? (
             <Link
-              className="text-sm font-medium text-mit-red no-underline hover:underline dark:text-white"
+              className="text-sm font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
               href={editHref(String(row.id))}
             >
               {t('action_edit')}
@@ -309,7 +309,7 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
           ) : null}
           {canDelete ? (
             <Link
-              className="text-sm font-medium text-mit-red no-underline hover:underline dark:text-white"
+              className="text-sm font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
               href={deleteHref(String(row.id))}
             >
               {t('action_delete')}

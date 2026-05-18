@@ -172,6 +172,40 @@ describe('createPublicEventRegistrationAction', () => {
       })
     );
   });
+
+  it('uses viewer ownership for admins on public registration', async () => {
+    mocks.requireCurrentUser.mockResolvedValue({
+      email: 'admin@example.test',
+      id: 'admin-1',
+      name: 'Admin One',
+      role: Role.ADMIN,
+      unconfirmedEmail: null,
+    });
+    const { createPublicEventRegistrationAction } =
+      await import('@/libs/mit-sailing/eventRegistrationActions');
+
+    await expect(
+      createPublicEventRegistrationAction(
+        'en',
+        'intro-sail',
+        {
+          code: null,
+          fieldErrors: {},
+          status: 'idle',
+          values: {},
+        },
+        registrationFormData()
+      )
+    ).rejects.toThrow('NEXT_REDIRECT:/events/intro-sail');
+
+    expect(mocks.eventRegistrationFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          AND: [{ eventId: 'event-1' }, { OR: [{ userId: 'admin-1' }] }],
+        },
+      })
+    );
+  });
 });
 
 describe('cancelPublicEventRegistrationAction', () => {
@@ -187,6 +221,29 @@ describe('cancelPublicEventRegistrationAction', () => {
       data: { status: EventRegistrationStatus.cancelled },
       where: {
         AND: [{ eventId: 'event-1' }, { OR: [{ userId: 'user-1' }] }],
+      },
+    });
+  });
+
+  it('uses viewer ownership for admins when cancelling public registrations', async () => {
+    mocks.requireCurrentUser.mockResolvedValue({
+      email: 'admin@example.test',
+      id: 'admin-1',
+      name: 'Admin One',
+      role: Role.ADMIN,
+      unconfirmedEmail: null,
+    });
+    const { cancelPublicEventRegistrationAction } =
+      await import('@/libs/mit-sailing/eventRegistrationActions');
+
+    await expect(
+      cancelPublicEventRegistrationAction('en', 'intro-sail')
+    ).rejects.toThrow('NEXT_REDIRECT:/events/intro-sail');
+
+    expect(mocks.eventRegistrationUpdateMany).toHaveBeenCalledWith({
+      data: { status: EventRegistrationStatus.cancelled },
+      where: {
+        AND: [{ eventId: 'event-1' }, { OR: [{ userId: 'admin-1' }] }],
       },
     });
   });

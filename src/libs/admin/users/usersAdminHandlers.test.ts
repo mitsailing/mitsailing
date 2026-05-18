@@ -330,7 +330,7 @@ describe('usersAdminHandlers', () => {
         banned: false,
         role: Role.ADMIN,
       });
-      mocks.userFindMany.mockResolvedValue([{ role: Role.ADMIN }]);
+      mocks.userCount.mockResolvedValue(1);
 
       await expect(
         usersAdminHandlers.updateFromForm(
@@ -352,10 +352,7 @@ describe('usersAdminHandlers', () => {
         banned: false,
         role: Role.ADMIN,
       });
-      mocks.userFindMany.mockResolvedValue([
-        { role: Role.ADMIN },
-        { role: 'super_admin' },
-      ]);
+      mocks.userCount.mockResolvedValue(1);
 
       await expect(
         usersAdminHandlers.updateFromForm(
@@ -363,6 +360,17 @@ describe('usersAdminHandlers', () => {
           updateFormData({ role: Role.USER })
         )
       ).resolves.toEqual({ code: 'last_admin', ok: false });
+
+      expect(mocks.userCount).toHaveBeenCalledWith({
+        where: {
+          OR: [
+            { role: Role.ADMIN },
+            { role: { startsWith: `${Role.ADMIN},` } },
+            { role: { endsWith: `,${Role.ADMIN}` } },
+            { role: { contains: `,${Role.ADMIN},` } },
+          ],
+        },
+      });
     });
 
     it('demotes admin when another admin remains', async () => {
@@ -370,10 +378,7 @@ describe('usersAdminHandlers', () => {
         banned: false,
         role: Role.ADMIN,
       });
-      mocks.userFindMany.mockResolvedValue([
-        { role: Role.ADMIN },
-        { role: Role.ADMIN },
-      ]);
+      mocks.userCount.mockResolvedValue(2);
 
       await expect(
         usersAdminHandlers.updateFromForm(
@@ -453,7 +458,7 @@ describe('usersAdminHandlers', () => {
 
       mocks.getSession.mockResolvedValue({ user: { id: 'admin-user' } });
       mocks.userFindUnique.mockResolvedValue({ role: Role.ADMIN });
-      mocks.userFindMany.mockResolvedValue([{ role: Role.ADMIN }]);
+      mocks.userCount.mockResolvedValue(1);
       await expect(usersAdminHandlers.delete('last-admin')).resolves.toEqual({
         code: 'last_admin',
         ok: false,

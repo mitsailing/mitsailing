@@ -8,9 +8,7 @@ const CMS_CATALOG_RESOURCE_IDS = [
   'cms_menu_items',
 ] as const satisfies readonly CatalogResourceId[];
 
-const CATALOG_RESOURCE_PERMISSIONS: Partial<
-  Record<CatalogResourceId, Permission>
-> = {
+const CATALOG_RESOURCE_PERMISSIONS = {
   class_categories: Permission.CLASS_CATEGORIES_MANAGE,
   donation_funds: Permission.DONATION_FUNDS_MANAGE,
   event_categories: Permission.EVENT_CATEGORIES_MANAGE,
@@ -19,7 +17,10 @@ const CATALOG_RESOURCE_PERMISSIONS: Partial<
   sailing_rating_rules: Permission.SAILING_RATING_RULES_MANAGE,
   sailing_ratings: Permission.SAILING_RATINGS_MANAGE,
   site_alerts: Permission.SITE_ALERTS_MANAGE,
-};
+} as const satisfies Partial<Record<CatalogResourceId, Permission>>;
+const CATALOG_RESOURCE_PERMISSION_LOOKUP: Readonly<
+  Record<string, Permission | undefined>
+> = CATALOG_RESOURCE_PERMISSIONS;
 
 type CatalogPermissionOperation =
   | 'create'
@@ -29,15 +30,13 @@ type CatalogPermissionOperation =
   | 'update'
   | 'view';
 
-function isCmsCatalogResource(resourceId: CatalogResourceId): boolean {
-  return (CMS_CATALOG_RESOURCE_IDS as readonly CatalogResourceId[]).includes(
-    resourceId
-  );
+function isCmsCatalogResource(resourceId: string): boolean {
+  return (CMS_CATALOG_RESOURCE_IDS as readonly string[]).includes(resourceId);
 }
 
 export function catalogPermissionForOperation(props: {
   operation: CatalogPermissionOperation;
-  resourceId: CatalogResourceId;
+  resourceId: string;
 }): Permission {
   if (isCmsCatalogResource(props.resourceId)) {
     if (props.operation === 'view') {
@@ -48,8 +47,16 @@ export function catalogPermissionForOperation(props: {
     }
     return Permission.CMS_EDIT;
   }
-  const permission = CATALOG_RESOURCE_PERMISSIONS[props.resourceId];
-  return permission ?? Permission.ADMIN_VIEW;
+  const permission = CATALOG_RESOURCE_PERMISSION_LOOKUP[props.resourceId];
+  if (permission) {
+    return permission;
+  }
+  if (props.operation === 'view') {
+    return Permission.ADMIN_VIEW;
+  }
+  throw new Error(
+    `Missing catalog permission mapping for resource "${props.resourceId}" and operation "${props.operation}"`
+  );
 }
 
 export function catalogPermissionsForOperation(props: {

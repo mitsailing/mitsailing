@@ -52,7 +52,17 @@ const authAdminStatements = {
 const authAdminAccessControl = createAccessControl(authAdminStatements);
 const authAdminRole = authAdminAccessControl.newRole(authAdminStatements);
 const authStaffRole = authAdminAccessControl.newRole({
-  user: [],
+  user: [
+    'create',
+    'list',
+    'set-role',
+    'ban',
+    'impersonate',
+    'delete',
+    'set-password',
+    'get',
+    'update',
+  ],
   session: [],
 });
 
@@ -162,8 +172,8 @@ export const auth = betterAuth({
   },
   plugins: [
     admin({
-      defaultRole: 'user',
-      adminRoles: ['admin'],
+      defaultRole: Role.USER,
+      adminRoles: [Role.ADMIN],
       ac: authAdminAccessControl,
       roles: {
         [Role.USER]: authStaffRole,

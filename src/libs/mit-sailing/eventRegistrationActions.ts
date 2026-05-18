@@ -9,6 +9,7 @@ import { EventRegistrationStatus } from '@/generated/prisma/enums';
 import type { EventAnswerType } from '@/generated/prisma/enums';
 import { requireCurrentUser } from '@/libs/auth/dal';
 import { AuthAction, createAuthAbility } from '@/libs/auth/permissions';
+import { Role } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
 import { logger } from '@/libs/Logger';
 import { questionOptionsFromJson } from '@/libs/mit-sailing/eventQueries';
@@ -175,7 +176,7 @@ export async function createPublicEventRegistrationAction(
   const registrationAccessWhere = accessibleBy(
     createAuthAbility({
       grants: [],
-      role: user.role,
+      role: Role.USER,
       userId: user.id,
     }),
     AuthAction.UPDATE
@@ -392,7 +393,7 @@ export async function cancelPublicEventRegistrationAction(
   const registrationAccessWhere = accessibleBy(
     createAuthAbility({
       grants: [],
-      role: user.role,
+      role: Role.USER,
       userId: user.id,
     }),
     AuthAction.UPDATE

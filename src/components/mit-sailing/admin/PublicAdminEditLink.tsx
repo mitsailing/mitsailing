@@ -8,7 +8,7 @@ import {
   Permission,
 } from '@/libs/auth/permissions';
 import { listRolePermissionGrants } from '@/libs/auth/rolePermissionGrants';
-import { normalizeRole } from '@/libs/auth/roles';
+import { parseRoles } from '@/libs/auth/roles';
 import { Link } from '@/libs/I18nNavigation';
 
 type PublicAdminEditLinkSession = {
@@ -29,7 +29,7 @@ function publicAdminEditLinkVisible(
   }
   const ability = createAuthAbility({
     grants,
-    role: normalizeRole(session?.user?.role),
+    roles: parseRoles(session?.user?.role),
     userId,
   });
   return ability.can(Permission.CMS_EDIT, AuthSubject.PERMISSION);
@@ -46,7 +46,20 @@ export async function PublicAdminEditLink(props: {
   href: string;
 }) {
   const session = await getSession();
-  const grants = await listRolePermissionGrants();
+  const userId = session?.user?.id;
+  if (
+    typeof userId !== 'string' ||
+    userId.length === 0 ||
+    session?.session?.impersonatedBy
+  ) {
+    return null;
+  }
+  let grants: Awaited<ReturnType<typeof listRolePermissionGrants>>;
+  try {
+    grants = await listRolePermissionGrants();
+  } catch {
+    grants = [];
+  }
   if (!publicAdminEditLinkVisible(session, grants)) {
     return null;
   }

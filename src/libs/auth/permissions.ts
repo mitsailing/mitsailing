@@ -99,116 +99,168 @@ export type RolePermissionGrant = {
 export const PERMISSION_DEFINITIONS = [
   {
     key: Permission.ADMIN_VIEW,
-    group: 'Administration',
-    label: 'Open admin area',
+    groupKey: 'group_administration',
+    labelKey: 'permission_admin_view',
   },
-  { key: Permission.USERS_VIEW, group: 'Users', label: 'View users' },
-  { key: Permission.USERS_EDIT, group: 'Users', label: 'Edit users' },
-  { key: Permission.USERS_DELETE, group: 'Users', label: 'Delete users' },
+  {
+    key: Permission.USERS_VIEW,
+    groupKey: 'group_users',
+    labelKey: 'permission_users_view',
+  },
+  {
+    key: Permission.USERS_EDIT,
+    groupKey: 'group_users',
+    labelKey: 'permission_users_edit',
+  },
+  {
+    key: Permission.USERS_DELETE,
+    groupKey: 'group_users',
+    labelKey: 'permission_users_delete',
+  },
   {
     key: Permission.EVENTS_CREATE,
-    group: 'Events',
-    label: 'Create events',
+    groupKey: 'group_events',
+    labelKey: 'permission_events_create',
   },
   {
     key: Permission.EVENTS_MANAGE,
-    group: 'Events',
-    label: 'Manage events',
+    groupKey: 'group_events',
+    labelKey: 'permission_events_manage',
   },
   {
     key: Permission.PAVILION_RESERVATIONS_MANAGE,
-    group: 'Reservations',
-    label: 'Manage pavilion reservations',
+    groupKey: 'group_reservations',
+    labelKey: 'permission_pavilionReservations_manage',
   },
   {
     key: Permission.NEWSLETTER_MANAGE,
-    group: 'Newsletters',
-    label: 'Manage newsletters',
+    groupKey: 'group_newsletters',
+    labelKey: 'permission_newsletter_manage',
   },
   {
     key: Permission.DONATION_FUNDS_MANAGE,
-    group: 'Catalog',
-    label: 'Manage donation funds',
+    groupKey: 'group_catalog',
+    labelKey: 'permission_donationFunds_manage',
   },
   {
     key: Permission.EVENT_CATEGORIES_MANAGE,
-    group: 'Catalog',
-    label: 'Manage event categories',
+    groupKey: 'group_catalog',
+    labelKey: 'permission_eventCategories_manage',
   },
   {
     key: Permission.CLASS_CATEGORIES_MANAGE,
-    group: 'Catalog',
-    label: 'Manage class categories',
+    groupKey: 'group_catalog',
+    labelKey: 'permission_classCategories_manage',
   },
-  { key: Permission.FLEET_MANAGE, group: 'Catalog', label: 'Manage fleet' },
+  {
+    key: Permission.FLEET_MANAGE,
+    groupKey: 'group_catalog',
+    labelKey: 'permission_fleet_manage',
+  },
   {
     key: Permission.SAILING_CLASSES_MANAGE,
-    group: 'Catalog',
-    label: 'Manage sailing classes',
+    groupKey: 'group_catalog',
+    labelKey: 'permission_sailingClasses_manage',
   },
   {
     key: Permission.SAILING_RATINGS_MANAGE,
-    group: 'Catalog',
-    label: 'Manage sailing ratings',
+    groupKey: 'group_catalog',
+    labelKey: 'permission_sailingRatings_manage',
   },
   {
     key: Permission.SAILING_RATING_RULES_MANAGE,
-    group: 'Catalog',
-    label: 'Manage sailing rating rules',
+    groupKey: 'group_catalog',
+    labelKey: 'permission_sailingRatingRules_manage',
   },
   {
     key: Permission.SITE_ALERTS_MANAGE,
-    group: 'Catalog',
-    label: 'Manage site alerts',
+    groupKey: 'group_catalog',
+    labelKey: 'permission_siteAlerts_manage',
   },
-  { key: Permission.CMS_VIEW, group: 'CMS', label: 'View CMS' },
-  { key: Permission.CMS_EDIT, group: 'CMS', label: 'Edit CMS' },
-  { key: Permission.CMS_DELETE, group: 'CMS', label: 'Delete CMS' },
+  {
+    key: Permission.CMS_VIEW,
+    groupKey: 'group_cms',
+    labelKey: 'permission_cms_view',
+  },
+  {
+    key: Permission.CMS_EDIT,
+    groupKey: 'group_cms',
+    labelKey: 'permission_cms_edit',
+  },
+  {
+    key: Permission.CMS_DELETE,
+    groupKey: 'group_cms',
+    labelKey: 'permission_cms_delete',
+  },
   {
     key: Permission.RATINGS_ASSIGN,
-    group: 'Ratings',
-    label: 'Assign sailing ratings',
+    groupKey: 'group_ratings',
+    labelKey: 'permission_ratings_assign',
   },
-  { key: Permission.CARDS_REVIEW, group: 'Cards', label: 'Review cards' },
-  { key: Permission.CARDS_APPROVE, group: 'Cards', label: 'Approve cards' },
+  {
+    key: Permission.CARDS_REVIEW,
+    groupKey: 'group_cards',
+    labelKey: 'permission_cards_review',
+  },
+  {
+    key: Permission.CARDS_APPROVE,
+    groupKey: 'group_cards',
+    labelKey: 'permission_cards_approve',
+  },
   {
     key: Permission.CARDS_ASSIGN_NUMBER,
-    group: 'Cards',
-    label: 'Assign card numbers',
+    groupKey: 'group_cards',
+    labelKey: 'permission_cards_assignNumber',
   },
-  { key: Permission.CARDS_PRINT, group: 'Cards', label: 'Print cards' },
-  { key: Permission.CARDS_EXPIRE, group: 'Cards', label: 'Expire cards' },
-  { key: Permission.PAYMENTS_VIEW, group: 'Payments', label: 'View payments' },
+  {
+    key: Permission.CARDS_PRINT,
+    groupKey: 'group_cards',
+    labelKey: 'permission_cards_print',
+  },
+  {
+    key: Permission.CARDS_EXPIRE,
+    groupKey: 'group_cards',
+    labelKey: 'permission_cards_expire',
+  },
+  {
+    key: Permission.PAYMENTS_VIEW,
+    groupKey: 'group_payments',
+    labelKey: 'permission_payments_view',
+  },
   {
     key: Permission.PAYMENTS_OVERRIDE,
-    group: 'Payments',
-    label: 'Override payments',
+    groupKey: 'group_payments',
+    labelKey: 'permission_payments_override',
   },
   {
     key: Permission.WAREHOUSE_VIEW,
-    group: 'Warehouse',
-    label: 'View warehouse status',
+    groupKey: 'group_warehouse',
+    labelKey: 'permission_warehouse_view',
   },
   {
     key: Permission.WAREHOUSE_SYNC,
-    group: 'Warehouse',
-    label: 'Run warehouse sync',
+    groupKey: 'group_warehouse',
+    labelKey: 'permission_warehouse_sync',
   },
-  { key: Permission.ROLES_ASSIGN, group: 'Permissions', label: 'Assign roles' },
+  {
+    key: Permission.ROLES_ASSIGN,
+    groupKey: 'group_permissions',
+    labelKey: 'permission_roles_assign',
+  },
   {
     key: Permission.ROLES_MANAGE_PERMISSIONS,
-    group: 'Permissions',
-    label: 'Manage role permissions',
+    groupKey: 'group_permissions',
+    labelKey: 'permission_roles_managePermissions',
   },
   {
     key: Permission.ELIGIBILITY_VERIFY_GYM_MEMBERSHIP,
-    group: 'Eligibility',
-    label: 'Verify gym membership',
+    groupKey: 'group_eligibility',
+    labelKey: 'permission_eligibility_verifyGymMembership',
   },
 ] as const satisfies readonly {
   key: Permission;
-  group: string;
-  label: string;
+  groupKey: string;
+  labelKey: string;
 }[];
 export type PermissionDefinition = (typeof PERMISSION_DEFINITIONS)[number];
 
@@ -305,36 +357,39 @@ export function createEventRegistrationAbilitySubject(
   return subject(AuthSubject.EVENT_REGISTRATION, props);
 }
 
-function roleHasPermission(props: {
+function rolesHavePermission(props: {
   grants: readonly RolePermissionGrant[];
   permission: Permission;
-  role: Role;
+  roles: readonly Role[];
 }): boolean {
-  if (props.role === Role.ADMIN) {
+  if (props.roles.includes(Role.ADMIN)) {
     return true;
   }
   return props.grants.some(
     (grant) =>
-      grant.permissionKey === props.permission && grant.roleKey === props.role
+      grant.permissionKey === props.permission &&
+      props.roles.includes(grant.roleKey)
   );
 }
 
 export function createAuthAbility(props: {
   grants: readonly RolePermissionGrant[];
-  role: Role;
+  role?: Role;
+  roles?: readonly Role[];
   userId?: string | null;
 }): AuthAbility {
   const { can, build } = new AbilityBuilder<AuthAbility>(
     createPrismaAuthAbility
   );
+  const roles = props.roles ?? (props.role ? [props.role] : [Role.USER]);
 
-  if (props.role === Role.ADMIN) {
+  if (roles.includes(Role.ADMIN)) {
     can(AuthAction.MANAGE, 'all');
     return build();
   }
 
   for (const grant of props.grants) {
-    if (grant.roleKey === props.role) {
+    if (roles.includes(grant.roleKey)) {
       can(grant.permissionKey, AuthSubject.PERMISSION);
     }
   }
@@ -347,19 +402,18 @@ export function createAuthAbility(props: {
   can(AuthAction.UPDATE, AuthSubject.EVENT_REGISTRATION, { userId });
 
   if (
-    roleHasPermission({
+    rolesHavePermission({
       grants: props.grants,
       permission: Permission.EVENTS_MANAGE,
-      role: props.role,
+      roles,
     })
   ) {
     can(AuthAction.UPDATE, AuthSubject.EVENT);
   } else if (
-    props.role === Role.VOLUNTEER_INSTRUCTOR &&
-    roleHasPermission({
+    rolesHavePermission({
       grants: props.grants,
       permission: Permission.EVENTS_CREATE,
-      role: props.role,
+      roles,
     })
   ) {
     can(AuthAction.UPDATE, AuthSubject.EVENT, {

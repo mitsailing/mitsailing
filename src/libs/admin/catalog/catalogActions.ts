@@ -38,6 +38,10 @@ import {
 import { restoreCmsPageRevision } from '@/libs/mit-sailing/cmsHistory';
 import { SITE_ALERTS_CACHE_TAG } from '@/libs/mit-sailing/siteAlertQueries';
 import { sitemapCatalogCacheTag } from '@/libs/mit-sailing/sitemapCache';
+import {
+  siteNavClassesCacheTag,
+  siteNavFleetCacheTag,
+} from '@/libs/mit-sailing/siteNavCache';
 import { getI18nPath } from '@/utils/Helpers';
 
 const orderedIdsSchema = z.array(z.string().min(1)).min(1);
@@ -86,6 +90,12 @@ function revalidateAfterCatalogMutation(
   }
   if (resourceId === 'site_alerts') {
     updateTag(SITE_ALERTS_CACHE_TAG);
+  }
+  if (resourceId === 'class_categories') {
+    updateTag(siteNavClassesCacheTag);
+  }
+  if (resourceId === 'fleet') {
+    updateTag(siteNavFleetCacheTag);
   }
   if (resourceId === 'sailing_classes' || resourceId === 'fleet') {
     updateTag(sitemapCatalogCacheTag);

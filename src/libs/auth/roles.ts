@@ -13,16 +13,21 @@ export const Role = {
 } as const;
 export type Role = (typeof Role)[keyof typeof Role];
 
-const ROLE_VALUES = Object.values(Role) as Role[];
-
 export const ROLE_DEFINITIONS = [
-  { key: Role.USER, label: 'User' },
-  { key: Role.VOLUNTEER, label: 'Volunteer' },
-  { key: Role.VOLUNTEER_INSTRUCTOR, label: 'Volunteer instructor' },
-  { key: Role.DOCK_STAFF, label: 'Dock staff' },
-  { key: Role.DOCK_MASTER, label: 'Dock master' },
-  { key: Role.ADMIN, label: 'Administrator' },
-] as const satisfies readonly { key: Role; label: string }[];
+  { key: Role.USER, labelKey: 'role_user' },
+  { key: Role.VOLUNTEER, labelKey: 'role_volunteer' },
+  {
+    key: Role.VOLUNTEER_INSTRUCTOR,
+    labelKey: 'role_volunteer_instructor',
+  },
+  { key: Role.DOCK_STAFF, labelKey: 'role_dock_staff' },
+  { key: Role.DOCK_MASTER, labelKey: 'role_dock_master' },
+  { key: Role.ADMIN, labelKey: 'role_admin' },
+] as const satisfies readonly { key: Role; labelKey: string }[];
+
+const ROLE_VALUES = ROLE_DEFINITIONS.map(
+  (definition) => definition.key
+) as Role[];
 
 export function isRole(value: unknown): value is Role {
   return typeof value === 'string' && (ROLE_VALUES as string[]).includes(value);

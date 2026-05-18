@@ -179,16 +179,20 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
   setRequestLocale(locale);
   const session = await requirePermission(Permission.USERS_VIEW, locale);
   const roles = parseRoles(session.user.role);
-  const canAdmin = roles.includes(Role.ADMIN);
-  const role = canAdmin ? Role.ADMIN : (roles[0] ?? Role.USER);
-  const grants = await listRolePermissionGrants();
+  const grants = roles.includes(Role.ADMIN)
+    ? []
+    : await listRolePermissionGrants();
   const ability = createAuthAbility({
     grants,
-    role,
+    roles,
     userId: session.user.id,
   });
   const canAssignRatings = ability.can(
     Permission.RATINGS_ASSIGN,
+    AuthSubject.PERMISSION
+  );
+  const canEditUsers = ability.can(
+    Permission.USERS_EDIT,
     AuthSubject.PERMISSION
   );
 
@@ -234,7 +238,7 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
     <div className="flex w-full max-w-5xl flex-col gap-6">
       <AdminPageHeader
         actions={
-          canAdmin ? (
+          canEditUsers ? (
             <AdminPrimaryActionLink href={adminUsersEditPath(id)}>
               {t('action_edit')}
             </AdminPrimaryActionLink>

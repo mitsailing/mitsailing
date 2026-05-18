@@ -232,7 +232,7 @@ describe('requirePermission', () => {
     expect(redirect).not.toHaveBeenCalled();
   });
 
-  it('uses one normalized role for legacy comma-separated role strings', async () => {
+  it('allows comma-separated role strings with any granted role', async () => {
     authGetSession.mockResolvedValue(
       createSession({
         id: 'staff-1',
@@ -245,11 +245,13 @@ describe('requirePermission', () => {
     const { requirePermission } = await import('@/libs/auth/dal');
     const { Permission } = await import('@/libs/auth/permissions');
 
-    await expect(requirePermission(Permission.CMS_EDIT, 'en')).rejects.toThrow(
-      'NEXT_REDIRECT:/'
+    await expect(requirePermission(Permission.CMS_EDIT, 'en')).resolves.toEqual(
+      expect.objectContaining({
+        user: expect.objectContaining({ id: 'staff-1' }),
+      })
     );
 
-    expect(redirect).toHaveBeenCalledWith('/');
+    expect(redirect).not.toHaveBeenCalled();
   });
 });
 
