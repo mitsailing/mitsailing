@@ -13,6 +13,7 @@
     "type": "git",
     "url": "git+https://github.com/mitsailing/mitsailing.git"
   },
+  "type": "module",
   "scripts": {
     "dev:spotlight": "npx @spotlightjs/spotlight",
     "dev:next": "next dev",
