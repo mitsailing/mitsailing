@@ -23,6 +23,8 @@ type SanitizeHtmlOptions = NonNullable<Parameters<typeof sanitizeHtml>[1]>;
 type SanitizeAttribs = Record<string, string>;
 type SanitizeTagResult = { tagName: string; attribs: SanitizeAttribs };
 
+const SANITIZE_NON_TEXT_TAGS = ['script', 'style', 'textarea', 'option', 'xmp'];
+
 function isControlOrWhitespace(char: string): boolean {
   const codePoint = char.codePointAt(0);
   if (codePoint === undefined) {
@@ -197,7 +199,7 @@ const CMS_RICH_TEXT_SANITIZE_OPTIONS = {
     'strong',
     'ul',
   ],
-  nonTextTags: ['script', 'style', 'textarea', 'option'],
+  nonTextTags: SANITIZE_NON_TEXT_TAGS,
   selfClosing: ['br', 'img'],
   transformTags: {
     a: transformCmsRichTextAnchor,
@@ -217,7 +219,7 @@ function cmsRichTextHasContent(html: string): boolean {
   const text = sanitizeHtml(html, {
     allowedAttributes: {},
     allowedTags: [],
-    nonTextTags: ['script', 'style', 'textarea', 'option'],
+    nonTextTags: SANITIZE_NON_TEXT_TAGS,
   });
   return text.replaceAll(/\s+/gu, '').length > 0;
 }
@@ -273,7 +275,7 @@ export function plainTextFromCmsRichTextHtml(
   return sanitizeHtml(spaced, {
     allowedAttributes: {},
     allowedTags: [],
-    nonTextTags: ['script', 'style', 'textarea', 'option'],
+    nonTextTags: SANITIZE_NON_TEXT_TAGS,
   })
     .replaceAll(/\s+/gu, ' ')
     .trim();

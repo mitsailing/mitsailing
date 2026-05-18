@@ -30,6 +30,14 @@ describe('sanitizeSiteAlertBodyHtml', () => {
     ).toBe('bad');
   });
 
+  it('drops xmp raw-text contents', () => {
+    expect(
+      sanitizeSiteAlertBodyHtml(
+        'Ready<xmp><a href="javascript:alert(1)">bad</a></xmp>'
+      )
+    ).toBe('Ready');
+  });
+
   it('drops protocol-relative URLs', () => {
     expect(sanitizeSiteAlertBodyHtml('<a href="//evil.test/">x</a>')).toBe('x');
   });

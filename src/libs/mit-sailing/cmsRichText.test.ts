@@ -37,6 +37,14 @@ describe('sanitizeCmsRichTextHtml', () => {
     ).toBe('<p>Text color bad</p>');
   });
 
+  it('drops xmp raw-text contents instead of re-emitting markup', () => {
+    expect(
+      sanitizeCmsRichTextHtml(
+        '<p>Before</p><xmp><img src=x onerror=alert(1)></xmp><p>After</p>'
+      )
+    ).toBe('<p>Before</p><p>After</p>');
+  });
+
   it('strips links with obfuscated unsafe schemes', () => {
     expect(
       sanitizeCmsRichTextHtml(
@@ -151,6 +159,14 @@ describe('plainTextFromCmsRichTextHtml', () => {
     expect(plainTextFromCmsRichTextHtml('<p>a<br>b<br/>c<BR />d</p>')).toBe(
       'a b c d'
     );
+  });
+
+  it('omits xmp raw-text contents from plaintext extraction', () => {
+    expect(
+      plainTextFromCmsRichTextHtml(
+        '<p>Before</p><xmp><a href="javascript:alert(1)">bad</a></xmp><p>After</p>'
+      )
+    ).toBe('Before After');
   });
 });
 
