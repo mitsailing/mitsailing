@@ -330,7 +330,7 @@ describe('usersAdminHandlers', () => {
         banned: false,
         role: Role.ADMIN,
       });
-      mocks.userCount.mockResolvedValue(1);
+      mocks.userFindMany.mockResolvedValue([{ role: Role.ADMIN }]);
 
       await expect(
         usersAdminHandlers.updateFromForm(
@@ -347,12 +347,33 @@ describe('usersAdminHandlers', () => {
       ).resolves.toEqual({ code: 'last_admin', ok: false });
     });
 
+    it('does not count malformed admin substrings as administrators', async () => {
+      mocks.userFindUnique.mockResolvedValue({
+        banned: false,
+        role: Role.ADMIN,
+      });
+      mocks.userFindMany.mockResolvedValue([
+        { role: Role.ADMIN },
+        { role: 'super_admin' },
+      ]);
+
+      await expect(
+        usersAdminHandlers.updateFromForm(
+          'admin-1',
+          updateFormData({ role: Role.USER })
+        )
+      ).resolves.toEqual({ code: 'last_admin', ok: false });
+    });
+
     it('demotes admin when another admin remains', async () => {
       mocks.userFindUnique.mockResolvedValue({
         banned: false,
         role: Role.ADMIN,
       });
-      mocks.userCount.mockResolvedValue(2);
+      mocks.userFindMany.mockResolvedValue([
+        { role: Role.ADMIN },
+        { role: Role.ADMIN },
+      ]);
 
       await expect(
         usersAdminHandlers.updateFromForm(
@@ -432,7 +453,7 @@ describe('usersAdminHandlers', () => {
 
       mocks.getSession.mockResolvedValue({ user: { id: 'admin-user' } });
       mocks.userFindUnique.mockResolvedValue({ role: Role.ADMIN });
-      mocks.userCount.mockResolvedValue(1);
+      mocks.userFindMany.mockResolvedValue([{ role: Role.ADMIN }]);
       await expect(usersAdminHandlers.delete('last-admin')).resolves.toEqual({
         code: 'last_admin',
         ok: false,

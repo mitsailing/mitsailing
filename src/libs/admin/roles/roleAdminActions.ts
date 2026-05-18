@@ -78,7 +78,7 @@ async function wouldRemoveLastAdmin(props: {
     return false;
   }
   const adminCount = await prisma.user.count({
-    where: { role: { contains: Role.ADMIN } },
+    where: { role: Role.ADMIN },
   });
   return adminCount <= 1;
 }

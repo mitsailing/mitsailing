@@ -10,7 +10,7 @@
 
 ---
 
-### Task 1: Convert the auth ability to Prisma conditions
+## Task 1: Convert the auth ability to Prisma conditions
 
 **Files:**
 - Modify: `package.json`
@@ -114,4 +114,3 @@ npm run check:deps
 ```
 
 Expected: all PASS.
-

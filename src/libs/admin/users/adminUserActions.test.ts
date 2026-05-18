@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { Permission } from '@/libs/auth/permissions';
 
 const mocks = vi.hoisted(() => ({
   createFromForm: vi.fn(),
@@ -71,7 +72,54 @@ describe('admin user actions', () => {
   ])('requires users.edit before $name through Better Auth', async (action) => {
     await expect(action.run()).rejects.toThrow('NEXT_REDIRECT:/admin/users');
 
-    expect(mocks.requirePermission).toHaveBeenCalledWith('users.edit', 'en');
+    expect(mocks.requirePermission).toHaveBeenCalledWith(
+      Permission.USERS_EDIT,
+      'en'
+    );
+  });
+
+  it.each([
+    {
+      name: 'creating users',
+      permission: Permission.USERS_EDIT,
+      run: async () => {
+        const { createAdminUserAction } =
+          await import('@/libs/admin/users/adminUserActions');
+        return createAdminUserAction('en', new FormData());
+      },
+    },
+    {
+      name: 'updating users',
+      permission: Permission.USERS_EDIT,
+      run: async () => {
+        const { updateAdminUserAction } =
+          await import('@/libs/admin/users/adminUserActions');
+        return updateAdminUserAction('en', 'user-1', new FormData());
+      },
+    },
+    {
+      name: 'deleting users',
+      permission: Permission.USERS_DELETE,
+      run: async () => {
+        const { deleteAdminUserAction } =
+          await import('@/libs/admin/users/adminUserActions');
+        return deleteAdminUserAction('en', 'user-1');
+      },
+    },
+  ])('stops before $name when permission is denied', async (action) => {
+    mocks.requirePermission.mockRejectedValue(new Error('permission denied'));
+
+    await expect(action.run()).rejects.toThrow('permission denied');
+
+    expect(mocks.requirePermission).toHaveBeenCalledWith(
+      action.permission,
+      'en'
+    );
+    expect(mocks.createFromForm).not.toHaveBeenCalled();
+    expect(mocks.updateFromForm).not.toHaveBeenCalled();
+    expect(mocks.deleteUser).not.toHaveBeenCalled();
+    expect(mocks.redirect).not.toHaveBeenCalled();
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
   });
 
   it('requires users.delete before deleting users through Better Auth', async () => {
@@ -82,6 +130,9 @@ describe('admin user actions', () => {
       'NEXT_REDIRECT:/admin/users'
     );
 
-    expect(mocks.requirePermission).toHaveBeenCalledWith('users.delete', 'en');
+    expect(mocks.requirePermission).toHaveBeenCalledWith(
+      Permission.USERS_DELETE,
+      'en'
+    );
   });
 });

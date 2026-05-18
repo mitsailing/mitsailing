@@ -110,4 +110,19 @@ describe('requireAdminAreaAccess', () => {
 
     expect(access.navItems.map((item) => item.href)).toContain('/admin/events');
   });
+
+  it('does not load role grants for administrators', async () => {
+    mocks.verifySession.mockResolvedValue({
+      session: { impersonatedBy: null },
+      user: { id: 'admin-1', role: Role.ADMIN },
+    });
+    const { requireAdminAreaAccess } =
+      await import('@/libs/admin/adminAreaAccess');
+
+    const access = await requireAdminAreaAccess('en');
+
+    expect(access.role).toBe(Role.ADMIN);
+    expect(mocks.listRolePermissionGrants).not.toHaveBeenCalled();
+    expect(access.ability.can(Permission.ADMIN_VIEW, 'Permission')).toBe(true);
+  });
 });

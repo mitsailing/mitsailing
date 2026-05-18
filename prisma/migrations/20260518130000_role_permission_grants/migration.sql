@@ -13,6 +13,8 @@ CREATE TABLE "role_permission_grants" (
     CONSTRAINT "role_permission_grants_pkey" PRIMARY KEY ("id"),
     CONSTRAINT "role_permission_grants_role_key_check" CHECK (
         "role_key" IN (
+            'admin',
+            'user',
             'volunteer',
             'volunteer_instructor',
             'dock_staff',

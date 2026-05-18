@@ -198,6 +198,7 @@ describe('updateUserRolesAction', () => {
       updateUserRolesAction('en', 'admin-1', formData([['role', Role.USER]]))
     ).rejects.toThrow('NEXT_REDIRECT:/admin/roles?status=last_admin');
 
+    expect(userCount).toHaveBeenCalledWith({ where: { role: Role.ADMIN } });
     expect(update).not.toHaveBeenCalled();
   });
 });

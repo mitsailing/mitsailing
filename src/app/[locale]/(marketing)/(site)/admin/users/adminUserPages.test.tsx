@@ -1,16 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { Permission } from '@/libs/auth/permissions';
 
 const mocks = vi.hoisted(() => ({
+  createAdminUserAction: vi.fn(),
+  deleteAdminUserAction: vi.fn(),
   getById: vi.fn(),
+  getAdminUserEmailMessages: vi.fn(),
   getTranslations: vi.fn(async () => {
     await Promise.resolve();
     return (key: string) => key;
   }),
+  list: vi.fn(),
+  listRolePermissionGrants: vi.fn(),
+  listUserRatingAssignmentRows: vi.fn(),
+  loggerError: vi.fn(),
   notFound: vi.fn(() => {
     throw new Error('NEXT_NOT_FOUND');
   }),
   requirePermission: vi.fn(),
   setRequestLocale: vi.fn(),
+  updateAdminUserAction: vi.fn(),
 }));
 
 vi.mock('next-intl/server', () => ({
@@ -28,9 +37,26 @@ vi.mock('@/components/mit-sailing/admin/catalog/AdminCatalogForm', () => ({
   ),
 }));
 
+vi.mock('@/components/mit-sailing/admin/catalog/AdminCatalogTable', () => ({
+  AdminCatalogTable: (props: { rows: unknown[] }) => (
+    <table data-row-count={props.rows.length} />
+  ),
+}));
+
+vi.mock('@/components/mit-sailing/admin/users/AdminUserRatingsPanel', () => ({
+  AdminUserRatingsPanel: () => <section data-testid="ratings-panel" />,
+}));
+
+vi.mock('@/libs/admin/users/adminUserActions', () => ({
+  createAdminUserAction: mocks.createAdminUserAction,
+  deleteAdminUserAction: mocks.deleteAdminUserAction,
+  updateAdminUserAction: mocks.updateAdminUserAction,
+}));
+
 vi.mock('@/libs/admin/users/usersAdminHandlers', () => ({
   usersAdminHandlers: {
     getById: mocks.getById,
+    list: mocks.list,
   },
 }));
 
@@ -38,26 +64,95 @@ vi.mock('@/libs/auth/dal', () => ({
   requirePermission: mocks.requirePermission,
 }));
 
+vi.mock('@/libs/auth/rolePermissionGrants', () => ({
+  listRolePermissionGrants: mocks.listRolePermissionGrants,
+}));
+
+vi.mock('@/libs/email/emailMessages', () => ({
+  getAdminUserEmailMessages: mocks.getAdminUserEmailMessages,
+}));
+
+vi.mock('@/libs/Logger', () => ({
+  logger: { error: mocks.loggerError },
+}));
+
+vi.mock('@/libs/mit-sailing/sailingRatingQueries', () => ({
+  listUserRatingAssignmentRows: mocks.listUserRatingAssignmentRows,
+}));
+
 beforeEach(() => {
   vi.resetModules();
+  mocks.createAdminUserAction.mockReset();
+  mocks.deleteAdminUserAction.mockReset();
   mocks.getById.mockReset();
+  mocks.getAdminUserEmailMessages.mockReset();
   mocks.getTranslations.mockClear();
+  mocks.list.mockReset();
+  mocks.listRolePermissionGrants.mockReset();
+  mocks.listUserRatingAssignmentRows.mockReset();
+  mocks.loggerError.mockReset();
   mocks.notFound.mockClear();
   mocks.requirePermission.mockReset();
   mocks.setRequestLocale.mockClear();
+  mocks.updateAdminUserAction.mockReset();
 
+  mocks.createAdminUserAction.mockReturnValue(async () => {});
+  mocks.deleteAdminUserAction.mockReturnValue(async () => {});
   mocks.getById.mockResolvedValue({
+    createdAt: new Date('2026-01-01T00:00:00.000Z'),
     email: 'sailor@example.com',
+    emailDeliverabilityStatus: 'ok',
+    emailSuppressionReason: null,
+    emailVerified: true,
     id: 'user-1',
     name: 'Sailor One',
+    role: 'user',
+    updatedAt: new Date('2026-01-02T00:00:00.000Z'),
   });
+  mocks.getAdminUserEmailMessages.mockResolvedValue([]);
+  mocks.list.mockResolvedValue([
+    { email: 'sailor@example.com', id: 'user-1', name: 'Sailor One' },
+  ]);
+  mocks.listRolePermissionGrants.mockResolvedValue([]);
+  mocks.listUserRatingAssignmentRows.mockResolvedValue([]);
   mocks.requirePermission.mockResolvedValue({
     session: { impersonatedBy: null },
     user: { id: 'admin-1', role: 'admin' },
   });
+  mocks.updateAdminUserAction.mockReturnValue(async () => {});
 });
 
 describe('admin user pages', () => {
+  it('keeps the user index behind the view-users permission', async () => {
+    const { default: AdminUsersIndexPage } = await import('./page');
+
+    await AdminUsersIndexPage({
+      params: Promise.resolve({ locale: 'en' }),
+    });
+
+    expect(mocks.setRequestLocale).toHaveBeenCalledWith('en');
+    expect(mocks.requirePermission).toHaveBeenCalledWith(
+      Permission.USERS_VIEW,
+      'en'
+    );
+    expect(mocks.list).toHaveBeenCalledOnce();
+  });
+
+  it('keeps user creation behind the edit-users permission', async () => {
+    const { default: AdminUsersNewPage } = await import('./new/page');
+
+    await AdminUsersNewPage({
+      params: Promise.resolve({ locale: 'en' }),
+      searchParams: Promise.resolve({}),
+    });
+
+    expect(mocks.setRequestLocale).toHaveBeenCalledWith('en');
+    expect(mocks.requirePermission).toHaveBeenCalledWith(
+      Permission.USERS_EDIT,
+      'en'
+    );
+  });
+
   it('keeps user edit behind the edit-users permission', async () => {
     const { default: AdminUsersEditPage } = await import('./[id]/edit/page');
 
@@ -67,7 +162,45 @@ describe('admin user pages', () => {
     });
 
     expect(mocks.setRequestLocale).toHaveBeenCalledWith('en');
-    expect(mocks.requirePermission).toHaveBeenCalledWith('users.edit', 'en');
+    expect(mocks.requirePermission).toHaveBeenCalledWith(
+      Permission.USERS_EDIT,
+      'en'
+    );
     expect(mocks.getById).toHaveBeenCalledWith('user-1');
+  });
+
+  it('keeps user deletion behind the delete-users permission', async () => {
+    const { default: AdminUsersDeletePage } =
+      await import('./[id]/delete/page');
+
+    await AdminUsersDeletePage({
+      params: Promise.resolve({ id: 'user-1', locale: 'en' }),
+      searchParams: Promise.resolve({}),
+    });
+
+    expect(mocks.setRequestLocale).toHaveBeenCalledWith('en');
+    expect(mocks.requirePermission).toHaveBeenCalledWith(
+      Permission.USERS_DELETE,
+      'en'
+    );
+    expect(mocks.getById).toHaveBeenCalledWith('user-1');
+  });
+
+  it('keeps the user detail page behind the view-users permission', async () => {
+    const { default: AdminUserShowPage } = await import('./[id]/page');
+
+    await AdminUserShowPage({
+      params: Promise.resolve({ id: 'user-1', locale: 'en' }),
+      searchParams: Promise.resolve({}),
+    });
+
+    expect(mocks.setRequestLocale).toHaveBeenCalledWith('en');
+    expect(mocks.requirePermission).toHaveBeenCalledWith(
+      Permission.USERS_VIEW,
+      'en'
+    );
+    expect(mocks.getById).toHaveBeenCalledWith('user-1');
+    expect(mocks.listRolePermissionGrants).toHaveBeenCalledOnce();
+    expect(mocks.listUserRatingAssignmentRows).toHaveBeenCalledWith('user-1');
   });
 });

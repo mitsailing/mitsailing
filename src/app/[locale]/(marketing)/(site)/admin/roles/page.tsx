@@ -1,7 +1,9 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader';
+import { AdminRoleUsersInfiniteScroll } from '@/components/mit-sailing/admin/roles/AdminRoleUsersInfiniteScroll';
 import { SubmitButton } from '@/components/ui/submit-button';
+import type { Prisma } from '@/generated/prisma/client';
 import {
   saveRolePermissionGrantsAction,
   updateUserRolesAction,
@@ -22,11 +24,15 @@ import {
 import { normalizeRole, Role, ROLE_DEFINITIONS } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
 import type messages from '@/locales/en.json';
+import { getI18nPath } from '@/utils/Helpers';
 
 type AdminRolesPageProps = {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ cursor?: string; status?: string }>;
 };
+
+const ADMIN_ROLES_PATH = '/admin/roles';
+const ROLE_ADMIN_USERS_PAGE_SIZE = 100;
 
 const EDITABLE_GRANT_ROLES = [
   Role.VOLUNTEER,
@@ -44,6 +50,12 @@ type RoleAdminUserRow = {
   email: string;
   name: string;
   role: string;
+};
+
+type RoleAdminUsersPage = {
+  nextCursor: string | null;
+  rows: RoleAdminUserRow[];
+  totalCount: number;
 };
 
 const ROLE_LABEL_KEYS = {
@@ -172,17 +184,40 @@ function permissionGroups(): [
   return [...groups.entries()];
 }
 
-async function listRoleAdminUsers(): Promise<RoleAdminUserRow[]> {
-  const users = await prisma.user.findMany({
-    orderBy: { email: 'asc' },
+async function listRoleAdminUsers(
+  cursor?: string
+): Promise<RoleAdminUsersPage> {
+  if (cursor) {
+    const cursorUser = await prisma.user.findUnique({
+      where: { id: cursor },
+      select: { id: true },
+    });
+    if (!cursorUser) {
+      return listRoleAdminUsers();
+    }
+  }
+  const userPageQuery = {
+    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+    orderBy: [{ email: 'asc' }, { id: 'asc' }],
     select: {
       email: true,
       id: true,
       name: true,
       role: true,
     },
-  });
-  return users;
+    take: ROLE_ADMIN_USERS_PAGE_SIZE + 1,
+  } satisfies Prisma.UserFindManyArgs;
+  const [rows, totalCount] = await Promise.all([
+    prisma.user.findMany(userPageQuery),
+    prisma.user.count(),
+  ]);
+  const hasNextPage = rows.length > ROLE_ADMIN_USERS_PAGE_SIZE;
+  const pageRows = rows.slice(0, ROLE_ADMIN_USERS_PAGE_SIZE);
+  return {
+    nextCursor: hasNextPage ? (pageRows.at(-1)?.id ?? null) : null,
+    rows: pageRows,
+    totalCount,
+  };
 }
 
 async function listRoleAdminGrants(): Promise<RolePermissionGrant[]> {
@@ -207,9 +242,9 @@ export default async function AdminRolesPage(props: AdminRolesPageProps) {
     [Permission.ROLES_ASSIGN, Permission.ROLES_MANAGE_PERMISSIONS],
     locale
   );
-  const [grants, users] = await Promise.all([
+  const [grants, usersPage] = await Promise.all([
     listRoleAdminGrants(),
-    listRoleAdminUsers(),
+    listRoleAdminUsers(searchParams.cursor),
   ]);
   const currentUserRole = normalizeRole(session.user.role);
   const ability = createAuthAbility({
@@ -230,6 +265,9 @@ export default async function AdminRolesPage(props: AdminRolesPageProps) {
   );
   const t = await getTranslations({ locale, namespace: 'AdminRoles' });
   const message = statusMessage(searchParams.status ?? '', t);
+  const nextUsersHref = usersPage.nextCursor
+    ? `${getI18nPath(ADMIN_ROLES_PATH, locale)}?cursor=${encodeURIComponent(usersPage.nextCursor)}`
+    : null;
 
   return (
     <div className="flex w-full max-w-6xl flex-col gap-8">
@@ -333,6 +371,16 @@ export default async function AdminRolesPage(props: AdminRolesPageProps) {
           <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
             {t('user_roles_intro')}
           </p>
+          <p
+            className="js-role-admin-users-count mt-1 text-sm text-muted-foreground"
+            data-template={t('user_roles_count')}
+            data-total-count={usersPage.totalCount}
+          >
+            {t('user_roles_count', {
+              count: usersPage.rows.length,
+              total: usersPage.totalCount,
+            })}
+          </p>
         </div>
         <div className="overflow-x-auto rounded-lg border border-border bg-card">
           <table className="w-full min-w-4xl border-collapse text-left text-sm">
@@ -347,11 +395,14 @@ export default async function AdminRolesPage(props: AdminRolesPageProps) {
                 <th className="px-3 py-2">{t('column_action')}</th>
               </tr>
             </thead>
-            <tbody>
-              {users.map((user) => {
+            <tbody className="js-role-admin-users">
+              {usersPage.rows.map((user) => {
                 const userRole = normalizeRole(user.role);
                 return (
-                  <tr className="border-t border-border" key={user.id}>
+                  <tr
+                    className="js-role-admin-user-row border-t border-border"
+                    key={user.id}
+                  >
                     <td className="px-3 py-3 align-top">
                       <p className="font-medium text-mit-text">{user.name}</p>
                       <p className="text-xs text-muted-foreground">
@@ -405,6 +456,37 @@ export default async function AdminRolesPage(props: AdminRolesPageProps) {
             </tbody>
           </table>
         </div>
+        <AdminRoleUsersInfiniteScroll />
+        {nextUsersHref ? (
+          <>
+            <div
+              className="js-role-admin-users-status text-sm text-muted-foreground"
+              role="status"
+              style={{ display: 'none' }}
+            >
+              <p
+                className="infinite-scroll-request"
+                style={{ display: 'none' }}
+              >
+                {t('loading_users')}
+              </p>
+              <p className="infinite-scroll-last" style={{ display: 'none' }}>
+                {t('all_users_loaded')}
+              </p>
+              <p className="infinite-scroll-error" style={{ display: 'none' }}>
+                {t('load_users_error')}
+              </p>
+            </div>
+            <nav className="js-role-admin-users-nav text-sm">
+              <a
+                className="js-role-admin-users-next font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
+                href={nextUsersHref}
+              >
+                {t('load_more_users')}
+              </a>
+            </nav>
+          </>
+        ) : null}
       </section>
     </div>
   );

@@ -22,7 +22,7 @@ import {
   Permission,
 } from '@/libs/auth/permissions';
 import { listRolePermissionGrants } from '@/libs/auth/rolePermissionGrants';
-import { normalizeRole, Role } from '@/libs/auth/roles';
+import { parseRoles, Role } from '@/libs/auth/roles';
 import { getAdminUserEmailMessages } from '@/libs/email/emailMessages';
 import type { AdminUserEmailMessageRow } from '@/libs/email/emailMessages';
 import { logger } from '@/libs/Logger';
@@ -178,8 +178,9 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
   const searchParams = await props.searchParams;
   setRequestLocale(locale);
   const session = await requirePermission(Permission.USERS_VIEW, locale);
-  const role = normalizeRole(session.user.role);
-  const canAdmin = role === Role.ADMIN;
+  const roles = parseRoles(session.user.role);
+  const canAdmin = roles.includes(Role.ADMIN);
+  const role = canAdmin ? Role.ADMIN : (roles[0] ?? Role.USER);
   const grants = await listRolePermissionGrants();
   const ability = createAuthAbility({
     grants,

@@ -56,9 +56,12 @@ async function assertCanRemoveOrDemoteAdmin(
   if (!target || !parseRoles(target.role).includes(Role.ADMIN)) {
     return null;
   }
-  const admins = await prisma.user.count({
-    where: { role: { contains: Role.ADMIN } },
+  const adminCandidates = await prisma.user.findMany({
+    select: { role: true },
   });
+  const admins = adminCandidates.filter((user) =>
+    parseRoles(user.role).includes(Role.ADMIN)
+  ).length;
   if (admins <= 1) {
     return { ok: false, code: 'last_admin' };
   }
