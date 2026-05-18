@@ -120,7 +120,7 @@ describe('single host deploy script', () => {
       validRefFunction?.[0] ?? ''
     )?.[1];
     expect(patternSource).toBe('[A-Za-z0-9_][A-Za-z0-9._-]{0,127}');
-    const deployRefPattern = new RegExp(`^${patternSource ?? ''}$`, 'u');
+    const deployRefPattern = /^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$/u;
 
     for (const ref of [
       'sha-abc123def456',

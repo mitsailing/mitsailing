@@ -169,6 +169,53 @@ function renderCmsBlockForm(body = '<p>Existing body</p>') {
   );
 }
 
+function renderCmsBlockPictureForm(props: {
+  formAction: (formData: FormData) => Promise<void>;
+}) {
+  return render(
+    <AdminCatalogForm
+      definition={catalogResourceDefinitions.cms_page_blocks}
+      dynamicSelectOptions={{
+        pageId: [{ label: 'Home', value: 'page-1' }],
+      }}
+      formAction={props.formAction}
+      headingKey="edit_heading"
+      row={{
+        body: '<p>Existing body</p>',
+        displayOrder: 1,
+        id: 'block-1',
+        isVisible: true,
+        kind: 'hero',
+        pageId: 'page-1',
+        title: 'Hero',
+      }}
+    />
+  );
+}
+
+function renderFleetBoatForm() {
+  return render(
+    <AdminCatalogForm
+      definition={catalogResourceDefinitions.fleet}
+      dynamicSelectOptions={{
+        requiredClassId: [{ label: 'Intro', value: 'class-1' }],
+      }}
+      formAction={formAction}
+      headingKey="edit_heading"
+      row={{
+        capacity: 2,
+        description: '<p>Existing fleet body</p>',
+        id: 'boat-1',
+        imagePath: '/images/boats/tech.jpg',
+        name: 'Tech',
+        requiredClassId: 'class-1',
+        slug: 'tech',
+        type: 'dinghy',
+      }}
+    />
+  );
+}
+
 function hiddenBodyValue(container: HTMLElement): string {
   const input = container.querySelector('input[name="body"]');
   if (!(input instanceof HTMLInputElement)) {
@@ -306,6 +353,16 @@ function mockCmsMediaUploadFetch(
       await Promise.resolve();
       return cmsMediaUploadMockResponse({ fixture: props, init, input });
     });
+}
+
+function fileInputAt(container: HTMLElement, index: number): HTMLInputElement {
+  const uploadInput = container
+    .querySelectorAll('input[type="file"]')
+    .item(index);
+  if (!(uploadInput instanceof HTMLInputElement)) {
+    throw new Error('Expected file upload input');
+  }
+  return uploadInput;
 }
 
 function textNodeContaining(root: HTMLElement, text: string): Text {
@@ -1089,42 +1146,19 @@ describe('Admin catalog media fields', () => {
       await Promise.resolve();
     });
     const user = userEvent.setup();
-    const view = render(
-      <AdminCatalogForm
-        definition={catalogResourceDefinitions.cms_page_blocks}
-        dynamicSelectOptions={{
-          pageId: [{ label: 'Home', value: 'page-1' }],
-        }}
-        formAction={saveAction}
-        headingKey="edit_heading"
-        row={{
-          body: '<p>Existing body</p>',
-          displayOrder: 1,
-          id: 'block-1',
-          isVisible: true,
-          kind: 'hero',
-          pageId: 'page-1',
-          title: 'Hero',
-        }}
-      />
-    );
+    const view = renderCmsBlockPictureForm({ formAction: saveAction });
     await user.click(screen.getByRole('checkbox', { name: 'Add picture' }));
     const form = view.container.querySelector('form');
     const imageAltInput = screen.getByLabelText('Image alt text');
-    const uploadInputs = view.container.querySelectorAll('input[type="file"]');
-    const imageFieldUpload = uploadInputs.item(1);
     if (!(form instanceof HTMLFormElement)) {
       throw new Error('Expected form');
     }
     if (!(imageAltInput instanceof HTMLInputElement)) {
       throw new Error('Expected image alt input');
     }
-    if (!(imageFieldUpload instanceof HTMLInputElement)) {
-      throw new Error('Expected image field upload input');
-    }
 
     await user.upload(
-      imageFieldUpload,
+      fileInputAt(view.container, 1),
       new File(['png'], 'hero.png', { type: 'image/png' })
     );
 
@@ -1392,26 +1426,7 @@ describe('Admin catalog media fields', () => {
       publicPath: '/cms-media/asset-6/fleet.png',
     });
     const user = userEvent.setup();
-    const view = render(
-      <AdminCatalogForm
-        definition={catalogResourceDefinitions.fleet}
-        dynamicSelectOptions={{
-          requiredClassId: [{ label: 'Intro', value: 'class-1' }],
-        }}
-        formAction={formAction}
-        headingKey="edit_heading"
-        row={{
-          capacity: 2,
-          description: '<p>Existing fleet body</p>',
-          id: 'boat-1',
-          imagePath: '/images/boats/tech.jpg',
-          name: 'Tech',
-          requiredClassId: 'class-1',
-          slug: 'tech',
-          type: 'dinghy',
-        }}
-      />
-    );
+    const view = renderFleetBoatForm();
 
     expect(screen.getByRole('heading', { name: 'Boat basics' })).toBeVisible();
     expect(
@@ -1436,14 +1451,8 @@ describe('Admin catalog media fields', () => {
       '/images/boats/tech.jpg'
     );
 
-    const uploadInputs = view.container.querySelectorAll('input[type="file"]');
-    const fleetImageUpload = uploadInputs.item(0);
-    if (!(fleetImageUpload instanceof HTMLInputElement)) {
-      throw new Error('Expected fleet image upload input');
-    }
-
     await user.upload(
-      fleetImageUpload,
+      fileInputAt(view.container, 0),
       new File(['png'], 'fleet.png', { type: 'image/png' })
     );
 
