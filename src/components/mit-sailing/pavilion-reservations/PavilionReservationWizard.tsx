@@ -979,7 +979,7 @@ function SlotStartSelection(props: {
   const t = useTranslations('PavilionReservationPage');
 
   return (
-    <div className="flex-1 overflow-y-auto p-4">
+    <div className="flex-1 scrollbar-gutter-stable overflow-y-auto p-4">
       <TimeOptionGrid
         emptyLabel={t('picker_no_start_times')}
         options={props.startChoices}
@@ -1000,7 +1000,7 @@ function SlotEndSelection(props: {
   const t = useTranslations('PavilionReservationPage');
 
   return (
-    <div className="flex-1 overflow-y-auto p-4">
+    <div className="flex-1 scrollbar-gutter-stable overflow-y-auto p-4">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-sm font-medium text-mit-text">
           <Clock aria-hidden className="size-4 text-primary-ink" />
@@ -1038,7 +1038,7 @@ function SlotAllSelection(props: {
   const t = useTranslations('PavilionReservationPage');
 
   return (
-    <div className="flex-1 space-y-5 overflow-y-auto p-4">
+    <div className="flex-1 scrollbar-gutter-stable space-y-5 overflow-y-auto p-4">
       <section>
         <h6 className="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
           {t('field_start')}

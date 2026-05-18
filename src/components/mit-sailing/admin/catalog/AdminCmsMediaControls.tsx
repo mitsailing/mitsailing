@@ -57,7 +57,7 @@ export function AdminCmsMediaPickerPanel(props: {
 }) {
   const t = useTranslations('AdminCatalogResource');
   return (
-    <div className="grid max-h-56 gap-2 overflow-y-auto border border-border bg-background p-2 sm:grid-cols-2">
+    <div className="grid max-h-56 scrollbar-gutter-stable gap-2 overflow-y-auto border border-border bg-background p-2 sm:grid-cols-2">
       {props.assets.length > 0 ? (
         props.assets.map((asset) => (
           <MediaAssetButton
