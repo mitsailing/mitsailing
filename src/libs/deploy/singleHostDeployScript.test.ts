@@ -15,8 +15,8 @@ describe('single host deploy script', () => {
   const deployDrainSeconds = `${shellVariable('DEPLOY_DRAIN_SECONDS')}s`;
   const shellEscape = String.fromCodePoint(92);
 
-  it('keeps nginx upload timeouts aligned with the drain window default', () => {
-    expect(script).toContain('DEPLOY_DRAIN_SECONDS:-900');
+  it('keeps nginx upload timeouts aligned with the release drain default', () => {
+    expect(script).toContain('DEPLOY_DRAIN_SECONDS:-120');
     expect(script).toContain(`client_body_timeout ${deployDrainSeconds};`);
     expect(script).toContain(`send_timeout ${deployDrainSeconds};`);
     expect(script).toContain(`proxy_send_timeout ${deployDrainSeconds};`);

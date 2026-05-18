@@ -32,6 +32,8 @@ readonly CURRENT_REF_FILE="${DEPLOY_STATE_DIR}/current_ref"
 readonly PREVIOUS_REF_FILE="${DEPLOY_STATE_DIR}/previous_ref"
 readonly DEPLOY_LOCK_FILE="${DEPLOY_STATE_DIR}/deploy.lock"
 readonly DEPLOY_HEALTH_TIMEOUT_SECONDS="${DEPLOY_HEALTH_TIMEOUT_SECONDS:-120}"
+# The app release drain is intentionally short: tusd/media keep handling uploads
+# outside the blue/green web cutover, and nginx upload timeouts track this value.
 readonly DEPLOY_DRAIN_SECONDS="${DEPLOY_DRAIN_SECONDS:-120}"
 # A server admin must create this root-owned tree before deploy. The deploy
 # user may not be able to traverse it, so validate mounts through Docker only.

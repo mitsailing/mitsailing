@@ -70,7 +70,7 @@ Expected: FAIL because `bin/deploy.sh` still contains `client_max_body_size 500m
 
 - [ ] **Step 1: Add deploy-time limit constants**
 
-Insert these lines after `readonly DEPLOY_DRAIN_SECONDS="${DEPLOY_DRAIN_SECONDS:-900}"`:
+Insert these lines after `readonly DEPLOY_DRAIN_SECONDS="${DEPLOY_DRAIN_SECONDS:-120}"`:
 
 ```bash
 readonly APP_CLIENT_MAX_BODY_SIZE="${APP_CLIENT_MAX_BODY_SIZE:-10m}"

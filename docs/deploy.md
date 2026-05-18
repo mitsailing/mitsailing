@@ -193,7 +193,13 @@ ssh "$PRODUCTION_SSH_TARGET" 'DEPLOY_DIR=apps/mitsailing apps/mitsailing/bin/dep
 5. smoke-checks the new app's protected `/api/health/ready` endpoint with `HEALTHCHECK_SECRET`;
 6. rewrites/reloads `app` nginx to point at the new container;
 7. restarts `worker`;
-8. drains and stops the old `web_*` container.
+8. drains the old `web_*` container for the `DEPLOY_DRAIN_SECONDS` default of 120 seconds, then stops it.
+
+The app drain is intentionally short because `tusd` and media nginx stay outside
+the blue/green web cutover and continue serving long upload/media traffic.
+Generated nginx app upload timeouts track `DEPLOY_DRAIN_SECONDS`; change the
+script default and deploy contract test together if operations needs a different
+cutover drain.
 
 The smoke-check is an authenticated readiness request, not the Docker
 HEALTHCHECK. Set `HEALTHCHECK_SECRET` in production so the deploy script can
