@@ -87,4 +87,27 @@ describe('requireAdminAreaAccess', () => {
     expect(mocks.redirect).toHaveBeenCalledWith('/');
     expect(mocks.requireAnyPermission).not.toHaveBeenCalled();
   });
+
+  it('shows event navigation to volunteer instructors with event creation access', async () => {
+    mocks.verifySession.mockResolvedValue({
+      session: { impersonatedBy: null },
+      user: { id: 'instructor-1', role: Role.VOLUNTEER_INSTRUCTOR },
+    });
+    mocks.listRolePermissionGrants.mockResolvedValue([
+      {
+        permissionKey: Permission.ADMIN_VIEW,
+        roleKey: Role.VOLUNTEER_INSTRUCTOR,
+      },
+      {
+        permissionKey: Permission.EVENTS_CREATE,
+        roleKey: Role.VOLUNTEER_INSTRUCTOR,
+      },
+    ]);
+    const { requireAdminAreaAccess } =
+      await import('@/libs/admin/adminAreaAccess');
+
+    const access = await requireAdminAreaAccess('en');
+
+    expect(access.navItems.map((item) => item.href)).toContain('/admin/events');
+  });
 });

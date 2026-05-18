@@ -1,13 +1,12 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { AdminEventsListView } from '@/components/mit-sailing/admin/events/AdminEventsListView';
+import { requireAdminEventListAccess } from '@/libs/admin/events/eventAdminAuthorization';
 import { adminEventsIndexPath } from '@/libs/admin/events/eventAdminPaths';
 import {
   listAdminEventCategories,
   listAdminEventRows,
 } from '@/libs/admin/events/eventAdminQueries';
-import { requirePermission } from '@/libs/auth/dal';
-import { Permission } from '@/libs/auth/permissions';
 import { getPathname } from '@/libs/I18nNavigation';
 
 type PageProps = {
@@ -28,11 +27,12 @@ export default async function AdminEventsListPage(props: PageProps) {
   const { locale } = await props.params;
   const searchParams = await props.searchParams;
   setRequestLocale(locale);
-  await requirePermission(Permission.EVENTS_MANAGE, locale);
+  const access = await requireAdminEventListAccess(locale);
   const [categories, rows, t] = await Promise.all([
     listAdminEventCategories(),
     listAdminEventRows({
       categoryId: searchParams.category,
+      eventAccessWhere: access.eventAccessWhere,
       query: searchParams.q,
     }),
     getTranslations({ locale, namespace: 'AdminEvents' }),

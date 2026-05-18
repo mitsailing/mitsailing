@@ -2,7 +2,10 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { AdminEventFormView } from '@/components/mit-sailing/admin/events/AdminEventFormView';
-import { requireAdminEventAccess } from '@/libs/admin/events/eventAdminAuthorization';
+import {
+  getEventAccessWhere,
+  requireAdminEventAccess,
+} from '@/libs/admin/events/eventAdminAuthorization';
 import { getAdminEventEditorDataBySlug } from '@/libs/admin/events/eventAdminQueries';
 
 type PageProps = {
@@ -27,8 +30,12 @@ export default async function AdminEventEditPage(props: PageProps) {
   if (!access) {
     notFound();
   }
+  const eventAccessWhere = getEventAccessWhere(access.ability);
+  if (!eventAccessWhere) {
+    notFound();
+  }
   const [data, t, tCommon] = await Promise.all([
-    getAdminEventEditorDataBySlug(slug),
+    getAdminEventEditorDataBySlug({ eventAccessWhere, slug }),
     getTranslations({ locale, namespace: 'AdminEvents' }),
     getTranslations({ locale, namespace: 'Common' }),
   ]);

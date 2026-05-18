@@ -2,7 +2,10 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { AdminEventDeleteView } from '@/components/mit-sailing/admin/events/AdminEventDeleteView';
-import { requireAdminEventAccess } from '@/libs/admin/events/eventAdminAuthorization';
+import {
+  getEventAccessWhere,
+  requireAdminEventAccess,
+} from '@/libs/admin/events/eventAdminAuthorization';
 import { getAdminEventDeleteBySlug } from '@/libs/admin/events/eventAdminQueries';
 
 type PageProps = {
@@ -27,8 +30,12 @@ export default async function AdminEventDeletePage(props: PageProps) {
   if (!access) {
     notFound();
   }
+  const eventAccessWhere = getEventAccessWhere(access.ability);
+  if (!eventAccessWhere) {
+    notFound();
+  }
   const [event, t] = await Promise.all([
-    getAdminEventDeleteBySlug(slug),
+    getAdminEventDeleteBySlug({ eventAccessWhere, slug }),
     getTranslations({ locale, namespace: 'AdminEvents' }),
   ]);
   if (!event) {

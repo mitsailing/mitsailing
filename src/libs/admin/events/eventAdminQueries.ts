@@ -126,6 +126,7 @@ export type AdminEventRegistrationsDto = {
 };
 
 export type AdminEventListFilters = {
+  eventAccessWhere: Prisma.EventWhereInput;
   query?: string;
   categoryId?: string;
 };
@@ -221,20 +222,25 @@ function compareRegistrations(
 function eventWhereFromFilters(
   filters: AdminEventListFilters
 ): Prisma.EventWhereInput {
-  const where: Prisma.EventWhereInput = {};
+  const businessWhere: Prisma.EventWhereInput = {};
   const query = filters.query?.trim();
   const categoryId = filters.categoryId?.trim();
   if (categoryId) {
-    where.eventCategoryId = categoryId;
+    businessWhere.eventCategoryId = categoryId;
   }
   if (query) {
-    where.OR = [
+    businessWhere.OR = [
       { name: { contains: query, mode: 'insensitive' } },
       { shortName: { contains: query, mode: 'insensitive' } },
       { slug: { contains: query, mode: 'insensitive' } },
     ];
   }
-  return where;
+  return {
+    AND: [
+      filters.eventAccessWhere,
+      ...(Object.keys(businessWhere).length > 0 ? [businessWhere] : []),
+    ],
+  };
 }
 
 export async function listAdminEventCategories(): Promise<
@@ -313,12 +319,13 @@ export async function listAdminEventRows(
   }));
 }
 
-export async function getAdminEventEditorDataBySlug(
-  slug: string
-): Promise<AdminEventEditorData> {
+export async function getAdminEventEditorDataBySlug(options: {
+  eventAccessWhere: Prisma.EventWhereInput;
+  slug: string;
+}): Promise<AdminEventEditorData> {
   const [event, categories, users] = await Promise.all([
-    prisma.event.findUnique({
-      where: { slug },
+    prisma.event.findFirst({
+      where: { AND: [{ slug: options.slug }, options.eventAccessWhere] },
       select: {
         id: true,
         name: true,
@@ -392,15 +399,18 @@ export async function getAdminEventEditorDataBySlug(
   };
 }
 
-export async function getAdminEventDeleteBySlug(slug: string): Promise<{
+export async function getAdminEventDeleteBySlug(options: {
+  eventAccessWhere: Prisma.EventWhereInput;
+  slug: string;
+}): Promise<{
   id: string;
   name: string;
   slug: string;
   registrationCount: number;
   dateCount: number;
 } | null> {
-  const event = await prisma.event.findUnique({
-    where: { slug },
+  const event = await prisma.event.findFirst({
+    where: { AND: [{ slug: options.slug }, options.eventAccessWhere] },
     select: {
       id: true,
       name: true,
@@ -420,11 +430,12 @@ export async function getAdminEventDeleteBySlug(slug: string): Promise<{
   };
 }
 
-export async function getAdminEventRegistrationsBySlug(
-  slug: string
-): Promise<AdminEventRegistrationsDto | null> {
-  const event = await prisma.event.findUnique({
-    where: { slug },
+export async function getAdminEventRegistrationsBySlug(options: {
+  eventAccessWhere: Prisma.EventWhereInput;
+  slug: string;
+}): Promise<AdminEventRegistrationsDto | null> {
+  const event = await prisma.event.findFirst({
+    where: { AND: [{ slug: options.slug }, options.eventAccessWhere] },
     select: {
       id: true,
       name: true,

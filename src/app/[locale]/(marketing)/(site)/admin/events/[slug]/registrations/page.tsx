@@ -2,7 +2,10 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { AdminEventRegistrationsView } from '@/components/mit-sailing/admin/events/AdminEventRegistrationsView';
-import { requireAdminEventAccess } from '@/libs/admin/events/eventAdminAuthorization';
+import {
+  getEventAccessWhere,
+  requireAdminEventAccess,
+} from '@/libs/admin/events/eventAdminAuthorization';
 import { getAdminEventRegistrationsBySlug } from '@/libs/admin/events/eventAdminQueries';
 
 type PageProps = {
@@ -36,8 +39,12 @@ export default async function AdminEventRegistrationsPage(props: PageProps) {
   if (!access) {
     notFound();
   }
+  const eventAccessWhere = getEventAccessWhere(access.ability);
+  if (!eventAccessWhere) {
+    notFound();
+  }
   const [event, t] = await Promise.all([
-    getAdminEventRegistrationsBySlug(slug),
+    getAdminEventRegistrationsBySlug({ eventAccessWhere, slug }),
     getTranslations({ locale, namespace: 'AdminEvents' }),
   ]);
   if (!event) {

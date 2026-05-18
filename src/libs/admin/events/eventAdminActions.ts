@@ -257,7 +257,7 @@ export async function updateAdminEventBasicsAction(
   currentSlug: string,
   formData: FormData
 ): Promise<void> {
-  await requireEditableAdminEvent(locale, currentSlug);
+  const access = await requireEditableAdminEvent(locale, currentSlug);
   const zodParse = await adminEventZodParseParams(locale);
   const parsed = eventAdminBasicsFormSchema.safeParse(
     rawEventBasicsFromFormData(formData),
@@ -269,7 +269,7 @@ export async function updateAdminEventBasicsAction(
   const { data } = parsed;
   try {
     await prisma.event.update({
-      where: { slug: currentSlug },
+      where: { id: access.event.id },
       data: {
         name: data.name,
         shortName: data.shortName,
@@ -305,9 +305,9 @@ export async function deleteAdminEventAction(
   locale: string,
   slug: string
 ): Promise<void> {
-  await requireEditableAdminEvent(locale, slug);
+  const access = await requireEditableAdminEvent(locale, slug);
   try {
-    await prisma.event.delete({ where: { slug } });
+    await prisma.event.delete({ where: { id: access.event.id } });
   } catch (error) {
     logAdminEventMutationFailure({ action: 'delete-event', error, slug });
     redirect(
@@ -365,7 +365,7 @@ export async function updateAdminEventDateAction(
   dateId: string,
   formData: FormData
 ): Promise<void> {
-  await requireEditableAdminEvent(locale, slug);
+  const access = await requireEditableAdminEvent(locale, slug);
   const zodParse = await adminEventZodParseParams(locale);
   const parsed = eventDateFormSchema.safeParse(
     rawEventDateFromFormData(formData),
@@ -377,7 +377,7 @@ export async function updateAdminEventDateAction(
   let updatedCount = 0;
   try {
     const result = await prisma.eventDate.updateMany({
-      where: { id: dateId, event: { slug } },
+      where: { id: dateId, eventId: access.event.id },
       data: {
         startDateTime: parsed.data.startDateTime,
         endDateTime: parsed.data.endDateTime,
@@ -400,11 +400,11 @@ export async function deleteAdminEventDateAction(
   slug: string,
   dateId: string
 ): Promise<void> {
-  await requireEditableAdminEvent(locale, slug);
+  const access = await requireEditableAdminEvent(locale, slug);
   let deletedCount = 0;
   try {
     const result = await prisma.eventDate.deleteMany({
-      where: { id: dateId, event: { slug } },
+      where: { id: dateId, eventId: access.event.id },
     });
     deletedCount = result.count;
   } catch (error) {
@@ -511,7 +511,7 @@ export async function updateAdminEventQuestionAction(
   questionId: string,
   formData: FormData
 ): Promise<void> {
-  await requireEditableAdminEvent(locale, slug);
+  const access = await requireEditableAdminEvent(locale, slug);
   const zodParse = await adminEventZodParseParams(locale);
   const parsed = eventQuestionFormSchema.safeParse(
     rawEventQuestionFromFormData(formData),
@@ -523,7 +523,7 @@ export async function updateAdminEventQuestionAction(
   let updatedCount = 0;
   try {
     const result = await prisma.eventRegistrationQuestion.updateMany({
-      where: { id: questionId, event: { slug } },
+      where: { id: questionId, eventId: access.event.id },
       data: {
         questionText: parsed.data.questionText,
         answerType: parsed.data.answerType,
@@ -554,11 +554,11 @@ export async function deleteAdminEventQuestionAction(
   slug: string,
   questionId: string
 ): Promise<void> {
-  await requireEditableAdminEvent(locale, slug);
+  const access = await requireEditableAdminEvent(locale, slug);
   let deletedCount = 0;
   try {
     const result = await prisma.eventRegistrationQuestion.deleteMany({
-      where: { id: questionId, event: { slug } },
+      where: { id: questionId, eventId: access.event.id },
     });
     deletedCount = result.count;
   } catch (error) {
@@ -620,7 +620,7 @@ export async function updateAdminEventFeeAction(
   feeId: string,
   formData: FormData
 ): Promise<void> {
-  await requireEditableAdminEvent(locale, slug);
+  const access = await requireEditableAdminEvent(locale, slug);
   const zodParse = await adminEventZodParseParams(locale);
   const parsed = eventFeeFormSchema.safeParse(
     rawEventFeeFromFormData(formData),
@@ -634,7 +634,7 @@ export async function updateAdminEventFeeAction(
   let updatedCount = 0;
   try {
     const result = await prisma.eventEntryFee.updateMany({
-      where: { id: feeId, event: { slug } },
+      where: { id: feeId, eventId: access.event.id },
       data: {
         description: parsed.data.description,
         amountCents: parsed.data.amountCents,
@@ -658,11 +658,11 @@ export async function deleteAdminEventFeeAction(
   slug: string,
   feeId: string
 ): Promise<void> {
-  await requireEditableAdminEvent(locale, slug);
+  const access = await requireEditableAdminEvent(locale, slug);
   let deletedCount = 0;
   try {
     const result = await prisma.eventEntryFee.deleteMany({
-      where: { id: feeId, event: { slug } },
+      where: { id: feeId, eventId: access.event.id },
     });
     deletedCount = result.count;
   } catch (error) {
@@ -682,7 +682,7 @@ export async function updateAdminEventRegistrationStatusAction(
   registrationId: string,
   formData: FormData
 ): Promise<void> {
-  await requireRegistrationsAdminEvent(locale, slug);
+  const access = await requireRegistrationsAdminEvent(locale, slug);
   const zodParse = await adminEventZodParseParams(locale);
   const parsed = eventRegistrationStatusFormSchema.safeParse(
     rawEventRegistrationStatusFromFormData(formData),
@@ -699,7 +699,7 @@ export async function updateAdminEventRegistrationStatusAction(
     result = await prisma.$transaction(
       async (tx) => {
         const registration = await tx.eventRegistration.findFirst({
-          where: { id: registrationId, event: { slug } },
+          where: { id: registrationId, eventId: access.event.id },
           select: { eventId: true, status: true },
         });
         if (!registration) {
@@ -738,7 +738,7 @@ export async function updateAdminEventRegistrationStatusAction(
         }
 
         const updateResult = await tx.eventRegistration.updateMany({
-          where: { id: registrationId, event: { slug } },
+          where: { id: registrationId, eventId: access.event.id },
           data: { status: parsed.data.status },
         });
         return { errorCode: null, updatedCount: updateResult.count };

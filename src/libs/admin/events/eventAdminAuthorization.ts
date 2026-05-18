@@ -31,6 +31,12 @@ export type AdminEventAccess = {
   session: NonNullable<AuthSession>;
 };
 
+export type AdminEventListAccess = {
+  ability: AuthAbility;
+  eventAccessWhere: Prisma.EventWhereInput;
+  session: NonNullable<AuthSession>;
+};
+
 async function createEventAdminAbility(
   session: NonNullable<AuthSession>
 ): Promise<AuthAbility> {
@@ -43,7 +49,7 @@ async function createEventAdminAbility(
   });
 }
 
-function getEventAccessWhere(
+export function getEventAccessWhere(
   ability: AuthAbility
 ): Prisma.EventWhereInput | null {
   try {
@@ -54,6 +60,21 @@ function getEventAccessWhere(
     }
     throw error;
   }
+}
+
+export async function requireAdminEventListAccess(
+  locale: string
+): Promise<AdminEventListAccess> {
+  const session = await requireAnyPermission(
+    [Permission.EVENTS_CREATE, Permission.EVENTS_MANAGE],
+    locale
+  );
+  const ability = await createEventAdminAbility(session);
+  const eventAccessWhere = getEventAccessWhere(ability);
+  if (!eventAccessWhere) {
+    redirect(getI18nPath('/', locale));
+  }
+  return { ability, eventAccessWhere, session };
 }
 
 async function findEventAccessRecord(props: {

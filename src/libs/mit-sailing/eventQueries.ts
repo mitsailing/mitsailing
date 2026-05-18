@@ -1,9 +1,12 @@
 import 'server-only';
+import { accessibleBy } from '@casl/prisma';
 import { cache } from 'react';
 import type { Prisma } from '@/generated/prisma/client';
 import { EventRegistrationStatus } from '@/generated/prisma/enums';
 import type { EventRegistrationStatus as EventRegistrationStatusValue } from '@/generated/prisma/enums';
 import { resolveEventCategoryCalendarAccentClassName } from '@/lib/mit-sailing/eventCategoryAccent';
+import { AuthAction, createAuthAbility } from '@/libs/auth/permissions';
+import { Role } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
 import { logger } from '@/libs/Logger';
 import { eventCalendarMonthFromDate } from '@/libs/mit-sailing/eventCalendar';
@@ -215,8 +218,16 @@ const getCachedPublicEventRegistrationState = cache(
     userId: string
   ): Promise<PublicEventRegistrationState | null> => {
     try {
+      const registrationAccessWhere = accessibleBy(
+        createAuthAbility({
+          grants: [],
+          role: Role.USER,
+          userId,
+        }),
+        AuthAction.UPDATE
+      ).EventRegistration;
       return await prisma.eventRegistration.findFirst({
-        where: { eventId, userId },
+        where: { AND: [{ eventId }, registrationAccessWhere] },
         orderBy: { createdAt: 'desc' },
         select: { id: true, status: true },
       });

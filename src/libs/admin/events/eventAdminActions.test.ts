@@ -104,3 +104,38 @@ describe('createAdminEventAction', () => {
     );
   });
 });
+
+describe('updateAdminEventBasicsAction', () => {
+  it('updates event basics through the CASL verified event id', async () => {
+    vi.resetModules();
+    const eventUpdate = vi.fn().mockResolvedValue({ id: 'event-1' });
+    const requireAdminEventAccess = vi.fn().mockResolvedValue({
+      ability: {},
+      event: { id: 'event-1', slug: 'intro-sail' },
+      session: { user: { id: 'staff-1' } },
+    });
+    vi.doMock('@/libs/admin/events/eventAdminAuthorization', () => ({
+      requireAdminEventAccess,
+    }));
+    vi.doMock('@/libs/DB', () => ({
+      prisma: {
+        event: {
+          create: mocks.eventCreate,
+          update: eventUpdate,
+        },
+      },
+    }));
+    const { updateAdminEventBasicsAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventBasicsAction('en', 'intro-sail', validEventFormData())
+    ).rejects.toThrow('NEXT_REDIRECT:/admin/events/intro-sail/edit');
+
+    expect(eventUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'event-1' },
+      })
+    );
+  });
+});

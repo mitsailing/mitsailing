@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { AdminEventCreateFormView } from '@/components/mit-sailing/admin/events/AdminEventCreateFormView';
 import { listAdminEventCategories } from '@/libs/admin/events/eventAdminQueries';
-import { requirePermission } from '@/libs/auth/dal';
+import { requireAnyPermission } from '@/libs/auth/dal';
 import { Permission } from '@/libs/auth/permissions';
 
 type PageProps = {
@@ -23,7 +23,10 @@ export default async function AdminEventNewPage(props: PageProps) {
   const { locale } = await props.params;
   const { error: errorCode } = await props.searchParams;
   setRequestLocale(locale);
-  await requirePermission(Permission.EVENTS_MANAGE, locale);
+  await requireAnyPermission(
+    [Permission.EVENTS_CREATE, Permission.EVENTS_MANAGE],
+    locale
+  );
   const [categories, t, tCommon] = await Promise.all([
     listAdminEventCategories(),
     getTranslations({ locale, namespace: 'AdminEvents' }),
