@@ -23,8 +23,8 @@ function asset(
 }
 
 describe('cmsMediaUploadRoute helpers', () => {
-  it('treats queued processing and ready as finalize idempotent success', () => {
-    expect(isFinalizeIdempotentSuccessStatus('queued')).toBe(true);
+  it('treats only processing and ready as finalize idempotent success', () => {
+    expect(isFinalizeIdempotentSuccessStatus('queued')).toBe(false);
     expect(isFinalizeIdempotentSuccessStatus('processing')).toBe(true);
     expect(isFinalizeIdempotentSuccessStatus('ready')).toBe(true);
     expect(isFinalizeIdempotentSuccessStatus('uploading')).toBe(false);

@@ -321,10 +321,16 @@ export async function uploadCmsMediaFile(props: {
   if (!session) {
     return uploadCmsMediaFileDirect(props);
   }
-  const upload = await uploadCmsMediaWithTus({
-    file: props.file,
-    session: session.upload,
-  });
+  let upload: Awaited<ReturnType<typeof uploadCmsMediaWithTus>>;
+  try {
+    upload = await uploadCmsMediaWithTus({
+      file: props.file,
+      session: session.upload,
+    });
+  } catch (error) {
+    await cancelCmsMediaUpload(session.asset.id);
+    throw error;
+  }
   if (upload.assetId !== session.asset.id) {
     await cancelCmsMediaUpload(session.asset.id);
   }

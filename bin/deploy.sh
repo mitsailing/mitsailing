@@ -44,7 +44,7 @@ fail() { log "ERROR: $*" >&2; exit 1; }
 
 valid_ref() {
   local ref="$1"
-  [[ "$ref" =~ ^[a-zA-Z0-9._:@/\-]+$ ]]
+  [[ "$ref" =~ ^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$ ]]
 }
 
 # Reject anything that isn't a supported command.
@@ -54,7 +54,7 @@ parse_cmd() {
 
   case "$cmd" in
     deploy|media-maintenance|migrate|release|tusd-maintenance)
-      [[ -n "$ref" ]] || fail "usage: <deploy|migrate|release> <image-ref>"
+      [[ -n "$ref" ]] || fail "usage: <deploy|media-maintenance|migrate|release|tusd-maintenance> <image-ref>"
       valid_ref "$ref" || fail "invalid ref: $ref"
       ;;
     rollback)
@@ -372,8 +372,11 @@ switch_to_ref() {
       process.exit(1);
     }
 
+    const timeoutMs = Number(process.env.DEPLOY_HEALTH_TIMEOUT_SECONDS || 10) * 1000;
+    const signal = AbortSignal.timeout(timeoutMs);
     const res = await fetch("http://127.0.0.1:3000/api/health/ready", {
       headers: { Authorization: `Bearer ${secret}` },
+      signal,
     });
 
     if (!res.ok) {

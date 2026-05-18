@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -95,5 +96,44 @@ describe('single host deploy script', () => {
     expect(script).toMatch(
       /restart_tusd_maintenance\(\) \{[\s\S]*wait_for_service_health tusd "\$DEPLOY_HEALTH_TIMEOUT_SECONDS"/u
     );
+  });
+
+  it('bounds readiness smoke fetch by deploy health timeout', () => {
+    expect(script).toContain(
+      'const timeoutMs = Number(process.env.DEPLOY_HEALTH_TIMEOUT_SECONDS || 10) * 1000;'
+    );
+    expect(script).toContain('const signal = AbortSignal.timeout(timeoutMs);');
+    expect(script).toMatch(
+      /fetch\("http:\/\/127\.0\.0\.1:3000\/api\/health\/ready", \{\s+headers: \{ Authorization: `Bearer \$\{secret\}` \},\s+signal,\s+\}\)/u
+    );
+  });
+
+  it('lists all image-ref commands in missing-ref usage', () => {
+    expect(script).toContain(
+      'usage: <deploy|media-maintenance|migrate|release|tusd-maintenance> <image-ref>'
+    );
+  });
+
+  it('accepts only OCI image tags as deploy refs', () => {
+    const validRefFunction = script.match(/valid_ref\(\) \{[\s\S]*?\n\}/u);
+    expect(validRefFunction).not.toBeNull();
+
+    const result = spawnSync(
+      'bash',
+      [
+        '-c',
+        `${validRefFunction?.[0] ?? ''}\n` +
+          `for ref in sha-abc123def456 v1.0.0 _build ${'a'.repeat(128)}; do\n` +
+          '  valid_ref "$ref" || exit 1\n' +
+          'done\n' +
+          `for ref in '' feature/foo sha256:abc user@digest -bad ${'a'.repeat(129)}; do\n` +
+          '  ! valid_ref "$ref" || exit 2\n' +
+          'done\n',
+      ],
+      { encoding: 'utf8' }
+    );
+
+    expect(result.stderr).toBe('');
+    expect(result.status).toBe(0);
   });
 });

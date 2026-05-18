@@ -191,7 +191,9 @@ describe('cms media processing job', () => {
         stat: vi.fn(async () => {
           statCalls += 1;
           if (statCalls === 1) {
-            throw new Error('missing ready file');
+            throw Object.assign(new Error('missing ready file'), {
+              code: 'ENOENT',
+            });
           }
           const size = await Promise.resolve(rawSize);
           return { size };
@@ -223,6 +225,97 @@ describe('cms media processing job', () => {
       },
       where: { id: 'asset-1' },
     });
+  });
+
+  it('surfaces ready file stat failures for retry', async () => {
+    const root = await createMediaRoot();
+    const rawPath = path.join(root, 'uploads', 'asset-1');
+    const readyPath = path.join(root, 'ready', 'asset-1', 'race-day.png');
+    const statError = Object.assign(new Error('permission denied'), {
+      code: 'EACCES',
+    });
+    vi.resetModules();
+    vi.doMock('node:fs/promises', async (importActual) => {
+      const actual = await importActual<typeof FsPromises>();
+      return {
+        ...actual,
+        stat: vi.fn( async (...args: Parameters<typeof actual.stat>) => {
+          const [filePath] = args;
+          if (filePath === readyPath) {
+            throw statError;
+          }
+          return actual.stat(...args);
+        }),
+      };
+    });
+    const { processCmsMediaProcessingJob } =
+      await import('@/worker/cmsMediaProcessingJob');
+    await mkdir(path.dirname(rawPath), { recursive: true });
+    await writeFile(
+      rawPath,
+      Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3])
+    );
+    findUnique.mockResolvedValue(
+      processingAsset({
+        byteSize: BigInt(Number('11')),
+        rawPath,
+        readyPath,
+      })
+    );
+
+    await expect(
+      processCmsMediaProcessingJob({ assetId: 'asset-1' })
+    ).rejects.toThrow('permission denied');
+
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('surfaces raw upload stat failures for retry', async () => {
+    const root = await createMediaRoot();
+    const rawPath = path.join(root, 'uploads', 'asset-1');
+    const readyPath = path.join(root, 'ready', 'asset-1', 'race-day.png');
+    const statError = Object.assign(new Error('input/output error'), {
+      code: 'EIO',
+    });
+    vi.resetModules();
+    vi.doMock('node:fs/promises', async (importActual) => {
+      const actual = await importActual<typeof FsPromises>();
+      return {
+        ...actual,
+        stat: vi.fn( async (...args: Parameters<typeof actual.stat>) => {
+          const [filePath] = args;
+          if (filePath === readyPath) {
+            throw Object.assign(new Error('missing ready file'), {
+              code: 'ENOENT',
+            });
+          }
+          if (filePath === rawPath) {
+            throw statError;
+          }
+          return actual.stat(...args);
+        }),
+      };
+    });
+    const { processCmsMediaProcessingJob } =
+      await import('@/worker/cmsMediaProcessingJob');
+    await mkdir(path.dirname(rawPath), { recursive: true });
+    await writeFile(
+      rawPath,
+      Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3])
+    );
+    findUnique.mockResolvedValue(
+      processingAsset({
+        byteSize: BigInt(Number('11')),
+        rawPath,
+        readyPath,
+      })
+    );
+
+    await expect(
+      processCmsMediaProcessingJob({ assetId: 'asset-1' })
+    ).rejects.toThrow('input/output error');
+
+    expect(update).not.toHaveBeenCalled();
   });
 
   it('re-enqueues queued and stale processing server-folder assets', async () => {

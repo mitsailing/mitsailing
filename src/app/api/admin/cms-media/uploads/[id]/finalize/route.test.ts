@@ -65,7 +65,7 @@ function routeProps() {
   };
 }
 
-function asset(status: 'queued' | 'uploading' = 'uploading') {
+function asset(status: 'processing' | 'queued' | 'uploading' = 'uploading') {
   return {
     byteSize: BigInt(Number.parseInt('1024', 10)),
     createdAt: new Date(Date.UTC(2026, 4, 17, 12)),
@@ -145,16 +145,16 @@ describe('cms media upload finalize route', () => {
     );
   });
 
-  it('returns queued asset when finalize is called again', async () => {
+  it('returns processing asset when finalize is called again after processing starts', async () => {
     stubAdminUser();
-    mocks.findUnique.mockResolvedValue(asset('queued'));
+    mocks.findUnique.mockResolvedValue(asset('processing'));
 
     const response = await POST(finalizeRequest(), routeProps());
 
     await expect(response.json()).resolves.toMatchObject({
       asset: {
         id: 'asset-1',
-        status: 'queued',
+        status: 'processing',
       },
     });
     expect(response.status).toBe(200);
@@ -162,7 +162,7 @@ describe('cms media upload finalize route', () => {
     expect(mocks.enqueueCmsMediaProcessingJob).not.toHaveBeenCalled();
   });
 
-  it('returns queued asset when another finalize already updated status', async () => {
+  it('returns 409 when another finalize has only marked the asset queued', async () => {
     vi.stubGlobal(
       'fetch',
       vi
@@ -179,13 +179,10 @@ describe('cms media upload finalize route', () => {
 
     const response = await POST(finalizeRequest(), routeProps());
 
-    await expect(response.json()).resolves.toMatchObject({
-      asset: {
-        id: 'asset-1',
-        status: 'queued',
-      },
+    await expect(response.json()).resolves.toEqual({
+      error: 'upload_finalize_conflict',
     });
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(409);
     expect(mocks.enqueueCmsMediaProcessingJob).not.toHaveBeenCalled();
   });
 

@@ -20,16 +20,16 @@ test.afterAll(async () => {
 });
 
 test.describe('admin cms media upload api', () => {
-  test('finalize is idempotent when asset is already queued', async ({
+  test('finalize is idempotent when asset is already processing', async ({
     page,
   }) => {
-    const assetId = `e2e-finalize-queued-${Date.now()}`;
+    const assetId = `e2e-finalize-processing-${Date.now()}`;
     const publicPath = `/cms-media/${assetId}/e2e-media.png`;
 
     await insertE2eCmsMediaAsset(pool, {
       id: assetId,
       publicPath,
-      status: 'queued',
+      status: 'processing',
     });
 
     try {
@@ -45,10 +45,10 @@ test.describe('admin cms media upload api', () => {
       expect(first.status()).toBe(200);
       expect(second.status()).toBe(200);
       await expect(first.json()).resolves.toMatchObject({
-        asset: { id: assetId, status: 'queued' },
+        asset: { id: assetId, status: 'processing' },
       });
       await expect(second.json()).resolves.toMatchObject({
-        asset: { id: assetId, status: 'queued' },
+        asset: { id: assetId, status: 'processing' },
       });
     } finally {
       await deleteE2eCmsMediaAsset(pool, assetId);

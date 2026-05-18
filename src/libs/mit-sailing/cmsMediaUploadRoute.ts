@@ -32,7 +32,7 @@ export type CmsMediaUploadRouteAssetStatus = CmsMediaUploadRouteAsset['status'];
 export function isFinalizeIdempotentSuccessStatus(
   status: CmsMediaUploadRouteAssetStatus
 ) {
-  return status === 'queued' || status === 'processing' || status === 'ready';
+  return status === 'processing' || status === 'ready';
 }
 
 export function isUploadCancelIdempotentSuccess(

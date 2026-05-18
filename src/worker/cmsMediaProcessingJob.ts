@@ -95,7 +95,10 @@ async function fileExists(filePath: string): Promise<boolean> {
   try {
     await stat(filePath);
     return true;
-  } catch {
+  } catch (error) {
+    if (safeErrorCode(error) !== 'ENOENT') {
+      throw error;
+    }
     return false;
   }
 }
@@ -103,7 +106,10 @@ async function fileExists(filePath: string): Promise<boolean> {
 async function fileStat(filePath: string): Promise<BigIntStats | null> {
   try {
     return await stat(filePath, { bigint: true });
-  } catch {
+  } catch (error) {
+    if (safeErrorCode(error) !== 'ENOENT') {
+      throw error;
+    }
     return null;
   }
 }
