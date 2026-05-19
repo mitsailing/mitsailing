@@ -130,18 +130,20 @@ describe('AdminEventRegistrationsView', () => {
     expect(
       within(table).getByRole('columnheader', { name: 'Sailing experience?' })
     ).toBeVisible();
-    expect(screen.getAllByLabelText('Actions for Sailor One').length).toBe(2);
+    expect(screen.getAllByLabelText('Actions for Sailor One').length).toBe(1);
   });
 
-  it('shows mobile answers without hiding the attendee action menu behind table scroll', async () => {
-    const user = userEvent.setup();
+  it('keeps mobile review in one roster table instead of per-attendee answer tables', () => {
     renderView('editable');
 
-    expect(screen.getAllByLabelText('Actions for Sailor One').length).toBe(2);
-    await user.click(screen.getByLabelText('View answers for Sailor One'));
     expect(
-      screen.getByRole('table', { name: 'Answers for Sailor One' })
+      screen.getByRole('table', { name: 'Registration roster' })
     ).toBeVisible();
+    expect(screen.queryByLabelText('View answers for Sailor One')).toBeNull();
+    expect(
+      screen.queryByRole('table', { name: 'Answers for Sailor One' })
+    ).toBeNull();
+    expect(screen.getByText('Vegetarian')).toBeVisible();
   });
 
   it('asks for confirmation before approving a registration', async () => {
@@ -171,10 +173,10 @@ describe('AdminEventRegistrationsView', () => {
     renderView('readOnly');
 
     expect(screen.getByText('Read-only access')).toBeVisible();
-    expect(screen.getAllByText('Sailor One').length).toBe(2);
-    expect(screen.getAllByText('sailor@example.com').length).toBe(2);
-    expect(screen.getAllByText('Dietary restrictions?').length).toBe(2);
-    expect(screen.getAllByText('Vegetarian').length).toBe(2);
+    expect(screen.getByText('Sailor One')).toBeVisible();
+    expect(screen.getByText('sailor@example.com')).toBeVisible();
+    expect(screen.getByText('Dietary restrictions?')).toBeVisible();
+    expect(screen.getByText('Vegetarian')).toBeVisible();
     expect(screen.queryByLabelText('Actions for Sailor One')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Send' })).toBeNull();
   });

@@ -345,115 +345,6 @@ function RegistrationActionsMenu(props: {
   );
 }
 
-function RegistrationAnswersTable(props: {
-  label: string;
-  questionColumns: RegistrationQuestionColumn[];
-  registration: AdminEventRegistrationDto;
-  t: AdminEventRegistrationsTranslations;
-}) {
-  return (
-    <Table aria-label={props.label}>
-      <TableHeader>
-        <TableRow>
-          <TableHead>{props.t('column_question')}</TableHead>
-          <TableHead>{props.t('column_answer')}</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {props.questionColumns.map((question) => (
-          <TableRow key={question.id}>
-            <TableCell className="max-w-44 whitespace-normal text-mit-readable-ink">
-              {question.questionText}
-            </TableCell>
-            <TableCell className="whitespace-normal text-foreground">
-              {answerValueForQuestion(props.registration, question.id, props.t)}
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  );
-}
-
-function RegistrationMobileRow(props: {
-  accessMode: AdminEventAccessMode;
-  locale: string;
-  questionColumns: RegistrationQuestionColumn[];
-  registration: AdminEventRegistrationDto;
-  slug: string;
-  t: AdminEventRegistrationsTranslations;
-}) {
-  return (
-    <li className="rounded-lg border border-border bg-background p-3">
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
-        <div className="min-w-0">
-          <h2 className="truncate text-sm font-semibold text-foreground">
-            {props.registration.user.name}
-          </h2>
-          <p className="truncate text-xs text-mit-readable-ink">
-            {props.registration.user.email}
-          </p>
-        </div>
-        <div className="flex items-start gap-2">
-          <AdminEventListStatusBadge
-            tone={registrationStatusTone(props.registration.status)}
-          >
-            {statusLabel(props.registration.status, props.t)}
-          </AdminEventListStatusBadge>
-          {props.accessMode === 'editable' ? (
-            <RegistrationActionsMenu
-              locale={props.locale}
-              registration={props.registration}
-              slug={props.slug}
-              t={props.t}
-            />
-          ) : null}
-        </div>
-      </div>
-      <dl className="mt-3 grid grid-cols-2 gap-3 text-xs">
-        <div>
-          <dt className="font-semibold text-mit-readable-ink">
-            {props.t('registration_created_at')}
-          </dt>
-          <dd className="mt-1 text-foreground">
-            {formatEasternDateTime(props.registration.createdAt)}
-          </dd>
-        </div>
-        <div>
-          <dt className="font-semibold text-mit-readable-ink">
-            {props.t('registration_swim_agreement')}
-          </dt>
-          <dd className="mt-1 text-foreground">
-            {formatEasternDateTime(props.registration.swimAgreementAcceptedAt)}
-          </dd>
-        </div>
-      </dl>
-      {props.questionColumns.length > 0 ? (
-        <details className="mt-3 rounded-md border border-border">
-          <summary
-            aria-label={props.t('action_view_answers_for', {
-              name: props.registration.user.name,
-            })}
-            className="cursor-pointer list-none px-3 py-2 text-sm font-medium text-foreground hover:bg-muted [&::-webkit-details-marker]:hidden"
-          >
-            {props.t('action_view_answers')}
-          </summary>
-          <div className="border-t border-border p-2">
-            <RegistrationAnswersTable
-              label={props.t('registration_answers_for', {
-                name: props.registration.user.name,
-              })}
-              questionColumns={props.questionColumns}
-              registration={props.registration}
-              t={props.t}
-            />
-          </div>
-        </details>
-      ) : null}
-    </li>
-  );
-}
-
 function RegistrationRosterTable(props: {
   accessMode: AdminEventAccessMode;
   locale: string;
@@ -463,7 +354,7 @@ function RegistrationRosterTable(props: {
   t: AdminEventRegistrationsTranslations;
 }) {
   return (
-    <div className="hidden md:block">
+    <div className="overflow-x-auto rounded-lg border border-border bg-background">
       <Table aria-label={props.t('registration_table_label')}>
         <TableHeader>
           <TableRow>
@@ -525,31 +416,6 @@ function RegistrationRosterTable(props: {
         </TableBody>
       </Table>
     </div>
-  );
-}
-
-function RegistrationMobileList(props: {
-  accessMode: AdminEventAccessMode;
-  locale: string;
-  questionColumns: RegistrationQuestionColumn[];
-  registrations: AdminEventRegistrationDto[];
-  slug: string;
-  t: AdminEventRegistrationsTranslations;
-}) {
-  return (
-    <ol className="m-0 flex list-none flex-col gap-3 p-0 md:hidden">
-      {props.registrations.map((registration) => (
-        <RegistrationMobileRow
-          accessMode={props.accessMode}
-          key={registration.id}
-          locale={props.locale}
-          questionColumns={props.questionColumns}
-          registration={registration}
-          slug={props.slug}
-          t={props.t}
-        />
-      ))}
-    </ol>
   );
 }
 
@@ -654,24 +520,14 @@ export function AdminEventRegistrationsView(
                 : emptyStatusMessage(props.filter, props.t)}
             </AdminEventEmptyState>
           ) : (
-            <>
-              <RegistrationRosterTable
-                accessMode={props.accessMode}
-                locale={props.locale}
-                questionColumns={questionColumns}
-                registrations={visibleRegistrations}
-                slug={props.event.slug}
-                t={props.t}
-              />
-              <RegistrationMobileList
-                accessMode={props.accessMode}
-                locale={props.locale}
-                questionColumns={questionColumns}
-                registrations={visibleRegistrations}
-                slug={props.event.slug}
-                t={props.t}
-              />
-            </>
+            <RegistrationRosterTable
+              accessMode={props.accessMode}
+              locale={props.locale}
+              questionColumns={questionColumns}
+              registrations={visibleRegistrations}
+              slug={props.event.slug}
+              t={props.t}
+            />
           )}
         </section>
         <aside className="flex flex-col gap-4">
