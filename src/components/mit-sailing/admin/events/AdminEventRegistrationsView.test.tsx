@@ -1,0 +1,181 @@
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { createTranslator } from 'next-intl';
+import type * as React from 'react';
+import { describe, expect, it, vi } from 'vitest';
+import { EventRegistrationStatus } from '@/generated/prisma/enums';
+import messages from '@/locales/en.json';
+import { AdminEventRegistrationsView } from './AdminEventRegistrationsView';
+
+vi.mock('@/libs/admin/events/eventAdminActions', () => ({
+  updateAdminEventRegistrationStatusAction: vi.fn(),
+}));
+
+type AdminEventRegistrationsViewProps = React.ComponentProps<
+  typeof AdminEventRegistrationsView
+>;
+
+const t = createTranslator({
+  locale: 'en',
+  messages,
+  namespace: 'AdminEvents',
+});
+
+function firstElement<T>(elements: T[]): T {
+  const [element] = elements;
+  if (!element) {
+    throw new Error('Expected at least one element.');
+  }
+  return element;
+}
+
+function renderView(
+  accessMode: AdminEventRegistrationsViewProps['accessMode']
+) {
+  return render(
+    <AdminEventRegistrationsView
+      accessMode={accessMode}
+      errorCode={null}
+      event={{
+        id: 'event-1',
+        name: 'Intro Sail',
+        questions: [
+          {
+            answerType: 'text',
+            displayOrder: 1,
+            id: 'question-1',
+            options: [],
+            questionText: 'Dietary restrictions?',
+            required: false,
+          },
+          {
+            answerType: 'select',
+            displayOrder: 2,
+            id: 'question-2',
+            options: ['Beginner', 'Intermediate'],
+            questionText: 'Sailing experience?',
+            required: true,
+          },
+        ],
+        registrationCounts: {
+          approved: 0,
+          cancelled: 0,
+          pending: 1,
+        },
+        registrations: [
+          {
+            answers: [
+              {
+                id: 'answer-1',
+                question: {
+                  displayOrder: 1,
+                  id: 'question-1',
+                  questionText: 'Dietary restrictions?',
+                },
+                value: 'Vegetarian',
+              },
+              {
+                id: 'answer-2',
+                question: {
+                  displayOrder: 2,
+                  id: 'question-2',
+                  questionText: 'Sailing experience?',
+                },
+                value: 'Beginner',
+              },
+            ],
+            createdAt: new Date('2026-05-01T12:00:00Z'),
+            id: 'registration-1',
+            status: EventRegistrationStatus.pending,
+            swimAgreementAcceptedAt: new Date('2026-05-01T12:01:00Z'),
+            user: {
+              email: 'sailor@example.com',
+              id: 'user-1',
+              name: 'Sailor One',
+            },
+          },
+        ],
+        slug: 'intro-sail',
+      }}
+      filter="all"
+      locale="en"
+      t={t}
+    />
+  );
+}
+
+describe('AdminEventRegistrationsView', () => {
+  it('renders registrations in a dense table with row-local actions and question columns', () => {
+    renderView('editable');
+
+    const table = screen.getByRole('table', { name: 'Registration roster' });
+
+    expect(
+      within(table).getByRole('columnheader', { name: 'Attendee' })
+    ).toBeVisible();
+    expect(
+      within(table).getByRole('columnheader', { name: 'Status' })
+    ).toBeVisible();
+    expect(
+      within(table).getByRole('columnheader', { name: 'Registered' })
+    ).toBeVisible();
+    expect(
+      within(table).getByRole('columnheader', { name: 'Swim agreement' })
+    ).toBeVisible();
+    expect(
+      within(table).getByRole('columnheader', {
+        name: 'Dietary restrictions?',
+      })
+    ).toBeVisible();
+    expect(
+      within(table).getByRole('columnheader', { name: 'Sailing experience?' })
+    ).toBeVisible();
+    expect(screen.getAllByLabelText('Actions for Sailor One').length).toBe(2);
+  });
+
+  it('shows mobile answers without hiding the attendee action menu behind table scroll', async () => {
+    const user = userEvent.setup();
+    renderView('editable');
+
+    expect(screen.getAllByLabelText('Actions for Sailor One').length).toBe(2);
+    await user.click(screen.getByLabelText('View answers for Sailor One'));
+    expect(
+      screen.getByRole('table', { name: 'Answers for Sailor One' })
+    ).toBeVisible();
+  });
+
+  it('asks for confirmation before approving a registration', async () => {
+    const user = userEvent.setup();
+    renderView('editable');
+
+    const actionsMenu = firstElement(
+      screen.getAllByLabelText('Actions for Sailor One')
+    );
+    const approveAction = firstElement(screen.getAllByText('Approve'));
+
+    await user.click(actionsMenu);
+    await user.click(approveAction);
+
+    const dialog = firstElement(
+      screen.getAllByRole('dialog', {
+        name: 'Confirm approve for Sailor One',
+      })
+    );
+    expect(dialog).toHaveTextContent('Approve Sailor One and mark confirmed?');
+    expect(
+      within(dialog).getByRole('button', { name: 'Confirm approve' })
+    ).toBeVisible();
+  });
+
+  it('shows roster and answers without mutation controls for read-only access', () => {
+    renderView('readOnly');
+
+    expect(screen.getByText('Read-only access')).toBeVisible();
+    expect(screen.getAllByText('Sailor One').length).toBe(2);
+    expect(screen.getAllByText('sailor@example.com').length).toBe(2);
+    expect(screen.getAllByText('Dietary restrictions?').length).toBe(2);
+    expect(screen.getAllByText('Vegetarian').length).toBe(2);
+    expect(screen.queryByLabelText('Actions for Sailor One')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Send' })).toBeNull();
+  });
+});

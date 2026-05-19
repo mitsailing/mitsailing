@@ -147,6 +147,13 @@ export const getPublishedEventForPublicBySlug = cache(async (slug: string) => {
           orderBy: { startDateTime: 'asc' },
           select: { id: true, startDateTime: true, endDateTime: true },
         },
+        admins: {
+          orderBy: [{ admin: { name: 'asc' } }, { admin: { email: 'asc' } }],
+          select: {
+            id: true,
+            admin: { select: { id: true, name: true, email: true } },
+          },
+        },
         registrationQuestions: {
           orderBy: [{ displayOrder: 'asc' }, { questionText: 'asc' }],
           select: {
@@ -188,7 +195,6 @@ export const getPublishedEventForPublicBySlug = cache(async (slug: string) => {
 
     return {
       ...event,
-      admins: [],
       registrationQuestions: event.registrationQuestions.map((question) => ({
         ...question,
         options: questionOptionsFromJson(question.options),

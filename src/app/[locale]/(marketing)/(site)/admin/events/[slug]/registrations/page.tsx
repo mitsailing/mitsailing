@@ -32,7 +32,11 @@ export default async function AdminEventRegistrationsPage(props: PageProps) {
   const { locale, slug } = await props.params;
   const { error: errorCode, status } = await props.searchParams;
   setRequestLocale(locale);
-  const access = await requireAdminEventAccess({ locale, slug });
+  const access = await requireAdminEventAccess({
+    locale,
+    minimumAccessMode: 'readOnly',
+    slug,
+  });
   if (!access) {
     notFound();
   }
@@ -45,6 +49,7 @@ export default async function AdminEventRegistrationsPage(props: PageProps) {
   }
   return (
     <AdminEventRegistrationsView
+      accessMode={access.accessMode}
       errorCode={errorCode ?? null}
       event={event}
       filter={registrationFilterFromParam(status)}

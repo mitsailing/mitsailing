@@ -7,6 +7,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import type { getTranslations } from 'next-intl/server';
+import type * as React from 'react';
 import { AdminErrorAlert } from '@/components/mit-sailing/admin/AdminErrorAlert';
 import {
   adminEventFormErrorMessage,
@@ -15,6 +16,7 @@ import {
   AdminEventEmptyState,
   AdminEventField,
   AdminEventFormSection,
+  AdminEventReadOnlyNotice,
 } from '@/components/mit-sailing/admin/events/AdminEventShared';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -48,6 +50,7 @@ import {
   eventAdminCentsToDollars,
   formatEasternDateTimeLocal,
 } from '@/libs/admin/events/eventAdminSchemas';
+import type { AdminEventAccessMode } from '@/libs/admin/events/zenstackEventAccess';
 import { Link } from '@/libs/I18nNavigation';
 import { formatEasternDateTime } from '@/libs/mit-sailing/easternTimeFormat';
 
@@ -60,6 +63,7 @@ type AdminEventCommonTranslations = Awaited<
 >;
 
 type AdminEventFormViewProps = {
+  accessMode: AdminEventAccessMode;
   event: AdminEventEditorDto;
   categories: AdminEventCategoryOption[];
   users: AdminEventUserOption[];
@@ -393,6 +397,224 @@ function EventMetadataSection(props: {
           </dd>
         </div>
       </dl>
+    </AdminEventFormSection>
+  );
+}
+
+function ReadOnlyValue(props: {
+  label: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <dt className="text-xs font-semibold text-mit-readable-ink uppercase">
+        {props.label}
+      </dt>
+      <dd className="mt-1 text-sm text-foreground">{props.children}</dd>
+    </div>
+  );
+}
+
+function readOnlyTextValue(value: string | null | undefined, fallback: string) {
+  const trimmed = value?.trim();
+  if (trimmed) {
+    return trimmed;
+  }
+  return fallback;
+}
+
+function readOnlyQuestionTypeLabel(props: {
+  question: AdminEventQuestionDto;
+  t: AdminEventFormTranslations;
+}): string {
+  if (props.question.answerType === EventAnswerType.select) {
+    return props.t('question_type_select');
+  }
+  if (props.question.answerType === EventAnswerType.checkbox) {
+    return props.t('question_type_checkbox');
+  }
+  return props.t('question_type_text');
+}
+
+function ReadOnlyBasicsSection(props: AdminEventFormViewProps) {
+  const category = props.categories.find(
+    (option) => option.id === props.event.eventCategoryId
+  );
+  const detailPageKind =
+    props.event.detailPageKind ?? EventDetailPageKind.standard;
+  return (
+    <>
+      <AdminEventFormSection
+        id="event-basics"
+        subtitle={props.t('basics_subtitle')}
+        title={props.t('section_basics')}
+      >
+        <dl className="grid gap-4 md:grid-cols-2">
+          <ReadOnlyValue label={props.t('field_name')}>
+            {props.event.name}
+          </ReadOnlyValue>
+          <ReadOnlyValue label={props.t('field_short_name')}>
+            {readOnlyTextValue(props.event.shortName, props.t('empty_value'))}
+          </ReadOnlyValue>
+          <ReadOnlyValue label={props.t('field_slug')}>
+            {props.event.slug}
+          </ReadOnlyValue>
+          <ReadOnlyValue label={props.t('field_category')}>
+            {category?.name ?? props.t('empty_value')}
+          </ReadOnlyValue>
+          <ReadOnlyValue label={props.t('field_description')}>
+            {readOnlyTextValue(props.event.description, props.t('empty_value'))}
+          </ReadOnlyValue>
+          <ReadOnlyValue label={props.t('field_max_participants')}>
+            {props.event.maxParticipants ?? props.t('empty_value')}
+          </ReadOnlyValue>
+        </dl>
+      </AdminEventFormSection>
+
+      <AdminEventFormSection
+        id="event-public-page"
+        subtitle={props.t('public_page_subtitle')}
+        title={props.t('section_public_page')}
+      >
+        <dl className="grid gap-4 md:grid-cols-2">
+          <ReadOnlyValue label={props.t('field_detail_page_kind')}>
+            {detailPageKind === EventDetailPageKind.external
+              ? props.t('detail_external_label')
+              : props.t('detail_standard_label')}
+          </ReadOnlyValue>
+          <ReadOnlyValue label={props.t('field_external_detail_url')}>
+            {readOnlyTextValue(
+              props.event.externalDetailUrl,
+              props.t('empty_value')
+            )}
+          </ReadOnlyValue>
+        </dl>
+      </AdminEventFormSection>
+    </>
+  );
+}
+
+function ReadOnlyDatesSection(props: AdminEventFormViewProps) {
+  return (
+    <AdminEventFormSection
+      id="event-dates"
+      subtitle={props.t('dates_subtitle')}
+      title={props.t('section_dates')}
+    >
+      {props.event.dates.length === 0 ? (
+        <AdminEventEmptyState>{props.t('dates_empty')}</AdminEventEmptyState>
+      ) : (
+        <ol className="m-0 flex list-none flex-col gap-3 p-0">
+          {props.event.dates.map((date) => (
+            <li
+              className="grid gap-3 rounded-lg border border-border bg-background p-3 md:grid-cols-2"
+              key={date.id}
+            >
+              <ReadOnlyValue label={props.t('field_date_start')}>
+                {formatEasternDateTime(date.startDateTime)}
+              </ReadOnlyValue>
+              <ReadOnlyValue label={props.t('field_date_end')}>
+                {formatEasternDateTime(date.endDateTime)}
+              </ReadOnlyValue>
+            </li>
+          ))}
+        </ol>
+      )}
+    </AdminEventFormSection>
+  );
+}
+
+function ReadOnlyAdminsSection(props: AdminEventFormViewProps) {
+  return (
+    <AdminEventFormSection
+      id="event-admins"
+      subtitle={props.t('admins_subtitle')}
+      title={props.t('section_admins')}
+    >
+      {props.event.admins.length === 0 ? (
+        <AdminEventEmptyState>{props.t('empty_value')}</AdminEventEmptyState>
+      ) : (
+        <ul className="m-0 grid list-none gap-2 p-0 md:grid-cols-2">
+          {props.event.admins.map((admin) => (
+            <li
+              className="flex items-center gap-3 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              key={admin.id}
+            >
+              <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-mit-readable-ink">
+                {userInitials(admin.admin)}
+              </span>
+              <span className="flex min-w-0 flex-col">
+                <span className="truncate font-medium">{admin.admin.name}</span>
+                <span className="truncate text-xs text-mit-readable-ink">
+                  {admin.admin.email}
+                </span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </AdminEventFormSection>
+  );
+}
+
+function ReadOnlyQuestionsSection(props: AdminEventFormViewProps) {
+  return (
+    <AdminEventFormSection
+      id="event-questions"
+      subtitle={props.t('questions_subtitle')}
+      title={props.t('section_questions')}
+    >
+      {props.event.registrationQuestions.length === 0 ? (
+        <AdminEventEmptyState>
+          {props.t('questions_empty')}
+        </AdminEventEmptyState>
+      ) : (
+        <ol className="m-0 flex list-none flex-col gap-3 p-0">
+          {props.event.registrationQuestions.map((question) => (
+            <li
+              className="rounded-lg border border-border bg-background p-3"
+              key={question.id}
+            >
+              <p className="font-medium text-foreground">
+                {question.questionText}
+              </p>
+              <p className="mt-1 text-sm text-mit-readable-ink">
+                {readOnlyQuestionTypeLabel({ question, t: props.t })}
+              </p>
+            </li>
+          ))}
+        </ol>
+      )}
+    </AdminEventFormSection>
+  );
+}
+
+function ReadOnlyFeesSection(props: AdminEventFormViewProps) {
+  return (
+    <AdminEventFormSection
+      id="event-fees"
+      subtitle={props.t('fees_subtitle')}
+      title={props.t('section_fees')}
+    >
+      {props.event.entryFees.length === 0 ? (
+        <AdminEventEmptyState>{props.t('fees_empty')}</AdminEventEmptyState>
+      ) : (
+        <ol className="m-0 flex list-none flex-col gap-3 p-0">
+          {props.event.entryFees.map((fee) => (
+            <li
+              className="grid gap-3 rounded-lg border border-border bg-background p-3 md:grid-cols-[1fr_auto]"
+              key={fee.id}
+            >
+              <ReadOnlyValue label={props.t('field_fee_description')}>
+                {fee.description}
+              </ReadOnlyValue>
+              <ReadOnlyValue label={props.t('field_fee_amount')}>
+                {eventAdminCentsToDollars(fee.amountCents)}
+              </ReadOnlyValue>
+            </li>
+          ))}
+        </ol>
+      )}
     </AdminEventFormSection>
   );
 }
@@ -988,12 +1210,27 @@ export function AdminEventFormView(props: AdminEventFormViewProps) {
       </header>
 
       <AdminEventErrorAlert code={props.errorCode} t={props.t} />
+      {props.accessMode === 'readOnly' ? (
+        <AdminEventReadOnlyNotice t={props.t} />
+      ) : null}
       <EventMetadataSection event={props.event} t={props.t} />
-      <EventBasicsForm {...props} />
-      <EventDatesSection {...props} />
-      <EventAdminsSection {...props} />
-      <EventQuestionsSection {...props} />
-      <EventFeesSection {...props} />
+      {props.accessMode === 'editable' ? (
+        <>
+          <EventBasicsForm {...props} />
+          <EventDatesSection {...props} />
+          <EventAdminsSection {...props} />
+          <EventQuestionsSection {...props} />
+          <EventFeesSection {...props} />
+        </>
+      ) : (
+        <>
+          <ReadOnlyBasicsSection {...props} />
+          <ReadOnlyDatesSection {...props} />
+          <ReadOnlyAdminsSection {...props} />
+          <ReadOnlyQuestionsSection {...props} />
+          <ReadOnlyFeesSection {...props} />
+        </>
+      )}
       <StripePlaceholder t={props.t} />
     </div>
   );

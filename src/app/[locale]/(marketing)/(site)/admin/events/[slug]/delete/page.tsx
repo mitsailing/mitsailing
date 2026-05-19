@@ -23,7 +23,11 @@ export default async function AdminEventDeletePage(props: PageProps) {
   const { locale, slug } = await props.params;
   const { error: errorCode } = await props.searchParams;
   setRequestLocale(locale);
-  const access = await requireAdminEventAccess({ locale, slug });
+  const access = await requireAdminEventAccess({
+    locale,
+    minimumAccessMode: 'editable',
+    slug,
+  });
   if (!access) {
     notFound();
   }

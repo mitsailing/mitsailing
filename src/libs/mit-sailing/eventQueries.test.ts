@@ -131,6 +131,24 @@ describe('getPublishedEventForPublicBySlug', () => {
       externalDetailUrl: null,
       category: { name: 'Classes' },
       dates: [{ id: 'date-1', startDateTime, endDateTime }],
+      admins: [
+        {
+          id: 'event-admin-1',
+          admin: {
+            id: 'admin-1',
+            name: 'Ada Lovelace',
+            email: 'ada@example.com',
+          },
+        },
+        {
+          id: 'event-admin-2',
+          admin: {
+            id: 'admin-2',
+            name: 'Grace Hopper',
+            email: 'grace@example.com',
+          },
+        },
+      ],
       registrationQuestions: [
         {
           id: 'question-1',
@@ -158,6 +176,37 @@ describe('getPublishedEventForPublicBySlug', () => {
 
     const result = await getPublishedEventForPublicBySlug('intro-sail');
 
+    expect(mocks.eventFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.objectContaining({
+          admins: {
+            orderBy: [{ admin: { name: 'asc' } }, { admin: { email: 'asc' } }],
+            select: {
+              id: true,
+              admin: { select: { id: true, name: true, email: true } },
+            },
+          },
+        }),
+      })
+    );
+    expect(result?.admins).toEqual([
+      {
+        id: 'event-admin-1',
+        admin: {
+          id: 'admin-1',
+          name: 'Ada Lovelace',
+          email: 'ada@example.com',
+        },
+      },
+      {
+        id: 'event-admin-2',
+        admin: {
+          id: 'admin-2',
+          name: 'Grace Hopper',
+          email: 'grace@example.com',
+        },
+      },
+    ]);
     expect(result?.approvedRegistrationCount).toBe(4);
     expect(result?.pendingRegistrationCount).toBe(2);
     expect(result?.registrationQuestions).toEqual([

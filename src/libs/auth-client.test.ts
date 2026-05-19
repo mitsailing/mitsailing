@@ -6,11 +6,13 @@ const clientMocks = vi.hoisted(() => ({
     config,
     id: 'auth-client',
   })),
+  customSessionClient: vi.fn(() => ({ id: 'custom-session-client-plugin' })),
   emailOTPClient: vi.fn(() => ({ id: 'email-otp-client-plugin' })),
 }));
 
 vi.mock('better-auth/client/plugins', () => ({
   adminClient: clientMocks.adminClient,
+  customSessionClient: clientMocks.customSessionClient,
   emailOTPClient: clientMocks.emailOTPClient,
 }));
 
@@ -24,13 +26,14 @@ beforeEach(() => {
 });
 
 describe('authClient', () => {
-  it('registers admin and email OTP client plugins', async () => {
+  it('registers admin, custom session, and email OTP client plugins', async () => {
     const { authClient } = await import('@/libs/auth-client');
 
     expect(clientMocks.createAuthClient).toHaveBeenCalledWith(
       expect.objectContaining({
         plugins: expect.arrayContaining([
           expect.objectContaining({ id: 'admin-client-plugin' }),
+          expect.objectContaining({ id: 'custom-session-client-plugin' }),
           expect.objectContaining({ id: 'email-otp-client-plugin' }),
         ]),
       })
@@ -41,10 +44,12 @@ describe('authClient', () => {
         config: expect.objectContaining({
           plugins: expect.arrayContaining([
             expect.objectContaining({ id: 'admin-client-plugin' }),
+            expect.objectContaining({ id: 'custom-session-client-plugin' }),
             expect.objectContaining({ id: 'email-otp-client-plugin' }),
           ]),
         }),
       })
     );
+    expect(clientMocks.customSessionClient).toHaveBeenCalledOnce();
   });
 });

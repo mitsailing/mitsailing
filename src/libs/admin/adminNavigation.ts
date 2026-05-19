@@ -67,7 +67,7 @@ export const ADMIN_SITE_NAV_ITEMS: AdminNavItem[] = [
     href: '/admin/events',
     labelKey: 'nav_events',
     match: 'prefix',
-    permissions: [Permission.EVENTS_MANAGE],
+    permissions: [Permission.EVENTS_MANAGE, Permission.EVENTS_ASSIGNED_MANAGE],
   },
   {
     href: '/admin/event_categories',

@@ -8,6 +8,7 @@ import {
   formatNyDateTimeLocalInput,
   instantForNyWallClock,
 } from '@/lib/mit-sailing/nyTime';
+import { Role } from '@/libs/auth/roles';
 import { parseUsdDecimalStringToMinorUnits } from '@/libs/money/stripeUsdMinorUnits';
 
 export {
@@ -136,6 +137,13 @@ const eventAnswerTypeSchema = z.enum([
 ]);
 
 const eventAdminExternalHttpUrlSchema = z.httpUrl();
+
+export const ASSIGNABLE_EVENT_ADMIN_ROLES = [
+  Role.VOLUNTEER_INSTRUCTOR,
+  Role.DOCK_STAFF,
+  Role.DOCK_MASTER,
+  Role.ADMIN,
+] as const;
 
 export const eventAdminBasicsFormSchema = z
   .object({
@@ -296,6 +304,11 @@ export const eventFeeFormSchema = z
     amountCents,
     isDeposit,
   }));
+
+export const eventAdminIdsFormSchema = z
+  .array(z.string().trim().min(1))
+  .min(1)
+  .transform((adminUserIds) => [...new Set(adminUserIds)]);
 
 export const eventRegistrationStatusFormSchema = z.object({
   status: z.enum([

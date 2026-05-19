@@ -41,7 +41,10 @@ export default async function AdminIndexPage(props: AdminIndexPageProps) {
   const { permissions } = await requireAdminAreaAccess(locale);
   const canCms = hasPermission(permissions, Permission.CMS_VIEW);
   const canUsers = hasPermission(permissions, Permission.USERS_VIEW);
-  const canEvents = hasPermission(permissions, Permission.EVENTS_MANAGE);
+  const canEvents = hasAnyPermission(permissions, [
+    Permission.EVENTS_MANAGE,
+    Permission.EVENTS_ASSIGNED_MANAGE,
+  ]);
   const canPavilionReservations = hasPermission(
     permissions,
     Permission.PAVILION_RESERVATIONS_MANAGE

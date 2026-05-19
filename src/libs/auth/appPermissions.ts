@@ -6,6 +6,7 @@ export const Permission = {
   USERS_EDIT: 'users.edit',
   USERS_DELETE: 'users.delete',
   EVENTS_MANAGE: 'events.manage',
+  EVENTS_ASSIGNED_MANAGE: 'events.assignedManage',
   PAVILION_RESERVATIONS_MANAGE: 'pavilionReservations.manage',
   NEWSLETTER_MANAGE: 'newsletter.manage',
   DONATION_FUNDS_MANAGE: 'donationFunds.manage',
@@ -41,6 +42,7 @@ const ROLE_PERMISSIONS = {
   [Role.VOLUNTEER]: [],
   [Role.VOLUNTEER_INSTRUCTOR]: [
     Permission.ADMIN_VIEW,
+    Permission.EVENTS_ASSIGNED_MANAGE,
     Permission.RATINGS_ASSIGN,
   ],
   [Role.DOCK_STAFF]: [

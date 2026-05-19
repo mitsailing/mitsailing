@@ -4,6 +4,7 @@ import {
   dollarsToEventAdminCents,
   isEventAdminInvalidFeeAmountIssue,
   eventAdminBasicsFormSchema,
+  eventAdminIdsFormSchema,
   eventDateFormSchema,
   eventFeeFormSchema,
   eventQuestionFormSchema,
@@ -226,5 +227,11 @@ describe('eventAdminSchemas', () => {
     });
 
     expect(parsed.displayOrder).toBe(4);
+  });
+
+  it('rejects empty event admin selections', () => {
+    const parsed = eventAdminIdsFormSchema.safeParse([]);
+
+    expect(parsed.success).toBe(false);
   });
 });

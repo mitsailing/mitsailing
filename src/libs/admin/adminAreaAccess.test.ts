@@ -78,7 +78,7 @@ describe('requireAdminAreaAccess', () => {
     expect(mocks.redirect).toHaveBeenCalledWith('/');
   });
 
-  it('hides event navigation from volunteer instructors without event management', async () => {
+  it('shows event navigation to volunteer instructors for assigned event management', async () => {
     mocks.verifySession.mockResolvedValue(
       session(Role.VOLUNTEER_INSTRUCTOR, 'instructor-1')
     );
@@ -87,9 +87,9 @@ describe('requireAdminAreaAccess', () => {
 
     const access = await requireAdminAreaAccess('en');
 
-    expect(access.navItems.map((item) => item.href)).not.toContain(
-      '/admin/events'
-    );
+    expect(access.navItems.map((item) => item.href)).toContain('/admin/events');
+    expect(access.permissions).toContain(Permission.EVENTS_ASSIGNED_MANAGE);
+    expect(access.permissions).not.toContain(Permission.EVENTS_MANAGE);
   });
 
   it('does not load role grants for administrators', async () => {

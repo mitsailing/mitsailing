@@ -63,7 +63,7 @@ describe('event admin queries', () => {
     },
   };
 
-  it('lists events after proving update access without writes', async () => {
+  it('defaults event lists to my assigned events', async () => {
     mocks.eventFindMany.mockResolvedValue([
       {
         admins: [],
@@ -89,9 +89,86 @@ describe('event admin queries', () => {
     });
 
     expect(rows).toHaveLength(1);
+    expect(rows[0]?.accessMode).toBe('editable');
+    expect(mocks.eventFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          admins: { some: { adminUserId: 'staff-1' } },
+        }),
+      })
+    );
   });
 
-  it('does not list public-readable events without update access', async () => {
+  it('lists all admin-visible events with access modes', async () => {
+    mocks.eventFindMany.mockResolvedValue([
+      {
+        admins: [{ adminUserId: 'staff-1' }],
+        id: 'event-1',
+        name: 'Assigned Sail',
+        shortName: 'Assigned',
+        slug: 'assigned-sail',
+        isPublished: true,
+        isSpecial: false,
+        maxParticipants: null,
+        requiresApproval: false,
+        detailPageKind: 'standard',
+        category: { id: 'category-1', name: 'Classes' },
+        dates: [],
+      },
+      {
+        admins: [{ adminUserId: 'staff-2' }],
+        id: 'event-2',
+        name: 'Other Sail',
+        shortName: 'Other',
+        slug: 'other-sail',
+        isPublished: true,
+        isSpecial: false,
+        maxParticipants: null,
+        requiresApproval: false,
+        detailPageKind: 'standard',
+        category: { id: 'category-1', name: 'Classes' },
+        dates: [],
+      },
+    ]);
+    const { listAdminEventRows } =
+      await import('@/libs/admin/events/eventAdminQueries');
+
+    const rows = await listAdminEventRows({
+      authContext: { appRole: Role.VOLUNTEER_INSTRUCTOR, id: 'staff-1' },
+      scope: 'all',
+    });
+
+    expect(rows.map((row) => [row.id, row.accessMode])).toEqual([
+      ['event-1', 'editable'],
+      ['event-2', 'readOnly'],
+    ]);
+    expect(mocks.eventFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {},
+      })
+    );
+  });
+
+  it('treats invalid event list scope as my events', async () => {
+    mocks.eventFindMany.mockResolvedValue([]);
+    const { listAdminEventRows } =
+      await import('@/libs/admin/events/eventAdminQueries');
+
+    await listAdminEventRows({
+      authContext: { appRole: Role.VOLUNTEER_INSTRUCTOR, id: 'staff-1' },
+      scope: 'mine',
+    });
+
+    expect(mocks.eventFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          admins: { some: { adminUserId: 'staff-1' } },
+        },
+      })
+    );
+  });
+
+  it('does not list events for ordinary users', async () => {
     mocks.eventFindMany.mockResolvedValue([
       {
         admins: [],
@@ -112,7 +189,7 @@ describe('event admin queries', () => {
       await import('@/libs/admin/events/eventAdminQueries');
 
     const rows = await listAdminEventRows({
-      authContext: { appRole: Role.VOLUNTEER_INSTRUCTOR, id: 'staff-1' },
+      authContext: { appRole: Role.USER, id: 'staff-1' },
       query: 'intro',
     });
 
@@ -159,6 +236,94 @@ describe('event admin queries', () => {
       users: [{ id: 'staff-1', name: 'Staff', email: 'staff@example.com' }],
     });
     expect(mocks.eventFindUnique).not.toHaveBeenCalled();
+  });
+
+  it('limits assignable event admin users to staff and instructor roles', async () => {
+    mocks.protectedEventFindFirst.mockResolvedValue(null);
+    const { getAdminEventEditorDataBySlug } =
+      await import('@/libs/admin/events/eventAdminQueries');
+
+    await getAdminEventEditorDataBySlug({
+      db,
+      slug: 'intro-sail',
+    });
+
+    expect(mocks.userFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          appRole: {
+            in: [
+              Role.VOLUNTEER_INSTRUCTOR,
+              Role.DOCK_STAFF,
+              Role.DOCK_MASTER,
+              Role.ADMIN,
+            ],
+          },
+        },
+      })
+    );
+  });
+
+  it('returns only already-selected users for short event admin searches', async () => {
+    const { listAdminEventUsers } =
+      await import('@/libs/admin/events/eventAdminQueries');
+
+    await listAdminEventUsers({
+      query: 'a',
+      selectedUserIds: ['selected-1', 'selected-2'],
+    });
+
+    expect(mocks.userFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          appRole: {
+            in: [
+              Role.VOLUNTEER_INSTRUCTOR,
+              Role.DOCK_STAFF,
+              Role.DOCK_MASTER,
+              Role.ADMIN,
+            ],
+          },
+          id: { in: ['selected-1', 'selected-2'] },
+        },
+      })
+    );
+  });
+
+  it('keeps already-selected users visible during event admin searches', async () => {
+    const { listAdminEventUsers } =
+      await import('@/libs/admin/events/eventAdminQueries');
+
+    await listAdminEventUsers({
+      query: 'alex',
+      selectedUserIds: ['selected-1'],
+    });
+
+    expect(mocks.userFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          AND: [
+            {
+              appRole: {
+                in: [
+                  Role.VOLUNTEER_INSTRUCTOR,
+                  Role.DOCK_STAFF,
+                  Role.DOCK_MASTER,
+                  Role.ADMIN,
+                ],
+              },
+            },
+            {
+              OR: [
+                { id: { in: ['selected-1'] } },
+                { name: { contains: 'alex', mode: 'insensitive' } },
+                { email: { contains: 'alex', mode: 'insensitive' } },
+              ],
+            },
+          ],
+        },
+      })
+    );
   });
 
   it('returns editor data with normalized questions and registration counts', async () => {

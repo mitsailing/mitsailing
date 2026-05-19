@@ -21,10 +21,12 @@ import {
 } from '@/libs/admin/events/eventAdminPaths';
 import {
   eventAdminBasicsFormSchema,
+  eventAdminIdsFormSchema,
   eventDateFormSchema,
   eventFeeFormSchema,
   eventQuestionFormSchema,
   eventRegistrationStatusFormSchema,
+  ASSIGNABLE_EVENT_ADMIN_ROLES,
   isEventAdminInvalidFeeAmountIssue,
   rawEventAdminIdsFromFormData,
   rawEventBasicsFromFormData,
@@ -139,7 +141,11 @@ async function requireEditableAdminEvent(
   locale: string,
   slug: string
 ): Promise<AdminEventAccess> {
-  const access = await requireAdminEventAccess({ locale, slug });
+  const access = await requireAdminEventAccess({
+    locale,
+    minimumAccessMode: 'editable',
+    slug,
+  });
   if (!access) {
     redirect(editUrlWithError(locale, slug, 'not_found'));
   }
@@ -150,7 +156,11 @@ async function requireRegistrationsAdminEvent(
   locale: string,
   slug: string
 ): Promise<AdminEventAccess> {
-  const access = await requireAdminEventAccess({ locale, slug });
+  const access = await requireAdminEventAccess({
+    locale,
+    minimumAccessMode: 'editable',
+    slug,
+  });
   if (!access) {
     redirect(registrationsUrlWithError(locale, slug, 'not_found'));
   }
@@ -421,7 +431,15 @@ export async function updateAdminEventAdminsAction(
   formData: FormData
 ): Promise<void> {
   const access = await requireEditableAdminEvent(locale, slug);
-  const adminUserIds = [...new Set(rawEventAdminIdsFromFormData(formData))];
+  const zodParse = await adminEventZodParseParams(locale);
+  const parsed = eventAdminIdsFormSchema.safeParse(
+    rawEventAdminIdsFromFormData(formData),
+    zodParse
+  );
+  if (!parsed.success) {
+    redirect(editUrlWithError(locale, slug, 'validation_failed'));
+  }
+  const adminUserIds = parsed.data;
   const verifiedEventId = verifiedEventIdFromAccess({
     action: 'update-admins',
     access,
@@ -429,18 +447,25 @@ export async function updateAdminEventAdminsAction(
     locale,
     slug,
   });
+  const assignableUserCount = await prisma.user.count({
+    where: {
+      appRole: { in: [...ASSIGNABLE_EVENT_ADMIN_ROLES] },
+      id: { in: adminUserIds },
+    },
+  });
+  if (assignableUserCount !== adminUserIds.length) {
+    redirect(editUrlWithError(locale, slug, 'validation_failed'));
+  }
   try {
     await prisma.$transaction(async (tx) => {
       await tx.eventAdmin.deleteMany({ where: { eventId: verifiedEventId } });
-      if (adminUserIds.length > 0) {
-        await tx.eventAdmin.createMany({
-          data: adminUserIds.map((adminUserId) => ({
-            id: randomUUID(),
-            eventId: verifiedEventId,
-            adminUserId,
-          })),
-        });
-      }
+      await tx.eventAdmin.createMany({
+        data: adminUserIds.map((adminUserId) => ({
+          id: randomUUID(),
+          eventId: verifiedEventId,
+          adminUserId,
+        })),
+      });
     });
   } catch (error) {
     logAdminEventMutationFailure({ action: 'update-admins', error, slug });

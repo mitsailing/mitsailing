@@ -2,7 +2,9 @@ import 'server-only';
 import type { Prisma } from '@/generated/prisma/client';
 import { EventRegistrationStatus } from '@/generated/prisma/enums';
 import type { EventRegistrationStatus as EventRegistrationStatusValue } from '@/generated/prisma/enums';
-import { canUpdateEventWithAuthContext } from '@/libs/admin/events/zenstackEventAccess';
+import { ASSIGNABLE_EVENT_ADMIN_ROLES } from '@/libs/admin/events/eventAdminSchemas';
+import type { AdminEventAccessMode } from '@/libs/admin/events/zenstackEventAccess';
+import { eventAccessModeWithAuthContext } from '@/libs/admin/events/zenstackEventAccess';
 import { prisma } from '@/libs/DB';
 import { questionOptionsFromJson } from '@/libs/mit-sailing/eventQueries';
 import type { ZenStackDb } from '@/libs/zenstack/auth';
@@ -32,6 +34,7 @@ export type AdminEventDateDto = {
 };
 
 export type AdminEventListRow = {
+  accessMode: AdminEventAccessMode;
   id: string;
   name: string;
   shortName: string;
@@ -131,17 +134,24 @@ export type AdminEventListFilters = {
   authContext: AppAuthContext;
   query?: string;
   categoryId?: string;
+  scope?: string;
 };
+
+export type AdminEventListScope = 'my' | 'all';
 
 type AdminEventUserListOptions = {
   limit?: number;
   offset?: number;
   query?: string;
+  selectedUserIds?: readonly string[];
 };
 type AdminEventQueryDb = {
   event: Pick<ZenStackDb['event'], 'findFirst'>;
 };
-type AdminEventListRowData = Omit<AdminEventListRow, 'registrationCounts'>;
+type AdminEventListRowData = Omit<
+  AdminEventListRow,
+  'accessMode' | 'registrationCounts'
+>;
 type AdminEventListRowWithAccess = AdminEventListRowData & {
   admins: readonly {
     adminUserId: string;
@@ -230,6 +240,12 @@ function compareRegistrations(
   return b.createdAt.getTime() - a.createdAt.getTime();
 }
 
+export function adminEventListScopeFromValue(
+  value: string | undefined
+): AdminEventListScope {
+  return value === 'all' ? 'all' : 'my';
+}
+
 function eventWhereFromFilters(
   filters: AdminEventListFilters
 ): Prisma.EventWhereInput {
@@ -245,6 +261,11 @@ function eventWhereFromFilters(
       { shortName: { contains: query, mode: 'insensitive' } },
       { slug: { contains: query, mode: 'insensitive' } },
     ];
+  }
+  if (adminEventListScopeFromValue(filters.scope) === 'my') {
+    businessWhere.admins = {
+      some: { adminUserId: filters.authContext.id },
+    };
   }
   return businessWhere;
 }
@@ -267,18 +288,25 @@ function eventListRowData(
   };
 }
 
-function filterAdminUpdateEvents(options: {
+function adminVisibleEventRows(options: {
   authContext: AppAuthContext;
   rows: readonly AdminEventListRowWithAccess[];
-}): AdminEventListRowData[] {
+}): (AdminEventListRowData & { accessMode: AdminEventAccessMode })[] {
   return options.rows
-    .filter((row) =>
-      canUpdateEventWithAuthContext({
+    .map((row) => ({
+      ...eventListRowData(row),
+      accessMode: eventAccessModeWithAuthContext({
         authContext: options.authContext,
         event: row,
-      })
-    )
-    .map(eventListRowData);
+      }),
+    }))
+    .filter(
+      (
+        row
+      ): row is AdminEventListRowData & {
+        accessMode: AdminEventAccessMode;
+      } => row.accessMode !== null
+    );
 }
 
 export async function listAdminEventCategories(): Promise<
@@ -294,19 +322,45 @@ export async function listAdminEventCategories(): Promise<
 function adminEventUserWhereFromOptions(
   options: AdminEventUserListOptions
 ): Prisma.UserWhereInput {
+  const roleWhere: Prisma.UserWhereInput = {
+    appRole: { in: [...ASSIGNABLE_EVENT_ADMIN_ROLES] },
+  };
   const query = options.query?.trim();
-  if (!query) {
-    return {};
+  const selectedUserIds = [
+    ...new Set(
+      (options.selectedUserIds ?? [])
+        .map((id) => id.trim())
+        .filter((id) => id.length > 0)
+    ),
+  ];
+  if (options.query !== undefined && (!query || query.length < 2)) {
+    return {
+      ...roleWhere,
+      id: { in: selectedUserIds },
+    };
   }
-  return {
+  if (!query) {
+    return roleWhere;
+  }
+  const searchableWhere: Prisma.UserWhereInput = {
     OR: [
+      ...(selectedUserIds.length > 0 ? [{ id: { in: selectedUserIds } }] : []),
       { name: { contains: query, mode: 'insensitive' } },
       { email: { contains: query, mode: 'insensitive' } },
     ],
   };
+  if (selectedUserIds.length > 0) {
+    return {
+      AND: [roleWhere, searchableWhere],
+    };
+  }
+  return {
+    ...roleWhere,
+    ...searchableWhere,
+  };
 }
 
-async function listAdminEventUsers(
+export async function listAdminEventUsers(
   options: AdminEventUserListOptions = {}
 ): Promise<AdminEventUserOption[]> {
   const limit = Math.min(
@@ -348,7 +402,7 @@ export async function listAdminEventRows(
       },
     },
   });
-  const authorizedRows = filterAdminUpdateEvents({
+  const authorizedRows = adminVisibleEventRows({
     authContext: filters.authContext,
     rows,
   });

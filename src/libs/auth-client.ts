@@ -1,5 +1,10 @@
-import { adminClient, emailOTPClient } from 'better-auth/client/plugins';
+import {
+  adminClient,
+  customSessionClient,
+  emailOTPClient,
+} from 'better-auth/client/plugins';
 import { createAuthClient } from 'better-auth/react';
+import type { auth } from '@/libs/auth';
 
 /**
  * Better Auth React client. The `adminClient` plugin mirrors the server's
@@ -8,5 +13,9 @@ import { createAuthClient } from 'better-auth/react';
  * plugin registered on the server instance.
  */
 export const authClient = createAuthClient({
-  plugins: [adminClient(), emailOTPClient()],
+  plugins: [
+    adminClient(),
+    customSessionClient<typeof auth>(),
+    emailOTPClient(),
+  ],
 });

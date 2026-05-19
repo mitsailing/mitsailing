@@ -37,6 +37,7 @@ const mocks = vi.hoisted(() => ({
   txQueryRaw: vi.fn(),
   updateTag: vi.fn(),
   appAuthContextFromSession: vi.fn(),
+  userCount: vi.fn(),
   zenstackForAuthContext: vi.fn(),
 }));
 
@@ -124,6 +125,9 @@ vi.mock('@/libs/DB', () => ({
       deleteMany: mocks.eventRegistrationQuestionDeleteMany,
       updateMany: mocks.eventRegistrationQuestionUpdateMany,
     },
+    user: {
+      count: mocks.userCount,
+    },
   },
 }));
 
@@ -192,6 +196,7 @@ function statusFormData(status: EventRegistrationStatus): FormData {
 
 function access() {
   return {
+    accessMode: 'editable',
     db: {},
     event: { id: 'event-1', slug: 'intro-sail' },
     session: { user: { id: 'staff-1' } },
@@ -229,6 +234,7 @@ beforeEach(() => {
   });
   mocks.eventRegistrationCount.mockResolvedValue(0);
   mocks.eventRegistrationUpdateMany.mockResolvedValue({ count: 1 });
+  mocks.userCount.mockResolvedValue(1);
   mocks.txQueryRaw.mockResolvedValue([{ id: 'event-1' }]);
   const transactionClient: EventRegistrationStatusTransactionClient = {
     $queryRaw: mocks.txQueryRaw,
@@ -331,6 +337,11 @@ describe('updateAdminEventBasicsAction', () => {
         where: { id: 'event-1' },
       })
     );
+    expect(mocks.requireAdminEventAccess).toHaveBeenCalledWith({
+      locale: 'en',
+      minimumAccessMode: 'editable',
+      slug: 'intro-sail',
+    });
   });
 
   it('redirects when event access is denied', async () => {
@@ -533,6 +544,82 @@ describe('admin event fee actions', () => {
   });
 });
 
+describe('updateAdminEventAdminsAction', () => {
+  it('redirects validation failures when no admins are selected', async () => {
+    const formData = new FormData();
+    const { updateAdminEventAdminsAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventAdminsAction('en', 'intro-sail', 'event-1', formData)
+    ).rejects.toThrow(
+      'NEXT_REDIRECT:/admin/events/intro-sail/edit?error=validation_failed'
+    );
+
+    expect(mocks.dbTransaction).not.toHaveBeenCalled();
+  });
+
+  it('redirects validation failures for unassignable admin users', async () => {
+    const formData = new FormData();
+    formData.append('adminUserId', 'volunteer-1');
+    mocks.userCount.mockResolvedValue(0);
+    const { updateAdminEventAdminsAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventAdminsAction('en', 'intro-sail', 'event-1', formData)
+    ).rejects.toThrow(
+      'NEXT_REDIRECT:/admin/events/intro-sail/edit?error=validation_failed'
+    );
+
+    expect(mocks.userCount).toHaveBeenCalledWith({
+      where: {
+        appRole: {
+          in: [
+            Role.VOLUNTEER_INSTRUCTOR,
+            Role.DOCK_STAFF,
+            Role.DOCK_MASTER,
+            Role.ADMIN,
+          ],
+        },
+        id: { in: ['volunteer-1'] },
+      },
+    });
+    expect(mocks.dbTransaction).not.toHaveBeenCalled();
+  });
+
+  it('saves assignable admin users through the protected event id', async () => {
+    const formData = new FormData();
+    formData.append('adminUserId', 'instructor-1');
+    formData.append('adminUserId', 'dock-staff-1');
+    mocks.userCount.mockResolvedValue(2);
+    const { updateAdminEventAdminsAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventAdminsAction('en', 'intro-sail', 'event-1', formData)
+    ).rejects.toThrow('NEXT_REDIRECT:/admin/events/intro-sail/edit');
+
+    expect(mocks.eventAdminDeleteMany).toHaveBeenCalledWith({
+      where: { eventId: 'event-1' },
+    });
+    expect(mocks.eventAdminCreateMany).toHaveBeenCalledWith({
+      data: [
+        {
+          adminUserId: 'instructor-1',
+          eventId: 'event-1',
+          id: expect.any(String),
+        },
+        {
+          adminUserId: 'dock-staff-1',
+          eventId: 'event-1',
+          id: expect.any(String),
+        },
+      ],
+    });
+  });
+});
+
 describe('updateAdminEventRegistrationStatusAction', () => {
   it('redirects registration validation failures before opening a transaction', async () => {
     const formData = new FormData();
@@ -609,6 +696,11 @@ describe('updateAdminEventRegistrationStatusAction', () => {
     expect(mocks.eventRegistrationUpdateMany).toHaveBeenCalledWith({
       data: { status: EventRegistrationStatus.approved },
       where: { id: 'registration-1', eventId: 'event-1' },
+    });
+    expect(mocks.requireAdminEventAccess).toHaveBeenCalledWith({
+      locale: 'en',
+      minimumAccessMode: 'editable',
+      slug: 'intro-sail',
     });
   });
 });

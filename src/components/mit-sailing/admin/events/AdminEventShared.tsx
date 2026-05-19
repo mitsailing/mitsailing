@@ -207,6 +207,25 @@ export function AdminEventBackLink(props: {
   );
 }
 
+type AdminEventReadOnlyNoticeTranslations = (
+  key: 'read_only_notice_title' | 'read_only_notice_body'
+) => string;
+
+export function AdminEventReadOnlyNotice(props: {
+  t: AdminEventReadOnlyNoticeTranslations;
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-muted/40 px-4 py-3">
+      <p className="text-sm font-semibold text-foreground">
+        {props.t('read_only_notice_title')}
+      </p>
+      <p className="mt-1 text-sm text-mit-readable-ink">
+        {props.t('read_only_notice_body')}
+      </p>
+    </div>
+  );
+}
+
 export function adminEventFormErrorMessage(
   code: string | null | undefined,
   t: AdminEventsTranslations

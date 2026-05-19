@@ -39,37 +39,45 @@ beforeEach(() => {
 });
 
 describe('updateUserAppRole', () => {
-  it('updates appRole and Better Auth role mirror', async () => {
-    mocks.countAdmins.mockResolvedValue(2);
-    mocks.findUnique.mockResolvedValue({
-      appRole: Role.ADMIN,
-      banned: false,
-      emailVerified: true,
-    });
-    mocks.setRole.mockImplementation(async () => {});
-    mocks.updateUser.mockResolvedValue({ id: 'user-1' });
-    const { updateUserAppRole } =
-      await import('@/libs/admin/users/appRoleActions');
+  it.each([
+    [Role.DOCK_STAFF, Role.USER],
+    [Role.DOCK_MASTER, Role.USER],
+    [Role.VOLUNTEER_INSTRUCTOR, Role.USER],
+    [Role.ADMIN, Role.ADMIN],
+  ])(
+    'updates appRole %s and mirrors Better Auth role %s',
+    async (nextRole, mirroredRole) => {
+      mocks.countAdmins.mockResolvedValue(2);
+      mocks.findUnique.mockResolvedValue({
+        appRole: Role.DOCK_MASTER,
+        banned: false,
+        emailVerified: true,
+      });
+      mocks.setRole.mockImplementation(async () => {});
+      mocks.updateUser.mockResolvedValue({ id: 'user-1' });
+      const { updateUserAppRole } =
+        await import('@/libs/admin/users/appRoleActions');
 
-    await expect(
-      updateUserAppRole({
-        authContext: { appRole: Role.ADMIN, id: 'admin-1' },
-        nextRole: Role.DOCK_STAFF,
-        requestHeaders: new Headers(),
-        targetUserId: 'user-1',
-      })
-    ).resolves.toEqual({ ok: true });
+      await expect(
+        updateUserAppRole({
+          authContext: { appRole: Role.ADMIN, id: 'admin-1' },
+          nextRole,
+          requestHeaders: new Headers(),
+          targetUserId: 'user-1',
+        })
+      ).resolves.toEqual({ ok: true });
 
-    expect(mocks.setRole).toHaveBeenCalledWith({
-      requestHeaders: expect.any(Headers),
-      role: Role.DOCK_STAFF,
-      userId: 'user-1',
-    });
-    expect(mocks.updateUser).toHaveBeenCalledWith({
-      data: { appRole: Role.DOCK_STAFF },
-      where: { id: 'user-1' },
-    });
-  });
+      expect(mocks.setRole).toHaveBeenCalledWith({
+        requestHeaders: expect.any(Headers),
+        role: mirroredRole,
+        userId: 'user-1',
+      });
+      expect(mocks.updateUser).toHaveBeenCalledWith({
+        data: { appRole: nextRole },
+        where: { id: 'user-1' },
+      });
+    }
+  );
 
   it('blocks demoting the last admin', async () => {
     mocks.countAdmins.mockResolvedValue(1);
@@ -185,7 +193,7 @@ describe('updateUserAppRole', () => {
 
     expect(mocks.setRole).toHaveBeenNthCalledWith(1, {
       requestHeaders: expect.any(Headers),
-      role: Role.DOCK_STAFF,
+      role: Role.USER,
       userId: 'user-1',
     });
     expect(mocks.setRole).toHaveBeenNthCalledWith(2, {
