@@ -173,6 +173,23 @@ function answerValueForQuestion(
   return answer.value;
 }
 
+function phoneValue(
+  registration: AdminEventRegistrationDto,
+  t: AdminEventRegistrationsTranslations
+): string {
+  const phone = registration.phone?.trim() ?? '';
+  return phone.length > 0 ? phone : t('empty_value');
+}
+
+function hasPhoneColumn(event: AdminEventRegistrationsDto): boolean {
+  return (
+    event.requiresPhone ||
+    event.registrations.some(
+      (registration) => (registration.phone ?? '').trim().length > 0
+    )
+  );
+}
+
 function RegistrationFilters(props: {
   counts: AdminEventRegistrationCounts;
   event: AdminEventRegistrationsDto;
@@ -348,6 +365,7 @@ function RegistrationActionsMenu(props: {
 function RegistrationRosterTable(props: {
   accessMode: AdminEventAccessMode;
   locale: string;
+  showPhone: boolean;
   questionColumns: RegistrationQuestionColumn[];
   registrations: AdminEventRegistrationDto[];
   slug: string;
@@ -361,6 +379,9 @@ function RegistrationRosterTable(props: {
             <TableHead>{props.t('column_attendee')}</TableHead>
             <TableHead>{props.t('column_status')}</TableHead>
             <TableHead>{props.t('registration_created_at')}</TableHead>
+            {props.showPhone ? (
+              <TableHead>{props.t('column_phone')}</TableHead>
+            ) : null}
             <TableHead>{props.t('registration_swim_agreement')}</TableHead>
             {props.questionColumns.map((question) => (
               <TableHead key={question.id}>{question.questionText}</TableHead>
@@ -400,6 +421,11 @@ function RegistrationRosterTable(props: {
               <TableCell className="px-4 py-3 align-top text-sm text-mit-readable-ink">
                 {formatEasternDateTime(registration.createdAt)}
               </TableCell>
+              {props.showPhone ? (
+                <TableCell className="px-4 py-3 align-top text-sm text-mit-readable-ink">
+                  {phoneValue(registration, props.t)}
+                </TableCell>
+              ) : null}
               <TableCell className="px-4 py-3 align-top text-sm text-mit-readable-ink">
                 {formatEasternDateTime(registration.swimAgreementAcceptedAt)}
               </TableCell>
@@ -478,6 +504,7 @@ export function AdminEventRegistrationsView(
     (registration) => registrationVisible(registration, props.filter)
   );
   const questionColumns = registrationQuestionColumns(props.event);
+  const showPhone = hasPhoneColumn(props.event);
   const chrome = props.chrome ?? 'page';
   const showReadOnlyNotice = props.showReadOnlyNotice ?? true;
   return (
@@ -525,6 +552,7 @@ export function AdminEventRegistrationsView(
               locale={props.locale}
               questionColumns={questionColumns}
               registrations={visibleRegistrations}
+              showPhone={showPhone}
               slug={props.event.slug}
               t={props.t}
             />

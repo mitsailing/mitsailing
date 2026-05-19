@@ -27,6 +27,8 @@ export function eventRegistrationFormLabels(
       unknown: t('registration_error_unknown'),
     } satisfies Record<EventRegistrationMutationCode, string>,
     feesHeading: t('section_fees'),
+    phoneHelp: t('registration_phone_help'),
+    phoneLabel: t('registration_phone_label'),
     questionsHeading: t('section_questions'),
     required: t('question_required'),
     requiresApprovalNote: t('registration_requires_approval_note'),

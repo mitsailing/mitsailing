@@ -86,7 +86,7 @@ function renderView(
             ],
             createdAt: new Date('2026-05-01T12:00:00Z'),
             id: 'registration-1',
-            phone: null,
+            phone: '617-555-0100',
             status: EventRegistrationStatus.pending,
             swimAgreementAcceptedAt: new Date('2026-05-01T12:01:00Z'),
             user: {
@@ -96,6 +96,7 @@ function renderView(
             },
           },
         ],
+        requiresPhone: true,
         slug: 'intro-sail',
       }}
       filter="all"
@@ -121,6 +122,9 @@ describe('AdminEventRegistrationsView', () => {
       within(table).getByRole('columnheader', { name: 'Registered' })
     ).toBeVisible();
     expect(
+      within(table).getByRole('columnheader', { name: 'Phone' })
+    ).toBeVisible();
+    expect(
       within(table).getByRole('columnheader', { name: 'Swim agreement' })
     ).toBeVisible();
     expect(
@@ -131,6 +135,7 @@ describe('AdminEventRegistrationsView', () => {
     expect(
       within(table).getByRole('columnheader', { name: 'Sailing experience?' })
     ).toBeVisible();
+    expect(within(table).getByText('617-555-0100')).toBeVisible();
     expect(screen.getAllByLabelText('Actions for Sailor One').length).toBe(1);
   });
 

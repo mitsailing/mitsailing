@@ -337,6 +337,7 @@ export function AdminEventShowView(props: AdminEventShowViewProps) {
             questions: props.event.questions,
             registrationCounts: props.event.registrationCounts,
             registrations: props.event.registrations,
+            requiresPhone: props.event.requiresPhone,
             slug: props.event.slug,
           }}
           filter={props.filter}

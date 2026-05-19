@@ -4,6 +4,7 @@ import { Field, Label as HeadlessLabel } from '@headlessui/react';
 import * as React from 'react';
 import { useActionState } from 'react';
 import { RegistrationBooleanSwitch } from '@/components/mit-sailing/events/RegistrationBooleanSwitch';
+import { Input } from '@/components/ui/input';
 import { SubmitButton } from '@/components/ui/submit-button';
 import { Textarea } from '@/components/ui/textarea';
 import type { PublicEventDetail } from '@/libs/mit-sailing/eventQueries';
@@ -22,6 +23,8 @@ export type EventRegistrationFormLabels = {
   selectPlaceholder: string;
   submitRequestButton: string;
   feesHeading: string;
+  phoneHelp: string;
+  phoneLabel: string;
   swimAgreementHeading: string;
   swimAgreementLabel: string;
 };
@@ -86,6 +89,20 @@ function FieldError(props: { id: string; message: string | null }) {
     >
       {props.message}
     </p>
+  );
+}
+
+function RequiredMarker(props: { label: string }) {
+  return (
+    <>
+      <span
+        aria-hidden="true"
+        className="ml-1 text-mit-red dark:text-mit-red-ink"
+      >
+        *
+      </span>
+      <span className="sr-only"> {props.label}</span>
+    </>
   );
 }
 
@@ -162,15 +179,7 @@ function QuestionField(props: {
     <>
       {props.question.questionText}
       {props.question.required ? (
-        <>
-          <span
-            aria-hidden="true"
-            className="ml-1 text-mit-red dark:text-mit-red-ink"
-          >
-            *
-          </span>
-          <span className="sr-only"> {props.labels.required}</span>
-        </>
+        <RequiredMarker label={props.labels.required} />
       ) : null}
     </>
   );
@@ -270,13 +279,7 @@ function SwimAgreementField(props: {
         id="event-registration-swim-heading"
       >
         {props.labels.swimAgreementHeading}
-        <span
-          aria-hidden="true"
-          className="ml-1 text-mit-red dark:text-mit-red-ink"
-        >
-          *
-        </span>
-        <span className="sr-only"> {props.labels.required}</span>
+        <RequiredMarker label={props.labels.required} />
       </h3>
       <Field className="flex items-start gap-3 rounded-md border border-border bg-card p-4 text-sm text-mit-text">
         <RegistrationBooleanSwitch
@@ -304,6 +307,47 @@ function SwimAgreementField(props: {
       </Field>
       <FieldError id={errorId} message={errorMessage} />
     </section>
+  );
+}
+
+function PhoneField(props: {
+  labels: EventRegistrationFormLabels;
+  state: PublicEventRegistrationFormState;
+}) {
+  const controlId = 'event-registration-phone';
+  const errorId = `${controlId}-error`;
+  const helpId = `${controlId}-help`;
+  const errorMessage = fieldErrorMessage({
+    labels: props.labels,
+    name: 'phone',
+    state: props.state,
+  });
+  const describedBy = errorMessage ? `${helpId} ${errorId}` : helpId;
+
+  return (
+    <div className="flex min-w-0 scroll-mt-28 flex-col gap-2 text-sm text-mit-text">
+      <label
+        className="w-full px-0 font-semibold text-mit-text"
+        htmlFor={controlId}
+      >
+        {props.labels.phoneLabel}
+        <RequiredMarker label={props.labels.required} />
+      </label>
+      <Input
+        aria-describedby={describedBy}
+        aria-invalid={errorMessage ? true : undefined}
+        autoComplete="tel"
+        defaultValue={fieldValue(props.state, 'phone')}
+        id={controlId}
+        name="phone"
+        required
+        type="tel"
+      />
+      <p className="text-xs leading-relaxed text-muted-foreground" id={helpId}>
+        {props.labels.phoneHelp}
+      </p>
+      <FieldError id={errorId} message={errorMessage} />
+    </div>
   );
 }
 
@@ -427,6 +471,9 @@ export function EventRegistrationForm(props: EventRegistrationFormProps) {
         >
           {formError}
         </p>
+      ) : null}
+      {props.event.requiresPhone ? (
+        <PhoneField labels={props.labels} state={state} />
       ) : null}
       <SwimAgreementField labels={props.labels} state={state} />
       <RegistrationQuestions

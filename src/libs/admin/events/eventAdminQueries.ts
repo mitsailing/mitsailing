@@ -144,6 +144,7 @@ export type AdminEventRegistrationDto = {
 export type AdminEventRegistrationsDto = {
   id: string;
   name: string;
+  requiresPhone: boolean;
   slug: string;
   questions: AdminEventQuestionDto[];
   registrations: AdminEventRegistrationDto[];
@@ -674,6 +675,7 @@ export async function getAdminEventRegistrationsBySlug(options: {
     select: {
       id: true,
       name: true,
+      requiresPhone: true,
       slug: true,
       registrationQuestions: {
         orderBy: [{ displayOrder: 'asc' }, { questionText: 'asc' }],
@@ -722,6 +724,7 @@ export async function getAdminEventRegistrationsBySlug(options: {
   return {
     id: event.id,
     name: event.name,
+    requiresPhone: event.requiresPhone,
     slug: event.slug,
     questions: event.registrationQuestions.map(questionFromDb),
     registrations,

@@ -20,6 +20,8 @@ const labels: EventRegistrationFormLabels = {
     unknown: 'Something went wrong with registration.',
   },
   feesHeading: 'Entry fees',
+  phoneHelp: 'Used by event admins if they need to reach you.',
+  phoneLabel: 'Phone',
   questionsHeading: 'Registration questions',
   required: 'Required',
   requiresApprovalNote:
@@ -81,6 +83,67 @@ function formValues(formData: FormData): Record<string, string[]> {
 }
 
 describe('EventRegistrationForm', () => {
+  it('renders required phone input with preserved validation state', async () => {
+    const user = userEvent.setup();
+    window.HTMLElement.prototype.scrollIntoView = vi.fn();
+    const action = vi.fn(
+      (
+        _prevState: PublicEventRegistrationFormState,
+        formData: FormData
+      ): PublicEventRegistrationFormState => ({
+        code: 'questions_required',
+        fieldErrors: { phone: 'questions_required' },
+        status: 'error',
+        values: formValues(formData),
+      })
+    );
+
+    render(
+      <EventRegistrationForm
+        createRegistrationAction={action}
+        event={{ ...event, requiresPhone: true }}
+        formPermalink="/events/learn-to-sail/register"
+        labels={labels}
+        locale="en"
+      />
+    );
+
+    const phoneInput = screen.getByRole('textbox', { name: /phone/i });
+
+    expect(phoneInput).toBeRequired();
+    expect(phoneInput).toHaveAttribute('name', 'phone');
+    expect(
+      screen.getByText('Used by event admins if they need to reach you.')
+    ).toBeVisible();
+
+    await user.type(phoneInput, '   ');
+    await user.click(
+      screen.getByRole('button', { name: 'Confirm registration' })
+    );
+
+    expect(
+      await screen.findByText('Answer the required registration questions.')
+    ).toBeVisible();
+    expect(phoneInput).toHaveValue('   ');
+    expect(phoneInput).toHaveAttribute('aria-invalid', 'true');
+  });
+
+  it('omits phone input when phone is not required', () => {
+    const action = vi.fn();
+
+    render(
+      <EventRegistrationForm
+        createRegistrationAction={action}
+        event={event}
+        formPermalink="/events/learn-to-sail/register"
+        labels={labels}
+        locale="en"
+      />
+    );
+
+    expect(screen.queryByRole('textbox', { name: /phone/i })).toBeNull();
+  });
+
   it('toggles swim agreement from the agreement row text', async () => {
     const user = userEvent.setup();
     const action = vi.fn();
