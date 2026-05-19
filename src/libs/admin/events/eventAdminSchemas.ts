@@ -2,6 +2,7 @@ import * as z from 'zod';
 import {
   EventAnswerType,
   EventDetailPageKind,
+  EventRegistrationMode,
   EventRegistrationStatus,
 } from '@/generated/prisma/enums';
 import {
@@ -131,6 +132,18 @@ const eventDetailPageKindSchema = z.enum([
   EventDetailPageKind.external,
 ]);
 
+const eventRegistrationModeSchema = z
+  .union([
+    z.enum([
+      EventRegistrationMode.none,
+      EventRegistrationMode.standard,
+      EventRegistrationMode.external,
+    ]),
+    z.literal(''),
+  ])
+  .default('')
+  .transform((value) => value || EventRegistrationMode.standard);
+
 const eventAnswerTypeSchema = z.enum([
   EventAnswerType.text,
   EventAnswerType.select,
@@ -164,6 +177,9 @@ export const eventAdminBasicsFormSchema = z
     registrationEnd: optionalDateTimeLocalSchema,
     detailPageKind: eventDetailPageKindSchema,
     externalDetailUrl: z.string().trim(),
+    registrationMode: eventRegistrationModeSchema,
+    externalRegistrationUrl: z.string().trim().default(''),
+    externalEntriesUrl: z.string().trim().default(''),
     internalNotes: z.string().trim(),
     faqVisible: z.boolean().default(false),
     faqContent: eventAdminPublicContentSchema,
@@ -185,6 +201,14 @@ export const eventAdminBasicsFormSchema = z
         value.detailPageKind === EventDetailPageKind.external
           ? value.externalDetailUrl
           : '',
+      externalRegistrationUrl:
+        value.registrationMode === EventRegistrationMode.external
+          ? value.externalRegistrationUrl
+          : '',
+      externalEntriesUrl:
+        value.registrationMode === EventRegistrationMode.external
+          ? value.externalEntriesUrl
+          : '',
     };
   })
   .refine((value) => value.slug.length > 0, { path: ['slug'] })
@@ -194,6 +218,20 @@ export const eventAdminBasicsFormSchema = z
       eventAdminExternalHttpUrlSchema.safeParse(value.externalDetailUrl)
         .success,
     { path: ['externalDetailUrl'] }
+  )
+  .refine(
+    (value) =>
+      value.registrationMode !== EventRegistrationMode.external ||
+      eventAdminExternalHttpUrlSchema.safeParse(value.externalRegistrationUrl)
+        .success,
+    { path: ['externalRegistrationUrl'] }
+  )
+  .refine(
+    (value) =>
+      value.externalEntriesUrl === '' ||
+      eventAdminExternalHttpUrlSchema.safeParse(value.externalEntriesUrl)
+        .success,
+    { path: ['externalEntriesUrl'] }
   )
   .refine(
     (value) =>
@@ -345,6 +383,9 @@ export function rawEventBasicsFromFormData(formData: FormData): unknown {
     registrationEnd: formString(formData, 'registrationEnd'),
     detailPageKind: formString(formData, 'detailPageKind'),
     externalDetailUrl: formString(formData, 'externalDetailUrl'),
+    registrationMode: formString(formData, 'registrationMode'),
+    externalRegistrationUrl: formString(formData, 'externalRegistrationUrl'),
+    externalEntriesUrl: formString(formData, 'externalEntriesUrl'),
     internalNotes: formString(formData, 'internalNotes'),
     faqVisible: formCheckbox(formData, 'faqVisible'),
     faqContent: formString(formData, 'faqContent'),

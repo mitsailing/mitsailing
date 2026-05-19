@@ -14,6 +14,25 @@ import {
   splitEventAdminOptionLines,
 } from '@/libs/admin/events/eventAdminSchemas';
 
+function validEventBasicsInput() {
+  return {
+    name: 'Spring Regatta',
+    shortName: '',
+    slug: '',
+    eventCategoryId: 'cat-racing',
+    description: '',
+    isSpecial: false,
+    requiresApproval: true,
+    maxParticipants: '',
+    registrationStart: '',
+    registrationEnd: '',
+    detailPageKind: EventDetailPageKind.standard,
+    externalDetailUrl: '',
+    internalNotes: '',
+    isPublished: true,
+  };
+}
+
 describe('eventAdminSchemas', () => {
   it('normalizes event slug from name', () => {
     const parsed = eventAdminBasicsFormSchema.parse({
@@ -115,6 +134,68 @@ describe('eventAdminSchemas', () => {
     });
 
     expect(parsed.success).toBe(false);
+  });
+
+  it.each(['none', 'standard'])(
+    'accepts %s registration mode without external URLs',
+    (registrationMode) => {
+      const parsed = eventAdminBasicsFormSchema.parse({
+        ...validEventBasicsInput(),
+        externalEntriesUrl: '',
+        externalRegistrationUrl: '',
+        registrationMode,
+      });
+
+      expect(parsed.registrationMode).toBe(registrationMode);
+      expect(parsed.externalRegistrationUrl).toBe('');
+      expect(parsed.externalEntriesUrl).toBe('');
+    }
+  );
+
+  it('accepts external registration mode with registration and entries URLs', () => {
+    const parsed = eventAdminBasicsFormSchema.parse({
+      ...validEventBasicsInput(),
+      externalEntriesUrl: 'https://example.com/entries',
+      externalRegistrationUrl: 'https://example.com/register',
+      registrationMode: 'external',
+    });
+
+    expect(parsed.registrationMode).toBe('external');
+    expect(parsed.externalRegistrationUrl).toBe('https://example.com/register');
+    expect(parsed.externalEntriesUrl).toBe('https://example.com/entries');
+  });
+
+  it('rejects external registration mode without registration URL', () => {
+    const parsed = eventAdminBasicsFormSchema.safeParse({
+      ...validEventBasicsInput(),
+      externalEntriesUrl: 'https://example.com/entries',
+      externalRegistrationUrl: '',
+      registrationMode: 'external',
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+
+  it('rejects external registration mode with non-http entries URL', () => {
+    const parsed = eventAdminBasicsFormSchema.safeParse({
+      ...validEventBasicsInput(),
+      externalEntriesUrl: 'mailto:entries@example.com',
+      externalRegistrationUrl: 'https://example.com/register',
+      registrationMode: 'external',
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+
+  it('accepts external registration mode with blank entries URL', () => {
+    const parsed = eventAdminBasicsFormSchema.parse({
+      ...validEventBasicsInput(),
+      externalEntriesUrl: '',
+      externalRegistrationUrl: 'https://example.com/register',
+      registrationMode: 'external',
+    });
+
+    expect(parsed.externalEntriesUrl).toBe('');
   });
 
   it('parses eastern datetime local values', () => {

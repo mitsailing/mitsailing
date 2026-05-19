@@ -31,6 +31,8 @@ export type AdminEventRegistrationCounts = {
   cancelled: number;
 };
 
+export type AdminEventRegistrationMode = 'none' | 'standard' | 'external';
+
 export type AdminEventDateDto = {
   id: string;
   startDateTime: Date;
@@ -91,6 +93,9 @@ export type AdminEventEditorDto = {
   createdAt: Date;
   detailPageKind: 'standard' | 'external' | null;
   externalDetailUrl: string | null;
+  registrationMode?: AdminEventRegistrationMode | null;
+  externalRegistrationUrl?: string | null;
+  externalEntriesUrl?: string | null;
   internalNotes: string | null;
   faqVisible?: boolean;
   faqContent?: string;
@@ -157,12 +162,15 @@ export type AdminEventShowDto = Pick<
   | 'description'
   | 'detailPageKind'
   | 'externalDetailUrl'
+  | 'externalEntriesUrl'
+  | 'externalRegistrationUrl'
   | 'id'
   | 'isPublished'
   | 'isSpecial'
   | 'maxParticipants'
   | 'name'
   | 'registrationEnd'
+  | 'registrationMode'
   | 'registrationStart'
   | 'requiresApproval'
   | 'shortName'
@@ -534,6 +542,9 @@ export async function getAdminEventEditorDataBySlug(options: {
             createdAt: true,
             detailPageKind: true,
             externalDetailUrl: true,
+            registrationMode: true,
+            externalRegistrationUrl: true,
+            externalEntriesUrl: true,
             internalNotes: true,
             faqVisible: true,
             faqContent: true,
@@ -737,6 +748,9 @@ export async function getAdminEventShowBySlug(options: {
         registrationEnd: true,
         detailPageKind: true,
         externalDetailUrl: true,
+        registrationMode: true,
+        externalRegistrationUrl: true,
+        externalEntriesUrl: true,
         faqVisible: true,
         faqContent: true,
         noticeOfRaceVisible: true,
@@ -774,6 +788,8 @@ export async function getAdminEventShowBySlug(options: {
     description: event.description,
     detailPageKind: event.detailPageKind,
     externalDetailUrl: event.externalDetailUrl,
+    externalEntriesUrl: event.externalEntriesUrl,
+    externalRegistrationUrl: event.externalRegistrationUrl,
     id: event.id,
     isPublished: event.isPublished,
     isSpecial: event.isSpecial,
@@ -786,6 +802,7 @@ export async function getAdminEventShowBySlug(options: {
     questions: registrationReview.questions,
     registrationCounts: registrationReview.registrationCounts,
     registrationEnd: event.registrationEnd,
+    registrationMode: event.registrationMode,
     registrationStart: event.registrationStart,
     registrations: registrationReview.registrations,
     requiresApproval: event.requiresApproval,

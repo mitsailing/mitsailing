@@ -346,6 +346,9 @@ describe('event admin queries', () => {
       createdAt,
       detailPageKind: 'standard',
       externalDetailUrl: null,
+      registrationMode: 'external',
+      externalRegistrationUrl: 'https://example.com/register',
+      externalEntriesUrl: 'https://example.com/entries',
       internalNotes: null,
       isPublished: true,
       dates: [],
@@ -388,6 +391,20 @@ describe('event admin queries', () => {
       approved: 3,
       cancelled: 0,
       pending: 2,
+    });
+    expect(mocks.eventFindUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.objectContaining({
+          externalEntriesUrl: true,
+          externalRegistrationUrl: true,
+          registrationMode: true,
+        }),
+      })
+    );
+    expect(result.event).toMatchObject({
+      externalEntriesUrl: 'https://example.com/entries',
+      externalRegistrationUrl: 'https://example.com/register',
+      registrationMode: 'external',
     });
   });
 
@@ -556,6 +573,9 @@ describe('event admin queries', () => {
       description: 'Learn how to sail.',
       detailPageKind: 'standard',
       externalDetailUrl: null,
+      registrationMode: 'external',
+      externalRegistrationUrl: 'https://example.com/register',
+      externalEntriesUrl: 'https://example.com/entries',
       id: 'event-1',
       isPublished: true,
       isSpecial: false,
@@ -618,6 +638,8 @@ describe('event admin queries', () => {
       accessMode: 'editable',
       description: 'Learn how to sail.',
       detailPageKind: 'standard',
+      externalEntriesUrl: 'https://example.com/entries',
+      externalRegistrationUrl: 'https://example.com/register',
       id: 'event-1',
       maxParticipants: 12,
       name: 'Intro Sail',
@@ -628,6 +650,7 @@ describe('event admin queries', () => {
           titleKey: 'content_description_title',
         },
       ],
+      registrationMode: 'external',
       registrationCounts: {
         approved: 3,
         cancelled: 0,
@@ -635,6 +658,15 @@ describe('event admin queries', () => {
       },
       slug: 'intro-sail',
     });
+    expect(mocks.eventFindUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.objectContaining({
+          externalEntriesUrl: true,
+          externalRegistrationUrl: true,
+          registrationMode: true,
+        }),
+      })
+    );
     expect(
       result?.registrations.map((registration) => registration.id)
     ).toEqual(['registration-1']);

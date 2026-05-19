@@ -157,6 +157,9 @@ function validEventFormData(): FormData {
   formData.set('registrationEnd', '');
   formData.set('detailPageKind', EventDetailPageKind.standard);
   formData.set('externalDetailUrl', '');
+  formData.set('registrationMode', 'standard');
+  formData.set('externalRegistrationUrl', '');
+  formData.set('externalEntriesUrl', '');
   formData.set('internalNotes', '');
   formData.set('faqContent', '');
   formData.set('noticeOfRaceContent', '');
@@ -346,6 +349,29 @@ describe('updateAdminEventBasicsAction', () => {
       minimumAccessMode: 'editable',
       slug: 'intro-sail',
     });
+  });
+
+  it('persists registration mode and external registration URLs', async () => {
+    const formData = validEventFormData();
+    formData.set('registrationMode', 'external');
+    formData.set('externalRegistrationUrl', 'https://example.com/register');
+    formData.set('externalEntriesUrl', 'https://example.com/entries');
+    const { updateAdminEventBasicsAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventBasicsAction('en', 'intro-sail', formData)
+    ).rejects.toThrow('NEXT_REDIRECT:/admin/events/intro-sail/edit');
+
+    expect(mocks.eventUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          externalEntriesUrl: 'https://example.com/entries',
+          externalRegistrationUrl: 'https://example.com/register',
+          registrationMode: 'external',
+        }),
+      })
+    );
   });
 
   it('persists public content section visibility and content', async () => {

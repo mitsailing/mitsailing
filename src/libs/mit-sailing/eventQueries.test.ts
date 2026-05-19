@@ -129,6 +129,9 @@ describe('getPublishedEventForPublicBySlug', () => {
       registrationEnd: null,
       detailPageKind: 'standard',
       externalDetailUrl: null,
+      registrationMode: 'external',
+      externalRegistrationUrl: 'https://example.com/register',
+      externalEntriesUrl: 'https://example.com/entries',
       category: { name: 'Classes' },
       dates: [{ id: 'date-1', startDateTime, endDateTime }],
       admins: [
@@ -186,6 +189,9 @@ describe('getPublishedEventForPublicBySlug', () => {
               admin: { select: { id: true, name: true, email: true } },
             },
           },
+          externalEntriesUrl: true,
+          externalRegistrationUrl: true,
+          registrationMode: true,
         }),
       })
     );
@@ -209,6 +215,11 @@ describe('getPublishedEventForPublicBySlug', () => {
     ]);
     expect(result?.approvedRegistrationCount).toBe(4);
     expect(result?.pendingRegistrationCount).toBe(2);
+    expect(result).toMatchObject({
+      externalEntriesUrl: 'https://example.com/entries',
+      externalRegistrationUrl: 'https://example.com/register',
+      registrationMode: 'external',
+    });
     expect(result?.registrationQuestions).toEqual([
       {
         id: 'question-1',

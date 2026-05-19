@@ -40,6 +40,9 @@ export type PublicEventDetail = {
   registrationEnd: Date | null;
   detailPageKind: 'standard' | 'external' | null;
   externalDetailUrl: string | null;
+  registrationMode?: 'none' | 'standard' | 'external' | null;
+  externalRegistrationUrl?: string | null;
+  externalEntriesUrl?: string | null;
   category: { name: string };
   dates: {
     id: string;
@@ -205,6 +208,9 @@ export const getPublishedEventForPublicBySlug = cache(async (slug: string) => {
         registrationEnd: true,
         detailPageKind: true,
         externalDetailUrl: true,
+        registrationMode: true,
+        externalRegistrationUrl: true,
+        externalEntriesUrl: true,
         faqVisible: true,
         faqContent: true,
         noticeOfRaceVisible: true,

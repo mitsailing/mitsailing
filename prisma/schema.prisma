@@ -109,6 +109,12 @@ enum EventDetailPageKind {
     external
 }
 
+enum EventRegistrationMode {
+    none
+    standard
+    external
+}
+
 enum EventRegistrationStatus {
     pending
     approved
@@ -638,6 +644,9 @@ model Event {
     createdAt DateTime @map("created_at")
     detailPageKind EventDetailPageKind? @map("detail_page_kind")
     externalDetailUrl String? @map("external_detail_url")
+    registrationMode EventRegistrationMode @default(standard) @map("registration_mode")
+    externalRegistrationUrl String? @map("external_registration_url")
+    externalEntriesUrl String? @map("external_entries_url")
     internalNotes String? @map("internal_notes") @db.Text()
     faqVisible Boolean @default(false) @map("faq_visible")
     faqContent String @default("") @map("faq_content") @db.Text()

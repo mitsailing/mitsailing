@@ -2033,6 +2033,24 @@ export class SchemaType implements SchemaDef {
                     optional: true,
                     attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("external_detail_url") }] }] as readonly AttributeApplication[]
                 },
+                registrationMode: {
+                    name: "registrationMode",
+                    type: "EventRegistrationMode",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal("standard") }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("registration_mode") }] }] as readonly AttributeApplication[],
+                    default: "standard" as FieldDefault
+                },
+                externalRegistrationUrl: {
+                    name: "externalRegistrationUrl",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("external_registration_url") }] }] as readonly AttributeApplication[]
+                },
+                externalEntriesUrl: {
+                    name: "externalEntriesUrl",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("external_entries_url") }] }] as readonly AttributeApplication[]
+                },
                 internalNotes: {
                     name: "internalNotes",
                     type: "String",
@@ -4675,6 +4693,14 @@ export class SchemaType implements SchemaDef {
         EventDetailPageKind: {
             name: "EventDetailPageKind",
             values: {
+                standard: "standard",
+                external: "external"
+            }
+        },
+        EventRegistrationMode: {
+            name: "EventRegistrationMode",
+            values: {
+                none: "none",
                 standard: "standard",
                 external: "external"
             }
