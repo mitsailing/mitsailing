@@ -85,6 +85,12 @@ function renderView(
               },
             ],
             createdAt: new Date('2026-05-01T12:00:00Z'),
+            entryFee: {
+              amountCents: 15_000,
+              description: 'Adult entry',
+              id: 'fee-adult',
+              isDeposit: false,
+            },
             id: 'registration-1',
             phone: '617-555-0100',
             status: EventRegistrationStatus.pending,
@@ -94,6 +100,20 @@ function renderView(
               id: 'user-1',
               name: 'Sailor One',
             },
+          },
+        ],
+        entryFees: [
+          {
+            amountCents: 15_000,
+            description: 'Adult entry',
+            id: 'fee-adult',
+            isDeposit: false,
+          },
+          {
+            amountCents: 9000,
+            description: 'Junior entry',
+            id: 'fee-junior',
+            isDeposit: true,
           },
         ],
         requiresPhone: true,
@@ -125,6 +145,9 @@ describe('AdminEventRegistrationsView', () => {
       within(table).getByRole('columnheader', { name: 'Phone' })
     ).toBeVisible();
     expect(
+      within(table).getByRole('columnheader', { name: 'Fee' })
+    ).toBeVisible();
+    expect(
       within(table).getByRole('columnheader', { name: 'Swim agreement' })
     ).toBeVisible();
     expect(
@@ -136,6 +159,8 @@ describe('AdminEventRegistrationsView', () => {
       within(table).getByRole('columnheader', { name: 'Sailing experience?' })
     ).toBeVisible();
     expect(within(table).getByText('617-555-0100')).toBeVisible();
+    expect(within(table).getByText('Adult entry')).toBeVisible();
+    expect(within(table).getByText('$150.00')).toBeVisible();
     expect(screen.getAllByLabelText('Actions for Sailor One').length).toBe(1);
   });
 

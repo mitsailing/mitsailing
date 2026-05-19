@@ -701,13 +701,16 @@ model EventRegistration {
     userId String @map("user_id")
     status EventRegistrationStatus
     phone String? @map("phone")
+    eventEntryFeeId String? @map("event_entry_fee_id")
     createdAt DateTime @map("created_at")
     swimAgreementAcceptedAt DateTime @map("swim_agreement_accepted_at")
     event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+    eventEntryFee EventEntryFee? @relation(fields: [eventEntryFeeId], references: [id], onDelete: SetNull)
     user User @relation(fields: [userId], references: [id], onDelete: Cascade)
     registrationAnswers EventRegistrationAnswer[]
 
     @@index([eventId])
+    @@index([eventEntryFeeId])
     @@index([userId])
     @@map("event_registrations")
 }
@@ -751,6 +754,7 @@ model EventEntryFee {
     amountCents Int @map("amount_cents")
     isDeposit Boolean @map("is_deposit")
     event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+    registrations EventRegistration[]
 
     @@index([eventId])
     @@map("event_entry_fees")

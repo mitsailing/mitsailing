@@ -853,6 +853,7 @@
     "column_category": "Category",
     "column_dates": "Dates",
     "column_event": "Event",
+    "column_fee": "Fee",
     "column_phone": "Phone",
     "column_question": "Question",
     "column_registrations": "Registrations",

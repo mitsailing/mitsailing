@@ -39,6 +39,7 @@ export type PublicEventRegistrationFormState = {
 
 const swimAgreementFieldName = 'swimAgreementAccepted';
 const phoneFieldName = 'phone';
+const eventEntryFeeFieldName = 'eventEntryFeeId';
 
 function publicEventRegistrationQuestionFieldName(questionId: string): string {
   return `question_${questionId}`;
@@ -102,12 +103,37 @@ function publicEventRegistrationFieldNames(
   questions: PublicRegistrationQuestionForValidation[]
 ): string[] {
   return [
+    eventEntryFeeFieldName,
     phoneFieldName,
     swimAgreementFieldName,
     ...questions.map((question) =>
       publicEventRegistrationQuestionFieldName(question.id)
     ),
   ];
+}
+
+function publicEventRegistrationSelectedFeeId(options: {
+  entryFees: readonly { id: string }[];
+  formData: FormData;
+}): { ok: true; eventEntryFeeId: string | null } | { ok: false } {
+  if (options.entryFees.length === 0) {
+    return { ok: true, eventEntryFeeId: null };
+  }
+  if (options.entryFees.length === 1) {
+    const [fee] = options.entryFees;
+    if (!fee) {
+      return { ok: true, eventEntryFeeId: null };
+    }
+    return { ok: true, eventEntryFeeId: fee.id };
+  }
+  const value = options.formData.get(eventEntryFeeFieldName);
+  if (
+    typeof value === 'string' &&
+    options.entryFees.some((fee) => fee.id === value)
+  ) {
+    return { ok: true, eventEntryFeeId: value };
+  }
+  return { ok: false };
 }
 
 function publicEventRegistrationPhoneFromForm(
@@ -222,6 +248,7 @@ export async function createPublicEventRegistrationAction(
       answerType: EventAnswerType;
       options: Prisma.JsonValue | null;
     }[];
+    entryFees: { id: string }[];
   } | null;
   try {
     event = await access.db.event.findFirst({
@@ -234,6 +261,10 @@ export async function createPublicEventRegistrationAction(
         registrationQuestions: {
           orderBy: [{ displayOrder: 'asc' }, { questionText: 'asc' }],
           select: { id: true, required: true, answerType: true, options: true },
+        },
+        entryFees: {
+          orderBy: [{ isDeposit: 'desc' }, { description: 'asc' }],
+          select: { id: true },
         },
       },
     });
@@ -265,12 +296,25 @@ export async function createPublicEventRegistrationAction(
       options: questionOptionsFromJson(question.options),
     })
   );
+  const fieldNames = publicEventRegistrationFieldNames(questionsForValidation);
   const phone = publicEventRegistrationPhoneFromForm(formData);
   if (event.requiresPhone && phone === null) {
     return publicEventRegistrationFormErrorState({
       code: 'questions_required',
       fieldErrors: { [phoneFieldName]: 'questions_required' },
-      fieldNames: publicEventRegistrationFieldNames(questionsForValidation),
+      fieldNames,
+      formData,
+    });
+  }
+  const selectedFee = publicEventRegistrationSelectedFeeId({
+    entryFees: event.entryFees,
+    formData,
+  });
+  if (!selectedFee.ok) {
+    return publicEventRegistrationFormErrorState({
+      code: 'questions_required',
+      fieldErrors: { [eventEntryFeeFieldName]: 'questions_required' },
+      fieldNames,
       formData,
     });
   }
@@ -279,7 +323,7 @@ export async function createPublicEventRegistrationAction(
     return publicEventRegistrationFormErrorState({
       code: 'swim_agreement_required',
       fieldErrors: { [swimAgreementFieldName]: 'swim_agreement_required' },
-      fieldNames: publicEventRegistrationFieldNames(questionsForValidation),
+      fieldNames,
       formData,
     });
   }
@@ -295,7 +339,7 @@ export async function createPublicEventRegistrationAction(
         formData,
         questions: questionsForValidation,
       }),
-      fieldNames: publicEventRegistrationFieldNames(questionsForValidation),
+      fieldNames,
       formData,
     });
   }
@@ -319,6 +363,10 @@ export async function createPublicEventRegistrationAction(
             requiresPhone: true,
             registrationStart: true,
             registrationEnd: true,
+            entryFees: {
+              orderBy: [{ isDeposit: 'desc' }, { description: 'asc' }],
+              select: { id: true },
+            },
           },
         });
         if (!lockedEvent || !lockedEvent.isPublished) {
@@ -334,6 +382,13 @@ export async function createPublicEventRegistrationAction(
           throw new EventRegistrationFlowError('closed');
         }
         if (lockedEvent.requiresPhone && phone === null) {
+          throw new EventRegistrationFlowError('questions_required');
+        }
+        const lockedSelectedFee = publicEventRegistrationSelectedFeeId({
+          entryFees: lockedEvent.entryFees,
+          formData,
+        });
+        if (!lockedSelectedFee.ok) {
           throw new EventRegistrationFlowError('questions_required');
         }
         const status = lockedEvent.requiresApproval
@@ -370,6 +425,7 @@ export async function createPublicEventRegistrationAction(
             data: {
               status,
               phone,
+              eventEntryFeeId: lockedSelectedFee.eventEntryFeeId,
               swimAgreementAcceptedAt: now,
               registrationAnswers: { deleteMany: {} },
             },
@@ -383,6 +439,7 @@ export async function createPublicEventRegistrationAction(
               userId: access.userId,
               status,
               phone,
+              eventEntryFeeId: lockedSelectedFee.eventEntryFeeId,
               createdAt: now,
               swimAgreementAcceptedAt: now,
             },

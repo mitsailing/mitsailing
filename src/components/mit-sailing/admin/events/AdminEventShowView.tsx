@@ -333,6 +333,7 @@ export function AdminEventShowView(props: AdminEventShowViewProps) {
           errorCode={props.errorCode}
           event={{
             id: props.event.id,
+            entryFees: props.event.entryFees,
             name: props.event.name,
             questions: props.event.questions,
             registrationCounts: props.event.registrationCounts,

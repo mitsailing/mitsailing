@@ -135,6 +135,7 @@ export type AdminEventRegistrationDto = {
   id: string;
   status: EventRegistrationStatusValue;
   phone: string | null;
+  entryFee?: AdminEventFeeDto | null;
   createdAt: Date;
   swimAgreementAcceptedAt: Date;
   user: AdminEventUserOption;
@@ -146,6 +147,7 @@ export type AdminEventRegistrationsDto = {
   name: string;
   requiresPhone: boolean;
   slug: string;
+  entryFees?: AdminEventFeeDto[];
   questions: AdminEventQuestionDto[];
   registrations: AdminEventRegistrationDto[];
   registrationCounts: AdminEventRegistrationCounts;
@@ -181,7 +183,10 @@ export type AdminEventShowDto = Pick<
   | 'shortName'
   | 'slug'
 > &
-  Pick<AdminEventRegistrationsDto, 'registrationCounts' | 'registrations'> & {
+  Pick<
+    AdminEventRegistrationsDto,
+    'entryFees' | 'registrationCounts' | 'registrations'
+  > & {
     accessMode: AdminEventAccessMode;
     category: AdminEventCategoryOption;
     questions: AdminEventQuestionDto[];
@@ -313,6 +318,12 @@ function registrationDtosFromRows(
     id: string;
     status: EventRegistrationStatusValue;
     phone: string | null;
+    eventEntryFee: {
+      id: string;
+      description: string;
+      amountCents: number;
+      isDeposit: boolean;
+    } | null;
     createdAt: Date;
     swimAgreementAcceptedAt: Date;
     user: AdminEventUserOption;
@@ -332,6 +343,7 @@ function registrationDtosFromRows(
       id: registration.id,
       status: registration.status,
       phone: registration.phone,
+      entryFee: registration.eventEntryFee,
       createdAt: registration.createdAt,
       swimAgreementAcceptedAt: registration.swimAgreementAcceptedAt,
       user: registration.user,
@@ -688,12 +700,29 @@ export async function getAdminEventRegistrationsBySlug(options: {
           displayOrder: true,
         },
       },
+      entryFees: {
+        orderBy: [{ isDeposit: 'desc' }, { description: 'asc' }],
+        select: {
+          id: true,
+          description: true,
+          amountCents: true,
+          isDeposit: true,
+        },
+      },
       registrations: {
         orderBy: { createdAt: 'desc' },
         select: {
           id: true,
           status: true,
           phone: true,
+          eventEntryFee: {
+            select: {
+              id: true,
+              description: true,
+              amountCents: true,
+              isDeposit: true,
+            },
+          },
           createdAt: true,
           swimAgreementAcceptedAt: true,
           user: { select: { id: true, name: true, email: true } },
@@ -726,6 +755,7 @@ export async function getAdminEventRegistrationsBySlug(options: {
     name: event.name,
     requiresPhone: event.requiresPhone,
     slug: event.slug,
+    entryFees: event.entryFees,
     questions: event.registrationQuestions.map(questionFromDb),
     registrations,
     registrationCounts,
@@ -804,6 +834,7 @@ export async function getAdminEventShowBySlug(options: {
     externalDetailUrl: event.externalDetailUrl,
     externalEntriesUrl: event.externalEntriesUrl,
     externalRegistrationUrl: event.externalRegistrationUrl,
+    entryFees: registrationReview.entryFees,
     id: event.id,
     isPublished: event.isPublished,
     isSpecial: event.isSpecial,

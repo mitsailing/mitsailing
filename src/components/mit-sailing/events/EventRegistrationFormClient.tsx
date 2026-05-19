@@ -385,9 +385,70 @@ function RegistrationFeeSummary(props: {
   event: PublicEventDetail;
   labels: EventRegistrationFormLabels;
   locale: string;
+  state: PublicEventRegistrationFormState;
 }) {
   if (props.event.entryFees.length === 0) {
     return null;
+  }
+  const controlId = 'event-registration-fees';
+  const errorId = `${controlId}-error`;
+  const errorMessage = fieldErrorMessage({
+    labels: props.labels,
+    name: 'eventEntryFeeId',
+    state: props.state,
+  });
+  if (props.event.entryFees.length > 1) {
+    return (
+      <fieldset
+        aria-describedby={errorMessage ? errorId : undefined}
+        aria-invalid={errorMessage ? true : undefined}
+        aria-labelledby="event-registration-fees-heading"
+        aria-required="true"
+        className="rounded-lg border border-border bg-card p-4"
+        role="radiogroup"
+      >
+        <legend
+          className="mb-3 font-mit-serif text-lg font-semibold tracking-tight text-mit-text"
+          id="event-registration-fees-heading"
+        >
+          {props.labels.feesHeading}
+          <RequiredMarker label={props.labels.required} />
+        </legend>
+        <div className="flex flex-col gap-2">
+          {props.event.entryFees.map((fee) => (
+            <label
+              className="flex cursor-pointer items-baseline justify-between gap-4 rounded-md border border-border bg-background px-3 py-2 text-sm text-mit-text has-checked:border-mit-red has-checked:bg-mit-red-highlight/60"
+              key={fee.id}
+            >
+              <span className="inline-flex min-w-0 items-center gap-2">
+                <input
+                  className="size-4 shrink-0 accent-mit-red"
+                  defaultChecked={
+                    fieldValue(props.state, 'eventEntryFeeId') === fee.id
+                  }
+                  name="eventEntryFeeId"
+                  required
+                  type="radio"
+                  value={fee.id}
+                />
+                <span className="min-w-0">
+                  {fee.description}
+                  {fee.isDeposit ? (
+                    <span className="ml-2 rounded-sm bg-mit-red-highlight px-1.5 py-0.5 text-xs font-semibold text-mit-red dark:text-mit-red-ink">
+                      {props.labels.deposit}
+                    </span>
+                  ) : null}
+                </span>
+              </span>
+              <span className="shrink-0 font-semibold text-mit-text">
+                {formatUsdMinorUnitsAsCurrency(fee.amountCents, props.locale)}
+              </span>
+            </label>
+          ))}
+        </div>
+        <FieldError id={errorId} message={errorMessage} />
+      </fieldset>
+    );
   }
   return (
     <section
@@ -485,6 +546,7 @@ export function EventRegistrationForm(props: EventRegistrationFormProps) {
         event={props.event}
         labels={props.labels}
         locale={props.locale}
+        state={state}
       />
 
       <p className="text-xs leading-relaxed text-muted-foreground">

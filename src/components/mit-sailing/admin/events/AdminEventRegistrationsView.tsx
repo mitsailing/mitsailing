@@ -44,6 +44,7 @@ import type {
 import type { AdminEventAccessMode } from '@/libs/admin/events/zenstackEventAccess';
 import { Link } from '@/libs/I18nNavigation';
 import { formatEasternDateTime } from '@/libs/mit-sailing/easternTimeFormat';
+import { formatUsdMinorUnitsAsCurrency } from '@/libs/money/stripeUsdMinorUnits';
 
 type AdminEventRegistrationsTranslations = Awaited<
   ReturnType<typeof getTranslations<'AdminEvents'>>
@@ -186,6 +187,38 @@ function hasPhoneColumn(event: AdminEventRegistrationsDto): boolean {
     event.requiresPhone ||
     event.registrations.some(
       (registration) => (registration.phone ?? '').trim().length > 0
+    )
+  );
+}
+
+function FeeValue(props: {
+  locale: string;
+  registration: AdminEventRegistrationDto;
+  t: AdminEventRegistrationsTranslations;
+}) {
+  if (!props.registration.entryFee) {
+    return props.t('empty_value');
+  }
+  return (
+    <span className="inline-flex flex-col gap-0.5">
+      <span className="text-foreground">
+        {props.registration.entryFee.description}
+      </span>
+      <span>
+        {formatUsdMinorUnitsAsCurrency(
+          props.registration.entryFee.amountCents,
+          props.locale
+        )}
+      </span>
+    </span>
+  );
+}
+
+function hasFeeColumn(event: AdminEventRegistrationsDto): boolean {
+  return (
+    (event.entryFees?.length ?? 0) > 0 ||
+    event.registrations.some(
+      (registration) => (registration.entryFee ?? null) !== null
     )
   );
 }
@@ -365,6 +398,7 @@ function RegistrationActionsMenu(props: {
 function RegistrationRosterTable(props: {
   accessMode: AdminEventAccessMode;
   locale: string;
+  showFee: boolean;
   showPhone: boolean;
   questionColumns: RegistrationQuestionColumn[];
   registrations: AdminEventRegistrationDto[];
@@ -381,6 +415,9 @@ function RegistrationRosterTable(props: {
             <TableHead>{props.t('registration_created_at')}</TableHead>
             {props.showPhone ? (
               <TableHead>{props.t('column_phone')}</TableHead>
+            ) : null}
+            {props.showFee ? (
+              <TableHead>{props.t('column_fee')}</TableHead>
             ) : null}
             <TableHead>{props.t('registration_swim_agreement')}</TableHead>
             {props.questionColumns.map((question) => (
@@ -424,6 +461,15 @@ function RegistrationRosterTable(props: {
               {props.showPhone ? (
                 <TableCell className="px-4 py-3 align-top text-sm text-mit-readable-ink">
                   {phoneValue(registration, props.t)}
+                </TableCell>
+              ) : null}
+              {props.showFee ? (
+                <TableCell className="px-4 py-3 align-top text-sm text-mit-readable-ink">
+                  <FeeValue
+                    locale={props.locale}
+                    registration={registration}
+                    t={props.t}
+                  />
                 </TableCell>
               ) : null}
               <TableCell className="px-4 py-3 align-top text-sm text-mit-readable-ink">
@@ -504,6 +550,7 @@ export function AdminEventRegistrationsView(
     (registration) => registrationVisible(registration, props.filter)
   );
   const questionColumns = registrationQuestionColumns(props.event);
+  const showFee = hasFeeColumn(props.event);
   const showPhone = hasPhoneColumn(props.event);
   const chrome = props.chrome ?? 'page';
   const showReadOnlyNotice = props.showReadOnlyNotice ?? true;
@@ -552,6 +599,7 @@ export function AdminEventRegistrationsView(
               locale={props.locale}
               questionColumns={questionColumns}
               registrations={visibleRegistrations}
+              showFee={showFee}
               showPhone={showPhone}
               slug={props.event.slug}
               t={props.t}

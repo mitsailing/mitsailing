@@ -218,4 +218,99 @@ describe('EventRegistrationForm', () => {
       expect(scrollIntoView).toHaveBeenCalled();
     });
   });
+
+  it('displays one fee without requiring a registration type choice', () => {
+    const action = vi.fn();
+
+    render(
+      <EventRegistrationForm
+        createRegistrationAction={action}
+        event={{
+          ...event,
+          entryFees: [
+            {
+              amountCents: 15_000,
+              description: 'Standard entry',
+              id: 'fee-standard',
+              isDeposit: false,
+            },
+          ],
+        }}
+        formPermalink="/events/learn-to-sail/register"
+        labels={labels}
+        locale="en"
+      />
+    );
+
+    expect(screen.getByText('Standard entry')).toBeVisible();
+    expect(screen.queryByRole('radiogroup')).toBeNull();
+    expect(screen.queryByRole('radio')).toBeNull();
+  });
+
+  it('requires a fee choice when multiple fees are available and preserves selected value', async () => {
+    const user = userEvent.setup();
+    window.HTMLElement.prototype.scrollIntoView = vi.fn();
+    const action = vi.fn(
+      (
+        _prevState: PublicEventRegistrationFormState,
+        formData: FormData
+      ): PublicEventRegistrationFormState => ({
+        code: 'questions_required',
+        fieldErrors: { eventEntryFeeId: 'questions_required' },
+        status: 'error',
+        values: formValues(formData),
+      })
+    );
+
+    render(
+      <EventRegistrationForm
+        createRegistrationAction={action}
+        event={{
+          ...event,
+          entryFees: [
+            {
+              amountCents: 15_000,
+              description: 'Adult',
+              id: 'fee-adult',
+              isDeposit: false,
+            },
+            {
+              amountCents: 9000,
+              description: 'Junior',
+              id: 'fee-junior',
+              isDeposit: true,
+            },
+          ],
+        }}
+        formPermalink="/events/learn-to-sail/register"
+        labels={labels}
+        locale="en"
+      />
+    );
+
+    const adultFee = screen.getByRole('radio', {
+      name: /adult/i,
+    });
+    const juniorFee = screen.getByRole('radio', {
+      name: /junior/i,
+    });
+
+    expect(screen.getByRole('radiogroup')).toBeRequired();
+    expect(adultFee).toHaveAttribute('name', 'eventEntryFeeId');
+    expect(juniorFee).toHaveAttribute('name', 'eventEntryFeeId');
+
+    await user.click(juniorFee);
+    await user.click(
+      screen.getByRole('button', { name: 'Confirm registration' })
+    );
+
+    expect(
+      await screen.findByText('Answer the required registration questions.')
+    ).toBeVisible();
+    expect(juniorFee).toBeChecked();
+    expect(screen.getByRole('radiogroup')).toHaveAttribute(
+      'aria-invalid',
+      'true'
+    );
+  });
 });

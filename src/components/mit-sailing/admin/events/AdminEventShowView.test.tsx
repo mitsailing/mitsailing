@@ -54,6 +54,14 @@ function eventFixture(
     externalDetailUrl: null,
     externalEntriesUrl: null,
     externalRegistrationUrl: null,
+    entryFees: [
+      {
+        amountCents: 15_000,
+        description: 'Adult entry',
+        id: 'fee-adult',
+        isDeposit: false,
+      },
+    ],
     id: 'event-1',
     isPublished: true,
     isSpecial: false,
@@ -88,6 +96,12 @@ function eventFixture(
           },
         ],
         createdAt: new Date('2026-05-01T12:00:00Z'),
+        entryFee: {
+          amountCents: 15_000,
+          description: 'Adult entry',
+          id: 'fee-adult',
+          isDeposit: false,
+        },
         id: 'registration-1',
         phone: null,
         status: EventRegistrationStatus.pending,
@@ -154,6 +168,8 @@ describe('AdminEventShowView', () => {
     expect(
       screen.getByRole('table', { name: 'Registration roster' })
     ).toBeVisible();
+    expect(screen.getByText('Adult entry')).toBeVisible();
+    expect(screen.getByText('$150.00')).toBeVisible();
   });
 
   it('renders remaining seats from confirmed registrations', () => {
