@@ -12,6 +12,27 @@ type NextRequestHandlerOptions = {
   getClient: (request: NextRequest) => Promise<unknown>;
 };
 
+type RouteMethod = 'DELETE' | 'GET' | 'PATCH' | 'POST' | 'PUT';
+type RouteHandler = (
+  request: NextRequest,
+  context: RouteContext
+) => Promise<Response>;
+type NextRequestInit = ConstructorParameters<typeof NextRequest>[1];
+
+type SessionOptions = {
+  appRole?: unknown;
+  banned?: boolean;
+  emailVerified?: boolean;
+  impersonatedBy?: string | null;
+};
+
+const defaultSessionOptions = {
+  appRole: Role.ADMIN,
+  banned: false,
+  emailVerified: true,
+  impersonatedBy: null,
+} satisfies Required<SessionOptions>;
+
 const mocks = vi.hoisted(() => {
   const handler = vi.fn(
     async (_request: NextRequest, _context: RouteContext) => {
@@ -61,26 +82,24 @@ vi.mock('../../../../../zenstack/schema', () => ({
   schema: { models: {} },
 }));
 
-function request(path: string) {
-  return new NextRequest(`https://example.test${path}`);
+function request(path: string, init?: NextRequestInit) {
+  return new NextRequest(`https://example.test${path}`, init);
 }
 
-function context(path: string[]): RouteContext {
-  return { params: Promise.resolve({ path }) };
+function context(pathSegments: string[]): RouteContext {
+  const params = { path: pathSegments };
+  return { params: Promise.resolve(params) };
 }
 
-function session(props?: {
-  appRole?: unknown;
-  banned?: boolean;
-  emailVerified?: boolean;
-  impersonatedBy?: string | null;
-}) {
+function session(props: SessionOptions = {}) {
+  const sessionOptions = { ...defaultSessionOptions, ...props };
+
   return {
-    session: { impersonatedBy: props?.impersonatedBy ?? null },
+    session: { impersonatedBy: sessionOptions.impersonatedBy },
     user: {
-      appRole: props?.appRole ?? Role.ADMIN,
-      banned: props?.banned ?? false,
-      emailVerified: props?.emailVerified ?? true,
+      appRole: sessionOptions.appRole,
+      banned: sessionOptions.banned,
+      emailVerified: sessionOptions.emailVerified,
       id: 'admin-1',
     },
   };
@@ -150,20 +169,32 @@ describe('/api/model/[...path]', () => {
     }
   );
 
-  it('dispatches allowlisted event categories with protected auth', async () => {
-    const { GET } = await import('./route');
-    const routeContext = context(['event-categories']);
-    const routeRequest = request('/api/model/event-categories');
+  it('lets admins use every event category REST method with protected auth', async () => {
+    const route = await import('./route');
+    const routeHandlers = [
+      ['DELETE', route.DELETE],
+      ['GET', route.GET],
+      ['PATCH', route.PATCH],
+      ['POST', route.POST],
+      ['PUT', route.PUT],
+    ] satisfies readonly (readonly [RouteMethod, RouteHandler])[];
 
-    const response = await GET(routeRequest, routeContext);
+    for (const [method, routeHandler] of routeHandlers) {
+      mocks.handler.mockClear();
+      mocks.zenstackForAuthContext.mockClear();
+      const routeContext = context(['event-categories']);
+      const routeRequest = request('/api/model/event-categories', { method });
 
-    expect(response.status).toBe(200);
-    expect(mocks.handler).toHaveBeenCalledWith(routeRequest, routeContext);
-    await nextRequestHandlerOptions().getClient(routeRequest);
-    expect(mocks.zenstackForAuthContext).toHaveBeenCalledWith({
-      appRole: Role.ADMIN,
-      id: 'admin-1',
-    });
+      const response = await routeHandler(routeRequest, routeContext);
+
+      expect(response.status).toBe(200);
+      expect(mocks.handler).toHaveBeenCalledWith(routeRequest, routeContext);
+      await nextRequestHandlerOptions().getClient(routeRequest);
+      expect(mocks.zenstackForAuthContext).toHaveBeenCalledWith({
+        appRole: Role.ADMIN,
+        id: 'admin-1',
+      });
+    }
   });
 
   it('configures REST model mapping for event categories only', async () => {
