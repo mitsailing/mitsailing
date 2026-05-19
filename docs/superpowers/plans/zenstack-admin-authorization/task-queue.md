@@ -99,7 +99,7 @@ queue.
     and Task 02 write paths now maintain both `appRole` and `role`. The
     `/admin/roles` permission matrix remains visible but its persisted grants no
     longer drive authorization; Task 04/08 removes that stale surface.
-  - Commit: pending.
+  - Commit: `9690de0d`.
 - [ ] 03 - ZenStack client and Better Auth adapter
   - Packet: `tasks/03-zenstack-better-auth.md`
   - Reasoning: xhigh
