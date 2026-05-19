@@ -4,7 +4,7 @@
 
 Push the completed ZenStack admin authorization migration to GitHub, create a
 ready-for-review PR, harden it with one local CodeRabbit pass, then fix one
-post-PR round of relevant GitHub comments and CI/test failures.
+to three rounds of relevant post-PR GitHub comments and CI/test failures.
 
 ## Preconditions
 
@@ -41,22 +41,7 @@ Use CodeRabbit and GitHub skills/tools only as sub-tools for:
 Do not switch to `finish-pr-loop` or `finish-pr-context7` unless the user
 explicitly asks.
 
-## Phase 1: Local Hardening
-
-Run local verification before PR creation:
-
-- `npm run lint`
-- `npm run check:types`
-- `npm run check:i18n`
-- `npm run check:deps`
-- Task 9 required tests
-
-Run stale-pattern searches for pre-ZenStack authorization paths.
-
-Fix only real local failures, stale pre-ZenStack migration leftovers, and small
-issues directly relevant to this migration.
-
-## Phase 2: Local CodeRabbit Review
+## Phase 1: Local CodeRabbit Review
 
 Run one local CodeRabbit hardening round before creating the PR.
 
@@ -76,6 +61,21 @@ CodeRabbit scope:
 
 After fixes, rerun relevant verification and commit with a Conventional Commit.
 
+## Phase 2: Local Hardening
+
+Run local verification before PR creation after finishing Phase 1 above.
+
+- `npm run lint`
+- `npm run check:types`
+- `npm run check:i18n`
+- `npm run check:deps`
+- Task 9 required tests
+
+Run stale-pattern searches for pre-ZenStack authorization paths.
+
+Fix only real local failures, stale pre-ZenStack migration leftovers, and small
+issues directly relevant to this migration.
+
 ## Phase 3: Create Ready PR
 
 Push the current branch.
@@ -85,22 +85,23 @@ Create a GitHub PR as ready for review, not draft, because CodeRabbit must run.
 If a PR already exists for the branch, update that PR instead of creating a
 duplicate.
 
-Do not mark the PR draft unless the user explicitly asks.
+## Phase 4: Three Post-PR Fix Rounds
 
-## Phase 4: One Post-PR Fix Round
+Run up to three post-PR fix rounds. Start each round in its own fresh sub-agent
+30 minutes after the latest push so GitHub checks and review bots have time to
+report.
 
-Run exactly one post-PR fix round.
+Stop early if, 30 minutes after a push to GitHub, all checks pass and there are
+no actionable GitHub or CodeRabbit comments left to fix.
 
 A post-PR round means:
 
 - inspect current GitHub Actions/check results
-- inspect GitHub review comments
-- inspect CodeRabbit PR comments
-- fix relevant actionable issues
+- inspect all GitHub review comments
+- inspect all CodeRabbit PR comments
+- fix all relevant actionable issues
 - run local verification
 - commit and push once
-
-Do not do a second post-PR fix round unless the user explicitly asks.
 
 Review finding scope:
 
@@ -115,12 +116,13 @@ Review finding scope:
 - Ignore or document Codacy findings that conflict with React, Next.js, app
   style rules, i18n rules, Tailwind v4, generated-code conventions, or existing
   project patterns.
+- Do not comment on GitHub issues.
 - Do not add suppressions or broad tool config just to silence Codacy unless
   the finding is a documented analyzer mismatch and the config is narrowly
   scoped.
 
-If a GitHub comment or CI finding is unrelated to this migration, stop and ask
-before fixing it.
+If a requested fix is unrelated to this migration, stop and ask before fixing
+it.
 
 ## Verification
 
@@ -148,7 +150,7 @@ Stop and ask if:
 - a fix would require broad deletion or rewrite of pre-ZenStack code beyond this
   plan
 - a security, auth, policy, data-loss, or merge-blocking CI issue remains after
-  the one post-PR round
+  the third post-PR round
 - the same unclear CI failure remains after one focused fix attempt
 
 ## Final PR Comment
