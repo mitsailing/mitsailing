@@ -75,14 +75,32 @@ duplicate.
 ## Phase 3: Up to Three Post-PR Fix Rounds
 
 Run up to three post-PR fix rounds. Start each round in its own fresh sub-agent.
-Each round begins by waiting until 30 minutes have passed since the latest push,
-then inspecting GitHub checks and review comments. Do not wait 30 minutes
-between local fix steps inside a round.
+Each round begins only after the scheduled follow-up confirms 30 minutes have
+passed since the latest push, then inspects GitHub checks and review comments.
+Do not wait 30 minutes between local fix steps inside a round.
 
 After a successful fix commit and push, do not produce a long handoff. Persist
 compact state and schedule one next bounded worker/recheck for 30 minutes after
 that successful commit/push unless the stop conditions are already met. This is
 not a recurring 30-minute interval.
+
+Optimize for token usage during the 30-minute post-push quiet period. The main
+agent and all sub-agents must stop instead of staying live while time passes. Do
+not use `sleep`, polling loops, or long `wait_agent` calls to wait out that
+time. The final-push wait is automation-only: schedule one thread heartbeat or
+equivalent follow-up for 30 minutes after the latest successful push, then stop
+all live agents. Each sub-agent must report the final push state and exit; the
+main agent must schedule the follow-up and exit. When the follow-up resumes,
+re-check PR comments, review-bot feedback, and failing CI/tests. If another
+push happens before the follow-up runs, replace the old follow-up with one
+scheduled 30 minutes after the newest push.
+
+If a resumed follow-up finds checks still pending or review bots still
+processing with no actionable failure or comment yet, do one bounded inspection,
+schedule another follow-up for 30 minutes later, and stop all live agents again.
+This pending-only wakeup does not count as one of the three post-PR fix rounds;
+a fix round starts only when there is actionable work to fix, document, or
+resolve.
 
 Each round must begin with aggressive context pruning. The context gets very big
 during step 9 and during review loops, so do not treat prior implementation or
@@ -171,7 +189,8 @@ Before finishing:
 - If another bounded round is needed, schedule it 30 minutes later and report
   only the PR URL, latest commit, next round number, scheduled time, and blocker
   if any. The scheduled time is anchored to the last successful commit/push, not
-  to a repeating timer.
+  to a repeating timer. Do not keep the main agent or a sub-agent alive while
+  waiting for that scheduled time.
 
 ## Stop Conditions
 
