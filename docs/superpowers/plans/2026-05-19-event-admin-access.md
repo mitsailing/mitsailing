@@ -18,6 +18,8 @@
 - Follow `AGENTS.md`; use TypeScript, named exports, absolute `@/` imports, next-intl strings, Tailwind v4 utilities, and the existing React single-`props` style.
 - Use only these scripts: `npm run build-local`, `npm run lint`, `npm run check:types`, `npm run check:deps`, `npm run check:i18n`, `npm run test`, `npm run test:coverage`, `npm run test:e2e`.
 - Save local review artifacts outside the repo under `~/.codex/tmp/mitsailing-event-admin-access/`.
+- Workers may convert touched event-admin data access to ZenStack as they go when it is local to the task, reduces authorization drift, and does not widen scope. Do not start broad Prisma-to-ZenStack rewrites outside the files needed for the active task.
+- If workers find issues outside this plan's scope, leave a concise `TODO:` comment only when it is attached to the relevant code and would prevent future confusion. Do not fix out-of-scope issues in this PR unless they block the active task.
 - Treat loss of old event-page functionality as a blocker unless this plan explicitly marks the feature as intentionally dropped or deferred.
 - Intentionally dropped: old `Ask gender?`, old `Print Entries`, old `Attendance`, and the current new-site `internalNotes` event feature.
 - Intentionally deferred: old duplicate-event flow. Do not implement it in this PR.
