@@ -5,7 +5,6 @@ import { Role } from '@/libs/auth/roles';
 const mocks = vi.hoisted(() => ({
   eventCount: vi.fn(),
   eventFindFirst: vi.fn(),
-  listRolePermissionGrants: vi.fn(),
   redirect: vi.fn((href: string) => {
     throw new Error(`NEXT_REDIRECT:${href}`);
   }),
@@ -19,11 +18,8 @@ vi.mock('next/navigation', () => ({
 }));
 
 vi.mock('@/libs/auth/dal', () => ({
+  appRoleFromSessionUser: (user: { appRole?: unknown }) => user.appRole,
   requireAnyPermission: mocks.requireAnyPermission,
-}));
-
-vi.mock('@/libs/auth/rolePermissionGrants', () => ({
-  listRolePermissionGrants: mocks.listRolePermissionGrants,
 }));
 
 vi.mock('@/libs/DB', () => ({
@@ -43,16 +39,12 @@ beforeEach(() => {
   vi.resetModules();
   mocks.eventFindFirst.mockReset();
   mocks.eventCount.mockReset();
-  mocks.listRolePermissionGrants.mockReset();
   mocks.redirect.mockClear();
   mocks.requireAnyPermission.mockReset();
   mocks.requireAnyPermission.mockResolvedValue({
     session: { impersonatedBy: null },
-    user: { id: 'staff-1', role: Role.DOCK_STAFF },
+    user: { appRole: Role.DOCK_STAFF, id: 'staff-1', role: Role.USER },
   });
-  mocks.listRolePermissionGrants.mockResolvedValue([
-    { permissionKey: Permission.EVENTS_MANAGE, roleKey: Role.DOCK_STAFF },
-  ]);
   mocks.eventCount.mockResolvedValue(1);
 });
 
@@ -93,17 +85,15 @@ describe('requireAdminEventAccess', () => {
     expect(mocks.redirect).not.toHaveBeenCalled();
   });
 
-  it('allows assigned volunteer instructors to edit the event', async () => {
+  it('redirects assigned volunteer instructors without event management', async () => {
     mocks.requireAnyPermission.mockResolvedValue({
       session: { impersonatedBy: null },
-      user: { id: 'staff-1', role: Role.VOLUNTEER_INSTRUCTOR },
-    });
-    mocks.listRolePermissionGrants.mockResolvedValue([
-      {
-        permissionKey: Permission.EVENTS_CREATE,
-        roleKey: Role.VOLUNTEER_INSTRUCTOR,
+      user: {
+        appRole: Role.VOLUNTEER_INSTRUCTOR,
+        id: 'staff-1',
+        role: Role.DOCK_STAFF,
       },
-    ]);
+    });
     mockEvent({
       admins: [{ adminUserId: 'staff-1' }, { adminUserId: 'staff-2' }],
       createdByUserId: 'creator-1',
@@ -111,38 +101,21 @@ describe('requireAdminEventAccess', () => {
     const { requireAdminEventAccess } =
       await import('@/libs/admin/events/eventAdminAuthorization');
 
-    const access = await requireAdminEventAccess({
-      locale: 'en',
-      slug: 'intro-sail',
-    });
-
-    expect(access?.event.id).toBe('event-1');
-    expect(mocks.eventFindFirst).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          AND: [
-            { slug: 'intro-sail' },
-            {
-              OR: [{ admins: { some: { adminUserId: 'staff-1' } } }],
-            },
-          ],
-        },
-      })
-    );
-    expect(mocks.redirect).not.toHaveBeenCalled();
+    await expect(
+      requireAdminEventAccess({ locale: 'en', slug: 'intro-sail' })
+    ).rejects.toThrow('NEXT_REDIRECT:/admin/events');
+    expect(mocks.eventFindFirst).not.toHaveBeenCalled();
   });
 
   it('does not let volunteer instructor creators edit unassigned events', async () => {
     mocks.requireAnyPermission.mockResolvedValue({
       session: { impersonatedBy: null },
-      user: { id: 'staff-1', role: Role.VOLUNTEER_INSTRUCTOR },
-    });
-    mocks.listRolePermissionGrants.mockResolvedValue([
-      {
-        permissionKey: Permission.EVENTS_CREATE,
-        roleKey: Role.VOLUNTEER_INSTRUCTOR,
+      user: {
+        appRole: Role.VOLUNTEER_INSTRUCTOR,
+        id: 'staff-1',
+        role: Role.DOCK_STAFF,
       },
-    ]);
+    });
     mocks.eventFindFirst.mockResolvedValue(null);
     const { requireAdminEventAccess } =
       await import('@/libs/admin/events/eventAdminAuthorization');
@@ -150,18 +123,7 @@ describe('requireAdminEventAccess', () => {
     await expect(
       requireAdminEventAccess({ locale: 'en', slug: 'intro-sail' })
     ).rejects.toThrow('NEXT_REDIRECT:/admin/events');
-    expect(mocks.eventFindFirst).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          AND: [
-            { slug: 'intro-sail' },
-            {
-              OR: [{ admins: { some: { adminUserId: 'staff-1' } } }],
-            },
-          ],
-        },
-      })
-    );
+    expect(mocks.eventFindFirst).not.toHaveBeenCalled();
   });
 
   it('redirects event admins away from unrelated events', async () => {
@@ -192,7 +154,7 @@ describe('requireAdminEventAccess', () => {
   it('allows site admins to edit any event', async () => {
     mocks.requireAnyPermission.mockResolvedValue({
       session: { impersonatedBy: null },
-      user: { id: 'admin-1', role: Role.ADMIN },
+      user: { appRole: Role.ADMIN, id: 'admin-1', role: Role.USER },
     });
     mockEvent({ admins: [], createdByUserId: 'creator-1' });
     const { requireAdminEventAccess } =
@@ -207,17 +169,11 @@ describe('requireAdminEventAccess', () => {
     expect(mocks.redirect).not.toHaveBeenCalled();
   });
 
-  it('requires create or manage permission before loading scoped events', async () => {
+  it('requires manage permission before loading scoped events', async () => {
     mocks.requireAnyPermission.mockResolvedValue({
       session: { impersonatedBy: null },
-      user: { id: 'staff-1', role: Role.VOLUNTEER_INSTRUCTOR },
+      user: { appRole: Role.DOCK_STAFF, id: 'staff-1', role: Role.USER },
     });
-    mocks.listRolePermissionGrants.mockResolvedValue([
-      {
-        permissionKey: Permission.EVENTS_CREATE,
-        roleKey: Role.VOLUNTEER_INSTRUCTOR,
-      },
-    ]);
     mockEvent({
       admins: [{ adminUserId: 'staff-1' }],
       createdByUserId: 'creator-1',
@@ -228,7 +184,7 @@ describe('requireAdminEventAccess', () => {
     await requireAdminEventAccess({ locale: 'en', slug: 'intro-sail' });
 
     expect(mocks.requireAnyPermission).toHaveBeenCalledWith(
-      [Permission.EVENTS_CREATE, Permission.EVENTS_MANAGE],
+      [Permission.EVENTS_MANAGE],
       'en'
     );
   });
@@ -236,21 +192,13 @@ describe('requireAdminEventAccess', () => {
   it('exposes a reusable event access where filter for list queries', async () => {
     mocks.requireAnyPermission.mockResolvedValue({
       session: { impersonatedBy: null },
-      user: { id: 'staff-1', role: Role.VOLUNTEER_INSTRUCTOR },
+      user: { appRole: Role.DOCK_STAFF, id: 'staff-1', role: Role.USER },
     });
-    mocks.listRolePermissionGrants.mockResolvedValue([
-      {
-        permissionKey: Permission.EVENTS_CREATE,
-        roleKey: Role.VOLUNTEER_INSTRUCTOR,
-      },
-    ]);
     const { requireAdminEventListAccess } =
       await import('@/libs/admin/events/eventAdminAuthorization');
 
     const access = await requireAdminEventListAccess('en');
 
-    expect(access.eventAccessWhere).toEqual({
-      OR: [{ admins: { some: { adminUserId: 'staff-1' } } }],
-    });
+    expect(access.eventAccessWhere).toEqual({});
   });
 });

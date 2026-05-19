@@ -3,7 +3,18 @@ import { Permission } from '@/libs/auth/permissions';
 import { Role } from '@/libs/auth/roles';
 
 const mocks = vi.hoisted(() => ({
-  listRolePermissionGrants: vi.fn(),
+  appRoleFromSessionUser: (user: { appRole?: unknown }) =>
+    typeof user.appRole === 'string' &&
+    [
+      'user',
+      'volunteer',
+      'volunteer_instructor',
+      'dock_staff',
+      'dock_master',
+      'admin',
+    ].includes(user.appRole)
+      ? user.appRole
+      : 'user',
   redirect: vi.fn(),
   requireAnyPermission: vi.fn(),
   verifySession: vi.fn(),
@@ -12,16 +23,15 @@ const mocks = vi.hoisted(() => ({
 vi.mock('server-only', () => ({}));
 
 vi.mock('@/libs/auth/dal', () => ({
+  appRoleFromSessionUser: mocks.appRoleFromSessionUser,
   requireAnyPermission: mocks.requireAnyPermission,
+  sessionImpersonatedBy: (session: { impersonatedBy?: unknown }) =>
+    session.impersonatedBy,
   verifySession: mocks.verifySession,
 }));
 
 vi.mock('next/navigation', () => ({
   redirect: mocks.redirect,
-}));
-
-vi.mock('@/libs/auth/rolePermissionGrants', () => ({
-  listRolePermissionGrants: mocks.listRolePermissionGrants,
 }));
 
 vi.mock('@/utils/Helpers', () => ({
@@ -30,7 +40,6 @@ vi.mock('@/utils/Helpers', () => ({
 
 beforeEach(() => {
   vi.resetModules();
-  mocks.listRolePermissionGrants.mockReset();
   mocks.redirect.mockReset();
   mocks.requireAnyPermission.mockReset();
   mocks.verifySession.mockReset();
@@ -40,18 +49,8 @@ describe('requireAdminAreaAccess', () => {
   it('builds a single-role ability and returns only allowed nav items', async () => {
     mocks.verifySession.mockResolvedValue({
       session: { impersonatedBy: null },
-      user: { id: 'user-1', role: Role.DOCK_STAFF },
+      user: { appRole: Role.DOCK_STAFF, id: 'user-1', role: Role.USER },
     });
-    mocks.listRolePermissionGrants.mockResolvedValue([
-      {
-        permissionKey: Permission.ADMIN_VIEW,
-        roleKey: Role.DOCK_STAFF,
-      },
-      {
-        permissionKey: Permission.USERS_VIEW,
-        roleKey: Role.DOCK_STAFF,
-      },
-    ]);
     const { requireAdminAreaAccess } =
       await import('@/libs/admin/adminAreaAccess');
 
@@ -62,60 +61,54 @@ describe('requireAdminAreaAccess', () => {
     expect(access.navItems.map((item) => item.href)).toEqual([
       '/admin',
       '/admin/users',
+      '/admin/events',
     ]);
     expect(access.ability.can(Permission.USERS_VIEW, 'Permission')).toBe(true);
     expect(access.ability.can(Permission.CMS_VIEW, 'Permission')).toBe(false);
     expect(mocks.requireAnyPermission).not.toHaveBeenCalled();
   });
 
-  it('uses every comma-separated role for admin area access', async () => {
+  it('fails closed for comma-separated role strings', async () => {
     mocks.verifySession.mockResolvedValue({
       session: { impersonatedBy: null },
-      user: { id: 'user-1', role: `${Role.VOLUNTEER},${Role.DOCK_STAFF}` },
-    });
-    mocks.listRolePermissionGrants.mockResolvedValue([
-      {
-        permissionKey: Permission.ADMIN_VIEW,
-        roleKey: Role.DOCK_STAFF,
+      user: {
+        appRole: `${Role.VOLUNTEER},${Role.DOCK_STAFF}`,
+        id: 'user-1',
+        role: Role.DOCK_STAFF,
       },
-    ]);
+    });
     const { requireAdminAreaAccess } =
       await import('@/libs/admin/adminAreaAccess');
 
-    const access = await requireAdminAreaAccess('en');
+    await requireAdminAreaAccess('en');
 
-    expect(mocks.redirect).not.toHaveBeenCalled();
-    expect(access.navItems.map((item) => item.href)).toContain('/admin');
+    expect(mocks.redirect).toHaveBeenCalledWith('/');
     expect(mocks.requireAnyPermission).not.toHaveBeenCalled();
   });
 
-  it('shows event navigation to volunteer instructors with event creation access', async () => {
+  it('hides event navigation from volunteer instructors without event management', async () => {
     mocks.verifySession.mockResolvedValue({
       session: { impersonatedBy: null },
-      user: { id: 'instructor-1', role: Role.VOLUNTEER_INSTRUCTOR },
+      user: {
+        appRole: Role.VOLUNTEER_INSTRUCTOR,
+        id: 'instructor-1',
+        role: Role.DOCK_STAFF,
+      },
     });
-    mocks.listRolePermissionGrants.mockResolvedValue([
-      {
-        permissionKey: Permission.ADMIN_VIEW,
-        roleKey: Role.VOLUNTEER_INSTRUCTOR,
-      },
-      {
-        permissionKey: Permission.EVENTS_CREATE,
-        roleKey: Role.VOLUNTEER_INSTRUCTOR,
-      },
-    ]);
     const { requireAdminAreaAccess } =
       await import('@/libs/admin/adminAreaAccess');
 
     const access = await requireAdminAreaAccess('en');
 
-    expect(access.navItems.map((item) => item.href)).toContain('/admin/events');
+    expect(access.navItems.map((item) => item.href)).not.toContain(
+      '/admin/events'
+    );
   });
 
   it('does not load role grants for administrators', async () => {
     mocks.verifySession.mockResolvedValue({
       session: { impersonatedBy: null },
-      user: { id: 'admin-1', role: Role.ADMIN },
+      user: { appRole: Role.ADMIN, id: 'admin-1', role: Role.USER },
     });
     const { requireAdminAreaAccess } =
       await import('@/libs/admin/adminAreaAccess');
@@ -123,7 +116,6 @@ describe('requireAdminAreaAccess', () => {
     const access = await requireAdminAreaAccess('en');
 
     expect(access.role).toBe(Role.ADMIN);
-    expect(mocks.listRolePermissionGrants).not.toHaveBeenCalled();
     expect(access.ability.can(Permission.ADMIN_VIEW, 'Permission')).toBe(true);
   });
 });

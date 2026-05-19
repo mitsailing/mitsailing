@@ -12,7 +12,6 @@ const mocks = vi.hoisted(() => ({
     return (key: string) => key;
   }),
   list: vi.fn(),
-  listRolePermissionGrants: vi.fn(),
   listUserRatingAssignmentRows: vi.fn(),
   loggerError: vi.fn(),
   notFound: vi.fn(() => {
@@ -62,11 +61,8 @@ vi.mock('@/libs/admin/users/usersAdminHandlers', () => ({
 }));
 
 vi.mock('@/libs/auth/dal', () => ({
+  appRoleFromSessionUser: (user: { appRole?: unknown }) => user.appRole,
   requirePermission: mocks.requirePermission,
-}));
-
-vi.mock('@/libs/auth/rolePermissionGrants', () => ({
-  listRolePermissionGrants: mocks.listRolePermissionGrants,
 }));
 
 vi.mock('@/libs/email/emailMessages', () => ({
@@ -89,7 +85,6 @@ beforeEach(() => {
   mocks.getAdminUserEmailMessages.mockReset();
   mocks.getTranslations.mockClear();
   mocks.list.mockReset();
-  mocks.listRolePermissionGrants.mockReset();
   mocks.listUserRatingAssignmentRows.mockReset();
   mocks.loggerError.mockReset();
   mocks.notFound.mockClear();
@@ -114,11 +109,10 @@ beforeEach(() => {
   mocks.list.mockResolvedValue([
     { email: 'sailor@example.com', id: 'user-1', name: 'Sailor One' },
   ]);
-  mocks.listRolePermissionGrants.mockResolvedValue([]);
   mocks.listUserRatingAssignmentRows.mockResolvedValue([]);
   mocks.requirePermission.mockResolvedValue({
     session: { impersonatedBy: null },
-    user: { id: 'admin-1', role: 'admin' },
+    user: { appRole: 'admin', id: 'admin-1', role: 'user' },
   });
   mocks.updateAdminUserAction.mockReturnValue(async () => {});
 });
@@ -190,7 +184,7 @@ describe('admin user pages', () => {
   it('keeps the user detail page behind the view-users permission', async () => {
     mocks.requirePermission.mockResolvedValue({
       session: { impersonatedBy: null },
-      user: { id: 'staff-1', role: Role.DOCK_STAFF },
+      user: { appRole: Role.DOCK_STAFF, id: 'staff-1', role: Role.USER },
     });
     const { default: AdminUserShowPage } = await import('./[id]/page');
 
@@ -205,7 +199,6 @@ describe('admin user pages', () => {
       'en'
     );
     expect(mocks.getById).toHaveBeenCalledWith('user-1');
-    expect(mocks.listRolePermissionGrants).toHaveBeenCalledOnce();
     expect(mocks.listUserRatingAssignmentRows).toHaveBeenCalledWith('user-1');
   });
 });

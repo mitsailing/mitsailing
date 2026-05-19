@@ -1,20 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const {
-  authGetSession,
-  headers,
-  listRolePermissionGrants,
-  redirect,
-  syncSentryUserFromSession,
-} = vi.hoisted(() => ({
-  authGetSession: vi.fn(),
-  headers: vi.fn(),
-  listRolePermissionGrants: vi.fn(),
-  redirect: vi.fn((href: string) => {
-    throw new Error(`NEXT_REDIRECT:${href}`);
-  }),
-  syncSentryUserFromSession: vi.fn(),
-}));
+const { authGetSession, headers, redirect, syncSentryUserFromSession } =
+  vi.hoisted(() => ({
+    authGetSession: vi.fn(),
+    headers: vi.fn(),
+    redirect: vi.fn((href: string) => {
+      throw new Error(`NEXT_REDIRECT:${href}`);
+    }),
+    syncSentryUserFromSession: vi.fn(),
+  }));
 
 vi.mock('server-only', () => ({}));
 
@@ -52,10 +46,6 @@ vi.mock('@/libs/auth', () => ({
   },
 }));
 
-vi.mock('@/libs/auth/rolePermissionGrants', () => ({
-  listRolePermissionGrants,
-}));
-
 vi.mock('@/libs/sentry-user-server', () => ({
   syncSentryUserFromSession,
 }));
@@ -65,6 +55,7 @@ type TestSession = {
     impersonatedBy?: string | null;
   };
   user: {
+    appRole?: unknown;
     email?: unknown;
     id: string;
     name?: unknown;
@@ -83,13 +74,11 @@ function createSession(user: TestSession['user']): TestSession {
 beforeEach(() => {
   authGetSession.mockReset();
   headers.mockReset();
-  listRolePermissionGrants.mockReset();
   redirect.mockClear();
   syncSentryUserFromSession.mockClear();
 
   headers.mockResolvedValue(new Headers([['x-auth-test', '1']]));
   authGetSession.mockResolvedValue(null);
-  listRolePermissionGrants.mockResolvedValue([]);
 });
 
 describe('getSession', () => {
@@ -178,7 +167,11 @@ describe('verifySession', () => {
 
 describe('requireAdmin', () => {
   it('allow admin into protected admin routes', async () => {
-    const session = createSession({ id: 'admin-1', role: 'admin' });
+    const session = createSession({
+      appRole: 'admin',
+      id: 'admin-1',
+      role: 'user',
+    });
     authGetSession.mockResolvedValue(session);
     const { requireAdmin } = await import('@/libs/auth/dal');
 
@@ -189,19 +182,17 @@ describe('requireAdmin', () => {
 
   it('redirect sailor from admin routes to home', async () => {
     authGetSession.mockResolvedValue(
-      createSession({ id: 'user-1', role: 'user' })
+      createSession({ appRole: 'user', id: 'user-1', role: 'admin' })
     );
     const { requireAdmin } = await import('@/libs/auth/dal');
 
     await expect(requireAdmin('en')).rejects.toThrow('NEXT_REDIRECT:/');
-
     expect(redirect).toHaveBeenCalledWith('/');
-    expect(listRolePermissionGrants).toHaveBeenCalledOnce();
   });
 
   it('redirect impersonating admin from admin routes', async () => {
     authGetSession.mockResolvedValue({
-      ...createSession({ id: 'admin-1', role: 'admin' }),
+      ...createSession({ appRole: 'admin', id: 'admin-1', role: 'admin' }),
       session: { impersonatedBy: 'owner-1' },
     });
     const { requireAdmin } = await import('@/libs/auth/dal');
@@ -213,45 +204,39 @@ describe('requireAdmin', () => {
 });
 
 describe('requirePermission', () => {
-  it('allow staff with granted permission', async () => {
+  it('allow staff with app role permission', async () => {
     const session = createSession({
+      appRole: 'dock_staff',
       id: 'staff-1',
-      role: 'volunteer_instructor',
+      role: 'user',
     });
     authGetSession.mockResolvedValue(session);
-    listRolePermissionGrants.mockResolvedValue([
-      { roleKey: 'volunteer_instructor', permissionKey: 'cms.edit' },
-    ]);
     const { requirePermission } = await import('@/libs/auth/dal');
     const { Permission } = await import('@/libs/auth/permissions');
 
-    await expect(requirePermission(Permission.CMS_EDIT, 'en')).resolves.toBe(
+    await expect(requirePermission(Permission.USERS_VIEW, 'en')).resolves.toBe(
       session
     );
 
     expect(redirect).not.toHaveBeenCalled();
   });
 
-  it('allows comma-separated role strings with any granted role', async () => {
+  it('fails closed for comma-separated role strings', async () => {
     authGetSession.mockResolvedValue(
       createSession({
+        appRole: 'user',
         id: 'staff-1',
-        role: 'volunteer,dock_staff',
+        role: 'dock_staff',
       })
     );
-    listRolePermissionGrants.mockResolvedValue([
-      { roleKey: 'dock_staff', permissionKey: 'cms.edit' },
-    ]);
     const { requirePermission } = await import('@/libs/auth/dal');
     const { Permission } = await import('@/libs/auth/permissions');
 
-    await expect(requirePermission(Permission.CMS_EDIT, 'en')).resolves.toEqual(
-      expect.objectContaining({
-        user: expect.objectContaining({ id: 'staff-1' }),
-      })
-    );
+    await expect(
+      requirePermission(Permission.USERS_VIEW, 'en')
+    ).rejects.toThrow('NEXT_REDIRECT:/');
 
-    expect(redirect).not.toHaveBeenCalled();
+    expect(redirect).toHaveBeenCalledWith('/');
   });
 });
 
@@ -266,6 +251,7 @@ describe('getCurrentUser', () => {
     authGetSession.mockResolvedValue(
       createSession({
         email: 'sailor@example.com',
+        appRole: 'dock_staff',
         id: 'user-1',
         name: 'Sailor',
         role: 'captain',
@@ -278,7 +264,7 @@ describe('getCurrentUser', () => {
       email: 'sailor@example.com',
       id: 'user-1',
       name: 'Sailor',
-      role: 'user',
+      role: 'dock_staff',
       unconfirmedEmail: null,
     });
   });
@@ -298,9 +284,10 @@ describe('requireCurrentUser', () => {
     authGetSession.mockResolvedValue(
       createSession({
         email: 'admin@example.com',
+        appRole: 'admin',
         id: 'admin-1',
         name: null,
-        role: 'admin',
+        role: 'user',
         unconfirmedEmail: 'new-admin@example.com',
       })
     );

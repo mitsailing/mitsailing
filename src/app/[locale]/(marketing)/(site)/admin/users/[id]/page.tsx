@@ -15,14 +15,12 @@ import {
 import { formatAdminDate } from '@/libs/admin/adminDateFormatting';
 import { adminUsersEditPath } from '@/libs/admin/users/adminUserPaths';
 import { usersAdminHandlers } from '@/libs/admin/users/usersAdminHandlers';
-import { requirePermission } from '@/libs/auth/dal';
+import { appRoleFromSessionUser, requirePermission } from '@/libs/auth/dal';
 import {
   AuthSubject,
   createAuthAbility,
   Permission,
 } from '@/libs/auth/permissions';
-import { listRolePermissionGrants } from '@/libs/auth/rolePermissionGrants';
-import { parseRoles, Role } from '@/libs/auth/roles';
 import { getAdminUserEmailMessages } from '@/libs/email/emailMessages';
 import type { AdminUserEmailMessageRow } from '@/libs/email/emailMessages';
 import { logger } from '@/libs/Logger';
@@ -178,13 +176,10 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
   const searchParams = await props.searchParams;
   setRequestLocale(locale);
   const session = await requirePermission(Permission.USERS_VIEW, locale);
-  const roles = parseRoles(session.user.role);
-  const grants = roles.includes(Role.ADMIN)
-    ? []
-    : await listRolePermissionGrants();
+  const role = appRoleFromSessionUser(session.user);
   const ability = createAuthAbility({
-    grants,
-    roles,
+    grants: [],
+    role,
     userId: session.user.id,
   });
   const canAssignRatings = ability.can(

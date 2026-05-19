@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
     throw new Error(`NEXT_REDIRECT:${href}`);
   }),
   revalidatePath: vi.fn(),
-  requireAnyPermission: vi.fn(),
+  requirePermission: vi.fn(),
   updateTag: vi.fn(),
 }));
 
@@ -30,7 +30,7 @@ vi.mock('next-intl/server', () => ({
 }));
 
 vi.mock('@/libs/auth/dal', () => ({
-  requireAnyPermission: mocks.requireAnyPermission,
+  requirePermission: mocks.requirePermission,
 }));
 
 vi.mock('@/libs/DB', () => ({
@@ -73,9 +73,9 @@ function validEventFormData(): FormData {
 
 describe('createAdminEventAction', () => {
   it('creates an event admin row for the creator', async () => {
-    mocks.requireAnyPermission.mockResolvedValue({
+    mocks.requirePermission.mockResolvedValue({
       session: { impersonatedBy: null },
-      user: { id: 'creator-1', role: Role.VOLUNTEER_INSTRUCTOR },
+      user: { id: 'creator-1', role: Role.DOCK_STAFF },
     });
     mocks.eventCreate.mockResolvedValue({ id: 'event-1', slug: 'intro-sail' });
     const { createAdminEventAction } =
@@ -85,8 +85,8 @@ describe('createAdminEventAction', () => {
       createAdminEventAction('en', validEventFormData())
     ).rejects.toThrow('NEXT_REDIRECT:/admin/events/intro-sail/edit');
 
-    expect(mocks.requireAnyPermission).toHaveBeenCalledWith(
-      [Permission.EVENTS_CREATE, Permission.EVENTS_MANAGE],
+    expect(mocks.requirePermission).toHaveBeenCalledWith(
+      Permission.EVENTS_MANAGE,
       'en'
     );
     expect(mocks.eventCreate).toHaveBeenCalledWith(

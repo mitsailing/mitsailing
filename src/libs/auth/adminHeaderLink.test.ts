@@ -11,14 +11,14 @@ describe('adminHeaderLinkVisibleFromSession', () => {
       adminHeaderLinkVisibleFromSession({
         impersonatedBy: null,
         userId: null,
-        userRole: Role.ADMIN,
+        userAppRole: Role.ADMIN,
       })
     ).toBe(false);
     expect(
       adminHeaderLinkVisibleFromSession({
         impersonatedBy: null,
         userId: '',
-        userRole: Role.ADMIN,
+        userAppRole: Role.ADMIN,
       })
     ).toBe(false);
   });
@@ -28,7 +28,7 @@ describe('adminHeaderLinkVisibleFromSession', () => {
       adminHeaderLinkVisibleFromSession({
         impersonatedBy: null,
         userId: 'user-1',
-        userRole: Role.USER,
+        userAppRole: Role.USER,
       })
     ).toBe(false);
   });
@@ -38,7 +38,7 @@ describe('adminHeaderLinkVisibleFromSession', () => {
       adminHeaderLinkVisibleFromSession({
         impersonatedBy: 'admin-1',
         userId: 'user-1',
-        userRole: Role.ADMIN,
+        userAppRole: Role.ADMIN,
       })
     ).toBe(false);
   });
@@ -48,9 +48,19 @@ describe('adminHeaderLinkVisibleFromSession', () => {
       adminHeaderLinkVisibleFromSession({
         impersonatedBy: null,
         userId: 'admin-1',
-        userRole: Role.ADMIN,
+        userAppRole: Role.ADMIN,
       })
     ).toBe(true);
+  });
+
+  it('hides admin header link when only role mirror is admin', () => {
+    expect(
+      adminHeaderLinkVisibleFromSession({
+        impersonatedBy: null,
+        userId: 'admin-1',
+        userAppRole: Role.USER,
+      })
+    ).toBe(false);
   });
 
   it('hides admin header link from roles with no launch admin permissions', () => {
@@ -58,7 +68,7 @@ describe('adminHeaderLinkVisibleFromSession', () => {
       adminHeaderLinkVisibleFromSession({
         impersonatedBy: null,
         userId: 'volunteer-1',
-        userRole: Role.VOLUNTEER,
+        userAppRole: Role.VOLUNTEER,
       })
     ).toBe(false);
   });
@@ -68,19 +78,19 @@ describe('adminHeaderLinkVisibleFromSession', () => {
       adminHeaderLinkVisibleFromSession({
         impersonatedBy: null,
         userId: 'instructor-1',
-        userRole: Role.VOLUNTEER_INSTRUCTOR,
+        userAppRole: Role.VOLUNTEER_INSTRUCTOR,
       })
     ).toBe(true);
   });
 
-  it('uses every comma-separated role for admin visibility', () => {
+  it('hides admin header link from comma-separated role strings', () => {
     expect(
       adminHeaderLinkVisibleFromSession({
         impersonatedBy: null,
         userId: 'volunteer-1',
-        userRole: `${Role.VOLUNTEER},${Role.DOCK_STAFF}`,
+        userAppRole: `${Role.VOLUNTEER},${Role.DOCK_STAFF}`,
       })
-    ).toBe(true);
+    ).toBe(false);
   });
 });
 
@@ -89,13 +99,13 @@ describe('adminHeaderLinkVisibleFromClientSessionData', () => {
     expect(
       adminHeaderLinkVisibleFromClientSessionData({
         session: {},
-        user: { id: 'admin-1', role: Role.ADMIN },
+        user: { appRole: Role.ADMIN, id: 'admin-1', role: Role.USER },
       })
     ).toBe(true);
     expect(
       adminHeaderLinkVisibleFromClientSessionData({
         session: { impersonatedBy: 'admin-1' },
-        user: { id: 'user-1', role: Role.ADMIN },
+        user: { appRole: Role.ADMIN, id: 'user-1', role: Role.ADMIN },
       })
     ).toBe(false);
   });
@@ -108,7 +118,7 @@ describe('adminHeaderLinkVisibleFromClientSessionData', () => {
     expect(
       adminHeaderLinkVisibleFromClientSessionData({
         session: {},
-        user: { id: 123, role: Role.ADMIN },
+        user: { appRole: Role.ADMIN, id: 123, role: Role.ADMIN },
       })
     ).toBe(false);
   });

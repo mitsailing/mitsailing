@@ -536,7 +536,6 @@
     "permission_users_view": "View users",
     "permission_users_edit": "Edit users",
     "permission_users_delete": "Delete users",
-    "permission_events_create": "Create events",
     "permission_events_manage": "Manage events",
     "permission_pavilionReservations_manage": "Manage pavilion reservations",
     "permission_newsletter_manage": "Manage newsletters",

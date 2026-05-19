@@ -9,14 +9,12 @@ import {
 } from '@/libs/admin/users/adminUserPaths';
 import { usersAdminDefinition } from '@/libs/admin/users/userAdminDefinitions';
 import { usersAdminHandlers } from '@/libs/admin/users/usersAdminHandlers';
-import { requirePermission } from '@/libs/auth/dal';
+import { appRoleFromSessionUser, requirePermission } from '@/libs/auth/dal';
 import {
   AuthSubject,
   createAuthAbility,
   Permission,
 } from '@/libs/auth/permissions';
-import { listRolePermissionGrants } from '@/libs/auth/rolePermissionGrants';
-import { parseRoles, Role } from '@/libs/auth/roles';
 import { getI18nPath } from '@/utils/Helpers';
 
 type AdminUsersIndexPageProps = {
@@ -45,13 +43,10 @@ export default async function AdminUsersIndexPage(
 
   const session = await requirePermission(Permission.USERS_VIEW, locale);
   const currentUserId = session.user.id;
-  const currentUserRoles = parseRoles(session.user.role);
-  const grants = currentUserRoles.includes(Role.ADMIN)
-    ? []
-    : await listRolePermissionGrants();
+  const currentUserRole = appRoleFromSessionUser(session.user);
   const ability = createAuthAbility({
-    grants,
-    roles: currentUserRoles,
+    grants: [],
+    role: currentUserRole,
     userId: currentUserId,
   });
   const canEditUsers = ability.can(

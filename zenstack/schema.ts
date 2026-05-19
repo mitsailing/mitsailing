@@ -20,6 +20,12 @@ export class SchemaType implements SchemaDef {
                     id: true,
                     attributes: [{ name: "@id" }] as readonly AttributeApplication[]
                 },
+                appRole: {
+                    name: "appRole",
+                    type: "AppRole",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal("user") }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("app_role") }] }] as readonly AttributeApplication[],
+                    default: "user" as FieldDefault
+                },
                 name: {
                     name: "name",
                     type: "String"

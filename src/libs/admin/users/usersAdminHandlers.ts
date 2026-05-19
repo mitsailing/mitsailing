@@ -18,24 +18,20 @@ import {
   rawAdminUserUpdateFromFormData,
 } from '@/libs/admin/users/usersAdminSchemas';
 import { auth } from '@/libs/auth';
-import { parseRoles, Role } from '@/libs/auth/roles';
+import { normalizeAppRole } from '@/libs/auth/appPermissions';
+import { Role } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
 import { emailDeliverabilityStatus } from '@/libs/email/emailDeliverabilityStatus';
 
 const ADMIN_ROLE_FILTER = {
-  OR: [
-    { role: Role.ADMIN },
-    { role: { startsWith: `${Role.ADMIN},` } },
-    { role: { endsWith: `,${Role.ADMIN}` } },
-    { role: { contains: `,${Role.ADMIN},` } },
-  ],
+  appRole: Role.ADMIN,
 } satisfies Prisma.UserWhereInput;
 
 function rowFromDb(user: {
   id: string;
   email: string;
   name: string;
-  role: string;
+  appRole: string;
   emailVerified: boolean;
   banned: boolean | null;
   emailBouncedAt: Date | null;
@@ -50,7 +46,7 @@ function rowFromDb(user: {
     emailSuppressedAt: user.emailSuppressedAt?.toISOString() ?? null,
     emailSuppressionReason: user.emailSuppressionReason,
     name: user.name,
-    role: user.role,
+    role: normalizeAppRole(user.appRole),
     emailVerified: user.emailVerified,
     banned: Boolean(user.banned),
   };
@@ -61,9 +57,9 @@ async function assertCanRemoveOrDemoteAdmin(
 ): Promise<CatalogMutationErr | null> {
   const target = await prisma.user.findUnique({
     where: { id: targetUserId },
-    select: { role: true },
+    select: { appRole: true },
   });
-  if (!target || !parseRoles(target.role).includes(Role.ADMIN)) {
+  if (!target || normalizeAppRole(target.appRole) !== Role.ADMIN) {
     return null;
   }
   const adminCount = await prisma.user.count({
@@ -151,7 +147,7 @@ export const usersAdminHandlers: CatalogServerHandlers = {
         id: true,
         email: true,
         name: true,
-        role: true,
+        appRole: true,
         emailVerified: true,
         banned: true,
         emailBouncedAt: true,
@@ -169,7 +165,7 @@ export const usersAdminHandlers: CatalogServerHandlers = {
         id: true,
         email: true,
         name: true,
-        role: true,
+        appRole: true,
         emailVerified: true,
         banned: true,
         emailBouncedAt: true,
@@ -212,6 +208,10 @@ export const usersAdminHandlers: CatalogServerHandlers = {
       if (!createdId) {
         return { ok: false, code: 'unknown' };
       }
+      await prisma.user.update({
+        where: { id: createdId },
+        data: { appRole: role },
+      });
       return { ok: true, id: createdId };
     } catch (error: unknown) {
       if (error instanceof APIError) {
@@ -236,15 +236,15 @@ export const usersAdminHandlers: CatalogServerHandlers = {
 
     const existing = await prisma.user.findUnique({
       where: { id },
-      select: { banned: true, email: true, role: true },
+      select: { appRole: true, banned: true, email: true },
     });
     if (!existing) {
       return { ok: false, code: 'not_found' };
     }
 
     if (
-      parseRoles(existing.role).includes(Role.ADMIN) &&
-      !parseRoles(role).includes(Role.ADMIN)
+      normalizeAppRole(existing.appRole) === Role.ADMIN &&
+      role !== Role.ADMIN
     ) {
       const block = await assertCanRemoveOrDemoteAdmin(id);
       if (block) {
@@ -252,7 +252,7 @@ export const usersAdminHandlers: CatalogServerHandlers = {
       }
     }
 
-    if (parseRoles(existing.role).includes(Role.ADMIN) && banned) {
+    if (normalizeAppRole(existing.appRole) === Role.ADMIN && banned) {
       const block = await assertCanRemoveOrDemoteAdmin(id);
       if (block) {
         return block;
@@ -283,6 +283,10 @@ export const usersAdminHandlers: CatalogServerHandlers = {
     if (typeof userUpdate !== 'boolean') {
       return userUpdate;
     }
+    await prisma.user.update({
+      where: { id },
+      data: { appRole: role },
+    });
 
     if (banStateChanged) {
       const banUpdate = await updateUserBanState({ id, banned, headers: hdrs });

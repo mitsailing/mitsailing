@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   normalizeRole,
-  parseRoles,
   Role,
   ROLE_DEFINITIONS,
+  ROLE_VALUES,
 } from '@/libs/auth/roles';
 
 describe('normalizeRole', () => {
@@ -18,20 +18,20 @@ describe('normalizeRole', () => {
     expect(normalizeRole(null)).toBe(Role.USER);
     expect(normalizeRole(missingRole)).toBe(Role.USER);
     expect(normalizeRole('')).toBe(Role.USER);
+    expect(normalizeRole('admin,dock_staff')).toBe(Role.USER);
   });
 });
 
-describe('parseRoles', () => {
-  it('parses comma-separated Better Auth roles', () => {
-    expect(
-      parseRoles('volunteer_instructor,dock_staff,unknown, volunteer')
-    ).toEqual([Role.VOLUNTEER_INSTRUCTOR, Role.DOCK_STAFF, Role.VOLUNTEER]);
-  });
-
-  it('defaults missing and empty role strings to user', () => {
-    expect(parseRoles(null)).toEqual([Role.USER]);
-    expect(parseRoles('')).toEqual([Role.USER]);
-    expect(parseRoles('unknown')).toEqual([Role.USER]);
+describe('ROLE_VALUES', () => {
+  it('contains supported single roles', () => {
+    expect(ROLE_VALUES).toEqual([
+      Role.USER,
+      Role.VOLUNTEER,
+      Role.VOLUNTEER_INSTRUCTOR,
+      Role.DOCK_STAFF,
+      Role.DOCK_MASTER,
+      Role.ADMIN,
+    ]);
   });
 });
 

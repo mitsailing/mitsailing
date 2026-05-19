@@ -1,15 +1,14 @@
 import {
-  AuthSubject,
-  createAuthAbility,
   Permission,
-  permissionGrantsForSeed,
-} from '@/libs/auth/permissions';
-import { parseRoles } from '@/libs/auth/roles';
+  getAppRolePermissions,
+  hasPermission,
+  normalizeAppRole,
+} from '@/libs/auth/appPermissions';
 
 /** Minimal session fields for deciding whether the global header shows Admin. */
 export type AdminHeaderLinkSessionInput = {
+  userAppRole: unknown;
   userId: string | null | undefined;
-  userRole: unknown;
   impersonatedBy: unknown;
 };
 
@@ -18,7 +17,7 @@ export type AdminHeaderLinkSessionInput = {
  * any staff/admin role who is not impersonating. Safe for server and client
  * (no `server-only` imports).
  *
- * @param input - User id, role, and impersonation marker from Better Auth session
+ * @param input - User id, app role, and impersonation marker from Better Auth session
  * @returns True when the Admin nav entry should render
  */
 export function adminHeaderLinkVisibleFromSession(
@@ -27,12 +26,12 @@ export function adminHeaderLinkVisibleFromSession(
   if (typeof input.userId !== 'string' || input.userId.length === 0) {
     return false;
   }
-  const ability = createAuthAbility({
-    grants: permissionGrantsForSeed(),
-    roles: parseRoles(input.userRole),
-    userId: input.userId,
-  });
-  if (!ability.can(Permission.ADMIN_VIEW, AuthSubject.PERMISSION)) {
+  if (
+    !hasPermission(
+      getAppRolePermissions(normalizeAppRole(input.userAppRole)),
+      Permission.ADMIN_VIEW
+    )
+  ) {
     return false;
   }
   if (input.impersonatedBy) {
@@ -55,12 +54,12 @@ export function adminHeaderLinkVisibleFromClientSessionData(
     return false;
   }
   const { user, session } = data as {
-    user?: { id?: unknown; role?: unknown };
+    user?: { appRole?: unknown; id?: unknown };
     session?: { impersonatedBy?: unknown };
   };
   return adminHeaderLinkVisibleFromSession({
     userId: typeof user?.id === 'string' ? user.id : undefined,
-    userRole: user?.role,
+    userAppRole: user?.appRole,
     impersonatedBy: session?.impersonatedBy,
   });
 }

@@ -1,24 +1,22 @@
 import { Pencil } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import { cn } from '@/lib/utils';
-import { getSession } from '@/libs/auth/dal';
 import {
-  AuthSubject,
-  createAuthAbility,
   Permission,
-} from '@/libs/auth/permissions';
-import { listRolePermissionGrants } from '@/libs/auth/rolePermissionGrants';
-import { parseRoles } from '@/libs/auth/roles';
+  getAppRolePermissions,
+  hasPermission,
+  normalizeAppRole,
+} from '@/libs/auth/appPermissions';
+import { getSession } from '@/libs/auth/dal';
 import { Link } from '@/libs/I18nNavigation';
 
 type PublicAdminEditLinkSession = {
   session?: { impersonatedBy?: string | null } | null;
-  user?: { id?: string | null; role?: unknown } | null;
+  user?: { appRole?: unknown; id?: string | null; role?: unknown } | null;
 } | null;
 
 function publicAdminEditLinkVisible(
-  session: PublicAdminEditLinkSession,
-  grants: Awaited<ReturnType<typeof listRolePermissionGrants>>
+  session: PublicAdminEditLinkSession
 ): boolean {
   const userId = session?.user?.id;
   if (typeof userId !== 'string' || userId.length === 0) {
@@ -27,12 +25,10 @@ function publicAdminEditLinkVisible(
   if (session?.session?.impersonatedBy) {
     return false;
   }
-  const ability = createAuthAbility({
-    grants,
-    roles: parseRoles(session?.user?.role),
-    userId,
-  });
-  return ability.can(Permission.CMS_EDIT, AuthSubject.PERMISSION);
+  return hasPermission(
+    getAppRolePermissions(normalizeAppRole(session?.user?.appRole)),
+    Permission.CMS_EDIT
+  );
 }
 
 /**
@@ -54,13 +50,7 @@ export async function PublicAdminEditLink(props: {
   ) {
     return null;
   }
-  let grants: Awaited<ReturnType<typeof listRolePermissionGrants>>;
-  try {
-    grants = await listRolePermissionGrants();
-  } catch {
-    grants = [];
-  }
-  if (!publicAdminEditLinkVisible(session, grants)) {
+  if (!publicAdminEditLinkVisible(session)) {
     return null;
   }
 

@@ -38,10 +38,12 @@ async function main() {
       id: randomUUID(),
       email,
       name: 'Administrator',
+      appRole: Role.ADMIN,
       emailVerified: true,
       role: Role.ADMIN,
     },
     update: {
+      appRole: Role.ADMIN,
       emailVerified: true,
       role: Role.ADMIN,
     },

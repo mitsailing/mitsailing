@@ -92,8 +92,8 @@ describe('SiteShell', () => {
       expect(shouldShowAdminLink(null)).toBe(false);
       expect(adminHeaderLinkVisibleFromSession).toHaveBeenCalledWith({
         impersonatedBy: undefined,
+        userAppRole: undefined,
         userId: undefined,
-        userRole: undefined,
       });
     });
   });
@@ -102,7 +102,7 @@ describe('SiteShell', () => {
     beforeEach(() => {
       getSession.mockResolvedValue({
         session: { impersonatedBy: undefined },
-        user: { id: 'user-1', role: 'admin' },
+        user: { appRole: 'admin', id: 'user-1', role: 'user' },
       });
       adminHeaderLinkVisibleFromSession.mockReturnValue(true);
     });
@@ -113,7 +113,7 @@ describe('SiteShell', () => {
       expect(
         shouldShowAdminLink({
           session: { impersonatedBy: undefined },
-          user: { id: 'user-1', role: 'admin' },
+          user: { appRole: 'admin', id: 'user-1' },
         })
       ).toBe(true);
 
@@ -122,8 +122,8 @@ describe('SiteShell', () => {
 
       expect(adminHeaderLinkVisibleFromSession).toHaveBeenCalledWith({
         impersonatedBy: undefined,
+        userAppRole: 'admin',
         userId: 'user-1',
-        userRole: 'admin',
       });
       expect(html).toContain('Admin');
     });

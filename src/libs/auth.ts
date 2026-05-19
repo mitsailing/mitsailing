@@ -10,7 +10,7 @@ import { createAccessControl } from 'better-auth/plugins/access';
 import { signInEmailHooks } from '@/libs/auth/hooks';
 import { passwordCompromiseCheckEnabled } from '@/libs/auth/password-compromise';
 import { selectPasswordHashingOptions } from '@/libs/auth/passwordHashing';
-import { Role } from '@/libs/auth/roles';
+import { Role, ROLE_VALUES } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
 import {
   markPendingEmailChange,
@@ -146,6 +146,13 @@ export const auth = betterAuth({
   },
   user: {
     additionalFields: {
+      appRole: {
+        type: [...ROLE_VALUES],
+        required: false,
+        defaultValue: Role.USER,
+        input: false,
+        fieldName: 'app_role',
+      },
       // Devise-style pending-email column. `input: false` keeps it out of the
       // sign-up/update payload surface — it is only written via the
       // change-email flow below and the verification hook above.

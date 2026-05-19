@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { Role, ROLE_VALUES } from '@/libs/auth/roles';
 
 type AuthPlugin = {
   config?: unknown;
@@ -21,6 +22,16 @@ type AuthConfig = {
     enabled: boolean;
   };
   user: {
+    additionalFields: Record<
+      string,
+      {
+        defaultValue?: unknown;
+        fieldName?: string;
+        input?: boolean;
+        required?: boolean;
+        type?: unknown;
+      }
+    >;
     deleteUser: {
       sendDeleteAccountVerification: (props: {
         url: string;
@@ -178,6 +189,7 @@ function isAuthConfig(value: unknown): value is AuthConfig {
     isRecord(value.rateLimit) &&
     typeof value.rateLimit.enabled === 'boolean' &&
     isRecord(value.user) &&
+    isRecord(value.user.additionalFields) &&
     isRecord(value.user.deleteUser) &&
     typeof value.user.deleteUser.sendDeleteAccountVerification === 'function'
   );
@@ -265,6 +277,18 @@ describe('auth', () => {
     const { config } = await importAuthConfig();
 
     expect(config.rateLimit.enabled).toBe(false);
+  });
+
+  it('exposes app role as a server-managed session user field', async () => {
+    const { config } = await importAuthConfig();
+
+    expect(config.user.additionalFields.appRole).toEqual({
+      defaultValue: Role.USER,
+      fieldName: 'app_role',
+      input: false,
+      required: false,
+      type: ROLE_VALUES,
+    });
   });
 
   it('delegates password hashing and password reset email', async () => {

@@ -25,43 +25,28 @@ export const ROLE_DEFINITIONS = [
   { key: Role.ADMIN, labelKey: 'role_admin' },
 ] as const satisfies readonly { key: Role; labelKey: string }[];
 
-const ROLE_VALUES = ROLE_DEFINITIONS.map(
-  (definition) => definition.key
-) as Role[];
+export const ROLE_VALUES = [
+  Role.USER,
+  Role.VOLUNTEER,
+  Role.VOLUNTEER_INSTRUCTOR,
+  Role.DOCK_STAFF,
+  Role.DOCK_MASTER,
+  Role.ADMIN,
+] as const;
 
 export function isRole(value: unknown): value is Role {
-  return typeof value === 'string' && (ROLE_VALUES as string[]).includes(value);
+  return (
+    typeof value === 'string' &&
+    (ROLE_VALUES as readonly string[]).includes(value)
+  );
 }
 
 /**
- * Parses Better Auth's comma-separated role column into known app roles.
- *
- * @param role - Raw role from session or DB
- * @returns Known roles, defaulting to user when none are valid
- */
-export function parseRoles(role: unknown): Role[] {
-  if (typeof role !== 'string') {
-    return [Role.USER];
-  }
-  const roles = role
-    .split(',')
-    .map((value) => value.trim())
-    .filter(isRole);
-  const uniqueRoles = [...new Set(roles)];
-  return uniqueRoles.length > 0 ? uniqueRoles : [Role.USER];
-}
-
-/**
- * Maps persisted or API role strings onto a primary {@link Role}, defaulting to user.
- * Admin wins so Better Auth multi-role values still satisfy legacy admin checks.
+ * Maps persisted or API role strings onto a single {@link Role}, defaulting to user.
  *
  * @param role - Raw role from session or DB
  * @returns Normalized role
  */
 export function normalizeRole(role: unknown): Role {
-  const roles = parseRoles(role);
-  if (roles.includes(Role.ADMIN)) {
-    return Role.ADMIN;
-  }
-  return roles[0] ?? Role.USER;
+  return isRole(role) ? role : Role.USER;
 }

@@ -8,7 +8,8 @@ import {
   saveRolePermissionGrantsAction,
   updateUserRolesAction,
 } from '@/libs/admin/roles/roleAdminActions';
-import { requireAnyPermission } from '@/libs/auth/dal';
+import { normalizeAppRole } from '@/libs/auth/appPermissions';
+import { appRoleFromSessionUser, requireAnyPermission } from '@/libs/auth/dal';
 import type {
   PermissionDefinition,
   RolePermissionGrant,
@@ -23,7 +24,7 @@ import {
   ROLE_PERMISSION_GRANT_ROLES,
 } from '@/libs/auth/permissions';
 import type { Role } from '@/libs/auth/roles';
-import { parseRoles, ROLE_DEFINITIONS } from '@/libs/auth/roles';
+import { ROLE_DEFINITIONS } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
 import type messages from '@/locales/en.json';
 import { getI18nPath } from '@/utils/Helpers';
@@ -41,10 +42,10 @@ type AdminRolesTranslator = Awaited<
   ReturnType<typeof getTranslations<'AdminRoles'>>
 >;
 type RoleAdminUserRow = {
+  appRole: string;
   id: string;
   email: string;
   name: string;
-  role: string;
 };
 
 type RoleAdminUsersPage = {
@@ -139,9 +140,9 @@ async function listRoleAdminUsers(
     orderBy: [{ email: 'asc' }, { id: 'asc' }],
     select: {
       email: true,
+      appRole: true,
       id: true,
       name: true,
-      role: true,
     },
     take: ROLE_ADMIN_USERS_PAGE_SIZE + 1,
   } satisfies Prisma.UserFindManyArgs;
@@ -184,10 +185,10 @@ export default async function AdminRolesPage(props: AdminRolesPageProps) {
     listRoleAdminGrants(),
     listRoleAdminUsers(searchParams.cursor),
   ]);
-  const currentUserRoles = parseRoles(session.user.role);
+  const currentUserRole = appRoleFromSessionUser(session.user);
   const ability = createAuthAbility({
     grants,
-    roles: currentUserRoles,
+    role: currentUserRole,
     userId: session.user.id,
   });
   const canAssignRoles = ability.can(
@@ -335,7 +336,7 @@ export default async function AdminRolesPage(props: AdminRolesPageProps) {
             </thead>
             <tbody className="js-role-admin-users">
               {usersPage.rows.map((user) => {
-                const userRoles = parseRoles(user.role);
+                const userRole = normalizeAppRole(user.appRole);
                 return (
                   <tr
                     className="js-role-admin-user-row border-t border-border"
@@ -363,9 +364,7 @@ export default async function AdminRolesPage(props: AdminRolesPageProps) {
                           >
                             <input
                               className="size-4 accent-mit-red"
-                              defaultChecked={userRoles.includes(
-                                definition.key
-                              )}
+                              defaultChecked={userRole === definition.key}
                               disabled={!canAssignRoles}
                               name="role"
                               required

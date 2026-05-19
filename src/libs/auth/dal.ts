@@ -4,16 +4,16 @@ import { redirect } from 'next/navigation';
 import { cache } from 'react';
 import { auth } from '@/libs/auth';
 import {
+  getAppRolePermissions,
+  hasAnyPermission,
+  normalizeAppRole,
+} from '@/libs/auth/appPermissions';
+import {
   authHrefWithCallback,
   safeAuthCallbackUrl,
 } from '@/libs/auth/callbackUrl';
-import {
-  AuthSubject,
-  createAuthAbility,
-  Permission,
-} from '@/libs/auth/permissions';
-import { listRolePermissionGrants } from '@/libs/auth/rolePermissionGrants';
-import { normalizeRole, parseRoles, Role } from '@/libs/auth/roles';
+import { Permission } from '@/libs/auth/permissions';
+import type { Role } from '@/libs/auth/roles';
 import { syncSentryUserFromSession } from '@/libs/sentry-user-server';
 import { AppConfig } from '@/utils/AppConfig';
 import { getI18nPath } from '@/utils/Helpers';
@@ -43,6 +43,21 @@ export type CurrentUser = {
    */
   unconfirmedEmail: string | null;
 };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+export function appRoleFromSessionUser(user: unknown): Role {
+  if (!isRecord(user)) {
+    return normalizeAppRole(null);
+  }
+  return normalizeAppRole(user.appRole);
+}
+
+export function sessionImpersonatedBy(session: unknown): unknown {
+  return isRecord(session) ? session.impersonatedBy : undefined;
+}
 
 /**
  * Request-scoped session read memoized with React `cache` so a single render
@@ -105,25 +120,13 @@ export async function requireAnyPermission(
 ): Promise<NonNullable<AuthSession>> {
   const homeHref = getI18nPath('/', locale);
   const session = await verifySession(locale, homeHref);
-  const roles = parseRoles(session.user.role);
+  const appRole = appRoleFromSessionUser(session.user);
 
-  if (session.session.impersonatedBy) {
+  if (sessionImpersonatedBy(session.session)) {
     redirect(homeHref);
   }
 
-  const grants = roles.includes(Role.ADMIN)
-    ? []
-    : await listRolePermissionGrants();
-  const ability = createAuthAbility({
-    grants,
-    roles,
-    userId: session.user.id,
-  });
-  if (
-    !permissions.some((permission) =>
-      ability.can(permission, AuthSubject.PERMISSION)
-    )
-  ) {
+  if (!hasAnyPermission(getAppRolePermissions(appRole), permissions)) {
     redirect(homeHref);
   }
   return session;
@@ -154,12 +157,12 @@ export async function requireAdmin(
 
 function toCurrentUser(session: NonNullable<AuthSession>): CurrentUser {
   const { user } = session;
-  const pending = (user as { unconfirmedEmail?: unknown }).unconfirmedEmail;
+  const pending = isRecord(user) ? user.unconfirmedEmail : undefined;
   return {
     id: user.id,
     email: typeof user.email === 'string' ? user.email : null,
     name: typeof user.name === 'string' ? user.name : null,
-    role: normalizeRole(user.role),
+    role: appRoleFromSessionUser(user),
     unconfirmedEmail: typeof pending === 'string' ? pending : null,
   };
 }

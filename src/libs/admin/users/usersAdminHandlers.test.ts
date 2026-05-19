@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   userCount: vi.fn(),
   userFindMany: vi.fn(),
   userFindUnique: vi.fn(),
+  userUpdate: vi.fn(),
 }));
 
 vi.mock('server-only', () => ({}));
@@ -45,6 +46,7 @@ vi.mock('@/libs/DB', () => ({
       count: mocks.userCount,
       findMany: mocks.userFindMany,
       findUnique: mocks.userFindUnique,
+      update: mocks.userUpdate,
     },
   },
 }));
@@ -100,11 +102,13 @@ beforeEach(() => {
   mocks.userCount.mockReset();
   mocks.userFindMany.mockReset();
   mocks.userFindUnique.mockReset();
+  mocks.userUpdate.mockReset();
 
   mocks.createUser.mockResolvedValue({ user: { id: 'created-user' } });
   mocks.getSession.mockResolvedValue({ user: { id: 'admin-user' } });
   mocks.userCount.mockResolvedValue(2);
   mocks.userFindUnique.mockResolvedValue({
+    appRole: Role.USER,
     banned: false,
     role: Role.USER,
   });
@@ -115,6 +119,7 @@ describe('usersAdminHandlers', () => {
     it('lists users with boolean ban state', async () => {
       mocks.userFindMany.mockResolvedValue([
         {
+          appRole: Role.USER,
           banned: null,
           email: 'sailor@example.com',
           emailBouncedAt: null,
@@ -126,6 +131,7 @@ describe('usersAdminHandlers', () => {
           role: Role.USER,
         },
         {
+          appRole: Role.ADMIN,
           banned: true,
           email: 'admin@example.com',
           emailBouncedAt: new Date('2026-05-01T12:00:00.000Z'),
@@ -134,7 +140,7 @@ describe('usersAdminHandlers', () => {
           emailVerified: false,
           id: 'user-2',
           name: 'Admin',
-          role: Role.ADMIN,
+          role: Role.USER,
         },
       ]);
 
@@ -168,9 +174,10 @@ describe('usersAdminHandlers', () => {
   });
 
   describe('getById', () => {
-    it('returns one user when found and null when missing', async () => {
+    it('returns one user from app role when found and null when missing', async () => {
       mocks.userFindUnique
         .mockResolvedValueOnce({
+          appRole: Role.ADMIN,
           banned: false,
           email: 'sailor@example.com',
           emailBouncedAt: null,
@@ -192,6 +199,7 @@ describe('usersAdminHandlers', () => {
           emailSuppressedAt: '2026-05-02T12:00:00.000Z',
           emailSuppressionReason: 'complained',
           id: 'user-1',
+          role: Role.ADMIN,
         }
       );
       await expect(
@@ -205,6 +213,11 @@ describe('usersAdminHandlers', () => {
       await expect(
         usersAdminHandlers.createFromForm(createFormData())
       ).resolves.toEqual({ id: 'created-user', ok: true });
+
+      expect(mocks.userUpdate).toHaveBeenCalledWith({
+        data: { appRole: Role.USER },
+        where: { id: 'created-user' },
+      });
 
       mocks.createUser.mockRejectedValue(
         apiError('USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL')
@@ -238,6 +251,7 @@ describe('usersAdminHandlers', () => {
   describe('updateFromForm', () => {
     it('updates details, ban state, and password', async () => {
       mocks.userFindUnique.mockResolvedValue({
+        appRole: Role.USER,
         banned: false,
         role: Role.USER,
       });
@@ -272,10 +286,15 @@ describe('usersAdminHandlers', () => {
         body: { newPassword: 'new-password', userId: 'user-1' },
         headers: expect.any(Headers),
       });
+      expect(mocks.userUpdate).toHaveBeenCalledWith({
+        data: { appRole: Role.USER },
+        where: { id: 'user-1' },
+      });
     });
 
     it('unbans user and maps no data to update', async () => {
       mocks.userFindUnique.mockResolvedValue({
+        appRole: Role.USER,
         banned: true,
         role: Role.USER,
       });
@@ -291,6 +310,7 @@ describe('usersAdminHandlers', () => {
       });
 
       mocks.userFindUnique.mockResolvedValue({
+        appRole: Role.USER,
         banned: false,
         role: Role.USER,
       });
@@ -302,6 +322,7 @@ describe('usersAdminHandlers', () => {
 
     it('preserves deliverability fields when email is unchanged', async () => {
       mocks.userFindUnique.mockResolvedValue({
+        appRole: Role.USER,
         banned: false,
         email: 'updated-sailor@example.com',
         role: Role.USER,
@@ -327,8 +348,9 @@ describe('usersAdminHandlers', () => {
 
     it('blocks last admin demotion and ban', async () => {
       mocks.userFindUnique.mockResolvedValue({
+        appRole: Role.ADMIN,
         banned: false,
-        role: Role.ADMIN,
+        role: Role.USER,
       });
       mocks.userCount.mockResolvedValue(1);
 
@@ -349,8 +371,9 @@ describe('usersAdminHandlers', () => {
 
     it('does not count malformed admin substrings as administrators', async () => {
       mocks.userFindUnique.mockResolvedValue({
+        appRole: Role.ADMIN,
         banned: false,
-        role: Role.ADMIN,
+        role: Role.USER,
       });
       mocks.userCount.mockResolvedValue(1);
 
@@ -362,21 +385,15 @@ describe('usersAdminHandlers', () => {
       ).resolves.toEqual({ code: 'last_admin', ok: false });
 
       expect(mocks.userCount).toHaveBeenCalledWith({
-        where: {
-          OR: [
-            { role: Role.ADMIN },
-            { role: { startsWith: `${Role.ADMIN},` } },
-            { role: { endsWith: `,${Role.ADMIN}` } },
-            { role: { contains: `,${Role.ADMIN},` } },
-          ],
-        },
+        where: { appRole: Role.ADMIN },
       });
     });
 
     it('demotes admin when another admin remains', async () => {
       mocks.userFindUnique.mockResolvedValue({
+        appRole: Role.ADMIN,
         banned: false,
-        role: Role.ADMIN,
+        role: Role.USER,
       });
       mocks.userCount.mockResolvedValue(2);
 
@@ -404,6 +421,7 @@ describe('usersAdminHandlers', () => {
 
     it('maps auth API network and password errors', async () => {
       mocks.userFindUnique.mockResolvedValue({
+        appRole: Role.USER,
         banned: false,
         role: Role.USER,
       });
@@ -424,6 +442,7 @@ describe('usersAdminHandlers', () => {
       ).resolves.toEqual({ code: 'unknown', ok: false });
 
       mocks.userFindUnique.mockResolvedValue({
+        appRole: Role.USER,
         banned: false,
         role: Role.USER,
       });
@@ -457,14 +476,20 @@ describe('usersAdminHandlers', () => {
       });
 
       mocks.getSession.mockResolvedValue({ user: { id: 'admin-user' } });
-      mocks.userFindUnique.mockResolvedValue({ role: Role.ADMIN });
+      mocks.userFindUnique.mockResolvedValue({
+        appRole: Role.ADMIN,
+        role: Role.USER,
+      });
       mocks.userCount.mockResolvedValue(1);
       await expect(usersAdminHandlers.delete('last-admin')).resolves.toEqual({
         code: 'last_admin',
         ok: false,
       });
 
-      mocks.userFindUnique.mockResolvedValue({ role: Role.USER });
+      mocks.userFindUnique.mockResolvedValue({
+        appRole: Role.USER,
+        role: Role.ADMIN,
+      });
       await expect(usersAdminHandlers.delete('user-2')).resolves.toEqual({
         ok: true,
       });

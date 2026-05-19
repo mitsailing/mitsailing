@@ -90,15 +90,15 @@ export async function updateUserRolesAction(
     await prisma.$transaction(async (tx) => {
       const target = await tx.user.findUnique({
         where: { id: userId },
-        select: { role: true },
+        select: { appRole: true },
       });
       if (
         target &&
-        normalizeRole(target.role) === Role.ADMIN &&
+        normalizeRole(target.appRole) === Role.ADMIN &&
         role !== Role.ADMIN
       ) {
         const adminCount = await tx.user.count({
-          where: { role: { contains: Role.ADMIN } },
+          where: { appRole: Role.ADMIN },
         });
         if (adminCount <= 1) {
           throw new LastAdminRoleChangeError();
@@ -106,7 +106,7 @@ export async function updateUserRolesAction(
       }
       await tx.user.update({
         where: { id: userId },
-        data: { role },
+        data: { appRole: role, role },
       });
     });
   } catch (error) {

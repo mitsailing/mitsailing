@@ -3,44 +3,10 @@ import { AbilityBuilder, subject } from '@casl/ability';
 import { createPrismaAbilityFor } from '@casl/prisma';
 import type { PrismaQueryOf, Subjects } from '@casl/prisma';
 import type { Prisma } from '@/generated/prisma/client';
+import { Permission, getAppRolePermissions } from '@/libs/auth/appPermissions';
 import { Role } from '@/libs/auth/roles';
 
-export const Permission = {
-  ADMIN_VIEW: 'admin.view',
-  USERS_VIEW: 'users.view',
-  USERS_EDIT: 'users.edit',
-  USERS_DELETE: 'users.delete',
-  EVENTS_CREATE: 'events.create',
-  EVENTS_MANAGE: 'events.manage',
-  PAVILION_RESERVATIONS_MANAGE: 'pavilionReservations.manage',
-  NEWSLETTER_MANAGE: 'newsletter.manage',
-  DONATION_FUNDS_MANAGE: 'donationFunds.manage',
-  EVENT_CATEGORIES_MANAGE: 'eventCategories.manage',
-  CLASS_CATEGORIES_MANAGE: 'classCategories.manage',
-  FLEET_MANAGE: 'fleet.manage',
-  SAILING_CLASSES_MANAGE: 'sailingClasses.manage',
-  SAILING_RATINGS_MANAGE: 'sailingRatings.manage',
-  SAILING_RATING_RULES_MANAGE: 'sailingRatingRules.manage',
-  SITE_ALERTS_MANAGE: 'siteAlerts.manage',
-  CMS_VIEW: 'cms.view',
-  CMS_EDIT: 'cms.edit',
-  CMS_DELETE: 'cms.delete',
-  RATINGS_ASSIGN: 'ratings.assign',
-  CARDS_REVIEW: 'cards.review',
-  CARDS_APPROVE: 'cards.approve',
-  CARDS_ASSIGN_NUMBER: 'cards.assignNumber',
-  CARDS_PRINT: 'cards.print',
-  CARDS_EXPIRE: 'cards.expire',
-  PAYMENTS_VIEW: 'payments.view',
-  PAYMENTS_OVERRIDE: 'payments.override',
-  WAREHOUSE_VIEW: 'warehouse.view',
-  WAREHOUSE_SYNC: 'warehouse.sync',
-  ROLES_ASSIGN: 'roles.assign',
-  ROLES_MANAGE_PERMISSIONS: 'roles.managePermissions',
-  ELIGIBILITY_VERIFY_GYM_MEMBERSHIP: 'eligibility.verifyGymMembership',
-} as const;
-
-export type Permission = (typeof Permission)[keyof typeof Permission];
+export { Permission } from '@/libs/auth/appPermissions';
 
 export const AuthAction = {
   MANAGE: 'manage',
@@ -116,11 +82,6 @@ export const PERMISSION_DEFINITIONS = [
     key: Permission.USERS_DELETE,
     groupKey: 'group_users',
     labelKey: 'permission_users_delete',
-  },
-  {
-    key: Permission.EVENTS_CREATE,
-    groupKey: 'group_events',
-    labelKey: 'permission_events_create',
   },
   {
     key: Permission.EVENTS_MANAGE,
@@ -264,40 +225,13 @@ export const PERMISSION_DEFINITIONS = [
 }[];
 export type PermissionDefinition = (typeof PERMISSION_DEFINITIONS)[number];
 
-const CONSERVATIVE_LAUNCH_GRANTS: RolePermissionGrant[] = [
-  { roleKey: Role.VOLUNTEER_INSTRUCTOR, permissionKey: Permission.ADMIN_VIEW },
-  { roleKey: Role.VOLUNTEER_INSTRUCTOR, permissionKey: Permission.USERS_VIEW },
-  {
-    roleKey: Role.VOLUNTEER_INSTRUCTOR,
-    permissionKey: Permission.EVENTS_CREATE,
-  },
-  {
-    roleKey: Role.VOLUNTEER_INSTRUCTOR,
-    permissionKey: Permission.RATINGS_ASSIGN,
-  },
-  { roleKey: Role.DOCK_STAFF, permissionKey: Permission.ADMIN_VIEW },
-  { roleKey: Role.DOCK_STAFF, permissionKey: Permission.USERS_VIEW },
-  { roleKey: Role.DOCK_STAFF, permissionKey: Permission.EVENTS_MANAGE },
-  { roleKey: Role.DOCK_STAFF, permissionKey: Permission.CARDS_REVIEW },
-  { roleKey: Role.DOCK_STAFF, permissionKey: Permission.CARDS_APPROVE },
-  { roleKey: Role.DOCK_STAFF, permissionKey: Permission.CARDS_ASSIGN_NUMBER },
-  { roleKey: Role.DOCK_STAFF, permissionKey: Permission.CARDS_PRINT },
-  { roleKey: Role.DOCK_MASTER, permissionKey: Permission.ADMIN_VIEW },
-  { roleKey: Role.DOCK_MASTER, permissionKey: Permission.USERS_VIEW },
-  { roleKey: Role.DOCK_MASTER, permissionKey: Permission.EVENTS_MANAGE },
-  { roleKey: Role.DOCK_MASTER, permissionKey: Permission.CARDS_REVIEW },
-  { roleKey: Role.DOCK_MASTER, permissionKey: Permission.CARDS_APPROVE },
-  { roleKey: Role.DOCK_MASTER, permissionKey: Permission.CARDS_ASSIGN_NUMBER },
-  { roleKey: Role.DOCK_MASTER, permissionKey: Permission.CARDS_PRINT },
-  { roleKey: Role.DOCK_MASTER, permissionKey: Permission.CARDS_EXPIRE },
-  { roleKey: Role.DOCK_MASTER, permissionKey: Permission.PAYMENTS_VIEW },
-  { roleKey: Role.DOCK_MASTER, permissionKey: Permission.WAREHOUSE_VIEW },
-  { roleKey: Role.DOCK_MASTER, permissionKey: Permission.WAREHOUSE_SYNC },
-  {
-    roleKey: Role.DOCK_MASTER,
-    permissionKey: Permission.ELIGIBILITY_VERIFY_GYM_MEMBERSHIP,
-  },
-];
+const CONSERVATIVE_LAUNCH_GRANTS: RolePermissionGrant[] =
+  ROLE_PERMISSION_GRANT_ROLES.flatMap((roleKey) =>
+    getAppRolePermissions(roleKey).map((permissionKey) => ({
+      permissionKey,
+      roleKey,
+    }))
+  );
 
 export function isKnownPermission(
   permission: unknown
@@ -357,41 +291,24 @@ export function createEventRegistrationAbilitySubject(
   return subject(AuthSubject.EVENT_REGISTRATION, props);
 }
 
-function rolesHavePermission(props: {
-  grants: readonly RolePermissionGrant[];
-  permission: Permission;
-  roles: readonly Role[];
-}): boolean {
-  if (props.roles.includes(Role.ADMIN)) {
-    return true;
-  }
-  return props.grants.some(
-    (grant) =>
-      grant.permissionKey === props.permission &&
-      props.roles.includes(grant.roleKey)
-  );
-}
-
 export function createAuthAbility(props: {
   grants: readonly RolePermissionGrant[];
   role?: Role;
-  roles?: readonly Role[];
   userId?: string | null;
 }): AuthAbility {
   const { can, build } = new AbilityBuilder<AuthAbility>(
     createPrismaAuthAbility
   );
-  const roles = props.roles ?? (props.role ? [props.role] : [Role.USER]);
+  const role = props.role ?? Role.USER;
+  const rolePermissions = getAppRolePermissions(role);
 
-  if (roles.includes(Role.ADMIN)) {
+  if (role === Role.ADMIN) {
     can(AuthAction.MANAGE, 'all');
     return build();
   }
 
-  for (const grant of props.grants) {
-    if (roles.includes(grant.roleKey)) {
-      can(grant.permissionKey, AuthSubject.PERMISSION);
-    }
+  for (const permission of rolePermissions) {
+    can(permission, AuthSubject.PERMISSION);
   }
 
   if (!props.userId) {
@@ -401,24 +318,8 @@ export function createAuthAbility(props: {
 
   can(AuthAction.UPDATE, AuthSubject.EVENT_REGISTRATION, { userId });
 
-  if (
-    rolesHavePermission({
-      grants: props.grants,
-      permission: Permission.EVENTS_MANAGE,
-      roles,
-    })
-  ) {
+  if (rolePermissions.includes(Permission.EVENTS_MANAGE)) {
     can(AuthAction.UPDATE, AuthSubject.EVENT);
-  } else if (
-    rolesHavePermission({
-      grants: props.grants,
-      permission: Permission.EVENTS_CREATE,
-      roles,
-    })
-  ) {
-    can(AuthAction.UPDATE, AuthSubject.EVENT, {
-      admins: { some: { adminUserId: userId } },
-    });
   }
 
   return build();

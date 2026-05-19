@@ -54,15 +54,18 @@ export async function seedStubUsers(p: PrismaClient): Promise<void> {
       where: { id: u.id },
       create: {
         id: u.id,
+        appRole: 'user',
         email: u.email,
         name: u.name,
         emailVerified: true,
         role: 'user',
       },
       update: {
+        appRole: 'user',
         email: u.email,
         name: u.name,
         emailVerified: true,
+        role: 'user',
       },
     });
   }

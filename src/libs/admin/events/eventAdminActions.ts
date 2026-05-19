@@ -34,7 +34,7 @@ import {
   rawEventRegistrationStatusFromFormData,
 } from '@/libs/admin/events/eventAdminSchemas';
 import { prismaUniqueTargetIncludes } from '@/libs/admin/prismaUniqueTargetIncludes';
-import { requireAnyPermission } from '@/libs/auth/dal';
+import { requirePermission } from '@/libs/auth/dal';
 import { Permission } from '@/libs/auth/permissions';
 import { prisma } from '@/libs/DB';
 import { logger } from '@/libs/Logger';
@@ -195,10 +195,7 @@ export async function createAdminEventAction(
   locale: string,
   formData: FormData
 ): Promise<void> {
-  const session = await requireAnyPermission(
-    [Permission.EVENTS_CREATE, Permission.EVENTS_MANAGE],
-    locale
-  );
+  const session = await requirePermission(Permission.EVENTS_MANAGE, locale);
   const zodParse = await adminEventZodParseParams(locale);
   const parsed = eventAdminBasicsFormSchema.safeParse(
     rawEventBasicsFromFormData(formData),

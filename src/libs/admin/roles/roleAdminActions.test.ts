@@ -77,7 +77,7 @@ beforeEach(() => {
   update.mockReset();
   userCount.mockReset();
 
-  findUnique.mockResolvedValue({ role: Role.USER });
+  findUnique.mockResolvedValue({ appRole: Role.USER, role: Role.USER });
   update.mockResolvedValue({ id: 'user-1' });
   requirePermission.mockResolvedValue({
     session: { impersonatedBy: null },
@@ -144,8 +144,8 @@ describe('saveRolePermissionGrantsAction', () => {
 });
 
 describe('updateUserRolesAction', () => {
-  it('updates the role in a transaction', async () => {
-    findUnique.mockResolvedValue({ role: Role.USER });
+  it('updates app role and role mirror in a transaction', async () => {
+    findUnique.mockResolvedValue({ appRole: Role.USER, role: Role.USER });
     const { updateUserRolesAction } =
       await import('@/libs/admin/roles/roleAdminActions');
 
@@ -163,13 +163,13 @@ describe('updateUserRolesAction', () => {
     );
     expect(transaction).toHaveBeenCalledOnce();
     expect(update).toHaveBeenCalledWith({
-      data: { role: Role.VOLUNTEER },
+      data: { appRole: Role.VOLUNTEER, role: Role.VOLUNTEER },
       where: { id: 'user-1' },
     });
   });
 
   it('keeps at least one admin role assigned', async () => {
-    findUnique.mockResolvedValue({ role: Role.ADMIN });
+    findUnique.mockResolvedValue({ appRole: Role.ADMIN, role: Role.USER });
     userCount.mockResolvedValue(1);
     const { updateUserRolesAction } =
       await import('@/libs/admin/roles/roleAdminActions');
@@ -179,7 +179,7 @@ describe('updateUserRolesAction', () => {
     ).rejects.toThrow('NEXT_REDIRECT:/admin/roles?status=last_admin');
 
     expect(userCount).toHaveBeenCalledWith({
-      where: { role: { contains: Role.ADMIN } },
+      where: { appRole: Role.ADMIN },
     });
     expect(update).not.toHaveBeenCalled();
   });
@@ -194,7 +194,7 @@ describe('updateUserRolesAction', () => {
         },
       });
     });
-    findUnique.mockResolvedValue({ role: Role.ADMIN });
+    findUnique.mockResolvedValue({ appRole: Role.ADMIN, role: Role.USER });
     userCount.mockResolvedValue(1);
     const { updateUserRolesAction } =
       await import('@/libs/admin/roles/roleAdminActions');
@@ -205,7 +205,7 @@ describe('updateUserRolesAction', () => {
 
     expect(transaction).toHaveBeenCalledOnce();
     expect(userCount).toHaveBeenCalledWith({
-      where: { role: { contains: Role.ADMIN } },
+      where: { appRole: Role.ADMIN },
     });
     expect(update).not.toHaveBeenCalled();
   });

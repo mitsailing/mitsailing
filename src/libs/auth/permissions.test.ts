@@ -13,15 +13,10 @@ import {
 import { Role } from '@/libs/auth/roles';
 
 describe('createAuthAbility', () => {
-  it('maps role permission rows into CASL permission actions', () => {
+  it('maps app role permissions into CASL permission actions', () => {
     const ability = createAuthAbility({
-      grants: [
-        {
-          permissionKey: Permission.USERS_VIEW,
-          roleKey: Role.VOLUNTEER_INSTRUCTOR,
-        },
-      ],
-      role: Role.VOLUNTEER_INSTRUCTOR,
+      grants: [],
+      role: Role.DOCK_STAFF,
     });
 
     expect(ability.can(Permission.USERS_VIEW, AuthSubject.PERMISSION)).toBe(
@@ -41,20 +36,6 @@ describe('createAuthAbility', () => {
     expect(
       ability.can(Permission.ROLES_MANAGE_PERMISSIONS, AuthSubject.PERMISSION)
     ).toBe(true);
-  });
-
-  it('applies grants from every assigned role', () => {
-    const ability = createAuthAbility({
-      grants: [
-        {
-          permissionKey: Permission.CMS_EDIT,
-          roleKey: Role.DOCK_STAFF,
-        },
-      ],
-      roles: [Role.VOLUNTEER, Role.DOCK_STAFF],
-    });
-
-    expect(ability.can(Permission.CMS_EDIT, AuthSubject.PERMISSION)).toBe(true);
   });
 
   it('limits registration edits to the owning user', () => {
@@ -80,12 +61,7 @@ describe('createAuthAbility', () => {
 
   it('grants dock staff global event edit access', () => {
     const ability = createAuthAbility({
-      grants: [
-        {
-          permissionKey: Permission.EVENTS_MANAGE,
-          roleKey: Role.DOCK_STAFF,
-        },
-      ],
+      grants: [],
       role: Role.DOCK_STAFF,
       userId: 'admin-1',
     });
@@ -103,12 +79,7 @@ describe('createAuthAbility', () => {
 
   it('grants dock masters global event edit access', () => {
     const ability = createAuthAbility({
-      grants: [
-        {
-          permissionKey: Permission.EVENTS_MANAGE,
-          roleKey: Role.DOCK_MASTER,
-        },
-      ],
+      grants: [],
       role: Role.DOCK_MASTER,
       userId: 'admin-1',
     });
@@ -124,14 +95,9 @@ describe('createAuthAbility', () => {
     ).toBe(true);
   });
 
-  it('limits volunteer instructor event edits to assigned admins with event creation', () => {
+  it('denies volunteer instructor event edit access', () => {
     const ability = createAuthAbility({
-      grants: [
-        {
-          permissionKey: Permission.EVENTS_CREATE,
-          roleKey: Role.VOLUNTEER_INSTRUCTOR,
-        },
-      ],
+      grants: [],
       role: Role.VOLUNTEER_INSTRUCTOR,
       userId: 'admin-1',
     });
@@ -142,15 +108,6 @@ describe('createAuthAbility', () => {
         createEventAbilitySubject({
           admins: [{ adminUserId: 'admin-1' }],
           createdByUserId: 'user-2',
-        })
-      )
-    ).toBe(true);
-    expect(
-      ability.can(
-        AuthAction.UPDATE,
-        createEventAbilitySubject({
-          admins: [],
-          createdByUserId: 'admin-1',
         })
       )
     ).toBe(false);
@@ -183,11 +140,11 @@ describe('permissionGrantsForSeed', () => {
     });
   });
 
-  it('grants volunteer instructors event creation by default', () => {
+  it('does not grant volunteer instructors event management by default', () => {
     const grants = permissionGrantsForSeed();
 
-    expect(grants).toContainEqual({
-      permissionKey: Permission.EVENTS_CREATE,
+    expect(grants).not.toContainEqual({
+      permissionKey: Permission.EVENTS_MANAGE,
       roleKey: Role.VOLUNTEER_INSTRUCTOR,
     });
   });
@@ -239,18 +196,6 @@ describe('normalizeRolePermissionGrant', () => {
     ).toEqual({
       permissionKey: Permission.USERS_EDIT,
       roleKey: Role.DOCK_STAFF,
-    });
-  });
-
-  it('accepts event creation as a grantable permission', () => {
-    expect(
-      normalizeRolePermissionGrant({
-        permissionKey: Permission.EVENTS_CREATE,
-        roleKey: Role.VOLUNTEER_INSTRUCTOR,
-      })
-    ).toEqual({
-      permissionKey: Permission.EVENTS_CREATE,
-      roleKey: Role.VOLUNTEER_INSTRUCTOR,
     });
   });
 });

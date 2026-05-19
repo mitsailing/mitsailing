@@ -4,15 +4,13 @@ import { accessibleBy } from '@casl/prisma';
 import { redirect } from 'next/navigation';
 import type { Prisma } from '@/generated/prisma/client';
 import type { AuthSession } from '@/libs/auth/dal';
-import { requireAnyPermission } from '@/libs/auth/dal';
+import { appRoleFromSessionUser, requireAnyPermission } from '@/libs/auth/dal';
 import type { AuthAbility } from '@/libs/auth/permissions';
 import {
   AuthAction,
   createAuthAbility,
   Permission,
 } from '@/libs/auth/permissions';
-import { listRolePermissionGrants } from '@/libs/auth/rolePermissionGrants';
-import { parseRoles, Role } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
 import { getI18nPath } from '@/utils/Helpers';
 
@@ -37,16 +35,12 @@ export type AdminEventListAccess = {
   session: NonNullable<AuthSession>;
 };
 
-async function createEventAdminAbility(
+function createEventAdminAbility(
   session: NonNullable<AuthSession>
-): Promise<AuthAbility> {
-  const roles = parseRoles(session.user.role);
-  const grants = roles.includes(Role.ADMIN)
-    ? []
-    : await listRolePermissionGrants();
+): AuthAbility {
   return createAuthAbility({
-    grants,
-    roles,
+    grants: [],
+    role: appRoleFromSessionUser(session.user),
     userId: session.user.id,
   });
 }
@@ -68,10 +62,10 @@ export async function requireAdminEventListAccess(
   locale: string
 ): Promise<AdminEventListAccess> {
   const session = await requireAnyPermission(
-    [Permission.EVENTS_CREATE, Permission.EVENTS_MANAGE],
+    [Permission.EVENTS_MANAGE],
     locale
   );
-  const ability = await createEventAdminAbility(session);
+  const ability = createEventAdminAbility(session);
   const eventAccessWhere = getEventAccessWhere(ability);
   if (!eventAccessWhere) {
     redirect(getI18nPath('/', locale));
@@ -111,10 +105,10 @@ export async function requireAdminEventAccess(props: {
   slug: string;
 }): Promise<AdminEventAccess | null> {
   const session = await requireAnyPermission(
-    [Permission.EVENTS_CREATE, Permission.EVENTS_MANAGE],
+    [Permission.EVENTS_MANAGE],
     props.locale
   );
-  const ability = await createEventAdminAbility(session);
+  const ability = createEventAdminAbility(session);
   const event = await findEventAccessRecord({
     ability,
     slug: props.slug,
