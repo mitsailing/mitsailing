@@ -1,3 +1,5 @@
+import { render, screen } from '@testing-library/react';
+import type * as React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Permission } from '@/libs/auth/permissions';
 import { Role } from '@/libs/auth/roles';
@@ -37,10 +39,53 @@ vi.mock('@/components/mit-sailing/admin/catalog/AdminCatalogForm', () => ({
   ),
 }));
 
-vi.mock('@/components/mit-sailing/admin/catalog/AdminCatalogTable', () => ({
-  AdminCatalogTable: (props: { rows: unknown[] }) => (
-    <div data-row-count={props.rows.length} />
+vi.mock('@/components/mit-sailing/admin/AdminPageHeader', () => ({
+  AdminPageHeader: (props: {
+    actions?: React.ReactNode;
+    title: React.ReactNode;
+  }) => (
+    <header>
+      <h1>{props.title}</h1>
+      {props.actions ? (
+        <div data-testid="admin-actions">{props.actions}</div>
+      ) : null}
+    </header>
   ),
+}));
+
+vi.mock('@/components/mit-sailing/admin/AdminPrimaryActionLink', () => ({
+  AdminPrimaryActionLink: (props: {
+    children: React.ReactNode;
+    href: string;
+  }) => <a href={props.href}>{props.children}</a>,
+}));
+
+vi.mock('@/components/mit-sailing/admin/catalog/AdminCatalogTable', () => ({
+  AdminCatalogTable: (props: {
+    definition: {
+      capabilities: {
+        create: boolean;
+        delete: boolean;
+        reorder: boolean;
+        update: boolean;
+      };
+    };
+    rows: unknown[];
+    userImpersonation?: unknown;
+  }) => {
+    const { capabilities } = props.definition;
+    return (
+      <div
+        data-can-create={String(capabilities.create)}
+        data-can-delete={String(capabilities.delete)}
+        data-can-reorder={String(capabilities.reorder)}
+        data-can-update={String(capabilities.update)}
+        data-has-impersonation={String(Boolean(props.userImpersonation))}
+        data-row-count={props.rows.length}
+        data-testid="admin-catalog-table"
+      />
+    );
+  },
 }));
 
 vi.mock('@/components/mit-sailing/admin/users/AdminUserRatingsPanel', () => ({
@@ -212,5 +257,80 @@ describe('admin user pages', () => {
     );
     expect(mocks.getById).toHaveBeenCalledWith('user-1');
     expect(mocks.listUserRatingAssignmentRows).toHaveBeenCalledWith('user-1');
+  });
+
+  it('passes edit and delete capabilities for admin users', async () => {
+    const { default: AdminUsersIndexPage } = await import('./page');
+
+    render(
+      await AdminUsersIndexPage({
+        params: Promise.resolve({ locale: 'en' }),
+      })
+    );
+
+    expect(screen.getByRole('link', { name: 'action_create' })).toHaveAttribute(
+      'href',
+      '/admin/users/new'
+    );
+    expect(screen.getByTestId('admin-catalog-table')).toHaveAttribute(
+      'data-can-create',
+      'true'
+    );
+    expect(screen.getByTestId('admin-catalog-table')).toHaveAttribute(
+      'data-can-update',
+      'true'
+    );
+    expect(screen.getByTestId('admin-catalog-table')).toHaveAttribute(
+      'data-can-delete',
+      'true'
+    );
+    expect(screen.getByTestId('admin-catalog-table')).toHaveAttribute(
+      'data-can-reorder',
+      'false'
+    );
+    expect(screen.getByTestId('admin-catalog-table')).toHaveAttribute(
+      'data-has-impersonation',
+      'true'
+    );
+  });
+
+  it('omits edit and delete capabilities for staff users', async () => {
+    mocks.requirePermission.mockResolvedValue({
+      session: { impersonatedBy: null },
+      user: {
+        appRole: Role.DOCK_STAFF,
+        banned: false,
+        emailVerified: true,
+        id: 'staff-1',
+        role: Role.USER,
+      },
+    });
+    const { default: AdminUsersIndexPage } = await import('./page');
+
+    render(
+      await AdminUsersIndexPage({
+        params: Promise.resolve({ locale: 'en' }),
+      })
+    );
+
+    expect(
+      screen.queryByRole('link', { name: 'action_create' })
+    ).not.toBeInTheDocument();
+    expect(screen.getByTestId('admin-catalog-table')).toHaveAttribute(
+      'data-can-create',
+      'false'
+    );
+    expect(screen.getByTestId('admin-catalog-table')).toHaveAttribute(
+      'data-can-update',
+      'false'
+    );
+    expect(screen.getByTestId('admin-catalog-table')).toHaveAttribute(
+      'data-can-delete',
+      'false'
+    );
+    expect(screen.getByTestId('admin-catalog-table')).toHaveAttribute(
+      'data-has-impersonation',
+      'false'
+    );
   });
 });

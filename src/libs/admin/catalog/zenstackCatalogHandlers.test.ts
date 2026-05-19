@@ -135,6 +135,34 @@ describe('createZenStackCatalogHandlers', () => {
     expect(mocks.create).not.toHaveBeenCalled();
   });
 
+  it('rejects invalid creates before reading display order', async () => {
+    const { createZenStackCatalogHandlers } =
+      await import('@/libs/admin/catalog/zenstackCatalogHandlers');
+    const handlers = createZenStackCatalogHandlers('event_categories');
+
+    await expect(
+      handlers.createFromForm(eventCategoryFormData({ name: '' }), {
+        authContext: { appRole: Role.ADMIN, id: 'admin-1' },
+      })
+    ).resolves.toEqual({ ok: false, code: 'validation_failed' });
+
+    expect(mocks.aggregate).not.toHaveBeenCalled();
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+
+  it('reports create write failures as unknown', async () => {
+    mocks.create.mockRejectedValue(new Error('create failed'));
+    const { createZenStackCatalogHandlers } =
+      await import('@/libs/admin/catalog/zenstackCatalogHandlers');
+    const handlers = createZenStackCatalogHandlers('event_categories');
+
+    await expect(
+      handlers.createFromForm(eventCategoryFormData(), {
+        authContext: { appRole: Role.ADMIN, id: 'admin-1' },
+      })
+    ).resolves.toEqual({ ok: false, code: 'unknown' });
+  });
+
   it('lists event categories in display order', async () => {
     const { createZenStackCatalogHandlers } =
       await import('@/libs/admin/catalog/zenstackCatalogHandlers');
@@ -207,6 +235,19 @@ describe('createZenStackCatalogHandlers', () => {
     expect(mocks.update).not.toHaveBeenCalled();
   });
 
+  it('reports update write failures as unknown', async () => {
+    mocks.update.mockRejectedValue(new Error('update failed'));
+    const { createZenStackCatalogHandlers } =
+      await import('@/libs/admin/catalog/zenstackCatalogHandlers');
+    const handlers = createZenStackCatalogHandlers('event_categories');
+
+    await expect(
+      handlers.updateFromForm('cat-1', eventCategoryFormData(), {
+        authContext: { appRole: Role.ADMIN, id: 'admin-1' },
+      })
+    ).resolves.toEqual({ ok: false, code: 'unknown' });
+  });
+
   it('keeps reorder updates in one ZenStack transaction', async () => {
     mocks.findMany.mockResolvedValue([{ id: 'cat-1' }, { id: 'cat-2' }]);
     const { createZenStackCatalogHandlers } =
@@ -242,6 +283,21 @@ describe('createZenStackCatalogHandlers', () => {
 
     expect(mocks.zenstackForAuthContext).not.toHaveBeenCalled();
     expect(mocks.update).not.toHaveBeenCalled();
+  });
+
+  it('reports reorder reads as unknown when ZenStack rejects them', async () => {
+    mocks.findMany.mockRejectedValue(new Error('read failed'));
+    const { createZenStackCatalogHandlers } =
+      await import('@/libs/admin/catalog/zenstackCatalogHandlers');
+    const handlers = createZenStackCatalogHandlers('event_categories');
+
+    await expect(
+      handlers.reorder?.(['cat-1'], undefined, {
+        authContext: { appRole: Role.ADMIN, id: 'admin-1' },
+      })
+    ).resolves.toEqual({ ok: false, code: 'unknown' });
+
+    expect(mocks.transaction).not.toHaveBeenCalled();
   });
 
   it('reports reorder transaction failures without partial success', async () => {
