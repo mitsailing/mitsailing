@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
+import { requireAdminEventAccess } from '@/libs/admin/events/eventAdminAuthorization';
 import { adminEventShowPath } from '@/libs/admin/events/eventAdminPaths';
 import { getI18nPath } from '@/utils/Helpers';
 
@@ -45,6 +46,14 @@ export default async function AdminEventRegistrationsPage(props: PageProps) {
   const { locale, slug } = await props.params;
   const { error: errorCode, status } = await props.searchParams;
   setRequestLocale(locale);
+  const access = await requireAdminEventAccess({
+    locale,
+    minimumAccessMode: 'readOnly',
+    slug,
+  });
+  if (!access) {
+    notFound();
+  }
   redirect(
     canonicalRegistrationsReviewPath({
       errorCode,
