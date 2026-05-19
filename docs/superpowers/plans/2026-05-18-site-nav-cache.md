@@ -10,7 +10,7 @@
 
 ---
 
-### Task 1: Add Failing Cache Wrapper Tests
+## Task 1: Add Failing Cache Wrapper Tests
 
 **Files:**
 - Test: `src/libs/mit-sailing/classQueries.test.ts`
@@ -33,7 +33,7 @@ expect(unstableCacheCalls[0]?.keyParts).toEqual(['site-nav-fleet']);
 Run: `npm run test -- src/libs/mit-sailing/classQueries.test.ts src/libs/mit-sailing/fleetQueries.test.ts`
 Expected: FAIL because the tests or exports do not exist yet.
 
-### Task 2: Add Failing Admin Invalidation Tests
+## Task 2: Add Failing Admin Invalidation Tests
 
 **Files:**
 - Modify: `src/libs/admin/catalog/catalogActions.test.ts`
@@ -50,7 +50,7 @@ expect(updateTag).toHaveBeenCalledWith('site-nav-fleet');
 Run: `npm run test -- src/libs/admin/catalog/catalogActions.test.ts`
 Expected: FAIL because only existing tags such as `sitemap-catalog` are invalidated.
 
-### Task 3: Implement Cache Tags And Cached Nav Reads
+## Task 3: Implement Cache Tags And Cached Nav Reads
 
 **Files:**
 - Create: `src/libs/mit-sailing/siteNavCache.ts`
@@ -118,7 +118,7 @@ const [categories, fleetBoats, headerMenu, mobileUtilityMenu] =
   ]);
 ```
 
-### Task 4: Invalidate Tags From Admin Mutations
+## Task 4: Invalidate Tags From Admin Mutations
 
 **Files:**
 - Modify: `src/libs/admin/catalog/catalogActions.ts`
@@ -139,7 +139,7 @@ if (resourceId === 'fleet') {
 }
 ```
 
-### Task 5: Verify
+## Task 5: Verify
 
 **Files:**
 - All files above

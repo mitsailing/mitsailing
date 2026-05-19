@@ -17,7 +17,7 @@ policies.
 
 ## Scope
 
-- Remove `Event.created_by`; use `EventAdmin` as the management relation.
+- Remove `Event.createdByUserId`; use `EventAdmin` as the management relation.
 - Add ZModel policies for `Event`, `EventAdmin`, `EventRegistration`, dates,
   questions, fees, answers, and comments.
 - Keep public reads for published event content.

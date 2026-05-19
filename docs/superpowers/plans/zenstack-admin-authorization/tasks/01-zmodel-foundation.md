@@ -28,4 +28,3 @@ source while preserving the existing Prisma 7 generated client contract.
 - `npx zen check --schema zenstack/schema.zmodel` passes.
 - `npx zen generate --schema zenstack/schema.zmodel` produces the expected generated artifacts.
 - `npx prisma generate` still works with `src/generated/prisma`.
-- No unpinned Better Auth CLI generation is used.

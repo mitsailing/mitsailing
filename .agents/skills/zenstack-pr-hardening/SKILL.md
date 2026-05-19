@@ -18,10 +18,10 @@ unless the user explicitly asks for that behavior.
   `https://docs.coderabbit.ai/cli/skills`
 - Repo PR-loop rule:
   `.cursor/rules/pr-agent-reviews-loop.mdc`
-- GitHub skill:
-  `/Users/andrewkelley/.codex/plugins/cache/openai-curated/github/eed16198/skills/github/SKILL.md`
-- GitHub publish skill:
-  `/Users/andrewkelley/.codex/plugins/cache/openai-curated/github/eed16198/skills/yeet/SKILL.md`
+- GitHub skill (example path, replace with your own):
+  `$HOME/.codex/plugins/cache/openai-curated/github/eed16198/skills/github/SKILL.md`
+- GitHub publish skill (example path, replace with your own):
+  `$HOME/.codex/plugins/cache/openai-curated/github/eed16198/skills/yeet/SKILL.md`
 
 ## Hard Limits
 
@@ -84,8 +84,9 @@ At the start of each round:
 
 1. Inspect PR checks once:
    ```bash
-   python3 /Users/andrewkelley/.codex/skills/finish-pr-context7/scripts/inspect_pr_state.py --repo "." --pr "<number-or-url>"
+   python3 $CODEX_SKILLS_PATH/finish-pr-context7/scripts/inspect_pr_state.py --repo "." --pr "<number-or-url>"
    ```
+   Note: Set `CODEX_SKILLS_PATH` environment variable to your Codex skills directory.
 2. Inspect unanswered bot comments once:
    ```bash
    npx agent-reviews --bots-only --unanswered

@@ -12,7 +12,7 @@ Useful external references:
 
 - [Bemi Prisma](https://github.com/BemiHQ/bemi-prisma): required target for self-hosted open-source audit trail migration.
 - [GitHub agent skills docs](https://docs.github.com/en/copilot/how-tos/copilot-on-github/customize-copilot/customize-cloud-agent/add-skills): skills are focused instruction folders; third-party skills must be inspected before use.
-- [github/awesome-copilot refactor](https://skills.sh/github/awesome-copilot/refactor): behavior-preserving, small-step refactoring workflow.
+- [GitHub/awesome-copilot refactor](https://skills.sh/github/awesome-copilot/refactor): behavior-preserving, small-step refactoring workflow.
 - [addyosmani code-review-and-quality](https://github.com/addyosmani/agent-skills/blob/main/skills/code-review-and-quality/SKILL.md): review against correctness, readability, architecture, security, and performance.
 - [obra/superpowers](https://github.com/obra/superpowers): spec-first, TDD, YAGNI, DRY, review-gated workflow.
 
@@ -85,7 +85,7 @@ Add this policy to always-loaded repo guidance after this design is accepted:
 Planned locations:
 
 - `AGENTS.md`: shared source of truth for Codex and Cursor.
-- `.cursor/rules/package-first.mdc`: short always-applied Cursor rule for sessions that do not begin from a spec or plan.
+- `.cursor/rules/package-first-simple.mdc`: short always-applied Cursor rule for sessions that do not begin from a spec or plan.
 
 ## Non-Goals
 

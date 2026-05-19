@@ -40,9 +40,9 @@ equivalent:
 
 Skills are not a substitute for package verification. Before custom infrastructure:
 
-1. Check existing repo patterns.
-2. Check official docs or Context7 for the package-backed path.
-3. Check package health for new production dependencies.
+1. Review existing repo patterns.
+2. Consult official docs or Context7 for the package-backed path.
+3. Assess package health for new production dependencies.
 4. Stop and ask before implementing custom infrastructure when a maintained
    package or existing local abstraction may be simpler.
 

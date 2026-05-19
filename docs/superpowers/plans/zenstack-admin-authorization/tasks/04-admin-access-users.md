@@ -20,7 +20,7 @@ role assignment through guarded appRole actions.
 ## Scope
 
 - Replace admin layout/nav/header/public-edit checks with app auth context.
-- Delete `/admin/roles`, RolePermissionGrant code, and stale role-grant tests.
+- Delete `/admin/roles` endpoint, RolePermissionGrant application code, and stale role-grant tests. Note: Task 08 owns persistence-level cleanup (DB schema/migration files).
 - Update user admin list/detail/edit/create/delete flows to use `appRole`.
 - Add last-admin protection for demotion, ban, and delete.
 - Add Better Auth role mirror rollback handling.

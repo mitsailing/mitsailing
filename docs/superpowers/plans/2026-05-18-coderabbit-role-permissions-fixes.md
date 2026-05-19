@@ -387,6 +387,8 @@ Expected: PASS.
 
 Run: `npm install infinite-scroll@^5.0.0 && npm install --save-dev @types/infinite-scroll@^4.0.4`
 
+Note: The project uses v4 type definitions with v5 runtime. Option A (current): accept potential missing v5 coverage for quick fix. Option B (accurate typing): omit `@types/infinite-scroll` and add a local ambient declaration file with v5-specific types.
+
 Expected: `infinite-scroll` is in dependencies and `@types/infinite-scroll` is in devDependencies.
 
 - [ ] **Step 2: Add cursor loader implementation**
