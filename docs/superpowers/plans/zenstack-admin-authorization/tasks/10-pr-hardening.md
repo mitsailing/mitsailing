@@ -110,6 +110,12 @@ and push, then replace the old follow-up with one new 30-minute follow-up
 anchored to the successful push. Do not count this CodeRabbit enablement work
 against the five post-PR fix rounds.
 
+After each push, confirm CodeRabbit actually starts on the PR. If CodeRabbit has
+not started automatically, comment `@coderabbitai full review` on the PR, then
+confirm CodeRabbit replies that the full review was triggered or that a review
+is in progress. This manual trigger is PR setup/review enablement and does not
+count against the five post-PR fix rounds.
+
 Each round must begin with aggressive context pruning. The context gets very big
 during step 9 and during review loops, so do not treat prior implementation or
 review history as reusable context.
