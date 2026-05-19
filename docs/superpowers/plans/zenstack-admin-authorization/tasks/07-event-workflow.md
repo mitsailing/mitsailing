@@ -16,6 +16,8 @@ existing workflow logic.
 
 ## Scope
 
+- Move public `/events`, `/events/[slug]`, and `/events/[slug]/register` event
+  reads and registration actions to ZenStack-backed event access.
 - Replace CASL event filters with ZenStack protected queries.
 - Use ZenStack for Event/EventAdmin/EventDate/question/fee writes where practical.
 - Keep custom workflow logic for slugging, capacity, registration transitions,
@@ -25,6 +27,8 @@ existing workflow logic.
 
 ## Acceptance
 
+- Public `/events`, `/events/[slug]`, and `/events/[slug]/register` use
+  ZenStack-backed event access.
 - Event admin tests pass without CASL.
 - Public event registration actions fail closed for banned or unverified users.
 - Generic CRUD is not used for workflow-heavy event mutations.
