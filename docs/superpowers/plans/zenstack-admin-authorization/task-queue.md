@@ -158,9 +158,45 @@ queue.
     `role_permission_grants`; Task 08 owns migration cleanup/squash.
   - Commit: `9dfe5c26`.
   - Next: Task 05 - Event authorization policies.
-- [ ] 05 - Event authorization policies
+- [x] 05 - Event authorization policies
   - Packet: `tasks/05-event-policies.md`
   - Reasoning: xhigh
+  - Status: completed; review blockers fixed.
+  - Changed files: `prisma/schema.prisma`,
+    `prisma/migrations/20260519000000_drop_event_created_by/migration.sql`,
+    `prisma/seedMitSailing/steps.ts`, `zenstack/schema.zmodel`,
+    `zenstack/schema.ts`, `src/libs/zenstack/eventPolicies.test.ts`,
+    `src/libs/admin/events/eventAdminActions.ts`,
+    `src/libs/admin/events/eventAdminActions.test.ts`,
+    `src/libs/admin/events/eventAdminAuthorization.ts`,
+    `src/libs/admin/events/eventAdminAuthorization.test.ts`,
+    `src/libs/admin/events/eventAdminQueries.ts`, `src/libs/auth/dal.ts`,
+    `src/libs/auth/permissions.ts`, `src/libs/auth/permissions.test.ts`,
+    `src/libs/mit-sailing/eventQueries.ts`,
+    `src/data/mit-sailing/eventsSeed.ts`,
+    `src/components/mit-sailing/admin/events/AdminEventFormView.tsx`,
+    `src/locales/en.json`.
+  - Commands run: real ZenStack policy test failed red for missing event
+    policies, owner registration update access, mutable answer/comment
+    relations, and mismatched comment parent creation, then passed with 11 tests
+    after policies were added. `node scripts/migrate-test-db.mjs`;
+    `RUN_DATABASE_TESTS=1 TEST_DATABASE_URL=... npx vitest run --project unit
+    src/libs/zenstack/eventPolicies.test.ts`; focused auth/admin/event/seed
+    tests passed with 22 tests; `npx zen check --schema
+    zenstack/schema.zmodel`; `npx zen generate --schema
+    zenstack/schema.zmodel`; `npx prisma generate`; `npm run lint`;
+    `npm run check:types`; `npm run check:i18n`; `npm run check:deps`;
+    `git diff --check`. Pre-commit reran `ultracite` and `knip`.
+  - Review: fixed policy review findings for pre-state update semantics by
+    using ZenStack v3 `post-update`/`before()` guards; restricted generated
+    comment creation to root comments because nested parent-event comparison did
+    not block mismatched parent creates.
+  - Risks: the new unique index on `(event_id, admin_user_id)` assumes existing
+    event admin assignment rows are duplicate-free before migration. Generated
+    ZenStack access allows root comment creation only; threaded comment creation
+    should stay in an explicit server workflow if product needs replies later.
+  - Commit: `b0e0ab74`.
+  - Next: Task 06 - Restricted generated CRUD and EventCategory admin UX.
 - [ ] 06 - Restricted generated CRUD and EventCategory admin UX
   - Packet: `tasks/06-generated-crud-event-category.md`
   - Reasoning: high
