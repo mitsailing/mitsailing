@@ -1,0 +1,27 @@
+---
+description: Keep code simple and package-first; stop before custom infrastructure
+alwaysApply: true
+---
+
+# Package-First Simplicity
+
+Goal: bug-free, maintainable, simple code.
+
+- Prefer existing local abstractions before adding new ones.
+- Prefer active, maintained packages for commodity systems: auth adapters,
+  access policy engines, schema/form resolvers, tables, drag/drop, validation,
+  generated CRUD, and audit/history capture.
+- New production packages should normally be active in the last year, not
+  deprecated, and have 2,000+ GitHub stars. Official packages for the adopted
+  stack can be accepted with fewer stars when they are the documented integration.
+- If a task would build a custom package-like system, stop and ask before coding
+  unless the package search or local-pattern decision has already been documented.
+- Block before building custom auth/authorization, policy, generated CRUD,
+  table/form engine, audit/history, queue/orchestration, calendar/date engine,
+  or file/media pipeline unless the package/local-pattern decision is documented.
+- For custom infrastructure decisions, leave one sentence in the plan or final
+  notes: "Using existing pattern/package X because ..." or "No package because ...".
+- Do not introduce a generic framework for one use case. Implement the smallest
+  task-scoped abstraction and generalize only after a second real use case.
+- Delete replaced code in the same slice when safe; avoid adapter piles where old
+  and new systems both keep running without a retirement step.

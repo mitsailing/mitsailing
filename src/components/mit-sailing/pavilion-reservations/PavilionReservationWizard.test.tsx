@@ -390,7 +390,6 @@ describe('PavilionReservationWizard slot picker', () => {
   });
 
   it('shows submit pending state on final submit', async () => {
-    vi.useRealTimers();
     const deferred = Promise.withResolvers<PavilionReservationSubmitState>();
     const action = vi.fn(async () => {
       const state = await deferred.promise;
@@ -405,6 +404,7 @@ describe('PavilionReservationWizard slot picker', () => {
     fireEvent.click(screen.getByRole('button', { name: '20' }));
     fireEvent.click(screen.getByRole('button', { name: '9:00 AM' }));
     fireEvent.click(screen.getByRole('button', { name: '10:00 AM' }));
+    vi.useRealTimers();
     fireEvent.click(
       screen.getByRole('button', { name: 'Next: contact information' })
     );

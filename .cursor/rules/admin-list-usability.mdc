@@ -1,0 +1,15 @@
+---
+description: Admin list/table usability and required row actions for management screens
+globs: src/app/[[]locale[]]/**/admin/**/*.{ts,tsx},src/components/mit-sailing/admin/**/*.{ts,tsx},src/libs/admin/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Admin List Usability
+
+Admin management pages are work surfaces. Prefer dense, comparable rows over card grids when users scan, sort, compare, or act on records.
+
+- Default admin index pages to tables or table-like responsive rows, not unrelated boxed cards.
+- Every listed record must expose its allowed primary actions in the row: view/details when a detail route exists, edit when update is allowed, delete/remove when delete is allowed, and domain-specific actions such as registrations/history when relevant.
+- Do not require horizontal scrolling to reach row actions. On desktop, keep an actions column visible; on mobile, stack each row with visible labels and actions under the primary identifier.
+- The primary identifier should link to the safest default destination: detail/view if it exists, otherwise edit when update is allowed.
+- Empty states must say what is empty and, when create is allowed, expose the create action.

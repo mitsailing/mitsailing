@@ -1,6 +1,12 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "ignorePatterns": ["mit-redesign/**", "donation-figma/**"],
+  "ignorePatterns": [
+    "mit-redesign/**",
+    "donation-figma/**",
+    "zenstack/input.ts",
+    "zenstack/models.ts",
+    "zenstack/schema.ts"
+  ],
   "extends": [
     "./node_modules/ultracite/config/oxlint/core/.oxlintrc.json",
     "./node_modules/ultracite/config/oxlint/next/.oxlintrc.json",

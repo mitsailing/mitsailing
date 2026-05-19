@@ -28,7 +28,7 @@ reviews:
         Follow repository AGENTS.md and .cursor/rules: TypeScript strictness,
         React patterns (single props param, React Compiler handles routine memoization),
         Next.js App Router and server/client boundaries, next-intl (no hard-coded
-        user-visible strings), accessibility and contrast (ADA rule). Do not suggest
+        user-visible strings), and MIT theme token/readability rules. Do not suggest
         `useEffect` for user events, data transformation, derived state, or
         server-loadable data; it is an escape hatch for synchronizing with external
         systems.
@@ -213,8 +213,31 @@ reviews:
         Prefer Conventional Commits-style titles (feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert): short specific summary.
     description:
       mode: warning
+      requirements: >-
+        Summarize behavior changes, tests run, and user-visible risk. When the PR
+        adds or substantially changes package-like infrastructure, include a
+        Package/local-pattern decision that names the package/local pattern used
+        or says why no package fits.
     issue_assessment:
       mode: warning
+    custom_checks:
+      - name: Package-first infrastructure decision
+        mode: error
+        instructions: >-
+          Fail only when both conditions are true. Condition 1: the PR adds or
+          substantially changes custom package-like infrastructure for
+          auth/authorization, policy/access control, generated CRUD, table or form
+          engines, validation/resolver layers, audit/history, queues or
+          orchestration, calendar/date engines, or file/media pipelines. Condition
+          2: neither the PR description nor changed planning/design documentation
+          records a package/local-pattern decision with one of these forms:
+          "Using existing pattern/package X because ...", "Using package X because
+          ...", or "No package because ...". Pass if the PR only uses an existing
+          local abstraction, only changes application-specific business logic, only
+          updates UI/copy/tests/docs, or already documents the decision. When
+          failing, name the custom subsystem and request the missing
+          package/local-pattern decision; do not require adopting a package when a
+          documented local-pattern decision exists.
 
   tools:
     # Lint stack matches package.json (ultracite / oxlint); no ESLint config in-repo.

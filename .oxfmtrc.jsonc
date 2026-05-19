@@ -20,7 +20,14 @@
   "tabWidth": 2,
   "trailingComma": "es5",
   "useTabs": false,
-  "ignorePatterns": ["migrations/*", "mit-redesign/**", "*.md"],
+  "ignorePatterns": [
+    "migrations/*",
+    "mit-redesign/**",
+    "*.md",
+    "zenstack/input.ts",
+    "zenstack/models.ts",
+    "zenstack/schema.ts"
+  ],
   "sortTailwindcss": {
     "stylesheet": "src/styles/global.css"
   },

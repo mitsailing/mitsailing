@@ -1,0 +1,15 @@
+---
+description: MIT Sailing UI color tokens and auth/admin link rules
+globs: src/**/*.{ts,tsx},src/styles/**/*.css
+alwaysApply: false
+---
+
+# UI Color Tokens
+
+Use [`src/styles/mit-theme.css`](../../src/styles/mit-theme.css) as the only source of CSS color values and `tokens.colors` from [`src/lib/mit-sailing/tokens.ts`](../../src/lib/mit-sailing/tokens.ts) for rare inline SVG/chart styles.
+
+- Prefer semantic utilities: `text-foreground`, `text-mit-text`, `text-mit-readable-ink`, `border-border`, `bg-card`, `Button variant="mit"`.
+- Do not paste raw MIT hex values or Tailwind `blue-*` classes into auth/admin UI.
+- Text links that need MIT red should usually be `text-mit-red dark:text-mit-red-ink`; avoid bare `text-mit-red` on dark-capable surfaces.
+- Auth primary actions use shared shadcn controls and `Button variant="mit"`; auth inline links use `authInlineLinkClassName`.
+- Keep foreground/background pairs readable in light and dark mode; use existing tokens instead of adding ad hoc accessibility rules here.
