@@ -285,6 +285,36 @@ queue.
 - [ ] 08 - Remove stale auth stack and squash prelaunch migrations
   - Packet: `tasks/08-removal-migrations.md`
   - Reasoning: high
+  - Status: completed.
+  - Changed files: `package.json`, `package-lock.json`,
+    `src/libs/auth/permissions.ts`, deleted `src/libs/auth/permissions.test.ts`,
+    `src/libs/auth.test.ts`,
+    `prisma/migrations/20260423041039_mit_sailing_domain/migration.sql`,
+    deleted
+    `prisma/migrations/20260518130000_role_permission_grants/migration.sql`,
+    added
+    `prisma/migrations/20260518130000_user_gym_membership_verification/migration.sql`,
+    deleted
+    `prisma/migrations/20260519000000_drop_event_created_by/migration.sql`.
+  - Commands run: exact acceptance `rg -n
+    "@better-auth/prisma-adapter|@casl|CASL|accessibleBy|ForbiddenError|parseRoles\\("
+    src tests package.json -S` returned no matches. Event/role migration search
+    returned no stale RolePermissionGrant or event `created_by` artifacts.
+    Targeted tests passed with 41 tests and 12 skipped DB-policy tests:
+    `src/libs/auth.test.ts`, `src/libs/auth/appPermissions.test.ts`,
+    `src/libs/auth/dal.test.ts`, `src/libs/zenstack/eventPolicies.test.ts`.
+    Also ran `npm run check:deps`, `npm run lint`, `npm run check:types`, and
+    `git diff --check`. Pre-commit reran `ultracite` and `knip`.
+  - Review: no blockers. Confirmed no app-owned source analyzer exclusions were
+    added, CASL direct dependencies and live code are gone, event `created_by`
+    was squashed out of the original event migration, the later drop migration
+    was removed, and the unrelated gym membership column was preserved in a
+    replacement migration.
+  - Risks: `@better-auth/prisma-adapter` remains in `package-lock.json` only as
+    a transitive dependency of `better-auth`; direct app dependency and live test
+    mock usage were removed.
+  - Commit: `5551980d`.
+  - Next: Task 09 - Full verification and review-bot preflight.
   - Cleanup context: commit `077e634c` (`feat: add CASL event permission
     model`) is the stale pre-ZenStack boundary. The cleanup pass should remove
     the old CASL/RolePermissionGrant stack that commit introduced after the
