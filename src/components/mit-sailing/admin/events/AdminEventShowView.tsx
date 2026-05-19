@@ -7,13 +7,17 @@ import {
   AdminEventListStatusBadge,
   AdminEventReadOnlyNotice,
 } from '@/components/mit-sailing/admin/events/AdminEventShared';
+import { CmsRichText } from '@/components/mit-sailing/cms/CmsRichText';
 import { Button } from '@/components/ui/button';
 import {
   adminEventDeletePath,
   adminEventEditPath,
   adminEventsIndexPath,
 } from '@/libs/admin/events/eventAdminPaths';
-import type { AdminEventShowDto } from '@/libs/admin/events/eventAdminQueries';
+import type {
+  AdminEventPublicContentSectionDto,
+  AdminEventShowDto,
+} from '@/libs/admin/events/eventAdminQueries';
 import { Link } from '@/libs/I18nNavigation';
 import {
   formatEasternDateTime,
@@ -75,10 +79,31 @@ function publicEventHref(event: AdminEventShowDto) {
   return `/events/${encodeURIComponent(event.slug)}`;
 }
 
+function visiblePublicContentSections(
+  sections: AdminEventShowDto['publicContentSections']
+) {
+  return sections.filter((section) => section.body.trim().length > 0);
+}
+
+function AdminEventPublicContentBody(props: {
+  section: AdminEventPublicContentSectionDto;
+}) {
+  const className = 'mt-2 text-sm leading-relaxed text-mit-readable-ink';
+  if (props.section.id === 'description') {
+    return <CmsRichText className={className} html={props.section.body} />;
+  }
+  return (
+    <CmsRichText className={className} sanitizedHtml={props.section.body} />
+  );
+}
+
 export function AdminEventShowView(props: AdminEventShowViewProps) {
   const signedUp =
     props.event.registrationCounts.approved +
     props.event.registrationCounts.pending;
+  const publicContentSections = visiblePublicContentSections(
+    props.event.publicContentSections
+  );
   const remaining =
     props.event.maxParticipants === null
       ? props.t('show_remaining_open')
@@ -216,12 +241,12 @@ export function AdminEventShowView(props: AdminEventShowViewProps) {
           {props.t('show_public_content_heading')}
         </h2>
         <div className="mt-4 grid gap-4">
-          {props.event.publicContentSections.length === 0 ? (
+          {publicContentSections.length === 0 ? (
             <p className="text-sm text-mit-readable-ink">
               {props.t('show_public_content_empty')}
             </p>
           ) : (
-            props.event.publicContentSections.map((section) => (
+            publicContentSections.map((section) => (
               <article
                 className="rounded-lg border border-border bg-background p-4"
                 key={section.id}
@@ -229,9 +254,7 @@ export function AdminEventShowView(props: AdminEventShowViewProps) {
                 <h3 className="text-base font-semibold text-foreground">
                   {props.t(section.titleKey)}
                 </h3>
-                <p className="mt-2 text-sm whitespace-pre-wrap text-mit-readable-ink">
-                  {section.body}
-                </p>
+                <AdminEventPublicContentBody section={section} />
               </article>
             ))
           )}

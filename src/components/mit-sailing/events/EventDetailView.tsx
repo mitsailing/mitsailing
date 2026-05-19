@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import type * as React from 'react';
 import { PublicAdminEditLink } from '@/components/mit-sailing/admin/PublicAdminEditLink';
 import { PublicCatalogDetailTopNav } from '@/components/mit-sailing/admin/PublicCatalogDetailTopNav';
+import { CmsRichText } from '@/components/mit-sailing/cms/CmsRichText';
 import { EVENTS_TIME_ZONE } from '@/lib/mit-sailing/nyTime';
 import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
 import { cn } from '@/lib/utils';
@@ -25,6 +26,10 @@ type EventDetailViewProps = {
   event: PublicEventDetail;
   isSignedIn: boolean;
 };
+
+type PublicContentSection = NonNullable<
+  PublicEventDetail['publicContentSections']
+>[number];
 
 function formatDateOnly(date: Date | null, locale: string): string {
   if (!date) {
@@ -111,6 +116,12 @@ function registrationMetaLabels(props: {
   };
 }
 
+function visiblePublicContentSections(
+  sections: PublicEventDetail['publicContentSections']
+): PublicContentSection[] {
+  return (sections ?? []).filter((section) => section.body.trim().length > 0);
+}
+
 /**
  * @param props - Detail view props
  * @param props.locale - Active locale
@@ -148,6 +159,9 @@ export async function EventDetailView(props: EventDetailViewProps) {
     event: props.event,
     now,
   });
+  const publicContentSections = visiblePublicContentSections(
+    props.event.publicContentSections
+  );
   const registrationHeadingText = registrationHeading(
     reservationState,
     registrationOpens || t('date_to_be_announced'),
@@ -351,6 +365,22 @@ export async function EventDetailView(props: EventDetailViewProps) {
               </ul>
             </section>
           ) : null}
+
+          {publicContentSections.map((section) => (
+            <section
+              aria-labelledby={`event-public-content-${section.id}-heading`}
+              className="mb-10"
+              key={section.id}
+            >
+              <SectionHeading id={`event-public-content-${section.id}-heading`}>
+                {t(section.titleKey)}
+              </SectionHeading>
+              <CmsRichText
+                className="text-base leading-relaxed text-mit-text"
+                sanitizedHtml={section.body}
+              />
+            </section>
+          ))}
         </div>
       </div>
     </article>

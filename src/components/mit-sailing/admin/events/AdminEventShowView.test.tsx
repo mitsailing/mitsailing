@@ -168,4 +168,48 @@ describe('AdminEventShowView', () => {
     expect(screen.queryByLabelText('Actions for Sailor One')).toBeNull();
     expect(screen.getAllByText('Vegetarian').length).toBeGreaterThan(0);
   });
+
+  it('renders public content sections as rich text', () => {
+    const event = eventFixture('editable');
+
+    render(
+      <AdminEventShowView
+        errorCode={null}
+        event={{
+          ...event,
+          publicContentSections: [
+            {
+              body: '<p>Learn how to sail.</p>',
+              id: 'description',
+              titleKey: 'content_description_title',
+            },
+            {
+              body: '<p>Ask the <strong>race desk</strong>.</p>',
+              id: 'faq',
+              titleKey: 'content_faq_title',
+            },
+            {
+              body: '<p>Notice includes <a href="/events">course details</a>.</p>',
+              id: 'noticeOfRace',
+              titleKey: 'content_notice_of_race_title',
+            },
+          ],
+        }}
+        filter="all"
+        locale="en"
+        t={t}
+      />
+    );
+
+    expect(screen.getByRole('heading', { name: 'Description' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'FAQ' })).toBeVisible();
+    expect(
+      screen.getByRole('heading', { name: 'Notice of Race' })
+    ).toBeVisible();
+    expect(screen.getByText('race desk').tagName).toBe('STRONG');
+    expect(
+      screen.getByRole('link', { name: 'course details' })
+    ).toHaveAttribute('href', '/events');
+    expect(document.body.textContent).not.toContain('<strong>');
+  });
 });
