@@ -246,6 +246,42 @@ queue.
 - [ ] 07 - Event workflow data access
   - Packet: `tasks/07-event-workflow.md`
   - Reasoning: high
+  - Status: completed; review blocker fixed.
+  - Changed files:
+    `src/app/[locale]/(marketing)/(site)/admin/events/page.tsx`,
+    `src/app/[locale]/(marketing)/(site)/admin/events/[slug]/edit/page.tsx`,
+    `src/app/[locale]/(marketing)/(site)/admin/events/[slug]/delete/page.tsx`,
+    `src/app/[locale]/(marketing)/(site)/admin/events/[slug]/registrations/page.tsx`,
+    `src/libs/admin/events/eventAdminAuthorization.ts`,
+    `src/libs/admin/events/eventAdminAuthorization.test.ts`,
+    `src/libs/admin/events/eventAdminQueries.ts`,
+    `src/libs/admin/events/eventAdminQueries.test.ts`,
+    `src/libs/admin/events/eventAdminActions.test.ts`,
+    `src/libs/mit-sailing/eventQueries.ts`,
+    `src/libs/mit-sailing/eventQueries.test.ts`,
+    `src/libs/mit-sailing/eventRegistrationActions.ts`,
+    `src/libs/mit-sailing/eventRegistrationActions.test.ts`.
+  - Commands run: targeted Task 07 suite passed with 21 tests:
+    `src/libs/mit-sailing/eventQueries.test.ts`,
+    `src/libs/mit-sailing/eventRegistrationActions.test.ts`,
+    `src/libs/admin/events/eventAdminAuthorization.test.ts`,
+    `src/libs/admin/events/eventAdminQueries.test.ts`,
+    `src/libs/admin/events/eventAdminActions.test.ts`. Also ran
+    `npm run lint`, `npm run check:types`, `npm run check:deps`, and
+    `git diff --check`. Pre-commit reran `ultracite` and `knip`.
+  - Review: fixed the read-vs-update authorization blocker by proving
+    protected ZenStack `Event` update access before admin event detail/list
+    workflows use plain Prisma projections or mutations. Fixed the registration
+    race regression by moving the owner-scoped existing-registration lookup back
+    inside the event row lock transaction.
+  - Risks: admin event read paths use a same-value protected `updateMany` probe
+    to prove ZenStack update authorization because no non-mutating policy-check
+    helper exists in the current local abstraction. It changes no logical event
+    data and `Event` has no `updatedAt`, but it is still a write-shaped database
+    operation and should be replaced if ZenStack exposes a read-only update
+    authorization check later.
+  - Commit: `cb3d72f5`.
+  - Next: Task 08 - Remove stale auth stack and squash prelaunch migrations.
 - [ ] 08 - Remove stale auth stack and squash prelaunch migrations
   - Packet: `tasks/08-removal-migrations.md`
   - Reasoning: high
