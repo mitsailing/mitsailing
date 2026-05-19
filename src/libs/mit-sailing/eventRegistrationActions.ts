@@ -38,6 +38,7 @@ export type PublicEventRegistrationFormState = {
 };
 
 const swimAgreementFieldName = 'swimAgreementAccepted';
+const phoneFieldName = 'phone';
 
 function publicEventRegistrationQuestionFieldName(questionId: string): string {
   return `question_${questionId}`;
@@ -101,11 +102,23 @@ function publicEventRegistrationFieldNames(
   questions: PublicRegistrationQuestionForValidation[]
 ): string[] {
   return [
+    phoneFieldName,
     swimAgreementFieldName,
     ...questions.map((question) =>
       publicEventRegistrationQuestionFieldName(question.id)
     ),
   ];
+}
+
+function publicEventRegistrationPhoneFromForm(
+  formData: FormData
+): string | null {
+  const value = formData.get(phoneFieldName);
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const phone = value.trim();
+  return phone.length > 0 ? phone : null;
 }
 
 function logPublicEventRegistrationFailure(options: {
@@ -200,6 +213,7 @@ export async function createPublicEventRegistrationAction(
   const now = new Date();
   let event: {
     id: string;
+    requiresPhone: boolean;
     registrationStart: Date | null;
     registrationEnd: Date | null;
     registrationQuestions: {
@@ -214,6 +228,7 @@ export async function createPublicEventRegistrationAction(
       where: { slug },
       select: {
         id: true,
+        requiresPhone: true,
         registrationStart: true,
         registrationEnd: true,
         registrationQuestions: {
@@ -250,6 +265,15 @@ export async function createPublicEventRegistrationAction(
       options: questionOptionsFromJson(question.options),
     })
   );
+  const phone = publicEventRegistrationPhoneFromForm(formData);
+  if (event.requiresPhone && phone === null) {
+    return publicEventRegistrationFormErrorState({
+      code: 'questions_required',
+      fieldErrors: { [phoneFieldName]: 'questions_required' },
+      fieldNames: publicEventRegistrationFieldNames(questionsForValidation),
+      formData,
+    });
+  }
   const swimAgreement = formData.get('swimAgreementAccepted');
   if (swimAgreement !== 'true') {
     return publicEventRegistrationFormErrorState({
@@ -292,6 +316,7 @@ export async function createPublicEventRegistrationAction(
             isPublished: true,
             maxParticipants: true,
             requiresApproval: true,
+            requiresPhone: true,
             registrationStart: true,
             registrationEnd: true,
           },
@@ -307,6 +332,9 @@ export async function createPublicEventRegistrationAction(
           })
         ) {
           throw new EventRegistrationFlowError('closed');
+        }
+        if (lockedEvent.requiresPhone && phone === null) {
+          throw new EventRegistrationFlowError('questions_required');
         }
         const status = lockedEvent.requiresApproval
           ? EventRegistrationStatus.pending
@@ -341,6 +369,7 @@ export async function createPublicEventRegistrationAction(
             where: { id: existing.id },
             data: {
               status,
+              phone,
               swimAgreementAcceptedAt: now,
               registrationAnswers: { deleteMany: {} },
             },
@@ -353,6 +382,7 @@ export async function createPublicEventRegistrationAction(
               eventId: event.id,
               userId: access.userId,
               status,
+              phone,
               createdAt: now,
               swimAgreementAcceptedAt: now,
             },

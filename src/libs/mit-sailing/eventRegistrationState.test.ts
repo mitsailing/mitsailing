@@ -17,6 +17,7 @@ function makeEvent(
     isSpecial: false,
     maxParticipants: 10,
     requiresApproval: true,
+    requiresPhone: false,
     registrationStart: new Date('2026-06-01T12:00:00.000Z'),
     registrationEnd: new Date('2026-06-30T12:00:00.000Z'),
     detailPageKind: 'standard',

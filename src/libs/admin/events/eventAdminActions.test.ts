@@ -286,13 +286,15 @@ describe('createAdminEventAction', () => {
         create: mocks.eventCreate,
       },
     });
+    const formData = validEventFormData();
+    formData.set('requiresPhone', 'true');
     mocks.eventCreate.mockResolvedValue({ id: 'event-1', slug: 'intro-sail' });
     const { createAdminEventAction } =
       await import('@/libs/admin/events/eventAdminActions');
 
-    await expect(
-      createAdminEventAction('en', validEventFormData())
-    ).rejects.toThrow('NEXT_REDIRECT:/admin/events/intro-sail/edit');
+    await expect(createAdminEventAction('en', formData)).rejects.toThrow(
+      'NEXT_REDIRECT:/admin/events/intro-sail/edit'
+    );
 
     expect(mocks.requirePermission).toHaveBeenCalledWith(
       Permission.EVENTS_MANAGE,
@@ -307,6 +309,7 @@ describe('createAdminEventAction', () => {
               id: expect.any(String),
             }),
           },
+          requiresPhone: true,
         }),
       })
     );
@@ -369,6 +372,25 @@ describe('updateAdminEventBasicsAction', () => {
           externalEntriesUrl: 'https://example.com/entries',
           externalRegistrationUrl: 'https://example.com/register',
           registrationMode: 'external',
+        }),
+      })
+    );
+  });
+
+  it('persists phone requirement from event basics', async () => {
+    const formData = validEventFormData();
+    formData.set('requiresPhone', 'true');
+    const { updateAdminEventBasicsAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventBasicsAction('en', 'intro-sail', formData)
+    ).rejects.toThrow('NEXT_REDIRECT:/admin/events/intro-sail/edit');
+
+    expect(mocks.eventUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          requiresPhone: true,
         }),
       })
     );

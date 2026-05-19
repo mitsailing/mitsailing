@@ -125,6 +125,7 @@ describe('getPublishedEventForPublicBySlug', () => {
       isSpecial: false,
       maxParticipants: 12,
       requiresApproval: true,
+      requiresPhone: true,
       registrationStart: null,
       registrationEnd: null,
       detailPageKind: 'standard',
@@ -192,6 +193,7 @@ describe('getPublishedEventForPublicBySlug', () => {
           externalEntriesUrl: true,
           externalRegistrationUrl: true,
           registrationMode: true,
+          requiresPhone: true,
         }),
       })
     );
@@ -219,6 +221,7 @@ describe('getPublishedEventForPublicBySlug', () => {
       externalEntriesUrl: 'https://example.com/entries',
       externalRegistrationUrl: 'https://example.com/register',
       registrationMode: 'external',
+      requiresPhone: true,
     });
     expect(result?.registrationQuestions).toEqual([
       {
@@ -248,6 +251,7 @@ describe('getPublishedEventForPublicBySlug', () => {
       isSpecial: false,
       maxParticipants: 12,
       requiresApproval: true,
+      requiresPhone: false,
       registrationStart: null,
       registrationEnd: null,
       detailPageKind: 'standard',

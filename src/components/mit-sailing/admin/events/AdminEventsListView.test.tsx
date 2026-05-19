@@ -49,6 +49,7 @@ describe('AdminEventsListView', () => {
               pending: 2,
             },
             requiresApproval: true,
+            requiresPhone: false,
             shortName: 'Intro',
             slug: 'intro-sail',
           },

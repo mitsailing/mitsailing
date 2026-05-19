@@ -59,6 +59,7 @@ function eventFixture(
     registrationQuestions: [],
     registrationStart: null,
     requiresApproval: false,
+    requiresPhone: false,
     shortName: 'Harbor Regatta',
     slug: 'harbor-regatta',
     ...overrides,

@@ -96,6 +96,7 @@ function renderView(accessMode: AdminEventFormViewProps['accessMode']) {
         ],
         registrationStart: null,
         requiresApproval: true,
+        requiresPhone: false,
         shortName: '',
         slug: 'intro-sail',
       }}

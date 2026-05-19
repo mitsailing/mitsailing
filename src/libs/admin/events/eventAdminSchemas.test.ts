@@ -23,6 +23,7 @@ function validEventBasicsInput() {
     description: '',
     isSpecial: false,
     requiresApproval: true,
+    requiresPhone: false,
     maxParticipants: '',
     registrationStart: '',
     registrationEnd: '',
@@ -43,6 +44,7 @@ describe('eventAdminSchemas', () => {
       description: '',
       isSpecial: false,
       requiresApproval: true,
+      requiresPhone: false,
       maxParticipants: '',
       registrationStart: '',
       registrationEnd: '',
@@ -56,6 +58,15 @@ describe('eventAdminSchemas', () => {
     expect(parsed.shortName).toBe('Spring Regatta: Day 1');
   });
 
+  it('parses event phone requirement from basics', () => {
+    const parsed = eventAdminBasicsFormSchema.parse({
+      ...validEventBasicsInput(),
+      requiresPhone: true,
+    });
+
+    expect(parsed.requiresPhone).toBe(true);
+  });
+
   it('sanitizes public content sections while keeping visibility separate', () => {
     const parsed = eventAdminBasicsFormSchema.parse({
       name: 'Spring Regatta',
@@ -65,6 +76,7 @@ describe('eventAdminSchemas', () => {
       description: '',
       isSpecial: false,
       requiresApproval: true,
+      requiresPhone: false,
       maxParticipants: '',
       registrationStart: '',
       registrationEnd: '',
@@ -103,6 +115,7 @@ describe('eventAdminSchemas', () => {
       description: '',
       isSpecial: false,
       requiresApproval: false,
+      requiresPhone: false,
       maxParticipants: '',
       registrationStart: '',
       registrationEnd: '',
@@ -124,6 +137,7 @@ describe('eventAdminSchemas', () => {
       description: '',
       isSpecial: false,
       requiresApproval: false,
+      requiresPhone: false,
       maxParticipants: '',
       registrationStart: '',
       registrationEnd: '',

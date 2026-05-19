@@ -341,6 +341,7 @@ describe('event admin queries', () => {
       isSpecial: false,
       maxParticipants: 12,
       requiresApproval: true,
+      requiresPhone: true,
       registrationStart: null,
       registrationEnd: null,
       createdAt,
@@ -398,6 +399,7 @@ describe('event admin queries', () => {
           externalEntriesUrl: true,
           externalRegistrationUrl: true,
           registrationMode: true,
+          requiresPhone: true,
         }),
       })
     );
@@ -405,6 +407,7 @@ describe('event admin queries', () => {
       externalEntriesUrl: 'https://example.com/entries',
       externalRegistrationUrl: 'https://example.com/register',
       registrationMode: 'external',
+      requiresPhone: true,
     });
   });
 
@@ -482,6 +485,7 @@ describe('event admin queries', () => {
       registrations: [
         {
           id: 'cancelled-1',
+          phone: null,
           status: EventRegistrationStatus.cancelled,
           createdAt: newer,
           swimAgreementAcceptedAt: newer,
@@ -490,6 +494,7 @@ describe('event admin queries', () => {
         },
         {
           id: 'pending-older',
+          phone: null,
           status: EventRegistrationStatus.pending,
           createdAt: older,
           swimAgreementAcceptedAt: older,
@@ -498,6 +503,7 @@ describe('event admin queries', () => {
         },
         {
           id: 'pending-newer',
+          phone: '617-555-0100',
           status: EventRegistrationStatus.pending,
           createdAt: newer,
           swimAgreementAcceptedAt: newer,
@@ -543,6 +549,7 @@ describe('event admin queries', () => {
     expect(
       result?.registrations[0]?.answers.map((answer) => answer.id)
     ).toEqual(['answer-1', 'answer-2']);
+    expect(result?.registrations[0]?.phone).toBe('617-555-0100');
     expect(result?.registrationCounts).toEqual({
       approved: 0,
       cancelled: 1,
@@ -597,6 +604,7 @@ describe('event admin queries', () => {
         {
           createdAt: startDateTime,
           id: 'registration-1',
+          phone: '617-555-0199',
           registrationAnswers: [
             {
               id: 'answer-1',
@@ -618,6 +626,7 @@ describe('event admin queries', () => {
         },
       ],
       requiresApproval: true,
+      requiresPhone: true,
       shortName: 'Intro',
       slug: 'intro-sail',
     });
@@ -651,6 +660,7 @@ describe('event admin queries', () => {
         },
       ],
       registrationMode: 'external',
+      requiresPhone: true,
       registrationCounts: {
         approved: 3,
         cancelled: 0,
@@ -664,6 +674,7 @@ describe('event admin queries', () => {
           externalEntriesUrl: true,
           externalRegistrationUrl: true,
           registrationMode: true,
+          requiresPhone: true,
         }),
       })
     );
@@ -698,6 +709,7 @@ describe('event admin queries', () => {
       registrationStart: null,
       registrations: [],
       requiresApproval: false,
+      requiresPhone: false,
       resultsContent: '<p>Scores</p>',
       resultsVisible: true,
       sailingInstructionsContent: '<p>Hidden draft</p>',

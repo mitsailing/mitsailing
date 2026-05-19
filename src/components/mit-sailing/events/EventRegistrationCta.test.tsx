@@ -25,6 +25,7 @@ const minimalEvent: PublicEventDetail = {
   registrationQuestions: [],
   registrationStart: null,
   requiresApproval: true,
+  requiresPhone: false,
   slug: 'spring-series',
   shortName: 'Spring Series',
 };

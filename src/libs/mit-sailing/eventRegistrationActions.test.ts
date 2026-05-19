@@ -121,6 +121,7 @@ beforeEach(() => {
   });
   mocks.eventFindFirst.mockResolvedValue({
     id: 'event-1',
+    requiresPhone: false,
     registrationEnd: null,
     registrationQuestions: [],
     registrationStart: null,
@@ -132,6 +133,7 @@ beforeEach(() => {
     registrationEnd: null,
     registrationStart: null,
     requiresApproval: true,
+    requiresPhone: false,
   });
   mocks.eventRegistrationFindFirst.mockResolvedValue({
     id: 'registration-1',
@@ -288,6 +290,7 @@ describe('createPublicEventRegistrationAction', () => {
       registrationEnd: null,
       registrationStart: null,
       requiresApproval: true,
+      requiresPhone: false,
     });
     mocks.eventRegistrationFindFirst.mockResolvedValue(null);
     mocks.eventRegistrationCreate.mockResolvedValue({
@@ -328,6 +331,7 @@ describe('createPublicEventRegistrationAction', () => {
       registrationEnd: null,
       registrationStart: null,
       requiresApproval: false,
+      requiresPhone: false,
     });
     mocks.eventRegistrationCount.mockResolvedValue(2);
     mocks.eventRegistrationFindFirst.mockResolvedValue(null);
@@ -358,6 +362,163 @@ describe('createPublicEventRegistrationAction', () => {
     });
     expect(mocks.eventRegistrationCreate).not.toHaveBeenCalled();
     expect(mocks.eventRegistrationUpdate).not.toHaveBeenCalled();
+  });
+
+  it('returns validation state when required phone is blank', async () => {
+    mocks.eventFindFirst.mockResolvedValue({
+      id: 'event-1',
+      requiresPhone: true,
+      registrationEnd: null,
+      registrationQuestions: [],
+      registrationStart: null,
+    });
+    const formData = registrationFormData();
+    formData.set('phone', '   ');
+    const { createPublicEventRegistrationAction } =
+      await import('@/libs/mit-sailing/eventRegistrationActions');
+
+    const result = await createPublicEventRegistrationAction(
+      'en',
+      'intro-sail',
+      {
+        code: null,
+        fieldErrors: {},
+        status: 'idle',
+        values: {},
+      },
+      formData
+    );
+
+    expect(result).toEqual({
+      code: 'questions_required',
+      fieldErrors: { phone: 'questions_required' },
+      status: 'error',
+      values: {
+        phone: ['   '],
+        swimAgreementAccepted: ['true'],
+      },
+    });
+    expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+
+  it('creates required-phone registrations with trimmed phone', async () => {
+    mocks.eventFindFirst.mockResolvedValue({
+      id: 'event-1',
+      requiresPhone: true,
+      registrationEnd: null,
+      registrationQuestions: [],
+      registrationStart: null,
+    });
+    mocks.eventFindUnique.mockResolvedValue({
+      id: 'event-1',
+      isPublished: true,
+      maxParticipants: null,
+      registrationEnd: null,
+      registrationStart: null,
+      requiresApproval: true,
+      requiresPhone: true,
+    });
+    mocks.eventRegistrationFindFirst.mockResolvedValue(null);
+    mocks.eventRegistrationCreate.mockResolvedValue({
+      id: 'registration-2',
+    });
+    const formData = registrationFormData();
+    formData.set('phone', '  617-555-0100  ');
+    const { createPublicEventRegistrationAction } =
+      await import('@/libs/mit-sailing/eventRegistrationActions');
+
+    await expect(
+      createPublicEventRegistrationAction(
+        'en',
+        'intro-sail',
+        {
+          code: null,
+          fieldErrors: {},
+          status: 'idle',
+          values: {},
+        },
+        formData
+      )
+    ).rejects.toThrow('NEXT_REDIRECT:/events/intro-sail');
+
+    expect(mocks.eventRegistrationCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        phone: '617-555-0100',
+      }),
+    });
+  });
+
+  it('updates required-phone registrations with trimmed phone', async () => {
+    mocks.eventFindFirst.mockResolvedValue({
+      id: 'event-1',
+      requiresPhone: true,
+      registrationEnd: null,
+      registrationQuestions: [],
+      registrationStart: null,
+    });
+    mocks.eventFindUnique.mockResolvedValue({
+      id: 'event-1',
+      isPublished: true,
+      maxParticipants: null,
+      registrationEnd: null,
+      registrationStart: null,
+      requiresApproval: true,
+      requiresPhone: true,
+    });
+    const formData = registrationFormData();
+    formData.set('phone', '  617-555-0111  ');
+    const { createPublicEventRegistrationAction } =
+      await import('@/libs/mit-sailing/eventRegistrationActions');
+
+    await expect(
+      createPublicEventRegistrationAction(
+        'en',
+        'intro-sail',
+        {
+          code: null,
+          fieldErrors: {},
+          status: 'idle',
+          values: {},
+        },
+        formData
+      )
+    ).rejects.toThrow('NEXT_REDIRECT:/events/intro-sail');
+
+    expect(mocks.eventRegistrationUpdate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        phone: '617-555-0111',
+      }),
+      where: { id: 'registration-1' },
+    });
+  });
+
+  it('creates non-required-phone registrations with omitted phone', async () => {
+    mocks.eventRegistrationFindFirst.mockResolvedValue(null);
+    mocks.eventRegistrationCreate.mockResolvedValue({
+      id: 'registration-2',
+    });
+    const { createPublicEventRegistrationAction } =
+      await import('@/libs/mit-sailing/eventRegistrationActions');
+
+    await expect(
+      createPublicEventRegistrationAction(
+        'en',
+        'intro-sail',
+        {
+          code: null,
+          fieldErrors: {},
+          status: 'idle',
+          values: {},
+        },
+        registrationFormData()
+      )
+    ).rejects.toThrow('NEXT_REDIRECT:/events/intro-sail');
+
+    expect(mocks.eventRegistrationCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        phone: null,
+      }),
+    });
   });
 });
 

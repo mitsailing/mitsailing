@@ -2004,6 +2004,12 @@ export class SchemaType implements SchemaDef {
                     type: "Boolean",
                     attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("requires_approval") }] }] as readonly AttributeApplication[]
                 },
+                requiresPhone: {
+                    name: "requiresPhone",
+                    type: "Boolean",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal(false) }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("requires_phone") }] }] as readonly AttributeApplication[],
+                    default: false as FieldDefault
+                },
                 registrationStart: {
                     name: "registrationStart",
                     type: "DateTime",
@@ -2297,6 +2303,12 @@ export class SchemaType implements SchemaDef {
                 status: {
                     name: "status",
                     type: "EventRegistrationStatus"
+                },
+                phone: {
+                    name: "phone",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("phone") }] }] as readonly AttributeApplication[]
                 },
                 createdAt: {
                     name: "createdAt",

@@ -36,6 +36,7 @@ export type PublicEventDetail = {
   isSpecial: boolean;
   maxParticipants: number | null;
   requiresApproval: boolean;
+  requiresPhone: boolean;
   registrationStart: Date | null;
   registrationEnd: Date | null;
   detailPageKind: 'standard' | 'external' | null;
@@ -204,6 +205,7 @@ export const getPublishedEventForPublicBySlug = cache(async (slug: string) => {
         isSpecial: true,
         maxParticipants: true,
         requiresApproval: true,
+        requiresPhone: true,
         registrationStart: true,
         registrationEnd: true,
         detailPageKind: true,

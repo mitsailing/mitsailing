@@ -65,6 +65,7 @@ const event: PublicEventDetail = {
   ],
   registrationStart: null,
   requiresApproval: false,
+  requiresPhone: false,
   shortName: 'LTS',
   slug: 'learn-to-sail',
 };

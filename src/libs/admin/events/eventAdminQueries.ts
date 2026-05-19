@@ -49,6 +49,7 @@ export type AdminEventListRow = {
   isSpecial: boolean;
   maxParticipants: number | null;
   requiresApproval: boolean;
+  requiresPhone: boolean;
   detailPageKind: 'standard' | 'external' | null;
   category: { id: string; name: string };
   dates: AdminEventDateDto[];
@@ -88,6 +89,7 @@ export type AdminEventEditorDto = {
   isSpecial: boolean;
   maxParticipants: number | null;
   requiresApproval: boolean;
+  requiresPhone: boolean;
   registrationStart: Date | null;
   registrationEnd: Date | null;
   createdAt: Date;
@@ -132,6 +134,7 @@ export type AdminEventRegistrationAnswerDto = {
 export type AdminEventRegistrationDto = {
   id: string;
   status: EventRegistrationStatusValue;
+  phone: string | null;
   createdAt: Date;
   swimAgreementAcceptedAt: Date;
   user: AdminEventUserOption;
@@ -173,6 +176,7 @@ export type AdminEventShowDto = Pick<
   | 'registrationMode'
   | 'registrationStart'
   | 'requiresApproval'
+  | 'requiresPhone'
   | 'shortName'
   | 'slug'
 > &
@@ -307,6 +311,7 @@ function registrationDtosFromRows(
   rows: readonly {
     id: string;
     status: EventRegistrationStatusValue;
+    phone: string | null;
     createdAt: Date;
     swimAgreementAcceptedAt: Date;
     user: AdminEventUserOption;
@@ -325,6 +330,7 @@ function registrationDtosFromRows(
     .map((registration) => ({
       id: registration.id,
       status: registration.status,
+      phone: registration.phone,
       createdAt: registration.createdAt,
       swimAgreementAcceptedAt: registration.swimAgreementAcceptedAt,
       user: registration.user,
@@ -382,6 +388,7 @@ function eventListRowData(
     maxParticipants: row.maxParticipants,
     name: row.name,
     requiresApproval: row.requiresApproval,
+    requiresPhone: row.requiresPhone,
     shortName: row.shortName,
     slug: row.slug,
   };
@@ -492,6 +499,7 @@ export async function listAdminEventRows(
       isSpecial: true,
       maxParticipants: true,
       requiresApproval: true,
+      requiresPhone: true,
       detailPageKind: true,
       admins: { select: { adminUserId: true } },
       category: { select: { id: true, name: true } },
@@ -537,6 +545,7 @@ export async function getAdminEventEditorDataBySlug(options: {
             isSpecial: true,
             maxParticipants: true,
             requiresApproval: true,
+            requiresPhone: true,
             registrationStart: true,
             registrationEnd: true,
             createdAt: true,
@@ -682,6 +691,7 @@ export async function getAdminEventRegistrationsBySlug(options: {
         select: {
           id: true,
           status: true,
+          phone: true,
           createdAt: true,
           swimAgreementAcceptedAt: true,
           user: { select: { id: true, name: true, email: true } },
@@ -744,6 +754,7 @@ export async function getAdminEventShowBySlug(options: {
         isSpecial: true,
         maxParticipants: true,
         requiresApproval: true,
+        requiresPhone: true,
         registrationStart: true,
         registrationEnd: true,
         detailPageKind: true,
@@ -806,6 +817,7 @@ export async function getAdminEventShowBySlug(options: {
     registrationStart: event.registrationStart,
     registrations: registrationReview.registrations,
     requiresApproval: event.requiresApproval,
+    requiresPhone: event.requiresPhone,
     shortName: event.shortName,
     slug: event.slug,
   };

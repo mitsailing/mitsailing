@@ -589,6 +589,7 @@ model Event {
   isSpecial         Boolean              @map("is_special")
   maxParticipants   Int?                 @map("max_participants")
   requiresApproval  Boolean              @map("requires_approval")
+  requiresPhone     Boolean              @default(false) @map("requires_phone")
   registrationStart DateTime?            @map("registration_start")
   registrationEnd   DateTime?            @map("registration_end")
   createdAt         DateTime             @map("created_at")
@@ -681,6 +682,7 @@ model EventRegistration {
   eventId                 String                    @map("event_id")
   userId                  String                    @map("user_id")
   status                  EventRegistrationStatus
+  phone                   String?                   @map("phone")
   createdAt               DateTime                  @map("created_at")
   swimAgreementAcceptedAt DateTime                  @map("swim_agreement_accepted_at")
   event                   Event                     @relation(fields: [eventId], references: [id], onDelete: Cascade)
