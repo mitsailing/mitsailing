@@ -106,11 +106,6 @@ const authMocks = vi.hoisted(() => ({
       updateMany: vi.fn(),
     },
   },
-  prismaAdapter: vi.fn((database: unknown, options: unknown) => ({
-    database,
-    id: 'prismaAdapter',
-    options,
-  })),
   sendDeleteAccountVerificationEmail: vi.fn(),
   sendEmailChangeRequestedNotice: vi.fn(),
   sendEmailOtpCode: vi.fn(),
@@ -129,10 +124,6 @@ vi.mock('server-only', () => ({}));
 
 vi.mock('@better-auth/i18n', () => ({
   i18n: authMocks.i18n,
-}));
-
-vi.mock('@better-auth/prisma-adapter', () => ({
-  prismaAdapter: authMocks.prismaAdapter,
 }));
 
 vi.mock('@node-rs/argon2', () => ({
@@ -340,7 +331,6 @@ describe('auth', () => {
     expect(auth).toEqual({ config, id: 'betterAuth' });
     expect(config.database).not.toBe(authMocks.betterAuthZenStackAdapter);
     expect(isTestBetterAuthAdapterFactory(config.database)).toBe(true);
-    expect(authMocks.prismaAdapter).not.toHaveBeenCalled();
     expect(config.rateLimit.enabled).toBe(true);
     expect(config.plugins.map((plugin) => plugin.id)).toEqual([
       'app-role-admin-authorization',
