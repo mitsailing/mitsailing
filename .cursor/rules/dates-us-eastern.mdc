@@ -12,8 +12,8 @@ alwaysApply: false
 
 ## Implementation
 
-- Use IANA **`America/New_York`** everywhere that zone matters (same string site-wide). Reuse [`src/lib/mit-sailing/nyTime.ts`](src/lib/mit-sailing/nyTime.ts) helpers or `EVENTS_TIME_ZONE` when convenient; the literal is equally correct.
-- **`next-intl`:** [`src/libs/I18n.ts`](src/libs/I18n.ts) sets `timeZone` in `getRequestConfig` to `EVENTS_TIME_ZONE`. Server `getFormatter` / client `useFormatter` therefore default to **US Eastern** for `dateTime`—keep that; do not override with the user’s local zone for program-facing dates unless the product explicitly calls for it.
+- Use IANA **`America/New_York`** everywhere that zone matters (same string site-wide). Reuse [`src/lib/mit-sailing/nyTime.ts`](../../src/lib/mit-sailing/nyTime.ts) helpers or `EVENTS_TIME_ZONE` when convenient; the literal is equally correct.
+- **`next-intl`:** [`src/libs/I18n.ts`](../../src/libs/I18n.ts) sets `timeZone` in `getRequestConfig` to `EVENTS_TIME_ZONE`. Server `getFormatter` / client `useFormatter` therefore default to **US Eastern** for `dateTime`—keep that; do not override with the user’s local zone for program-facing dates unless the product explicitly calls for it.
 - **Raw `Intl` outside next-intl:** pass `timeZone: 'America/New_York'` (or `EVENTS_TIME_ZONE`) so behavior matches the global config.
 
 ## Agent mistakes to avoid

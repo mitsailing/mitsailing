@@ -6,7 +6,7 @@ alwaysApply: false
 
 # Next.js on a dedicated server (2026)
 
-This app ships as **`output: 'standalone'`** (see [next.config.ts](next.config.ts)) and runs on a **long‑lived Node process** (Docker, VM, bare metal)—not a per-invocation serverless function.
+This app ships as **`output: 'standalone'`** (see [next.config.ts](../../next.config.ts)) and runs on a **long‑lived Node process** (Docker, VM, bare metal)—not a per-invocation serverless function.
 
 Use current App Router docs as the baseline: async Server Components, async `params` / `searchParams`, Server Actions for mutations, and explicit cache/revalidation choices. Do not apply Pages Router-era defaults (`getServerSideProps`, `next/head` in new App Router code, API routes instead of Route Handlers) to new work.
 
@@ -26,7 +26,7 @@ Use current App Router docs as the baseline: async Server Components, async `par
 
 ## Database and process lifetime
 
-- Use a **single Prisma (and `pg` Pool) per worker** via a module/global singleton in [DB.ts](src/libs/DB.ts). On a dedicated server, connection count is limited by the pool, not a serverless 1–connection model—tune `Pool` `max` with your Postgres `max_connections` and replica layout.
+- Use a **single Prisma (and `pg` Pool) per worker** via a module/global singleton in [DB.ts](../../src/libs/DB.ts). On a dedicated server, connection count is limited by the pool, not a serverless 1–connection model—tune `Pool` `max` with your Postgres `max_connections` and replica layout.
 - Keep heavy connection setup in **`instrumentation.ts`** if it must run once per process (rare; avoid blocking startup without need).
 
 ## Auth and i18n
