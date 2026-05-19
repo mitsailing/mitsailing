@@ -102,6 +102,14 @@ This pending-only wakeup does not count as one of the three post-PR fix rounds;
 a fix round starts only when there is actionable work to fix, document, or
 resolve.
 
+If CodeRabbit skips review because of file count, branch target, or review-scope
+configuration, treat the fix as PR setup maintenance rather than a post-PR fix
+round. Update the smallest relevant CodeRabbit configuration or PR shape, run
+the smallest reasonable local verification for that configuration change, commit
+and push, then replace the old follow-up with one new 30-minute follow-up
+anchored to the successful push. Do not count this CodeRabbit enablement work
+against the three post-PR fix rounds.
+
 Each round must begin with aggressive context pruning. The context gets very big
 during step 9 and during review loops, so do not treat prior implementation or
 review history as reusable context.
