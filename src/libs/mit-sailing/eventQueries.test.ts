@@ -133,6 +133,10 @@ describe('getPublishedEventForPublicBySlug', () => {
       registrationMode: 'external',
       externalRegistrationUrl: 'https://example.com/register',
       externalEntriesUrl: 'https://example.com/entries',
+      usesTeamRegistration: true,
+      boatsPerTeam: 1,
+      personsPerBoat: 2,
+      allowRepeatTeamCaptain: false,
       category: { name: 'Classes' },
       dates: [{ id: 'date-1', startDateTime, endDateTime }],
       admins: [
@@ -193,6 +197,10 @@ describe('getPublishedEventForPublicBySlug', () => {
           externalEntriesUrl: true,
           externalRegistrationUrl: true,
           registrationMode: true,
+          usesTeamRegistration: true,
+          boatsPerTeam: true,
+          personsPerBoat: true,
+          allowRepeatTeamCaptain: true,
           requiresPhone: true,
         }),
       })
@@ -222,6 +230,12 @@ describe('getPublishedEventForPublicBySlug', () => {
       externalRegistrationUrl: 'https://example.com/register',
       registrationMode: 'external',
       requiresPhone: true,
+      teamRegistration: {
+        allowRepeatTeamCaptain: false,
+        boatsPerTeam: 1,
+        personsPerBoat: 2,
+        usesTeamRegistration: true,
+      },
     });
     expect(result?.registrationQuestions).toEqual([
       {

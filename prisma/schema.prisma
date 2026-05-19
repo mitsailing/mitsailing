@@ -712,11 +712,37 @@ model EventRegistration {
     eventEntryFee EventEntryFee? @relation(fields: [eventEntryFeeId], references: [id], onDelete: SetNull)
     user User @relation(fields: [userId], references: [id], onDelete: Cascade)
     registrationAnswers EventRegistrationAnswer[]
+    registrationTeam EventRegistrationTeam?
+    boatMembers EventRegistrationBoatMember[]
 
     @@index([eventId])
     @@index([eventEntryFeeId])
     @@index([userId])
     @@map("event_registrations")
+}
+
+model EventRegistrationTeam {
+    id String @id()
+    registrationId String @unique() @map("registration_id")
+    teamName String @map("team_name") @db.VarChar(80)
+    allowRepeatCaptain Boolean @default(false) @map("allow_repeat_captain")
+    registration EventRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+
+    @@map("event_registration_teams")
+}
+
+model EventRegistrationBoatMember {
+    id String @id()
+    registrationId String @map("registration_id")
+    boatNumber Int @map("boat_number")
+    position Int
+    fullName String @map("full_name") @db.VarChar(80)
+    email String @db.VarChar(255)
+    registration EventRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+
+    @@index([registrationId])
+    @@unique([registrationId, boatNumber, position])
+    @@map("event_registration_boat_members")
 }
 
 model EventRegistrationQuestion {

@@ -62,6 +62,12 @@ function eventFixture(
     requiresPhone: false,
     shortName: 'Harbor Regatta',
     slug: 'harbor-regatta',
+    teamRegistration: {
+      allowRepeatTeamCaptain: false,
+      boatsPerTeam: 1,
+      personsPerBoat: 1,
+      usesTeamRegistration: false,
+    },
     ...overrides,
   };
 }

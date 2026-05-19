@@ -3,6 +3,7 @@
 import { randomUUID } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { redirect, unstable_rethrow } from 'next/navigation';
+import * as z from 'zod';
 import { Prisma } from '@/generated/prisma/client';
 import { EventRegistrationStatus } from '@/generated/prisma/enums';
 import type { EventAnswerType } from '@/generated/prisma/enums';
@@ -40,9 +41,20 @@ export type PublicEventRegistrationFormState = {
 const swimAgreementFieldName = 'swimAgreementAccepted';
 const phoneFieldName = 'phone';
 const eventEntryFeeFieldName = 'eventEntryFeeId';
+const teamNameFieldName = 'teamName';
+const teamBoatNumber = 1;
+const emailField = z.email();
 
 function publicEventRegistrationQuestionFieldName(questionId: string): string {
   return `question_${questionId}`;
+}
+
+function teamBoatMemberNameFieldName(position: number): string {
+  return `teamBoatMember_${position}_name`;
+}
+
+function teamBoatMemberEmailFieldName(position: number): string {
+  return `teamBoatMember_${position}_email`;
 }
 
 function publicEventRegistrationFormValues(
@@ -100,16 +112,104 @@ function publicEventRegistrationQuestionFieldErrors(options: {
 }
 
 function publicEventRegistrationFieldNames(
-  questions: PublicRegistrationQuestionForValidation[]
+  questions: PublicRegistrationQuestionForValidation[],
+  personsPerBoat: number
 ): string[] {
   return [
     eventEntryFeeFieldName,
     phoneFieldName,
     swimAgreementFieldName,
+    teamNameFieldName,
+    ...Array.from({ length: personsPerBoat }, (_value, position) => [
+      teamBoatMemberNameFieldName(position),
+      teamBoatMemberEmailFieldName(position),
+    ]).flat(),
     ...questions.map((question) =>
       publicEventRegistrationQuestionFieldName(question.id)
     ),
   ];
+}
+
+type PublicEventRegistrationTeamInput = {
+  teamName: string;
+  boatMembers: {
+    position: number;
+    fullName: string;
+    email: string;
+  }[];
+};
+
+function trimmedFormString(formData: FormData, fieldName: string): string {
+  const value = formData.get(fieldName);
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function parsePublicEventRegistrationTeamFromForm(options: {
+  formData: FormData;
+  personsPerBoat: number;
+}):
+  | { ok: true; team: PublicEventRegistrationTeamInput }
+  | {
+      ok: false;
+      code: 'answers_invalid' | 'questions_required';
+      fieldErrors: Record<string, EventRegistrationMutationCode>;
+    } {
+  const teamName = trimmedFormString(options.formData, teamNameFieldName);
+  if (teamName.length === 0) {
+    return {
+      ok: false,
+      code: 'questions_required',
+      fieldErrors: { [teamNameFieldName]: 'questions_required' },
+    };
+  }
+
+  const boatMembers: PublicEventRegistrationTeamInput['boatMembers'] = [];
+  const fieldErrors: Record<string, EventRegistrationMutationCode> = {};
+
+  for (let position = 0; position < options.personsPerBoat; position += 1) {
+    const fullName = trimmedFormString(
+      options.formData,
+      teamBoatMemberNameFieldName(position)
+    );
+    const email = trimmedFormString(
+      options.formData,
+      teamBoatMemberEmailFieldName(position)
+    );
+    if (fullName.length === 0 && email.length === 0) {
+      continue;
+    }
+    if (fullName.length === 0 || email.length === 0) {
+      fieldErrors[
+        fullName.length === 0
+          ? teamBoatMemberNameFieldName(position)
+          : teamBoatMemberEmailFieldName(position)
+      ] = 'questions_required';
+      continue;
+    }
+    if (!emailField.safeParse(email).success) {
+      fieldErrors[teamBoatMemberEmailFieldName(position)] = 'answers_invalid';
+      continue;
+    }
+    boatMembers.push({ email, fullName, position });
+  }
+
+  if (boatMembers.length === 0) {
+    return {
+      ok: false,
+      code: 'questions_required',
+      fieldErrors: { [teamBoatMemberNameFieldName(0)]: 'questions_required' },
+    };
+  }
+  const [firstError] = Object.values(fieldErrors);
+  if (firstError) {
+    return {
+      ok: false,
+      code:
+        firstError === 'answers_invalid' ? firstError : 'questions_required',
+      fieldErrors,
+    };
+  }
+  return { ok: true, team: { boatMembers, teamName } };
 }
 
 function publicEventRegistrationSelectedFeeId(options: {
@@ -249,6 +349,10 @@ export async function createPublicEventRegistrationAction(
       options: Prisma.JsonValue | null;
     }[];
     entryFees: { id: string }[];
+    usesTeamRegistration: boolean;
+    boatsPerTeam: number;
+    personsPerBoat: number;
+    allowRepeatTeamCaptain: boolean;
   } | null;
   try {
     event = await access.db.event.findFirst({
@@ -266,6 +370,10 @@ export async function createPublicEventRegistrationAction(
           orderBy: [{ isDeposit: 'desc' }, { description: 'asc' }],
           select: { id: true },
         },
+        usesTeamRegistration: true,
+        boatsPerTeam: true,
+        personsPerBoat: true,
+        allowRepeatTeamCaptain: true,
       },
     });
   } catch (error) {
@@ -296,7 +404,10 @@ export async function createPublicEventRegistrationAction(
       options: questionOptionsFromJson(question.options),
     })
   );
-  const fieldNames = publicEventRegistrationFieldNames(questionsForValidation);
+  const fieldNames = publicEventRegistrationFieldNames(
+    questionsForValidation,
+    event.usesTeamRegistration ? event.personsPerBoat : 0
+  );
   const phone = publicEventRegistrationPhoneFromForm(formData);
   if (event.requiresPhone && phone === null) {
     return publicEventRegistrationFormErrorState({
@@ -314,6 +425,20 @@ export async function createPublicEventRegistrationAction(
     return publicEventRegistrationFormErrorState({
       code: 'questions_required',
       fieldErrors: { [eventEntryFeeFieldName]: 'questions_required' },
+      fieldNames,
+      formData,
+    });
+  }
+  const teamRegistration = event.usesTeamRegistration
+    ? parsePublicEventRegistrationTeamFromForm({
+        formData,
+        personsPerBoat: event.personsPerBoat,
+      })
+    : null;
+  if (teamRegistration && !teamRegistration.ok) {
+    return publicEventRegistrationFormErrorState({
+      code: teamRegistration.code,
+      fieldErrors: teamRegistration.fieldErrors,
       fieldNames,
       formData,
     });
@@ -361,6 +486,10 @@ export async function createPublicEventRegistrationAction(
             maxParticipants: true,
             requiresApproval: true,
             requiresPhone: true,
+            usesTeamRegistration: true,
+            boatsPerTeam: true,
+            personsPerBoat: true,
+            allowRepeatTeamCaptain: true,
             registrationStart: true,
             registrationEnd: true,
             entryFees: {
@@ -383,6 +512,18 @@ export async function createPublicEventRegistrationAction(
         }
         if (lockedEvent.requiresPhone && phone === null) {
           throw new EventRegistrationFlowError('questions_required');
+        }
+        let lockedTeam: PublicEventRegistrationTeamInput | null = null;
+        if (lockedEvent.usesTeamRegistration) {
+          const lockedTeamRegistration =
+            parsePublicEventRegistrationTeamFromForm({
+              formData,
+              personsPerBoat: lockedEvent.personsPerBoat,
+            });
+          if (!lockedTeamRegistration.ok) {
+            throw new EventRegistrationFlowError(lockedTeamRegistration.code);
+          }
+          lockedTeam = lockedTeamRegistration.team;
         }
         const lockedSelectedFee = publicEventRegistrationSelectedFeeId({
           entryFees: lockedEvent.entryFees,
@@ -455,6 +596,34 @@ export async function createPublicEventRegistrationAction(
 
         if (answers.length > 0) {
           await tx.eventRegistrationAnswer.createMany({ data: answers });
+        }
+        if (lockedTeam) {
+          await tx.eventRegistrationTeam.upsert({
+            where: { registrationId },
+            create: {
+              id: randomUUID(),
+              registrationId,
+              teamName: lockedTeam.teamName,
+              allowRepeatCaptain: lockedEvent.allowRepeatTeamCaptain,
+            },
+            update: {
+              teamName: lockedTeam.teamName,
+              allowRepeatCaptain: lockedEvent.allowRepeatTeamCaptain,
+            },
+          });
+          await tx.eventRegistrationBoatMember.deleteMany({
+            where: { registrationId },
+          });
+          await tx.eventRegistrationBoatMember.createMany({
+            data: lockedTeam.boatMembers.map((member) => ({
+              id: randomUUID(),
+              registrationId,
+              boatNumber: teamBoatNumber,
+              position: member.position,
+              fullName: member.fullName,
+              email: member.email,
+            })),
+          });
         }
       },
       {

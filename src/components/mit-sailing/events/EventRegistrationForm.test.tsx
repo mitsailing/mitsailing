@@ -30,6 +30,14 @@ const labels: EventRegistrationFormLabels = {
   submitRequestButton: 'Submit registration request',
   swimAgreementHeading: 'Swim agreement',
   swimAgreementLabel: 'I agree to the Swim Agreement and Liability Release.',
+  teamBoatEmailLabel: 'Email',
+  teamBoatFullNameLabel: 'Full name',
+  teamBoatHeading: 'Boat 1 information',
+  teamCrewLabel: 'Crew',
+  teamCrewNumberLabel: 'Crew {number}',
+  teamHelmLabel: 'Helm',
+  teamNameLabel: 'Team name',
+  teamSectionHeading: 'Team information',
 };
 
 const event: PublicEventDetail = {
@@ -70,6 +78,12 @@ const event: PublicEventDetail = {
   requiresPhone: false,
   shortName: 'LTS',
   slug: 'learn-to-sail',
+  teamRegistration: {
+    allowRepeatTeamCaptain: false,
+    boatsPerTeam: 1,
+    personsPerBoat: 1,
+    usesTeamRegistration: false,
+  },
 };
 
 function formValues(formData: FormData): Record<string, string[]> {
@@ -312,5 +326,86 @@ describe('EventRegistrationForm', () => {
       'aria-invalid',
       'true'
     );
+  });
+
+  it('renders team boat fields and preserves validation state', async () => {
+    const user = userEvent.setup();
+    window.HTMLElement.prototype.scrollIntoView = vi.fn();
+    const action = vi.fn(
+      (
+        _prevState: PublicEventRegistrationFormState,
+        formData: FormData
+      ): PublicEventRegistrationFormState => ({
+        code: 'questions_required',
+        fieldErrors: {
+          teamName: 'questions_required',
+          teamBoatMember_1_email: 'answers_invalid',
+        },
+        status: 'error',
+        values: formValues(formData),
+      })
+    );
+
+    render(
+      <EventRegistrationForm
+        createRegistrationAction={action}
+        event={{
+          ...event,
+          teamRegistration: {
+            allowRepeatTeamCaptain: false,
+            boatsPerTeam: 1,
+            personsPerBoat: 2,
+            usesTeamRegistration: true,
+          },
+        }}
+        formPermalink="/events/learn-to-sail/register"
+        labels={labels}
+        locale="en"
+      />
+    );
+
+    expect(
+      screen.getByRole('heading', { name: 'Team information' })
+    ).toBeVisible();
+    expect(
+      screen.getByRole('heading', { name: 'Boat 1 information' })
+    ).toBeVisible();
+
+    const teamName = screen.getByRole('textbox', { name: 'Team nameRequired' });
+    const helmName = screen.getByRole('textbox', {
+      name: 'Helm Full name',
+    });
+    const helmEmail = screen.getByRole('textbox', {
+      name: 'Helm Email',
+    });
+    const crewName = screen.getByRole('textbox', {
+      name: 'Crew Full name',
+    });
+    const crewEmail = screen.getByRole('textbox', {
+      name: 'Crew Email',
+    });
+
+    expect(teamName).toHaveAttribute('name', 'teamName');
+    expect(helmName).toHaveAttribute('name', 'teamBoatMember_0_name');
+    expect(helmEmail).toHaveAttribute('name', 'teamBoatMember_0_email');
+    expect(crewName).toHaveAttribute('name', 'teamBoatMember_1_name');
+    expect(crewEmail).toHaveAttribute('name', 'teamBoatMember_1_email');
+
+    await user.type(teamName, '  Tech Dinghies  ');
+    await user.type(helmName, 'Ada Lovelace');
+    await user.type(helmEmail, 'ada@example.test');
+    await user.type(crewName, 'Grace Hopper');
+    await user.type(crewEmail, 'not-an-email');
+    await user.click(
+      screen.getByRole('button', { name: 'Confirm registration' })
+    );
+
+    expect(
+      await screen.findByText('Answer the required registration questions.')
+    ).toBeVisible();
+    expect(teamName).toHaveValue('  Tech Dinghies  ');
+    expect(crewEmail).toHaveValue('not-an-email');
+    expect(teamName).toHaveAttribute('aria-invalid', 'true');
+    expect(crewEmail).toHaveAttribute('aria-invalid', 'true');
   });
 });

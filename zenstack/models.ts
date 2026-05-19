@@ -30,6 +30,8 @@ export type Event = $ModelResult<$Schema, "Event">;
 export type EventDate = $ModelResult<$Schema, "EventDate">;
 export type EventAdmin = $ModelResult<$Schema, "EventAdmin">;
 export type EventRegistration = $ModelResult<$Schema, "EventRegistration">;
+export type EventRegistrationTeam = $ModelResult<$Schema, "EventRegistrationTeam">;
+export type EventRegistrationBoatMember = $ModelResult<$Schema, "EventRegistrationBoatMember">;
 export type EventRegistrationQuestion = $ModelResult<$Schema, "EventRegistrationQuestion">;
 export type EventRegistrationAnswer = $ModelResult<$Schema, "EventRegistrationAnswer">;
 /**

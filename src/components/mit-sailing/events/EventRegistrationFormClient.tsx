@@ -27,6 +27,14 @@ export type EventRegistrationFormLabels = {
   phoneLabel: string;
   swimAgreementHeading: string;
   swimAgreementLabel: string;
+  teamBoatEmailLabel: string;
+  teamBoatFullNameLabel: string;
+  teamBoatHeading: string;
+  teamCrewLabel: string;
+  teamCrewNumberLabel: string;
+  teamHelmLabel: string;
+  teamNameLabel: string;
+  teamSectionHeading: string;
 };
 
 type EventRegistrationCreateFormAction = (
@@ -351,6 +359,165 @@ function PhoneField(props: {
   );
 }
 
+function teamBoatMemberPositionLabel(props: {
+  labels: EventRegistrationFormLabels;
+  personsPerBoat: number;
+  position: number;
+}): string {
+  if (props.position === 0) {
+    return props.labels.teamHelmLabel;
+  }
+  if (props.position === 1 && props.personsPerBoat === 2) {
+    return props.labels.teamCrewLabel;
+  }
+  return props.labels.teamCrewNumberLabel.replace(
+    '{number}',
+    String(props.position)
+  );
+}
+
+function TeamBoatMemberField(props: {
+  labels: EventRegistrationFormLabels;
+  personsPerBoat: number;
+  position: number;
+  state: PublicEventRegistrationFormState;
+}) {
+  const positionLabel = teamBoatMemberPositionLabel({
+    labels: props.labels,
+    personsPerBoat: props.personsPerBoat,
+    position: props.position,
+  });
+  const nameFieldName = `teamBoatMember_${props.position}_name`;
+  const emailFieldName = `teamBoatMember_${props.position}_email`;
+  const nameControlId = `event-registration-${nameFieldName}`;
+  const emailControlId = `event-registration-${emailFieldName}`;
+  const nameErrorId = `${nameControlId}-error`;
+  const emailErrorId = `${emailControlId}-error`;
+  const nameErrorMessage = fieldErrorMessage({
+    labels: props.labels,
+    name: nameFieldName,
+    state: props.state,
+  });
+  const emailErrorMessage = fieldErrorMessage({
+    labels: props.labels,
+    name: emailFieldName,
+    state: props.state,
+  });
+
+  return (
+    <div className="grid gap-2 rounded-md border border-border bg-card p-4 text-sm text-mit-text sm:grid-cols-2">
+      <div className="flex min-w-0 flex-col gap-2">
+        <label
+          className="w-full px-0 font-semibold text-mit-text"
+          htmlFor={nameControlId}
+        >
+          {positionLabel} {props.labels.teamBoatFullNameLabel}
+        </label>
+        <Input
+          aria-describedby={nameErrorMessage ? nameErrorId : undefined}
+          aria-invalid={nameErrorMessage ? true : undefined}
+          autoComplete="name"
+          defaultValue={fieldValue(props.state, nameFieldName)}
+          id={nameControlId}
+          name={nameFieldName}
+          type="text"
+        />
+        <FieldError id={nameErrorId} message={nameErrorMessage} />
+      </div>
+      <div className="flex min-w-0 flex-col gap-2">
+        <label
+          className="w-full px-0 font-semibold text-mit-text"
+          htmlFor={emailControlId}
+        >
+          {positionLabel} {props.labels.teamBoatEmailLabel}
+        </label>
+        <Input
+          aria-describedby={emailErrorMessage ? emailErrorId : undefined}
+          aria-invalid={emailErrorMessage ? true : undefined}
+          autoComplete="email"
+          defaultValue={fieldValue(props.state, emailFieldName)}
+          id={emailControlId}
+          name={emailFieldName}
+          type="email"
+        />
+        <FieldError id={emailErrorId} message={emailErrorMessage} />
+      </div>
+    </div>
+  );
+}
+
+function TeamRegistrationFields(props: {
+  event: PublicEventDetail;
+  labels: EventRegistrationFormLabels;
+  state: PublicEventRegistrationFormState;
+}) {
+  if (!props.event.teamRegistration.usesTeamRegistration) {
+    return null;
+  }
+  const teamNameErrorId = 'event-registration-team-name-error';
+  const teamNameErrorMessage = fieldErrorMessage({
+    labels: props.labels,
+    name: 'teamName',
+    state: props.state,
+  });
+
+  return (
+    <section
+      aria-labelledby="event-registration-team-heading"
+      className="flex scroll-mt-28 flex-col gap-4"
+    >
+      <h3
+        className="font-mit-serif text-lg font-semibold tracking-tight text-mit-text"
+        id="event-registration-team-heading"
+      >
+        {props.labels.teamSectionHeading}
+      </h3>
+      <div className="flex min-w-0 flex-col gap-2 text-sm text-mit-text">
+        <label
+          className="w-full px-0 font-semibold text-mit-text"
+          htmlFor="event-registration-team-name"
+        >
+          {props.labels.teamNameLabel}
+          <RequiredMarker label={props.labels.required} />
+        </label>
+        <Input
+          aria-describedby={teamNameErrorMessage ? teamNameErrorId : undefined}
+          aria-invalid={teamNameErrorMessage ? true : undefined}
+          defaultValue={fieldValue(props.state, 'teamName')}
+          id="event-registration-team-name"
+          name="teamName"
+          required
+          type="text"
+        />
+        <FieldError id={teamNameErrorId} message={teamNameErrorMessage} />
+      </div>
+      <section
+        aria-labelledby="event-registration-team-boat-heading"
+        className="flex flex-col gap-3"
+      >
+        <h4
+          className="font-mit-serif text-base font-semibold tracking-tight text-mit-text"
+          id="event-registration-team-boat-heading"
+        >
+          {props.labels.teamBoatHeading}
+        </h4>
+        {Array.from(
+          { length: props.event.teamRegistration.personsPerBoat },
+          (_value, position) => (
+            <TeamBoatMemberField
+              key={position}
+              labels={props.labels}
+              personsPerBoat={props.event.teamRegistration.personsPerBoat}
+              position={position}
+              state={props.state}
+            />
+          )
+        )}
+      </section>
+    </section>
+  );
+}
+
 function RegistrationQuestions(props: {
   event: PublicEventDetail;
   labels: EventRegistrationFormLabels;
@@ -536,6 +703,11 @@ export function EventRegistrationForm(props: EventRegistrationFormProps) {
       {props.event.requiresPhone ? (
         <PhoneField labels={props.labels} state={state} />
       ) : null}
+      <TeamRegistrationFields
+        event={props.event}
+        labels={props.labels}
+        state={state}
+      />
       <SwimAgreementField labels={props.labels} state={state} />
       <RegistrationQuestions
         event={props.event}

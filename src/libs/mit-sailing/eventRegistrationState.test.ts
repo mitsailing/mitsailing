@@ -25,6 +25,12 @@ function makeEvent(
     externalEntriesUrl: null,
     externalRegistrationUrl: null,
     registrationMode: 'standard',
+    teamRegistration: {
+      allowRepeatTeamCaptain: false,
+      boatsPerTeam: 1,
+      personsPerBoat: 1,
+      usesTeamRegistration: false,
+    },
     category: { name: 'Racing' },
     dates: [],
     admins: [],

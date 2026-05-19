@@ -6,9 +6,12 @@ const mocks = vi.hoisted(() => ({
   eventFindFirst: vi.fn(),
   eventFindUnique: vi.fn(),
   eventRegistrationAnswerCreateMany: vi.fn(),
+  eventRegistrationBoatMemberCreateMany: vi.fn(),
+  eventRegistrationBoatMemberDeleteMany: vi.fn(),
   eventRegistrationCount: vi.fn(),
   eventRegistrationCreate: vi.fn(),
   eventRegistrationFindFirst: vi.fn(),
+  eventRegistrationTeamUpsert: vi.fn(),
   eventRegistrationUpdate: vi.fn(),
   eventRegistrationUpdateMany: vi.fn(),
   queryRaw: vi.fn(),
@@ -76,13 +79,55 @@ function registrationFormData(): FormData {
   return formData;
 }
 
+function teamRegistrationFormData(): FormData {
+  const formData = registrationFormData();
+  formData.set('teamName', '  Tech Dinghies  ');
+  formData.set('teamBoatMember_0_name', 'Ada Lovelace');
+  formData.set('teamBoatMember_0_email', 'ada@example.test');
+  formData.set('teamBoatMember_1_name', 'Grace Hopper');
+  formData.set('teamBoatMember_1_email', 'grace@example.test');
+  return formData;
+}
+
+function mockTeamRegistrationEvent(): void {
+  mocks.eventFindFirst.mockResolvedValue({
+    allowRepeatTeamCaptain: true,
+    boatsPerTeam: 1,
+    entryFees: [],
+    id: 'event-1',
+    personsPerBoat: 2,
+    registrationEnd: null,
+    registrationQuestions: [],
+    registrationStart: null,
+    requiresPhone: false,
+    usesTeamRegistration: true,
+  });
+  mocks.eventFindUnique.mockResolvedValue({
+    allowRepeatTeamCaptain: true,
+    boatsPerTeam: 1,
+    entryFees: [],
+    id: 'event-1',
+    isPublished: true,
+    maxParticipants: null,
+    personsPerBoat: 2,
+    registrationEnd: null,
+    registrationStart: null,
+    requiresApproval: true,
+    requiresPhone: false,
+    usesTeamRegistration: true,
+  });
+}
+
 beforeEach(() => {
   mocks.eventFindFirst.mockReset();
   mocks.eventFindUnique.mockReset();
   mocks.eventRegistrationAnswerCreateMany.mockReset();
+  mocks.eventRegistrationBoatMemberCreateMany.mockReset();
+  mocks.eventRegistrationBoatMemberDeleteMany.mockReset();
   mocks.eventRegistrationCount.mockReset();
   mocks.eventRegistrationCreate.mockReset();
   mocks.eventRegistrationFindFirst.mockReset();
+  mocks.eventRegistrationTeamUpsert.mockReset();
   mocks.eventRegistrationUpdate.mockReset();
   mocks.eventRegistrationUpdateMany.mockReset();
   mocks.queryRaw.mockReset();
@@ -126,6 +171,10 @@ beforeEach(() => {
     registrationEnd: null,
     registrationQuestions: [],
     registrationStart: null,
+    usesTeamRegistration: false,
+    boatsPerTeam: 1,
+    personsPerBoat: 1,
+    allowRepeatTeamCaptain: false,
   });
   mocks.eventFindUnique.mockResolvedValue({
     entryFees: [],
@@ -136,6 +185,10 @@ beforeEach(() => {
     registrationStart: null,
     requiresApproval: true,
     requiresPhone: false,
+    usesTeamRegistration: false,
+    boatsPerTeam: 1,
+    personsPerBoat: 1,
+    allowRepeatTeamCaptain: false,
   });
   mocks.eventRegistrationFindFirst.mockResolvedValue({
     id: 'registration-1',
@@ -168,6 +221,13 @@ beforeEach(() => {
         eventRegistrationAnswer: {
           createMany: typeof mocks.eventRegistrationAnswerCreateMany;
         };
+        eventRegistrationBoatMember: {
+          createMany: typeof mocks.eventRegistrationBoatMemberCreateMany;
+          deleteMany: typeof mocks.eventRegistrationBoatMemberDeleteMany;
+        };
+        eventRegistrationTeam: {
+          upsert: typeof mocks.eventRegistrationTeamUpsert;
+        };
       }) => Promise<unknown>
     ) => {
       const result = await transactionOperation({
@@ -183,6 +243,13 @@ beforeEach(() => {
         },
         eventRegistrationAnswer: {
           createMany: mocks.eventRegistrationAnswerCreateMany,
+        },
+        eventRegistrationBoatMember: {
+          createMany: mocks.eventRegistrationBoatMemberCreateMany,
+          deleteMany: mocks.eventRegistrationBoatMemberDeleteMany,
+        },
+        eventRegistrationTeam: {
+          upsert: mocks.eventRegistrationTeamUpsert,
         },
       });
       return result;
@@ -527,6 +594,166 @@ describe('createPublicEventRegistrationAction', () => {
       data: expect.objectContaining({
         phone: null,
       }),
+    });
+  });
+
+  it('returns validation state when team registration is missing a team name', async () => {
+    mockTeamRegistrationEvent();
+    const formData = teamRegistrationFormData();
+    formData.set('teamName', '   ');
+    const { createPublicEventRegistrationAction } =
+      await import('@/libs/mit-sailing/eventRegistrationActions');
+
+    const result = await createPublicEventRegistrationAction(
+      'en',
+      'intro-sail',
+      {
+        code: null,
+        fieldErrors: {},
+        status: 'idle',
+        values: {},
+      },
+      formData
+    );
+
+    expect(result).toEqual({
+      code: 'questions_required',
+      fieldErrors: { teamName: 'questions_required' },
+      status: 'error',
+      values: {
+        swimAgreementAccepted: ['true'],
+        teamBoatMember_0_email: ['ada@example.test'],
+        teamBoatMember_0_name: ['Ada Lovelace'],
+        teamBoatMember_1_email: ['grace@example.test'],
+        teamBoatMember_1_name: ['Grace Hopper'],
+        teamName: ['   '],
+      },
+    });
+    expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+
+  it('returns validation state when team registration has no boat members', async () => {
+    mockTeamRegistrationEvent();
+    const formData = registrationFormData();
+    formData.set('teamName', 'Tech Dinghies');
+    const { createPublicEventRegistrationAction } =
+      await import('@/libs/mit-sailing/eventRegistrationActions');
+
+    const result = await createPublicEventRegistrationAction(
+      'en',
+      'intro-sail',
+      {
+        code: null,
+        fieldErrors: {},
+        status: 'idle',
+        values: {},
+      },
+      formData
+    );
+
+    expect(result).toEqual({
+      code: 'questions_required',
+      fieldErrors: {
+        teamBoatMember_0_name: 'questions_required',
+      },
+      status: 'error',
+      values: {
+        swimAgreementAccepted: ['true'],
+        teamName: ['Tech Dinghies'],
+      },
+    });
+    expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+
+  it('returns validation state when a boat member is partial or invalid', async () => {
+    mockTeamRegistrationEvent();
+    const formData = teamRegistrationFormData();
+    formData.set('teamBoatMember_1_email', 'invalid-email');
+    const { createPublicEventRegistrationAction } =
+      await import('@/libs/mit-sailing/eventRegistrationActions');
+
+    const result = await createPublicEventRegistrationAction(
+      'en',
+      'intro-sail',
+      {
+        code: null,
+        fieldErrors: {},
+        status: 'idle',
+        values: {},
+      },
+      formData
+    );
+
+    expect(result).toEqual({
+      code: 'answers_invalid',
+      fieldErrors: {
+        teamBoatMember_1_email: 'answers_invalid',
+      },
+      status: 'error',
+      values: {
+        swimAgreementAccepted: ['true'],
+        teamBoatMember_0_email: ['ada@example.test'],
+        teamBoatMember_0_name: ['Ada Lovelace'],
+        teamBoatMember_1_email: ['invalid-email'],
+        teamBoatMember_1_name: ['Grace Hopper'],
+        teamName: ['  Tech Dinghies  '],
+      },
+    });
+    expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+
+  it('persists team boat members with a valid team registration', async () => {
+    mockTeamRegistrationEvent();
+    mocks.eventRegistrationFindFirst.mockResolvedValue(null);
+    mocks.eventRegistrationCreate.mockResolvedValue({
+      id: 'registration-2',
+    });
+    const { createPublicEventRegistrationAction } =
+      await import('@/libs/mit-sailing/eventRegistrationActions');
+
+    await expect(
+      createPublicEventRegistrationAction(
+        'en',
+        'intro-sail',
+        {
+          code: null,
+          fieldErrors: {},
+          status: 'idle',
+          values: {},
+        },
+        teamRegistrationFormData()
+      )
+    ).rejects.toThrow('NEXT_REDIRECT:/events/intro-sail');
+
+    expect(mocks.eventRegistrationTeamUpsert).toHaveBeenCalledWith({
+      create: expect.objectContaining({
+        allowRepeatCaptain: true,
+        registrationId: expect.any(String),
+        teamName: 'Tech Dinghies',
+      }),
+      update: {
+        allowRepeatCaptain: true,
+        teamName: 'Tech Dinghies',
+      },
+      where: { registrationId: expect.any(String) },
+    });
+    expect(mocks.eventRegistrationBoatMemberCreateMany).toHaveBeenCalledWith({
+      data: [
+        expect.objectContaining({
+          boatNumber: 1,
+          email: 'ada@example.test',
+          fullName: 'Ada Lovelace',
+          position: 0,
+          registrationId: expect.any(String),
+        }),
+        expect.objectContaining({
+          boatNumber: 1,
+          email: 'grace@example.test',
+          fullName: 'Grace Hopper',
+          position: 1,
+          registrationId: expect.any(String),
+        }),
+      ],
     });
   });
 

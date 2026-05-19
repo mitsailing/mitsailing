@@ -44,6 +44,12 @@ export type PublicEventDetail = {
   registrationMode?: 'none' | 'standard' | 'external' | null;
   externalRegistrationUrl?: string | null;
   externalEntriesUrl?: string | null;
+  teamRegistration: {
+    usesTeamRegistration: boolean;
+    boatsPerTeam: number;
+    personsPerBoat: number;
+    allowRepeatTeamCaptain: boolean;
+  };
   category: { name: string };
   dates: {
     id: string;
@@ -213,6 +219,10 @@ export const getPublishedEventForPublicBySlug = cache(async (slug: string) => {
         registrationMode: true,
         externalRegistrationUrl: true,
         externalEntriesUrl: true,
+        usesTeamRegistration: true,
+        boatsPerTeam: true,
+        personsPerBoat: true,
+        allowRepeatTeamCaptain: true,
         faqVisible: true,
         faqContent: true,
         noticeOfRaceVisible: true,
@@ -274,6 +284,12 @@ export const getPublishedEventForPublicBySlug = cache(async (slug: string) => {
 
     return {
       ...event,
+      teamRegistration: {
+        usesTeamRegistration: event.usesTeamRegistration,
+        boatsPerTeam: event.boatsPerTeam,
+        personsPerBoat: event.personsPerBoat,
+        allowRepeatTeamCaptain: event.allowRepeatTeamCaptain,
+      },
       publicContentSections: publicContentSectionsFromEvent(event),
       registrationQuestions: event.registrationQuestions.map((question) => ({
         ...question,
