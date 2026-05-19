@@ -751,6 +751,17 @@ describe('createPublicEventRegistrationAction', () => {
       },
       where: { registrationId: expect.any(String) },
     });
+    expect(mocks.eventRegistrationBoatMemberDeleteMany).toHaveBeenCalledWith({
+      where: { registrationId: expect.any(String) },
+    });
+    const [deleteCallOrder] =
+      mocks.eventRegistrationBoatMemberDeleteMany.mock.invocationCallOrder;
+    const [createCallOrder] =
+      mocks.eventRegistrationBoatMemberCreateMany.mock.invocationCallOrder;
+    if (deleteCallOrder === undefined || createCallOrder === undefined) {
+      throw new Error('Missing team boat member persistence call order.');
+    }
+    expect(deleteCallOrder).toBeLessThan(createCallOrder);
     expect(mocks.eventRegistrationBoatMemberCreateMany).toHaveBeenCalledWith({
       data: [
         expect.objectContaining({

@@ -20,7 +20,7 @@ test.describe('Admin events', () => {
     await page.getByRole('link', { name: SEED_EVENT_NAME }).click();
 
     await expect(page).toHaveURL(
-      /\/admin\/events\/bluewater-boston-provincetown\/?$/
+      /\/admin\/events\/bluewater-boston-provincetown$/
     );
     await page.getByRole('link', { name: 'Edit' }).click();
 
@@ -47,6 +47,9 @@ test.describe('Admin events', () => {
 
     await page.goto(
       '/admin/events/bluewater-boston-provincetown/registrations'
+    );
+    await expect(page).toHaveURL(
+      /\/admin\/events\/bluewater-boston-provincetown#registrations$/
     );
 
     await expect(

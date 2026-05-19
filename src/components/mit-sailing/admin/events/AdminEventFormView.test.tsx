@@ -4,6 +4,7 @@ import { createTranslator } from 'next-intl';
 import type * as React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import {
+  EventAnswerType,
   EventDetailPageKind,
   EventRegistrationMode,
 } from '@/generated/prisma/enums';
@@ -243,7 +244,7 @@ describe('AdminEventFormView', () => {
       maxParticipants: 12,
       registrationQuestions: [
         {
-          answerType: 'text',
+          answerType: EventAnswerType.text,
           displayOrder: 1,
           id: 'question-1',
           options: [],
