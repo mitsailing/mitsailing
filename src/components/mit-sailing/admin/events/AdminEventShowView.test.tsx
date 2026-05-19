@@ -52,6 +52,8 @@ function eventFixture(
     description: 'Learn how to sail.',
     detailPageKind: 'standard',
     externalDetailUrl: null,
+    externalEntriesUrl: null,
+    externalRegistrationUrl: null,
     id: 'event-1',
     isPublished: true,
     isSpecial: false,
@@ -70,6 +72,7 @@ function eventFixture(
       pending: 2,
     },
     registrationEnd: new Date('2026-05-31T04:00:00Z'),
+    registrationMode: 'standard',
     registrationStart: new Date('2026-05-01T04:00:00Z'),
     registrations: [
       {
@@ -211,5 +214,31 @@ describe('AdminEventShowView', () => {
       screen.getByRole('link', { name: 'course details' })
     ).toHaveAttribute('href', '/events');
     expect(document.body.textContent).not.toContain('<strong>');
+  });
+
+  it('renders registration mode summary with external urls', () => {
+    render(
+      <AdminEventShowView
+        errorCode={null}
+        event={{
+          ...eventFixture('editable'),
+          externalEntriesUrl: 'https://example.com/entries',
+          externalRegistrationUrl: 'https://example.com/register',
+          registrationMode: 'external',
+        }}
+        filter="all"
+        locale="en"
+        t={t}
+      />
+    );
+
+    expect(screen.getByText('Registration mode')).toBeVisible();
+    expect(screen.getByText('Custom external registration')).toBeVisible();
+    expect(
+      screen.getByRole('link', { name: 'https://example.com/register' })
+    ).toHaveAttribute('href', 'https://example.com/register');
+    expect(
+      screen.getByRole('link', { name: 'https://example.com/entries' })
+    ).toHaveAttribute('href', 'https://example.com/entries');
   });
 });

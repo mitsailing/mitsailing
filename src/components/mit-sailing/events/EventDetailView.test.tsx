@@ -46,6 +46,8 @@ function eventFixture(
     detailPageKind: 'standard',
     entryFees: [],
     externalDetailUrl: null,
+    externalEntriesUrl: null,
+    externalRegistrationUrl: null,
     id: 'event-1',
     isSpecial: false,
     maxParticipants: null,
@@ -53,6 +55,7 @@ function eventFixture(
     pendingRegistrationCount: 0,
     publicContentSections: [],
     registrationEnd: null,
+    registrationMode: 'standard',
     registrationQuestions: [],
     registrationStart: null,
     requiresApproval: false,
@@ -144,5 +147,52 @@ describe('EventDetailView', () => {
       screen.queryByRole('heading', { name: 'Sailing Instructions' })
     ).toBeNull();
     expect(screen.queryByRole('heading', { name: 'Results' })).toBeNull();
+  });
+
+  it('renders external registration links for external registration mode', async () => {
+    render(
+      await EventDetailView({
+        currentRegistration: null,
+        errorCode: null,
+        event: eventFixture({
+          externalEntriesUrl: 'https://example.com/entries',
+          externalRegistrationUrl: 'https://example.com/register',
+          registrationMode: 'external',
+        }),
+        isSignedIn: true,
+        locale: 'en',
+      })
+    );
+
+    expect(
+      screen.getByRole('link', { name: 'Visit external registration page' })
+    ).toHaveAttribute('href', 'https://example.com/register');
+    expect(screen.getByRole('link', { name: 'View entries' })).toHaveAttribute(
+      'href',
+      'https://example.com/entries'
+    );
+    expect(screen.queryByRole('link', { name: 'Register' })).toBeNull();
+  });
+
+  it('renders unavailable registration copy without local registration cta', async () => {
+    render(
+      await EventDetailView({
+        currentRegistration: null,
+        errorCode: null,
+        event: eventFixture({
+          registrationMode: 'none',
+        }),
+        isSignedIn: true,
+        locale: 'en',
+      })
+    );
+
+    expect(
+      screen.getByText('Registration is not available for this event.')
+    ).toBeVisible();
+    expect(screen.queryByRole('link', { name: 'Register' })).toBeNull();
+    expect(
+      screen.queryByRole('link', { name: 'Request to register' })
+    ).toBeNull();
   });
 });

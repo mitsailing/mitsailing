@@ -1,5 +1,6 @@
 import { ArrowLeft, Eye, Pencil, Trash2 } from 'lucide-react';
 import type { getTranslations } from 'next-intl/server';
+import type * as React from 'react';
 import { AdminEventRegistrationsView } from '@/components/mit-sailing/admin/events/AdminEventRegistrationsView';
 import type { RegistrationFilter } from '@/components/mit-sailing/admin/events/AdminEventRegistrationsView';
 import {
@@ -72,6 +73,20 @@ function registrationWindowLabel(props: {
   return props.t('show_registration_window_open');
 }
 
+function registrationModeLabel(props: {
+  event: AdminEventShowDto;
+  t: AdminEventShowTranslations;
+}) {
+  const registrationMode = props.event.registrationMode ?? 'standard';
+  if (registrationMode === 'none') {
+    return props.t('registration_mode_none');
+  }
+  if (registrationMode === 'external') {
+    return props.t('registration_mode_external');
+  }
+  return props.t('registration_mode_standard');
+}
+
 function publicEventHref(event: AdminEventShowDto) {
   if (event.detailPageKind === 'external' && event.externalDetailUrl) {
     return event.externalDetailUrl;
@@ -97,6 +112,19 @@ function AdminEventPublicContentBody(props: {
   );
 }
 
+function AdminEventSummaryLink(props: { href: string }) {
+  return (
+    <a
+      className="break-all text-mit-red no-underline hover:underline dark:text-mit-red-ink"
+      href={props.href}
+      rel="noopener noreferrer"
+      target="_blank"
+    >
+      {props.href}
+    </a>
+  );
+}
+
 export function AdminEventShowView(props: AdminEventShowViewProps) {
   const signedUp =
     props.event.registrationCounts.approved +
@@ -117,26 +145,52 @@ export function AdminEventShowView(props: AdminEventShowViewProps) {
     [props.t('show_stat_awaiting'), props.event.registrationCounts.pending],
     [props.t('show_stat_remaining'), remaining],
   ];
-  const details = [
-    [props.t('show_primary_date'), primaryDateLabel(props)],
-    [
-      props.t('show_capacity'),
-      props.event.maxParticipants === null
-        ? props.t('show_capacity_open')
-        : props.t('show_capacity_limited', {
-            capacity: props.event.maxParticipants,
-          }),
-    ],
-    [props.t('show_registration_window'), registrationWindowLabel(props)],
-    [
-      props.t('show_assigned_admins'),
-      props.event.admins.length === 0
-        ? props.t('show_assigned_admins_empty')
-        : props.event.admins
-            .map((admin) => admin.admin.name || admin.admin.email)
-            .join(', '),
-    ],
+  const details: { label: string; value: React.ReactNode }[] = [
+    {
+      label: props.t('show_primary_date'),
+      value: primaryDateLabel(props),
+    },
+    {
+      label: props.t('show_capacity'),
+      value:
+        props.event.maxParticipants === null
+          ? props.t('show_capacity_open')
+          : props.t('show_capacity_limited', {
+              capacity: props.event.maxParticipants,
+            }),
+    },
+    {
+      label: props.t('show_registration_window'),
+      value: registrationWindowLabel(props),
+    },
+    {
+      label: props.t('show_registration_mode'),
+      value: registrationModeLabel(props),
+    },
+    {
+      label: props.t('show_assigned_admins'),
+      value:
+        props.event.admins.length === 0
+          ? props.t('show_assigned_admins_empty')
+          : props.event.admins
+              .map((admin) => admin.admin.name || admin.admin.email)
+              .join(', '),
+    },
   ];
+  if (props.event.externalRegistrationUrl) {
+    details.push({
+      label: props.t('show_external_registration_url'),
+      value: (
+        <AdminEventSummaryLink href={props.event.externalRegistrationUrl} />
+      ),
+    });
+  }
+  if (props.event.externalEntriesUrl) {
+    details.push({
+      label: props.t('show_external_entries_url'),
+      value: <AdminEventSummaryLink href={props.event.externalEntriesUrl} />,
+    });
+  }
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -227,10 +281,10 @@ export function AdminEventShowView(props: AdminEventShowViewProps) {
           {props.t('show_summary_heading')}
         </h2>
         <dl className="mt-4 grid gap-4 text-sm md:grid-cols-2">
-          {details.map(([label, value]) => (
-            <div key={label}>
-              <dt className="font-semibold text-foreground">{label}</dt>
-              <dd className="mt-1 text-mit-readable-ink">{value}</dd>
+          {details.map((detail) => (
+            <div key={detail.label}>
+              <dt className="font-semibold text-foreground">{detail.label}</dt>
+              <dd className="mt-1 text-mit-readable-ink">{detail.value}</dd>
             </div>
           ))}
         </dl>

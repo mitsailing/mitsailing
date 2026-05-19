@@ -21,6 +21,9 @@ function makeEvent(
     registrationEnd: new Date('2026-06-30T12:00:00.000Z'),
     detailPageKind: 'standard',
     externalDetailUrl: null,
+    externalEntriesUrl: null,
+    externalRegistrationUrl: null,
+    registrationMode: 'standard',
     category: { name: 'Racing' },
     dates: [],
     admins: [],
@@ -33,7 +36,20 @@ function makeEvent(
 }
 
 describe('publicEventReservationState', () => {
-  it('returns external before viewer registration state', () => {
+  it('returns available for external detail pages with standard registration mode', () => {
+    expect(
+      publicEventReservationState({
+        currentRegistration: null,
+        event: makeEvent({
+          detailPageKind: 'external',
+          externalDetailUrl: 'https://example.com/event',
+        }),
+        now: midJune,
+      })
+    ).toBe('available');
+  });
+
+  it('returns external for external registration mode before viewer registration state', () => {
     expect(
       publicEventReservationState({
         currentRegistration: {
@@ -41,12 +57,24 @@ describe('publicEventReservationState', () => {
           status: EventRegistrationStatus.approved,
         },
         event: makeEvent({
-          detailPageKind: 'external',
-          externalDetailUrl: 'https://example.com/event',
+          externalRegistrationUrl: 'https://example.com/register',
+          registrationMode: 'external',
         }),
         now: midJune,
       })
     ).toBe('external');
+  });
+
+  it('returns unavailable for events without registration', () => {
+    expect(
+      publicEventReservationState({
+        currentRegistration: null,
+        event: makeEvent({
+          registrationMode: 'none',
+        }),
+        now: midJune,
+      })
+    ).toBe('unavailable');
   });
 
   it('returns pending for pending registration before capacity', () => {

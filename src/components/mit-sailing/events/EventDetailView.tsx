@@ -94,6 +94,12 @@ function registrationHeading(
   if (state === 'full') {
     return t('registration_heading_full');
   }
+  if (state === 'external') {
+    return t('registration_heading_external');
+  }
+  if (state === 'unavailable') {
+    return t('registration_heading_unavailable');
+  }
   return t('registration_heading_available');
 }
 
@@ -162,11 +168,69 @@ export async function EventDetailView(props: EventDetailViewProps) {
   const publicContentSections = visiblePublicContentSections(
     props.event.publicContentSections
   );
+  const externalRegistrationUrl =
+    props.event.registrationMode === 'external'
+      ? props.event.externalRegistrationUrl
+      : null;
   const registrationHeadingText = registrationHeading(
     reservationState,
     registrationOpens || t('date_to_be_announced'),
     t
   );
+  let registrationActionContent: React.ReactNode;
+  if (externalRegistrationUrl) {
+    registrationActionContent = (
+      <div className="flex flex-col items-start gap-3">
+        <a
+          className={cn(
+            'inline-flex min-h-10 items-center justify-center rounded-md bg-mit-red px-4 py-2 text-sm font-medium text-white no-underline hover:bg-mit-red-hover dark:hover:ring-1 dark:hover:ring-inset dark:hover:ring-white/30',
+            textFocusRingClassName
+          )}
+          href={externalRegistrationUrl}
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          {t('external_cta')}
+        </a>
+        {props.event.externalEntriesUrl ? (
+          <a
+            className={cn(
+              'text-sm font-semibold text-mit-red no-underline hover:underline dark:text-mit-red-ink',
+              textFocusRingClassName
+            )}
+            href={props.event.externalEntriesUrl}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            {t('external_entries_cta')}
+          </a>
+        ) : null}
+      </div>
+    );
+  } else if (reservationState === 'unavailable') {
+    registrationActionContent = (
+      <p className="text-sm leading-relaxed text-muted-foreground">
+        {t('registration_unavailable')}
+      </p>
+    );
+  } else {
+    registrationActionContent = (
+      <EventRegistrationCta
+        cancelRegistrationAction={cancelPublicEventRegistrationAction.bind(
+          null,
+          props.locale,
+          props.event.slug
+        )}
+        errorCode={props.errorCode}
+        event={props.event}
+        isSignedIn={props.isSignedIn}
+        locale={props.locale}
+        registrationOpens={registrationOpens || t('date_to_be_announced')}
+        reservationState={reservationState}
+        t={t}
+      />
+    );
+  }
 
   return (
     <article>
@@ -221,37 +285,7 @@ export async function EventDetailView(props: EventDetailViewProps) {
             <h2 className="mb-4 scroll-m-20 font-mit-serif text-xl font-semibold tracking-tight text-mit-text">
               {registrationHeadingText}
             </h2>
-            {props.event.detailPageKind === 'external' &&
-            props.event.externalDetailUrl ? (
-              <a
-                className={cn(
-                  'inline-flex min-h-10 items-center justify-center rounded-md bg-mit-red px-4 py-2 text-sm font-medium text-white no-underline hover:bg-mit-red-hover dark:hover:ring-1 dark:hover:ring-inset dark:hover:ring-white/30',
-                  textFocusRingClassName
-                )}
-                href={props.event.externalDetailUrl}
-                rel="noopener noreferrer"
-                target="_blank"
-              >
-                {t('external_cta')}
-              </a>
-            ) : (
-              <EventRegistrationCta
-                cancelRegistrationAction={cancelPublicEventRegistrationAction.bind(
-                  null,
-                  props.locale,
-                  props.event.slug
-                )}
-                errorCode={props.errorCode}
-                event={props.event}
-                isSignedIn={props.isSignedIn}
-                locale={props.locale}
-                registrationOpens={
-                  registrationOpens || t('date_to_be_announced')
-                }
-                reservationState={reservationState}
-                t={t}
-              />
-            )}
+            {registrationActionContent}
             <dl className="m-0 mt-5 flex flex-col gap-3 p-0">
               <MetaRow label={registrationMeta.opens}>
                 {registrationOpens || t('date_to_be_announced')}
