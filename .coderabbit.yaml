@@ -22,6 +22,10 @@ reviews:
 
   enable_prompt_for_ai_agents: true
 
+  path_filters:
+    - '!.cursor/**'
+    - '!docs/**'
+
   path_instructions:
     - path: '**/*.{ts,tsx}'
       instructions: >-
