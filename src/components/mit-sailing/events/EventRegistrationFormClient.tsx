@@ -551,7 +551,7 @@ function TeamRegistrationFields(props: {
                   <TeamBoatMemberField
                     boatNumber={boatNumber}
                     boatsPerTeam={props.event.teamRegistration.boatsPerTeam}
-                    key={position}
+                    key={`${boatNumber}-${position}`}
                     labels={props.labels}
                     personsPerBoat={props.event.teamRegistration.personsPerBoat}
                     position={position}
@@ -621,7 +621,6 @@ function RegistrationFeeSummary(props: {
         aria-labelledby="event-registration-fees-heading"
         aria-required="true"
         className="rounded-lg border border-border bg-card p-4"
-        role="radiogroup"
       >
         <legend
           className="mb-3 font-mit-serif text-lg font-semibold tracking-tight text-mit-text"

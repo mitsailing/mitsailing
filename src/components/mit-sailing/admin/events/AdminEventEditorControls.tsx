@@ -19,13 +19,16 @@ function registrationModeFromValue(value: string): EventRegistrationMode {
 
 function AdminEventFieldShell(props: {
   children: React.ReactNode;
+  controlId: string;
   label: React.ReactNode;
 }) {
   return (
-    <label className="flex min-w-0 flex-col gap-1.5 text-sm">
-      <span className="font-medium text-foreground">{props.label}</span>
+    <div className="flex min-w-0 flex-col gap-1.5 text-sm">
+      <label className="font-medium text-foreground" htmlFor={props.controlId}>
+        {props.label}
+      </label>
       {props.children}
-    </label>
+    </div>
   );
 }
 
@@ -148,7 +151,10 @@ export function AdminEventRegistrationModeFields(props: {
   );
   return (
     <>
-      <AdminEventFieldShell label={props.fieldLabel}>
+      <AdminEventFieldShell
+        controlId="event-registration-mode"
+        label={props.fieldLabel}
+      >
         <select
           className={adminNativeSelectClassName}
           id="event-registration-mode"

@@ -20,6 +20,7 @@ import type {
   AdminEventShowDto,
 } from '@/libs/admin/events/eventAdminQueries';
 import { Link } from '@/libs/I18nNavigation';
+import { safeExternalHttpHref } from '@/libs/mit-sailing/cmsHref';
 import {
   formatEasternDateTime,
   formatEasternEventRange,
@@ -89,7 +90,10 @@ function registrationModeLabel(props: {
 
 function publicEventHref(event: AdminEventShowDto) {
   if (event.detailPageKind === 'external' && event.externalDetailUrl) {
-    return event.externalDetailUrl;
+    return (
+      safeExternalHttpHref(event.externalDetailUrl) ??
+      `/events/${encodeURIComponent(event.slug)}`
+    );
   }
   return `/events/${encodeURIComponent(event.slug)}`;
 }
@@ -108,14 +112,18 @@ function AdminEventPublicContentBody(props: {
 }
 
 function AdminEventSummaryLink(props: { href: string }) {
+  const href = safeExternalHttpHref(props.href);
+  if (!href) {
+    return null;
+  }
   return (
     <a
       className="break-all text-mit-red no-underline hover:underline dark:text-mit-red-ink"
-      href={props.href}
+      href={href}
       rel="noopener noreferrer"
       target="_blank"
     >
-      {props.href}
+      {href}
     </a>
   );
 }

@@ -309,7 +309,10 @@ describe('EventRegistrationForm', () => {
       name: /junior/i,
     });
 
-    expect(screen.getByRole('radiogroup')).toBeRequired();
+    expect(screen.getByRole('group', { name: /entry fees/i })).toHaveAttribute(
+      'aria-required',
+      'true'
+    );
     expect(adultFee).toHaveAttribute('name', 'eventEntryFeeId');
     expect(juniorFee).toHaveAttribute('name', 'eventEntryFeeId');
 
@@ -322,7 +325,7 @@ describe('EventRegistrationForm', () => {
       await screen.findByText('Answer the required registration questions.')
     ).toBeVisible();
     expect(juniorFee).toBeChecked();
-    expect(screen.getByRole('radiogroup')).toHaveAttribute(
+    expect(screen.getByRole('group', { name: /entry fees/i })).toHaveAttribute(
       'aria-invalid',
       'true'
     );

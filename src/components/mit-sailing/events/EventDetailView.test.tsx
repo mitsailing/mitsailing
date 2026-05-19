@@ -181,6 +181,32 @@ describe('EventDetailView', () => {
     expect(screen.queryByRole('link', { name: 'Register' })).toBeNull();
   });
 
+  it('omits unsafe external registration links', async () => {
+    const unsafeScriptHref = `${['java', 'script'].join('')}:alert(1)`;
+
+    render(
+      await EventDetailView({
+        currentRegistration: null,
+        errorCode: null,
+        event: eventFixture({
+          externalEntriesUrl: 'mailto:entries@example.com',
+          externalRegistrationUrl: unsafeScriptHref,
+          registrationMode: 'external',
+        }),
+        isSignedIn: true,
+        locale: 'en',
+      })
+    );
+
+    expect(
+      screen.queryByRole('link', { name: 'Visit external registration page' })
+    ).toBeNull();
+    expect(screen.queryByRole('link', { name: 'View entries' })).toBeNull();
+    expect(
+      screen.getByText('Registration is not available for this event.')
+    ).toBeVisible();
+  });
+
   it('renders unavailable registration copy without local registration cta', async () => {
     render(
       await EventDetailView({

@@ -318,4 +318,50 @@ describe('AdminEventShowView', () => {
       screen.getByRole('link', { name: 'https://example.com/entries' })
     ).toHaveAttribute('href', 'https://example.com/entries');
   });
+
+  it('omits unsafe external url summary links', () => {
+    const unsafeScriptHref = `${['java', 'script'].join('')}:alert(1)`;
+
+    render(
+      <AdminEventShowView
+        errorCode={null}
+        event={{
+          ...eventFixture('editable'),
+          externalEntriesUrl: 'mailto:entries@example.com',
+          externalRegistrationUrl: unsafeScriptHref,
+          registrationMode: 'external',
+        }}
+        filter="all"
+        locale="en"
+        t={t}
+      />
+    );
+
+    expect(screen.queryByRole('link', { name: unsafeScriptHref })).toBeNull();
+    expect(
+      screen.queryByRole('link', { name: 'mailto:entries@example.com' })
+    ).toBeNull();
+  });
+
+  it('falls back to the public event path for unsafe external detail urls', () => {
+    const unsafeScriptHref = `${['java', 'script'].join('')}:alert(1)`;
+
+    render(
+      <AdminEventShowView
+        errorCode={null}
+        event={{
+          ...eventFixture('editable'),
+          detailPageKind: 'external',
+          externalDetailUrl: unsafeScriptHref,
+        }}
+        filter="all"
+        locale="en"
+        t={t}
+      />
+    );
+
+    expect(
+      screen.getByRole('link', { name: /view public page/i })
+    ).toHaveAttribute('href', '/events/intro-sail');
+  });
 });

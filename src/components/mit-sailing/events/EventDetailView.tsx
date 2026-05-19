@@ -8,6 +8,7 @@ import { EVENTS_TIME_ZONE } from '@/lib/mit-sailing/nyTime';
 import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
 import { cn } from '@/lib/utils';
 import { Link } from '@/libs/I18nNavigation';
+import { safeExternalHttpHref } from '@/libs/mit-sailing/cmsHref';
 import { formatEasternEventRange } from '@/libs/mit-sailing/easternTimeFormat';
 import type {
   PublicEventDetail,
@@ -128,6 +129,25 @@ function visiblePublicContentSections(
   return (sections ?? []).filter((section) => section.body.trim().length > 0);
 }
 
+function eventDetailReservationState(props: {
+  currentRegistration: PublicEventRegistrationState | null;
+  event: PublicEventDetail;
+  externalRegistrationUrl: string | null;
+  now: Date;
+}): PublicEventReservationState {
+  if (
+    props.event.registrationMode === 'external' &&
+    !props.externalRegistrationUrl
+  ) {
+    return 'unavailable';
+  }
+  return publicEventReservationState({
+    currentRegistration: props.currentRegistration,
+    event: props.event,
+    now: props.now,
+  });
+}
+
 /**
  * @param props - Detail view props
  * @param props.locale - Active locale
@@ -160,18 +180,23 @@ export async function EventDetailView(props: EventDetailViewProps) {
     now,
     t,
   });
-  const reservationState = publicEventReservationState({
+  const externalRegistrationUrl = safeExternalHttpHref(
+    props.event.registrationMode === 'external'
+      ? props.event.externalRegistrationUrl
+      : null
+  );
+  const externalEntriesUrl = safeExternalHttpHref(
+    props.event.externalEntriesUrl
+  );
+  const reservationState = eventDetailReservationState({
     currentRegistration: props.currentRegistration,
     event: props.event,
+    externalRegistrationUrl,
     now,
   });
   const publicContentSections = visiblePublicContentSections(
     props.event.publicContentSections
   );
-  const externalRegistrationUrl =
-    props.event.registrationMode === 'external'
-      ? props.event.externalRegistrationUrl
-      : null;
   const registrationHeadingText = registrationHeading(
     reservationState,
     registrationOpens || t('date_to_be_announced'),
@@ -192,13 +217,13 @@ export async function EventDetailView(props: EventDetailViewProps) {
         >
           {t('external_cta')}
         </a>
-        {props.event.externalEntriesUrl ? (
+        {externalEntriesUrl ? (
           <a
             className={cn(
               'text-sm font-semibold text-mit-red no-underline hover:underline dark:text-mit-red-ink',
               textFocusRingClassName
             )}
-            href={props.event.externalEntriesUrl}
+            href={externalEntriesUrl}
             rel="noopener noreferrer"
             target="_blank"
           >
