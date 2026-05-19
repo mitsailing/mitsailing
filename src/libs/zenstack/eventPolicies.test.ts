@@ -23,7 +23,9 @@ const ids = {
   comment: `event_policy_${randomUUID()}_comment`,
   date: `event_policy_${randomUUID()}_date`,
   fee: `event_policy_${randomUUID()}_fee`,
+  hiddenCategory: `event_policy_${randomUUID()}_hidden_category`,
   matchingAnswer: `event_policy_${randomUUID()}_matching_answer`,
+  managedCategory: `event_policy_${randomUUID()}_managed_category`,
   otherEvent: `event_policy_${randomUUID()}_other_event`,
   otherParentComment: `event_policy_${randomUUID()}_other_parent_comment`,
   otherQuestion: `event_policy_${randomUUID()}_other_question`,
@@ -35,6 +37,7 @@ const ids = {
   staff: `event_policy_${randomUUID()}_staff`,
   unassignedAdmin: `event_policy_${randomUUID()}_unassigned_admin`,
   unpublishedEvent: `event_policy_${randomUUID()}_unpublished_event`,
+  writableCategory: `event_policy_${randomUUID()}_writable_category`,
 };
 
 async function columnExists(options: {
@@ -172,8 +175,13 @@ async function deleteFixtures(pool: Pool) {
   ]);
   await pool.query('DELETE FROM "event_dates" WHERE "id" = $1', [ids.date]);
   await pool.query('DELETE FROM "events" WHERE "id" = ANY($1)', [eventIds]);
-  await pool.query('DELETE FROM "event_categories" WHERE "id" = $1', [
-    ids.category,
+  await pool.query('DELETE FROM "event_categories" WHERE "id" = ANY($1)', [
+    [
+      ids.category,
+      ids.hiddenCategory,
+      ids.managedCategory,
+      ids.writableCategory,
+    ],
   ]);
   await pool.query('DELETE FROM "user" WHERE "id" = ANY($1)', [
     [
@@ -198,9 +206,12 @@ async function insertFixtures(pool: Pool) {
       INSERT INTO "event_categories" (
         "id", "name", "display_order", "is_visible", "created_at"
       )
-      VALUES ($1, 'Policy category', 1, true, NOW())
+      VALUES
+        ($1, 'Policy category', 1, true, NOW()),
+        ($2, 'Hidden policy category', 2, false, NOW()),
+        ($3, 'Managed policy category', 3, true, NOW())
     `,
-    [ids.category]
+    [ids.category, ids.hiddenCategory, ids.managedCategory]
   );
   await insertEvent(pool, { id: ids.assignedEvent, published: true });
   await insertEvent(pool, { id: ids.otherEvent, published: true });
@@ -378,6 +389,68 @@ describe.skipIf(!shouldRunPolicyDatabaseTest)('event policies', () => {
     await expect(
       db.eventAdmin.findMany({ where: { eventId: ids.assignedEvent } })
     ).resolves.toEqual([]);
+  });
+
+  it('limits event category reads and writes by role', async () => {
+    await expect(
+      db.eventCategory.findMany({
+        orderBy: { displayOrder: 'asc' },
+        select: { id: true },
+        where: {
+          id: { in: [ids.category, ids.hiddenCategory, ids.managedCategory] },
+        },
+      })
+    ).resolves.toEqual([{ id: ids.category }, { id: ids.managedCategory }]);
+
+    await expect(
+      authDb({ appRole: 'admin', id: ids.staff }).eventCategory.create({
+        data: {
+          createdAt: new Date(),
+          displayOrder: 4,
+          id: ids.writableCategory,
+          isVisible: true,
+          name: 'Writable policy category',
+        },
+      })
+    ).resolves.toMatchObject({ id: ids.writableCategory });
+
+    await expect(
+      authDb({ appRole: 'admin', id: ids.staff }).eventCategory.update({
+        data: { name: 'Updated policy category' },
+        where: { id: ids.writableCategory },
+      })
+    ).resolves.toMatchObject({ name: 'Updated policy category' });
+
+    await expect(
+      authDb({ appRole: 'user', id: ids.owner }).eventCategory.create({
+        data: {
+          createdAt: new Date(),
+          displayOrder: 5,
+          id: `event_policy_${randomUUID()}_blocked_category`,
+          isVisible: true,
+          name: 'Blocked policy category',
+        },
+      })
+    ).rejects.toThrow();
+
+    await expect(
+      authDb({ appRole: 'dock_staff', id: ids.staff }).eventCategory.update({
+        data: { name: 'Blocked update' },
+        where: { id: ids.writableCategory },
+      })
+    ).rejects.toThrow();
+
+    await expect(
+      authDb({ appRole: 'user', id: ids.owner }).eventCategory.delete({
+        where: { id: ids.writableCategory },
+      })
+    ).rejects.toThrow();
+
+    await expect(
+      authDb({ appRole: 'admin', id: ids.staff }).eventCategory.delete({
+        where: { id: ids.writableCategory },
+      })
+    ).resolves.toMatchObject({ id: ids.writableCategory });
   });
 
   it('keeps event admin assignment writes staff-only', async () => {

@@ -42,6 +42,7 @@ import {
   siteNavClassesCacheTag,
   siteNavFleetCacheTag,
 } from '@/libs/mit-sailing/siteNavCache';
+import { appAuthContextFromSession } from '@/libs/zenstack/authContext';
 import { getI18nPath } from '@/utils/Helpers';
 
 const orderedIdsSchema = z.array(z.string().min(1)).min(1);
@@ -49,11 +50,13 @@ const orderedIdsSchema = z.array(z.string().min(1)).min(1);
 function catalogMutationContextFromSession(
   session: NonNullable<AuthSession>
 ): CatalogMutationContext {
+  const authContext = appAuthContextFromSession(session);
   const actorUserId =
     typeof session.session.impersonatedBy === 'string'
       ? session.session.impersonatedBy
       : session.user.id;
   return {
+    authContext: authContext ?? undefined,
     impersonatedUserId:
       actorUserId === session.user.id ? undefined : session.user.id,
     userId: actorUserId,

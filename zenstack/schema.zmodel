@@ -564,6 +564,8 @@ model EventCategory {
   createdAt        DateTime @map("created_at")
   events           Event[]
 
+  @@allow('read', isVisible)
+  @@allow('all', auth() != null && auth().appRole == 'admin')
   @@map("event_categories")
 }
 

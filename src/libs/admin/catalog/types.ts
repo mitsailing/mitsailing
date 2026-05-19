@@ -4,6 +4,7 @@
  */
 
 import type { EmailDeliverabilityStatus } from '@/libs/email/emailDeliverabilityStatus';
+import type { AppAuthContext } from '@/libs/zenstack/authContext';
 import type messages from '@/locales/en.json';
 
 /** Keys under `AdminCatalogResource` in locale JSON (strict next-intl typing). */
@@ -126,6 +127,8 @@ export type CatalogMutationErr = {
 export type CatalogCreateResult = { ok: true; id: string } | CatalogMutationErr;
 
 export type CatalogMutationContext = {
+  /** ZenStack policy auth context bound to the actor session. */
+  authContext?: AppAuthContext;
   /** Real actor responsible for the change. */
   userId?: string;
   /** Session target when an actor is impersonating another user. */

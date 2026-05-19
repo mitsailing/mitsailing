@@ -1,10 +1,3 @@
-import { eventCategoryFormSchema } from '@/libs/zenstack/zod';
-
-/**
- * Validates event category create/update payloads parsed from admin forms.
- */
-export { eventCategoryFormSchema };
-
 /**
  * Parses {@link FormData} from the event category admin form for Zod validation.
  *

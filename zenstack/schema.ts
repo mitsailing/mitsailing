@@ -1940,6 +1940,8 @@ export class SchemaType implements SchemaDef {
                 }
             },
             attributes: [
+                { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("read") }, { name: "condition", value: ExpressionUtils.field("isVisible") }] },
+                { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("all") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.call("auth"), "!=", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("admin"))) }] },
                 { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("event_categories") }] }
             ] as readonly AttributeApplication[],
             idFields: ["id"],
