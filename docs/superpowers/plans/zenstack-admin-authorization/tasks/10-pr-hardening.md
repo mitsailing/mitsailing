@@ -3,7 +3,7 @@
 ## Goal
 
 Push the completed ZenStack admin authorization migration to GitHub, create a
-ready-for-review PR, then run up to three post-PR rounds for relevant GitHub
+ready-for-review PR, then run up to five post-PR rounds for relevant GitHub
 comments and CI/test failures.
 
 ## Preconditions
@@ -72,9 +72,9 @@ Create a GitHub PR as ready for review, not draft, because CodeRabbit must run.
 If a PR already exists for the branch, update that PR instead of creating a
 duplicate.
 
-## Phase 3: Up to Three Post-PR Fix Rounds
+## Phase 3: Up to Five Post-PR Fix Rounds
 
-Run up to three post-PR fix rounds. Start each round in its own fresh sub-agent.
+Run up to five post-PR fix rounds. Start each round in its own fresh sub-agent.
 Each round begins only after the scheduled follow-up confirms 30 minutes have
 passed since the latest push, then inspects GitHub checks and review comments.
 Do not wait 30 minutes between local fix steps inside a round.
@@ -98,7 +98,7 @@ scheduled 30 minutes after the newest push.
 If a resumed follow-up finds checks still pending or review bots still
 processing with no actionable failure or comment yet, do one bounded inspection,
 schedule another follow-up for 30 minutes later, and stop all live agents again.
-This pending-only wakeup does not count as one of the three post-PR fix rounds;
+This pending-only wakeup does not count as one of the five post-PR fix rounds;
 a fix round starts only when there is actionable work to fix, document, or
 resolve.
 
@@ -108,7 +108,7 @@ round. Update the smallest relevant CodeRabbit configuration or PR shape, run
 the smallest reasonable local verification for that configuration change, commit
 and push, then replace the old follow-up with one new 30-minute follow-up
 anchored to the successful push. Do not count this CodeRabbit enablement work
-against the three post-PR fix rounds.
+against the five post-PR fix rounds.
 
 Each round must begin with aggressive context pruning. The context gets very big
 during step 9 and during review loops, so do not treat prior implementation or
@@ -120,7 +120,7 @@ hash, and the PR state. Do not carry forward step 9 file-by-file notes, full
 verification output, debugging history, raw CodeRabbit output, or old
 hypotheses.
 
-Before round 2 and round 3, close or discard the previous round's working notes,
+Before rounds 2 through 5, close or discard the previous round's working notes,
 pasted logs, full review dumps, stale hypotheses, speculative analysis, fixed
 findings, and unrelated file summaries. Build a small handoff packet for the
 next fresh sub-agent with only:
@@ -210,7 +210,7 @@ Stop and ask if:
 - a fix would require broad deletion or rewrite of pre-ZenStack code beyond this
   plan
 - a security, auth, policy, data-loss, or merge-blocking CI issue remains after
-  the third post-PR fix round
+  the fifth post-PR fix round
 - the same unclear CI failure remains after one focused fix attempt
 
 ## Final PR Comment
