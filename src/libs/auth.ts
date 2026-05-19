@@ -72,17 +72,17 @@ const appRoleAdminAuthorizationPlugin = {
     before: [
       {
         matcher: (ctx) => (ctx.path ?? '').startsWith('/admin/'),
-        handler: createAuthMiddleware(async (ctx) => {
-          await Promise.resolve();
-          return {
+        // eslint-disable-next-line @typescript-eslint/promise-function-async -- Better Auth middleware types require a Promise, but this hook only rewrites context.
+        handler: createAuthMiddleware((ctx) =>
+          Promise.resolve({
             context: {
               query: {
                 ...ctx.query,
                 disableCookieCache: true,
               },
             },
-          };
-        }),
+          })
+        ),
       },
     ],
   },

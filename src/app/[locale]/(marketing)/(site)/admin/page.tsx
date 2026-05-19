@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { requireAdminAreaAccess } from '@/libs/admin/adminAreaAccess';
 import { adminCatalogResourceIndexPath } from '@/libs/admin/catalog/adminCatalogPaths';
-import type { CatalogResourceId } from '@/libs/admin/catalog/catalogDefinitions';
 import {
   catalogResourceDefinitions,
   CATALOG_RESOURCE_IDS,
@@ -29,26 +28,6 @@ export async function generateMetadata(
   return { title: t('meta_title') };
 }
 
-function catalogPermissionsForResource(
-  id: CatalogResourceId
-): readonly Permission[] {
-  return catalogPermissionsForOperation({ operation: 'view', resourceId: id });
-}
-
-function canUsePermission(
-  permissions: readonly Permission[],
-  permission: Permission
-) {
-  return hasPermission(permissions, permission);
-}
-
-function canUseAnyPermission(
-  grantedPermissions: readonly Permission[],
-  requiredPermissions: readonly Permission[]
-) {
-  return hasAnyPermission(grantedPermissions, requiredPermissions);
-}
-
 /**
  * Admin dashboard: links to each section’s index (Rails-style discovery).
  *
@@ -60,14 +39,14 @@ export default async function AdminIndexPage(props: AdminIndexPageProps) {
   const { locale } = await props.params;
   setRequestLocale(locale);
   const { permissions } = await requireAdminAreaAccess(locale);
-  const canCms = canUsePermission(permissions, Permission.CMS_VIEW);
-  const canUsers = canUsePermission(permissions, Permission.USERS_VIEW);
-  const canEvents = canUsePermission(permissions, Permission.EVENTS_MANAGE);
-  const canPavilionReservations = canUsePermission(
+  const canCms = hasPermission(permissions, Permission.CMS_VIEW);
+  const canUsers = hasPermission(permissions, Permission.USERS_VIEW);
+  const canEvents = hasPermission(permissions, Permission.EVENTS_MANAGE);
+  const canPavilionReservations = hasPermission(
     permissions,
     Permission.PAVILION_RESERVATIONS_MANAGE
   );
-  const canNewsletters = canUsePermission(
+  const canNewsletters = hasPermission(
     permissions,
     Permission.NEWSLETTER_MANAGE
   );
@@ -195,9 +174,12 @@ export default async function AdminIndexPage(props: AdminIndexPageProps) {
           ) : null}
           {CATALOG_RESOURCE_IDS.map((id) => {
             const def = catalogResourceDefinitions[id];
-            const canSeeResource = canUseAnyPermission(
+            const canSeeResource = hasAnyPermission(
               permissions,
-              catalogPermissionsForResource(id)
+              catalogPermissionsForOperation({
+                operation: 'view',
+                resourceId: id,
+              })
             );
             return canSeeResource ? (
               <li key={id}>

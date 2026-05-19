@@ -260,6 +260,22 @@ describe('createZenStackCatalogHandlers', () => {
     expect(mocks.transaction).toHaveBeenCalledOnce();
   });
 
+  it('rejects duplicate reorder ids before updating rows', async () => {
+    mocks.findMany.mockResolvedValue([{ id: 'cat-1' }, { id: 'cat-2' }]);
+    const { createZenStackCatalogHandlers } =
+      await import('@/libs/admin/catalog/zenstackCatalogHandlers');
+    const handlers = createZenStackCatalogHandlers('event_categories');
+
+    await expect(
+      handlers.reorder?.(['cat-1', 'cat-1'], undefined, {
+        authContext: { appRole: Role.ADMIN, id: 'admin-1' },
+      })
+    ).resolves.toEqual({ ok: false, code: 'invalid_order' });
+
+    expect(mocks.transaction).not.toHaveBeenCalled();
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+
   it.each([
     ['not_found', ORMErrorReason.NOT_FOUND],
     ['foreign_key', ORMErrorReason.DB_QUERY_ERROR],

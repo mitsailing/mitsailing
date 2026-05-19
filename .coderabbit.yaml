@@ -219,11 +219,6 @@ reviews:
         Prefer Conventional Commits-style titles (feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert): short specific summary.
     description:
       mode: warning
-      requirements: >-
-        Summarize behavior changes, tests run, and user-visible risk. When the PR
-        adds or substantially changes package-like infrastructure, include a
-        Package/local-pattern decision that names the package/local pattern used
-        or says why no package fits.
     issue_assessment:
       mode: warning
     custom_checks:

@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   eventRegistrationFindFirst: vi.fn(),
   eventCategoryFindMany: vi.fn(),
   getZenStack: vi.fn(),
+  zenstackForAuthContext: vi.fn(),
 }));
 
 vi.mock('server-only', () => ({}));
@@ -33,7 +34,7 @@ vi.mock('@/libs/DB', () => ({
 
 vi.mock('@/libs/zenstack/auth', () => ({
   getZenStack: mocks.getZenStack,
-  zenstackForAuthContext: mocks.getZenStack,
+  zenstackForAuthContext: mocks.zenstackForAuthContext,
 }));
 
 vi.mock('@/libs/Logger', () => ({
@@ -52,6 +53,7 @@ beforeEach(() => {
   mocks.eventRegistrationFindFirst.mockReset();
   mocks.eventCategoryFindMany.mockReset();
   mocks.getZenStack.mockReset();
+  mocks.zenstackForAuthContext.mockReset();
   mocks.getZenStack.mockReturnValue({
     event: {
       findFirst: mocks.eventFindFirst,
@@ -65,6 +67,11 @@ beforeEach(() => {
     },
     eventRegistration: {
       count: mocks.eventRegistrationCount,
+      findFirst: mocks.eventRegistrationFindFirst,
+    },
+  });
+  mocks.zenstackForAuthContext.mockReturnValue({
+    eventRegistration: {
       findFirst: mocks.eventRegistrationFindFirst,
     },
   });
@@ -101,7 +108,10 @@ describe('getPublicEventRegistrationState', () => {
       userId: 'user-1',
     });
 
-    expect(mocks.getZenStack).toHaveBeenCalled();
+    expect(mocks.zenstackForAuthContext).toHaveBeenCalledWith({
+      appRole: 'user',
+      id: 'user-1',
+    });
     expect(mocks.eventRegistrationFindFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { eventId: 'event-1' },

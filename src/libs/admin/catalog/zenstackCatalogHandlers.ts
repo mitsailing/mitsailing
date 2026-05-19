@@ -190,13 +190,20 @@ function eventCategoryHandlers(): CatalogServerHandlers {
       if (!db) {
         return { ok: false, code: 'forbidden' };
       }
-      const existing = await db.eventCategory.findMany({
-        select: { id: true },
-      });
-      const set = new Set(existing.map((r) => r.id));
+      let existing: { id: string }[];
+      try {
+        existing = await db.eventCategory.findMany({
+          select: { id: true },
+        });
+      } catch {
+        return { ok: false, code: 'unknown' };
+      }
+      const existingSet = new Set(existing.map((r) => r.id));
+      const orderedSet = new Set(orderedIds);
       if (
-        orderedIds.length !== set.size ||
-        orderedIds.some((rowId) => !set.has(rowId))
+        orderedIds.length !== orderedSet.size ||
+        orderedSet.size !== existingSet.size ||
+        orderedIds.some((rowId) => !existingSet.has(rowId))
       ) {
         return { ok: false, code: 'invalid_order' };
       }

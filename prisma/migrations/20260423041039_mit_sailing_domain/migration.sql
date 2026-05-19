@@ -177,9 +177,6 @@ CREATE INDEX "event_admins_event_id_idx" ON "event_admins"("event_id");
 CREATE INDEX "event_admins_admin_user_id_idx" ON "event_admins"("admin_user_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "event_admins_event_id_admin_user_id_key" ON "event_admins"("event_id", "admin_user_id");
-
--- CreateIndex
 CREATE INDEX "event_registrations_event_id_idx" ON "event_registrations"("event_id");
 
 -- CreateIndex
