@@ -7,7 +7,7 @@ type AuthPlugin = {
   hooks?: {
     before?: {
       handler: (context: unknown) => Promise<unknown>;
-      matcher: (context: { path: string }) => boolean;
+      matcher: (context: { path?: string }) => boolean;
     }[];
   };
   id: string;
@@ -424,6 +424,8 @@ describe('auth', () => {
     }
 
     expect(hook.matcher({ path: '/admin/set-role' })).toBe(true);
+    expect(hook.matcher({ path: '' })).toBe(false);
+    expect(hook.matcher({})).toBe(false);
     await expect(
       hook.handler({ path: '/admin/set-role', query: { page: '1' } })
     ).resolves.toEqual({

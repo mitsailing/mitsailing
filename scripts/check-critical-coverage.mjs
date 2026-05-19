@@ -67,6 +67,7 @@ const authCoverageFiles = [
   'src/libs/auth.ts',
   'src/libs/auth-client.ts',
   'src/libs/auth/adminHeaderLink.ts',
+  'src/libs/auth/appPermissions.ts',
   'src/libs/auth/callbackUrl.ts',
   'src/libs/auth/devAuthShortcut.ts',
   'src/libs/auth/dal.ts',
@@ -75,6 +76,7 @@ const authCoverageFiles = [
   'src/libs/auth/password-compromise.ts',
   'src/libs/auth/reportAuthClientError.ts',
   'src/libs/auth/roles.ts',
+  'src/libs/auth/server-admin.ts',
   'src/libs/auth/themePreferenceActions.ts',
   'src/libs/auth/unlock-token.ts',
 ];
@@ -505,9 +507,12 @@ function ungatedAuthFiles(summary) {
     }
 
     const projectPath = toProjectPath(filePath);
+    const fileSummary = summary[filePath];
     const normalizedProjectPath = path.normalize(projectPath);
     if (
       isAuthOwnedPath(projectPath) &&
+      isFileCoverageSummary(fileSummary) &&
+      metricNames.some((metricName) => fileSummary[metricName].total > 0) &&
       !gated.has(normalizedProjectPath) &&
       !exempted.has(normalizedProjectPath)
     ) {

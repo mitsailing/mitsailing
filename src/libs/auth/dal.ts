@@ -161,13 +161,13 @@ export async function requireAdmin(
 
 function toCurrentUser(session: NonNullable<AuthSession>): CurrentUser {
   const { user } = session;
-  const pending = isRecord(user) ? user.unconfirmedEmail : undefined;
   return {
     id: user.id,
     email: typeof user.email === 'string' ? user.email : null,
     name: typeof user.name === 'string' ? user.name : null,
     role: appRoleFromSessionUser(user),
-    unconfirmedEmail: typeof pending === 'string' ? pending : null,
+    unconfirmedEmail:
+      typeof user.unconfirmedEmail === 'string' ? user.unconfirmedEmail : null,
   };
 }
 

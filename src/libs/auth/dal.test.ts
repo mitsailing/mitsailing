@@ -171,6 +171,14 @@ describe('verifySession', () => {
   });
 });
 
+describe('appRoleFromSessionUser', () => {
+  it('normalizes malformed session users to sailor role', async () => {
+    const { appRoleFromSessionUser } = await import('@/libs/auth/dal');
+
+    expect(appRoleFromSessionUser(null)).toBe('user');
+  });
+});
+
 describe('requireAdmin', () => {
   it('allow admin into protected admin routes', async () => {
     const session = createSession({
@@ -301,10 +309,10 @@ describe('getCurrentUser', () => {
   it('normalize current user fields for sailor', async () => {
     authGetSession.mockResolvedValue(
       createSession({
-        email: 'sailor@example.com',
+        email: null,
         appRole: 'dock_staff',
         id: 'user-1',
-        name: 'Sailor',
+        name: 123,
         role: 'captain',
         unconfirmedEmail: 123,
       })
@@ -312,9 +320,9 @@ describe('getCurrentUser', () => {
     const { getCurrentUser } = await import('@/libs/auth/dal');
 
     await expect(getCurrentUser()).resolves.toEqual({
-      email: 'sailor@example.com',
+      email: null,
       id: 'user-1',
-      name: 'Sailor',
+      name: null,
       role: 'dock_staff',
       unconfirmedEmail: null,
     });
