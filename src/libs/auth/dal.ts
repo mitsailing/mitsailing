@@ -111,7 +111,7 @@ export async function verifySession(
   return session;
 }
 
-export async function requireAnyPermission(
+async function requireAnyPermission(
   permissions: readonly Permission[],
   locale: string = AppConfig.i18n.defaultLocale
 ): Promise<NonNullable<AuthSession>> {

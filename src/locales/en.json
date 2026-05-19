@@ -921,7 +921,6 @@
     "list_registration_summary_pending": "{confirmed} · {pending, plural, one {# pending} other {# pending}}",
     "list_title": "Events",
     "metadata_created_at": "Created at",
-    "metadata_created_by": "Created by",
     "metadata_registration_counts": "{approved} approved · {pending} pending · {cancelled} cancelled",
     "metadata_registrations": "Registrations",
     "metadata_subtitle": "Audit fields and live registration counts.",

@@ -4,13 +4,9 @@ import { accessibleBy } from '@casl/prisma';
 import { redirect } from 'next/navigation';
 import type { Prisma } from '@/generated/prisma/client';
 import type { AuthSession } from '@/libs/auth/dal';
-import { appRoleFromSessionUser, requireAnyPermission } from '@/libs/auth/dal';
+import { appRoleFromSessionUser, requireAdmin } from '@/libs/auth/dal';
 import type { AuthAbility } from '@/libs/auth/permissions';
-import {
-  AuthAction,
-  createAuthAbility,
-  Permission,
-} from '@/libs/auth/permissions';
+import { AuthAction, createAuthAbility } from '@/libs/auth/permissions';
 import { prisma } from '@/libs/DB';
 import { getI18nPath } from '@/utils/Helpers';
 
@@ -18,7 +14,6 @@ type AdminEventAccessRecord = {
   admins: readonly {
     adminUserId: string;
   }[];
-  createdByUserId: string;
   id: string;
   slug: string;
 };
@@ -60,10 +55,7 @@ export function getEventAccessWhere(
 export async function requireAdminEventListAccess(
   locale: string
 ): Promise<AdminEventListAccess> {
-  const session = await requireAnyPermission(
-    [Permission.EVENTS_MANAGE],
-    locale
-  );
+  const session = await requireAdmin(locale);
   const ability = createEventAdminAbility(session);
   const eventAccessWhere = getEventAccessWhere(ability);
   if (!eventAccessWhere) {
@@ -85,7 +77,6 @@ async function findEventAccessRecord(props: {
     select: {
       id: true,
       slug: true,
-      createdByUserId: true,
       admins: { select: { adminUserId: true } },
     },
   });
@@ -103,10 +94,7 @@ export async function requireAdminEventAccess(props: {
   locale: string;
   slug: string;
 }): Promise<AdminEventAccess | null> {
-  const session = await requireAnyPermission(
-    [Permission.EVENTS_MANAGE],
-    props.locale
-  );
+  const session = await requireAdmin(props.locale);
   const ability = createEventAdminAbility(session);
   const event = await findEventAccessRecord({
     ability,

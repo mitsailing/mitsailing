@@ -25,7 +25,6 @@ export type EventAbilityRecord = {
   admins: readonly {
     adminUserId: string;
   }[];
-  createdByUserId: string;
 };
 
 export type EventRegistrationAbilityRecord = {
@@ -235,6 +234,9 @@ export function createAuthAbility(props: {
   const { userId } = props;
 
   can(AuthAction.UPDATE, AuthSubject.EVENT_REGISTRATION, { userId });
+  can(AuthAction.UPDATE, AuthSubject.EVENT, {
+    admins: { some: { adminUserId: userId } },
+  });
 
   if (rolePermissions.includes(Permission.EVENTS_MANAGE)) {
     can(AuthAction.UPDATE, AuthSubject.EVENT);

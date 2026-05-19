@@ -83,7 +83,6 @@ export type AdminEventEditorDto = {
   externalDetailUrl: string | null;
   internalNotes: string | null;
   isPublished: boolean;
-  createdBy: AdminEventUserOption;
   dates: AdminEventDateDto[];
   admins: AdminEventAdminDto[];
   registrationQuestions: AdminEventQuestionDto[];
@@ -343,7 +342,6 @@ export async function getAdminEventEditorDataBySlug(options: {
         externalDetailUrl: true,
         internalNotes: true,
         isPublished: true,
-        createdBy: { select: { id: true, name: true, email: true } },
         dates: {
           orderBy: { startDateTime: 'asc' },
           select: { id: true, startDateTime: true, endDateTime: true },

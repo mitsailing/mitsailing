@@ -81,7 +81,6 @@ model User {
   eventRegistrations                  EventRegistration[]
   eventComments                       EventComment[]
   eventAdmins                         EventAdmin[]
-  eventsCreated                       Event[]                       @relation("EventCreatedBy")
   sailingRatings                      UserSailingRating[]           @relation("UserSailingRatings")
   issuedSailingRatings                UserSailingRating[]           @relation("IssuedSailingRatings")
   reviewedPavilionReservationRequests PavilionReservationRequest[]  @relation("PavilionReservationReviewedBy")
@@ -585,7 +584,6 @@ model Event {
   requiresApproval  Boolean              @map("requires_approval")
   registrationStart DateTime?            @map("registration_start")
   registrationEnd   DateTime?            @map("registration_end")
-  createdByUserId   String               @map("created_by")
   createdAt         DateTime             @map("created_at")
   detailPageKind    EventDetailPageKind? @map("detail_page_kind")
   externalDetailUrl String?              @map("external_detail_url")
@@ -593,7 +591,6 @@ model Event {
   isPublished       Boolean              @map("is_published")
 
   category                  EventCategory               @relation(fields: [eventCategoryId], references: [id], onDelete: Restrict)
-  createdBy                 User                        @relation("EventCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
   dates                     EventDate[]
   admins                    EventAdmin[]
   registrations             EventRegistration[]
@@ -603,7 +600,18 @@ model Event {
   sailingClassRelatedEvents SailingClassRelatedEvent[]
 
   @@index([eventCategoryId])
-  @@index([createdByUserId])
+  @@allow('read', isPublished)
+  @@allow('read,update,delete', auth() != null && (
+    auth().appRole == 'admin' ||
+    auth().appRole == 'dock_staff' ||
+    auth().appRole == 'dock_master' ||
+    admins?[adminUserId == auth().id]
+  ))
+  @@allow('create', auth() != null && (
+    auth().appRole == 'admin' ||
+    auth().appRole == 'dock_staff' ||
+    auth().appRole == 'dock_master'
+  ))
   @@map("events")
 }
 
@@ -615,6 +623,8 @@ model EventDate {
   event         Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@index([eventId])
+  @@allow('read', check(event, 'read'))
+  @@allow('create,update,delete', check(event, 'update'))
   @@map("event_dates")
 }
 
@@ -627,6 +637,18 @@ model EventAdmin {
 
   @@index([eventId])
   @@index([adminUserId])
+  @@unique([eventId, adminUserId])
+  @@allow('read', auth() != null && (
+    auth().appRole == 'admin' ||
+    auth().appRole == 'dock_staff' ||
+    auth().appRole == 'dock_master' ||
+    adminUserId == auth().id
+  ))
+  @@allow('create,update,delete', auth() != null && (
+    auth().appRole == 'admin' ||
+    auth().appRole == 'dock_staff' ||
+    auth().appRole == 'dock_master'
+  ))
   @@map("event_admins")
 }
 
@@ -649,6 +671,9 @@ model EventRegistration {
 
   @@index([eventId])
   @@index([userId])
+  @@allow('read', auth() != null && userId == auth().id)
+  @@allow('create', auth() != null && userId == auth().id && check(event, 'read'))
+  @@allow('read,update,delete', check(event, 'update'))
   @@map("event_registrations")
 }
 
@@ -670,6 +695,8 @@ model EventRegistrationQuestion {
   answers      EventRegistrationAnswer[]
 
   @@index([eventId])
+  @@allow('read', check(event, 'read'))
+  @@allow('create,update,delete', check(event, 'update'))
   @@map("event_registration_questions")
 }
 
@@ -683,6 +710,11 @@ model EventRegistrationAnswer {
 
   @@index([registrationId])
   @@index([questionId])
+  @@deny('post-update', registrationId != before().registrationId || questionId != before().questionId)
+  @@deny('create,update', question.eventId != registration.eventId)
+  @@allow('read', check(registration, 'read'))
+  @@allow('create,update,delete', auth() != null && registration.userId == auth().id)
+  @@allow('create,update,delete', check(registration, 'update'))
   @@map("event_registration_answers")
 }
 
@@ -699,6 +731,8 @@ model EventEntryFee {
   event       Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@index([eventId])
+  @@allow('read', check(event, 'read'))
+  @@allow('create,update,delete', check(event, 'update'))
   @@map("event_entry_fees")
 }
 
@@ -717,6 +751,18 @@ model EventComment {
   @@index([eventId])
   @@index([userId])
   @@index([parentId])
+  @@deny('post-update',
+    eventId != before().eventId ||
+    userId != before().userId ||
+    (parentId == null && before().parentId != null) ||
+    (parentId != null && before().parentId == null) ||
+    (parentId != null && before().parentId != null && parentId != before().parentId)
+  )
+  @@deny('create,update', parentId != null && parent.eventId != eventId)
+  @@allow('read', check(event, 'read'))
+  @@allow('create', auth() != null && userId == auth().id && parentId == null && check(event, 'read'))
+  @@allow('update,delete', auth() != null && userId == auth().id)
+  @@allow('update,delete', check(event, 'update'))
   @@map("event_comments")
 }
 

@@ -223,7 +223,6 @@ export async function createAdminEventAction(
         maxParticipants: data.maxParticipants,
         registrationStart: data.registrationStart,
         registrationEnd: data.registrationEnd,
-        createdByUserId: session.user.id,
         createdAt: new Date(),
         detailPageKind: data.detailPageKind,
         externalDetailUrl: data.externalDetailUrl || null,

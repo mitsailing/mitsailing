@@ -65,7 +65,6 @@ describe('createAuthAbility', () => {
         AuthAction.UPDATE,
         createEventAbilitySubject({
           admins: [],
-          createdByUserId: 'user-2',
         })
       )
     ).toBe(true);
@@ -82,13 +81,12 @@ describe('createAuthAbility', () => {
         AuthAction.UPDATE,
         createEventAbilitySubject({
           admins: [],
-          createdByUserId: 'user-2',
         })
       )
     ).toBe(true);
   });
 
-  it('denies volunteer instructor event edit access', () => {
+  it('grants assigned volunteer instructor event edit access', () => {
     const ability = createAuthAbility({
       role: Role.VOLUNTEER_INSTRUCTOR,
       userId: 'admin-1',
@@ -99,7 +97,22 @@ describe('createAuthAbility', () => {
         AuthAction.UPDATE,
         createEventAbilitySubject({
           admins: [{ adminUserId: 'admin-1' }],
-          createdByUserId: 'user-2',
+        })
+      )
+    ).toBe(true);
+  });
+
+  it('denies unassigned volunteer instructor event edit access', () => {
+    const ability = createAuthAbility({
+      role: Role.VOLUNTEER_INSTRUCTOR,
+      userId: 'admin-1',
+    });
+
+    expect(
+      ability.can(
+        AuthAction.UPDATE,
+        createEventAbilitySubject({
+          admins: [{ adminUserId: 'admin-2' }],
         })
       )
     ).toBe(false);

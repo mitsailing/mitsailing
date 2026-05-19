@@ -92,7 +92,6 @@ describe('createAdminEventAction', () => {
     expect(mocks.eventCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          createdByUserId: 'creator-1',
           admins: {
             create: expect.objectContaining({
               adminUserId: 'creator-1',

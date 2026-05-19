@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { Permission } from '@/libs/auth/permissions';
 import { Role } from '@/libs/auth/roles';
 
 const mocks = vi.hoisted(() => ({
@@ -8,7 +7,7 @@ const mocks = vi.hoisted(() => ({
   redirect: vi.fn((href: string) => {
     throw new Error(`NEXT_REDIRECT:${href}`);
   }),
-  requireAnyPermission: vi.fn(),
+  requireAdmin: vi.fn(),
 }));
 
 vi.mock('server-only', () => ({}));
@@ -19,7 +18,7 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('@/libs/auth/dal', () => ({
   appRoleFromSessionUser: (user: { appRole?: unknown }) => user.appRole,
-  requireAnyPermission: mocks.requireAnyPermission,
+  requireAdmin: mocks.requireAdmin,
 }));
 
 vi.mock('@/libs/DB', () => ({
@@ -40,8 +39,8 @@ beforeEach(() => {
   mocks.eventFindFirst.mockReset();
   mocks.eventCount.mockReset();
   mocks.redirect.mockClear();
-  mocks.requireAnyPermission.mockReset();
-  mocks.requireAnyPermission.mockResolvedValue({
+  mocks.requireAdmin.mockReset();
+  mocks.requireAdmin.mockResolvedValue({
     session: { impersonatedBy: null },
     user: { appRole: Role.DOCK_STAFF, id: 'staff-1', role: Role.USER },
   });
@@ -52,12 +51,10 @@ function mockEvent(props: {
   admins: readonly {
     adminUserId: string;
   }[];
-  createdByUserId: string;
 }) {
   mocks.eventFindFirst.mockResolvedValue({
     id: 'event-1',
     slug: 'intro-sail',
-    createdByUserId: props.createdByUserId,
     admins: props.admins,
   });
 }
@@ -66,7 +63,6 @@ describe('requireAdminEventAccess', () => {
   it('allows dock staff to edit any event', async () => {
     mockEvent({
       admins: [],
-      createdByUserId: 'creator-1',
     });
     const { requireAdminEventAccess } =
       await import('@/libs/admin/events/eventAdminAuthorization');
@@ -85,8 +81,8 @@ describe('requireAdminEventAccess', () => {
     expect(mocks.redirect).not.toHaveBeenCalled();
   });
 
-  it('redirects assigned volunteer instructors without event management', async () => {
-    mocks.requireAnyPermission.mockResolvedValue({
+  it('allows assigned volunteer instructors to edit their events', async () => {
+    mocks.requireAdmin.mockResolvedValue({
       session: { impersonatedBy: null },
       user: {
         appRole: Role.VOLUNTEER_INSTRUCTOR,
@@ -96,19 +92,30 @@ describe('requireAdminEventAccess', () => {
     });
     mockEvent({
       admins: [{ adminUserId: 'staff-1' }, { adminUserId: 'staff-2' }],
-      createdByUserId: 'creator-1',
     });
     const { requireAdminEventAccess } =
       await import('@/libs/admin/events/eventAdminAuthorization');
 
-    await expect(
-      requireAdminEventAccess({ locale: 'en', slug: 'intro-sail' })
-    ).rejects.toThrow('NEXT_REDIRECT:/admin/events');
-    expect(mocks.eventFindFirst).not.toHaveBeenCalled();
+    const access = await requireAdminEventAccess({
+      locale: 'en',
+      slug: 'intro-sail',
+    });
+
+    expect(access?.event.id).toBe('event-1');
+    expect(mocks.eventFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          AND: [
+            { slug: 'intro-sail' },
+            { OR: [{ admins: { some: { adminUserId: 'staff-1' } } }] },
+          ],
+        },
+      })
+    );
   });
 
-  it('does not let volunteer instructor creators edit unassigned events', async () => {
-    mocks.requireAnyPermission.mockResolvedValue({
+  it('does not let unassigned volunteer instructors edit events', async () => {
+    mocks.requireAdmin.mockResolvedValue({
       session: { impersonatedBy: null },
       user: {
         appRole: Role.VOLUNTEER_INSTRUCTOR,
@@ -123,7 +130,16 @@ describe('requireAdminEventAccess', () => {
     await expect(
       requireAdminEventAccess({ locale: 'en', slug: 'intro-sail' })
     ).rejects.toThrow('NEXT_REDIRECT:/admin/events');
-    expect(mocks.eventFindFirst).not.toHaveBeenCalled();
+    expect(mocks.eventFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          AND: [
+            { slug: 'intro-sail' },
+            { OR: [{ admins: { some: { adminUserId: 'staff-1' } } }] },
+          ],
+        },
+      })
+    );
   });
 
   it('redirects event admins away from unrelated events', async () => {
@@ -152,11 +168,11 @@ describe('requireAdminEventAccess', () => {
   });
 
   it('allows site admins to edit any event', async () => {
-    mocks.requireAnyPermission.mockResolvedValue({
+    mocks.requireAdmin.mockResolvedValue({
       session: { impersonatedBy: null },
       user: { appRole: Role.ADMIN, id: 'admin-1', role: Role.USER },
     });
-    mockEvent({ admins: [], createdByUserId: 'creator-1' });
+    mockEvent({ admins: [] });
     const { requireAdminEventAccess } =
       await import('@/libs/admin/events/eventAdminAuthorization');
 
@@ -169,28 +185,24 @@ describe('requireAdminEventAccess', () => {
     expect(mocks.redirect).not.toHaveBeenCalled();
   });
 
-  it('requires manage permission before loading scoped events', async () => {
-    mocks.requireAnyPermission.mockResolvedValue({
+  it('requires admin access before loading scoped events', async () => {
+    mocks.requireAdmin.mockResolvedValue({
       session: { impersonatedBy: null },
       user: { appRole: Role.DOCK_STAFF, id: 'staff-1', role: Role.USER },
     });
     mockEvent({
       admins: [{ adminUserId: 'staff-1' }],
-      createdByUserId: 'creator-1',
     });
     const { requireAdminEventAccess } =
       await import('@/libs/admin/events/eventAdminAuthorization');
 
     await requireAdminEventAccess({ locale: 'en', slug: 'intro-sail' });
 
-    expect(mocks.requireAnyPermission).toHaveBeenCalledWith(
-      [Permission.EVENTS_MANAGE],
-      'en'
-    );
+    expect(mocks.requireAdmin).toHaveBeenCalledWith('en');
   });
 
   it('exposes a reusable event access where filter for list queries', async () => {
-    mocks.requireAnyPermission.mockResolvedValue({
+    mocks.requireAdmin.mockResolvedValue({
       session: { impersonatedBy: null },
       user: { appRole: Role.DOCK_STAFF, id: 'staff-1', role: Role.USER },
     });
