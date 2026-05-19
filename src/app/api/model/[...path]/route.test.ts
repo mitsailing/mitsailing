@@ -65,8 +65,13 @@ function request(path: string) {
   return new NextRequest(`https://example.test${path}`);
 }
 
+// eslint-disable-next-line require-await -- Next route params are promise-shaped.
+async function paramsForPath(path: string[]) {
+  return { path };
+}
+
 function context(path: string[]): RouteContext {
-  return { params: Promise.resolve({ path }) };
+  return { params: paramsForPath(path) };
 }
 
 function session(props?: {

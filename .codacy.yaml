@@ -11,7 +11,10 @@ exclude_paths:
   - 'storybook-static/**'
   - 'node_modules/**'
   - 'src/generated/**'
+  - 'zenstack/**'
   - 'prisma/migrations/**'
+  # Repo agent instructions are policy prose, not app source.
+  - 'AGENTS.md'
   # Codacy Lizard file-length is low signal for this integration-style UI test.
   # Local Vitest coverage and repo lint/type gates still cover it.
   - 'src/components/mit-sailing/admin/catalog/AdminCatalogRichText.test.tsx'
