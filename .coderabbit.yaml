@@ -198,6 +198,7 @@ reviews:
       - DO NOT MERGE
       - DRAFT
     base_branches:
+      - main
       - develop
       - release/.*
 
