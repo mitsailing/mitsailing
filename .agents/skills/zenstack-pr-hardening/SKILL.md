@@ -30,13 +30,17 @@ unless the user explicitly asks for that behavior.
 - Do not use the official CodeRabbit `autofix` skill for this task because it
   prompts the user for fix choices and push decisions.
 - Do not run `npx agent-reviews --watch`.
-- Do not create heartbeat automations.
+- Do not create open-ended heartbeat automations.
 - Do not keep polling after the bounded round count is exhausted.
+- Do not schedule recurring 30-minute checks. The only allowed schedule is one
+  next worker/recheck 30 minutes after the latest successful fix commit and push.
 - Do not run another local CodeRabbit review pass here; task 9 owns the
   two-pass local CodeRabbit review workflow.
 - Do not manually review code and claim the result came from CodeRabbit.
 - Do not ask the user to choose fixes unless a finding is genuinely ambiguous,
   unrelated to the migration, or would require broad scope expansion.
+- Do not paste full CI logs, full review-thread bodies, full diffs, or full
+  command output into chat, state files, worker prompts, or PR comments.
 
 ## Preconditions
 
@@ -68,6 +72,9 @@ The PR body must include:
 - commands run
 - remaining blockers, if any
 
+Keep the PR body compact. Link or cite artifact paths and summarize command
+outcomes; do not paste raw CodeRabbit output or full logs.
+
 ## Bounded Post-PR Rounds
 
 Run at most three post-PR rounds. Each round is one bounded inspection and one
@@ -95,6 +102,10 @@ At the start of each round:
 6. Commit and push once if code changed.
 7. Reply to each processed review comment with `npx agent-reviews --reply ...`
    and `--resolve` when the issue is fixed or intentionally won't-fix.
+8. If another bounded round is needed after a successful commit and push,
+   schedule one next worker/recheck for 30 minutes after that successful
+   commit/push and emit only compact state. Do not schedule a recurring
+   interval.
 
 Stop early when a round's one-shot inspection shows:
 
@@ -155,18 +166,23 @@ Track:
 - failing checks summary
 - commands run
 - blockers
+- next scheduled worker/recheck time, when another bounded round is needed
 
 Keep state compact. Do not paste full CI logs, full CodeRabbit exports, or full
 PR diffs into the state file or worker prompts.
 
 ## Final Output
 
-Finish with:
+Finish with at most four bullets during automated rounds:
 
 - PR URL
 - latest pushed commit
-- rounds run
-- checks state
-- CodeRabbit/GitHub comments fixed or documented
-- commands run
-- remaining blockers or risks
+- next round number and scheduled time, when more work remains
+- blocker, only if one exists
+
+Use command names plus pass/fail status. Do not include raw logs, full bot
+comments, full diffs, or long per-file histories unless the user explicitly asks
+for them.
+
+Only produce the fuller final summary when all bounded rounds are done, stop
+conditions are met, or a blocker needs user input.

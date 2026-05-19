@@ -1,4 +1,4 @@
 interface:
   display_name: "ZenStack PR Hardening"
-  short_description: "Bounded PR checks and bot review loop"
-  default_prompt: "Use $zenstack-pr-hardening to finish the ZenStack admin authorization PR with bounded post-PR checks."
+  short_description: "Compact bounded PR hardening loop"
+  default_prompt: "Use $zenstack-pr-hardening to run compact bounded PR checks and schedule the next worker when needed."

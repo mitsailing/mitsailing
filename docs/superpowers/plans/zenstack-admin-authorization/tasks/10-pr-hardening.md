@@ -79,14 +79,20 @@ Each round begins by waiting until 30 minutes have passed since the latest push,
 then inspecting GitHub checks and review comments. Do not wait 30 minutes
 between local fix steps inside a round.
 
+After a successful fix commit and push, do not produce a long handoff. Persist
+compact state and schedule one next bounded worker/recheck for 30 minutes after
+that successful commit/push unless the stop conditions are already met. This is
+not a recurring 30-minute interval.
+
 Each round must begin with aggressive context pruning. The context gets very big
 during step 9 and during review loops, so do not treat prior implementation or
 review history as reusable context.
 
 Before round 1, discard the accumulated step 9 implementation context. Keep only
-a short task 9 completion summary, the latest pushed commit hash, and the PR
-state. Do not carry forward step 9 file-by-file notes, full verification output,
-debugging history, or old hypotheses.
+a short task 9 completion summary, artifact paths, the latest pushed commit
+hash, and the PR state. Do not carry forward step 9 file-by-file notes, full
+verification output, debugging history, raw CodeRabbit output, or old
+hypotheses.
 
 Before round 2 and round 3, close or discard the previous round's working notes,
 pasted logs, full review dumps, stale hypotheses, speculative analysis, fixed
@@ -160,6 +166,12 @@ Before finishing:
 - Confirm PR URL.
 - Confirm GitHub checks state.
 - Confirm relevant CodeRabbit/GitHub comments are fixed or documented.
+- Keep the final status compact. Report command names and outcomes, not full
+  logs. Link or cite artifact paths instead of pasting review output.
+- If another bounded round is needed, schedule it 30 minutes later and report
+  only the PR URL, latest commit, next round number, scheduled time, and blocker
+  if any. The scheduled time is anchored to the last successful commit/push, not
+  to a repeating timer.
 
 ## Stop Conditions
 
@@ -176,12 +188,15 @@ Stop and ask if:
 
 ## Final PR Comment
 
-Post a final comment on the PR with:
+Post one compact final PR comment. Keep it under one screen and include only:
 
 - local commands run
 - latest pushed commit hash
 - GitHub checks status
 - CodeRabbit/GitHub review status
-- relevant bugs fixed
+- relevant bugs fixed, grouped by theme
 - Codacy advisory status if applicable
 - remaining risks or items left for user decision
+
+Do not paste full CI logs, full CodeRabbit/GitHub comment exports, full diffs,
+or long per-file histories into the PR comment.

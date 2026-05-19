@@ -55,6 +55,12 @@ Each parsed file must include, for every CodeRabbit issue or rejected finding:
 - fix status
 - verification command proving the fix, when fixed
 
+Keep parsed files compact. Summarize findings in a table or short bullet list,
+do not paste raw CodeRabbit output, full diffs, full file contents, or full test
+logs. Store raw output only in the `.raw.txt` files. If a parsed file grows past
+one screen, group resolved low-risk items by theme and keep only unresolved or
+security/auth-critical details expanded.
+
 ## Phase 1: First CodeRabbit Pass
 
 Run the local CodeRabbit MCP review through the CodeRabbit skill workflow.
@@ -173,3 +179,7 @@ git commit -m "test: verify ZenStack authorization migration"
 - The stale-pattern search shows no stale CASL, RolePermissionGrant,
   `parseRoles`, event `createdByUserId`, direct env reads, or new casts in
   touched source.
+- The task 9 completion note is compact: artifact paths, command names with
+  pass/fail status, commit hash, and blockers only. Do not paste raw review
+  output, full command logs, or long fixed-finding histories into the queue or
+  the next task handoff.
