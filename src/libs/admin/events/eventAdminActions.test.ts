@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
   revalidatePath: vi.fn(),
   requirePermission: vi.fn(),
   updateTag: vi.fn(),
+  appAuthContextFromSession: vi.fn(),
+  zenstackForAuthContext: vi.fn(),
 }));
 
 vi.mock('server-only', () => ({}));
@@ -31,6 +33,14 @@ vi.mock('next-intl/server', () => ({
 
 vi.mock('@/libs/auth/dal', () => ({
   requirePermission: mocks.requirePermission,
+}));
+
+vi.mock('@/libs/zenstack/authContext', () => ({
+  appAuthContextFromSession: mocks.appAuthContextFromSession,
+}));
+
+vi.mock('@/libs/zenstack/auth', () => ({
+  zenstackForAuthContext: mocks.zenstackForAuthContext,
 }));
 
 vi.mock('@/libs/DB', () => ({
@@ -73,9 +83,25 @@ function validEventFormData(): FormData {
 
 describe('createAdminEventAction', () => {
   it('creates an event admin row for the creator', async () => {
-    mocks.requirePermission.mockResolvedValue({
+    const session = {
       session: { impersonatedBy: null },
-      user: { id: 'creator-1', role: Role.DOCK_STAFF },
+      user: {
+        appRole: Role.DOCK_STAFF,
+        banned: false,
+        emailVerified: true,
+        id: 'creator-1',
+        role: Role.DOCK_STAFF,
+      },
+    };
+    mocks.requirePermission.mockResolvedValue(session);
+    mocks.appAuthContextFromSession.mockReturnValue({
+      appRole: Role.DOCK_STAFF,
+      id: 'creator-1',
+    });
+    mocks.zenstackForAuthContext.mockReturnValue({
+      event: {
+        create: mocks.eventCreate,
+      },
     });
     mocks.eventCreate.mockResolvedValue({ id: 'event-1', slug: 'intro-sail' });
     const { createAdminEventAction } =
@@ -105,11 +131,15 @@ describe('createAdminEventAction', () => {
 });
 
 describe('updateAdminEventBasicsAction', () => {
-  it('updates event basics through the CASL verified event id', async () => {
+  it('updates event basics through the verified event id', async () => {
     vi.resetModules();
     const eventUpdate = vi.fn().mockResolvedValue({ id: 'event-1' });
     const requireAdminEventAccess = vi.fn().mockResolvedValue({
-      ability: {},
+      db: {
+        event: {
+          update: eventUpdate,
+        },
+      },
       event: { id: 'event-1', slug: 'intro-sail' },
       session: { user: { id: 'staff-1' } },
     });

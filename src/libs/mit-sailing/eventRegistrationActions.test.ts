@@ -15,9 +15,12 @@ const mocks = vi.hoisted(() => ({
   redirect: vi.fn((href: string) => {
     throw new Error(`NEXT_REDIRECT:${href}`);
   }),
+  appAuthContextFromSession: vi.fn(),
   requireCurrentUser: vi.fn(),
   revalidatePath: vi.fn(),
   transaction: vi.fn(),
+  verifySession: vi.fn(),
+  zenstackForAuthContext: vi.fn(),
 }));
 
 vi.mock('server-only', () => ({}));
@@ -33,6 +36,15 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('@/libs/auth/dal', () => ({
   requireCurrentUser: mocks.requireCurrentUser,
+  verifySession: mocks.verifySession,
+}));
+
+vi.mock('@/libs/zenstack/authContext', () => ({
+  appAuthContextFromSession: mocks.appAuthContextFromSession,
+}));
+
+vi.mock('@/libs/zenstack/auth', () => ({
+  zenstackForAuthContext: mocks.zenstackForAuthContext,
 }));
 
 vi.mock('@/libs/DB', () => ({
@@ -75,10 +87,31 @@ beforeEach(() => {
   mocks.eventRegistrationUpdateMany.mockReset();
   mocks.queryRaw.mockReset();
   mocks.redirect.mockClear();
+  mocks.appAuthContextFromSession.mockReset();
   mocks.requireCurrentUser.mockReset();
   mocks.revalidatePath.mockClear();
   mocks.transaction.mockReset();
+  mocks.verifySession.mockReset();
+  mocks.zenstackForAuthContext.mockReset();
 
+  const session = {
+    session: { impersonatedBy: null },
+    user: {
+      appRole: Role.USER,
+      banned: false,
+      emailVerified: true,
+      email: 'user@example.test',
+      id: 'user-1',
+      name: 'User One',
+      role: Role.USER,
+      unconfirmedEmail: null,
+    },
+  };
+  mocks.verifySession.mockResolvedValue(session);
+  mocks.appAuthContextFromSession.mockReturnValue({
+    appRole: Role.USER,
+    id: 'user-1',
+  });
   mocks.requireCurrentUser.mockResolvedValue({
     email: 'user@example.test',
     id: 'user-1',
@@ -107,6 +140,14 @@ beforeEach(() => {
     id: 'registration-1',
   });
   mocks.eventRegistrationUpdateMany.mockResolvedValue({ count: 1 });
+  mocks.zenstackForAuthContext.mockReturnValue({
+    event: {
+      findFirst: mocks.eventFindFirst,
+    },
+    eventRegistration: {
+      findFirst: mocks.eventRegistrationFindFirst,
+    },
+  });
   mocks.transaction.mockImplementation(
     async (
       transactionOperation: (client: {
@@ -146,7 +187,7 @@ beforeEach(() => {
 });
 
 describe('createPublicEventRegistrationAction', () => {
-  it('uses CASL event registration ownership when loading the viewer registration', async () => {
+  it('loads the viewer registration after locking the event', async () => {
     const { createPublicEventRegistrationAction } =
       await import('@/libs/mit-sailing/eventRegistrationActions');
 
@@ -166,20 +207,31 @@ describe('createPublicEventRegistrationAction', () => {
 
     expect(mocks.eventRegistrationFindFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: {
-          AND: [{ eventId: 'event-1' }, { OR: [{ userId: 'user-1' }] }],
-        },
+        where: { eventId: 'event-1', userId: 'user-1' },
       })
+    );
+    expect(mocks.queryRaw.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.eventRegistrationFindFirst.mock.invocationCallOrder[0] ?? 0
     );
   });
 
-  it('uses viewer ownership for admins on public registration', async () => {
-    mocks.requireCurrentUser.mockResolvedValue({
-      email: 'admin@example.test',
+  it('uses a user-scoped ZenStack context for admins on public registration', async () => {
+    mocks.verifySession.mockResolvedValue({
+      session: { impersonatedBy: null },
+      user: {
+        appRole: Role.ADMIN,
+        banned: false,
+        emailVerified: true,
+        email: 'admin@example.test',
+        id: 'admin-1',
+        name: 'Admin One',
+        role: Role.ADMIN,
+        unconfirmedEmail: null,
+      },
+    });
+    mocks.appAuthContextFromSession.mockReturnValue({
+      appRole: Role.ADMIN,
       id: 'admin-1',
-      name: 'Admin One',
-      role: Role.ADMIN,
-      unconfirmedEmail: null,
     });
     const { createPublicEventRegistrationAction } =
       await import('@/libs/mit-sailing/eventRegistrationActions');
@@ -198,18 +250,39 @@ describe('createPublicEventRegistrationAction', () => {
       )
     ).rejects.toThrow('NEXT_REDIRECT:/events/intro-sail');
 
-    expect(mocks.eventRegistrationFindFirst).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          AND: [{ eventId: 'event-1' }, { OR: [{ userId: 'admin-1' }] }],
+    expect(mocks.zenstackForAuthContext).toHaveBeenCalledWith({
+      appRole: Role.USER,
+      id: 'admin-1',
+    });
+  });
+
+  it('fails closed before loading events for banned or unverified users', async () => {
+    mocks.appAuthContextFromSession.mockReturnValue(null);
+    const { createPublicEventRegistrationAction } =
+      await import('@/libs/mit-sailing/eventRegistrationActions');
+
+    await expect(
+      createPublicEventRegistrationAction(
+        'en',
+        'intro-sail',
+        {
+          code: null,
+          fieldErrors: {},
+          status: 'idle',
+          values: {},
         },
-      })
+        registrationFormData()
+      )
+    ).rejects.toThrow(
+      'NEXT_REDIRECT:/events/intro-sail/register?registration=not_found'
     );
+
+    expect(mocks.eventFindFirst).not.toHaveBeenCalled();
   });
 });
 
 describe('cancelPublicEventRegistrationAction', () => {
-  it('uses CASL event registration ownership when cancelling registrations', async () => {
+  it('cancels viewer registrations with explicit owner scope after ZenStack event access', async () => {
     const { cancelPublicEventRegistrationAction } =
       await import('@/libs/mit-sailing/eventRegistrationActions');
 
@@ -219,19 +292,27 @@ describe('cancelPublicEventRegistrationAction', () => {
 
     expect(mocks.eventRegistrationUpdateMany).toHaveBeenCalledWith({
       data: { status: EventRegistrationStatus.cancelled },
-      where: {
-        AND: [{ eventId: 'event-1' }, { OR: [{ userId: 'user-1' }] }],
-      },
+      where: { eventId: 'event-1', userId: 'user-1' },
     });
   });
 
   it('uses viewer ownership for admins when cancelling public registrations', async () => {
-    mocks.requireCurrentUser.mockResolvedValue({
-      email: 'admin@example.test',
+    mocks.verifySession.mockResolvedValue({
+      session: { impersonatedBy: null },
+      user: {
+        appRole: Role.ADMIN,
+        banned: false,
+        emailVerified: true,
+        email: 'admin@example.test',
+        id: 'admin-1',
+        name: 'Admin One',
+        role: Role.ADMIN,
+        unconfirmedEmail: null,
+      },
+    });
+    mocks.appAuthContextFromSession.mockReturnValue({
+      appRole: Role.ADMIN,
       id: 'admin-1',
-      name: 'Admin One',
-      role: Role.ADMIN,
-      unconfirmedEmail: null,
     });
     const { cancelPublicEventRegistrationAction } =
       await import('@/libs/mit-sailing/eventRegistrationActions');
@@ -242,9 +323,7 @@ describe('cancelPublicEventRegistrationAction', () => {
 
     expect(mocks.eventRegistrationUpdateMany).toHaveBeenCalledWith({
       data: { status: EventRegistrationStatus.cancelled },
-      where: {
-        AND: [{ eventId: 'event-1' }, { OR: [{ userId: 'admin-1' }] }],
-      },
+      where: { eventId: 'event-1', userId: 'admin-1' },
     });
   });
 });

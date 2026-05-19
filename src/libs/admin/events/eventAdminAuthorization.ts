@@ -1,13 +1,11 @@
 import 'server-only';
-import { ForbiddenError } from '@casl/ability';
-import { accessibleBy } from '@casl/prisma';
 import { redirect } from 'next/navigation';
-import type { Prisma } from '@/generated/prisma/client';
 import type { AuthSession } from '@/libs/auth/dal';
-import { appRoleFromSessionUser, requireAdmin } from '@/libs/auth/dal';
-import type { AuthAbility } from '@/libs/auth/permissions';
-import { AuthAction, createAuthAbility } from '@/libs/auth/permissions';
+import { requireAdmin } from '@/libs/auth/dal';
 import { prisma } from '@/libs/DB';
+import type { ZenStackDb } from '@/libs/zenstack/auth';
+import { zenstackForAuthContext } from '@/libs/zenstack/auth';
+import { appAuthContextFromSession } from '@/libs/zenstack/authContext';
 import { getI18nPath } from '@/utils/Helpers';
 
 type AdminEventAccessRecord = {
@@ -19,67 +17,59 @@ type AdminEventAccessRecord = {
 };
 
 export type AdminEventAccess = {
-  ability: AuthAbility;
+  db: ZenStackDb;
   event: AdminEventAccessRecord;
   session: NonNullable<AuthSession>;
 };
 
 export type AdminEventListAccess = {
-  ability: AuthAbility;
-  eventAccessWhere: Prisma.EventWhereInput;
+  db: ZenStackDb;
   session: NonNullable<AuthSession>;
 };
-
-function createEventAdminAbility(
-  session: NonNullable<AuthSession>
-): AuthAbility {
-  return createAuthAbility({
-    role: appRoleFromSessionUser(session.user),
-    userId: session.user.id,
-  });
-}
-
-export function getEventAccessWhere(
-  ability: AuthAbility
-): Prisma.EventWhereInput | null {
-  try {
-    return accessibleBy(ability, AuthAction.UPDATE).Event;
-  } catch (error) {
-    if (error instanceof ForbiddenError) {
-      return null;
-    }
-    throw error;
-  }
-}
 
 export async function requireAdminEventListAccess(
   locale: string
 ): Promise<AdminEventListAccess> {
   const session = await requireAdmin(locale);
-  const ability = createEventAdminAbility(session);
-  const eventAccessWhere = getEventAccessWhere(ability);
-  if (!eventAccessWhere) {
+  const authContext = appAuthContextFromSession(session);
+  if (!authContext) {
     redirect(getI18nPath('/', locale));
   }
-  return { ability, eventAccessWhere, session };
+  return {
+    db: zenstackForAuthContext(authContext),
+    session,
+  };
+}
+
+async function canUpdateEvent(props: {
+  db: ZenStackDb;
+  event: Pick<AdminEventAccessRecord, 'id' | 'slug'>;
+}): Promise<boolean> {
+  const result = await props.db.event.updateMany({
+    where: { id: props.event.id },
+    data: { slug: props.event.slug },
+  });
+  return result.count > 0;
 }
 
 async function findEventAccessRecord(props: {
-  ability: AuthAbility;
+  db: ZenStackDb;
   slug: string;
 }): Promise<AdminEventAccessRecord | null> {
-  const eventAccessWhere = getEventAccessWhere(props.ability);
-  if (!eventAccessWhere) {
-    return null;
-  }
   const event = await prisma.event.findFirst({
-    where: { AND: [{ slug: props.slug }, eventAccessWhere] },
+    where: { slug: props.slug },
     select: {
       id: true,
       slug: true,
       admins: { select: { adminUserId: true } },
     },
   });
+  if (!event) {
+    return null;
+  }
+  if (!(await canUpdateEvent({ db: props.db, event }))) {
+    return null;
+  }
   return event;
 }
 
@@ -95,9 +85,13 @@ export async function requireAdminEventAccess(props: {
   slug: string;
 }): Promise<AdminEventAccess | null> {
   const session = await requireAdmin(props.locale);
-  const ability = createEventAdminAbility(session);
+  const authContext = appAuthContextFromSession(session);
+  if (!authContext) {
+    redirect(getI18nPath('/', props.locale));
+  }
+  const db = zenstackForAuthContext(authContext);
   const event = await findEventAccessRecord({
-    ability,
+    db,
     slug: props.slug,
   });
   if (!event) {
@@ -106,5 +100,5 @@ export async function requireAdminEventAccess(props: {
     }
     redirect(getI18nPath('/admin/events', props.locale));
   }
-  return { ability, event, session };
+  return { db, event, session };
 }

@@ -32,7 +32,7 @@ export default async function AdminEventsListPage(props: PageProps) {
     listAdminEventCategories(),
     listAdminEventRows({
       categoryId: searchParams.category,
-      eventAccessWhere: access.eventAccessWhere,
+      db: access.db,
       query: searchParams.q,
     }),
     getTranslations({ locale, namespace: 'AdminEvents' }),

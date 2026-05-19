@@ -4,10 +4,13 @@ import { Role } from '@/libs/auth/roles';
 const mocks = vi.hoisted(() => ({
   eventCount: vi.fn(),
   eventFindFirst: vi.fn(),
+  eventUpdateMany: vi.fn(),
+  appAuthContextFromSession: vi.fn(),
   redirect: vi.fn((href: string) => {
     throw new Error(`NEXT_REDIRECT:${href}`);
   }),
   requireAdmin: vi.fn(),
+  zenstackForAuthContext: vi.fn(),
 }));
 
 vi.mock('server-only', () => ({}));
@@ -19,6 +22,14 @@ vi.mock('next/navigation', () => ({
 vi.mock('@/libs/auth/dal', () => ({
   appRoleFromSessionUser: (user: { appRole?: unknown }) => user.appRole,
   requireAdmin: mocks.requireAdmin,
+}));
+
+vi.mock('@/libs/zenstack/authContext', () => ({
+  appAuthContextFromSession: mocks.appAuthContextFromSession,
+}));
+
+vi.mock('@/libs/zenstack/auth', () => ({
+  zenstackForAuthContext: mocks.zenstackForAuthContext,
 }));
 
 vi.mock('@/libs/DB', () => ({
@@ -37,14 +48,29 @@ vi.mock('@/utils/Helpers', () => ({
 beforeEach(() => {
   vi.resetModules();
   mocks.eventFindFirst.mockReset();
+  mocks.eventUpdateMany.mockReset();
   mocks.eventCount.mockReset();
+  mocks.appAuthContextFromSession.mockReset();
   mocks.redirect.mockClear();
   mocks.requireAdmin.mockReset();
-  mocks.requireAdmin.mockResolvedValue({
+  mocks.zenstackForAuthContext.mockReset();
+  const session = {
     session: { impersonatedBy: null },
     user: { appRole: Role.DOCK_STAFF, id: 'staff-1', role: Role.USER },
+  };
+  mocks.requireAdmin.mockResolvedValue(session);
+  mocks.appAuthContextFromSession.mockReturnValue({
+    appRole: Role.DOCK_STAFF,
+    id: 'staff-1',
+  });
+  mocks.zenstackForAuthContext.mockReturnValue({
+    event: {
+      findFirst: mocks.eventFindFirst,
+      updateMany: mocks.eventUpdateMany,
+    },
   });
   mocks.eventCount.mockResolvedValue(1);
+  mocks.eventUpdateMany.mockResolvedValue({ count: 1 });
 });
 
 function mockEvent(props: {
@@ -73,11 +99,14 @@ describe('requireAdminEventAccess', () => {
     });
 
     expect(access?.event.id).toBe('event-1');
-    expect(mocks.eventFindFirst).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { AND: [{ slug: 'intro-sail' }, {}] },
-      })
-    );
+    expect(mocks.eventUpdateMany).toHaveBeenCalledWith({
+      data: { slug: 'intro-sail' },
+      where: { id: 'event-1' },
+    });
+    expect(mocks.zenstackForAuthContext).toHaveBeenCalledWith({
+      appRole: Role.DOCK_STAFF,
+      id: 'staff-1',
+    });
     expect(mocks.redirect).not.toHaveBeenCalled();
   });
 
@@ -89,6 +118,10 @@ describe('requireAdminEventAccess', () => {
         id: 'staff-1',
         role: Role.DOCK_STAFF,
       },
+    });
+    mocks.appAuthContextFromSession.mockReturnValue({
+      appRole: Role.VOLUNTEER_INSTRUCTOR,
+      id: 'staff-1',
     });
     mockEvent({
       admins: [{ adminUserId: 'staff-1' }, { adminUserId: 'staff-2' }],
@@ -104,12 +137,7 @@ describe('requireAdminEventAccess', () => {
     expect(access?.event.id).toBe('event-1');
     expect(mocks.eventFindFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: {
-          AND: [
-            { slug: 'intro-sail' },
-            { OR: [{ admins: { some: { adminUserId: 'staff-1' } } }] },
-          ],
-        },
+        where: { slug: 'intro-sail' },
       })
     );
   });
@@ -123,23 +151,43 @@ describe('requireAdminEventAccess', () => {
         role: Role.DOCK_STAFF,
       },
     });
-    mocks.eventFindFirst.mockResolvedValue(null);
+    mocks.appAuthContextFromSession.mockReturnValue({
+      appRole: Role.VOLUNTEER_INSTRUCTOR,
+      id: 'staff-1',
+    });
+    mockEvent({ admins: [] });
+    mocks.eventUpdateMany.mockResolvedValue({ count: 0 });
     const { requireAdminEventAccess } =
       await import('@/libs/admin/events/eventAdminAuthorization');
 
     await expect(
       requireAdminEventAccess({ locale: 'en', slug: 'intro-sail' })
     ).rejects.toThrow('NEXT_REDIRECT:/admin/events');
-    expect(mocks.eventFindFirst).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          AND: [
-            { slug: 'intro-sail' },
-            { OR: [{ admins: { some: { adminUserId: 'staff-1' } } }] },
-          ],
-        },
-      })
-    );
+    expect(mocks.eventUpdateMany).toHaveBeenCalledWith({
+      data: { slug: 'intro-sail' },
+      where: { id: 'event-1' },
+    });
+    expect(mocks.zenstackForAuthContext).toHaveBeenCalledWith({
+      appRole: Role.VOLUNTEER_INSTRUCTOR,
+      id: 'staff-1',
+    });
+  });
+
+  it('does not treat public event read access as edit access', async () => {
+    mockEvent({ admins: [] });
+    mocks.eventUpdateMany.mockResolvedValue({ count: 0 });
+    const { requireAdminEventAccess } =
+      await import('@/libs/admin/events/eventAdminAuthorization');
+
+    await expect(
+      requireAdminEventAccess({ locale: 'en', slug: 'intro-sail' })
+    ).rejects.toThrow('NEXT_REDIRECT:/admin/events');
+
+    expect(mocks.eventFindFirst).toHaveBeenCalled();
+    expect(mocks.eventUpdateMany).toHaveBeenCalledWith({
+      data: { slug: 'intro-sail' },
+      where: { id: 'event-1' },
+    });
   });
 
   it('redirects event admins away from unrelated events', async () => {
@@ -172,6 +220,10 @@ describe('requireAdminEventAccess', () => {
       session: { impersonatedBy: null },
       user: { appRole: Role.ADMIN, id: 'admin-1', role: Role.USER },
     });
+    mocks.appAuthContextFromSession.mockReturnValue({
+      appRole: Role.ADMIN,
+      id: 'admin-1',
+    });
     mockEvent({ admins: [] });
     const { requireAdminEventAccess } =
       await import('@/libs/admin/events/eventAdminAuthorization');
@@ -201,7 +253,7 @@ describe('requireAdminEventAccess', () => {
     expect(mocks.requireAdmin).toHaveBeenCalledWith('en');
   });
 
-  it('exposes a reusable event access where filter for list queries', async () => {
+  it('exposes a reusable ZenStack client for list queries', async () => {
     mocks.requireAdmin.mockResolvedValue({
       session: { impersonatedBy: null },
       user: { appRole: Role.DOCK_STAFF, id: 'staff-1', role: Role.USER },
@@ -211,6 +263,11 @@ describe('requireAdminEventAccess', () => {
 
     const access = await requireAdminEventListAccess('en');
 
-    expect(access.eventAccessWhere).toEqual({});
+    expect(access.db).toEqual({
+      event: {
+        findFirst: mocks.eventFindFirst,
+        updateMany: mocks.eventUpdateMany,
+      },
+    });
   });
 });

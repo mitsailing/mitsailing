@@ -4,6 +4,7 @@ import { EventRegistrationStatus } from '@/generated/prisma/enums';
 import type { EventRegistrationStatus as EventRegistrationStatusValue } from '@/generated/prisma/enums';
 import { prisma } from '@/libs/DB';
 import { questionOptionsFromJson } from '@/libs/mit-sailing/eventQueries';
+import type { ZenStackDb } from '@/libs/zenstack/auth';
 
 export type AdminEventCategoryOption = {
   id: string;
@@ -125,7 +126,7 @@ export type AdminEventRegistrationsDto = {
 };
 
 export type AdminEventListFilters = {
-  eventAccessWhere: Prisma.EventWhereInput;
+  db: AdminEventQueryDb;
   query?: string;
   categoryId?: string;
 };
@@ -135,6 +136,10 @@ type AdminEventUserListOptions = {
   offset?: number;
   query?: string;
 };
+type AdminEventQueryDb = {
+  event: Pick<ZenStackDb['event'], 'findFirst' | 'updateMany'>;
+};
+type AdminEventListRowData = Omit<AdminEventListRow, 'registrationCounts'>;
 
 const DEFAULT_ADMIN_EVENT_USER_LIMIT = 100;
 const MAX_ADMIN_EVENT_USER_LIMIT = 200;
@@ -234,12 +239,32 @@ function eventWhereFromFilters(
       { slug: { contains: query, mode: 'insensitive' } },
     ];
   }
-  return {
-    AND: [
-      filters.eventAccessWhere,
-      ...(Object.keys(businessWhere).length > 0 ? [businessWhere] : []),
-    ],
-  };
+  return businessWhere;
+}
+
+async function canUpdateEvent(options: {
+  db: AdminEventQueryDb;
+  event: Pick<AdminEventListRow, 'id' | 'slug'>;
+}): Promise<boolean> {
+  const result = await options.db.event.updateMany({
+    where: { id: options.event.id },
+    data: { slug: options.event.slug },
+  });
+  return result.count > 0;
+}
+
+async function filterAdminUpdateEvents(options: {
+  db: AdminEventQueryDb;
+  rows: readonly AdminEventListRowData[];
+}): Promise<AdminEventListRowData[]> {
+  const authorizedRows = await Promise.all(
+    options.rows.map(async (row) =>
+      (await canUpdateEvent({ db: options.db, event: row })) ? row : null
+    )
+  );
+  return authorizedRows.filter(
+    (row): row is AdminEventListRowData => row !== null
+  );
 }
 
 export async function listAdminEventCategories(): Promise<
@@ -308,10 +333,14 @@ export async function listAdminEventRows(
       },
     },
   });
+  const authorizedRows = await filterAdminUpdateEvents({
+    db: filters.db,
+    rows,
+  });
   const countsByEventId = await registrationCountsByEventId(
-    rows.map((row) => row.id)
+    authorizedRows.map((row) => row.id)
   );
-  return rows.map((row) => ({
+  return authorizedRows.map((row) => ({
     ...row,
     registrationCounts:
       countsByEventId.get(row.id) ?? emptyRegistrationCounts(),
@@ -319,63 +348,69 @@ export async function listAdminEventRows(
 }
 
 export async function getAdminEventEditorDataBySlug(options: {
-  eventAccessWhere: Prisma.EventWhereInput;
+  db: AdminEventQueryDb;
   slug: string;
 }): Promise<AdminEventEditorData> {
+  const accessibleEvent = await options.db.event.findFirst({
+    where: { slug: options.slug },
+    select: { id: true },
+  });
   const [event, categories, users] = await Promise.all([
-    prisma.event.findFirst({
-      where: { AND: [{ slug: options.slug }, options.eventAccessWhere] },
-      select: {
-        id: true,
-        name: true,
-        shortName: true,
-        slug: true,
-        eventCategoryId: true,
-        description: true,
-        isSpecial: true,
-        maxParticipants: true,
-        requiresApproval: true,
-        registrationStart: true,
-        registrationEnd: true,
-        createdAt: true,
-        detailPageKind: true,
-        externalDetailUrl: true,
-        internalNotes: true,
-        isPublished: true,
-        dates: {
-          orderBy: { startDateTime: 'asc' },
-          select: { id: true, startDateTime: true, endDateTime: true },
-        },
-        admins: {
-          orderBy: { admin: { name: 'asc' } },
+    accessibleEvent
+      ? prisma.event.findUnique({
+          where: { id: accessibleEvent.id },
           select: {
             id: true,
-            adminUserId: true,
-            admin: { select: { id: true, name: true, email: true } },
-          },
-        },
-        registrationQuestions: {
-          orderBy: [{ displayOrder: 'asc' }, { questionText: 'asc' }],
-          select: {
-            id: true,
-            questionText: true,
-            answerType: true,
-            options: true,
-            required: true,
-            displayOrder: true,
-          },
-        },
-        entryFees: {
-          orderBy: [{ isDeposit: 'desc' }, { description: 'asc' }],
-          select: {
-            id: true,
+            name: true,
+            shortName: true,
+            slug: true,
+            eventCategoryId: true,
             description: true,
-            amountCents: true,
-            isDeposit: true,
+            isSpecial: true,
+            maxParticipants: true,
+            requiresApproval: true,
+            registrationStart: true,
+            registrationEnd: true,
+            createdAt: true,
+            detailPageKind: true,
+            externalDetailUrl: true,
+            internalNotes: true,
+            isPublished: true,
+            dates: {
+              orderBy: { startDateTime: 'asc' },
+              select: { id: true, startDateTime: true, endDateTime: true },
+            },
+            admins: {
+              orderBy: { admin: { name: 'asc' } },
+              select: {
+                id: true,
+                adminUserId: true,
+                admin: { select: { id: true, name: true, email: true } },
+              },
+            },
+            registrationQuestions: {
+              orderBy: [{ displayOrder: 'asc' }, { questionText: 'asc' }],
+              select: {
+                id: true,
+                questionText: true,
+                answerType: true,
+                options: true,
+                required: true,
+                displayOrder: true,
+              },
+            },
+            entryFees: {
+              orderBy: [{ isDeposit: 'desc' }, { description: 'asc' }],
+              select: {
+                id: true,
+                description: true,
+                amountCents: true,
+                isDeposit: true,
+              },
+            },
           },
-        },
-      },
-    }),
+        })
+      : null,
     listAdminEventCategories(),
     listAdminEventUsers(),
   ]);
@@ -398,7 +433,7 @@ export async function getAdminEventEditorDataBySlug(options: {
 }
 
 export async function getAdminEventDeleteBySlug(options: {
-  eventAccessWhere: Prisma.EventWhereInput;
+  db: AdminEventQueryDb;
   slug: string;
 }): Promise<{
   id: string;
@@ -407,8 +442,15 @@ export async function getAdminEventDeleteBySlug(options: {
   registrationCount: number;
   dateCount: number;
 } | null> {
-  const event = await prisma.event.findFirst({
-    where: { AND: [{ slug: options.slug }, options.eventAccessWhere] },
+  const accessibleEvent = await options.db.event.findFirst({
+    where: { slug: options.slug },
+    select: { id: true },
+  });
+  if (!accessibleEvent) {
+    return null;
+  }
+  const event = await prisma.event.findUnique({
+    where: { id: accessibleEvent.id },
     select: {
       id: true,
       name: true,
@@ -429,11 +471,18 @@ export async function getAdminEventDeleteBySlug(options: {
 }
 
 export async function getAdminEventRegistrationsBySlug(options: {
-  eventAccessWhere: Prisma.EventWhereInput;
+  db: AdminEventQueryDb;
   slug: string;
 }): Promise<AdminEventRegistrationsDto | null> {
-  const event = await prisma.event.findFirst({
-    where: { AND: [{ slug: options.slug }, options.eventAccessWhere] },
+  const accessibleEvent = await options.db.event.findFirst({
+    where: { slug: options.slug },
+    select: { id: true },
+  });
+  if (!accessibleEvent) {
+    return null;
+  }
+  const event = await prisma.event.findUnique({
+    where: { id: accessibleEvent.id },
     select: {
       id: true,
       name: true,
