@@ -11,7 +11,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { requireAdmin } from '@/libs/auth/dal';
+import { requirePermission } from '@/libs/auth/dal';
+import { Permission } from '@/libs/auth/permissions';
 import { Link } from '@/libs/I18nNavigation';
 import { getAdminNewsletterTemplates } from '@/libs/newsletter/newsletterBroadcasts';
 
@@ -27,7 +28,7 @@ export default async function AdminNewsletterTemplatesPage(props: PageProps) {
   await connection();
   const { locale } = await props.params;
   setRequestLocale(locale);
-  await requireAdmin(locale);
+  await requirePermission(Permission.NEWSLETTER_MANAGE, locale);
   const t = await getTranslations({ locale, namespace: 'AdminNewsletters' });
   const templates = await getAdminNewsletterTemplates();
 

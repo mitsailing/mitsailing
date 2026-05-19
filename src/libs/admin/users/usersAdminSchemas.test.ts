@@ -6,12 +6,20 @@ function baseUserFormData(): FormData {
   const formData = new FormData();
   formData.set('email', 'sailor@example.com');
   formData.set('name', 'Sailor');
-  formData.set('role', Role.USER);
+  formData.set('appRole', Role.USER);
   formData.set('newPassword', '');
   return formData;
 }
 
 describe('rawAdminUserUpdateFromFormData', () => {
+  it('reads editable app role from appRole field', () => {
+    const formData = baseUserFormData();
+
+    expect(rawAdminUserUpdateFromFormData(formData)).toMatchObject({
+      appRole: Role.USER,
+    });
+  });
+
   it('admin keeps checked boolean fields from browser checkbox payloads', () => {
     const formData = baseUserFormData();
     formData.append('emailVerified', 'false');

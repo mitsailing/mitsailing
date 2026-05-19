@@ -4,6 +4,7 @@ import type { Prisma } from '@/generated/prisma/client';
 import { EventRegistrationStatus } from '@/generated/prisma/enums';
 import type { EventRegistrationStatus as EventRegistrationStatusValue } from '@/generated/prisma/enums';
 import { resolveEventCategoryCalendarAccentClassName } from '@/lib/mit-sailing/eventCategoryAccent';
+import { Role } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
 import { logger } from '@/libs/Logger';
 import { eventCalendarMonthFromDate } from '@/libs/mit-sailing/eventCalendar';
@@ -13,6 +14,7 @@ import type {
   EventCalendarMonthBounds,
 } from '@/libs/mit-sailing/eventCalendar';
 import { safeErrorCode, safeErrorName } from '@/libs/safeUnknownError';
+import { getZenStack, zenstackForAuthContext } from '@/libs/zenstack/auth';
 
 export type PublicEventDetail = {
   id: string;
@@ -108,6 +110,13 @@ export function questionOptionsFromJson(
   return value.filter((option): option is string => typeof option === 'string');
 }
 
+async function publicEventIds(): Promise<string[]> {
+  const rows = await getZenStack().event.findMany({
+    select: { id: true },
+  });
+  return rows.map((row) => row.id);
+}
+
 /**
  * Single published event for detail, or `null` if not found or unpublished.
  * Wrapped in {@link https://react.dev/reference/react/cache React `cache`} for request deduplication
@@ -118,8 +127,8 @@ export function questionOptionsFromJson(
  */
 export const getPublishedEventForPublicBySlug = cache(async (slug: string) => {
   try {
-    const event = await prisma.event.findFirst({
-      where: { slug, isPublished: true },
+    const event = await getZenStack().event.findFirst({
+      where: { slug },
       select: {
         id: true,
         name: true,
@@ -137,13 +146,6 @@ export const getPublishedEventForPublicBySlug = cache(async (slug: string) => {
         dates: {
           orderBy: { startDateTime: 'asc' },
           select: { id: true, startDateTime: true, endDateTime: true },
-        },
-        admins: {
-          orderBy: { admin: { name: 'asc' } },
-          select: {
-            id: true,
-            admin: { select: { id: true, name: true, email: true } },
-          },
         },
         registrationQuestions: {
           orderBy: [{ displayOrder: 'asc' }, { questionText: 'asc' }],
@@ -186,6 +188,7 @@ export const getPublishedEventForPublicBySlug = cache(async (slug: string) => {
 
     return {
       ...event,
+      admins: [],
       registrationQuestions: event.registrationQuestions.map((question) => ({
         ...question,
         options: questionOptionsFromJson(question.options),
@@ -215,8 +218,12 @@ const getCachedPublicEventRegistrationState = cache(
     userId: string
   ): Promise<PublicEventRegistrationState | null> => {
     try {
-      return await prisma.eventRegistration.findFirst({
-        where: { eventId, userId },
+      const db = zenstackForAuthContext({
+        appRole: Role.USER,
+        id: userId,
+      });
+      return await db.eventRegistration.findFirst({
+        where: { eventId },
         orderBy: { createdAt: 'desc' },
         select: { id: true, status: true },
       });
@@ -253,12 +260,21 @@ export async function listVisibleEventCategoriesForPublicCalendarMonth(params: {
   rangeEndExclusive: Date;
 }): Promise<EventCalendarCategory[]> {
   try {
+    const eventIds = await publicEventIds();
+    if (eventIds.length === 0) {
+      logPublicEventsEmptyFallback({
+        where: 'month_categories',
+        fallback: 'all_categories_only',
+        reason: 'no_categories_with_month_events',
+      });
+      return [];
+    }
     const categories = await prisma.eventCategory.findMany({
       where: {
         isVisible: true,
         events: {
           some: {
-            isPublished: true,
+            id: { in: eventIds },
             dates: {
               some: {
                 startDateTime: { lt: params.rangeEndExclusive },
@@ -296,10 +312,11 @@ export async function listVisibleEventCategoriesForPublicCalendarMonth(params: {
  */
 export async function getPublishedEventCalendarMonthBounds(): Promise<EventCalendarMonthBounds> {
   try {
+    const eventIds = await publicEventIds();
     const bounds = await prisma.eventDate.aggregate({
       where: {
+        eventId: { in: eventIds },
         event: {
-          isPublished: true,
           category: { isVisible: true },
         },
       },
@@ -357,12 +374,16 @@ export async function listPublishedEventDatesForCalendarMonth(params: {
   categoryId?: string;
 }): Promise<EventCalendarDate[]> {
   try {
+    const eventIds = await publicEventIds();
+    if (eventIds.length === 0) {
+      return [];
+    }
     const dates = await prisma.eventDate.findMany({
       where: {
+        eventId: { in: eventIds },
         startDateTime: { lt: params.rangeEndExclusive },
         endDateTime: { gte: params.rangeStart },
         event: {
-          isPublished: true,
           category: { isVisible: true },
           ...(params.categoryId ? { eventCategoryId: params.categoryId } : {}),
         },

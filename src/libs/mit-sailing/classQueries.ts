@@ -9,6 +9,10 @@ import {
 import { prismaOrderByDisplayOrderAscNameAsc } from '@/libs/mit-sailing/prismaOrderPublicNav';
 import { listRequiredRatingsForTarget } from '@/libs/mit-sailing/sailingRatingQueries';
 import type { SailingRatingBrief } from '@/libs/mit-sailing/sailingRatingQueries';
+import {
+  SITE_NAV_CACHE_REVALIDATE_SECONDS,
+  siteNavClassesCacheTag,
+} from '@/libs/mit-sailing/siteNavCache';
 
 export type CatalogClassCard = {
   id: string;
@@ -48,13 +52,16 @@ export function mapClassCategoriesToNavDropdownItems(
   return mapNameSlugRowsToNavLinks(categories, hrefClassesCategoryFromSlug);
 }
 
-// eslint-disable-next-line @typescript-eslint/promise-function-async -- thin Prisma wrapper
-const loadClassCategoriesForNavUnchecked = (): Promise<ClassCategoryNavRow[]> =>
-  prisma.classCategory.findMany({
+async function loadClassCategoriesForNavUnchecked(): Promise<
+  ClassCategoryNavRow[]
+> {
+  const rows = await prisma.classCategory.findMany({
     where: { isVisible: true },
     orderBy: prismaOrderByDisplayOrderAscNameAsc,
     select: { id: true, slug: true, name: true, displayOrder: true },
   });
+  return rows;
+}
 
 /**
  * Visible categories for nav dropdown, ordered for display. Request-cached; returns
@@ -64,7 +71,12 @@ const loadClassCategoriesForNavUnchecked = (): Promise<ClassCategoryNavRow[]> =>
  */
 export const listClassCategoriesForNav = cacheDbListOrEmpty(
   'class categories for site nav',
-  loadClassCategoriesForNavUnchecked
+  loadClassCategoriesForNavUnchecked,
+  {
+    keyParts: [siteNavClassesCacheTag],
+    revalidate: SITE_NAV_CACHE_REVALIDATE_SECONDS,
+    tags: [siteNavClassesCacheTag],
+  }
 );
 
 /**

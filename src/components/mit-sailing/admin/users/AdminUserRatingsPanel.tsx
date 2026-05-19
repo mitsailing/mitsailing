@@ -19,6 +19,7 @@ type AdminUserRatingsPanelProps = {
   locale: string;
   userId: string;
   rows: UserRatingAssignmentRow[];
+  canAssignRatings: boolean;
   errorCode?: string | null;
   ratingsLoadFailed?: boolean;
 };
@@ -90,6 +91,41 @@ export async function AdminUserRatingsPanel(props: AdminUserRatingsPanelProps) {
               }
             }
             const grantDisabledMessageId = `${row.id}-grant-disabled`;
+            let ratingAction = null;
+            if (props.canAssignRatings && row.issuedAt) {
+              ratingAction = (
+                <form action={revokeAction}>
+                  <input name="sailingRatingId" type="hidden" value={row.id} />
+                  <Button size="sm" type="submit" variant="outline">
+                    {t('rating_action_revoke')}
+                  </Button>
+                </form>
+              );
+            } else if (props.canAssignRatings) {
+              ratingAction = (
+                <form action={grantAction}>
+                  <input name="sailingRatingId" type="hidden" value={row.id} />
+                  <Button
+                    aria-describedby={
+                      grantDisabledMessage ? grantDisabledMessageId : undefined
+                    }
+                    disabled={!row.eligibility.eligible}
+                    size="sm"
+                    type="submit"
+                  >
+                    {t('rating_action_grant')}
+                  </Button>
+                  {grantDisabledMessage ? (
+                    <p
+                      className="mt-1 mb-0 text-xs text-muted-foreground"
+                      id={grantDisabledMessageId}
+                    >
+                      {grantDisabledMessage}
+                    </p>
+                  ) : null}
+                </form>
+              );
+            }
 
             return (
               <TableRow key={row.id}>
@@ -109,48 +145,7 @@ export async function AdminUserRatingsPanel(props: AdminUserRatingsPanelProps) {
                     : t('rating_status_missing')}
                 </TableCell>
                 <TableCell>{row.issuedByName ?? '—'}</TableCell>
-                <TableCell>
-                  {row.issuedAt ? (
-                    <form action={revokeAction}>
-                      <input
-                        name="sailingRatingId"
-                        type="hidden"
-                        value={row.id}
-                      />
-                      <Button size="sm" type="submit" variant="outline">
-                        {t('rating_action_revoke')}
-                      </Button>
-                    </form>
-                  ) : (
-                    <form action={grantAction}>
-                      <input
-                        name="sailingRatingId"
-                        type="hidden"
-                        value={row.id}
-                      />
-                      <Button
-                        aria-describedby={
-                          grantDisabledMessage
-                            ? grantDisabledMessageId
-                            : undefined
-                        }
-                        disabled={!row.eligibility.eligible}
-                        size="sm"
-                        type="submit"
-                      >
-                        {t('rating_action_grant')}
-                      </Button>
-                      {grantDisabledMessage ? (
-                        <p
-                          className="mt-1 mb-0 text-xs text-muted-foreground"
-                          id={grantDisabledMessageId}
-                        >
-                          {grantDisabledMessage}
-                        </p>
-                      ) : null}
-                    </form>
-                  )}
-                </TableCell>
+                <TableCell>{ratingAction}</TableCell>
               </TableRow>
             );
           })}

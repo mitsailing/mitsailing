@@ -1,6 +1,6 @@
 ---
-description: Vitest TDD + Playwright gates — AGENTS titles, Red–Green–Refactor, vi mocks, e2e-verification
-globs: tests/**/*.{ts,tsx},src/**/*.test.{ts,tsx}
+description: TDD for logic-heavy code — tests, libs, actions, route handlers, workers
+globs: tests/**/*.{ts,tsx},src/**/*.test.{ts,tsx},src/libs/**/*.{ts,tsx},src/app/**/*Actions.ts,src/app/**/route.ts,src/worker/**/*.{ts,tsx}
 alwaysApply: false
 ---
 

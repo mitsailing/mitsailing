@@ -1,5 +1,5 @@
 ---
-description: When test:e2e counts as done; Playwright preflight, ports, CI vs local, a11y project
+description: When test:e2e counts as done; Playwright preflight, ports, CI vs local
 globs: playwright.config.ts,tests/e2e/**/*.ts,scripts/e2e-build.cjs,scripts/e2e-killport.cjs,.github/workflows/CI.yml
 alwaysApply: false
 ---
@@ -20,5 +20,3 @@ Same **workflow** as [cal.com’s Playwright setup](https://github.com/calcom/ca
 ## This repo
 
 - **Do not** import the app Prisma client in `tests/e2e/*` — use `pg` `Pool` (see `AccountLockout.e2e.ts`). Form errors: `formAlert` from `tests/helpers/e2e-alert.ts` (avoids clashing with the route announcer’s `role="alert"`).
-
-**A11y:** `npm run test:e2e:a11y` — `a11y-chromium` on `**/*.a11y.e2e.ts`, light + dark theme. Run after global styles, theme tokens, or public shells change. Default `test:e2e` does **not** run those specs. URLs: live `/sitemap.xml` pathnames plus curated public routes; admin/profile out of scope.

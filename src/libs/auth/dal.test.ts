@@ -26,6 +26,18 @@ vi.mock('next/navigation', () => ({
   redirect,
 }));
 
+vi.mock('@/utils/AppConfig', () => ({
+  AppConfig: {
+    i18n: {
+      defaultLocale: 'en',
+    },
+  },
+}));
+
+vi.mock('@/utils/Helpers', () => ({
+  getI18nPath: (path: string) => path,
+}));
+
 vi.mock('@/libs/auth', () => ({
   auth: {
     api: {
@@ -43,7 +55,10 @@ type TestSession = {
     impersonatedBy?: string | null;
   };
   user: {
+    appRole?: unknown;
+    banned?: unknown;
     email?: unknown;
+    emailVerified?: unknown;
     id: string;
     name?: unknown;
     role?: unknown;
@@ -54,7 +69,11 @@ type TestSession = {
 function createSession(user: TestSession['user']): TestSession {
   return {
     session: { impersonatedBy: null },
-    user,
+    user: {
+      banned: false,
+      emailVerified: true,
+      ...user,
+    },
   };
 }
 
@@ -152,9 +171,21 @@ describe('verifySession', () => {
   });
 });
 
+describe('appRoleFromSessionUser', () => {
+  it('normalizes malformed session users to sailor role', async () => {
+    const { appRoleFromSessionUser } = await import('@/libs/auth/dal');
+
+    expect(appRoleFromSessionUser(null)).toBe('user');
+  });
+});
+
 describe('requireAdmin', () => {
   it('allow admin into protected admin routes', async () => {
-    const session = createSession({ id: 'admin-1', role: 'admin' });
+    const session = createSession({
+      appRole: 'admin',
+      id: 'admin-1',
+      role: 'user',
+    });
     authGetSession.mockResolvedValue(session);
     const { requireAdmin } = await import('@/libs/auth/dal');
 
@@ -165,23 +196,104 @@ describe('requireAdmin', () => {
 
   it('redirect sailor from admin routes to home', async () => {
     authGetSession.mockResolvedValue(
-      createSession({ id: 'user-1', role: 'user' })
+      createSession({ appRole: 'user', id: 'user-1', role: 'admin' })
     );
+    const { requireAdmin } = await import('@/libs/auth/dal');
+
+    await expect(requireAdmin('en')).rejects.toThrow('NEXT_REDIRECT:/');
+    expect(redirect).toHaveBeenCalledWith('/');
+  });
+
+  it('redirect impersonating admin from admin routes', async () => {
+    authGetSession.mockResolvedValue({
+      ...createSession({ appRole: 'admin', id: 'admin-1', role: 'admin' }),
+      session: { impersonatedBy: 'owner-1' },
+    });
     const { requireAdmin } = await import('@/libs/auth/dal');
 
     await expect(requireAdmin('en')).rejects.toThrow('NEXT_REDIRECT:/');
 
     expect(redirect).toHaveBeenCalledWith('/');
   });
+});
 
-  it('redirect impersonating admin from admin routes', async () => {
+describe('requirePermission', () => {
+  it('allow staff with app role permission', async () => {
+    const session = createSession({
+      appRole: 'dock_staff',
+      id: 'staff-1',
+      role: 'user',
+    });
+    authGetSession.mockResolvedValue(session);
+    const { requirePermission } = await import('@/libs/auth/dal');
+    const { Permission } = await import('@/libs/auth/permissions');
+
+    await expect(requirePermission(Permission.USERS_VIEW, 'en')).resolves.toBe(
+      session
+    );
+
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it('fails closed for comma-separated role strings', async () => {
+    authGetSession.mockResolvedValue(
+      createSession({
+        appRole: 'dock_staff,other_role',
+        id: 'staff-1',
+        role: 'user',
+      })
+    );
+    const { requirePermission } = await import('@/libs/auth/dal');
+    const { Permission } = await import('@/libs/auth/permissions');
+
+    await expect(
+      requirePermission(Permission.USERS_VIEW, 'en')
+    ).rejects.toThrow('NEXT_REDIRECT:/');
+
+    expect(redirect).toHaveBeenCalledWith('/');
+  });
+
+  it('redirects impersonating staff from permission routes', async () => {
     authGetSession.mockResolvedValue({
-      ...createSession({ id: 'admin-1', role: 'admin' }),
+      ...createSession({
+        appRole: 'dock_staff',
+        id: 'staff-1',
+        role: 'user',
+      }),
       session: { impersonatedBy: 'owner-1' },
     });
-    const { requireAdmin } = await import('@/libs/auth/dal');
+    const { requirePermission } = await import('@/libs/auth/dal');
+    const { Permission } = await import('@/libs/auth/permissions');
 
-    await expect(requireAdmin('en')).rejects.toThrow('NEXT_REDIRECT:/');
+    await expect(
+      requirePermission(Permission.USERS_VIEW, 'en')
+    ).rejects.toThrow('NEXT_REDIRECT:/');
+
+    expect(redirect).toHaveBeenCalledWith('/');
+  });
+
+  it.each([
+    ['banned staff', { appRole: 'dock_staff', banned: true }],
+    ['unverified staff', { appRole: 'dock_staff', emailVerified: false }],
+    ['malformed ban state', { appRole: 'dock_staff', banned: null }],
+    [
+      'malformed verification state',
+      { appRole: 'dock_staff', emailVerified: null },
+    ],
+  ])('fails closed for %s', async (_label, overrides) => {
+    authGetSession.mockResolvedValue(
+      createSession({
+        id: 'staff-1',
+        role: 'user',
+        ...overrides,
+      })
+    );
+    const { requirePermission } = await import('@/libs/auth/dal');
+    const { Permission } = await import('@/libs/auth/permissions');
+
+    await expect(
+      requirePermission(Permission.USERS_VIEW, 'en')
+    ).rejects.toThrow('NEXT_REDIRECT:/');
 
     expect(redirect).toHaveBeenCalledWith('/');
   });
@@ -197,9 +309,10 @@ describe('getCurrentUser', () => {
   it('normalize current user fields for sailor', async () => {
     authGetSession.mockResolvedValue(
       createSession({
-        email: 'sailor@example.com',
+        email: null,
+        appRole: 'dock_staff',
         id: 'user-1',
-        name: 'Sailor',
+        name: 123,
         role: 'captain',
         unconfirmedEmail: 123,
       })
@@ -207,10 +320,10 @@ describe('getCurrentUser', () => {
     const { getCurrentUser } = await import('@/libs/auth/dal');
 
     await expect(getCurrentUser()).resolves.toEqual({
-      email: 'sailor@example.com',
+      email: null,
       id: 'user-1',
-      name: 'Sailor',
-      role: 'user',
+      name: null,
+      role: 'dock_staff',
       unconfirmedEmail: null,
     });
   });
@@ -230,9 +343,10 @@ describe('requireCurrentUser', () => {
     authGetSession.mockResolvedValue(
       createSession({
         email: 'admin@example.com',
+        appRole: 'admin',
         id: 'admin-1',
         name: null,
-        role: 'admin',
+        role: 'user',
         unconfirmedEmail: 'new-admin@example.com',
       })
     );

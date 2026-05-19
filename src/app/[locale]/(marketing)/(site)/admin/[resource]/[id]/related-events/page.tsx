@@ -16,11 +16,13 @@ import {
   adminCatalogResourceAssociationPath,
   adminCatalogResourceEditPath,
 } from '@/libs/admin/catalog/adminCatalogPaths';
+import { catalogPermissionForOperation } from '@/libs/admin/catalog/catalogPermissions';
 import {
   addSailingClassRelatedEventAction,
   removeSailingClassRelatedEventAction,
 } from '@/libs/admin/sailing-classes/sailingClassAssociationActions';
 import { sailingClassAssocQueryErrorMessage } from '@/libs/admin/sailing-classes/sailingClassAssocQueryErrorMessage';
+import { requirePermission } from '@/libs/auth/dal';
 import { prisma } from '@/libs/DB';
 import { Link } from '@/libs/I18nNavigation';
 
@@ -56,6 +58,13 @@ export default async function AdminSailingClassRelatedEventsPage(
   if (resource !== 'sailing_classes') {
     notFound();
   }
+  await requirePermission(
+    catalogPermissionForOperation({
+      operation: 'update',
+      resourceId: 'sailing_classes',
+    }),
+    locale
+  );
 
   const sailingClass = await prisma.sailingClass.findUnique({
     where: { id },

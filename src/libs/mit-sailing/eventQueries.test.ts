@@ -1,0 +1,299 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { EventRegistrationStatus } from '@/generated/prisma/enums';
+
+const mocks = vi.hoisted(() => ({
+  eventFindFirst: vi.fn(),
+  eventFindMany: vi.fn(),
+  eventDateAggregate: vi.fn(),
+  eventDateFindMany: vi.fn(),
+  eventRegistrationCount: vi.fn(),
+  eventRegistrationFindFirst: vi.fn(),
+  eventCategoryFindMany: vi.fn(),
+  getZenStack: vi.fn(),
+  zenstackForAuthContext: vi.fn(),
+}));
+
+vi.mock('server-only', () => ({}));
+
+vi.mock('react', () => ({
+  cache: <T extends (...args: unknown[]) => unknown>(fn: T) => fn,
+}));
+
+vi.mock('@/libs/DB', () => ({
+  prisma: {
+    event: {
+      findFirst: mocks.eventFindFirst,
+      findMany: mocks.eventFindMany,
+    },
+    eventDate: {
+      aggregate: mocks.eventDateAggregate,
+      findMany: mocks.eventDateFindMany,
+    },
+    eventCategory: {
+      findMany: mocks.eventCategoryFindMany,
+    },
+    eventRegistration: {
+      count: mocks.eventRegistrationCount,
+      findFirst: mocks.eventRegistrationFindFirst,
+    },
+  },
+}));
+
+vi.mock('@/libs/zenstack/auth', () => ({
+  getZenStack: mocks.getZenStack,
+  zenstackForAuthContext: mocks.zenstackForAuthContext,
+}));
+
+vi.mock('@/libs/Logger', () => ({
+  logger: {
+    error: vi.fn(),
+    warn: vi.fn(),
+  },
+}));
+
+beforeEach(() => {
+  vi.resetModules();
+  mocks.eventFindFirst.mockReset();
+  mocks.eventFindMany.mockReset();
+  mocks.eventDateAggregate.mockReset();
+  mocks.eventDateFindMany.mockReset();
+  mocks.eventRegistrationCount.mockReset();
+  mocks.eventRegistrationFindFirst.mockReset();
+  mocks.eventCategoryFindMany.mockReset();
+  mocks.getZenStack.mockReset();
+  mocks.zenstackForAuthContext.mockReset();
+  mocks.getZenStack.mockReturnValue({
+    event: {
+      findFirst: mocks.eventFindFirst,
+      findMany: mocks.eventFindMany,
+    },
+    eventCategory: {
+      findMany: mocks.eventCategoryFindMany,
+    },
+    eventDate: {
+      aggregate: mocks.eventDateAggregate,
+      findMany: mocks.eventDateFindMany,
+    },
+    eventRegistration: {
+      count: mocks.eventRegistrationCount,
+      findFirst: mocks.eventRegistrationFindFirst,
+    },
+  });
+  mocks.zenstackForAuthContext.mockReturnValue({
+    eventRegistration: {
+      findFirst: mocks.eventRegistrationFindFirst,
+    },
+  });
+});
+
+describe('getPublishedEventForPublicBySlug', () => {
+  it('loads public event detail through ZenStack policies', async () => {
+    mocks.eventFindFirst.mockResolvedValue(null);
+    const { getPublishedEventForPublicBySlug } =
+      await import('@/libs/mit-sailing/eventQueries');
+
+    await getPublishedEventForPublicBySlug('intro-sail');
+
+    expect(mocks.getZenStack).toHaveBeenCalled();
+    expect(mocks.eventFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { slug: 'intro-sail' },
+      })
+    );
+  });
+
+  it('returns null without registration counts when no public event is found', async () => {
+    mocks.eventFindFirst.mockResolvedValue(null);
+    const { getPublishedEventForPublicBySlug } =
+      await import('@/libs/mit-sailing/eventQueries');
+
+    const result = await getPublishedEventForPublicBySlug('missing');
+
+    expect(result).toBeNull();
+    expect(mocks.eventRegistrationCount).not.toHaveBeenCalled();
+  });
+
+  it('returns public event detail with normalized questions and status counts', async () => {
+    const startDateTime = new Date('2026-06-01T13:00:00Z');
+    const endDateTime = new Date('2026-06-01T16:00:00Z');
+    mocks.eventFindFirst.mockResolvedValue({
+      id: 'event-1',
+      name: 'Intro Sail',
+      shortName: 'Intro',
+      description: 'Learn.',
+      slug: 'intro-sail',
+      isSpecial: false,
+      maxParticipants: 12,
+      requiresApproval: true,
+      registrationStart: null,
+      registrationEnd: null,
+      detailPageKind: 'standard',
+      externalDetailUrl: null,
+      category: { name: 'Classes' },
+      dates: [{ id: 'date-1', startDateTime, endDateTime }],
+      registrationQuestions: [
+        {
+          id: 'question-1',
+          questionText: 'Diet?',
+          answerType: 'select',
+          options: ['Vegetarian', 3, 'Vegan'],
+          required: true,
+          displayOrder: 1,
+        },
+      ],
+      entryFees: [
+        {
+          id: 'fee-1',
+          description: 'Clinic fee',
+          amountCents: 1550,
+          isDeposit: false,
+        },
+      ],
+    });
+    mocks.eventRegistrationCount
+      .mockResolvedValueOnce(4)
+      .mockResolvedValueOnce(2);
+    const { getPublishedEventForPublicBySlug } =
+      await import('@/libs/mit-sailing/eventQueries');
+
+    const result = await getPublishedEventForPublicBySlug('intro-sail');
+
+    expect(result?.approvedRegistrationCount).toBe(4);
+    expect(result?.pendingRegistrationCount).toBe(2);
+    expect(result?.registrationQuestions).toEqual([
+      {
+        id: 'question-1',
+        questionText: 'Diet?',
+        answerType: 'select',
+        options: ['Vegetarian', 'Vegan'],
+        required: true,
+        displayOrder: 1,
+      },
+    ]);
+    expect(mocks.eventRegistrationCount).toHaveBeenNthCalledWith(1, {
+      where: { eventId: 'event-1', status: EventRegistrationStatus.approved },
+    });
+    expect(mocks.eventRegistrationCount).toHaveBeenNthCalledWith(2, {
+      where: { eventId: 'event-1', status: EventRegistrationStatus.pending },
+    });
+  });
+});
+
+describe('getPublicEventRegistrationState', () => {
+  it('loads viewer registration state through ZenStack policies', async () => {
+    mocks.eventRegistrationFindFirst.mockResolvedValue({
+      id: 'registration-1',
+      status: 'pending',
+    });
+    const { getPublicEventRegistrationState } =
+      await import('@/libs/mit-sailing/eventQueries');
+
+    await getPublicEventRegistrationState({
+      eventId: 'event-1',
+      userId: 'user-1',
+    });
+
+    expect(mocks.zenstackForAuthContext).toHaveBeenCalledWith({
+      appRole: 'user',
+      id: 'user-1',
+    });
+    expect(mocks.eventRegistrationFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { eventId: 'event-1' },
+      })
+    );
+  });
+
+  it('returns null when no viewer registration is visible', async () => {
+    mocks.eventRegistrationFindFirst.mockResolvedValue(null);
+    const { getPublicEventRegistrationState } =
+      await import('@/libs/mit-sailing/eventQueries');
+
+    const result = await getPublicEventRegistrationState({
+      eventId: 'event-1',
+      userId: 'user-1',
+    });
+
+    expect(result).toBeNull();
+  });
+});
+
+describe('listPublishedEventDatesForCalendarMonth', () => {
+  const rangeStart = new Date('2026-06-01T04:00:00Z');
+  const rangeEndExclusive = new Date('2026-07-01T04:00:00Z');
+
+  it('returns empty dates without querying event dates when no public events exist', async () => {
+    mocks.eventFindMany.mockResolvedValue([]);
+    const { listPublishedEventDatesForCalendarMonth } =
+      await import('@/libs/mit-sailing/eventQueries');
+
+    const result = await listPublishedEventDatesForCalendarMonth({
+      rangeEndExclusive,
+      rangeStart,
+    });
+
+    expect(result).toEqual([]);
+    expect(mocks.eventDateFindMany).not.toHaveBeenCalled();
+  });
+
+  it('returns public event dates with resolved category accent classes', async () => {
+    const startDateTime = new Date('2026-06-01T13:00:00Z');
+    const endDateTime = new Date('2026-06-01T16:00:00Z');
+    mocks.eventFindMany.mockResolvedValue([{ id: 'event-1' }]);
+    mocks.eventDateFindMany.mockResolvedValue([
+      {
+        id: 'date-1',
+        startDateTime,
+        endDateTime,
+        event: {
+          id: 'event-1',
+          name: 'Intro Sail',
+          slug: 'intro-sail',
+          eventCategoryId: 'category-1',
+          category: {
+            id: 'category-1',
+            name: 'Classes',
+            accentClassName: 'emerald',
+          },
+        },
+      },
+    ]);
+    const { listPublishedEventDatesForCalendarMonth } =
+      await import('@/libs/mit-sailing/eventQueries');
+
+    const result = await listPublishedEventDatesForCalendarMonth({
+      categoryId: 'category-1',
+      rangeEndExclusive,
+      rangeStart,
+    });
+
+    expect(mocks.eventDateFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          eventId: { in: ['event-1'] },
+          event: expect.objectContaining({
+            eventCategoryId: 'category-1',
+          }),
+        }),
+      })
+    );
+    expect(result).toEqual([
+      {
+        id: 'date-1',
+        startDateTime,
+        endDateTime,
+        event: {
+          id: 'event-1',
+          name: 'Intro Sail',
+          slug: 'intro-sail',
+          eventCategoryId: 'category-1',
+          category: {
+            id: 'category-1',
+            name: 'Classes',
+            accentClassName: 'emerald',
+          },
+        },
+      },
+    ]);
+  });
+});

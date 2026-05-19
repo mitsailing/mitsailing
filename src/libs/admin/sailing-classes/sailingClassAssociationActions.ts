@@ -6,7 +6,8 @@ import * as z from 'zod';
 import { Prisma } from '@/generated/prisma/client';
 import { adminCatalogResourceAssociationPath } from '@/libs/admin/catalog/adminCatalogPaths';
 import type { CatalogResourceId } from '@/libs/admin/catalog/catalogDefinitions';
-import { requireAdmin } from '@/libs/auth/dal';
+import { requirePermission } from '@/libs/auth/dal';
+import { Permission } from '@/libs/auth/permissions';
 import { prisma } from '@/libs/DB';
 import { getI18nPath } from '@/utils/Helpers';
 
@@ -58,7 +59,7 @@ export async function addSailingClassRelatedEventAction(
   sailingClassId: string,
   formData: FormData
 ): Promise<void> {
-  await requireAdmin(locale);
+  await requirePermission(Permission.SAILING_CLASSES_MANAGE, locale);
   const parsed = idSchema.safeParse(formData.get('eventId'));
   if (!parsed.success) {
     redirectAssocError(
@@ -115,7 +116,7 @@ export async function removeSailingClassRelatedEventAction(
   sailingClassId: string,
   formData: FormData
 ): Promise<void> {
-  await requireAdmin(locale);
+  await requirePermission(Permission.SAILING_CLASSES_MANAGE, locale);
   const parsed = idSchema.safeParse(formData.get('eventId'));
   if (!parsed.success) {
     redirectAssocError(
@@ -156,7 +157,7 @@ export async function addSailingClassPrerequisiteAction(
   sailingClassId: string,
   formData: FormData
 ): Promise<void> {
-  await requireAdmin(locale);
+  await requirePermission(Permission.SAILING_CLASSES_MANAGE, locale);
   const parsed = idSchema.safeParse(formData.get('prerequisiteClassId'));
   if (!parsed.success) {
     redirectAssocError(
@@ -221,7 +222,7 @@ export async function removeSailingClassPrerequisiteAction(
   sailingClassId: string,
   formData: FormData
 ): Promise<void> {
-  await requireAdmin(locale);
+  await requirePermission(Permission.SAILING_CLASSES_MANAGE, locale);
   const parsed = idSchema.safeParse(formData.get('prerequisiteClassId'));
   if (!parsed.success) {
     redirectAssocError(
@@ -262,7 +263,7 @@ export async function addSailingClassUnlockedBoatAction(
   sailingClassId: string,
   formData: FormData
 ): Promise<void> {
-  await requireAdmin(locale);
+  await requirePermission(Permission.SAILING_CLASSES_MANAGE, locale);
   const parsed = idSchema.safeParse(formData.get('fleetBoatId'));
   if (!parsed.success) {
     redirectAssocError(
@@ -318,7 +319,7 @@ export async function removeSailingClassUnlockedBoatAction(
   sailingClassId: string,
   formData: FormData
 ): Promise<void> {
-  await requireAdmin(locale);
+  await requirePermission(Permission.SAILING_CLASSES_MANAGE, locale);
   const parsed = idSchema.safeParse(formData.get('fleetBoatId'));
   if (!parsed.success) {
     redirectAssocError(

@@ -11,7 +11,8 @@ import {
   parseAdminPavilionReservationPaymentStatus,
   parseAdminPavilionReservationStatus,
 } from '@/libs/admin/pavilion-reservations/pavilionReservationAdminQueries';
-import { requireAdmin } from '@/libs/auth/dal';
+import { requirePermission } from '@/libs/auth/dal';
+import { Permission } from '@/libs/auth/permissions';
 import { prisma } from '@/libs/DB';
 import { sendPavilionReservationStatusEmail } from '@/libs/email/pavilion-reservation-emails';
 import { logger } from '@/libs/Logger';
@@ -322,7 +323,10 @@ export async function updatePavilionReservationAdminAction(
   id: string,
   formData: FormData
 ): Promise<void> {
-  const session = await requireAdmin(locale);
+  const session = await requirePermission(
+    Permission.PAVILION_RESERVATIONS_MANAGE,
+    locale
+  );
   const status = statusFromForm(formData);
   const paymentStatus = parseAdminPavilionReservationPaymentStatus(
     formText(formData, 'paymentStatus')

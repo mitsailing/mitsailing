@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { requireAdmin } from '@/libs/auth/dal';
+import { requirePermission } from '@/libs/auth/dal';
+import { Permission } from '@/libs/auth/permissions';
 import { createNewsletterTemplateAction } from '@/libs/newsletter/newsletterAdminActions';
 
 type PageProps = Readonly<{
@@ -25,7 +26,7 @@ export default async function AdminNewsletterTemplateNewPage(props: PageProps) {
   const { locale } = await props.params;
   const { status = '' } = await props.searchParams;
   setRequestLocale(locale);
-  await requireAdmin(locale);
+  await requirePermission(Permission.NEWSLETTER_MANAGE, locale);
   const t = await getTranslations({ locale, namespace: 'AdminNewsletters' });
 
   return (

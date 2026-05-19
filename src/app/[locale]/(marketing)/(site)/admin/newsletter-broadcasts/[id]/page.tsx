@@ -15,7 +15,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { formatAdminDate } from '@/libs/admin/adminDateFormatting';
-import { requireAdmin } from '@/libs/auth/dal';
+import { requirePermission } from '@/libs/auth/dal';
+import { Permission } from '@/libs/auth/permissions';
 import { sendNewsletterBroadcastTestAction } from '@/libs/newsletter/newsletterAdminActions';
 import { newsletterBroadcastStatusKey } from '@/libs/newsletter/newsletterAdminDisplay';
 import {
@@ -82,7 +83,7 @@ export default async function AdminNewsletterBroadcastDetailPage(
   const { locale, id } = await props.params;
   const { status = '' } = await props.searchParams;
   setRequestLocale(locale);
-  const session = await requireAdmin(locale);
+  const session = await requirePermission(Permission.NEWSLETTER_MANAGE, locale);
   const t = await getTranslations({ locale, namespace: 'AdminNewsletters' });
   const detail = await getAdminNewsletterBroadcastDetail(id);
   if (!detail) {

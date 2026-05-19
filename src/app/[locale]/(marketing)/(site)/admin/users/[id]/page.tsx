@@ -15,7 +15,12 @@ import {
 import { formatAdminDate } from '@/libs/admin/adminDateFormatting';
 import { adminUsersEditPath } from '@/libs/admin/users/adminUserPaths';
 import { usersAdminHandlers } from '@/libs/admin/users/usersAdminHandlers';
-import { requireAdmin } from '@/libs/auth/dal';
+import {
+  getAppRolePermissions,
+  hasPermission,
+  Permission,
+} from '@/libs/auth/appPermissions';
+import { appRoleFromSessionUser, requirePermission } from '@/libs/auth/dal';
 import { getAdminUserEmailMessages } from '@/libs/email/emailMessages';
 import type { AdminUserEmailMessageRow } from '@/libs/email/emailMessages';
 import { logger } from '@/libs/Logger';
@@ -170,7 +175,14 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
   const { locale, id } = await props.params;
   const searchParams = await props.searchParams;
   setRequestLocale(locale);
-  await requireAdmin(locale);
+  const session = await requirePermission(Permission.USERS_VIEW, locale);
+  const role = appRoleFromSessionUser(session.user);
+  const permissions = getAppRolePermissions(role);
+  const canAssignRatings = hasPermission(
+    permissions,
+    Permission.RATINGS_ASSIGN
+  );
+  const canEditUsers = hasPermission(permissions, Permission.USERS_EDIT);
 
   const user = await usersAdminHandlers.getById(id);
   if (!user) {
@@ -214,9 +226,11 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
     <div className="flex w-full max-w-5xl flex-col gap-6">
       <AdminPageHeader
         actions={
-          <AdminPrimaryActionLink href={adminUsersEditPath(id)}>
-            {t('action_edit')}
-          </AdminPrimaryActionLink>
+          canEditUsers ? (
+            <AdminPrimaryActionLink href={adminUsersEditPath(id)}>
+              {t('action_edit')}
+            </AdminPrimaryActionLink>
+          ) : undefined
         }
         title={user.name}
       />
@@ -228,7 +242,7 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
           </div>
           <div>
             <dt className="font-semibold">{t('column_role')}</dt>
-            <dd className="m-0">{user.role}</dd>
+            <dd className="m-0">{user.appRole}</dd>
           </div>
           <div>
             <dt className="font-semibold">{t('column_email_verified')}</dt>
@@ -253,6 +267,7 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
         </output>
       ) : null}
       <AdminUserRatingsPanel
+        canAssignRatings={canAssignRatings}
         errorCode={searchParams.error}
         locale={locale}
         ratingsLoadFailed={ratingsLoadError}

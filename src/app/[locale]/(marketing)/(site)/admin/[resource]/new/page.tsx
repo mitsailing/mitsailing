@@ -10,6 +10,7 @@ import {
 } from '@/libs/admin/catalog/catalogDefinitions';
 import type { CatalogResourceId } from '@/libs/admin/catalog/catalogDefinitions';
 import { catalogFieldErrorsFromSearchParam } from '@/libs/admin/catalog/catalogFieldErrors';
+import { catalogPermissionForOperation } from '@/libs/admin/catalog/catalogPermissions';
 import {
   cmsMenuParentSelectOptions,
   cmsMenuSelectOptions,
@@ -23,6 +24,7 @@ import { sailingRatingSelectOptions } from '@/libs/admin/catalog/sailingRatingsH
 import { catalogScopedListState } from '@/libs/admin/catalog/scopedCatalogLists';
 import type { CatalogScopedListState } from '@/libs/admin/catalog/scopedCatalogLists';
 import type { CatalogRow } from '@/libs/admin/catalog/types';
+import { requirePermission } from '@/libs/auth/dal';
 import { isAppRelativeCmsHref, safeCmsHref } from '@/libs/mit-sailing/cmsHref';
 import { siteAlertsNewCatalogDefaults } from '@/libs/mit-sailing/siteAlertAdminDefaults';
 
@@ -143,6 +145,13 @@ export default async function AdminCatalogResourceNewPage(props: PageProps) {
   if (!def || !isCatalogResourceId(resource) || !def.capabilities.create) {
     notFound();
   }
+  await requirePermission(
+    catalogPermissionForOperation({
+      operation: 'create',
+      resourceId: resource,
+    }),
+    locale
+  );
 
   const createAction = createCatalogResourceAction.bind(null, locale, resource);
 

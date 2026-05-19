@@ -31,7 +31,6 @@ CREATE TABLE "events" (
     "requires_approval" BOOLEAN NOT NULL,
     "registration_start" TIMESTAMP(3),
     "registration_end" TIMESTAMP(3),
-    "created_by" TEXT NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL,
     "detail_page_kind" "EventDetailPageKind",
     "external_detail_url" TEXT,
@@ -169,9 +168,6 @@ CREATE UNIQUE INDEX "events_slug_key" ON "events"("slug");
 CREATE INDEX "events_event_category_id_idx" ON "events"("event_category_id");
 
 -- CreateIndex
-CREATE INDEX "events_created_by_idx" ON "events"("created_by");
-
--- CreateIndex
 CREATE INDEX "event_dates_event_id_idx" ON "event_dates"("event_id");
 
 -- CreateIndex
@@ -221,9 +217,6 @@ CREATE UNIQUE INDEX "staff_members_slug_key" ON "staff_members"("slug");
 
 -- AddForeignKey
 ALTER TABLE "events" ADD CONSTRAINT "events_event_category_id_fkey" FOREIGN KEY ("event_category_id") REFERENCES "event_categories"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "events" ADD CONSTRAINT "events_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "event_dates" ADD CONSTRAINT "event_dates_event_id_fkey" FOREIGN KEY ("event_id") REFERENCES "events"("id") ON DELETE CASCADE ON UPDATE CASCADE;

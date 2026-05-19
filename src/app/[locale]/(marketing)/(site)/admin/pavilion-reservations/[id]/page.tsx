@@ -21,6 +21,8 @@ import {
   listAdminPavilionReservableItemOptions,
 } from '@/libs/admin/pavilion-reservations/pavilionReservationAdminQueries';
 import { adminPavilionReservationDateKey } from '@/libs/admin/pavilion-reservations/pavilionReservationAdminSchedule';
+import { requirePermission } from '@/libs/auth/dal';
+import { Permission } from '@/libs/auth/permissions';
 import { Link } from '@/libs/I18nNavigation';
 import {
   formatEasternDateTime,
@@ -89,6 +91,7 @@ export default async function AdminPavilionReservationDetailPage(
 ) {
   const { id, locale } = await props.params;
   setRequestLocale(locale);
+  await requirePermission(Permission.PAVILION_RESERVATIONS_MANAGE, locale);
   const [reservation, itemOptions, t] = await Promise.all([
     getAdminPavilionReservationById(id),
     listAdminPavilionReservableItemOptions(),

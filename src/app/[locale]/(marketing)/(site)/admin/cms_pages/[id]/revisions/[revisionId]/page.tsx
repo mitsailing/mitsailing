@@ -4,6 +4,8 @@ import { notFound } from 'next/navigation';
 import { AdminCmsRevisionCompareView } from '@/components/mit-sailing/admin/catalog/AdminCmsRevisionCompareView';
 import { adminCatalogResourceEditPath } from '@/libs/admin/catalog/adminCatalogPaths';
 import { restoreCmsPageRevisionAction } from '@/libs/admin/catalog/catalogActions';
+import { catalogPermissionForOperation } from '@/libs/admin/catalog/catalogPermissions';
+import { requirePermission } from '@/libs/auth/dal';
 import { getAdminCmsPageRevisionCompare } from '@/libs/mit-sailing/cmsHistory';
 
 type PageProps = {
@@ -24,6 +26,13 @@ export default async function AdminCmsPageRevisionComparePage(
 ) {
   const { locale, id, revisionId } = await props.params;
   setRequestLocale(locale);
+  await requirePermission(
+    catalogPermissionForOperation({
+      operation: 'restore',
+      resourceId: 'cms_pages',
+    }),
+    locale
+  );
 
   const compare = await getAdminCmsPageRevisionCompare({
     pageId: id,

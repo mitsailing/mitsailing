@@ -4,11 +4,18 @@ import { redirect } from 'next/navigation';
 import { cache } from 'react';
 import { auth } from '@/libs/auth';
 import {
+  getAppRolePermissions,
+  hasAnyPermission,
+  normalizeAppRole,
+} from '@/libs/auth/appPermissions';
+import {
   authHrefWithCallback,
   safeAuthCallbackUrl,
 } from '@/libs/auth/callbackUrl';
-import { normalizeRole, Role } from '@/libs/auth/roles';
+import { Permission } from '@/libs/auth/permissions';
+import type { Role } from '@/libs/auth/roles';
 import { syncSentryUserFromSession } from '@/libs/sentry-user-server';
+import { appAuthContextFromSession } from '@/libs/zenstack/authContext';
 import { AppConfig } from '@/utils/AppConfig';
 import { getI18nPath } from '@/utils/Helpers';
 
@@ -37,6 +44,17 @@ export type CurrentUser = {
    */
   unconfirmedEmail: string | null;
 };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+export function appRoleFromSessionUser(user: unknown): Role {
+  if (!isRecord(user)) {
+    return normalizeAppRole(null);
+  }
+  return normalizeAppRole(user.appRole);
+}
 
 /**
  * Request-scoped session read memoized with React `cache` so a single render
@@ -93,6 +111,39 @@ export async function verifySession(
   return session;
 }
 
+async function requireAnyPermission(
+  permissions: readonly Permission[],
+  locale: string = AppConfig.i18n.defaultLocale
+): Promise<NonNullable<AuthSession>> {
+  const homeHref = getI18nPath('/', locale);
+  const session = await verifySession(locale, homeHref);
+
+  if (session.session.impersonatedBy !== null) {
+    redirect(homeHref);
+  }
+
+  const authContext = appAuthContextFromSession(session);
+
+  if (!authContext) {
+    redirect(homeHref);
+  }
+
+  if (
+    !hasAnyPermission(getAppRolePermissions(authContext.appRole), permissions)
+  ) {
+    redirect(homeHref);
+  }
+  return session;
+}
+
+export async function requirePermission(
+  permission: Permission,
+  locale: string = AppConfig.i18n.defaultLocale
+): Promise<NonNullable<AuthSession>> {
+  const session = await requireAnyPermission([permission], locale);
+  return session;
+}
+
 /**
  * Requires an admin who is not currently impersonating another user.
  * Redirects to the site home otherwise so admins never land on pages they are
@@ -104,26 +155,19 @@ export async function verifySession(
 export async function requireAdmin(
   locale: string = AppConfig.i18n.defaultLocale
 ): Promise<NonNullable<AuthSession>> {
-  const homeHref = getI18nPath('/', locale);
-  const session = await verifySession(locale, homeHref);
-  const role = normalizeRole(session.user.role);
-
-  if (role !== Role.ADMIN || session.session.impersonatedBy) {
-    redirect(homeHref);
-  }
-
+  const session = await requirePermission(Permission.ADMIN_VIEW, locale);
   return session;
 }
 
 function toCurrentUser(session: NonNullable<AuthSession>): CurrentUser {
   const { user } = session;
-  const pending = (user as { unconfirmedEmail?: unknown }).unconfirmedEmail;
   return {
     id: user.id,
     email: typeof user.email === 'string' ? user.email : null,
     name: typeof user.name === 'string' ? user.name : null,
-    role: normalizeRole(user.role),
-    unconfirmedEmail: typeof pending === 'string' ? pending : null,
+    role: appRoleFromSessionUser(user),
+    unconfirmedEmail:
+      typeof user.unconfirmedEmail === 'string' ? user.unconfirmedEmail : null,
   };
 }
 

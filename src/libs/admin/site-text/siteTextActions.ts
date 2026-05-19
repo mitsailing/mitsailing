@@ -2,7 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { requireAdmin } from '@/libs/auth/dal';
+import { requirePermission } from '@/libs/auth/dal';
+import { Permission } from '@/libs/auth/permissions';
 import { prisma } from '@/libs/DB';
 import { clearMergedSiteTextMessagesCache } from '@/libs/site-text/siteTextMessageLoader';
 import {
@@ -37,7 +38,7 @@ export async function saveSiteTextOverrideAction(
   key: string,
   formData: FormData
 ): Promise<void> {
-  const session = await requireAdmin(locale);
+  const session = await requirePermission(Permission.CMS_EDIT, locale);
   const defaultValue = getDefaultSiteTextValue(namespace, key);
   if (defaultValue === null) {
     siteTextRedirect(locale, 'unknown_key');
@@ -97,7 +98,7 @@ export async function resetSiteTextOverrideAction(
   namespace: string,
   key: string
 ): Promise<void> {
-  await requireAdmin(locale);
+  await requirePermission(Permission.CMS_EDIT, locale);
   const defaultValue = getDefaultSiteTextValue(namespace, key);
   if (defaultValue === null) {
     siteTextRedirect(locale, 'unknown_key');

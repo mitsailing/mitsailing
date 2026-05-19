@@ -3,7 +3,7 @@ import { AdminSideNav } from '@/components/mit-sailing/admin/AdminSideNav';
 import { SiteSectionMain } from '@/components/mit-sailing/SiteSectionMain';
 import { SiteSectionShell } from '@/components/mit-sailing/SiteSectionShell';
 import { SiteSidebarLayout } from '@/components/mit-sailing/SiteSidebarLayout';
-import { requireAdmin } from '@/libs/auth/dal';
+import { requireAdminAreaAccess } from '@/libs/admin/adminAreaAccess';
 
 export default async function AdminSectionLayout(props: {
   children: React.ReactNode;
@@ -11,7 +11,7 @@ export default async function AdminSectionLayout(props: {
 }) {
   const { locale } = await props.params;
   setRequestLocale(locale);
-  await requireAdmin(locale);
+  const { navItems } = await requireAdminAreaAccess(locale);
   const t = await getTranslations({
     locale,
     namespace: 'MitSailingRoutes',
@@ -29,7 +29,7 @@ export default async function AdminSectionLayout(props: {
         <SiteSidebarLayout
           density="content-fit"
           stretch
-          sidebar={<AdminSideNav />}
+          sidebar={<AdminSideNav items={navItems} />}
         >
           {props.children}
         </SiteSidebarLayout>
