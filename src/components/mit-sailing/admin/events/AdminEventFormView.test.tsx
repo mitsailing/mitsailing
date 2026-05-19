@@ -153,6 +153,13 @@ describe('AdminEventFormView', () => {
     ).toHaveAttribute('href', '/admin/events/intro-sail');
   });
 
+  it('does not render a slug textbox for editable access', () => {
+    const view = renderView('editable');
+
+    expect(screen.queryByLabelText('Slug')).toBeNull();
+    expect(view.container.querySelector('input[name="slug"]')).toBeNull();
+  });
+
   it('hides external page URL for standard public pages', () => {
     renderView('editable', {
       detailPageKind: EventDetailPageKind.standard,

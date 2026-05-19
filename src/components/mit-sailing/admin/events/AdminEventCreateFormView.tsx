@@ -92,15 +92,6 @@ export function AdminEventCreateFormView(props: AdminEventCreateFormViewProps) {
               )}
             </AdminEventField>
             <AdminEventField
-              htmlFor="event-slug"
-              hint={props.t('new_slug_hint')}
-              label={props.t('field_slug')}
-            >
-              {(controlProps) => (
-                <Input id="event-slug" name="slug" {...controlProps} />
-              )}
-            </AdminEventField>
-            <AdminEventField
               htmlFor="event-category"
               hint={
                 hasCategories ? undefined : props.t('new_category_empty_hint')
@@ -225,6 +216,45 @@ export function AdminEventCreateFormView(props: AdminEventCreateFormViewProps) {
               />
             )}
           </AdminEventField>
+        </AdminEventFormSection>
+
+        <AdminEventFormSection
+          id="new-event-dates"
+          subtitle={props.t('dates_subtitle')}
+          title={props.t('section_dates')}
+        >
+          <div className="grid gap-4 md:grid-cols-2">
+            <AdminEventField
+              htmlFor="new-date-start"
+              hint={props.t('field_datetime_et_hint')}
+              label={props.t('field_date_start')}
+            >
+              {(controlProps) => (
+                <Input
+                  id="new-date-start"
+                  name="startDateTime"
+                  required
+                  type="datetime-local"
+                  {...controlProps}
+                />
+              )}
+            </AdminEventField>
+            <AdminEventField
+              htmlFor="new-date-end"
+              hint={props.t('field_datetime_et_hint')}
+              label={props.t('field_date_end')}
+            >
+              {(controlProps) => (
+                <Input
+                  id="new-date-end"
+                  name="endDateTime"
+                  required
+                  type="datetime-local"
+                  {...controlProps}
+                />
+              )}
+            </AdminEventField>
+          </div>
         </AdminEventFormSection>
 
         <AdminEventFormSection

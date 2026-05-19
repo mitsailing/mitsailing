@@ -27,6 +27,7 @@ import {
   eventQuestionFormSchema,
   eventRegistrationStatusFormSchema,
   ASSIGNABLE_EVENT_ADMIN_ROLES,
+  generateEventAdminSlug,
   isEventAdminInvalidFeeAmountIssue,
   rawEventAdminIdsFromFormData,
   rawEventBasicsFromFormData,
@@ -201,6 +202,53 @@ function revalidateEventAdminMutation(
   updateTag(sitemapCatalogCacheTag);
 }
 
+async function eventSlugDates(eventId: string) {
+  const dates = await prisma.eventDate.findMany({
+    where: { eventId },
+    orderBy: { startDateTime: 'asc' },
+    select: { startDateTime: true },
+  });
+  return dates;
+}
+
+async function currentEventName(eventId: string): Promise<string | null> {
+  const event = await prisma.event.findUnique({
+    where: { id: eventId },
+    select: { name: true },
+  });
+  return event?.name ?? null;
+}
+
+async function generatedEventSlug(options: {
+  eventId: string;
+  name: string;
+}): Promise<string> {
+  return generateEventAdminSlug({
+    dates: await eventSlugDates(options.eventId),
+    name: options.name,
+  });
+}
+
+async function updateGeneratedEventSlug(options: {
+  eventId: string;
+  locale: string;
+  oldSlug: string;
+}): Promise<string> {
+  const name = await currentEventName(options.eventId);
+  if (!name) {
+    redirect(editUrlWithError(options.locale, options.oldSlug, 'not_found'));
+  }
+  const newSlug = await generatedEventSlug({
+    eventId: options.eventId,
+    name,
+  });
+  await prisma.event.update({
+    where: { id: options.eventId },
+    data: { slug: newSlug },
+  });
+  return newSlug;
+}
+
 export async function createAdminEventAction(
   locale: string,
   formData: FormData
@@ -211,7 +259,11 @@ export async function createAdminEventAction(
     rawEventBasicsFromFormData(formData),
     zodParse
   );
-  if (!parsed.success) {
+  const parsedDate = eventDateFormSchema.safeParse(
+    rawEventDateFromFormData(formData),
+    zodParse
+  );
+  if (!parsed.success || !parsedDate.success) {
     redirect(
       `${getI18nPath(adminEventsNewPath(), locale)}?error=${encodeURIComponent(
         'validation_failed'
@@ -219,13 +271,18 @@ export async function createAdminEventAction(
     );
   }
   const { data } = parsed;
+  const eventId = randomUUID();
+  const slug = generateEventAdminSlug({
+    dates: [parsedDate.data.startDateTime],
+    name: data.name,
+  });
   try {
     await prisma.event.create({
       data: {
-        id: randomUUID(),
+        id: eventId,
         name: data.name,
         shortName: data.shortName,
-        slug: data.slug,
+        slug,
         eventCategoryId: data.eventCategoryId,
         description: data.description,
         isSpecial: data.isSpecial,
@@ -254,6 +311,13 @@ export async function createAdminEventAction(
         resultsVisible: data.resultsVisible,
         resultsContent: data.resultsContent,
         isPublished: data.isPublished,
+        dates: {
+          create: {
+            id: randomUUID(),
+            startDateTime: parsedDate.data.startDateTime,
+            endDateTime: parsedDate.data.endDateTime,
+          },
+        },
         admins: {
           create: {
             id: randomUUID(),
@@ -263,15 +327,15 @@ export async function createAdminEventAction(
       },
     });
   } catch (error) {
-    logAdminEventMutationFailure({ action: 'create', error, slug: data.slug });
+    logAdminEventMutationFailure({ action: 'create', error, slug });
     redirect(
       `${getI18nPath(adminEventsNewPath(), locale)}?error=${encodeURIComponent(
         mutationCodeFromPrisma(error)
       )}`
     );
   }
-  revalidateEventAdminMutation(locale, [data.slug]);
-  redirect(getI18nPath(adminEventEditPath(data.slug), locale));
+  revalidateEventAdminMutation(locale, [slug]);
+  redirect(getI18nPath(adminEventEditPath(slug), locale));
 }
 
 export async function updateAdminEventBasicsAction(
@@ -289,13 +353,17 @@ export async function updateAdminEventBasicsAction(
     redirect(editUrlWithError(locale, currentSlug, 'validation_failed'));
   }
   const { data } = parsed;
+  const slug = await generatedEventSlug({
+    eventId: access.event.id,
+    name: data.name,
+  });
   try {
     await prisma.event.update({
       where: { id: access.event.id },
       data: {
         name: data.name,
         shortName: data.shortName,
-        slug: data.slug,
+        slug,
         eventCategoryId: data.eventCategoryId,
         description: data.description,
         isSpecial: data.isSpecial,
@@ -335,8 +403,8 @@ export async function updateAdminEventBasicsAction(
       editUrlWithError(locale, currentSlug, mutationCodeFromPrisma(error))
     );
   }
-  revalidateEventAdminMutation(locale, [currentSlug, data.slug]);
-  redirect(getI18nPath(adminEventEditPath(data.slug), locale));
+  revalidateEventAdminMutation(locale, [currentSlug, slug]);
+  redirect(getI18nPath(adminEventEditPath(slug), locale));
 }
 
 export async function deleteAdminEventAction(
@@ -393,8 +461,19 @@ export async function addAdminEventDateAction(
     logAdminEventMutationFailure({ action: 'add-date', error, slug });
     redirect(editUrlWithError(locale, slug, mutationCodeFromPrisma(error)));
   }
-  revalidateEventAdminMutation(locale, [slug]);
-  redirect(getI18nPath(adminEventEditPath(slug), locale));
+  let newSlug = slug;
+  try {
+    newSlug = await updateGeneratedEventSlug({
+      eventId: verifiedEventId,
+      locale,
+      oldSlug: slug,
+    });
+  } catch (error) {
+    logAdminEventMutationFailure({ action: 'add-date-slug', error, slug });
+    redirect(editUrlWithError(locale, slug, mutationCodeFromPrisma(error)));
+  }
+  revalidateEventAdminMutation(locale, [slug, newSlug]);
+  redirect(getI18nPath(adminEventEditPath(newSlug), locale));
 }
 
 export async function updateAdminEventDateAction(
@@ -429,8 +508,19 @@ export async function updateAdminEventDateAction(
   if (updatedCount === 0) {
     redirect(editUrlWithError(locale, slug, 'not_found'));
   }
-  revalidateEventAdminMutation(locale, [slug]);
-  redirect(getI18nPath(adminEventEditPath(slug), locale));
+  let newSlug = slug;
+  try {
+    newSlug = await updateGeneratedEventSlug({
+      eventId: access.event.id,
+      locale,
+      oldSlug: slug,
+    });
+  } catch (error) {
+    logAdminEventMutationFailure({ action: 'update-date-slug', error, slug });
+    redirect(editUrlWithError(locale, slug, mutationCodeFromPrisma(error)));
+  }
+  revalidateEventAdminMutation(locale, [slug, newSlug]);
+  redirect(getI18nPath(adminEventEditPath(newSlug), locale));
 }
 
 export async function deleteAdminEventDateAction(
@@ -439,6 +529,12 @@ export async function deleteAdminEventDateAction(
   dateId: string
 ): Promise<void> {
   const access = await requireEditableAdminEvent(locale, slug);
+  const dateCount = await prisma.eventDate.count({
+    where: { eventId: access.event.id },
+  });
+  if (dateCount <= 1) {
+    redirect(editUrlWithError(locale, slug, 'validation_failed'));
+  }
   let deletedCount = 0;
   try {
     const result = await prisma.eventDate.deleteMany({
@@ -452,8 +548,19 @@ export async function deleteAdminEventDateAction(
   if (deletedCount === 0) {
     redirect(editUrlWithError(locale, slug, 'not_found'));
   }
-  revalidateEventAdminMutation(locale, [slug]);
-  redirect(getI18nPath(adminEventEditPath(slug), locale));
+  let newSlug = slug;
+  try {
+    newSlug = await updateGeneratedEventSlug({
+      eventId: access.event.id,
+      locale,
+      oldSlug: slug,
+    });
+  } catch (error) {
+    logAdminEventMutationFailure({ action: 'delete-date-slug', error, slug });
+    redirect(editUrlWithError(locale, slug, mutationCodeFromPrisma(error)));
+  }
+  revalidateEventAdminMutation(locale, [slug, newSlug]);
+  redirect(getI18nPath(adminEventEditPath(newSlug), locale));
 }
 
 export async function updateAdminEventAdminsAction(

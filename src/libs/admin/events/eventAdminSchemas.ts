@@ -48,6 +48,67 @@ export function slugifyEventAdmin(value: string): string {
     .replaceAll(/^-|-$/g, '');
 }
 
+type EventAdminSlugDate = Date | { startDateTime: Date };
+
+function eventAdminSlugStartDate(date: EventAdminSlugDate): Date {
+  return date instanceof Date ? date : date.startDateTime;
+}
+
+function easternDateParts(date: Date): {
+  day: string;
+  month: string;
+  value: string;
+  year: string;
+} {
+  const value = formatNyDateTimeLocalInput(date).slice(0, 10);
+  const [year = '', month = '', day = ''] = value.split('-');
+  return { day, month, value, year };
+}
+
+function eventAdminDatePrefix(dates: readonly EventAdminSlugDate[]): string {
+  const dateParts = [
+    ...new Map(
+      dates
+        .map((date) => easternDateParts(eventAdminSlugStartDate(date)))
+        .toSorted((left, right) => left.value.localeCompare(right.value))
+        .map((date) => [date.value, date])
+    ).values(),
+  ];
+  const [firstDate] = dateParts;
+  if (!firstDate) {
+    return '';
+  }
+  if (dateParts.length === 1) {
+    return firstDate.value;
+  }
+  if (
+    dateParts.every(
+      (date) => date.year === firstDate.year && date.month === firstDate.month
+    )
+  ) {
+    return [
+      firstDate.value,
+      ...dateParts.slice(1).map((date) => date.day),
+    ].join('-');
+  }
+  if (dateParts.every((date) => date.year === firstDate.year)) {
+    return [
+      firstDate.value,
+      ...dateParts.slice(1).map((date) => `${date.month}-${date.day}`),
+    ].join('-');
+  }
+  return dateParts.map((date) => date.value).join('-');
+}
+
+export function generateEventAdminSlug(options: {
+  dates: readonly EventAdminSlugDate[];
+  name: string;
+}): string {
+  const nameSlug = slugifyEventAdmin(options.name);
+  const datePrefix = eventAdminDatePrefix(options.dates);
+  return [datePrefix, nameSlug].filter(Boolean).join('-');
+}
+
 export function splitEventAdminOptionLines(input: string): string[] {
   return input
     .split(/\r?\n/)
@@ -178,7 +239,6 @@ export const eventAdminBasicsFormSchema = z
   .object({
     name: z.string().trim().min(1),
     shortName: z.string().trim(),
-    slug: z.string().trim(),
     eventCategoryId: z.string().trim().min(1),
     description: z.string().trim(),
     isSpecial: z.boolean(),
@@ -208,7 +268,7 @@ export const eventAdminBasicsFormSchema = z
     isPublished: z.boolean(),
   })
   .transform((value) => {
-    const slug = slugifyEventAdmin(value.slug || value.name);
+    const slug = generateEventAdminSlug({ dates: [], name: value.name });
     return {
       ...value,
       shortName: value.shortName || value.name,
@@ -275,7 +335,10 @@ export const eventDateFormSchema = z
     endDateTime: requiredDateTimeLocalSchema,
   })
   .refine(
-    (value) => value.endDateTime.getTime() > value.startDateTime.getTime(),
+    (value) =>
+      value.startDateTime instanceof Date &&
+      value.endDateTime instanceof Date &&
+      value.endDateTime.getTime() > value.startDateTime.getTime(),
     { path: ['endDateTime'] }
   );
 
@@ -401,7 +464,6 @@ export function rawEventBasicsFromFormData(formData: FormData): unknown {
   return {
     name: formString(formData, 'name'),
     shortName: formString(formData, 'shortName'),
-    slug: formString(formData, 'slug'),
     eventCategoryId: formString(formData, 'eventCategoryId'),
     description: formString(formData, 'description'),
     isSpecial: formCheckbox(formData, 'isSpecial'),

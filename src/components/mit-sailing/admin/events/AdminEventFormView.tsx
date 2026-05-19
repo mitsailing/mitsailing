@@ -220,21 +220,6 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
             )}
           </AdminEventField>
           <AdminEventField
-            htmlFor="event-slug"
-            hint={props.t('field_slug_hint', { slug: props.event.slug })}
-            label={props.t('field_slug')}
-          >
-            {(controlProps) => (
-              <Input
-                defaultValue={props.event.slug}
-                id="event-slug"
-                name="slug"
-                required
-                {...controlProps}
-              />
-            )}
-          </AdminEventField>
-          <AdminEventField
             htmlFor="event-category"
             label={props.t('field_category')}
           >

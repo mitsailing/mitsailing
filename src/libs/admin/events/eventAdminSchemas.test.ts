@@ -8,6 +8,7 @@ import {
   eventDateFormSchema,
   eventFeeFormSchema,
   eventQuestionFormSchema,
+  generateEventAdminSlug,
   parseEasternDateTimeLocal,
   rawEventFeeFromFormData,
   slugifyEventAdmin,
@@ -342,6 +343,34 @@ describe('eventAdminSchemas', () => {
 
   it('slugifies punctuation', () => {
     expect(slugifyEventAdmin('Intro Sail! 2026')).toBe('intro-sail-2026');
+  });
+
+  it('generates event slugs from one eastern event day and name', () => {
+    expect(
+      generateEventAdminSlug({
+        dates: [new Date('2026-08-10T13:00:00Z')],
+        name: 'Intro Sail!',
+      })
+    ).toBe('2026-08-10-intro-sail');
+  });
+
+  it('generates compact event slugs for multiple same-month eastern event days', () => {
+    expect(
+      generateEventAdminSlug({
+        dates: [
+          new Date('2026-08-10T13:00:00Z'),
+          new Date('2026-08-11T13:00:00Z'),
+          new Date('2026-08-12T13:00:00Z'),
+        ],
+        name: 'Junior Clinic',
+      })
+    ).toBe('2026-08-10-11-12-junior-clinic');
+  });
+
+  it('generates event slugs from name only without event dates', () => {
+    expect(generateEventAdminSlug({ dates: [], name: 'Open House' })).toBe(
+      'open-house'
+    );
   });
 
   it('accepts select questions with options', () => {

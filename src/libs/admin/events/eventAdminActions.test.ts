@@ -13,11 +13,13 @@ const mocks = vi.hoisted(() => ({
   eventAdminDeleteMany: vi.fn(),
   eventCreate: vi.fn(),
   eventDelete: vi.fn(),
+  eventDateCount: vi.fn(),
   eventEntryFeeCreate: vi.fn(),
   eventEntryFeeDeleteMany: vi.fn(),
   eventEntryFeeUpdateMany: vi.fn(),
   eventDateCreate: vi.fn(),
   eventDateDeleteMany: vi.fn(),
+  eventDateFindMany: vi.fn(),
   eventDateUpdateMany: vi.fn(),
   eventFindUnique: vi.fn(),
   eventRegistrationCount: vi.fn(),
@@ -105,8 +107,10 @@ vi.mock('@/libs/DB', () => ({
       update: mocks.eventUpdate,
     },
     eventDate: {
+      count: mocks.eventDateCount,
       create: mocks.eventDateCreate,
       deleteMany: mocks.eventDateDeleteMany,
+      findMany: mocks.eventDateFindMany,
       updateMany: mocks.eventDateUpdateMany,
     },
     eventEntryFee: {
@@ -165,6 +169,8 @@ function validEventFormData(): FormData {
   formData.set('noticeOfRaceContent', '');
   formData.set('sailingInstructionsContent', '');
   formData.set('resultsContent', '');
+  formData.set('startDateTime', '2026-06-01T09:00');
+  formData.set('endDateTime', '2026-06-01T12:00');
   return formData;
 }
 
@@ -222,7 +228,9 @@ beforeEach(() => {
   mocks.eventCreate.mockResolvedValue({ id: 'event-1', slug: 'intro-sail' });
   mocks.eventUpdate.mockResolvedValue({ id: 'event-1' });
   mocks.eventDelete.mockResolvedValue({ id: 'event-1' });
+  mocks.eventDateCount.mockResolvedValue(2);
   mocks.eventDateCreate.mockResolvedValue({ id: 'date-1' });
+  mocks.eventDateFindMany.mockResolvedValue([]);
   mocks.eventDateUpdateMany.mockResolvedValue({ count: 1 });
   mocks.eventDateDeleteMany.mockResolvedValue({ count: 1 });
   mocks.eventRegistrationQuestionAggregate.mockResolvedValue({
@@ -234,7 +242,10 @@ beforeEach(() => {
   mocks.eventEntryFeeCreate.mockResolvedValue({ id: 'fee-1' });
   mocks.eventEntryFeeUpdateMany.mockResolvedValue({ count: 1 });
   mocks.eventEntryFeeDeleteMany.mockResolvedValue({ count: 1 });
-  mocks.eventFindUnique.mockResolvedValue({ maxParticipants: null });
+  mocks.eventFindUnique.mockResolvedValue({
+    maxParticipants: null,
+    name: 'Intro Sail',
+  });
   mocks.eventRegistrationFindFirst.mockResolvedValue({
     eventId: 'event-1',
     status: EventRegistrationStatus.pending,
@@ -288,12 +299,15 @@ describe('createAdminEventAction', () => {
     });
     const formData = validEventFormData();
     formData.set('requiresPhone', 'true');
-    mocks.eventCreate.mockResolvedValue({ id: 'event-1', slug: 'intro-sail' });
+    mocks.eventCreate.mockResolvedValue({
+      id: 'event-1',
+      slug: '2026-06-01-intro-sail',
+    });
     const { createAdminEventAction } =
       await import('@/libs/admin/events/eventAdminActions');
 
     await expect(createAdminEventAction('en', formData)).rejects.toThrow(
-      'NEXT_REDIRECT:/admin/events/intro-sail/edit'
+      'NEXT_REDIRECT:/admin/events/2026-06-01-intro-sail/edit'
     );
 
     expect(mocks.requirePermission).toHaveBeenCalledWith(
@@ -309,7 +323,15 @@ describe('createAdminEventAction', () => {
               id: expect.any(String),
             }),
           },
+          dates: {
+            create: expect.objectContaining({
+              endDateTime: new Date('2026-06-01T16:00:00.000Z'),
+              id: expect.any(String),
+              startDateTime: new Date('2026-06-01T13:00:00.000Z'),
+            }),
+          },
           requiresPhone: true,
+          slug: '2026-06-01-intro-sail',
         }),
       })
     );
@@ -329,7 +351,7 @@ describe('createAdminEventAction', () => {
       await import('@/libs/admin/events/eventAdminActions');
 
     await expect(createAdminEventAction('en', formData)).rejects.toThrow(
-      'NEXT_REDIRECT:/admin/events/intro-sail/edit'
+      'NEXT_REDIRECT:/admin/events/2026-06-01-intro-sail/edit'
     );
 
     expect(mocks.eventCreate).toHaveBeenCalledWith(
@@ -337,7 +359,13 @@ describe('createAdminEventAction', () => {
         data: expect.objectContaining({
           allowRepeatTeamCaptain: true,
           boatsPerTeam: 2,
+          dates: {
+            create: expect.objectContaining({
+              startDateTime: new Date('2026-06-01T13:00:00.000Z'),
+            }),
+          },
           personsPerBoat: 1,
+          slug: '2026-06-01-intro-sail',
           usesTeamRegistration: true,
         }),
       })
@@ -347,6 +375,24 @@ describe('createAdminEventAction', () => {
   it('redirects new event validation failures without creating rows', async () => {
     const formData = validEventFormData();
     formData.set('name', '');
+    mocks.requirePermission.mockResolvedValue({
+      session: { impersonatedBy: null },
+      user: { id: 'creator-1' },
+    });
+    const { createAdminEventAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(createAdminEventAction('en', formData)).rejects.toThrow(
+      'NEXT_REDIRECT:/admin/events/new?error=validation_failed'
+    );
+
+    expect(mocks.eventCreate).not.toHaveBeenCalled();
+  });
+
+  it('requires an event date when creating an event', async () => {
+    const formData = validEventFormData();
+    formData.set('startDateTime', '');
+    formData.set('endDateTime', '');
     mocks.requirePermission.mockResolvedValue({
       session: { impersonatedBy: null },
       user: { id: 'creator-1' },
@@ -501,6 +547,33 @@ describe('updateAdminEventBasicsAction', () => {
     );
   });
 
+  it('ignores submitted slugs and updates slug from current dates and name', async () => {
+    const formData = validEventFormData();
+    formData.set('name', 'Summer Regatta');
+    formData.set('slug', 'attacker-controlled-slug');
+    mocks.eventDateFindMany.mockResolvedValue([
+      { startDateTime: new Date('2026-08-10T13:00:00Z') },
+      { startDateTime: new Date('2026-08-11T13:00:00Z') },
+    ]);
+    const { updateAdminEventBasicsAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventBasicsAction('en', 'intro-sail', formData)
+    ).rejects.toThrow(
+      'NEXT_REDIRECT:/admin/events/2026-08-10-11-summer-regatta/edit'
+    );
+
+    expect(mocks.eventUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          name: 'Summer Regatta',
+          slug: '2026-08-10-11-summer-regatta',
+        }),
+      })
+    );
+  });
+
   it('redirects when event access is denied', async () => {
     mocks.requireAdminEventAccess.mockResolvedValue(null);
     const { updateAdminEventBasicsAction } =
@@ -518,6 +591,9 @@ describe('updateAdminEventBasicsAction', () => {
 
 describe('admin event date actions', () => {
   it('creates dates only for the event id verified by slug access', async () => {
+    mocks.eventDateFindMany.mockResolvedValue([
+      { startDateTime: new Date('2026-06-01T13:00:00Z') },
+    ]);
     const { addAdminEventDateAction } =
       await import('@/libs/admin/events/eventAdminActions');
 
@@ -528,7 +604,7 @@ describe('admin event date actions', () => {
         'event-1',
         validEventDateFormData()
       )
-    ).rejects.toThrow('NEXT_REDIRECT:/admin/events/intro-sail/edit');
+    ).rejects.toThrow('NEXT_REDIRECT:/admin/events/2026-06-01-intro-sail/edit');
 
     expect(mocks.eventDateCreate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -578,6 +654,32 @@ describe('admin event date actions', () => {
     );
   });
 
+  it('regenerates and redirects to a new slug after a date update changes the first event day', async () => {
+    mocks.requireAdminEventAccess.mockResolvedValue({
+      ...access(),
+      event: { id: 'event-1', name: 'Intro Sail', slug: 'intro-sail' },
+    });
+    mocks.eventDateFindMany.mockResolvedValue([
+      { startDateTime: new Date('2026-08-10T13:00:00Z') },
+    ]);
+    const { updateAdminEventDateAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventDateAction(
+        'en',
+        'intro-sail',
+        'date-1',
+        validEventDateFormData()
+      )
+    ).rejects.toThrow('NEXT_REDIRECT:/admin/events/2026-08-10-intro-sail/edit');
+
+    expect(mocks.eventUpdate).toHaveBeenCalledWith({
+      where: { id: 'event-1' },
+      data: { slug: '2026-08-10-intro-sail' },
+    });
+  });
+
   it('deletes dates through the protected event id', async () => {
     const { deleteAdminEventDateAction } =
       await import('@/libs/admin/events/eventAdminActions');
@@ -589,6 +691,20 @@ describe('admin event date actions', () => {
     expect(mocks.eventDateDeleteMany).toHaveBeenCalledWith({
       where: { id: 'date-1', eventId: 'event-1' },
     });
+  });
+
+  it('keeps the last event date', async () => {
+    mocks.eventDateCount.mockResolvedValue(1);
+    const { deleteAdminEventDateAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      deleteAdminEventDateAction('en', 'intro-sail', 'date-1')
+    ).rejects.toThrow(
+      'NEXT_REDIRECT:/admin/events/intro-sail/edit?error=validation_failed'
+    );
+
+    expect(mocks.eventDateDeleteMany).not.toHaveBeenCalled();
   });
 });
 
