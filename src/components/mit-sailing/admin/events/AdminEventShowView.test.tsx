@@ -154,6 +154,35 @@ describe('AdminEventShowView', () => {
     ).toBeVisible();
   });
 
+  it('renders remaining seats from confirmed registrations', () => {
+    render(
+      <AdminEventShowView
+        errorCode={null}
+        event={{
+          ...eventFixture('editable'),
+          maxParticipants: 10,
+          registrationCounts: {
+            approved: 8,
+            cancelled: 4,
+            pending: 7,
+          },
+        }}
+        filter="all"
+        locale="en"
+        t={t}
+      />
+    );
+
+    expect(screen.getByText('Signed up')).toBeVisible();
+    expect(screen.getByText('15')).toBeVisible();
+    expect(screen.getAllByText('Confirmed').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('8').length).toBeGreaterThan(0);
+    expect(screen.getByText('Awaiting confirmation')).toBeVisible();
+    expect(screen.getAllByText('7').length).toBeGreaterThan(0);
+    expect(screen.getByText('Remaining')).toBeVisible();
+    expect(screen.getByText('2')).toBeVisible();
+  });
+
   it('hides mutation actions for read-only access', () => {
     render(
       <AdminEventShowView

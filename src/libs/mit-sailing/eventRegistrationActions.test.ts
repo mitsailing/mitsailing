@@ -279,6 +279,86 @@ describe('createPublicEventRegistrationAction', () => {
 
     expect(mocks.eventFindFirst).not.toHaveBeenCalled();
   });
+
+  it('creates pending registration for approval-required event at accepted capacity', async () => {
+    mocks.eventFindUnique.mockResolvedValue({
+      id: 'event-1',
+      isPublished: true,
+      maxParticipants: 2,
+      registrationEnd: null,
+      registrationStart: null,
+      requiresApproval: true,
+    });
+    mocks.eventRegistrationFindFirst.mockResolvedValue(null);
+    mocks.eventRegistrationCreate.mockResolvedValue({
+      id: 'registration-2',
+    });
+    const { createPublicEventRegistrationAction } =
+      await import('@/libs/mit-sailing/eventRegistrationActions');
+
+    await expect(
+      createPublicEventRegistrationAction(
+        'en',
+        'intro-sail',
+        {
+          code: null,
+          fieldErrors: {},
+          status: 'idle',
+          values: {},
+        },
+        registrationFormData()
+      )
+    ).rejects.toThrow('NEXT_REDIRECT:/events/intro-sail');
+
+    expect(mocks.eventRegistrationCount).not.toHaveBeenCalled();
+    expect(mocks.eventRegistrationCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        eventId: 'event-1',
+        status: EventRegistrationStatus.pending,
+        userId: 'user-1',
+      }),
+    });
+  });
+
+  it('rejects auto-approved registration at accepted capacity', async () => {
+    mocks.eventFindUnique.mockResolvedValue({
+      id: 'event-1',
+      isPublished: true,
+      maxParticipants: 2,
+      registrationEnd: null,
+      registrationStart: null,
+      requiresApproval: false,
+    });
+    mocks.eventRegistrationCount.mockResolvedValue(2);
+    mocks.eventRegistrationFindFirst.mockResolvedValue(null);
+    const { createPublicEventRegistrationAction } =
+      await import('@/libs/mit-sailing/eventRegistrationActions');
+
+    await expect(
+      createPublicEventRegistrationAction(
+        'en',
+        'intro-sail',
+        {
+          code: null,
+          fieldErrors: {},
+          status: 'idle',
+          values: {},
+        },
+        registrationFormData()
+      )
+    ).rejects.toThrow(
+      'NEXT_REDIRECT:/events/intro-sail/register?registration=full'
+    );
+
+    expect(mocks.eventRegistrationCount).toHaveBeenCalledWith({
+      where: {
+        eventId: 'event-1',
+        status: EventRegistrationStatus.approved,
+      },
+    });
+    expect(mocks.eventRegistrationCreate).not.toHaveBeenCalled();
+    expect(mocks.eventRegistrationUpdate).not.toHaveBeenCalled();
+  });
 });
 
 describe('cancelPublicEventRegistrationAction', () => {
