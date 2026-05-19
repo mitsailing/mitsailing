@@ -26,6 +26,23 @@ const t = createTranslator({
 });
 
 describe('AdminEventsListView', () => {
+  it('preserves all-events scope when resetting filters', () => {
+    render(
+      <AdminEventsListView
+        categories={[{ id: 'category-1', name: 'Clinic' }]}
+        filterAction="/admin/events"
+        filters={{ categoryId: 'category-1', query: 'intro', scope: 'all' }}
+        rows={[]}
+        t={t}
+      />
+    );
+
+    expect(screen.getByRole('link', { name: 'Reset' })).toHaveAttribute(
+      'href',
+      '/admin/events?scope=all'
+    );
+  });
+
   it('uses the event name as the canonical show page link without row action buttons', () => {
     render(
       <AdminEventsListView

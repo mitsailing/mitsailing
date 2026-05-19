@@ -113,6 +113,13 @@ function registrationsSummary(
   });
 }
 
+function resetFiltersPath(scope: 'all' | 'my'): string {
+  if (scope === 'all') {
+    return `${adminEventsIndexPath()}?scope=all`;
+  }
+  return adminEventsIndexPath();
+}
+
 function EventStatusBadges(props: {
   event: AdminEventListRow;
   t: AdminEventsListTranslations;
@@ -315,7 +322,9 @@ export function AdminEventsListView(props: AdminEventsListViewProps) {
             {props.t('action_filter')}
           </Button>
           <Button asChild type="button" variant="ghost">
-            <Link href={adminEventsIndexPath()}>{props.t('action_reset')}</Link>
+            <Link href={resetFiltersPath(scope)}>
+              {props.t('action_reset')}
+            </Link>
           </Button>
         </div>
       </Form>

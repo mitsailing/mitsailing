@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { createTranslator } from 'next-intl';
 import type * as React from 'react';
 import { describe, expect, it, vi } from 'vitest';
@@ -144,6 +145,84 @@ function optionalSection(label: string): Element | null {
 }
 
 describe('AdminEventFormView', () => {
+  it('links back to the admin event show page', () => {
+    renderView('editable');
+
+    expect(
+      screen.getByRole('link', { name: 'Back to events' })
+    ).toHaveAttribute('href', '/admin/events/intro-sail');
+  });
+
+  it('hides external page URL for standard public pages', () => {
+    renderView('editable', {
+      detailPageKind: EventDetailPageKind.standard,
+      externalDetailUrl: 'https://example.com/details',
+    });
+
+    expect(screen.queryByLabelText('External page URL')).toBeNull();
+  });
+
+  it('hides external registration URLs for standard registration', () => {
+    renderView('editable', {
+      externalEntriesUrl: 'https://example.com/entries',
+      externalRegistrationUrl: 'https://example.com/register',
+      registrationMode: EventRegistrationMode.standard,
+    });
+
+    expect(screen.queryByLabelText('External registration URL')).toBeNull();
+    expect(screen.queryByLabelText('External entries URL')).toBeNull();
+    expect(screen.getByLabelText('Registration opens')).toBeVisible();
+    expect(screen.getByLabelText('Registration closes')).toBeVisible();
+  });
+
+  it('shows only external registration URLs for custom registration', () => {
+    renderView('editable', {
+      registrationMode: EventRegistrationMode.external,
+    });
+
+    expect(screen.getByLabelText('External registration URL')).toBeVisible();
+    expect(screen.getByLabelText('External entries URL')).toBeVisible();
+    expect(screen.queryByLabelText('Registration opens')).toBeNull();
+    expect(screen.queryByLabelText('Registration closes')).toBeNull();
+    expect(screen.queryByLabelText('Maximum participants')).toBeNull();
+    expect(screen.queryByLabelText('Manual confirmation required')).toBeNull();
+  });
+
+  it('updates conditional URL fields when admin changes page and registration modes', async () => {
+    const user = userEvent.setup();
+    renderView('editable');
+
+    expect(screen.queryByLabelText('External page URL')).toBeNull();
+    await user.click(
+      screen.getByRole('radio', { name: /External or custom URL/i })
+    );
+    expect(screen.getByLabelText('External page URL')).toBeVisible();
+
+    await user.click(screen.getByText('Registration'));
+    expect(screen.queryByLabelText('External registration URL')).toBeNull();
+    await user.selectOptions(
+      screen.getByLabelText('Registration mode'),
+      EventRegistrationMode.external
+    );
+    expect(screen.getByLabelText('External registration URL')).toBeVisible();
+    expect(screen.getByLabelText('External entries URL')).toBeVisible();
+    expect(screen.queryByLabelText('Registration opens')).toBeNull();
+  });
+
+  it('uses public content disclosure state without a separate visibility checkbox', () => {
+    const view = renderView('editable', {
+      faqContent: 'Answers for sailors',
+      faqVisible: true,
+    });
+    const faqVisibleInput = view.container.querySelector(
+      'input[name="faqVisible"]'
+    );
+
+    expect(screen.queryByLabelText('Show on public event page')).toBeNull();
+    expect(faqVisibleInput).toHaveAttribute('value', 'true');
+    expect(view.container.querySelector('#event-faq-content')).toBeVisible();
+  });
+
   it('hides internal notes and mutation controls for read-only access', () => {
     renderView('readOnly', {
       entryFees: [

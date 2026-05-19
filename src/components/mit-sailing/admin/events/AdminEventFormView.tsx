@@ -10,6 +10,11 @@ import type { getTranslations } from 'next-intl/server';
 import type * as React from 'react';
 import { AdminErrorAlert } from '@/components/mit-sailing/admin/AdminErrorAlert';
 import {
+  AdminEventDetailPageKindFields,
+  AdminEventDisclosureSection,
+  AdminEventRegistrationModeFields,
+} from '@/components/mit-sailing/admin/events/AdminEventEditorControls';
+import {
   adminEventFormErrorMessage,
   AdminEventBackLink,
   AdminEventCheckbox,
@@ -41,7 +46,7 @@ import {
   deleteAdminEventFeeAction,
   deleteAdminEventQuestionAction,
 } from '@/libs/admin/events/eventAdminActions';
-import { adminEventsIndexPath } from '@/libs/admin/events/eventAdminPaths';
+import { adminEventShowPath } from '@/libs/admin/events/eventAdminPaths';
 import type {
   AdminEventCategoryOption,
   AdminEventDateDto,
@@ -133,15 +138,12 @@ function OptionalEditorSection(props: {
   summary: string;
 }) {
   return (
-    <details
-      className="rounded-lg border border-border bg-card px-4 py-3"
-      open={props.defaultOpen}
+    <AdminEventDisclosureSection
+      defaultOpen={props.defaultOpen}
+      summary={props.summary}
     >
-      <summary className="cursor-pointer text-sm font-semibold text-foreground">
-        {props.summary}
-      </summary>
-      <div className="mt-4 flex flex-col gap-4">{props.children}</div>
-    </details>
+      {props.children}
+    </AdminEventDisclosureSection>
   );
 }
 
@@ -156,15 +158,11 @@ function PublicContentEditorSection(props: {
   visibleName: string;
 }) {
   return (
-    <OptionalEditorSection
+    <AdminEventDisclosureSection
       defaultOpen={props.defaultOpen || Boolean(props.visible)}
+      enableName={props.visibleName}
       summary={props.summary}
     >
-      <AdminEventCheckbox
-        defaultChecked={props.visible}
-        label={props.t('field_content_visible')}
-        name={props.visibleName}
-      />
       <AdminEventField
         htmlFor={props.textareaId}
         label={props.t('field_content_body')}
@@ -176,7 +174,7 @@ function PublicContentEditorSection(props: {
           name={props.contentName}
         />
       </AdminEventField>
-    </OptionalEditorSection>
+    </AdminEventDisclosureSection>
   );
 }
 
@@ -293,75 +291,30 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
         subtitle={props.t('public_page_subtitle')}
         title={props.t('section_public_page')}
       >
-        <fieldset className="flex flex-col gap-3">
-          <legend className="sr-only">
-            {props.t('field_detail_page_kind')}
-          </legend>
-          <label
-            aria-labelledby="event-detail-page-kind-standard-label"
-            className="flex cursor-pointer items-start gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm"
-            htmlFor="event-detail-page-kind-standard"
-          >
-            <input
-              className="mt-0.5"
-              defaultChecked={detailPageKind === EventDetailPageKind.standard}
-              id="event-detail-page-kind-standard"
-              name="detailPageKind"
-              type="radio"
-              value={EventDetailPageKind.standard}
-            />
-            <span className="flex flex-col gap-0.5">
-              <span
-                className="font-medium"
-                id="event-detail-page-kind-standard-label"
-              >
-                {props.t('detail_standard_label')}
-              </span>
-              <span className="text-xs text-mit-readable-ink">
-                {props.t('detail_standard_hint', {
-                  slug: props.event.slug,
-                })}
-              </span>
-            </span>
-          </label>
-          <label
-            aria-labelledby="event-detail-page-kind-external-label"
-            className="flex cursor-pointer items-start gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm"
-            htmlFor="event-detail-page-kind-external"
-          >
-            <input
-              className="mt-0.5"
-              defaultChecked={detailPageKind === EventDetailPageKind.external}
-              id="event-detail-page-kind-external"
-              name="detailPageKind"
-              type="radio"
-              value={EventDetailPageKind.external}
-            />
-            <span className="flex flex-col gap-0.5">
-              <span
-                className="font-medium"
-                id="event-detail-page-kind-external-label"
-              >
-                {props.t('detail_external_label')}
-              </span>
-              <span className="text-xs text-mit-readable-ink">
-                {props.t('detail_external_hint')}
-              </span>
-            </span>
-          </label>
-        </fieldset>
-        <AdminEventField
-          htmlFor="event-external-url"
-          label={props.t('field_external_detail_url')}
-        >
-          <Input
-            defaultValue={props.event.externalDetailUrl ?? ''}
-            id="event-external-url"
-            name="externalDetailUrl"
-            placeholder={props.t('field_external_detail_url_placeholder')}
-            type="url"
-          />
-        </AdminEventField>
+        <AdminEventDetailPageKindFields
+          defaultValue={detailPageKind}
+          externalField={
+            <AdminEventField
+              htmlFor="event-external-url"
+              label={props.t('field_external_detail_url')}
+            >
+              <Input
+                defaultValue={props.event.externalDetailUrl ?? ''}
+                id="event-external-url"
+                name="externalDetailUrl"
+                placeholder={props.t('field_external_detail_url_placeholder')}
+                type="url"
+              />
+            </AdminEventField>
+          }
+          externalHint={props.t('detail_external_hint')}
+          externalLabel={props.t('detail_external_label')}
+          fieldLabel={props.t('field_detail_page_kind')}
+          standardHint={props.t('detail_standard_hint', {
+            slug: props.event.slug,
+          })}
+          standardLabel={props.t('detail_standard_label')}
+        />
       </AdminEventFormSection>
 
       <PublicContentEditorSection
@@ -419,104 +372,98 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
         summary={props.t('optional_registration')}
       >
         <div className="grid gap-4 md:grid-cols-2">
-          <AdminEventField
-            htmlFor="event-registration-mode"
-            label={props.t('field_registration_mode')}
-          >
-            <select
-              className={adminNativeSelectClassName}
-              defaultValue={registrationMode}
-              id="event-registration-mode"
-              name="registrationMode"
-            >
-              <option value={EventRegistrationMode.standard}>
-                {props.t('registration_mode_standard')}
-              </option>
-              <option value={EventRegistrationMode.external}>
-                {props.t('registration_mode_external')}
-              </option>
-              <option value={EventRegistrationMode.none}>
-                {props.t('registration_mode_none')}
-              </option>
-            </select>
-          </AdminEventField>
-          <AdminEventField
-            htmlFor="event-max-participants"
-            hint={props.t('field_max_participants_hint')}
-            label={props.t('field_max_participants')}
-          >
-            {(controlProps) => (
-              <Input
-                defaultValue={props.event.maxParticipants ?? ''}
-                id="event-max-participants"
-                min={1}
-                name="maxParticipants"
-                step={1}
-                type="number"
-                {...controlProps}
-              />
-            )}
-          </AdminEventField>
-          <AdminEventField
-            htmlFor="event-external-registration-url"
-            label={props.t('field_external_registration_url')}
-          >
-            <Input
-              defaultValue={props.event.externalRegistrationUrl ?? ''}
-              id="event-external-registration-url"
-              name="externalRegistrationUrl"
-              type="url"
-            />
-          </AdminEventField>
-          <AdminEventField
-            htmlFor="event-external-entries-url"
-            label={props.t('field_external_entries_url')}
-          >
-            <Input
-              defaultValue={props.event.externalEntriesUrl ?? ''}
-              id="event-external-entries-url"
-              name="externalEntriesUrl"
-              type="url"
-            />
-          </AdminEventField>
-          <AdminEventField
-            htmlFor="event-registration-start"
-            hint={props.t('field_datetime_et_hint')}
-            label={props.t('field_registration_start')}
-          >
-            {(controlProps) => (
-              <Input
-                defaultValue={formatEasternDateTimeLocal(
-                  props.event.registrationStart
-                )}
-                id="event-registration-start"
-                name="registrationStart"
-                type="datetime-local"
-                {...controlProps}
-              />
-            )}
-          </AdminEventField>
-          <AdminEventField
-            htmlFor="event-registration-end"
-            hint={props.t('field_datetime_et_hint')}
-            label={props.t('field_registration_end')}
-          >
-            {(controlProps) => (
-              <Input
-                defaultValue={formatEasternDateTimeLocal(
-                  props.event.registrationEnd
-                )}
-                id="event-registration-end"
-                name="registrationEnd"
-                type="datetime-local"
-                {...controlProps}
-              />
-            )}
-          </AdminEventField>
-          <AdminEventCheckbox
-            defaultChecked={props.event.requiresApproval}
-            label={props.t('field_requires_approval')}
-            name="requiresApproval"
+          <AdminEventRegistrationModeFields
+            defaultValue={registrationMode}
+            externalFields={
+              <>
+                <AdminEventField
+                  htmlFor="event-external-registration-url"
+                  label={props.t('field_external_registration_url')}
+                >
+                  <Input
+                    defaultValue={props.event.externalRegistrationUrl ?? ''}
+                    id="event-external-registration-url"
+                    name="externalRegistrationUrl"
+                    type="url"
+                  />
+                </AdminEventField>
+                <AdminEventField
+                  htmlFor="event-external-entries-url"
+                  label={props.t('field_external_entries_url')}
+                >
+                  <Input
+                    defaultValue={props.event.externalEntriesUrl ?? ''}
+                    id="event-external-entries-url"
+                    name="externalEntriesUrl"
+                    type="url"
+                  />
+                </AdminEventField>
+              </>
+            }
+            externalLabel={props.t('registration_mode_external')}
+            fieldLabel={props.t('field_registration_mode')}
+            noneLabel={props.t('registration_mode_none')}
+            standardFields={
+              <>
+                <AdminEventField
+                  htmlFor="event-max-participants"
+                  hint={props.t('field_max_participants_hint')}
+                  label={props.t('field_max_participants')}
+                >
+                  {(controlProps) => (
+                    <Input
+                      defaultValue={props.event.maxParticipants ?? ''}
+                      id="event-max-participants"
+                      min={1}
+                      name="maxParticipants"
+                      step={1}
+                      type="number"
+                      {...controlProps}
+                    />
+                  )}
+                </AdminEventField>
+                <AdminEventField
+                  htmlFor="event-registration-start"
+                  hint={props.t('field_datetime_et_hint')}
+                  label={props.t('field_registration_start')}
+                >
+                  {(controlProps) => (
+                    <Input
+                      defaultValue={formatEasternDateTimeLocal(
+                        props.event.registrationStart
+                      )}
+                      id="event-registration-start"
+                      name="registrationStart"
+                      type="datetime-local"
+                      {...controlProps}
+                    />
+                  )}
+                </AdminEventField>
+                <AdminEventField
+                  htmlFor="event-registration-end"
+                  hint={props.t('field_datetime_et_hint')}
+                  label={props.t('field_registration_end')}
+                >
+                  {(controlProps) => (
+                    <Input
+                      defaultValue={formatEasternDateTimeLocal(
+                        props.event.registrationEnd
+                      )}
+                      id="event-registration-end"
+                      name="registrationEnd"
+                      type="datetime-local"
+                      {...controlProps}
+                    />
+                  )}
+                </AdminEventField>
+                <AdminEventCheckbox
+                  defaultChecked={props.event.requiresApproval}
+                  label={props.t('field_requires_approval')}
+                  name="requiresApproval"
+                />
+              </>
+            }
+            standardLabel={props.t('registration_mode_standard')}
           />
         </div>
       </OptionalEditorSection>
@@ -1408,7 +1355,7 @@ function StripePlaceholder(props: { t: AdminEventFormTranslations }) {
 export function AdminEventFormView(props: AdminEventFormViewProps) {
   return (
     <div className="flex w-full max-w-4xl flex-col gap-6">
-      <AdminEventBackLink href={adminEventsIndexPath()}>
+      <AdminEventBackLink href={adminEventShowPath(props.event.slug)}>
         <ArrowLeft aria-hidden className="size-4" />
         {props.t('back_to_events')}
       </AdminEventBackLink>
