@@ -17,7 +17,8 @@ import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 import {
   adminEventDeletePath,
   adminEventEditPath,
-  adminEventRegistrationsPath,
+  adminEventRegistrationsReviewPath,
+  adminEventShowPath,
   adminEventsIndexPath,
   adminEventsNewPath,
 } from '@/libs/admin/events/eventAdminPaths';
@@ -150,17 +151,21 @@ function EventActions(props: {
   return (
     <div className="flex flex-wrap gap-2">
       <Button asChild size="sm" variant="outline">
-        <Link href={adminEventEditPath(props.event.slug)}>
-          {canEdit ? (
-            <Pencil aria-hidden className="size-4" />
-          ) : (
-            <Eye aria-hidden className="size-4" />
-          )}
-          {canEdit ? props.t('action_edit') : props.t('action_view_admin')}
+        <Link href={adminEventShowPath(props.event.slug)}>
+          <Eye aria-hidden className="size-4" />
+          {props.t('action_view_admin')}
         </Link>
       </Button>
+      {canEdit ? (
+        <Button asChild size="sm" variant="outline">
+          <Link href={adminEventEditPath(props.event.slug)}>
+            <Pencil aria-hidden className="size-4" />
+            {props.t('action_edit')}
+          </Link>
+        </Button>
+      ) : null}
       <Button asChild size="sm" variant="outline">
-        <Link href={adminEventRegistrationsPath(props.event.slug)}>
+        <Link href={adminEventRegistrationsReviewPath(props.event.slug)}>
           <ClipboardList aria-hidden className="size-4" />
           {props.t('action_registrations')}
         </Link>
@@ -192,7 +197,7 @@ function EventRow(props: {
         <div className="flex min-w-0 flex-col gap-2">
           <Link
             className="font-semibold text-mit-red no-underline hover:underline dark:text-mit-red-ink"
-            href={adminEventEditPath(props.event.slug)}
+            href={adminEventShowPath(props.event.slug)}
           >
             {props.event.name}
           </Link>
@@ -235,7 +240,7 @@ function MobileEventCard(props: {
           </span>
           <Link
             className="font-semibold text-mit-red no-underline hover:underline dark:text-mit-red-ink"
-            href={adminEventEditPath(props.event.slug)}
+            href={adminEventShowPath(props.event.slug)}
           >
             {props.event.name}
           </Link>

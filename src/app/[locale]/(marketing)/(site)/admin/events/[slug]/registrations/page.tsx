@@ -1,22 +1,35 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { notFound } from 'next/navigation';
-import { AdminEventRegistrationsView } from '@/components/mit-sailing/admin/events/AdminEventRegistrationsView';
-import { requireAdminEventAccess } from '@/libs/admin/events/eventAdminAuthorization';
-import { getAdminEventRegistrationsBySlug } from '@/libs/admin/events/eventAdminQueries';
+import { redirect } from 'next/navigation';
+import { adminEventShowPath } from '@/libs/admin/events/eventAdminPaths';
+import { getI18nPath } from '@/utils/Helpers';
 
 type PageProps = {
   params: Promise<{ locale: string; slug: string }>;
   searchParams: Promise<{ error?: string; status?: string }>;
 };
 
-function registrationFilterFromParam(
-  status: string | undefined
-): 'all' | 'pending' | 'approved' | 'cancelled' {
-  if (status === 'pending' || status === 'approved' || status === 'cancelled') {
-    return status;
+function canonicalRegistrationsReviewPath(props: {
+  errorCode?: string;
+  locale: string;
+  slug: string;
+  status?: string;
+}): string {
+  const query = new URLSearchParams();
+  if (props.errorCode) {
+    query.set('error', props.errorCode);
   }
-  return 'all';
+  if (
+    props.status === 'pending' ||
+    props.status === 'approved' ||
+    props.status === 'cancelled'
+  ) {
+    query.set('status', props.status);
+  }
+  const queryString = query.toString();
+  return `${getI18nPath(adminEventShowPath(props.slug), props.locale)}${
+    queryString ? `?${queryString}` : ''
+  }#registrations`;
 }
 
 export async function generateMetadata(props: PageProps): Promise<Metadata> {
@@ -32,29 +45,12 @@ export default async function AdminEventRegistrationsPage(props: PageProps) {
   const { locale, slug } = await props.params;
   const { error: errorCode, status } = await props.searchParams;
   setRequestLocale(locale);
-  const access = await requireAdminEventAccess({
-    locale,
-    minimumAccessMode: 'readOnly',
-    slug,
-  });
-  if (!access) {
-    notFound();
-  }
-  const [event, t] = await Promise.all([
-    getAdminEventRegistrationsBySlug({ db: access.db, slug }),
-    getTranslations({ locale, namespace: 'AdminEvents' }),
-  ]);
-  if (!event) {
-    notFound();
-  }
-  return (
-    <AdminEventRegistrationsView
-      accessMode={access.accessMode}
-      errorCode={errorCode ?? null}
-      event={event}
-      filter={registrationFilterFromParam(status)}
-      locale={locale}
-      t={t}
-    />
+  redirect(
+    canonicalRegistrationsReviewPath({
+      errorCode,
+      locale,
+      slug,
+      status,
+    })
   );
 }

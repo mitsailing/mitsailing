@@ -33,7 +33,7 @@ import { EventRegistrationStatus } from '@/generated/prisma/enums';
 import type { AdminStatusSemanticTone } from '@/lib/mit-sailing/tokens';
 import { updateAdminEventRegistrationStatusAction } from '@/libs/admin/events/eventAdminActions';
 import {
-  adminEventRegistrationsPath,
+  adminEventShowPath,
   adminEventsIndexPath,
 } from '@/libs/admin/events/eventAdminPaths';
 import type {
@@ -49,7 +49,7 @@ type AdminEventRegistrationsTranslations = Awaited<
   ReturnType<typeof getTranslations<'AdminEvents'>>
 >;
 
-type RegistrationFilter = 'all' | 'pending' | 'approved' | 'cancelled';
+export type RegistrationFilter = 'all' | 'pending' | 'approved' | 'cancelled';
 
 type RegistrationQuestionColumn = {
   id: string;
@@ -59,10 +59,13 @@ type RegistrationQuestionColumn = {
 
 type AdminEventRegistrationsViewProps = {
   accessMode: AdminEventAccessMode;
+  chrome?: 'page' | 'embedded';
   errorCode: string | null;
   event: AdminEventRegistrationsDto;
   filter: RegistrationFilter;
+  id?: string;
   locale: string;
+  showReadOnlyNotice?: boolean;
   t: AdminEventRegistrationsTranslations;
 };
 
@@ -185,8 +188,8 @@ function RegistrationFilters(props: {
         const active = filter === props.filter;
         const href =
           filter === 'all'
-            ? adminEventRegistrationsPath(props.event.slug)
-            : `${adminEventRegistrationsPath(props.event.slug)}?status=${filter}`;
+            ? `${adminEventShowPath(props.event.slug)}#registrations`
+            : `${adminEventShowPath(props.event.slug)}?status=${filter}#registrations`;
         return (
           <Button
             asChild
@@ -609,24 +612,30 @@ export function AdminEventRegistrationsView(
     (registration) => registrationVisible(registration, props.filter)
   );
   const questionColumns = registrationQuestionColumns(props.event);
+  const chrome = props.chrome ?? 'page';
+  const showReadOnlyNotice = props.showReadOnlyNotice ?? true;
   return (
-    <div className="flex w-full flex-col gap-6">
-      <AdminEventBackLink href={adminEventsIndexPath()}>
-        <ArrowLeft aria-hidden className="size-4" />
-        {props.t('back_to_events')}
-      </AdminEventBackLink>
+    <div className="flex w-full flex-col gap-6" id={props.id}>
+      {chrome === 'page' ? (
+        <>
+          <AdminEventBackLink href={adminEventsIndexPath()}>
+            <ArrowLeft aria-hidden className="size-4" />
+            {props.t('back_to_events')}
+          </AdminEventBackLink>
 
-      <header className="flex flex-col gap-2">
-        <p className="text-xs font-semibold tracking-widest text-mit-red uppercase dark:text-mit-red-ink">
-          {props.t('registrations_eyebrow')}
-        </p>
-        <h1 className="text-3xl font-semibold tracking-tight text-foreground">
-          {props.event.name}
-        </h1>
-      </header>
+          <header className="flex flex-col gap-2">
+            <p className="text-xs font-semibold tracking-widest text-mit-red uppercase dark:text-mit-red-ink">
+              {props.t('registrations_eyebrow')}
+            </p>
+            <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+              {props.event.name}
+            </h1>
+          </header>
+        </>
+      ) : null}
 
       <AdminEventRegistrationErrorAlert code={props.errorCode} t={props.t} />
-      {props.accessMode === 'readOnly' ? (
+      {props.accessMode === 'readOnly' && showReadOnlyNotice ? (
         <AdminEventReadOnlyNotice t={props.t} />
       ) : null}
 

@@ -130,6 +130,37 @@ export type AdminEventRegistrationsDto = {
   registrationCounts: AdminEventRegistrationCounts;
 };
 
+export type AdminEventPublicContentSectionDto = {
+  body: string;
+  id: 'description';
+  titleKey: 'content_description_title';
+};
+
+export type AdminEventShowDto = Pick<
+  AdminEventEditorDto,
+  | 'admins'
+  | 'dates'
+  | 'description'
+  | 'detailPageKind'
+  | 'externalDetailUrl'
+  | 'id'
+  | 'isPublished'
+  | 'isSpecial'
+  | 'maxParticipants'
+  | 'name'
+  | 'registrationEnd'
+  | 'registrationStart'
+  | 'requiresApproval'
+  | 'shortName'
+  | 'slug'
+> &
+  Pick<AdminEventRegistrationsDto, 'registrationCounts' | 'registrations'> & {
+    accessMode: AdminEventAccessMode;
+    category: AdminEventCategoryOption;
+    questions: AdminEventQuestionDto[];
+    publicContentSections: AdminEventPublicContentSectionDto[];
+  };
+
 export type AdminEventListFilters = {
   authContext: AppAuthContext;
   query?: string;
@@ -238,6 +269,52 @@ function compareRegistrations(
     return byStatus;
   }
   return b.createdAt.getTime() - a.createdAt.getTime();
+}
+
+function publicContentSectionsFromDescription(
+  description: string
+): AdminEventPublicContentSectionDto[] {
+  const body = description.trim();
+  if (body.length === 0) {
+    return [];
+  }
+  return [{ body, id: 'description', titleKey: 'content_description_title' }];
+}
+
+function registrationDtosFromRows(
+  rows: readonly {
+    id: string;
+    status: EventRegistrationStatusValue;
+    createdAt: Date;
+    swimAgreementAcceptedAt: Date;
+    user: AdminEventUserOption;
+    registrationAnswers: readonly {
+      id: string;
+      value: string;
+      question: {
+        id: string;
+        questionText: string;
+        displayOrder: number;
+      };
+    }[];
+  }[]
+): AdminEventRegistrationDto[] {
+  return rows
+    .map((registration) => ({
+      id: registration.id,
+      status: registration.status,
+      createdAt: registration.createdAt,
+      swimAgreementAcceptedAt: registration.swimAgreementAcceptedAt,
+      user: registration.user,
+      answers: registration.registrationAnswers
+        .map((answer) => ({
+          id: answer.id,
+          value: answer.value,
+          question: answer.question,
+        }))
+        .toSorted((a, b) => a.question.displayOrder - b.question.displayOrder),
+    }))
+    .toSorted(compareRegistrations);
 }
 
 export function adminEventListScopeFromValue(
@@ -597,23 +674,7 @@ export async function getAdminEventRegistrationsBySlug(options: {
   }
 
   const registrationCounts = await registrationCountsForEventId(event.id);
-
-  const registrations = event.registrations
-    .map((registration) => ({
-      id: registration.id,
-      status: registration.status,
-      createdAt: registration.createdAt,
-      swimAgreementAcceptedAt: registration.swimAgreementAcceptedAt,
-      user: registration.user,
-      answers: registration.registrationAnswers
-        .map((answer) => ({
-          id: answer.id,
-          value: answer.value,
-          question: answer.question,
-        }))
-        .toSorted((a, b) => a.question.displayOrder - b.question.displayOrder),
-    }))
-    .toSorted(compareRegistrations);
+  const registrations = registrationDtosFromRows(event.registrations);
 
   return {
     id: event.id,
@@ -622,5 +683,82 @@ export async function getAdminEventRegistrationsBySlug(options: {
     questions: event.registrationQuestions.map(questionFromDb),
     registrations,
     registrationCounts,
+  };
+}
+
+export async function getAdminEventShowBySlug(options: {
+  accessMode: AdminEventAccessMode;
+  db: AdminEventQueryDb;
+  slug: string;
+}): Promise<AdminEventShowDto | null> {
+  const accessibleEvent = await options.db.event.findFirst({
+    where: { slug: options.slug },
+    select: { id: true },
+  });
+  if (!accessibleEvent) {
+    return null;
+  }
+  const [event, registrationReview] = await Promise.all([
+    prisma.event.findUnique({
+      where: { id: accessibleEvent.id },
+      select: {
+        id: true,
+        name: true,
+        shortName: true,
+        slug: true,
+        description: true,
+        isPublished: true,
+        isSpecial: true,
+        maxParticipants: true,
+        requiresApproval: true,
+        registrationStart: true,
+        registrationEnd: true,
+        detailPageKind: true,
+        externalDetailUrl: true,
+        category: { select: { id: true, name: true } },
+        dates: {
+          orderBy: { startDateTime: 'asc' },
+          select: { id: true, startDateTime: true, endDateTime: true },
+        },
+        admins: {
+          orderBy: [{ admin: { name: 'asc' } }, { admin: { email: 'asc' } }],
+          select: {
+            id: true,
+            adminUserId: true,
+            admin: { select: { id: true, name: true, email: true } },
+          },
+        },
+      },
+    }),
+    getAdminEventRegistrationsBySlug({ db: options.db, slug: options.slug }),
+  ]);
+  if (!event || !registrationReview) {
+    return null;
+  }
+
+  return {
+    accessMode: options.accessMode,
+    admins: event.admins,
+    category: event.category,
+    dates: event.dates,
+    description: event.description,
+    detailPageKind: event.detailPageKind,
+    externalDetailUrl: event.externalDetailUrl,
+    id: event.id,
+    isPublished: event.isPublished,
+    isSpecial: event.isSpecial,
+    maxParticipants: event.maxParticipants,
+    name: event.name,
+    publicContentSections: publicContentSectionsFromDescription(
+      event.description
+    ),
+    questions: registrationReview.questions,
+    registrationCounts: registrationReview.registrationCounts,
+    registrationEnd: event.registrationEnd,
+    registrationStart: event.registrationStart,
+    registrations: registrationReview.registrations,
+    requiresApproval: event.requiresApproval,
+    shortName: event.shortName,
+    slug: event.slug,
   };
 }

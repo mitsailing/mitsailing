@@ -530,4 +530,114 @@ describe('event admin queries', () => {
       pending: 2,
     });
   });
+
+  it('returns show data with summary content and registration review', async () => {
+    const startDateTime = new Date('2026-06-01T13:00:00Z');
+    const endDateTime = new Date('2026-06-01T15:00:00Z');
+    const registrationStart = new Date('2026-05-01T04:00:00Z');
+    const registrationEnd = new Date('2026-05-31T04:00:00Z');
+    mocks.protectedEventFindFirst.mockResolvedValue({ id: 'event-1' });
+    mocks.eventFindUnique.mockResolvedValue({
+      admins: [
+        {
+          admin: {
+            email: 'instructor@example.com',
+            id: 'instructor-1',
+            name: 'Sailing Instructor',
+          },
+          adminUserId: 'instructor-1',
+          id: 'event-admin-1',
+        },
+      ],
+      category: { id: 'category-1', name: 'Clinic' },
+      dates: [{ id: 'date-1', startDateTime, endDateTime }],
+      description: 'Learn how to sail.',
+      detailPageKind: 'standard',
+      externalDetailUrl: null,
+      id: 'event-1',
+      isPublished: true,
+      isSpecial: false,
+      maxParticipants: 12,
+      name: 'Intro Sail',
+      registrationEnd,
+      registrationQuestions: [
+        {
+          answerType: 'text',
+          displayOrder: 1,
+          id: 'question-1',
+          options: null,
+          questionText: 'Dietary restrictions?',
+          required: false,
+        },
+      ],
+      registrationStart,
+      registrations: [
+        {
+          createdAt: startDateTime,
+          id: 'registration-1',
+          registrationAnswers: [
+            {
+              id: 'answer-1',
+              question: {
+                displayOrder: 1,
+                id: 'question-1',
+                questionText: 'Dietary restrictions?',
+              },
+              value: 'Vegetarian',
+            },
+          ],
+          status: EventRegistrationStatus.pending,
+          swimAgreementAcceptedAt: startDateTime,
+          user: {
+            email: 'sailor@example.com',
+            id: 'user-1',
+            name: 'Sailor One',
+          },
+        },
+      ],
+      requiresApproval: true,
+      shortName: 'Intro',
+      slug: 'intro-sail',
+    });
+    mocks.eventRegistrationGroupBy.mockResolvedValue([
+      { status: EventRegistrationStatus.approved, _count: { id: 3 } },
+      { status: EventRegistrationStatus.pending, _count: { id: 2 } },
+    ]);
+    const { getAdminEventShowBySlug } =
+      await import('@/libs/admin/events/eventAdminQueries');
+
+    const result = await getAdminEventShowBySlug({
+      accessMode: 'editable',
+      db,
+      slug: 'intro-sail',
+    });
+
+    expect(result).toMatchObject({
+      accessMode: 'editable',
+      description: 'Learn how to sail.',
+      detailPageKind: 'standard',
+      id: 'event-1',
+      maxParticipants: 12,
+      name: 'Intro Sail',
+      publicContentSections: [
+        {
+          body: 'Learn how to sail.',
+          id: 'description',
+          titleKey: 'content_description_title',
+        },
+      ],
+      registrationCounts: {
+        approved: 3,
+        cancelled: 0,
+        pending: 2,
+      },
+      slug: 'intro-sail',
+    });
+    expect(
+      result?.registrations.map((registration) => registration.id)
+    ).toEqual(['registration-1']);
+    expect(result?.questions.map((question) => question.id)).toEqual([
+      'question-1',
+    ]);
+  });
 });
