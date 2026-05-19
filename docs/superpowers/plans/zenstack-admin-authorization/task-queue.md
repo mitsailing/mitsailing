@@ -200,6 +200,49 @@ queue.
 - [ ] 06 - Restricted generated CRUD and EventCategory admin UX
   - Packet: `tasks/06-generated-crud-event-category.md`
   - Reasoning: high
+  - Status: completed; review blockers fixed.
+  - Changed files: `src/app/api/model/[...path]/route.ts`,
+    `src/app/api/model/[...path]/route.test.ts`,
+    `src/components/mit-sailing/admin/catalog/AdminCatalogForm.tsx`,
+    `src/components/mit-sailing/admin/catalog/AdminCatalogForm.test.tsx`,
+    `src/libs/admin/catalog/catalogActions.ts`,
+    `src/libs/admin/catalog/catalogServerRegistry.ts`,
+    deleted `src/libs/admin/catalog/eventCategoriesHandlers.ts`,
+    `src/libs/admin/catalog/eventCategoriesSchemas.ts`,
+    `src/libs/admin/catalog/types.ts`,
+    `src/libs/admin/catalog/zenstackCatalogHandlers.ts`,
+    `src/libs/admin/catalog/zenstackCatalogHandlers.test.ts`,
+    `src/libs/zenstack/eventPolicies.test.ts`, `src/libs/zenstack/zod.ts`,
+    `src/libs/zenstack/zod.test.ts`, `zenstack/schema.zmodel`,
+    `zenstack/schema.ts`.
+  - Commands run: DB-backed EventCategory policy test failed red for missing
+    EventCategory policies, then passed with 12 tests. Targeted Task 06 suite
+    passed with 57 tests:
+    `src/libs/admin/catalog/catalogActions.test.ts`,
+    `src/libs/admin/catalog/catalogDefinitions.test.ts`,
+    `src/libs/admin/catalog/catalogFieldErrors.test.ts`,
+    `src/libs/admin/catalog/booleanFormDataParsers.test.ts`,
+    `src/components/mit-sailing/admin/catalog/AdminCatalogForm.test.tsx`,
+    `src/app/api/model/[...path]/route.test.ts`,
+    `src/libs/admin/catalog/zenstackCatalogHandlers.test.ts`,
+    `src/libs/zenstack/zod.test.ts`. Also ran `npx zen check --schema
+    zenstack/schema.zmodel`, `npx zen generate --schema
+    zenstack/schema.zmodel`, `npx prisma generate`, `npm run lint`,
+    `npm run check:types`, `npm run check:deps`, and `git diff --check`.
+    Pre-commit reran `ultracite` and `knip`. A separate formatter-only commit
+    `077d2c01` normalized
+    `.agents/skills/zenstack-pr-hardening/agents/openai.yaml` quotes because it
+    blocked the required full `npm run lint` gate.
+  - Review: fixed generated CRUD review findings by restoring transactional
+    EventCategory reorder, mapping expected ZenStack delete failures to
+    `foreign_key`/`not_found`, and preventing invalid React Hook Form
+    submissions before the server action.
+  - Risks: EventCategory catalog list/get/reorder use a server admin auth
+    context after page/action permission gates; generated CRUD remains
+    allowlisted to `EventCategory` only and requires
+    `EVENT_CATEGORIES_MANAGE`.
+  - Commit: `793697d6`.
+  - Next: Task 07 - Event workflow data access.
 - [ ] 07 - Event workflow data access
   - Packet: `tasks/07-event-workflow.md`
   - Reasoning: high
