@@ -315,9 +315,57 @@ describe('createAdminEventAction', () => {
     );
   });
 
+  it('persists team registration settings when creating an event', async () => {
+    mocks.requirePermission.mockResolvedValue({
+      session: { impersonatedBy: null },
+      user: { id: 'creator-1' },
+    });
+    const formData = validEventFormData();
+    formData.set('usesTeamRegistration', 'true');
+    formData.set('boatsPerTeam', '2');
+    formData.set('personsPerBoat', '1');
+    formData.set('allowRepeatTeamCaptain', 'true');
+    const { createAdminEventAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(createAdminEventAction('en', formData)).rejects.toThrow(
+      'NEXT_REDIRECT:/admin/events/intro-sail/edit'
+    );
+
+    expect(mocks.eventCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          allowRepeatTeamCaptain: true,
+          boatsPerTeam: 2,
+          personsPerBoat: 1,
+          usesTeamRegistration: true,
+        }),
+      })
+    );
+  });
+
   it('redirects new event validation failures without creating rows', async () => {
     const formData = validEventFormData();
     formData.set('name', '');
+    mocks.requirePermission.mockResolvedValue({
+      session: { impersonatedBy: null },
+      user: { id: 'creator-1' },
+    });
+    const { createAdminEventAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(createAdminEventAction('en', formData)).rejects.toThrow(
+      'NEXT_REDIRECT:/admin/events/new?error=validation_failed'
+    );
+
+    expect(mocks.eventCreate).not.toHaveBeenCalled();
+  });
+
+  it('redirects invalid team settings without creating rows', async () => {
+    const formData = validEventFormData();
+    formData.set('usesTeamRegistration', 'true');
+    formData.set('boatsPerTeam', '1');
+    formData.set('personsPerBoat', '1');
     mocks.requirePermission.mockResolvedValue({
       session: { impersonatedBy: null },
       user: { id: 'creator-1' },
@@ -391,6 +439,31 @@ describe('updateAdminEventBasicsAction', () => {
       expect.objectContaining({
         data: expect.objectContaining({
           requiresPhone: true,
+        }),
+      })
+    );
+  });
+
+  it('persists team registration settings from event basics', async () => {
+    const formData = validEventFormData();
+    formData.set('usesTeamRegistration', 'true');
+    formData.set('boatsPerTeam', '1');
+    formData.set('personsPerBoat', '2');
+    formData.set('allowRepeatTeamCaptain', 'true');
+    const { updateAdminEventBasicsAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventBasicsAction('en', 'intro-sail', formData)
+    ).rejects.toThrow('NEXT_REDIRECT:/admin/events/intro-sail/edit');
+
+    expect(mocks.eventUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          allowRepeatTeamCaptain: true,
+          boatsPerTeam: 1,
+          personsPerBoat: 2,
+          usesTeamRegistration: true,
         }),
       })
     );

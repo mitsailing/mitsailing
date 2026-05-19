@@ -90,6 +90,10 @@ export type AdminEventEditorDto = {
   maxParticipants: number | null;
   requiresApproval: boolean;
   requiresPhone: boolean;
+  usesTeamRegistration?: boolean;
+  boatsPerTeam?: number;
+  personsPerBoat?: number;
+  allowRepeatTeamCaptain?: boolean;
   registrationStart: Date | null;
   registrationEnd: Date | null;
   createdAt: Date;
@@ -180,6 +184,10 @@ export type AdminEventShowDto = Pick<
   | 'registrationStart'
   | 'requiresApproval'
   | 'requiresPhone'
+  | 'usesTeamRegistration'
+  | 'boatsPerTeam'
+  | 'personsPerBoat'
+  | 'allowRepeatTeamCaptain'
   | 'shortName'
   | 'slug'
 > &
@@ -559,6 +567,10 @@ export async function getAdminEventEditorDataBySlug(options: {
             maxParticipants: true,
             requiresApproval: true,
             requiresPhone: true,
+            usesTeamRegistration: true,
+            boatsPerTeam: true,
+            personsPerBoat: true,
+            allowRepeatTeamCaptain: true,
             registrationStart: true,
             registrationEnd: true,
             createdAt: true,
@@ -788,6 +800,10 @@ export async function getAdminEventShowBySlug(options: {
         maxParticipants: true,
         requiresApproval: true,
         requiresPhone: true,
+        usesTeamRegistration: true,
+        boatsPerTeam: true,
+        personsPerBoat: true,
+        allowRepeatTeamCaptain: true,
         registrationStart: true,
         registrationEnd: true,
         detailPageKind: true,
@@ -852,6 +868,10 @@ export async function getAdminEventShowBySlug(options: {
     registrations: registrationReview.registrations,
     requiresApproval: event.requiresApproval,
     requiresPhone: event.requiresPhone,
+    usesTeamRegistration: event.usesTeamRegistration,
+    boatsPerTeam: event.boatsPerTeam,
+    personsPerBoat: event.personsPerBoat,
+    allowRepeatTeamCaptain: event.allowRepeatTeamCaptain,
     shortName: event.shortName,
     slug: event.slug,
   };

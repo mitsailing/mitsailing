@@ -122,6 +122,17 @@ const optionalPositiveIntSchema = optionalTrimmedNumericStringSchema.pipe(
   z.int().positive().nullable()
 );
 
+const requiredPositiveIntStringSchema = z
+  .union([
+    z
+      .string()
+      .trim()
+      .transform((value) => (value === '' ? 1 : Number(value))),
+    z.number(),
+  ])
+  .pipe(z.int().positive())
+  .default(1);
+
 /** Blank → `null`; explicit `0` allowed (e.g. display order). */
 const optionalNonNegativeIntSchema = optionalTrimmedNumericStringSchema.pipe(
   z.int().nonnegative().nullable()
@@ -173,6 +184,10 @@ export const eventAdminBasicsFormSchema = z
     isSpecial: z.boolean(),
     requiresApproval: z.boolean(),
     requiresPhone: z.boolean(),
+    usesTeamRegistration: z.boolean().default(false),
+    boatsPerTeam: requiredPositiveIntStringSchema,
+    personsPerBoat: requiredPositiveIntStringSchema,
+    allowRepeatTeamCaptain: z.boolean().default(false),
     maxParticipants: optionalPositiveIntSchema,
     registrationStart: optionalDateTimeLocalSchema,
     registrationEnd: optionalDateTimeLocalSchema,
@@ -210,6 +225,11 @@ export const eventAdminBasicsFormSchema = z
         value.registrationMode === EventRegistrationMode.external
           ? value.externalEntriesUrl
           : '',
+      boatsPerTeam: value.usesTeamRegistration ? value.boatsPerTeam : 1,
+      personsPerBoat: value.usesTeamRegistration ? value.personsPerBoat : 1,
+      allowRepeatTeamCaptain: value.usesTeamRegistration
+        ? value.allowRepeatTeamCaptain
+        : false,
     };
   })
   .refine((value) => value.slug.length > 0, { path: ['slug'] })
@@ -240,6 +260,13 @@ export const eventAdminBasicsFormSchema = z
       !value.registrationEnd ||
       value.registrationEnd.getTime() > value.registrationStart.getTime(),
     { path: ['registrationEnd'] }
+  )
+  .refine(
+    (value) =>
+      !value.usesTeamRegistration ||
+      value.boatsPerTeam > 1 ||
+      value.personsPerBoat > 1,
+    { path: ['usesTeamRegistration'] }
   );
 
 export const eventDateFormSchema = z
@@ -380,6 +407,10 @@ export function rawEventBasicsFromFormData(formData: FormData): unknown {
     isSpecial: formCheckbox(formData, 'isSpecial'),
     requiresApproval: formCheckbox(formData, 'requiresApproval'),
     requiresPhone: formCheckbox(formData, 'requiresPhone'),
+    usesTeamRegistration: formCheckbox(formData, 'usesTeamRegistration'),
+    boatsPerTeam: formString(formData, 'boatsPerTeam'),
+    personsPerBoat: formString(formData, 'personsPerBoat'),
+    allowRepeatTeamCaptain: formCheckbox(formData, 'allowRepeatTeamCaptain'),
     maxParticipants: formString(formData, 'maxParticipants'),
     registrationStart: formString(formData, 'registrationStart'),
     registrationEnd: formString(formData, 'registrationEnd'),

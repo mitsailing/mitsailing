@@ -2010,6 +2010,30 @@ export class SchemaType implements SchemaDef {
                     attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal(false) }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("requires_phone") }] }] as readonly AttributeApplication[],
                     default: false as FieldDefault
                 },
+                usesTeamRegistration: {
+                    name: "usesTeamRegistration",
+                    type: "Boolean",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal(false) }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("uses_team_registration") }] }] as readonly AttributeApplication[],
+                    default: false as FieldDefault
+                },
+                boatsPerTeam: {
+                    name: "boatsPerTeam",
+                    type: "Int",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal(1) }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("boats_per_team") }] }] as readonly AttributeApplication[],
+                    default: 1 as FieldDefault
+                },
+                personsPerBoat: {
+                    name: "personsPerBoat",
+                    type: "Int",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal(1) }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("persons_per_boat") }] }] as readonly AttributeApplication[],
+                    default: 1 as FieldDefault
+                },
+                allowRepeatTeamCaptain: {
+                    name: "allowRepeatTeamCaptain",
+                    type: "Boolean",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal(false) }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("allow_repeat_team_captain") }] }] as readonly AttributeApplication[],
+                    default: false as FieldDefault
+                },
                 registrationStart: {
                     name: "registrationStart",
                     type: "DateTime",

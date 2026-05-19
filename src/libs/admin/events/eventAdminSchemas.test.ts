@@ -67,6 +67,48 @@ describe('eventAdminSchemas', () => {
     expect(parsed.requiresPhone).toBe(true);
   });
 
+  it('parses enabled team configuration from basics', () => {
+    const parsed = eventAdminBasicsFormSchema.parse({
+      ...validEventBasicsInput(),
+      allowRepeatTeamCaptain: true,
+      boatsPerTeam: '2',
+      personsPerBoat: '1',
+      usesTeamRegistration: true,
+    });
+
+    expect(parsed.usesTeamRegistration).toBe(true);
+    expect(parsed.boatsPerTeam).toBe(2);
+    expect(parsed.personsPerBoat).toBe(1);
+    expect(parsed.allowRepeatTeamCaptain).toBe(true);
+  });
+
+  it('normalizes disabled team configuration from basics', () => {
+    const parsed = eventAdminBasicsFormSchema.parse({
+      ...validEventBasicsInput(),
+      allowRepeatTeamCaptain: true,
+      boatsPerTeam: '4',
+      personsPerBoat: '3',
+      usesTeamRegistration: false,
+    });
+
+    expect(parsed.usesTeamRegistration).toBe(false);
+    expect(parsed.boatsPerTeam).toBe(1);
+    expect(parsed.personsPerBoat).toBe(1);
+    expect(parsed.allowRepeatTeamCaptain).toBe(false);
+  });
+
+  it('rejects enabled team configuration with one boat and one person', () => {
+    const parsed = eventAdminBasicsFormSchema.safeParse({
+      ...validEventBasicsInput(),
+      allowRepeatTeamCaptain: false,
+      boatsPerTeam: '1',
+      personsPerBoat: '1',
+      usesTeamRegistration: true,
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+
   it('sanitizes public content sections while keeping visibility separate', () => {
     const parsed = eventAdminBasicsFormSchema.parse({
       name: 'Spring Regatta',

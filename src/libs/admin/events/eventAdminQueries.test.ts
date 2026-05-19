@@ -350,6 +350,10 @@ describe('event admin queries', () => {
       registrationMode: 'external',
       externalRegistrationUrl: 'https://example.com/register',
       externalEntriesUrl: 'https://example.com/entries',
+      usesTeamRegistration: true,
+      boatsPerTeam: 2,
+      personsPerBoat: 1,
+      allowRepeatTeamCaptain: true,
       internalNotes: null,
       isPublished: true,
       dates: [],
@@ -400,14 +404,22 @@ describe('event admin queries', () => {
           externalRegistrationUrl: true,
           registrationMode: true,
           requiresPhone: true,
+          usesTeamRegistration: true,
+          boatsPerTeam: true,
+          personsPerBoat: true,
+          allowRepeatTeamCaptain: true,
         }),
       })
     );
     expect(result.event).toMatchObject({
+      allowRepeatTeamCaptain: true,
+      boatsPerTeam: 2,
       externalEntriesUrl: 'https://example.com/entries',
       externalRegistrationUrl: 'https://example.com/register',
+      personsPerBoat: 1,
       registrationMode: 'external',
       requiresPhone: true,
+      usesTeamRegistration: true,
     });
   });
 
@@ -583,6 +595,10 @@ describe('event admin queries', () => {
       registrationMode: 'external',
       externalRegistrationUrl: 'https://example.com/register',
       externalEntriesUrl: 'https://example.com/entries',
+      usesTeamRegistration: true,
+      boatsPerTeam: 1,
+      personsPerBoat: 2,
+      allowRepeatTeamCaptain: false,
       id: 'event-1',
       isPublished: true,
       isSpecial: false,
@@ -650,8 +666,10 @@ describe('event admin queries', () => {
       externalEntriesUrl: 'https://example.com/entries',
       externalRegistrationUrl: 'https://example.com/register',
       id: 'event-1',
+      boatsPerTeam: 1,
       maxParticipants: 12,
       name: 'Intro Sail',
+      personsPerBoat: 2,
       publicContentSections: [
         {
           body: 'Learn how to sail.',
@@ -661,6 +679,7 @@ describe('event admin queries', () => {
       ],
       registrationMode: 'external',
       requiresPhone: true,
+      usesTeamRegistration: true,
       registrationCounts: {
         approved: 3,
         cancelled: 0,
@@ -675,6 +694,10 @@ describe('event admin queries', () => {
           externalRegistrationUrl: true,
           registrationMode: true,
           requiresPhone: true,
+          usesTeamRegistration: true,
+          boatsPerTeam: true,
+          personsPerBoat: true,
+          allowRepeatTeamCaptain: true,
         }),
       })
     );
