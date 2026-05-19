@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventRegistrationStatus } from '@/generated/prisma/enums';
 import { Role } from '@/libs/auth/roles';
+import type * as EventQueries from '@/libs/mit-sailing/eventQueries';
 
 const mocks = vi.hoisted(() => ({
   eventFindFirst: vi.fn(),
@@ -34,7 +35,8 @@ vi.mock('@/libs/DB', () => ({
   },
 }));
 
-vi.mock('@/libs/mit-sailing/eventQueries', () => ({
+vi.mock('@/libs/mit-sailing/eventQueries', async (importOriginal) => ({
+  ...(await importOriginal<typeof EventQueries>()),
   questionOptionsFromJson: (value: unknown) =>
     Array.isArray(value)
       ? value.filter((option): option is string => typeof option === 'string')
@@ -638,6 +640,64 @@ describe('event admin queries', () => {
     ).toEqual(['registration-1']);
     expect(result?.questions.map((question) => question.id)).toEqual([
       'question-1',
+    ]);
+  });
+
+  it('returns visible non-empty public content sections in legacy order', async () => {
+    mocks.protectedEventFindFirst.mockResolvedValue({ id: 'event-1' });
+    mocks.eventFindUnique.mockResolvedValue({
+      admins: [],
+      category: { id: 'category-1', name: 'Clinic' },
+      dates: [],
+      description: '',
+      detailPageKind: 'standard',
+      externalDetailUrl: null,
+      faqContent: '<p>Questions</p>',
+      faqVisible: true,
+      id: 'event-1',
+      isPublished: true,
+      isSpecial: false,
+      maxParticipants: null,
+      name: 'Intro Sail',
+      noticeOfRaceContent: '<p>Notice</p>',
+      noticeOfRaceVisible: true,
+      registrationEnd: null,
+      registrationQuestions: [],
+      registrationStart: null,
+      registrations: [],
+      requiresApproval: false,
+      resultsContent: '<p>Scores</p>',
+      resultsVisible: true,
+      sailingInstructionsContent: '<p>Hidden draft</p>',
+      sailingInstructionsVisible: false,
+      shortName: 'Intro',
+      slug: 'intro-sail',
+    });
+    const { getAdminEventShowBySlug } =
+      await import('@/libs/admin/events/eventAdminQueries');
+
+    const result = await getAdminEventShowBySlug({
+      accessMode: 'editable',
+      db,
+      slug: 'intro-sail',
+    });
+
+    expect(result?.publicContentSections).toEqual([
+      {
+        body: '<p>Questions</p>',
+        id: 'faq',
+        titleKey: 'content_faq_title',
+      },
+      {
+        body: '<p>Notice</p>',
+        id: 'noticeOfRace',
+        titleKey: 'content_notice_of_race_title',
+      },
+      {
+        body: '<p>Scores</p>',
+        id: 'results',
+        titleKey: 'content_results_title',
+      },
     ]);
   });
 });

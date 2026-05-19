@@ -2039,6 +2039,54 @@ export class SchemaType implements SchemaDef {
                     optional: true,
                     attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("internal_notes") }] }, { name: "@db.Text" }] as readonly AttributeApplication[]
                 },
+                faqVisible: {
+                    name: "faqVisible",
+                    type: "Boolean",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal(false) }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("faq_visible") }] }] as readonly AttributeApplication[],
+                    default: false as FieldDefault
+                },
+                faqContent: {
+                    name: "faqContent",
+                    type: "String",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal("") }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("faq_content") }] }, { name: "@db.Text" }] as readonly AttributeApplication[],
+                    default: "" as FieldDefault
+                },
+                noticeOfRaceVisible: {
+                    name: "noticeOfRaceVisible",
+                    type: "Boolean",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal(false) }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("notice_of_race_visible") }] }] as readonly AttributeApplication[],
+                    default: false as FieldDefault
+                },
+                noticeOfRaceContent: {
+                    name: "noticeOfRaceContent",
+                    type: "String",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal("") }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("notice_of_race_content") }] }, { name: "@db.Text" }] as readonly AttributeApplication[],
+                    default: "" as FieldDefault
+                },
+                sailingInstructionsVisible: {
+                    name: "sailingInstructionsVisible",
+                    type: "Boolean",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal(false) }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("sailing_instructions_visible") }] }] as readonly AttributeApplication[],
+                    default: false as FieldDefault
+                },
+                sailingInstructionsContent: {
+                    name: "sailingInstructionsContent",
+                    type: "String",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal("") }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("sailing_instructions_content") }] }, { name: "@db.Text" }] as readonly AttributeApplication[],
+                    default: "" as FieldDefault
+                },
+                resultsVisible: {
+                    name: "resultsVisible",
+                    type: "Boolean",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal(false) }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("results_visible") }] }] as readonly AttributeApplication[],
+                    default: false as FieldDefault
+                },
+                resultsContent: {
+                    name: "resultsContent",
+                    type: "String",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal("") }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("results_content") }] }, { name: "@db.Text" }] as readonly AttributeApplication[],
+                    default: "" as FieldDefault
+                },
                 isPublished: {
                     name: "isPublished",
                     type: "Boolean",

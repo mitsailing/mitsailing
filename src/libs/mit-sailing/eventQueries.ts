@@ -7,6 +7,7 @@ import { resolveEventCategoryCalendarAccentClassName } from '@/lib/mit-sailing/e
 import { Role } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
 import { logger } from '@/libs/Logger';
+import { sanitizeCmsRichTextHtml } from '@/libs/mit-sailing/cmsRichText';
 import { eventCalendarMonthFromDate } from '@/libs/mit-sailing/eventCalendar';
 import type {
   EventCalendarCategory,
@@ -15,6 +16,16 @@ import type {
 } from '@/libs/mit-sailing/eventCalendar';
 import { safeErrorCode, safeErrorName } from '@/libs/safeUnknownError';
 import { getZenStack, zenstackForAuthContext } from '@/libs/zenstack/auth';
+
+export type EventPublicContentSectionDto = {
+  body: string;
+  id: 'faq' | 'noticeOfRace' | 'sailingInstructions' | 'results';
+  titleKey:
+    | 'content_faq_title'
+    | 'content_notice_of_race_title'
+    | 'content_sailing_instructions_title'
+    | 'content_results_title';
+};
 
 export type PublicEventDetail = {
   id: string;
@@ -58,6 +69,7 @@ export type PublicEventDetail = {
     amountCents: number;
     isDeposit: boolean;
   }[];
+  publicContentSections?: EventPublicContentSectionDto[];
   approvedRegistrationCount: number;
   pendingRegistrationCount: number;
 };
@@ -110,6 +122,57 @@ export function questionOptionsFromJson(
   return value.filter((option): option is string => typeof option === 'string');
 }
 
+export function publicContentSectionsFromEvent(event: {
+  faqVisible?: boolean;
+  faqContent?: string;
+  noticeOfRaceVisible?: boolean;
+  noticeOfRaceContent?: string;
+  sailingInstructionsVisible?: boolean;
+  sailingInstructionsContent?: string;
+  resultsVisible?: boolean;
+  resultsContent?: string;
+}): EventPublicContentSectionDto[] {
+  const sections = [
+    {
+      body: event.faqContent ?? '',
+      id: 'faq',
+      titleKey: 'content_faq_title',
+      visible: event.faqVisible ?? false,
+    },
+    {
+      body: event.noticeOfRaceContent ?? '',
+      id: 'noticeOfRace',
+      titleKey: 'content_notice_of_race_title',
+      visible: event.noticeOfRaceVisible ?? false,
+    },
+    {
+      body: event.sailingInstructionsContent ?? '',
+      id: 'sailingInstructions',
+      titleKey: 'content_sailing_instructions_title',
+      visible: event.sailingInstructionsVisible ?? false,
+    },
+    {
+      body: event.resultsContent ?? '',
+      id: 'results',
+      titleKey: 'content_results_title',
+      visible: event.resultsVisible ?? false,
+    },
+  ] satisfies readonly (EventPublicContentSectionDto & {
+    visible: boolean;
+  })[];
+
+  return sections.flatMap((section) => {
+    if (!section.visible) {
+      return [];
+    }
+    const body = sanitizeCmsRichTextHtml(section.body);
+    if (!body) {
+      return [];
+    }
+    return [{ body, id: section.id, titleKey: section.titleKey }];
+  });
+}
+
 async function publicEventIds(): Promise<string[]> {
   const rows = await getZenStack().event.findMany({
     select: { id: true },
@@ -142,6 +205,14 @@ export const getPublishedEventForPublicBySlug = cache(async (slug: string) => {
         registrationEnd: true,
         detailPageKind: true,
         externalDetailUrl: true,
+        faqVisible: true,
+        faqContent: true,
+        noticeOfRaceVisible: true,
+        noticeOfRaceContent: true,
+        sailingInstructionsVisible: true,
+        sailingInstructionsContent: true,
+        resultsVisible: true,
+        resultsContent: true,
         category: { select: { name: true } },
         dates: {
           orderBy: { startDateTime: 'asc' },
@@ -195,6 +266,7 @@ export const getPublishedEventForPublicBySlug = cache(async (slug: string) => {
 
     return {
       ...event,
+      publicContentSections: publicContentSectionsFromEvent(event),
       registrationQuestions: event.registrationQuestions.map((question) => ({
         ...question,
         options: questionOptionsFromJson(question.options),

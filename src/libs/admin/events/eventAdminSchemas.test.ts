@@ -37,6 +37,44 @@ describe('eventAdminSchemas', () => {
     expect(parsed.shortName).toBe('Spring Regatta: Day 1');
   });
 
+  it('sanitizes public content sections while keeping visibility separate', () => {
+    const parsed = eventAdminBasicsFormSchema.parse({
+      name: 'Spring Regatta',
+      shortName: '',
+      slug: '',
+      eventCategoryId: 'cat-racing',
+      description: '',
+      isSpecial: false,
+      requiresApproval: true,
+      maxParticipants: '',
+      registrationStart: '',
+      registrationEnd: '',
+      detailPageKind: EventDetailPageKind.standard,
+      externalDetailUrl: '',
+      internalNotes: '',
+      isPublished: true,
+      faqVisible: true,
+      faqContent: '  <h1>FAQ</h1><script>alert("x")</script>  ',
+      noticeOfRaceVisible: false,
+      noticeOfRaceContent: '  Draft notice text  ',
+      sailingInstructionsVisible: true,
+      sailingInstructionsContent: '<p>Read before launch.</p>',
+      resultsVisible: false,
+      resultsContent: '',
+    });
+
+    expect(parsed.faqVisible).toBe(true);
+    expect(parsed.faqContent).toBe('<h2>FAQ</h2>');
+    expect(parsed.noticeOfRaceVisible).toBe(false);
+    expect(parsed.noticeOfRaceContent).toBe('<p>Draft notice text</p>');
+    expect(parsed.sailingInstructionsVisible).toBe(true);
+    expect(parsed.sailingInstructionsContent).toBe(
+      '<p>Read before launch.</p>'
+    );
+    expect(parsed.resultsVisible).toBe(false);
+    expect(parsed.resultsContent).toBe('');
+  });
+
   it('rejects external detail page without URL', () => {
     const parsed = eventAdminBasicsFormSchema.safeParse({
       name: 'External event',

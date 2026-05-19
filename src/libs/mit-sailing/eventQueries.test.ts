@@ -226,6 +226,54 @@ describe('getPublishedEventForPublicBySlug', () => {
       where: { eventId: 'event-1', status: EventRegistrationStatus.pending },
     });
   });
+
+  it('returns visible non-empty public content sections in legacy order', async () => {
+    mocks.eventFindFirst.mockResolvedValue({
+      id: 'event-1',
+      name: 'Intro Sail',
+      shortName: 'Intro',
+      description: '',
+      slug: 'intro-sail',
+      isSpecial: false,
+      maxParticipants: 12,
+      requiresApproval: true,
+      registrationStart: null,
+      registrationEnd: null,
+      detailPageKind: 'standard',
+      externalDetailUrl: null,
+      faqContent: '<p>Questions</p>',
+      faqVisible: true,
+      noticeOfRaceContent: '<p>Notice</p>',
+      noticeOfRaceVisible: true,
+      sailingInstructionsContent: '<p>Hidden draft</p>',
+      sailingInstructionsVisible: false,
+      resultsContent: '   ',
+      resultsVisible: true,
+      category: { name: 'Classes' },
+      dates: [],
+      admins: [],
+      registrationQuestions: [],
+      entryFees: [],
+    });
+    mocks.eventRegistrationCount.mockResolvedValue(0);
+    const { getPublishedEventForPublicBySlug } =
+      await import('@/libs/mit-sailing/eventQueries');
+
+    const result = await getPublishedEventForPublicBySlug('intro-sail');
+
+    expect(result?.publicContentSections).toEqual([
+      {
+        body: '<p>Questions</p>',
+        id: 'faq',
+        titleKey: 'content_faq_title',
+      },
+      {
+        body: '<p>Notice</p>',
+        id: 'noticeOfRace',
+        titleKey: 'content_notice_of_race_title',
+      },
+    ]);
+  });
 });
 
 describe('getPublicEventRegistrationState', () => {

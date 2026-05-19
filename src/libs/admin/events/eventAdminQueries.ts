@@ -6,7 +6,11 @@ import { ASSIGNABLE_EVENT_ADMIN_ROLES } from '@/libs/admin/events/eventAdminSche
 import type { AdminEventAccessMode } from '@/libs/admin/events/zenstackEventAccess';
 import { eventAccessModeWithAuthContext } from '@/libs/admin/events/zenstackEventAccess';
 import { prisma } from '@/libs/DB';
-import { questionOptionsFromJson } from '@/libs/mit-sailing/eventQueries';
+import {
+  publicContentSectionsFromEvent,
+  questionOptionsFromJson,
+} from '@/libs/mit-sailing/eventQueries';
+import type { EventPublicContentSectionDto } from '@/libs/mit-sailing/eventQueries';
 import type { ZenStackDb } from '@/libs/zenstack/auth';
 import type { AppAuthContext } from '@/libs/zenstack/authContext';
 
@@ -88,6 +92,14 @@ export type AdminEventEditorDto = {
   detailPageKind: 'standard' | 'external' | null;
   externalDetailUrl: string | null;
   internalNotes: string | null;
+  faqVisible?: boolean;
+  faqContent?: string;
+  noticeOfRaceVisible?: boolean;
+  noticeOfRaceContent?: string;
+  sailingInstructionsVisible?: boolean;
+  sailingInstructionsContent?: string;
+  resultsVisible?: boolean;
+  resultsContent?: string;
   isPublished: boolean;
   dates: AdminEventDateDto[];
   admins: AdminEventAdminDto[];
@@ -130,11 +142,13 @@ export type AdminEventRegistrationsDto = {
   registrationCounts: AdminEventRegistrationCounts;
 };
 
-export type AdminEventPublicContentSectionDto = {
-  body: string;
-  id: 'description';
-  titleKey: 'content_description_title';
-};
+export type AdminEventPublicContentSectionDto =
+  | {
+      body: string;
+      id: 'description';
+      titleKey: 'content_description_title';
+    }
+  | EventPublicContentSectionDto;
 
 export type AdminEventShowDto = Pick<
   AdminEventEditorDto,
@@ -521,6 +535,14 @@ export async function getAdminEventEditorDataBySlug(options: {
             detailPageKind: true,
             externalDetailUrl: true,
             internalNotes: true,
+            faqVisible: true,
+            faqContent: true,
+            noticeOfRaceVisible: true,
+            noticeOfRaceContent: true,
+            sailingInstructionsVisible: true,
+            sailingInstructionsContent: true,
+            resultsVisible: true,
+            resultsContent: true,
             isPublished: true,
             dates: {
               orderBy: { startDateTime: 'asc' },
@@ -715,6 +737,14 @@ export async function getAdminEventShowBySlug(options: {
         registrationEnd: true,
         detailPageKind: true,
         externalDetailUrl: true,
+        faqVisible: true,
+        faqContent: true,
+        noticeOfRaceVisible: true,
+        noticeOfRaceContent: true,
+        sailingInstructionsVisible: true,
+        sailingInstructionsContent: true,
+        resultsVisible: true,
+        resultsContent: true,
         category: { select: { id: true, name: true } },
         dates: {
           orderBy: { startDateTime: 'asc' },
@@ -749,9 +779,10 @@ export async function getAdminEventShowBySlug(options: {
     isSpecial: event.isSpecial,
     maxParticipants: event.maxParticipants,
     name: event.name,
-    publicContentSections: publicContentSectionsFromDescription(
-      event.description
-    ),
+    publicContentSections: [
+      ...publicContentSectionsFromDescription(event.description),
+      ...publicContentSectionsFromEvent(event),
+    ],
     questions: registrationReview.questions,
     registrationCounts: registrationReview.registrationCounts,
     registrationEnd: event.registrationEnd,

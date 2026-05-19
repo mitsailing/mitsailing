@@ -9,6 +9,7 @@ import {
   instantForNyWallClock,
 } from '@/lib/mit-sailing/nyTime';
 import { Role } from '@/libs/auth/roles';
+import { sanitizeCmsRichTextHtml } from '@/libs/mit-sailing/cmsRichText';
 import { parseUsdDecimalStringToMinorUnits } from '@/libs/money/stripeUsdMinorUnits';
 
 export {
@@ -137,6 +138,10 @@ const eventAnswerTypeSchema = z.enum([
 ]);
 
 const eventAdminExternalHttpUrlSchema = z.httpUrl();
+const eventAdminPublicContentSchema = z
+  .string()
+  .default('')
+  .transform((value) => sanitizeCmsRichTextHtml(value));
 
 export const ASSIGNABLE_EVENT_ADMIN_ROLES = [
   Role.VOLUNTEER_INSTRUCTOR,
@@ -160,6 +165,14 @@ export const eventAdminBasicsFormSchema = z
     detailPageKind: eventDetailPageKindSchema,
     externalDetailUrl: z.string().trim(),
     internalNotes: z.string().trim(),
+    faqVisible: z.boolean().default(false),
+    faqContent: eventAdminPublicContentSchema,
+    noticeOfRaceVisible: z.boolean().default(false),
+    noticeOfRaceContent: eventAdminPublicContentSchema,
+    sailingInstructionsVisible: z.boolean().default(false),
+    sailingInstructionsContent: eventAdminPublicContentSchema,
+    resultsVisible: z.boolean().default(false),
+    resultsContent: eventAdminPublicContentSchema,
     isPublished: z.boolean(),
   })
   .transform((value) => {
@@ -333,6 +346,20 @@ export function rawEventBasicsFromFormData(formData: FormData): unknown {
     detailPageKind: formString(formData, 'detailPageKind'),
     externalDetailUrl: formString(formData, 'externalDetailUrl'),
     internalNotes: formString(formData, 'internalNotes'),
+    faqVisible: formCheckbox(formData, 'faqVisible'),
+    faqContent: formString(formData, 'faqContent'),
+    noticeOfRaceVisible: formCheckbox(formData, 'noticeOfRaceVisible'),
+    noticeOfRaceContent: formString(formData, 'noticeOfRaceContent'),
+    sailingInstructionsVisible: formCheckbox(
+      formData,
+      'sailingInstructionsVisible'
+    ),
+    sailingInstructionsContent: formString(
+      formData,
+      'sailingInstructionsContent'
+    ),
+    resultsVisible: formCheckbox(formData, 'resultsVisible'),
+    resultsContent: formString(formData, 'resultsContent'),
     isPublished: formCheckbox(formData, 'isPublished'),
   };
 }

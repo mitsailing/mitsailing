@@ -158,6 +158,10 @@ function validEventFormData(): FormData {
   formData.set('detailPageKind', EventDetailPageKind.standard);
   formData.set('externalDetailUrl', '');
   formData.set('internalNotes', '');
+  formData.set('faqContent', '');
+  formData.set('noticeOfRaceContent', '');
+  formData.set('sailingInstructionsContent', '');
+  formData.set('resultsContent', '');
   return formData;
 }
 
@@ -342,6 +346,38 @@ describe('updateAdminEventBasicsAction', () => {
       minimumAccessMode: 'editable',
       slug: 'intro-sail',
     });
+  });
+
+  it('persists public content section visibility and content', async () => {
+    const formData = validEventFormData();
+    formData.set('faqVisible', 'true');
+    formData.set('faqContent', '<p>Questions</p>');
+    formData.set('noticeOfRaceVisible', 'true');
+    formData.set('noticeOfRaceContent', 'Notice text');
+    formData.set('sailingInstructionsContent', '<p>Hidden draft</p>');
+    formData.set('resultsVisible', 'true');
+    formData.set('resultsContent', '<p>Scores</p>');
+    const { updateAdminEventBasicsAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventBasicsAction('en', 'intro-sail', formData)
+    ).rejects.toThrow('NEXT_REDIRECT:/admin/events/intro-sail/edit');
+
+    expect(mocks.eventUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          faqContent: '<p>Questions</p>',
+          faqVisible: true,
+          noticeOfRaceContent: '<p>Notice text</p>',
+          noticeOfRaceVisible: true,
+          resultsContent: '<p>Scores</p>',
+          resultsVisible: true,
+          sailingInstructionsContent: '<p>Hidden draft</p>',
+          sailingInstructionsVisible: false,
+        }),
+      })
+    );
   });
 
   it('redirects when event access is denied', async () => {
