@@ -325,9 +325,33 @@ queue.
     `createAuthAbility` live-source usage. The `/admin/roles` cleanup includes
     deleting the long all-users role assignment list on the permission page, not
     porting it into the new appRole flow.
-- [ ] 09 - Full verification and review-bot preflight
+- [x] 09 - Full verification and review-bot preflight
   - Packet: `tasks/09-verification.md`
   - Reasoning: xhigh
+  - Status: completed with local verification passed; local CodeRabbit pass 2
+    timed out after emitting partial findings, and the user directed the
+    conductor to skip to Task 10 if unit, e2e, and lint pass locally.
+  - Changed files: `prisma/schema.prisma`,
+    `prisma/migrations/20260519010000_add_user_app_role/migration.sql`,
+    `prisma/migrations/20260519020000_unique_verification_identifier/migration.sql`,
+    `zenstack/schema.zmodel`, generated `zenstack/schema.ts`, admin event and
+    catalog authorization handlers/tests, Better Auth ZenStack context/tests,
+    user rating action tests, and public event query tests.
+  - Commands run: targeted Task 09 tests passed; `npm run test` passed;
+    `npm run lint` passed; `SKIP_ENV_VALIDATION=true npm run check:types`
+    passed; `npm run check:i18n` passed; `npm run check:deps` passed with
+    existing Knip hints; `npm run test:e2e` passed. Pre-commit reran
+    `ultracite` and `knip`.
+  - Review: CodeRabbit pass 1 findings were parsed from
+    `/Users/andrewkelley/.codex/tmp/mitsailing-zenstack-admin-authorization/task-09/coderabbit-pass-1.raw.txt`
+    and summarized in the paired parsed artifact. Pass 2 artifacts were written
+    to the same directory, but the CLI exited with timeout code `142` before a
+    clean completion.
+  - Risks: unresolved partial CodeRabbit pass 2 output may resurface during PR
+    review. Task 10 owns the bounded PR hardening loop and post-push CI/review
+    follow-up.
+  - Commit: `d1b66346`.
+  - Next: Task 10 - PR hardening and post-review fixes.
 - [ ] 10 - PR hardening and post-review fixes
   - Packet: `tasks/10-pr-hardening.md`
   - Reasoning: xhigh
