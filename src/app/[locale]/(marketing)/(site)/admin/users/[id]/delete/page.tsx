@@ -6,6 +6,8 @@ import { SubmitButton } from '@/components/ui/submit-button';
 import { deleteAdminUserAction } from '@/libs/admin/users/adminUserActions';
 import { adminUsersIndexPath } from '@/libs/admin/users/adminUserPaths';
 import { usersAdminHandlers } from '@/libs/admin/users/usersAdminHandlers';
+import { requirePermission } from '@/libs/auth/dal';
+import { Permission } from '@/libs/auth/permissions';
 import { Link } from '@/libs/I18nNavigation';
 
 type PageProps = {
@@ -42,6 +44,7 @@ export default async function AdminUsersDeletePage(props: PageProps) {
   const { locale, id } = await props.params;
   const { error: errorCode } = await props.searchParams;
   setRequestLocale(locale);
+  await requirePermission(Permission.USERS_DELETE, locale);
 
   const row = await usersAdminHandlers.getById(id);
   if (!row) {

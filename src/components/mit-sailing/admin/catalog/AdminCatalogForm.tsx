@@ -1,9 +1,11 @@
 'use client';
 
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Plus, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type * as React from 'react';
 import { Fragment, useRef, useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { AdminCatalogEditStatusBadge } from '@/components/mit-sailing/admin/catalog/AdminCatalogListCell';
 import {
   AdminImageField,
@@ -37,6 +39,7 @@ import {
   parseCmsPricingBody,
   serializeCmsPricingBody,
 } from '@/libs/mit-sailing/cmsPricing';
+import { eventCategoryUpdateSchema } from '@/libs/zenstack/zod';
 import type messages from '@/locales/en.json';
 
 function inputTypeForFieldKind(
@@ -119,6 +122,12 @@ function usersAdminFormErrorMessage(
   }
   if (code === 'not_allowed') {
     return t('form_error_not_allowed');
+  }
+  if (code === 'role_mirror_inconsistent') {
+    return t('form_error_role_mirror_inconsistent');
+  }
+  if (code === 'role_assignment_rollback_failed') {
+    return t('form_error_role_assignment_rollback_failed');
   }
   return t('form_error_unknown');
 }
@@ -846,13 +855,102 @@ function AdminCmsOptionalGroup(props: {
   );
 }
 
-/**
- * Generic create/edit form driven by catalog field definitions.
- *
- * @param props - Resource metadata, optional row, bound server action, heading
- * @returns Form element
- */
-export function AdminCatalogForm(props: AdminCatalogFormProps) {
+function EventCategoryCatalogForm(props: AdminCatalogFormProps) {
+  const tCatalog = useTranslations('AdminCatalogResource');
+  const tCommon = useTranslations('Common');
+  const tc = useTranslations('AdminCatalog');
+  const form = useForm({
+    defaultValues: {
+      isVisible: props.row?.isVisible === true,
+      name: stringValue(props.row?.name),
+    },
+    mode: 'onBlur',
+    resolver: zodResolver(eventCategoryUpdateSchema),
+  });
+  const visible = form.watch('isVisible');
+  const nameError =
+    props.fieldErrors?.name ??
+    (form.formState.errors.name
+      ? tCatalog('form_error_validation_failed')
+      : null);
+  const nameErrorId = 'catalog-field-name-error';
+  const errorMessage = catalogResourceFormErrorMessage(
+    props.errorCode,
+    tCatalog
+  );
+  async function handleSubmit(event: { preventDefault: () => void }) {
+    const parsed = eventCategoryUpdateSchema.safeParse(form.getValues());
+    if (!parsed.success) {
+      event.preventDefault();
+      await form.trigger();
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-center gap-3">
+        <h2 className="text-xl font-semibold text-foreground">
+          {tCatalog(props.headingKey)}
+        </h2>
+        {props.row ? <AdminCatalogEditStatusBadge isVisible={visible} /> : null}
+      </div>
+
+      {errorMessage ? (
+        <p
+          className="rounded-md border border-mit-line bg-mit-red-highlight px-3 py-2 text-sm text-foreground"
+          role="alert"
+        >
+          {errorMessage}
+        </p>
+      ) : null}
+
+      <form
+        action={props.formAction}
+        className="flex max-w-xl flex-col gap-4"
+        onSubmit={handleSubmit}
+      >
+        <div className="flex flex-col gap-1.5 text-sm">
+          <Label className="text-foreground" htmlFor="catalog-field-name">
+            {tCatalog('field_name')}
+          </Label>
+          <Input
+            aria-describedby={nameError ? nameErrorId : undefined}
+            aria-invalid={nameError ? true : undefined}
+            id="catalog-field-name"
+            required
+            type="text"
+            {...form.register('name')}
+          />
+          <CatalogFieldError id={nameErrorId} message={nameError} />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-medium text-mit-text">
+            {tCatalog('field_visible')}
+          </span>
+          <input name="isVisible" type="hidden" value="false" />
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-mit-text">
+            <input
+              className="size-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
+              type="checkbox"
+              value="true"
+              {...form.register('isVisible')}
+            />
+            {tc('column_visible')}
+          </label>
+        </div>
+
+        <div className="flex flex-wrap gap-3 pt-2">
+          <SubmitButton pendingLabel={tCommon('pending_saving')} variant="mit">
+            {tCatalog('action_save')}
+          </SubmitButton>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function GenericAdminCatalogForm(props: AdminCatalogFormProps) {
   const ns = props.messageNamespace ?? 'AdminCatalogResource';
   const tCatalog = useTranslations('AdminCatalogResource');
   const tCommon = useTranslations('Common');
@@ -2263,4 +2361,21 @@ export function AdminCatalogForm(props: AdminCatalogFormProps) {
       )}
     </div>
   );
+}
+
+/**
+ * Generic create/edit form driven by catalog field definitions.
+ *
+ * @param props - Resource metadata, optional row, bound server action, heading
+ * @returns Form element
+ */
+export function AdminCatalogForm(props: AdminCatalogFormProps) {
+  if (
+    props.definition.id === 'event_categories' &&
+    props.messageNamespace !== 'AdminUsers'
+  ) {
+    return <EventCategoryCatalogForm {...props} />;
+  }
+
+  return <GenericAdminCatalogForm {...props} />;
 }

@@ -1,6 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { catalogResourceDefinitions } from '@/libs/admin/catalog/catalogDefinitions';
+import { usersAdminDefinition } from '@/libs/admin/users/userAdminDefinitions';
 import { AdminCatalogForm } from './AdminCatalogForm';
 import { AdminCatalogScopeFilter } from './AdminCatalogScopeFilter';
 import { AdminCatalogTable } from './AdminCatalogTable';
@@ -77,6 +78,36 @@ describe('AdminCatalogTable scoped CMS definitions', () => {
       'href',
       '/about'
     );
+  });
+
+  it('hides mutation links when the definition is view only', () => {
+    render(
+      <AdminCatalogTable
+        definition={{
+          ...catalogResourceDefinitions.cms_pages,
+          capabilities: {
+            create: false,
+            delete: false,
+            reorder: false,
+            update: false,
+          },
+        }}
+        locale="en"
+        resourceId="cms_pages"
+        rows={[
+          {
+            id: 'page-1',
+            isPublished: true,
+            path: '/about',
+            title: 'About',
+          },
+        ]}
+      />
+    );
+
+    expect(screen.queryByRole('link', { name: 'Edit' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Delete' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'View page' })).toBeVisible();
   });
 
   it('omits the page path column from page blocks', () => {
@@ -209,5 +240,25 @@ describe('AdminCatalogForm scoped CMS defaults', () => {
 
     expect(screen.getByLabelText('Menu')).toHaveValue('menu-1');
     expect(screen.queryByLabelText('Display order')).toBeNull();
+  });
+});
+
+describe('AdminCatalogForm user errors', () => {
+  it('maps role assignment rollback failures', () => {
+    render(
+      <AdminCatalogForm
+        definition={usersAdminDefinition}
+        errorCode="role_assignment_rollback_failed"
+        formAction={noopFormAction}
+        headingKey="new_heading"
+        messageNamespace="AdminUsers"
+      />
+    );
+
+    expect(
+      screen.getByText(
+        'The user was created, but the requested role could not be assigned or rolled back. Review the account before making more changes.'
+      )
+    ).toBeVisible();
   });
 });

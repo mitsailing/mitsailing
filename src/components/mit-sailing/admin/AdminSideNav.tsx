@@ -7,115 +7,8 @@ import { Button } from '@/components/ui/button';
 import { normalizeNavPath } from '@/lib/mit-sailing/navPathMatch';
 import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
 import { cn } from '@/lib/utils';
+import type { AdminNavItem } from '@/libs/admin/adminNavigation';
 import { Link, usePathname } from '@/libs/I18nNavigation';
-
-type AdminNavItem = {
-  href: string;
-  labelKey:
-    | 'nav_admin'
-    | 'nav_users'
-    | 'nav_pavilion_reservations'
-    | 'nav_donation_funds'
-    | 'nav_events'
-    | 'nav_event_categories'
-    | 'nav_class_categories'
-    | 'nav_sailing_classes'
-    | 'nav_sailing_ratings'
-    | 'nav_sailing_rating_rules'
-    | 'nav_fleet'
-    | 'nav_newsletter_broadcasts'
-    | 'nav_newsletter_lists'
-    | 'nav_newsletter_subscribers'
-    | 'nav_newsletter_templates'
-    | 'nav_site_alerts'
-    | 'nav_site_text'
-    | 'nav_cms_pages'
-    | 'nav_cms_page_blocks'
-    | 'nav_cms_menus'
-    | 'nav_cms_menu_items';
-  /** `prefix` highlights all subpaths (e.g. event edit under `/admin/events`). */
-  match: 'exact' | 'prefix';
-};
-
-const ADMIN_SITE_NAV: AdminNavItem[] = [
-  { href: '/admin', labelKey: 'nav_admin', match: 'exact' },
-  { href: '/admin/site_text', labelKey: 'nav_site_text', match: 'prefix' },
-  { href: '/admin/users', labelKey: 'nav_users', match: 'prefix' },
-  {
-    href: '/admin/pavilion-reservations',
-    labelKey: 'nav_pavilion_reservations',
-    match: 'prefix',
-  },
-  {
-    href: '/admin/newsletter-subscribers',
-    labelKey: 'nav_newsletter_subscribers',
-    match: 'prefix',
-  },
-  {
-    href: '/admin/newsletter-lists',
-    labelKey: 'nav_newsletter_lists',
-    match: 'prefix',
-  },
-  {
-    href: '/admin/newsletter-broadcasts',
-    labelKey: 'nav_newsletter_broadcasts',
-    match: 'prefix',
-  },
-  {
-    href: '/admin/newsletter-templates',
-    labelKey: 'nav_newsletter_templates',
-    match: 'prefix',
-  },
-  {
-    href: '/admin/donation_funds',
-    labelKey: 'nav_donation_funds',
-    match: 'prefix',
-  },
-  { href: '/admin/events', labelKey: 'nav_events', match: 'prefix' },
-  {
-    href: '/admin/event_categories',
-    labelKey: 'nav_event_categories',
-    match: 'prefix',
-  },
-  {
-    href: '/admin/class_categories',
-    labelKey: 'nav_class_categories',
-    match: 'prefix',
-  },
-  {
-    href: '/admin/sailing_classes',
-    labelKey: 'nav_sailing_classes',
-    match: 'prefix',
-  },
-  {
-    href: '/admin/sailing_ratings',
-    labelKey: 'nav_sailing_ratings',
-    match: 'prefix',
-  },
-  {
-    href: '/admin/sailing_rating_rules',
-    labelKey: 'nav_sailing_rating_rules',
-    match: 'prefix',
-  },
-  { href: '/admin/fleet', labelKey: 'nav_fleet', match: 'prefix' },
-  {
-    href: '/admin/site_alerts',
-    labelKey: 'nav_site_alerts',
-    match: 'prefix',
-  },
-  { href: '/admin/cms_pages', labelKey: 'nav_cms_pages', match: 'prefix' },
-  {
-    href: '/admin/cms_page_blocks',
-    labelKey: 'nav_cms_page_blocks',
-    match: 'prefix',
-  },
-  { href: '/admin/cms_menus', labelKey: 'nav_cms_menus', match: 'prefix' },
-  {
-    href: '/admin/cms_menu_items',
-    labelKey: 'nav_cms_menu_items',
-    match: 'prefix',
-  },
-];
 
 function isAdminNavItemActive(
   pathname: string,
@@ -196,9 +89,10 @@ function subscribeAdminSideNavCollapsed(onStoreChange: () => void): () => void {
  * Tailwind Plus–style vertical rail (text rows) inside the marketing shell.
  * Renders only under {@link requireAdmin}.
  *
+ * @param props - Side nav props
  * @returns Sidebar navigation for admin routes
  */
-export function AdminSideNav() {
+export function AdminSideNav(props: { items: readonly AdminNavItem[] }) {
   const t = useTranslations('AdminSideNav');
   const pathname = usePathname();
   const collapsed = useSyncExternalStore(
@@ -264,7 +158,7 @@ export function AdminSideNav() {
         >
           <li>
             <ul className="m-0 -mx-2 list-none space-y-0.5 p-0" role="list">
-              {ADMIN_SITE_NAV.map((item) => {
+              {props.items.map((item) => {
                 const active = isAdminNavItemActive(
                   pathname,
                   item.href,

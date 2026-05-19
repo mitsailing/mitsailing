@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { Permission } from '@/libs/auth/permissions';
 
 const mocks = vi.hoisted(() => ({
   connection: vi.fn(),
@@ -10,7 +11,7 @@ const mocks = vi.hoisted(() => ({
   getAdminNewsletterSubscribers: vi.fn(),
   getAdminNewsletterTemplates: vi.fn(),
   getTranslations: vi.fn(),
-  requireAdmin: vi.fn(),
+  requirePermission: vi.fn(),
   setRequestLocale: vi.fn(),
 }));
 
@@ -61,7 +62,7 @@ vi.mock('@/libs/I18nNavigation', () => ({
 }));
 
 vi.mock('@/libs/auth/dal', () => ({
-  requireAdmin: mocks.requireAdmin,
+  requirePermission: mocks.requirePermission,
 }));
 
 vi.mock('@/libs/newsletter/newsletterAdminActions', () => ({
@@ -107,7 +108,7 @@ async function loadAdminPage(path: string) {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.getTranslations.mockResolvedValue((key: string) => key);
-  mocks.requireAdmin.mockRejectedValue(new Error('admin required'));
+  mocks.requirePermission.mockRejectedValue(new Error('newsletter required'));
   mocks.getAdminNewsletterBroadcasts.mockResolvedValue([]);
   mocks.getAdminNewsletterLists.mockResolvedValue([]);
   mocks.getAdminNewsletterSubscribers.mockResolvedValue([]);
@@ -115,7 +116,7 @@ beforeEach(() => {
 });
 
 describe('newsletter admin pages', () => {
-  it('requires admin before rendering sensitive newsletter pages', async () => {
+  it('requires newsletter management before rendering sensitive newsletter pages', async () => {
     const pages = [
       { name: 'broadcasts', path: './newsletter-broadcasts/page' },
       { name: 'new broadcast', path: './newsletter-broadcasts/new/page' },
@@ -129,11 +130,16 @@ describe('newsletter admin pages', () => {
     for (const page of pages) {
       vi.clearAllMocks();
       mocks.getTranslations.mockResolvedValue((key: string) => key);
-      mocks.requireAdmin.mockRejectedValue(new Error('admin required'));
+      mocks.requirePermission.mockRejectedValue(
+        new Error('newsletter required')
+      );
 
       const Page = await loadAdminPage(page.path);
-      await expect(Page(pageProps())).rejects.toThrow('admin required');
-      expect(mocks.requireAdmin, page.name).toHaveBeenCalledWith('en');
+      await expect(Page(pageProps())).rejects.toThrow('newsletter required');
+      expect(mocks.requirePermission, page.name).toHaveBeenCalledWith(
+        Permission.NEWSLETTER_MANAGE,
+        'en'
+      );
       expect(
         mocks.getAdminNewsletterBroadcasts,
         page.name

@@ -36,7 +36,6 @@ export type Event = {
   requires_approval: boolean;
   registration_start: string | null;
   registration_end: string | null;
-  created_by: string;
   created_at: string;
   /**
    * Standard = this app’s `/events/:slug` page. External = members follow a
@@ -369,7 +368,6 @@ export const EVENTS: Event[] = [
     requires_approval: true,
     registration_start: '2026-05-01T04:00:00.000Z',
     registration_end: '2026-06-12T03:59:59.000Z',
-    created_by: 'user-tbarros',
     created_at: '2026-01-05T14:00:00.000Z',
     is_published: true,
   },
@@ -386,7 +384,6 @@ export const EVENTS: Event[] = [
     requires_approval: false,
     registration_start: '2026-03-01T05:00:00.000Z',
     registration_end: '2026-09-04T03:59:59.000Z',
-    created_by: 'user-fritz',
     created_at: '2026-01-06T15:00:00.000Z',
     is_published: true,
   },
@@ -409,7 +406,6 @@ export const EVENTS: Event[] = [
     requires_approval: false,
     registration_start: '2026-03-15T04:00:00.000Z',
     registration_end: '2026-04-06T03:59:59.000Z',
-    created_by: 'user-fritz',
     created_at: '2026-01-06T15:05:00.000Z',
     is_published: true,
   },
@@ -426,7 +422,6 @@ export const EVENTS: Event[] = [
     requires_approval: false,
     registration_start: '2026-03-22T04:00:00.000Z',
     registration_end: '2026-04-13T03:59:59.000Z',
-    created_by: 'user-fritz',
     created_at: '2026-01-06T15:05:00.000Z',
     is_published: true,
   },
@@ -443,7 +438,6 @@ export const EVENTS: Event[] = [
     requires_approval: false,
     registration_start: '2026-03-29T04:00:00.000Z',
     registration_end: '2026-04-20T03:59:59.000Z',
-    created_by: 'user-fritz',
     created_at: '2026-01-06T15:05:00.000Z',
     is_published: true,
   },
@@ -460,7 +454,6 @@ export const EVENTS: Event[] = [
     requires_approval: true,
     registration_start: '2026-04-01T04:00:00.000Z',
     registration_end: '2026-09-03T03:59:59.000Z',
-    created_by: 'user-tbarros',
     created_at: '2026-01-07T13:00:00.000Z',
     is_published: true,
   },
@@ -477,7 +470,6 @@ export const EVENTS: Event[] = [
     requires_approval: false,
     registration_start: '2026-05-01T04:00:00.000Z',
     registration_end: '2026-06-06T03:59:59.000Z',
-    created_by: 'user-fritz',
     created_at: '2026-01-08T13:00:00.000Z',
     is_published: true,
   },
@@ -494,7 +486,6 @@ export const EVENTS: Event[] = [
     requires_approval: false,
     registration_start: '2026-04-15T04:00:00.000Z',
     registration_end: '2026-05-16T03:59:59.000Z',
-    created_by: 'user-mlopez',
     created_at: '2026-01-09T14:00:00.000Z',
     is_published: true,
   },
@@ -511,7 +502,6 @@ export const EVENTS: Event[] = [
     requires_approval: false,
     registration_start: '2026-04-01T04:00:00.000Z',
     registration_end: '2026-05-05T03:59:59.000Z',
-    created_by: 'user-tbarros',
     created_at: '2026-01-10T13:00:00.000Z',
     is_published: true,
   },
@@ -528,7 +518,6 @@ export const EVENTS: Event[] = [
     requires_approval: true,
     registration_start: '2026-04-01T04:00:00.000Z',
     registration_end: '2026-07-01T03:59:59.000Z',
-    created_by: 'user-tbarros',
     created_at: '2026-01-11T12:30:00.000Z',
     is_published: true,
   },
@@ -545,7 +534,6 @@ export const EVENTS: Event[] = [
     requires_approval: false,
     registration_start: '2026-06-01T04:00:00.000Z',
     registration_end: '2026-07-19T03:59:59.000Z',
-    created_by: 'user-mlopez',
     created_at: '2026-01-12T16:00:00.000Z',
     is_published: true,
   },
@@ -562,7 +550,6 @@ export const EVENTS: Event[] = [
     requires_approval: false,
     registration_start: '2026-02-01T05:00:00.000Z',
     registration_end: '2026-03-11T03:59:59.000Z',
-    created_by: 'user-tbarros',
     created_at: '2026-01-13T18:00:00.000Z',
     is_published: true,
   },

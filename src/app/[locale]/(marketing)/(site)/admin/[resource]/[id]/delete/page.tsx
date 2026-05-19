@@ -9,7 +9,9 @@ import {
   isCatalogResourceId,
   tryGetCatalogDefinition,
 } from '@/libs/admin/catalog/catalogDefinitions';
+import { catalogPermissionForOperation } from '@/libs/admin/catalog/catalogPermissions';
 import { getCatalogServerHandlers } from '@/libs/admin/catalog/catalogServerRegistry';
+import { requirePermission } from '@/libs/auth/dal';
 import { Link } from '@/libs/I18nNavigation';
 
 type PageProps = {
@@ -46,6 +48,13 @@ export default async function AdminCatalogResourceDeletePage(props: PageProps) {
   if (!def || !isCatalogResourceId(resource) || !def.capabilities.delete) {
     notFound();
   }
+  await requirePermission(
+    catalogPermissionForOperation({
+      operation: 'delete',
+      resourceId: resource,
+    }),
+    locale
+  );
 
   const handlers = getCatalogServerHandlers(resource);
   const row = await handlers.getById(id);

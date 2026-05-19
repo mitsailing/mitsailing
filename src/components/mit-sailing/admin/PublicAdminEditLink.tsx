@@ -1,23 +1,36 @@
 import { Pencil } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import { cn } from '@/lib/utils';
-import { adminHeaderLinkVisibleFromSession } from '@/libs/auth/adminHeaderLink';
+import {
+  Permission,
+  getAppRolePermissions,
+  hasPermission,
+} from '@/libs/auth/appPermissions';
 import { getSession } from '@/libs/auth/dal';
 import { Link } from '@/libs/I18nNavigation';
+import { appAuthContextFromSession } from '@/libs/zenstack/authContext';
 
 type PublicAdminEditLinkSession = {
   session?: { impersonatedBy?: string | null } | null;
-  user?: { id?: string | null; role?: unknown } | null;
+  user?: {
+    appRole?: unknown;
+    banned?: unknown;
+    emailVerified?: unknown;
+    id?: string | null;
+  } | null;
 } | null;
 
 function publicAdminEditLinkVisible(
   session: PublicAdminEditLinkSession
 ): boolean {
-  return adminHeaderLinkVisibleFromSession({
-    impersonatedBy: session?.session?.impersonatedBy,
-    userId: session?.user?.id,
-    userRole: session?.user?.role,
-  });
+  const authContext = appAuthContextFromSession(session);
+  if (!authContext) {
+    return false;
+  }
+  return hasPermission(
+    getAppRolePermissions(authContext.appRole),
+    Permission.CMS_EDIT
+  );
 }
 
 /**

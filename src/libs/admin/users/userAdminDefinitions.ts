@@ -1,5 +1,10 @@
 import type { CatalogResourceDefinition } from '@/libs/admin/catalog/types';
-import { Role } from '@/libs/auth/roles';
+import { ROLE_DEFINITIONS } from '@/libs/auth/roles';
+
+const ROLE_SELECT_OPTIONS = ROLE_DEFINITIONS.map((definition) => ({
+  labelKey: definition.labelKey,
+  value: definition.key,
+}));
 
 /**
  * Catalog-shaped definition for `/admin/users` (explicit routes; not in catalog registry).
@@ -21,7 +26,7 @@ export const usersAdminDefinition = {
       headerKey: 'column_name_label',
     },
     {
-      field: 'role',
+      field: 'appRole',
       kind: 'string',
       headerKey: 'column_role',
     },
@@ -62,14 +67,11 @@ export const usersAdminDefinition = {
       labelKey: 'field_password',
     },
     {
-      field: 'role',
+      field: 'appRole',
       kind: 'select',
       required: true,
       labelKey: 'field_role',
-      selectOptions: [
-        { value: Role.USER, labelKey: 'role_option_user' },
-        { value: Role.ADMIN, labelKey: 'role_option_admin' },
-      ],
+      selectOptions: ROLE_SELECT_OPTIONS,
     },
   ],
   capabilities: {
@@ -94,14 +96,11 @@ const usersAdminEditFormFields = [
     labelKey: 'field_name',
   },
   {
-    field: 'role',
+    field: 'appRole',
     kind: 'select',
     required: true,
     labelKey: 'field_role',
-    selectOptions: [
-      { value: Role.USER, labelKey: 'role_option_user' },
-      { value: Role.ADMIN, labelKey: 'role_option_admin' },
-    ],
+    selectOptions: ROLE_SELECT_OPTIONS,
   },
   {
     field: 'emailVerified',

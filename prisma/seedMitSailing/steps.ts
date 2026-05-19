@@ -54,15 +54,18 @@ export async function seedStubUsers(p: PrismaClient): Promise<void> {
       where: { id: u.id },
       create: {
         id: u.id,
+        appRole: 'user',
         email: u.email,
         name: u.name,
         emailVerified: true,
         role: 'user',
       },
       update: {
+        appRole: 'user',
         email: u.email,
         name: u.name,
         emailVerified: true,
+        role: 'user',
       },
     });
   }
@@ -412,7 +415,6 @@ export async function seedEvents(p: PrismaClient): Promise<void> {
         requiresApproval: e.requires_approval,
         registrationStart: toDate(e.registration_start),
         registrationEnd: toDate(e.registration_end),
-        createdByUserId: e.created_by,
         createdAt: new Date(e.created_at),
         detailPageKind: detailKind,
         externalDetailUrl: e.external_detail_url ?? null,
@@ -429,7 +431,6 @@ export async function seedEvents(p: PrismaClient): Promise<void> {
         requiresApproval: e.requires_approval,
         registrationStart: toDate(e.registration_start),
         registrationEnd: toDate(e.registration_end),
-        createdByUserId: e.created_by,
         createdAt: new Date(e.created_at),
         detailPageKind: detailKind,
         externalDetailUrl: e.external_detail_url ?? null,

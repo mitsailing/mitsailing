@@ -13,6 +13,8 @@ import {
   saveSiteTextOverrideAction,
 } from '@/libs/admin/site-text/siteTextActions';
 import { getSiteTextAdminRows } from '@/libs/admin/site-text/siteTextQueries';
+import { requirePermission } from '@/libs/auth/dal';
+import { Permission } from '@/libs/auth/permissions';
 import { Link, getPathname } from '@/libs/I18nNavigation';
 import type { SiteTextEntry } from '@/libs/site-text/siteTextMessages';
 
@@ -217,6 +219,7 @@ export default async function AdminSiteTextPage(props: AdminSiteTextPageProps) {
   const { locale } = await props.params;
   const searchParams = await props.searchParams;
   setRequestLocale(locale);
+  await requirePermission(Permission.CMS_VIEW, locale);
 
   const namespace = normalizeSearchParam(searchParams.namespace);
   const query = normalizeSearchParam(searchParams.q);

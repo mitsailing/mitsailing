@@ -24,7 +24,6 @@ import {
 import type {
   AdminEventCategoryOption,
   AdminEventDateDto,
-  AdminEventListFilters,
   AdminEventListRow,
   AdminEventRegistrationCounts,
 } from '@/libs/admin/events/eventAdminQueries';
@@ -39,7 +38,10 @@ type AdminEventsListViewProps = {
   categories: AdminEventCategoryOption[];
   /** Localized pathname for the events list GET filter (see `getPathname`). */
   filterAction: string;
-  filters: AdminEventListFilters;
+  filters: {
+    categoryId?: string;
+    query?: string;
+  };
   rows: AdminEventListRow[];
   t: AdminEventsListTranslations;
 };

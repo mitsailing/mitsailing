@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { AdminEventsListView } from '@/components/mit-sailing/admin/events/AdminEventsListView';
+import { requireAdminEventListAccess } from '@/libs/admin/events/eventAdminAuthorization';
 import { adminEventsIndexPath } from '@/libs/admin/events/eventAdminPaths';
 import {
   listAdminEventCategories,
@@ -26,9 +27,11 @@ export default async function AdminEventsListPage(props: PageProps) {
   const { locale } = await props.params;
   const searchParams = await props.searchParams;
   setRequestLocale(locale);
+  const access = await requireAdminEventListAccess(locale);
   const [categories, rows, t] = await Promise.all([
     listAdminEventCategories(),
     listAdminEventRows({
+      authContext: access.authContext,
       categoryId: searchParams.category,
       query: searchParams.q,
     }),

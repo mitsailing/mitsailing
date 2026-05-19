@@ -8,7 +8,6 @@ import {
   cmsPagesCatalogHandlers,
 } from '@/libs/admin/catalog/cmsCatalogHandlers';
 import { donationFundsCatalogHandlers } from '@/libs/admin/catalog/donationFundsHandlers';
-import { eventCategoriesCatalogHandlers } from '@/libs/admin/catalog/eventCategoriesHandlers';
 import { fleetCatalogHandlers } from '@/libs/admin/catalog/fleetCatalogHandlers';
 import { sailingClassesCatalogHandlers } from '@/libs/admin/catalog/sailingClassesHandlers';
 import {
@@ -17,6 +16,7 @@ import {
 } from '@/libs/admin/catalog/sailingRatingsHandlers';
 import { siteAlertsCatalogHandlers } from '@/libs/admin/catalog/siteAlertsCatalogHandlers';
 import type { CatalogServerHandlers } from '@/libs/admin/catalog/types';
+import { createZenStackCatalogHandlers } from '@/libs/admin/catalog/zenstackCatalogHandlers';
 
 /**
  * Maps catalog resource ids to Prisma-backed handlers (server-only).
@@ -24,7 +24,7 @@ import type { CatalogServerHandlers } from '@/libs/admin/catalog/types';
 const catalogServerHandlers: Record<CatalogResourceId, CatalogServerHandlers> =
   {
     donation_funds: donationFundsCatalogHandlers,
-    event_categories: eventCategoriesCatalogHandlers,
+    event_categories: createZenStackCatalogHandlers('event_categories'),
     class_categories: classCategoriesCatalogHandlers,
     sailing_classes: sailingClassesCatalogHandlers,
     sailing_ratings: sailingRatingsCatalogHandlers,

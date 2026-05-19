@@ -371,21 +371,13 @@ function EventMetadataSection(props: {
       subtitle={props.t('metadata_subtitle')}
       title={props.t('section_metadata')}
     >
-      <dl className="grid gap-4 md:grid-cols-3">
+      <dl className="grid gap-4 md:grid-cols-2">
         <div>
           <dt className="text-xs font-semibold text-mit-readable-ink uppercase">
             {props.t('metadata_created_at')}
           </dt>
           <dd className="mt-1 text-sm font-medium">
             {formatEasternDateTime(props.event.createdAt)}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-xs font-semibold text-mit-readable-ink uppercase">
-            {props.t('metadata_created_by')}
-          </dt>
-          <dd className="mt-1 text-sm font-medium">
-            {props.event.createdBy.name}
           </dd>
         </div>
         <div>

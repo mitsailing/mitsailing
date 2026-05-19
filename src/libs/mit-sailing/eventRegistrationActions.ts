@@ -6,7 +6,8 @@ import { redirect, unstable_rethrow } from 'next/navigation';
 import { Prisma } from '@/generated/prisma/client';
 import { EventRegistrationStatus } from '@/generated/prisma/enums';
 import type { EventAnswerType } from '@/generated/prisma/enums';
-import { requireCurrentUser } from '@/libs/auth/dal';
+import { verifySession } from '@/libs/auth/dal';
+import { Role } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
 import { logger } from '@/libs/Logger';
 import { questionOptionsFromJson } from '@/libs/mit-sailing/eventQueries';
@@ -15,6 +16,8 @@ import type { PublicRegistrationQuestionForValidation } from '@/libs/mit-sailing
 import type { EventRegistrationMutationCode } from '@/libs/mit-sailing/eventRegistrationErrors';
 import { isPublicEventRegistrationWindowOpen } from '@/libs/mit-sailing/eventRegistrationWindow';
 import { safeErrorCode, safeErrorName } from '@/libs/safeUnknownError';
+import { zenstackForAuthContext } from '@/libs/zenstack/auth';
+import { appAuthContextFromSession } from '@/libs/zenstack/authContext';
 import { getI18nPath } from '@/utils/Helpers';
 
 class EventRegistrationFlowError extends Error {
@@ -153,6 +156,25 @@ function mutationCodeFromPrisma(error: unknown): EventRegistrationMutationCode {
   return 'unknown';
 }
 
+async function publicEventRegistrationAccess(options: {
+  callbackUrl: string;
+  deniedUrl: string;
+  locale: string;
+}) {
+  const session = await verifySession(options.locale, options.callbackUrl);
+  const authContext = appAuthContextFromSession(session);
+  if (!authContext) {
+    redirect(options.deniedUrl);
+  }
+  return {
+    db: zenstackForAuthContext({
+      appRole: Role.USER,
+      id: authContext.id,
+    }),
+    userId: authContext.id,
+  };
+}
+
 /**
  * Creates or updates the viewer's registration with server-side enforcement.
  *
@@ -169,7 +191,11 @@ export async function createPublicEventRegistrationAction(
   formData: FormData
 ): Promise<PublicEventRegistrationFormState> {
   const callbackUrl = `/events/${encodeURIComponent(slug)}/register`;
-  const user = await requireCurrentUser(locale, callbackUrl);
+  const access = await publicEventRegistrationAccess({
+    callbackUrl,
+    deniedUrl: eventRegistrationErrorUrl(locale, slug, 'not_found'),
+    locale,
+  });
 
   const now = new Date();
   let event: {
@@ -184,8 +210,8 @@ export async function createPublicEventRegistrationAction(
     }[];
   } | null;
   try {
-    event = await prisma.event.findFirst({
-      where: { slug, isPublished: true },
+    event = await access.db.event.findFirst({
+      where: { slug },
       select: {
         id: true,
         registrationStart: true,
@@ -287,7 +313,7 @@ export async function createPublicEventRegistrationAction(
           : EventRegistrationStatus.approved;
 
         const existing = await tx.eventRegistration.findFirst({
-          where: { eventId: event.id, userId: user.id },
+          where: { eventId: event.id, userId: access.userId },
           orderBy: { createdAt: 'desc' },
           select: { id: true },
         });
@@ -325,7 +351,7 @@ export async function createPublicEventRegistrationAction(
             data: {
               id: registrationId,
               eventId: event.id,
-              userId: user.id,
+              userId: access.userId,
               status,
               createdAt: now,
               swimAgreementAcceptedAt: now,
@@ -376,11 +402,15 @@ export async function cancelPublicEventRegistrationAction(
   slug: string
 ): Promise<void> {
   const callbackUrl = `/events/${encodeURIComponent(slug)}`;
-  const user = await requireCurrentUser(locale, callbackUrl);
+  const access = await publicEventRegistrationAccess({
+    callbackUrl,
+    deniedUrl: eventDetailErrorUrl(locale, slug, 'not_found'),
+    locale,
+  });
   let event: { id: string } | null;
   try {
-    event = await prisma.event.findFirst({
-      where: { slug, isPublished: true },
+    event = await access.db.event.findFirst({
+      where: { slug },
       select: { id: true },
     });
   } catch (error) {
@@ -397,7 +427,7 @@ export async function cancelPublicEventRegistrationAction(
   }
   try {
     await prisma.eventRegistration.updateMany({
-      where: { eventId: event.id, userId: user.id },
+      where: { eventId: event.id, userId: access.userId },
       data: { status: EventRegistrationStatus.cancelled },
     });
   } catch (error) {

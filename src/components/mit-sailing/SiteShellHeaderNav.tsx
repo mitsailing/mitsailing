@@ -5,7 +5,7 @@ import {
 import { safeCmsHref } from '@/libs/mit-sailing/cmsHref';
 import { loadCmsMenu } from '@/libs/mit-sailing/cmsQueries';
 import {
-  listFleetBoatsForPublic,
+  listFleetBoatsForNav,
   mapFleetBoatsToNavDropdownItems,
 } from '@/libs/mit-sailing/fleetQueries';
 import type {
@@ -32,7 +32,7 @@ export async function SiteShellHeaderNav(props: SiteShellHeaderNavProps) {
   const [categories, fleetBoats, headerMenu, mobileUtilityMenu] =
     await Promise.all([
       listClassCategoriesForNav(),
-      listFleetBoatsForPublic(),
+      listFleetBoatsForNav(),
       loadCmsMenu('header'),
       loadCmsMenu('mobile_utility'),
     ]);

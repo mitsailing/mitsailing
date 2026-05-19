@@ -17,6 +17,7 @@ import {
   isCatalogResourceId,
   tryGetCatalogDefinition,
 } from '@/libs/admin/catalog/catalogDefinitions';
+import { catalogPermissionForOperation } from '@/libs/admin/catalog/catalogPermissions';
 import { getCatalogServerHandlers } from '@/libs/admin/catalog/catalogServerRegistry';
 import { cmsPagePublicPathById } from '@/libs/admin/catalog/cmsCatalogHandlers';
 import {
@@ -24,6 +25,7 @@ import {
   catalogScopedCreatePath,
   catalogScopedListState,
 } from '@/libs/admin/catalog/scopedCatalogLists';
+import { requirePermission } from '@/libs/auth/dal';
 import { getPathname } from '@/libs/I18nNavigation';
 import { isAppRelativeCmsHref, safeCmsHref } from '@/libs/mit-sailing/cmsHref';
 
@@ -61,6 +63,10 @@ export default async function AdminCatalogResourceIndexPage(props: PageProps) {
   if (!def || !isCatalogResourceId(resource)) {
     notFound();
   }
+  await requirePermission(
+    catalogPermissionForOperation({ operation: 'view', resourceId: resource }),
+    locale
+  );
 
   const scopedList = await catalogScopedListState({
     resourceId: resource,

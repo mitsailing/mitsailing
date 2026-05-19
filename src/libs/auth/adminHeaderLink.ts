@@ -1,17 +1,25 @@
-import { normalizeRole, Role } from '@/libs/auth/roles';
+import {
+  Permission,
+  getAppRolePermissions,
+  hasPermission,
+} from '@/libs/auth/appPermissions';
+import { appAuthContextFromSession } from '@/libs/zenstack/authContext';
 
 /** Minimal session fields for deciding whether the global header shows Admin. */
 export type AdminHeaderLinkSessionInput = {
+  userAppRole: unknown;
+  userBanned: unknown;
+  userEmailVerified: unknown;
   userId: string | null | undefined;
-  userRole: unknown;
   impersonatedBy: unknown;
 };
 
 /**
- * Whether the marketing header should show the Admin link: signed-in admin who
- * is not impersonating. Safe for server and client (no `server-only` imports).
+ * Whether the marketing header should show the Admin link: signed-in user with
+ * any staff/admin role who is not impersonating. Safe for server and client
+ * (no `server-only` imports).
  *
- * @param input - User id, role, and impersonation marker from Better Auth session
+ * @param input - User id, app role, and impersonation marker from Better Auth session
  * @returns True when the Admin nav entry should render
  */
 export function adminHeaderLinkVisibleFromSession(
@@ -20,13 +28,22 @@ export function adminHeaderLinkVisibleFromSession(
   if (typeof input.userId !== 'string' || input.userId.length === 0) {
     return false;
   }
-  if (normalizeRole(input.userRole) !== Role.ADMIN) {
+  const authContext = appAuthContextFromSession({
+    session: { impersonatedBy: input.impersonatedBy },
+    user: {
+      appRole: input.userAppRole,
+      banned: input.userBanned,
+      emailVerified: input.userEmailVerified,
+      id: input.userId,
+    },
+  });
+  if (!authContext) {
     return false;
   }
-  if (input.impersonatedBy) {
-    return false;
-  }
-  return true;
+  return hasPermission(
+    getAppRolePermissions(authContext.appRole),
+    Permission.ADMIN_VIEW
+  );
 }
 
 /**
@@ -43,12 +60,19 @@ export function adminHeaderLinkVisibleFromClientSessionData(
     return false;
   }
   const { user, session } = data as {
-    user?: { id?: unknown; role?: unknown };
+    user?: {
+      appRole?: unknown;
+      banned?: unknown;
+      emailVerified?: unknown;
+      id?: unknown;
+    };
     session?: { impersonatedBy?: unknown };
   };
   return adminHeaderLinkVisibleFromSession({
     userId: typeof user?.id === 'string' ? user.id : undefined,
-    userRole: user?.role,
+    userAppRole: user?.appRole,
+    userBanned: user?.banned,
+    userEmailVerified: user?.emailVerified,
     impersonatedBy: session?.impersonatedBy,
   });
 }
