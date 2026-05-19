@@ -480,6 +480,22 @@ function TeamBoatMemberField(props: {
   );
 }
 
+function teamBoatMemberDescriptors(props: {
+  boatNumber: number;
+  boatsPerTeam: number;
+  personsPerBoat: number;
+}): { key: string; position: number }[] {
+  return Array.from({ length: props.personsPerBoat }, (_value, position) => ({
+    key: teamBoatMemberFieldName({
+      boatNumber: props.boatNumber,
+      boatsPerTeam: props.boatsPerTeam,
+      position,
+      suffix: 'name',
+    }),
+    position,
+  }));
+}
+
 function TeamRegistrationFields(props: {
   event: PublicEventDetail;
   labels: EventRegistrationFormLabels;
@@ -545,20 +561,21 @@ function TeamRegistrationFields(props: {
                   labels: props.labels,
                 })}
               </h4>
-              {Array.from(
-                { length: props.event.teamRegistration.personsPerBoat },
-                (_value, position) => (
-                  <TeamBoatMemberField
-                    boatNumber={boatNumber}
-                    boatsPerTeam={props.event.teamRegistration.boatsPerTeam}
-                    key={`${boatNumber}-${position}`}
-                    labels={props.labels}
-                    personsPerBoat={props.event.teamRegistration.personsPerBoat}
-                    position={position}
-                    state={props.state}
-                  />
-                )
-              )}
+              {teamBoatMemberDescriptors({
+                boatNumber,
+                boatsPerTeam: props.event.teamRegistration.boatsPerTeam,
+                personsPerBoat: props.event.teamRegistration.personsPerBoat,
+              }).map((member) => (
+                <TeamBoatMemberField
+                  boatNumber={boatNumber}
+                  boatsPerTeam={props.event.teamRegistration.boatsPerTeam}
+                  key={member.key}
+                  labels={props.labels}
+                  personsPerBoat={props.event.teamRegistration.personsPerBoat}
+                  position={member.position}
+                  state={props.state}
+                />
+              ))}
             </section>
           );
         }
@@ -619,7 +636,6 @@ function RegistrationFeeSummary(props: {
         aria-describedby={errorMessage ? errorId : undefined}
         aria-invalid={errorMessage ? true : undefined}
         aria-labelledby="event-registration-fees-heading"
-        aria-required="true"
         className="rounded-lg border border-border bg-card p-4"
       >
         <legend

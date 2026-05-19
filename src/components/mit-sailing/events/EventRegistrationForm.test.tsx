@@ -309,10 +309,9 @@ describe('EventRegistrationForm', () => {
       name: /junior/i,
     });
 
-    expect(screen.getByRole('group', { name: /entry fees/i })).toHaveAttribute(
-      'aria-required',
-      'true'
-    );
+    expect(screen.getByRole('group', { name: /entry fees/i })).toBeVisible();
+    expect(adultFee).toBeRequired();
+    expect(juniorFee).toBeRequired();
     expect(adultFee).toHaveAttribute('name', 'eventEntryFeeId');
     expect(juniorFee).toHaveAttribute('name', 'eventEntryFeeId');
 
