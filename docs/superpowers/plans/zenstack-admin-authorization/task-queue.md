@@ -34,7 +34,7 @@ queue.
     ZenStack, Better Auth, and `@better-auth/kysely-adapter` resolve to
     `kysely@0.28.17` with plain npm install. Upgrade to ZenStack `3.7.x` only
     after Better Auth/Kysely compatibility aligns.
-  - Commit: `85a854b1`.
+  - Commit: `73ae0bba`.
 - [ ] 02 - AppRole permission context
   - Packet: `tasks/02-app-role-context.md`
   - Reasoning: high
