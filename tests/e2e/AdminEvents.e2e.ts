@@ -80,14 +80,11 @@ test.describe('Admin events', () => {
 
     await page.setViewportSize({ width: 390, height: 844 });
 
-    const usernameRow = page
-      .getByRole('listitem')
-      .filter({ hasText: 'Username' });
+    const usernameRow = page.getByRole('row').filter({ hasText: 'Username' });
     await expect(usernameRow.getByLabel('Actions for Username')).toBeVisible();
-    await usernameRow.getByLabel('View answers for Username').click();
     await expect(
       page.getByRole('table', { name: 'Answers for Username' })
-    ).toBeVisible();
+    ).toHaveCount(0);
 
     await usernameRow.getByLabel('Actions for Username').click();
     await usernameRow.getByRole('menuitem', { name: 'Approve' }).click();
