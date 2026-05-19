@@ -141,7 +141,6 @@ export async function grantAdminUserRatingAction(
   }
 
   revalidateAfterRatingMutation(props.locale, props.userId);
-  redirect(getI18nPath(adminUsersShowPath(props.userId), props.locale));
 }
 
 export async function revokeAdminUserRatingAction(
@@ -164,5 +163,4 @@ export async function revokeAdminUserRatingAction(
   });
 
   revalidateAfterRatingMutation(props.locale, props.userId);
-  redirect(getI18nPath(adminUsersShowPath(props.userId), props.locale));
 }

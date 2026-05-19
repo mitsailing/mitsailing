@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { Role } from '@/libs/auth/roles';
 
 const mocks = vi.hoisted(() => ({
   eventFindFirst: vi.fn(),
@@ -6,7 +7,6 @@ const mocks = vi.hoisted(() => ({
   eventRegistrationGroupBy: vi.fn(),
   protectedEventFindFirst: vi.fn(),
   protectedEventFindMany: vi.fn(),
-  protectedEventUpdateMany: vi.fn(),
   userFindMany: vi.fn(),
 }));
 
@@ -43,7 +43,6 @@ beforeEach(() => {
   mocks.eventRegistrationGroupBy.mockReset();
   mocks.protectedEventFindFirst.mockReset();
   mocks.protectedEventFindMany.mockReset();
-  mocks.protectedEventUpdateMany.mockReset();
   mocks.userFindMany.mockReset();
   mocks.eventRegistrationGroupBy.mockResolvedValue([]);
   mocks.userFindMany.mockResolvedValue([]);
@@ -54,13 +53,13 @@ describe('event admin queries', () => {
     event: {
       findFirst: mocks.protectedEventFindFirst,
       findMany: mocks.protectedEventFindMany,
-      updateMany: mocks.protectedEventUpdateMany,
     },
   };
 
-  it('lists events after proving ZenStack update access', async () => {
+  it('lists events after proving update access without writes', async () => {
     mocks.eventFindMany.mockResolvedValue([
       {
+        admins: [],
         id: 'event-1',
         name: 'Intro Sail',
         shortName: 'Intro',
@@ -74,24 +73,21 @@ describe('event admin queries', () => {
         dates: [],
       },
     ]);
-    mocks.protectedEventUpdateMany.mockResolvedValue({ count: 1 });
     const { listAdminEventRows } =
       await import('@/libs/admin/events/eventAdminQueries');
 
-    await listAdminEventRows({
-      db,
+    const rows = await listAdminEventRows({
+      authContext: { appRole: Role.DOCK_STAFF, id: 'staff-1' },
       query: 'intro',
     });
 
-    expect(mocks.protectedEventUpdateMany).toHaveBeenCalledWith({
-      data: { slug: 'intro-sail' },
-      where: { id: 'event-1' },
-    });
+    expect(rows).toHaveLength(1);
   });
 
   it('does not list public-readable events without update access', async () => {
     mocks.eventFindMany.mockResolvedValue([
       {
+        admins: [],
         id: 'event-1',
         name: 'Intro Sail',
         shortName: 'Intro',
@@ -105,18 +101,15 @@ describe('event admin queries', () => {
         dates: [],
       },
     ]);
-    mocks.protectedEventFindMany.mockResolvedValue([{ id: 'event-1' }]);
-    mocks.protectedEventUpdateMany.mockResolvedValue({ count: 0 });
     const { listAdminEventRows } =
       await import('@/libs/admin/events/eventAdminQueries');
 
     const rows = await listAdminEventRows({
-      db,
+      authContext: { appRole: Role.VOLUNTEER_INSTRUCTOR, id: 'staff-1' },
       query: 'intro',
     });
 
     expect(rows).toEqual([]);
-    expect(mocks.protectedEventFindMany).not.toHaveBeenCalled();
   });
 
   it('loads editor data through the protected ZenStack client', async () => {

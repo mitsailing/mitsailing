@@ -101,6 +101,7 @@ describe('getPublicEventRegistrationState', () => {
       userId: 'user-1',
     });
 
+    expect(mocks.getZenStack).toHaveBeenCalled();
     expect(mocks.eventRegistrationFindFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { eventId: 'event-1' },

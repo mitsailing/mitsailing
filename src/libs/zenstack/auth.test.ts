@@ -96,6 +96,7 @@ function expectZenStackDb(_client: ZenStackDb): void {}
 beforeEach(() => {
   vi.clearAllMocks();
   vi.resetModules();
+  globalThis.cachedPool = undefined;
   globalThis.cachedZenStack = undefined;
   globalThis.cachedZenStackPolicy = undefined;
 });

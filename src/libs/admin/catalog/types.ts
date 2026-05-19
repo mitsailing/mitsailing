@@ -169,6 +169,7 @@ export type CatalogServerHandlers = {
   ) => Promise<CatalogMutationOk | CatalogMutationErr>;
   reorder?: (
     orderedIds: readonly string[],
-    scope?: CatalogReorderScope
+    scope?: CatalogReorderScope,
+    context?: CatalogMutationContext
   ) => Promise<CatalogMutationOk | CatalogMutationErr>;
 };

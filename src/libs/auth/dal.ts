@@ -117,6 +117,11 @@ async function requireAnyPermission(
 ): Promise<NonNullable<AuthSession>> {
   const homeHref = getI18nPath('/', locale);
   const session = await verifySession(locale, homeHref);
+
+  if (session.session.impersonatedBy !== null) {
+    redirect(homeHref);
+  }
+
   const authContext = appAuthContextFromSession(session);
 
   if (!authContext) {

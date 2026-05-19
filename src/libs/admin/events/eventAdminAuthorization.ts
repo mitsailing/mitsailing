@@ -1,10 +1,12 @@
 import 'server-only';
 import { redirect } from 'next/navigation';
+import { canUpdateEventWithAuthContext } from '@/libs/admin/events/zenstackEventAccess';
 import type { AuthSession } from '@/libs/auth/dal';
 import { requireAdmin } from '@/libs/auth/dal';
 import { prisma } from '@/libs/DB';
 import type { ZenStackDb } from '@/libs/zenstack/auth';
 import { zenstackForAuthContext } from '@/libs/zenstack/auth';
+import type { AppAuthContext } from '@/libs/zenstack/authContext';
 import { appAuthContextFromSession } from '@/libs/zenstack/authContext';
 import { getI18nPath } from '@/utils/Helpers';
 
@@ -23,6 +25,7 @@ export type AdminEventAccess = {
 };
 
 export type AdminEventListAccess = {
+  authContext: AppAuthContext;
   db: ZenStackDb;
   session: NonNullable<AuthSession>;
 };
@@ -36,24 +39,14 @@ export async function requireAdminEventListAccess(
     redirect(getI18nPath('/', locale));
   }
   return {
+    authContext,
     db: zenstackForAuthContext(authContext),
     session,
   };
 }
 
-async function canUpdateEvent(props: {
-  db: ZenStackDb;
-  event: Pick<AdminEventAccessRecord, 'id' | 'slug'>;
-}): Promise<boolean> {
-  const result = await props.db.event.updateMany({
-    where: { id: props.event.id },
-    data: { slug: props.event.slug },
-  });
-  return result.count > 0;
-}
-
 async function findEventAccessRecord(props: {
-  db: ZenStackDb;
+  authContext: AppAuthContext;
   slug: string;
 }): Promise<AdminEventAccessRecord | null> {
   const event = await prisma.event.findFirst({
@@ -67,7 +60,12 @@ async function findEventAccessRecord(props: {
   if (!event) {
     return null;
   }
-  if (!(await canUpdateEvent({ db: props.db, event }))) {
+  if (
+    !canUpdateEventWithAuthContext({
+      authContext: props.authContext,
+      event,
+    })
+  ) {
     return null;
   }
   return event;
@@ -91,7 +89,7 @@ export async function requireAdminEventAccess(props: {
   }
   const db = zenstackForAuthContext(authContext);
   const event = await findEventAccessRecord({
-    db,
+    authContext,
     slug: props.slug,
   });
   if (!event) {

@@ -183,9 +183,13 @@ function eventCategoryHandlers(): CatalogServerHandlers {
 
     async reorder(
       orderedIds: readonly string[],
-      _scope?: CatalogReorderScope
+      _scope?: CatalogReorderScope,
+      context?: CatalogMutationContext
     ): Promise<CatalogMutationOk | CatalogMutationErr> {
-      const db = zenstackForAuthContext({ appRole: 'admin', id: 'system' });
+      const db = dbFromContext(context);
+      if (!db) {
+        return { ok: false, code: 'forbidden' };
+      }
       const existing = await db.eventCategory.findMany({
         select: { id: true },
       });

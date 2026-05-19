@@ -173,7 +173,6 @@ export const auth = betterAuth({
         required: false,
         defaultValue: Role.USER,
         input: false,
-        fieldName: 'app_role',
       },
       // Devise-style pending-email column. `input: false` keeps it out of the
       // sign-up/update payload surface — it is only written via the

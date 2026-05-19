@@ -481,7 +481,6 @@ describe('auth', () => {
 
     expect(config.user.additionalFields.appRole).toEqual({
       defaultValue: Role.USER,
-      fieldName: 'app_role',
       input: false,
       required: false,
       type: ROLE_VALUES,

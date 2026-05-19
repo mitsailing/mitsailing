@@ -2,9 +2,11 @@ import 'server-only';
 import type { Prisma } from '@/generated/prisma/client';
 import { EventRegistrationStatus } from '@/generated/prisma/enums';
 import type { EventRegistrationStatus as EventRegistrationStatusValue } from '@/generated/prisma/enums';
+import { canUpdateEventWithAuthContext } from '@/libs/admin/events/zenstackEventAccess';
 import { prisma } from '@/libs/DB';
 import { questionOptionsFromJson } from '@/libs/mit-sailing/eventQueries';
 import type { ZenStackDb } from '@/libs/zenstack/auth';
+import type { AppAuthContext } from '@/libs/zenstack/authContext';
 
 export type AdminEventCategoryOption = {
   id: string;
@@ -126,7 +128,7 @@ export type AdminEventRegistrationsDto = {
 };
 
 export type AdminEventListFilters = {
-  db: AdminEventQueryDb;
+  authContext: AppAuthContext;
   query?: string;
   categoryId?: string;
 };
@@ -137,9 +139,14 @@ type AdminEventUserListOptions = {
   query?: string;
 };
 type AdminEventQueryDb = {
-  event: Pick<ZenStackDb['event'], 'findFirst' | 'updateMany'>;
+  event: Pick<ZenStackDb['event'], 'findFirst'>;
 };
 type AdminEventListRowData = Omit<AdminEventListRow, 'registrationCounts'>;
+type AdminEventListRowWithAccess = AdminEventListRowData & {
+  admins: readonly {
+    adminUserId: string;
+  }[];
+};
 
 const DEFAULT_ADMIN_EVENT_USER_LIMIT = 100;
 const MAX_ADMIN_EVENT_USER_LIMIT = 200;
@@ -242,29 +249,36 @@ function eventWhereFromFilters(
   return businessWhere;
 }
 
-async function canUpdateEvent(options: {
-  db: AdminEventQueryDb;
-  event: Pick<AdminEventListRow, 'id' | 'slug'>;
-}): Promise<boolean> {
-  const result = await options.db.event.updateMany({
-    where: { id: options.event.id },
-    data: { slug: options.event.slug },
-  });
-  return result.count > 0;
+function eventListRowData(
+  row: AdminEventListRowWithAccess
+): AdminEventListRowData {
+  return {
+    category: row.category,
+    dates: row.dates,
+    detailPageKind: row.detailPageKind,
+    id: row.id,
+    isPublished: row.isPublished,
+    isSpecial: row.isSpecial,
+    maxParticipants: row.maxParticipants,
+    name: row.name,
+    requiresApproval: row.requiresApproval,
+    shortName: row.shortName,
+    slug: row.slug,
+  };
 }
 
-async function filterAdminUpdateEvents(options: {
-  db: AdminEventQueryDb;
-  rows: readonly AdminEventListRowData[];
-}): Promise<AdminEventListRowData[]> {
-  const authorizedRows = await Promise.all(
-    options.rows.map(async (row) =>
-      (await canUpdateEvent({ db: options.db, event: row })) ? row : null
+function filterAdminUpdateEvents(options: {
+  authContext: AppAuthContext;
+  rows: readonly AdminEventListRowWithAccess[];
+}): AdminEventListRowData[] {
+  return options.rows
+    .filter((row) =>
+      canUpdateEventWithAuthContext({
+        authContext: options.authContext,
+        event: row,
+      })
     )
-  );
-  return authorizedRows.filter(
-    (row): row is AdminEventListRowData => row !== null
-  );
+    .map(eventListRowData);
 }
 
 export async function listAdminEventCategories(): Promise<
@@ -326,6 +340,7 @@ export async function listAdminEventRows(
       maxParticipants: true,
       requiresApproval: true,
       detailPageKind: true,
+      admins: { select: { adminUserId: true } },
       category: { select: { id: true, name: true } },
       dates: {
         orderBy: { startDateTime: 'asc' },
@@ -333,8 +348,8 @@ export async function listAdminEventRows(
       },
     },
   });
-  const authorizedRows = await filterAdminUpdateEvents({
-    db: filters.db,
+  const authorizedRows = filterAdminUpdateEvents({
+    authContext: filters.authContext,
     rows,
   });
   const countsByEventId = await registrationCountsByEventId(

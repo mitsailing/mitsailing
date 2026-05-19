@@ -422,7 +422,9 @@ export class SchemaType implements SchemaDef {
                 },
                 identifier: {
                     name: "identifier",
-                    type: "String"
+                    type: "String",
+                    unique: true,
+                    attributes: [{ name: "@unique" }] as readonly AttributeApplication[]
                 },
                 value: {
                     name: "value",
@@ -447,12 +449,12 @@ export class SchemaType implements SchemaDef {
                 }
             },
             attributes: [
-                { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("identifier")]) }] },
                 { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("verification") }] }
             ] as readonly AttributeApplication[],
             idFields: ["id"],
             uniqueFields: {
-                id: { type: "String" }
+                id: { type: "String" },
+                identifier: { type: "String" }
             }
         },
         FailedLoginAttempt: {

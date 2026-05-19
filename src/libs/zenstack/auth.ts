@@ -13,6 +13,7 @@ import { schema } from '../../../zenstack/schema';
 export type ZenStackDb = ClientContract<SchemaType>;
 
 declare global {
+  var cachedPool: Pool | undefined;
   var cachedZenStack: ZenStackDb | undefined;
   var cachedZenStackPolicy: ZenStackDb | undefined;
 }

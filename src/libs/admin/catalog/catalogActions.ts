@@ -481,7 +481,7 @@ export async function reorderCatalogResourceAction(
   if (!isCatalogResourceId(resourceId)) {
     return { ok: false, code: 'unknown_resource' };
   }
-  await requirePermission(
+  const session = await requirePermission(
     catalogPermissionForOperation({
       operation: 'reorder',
       resourceId,
@@ -506,7 +506,11 @@ export async function reorderCatalogResourceAction(
   } else if (reorderScope !== undefined && reorderScope !== null) {
     return { ok: false, code: 'invalid_payload' };
   }
-  const result = await handlers.reorder(parsed.data, scope);
+  const result = await handlers.reorder(
+    parsed.data,
+    scope,
+    catalogMutationContextFromSession(session)
+  );
   if (!result.ok) {
     return { ok: false, code: result.code };
   }

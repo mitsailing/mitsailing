@@ -90,7 +90,7 @@ describe('createAdminEventAction', () => {
         banned: false,
         emailVerified: true,
         id: 'creator-1',
-        role: Role.DOCK_STAFF,
+        role: Role.USER,
       },
     };
     mocks.requirePermission.mockResolvedValue(session);

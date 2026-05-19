@@ -31,8 +31,8 @@ export default async function AdminEventsListPage(props: PageProps) {
   const [categories, rows, t] = await Promise.all([
     listAdminEventCategories(),
     listAdminEventRows({
+      authContext: access.authContext,
       categoryId: searchParams.category,
-      db: access.db,
       query: searchParams.q,
     }),
     getTranslations({ locale, namespace: 'AdminEvents' }),

@@ -213,9 +213,11 @@ describe('createZenStackCatalogHandlers', () => {
       await import('@/libs/admin/catalog/zenstackCatalogHandlers');
     const handlers = createZenStackCatalogHandlers('event_categories');
 
-    await expect(handlers.reorder?.(['cat-2', 'cat-1'])).resolves.toEqual({
-      ok: true,
-    });
+    await expect(
+      handlers.reorder?.(['cat-2', 'cat-1'], undefined, {
+        authContext: { appRole: Role.ADMIN, id: 'admin-1' },
+      })
+    ).resolves.toEqual({ ok: true });
 
     expect(mocks.transaction).toHaveBeenCalledOnce();
     expect(mocks.update).toHaveBeenCalledWith({
@@ -228,6 +230,20 @@ describe('createZenStackCatalogHandlers', () => {
     });
   });
 
+  it('forbids reorder without auth context', async () => {
+    const { createZenStackCatalogHandlers } =
+      await import('@/libs/admin/catalog/zenstackCatalogHandlers');
+    const handlers = createZenStackCatalogHandlers('event_categories');
+
+    await expect(handlers.reorder?.(['cat-1'])).resolves.toEqual({
+      ok: false,
+      code: 'forbidden',
+    });
+
+    expect(mocks.zenstackForAuthContext).not.toHaveBeenCalled();
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+
   it('reports reorder transaction failures without partial success', async () => {
     mocks.findMany.mockResolvedValue([{ id: 'cat-1' }, { id: 'cat-2' }]);
     mocks.transaction.mockRejectedValue(new Error('transaction failed'));
@@ -235,10 +251,11 @@ describe('createZenStackCatalogHandlers', () => {
       await import('@/libs/admin/catalog/zenstackCatalogHandlers');
     const handlers = createZenStackCatalogHandlers('event_categories');
 
-    await expect(handlers.reorder?.(['cat-2', 'cat-1'])).resolves.toEqual({
-      ok: false,
-      code: 'unknown',
-    });
+    await expect(
+      handlers.reorder?.(['cat-2', 'cat-1'], undefined, {
+        authContext: { appRole: Role.ADMIN, id: 'admin-1' },
+      })
+    ).resolves.toEqual({ ok: false, code: 'unknown' });
 
     expect(mocks.transaction).toHaveBeenCalledOnce();
   });

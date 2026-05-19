@@ -230,11 +230,30 @@ describe('requirePermission', () => {
   it('fails closed for comma-separated role strings', async () => {
     authGetSession.mockResolvedValue(
       createSession({
-        appRole: 'user',
+        appRole: 'dock_staff,other_role',
         id: 'staff-1',
-        role: 'dock_staff',
+        role: 'user',
       })
     );
+    const { requirePermission } = await import('@/libs/auth/dal');
+    const { Permission } = await import('@/libs/auth/permissions');
+
+    await expect(
+      requirePermission(Permission.USERS_VIEW, 'en')
+    ).rejects.toThrow('NEXT_REDIRECT:/');
+
+    expect(redirect).toHaveBeenCalledWith('/');
+  });
+
+  it('redirects impersonating staff from permission routes', async () => {
+    authGetSession.mockResolvedValue({
+      ...createSession({
+        appRole: 'dock_staff',
+        id: 'staff-1',
+        role: 'user',
+      }),
+      session: { impersonatedBy: 'owner-1' },
+    });
     const { requirePermission } = await import('@/libs/auth/dal');
     const { Permission } = await import('@/libs/auth/permissions');
 
