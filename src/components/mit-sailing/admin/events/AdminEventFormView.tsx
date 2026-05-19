@@ -22,7 +22,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SubmitButton } from '@/components/ui/submit-button';
 import { Textarea } from '@/components/ui/textarea';
-import { EventAnswerType, EventDetailPageKind } from '@/generated/prisma/enums';
+import {
+  EventAnswerType,
+  EventDetailPageKind,
+  EventRegistrationMode,
+} from '@/generated/prisma/enums';
 import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 import {
   addAdminEventDateAction,
@@ -95,6 +99,87 @@ function AdminEventErrorAlert(props: {
   return <AdminErrorAlert>{message}</AdminErrorAlert>;
 }
 
+function optionalTextPresent(value: string | null | undefined): boolean {
+  return Boolean(value?.trim());
+}
+
+function registrationOptionalOpen(props: {
+  event: AdminEventEditorDto;
+  registrationMode: EventRegistrationMode;
+}): boolean {
+  return (
+    props.registrationMode !== EventRegistrationMode.standard ||
+    props.event.registrationStart !== null ||
+    props.event.registrationEnd !== null ||
+    props.event.maxParticipants !== null ||
+    props.event.requiresApproval ||
+    optionalTextPresent(props.event.externalRegistrationUrl) ||
+    optionalTextPresent(props.event.externalEntriesUrl)
+  );
+}
+
+function teamsOptionalOpen(event: AdminEventEditorDto): boolean {
+  return (
+    Boolean(event.usesTeamRegistration) ||
+    (event.boatsPerTeam ?? 1) !== 1 ||
+    (event.personsPerBoat ?? 1) !== 1 ||
+    Boolean(event.allowRepeatTeamCaptain)
+  );
+}
+
+function OptionalEditorSection(props: {
+  children: React.ReactNode;
+  defaultOpen: boolean;
+  summary: string;
+}) {
+  return (
+    <details
+      className="rounded-lg border border-border bg-card px-4 py-3"
+      open={props.defaultOpen}
+    >
+      <summary className="cursor-pointer text-sm font-semibold text-foreground">
+        {props.summary}
+      </summary>
+      <div className="mt-4 flex flex-col gap-4">{props.children}</div>
+    </details>
+  );
+}
+
+function PublicContentEditorSection(props: {
+  content: string | undefined;
+  contentName: string;
+  defaultOpen: boolean;
+  summary: string;
+  textareaId: string;
+  t: AdminEventFormTranslations;
+  visible: boolean | undefined;
+  visibleName: string;
+}) {
+  return (
+    <OptionalEditorSection
+      defaultOpen={props.defaultOpen || Boolean(props.visible)}
+      summary={props.summary}
+    >
+      <AdminEventCheckbox
+        defaultChecked={props.visible}
+        label={props.t('field_content_visible')}
+        name={props.visibleName}
+      />
+      <AdminEventField
+        htmlFor={props.textareaId}
+        label={props.t('field_content_body')}
+      >
+        <Textarea
+          className="min-h-28"
+          defaultValue={props.content ?? ''}
+          id={props.textareaId}
+          name={props.contentName}
+        />
+      </AdminEventField>
+    </OptionalEditorSection>
+  );
+}
+
 function EventBasicsForm(props: AdminEventFormViewProps) {
   const updateAction = updateAdminEventBasicsAction.bind(
     null,
@@ -103,6 +188,8 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
   );
   const detailPageKind =
     props.event.detailPageKind ?? EventDetailPageKind.standard;
+  const registrationMode =
+    props.event.registrationMode ?? EventRegistrationMode.standard;
 
   return (
     <form action={updateAction} className="flex flex-col gap-5">
@@ -198,82 +285,7 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
             label={props.t('field_special')}
             name="isSpecial"
           />
-          <AdminEventCheckbox
-            defaultChecked={props.event.requiresApproval}
-            label={props.t('field_requires_approval')}
-            name="requiresApproval"
-          />
         </div>
-
-        <div className="grid gap-4 md:grid-cols-3">
-          <AdminEventField
-            htmlFor="event-registration-start"
-            hint={props.t('field_datetime_et_hint')}
-            label={props.t('field_registration_start')}
-          >
-            {(controlProps) => (
-              <Input
-                defaultValue={formatEasternDateTimeLocal(
-                  props.event.registrationStart
-                )}
-                id="event-registration-start"
-                name="registrationStart"
-                type="datetime-local"
-                {...controlProps}
-              />
-            )}
-          </AdminEventField>
-          <AdminEventField
-            htmlFor="event-registration-end"
-            hint={props.t('field_datetime_et_hint')}
-            label={props.t('field_registration_end')}
-          >
-            {(controlProps) => (
-              <Input
-                defaultValue={formatEasternDateTimeLocal(
-                  props.event.registrationEnd
-                )}
-                id="event-registration-end"
-                name="registrationEnd"
-                type="datetime-local"
-                {...controlProps}
-              />
-            )}
-          </AdminEventField>
-          <AdminEventField
-            htmlFor="event-max-participants"
-            hint={props.t('field_max_participants_hint')}
-            label={props.t('field_max_participants')}
-          >
-            {(controlProps) => (
-              <Input
-                defaultValue={props.event.maxParticipants ?? ''}
-                id="event-max-participants"
-                min={1}
-                name="maxParticipants"
-                step={1}
-                type="number"
-                {...controlProps}
-              />
-            )}
-          </AdminEventField>
-        </div>
-
-        <AdminEventField
-          htmlFor="event-internal-notes"
-          hint={props.t('field_internal_notes_hint')}
-          label={props.t('field_internal_notes')}
-        >
-          {(controlProps) => (
-            <Textarea
-              className="min-h-24"
-              defaultValue={props.event.internalNotes ?? ''}
-              id="event-internal-notes"
-              name="internalNotes"
-              {...controlProps}
-            />
-          )}
-        </AdminEventField>
       </AdminEventFormSection>
 
       <AdminEventFormSection
@@ -351,6 +363,218 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
           />
         </AdminEventField>
       </AdminEventFormSection>
+
+      <PublicContentEditorSection
+        content={props.event.faqContent}
+        contentName="faqContent"
+        defaultOpen={optionalTextPresent(props.event.faqContent)}
+        summary={props.t('optional_faq')}
+        textareaId="event-faq-content"
+        t={props.t}
+        visible={props.event.faqVisible}
+        visibleName="faqVisible"
+      />
+      <PublicContentEditorSection
+        content={props.event.noticeOfRaceContent}
+        contentName="noticeOfRaceContent"
+        defaultOpen={optionalTextPresent(props.event.noticeOfRaceContent)}
+        summary={props.t('optional_notice_of_race')}
+        textareaId="event-notice-of-race-content"
+        t={props.t}
+        visible={props.event.noticeOfRaceVisible}
+        visibleName="noticeOfRaceVisible"
+      />
+      <PublicContentEditorSection
+        content={props.event.sailingInstructionsContent}
+        contentName="sailingInstructionsContent"
+        defaultOpen={
+          Boolean(props.event.sailingInstructionsVisible) ||
+          optionalTextPresent(props.event.sailingInstructionsContent)
+        }
+        summary={props.t('optional_sailing_instructions')}
+        textareaId="event-sailing-instructions-content"
+        t={props.t}
+        visible={props.event.sailingInstructionsVisible}
+        visibleName="sailingInstructionsVisible"
+      />
+      <PublicContentEditorSection
+        content={props.event.resultsContent}
+        contentName="resultsContent"
+        defaultOpen={
+          Boolean(props.event.resultsVisible) ||
+          optionalTextPresent(props.event.resultsContent)
+        }
+        summary={props.t('optional_results')}
+        textareaId="event-results-content"
+        t={props.t}
+        visible={props.event.resultsVisible}
+        visibleName="resultsVisible"
+      />
+
+      <OptionalEditorSection
+        defaultOpen={registrationOptionalOpen({
+          event: props.event,
+          registrationMode,
+        })}
+        summary={props.t('optional_registration')}
+      >
+        <div className="grid gap-4 md:grid-cols-2">
+          <AdminEventField
+            htmlFor="event-registration-mode"
+            label={props.t('field_registration_mode')}
+          >
+            <select
+              className={adminNativeSelectClassName}
+              defaultValue={registrationMode}
+              id="event-registration-mode"
+              name="registrationMode"
+            >
+              <option value={EventRegistrationMode.standard}>
+                {props.t('registration_mode_standard')}
+              </option>
+              <option value={EventRegistrationMode.external}>
+                {props.t('registration_mode_external')}
+              </option>
+              <option value={EventRegistrationMode.none}>
+                {props.t('registration_mode_none')}
+              </option>
+            </select>
+          </AdminEventField>
+          <AdminEventField
+            htmlFor="event-max-participants"
+            hint={props.t('field_max_participants_hint')}
+            label={props.t('field_max_participants')}
+          >
+            {(controlProps) => (
+              <Input
+                defaultValue={props.event.maxParticipants ?? ''}
+                id="event-max-participants"
+                min={1}
+                name="maxParticipants"
+                step={1}
+                type="number"
+                {...controlProps}
+              />
+            )}
+          </AdminEventField>
+          <AdminEventField
+            htmlFor="event-external-registration-url"
+            label={props.t('field_external_registration_url')}
+          >
+            <Input
+              defaultValue={props.event.externalRegistrationUrl ?? ''}
+              id="event-external-registration-url"
+              name="externalRegistrationUrl"
+              type="url"
+            />
+          </AdminEventField>
+          <AdminEventField
+            htmlFor="event-external-entries-url"
+            label={props.t('field_external_entries_url')}
+          >
+            <Input
+              defaultValue={props.event.externalEntriesUrl ?? ''}
+              id="event-external-entries-url"
+              name="externalEntriesUrl"
+              type="url"
+            />
+          </AdminEventField>
+          <AdminEventField
+            htmlFor="event-registration-start"
+            hint={props.t('field_datetime_et_hint')}
+            label={props.t('field_registration_start')}
+          >
+            {(controlProps) => (
+              <Input
+                defaultValue={formatEasternDateTimeLocal(
+                  props.event.registrationStart
+                )}
+                id="event-registration-start"
+                name="registrationStart"
+                type="datetime-local"
+                {...controlProps}
+              />
+            )}
+          </AdminEventField>
+          <AdminEventField
+            htmlFor="event-registration-end"
+            hint={props.t('field_datetime_et_hint')}
+            label={props.t('field_registration_end')}
+          >
+            {(controlProps) => (
+              <Input
+                defaultValue={formatEasternDateTimeLocal(
+                  props.event.registrationEnd
+                )}
+                id="event-registration-end"
+                name="registrationEnd"
+                type="datetime-local"
+                {...controlProps}
+              />
+            )}
+          </AdminEventField>
+          <AdminEventCheckbox
+            defaultChecked={props.event.requiresApproval}
+            label={props.t('field_requires_approval')}
+            name="requiresApproval"
+          />
+        </div>
+      </OptionalEditorSection>
+
+      <OptionalEditorSection
+        defaultOpen={props.event.requiresPhone}
+        summary={props.t('optional_ask_phone')}
+      >
+        <AdminEventCheckbox
+          defaultChecked={props.event.requiresPhone}
+          label={props.t('field_requires_phone')}
+          name="requiresPhone"
+        />
+      </OptionalEditorSection>
+
+      <OptionalEditorSection
+        defaultOpen={teamsOptionalOpen(props.event)}
+        summary={props.t('optional_teams')}
+      >
+        <div className="grid gap-4 md:grid-cols-3">
+          <AdminEventCheckbox
+            defaultChecked={props.event.usesTeamRegistration}
+            label={props.t('field_uses_team_registration')}
+            name="usesTeamRegistration"
+          />
+          <AdminEventField
+            htmlFor="event-boats-per-team"
+            label={props.t('field_boats_per_team')}
+          >
+            <Input
+              defaultValue={props.event.boatsPerTeam ?? 1}
+              id="event-boats-per-team"
+              min={1}
+              name="boatsPerTeam"
+              step={1}
+              type="number"
+            />
+          </AdminEventField>
+          <AdminEventField
+            htmlFor="event-persons-per-boat"
+            label={props.t('field_persons_per_boat')}
+          >
+            <Input
+              defaultValue={props.event.personsPerBoat ?? 1}
+              id="event-persons-per-boat"
+              min={1}
+              name="personsPerBoat"
+              step={1}
+              type="number"
+            />
+          </AdminEventField>
+          <AdminEventCheckbox
+            defaultChecked={props.event.allowRepeatTeamCaptain}
+            label={props.t('field_allow_repeat_team_captain')}
+            name="allowRepeatTeamCaptain"
+          />
+        </div>
+      </OptionalEditorSection>
 
       <div className="flex justify-end">
         <SubmitButton
@@ -1195,7 +1419,9 @@ export function AdminEventFormView(props: AdminEventFormViewProps) {
         </p>
         <div className="flex flex-wrap items-end justify-between gap-3">
           <h1 className="text-3xl font-semibold tracking-tight text-foreground">
-            {props.event.name}
+            {props.accessMode === 'editable'
+              ? props.t('edit_title')
+              : props.event.name}
           </h1>
           <Button asChild size="sm" variant="outline">
             <Link href={eventAdminPublicHref(props.event.slug)}>
@@ -1205,7 +1431,9 @@ export function AdminEventFormView(props: AdminEventFormViewProps) {
           </Button>
         </div>
         <p className="text-sm text-mit-readable-ink">
-          {props.t('edit_public_url', { slug: props.event.slug })}
+          {props.accessMode === 'editable'
+            ? props.event.name
+            : props.t('edit_public_url', { slug: props.event.slug })}
         </p>
       </header>
 
@@ -1213,17 +1441,27 @@ export function AdminEventFormView(props: AdminEventFormViewProps) {
       {props.accessMode === 'readOnly' ? (
         <AdminEventReadOnlyNotice t={props.t} />
       ) : null}
-      <EventMetadataSection event={props.event} t={props.t} />
       {props.accessMode === 'editable' ? (
         <>
           <EventBasicsForm {...props} />
           <EventDatesSection {...props} />
           <EventAdminsSection {...props} />
-          <EventQuestionsSection {...props} />
-          <EventFeesSection {...props} />
+          <OptionalEditorSection
+            defaultOpen={props.event.registrationQuestions.length > 0}
+            summary={props.t('optional_ask_question')}
+          >
+            <EventQuestionsSection {...props} />
+          </OptionalEditorSection>
+          <OptionalEditorSection
+            defaultOpen={props.event.entryFees.length > 0}
+            summary={props.t('optional_entry_fees')}
+          >
+            <EventFeesSection {...props} />
+          </OptionalEditorSection>
         </>
       ) : (
         <>
+          <EventMetadataSection event={props.event} t={props.t} />
           <ReadOnlyBasicsSection {...props} />
           <ReadOnlyDatesSection {...props} />
           <ReadOnlyAdminsSection {...props} />

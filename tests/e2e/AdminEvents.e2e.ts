@@ -20,6 +20,11 @@ test.describe('Admin events', () => {
     await page.getByRole('link', { name: SEED_EVENT_NAME }).click();
 
     await expect(page).toHaveURL(
+      /\/admin\/events\/bluewater-boston-provincetown\/?$/
+    );
+    await page.getByRole('link', { name: 'Edit' }).click();
+
+    await expect(page).toHaveURL(
       /\/admin\/events\/bluewater-boston-provincetown\/edit\/?$/
     );
     await expect(page.getByRole('heading', { name: 'Basics' })).toBeVisible();
