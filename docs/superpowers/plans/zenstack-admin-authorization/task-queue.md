@@ -100,9 +100,34 @@ queue.
     `/admin/roles` permission matrix remains visible but its persisted grants no
     longer drive authorization; Task 04/08 removes that stale surface.
   - Commit: `9690de0d`.
-- [ ] 03 - ZenStack client and Better Auth adapter
+- [x] 03 - ZenStack client and Better Auth adapter
   - Packet: `tasks/03-zenstack-better-auth.md`
   - Reasoning: xhigh
+  - Status: completed; review blockers fixed.
+  - Changed files: `knip.config.ts`, `package.json`, `package-lock.json`,
+    `src/libs/auth.ts`, `src/libs/auth.test.ts`,
+    `src/libs/zenstack/auth.ts`, `src/libs/zenstack/auth.test.ts`,
+    `src/libs/zenstack/authContext.ts`, `src/libs/zenstack/zod.ts`,
+    `src/libs/zenstack/zod.test.ts`,
+    `src/libs/admin/catalog/eventCategoriesSchemas.ts`,
+    `src/libs/admin/roles/roleAdminActions.ts`,
+    `src/libs/admin/roles/roleAdminActions.test.ts`.
+  - Commands run: `npm run test --
+    src/libs/zenstack/auth.test.ts src/libs/zenstack/zod.test.ts
+    src/libs/auth.test.ts src/libs/admin/roles/roleAdminActions.test.ts`
+    failed red for the added auth regressions, then passed with 44 tests;
+    `npm run lint`; `npm run check:types`; `npm run check:deps`;
+    `git diff --check`. Pre-commit reran `ultracite` and `knip`.
+  - Review: two high-risk auth findings and one malformed impersonation finding
+    were fixed, then final read-only review found no blocking issues.
+  - Risks: no full e2e run in this packet. `updateUserRolesAction` updates the
+    Better Auth role mirror before `appRole`; if the final `appRole` write fails,
+    the adapter-normalized Better Auth admin path still fails closed from
+    `appRole`, but the raw mirror may be stale until a later successful write.
+    Migration remains prelaunch-only until Task 08 creates/squashes the database
+    migration slice.
+  - Commit: `887cde49`.
+  - Next: Task 04 - Admin access, users, and role assignment.
 - [ ] 04 - Admin access, users, and role assignment
   - Packet: `tasks/04-admin-access-users.md`
   - Reasoning: high
@@ -130,4 +155,7 @@ queue.
     porting it into the new appRole flow.
 - [ ] 09 - Full verification and review-bot preflight
   - Packet: `tasks/09-verification.md`
+  - Reasoning: xhigh
+- [ ] 10 - PR hardening and post-review fixes
+  - Packet: `tasks/10-pr-hardening.md`
   - Reasoning: xhigh
