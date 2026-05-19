@@ -3,8 +3,8 @@
 ## Goal
 
 Push the completed ZenStack admin authorization migration to GitHub, create a
-ready-for-review PR, harden it with one local CodeRabbit pass, then run up to
-three post-PR rounds for relevant GitHub comments and CI/test failures.
+ready-for-review PR, then run up to three post-PR rounds for relevant GitHub
+comments and CI/test failures.
 
 ## Preconditions
 
@@ -23,7 +23,7 @@ three post-PR rounds for relevant GitHub comments and CI/test failures.
 - `.cursor/rules/pr-agent-reviews-loop.mdc`
 - `.cursor/rules/sonarqube-review.mdc`
 - `.cursor/rules/e2e-verification.mdc`
-- CodeRabbit skill
+- `.agents/skills/zenstack-pr-hardening/SKILL.md`
 - GitHub skill
 
 ## Scope
@@ -32,7 +32,6 @@ Task 10 stays under the ZenStack conductor workflow.
 
 Use CodeRabbit and GitHub skills/tools only as sub-tools for:
 
-- local review
 - PR creation/update
 - PR comments
 - review comments
@@ -41,29 +40,17 @@ Use CodeRabbit and GitHub skills/tools only as sub-tools for:
 Do not switch to `finish-pr-loop` or `finish-pr-context7` unless the user
 explicitly asks.
 
-## Phase 1: Local CodeRabbit Review
+Do not use the official CodeRabbit `autofix` skill in this task because it
+prompts for fix and push choices. CodeRabbit PR comments are handled through the
+bounded workflow in `.agents/skills/zenstack-pr-hardening/SKILL.md`.
 
-Run one local CodeRabbit hardening round before creating the PR.
+## Phase 1: Local Hardening
 
-CodeRabbit scope:
+Task 9 already completed the required two-pass local CodeRabbit MCP review/fix
+loop. Do not run another local CodeRabbit pass here unless new local commits are
+added after task 9 or the user explicitly asks.
 
-- Local CodeRabbit is a bug-finding hardening pass, not a refactor mandate.
-- Fix all real bugs relevant to this migration.
-- Fix concrete defects, unsafe auth/policy behavior, failing-test causes, stale
-  pre-ZenStack migration leftovers, and small clarity fixes that directly
-  reduce migration risk.
-- Do not do broad refactors, architecture rewrites, style churn, naming churn,
-  or large abstractions from CodeRabbit feedback.
-- Treat low-value style comments as advisory unless they reveal a real bug,
-  security issue, test failure, or migration risk.
-- If CodeRabbit recommends broad redesign or unrelated cleanup, document it as
-  out of scope in the final PR comment.
-
-After fixes, rerun relevant verification and commit with a Conventional Commit.
-
-## Phase 2: Local Hardening
-
-Run local verification before PR creation after finishing Phase 1 above.
+Run local verification before PR creation:
 
 - `npm run lint`
 - `npm run check:types`
@@ -76,7 +63,7 @@ Run stale-pattern searches for pre-ZenStack authorization paths.
 Fix only real local failures, stale pre-ZenStack migration leftovers, and small
 issues directly relevant to this migration.
 
-## Phase 3: Create Ready PR
+## Phase 2: Create Ready PR
 
 Push the current branch.
 
@@ -85,7 +72,7 @@ Create a GitHub PR as ready for review, not draft, because CodeRabbit must run.
 If a PR already exists for the branch, update that PR instead of creating a
 duplicate.
 
-## Phase 4: Up to Three Post-PR Fix Rounds
+## Phase 3: Up to Three Post-PR Fix Rounds
 
 Run up to three post-PR fix rounds. Start each round in its own fresh sub-agent.
 Each round begins by waiting until 30 minutes have passed since the latest push,
