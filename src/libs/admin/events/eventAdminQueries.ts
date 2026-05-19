@@ -135,6 +135,20 @@ export type AdminEventRegistrationAnswerDto = {
   };
 };
 
+export type AdminEventRegistrationTeamDto = {
+  id: string;
+  teamName: string;
+};
+
+export type AdminEventRegistrationBoatMemberDto = {
+  id: string;
+  boatNumber: number;
+  position: number;
+  positionLabel: 'helm' | 'crew';
+  fullName: string;
+  email: string;
+};
+
 export type AdminEventRegistrationDto = {
   id: string;
   status: EventRegistrationStatusValue;
@@ -143,6 +157,8 @@ export type AdminEventRegistrationDto = {
   createdAt: Date;
   swimAgreementAcceptedAt: Date;
   user: AdminEventUserOption;
+  registrationTeam: AdminEventRegistrationTeamDto | null;
+  boatMembers: AdminEventRegistrationBoatMemberDto[];
   answers: AdminEventRegistrationAnswerDto[];
 };
 
@@ -150,6 +166,7 @@ export type AdminEventRegistrationsDto = {
   id: string;
   name: string;
   requiresPhone: boolean;
+  usesTeamRegistration: boolean;
   slug: string;
   entryFees?: AdminEventFeeDto[];
   questions: AdminEventQuestionDto[];
@@ -321,6 +338,12 @@ function publicContentSectionsFromDescription(
   return [{ body, id: 'description', titleKey: 'content_description_title' }];
 }
 
+function boatPositionLabel(
+  position: number
+): AdminEventRegistrationBoatMemberDto['positionLabel'] {
+  return position === 0 ? 'helm' : 'crew';
+}
+
 function registrationDtosFromRows(
   rows: readonly {
     id: string;
@@ -335,6 +358,17 @@ function registrationDtosFromRows(
     createdAt: Date;
     swimAgreementAcceptedAt: Date;
     user: AdminEventUserOption;
+    registrationTeam?: {
+      id: string;
+      teamName: string;
+    } | null;
+    boatMembers?: readonly {
+      id: string;
+      boatNumber: number;
+      position: number;
+      fullName: string;
+      email: string;
+    }[];
     registrationAnswers: readonly {
       id: string;
       value: string;
@@ -355,6 +389,19 @@ function registrationDtosFromRows(
       createdAt: registration.createdAt,
       swimAgreementAcceptedAt: registration.swimAgreementAcceptedAt,
       user: registration.user,
+      registrationTeam: registration.registrationTeam ?? null,
+      boatMembers: (registration.boatMembers ?? [])
+        .map((member) => ({
+          id: member.id,
+          boatNumber: member.boatNumber,
+          position: member.position,
+          positionLabel: boatPositionLabel(member.position),
+          fullName: member.fullName,
+          email: member.email,
+        }))
+        .toSorted(
+          (a, b) => a.boatNumber - b.boatNumber || a.position - b.position
+        ),
       answers: registration.registrationAnswers
         .map((answer) => ({
           id: answer.id,
@@ -700,6 +747,7 @@ export async function getAdminEventRegistrationsBySlug(options: {
       id: true,
       name: true,
       requiresPhone: true,
+      usesTeamRegistration: true,
       slug: true,
       registrationQuestions: {
         orderBy: [{ displayOrder: 'asc' }, { questionText: 'asc' }],
@@ -738,6 +786,22 @@ export async function getAdminEventRegistrationsBySlug(options: {
           createdAt: true,
           swimAgreementAcceptedAt: true,
           user: { select: { id: true, name: true, email: true } },
+          registrationTeam: {
+            select: {
+              id: true,
+              teamName: true,
+            },
+          },
+          boatMembers: {
+            orderBy: [{ boatNumber: 'asc' }, { position: 'asc' }],
+            select: {
+              id: true,
+              boatNumber: true,
+              position: true,
+              fullName: true,
+              email: true,
+            },
+          },
           registrationAnswers: {
             select: {
               id: true,
@@ -766,6 +830,7 @@ export async function getAdminEventRegistrationsBySlug(options: {
     id: event.id,
     name: event.name,
     requiresPhone: event.requiresPhone,
+    usesTeamRegistration: event.usesTeamRegistration,
     slug: event.slug,
     entryFees: event.entryFees,
     questions: event.registrationQuestions.map(questionFromDb),

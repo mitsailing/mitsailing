@@ -93,6 +93,28 @@ function renderView(
             },
             id: 'registration-1',
             phone: '617-555-0100',
+            registrationTeam: {
+              id: 'team-1',
+              teamName: 'Fast Team',
+            },
+            boatMembers: [
+              {
+                id: 'member-1',
+                boatNumber: 1,
+                position: 0,
+                positionLabel: 'helm',
+                fullName: 'Helm One',
+                email: 'helm@example.com',
+              },
+              {
+                id: 'member-2',
+                boatNumber: 1,
+                position: 1,
+                positionLabel: 'crew',
+                fullName: 'Crew One',
+                email: 'crew@example.com',
+              },
+            ],
             status: EventRegistrationStatus.pending,
             swimAgreementAcceptedAt: new Date('2026-05-01T12:01:00Z'),
             user: {
@@ -118,6 +140,7 @@ function renderView(
         ],
         requiresPhone: true,
         slug: 'intro-sail',
+        usesTeamRegistration: true,
       }}
       filter="all"
       locale="en"
@@ -148,6 +171,9 @@ describe('AdminEventRegistrationsView', () => {
       within(table).getByRole('columnheader', { name: 'Fee' })
     ).toBeVisible();
     expect(
+      within(table).getByRole('columnheader', { name: 'Team and boat' })
+    ).toBeVisible();
+    expect(
       within(table).getByRole('columnheader', { name: 'Swim agreement' })
     ).toBeVisible();
     expect(
@@ -161,6 +187,14 @@ describe('AdminEventRegistrationsView', () => {
     expect(within(table).getByText('617-555-0100')).toBeVisible();
     expect(within(table).getByText('Adult entry')).toBeVisible();
     expect(within(table).getByText('$150.00')).toBeVisible();
+    expect(within(table).getByText('Fast Team')).toBeVisible();
+    expect(within(table).getByText('Boat 1')).toBeVisible();
+    expect(within(table).getByText('Helm')).toBeVisible();
+    expect(within(table).getByText('Helm One')).toBeVisible();
+    expect(within(table).getByText('helm@example.com')).toBeVisible();
+    expect(within(table).getByText('Crew')).toBeVisible();
+    expect(within(table).getByText('Crew One')).toBeVisible();
+    expect(within(table).getByText('crew@example.com')).toBeVisible();
     expect(screen.getAllByLabelText('Actions for Sailor One').length).toBe(1);
   });
 
@@ -173,6 +207,9 @@ describe('AdminEventRegistrationsView', () => {
     expect(screen.queryByLabelText('View answers for Sailor One')).toBeNull();
     expect(
       screen.queryByRole('table', { name: 'Answers for Sailor One' })
+    ).toBeNull();
+    expect(
+      screen.queryByRole('table', { name: 'Team for Sailor One' })
     ).toBeNull();
     expect(screen.getByText('Vegetarian')).toBeVisible();
   });

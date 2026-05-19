@@ -104,6 +104,8 @@ function eventFixture(
         },
         id: 'registration-1',
         phone: null,
+        registrationTeam: null,
+        boatMembers: [],
         status: EventRegistrationStatus.pending,
         swimAgreementAcceptedAt: new Date('2026-05-01T12:01:00Z'),
         user: {
@@ -115,6 +117,10 @@ function eventFixture(
     ],
     requiresApproval: true,
     requiresPhone: false,
+    usesTeamRegistration: false,
+    boatsPerTeam: 1,
+    personsPerBoat: 1,
+    allowRepeatTeamCaptain: false,
     shortName: 'Intro',
     slug: 'intro-sail',
     questions: [

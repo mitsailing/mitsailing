@@ -223,6 +223,79 @@ function hasFeeColumn(event: AdminEventRegistrationsDto): boolean {
   );
 }
 
+function hasTeamBoatColumn(event: AdminEventRegistrationsDto): boolean {
+  return (
+    event.usesTeamRegistration ||
+    event.registrations.some(
+      (registration) =>
+        registration.registrationTeam !== null ||
+        registration.boatMembers.length > 0
+    )
+  );
+}
+
+function groupedBoatMembers(registration: AdminEventRegistrationDto): {
+  boatNumber: number;
+  members: AdminEventRegistrationDto['boatMembers'];
+}[] {
+  const boats = new Map<number, AdminEventRegistrationDto['boatMembers']>();
+  for (const member of registration.boatMembers) {
+    boats.set(member.boatNumber, [
+      ...(boats.get(member.boatNumber) ?? []),
+      member,
+    ]);
+  }
+  return [...boats.entries()]
+    .map(([boatNumber, members]) => ({ boatNumber, members }))
+    .toSorted((a, b) => a.boatNumber - b.boatNumber);
+}
+
+function TeamBoatValue(props: {
+  registration: AdminEventRegistrationDto;
+  t: AdminEventRegistrationsTranslations;
+}) {
+  const boats = groupedBoatMembers(props.registration);
+  if (props.registration.registrationTeam === null && boats.length === 0) {
+    return props.t('empty_value');
+  }
+  return (
+    <div className="flex min-w-64 flex-col gap-2">
+      {props.registration.registrationTeam ? (
+        <p className="font-semibold text-foreground">
+          {props.registration.registrationTeam.teamName}
+        </p>
+      ) : null}
+      {boats.map((boat) => (
+        <div className="flex flex-col gap-1" key={boat.boatNumber}>
+          <p className="text-xs font-semibold text-mit-readable-ink">
+            {props.t('registration_boat_number', {
+              number: boat.boatNumber,
+            })}
+          </p>
+          {boat.members.map((member) => (
+            <div
+              className="grid grid-cols-[3.5rem_minmax(0,1fr)] gap-x-2 gap-y-0.5"
+              key={member.id}
+            >
+              <span className="text-xs text-mit-readable-ink">
+                {member.positionLabel === 'helm'
+                  ? props.t('registration_team_helm_label')
+                  : props.t('registration_team_crew_label')}
+              </span>
+              <span className="min-w-0">
+                <span className="block text-foreground">{member.fullName}</span>
+                <span className="block text-xs text-mit-readable-ink">
+                  {member.email}
+                </span>
+              </span>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function RegistrationFilters(props: {
   counts: AdminEventRegistrationCounts;
   event: AdminEventRegistrationsDto;
@@ -400,6 +473,7 @@ function RegistrationRosterTable(props: {
   locale: string;
   showFee: boolean;
   showPhone: boolean;
+  showTeamBoat: boolean;
   questionColumns: RegistrationQuestionColumn[];
   registrations: AdminEventRegistrationDto[];
   slug: string;
@@ -418,6 +492,9 @@ function RegistrationRosterTable(props: {
             ) : null}
             {props.showFee ? (
               <TableHead>{props.t('column_fee')}</TableHead>
+            ) : null}
+            {props.showTeamBoat ? (
+              <TableHead>{props.t('column_team_boat')}</TableHead>
             ) : null}
             <TableHead>{props.t('registration_swim_agreement')}</TableHead>
             {props.questionColumns.map((question) => (
@@ -470,6 +547,11 @@ function RegistrationRosterTable(props: {
                     registration={registration}
                     t={props.t}
                   />
+                </TableCell>
+              ) : null}
+              {props.showTeamBoat ? (
+                <TableCell className="px-4 py-3 align-top text-sm text-mit-readable-ink">
+                  <TeamBoatValue registration={registration} t={props.t} />
                 </TableCell>
               ) : null}
               <TableCell className="px-4 py-3 align-top text-sm text-mit-readable-ink">
@@ -552,6 +634,7 @@ export function AdminEventRegistrationsView(
   const questionColumns = registrationQuestionColumns(props.event);
   const showFee = hasFeeColumn(props.event);
   const showPhone = hasPhoneColumn(props.event);
+  const showTeamBoat = hasTeamBoatColumn(props.event);
   const chrome = props.chrome ?? 'page';
   const showReadOnlyNotice = props.showReadOnlyNotice ?? true;
   return (
@@ -601,6 +684,7 @@ export function AdminEventRegistrationsView(
               registrations={visibleRegistrations}
               showFee={showFee}
               showPhone={showPhone}
+              showTeamBoat={showTeamBoat}
               slug={props.event.slug}
               t={props.t}
             />

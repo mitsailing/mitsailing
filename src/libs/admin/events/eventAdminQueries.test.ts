@@ -502,6 +502,8 @@ describe('event admin queries', () => {
           createdAt: newer,
           swimAgreementAcceptedAt: newer,
           user: { id: 'user-1', name: 'A', email: 'a@example.com' },
+          registrationTeam: null,
+          boatMembers: [],
           registrationAnswers: [],
         },
         {
@@ -511,6 +513,8 @@ describe('event admin queries', () => {
           createdAt: older,
           swimAgreementAcceptedAt: older,
           user: { id: 'user-2', name: 'B', email: 'b@example.com' },
+          registrationTeam: null,
+          boatMembers: [],
           registrationAnswers: [],
         },
         {
@@ -520,6 +524,8 @@ describe('event admin queries', () => {
           createdAt: newer,
           swimAgreementAcceptedAt: newer,
           user: { id: 'user-3', name: 'C', email: 'c@example.com' },
+          registrationTeam: null,
+          boatMembers: [],
           registrationAnswers: [
             {
               id: 'answer-2',
@@ -566,6 +572,97 @@ describe('event admin queries', () => {
       approved: 0,
       cancelled: 1,
       pending: 2,
+    });
+  });
+
+  it('selects and maps registration team and boat data', async () => {
+    const createdAt = new Date('2026-05-02T12:00:00Z');
+    mocks.protectedEventFindFirst.mockResolvedValue({ id: 'event-1' });
+    mocks.eventFindUnique.mockResolvedValue({
+      id: 'event-1',
+      name: 'Intro Sail',
+      requiresPhone: false,
+      slug: 'intro-sail',
+      registrationQuestions: [],
+      entryFees: [],
+      registrations: [
+        {
+          id: 'registration-1',
+          phone: null,
+          status: EventRegistrationStatus.pending,
+          createdAt,
+          swimAgreementAcceptedAt: createdAt,
+          user: {
+            id: 'user-1',
+            name: 'Captain One',
+            email: 'captain@example.com',
+          },
+          registrationTeam: { id: 'team-1', teamName: 'Fast Team' },
+          boatMembers: [
+            {
+              id: 'member-crew',
+              boatNumber: 1,
+              position: 1,
+              fullName: 'Crew One',
+              email: 'crew@example.com',
+            },
+            {
+              id: 'member-helm',
+              boatNumber: 1,
+              position: 0,
+              fullName: 'Helm One',
+              email: 'helm@example.com',
+            },
+          ],
+          registrationAnswers: [],
+        },
+      ],
+    });
+    const { getAdminEventRegistrationsBySlug } =
+      await import('@/libs/admin/events/eventAdminQueries');
+
+    const result = await getAdminEventRegistrationsBySlug({
+      db,
+      slug: 'intro-sail',
+    });
+
+    expect(mocks.eventFindUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.objectContaining({
+          registrations: expect.objectContaining({
+            select: expect.objectContaining({
+              boatMembers: expect.objectContaining({
+                orderBy: [{ boatNumber: 'asc' }, { position: 'asc' }],
+              }),
+              registrationTeam: expect.any(Object),
+            }),
+          }),
+        }),
+      })
+    );
+    expect(result?.registrations[0]).toMatchObject({
+      registrationTeam: {
+        id: 'team-1',
+        teamName: 'Fast Team',
+      },
+      boatMembers: [
+        {
+          id: 'member-helm',
+          boatNumber: 1,
+          position: 0,
+          positionLabel: 'helm',
+          fullName: 'Helm One',
+          email: 'helm@example.com',
+        },
+        {
+          id: 'member-crew',
+          boatNumber: 1,
+          position: 1,
+          positionLabel: 'crew',
+          fullName: 'Crew One',
+          email: 'crew@example.com',
+        },
+      ],
     });
   });
 
@@ -634,6 +731,16 @@ describe('event admin queries', () => {
           ],
           status: EventRegistrationStatus.pending,
           swimAgreementAcceptedAt: startDateTime,
+          registrationTeam: { id: 'team-1', teamName: 'Fast Team' },
+          boatMembers: [
+            {
+              id: 'member-1',
+              boatNumber: 1,
+              position: 0,
+              fullName: 'Helm One',
+              email: 'helm@example.com',
+            },
+          ],
           user: {
             email: 'sailor@example.com',
             id: 'user-1',
@@ -704,6 +811,10 @@ describe('event admin queries', () => {
     expect(
       result?.registrations.map((registration) => registration.id)
     ).toEqual(['registration-1']);
+    expect(result?.registrations[0]?.registrationTeam?.teamName).toBe(
+      'Fast Team'
+    );
+    expect(result?.registrations[0]?.boatMembers[0]?.fullName).toBe('Helm One');
     expect(result?.questions.map((question) => question.id)).toEqual([
       'question-1',
     ]);

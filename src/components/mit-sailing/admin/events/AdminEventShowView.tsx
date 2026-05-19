@@ -340,6 +340,7 @@ export function AdminEventShowView(props: AdminEventShowViewProps) {
             registrations: props.event.registrations,
             requiresPhone: props.event.requiresPhone,
             slug: props.event.slug,
+            usesTeamRegistration: props.event.usesTeamRegistration ?? false,
           }}
           filter={props.filter}
           id="registrations"
