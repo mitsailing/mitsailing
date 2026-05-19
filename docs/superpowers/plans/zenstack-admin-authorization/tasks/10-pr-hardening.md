@@ -85,15 +85,16 @@ Create a GitHub PR as ready for review, not draft, because CodeRabbit must run.
 If a PR already exists for the branch, update that PR instead of creating a
 duplicate.
 
-## Phase 4: Three Post-PR Fix Rounds
+## Phase 4: Up to Three Post-PR Fix Rounds
 
 Run up to three post-PR fix rounds. Start each round in its own fresh sub-agent.
-Before inspecting GitHub checks or review comments in a round, wait until 30
-minutes have passed since the latest push so CI and review bots have time to
-report.
+Each round begins by waiting until 30 minutes have passed since the latest push,
+then inspecting GitHub checks and review comments. Do not wait 30 minutes
+between local fix steps inside a round.
 
-Stop the loop early if the 30-minute post-push check shows all tests passing,
-no failing checks, and no actionable GitHub or CodeRabbit comments left to fix.
+Stop the loop early when the 30-minute post-push check shows all GitHub checks
+passing, no failing tests, and no actionable GitHub or CodeRabbit comments left
+to fix.
 
 A post-PR round means:
 
@@ -151,7 +152,7 @@ Stop and ask if:
 - a fix would require broad deletion or rewrite of pre-ZenStack code beyond this
   plan
 - a security, auth, policy, data-loss, or merge-blocking CI issue remains after
-  the third post-PR round
+  the third post-PR fix round
 - the same unclear CI failure remains after one focused fix attempt
 
 ## Final PR Comment
