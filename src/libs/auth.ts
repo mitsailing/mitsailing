@@ -1,11 +1,17 @@
 import 'server-only';
 import { i18n } from '@better-auth/i18n';
-import { prismaAdapter } from '@better-auth/prisma-adapter';
 import { hash, verify } from '@node-rs/argon2';
+import type { BetterAuthPlugin } from 'better-auth';
 import { betterAuth } from 'better-auth';
 import { auditLog } from 'better-auth-audit-logs';
+import { createAuthMiddleware } from 'better-auth/api';
 import { nextCookies } from 'better-auth/next-js';
-import { admin, emailOTP, haveIBeenPwned } from 'better-auth/plugins';
+import {
+  admin,
+  customSession,
+  emailOTP,
+  haveIBeenPwned,
+} from 'better-auth/plugins';
 import { createAccessControl } from 'better-auth/plugins/access';
 import { signInEmailHooks } from '@/libs/auth/hooks';
 import { passwordCompromiseCheckEnabled } from '@/libs/auth/password-compromise';
@@ -22,6 +28,11 @@ import {
 import { Env } from '@/libs/Env';
 import { logger } from '@/libs/Logger';
 import { ensureNewsletterSubscriberForUser } from '@/libs/newsletter/newsletterSubscriptions';
+import { getBetterAuthZenStackAdapter } from '@/libs/zenstack/auth';
+import {
+  appSessionDataForBetterAuth,
+  withAppRoleBetterAuthAdapter,
+} from '@/libs/zenstack/authContext';
 import enMessages from '@/locales/en.json';
 
 const isProd = Env.NODE_ENV === 'production';
@@ -51,25 +62,36 @@ const authAdminStatements = {
 } as const;
 const authAdminAccessControl = createAccessControl(authAdminStatements);
 const authAdminRole = authAdminAccessControl.newRole(authAdminStatements);
-const authStaffRole = authAdminAccessControl.newRole({
-  user: [
-    'create',
-    'list',
-    'set-role',
-    'ban',
-    'impersonate',
-    'delete',
-    'set-password',
-    'get',
-    'update',
-  ],
+const authNonAdminRole = authAdminAccessControl.newRole({
+  user: [],
   session: [],
 });
+const appRoleAdminAuthorizationPlugin = {
+  id: 'app-role-admin-authorization',
+  hooks: {
+    before: [
+      {
+        matcher: (ctx) => (ctx.path ?? '').startsWith('/admin/'),
+        handler: createAuthMiddleware(async (ctx) => {
+          await Promise.resolve();
+          return {
+            context: {
+              query: {
+                ...ctx.query,
+                disableCookieCache: true,
+              },
+            },
+          };
+        }),
+      },
+    ],
+  },
+} satisfies BetterAuthPlugin;
 
 export const auth = betterAuth({
   baseURL: Env.NEXT_PUBLIC_APP_URL,
   secret: Env.BETTER_AUTH_SECRET,
-  database: prismaAdapter(prisma, { provider: 'postgresql' }),
+  database: withAppRoleBetterAuthAdapter(getBetterAuthZenStackAdapter()),
   advanced: {
     ipAddress: {
       ipAddressHeaders: [
@@ -178,16 +200,21 @@ export const auth = betterAuth({
     after: signInEmailHooks.after,
   },
   plugins: [
+    appRoleAdminAuthorizationPlugin,
+    customSession(async (session) => {
+      await Promise.resolve();
+      return appSessionDataForBetterAuth(session);
+    }),
     admin({
       defaultRole: Role.USER,
       adminRoles: [Role.ADMIN],
       ac: authAdminAccessControl,
       roles: {
-        [Role.USER]: authStaffRole,
-        [Role.VOLUNTEER]: authStaffRole,
-        [Role.VOLUNTEER_INSTRUCTOR]: authStaffRole,
-        [Role.DOCK_STAFF]: authStaffRole,
-        [Role.DOCK_MASTER]: authStaffRole,
+        [Role.USER]: authNonAdminRole,
+        [Role.VOLUNTEER]: authNonAdminRole,
+        [Role.VOLUNTEER_INSTRUCTOR]: authNonAdminRole,
+        [Role.DOCK_STAFF]: authNonAdminRole,
+        [Role.DOCK_MASTER]: authNonAdminRole,
         [Role.ADMIN]: authAdminRole,
       },
       bannedUserMessage: enMessages.AuthErrors.BANNED_USER_MESSAGE,

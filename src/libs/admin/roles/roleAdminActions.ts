@@ -1,6 +1,8 @@
 'use server';
 
+import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { auth } from '@/libs/auth';
 import { requirePermission } from '@/libs/auth/dal';
 import type { RolePermissionGrant } from '@/libs/auth/permissions';
 import {
@@ -86,6 +88,7 @@ export async function updateUserRolesAction(
 ): Promise<void> {
   await requirePermission(Permission.ROLES_ASSIGN, locale);
   const role = selectedRole(formData);
+  const hdrs = await headers();
   try {
     await prisma.$transaction(async (tx) => {
       const target = await tx.user.findUnique({
@@ -104,10 +107,6 @@ export async function updateUserRolesAction(
           throw new LastAdminRoleChangeError();
         }
       }
-      await tx.user.update({
-        where: { id: userId },
-        data: { appRole: role, role },
-      });
     });
   } catch (error) {
     if (error instanceof LastAdminRoleChangeError) {
@@ -115,5 +114,13 @@ export async function updateUserRolesAction(
     }
     throw error;
   }
+  await auth.api.setRole({
+    body: { role, userId },
+    headers: hdrs,
+  });
+  await prisma.user.update({
+    where: { id: userId },
+    data: { appRole: role },
+  });
   adminRolesRedirect(locale, 'user_saved');
 }

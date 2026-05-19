@@ -29,12 +29,8 @@ const config: KnipConfig = {
     '@commitlint/types',
     '@hookform/resolvers',
     '@swc/helpers', // Avoid error in CI: "`npm ci` can only install packages when your package.json and package-lock.json or npm-shrinkwrap.json are in sync."
-    '@zenstackhq/better-auth',
     '@zenstackhq/cli',
-    '@zenstackhq/orm',
-    '@zenstackhq/plugin-policy',
     '@zenstackhq/server',
-    '@zenstackhq/zod',
     'oxfmt',
     'oxlint-tsgolint',
     'postcss',

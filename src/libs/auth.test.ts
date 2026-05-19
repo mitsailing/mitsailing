@@ -1,12 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Role, ROLE_VALUES } from '@/libs/auth/roles';
+import type * as AuthContextModule from '@/libs/zenstack/authContext';
 
 type AuthPlugin = {
   config?: unknown;
+  hooks?: {
+    before?: {
+      handler: (context: unknown) => Promise<unknown>;
+      matcher: (context: { path: string }) => boolean;
+    }[];
+  };
   id: string;
 };
 
 type AuthConfig = {
+  database: unknown;
   emailAndPassword: {
     onPasswordReset: (props: { user: { email: string } }) => Promise<void>;
     password: {
@@ -57,6 +65,16 @@ type EmailOtpConfig = {
   ) => Promise<void>;
 };
 
+type AuthRoleConfig = {
+  authorize: (permissions: { user: string[] }) => { success: boolean };
+};
+
+type TestBetterAuthAdapter = {
+  findOne: (input: unknown) => Promise<unknown>;
+};
+
+type TestBetterAuthAdapterFactory = (options: unknown) => TestBetterAuthAdapter;
+
 const authMocks = vi.hoisted(() => ({
   Env: {
     BETTER_AUTH_SECRET: 'test-secret',
@@ -67,6 +85,11 @@ const authMocks = vi.hoisted(() => ({
   admin: vi.fn((config: unknown) => ({ config, id: 'admin' })),
   auditLog: vi.fn((config: unknown) => ({ config, id: 'auditLog' })),
   betterAuth: vi.fn((config: unknown) => ({ config, id: 'betterAuth' })),
+  createAuthMiddleware: vi.fn((handler: unknown) => handler),
+  customSession: vi.fn((config: unknown) => ({
+    config,
+    id: 'custom-session',
+  })),
   emailOTP: vi.fn((config: unknown) => ({ config, id: 'emailOTP' })),
   hash: vi.fn(),
   haveIBeenPwned: vi.fn((config: unknown) => ({
@@ -96,6 +119,9 @@ const authMocks = vi.hoisted(() => ({
     after: vi.fn(),
     before: vi.fn(),
   },
+  appSessionDataForBetterAuth: vi.fn(),
+  betterAuthZenStackAdapter: { id: 'zenstackAdapter' },
+  getBetterAuthZenStackAdapter: vi.fn(),
   verify: vi.fn(),
 }));
 
@@ -118,6 +144,10 @@ vi.mock('better-auth', () => ({
   betterAuth: authMocks.betterAuth,
 }));
 
+vi.mock('better-auth/api', () => ({
+  createAuthMiddleware: authMocks.createAuthMiddleware,
+}));
+
 vi.mock('better-auth-audit-logs', () => ({
   auditLog: authMocks.auditLog,
 }));
@@ -128,6 +158,7 @@ vi.mock('better-auth/next-js', () => ({
 
 vi.mock('better-auth/plugins', () => ({
   admin: authMocks.admin,
+  customSession: authMocks.customSession,
   emailOTP: authMocks.emailOTP,
   haveIBeenPwned: authMocks.haveIBeenPwned,
 }));
@@ -163,6 +194,18 @@ vi.mock('@/libs/Logger', () => ({
   },
 }));
 
+vi.mock('@/libs/zenstack/auth', () => ({
+  getBetterAuthZenStackAdapter: authMocks.getBetterAuthZenStackAdapter,
+}));
+
+vi.mock('@/libs/zenstack/authContext', async (importOriginal) => {
+  const actual = await importOriginal<typeof AuthContextModule>();
+  return {
+    ...actual,
+    appSessionDataForBetterAuth: authMocks.appSessionDataForBetterAuth,
+  };
+});
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -184,6 +227,7 @@ function isAuthConfig(value: unknown): value is AuthConfig {
     typeof value.emailAndPassword.password.verify === 'function' &&
     isRecord(value.emailVerification) &&
     typeof value.emailVerification.afterEmailVerification === 'function' &&
+    'database' in value &&
     Array.isArray(value.plugins) &&
     value.plugins.every(isAuthPlugin) &&
     isRecord(value.rateLimit) &&
@@ -197,6 +241,26 @@ function isAuthConfig(value: unknown): value is AuthConfig {
 
 function isEmailOtpConfig(value: unknown): value is EmailOtpConfig {
   return isRecord(value) && typeof value.sendVerificationOTP === 'function';
+}
+
+function isAuthRoleConfig(value: unknown): value is AuthRoleConfig {
+  return isRecord(value) && typeof value.authorize === 'function';
+}
+
+function isTestBetterAuthAdapterFactory(
+  value: unknown
+): value is TestBetterAuthAdapterFactory {
+  return typeof value === 'function';
+}
+
+function authPluginById(config: AuthConfig, id: string): AuthPlugin {
+  const plugin = config.plugins.find((candidate) => candidate.id === id);
+
+  if (!plugin) {
+    throw new Error(`${id} plugin was not registered`);
+  }
+
+  return plugin;
 }
 
 function latestAuthConfig(): AuthConfig {
@@ -240,6 +304,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   authMocks.Env.NODE_ENV = 'production';
   authMocks.Env.IS_E2E = undefined;
+  authMocks.createAuthMiddleware.mockImplementation(
+    (handler: unknown) => handler
+  );
   authMocks.hash.mockResolvedValue('hashed-password');
   authMocks.verify.mockResolvedValue(true);
   authMocks.markPendingEmailChange.mockResolvedValue(true);
@@ -250,6 +317,20 @@ beforeEach(() => {
   authMocks.sendEmailChangeRequestedNotice.mockImplementation(async () => {});
   authMocks.sendEmailOtpCode.mockImplementation(async () => {});
   authMocks.sendPasswordChangedNotice.mockImplementation(async () => {});
+  authMocks.getBetterAuthZenStackAdapter.mockReturnValue(
+    authMocks.betterAuthZenStackAdapter
+  );
+  authMocks.appSessionDataForBetterAuth.mockImplementation(
+    (session: unknown) => ({
+      ...(isRecord(session) ? session : {}),
+      user: {
+        appRole: Role.ADMIN,
+        banned: false,
+        emailVerified: true,
+        role: Role.ADMIN,
+      },
+    })
+  );
 });
 
 describe('auth', () => {
@@ -257,11 +338,13 @@ describe('auth', () => {
     const { auth, config } = await importAuthConfig();
 
     expect(auth).toEqual({ config, id: 'betterAuth' });
-    expect(authMocks.prismaAdapter).toHaveBeenCalledWith(authMocks.prisma, {
-      provider: 'postgresql',
-    });
+    expect(config.database).not.toBe(authMocks.betterAuthZenStackAdapter);
+    expect(isTestBetterAuthAdapterFactory(config.database)).toBe(true);
+    expect(authMocks.prismaAdapter).not.toHaveBeenCalled();
     expect(config.rateLimit.enabled).toBe(true);
     expect(config.plugins.map((plugin) => plugin.id)).toEqual([
+      'app-role-admin-authorization',
+      'custom-session',
       'admin',
       'haveIBeenPwned',
       'emailOTP',
@@ -269,6 +352,130 @@ describe('auth', () => {
       'i18n',
       'nextCookies',
     ]);
+  });
+
+  it('uses app auth session data for Better Auth sessions', async () => {
+    await importAuthConfig();
+
+    expect(authMocks.customSession).toHaveBeenCalledOnce();
+    const call: readonly unknown[] | undefined =
+      authMocks.customSession.mock.calls.at(-1);
+    if (!call) {
+      throw new Error('customSession was not called');
+    }
+    const [sessionMapper] = call;
+    if (typeof sessionMapper !== 'function') {
+      throw new TypeError('customSession mapper did not match expected shape');
+    }
+    const session = { session: {}, user: { id: 'admin-1' } };
+
+    await expect(sessionMapper(session)).resolves.toEqual(
+      expect.objectContaining({
+        user: expect.objectContaining({ role: Role.ADMIN }),
+      })
+    );
+    expect(authMocks.appSessionDataForBetterAuth).toHaveBeenCalledWith(session);
+  });
+
+  it('limits Better Auth admin plugin permissions to admin app role mirror', async () => {
+    const { config } = await importAuthConfig();
+    const adminPlugin = config.plugins.find((plugin) => plugin.id === 'admin');
+
+    if (!isRecord(adminPlugin?.config)) {
+      throw new TypeError('admin plugin config did not match expected shape');
+    }
+    const { roles } = adminPlugin.config;
+    if (!isRecord(roles)) {
+      throw new TypeError('admin roles did not match expected shape');
+    }
+    const adminRole = roles[Role.ADMIN];
+    const staffRole = roles[Role.DOCK_STAFF];
+    if (!isAuthRoleConfig(adminRole) || !isAuthRoleConfig(staffRole)) {
+      throw new TypeError(
+        'admin role definitions did not match expected shape'
+      );
+    }
+
+    expect(adminRole.authorize({ user: ['list'] }).success).toBe(true);
+    expect(staffRole.authorize({ user: ['list'] }).success).toBe(false);
+  });
+
+  it('fails closed for Better Auth admin authorization when role mirror drifts', async () => {
+    const staleAdminSession = {
+      createdAt: new Date('2026-01-01T00:00:00Z'),
+      expiresAt: new Date('2026-01-01T00:30:00Z'),
+      id: 'session-1',
+      impersonatedBy: null,
+      token: 'session-token',
+      updatedAt: new Date('2026-01-01T00:00:00Z'),
+      user: {
+        appRole: Role.USER,
+        banned: false,
+        emailVerified: true,
+        id: 'user-1',
+        role: Role.ADMIN,
+      },
+      userId: 'user-1',
+    };
+    const findOne = vi.fn(async () => {
+      await Promise.resolve();
+      return staleAdminSession;
+    });
+    authMocks.getBetterAuthZenStackAdapter.mockReturnValue(() => ({ findOne }));
+    const { config } = await importAuthConfig();
+
+    const authorizationPlugin = authPluginById(
+      config,
+      'app-role-admin-authorization'
+    );
+    const hook = authorizationPlugin.hooks?.before?.at(0);
+    if (!hook) {
+      throw new Error('admin authorization hook was not registered');
+    }
+
+    expect(hook.matcher({ path: '/admin/set-role' })).toBe(true);
+    await expect(
+      hook.handler({ path: '/admin/set-role', query: { page: '1' } })
+    ).resolves.toEqual({
+      context: {
+        query: {
+          disableCookieCache: true,
+          page: '1',
+        },
+      },
+    });
+    expect(
+      config.plugins.findIndex((plugin) => plugin.id === authorizationPlugin.id)
+    ).toBeLessThan(config.plugins.findIndex((plugin) => plugin.id === 'admin'));
+
+    if (!isTestBetterAuthAdapterFactory(config.database)) {
+      throw new TypeError('Better Auth database adapter was not callable');
+    }
+    const adapter = config.database({});
+    const result = await adapter.findOne({
+      join: { user: true },
+      model: 'session',
+      where: [],
+    });
+
+    if (!(isRecord(result) && isRecord(result.user))) {
+      throw new TypeError('adapter result did not include a joined user');
+    }
+    expect(result.user.role).toBe(Role.USER);
+    const betterAuthRole = result.user.role;
+    if (typeof betterAuthRole !== 'string') {
+      throw new TypeError('adapter user role did not match expected shape');
+    }
+
+    const adminPlugin = authPluginById(config, 'admin');
+    if (!isRecord(adminPlugin.config) || !isRecord(adminPlugin.config.roles)) {
+      throw new TypeError('admin plugin roles did not match expected shape');
+    }
+    const mirroredRole = adminPlugin.config.roles[betterAuthRole];
+    if (!isAuthRoleConfig(mirroredRole)) {
+      throw new TypeError('mirrored admin role did not match expected shape');
+    }
+    expect(mirroredRole.authorize({ user: ['set-role'] }).success).toBe(false);
   });
 
   it('disables IP rate limits for e2e runtime', async () => {

@@ -9,9 +9,11 @@ const {
   createMany,
   deleteMany,
   findUnique,
+  headers,
   invalidateRolePermissionGrants,
   redirect,
   requirePermission,
+  setRole,
   transaction,
   update,
   userCount,
@@ -19,11 +21,16 @@ const {
   createMany: vi.fn(),
   deleteMany: vi.fn(),
   findUnique: vi.fn(),
+  headers: vi.fn(async () => {
+    await Promise.resolve();
+    return new Headers({ 'x-test': '1' });
+  }),
   invalidateRolePermissionGrants: vi.fn(),
   redirect: vi.fn((href: string) => {
     throw new Error(`NEXT_REDIRECT:${href}`);
   }),
   requirePermission: vi.fn(),
+  setRole: vi.fn(),
   transaction: vi.fn(),
   update: vi.fn(),
   userCount: vi.fn(),
@@ -35,8 +42,20 @@ vi.mock('next/navigation', () => ({
   redirect,
 }));
 
+vi.mock('next/headers', () => ({
+  headers,
+}));
+
 vi.mock('@/libs/auth/dal', () => ({
   requirePermission,
+}));
+
+vi.mock('@/libs/auth', () => ({
+  auth: {
+    api: {
+      setRole,
+    },
+  },
 }));
 
 vi.mock('@/libs/auth/rolePermissionGrants', () => ({
@@ -70,14 +89,17 @@ beforeEach(() => {
   createMany.mockReset();
   deleteMany.mockReset();
   findUnique.mockReset();
+  headers.mockClear();
   invalidateRolePermissionGrants.mockReset();
   redirect.mockClear();
   requirePermission.mockReset();
+  setRole.mockReset();
   transaction.mockReset();
   update.mockReset();
   userCount.mockReset();
 
   findUnique.mockResolvedValue({ appRole: Role.USER, role: Role.USER });
+  setRole.mockResolvedValue({ user: { id: 'user-1' } });
   update.mockResolvedValue({ id: 'user-1' });
   requirePermission.mockResolvedValue({
     session: { impersonatedBy: null },
@@ -144,7 +166,7 @@ describe('saveRolePermissionGrantsAction', () => {
 });
 
 describe('updateUserRolesAction', () => {
-  it('updates app role and role mirror in a transaction', async () => {
+  it('updates app role and role mirror through Better Auth', async () => {
     findUnique.mockResolvedValue({ appRole: Role.USER, role: Role.USER });
     const { updateUserRolesAction } =
       await import('@/libs/admin/roles/roleAdminActions');
@@ -163,9 +185,35 @@ describe('updateUserRolesAction', () => {
     );
     expect(transaction).toHaveBeenCalledOnce();
     expect(update).toHaveBeenCalledWith({
-      data: { appRole: Role.VOLUNTEER, role: Role.VOLUNTEER },
+      data: { appRole: Role.VOLUNTEER },
       where: { id: 'user-1' },
     });
+    expect(setRole).toHaveBeenCalledWith({
+      body: { role: Role.VOLUNTEER, userId: 'user-1' },
+      headers: expect.any(Headers),
+    });
+  });
+
+  it('leaves app role unchanged when Better Auth role mirror update fails', async () => {
+    findUnique.mockResolvedValue({ appRole: Role.ADMIN, role: Role.ADMIN });
+    userCount.mockResolvedValue(2);
+    setRole.mockRejectedValue(new Error('auth down'));
+    const { updateUserRolesAction } =
+      await import('@/libs/admin/roles/roleAdminActions');
+
+    await expect(
+      updateUserRolesAction('en', 'admin-1', formData([['role', Role.USER]]))
+    ).rejects.toThrow('auth down');
+
+    expect(userCount).toHaveBeenCalledWith({
+      where: { appRole: Role.ADMIN },
+    });
+    expect(setRole).toHaveBeenCalledWith({
+      body: { role: Role.USER, userId: 'admin-1' },
+      headers: expect.any(Headers),
+    });
+    expect(update).not.toHaveBeenCalled();
+    expect(redirect).not.toHaveBeenCalled();
   });
 
   it('keeps at least one admin role assigned', async () => {

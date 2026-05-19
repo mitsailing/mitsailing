@@ -1,12 +1,9 @@
-import * as z from 'zod';
+import { eventCategoryFormSchema } from '@/libs/zenstack/zod';
 
 /**
  * Validates event category create/update payloads parsed from admin forms.
  */
-export const eventCategoryFormSchema = z.object({
-  name: z.string().trim().min(1),
-  isVisible: z.boolean(),
-});
+export { eventCategoryFormSchema };
 
 /**
  * Parses {@link FormData} from the event category admin form for Zod validation.
