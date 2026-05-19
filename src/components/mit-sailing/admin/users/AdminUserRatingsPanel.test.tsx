@@ -159,7 +159,7 @@ describe('AdminUserRatingsPanel', () => {
     expect(screen.getByText('rating_status_deprecated')).toBeInTheDocument();
   });
 
-  it('renders rating alert messages for load failures and action error codes', async () => {
+  it('renders rating alert messages for action error codes', async () => {
     const { AdminUserRatingsPanel } = await import('./AdminUserRatingsPanel');
 
     render(
@@ -200,6 +200,10 @@ describe('AdminUserRatingsPanel', () => {
       })
     );
     expect(screen.getByText('rating_error_deprecated')).toBeInTheDocument();
+  });
+
+  it('renders fallback alert messages for unknown and load failures', async () => {
+    const { AdminUserRatingsPanel } = await import('./AdminUserRatingsPanel');
 
     render(
       await AdminUserRatingsPanel({

@@ -433,6 +433,10 @@ describe('reorderCatalogResourceAction', () => {
       reorderCatalogResourceAction('en', 'sailing_classes', ['class-1'])
     ).resolves.toEqual({ ok: false, code: 'invalid_payload' });
 
+    expect(requirePermission).toHaveBeenCalledWith(
+      Permission.SAILING_CLASSES_MANAGE,
+      'en'
+    );
     expect(reorder).not.toHaveBeenCalled();
   });
 
