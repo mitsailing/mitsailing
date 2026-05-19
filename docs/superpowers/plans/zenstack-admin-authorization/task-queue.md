@@ -128,9 +128,36 @@ queue.
     migration slice.
   - Commit: `887cde49`.
   - Next: Task 04 - Admin access, users, and role assignment.
-- [ ] 04 - Admin access, users, and role assignment
+- [x] 04 - Admin access, users, and role assignment
   - Packet: `tasks/04-admin-access-users.md`
   - Reasoning: high
+  - Status: completed; review blockers fixed.
+  - Changed files: `package.json`, `package-lock.json`,
+    `prisma/schema.prisma`, `prisma/seed.ts`, `zenstack/schema.zmodel`,
+    generated `zenstack/*.ts`, admin index/users pages, admin access/nav
+    helpers, user admin definitions/schemas/handlers/tests, site shell/header
+    admin links/tests, `src/libs/auth/appPermissions.ts`,
+    `src/libs/auth/dal.ts`, `src/libs/auth/permissions.ts`,
+    `src/libs/auth/server-admin.ts`, `src/libs/admin/users/appRoleActions.ts`,
+    `src/locales/en.json`. Deleted `/admin/roles`,
+    `AdminRoleUsersInfiniteScroll`, role admin actions/tests, and
+    `rolePermissionGrants.ts`.
+  - Commands run: TDD red runs for app role actions/user handlers/auth DAL and
+    form error mapping; `npx zen generate --schema zenstack/schema.zmodel`;
+    `npx prisma generate`; `npm run test` passed before review fixes with 1486
+    passing and 1 skipped; after review fixes targeted suite passed with 110
+    tests; `npx zen check --schema zenstack/schema.zmodel`; `npm run lint`;
+    `npm run check:types`; `npm run check:deps`; `npm run check:i18n`;
+    `git diff --check`. Pre-commit reran `ultracite` and `knip`.
+  - Review: fixed viable-admin last-admin counting, partial-create rollback,
+    and DAL fail-closed auth-context findings. Final read-only review found no
+    blocking issues.
+  - Risks: last-viable-admin protection is still count-then-mutate rather than
+    locked/transactional; a code `TODO:` records that deferred concurrency
+    hardening. Historical migration files can still mention
+    `role_permission_grants`; Task 08 owns migration cleanup/squash.
+  - Commit: `9dfe5c26`.
+  - Next: Task 05 - Event authorization policies.
 - [ ] 05 - Event authorization policies
   - Packet: `tasks/05-event-policies.md`
   - Reasoning: xhigh
