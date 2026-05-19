@@ -92,6 +92,38 @@ Each round begins by waiting until 30 minutes have passed since the latest push,
 then inspecting GitHub checks and review comments. Do not wait 30 minutes
 between local fix steps inside a round.
 
+Each round must begin with aggressive context pruning. The context gets very big
+during step 9 and during review loops, so do not treat prior implementation or
+review history as reusable context.
+
+Before round 1, discard the accumulated step 9 implementation context. Keep only
+a short task 9 completion summary, the latest pushed commit hash, and the PR
+state. Do not carry forward step 9 file-by-file notes, full verification output,
+debugging history, or old hypotheses.
+
+Before round 2 and round 3, close or discard the previous round's working notes,
+pasted logs, full review dumps, stale hypotheses, speculative analysis, fixed
+findings, and unrelated file summaries. Build a small handoff packet for the
+next fresh sub-agent with only:
+
+- this task file
+- PR URL and branch name
+- latest pushed commit hash
+- current check status
+- current unresolved actionable review findings
+- exact failed command plus the smallest relevant log excerpt, if a check failed
+- files or tests already touched in the previous round
+
+Do not carry forward full CI logs, full CodeRabbit/GitHub comment exports,
+complete diffs, full file contents, full rule bodies, or broad repository
+context. Cite rule paths instead of pasting rules. Keep the handoff short enough
+to fit in one screen; if it grows past that, summarize harder before spawning
+the next sub-agent. Reload details from the source of truth only when the active
+finding requires them. If a tool returns noisy output, summarize the
+decision-relevant lines and drop the rest before starting the next round. The
+sub-agent should need only current PR state, targeted files, and targeted
+verification to complete the round.
+
 Stop the loop early when the 30-minute post-push check shows all GitHub checks
 passing, no failing tests, and no actionable GitHub or CodeRabbit comments left
 to fix.
