@@ -76,7 +76,7 @@ export function AdminEventDetailPageKindFields(props: {
       <fieldset className="flex flex-col gap-3">
         <legend className="sr-only">{props.fieldLabel}</legend>
         <label
-          aria-labelledby="event-detail-page-kind-standard-label"
+          aria-label={props.standardLabel}
           className="flex cursor-pointer items-start gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm"
           htmlFor="event-detail-page-kind-standard"
         >
@@ -104,7 +104,7 @@ export function AdminEventDetailPageKindFields(props: {
           </span>
         </label>
         <label
-          aria-labelledby="event-detail-page-kind-external-label"
+          aria-label={props.externalLabel}
           className="flex cursor-pointer items-start gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm"
           htmlFor="event-detail-page-kind-external"
         >

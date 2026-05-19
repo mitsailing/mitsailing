@@ -158,7 +158,7 @@ describe('event admin queries', () => {
 
     await listAdminEventRows({
       authContext: { appRole: Role.VOLUNTEER_INSTRUCTOR, id: 'staff-1' },
-      scope: 'mine',
+      scope: 'invalid-scope',
     });
 
     expect(mocks.eventFindMany).toHaveBeenCalledWith(

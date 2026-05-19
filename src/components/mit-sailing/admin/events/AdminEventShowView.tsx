@@ -180,18 +180,22 @@ export function AdminEventShowView(props: AdminEventShowViewProps) {
               .join(', '),
     },
   ];
-  if (props.event.externalRegistrationUrl) {
+  const externalRegistrationHref = props.event.externalRegistrationUrl
+    ? safeExternalHttpHref(props.event.externalRegistrationUrl)
+    : null;
+  if (externalRegistrationHref) {
     details.push({
       label: props.t('show_external_registration_url'),
-      value: (
-        <AdminEventSummaryLink href={props.event.externalRegistrationUrl} />
-      ),
+      value: <AdminEventSummaryLink href={externalRegistrationHref} />,
     });
   }
-  if (props.event.externalEntriesUrl) {
+  const externalEntriesHref = props.event.externalEntriesUrl
+    ? safeExternalHttpHref(props.event.externalEntriesUrl)
+    : null;
+  if (externalEntriesHref) {
     details.push({
       label: props.t('show_external_entries_url'),
-      value: <AdminEventSummaryLink href={props.event.externalEntriesUrl} />,
+      value: <AdminEventSummaryLink href={externalEntriesHref} />,
     });
   }
 

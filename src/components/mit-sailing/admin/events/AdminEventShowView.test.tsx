@@ -341,6 +341,8 @@ describe('AdminEventShowView', () => {
     expect(
       screen.queryByRole('link', { name: 'mailto:entries@example.com' })
     ).toBeNull();
+    expect(screen.queryByText('External registration URL')).toBeNull();
+    expect(screen.queryByText('External entries URL')).toBeNull();
   });
 
   it('falls back to the public event path for unsafe external detail urls', () => {
