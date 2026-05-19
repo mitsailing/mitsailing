@@ -2,12 +2,14 @@ import {
   Permission,
   getAppRolePermissions,
   hasPermission,
-  normalizeAppRole,
 } from '@/libs/auth/appPermissions';
+import { appAuthContextFromSession } from '@/libs/zenstack/authContext';
 
 /** Minimal session fields for deciding whether the global header shows Admin. */
 export type AdminHeaderLinkSessionInput = {
   userAppRole: unknown;
+  userBanned: unknown;
+  userEmailVerified: unknown;
   userId: string | null | undefined;
   impersonatedBy: unknown;
 };
@@ -26,18 +28,22 @@ export function adminHeaderLinkVisibleFromSession(
   if (typeof input.userId !== 'string' || input.userId.length === 0) {
     return false;
   }
-  if (
-    !hasPermission(
-      getAppRolePermissions(normalizeAppRole(input.userAppRole)),
-      Permission.ADMIN_VIEW
-    )
-  ) {
+  const authContext = appAuthContextFromSession({
+    session: { impersonatedBy: input.impersonatedBy },
+    user: {
+      appRole: input.userAppRole,
+      banned: input.userBanned,
+      emailVerified: input.userEmailVerified,
+      id: input.userId,
+    },
+  });
+  if (!authContext) {
     return false;
   }
-  if (input.impersonatedBy) {
-    return false;
-  }
-  return true;
+  return hasPermission(
+    getAppRolePermissions(authContext.appRole),
+    Permission.ADMIN_VIEW
+  );
 }
 
 /**
@@ -54,12 +60,19 @@ export function adminHeaderLinkVisibleFromClientSessionData(
     return false;
   }
   const { user, session } = data as {
-    user?: { appRole?: unknown; id?: unknown };
+    user?: {
+      appRole?: unknown;
+      banned?: unknown;
+      emailVerified?: unknown;
+      id?: unknown;
+    };
     session?: { impersonatedBy?: unknown };
   };
   return adminHeaderLinkVisibleFromSession({
     userId: typeof user?.id === 'string' ? user.id : undefined,
     userAppRole: user?.appRole,
+    userBanned: user?.banned,
+    userEmailVerified: user?.emailVerified,
     impersonatedBy: session?.impersonatedBy,
   });
 }

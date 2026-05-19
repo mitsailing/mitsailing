@@ -9,12 +9,12 @@ import {
 } from '@/libs/admin/users/adminUserPaths';
 import { usersAdminDefinition } from '@/libs/admin/users/userAdminDefinitions';
 import { usersAdminHandlers } from '@/libs/admin/users/usersAdminHandlers';
-import { appRoleFromSessionUser, requirePermission } from '@/libs/auth/dal';
 import {
-  AuthSubject,
-  createAuthAbility,
+  getAppRolePermissions,
+  hasPermission,
   Permission,
-} from '@/libs/auth/permissions';
+} from '@/libs/auth/appPermissions';
+import { appRoleFromSessionUser, requirePermission } from '@/libs/auth/dal';
 import { getI18nPath } from '@/utils/Helpers';
 
 type AdminUsersIndexPageProps = {
@@ -44,18 +44,14 @@ export default async function AdminUsersIndexPage(
   const session = await requirePermission(Permission.USERS_VIEW, locale);
   const currentUserId = session.user.id;
   const currentUserRole = appRoleFromSessionUser(session.user);
-  const ability = createAuthAbility({
-    grants: [],
-    role: currentUserRole,
-    userId: currentUserId,
-  });
-  const canEditUsers = ability.can(
-    Permission.USERS_EDIT,
-    AuthSubject.PERMISSION
+  const currentUserPermissions = getAppRolePermissions(currentUserRole);
+  const canEditUsers = hasPermission(
+    currentUserPermissions,
+    Permission.USERS_EDIT
   );
-  const canDeleteUsers = ability.can(
-    Permission.USERS_DELETE,
-    AuthSubject.PERMISSION
+  const canDeleteUsers = hasPermission(
+    currentUserPermissions,
+    Permission.USERS_DELETE
   );
   const accountHref = getI18nPath('/', locale);
 

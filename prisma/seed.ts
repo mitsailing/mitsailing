@@ -2,7 +2,6 @@ import 'dotenv/config';
 import { randomUUID } from 'node:crypto';
 import { hash } from '@node-rs/argon2';
 import { selectPasswordHashingOptions } from '../src/libs/auth/passwordHashing';
-import { permissionGrantsForSeed } from '../src/libs/auth/permissions';
 import { Role } from '../src/libs/auth/roles';
 import { prisma } from '../src/libs/DB';
 import { seedMitSailing } from './seedMitSailing/index';
@@ -18,10 +17,6 @@ const argonOpts = selectPasswordHashingOptions({
  */
 async function main() {
   await seedMitSailing();
-  await prisma.rolePermissionGrant.createMany({
-    data: permissionGrantsForSeed(),
-    skipDuplicates: true,
-  });
 
   const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
   const password = process.env.ADMIN_PASSWORD;

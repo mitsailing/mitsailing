@@ -10,8 +10,11 @@ import {
 import { catalogPermissionsForOperation } from '@/libs/admin/catalog/catalogPermissions';
 import { adminPavilionReservationIndexPath } from '@/libs/admin/pavilion-reservations/pavilionReservationAdminPaths';
 import { ADMIN_USERS_PATH } from '@/libs/admin/users/adminUserPaths';
-import type { AuthAbility } from '@/libs/auth/permissions';
-import { AuthSubject, Permission } from '@/libs/auth/permissions';
+import {
+  hasAnyPermission,
+  hasPermission,
+  Permission,
+} from '@/libs/auth/appPermissions';
 import { Link } from '@/libs/I18nNavigation';
 
 type AdminIndexPageProps = {
@@ -32,17 +35,18 @@ function catalogPermissionsForResource(
   return catalogPermissionsForOperation({ operation: 'view', resourceId: id });
 }
 
-function canUsePermission(ability: AuthAbility, permission: Permission) {
-  return ability.can(permission, AuthSubject.PERMISSION);
+function canUsePermission(
+  permissions: readonly Permission[],
+  permission: Permission
+) {
+  return hasPermission(permissions, permission);
 }
 
 function canUseAnyPermission(
-  ability: AuthAbility,
-  permissions: readonly Permission[]
+  grantedPermissions: readonly Permission[],
+  requiredPermissions: readonly Permission[]
 ) {
-  return permissions.some((permission) =>
-    canUsePermission(ability, permission)
-  );
+  return hasAnyPermission(grantedPermissions, requiredPermissions);
 }
 
 /**
@@ -55,22 +59,18 @@ function canUseAnyPermission(
 export default async function AdminIndexPage(props: AdminIndexPageProps) {
   const { locale } = await props.params;
   setRequestLocale(locale);
-  const { ability } = await requireAdminAreaAccess(locale);
-  const canCms = canUsePermission(ability, Permission.CMS_VIEW);
-  const canUsers = canUsePermission(ability, Permission.USERS_VIEW);
-  const canEvents = canUsePermission(ability, Permission.EVENTS_MANAGE);
+  const { permissions } = await requireAdminAreaAccess(locale);
+  const canCms = canUsePermission(permissions, Permission.CMS_VIEW);
+  const canUsers = canUsePermission(permissions, Permission.USERS_VIEW);
+  const canEvents = canUsePermission(permissions, Permission.EVENTS_MANAGE);
   const canPavilionReservations = canUsePermission(
-    ability,
+    permissions,
     Permission.PAVILION_RESERVATIONS_MANAGE
   );
   const canNewsletters = canUsePermission(
-    ability,
+    permissions,
     Permission.NEWSLETTER_MANAGE
   );
-  const canRoles = canUseAnyPermission(ability, [
-    Permission.ROLES_ASSIGN,
-    Permission.ROLES_MANAGE_PERMISSIONS,
-  ]);
 
   const t = await getTranslations({ locale, namespace: 'AdminIndex' });
   const tCatalog = await getTranslations({
@@ -113,19 +113,6 @@ export default async function AdminIndexPage(props: AdminIndexPageProps) {
               </Link>
               <p className="mt-0.5 text-sm text-mit-text">
                 {t('link_pavilion_reservations_blurb')}
-              </p>
-            </li>
-          ) : null}
-          {canRoles ? (
-            <li>
-              <Link
-                className="font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
-                href="/admin/roles"
-              >
-                {t('link_roles')}
-              </Link>
-              <p className="mt-0.5 text-sm text-mit-text">
-                {t('link_roles_blurb')}
               </p>
             </li>
           ) : null}
@@ -209,7 +196,7 @@ export default async function AdminIndexPage(props: AdminIndexPageProps) {
           {CATALOG_RESOURCE_IDS.map((id) => {
             const def = catalogResourceDefinitions[id];
             const canSeeResource = canUseAnyPermission(
-              ability,
+              permissions,
               catalogPermissionsForResource(id)
             );
             return canSeeResource ? (

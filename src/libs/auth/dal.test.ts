@@ -56,7 +56,9 @@ type TestSession = {
   };
   user: {
     appRole?: unknown;
+    banned?: unknown;
     email?: unknown;
+    emailVerified?: unknown;
     id: string;
     name?: unknown;
     role?: unknown;
@@ -67,7 +69,11 @@ type TestSession = {
 function createSession(user: TestSession['user']): TestSession {
   return {
     session: { impersonatedBy: null },
-    user,
+    user: {
+      banned: false,
+      emailVerified: true,
+      ...user,
+    },
   };
 }
 
@@ -227,6 +233,32 @@ describe('requirePermission', () => {
         appRole: 'user',
         id: 'staff-1',
         role: 'dock_staff',
+      })
+    );
+    const { requirePermission } = await import('@/libs/auth/dal');
+    const { Permission } = await import('@/libs/auth/permissions');
+
+    await expect(
+      requirePermission(Permission.USERS_VIEW, 'en')
+    ).rejects.toThrow('NEXT_REDIRECT:/');
+
+    expect(redirect).toHaveBeenCalledWith('/');
+  });
+
+  it.each([
+    ['banned staff', { appRole: 'dock_staff', banned: true }],
+    ['unverified staff', { appRole: 'dock_staff', emailVerified: false }],
+    ['malformed ban state', { appRole: 'dock_staff', banned: null }],
+    [
+      'malformed verification state',
+      { appRole: 'dock_staff', emailVerified: null },
+    ],
+  ])('fails closed for %s', async (_label, overrides) => {
+    authGetSession.mockResolvedValue(
+      createSession({
+        id: 'staff-1',
+        role: 'user',
+        ...overrides,
       })
     );
     const { requirePermission } = await import('@/libs/auth/dal');

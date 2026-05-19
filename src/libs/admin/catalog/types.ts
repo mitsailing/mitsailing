@@ -110,7 +110,7 @@ export type AdminUserRow = {
   emailSuppressedAt: string | null;
   emailSuppressionReason: string | null;
   name: string;
-  role: string;
+  appRole: string;
   emailVerified: boolean;
   banned: boolean;
 };

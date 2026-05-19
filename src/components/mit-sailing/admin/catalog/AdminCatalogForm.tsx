@@ -120,6 +120,12 @@ function usersAdminFormErrorMessage(
   if (code === 'not_allowed') {
     return t('form_error_not_allowed');
   }
+  if (code === 'role_mirror_inconsistent') {
+    return t('form_error_role_mirror_inconsistent');
+  }
+  if (code === 'role_assignment_rollback_failed') {
+    return t('form_error_role_assignment_rollback_failed');
+  }
   return t('form_error_unknown');
 }
 

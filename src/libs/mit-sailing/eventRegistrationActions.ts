@@ -175,7 +175,6 @@ export async function createPublicEventRegistrationAction(
   const user = await requireCurrentUser(locale, callbackUrl);
   const registrationAccessWhere = accessibleBy(
     createAuthAbility({
-      grants: [],
       role: Role.USER,
       userId: user.id,
     }),
@@ -392,7 +391,6 @@ export async function cancelPublicEventRegistrationAction(
   const user = await requireCurrentUser(locale, callbackUrl);
   const registrationAccessWhere = accessibleBy(
     createAuthAbility({
-      grants: [],
       role: Role.USER,
       userId: user.id,
     }),

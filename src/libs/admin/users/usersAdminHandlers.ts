@@ -10,6 +10,7 @@ import type {
   CatalogRow,
   CatalogServerHandlers,
 } from '@/libs/admin/catalog/types';
+import { updateUserAppRole } from '@/libs/admin/users/appRoleActions';
 import { mapAuthAdminErrorToCode } from '@/libs/admin/users/mapAuthAdminError';
 import {
   adminUserCreateFormSchema,
@@ -22,9 +23,12 @@ import { normalizeAppRole } from '@/libs/auth/appPermissions';
 import { Role } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
 import { emailDeliverabilityStatus } from '@/libs/email/emailDeliverabilityStatus';
+import { appAuthContextFromSession } from '@/libs/zenstack/authContext';
 
-const ADMIN_ROLE_FILTER = {
+const VIABLE_ADMIN_FILTER = {
   appRole: Role.ADMIN,
+  banned: false,
+  emailVerified: true,
 } satisfies Prisma.UserWhereInput;
 
 function rowFromDb(user: {
@@ -46,10 +50,22 @@ function rowFromDb(user: {
     emailSuppressedAt: user.emailSuppressedAt?.toISOString() ?? null,
     emailSuppressionReason: user.emailSuppressionReason,
     name: user.name,
-    role: normalizeAppRole(user.appRole),
+    appRole: normalizeAppRole(user.appRole),
     emailVerified: user.emailVerified,
     banned: Boolean(user.banned),
   };
+}
+
+function isViableAdminUser(user: {
+  appRole: unknown;
+  banned: unknown;
+  emailVerified: unknown;
+}): boolean {
+  return (
+    normalizeAppRole(user.appRole) === Role.ADMIN &&
+    user.banned === false &&
+    user.emailVerified === true
+  );
 }
 
 async function assertCanRemoveOrDemoteAdmin(
@@ -57,13 +73,13 @@ async function assertCanRemoveOrDemoteAdmin(
 ): Promise<CatalogMutationErr | null> {
   const target = await prisma.user.findUnique({
     where: { id: targetUserId },
-    select: { appRole: true },
+    select: { appRole: true, banned: true, emailVerified: true },
   });
-  if (!target || normalizeAppRole(target.appRole) !== Role.ADMIN) {
+  if (!target || !isViableAdminUser(target)) {
     return null;
   }
   const adminCount = await prisma.user.count({
-    where: ADMIN_ROLE_FILTER,
+    where: VIABLE_ADMIN_FILTER,
   });
   if (adminCount <= 1) {
     return { ok: false, code: 'last_admin' };
@@ -72,12 +88,75 @@ async function assertCanRemoveOrDemoteAdmin(
 }
 
 type AdminHeaders = Awaited<ReturnType<typeof headers>>;
+type AdminRequestContext =
+  | {
+      authContext: NonNullable<ReturnType<typeof appAuthContextFromSession>>;
+      headers: AdminHeaders;
+    }
+  | CatalogMutationErr;
 
 function authMutationError(error: unknown): CatalogMutationErr {
   if (error instanceof APIError) {
     return { ok: false, code: mapAuthAdminErrorToCode(error) };
   }
   return { ok: false, code: 'unknown' };
+}
+
+async function adminRequestContext(): Promise<AdminRequestContext> {
+  const hdrs = await headers();
+  const session = await auth.api.getSession({ headers: hdrs });
+  const authContext = appAuthContextFromSession(session);
+  if (!authContext) {
+    return { ok: false, code: 'not_allowed' };
+  }
+  return { authContext, headers: hdrs };
+}
+
+function appRoleUpdateError(
+  result: Exclude<Awaited<ReturnType<typeof updateUserAppRole>>, { ok: true }>
+): CatalogMutationErr {
+  if (result.code === 'forbidden') {
+    return { ok: false, code: 'not_allowed' };
+  }
+  return result;
+}
+
+async function rollbackCreatedUser(props: {
+  headers: AdminHeaders;
+  id: string;
+}): Promise<CatalogMutationErr | null> {
+  try {
+    await auth.api.removeUser({
+      body: { userId: props.id },
+      headers: props.headers,
+    });
+    return null;
+  } catch {
+    return { ok: false, code: 'role_assignment_rollback_failed' };
+  }
+}
+
+async function updateAppRoleFromForm(props: {
+  currentRole: Role;
+  headers: AdminHeaders;
+  nextRole: Role;
+  targetUserId: string;
+}): Promise<CatalogMutationErr | null> {
+  if (props.currentRole === props.nextRole) {
+    return null;
+  }
+  const session = await auth.api.getSession({ headers: props.headers });
+  const authContext = appAuthContextFromSession(session);
+  if (!authContext) {
+    return { ok: false, code: 'not_allowed' };
+  }
+  const result = await updateUserAppRole({
+    authContext,
+    nextRole: props.nextRole,
+    requestHeaders: props.headers,
+    targetUserId: props.targetUserId,
+  });
+  return result.ok ? null : appRoleUpdateError(result);
 }
 
 async function updateUserDetails(props: {
@@ -183,7 +262,7 @@ export const usersAdminHandlers: CatalogServerHandlers = {
     if (!parsed.success) {
       return { ok: false, code: 'validation_failed' };
     }
-    const { email, name, password, role } = parsed.data;
+    const { appRole, email, name, password } = parsed.data;
     const hdrs = await headers();
     try {
       const result = await auth.api.createUser({
@@ -191,7 +270,7 @@ export const usersAdminHandlers: CatalogServerHandlers = {
           email,
           name,
           password,
-          role,
+          role: Role.USER,
         },
         headers: hdrs,
       });
@@ -208,10 +287,35 @@ export const usersAdminHandlers: CatalogServerHandlers = {
       if (!createdId) {
         return { ok: false, code: 'unknown' };
       }
-      await prisma.user.update({
-        where: { id: createdId },
-        data: { appRole: role },
-      });
+      if (appRole !== Role.USER) {
+        const context = await adminRequestContext();
+        if (!('authContext' in context)) {
+          const rollbackError = await rollbackCreatedUser({
+            headers: hdrs,
+            id: createdId,
+          });
+          if (rollbackError) {
+            return rollbackError;
+          }
+          return context;
+        }
+        const roleUpdate = await updateUserAppRole({
+          authContext: context.authContext,
+          nextRole: appRole,
+          requestHeaders: context.headers,
+          targetUserId: createdId,
+        });
+        if (!roleUpdate.ok) {
+          const rollbackError = await rollbackCreatedUser({
+            headers: context.headers,
+            id: createdId,
+          });
+          if (rollbackError) {
+            return rollbackError;
+          }
+          return appRoleUpdateError(roleUpdate);
+        }
+      }
       return { ok: true, id: createdId };
     } catch (error: unknown) {
       if (error instanceof APIError) {
@@ -231,28 +335,22 @@ export const usersAdminHandlers: CatalogServerHandlers = {
     if (!parsed.success) {
       return { ok: false, code: 'validation_failed' };
     }
-    const { email, name, role, emailVerified, banned, newPassword } =
+    const { appRole, email, name, emailVerified, banned, newPassword } =
       parsed.data;
 
     const existing = await prisma.user.findUnique({
       where: { id },
-      select: { appRole: true, banned: true, email: true },
+      select: { appRole: true, banned: true, email: true, emailVerified: true },
     });
     if (!existing) {
       return { ok: false, code: 'not_found' };
     }
 
+    const currentRole = normalizeAppRole(existing.appRole);
     if (
-      normalizeAppRole(existing.appRole) === Role.ADMIN &&
-      role !== Role.ADMIN
+      currentRole === Role.ADMIN &&
+      (appRole !== Role.ADMIN || banned || !emailVerified)
     ) {
-      const block = await assertCanRemoveOrDemoteAdmin(id);
-      if (block) {
-        return block;
-      }
-    }
-
-    if (normalizeAppRole(existing.appRole) === Role.ADMIN && banned) {
       const block = await assertCanRemoveOrDemoteAdmin(id);
       if (block) {
         return block;
@@ -272,7 +370,6 @@ export const usersAdminHandlers: CatalogServerHandlers = {
     const data: Record<string, unknown> = {
       email,
       name,
-      role,
       emailVerified,
       ...emailDeliverabilityResetData,
     };
@@ -283,10 +380,15 @@ export const usersAdminHandlers: CatalogServerHandlers = {
     if (typeof userUpdate !== 'boolean') {
       return userUpdate;
     }
-    await prisma.user.update({
-      where: { id },
-      data: { appRole: role },
+    const appRoleUpdate = await updateAppRoleFromForm({
+      currentRole,
+      headers: hdrs,
+      nextRole: appRole,
+      targetUserId: id,
     });
+    if (appRoleUpdate) {
+      return appRoleUpdate;
+    }
 
     if (banStateChanged) {
       const banUpdate = await updateUserBanState({ id, banned, headers: hdrs });
@@ -306,7 +408,12 @@ export const usersAdminHandlers: CatalogServerHandlers = {
       }
     }
 
-    if (!userUpdate && !banStateChanged && trimmedPassword.length === 0) {
+    if (
+      !userUpdate &&
+      currentRole === appRole &&
+      !banStateChanged &&
+      trimmedPassword.length === 0
+    ) {
       return { ok: false, code: 'no_data_to_update' };
     }
 

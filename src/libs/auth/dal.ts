@@ -15,6 +15,7 @@ import {
 import { Permission } from '@/libs/auth/permissions';
 import type { Role } from '@/libs/auth/roles';
 import { syncSentryUserFromSession } from '@/libs/sentry-user-server';
+import { appAuthContextFromSession } from '@/libs/zenstack/authContext';
 import { AppConfig } from '@/utils/AppConfig';
 import { getI18nPath } from '@/utils/Helpers';
 
@@ -53,10 +54,6 @@ export function appRoleFromSessionUser(user: unknown): Role {
     return normalizeAppRole(null);
   }
   return normalizeAppRole(user.appRole);
-}
-
-export function sessionImpersonatedBy(session: unknown): unknown {
-  return isRecord(session) ? session.impersonatedBy : undefined;
 }
 
 /**
@@ -120,13 +117,15 @@ export async function requireAnyPermission(
 ): Promise<NonNullable<AuthSession>> {
   const homeHref = getI18nPath('/', locale);
   const session = await verifySession(locale, homeHref);
-  const appRole = appRoleFromSessionUser(session.user);
+  const authContext = appAuthContextFromSession(session);
 
-  if (sessionImpersonatedBy(session.session)) {
+  if (!authContext) {
     redirect(homeHref);
   }
 
-  if (!hasAnyPermission(getAppRolePermissions(appRole), permissions)) {
+  if (
+    !hasAnyPermission(getAppRolePermissions(authContext.appRole), permissions)
+  ) {
     redirect(homeHref);
   }
   return session;

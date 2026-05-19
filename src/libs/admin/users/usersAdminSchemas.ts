@@ -11,16 +11,16 @@ function booleanFromFormData(
 }
 
 export const adminUserCreateFormSchema = z.object({
+  appRole: roleSchema,
   email: z.string().trim().pipe(z.email()),
   name: z.string().trim().min(1),
   password: z.string().min(8),
-  role: roleSchema,
 });
 
 export const adminUserUpdateFormSchema = z.object({
+  appRole: roleSchema,
   email: z.string().trim().pipe(z.email()),
   name: z.string().trim().min(1),
-  role: roleSchema,
   emailVerified: z.boolean(),
   banned: z.boolean(),
   newPassword: z.string(),
@@ -28,18 +28,18 @@ export const adminUserUpdateFormSchema = z.object({
 
 export function rawAdminUserCreateFromFormData(formData: FormData): unknown {
   return {
+    appRole: formData.get('appRole'),
     email: formData.get('email'),
     name: formData.get('name'),
     password: formData.get('password'),
-    role: formData.get('role'),
   };
 }
 
 export function rawAdminUserUpdateFromFormData(formData: FormData): unknown {
   return {
+    appRole: formData.get('appRole'),
     email: formData.get('email'),
     name: formData.get('name'),
-    role: formData.get('role'),
     emailVerified: booleanFromFormData(formData, 'emailVerified'),
     banned: booleanFromFormData(formData, 'banned'),
     newPassword: formData.get('newPassword') ?? '',

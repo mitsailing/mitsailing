@@ -102,7 +102,7 @@ beforeEach(() => {
     emailVerified: true,
     id: 'user-1',
     name: 'Sailor One',
-    role: 'user',
+    appRole: 'user',
     updatedAt: new Date('2026-01-02T00:00:00.000Z'),
   });
   mocks.getAdminUserEmailMessages.mockResolvedValue([]);
@@ -112,7 +112,13 @@ beforeEach(() => {
   mocks.listUserRatingAssignmentRows.mockResolvedValue([]);
   mocks.requirePermission.mockResolvedValue({
     session: { impersonatedBy: null },
-    user: { appRole: 'admin', id: 'admin-1', role: 'user' },
+    user: {
+      appRole: 'admin',
+      banned: false,
+      emailVerified: true,
+      id: 'admin-1',
+      role: 'user',
+    },
   });
   mocks.updateAdminUserAction.mockReturnValue(async () => {});
 });
@@ -184,7 +190,13 @@ describe('admin user pages', () => {
   it('keeps the user detail page behind the view-users permission', async () => {
     mocks.requirePermission.mockResolvedValue({
       session: { impersonatedBy: null },
-      user: { appRole: Role.DOCK_STAFF, id: 'staff-1', role: Role.USER },
+      user: {
+        appRole: Role.DOCK_STAFF,
+        banned: false,
+        emailVerified: true,
+        id: 'staff-1',
+        role: Role.USER,
+      },
     });
     const { default: AdminUserShowPage } = await import('./[id]/page');
 

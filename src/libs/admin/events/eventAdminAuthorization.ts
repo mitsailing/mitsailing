@@ -39,7 +39,6 @@ function createEventAdminAbility(
   session: NonNullable<AuthSession>
 ): AuthAbility {
   return createAuthAbility({
-    grants: [],
     role: appRoleFromSessionUser(session.user),
     userId: session.user.id,
   });

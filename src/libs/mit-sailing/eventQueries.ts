@@ -220,7 +220,6 @@ const getCachedPublicEventRegistrationState = cache(
     try {
       const registrationAccessWhere = accessibleBy(
         createAuthAbility({
-          grants: [],
           role: Role.USER,
           userId,
         }),

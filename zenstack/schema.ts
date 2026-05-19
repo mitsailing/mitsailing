@@ -247,50 +247,6 @@ export class SchemaType implements SchemaDef {
                 email: { type: "String" }
             }
         },
-        RolePermissionGrant: {
-            name: "RolePermissionGrant",
-            fields: {
-                id: {
-                    name: "id",
-                    type: "String",
-                    id: true,
-                    attributes: [{ name: "@id" }, { name: "@default", args: [{ name: "value", value: ExpressionUtils.call("cuid") }] }] as readonly AttributeApplication[],
-                    default: ExpressionUtils.call("cuid") as FieldDefault
-                },
-                roleKey: {
-                    name: "roleKey",
-                    type: "String",
-                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("role_key") }] }] as readonly AttributeApplication[]
-                },
-                permissionKey: {
-                    name: "permissionKey",
-                    type: "String",
-                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("permission_key") }] }] as readonly AttributeApplication[]
-                },
-                createdAt: {
-                    name: "createdAt",
-                    type: "DateTime",
-                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.call("now") }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("created_at") }] }] as readonly AttributeApplication[],
-                    default: ExpressionUtils.call("now") as FieldDefault
-                },
-                updatedAt: {
-                    name: "updatedAt",
-                    type: "DateTime",
-                    updatedAt: true,
-                    attributes: [{ name: "@updatedAt" }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("updated_at") }] }] as readonly AttributeApplication[]
-                }
-            },
-            attributes: [
-                { name: "@@unique", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("roleKey"), ExpressionUtils.field("permissionKey")]) }] },
-                { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("permissionKey")]) }] },
-                { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("role_permission_grants") }] }
-            ] as readonly AttributeApplication[],
-            idFields: ["id"],
-            uniqueFields: {
-                id: { type: "String" },
-                roleKey_permissionKey: { roleKey: { type: "String" }, permissionKey: { type: "String" } }
-            }
-        },
         Session: {
             name: "Session",
             fields: {

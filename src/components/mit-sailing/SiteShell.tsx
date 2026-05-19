@@ -18,13 +18,20 @@ type SiteShellProps = {
 
 type SiteShellSession = {
   session?: { impersonatedBy?: string | null } | null;
-  user?: { appRole?: unknown; id?: string } | null;
+  user?: {
+    appRole?: unknown;
+    banned?: unknown;
+    emailVerified?: unknown;
+    id?: string;
+  } | null;
 } | null;
 
 export function shouldShowAdminLink(session: SiteShellSession): boolean {
   return adminHeaderLinkVisibleFromSession({
     userId: session?.user?.id,
     userAppRole: session?.user?.appRole,
+    userBanned: session?.user?.banned,
+    userEmailVerified: session?.user?.emailVerified,
     impersonatedBy: session?.session?.impersonatedBy,
   });
 }

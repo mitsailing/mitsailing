@@ -1,5 +1,4 @@
-import { AuthSubject, Permission } from '@/libs/auth/permissions';
-import type { AuthAbility } from '@/libs/auth/permissions';
+import { hasAnyPermission, Permission } from '@/libs/auth/appPermissions';
 import type messages from '@/locales/en.json';
 
 export type AdminNavItem = {
@@ -15,12 +14,6 @@ export const ADMIN_SITE_NAV_ITEMS: AdminNavItem[] = [
     labelKey: 'nav_admin',
     match: 'exact',
     permissions: [Permission.ADMIN_VIEW],
-  },
-  {
-    href: '/admin/roles',
-    labelKey: 'nav_roles',
-    match: 'prefix',
-    permissions: [Permission.ROLES_ASSIGN, Permission.ROLES_MANAGE_PERMISSIONS],
   },
   {
     href: '/admin/site_text',
@@ -144,10 +137,10 @@ export const ADMIN_SITE_NAV_ITEMS: AdminNavItem[] = [
   },
 ];
 
-export function adminNavItemsForAbility(ability: AuthAbility): AdminNavItem[] {
+export function adminNavItemsForPermissions(
+  permissions: readonly Permission[]
+): AdminNavItem[] {
   return ADMIN_SITE_NAV_ITEMS.filter((item) =>
-    item.permissions.some((permission) =>
-      ability.can(permission, AuthSubject.PERMISSION)
-    )
+    hasAnyPermission(permissions, item.permissions)
   );
 }

@@ -8,7 +8,6 @@
 import { schema as $schema, type SchemaType as $Schema } from "./schema";
 import type { ModelResult as $ModelResult, TypeDefResult as $TypeDefResult } from "@zenstackhq/orm";
 export type User = $ModelResult<$Schema, "User">;
-export type RolePermissionGrant = $ModelResult<$Schema, "RolePermissionGrant">;
 export type Session = $ModelResult<$Schema, "Session">;
 export type Account = $ModelResult<$Schema, "Account">;
 export type Verification = $ModelResult<$Schema, "Verification">;

@@ -131,7 +131,16 @@ describe('SiteHeader', () => {
 
   it('renders admin link for signed-in admins', () => {
     setSessionState({
-      data: { user: { id: 'admin-1', role: 'admin' }, session: {} },
+      data: {
+        session: { impersonatedBy: null },
+        user: {
+          appRole: 'admin',
+          banned: false,
+          emailVerified: true,
+          id: 'admin-1',
+          role: 'user',
+        },
+      },
     });
 
     renderHeader();
@@ -312,7 +321,16 @@ describe('SiteHeader', () => {
     });
 
     setSessionState({
-      data: { user: { id: 'admin-1', role: 'admin' }, session: {} },
+      data: {
+        session: { impersonatedBy: null },
+        user: {
+          appRole: 'admin',
+          banned: false,
+          emailVerified: true,
+          id: 'admin-1',
+          role: 'user',
+        },
+      },
     });
 
     try {

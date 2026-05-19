@@ -93,6 +93,8 @@ describe('SiteShell', () => {
       expect(adminHeaderLinkVisibleFromSession).toHaveBeenCalledWith({
         impersonatedBy: undefined,
         userAppRole: undefined,
+        userBanned: undefined,
+        userEmailVerified: undefined,
         userId: undefined,
       });
     });
@@ -102,7 +104,13 @@ describe('SiteShell', () => {
     beforeEach(() => {
       getSession.mockResolvedValue({
         session: { impersonatedBy: undefined },
-        user: { appRole: 'admin', id: 'user-1', role: 'user' },
+        user: {
+          appRole: 'admin',
+          banned: false,
+          emailVerified: true,
+          id: 'user-1',
+          role: 'user',
+        },
       });
       adminHeaderLinkVisibleFromSession.mockReturnValue(true);
     });
@@ -113,7 +121,12 @@ describe('SiteShell', () => {
       expect(
         shouldShowAdminLink({
           session: { impersonatedBy: undefined },
-          user: { appRole: 'admin', id: 'user-1' },
+          user: {
+            appRole: 'admin',
+            banned: false,
+            emailVerified: true,
+            id: 'user-1',
+          },
         })
       ).toBe(true);
 
@@ -123,6 +136,8 @@ describe('SiteShell', () => {
       expect(adminHeaderLinkVisibleFromSession).toHaveBeenCalledWith({
         impersonatedBy: undefined,
         userAppRole: 'admin',
+        userBanned: false,
+        userEmailVerified: true,
         userId: 'user-1',
       });
       expect(html).toContain('Admin');

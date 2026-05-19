@@ -15,12 +15,12 @@ import {
 import { formatAdminDate } from '@/libs/admin/adminDateFormatting';
 import { adminUsersEditPath } from '@/libs/admin/users/adminUserPaths';
 import { usersAdminHandlers } from '@/libs/admin/users/usersAdminHandlers';
-import { appRoleFromSessionUser, requirePermission } from '@/libs/auth/dal';
 import {
-  AuthSubject,
-  createAuthAbility,
+  getAppRolePermissions,
+  hasPermission,
   Permission,
-} from '@/libs/auth/permissions';
+} from '@/libs/auth/appPermissions';
+import { appRoleFromSessionUser, requirePermission } from '@/libs/auth/dal';
 import { getAdminUserEmailMessages } from '@/libs/email/emailMessages';
 import type { AdminUserEmailMessageRow } from '@/libs/email/emailMessages';
 import { logger } from '@/libs/Logger';
@@ -177,19 +177,12 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
   setRequestLocale(locale);
   const session = await requirePermission(Permission.USERS_VIEW, locale);
   const role = appRoleFromSessionUser(session.user);
-  const ability = createAuthAbility({
-    grants: [],
-    role,
-    userId: session.user.id,
-  });
-  const canAssignRatings = ability.can(
-    Permission.RATINGS_ASSIGN,
-    AuthSubject.PERMISSION
+  const permissions = getAppRolePermissions(role);
+  const canAssignRatings = hasPermission(
+    permissions,
+    Permission.RATINGS_ASSIGN
   );
-  const canEditUsers = ability.can(
-    Permission.USERS_EDIT,
-    AuthSubject.PERMISSION
-  );
+  const canEditUsers = hasPermission(permissions, Permission.USERS_EDIT);
 
   const user = await usersAdminHandlers.getById(id);
   if (!user) {
@@ -249,7 +242,7 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
           </div>
           <div>
             <dt className="font-semibold">{t('column_role')}</dt>
-            <dd className="m-0">{user.role}</dd>
+            <dd className="m-0">{user.appRole}</dd>
           </div>
           <div>
             <dt className="font-semibold">{t('column_email_verified')}</dt>

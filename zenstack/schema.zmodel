@@ -93,18 +93,6 @@ model User {
   @@map("user")
 }
 
-model RolePermissionGrant {
-  id            String   @id @default(cuid())
-  roleKey       String   @map("role_key")
-  permissionKey String   @map("permission_key")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
-
-  @@unique([roleKey, permissionKey])
-  @@index([permissionKey])
-  @@map("role_permission_grants")
-}
-
 model Session {
   id             String   @id
   token          String   @unique

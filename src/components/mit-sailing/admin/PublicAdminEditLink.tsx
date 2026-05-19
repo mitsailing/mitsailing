@@ -5,28 +5,30 @@ import {
   Permission,
   getAppRolePermissions,
   hasPermission,
-  normalizeAppRole,
 } from '@/libs/auth/appPermissions';
 import { getSession } from '@/libs/auth/dal';
 import { Link } from '@/libs/I18nNavigation';
+import { appAuthContextFromSession } from '@/libs/zenstack/authContext';
 
 type PublicAdminEditLinkSession = {
   session?: { impersonatedBy?: string | null } | null;
-  user?: { appRole?: unknown; id?: string | null; role?: unknown } | null;
+  user?: {
+    appRole?: unknown;
+    banned?: unknown;
+    emailVerified?: unknown;
+    id?: string | null;
+  } | null;
 } | null;
 
 function publicAdminEditLinkVisible(
   session: PublicAdminEditLinkSession
 ): boolean {
-  const userId = session?.user?.id;
-  if (typeof userId !== 'string' || userId.length === 0) {
-    return false;
-  }
-  if (session?.session?.impersonatedBy) {
+  const authContext = appAuthContextFromSession(session);
+  if (!authContext) {
     return false;
   }
   return hasPermission(
-    getAppRolePermissions(normalizeAppRole(session?.user?.appRole)),
+    getAppRolePermissions(authContext.appRole),
     Permission.CMS_EDIT
   );
 }
@@ -42,14 +44,6 @@ export async function PublicAdminEditLink(props: {
   href: string;
 }) {
   const session = await getSession();
-  const userId = session?.user?.id;
-  if (
-    typeof userId !== 'string' ||
-    userId.length === 0 ||
-    session?.session?.impersonatedBy
-  ) {
-    return null;
-  }
   if (!publicAdminEditLinkVisible(session)) {
     return null;
   }

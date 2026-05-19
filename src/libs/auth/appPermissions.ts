@@ -29,8 +29,6 @@ export const Permission = {
   PAYMENTS_OVERRIDE: 'payments.override',
   WAREHOUSE_VIEW: 'warehouse.view',
   WAREHOUSE_SYNC: 'warehouse.sync',
-  ROLES_ASSIGN: 'roles.assign',
-  ROLES_MANAGE_PERMISSIONS: 'roles.managePermissions',
   ELIGIBILITY_VERIFY_GYM_MEMBERSHIP: 'eligibility.verifyGymMembership',
 } as const;
 

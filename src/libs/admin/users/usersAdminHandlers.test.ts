@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   removeUser: vi.fn(),
   setUserPassword: vi.fn(),
   unbanUser: vi.fn(),
+  updateUserAppRole: vi.fn(),
   updateUser: vi.fn(),
   userCount: vi.fn(),
   userFindMany: vi.fn(),
@@ -51,35 +52,39 @@ vi.mock('@/libs/DB', () => ({
   },
 }));
 
+vi.mock('@/libs/admin/users/appRoleActions', () => ({
+  updateUserAppRole: mocks.updateUserAppRole,
+}));
+
 const { usersAdminHandlers } =
   await import('@/libs/admin/users/usersAdminHandlers');
 
 function createFormData(props?: {
+  appRole?: Role;
   email?: string;
   name?: string;
   password?: string;
-  role?: Role;
 }) {
   const formData = new FormData();
   formData.set('email', props?.email ?? 'new-sailor@example.com');
   formData.set('name', props?.name ?? 'New Sailor');
   formData.set('password', props?.password ?? 'correct-password');
-  formData.set('role', props?.role ?? Role.USER);
+  formData.set('appRole', props?.appRole ?? Role.USER);
   return formData;
 }
 
 function updateFormData(props?: {
+  appRole?: Role;
   banned?: boolean;
   email?: string;
   emailVerified?: boolean;
   name?: string;
   newPassword?: string;
-  role?: Role;
 }) {
   const formData = new FormData();
   formData.set('email', props?.email ?? 'updated-sailor@example.com');
   formData.set('name', props?.name ?? 'Updated Sailor');
-  formData.set('role', props?.role ?? Role.USER);
+  formData.set('appRole', props?.appRole ?? Role.USER);
   formData.set('newPassword', props?.newPassword ?? '');
   formData.append('emailVerified', String(props?.emailVerified ?? true));
   formData.append('banned', String(props?.banned ?? false));
@@ -98,6 +103,7 @@ beforeEach(() => {
   mocks.removeUser.mockReset();
   mocks.setUserPassword.mockReset();
   mocks.unbanUser.mockReset();
+  mocks.updateUserAppRole.mockReset();
   mocks.updateUser.mockReset();
   mocks.userCount.mockReset();
   mocks.userFindMany.mockReset();
@@ -105,12 +111,22 @@ beforeEach(() => {
   mocks.userUpdate.mockReset();
 
   mocks.createUser.mockResolvedValue({ user: { id: 'created-user' } });
-  mocks.getSession.mockResolvedValue({ user: { id: 'admin-user' } });
+  mocks.getSession.mockResolvedValue({
+    session: { impersonatedBy: null },
+    user: {
+      appRole: Role.ADMIN,
+      banned: false,
+      emailVerified: true,
+      id: 'admin-user',
+    },
+  });
+  mocks.updateUserAppRole.mockResolvedValue({ ok: true });
   mocks.userCount.mockResolvedValue(2);
   mocks.userFindUnique.mockResolvedValue({
     appRole: Role.USER,
     banned: false,
     role: Role.USER,
+    emailVerified: true,
   });
 });
 
@@ -128,7 +144,6 @@ describe('usersAdminHandlers', () => {
           emailVerified: true,
           id: 'user-1',
           name: 'Sailor',
-          role: Role.USER,
         },
         {
           appRole: Role.ADMIN,
@@ -140,7 +155,6 @@ describe('usersAdminHandlers', () => {
           emailVerified: false,
           id: 'user-2',
           name: 'Admin',
-          role: Role.USER,
         },
       ]);
 
@@ -155,7 +169,7 @@ describe('usersAdminHandlers', () => {
           emailVerified: true,
           id: 'user-1',
           name: 'Sailor',
-          role: Role.USER,
+          appRole: Role.USER,
         },
         {
           banned: true,
@@ -167,7 +181,7 @@ describe('usersAdminHandlers', () => {
           emailVerified: false,
           id: 'user-2',
           name: 'Admin',
-          role: Role.ADMIN,
+          appRole: Role.ADMIN,
         },
       ]);
     });
@@ -186,7 +200,6 @@ describe('usersAdminHandlers', () => {
           emailVerified: true,
           id: 'user-1',
           name: 'Sailor',
-          role: Role.USER,
         })
         .mockResolvedValueOnce(null);
 
@@ -199,7 +212,7 @@ describe('usersAdminHandlers', () => {
           emailSuppressedAt: '2026-05-02T12:00:00.000Z',
           emailSuppressionReason: 'complained',
           id: 'user-1',
-          role: Role.ADMIN,
+          appRole: Role.ADMIN,
         }
       );
       await expect(
@@ -214,10 +227,16 @@ describe('usersAdminHandlers', () => {
         usersAdminHandlers.createFromForm(createFormData())
       ).resolves.toEqual({ id: 'created-user', ok: true });
 
-      expect(mocks.userUpdate).toHaveBeenCalledWith({
-        data: { appRole: Role.USER },
-        where: { id: 'created-user' },
+      expect(mocks.createUser).toHaveBeenCalledWith({
+        body: {
+          email: 'new-sailor@example.com',
+          name: 'New Sailor',
+          password: 'correct-password',
+          role: Role.USER,
+        },
+        headers: expect.any(Headers),
       });
+      expect(mocks.updateUserAppRole).not.toHaveBeenCalled();
 
       mocks.createUser.mockRejectedValue(
         apiError('USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL')
@@ -246,6 +265,76 @@ describe('usersAdminHandlers', () => {
         usersAdminHandlers.createFromForm(createFormData())
       ).resolves.toEqual({ code: 'unknown', ok: false });
     });
+
+    it('assigns a requested appRole after creating a user', async () => {
+      await expect(
+        usersAdminHandlers.createFromForm(
+          createFormData({ appRole: Role.DOCK_STAFF })
+        )
+      ).resolves.toEqual({ id: 'created-user', ok: true });
+
+      expect(mocks.updateUserAppRole).toHaveBeenCalledWith({
+        authContext: { appRole: Role.ADMIN, id: 'admin-user' },
+        nextRole: Role.DOCK_STAFF,
+        requestHeaders: expect.any(Headers),
+        targetUserId: 'created-user',
+      });
+    });
+
+    it('returns role assignment errors after partial create', async () => {
+      mocks.updateUserAppRole.mockResolvedValue({
+        code: 'role_mirror_inconsistent',
+        ok: false,
+      });
+
+      await expect(
+        usersAdminHandlers.createFromForm(
+          createFormData({ appRole: Role.ADMIN })
+        )
+      ).resolves.toEqual({
+        code: 'role_mirror_inconsistent',
+        ok: false,
+      });
+      expect(mocks.removeUser).toHaveBeenCalledWith({
+        body: { userId: 'created-user' },
+        headers: expect.any(Headers),
+      });
+    });
+
+    it('rolls back partial create when admin context is unavailable', async () => {
+      mocks.getSession.mockResolvedValue(null);
+
+      await expect(
+        usersAdminHandlers.createFromForm(
+          createFormData({ appRole: Role.ADMIN })
+        )
+      ).resolves.toEqual({
+        code: 'not_allowed',
+        ok: false,
+      });
+      expect(mocks.removeUser).toHaveBeenCalledWith({
+        body: { userId: 'created-user' },
+        headers: expect.any(Headers),
+      });
+      expect(mocks.updateUserAppRole).not.toHaveBeenCalled();
+    });
+
+    it('reports partial create rollback failure distinctly', async () => {
+      mocks.updateUserAppRole.mockResolvedValue({
+        code: 'last_admin',
+        ok: false,
+      });
+      mocks.removeUser.mockRejectedValue(new Error('delete failed'));
+
+      await expect(
+        usersAdminHandlers.createFromForm(
+          createFormData({ appRole: Role.ADMIN })
+        )
+      ).resolves.toEqual({
+        code: 'role_assignment_rollback_failed',
+        ok: false,
+      });
+    });
   });
 
   describe('updateFromForm', () => {
@@ -272,7 +361,6 @@ describe('usersAdminHandlers', () => {
             emailSuppressionReason: null,
             emailVerified: true,
             name: 'Updated Sailor',
-            role: Role.USER,
           },
           userId: 'user-1',
         },
@@ -286,10 +374,7 @@ describe('usersAdminHandlers', () => {
         body: { newPassword: 'new-password', userId: 'user-1' },
         headers: expect.any(Headers),
       });
-      expect(mocks.userUpdate).toHaveBeenCalledWith({
-        data: { appRole: Role.USER },
-        where: { id: 'user-1' },
-      });
+      expect(mocks.updateUserAppRole).not.toHaveBeenCalled();
     });
 
     it('unbans user and maps no data to update', async () => {
@@ -338,7 +423,6 @@ describe('usersAdminHandlers', () => {
             email: 'updated-sailor@example.com',
             emailVerified: true,
             name: 'Updated Sailor',
-            role: Role.USER,
           },
           userId: 'user-1',
         },
@@ -350,6 +434,7 @@ describe('usersAdminHandlers', () => {
       mocks.userFindUnique.mockResolvedValue({
         appRole: Role.ADMIN,
         banned: false,
+        emailVerified: true,
         role: Role.USER,
       });
       mocks.userCount.mockResolvedValue(1);
@@ -357,14 +442,21 @@ describe('usersAdminHandlers', () => {
       await expect(
         usersAdminHandlers.updateFromForm(
           'admin-1',
-          updateFormData({ role: Role.USER })
+          updateFormData({ appRole: Role.USER })
         )
       ).resolves.toEqual({ code: 'last_admin', ok: false });
 
       await expect(
         usersAdminHandlers.updateFromForm(
           'admin-1',
-          updateFormData({ banned: true, role: Role.ADMIN })
+          updateFormData({ appRole: Role.ADMIN, banned: true })
+        )
+      ).resolves.toEqual({ code: 'last_admin', ok: false });
+
+      await expect(
+        usersAdminHandlers.updateFromForm(
+          'admin-1',
+          updateFormData({ appRole: Role.ADMIN, emailVerified: false })
         )
       ).resolves.toEqual({ code: 'last_admin', ok: false });
     });
@@ -373,6 +465,7 @@ describe('usersAdminHandlers', () => {
       mocks.userFindUnique.mockResolvedValue({
         appRole: Role.ADMIN,
         banned: false,
+        emailVerified: true,
         role: Role.USER,
       });
       mocks.userCount.mockResolvedValue(1);
@@ -380,19 +473,42 @@ describe('usersAdminHandlers', () => {
       await expect(
         usersAdminHandlers.updateFromForm(
           'admin-1',
-          updateFormData({ role: Role.USER })
+          updateFormData({ appRole: Role.USER })
         )
       ).resolves.toEqual({ code: 'last_admin', ok: false });
 
       expect(mocks.userCount).toHaveBeenCalledWith({
-        where: { appRole: Role.ADMIN },
+        where: {
+          appRole: Role.ADMIN,
+          banned: false,
+          emailVerified: true,
+        },
       });
+    });
+
+    it('demotes unusable admin without last-admin block', async () => {
+      mocks.userFindUnique.mockResolvedValue({
+        appRole: Role.ADMIN,
+        banned: true,
+        emailVerified: true,
+        role: Role.USER,
+      });
+
+      await expect(
+        usersAdminHandlers.updateFromForm(
+          'admin-1',
+          updateFormData({ appRole: Role.USER })
+        )
+      ).resolves.toEqual({ ok: true });
+
+      expect(mocks.userCount).not.toHaveBeenCalled();
     });
 
     it('demotes admin when another admin remains', async () => {
       mocks.userFindUnique.mockResolvedValue({
         appRole: Role.ADMIN,
         banned: false,
+        emailVerified: true,
         role: Role.USER,
       });
       mocks.userCount.mockResolvedValue(2);
@@ -400,9 +516,15 @@ describe('usersAdminHandlers', () => {
       await expect(
         usersAdminHandlers.updateFromForm(
           'admin-1',
-          updateFormData({ role: Role.USER })
+          updateFormData({ appRole: Role.USER })
         )
       ).resolves.toEqual({ ok: true });
+      expect(mocks.updateUserAppRole).toHaveBeenCalledWith({
+        authContext: { appRole: Role.ADMIN, id: 'admin-user' },
+        nextRole: Role.USER,
+        requestHeaders: expect.any(Headers),
+        targetUserId: 'admin-1',
+      });
     });
 
     it('maps validation failure and missing user on update', async () => {
@@ -478,6 +600,8 @@ describe('usersAdminHandlers', () => {
       mocks.getSession.mockResolvedValue({ user: { id: 'admin-user' } });
       mocks.userFindUnique.mockResolvedValue({
         appRole: Role.ADMIN,
+        banned: false,
+        emailVerified: true,
         role: Role.USER,
       });
       mocks.userCount.mockResolvedValue(1);

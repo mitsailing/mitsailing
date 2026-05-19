@@ -26,7 +26,7 @@ export const usersAdminDefinition = {
       headerKey: 'column_name_label',
     },
     {
-      field: 'role',
+      field: 'appRole',
       kind: 'string',
       headerKey: 'column_role',
     },
@@ -67,7 +67,7 @@ export const usersAdminDefinition = {
       labelKey: 'field_password',
     },
     {
-      field: 'role',
+      field: 'appRole',
       kind: 'select',
       required: true,
       labelKey: 'field_role',
@@ -96,7 +96,7 @@ const usersAdminEditFormFields = [
     labelKey: 'field_name',
   },
   {
-    field: 'role',
+    field: 'appRole',
     kind: 'select',
     required: true,
     labelKey: 'field_role',

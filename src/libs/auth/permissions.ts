@@ -48,20 +48,6 @@ export type AuthAbility = PureAbility<
 >;
 const createPrismaAuthAbility = createPrismaAbilityFor<Prisma.TypeMap>();
 
-const ALL_PERMISSIONS = Object.values(Permission) as Permission[];
-export const ROLE_PERMISSION_GRANT_ROLES = [
-  Role.VOLUNTEER,
-  Role.VOLUNTEER_INSTRUCTOR,
-  Role.DOCK_STAFF,
-  Role.DOCK_MASTER,
-] as const;
-const ROLE_GRANTABLE_PERMISSIONS = ALL_PERMISSIONS;
-
-export type RolePermissionGrant = {
-  roleKey: Role;
-  permissionKey: Permission;
-};
-
 export const PERMISSION_DEFINITIONS = [
   {
     key: Permission.ADMIN_VIEW,
@@ -204,16 +190,6 @@ export const PERMISSION_DEFINITIONS = [
     labelKey: 'permission_warehouse_sync',
   },
   {
-    key: Permission.ROLES_ASSIGN,
-    groupKey: 'group_permissions',
-    labelKey: 'permission_roles_assign',
-  },
-  {
-    key: Permission.ROLES_MANAGE_PERMISSIONS,
-    groupKey: 'group_permissions',
-    labelKey: 'permission_roles_managePermissions',
-  },
-  {
     key: Permission.ELIGIBILITY_VERIFY_GYM_MEMBERSHIP,
     groupKey: 'group_eligibility',
     labelKey: 'permission_eligibility_verifyGymMembership',
@@ -223,63 +199,6 @@ export const PERMISSION_DEFINITIONS = [
   groupKey: string;
   labelKey: string;
 }[];
-export type PermissionDefinition = (typeof PERMISSION_DEFINITIONS)[number];
-
-const CONSERVATIVE_LAUNCH_GRANTS: RolePermissionGrant[] =
-  ROLE_PERMISSION_GRANT_ROLES.flatMap((roleKey) =>
-    getAppRolePermissions(roleKey).map((permissionKey) => ({
-      permissionKey,
-      roleKey,
-    }))
-  );
-
-export function isKnownPermission(
-  permission: unknown
-): permission is Permission {
-  return (
-    typeof permission === 'string' &&
-    (ALL_PERMISSIONS as string[]).includes(permission)
-  );
-}
-
-function isKnownRole(role: unknown): role is Role {
-  return (
-    typeof role === 'string' && (Object.values(Role) as string[]).includes(role)
-  );
-}
-
-export function isRolePermissionGrantRole(role: Role): boolean {
-  return (ROLE_PERMISSION_GRANT_ROLES as readonly Role[]).includes(role);
-}
-
-export function isRoleGrantablePermission(permission: Permission): boolean {
-  return (ROLE_GRANTABLE_PERMISSIONS as readonly Permission[]).includes(
-    permission
-  );
-}
-
-export function permissionGrantsForSeed(): RolePermissionGrant[] {
-  return [...CONSERVATIVE_LAUNCH_GRANTS];
-}
-
-export function normalizeRolePermissionGrant(input: {
-  roleKey: string;
-  permissionKey: string;
-}): RolePermissionGrant | null {
-  if (!(isKnownRole(input.roleKey) && isKnownPermission(input.permissionKey))) {
-    return null;
-  }
-  if (!isRolePermissionGrantRole(input.roleKey)) {
-    return null;
-  }
-  if (!isRoleGrantablePermission(input.permissionKey)) {
-    return null;
-  }
-  return {
-    roleKey: input.roleKey,
-    permissionKey: input.permissionKey,
-  };
-}
 
 export function createEventAbilitySubject(props: EventAbilityRecord) {
   return subject(AuthSubject.EVENT, props);
@@ -292,7 +211,6 @@ export function createEventRegistrationAbilitySubject(
 }
 
 export function createAuthAbility(props: {
-  grants: readonly RolePermissionGrant[];
   role?: Role;
   userId?: string | null;
 }): AuthAbility {
