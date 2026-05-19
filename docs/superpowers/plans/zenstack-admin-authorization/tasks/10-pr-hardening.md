@@ -3,8 +3,8 @@
 ## Goal
 
 Push the completed ZenStack admin authorization migration to GitHub, create a
-ready-for-review PR, harden it with one local CodeRabbit pass, then run three
-post-PR rounds for relevant GitHub comments and CI/test failures.
+ready-for-review PR, harden it with one local CodeRabbit pass, then run up to
+three post-PR rounds for relevant GitHub comments and CI/test failures.
 
 ## Preconditions
 
@@ -87,12 +87,13 @@ duplicate.
 
 ## Phase 4: Three Post-PR Fix Rounds
 
-Run three post-PR fix rounds. Start each round in its own fresh sub-agent 30
-minutes after the latest push so GitHub checks and review bots have time to
+Run up to three post-PR fix rounds. Start each round in its own fresh sub-agent.
+Before inspecting GitHub checks or review comments in a round, wait until 30
+minutes have passed since the latest push so CI and review bots have time to
 report.
 
-Stop the loop early only if, 30 minutes after a push to GitHub, all checks pass
-and there are no actionable GitHub or CodeRabbit comments left to fix.
+Stop the loop early if the 30-minute post-push check shows all tests passing,
+no failing checks, and no actionable GitHub or CodeRabbit comments left to fix.
 
 A post-PR round means:
 
