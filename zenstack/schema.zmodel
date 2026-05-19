@@ -624,6 +624,7 @@ model Event {
 
   @@index([eventCategoryId])
   @@allow('read', isPublished)
+  @@deny('create,update', boatsPerTeam < 1 || personsPerBoat < 1)
   @@allow('read,update,delete', auth() != null && (
     auth().appRole == 'admin' ||
     auth().appRole == 'dock_staff' ||
@@ -714,6 +715,8 @@ model EventRegistrationTeam {
   allowRepeatCaptain Boolean           @default(false) @map("allow_repeat_captain")
   registration       EventRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
 
+  @@deny('create,update', !registration.event.usesTeamRegistration)
+  @@deny('create,update', allowRepeatCaptain && !registration.event.allowRepeatTeamCaptain)
   @@allow('read', check(registration, 'read'))
   @@allow('create,update,delete', auth() != null && registration.userId == auth().id)
   @@allow('create,update,delete', check(registration, 'update'))
@@ -731,6 +734,9 @@ model EventRegistrationBoatMember {
 
   @@index([registrationId])
   @@unique([registrationId, boatNumber, position])
+  @@deny('create,update', !registration.event.usesTeamRegistration)
+  @@deny('create,update', boatNumber < 1 || boatNumber > registration.event.boatsPerTeam)
+  @@deny('create,update', position < 0 || position >= registration.event.personsPerBoat)
   @@allow('read', check(registration, 'read'))
   @@allow('create,update,delete', auth() != null && registration.userId == auth().id)
   @@allow('create,update,delete', check(registration, 'update'))

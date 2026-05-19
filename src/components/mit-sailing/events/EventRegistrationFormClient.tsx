@@ -376,7 +376,31 @@ function teamBoatMemberPositionLabel(props: {
   );
 }
 
+function teamBoatHeading(props: {
+  labels: EventRegistrationFormLabels;
+  boatNumber: number;
+}): string {
+  return props.labels.teamBoatHeading.replace(
+    '{number}',
+    String(props.boatNumber)
+  );
+}
+
+function teamBoatMemberFieldName(props: {
+  boatNumber: number;
+  boatsPerTeam: number;
+  position: number;
+  suffix: 'email' | 'name';
+}): string {
+  if (props.boatsPerTeam === 1) {
+    return `teamBoatMember_${props.position}_${props.suffix}`;
+  }
+  return `teamBoatMember_${props.boatNumber}_${props.position}_${props.suffix}`;
+}
+
 function TeamBoatMemberField(props: {
+  boatNumber: number;
+  boatsPerTeam: number;
   labels: EventRegistrationFormLabels;
   personsPerBoat: number;
   position: number;
@@ -387,8 +411,18 @@ function TeamBoatMemberField(props: {
     personsPerBoat: props.personsPerBoat,
     position: props.position,
   });
-  const nameFieldName = `teamBoatMember_${props.position}_name`;
-  const emailFieldName = `teamBoatMember_${props.position}_email`;
+  const nameFieldName = teamBoatMemberFieldName({
+    boatNumber: props.boatNumber,
+    boatsPerTeam: props.boatsPerTeam,
+    position: props.position,
+    suffix: 'name',
+  });
+  const emailFieldName = teamBoatMemberFieldName({
+    boatNumber: props.boatNumber,
+    boatsPerTeam: props.boatsPerTeam,
+    position: props.position,
+    suffix: 'email',
+  });
   const nameControlId = `event-registration-${nameFieldName}`;
   const emailControlId = `event-registration-${emailFieldName}`;
   const nameErrorId = `${nameControlId}-error`;
@@ -491,29 +525,44 @@ function TeamRegistrationFields(props: {
         />
         <FieldError id={teamNameErrorId} message={teamNameErrorMessage} />
       </div>
-      <section
-        aria-labelledby="event-registration-team-boat-heading"
-        className="flex flex-col gap-3"
-      >
-        <h4
-          className="font-mit-serif text-base font-semibold tracking-tight text-mit-text"
-          id="event-registration-team-boat-heading"
-        >
-          {props.labels.teamBoatHeading}
-        </h4>
-        {Array.from(
-          { length: props.event.teamRegistration.personsPerBoat },
-          (_value, position) => (
-            <TeamBoatMemberField
-              key={position}
-              labels={props.labels}
-              personsPerBoat={props.event.teamRegistration.personsPerBoat}
-              position={position}
-              state={props.state}
-            />
-          )
-        )}
-      </section>
+      {Array.from(
+        { length: props.event.teamRegistration.boatsPerTeam },
+        (_boatValue, boatIndex) => {
+          const boatNumber = boatIndex + 1;
+          const headingId = `event-registration-team-boat-${boatNumber}-heading`;
+          return (
+            <section
+              aria-labelledby={headingId}
+              className="flex flex-col gap-3"
+              key={boatNumber}
+            >
+              <h4
+                className="font-mit-serif text-base font-semibold tracking-tight text-mit-text"
+                id={headingId}
+              >
+                {teamBoatHeading({
+                  boatNumber,
+                  labels: props.labels,
+                })}
+              </h4>
+              {Array.from(
+                { length: props.event.teamRegistration.personsPerBoat },
+                (_value, position) => (
+                  <TeamBoatMemberField
+                    boatNumber={boatNumber}
+                    boatsPerTeam={props.event.teamRegistration.boatsPerTeam}
+                    key={position}
+                    labels={props.labels}
+                    personsPerBoat={props.event.teamRegistration.personsPerBoat}
+                    position={position}
+                    state={props.state}
+                  />
+                )
+              )}
+            </section>
+          );
+        }
+      )}
     </section>
   );
 }

@@ -1598,7 +1598,7 @@
     "registration_swim_agreement_label": "I agree to the Swim Agreement and Liability Release.",
     "registration_team_section_heading": "Team information",
     "registration_team_name_label": "Team name",
-    "registration_team_boat_heading": "Boat 1 information",
+    "registration_team_boat_heading": "Boat {number} information",
     "registration_team_helm_label": "Helm",
     "registration_team_crew_label": "Crew",
     "registration_team_crew_number_label": "Crew {number}",

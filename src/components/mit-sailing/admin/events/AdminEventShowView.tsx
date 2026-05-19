@@ -104,12 +104,7 @@ function AdminEventPublicContentBody(props: {
   section: AdminEventPublicContentSectionDto;
 }) {
   const className = 'mt-2 text-sm leading-relaxed text-mit-readable-ink';
-  if (props.section.id === 'description') {
-    return <CmsRichText className={className} html={props.section.body} />;
-  }
-  return (
-    <CmsRichText className={className} sanitizedHtml={props.section.body} />
-  );
+  return <CmsRichText className={className} html={props.section.body} />;
 }
 
 function AdminEventSummaryLink(props: { href: string }) {

@@ -32,7 +32,7 @@ const labels: EventRegistrationFormLabels = {
   swimAgreementLabel: 'I agree to the Swim Agreement and Liability Release.',
   teamBoatEmailLabel: 'Email',
   teamBoatFullNameLabel: 'Full name',
-  teamBoatHeading: 'Boat 1 information',
+  teamBoatHeading: 'Boat {number} information',
   teamCrewLabel: 'Crew',
   teamCrewNumberLabel: 'Crew {number}',
   teamHelmLabel: 'Helm',
@@ -407,5 +407,80 @@ describe('EventRegistrationForm', () => {
     expect(crewEmail).toHaveValue('not-an-email');
     expect(teamName).toHaveAttribute('aria-invalid', 'true');
     expect(crewEmail).toHaveAttribute('aria-invalid', 'true');
+  });
+
+  it('renders distinct member fields for every team boat', () => {
+    const action = vi.fn();
+
+    render(
+      <EventRegistrationForm
+        createRegistrationAction={action}
+        event={{
+          ...event,
+          teamRegistration: {
+            allowRepeatTeamCaptain: false,
+            boatsPerTeam: 2,
+            personsPerBoat: 2,
+            usesTeamRegistration: true,
+          },
+        }}
+        formPermalink="/events/learn-to-sail/register"
+        labels={labels}
+        locale="en"
+      />
+    );
+
+    expect(
+      screen.getByRole('heading', { name: 'Boat 1 information' })
+    ).toBeVisible();
+    expect(
+      screen.getByRole('heading', { name: 'Boat 2 information' })
+    ).toBeVisible();
+
+    const helmNameFields = screen.getAllByRole('textbox', {
+      name: 'Helm Full name',
+    });
+    const helmEmailFields = screen.getAllByRole('textbox', {
+      name: 'Helm Email',
+    });
+    const crewNameFields = screen.getAllByRole('textbox', {
+      name: 'Crew Full name',
+    });
+    const crewEmailFields = screen.getAllByRole('textbox', {
+      name: 'Crew Email',
+    });
+
+    expect(helmNameFields[0]).toHaveAttribute(
+      'name',
+      'teamBoatMember_1_0_name'
+    );
+    expect(helmEmailFields[0]).toHaveAttribute(
+      'name',
+      'teamBoatMember_1_0_email'
+    );
+    expect(crewNameFields[0]).toHaveAttribute(
+      'name',
+      'teamBoatMember_1_1_name'
+    );
+    expect(crewEmailFields[0]).toHaveAttribute(
+      'name',
+      'teamBoatMember_1_1_email'
+    );
+    expect(helmNameFields[1]).toHaveAttribute(
+      'name',
+      'teamBoatMember_2_0_name'
+    );
+    expect(helmEmailFields[1]).toHaveAttribute(
+      'name',
+      'teamBoatMember_2_0_email'
+    );
+    expect(crewNameFields[1]).toHaveAttribute(
+      'name',
+      'teamBoatMember_2_1_name'
+    );
+    expect(crewEmailFields[1]).toHaveAttribute(
+      'name',
+      'teamBoatMember_2_1_email'
+    );
   });
 });

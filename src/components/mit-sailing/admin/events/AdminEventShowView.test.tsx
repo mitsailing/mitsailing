@@ -269,6 +269,30 @@ describe('AdminEventShowView', () => {
     expect(document.body.textContent).not.toContain('<strong>');
   });
 
+  it('sanitizes raw public content section bodies', () => {
+    render(
+      <AdminEventShowView
+        errorCode={null}
+        event={{
+          ...eventFixture('editable'),
+          publicContentSections: [
+            {
+              body: '<p>Ask the race desk.</p><img src="x" onerror="alert(1)">',
+              id: 'faq',
+              titleKey: 'content_faq_title',
+            },
+          ],
+        }}
+        filter="all"
+        locale="en"
+        t={t}
+      />
+    );
+
+    expect(screen.getByText('Ask the race desk.')).toBeVisible();
+    expect(document.body.innerHTML).not.toContain('onerror');
+  });
+
   it('renders registration mode summary with external urls', () => {
     render(
       <AdminEventShowView

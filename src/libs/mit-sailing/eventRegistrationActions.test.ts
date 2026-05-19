@@ -89,6 +89,20 @@ function teamRegistrationFormData(): FormData {
   return formData;
 }
 
+function twoBoatTeamRegistrationFormData(): FormData {
+  const formData = registrationFormData();
+  formData.set('teamName', '  Tech Dinghies  ');
+  formData.set('teamBoatMember_1_0_name', 'Ada Lovelace');
+  formData.set('teamBoatMember_1_0_email', 'ada@example.test');
+  formData.set('teamBoatMember_1_1_name', 'Grace Hopper');
+  formData.set('teamBoatMember_1_1_email', 'grace@example.test');
+  formData.set('teamBoatMember_2_0_name', 'Katherine Johnson');
+  formData.set('teamBoatMember_2_0_email', 'katherine@example.test');
+  formData.set('teamBoatMember_2_1_name', 'Mary Jackson');
+  formData.set('teamBoatMember_2_1_email', 'mary@example.test');
+  return formData;
+}
+
 function mockTeamRegistrationEvent(): void {
   mocks.eventFindFirst.mockResolvedValue({
     allowRepeatTeamCaptain: true,
@@ -750,6 +764,89 @@ describe('createPublicEventRegistrationAction', () => {
           boatNumber: 1,
           email: 'grace@example.test',
           fullName: 'Grace Hopper',
+          position: 1,
+          registrationId: expect.any(String),
+        }),
+      ],
+    });
+  });
+
+  it('persists team boat members with their submitted boat numbers', async () => {
+    mockTeamRegistrationEvent();
+    mocks.eventFindFirst.mockResolvedValue({
+      allowRepeatTeamCaptain: true,
+      boatsPerTeam: 2,
+      entryFees: [],
+      id: 'event-1',
+      personsPerBoat: 2,
+      registrationEnd: null,
+      registrationQuestions: [],
+      registrationStart: null,
+      requiresPhone: false,
+      usesTeamRegistration: true,
+    });
+    mocks.eventFindUnique.mockResolvedValue({
+      allowRepeatTeamCaptain: true,
+      boatsPerTeam: 2,
+      entryFees: [],
+      id: 'event-1',
+      isPublished: true,
+      maxParticipants: null,
+      personsPerBoat: 2,
+      registrationEnd: null,
+      registrationStart: null,
+      requiresApproval: true,
+      requiresPhone: false,
+      usesTeamRegistration: true,
+    });
+    mocks.eventRegistrationFindFirst.mockResolvedValue(null);
+    mocks.eventRegistrationCreate.mockResolvedValue({
+      id: 'registration-2',
+    });
+    const { createPublicEventRegistrationAction } =
+      await import('@/libs/mit-sailing/eventRegistrationActions');
+
+    await expect(
+      createPublicEventRegistrationAction(
+        'en',
+        'intro-sail',
+        {
+          code: null,
+          fieldErrors: {},
+          status: 'idle',
+          values: {},
+        },
+        twoBoatTeamRegistrationFormData()
+      )
+    ).rejects.toThrow('NEXT_REDIRECT:/events/intro-sail');
+
+    expect(mocks.eventRegistrationBoatMemberCreateMany).toHaveBeenCalledWith({
+      data: [
+        expect.objectContaining({
+          boatNumber: 1,
+          email: 'ada@example.test',
+          fullName: 'Ada Lovelace',
+          position: 0,
+          registrationId: expect.any(String),
+        }),
+        expect.objectContaining({
+          boatNumber: 1,
+          email: 'grace@example.test',
+          fullName: 'Grace Hopper',
+          position: 1,
+          registrationId: expect.any(String),
+        }),
+        expect.objectContaining({
+          boatNumber: 2,
+          email: 'katherine@example.test',
+          fullName: 'Katherine Johnson',
+          position: 0,
+          registrationId: expect.any(String),
+        }),
+        expect.objectContaining({
+          boatNumber: 2,
+          email: 'mary@example.test',
+          fullName: 'Mary Jackson',
           position: 1,
           registrationId: expect.any(String),
         }),

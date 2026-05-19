@@ -42,19 +42,38 @@ const swimAgreementFieldName = 'swimAgreementAccepted';
 const phoneFieldName = 'phone';
 const eventEntryFeeFieldName = 'eventEntryFeeId';
 const teamNameFieldName = 'teamName';
-const teamBoatNumber = 1;
 const emailField = z.email();
 
 function publicEventRegistrationQuestionFieldName(questionId: string): string {
   return `question_${questionId}`;
 }
 
-function teamBoatMemberNameFieldName(position: number): string {
-  return `teamBoatMember_${position}_name`;
+function teamBoatMemberFieldName(options: {
+  boatNumber: number;
+  boatsPerTeam: number;
+  position: number;
+  suffix: 'email' | 'name';
+}): string {
+  if (options.boatsPerTeam === 1) {
+    return `teamBoatMember_${options.position}_${options.suffix}`;
+  }
+  return `teamBoatMember_${options.boatNumber}_${options.position}_${options.suffix}`;
 }
 
-function teamBoatMemberEmailFieldName(position: number): string {
-  return `teamBoatMember_${position}_email`;
+function teamBoatMemberNameFieldName(options: {
+  boatNumber: number;
+  boatsPerTeam: number;
+  position: number;
+}): string {
+  return teamBoatMemberFieldName({ ...options, suffix: 'name' });
+}
+
+function teamBoatMemberEmailFieldName(options: {
+  boatNumber: number;
+  boatsPerTeam: number;
+  position: number;
+}): string {
+  return teamBoatMemberFieldName({ ...options, suffix: 'email' });
 }
 
 function publicEventRegistrationFormValues(
@@ -113,6 +132,7 @@ function publicEventRegistrationQuestionFieldErrors(options: {
 
 function publicEventRegistrationFieldNames(
   questions: PublicRegistrationQuestionForValidation[],
+  boatsPerTeam: number,
   personsPerBoat: number
 ): string[] {
   return [
@@ -120,10 +140,13 @@ function publicEventRegistrationFieldNames(
     phoneFieldName,
     swimAgreementFieldName,
     teamNameFieldName,
-    ...Array.from({ length: personsPerBoat }, (_value, position) => [
-      teamBoatMemberNameFieldName(position),
-      teamBoatMemberEmailFieldName(position),
-    ]).flat(),
+    ...Array.from({ length: boatsPerTeam }, (_boatValue, boatIndex) => {
+      const boatNumber = boatIndex + 1;
+      return Array.from({ length: personsPerBoat }, (_value, position) => [
+        teamBoatMemberNameFieldName({ boatNumber, boatsPerTeam, position }),
+        teamBoatMemberEmailFieldName({ boatNumber, boatsPerTeam, position }),
+      ]).flat();
+    }).flat(),
     ...questions.map((question) =>
       publicEventRegistrationQuestionFieldName(question.id)
     ),
@@ -133,6 +156,7 @@ function publicEventRegistrationFieldNames(
 type PublicEventRegistrationTeamInput = {
   teamName: string;
   boatMembers: {
+    boatNumber: number;
     position: number;
     fullName: string;
     email: string;
@@ -145,6 +169,7 @@ function trimmedFormString(formData: FormData, fieldName: string): string {
 }
 
 function parsePublicEventRegistrationTeamFromForm(options: {
+  boatsPerTeam: number;
   formData: FormData;
   personsPerBoat: number;
 }):
@@ -166,38 +191,51 @@ function parsePublicEventRegistrationTeamFromForm(options: {
   const boatMembers: PublicEventRegistrationTeamInput['boatMembers'] = [];
   const fieldErrors: Record<string, EventRegistrationMutationCode> = {};
 
-  for (let position = 0; position < options.personsPerBoat; position += 1) {
-    const fullName = trimmedFormString(
-      options.formData,
-      teamBoatMemberNameFieldName(position)
-    );
-    const email = trimmedFormString(
-      options.formData,
-      teamBoatMemberEmailFieldName(position)
-    );
-    if (fullName.length === 0 && email.length === 0) {
-      continue;
+  for (
+    let boatNumber = 1;
+    boatNumber <= options.boatsPerTeam;
+    boatNumber += 1
+  ) {
+    for (let position = 0; position < options.personsPerBoat; position += 1) {
+      const nameFieldName = teamBoatMemberNameFieldName({
+        boatNumber,
+        boatsPerTeam: options.boatsPerTeam,
+        position,
+      });
+      const emailFieldName = teamBoatMemberEmailFieldName({
+        boatNumber,
+        boatsPerTeam: options.boatsPerTeam,
+        position,
+      });
+      const fullName = trimmedFormString(options.formData, nameFieldName);
+      const email = trimmedFormString(options.formData, emailFieldName);
+      if (fullName.length === 0 && email.length === 0) {
+        continue;
+      }
+      if (fullName.length === 0 || email.length === 0) {
+        fieldErrors[fullName.length === 0 ? nameFieldName : emailFieldName] =
+          'questions_required';
+        continue;
+      }
+      if (!emailField.safeParse(email).success) {
+        fieldErrors[emailFieldName] = 'answers_invalid';
+        continue;
+      }
+      boatMembers.push({ boatNumber, email, fullName, position });
     }
-    if (fullName.length === 0 || email.length === 0) {
-      fieldErrors[
-        fullName.length === 0
-          ? teamBoatMemberNameFieldName(position)
-          : teamBoatMemberEmailFieldName(position)
-      ] = 'questions_required';
-      continue;
-    }
-    if (!emailField.safeParse(email).success) {
-      fieldErrors[teamBoatMemberEmailFieldName(position)] = 'answers_invalid';
-      continue;
-    }
-    boatMembers.push({ email, fullName, position });
   }
 
   if (boatMembers.length === 0) {
     return {
       ok: false,
       code: 'questions_required',
-      fieldErrors: { [teamBoatMemberNameFieldName(0)]: 'questions_required' },
+      fieldErrors: {
+        [teamBoatMemberNameFieldName({
+          boatNumber: 1,
+          boatsPerTeam: options.boatsPerTeam,
+          position: 0,
+        })]: 'questions_required',
+      },
     };
   }
   const [firstError] = Object.values(fieldErrors);
@@ -406,6 +444,7 @@ export async function createPublicEventRegistrationAction(
   );
   const fieldNames = publicEventRegistrationFieldNames(
     questionsForValidation,
+    event.usesTeamRegistration ? event.boatsPerTeam : 0,
     event.usesTeamRegistration ? event.personsPerBoat : 0
   );
   const phone = publicEventRegistrationPhoneFromForm(formData);
@@ -431,6 +470,7 @@ export async function createPublicEventRegistrationAction(
   }
   const teamRegistration = event.usesTeamRegistration
     ? parsePublicEventRegistrationTeamFromForm({
+        boatsPerTeam: event.boatsPerTeam,
         formData,
         personsPerBoat: event.personsPerBoat,
       })
@@ -517,6 +557,7 @@ export async function createPublicEventRegistrationAction(
         if (lockedEvent.usesTeamRegistration) {
           const lockedTeamRegistration =
             parsePublicEventRegistrationTeamFromForm({
+              boatsPerTeam: lockedEvent.boatsPerTeam,
               formData,
               personsPerBoat: lockedEvent.personsPerBoat,
             });
@@ -618,7 +659,7 @@ export async function createPublicEventRegistrationAction(
             data: lockedTeam.boatMembers.map((member) => ({
               id: randomUUID(),
               registrationId,
-              boatNumber: teamBoatNumber,
+              boatNumber: member.boatNumber,
               position: member.position,
               fullName: member.fullName,
               email: member.email,
