@@ -26,7 +26,7 @@ const t = createTranslator({
 });
 
 describe('AdminEventsListView', () => {
-  it('links row view actions to the canonical admin show page', () => {
+  it('uses the event name as the canonical show page link without row action buttons', () => {
     render(
       <AdminEventsListView
         categories={[]}
@@ -62,9 +62,11 @@ describe('AdminEventsListView', () => {
     expect(
       within(table).getByRole('link', { name: 'Intro Sail' })
     ).toHaveAttribute('href', '/admin/events/intro-sail');
-    expect(within(table).getByRole('link', { name: /view/i })).toHaveAttribute(
-      'href',
-      '/admin/events/intro-sail'
-    );
+    expect(within(table).queryByRole('link', { name: /view/i })).toBeNull();
+    expect(within(table).queryByRole('link', { name: /edit/i })).toBeNull();
+    expect(
+      within(table).queryByRole('link', { name: /registrations/i })
+    ).toBeNull();
+    expect(within(table).queryByRole('link', { name: /delete/i })).toBeNull();
   });
 });

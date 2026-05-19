@@ -1,4 +1,4 @@
-import { ClipboardList, Eye, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import type { getTranslations } from 'next-intl/server';
 import Form from 'next/form';
 import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader';
@@ -15,9 +15,6 @@ import {
 } from '@/components/ui/table';
 import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 import {
-  adminEventDeletePath,
-  adminEventEditPath,
-  adminEventRegistrationsReviewPath,
   adminEventShowPath,
   adminEventsIndexPath,
   adminEventsNewPath,
@@ -143,45 +140,6 @@ function EventStatusBadges(props: {
   );
 }
 
-function EventActions(props: {
-  event: AdminEventListRow;
-  t: AdminEventsListTranslations;
-}) {
-  const canEdit = props.event.accessMode === 'editable';
-  return (
-    <div className="flex flex-wrap gap-2">
-      <Button asChild size="sm" variant="outline">
-        <Link href={adminEventShowPath(props.event.slug)}>
-          <Eye aria-hidden className="size-4" />
-          {props.t('action_view_admin')}
-        </Link>
-      </Button>
-      {canEdit ? (
-        <Button asChild size="sm" variant="outline">
-          <Link href={adminEventEditPath(props.event.slug)}>
-            <Pencil aria-hidden className="size-4" />
-            {props.t('action_edit')}
-          </Link>
-        </Button>
-      ) : null}
-      <Button asChild size="sm" variant="outline">
-        <Link href={adminEventRegistrationsReviewPath(props.event.slug)}>
-          <ClipboardList aria-hidden className="size-4" />
-          {props.t('action_registrations')}
-        </Link>
-      </Button>
-      {canEdit ? (
-        <Button asChild size="sm" variant="ghost">
-          <Link href={adminEventDeletePath(props.event.slug)}>
-            <Trash2 aria-hidden className="size-4" />
-            {props.t('action_delete')}
-          </Link>
-        </Button>
-      ) : null}
-    </div>
-  );
-}
-
 function EventRow(props: {
   event: AdminEventListRow;
   t: AdminEventsListTranslations;
@@ -205,7 +163,6 @@ function EventRow(props: {
             {props.event.shortName} · /events/{props.event.slug}
           </span>
           <EventStatusBadges event={props.event} t={props.t} />
-          <EventActions event={props.event} t={props.t} />
         </div>
       </TableCell>
       <TableCell className="px-4 py-3 align-top text-sm text-mit-readable-ink">
@@ -249,7 +206,6 @@ function MobileEventCard(props: {
           </span>
           <EventStatusBadges event={props.event} t={props.t} />
         </div>
-        <EventActions event={props.event} t={props.t} />
         <dl className="grid gap-2 text-sm">
           <div>
             <dt className="font-medium text-foreground">
