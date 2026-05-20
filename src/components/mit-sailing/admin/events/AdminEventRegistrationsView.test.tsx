@@ -235,10 +235,14 @@ describe('AdminEventRegistrationsView', () => {
     await user.click(approveAction);
 
     expect(
+      screen.getByRole('dialog', { name: 'Confirm approve for Sailor One' })
+    ).toContainElement(
       screen.getByText('Approve Sailor One and mark confirmed?')
-    ).toBeVisible();
+    );
     expect(
-      screen.getByRole('button', { name: 'Confirm approve' })
+      within(
+        screen.getByRole('dialog', { name: 'Confirm approve for Sailor One' })
+      ).getByRole('button', { name: 'Confirm approve' })
     ).toBeVisible();
   });
 
