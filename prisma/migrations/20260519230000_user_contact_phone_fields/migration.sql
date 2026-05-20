@@ -18,5 +18,5 @@ ALTER TABLE "user"
   ADD CONSTRAINT "user_emergency_contact_complete"
   CHECK (
     ("emergency_contact_name" IS NULL AND "emergency_contact_phone" IS NULL) OR
-    ("emergency_contact_name" IS NOT NULL AND btrim("emergency_contact_name") <> '' AND "emergency_contact_phone" IS NOT NULL)
+    ("emergency_contact_name" IS NOT NULL AND length(btrim("emergency_contact_name")) > 0 AND "emergency_contact_phone" IS NOT NULL)
   );

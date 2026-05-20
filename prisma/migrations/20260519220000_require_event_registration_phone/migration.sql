@@ -16,4 +16,4 @@ ALTER TABLE "event_registrations"
 
 ALTER TABLE "event_registrations"
   ADD CONSTRAINT "event_registrations_phone_not_blank"
-  CHECK (btrim("phone") <> '');
+  CHECK (length(btrim("phone")) > 0);

@@ -356,8 +356,8 @@ describe('event policy schema rules', () => {
   });
 
   it('requires phone for registrations', () => {
-    expect(zenstackSchemaText).toContain('phone                   String');
-    expect(zenstackSchemaText).toContain('@trim() @map("phone")');
+    expect(zenstackSchemaText).toMatch(/\bphone\s+String\b/u);
+    expect(zenstackSchemaText).toMatch(/@trim\(\)\s+@map\("phone"\)/u);
     expect(zenstackSchemaText).toContain(
       "@@deny('create,update', phone == '')"
     );

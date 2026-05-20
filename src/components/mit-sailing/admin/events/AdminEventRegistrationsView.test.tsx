@@ -234,14 +234,11 @@ describe('AdminEventRegistrationsView', () => {
     await user.click(actionsMenu);
     await user.click(approveAction);
 
-    const dialog = firstElement(
-      screen.getAllByRole('dialog', {
-        name: 'Confirm approve for Sailor One',
-      })
-    );
-    expect(dialog).toHaveTextContent('Approve Sailor One and mark confirmed?');
     expect(
-      within(dialog).getByRole('button', { name: 'Confirm approve' })
+      screen.getByText('Approve Sailor One and mark confirmed?')
+    ).toBeVisible();
+    expect(
+      screen.getByRole('button', { name: 'Confirm approve' })
     ).toBeVisible();
   });
 

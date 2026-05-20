@@ -92,6 +92,37 @@ function requestConfirmationCodeWithFireEvent(email: string) {
   );
 }
 
+async function expectContactUpdateError(options: {
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  error: string;
+  message: string;
+}) {
+  const user = userEvent.setup();
+  updateProfileContactActionMock.mockResolvedValue({
+    ok: false,
+    error: options.error,
+  });
+  renderAccountClient();
+
+  await user.type(screen.getByLabelText('Phone'), '(617) 555-0100');
+  if (options.emergencyContactName) {
+    await user.type(
+      screen.getByLabelText('Emergency contact name'),
+      options.emergencyContactName
+    );
+  }
+  if (options.emergencyContactPhone) {
+    await user.type(
+      screen.getByLabelText('Emergency contact phone'),
+      options.emergencyContactPhone
+    );
+  }
+  await user.click(screen.getByRole('button', { name: 'Save contact' }));
+
+  expect(await screen.findByRole('alert')).toHaveTextContent(options.message);
+}
+
 describe('ProfileAccountClient', () => {
   it('profile owner sees non-blocking email deliverability notice', () => {
     renderAccountClient({ initialEmailDeliverabilityStatus: 'bounced' });
@@ -250,53 +281,26 @@ describe('ProfileAccountClient', () => {
   });
 
   it('profile owner sees emergency contact validation errors', async () => {
-    const user = userEvent.setup();
-    updateProfileContactActionMock.mockResolvedValue({
-      ok: false,
+    await expectContactUpdateError({
+      emergencyContactPhone: '555',
       error: 'invalid_emergency_phone',
+      message: 'Enter a valid emergency phone number.',
     });
-    renderAccountClient();
-
-    await user.type(screen.getByLabelText('Phone'), '(617) 555-0100');
-    await user.type(screen.getByLabelText('Emergency contact phone'), '555');
-    await user.click(screen.getByRole('button', { name: 'Save contact' }));
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Enter a valid emergency phone number.'
-    );
   });
 
   it('profile owner sees incomplete emergency contact errors', async () => {
-    const user = userEvent.setup();
-    updateProfileContactActionMock.mockResolvedValue({
-      ok: false,
+    await expectContactUpdateError({
+      emergencyContactName: 'Jane',
       error: 'incomplete_emergency_contact',
+      message: 'Enter both emergency contact name and phone.',
     });
-    renderAccountClient();
-
-    await user.type(screen.getByLabelText('Phone'), '(617) 555-0100');
-    await user.type(screen.getByLabelText('Emergency contact name'), 'Jane');
-    await user.click(screen.getByRole('button', { name: 'Save contact' }));
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Enter both emergency contact name and phone.'
-    );
   });
 
   it('profile owner sees fallback when contact update is unauthorized', async () => {
-    const user = userEvent.setup();
-    updateProfileContactActionMock.mockResolvedValue({
-      ok: false,
+    await expectContactUpdateError({
       error: 'unauthorized',
+      message: 'Could not update contact information.',
     });
-    renderAccountClient();
-
-    await user.type(screen.getByLabelText('Phone'), '(617) 555-0100');
-    await user.click(screen.getByRole('button', { name: 'Save contact' }));
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Could not update contact information.'
-    );
   });
 
   it('profile owner sees fallback when contact update throws', async () => {

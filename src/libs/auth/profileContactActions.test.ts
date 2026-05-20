@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { UpdateProfileContactResult } from '@/libs/auth/profileContactActions';
 
 const { getI18nPath, getSession, revalidatePath, userUpdate } = vi.hoisted(
   () => ({
@@ -40,6 +41,24 @@ beforeEach(() => {
   userUpdate.mockResolvedValue({});
 });
 
+async function expectContactUpdateResult(options: {
+  emergencyContactName: string;
+  emergencyContactPhone: string;
+  phone: string;
+  result: UpdateProfileContactResult;
+}) {
+  const { updateProfileContactAction } =
+    await import('@/libs/auth/profileContactActions');
+
+  await expect(
+    updateProfileContactAction('en', {
+      emergencyContactName: options.emergencyContactName,
+      emergencyContactPhone: options.emergencyContactPhone,
+      phone: options.phone,
+    })
+  ).resolves.toEqual(options.result);
+}
+
 describe('updateProfileContactAction', () => {
   it('stores normalized US primary phone and international emergency phone', async () => {
     const { updateProfileContactAction } =
@@ -64,92 +83,68 @@ describe('updateProfileContactAction', () => {
   });
 
   it('rejects non-US primary phone', async () => {
-    const { updateProfileContactAction } =
-      await import('@/libs/auth/profileContactActions');
-
-    await expect(
-      updateProfileContactAction('en', {
-        emergencyContactName: '',
-        emergencyContactPhone: '',
-        phone: '+44 20 7946 0958',
-      })
-    ).resolves.toEqual({ ok: false, error: 'invalid_phone' });
+    await expectContactUpdateResult({
+      emergencyContactName: '',
+      emergencyContactPhone: '',
+      phone: '+44 20 7946 0958',
+      result: { ok: false, error: 'invalid_phone' },
+    });
 
     expect(userUpdate).not.toHaveBeenCalled();
   });
 
   it('rejects unauthenticated contact updates', async () => {
     getSession.mockResolvedValue(null);
-    const { updateProfileContactAction } =
-      await import('@/libs/auth/profileContactActions');
-
-    await expect(
-      updateProfileContactAction('en', {
-        emergencyContactName: '',
-        emergencyContactPhone: '',
-        phone: '(617) 555-0100',
-      })
-    ).resolves.toEqual({ ok: false, error: 'unauthorized' });
+    await expectContactUpdateResult({
+      emergencyContactName: '',
+      emergencyContactPhone: '',
+      phone: '(617) 555-0100',
+      result: { ok: false, error: 'unauthorized' },
+    });
 
     expect(userUpdate).not.toHaveBeenCalled();
   });
 
   it('requires emergency contact name and phone together', async () => {
-    const { updateProfileContactAction } =
-      await import('@/libs/auth/profileContactActions');
-
-    await expect(
-      updateProfileContactAction('en', {
-        emergencyContactName: 'Jane Sailor',
-        emergencyContactPhone: '',
-        phone: '(617) 555-0100',
-      })
-    ).resolves.toEqual({ ok: false, error: 'incomplete_emergency_contact' });
+    await expectContactUpdateResult({
+      emergencyContactName: 'Jane Sailor',
+      emergencyContactPhone: '',
+      phone: '(617) 555-0100',
+      result: { ok: false, error: 'incomplete_emergency_contact' },
+    });
 
     expect(userUpdate).not.toHaveBeenCalled();
   });
 
   it('requires emergency contact phone and name together', async () => {
-    const { updateProfileContactAction } =
-      await import('@/libs/auth/profileContactActions');
-
-    await expect(
-      updateProfileContactAction('en', {
-        emergencyContactName: '',
-        emergencyContactPhone: '+44 20 7946 0958',
-        phone: '(617) 555-0100',
-      })
-    ).resolves.toEqual({ ok: false, error: 'incomplete_emergency_contact' });
+    await expectContactUpdateResult({
+      emergencyContactName: '',
+      emergencyContactPhone: '+44 20 7946 0958',
+      phone: '(617) 555-0100',
+      result: { ok: false, error: 'incomplete_emergency_contact' },
+    });
 
     expect(userUpdate).not.toHaveBeenCalled();
   });
 
   it('rejects invalid emergency contact phones', async () => {
-    const { updateProfileContactAction } =
-      await import('@/libs/auth/profileContactActions');
-
-    await expect(
-      updateProfileContactAction('en', {
-        emergencyContactName: 'Jane Sailor',
-        emergencyContactPhone: '555',
-        phone: '(617) 555-0100',
-      })
-    ).resolves.toEqual({ ok: false, error: 'invalid_emergency_phone' });
+    await expectContactUpdateResult({
+      emergencyContactName: 'Jane Sailor',
+      emergencyContactPhone: '555',
+      phone: '(617) 555-0100',
+      result: { ok: false, error: 'invalid_emergency_phone' },
+    });
 
     expect(userUpdate).not.toHaveBeenCalled();
   });
 
   it('stores a primary phone without optional emergency contact fields', async () => {
-    const { updateProfileContactAction } =
-      await import('@/libs/auth/profileContactActions');
-
-    await expect(
-      updateProfileContactAction('en', {
-        emergencyContactName: '   ',
-        emergencyContactPhone: '   ',
-        phone: '(617) 555-0100',
-      })
-    ).resolves.toEqual({ ok: true });
+    await expectContactUpdateResult({
+      emergencyContactName: '   ',
+      emergencyContactPhone: '   ',
+      phone: '(617) 555-0100',
+      result: { ok: true },
+    });
 
     expect(userUpdate).toHaveBeenCalledWith({
       data: {

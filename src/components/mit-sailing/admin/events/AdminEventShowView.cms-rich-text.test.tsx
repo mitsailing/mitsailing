@@ -8,7 +8,7 @@ import { AdminEventShowView } from './AdminEventShowView';
 
 type CmsRichTextMockProps = {
   className?: string;
-  html?: string | null | undefined;
+  html?: string | null;
   sanitizedHtml?: string;
 };
 

@@ -156,7 +156,6 @@ function RegistrationStatusAction(props: {
       <div
         aria-label={props.confirmTitle}
         className="m-2 rounded-md border border-border bg-background p-3"
-        role="dialog"
       >
         <p className="text-sm text-foreground">{props.confirmBody}</p>
         <form action={action} className="mt-3 flex justify-end">
@@ -331,7 +330,11 @@ function RegistrationRosterRow(props: {
           className="max-w-56 px-4 py-3 align-top text-sm whitespace-normal text-foreground"
           key={question.id}
         >
-          {answerValueForQuestion(props.registration, question.id, props.t)}
+          {answerValueForQuestion({
+            questionId: question.id,
+            registration: props.registration,
+            t: props.t,
+          })}
         </TableCell>
       ))}
     </TableRow>

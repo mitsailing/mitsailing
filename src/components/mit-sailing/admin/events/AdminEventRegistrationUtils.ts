@@ -138,16 +138,17 @@ export function registrationQuestionColumns(
   );
 }
 
-export function answerValueForQuestion(
-  registration: AdminEventRegistrationDto,
-  questionId: string,
-  t: AdminEventRegistrationsTranslations
-): string {
-  const answer = registration.answers.find(
-    (registrationAnswer) => registrationAnswer.question.id === questionId
+export function answerValueForQuestion(options: {
+  registration: AdminEventRegistrationDto;
+  questionId: string;
+  t: AdminEventRegistrationsTranslations;
+}): string {
+  const answer = options.registration.answers.find(
+    (registrationAnswer) =>
+      registrationAnswer.question.id === options.questionId
   );
   if (!answer || answer.value.trim().length === 0) {
-    return t('empty_value');
+    return options.t('empty_value');
   }
   return answer.value;
 }
