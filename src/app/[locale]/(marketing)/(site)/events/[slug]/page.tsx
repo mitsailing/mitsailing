@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { notFound } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import { connection } from 'next/server';
 import { EventDetailView } from '@/components/mit-sailing/events/EventDetailView';
 import { SiteSectionMain } from '@/components/mit-sailing/SiteSectionMain';
@@ -10,6 +10,7 @@ import {
   getPublicEventRegistrationState,
   getPublishedEventForPublicBySlug,
 } from '@/libs/mit-sailing/eventQueries';
+import { resolvePublicSlugRedirect } from '@/libs/mit-sailing/publicSlugRedirects';
 
 type PageProps = {
   params: Promise<{ locale: string; slug: string }>;
@@ -34,14 +35,22 @@ export default async function EventDetailPage(props: PageProps) {
   const { locale, slug } = await props.params;
   const searchParams = await props.searchParams;
   setRequestLocale(locale);
-  const [event, t, currentUser] = await Promise.all([
+  const [event, t] = await Promise.all([
     getPublishedEventForPublicBySlug(slug),
     getTranslations({ locale, namespace: 'MitSailingRoutes' }),
-    getCurrentUser(),
   ]);
   if (!event) {
+    const redirectPath = await resolvePublicSlugRedirect({
+      locale,
+      scope: 'events',
+      slug,
+    });
+    if (redirectPath) {
+      permanentRedirect(redirectPath);
+    }
     notFound();
   }
+  const currentUser = await getCurrentUser();
   const currentRegistration = currentUser
     ? await getPublicEventRegistrationState({
         eventId: event.id,

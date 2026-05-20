@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
 import { setRequestLocale } from 'next-intl/server';
-import { notFound } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import { PublicAdminEditLink } from '@/components/mit-sailing/admin/PublicAdminEditLink';
 import { CmsPageBlocks } from '@/components/mit-sailing/cms/CmsPageBlocks';
 import { adminCatalogResourceEditPath } from '@/libs/admin/catalog/adminCatalogPaths';
 import { loadPublishedCmsPageByPath } from '@/libs/mit-sailing/cmsQueries';
+import { resolvePublicSlugRedirect } from '@/libs/mit-sailing/publicSlugRedirects';
 
 type CmsCatchAllPageProps = {
   params: Promise<{ locale: string; cmsPath: string[] }>;
@@ -42,8 +43,17 @@ export async function generateMetadata(
 export default async function CmsCatchAllPage(props: CmsCatchAllPageProps) {
   const { locale, cmsPath } = await props.params;
   setRequestLocale(locale);
-  const page = await loadPublishedCmsPageByPath(pathFromSegments(cmsPath));
+  const path = pathFromSegments(cmsPath);
+  const page = await loadPublishedCmsPageByPath(path);
   if (!page) {
+    const redirectPath = await resolvePublicSlugRedirect({
+      locale,
+      scope: 'cms',
+      slug: path,
+    });
+    if (redirectPath) {
+      permanentRedirect(redirectPath);
+    }
     notFound();
   }
   return (

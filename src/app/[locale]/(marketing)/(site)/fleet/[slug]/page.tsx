@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { notFound } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import { FleetBoatDetailView } from '@/components/mit-sailing/fleet/FleetBoatDetailView';
 import { getFleetBoatForPublicBySlug } from '@/libs/mit-sailing/fleetQueries';
+import { resolvePublicSlugRedirect } from '@/libs/mit-sailing/publicSlugRedirects';
 
 export const revalidate = 900;
 
@@ -26,6 +27,14 @@ export default async function BoatDetailPage(props: PageProps) {
   setRequestLocale(locale);
   const boat = await getFleetBoatForPublicBySlug(slug);
   if (!boat) {
+    const redirectPath = await resolvePublicSlugRedirect({
+      locale,
+      scope: 'fleet',
+      slug,
+    });
+    if (redirectPath) {
+      permanentRedirect(redirectPath);
+    }
     notFound();
   }
   return <FleetBoatDetailView boat={boat} locale={locale} />;
