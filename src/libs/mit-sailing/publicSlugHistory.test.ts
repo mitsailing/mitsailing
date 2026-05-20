@@ -25,7 +25,7 @@ describe('publicSlugHistory', () => {
     mocks.upsert.mockReset();
   });
 
-  it('records previous aliases and removes aliases matching the new canonical value', async () => {
+  it('records previous aliases and removes aliases matching moved public values', async () => {
     const { recordPublicSlugHistory } =
       await import('@/libs/mit-sailing/publicSlugHistory');
 
@@ -40,8 +40,7 @@ describe('publicSlugHistory', () => {
     expect(mocks.deleteMany).toHaveBeenCalledWith({
       where: {
         scope: 'classes',
-        slug: 'new-path',
-        sluggableType: 'SailingClass',
+        slug: { in: ['new-path', 'old-path'] },
       },
     });
     expect(mocks.upsert).toHaveBeenCalledWith({
@@ -81,8 +80,7 @@ describe('publicSlugHistory', () => {
     expect(mocks.deleteMany).toHaveBeenCalledWith({
       where: {
         scope: 'cms',
-        slug: 'same-path',
-        sluggableType: 'CmsPage',
+        slug: { in: ['same-path'] },
       },
     });
     expect(mocks.upsert).not.toHaveBeenCalled();
@@ -117,7 +115,7 @@ describe('publicSlugHistory', () => {
     );
   });
 
-  it('removes stale aliases matching a reused canonical value across targets', async () => {
+  it('removes stale aliases matching reused public values across targets', async () => {
     const { recordPublicSlugHistory } =
       await import('@/libs/mit-sailing/publicSlugHistory');
 
@@ -132,8 +130,7 @@ describe('publicSlugHistory', () => {
     expect(mocks.deleteMany).toHaveBeenCalledWith({
       where: {
         scope: 'events',
-        slug: 'reused-path',
-        sluggableType: 'Event',
+        slug: { in: ['reused-path', 'old-path'] },
       },
     });
   });

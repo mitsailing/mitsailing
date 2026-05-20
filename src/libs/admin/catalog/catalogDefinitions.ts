@@ -540,7 +540,7 @@ const publicSlugsDefinition = {
       kind: 'string',
       headerKey: 'column_sluggable_type',
     },
-    { field: 'targetPath', kind: 'url', headerKey: 'column_target_path' },
+    { field: 'targetPath', kind: 'url', headerKey: 'column_alias_path' },
     { field: 'source', kind: 'string', headerKey: 'column_source' },
   ],
   formFields: [],

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   connection: vi.fn(),
   getCurrentUser: vi.fn(),
+  getPublicEventRegistrationState: vi.fn(),
   getPublishedEventForPublicBySlug: vi.fn(),
   getTranslations: vi.fn(),
   notFound: vi.fn(() => {
@@ -49,7 +50,7 @@ vi.mock('@/libs/auth/dal', () => ({
 }));
 
 vi.mock('@/libs/mit-sailing/eventQueries', () => ({
-  getPublicEventRegistrationState: vi.fn(),
+  getPublicEventRegistrationState: mocks.getPublicEventRegistrationState,
   getPublishedEventForPublicBySlug: mocks.getPublishedEventForPublicBySlug,
 }));
 
@@ -63,9 +64,20 @@ function pageProps() {
   };
 }
 
+function deferred<T>() {
+  return Promise.withResolvers<T>();
+}
+
+async function flushPageStartup(): Promise<void> {
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.getCurrentUser.mockResolvedValue(null);
+  mocks.getPublicEventRegistrationState.mockResolvedValue(null);
   mocks.getPublishedEventForPublicBySlug.mockResolvedValue(null);
   mocks.getTranslations.mockResolvedValue((key: string) => key);
   mocks.redirectPublicSlugAliasOrNotFound.mockImplementation(() => {
@@ -102,6 +114,30 @@ describe('EventDetailPage', () => {
       locale: 'en',
       scope: 'events',
       slug: 'old-event',
+    });
+  });
+
+  it('loads signed in registration state in parallel with the event', async () => {
+    const event = {
+      id: 'event-1',
+      name: 'Spring Regatta',
+    };
+    const eventResult = deferred<typeof event>();
+    mocks.getPublishedEventForPublicBySlug.mockReturnValue(eventResult.promise);
+    mocks.getCurrentUser.mockResolvedValue({ id: 'user-1' });
+    const pageModule = await import('./page');
+
+    const pagePromise = pageModule.default(pageProps());
+    await flushPageStartup();
+
+    expect(mocks.getCurrentUser).toHaveBeenCalled();
+
+    eventResult.resolve(event);
+    await pagePromise;
+
+    expect(mocks.getPublicEventRegistrationState).toHaveBeenCalledWith({
+      eventId: 'event-1',
+      userId: 'user-1',
     });
   });
 });

@@ -36,6 +36,12 @@ describe('tryGetCatalogDefinition', () => {
       },
       formFields: [],
       id: 'public_slugs',
+      listColumns: expect.arrayContaining([
+        expect.objectContaining({
+          field: 'targetPath',
+          headerKey: 'column_alias_path',
+        }),
+      ]),
     });
     expect(tryGetCatalogDefinition('legacy_redirects')).toMatchObject({
       capabilities: {

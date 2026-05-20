@@ -549,6 +549,7 @@
     "column_group_key": "Group",
     "column_scope": "Scope",
     "column_sluggable_type": "Resource type",
+    "column_alias_path": "Alias path",
     "column_target_path": "Target path",
     "column_source": "Source",
     "column_source_path": "Source path",

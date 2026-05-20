@@ -1,4 +1,4 @@
-CREATE TYPE "public_slug_source" AS ENUM ('automatic', 'migration', 'manual');
+CREATE TYPE "public_slug_source" AS ENUM ('automatic', 'migration', 'manual'); -- NOSONAR: PostgreSQL enum literals are schema values, not reusable constants.
 
 CREATE TYPE "legacy_redirect_source" AS ENUM ('ai_migration', 'manual');
 

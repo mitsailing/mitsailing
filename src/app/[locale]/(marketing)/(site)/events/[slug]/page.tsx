@@ -34,9 +34,10 @@ export default async function EventDetailPage(props: PageProps) {
   const { locale, slug } = await props.params;
   const searchParams = await props.searchParams;
   setRequestLocale(locale);
-  const [event, t] = await Promise.all([
+  const [event, t, currentUser] = await Promise.all([
     getPublishedEventForPublicBySlug(slug),
     getTranslations({ locale, namespace: 'MitSailingRoutes' }),
+    getCurrentUser(),
   ]);
   if (!event) {
     return redirectPublicSlugAliasOrNotFound({
@@ -45,7 +46,6 @@ export default async function EventDetailPage(props: PageProps) {
       slug,
     });
   }
-  const currentUser = await getCurrentUser();
   const currentRegistration = currentUser
     ? await getPublicEventRegistrationState({
         eventId: event.id,

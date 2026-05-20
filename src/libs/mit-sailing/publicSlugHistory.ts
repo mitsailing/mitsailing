@@ -26,11 +26,14 @@ export async function recordPublicSlugHistory(
   options: PublicSlugHistoryOptions
 ): Promise<void> {
   const db = options.db ?? prisma;
+  const slugsToDelete = [options.currentSlug];
+  if (options.previousSlug !== options.currentSlug) {
+    slugsToDelete.push(options.previousSlug);
+  }
   await db.publicSlug.deleteMany({
     where: {
       scope: options.scope,
-      slug: options.currentSlug,
-      sluggableType: options.sluggableType,
+      slug: { in: slugsToDelete },
     },
   });
 
