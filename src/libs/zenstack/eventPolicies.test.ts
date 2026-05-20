@@ -266,12 +266,12 @@ async function insertFixtures(pool: Pool) {
   await pool.query(
     `
       INSERT INTO "event_registrations" (
-        "id", "event_id", "user_id", "status", "created_at",
+        "id", "event_id", "user_id", "status", "phone", "created_at",
         "swim_agreement_accepted_at"
       )
       VALUES
-        ($1, $2, $3, 'pending', NOW(), NOW()),
-        ($4, $2, $5, 'pending', NOW(), NOW())
+        ($1, $2, $3, 'pending', '+16175550100', NOW(), NOW()),
+        ($4, $2, $5, 'pending', '+16175550101', NOW(), NOW())
     `,
     [
       ids.registration,
