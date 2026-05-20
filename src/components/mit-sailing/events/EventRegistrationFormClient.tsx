@@ -233,6 +233,7 @@ function QuestionField(props: {
               defaultChecked={fieldValues(props.state, name).includes('true')}
               id={switchId}
               name={name}
+              required={props.question.required}
             />
             <HeadlessLabel className="min-w-0 flex-1 cursor-pointer leading-relaxed font-normal text-mit-text">
               <span className="font-semibold text-mit-text" id={controlId}>
@@ -306,6 +307,7 @@ function SwimAgreementField(props: {
           ).includes('true')}
           id="event-registration-swim-agreement-switch"
           name="swimAgreementAccepted"
+          required
         />
         <HeadlessLabel
           className="min-w-0 flex-1 cursor-pointer leading-relaxed font-normal text-mit-text"
