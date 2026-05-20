@@ -1,39 +1,41 @@
-import * as z from 'zod';
+import * as z from "zod";
 import {
   EventAnswerType,
+  EventAddressPreset,
   EventDetailPageKind,
   EventRegistrationMode,
   EventRegistrationStatus,
-} from '@/generated/prisma/enums';
+} from "@/generated/prisma/enums";
 import {
   formatNyDateTimeLocalInput,
   instantForNyWallClock,
-} from '@/lib/mit-sailing/nyTime';
-import { Role } from '@/libs/auth/roles';
-import { sanitizeCmsRichTextHtml } from '@/libs/mit-sailing/cmsRichText';
-import { parseUsdDecimalStringToMinorUnits } from '@/libs/money/stripeUsdMinorUnits';
+} from "@/lib/mit-sailing/nyTime";
+import { Role } from "@/libs/auth/roles";
+import { sanitizeCmsRichTextHtml } from "@/libs/mit-sailing/cmsRichText";
+import { eventAddressPresetFields } from "@/libs/mit-sailing/eventAddressPresets";
+import { parseUsdDecimalStringToMinorUnits } from "@/libs/money/stripeUsdMinorUnits";
 
 export {
   parseUsdDecimalStringToMinorUnits as dollarsToEventAdminCents,
   usdMinorUnitsToDecimalInputString as eventAdminCentsToDollars,
-} from '@/libs/money/stripeUsdMinorUnits';
+} from "@/libs/money/stripeUsdMinorUnits";
 
 const dateTimeLocalPattern = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;
 
 function formString(formData: FormData, key: string): string {
   const value = formData.get(key);
-  return typeof value === 'string' ? value : '';
+  return typeof value === "string" ? value : "";
 }
 
 function formCheckbox(formData: FormData, key: string): boolean {
   const values = formData.getAll(key);
-  return values.includes('true') || values.includes('on');
+  return values.includes("true") || values.includes("on");
 }
 
 function formStrings(formData: FormData, key: string): string[] {
   return formData
     .getAll(key)
-    .filter((value): value is string => typeof value === 'string')
+    .filter((value): value is string => typeof value === "string")
     .map((value) => value.trim())
     .filter(Boolean);
 }
@@ -42,10 +44,10 @@ export function slugifyEventAdmin(value: string): string {
   return value
     .toLowerCase()
     .trim()
-    .replaceAll(/[^a-z0-9\s-]/g, '')
-    .replaceAll(/\s+/g, '-')
-    .replaceAll(/-+/g, '-')
-    .replaceAll(/^-|-$/g, '');
+    .replaceAll(/[^a-z0-9\s-]/g, "")
+    .replaceAll(/\s+/g, "-")
+    .replaceAll(/-+/g, "-")
+    .replaceAll(/^-|-$/g, "");
 }
 
 type EventAdminSlugDate = Date | { startDateTime: Date };
@@ -61,7 +63,7 @@ function easternDateParts(date: Date): {
   year: string;
 } {
   const value = formatNyDateTimeLocalInput(date).slice(0, 10);
-  const [year = '', month = '', day = ''] = value.split('-');
+  const [year = "", month = "", day = ""] = value.split("-");
   return { day, month, value, year };
 }
 
@@ -71,33 +73,33 @@ function eventAdminDatePrefix(dates: readonly EventAdminSlugDate[]): string {
       dates
         .map((date) => easternDateParts(eventAdminSlugStartDate(date)))
         .toSorted((left, right) => left.value.localeCompare(right.value))
-        .map((date) => [date.value, date])
+        .map((date) => [date.value, date]),
     ).values(),
   ];
   const [firstDate] = dateParts;
   if (!firstDate) {
-    return '';
+    return "";
   }
   if (dateParts.length === 1) {
     return firstDate.value;
   }
   if (
     dateParts.every(
-      (date) => date.year === firstDate.year && date.month === firstDate.month
+      (date) => date.year === firstDate.year && date.month === firstDate.month,
     )
   ) {
     return [
       firstDate.value,
       ...dateParts.slice(1).map((date) => date.day),
-    ].join('-');
+    ].join("-");
   }
   if (dateParts.every((date) => date.year === firstDate.year)) {
     return [
       firstDate.value,
       ...dateParts.slice(1).map((date) => `${date.month}-${date.day}`),
-    ].join('-');
+    ].join("-");
   }
-  return dateParts.map((date) => date.value).join('-');
+  return dateParts.map((date) => date.value).join("-");
 }
 
 export function generateEventAdminSlug(options: {
@@ -106,7 +108,7 @@ export function generateEventAdminSlug(options: {
 }): string {
   const nameSlug = slugifyEventAdmin(options.name);
   const datePrefix = eventAdminDatePrefix(options.dates);
-  return [datePrefix, nameSlug].filter(Boolean).join('-');
+  return [datePrefix, nameSlug].filter(Boolean).join("-");
 }
 
 export function splitEventAdminOptionLines(input: string): string[] {
@@ -118,7 +120,7 @@ export function splitEventAdminOptionLines(input: string): string[] {
 
 export function formatEasternDateTimeLocal(date: Date | null): string {
   if (!date) {
-    return '';
+    return "";
   }
   return formatNyDateTimeLocalInput(date);
 }
@@ -156,11 +158,11 @@ export function parseEasternDateTimeLocal(value: string): Date | null {
 const optionalDateTimeLocalSchema = z
   .string()
   .trim()
-  .refine((value) => value === '' || parseEasternDateTimeLocal(value) !== null)
+  .refine((value) => value === "" || parseEasternDateTimeLocal(value) !== null)
   .transform((value) =>
-    value === ''
+    value === ""
       ? null
-      : (parseEasternDateTimeLocal(value) ?? new Date(Number.NaN))
+      : (parseEasternDateTimeLocal(value) ?? new Date(Number.NaN)),
   );
 
 const requiredDateTimeLocalSchema = z
@@ -169,18 +171,18 @@ const requiredDateTimeLocalSchema = z
   .min(1)
   .refine((value) => parseEasternDateTimeLocal(value) !== null)
   .transform(
-    (value) => parseEasternDateTimeLocal(value) ?? new Date(Number.NaN)
+    (value) => parseEasternDateTimeLocal(value) ?? new Date(Number.NaN),
   );
 
 /** Trimmed form text: blank → `null`, else `Number()` (pipe validates with `z.int()`). */
 const optionalTrimmedNumericStringSchema = z
   .string()
   .trim()
-  .transform((value) => (value === '' ? null : Number(value)));
+  .transform((value) => (value === "" ? null : Number(value)));
 
 /** Empty field → `null` (no cap); otherwise a safe integer ≥ 1 — never `0`. */
 const optionalPositiveIntSchema = optionalTrimmedNumericStringSchema.pipe(
-  z.int().positive().nullable()
+  z.int().positive().nullable(),
 );
 
 const requiredPositiveIntStringSchema = z
@@ -188,7 +190,7 @@ const requiredPositiveIntStringSchema = z
     z
       .string()
       .trim()
-      .transform((value) => (value === '' ? 1 : Number(value))),
+      .transform((value) => (value === "" ? 1 : Number(value))),
     z.number(),
   ])
   .pipe(z.int().positive())
@@ -196,7 +198,7 @@ const requiredPositiveIntStringSchema = z
 
 /** Blank → `null`; explicit `0` allowed (e.g. display order). */
 const optionalNonNegativeIntSchema = optionalTrimmedNumericStringSchema.pipe(
-  z.int().nonnegative().nullable()
+  z.int().nonnegative().nullable(),
 );
 
 const eventDetailPageKindSchema = z.enum([
@@ -211,9 +213,9 @@ const eventRegistrationModeSchema = z
       EventRegistrationMode.standard,
       EventRegistrationMode.external,
     ]),
-    z.literal(''),
+    z.literal(""),
   ])
-  .default('')
+  .default("")
   .transform((value) => value || EventRegistrationMode.standard);
 
 const eventAnswerTypeSchema = z.enum([
@@ -222,10 +224,16 @@ const eventAnswerTypeSchema = z.enum([
   EventAnswerType.checkbox,
 ]);
 
+const eventAddressPresetSchema = z.enum([
+  EventAddressPreset.pavilion,
+  EventAddressPreset.bluewater,
+  EventAddressPreset.custom,
+]);
+
 const eventAdminExternalHttpUrlSchema = z.httpUrl();
 const eventAdminPublicContentSchema = z
   .string()
-  .default('')
+  .default("")
   .transform((value) => sanitizeCmsRichTextHtml(value));
 
 export const ASSIGNABLE_EVENT_ADMIN_ROLES = [
@@ -254,8 +262,8 @@ export const eventAdminBasicsFormSchema = z
     detailPageKind: eventDetailPageKindSchema,
     externalDetailUrl: z.string().trim(),
     registrationMode: eventRegistrationModeSchema,
-    externalRegistrationUrl: z.string().trim().default(''),
-    externalEntriesUrl: z.string().trim().default(''),
+    externalRegistrationUrl: z.string().trim().default(""),
+    externalEntriesUrl: z.string().trim().default(""),
     faqVisible: z.boolean().default(false),
     faqContent: eventAdminPublicContentSchema,
     noticeOfRaceVisible: z.boolean().default(false),
@@ -275,15 +283,15 @@ export const eventAdminBasicsFormSchema = z
       externalDetailUrl:
         value.detailPageKind === EventDetailPageKind.external
           ? value.externalDetailUrl
-          : '',
+          : "",
       externalRegistrationUrl:
         value.registrationMode === EventRegistrationMode.external
           ? value.externalRegistrationUrl
-          : '',
+          : "",
       externalEntriesUrl:
         value.registrationMode === EventRegistrationMode.external
           ? value.externalEntriesUrl
-          : '',
+          : "",
       boatsPerTeam: value.usesTeamRegistration ? value.boatsPerTeam : 1,
       personsPerBoat: value.usesTeamRegistration ? value.personsPerBoat : 1,
       allowRepeatTeamCaptain: value.usesTeamRegistration
@@ -291,41 +299,41 @@ export const eventAdminBasicsFormSchema = z
         : false,
     };
   })
-  .refine((value) => value.slug.length > 0, { path: ['slug'] })
+  .refine((value) => value.slug.length > 0, { path: ["slug"] })
   .refine(
     (value) =>
       value.detailPageKind !== EventDetailPageKind.external ||
       eventAdminExternalHttpUrlSchema.safeParse(value.externalDetailUrl)
         .success,
-    { path: ['externalDetailUrl'] }
+    { path: ["externalDetailUrl"] },
   )
   .refine(
     (value) =>
       value.registrationMode !== EventRegistrationMode.external ||
       eventAdminExternalHttpUrlSchema.safeParse(value.externalRegistrationUrl)
         .success,
-    { path: ['externalRegistrationUrl'] }
+    { path: ["externalRegistrationUrl"] },
   )
   .refine(
     (value) =>
-      value.externalEntriesUrl === '' ||
+      value.externalEntriesUrl === "" ||
       eventAdminExternalHttpUrlSchema.safeParse(value.externalEntriesUrl)
         .success,
-    { path: ['externalEntriesUrl'] }
+    { path: ["externalEntriesUrl"] },
   )
   .refine(
     (value) =>
       !value.registrationStart ||
       !value.registrationEnd ||
       value.registrationEnd.getTime() > value.registrationStart.getTime(),
-    { path: ['registrationEnd'] }
+    { path: ["registrationEnd"] },
   )
   .refine(
     (value) =>
       !value.usesTeamRegistration ||
       value.boatsPerTeam > 1 ||
       value.personsPerBoat > 1,
-    { path: ['usesTeamRegistration'] }
+    { path: ["usesTeamRegistration"] },
   );
 
 export const eventDateFormSchema = z
@@ -338,7 +346,7 @@ export const eventDateFormSchema = z
       value.startDateTime instanceof Date &&
       value.endDateTime instanceof Date &&
       value.endDateTime.getTime() > value.startDateTime.getTime(),
-    { path: ['endDateTime'] }
+    { path: ["endDateTime"] },
   );
 
 export const eventQuestionFormSchema = z
@@ -359,7 +367,7 @@ export const eventQuestionFormSchema = z
   .refine(
     (value) =>
       value.answerType !== EventAnswerType.select || value.options.length > 0,
-    { path: ['optionsText'] }
+    { path: ["optionsText"] },
   );
 
 /**
@@ -369,7 +377,7 @@ export const eventQuestionFormSchema = z
  * {@link isEventAdminInvalidFeeAmountIssue} at the admin boundary for both cases.
  */
 const EVENT_ADMIN_INVALID_FEE_AMOUNT_ERROR_CODE =
-  'invalid_event_fee_amount' as const;
+  "invalid_event_fee_amount" as const;
 
 /**
  * Reads stable `params.errorCode` from a Zod `custom` issue.
@@ -381,11 +389,11 @@ function zodCustomIssueParamsErrorCode(issue: {
   readonly code?: string;
   readonly params?: Record<string, unknown> | undefined;
 }): string | undefined {
-  if (issue.code !== 'custom') {
+  if (issue.code !== "custom") {
     return undefined;
   }
   const candidate = issue.params?.errorCode;
-  return typeof candidate === 'string' ? candidate : undefined;
+  return typeof candidate === "string" ? candidate : undefined;
 }
 
 /**
@@ -408,7 +416,7 @@ export function isEventAdminInvalidFeeAmountIssue(issue: {
   ) {
     return true;
   }
-  return issue.code === 'too_small' && issue.path?.at(-1) === 'amountDollars';
+  return issue.code === "too_small" && issue.path?.at(-1) === "amountDollars";
 }
 
 /**
@@ -424,7 +432,7 @@ const eventAdminFeeDollarStringToCentsSchema = z
     const cents = parseUsdDecimalStringToMinorUnits(value);
     if (cents === null) {
       ctx.addIssue({
-        code: 'custom',
+        code: "custom",
         params: { errorCode: EVENT_ADMIN_INVALID_FEE_AMOUNT_ERROR_CODE },
       });
       return z.NEVER;
@@ -459,76 +467,135 @@ export const eventRegistrationStatusFormSchema = z.object({
   ]),
 });
 
+export const eventPaymentSettingsFormSchema = z
+  .object({
+    paymentsEnabled: z.boolean(),
+    paymentDeadlineAt: optionalDateTimeLocalSchema,
+    addressPreset: eventAddressPresetSchema,
+    addressName: z.string().trim(),
+    addressLine1: z.string().trim(),
+    addressLine2: z.string().trim(),
+    addressCity: z.string().trim(),
+    addressState: z.string().trim(),
+    addressPostalCode: z.string().trim(),
+    addressCountry: z.string().trim(),
+  })
+  .transform((value) => {
+    const preset = eventAddressPresetFields(value.addressPreset);
+    const address = preset ?? value;
+    return {
+      ...value,
+      addressName: address.addressName || null,
+      addressLine1: address.addressLine1 || null,
+      addressLine2: address.addressLine2 || null,
+      addressCity: address.addressCity || null,
+      addressState: address.addressState || null,
+      addressPostalCode: address.addressPostalCode || null,
+      addressCountry: address.addressCountry || null,
+    };
+  })
+  .refine(
+    (value) => !value.paymentsEnabled || value.paymentDeadlineAt !== null,
+    { path: ["paymentDeadlineAt"] },
+  );
+
+export const eventPaymentManualHandledFormSchema = z.object({
+  note: z.string().trim().min(1),
+});
+
 export function rawEventBasicsFromFormData(formData: FormData): unknown {
   return {
-    name: formString(formData, 'name'),
-    shortName: formString(formData, 'shortName'),
-    eventCategoryId: formString(formData, 'eventCategoryId'),
-    description: formString(formData, 'description'),
-    isSpecial: formCheckbox(formData, 'isSpecial'),
-    requiresApproval: formCheckbox(formData, 'requiresApproval'),
-    requiresPhone: formCheckbox(formData, 'requiresPhone'),
-    usesTeamRegistration: formCheckbox(formData, 'usesTeamRegistration'),
-    boatsPerTeam: formString(formData, 'boatsPerTeam'),
-    personsPerBoat: formString(formData, 'personsPerBoat'),
-    allowRepeatTeamCaptain: formCheckbox(formData, 'allowRepeatTeamCaptain'),
-    maxParticipants: formString(formData, 'maxParticipants'),
-    registrationStart: formString(formData, 'registrationStart'),
-    registrationEnd: formString(formData, 'registrationEnd'),
-    detailPageKind: formString(formData, 'detailPageKind'),
-    externalDetailUrl: formString(formData, 'externalDetailUrl'),
-    registrationMode: formString(formData, 'registrationMode'),
-    externalRegistrationUrl: formString(formData, 'externalRegistrationUrl'),
-    externalEntriesUrl: formString(formData, 'externalEntriesUrl'),
-    faqVisible: formCheckbox(formData, 'faqVisible'),
-    faqContent: formString(formData, 'faqContent'),
-    noticeOfRaceVisible: formCheckbox(formData, 'noticeOfRaceVisible'),
-    noticeOfRaceContent: formString(formData, 'noticeOfRaceContent'),
+    name: formString(formData, "name"),
+    shortName: formString(formData, "shortName"),
+    eventCategoryId: formString(formData, "eventCategoryId"),
+    description: formString(formData, "description"),
+    isSpecial: formCheckbox(formData, "isSpecial"),
+    requiresApproval: formCheckbox(formData, "requiresApproval"),
+    requiresPhone: formCheckbox(formData, "requiresPhone"),
+    usesTeamRegistration: formCheckbox(formData, "usesTeamRegistration"),
+    boatsPerTeam: formString(formData, "boatsPerTeam"),
+    personsPerBoat: formString(formData, "personsPerBoat"),
+    allowRepeatTeamCaptain: formCheckbox(formData, "allowRepeatTeamCaptain"),
+    maxParticipants: formString(formData, "maxParticipants"),
+    registrationStart: formString(formData, "registrationStart"),
+    registrationEnd: formString(formData, "registrationEnd"),
+    detailPageKind: formString(formData, "detailPageKind"),
+    externalDetailUrl: formString(formData, "externalDetailUrl"),
+    registrationMode: formString(formData, "registrationMode"),
+    externalRegistrationUrl: formString(formData, "externalRegistrationUrl"),
+    externalEntriesUrl: formString(formData, "externalEntriesUrl"),
+    faqVisible: formCheckbox(formData, "faqVisible"),
+    faqContent: formString(formData, "faqContent"),
+    noticeOfRaceVisible: formCheckbox(formData, "noticeOfRaceVisible"),
+    noticeOfRaceContent: formString(formData, "noticeOfRaceContent"),
     sailingInstructionsVisible: formCheckbox(
       formData,
-      'sailingInstructionsVisible'
+      "sailingInstructionsVisible",
     ),
     sailingInstructionsContent: formString(
       formData,
-      'sailingInstructionsContent'
+      "sailingInstructionsContent",
     ),
-    resultsVisible: formCheckbox(formData, 'resultsVisible'),
-    resultsContent: formString(formData, 'resultsContent'),
-    isPublished: formCheckbox(formData, 'isPublished'),
+    resultsVisible: formCheckbox(formData, "resultsVisible"),
+    resultsContent: formString(formData, "resultsContent"),
+    isPublished: formCheckbox(formData, "isPublished"),
   };
 }
 
 export function rawEventDateFromFormData(formData: FormData): unknown {
   return {
-    startDateTime: formString(formData, 'startDateTime'),
-    endDateTime: formString(formData, 'endDateTime'),
+    startDateTime: formString(formData, "startDateTime"),
+    endDateTime: formString(formData, "endDateTime"),
   };
 }
 
 export function rawEventQuestionFromFormData(formData: FormData): unknown {
   return {
-    questionText: formString(formData, 'questionText'),
-    answerType: formString(formData, 'answerType'),
-    optionsText: formString(formData, 'optionsText'),
-    required: formCheckbox(formData, 'required'),
-    displayOrder: formString(formData, 'displayOrder'),
+    questionText: formString(formData, "questionText"),
+    answerType: formString(formData, "answerType"),
+    optionsText: formString(formData, "optionsText"),
+    required: formCheckbox(formData, "required"),
+    displayOrder: formString(formData, "displayOrder"),
   };
 }
 
 export function rawEventFeeFromFormData(formData: FormData): unknown {
   return {
-    description: formString(formData, 'description'),
-    amountDollars: formString(formData, 'amountDollars'),
-    isDeposit: formCheckbox(formData, 'isDeposit'),
+    description: formString(formData, "description"),
+    amountDollars: formString(formData, "amountDollars"),
+    isDeposit: formCheckbox(formData, "isDeposit"),
   };
 }
 
 export function rawEventAdminIdsFromFormData(formData: FormData): string[] {
-  return formStrings(formData, 'adminUserId');
+  return formStrings(formData, "adminUserId");
 }
 
 export function rawEventRegistrationStatusFromFormData(
-  formData: FormData
+  formData: FormData,
 ): unknown {
-  return { status: formString(formData, 'status') };
+  return { status: formString(formData, "status") };
+}
+
+export function rawEventPaymentSettingsFromFormData(
+  formData: FormData,
+): unknown {
+  return {
+    paymentsEnabled: formCheckbox(formData, "paymentsEnabled"),
+    paymentDeadlineAt: formString(formData, "paymentDeadlineAt"),
+    addressPreset: formString(formData, "addressPreset"),
+    addressName: formString(formData, "addressName"),
+    addressLine1: formString(formData, "addressLine1"),
+    addressLine2: formString(formData, "addressLine2"),
+    addressCity: formString(formData, "addressCity"),
+    addressState: formString(formData, "addressState"),
+    addressPostalCode: formString(formData, "addressPostalCode"),
+    addressCountry: formString(formData, "addressCountry"),
+  };
+}
+
+export function rawEventPaymentManualHandledFromFormData(
+  formData: FormData,
+): unknown {
+  return { note: formString(formData, "note") };
 }

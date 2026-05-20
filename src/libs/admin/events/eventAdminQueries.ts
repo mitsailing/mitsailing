@@ -1,19 +1,26 @@
-import 'server-only';
-import type { Prisma } from '@/generated/prisma/client';
-import { EventRegistrationStatus } from '@/generated/prisma/enums';
-import type { EventRegistrationStatus as EventRegistrationStatusValue } from '@/generated/prisma/enums';
-import { ASSIGNABLE_EVENT_ADMIN_ROLES } from '@/libs/admin/events/eventAdminSchemas';
-import type { AdminEventAccessMode } from '@/libs/admin/events/zenstackEventAccess';
-import { eventAccessModeWithAuthContext } from '@/libs/admin/events/zenstackEventAccess';
-import { prisma } from '@/libs/DB';
-import { sanitizeCmsRichTextHtml } from '@/libs/mit-sailing/cmsRichText';
+import "server-only";
+import type { Prisma } from "@/generated/prisma/client";
+import {
+  EventPaymentStatus,
+  EventRegistrationStatus,
+} from "@/generated/prisma/enums";
+import type {
+  EventAddressPreset,
+  EventPaymentStatus as EventPaymentStatusValue,
+  EventRegistrationStatus as EventRegistrationStatusValue,
+} from "@/generated/prisma/enums";
+import { ASSIGNABLE_EVENT_ADMIN_ROLES } from "@/libs/admin/events/eventAdminSchemas";
+import type { AdminEventAccessMode } from "@/libs/admin/events/zenstackEventAccess";
+import { eventAccessModeWithAuthContext } from "@/libs/admin/events/zenstackEventAccess";
+import { prisma } from "@/libs/DB";
+import { sanitizeCmsRichTextHtml } from "@/libs/mit-sailing/cmsRichText";
 import {
   publicContentSectionsFromEvent,
   questionOptionsFromJson,
-} from '@/libs/mit-sailing/eventQueries';
-import type { EventPublicContentSectionDto } from '@/libs/mit-sailing/eventQueries';
-import type { ZenStackDb } from '@/libs/zenstack/auth';
-import type { AppAuthContext } from '@/libs/zenstack/authContext';
+} from "@/libs/mit-sailing/eventQueries";
+import type { EventPublicContentSectionDto } from "@/libs/mit-sailing/eventQueries";
+import type { ZenStackDb } from "@/libs/zenstack/auth";
+import type { AppAuthContext } from "@/libs/zenstack/authContext";
 
 export type AdminEventCategoryOption = {
   id: string;
@@ -32,7 +39,7 @@ export type AdminEventRegistrationCounts = {
   cancelled: number;
 };
 
-export type AdminEventRegistrationMode = 'none' | 'standard' | 'external';
+export type AdminEventRegistrationMode = "none" | "standard" | "external";
 
 export type AdminEventDateDto = {
   id: string;
@@ -51,7 +58,7 @@ export type AdminEventListRow = {
   maxParticipants: number | null;
   requiresApproval: boolean;
   requiresPhone: boolean;
-  detailPageKind: 'standard' | 'external' | null;
+  detailPageKind: "standard" | "external" | null;
   category: { id: string; name: string };
   dates: AdminEventDateDto[];
   registrationCounts: AdminEventRegistrationCounts;
@@ -60,7 +67,7 @@ export type AdminEventListRow = {
 export type AdminEventQuestionDto = {
   id: string;
   questionText: string;
-  answerType: 'text' | 'select' | 'checkbox';
+  answerType: "text" | "select" | "checkbox";
   options: string[];
   required: boolean;
   displayOrder: number;
@@ -98,7 +105,7 @@ export type AdminEventEditorDto = {
   registrationStart: Date | null;
   registrationEnd: Date | null;
   createdAt: Date;
-  detailPageKind: 'standard' | 'external' | null;
+  detailPageKind: "standard" | "external" | null;
   externalDetailUrl: string | null;
   registrationMode?: AdminEventRegistrationMode | null;
   externalRegistrationUrl?: string | null;
@@ -112,6 +119,16 @@ export type AdminEventEditorDto = {
   resultsVisible?: boolean;
   resultsContent?: string;
   isPublished: boolean;
+  paymentsEnabled: boolean;
+  paymentDeadlineAt: Date | null;
+  addressPreset: EventAddressPreset;
+  addressName: string | null;
+  addressLine1: string | null;
+  addressLine2: string | null;
+  addressCity: string | null;
+  addressState: string | null;
+  addressPostalCode: string | null;
+  addressCountry: string | null;
   dates: AdminEventDateDto[];
   admins: AdminEventAdminDto[];
   registrationQuestions: AdminEventQuestionDto[];
@@ -144,9 +161,22 @@ export type AdminEventRegistrationBoatMemberDto = {
   id: string;
   boatNumber: number;
   position: number;
-  positionLabel: 'helm' | 'crew';
+  positionLabel: "helm" | "crew";
   fullName: string;
   email: string;
+};
+
+export type AdminEventRegistrationPaymentDto = {
+  id: string;
+  status: EventPaymentStatusValue;
+  amountCents: number;
+  currency: string;
+  receiptUrl: string | null;
+  manualHandledNote: string | null;
+  manualHandledByUserId: string | null;
+  manualHandledBy: AdminEventUserOption | null;
+  manualHandledAt: Date | null;
+  resendEligible: boolean;
 };
 
 export type AdminEventRegistrationDto = {
@@ -160,6 +190,7 @@ export type AdminEventRegistrationDto = {
   registrationTeam: AdminEventRegistrationTeamDto | null;
   boatMembers: AdminEventRegistrationBoatMemberDto[];
   answers: AdminEventRegistrationAnswerDto[];
+  payment: AdminEventRegistrationPaymentDto | null;
 };
 
 export type AdminEventRegistrationsDto = {
@@ -177,40 +208,40 @@ export type AdminEventRegistrationsDto = {
 export type AdminEventPublicContentSectionDto =
   | {
       body: string;
-      id: 'description';
-      titleKey: 'content_description_title';
+      id: "description";
+      titleKey: "content_description_title";
     }
   | EventPublicContentSectionDto;
 
 export type AdminEventShowDto = Pick<
   AdminEventEditorDto,
-  | 'admins'
-  | 'dates'
-  | 'description'
-  | 'detailPageKind'
-  | 'externalDetailUrl'
-  | 'externalEntriesUrl'
-  | 'externalRegistrationUrl'
-  | 'id'
-  | 'isPublished'
-  | 'isSpecial'
-  | 'maxParticipants'
-  | 'name'
-  | 'registrationEnd'
-  | 'registrationMode'
-  | 'registrationStart'
-  | 'requiresApproval'
-  | 'requiresPhone'
-  | 'usesTeamRegistration'
-  | 'boatsPerTeam'
-  | 'personsPerBoat'
-  | 'allowRepeatTeamCaptain'
-  | 'shortName'
-  | 'slug'
+  | "admins"
+  | "dates"
+  | "description"
+  | "detailPageKind"
+  | "externalDetailUrl"
+  | "externalEntriesUrl"
+  | "externalRegistrationUrl"
+  | "id"
+  | "isPublished"
+  | "isSpecial"
+  | "maxParticipants"
+  | "name"
+  | "registrationEnd"
+  | "registrationMode"
+  | "registrationStart"
+  | "requiresApproval"
+  | "requiresPhone"
+  | "usesTeamRegistration"
+  | "boatsPerTeam"
+  | "personsPerBoat"
+  | "allowRepeatTeamCaptain"
+  | "shortName"
+  | "slug"
 > &
   Pick<
     AdminEventRegistrationsDto,
-    'entryFees' | 'registrationCounts' | 'registrations'
+    "entryFees" | "registrationCounts" | "registrations"
   > & {
     accessMode: AdminEventAccessMode;
     category: AdminEventCategoryOption;
@@ -225,7 +256,7 @@ export type AdminEventListFilters = {
   scope?: string;
 };
 
-export type AdminEventListScope = 'my' | 'all';
+export type AdminEventListScope = "my" | "all";
 
 type AdminEventUserListOptions = {
   limit?: number;
@@ -234,11 +265,11 @@ type AdminEventUserListOptions = {
   selectedUserIds?: readonly string[];
 };
 type AdminEventQueryDb = {
-  event: Pick<ZenStackDb['event'], 'findFirst'>;
+  event: Pick<ZenStackDb["event"], "findFirst">;
 };
 type AdminEventListRowData = Omit<
   AdminEventListRow,
-  'accessMode' | 'registrationCounts'
+  "accessMode" | "registrationCounts"
 >;
 type AdminEventListRowWithAccess = AdminEventListRowData & {
   admins: readonly {
@@ -254,14 +285,14 @@ function emptyRegistrationCounts(): AdminEventRegistrationCounts {
 }
 
 async function registrationCountsByEventId(
-  eventIds: readonly string[]
+  eventIds: readonly string[],
 ): Promise<Map<string, AdminEventRegistrationCounts>> {
   if (eventIds.length === 0) {
     return new Map();
   }
   const eventIdList = [...eventIds];
   const rows = await prisma.eventRegistration.groupBy({
-    by: ['eventId', 'status'],
+    by: ["eventId", "status"],
     where: { eventId: { in: eventIdList } },
     _count: { id: true },
   });
@@ -275,10 +306,10 @@ async function registrationCountsByEventId(
 }
 
 async function registrationCountsForEventId(
-  eventId: string
+  eventId: string,
 ): Promise<AdminEventRegistrationCounts> {
   const rows = await prisma.eventRegistration.groupBy({
-    by: ['status'],
+    by: ["status"],
     where: { eventId },
     _count: { id: true },
   });
@@ -292,7 +323,7 @@ async function registrationCountsForEventId(
 function questionFromDb(row: {
   id: string;
   questionText: string;
-  answerType: 'text' | 'select' | 'checkbox';
+  answerType: "text" | "select" | "checkbox";
   options: Prisma.JsonValue | null;
   required: boolean;
   displayOrder: number;
@@ -319,7 +350,7 @@ function statusOrder(status: EventRegistrationStatusValue): number {
 
 function compareRegistrations(
   a: AdminEventRegistrationDto,
-  b: AdminEventRegistrationDto
+  b: AdminEventRegistrationDto,
 ): number {
   const byStatus = statusOrder(a.status) - statusOrder(b.status);
   if (byStatus !== 0) {
@@ -329,7 +360,7 @@ function compareRegistrations(
 }
 
 function publicContentSectionsFromDescription(
-  rawDescription: string
+  rawDescription: string,
 ): AdminEventPublicContentSectionDto[] {
   const sanitizedBody = sanitizeCmsRichTextHtml(rawDescription);
   if (!sanitizedBody) {
@@ -338,16 +369,24 @@ function publicContentSectionsFromDescription(
   return [
     {
       body: sanitizedBody,
-      id: 'description',
-      titleKey: 'content_description_title',
+      id: "description",
+      titleKey: "content_description_title",
     },
   ];
 }
 
+function eventPaymentResendEligible(status: EventPaymentStatusValue): boolean {
+  return (
+    status === EventPaymentStatus.checkout_created ||
+    status === EventPaymentStatus.past_due ||
+    status === EventPaymentStatus.pending
+  );
+}
+
 function boatPositionLabel(
-  position: number
-): AdminEventRegistrationBoatMemberDto['positionLabel'] {
-  return position === 0 ? 'helm' : 'crew';
+  position: number,
+): AdminEventRegistrationBoatMemberDto["positionLabel"] {
+  return position === 0 ? "helm" : "crew";
 }
 
 function registrationDtosFromRows(
@@ -375,6 +414,17 @@ function registrationDtosFromRows(
       fullName: string;
       email: string;
     }[];
+    payment?: {
+      id: string;
+      status: EventPaymentStatusValue;
+      amountCents: number;
+      currency: string;
+      stripeReceiptUrl: string | null;
+      manualHandledNote: string | null;
+      manualHandledByUserId: string | null;
+      manualHandledBy: AdminEventUserOption | null;
+      manualHandledAt: Date | null;
+    } | null;
     registrationAnswers: readonly {
       id: string;
       value: string;
@@ -384,7 +434,7 @@ function registrationDtosFromRows(
         displayOrder: number;
       };
     }[];
-  }[]
+  }[],
 ): AdminEventRegistrationDto[] {
   return rows
     .map((registration) => ({
@@ -406,8 +456,24 @@ function registrationDtosFromRows(
           email: member.email,
         }))
         .toSorted(
-          (a, b) => a.boatNumber - b.boatNumber || a.position - b.position
+          (a, b) => a.boatNumber - b.boatNumber || a.position - b.position,
         ),
+      payment: registration.payment
+        ? {
+            amountCents: registration.payment.amountCents,
+            currency: registration.payment.currency,
+            id: registration.payment.id,
+            manualHandledAt: registration.payment.manualHandledAt,
+            manualHandledBy: registration.payment.manualHandledBy,
+            manualHandledByUserId: registration.payment.manualHandledByUserId,
+            manualHandledNote: registration.payment.manualHandledNote,
+            receiptUrl: registration.payment.stripeReceiptUrl,
+            resendEligible: eventPaymentResendEligible(
+              registration.payment.status,
+            ),
+            status: registration.payment.status,
+          }
+        : null,
       answers: registration.registrationAnswers
         .map((answer) => ({
           id: answer.id,
@@ -420,13 +486,13 @@ function registrationDtosFromRows(
 }
 
 export function adminEventListScopeFromValue(
-  value: string | undefined
+  value: string | undefined,
 ): AdminEventListScope {
-  return value === 'all' ? 'all' : 'my';
+  return value === "all" ? "all" : "my";
 }
 
 function eventWhereFromFilters(
-  filters: AdminEventListFilters
+  filters: AdminEventListFilters,
 ): Prisma.EventWhereInput {
   const businessWhere: Prisma.EventWhereInput = {};
   const query = filters.query?.trim();
@@ -436,12 +502,12 @@ function eventWhereFromFilters(
   }
   if (query) {
     businessWhere.OR = [
-      { name: { contains: query, mode: 'insensitive' } },
-      { shortName: { contains: query, mode: 'insensitive' } },
-      { slug: { contains: query, mode: 'insensitive' } },
+      { name: { contains: query, mode: "insensitive" } },
+      { shortName: { contains: query, mode: "insensitive" } },
+      { slug: { contains: query, mode: "insensitive" } },
     ];
   }
-  if (adminEventListScopeFromValue(filters.scope) === 'my') {
+  if (adminEventListScopeFromValue(filters.scope) === "my") {
     businessWhere.admins = {
       some: { adminUserId: filters.authContext.id },
     };
@@ -450,7 +516,7 @@ function eventWhereFromFilters(
 }
 
 function eventListRowData(
-  row: AdminEventListRowWithAccess
+  row: AdminEventListRowWithAccess,
 ): AdminEventListRowData {
   return {
     category: row.category,
@@ -482,10 +548,10 @@ function adminVisibleEventRows(options: {
     }))
     .filter(
       (
-        row
+        row,
       ): row is AdminEventListRowData & {
         accessMode: AdminEventAccessMode;
-      } => row.accessMode !== null
+      } => row.accessMode !== null,
     );
 }
 
@@ -493,14 +559,14 @@ export async function listAdminEventCategories(): Promise<
   AdminEventCategoryOption[]
 > {
   const rows = await prisma.eventCategory.findMany({
-    orderBy: [{ displayOrder: 'asc' }, { name: 'asc' }],
+    orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
     select: { id: true, name: true },
   });
   return rows;
 }
 
 function adminEventUserWhereFromOptions(
-  options: AdminEventUserListOptions
+  options: AdminEventUserListOptions,
 ): Prisma.UserWhereInput {
   const roleWhere: Prisma.UserWhereInput = {
     appRole: { in: [...ASSIGNABLE_EVENT_ADMIN_ROLES] },
@@ -510,7 +576,7 @@ function adminEventUserWhereFromOptions(
     ...new Set(
       (options.selectedUserIds ?? [])
         .map((id) => id.trim())
-        .filter((id) => id.length > 0)
+        .filter((id) => id.length > 0),
     ),
   ];
   if (options.query !== undefined && (!query || query.length < 2)) {
@@ -525,8 +591,8 @@ function adminEventUserWhereFromOptions(
   const searchableWhere: Prisma.UserWhereInput = {
     OR: [
       ...(selectedUserIds.length > 0 ? [{ id: { in: selectedUserIds } }] : []),
-      { name: { contains: query, mode: 'insensitive' } },
-      { email: { contains: query, mode: 'insensitive' } },
+      { name: { contains: query, mode: "insensitive" } },
+      { email: { contains: query, mode: "insensitive" } },
     ],
   };
   if (selectedUserIds.length > 0) {
@@ -541,16 +607,16 @@ function adminEventUserWhereFromOptions(
 }
 
 export async function listAdminEventUsers(
-  options: AdminEventUserListOptions = {}
+  options: AdminEventUserListOptions = {},
 ): Promise<AdminEventUserOption[]> {
   const limit = Math.min(
     Math.max(1, options.limit ?? DEFAULT_ADMIN_EVENT_USER_LIMIT),
-    MAX_ADMIN_EVENT_USER_LIMIT
+    MAX_ADMIN_EVENT_USER_LIMIT,
   );
   const offset = Math.max(0, options.offset ?? 0);
   const rows = await prisma.user.findMany({
     where: adminEventUserWhereFromOptions(options),
-    orderBy: [{ name: 'asc' }, { email: 'asc' }],
+    orderBy: [{ name: "asc" }, { email: "asc" }],
     skip: offset,
     take: limit,
     select: { id: true, name: true, email: true },
@@ -559,11 +625,11 @@ export async function listAdminEventUsers(
 }
 
 export async function listAdminEventRows(
-  filters: AdminEventListFilters
+  filters: AdminEventListFilters,
 ): Promise<AdminEventListRow[]> {
   const rows = await prisma.event.findMany({
     where: eventWhereFromFilters(filters),
-    orderBy: [{ createdAt: 'desc' }, { name: 'asc' }],
+    orderBy: [{ createdAt: "desc" }, { name: "asc" }],
     select: {
       id: true,
       name: true,
@@ -578,7 +644,7 @@ export async function listAdminEventRows(
       admins: { select: { adminUserId: true } },
       category: { select: { id: true, name: true } },
       dates: {
-        orderBy: { startDateTime: 'asc' },
+        orderBy: { startDateTime: "asc" },
         select: { id: true, startDateTime: true, endDateTime: true },
       },
     },
@@ -588,7 +654,7 @@ export async function listAdminEventRows(
     rows,
   });
   const countsByEventId = await registrationCountsByEventId(
-    authorizedRows.map((row) => row.id)
+    authorizedRows.map((row) => row.id),
   );
   return authorizedRows.map((row) => ({
     ...row,
@@ -641,12 +707,22 @@ export async function getAdminEventEditorDataBySlug(options: {
             resultsVisible: true,
             resultsContent: true,
             isPublished: true,
+            paymentsEnabled: true,
+            paymentDeadlineAt: true,
+            addressPreset: true,
+            addressName: true,
+            addressLine1: true,
+            addressLine2: true,
+            addressCity: true,
+            addressState: true,
+            addressPostalCode: true,
+            addressCountry: true,
             dates: {
-              orderBy: { startDateTime: 'asc' },
+              orderBy: { startDateTime: "asc" },
               select: { id: true, startDateTime: true, endDateTime: true },
             },
             admins: {
-              orderBy: { admin: { name: 'asc' } },
+              orderBy: { admin: { name: "asc" } },
               select: {
                 id: true,
                 adminUserId: true,
@@ -654,7 +730,7 @@ export async function getAdminEventEditorDataBySlug(options: {
               },
             },
             registrationQuestions: {
-              orderBy: [{ displayOrder: 'asc' }, { questionText: 'asc' }],
+              orderBy: [{ displayOrder: "asc" }, { questionText: "asc" }],
               select: {
                 id: true,
                 questionText: true,
@@ -665,7 +741,7 @@ export async function getAdminEventEditorDataBySlug(options: {
               },
             },
             entryFees: {
-              orderBy: [{ isDeposit: 'desc' }, { description: 'asc' }],
+              orderBy: [{ isDeposit: "desc" }, { description: "asc" }],
               select: {
                 id: true,
                 description: true,
@@ -755,7 +831,7 @@ export async function getAdminEventRegistrationsBySlug(options: {
       usesTeamRegistration: true,
       slug: true,
       registrationQuestions: {
-        orderBy: [{ displayOrder: 'asc' }, { questionText: 'asc' }],
+        orderBy: [{ displayOrder: "asc" }, { questionText: "asc" }],
         select: {
           id: true,
           questionText: true,
@@ -766,7 +842,7 @@ export async function getAdminEventRegistrationsBySlug(options: {
         },
       },
       entryFees: {
-        orderBy: [{ isDeposit: 'desc' }, { description: 'asc' }],
+        orderBy: [{ isDeposit: "desc" }, { description: "asc" }],
         select: {
           id: true,
           description: true,
@@ -775,7 +851,7 @@ export async function getAdminEventRegistrationsBySlug(options: {
         },
       },
       registrations: {
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         select: {
           id: true,
           status: true,
@@ -798,7 +874,7 @@ export async function getAdminEventRegistrationsBySlug(options: {
             },
           },
           boatMembers: {
-            orderBy: [{ boatNumber: 'asc' }, { position: 'asc' }],
+            orderBy: [{ boatNumber: "asc" }, { position: "asc" }],
             select: {
               id: true,
               boatNumber: true,
@@ -817,6 +893,21 @@ export async function getAdminEventRegistrationsBySlug(options: {
                   questionText: true,
                   displayOrder: true,
                 },
+              },
+            },
+          },
+          payment: {
+            select: {
+              id: true,
+              status: true,
+              amountCents: true,
+              currency: true,
+              stripeReceiptUrl: true,
+              manualHandledNote: true,
+              manualHandledByUserId: true,
+              manualHandledAt: true,
+              manualHandledBy: {
+                select: { id: true, name: true, email: true },
               },
             },
           },
@@ -891,11 +982,11 @@ export async function getAdminEventShowBySlug(options: {
         resultsContent: true,
         category: { select: { id: true, name: true } },
         dates: {
-          orderBy: { startDateTime: 'asc' },
+          orderBy: { startDateTime: "asc" },
           select: { id: true, startDateTime: true, endDateTime: true },
         },
         admins: {
-          orderBy: [{ admin: { name: 'asc' } }, { admin: { email: 'asc' } }],
+          orderBy: [{ admin: { name: "asc" } }, { admin: { email: "asc" } }],
           select: {
             id: true,
             adminUserId: true,

@@ -1,13 +1,18 @@
-import { Check, Clock, LogIn, X } from 'lucide-react';
+import { Check, Clock, CreditCard, LogIn, X } from 'lucide-react';
 import type { getTranslations } from 'next-intl/server';
 import type * as React from 'react';
 import { Button } from '@/components/ui/button';
+import { EventPaymentStatus } from '@/generated/prisma/enums';
 import { cn } from '@/lib/utils';
 import { authHrefWithCallback } from '@/libs/auth/callbackUrl';
 import { Link } from '@/libs/I18nNavigation';
-import type { PublicEventDetail } from '@/libs/mit-sailing/eventQueries';
+import type {
+  PublicEventDetail,
+  PublicEventRegistrationState,
+} from '@/libs/mit-sailing/eventQueries';
 import { eventRegistrationErrorMessage } from '@/libs/mit-sailing/eventRegistrationErrors';
 import type { PublicEventReservationState } from '@/libs/mit-sailing/eventRegistrationState';
+import { formatUsdMinorUnitsAsCurrency } from '@/libs/money/stripeUsdMinorUnits';
 import { getI18nPath } from '@/utils/Helpers';
 
 type EventRegistrationTranslations = Awaited<
@@ -21,6 +26,7 @@ type EventRegistrationCancelFormAction = (
 
 type EventRegistrationCtaProps = {
   cancelRegistrationAction: EventRegistrationCancelFormAction;
+  currentRegistration: PublicEventRegistrationState | null;
   event: PublicEventDetail;
   errorCode: string | null;
   isSignedIn: boolean;
@@ -79,6 +85,18 @@ function RegistrationStatusPill(props: {
   );
 }
 
+function isPaymentDue(
+  payment: PublicEventRegistrationState['payment']
+): payment is NonNullable<PublicEventRegistrationState['payment']> {
+  return (
+    payment !== null &&
+    payment !== undefined &&
+    (payment.status === EventPaymentStatus.checkout_created ||
+      payment.status === EventPaymentStatus.past_due ||
+      payment.status === EventPaymentStatus.pending)
+  );
+}
+
 export function EventRegistrationCta(props: EventRegistrationCtaProps) {
   const errorMessage = eventRegistrationErrorMessage(props.errorCode, props.t);
   const registrationHref = getI18nPath(
@@ -89,8 +107,13 @@ export function EventRegistrationCta(props: EventRegistrationCtaProps) {
     getI18nPath('/login', props.locale),
     registrationHref
   );
+  const checkoutHref = getI18nPath(
+    `/events/${encodeURIComponent(props.event.slug)}/checkout`,
+    props.locale
+  );
 
   if (props.reservationState === 'approved') {
+    const payment = props.currentRegistration?.payment ?? null;
     return (
       <div className="flex flex-col items-start gap-2">
         <RegistrationErrorAlert message={errorMessage} />
@@ -98,6 +121,24 @@ export function EventRegistrationCta(props: EventRegistrationCtaProps) {
           <Check aria-hidden className="size-4" />
           {props.t('registration_status_going')}
         </RegistrationStatusPill>
+        {isPaymentDue(payment) ? (
+          <div className="w-full rounded-lg border border-mit-line bg-muted/30 p-3">
+            <p className="text-sm font-semibold text-foreground">
+              {props.t('registration_payment_due', {
+                amount: formatUsdMinorUnitsAsCurrency(
+                  payment.amountCents,
+                  props.locale
+                ),
+              })}
+            </p>
+            <Button asChild className="mt-3 w-full" size="sm" variant="mit">
+              <Link href={checkoutHref}>
+                <CreditCard aria-hidden className="size-4" />
+                {props.t('registration_pay_button')}
+              </Link>
+            </Button>
+          </div>
+        ) : null}
         <form action={props.cancelRegistrationAction}>
           <Button size="sm" type="submit" variant="link">
             {props.t('registration_cancel_button')}

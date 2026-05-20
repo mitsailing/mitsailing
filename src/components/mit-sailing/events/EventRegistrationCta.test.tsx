@@ -38,6 +38,7 @@ const minimalEvent: PublicEventDetail = {
 
 const defaultCtaProps = {
   cancelRegistrationAction: noopCancelAction,
+  currentRegistration: null,
   errorCode: null,
   event: minimalEvent,
   isSignedIn: true,

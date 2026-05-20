@@ -1,0 +1,253 @@
+import { ExternalLink, Search } from 'lucide-react';
+import type { getTranslations } from 'next-intl/server';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { EventPaymentStatus } from '@/generated/prisma/enums';
+import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
+import type {
+  AdminPaymentLedgerData,
+  AdminPaymentLedgerFilters,
+  AdminPaymentLedgerRow,
+} from '@/libs/admin/payments/adminPaymentQueries';
+import { Link } from '@/libs/I18nNavigation';
+import { formatEasternDateTime } from '@/libs/mit-sailing/easternTimeFormat';
+import { formatUsdMinorUnitsAsCurrency } from '@/libs/money/stripeUsdMinorUnits';
+
+type AdminPaymentsTranslations = Awaited<
+  ReturnType<typeof getTranslations<'AdminPayments'>>
+>;
+
+type AdminPaymentsLedgerViewProps = {
+  data: AdminPaymentLedgerData;
+  dashboardBaseUrl: string;
+  filters: AdminPaymentLedgerFilters;
+  locale: string;
+  stripeConfigured: boolean;
+  t: AdminPaymentsTranslations;
+  webhookConfigured: boolean;
+};
+
+function paymentStatusLabel(
+  status: AdminPaymentLedgerRow['status'],
+  t: AdminPaymentsTranslations
+): string {
+  if (status === EventPaymentStatus.paid) {
+    return t('status_paid');
+  }
+  if (status === EventPaymentStatus.handled) {
+    return t('status_handled');
+  }
+  if (status === EventPaymentStatus.refunded) {
+    return t('status_refunded');
+  }
+  if (status === EventPaymentStatus.disputed) {
+    return t('status_disputed');
+  }
+  if (status === EventPaymentStatus.cancelled) {
+    return t('status_cancelled');
+  }
+  if (status === EventPaymentStatus.past_due) {
+    return t('status_past_due');
+  }
+  if (status === EventPaymentStatus.checkout_created) {
+    return t('status_checkout_created');
+  }
+  return t('status_pending');
+}
+
+function StripeDashboardLinks(props: {
+  dashboardBaseUrl: string;
+  payment: AdminPaymentLedgerRow;
+  t: AdminPaymentsTranslations;
+}) {
+  const paymentIntentHref = props.payment.stripePaymentIntentId
+    ? `${props.dashboardBaseUrl}/payments/${props.payment.stripePaymentIntentId}`
+    : null;
+  const checkoutHref = props.payment.stripeCheckoutSessionId
+    ? `${props.dashboardBaseUrl}/checkout/sessions/${props.payment.stripeCheckoutSessionId}`
+    : null;
+
+  if (!paymentIntentHref && !checkoutHref) {
+    return (
+      <span className="text-mit-readable-ink">{props.t('empty_value')}</span>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap gap-2 md:justify-end">
+      {paymentIntentHref ? (
+        <a
+          className="inline-flex items-center gap-1 font-semibold text-mit-red no-underline hover:underline dark:text-mit-red-ink"
+          href={paymentIntentHref}
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          <ExternalLink aria-hidden className="size-3.5" />
+          {props.t('stripe_payment_link')}
+        </a>
+      ) : null}
+      {checkoutHref ? (
+        <a
+          className="inline-flex items-center gap-1 font-semibold text-mit-red no-underline hover:underline dark:text-mit-red-ink"
+          href={checkoutHref}
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          <ExternalLink aria-hidden className="size-3.5" />
+          {props.t('stripe_checkout_link')}
+        </a>
+      ) : null}
+    </div>
+  );
+}
+
+function HealthSummary(props: {
+  data: AdminPaymentLedgerData;
+  stripeConfigured: boolean;
+  t: AdminPaymentsTranslations;
+  webhookConfigured: boolean;
+}) {
+  return (
+    <section
+      aria-label={props.t('health_aria')}
+      className="grid gap-3 rounded-lg border border-border bg-card p-4 md:grid-cols-3"
+    >
+      <div>
+        <p className="text-xs font-semibold tracking-wide text-mit-readable-ink uppercase">
+          {props.t('health_stripe')}
+        </p>
+        <p className="mt-1 text-sm font-semibold text-foreground">
+          {props.stripeConfigured
+            ? props.t('health_configured')
+            : props.t('health_not_configured')}
+        </p>
+      </div>
+      <div>
+        <p className="text-xs font-semibold tracking-wide text-mit-readable-ink uppercase">
+          {props.t('health_webhook')}
+        </p>
+        <p className="mt-1 text-sm font-semibold text-foreground">
+          {props.webhookConfigured
+            ? props.t('health_configured')
+            : props.t('health_not_configured')}
+        </p>
+      </div>
+      <div>
+        <p className="text-xs font-semibold tracking-wide text-mit-readable-ink uppercase">
+          {props.t('health_last_event')}
+        </p>
+        <p className="mt-1 text-sm font-semibold text-foreground">
+          {props.data.latestWebhook
+            ? props.t('health_last_event_value', {
+                date: formatEasternDateTime(
+                  props.data.latestWebhook.stripeCreatedAt
+                ),
+                type: props.data.latestWebhook.eventType,
+              })
+            : props.t('health_last_event_empty')}
+        </p>
+      </div>
+    </section>
+  );
+}
+
+export function AdminPaymentsLedgerView(props: AdminPaymentsLedgerViewProps) {
+  return (
+    <div className="flex w-full max-w-6xl flex-col gap-6">
+      <header className="flex flex-col gap-2">
+        <p className="text-xs font-semibold tracking-widest text-mit-red uppercase dark:text-mit-red-ink">
+          {props.t('eyebrow')}
+        </p>
+        <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+          {props.t('title')}
+        </h1>
+        <p className="max-w-3xl text-sm text-mit-readable-ink">
+          {props.t('intro')}
+        </p>
+      </header>
+
+      <HealthSummary
+        data={props.data}
+        stripeConfigured={props.stripeConfigured}
+        t={props.t}
+        webhookConfigured={props.webhookConfigured}
+      />
+
+      <form className="grid gap-3 rounded-lg border border-border bg-card p-4 md:grid-cols-[1fr_220px_auto] md:items-end">
+        <label className="flex flex-col gap-1.5 text-sm font-medium text-foreground">
+          {props.t('filter_search')}
+          <Input
+            defaultValue={props.filters.query ?? ''}
+            name="q"
+            placeholder={props.t('filter_search_placeholder')}
+          />
+        </label>
+        <label className="flex flex-col gap-1.5 text-sm font-medium text-foreground">
+          {props.t('filter_status')}
+          <select
+            className={adminNativeSelectClassName}
+            defaultValue={props.filters.status ?? 'all'}
+            name="status"
+          >
+            <option value="all">{props.t('filter_status_all')}</option>
+            {Object.values(EventPaymentStatus).map((status) => (
+              <option key={status} value={status}>
+                {paymentStatusLabel(status, props.t)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <Button type="submit" variant="mit">
+          <Search aria-hidden className="size-4" />
+          {props.t('filter_submit')}
+        </Button>
+      </form>
+
+      {props.data.rows.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-border bg-muted/40 px-4 py-8 text-center text-sm text-mit-readable-ink">
+          {props.t('empty_state')}
+        </div>
+      ) : (
+        <ol className="m-0 list-none divide-y divide-mit-line rounded-lg border border-border bg-card p-0">
+          {props.data.rows.map((payment) => (
+            <li
+              className="grid gap-3 p-4 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_130px_150px] md:items-center"
+              key={payment.id}
+            >
+              <div className="min-w-0">
+                <Link
+                  className="font-semibold text-mit-red no-underline hover:underline dark:text-mit-red-ink"
+                  href={`/events/${payment.event.slug}`}
+                >
+                  {payment.event.name}
+                </Link>
+                <p className="mt-1 truncate text-sm text-mit-readable-ink">
+                  {payment.user.name} · {payment.user.email}
+                </p>
+              </div>
+              <div className="text-sm text-mit-readable-ink">
+                <span className="font-semibold text-foreground">
+                  {paymentStatusLabel(payment.status, props.t)}
+                </span>
+                <span className="block">
+                  {formatEasternDateTime(payment.createdAt)}
+                </span>
+              </div>
+              <div className="text-sm font-semibold text-foreground tabular-nums">
+                {formatUsdMinorUnitsAsCurrency(
+                  payment.amountCents,
+                  props.locale
+                )}
+              </div>
+              <StripeDashboardLinks
+                dashboardBaseUrl={props.dashboardBaseUrl}
+                payment={payment}
+                t={props.t}
+              />
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}

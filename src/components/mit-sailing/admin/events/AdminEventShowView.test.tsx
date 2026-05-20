@@ -1,17 +1,18 @@
-import { render, screen } from '@testing-library/react';
-import { createTranslator } from 'next-intl';
-import type * as React from 'react';
-import { describe, expect, it, vi } from 'vitest';
-import { EventRegistrationStatus } from '@/generated/prisma/enums';
-import messages from '@/locales/en.json';
-import { AdminEventShowView } from './AdminEventShowView';
+import { render, screen } from "@testing-library/react";
+import { createTranslator } from "next-intl";
+import type * as React from "react";
+import { describe, expect, it, vi } from "vitest";
+import { EventRegistrationStatus } from "@/generated/prisma/enums";
+import messages from "@/locales/en.json";
+import { AdminEventShowView } from "./AdminEventShowView";
 
-vi.mock('@/libs/admin/events/eventAdminActions', () => ({
+vi.mock("@/libs/admin/events/eventAdminActions", () => ({
+  resendAllAdminEventPaymentRequestsAction: vi.fn(),
   updateAdminEventRegistrationStatusAction: vi.fn(),
 }));
 
-vi.mock('@/libs/I18nNavigation', () => ({
-  Link: (props: React.ComponentProps<'a'>) => {
+vi.mock("@/libs/I18nNavigation", () => ({
+  Link: (props: React.ComponentProps<"a">) => {
     const { children, ...anchorProps } = props;
     return <a {...anchorProps}>{children}</a>;
   },
@@ -20,58 +21,58 @@ vi.mock('@/libs/I18nNavigation', () => ({
 type AdminEventShowViewProps = React.ComponentProps<typeof AdminEventShowView>;
 
 const t = createTranslator({
-  locale: 'en',
+  locale: "en",
   messages,
-  namespace: 'AdminEvents',
+  namespace: "AdminEvents",
 });
 
 function eventFixture(
-  accessMode: AdminEventShowViewProps['event']['accessMode']
-): AdminEventShowViewProps['event'] {
+  accessMode: AdminEventShowViewProps["event"]["accessMode"],
+): AdminEventShowViewProps["event"] {
   return {
     accessMode,
     admins: [
       {
         admin: {
-          email: 'instructor@example.com',
-          id: 'instructor-1',
-          name: 'Sailing Instructor',
+          email: "instructor@example.com",
+          id: "instructor-1",
+          name: "Sailing Instructor",
         },
-        adminUserId: 'instructor-1',
-        id: 'event-admin-1',
+        adminUserId: "instructor-1",
+        id: "event-admin-1",
       },
     ],
-    category: { id: 'category-1', name: 'Clinic' },
+    category: { id: "category-1", name: "Clinic" },
     dates: [
       {
-        endDateTime: new Date('2026-06-01T15:00:00Z'),
-        id: 'date-1',
-        startDateTime: new Date('2026-06-01T13:00:00Z'),
+        endDateTime: new Date("2026-06-01T15:00:00Z"),
+        id: "date-1",
+        startDateTime: new Date("2026-06-01T13:00:00Z"),
       },
     ],
-    description: 'Learn how to sail.',
-    detailPageKind: 'standard',
+    description: "Learn how to sail.",
+    detailPageKind: "standard",
     externalDetailUrl: null,
     externalEntriesUrl: null,
     externalRegistrationUrl: null,
     entryFees: [
       {
         amountCents: 15_000,
-        description: 'Adult entry',
-        id: 'fee-adult',
+        description: "Adult entry",
+        id: "fee-adult",
         isDeposit: false,
       },
     ],
-    id: 'event-1',
+    id: "event-1",
     isPublished: true,
     isSpecial: false,
     maxParticipants: 12,
-    name: 'Intro Sail',
+    name: "Intro Sail",
     publicContentSections: [
       {
-        body: 'Learn how to sail.',
-        id: 'description',
-        titleKey: 'content_description_title',
+        body: "Learn how to sail.",
+        id: "description",
+        titleKey: "content_description_title",
       },
     ],
     registrationCounts: {
@@ -79,39 +80,40 @@ function eventFixture(
       cancelled: 1,
       pending: 2,
     },
-    registrationEnd: new Date('2026-05-31T04:00:00Z'),
-    registrationMode: 'standard',
-    registrationStart: new Date('2026-05-01T04:00:00Z'),
+    registrationEnd: new Date("2026-05-31T04:00:00Z"),
+    registrationMode: "standard",
+    registrationStart: new Date("2026-05-01T04:00:00Z"),
     registrations: [
       {
         answers: [
           {
-            id: 'answer-1',
+            id: "answer-1",
             question: {
               displayOrder: 1,
-              id: 'question-1',
-              questionText: 'Dietary restrictions?',
+              id: "question-1",
+              questionText: "Dietary restrictions?",
             },
-            value: 'Vegetarian',
+            value: "Vegetarian",
           },
         ],
-        createdAt: new Date('2026-05-01T12:00:00Z'),
+        createdAt: new Date("2026-05-01T12:00:00Z"),
         entryFee: {
           amountCents: 15_000,
-          description: 'Adult entry',
-          id: 'fee-adult',
+          description: "Adult entry",
+          id: "fee-adult",
           isDeposit: false,
         },
-        id: 'registration-1',
+        id: "registration-1",
+        payment: null,
         phone: null,
         registrationTeam: null,
         boatMembers: [],
         status: EventRegistrationStatus.pending,
-        swimAgreementAcceptedAt: new Date('2026-05-01T12:01:00Z'),
+        swimAgreementAcceptedAt: new Date("2026-05-01T12:01:00Z"),
         user: {
-          email: 'sailor@example.com',
-          id: 'user-1',
-          name: 'Sailor One',
+          email: "sailor@example.com",
+          id: "user-1",
+          name: "Sailor One",
         },
       },
     ],
@@ -121,69 +123,69 @@ function eventFixture(
     boatsPerTeam: 1,
     personsPerBoat: 1,
     allowRepeatTeamCaptain: false,
-    shortName: 'Intro',
-    slug: 'intro-sail',
+    shortName: "Intro",
+    slug: "intro-sail",
     questions: [
       {
-        answerType: 'text',
+        answerType: "text",
         displayOrder: 1,
-        id: 'question-1',
+        id: "question-1",
         options: [],
-        questionText: 'Dietary restrictions?',
+        questionText: "Dietary restrictions?",
         required: false,
       },
     ],
   };
 }
 
-describe('AdminEventShowView', () => {
-  it('renders summary content actions and embedded registration review', () => {
+describe("AdminEventShowView", () => {
+  it("renders summary content actions and embedded registration review", () => {
     render(
       <AdminEventShowView
         errorCode={null}
-        event={eventFixture('editable')}
+        event={eventFixture("editable")}
         filter="all"
         locale="en"
         t={t}
-      />
+      />,
     );
 
-    expect(screen.getByRole('heading', { name: 'Intro Sail' })).toBeVisible();
-    expect(screen.getByText('Published')).toBeVisible();
-    expect(screen.getByText('Signed up')).toBeVisible();
-    expect(screen.getByText('5')).toBeVisible();
-    expect(screen.getAllByText('Confirmed').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('3').length).toBeGreaterThan(0);
-    expect(screen.getByText('Awaiting confirmation')).toBeVisible();
-    expect(screen.getAllByText('2').length).toBeGreaterThan(0);
-    expect(screen.getByText('Remaining')).toBeVisible();
-    expect(screen.getByText('9')).toBeVisible();
-    expect(screen.getByText('Sailing Instructor')).toBeVisible();
-    expect(screen.getByRole('link', { name: /edit/i })).toHaveAttribute(
-      'href',
-      '/admin/events/intro-sail/edit'
+    expect(screen.getByRole("heading", { name: "Intro Sail" })).toBeVisible();
+    expect(screen.getByText("Published")).toBeVisible();
+    expect(screen.getByText("Signed up")).toBeVisible();
+    expect(screen.getByText("5")).toBeVisible();
+    expect(screen.getAllByText("Confirmed").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("3").length).toBeGreaterThan(0);
+    expect(screen.getByText("Awaiting confirmation")).toBeVisible();
+    expect(screen.getAllByText("2").length).toBeGreaterThan(0);
+    expect(screen.getByText("Remaining")).toBeVisible();
+    expect(screen.getByText("9")).toBeVisible();
+    expect(screen.getByText("Sailing Instructor")).toBeVisible();
+    expect(screen.getByRole("link", { name: /edit/i })).toHaveAttribute(
+      "href",
+      "/admin/events/intro-sail/edit",
     );
     expect(
-      screen.getByRole('link', { name: /view public page/i })
-    ).toHaveAttribute('href', '/events/intro-sail');
-    expect(screen.getByRole('link', { name: /delete/i })).toHaveAttribute(
-      'href',
-      '/admin/events/intro-sail/delete'
+      screen.getByRole("link", { name: /view public page/i }),
+    ).toHaveAttribute("href", "/events/intro-sail");
+    expect(screen.getByRole("link", { name: /delete/i })).toHaveAttribute(
+      "href",
+      "/admin/events/intro-sail/delete",
     );
-    expect(screen.getByText('Learn how to sail.')).toBeVisible();
+    expect(screen.getByText("Learn how to sail.")).toBeVisible();
     expect(
-      screen.getByRole('table', { name: 'Registration roster' })
+      screen.getByRole("table", { name: "Registration roster" }),
     ).toBeVisible();
-    expect(screen.getByText('Adult entry')).toBeVisible();
-    expect(screen.getByText('$150.00')).toBeVisible();
+    expect(screen.getByText("Adult entry")).toBeVisible();
+    expect(screen.getByText("$150.00")).toBeVisible();
   });
 
-  it('renders remaining seats from confirmed registrations', () => {
+  it("renders remaining seats from confirmed registrations", () => {
     render(
       <AdminEventShowView
         errorCode={null}
         event={{
-          ...eventFixture('editable'),
+          ...eventFixture("editable"),
           maxParticipants: 10,
           registrationCounts: {
             approved: 8,
@@ -194,39 +196,39 @@ describe('AdminEventShowView', () => {
         filter="all"
         locale="en"
         t={t}
-      />
+      />,
     );
 
-    expect(screen.getByText('Signed up')).toBeVisible();
-    expect(screen.getByText('15')).toBeVisible();
-    expect(screen.getAllByText('Confirmed').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('8').length).toBeGreaterThan(0);
-    expect(screen.getByText('Awaiting confirmation')).toBeVisible();
-    expect(screen.getAllByText('7').length).toBeGreaterThan(0);
-    expect(screen.getByText('Remaining')).toBeVisible();
-    expect(screen.getByText('2')).toBeVisible();
+    expect(screen.getByText("Signed up")).toBeVisible();
+    expect(screen.getByText("15")).toBeVisible();
+    expect(screen.getAllByText("Confirmed").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("8").length).toBeGreaterThan(0);
+    expect(screen.getByText("Awaiting confirmation")).toBeVisible();
+    expect(screen.getAllByText("7").length).toBeGreaterThan(0);
+    expect(screen.getByText("Remaining")).toBeVisible();
+    expect(screen.getByText("2")).toBeVisible();
   });
 
-  it('hides mutation actions for read-only access', () => {
+  it("hides mutation actions for read-only access", () => {
     render(
       <AdminEventShowView
         errorCode={null}
-        event={eventFixture('readOnly')}
+        event={eventFixture("readOnly")}
         filter="all"
         locale="en"
         t={t}
-      />
+      />,
     );
 
-    expect(screen.getByText('Read-only access')).toBeVisible();
-    expect(screen.queryByRole('link', { name: /edit/i })).toBeNull();
-    expect(screen.queryByRole('link', { name: /delete/i })).toBeNull();
-    expect(screen.queryByLabelText('Actions for Sailor One')).toBeNull();
-    expect(screen.getAllByText('Vegetarian').length).toBeGreaterThan(0);
+    expect(screen.getByText("Read-only access")).toBeVisible();
+    expect(screen.queryByRole("link", { name: /edit/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /delete/i })).toBeNull();
+    expect(screen.queryByLabelText("Actions for Sailor One")).toBeNull();
+    expect(screen.getAllByText("Vegetarian").length).toBeGreaterThan(0);
   });
 
-  it('renders public content sections as rich text', () => {
-    const event = eventFixture('editable');
+  it("renders public content sections as rich text", () => {
+    const event = eventFixture("editable");
 
     render(
       <AdminEventShowView
@@ -235,135 +237,135 @@ describe('AdminEventShowView', () => {
           ...event,
           publicContentSections: [
             {
-              body: '<p>Learn how to sail.</p>',
-              id: 'description',
-              titleKey: 'content_description_title',
+              body: "<p>Learn how to sail.</p>",
+              id: "description",
+              titleKey: "content_description_title",
             },
             {
-              body: '<p>Ask the <strong>race desk</strong>.</p>',
-              id: 'faq',
-              titleKey: 'content_faq_title',
+              body: "<p>Ask the <strong>race desk</strong>.</p>",
+              id: "faq",
+              titleKey: "content_faq_title",
             },
             {
               body: '<p>Notice includes <a href="/events">course details</a>.</p>',
-              id: 'noticeOfRace',
-              titleKey: 'content_notice_of_race_title',
+              id: "noticeOfRace",
+              titleKey: "content_notice_of_race_title",
             },
           ],
         }}
         filter="all"
         locale="en"
         t={t}
-      />
+      />,
     );
 
-    expect(screen.getByRole('heading', { name: 'Description' })).toBeVisible();
-    expect(screen.getByRole('heading', { name: 'FAQ' })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Description" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "FAQ" })).toBeVisible();
     expect(
-      screen.getByRole('heading', { name: 'Notice of Race' })
+      screen.getByRole("heading", { name: "Notice of Race" }),
     ).toBeVisible();
-    expect(screen.getByText('race desk').tagName).toBe('STRONG');
+    expect(screen.getByText("race desk").tagName).toBe("STRONG");
     expect(
-      screen.getByRole('link', { name: 'course details' })
-    ).toHaveAttribute('href', '/events');
-    expect(document.body.textContent).not.toContain('<strong>');
+      screen.getByRole("link", { name: "course details" }),
+    ).toHaveAttribute("href", "/events");
+    expect(document.body.textContent).not.toContain("<strong>");
   });
 
-  it('renders sanitized public content section bodies', () => {
+  it("renders sanitized public content section bodies", () => {
     render(
       <AdminEventShowView
         errorCode={null}
         event={{
-          ...eventFixture('editable'),
+          ...eventFixture("editable"),
           publicContentSections: [
             {
-              body: '<p>Ask the race desk.</p>',
-              id: 'faq',
-              titleKey: 'content_faq_title',
+              body: "<p>Ask the race desk.</p>",
+              id: "faq",
+              titleKey: "content_faq_title",
             },
           ],
         }}
         filter="all"
         locale="en"
         t={t}
-      />
+      />,
     );
 
-    expect(screen.getByText('Ask the race desk.')).toBeVisible();
-    expect(document.body.innerHTML).not.toContain('onerror');
+    expect(screen.getByText("Ask the race desk.")).toBeVisible();
+    expect(document.body.innerHTML).not.toContain("onerror");
   });
 
-  it('renders registration mode summary with external urls', () => {
+  it("renders registration mode summary with external urls", () => {
     render(
       <AdminEventShowView
         errorCode={null}
         event={{
-          ...eventFixture('editable'),
-          externalEntriesUrl: 'https://example.com/entries',
-          externalRegistrationUrl: 'https://example.com/register',
-          registrationMode: 'external',
+          ...eventFixture("editable"),
+          externalEntriesUrl: "https://example.com/entries",
+          externalRegistrationUrl: "https://example.com/register",
+          registrationMode: "external",
         }}
         filter="all"
         locale="en"
         t={t}
-      />
+      />,
     );
 
-    expect(screen.getByText('Registration mode')).toBeVisible();
-    expect(screen.getByText('Custom external registration')).toBeVisible();
+    expect(screen.getByText("Registration mode")).toBeVisible();
+    expect(screen.getByText("Custom external registration")).toBeVisible();
     expect(
-      screen.getByRole('link', { name: 'https://example.com/register' })
-    ).toHaveAttribute('href', 'https://example.com/register');
+      screen.getByRole("link", { name: "https://example.com/register" }),
+    ).toHaveAttribute("href", "https://example.com/register");
     expect(
-      screen.getByRole('link', { name: 'https://example.com/entries' })
-    ).toHaveAttribute('href', 'https://example.com/entries');
+      screen.getByRole("link", { name: "https://example.com/entries" }),
+    ).toHaveAttribute("href", "https://example.com/entries");
   });
 
-  it('omits unsafe external url summary links', () => {
-    const unsafeScriptHref = `${['java', 'script'].join('')}:alert(1)`;
+  it("omits unsafe external url summary links", () => {
+    const unsafeScriptHref = `${["java", "script"].join("")}:alert(1)`;
 
     render(
       <AdminEventShowView
         errorCode={null}
         event={{
-          ...eventFixture('editable'),
-          externalEntriesUrl: 'mailto:entries@example.com',
+          ...eventFixture("editable"),
+          externalEntriesUrl: "mailto:entries@example.com",
           externalRegistrationUrl: unsafeScriptHref,
-          registrationMode: 'external',
+          registrationMode: "external",
         }}
         filter="all"
         locale="en"
         t={t}
-      />
+      />,
     );
 
-    expect(screen.queryByRole('link', { name: unsafeScriptHref })).toBeNull();
+    expect(screen.queryByRole("link", { name: unsafeScriptHref })).toBeNull();
     expect(
-      screen.queryByRole('link', { name: 'mailto:entries@example.com' })
+      screen.queryByRole("link", { name: "mailto:entries@example.com" }),
     ).toBeNull();
-    expect(screen.queryByText('External registration URL')).toBeNull();
-    expect(screen.queryByText('External entries URL')).toBeNull();
+    expect(screen.queryByText("External registration URL")).toBeNull();
+    expect(screen.queryByText("External entries URL")).toBeNull();
   });
 
-  it('falls back to the public event path for unsafe external detail urls', () => {
-    const unsafeScriptHref = `${['java', 'script'].join('')}:alert(1)`;
+  it("falls back to the public event path for unsafe external detail urls", () => {
+    const unsafeScriptHref = `${["java", "script"].join("")}:alert(1)`;
 
     render(
       <AdminEventShowView
         errorCode={null}
         event={{
-          ...eventFixture('editable'),
-          detailPageKind: 'external',
+          ...eventFixture("editable"),
+          detailPageKind: "external",
           externalDetailUrl: unsafeScriptHref,
         }}
         filter="all"
         locale="en"
         t={t}
-      />
+      />,
     );
 
     expect(
-      screen.getByRole('link', { name: /view public page/i })
-    ).toHaveAttribute('href', '/events/intro-sail');
+      screen.getByRole("link", { name: /view public page/i }),
+    ).toHaveAttribute("href", "/events/intro-sail");
   });
 });

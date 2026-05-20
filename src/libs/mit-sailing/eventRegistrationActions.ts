@@ -1,33 +1,37 @@
-'use server';
+"use server";
 
-import { randomUUID } from 'node:crypto';
-import { revalidatePath } from 'next/cache';
-import { redirect, unstable_rethrow } from 'next/navigation';
-import * as z from 'zod';
-import { Prisma } from '@/generated/prisma/client';
-import { EventRegistrationStatus } from '@/generated/prisma/enums';
-import type { EventAnswerType } from '@/generated/prisma/enums';
-import { verifySession } from '@/libs/auth/dal';
-import { Role } from '@/libs/auth/roles';
-import { prisma } from '@/libs/DB';
-import { logger } from '@/libs/Logger';
-import { questionOptionsFromJson } from '@/libs/mit-sailing/eventQueries';
-import { parsePublicEventRegistrationAnswersFromForm } from '@/libs/mit-sailing/eventRegistrationAnswerValidation';
-import type { PublicRegistrationQuestionForValidation } from '@/libs/mit-sailing/eventRegistrationAnswerValidation';
-import type { EventRegistrationMutationCode } from '@/libs/mit-sailing/eventRegistrationErrors';
-import { isPublicEventRegistrationWindowOpen } from '@/libs/mit-sailing/eventRegistrationWindow';
-import { safeErrorCode, safeErrorName } from '@/libs/safeUnknownError';
-import { zenstackForAuthContext } from '@/libs/zenstack/auth';
-import { appAuthContextFromSession } from '@/libs/zenstack/authContext';
-import { getI18nPath } from '@/utils/Helpers';
-import { normalizeUsPhone } from '@/utils/phoneValidation';
+import { randomUUID } from "node:crypto";
+import { revalidatePath } from "next/cache";
+import { redirect, unstable_rethrow } from "next/navigation";
+import * as z from "zod";
+import { Prisma } from "@/generated/prisma/client";
+import {
+  EventPaymentStatus,
+  EventRegistrationStatus,
+} from "@/generated/prisma/enums";
+import type { EventAnswerType } from "@/generated/prisma/enums";
+import { verifySession } from "@/libs/auth/dal";
+import { Role } from "@/libs/auth/roles";
+import { prisma } from "@/libs/DB";
+import { logger } from "@/libs/Logger";
+import { getEventPaymentEligibility } from "@/libs/mit-sailing/eventPayments";
+import { questionOptionsFromJson } from "@/libs/mit-sailing/eventQueries";
+import { parsePublicEventRegistrationAnswersFromForm } from "@/libs/mit-sailing/eventRegistrationAnswerValidation";
+import type { PublicRegistrationQuestionForValidation } from "@/libs/mit-sailing/eventRegistrationAnswerValidation";
+import type { EventRegistrationMutationCode } from "@/libs/mit-sailing/eventRegistrationErrors";
+import { isPublicEventRegistrationWindowOpen } from "@/libs/mit-sailing/eventRegistrationWindow";
+import { safeErrorCode, safeErrorName } from "@/libs/safeUnknownError";
+import { zenstackForAuthContext } from "@/libs/zenstack/auth";
+import { appAuthContextFromSession } from "@/libs/zenstack/authContext";
+import { getI18nPath } from "@/utils/Helpers";
+import { normalizeUsPhone } from "@/utils/phoneValidation";
 
 class EventRegistrationFlowError extends Error {
   readonly code: EventRegistrationMutationCode;
 
   constructor(code: EventRegistrationMutationCode) {
     super(`Event registration: ${code}`);
-    this.name = 'EventRegistrationFlowError';
+    this.name = "EventRegistrationFlowError";
     this.code = code;
   }
 }
@@ -35,14 +39,14 @@ class EventRegistrationFlowError extends Error {
 export type PublicEventRegistrationFormState = {
   code: EventRegistrationMutationCode | null;
   fieldErrors: Record<string, EventRegistrationMutationCode>;
-  status: 'idle' | 'error';
+  status: "idle" | "error";
   values: Record<string, string[]>;
 };
 
-const swimAgreementFieldName = 'swimAgreementAccepted';
-const phoneFieldName = 'phone';
-const eventEntryFeeFieldName = 'eventEntryFeeId';
-const teamNameFieldName = 'teamName';
+const swimAgreementFieldName = "swimAgreementAccepted";
+const phoneFieldName = "phone";
+const eventEntryFeeFieldName = "eventEntryFeeId";
+const teamNameFieldName = "teamName";
 const emailField = z.email();
 
 function publicEventRegistrationQuestionFieldName(questionId: string): string {
@@ -53,7 +57,7 @@ function teamBoatMemberFieldName(options: {
   boatNumber: number;
   boatsPerTeam: number;
   position: number;
-  suffix: 'email' | 'name';
+  suffix: "email" | "name";
 }): string {
   if (options.boatsPerTeam === 1) {
     return `teamBoatMember_${options.position}_${options.suffix}`;
@@ -66,7 +70,7 @@ function teamBoatMemberNameFieldName(options: {
   boatsPerTeam: number;
   position: number;
 }): string {
-  return teamBoatMemberFieldName({ ...options, suffix: 'name' });
+  return teamBoatMemberFieldName({ ...options, suffix: "name" });
 }
 
 function teamBoatMemberEmailFieldName(options: {
@@ -74,18 +78,18 @@ function teamBoatMemberEmailFieldName(options: {
   boatsPerTeam: number;
   position: number;
 }): string {
-  return teamBoatMemberFieldName({ ...options, suffix: 'email' });
+  return teamBoatMemberFieldName({ ...options, suffix: "email" });
 }
 
 function publicEventRegistrationFormValues(
   formData: FormData,
-  fieldNames: readonly string[]
+  fieldNames: readonly string[],
 ): Record<string, string[]> {
   const values: Record<string, string[]> = {};
   for (const fieldName of fieldNames) {
     const fieldValues = formData
       .getAll(fieldName)
-      .filter((value): value is string => typeof value === 'string');
+      .filter((value): value is string => typeof value === "string");
     if (fieldValues.length > 0) {
       values[fieldName] = fieldValues;
     }
@@ -102,16 +106,16 @@ function publicEventRegistrationFormErrorState(options: {
   return {
     code: options.code,
     fieldErrors: options.fieldErrors,
-    status: 'error',
+    status: "error",
     values: publicEventRegistrationFormValues(
       options.formData,
-      options.fieldNames
+      options.fieldNames,
     ),
   };
 }
 
 function publicEventRegistrationQuestionFieldErrors(options: {
-  code: 'answers_invalid' | 'questions_required';
+  code: "answers_invalid" | "questions_required";
   formData: FormData;
   questions: PublicRegistrationQuestionForValidation[];
 }): Record<string, EventRegistrationMutationCode> {
@@ -120,7 +124,7 @@ function publicEventRegistrationQuestionFieldErrors(options: {
   for (const question of options.questions) {
     const result = parsePublicEventRegistrationAnswersFromForm(
       [question],
-      options.formData
+      options.formData,
     );
     if (!result.ok && result.code === options.code) {
       fieldErrors[publicEventRegistrationQuestionFieldName(question.id)] =
@@ -134,7 +138,7 @@ function publicEventRegistrationQuestionFieldErrors(options: {
 function publicEventRegistrationFieldNames(
   questions: PublicRegistrationQuestionForValidation[],
   boatsPerTeam: number,
-  personsPerBoat: number
+  personsPerBoat: number,
 ): string[] {
   return [
     eventEntryFeeFieldName,
@@ -149,7 +153,7 @@ function publicEventRegistrationFieldNames(
       ]).flat();
     }).flat(),
     ...questions.map((question) =>
-      publicEventRegistrationQuestionFieldName(question.id)
+      publicEventRegistrationQuestionFieldName(question.id),
     ),
   ];
 }
@@ -178,12 +182,14 @@ type PublicEventRegistrationLockedEvent = {
   allowRepeatTeamCaptain: boolean;
   registrationStart: Date | null;
   registrationEnd: Date | null;
-  entryFees: { id: string }[];
+  entryFees: { amountCents: number; description: string; id: string }[];
+  paymentDeadlineAt: Date | null;
+  paymentsEnabled: boolean;
 };
 
 function trimmedFormString(formData: FormData, fieldName: string): string {
   const value = formData.get(fieldName);
-  return typeof value === 'string' ? value.trim() : '';
+  return typeof value === "string" ? value.trim() : "";
 }
 
 function parsePublicEventRegistrationTeamMemberFromForm(options: {
@@ -207,13 +213,13 @@ function parsePublicEventRegistrationTeamMemberFromForm(options: {
     return { ok: true, member: null };
   }
   if (fullName.length === 0) {
-    return { ok: false, code: 'questions_required', fieldName: nameFieldName };
+    return { ok: false, code: "questions_required", fieldName: nameFieldName };
   }
   if (email.length === 0) {
-    return { ok: false, code: 'questions_required', fieldName: emailFieldName };
+    return { ok: false, code: "questions_required", fieldName: emailFieldName };
   }
   if (!emailField.safeParse(email).success) {
-    return { ok: false, code: 'answers_invalid', fieldName: emailFieldName };
+    return { ok: false, code: "answers_invalid", fieldName: emailFieldName };
   }
   return {
     ok: true,
@@ -234,19 +240,19 @@ function parsePublicEventRegistrationTeamFromForm(options: {
   | { ok: true; team: PublicEventRegistrationTeamInput }
   | {
       ok: false;
-      code: 'answers_invalid' | 'questions_required';
+      code: "answers_invalid" | "questions_required";
       fieldErrors: Record<string, EventRegistrationMutationCode>;
     } {
   const teamName = trimmedFormString(options.formData, teamNameFieldName);
   if (teamName.length === 0) {
     return {
       ok: false,
-      code: 'questions_required',
-      fieldErrors: { [teamNameFieldName]: 'questions_required' },
+      code: "questions_required",
+      fieldErrors: { [teamNameFieldName]: "questions_required" },
     };
   }
 
-  const boatMembers: PublicEventRegistrationTeamInput['boatMembers'] = [];
+  const boatMembers: PublicEventRegistrationTeamInput["boatMembers"] = [];
   const fieldErrors: Record<string, EventRegistrationMutationCode> = {};
 
   for (
@@ -275,13 +281,13 @@ function parsePublicEventRegistrationTeamFromForm(options: {
   if (boatMembers.length === 0) {
     return {
       ok: false,
-      code: 'questions_required',
+      code: "questions_required",
       fieldErrors: {
         [teamBoatMemberNameFieldName({
           boatNumber: 1,
           boatsPerTeam: options.boatsPerTeam,
           position: 0,
-        })]: 'questions_required',
+        })]: "questions_required",
       },
     };
   }
@@ -290,7 +296,7 @@ function parsePublicEventRegistrationTeamFromForm(options: {
     return {
       ok: false,
       code:
-        firstError === 'answers_invalid' ? firstError : 'questions_required',
+        firstError === "answers_invalid" ? firstError : "questions_required",
       fieldErrors,
     };
   }
@@ -313,7 +319,7 @@ function publicEventRegistrationSelectedFeeId(options: {
   }
   const value = options.formData.get(eventEntryFeeFieldName);
   if (
-    typeof value === 'string' &&
+    typeof value === "string" &&
     options.entryFees.some((fee) => fee.id === value)
   ) {
     return { ok: true, eventEntryFeeId: value };
@@ -322,10 +328,10 @@ function publicEventRegistrationSelectedFeeId(options: {
 }
 
 function publicEventRegistrationPhoneFromForm(
-  formData: FormData
+  formData: FormData,
 ): string | null {
   const value = formData.get(phoneFieldName);
-  if (typeof value !== 'string') {
+  if (typeof value !== "string") {
     return null;
   }
   const phone = normalizeUsPhone(value);
@@ -345,8 +351,8 @@ function logPublicEventRegistrationFailure(options: {
       `error_name=${safeErrorName(options.error)}`,
       code ? `error_code=${code}` : undefined,
     ]
-      .filter((part): part is string => typeof part === 'string')
-      .join(' ')
+      .filter((part): part is string => typeof part === "string")
+      .join(" "),
   );
 }
 
@@ -377,7 +383,7 @@ function lockedPublicEventRegistrationContext(options: {
   phone: string;
 } {
   if (!options.event || !options.event.isPublished) {
-    throw new EventRegistrationFlowError('not_found');
+    throw new EventRegistrationFlowError("not_found");
   }
   if (
     !isPublicEventRegistrationWindowOpen({
@@ -386,10 +392,10 @@ function lockedPublicEventRegistrationContext(options: {
       registrationEnd: options.event.registrationEnd,
     })
   ) {
-    throw new EventRegistrationFlowError('closed');
+    throw new EventRegistrationFlowError("closed");
   }
   if (options.phone === null) {
-    throw new EventRegistrationFlowError('questions_required');
+    throw new EventRegistrationFlowError("questions_required");
   }
   return { event: options.event, phone: options.phone };
 }
@@ -434,7 +440,7 @@ async function assertPublicEventRegistrationCapacity(options: {
     options.event.maxParticipants !== null &&
     approvedSlotsExcludingSelf >= options.event.maxParticipants
   ) {
-    throw new EventRegistrationFlowError('full');
+    throw new EventRegistrationFlowError("full");
   }
 }
 
@@ -539,31 +545,51 @@ async function replacePublicEventRegistrationTeam(options: {
 function eventDetailErrorUrl(
   locale: string,
   slug: string,
-  code: EventRegistrationMutationCode
+  code: EventRegistrationMutationCode,
 ): string {
   return `${getI18nPath(`/events/${encodeURIComponent(slug)}`, locale)}?registration=${encodeURIComponent(
-    code
+    code,
   )}`;
 }
 
 function eventRegistrationErrorUrl(
   locale: string,
   slug: string,
-  code: EventRegistrationMutationCode
+  code: EventRegistrationMutationCode,
 ): string {
   return `${getI18nPath(`/events/${encodeURIComponent(slug)}/register`, locale)}?registration=${encodeURIComponent(
-    code
+    code,
   )}`;
+}
+
+function eventCheckoutUrl(locale: string, slug: string): string {
+  return getI18nPath(`/events/${encodeURIComponent(slug)}/checkout`, locale);
+}
+
+function selectedPositiveEventFee(event: {
+  entryFees: { amountCents: number; description: string; id: string }[];
+  paymentDeadlineAt: Date | null;
+  paymentsEnabled: boolean;
+}) {
+  const eligibility = getEventPaymentEligibility({
+    entryFees: event.entryFees,
+    paymentDeadlineAt: event.paymentDeadlineAt,
+    paymentsEnabled: event.paymentsEnabled,
+  });
+  if (!eligibility.canCreatePayment) {
+    return null;
+  }
+  return event.entryFees.find((fee) => fee.amountCents > 0) ?? null;
 }
 
 function mutationCodeFromPrisma(error: unknown): EventRegistrationMutationCode {
   if (
     error instanceof Prisma.PrismaClientKnownRequestError &&
-    error.code === 'P2025'
+    error.code === "P2025"
   ) {
-    return 'not_found';
+    return "not_found";
   }
-  return 'unknown';
+  return "unknown";
 }
 
 async function publicEventRegistrationAccess(options: {
@@ -598,12 +624,12 @@ export async function createPublicEventRegistrationAction(
   locale: string,
   slug: string,
   _prevState: PublicEventRegistrationFormState,
-  formData: FormData
+  formData: FormData,
 ): Promise<PublicEventRegistrationFormState> {
   const callbackUrl = `/events/${encodeURIComponent(slug)}/register`;
   const access = await publicEventRegistrationAccess({
     callbackUrl,
-    deniedUrl: eventRegistrationErrorUrl(locale, slug, 'not_found'),
+    deniedUrl: eventRegistrationErrorUrl(locale, slug, "not_found"),
     locale,
   });
 
@@ -634,11 +660,11 @@ export async function createPublicEventRegistrationAction(
         registrationStart: true,
         registrationEnd: true,
         registrationQuestions: {
-          orderBy: [{ displayOrder: 'asc' }, { questionText: 'asc' }],
+          orderBy: [{ displayOrder: "asc" }, { questionText: "asc" }],
           select: { id: true, required: true, answerType: true, options: true },
         },
         entryFees: {
-          orderBy: [{ isDeposit: 'desc' }, { description: 'asc' }],
+          orderBy: [{ isDeposit: "desc" }, { description: "asc" }],
           select: { id: true },
         },
         usesTeamRegistration: true,
@@ -648,14 +674,14 @@ export async function createPublicEventRegistrationAction(
       },
     });
     if (!eventResult) {
-      redirect(eventRegistrationErrorUrl(locale, slug, 'not_found'));
+      redirect(eventRegistrationErrorUrl(locale, slug, "not_found"));
     }
     event = eventResult;
   } catch (error: unknown) {
     unstable_rethrow(error);
-    logPublicEventRegistrationFailure({ action: 'load-event', error, slug });
+    logPublicEventRegistrationFailure({ action: "load-event", error, slug });
     redirect(
-      eventRegistrationErrorUrl(locale, slug, mutationCodeFromPrisma(error))
+      eventRegistrationErrorUrl(locale, slug, mutationCodeFromPrisma(error)),
     );
   }
   if (
@@ -665,7 +691,7 @@ export async function createPublicEventRegistrationAction(
       registrationEnd: event.registrationEnd,
     })
   ) {
-    redirect(eventRegistrationErrorUrl(locale, slug, 'closed'));
+    redirect(eventRegistrationErrorUrl(locale, slug, "closed"));
   }
 
   const questionsForValidation = event.registrationQuestions.map(
@@ -674,18 +700,18 @@ export async function createPublicEventRegistrationAction(
       required: question.required,
       answerType: question.answerType,
       options: questionOptionsFromJson(question.options),
-    })
+    }),
   );
   const fieldNames = publicEventRegistrationFieldNames(
     questionsForValidation,
     event.usesTeamRegistration ? event.boatsPerTeam : 0,
-    event.usesTeamRegistration ? event.personsPerBoat : 0
+    event.usesTeamRegistration ? event.personsPerBoat : 0,
   );
   const phone = publicEventRegistrationPhoneFromForm(formData);
   if (phone === null) {
     return publicEventRegistrationFormErrorState({
-      code: 'questions_required',
-      fieldErrors: { [phoneFieldName]: 'questions_required' },
+      code: "questions_required",
+      fieldErrors: { [phoneFieldName]: "questions_required" },
       fieldNames,
       formData,
     });
@@ -696,8 +722,8 @@ export async function createPublicEventRegistrationAction(
   });
   if (!selectedFee.ok) {
     return publicEventRegistrationFormErrorState({
-      code: 'questions_required',
-      fieldErrors: { [eventEntryFeeFieldName]: 'questions_required' },
+      code: "questions_required",
+      fieldErrors: { [eventEntryFeeFieldName]: "questions_required" },
       fieldNames,
       formData,
     });
@@ -717,18 +743,18 @@ export async function createPublicEventRegistrationAction(
       formData,
     });
   }
-  const swimAgreement = formData.get('swimAgreementAccepted');
-  if (swimAgreement !== 'true') {
+  const swimAgreement = formData.get("swimAgreementAccepted");
+  if (swimAgreement !== "true") {
     return publicEventRegistrationFormErrorState({
-      code: 'swim_agreement_required',
-      fieldErrors: { [swimAgreementFieldName]: 'swim_agreement_required' },
+      code: "swim_agreement_required",
+      fieldErrors: { [swimAgreementFieldName]: "swim_agreement_required" },
       fieldNames,
       formData,
     });
   }
   const parsedAnswers = parsePublicEventRegistrationAnswersFromForm(
     questionsForValidation,
-    formData
+    formData,
   );
   if (!parsedAnswers.ok) {
     return publicEventRegistrationFormErrorState({
@@ -743,8 +769,9 @@ export async function createPublicEventRegistrationAction(
     });
   }
 
+  let redirectToCheckout = false;
   try {
-    await prisma.$transaction(
+    const result = await prisma.$transaction(
       async (tx: Prisma.TransactionClient) => {
         await tx.$queryRaw`
           SELECT id
@@ -758,6 +785,8 @@ export async function createPublicEventRegistrationAction(
             id: true,
             isPublished: true,
             maxParticipants: true,
+            paymentDeadlineAt: true,
+            paymentsEnabled: true,
             requiresApproval: true,
             requiresPhone: true,
             usesTeamRegistration: true,
@@ -767,8 +796,8 @@ export async function createPublicEventRegistrationAction(
             registrationStart: true,
             registrationEnd: true,
             entryFees: {
-              orderBy: [{ isDeposit: 'desc' }, { description: 'asc' }],
-              select: { id: true },
+              orderBy: [{ isDeposit: "desc" }, { description: "asc" }],
+              select: { amountCents: true, description: true, id: true },
             },
           },
         });
@@ -786,7 +815,7 @@ export async function createPublicEventRegistrationAction(
           formData,
         });
         if (!lockedSelectedFee.ok) {
-          throw new EventRegistrationFlowError('questions_required');
+          throw new EventRegistrationFlowError("questions_required");
         }
         const status = lockedContext.event.requiresApproval
           ? EventRegistrationStatus.pending
@@ -794,7 +823,7 @@ export async function createPublicEventRegistrationAction(
 
         const existing = await tx.eventRegistration.findFirst({
           where: { eventId: event.id, userId: access.userId },
-          orderBy: { createdAt: 'desc' },
+          orderBy: { createdAt: "desc" },
           select: { id: true },
         });
         // Pending applications do not consume accepted capacity; only gate new
@@ -834,25 +863,53 @@ export async function createPublicEventRegistrationAction(
           team: lockedTeam,
           tx,
         });
+        const selectedFee = selectedPositiveEventFee(lockedContext.event);
+        if (
+          status === EventRegistrationStatus.approved &&
+          selectedFee !== null
+        ) {
+          await tx.eventPayment.upsert({
+            create: {
+              amountCents: selectedFee.amountCents,
+              currency: "usd",
+              eventId: event.id,
+              id: randomUUID(),
+              registrationId,
+              selectedFeeDescription: selectedFee.description,
+              selectedFeeId: selectedFee.id,
+              status: EventPaymentStatus.pending,
+              userId: access.userId,
+            },
+            update: {},
+            where: { registrationId },
+          });
+          return { redirectToCheckout: true };
+        }
+        return { redirectToCheckout: false };
       },
       {
         maxWait: 5000,
         timeout: 10_000,
-      }
+      },
     );
+    ({ redirectToCheckout } = result);
   } catch (error: unknown) {
     unstable_rethrow(error);
     if (error instanceof EventRegistrationFlowError) {
       redirect(eventRegistrationErrorUrl(locale, slug, error.code));
     }
-    logPublicEventRegistrationFailure({ action: 'create', error, slug });
+    logPublicEventRegistrationFailure({ action: "create", error, slug });
     redirect(
-      eventRegistrationErrorUrl(locale, slug, mutationCodeFromPrisma(error))
+      eventRegistrationErrorUrl(locale, slug, mutationCodeFromPrisma(error)),
     );
   }
 
   revalidatePath(getI18nPath(`/events/${encodeURIComponent(slug)}`, locale));
-  redirect(getI18nPath(`/events/${encodeURIComponent(slug)}`, locale));
+  redirect(
+    redirectToCheckout
+      ? eventCheckoutUrl(locale, slug)
+      : getI18nPath(`/events/${encodeURIComponent(slug)}`, locale),
+  );
 }
 
 /**
@@ -864,12 +921,12 @@ export async function createPublicEventRegistrationAction(
  */
 export async function cancelPublicEventRegistrationAction(
   locale: string,
-  slug: string
+  slug: string,
 ): Promise<void> {
   const callbackUrl = `/events/${encodeURIComponent(slug)}`;
   const access = await publicEventRegistrationAccess({
     callbackUrl,
-    deniedUrl: eventDetailErrorUrl(locale, slug, 'not_found'),
+    deniedUrl: eventDetailErrorUrl(locale, slug, "not_found"),
     locale,
   });
   let event: { id: string };
@@ -879,13 +936,13 @@ export async function cancelPublicEventRegistrationAction(
       select: { id: true },
     });
     if (!eventResult) {
-      redirect(eventDetailErrorUrl(locale, slug, 'not_found'));
+      redirect(eventDetailErrorUrl(locale, slug, "not_found"));
     }
     event = eventResult;
   } catch (error: unknown) {
     unstable_rethrow(error);
     logPublicEventRegistrationFailure({
-      action: 'load-cancel-event',
+      action: "load-cancel-event",
       error,
       slug,
     });
@@ -898,7 +955,7 @@ export async function cancelPublicEventRegistrationAction(
     });
   } catch (error: unknown) {
     unstable_rethrow(error);
-    logPublicEventRegistrationFailure({ action: 'cancel', error, slug });
+    logPublicEventRegistrationFailure({ action: "cancel", error, slug });
     redirect(eventDetailErrorUrl(locale, slug, mutationCodeFromPrisma(error)));
   }
 
