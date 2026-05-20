@@ -44,6 +44,10 @@ function pathsFromSitemapXml(xml: string, baseURL: string): string[] {
   return [...paths];
 }
 
+function isStablePublicPath(path: string): boolean {
+  return !path.startsWith('/events/e2e-');
+}
+
 /**
  * Builds the list of public marketing URLs to scan: live `/sitemap.xml` plus
  * curated extras (staff profiles, auth entry points, donate).
@@ -55,5 +59,7 @@ function pathsFromSitemapXml(xml: string, baseURL: string): string[] {
 export function mergePublicA11yPaths(baseURL: string, sitemapXml: string) {
   const fromSitemap = pathsFromSitemapXml(sitemapXml, baseURL);
   const merged = new Set<string>([...fromSitemap, ...EXTRA_PATHS]);
-  return [...merged].toSorted((a, b) => a.localeCompare(b));
+  return [...merged]
+    .filter(isStablePublicPath)
+    .toSorted((a, b) => a.localeCompare(b));
 }

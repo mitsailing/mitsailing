@@ -1,10 +1,14 @@
 import 'server-only';
 import type { Stripe } from 'stripe';
-import { EventPaymentStatus } from '@/generated/prisma/enums';
+import {
+  EventPaymentNotificationKind,
+  EventPaymentStatus,
+} from '@/generated/prisma/enums';
 import type { EventPaymentStatus as EventPaymentStatusType } from '@/generated/prisma/enums';
 import {
   applyEventPaymentPaidTransition,
   eventPaymentStatusCanTransitionTo,
+  nyEventPaymentNotificationDateKey,
 } from '@/libs/mit-sailing/eventPayments';
 
 type StripeWebhookConstructEvent = {
@@ -35,6 +39,8 @@ export function stripeEventCreatedAtDate(event: Pick<Stripe.Event, 'created'>) {
 }
 
 type StripeWebhookDbPayment = {
+  amountCents: number;
+  currency: string;
   id: string;
   status: EventPaymentStatusType;
   stripeChargeId?: string | null;
@@ -51,9 +57,26 @@ type StripeWebhookDb = {
         OR: Record<string, unknown>[];
       };
     }) => Promise<StripeWebhookDbPayment | null>;
-    update: (args: {
+    updateMany: (args: {
       data: Record<string, unknown>;
-      where: { id: string };
+      where: { id: string; status?: EventPaymentStatusType };
+    }) => Promise<{ count: number }>;
+  };
+  eventPaymentNotification: {
+    upsert: (args: {
+      create: {
+        kind: typeof EventPaymentNotificationKind.receipt;
+        paymentId: string;
+        sentDateKey: string;
+      };
+      update: Record<string, never>;
+      where: {
+        paymentId_kind_sentDateKey: {
+          kind: typeof EventPaymentNotificationKind.receipt;
+          paymentId: string;
+          sentDateKey: string;
+        };
+      };
     }) => Promise<unknown>;
   };
   stripeWebhookEvent: {
@@ -88,7 +111,12 @@ type ProcessableStripeEvent = {
 type ProcessStripeWebhookEventResult =
   | { duplicate: true; ok: true; receiptPaymentId?: never }
   | { duplicate?: false; ok: false; receiptPaymentId?: never }
-  | { duplicate?: false; ok: true; receiptPaymentId?: string };
+  | {
+      duplicate?: false;
+      ok: true;
+      receiptJob?: { dateKey: string; paymentId: string };
+      receiptPaymentId?: never;
+    };
 
 function objectValue(value: unknown): Record<string, unknown> | null {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
@@ -99,6 +127,10 @@ function objectValue(value: unknown): Record<string, unknown> | null {
 
 function stringValue(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
+function numberValue(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
 function expandableId(value: unknown): string | null {
@@ -138,6 +170,47 @@ function errorMessage(error: unknown): string {
     : 'Unknown Stripe webhook error';
 }
 
+function stripeObjectMatchesPaymentAmount(
+  object: Record<string, unknown>,
+  payment: Pick<StripeWebhookDbPayment, 'amountCents' | 'currency'>
+): boolean {
+  const amount =
+    numberValue(object.amount_total) ??
+    numberValue(object.amount_received) ??
+    numberValue(object.amount);
+  const currency = stringValue(object.currency);
+  return (
+    amount === payment.amountCents &&
+    currency?.toLowerCase() === payment.currency.toLowerCase()
+  );
+}
+
+async function ensureReceiptNotification(options: {
+  db: StripeWebhookDb;
+  event: ProcessableStripeEvent;
+  paymentId: string;
+}): Promise<{ dateKey: string; paymentId: string }> {
+  const dateKey = nyEventPaymentNotificationDateKey(
+    stripeEventCreatedAtDate(options.event)
+  );
+  await options.db.eventPaymentNotification.upsert({
+    create: {
+      kind: EventPaymentNotificationKind.receipt,
+      paymentId: options.paymentId,
+      sentDateKey: dateKey,
+    },
+    update: {},
+    where: {
+      paymentId_kind_sentDateKey: {
+        kind: EventPaymentNotificationKind.receipt,
+        paymentId: options.paymentId,
+        sentDateKey: dateKey,
+      },
+    },
+  });
+  return { dateKey, paymentId: options.paymentId };
+}
+
 async function findPaymentForStripeObject(options: {
   chargeId?: string | null;
   checkoutSessionId?: string | null;
@@ -172,10 +245,12 @@ async function markPaymentPaid(options: {
   checkoutSessionId?: string | null;
   customerId?: string | null;
   db: StripeWebhookDb;
+  event: ProcessableStripeEvent;
+  object: Record<string, unknown>;
   payment: StripeWebhookDbPayment;
   paymentIntentId?: string | null;
   receiptUrl?: string | null;
-}): Promise<string | null> {
+}): Promise<{ dateKey: string; paymentId: string } | null> {
   if (
     options.payment.status !== EventPaymentStatus.paid &&
     !eventPaymentStatusCanTransitionTo({
@@ -185,6 +260,9 @@ async function markPaymentPaid(options: {
   ) {
     return null;
   }
+  if (!stripeObjectMatchesPaymentAmount(options.object, options.payment)) {
+    throw new TypeError('Stripe webhook amount does not match event payment.');
+  }
   const transition = applyEventPaymentPaidTransition({
     current: options.payment,
     stripeChargeId: options.chargeId,
@@ -193,17 +271,28 @@ async function markPaymentPaid(options: {
     stripePaymentIntentId: options.paymentIntentId,
     stripeReceiptUrl: options.receiptUrl,
   });
-  await options.db.eventPayment.update({
+  const result = await options.db.eventPayment.updateMany({
     data: transition.update,
-    where: { id: options.payment.id },
+    where: { id: options.payment.id, status: options.payment.status },
   });
-  return transition.shouldCreateReceiptNotification ? options.payment.id : null;
+  if (result.count === 0 || !transition.shouldCreateReceiptNotification) {
+    return null;
+  }
+  return ensureReceiptNotification({
+    db: options.db,
+    event: options.event,
+    paymentId: options.payment.id,
+  });
 }
 
 async function handleCheckoutCompleted(options: {
   db: StripeWebhookDb;
+  event: ProcessableStripeEvent;
   object: Record<string, unknown>;
-}): Promise<string | null> {
+}): Promise<{ dateKey: string; paymentId: string } | null> {
+  if (stringValue(options.object.payment_status) !== 'paid') {
+    return null;
+  }
   const checkoutSessionId = stringValue(options.object.id);
   const paymentIntentId = expandableId(options.object.payment_intent);
   const payment = await findPaymentForStripeObject({
@@ -219,6 +308,8 @@ async function handleCheckoutCompleted(options: {
     checkoutSessionId,
     customerId: expandableId(options.object.customer),
     db: options.db,
+    event: options.event,
+    object: options.object,
     payment,
     paymentIntentId,
   });
@@ -226,8 +317,9 @@ async function handleCheckoutCompleted(options: {
 
 async function handlePaymentIntentSucceeded(options: {
   db: StripeWebhookDb;
+  event: ProcessableStripeEvent;
   object: Record<string, unknown>;
-}): Promise<string | null> {
+}): Promise<{ dateKey: string; paymentId: string } | null> {
   const paymentIntentId = stringValue(options.object.id);
   const chargeId = expandableId(options.object.latest_charge);
   const payment = await findPaymentForStripeObject({
@@ -242,6 +334,8 @@ async function handlePaymentIntentSucceeded(options: {
   return markPaymentPaid({
     chargeId,
     db: options.db,
+    event: options.event,
+    object: options.object,
     payment,
     paymentIntentId,
   });
@@ -249,8 +343,9 @@ async function handlePaymentIntentSucceeded(options: {
 
 async function handleChargeSucceeded(options: {
   db: StripeWebhookDb;
+  event: ProcessableStripeEvent;
   object: Record<string, unknown>;
-}): Promise<string | null> {
+}): Promise<{ dateKey: string; paymentId: string } | null> {
   const chargeId = stringValue(options.object.id);
   const paymentIntentId = expandableId(options.object.payment_intent);
   const payment = await findPaymentForStripeObject({
@@ -265,6 +360,8 @@ async function handleChargeSucceeded(options: {
   return markPaymentPaid({
     chargeId,
     db: options.db,
+    event: options.event,
+    object: options.object,
     payment,
     paymentIntentId,
     receiptUrl: stringValue(options.object.receipt_url),
@@ -293,29 +390,86 @@ async function markPaymentTerminal(options: {
   if (!payment) {
     return;
   }
-  await options.db.eventPayment.update({
+  await options.db.eventPayment.updateMany({
     data: {
       status: options.status,
       ...(chargeId ? { stripeChargeId: chargeId } : {}),
       ...(paymentIntentId ? { stripePaymentIntentId: paymentIntentId } : {}),
     },
-    where: { id: payment.id },
+    where: { id: payment.id, status: payment.status },
+  });
+}
+
+async function duplicateReceiptJobForPaidEvent(options: {
+  db: StripeWebhookDb;
+  event: ProcessableStripeEvent;
+}): Promise<{ dateKey: string; paymentId: string } | null> {
+  const object = eventDataObject(options.event);
+  if (
+    (options.event.type === 'checkout.session.completed' ||
+      options.event.type === 'checkout.session.async_payment_succeeded') &&
+    stringValue(object.payment_status) !== 'paid'
+  ) {
+    return null;
+  }
+  if (
+    options.event.type !== 'checkout.session.completed' &&
+    options.event.type !== 'checkout.session.async_payment_succeeded' &&
+    options.event.type !== 'payment_intent.succeeded' &&
+    options.event.type !== 'charge.succeeded'
+  ) {
+    return null;
+  }
+  const payment = await findPaymentForStripeObject({
+    chargeId: stringValue(object.id),
+    checkoutSessionId: stringValue(object.id),
+    db: options.db,
+    paymentId: eventPaymentId(object),
+    paymentIntentId:
+      stringValue(object.id) ?? expandableId(object.payment_intent),
+  });
+  if (
+    !payment ||
+    payment.status !== EventPaymentStatus.paid ||
+    !stripeObjectMatchesPaymentAmount(object, payment)
+  ) {
+    return null;
+  }
+  return ensureReceiptNotification({
+    db: options.db,
+    event: options.event,
+    paymentId: payment.id,
   });
 }
 
 async function applyStripeEventToPayment(options: {
   db: StripeWebhookDb;
   event: ProcessableStripeEvent;
-}): Promise<string | null> {
+}): Promise<{ dateKey: string; paymentId: string } | null> {
   const object = eventDataObject(options.event);
-  if (options.event.type === 'checkout.session.completed') {
-    return handleCheckoutCompleted({ db: options.db, object });
+  if (
+    options.event.type === 'checkout.session.completed' ||
+    options.event.type === 'checkout.session.async_payment_succeeded'
+  ) {
+    return handleCheckoutCompleted({
+      db: options.db,
+      event: options.event,
+      object,
+    });
   }
   if (options.event.type === 'payment_intent.succeeded') {
-    return handlePaymentIntentSucceeded({ db: options.db, object });
+    return handlePaymentIntentSucceeded({
+      db: options.db,
+      event: options.event,
+      object,
+    });
   }
   if (options.event.type === 'charge.succeeded') {
-    return handleChargeSucceeded({ db: options.db, object });
+    return handleChargeSucceeded({
+      db: options.db,
+      event: options.event,
+      object,
+    });
   }
   if (
     options.event.type === 'charge.refunded' ||
@@ -364,6 +518,10 @@ export async function processStripeWebhookEvent(options: {
         where: { stripeEventId: options.event.id },
       });
       if (existingEvent?.processedAt) {
+        const receiptJob = await duplicateReceiptJobForPaidEvent(options);
+        if (receiptJob) {
+          return { ok: true, receiptJob };
+        }
         return { duplicate: true, ok: true };
       }
       if (existingEvent) {
@@ -377,12 +535,12 @@ export async function processStripeWebhookEvent(options: {
   }
 
   try {
-    const receiptPaymentId = await applyStripeEventToPayment(options);
+    const receiptJob = await applyStripeEventToPayment(options);
     await options.db.stripeWebhookEvent.update({
       data: { processedAt: new Date(), processingError: null },
       where: { id: storedEvent.id },
     });
-    return receiptPaymentId ? { ok: true, receiptPaymentId } : { ok: true };
+    return receiptJob ? { ok: true, receiptJob } : { ok: true };
   } catch (error) {
     await options.db.stripeWebhookEvent.update({
       data: { processingError: errorMessage(error) },

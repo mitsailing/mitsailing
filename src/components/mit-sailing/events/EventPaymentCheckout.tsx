@@ -5,6 +5,7 @@ import { ExternalLink } from 'lucide-react';
 import * as React from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { safeExternalHttpHref } from '@/libs/mit-sailing/cmsHref';
 
 export type EventPaymentCheckoutActionResult =
   | { clientSecret: string; status: 'ok' }
@@ -15,11 +16,13 @@ export type EventPaymentCheckoutPayment =
       amount: string;
       receiptUrl: string | null;
       status: 'checkout_created' | 'past_due' | 'pending';
+      statusLabel: string;
     }
   | {
       amount: string;
       receiptUrl: string | null;
       status: 'cancelled' | 'disputed' | 'handled' | 'paid' | 'refunded';
+      statusLabel: string;
     }
   | null;
 
@@ -90,6 +93,7 @@ function StaticCheckoutState(props: {
   payment: Exclude<EventPaymentCheckoutPayment, null> | null;
   title: string;
 }) {
+  const receiptHref = safeExternalHttpHref(props.payment?.receiptUrl);
   return (
     <section className="mx-auto flex max-w-3xl flex-col gap-5">
       <div>
@@ -104,16 +108,13 @@ function StaticCheckoutState(props: {
         <PaymentSummary
           amount={props.payment.amount}
           labels={props.labels}
-          status={props.payment.status}
+          status={props.payment.statusLabel}
         />
       ) : null}
-      {props.payment?.receiptUrl ? (
+      {receiptHref ? (
         <Button asChild className="w-fit" size="sm" variant="outline">
-          <a
-            href={props.payment.receiptUrl}
-            rel="noopener noreferrer"
-            target="_blank"
-          >
+          {/* nosemgrep: typescript.react.security.audit.react-href-var.react-href-var */}
+          <a href={receiptHref} rel="noopener noreferrer" target="_blank">
             <ExternalLink aria-hidden className="size-4" />
             {props.labels.paidReceipt}
           </a>
@@ -124,7 +125,7 @@ function StaticCheckoutState(props: {
 }
 
 export function EventPaymentCheckout(props: EventPaymentCheckoutProps) {
-  const checkoutRef = React.useRef<HTMLDivElement | null>(null);
+  const checkoutRef = React.useRef<HTMLElement | null>(null);
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
@@ -199,7 +200,7 @@ export function EventPaymentCheckout(props: EventPaymentCheckoutProps) {
       <PaymentSummary
         amount={props.payment.amount}
         labels={props.labels}
-        status={props.payment.status}
+        status={props.payment.statusLabel}
       />
       {error ? (
         <p
@@ -209,19 +210,18 @@ export function EventPaymentCheckout(props: EventPaymentCheckoutProps) {
           {error}
         </p>
       ) : null}
-      <div
+      <section
         aria-label={props.labels.checkoutRegionLabel}
         className={cn(
           'min-h-[420px] rounded-lg border border-border bg-card p-3',
           'sm:p-4'
         )}
         ref={checkoutRef}
-        role="region"
       >
         <p className="text-sm text-mit-readable-ink">
           {props.labels.checkoutLoading}
         </p>
-      </div>
+      </section>
     </section>
   );
 }

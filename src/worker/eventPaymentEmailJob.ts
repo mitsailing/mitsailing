@@ -13,6 +13,7 @@ import {
   sendEventPaymentReminderEmail,
   sendEventPaymentRequestEmail,
 } from '@/libs/email/event-payment-emails';
+import type { SendEmailResult } from '@/libs/email/sendTransactional';
 import { Env } from '@/libs/Env';
 import { logger } from '@/libs/Logger';
 import { nyEventPaymentNotificationDateKey } from '@/libs/mit-sailing/eventPayments';
@@ -301,7 +302,7 @@ async function processPaymentEmailJob(
     kind: data.kind,
     payment,
   });
-  let result;
+  let result: SendEmailResult;
   if (data.kind === 'receipt') {
     result = await sendEventPaymentReceiptEmail(params);
   } else if (data.kind === 'reminder') {

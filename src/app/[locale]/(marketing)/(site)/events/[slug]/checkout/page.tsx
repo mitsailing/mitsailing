@@ -15,6 +15,7 @@ import {
 } from '@/libs/mit-sailing/eventPaymentCheckoutQueries';
 import type { EventPaymentCheckoutPagePayment } from '@/libs/mit-sailing/eventPaymentCheckoutQueries';
 import { formatUsdMinorUnitsAsCurrency } from '@/libs/money/stripeUsdMinorUnits';
+import { getI18nPath } from '@/utils/Helpers';
 
 type EventCheckoutPageProps = {
   params: Promise<{ locale: string; slug: string }>;
@@ -23,6 +24,7 @@ type EventCheckoutPageProps = {
 function checkoutPaymentViewModel(options: {
   locale: string;
   payment: EventPaymentCheckoutPagePayment | null;
+  statusLabel: string;
 }): EventPaymentCheckoutPayment {
   if (!options.payment) {
     return null;
@@ -34,6 +36,7 @@ function checkoutPaymentViewModel(options: {
     ),
     receiptUrl: options.payment.receiptUrl,
     status: options.payment.status,
+    statusLabel: options.statusLabel,
   };
 }
 
@@ -61,7 +64,7 @@ export default async function EventCheckoutPage(props: EventCheckoutPageProps) {
   setRequestLocale(locale);
   const user = await requireCurrentUser(
     locale,
-    `/events/${encodeURIComponent(slug)}/checkout`
+    getI18nPath(`/events/${encodeURIComponent(slug)}/checkout`, locale)
   );
   const [data, t, tRoutes] = await Promise.all([
     getEventPaymentCheckoutPageData({ slug, userId: user.id }),
@@ -72,9 +75,20 @@ export default async function EventCheckoutPage(props: EventCheckoutPageProps) {
     notFound();
   }
 
+  const paymentStatusLabels = {
+    cancelled: t('checkout_payment_status_cancelled'),
+    checkout_created: t('checkout_payment_status_checkout_created'),
+    disputed: t('checkout_payment_status_disputed'),
+    handled: t('checkout_payment_status_handled'),
+    paid: t('checkout_payment_status_paid'),
+    past_due: t('checkout_payment_status_past_due'),
+    pending: t('checkout_payment_status_pending'),
+    refunded: t('checkout_payment_status_refunded'),
+  } satisfies Record<EventPaymentCheckoutPagePayment['status'], string>;
   const payment = checkoutPaymentViewModel({
     locale,
     payment: data.payment,
+    statusLabel: data.payment ? paymentStatusLabels[data.payment.status] : '',
   });
   const clientSecretAction = createEventPaymentCheckoutClientSecretAction.bind(
     null,

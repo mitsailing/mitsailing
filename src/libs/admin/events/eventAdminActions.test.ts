@@ -324,6 +324,7 @@ beforeEach(() => {
     paymentsEnabled: false,
   });
   mocks.eventRegistrationFindFirst.mockResolvedValue({
+    eventEntryFeeId: 'fee-1',
     eventId: 'event-1',
     id: 'registration-1',
     status: EventRegistrationStatus.pending,
@@ -1330,6 +1331,54 @@ describe('updateAdminEventRegistrationStatusAction', () => {
     );
   });
 
+  it('creates admin approval payment from the selected registration fee', async () => {
+    mocks.eventRegistrationFindFirst.mockResolvedValue({
+      eventEntryFeeId: 'fee-premium',
+      eventId: 'event-1',
+      id: 'registration-1',
+      status: EventRegistrationStatus.pending,
+      userId: 'user-1',
+    });
+    mocks.eventFindUnique.mockResolvedValue({
+      entryFees: [
+        {
+          amountCents: 0,
+          description: 'Volunteer comp',
+          id: 'fee-free',
+        },
+        {
+          amountCents: 25_000,
+          description: 'Premium entry',
+          id: 'fee-premium',
+        },
+      ],
+      maxParticipants: null,
+      paymentDeadlineAt: new Date('2026-06-01T13:00:00.000Z'),
+      paymentsEnabled: true,
+    });
+    const { updateAdminEventRegistrationStatusAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventRegistrationStatusAction(
+        'en',
+        'intro-sail',
+        'registration-1',
+        statusFormData(EventRegistrationStatus.approved)
+      )
+    ).rejects.toThrow('NEXT_REDIRECT:/admin/events/intro-sail/registrations');
+
+    expect(mocks.eventPaymentUpsert).toHaveBeenCalledWith({
+      create: expect.objectContaining({
+        amountCents: 25_000,
+        selectedFeeDescription: 'Premium entry',
+        selectedFeeId: 'fee-premium',
+      }),
+      update: {},
+      where: { registrationId: 'registration-1' },
+    });
+  });
+
   it('does not mark a request sent when approval creates a payment without deadline', async () => {
     mocks.eventFindUnique.mockResolvedValue({
       entryFees: [
@@ -1375,7 +1424,10 @@ describe('admin event payment actions', () => {
       expect.objectContaining({
         where: expect.objectContaining({
           eventId: 'event-1',
-          event: { paymentDeadlineAt: { not: null } },
+          event: {
+            paymentDeadlineAt: { gt: expect.any(Date) },
+            paymentsEnabled: true,
+          },
           id: 'payment-1',
         }),
       })
@@ -1424,7 +1476,11 @@ describe('admin event payment actions', () => {
         manualHandledNote: 'Paid by check at front desk',
         status: EventPaymentStatus.handled,
       }),
-      where: { eventId: 'event-1', id: 'payment-1' },
+      where: {
+        eventId: 'event-1',
+        id: 'payment-1',
+        status: EventPaymentStatus.pending,
+      },
     });
   });
 

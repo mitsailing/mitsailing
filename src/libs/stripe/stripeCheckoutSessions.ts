@@ -79,6 +79,12 @@ export async function createEmbeddedEventPaymentCheckoutSession(options: {
     const stripeClientModule = await import('@/libs/stripe/stripeClient');
     stripe = stripeClientModule.getStripeClient();
   }
+  const metadata = {
+    eventId: options.payment.eventId,
+    paymentId: options.payment.id,
+    registrationId: options.payment.registrationId,
+    userId: options.payment.userId,
+  };
   const session = await stripe.checkout.sessions.create(
     {
       client_reference_id: options.payment.id,
@@ -94,13 +100,9 @@ export async function createEmbeddedEventPaymentCheckoutSession(options: {
           quantity: 1,
         },
       ],
-      metadata: {
-        eventId: options.payment.eventId,
-        paymentId: options.payment.id,
-        registrationId: options.payment.registrationId,
-        userId: options.payment.userId,
-      },
+      metadata,
       mode: 'payment',
+      payment_intent_data: { metadata },
       return_url: options.returnUrl,
       ui_mode: 'embedded_page',
     },

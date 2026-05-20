@@ -8,7 +8,7 @@ import { createEmbeddedEventPaymentCheckoutSession } from '@/libs/stripe/stripeC
 
 const mocks = vi.hoisted(() => ({
   eventPaymentFindFirst: vi.fn(),
-  eventPaymentUpdate: vi.fn(),
+  eventPaymentUpdateMany: vi.fn(),
   stripeCheckoutSessionsCreate: vi.fn(),
 }));
 
@@ -74,6 +74,14 @@ describe('createEmbeddedEventPaymentCheckoutSession', () => {
           userId: 'user-1',
         },
         mode: 'payment',
+        payment_intent_data: {
+          metadata: {
+            eventId: 'event-1',
+            paymentId: 'payment-1',
+            registrationId: 'registration-1',
+            userId: 'user-1',
+          },
+        },
         return_url: 'https://sailing.mit.edu/events/intro/checkout/return',
         ui_mode: 'embedded_page',
       },
@@ -90,7 +98,7 @@ describe('createEmbeddedEventPaymentCheckoutSession', () => {
 describe('createEventPaymentCheckoutClientSecret', () => {
   beforeEach(() => {
     mocks.eventPaymentFindFirst.mockReset();
-    mocks.eventPaymentUpdate.mockReset();
+    mocks.eventPaymentUpdateMany.mockReset();
     mocks.stripeCheckoutSessionsCreate.mockReset();
     mocks.stripeCheckoutSessionsCreate.mockResolvedValue({
       client_secret: 'cs_secret_123',
@@ -112,16 +120,14 @@ describe('createEventPaymentCheckoutClientSecret', () => {
       stripeCheckoutSessionId: null,
       userId: 'user-1',
     });
-    mocks.eventPaymentUpdate.mockResolvedValue({
-      stripeCheckoutSessionId: 'cs_123',
-    });
+    mocks.eventPaymentUpdateMany.mockResolvedValue({ count: 1 });
 
     await expect(
       createEventPaymentCheckoutClientSecret({
         db: {
           eventPayment: {
             findFirst: mocks.eventPaymentFindFirst,
-            update: mocks.eventPaymentUpdate,
+            updateMany: mocks.eventPaymentUpdateMany,
           },
         },
         paymentId: 'payment-1',
@@ -146,13 +152,56 @@ describe('createEventPaymentCheckoutClientSecret', () => {
         ],
       },
     });
-    expect(mocks.eventPaymentUpdate).toHaveBeenCalledWith({
+    expect(mocks.eventPaymentUpdateMany).toHaveBeenCalledWith({
       data: {
         status: EventPaymentStatus.checkout_created,
         stripeCheckoutSessionId: 'cs_123',
         stripePaymentIntentId: 'pi_123',
       },
-      where: { id: 'payment-1' },
+      where: { id: 'payment-1', status: EventPaymentStatus.pending },
+    });
+  });
+
+  it('returns null when payment status changes during checkout creation', async () => {
+    mocks.eventPaymentFindFirst.mockResolvedValue({
+      amountCents: 2500,
+      currency: 'usd',
+      eventId: 'event-1',
+      id: 'payment-1',
+      registrationId: 'registration-1',
+      selectedFeeDescription: 'Adult entry',
+      status: EventPaymentStatus.pending,
+      stripeCheckoutSessionId: null,
+      userId: 'user-1',
+    });
+    mocks.eventPaymentUpdateMany.mockResolvedValue({ count: 0 });
+
+    await expect(
+      createEventPaymentCheckoutClientSecret({
+        db: {
+          eventPayment: {
+            findFirst: mocks.eventPaymentFindFirst,
+            updateMany: mocks.eventPaymentUpdateMany,
+          },
+        },
+        paymentId: 'payment-1',
+        returnUrl: 'https://sailing.mit.edu/events/intro/checkout/return',
+        stripe: {
+          checkout: {
+            sessions: {
+              create: mocks.stripeCheckoutSessionsCreate,
+            },
+          },
+        },
+        userId: 'user-1',
+      })
+    ).resolves.toBeNull();
+
+    expect(mocks.eventPaymentUpdateMany).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        status: EventPaymentStatus.checkout_created,
+      }),
+      where: { id: 'payment-1', status: EventPaymentStatus.pending },
     });
   });
 
@@ -164,7 +213,7 @@ describe('createEventPaymentCheckoutClientSecret', () => {
         db: {
           eventPayment: {
             findFirst: mocks.eventPaymentFindFirst,
-            update: mocks.eventPaymentUpdate,
+            updateMany: mocks.eventPaymentUpdateMany,
           },
         },
         paymentId: 'payment-1',
@@ -200,7 +249,7 @@ describe('createEventPaymentCheckoutClientSecret', () => {
         db: {
           eventPayment: {
             findFirst: mocks.eventPaymentFindFirst,
-            update: mocks.eventPaymentUpdate,
+            updateMany: mocks.eventPaymentUpdateMany,
           },
         },
         paymentId: 'payment-1',

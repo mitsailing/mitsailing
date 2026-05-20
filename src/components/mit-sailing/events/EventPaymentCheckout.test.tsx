@@ -46,11 +46,13 @@ function renderCheckout(props: {
         amount: string;
         receiptUrl: string | null;
         status: 'pending' | 'checkout_created' | 'past_due';
+        statusLabel: string;
       }
     | {
         amount: string;
         receiptUrl: string | null;
         status: 'cancelled' | 'disputed' | 'handled' | 'paid' | 'refunded';
+        statusLabel: string;
       }
     | null;
 }) {
@@ -83,7 +85,12 @@ describe('EventPaymentCheckout', () => {
 
   it('shows loading state while checkout mounts', async () => {
     renderCheckout({
-      payment: { amount: '$25.00', receiptUrl: null, status: 'pending' },
+      payment: {
+        amount: '$25.00',
+        receiptUrl: null,
+        status: 'pending',
+        statusLabel: 'Pending',
+      },
     });
 
     expect(screen.getByText('Loading secure checkout')).toBeVisible();
@@ -107,6 +114,7 @@ describe('EventPaymentCheckout', () => {
         amount: '$25.00',
         receiptUrl: 'https://stripe.test/receipt',
         status: 'paid',
+        statusLabel: 'Paid',
       },
     });
 
@@ -121,7 +129,12 @@ describe('EventPaymentCheckout', () => {
 
   it('mounts embedded checkout for payable payments and unmounts on cleanup', async () => {
     const { unmount } = renderCheckout({
-      payment: { amount: '$25.00', receiptUrl: null, status: 'past_due' },
+      payment: {
+        amount: '$25.00',
+        receiptUrl: null,
+        status: 'past_due',
+        statusLabel: 'Past due',
+      },
     });
 
     await waitFor(() => {

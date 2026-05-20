@@ -54,10 +54,15 @@ describe('processStripeWebhookEvent', () => {
     const db = {
       eventPayment: {
         findFirst: vi.fn().mockResolvedValue({
+          amountCents: 4200,
+          currency: 'usd',
           id: 'payment_123',
           status: EventPaymentStatus.refunded,
         }),
-        update: updatePayment,
+        updateMany: updatePayment,
+      },
+      eventPaymentNotification: {
+        upsert: vi.fn(),
       },
       stripeWebhookEvent: {
         create: vi.fn().mockResolvedValue({ id: 'webhook_event_123' }),
@@ -73,6 +78,8 @@ describe('processStripeWebhookEvent', () => {
         data: {
           object: {
             id: 'pi_123',
+            amount_received: 4200,
+            currency: 'usd',
             metadata: { paymentId: 'payment_123' },
           },
         },

@@ -2867,9 +2867,8 @@ export class SchemaType implements SchemaDef {
                 stripeCustomerId: {
                     name: "stripeCustomerId",
                     type: "String",
-                    unique: true,
                     optional: true,
-                    attributes: [{ name: "@unique" }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("stripe_customer_id") }] }] as readonly AttributeApplication[]
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("stripe_customer_id") }] }] as readonly AttributeApplication[]
                 },
                 stripeCheckoutSessionId: {
                     name: "stripeCheckoutSessionId",
@@ -2934,20 +2933,20 @@ export class SchemaType implements SchemaDef {
                 event: {
                     name: "event",
                     type: "Event",
-                    attributes: [{ name: "@relation", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("eventId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("Cascade") }] }] as readonly AttributeApplication[],
-                    relation: { opposite: "payments", fields: ["eventId"], references: ["id"], onDelete: "Cascade" }
+                    attributes: [{ name: "@relation", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("eventId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("Restrict") }] }] as readonly AttributeApplication[],
+                    relation: { opposite: "payments", fields: ["eventId"], references: ["id"], onDelete: "Restrict" }
                 },
                 registration: {
                     name: "registration",
                     type: "EventRegistration",
-                    attributes: [{ name: "@relation", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("registrationId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("Cascade") }] }] as readonly AttributeApplication[],
-                    relation: { opposite: "payment", fields: ["registrationId"], references: ["id"], onDelete: "Cascade" }
+                    attributes: [{ name: "@relation", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("registrationId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("Restrict") }] }] as readonly AttributeApplication[],
+                    relation: { opposite: "payment", fields: ["registrationId"], references: ["id"], onDelete: "Restrict" }
                 },
                 user: {
                     name: "user",
                     type: "User",
-                    attributes: [{ name: "@relation", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("userId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("Cascade") }] }] as readonly AttributeApplication[],
-                    relation: { opposite: "eventPayments", fields: ["userId"], references: ["id"], onDelete: "Cascade" }
+                    attributes: [{ name: "@relation", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("userId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("Restrict") }] }] as readonly AttributeApplication[],
+                    relation: { opposite: "eventPayments", fields: ["userId"], references: ["id"], onDelete: "Restrict" }
                 },
                 selectedFee: {
                     name: "selectedFee",
@@ -2984,7 +2983,6 @@ export class SchemaType implements SchemaDef {
             uniqueFields: {
                 id: { type: "String" },
                 registrationId: { type: "String" },
-                stripeCustomerId: { type: "String" },
                 stripeCheckoutSessionId: { type: "String" },
                 stripePaymentIntentId: { type: "String" },
                 stripeChargeId: { type: "String" }

@@ -566,20 +566,25 @@ function eventCheckoutUrl(locale: string, slug: string): string {
   return getI18nPath(`/events/${encodeURIComponent(slug)}/checkout`, locale);
 }
 
-function selectedPositiveEventFee(event: {
+function selectedPaymentEventFee(options: {
   entryFees: { amountCents: number; description: string; id: string }[];
   paymentDeadlineAt: Date | null;
   paymentsEnabled: boolean;
+  selectedFeeId: string | null;
 }) {
   const eligibility = getEventPaymentEligibility({
-    entryFees: event.entryFees,
-    paymentDeadlineAt: event.paymentDeadlineAt,
-    paymentsEnabled: event.paymentsEnabled,
+    entryFees: options.entryFees,
+    paymentDeadlineAt: options.paymentDeadlineAt,
+    paymentsEnabled: options.paymentsEnabled,
   });
   if (!eligibility.canCreatePayment) {
     return null;
   }
-  return event.entryFees.find((fee) => fee.amountCents > 0) ?? null;
+  return (
+    options.entryFees.find(
+      (fee) => fee.id === options.selectedFeeId && fee.amountCents > 0
+    ) ?? null
+  );
 }
 
 function mutationCodeFromPrisma(error: unknown): EventRegistrationMutationCode {
@@ -863,7 +868,10 @@ export async function createPublicEventRegistrationAction(
           team: lockedTeam,
           tx,
         });
-        const paymentFee = selectedPositiveEventFee(lockedContext.event);
+        const paymentFee = selectedPaymentEventFee({
+          ...lockedContext.event,
+          selectedFeeId: lockedSelectedFee.eventEntryFeeId,
+        });
         if (
           status === EventRegistrationStatus.approved &&
           paymentFee !== null
@@ -949,9 +957,25 @@ export async function cancelPublicEventRegistrationAction(
     redirect(eventDetailErrorUrl(locale, slug, mutationCodeFromPrisma(error)));
   }
   try {
-    await prisma.eventRegistration.updateMany({
-      where: { eventId: event.id, userId: access.userId },
-      data: { status: EventRegistrationStatus.cancelled },
+    await prisma.$transaction(async (tx) => {
+      await tx.eventRegistration.updateMany({
+        where: { eventId: event.id, userId: access.userId },
+        data: { status: EventRegistrationStatus.cancelled },
+      });
+      await tx.eventPayment.updateMany({
+        where: {
+          eventId: event.id,
+          userId: access.userId,
+          status: {
+            in: [
+              EventPaymentStatus.checkout_created,
+              EventPaymentStatus.past_due,
+              EventPaymentStatus.pending,
+            ],
+          },
+        },
+        data: { status: EventPaymentStatus.cancelled },
+      });
     });
   } catch (error: unknown) {
     unstable_rethrow(error);

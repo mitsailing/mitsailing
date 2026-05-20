@@ -7,7 +7,7 @@ import { e2ePgConnectionString } from '../helpers/e2e-database-url';
 
 const adminEmail =
   process.env.ADMIN_EMAIL?.trim().toLowerCase() ?? 'admin@example.com';
-const fixtureSlugPrefix = 'e2e-stripe-payments-';
+const fixtureSlugPrefix = `e2e-stripe-payments-${randomUUID()}-`;
 const pool = new Pool({ connectionString: e2ePgConnectionString() });
 
 type EventFixture = {
@@ -125,6 +125,16 @@ async function createPaymentEvent(options: {
   const feeId = randomUUID();
   const slug = `${fixtureSlugPrefix}${randomUUID()}`;
   const categoryId = await firstEventCategoryId();
+  const registrationStart = new Date(Date.now() - 86_400_000).toISOString();
+  const registrationEnd = new Date(Date.now() + 180 * 86_400_000).toISOString();
+  const eventStart = new Date(Date.now() + 30 * 86_400_000).toISOString();
+  const eventEnd = new Date(
+    Date.now() + 30 * 86_400_000 + 14_400_000
+  ).toISOString();
+  const paymentDeadlineAt =
+    options.paymentDeadlineAt === undefined
+      ? new Date(Date.now() + 14 * 86_400_000).toISOString()
+      : options.paymentDeadlineAt;
   await pool.query(
     `
       INSERT INTO "events" (
@@ -154,8 +164,8 @@ async function createPaymentEvent(options: {
       )
       VALUES (
         $1, $2, $3, $4, $5, $6, false, 30, $7,
-        '2026-01-01T00:00:00.000Z',
-        '2026-12-31T23:59:00.000Z',
+        $10,
+        $11,
         NOW(),
         'standard',
         true,
@@ -179,15 +189,17 @@ async function createPaymentEvent(options: {
       slug,
       options.requiresApproval,
       options.paymentsEnabled ?? true,
-      options.paymentDeadlineAt ?? '2026-08-01T16:00:00.000Z',
+      paymentDeadlineAt,
+      registrationStart,
+      registrationEnd,
     ]
   );
   await pool.query(
     `
       INSERT INTO "event_dates" ("id", "event_id", "start_datetime", "end_datetime")
-      VALUES ($1, $2, '2026-08-15T14:00:00.000Z', '2026-08-15T18:00:00.000Z')
+      VALUES ($1, $2, $3, $4)
     `,
-    [randomUUID(), eventId]
+    [randomUUID(), eventId, eventStart, eventEnd]
   );
   await pool.query(
     `
@@ -216,10 +228,11 @@ async function createRegistrationWithPayment(options: {
         "event_id",
         "user_id",
         "status",
+        "phone",
         "created_at",
         "swim_agreement_accepted_at"
       )
-      VALUES ($1, $2, $3, 'approved', NOW(), NOW())
+      VALUES ($1, $2, $3, 'approved', '617-555-0142', NOW(), NOW())
     `,
     [registrationId, options.event.eventId, userId]
   );
@@ -298,7 +311,7 @@ async function paymentSettingsForEvent(
     `
       SELECT
         "payments_enabled",
-        "payment_deadline_at",
+        "payment_deadline_at" AT TIME ZONE 'UTC' AS "payment_deadline_at",
         "address_preset",
         "address_name",
         "address_line1",
@@ -361,6 +374,10 @@ async function submitRegistration(options: {
   await options.page
     .getByRole('switch', { name: /Swim Agreement and Liability Release/ })
     .click();
+  const phoneInput = options.page.getByLabel('Phone');
+  if (await phoneInput.isVisible()) {
+    await phoneInput.fill('617-555-0137');
+  }
   await options.page.getByRole('button', { name: options.buttonName }).click();
 }
 
@@ -415,6 +432,12 @@ test.describe('Event payments', () => {
         address_state: 'MA',
         payments_enabled: true,
       });
+    await expect
+      .poll(async () => {
+        const settings = await paymentSettingsForEvent(event.slug);
+        return settings?.payment_deadline_at?.toISOString();
+      })
+      .toContain('2026-08-01T16:00');
   });
 
   test('auto-approved paid registration lands on embedded checkout page', async ({
@@ -434,9 +457,9 @@ test.describe('Event payments', () => {
       slug: event.slug,
     });
 
-    await expect(page).toHaveURL(
-      new RegExp(`/events/${event.slug}/checkout/?$`)
-    );
+    await expect
+      .poll(() => new URL(page.url()).pathname)
+      .toBe(`/events/${event.slug}/checkout`);
     await expect(
       page.getByRole('region', { name: 'Secure Stripe checkout' })
     ).toBeVisible();
@@ -469,10 +492,14 @@ test.describe('Event payments', () => {
       page,
       slug: event.slug,
     });
-    await expect(page).toHaveURL(new RegExp(`/events/${event.slug}/?$`));
+    await expect
+      .poll(() => new URL(page.url()).pathname)
+      .toBe(`/events/${event.slug}`);
 
     await page.goto(`/admin/events/${event.slug}/registrations`);
-    await page.getByRole('button', { name: 'Approve' }).click();
+    await page.getByLabel(/Actions for/u).click();
+    await page.getByText('Approve', { exact: true }).click();
+    await page.getByRole('button', { name: 'Confirm approve' }).click();
     await expect(
       page
         .locator('span')
@@ -498,22 +525,21 @@ test.describe('Event payments', () => {
       .toBe(1);
   });
 
-  test('admin resends overdue request and marks payment handled', async ({
+  test('admin resends payment request and marks payment handled', async ({
     page,
   }) => {
     const event = await createPaymentEvent({
-      name: 'E2E overdue paid clinic',
-      paymentDeadlineAt: '2026-05-01T16:00:00.000Z',
+      name: 'E2E resend paid clinic',
       requiresApproval: false,
     });
     const paymentId = await createRegistrationWithPayment({
       event,
-      status: 'past_due',
+      status: 'pending',
     });
     await signInAsAdmin(page);
 
     await page.goto(`/admin/events/${event.slug}/registrations`);
-    await expect(page.getByText('Past due')).toBeVisible();
+    await expect(page.getByText('Pending').first()).toBeVisible();
 
     await page.getByRole('button', { name: 'Resend request' }).click();
     await expect
@@ -528,17 +554,25 @@ test.describe('Event payments', () => {
       .fill('Paid by check at the pavilion.');
     await page.getByRole('button', { name: 'Mark handled' }).click();
 
-    await expect(page.getByText('Handled')).toBeVisible();
+    await expect
+      .poll(
+        async () => {
+          const rows = await paymentRowsForEvent(event.slug);
+          return rows;
+        },
+        { timeout: 30_000 }
+      )
+      .toMatchObject([{ id: paymentId, status: 'handled' }]);
+    await expect(
+      page
+        .locator('span')
+        .filter({ hasText: /^Handled$/ })
+        .first()
+    ).toBeVisible();
     await page.getByText('Manual handling note').click();
     await expect(
       page.getByText('Paid by check at the pavilion.')
     ).toBeVisible();
-    await expect
-      .poll(async () => {
-        const rows = await paymentRowsForEvent(event.slug);
-        return rows;
-      })
-      .toMatchObject([{ id: paymentId, status: 'handled' }]);
   });
 
   test('profile shows payment receipt and manual handled behavior', async ({

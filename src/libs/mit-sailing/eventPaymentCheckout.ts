@@ -1,10 +1,11 @@
 import 'server-only';
 import { EventPaymentStatus } from '@/generated/prisma/enums';
+import type { EventPaymentStatus as EventPaymentStatusType } from '@/generated/prisma/enums';
 import type { EventPaymentCheckoutSessionPayment } from '@/libs/stripe/stripeCheckoutSessions';
 import { createEmbeddedEventPaymentCheckoutSession } from '@/libs/stripe/stripeCheckoutSessions';
 
 type EventPaymentCheckoutDbPayment = EventPaymentCheckoutSessionPayment & {
-  status: string;
+  status: EventPaymentStatusType;
   stripeCheckoutSessionId: string | null;
 };
 
@@ -19,15 +20,15 @@ type EventPaymentCheckoutDb = {
         )[];
       };
     }) => Promise<EventPaymentCheckoutDbPayment | null>;
-    update: (args: {
+    updateMany: (args: {
       data: {
         status: typeof EventPaymentStatus.checkout_created;
         stripeCheckoutSessionId: string;
         stripeCustomerId?: string;
         stripePaymentIntentId?: string;
       };
-      where: { id: string };
-    }) => Promise<unknown>;
+      where: { id: string; status: EventPaymentStatusType };
+    }) => Promise<{ count: number }>;
   };
 };
 
@@ -35,7 +36,7 @@ type EventPaymentCheckoutStripe = Parameters<
   typeof createEmbeddedEventPaymentCheckoutSession
 >[0]['stripe'];
 
-const checkoutAllowedStatuses = new Set<string>([
+const checkoutAllowedStatuses = new Set<EventPaymentStatusType>([
   EventPaymentStatus.checkout_created,
   EventPaymentStatus.past_due,
   EventPaymentStatus.pending,
@@ -97,10 +98,13 @@ export async function createEventPaymentCheckoutClientSecret(options: {
     stripe: options.stripe,
   });
 
-  await options.db.eventPayment.update({
+  const updateResult = await options.db.eventPayment.updateMany({
     data: checkoutSessionUpdateData(checkoutSession),
-    where: { id: payment.id },
+    where: { id: payment.id, status: payment.status },
   });
+  if (updateResult.count === 0) {
+    return null;
+  }
 
   return checkoutSession.clientSecret;
 }

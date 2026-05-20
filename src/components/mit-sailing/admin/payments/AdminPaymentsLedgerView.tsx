@@ -174,19 +174,27 @@ export function AdminPaymentsLedgerView(props: AdminPaymentsLedgerViewProps) {
       />
 
       <form className="grid gap-3 rounded-lg border border-border bg-card p-4 md:grid-cols-[1fr_220px_auto] md:items-end">
-        <label className="flex flex-col gap-1.5 text-sm font-medium text-foreground">
+        <label
+          className="flex flex-col gap-1.5 text-sm font-medium text-foreground"
+          htmlFor="admin-payments-ledger-query"
+        >
           {props.t('filter_search')}
           <Input
             defaultValue={props.filters.query ?? ''}
+            id="admin-payments-ledger-query"
             name="q"
             placeholder={props.t('filter_search_placeholder')}
           />
         </label>
-        <label className="flex flex-col gap-1.5 text-sm font-medium text-foreground">
+        <label
+          className="flex flex-col gap-1.5 text-sm font-medium text-foreground"
+          htmlFor="admin-payments-ledger-status"
+        >
           {props.t('filter_status')}
           <select
             className={adminNativeSelectClassName}
             defaultValue={props.filters.status ?? 'all'}
+            id="admin-payments-ledger-status"
             name="status"
           >
             <option value="all">{props.t('filter_status_all')}</option>

@@ -168,6 +168,7 @@ test.describe('Sailing ratings', () => {
     await expect(techRow.getByText('Not yet obtained')).toBeVisible();
     await techRow.getByRole('button', { name: 'Give Rating' }).click();
     await waitForTechRatingRowPresent(true);
+    await page.reload();
     await expect(techRow.getByRole('button', { name: 'Revoke' })).toBeVisible();
     await expect(techRow.getByText('Not yet obtained')).toHaveCount(0);
 

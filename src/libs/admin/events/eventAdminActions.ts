@@ -121,6 +121,7 @@ type PaymentEligibleEvent = {
 };
 
 type RegistrationForPayment = {
+  eventEntryFeeId: string | null;
   eventId: string;
   id: string;
   status: EventRegistrationStatus;
@@ -205,16 +206,24 @@ function adminEventSuccessPath(options: {
   return getI18nPath(path, options.locale);
 }
 
-function checkoutFeeForEvent(event: PaymentEligibleEvent) {
+function checkoutFeeForRegistration(options: {
+  event: PaymentEligibleEvent;
+  registration: Pick<RegistrationForPayment, 'eventEntryFeeId'>;
+}) {
   const eligibility = getEventPaymentEligibility({
-    entryFees: event.entryFees,
-    paymentDeadlineAt: event.paymentDeadlineAt,
-    paymentsEnabled: event.paymentsEnabled,
+    entryFees: options.event.entryFees,
+    paymentDeadlineAt: options.event.paymentDeadlineAt,
+    paymentsEnabled: options.event.paymentsEnabled,
   });
   if (!eligibility.canCreatePayment) {
     return null;
   }
-  return event.entryFees.find((fee) => fee.amountCents > 0) ?? null;
+  return (
+    options.event.entryFees.find(
+      (fee) =>
+        fee.id === options.registration.eventEntryFeeId && fee.amountCents > 0
+    ) ?? null
+  );
 }
 
 function canSendPaymentRequestForEvent(event: PaymentEligibleEvent): boolean {
@@ -248,7 +257,7 @@ async function upsertRegistrationPayment(options: {
   event: PaymentEligibleEvent;
   registration: RegistrationForPayment;
 }): Promise<{ id: string } | null> {
-  const fee = checkoutFeeForEvent(options.event);
+  const fee = checkoutFeeForRegistration(options);
   if (!fee) {
     return null;
   }
@@ -318,11 +327,26 @@ async function enqueuePaymentRequestEmailJob(options: {
   dateKey: string;
   paymentId: string;
 }): Promise<void> {
-  await enqueueEventPaymentEmailJob(getDefaultQueue(), {
-    dateKey: options.dateKey,
-    kind: 'request',
-    paymentId: options.paymentId,
-  });
+  try {
+    await enqueueEventPaymentEmailJob(getDefaultQueue(), {
+      dateKey: options.dateKey,
+      kind: 'request',
+      paymentId: options.paymentId,
+    });
+  } catch (error) {
+    logger.error('Failed to enqueue event payment request email: {error}', {
+      error,
+      paymentId: options.paymentId,
+    });
+  }
+}
+
+function enqueuePaymentRequestEmailJobInBackground(options: {
+  dateKey: string;
+  paymentId: string;
+}): void {
+  // eslint-disable-next-line no-void
+  void enqueuePaymentRequestEmailJob(options);
 }
 
 function verifiedEventIdFromAccess(options: {
@@ -1171,7 +1195,13 @@ export async function updateAdminEventRegistrationStatusAction(
       async (tx) => {
         const registration = await tx.eventRegistration.findFirst({
           where: { id: registrationId, eventId: access.event.id },
-          select: { eventId: true, id: true, status: true, userId: true },
+          select: {
+            eventEntryFeeId: true,
+            eventId: true,
+            id: true,
+            status: true,
+            userId: true,
+          },
         });
         if (!registration) {
           return { errorCode: null, updatedCount: 0 };
@@ -1262,7 +1292,7 @@ export async function updateAdminEventRegistrationStatusAction(
     redirect(registrationsUrlWithError(locale, slug, 'not_found'));
   }
   if (paymentRequestJob) {
-    await enqueuePaymentRequestEmailJob(paymentRequestJob);
+    enqueuePaymentRequestEmailJobInBackground(paymentRequestJob);
   }
   revalidateEventAdminMutation(locale, [slug]);
   redirect(getI18nPath(adminEventRegistrationsPath(slug), locale));
@@ -1276,11 +1306,12 @@ export async function resendAdminEventPaymentRequestAction(
   const access = await requireRegistrationsAdminEvent(locale, slug);
   let foundPayment = false;
   try {
+    const now = new Date();
     const payment = await prisma.eventPayment.findFirst({
       where: {
         eventId: access.event.id,
         id: paymentId,
-        event: { paymentDeadlineAt: { not: null } },
+        event: { paymentDeadlineAt: { gt: now }, paymentsEnabled: true },
         status: {
           in: [
             EventPaymentStatus.checkout_created,
@@ -1294,11 +1325,11 @@ export async function resendAdminEventPaymentRequestAction(
     foundPayment = payment !== null;
     if (payment) {
       const paymentRequestJob = await markPaymentRequestNotification({
-        now: new Date(),
+        now,
         paymentId: payment.id,
         tx: prisma,
       });
-      await enqueuePaymentRequestEmailJob(paymentRequestJob);
+      enqueuePaymentRequestEmailJobInBackground(paymentRequestJob);
     }
   } catch (error) {
     logAdminEventMutationFailure({
@@ -1324,10 +1355,11 @@ export async function resendAllAdminEventPaymentRequestsAction(
   const access = await requireRegistrationsAdminEvent(locale, slug);
   const paymentRequestJobs: { dateKey: string; paymentId: string }[] = [];
   try {
+    const now = new Date();
     const payments = await prisma.eventPayment.findMany({
       where: {
         eventId: access.event.id,
-        event: { paymentDeadlineAt: { not: null } },
+        event: { paymentDeadlineAt: { gt: now }, paymentsEnabled: true },
         status: {
           in: [
             EventPaymentStatus.checkout_created,
@@ -1338,7 +1370,6 @@ export async function resendAllAdminEventPaymentRequestsAction(
       },
       select: { id: true },
     });
-    const now = new Date();
     for (const payment of payments) {
       paymentRequestJobs.push(
         await markPaymentRequestNotification({
@@ -1359,7 +1390,7 @@ export async function resendAllAdminEventPaymentRequestsAction(
     );
   }
   for (const paymentRequestJob of paymentRequestJobs) {
-    await enqueuePaymentRequestEmailJob(paymentRequestJob);
+    enqueuePaymentRequestEmailJobInBackground(paymentRequestJob);
   }
   revalidateEventAdminMutation(locale, [slug]);
   redirect(getI18nPath(adminEventRegistrationsPath(slug), locale));
@@ -1396,7 +1427,11 @@ export async function markAdminEventPaymentHandledAction(
         status: payment.status,
       });
       const result = await prisma.eventPayment.updateMany({
-        where: { eventId: access.event.id, id: paymentId },
+        where: {
+          eventId: access.event.id,
+          id: paymentId,
+          status: payment.status,
+        },
         data: transition,
       });
       updatedCount = result.count;

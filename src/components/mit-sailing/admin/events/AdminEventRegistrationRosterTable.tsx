@@ -1,4 +1,4 @@
-import { Check, MoreHorizontal, RotateCcw, X } from 'lucide-react';
+import { Check, Mail, MoreHorizontal, RotateCcw, X } from 'lucide-react';
 import type * as React from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -9,8 +9,16 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { EventRegistrationStatus } from '@/generated/prisma/enums';
-import { updateAdminEventRegistrationStatusAction } from '@/libs/admin/events/eventAdminActions';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  EventPaymentStatus,
+  EventRegistrationStatus,
+} from '@/generated/prisma/enums';
+import {
+  markAdminEventPaymentHandledAction,
+  resendAdminEventPaymentRequestAction,
+  updateAdminEventRegistrationStatusAction,
+} from '@/libs/admin/events/eventAdminActions';
 import type { AdminEventRegistrationDto } from '@/libs/admin/events/eventAdminQueries';
 import type { AdminEventAccessMode } from '@/libs/admin/events/zenstackEventAccess';
 import { formatEasternDateTime } from '@/libs/mit-sailing/easternTimeFormat';
@@ -61,6 +69,112 @@ function FeeValue(props: {
         )}
       </span>
     </span>
+  );
+}
+
+function paymentStatusLabel(
+  status: NonNullable<AdminEventRegistrationDto['payment']>['status'],
+  t: AdminEventRegistrationsTranslations
+): string {
+  if (status === EventPaymentStatus.checkout_created) {
+    return t('payment_status_checkout_created');
+  }
+  if (status === EventPaymentStatus.paid) {
+    return t('payment_status_paid');
+  }
+  if (status === EventPaymentStatus.past_due) {
+    return t('payment_status_past_due');
+  }
+  if (status === EventPaymentStatus.handled) {
+    return t('payment_status_handled');
+  }
+  if (status === EventPaymentStatus.cancelled) {
+    return t('payment_status_cancelled');
+  }
+  if (status === EventPaymentStatus.refunded) {
+    return t('payment_status_refunded');
+  }
+  if (status === EventPaymentStatus.disputed) {
+    return t('payment_status_disputed');
+  }
+  return t('payment_status_pending');
+}
+
+function PaymentValue(props: {
+  accessMode: AdminEventAccessMode;
+  locale: string;
+  registration: AdminEventRegistrationDto;
+  slug: string;
+  t: AdminEventRegistrationsTranslations;
+}) {
+  const { payment } = props.registration;
+  if (!payment) {
+    return props.t('payment_not_required');
+  }
+  const resendAction = resendAdminEventPaymentRequestAction.bind(
+    null,
+    props.locale,
+    props.slug,
+    payment.id
+  );
+  const markHandledAction = markAdminEventPaymentHandledAction.bind(
+    null,
+    props.locale,
+    props.slug,
+    payment.id
+  );
+  return (
+    <div className="flex min-w-64 flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <AdminEventListStatusBadge tone="neutral">
+          {paymentStatusLabel(payment.status, props.t)}
+        </AdminEventListStatusBadge>
+        <span className="text-sm text-mit-readable-ink">
+          {formatUsdMinorUnitsAsCurrency(payment.amountCents, props.locale)}
+        </span>
+      </div>
+      {props.accessMode === 'editable' && payment.resendEligible ? (
+        <form action={resendAction}>
+          <Button size="sm" type="submit" variant="outline">
+            <Mail aria-hidden className="size-4" />
+            {props.t('payment_resend_request')}
+          </Button>
+        </form>
+      ) : null}
+      {props.accessMode === 'editable' &&
+      payment.status !== EventPaymentStatus.handled ? (
+        <form action={markHandledAction} className="flex flex-col gap-2">
+          <Textarea
+            aria-label={props.t('payment_manual_note_label')}
+            className="min-h-20"
+            name="note"
+            placeholder={props.t('payment_manual_note_placeholder')}
+            required
+          />
+          <Button size="sm" type="submit" variant="outline">
+            {props.t('payment_mark_handled')}
+          </Button>
+        </form>
+      ) : null}
+      {payment.manualHandledNote ? (
+        <details className="text-sm">
+          <summary className="cursor-pointer text-foreground">
+            {props.t('payment_manual_note_summary')}
+          </summary>
+          <p className="mt-1 text-mit-readable-ink">
+            {payment.manualHandledNote}
+          </p>
+          {payment.manualHandledBy && payment.manualHandledAt ? (
+            <p className="mt-1 text-xs text-mit-readable-ink">
+              {props.t('payment_manual_note_meta', {
+                date: formatEasternDateTime(payment.manualHandledAt),
+                name: payment.manualHandledBy.name,
+              })}
+            </p>
+          ) : null}
+        </details>
+      ) : null}
+    </div>
   );
 }
 
@@ -267,6 +381,7 @@ function RegistrationRosterRow(props: {
   questionColumns: RegistrationQuestionColumn[];
   registration: AdminEventRegistrationDto;
   showFee: boolean;
+  showPayment: boolean;
   showPhone: boolean;
   showTeamBoat: boolean;
   slug: string;
@@ -318,6 +433,17 @@ function RegistrationRosterRow(props: {
           />
         </TableCell>
       ) : null}
+      {props.showPayment ? (
+        <TableCell className="px-4 py-3 align-top text-sm text-mit-readable-ink">
+          <PaymentValue
+            accessMode={props.accessMode}
+            locale={props.locale}
+            registration={props.registration}
+            slug={props.slug}
+            t={props.t}
+          />
+        </TableCell>
+      ) : null}
       {props.showTeamBoat ? (
         <TableCell className="px-4 py-3 align-top text-sm text-mit-readable-ink">
           <TeamBoatValue registration={props.registration} t={props.t} />
@@ -353,6 +479,9 @@ export function RegistrationRosterTable(props: {
   slug: string;
   t: AdminEventRegistrationsTranslations;
 }) {
+  const showPayment = props.registrations.some(
+    (registration) => registration.payment !== null
+  );
   return (
     <div className="overflow-x-auto rounded-lg border border-border bg-background">
       <Table aria-label={props.t('registration_table_label')}>
@@ -366,6 +495,9 @@ export function RegistrationRosterTable(props: {
             ) : null}
             {props.showFee ? (
               <TableHead>{props.t('column_fee')}</TableHead>
+            ) : null}
+            {showPayment ? (
+              <TableHead>{props.t('payment_heading')}</TableHead>
             ) : null}
             {props.showTeamBoat ? (
               <TableHead>{props.t('column_team_boat')}</TableHead>
@@ -385,6 +517,7 @@ export function RegistrationRosterTable(props: {
               questionColumns={props.questionColumns}
               registration={registration}
               showFee={props.showFee}
+              showPayment={showPayment}
               showPhone={props.showPhone}
               showTeamBoat={props.showTeamBoat}
               slug={props.slug}

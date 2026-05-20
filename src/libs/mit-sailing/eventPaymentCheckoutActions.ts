@@ -8,6 +8,7 @@ import {
   buildEventPaymentCheckoutReturnUrl,
   createEventPaymentCheckoutClientSecret,
 } from '@/libs/mit-sailing/eventPaymentCheckout';
+import { getI18nPath } from '@/utils/Helpers';
 
 export async function createEventPaymentCheckoutClientSecretAction(
   locale: string,
@@ -16,7 +17,7 @@ export async function createEventPaymentCheckoutClientSecretAction(
 ): Promise<EventPaymentCheckoutActionResult> {
   const user = await requireCurrentUser(
     locale,
-    `/events/${encodeURIComponent(slug)}/checkout`
+    getI18nPath(`/events/${encodeURIComponent(slug)}/checkout`, locale)
   );
   const clientSecret = await createEventPaymentCheckoutClientSecret({
     db: prisma,

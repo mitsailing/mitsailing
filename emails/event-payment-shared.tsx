@@ -1,5 +1,6 @@
 import type * as React from 'react';
 import { Heading, Link, Section, Text } from 'react-email';
+import { safeCmsHref } from '@/libs/mit-sailing/cmsHref';
 import { EmailLayout } from './email-layout';
 import { heading, paragraph, section } from './email-styles';
 
@@ -40,6 +41,23 @@ const actionLink: React.CSSProperties = {
   fontWeight: 700,
 };
 
+function SafeEmailLink(props: {
+  children: React.ReactNode;
+  href: string;
+  style: React.CSSProperties;
+}): React.ReactNode {
+  const href = safeCmsHref(props.href);
+  if (!href) {
+    return props.children;
+  }
+  // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var
+  return (
+    <Link href={href} style={props.style}>
+      {props.children}
+    </Link>
+  );
+}
+
 export function EventPaymentEmailTemplate(
   props: EventPaymentEmailTemplateProps
 ) {
@@ -55,9 +73,9 @@ export function EventPaymentEmailTemplate(
             <Text style={detailLabel}>{detail.label}</Text>
             <Text style={detailValue}>
               {detail.href ? (
-                <Link href={detail.href} style={actionLink}>
+                <SafeEmailLink href={detail.href} style={actionLink}>
                   {detail.value}
-                </Link>
+                </SafeEmailLink>
               ) : (
                 detail.value
               )}
@@ -66,9 +84,9 @@ export function EventPaymentEmailTemplate(
         ))}
         {props.actionHref && props.actionLabel ? (
           <Text style={{ ...paragraph, marginTop: 24 }}>
-            <Link href={props.actionHref} style={actionLink}>
+            <SafeEmailLink href={props.actionHref} style={actionLink}>
               {props.actionLabel}
-            </Link>
+            </SafeEmailLink>
           </Text>
         ) : null}
       </Section>

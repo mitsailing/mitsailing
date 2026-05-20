@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
+import type { Stripe } from 'stripe';
 import { prisma } from '@/libs/DB';
 import { Env } from '@/libs/Env';
 import { logger } from '@/libs/Logger';
-import { nyEventPaymentNotificationDateKey } from '@/libs/mit-sailing/eventPayments';
 import { getStripeClient } from '@/libs/stripe/stripeClient';
 import {
   constructStripeWebhookEvent,
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
   }
 
   const rawBody = await request.text();
-  let event;
+  let event: Stripe.Event;
   try {
     event = constructStripeWebhookEvent({
       rawBody,
@@ -58,11 +58,11 @@ export async function POST(request: Request) {
   if (result.duplicate) {
     return NextResponse.json({ duplicate: true, ok: true });
   }
-  if (result.receiptPaymentId) {
+  if (result.receiptJob) {
     await enqueueEventPaymentEmailJob(getDefaultQueue(), {
-      dateKey: nyEventPaymentNotificationDateKey(new Date()),
+      dateKey: result.receiptJob.dateKey,
       kind: 'receipt',
-      paymentId: result.receiptPaymentId,
+      paymentId: result.receiptJob.paymentId,
     });
   }
   return NextResponse.json({ ok: true });
