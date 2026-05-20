@@ -7,6 +7,7 @@ import arcjet from '@/libs/Arcjet';
 import { auth } from '@/libs/auth';
 import { safeAuthCallbackUrl } from '@/libs/auth/callbackUrl';
 import { routing } from '@/libs/I18nRouting';
+import { resolveLegacyRedirect } from '@/libs/mit-sailing/legacyRedirects';
 
 const intl = createIntlMiddleware(routing);
 
@@ -29,6 +30,14 @@ export default async function proxy(request: NextRequest) {
   }
 
   const { pathname } = request.nextUrl;
+  const legacyRedirect = await resolveLegacyRedirect({
+    locale: routing.defaultLocale,
+    pathname,
+  });
+  if (legacyRedirect) {
+    return NextResponse.redirect(new URL(legacyRedirect, request.url), 308);
+  }
+
   const protectedPattern = /^(?:\/[\w-]+)?\/(?:account|profile)(?:\/|$)/;
   if (protectedPattern.test(pathname)) {
     const session = await auth.api.getSession({
@@ -46,5 +55,8 @@ export default async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!api|_next|_vercel|monitoring|.*\\..*).*)'],
+  matcher: [
+    '/((?!api|_next|_vercel|monitoring|.*\\..*).*)',
+    '/((?!api|_next|_vercel|monitoring).+\\.(?:php|html?))',
+  ],
 };

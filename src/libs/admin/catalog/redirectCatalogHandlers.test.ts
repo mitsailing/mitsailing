@@ -109,8 +109,8 @@ describe('legacyRedirectsCatalogHandlers', () => {
     await expect(
       legacyRedirectsCatalogHandlers.createFromForm(
         legacyRedirectFormData({
-          sourcePath: '/old-page.php',
-          targetPath: '/classes/intro',
+          sourcePath: 'old-page.php?from=nav',
+          targetPath: '/classes/intro/',
         })
       )
     ).resolves.toEqual({ ok: true, id: 'redirect-1' });

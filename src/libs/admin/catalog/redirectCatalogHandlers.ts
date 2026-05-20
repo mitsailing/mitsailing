@@ -1,6 +1,9 @@
 import 'server-only';
-import * as z from 'zod';
 import { Prisma } from '@/generated/prisma/client';
+import {
+  legacyRedirectFormSchema,
+  rawLegacyRedirectFromFormData,
+} from '@/libs/admin/catalog/legacyRedirectSchemas';
 import type {
   CatalogCreateResult,
   CatalogMutationErr,
@@ -9,43 +12,6 @@ import type {
   CatalogServerHandlers,
 } from '@/libs/admin/catalog/types';
 import { prisma } from '@/libs/DB';
-
-function isAllowedInternalTargetPath(value: string): boolean {
-  const path = value.trim();
-  if (!path.startsWith('/') || path.startsWith('//')) {
-    return false;
-  }
-  return !['/api', '/_next', '/monitoring'].some(
-    (blockedPath) => path === blockedPath || path.startsWith(`${blockedPath}/`)
-  );
-}
-
-const legacyRedirectFormSchema = z.object({
-  source: z.enum(['ai_migration', 'manual']),
-  sourcePath: z
-    .string()
-    .trim()
-    .regex(/^\/[\w./-]+\.(?:php|html?)$/i),
-  targetPath: z
-    .string()
-    .trim()
-    .refine((value) => isAllowedInternalTargetPath(value)),
-});
-
-function textFromFormData(formData: FormData, key: string): string {
-  const value = formData.get(key);
-  return typeof value === 'string' ? value : '';
-}
-
-function rawLegacyRedirectFromFormData(
-  formData: FormData
-): Record<string, unknown> {
-  return {
-    source: textFromFormData(formData, 'source'),
-    sourcePath: textFromFormData(formData, 'sourcePath'),
-    targetPath: textFromFormData(formData, 'targetPath'),
-  };
-}
 
 function publicSlugTargetPath(row: { scope: string; slug: string }): string {
   if (row.scope === 'classes') {

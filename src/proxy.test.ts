@@ -24,6 +24,7 @@ vi.mock('next/headers', () => ({
 }));
 
 const getSession = vi.fn();
+const resolveLegacyRedirect = vi.fn();
 
 vi.mock('@/libs/auth', () => ({
   auth: {
@@ -33,6 +34,10 @@ vi.mock('@/libs/auth', () => ({
   },
 }));
 
+vi.mock('@/libs/mit-sailing/legacyRedirects', () => ({
+  resolveLegacyRedirect,
+}));
+
 describe('proxy', () => {
   beforeEach(() => {
     vi.unstubAllEnvs();
@@ -40,6 +45,8 @@ describe('proxy', () => {
     mockProtect.mockResolvedValue({ isDenied: () => false });
     getSession.mockReset();
     getSession.mockResolvedValue(null);
+    resolveLegacyRedirect.mockReset();
+    resolveLegacyRedirect.mockResolvedValue(null);
     intlFn.mockReset();
     intlFn.mockImplementation(() => NextResponse.next());
   });
@@ -157,6 +164,41 @@ describe('proxy', () => {
       const response = await proxy(request);
       expect(response.status).toBe(200);
       expect(response.headers.get('location')).toBeNull();
+      expect(intlFn).toHaveBeenCalledWith(request);
+    });
+  });
+
+  describe('legacy redirects', () => {
+    it('permanently redirects legacy php paths before intl middleware', async () => {
+      resolveLegacyRedirect.mockResolvedValue('/calendar');
+      const { default: proxy } = await import('@/proxy');
+      const request = new NextRequest(
+        new URL('http://localhost:3008/calendar.php?month=may')
+      );
+
+      const response = await proxy(request);
+
+      expect(response.status).toBe(308);
+      expect(response.headers.get('location')).toBe(
+        new URL('/calendar', request.url).toString()
+      );
+      expect(resolveLegacyRedirect).toHaveBeenCalledWith({
+        locale: 'en',
+        pathname: '/calendar.php',
+      });
+      expect(intlFn).not.toHaveBeenCalled();
+    });
+
+    it('continues to intl for unmatched dotted legacy paths', async () => {
+      resolveLegacyRedirect.mockResolvedValue(null);
+      const { default: proxy } = await import('@/proxy');
+      const request = new NextRequest(
+        new URL('http://localhost:3008/missing.php')
+      );
+
+      const response = await proxy(request);
+
+      expect(response.status).toBe(200);
       expect(intlFn).toHaveBeenCalledWith(request);
     });
   });
