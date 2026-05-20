@@ -13,6 +13,16 @@ import type {
 } from '@/libs/admin/catalog/types';
 import { prisma } from '@/libs/DB';
 
+type PrismaMutationErrorContext = {
+  uniqueCode?: string;
+};
+
+/**
+ * Returns the public target path for a stored public slug row.
+ *
+ * @param row - Public slug scope and slug
+ * @returns The public path represented by the row
+ */
 function publicSlugTargetPath(row: { scope: string; slug: string }): string {
   if (row.scope === 'classes') {
     return `/classes/${row.slug}`;
@@ -26,6 +36,12 @@ function publicSlugTargetPath(row: { scope: string; slug: string }): string {
   return row.slug.startsWith('/') ? row.slug : `/${row.slug}`;
 }
 
+/**
+ * Converts a DB public slug row to a catalog row.
+ *
+ * @param row - Public slug row selected from Prisma
+ * @returns Catalog row values for the admin list
+ */
 function publicSlugRowFromDb(row: {
   createdAt: Date;
   id: string;
@@ -47,6 +63,12 @@ function publicSlugRowFromDb(row: {
   };
 }
 
+/**
+ * Converts a legacy redirect DB row to a catalog row.
+ *
+ * @param row - Legacy redirect row selected from Prisma
+ * @returns Catalog row values for the admin list
+ */
 function legacyRedirectRowFromDb(row: {
   createdAt: Date;
   id: string;
@@ -63,10 +85,13 @@ function legacyRedirectRowFromDb(row: {
   };
 }
 
-function mapPrismaMutationError(error: unknown): CatalogMutationErr {
+function mapPrismaMutationError(
+  error: unknown,
+  context?: PrismaMutationErrorContext
+): CatalogMutationErr {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     if (error.code === 'P2002') {
-      return { ok: false, code: 'duplicate_source_path' };
+      return { ok: false, code: context?.uniqueCode ?? 'duplicate_key' };
     }
     if (error.code === 'P2025') {
       return { ok: false, code: 'not_found' };
@@ -171,7 +196,9 @@ export const legacyRedirectsCatalogHandlers: CatalogServerHandlers = {
       });
       return { ok: true, id: created.id };
     } catch (error: unknown) {
-      return mapPrismaMutationError(error);
+      return mapPrismaMutationError(error, {
+        uniqueCode: 'duplicate_source_path',
+      });
     }
   },
 
@@ -192,7 +219,9 @@ export const legacyRedirectsCatalogHandlers: CatalogServerHandlers = {
       });
       return { ok: true };
     } catch (error: unknown) {
-      return mapPrismaMutationError(error);
+      return mapPrismaMutationError(error, {
+        uniqueCode: 'duplicate_source_path',
+      });
     }
   },
 

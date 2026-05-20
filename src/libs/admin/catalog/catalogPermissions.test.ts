@@ -2,6 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { catalogPermissionForOperation } from '@/libs/admin/catalog/catalogPermissions';
 import { Permission } from '@/libs/auth/permissions';
 
+const catalogOperations = [
+  'create',
+  'update',
+  'delete',
+  'reorder',
+  'restore',
+  'view',
+] as const;
+
 describe('catalogPermissionForOperation', () => {
   it.each([
     ['class_categories', Permission.CLASS_CATEGORIES_MANAGE],
@@ -59,20 +68,23 @@ describe('catalogPermissionForOperation', () => {
     ).toBe(edit);
   });
 
-  it('maps redirect resources to the public redirects permission', () => {
-    expect(
-      catalogPermissionForOperation({
-        operation: 'view',
-        resourceId: 'legacy_redirects',
-      })
-    ).toBe(Permission.PUBLIC_REDIRECTS_MANAGE);
-    expect(
-      catalogPermissionForOperation({
-        operation: 'delete',
-        resourceId: 'public_slugs',
-      })
-    ).toBe(Permission.PUBLIC_REDIRECTS_MANAGE);
-  });
+  it.each(catalogOperations)(
+    'maps redirect resource %s operations to the public redirects permission',
+    (operation) => {
+      expect(
+        catalogPermissionForOperation({
+          operation,
+          resourceId: 'legacy_redirects',
+        })
+      ).toBe(Permission.PUBLIC_REDIRECTS_MANAGE);
+      expect(
+        catalogPermissionForOperation({
+          operation,
+          resourceId: 'public_slugs',
+        })
+      ).toBe(Permission.PUBLIC_REDIRECTS_MANAGE);
+    }
+  );
 
   it('allows admin view fallback only for unmapped read operations', () => {
     const resourceId = 'new_catalog_resource';

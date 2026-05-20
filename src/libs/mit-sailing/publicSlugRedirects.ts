@@ -79,6 +79,12 @@ async function canonicalSlugForTarget(options: {
   return boat ? { scope: 'fleet', slug: boat.slug } : null;
 }
 
+/**
+ * Resolves an old public slug to its current canonical public path.
+ *
+ * @param options - Locale, public scope, and requested slug to resolve
+ * @returns A redirect path, or null when no redirect should happen
+ */
 export async function resolvePublicSlugRedirect(
   options: ResolvePublicSlugRedirectOptions
 ): Promise<string | null> {

@@ -1,6 +1,7 @@
 import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { Prisma } from '@/generated/prisma/client';
+import { snapshotSlug } from '@/libs/admin/catalog/catalogSnapshotHelpers';
 import {
   fleetBoatFormSchema,
   rawFleetBoatFromFormData,
@@ -37,18 +38,6 @@ function mapPrismaErr(e: unknown): CatalogMutationErr | null {
     return { ok: false, code: 'foreign_key' };
   }
   return null;
-}
-
-function snapshotSlug(snapshot: unknown): string | null {
-  if (
-    typeof snapshot !== 'object' ||
-    snapshot === null ||
-    Array.isArray(snapshot)
-  ) {
-    return null;
-  }
-  const slug = Object.getOwnPropertyDescriptor(snapshot, 'slug')?.value;
-  return typeof slug === 'string' && slug.trim().length > 0 ? slug : null;
 }
 
 /**

@@ -85,6 +85,13 @@ function optionalCmsRichText(
   return sanitized.length > 0 ? sanitized : undefined;
 }
 
+/**
+ * Safely reads a named own property from an unknown value.
+ *
+ * @param value - Value to inspect
+ * @param key - Property name to read
+ * @returns The property value, or undefined for null, arrays, and non-objects
+ */
 function objectProperty(value: unknown, key: string): unknown {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     return undefined;
@@ -92,6 +99,12 @@ function objectProperty(value: unknown, key: string): unknown {
   return Object.getOwnPropertyDescriptor(value, key)?.value;
 }
 
+/**
+ * Extracts the stored CMS page path from a revision snapshot.
+ *
+ * @param snapshot - CMS page revision snapshot
+ * @returns The page path, or null when the path is missing or empty
+ */
 function cmsPagePathFromSnapshot(snapshot: unknown): string | null {
   const page = objectProperty(snapshot, 'page');
   const path = objectProperty(page, 'path');
