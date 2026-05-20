@@ -60,6 +60,12 @@ function isPayablePayment(
   );
 }
 
+function checkoutTarget(
+  ref: React.RefObject<HTMLElement | null>
+): HTMLElement | null {
+  return ref.current;
+}
+
 function PaymentSummary(props: {
   amount: string;
   labels: EventPaymentCheckoutLabels;
@@ -128,9 +134,11 @@ export function EventPaymentCheckout(props: EventPaymentCheckoutProps) {
   const checkoutRef = React.useRef<HTMLElement | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const { checkoutLoadError } = props.labels;
+  const { clientSecretAction } = props;
+  const { payment } = props;
+  const { publishableKey } = props;
 
   React.useEffect(() => {
-    const { clientSecretAction, payment, publishableKey } = props;
     if (!isPayablePayment(payment) || !publishableKey) {
       return;
     }
@@ -153,11 +161,16 @@ export function EventPaymentCheckout(props: EventPaymentCheckoutProps) {
             return result.clientSecret;
           },
         });
-        if (cancelled || !checkoutRef.current) {
+        if (cancelled) {
           checkout.unmount();
           return;
         }
-        checkout.mount(checkoutRef.current);
+        const target = checkoutTarget(checkoutRef);
+        if (!target) {
+          checkout.unmount();
+          return;
+        }
+        checkout.mount(target);
         mountedCheckout = checkout;
       } catch {
         if (!cancelled) {
@@ -173,12 +186,7 @@ export function EventPaymentCheckout(props: EventPaymentCheckoutProps) {
       cancelled = true;
       mountedCheckout?.unmount();
     };
-  }, [
-    props.clientSecretAction,
-    checkoutLoadError,
-    props.payment,
-    props.publishableKey,
-  ]);
+  }, [checkoutLoadError, clientSecretAction, payment, publishableKey]);
 
   if (!props.payment) {
     return (

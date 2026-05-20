@@ -13,7 +13,7 @@ type EventPaymentCheckoutPageStatus =
   | 'pending'
   | 'refunded';
 
-export type EventPaymentCheckoutPagePayment = {
+type EventPaymentCheckoutPagePayment = {
   id: string;
   amountCents: number;
   receiptUrl: string | null;

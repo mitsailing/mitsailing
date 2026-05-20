@@ -13,32 +13,12 @@ import {
   eventPaymentCheckoutIsPayable,
   getEventPaymentCheckoutPageData,
 } from '@/libs/mit-sailing/eventPaymentCheckoutQueries';
-import type { EventPaymentCheckoutPagePayment } from '@/libs/mit-sailing/eventPaymentCheckoutQueries';
 import { formatUsdMinorUnitsAsCurrency } from '@/libs/money/stripeUsdMinorUnits';
 import { getI18nPath } from '@/utils/Helpers';
 
 type EventCheckoutPageProps = {
   params: Promise<{ locale: string; slug: string }>;
 };
-
-function checkoutPaymentViewModel(options: {
-  locale: string;
-  payment: EventPaymentCheckoutPagePayment | null;
-  statusLabel: string;
-}): EventPaymentCheckoutPayment {
-  if (!options.payment) {
-    return null;
-  }
-  return {
-    amount: formatUsdMinorUnitsAsCurrency(
-      options.payment.amountCents,
-      options.locale
-    ),
-    receiptUrl: options.payment.receiptUrl,
-    status: options.payment.status,
-    statusLabel: options.statusLabel,
-  };
-}
 
 function checkoutPublishableKey(): string | undefined {
   return (
@@ -84,12 +64,18 @@ export default async function EventCheckoutPage(props: EventCheckoutPageProps) {
     past_due: t('checkout_payment_status_past_due'),
     pending: t('checkout_payment_status_pending'),
     refunded: t('checkout_payment_status_refunded'),
-  } satisfies Record<EventPaymentCheckoutPagePayment['status'], string>;
-  const payment = checkoutPaymentViewModel({
-    locale,
-    payment: data.payment,
-    statusLabel: data.payment ? paymentStatusLabels[data.payment.status] : '',
-  });
+  } satisfies Record<
+    NonNullable<EventPaymentCheckoutPayment>['status'],
+    string
+  >;
+  const payment: EventPaymentCheckoutPayment = data.payment
+    ? {
+        amount: formatUsdMinorUnitsAsCurrency(data.payment.amountCents, locale),
+        receiptUrl: data.payment.receiptUrl,
+        status: data.payment.status,
+        statusLabel: paymentStatusLabels[data.payment.status],
+      }
+    : null;
   const clientSecretAction = createEventPaymentCheckoutClientSecretAction.bind(
     null,
     locale,

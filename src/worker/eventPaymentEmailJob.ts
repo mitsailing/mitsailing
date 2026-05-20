@@ -1,11 +1,6 @@
-import { randomUUID } from 'node:crypto';
 import type { JobsOptions, Queue } from 'bullmq';
 import * as z from 'zod';
-import {
-  EventPaymentNotificationKind,
-  EventPaymentStatus,
-} from '@/generated/prisma/enums';
-import type { EventPaymentStatus as EventPaymentStatusType } from '@/generated/prisma/enums';
+import { EventPaymentNotificationKind } from '@/generated/prisma/enums';
 import { EVENTS_TIME_ZONE } from '@/lib/mit-sailing/nyTime';
 import { prisma } from '@/libs/DB';
 import {
@@ -15,11 +10,24 @@ import {
   sendEventPaymentRequestEmail,
 } from '@/libs/email/event-payment-emails';
 import type { SendEmailResult } from '@/libs/email/sendTransactional';
-import { Env } from '@/libs/Env';
 import { logger } from '@/libs/Logger';
 import { nyEventPaymentNotificationDateKey } from '@/libs/mit-sailing/eventPayments';
 import { formatUsdMinorUnitsAsCurrency } from '@/libs/money/stripeUsdMinorUnits';
 import { safeErrorCode, safeErrorName } from '@/libs/safeUnknownError';
+import {
+  EVENT_PAYMENT_REMINDER_STATUSES,
+  formatEventPaymentDate,
+  paymentCanReceiveNotification,
+  paymentEmailParams,
+} from './eventPaymentEmailContent';
+import type { PaymentEmailRow } from './eventPaymentEmailContent';
+import {
+  clearNotificationClaim,
+  clearNotificationClaims,
+  ensureNotificationMarker,
+  notificationKindForJob,
+  recordProviderMessageId,
+} from './eventPaymentNotificationStore';
 
 export const EVENT_PAYMENT_EMAIL_JOB_NAME = 'event-payment-email';
 export const EVENT_PAYMENT_DAILY_NOTIFICATIONS_JOB_NAME =
@@ -56,14 +64,6 @@ const EVENT_PAYMENT_EMAIL_JOB_OPTS: JobsOptions = {
   removeOnFail: { count: 200 },
 };
 
-const reminderStatuses: EventPaymentStatusType[] = [
-  EventPaymentStatus.checkout_created,
-  EventPaymentStatus.past_due,
-  EventPaymentStatus.pending,
-];
-const notificationClaimPrefix = 'claim:';
-const notificationClaimTtlMs = 15 * 60 * 1000;
-
 type EventPaymentEmailJobData = z.infer<typeof eventPaymentEmailJobSchema>;
 
 type EventPaymentQueueData = Exclude<
@@ -76,121 +76,11 @@ export type EventPaymentEmailQueue = Pick<
   'add' | 'upsertJobScheduler'
 >;
 
-type PaymentNotificationKind =
-  | 'admin_digest'
-  | 'receipt'
-  | 'reminder'
-  | 'request';
-
-type PaymentEmailRow = {
-  amountCents: number;
-  event: {
-    addressCity: string | null;
-    addressCountry: string | null;
-    addressLine1: string | null;
-    addressLine2: string | null;
-    addressName: string | null;
-    addressPostalCode: string | null;
-    addressState: string | null;
-    dates?: readonly { startDateTime: Date }[];
-    name: string;
-    paymentDeadlineAt: Date | null;
-    slug: string;
-  };
-  id: string;
-  selectedFeeDescription: string;
-  status: EventPaymentStatus;
-  stripeReceiptUrl: string | null;
-  user: {
-    email: string;
-    name: string | null;
-  };
-};
-
-function notificationKindForJob(
-  kind: 'receipt' | 'reminder' | 'request'
-): PaymentNotificationKind {
-  if (kind === 'receipt') {
-    return EventPaymentNotificationKind.receipt;
-  }
-  if (kind === 'reminder') {
-    return EventPaymentNotificationKind.reminder;
-  }
-  return EventPaymentNotificationKind.request;
-}
-
 function jobId(data: EventPaymentQueueData): string {
   if (data.kind === 'admin_digest') {
     return `${EVENT_PAYMENT_EMAIL_JOB_NAME}:${data.kind}:${data.eventId}:${data.dateKey}`;
   }
   return `${EVENT_PAYMENT_EMAIL_JOB_NAME}:${data.kind}:${data.paymentId}:${data.dateKey}`;
-}
-
-function baseUrl(): string {
-  return Env.NEXT_PUBLIC_APP_URL.endsWith('/')
-    ? Env.NEXT_PUBLIC_APP_URL.slice(0, -1)
-    : Env.NEXT_PUBLIC_APP_URL;
-}
-
-function checkoutUrl(payment: PaymentEmailRow): string {
-  return `${baseUrl()}/events/${encodeURIComponent(payment.event.slug)}/checkout`;
-}
-
-function eventAddressLines(event: PaymentEmailRow['event']): string[] {
-  return [
-    event.addressName,
-    event.addressLine1,
-    event.addressLine2,
-    [event.addressCity, event.addressState, event.addressPostalCode]
-      .filter(Boolean)
-      .join(' '),
-    event.addressCountry,
-  ].filter(
-    (part): part is string => typeof part === 'string' && part.length > 0
-  );
-}
-
-function eventAddressMapHref(lines: readonly string[]): string {
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-    lines.join(', ')
-  )}`;
-}
-
-function formatEventPaymentDate(date: Date): string {
-  return `${new Intl.DateTimeFormat('en-US', {
-    dateStyle: 'long',
-    timeStyle: 'short',
-    timeZone: EVENTS_TIME_ZONE,
-  }).format(date)} ET`;
-}
-
-function paymentEmailParams(options: {
-  dateKey: string;
-  kind: 'receipt' | 'reminder' | 'request';
-  payment: PaymentEmailRow;
-}) {
-  const addressLines = eventAddressLines(options.payment.event);
-  return {
-    amount: formatUsdMinorUnitsAsCurrency(options.payment.amountCents, 'en-US'),
-    checkoutUrl: checkoutUrl(options.payment),
-    deadline: options.payment.event.paymentDeadlineAt
-      ? formatEventPaymentDate(options.payment.event.paymentDeadlineAt)
-      : 'No deadline',
-    emailDedupeKey: `${options.payment.id}:${options.kind}:${options.dateKey}`,
-    eventAddress: addressLines.length > 0 ? addressLines.join(', ') : null,
-    eventAddressUrl:
-      addressLines.length > 0 ? eventAddressMapHref(addressLines) : null,
-    eventName: options.payment.event.name,
-    receiptUrl: options.payment.stripeReceiptUrl,
-    recipientEmail: options.payment.user.email,
-    recipientName: options.payment.user.name ?? options.payment.user.email,
-    selectedFeeDescription: options.payment.selectedFeeDescription,
-  };
-}
-
-function isPaymentPastEventDate(payment: PaymentEmailRow, now: Date): boolean {
-  const dates = payment.event.dates ?? [];
-  return dates.length > 0 && !dates.some((date) => date.startDateTime > now);
 }
 
 async function findPayment(paymentId: string): Promise<PaymentEmailRow | null> {
@@ -216,129 +106,6 @@ async function findPayment(paymentId: string): Promise<PaymentEmailRow | null> {
     where: { id: paymentId },
   });
   return payment;
-}
-
-function paymentCanReceiveNotification(options: {
-  kind: 'receipt' | 'reminder' | 'request';
-  now: Date;
-  payment: PaymentEmailRow;
-}): boolean {
-  if (options.kind === 'receipt') {
-    return options.payment.status === EventPaymentStatus.paid;
-  }
-  return (
-    reminderStatuses.includes(options.payment.status) &&
-    !isPaymentPastEventDate(options.payment, options.now)
-  );
-}
-
-async function ensureNotificationMarker(options: {
-  dateKey: string;
-  kind: PaymentNotificationKind;
-  paymentId: string;
-}): Promise<{ claimId: string; id: string } | null> {
-  const claimId = `${notificationClaimPrefix}${randomUUID()}`;
-  const marker = await prisma.eventPaymentNotification.upsert({
-    create: {
-      kind: options.kind,
-      paymentId: options.paymentId,
-      sentDateKey: options.dateKey,
-    },
-    update: {},
-    where: {
-      paymentId_kind_sentDateKey: {
-        kind: options.kind,
-        paymentId: options.paymentId,
-        sentDateKey: options.dateKey,
-      },
-    },
-  });
-  if (
-    marker.providerMessageId &&
-    !marker.providerMessageId.startsWith(notificationClaimPrefix)
-  ) {
-    return null;
-  }
-
-  const staleClaimBefore = new Date(Date.now() - notificationClaimTtlMs);
-  const claim = await prisma.eventPaymentNotification.updateMany({
-    data: { providerMessageId: claimId },
-    where: {
-      id: marker.id,
-      OR: [
-        { providerMessageId: null },
-        {
-          providerMessageId: { startsWith: notificationClaimPrefix },
-          updatedAt: { lt: staleClaimBefore },
-        },
-      ],
-    },
-  });
-  if (claim.count === 0) {
-    return null;
-  }
-  return { claimId, id: marker.id };
-}
-
-async function clearNotificationClaim(options: {
-  claimId: string;
-  notificationId: string;
-}): Promise<void> {
-  await prisma.eventPaymentNotification.updateMany({
-    data: { providerMessageId: null },
-    where: {
-      id: options.notificationId,
-      providerMessageId: options.claimId,
-    },
-  });
-}
-
-async function recordProviderMessageId(options: {
-  claimId: string;
-  notificationId: string;
-  providerMessageId: string | null;
-}): Promise<void> {
-  await prisma.eventPaymentNotification.updateMany({
-    data: {
-      providerMessageId:
-        options.providerMessageId ?? `sent-without-provider:${options.claimId}`,
-    },
-    where: {
-      id: options.notificationId,
-      providerMessageId: options.claimId,
-    },
-  });
-}
-
-async function clearNotificationClaims(
-  markers: readonly { claimId: string; id: string }[]
-): Promise<void> {
-  const cleanupFailures = await Promise.all(
-    markers.map(async (marker) => {
-      try {
-        await clearNotificationClaim({
-          claimId: marker.claimId,
-          notificationId: marker.id,
-        });
-        return null;
-      } catch (error) {
-        return { error, marker };
-      }
-    })
-  );
-  for (const cleanupFailure of cleanupFailures) {
-    if (!cleanupFailure) {
-      continue;
-    }
-    logger.error(
-      '[event-payment-email] admin_digest cleanup_failed notification_id={notificationId} error_name={errorName} error_code={errorCode}',
-      {
-        errorCode: safeErrorCode(cleanupFailure.error) ?? 'unknown',
-        errorName: safeErrorName(cleanupFailure.error),
-        notificationId: cleanupFailure.marker.id,
-      }
-    );
-  }
 }
 
 async function processPaymentEmailJob(
@@ -431,7 +198,7 @@ async function processAdminDigestJob(
               sentDateKey: data.dateKey,
             },
           },
-          status: { in: reminderStatuses },
+          status: { in: EVENT_PAYMENT_REMINDER_STATUSES },
         },
       },
     },
@@ -536,7 +303,7 @@ async function enqueueDuePaymentReminderJobs(options: {
           sentDateKey: options.dateKey,
         },
       },
-      status: { in: reminderStatuses },
+      status: { in: EVENT_PAYMENT_REMINDER_STATUSES },
     },
   });
   await Promise.all(
@@ -569,7 +336,7 @@ async function enqueueDueAdminDigestJobs(options: {
               sentDateKey: options.dateKey,
             },
           },
-          status: { in: reminderStatuses },
+          status: { in: EVENT_PAYMENT_REMINDER_STATUSES },
         },
       },
     },
