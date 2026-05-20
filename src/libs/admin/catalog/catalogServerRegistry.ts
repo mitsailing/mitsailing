@@ -9,6 +9,10 @@ import {
 } from '@/libs/admin/catalog/cmsCatalogHandlers';
 import { donationFundsCatalogHandlers } from '@/libs/admin/catalog/donationFundsHandlers';
 import { fleetCatalogHandlers } from '@/libs/admin/catalog/fleetCatalogHandlers';
+import {
+  legacyRedirectsCatalogHandlers,
+  publicSlugsCatalogHandlers,
+} from '@/libs/admin/catalog/redirectCatalogHandlers';
 import { sailingClassesCatalogHandlers } from '@/libs/admin/catalog/sailingClassesHandlers';
 import {
   sailingRatingRulesCatalogHandlers,
@@ -30,6 +34,8 @@ const catalogServerHandlers: Partial<
   sailing_classes: sailingClassesCatalogHandlers,
   sailing_ratings: sailingRatingsCatalogHandlers,
   sailing_rating_rules: sailingRatingRulesCatalogHandlers,
+  public_slugs: publicSlugsCatalogHandlers,
+  legacy_redirects: legacyRedirectsCatalogHandlers,
   fleet: fleetCatalogHandlers,
   site_alerts: siteAlertsCatalogHandlers,
   cms_pages: cmsPagesCatalogHandlers,
