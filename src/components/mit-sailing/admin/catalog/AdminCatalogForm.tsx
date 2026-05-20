@@ -19,6 +19,10 @@ import { Label } from '@/components/ui/label';
 import { SubmitButton } from '@/components/ui/submit-button';
 import { Textarea } from '@/components/ui/textarea';
 import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
+import {
+  ADMIN_FORM_REDIRECT_TO_EDIT,
+  ADMIN_FORM_REDIRECT_TO_FIELD,
+} from '@/libs/admin/adminFormRedirect';
 import type {
   AdminFieldKind,
   AdminFormFieldDef,
@@ -941,6 +945,16 @@ function EventCategoryCatalogForm(props: AdminCatalogFormProps) {
         </div>
 
         <div className="flex flex-wrap gap-3 pt-2">
+          {props.headingKey === 'edit_heading' ? (
+            <SubmitButton
+              name={ADMIN_FORM_REDIRECT_TO_FIELD}
+              pendingLabel={tCommon('pending_saving')}
+              value={ADMIN_FORM_REDIRECT_TO_EDIT}
+              variant="outline"
+            >
+              {tCatalog('action_save_and_continue_editing')}
+            </SubmitButton>
+          ) : null}
           <SubmitButton pendingLabel={tCommon('pending_saving')} variant="mit">
             {tCatalog('action_save')}
           </SubmitButton>
@@ -2314,6 +2328,18 @@ function GenericAdminCatalogForm(props: AdminCatalogFormProps) {
       {renderCatalogFormFields()}
 
       <div className="flex flex-wrap gap-3 pt-2">
+        {props.headingKey === 'edit_heading' ? (
+          <SubmitButton
+            name={ADMIN_FORM_REDIRECT_TO_FIELD}
+            pendingLabel={tCommon('pending_saving')}
+            value={ADMIN_FORM_REDIRECT_TO_EDIT}
+            variant="outline"
+          >
+            {ns === 'AdminUsers'
+              ? tUsers('action_save_and_continue_editing')
+              : tCatalog('action_save_and_continue_editing')}
+          </SubmitButton>
+        ) : null}
         <SubmitButton pendingLabel={tCommon('pending_saving')} variant="mit">
           {ns === 'AdminUsers'
             ? tUsers('action_save')

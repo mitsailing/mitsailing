@@ -602,7 +602,6 @@ model Event {
   registrationMode  EventRegistrationMode @default(standard) @map("registration_mode")
   externalRegistrationUrl String?         @map("external_registration_url")
   externalEntriesUrl String?              @map("external_entries_url")
-  internalNotes     String?              @map("internal_notes") @db.Text
   faqVisible        Boolean              @default(false) @map("faq_visible")
   faqContent        String               @default("") @map("faq_content") @db.Text
   noticeOfRaceVisible Boolean            @default(false) @map("notice_of_race_visible")

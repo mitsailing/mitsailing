@@ -105,12 +105,11 @@ async function insertEvent(
           "id", "name", "short_name", "event_category_id", "description",
           "slug", "is_special", "max_participants", "requires_approval",
           "registration_start", "registration_end", "created_by", "created_at",
-          "detail_page_kind", "external_detail_url", "internal_notes",
-          "is_published"
+          "detail_page_kind", "external_detail_url", "is_published"
         )
         VALUES (
           $1, $2, $3, $4, $5, $6, false, 12, false,
-          NULL, NULL, $7, NOW(), 'standard', NULL, NULL, $8
+          NULL, NULL, $7, NOW(), 'standard', NULL, $8
         )
       `,
       [
@@ -133,12 +132,11 @@ async function insertEvent(
         "id", "name", "short_name", "event_category_id", "description",
         "slug", "is_special", "max_participants", "requires_approval",
         "registration_start", "registration_end", "created_at",
-        "detail_page_kind", "external_detail_url", "internal_notes",
-        "is_published"
+        "detail_page_kind", "external_detail_url", "is_published"
       )
       VALUES (
         $1, $2, $3, $4, $5, $6, false, 12, false,
-        NULL, NULL, NOW(), 'standard', NULL, NULL, $7
+        NULL, NULL, NOW(), 'standard', NULL, $7
       )
     `,
     [

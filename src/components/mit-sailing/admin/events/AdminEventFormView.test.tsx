@@ -87,7 +87,6 @@ function createEventFixture(
     faqContent: '',
     faqVisible: false,
     id: 'event-1',
-    internalNotes: 'Private staffing note',
     isPublished: true,
     isSpecial: false,
     maxParticipants: null,
@@ -152,6 +151,14 @@ describe('AdminEventFormView', () => {
     expect(
       screen.getByRole('link', { name: 'Back to events' })
     ).toHaveAttribute('href', '/admin/events/intro-sail');
+  });
+
+  it('links read-only users back to the event index', () => {
+    renderView('readOnly');
+
+    expect(
+      screen.getByRole('link', { name: 'Back to events' })
+    ).toHaveAttribute('href', '/admin/events');
   });
 
   it('does not render a slug textbox for editable access', () => {
@@ -232,7 +239,7 @@ describe('AdminEventFormView', () => {
   });
 
   it('hides internal notes and mutation controls for read-only access', () => {
-    renderView('readOnly', {
+    const view = renderView('readOnly', {
       entryFees: [
         {
           amountCents: 2500,
@@ -268,6 +275,12 @@ describe('AdminEventFormView', () => {
     expect(screen.queryByRole('button', { name: 'Add date' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Add question' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Add fee' })).toBeNull();
+    expect(
+      view.container.querySelector('[aria-labelledby="event-dates"] li > dl')
+    ).not.toBeNull();
+    expect(
+      view.container.querySelector('[aria-labelledby="event-fees"] li > dl')
+    ).not.toBeNull();
   });
 
   it('shows compact editor sections for editable access', () => {

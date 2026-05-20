@@ -418,7 +418,6 @@ export async function seedEvents(p: PrismaClient): Promise<void> {
         createdAt: new Date(e.created_at),
         detailPageKind: detailKind,
         externalDetailUrl: e.external_detail_url ?? null,
-        internalNotes: e.internal_notes ?? null,
         isPublished: e.is_published,
       },
       update: {
@@ -434,7 +433,6 @@ export async function seedEvents(p: PrismaClient): Promise<void> {
         createdAt: new Date(e.created_at),
         detailPageKind: detailKind,
         externalDetailUrl: e.external_detail_url ?? null,
-        internalNotes: e.internal_notes ?? null,
         isPublished: e.is_published,
       },
     });

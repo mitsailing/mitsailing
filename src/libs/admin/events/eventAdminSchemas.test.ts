@@ -30,7 +30,6 @@ function validEventBasicsInput() {
     registrationEnd: '',
     detailPageKind: EventDetailPageKind.standard,
     externalDetailUrl: '',
-    internalNotes: '',
     isPublished: true,
   };
 }
@@ -51,12 +50,20 @@ describe('eventAdminSchemas', () => {
       registrationEnd: '',
       detailPageKind: EventDetailPageKind.standard,
       externalDetailUrl: '',
-      internalNotes: '',
       isPublished: true,
     });
 
     expect(parsed.slug).toBe('spring-regatta-day-1');
     expect(parsed.shortName).toBe('Spring Regatta: Day 1');
+  });
+
+  it('drops removed internal notes input from event basics', () => {
+    const parsed = eventAdminBasicsFormSchema.parse({
+      ...validEventBasicsInput(),
+      internalNotes: 'Private staffing note',
+    });
+
+    expect(parsed).not.toHaveProperty('internalNotes');
   });
 
   it('parses event phone requirement from basics', () => {
@@ -125,7 +132,6 @@ describe('eventAdminSchemas', () => {
       registrationEnd: '',
       detailPageKind: EventDetailPageKind.standard,
       externalDetailUrl: '',
-      internalNotes: '',
       isPublished: true,
       faqVisible: true,
       faqContent: '  <h1>FAQ</h1><script>alert("x")</script>  ',
@@ -164,7 +170,6 @@ describe('eventAdminSchemas', () => {
       registrationEnd: '',
       detailPageKind: EventDetailPageKind.external,
       externalDetailUrl: '',
-      internalNotes: '',
       isPublished: true,
     });
 
@@ -186,7 +191,6 @@ describe('eventAdminSchemas', () => {
       registrationEnd: '',
       detailPageKind: EventDetailPageKind.external,
       externalDetailUrl: 'ftp://example.com/info',
-      internalNotes: '',
       isPublished: true,
     });
 

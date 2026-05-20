@@ -2081,12 +2081,6 @@ export class SchemaType implements SchemaDef {
                     optional: true,
                     attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("external_entries_url") }] }] as readonly AttributeApplication[]
                 },
-                internalNotes: {
-                    name: "internalNotes",
-                    type: "String",
-                    optional: true,
-                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("internal_notes") }] }, { name: "@db.Text" }] as readonly AttributeApplication[]
-                },
                 faqVisible: {
                     name: "faqVisible",
                     type: "Boolean",

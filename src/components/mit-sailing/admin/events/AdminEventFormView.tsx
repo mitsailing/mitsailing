@@ -34,6 +34,10 @@ import {
 } from '@/generated/prisma/enums';
 import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 import {
+  ADMIN_FORM_REDIRECT_TO_EDIT,
+  ADMIN_FORM_REDIRECT_TO_FIELD,
+} from '@/libs/admin/adminFormRedirect';
+import {
   addAdminEventDateAction,
   addAdminEventFeeAction,
   addAdminEventQuestionAction,
@@ -46,7 +50,10 @@ import {
   deleteAdminEventFeeAction,
   deleteAdminEventQuestionAction,
 } from '@/libs/admin/events/eventAdminActions';
-import { adminEventShowPath } from '@/libs/admin/events/eventAdminPaths';
+import {
+  adminEventShowPath,
+  adminEventsIndexPath,
+} from '@/libs/admin/events/eventAdminPaths';
 import type {
   AdminEventCategoryOption,
   AdminEventDateDto,
@@ -81,6 +88,22 @@ type AdminEventFormViewProps = {
   t: AdminEventFormTranslations;
   tCommon: AdminEventCommonTranslations;
 };
+
+function SaveAndContinueEditingButton(props: {
+  t: AdminEventFormTranslations;
+  tCommon: AdminEventCommonTranslations;
+}) {
+  return (
+    <SubmitButton
+      name={ADMIN_FORM_REDIRECT_TO_FIELD}
+      pendingLabel={props.tCommon('pending_saving')}
+      value={ADMIN_FORM_REDIRECT_TO_EDIT}
+      variant="outline"
+    >
+      {props.t('action_save_and_continue_editing')}
+    </SubmitButton>
+  );
+}
 
 function userInitials(user: AdminEventUserOption): string {
   const words = user.name.trim().split(/\s+/);
@@ -508,7 +531,8 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
         </div>
       </OptionalEditorSection>
 
-      <div className="flex justify-end">
+      <div className="flex flex-wrap justify-end gap-2">
+        <SaveAndContinueEditingButton t={props.t} tCommon={props.tCommon} />
         <SubmitButton
           pendingLabel={props.tCommon('pending_saving')}
           variant="mit"
@@ -663,15 +687,17 @@ function ReadOnlyDatesSection(props: AdminEventFormViewProps) {
         <ol className="m-0 flex list-none flex-col gap-3 p-0">
           {props.event.dates.map((date) => (
             <li
-              className="grid gap-3 rounded-lg border border-border bg-background p-3 md:grid-cols-2"
+              className="rounded-lg border border-border bg-background p-3"
               key={date.id}
             >
-              <ReadOnlyValue label={props.t('field_date_start')}>
-                {formatEasternDateTime(date.startDateTime)}
-              </ReadOnlyValue>
-              <ReadOnlyValue label={props.t('field_date_end')}>
-                {formatEasternDateTime(date.endDateTime)}
-              </ReadOnlyValue>
+              <dl className="grid gap-3 md:grid-cols-2">
+                <ReadOnlyValue label={props.t('field_date_start')}>
+                  {formatEasternDateTime(date.startDateTime)}
+                </ReadOnlyValue>
+                <ReadOnlyValue label={props.t('field_date_end')}>
+                  {formatEasternDateTime(date.endDateTime)}
+                </ReadOnlyValue>
+              </dl>
             </li>
           ))}
         </ol>
@@ -758,15 +784,17 @@ function ReadOnlyFeesSection(props: AdminEventFormViewProps) {
         <ol className="m-0 flex list-none flex-col gap-3 p-0">
           {props.event.entryFees.map((fee) => (
             <li
-              className="grid gap-3 rounded-lg border border-border bg-background p-3 md:grid-cols-[1fr_auto]"
+              className="rounded-lg border border-border bg-background p-3"
               key={fee.id}
             >
-              <ReadOnlyValue label={props.t('field_fee_description')}>
-                {fee.description}
-              </ReadOnlyValue>
-              <ReadOnlyValue label={props.t('field_fee_amount')}>
-                {eventAdminCentsToDollars(fee.amountCents)}
-              </ReadOnlyValue>
+              <dl className="grid gap-3 md:grid-cols-[1fr_auto]">
+                <ReadOnlyValue label={props.t('field_fee_description')}>
+                  {fee.description}
+                </ReadOnlyValue>
+                <ReadOnlyValue label={props.t('field_fee_amount')}>
+                  {eventAdminCentsToDollars(fee.amountCents)}
+                </ReadOnlyValue>
+              </dl>
             </li>
           ))}
         </ol>
@@ -795,7 +823,7 @@ function DateRow(props: {
     props.date.id
   );
   return (
-    <li className="grid gap-3 rounded-lg border border-border bg-background p-3 md:grid-cols-[1fr_1fr_auto_auto] md:items-end">
+    <li className="grid gap-3 rounded-lg border border-border bg-background p-3 md:grid-cols-[1fr_1fr_auto_auto_auto] md:items-end">
       <form action={updateAction} className="contents">
         <AdminEventField
           htmlFor={`date-start-${props.date.id}`}
@@ -831,6 +859,7 @@ function DateRow(props: {
             />
           )}
         </AdminEventField>
+        <SaveAndContinueEditingButton t={props.t} tCommon={props.tCommon} />
         <SubmitButton
           pendingLabel={props.tCommon('pending_saving')}
           variant="outline"
@@ -882,7 +911,7 @@ function EventDatesSection(props: AdminEventFormViewProps) {
       )}
       <form
         action={addAction}
-        className="grid gap-3 border-t border-dashed border-border pt-4 md:grid-cols-[1fr_1fr_auto] md:items-end"
+        className="grid gap-3 border-t border-dashed border-border pt-4 md:grid-cols-[1fr_1fr_auto_auto] md:items-end"
       >
         <AdminEventField
           htmlFor="new-date-start"
@@ -914,6 +943,7 @@ function EventDatesSection(props: AdminEventFormViewProps) {
             />
           )}
         </AdminEventField>
+        <SaveAndContinueEditingButton t={props.t} tCommon={props.tCommon} />
         <SubmitButton
           pendingLabel={props.tCommon('pending_adding')}
           variant="mit"
@@ -970,7 +1000,8 @@ function EventAdminsSection(props: AdminEventFormViewProps) {
             );
           })}
         </ul>
-        <div className="flex justify-end">
+        <div className="flex flex-wrap justify-end gap-2">
+          <SaveAndContinueEditingButton t={props.t} tCommon={props.tCommon} />
           <SubmitButton
             pendingLabel={props.tCommon('pending_saving')}
             variant="outline"
@@ -1099,7 +1130,8 @@ function QuestionRow(props: {
     <li className="rounded-lg border border-border bg-background p-3">
       <form action={updateAction} className="flex flex-col gap-3">
         <QuestionFields question={props.question} t={props.t} />
-        <div className="flex justify-end gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
+          <SaveAndContinueEditingButton t={props.t} tCommon={props.tCommon} />
           <SubmitButton
             pendingLabel={props.tCommon('pending_saving')}
             variant="outline"
@@ -1170,7 +1202,8 @@ function EventQuestionsSection(props: AdminEventFormViewProps) {
           suggestedDisplayOrder={suggestedDisplayOrder}
           t={props.t}
         />
-        <div className="flex justify-end">
+        <div className="flex flex-wrap justify-end gap-2">
+          <SaveAndContinueEditingButton t={props.t} tCommon={props.tCommon} />
           <SubmitButton
             pendingLabel={props.tCommon('pending_adding')}
             variant="mit"
@@ -1249,7 +1282,8 @@ function FeeRow(props: {
     <li className="rounded-lg border border-border bg-background p-3">
       <form action={updateAction} className="flex flex-col gap-3">
         <FeeFields fee={props.fee} t={props.t} />
-        <div className="flex justify-end">
+        <div className="flex flex-wrap justify-end gap-2">
+          <SaveAndContinueEditingButton t={props.t} tCommon={props.tCommon} />
           <SubmitButton
             pendingLabel={props.tCommon('pending_saving')}
             variant="outline"
@@ -1308,7 +1342,8 @@ function EventFeesSection(props: AdminEventFormViewProps) {
           {props.t('add_fee_heading')}
         </h3>
         <FeeFields t={props.t} />
-        <div className="flex justify-end">
+        <div className="flex flex-wrap justify-end gap-2">
+          <SaveAndContinueEditingButton t={props.t} tCommon={props.tCommon} />
           <SubmitButton
             pendingLabel={props.tCommon('pending_adding')}
             variant="mit"
@@ -1338,9 +1373,14 @@ function StripePlaceholder(props: { t: AdminEventFormTranslations }) {
 }
 
 export function AdminEventFormView(props: AdminEventFormViewProps) {
+  const backHref =
+    props.accessMode === 'readOnly'
+      ? adminEventsIndexPath()
+      : adminEventShowPath(props.event.slug);
+
   return (
     <div className="flex w-full max-w-4xl flex-col gap-6">
-      <AdminEventBackLink href={adminEventShowPath(props.event.slug)}>
+      <AdminEventBackLink href={backHref}>
         <ArrowLeft aria-hidden className="size-4" />
         {props.t('back_to_events')}
       </AdminEventBackLink>

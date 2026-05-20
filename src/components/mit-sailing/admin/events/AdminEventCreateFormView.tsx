@@ -201,21 +201,6 @@ export function AdminEventCreateFormView(props: AdminEventCreateFormViewProps) {
               )}
             </AdminEventField>
           </div>
-
-          <AdminEventField
-            htmlFor="event-internal-notes"
-            hint={props.t('field_internal_notes_hint')}
-            label={props.t('field_internal_notes')}
-          >
-            {(controlProps) => (
-              <Textarea
-                className="min-h-24"
-                id="event-internal-notes"
-                name="internalNotes"
-                {...controlProps}
-              />
-            )}
-          </AdminEventField>
         </AdminEventFormSection>
 
         <AdminEventFormSection

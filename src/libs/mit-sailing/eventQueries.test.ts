@@ -135,7 +135,6 @@ describe('getPublishedEventForPublicBySlug', () => {
       externalEntriesUrl: 'https://example.com/entries',
       faqContent: '<p>Hidden FAQ</p>',
       faqVisible: false,
-      internalNotes: 'Private staffing note',
       isPublished: true,
       usesTeamRegistration: true,
       boatsPerTeam: 1,
@@ -231,7 +230,6 @@ describe('getPublishedEventForPublicBySlug', () => {
     expect(result?.pendingRegistrationCount).toBe(2);
     expect(result).not.toHaveProperty('faqContent');
     expect(result).not.toHaveProperty('faqVisible');
-    expect(result).not.toHaveProperty('internalNotes');
     expect(result).not.toHaveProperty('isPublished');
     expect(result).toMatchObject({
       externalEntriesUrl: 'https://example.com/entries',

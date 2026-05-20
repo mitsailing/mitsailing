@@ -269,7 +269,7 @@ describe('AdminEventShowView', () => {
     expect(document.body.textContent).not.toContain('<strong>');
   });
 
-  it('sanitizes raw public content section bodies', () => {
+  it('renders sanitized public content section bodies', () => {
     render(
       <AdminEventShowView
         errorCode={null}
@@ -277,7 +277,7 @@ describe('AdminEventShowView', () => {
           ...eventFixture('editable'),
           publicContentSections: [
             {
-              body: '<p>Ask the race desk.</p><img src="x" onerror="alert(1)">',
+              body: '<p>Ask the race desk.</p>',
               id: 'faq',
               titleKey: 'content_faq_title',
             },

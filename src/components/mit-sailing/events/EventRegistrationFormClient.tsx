@@ -298,6 +298,7 @@ function SwimAgreementField(props: {
           }
           aria-invalid={errorMessage ? true : undefined}
           aria-labelledby="event-registration-swim-heading event-registration-swim-agreement-copy"
+          aria-required={true}
           className="mt-0.5 shrink-0"
           defaultChecked={fieldValues(
             props.state,
@@ -454,6 +455,8 @@ function TeamBoatMemberField(props: {
           defaultValue={fieldValue(props.state, nameFieldName)}
           id={nameControlId}
           name={nameFieldName}
+          required
+          aria-required="true"
           type="text"
         />
         <FieldError id={nameErrorId} message={nameErrorMessage} />
@@ -472,6 +475,8 @@ function TeamBoatMemberField(props: {
           defaultValue={fieldValue(props.state, emailFieldName)}
           id={emailControlId}
           name={emailFieldName}
+          required
+          aria-required="true"
           type="email"
         />
         <FieldError id={emailErrorId} message={emailErrorMessage} />

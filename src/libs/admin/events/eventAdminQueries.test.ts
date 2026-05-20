@@ -354,7 +354,6 @@ describe('event admin queries', () => {
       boatsPerTeam: 2,
       personsPerBoat: 1,
       allowRepeatTeamCaptain: true,
-      internalNotes: null,
       isPublished: true,
       dates: [],
       admins: [],
@@ -779,7 +778,7 @@ describe('event admin queries', () => {
       personsPerBoat: 2,
       publicContentSections: [
         {
-          body: 'Learn how to sail.',
+          body: '<p>Learn how to sail.</p>',
           id: 'description',
           titleKey: 'content_description_title',
         },
@@ -875,6 +874,58 @@ describe('event admin queries', () => {
         body: '<p>Scores</p>',
         id: 'results',
         titleKey: 'content_results_title',
+      },
+    ]);
+  });
+
+  it('sanitizes description public content before returning admin show data', async () => {
+    mocks.protectedEventFindFirst.mockResolvedValue({ id: 'event-1' });
+    mocks.eventFindUnique.mockResolvedValue({
+      admins: [],
+      category: { id: 'category-1', name: 'Clinic' },
+      dates: [],
+      description:
+        '<p>Learn <strong>fast</strong>.</p><script>alert("x")</script><a href="javascript:alert(1)">bad link</a>',
+      detailPageKind: 'standard',
+      externalDetailUrl: null,
+      externalEntriesUrl: null,
+      externalRegistrationUrl: null,
+      faqContent: '',
+      faqVisible: false,
+      id: 'event-1',
+      isPublished: true,
+      isSpecial: false,
+      maxParticipants: null,
+      name: 'Intro Sail',
+      noticeOfRaceContent: '',
+      noticeOfRaceVisible: false,
+      registrationEnd: null,
+      registrationQuestions: [],
+      registrationStart: null,
+      registrations: [],
+      requiresApproval: false,
+      requiresPhone: false,
+      resultsContent: '',
+      resultsVisible: false,
+      sailingInstructionsContent: '',
+      sailingInstructionsVisible: false,
+      shortName: 'Intro',
+      slug: 'intro-sail',
+    });
+    const { getAdminEventShowBySlug } =
+      await import('@/libs/admin/events/eventAdminQueries');
+
+    const result = await getAdminEventShowBySlug({
+      accessMode: 'editable',
+      db,
+      slug: 'intro-sail',
+    });
+
+    expect(result?.publicContentSections).toEqual([
+      {
+        body: '<p>Learn <strong>fast</strong>.</p>bad link',
+        id: 'description',
+        titleKey: 'content_description_title',
       },
     ]);
   });

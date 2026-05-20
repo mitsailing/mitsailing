@@ -221,6 +221,11 @@ describe('EventRegistrationForm', () => {
       await screen.findByText('Accept the swim agreement before registering.')
     ).toBeVisible();
     expect(
+      screen.getByRole('switch', {
+        name: 'I agree to the Swim Agreement and Liability Release.',
+      })
+    ).toHaveAttribute('aria-required', 'true');
+    expect(
       screen.getByRole('combobox', { name: 'T-shirt sizeRequired' })
     ).toHaveValue('L');
     expect(
@@ -392,6 +397,14 @@ describe('EventRegistrationForm', () => {
     expect(helmEmail).toHaveAttribute('name', 'teamBoatMember_0_email');
     expect(crewName).toHaveAttribute('name', 'teamBoatMember_1_name');
     expect(crewEmail).toHaveAttribute('name', 'teamBoatMember_1_email');
+    expect(helmName).toBeRequired();
+    expect(helmEmail).toBeRequired();
+    expect(crewName).toBeRequired();
+    expect(crewEmail).toBeRequired();
+    expect(helmName).toHaveAttribute('aria-required', 'true');
+    expect(helmEmail).toHaveAttribute('aria-required', 'true');
+    expect(crewName).toHaveAttribute('aria-required', 'true');
+    expect(crewEmail).toHaveAttribute('aria-required', 'true');
 
     await user.type(teamName, '  Tech Dinghies  ');
     await user.type(helmName, 'Ada Lovelace');

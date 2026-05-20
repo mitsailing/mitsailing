@@ -44,8 +44,6 @@ export type Event = {
   detail_page_kind?: EventDetailPageKind;
   /** When `detail_page_kind` is `external`, destination URL (https…). */
   external_detail_url?: string | null;
-  /** Staff-only notes; never shown on the public event page. */
-  internal_notes?: string;
   /**
    * When false, the event is hidden from the public calendar and registration
    * is disabled; the `/events/:slug` URL still works for anyone with the link.

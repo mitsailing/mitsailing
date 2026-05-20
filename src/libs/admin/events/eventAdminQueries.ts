@@ -6,6 +6,7 @@ import { ASSIGNABLE_EVENT_ADMIN_ROLES } from '@/libs/admin/events/eventAdminSche
 import type { AdminEventAccessMode } from '@/libs/admin/events/zenstackEventAccess';
 import { eventAccessModeWithAuthContext } from '@/libs/admin/events/zenstackEventAccess';
 import { prisma } from '@/libs/DB';
+import { sanitizeCmsRichTextHtml } from '@/libs/mit-sailing/cmsRichText';
 import {
   publicContentSectionsFromEvent,
   questionOptionsFromJson,
@@ -102,7 +103,6 @@ export type AdminEventEditorDto = {
   registrationMode?: AdminEventRegistrationMode | null;
   externalRegistrationUrl?: string | null;
   externalEntriesUrl?: string | null;
-  internalNotes: string | null;
   faqVisible?: boolean;
   faqContent?: string;
   noticeOfRaceVisible?: boolean;
@@ -331,8 +331,8 @@ function compareRegistrations(
 function publicContentSectionsFromDescription(
   description: string
 ): AdminEventPublicContentSectionDto[] {
-  const body = description.trim();
-  if (body.length === 0) {
+  const body = sanitizeCmsRichTextHtml(description);
+  if (!body) {
     return [];
   }
   return [{ body, id: 'description', titleKey: 'content_description_title' }];
@@ -626,7 +626,6 @@ export async function getAdminEventEditorDataBySlug(options: {
             registrationMode: true,
             externalRegistrationUrl: true,
             externalEntriesUrl: true,
-            internalNotes: true,
             faqVisible: true,
             faqContent: true,
             noticeOfRaceVisible: true,
