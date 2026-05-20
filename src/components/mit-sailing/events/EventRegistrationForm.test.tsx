@@ -311,6 +311,29 @@ describe('EventRegistrationForm', () => {
     );
   });
 
+  it('replaces prefilled phone when typing a new phone', async () => {
+    const user = userEvent.setup();
+    const action = vi.fn();
+
+    render(
+      <EventRegistrationForm
+        createRegistrationAction={action}
+        event={event}
+        formPermalink="/events/learn-to-sail/register"
+        initialPhone="+16175550100"
+        labels={labels}
+        locale="en"
+      />
+    );
+
+    const phoneInput = screen.getByRole('textbox', { name: /phone/i });
+
+    await user.click(phoneInput);
+    await user.keyboard('857-555-0101');
+
+    expect(phoneInput).toHaveValue('857-555-0101');
+  });
+
   it('toggles swim agreement from the agreement row text', async () => {
     const user = userEvent.setup();
     const action = vi.fn();

@@ -358,6 +358,9 @@ function PhoneField(props: {
         id={controlId}
         inputMode="tel"
         name="phone"
+        onFocus={(event) => {
+          event.currentTarget.select();
+        }}
         required
         type="tel"
       />
