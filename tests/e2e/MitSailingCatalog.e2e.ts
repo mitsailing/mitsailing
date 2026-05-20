@@ -151,54 +151,62 @@ async function resetPavilionReservationRequest(props: {
   }
 }
 
+async function insertPublicSlugSmokeRows(): Promise<void> {
+  await pool.query(
+    `
+      INSERT INTO public_slugs (
+        id,
+        slug,
+        sluggable_type,
+        sluggable_id,
+        scope,
+        source,
+        created_at
+      )
+      SELECT
+        'e2e-class-old-slug',
+        'old-intro-sailing',
+        'SailingClass',
+        id,
+        'classes',
+        'migration',
+        NOW()
+      FROM sailing_classes
+      WHERE slug = 'intro-sailing-101'
+      ON CONFLICT (slug, sluggable_type, scope) DO UPDATE
+        SET sluggable_id = EXCLUDED.sluggable_id
+    `
+  );
+}
+
+async function insertLegacyRedirectSmokeRows(): Promise<void> {
+  await pool.query(
+    `
+      INSERT INTO legacy_redirects (
+        id,
+        source_path,
+        target_path,
+        source,
+        created_at
+      )
+      VALUES (
+        'e2e-calendar-php',
+        '/calendar.php',
+        '/calendar',
+        'manual',
+        NOW()
+      )
+      ON CONFLICT (source_path) DO UPDATE
+        SET target_path = EXCLUDED.target_path,
+            source = EXCLUDED.source
+    `
+  );
+}
+
 async function setupPublicRedirectSmokeRows(): Promise<void> {
   try {
-    await pool.query(
-      `
-        INSERT INTO public_slugs (
-          id,
-          slug,
-          sluggable_type,
-          sluggable_id,
-          scope,
-          source,
-          created_at
-        )
-        SELECT
-          'e2e-class-old-slug',
-          'old-intro-sailing',
-          'SailingClass',
-          id,
-          'classes',
-          'migration',
-          NOW()
-        FROM sailing_classes
-        WHERE slug = 'intro-sailing-101'
-        ON CONFLICT (slug, sluggable_type, scope) DO UPDATE
-          SET sluggable_id = EXCLUDED.sluggable_id
-      `
-    );
-    await pool.query(
-      `
-        INSERT INTO legacy_redirects (
-          id,
-          source_path,
-          target_path,
-          source,
-          created_at
-        )
-        VALUES (
-          'e2e-calendar-php',
-          '/calendar.php',
-          '/calendar',
-          'manual',
-          NOW()
-        )
-        ON CONFLICT (source_path) DO UPDATE
-          SET target_path = EXCLUDED.target_path,
-              source = EXCLUDED.source
-      `
-    );
+    await insertPublicSlugSmokeRows();
+    await insertLegacyRedirectSmokeRows();
   } catch (error) {
     throw new Error('setupPublicRedirectSmokeRows failed.', {
       cause: error,
