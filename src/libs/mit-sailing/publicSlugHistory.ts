@@ -30,7 +30,6 @@ export async function recordPublicSlugHistory(
     where: {
       scope: options.scope,
       slug: options.currentSlug,
-      sluggableId: options.sluggableId,
       sluggableType: options.sluggableType,
     },
   });

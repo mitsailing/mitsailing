@@ -38,7 +38,6 @@ describe('publicSlugHistory', () => {
       where: {
         scope: 'classes',
         slug: 'new-path',
-        sluggableId: 'class-1',
         sluggableType: 'SailingClass',
       },
     });
@@ -72,11 +71,31 @@ describe('publicSlugHistory', () => {
       where: {
         scope: 'cms',
         slug: 'same-path',
-        sluggableId: 'page-1',
         sluggableType: 'CmsPage',
       },
     });
     expect(mocks.createMany).not.toHaveBeenCalled();
+  });
+
+  it('removes stale aliases matching a reused canonical value across targets', async () => {
+    const { recordPublicSlugHistory } =
+      await import('@/libs/mit-sailing/publicSlugHistory');
+
+    await recordPublicSlugHistory({
+      currentSlug: 'reused-path',
+      previousSlug: 'old-path',
+      scope: 'events',
+      sluggableId: 'event-2',
+      sluggableType: 'Event',
+    });
+
+    expect(mocks.deleteMany).toHaveBeenCalledWith({
+      where: {
+        scope: 'events',
+        slug: 'reused-path',
+        sluggableType: 'Event',
+      },
+    });
   });
 
   it('deletes history by sluggable target', async () => {
