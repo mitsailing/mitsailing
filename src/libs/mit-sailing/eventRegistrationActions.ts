@@ -156,17 +156,74 @@ function publicEventRegistrationFieldNames(
 
 type PublicEventRegistrationTeamInput = {
   teamName: string;
-  boatMembers: {
-    boatNumber: number;
-    position: number;
-    fullName: string;
-    email: string;
-  }[];
+  boatMembers: PublicEventRegistrationTeamMemberInput[];
+};
+
+type PublicEventRegistrationTeamMemberInput = {
+  boatNumber: number;
+  position: number;
+  fullName: string;
+  email: string;
+};
+
+type PublicEventRegistrationLockedEvent = {
+  id: string;
+  isPublished: boolean;
+  maxParticipants: number | null;
+  requiresApproval: boolean;
+  requiresPhone: boolean;
+  usesTeamRegistration: boolean;
+  boatsPerTeam: number;
+  personsPerBoat: number;
+  allowRepeatTeamCaptain: boolean;
+  registrationStart: Date | null;
+  registrationEnd: Date | null;
+  entryFees: { id: string }[];
 };
 
 function trimmedFormString(formData: FormData, fieldName: string): string {
   const value = formData.get(fieldName);
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function parsePublicEventRegistrationTeamMemberFromForm(options: {
+  boatNumber: number;
+  boatsPerTeam: number;
+  formData: FormData;
+  position: number;
+}):
+  | { ok: true; member: PublicEventRegistrationTeamMemberInput | null }
+  | {
+      ok: false;
+      code: EventRegistrationMutationCode;
+      fieldName: string;
+    } {
+  const nameFieldName = teamBoatMemberNameFieldName(options);
+  const emailFieldName = teamBoatMemberEmailFieldName(options);
+  const fullName = trimmedFormString(options.formData, nameFieldName);
+  const email = trimmedFormString(options.formData, emailFieldName);
+
+  if (fullName.length === 0 && email.length === 0) {
+    return { ok: true, member: null };
+  }
+  if (fullName.length === 0) {
+    return { ok: false, code: 'questions_required', fieldName: nameFieldName };
+  }
+  if (email.length === 0) {
+    return { ok: false, code: 'questions_required', fieldName: emailFieldName };
+  }
+  if (!emailField.safeParse(email).success) {
+    return { ok: false, code: 'answers_invalid', fieldName: emailFieldName };
+  }
+  return {
+    ok: true,
+    member: {
+      boatNumber: options.boatNumber,
+      email,
+      fullName,
+      position: options.position,
+    },
+  };
 }
 
 function parsePublicEventRegistrationTeamFromForm(options: {
@@ -198,31 +255,20 @@ function parsePublicEventRegistrationTeamFromForm(options: {
     boatNumber += 1
   ) {
     for (let position = 0; position < options.personsPerBoat; position += 1) {
-      const nameFieldName = teamBoatMemberNameFieldName({
+      const parsedMember = parsePublicEventRegistrationTeamMemberFromForm({
         boatNumber,
         boatsPerTeam: options.boatsPerTeam,
+        formData: options.formData,
         position,
       });
-      const emailFieldName = teamBoatMemberEmailFieldName({
-        boatNumber,
-        boatsPerTeam: options.boatsPerTeam,
-        position,
-      });
-      const fullName = trimmedFormString(options.formData, nameFieldName);
-      const email = trimmedFormString(options.formData, emailFieldName);
-      if (fullName.length === 0 && email.length === 0) {
+      if (!parsedMember.ok) {
+        fieldErrors[parsedMember.fieldName] = parsedMember.code;
         continue;
       }
-      if (fullName.length === 0 || email.length === 0) {
-        fieldErrors[fullName.length === 0 ? nameFieldName : emailFieldName] =
-          'questions_required';
+      if (!parsedMember.member) {
         continue;
       }
-      if (!emailField.safeParse(email).success) {
-        fieldErrors[emailFieldName] = 'answers_invalid';
-        continue;
-      }
-      boatMembers.push({ boatNumber, email, fullName, position });
+      boatMembers.push(parsedMember.member);
     }
   }
 
@@ -319,6 +365,168 @@ async function syncPublicRegistrationPhoneToProfile(options: {
   await options.tx.user.update({
     data: { phone: options.phone },
     where: { id: options.userId },
+  });
+}
+
+function lockedPublicEventRegistrationContext(options: {
+  event: PublicEventRegistrationLockedEvent | null;
+  now: Date;
+  phone: string | null;
+}): {
+  event: PublicEventRegistrationLockedEvent;
+  phone: string;
+} {
+  if (!options.event || !options.event.isPublished) {
+    throw new EventRegistrationFlowError('not_found');
+  }
+  if (
+    !isPublicEventRegistrationWindowOpen({
+      now: options.now,
+      registrationStart: options.event.registrationStart,
+      registrationEnd: options.event.registrationEnd,
+    })
+  ) {
+    throw new EventRegistrationFlowError('closed');
+  }
+  if (options.phone === null) {
+    throw new EventRegistrationFlowError('questions_required');
+  }
+  return { event: options.event, phone: options.phone };
+}
+
+function parseLockedPublicEventRegistrationTeam(options: {
+  event: PublicEventRegistrationLockedEvent;
+  formData: FormData;
+}): PublicEventRegistrationTeamInput | null {
+  if (!options.event.usesTeamRegistration) {
+    return null;
+  }
+  const lockedTeamRegistration = parsePublicEventRegistrationTeamFromForm({
+    boatsPerTeam: options.event.boatsPerTeam,
+    formData: options.formData,
+    personsPerBoat: options.event.personsPerBoat,
+  });
+  if (!lockedTeamRegistration.ok) {
+    throw new EventRegistrationFlowError(lockedTeamRegistration.code);
+  }
+  return lockedTeamRegistration.team;
+}
+
+async function assertPublicEventRegistrationCapacity(options: {
+  event: PublicEventRegistrationLockedEvent;
+  eventId: string;
+  existingRegistrationId: string | null;
+  tx: Prisma.TransactionClient;
+}) {
+  if (options.event.requiresApproval) {
+    return;
+  }
+  const approvedSlotsExcludingSelf = await options.tx.eventRegistration.count({
+    where: {
+      eventId: options.eventId,
+      ...(options.existingRegistrationId
+        ? { id: { not: options.existingRegistrationId } }
+        : {}),
+      status: EventRegistrationStatus.approved,
+    },
+  });
+  if (
+    options.event.maxParticipants !== null &&
+    approvedSlotsExcludingSelf >= options.event.maxParticipants
+  ) {
+    throw new EventRegistrationFlowError('full');
+  }
+}
+
+async function upsertPublicEventRegistration(options: {
+  eventEntryFeeId: string | null;
+  eventId: string;
+  existingRegistrationId: string | null;
+  now: Date;
+  phone: string;
+  registrationId: string;
+  status: EventRegistrationStatus;
+  tx: Prisma.TransactionClient;
+  userId: string;
+}) {
+  if (options.existingRegistrationId) {
+    await options.tx.eventRegistration.update({
+      where: { id: options.existingRegistrationId },
+      data: {
+        status: options.status,
+        phone: options.phone,
+        eventEntryFeeId: options.eventEntryFeeId,
+        swimAgreementAcceptedAt: options.now,
+        registrationAnswers: { deleteMany: {} },
+      },
+    });
+    return;
+  }
+  await options.tx.eventRegistration.create({
+    data: {
+      id: options.registrationId,
+      eventId: options.eventId,
+      userId: options.userId,
+      status: options.status,
+      phone: options.phone,
+      eventEntryFeeId: options.eventEntryFeeId,
+      createdAt: options.now,
+      swimAgreementAcceptedAt: options.now,
+    },
+  });
+}
+
+async function replacePublicEventRegistrationAnswers(options: {
+  answers: { questionId: string; value: string }[];
+  registrationId: string;
+  tx: Prisma.TransactionClient;
+}) {
+  const answers = options.answers.map((answer) => ({
+    id: randomUUID(),
+    registrationId: options.registrationId,
+    questionId: answer.questionId,
+    value: answer.value,
+  }));
+
+  if (answers.length > 0) {
+    await options.tx.eventRegistrationAnswer.createMany({ data: answers });
+  }
+}
+
+async function replacePublicEventRegistrationTeam(options: {
+  allowRepeatCaptain: boolean;
+  registrationId: string;
+  team: PublicEventRegistrationTeamInput | null;
+  tx: Prisma.TransactionClient;
+}) {
+  if (!options.team) {
+    return;
+  }
+  await options.tx.eventRegistrationTeam.upsert({
+    where: { registrationId: options.registrationId },
+    create: {
+      id: randomUUID(),
+      registrationId: options.registrationId,
+      teamName: options.team.teamName,
+      allowRepeatCaptain: options.allowRepeatCaptain,
+    },
+    update: {
+      teamName: options.team.teamName,
+      allowRepeatCaptain: options.allowRepeatCaptain,
+    },
+  });
+  await options.tx.eventRegistrationBoatMember.deleteMany({
+    where: { registrationId: options.registrationId },
+  });
+  await options.tx.eventRegistrationBoatMember.createMany({
+    data: options.team.boatMembers.map((member) => ({
+      id: randomUUID(),
+      registrationId: options.registrationId,
+      boatNumber: member.boatNumber,
+      position: member.position,
+      fullName: member.fullName,
+      email: member.email,
+    })),
   });
 }
 
@@ -557,42 +765,23 @@ export async function createPublicEventRegistrationAction(
             },
           },
         });
-        if (!lockedEvent || !lockedEvent.isPublished) {
-          throw new EventRegistrationFlowError('not_found');
-        }
-        if (
-          !isPublicEventRegistrationWindowOpen({
-            now,
-            registrationStart: lockedEvent.registrationStart,
-            registrationEnd: lockedEvent.registrationEnd,
-          })
-        ) {
-          throw new EventRegistrationFlowError('closed');
-        }
-        if (phone === null) {
-          throw new EventRegistrationFlowError('questions_required');
-        }
-        let lockedTeam: PublicEventRegistrationTeamInput | null = null;
-        if (lockedEvent.usesTeamRegistration) {
-          const lockedTeamRegistration =
-            parsePublicEventRegistrationTeamFromForm({
-              boatsPerTeam: lockedEvent.boatsPerTeam,
-              formData,
-              personsPerBoat: lockedEvent.personsPerBoat,
-            });
-          if (!lockedTeamRegistration.ok) {
-            throw new EventRegistrationFlowError(lockedTeamRegistration.code);
-          }
-          lockedTeam = lockedTeamRegistration.team;
-        }
+        const lockedContext = lockedPublicEventRegistrationContext({
+          event: lockedEvent,
+          now,
+          phone,
+        });
+        const lockedTeam = parseLockedPublicEventRegistrationTeam({
+          event: lockedContext.event,
+          formData,
+        });
         const lockedSelectedFee = publicEventRegistrationSelectedFeeId({
-          entryFees: lockedEvent.entryFees,
+          entryFees: lockedContext.event.entryFees,
           formData,
         });
         if (!lockedSelectedFee.ok) {
           throw new EventRegistrationFlowError('questions_required');
         }
-        const status = lockedEvent.requiresApproval
+        const status = lockedContext.event.requiresApproval
           ? EventRegistrationStatus.pending
           : EventRegistrationStatus.approved;
 
@@ -603,93 +792,41 @@ export async function createPublicEventRegistrationAction(
         });
         // Pending applications do not consume accepted capacity; only gate new
         // auto-approved registrations when every seat already has an approval.
-        if (!lockedEvent.requiresApproval) {
-          const approvedSlotsExcludingSelf = await tx.eventRegistration.count({
-            where: {
-              eventId: event.id,
-              ...(existing ? { id: { not: existing.id } } : {}),
-              status: EventRegistrationStatus.approved,
-            },
-          });
-          if (
-            lockedEvent.maxParticipants !== null &&
-            approvedSlotsExcludingSelf >= lockedEvent.maxParticipants
-          ) {
-            throw new EventRegistrationFlowError('full');
-          }
-        }
+        await assertPublicEventRegistrationCapacity({
+          event: lockedContext.event,
+          eventId: event.id,
+          existingRegistrationId: existing?.id ?? null,
+          tx,
+        });
 
         const registrationId = existing?.id ?? randomUUID();
-        if (existing) {
-          await tx.eventRegistration.update({
-            where: { id: existing.id },
-            data: {
-              status,
-              phone,
-              eventEntryFeeId: lockedSelectedFee.eventEntryFeeId,
-              swimAgreementAcceptedAt: now,
-              registrationAnswers: { deleteMany: {} },
-            },
-          });
-        }
-        if (!existing) {
-          await tx.eventRegistration.create({
-            data: {
-              id: registrationId,
-              eventId: event.id,
-              userId: access.userId,
-              status,
-              phone,
-              eventEntryFeeId: lockedSelectedFee.eventEntryFeeId,
-              createdAt: now,
-              swimAgreementAcceptedAt: now,
-            },
-          });
-        }
-        await syncPublicRegistrationPhoneToProfile({
-          phone,
+        await upsertPublicEventRegistration({
+          eventEntryFeeId: lockedSelectedFee.eventEntryFeeId,
+          eventId: event.id,
+          existingRegistrationId: existing?.id ?? null,
+          now,
+          phone: lockedContext.phone,
+          registrationId,
+          status,
           tx,
           userId: access.userId,
         });
-
-        const answers = parsedAnswers.answers.map((answer) => ({
-          id: randomUUID(),
+        await syncPublicRegistrationPhoneToProfile({
+          phone: lockedContext.phone,
+          tx,
+          userId: access.userId,
+        });
+        await replacePublicEventRegistrationAnswers({
+          answers: parsedAnswers.answers,
           registrationId,
-          questionId: answer.questionId,
-          value: answer.value,
-        }));
-
-        if (answers.length > 0) {
-          await tx.eventRegistrationAnswer.createMany({ data: answers });
-        }
-        if (lockedTeam) {
-          await tx.eventRegistrationTeam.upsert({
-            where: { registrationId },
-            create: {
-              id: randomUUID(),
-              registrationId,
-              teamName: lockedTeam.teamName,
-              allowRepeatCaptain: lockedEvent.allowRepeatTeamCaptain,
-            },
-            update: {
-              teamName: lockedTeam.teamName,
-              allowRepeatCaptain: lockedEvent.allowRepeatTeamCaptain,
-            },
-          });
-          await tx.eventRegistrationBoatMember.deleteMany({
-            where: { registrationId },
-          });
-          await tx.eventRegistrationBoatMember.createMany({
-            data: lockedTeam.boatMembers.map((member) => ({
-              id: randomUUID(),
-              registrationId,
-              boatNumber: member.boatNumber,
-              position: member.position,
-              fullName: member.fullName,
-              email: member.email,
-            })),
-          });
-        }
+          tx,
+        });
+        await replacePublicEventRegistrationTeam({
+          allowRepeatCaptain: lockedContext.event.allowRepeatTeamCaptain,
+          registrationId,
+          team: lockedTeam,
+          tx,
+        });
       },
       {
         maxWait: 5000,
