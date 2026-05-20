@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
   permanentRedirect: vi.fn((href: string) => {
     throw new Error(`NEXT_REDIRECT:${href}`);
   }),
-  resolvePublicSlugRedirect: vi.fn(),
+  redirectPublicSlugAliasOrNotFound: vi.fn(),
   setRequestLocale: vi.fn(),
 }));
 
@@ -54,7 +54,7 @@ vi.mock('@/libs/mit-sailing/eventQueries', () => ({
 }));
 
 vi.mock('@/libs/mit-sailing/publicSlugRedirects', () => ({
-  resolvePublicSlugRedirect: mocks.resolvePublicSlugRedirect,
+  redirectPublicSlugAliasOrNotFound: mocks.redirectPublicSlugAliasOrNotFound,
 }));
 
 function pageProps() {
@@ -68,24 +68,27 @@ beforeEach(() => {
   mocks.getCurrentUser.mockResolvedValue(null);
   mocks.getPublishedEventForPublicBySlug.mockResolvedValue(null);
   mocks.getTranslations.mockResolvedValue((key: string) => key);
-  mocks.resolvePublicSlugRedirect.mockResolvedValue(null);
+  mocks.redirectPublicSlugAliasOrNotFound.mockImplementation(() => {
+    throw new Error('NEXT_NOT_FOUND');
+  });
 });
 
 describe('EventDetailPage', () => {
   it('redirects event history aliases after missing the current slug', async () => {
-    mocks.resolvePublicSlugRedirect.mockResolvedValue('/events/new-event');
+    mocks.redirectPublicSlugAliasOrNotFound.mockImplementation(() => {
+      throw new Error('NEXT_REDIRECT:/events/new-event');
+    });
     const pageModule = await import('./page');
 
     await expect(pageModule.default(pageProps())).rejects.toThrow(
       'NEXT_REDIRECT:/events/new-event'
     );
 
-    expect(mocks.resolvePublicSlugRedirect).toHaveBeenCalledWith({
+    expect(mocks.redirectPublicSlugAliasOrNotFound).toHaveBeenCalledWith({
       locale: 'en',
       scope: 'events',
       slug: 'old-event',
     });
-    expect(mocks.notFound).not.toHaveBeenCalled();
   });
 
   it('returns not found when event history has no alias', async () => {
@@ -95,11 +98,10 @@ describe('EventDetailPage', () => {
       'NEXT_NOT_FOUND'
     );
 
-    expect(mocks.resolvePublicSlugRedirect).toHaveBeenCalledWith({
+    expect(mocks.redirectPublicSlugAliasOrNotFound).toHaveBeenCalledWith({
       locale: 'en',
       scope: 'events',
       slug: 'old-event',
     });
-    expect(mocks.notFound).toHaveBeenCalledOnce();
   });
 });

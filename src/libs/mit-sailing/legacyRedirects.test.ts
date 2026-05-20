@@ -38,7 +38,12 @@ describe('legacyRedirects', () => {
     expect(normalizeLegacyRedirectPath('/info/boats.php/')).toBe(
       '/info/boats.php'
     );
+    expect(normalizeLegacyRedirectPath('/INFO/Boats.HTML///')).toBe(
+      '/INFO/Boats.HTML'
+    );
     expect(normalizeLegacyRedirectPath('/calendar')).toBeNull();
+    expect(normalizeLegacyRedirectPath('/calendar.php/extra')).toBeNull();
+    expect(normalizeLegacyRedirectPath('/calendar.php#anchor')).toBeNull();
   });
 
   it('accepts only internal target paths', () => {

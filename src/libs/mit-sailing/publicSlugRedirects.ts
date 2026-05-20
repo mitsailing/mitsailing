@@ -1,4 +1,5 @@
 import 'server-only';
+import { notFound, permanentRedirect } from 'next/navigation';
 import { prisma } from '@/libs/DB';
 import type { PublicSluggableType } from '@/libs/mit-sailing/publicSlugHistory';
 import { getI18nPath } from '@/utils/Helpers';
@@ -120,4 +121,19 @@ export async function resolvePublicSlugRedirect(
     scope: canonical.scope,
     slug: canonical.slug,
   });
+}
+
+/**
+ * Redirects a missed public slug to its canonical alias target or returns 404.
+ *
+ * @param options - Locale, public scope, requested slug, and optional path suffix
+ */
+export async function redirectPublicSlugAliasOrNotFound(
+  options: ResolvePublicSlugRedirectOptions & { redirectSuffix?: string }
+): Promise<never> {
+  const redirectPath = await resolvePublicSlugRedirect(options);
+  if (redirectPath) {
+    permanentRedirect(`${redirectPath}${options.redirectSuffix ?? ''}`);
+  }
+  notFound();
 }

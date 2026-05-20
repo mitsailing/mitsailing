@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
   permanentRedirect: vi.fn((href: string) => {
     throw new Error(`NEXT_REDIRECT:${href}`);
   }),
-  resolvePublicSlugRedirect: vi.fn(),
+  redirectPublicSlugAliasOrNotFound: vi.fn(),
   setRequestLocale: vi.fn(),
 }));
 
@@ -39,7 +39,7 @@ vi.mock('@/libs/mit-sailing/cmsQueries', () => ({
 }));
 
 vi.mock('@/libs/mit-sailing/publicSlugRedirects', () => ({
-  resolvePublicSlugRedirect: mocks.resolvePublicSlugRedirect,
+  redirectPublicSlugAliasOrNotFound: mocks.redirectPublicSlugAliasOrNotFound,
 }));
 
 function pageProps() {
@@ -54,12 +54,16 @@ function pageProps() {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.loadPublishedCmsPageByPath.mockResolvedValue(null);
-  mocks.resolvePublicSlugRedirect.mockResolvedValue(null);
+  mocks.redirectPublicSlugAliasOrNotFound.mockImplementation(() => {
+    throw new Error('NEXT_NOT_FOUND');
+  });
 });
 
 describe('CmsCatchAllPage', () => {
   it('redirects cms history aliases after missing the current path', async () => {
-    mocks.resolvePublicSlugRedirect.mockResolvedValue('/new/path');
+    mocks.redirectPublicSlugAliasOrNotFound.mockImplementation(() => {
+      throw new Error('NEXT_REDIRECT:/new/path');
+    });
     const pageModule = await import('./page');
 
     await expect(pageModule.default(pageProps())).rejects.toThrow(
@@ -67,12 +71,11 @@ describe('CmsCatchAllPage', () => {
     );
 
     expect(mocks.loadPublishedCmsPageByPath).toHaveBeenCalledWith('/old/path');
-    expect(mocks.resolvePublicSlugRedirect).toHaveBeenCalledWith({
+    expect(mocks.redirectPublicSlugAliasOrNotFound).toHaveBeenCalledWith({
       locale: 'en',
       scope: 'cms',
       slug: '/old/path',
     });
-    expect(mocks.notFound).not.toHaveBeenCalled();
   });
 
   it('returns not found when cms history has no alias', async () => {
@@ -82,11 +85,10 @@ describe('CmsCatchAllPage', () => {
       'NEXT_NOT_FOUND'
     );
 
-    expect(mocks.resolvePublicSlugRedirect).toHaveBeenCalledWith({
+    expect(mocks.redirectPublicSlugAliasOrNotFound).toHaveBeenCalledWith({
       locale: 'en',
       scope: 'cms',
       slug: '/old/path',
     });
-    expect(mocks.notFound).toHaveBeenCalledOnce();
   });
 });

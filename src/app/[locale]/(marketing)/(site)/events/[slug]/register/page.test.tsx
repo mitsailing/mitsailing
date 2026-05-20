@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   connection: vi.fn(),
   getPublishedEventForPublicBySlug: vi.fn(),
   getTranslations: vi.fn(),
+  profileFindUnique: vi.fn(),
   notFound: vi.fn(() => {
     throw new Error('NEXT_NOT_FOUND');
   }),
@@ -15,7 +16,7 @@ const mocks = vi.hoisted(() => ({
     throw new Error(`NEXT_REDIRECT:${href}`);
   }),
   requireCurrentUser: vi.fn(),
-  resolvePublicSlugRedirect: vi.fn(),
+  redirectPublicSlugAliasOrNotFound: vi.fn(),
   setRequestLocale: vi.fn(),
 }));
 
@@ -59,6 +60,14 @@ vi.mock('@/libs/auth/dal', () => ({
   requireCurrentUser: mocks.requireCurrentUser,
 }));
 
+vi.mock('@/libs/DB', () => ({
+  prisma: {
+    user: {
+      findUnique: mocks.profileFindUnique,
+    },
+  },
+}));
+
 vi.mock('@/libs/mit-sailing/easternTimeFormat', () => ({
   formatEasternEventRange: vi.fn(() => 'Jan 1, 2026'),
 }));
@@ -82,7 +91,7 @@ vi.mock('@/libs/mit-sailing/eventRegistrationState', () => ({
 }));
 
 vi.mock('@/libs/mit-sailing/publicSlugRedirects', () => ({
-  resolvePublicSlugRedirect: mocks.resolvePublicSlugRedirect,
+  redirectPublicSlugAliasOrNotFound: mocks.redirectPublicSlugAliasOrNotFound,
 }));
 
 function pageProps() {
@@ -95,25 +104,30 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.getPublishedEventForPublicBySlug.mockResolvedValue(null);
   mocks.getTranslations.mockResolvedValue((key: string) => key);
-  mocks.resolvePublicSlugRedirect.mockResolvedValue(null);
+  mocks.profileFindUnique.mockResolvedValue(null);
+  mocks.redirectPublicSlugAliasOrNotFound.mockImplementation(() => {
+    throw new Error('NEXT_NOT_FOUND');
+  });
 });
 
 describe('EventRegisterPage', () => {
   it('redirects event history aliases before auth handling', async () => {
-    mocks.resolvePublicSlugRedirect.mockResolvedValue('/events/new-event');
+    mocks.redirectPublicSlugAliasOrNotFound.mockImplementation(() => {
+      throw new Error('NEXT_REDIRECT:/events/new-event/register');
+    });
     const pageModule = await import('./page');
 
     await expect(pageModule.default(pageProps())).rejects.toThrow(
       'NEXT_REDIRECT:/events/new-event/register'
     );
 
-    expect(mocks.resolvePublicSlugRedirect).toHaveBeenCalledWith({
+    expect(mocks.redirectPublicSlugAliasOrNotFound).toHaveBeenCalledWith({
       locale: 'en',
+      redirectSuffix: '/register',
       scope: 'events',
       slug: 'old-event',
     });
     expect(mocks.requireCurrentUser).not.toHaveBeenCalled();
-    expect(mocks.notFound).not.toHaveBeenCalled();
   });
 
   it('returns not found when event history has no alias', async () => {
@@ -123,12 +137,12 @@ describe('EventRegisterPage', () => {
       'NEXT_NOT_FOUND'
     );
 
-    expect(mocks.resolvePublicSlugRedirect).toHaveBeenCalledWith({
+    expect(mocks.redirectPublicSlugAliasOrNotFound).toHaveBeenCalledWith({
       locale: 'en',
+      redirectSuffix: '/register',
       scope: 'events',
       slug: 'old-event',
     });
     expect(mocks.requireCurrentUser).not.toHaveBeenCalled();
-    expect(mocks.notFound).toHaveBeenCalledOnce();
   });
 });

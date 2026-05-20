@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { notFound, permanentRedirect, redirect } from 'next/navigation';
+import { redirect } from 'next/navigation';
 import { connection } from 'next/server';
 import {
   EventRegistrationForm,
@@ -22,7 +22,7 @@ import {
   parseEventRegistrationMutationCode,
 } from '@/libs/mit-sailing/eventRegistrationErrors';
 import { publicEventReservationState } from '@/libs/mit-sailing/eventRegistrationState';
-import { resolvePublicSlugRedirect } from '@/libs/mit-sailing/publicSlugRedirects';
+import { redirectPublicSlugAliasOrNotFound } from '@/libs/mit-sailing/publicSlugRedirects';
 import { getI18nPath } from '@/utils/Helpers';
 
 type RegisterPageProps = {
@@ -79,15 +79,12 @@ export default async function EventRegisterPage(props: RegisterPageProps) {
     getTranslations({ locale, namespace: 'MitSailingRoutes' }),
   ]);
   if (!event) {
-    const redirectPath = await resolvePublicSlugRedirect({
+    return redirectPublicSlugAliasOrNotFound({
       locale,
+      redirectSuffix: '/register',
       scope: 'events',
       slug,
     });
-    if (redirectPath) {
-      permanentRedirect(`${redirectPath}/register`);
-    }
-    notFound();
   }
   const currentUser = await requireCurrentUser(
     locale,

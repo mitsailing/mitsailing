@@ -1,6 +1,54 @@
 import 'server-only';
 
-const LEGACY_DOTTED_PATH_PATTERN = /^\/(?:[\w.-]+\/)*[\w.-]+\.(?:php|html?)$/i;
+const LEGACY_DOTTED_EXTENSIONS = ['.php', '.htm', '.html'] as const;
+
+function trimTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 1 && value.codePointAt(end - 1) === 47) {
+    end -= 1;
+  }
+  return end === value.length ? value : value.slice(0, end);
+}
+
+function isLegacyPathCharacter(value: string): boolean {
+  const code = value.codePointAt(0) ?? 0;
+  return (
+    (code >= 48 && code <= 57) ||
+    (code >= 65 && code <= 90) ||
+    (code >= 97 && code <= 122) ||
+    value === '_' ||
+    value === '.' ||
+    value === '-'
+  );
+}
+
+function isLegacyDottedPath(value: string): boolean {
+  if (!value.startsWith('/')) {
+    return false;
+  }
+  const segments = value.split('/');
+  const [root, ...pathSegments] = segments;
+  if (root !== '' || pathSegments.length === 0) {
+    return false;
+  }
+  for (const segment of pathSegments) {
+    if (!segment) {
+      return false;
+    }
+    for (const character of segment) {
+      if (!isLegacyPathCharacter(character)) {
+        return false;
+      }
+    }
+  }
+  const lastSegment = pathSegments.at(-1) ?? '';
+  const lowerLastSegment = lastSegment.toLowerCase();
+  return LEGACY_DOTTED_EXTENSIONS.some(
+    (extension) =>
+      lowerLastSegment.length > extension.length &&
+      lowerLastSegment.endsWith(extension)
+  );
+}
 
 /**
  * Normalizes old-site dotted source paths for lookup and admin storage.
@@ -13,9 +61,8 @@ export function normalizeLegacyRedirectPath(value: string): string | null {
   const withSlash = withoutQuery.startsWith('/')
     ? withoutQuery
     : `/${withoutQuery}`;
-  const normalized =
-    withSlash.length > 1 ? withSlash.replace(/\/+$/u, '') : withSlash;
-  return LEGACY_DOTTED_PATH_PATTERN.test(normalized) ? normalized : null;
+  const normalized = trimTrailingSlashes(withSlash);
+  return isLegacyDottedPath(normalized) ? normalized : null;
 }
 
 /**
@@ -44,7 +91,7 @@ export function normalizeLegacyRedirectTargetPath(
   ) {
     return null;
   }
-  return trimmed.length > 1 ? trimmed.replace(/\/+$/u, '') : trimmed;
+  return trimTrailingSlashes(trimmed);
 }
 
 /**

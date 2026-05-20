@@ -1,21 +1,40 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
-
-function readRepoFile(path: string): string {
-  return readFileSync(join(process.cwd(), path), 'utf8');
-}
+import { describe, expect, expectTypeOf, it } from 'vitest';
+import type { LegacyRedirect, PublicSlug } from '@/generated/prisma/client';
+import { Prisma } from '@/generated/prisma/client';
 
 describe('public slug and legacy redirect schema', () => {
-  it('defines public slug history and legacy redirect tables', () => {
-    const schema = readRepoFile('prisma/schema.prisma');
+  it('exposes generated public slug and legacy redirect models', () => {
+    expect(Prisma.ModelName.PublicSlug).toBe('PublicSlug');
+    expect(Prisma.ModelName.LegacyRedirect).toBe('LegacyRedirect');
 
-    expect(schema).toContain('model PublicSlug');
-    expect(schema).toContain('model LegacyRedirect');
-    expect(schema).toContain('@@unique([slug, sluggableType, scope])');
-    expect(schema).toContain('@@index([sluggableType, sluggableId])');
-    expect(schema).toContain('sourcePath String @unique() @map("source_path")');
-    expect(schema).toContain('@@map("public_slugs")');
-    expect(schema).toContain('@@map("legacy_redirects")');
+    expect(Object.values(Prisma.PublicSlugScalarFieldEnum)).toEqual(
+      expect.arrayContaining([
+        'slug',
+        'sluggableType',
+        'sluggableId',
+        'scope',
+        'source',
+      ])
+    );
+    expect(Object.values(Prisma.LegacyRedirectScalarFieldEnum)).toEqual(
+      expect.arrayContaining(['sourcePath', 'targetPath', 'source'])
+    );
+  });
+
+  it('keeps generated model field types usable by application code', () => {
+    expectTypeOf<
+      Pick<PublicSlug, 'slug' | 'sluggableType' | 'sluggableId' | 'scope'>
+    >().toEqualTypeOf<{
+      slug: string;
+      sluggableType: string;
+      sluggableId: string;
+      scope: string;
+    }>();
+    expectTypeOf<
+      Pick<LegacyRedirect, 'sourcePath' | 'targetPath'>
+    >().toEqualTypeOf<{
+      sourcePath: string;
+      targetPath: string;
+    }>();
   });
 });

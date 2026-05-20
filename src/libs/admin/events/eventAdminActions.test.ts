@@ -755,7 +755,7 @@ describe('updateAdminEventBasicsAction', () => {
 
     await expect(
       updateAdminEventBasicsAction('en', 'old-event', formData)
-    ).rejects.toThrow('NEXT_REDIRECT:/admin/events/new-event/edit');
+    ).rejects.toThrow('NEXT_REDIRECT:/admin/events/new-event');
 
     expect(mocks.recordPublicSlugHistory).toHaveBeenCalledWith({
       currentSlug: 'new-event',

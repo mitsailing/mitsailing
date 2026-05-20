@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
   permanentRedirect: vi.fn((href: string) => {
     throw new Error(`NEXT_REDIRECT:${href}`);
   }),
-  resolvePublicSlugRedirect: vi.fn(),
+  redirectPublicSlugAliasOrNotFound: vi.fn(),
   setRequestLocale: vi.fn(),
 }));
 
@@ -33,7 +33,7 @@ vi.mock('@/libs/mit-sailing/fleetQueries', () => ({
 }));
 
 vi.mock('@/libs/mit-sailing/publicSlugRedirects', () => ({
-  resolvePublicSlugRedirect: mocks.resolvePublicSlugRedirect,
+  redirectPublicSlugAliasOrNotFound: mocks.redirectPublicSlugAliasOrNotFound,
 }));
 
 function pageProps() {
@@ -46,24 +46,27 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.getFleetBoatForPublicBySlug.mockResolvedValue(null);
   mocks.getTranslations.mockResolvedValue((key: string) => key);
-  mocks.resolvePublicSlugRedirect.mockResolvedValue(null);
+  mocks.redirectPublicSlugAliasOrNotFound.mockImplementation(() => {
+    throw new Error('NEXT_NOT_FOUND');
+  });
 });
 
 describe('BoatDetailPage', () => {
   it('redirects fleet history aliases after missing the current slug', async () => {
-    mocks.resolvePublicSlugRedirect.mockResolvedValue('/fleet/new-boat');
+    mocks.redirectPublicSlugAliasOrNotFound.mockImplementation(() => {
+      throw new Error('NEXT_REDIRECT:/fleet/new-boat');
+    });
     const pageModule = await import('./page');
 
     await expect(pageModule.default(pageProps())).rejects.toThrow(
       'NEXT_REDIRECT:/fleet/new-boat'
     );
 
-    expect(mocks.resolvePublicSlugRedirect).toHaveBeenCalledWith({
+    expect(mocks.redirectPublicSlugAliasOrNotFound).toHaveBeenCalledWith({
       locale: 'en',
       scope: 'fleet',
       slug: 'old-boat',
     });
-    expect(mocks.notFound).not.toHaveBeenCalled();
   });
 
   it('returns not found when fleet history has no alias', async () => {
@@ -73,11 +76,10 @@ describe('BoatDetailPage', () => {
       'NEXT_NOT_FOUND'
     );
 
-    expect(mocks.resolvePublicSlugRedirect).toHaveBeenCalledWith({
+    expect(mocks.redirectPublicSlugAliasOrNotFound).toHaveBeenCalledWith({
       locale: 'en',
       scope: 'fleet',
       slug: 'old-boat',
     });
-    expect(mocks.notFound).toHaveBeenCalledOnce();
   });
 });

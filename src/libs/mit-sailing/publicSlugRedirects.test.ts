@@ -4,11 +4,22 @@ const mocks = vi.hoisted(() => ({
   cmsPageFindUnique: vi.fn(),
   eventFindUnique: vi.fn(),
   fleetBoatFindUnique: vi.fn(),
+  notFound: vi.fn(() => {
+    throw new Error('NEXT_NOT_FOUND');
+  }),
+  permanentRedirect: vi.fn((href: string) => {
+    throw new Error(`NEXT_REDIRECT:${href}`);
+  }),
   publicSlugFindFirst: vi.fn(),
   sailingClassFindUnique: vi.fn(),
 }));
 
 vi.mock('server-only', () => ({}));
+
+vi.mock('next/navigation', () => ({
+  notFound: mocks.notFound,
+  permanentRedirect: mocks.permanentRedirect,
+}));
 
 vi.mock('@/libs/Env', () => ({
   Env: {
@@ -41,6 +52,8 @@ describe('publicSlugRedirects', () => {
     mocks.cmsPageFindUnique.mockReset();
     mocks.eventFindUnique.mockReset();
     mocks.fleetBoatFindUnique.mockReset();
+    mocks.notFound.mockClear();
+    mocks.permanentRedirect.mockClear();
     mocks.publicSlugFindFirst.mockReset();
     mocks.sailingClassFindUnique.mockReset();
   });
@@ -194,5 +207,47 @@ describe('publicSlugRedirects', () => {
         slug: 'shared-slug',
       })
     ).resolves.toBe('/events/shared-slug');
+  });
+
+  it('permanently redirects missed public aliases through the shared helper', async () => {
+    mocks.publicSlugFindFirst.mockResolvedValue({
+      sluggableId: 'event-1',
+      sluggableType: 'Event',
+    });
+    mocks.eventFindUnique.mockResolvedValue({
+      slug: 'new-event',
+    });
+
+    const { redirectPublicSlugAliasOrNotFound } =
+      await import('@/libs/mit-sailing/publicSlugRedirects');
+
+    await expect(
+      redirectPublicSlugAliasOrNotFound({
+        locale: 'en',
+        redirectSuffix: '/register',
+        scope: 'events',
+        slug: 'old-event',
+      })
+    ).rejects.toThrow('NEXT_REDIRECT:/events/new-event/register');
+    expect(mocks.permanentRedirect).toHaveBeenCalledWith(
+      '/events/new-event/register'
+    );
+    expect(mocks.notFound).not.toHaveBeenCalled();
+  });
+
+  it('returns not found for missed public aliases without history', async () => {
+    mocks.publicSlugFindFirst.mockResolvedValue(null);
+
+    const { redirectPublicSlugAliasOrNotFound } =
+      await import('@/libs/mit-sailing/publicSlugRedirects');
+
+    await expect(
+      redirectPublicSlugAliasOrNotFound({
+        locale: 'en',
+        scope: 'events',
+        slug: 'missing-event',
+      })
+    ).rejects.toThrow('NEXT_NOT_FOUND');
+    expect(mocks.notFound).toHaveBeenCalledOnce();
   });
 });
