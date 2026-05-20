@@ -174,4 +174,25 @@ describe('publicSlugRedirects', () => {
       })
     ).resolves.toBeNull();
   });
+
+  it('redirects when the canonical target has the same slug in another scope', async () => {
+    mocks.publicSlugFindFirst.mockResolvedValue({
+      sluggableId: 'event-1',
+      sluggableType: 'Event',
+    });
+    mocks.eventFindUnique.mockResolvedValue({
+      slug: 'shared-slug',
+    });
+
+    const { resolvePublicSlugRedirect } =
+      await import('@/libs/mit-sailing/publicSlugRedirects');
+
+    await expect(
+      resolvePublicSlugRedirect({
+        locale: 'en',
+        scope: 'classes',
+        slug: 'shared-slug',
+      })
+    ).resolves.toBe('/events/shared-slug');
+  });
 });

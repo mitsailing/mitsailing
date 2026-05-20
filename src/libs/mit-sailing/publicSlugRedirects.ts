@@ -102,7 +102,10 @@ export async function resolvePublicSlugRedirect(
     sluggableType: row.sluggableType,
   });
 
-  if (!canonical || canonical.slug === options.slug) {
+  if (
+    !canonical ||
+    (canonical.scope === options.scope && canonical.slug === options.slug)
+  ) {
     return null;
   }
 
