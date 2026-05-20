@@ -867,6 +867,7 @@ model EventPayment {
     @@index([userId, createdAt])
     @@index([selectedFeeId])
     @@index([manualHandledByUserId])
+    @@unique([registrationId, eventId, userId])
     @@map("event_payments")
 }
 
