@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventPaymentStatus } from '@/generated/prisma/enums';
 import { POST } from './route';
 
+type TransactionOperation = (client: typeof mocks.tx) => Promise<unknown>;
+
 const mocks = vi.hoisted(() => ({
   constructEvent: vi.fn(),
   enqueueEventPaymentEmailJob: vi.fn(),
@@ -14,12 +16,10 @@ const mocks = vi.hoisted(() => ({
     error: vi.fn(),
   },
   prisma: {
-    $transaction: vi.fn(
-      async (operation: (_client: typeof mocks.tx) => Promise<unknown>) => {
-        const result = await operation(mocks.tx);
-        return result;
-      }
-    ),
+    $transaction: vi.fn(async (operation: TransactionOperation) => {
+      const result = await operation(mocks.tx);
+      return result;
+    }),
   },
   tx: {
     eventPayment: {

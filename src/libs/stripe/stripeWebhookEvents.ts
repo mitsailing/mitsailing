@@ -569,7 +569,7 @@ export async function processStripeWebhookEvent(options: {
           eventId: existingEvent.id,
         });
         if (!claimedEvent) {
-          return { duplicate: true, ok: true };
+          return { ok: false };
         }
         storedEvent = claimedEvent;
       } else {

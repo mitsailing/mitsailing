@@ -77,10 +77,10 @@ export type EventPaymentEmailQueue = Pick<
 >;
 
 type PaymentNotificationKind =
-  | typeof EventPaymentNotificationKind.admin_digest
-  | typeof EventPaymentNotificationKind.receipt
-  | typeof EventPaymentNotificationKind.reminder
-  | typeof EventPaymentNotificationKind.request;
+  | 'admin_digest'
+  | 'receipt'
+  | 'reminder'
+  | 'request';
 
 type PaymentEmailRow = {
   amountCents: number;
@@ -313,25 +313,29 @@ async function recordProviderMessageId(options: {
 async function clearNotificationClaims(
   markers: readonly { claimId: string; id: string }[]
 ): Promise<void> {
-  const results = await Promise.allSettled(
+  const cleanupFailures = await Promise.all(
     markers.map(async (marker) => {
-      await clearNotificationClaim({
-        claimId: marker.claimId,
-        notificationId: marker.id,
-      });
+      try {
+        await clearNotificationClaim({
+          claimId: marker.claimId,
+          notificationId: marker.id,
+        });
+        return null;
+      } catch (error) {
+        return { error, marker };
+      }
     })
   );
-  for (const [index, result] of results.entries()) {
-    if (result.status === 'fulfilled') {
+  for (const cleanupFailure of cleanupFailures) {
+    if (!cleanupFailure) {
       continue;
     }
-    const marker = markers[index];
     logger.error(
       '[event-payment-email] admin_digest cleanup_failed notification_id={notificationId} error_name={errorName} error_code={errorCode}',
       {
-        errorCode: safeErrorCode(result.reason) ?? 'unknown',
-        errorName: safeErrorName(result.reason),
-        notificationId: marker?.id ?? 'unknown',
+        errorCode: safeErrorCode(cleanupFailure.error) ?? 'unknown',
+        errorName: safeErrorName(cleanupFailure.error),
+        notificationId: cleanupFailure.marker.id,
       }
     );
   }
@@ -535,13 +539,15 @@ async function enqueueDuePaymentReminderJobs(options: {
       status: { in: reminderStatuses },
     },
   });
-  for (const payment of payments) {
-    await enqueueEventPaymentEmailJob(options.queue, {
-      dateKey: options.dateKey,
-      kind: 'reminder',
-      paymentId: payment.id,
-    });
-  }
+  await Promise.all(
+    payments.map(async (payment) => {
+      await enqueueEventPaymentEmailJob(options.queue, {
+        dateKey: options.dateKey,
+        kind: 'reminder',
+        paymentId: payment.id,
+      });
+    })
+  );
 }
 
 async function enqueueDueAdminDigestJobs(options: {
@@ -568,13 +574,15 @@ async function enqueueDueAdminDigestJobs(options: {
       },
     },
   });
-  for (const event of events) {
-    await enqueueEventPaymentEmailJob(options.queue, {
-      dateKey: options.dateKey,
-      eventId: event.id,
-      kind: 'admin_digest',
-    });
-  }
+  await Promise.all(
+    events.map(async (event) => {
+      await enqueueEventPaymentEmailJob(options.queue, {
+        dateKey: options.dateKey,
+        eventId: event.id,
+        kind: 'admin_digest',
+      });
+    })
+  );
 }
 
 export async function enqueueDueEventPaymentNotifications(

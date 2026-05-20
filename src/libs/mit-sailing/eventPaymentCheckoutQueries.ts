@@ -1,14 +1,23 @@
 import 'server-only';
 import { cache } from 'react';
 import { EventPaymentStatus } from '@/generated/prisma/enums';
-import type { EventPaymentStatus as EventPaymentStatusValue } from '@/generated/prisma/enums';
 import { prisma } from '@/libs/DB';
+
+type EventPaymentCheckoutPageStatus =
+  | 'cancelled'
+  | 'checkout_created'
+  | 'disputed'
+  | 'handled'
+  | 'paid'
+  | 'past_due'
+  | 'pending'
+  | 'refunded';
 
 export type EventPaymentCheckoutPagePayment = {
   id: string;
   amountCents: number;
   receiptUrl: string | null;
-  status: EventPaymentStatusValue;
+  status: EventPaymentCheckoutPageStatus;
 };
 
 type EventPaymentCheckoutPageData = {
@@ -62,7 +71,7 @@ export const getEventPaymentCheckoutPageData = cache(
 );
 
 export function eventPaymentCheckoutIsPayable(
-  status: EventPaymentStatusValue
+  status: EventPaymentCheckoutPageStatus
 ): boolean {
   return (
     status === EventPaymentStatus.checkout_created ||

@@ -166,4 +166,49 @@ describe('processStripeWebhookEvent', () => {
     });
     expect(updatePayment).toHaveBeenCalled();
   });
+
+  it('fails unprocessed duplicate events when claim is unavailable', async () => {
+    const db = {
+      eventPayment: {
+        findFirst: vi.fn(),
+        updateMany: vi.fn(),
+      },
+      eventPaymentNotification: {
+        upsert: vi.fn(),
+      },
+      stripeWebhookEvent: {
+        create: vi.fn().mockRejectedValue(
+          Object.assign(new Error('duplicate'), {
+            code: 'P2002',
+          })
+        ),
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'webhook_event_123',
+          processedAt: null,
+        }),
+        update: vi.fn(),
+        updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+      },
+    };
+
+    const result = await processStripeWebhookEvent({
+      db,
+      event: {
+        created: 1_777_636_800,
+        data: {
+          object: {
+            id: 'pi_123',
+            amount_received: 4200,
+            currency: 'usd',
+            metadata: { paymentId: 'payment_123' },
+          },
+        },
+        id: 'evt_payment_intent_succeeded',
+        type: 'payment_intent.succeeded',
+      },
+    });
+
+    expect(result).toEqual({ ok: false });
+    expect(db.eventPayment.findFirst).not.toHaveBeenCalled();
+  });
 });

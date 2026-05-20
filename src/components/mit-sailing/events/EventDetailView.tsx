@@ -296,7 +296,7 @@ export async function EventDetailView(props: EventDetailViewProps) {
             'inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-mit-red no-underline hover:underline dark:text-mit-red-ink',
             textFocusRingClassName
           )}
-          href={getI18nPath('/events/', props.locale)}
+          href={getI18nPath('/events', props.locale)}
         >
           <ArrowLeft aria-hidden size={16} />
           {t('back_to_list')}

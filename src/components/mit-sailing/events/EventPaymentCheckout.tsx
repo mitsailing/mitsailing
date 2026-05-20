@@ -127,10 +127,10 @@ function StaticCheckoutState(props: {
 export function EventPaymentCheckout(props: EventPaymentCheckoutProps) {
   const checkoutRef = React.useRef<HTMLElement | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  const { checkoutLoadError } = props.labels;
 
   React.useEffect(() => {
     const { clientSecretAction, payment, publishableKey } = props;
-    const { checkoutLoadError } = props.labels;
     if (!isPayablePayment(payment) || !publishableKey) {
       return;
     }
@@ -175,7 +175,7 @@ export function EventPaymentCheckout(props: EventPaymentCheckoutProps) {
     };
   }, [
     props.clientSecretAction,
-    props.labels.checkoutLoadError,
+    checkoutLoadError,
     props.payment,
     props.publishableKey,
   ]);

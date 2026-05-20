@@ -105,7 +105,7 @@ export default async function EventCheckoutPage(props: EventCheckoutPageProps) {
       segments={[
         {
           label: tRoutes('section_events'),
-          href: getI18nPath('/events/', locale),
+          href: getI18nPath('/events', locale),
         },
         {
           label: data.event.name,
