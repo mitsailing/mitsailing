@@ -142,12 +142,14 @@ export const publicSlugsCatalogHandlers: CatalogServerHandlers = {
     return row ? publicSlugRowFromDb(row) : null;
   },
 
-   async createFromForm(): Promise<CatalogCreateResult> {
-    return Promise.resolve({ ok: false, code: 'unsupported' });
+  async createFromForm(): Promise<CatalogCreateResult> {
+    await Promise.resolve();
+    return { ok: false, code: 'unsupported' };
   },
 
-   async updateFromForm(): Promise<CatalogMutationOk | CatalogMutationErr> {
-    return Promise.resolve({ ok: false, code: 'unsupported' });
+  async updateFromForm(): Promise<CatalogMutationOk | CatalogMutationErr> {
+    await Promise.resolve();
+    return { ok: false, code: 'unsupported' };
   },
 
   async delete(id: string): Promise<CatalogMutationOk | CatalogMutationErr> {
