@@ -3538,6 +3538,105 @@ export class SchemaType implements SchemaDef {
                 id: { type: "String" }
             }
         },
+        PublicSlug: {
+            name: "PublicSlug",
+            fields: {
+                id: {
+                    name: "id",
+                    type: "String",
+                    id: true,
+                    attributes: [{ name: "@id" }, { name: "@default", args: [{ name: "value", value: ExpressionUtils.call("cuid") }] }] as readonly AttributeApplication[],
+                    default: ExpressionUtils.call("cuid") as FieldDefault
+                },
+                slug: {
+                    name: "slug",
+                    type: "String"
+                },
+                sluggableType: {
+                    name: "sluggableType",
+                    type: "String",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("sluggable_type") }] }] as readonly AttributeApplication[]
+                },
+                sluggableId: {
+                    name: "sluggableId",
+                    type: "String",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("sluggable_id") }] }] as readonly AttributeApplication[]
+                },
+                scope: {
+                    name: "scope",
+                    type: "String"
+                },
+                source: {
+                    name: "source",
+                    type: "PublicSlugSource",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal("automatic") }] }] as readonly AttributeApplication[],
+                    default: "automatic" as FieldDefault
+                },
+                createdAt: {
+                    name: "createdAt",
+                    type: "DateTime",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.call("now") }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("created_at") }] }] as readonly AttributeApplication[],
+                    default: ExpressionUtils.call("now") as FieldDefault
+                }
+            },
+            attributes: [
+                { name: "@@unique", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("slug"), ExpressionUtils.field("sluggableType"), ExpressionUtils.field("scope")]) }] },
+                { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("sluggableType"), ExpressionUtils.field("sluggableId")]) }] },
+                { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("scope"), ExpressionUtils.field("slug")]) }] },
+                { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("read,create,update,delete") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.call("auth"), "!=", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("admin")), "||", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("dock_staff"))), "||", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("dock_master")))) }] },
+                { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("public_slugs") }] }
+            ] as readonly AttributeApplication[],
+            idFields: ["id"],
+            uniqueFields: {
+                id: { type: "String" },
+                slug_sluggableType_scope: { slug: { type: "String" }, sluggableType: { type: "String" }, scope: { type: "String" } }
+            }
+        },
+        LegacyRedirect: {
+            name: "LegacyRedirect",
+            fields: {
+                id: {
+                    name: "id",
+                    type: "String",
+                    id: true,
+                    attributes: [{ name: "@id" }, { name: "@default", args: [{ name: "value", value: ExpressionUtils.call("cuid") }] }] as readonly AttributeApplication[],
+                    default: ExpressionUtils.call("cuid") as FieldDefault
+                },
+                sourcePath: {
+                    name: "sourcePath",
+                    type: "String",
+                    unique: true,
+                    attributes: [{ name: "@unique" }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("source_path") }] }] as readonly AttributeApplication[]
+                },
+                targetPath: {
+                    name: "targetPath",
+                    type: "String",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("target_path") }] }] as readonly AttributeApplication[]
+                },
+                source: {
+                    name: "source",
+                    type: "LegacyRedirectSource",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal("manual") }] }] as readonly AttributeApplication[],
+                    default: "manual" as FieldDefault
+                },
+                createdAt: {
+                    name: "createdAt",
+                    type: "DateTime",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.call("now") }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("created_at") }] }] as readonly AttributeApplication[],
+                    default: ExpressionUtils.call("now") as FieldDefault
+                }
+            },
+            attributes: [
+                { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("LegacyRedirectSource", [ExpressionUtils.field("source")]) }] },
+                { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("read,create,update,delete") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.call("auth"), "!=", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("admin")), "||", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("dock_staff"))), "||", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("dock_master")))) }] },
+                { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("legacy_redirects") }] }
+            ] as readonly AttributeApplication[],
+            idFields: ["id"],
+            uniqueFields: {
+                id: { type: "String" },
+                sourcePath: { type: "String" }
+            }
+        },
         CmsPage: {
             name: "CmsPage",
             fields: {
@@ -4986,6 +5085,27 @@ export class SchemaType implements SchemaDef {
             },
             attributes: [
                 { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("cms_menu_location") }] }
+            ] as readonly AttributeApplication[]
+        },
+        PublicSlugSource: {
+            name: "PublicSlugSource",
+            values: {
+                automatic: "automatic",
+                migration: "migration",
+                manual: "manual"
+            },
+            attributes: [
+                { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("public_slug_source") }] }
+            ] as readonly AttributeApplication[]
+        },
+        LegacyRedirectSource: {
+            name: "LegacyRedirectSource",
+            values: {
+                ai_migration: "ai_migration",
+                manual: "manual"
+            },
+            attributes: [
+                { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("legacy_redirect_source") }] }
             ] as readonly AttributeApplication[]
         },
         PavilionReservationPersona: {

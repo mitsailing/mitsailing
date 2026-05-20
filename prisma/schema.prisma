@@ -174,6 +174,19 @@ enum CmsMenuLocation {
     @@map("cms_menu_location")
 }
 
+enum PublicSlugSource {
+    automatic
+    migration
+    manual
+    @@map("public_slug_source")
+}
+
+enum LegacyRedirectSource {
+    ai_migration
+    manual
+    @@map("legacy_redirect_source")
+}
+
 enum PavilionReservationPersona {
     mit_academic
     mit_student
@@ -977,6 +990,32 @@ model SiteAlert {
 
     @@index([isPublished, startDate])
     @@map("site_alerts")
+}
+
+model PublicSlug {
+    id String @id() @default(cuid())
+    slug String
+    sluggableType String @map("sluggable_type")
+    sluggableId String @map("sluggable_id")
+    scope String
+    source PublicSlugSource @default(automatic)
+    createdAt DateTime @default(now()) @map("created_at")
+
+    @@unique([slug, sluggableType, scope])
+    @@index([sluggableType, sluggableId])
+    @@index([scope, slug])
+    @@map("public_slugs")
+}
+
+model LegacyRedirect {
+    id String @id() @default(cuid())
+    sourcePath String @unique() @map("source_path")
+    targetPath String @map("target_path")
+    source LegacyRedirectSource @default(manual)
+    createdAt DateTime @default(now()) @map("created_at")
+
+    @@index([source])
+    @@map("legacy_redirects")
 }
 
 model CmsPage {

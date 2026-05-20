@@ -1062,6 +1062,57 @@ enum CmsMenuLocation {
   @@map("cms_menu_location")
 }
 
+enum PublicSlugSource {
+  automatic
+  migration
+  manual
+
+  @@map("public_slug_source")
+}
+
+enum LegacyRedirectSource {
+  ai_migration
+  manual
+
+  @@map("legacy_redirect_source")
+}
+
+model PublicSlug {
+  id             String           @id @default(cuid())
+  slug           String
+  sluggableType  String           @map("sluggable_type")
+  sluggableId    String           @map("sluggable_id")
+  scope          String
+  source         PublicSlugSource @default(automatic)
+  createdAt      DateTime         @default(now()) @map("created_at")
+
+  @@unique([slug, sluggableType, scope])
+  @@index([sluggableType, sluggableId])
+  @@index([scope, slug])
+  @@allow('read,create,update,delete', auth() != null && (
+    auth().appRole == 'admin' ||
+    auth().appRole == 'dock_staff' ||
+    auth().appRole == 'dock_master'
+  ))
+  @@map("public_slugs")
+}
+
+model LegacyRedirect {
+  id         String               @id @default(cuid())
+  sourcePath String               @unique @map("source_path")
+  targetPath String               @map("target_path")
+  source     LegacyRedirectSource @default(manual)
+  createdAt  DateTime             @default(now()) @map("created_at")
+
+  @@index([source])
+  @@allow('read,create,update,delete', auth() != null && (
+    auth().appRole == 'admin' ||
+    auth().appRole == 'dock_staff' ||
+    auth().appRole == 'dock_master'
+  ))
+  @@map("legacy_redirects")
+}
+
 model CmsPage {
   id              String   @id @default(cuid())
   slug            String   @unique
