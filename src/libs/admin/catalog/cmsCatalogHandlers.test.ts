@@ -81,6 +81,8 @@ const {
   catalogScopedListState,
 } = await import('@/libs/admin/catalog/scopedCatalogLists');
 
+let cmsTransactionClient: unknown;
+
 beforeEach(() => {
   mocks.cmsMenuItemAggregate.mockReset();
   mocks.cmsMenuItemCreate.mockReset();
@@ -110,7 +112,7 @@ beforeEach(() => {
       transactionBody: (tx: unknown) => Promise<unknown>,
       _options?: unknown
     ) => {
-      const tx = {
+      cmsTransactionClient = {
         cmsPage: {
           create: mocks.cmsPageCreate,
           delete: mocks.cmsPageDelete,
@@ -132,7 +134,7 @@ beforeEach(() => {
           findFirst: mocks.userAuditFindFirst,
         },
       };
-      const result = await transactionBody(tx);
+      const result = await transactionBody(cmsTransactionClient);
       return result;
     }
   );
@@ -195,8 +197,37 @@ describe('cmsPagesCatalogHandlers', () => {
 
       expect(mocks.recordPublicSlugHistory).toHaveBeenCalledWith({
         currentSlug: '/new-about',
-        db: expect.anything(),
+        db: cmsTransactionClient,
         previousSlug: '/old-about',
+        scope: 'cms',
+        sluggableId: 'page-1',
+        sluggableType: 'CmsPage',
+      });
+    });
+
+    it('records identical public path values when only the page title changes', async () => {
+      const now = new Date('2026-05-09T12:00:00.000Z');
+      const formData = new FormData();
+      formData.set('slug', 'about');
+      formData.set('path', '/about');
+      formData.set('title', 'About the pavilion');
+      formData.set('metaTitle', 'About');
+      formData.set('metaDescription', 'About page');
+      formData.set('isPublished', 'true');
+
+      mocks.cmsPageFindUnique.mockResolvedValue(cmsPageSnapshotRow(now));
+      mocks.cmsPageUpdate.mockResolvedValue({ id: 'page-1' });
+
+      await expect(
+        cmsPagesCatalogHandlers.updateFromForm('page-1', formData, {
+          userId: 'admin-1',
+        })
+      ).resolves.toEqual({ ok: true });
+
+      expect(mocks.recordPublicSlugHistory).toHaveBeenCalledWith({
+        currentSlug: '/about',
+        db: cmsTransactionClient,
+        previousSlug: '/about',
         scope: 'cms',
         sluggableId: 'page-1',
         sluggableType: 'CmsPage',
@@ -238,7 +269,7 @@ describe('cmsPagesCatalogHandlers', () => {
       ).resolves.toEqual({ ok: true });
 
       expect(mocks.deletePublicSlugHistoryForTarget).toHaveBeenCalledWith({
-        db: expect.anything(),
+        db: cmsTransactionClient,
         sluggableId: 'page-1',
         sluggableType: 'CmsPage',
       });

@@ -66,6 +66,8 @@ const { fleetCatalogHandlers } =
 const { sailingClassesCatalogHandlers } =
   await import('@/libs/admin/catalog/sailingClassesHandlers');
 
+let catalogTransactionClient: unknown;
+
 beforeEach(() => {
   for (const mock of Object.values(mocks)) {
     mock.mockReset();
@@ -73,7 +75,7 @@ beforeEach(() => {
   mocks.prismaTransaction.mockImplementation(
     async (transactionBody: (tx: unknown) => Promise<unknown>) => {
       await Promise.resolve();
-      const tx = {
+      catalogTransactionClient = {
         fleetBoat: {
           count: mocks.requiredFleetBoatCount,
           delete: mocks.fleetBoatDelete,
@@ -88,7 +90,7 @@ beforeEach(() => {
           findFirst: mocks.fleetUserAuditFindFirst,
         },
       };
-      return transactionBody(tx);
+      return transactionBody(catalogTransactionClient);
     }
   );
   mocks.fleetBoatDelete.mockResolvedValue({ id: 'boat-1' });
@@ -145,7 +147,26 @@ describe('sailingClassesCatalogHandlers', () => {
 
     expect(mocks.recordPublicSlugHistory).toHaveBeenCalledWith({
       currentSlug: 'new-class',
-      db: expect.anything(),
+      db: catalogTransactionClient,
+      previousSlug: 'old-class',
+      scope: 'classes',
+      sluggableId: 'class-1',
+      sluggableType: 'SailingClass',
+    });
+  });
+
+  it('records identical class slug values when only the class name changes', async () => {
+    const formData = sailingClassFormData();
+    formData.set('name', 'Intro sailing updated');
+    formData.set('slug', 'old-class');
+
+    await expect(
+      sailingClassesCatalogHandlers.updateFromForm('class-1', formData)
+    ).resolves.toEqual({ ok: true });
+
+    expect(mocks.recordPublicSlugHistory).toHaveBeenCalledWith({
+      currentSlug: 'old-class',
+      db: catalogTransactionClient,
       previousSlug: 'old-class',
       scope: 'classes',
       sluggableId: 'class-1',
@@ -161,7 +182,7 @@ describe('sailingClassesCatalogHandlers', () => {
     });
 
     expect(mocks.deletePublicSlugHistoryForTarget).toHaveBeenCalledWith({
-      db: expect.anything(),
+      db: catalogTransactionClient,
       sluggableId: 'class-1',
       sluggableType: 'SailingClass',
     });
@@ -176,7 +197,26 @@ describe('fleetCatalogHandlers', () => {
 
     expect(mocks.recordPublicSlugHistory).toHaveBeenCalledWith({
       currentSlug: 'new-boat',
-      db: expect.anything(),
+      db: catalogTransactionClient,
+      previousSlug: 'old-boat',
+      scope: 'fleet',
+      sluggableId: 'boat-1',
+      sluggableType: 'FleetBoat',
+    });
+  });
+
+  it('records identical boat slug values when only the boat name changes', async () => {
+    const formData = fleetBoatFormData();
+    formData.set('name', 'Tech Dinghy updated');
+    formData.set('slug', 'old-boat');
+
+    await expect(
+      fleetCatalogHandlers.updateFromForm('boat-1', formData)
+    ).resolves.toEqual({ ok: true });
+
+    expect(mocks.recordPublicSlugHistory).toHaveBeenCalledWith({
+      currentSlug: 'old-boat',
+      db: catalogTransactionClient,
       previousSlug: 'old-boat',
       scope: 'fleet',
       sluggableId: 'boat-1',
@@ -190,7 +230,7 @@ describe('fleetCatalogHandlers', () => {
     });
 
     expect(mocks.deletePublicSlugHistoryForTarget).toHaveBeenCalledWith({
-      db: expect.anything(),
+      db: catalogTransactionClient,
       sluggableId: 'boat-1',
       sluggableType: 'FleetBoat',
     });

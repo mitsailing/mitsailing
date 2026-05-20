@@ -247,6 +247,8 @@ function access() {
   };
 }
 
+let transactionClient: AdminEventTransactionClient;
+
 beforeEach(() => {
   vi.resetModules();
   for (const mock of Object.values(mocks)) {
@@ -287,7 +289,7 @@ beforeEach(() => {
   mocks.eventRegistrationUpdateMany.mockResolvedValue({ count: 1 });
   mocks.userCount.mockResolvedValue(1);
   mocks.txQueryRaw.mockResolvedValue([{ id: 'event-1' }]);
-  const transactionClient: AdminEventTransactionClient = {
+  transactionClient = {
     $queryRaw: mocks.txQueryRaw,
     event: {
       delete: mocks.eventDelete,
@@ -757,8 +759,27 @@ describe('updateAdminEventBasicsAction', () => {
 
     expect(mocks.recordPublicSlugHistory).toHaveBeenCalledWith({
       currentSlug: 'new-event',
-      db: expect.anything(),
+      db: transactionClient,
       previousSlug: 'old-event',
+      scope: 'events',
+      sluggableId: 'event-1',
+      sluggableType: 'Event',
+    });
+  });
+
+  it('records identical event slug values when only event basics change', async () => {
+    const formData = validEventFormData();
+    const { updateAdminEventBasicsAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventBasicsAction('en', 'intro-sail', formData)
+    ).rejects.toThrow('NEXT_REDIRECT:/admin/events/intro-sail');
+
+    expect(mocks.recordPublicSlugHistory).toHaveBeenCalledWith({
+      currentSlug: 'intro-sail',
+      db: transactionClient,
+      previousSlug: 'intro-sail',
       scope: 'events',
       sluggableId: 'event-1',
       sluggableType: 'Event',
@@ -790,7 +811,7 @@ describe('deleteAdminEventAction', () => {
     );
 
     expect(mocks.deletePublicSlugHistoryForTarget).toHaveBeenCalledWith({
-      db: expect.anything(),
+      db: transactionClient,
       sluggableId: 'event-1',
       sluggableType: 'Event',
     });

@@ -78,4 +78,21 @@ describe('publicSlugHistory', () => {
     });
     expect(mocks.createMany).not.toHaveBeenCalled();
   });
+
+  it('deletes history by sluggable target', async () => {
+    const { deletePublicSlugHistoryForTarget } =
+      await import('@/libs/mit-sailing/publicSlugHistory');
+
+    await deletePublicSlugHistoryForTarget({
+      sluggableId: 'boat-1',
+      sluggableType: 'FleetBoat',
+    });
+
+    expect(mocks.deleteMany).toHaveBeenCalledWith({
+      where: {
+        sluggableId: 'boat-1',
+        sluggableType: 'FleetBoat',
+      },
+    });
+  });
 });
