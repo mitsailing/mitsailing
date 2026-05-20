@@ -576,6 +576,37 @@ describe('updateAdminEventBasicsAction', () => {
     );
   });
 
+  it('locks the event before validating team registration settings', async () => {
+    const formData = validEventFormData();
+    formData.set('usesTeamRegistration', 'true');
+    formData.set('boatsPerTeam', '1');
+    formData.set('personsPerBoat', '2');
+    const { updateAdminEventBasicsAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventBasicsAction('en', 'intro-sail', formData)
+    ).rejects.toThrow(/^NEXT_REDIRECT:\/admin\/events\/intro-sail$/u);
+
+    expect(mocks.txQueryRaw).toHaveBeenCalledWith(
+      expect.arrayContaining([expect.stringContaining('FOR UPDATE')]),
+      'event-1'
+    );
+    const [lockOrder] = mocks.txQueryRaw.mock.invocationCallOrder;
+    const [validationOrder] =
+      mocks.eventRegistrationBoatMemberCount.mock.invocationCallOrder;
+    const [updateOrder] = mocks.eventUpdate.mock.invocationCallOrder;
+    if (
+      typeof lockOrder !== 'number' ||
+      typeof validationOrder !== 'number' ||
+      typeof updateOrder !== 'number'
+    ) {
+      throw new TypeError('Expected lock, validation, and update to run.');
+    }
+    expect(lockOrder).toBeLessThan(validationOrder);
+    expect(lockOrder).toBeLessThan(updateOrder);
+  });
+
   it('rejects team setting updates that invalidate existing boat members', async () => {
     const formData = validEventFormData();
     formData.set('usesTeamRegistration', 'true');

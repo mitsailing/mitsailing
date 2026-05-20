@@ -83,6 +83,18 @@ function isEventRegistrationSettingsConflictError(error: unknown): boolean {
   );
 }
 
+async function lockEventForUpdate(options: {
+  db: EventAdminDbClient;
+  eventId: string;
+}): Promise<void> {
+  await options.db.$queryRaw`
+    SELECT id
+    FROM events
+    WHERE id = ${options.eventId}
+    FOR UPDATE
+  `;
+}
+
 function logAdminEventMutationFailure(options: {
   action: string;
   error: unknown;
@@ -459,6 +471,7 @@ export async function updateAdminEventBasicsAction(
   });
   try {
     await prisma.$transaction(async (tx) => {
+      await lockEventForUpdate({ db: tx, eventId: access.event.id });
       await assertEventRegistrationSettingsRemainValid({
         data,
         db: tx,
