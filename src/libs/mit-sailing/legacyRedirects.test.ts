@@ -50,6 +50,20 @@ describe('legacyRedirects', () => {
     ).toBeNull();
   });
 
+  it.each(['/api?x=1', '/_next?x=1', '/monitoring#status'])(
+    'rejects blocked target fragments for %s',
+    (targetPath) => {
+      expect(normalizeLegacyRedirectTargetPath(targetPath)).toBeNull();
+    }
+  );
+
+  it('rejects target query strings on app paths', () => {
+    expect(
+      normalizeLegacyRedirectTargetPath('/calendar?view=month')
+    ).toBeNull();
+    expect(normalizeLegacyRedirectTargetPath('/calendar')).toBe('/calendar');
+  });
+
   it('returns localized target paths for legacy redirect rows', async () => {
     mocks.legacyRedirectFindUnique.mockResolvedValue({
       targetPath: '/calendar/',

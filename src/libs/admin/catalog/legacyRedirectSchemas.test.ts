@@ -37,6 +37,36 @@ describe('legacyRedirectFormSchema', () => {
       }).success
     ).toBe(false);
   });
+
+  it.each(['/api?x=1', '/_next?x=1', '/monitoring#status'])(
+    'rejects blocked target fragments for %s',
+    (targetPath) => {
+      expect(
+        legacyRedirectFormSchema.safeParse({
+          source: 'manual',
+          sourcePath: '/calendar.php',
+          targetPath,
+        }).success
+      ).toBe(false);
+    }
+  );
+
+  it('rejects target query strings and accepts plain app paths', () => {
+    expect(
+      legacyRedirectFormSchema.safeParse({
+        source: 'manual',
+        sourcePath: '/calendar.php',
+        targetPath: '/calendar?view=month',
+      }).success
+    ).toBe(false);
+    expect(
+      legacyRedirectFormSchema.safeParse({
+        source: 'manual',
+        sourcePath: '/calendar.php',
+        targetPath: '/calendar',
+      }).success
+    ).toBe(true);
+  });
 });
 
 describe('rawLegacyRedirectFromFormData', () => {
