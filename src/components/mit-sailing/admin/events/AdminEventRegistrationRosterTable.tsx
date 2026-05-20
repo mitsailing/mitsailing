@@ -1,5 +1,5 @@
 import { Check, MoreHorizontal, RotateCcw, X } from 'lucide-react';
-import * as React from 'react';
+import type * as React from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Table,
