@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { catalogFieldUsesRichText } from './catalogDefinitions';
+import {
+  catalogFieldUsesRichText,
+  tryGetCatalogDefinition,
+} from './catalogDefinitions';
 
 describe('catalogFieldUsesRichText', () => {
   it('returns true for fleet and sailing class description', () => {
@@ -19,5 +22,29 @@ describe('catalogFieldUsesRichText', () => {
 
   it('returns false for unknown field names', () => {
     expect(catalogFieldUsesRichText('fleet', 'name')).toBe(false);
+  });
+});
+
+describe('tryGetCatalogDefinition', () => {
+  it('registers public redirect catalog resources', () => {
+    expect(tryGetCatalogDefinition('public_slugs')).toMatchObject({
+      capabilities: {
+        create: false,
+        delete: true,
+        reorder: false,
+        update: false,
+      },
+      formFields: [],
+      id: 'public_slugs',
+    });
+    expect(tryGetCatalogDefinition('legacy_redirects')).toMatchObject({
+      capabilities: {
+        create: true,
+        delete: true,
+        reorder: false,
+        update: true,
+      },
+      id: 'legacy_redirects',
+    });
   });
 });

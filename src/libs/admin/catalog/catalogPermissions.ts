@@ -13,6 +13,8 @@ const CATALOG_RESOURCE_PERMISSIONS = {
   donation_funds: Permission.DONATION_FUNDS_MANAGE,
   event_categories: Permission.EVENT_CATEGORIES_MANAGE,
   fleet: Permission.FLEET_MANAGE,
+  legacy_redirects: Permission.PUBLIC_REDIRECTS_MANAGE,
+  public_slugs: Permission.PUBLIC_REDIRECTS_MANAGE,
   sailing_classes: Permission.SAILING_CLASSES_MANAGE,
   sailing_rating_rules: Permission.SAILING_RATING_RULES_MANAGE,
   sailing_ratings: Permission.SAILING_RATINGS_MANAGE,

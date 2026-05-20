@@ -59,6 +59,21 @@ describe('catalogPermissionForOperation', () => {
     ).toBe(edit);
   });
 
+  it('maps redirect resources to the public redirects permission', () => {
+    expect(
+      catalogPermissionForOperation({
+        operation: 'view',
+        resourceId: 'legacy_redirects',
+      })
+    ).toBe(Permission.PUBLIC_REDIRECTS_MANAGE);
+    expect(
+      catalogPermissionForOperation({
+        operation: 'delete',
+        resourceId: 'public_slugs',
+      })
+    ).toBe(Permission.PUBLIC_REDIRECTS_MANAGE);
+  });
+
   it('allows admin view fallback only for unmapped read operations', () => {
     const resourceId = 'new_catalog_resource';
 

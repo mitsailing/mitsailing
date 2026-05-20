@@ -43,6 +43,27 @@ describe('app permissions', () => {
     expect(hasPermission(permissions, Permission.EVENTS_MANAGE)).toBe(false);
   });
 
+  it('allows dock staff and dock masters to manage public redirects', () => {
+    expect(
+      hasPermission(
+        getAppRolePermissions(Role.DOCK_STAFF),
+        Permission.PUBLIC_REDIRECTS_MANAGE
+      )
+    ).toBe(true);
+    expect(
+      hasPermission(
+        getAppRolePermissions(Role.DOCK_MASTER),
+        Permission.PUBLIC_REDIRECTS_MANAGE
+      )
+    ).toBe(true);
+    expect(
+      hasPermission(
+        getAppRolePermissions(Role.ADMIN),
+        Permission.PUBLIC_REDIRECTS_MANAGE
+      )
+    ).toBe(true);
+  });
+
   it('checks any permission', () => {
     const permissions = getAppRolePermissions(Role.VOLUNTEER_INSTRUCTOR);
 

@@ -527,6 +527,73 @@ const sailingRatingRulesDefinition = {
   capabilities: { create: true, update: true, delete: true, reorder: false },
 } as const satisfies CatalogResourceDefinition;
 
+const publicSlugsDefinition = {
+  id: 'public_slugs',
+  titleKey: 'title_admin_public_slugs',
+  metaTitleKey: 'meta_title_admin_public_slugs',
+  hubLabelKey: 'hub_label_public_slugs',
+  listColumns: [
+    { field: 'slug', kind: 'string', headerKey: 'column_slug_label' },
+    { field: 'scope', kind: 'string', headerKey: 'column_scope' },
+    {
+      field: 'sluggableType',
+      kind: 'string',
+      headerKey: 'column_sluggable_type',
+    },
+    { field: 'targetPath', kind: 'url', headerKey: 'column_target_path' },
+    { field: 'source', kind: 'string', headerKey: 'column_source' },
+  ],
+  formFields: [],
+  capabilities: {
+    create: false,
+    update: false,
+    delete: true,
+    reorder: false,
+  },
+} as const satisfies CatalogResourceDefinition;
+
+const legacyRedirectsDefinition = {
+  id: 'legacy_redirects',
+  titleKey: 'title_admin_legacy_redirects',
+  metaTitleKey: 'meta_title_admin_legacy_redirects',
+  hubLabelKey: 'hub_label_legacy_redirects',
+  listColumns: [
+    { field: 'sourcePath', kind: 'string', headerKey: 'column_source_path' },
+    { field: 'targetPath', kind: 'url', headerKey: 'column_target_path' },
+    { field: 'source', kind: 'string', headerKey: 'column_source' },
+  ],
+  formFields: [
+    {
+      field: 'sourcePath',
+      kind: 'string',
+      required: true,
+      labelKey: 'field_source_path',
+    },
+    {
+      field: 'targetPath',
+      kind: 'string',
+      required: true,
+      labelKey: 'field_target_path',
+    },
+    {
+      field: 'source',
+      kind: 'select',
+      required: true,
+      labelKey: 'field_source',
+      selectOptions: [
+        { value: 'manual', labelKey: 'source_manual' },
+        { value: 'ai_migration', labelKey: 'source_ai_migration' },
+      ],
+    },
+  ],
+  capabilities: {
+    create: true,
+    update: true,
+    delete: true,
+    reorder: false,
+  },
+} as const satisfies CatalogResourceDefinition;
+
 const cmsPagesDefinition = {
   id: 'cms_pages',
   titleKey: 'title_admin_catalog_cms_pages',
@@ -682,6 +749,8 @@ export const CATALOG_RESOURCE_IDS = [
   'sailing_classes',
   'sailing_ratings',
   'sailing_rating_rules',
+  'public_slugs',
+  'legacy_redirects',
   'fleet',
   'site_alerts',
   'cms_pages',
@@ -702,6 +771,8 @@ export const catalogResourceDefinitions: Record<
   sailing_classes: sailingClassesDefinition,
   sailing_ratings: sailingRatingsDefinition,
   sailing_rating_rules: sailingRatingRulesDefinition,
+  public_slugs: publicSlugsDefinition,
+  legacy_redirects: legacyRedirectsDefinition,
   fleet: fleetDefinition,
   site_alerts: siteAlertsDefinition,
   cms_pages: cmsPagesDefinition,

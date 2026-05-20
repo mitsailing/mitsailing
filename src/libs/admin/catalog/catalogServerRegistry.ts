@@ -21,21 +21,22 @@ import { createZenStackCatalogHandlers } from '@/libs/admin/catalog/zenstackCata
 /**
  * Maps catalog resource ids to Prisma-backed handlers (server-only).
  */
-const catalogServerHandlers: Record<CatalogResourceId, CatalogServerHandlers> =
-  {
-    donation_funds: donationFundsCatalogHandlers,
-    event_categories: createZenStackCatalogHandlers('event_categories'),
-    class_categories: classCategoriesCatalogHandlers,
-    sailing_classes: sailingClassesCatalogHandlers,
-    sailing_ratings: sailingRatingsCatalogHandlers,
-    sailing_rating_rules: sailingRatingRulesCatalogHandlers,
-    fleet: fleetCatalogHandlers,
-    site_alerts: siteAlertsCatalogHandlers,
-    cms_pages: cmsPagesCatalogHandlers,
-    cms_page_blocks: cmsPageBlocksCatalogHandlers,
-    cms_menus: cmsMenusCatalogHandlers,
-    cms_menu_items: cmsMenuItemsCatalogHandlers,
-  };
+const catalogServerHandlers: Partial<
+  Record<CatalogResourceId, CatalogServerHandlers>
+> = {
+  donation_funds: donationFundsCatalogHandlers,
+  event_categories: createZenStackCatalogHandlers('event_categories'),
+  class_categories: classCategoriesCatalogHandlers,
+  sailing_classes: sailingClassesCatalogHandlers,
+  sailing_ratings: sailingRatingsCatalogHandlers,
+  sailing_rating_rules: sailingRatingRulesCatalogHandlers,
+  fleet: fleetCatalogHandlers,
+  site_alerts: siteAlertsCatalogHandlers,
+  cms_pages: cmsPagesCatalogHandlers,
+  cms_page_blocks: cmsPageBlocksCatalogHandlers,
+  cms_menus: cmsMenusCatalogHandlers,
+  cms_menu_items: cmsMenuItemsCatalogHandlers,
+};
 
 /**
  * Resolves server handlers for a validated catalog resource id.
@@ -46,5 +47,9 @@ const catalogServerHandlers: Record<CatalogResourceId, CatalogServerHandlers> =
 export function getCatalogServerHandlers(
   id: CatalogResourceId
 ): CatalogServerHandlers {
-  return catalogServerHandlers[id];
+  const handlers = catalogServerHandlers[id];
+  if (!handlers) {
+    throw new Error(`Missing catalog server handlers for resource "${id}"`);
+  }
+  return handlers;
 }
