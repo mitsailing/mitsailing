@@ -83,7 +83,7 @@ describe('createEmbeddedEventPaymentCheckoutSession', () => {
           },
         },
         return_url: 'https://sailing.mit.edu/events/intro/checkout/return',
-        ui_mode: 'embedded_page',
+        ui_mode: 'embedded',
       },
       {
         idempotencyKey: 'event-payment-checkout-payment-1',
@@ -158,7 +158,11 @@ describe('createEventPaymentCheckoutClientSecret', () => {
         stripeCheckoutSessionId: 'cs_123',
         stripePaymentIntentId: 'pi_123',
       },
-      where: { id: 'payment-1', status: EventPaymentStatus.pending },
+      where: {
+        id: 'payment-1',
+        status: EventPaymentStatus.pending,
+        stripeCheckoutSessionId: null,
+      },
     });
   });
 
@@ -201,7 +205,11 @@ describe('createEventPaymentCheckoutClientSecret', () => {
       data: expect.objectContaining({
         status: EventPaymentStatus.checkout_created,
       }),
-      where: { id: 'payment-1', status: EventPaymentStatus.pending },
+      where: {
+        id: 'payment-1',
+        status: EventPaymentStatus.pending,
+        stripeCheckoutSessionId: null,
+      },
     });
   });
 

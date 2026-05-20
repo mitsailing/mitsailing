@@ -384,4 +384,38 @@ describe('event payment email job', () => {
       },
     });
   });
+
+  it('logs admin digest cleanup failures and rethrows the send failure', async () => {
+    const sendError = new Error('send failed');
+    const cleanupError = new Error('cleanup failed');
+    mocks.eventFindUnique.mockResolvedValueOnce({
+      admins: [{ admin: { email: 'admin@example.com' } }],
+      name: 'Frostbite Regatta',
+      paymentDeadlineAt: new Date('2026-06-01T11:00:00.000Z'),
+      payments: [paymentRow],
+    });
+    mocks.sendEventPaymentAdminDigestEmail.mockRejectedValueOnce(sendError);
+    mocks.eventPaymentNotificationUpdateMany
+      .mockResolvedValueOnce({ count: 1 })
+      .mockRejectedValueOnce(cleanupError);
+    const { processEventPaymentEmailJob } =
+      await import('@/worker/eventPaymentEmailJob');
+
+    await expect(
+      processEventPaymentEmailJob({
+        dateKey: '2026-06-01',
+        eventId: 'event-1',
+        kind: 'admin_digest',
+      })
+    ).rejects.toBe(sendError);
+
+    expect(mocks.loggerError).toHaveBeenCalledWith(
+      '[event-payment-email] admin_digest cleanup_failed notification_id={notificationId} error_name={errorName} error_code={errorCode}',
+      {
+        errorCode: 'unknown',
+        errorName: 'Error',
+        notificationId: 'notification-1',
+      }
+    );
+  });
 });

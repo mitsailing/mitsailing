@@ -17,13 +17,20 @@ type StripeCheckoutSessionCreateResult = Pick<
   'client_secret' | 'customer' | 'id' | 'payment_intent'
 >;
 
+type EmbeddedStripeCheckoutSessionCreateParams = Omit<
+  Stripe.Checkout.SessionCreateParams,
+  'ui_mode'
+> & {
+  ui_mode: 'embedded';
+};
+
 type StripeCheckoutSessionCreator = {
   checkout: {
     sessions: {
-      create: (
-        params: Stripe.Checkout.SessionCreateParams,
+      create(
+        params: EmbeddedStripeCheckoutSessionCreateParams,
         options: { idempotencyKey: string }
-      ) => Promise<StripeCheckoutSessionCreateResult>;
+      ): Promise<StripeCheckoutSessionCreateResult>;
     };
   };
 };
@@ -71,11 +78,14 @@ export async function createEmbeddedEventPaymentCheckoutSession(options: {
     throw new TypeError('Event payment amount must be positive integer cents.');
   }
 
-  let { stripe } = options;
-  if (!stripe && Env.IS_E2E === '1') {
+  const { stripe: injectedStripe } = options;
+  if (!injectedStripe && Env.IS_E2E === '1') {
     return e2eCheckoutSession(options.payment.id);
   }
-  if (!stripe) {
+  let stripe: Stripe | StripeCheckoutSessionCreator;
+  if (injectedStripe) {
+    stripe = injectedStripe;
+  } else {
     const stripeClientModule = await import('@/libs/stripe/stripeClient');
     stripe = stripeClientModule.getStripeClient();
   }
@@ -85,31 +95,30 @@ export async function createEmbeddedEventPaymentCheckoutSession(options: {
     registrationId: options.payment.registrationId,
     userId: options.payment.userId,
   };
-  const session = await stripe.checkout.sessions.create(
-    {
-      client_reference_id: options.payment.id,
-      line_items: [
-        {
-          price_data: {
-            currency: 'usd',
-            product_data: {
-              name: options.payment.selectedFeeDescription,
-            },
-            unit_amount: options.payment.amountCents,
+  const params = {
+    client_reference_id: options.payment.id,
+    line_items: [
+      {
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: options.payment.selectedFeeDescription,
           },
-          quantity: 1,
+          unit_amount: options.payment.amountCents,
         },
-      ],
-      metadata,
-      mode: 'payment',
-      payment_intent_data: { metadata },
-      return_url: options.returnUrl,
-      ui_mode: 'embedded_page',
-    },
-    {
-      idempotencyKey: `event-payment-checkout-${options.payment.id}`,
-    }
-  );
+        quantity: 1,
+      },
+    ],
+    metadata,
+    mode: 'payment',
+    payment_intent_data: { metadata },
+    return_url: options.returnUrl,
+    ui_mode: 'embedded',
+  } satisfies EmbeddedStripeCheckoutSessionCreateParams;
+  // @ts-expect-error Stripe 22.1.1 types lag the current Checkout API enum for embedded sessions.
+  const session = await stripe.checkout.sessions.create(params, {
+    idempotencyKey: `event-payment-checkout-${options.payment.id}`,
+  });
 
   if (!session.client_secret) {
     throw new Error(

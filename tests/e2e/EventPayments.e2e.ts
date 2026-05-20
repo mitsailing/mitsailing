@@ -212,15 +212,11 @@ async function createPaymentEvent(options: {
   return { eventId, feeId, name: options.name, slug };
 }
 
-async function createRegistrationWithPayment(options: {
-  event: EventFixture;
-  manualHandledNote?: string;
-  receiptUrl?: string | null;
-  status: 'handled' | 'paid' | 'past_due' | 'pending';
-}): Promise<string> {
-  const userId = await adminUserId();
-  const registrationId = randomUUID();
-  const paymentId = randomUUID();
+async function insertApprovedRegistration(options: {
+  eventId: string;
+  registrationId: string;
+  userId: string;
+}): Promise<void> {
   await pool.query(
     `
       INSERT INTO "event_registrations" (
@@ -234,8 +230,19 @@ async function createRegistrationWithPayment(options: {
       )
       VALUES ($1, $2, $3, 'approved', '617-555-0142', NOW(), NOW())
     `,
-    [registrationId, options.event.eventId, userId]
+    [options.registrationId, options.eventId, options.userId]
   );
+}
+
+async function insertEventPayment(options: {
+  event: EventFixture;
+  manualHandledNote?: string;
+  paymentId: string;
+  receiptUrl?: string | null;
+  registrationId: string;
+  status: 'handled' | 'paid' | 'past_due' | 'pending';
+  userId: string;
+}): Promise<void> {
   await pool.query(
     `
       INSERT INTO "event_payments" (
@@ -265,16 +272,41 @@ async function createRegistrationWithPayment(options: {
       )
     `,
     [
-      paymentId,
+      options.paymentId,
       options.event.eventId,
-      registrationId,
-      userId,
+      options.registrationId,
+      options.userId,
       options.event.feeId,
       options.status,
       options.receiptUrl ?? null,
       options.manualHandledNote ?? null,
     ]
   );
+}
+
+async function createRegistrationWithPayment(options: {
+  event: EventFixture;
+  manualHandledNote?: string;
+  receiptUrl?: string | null;
+  status: 'handled' | 'paid' | 'past_due' | 'pending';
+}): Promise<string> {
+  const userId = await adminUserId();
+  const registrationId = randomUUID();
+  const paymentId = randomUUID();
+  await insertApprovedRegistration({
+    eventId: options.event.eventId,
+    registrationId,
+    userId,
+  });
+  await insertEventPayment({
+    event: options.event,
+    manualHandledNote: options.manualHandledNote,
+    paymentId,
+    receiptUrl: options.receiptUrl,
+    registrationId,
+    status: options.status,
+    userId,
+  });
   return paymentId;
 }
 
@@ -399,6 +431,7 @@ test.describe('Event payments', () => {
   test('admin enables payments with deadline and custom address', async ({
     page,
   }) => {
+    const paymentDeadlineYear = new Date().getUTCFullYear() + 1;
     const event = await createPaymentEvent({
       name: 'E2E paid clinic settings',
       paymentDeadlineAt: null,
@@ -409,7 +442,9 @@ test.describe('Event payments', () => {
 
     await page.goto(`/admin/events/${event.slug}/edit`);
     await page.getByLabel('Collect payment for approved registrations').check();
-    await page.getByLabel('Payment deadline').fill('2026-08-01T12:00');
+    await page
+      .getByLabel('Payment deadline')
+      .fill(`${paymentDeadlineYear}-01-15T12:00`);
     await page.getByLabel('Custom address').check();
     await page.getByLabel('Location name').fill('MIT Sailing Test Dock');
     await page.getByLabel('Address line 1').fill('77 Massachusetts Ave');
@@ -437,7 +472,7 @@ test.describe('Event payments', () => {
         const settings = await paymentSettingsForEvent(event.slug);
         return settings?.payment_deadline_at?.toISOString();
       })
-      .toContain('2026-08-01T16:00');
+      .toContain(`${paymentDeadlineYear}-01-15T17:00`);
   });
 
   test('auto-approved paid registration lands on embedded checkout page', async ({

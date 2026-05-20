@@ -310,6 +310,33 @@ async function recordProviderMessageId(options: {
   });
 }
 
+async function clearNotificationClaims(
+  markers: readonly { claimId: string; id: string }[]
+): Promise<void> {
+  const results = await Promise.allSettled(
+    markers.map(async (marker) => {
+      await clearNotificationClaim({
+        claimId: marker.claimId,
+        notificationId: marker.id,
+      });
+    })
+  );
+  for (const [index, result] of results.entries()) {
+    if (result.status === 'fulfilled') {
+      continue;
+    }
+    const marker = markers[index];
+    logger.error(
+      '[event-payment-email] admin_digest cleanup_failed notification_id={notificationId} error_name={errorName} error_code={errorCode}',
+      {
+        errorCode: safeErrorCode(result.reason) ?? 'unknown',
+        errorName: safeErrorName(result.reason),
+        notificationId: marker?.id ?? 'unknown',
+      }
+    );
+  }
+}
+
 async function processPaymentEmailJob(
   data: z.infer<typeof paymentJobSchema>
 ): Promise<void> {
@@ -454,12 +481,7 @@ async function processAdminDigestJob(
       })),
     });
   } catch (error) {
-    for (const marker of markers) {
-      await clearNotificationClaim({
-        claimId: marker.claimId,
-        notificationId: marker.id,
-      });
-    }
+    await clearNotificationClaims(markers);
     throw error;
   }
 
@@ -472,6 +494,15 @@ async function processAdminDigestJob(
   }
 }
 
+function isSevenEasternHour(now: Date): boolean {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    hour: 'numeric',
+    hour12: false,
+    timeZone: EVENTS_TIME_ZONE,
+  }).formatToParts(now);
+  return Number(parts.find((part) => part.type === 'hour')?.value) === 7;
+}
+
 export async function enqueueEventPaymentEmailJob(
   queue: Pick<Queue<EventPaymentEmailJobData>, 'add'>,
   data: EventPaymentQueueData
@@ -482,58 +513,54 @@ export async function enqueueEventPaymentEmailJob(
   });
 }
 
-export async function enqueueDueEventPaymentNotifications(
-  queue: Pick<Queue<EventPaymentEmailJobData>, 'add'>,
-  now: Date
-): Promise<void> {
-  const dateKey = nyEventPaymentNotificationDateKey(now);
-  const parts = new Intl.DateTimeFormat('en-US', {
-    hour: 'numeric',
-    hour12: false,
-    timeZone: EVENTS_TIME_ZONE,
-  }).formatToParts(now);
-  const hour = Number(parts.find((part) => part.type === 'hour')?.value);
-  if (hour !== 7) {
-    return;
-  }
-
+async function enqueueDuePaymentReminderJobs(options: {
+  dateKey: string;
+  now: Date;
+  queue: Pick<Queue<EventPaymentEmailJobData>, 'add'>;
+}): Promise<void> {
   const payments = await prisma.eventPayment.findMany({
     orderBy: { createdAt: 'asc' },
     select: { id: true },
     where: {
       event: {
-        dates: { some: { startDateTime: { gt: now } } },
+        dates: { some: { startDateTime: { gt: options.now } } },
         paymentDeadlineAt: { not: null },
       },
       notifications: {
         none: {
           kind: EventPaymentNotificationKind.reminder,
-          sentDateKey: dateKey,
+          sentDateKey: options.dateKey,
         },
       },
       status: { in: reminderStatuses },
     },
   });
   for (const payment of payments) {
-    await enqueueEventPaymentEmailJob(queue, {
-      dateKey,
+    await enqueueEventPaymentEmailJob(options.queue, {
+      dateKey: options.dateKey,
       kind: 'reminder',
       paymentId: payment.id,
     });
   }
+}
 
+async function enqueueDueAdminDigestJobs(options: {
+  dateKey: string;
+  now: Date;
+  queue: Pick<Queue<EventPaymentEmailJobData>, 'add'>;
+}): Promise<void> {
   const events = await prisma.event.findMany({
     orderBy: { name: 'asc' },
     select: { id: true },
     where: {
-      dates: { some: { startDateTime: { gt: now } } },
-      paymentDeadlineAt: { lte: now },
+      dates: { some: { startDateTime: { gt: options.now } } },
+      paymentDeadlineAt: { lte: options.now },
       payments: {
         some: {
           notifications: {
             none: {
               kind: EventPaymentNotificationKind.admin_digest,
-              sentDateKey: dateKey,
+              sentDateKey: options.dateKey,
             },
           },
           status: { in: reminderStatuses },
@@ -542,12 +569,25 @@ export async function enqueueDueEventPaymentNotifications(
     },
   });
   for (const event of events) {
-    await enqueueEventPaymentEmailJob(queue, {
-      dateKey,
+    await enqueueEventPaymentEmailJob(options.queue, {
+      dateKey: options.dateKey,
       eventId: event.id,
       kind: 'admin_digest',
     });
   }
+}
+
+export async function enqueueDueEventPaymentNotifications(
+  queue: Pick<Queue<EventPaymentEmailJobData>, 'add'>,
+  now: Date
+): Promise<void> {
+  const dateKey = nyEventPaymentNotificationDateKey(now);
+  if (!isSevenEasternHour(now)) {
+    return;
+  }
+
+  await enqueueDuePaymentReminderJobs({ dateKey, now, queue });
+  await enqueueDueAdminDigestJobs({ dateKey, now, queue });
 }
 
 export async function registerEventPaymentDailyNotificationScheduler(

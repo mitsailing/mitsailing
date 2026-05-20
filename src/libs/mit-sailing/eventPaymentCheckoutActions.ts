@@ -25,6 +25,7 @@ export async function createEventPaymentCheckoutClientSecretAction(
     paymentId,
     returnUrl: buildEventPaymentCheckoutReturnUrl({
       appUrl: Env.NEXT_PUBLIC_APP_URL,
+      locale,
       slug,
     }),
     userId: user.id,

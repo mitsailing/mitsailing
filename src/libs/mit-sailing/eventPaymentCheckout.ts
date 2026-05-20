@@ -3,6 +3,7 @@ import { EventPaymentStatus } from '@/generated/prisma/enums';
 import type { EventPaymentStatus as EventPaymentStatusType } from '@/generated/prisma/enums';
 import type { EventPaymentCheckoutSessionPayment } from '@/libs/stripe/stripeCheckoutSessions';
 import { createEmbeddedEventPaymentCheckoutSession } from '@/libs/stripe/stripeCheckoutSessions';
+import { getI18nPath } from '@/utils/Helpers';
 
 type EventPaymentCheckoutDbPayment = EventPaymentCheckoutSessionPayment & {
   status: EventPaymentStatusType;
@@ -27,7 +28,11 @@ type EventPaymentCheckoutDb = {
         stripeCustomerId?: string;
         stripePaymentIntentId?: string;
       };
-      where: { id: string; status: EventPaymentStatusType };
+      where: {
+        id: string;
+        status: EventPaymentStatusType;
+        stripeCheckoutSessionId: string | null;
+      };
     }) => Promise<{ count: number }>;
   };
 };
@@ -44,14 +49,17 @@ const checkoutAllowedStatuses = new Set<EventPaymentStatusType>([
 
 export function buildEventPaymentCheckoutReturnUrl(options: {
   appUrl: string;
+  locale?: string;
   slug: string;
 }): string {
   const baseUrl = options.appUrl.endsWith('/')
     ? options.appUrl.slice(0, -1)
     : options.appUrl;
-  return `${baseUrl}/events/${encodeURIComponent(
-    options.slug
-  )}/checkout?session_id={CHECKOUT_SESSION_ID}`;
+  const checkoutPath = `/events/${encodeURIComponent(options.slug)}/checkout`;
+  const localizedCheckoutPath = options.locale
+    ? getI18nPath(checkoutPath, options.locale)
+    : checkoutPath;
+  return `${baseUrl}${localizedCheckoutPath}?session_id={CHECKOUT_SESSION_ID}`;
 }
 
 function checkoutSessionUpdateData(options: {
@@ -100,7 +108,11 @@ export async function createEventPaymentCheckoutClientSecret(options: {
 
   const updateResult = await options.db.eventPayment.updateMany({
     data: checkoutSessionUpdateData(checkoutSession),
-    where: { id: payment.id, status: payment.status },
+    where: {
+      id: payment.id,
+      status: payment.status,
+      stripeCheckoutSessionId: payment.stripeCheckoutSessionId,
+    },
   });
   if (updateResult.count === 0) {
     return null;

@@ -119,5 +119,11 @@ describe('event payment email wrappers', () => {
     expect(mocks.sendTransactionalEmail.mock.calls[0]?.[0].text).toContain(
       'Ada Sailor'
     );
+    expect(mocks.sendTransactionalEmail.mock.calls[0]?.[0].html).toContain(
+      'Deadline'
+    );
+    expect(mocks.sendTransactionalEmail.mock.calls[0]?.[0].html).toContain(
+      'June 1, 2026, 7:00 AM ET'
+    );
   });
 });

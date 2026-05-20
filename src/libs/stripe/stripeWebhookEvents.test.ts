@@ -68,6 +68,7 @@ describe('processStripeWebhookEvent', () => {
         create: vi.fn().mockResolvedValue({ id: 'webhook_event_123' }),
         findUnique: vi.fn(),
         update: updateWebhookEvent,
+        updateMany: vi.fn(),
       },
     };
 
@@ -94,5 +95,75 @@ describe('processStripeWebhookEvent', () => {
       data: { processedAt: expect.any(Date), processingError: null },
       where: { id: 'webhook_event_123' },
     });
+  });
+
+  it('claims unprocessed duplicate events before retrying payment updates', async () => {
+    const updateManyWebhookEvent = vi.fn().mockResolvedValue({ count: 1 });
+    const updatePayment = vi.fn().mockResolvedValue({ count: 1 });
+    const db = {
+      eventPayment: {
+        findFirst: vi.fn().mockResolvedValue({
+          amountCents: 4200,
+          currency: 'usd',
+          id: 'payment_123',
+          status: EventPaymentStatus.pending,
+        }),
+        updateMany: updatePayment,
+      },
+      eventPaymentNotification: {
+        upsert: vi.fn().mockResolvedValue({}),
+      },
+      stripeWebhookEvent: {
+        create: vi.fn().mockRejectedValue(
+          Object.assign(new Error('duplicate'), {
+            code: 'P2002',
+          })
+        ),
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'webhook_event_123',
+          processedAt: null,
+        }),
+        update: vi.fn(),
+        updateMany: updateManyWebhookEvent,
+      },
+    };
+
+    const result = await processStripeWebhookEvent({
+      db,
+      event: {
+        created: 1_777_636_800,
+        data: {
+          object: {
+            id: 'pi_123',
+            amount_received: 4200,
+            currency: 'usd',
+            metadata: { paymentId: 'payment_123' },
+          },
+        },
+        id: 'evt_payment_intent_succeeded',
+        type: 'payment_intent.succeeded',
+      },
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      receiptJob: { dateKey: '2026-05-01', paymentId: 'payment_123' },
+    });
+    expect(updateManyWebhookEvent).toHaveBeenCalledWith({
+      data: { processingError: expect.stringMatching(/^processing:/u) },
+      where: {
+        id: 'webhook_event_123',
+        processedAt: null,
+        OR: [
+          { processingError: null },
+          {
+            processingError: {
+              not: { startsWith: 'processing:' },
+            },
+          },
+        ],
+      },
+    });
+    expect(updatePayment).toHaveBeenCalled();
   });
 });

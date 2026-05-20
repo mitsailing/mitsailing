@@ -761,6 +761,7 @@ model EventRegistration {
     @@index([eventId])
     @@index([eventEntryFeeId])
     @@index([userId])
+    @@unique([id, eventId, userId])
     @@map("event_registrations")
 }
 
@@ -831,6 +832,7 @@ model EventEntryFee {
     payments EventPayment[]
 
     @@index([eventId])
+    @@unique([eventId, id])
     @@map("event_entry_fees")
 }
 
@@ -855,9 +857,9 @@ model EventPayment {
     createdAt DateTime @default(now()) @map("created_at")
     updatedAt DateTime @updatedAt() @map("updated_at")
     event Event @relation(fields: [eventId], references: [id], onDelete: Restrict)
-    registration EventRegistration @relation(fields: [registrationId], references: [id], onDelete: Restrict)
+    registration EventRegistration @relation(fields: [registrationId, eventId, userId], references: [id, eventId, userId], onDelete: Restrict)
     user User @relation(fields: [userId], references: [id], onDelete: Restrict)
-    selectedFee EventEntryFee @relation(fields: [selectedFeeId], references: [id], onDelete: Restrict)
+    selectedFee EventEntryFee @relation(fields: [eventId, selectedFeeId], references: [eventId, id], onDelete: Restrict)
     manualHandledBy User? @relation("EventPaymentManualHandledBy", fields: [manualHandledByUserId], references: [id], onDelete: SetNull)
     notifications EventPaymentNotification[]
 

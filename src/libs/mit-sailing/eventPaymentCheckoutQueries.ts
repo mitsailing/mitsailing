@@ -21,12 +21,12 @@ type EventPaymentCheckoutPageData = {
 };
 
 export const getEventPaymentCheckoutPageData = cache(
-  async (options: {
-    slug: string;
-    userId: string;
-  }): Promise<EventPaymentCheckoutPageData | null> => {
+  async (
+    slug: string,
+    userId: string
+  ): Promise<EventPaymentCheckoutPageData | null> => {
     const event = await prisma.event.findFirst({
-      where: { isPublished: true, slug: options.slug },
+      where: { isPublished: true, slug },
       select: { id: true, name: true, slug: true },
     });
     if (!event) {
@@ -36,7 +36,7 @@ export const getEventPaymentCheckoutPageData = cache(
       where: {
         eventId: event.id,
         registration: { status: 'approved' },
-        userId: options.userId,
+        userId,
       },
       orderBy: { createdAt: 'desc' },
       select: {

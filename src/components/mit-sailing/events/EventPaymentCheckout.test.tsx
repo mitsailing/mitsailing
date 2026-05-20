@@ -154,6 +154,83 @@ describe('EventPaymentCheckout', () => {
     expect(stripeMocks.unmount).toHaveBeenCalledTimes(1);
   });
 
+  it('shows load error when client secret is unavailable', async () => {
+    stripeMocks.createEmbeddedCheckoutPage.mockImplementation(
+      async (options: { fetchClientSecret: () => Promise<string> }) => {
+        await options.fetchClientSecret();
+        return {
+          mount: stripeMocks.mount,
+          unmount: stripeMocks.unmount,
+        };
+      }
+    );
+    const clientSecretAction = vi.fn().mockResolvedValue({
+      message: 'Payment is no longer payable.',
+      status: 'unavailable' as const,
+    });
+
+    renderCheckout({
+      clientSecretAction,
+      payment: {
+        amount: '$25.00',
+        receiptUrl: null,
+        status: 'pending',
+        statusLabel: 'Pending',
+      },
+    });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Checkout could not load.'
+    );
+    expect(stripeMocks.mount).not.toHaveBeenCalled();
+  });
+
+  it('clears checkout load error after successful retry', async () => {
+    const retryPayment: EventPaymentCheckoutPayment = {
+      amount: '$25.00',
+      receiptUrl: null,
+      status: 'past_due',
+      statusLabel: 'Past due',
+    };
+    stripeMocks.loadStripe
+      .mockResolvedValueOnce({
+        createEmbeddedCheckoutPage: vi
+          .fn()
+          .mockRejectedValue(new Error('Stripe unavailable')),
+      })
+      .mockResolvedValue({
+        createEmbeddedCheckoutPage: stripeMocks.createEmbeddedCheckoutPage,
+      });
+    const { rerender } = renderCheckout({
+      payment: {
+        amount: '$25.00',
+        receiptUrl: null,
+        status: 'pending',
+        statusLabel: 'Pending',
+      },
+    });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Checkout could not load.'
+    );
+
+    rerender(
+      <EventPaymentCheckout
+        clientSecretAction={vi.fn(defaultClientSecretAction)}
+        labels={labels}
+        payment={retryPayment}
+        publishableKey="pk_test_checkout"
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(stripeMocks.mount).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it('keeps checkout mounted across parent rerenders', async () => {
     const clientSecretAction = vi.fn(defaultClientSecretAction);
     const payment: EventPaymentCheckoutPayment = {

@@ -121,7 +121,7 @@ type PaymentEligibleEvent = {
 };
 
 type RegistrationForPayment = {
-  eventEntryFeeId: string | null;
+  eventEntryFee: PaymentEligibleEventFee | null;
   eventId: string;
   id: string;
   status: EventRegistrationStatus;
@@ -208,29 +208,35 @@ function adminEventSuccessPath(options: {
 
 function checkoutFeeForRegistration(options: {
   event: PaymentEligibleEvent;
-  registration: Pick<RegistrationForPayment, 'eventEntryFeeId'>;
+  registration: Pick<RegistrationForPayment, 'eventEntryFee'>;
 }) {
   const eligibility = getEventPaymentEligibility({
     entryFees: options.event.entryFees,
     paymentDeadlineAt: options.event.paymentDeadlineAt,
     paymentsEnabled: options.event.paymentsEnabled,
   });
-  if (!eligibility.canCreatePayment) {
+  if (!eligibility.canCreatePayment || !options.registration.eventEntryFee) {
     return null;
   }
-  return (
-    options.event.entryFees.find(
-      (fee) =>
-        fee.id === options.registration.eventEntryFeeId && fee.amountCents > 0
-    ) ?? null
-  );
+  return options.registration.eventEntryFee.amountCents > 0
+    ? options.registration.eventEntryFee
+    : null;
 }
 
-function canSendPaymentRequestForEvent(event: PaymentEligibleEvent): boolean {
+function canSendPaymentRequestForEvent(options: {
+  event: PaymentEligibleEvent;
+  now: Date;
+}): boolean {
+  if (
+    options.event.paymentDeadlineAt &&
+    options.event.paymentDeadlineAt.getTime() <= options.now.getTime()
+  ) {
+    return false;
+  }
   return getEventPaymentEligibility({
-    entryFees: event.entryFees,
-    paymentDeadlineAt: event.paymentDeadlineAt,
-    paymentsEnabled: event.paymentsEnabled,
+    entryFees: options.event.entryFees,
+    paymentDeadlineAt: options.event.paymentDeadlineAt,
+    paymentsEnabled: options.event.paymentsEnabled,
   }).canSendRequest;
 }
 
@@ -1196,7 +1202,9 @@ export async function updateAdminEventRegistrationStatusAction(
         const registration = await tx.eventRegistration.findFirst({
           where: { id: registrationId, eventId: access.event.id },
           select: {
-            eventEntryFeeId: true,
+            eventEntryFee: {
+              select: { amountCents: true, description: true, id: true },
+            },
             eventId: true,
             id: true,
             status: true,
@@ -1260,9 +1268,10 @@ export async function updateAdminEventRegistrationStatusAction(
             registration,
             tx,
           });
-          if (payment && canSendPaymentRequestForEvent(event)) {
+          const now = new Date();
+          if (payment && canSendPaymentRequestForEvent({ event, now })) {
             paymentRequestJob = await markPaymentRequestNotification({
-              now: new Date(),
+              now,
               paymentId: payment.id,
               tx,
             });
@@ -1412,30 +1421,28 @@ export async function markAdminEventPaymentHandledAction(
     redirect(registrationsUrlWithError(locale, slug, 'validation_failed'));
   }
   let updatedCount = 0;
-  let foundPayment = false;
   try {
-    const payment = await prisma.eventPayment.findFirst({
-      where: { eventId: access.event.id, id: paymentId },
-      select: { status: true },
+    const transition = buildManualHandledEventPaymentTransition({
+      adminUserId: access.session.user.id,
+      note: parsed.data.note,
+      now: new Date(),
+      status: EventPaymentStatus.pending,
     });
-    foundPayment = payment !== null;
-    if (payment) {
-      const transition = buildManualHandledEventPaymentTransition({
-        adminUserId: access.session.user.id,
-        note: parsed.data.note,
-        now: new Date(),
-        status: payment.status,
-      });
-      const result = await prisma.eventPayment.updateMany({
-        where: {
-          eventId: access.event.id,
-          id: paymentId,
-          status: payment.status,
+    const result = await prisma.eventPayment.updateMany({
+      where: {
+        eventId: access.event.id,
+        id: paymentId,
+        status: {
+          in: [
+            EventPaymentStatus.checkout_created,
+            EventPaymentStatus.past_due,
+            EventPaymentStatus.pending,
+          ],
         },
-        data: transition,
-      });
-      updatedCount = result.count;
-    }
+      },
+      data: transition,
+    });
+    updatedCount = result.count;
   } catch (error) {
     logAdminEventMutationFailure({
       action: 'mark-payment-handled',
@@ -1446,7 +1453,7 @@ export async function markAdminEventPaymentHandledAction(
       registrationsUrlWithError(locale, slug, mutationCodeFromPrisma(error))
     );
   }
-  if (!foundPayment || updatedCount === 0) {
+  if (updatedCount === 0) {
     redirect(registrationsUrlWithError(locale, slug, 'not_found'));
   }
   revalidateEventAdminMutation(locale, [slug]);

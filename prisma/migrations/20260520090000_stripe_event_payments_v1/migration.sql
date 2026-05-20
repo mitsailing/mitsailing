@@ -99,6 +99,7 @@ CREATE INDEX "event_payments_event_id_status_idx" ON "event_payments"("event_id"
 CREATE INDEX "event_payments_user_id_created_at_idx" ON "event_payments"("user_id", "created_at");
 CREATE INDEX "event_payments_selected_fee_id_idx" ON "event_payments"("selected_fee_id");
 CREATE INDEX "event_payments_manual_handled_by_user_id_idx" ON "event_payments"("manual_handled_by_user_id");
+CREATE UNIQUE INDEX "event_registrations_id_event_id_user_id_key" ON "event_registrations"("id", "event_id", "user_id");
 
 CREATE UNIQUE INDEX "stripe_webhook_events_stripe_event_id_key" ON "stripe_webhook_events"("stripe_event_id");
 CREATE INDEX "stripe_webhook_events_event_type_stripe_created_at_idx" ON "stripe_webhook_events"("event_type", "stripe_created_at");
@@ -109,8 +110,8 @@ CREATE INDEX "event_payment_notifications_kind_sent_date_key_idx" ON "event_paym
 CREATE UNIQUE INDEX "event_payment_notifications_payment_id_kind_sent_date_key_key" ON "event_payment_notifications"("payment_id", "kind", "sent_date_key");
 
 ALTER TABLE "event_payments" ADD CONSTRAINT "event_payments_event_id_fkey" FOREIGN KEY ("event_id") REFERENCES "events"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "event_payments" ADD CONSTRAINT "event_payments_registration_id_fkey" FOREIGN KEY ("registration_id") REFERENCES "event_registrations"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "event_payments" ADD CONSTRAINT "event_payments_registration_id_event_id_user_id_fkey" FOREIGN KEY ("registration_id", "event_id", "user_id") REFERENCES "event_registrations"("id", "event_id", "user_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "event_payments" ADD CONSTRAINT "event_payments_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "event_payments" ADD CONSTRAINT "event_payments_selected_fee_id_fkey" FOREIGN KEY ("selected_fee_id") REFERENCES "event_entry_fees"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "event_payments" ADD CONSTRAINT "event_payments_event_id_selected_fee_id_fkey" FOREIGN KEY ("event_id", "selected_fee_id") REFERENCES "event_entry_fees"("event_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "event_payments" ADD CONSTRAINT "event_payments_manual_handled_by_user_id_fkey" FOREIGN KEY ("manual_handled_by_user_id") REFERENCES "user"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE "event_payment_notifications" ADD CONSTRAINT "event_payment_notifications_payment_id_fkey" FOREIGN KEY ("payment_id") REFERENCES "event_payments"("id") ON DELETE CASCADE ON UPDATE CASCADE;

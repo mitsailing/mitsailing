@@ -134,6 +134,7 @@ export function EventPaymentCheckout(props: EventPaymentCheckoutProps) {
     if (!isPayablePayment(payment) || !publishableKey) {
       return;
     }
+    setError(null);
     let cancelled = false;
     let mountedCheckout: { unmount: () => void } | null = null;
 

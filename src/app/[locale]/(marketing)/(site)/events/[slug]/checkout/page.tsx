@@ -67,7 +67,7 @@ export default async function EventCheckoutPage(props: EventCheckoutPageProps) {
     getI18nPath(`/events/${encodeURIComponent(slug)}/checkout`, locale)
   );
   const [data, t, tRoutes] = await Promise.all([
-    getEventPaymentCheckoutPageData({ slug, userId: user.id }),
+    getEventPaymentCheckoutPageData(slug, user.id),
     getTranslations({ locale, namespace: 'MitSailingEvents' }),
     getTranslations({ locale, namespace: 'MitSailingRoutes' }),
   ]);
@@ -103,8 +103,17 @@ export default async function EventCheckoutPage(props: EventCheckoutPageProps) {
     <SiteSectionShell
       locale={locale}
       segments={[
-        { label: tRoutes('section_events'), href: '/events/' },
-        { label: data.event.name, href: `/events/${data.event.slug}` },
+        {
+          label: tRoutes('section_events'),
+          href: getI18nPath('/events/', locale),
+        },
+        {
+          label: data.event.name,
+          href: getI18nPath(
+            `/events/${encodeURIComponent(data.event.slug)}`,
+            locale
+          ),
+        },
         { label: t('checkout_breadcrumb') },
       ]}
     >

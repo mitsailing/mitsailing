@@ -100,6 +100,16 @@ function paymentStatusLabel(
   return t('payment_status_pending');
 }
 
+function canMarkPaymentHandled(
+  status: NonNullable<AdminEventRegistrationDto['payment']>['status']
+): boolean {
+  return (
+    status === EventPaymentStatus.checkout_created ||
+    status === EventPaymentStatus.past_due ||
+    status === EventPaymentStatus.pending
+  );
+}
+
 function PaymentValue(props: {
   accessMode: AdminEventAccessMode;
   locale: string;
@@ -142,7 +152,7 @@ function PaymentValue(props: {
         </form>
       ) : null}
       {props.accessMode === 'editable' &&
-      payment.status !== EventPaymentStatus.handled ? (
+      canMarkPaymentHandled(payment.status) ? (
         <form action={markHandledAction} className="flex flex-col gap-2">
           <Textarea
             aria-label={props.t('payment_manual_note_label')}

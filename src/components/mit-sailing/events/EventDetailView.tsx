@@ -18,6 +18,7 @@ import { cancelPublicEventRegistrationAction } from '@/libs/mit-sailing/eventReg
 import { publicEventReservationState } from '@/libs/mit-sailing/eventRegistrationState';
 import type { PublicEventReservationState } from '@/libs/mit-sailing/eventRegistrationState';
 import { formatUsdMinorUnitsAsCurrency } from '@/libs/money/stripeUsdMinorUnits';
+import { getI18nPath } from '@/utils/Helpers';
 import { EventRegistrationCta } from './EventRegistrationCta';
 
 type EventDetailViewProps = {
@@ -82,19 +83,22 @@ function isNonEmptyString(value: string | null | undefined): value is string {
   return typeof value === 'string' && value.length > 0;
 }
 
+function trimmedAddressPart(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed && trimmed.length > 0 ? trimmed : null;
+}
+
 function eventAddressLines(event: PublicEventDetail): string[] {
   return [
-    event.addressName,
-    event.addressLine1,
-    event.addressLine2,
+    trimmedAddressPart(event.addressName),
+    trimmedAddressPart(event.addressLine1),
+    trimmedAddressPart(event.addressLine2),
     [event.addressCity, event.addressState, event.addressPostalCode]
-      .map((part) => part?.trim())
+      .map(trimmedAddressPart)
       .filter(isNonEmptyString)
       .join(' '),
-    event.addressCountry,
-  ]
-    .map((part) => part?.trim())
-    .filter(isNonEmptyString);
+    trimmedAddressPart(event.addressCountry),
+  ].filter(isNonEmptyString);
 }
 
 function eventAddressMapHref(lines: readonly string[]): string {
@@ -292,14 +296,17 @@ export async function EventDetailView(props: EventDetailViewProps) {
             'inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-mit-red no-underline hover:underline dark:text-mit-red-ink',
             textFocusRingClassName
           )}
-          href="/events/"
+          href={getI18nPath('/events/', props.locale)}
         >
           <ArrowLeft aria-hidden size={16} />
           {t('back_to_list')}
         </Link>
         <PublicAdminEditLink
           className="mb-0 ml-auto shrink-0"
-          href={`/admin/events/${encodeURIComponent(props.event.slug)}/edit`}
+          href={getI18nPath(
+            `/admin/events/${encodeURIComponent(props.event.slug)}/edit`,
+            props.locale
+          )}
         />
       </PublicCatalogDetailTopNav>
 

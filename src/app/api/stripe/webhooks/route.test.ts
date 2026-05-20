@@ -15,7 +15,7 @@ const mocks = vi.hoisted(() => ({
   },
   prisma: {
     $transaction: vi.fn(
-      async (operation: (client: typeof mocks.tx) => Promise<unknown>) => {
+      async (operation: (_client: typeof mocks.tx) => Promise<unknown>) => {
         const result = await operation(mocks.tx);
         return result;
       }
@@ -33,6 +33,7 @@ const mocks = vi.hoisted(() => ({
       create: vi.fn(),
       findUnique: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn(),
     },
   },
 }));
@@ -100,6 +101,7 @@ describe('stripe webhook route', () => {
     });
     mocks.tx.stripeWebhookEvent.findUnique.mockResolvedValue(null);
     mocks.tx.stripeWebhookEvent.update.mockResolvedValue({});
+    mocks.tx.stripeWebhookEvent.updateMany.mockResolvedValue({ count: 1 });
     mocks.tx.eventPayment.findFirst.mockResolvedValue({
       amountCents: 4200,
       currency: 'usd',
@@ -108,7 +110,9 @@ describe('stripe webhook route', () => {
     });
     mocks.tx.eventPayment.updateMany.mockResolvedValue({ count: 1 });
     mocks.tx.eventPaymentNotification.upsert.mockResolvedValue({});
-    mocks.enqueueEventPaymentEmailJob.mockImplementation(async () => {});
+    mocks.enqueueEventPaymentEmailJob.mockImplementation(async () => {
+      await Promise.resolve();
+    });
   });
 
   it('rejects missing signatures before constructing events or mutating data', async () => {

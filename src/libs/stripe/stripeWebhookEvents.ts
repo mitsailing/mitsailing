@@ -1,4 +1,5 @@
 import 'server-only';
+import { randomUUID } from 'node:crypto';
 import type { Stripe } from 'stripe';
 import {
   EventPaymentNotificationKind,
@@ -98,6 +99,19 @@ type StripeWebhookDb = {
       };
       where: { id: string };
     }) => Promise<unknown>;
+    updateMany: (args: {
+      data: {
+        processingError: string | null;
+      };
+      where: {
+        id: string;
+        processedAt: null;
+        OR: (
+          | { processingError: null }
+          | { processingError: { not: { startsWith: string } } }
+        )[];
+      };
+    }) => Promise<{ count: number }>;
   };
 };
 
@@ -168,6 +182,31 @@ function errorMessage(error: unknown): string {
   return error instanceof Error
     ? error.message
     : 'Unknown Stripe webhook error';
+}
+
+const webhookProcessingClaimPrefix = 'processing:';
+
+async function claimExistingWebhookEvent(options: {
+  db: StripeWebhookDb;
+  eventId: string;
+}): Promise<{ id: string } | null> {
+  const claimId = `${webhookProcessingClaimPrefix}${randomUUID()}`;
+  const claim = await options.db.stripeWebhookEvent.updateMany({
+    data: { processingError: claimId },
+    where: {
+      id: options.eventId,
+      processedAt: null,
+      OR: [
+        { processingError: null },
+        {
+          processingError: {
+            not: { startsWith: webhookProcessingClaimPrefix },
+          },
+        },
+      ],
+    },
+  });
+  return claim.count === 1 ? { id: options.eventId } : null;
 }
 
 function stripeObjectMatchesPaymentAmount(
@@ -525,7 +564,14 @@ export async function processStripeWebhookEvent(options: {
         return { duplicate: true, ok: true };
       }
       if (existingEvent) {
-        storedEvent = existingEvent;
+        const claimedEvent = await claimExistingWebhookEvent({
+          db: options.db,
+          eventId: existingEvent.id,
+        });
+        if (!claimedEvent) {
+          return { duplicate: true, ok: true };
+        }
+        storedEvent = claimedEvent;
       } else {
         throw error;
       }

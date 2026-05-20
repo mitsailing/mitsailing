@@ -1,11 +1,11 @@
 import { render } from 'react-email';
+import { EventPaymentAdminDigestTemplate } from '@/../emails/event-payment-admin-digest';
+import { EventPaymentReceiptTemplate } from '@/../emails/event-payment-receipt';
+import { EventPaymentReminderTemplate } from '@/../emails/event-payment-reminder';
+import { EventPaymentRequestTemplate } from '@/../emails/event-payment-request';
 import { sendTransactionalEmail } from '@/libs/email/sendTransactional';
 import type { SendEmailResult } from '@/libs/email/sendTransactional';
 import enMessages from '@/locales/en.json';
-import { EventPaymentAdminDigestTemplate } from '../../../emails/event-payment-admin-digest';
-import { EventPaymentReceiptTemplate } from '../../../emails/event-payment-receipt';
-import { EventPaymentReminderTemplate } from '../../../emails/event-payment-reminder';
-import { EventPaymentRequestTemplate } from '../../../emails/event-payment-request';
 
 type EventPaymentEmailCopy = typeof enMessages.EventPaymentEmails;
 
@@ -237,6 +237,7 @@ export async function sendEventPaymentAdminDigestEmail(
       body: replacePaymentValues(copy.admin_digest_body, params),
       deadline: params.deadline,
       eventName: params.eventName,
+      fieldDeadline: copy.field_deadline,
       overduePayments: params.overduePayments,
       previewText: replacePaymentValues(copy.admin_digest_preview, params),
       title: copy.admin_digest_heading,
