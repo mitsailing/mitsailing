@@ -153,10 +153,7 @@ function RegistrationStatusAction(props: {
         {props.icon}
         {props.actionLabel}
       </summary>
-      <div
-        aria-label={props.confirmTitle}
-        className="m-2 rounded-md border border-border bg-background p-3"
-      >
+      <div className="m-2 rounded-md border border-border bg-background p-3">
         <p className="text-sm text-foreground">{props.confirmBody}</p>
         <form action={action} className="mt-3 flex justify-end">
           <input name="status" type="hidden" value={props.status} />
