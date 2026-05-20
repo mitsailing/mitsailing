@@ -5,15 +5,15 @@ import {
   Plus,
   Save,
   Trash2,
-} from "lucide-react";
-import type { getTranslations } from "next-intl/server";
-import type * as React from "react";
-import { AdminErrorAlert } from "@/components/mit-sailing/admin/AdminErrorAlert";
+} from 'lucide-react';
+import type { getTranslations } from 'next-intl/server';
+import type * as React from 'react';
+import { AdminErrorAlert } from '@/components/mit-sailing/admin/AdminErrorAlert';
 import {
   AdminEventDetailPageKindFields,
   AdminEventDisclosureSection,
   AdminEventRegistrationModeFields,
-} from "@/components/mit-sailing/admin/events/AdminEventEditorControls";
+} from '@/components/mit-sailing/admin/events/AdminEventEditorControls';
 import {
   adminEventFormErrorMessage,
   AdminEventBackLink,
@@ -22,22 +22,22 @@ import {
   AdminEventField,
   AdminEventFormSection,
   AdminEventReadOnlyNotice,
-} from "@/components/mit-sailing/admin/events/AdminEventShared";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { SubmitButton } from "@/components/ui/submit-button";
-import { Textarea } from "@/components/ui/textarea";
+} from '@/components/mit-sailing/admin/events/AdminEventShared';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { SubmitButton } from '@/components/ui/submit-button';
+import { Textarea } from '@/components/ui/textarea';
 import {
   EventAddressPreset,
   EventAnswerType,
   EventDetailPageKind,
   EventRegistrationMode,
-} from "@/generated/prisma/enums";
-import { adminNativeSelectClassName } from "@/lib/mit-sailing/tokens";
+} from '@/generated/prisma/enums';
+import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 import {
   ADMIN_FORM_REDIRECT_TO_EDIT,
   ADMIN_FORM_REDIRECT_TO_FIELD,
-} from "@/libs/admin/adminFormRedirect";
+} from '@/libs/admin/adminFormRedirect';
 import {
   addAdminEventDateAction,
   addAdminEventFeeAction,
@@ -51,11 +51,11 @@ import {
   deleteAdminEventFeeAction,
   deleteAdminEventQuestionAction,
   updateAdminEventPaymentSettingsAction,
-} from "@/libs/admin/events/eventAdminActions";
+} from '@/libs/admin/events/eventAdminActions';
 import {
   adminEventShowPath,
   adminEventsIndexPath,
-} from "@/libs/admin/events/eventAdminPaths";
+} from '@/libs/admin/events/eventAdminPaths';
 import type {
   AdminEventCategoryOption,
   AdminEventDateDto,
@@ -63,21 +63,21 @@ import type {
   AdminEventFeeDto,
   AdminEventQuestionDto,
   AdminEventUserOption,
-} from "@/libs/admin/events/eventAdminQueries";
+} from '@/libs/admin/events/eventAdminQueries';
 import {
   eventAdminCentsToDollars,
   formatEasternDateTimeLocal,
-} from "@/libs/admin/events/eventAdminSchemas";
-import type { AdminEventAccessMode } from "@/libs/admin/events/zenstackEventAccess";
-import { Link } from "@/libs/I18nNavigation";
-import { formatEasternDateTime } from "@/libs/mit-sailing/easternTimeFormat";
+} from '@/libs/admin/events/eventAdminSchemas';
+import type { AdminEventAccessMode } from '@/libs/admin/events/zenstackEventAccess';
+import { Link } from '@/libs/I18nNavigation';
+import { formatEasternDateTime } from '@/libs/mit-sailing/easternTimeFormat';
 
 type AdminEventFormTranslations = Awaited<
-  ReturnType<typeof getTranslations<"AdminEvents">>
+  ReturnType<typeof getTranslations<'AdminEvents'>>
 >;
 
 type AdminEventCommonTranslations = Awaited<
-  ReturnType<typeof getTranslations<"Common">>
+  ReturnType<typeof getTranslations<'Common'>>
 >;
 
 type AdminEventFormViewProps = {
@@ -98,19 +98,19 @@ function SaveAndContinueEditingButton(props: {
   return (
     <SubmitButton
       name={ADMIN_FORM_REDIRECT_TO_FIELD}
-      pendingLabel={props.tCommon("pending_saving")}
+      pendingLabel={props.tCommon('pending_saving')}
       value={ADMIN_FORM_REDIRECT_TO_EDIT}
       variant="outline"
     >
-      {props.t("action_save_and_continue_editing")}
+      {props.t('action_save_and_continue_editing')}
     </SubmitButton>
   );
 }
 
 function userInitials(user: AdminEventUserOption): string {
   const words = user.name.trim().split(/\s+/);
-  const first = words[0]?.[0] ?? user.email[0] ?? "?";
-  const second = words[1]?.[0] ?? "";
+  const first = words[0]?.[0] ?? user.email[0] ?? '?';
+  const second = words[1]?.[0] ?? '';
   return `${first}${second}`.toUpperCase();
 }
 
@@ -190,11 +190,11 @@ function PublicContentEditorSection(props: {
     >
       <AdminEventField
         htmlFor={props.textareaId}
-        label={props.t("field_content_body")}
+        label={props.t('field_content_body')}
       >
         <Textarea
           className="min-h-28"
-          defaultValue={props.content ?? ""}
+          defaultValue={props.content ?? ''}
           id={props.textareaId}
           name={props.contentName}
         />
@@ -207,7 +207,7 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
   const updateAction = updateAdminEventBasicsAction.bind(
     null,
     props.locale,
-    props.event.slug,
+    props.event.slug
   );
   const detailPageKind =
     props.event.detailPageKind ?? EventDetailPageKind.standard;
@@ -218,11 +218,11 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
     <form action={updateAction} className="flex flex-col gap-5">
       <AdminEventFormSection
         id="event-basics"
-        subtitle={props.t("basics_subtitle")}
-        title={props.t("section_basics")}
+        subtitle={props.t('basics_subtitle')}
+        title={props.t('section_basics')}
       >
         <div className="grid gap-4 md:grid-cols-2">
-          <AdminEventField htmlFor="event-name" label={props.t("field_name")}>
+          <AdminEventField htmlFor="event-name" label={props.t('field_name')}>
             <Input
               defaultValue={props.event.name}
               id="event-name"
@@ -232,8 +232,8 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
           </AdminEventField>
           <AdminEventField
             htmlFor="event-short-name"
-            hint={props.t("field_short_name_hint")}
-            label={props.t("field_short_name")}
+            hint={props.t('field_short_name_hint')}
+            label={props.t('field_short_name')}
           >
             {(controlProps) => (
               <Input
@@ -246,7 +246,7 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
           </AdminEventField>
           <AdminEventField
             htmlFor="event-category"
-            label={props.t("field_category")}
+            label={props.t('field_category')}
           >
             <select
               className={adminNativeSelectClassName}
@@ -266,8 +266,8 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
 
         <AdminEventField
           htmlFor="event-description"
-          hint={props.t("field_description_hint")}
-          label={props.t("field_description")}
+          hint={props.t('field_description_hint')}
+          label={props.t('field_description')}
         >
           {(controlProps) => (
             <Textarea
@@ -283,14 +283,14 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
         <div className="grid gap-4 md:grid-cols-2">
           <AdminEventCheckbox
             defaultChecked={props.event.isPublished}
-            hint={props.t("field_published_hint")}
-            label={props.t("field_published")}
+            hint={props.t('field_published_hint')}
+            label={props.t('field_published')}
             name="isPublished"
           />
           <AdminEventCheckbox
             defaultChecked={props.event.isSpecial}
-            hint={props.t("field_special_hint")}
-            label={props.t("field_special")}
+            hint={props.t('field_special_hint')}
+            label={props.t('field_special')}
             name="isSpecial"
           />
         </div>
@@ -298,32 +298,32 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
 
       <AdminEventFormSection
         id="event-public-page"
-        subtitle={props.t("public_page_subtitle")}
-        title={props.t("section_public_page")}
+        subtitle={props.t('public_page_subtitle')}
+        title={props.t('section_public_page')}
       >
         <AdminEventDetailPageKindFields
           defaultValue={detailPageKind}
           externalField={
             <AdminEventField
               htmlFor="event-external-url"
-              label={props.t("field_external_detail_url")}
+              label={props.t('field_external_detail_url')}
             >
               <Input
-                defaultValue={props.event.externalDetailUrl ?? ""}
+                defaultValue={props.event.externalDetailUrl ?? ''}
                 id="event-external-url"
                 name="externalDetailUrl"
-                placeholder={props.t("field_external_detail_url_placeholder")}
+                placeholder={props.t('field_external_detail_url_placeholder')}
                 type="url"
               />
             </AdminEventField>
           }
-          externalHint={props.t("detail_external_hint")}
-          externalLabel={props.t("detail_external_label")}
-          fieldLabel={props.t("field_detail_page_kind")}
-          standardHint={props.t("detail_standard_hint", {
+          externalHint={props.t('detail_external_hint')}
+          externalLabel={props.t('detail_external_label')}
+          fieldLabel={props.t('field_detail_page_kind')}
+          standardHint={props.t('detail_standard_hint', {
             slug: props.event.slug,
           })}
-          standardLabel={props.t("detail_standard_label")}
+          standardLabel={props.t('detail_standard_label')}
         />
       </AdminEventFormSection>
 
@@ -331,7 +331,7 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
         content={props.event.faqContent}
         contentName="faqContent"
         defaultOpen={optionalTextPresent(props.event.faqContent)}
-        summary={props.t("optional_faq")}
+        summary={props.t('optional_faq')}
         textareaId="event-faq-content"
         t={props.t}
         visible={props.event.faqVisible}
@@ -341,7 +341,7 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
         content={props.event.noticeOfRaceContent}
         contentName="noticeOfRaceContent"
         defaultOpen={optionalTextPresent(props.event.noticeOfRaceContent)}
-        summary={props.t("optional_notice_of_race")}
+        summary={props.t('optional_notice_of_race')}
         textareaId="event-notice-of-race-content"
         t={props.t}
         visible={props.event.noticeOfRaceVisible}
@@ -354,7 +354,7 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
           Boolean(props.event.sailingInstructionsVisible) ||
           optionalTextPresent(props.event.sailingInstructionsContent)
         }
-        summary={props.t("optional_sailing_instructions")}
+        summary={props.t('optional_sailing_instructions')}
         textareaId="event-sailing-instructions-content"
         t={props.t}
         visible={props.event.sailingInstructionsVisible}
@@ -367,7 +367,7 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
           Boolean(props.event.resultsVisible) ||
           optionalTextPresent(props.event.resultsContent)
         }
-        summary={props.t("optional_results")}
+        summary={props.t('optional_results')}
         textareaId="event-results-content"
         t={props.t}
         visible={props.event.resultsVisible}
@@ -379,7 +379,7 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
           event: props.event,
           registrationMode,
         })}
-        summary={props.t("optional_registration")}
+        summary={props.t('optional_registration')}
       >
         <div className="grid gap-4 md:grid-cols-2">
           <AdminEventRegistrationModeFields
@@ -388,10 +388,10 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
               <>
                 <AdminEventField
                   htmlFor="event-external-registration-url"
-                  label={props.t("field_external_registration_url")}
+                  label={props.t('field_external_registration_url')}
                 >
                   <Input
-                    defaultValue={props.event.externalRegistrationUrl ?? ""}
+                    defaultValue={props.event.externalRegistrationUrl ?? ''}
                     id="event-external-registration-url"
                     name="externalRegistrationUrl"
                     type="url"
@@ -399,10 +399,10 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
                 </AdminEventField>
                 <AdminEventField
                   htmlFor="event-external-entries-url"
-                  label={props.t("field_external_entries_url")}
+                  label={props.t('field_external_entries_url')}
                 >
                   <Input
-                    defaultValue={props.event.externalEntriesUrl ?? ""}
+                    defaultValue={props.event.externalEntriesUrl ?? ''}
                     id="event-external-entries-url"
                     name="externalEntriesUrl"
                     type="url"
@@ -410,19 +410,19 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
                 </AdminEventField>
               </>
             }
-            externalLabel={props.t("registration_mode_external")}
-            fieldLabel={props.t("field_registration_mode")}
-            noneLabel={props.t("registration_mode_none")}
+            externalLabel={props.t('registration_mode_external')}
+            fieldLabel={props.t('field_registration_mode')}
+            noneLabel={props.t('registration_mode_none')}
             standardFields={
               <>
                 <AdminEventField
                   htmlFor="event-max-participants"
-                  hint={props.t("field_max_participants_hint")}
-                  label={props.t("field_max_participants")}
+                  hint={props.t('field_max_participants_hint')}
+                  label={props.t('field_max_participants')}
                 >
                   {(controlProps) => (
                     <Input
-                      defaultValue={props.event.maxParticipants ?? ""}
+                      defaultValue={props.event.maxParticipants ?? ''}
                       id="event-max-participants"
                       min={1}
                       name="maxParticipants"
@@ -434,13 +434,13 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
                 </AdminEventField>
                 <AdminEventField
                   htmlFor="event-registration-start"
-                  hint={props.t("field_datetime_et_hint")}
-                  label={props.t("field_registration_start")}
+                  hint={props.t('field_datetime_et_hint')}
+                  label={props.t('field_registration_start')}
                 >
                   {(controlProps) => (
                     <Input
                       defaultValue={formatEasternDateTimeLocal(
-                        props.event.registrationStart,
+                        props.event.registrationStart
                       )}
                       id="event-registration-start"
                       name="registrationStart"
@@ -451,13 +451,13 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
                 </AdminEventField>
                 <AdminEventField
                   htmlFor="event-registration-end"
-                  hint={props.t("field_datetime_et_hint")}
-                  label={props.t("field_registration_end")}
+                  hint={props.t('field_datetime_et_hint')}
+                  label={props.t('field_registration_end')}
                 >
                   {(controlProps) => (
                     <Input
                       defaultValue={formatEasternDateTimeLocal(
-                        props.event.registrationEnd,
+                        props.event.registrationEnd
                       )}
                       id="event-registration-end"
                       name="registrationEnd"
@@ -468,40 +468,40 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
                 </AdminEventField>
                 <AdminEventCheckbox
                   defaultChecked={props.event.requiresApproval}
-                  label={props.t("field_requires_approval")}
+                  label={props.t('field_requires_approval')}
                   name="requiresApproval"
                 />
               </>
             }
-            standardLabel={props.t("registration_mode_standard")}
+            standardLabel={props.t('registration_mode_standard')}
           />
         </div>
       </OptionalEditorSection>
 
       <OptionalEditorSection
         defaultOpen={props.event.requiresPhone}
-        summary={props.t("optional_ask_phone")}
+        summary={props.t('optional_ask_phone')}
       >
         <AdminEventCheckbox
           defaultChecked={props.event.requiresPhone}
-          label={props.t("field_requires_phone")}
+          label={props.t('field_requires_phone')}
           name="requiresPhone"
         />
       </OptionalEditorSection>
 
       <OptionalEditorSection
         defaultOpen={teamsOptionalOpen(props.event)}
-        summary={props.t("optional_teams")}
+        summary={props.t('optional_teams')}
       >
         <div className="grid gap-4 md:grid-cols-3">
           <AdminEventCheckbox
             defaultChecked={props.event.usesTeamRegistration}
-            label={props.t("field_uses_team_registration")}
+            label={props.t('field_uses_team_registration')}
             name="usesTeamRegistration"
           />
           <AdminEventField
             htmlFor="event-boats-per-team"
-            label={props.t("field_boats_per_team")}
+            label={props.t('field_boats_per_team')}
           >
             <Input
               defaultValue={props.event.boatsPerTeam ?? 1}
@@ -514,7 +514,7 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
           </AdminEventField>
           <AdminEventField
             htmlFor="event-persons-per-boat"
-            label={props.t("field_persons_per_boat")}
+            label={props.t('field_persons_per_boat')}
           >
             <Input
               defaultValue={props.event.personsPerBoat ?? 1}
@@ -527,7 +527,7 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
           </AdminEventField>
           <AdminEventCheckbox
             defaultChecked={props.event.allowRepeatTeamCaptain}
-            label={props.t("field_allow_repeat_team_captain")}
+            label={props.t('field_allow_repeat_team_captain')}
             name="allowRepeatTeamCaptain"
           />
         </div>
@@ -536,11 +536,11 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
       <div className="flex flex-wrap justify-end gap-2">
         <SaveAndContinueEditingButton t={props.t} tCommon={props.tCommon} />
         <SubmitButton
-          pendingLabel={props.tCommon("pending_saving")}
+          pendingLabel={props.tCommon('pending_saving')}
           variant="mit"
         >
           <Save aria-hidden className="size-4" />
-          {props.t("action_save_event")}
+          {props.t('action_save_event')}
         </SubmitButton>
       </div>
     </form>
@@ -554,13 +554,13 @@ function EventMetadataSection(props: {
   return (
     <AdminEventFormSection
       id="event-metadata"
-      subtitle={props.t("metadata_subtitle")}
-      title={props.t("section_metadata")}
+      subtitle={props.t('metadata_subtitle')}
+      title={props.t('section_metadata')}
     >
       <dl className="grid gap-4 md:grid-cols-2">
         <div>
           <dt className="text-xs font-semibold text-mit-readable-ink uppercase">
-            {props.t("metadata_created_at")}
+            {props.t('metadata_created_at')}
           </dt>
           <dd className="mt-1 text-sm font-medium">
             {formatEasternDateTime(props.event.createdAt)}
@@ -568,10 +568,10 @@ function EventMetadataSection(props: {
         </div>
         <div>
           <dt className="text-xs font-semibold text-mit-readable-ink uppercase">
-            {props.t("metadata_registrations")}
+            {props.t('metadata_registrations')}
           </dt>
           <dd className="mt-1 text-sm font-medium">
-            {props.t("metadata_registration_counts", {
+            {props.t('metadata_registration_counts', {
               approved: props.event.registrationCounts.approved,
               pending: props.event.registrationCounts.pending,
               cancelled: props.event.registrationCounts.cancelled,
@@ -610,17 +610,17 @@ function readOnlyQuestionTypeLabel(props: {
   t: AdminEventFormTranslations;
 }): string {
   if (props.question.answerType === EventAnswerType.select) {
-    return props.t("question_type_select");
+    return props.t('question_type_select');
   }
   if (props.question.answerType === EventAnswerType.checkbox) {
-    return props.t("question_type_checkbox");
+    return props.t('question_type_checkbox');
   }
-  return props.t("question_type_text");
+  return props.t('question_type_text');
 }
 
 function ReadOnlyBasicsSection(props: AdminEventFormViewProps) {
   const category = props.categories.find(
-    (option) => option.id === props.event.eventCategoryId,
+    (option) => option.id === props.event.eventCategoryId
   );
   const detailPageKind =
     props.event.detailPageKind ?? EventDetailPageKind.standard;
@@ -628,46 +628,46 @@ function ReadOnlyBasicsSection(props: AdminEventFormViewProps) {
     <>
       <AdminEventFormSection
         id="event-basics"
-        subtitle={props.t("basics_subtitle")}
-        title={props.t("section_basics")}
+        subtitle={props.t('basics_subtitle')}
+        title={props.t('section_basics')}
       >
         <dl className="grid gap-4 md:grid-cols-2">
-          <ReadOnlyValue label={props.t("field_name")}>
+          <ReadOnlyValue label={props.t('field_name')}>
             {props.event.name}
           </ReadOnlyValue>
-          <ReadOnlyValue label={props.t("field_short_name")}>
-            {readOnlyTextValue(props.event.shortName, props.t("empty_value"))}
+          <ReadOnlyValue label={props.t('field_short_name')}>
+            {readOnlyTextValue(props.event.shortName, props.t('empty_value'))}
           </ReadOnlyValue>
-          <ReadOnlyValue label={props.t("field_slug")}>
+          <ReadOnlyValue label={props.t('field_slug')}>
             {props.event.slug}
           </ReadOnlyValue>
-          <ReadOnlyValue label={props.t("field_category")}>
-            {category?.name ?? props.t("empty_value")}
+          <ReadOnlyValue label={props.t('field_category')}>
+            {category?.name ?? props.t('empty_value')}
           </ReadOnlyValue>
-          <ReadOnlyValue label={props.t("field_description")}>
-            {readOnlyTextValue(props.event.description, props.t("empty_value"))}
+          <ReadOnlyValue label={props.t('field_description')}>
+            {readOnlyTextValue(props.event.description, props.t('empty_value'))}
           </ReadOnlyValue>
-          <ReadOnlyValue label={props.t("field_max_participants")}>
-            {props.event.maxParticipants ?? props.t("empty_value")}
+          <ReadOnlyValue label={props.t('field_max_participants')}>
+            {props.event.maxParticipants ?? props.t('empty_value')}
           </ReadOnlyValue>
         </dl>
       </AdminEventFormSection>
 
       <AdminEventFormSection
         id="event-public-page"
-        subtitle={props.t("public_page_subtitle")}
-        title={props.t("section_public_page")}
+        subtitle={props.t('public_page_subtitle')}
+        title={props.t('section_public_page')}
       >
         <dl className="grid gap-4 md:grid-cols-2">
-          <ReadOnlyValue label={props.t("field_detail_page_kind")}>
+          <ReadOnlyValue label={props.t('field_detail_page_kind')}>
             {detailPageKind === EventDetailPageKind.external
-              ? props.t("detail_external_label")
-              : props.t("detail_standard_label")}
+              ? props.t('detail_external_label')
+              : props.t('detail_standard_label')}
           </ReadOnlyValue>
-          <ReadOnlyValue label={props.t("field_external_detail_url")}>
+          <ReadOnlyValue label={props.t('field_external_detail_url')}>
             {readOnlyTextValue(
               props.event.externalDetailUrl,
-              props.t("empty_value"),
+              props.t('empty_value')
             )}
           </ReadOnlyValue>
         </dl>
@@ -680,11 +680,11 @@ function ReadOnlyDatesSection(props: AdminEventFormViewProps) {
   return (
     <AdminEventFormSection
       id="event-dates"
-      subtitle={props.t("dates_subtitle")}
-      title={props.t("section_dates")}
+      subtitle={props.t('dates_subtitle')}
+      title={props.t('section_dates')}
     >
       {props.event.dates.length === 0 ? (
-        <AdminEventEmptyState>{props.t("dates_empty")}</AdminEventEmptyState>
+        <AdminEventEmptyState>{props.t('dates_empty')}</AdminEventEmptyState>
       ) : (
         <ol className="m-0 flex list-none flex-col gap-3 p-0">
           {props.event.dates.map((date) => (
@@ -693,10 +693,10 @@ function ReadOnlyDatesSection(props: AdminEventFormViewProps) {
               key={date.id}
             >
               <dl className="grid gap-3 md:grid-cols-2">
-                <ReadOnlyValue label={props.t("field_date_start")}>
+                <ReadOnlyValue label={props.t('field_date_start')}>
                   {formatEasternDateTime(date.startDateTime)}
                 </ReadOnlyValue>
-                <ReadOnlyValue label={props.t("field_date_end")}>
+                <ReadOnlyValue label={props.t('field_date_end')}>
                   {formatEasternDateTime(date.endDateTime)}
                 </ReadOnlyValue>
               </dl>
@@ -712,11 +712,11 @@ function ReadOnlyAdminsSection(props: AdminEventFormViewProps) {
   return (
     <AdminEventFormSection
       id="event-admins"
-      subtitle={props.t("admins_subtitle")}
-      title={props.t("section_admins")}
+      subtitle={props.t('admins_subtitle')}
+      title={props.t('section_admins')}
     >
       {props.event.admins.length === 0 ? (
-        <AdminEventEmptyState>{props.t("empty_value")}</AdminEventEmptyState>
+        <AdminEventEmptyState>{props.t('empty_value')}</AdminEventEmptyState>
       ) : (
         <ul className="m-0 grid list-none gap-2 p-0 md:grid-cols-2">
           {props.event.admins.map((admin) => (
@@ -745,12 +745,12 @@ function ReadOnlyQuestionsSection(props: AdminEventFormViewProps) {
   return (
     <AdminEventFormSection
       id="event-questions"
-      subtitle={props.t("questions_subtitle")}
-      title={props.t("section_questions")}
+      subtitle={props.t('questions_subtitle')}
+      title={props.t('section_questions')}
     >
       {props.event.registrationQuestions.length === 0 ? (
         <AdminEventEmptyState>
-          {props.t("questions_empty")}
+          {props.t('questions_empty')}
         </AdminEventEmptyState>
       ) : (
         <ol className="m-0 flex list-none flex-col gap-3 p-0">
@@ -777,11 +777,11 @@ function ReadOnlyFeesSection(props: AdminEventFormViewProps) {
   return (
     <AdminEventFormSection
       id="event-fees"
-      subtitle={props.t("fees_subtitle")}
-      title={props.t("section_fees")}
+      subtitle={props.t('fees_subtitle')}
+      title={props.t('section_fees')}
     >
       {props.event.entryFees.length === 0 ? (
-        <AdminEventEmptyState>{props.t("fees_empty")}</AdminEventEmptyState>
+        <AdminEventEmptyState>{props.t('fees_empty')}</AdminEventEmptyState>
       ) : (
         <ol className="m-0 flex list-none flex-col gap-3 p-0">
           {props.event.entryFees.map((fee) => (
@@ -790,10 +790,10 @@ function ReadOnlyFeesSection(props: AdminEventFormViewProps) {
               key={fee.id}
             >
               <dl className="grid gap-3 md:grid-cols-[1fr_auto]">
-                <ReadOnlyValue label={props.t("field_fee_description")}>
+                <ReadOnlyValue label={props.t('field_fee_description')}>
                   {fee.description}
                 </ReadOnlyValue>
-                <ReadOnlyValue label={props.t("field_fee_amount")}>
+                <ReadOnlyValue label={props.t('field_fee_amount')}>
                   {eventAdminCentsToDollars(fee.amountCents)}
                 </ReadOnlyValue>
               </dl>
@@ -816,26 +816,26 @@ function DateRow(props: {
     null,
     props.locale,
     props.event.slug,
-    props.date.id,
+    props.date.id
   );
   const deleteAction = deleteAdminEventDateAction.bind(
     null,
     props.locale,
     props.event.slug,
-    props.date.id,
+    props.date.id
   );
   return (
     <li className="grid gap-3 rounded-lg border border-border bg-background p-3 md:grid-cols-[1fr_1fr_auto_auto_auto] md:items-end">
       <form action={updateAction} className="contents">
         <AdminEventField
           htmlFor={`date-start-${props.date.id}`}
-          hint={props.t("field_datetime_et_hint")}
-          label={props.t("field_date_start")}
+          hint={props.t('field_datetime_et_hint')}
+          label={props.t('field_date_start')}
         >
           {(controlProps) => (
             <Input
               defaultValue={formatEasternDateTimeLocal(
-                props.date.startDateTime,
+                props.date.startDateTime
               )}
               id={`date-start-${props.date.id}`}
               name="startDateTime"
@@ -847,8 +847,8 @@ function DateRow(props: {
         </AdminEventField>
         <AdminEventField
           htmlFor={`date-end-${props.date.id}`}
-          hint={props.t("field_datetime_et_hint")}
-          label={props.t("field_date_end")}
+          hint={props.t('field_datetime_et_hint')}
+          label={props.t('field_date_end')}
         >
           {(controlProps) => (
             <Input
@@ -863,16 +863,16 @@ function DateRow(props: {
         </AdminEventField>
         <SaveAndContinueEditingButton t={props.t} tCommon={props.tCommon} />
         <SubmitButton
-          pendingLabel={props.tCommon("pending_saving")}
+          pendingLabel={props.tCommon('pending_saving')}
           variant="outline"
         >
-          {props.t("action_save")}
+          {props.t('action_save')}
         </SubmitButton>
       </form>
       <form action={deleteAction}>
         <SubmitButton
-          aria-label={props.t("action_delete_date")}
-          pendingLabel={props.tCommon("pending_deleting")}
+          aria-label={props.t('action_delete_date')}
+          pendingLabel={props.tCommon('pending_deleting')}
           variant="destructive"
         >
           <Trash2 aria-hidden className="size-4" />
@@ -887,16 +887,16 @@ function EventDatesSection(props: AdminEventFormViewProps) {
     null,
     props.locale,
     props.event.slug,
-    props.event.id,
+    props.event.id
   );
   return (
     <AdminEventFormSection
       id="event-dates"
-      subtitle={props.t("dates_subtitle")}
-      title={props.t("section_dates")}
+      subtitle={props.t('dates_subtitle')}
+      title={props.t('section_dates')}
     >
       {props.event.dates.length === 0 ? (
-        <AdminEventEmptyState>{props.t("dates_empty")}</AdminEventEmptyState>
+        <AdminEventEmptyState>{props.t('dates_empty')}</AdminEventEmptyState>
       ) : (
         <ol className="m-0 flex list-none flex-col gap-3 p-0">
           {props.event.dates.map((date) => (
@@ -917,8 +917,8 @@ function EventDatesSection(props: AdminEventFormViewProps) {
       >
         <AdminEventField
           htmlFor="new-date-start"
-          hint={props.t("field_datetime_et_hint")}
-          label={props.t("field_new_date_start")}
+          hint={props.t('field_datetime_et_hint')}
+          label={props.t('field_new_date_start')}
         >
           {(controlProps) => (
             <Input
@@ -932,8 +932,8 @@ function EventDatesSection(props: AdminEventFormViewProps) {
         </AdminEventField>
         <AdminEventField
           htmlFor="new-date-end"
-          hint={props.t("field_datetime_et_hint")}
-          label={props.t("field_new_date_end")}
+          hint={props.t('field_datetime_et_hint')}
+          label={props.t('field_new_date_end')}
         >
           {(controlProps) => (
             <Input
@@ -947,11 +947,11 @@ function EventDatesSection(props: AdminEventFormViewProps) {
         </AdminEventField>
         <SaveAndContinueEditingButton t={props.t} tCommon={props.tCommon} />
         <SubmitButton
-          pendingLabel={props.tCommon("pending_adding")}
+          pendingLabel={props.tCommon('pending_adding')}
           variant="mit"
         >
           <Plus aria-hidden className="size-4" />
-          {props.t("action_add_date")}
+          {props.t('action_add_date')}
         </SubmitButton>
       </form>
     </AdminEventFormSection>
@@ -963,16 +963,16 @@ function EventAdminsSection(props: AdminEventFormViewProps) {
     null,
     props.locale,
     props.event.slug,
-    props.event.id,
+    props.event.id
   );
   const selectedIds = new Set(
-    props.event.admins.map((admin) => admin.adminUserId),
+    props.event.admins.map((admin) => admin.adminUserId)
   );
   return (
     <AdminEventFormSection
       id="event-admins"
-      subtitle={props.t("admins_subtitle")}
-      title={props.t("section_admins")}
+      subtitle={props.t('admins_subtitle')}
+      title={props.t('section_admins')}
     >
       <form action={updateAction} className="flex flex-col gap-4">
         <ul className="m-0 grid list-none gap-2 p-0 md:grid-cols-2 xl:grid-cols-3">
@@ -1005,10 +1005,10 @@ function EventAdminsSection(props: AdminEventFormViewProps) {
         <div className="flex flex-wrap justify-end gap-2">
           <SaveAndContinueEditingButton t={props.t} tCommon={props.tCommon} />
           <SubmitButton
-            pendingLabel={props.tCommon("pending_saving")}
+            pendingLabel={props.tCommon('pending_saving')}
             variant="outline"
           >
-            {props.t("action_save_admins")}
+            {props.t('action_save_admins')}
           </SubmitButton>
         </div>
       </form>
@@ -1017,7 +1017,7 @@ function EventAdminsSection(props: AdminEventFormViewProps) {
 }
 
 function questionOptionsText(question: AdminEventQuestionDto): string {
-  return question.options.join("\n");
+  return question.options.join('\n');
 }
 
 function QuestionFields(props: {
@@ -1025,16 +1025,16 @@ function QuestionFields(props: {
   suggestedDisplayOrder?: number;
   t: AdminEventFormTranslations;
 }) {
-  const prefix = props.question?.id ?? "new";
+  const prefix = props.question?.id ?? 'new';
   return (
     <>
       <div className="grid gap-3 md:grid-cols-[1fr_180px]">
         <AdminEventField
           htmlFor={`question-text-${prefix}`}
-          label={props.t("field_question_text")}
+          label={props.t('field_question_text')}
         >
           <Input
-            defaultValue={props.question?.questionText ?? ""}
+            defaultValue={props.question?.questionText ?? ''}
             id={`question-text-${prefix}`}
             name="questionText"
             required
@@ -1042,7 +1042,7 @@ function QuestionFields(props: {
         </AdminEventField>
         <AdminEventField
           htmlFor={`question-type-${prefix}`}
-          label={props.t("field_answer_type")}
+          label={props.t('field_answer_type')}
         >
           <select
             className={adminNativeSelectClassName}
@@ -1051,13 +1051,13 @@ function QuestionFields(props: {
             name="answerType"
           >
             <option value={EventAnswerType.text}>
-              {props.t("question_type_text")}
+              {props.t('question_type_text')}
             </option>
             <option value={EventAnswerType.select}>
-              {props.t("question_type_select")}
+              {props.t('question_type_select')}
             </option>
             <option value={EventAnswerType.checkbox}>
-              {props.t("question_type_checkbox")}
+              {props.t('question_type_checkbox')}
             </option>
           </select>
         </AdminEventField>
@@ -1065,14 +1065,14 @@ function QuestionFields(props: {
       <div className="grid gap-3 md:grid-cols-[1fr_120px_auto] md:items-end">
         <AdminEventField
           htmlFor={`question-options-${prefix}`}
-          hint={props.t("field_question_options_hint")}
-          label={props.t("field_question_options")}
+          hint={props.t('field_question_options_hint')}
+          label={props.t('field_question_options')}
         >
           {(controlProps) => (
             <Textarea
               className="min-h-24"
               defaultValue={
-                props.question ? questionOptionsText(props.question) : ""
+                props.question ? questionOptionsText(props.question) : ''
               }
               id={`question-options-${prefix}`}
               name="optionsText"
@@ -1082,10 +1082,10 @@ function QuestionFields(props: {
         </AdminEventField>
         <AdminEventField
           htmlFor={`question-order-${prefix}`}
-          label={props.t("field_display_order")}
+          label={props.t('field_display_order')}
         >
           <Input
-            defaultValue={props.question?.displayOrder ?? ""}
+            defaultValue={props.question?.displayOrder ?? ''}
             id={`question-order-${prefix}`}
             min={0}
             name="displayOrder"
@@ -1101,7 +1101,7 @@ function QuestionFields(props: {
         </AdminEventField>
         <AdminEventCheckbox
           defaultChecked={props.question?.required ?? false}
-          label={props.t("field_required")}
+          label={props.t('field_required')}
           name="required"
         />
       </div>
@@ -1120,13 +1120,13 @@ function QuestionRow(props: {
     null,
     props.locale,
     props.event.slug,
-    props.question.id,
+    props.question.id
   );
   const deleteAction = deleteAdminEventQuestionAction.bind(
     null,
     props.locale,
     props.event.slug,
-    props.question.id,
+    props.question.id
   );
   return (
     <li className="rounded-lg border border-border bg-background p-3">
@@ -1135,20 +1135,20 @@ function QuestionRow(props: {
         <div className="flex flex-wrap justify-end gap-2">
           <SaveAndContinueEditingButton t={props.t} tCommon={props.tCommon} />
           <SubmitButton
-            pendingLabel={props.tCommon("pending_saving")}
+            pendingLabel={props.tCommon('pending_saving')}
             variant="outline"
           >
-            {props.t("action_save")}
+            {props.t('action_save')}
           </SubmitButton>
         </div>
       </form>
       <form action={deleteAction} className="mt-2 flex justify-end">
         <SubmitButton
-          pendingLabel={props.tCommon("pending_deleting")}
+          pendingLabel={props.tCommon('pending_deleting')}
           variant="destructive"
         >
           <Trash2 aria-hidden className="size-4" />
-          {props.t("action_delete_question")}
+          {props.t('action_delete_question')}
         </SubmitButton>
       </form>
     </li>
@@ -1160,24 +1160,24 @@ function EventQuestionsSection(props: AdminEventFormViewProps) {
     null,
     props.locale,
     props.event.slug,
-    props.event.id,
+    props.event.id
   );
   const maxQuestionOrder = Math.max(
     0,
     ...props.event.registrationQuestions.map(
-      (question) => question.displayOrder,
-    ),
+      (question) => question.displayOrder
+    )
   );
   const suggestedDisplayOrder = maxQuestionOrder + 1;
   return (
     <AdminEventFormSection
       id="event-questions"
-      subtitle={props.t("questions_subtitle")}
-      title={props.t("section_questions")}
+      subtitle={props.t('questions_subtitle')}
+      title={props.t('section_questions')}
     >
       {props.event.registrationQuestions.length === 0 ? (
         <AdminEventEmptyState>
-          {props.t("questions_empty")}
+          {props.t('questions_empty')}
         </AdminEventEmptyState>
       ) : (
         <ol className="m-0 flex list-none flex-col gap-3 p-0">
@@ -1198,7 +1198,7 @@ function EventQuestionsSection(props: AdminEventFormViewProps) {
         className="flex flex-col gap-3 border-t border-dashed border-border pt-4"
       >
         <h3 className="text-sm font-semibold text-foreground">
-          {props.t("add_question_heading")}
+          {props.t('add_question_heading')}
         </h3>
         <QuestionFields
           suggestedDisplayOrder={suggestedDisplayOrder}
@@ -1207,11 +1207,11 @@ function EventQuestionsSection(props: AdminEventFormViewProps) {
         <div className="flex flex-wrap justify-end gap-2">
           <SaveAndContinueEditingButton t={props.t} tCommon={props.tCommon} />
           <SubmitButton
-            pendingLabel={props.tCommon("pending_adding")}
+            pendingLabel={props.tCommon('pending_adding')}
             variant="mit"
           >
             <Plus aria-hidden className="size-4" />
-            {props.t("action_add_question")}
+            {props.t('action_add_question')}
           </SubmitButton>
         </div>
       </form>
@@ -1223,15 +1223,15 @@ function FeeFields(props: {
   fee?: AdminEventFeeDto;
   t: AdminEventFormTranslations;
 }) {
-  const prefix = props.fee?.id ?? "new";
+  const prefix = props.fee?.id ?? 'new';
   return (
     <div className="grid gap-3 md:grid-cols-[1fr_180px_auto] md:items-end">
       <AdminEventField
         htmlFor={`fee-description-${prefix}`}
-        label={props.t("field_fee_description")}
+        label={props.t('field_fee_description')}
       >
         <Input
-          defaultValue={props.fee?.description ?? ""}
+          defaultValue={props.fee?.description ?? ''}
           id={`fee-description-${prefix}`}
           name="description"
           required
@@ -1239,22 +1239,22 @@ function FeeFields(props: {
       </AdminEventField>
       <AdminEventField
         htmlFor={`fee-amount-${prefix}`}
-        label={props.t("field_fee_amount")}
+        label={props.t('field_fee_amount')}
       >
         <Input
           defaultValue={
-            props.fee ? eventAdminCentsToDollars(props.fee.amountCents) : ""
+            props.fee ? eventAdminCentsToDollars(props.fee.amountCents) : ''
           }
           id={`fee-amount-${prefix}`}
           inputMode="decimal"
           name="amountDollars"
-          placeholder={props.t("field_fee_amount_placeholder")}
+          placeholder={props.t('field_fee_amount_placeholder')}
           required
         />
       </AdminEventField>
       <AdminEventCheckbox
         defaultChecked={props.fee?.isDeposit ?? false}
-        label={props.t("field_fee_deposit")}
+        label={props.t('field_fee_deposit')}
         name="isDeposit"
       />
     </div>
@@ -1272,13 +1272,13 @@ function FeeRow(props: {
     null,
     props.locale,
     props.event.slug,
-    props.fee.id,
+    props.fee.id
   );
   const deleteAction = deleteAdminEventFeeAction.bind(
     null,
     props.locale,
     props.event.slug,
-    props.fee.id,
+    props.fee.id
   );
   return (
     <li className="rounded-lg border border-border bg-background p-3">
@@ -1287,20 +1287,20 @@ function FeeRow(props: {
         <div className="flex flex-wrap justify-end gap-2">
           <SaveAndContinueEditingButton t={props.t} tCommon={props.tCommon} />
           <SubmitButton
-            pendingLabel={props.tCommon("pending_saving")}
+            pendingLabel={props.tCommon('pending_saving')}
             variant="outline"
           >
-            {props.t("action_save")}
+            {props.t('action_save')}
           </SubmitButton>
         </div>
       </form>
       <form action={deleteAction} className="mt-2 flex justify-end">
         <SubmitButton
-          pendingLabel={props.tCommon("pending_deleting")}
+          pendingLabel={props.tCommon('pending_deleting')}
           variant="destructive"
         >
           <Trash2 aria-hidden className="size-4" />
-          {props.t("action_delete_fee")}
+          {props.t('action_delete_fee')}
         </SubmitButton>
       </form>
     </li>
@@ -1312,16 +1312,16 @@ function EventFeesSection(props: AdminEventFormViewProps) {
     null,
     props.locale,
     props.event.slug,
-    props.event.id,
+    props.event.id
   );
   return (
     <AdminEventFormSection
       id="event-fees"
-      subtitle={props.t("fees_subtitle")}
-      title={props.t("section_fees")}
+      subtitle={props.t('fees_subtitle')}
+      title={props.t('section_fees')}
     >
       {props.event.entryFees.length === 0 ? (
-        <AdminEventEmptyState>{props.t("fees_empty")}</AdminEventEmptyState>
+        <AdminEventEmptyState>{props.t('fees_empty')}</AdminEventEmptyState>
       ) : (
         <ol className="m-0 flex list-none flex-col gap-3 p-0">
           {props.event.entryFees.map((fee) => (
@@ -1341,17 +1341,17 @@ function EventFeesSection(props: AdminEventFormViewProps) {
         className="flex flex-col gap-3 border-t border-dashed border-border pt-4"
       >
         <h3 className="text-sm font-semibold text-foreground">
-          {props.t("add_fee_heading")}
+          {props.t('add_fee_heading')}
         </h3>
         <FeeFields t={props.t} />
         <div className="flex flex-wrap justify-end gap-2">
           <SaveAndContinueEditingButton t={props.t} tCommon={props.tCommon} />
           <SubmitButton
-            pendingLabel={props.tCommon("pending_adding")}
+            pendingLabel={props.tCommon('pending_adding')}
             variant="mit"
           >
             <Plus aria-hidden className="size-4" />
-            {props.t("action_add_fee")}
+            {props.t('action_add_fee')}
           </SubmitButton>
         </div>
       </form>
@@ -1361,58 +1361,58 @@ function EventFeesSection(props: AdminEventFormViewProps) {
 
 function addressPresetLabel(
   preset: EventAddressPreset,
-  t: AdminEventFormTranslations,
+  t: AdminEventFormTranslations
 ): string {
   if (preset === EventAddressPreset.pavilion) {
-    return t("address_preset_pavilion");
+    return t('address_preset_pavilion');
   }
   if (preset === EventAddressPreset.bluewater) {
-    return t("address_preset_bluewater");
+    return t('address_preset_bluewater');
   }
-  return t("address_preset_custom");
+  return t('address_preset_custom');
 }
 
 function addressPresetHint(
   preset: EventAddressPreset,
-  t: AdminEventFormTranslations,
+  t: AdminEventFormTranslations
 ): string {
   if (preset === EventAddressPreset.pavilion) {
-    return t("address_preset_pavilion_hint");
+    return t('address_preset_pavilion_hint');
   }
   if (preset === EventAddressPreset.bluewater) {
-    return t("address_preset_bluewater_hint");
+    return t('address_preset_bluewater_hint');
   }
-  return t("address_preset_custom_hint");
+  return t('address_preset_custom_hint');
 }
 
 function EventPaymentSettingsSection(props: AdminEventFormViewProps) {
   const updateAction = updateAdminEventPaymentSettingsAction.bind(
     null,
     props.locale,
-    props.event.slug,
+    props.event.slug
   );
   return (
     <AdminEventFormSection
       id="event-stripe"
-      subtitle={props.t("payments_settings_subtitle")}
-      title={props.t("section_stripe")}
+      subtitle={props.t('payments_settings_subtitle')}
+      title={props.t('section_stripe')}
     >
       <form action={updateAction} className="flex flex-col gap-4">
         <AdminEventCheckbox
           defaultChecked={props.event.paymentsEnabled}
-          hint={props.t("field_payments_enabled_hint")}
-          label={props.t("field_payments_enabled")}
+          hint={props.t('field_payments_enabled_hint')}
+          label={props.t('field_payments_enabled')}
           name="paymentsEnabled"
         />
         <AdminEventField
           htmlFor="event-payment-deadline"
-          hint={props.t("field_payment_deadline_hint")}
-          label={props.t("field_payment_deadline")}
+          hint={props.t('field_payment_deadline_hint')}
+          label={props.t('field_payment_deadline')}
         >
           {(controlProps) => (
             <Input
               defaultValue={formatEasternDateTimeLocal(
-                props.event.paymentDeadlineAt,
+                props.event.paymentDeadlineAt
               )}
               id="event-payment-deadline"
               name="paymentDeadlineAt"
@@ -1424,7 +1424,7 @@ function EventPaymentSettingsSection(props: AdminEventFormViewProps) {
 
         <fieldset className="grid gap-2">
           <legend className="text-sm font-semibold text-foreground">
-            {props.t("field_address_preset")}
+            {props.t('field_address_preset')}
           </legend>
           {[
             EventAddressPreset.pavilion,
@@ -1458,70 +1458,70 @@ function EventPaymentSettingsSection(props: AdminEventFormViewProps) {
         <div className="grid gap-3 md:grid-cols-2">
           <AdminEventField
             htmlFor="event-address-name"
-            label={props.t("field_address_name")}
+            label={props.t('field_address_name')}
           >
             <Input
-              defaultValue={props.event.addressName ?? ""}
+              defaultValue={props.event.addressName ?? ''}
               id="event-address-name"
               name="addressName"
             />
           </AdminEventField>
           <AdminEventField
             htmlFor="event-address-line1"
-            label={props.t("field_address_line1")}
+            label={props.t('field_address_line1')}
           >
             <Input
-              defaultValue={props.event.addressLine1 ?? ""}
+              defaultValue={props.event.addressLine1 ?? ''}
               id="event-address-line1"
               name="addressLine1"
             />
           </AdminEventField>
           <AdminEventField
             htmlFor="event-address-line2"
-            label={props.t("field_address_line2")}
+            label={props.t('field_address_line2')}
           >
             <Input
-              defaultValue={props.event.addressLine2 ?? ""}
+              defaultValue={props.event.addressLine2 ?? ''}
               id="event-address-line2"
               name="addressLine2"
             />
           </AdminEventField>
           <AdminEventField
             htmlFor="event-address-city"
-            label={props.t("field_address_city")}
+            label={props.t('field_address_city')}
           >
             <Input
-              defaultValue={props.event.addressCity ?? ""}
+              defaultValue={props.event.addressCity ?? ''}
               id="event-address-city"
               name="addressCity"
             />
           </AdminEventField>
           <AdminEventField
             htmlFor="event-address-state"
-            label={props.t("field_address_state")}
+            label={props.t('field_address_state')}
           >
             <Input
-              defaultValue={props.event.addressState ?? ""}
+              defaultValue={props.event.addressState ?? ''}
               id="event-address-state"
               name="addressState"
             />
           </AdminEventField>
           <AdminEventField
             htmlFor="event-address-postal-code"
-            label={props.t("field_address_postal_code")}
+            label={props.t('field_address_postal_code')}
           >
             <Input
-              defaultValue={props.event.addressPostalCode ?? ""}
+              defaultValue={props.event.addressPostalCode ?? ''}
               id="event-address-postal-code"
               name="addressPostalCode"
             />
           </AdminEventField>
           <AdminEventField
             htmlFor="event-address-country"
-            label={props.t("field_address_country")}
+            label={props.t('field_address_country')}
           >
             <Input
-              defaultValue={props.event.addressCountry ?? ""}
+              defaultValue={props.event.addressCountry ?? ''}
               id="event-address-country"
               name="addressCountry"
             />
@@ -1529,11 +1529,11 @@ function EventPaymentSettingsSection(props: AdminEventFormViewProps) {
         </div>
         <div className="flex justify-end">
           <SubmitButton
-            pendingLabel={props.tCommon("pending_saving")}
+            pendingLabel={props.tCommon('pending_saving')}
             variant="mit"
           >
             <CreditCard aria-hidden className="size-4" />
-            {props.t("action_save_payment_settings")}
+            {props.t('action_save_payment_settings')}
           </SubmitButton>
         </div>
       </form>
@@ -1543,7 +1543,7 @@ function EventPaymentSettingsSection(props: AdminEventFormViewProps) {
 
 export function AdminEventFormView(props: AdminEventFormViewProps) {
   const backHref =
-    props.accessMode === "readOnly"
+    props.accessMode === 'readOnly'
       ? adminEventsIndexPath()
       : adminEventShowPath(props.event.slug);
 
@@ -1551,51 +1551,51 @@ export function AdminEventFormView(props: AdminEventFormViewProps) {
     <div className="flex w-full max-w-4xl flex-col gap-6">
       <AdminEventBackLink href={backHref}>
         <ArrowLeft aria-hidden className="size-4" />
-        {props.t("back_to_events")}
+        {props.t('back_to_events')}
       </AdminEventBackLink>
 
       <header className="flex flex-col gap-2">
         <p className="text-xs font-semibold tracking-widest text-mit-red uppercase dark:text-white">
-          {props.t("edit_eyebrow")}
+          {props.t('edit_eyebrow')}
         </p>
         <div className="flex flex-wrap items-end justify-between gap-3">
           <h1 className="text-3xl font-semibold tracking-tight text-foreground">
-            {props.accessMode === "editable"
-              ? props.t("edit_title")
+            {props.accessMode === 'editable'
+              ? props.t('edit_title')
               : props.event.name}
           </h1>
           <Button asChild size="sm" variant="outline">
             <Link href={eventAdminPublicHref(props.event.slug)}>
               <ExternalLink aria-hidden className="size-4" />
-              {props.t("action_view_public")}
+              {props.t('action_view_public')}
             </Link>
           </Button>
         </div>
         <p className="text-sm text-mit-readable-ink">
-          {props.accessMode === "editable"
+          {props.accessMode === 'editable'
             ? props.event.name
-            : props.t("edit_public_url", { slug: props.event.slug })}
+            : props.t('edit_public_url', { slug: props.event.slug })}
         </p>
       </header>
 
       <AdminEventErrorAlert code={props.errorCode} t={props.t} />
-      {props.accessMode === "readOnly" ? (
+      {props.accessMode === 'readOnly' ? (
         <AdminEventReadOnlyNotice t={props.t} />
       ) : null}
-      {props.accessMode === "editable" ? (
+      {props.accessMode === 'editable' ? (
         <>
           <EventBasicsForm {...props} />
           <EventDatesSection {...props} />
           <EventAdminsSection {...props} />
           <OptionalEditorSection
             defaultOpen={props.event.registrationQuestions.length > 0}
-            summary={props.t("optional_ask_question")}
+            summary={props.t('optional_ask_question')}
           >
             <EventQuestionsSection {...props} />
           </OptionalEditorSection>
           <OptionalEditorSection
             defaultOpen={props.event.entryFees.length > 0}
-            summary={props.t("optional_entry_fees")}
+            summary={props.t('optional_entry_fees')}
           >
             <EventFeesSection {...props} />
           </OptionalEditorSection>

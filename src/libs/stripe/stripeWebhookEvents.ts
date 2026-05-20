@@ -1,5 +1,11 @@
 import 'server-only';
 import type { Stripe } from 'stripe';
+import { EventPaymentStatus } from '@/generated/prisma/enums';
+import type { EventPaymentStatus as EventPaymentStatusType } from '@/generated/prisma/enums';
+import {
+  applyEventPaymentPaidTransition,
+  eventPaymentStatusCanTransitionTo,
+} from '@/libs/mit-sailing/eventPayments';
 
 type StripeWebhookConstructEvent = {
   webhooks: {
@@ -26,4 +32,362 @@ export function constructStripeWebhookEvent(options: {
 
 export function stripeEventCreatedAtDate(event: Pick<Stripe.Event, 'created'>) {
   return new Date(event.created * 1000);
+}
+
+type StripeWebhookDbPayment = {
+  id: string;
+  status: EventPaymentStatusType;
+  stripeChargeId?: string | null;
+  stripeCheckoutSessionId?: string | null;
+  stripeCustomerId?: string | null;
+  stripePaymentIntentId?: string | null;
+  stripeReceiptUrl?: string | null;
+};
+
+type StripeWebhookDb = {
+  eventPayment: {
+    findFirst: (args: {
+      where: {
+        OR: Record<string, unknown>[];
+      };
+    }) => Promise<StripeWebhookDbPayment | null>;
+    update: (args: {
+      data: Record<string, unknown>;
+      where: { id: string };
+    }) => Promise<unknown>;
+  };
+  stripeWebhookEvent: {
+    create: (args: {
+      data: {
+        eventType: string;
+        stripeCreatedAt: Date;
+        stripeEventId: string;
+      };
+    }) => Promise<{ id: string }>;
+    findUnique: (args: {
+      select: { id: true; processedAt: true };
+      where: { stripeEventId: string };
+    }) => Promise<{ id: string; processedAt: Date | null } | null>;
+    update: (args: {
+      data: {
+        processedAt?: Date;
+        processingError?: string | null;
+      };
+      where: { id: string };
+    }) => Promise<unknown>;
+  };
+};
+
+type ProcessableStripeEvent = {
+  created: number;
+  data: { object: unknown };
+  id: string;
+  type: string;
+};
+
+type ProcessStripeWebhookEventResult =
+  | { duplicate: true; ok: true; receiptPaymentId?: never }
+  | { duplicate?: false; ok: false; receiptPaymentId?: never }
+  | { duplicate?: false; ok: true; receiptPaymentId?: string };
+
+function objectValue(value: unknown): Record<string, unknown> | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return null;
+  }
+  return Object.fromEntries(Object.entries(value));
+}
+
+function stringValue(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
+function expandableId(value: unknown): string | null {
+  if (typeof value === 'string') {
+    return value;
+  }
+  const object = objectValue(value);
+  return object ? stringValue(object.id) : null;
+}
+
+function eventDataObject(
+  event: ProcessableStripeEvent
+): Record<string, unknown> {
+  return objectValue(event.data.object) ?? {};
+}
+
+function eventMetadata(
+  object: Record<string, unknown>
+): Record<string, unknown> {
+  return objectValue(object.metadata) ?? {};
+}
+
+function eventPaymentId(object: Record<string, unknown>): string | null {
+  return (
+    stringValue(eventMetadata(object).paymentId) ??
+    stringValue(object.client_reference_id)
+  );
+}
+
+function isUniqueConstraintError(error: unknown): boolean {
+  return objectValue(error)?.code === 'P2002';
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error
+    ? error.message
+    : 'Unknown Stripe webhook error';
+}
+
+async function findPaymentForStripeObject(options: {
+  chargeId?: string | null;
+  checkoutSessionId?: string | null;
+  db: StripeWebhookDb;
+  paymentId?: string | null;
+  paymentIntentId?: string | null;
+}): Promise<StripeWebhookDbPayment | null> {
+  const or: Record<string, unknown>[] = [];
+  if (options.paymentId) {
+    or.push({ id: options.paymentId });
+  }
+  if (options.checkoutSessionId) {
+    or.push({ stripeCheckoutSessionId: options.checkoutSessionId });
+  }
+  if (options.paymentIntentId) {
+    or.push({ stripePaymentIntentId: options.paymentIntentId });
+  }
+  if (options.chargeId) {
+    or.push({ stripeChargeId: options.chargeId });
+  }
+  if (or.length === 0) {
+    return null;
+  }
+  const payment = await options.db.eventPayment.findFirst({
+    where: { OR: or },
+  });
+  return payment;
+}
+
+async function markPaymentPaid(options: {
+  chargeId?: string | null;
+  checkoutSessionId?: string | null;
+  customerId?: string | null;
+  db: StripeWebhookDb;
+  payment: StripeWebhookDbPayment;
+  paymentIntentId?: string | null;
+  receiptUrl?: string | null;
+}): Promise<string | null> {
+  if (
+    options.payment.status !== EventPaymentStatus.paid &&
+    !eventPaymentStatusCanTransitionTo({
+      from: options.payment.status,
+      to: EventPaymentStatus.paid,
+    })
+  ) {
+    return null;
+  }
+  const transition = applyEventPaymentPaidTransition({
+    current: options.payment,
+    stripeChargeId: options.chargeId,
+    stripeCheckoutSessionId: options.checkoutSessionId,
+    stripeCustomerId: options.customerId,
+    stripePaymentIntentId: options.paymentIntentId,
+    stripeReceiptUrl: options.receiptUrl,
+  });
+  await options.db.eventPayment.update({
+    data: transition.update,
+    where: { id: options.payment.id },
+  });
+  return transition.shouldCreateReceiptNotification ? options.payment.id : null;
+}
+
+async function handleCheckoutCompleted(options: {
+  db: StripeWebhookDb;
+  object: Record<string, unknown>;
+}): Promise<string | null> {
+  const checkoutSessionId = stringValue(options.object.id);
+  const paymentIntentId = expandableId(options.object.payment_intent);
+  const payment = await findPaymentForStripeObject({
+    checkoutSessionId,
+    db: options.db,
+    paymentId: eventPaymentId(options.object),
+    paymentIntentId,
+  });
+  if (!payment) {
+    return null;
+  }
+  return markPaymentPaid({
+    checkoutSessionId,
+    customerId: expandableId(options.object.customer),
+    db: options.db,
+    payment,
+    paymentIntentId,
+  });
+}
+
+async function handlePaymentIntentSucceeded(options: {
+  db: StripeWebhookDb;
+  object: Record<string, unknown>;
+}): Promise<string | null> {
+  const paymentIntentId = stringValue(options.object.id);
+  const chargeId = expandableId(options.object.latest_charge);
+  const payment = await findPaymentForStripeObject({
+    chargeId,
+    db: options.db,
+    paymentId: eventPaymentId(options.object),
+    paymentIntentId,
+  });
+  if (!payment) {
+    return null;
+  }
+  return markPaymentPaid({
+    chargeId,
+    db: options.db,
+    payment,
+    paymentIntentId,
+  });
+}
+
+async function handleChargeSucceeded(options: {
+  db: StripeWebhookDb;
+  object: Record<string, unknown>;
+}): Promise<string | null> {
+  const chargeId = stringValue(options.object.id);
+  const paymentIntentId = expandableId(options.object.payment_intent);
+  const payment = await findPaymentForStripeObject({
+    chargeId,
+    db: options.db,
+    paymentId: eventPaymentId(options.object),
+    paymentIntentId,
+  });
+  if (!payment) {
+    return null;
+  }
+  return markPaymentPaid({
+    chargeId,
+    db: options.db,
+    payment,
+    paymentIntentId,
+    receiptUrl: stringValue(options.object.receipt_url),
+  });
+}
+
+async function markPaymentTerminal(options: {
+  chargeId?: string | null;
+  db: StripeWebhookDb;
+  object: Record<string, unknown>;
+  status:
+    | typeof EventPaymentStatus.disputed
+    | typeof EventPaymentStatus.refunded;
+}): Promise<void> {
+  const chargeId =
+    options.chargeId ??
+    stringValue(options.object.charge) ??
+    stringValue(options.object.id);
+  const paymentIntentId = expandableId(options.object.payment_intent);
+  const payment = await findPaymentForStripeObject({
+    chargeId,
+    db: options.db,
+    paymentId: eventPaymentId(options.object),
+    paymentIntentId,
+  });
+  if (!payment) {
+    return;
+  }
+  await options.db.eventPayment.update({
+    data: {
+      status: options.status,
+      ...(chargeId ? { stripeChargeId: chargeId } : {}),
+      ...(paymentIntentId ? { stripePaymentIntentId: paymentIntentId } : {}),
+    },
+    where: { id: payment.id },
+  });
+}
+
+async function applyStripeEventToPayment(options: {
+  db: StripeWebhookDb;
+  event: ProcessableStripeEvent;
+}): Promise<string | null> {
+  const object = eventDataObject(options.event);
+  if (options.event.type === 'checkout.session.completed') {
+    return handleCheckoutCompleted({ db: options.db, object });
+  }
+  if (options.event.type === 'payment_intent.succeeded') {
+    return handlePaymentIntentSucceeded({ db: options.db, object });
+  }
+  if (options.event.type === 'charge.succeeded') {
+    return handleChargeSucceeded({ db: options.db, object });
+  }
+  if (
+    options.event.type === 'charge.refunded' ||
+    options.event.type === 'refund.created' ||
+    options.event.type === 'refund.updated'
+  ) {
+    await markPaymentTerminal({
+      db: options.db,
+      object,
+      status: EventPaymentStatus.refunded,
+    });
+    return null;
+  }
+  if (
+    options.event.type === 'charge.dispute.created' ||
+    options.event.type === 'charge.dispute.updated'
+  ) {
+    await markPaymentTerminal({
+      chargeId: stringValue(object.charge),
+      db: options.db,
+      object,
+      status: EventPaymentStatus.disputed,
+    });
+    return null;
+  }
+  return null;
+}
+
+export async function processStripeWebhookEvent(options: {
+  db: StripeWebhookDb;
+  event: ProcessableStripeEvent;
+}): Promise<ProcessStripeWebhookEventResult> {
+  let storedEvent: { id: string };
+  try {
+    storedEvent = await options.db.stripeWebhookEvent.create({
+      data: {
+        eventType: options.event.type,
+        stripeCreatedAt: stripeEventCreatedAtDate(options.event),
+        stripeEventId: options.event.id,
+      },
+    });
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      const existingEvent = await options.db.stripeWebhookEvent.findUnique({
+        select: { id: true, processedAt: true },
+        where: { stripeEventId: options.event.id },
+      });
+      if (existingEvent?.processedAt) {
+        return { duplicate: true, ok: true };
+      }
+      if (existingEvent) {
+        storedEvent = existingEvent;
+      } else {
+        throw error;
+      }
+    } else {
+      throw error;
+    }
+  }
+
+  try {
+    const receiptPaymentId = await applyStripeEventToPayment(options);
+    await options.db.stripeWebhookEvent.update({
+      data: { processedAt: new Date(), processingError: null },
+      where: { id: storedEvent.id },
+    });
+    return receiptPaymentId ? { ok: true, receiptPaymentId } : { ok: true };
+  } catch (error) {
+    await options.db.stripeWebhookEvent.update({
+      data: { processingError: errorMessage(error) },
+      where: { id: storedEvent.id },
+    });
+    return { ok: false };
+  }
 }

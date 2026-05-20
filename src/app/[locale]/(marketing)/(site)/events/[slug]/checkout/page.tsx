@@ -37,6 +37,13 @@ function checkoutPaymentViewModel(options: {
   };
 }
 
+function checkoutPublishableKey(): string | undefined {
+  return (
+    Env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ??
+    (Env.IS_E2E === '1' ? 'pk_test_e2e_mock' : undefined)
+  );
+}
+
 export async function generateMetadata(
   props: EventCheckoutPageProps
 ): Promise<Metadata> {
@@ -103,7 +110,7 @@ export default async function EventCheckoutPage(props: EventCheckoutPageProps) {
             statusLabel: t('checkout_status_label'),
           }}
           payment={payment}
-          publishableKey={Env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
+          publishableKey={checkoutPublishableKey()}
         />
       </SiteSectionMain>
     </SiteSectionShell>

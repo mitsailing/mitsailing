@@ -1,5 +1,6 @@
 import 'server-only';
 import type { Stripe } from 'stripe';
+import { Env } from '@/libs/Env';
 
 export type EventPaymentCheckoutSessionPayment = {
   amountCents: number;
@@ -36,6 +37,20 @@ function stripeExpandableId(
   return value?.id ?? null;
 }
 
+function e2eCheckoutSession(paymentId: string): {
+  checkoutSessionId: string;
+  clientSecret: string;
+  stripeCustomerId: string | null;
+  stripePaymentIntentId: string | null;
+} {
+  return {
+    checkoutSessionId: `cs_test_e2e_${paymentId}`,
+    clientSecret: `cs_test_e2e_secret_${paymentId}`,
+    stripeCustomerId: `cus_test_e2e_${paymentId}`,
+    stripePaymentIntentId: `pi_test_e2e_${paymentId}`,
+  };
+}
+
 export async function createEmbeddedEventPaymentCheckoutSession(options: {
   payment: EventPaymentCheckoutSessionPayment;
   returnUrl: string;
@@ -57,6 +72,9 @@ export async function createEmbeddedEventPaymentCheckoutSession(options: {
   }
 
   let { stripe } = options;
+  if (!stripe && Env.IS_E2E === '1') {
+    return e2eCheckoutSession(options.payment.id);
+  }
   if (!stripe) {
     const stripeClientModule = await import('@/libs/stripe/stripeClient');
     stripe = stripeClientModule.getStripeClient();

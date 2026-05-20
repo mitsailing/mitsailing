@@ -1,33 +1,33 @@
-import "server-only";
-import { cache } from "react";
-import type { Prisma } from "@/generated/prisma/client";
-import { EventRegistrationStatus } from "@/generated/prisma/enums";
+import 'server-only';
+import { cache } from 'react';
+import type { Prisma } from '@/generated/prisma/client';
+import { EventRegistrationStatus } from '@/generated/prisma/enums';
 import type {
   EventPaymentStatus as EventPaymentStatusValue,
   EventRegistrationStatus as EventRegistrationStatusValue,
-} from "@/generated/prisma/enums";
-import { resolveEventCategoryCalendarAccentClassName } from "@/lib/mit-sailing/eventCategoryAccent";
-import { Role } from "@/libs/auth/roles";
-import { prisma } from "@/libs/DB";
-import { logger } from "@/libs/Logger";
-import { sanitizeCmsRichTextHtml } from "@/libs/mit-sailing/cmsRichText";
-import { eventCalendarMonthFromDate } from "@/libs/mit-sailing/eventCalendar";
+} from '@/generated/prisma/enums';
+import { resolveEventCategoryCalendarAccentClassName } from '@/lib/mit-sailing/eventCategoryAccent';
+import { Role } from '@/libs/auth/roles';
+import { prisma } from '@/libs/DB';
+import { logger } from '@/libs/Logger';
+import { sanitizeCmsRichTextHtml } from '@/libs/mit-sailing/cmsRichText';
+import { eventCalendarMonthFromDate } from '@/libs/mit-sailing/eventCalendar';
 import type {
   EventCalendarCategory,
   EventCalendarDate,
   EventCalendarMonthBounds,
-} from "@/libs/mit-sailing/eventCalendar";
-import { safeErrorCode, safeErrorName } from "@/libs/safeUnknownError";
-import { getZenStack, zenstackForAuthContext } from "@/libs/zenstack/auth";
+} from '@/libs/mit-sailing/eventCalendar';
+import { safeErrorCode, safeErrorName } from '@/libs/safeUnknownError';
+import { getZenStack, zenstackForAuthContext } from '@/libs/zenstack/auth';
 
 export type EventPublicContentSectionDto = {
   body: string;
-  id: "faq" | "noticeOfRace" | "sailingInstructions" | "results";
+  id: 'faq' | 'noticeOfRace' | 'sailingInstructions' | 'results';
   titleKey:
-    | "content_faq_title"
-    | "content_notice_of_race_title"
-    | "content_sailing_instructions_title"
-    | "content_results_title";
+    | 'content_faq_title'
+    | 'content_notice_of_race_title'
+    | 'content_sailing_instructions_title'
+    | 'content_results_title';
 };
 
 export type PublicEventDetail = {
@@ -42,9 +42,9 @@ export type PublicEventDetail = {
   requiresPhone: boolean;
   registrationStart: Date | null;
   registrationEnd: Date | null;
-  detailPageKind: "standard" | "external" | null;
+  detailPageKind: 'standard' | 'external' | null;
   externalDetailUrl: string | null;
-  registrationMode?: "none" | "standard" | "external" | null;
+  registrationMode?: 'none' | 'standard' | 'external' | null;
   externalRegistrationUrl?: string | null;
   externalEntriesUrl?: string | null;
   teamRegistration: {
@@ -77,7 +77,7 @@ export type PublicEventDetail = {
   registrationQuestions: {
     id: string;
     questionText: string;
-    answerType: "text" | "select" | "checkbox";
+    answerType: 'text' | 'select' | 'checkbox';
     options: string[];
     required: boolean;
     displayOrder: number;
@@ -117,8 +117,8 @@ function logPublicEventsQueryFailure(options: {
       `error_name=${safeErrorName(options.error)}`,
       code ? `error_code=${code}` : undefined,
     ]
-      .filter((part): part is string => typeof part === "string")
-      .join(" "),
+      .filter((part): part is string => typeof part === 'string')
+      .join(' ')
   );
 }
 
@@ -128,7 +128,7 @@ function logPublicEventsEmptyFallback(options: {
   reason: string;
 }): void {
   logger.warn(
-    `[public-events:${options.where}] fallback=${options.fallback} reason=${options.reason}`,
+    `[public-events:${options.where}] fallback=${options.fallback} reason=${options.reason}`
   );
 }
 
@@ -139,12 +139,12 @@ function logPublicEventsEmptyFallback(options: {
  * @returns List of string options
  */
 export function questionOptionsFromJson(
-  value: Prisma.JsonValue | null,
+  value: Prisma.JsonValue | null
 ): string[] {
   if (!Array.isArray(value)) {
     return [];
   }
-  return value.filter((option): option is string => typeof option === "string");
+  return value.filter((option): option is string => typeof option === 'string');
 }
 
 export function publicContentSectionsFromEvent(event: {
@@ -159,27 +159,27 @@ export function publicContentSectionsFromEvent(event: {
 }): EventPublicContentSectionDto[] {
   const sections = [
     {
-      body: event.faqContent ?? "",
-      id: "faq",
-      titleKey: "content_faq_title",
+      body: event.faqContent ?? '',
+      id: 'faq',
+      titleKey: 'content_faq_title',
       visible: event.faqVisible ?? false,
     },
     {
-      body: event.noticeOfRaceContent ?? "",
-      id: "noticeOfRace",
-      titleKey: "content_notice_of_race_title",
+      body: event.noticeOfRaceContent ?? '',
+      id: 'noticeOfRace',
+      titleKey: 'content_notice_of_race_title',
       visible: event.noticeOfRaceVisible ?? false,
     },
     {
-      body: event.sailingInstructionsContent ?? "",
-      id: "sailingInstructions",
-      titleKey: "content_sailing_instructions_title",
+      body: event.sailingInstructionsContent ?? '',
+      id: 'sailingInstructions',
+      titleKey: 'content_sailing_instructions_title',
       visible: event.sailingInstructionsVisible ?? false,
     },
     {
-      body: event.resultsContent ?? "",
-      id: "results",
-      titleKey: "content_results_title",
+      body: event.resultsContent ?? '',
+      id: 'results',
+      titleKey: 'content_results_title',
       visible: event.resultsVisible ?? false,
     },
   ] satisfies readonly (EventPublicContentSectionDto & {
@@ -255,18 +255,18 @@ export const getPublishedEventForPublicBySlug = cache(async (slug: string) => {
         addressCountry: true,
         category: { select: { name: true } },
         dates: {
-          orderBy: { startDateTime: "asc" },
+          orderBy: { startDateTime: 'asc' },
           select: { id: true, startDateTime: true, endDateTime: true },
         },
         admins: {
-          orderBy: [{ admin: { name: "asc" } }, { admin: { email: "asc" } }],
+          orderBy: [{ admin: { name: 'asc' } }, { admin: { email: 'asc' } }],
           select: {
             id: true,
             admin: { select: { id: true, name: true, email: true } },
           },
         },
         registrationQuestions: {
-          orderBy: [{ displayOrder: "asc" }, { questionText: "asc" }],
+          orderBy: [{ displayOrder: 'asc' }, { questionText: 'asc' }],
           select: {
             id: true,
             questionText: true,
@@ -277,7 +277,7 @@ export const getPublishedEventForPublicBySlug = cache(async (slug: string) => {
           },
         },
         entryFees: {
-          orderBy: [{ isDeposit: "desc" }, { description: "asc" }],
+          orderBy: [{ isDeposit: 'desc' }, { description: 'asc' }],
           select: {
             id: true,
             description: true,
@@ -350,8 +350,8 @@ export const getPublishedEventForPublicBySlug = cache(async (slug: string) => {
     } satisfies PublicEventDetail;
   } catch (error) {
     logPublicEventsQueryFailure({
-      where: "detail",
-      fallback: "not_found",
+      where: 'detail',
+      fallback: 'not_found',
       error,
     });
     return null;
@@ -367,7 +367,7 @@ export const getPublishedEventForPublicBySlug = cache(async (slug: string) => {
 const getCachedPublicEventRegistrationState = cache(
   async (
     eventId: string,
-    userId: string,
+    userId: string
   ): Promise<PublicEventRegistrationState | null> => {
     try {
       const db = zenstackForAuthContext({
@@ -376,7 +376,7 @@ const getCachedPublicEventRegistrationState = cache(
       });
       const registration = await db.eventRegistration.findFirst({
         where: { eventId },
-        orderBy: { createdAt: "desc" },
+        orderBy: { createdAt: 'desc' },
         select: {
           id: true,
           payment: {
@@ -404,13 +404,13 @@ const getCachedPublicEventRegistrationState = cache(
         : null;
     } catch (error) {
       logPublicEventsQueryFailure({
-        where: "viewer-registration",
-        fallback: "null_registration",
+        where: 'viewer-registration',
+        fallback: 'null_registration',
         error,
       });
       return null;
     }
-  },
+  }
 );
 
 export async function getPublicEventRegistrationState(options: {
@@ -419,7 +419,7 @@ export async function getPublicEventRegistrationState(options: {
 }): Promise<PublicEventRegistrationState | null> {
   const state = await getCachedPublicEventRegistrationState(
     options.eventId,
-    options.userId,
+    options.userId
   );
   return state;
 }
@@ -438,9 +438,9 @@ export async function listVisibleEventCategoriesForPublicCalendarMonth(params: {
     const eventIds = await publicEventIds();
     if (eventIds.length === 0) {
       logPublicEventsEmptyFallback({
-        where: "month_categories",
-        fallback: "all_categories_only",
-        reason: "no_categories_with_month_events",
+        where: 'month_categories',
+        fallback: 'all_categories_only',
+        reason: 'no_categories_with_month_events',
       });
       return [];
     }
@@ -459,21 +459,21 @@ export async function listVisibleEventCategoriesForPublicCalendarMonth(params: {
           },
         },
       },
-      orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
+      orderBy: [{ displayOrder: 'asc' }, { name: 'asc' }],
       select: { id: true, name: true, displayOrder: true },
     });
     if (categories.length === 0) {
       logPublicEventsEmptyFallback({
-        where: "month_categories",
-        fallback: "all_categories_only",
-        reason: "no_categories_with_month_events",
+        where: 'month_categories',
+        fallback: 'all_categories_only',
+        reason: 'no_categories_with_month_events',
       });
     }
     return categories;
   } catch (error) {
     logPublicEventsQueryFailure({
-      where: "month_categories",
-      fallback: "empty_categories",
+      where: 'month_categories',
+      fallback: 'empty_categories',
       error,
     });
     return [];
@@ -509,9 +509,9 @@ export async function getPublishedEventCalendarMonthBounds(): Promise<EventCalen
 
     if (!hasBounds) {
       logPublicEventsEmptyFallback({
-        where: "bounds",
-        fallback: "current_month",
-        reason: "no_published_event_dates",
+        where: 'bounds',
+        fallback: 'current_month',
+        reason: 'no_published_event_dates',
       });
     }
 
@@ -524,8 +524,8 @@ export async function getPublishedEventCalendarMonthBounds(): Promise<EventCalen
   } catch (error) {
     const fallbackMonth = eventCalendarMonthFromDate(new Date());
     logPublicEventsQueryFailure({
-      where: "bounds",
-      fallback: "current_month",
+      where: 'bounds',
+      fallback: 'current_month',
       error,
     });
     return {
@@ -563,7 +563,7 @@ export async function listPublishedEventDatesForCalendarMonth(params: {
           ...(params.categoryId ? { eventCategoryId: params.categoryId } : {}),
         },
       },
-      orderBy: [{ startDateTime: "asc" }, { event: { name: "asc" } }],
+      orderBy: [{ startDateTime: 'asc' }, { event: { name: 'asc' } }],
       select: {
         id: true,
         startDateTime: true,
@@ -588,15 +588,15 @@ export async function listPublishedEventDatesForCalendarMonth(params: {
         category: {
           ...row.event.category,
           accentClassName: resolveEventCategoryCalendarAccentClassName(
-            row.event.category,
+            row.event.category
           ),
         },
       },
     }));
   } catch (error) {
     logPublicEventsQueryFailure({
-      where: "month_dates",
-      fallback: "empty_dates",
+      where: 'month_dates',
+      fallback: 'empty_dates',
       error,
     });
     return [];

@@ -1,0 +1,77 @@
+import type * as React from 'react';
+import { Heading, Link, Section, Text } from 'react-email';
+import { EmailLayout } from './email-layout';
+import { heading, paragraph, section } from './email-styles';
+
+type PaymentDetail = {
+  href?: string;
+  label: string;
+  value: string;
+};
+
+type EventPaymentEmailTemplateProps = {
+  actionHref?: string;
+  actionLabel?: string;
+  body: string;
+  details: readonly PaymentDetail[];
+  previewText: string;
+  title: string;
+};
+
+const detailLabel: React.CSSProperties = {
+  color: '#64748b',
+  fontSize: '12px',
+  fontWeight: 600,
+  letterSpacing: '0.04em',
+  margin: '16px 0 4px',
+  textTransform: 'uppercase',
+};
+
+const detailValue: React.CSSProperties = {
+  color: '#0f172a',
+  fontSize: '15px',
+  lineHeight: '22px',
+  margin: '0',
+};
+
+const actionLink: React.CSSProperties = {
+  color: '#005f83',
+  fontSize: '15px',
+  fontWeight: 700,
+};
+
+export function EventPaymentEmailTemplate(
+  props: EventPaymentEmailTemplateProps
+) {
+  return (
+    <EmailLayout previewText={props.previewText}>
+      <Section style={section}>
+        <Heading as="h1" style={heading}>
+          {props.title}
+        </Heading>
+        <Text style={paragraph}>{props.body}</Text>
+        {props.details.map((detail) => (
+          <Section key={detail.label}>
+            <Text style={detailLabel}>{detail.label}</Text>
+            <Text style={detailValue}>
+              {detail.href ? (
+                <Link href={detail.href} style={actionLink}>
+                  {detail.value}
+                </Link>
+              ) : (
+                detail.value
+              )}
+            </Text>
+          </Section>
+        ))}
+        {props.actionHref && props.actionLabel ? (
+          <Text style={{ ...paragraph, marginTop: 24 }}>
+            <Link href={props.actionHref} style={actionLink}>
+              {props.actionLabel}
+            </Link>
+          </Text>
+        ) : null}
+      </Section>
+    </EmailLayout>
+  );
+}

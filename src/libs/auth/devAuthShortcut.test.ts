@@ -29,7 +29,10 @@ function stubRequiredDeployedEnv(): void {
       'NEXT_SERVER_ACTIONS_ENCRYPTION_KEY',
       'test-server-actions-key-with-thirty-two-chars',
     ],
+    ['NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY', 'pk_test_publishable_key'],
     ['REDIS_URL', 'redis://redis:6379'],
+    ['STRIPE_SECRET_KEY', 'rk_test_restricted_key'],
+    ['STRIPE_WEBHOOK_SECRET', 'whsec_test_webhook_secret'],
   ];
   for (const [key, value] of envVars) {
     vi.stubEnv(key, value);

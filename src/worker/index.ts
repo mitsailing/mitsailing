@@ -14,6 +14,12 @@ import {
 } from '@/worker/cmsMediaProcessingJob';
 import { DEFAULT_QUEUE_NAME } from '@/worker/defaultQueue';
 import {
+  EVENT_PAYMENT_DAILY_NOTIFICATIONS_JOB_NAME,
+  EVENT_PAYMENT_EMAIL_JOB_NAME,
+  processEventPaymentEmailJob,
+  registerEventPaymentDailyNotificationScheduler,
+} from '@/worker/eventPaymentEmailJob';
+import {
   LEGACY_MYSQL_SYNC_JOB_NAME,
   processLegacyMysqlSyncJob,
   registerLegacyMysqlSyncScheduler,
@@ -24,7 +30,8 @@ import {
 } from '@/worker/pavilionReservationSubmittedEmailJob';
 
 async function processJob(
-  job: Pick<Job<unknown>, 'data' | 'name'>
+  job: Pick<Job<unknown>, 'data' | 'name'>,
+  queue: Queue
 ): Promise<void> {
   if (job.name === LEGACY_MYSQL_SYNC_JOB_NAME) {
     await processLegacyMysqlSyncJob();
@@ -36,6 +43,13 @@ async function processJob(
   }
   if (job.name === CMS_MEDIA_PROCESSING_JOB_NAME) {
     await processCmsMediaProcessingJob(job.data);
+    return;
+  }
+  if (
+    job.name === EVENT_PAYMENT_EMAIL_JOB_NAME ||
+    job.name === EVENT_PAYMENT_DAILY_NOTIFICATIONS_JOB_NAME
+  ) {
+    await processEventPaymentEmailJob(job.data, queue);
     return;
   }
   throw new Error(`Unknown worker job: ${job.name}`);
@@ -67,12 +81,13 @@ async function main(): Promise<void> {
 
   const queue = new Queue(DEFAULT_QUEUE_NAME, { connection });
   await registerLegacyMysqlSyncScheduler(queue);
+  await registerEventPaymentDailyNotificationScheduler(queue);
   await reconcileCmsMediaProcessingJobs(queue, new Date());
 
   const worker = new Worker(
     DEFAULT_QUEUE_NAME,
     async (job) => {
-      await processJob(job);
+      await processJob(job, queue);
     },
     { connection, concurrency: 1 }
   );

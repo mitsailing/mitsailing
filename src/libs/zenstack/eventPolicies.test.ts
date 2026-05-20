@@ -1,19 +1,19 @@
-import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { ZenStackClient } from "@zenstackhq/orm";
-import type { ClientContract } from "@zenstackhq/orm";
-import { PostgresDialect } from "@zenstackhq/orm/dialects/postgres";
-import { PolicyPlugin } from "@zenstackhq/plugin-policy";
-import { Pool } from "pg";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { AuthContext } from "../../../zenstack/models";
-import type { SchemaType } from "../../../zenstack/schema";
-import { schema } from "../../../zenstack/schema";
+import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { ZenStackClient } from '@zenstackhq/orm';
+import type { ClientContract } from '@zenstackhq/orm';
+import { PostgresDialect } from '@zenstackhq/orm/dialects/postgres';
+import { PolicyPlugin } from '@zenstackhq/plugin-policy';
+import { Pool } from 'pg';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import type { AuthContext } from '../../../zenstack/models';
+import type { SchemaType } from '../../../zenstack/schema';
+import { schema } from '../../../zenstack/schema';
 
-const zenstackSchemaText = readFileSync("zenstack/schema.zmodel", "utf8");
+const zenstackSchemaText = readFileSync('zenstack/schema.zmodel', 'utf8');
 
 const shouldRunPolicyDatabaseTest =
-  process.env.RUN_DATABASE_TESTS === "1" &&
+  process.env.RUN_DATABASE_TESTS === '1' &&
   Boolean(process.env.TEST_DATABASE_URL);
 
 type EventPolicyDb = ClientContract<SchemaType>;
@@ -62,16 +62,16 @@ async function columnExists(options: {
           AND column_name = $2
       ) AS exists
     `,
-    [options.tableName, options.columnName],
+    [options.tableName, options.columnName]
   );
   return result.rows[0]?.exists === true;
 }
 
 async function insertUser(pool: Pool, id: string, appRole: string) {
   const hasAppRole = await columnExists({
-    columnName: "app_role",
+    columnName: 'app_role',
     pool,
-    tableName: "user",
+    tableName: 'user',
   });
   const email = `${id}@example.test`;
   if (hasAppRole) {
@@ -82,7 +82,7 @@ async function insertUser(pool: Pool, id: string, appRole: string) {
         )
         VALUES ($1, $2, $3, true, $4, NOW())
       `,
-      [id, id, email, appRole],
+      [id, id, email, appRole]
     );
     return;
   }
@@ -92,18 +92,18 @@ async function insertUser(pool: Pool, id: string, appRole: string) {
       INSERT INTO "user" ("id", "name", "email", "email_verified", "updated_at")
       VALUES ($1, $2, $3, true, NOW())
     `,
-    [id, id, email],
+    [id, id, email]
   );
 }
 
 async function insertEvent(
   pool: Pool,
-  options: { id: string; published: boolean },
+  options: { id: string; published: boolean }
 ) {
   const hasCreatedBy = await columnExists({
-    columnName: "created_by",
+    columnName: 'created_by',
     pool,
-    tableName: "events",
+    tableName: 'events',
   });
   if (hasCreatedBy) {
     await pool.query(
@@ -128,7 +128,7 @@ async function insertEvent(
         options.id,
         ids.staff,
         options.published,
-      ],
+      ]
     );
     return;
   }
@@ -154,7 +154,7 @@ async function insertEvent(
       `Description ${options.id}`,
       options.id,
       options.published,
-    ],
+    ]
   );
 }
 
@@ -162,14 +162,14 @@ async function deleteFixtures(pool: Pool) {
   const eventIds = [ids.assignedEvent, ids.otherEvent, ids.unpublishedEvent];
   await pool.query(
     'DELETE FROM "event_registration_answers" WHERE "id" = ANY($1)',
-    [[ids.answer, ids.matchingAnswer]],
+    [[ids.answer, ids.matchingAnswer]]
   );
   await pool.query('DELETE FROM "event_comments" WHERE "event_id" = ANY($1)', [
     eventIds,
   ]);
   await pool.query(
     'DELETE FROM "event_payment_notifications" WHERE "payment_id" = ANY($1)',
-    [[ids.payment, ids.otherPayment]],
+    [[ids.payment, ids.otherPayment]]
   );
   await pool.query('DELETE FROM "event_payments" WHERE "id" = ANY($1)', [
     [ids.payment, ids.otherPayment],
@@ -182,7 +182,7 @@ async function deleteFixtures(pool: Pool) {
   ]);
   await pool.query(
     'DELETE FROM "event_registration_questions" WHERE "id" = ANY($1)',
-    [[ids.question, ids.otherQuestion]],
+    [[ids.question, ids.otherQuestion]]
   );
   await pool.query('DELETE FROM "event_admins" WHERE "event_id" = ANY($1)', [
     eventIds,
@@ -210,11 +210,11 @@ async function deleteFixtures(pool: Pool) {
 
 async function insertFixtures(pool: Pool) {
   await deleteFixtures(pool);
-  await insertUser(pool, ids.staff, "dock_staff");
-  await insertUser(pool, ids.assignedAdmin, "volunteer_instructor");
-  await insertUser(pool, ids.unassignedAdmin, "volunteer_instructor");
-  await insertUser(pool, ids.owner, "user");
-  await insertUser(pool, ids.otherUser, "user");
+  await insertUser(pool, ids.staff, 'dock_staff');
+  await insertUser(pool, ids.assignedAdmin, 'volunteer_instructor');
+  await insertUser(pool, ids.unassignedAdmin, 'volunteer_instructor');
+  await insertUser(pool, ids.owner, 'user');
+  await insertUser(pool, ids.otherUser, 'user');
   await pool.query(
     `
       INSERT INTO "event_categories" (
@@ -225,7 +225,7 @@ async function insertFixtures(pool: Pool) {
         ($2, 'Hidden policy category', 2, false, NOW()),
         ($3, 'Managed policy category', 3, true, NOW())
     `,
-    [ids.category, ids.hiddenCategory, ids.managedCategory],
+    [ids.category, ids.hiddenCategory, ids.managedCategory]
   );
   await insertEvent(pool, { id: ids.assignedEvent, published: true });
   await insertEvent(pool, { id: ids.otherEvent, published: true });
@@ -244,7 +244,7 @@ async function insertFixtures(pool: Pool) {
       `event_policy_${randomUUID()}_other_event_admin`,
       ids.otherEvent,
       ids.otherUser,
-    ],
+    ]
   );
   await pool.query(
     `
@@ -253,7 +253,7 @@ async function insertFixtures(pool: Pool) {
       )
       VALUES ($1, $2, NOW(), NOW() + INTERVAL '1 hour')
     `,
-    [ids.date, ids.assignedEvent],
+    [ids.date, ids.assignedEvent]
   );
   await pool.query(
     `
@@ -265,7 +265,7 @@ async function insertFixtures(pool: Pool) {
         ($1, $2, 'Question', 'text', NULL, true, 1),
         ($3, $4, 'Other question', 'text', NULL, true, 1)
     `,
-    [ids.question, ids.assignedEvent, ids.otherQuestion, ids.otherEvent],
+    [ids.question, ids.assignedEvent, ids.otherQuestion, ids.otherEvent]
   );
   await pool.query(
     `
@@ -276,7 +276,7 @@ async function insertFixtures(pool: Pool) {
         ($1, $2, 'Fee', 1200, false),
         ($3, $4, 'Other fee', 1200, false)
     `,
-    [ids.fee, ids.assignedEvent, ids.otherFee, ids.otherEvent],
+    [ids.fee, ids.assignedEvent, ids.otherFee, ids.otherEvent]
   );
   await pool.query(
     `
@@ -295,7 +295,7 @@ async function insertFixtures(pool: Pool) {
       ids.otherRegistration,
       ids.otherUser,
       ids.otherEvent,
-    ],
+    ]
   );
   await pool.query(
     `
@@ -319,7 +319,7 @@ async function insertFixtures(pool: Pool) {
       ids.otherRegistration,
       ids.otherUser,
       ids.otherFee,
-    ],
+    ]
   );
   await pool.query(
     `
@@ -329,7 +329,7 @@ async function insertFixtures(pool: Pool) {
       )
       VALUES ($1, $2, 'request', '2026-05-20', 'email-message-id', NOW())
     `,
-    [ids.paymentNotification, ids.payment],
+    [ids.paymentNotification, ids.payment]
   );
   await pool.query(
     `
@@ -338,7 +338,7 @@ async function insertFixtures(pool: Pool) {
       )
       VALUES ($1, $2, $3, 'Aye')
     `,
-    [ids.answer, ids.registration, ids.question],
+    [ids.answer, ids.registration, ids.question]
   );
   await pool.query(
     `
@@ -356,7 +356,7 @@ async function insertFixtures(pool: Pool) {
       ids.otherParentComment,
       ids.otherEvent,
       ids.otherUser,
-    ],
+    ]
   );
 }
 
@@ -366,7 +366,7 @@ async function updateWasAllowed(options: {
 }) {
   const allowed = await options.run().then(
     () => true,
-    () => false,
+    () => false
   );
   await options.reset();
   return allowed;
@@ -379,7 +379,7 @@ async function resetAnswer(pool: Pool) {
       SET "registration_id" = $2, "question_id" = $3, "value" = 'Aye'
       WHERE "id" = $1
     `,
-    [ids.answer, ids.registration, ids.question],
+    [ids.answer, ids.registration, ids.question]
   );
 }
 
@@ -394,27 +394,27 @@ async function resetComment(pool: Pool) {
         "body" = 'Owned comment'
       WHERE "id" = $1
     `,
-    [ids.comment, ids.assignedEvent, ids.owner],
+    [ids.comment, ids.assignedEvent, ids.owner]
   );
 }
 
-describe("event policy schema rules", () => {
-  it("blocks internal registrations for unavailable registration modes", () => {
+describe('event policy schema rules', () => {
+  it('blocks internal registrations for unavailable registration modes', () => {
     expect(zenstackSchemaText).toContain(
-      "@@deny('create', event.registrationMode != 'standard')",
+      "@@deny('create', event.registrationMode != 'standard')"
     );
   });
 
-  it("requires phone for registrations", () => {
+  it('requires phone for registrations', () => {
     expect(zenstackSchemaText).toMatch(/\bphone\s+String\b/u);
     expect(zenstackSchemaText).toMatch(/@trim\(\)\s+@map\("phone"\)/u);
     expect(zenstackSchemaText).toContain(
-      "@@deny('create,update', phone == '')",
+      "@@deny('create,update', phone == '')"
     );
   });
 });
 
-describe.skipIf(!shouldRunPolicyDatabaseTest)("event policies", () => {
+describe.skipIf(!shouldRunPolicyDatabaseTest)('event policies', () => {
   let pool: Pool;
   let db: EventPolicyDb;
 
@@ -435,7 +435,7 @@ describe.skipIf(!shouldRunPolicyDatabaseTest)("event policies", () => {
     await pool.end();
   });
 
-  it("keeps public event reads to published content without admin assignments", async () => {
+  it('keeps public event reads to published content without admin assignments', async () => {
     const event = await db.event.findFirst({
       where: { id: ids.assignedEvent },
       include: {
@@ -451,83 +451,83 @@ describe.skipIf(!shouldRunPolicyDatabaseTest)("event policies", () => {
     expect(event?.registrationQuestions).toHaveLength(1);
     expect(event?.admins).toEqual([]);
     await expect(
-      db.event.findFirst({ where: { id: ids.unpublishedEvent } }),
+      db.event.findFirst({ where: { id: ids.unpublishedEvent } })
     ).resolves.toBeNull();
     await expect(
-      db.eventAdmin.findMany({ where: { eventId: ids.assignedEvent } }),
+      db.eventAdmin.findMany({ where: { eventId: ids.assignedEvent } })
     ).resolves.toEqual([]);
   });
 
-  it("limits event category reads and writes by role", async () => {
+  it('limits event category reads and writes by role', async () => {
     await expect(
       db.eventCategory.findMany({
-        orderBy: { displayOrder: "asc" },
+        orderBy: { displayOrder: 'asc' },
         select: { id: true },
         where: {
           id: { in: [ids.category, ids.hiddenCategory, ids.managedCategory] },
         },
-      }),
+      })
     ).resolves.toEqual([{ id: ids.category }, { id: ids.managedCategory }]);
 
     await expect(
-      authDb({ appRole: "admin", id: ids.staff }).eventCategory.create({
+      authDb({ appRole: 'admin', id: ids.staff }).eventCategory.create({
         data: {
           createdAt: new Date(),
           displayOrder: 4,
           id: ids.writableCategory,
           isVisible: true,
-          name: "Writable policy category",
+          name: 'Writable policy category',
         },
-      }),
+      })
     ).resolves.toMatchObject({ id: ids.writableCategory });
 
     await expect(
-      authDb({ appRole: "admin", id: ids.staff }).eventCategory.update({
-        data: { name: "Updated policy category" },
+      authDb({ appRole: 'admin', id: ids.staff }).eventCategory.update({
+        data: { name: 'Updated policy category' },
         where: { id: ids.writableCategory },
-      }),
-    ).resolves.toMatchObject({ name: "Updated policy category" });
+      })
+    ).resolves.toMatchObject({ name: 'Updated policy category' });
 
     await expect(
-      authDb({ appRole: "user", id: ids.owner }).eventCategory.create({
+      authDb({ appRole: 'user', id: ids.owner }).eventCategory.create({
         data: {
           createdAt: new Date(),
           displayOrder: 5,
           id: `event_policy_${randomUUID()}_blocked_category`,
           isVisible: true,
-          name: "Blocked policy category",
+          name: 'Blocked policy category',
         },
-      }),
+      })
     ).rejects.toThrow();
 
     await expect(
-      authDb({ appRole: "dock_staff", id: ids.staff }).eventCategory.update({
-        data: { name: "Blocked update" },
+      authDb({ appRole: 'dock_staff', id: ids.staff }).eventCategory.update({
+        data: { name: 'Blocked update' },
         where: { id: ids.writableCategory },
-      }),
+      })
     ).rejects.toThrow();
 
     await expect(
-      authDb({ appRole: "user", id: ids.owner }).eventCategory.delete({
+      authDb({ appRole: 'user', id: ids.owner }).eventCategory.delete({
         where: { id: ids.writableCategory },
-      }),
+      })
     ).rejects.toThrow();
 
     await expect(
-      authDb({ appRole: "admin", id: ids.staff }).eventCategory.delete({
+      authDb({ appRole: 'admin', id: ids.staff }).eventCategory.delete({
         where: { id: ids.writableCategory },
-      }),
+      })
     ).resolves.toMatchObject({ id: ids.writableCategory });
   });
 
-  it("keeps event admin assignment writes staff-only", async () => {
+  it('keeps event admin assignment writes staff-only', async () => {
     const createdId = `event_policy_${randomUUID()}_blocked_event_admin`;
     let assignmentId: string | undefined;
     await expect(
       authDb({
-        appRole: "volunteer_instructor",
+        appRole: 'volunteer_instructor',
         id: ids.assignedAdmin,
-      }).eventAdmin.findMany({ where: { eventId: ids.assignedEvent } }),
+      }).eventAdmin.findMany({ where: { eventId: ids.assignedEvent } })
     ).resolves.toEqual([
       expect.objectContaining({
         adminUserId: ids.assignedAdmin,
@@ -537,18 +537,18 @@ describe.skipIf(!shouldRunPolicyDatabaseTest)("event policies", () => {
 
     try {
       const assignments = await authDb({
-        appRole: "volunteer_instructor",
+        appRole: 'volunteer_instructor',
         id: ids.assignedAdmin,
       }).eventAdmin.findMany({ where: { eventId: ids.assignedEvent } });
       assignmentId = assignments[0]?.id;
       expect(assignmentId).toBeDefined();
       if (!assignmentId) {
-        throw new Error("expected an assigned event admin fixture");
+        throw new Error('expected an assigned event admin fixture');
       }
 
       await expect(
         authDb({
-          appRole: "volunteer_instructor",
+          appRole: 'volunteer_instructor',
           id: ids.assignedAdmin,
         }).eventAdmin.create({
           data: {
@@ -556,22 +556,22 @@ describe.skipIf(!shouldRunPolicyDatabaseTest)("event policies", () => {
             eventId: ids.assignedEvent,
             id: createdId,
           },
-        }),
+        })
       ).rejects.toThrow();
       await expect(
         authDb({
-          appRole: "volunteer_instructor",
+          appRole: 'volunteer_instructor',
           id: ids.assignedAdmin,
         }).eventAdmin.update({
           where: { id: assignmentId },
           data: { adminUserId: ids.unassignedAdmin },
-        }),
+        })
       ).rejects.toThrow();
       await expect(
         authDb({
-          appRole: "volunteer_instructor",
+          appRole: 'volunteer_instructor',
           id: ids.assignedAdmin,
-        }).eventAdmin.delete({ where: { id: assignmentId } }),
+        }).eventAdmin.delete({ where: { id: assignmentId } })
       ).rejects.toThrow();
     } finally {
       await pool.query('DELETE FROM "event_admins" WHERE "id" = $1', [
@@ -586,23 +586,23 @@ describe.skipIf(!shouldRunPolicyDatabaseTest)("event policies", () => {
               "event_id" = EXCLUDED."event_id",
               "admin_user_id" = EXCLUDED."admin_user_id"
           `,
-          [assignmentId, ids.assignedEvent, ids.assignedAdmin],
+          [assignmentId, ids.assignedEvent, ids.assignedAdmin]
         );
       }
     }
   });
 
-  it("enforces one admin assignment per event and user", async () => {
+  it('enforces one admin assignment per event and user', async () => {
     const duplicateId = `event_policy_${randomUUID()}_duplicate_event_admin`;
     try {
       await expect(
-        authDb({ appRole: "dock_staff", id: ids.staff }).eventAdmin.create({
+        authDb({ appRole: 'dock_staff', id: ids.staff }).eventAdmin.create({
           data: {
             adminUserId: ids.assignedAdmin,
             eventId: ids.assignedEvent,
             id: duplicateId,
           },
-        }),
+        })
       ).rejects.toThrow();
     } finally {
       await pool.query('DELETE FROM "event_admins" WHERE "id" = $1', [
@@ -611,186 +611,186 @@ describe.skipIf(!shouldRunPolicyDatabaseTest)("event policies", () => {
     }
   });
 
-  it("allows assigned event admins and rejects unassigned event admins", async () => {
+  it('allows assigned event admins and rejects unassigned event admins', async () => {
     await expect(
       authDb({
-        appRole: "volunteer_instructor",
+        appRole: 'volunteer_instructor',
         id: ids.assignedAdmin,
       }).event.update({
         where: { id: ids.assignedEvent },
-        data: { shortName: "Assigned" },
-      }),
+        data: { shortName: 'Assigned' },
+      })
     ).resolves.toMatchObject({ id: ids.assignedEvent });
 
     await expect(
       authDb({
-        appRole: "volunteer_instructor",
+        appRole: 'volunteer_instructor',
         id: ids.unassignedAdmin,
       }).event.update({
         where: { id: ids.assignedEvent },
-        data: { shortName: "Blocked" },
-      }),
+        data: { shortName: 'Blocked' },
+      })
     ).rejects.toThrow();
   });
 
-  it("allows dock staff and site admins to manage events globally", async () => {
+  it('allows dock staff and site admins to manage events globally', async () => {
     await expect(
-      authDb({ appRole: "dock_staff", id: ids.staff }).event.update({
+      authDb({ appRole: 'dock_staff', id: ids.staff }).event.update({
         where: { id: ids.otherEvent },
-        data: { shortName: "Staff" },
-      }),
+        data: { shortName: 'Staff' },
+      })
     ).resolves.toMatchObject({ id: ids.otherEvent });
 
     await expect(
-      authDb({ appRole: "admin", id: ids.staff }).event.update({
+      authDb({ appRole: 'admin', id: ids.staff }).event.update({
         where: { id: ids.unpublishedEvent },
-        data: { shortName: "Admin" },
-      }),
+        data: { shortName: 'Admin' },
+      })
     ).resolves.toMatchObject({ id: ids.unpublishedEvent });
   });
 
-  it("allows owners to read but not directly update registrations", async () => {
+  it('allows owners to read but not directly update registrations', async () => {
     await expect(
-      authDb({ appRole: "user", id: ids.owner }).eventRegistration.findFirst({
+      authDb({ appRole: 'user', id: ids.owner }).eventRegistration.findFirst({
         where: { id: ids.registration },
-      }),
+      })
     ).resolves.toMatchObject({ id: ids.registration });
 
     await expect(
-      authDb({ appRole: "user", id: ids.owner }).eventRegistration.update({
+      authDb({ appRole: 'user', id: ids.owner }).eventRegistration.update({
         where: { id: ids.registration },
-        data: { status: "approved" },
-      }),
+        data: { status: 'approved' },
+      })
     ).rejects.toThrow();
 
     await expect(
-      authDb({ appRole: "user", id: ids.owner }).eventRegistration.update({
+      authDb({ appRole: 'user', id: ids.owner }).eventRegistration.update({
         where: { id: ids.otherRegistration },
-        data: { status: "cancelled" },
-      }),
+        data: { status: 'cancelled' },
+      })
     ).rejects.toThrow();
 
     await expect(
       authDb({
-        appRole: "volunteer_instructor",
+        appRole: 'volunteer_instructor',
         id: ids.assignedAdmin,
       }).eventRegistration.update({
         where: { id: ids.otherRegistration },
-        data: { status: "approved" },
-      }),
+        data: { status: 'approved' },
+      })
     ).resolves.toMatchObject({ id: ids.otherRegistration });
   });
 
-  it("allows payment owners to read their own payment records only", async () => {
+  it('allows payment owners to read their own payment records only', async () => {
     const payments = await authDb({
-      appRole: "user",
+      appRole: 'user',
       id: ids.owner,
     }).eventPayment.findMany({
-      orderBy: { id: "asc" },
+      orderBy: { id: 'asc' },
       select: { id: true },
     });
 
     expect(payments).toEqual([{ id: ids.payment }]);
 
     await expect(
-      authDb({ appRole: "user", id: ids.owner }).eventPayment.update({
-        data: { status: "handled" },
+      authDb({ appRole: 'user', id: ids.owner }).eventPayment.update({
+        data: { status: 'handled' },
         where: { id: ids.payment },
-      }),
+      })
     ).rejects.toThrow();
   });
 
-  it("allows assigned event admins to manage event payment records", async () => {
+  it('allows assigned event admins to manage event payment records', async () => {
     await expect(
       authDb({
-        appRole: "volunteer_instructor",
+        appRole: 'volunteer_instructor',
         id: ids.assignedAdmin,
       }).eventPayment.update({
-        data: { status: "past_due" },
+        data: { status: 'past_due' },
         where: { id: ids.payment },
-      }),
-    ).resolves.toMatchObject({ id: ids.payment, status: "past_due" });
+      })
+    ).resolves.toMatchObject({ id: ids.payment, status: 'past_due' });
 
     await pool.query(
       'UPDATE "event_payments" SET "status" = $2 WHERE "id" = $1',
-      [ids.payment, "pending"],
+      [ids.payment, 'pending']
     );
   });
 
-  it("denies payment access outside the managed event scope", async () => {
+  it('denies payment access outside the managed event scope', async () => {
     await expect(
       authDb({
-        appRole: "volunteer_instructor",
+        appRole: 'volunteer_instructor',
         id: ids.unassignedAdmin,
       }).eventPayment.findMany({
         where: { id: { in: [ids.payment, ids.otherPayment] } },
-      }),
+      })
     ).resolves.toEqual([]);
 
     await expect(
       authDb({
-        appRole: "volunteer_instructor",
+        appRole: 'volunteer_instructor',
         id: ids.unassignedAdmin,
       }).eventPayment.update({
-        data: { status: "past_due" },
+        data: { status: 'past_due' },
         where: { id: ids.payment },
-      }),
+      })
     ).rejects.toThrow();
   });
 
-  it("limits payment notification records to event managers", async () => {
+  it('limits payment notification records to event managers', async () => {
     await expect(
       authDb({
-        appRole: "volunteer_instructor",
+        appRole: 'volunteer_instructor',
         id: ids.unassignedAdmin,
       }).eventPaymentNotification.findMany({
         where: { paymentId: ids.payment },
-      }),
+      })
     ).resolves.toEqual([]);
 
     await expect(
       authDb({
-        appRole: "volunteer_instructor",
+        appRole: 'volunteer_instructor',
         id: ids.assignedAdmin,
       }).eventPaymentNotification.findMany({
         where: { paymentId: ids.payment },
         select: { id: true },
-      }),
+      })
     ).resolves.toEqual([{ id: ids.paymentNotification }]);
   });
 
-  it("requires answers to match the registration event questions", async () => {
+  it('requires answers to match the registration event questions', async () => {
     await expect(
-      authDb({ appRole: "user", id: ids.owner }).eventRegistrationAnswer.create(
+      authDb({ appRole: 'user', id: ids.owner }).eventRegistrationAnswer.create(
         {
           data: {
             id: ids.matchingAnswer,
             questionId: ids.question,
             registrationId: ids.registration,
-            value: "Match",
+            value: 'Match',
           },
-        },
-      ),
+        }
+      )
     ).resolves.toMatchObject({ id: ids.matchingAnswer });
 
     await expect(
-      authDb({ appRole: "user", id: ids.owner }).eventRegistrationAnswer.create(
+      authDb({ appRole: 'user', id: ids.owner }).eventRegistrationAnswer.create(
         {
           data: {
             id: `event_policy_${randomUUID()}_mismatch_answer`,
             questionId: ids.otherQuestion,
             registrationId: ids.registration,
-            value: "Mismatch",
+            value: 'Mismatch',
           },
-        },
-      ),
+        }
+      )
     ).rejects.toThrow();
   });
 
-  it("keeps answer registration and question relations immutable", async () => {
+  it('keeps answer registration and question relations immutable', async () => {
     const allowedFields: string[] = [];
     const answers = authDb({
-      appRole: "user",
+      appRole: 'user',
       id: ids.owner,
     }).eventRegistrationAnswer;
 
@@ -807,7 +807,7 @@ describe.skipIf(!shouldRunPolicyDatabaseTest)("event policies", () => {
         },
       })
     ) {
-      allowedFields.push("registrationId");
+      allowedFields.push('registrationId');
     }
 
     if (
@@ -823,16 +823,16 @@ describe.skipIf(!shouldRunPolicyDatabaseTest)("event policies", () => {
         },
       })
     ) {
-      allowedFields.push("questionId");
+      allowedFields.push('questionId');
     }
 
     expect(allowedFields).toEqual([]);
   });
 
-  it("keeps comment event, author, and parent relations immutable", async () => {
+  it('keeps comment event, author, and parent relations immutable', async () => {
     const allowedFields: string[] = [];
     const comments = authDb({
-      appRole: "user",
+      appRole: 'user',
       id: ids.owner,
     }).eventComment;
 
@@ -849,7 +849,7 @@ describe.skipIf(!shouldRunPolicyDatabaseTest)("event policies", () => {
         },
       })
     ) {
-      allowedFields.push("eventId");
+      allowedFields.push('eventId');
     }
 
     if (
@@ -865,7 +865,7 @@ describe.skipIf(!shouldRunPolicyDatabaseTest)("event policies", () => {
         },
       })
     ) {
-      allowedFields.push("userId");
+      allowedFields.push('userId');
     }
 
     if (
@@ -881,30 +881,30 @@ describe.skipIf(!shouldRunPolicyDatabaseTest)("event policies", () => {
         },
       })
     ) {
-      allowedFields.push("parentId");
+      allowedFields.push('parentId');
     }
 
     expect(allowedFields).toEqual([]);
   });
 
-  it("blocks comments whose parent belongs to a different event", async () => {
+  it('blocks comments whose parent belongs to a different event', async () => {
     await expect(
-      authDb({ appRole: "user", id: ids.owner }).eventComment.create({
+      authDb({ appRole: 'user', id: ids.owner }).eventComment.create({
         data: {
-          body: "Mismatched parent",
+          body: 'Mismatched parent',
           createdAt: new Date(),
           event: { connect: { id: ids.assignedEvent } },
           id: `event_policy_${randomUUID()}_mismatch_comment`,
           parent: { connect: { id: ids.otherParentComment } },
           user: { connect: { id: ids.owner } },
         },
-      }),
+      })
     ).rejects.toThrow();
   });
 
-  it("allows event managers to include child registration models", async () => {
+  it('allows event managers to include child registration models', async () => {
     const event = await authDb({
-      appRole: "volunteer_instructor",
+      appRole: 'volunteer_instructor',
       id: ids.assignedAdmin,
     }).event.findFirst({
       where: { id: ids.assignedEvent },
@@ -930,8 +930,8 @@ describe.skipIf(!shouldRunPolicyDatabaseTest)("event policies", () => {
     expect(event?.registrations).toHaveLength(2);
     expect(
       event?.registrations.flatMap((registration) =>
-        registration.registrationAnswers.map((answer) => answer.question.id),
-      ),
+        registration.registrationAnswers.map((answer) => answer.question.id)
+      )
     ).toContain(ids.question);
   });
 });
