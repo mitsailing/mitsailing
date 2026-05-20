@@ -38,17 +38,26 @@ export async function recordPublicSlugHistory(
     return;
   }
 
-  await db.publicSlug.createMany({
-    data: [
-      {
+  const source = options.source ?? 'automatic';
+  await db.publicSlug.upsert({
+    create: {
+      scope: options.scope,
+      slug: options.previousSlug,
+      sluggableId: options.sluggableId,
+      sluggableType: options.sluggableType,
+      source,
+    },
+    update: {
+      sluggableId: options.sluggableId,
+      source,
+    },
+    where: {
+      slug_sluggableType_scope: {
         scope: options.scope,
         slug: options.previousSlug,
-        sluggableId: options.sluggableId,
         sluggableType: options.sluggableType,
-        source: options.source ?? 'automatic',
       },
-    ],
-    skipDuplicates: true,
+    },
   });
 }
 

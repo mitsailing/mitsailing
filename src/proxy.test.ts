@@ -1,3 +1,4 @@
+import { unstable_doesMiddlewareMatch } from 'next/experimental/testing/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -173,6 +174,25 @@ describe('proxy', () => {
   });
 
   describe('legacy redirects', () => {
+    it('matches uppercase legacy dotted paths before static file exclusions', async () => {
+      const { config } = await import('@/proxy');
+
+      expect(
+        unstable_doesMiddlewareMatch({
+          config,
+          nextConfig: {},
+          url: '/calendar.PHP',
+        })
+      ).toBe(true);
+      expect(
+        unstable_doesMiddlewareMatch({
+          config,
+          nextConfig: {},
+          url: '/Info/Boats.HTML',
+        })
+      ).toBe(true);
+    });
+
     it('permanently redirects legacy php paths before intl middleware', async () => {
       resolveLegacyRedirect.mockResolvedValue('/calendar');
       const { default: proxy } = await import('@/proxy');

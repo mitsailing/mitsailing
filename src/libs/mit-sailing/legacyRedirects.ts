@@ -81,6 +81,9 @@ export function normalizeLegacyRedirectTargetPath(
   if (trimmed.includes('?') || trimmed.includes('#')) {
     return null;
   }
+  if (trimmed.includes('\\')) {
+    return null;
+  }
   if (
     trimmed === '/api' ||
     trimmed.startsWith('/api/') ||

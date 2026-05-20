@@ -57,6 +57,6 @@ export default async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     '/((?!api|_next|_vercel|monitoring|.*\\..*).*)',
-    '/((?!api|_next|_vercel|monitoring).+\\.(?:php|html?))',
+    '/((?!api|_next|_vercel|monitoring).+\\.(?:[pP][hH][pP]|[hH][tT][mM][lL]?))',
   ],
 };

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   createMany: vi.fn(),
   deleteMany: vi.fn(),
+  upsert: vi.fn(),
 }));
 
 vi.mock('server-only', () => ({}));
@@ -12,6 +13,7 @@ vi.mock('@/libs/DB', () => ({
     publicSlug: {
       createMany: mocks.createMany,
       deleteMany: mocks.deleteMany,
+      upsert: mocks.upsert,
     },
   },
 }));
@@ -20,6 +22,7 @@ describe('publicSlugHistory', () => {
   beforeEach(() => {
     mocks.createMany.mockReset();
     mocks.deleteMany.mockReset();
+    mocks.upsert.mockReset();
   });
 
   it('records previous aliases and removes aliases matching the new canonical value', async () => {
@@ -41,17 +44,25 @@ describe('publicSlugHistory', () => {
         sluggableType: 'SailingClass',
       },
     });
-    expect(mocks.createMany).toHaveBeenCalledWith({
-      data: [
-        {
+    expect(mocks.upsert).toHaveBeenCalledWith({
+      create: {
+        scope: 'classes',
+        slug: 'old-path',
+        sluggableId: 'class-1',
+        sluggableType: 'SailingClass',
+        source: 'automatic',
+      },
+      update: {
+        sluggableId: 'class-1',
+        source: 'automatic',
+      },
+      where: {
+        slug_sluggableType_scope: {
           scope: 'classes',
           slug: 'old-path',
-          sluggableId: 'class-1',
           sluggableType: 'SailingClass',
-          source: 'automatic',
         },
-      ],
-      skipDuplicates: true,
+      },
     });
   });
 
@@ -74,7 +85,36 @@ describe('publicSlugHistory', () => {
         sluggableType: 'CmsPage',
       },
     });
-    expect(mocks.createMany).not.toHaveBeenCalled();
+    expect(mocks.upsert).not.toHaveBeenCalled();
+  });
+
+  it('reassigns reused previous aliases to the latest target', async () => {
+    const { recordPublicSlugHistory } =
+      await import('@/libs/mit-sailing/publicSlugHistory');
+
+    await recordPublicSlugHistory({
+      currentSlug: 'new-event',
+      previousSlug: 'reused-event',
+      scope: 'events',
+      sluggableId: 'event-2',
+      sluggableType: 'Event',
+    });
+
+    expect(mocks.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: {
+          sluggableId: 'event-2',
+          source: 'automatic',
+        },
+        where: {
+          slug_sluggableType_scope: {
+            scope: 'events',
+            slug: 'reused-event',
+            sluggableType: 'Event',
+          },
+        },
+      })
+    );
   });
 
   it('removes stale aliases matching a reused canonical value across targets', async () => {

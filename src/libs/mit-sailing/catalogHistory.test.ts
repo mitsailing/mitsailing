@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   userAuditFindFirst: vi.fn(),
   userAuditFindMany: vi.fn(),
   prismaTransaction: vi.fn(),
+  recordPublicSlugHistory: vi.fn(),
 }));
 
 vi.mock('server-only', () => ({}));
@@ -33,6 +34,10 @@ vi.mock('@/libs/DB', () => ({
   },
 }));
 
+vi.mock('@/libs/mit-sailing/publicSlugHistory', () => ({
+  recordPublicSlugHistory: mocks.recordPublicSlugHistory,
+}));
+
 const {
   getAdminCatalogRevisionCompare,
   listAdminCatalogRevisions,
@@ -50,6 +55,7 @@ beforeEach(() => {
   mocks.userAuditFindFirst.mockReset();
   mocks.userAuditFindMany.mockReset();
   mocks.prismaTransaction.mockReset();
+  mocks.recordPublicSlugHistory.mockReset();
   mocks.prismaTransaction.mockImplementation(
     async (transactionBody: (tx: unknown) => Promise<unknown>) => {
       const result = await transactionBody({
@@ -567,6 +573,47 @@ describe('restoreCatalogRevision', () => {
     });
   });
 
+  it('records fleet slug history when restoring to an old slug', async () => {
+    mocks.userAuditFindFirst
+      .mockResolvedValueOnce({
+        auditedChanges: fleetSnapshot({ name: 'Restored boat' }),
+      })
+      .mockResolvedValueOnce({
+        auditedChanges: fleetSnapshot({ name: 'Restored boat' }),
+        version: 2,
+      });
+    mocks.fleetBoatFindUnique
+      .mockResolvedValueOnce({
+        ...fleetSnapshot({ name: 'Current boat' }),
+        requiredClass: { name: 'Intro Sailing 101' },
+        requiredClassId: 'class-1',
+        slug: 'current-boat',
+      })
+      .mockResolvedValueOnce({
+        ...fleetSnapshot({ name: 'Restored boat' }),
+        requiredClass: { name: 'Intro Sailing 101' },
+        requiredClassId: 'class-1',
+      });
+    mocks.fleetBoatUpdate.mockResolvedValue({ id: 'boat-1' });
+
+    await expect(
+      restoreCatalogRevision({
+        itemId: 'boat-1',
+        resourceId: 'fleet',
+        revisionId: 'audit-1',
+      })
+    ).resolves.toEqual({ ok: true, slug: 'tech-dinghy' });
+
+    expect(mocks.recordPublicSlugHistory).toHaveBeenCalledWith({
+      currentSlug: 'tech-dinghy',
+      db: expect.any(Object),
+      previousSlug: 'current-boat',
+      scope: 'fleet',
+      sluggableId: 'boat-1',
+      sluggableType: 'FleetBoat',
+    });
+  });
+
   it('restores class form fields and records a restore audit', async () => {
     mocks.userAuditFindFirst
       .mockResolvedValueOnce({
@@ -618,6 +665,47 @@ describe('restoreCatalogRevision', () => {
         userId: 'admin-1',
         version: 3,
       }),
+    });
+  });
+
+  it('records class slug history when restoring to an old slug', async () => {
+    mocks.userAuditFindFirst
+      .mockResolvedValueOnce({
+        auditedChanges: sailingClassSnapshot({ name: 'Restored class' }),
+      })
+      .mockResolvedValueOnce({
+        auditedChanges: sailingClassSnapshot({ name: 'Restored class' }),
+        version: 2,
+      });
+    mocks.sailingClassFindUnique
+      .mockResolvedValueOnce({
+        ...sailingClassSnapshot({ name: 'Current class' }),
+        classCategory: { name: 'Introduction' },
+        classCategoryId: 'cc-introduction',
+        slug: 'current-class',
+      })
+      .mockResolvedValueOnce({
+        ...sailingClassSnapshot({ name: 'Restored class' }),
+        classCategory: { name: 'Introduction' },
+        classCategoryId: 'cc-introduction',
+      });
+    mocks.sailingClassUpdate.mockResolvedValue({ id: 'class-1' });
+
+    await expect(
+      restoreCatalogRevision({
+        itemId: 'class-1',
+        resourceId: 'sailing_classes',
+        revisionId: 'audit-1',
+      })
+    ).resolves.toEqual({ ok: true, slug: 'intro-sailing-101' });
+
+    expect(mocks.recordPublicSlugHistory).toHaveBeenCalledWith({
+      currentSlug: 'intro-sailing-101',
+      db: expect.any(Object),
+      previousSlug: 'current-class',
+      scope: 'classes',
+      sluggableId: 'class-1',
+      sluggableType: 'SailingClass',
     });
   });
 

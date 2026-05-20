@@ -4,6 +4,7 @@ import type { CatalogResourceId } from '@/libs/admin/catalog/catalogDefinitions'
 import type { CatalogMutationContext } from '@/libs/admin/catalog/types';
 import { prisma } from '@/libs/DB';
 import { plainTextFromCmsRichTextHtml } from '@/libs/mit-sailing/cmsRichText';
+import { recordPublicSlugHistory } from '@/libs/mit-sailing/publicSlugHistory';
 
 export type CatalogHistoryResourceId = 'fleet' | 'sailing_classes';
 
@@ -926,10 +927,16 @@ export async function restoreCatalogRevision(props: {
   try {
     await prisma.$transaction(
       async (tx) => {
+        let previousSlug: string | null = null;
         if (
           props.resourceId === 'sailing_classes' &&
           snapshot.resource === 'sailing_classes'
         ) {
+          const current = await tx.sailingClass.findUnique({
+            select: { slug: true },
+            where: { id: props.itemId },
+          });
+          previousSlug = current?.slug ?? null;
           await tx.sailingClass.update({
             data: {
               classCategoryId: snapshot.classCategoryId,
@@ -946,6 +953,11 @@ export async function restoreCatalogRevision(props: {
           props.resourceId === 'fleet' &&
           snapshot.resource === 'fleet'
         ) {
+          const current = await tx.fleetBoat.findUnique({
+            select: { slug: true },
+            where: { id: props.itemId },
+          });
+          previousSlug = current?.slug ?? null;
           await tx.fleetBoat.update({
             data: {
               capacity: snapshot.capacity,
@@ -957,6 +969,18 @@ export async function restoreCatalogRevision(props: {
               type: snapshot.type,
             },
             where: { id: props.itemId },
+          });
+        }
+
+        if (previousSlug) {
+          await recordPublicSlugHistory({
+            currentSlug: snapshot.slug,
+            db: tx,
+            previousSlug,
+            scope: props.resourceId === 'fleet' ? 'fleet' : 'classes',
+            sluggableId: props.itemId,
+            sluggableType:
+              props.resourceId === 'fleet' ? 'FleetBoat' : 'SailingClass',
           });
         }
 

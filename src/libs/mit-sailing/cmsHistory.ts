@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { Prisma } from '@/generated/prisma/client';
 import { prisma } from '@/libs/DB';
 import { plainTextFromCmsRichTextHtml } from '@/libs/mit-sailing/cmsRichText';
+import { recordPublicSlugHistory } from '@/libs/mit-sailing/publicSlugHistory';
 
 const CMS_PAGE_HISTORY_SELECT = {
   id: true,
@@ -1066,7 +1067,7 @@ export async function restoreCmsPageRevision(props: {
 }): Promise<CmsPageRevisionRestoreResult> {
   const [currentPage, revision] = await Promise.all([
     prisma.cmsPage.findUnique({
-      select: { id: true },
+      select: { id: true, path: true },
       where: { id: props.pageId },
     }),
     prisma.userAudit.findFirst({
@@ -1108,6 +1109,14 @@ export async function restoreCmsPageRevision(props: {
           title: snapshot.page.title,
         },
         where: { id: props.pageId },
+      });
+      await recordPublicSlugHistory({
+        currentSlug: snapshot.page.path,
+        db: tx,
+        previousSlug: currentPage.path,
+        scope: 'cms',
+        sluggableId: props.pageId,
+        sluggableType: 'CmsPage',
       });
       await tx.cmsPageBlock.deleteMany({ where: { pageId: props.pageId } });
       const snapshotBlockIds = snapshot.blocks.map((block) => block.id);

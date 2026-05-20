@@ -50,6 +50,7 @@ describe('legacyRedirects', () => {
     expect(normalizeLegacyRedirectTargetPath('/calendar/')).toBe('/calendar');
     expect(normalizeLegacyRedirectTargetPath('https://example.com')).toBeNull();
     expect(normalizeLegacyRedirectTargetPath('/api/private')).toBeNull();
+    expect(normalizeLegacyRedirectTargetPath('/\\evil.com')).toBeNull();
     expect(
       normalizeLegacyRedirectTargetPath('//example.com/calendar')
     ).toBeNull();

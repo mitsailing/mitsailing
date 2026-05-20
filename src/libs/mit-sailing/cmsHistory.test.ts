@@ -1,6 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
+  cmsPageBlockCount: vi.fn(),
+  cmsPageBlockCreateMany: vi.fn(),
+  cmsPageBlockDeleteMany: vi.fn(),
+  cmsPageFindUnique: vi.fn(),
+  cmsPageUpdate: vi.fn(),
+  prismaTransaction: vi.fn(),
+  recordPublicSlugHistory: vi.fn(),
+  userAuditAggregate: vi.fn(),
+  userAuditCreate: vi.fn(),
   userAuditFindFirst: vi.fn(),
   userAuditFindMany: vi.fn(),
 }));
@@ -9,25 +18,76 @@ vi.mock('server-only', () => ({}));
 
 vi.mock('@/libs/DB', () => ({
   prisma: {
+    cmsPage: {
+      findUnique: mocks.cmsPageFindUnique,
+      update: mocks.cmsPageUpdate,
+    },
+    cmsPageBlock: {
+      count: mocks.cmsPageBlockCount,
+      createMany: mocks.cmsPageBlockCreateMany,
+      deleteMany: mocks.cmsPageBlockDeleteMany,
+    },
     userAudit: {
+      aggregate: mocks.userAuditAggregate,
+      create: mocks.userAuditCreate,
       findFirst: mocks.userAuditFindFirst,
       findMany: mocks.userAuditFindMany,
     },
+    $transaction: mocks.prismaTransaction,
   },
+}));
+
+vi.mock('@/libs/mit-sailing/publicSlugHistory', () => ({
+  recordPublicSlugHistory: mocks.recordPublicSlugHistory,
 }));
 
 const {
   cmsPageRevisionSnapshotsEqual,
   getAdminCmsPageRevisionCompare,
   listAdminCmsPageRevisions,
+  restoreCmsPageRevision,
 } = await import('@/libs/mit-sailing/cmsHistory');
 
 beforeEach(() => {
+  mocks.cmsPageBlockCount.mockReset();
+  mocks.cmsPageBlockCreateMany.mockReset();
+  mocks.cmsPageBlockDeleteMany.mockReset();
+  mocks.cmsPageFindUnique.mockReset();
+  mocks.cmsPageUpdate.mockReset();
+  mocks.prismaTransaction.mockReset();
+  mocks.recordPublicSlugHistory.mockReset();
+  mocks.userAuditAggregate.mockReset();
+  mocks.userAuditCreate.mockReset();
   mocks.userAuditFindFirst.mockReset();
   mocks.userAuditFindMany.mockReset();
+  mocks.prismaTransaction.mockImplementation(
+    async (transactionBody: (tx: unknown) => Promise<unknown>) => {
+      const result = await transactionBody({
+        cmsPage: {
+          update: mocks.cmsPageUpdate,
+        },
+        cmsPageBlock: {
+          count: mocks.cmsPageBlockCount,
+          createMany: mocks.cmsPageBlockCreateMany,
+          deleteMany: mocks.cmsPageBlockDeleteMany,
+        },
+        userAudit: {
+          aggregate: mocks.userAuditAggregate,
+          create: mocks.userAuditCreate,
+        },
+      });
+      return result;
+    }
+  );
+  mocks.cmsPageBlockCount.mockResolvedValue(0);
+  mocks.userAuditAggregate.mockResolvedValue({ _max: { version: 2 } });
 });
 
-function cmsPageSnapshot(props?: { body?: string; metaDescription?: string }) {
+function cmsPageSnapshot(props?: {
+  body?: string;
+  metaDescription?: string;
+  path?: string;
+}) {
   return {
     blocks: [
       {
@@ -51,10 +111,23 @@ function cmsPageSnapshot(props?: { body?: string; metaDescription?: string }) {
       isPublished: true,
       metaDescription: props?.metaDescription ?? 'Sailing overview',
       metaTitle: 'MIT Sailing',
-      path: '/',
+      path: props?.path ?? '/',
       slug: 'home',
       title: 'MIT Sailing',
     },
+  };
+}
+
+function cmsPageRowFromSnapshot(snapshot: ReturnType<typeof cmsPageSnapshot>) {
+  return {
+    ...snapshot.page,
+    createdAt: new Date('2026-05-10T10:00:00.000Z'),
+    updatedAt: new Date('2026-05-10T12:00:00.000Z'),
+    blocks: snapshot.blocks.map((block) => ({
+      ...block,
+      createdAt: new Date('2026-05-10T10:00:00.000Z'),
+      updatedAt: new Date('2026-05-10T12:00:00.000Z'),
+    })),
   };
 }
 
@@ -249,6 +322,40 @@ describe('getAdminCmsPageRevisionCompare', () => {
         auditableType: 'cms_pages',
         version: { lt: 1 },
       },
+    });
+  });
+});
+
+describe('restoreCmsPageRevision', () => {
+  it('records cms path history when restoring to an old path', async () => {
+    const restoredSnapshot = cmsPageSnapshot({ path: '/about' });
+    mocks.cmsPageFindUnique
+      .mockResolvedValueOnce({
+        id: 'page-1',
+        path: '/about-us',
+      })
+      .mockResolvedValueOnce(
+        cmsPageRowFromSnapshot(cmsPageSnapshot({ path: '/about-us' }))
+      );
+    mocks.userAuditFindFirst.mockResolvedValue({
+      auditedChanges: restoredSnapshot,
+    });
+    mocks.cmsPageUpdate.mockResolvedValue({ id: 'page-1' });
+
+    await expect(
+      restoreCmsPageRevision({
+        pageId: 'page-1',
+        revisionId: 'audit-1',
+      })
+    ).resolves.toEqual({ ok: true });
+
+    expect(mocks.recordPublicSlugHistory).toHaveBeenCalledWith({
+      currentSlug: '/about',
+      db: expect.any(Object),
+      previousSlug: '/about-us',
+      scope: 'cms',
+      sluggableId: 'page-1',
+      sluggableType: 'CmsPage',
     });
   });
 });
