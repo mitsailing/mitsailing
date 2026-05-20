@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   eventRegistrationCreate: vi.fn(),
   eventRegistrationFindFirst: vi.fn(),
   eventRegistrationTeamUpsert: vi.fn(),
+  eventRegistrationTeamDeleteMany: vi.fn(),
   eventRegistrationUpdate: vi.fn(),
   eventRegistrationUpdateMany: vi.fn(),
   queryRaw: vi.fn(),
@@ -151,6 +152,7 @@ beforeEach(() => {
   mocks.eventRegistrationCreate.mockReset();
   mocks.eventRegistrationFindFirst.mockReset();
   mocks.eventRegistrationTeamUpsert.mockReset();
+  mocks.eventRegistrationTeamDeleteMany.mockReset();
   mocks.eventRegistrationUpdate.mockReset();
   mocks.eventRegistrationUpdateMany.mockReset();
   mocks.queryRaw.mockReset();
@@ -253,6 +255,7 @@ beforeEach(() => {
         };
         eventRegistrationTeam: {
           upsert: typeof mocks.eventRegistrationTeamUpsert;
+          deleteMany: typeof mocks.eventRegistrationTeamDeleteMany;
         };
         user: {
           findUnique: typeof mocks.userFindUnique;
@@ -280,6 +283,7 @@ beforeEach(() => {
         },
         eventRegistrationTeam: {
           upsert: mocks.eventRegistrationTeamUpsert,
+          deleteMany: mocks.eventRegistrationTeamDeleteMany,
         },
         user: {
           findUnique: mocks.userFindUnique,
@@ -836,6 +840,45 @@ describe('createPublicEventRegistrationAction', () => {
         }),
       ],
     });
+  });
+
+  it('clears stale team data when team registration is disabled', async () => {
+    const { createPublicEventRegistrationAction } =
+      await import('@/libs/mit-sailing/eventRegistrationActions');
+
+    await expect(
+      createPublicEventRegistrationAction(
+        'en',
+        'intro-sail',
+        {
+          code: null,
+          fieldErrors: {},
+          status: 'idle',
+          values: {},
+        },
+        registrationFormData()
+      )
+    ).rejects.toThrow('NEXT_REDIRECT:/events/intro-sail');
+
+    expect(mocks.eventRegistrationBoatMemberDeleteMany).toHaveBeenCalledWith({
+      where: { registrationId: 'registration-1' },
+    });
+    expect(mocks.eventRegistrationTeamDeleteMany).toHaveBeenCalledWith({
+      where: { registrationId: 'registration-1' },
+    });
+    const [boatMemberDeleteCallOrder] =
+      mocks.eventRegistrationBoatMemberDeleteMany.mock.invocationCallOrder;
+    const [teamDeleteCallOrder] =
+      mocks.eventRegistrationTeamDeleteMany.mock.invocationCallOrder;
+    if (
+      boatMemberDeleteCallOrder === undefined ||
+      teamDeleteCallOrder === undefined
+    ) {
+      throw new Error('Missing stale team cleanup call order.');
+    }
+    expect(boatMemberDeleteCallOrder).toBeLessThan(teamDeleteCallOrder);
+    expect(mocks.eventRegistrationTeamUpsert).not.toHaveBeenCalled();
+    expect(mocks.eventRegistrationBoatMemberCreateMany).not.toHaveBeenCalled();
   });
 
   it('persists team boat members with their submitted boat numbers', async () => {

@@ -388,10 +388,10 @@ function lockedPublicEventRegistrationContext(options: {
   ) {
     throw new EventRegistrationFlowError('closed');
   }
-  if (options.event.requiresPhone && options.phone === null) {
+  if (options.phone === null) {
     throw new EventRegistrationFlowError('questions_required');
   }
-  return { event: options.event, phone: options.phone ?? '' };
+  return { event: options.event, phone: options.phone };
 }
 
 function parseLockedPublicEventRegistrationTeam(options: {
@@ -500,18 +500,12 @@ async function replacePublicEventRegistrationTeam(options: {
   tx: Prisma.TransactionClient;
 }) {
   if (!options.team) {
-    const existingTeam = await options.tx.eventRegistrationTeam.findUnique({
+    await options.tx.eventRegistrationBoatMember.deleteMany({
       where: { registrationId: options.registrationId },
-      select: { id: true },
     });
-    if (existingTeam) {
-      await options.tx.eventRegistrationBoatMember.deleteMany({
-        where: { registrationId: options.registrationId },
-      });
-      await options.tx.eventRegistrationTeam.delete({
-        where: { registrationId: options.registrationId },
-      });
-    }
+    await options.tx.eventRegistrationTeam.deleteMany({
+      where: { registrationId: options.registrationId },
+    });
     return;
   }
   await options.tx.eventRegistrationTeam.upsert({
@@ -562,9 +556,7 @@ function eventRegistrationErrorUrl(
   )}`;
 }
 
-function mutationCodeFromPrisma(
-  error: unknown
-): EventRegistrationMutationCode {
+function mutationCodeFromPrisma(error: unknown): EventRegistrationMutationCode {
   if (
     error instanceof Prisma.PrismaClientKnownRequestError &&
     error.code === 'P2025'
