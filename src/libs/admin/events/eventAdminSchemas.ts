@@ -2,12 +2,15 @@ import * as z from 'zod';
 import {
   EventAnswerType,
   EventDetailPageKind,
+  EventRegistrationMode,
   EventRegistrationStatus,
 } from '@/generated/prisma/enums';
 import {
   formatNyDateTimeLocalInput,
   instantForNyWallClock,
 } from '@/lib/mit-sailing/nyTime';
+import { Role } from '@/libs/auth/roles';
+import { sanitizeCmsRichTextHtml } from '@/libs/mit-sailing/cmsRichText';
 import { parseUsdDecimalStringToMinorUnits } from '@/libs/money/stripeUsdMinorUnits';
 
 export {
@@ -43,6 +46,67 @@ export function slugifyEventAdmin(value: string): string {
     .replaceAll(/\s+/g, '-')
     .replaceAll(/-+/g, '-')
     .replaceAll(/^-|-$/g, '');
+}
+
+type EventAdminSlugDate = Date | { startDateTime: Date };
+
+function eventAdminSlugStartDate(date: EventAdminSlugDate): Date {
+  return date instanceof Date ? date : date.startDateTime;
+}
+
+function easternDateParts(date: Date): {
+  day: string;
+  month: string;
+  value: string;
+  year: string;
+} {
+  const value = formatNyDateTimeLocalInput(date).slice(0, 10);
+  const [year = '', month = '', day = ''] = value.split('-');
+  return { day, month, value, year };
+}
+
+function eventAdminDatePrefix(dates: readonly EventAdminSlugDate[]): string {
+  const dateParts = [
+    ...new Map(
+      dates
+        .map((date) => easternDateParts(eventAdminSlugStartDate(date)))
+        .toSorted((left, right) => left.value.localeCompare(right.value))
+        .map((date) => [date.value, date])
+    ).values(),
+  ];
+  const [firstDate] = dateParts;
+  if (!firstDate) {
+    return '';
+  }
+  if (dateParts.length === 1) {
+    return firstDate.value;
+  }
+  if (
+    dateParts.every(
+      (date) => date.year === firstDate.year && date.month === firstDate.month
+    )
+  ) {
+    return [
+      firstDate.value,
+      ...dateParts.slice(1).map((date) => date.day),
+    ].join('-');
+  }
+  if (dateParts.every((date) => date.year === firstDate.year)) {
+    return [
+      firstDate.value,
+      ...dateParts.slice(1).map((date) => `${date.month}-${date.day}`),
+    ].join('-');
+  }
+  return dateParts.map((date) => date.value).join('-');
+}
+
+export function generateEventAdminSlug(options: {
+  dates: readonly EventAdminSlugDate[];
+  name: string;
+}): string {
+  const nameSlug = slugifyEventAdmin(options.name);
+  const datePrefix = eventAdminDatePrefix(options.dates);
+  return [datePrefix, nameSlug].filter(Boolean).join('-');
 }
 
 export function splitEventAdminOptionLines(input: string): string[] {
@@ -119,6 +183,17 @@ const optionalPositiveIntSchema = optionalTrimmedNumericStringSchema.pipe(
   z.int().positive().nullable()
 );
 
+const requiredPositiveIntStringSchema = z
+  .union([
+    z
+      .string()
+      .trim()
+      .transform((value) => (value === '' ? 1 : Number(value))),
+    z.number(),
+  ])
+  .pipe(z.int().positive())
+  .default(1);
+
 /** Blank → `null`; explicit `0` allowed (e.g. display order). */
 const optionalNonNegativeIntSchema = optionalTrimmedNumericStringSchema.pipe(
   z.int().nonnegative().nullable()
@@ -129,6 +204,18 @@ const eventDetailPageKindSchema = z.enum([
   EventDetailPageKind.external,
 ]);
 
+const eventRegistrationModeSchema = z
+  .union([
+    z.enum([
+      EventRegistrationMode.none,
+      EventRegistrationMode.standard,
+      EventRegistrationMode.external,
+    ]),
+    z.literal(''),
+  ])
+  .default('')
+  .transform((value) => value || EventRegistrationMode.standard);
+
 const eventAnswerTypeSchema = z.enum([
   EventAnswerType.text,
   EventAnswerType.select,
@@ -136,26 +223,51 @@ const eventAnswerTypeSchema = z.enum([
 ]);
 
 const eventAdminExternalHttpUrlSchema = z.httpUrl();
+const eventAdminPublicContentSchema = z
+  .string()
+  .default('')
+  .transform((value) => sanitizeCmsRichTextHtml(value));
+
+export const ASSIGNABLE_EVENT_ADMIN_ROLES = [
+  Role.VOLUNTEER_INSTRUCTOR,
+  Role.DOCK_STAFF,
+  Role.DOCK_MASTER,
+  Role.ADMIN,
+] as const;
 
 export const eventAdminBasicsFormSchema = z
   .object({
     name: z.string().trim().min(1),
     shortName: z.string().trim(),
-    slug: z.string().trim(),
     eventCategoryId: z.string().trim().min(1),
     description: z.string().trim(),
     isSpecial: z.boolean(),
     requiresApproval: z.boolean(),
+    requiresPhone: z.boolean(),
+    usesTeamRegistration: z.boolean().default(false),
+    boatsPerTeam: requiredPositiveIntStringSchema,
+    personsPerBoat: requiredPositiveIntStringSchema,
+    allowRepeatTeamCaptain: z.boolean().default(false),
     maxParticipants: optionalPositiveIntSchema,
     registrationStart: optionalDateTimeLocalSchema,
     registrationEnd: optionalDateTimeLocalSchema,
     detailPageKind: eventDetailPageKindSchema,
     externalDetailUrl: z.string().trim(),
-    internalNotes: z.string().trim(),
+    registrationMode: eventRegistrationModeSchema,
+    externalRegistrationUrl: z.string().trim().default(''),
+    externalEntriesUrl: z.string().trim().default(''),
+    faqVisible: z.boolean().default(false),
+    faqContent: eventAdminPublicContentSchema,
+    noticeOfRaceVisible: z.boolean().default(false),
+    noticeOfRaceContent: eventAdminPublicContentSchema,
+    sailingInstructionsVisible: z.boolean().default(false),
+    sailingInstructionsContent: eventAdminPublicContentSchema,
+    resultsVisible: z.boolean().default(false),
+    resultsContent: eventAdminPublicContentSchema,
     isPublished: z.boolean(),
   })
   .transform((value) => {
-    const slug = slugifyEventAdmin(value.slug || value.name);
+    const slug = generateEventAdminSlug({ dates: [], name: value.name });
     return {
       ...value,
       shortName: value.shortName || value.name,
@@ -164,6 +276,19 @@ export const eventAdminBasicsFormSchema = z
         value.detailPageKind === EventDetailPageKind.external
           ? value.externalDetailUrl
           : '',
+      externalRegistrationUrl:
+        value.registrationMode === EventRegistrationMode.external
+          ? value.externalRegistrationUrl
+          : '',
+      externalEntriesUrl:
+        value.registrationMode === EventRegistrationMode.external
+          ? value.externalEntriesUrl
+          : '',
+      boatsPerTeam: value.usesTeamRegistration ? value.boatsPerTeam : 1,
+      personsPerBoat: value.usesTeamRegistration ? value.personsPerBoat : 1,
+      allowRepeatTeamCaptain: value.usesTeamRegistration
+        ? value.allowRepeatTeamCaptain
+        : false,
     };
   })
   .refine((value) => value.slug.length > 0, { path: ['slug'] })
@@ -176,10 +301,31 @@ export const eventAdminBasicsFormSchema = z
   )
   .refine(
     (value) =>
+      value.registrationMode !== EventRegistrationMode.external ||
+      eventAdminExternalHttpUrlSchema.safeParse(value.externalRegistrationUrl)
+        .success,
+    { path: ['externalRegistrationUrl'] }
+  )
+  .refine(
+    (value) =>
+      value.externalEntriesUrl === '' ||
+      eventAdminExternalHttpUrlSchema.safeParse(value.externalEntriesUrl)
+        .success,
+    { path: ['externalEntriesUrl'] }
+  )
+  .refine(
+    (value) =>
       !value.registrationStart ||
       !value.registrationEnd ||
       value.registrationEnd.getTime() > value.registrationStart.getTime(),
     { path: ['registrationEnd'] }
+  )
+  .refine(
+    (value) =>
+      !value.usesTeamRegistration ||
+      value.boatsPerTeam > 1 ||
+      value.personsPerBoat > 1,
+    { path: ['usesTeamRegistration'] }
   );
 
 export const eventDateFormSchema = z
@@ -188,7 +334,10 @@ export const eventDateFormSchema = z
     endDateTime: requiredDateTimeLocalSchema,
   })
   .refine(
-    (value) => value.endDateTime.getTime() > value.startDateTime.getTime(),
+    (value) =>
+      value.startDateTime instanceof Date &&
+      value.endDateTime instanceof Date &&
+      value.endDateTime.getTime() > value.startDateTime.getTime(),
     { path: ['endDateTime'] }
   );
 
@@ -297,6 +446,11 @@ export const eventFeeFormSchema = z
     isDeposit,
   }));
 
+export const eventAdminIdsFormSchema = z
+  .array(z.string().trim().min(1))
+  .min(1)
+  .transform((adminUserIds) => [...new Set(adminUserIds)]);
+
 export const eventRegistrationStatusFormSchema = z.object({
   status: z.enum([
     EventRegistrationStatus.pending,
@@ -309,17 +463,37 @@ export function rawEventBasicsFromFormData(formData: FormData): unknown {
   return {
     name: formString(formData, 'name'),
     shortName: formString(formData, 'shortName'),
-    slug: formString(formData, 'slug'),
     eventCategoryId: formString(formData, 'eventCategoryId'),
     description: formString(formData, 'description'),
     isSpecial: formCheckbox(formData, 'isSpecial'),
     requiresApproval: formCheckbox(formData, 'requiresApproval'),
+    requiresPhone: formCheckbox(formData, 'requiresPhone'),
+    usesTeamRegistration: formCheckbox(formData, 'usesTeamRegistration'),
+    boatsPerTeam: formString(formData, 'boatsPerTeam'),
+    personsPerBoat: formString(formData, 'personsPerBoat'),
+    allowRepeatTeamCaptain: formCheckbox(formData, 'allowRepeatTeamCaptain'),
     maxParticipants: formString(formData, 'maxParticipants'),
     registrationStart: formString(formData, 'registrationStart'),
     registrationEnd: formString(formData, 'registrationEnd'),
     detailPageKind: formString(formData, 'detailPageKind'),
     externalDetailUrl: formString(formData, 'externalDetailUrl'),
-    internalNotes: formString(formData, 'internalNotes'),
+    registrationMode: formString(formData, 'registrationMode'),
+    externalRegistrationUrl: formString(formData, 'externalRegistrationUrl'),
+    externalEntriesUrl: formString(formData, 'externalEntriesUrl'),
+    faqVisible: formCheckbox(formData, 'faqVisible'),
+    faqContent: formString(formData, 'faqContent'),
+    noticeOfRaceVisible: formCheckbox(formData, 'noticeOfRaceVisible'),
+    noticeOfRaceContent: formString(formData, 'noticeOfRaceContent'),
+    sailingInstructionsVisible: formCheckbox(
+      formData,
+      'sailingInstructionsVisible'
+    ),
+    sailingInstructionsContent: formString(
+      formData,
+      'sailingInstructionsContent'
+    ),
+    resultsVisible: formCheckbox(formData, 'resultsVisible'),
+    resultsContent: formString(formData, 'resultsContent'),
     isPublished: formCheckbox(formData, 'isPublished'),
   };
 }

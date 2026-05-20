@@ -15,9 +15,7 @@ import {
 } from '@/components/ui/table';
 import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 import {
-  adminEventDeletePath,
-  adminEventEditPath,
-  adminEventRegistrationsPath,
+  adminEventShowPath,
   adminEventsIndexPath,
   adminEventsNewPath,
 } from '@/libs/admin/events/eventAdminPaths';
@@ -27,6 +25,7 @@ import type {
   AdminEventListRow,
   AdminEventRegistrationCounts,
 } from '@/libs/admin/events/eventAdminQueries';
+import { adminEventListScopeFromValue } from '@/libs/admin/events/eventAdminQueries';
 import { Link } from '@/libs/I18nNavigation';
 import { formatEasternEventRange } from '@/libs/mit-sailing/easternTimeFormat';
 
@@ -41,6 +40,7 @@ type AdminEventsListViewProps = {
   filters: {
     categoryId?: string;
     query?: string;
+    scope?: string;
   };
   rows: AdminEventListRow[];
   t: AdminEventsListTranslations;
@@ -113,6 +113,13 @@ function registrationsSummary(
   });
 }
 
+function resetFiltersPath(scope: 'all' | 'my'): string {
+  if (scope === 'all') {
+    return `${adminEventsIndexPath()}?scope=all`;
+  }
+  return adminEventsIndexPath();
+}
+
 function EventStatusBadges(props: {
   event: AdminEventListRow;
   t: AdminEventsListTranslations;
@@ -152,10 +159,10 @@ function EventRow(props: {
         </span>
       </TableCell>
       <TableCell className="px-4 py-3 align-top">
-        <div className="flex min-w-0 flex-col gap-1">
+        <div className="flex min-w-0 flex-col gap-2">
           <Link
             className="font-semibold text-mit-red no-underline hover:underline dark:text-mit-red-ink"
-            href={adminEventEditPath(props.event.slug)}
+            href={adminEventShowPath(props.event.slug)}
           >
             {props.event.name}
           </Link>
@@ -180,33 +187,71 @@ function EventRow(props: {
           ? props.t('approval_manual')
           : props.t('approval_auto')}
       </TableCell>
-      <TableCell className="px-4 py-3 align-top">
-        <div className="flex flex-wrap gap-x-3 gap-y-1">
-          <Link
-            className="text-sm font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
-            href={adminEventEditPath(props.event.slug)}
-          >
-            {props.t('action_edit')}
-          </Link>
-          <Link
-            className="text-sm font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
-            href={adminEventRegistrationsPath(props.event.slug)}
-          >
-            {props.t('action_registrations')}
-          </Link>
-          <Link
-            className="text-sm font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
-            href={adminEventDeletePath(props.event.slug)}
-          >
-            {props.t('action_delete')}
-          </Link>
-        </div>
-      </TableCell>
     </TableRow>
   );
 }
 
+function MobileEventCard(props: {
+  event: AdminEventListRow;
+  t: AdminEventsListTranslations;
+}) {
+  return (
+    <article className="rounded-lg border border-border bg-card p-4">
+      <div className="flex min-w-0 flex-col gap-3">
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <span className="text-xs font-medium text-mit-readable-ink uppercase">
+            {props.event.category.name}
+          </span>
+          <Link
+            className="font-semibold text-mit-red no-underline hover:underline dark:text-mit-red-ink"
+            href={adminEventShowPath(props.event.slug)}
+          >
+            {props.event.name}
+          </Link>
+          <span className="text-xs break-words text-mit-readable-ink">
+            {props.event.shortName} · /events/{props.event.slug}
+          </span>
+          <EventStatusBadges event={props.event} t={props.t} />
+        </div>
+        <dl className="grid gap-2 text-sm">
+          <div>
+            <dt className="font-medium text-foreground">
+              {props.t('column_dates')}
+            </dt>
+            <dd className="text-mit-readable-ink">
+              {dateSummary(props.event.dates, props.t)}
+            </dd>
+          </div>
+          <div>
+            <dt className="font-medium text-foreground">
+              {props.t('column_registrations')}
+            </dt>
+            <dd className="text-mit-readable-ink">
+              {registrationsSummary(
+                props.event.registrationCounts,
+                props.event.maxParticipants,
+                props.t
+              )}
+            </dd>
+          </div>
+          <div>
+            <dt className="font-medium text-foreground">
+              {props.t('column_approval')}
+            </dt>
+            <dd className="text-mit-readable-ink">
+              {props.event.requiresApproval
+                ? props.t('approval_manual')
+                : props.t('approval_auto')}
+            </dd>
+          </div>
+        </dl>
+      </div>
+    </article>
+  );
+}
+
 export function AdminEventsListView(props: AdminEventsListViewProps) {
+  const scope = adminEventListScopeFromValue(props.filters.scope);
   return (
     <div className="flex w-full flex-col gap-6">
       <AdminPageHeader
@@ -223,7 +268,7 @@ export function AdminEventsListView(props: AdminEventsListViewProps) {
 
       <Form
         action={props.filterAction}
-        className="grid gap-3 rounded-lg border border-border bg-card p-4 md:grid-cols-[minmax(0,1fr)_minmax(220px,280px)_auto]"
+        className="grid gap-3 rounded-lg border border-border bg-card p-4 lg:grid-cols-[minmax(0,1fr)_minmax(160px,220px)_minmax(220px,280px)_auto]"
         role="search"
       >
         <label className="relative flex min-w-0 flex-col gap-1.5 text-sm">
@@ -241,6 +286,19 @@ export function AdminEventsListView(props: AdminEventsListViewProps) {
             placeholder={props.t('filter_search_placeholder')}
             type="search"
           />
+        </label>
+        <label className="flex min-w-0 flex-col gap-1.5 text-sm">
+          <span className="font-medium text-foreground">
+            {props.t('filter_scope_label')}
+          </span>
+          <select
+            className={adminNativeSelectClassName}
+            defaultValue={scope}
+            name="scope"
+          >
+            <option value="my">{props.t('filter_scope_my')}</option>
+            <option value="all">{props.t('filter_scope_all')}</option>
+          </select>
         </label>
         <label className="flex min-w-0 flex-col gap-1.5 text-sm">
           <span className="font-medium text-foreground">
@@ -264,7 +322,9 @@ export function AdminEventsListView(props: AdminEventsListViewProps) {
             {props.t('action_filter')}
           </Button>
           <Button asChild type="button" variant="ghost">
-            <Link href={adminEventsIndexPath()}>{props.t('action_reset')}</Link>
+            <Link href={resetFiltersPath(scope)}>
+              {props.t('action_reset')}
+            </Link>
           </Button>
         </div>
       </Form>
@@ -273,9 +333,21 @@ export function AdminEventsListView(props: AdminEventsListViewProps) {
         {props.t('list_count', { count: props.rows.length })}
       </p>
 
-      <div className="overflow-hidden rounded-lg border border-border bg-card">
+      <div className="grid gap-3 md:hidden">
+        {props.rows.length === 0 ? (
+          <div className="rounded-lg border border-border bg-card px-4 py-10 text-center text-sm text-mit-readable-ink">
+            {props.t('list_empty')}
+          </div>
+        ) : (
+          props.rows.map((event) => (
+            <MobileEventCard event={event} key={event.id} t={props.t} />
+          ))
+        )}
+      </div>
+
+      <div className="hidden overflow-hidden rounded-lg border border-border bg-card md:block">
         <div className="overflow-x-auto">
-          <Table className="min-w-[980px] text-left">
+          <Table className="min-w-[760px] text-left">
             <TableHeader>
               <TableRow className="border-b bg-muted/50 hover:bg-muted/50">
                 <TableHead className="px-4 py-3">
@@ -293,9 +365,6 @@ export function AdminEventsListView(props: AdminEventsListViewProps) {
                 <TableHead className="px-4 py-3">
                   {props.t('column_approval')}
                 </TableHead>
-                <TableHead className="px-4 py-3">
-                  {props.t('column_actions')}
-                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -303,7 +372,7 @@ export function AdminEventsListView(props: AdminEventsListViewProps) {
                 <TableRow>
                   <TableCell
                     className="px-4 py-10 text-center text-sm text-mit-readable-ink"
-                    colSpan={6}
+                    colSpan={5}
                   >
                     {props.t('list_empty')}
                   </TableCell>

@@ -1,7 +1,7 @@
 'use client';
 
 import { Switch } from '@headlessui/react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 
 type RegistrationBooleanSwitchProps = {
@@ -9,6 +9,7 @@ type RegistrationBooleanSwitchProps = {
   defaultChecked?: boolean;
   id: string;
   name: string;
+  required?: boolean;
   'aria-describedby'?: string;
   'aria-invalid'?: boolean;
   'aria-labelledby'?: string;
@@ -25,27 +26,64 @@ export function RegistrationBooleanSwitch(
   props: RegistrationBooleanSwitchProps
 ) {
   const [checked, setChecked] = useState(props.defaultChecked ?? false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const isRequired = props.required ?? props['aria-required'];
+
+  useEffect(() => {
+    const form = inputRef.current?.form;
+    if (!form) {
+      return;
+    }
+
+    const resetChecked = () => {
+      setChecked(props.defaultChecked ?? false);
+    };
+
+    form.addEventListener('reset', resetChecked);
+    return () => {
+      form.removeEventListener('reset', resetChecked);
+    };
+  }, [props.defaultChecked]);
 
   return (
-    <Switch
-      aria-describedby={props['aria-describedby']}
-      aria-invalid={props['aria-invalid'] ? true : undefined}
-      aria-labelledby={props['aria-labelledby']}
-      aria-required={props['aria-required'] ? true : undefined}
-      className={cn(
-        'group inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full border-2 border-border bg-secondary p-0.5 shadow-inner transition-colors outline-none data-checked:border-mit-red data-checked:bg-mit-red data-focus:border-ring data-focus:ring-3 data-focus:ring-ring/50',
-        props.className
-      )}
-      checked={checked}
-      data-switch-id={props.id}
-      name={props.name}
-      onChange={setChecked}
-      value="true"
-    >
-      <span
-        aria-hidden
-        className="pointer-events-none block size-5 translate-x-0 rounded-full border border-black/15 bg-white shadow-md ring-0 transition-transform group-data-checked:translate-x-5 dark:border-black/25"
+    <>
+      <input
+        aria-describedby={props['aria-describedby']}
+        aria-invalid={props['aria-invalid'] ? true : undefined}
+        aria-labelledby={props['aria-labelledby']}
+        aria-required={isRequired ? true : undefined}
+        checked={checked}
+        className="sr-only"
+        id={props.id}
+        name={props.name}
+        onChange={(event) => {
+          setChecked(event.currentTarget.checked);
+        }}
+        ref={inputRef}
+        required={isRequired ? true : undefined}
+        tabIndex={-1}
+        type="checkbox"
+        value="true"
       />
-    </Switch>
+      <Switch
+        aria-describedby={props['aria-describedby']}
+        aria-invalid={props['aria-invalid'] ? true : undefined}
+        aria-labelledby={props['aria-labelledby']}
+        aria-required={isRequired ? true : undefined}
+        className={cn(
+          'group inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full border-2 border-border bg-secondary p-0.5 shadow-inner transition-colors outline-none data-checked:border-mit-red data-checked:bg-mit-red data-focus:border-ring data-focus:ring-3 data-focus:ring-ring/50',
+          props.className
+        )}
+        checked={checked}
+        data-switch-id={props.id}
+        onChange={setChecked}
+        value="true"
+      >
+        <span
+          aria-hidden
+          className="pointer-events-none block size-5 translate-x-0 rounded-full border border-black/15 bg-white shadow-md ring-0 transition-transform group-data-checked:translate-x-5 dark:border-black/25"
+        />
+      </Switch>
+    </>
   );
 }

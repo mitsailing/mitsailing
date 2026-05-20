@@ -418,7 +418,6 @@ export async function seedEvents(p: PrismaClient): Promise<void> {
         createdAt: new Date(e.created_at),
         detailPageKind: detailKind,
         externalDetailUrl: e.external_detail_url ?? null,
-        internalNotes: e.internal_notes ?? null,
         isPublished: e.is_published,
       },
       update: {
@@ -434,7 +433,6 @@ export async function seedEvents(p: PrismaClient): Promise<void> {
         createdAt: new Date(e.created_at),
         detailPageKind: detailKind,
         externalDetailUrl: e.external_detail_url ?? null,
-        internalNotes: e.internal_notes ?? null,
         isPublished: e.is_published,
       },
     });
@@ -527,11 +525,13 @@ export async function seedEventRelatedRows(p: PrismaClient): Promise<void> {
         eventId: r.event_id,
         userId: r.user_id,
         status: r.status as EventRegistrationStatus,
+        phone: '+16175550100',
         createdAt: new Date(r.created_at),
         swimAgreementAcceptedAt: new Date(r.swim_agreement_accepted_at),
       },
       update: {
         status: r.status as EventRegistrationStatus,
+        phone: '+16175550100',
         createdAt: new Date(r.created_at),
         swimAgreementAcceptedAt: new Date(r.swim_agreement_accepted_at),
       },

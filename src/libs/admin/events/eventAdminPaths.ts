@@ -20,10 +20,18 @@ export function adminEventEditPath(slug: string): string {
   return `${ADMIN_EVENTS_PATH}/${encodedAdminEventSlug(slug)}/edit`;
 }
 
+export function adminEventShowPath(slug: string): string {
+  return `${ADMIN_EVENTS_PATH}/${encodedAdminEventSlug(slug)}`;
+}
+
 export function adminEventDeletePath(slug: string): string {
   return `${ADMIN_EVENTS_PATH}/${encodedAdminEventSlug(slug)}/delete`;
 }
 
 export function adminEventRegistrationsPath(slug: string): string {
   return `${ADMIN_EVENTS_PATH}/${encodedAdminEventSlug(slug)}/registrations`;
+}
+
+export function adminEventRegistrationsReviewPath(slug: string): string {
+  return `${adminEventShowPath(slug)}#registrations`;
 }

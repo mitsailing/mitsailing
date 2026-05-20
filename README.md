@@ -1,6 +1,7 @@
 # MIT Sailing
 
 [![CI](https://github.com/mitsailing/mitsailing/actions/workflows/CI.yml/badge.svg)](https://github.com/mitsailing/mitsailing/actions/workflows/CI.yml)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/e097a13cd5b542fc8157660ba3224a06)](https://app.codacy.com/gh/mitsailing/mitsailing/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=mitsailing&metric=sqale_rating)](https://sonarcloud.io/summary/overall?id=mitsailing)
 [![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=mitsailing&metric=duplicated_lines_density)](https://sonarcloud.io/summary/overall?id=mitsailing)
 

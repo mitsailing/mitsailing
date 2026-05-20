@@ -13,17 +13,24 @@ import { Label } from '@/components/ui/label';
 import { SubmitButton } from '@/components/ui/submit-button';
 import type { ThemePreferenceValue } from '@/lib/mit-sailing/themePreference';
 import { authClient } from '@/libs/auth-client';
+import { updateProfileContactAction } from '@/libs/auth/profileContactActions';
+import type { UpdateProfileContactResult } from '@/libs/auth/profileContactActions';
 import {
   isValidEmailAddress,
   normalizeEmailAddress,
 } from '@/utils/emailValidation';
+import { formatPhoneForDisplay } from '@/utils/phoneValidation';
 
 type ProfileAccountClientProps = {
   initialEmail: string;
   initialEmailDeliverabilityStatus: 'ok' | 'bounced' | 'suppressed';
+  initialEmergencyContactName: string;
+  initialEmergencyContactPhone: string;
   initialName: string | null;
+  initialPhone: string;
   initialThemePreference: ThemePreferenceValue;
   initialUnconfirmedEmail: string | null;
+  locale: string;
 };
 
 type ActiveEmailDeliverabilityStatus = Exclude<
@@ -41,6 +48,27 @@ const emailDeliverabilityBodyKeys = {
   suppressed: 'email_deliverability_suppressed_body',
 } as const satisfies Record<ActiveEmailDeliverabilityStatus, string>;
 
+type ContactErrorMessageKey =
+  | 'contact_emergency_incomplete'
+  | 'contact_emergency_phone_invalid'
+  | 'contact_phone_invalid'
+  | 'contact_update_error';
+
+function contactErrorMessageKey(
+  error: Exclude<UpdateProfileContactResult, { ok: true }>['error']
+): ContactErrorMessageKey {
+  if (error === 'invalid_phone') {
+    return 'contact_phone_invalid';
+  }
+  if (error === 'invalid_emergency_phone') {
+    return 'contact_emergency_phone_invalid';
+  }
+  if (error === 'incomplete_emergency_contact') {
+    return 'contact_emergency_incomplete';
+  }
+  return 'contact_update_error';
+}
+
 export function ProfileAccountClient(props: ProfileAccountClientProps) {
   const tCommon = useTranslations('Common');
   const t = useTranslations('UserProfilePage');
@@ -49,11 +77,19 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
   const [emailBanner, setEmailBanner] = useState<ProfileBannerState>(null);
   const [emailOtpBanner, setEmailOtpBanner] =
     useState<ProfileBannerState>(null);
+  const [contactBanner, setContactBanner] = useState<ProfileBannerState>(null);
   const [nameBanner, setNameBanner] = useState<ProfileBannerState>(null);
   const [resendBanner, setResendBanner] = useState<ProfileBannerState>(null);
 
   const [pendingEmail, setPendingEmail] = useState<string | null>(
     props.initialUnconfirmedEmail
+  );
+  const [phone, setPhone] = useState(formatPhoneForDisplay(props.initialPhone));
+  const [emergencyContactName, setEmergencyContactName] = useState(
+    props.initialEmergencyContactName
+  );
+  const [emergencyContactPhone, setEmergencyContactPhone] = useState(
+    formatPhoneForDisplay(props.initialEmergencyContactPhone)
   );
   const [currentEmail, setCurrentEmail] = useState(props.initialEmail);
   const [displayName, setDisplayName] = useState(props.initialName ?? '');
@@ -65,6 +101,7 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
   const [resendingEmail, setResendingEmail] = useState(false);
   const [resendLocked, setResendLocked] = useState(false);
   const [resendSecondsLeft, setResendSecondsLeft] = useState(30);
+  const [updatingContact, setUpdatingContact] = useState(false);
   const [updatingName, setUpdatingName] = useState(false);
   const resendTimerRef = useRef<number | null>(null);
   const resendIntervalRef = useRef<number | null>(null);
@@ -260,6 +297,35 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
     }
   }
 
+  async function onUpdateContact(event: React.SubmitEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setContactBanner(null);
+    setUpdatingContact(true);
+    try {
+      const result = await updateProfileContactAction(props.locale, {
+        emergencyContactName,
+        emergencyContactPhone,
+        phone,
+      });
+      if (!result.ok) {
+        setContactBanner({
+          kind: 'error',
+          message: t(contactErrorMessageKey(result.error)),
+        });
+        return;
+      }
+      setContactBanner({ kind: 'success', message: t('contact_updated') });
+      router.refresh();
+    } catch {
+      setContactBanner({
+        kind: 'error',
+        message: t('error_request_failed'),
+      });
+    } finally {
+      setUpdatingContact(false);
+    }
+  }
+
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-6 px-4 py-8">
       <h1 className="text-2xl font-semibold">{t('account_page_heading')}</h1>
@@ -416,6 +482,75 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
       <ProfileAppearanceSection
         initialPreference={props.initialThemePreference}
       />
+
+      <section
+        aria-labelledby="contact-heading"
+        className="rounded-lg border border-mit-line bg-card p-6 shadow-sm"
+      >
+        <h2 className="text-lg font-medium" id="contact-heading">
+          {t('contact_heading')}
+        </h2>
+        <p className="mt-2 text-sm text-mit-text">{t('contact_description')}</p>
+        <ProfileInlineBanner banner={contactBanner} />
+        <form className="mt-4 flex flex-col gap-3" onSubmit={onUpdateContact}>
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-foreground" htmlFor="phone">
+              {t('phone')}
+            </Label>
+            <Input
+              autoComplete="tel"
+              id="phone"
+              inputMode="tel"
+              name="phone"
+              onChange={(event) => {
+                setPhone(event.currentTarget.value);
+              }}
+              required
+              type="tel"
+              value={phone}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-foreground" htmlFor="emergencyContactName">
+              {t('emergency_contact_name')}
+            </Label>
+            <Input
+              autoComplete="name"
+              id="emergencyContactName"
+              name="emergencyContactName"
+              onChange={(event) => {
+                setEmergencyContactName(event.currentTarget.value);
+              }}
+              type="text"
+              value={emergencyContactName}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-foreground" htmlFor="emergencyContactPhone">
+              {t('emergency_contact_phone')}
+            </Label>
+            <Input
+              autoComplete="tel"
+              id="emergencyContactPhone"
+              inputMode="tel"
+              name="emergencyContactPhone"
+              onChange={(event) => {
+                setEmergencyContactPhone(event.currentTarget.value);
+              }}
+              type="tel"
+              value={emergencyContactPhone}
+            />
+          </div>
+          <SubmitButton
+            className="mt-2 w-fit"
+            pending={updatingContact}
+            pendingLabel={tCommon('pending_saving')}
+            variant="mit"
+          >
+            {t('contact_save')}
+          </SubmitButton>
+        </form>
+      </section>
 
       <section
         aria-labelledby="change-email-heading"

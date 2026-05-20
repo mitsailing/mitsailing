@@ -13,20 +13,24 @@ const mocks = vi.hoisted(() => ({
   eventAdminDeleteMany: vi.fn(),
   eventCreate: vi.fn(),
   eventDelete: vi.fn(),
+  eventDateCount: vi.fn(),
   eventEntryFeeCreate: vi.fn(),
   eventEntryFeeDeleteMany: vi.fn(),
   eventEntryFeeUpdateMany: vi.fn(),
   eventDateCreate: vi.fn(),
   eventDateDeleteMany: vi.fn(),
+  eventDateFindMany: vi.fn(),
   eventDateUpdateMany: vi.fn(),
   eventFindUnique: vi.fn(),
   eventRegistrationCount: vi.fn(),
   eventRegistrationFindFirst: vi.fn(),
   eventRegistrationUpdateMany: vi.fn(),
+  eventRegistrationBoatMemberCount: vi.fn(),
   eventRegistrationQuestionAggregate: vi.fn(),
   eventRegistrationQuestionCreate: vi.fn(),
   eventRegistrationQuestionDeleteMany: vi.fn(),
   eventRegistrationQuestionUpdateMany: vi.fn(),
+  eventRegistrationTeamCount: vi.fn(),
   eventUpdate: vi.fn(),
   redirect: vi.fn((href: string) => {
     throw new Error(`NEXT_REDIRECT:${href}`);
@@ -37,25 +41,42 @@ const mocks = vi.hoisted(() => ({
   txQueryRaw: vi.fn(),
   updateTag: vi.fn(),
   appAuthContextFromSession: vi.fn(),
+  userCount: vi.fn(),
   zenstackForAuthContext: vi.fn(),
 }));
 
-type EventRegistrationStatusTransactionClient = {
+type AdminEventTransactionClient = {
   $queryRaw: typeof mocks.txQueryRaw;
-  event: { findUnique: typeof mocks.eventFindUnique };
+  event: {
+    findUnique: typeof mocks.eventFindUnique;
+    update: typeof mocks.eventUpdate;
+  };
   eventAdmin: {
     createMany: typeof mocks.eventAdminCreateMany;
     deleteMany: typeof mocks.eventAdminDeleteMany;
+  };
+  eventDate: {
+    count: typeof mocks.eventDateCount;
+    create: typeof mocks.eventDateCreate;
+    deleteMany: typeof mocks.eventDateDeleteMany;
+    findMany: typeof mocks.eventDateFindMany;
+    updateMany: typeof mocks.eventDateUpdateMany;
   };
   eventRegistration: {
     count: typeof mocks.eventRegistrationCount;
     findFirst: typeof mocks.eventRegistrationFindFirst;
     updateMany: typeof mocks.eventRegistrationUpdateMany;
   };
+  eventRegistrationBoatMember: {
+    count: typeof mocks.eventRegistrationBoatMemberCount;
+  };
+  eventRegistrationTeam: {
+    count: typeof mocks.eventRegistrationTeamCount;
+  };
 };
 
 type EventRegistrationStatusTransaction = (
-  tx: EventRegistrationStatusTransactionClient
+  tx: AdminEventTransactionClient
 ) => Promise<unknown>;
 
 vi.mock('server-only', () => ({}));
@@ -104,8 +125,10 @@ vi.mock('@/libs/DB', () => ({
       update: mocks.eventUpdate,
     },
     eventDate: {
+      count: mocks.eventDateCount,
       create: mocks.eventDateCreate,
       deleteMany: mocks.eventDateDeleteMany,
+      findMany: mocks.eventDateFindMany,
       updateMany: mocks.eventDateUpdateMany,
     },
     eventEntryFee: {
@@ -118,11 +141,20 @@ vi.mock('@/libs/DB', () => ({
       findFirst: mocks.eventRegistrationFindFirst,
       updateMany: mocks.eventRegistrationUpdateMany,
     },
+    eventRegistrationBoatMember: {
+      count: mocks.eventRegistrationBoatMemberCount,
+    },
+    eventRegistrationTeam: {
+      count: mocks.eventRegistrationTeamCount,
+    },
     eventRegistrationQuestion: {
       aggregate: mocks.eventRegistrationQuestionAggregate,
       create: mocks.eventRegistrationQuestionCreate,
       deleteMany: mocks.eventRegistrationQuestionDeleteMany,
       updateMany: mocks.eventRegistrationQuestionUpdateMany,
+    },
+    user: {
+      count: mocks.userCount,
     },
   },
 }));
@@ -153,7 +185,15 @@ function validEventFormData(): FormData {
   formData.set('registrationEnd', '');
   formData.set('detailPageKind', EventDetailPageKind.standard);
   formData.set('externalDetailUrl', '');
-  formData.set('internalNotes', '');
+  formData.set('registrationMode', 'standard');
+  formData.set('externalRegistrationUrl', '');
+  formData.set('externalEntriesUrl', '');
+  formData.set('faqContent', '');
+  formData.set('noticeOfRaceContent', '');
+  formData.set('sailingInstructionsContent', '');
+  formData.set('resultsContent', '');
+  formData.set('startDateTime', '2026-06-01T09:00');
+  formData.set('endDateTime', '2026-06-01T12:00');
   return formData;
 }
 
@@ -192,6 +232,7 @@ function statusFormData(status: EventRegistrationStatus): FormData {
 
 function access() {
   return {
+    accessMode: 'editable',
     db: {},
     event: { id: 'event-1', slug: 'intro-sail' },
     session: { user: { id: 'staff-1' } },
@@ -210,7 +251,9 @@ beforeEach(() => {
   mocks.eventCreate.mockResolvedValue({ id: 'event-1', slug: 'intro-sail' });
   mocks.eventUpdate.mockResolvedValue({ id: 'event-1' });
   mocks.eventDelete.mockResolvedValue({ id: 'event-1' });
+  mocks.eventDateCount.mockResolvedValue(2);
   mocks.eventDateCreate.mockResolvedValue({ id: 'date-1' });
+  mocks.eventDateFindMany.mockResolvedValue([]);
   mocks.eventDateUpdateMany.mockResolvedValue({ count: 1 });
   mocks.eventDateDeleteMany.mockResolvedValue({ count: 1 });
   mocks.eventRegistrationQuestionAggregate.mockResolvedValue({
@@ -222,25 +265,47 @@ beforeEach(() => {
   mocks.eventEntryFeeCreate.mockResolvedValue({ id: 'fee-1' });
   mocks.eventEntryFeeUpdateMany.mockResolvedValue({ count: 1 });
   mocks.eventEntryFeeDeleteMany.mockResolvedValue({ count: 1 });
-  mocks.eventFindUnique.mockResolvedValue({ maxParticipants: null });
+  mocks.eventFindUnique.mockResolvedValue({
+    maxParticipants: null,
+    name: 'Intro Sail',
+  });
   mocks.eventRegistrationFindFirst.mockResolvedValue({
     eventId: 'event-1',
     status: EventRegistrationStatus.pending,
   });
   mocks.eventRegistrationCount.mockResolvedValue(0);
+  mocks.eventRegistrationBoatMemberCount.mockResolvedValue(0);
+  mocks.eventRegistrationTeamCount.mockResolvedValue(0);
   mocks.eventRegistrationUpdateMany.mockResolvedValue({ count: 1 });
+  mocks.userCount.mockResolvedValue(1);
   mocks.txQueryRaw.mockResolvedValue([{ id: 'event-1' }]);
-  const transactionClient: EventRegistrationStatusTransactionClient = {
+  const transactionClient: AdminEventTransactionClient = {
     $queryRaw: mocks.txQueryRaw,
-    event: { findUnique: mocks.eventFindUnique },
+    event: {
+      findUnique: mocks.eventFindUnique,
+      update: mocks.eventUpdate,
+    },
     eventAdmin: {
       createMany: mocks.eventAdminCreateMany,
       deleteMany: mocks.eventAdminDeleteMany,
+    },
+    eventDate: {
+      count: mocks.eventDateCount,
+      create: mocks.eventDateCreate,
+      deleteMany: mocks.eventDateDeleteMany,
+      findMany: mocks.eventDateFindMany,
+      updateMany: mocks.eventDateUpdateMany,
     },
     eventRegistration: {
       count: mocks.eventRegistrationCount,
       findFirst: mocks.eventRegistrationFindFirst,
       updateMany: mocks.eventRegistrationUpdateMany,
+    },
+    eventRegistrationBoatMember: {
+      count: mocks.eventRegistrationBoatMemberCount,
+    },
+    eventRegistrationTeam: {
+      count: mocks.eventRegistrationTeamCount,
     },
   };
   mocks.dbTransaction.mockImplementation(
@@ -273,17 +338,28 @@ describe('createAdminEventAction', () => {
         create: mocks.eventCreate,
       },
     });
-    mocks.eventCreate.mockResolvedValue({ id: 'event-1', slug: 'intro-sail' });
+    const formData = validEventFormData();
+    formData.set('internalNotes', 'Private staffing note');
+    formData.set('requiresPhone', 'true');
+    mocks.eventCreate.mockResolvedValue({
+      id: 'event-1',
+      slug: '2026-06-01-intro-sail',
+    });
     const { createAdminEventAction } =
       await import('@/libs/admin/events/eventAdminActions');
 
-    await expect(
-      createAdminEventAction('en', validEventFormData())
-    ).rejects.toThrow('NEXT_REDIRECT:/admin/events/intro-sail/edit');
+    await expect(createAdminEventAction('en', formData)).rejects.toThrow(
+      /^NEXT_REDIRECT:\/admin\/events\/2026-06-01-intro-sail$/u
+    );
 
     expect(mocks.requirePermission).toHaveBeenCalledWith(
       Permission.EVENTS_MANAGE,
       'en'
+    );
+    expect(mocks.eventCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.not.objectContaining({ internalNotes: expect.anything() }),
+      })
     );
     expect(mocks.eventCreate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -294,6 +370,50 @@ describe('createAdminEventAction', () => {
               id: expect.any(String),
             }),
           },
+          dates: {
+            create: expect.objectContaining({
+              endDateTime: new Date('2026-06-01T16:00:00.000Z'),
+              id: expect.any(String),
+              startDateTime: new Date('2026-06-01T13:00:00.000Z'),
+            }),
+          },
+          requiresPhone: true,
+          slug: '2026-06-01-intro-sail',
+        }),
+      })
+    );
+  });
+
+  it('persists team registration settings when creating an event', async () => {
+    mocks.requirePermission.mockResolvedValue({
+      session: { impersonatedBy: null },
+      user: { id: 'creator-1' },
+    });
+    const formData = validEventFormData();
+    formData.set('usesTeamRegistration', 'true');
+    formData.set('boatsPerTeam', '2');
+    formData.set('personsPerBoat', '1');
+    formData.set('allowRepeatTeamCaptain', 'true');
+    const { createAdminEventAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(createAdminEventAction('en', formData)).rejects.toThrow(
+      /^NEXT_REDIRECT:\/admin\/events\/2026-06-01-intro-sail$/u
+    );
+
+    expect(mocks.eventCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          allowRepeatTeamCaptain: true,
+          boatsPerTeam: 2,
+          dates: {
+            create: expect.objectContaining({
+              startDateTime: new Date('2026-06-01T13:00:00.000Z'),
+            }),
+          },
+          personsPerBoat: 1,
+          slug: '2026-06-01-intro-sail',
+          usesTeamRegistration: true,
         }),
       })
     );
@@ -315,20 +435,299 @@ describe('createAdminEventAction', () => {
 
     expect(mocks.eventCreate).not.toHaveBeenCalled();
   });
+
+  it('requires an event date when creating an event', async () => {
+    const formData = validEventFormData();
+    formData.set('startDateTime', '');
+    formData.set('endDateTime', '');
+    mocks.requirePermission.mockResolvedValue({
+      session: { impersonatedBy: null },
+      user: { id: 'creator-1' },
+    });
+    const { createAdminEventAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(createAdminEventAction('en', formData)).rejects.toThrow(
+      'NEXT_REDIRECT:/admin/events/new?error=validation_failed'
+    );
+
+    expect(mocks.eventCreate).not.toHaveBeenCalled();
+  });
+
+  it('redirects invalid team settings without creating rows', async () => {
+    const formData = validEventFormData();
+    formData.set('usesTeamRegistration', 'true');
+    formData.set('boatsPerTeam', '1');
+    formData.set('personsPerBoat', '1');
+    mocks.requirePermission.mockResolvedValue({
+      session: { impersonatedBy: null },
+      user: { id: 'creator-1' },
+    });
+    const { createAdminEventAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(createAdminEventAction('en', formData)).rejects.toThrow(
+      'NEXT_REDIRECT:/admin/events/new?error=validation_failed'
+    );
+
+    expect(mocks.eventCreate).not.toHaveBeenCalled();
+  });
 });
 
 describe('updateAdminEventBasicsAction', () => {
   it('updates event basics through the verified event id', async () => {
+    const formData = validEventFormData();
+    formData.set('internalNotes', 'Private staffing note');
     const { updateAdminEventBasicsAction } =
       await import('@/libs/admin/events/eventAdminActions');
 
     await expect(
-      updateAdminEventBasicsAction('en', 'intro-sail', validEventFormData())
-    ).rejects.toThrow('NEXT_REDIRECT:/admin/events/intro-sail/edit');
+      updateAdminEventBasicsAction('en', 'intro-sail', formData)
+    ).rejects.toThrow(/^NEXT_REDIRECT:\/admin\/events\/intro-sail$/u);
 
     expect(mocks.eventUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
+        data: expect.not.objectContaining({ internalNotes: expect.anything() }),
         where: { id: 'event-1' },
+      })
+    );
+    expect(mocks.requireAdminEventAccess).toHaveBeenCalledWith({
+      locale: 'en',
+      minimumAccessMode: 'editable',
+      slug: 'intro-sail',
+    });
+  });
+
+  it('persists registration mode and external registration URLs', async () => {
+    const formData = validEventFormData();
+    formData.set('registrationMode', 'external');
+    formData.set('externalRegistrationUrl', 'https://example.com/register');
+    formData.set('externalEntriesUrl', 'https://example.com/entries');
+    const { updateAdminEventBasicsAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventBasicsAction('en', 'intro-sail', formData)
+    ).rejects.toThrow(/^NEXT_REDIRECT:\/admin\/events\/intro-sail$/u);
+
+    expect(mocks.eventUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          externalEntriesUrl: 'https://example.com/entries',
+          externalRegistrationUrl: 'https://example.com/register',
+          registrationMode: 'external',
+        }),
+      })
+    );
+  });
+
+  it('stays on the edit screen when requested after updating basics', async () => {
+    const formData = validEventFormData();
+    formData.set('redirectTo', 'edit');
+    const { updateAdminEventBasicsAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventBasicsAction('en', 'intro-sail', formData)
+    ).rejects.toThrow(/^NEXT_REDIRECT:\/admin\/events\/intro-sail\/edit$/u);
+  });
+
+  it('persists phone requirement from event basics', async () => {
+    const formData = validEventFormData();
+    formData.set('requiresPhone', 'true');
+    const { updateAdminEventBasicsAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventBasicsAction('en', 'intro-sail', formData)
+    ).rejects.toThrow(/^NEXT_REDIRECT:\/admin\/events\/intro-sail$/u);
+
+    expect(mocks.eventUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          requiresPhone: true,
+        }),
+      })
+    );
+  });
+
+  it('persists team registration settings from event basics', async () => {
+    const formData = validEventFormData();
+    formData.set('usesTeamRegistration', 'true');
+    formData.set('boatsPerTeam', '1');
+    formData.set('personsPerBoat', '2');
+    formData.set('allowRepeatTeamCaptain', 'true');
+    const { updateAdminEventBasicsAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventBasicsAction('en', 'intro-sail', formData)
+    ).rejects.toThrow(/^NEXT_REDIRECT:\/admin\/events\/intro-sail$/u);
+
+    expect(mocks.eventUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          allowRepeatTeamCaptain: true,
+          boatsPerTeam: 1,
+          personsPerBoat: 2,
+          usesTeamRegistration: true,
+        }),
+      })
+    );
+  });
+
+  it('locks the event before validating team registration settings', async () => {
+    const formData = validEventFormData();
+    formData.set('usesTeamRegistration', 'true');
+    formData.set('boatsPerTeam', '1');
+    formData.set('personsPerBoat', '2');
+    const { updateAdminEventBasicsAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventBasicsAction('en', 'intro-sail', formData)
+    ).rejects.toThrow(/^NEXT_REDIRECT:\/admin\/events\/intro-sail$/u);
+
+    expect(mocks.txQueryRaw).toHaveBeenCalledWith(
+      expect.arrayContaining([expect.stringContaining('FOR UPDATE')]),
+      'event-1'
+    );
+    const [lockOrder] = mocks.txQueryRaw.mock.invocationCallOrder;
+    const [validationOrder] =
+      mocks.eventRegistrationBoatMemberCount.mock.invocationCallOrder;
+    const [updateOrder] = mocks.eventUpdate.mock.invocationCallOrder;
+    if (
+      typeof lockOrder !== 'number' ||
+      typeof validationOrder !== 'number' ||
+      typeof updateOrder !== 'number'
+    ) {
+      throw new TypeError('Expected lock, validation, and update to run.');
+    }
+    expect(lockOrder).toBeLessThan(validationOrder);
+    expect(lockOrder).toBeLessThan(updateOrder);
+  });
+
+  it('rejects team setting updates that invalidate existing boat members', async () => {
+    const formData = validEventFormData();
+    formData.set('usesTeamRegistration', 'true');
+    formData.set('boatsPerTeam', '1');
+    formData.set('personsPerBoat', '2');
+    mocks.eventRegistrationBoatMemberCount.mockResolvedValue(1);
+    const { updateAdminEventBasicsAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventBasicsAction('en', 'intro-sail', formData)
+    ).rejects.toThrow(
+      'NEXT_REDIRECT:/admin/events/intro-sail/edit?error=validation_failed'
+    );
+
+    expect(mocks.eventUpdate).not.toHaveBeenCalled();
+    expect(mocks.eventRegistrationBoatMemberCount).toHaveBeenCalledWith({
+      where: {
+        registration: { eventId: 'event-1' },
+        OR: [{ boatNumber: { gt: 1 } }, { position: { gte: 2 } }],
+      },
+    });
+  });
+
+  it('rejects disabling team registration with existing teams', async () => {
+    const formData = validEventFormData();
+    mocks.eventRegistrationTeamCount.mockResolvedValue(1);
+    const { updateAdminEventBasicsAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventBasicsAction('en', 'intro-sail', formData)
+    ).rejects.toThrow(
+      'NEXT_REDIRECT:/admin/events/intro-sail/edit?error=validation_failed'
+    );
+
+    expect(mocks.eventUpdate).not.toHaveBeenCalled();
+    expect(mocks.eventRegistrationTeamCount).toHaveBeenCalledWith({
+      where: { registration: { eventId: 'event-1' } },
+    });
+  });
+
+  it('rejects disallowing repeat captains with existing repeat teams', async () => {
+    const formData = validEventFormData();
+    formData.set('usesTeamRegistration', 'true');
+    formData.set('boatsPerTeam', '1');
+    formData.set('personsPerBoat', '2');
+    mocks.eventRegistrationTeamCount.mockResolvedValue(1);
+    const { updateAdminEventBasicsAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventBasicsAction('en', 'intro-sail', formData)
+    ).rejects.toThrow(
+      'NEXT_REDIRECT:/admin/events/intro-sail/edit?error=validation_failed'
+    );
+
+    expect(mocks.eventUpdate).not.toHaveBeenCalled();
+    expect(mocks.eventRegistrationTeamCount).toHaveBeenCalledWith({
+      where: {
+        allowRepeatCaptain: true,
+        registration: { eventId: 'event-1' },
+      },
+    });
+  });
+
+  it('persists public content section visibility and content', async () => {
+    const formData = validEventFormData();
+    formData.set('faqVisible', 'true');
+    formData.set('faqContent', '<p>Questions</p>');
+    formData.set('noticeOfRaceVisible', 'true');
+    formData.set('noticeOfRaceContent', 'Notice text');
+    formData.set('sailingInstructionsContent', '<p>Hidden draft</p>');
+    formData.set('resultsVisible', 'true');
+    formData.set('resultsContent', '<p>Scores</p>');
+    const { updateAdminEventBasicsAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventBasicsAction('en', 'intro-sail', formData)
+    ).rejects.toThrow(/^NEXT_REDIRECT:\/admin\/events\/intro-sail$/u);
+
+    expect(mocks.eventUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          faqContent: '<p>Questions</p>',
+          faqVisible: true,
+          noticeOfRaceContent: '<p>Notice text</p>',
+          noticeOfRaceVisible: true,
+          resultsContent: '<p>Scores</p>',
+          resultsVisible: true,
+          sailingInstructionsContent: '<p>Hidden draft</p>',
+          sailingInstructionsVisible: false,
+        }),
+      })
+    );
+  });
+
+  it('ignores submitted slugs and updates slug from current dates and name', async () => {
+    const formData = validEventFormData();
+    formData.set('name', 'Summer Regatta');
+    formData.set('slug', 'attacker-controlled-slug');
+    mocks.eventDateFindMany.mockResolvedValue([
+      { startDateTime: new Date('2026-08-10T13:00:00Z') },
+      { startDateTime: new Date('2026-08-11T13:00:00Z') },
+    ]);
+    const { updateAdminEventBasicsAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventBasicsAction('en', 'intro-sail', formData)
+    ).rejects.toThrow(
+      /^NEXT_REDIRECT:\/admin\/events\/2026-08-10-11-summer-regatta$/u
+    );
+
+    expect(mocks.eventUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          name: 'Summer Regatta',
+          slug: '2026-08-10-11-summer-regatta',
+        }),
       })
     );
   });
@@ -350,6 +749,9 @@ describe('updateAdminEventBasicsAction', () => {
 
 describe('admin event date actions', () => {
   it('creates dates only for the event id verified by slug access', async () => {
+    mocks.eventDateFindMany.mockResolvedValue([
+      { startDateTime: new Date('2026-06-01T13:00:00Z') },
+    ]);
     const { addAdminEventDateAction } =
       await import('@/libs/admin/events/eventAdminActions');
 
@@ -360,13 +762,16 @@ describe('admin event date actions', () => {
         'event-1',
         validEventDateFormData()
       )
-    ).rejects.toThrow('NEXT_REDIRECT:/admin/events/intro-sail/edit');
+    ).rejects.toThrow(
+      /^NEXT_REDIRECT:\/admin\/events\/2026-06-01-intro-sail$/u
+    );
 
     expect(mocks.eventDateCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ eventId: 'event-1' }),
       })
     );
+    expect(mocks.dbTransaction).toHaveBeenCalledTimes(1);
   });
 
   it('rejects mismatched event ids before creating dates', async () => {
@@ -410,17 +815,72 @@ describe('admin event date actions', () => {
     );
   });
 
+  it('regenerates and redirects to a new slug after a date update changes the first event day', async () => {
+    mocks.requireAdminEventAccess.mockResolvedValue({
+      ...access(),
+      event: { id: 'event-1', name: 'Intro Sail', slug: 'intro-sail' },
+    });
+    mocks.eventDateFindMany.mockResolvedValue([
+      { startDateTime: new Date('2026-08-10T13:00:00Z') },
+    ]);
+    const { updateAdminEventDateAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventDateAction(
+        'en',
+        'intro-sail',
+        'date-1',
+        validEventDateFormData()
+      )
+    ).rejects.toThrow(
+      /^NEXT_REDIRECT:\/admin\/events\/2026-08-10-intro-sail$/u
+    );
+
+    expect(mocks.eventUpdate).toHaveBeenCalledWith({
+      where: { id: 'event-1' },
+      data: { slug: '2026-08-10-intro-sail' },
+    });
+  });
+
+  it('stays on the edit screen when requested after updating a date', async () => {
+    const formData = validEventDateFormData();
+    formData.set('redirectTo', 'edit');
+    const { updateAdminEventDateAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventDateAction('en', 'intro-sail', 'date-1', formData)
+    ).rejects.toThrow(/^NEXT_REDIRECT:\/admin\/events\/intro-sail\/edit$/u);
+  });
+
   it('deletes dates through the protected event id', async () => {
     const { deleteAdminEventDateAction } =
       await import('@/libs/admin/events/eventAdminActions');
 
     await expect(
       deleteAdminEventDateAction('en', 'intro-sail', 'date-1')
-    ).rejects.toThrow('NEXT_REDIRECT:/admin/events/intro-sail/edit');
+    ).rejects.toThrow(/^NEXT_REDIRECT:\/admin\/events\/intro-sail$/u);
 
     expect(mocks.eventDateDeleteMany).toHaveBeenCalledWith({
       where: { id: 'date-1', eventId: 'event-1' },
     });
+    expect(mocks.dbTransaction).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the last event date', async () => {
+    mocks.eventDateCount.mockResolvedValue(1);
+    const { deleteAdminEventDateAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      deleteAdminEventDateAction('en', 'intro-sail', 'date-1')
+    ).rejects.toThrow(
+      'NEXT_REDIRECT:/admin/events/intro-sail/edit?error=validation_failed'
+    );
+
+    expect(mocks.eventDateDeleteMany).not.toHaveBeenCalled();
+    expect(mocks.dbTransaction).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -436,7 +896,7 @@ describe('admin event question actions', () => {
         'event-1',
         validEventQuestionFormData()
       )
-    ).rejects.toThrow('NEXT_REDIRECT:/admin/events/intro-sail/edit');
+    ).rejects.toThrow(/^NEXT_REDIRECT:\/admin\/events\/intro-sail$/u);
 
     expect(mocks.eventRegistrationQuestionCreate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -460,7 +920,7 @@ describe('admin event question actions', () => {
         'question-1',
         validEventQuestionFormData(EventAnswerType.text)
       )
-    ).rejects.toThrow('NEXT_REDIRECT:/admin/events/intro-sail/edit');
+    ).rejects.toThrow(/^NEXT_REDIRECT:\/admin\/events\/intro-sail$/u);
 
     expect(mocks.eventRegistrationQuestionUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -510,7 +970,7 @@ describe('admin event fee actions', () => {
         'fee-1',
         validEventFeeFormData()
       )
-    ).rejects.toThrow('NEXT_REDIRECT:/admin/events/intro-sail/edit');
+    ).rejects.toThrow(/^NEXT_REDIRECT:\/admin\/events\/intro-sail$/u);
 
     expect(mocks.eventEntryFeeUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -530,6 +990,82 @@ describe('admin event fee actions', () => {
     ).rejects.toThrow(
       'NEXT_REDIRECT:/admin/events/intro-sail/edit?error=not_found'
     );
+  });
+});
+
+describe('updateAdminEventAdminsAction', () => {
+  it('redirects validation failures when no admins are selected', async () => {
+    const formData = new FormData();
+    const { updateAdminEventAdminsAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventAdminsAction('en', 'intro-sail', 'event-1', formData)
+    ).rejects.toThrow(
+      'NEXT_REDIRECT:/admin/events/intro-sail/edit?error=validation_failed'
+    );
+
+    expect(mocks.dbTransaction).not.toHaveBeenCalled();
+  });
+
+  it('redirects validation failures for unassignable admin users', async () => {
+    const formData = new FormData();
+    formData.append('adminUserId', 'volunteer-1');
+    mocks.userCount.mockResolvedValue(0);
+    const { updateAdminEventAdminsAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventAdminsAction('en', 'intro-sail', 'event-1', formData)
+    ).rejects.toThrow(
+      'NEXT_REDIRECT:/admin/events/intro-sail/edit?error=validation_failed'
+    );
+
+    expect(mocks.userCount).toHaveBeenCalledWith({
+      where: {
+        appRole: {
+          in: [
+            Role.VOLUNTEER_INSTRUCTOR,
+            Role.DOCK_STAFF,
+            Role.DOCK_MASTER,
+            Role.ADMIN,
+          ],
+        },
+        id: { in: ['volunteer-1'] },
+      },
+    });
+    expect(mocks.dbTransaction).not.toHaveBeenCalled();
+  });
+
+  it('saves assignable admin users through the protected event id', async () => {
+    const formData = new FormData();
+    formData.append('adminUserId', 'instructor-1');
+    formData.append('adminUserId', 'dock-staff-1');
+    mocks.userCount.mockResolvedValue(2);
+    const { updateAdminEventAdminsAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventAdminsAction('en', 'intro-sail', 'event-1', formData)
+    ).rejects.toThrow(/^NEXT_REDIRECT:\/admin\/events\/intro-sail$/u);
+
+    expect(mocks.eventAdminDeleteMany).toHaveBeenCalledWith({
+      where: { eventId: 'event-1' },
+    });
+    expect(mocks.eventAdminCreateMany).toHaveBeenCalledWith({
+      data: [
+        {
+          adminUserId: 'instructor-1',
+          eventId: 'event-1',
+          id: expect.any(String),
+        },
+        {
+          adminUserId: 'dock-staff-1',
+          eventId: 'event-1',
+          id: expect.any(String),
+        },
+      ],
+    });
   });
 });
 
@@ -609,6 +1145,11 @@ describe('updateAdminEventRegistrationStatusAction', () => {
     expect(mocks.eventRegistrationUpdateMany).toHaveBeenCalledWith({
       data: { status: EventRegistrationStatus.approved },
       where: { id: 'registration-1', eventId: 'event-1' },
+    });
+    expect(mocks.requireAdminEventAccess).toHaveBeenCalledWith({
+      locale: 'en',
+      minimumAccessMode: 'editable',
+      slug: 'intro-sail',
     });
   });
 });

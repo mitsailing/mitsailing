@@ -190,7 +190,7 @@ describe('createCatalogResourceAction', () => {
 });
 
 describe('updateCatalogResourceAction', () => {
-  it('stays on the edit screen after updating a catalog row', async () => {
+  it('returns to the resource index after updating a catalog row', async () => {
     const { updateCatalogResourceAction } =
       await import('@/libs/admin/catalog/catalogActions');
 
@@ -198,16 +198,30 @@ describe('updateCatalogResourceAction', () => {
       updateCatalogResourceAction('en', 'fleet', 'boat-1', new FormData())
     ).rejects.toThrow('NEXT_REDIRECT');
 
-    expect(redirect).toHaveBeenCalledWith('/admin/fleet/boat-1/edit');
+    expect(redirect).toHaveBeenCalledWith('/admin/fleet');
     expect(updateTag).toHaveBeenCalledWith('sitemap-catalog');
     expect(updateTag).toHaveBeenCalledWith('site-nav-fleet');
   });
 
-  it('preserves page scope after updating a CMS page block', async () => {
+  it('stays on the edit screen when requested after updating a catalog row', async () => {
+    const { updateCatalogResourceAction } =
+      await import('@/libs/admin/catalog/catalogActions');
+    const formData = new FormData();
+    formData.set('redirectTo', 'edit');
+
+    await expect(
+      updateCatalogResourceAction('en', 'fleet', 'boat-1', formData)
+    ).rejects.toThrow('NEXT_REDIRECT');
+
+    expect(redirect).toHaveBeenCalledWith('/admin/fleet/boat-1/edit');
+  });
+
+  it('preserves page scope when staying on a CMS page block edit screen', async () => {
     const { updateCatalogResourceAction } =
       await import('@/libs/admin/catalog/catalogActions');
     const formData = new FormData();
     formData.set('pageId', 'page-2');
+    formData.set('redirectTo', 'edit');
 
     await expect(
       updateCatalogResourceAction('en', 'cms_page_blocks', 'block-1', formData)
@@ -217,6 +231,19 @@ describe('updateCatalogResourceAction', () => {
       '/admin/cms_page_blocks/block-1/edit?page=page-2'
     );
     expect(requirePermission).toHaveBeenCalledWith(Permission.CMS_EDIT, 'en');
+  });
+
+  it('preserves page scope when returning to a CMS page block index', async () => {
+    const { updateCatalogResourceAction } =
+      await import('@/libs/admin/catalog/catalogActions');
+    const formData = new FormData();
+    formData.set('pageId', 'page-2');
+
+    await expect(
+      updateCatalogResourceAction('en', 'cms_page_blocks', 'block-1', formData)
+    ).rejects.toThrow('NEXT_REDIRECT');
+
+    expect(redirect).toHaveBeenCalledWith('/admin/cms_page_blocks?page=page-2');
   });
 
   it('redirects update failures with bounded field errors', async () => {

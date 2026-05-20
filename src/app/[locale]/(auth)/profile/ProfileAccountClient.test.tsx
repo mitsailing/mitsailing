@@ -23,6 +23,7 @@ const authClientMock = vi.hoisted(() => ({
 }));
 
 const updateThemePreferenceActionMock = vi.hoisted(() => vi.fn());
+const updateProfileContactActionMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/libs/auth-client', () => ({
   authClient: authClientMock,
@@ -32,11 +33,16 @@ vi.mock('@/libs/auth/themePreferenceActions', () => ({
   updateThemePreferenceAction: updateThemePreferenceActionMock,
 }));
 
+vi.mock('@/libs/auth/profileContactActions', () => ({
+  updateProfileContactAction: updateProfileContactActionMock,
+}));
+
 beforeEach(() => {
   vi.clearAllMocks();
   authClientMock.emailOtp.changeEmail.mockResolvedValue({});
   authClientMock.emailOtp.requestEmailChange.mockResolvedValue({});
   authClientMock.updateUser.mockResolvedValue({});
+  updateProfileContactActionMock.mockResolvedValue({ ok: true });
   updateThemePreferenceActionMock.mockResolvedValue({ ok: true });
   document.documentElement.className = '';
 });
@@ -53,9 +59,13 @@ function renderAccountClient(
       <ProfileAccountClient
         initialEmail="owner@mit.edu"
         initialEmailDeliverabilityStatus="ok"
+        initialEmergencyContactName=""
+        initialEmergencyContactPhone=""
         initialName="Old Name"
+        initialPhone=""
         initialThemePreference="LIGHT"
         initialUnconfirmedEmail={null}
+        locale={LOCALE}
         {...props}
       />
     </AppThemeProvider>
@@ -82,6 +92,37 @@ function requestConfirmationCodeWithFireEvent(email: string) {
   );
 }
 
+async function expectContactUpdateError(options: {
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  error: string;
+  message: string;
+}) {
+  const user = userEvent.setup();
+  updateProfileContactActionMock.mockResolvedValue({
+    ok: false,
+    error: options.error,
+  });
+  renderAccountClient();
+
+  await user.type(screen.getByLabelText('Phone'), '(617) 555-0100');
+  if (options.emergencyContactName) {
+    await user.type(
+      screen.getByLabelText('Emergency contact name'),
+      options.emergencyContactName
+    );
+  }
+  if (options.emergencyContactPhone) {
+    await user.type(
+      screen.getByLabelText('Emergency contact phone'),
+      options.emergencyContactPhone
+    );
+  }
+  await user.click(screen.getByRole('button', { name: 'Save contact' }));
+
+  expect(await screen.findByRole('alert')).toHaveTextContent(options.message);
+}
+
 describe('ProfileAccountClient', () => {
   it('profile owner sees non-blocking email deliverability notice', () => {
     renderAccountClient({ initialEmailDeliverabilityStatus: 'bounced' });
@@ -97,6 +138,19 @@ describe('ProfileAccountClient', () => {
     expect(
       screen.getByRole('button', { name: 'Send confirmation code' })
     ).toBeEnabled();
+  });
+
+  it('profile owner sees suppressed email deliverability notice', () => {
+    renderAccountClient({ initialEmailDeliverabilityStatus: 'suppressed' });
+
+    expect(
+      screen.getByText('Email to this address is suppressed.')
+    ).toBeVisible();
+    expect(
+      screen.getByText(
+        'You can keep using the site, but update your email to resume account notices.'
+      )
+    ).toBeVisible();
   });
 
   it('profile owner updates their display name', async () => {
@@ -155,6 +209,20 @@ describe('ProfileAccountClient', () => {
     );
   });
 
+  it('profile owner sees request failed when a name update throws', async () => {
+    const user = userEvent.setup();
+    authClientMock.updateUser.mockRejectedValue(new Error('network'));
+    renderAccountClient();
+
+    await user.clear(screen.getByLabelText('Name'));
+    await user.type(screen.getByLabelText('Name'), 'New Name');
+    await user.click(screen.getByRole('button', { name: 'Save name' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'We could not complete that request right now.'
+    );
+  });
+
   it('profile owner sees fallback message when a name update fails without provider message', async () => {
     const user = userEvent.setup();
     authClientMock.updateUser.mockResolvedValue({
@@ -168,6 +236,83 @@ describe('ProfileAccountClient', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Could not update your name.'
+    );
+  });
+
+  it('profile owner updates contact phones', async () => {
+    const user = userEvent.setup();
+    renderAccountClient({
+      initialEmergencyContactName: 'Jane Sailor',
+      initialEmergencyContactPhone: '+442079460958',
+      initialPhone: '+16175550100',
+    });
+
+    expect(screen.getByLabelText('Phone')).toHaveValue('(617) 555-0100');
+    expect(screen.getByLabelText('Emergency contact phone')).toHaveValue(
+      '+44 20 7946 0958'
+    );
+
+    await user.clear(screen.getByLabelText('Phone'));
+    await user.type(screen.getByLabelText('Phone'), '(617) 555-0111');
+    await user.click(screen.getByRole('button', { name: 'Save contact' }));
+
+    expect(updateProfileContactActionMock).toHaveBeenCalledWith('en', {
+      emergencyContactName: 'Jane Sailor',
+      emergencyContactPhone: '+44 20 7946 0958',
+      phone: '(617) 555-0111',
+    });
+    expect(await screen.findByText('Contact information saved.')).toBeVisible();
+  });
+
+  it('profile owner sees phone validation errors', async () => {
+    const user = userEvent.setup();
+    updateProfileContactActionMock.mockResolvedValue({
+      ok: false,
+      error: 'invalid_phone',
+    });
+    renderAccountClient();
+
+    await user.type(screen.getByLabelText('Phone'), '+44 20 7946 0958');
+    await user.click(screen.getByRole('button', { name: 'Save contact' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Enter a valid US phone number.'
+    );
+  });
+
+  it('profile owner sees emergency contact validation errors', async () => {
+    await expectContactUpdateError({
+      emergencyContactPhone: '555',
+      error: 'invalid_emergency_phone',
+      message: 'Enter a valid emergency phone number.',
+    });
+  });
+
+  it('profile owner sees incomplete emergency contact errors', async () => {
+    await expectContactUpdateError({
+      emergencyContactName: 'Jane',
+      error: 'incomplete_emergency_contact',
+      message: 'Enter both emergency contact name and phone.',
+    });
+  });
+
+  it('profile owner sees fallback when contact update is unauthorized', async () => {
+    await expectContactUpdateError({
+      error: 'unauthorized',
+      message: 'Could not update contact information.',
+    });
+  });
+
+  it('profile owner sees fallback when contact update throws', async () => {
+    const user = userEvent.setup();
+    updateProfileContactActionMock.mockRejectedValue(new Error('network'));
+    renderAccountClient();
+
+    await user.type(screen.getByLabelText('Phone'), '(617) 555-0100');
+    await user.click(screen.getByRole('button', { name: 'Save contact' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'We could not complete that request right now.'
     );
   });
 
@@ -235,6 +380,20 @@ describe('ProfileAccountClient', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'That email is already in the system.'
+    );
+  });
+
+  it('email-change persona sees request failed when change request throws', async () => {
+    const user = userEvent.setup();
+    authClientMock.emailOtp.requestEmailChange.mockRejectedValue(
+      new Error('network')
+    );
+    renderAccountClient();
+
+    await requestConfirmationCode(user, 'next@mit.edu');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'We could not complete that request right now.'
     );
   });
 

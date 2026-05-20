@@ -2,12 +2,14 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { adminFormReturnsToEdit } from '@/libs/admin/adminFormRedirect';
 import { ADMIN_INDEX_PATH } from '@/libs/admin/catalog/adminCatalogPaths';
 import {
   adminUsersDeletePath,
   adminUsersEditPath,
   adminUsersIndexPath,
   adminUsersNewPath,
+  adminUsersShowPath,
 } from '@/libs/admin/users/adminUserPaths';
 import { usersAdminHandlers } from '@/libs/admin/users/usersAdminHandlers';
 import { requirePermission } from '@/libs/auth/dal';
@@ -17,6 +19,12 @@ import { getI18nPath } from '@/utils/Helpers';
 function revalidateAfterUserMutation(locale: string): void {
   revalidatePath(getI18nPath(adminUsersIndexPath(), locale), 'layout');
   revalidatePath(getI18nPath(ADMIN_INDEX_PATH, locale));
+}
+
+function revalidateAfterUserUpdate(locale: string, userId: string): void {
+  revalidateAfterUserMutation(locale);
+  revalidatePath(getI18nPath(adminUsersEditPath(userId), locale));
+  revalidatePath(getI18nPath(adminUsersShowPath(userId), locale));
 }
 
 /**
@@ -59,8 +67,11 @@ export async function updateAdminUserAction(
       `${getI18nPath(adminUsersEditPath(userId), locale)}?error=${encodeURIComponent(result.code)}`
     );
   }
-  revalidateAfterUserMutation(locale);
-  redirect(getI18nPath(adminUsersIndexPath(), locale));
+  revalidateAfterUserUpdate(locale, userId);
+  const path = adminFormReturnsToEdit(formData)
+    ? adminUsersEditPath(userId)
+    : adminUsersShowPath(userId);
+  redirect(getI18nPath(path, locale));
 }
 
 /**

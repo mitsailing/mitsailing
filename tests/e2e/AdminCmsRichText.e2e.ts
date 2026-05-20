@@ -75,7 +75,7 @@ test.describe('Admin CMS rich text', () => {
     await expect(page.locator('input[name="body"]')).toHaveValue(
       /data-align="right"/u
     );
-    await submitCatalogSave(page);
+    await submitCatalogSave(page, { continueEditing: true });
     await expect(page).toHaveURL(
       /\/admin\/cms_page_blocks\/cms-block-about-intro\/edit\?page=cms-page-about$/u
     );

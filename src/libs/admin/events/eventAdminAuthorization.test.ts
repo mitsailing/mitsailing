@@ -160,6 +160,34 @@ describe('requireAdminEventAccess', () => {
     });
   });
 
+  it('allows unassigned volunteer instructors to read events', async () => {
+    mocks.requireAdmin.mockResolvedValue({
+      session: { impersonatedBy: null },
+      user: {
+        appRole: Role.VOLUNTEER_INSTRUCTOR,
+        id: 'staff-1',
+        role: Role.USER,
+      },
+    });
+    mocks.appAuthContextFromSession.mockReturnValue({
+      appRole: Role.VOLUNTEER_INSTRUCTOR,
+      id: 'staff-1',
+    });
+    mockEvent({ admins: [] });
+    const { requireAdminEventAccess } =
+      await import('@/libs/admin/events/eventAdminAuthorization');
+
+    const access = await requireAdminEventAccess({
+      locale: 'en',
+      minimumAccessMode: 'readOnly',
+      slug: 'intro-sail',
+    });
+
+    expect(access?.accessMode).toBe('readOnly');
+    expect(access?.event.id).toBe('event-1');
+    expect(mocks.redirect).not.toHaveBeenCalled();
+  });
+
   it('does not treat public event read access as edit access', async () => {
     mocks.requireAdmin.mockResolvedValue({
       session: { impersonatedBy: null },
@@ -227,6 +255,7 @@ describe('requireAdminEventAccess', () => {
       slug: 'intro-sail',
     });
 
+    expect(access?.accessMode).toBe('editable');
     expect(access?.event.id).toBe('event-1');
     expect(mocks.redirect).not.toHaveBeenCalled();
   });

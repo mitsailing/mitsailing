@@ -37,6 +37,9 @@ export default async function ProfileAccountPage(
       emailBouncedAt: true,
       emailSuppressedAt: true,
       emailSuppressionReason: true,
+      emergencyContactName: true,
+      emergencyContactPhone: true,
+      phone: true,
       themePreference: true,
       unconfirmedEmail: true,
     },
@@ -54,9 +57,13 @@ export default async function ProfileAccountPage(
     <ProfileAccountClient
       initialEmail={user.email ?? ''}
       initialEmailDeliverabilityStatus={emailDeliverabilityStatus(dbUser)}
+      initialEmergencyContactName={dbUser.emergencyContactName ?? ''}
+      initialEmergencyContactPhone={dbUser.emergencyContactPhone ?? ''}
       initialName={user.name}
+      initialPhone={dbUser.phone ?? ''}
       initialThemePreference={dbUser.themePreference ?? 'SYSTEM'}
       initialUnconfirmedEmail={dbUser.unconfirmedEmail ?? null}
+      locale={locale}
     />
   );
 }

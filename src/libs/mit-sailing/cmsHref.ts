@@ -181,3 +181,13 @@ export function externalCmsLinkProps(href: string): {
   }
   return {};
 }
+
+export function safeExternalHttpHref(
+  value: string | null | undefined
+): string | null {
+  const href = safeCmsHref(value);
+  if (!href) {
+    return null;
+  }
+  return externalCmsLinkProps(href).target === '_blank' ? href : null;
+}

@@ -5,10 +5,17 @@ import type { Page } from '@playwright/test';
  * finish before the test leaves the edit page.
  *
  * @param page - Current Playwright page
+ * @param options - Optional submit behavior
  */
-export async function submitCatalogSave(page: Page): Promise<void> {
+export async function submitCatalogSave(
+  page: Page,
+  options?: { continueEditing?: boolean }
+): Promise<void> {
   const { pathname } = new URL(page.url());
-  const save = page.getByRole('button', { name: 'Save' });
+  const save = page.getByRole('button', {
+    name: options?.continueEditing ? 'Save and continue editing' : 'Save',
+    exact: true,
+  });
   const saved = page.waitForResponse((response) => {
     const request = response.request();
     const { pathname: responsePathname } = new URL(response.url());

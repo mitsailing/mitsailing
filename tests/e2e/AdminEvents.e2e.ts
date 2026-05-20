@@ -7,7 +7,7 @@ test.describe('Admin events', () => {
   test('shows event admin list and editor sections', async ({ page }) => {
     await signInAsAdmin(page);
 
-    await page.goto('/admin/events');
+    await page.goto('/admin/events?scope=all');
 
     await expect(page.getByRole('heading', { name: 'Events' })).toBeVisible();
     await expect(
@@ -18,6 +18,11 @@ test.describe('Admin events', () => {
     await expect(page.getByRole('link', { name: 'New event' })).toBeVisible();
 
     await page.getByRole('link', { name: SEED_EVENT_NAME }).click();
+
+    await expect(page).toHaveURL(
+      /\/admin\/events\/bluewater-boston-provincetown$/
+    );
+    await page.getByRole('link', { name: 'Edit' }).click();
 
     await expect(page).toHaveURL(
       /\/admin\/events\/bluewater-boston-provincetown\/edit\/?$/
@@ -43,6 +48,9 @@ test.describe('Admin events', () => {
     await page.goto(
       '/admin/events/bluewater-boston-provincetown/registrations'
     );
+    await expect(page).toHaveURL(
+      /\/admin\/events\/bluewater-boston-provincetown#registrations$/
+    );
 
     await expect(
       page.getByRole('heading', {
@@ -50,11 +58,41 @@ test.describe('Admin events', () => {
       })
     ).toBeVisible();
     await expect(page.getByRole('link', { name: /Pending/ })).toBeVisible();
+    const roster = page.getByRole('table', { name: 'Registration roster' });
+    await expect(roster).toBeVisible();
     await expect(
-      page.getByRole('heading', { name: 'Registration answers' }).first()
+      roster.getByRole('columnheader', { name: 'Attendee' })
+    ).toBeVisible();
+    await expect(
+      roster.getByRole('columnheader', { name: 'Status' })
+    ).toBeVisible();
+    await expect(
+      roster.getByRole('columnheader', { name: 'Registered' })
+    ).toBeVisible();
+    await expect(
+      roster.getByRole('columnheader', { name: 'Swim agreement' })
+    ).toBeVisible();
+    await expect(
+      roster.getByRole('columnheader', {
+        name: 'Preferred watch role',
+      })
     ).toBeVisible();
     await expect(
       page.getByRole('heading', { name: 'Bulk email' })
     ).toBeVisible();
+
+    await page.setViewportSize({ width: 390, height: 844 });
+
+    const usernameRow = page.getByRole('row').filter({ hasText: 'Username' });
+    await expect(usernameRow.getByLabel('Actions for Username')).toBeVisible();
+    await expect(
+      page.getByRole('table', { name: 'Answers for Username' })
+    ).toHaveCount(0);
+
+    await usernameRow.getByLabel('Actions for Username').click();
+    await usernameRow.getByRole('menuitem', { name: 'Approve' }).click();
+    await expect(
+      page.getByRole('dialog', { name: 'Confirm approve for Username' })
+    ).toContainText('Approve Username and mark confirmed?');
   });
 });

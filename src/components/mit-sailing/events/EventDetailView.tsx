@@ -3,10 +3,12 @@ import { getTranslations } from 'next-intl/server';
 import type * as React from 'react';
 import { PublicAdminEditLink } from '@/components/mit-sailing/admin/PublicAdminEditLink';
 import { PublicCatalogDetailTopNav } from '@/components/mit-sailing/admin/PublicCatalogDetailTopNav';
+import { CmsRichText } from '@/components/mit-sailing/cms/CmsRichText';
 import { EVENTS_TIME_ZONE } from '@/lib/mit-sailing/nyTime';
 import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
 import { cn } from '@/lib/utils';
 import { Link } from '@/libs/I18nNavigation';
+import { safeExternalHttpHref } from '@/libs/mit-sailing/cmsHref';
 import { formatEasternEventRange } from '@/libs/mit-sailing/easternTimeFormat';
 import type {
   PublicEventDetail,
@@ -25,6 +27,10 @@ type EventDetailViewProps = {
   event: PublicEventDetail;
   isSignedIn: boolean;
 };
+
+type PublicContentSection = NonNullable<
+  PublicEventDetail['publicContentSections']
+>[number];
 
 function formatDateOnly(date: Date | null, locale: string): string {
   if (!date) {
@@ -89,6 +95,12 @@ function registrationHeading(
   if (state === 'full') {
     return t('registration_heading_full');
   }
+  if (state === 'external') {
+    return t('registration_heading_external');
+  }
+  if (state === 'unavailable') {
+    return t('registration_heading_unavailable');
+  }
   return t('registration_heading_available');
 }
 
@@ -109,6 +121,31 @@ function registrationMetaLabels(props: {
       tense: dateTense(props.event.registrationEnd, props.now),
     }),
   };
+}
+
+function visiblePublicContentSections(
+  sections: PublicEventDetail['publicContentSections']
+): PublicContentSection[] {
+  return (sections ?? []).filter((section) => section.body.trim().length > 0);
+}
+
+function eventDetailReservationState(props: {
+  currentRegistration: PublicEventRegistrationState | null;
+  event: PublicEventDetail;
+  externalRegistrationUrl: string | null;
+  now: Date;
+}): PublicEventReservationState {
+  if (
+    props.event.registrationMode === 'external' &&
+    !props.externalRegistrationUrl
+  ) {
+    return 'unavailable';
+  }
+  return publicEventReservationState({
+    currentRegistration: props.currentRegistration,
+    event: props.event,
+    now: props.now,
+  });
 }
 
 /**
@@ -143,16 +180,82 @@ export async function EventDetailView(props: EventDetailViewProps) {
     now,
     t,
   });
-  const reservationState = publicEventReservationState({
+  const externalRegistrationUrl = safeExternalHttpHref(
+    props.event.registrationMode === 'external'
+      ? props.event.externalRegistrationUrl
+      : null
+  );
+  const externalEntriesUrl = safeExternalHttpHref(
+    props.event.externalEntriesUrl
+  );
+  const reservationState = eventDetailReservationState({
     currentRegistration: props.currentRegistration,
     event: props.event,
+    externalRegistrationUrl,
     now,
   });
+  const publicContentSections = visiblePublicContentSections(
+    props.event.publicContentSections
+  );
   const registrationHeadingText = registrationHeading(
     reservationState,
     registrationOpens || t('date_to_be_announced'),
     t
   );
+  let registrationActionContent: React.ReactNode;
+  if (externalRegistrationUrl) {
+    registrationActionContent = (
+      <div className="flex flex-col items-start gap-3">
+        <a
+          className={cn(
+            'inline-flex min-h-10 items-center justify-center rounded-md bg-mit-red px-4 py-2 text-sm font-medium text-white no-underline hover:bg-mit-red-hover dark:hover:ring-1 dark:hover:ring-inset dark:hover:ring-white/30',
+            textFocusRingClassName
+          )}
+          href={externalRegistrationUrl}
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          {t('external_cta')}
+        </a>
+        {externalEntriesUrl ? (
+          <a
+            className={cn(
+              'text-sm font-semibold text-mit-red no-underline hover:underline dark:text-mit-red-ink',
+              textFocusRingClassName
+            )}
+            href={externalEntriesUrl}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            {t('external_entries_cta')}
+          </a>
+        ) : null}
+      </div>
+    );
+  } else if (reservationState === 'unavailable') {
+    registrationActionContent = (
+      <p className="text-sm leading-relaxed text-muted-foreground">
+        {t('registration_unavailable')}
+      </p>
+    );
+  } else {
+    registrationActionContent = (
+      <EventRegistrationCta
+        cancelRegistrationAction={cancelPublicEventRegistrationAction.bind(
+          null,
+          props.locale,
+          props.event.slug
+        )}
+        errorCode={props.errorCode}
+        event={props.event}
+        isSignedIn={props.isSignedIn}
+        locale={props.locale}
+        registrationOpens={registrationOpens || t('date_to_be_announced')}
+        reservationState={reservationState}
+        t={t}
+      />
+    );
+  }
 
   return (
     <article>
@@ -207,37 +310,7 @@ export async function EventDetailView(props: EventDetailViewProps) {
             <h2 className="mb-4 scroll-m-20 font-mit-serif text-xl font-semibold tracking-tight text-mit-text">
               {registrationHeadingText}
             </h2>
-            {props.event.detailPageKind === 'external' &&
-            props.event.externalDetailUrl ? (
-              <a
-                className={cn(
-                  'inline-flex min-h-10 items-center justify-center rounded-md bg-mit-red px-4 py-2 text-sm font-medium text-white no-underline hover:bg-mit-red-hover dark:hover:ring-1 dark:hover:ring-inset dark:hover:ring-white/30',
-                  textFocusRingClassName
-                )}
-                href={props.event.externalDetailUrl}
-                rel="noopener noreferrer"
-                target="_blank"
-              >
-                {t('external_cta')}
-              </a>
-            ) : (
-              <EventRegistrationCta
-                cancelRegistrationAction={cancelPublicEventRegistrationAction.bind(
-                  null,
-                  props.locale,
-                  props.event.slug
-                )}
-                errorCode={props.errorCode}
-                event={props.event}
-                isSignedIn={props.isSignedIn}
-                locale={props.locale}
-                registrationOpens={
-                  registrationOpens || t('date_to_be_announced')
-                }
-                reservationState={reservationState}
-                t={t}
-              />
-            )}
+            {registrationActionContent}
             <dl className="m-0 mt-5 flex flex-col gap-3 p-0">
               <MetaRow label={registrationMeta.opens}>
                 {registrationOpens || t('date_to_be_announced')}
@@ -351,6 +424,22 @@ export async function EventDetailView(props: EventDetailViewProps) {
               </ul>
             </section>
           ) : null}
+
+          {publicContentSections.map((section) => (
+            <section
+              aria-labelledby={`event-public-content-${section.id}-heading`}
+              className="mb-10"
+              key={section.id}
+            >
+              <SectionHeading id={`event-public-content-${section.id}-heading`}>
+                {t(section.titleKey)}
+              </SectionHeading>
+              <CmsRichText
+                className="text-base leading-relaxed text-mit-text"
+                sanitizedHtml={section.body}
+              />
+            </section>
+          ))}
         </div>
       </div>
     </article>

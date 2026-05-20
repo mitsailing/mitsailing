@@ -11,7 +11,7 @@ import { getPathname } from '@/libs/I18nNavigation';
 
 type PageProps = {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ q?: string; category?: string }>;
+  searchParams: Promise<{ q?: string; category?: string; scope?: string }>;
 };
 
 export async function generateMetadata(props: PageProps): Promise<Metadata> {
@@ -34,6 +34,7 @@ export default async function AdminEventsListPage(props: PageProps) {
       authContext: access.authContext,
       categoryId: searchParams.category,
       query: searchParams.q,
+      scope: searchParams.scope,
     }),
     getTranslations({ locale, namespace: 'AdminEvents' }),
   ]);
@@ -48,6 +49,7 @@ export default async function AdminEventsListPage(props: PageProps) {
       filters={{
         categoryId: searchParams.category,
         query: searchParams.q,
+        scope: searchParams.scope,
       }}
       rows={rows}
       t={t}
