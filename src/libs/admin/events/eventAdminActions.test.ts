@@ -25,10 +25,12 @@ const mocks = vi.hoisted(() => ({
   eventRegistrationCount: vi.fn(),
   eventRegistrationFindFirst: vi.fn(),
   eventRegistrationUpdateMany: vi.fn(),
+  eventRegistrationBoatMemberCount: vi.fn(),
   eventRegistrationQuestionAggregate: vi.fn(),
   eventRegistrationQuestionCreate: vi.fn(),
   eventRegistrationQuestionDeleteMany: vi.fn(),
   eventRegistrationQuestionUpdateMany: vi.fn(),
+  eventRegistrationTeamCount: vi.fn(),
   eventUpdate: vi.fn(),
   redirect: vi.fn((href: string) => {
     throw new Error(`NEXT_REDIRECT:${href}`);
@@ -64,6 +66,12 @@ type AdminEventTransactionClient = {
     count: typeof mocks.eventRegistrationCount;
     findFirst: typeof mocks.eventRegistrationFindFirst;
     updateMany: typeof mocks.eventRegistrationUpdateMany;
+  };
+  eventRegistrationBoatMember: {
+    count: typeof mocks.eventRegistrationBoatMemberCount;
+  };
+  eventRegistrationTeam: {
+    count: typeof mocks.eventRegistrationTeamCount;
   };
 };
 
@@ -132,6 +140,12 @@ vi.mock('@/libs/DB', () => ({
       count: mocks.eventRegistrationCount,
       findFirst: mocks.eventRegistrationFindFirst,
       updateMany: mocks.eventRegistrationUpdateMany,
+    },
+    eventRegistrationBoatMember: {
+      count: mocks.eventRegistrationBoatMemberCount,
+    },
+    eventRegistrationTeam: {
+      count: mocks.eventRegistrationTeamCount,
     },
     eventRegistrationQuestion: {
       aggregate: mocks.eventRegistrationQuestionAggregate,
@@ -260,6 +274,8 @@ beforeEach(() => {
     status: EventRegistrationStatus.pending,
   });
   mocks.eventRegistrationCount.mockResolvedValue(0);
+  mocks.eventRegistrationBoatMemberCount.mockResolvedValue(0);
+  mocks.eventRegistrationTeamCount.mockResolvedValue(0);
   mocks.eventRegistrationUpdateMany.mockResolvedValue({ count: 1 });
   mocks.userCount.mockResolvedValue(1);
   mocks.txQueryRaw.mockResolvedValue([{ id: 'event-1' }]);
@@ -284,6 +300,12 @@ beforeEach(() => {
       count: mocks.eventRegistrationCount,
       findFirst: mocks.eventRegistrationFindFirst,
       updateMany: mocks.eventRegistrationUpdateMany,
+    },
+    eventRegistrationBoatMember: {
+      count: mocks.eventRegistrationBoatMemberCount,
+    },
+    eventRegistrationTeam: {
+      count: mocks.eventRegistrationTeamCount,
     },
   };
   mocks.dbTransaction.mockImplementation(
@@ -552,6 +574,72 @@ describe('updateAdminEventBasicsAction', () => {
         }),
       })
     );
+  });
+
+  it('rejects team setting updates that invalidate existing boat members', async () => {
+    const formData = validEventFormData();
+    formData.set('usesTeamRegistration', 'true');
+    formData.set('boatsPerTeam', '1');
+    formData.set('personsPerBoat', '2');
+    mocks.eventRegistrationBoatMemberCount.mockResolvedValue(1);
+    const { updateAdminEventBasicsAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventBasicsAction('en', 'intro-sail', formData)
+    ).rejects.toThrow(
+      'NEXT_REDIRECT:/admin/events/intro-sail/edit?error=validation_failed'
+    );
+
+    expect(mocks.eventUpdate).not.toHaveBeenCalled();
+    expect(mocks.eventRegistrationBoatMemberCount).toHaveBeenCalledWith({
+      where: {
+        registration: { eventId: 'event-1' },
+        OR: [{ boatNumber: { gt: 1 } }, { position: { gte: 2 } }],
+      },
+    });
+  });
+
+  it('rejects disabling team registration with existing teams', async () => {
+    const formData = validEventFormData();
+    mocks.eventRegistrationTeamCount.mockResolvedValue(1);
+    const { updateAdminEventBasicsAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventBasicsAction('en', 'intro-sail', formData)
+    ).rejects.toThrow(
+      'NEXT_REDIRECT:/admin/events/intro-sail/edit?error=validation_failed'
+    );
+
+    expect(mocks.eventUpdate).not.toHaveBeenCalled();
+    expect(mocks.eventRegistrationTeamCount).toHaveBeenCalledWith({
+      where: { registration: { eventId: 'event-1' } },
+    });
+  });
+
+  it('rejects disallowing repeat captains with existing repeat teams', async () => {
+    const formData = validEventFormData();
+    formData.set('usesTeamRegistration', 'true');
+    formData.set('boatsPerTeam', '1');
+    formData.set('personsPerBoat', '2');
+    mocks.eventRegistrationTeamCount.mockResolvedValue(1);
+    const { updateAdminEventBasicsAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventBasicsAction('en', 'intro-sail', formData)
+    ).rejects.toThrow(
+      'NEXT_REDIRECT:/admin/events/intro-sail/edit?error=validation_failed'
+    );
+
+    expect(mocks.eventUpdate).not.toHaveBeenCalled();
+    expect(mocks.eventRegistrationTeamCount).toHaveBeenCalledWith({
+      where: {
+        allowRepeatCaptain: true,
+        registration: { eventId: 'event-1' },
+      },
+    });
   });
 
   it('persists public content section visibility and content', async () => {

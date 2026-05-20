@@ -57,11 +57,30 @@ type EventAdminMutationCode =
   | 'unknown';
 
 type EventAdminDbClient = typeof prisma | Prisma.TransactionClient;
+type EventAdminBasicsFormData = z.infer<typeof eventAdminBasicsFormSchema>;
 
 class EventDateValidationError extends Error {
   constructor() {
     super('Event must keep at least one date.');
   }
+}
+
+const EVENT_REGISTRATION_SETTINGS_CONFLICT_ERROR_NAME =
+  'EventRegistrationSettingsConflictError';
+
+function eventRegistrationSettingsConflictError(): Error {
+  const error = new Error(
+    'Event team registration settings conflict with existing registrations.'
+  );
+  error.name = EVENT_REGISTRATION_SETTINGS_CONFLICT_ERROR_NAME;
+  return error;
+}
+
+function isEventRegistrationSettingsConflictError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    error.name === EVENT_REGISTRATION_SETTINGS_CONFLICT_ERROR_NAME
+  );
 }
 
 function logAdminEventMutationFailure(options: {
@@ -83,6 +102,9 @@ function logAdminEventMutationFailure(options: {
 }
 
 function mutationCodeFromPrisma(error: unknown): EventAdminMutationCode {
+  if (isEventRegistrationSettingsConflictError(error)) {
+    return 'validation_failed';
+  }
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     if (error.code === 'P2002') {
       return prismaUniqueTargetIncludes(error, 'slug')
@@ -281,6 +303,53 @@ async function updateGeneratedEventSlug(options: {
   return newSlug;
 }
 
+async function assertEventRegistrationSettingsRemainValid(options: {
+  data: EventAdminBasicsFormData;
+  db: EventAdminDbClient;
+  eventId: string;
+}): Promise<void> {
+  if (!options.data.usesTeamRegistration) {
+    const teamCount = await options.db.eventRegistrationTeam.count({
+      where: { registration: { eventId: options.eventId } },
+    });
+    const boatMemberCount = await options.db.eventRegistrationBoatMember.count({
+      where: { registration: { eventId: options.eventId } },
+    });
+    if (teamCount > 0 || boatMemberCount > 0) {
+      throw eventRegistrationSettingsConflictError();
+    }
+    return;
+  }
+
+  const invalidBoatMemberCount =
+    await options.db.eventRegistrationBoatMember.count({
+      where: {
+        registration: { eventId: options.eventId },
+        OR: [
+          { boatNumber: { gt: options.data.boatsPerTeam } },
+          { position: { gte: options.data.personsPerBoat } },
+        ],
+      },
+    });
+  if (invalidBoatMemberCount > 0) {
+    throw eventRegistrationSettingsConflictError();
+  }
+
+  if (!options.data.allowRepeatTeamCaptain) {
+    const repeatCaptainTeamCount = await options.db.eventRegistrationTeam.count(
+      {
+        where: {
+          allowRepeatCaptain: true,
+          registration: { eventId: options.eventId },
+        },
+      }
+    );
+    if (repeatCaptainTeamCount > 0) {
+      throw eventRegistrationSettingsConflictError();
+    }
+  }
+}
+
 export async function createAdminEventAction(
   locale: string,
   formData: FormData
@@ -389,39 +458,46 @@ export async function updateAdminEventBasicsAction(
     name: data.name,
   });
   try {
-    await prisma.event.update({
-      where: { id: access.event.id },
-      data: {
-        name: data.name,
-        shortName: data.shortName,
-        slug,
-        eventCategoryId: data.eventCategoryId,
-        description: data.description,
-        isSpecial: data.isSpecial,
-        requiresApproval: data.requiresApproval,
-        requiresPhone: data.requiresPhone,
-        usesTeamRegistration: data.usesTeamRegistration,
-        boatsPerTeam: data.boatsPerTeam,
-        personsPerBoat: data.personsPerBoat,
-        allowRepeatTeamCaptain: data.allowRepeatTeamCaptain,
-        maxParticipants: data.maxParticipants,
-        registrationStart: data.registrationStart,
-        registrationEnd: data.registrationEnd,
-        detailPageKind: data.detailPageKind,
-        externalDetailUrl: data.externalDetailUrl || null,
-        registrationMode: data.registrationMode,
-        externalRegistrationUrl: data.externalRegistrationUrl || null,
-        externalEntriesUrl: data.externalEntriesUrl || null,
-        faqVisible: data.faqVisible,
-        faqContent: data.faqContent,
-        noticeOfRaceVisible: data.noticeOfRaceVisible,
-        noticeOfRaceContent: data.noticeOfRaceContent,
-        sailingInstructionsVisible: data.sailingInstructionsVisible,
-        sailingInstructionsContent: data.sailingInstructionsContent,
-        resultsVisible: data.resultsVisible,
-        resultsContent: data.resultsContent,
-        isPublished: data.isPublished,
-      },
+    await prisma.$transaction(async (tx) => {
+      await assertEventRegistrationSettingsRemainValid({
+        data,
+        db: tx,
+        eventId: access.event.id,
+      });
+      await tx.event.update({
+        where: { id: access.event.id },
+        data: {
+          name: data.name,
+          shortName: data.shortName,
+          slug,
+          eventCategoryId: data.eventCategoryId,
+          description: data.description,
+          isSpecial: data.isSpecial,
+          requiresApproval: data.requiresApproval,
+          requiresPhone: data.requiresPhone,
+          usesTeamRegistration: data.usesTeamRegistration,
+          boatsPerTeam: data.boatsPerTeam,
+          personsPerBoat: data.personsPerBoat,
+          allowRepeatTeamCaptain: data.allowRepeatTeamCaptain,
+          maxParticipants: data.maxParticipants,
+          registrationStart: data.registrationStart,
+          registrationEnd: data.registrationEnd,
+          detailPageKind: data.detailPageKind,
+          externalDetailUrl: data.externalDetailUrl || null,
+          registrationMode: data.registrationMode,
+          externalRegistrationUrl: data.externalRegistrationUrl || null,
+          externalEntriesUrl: data.externalEntriesUrl || null,
+          faqVisible: data.faqVisible,
+          faqContent: data.faqContent,
+          noticeOfRaceVisible: data.noticeOfRaceVisible,
+          noticeOfRaceContent: data.noticeOfRaceContent,
+          sailingInstructionsVisible: data.sailingInstructionsVisible,
+          sailingInstructionsContent: data.sailingInstructionsContent,
+          resultsVisible: data.resultsVisible,
+          resultsContent: data.resultsContent,
+          isPublished: data.isPublished,
+        },
+      });
     });
   } catch (error) {
     logAdminEventMutationFailure({

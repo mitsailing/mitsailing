@@ -60,7 +60,7 @@ export function RegistrationBooleanSwitch(
           setChecked(event.currentTarget.checked);
         }}
         ref={inputRef}
-        required={props.required}
+        required={isRequired ? true : undefined}
         tabIndex={-1}
         type="checkbox"
         value="true"

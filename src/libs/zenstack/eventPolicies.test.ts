@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { ZenStackClient } from '@zenstackhq/orm';
 import type { ClientContract } from '@zenstackhq/orm';
 import { PostgresDialect } from '@zenstackhq/orm/dialects/postgres';
@@ -8,6 +9,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { AuthContext } from '../../../zenstack/models';
 import type { SchemaType } from '../../../zenstack/schema';
 import { schema } from '../../../zenstack/schema';
+
+const zenstackSchemaText = readFileSync('zenstack/schema.zmodel', 'utf8');
 
 const shouldRunPolicyDatabaseTest =
   process.env.RUN_DATABASE_TESTS === '1' &&
@@ -344,6 +347,23 @@ async function resetComment(pool: Pool) {
     [ids.comment, ids.assignedEvent, ids.owner]
   );
 }
+
+describe('event policy schema rules', () => {
+  it('blocks internal registrations for unavailable registration modes', () => {
+    expect(zenstackSchemaText).toContain(
+      "@@deny('create', event.registrationMode != 'standard')"
+    );
+  });
+
+  it('requires phone when the related event requires it', () => {
+    expect(zenstackSchemaText).toContain(
+      [
+        "@@deny('create,update', event.requiresPhone && ",
+        "(phone == null || phone == ''))",
+      ].join('')
+    );
+  });
+});
 
 describe.skipIf(!shouldRunPolicyDatabaseTest)('event policies', () => {
   let pool: Pool;

@@ -329,13 +329,19 @@ function compareRegistrations(
 }
 
 function publicContentSectionsFromDescription(
-  description: string
+  rawDescription: string
 ): AdminEventPublicContentSectionDto[] {
-  const body = sanitizeCmsRichTextHtml(description);
-  if (!body) {
+  const sanitizedBody = sanitizeCmsRichTextHtml(rawDescription);
+  if (!sanitizedBody) {
     return [];
   }
-  return [{ body, id: 'description', titleKey: 'content_description_title' }];
+  return [
+    {
+      body: sanitizedBody,
+      id: 'description',
+      titleKey: 'content_description_title',
+    },
+  ];
 }
 
 function boatPositionLabel(

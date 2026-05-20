@@ -945,6 +945,9 @@ function EventCategoryCatalogForm(props: AdminCatalogFormProps) {
         </div>
 
         <div className="flex flex-wrap gap-3 pt-2">
+          <SubmitButton pendingLabel={tCommon('pending_saving')} variant="mit">
+            {tCatalog('action_save')}
+          </SubmitButton>
           {props.headingKey === 'edit_heading' ? (
             <SubmitButton
               name={ADMIN_FORM_REDIRECT_TO_FIELD}
@@ -955,9 +958,6 @@ function EventCategoryCatalogForm(props: AdminCatalogFormProps) {
               {tCatalog('action_save_and_continue_editing')}
             </SubmitButton>
           ) : null}
-          <SubmitButton pendingLabel={tCommon('pending_saving')} variant="mit">
-            {tCatalog('action_save')}
-          </SubmitButton>
         </div>
       </form>
     </div>
@@ -2328,6 +2328,11 @@ function GenericAdminCatalogForm(props: AdminCatalogFormProps) {
       {renderCatalogFormFields()}
 
       <div className="flex flex-wrap gap-3 pt-2">
+        <SubmitButton pendingLabel={tCommon('pending_saving')} variant="mit">
+          {ns === 'AdminUsers'
+            ? tUsers('action_save')
+            : tCatalog('action_save')}
+        </SubmitButton>
         {props.headingKey === 'edit_heading' ? (
           <SubmitButton
             name={ADMIN_FORM_REDIRECT_TO_FIELD}
@@ -2340,11 +2345,6 @@ function GenericAdminCatalogForm(props: AdminCatalogFormProps) {
               : tCatalog('action_save_and_continue_editing')}
           </SubmitButton>
         ) : null}
-        <SubmitButton pendingLabel={tCommon('pending_saving')} variant="mit">
-          {ns === 'AdminUsers'
-            ? tUsers('action_save')
-            : tCatalog('action_save')}
-        </SubmitButton>
       </div>
     </form>
   );

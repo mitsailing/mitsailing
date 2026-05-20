@@ -233,6 +233,19 @@ describe('updateCatalogResourceAction', () => {
     expect(requirePermission).toHaveBeenCalledWith(Permission.CMS_EDIT, 'en');
   });
 
+  it('preserves page scope when returning to a CMS page block index', async () => {
+    const { updateCatalogResourceAction } =
+      await import('@/libs/admin/catalog/catalogActions');
+    const formData = new FormData();
+    formData.set('pageId', 'page-2');
+
+    await expect(
+      updateCatalogResourceAction('en', 'cms_page_blocks', 'block-1', formData)
+    ).rejects.toThrow('NEXT_REDIRECT');
+
+    expect(redirect).toHaveBeenCalledWith('/admin/cms_page_blocks?page=page-2');
+  });
+
   it('redirects update failures with bounded field errors', async () => {
     const { updateCatalogResourceAction } =
       await import('@/libs/admin/catalog/catalogActions');

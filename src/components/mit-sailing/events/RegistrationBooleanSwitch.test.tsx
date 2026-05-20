@@ -4,11 +4,12 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { RegistrationBooleanSwitch } from '@/components/mit-sailing/events/RegistrationBooleanSwitch';
 
-function renderSwitch(props?: { required?: boolean }) {
+function renderSwitch(props?: { ariaRequired?: boolean; required?: boolean }) {
   render(
     <form data-testid="switch-form">
       <Field>
         <RegistrationBooleanSwitch
+          aria-required={props?.ariaRequired}
           aria-labelledby="agreement-label"
           id="agreement"
           name="swimAgreementAccepted"
@@ -75,5 +76,17 @@ describe('RegistrationBooleanSwitch', () => {
       'aria-labelledby',
       'agreement-label'
     );
+  });
+
+  it('uses aria-required for native required semantics', () => {
+    renderSwitch({ ariaRequired: true });
+
+    const backingCheckbox = document.querySelector(
+      'input[name="swimAgreementAccepted"]'
+    );
+
+    expect(backingCheckbox).toBeInstanceOf(HTMLInputElement);
+    expect(backingCheckbox).toHaveAttribute('required');
+    expect(backingCheckbox).toHaveAttribute('aria-required', 'true');
   });
 });

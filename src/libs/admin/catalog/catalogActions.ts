@@ -314,7 +314,15 @@ export async function updateCatalogResourceAction(
     slugFromCatalogFormData(formData)
   );
   if (!adminFormReturnsToEdit(formData)) {
-    redirect(getI18nPath(adminCatalogResourceIndexPath(resourceId), locale));
+    redirect(
+      catalogRedirectPath({
+        basePath: getI18nPath(
+          adminCatalogResourceIndexPath(resourceId),
+          locale
+        ),
+        scope,
+      })
+    );
   }
   redirect(
     catalogRedirectPath({

@@ -700,6 +700,8 @@ model EventRegistration {
   @@index([eventId])
   @@index([eventEntryFeeId])
   @@index([userId])
+  @@deny('create', event.registrationMode != 'standard')
+  @@deny('create,update', event.requiresPhone && (phone == null || phone == ''))
   @@deny('create,update', eventEntryFee != null && eventEntryFee.eventId != eventId)
   @@allow('read', auth() != null && userId == auth().id)
   @@allow('create', auth() != null && userId == auth().id && check(event, 'read'))

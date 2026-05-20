@@ -64,6 +64,9 @@ describe('AdminCatalogForm', () => {
       />
     );
 
+    expect(
+      screen.getAllByRole('button').map((button) => button.textContent)
+    ).toEqual(['Save', 'Save and continue editing']);
     await user.click(
       screen.getByRole('button', { name: 'Save and continue editing' })
     );
@@ -77,6 +80,31 @@ describe('AdminCatalogForm', () => {
       throw new Error('Expected form data');
     }
     expect(formData.get('redirectTo')).toBe('edit');
+  });
+
+  it('keeps generic edit form primary save as the implicit submit action', () => {
+    render(
+      <AdminCatalogForm
+        definition={catalogResourceDefinitions.donation_funds}
+        formAction={async () => {
+          await Promise.resolve();
+        }}
+        headingKey="edit_heading"
+        row={{
+          description: 'Supports junior sailing.',
+          displayOrder: 1,
+          fundId: 'SAIL',
+          id: 'fund-1',
+          isVisible: true,
+          name: 'Sailing Fund',
+          url: 'https://example.com/donate',
+        }}
+      />
+    );
+
+    expect(
+      screen.getAllByRole('button').map((button) => button.textContent)
+    ).toEqual(['Save', 'Save and continue editing']);
   });
 
   it('blocks invalid event category submissions before the action', async () => {
