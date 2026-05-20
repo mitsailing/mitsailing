@@ -71,7 +71,7 @@ describe('legacyRedirectFormSchema', () => {
 
 describe('rawLegacyRedirectFromFormData', () => {
   it('defaults missing source values to manual', () => {
-    const formData = new FormData();
+    const formData = new globalThis.FormData();
     formData.set('sourcePath', 'calendar.php');
     formData.set('targetPath', '/calendar');
 

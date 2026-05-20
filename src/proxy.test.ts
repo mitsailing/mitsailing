@@ -20,7 +20,7 @@ vi.mock('next-intl/middleware', () => ({
 }));
 
 vi.mock('next/headers', () => ({
-  headers: vi.fn(() => new Headers()),
+  headers: vi.fn(() => new globalThis.Headers()),
 }));
 
 const getSession = vi.fn();
@@ -60,7 +60,7 @@ describe('proxy', () => {
       vi.stubEnv('ARCJET_KEY', '');
       const { default: proxy } = await import('@/proxy');
       const request = new NextRequest(
-        new URL('http://localhost:3008/en/about')
+        new globalThis.URL('http://localhost:3008/en/about')
       );
       const response = await proxy(request);
       expect(response.status).toBe(200);
@@ -73,7 +73,7 @@ describe('proxy', () => {
       mockProtect.mockResolvedValue({ isDenied: () => false });
       const { default: proxy } = await import('@/proxy');
       const request = new NextRequest(
-        new URL('http://localhost:3008/en/fleet')
+        new globalThis.URL('http://localhost:3008/en/fleet')
       );
       const response = await proxy(request);
       expect(response.status).toBe(200);
@@ -86,7 +86,7 @@ describe('proxy', () => {
       mockProtect.mockResolvedValue({ isDenied: () => true });
       const { default: proxy } = await import('@/proxy');
       const request = new NextRequest(
-        new URL('http://localhost:3008/en/about')
+        new globalThis.URL('http://localhost:3008/en/about')
       );
       const response = await proxy(request);
       expect(response.status).toBe(403);
@@ -102,7 +102,7 @@ describe('proxy', () => {
       getSession.mockResolvedValue({ user: { id: 'u1' } });
       const { default: proxy } = await import('@/proxy');
       const request = new NextRequest(
-        new URL('http://localhost:3008/en/account?tab=security')
+        new globalThis.URL('http://localhost:3008/en/account?tab=security')
       );
       const response = await proxy(request);
 
@@ -115,7 +115,9 @@ describe('proxy', () => {
       vi.stubEnv('ARCJET_KEY', 'some-non-empty-key');
       getSession.mockResolvedValue(null);
       const { default: proxy } = await import('@/proxy');
-      const target = new URL('http://localhost:3008/en/account?tab=security');
+      const target = new globalThis.URL(
+        'http://localhost:3008/en/account?tab=security'
+      );
       const request = new NextRequest(target);
       const response = await proxy(request);
 
@@ -124,7 +126,7 @@ describe('proxy', () => {
       if (!location) {
         throw new Error('Expected redirect location');
       }
-      const redirectUrl = new URL(location, request.url);
+      const redirectUrl = new globalThis.URL(location, request.url);
       expect(redirectUrl.pathname).toBe('/login');
       expect(redirectUrl.searchParams.get('callbackUrl')).toBe(
         `${target.pathname}${target.search}`
@@ -137,7 +139,9 @@ describe('proxy', () => {
       vi.stubEnv('ARCJET_KEY', '');
       getSession.mockResolvedValue(null);
       const { default: proxy } = await import('@/proxy');
-      const target = new URL('http://localhost:3008/en/account?tab=security');
+      const target = new globalThis.URL(
+        'http://localhost:3008/en/account?tab=security'
+      );
       const expectedCallback = `${target.pathname}${target.search}`;
       const request = new NextRequest(target);
       const response = await proxy(request);
@@ -146,7 +150,7 @@ describe('proxy', () => {
       if (!location) {
         throw new Error('Expected redirect location');
       }
-      const redirectUrl = new URL(location, request.url);
+      const redirectUrl = new globalThis.URL(location, request.url);
       expect(redirectUrl.pathname).toBe('/login');
       expect(redirectUrl.searchParams.get('callbackUrl')).toBe(
         expectedCallback
@@ -159,7 +163,7 @@ describe('proxy', () => {
       getSession.mockResolvedValue({ user: { id: 'u1' } });
       const { default: proxy } = await import('@/proxy');
       const request = new NextRequest(
-        new URL('http://localhost:3008/en/profile')
+        new globalThis.URL('http://localhost:3008/en/profile')
       );
       const response = await proxy(request);
       expect(response.status).toBe(200);
@@ -173,14 +177,14 @@ describe('proxy', () => {
       resolveLegacyRedirect.mockResolvedValue('/calendar');
       const { default: proxy } = await import('@/proxy');
       const request = new NextRequest(
-        new URL('http://localhost:3008/calendar.php?month=may')
+        new globalThis.URL('http://localhost:3008/calendar.php?month=may')
       );
 
       const response = await proxy(request);
 
       expect(response.status).toBe(308);
       expect(response.headers.get('location')).toBe(
-        new URL('/calendar', request.url).toString()
+        new globalThis.URL('/calendar', request.url).toString()
       );
       expect(resolveLegacyRedirect).toHaveBeenCalledWith({
         locale: 'en',
@@ -193,7 +197,7 @@ describe('proxy', () => {
       resolveLegacyRedirect.mockResolvedValue(null);
       const { default: proxy } = await import('@/proxy');
       const request = new NextRequest(
-        new URL('http://localhost:3008/missing.php')
+        new globalThis.URL('http://localhost:3008/missing.php')
       );
 
       const response = await proxy(request);
