@@ -59,6 +59,45 @@ async function expectContactUpdateResult(options: {
   ).resolves.toEqual(options.result);
 }
 
+const contactUpdateRejectionCases = [
+  {
+    emergencyContactName: '',
+    emergencyContactPhone: '',
+    error: 'invalid_phone',
+    phone: '+44 20 7946 0958',
+    title: 'rejects non-US primary phone',
+  },
+  {
+    authenticated: false,
+    emergencyContactName: '',
+    emergencyContactPhone: '',
+    error: 'unauthorized',
+    phone: '(617) 555-0100',
+    title: 'rejects unauthenticated contact updates',
+  },
+  {
+    emergencyContactName: 'Jane Sailor',
+    emergencyContactPhone: '',
+    error: 'incomplete_emergency_contact',
+    phone: '(617) 555-0100',
+    title: 'requires emergency contact name and phone together',
+  },
+  {
+    emergencyContactName: '',
+    emergencyContactPhone: '+44 20 7946 0958',
+    error: 'incomplete_emergency_contact',
+    phone: '(617) 555-0100',
+    title: 'requires emergency contact phone and name together',
+  },
+  {
+    emergencyContactName: 'Jane Sailor',
+    emergencyContactPhone: '555',
+    error: 'invalid_emergency_phone',
+    phone: '(617) 555-0100',
+    title: 'rejects invalid emergency contact phones',
+  },
+] as const;
+
 describe('updateProfileContactAction', () => {
   it('stores normalized US primary phone and international emergency phone', async () => {
     const { updateProfileContactAction } =
@@ -82,57 +121,15 @@ describe('updateProfileContactAction', () => {
     });
   });
 
-  it('rejects non-US primary phone', async () => {
+  it.each(contactUpdateRejectionCases)('$title', async (testCase) => {
+    if ('authenticated' in testCase) {
+      getSession.mockResolvedValue(null);
+    }
     await expectContactUpdateResult({
-      emergencyContactName: '',
-      emergencyContactPhone: '',
-      phone: '+44 20 7946 0958',
-      result: { ok: false, error: 'invalid_phone' },
-    });
-
-    expect(userUpdate).not.toHaveBeenCalled();
-  });
-
-  it('rejects unauthenticated contact updates', async () => {
-    getSession.mockResolvedValue(null);
-    await expectContactUpdateResult({
-      emergencyContactName: '',
-      emergencyContactPhone: '',
-      phone: '(617) 555-0100',
-      result: { ok: false, error: 'unauthorized' },
-    });
-
-    expect(userUpdate).not.toHaveBeenCalled();
-  });
-
-  it('requires emergency contact name and phone together', async () => {
-    await expectContactUpdateResult({
-      emergencyContactName: 'Jane Sailor',
-      emergencyContactPhone: '',
-      phone: '(617) 555-0100',
-      result: { ok: false, error: 'incomplete_emergency_contact' },
-    });
-
-    expect(userUpdate).not.toHaveBeenCalled();
-  });
-
-  it('requires emergency contact phone and name together', async () => {
-    await expectContactUpdateResult({
-      emergencyContactName: '',
-      emergencyContactPhone: '+44 20 7946 0958',
-      phone: '(617) 555-0100',
-      result: { ok: false, error: 'incomplete_emergency_contact' },
-    });
-
-    expect(userUpdate).not.toHaveBeenCalled();
-  });
-
-  it('rejects invalid emergency contact phones', async () => {
-    await expectContactUpdateResult({
-      emergencyContactName: 'Jane Sailor',
-      emergencyContactPhone: '555',
-      phone: '(617) 555-0100',
-      result: { ok: false, error: 'invalid_emergency_phone' },
+      emergencyContactName: testCase.emergencyContactName,
+      emergencyContactPhone: testCase.emergencyContactPhone,
+      phone: testCase.phone,
+      result: { ok: false, error: testCase.error },
     });
 
     expect(userUpdate).not.toHaveBeenCalled();
