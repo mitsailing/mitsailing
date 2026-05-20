@@ -20,6 +20,7 @@ import { safeErrorCode, safeErrorName } from '@/libs/safeUnknownError';
 import { zenstackForAuthContext } from '@/libs/zenstack/auth';
 import { appAuthContextFromSession } from '@/libs/zenstack/authContext';
 import { getI18nPath } from '@/utils/Helpers';
+import { normalizeUsPhone } from '@/utils/phoneValidation';
 
 class EventRegistrationFlowError extends Error {
   readonly code: EventRegistrationMutationCode;
@@ -281,8 +282,8 @@ function publicEventRegistrationPhoneFromForm(
   if (typeof value !== 'string') {
     return null;
   }
-  const phone = value.trim();
-  return phone.length > 0 ? phone : null;
+  const phone = normalizeUsPhone(value);
+  return phone.ok ? phone.phone : null;
 }
 
 function logPublicEventRegistrationFailure(options: {
@@ -301,6 +302,24 @@ function logPublicEventRegistrationFailure(options: {
       .filter((part): part is string => typeof part === 'string')
       .join(' ')
   );
+}
+
+async function syncPublicRegistrationPhoneToProfile(options: {
+  phone: string;
+  tx: Prisma.TransactionClient;
+  userId: string;
+}) {
+  const profileContact = await options.tx.user.findUnique({
+    select: { phone: true },
+    where: { id: options.userId },
+  });
+  if (profileContact?.phone === options.phone) {
+    return;
+  }
+  await options.tx.user.update({
+    data: { phone: options.phone },
+    where: { id: options.userId },
+  });
 }
 
 function eventDetailErrorUrl(
@@ -448,7 +467,7 @@ export async function createPublicEventRegistrationAction(
     event.usesTeamRegistration ? event.personsPerBoat : 0
   );
   const phone = publicEventRegistrationPhoneFromForm(formData);
-  if (event.requiresPhone && phone === null) {
+  if (phone === null) {
     return publicEventRegistrationFormErrorState({
       code: 'questions_required',
       fieldErrors: { [phoneFieldName]: 'questions_required' },
@@ -550,7 +569,7 @@ export async function createPublicEventRegistrationAction(
         ) {
           throw new EventRegistrationFlowError('closed');
         }
-        if (lockedEvent.requiresPhone && phone === null) {
+        if (phone === null) {
           throw new EventRegistrationFlowError('questions_required');
         }
         let lockedTeam: PublicEventRegistrationTeamInput | null = null;
@@ -627,6 +646,11 @@ export async function createPublicEventRegistrationAction(
             },
           });
         }
+        await syncPublicRegistrationPhoneToProfile({
+          phone,
+          tx,
+          userId: access.userId,
+        });
 
         const answers = parsedAnswers.answers.map((answer) => ({
           id: randomUUID(),

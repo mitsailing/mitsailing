@@ -11,6 +11,7 @@ import type { PublicEventDetail } from '@/libs/mit-sailing/eventQueries';
 import type { PublicEventRegistrationFormState } from '@/libs/mit-sailing/eventRegistrationActions';
 import type { EventRegistrationMutationCode } from '@/libs/mit-sailing/eventRegistrationErrors';
 import { formatUsdMinorUnitsAsCurrency } from '@/libs/money/stripeUsdMinorUnits';
+import { formatPhoneForDisplay } from '@/utils/phoneValidation';
 
 export type EventRegistrationFormLabels = {
   autoApprovalNote: string;
@@ -48,6 +49,7 @@ type EventRegistrationFormProps = {
   createRegistrationAction: EventRegistrationCreateFormAction;
   event: PublicEventDetail;
   formPermalink: string;
+  initialPhone?: string | null;
   labels: EventRegistrationFormLabels;
   locale: string;
 };
@@ -322,6 +324,7 @@ function SwimAgreementField(props: {
 }
 
 function PhoneField(props: {
+  initialPhone: string | null;
   labels: EventRegistrationFormLabels;
   state: PublicEventRegistrationFormState;
 }) {
@@ -334,6 +337,7 @@ function PhoneField(props: {
     state: props.state,
   });
   const describedBy = errorMessage ? `${helpId} ${errorId}` : helpId;
+  const valueFromState = fieldValue(props.state, 'phone');
 
   return (
     <div className="flex min-w-0 scroll-mt-28 flex-col gap-2 text-sm text-mit-text">
@@ -348,8 +352,11 @@ function PhoneField(props: {
         aria-describedby={describedBy}
         aria-invalid={errorMessage ? true : undefined}
         autoComplete="tel"
-        defaultValue={fieldValue(props.state, 'phone')}
+        defaultValue={
+          valueFromState || formatPhoneForDisplay(props.initialPhone ?? null)
+        }
         id={controlId}
+        inputMode="tel"
         name="phone"
         required
         type="tel"
@@ -771,9 +778,11 @@ export function EventRegistrationForm(props: EventRegistrationFormProps) {
           {formError}
         </p>
       ) : null}
-      {props.event.requiresPhone ? (
-        <PhoneField labels={props.labels} state={state} />
-      ) : null}
+      <PhoneField
+        initialPhone={props.initialPhone ?? null}
+        labels={props.labels}
+        state={state}
+      />
       <TeamRegistrationFields
         event={props.event}
         labels={props.labels}

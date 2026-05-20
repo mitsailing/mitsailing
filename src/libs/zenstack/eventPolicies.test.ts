@@ -355,12 +355,9 @@ describe('event policy schema rules', () => {
     );
   });
 
-  it('requires phone when the related event requires it', () => {
+  it('requires phone for registrations', () => {
     expect(zenstackSchemaText).toContain(
-      [
-        "@@deny('create,update', event.requiresPhone && ",
-        "(phone == null || phone == ''))",
-      ].join('')
+      "@@deny('create,update', phone == '')"
     );
   });
 });

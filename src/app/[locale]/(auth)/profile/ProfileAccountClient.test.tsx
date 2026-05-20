@@ -23,6 +23,7 @@ const authClientMock = vi.hoisted(() => ({
 }));
 
 const updateThemePreferenceActionMock = vi.hoisted(() => vi.fn());
+const updateProfileContactActionMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/libs/auth-client', () => ({
   authClient: authClientMock,
@@ -32,11 +33,16 @@ vi.mock('@/libs/auth/themePreferenceActions', () => ({
   updateThemePreferenceAction: updateThemePreferenceActionMock,
 }));
 
+vi.mock('@/libs/auth/profileContactActions', () => ({
+  updateProfileContactAction: updateProfileContactActionMock,
+}));
+
 beforeEach(() => {
   vi.clearAllMocks();
   authClientMock.emailOtp.changeEmail.mockResolvedValue({});
   authClientMock.emailOtp.requestEmailChange.mockResolvedValue({});
   authClientMock.updateUser.mockResolvedValue({});
+  updateProfileContactActionMock.mockResolvedValue({ ok: true });
   updateThemePreferenceActionMock.mockResolvedValue({ ok: true });
   document.documentElement.className = '';
 });
@@ -53,9 +59,13 @@ function renderAccountClient(
       <ProfileAccountClient
         initialEmail="owner@mit.edu"
         initialEmailDeliverabilityStatus="ok"
+        initialEmergencyContactName=""
+        initialEmergencyContactPhone=""
         initialName="Old Name"
+        initialPhone=""
         initialThemePreference="LIGHT"
         initialUnconfirmedEmail={null}
+        locale={LOCALE}
         {...props}
       />
     </AppThemeProvider>
@@ -168,6 +178,47 @@ describe('ProfileAccountClient', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Could not update your name.'
+    );
+  });
+
+  it('profile owner updates contact phones', async () => {
+    const user = userEvent.setup();
+    renderAccountClient({
+      initialEmergencyContactName: 'Jane Sailor',
+      initialEmergencyContactPhone: '+442079460958',
+      initialPhone: '+16175550100',
+    });
+
+    expect(screen.getByLabelText('Phone')).toHaveValue('(617) 555-0100');
+    expect(screen.getByLabelText('Emergency contact phone')).toHaveValue(
+      '+44 20 7946 0958'
+    );
+
+    await user.clear(screen.getByLabelText('Phone'));
+    await user.type(screen.getByLabelText('Phone'), '(617) 555-0111');
+    await user.click(screen.getByRole('button', { name: 'Save contact' }));
+
+    expect(updateProfileContactActionMock).toHaveBeenCalledWith('en', {
+      emergencyContactName: 'Jane Sailor',
+      emergencyContactPhone: '+44 20 7946 0958',
+      phone: '(617) 555-0111',
+    });
+    expect(await screen.findByText('Contact information saved.')).toBeVisible();
+  });
+
+  it('profile owner sees phone validation errors', async () => {
+    const user = userEvent.setup();
+    updateProfileContactActionMock.mockResolvedValue({
+      ok: false,
+      error: 'invalid_phone',
+    });
+    renderAccountClient();
+
+    await user.type(screen.getByLabelText('Phone'), '+44 20 7946 0958');
+    await user.click(screen.getByRole('button', { name: 'Save contact' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Enter a valid US phone number.'
     );
   });
 

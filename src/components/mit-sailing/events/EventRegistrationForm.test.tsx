@@ -142,7 +142,7 @@ describe('EventRegistrationForm', () => {
     expect(phoneInput).toHaveAttribute('aria-invalid', 'true');
   });
 
-  it('omits phone input when phone is not required', () => {
+  it('renders phone input for every registration', () => {
     const action = vi.fn();
 
     render(
@@ -155,7 +155,26 @@ describe('EventRegistrationForm', () => {
       />
     );
 
-    expect(screen.queryByRole('textbox', { name: /phone/i })).toBeNull();
+    expect(screen.getByRole('textbox', { name: /phone/i })).toBeRequired();
+  });
+
+  it('prefills phone from the profile phone', () => {
+    const action = vi.fn();
+
+    render(
+      <EventRegistrationForm
+        createRegistrationAction={action}
+        event={event}
+        formPermalink="/events/learn-to-sail/register"
+        initialPhone="+16175550100"
+        labels={labels}
+        locale="en"
+      />
+    );
+
+    expect(screen.getByRole('textbox', { name: /phone/i })).toHaveValue(
+      '(617) 555-0100'
+    );
   });
 
   it('toggles swim agreement from the agreement row text', async () => {

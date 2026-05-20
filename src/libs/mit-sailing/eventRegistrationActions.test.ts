@@ -15,6 +15,8 @@ const mocks = vi.hoisted(() => ({
   eventRegistrationUpdate: vi.fn(),
   eventRegistrationUpdateMany: vi.fn(),
   queryRaw: vi.fn(),
+  userFindUnique: vi.fn(),
+  userUpdate: vi.fn(),
   redirect: vi.fn((href: string) => {
     throw new Error(`NEXT_REDIRECT:${href}`);
   }),
@@ -74,6 +76,13 @@ vi.mock('@/utils/Helpers', () => ({
 }));
 
 function registrationFormData(): FormData {
+  const formData = new FormData();
+  formData.set('phone', '617-555-0100');
+  formData.set('swimAgreementAccepted', 'true');
+  return formData;
+}
+
+function registrationFormDataWithoutPhone(): FormData {
   const formData = new FormData();
   formData.set('swimAgreementAccepted', 'true');
   return formData;
@@ -145,6 +154,8 @@ beforeEach(() => {
   mocks.eventRegistrationUpdate.mockReset();
   mocks.eventRegistrationUpdateMany.mockReset();
   mocks.queryRaw.mockReset();
+  mocks.userFindUnique.mockReset();
+  mocks.userUpdate.mockReset();
   mocks.redirect.mockClear();
   mocks.appAuthContextFromSession.mockReset();
   mocks.requireCurrentUser.mockReset();
@@ -211,6 +222,7 @@ beforeEach(() => {
     id: 'registration-1',
   });
   mocks.eventRegistrationUpdateMany.mockResolvedValue({ count: 1 });
+  mocks.userFindUnique.mockResolvedValue({ phone: null });
   mocks.zenstackForAuthContext.mockReturnValue({
     event: {
       findFirst: mocks.eventFindFirst,
@@ -242,6 +254,10 @@ beforeEach(() => {
         eventRegistrationTeam: {
           upsert: typeof mocks.eventRegistrationTeamUpsert;
         };
+        user: {
+          findUnique: typeof mocks.userFindUnique;
+          update: typeof mocks.userUpdate;
+        };
       }) => Promise<unknown>
     ) => {
       const result = await transactionOperation({
@@ -264,6 +280,10 @@ beforeEach(() => {
         },
         eventRegistrationTeam: {
           upsert: mocks.eventRegistrationTeamUpsert,
+        },
+        user: {
+          findUnique: mocks.userFindUnique,
+          update: mocks.userUpdate,
         },
       });
       return result;
@@ -531,8 +551,12 @@ describe('createPublicEventRegistrationAction', () => {
 
     expect(mocks.eventRegistrationCreate).toHaveBeenCalledWith({
       data: expect.objectContaining({
-        phone: '617-555-0100',
+        phone: '+16175550100',
       }),
+    });
+    expect(mocks.userUpdate).toHaveBeenCalledWith({
+      data: { phone: '+16175550100' },
+      where: { id: 'user-1' },
     });
   });
 
@@ -576,17 +600,19 @@ describe('createPublicEventRegistrationAction', () => {
 
     expect(mocks.eventRegistrationUpdate).toHaveBeenCalledWith({
       data: expect.objectContaining({
-        phone: '617-555-0111',
+        phone: '+16175550111',
       }),
       where: { id: 'registration-1' },
     });
+    expect(mocks.userUpdate).toHaveBeenCalledWith({
+      data: { phone: '+16175550111' },
+      where: { id: 'user-1' },
+    });
   });
 
-  it('creates non-required-phone registrations with omitted phone', async () => {
-    mocks.eventRegistrationFindFirst.mockResolvedValue(null);
-    mocks.eventRegistrationCreate.mockResolvedValue({
-      id: 'registration-2',
-    });
+  it('does not update profile phone when submitted phone is unchanged', async () => {
+    mocks.userFindUnique.mockResolvedValue({ phone: '+16175550100' });
+    const formData = registrationFormData();
     const { createPublicEventRegistrationAction } =
       await import('@/libs/mit-sailing/eventRegistrationActions');
 
@@ -600,15 +626,42 @@ describe('createPublicEventRegistrationAction', () => {
           status: 'idle',
           values: {},
         },
-        registrationFormData()
+        formData
       )
     ).rejects.toThrow('NEXT_REDIRECT:/events/intro-sail');
 
-    expect(mocks.eventRegistrationCreate).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        phone: null,
-      }),
+    expect(mocks.userUpdate).not.toHaveBeenCalled();
+  });
+
+  it('returns validation state when phone is omitted', async () => {
+    mocks.eventRegistrationFindFirst.mockResolvedValue(null);
+    mocks.eventRegistrationCreate.mockResolvedValue({
+      id: 'registration-2',
     });
+    const { createPublicEventRegistrationAction } =
+      await import('@/libs/mit-sailing/eventRegistrationActions');
+
+    const result = await createPublicEventRegistrationAction(
+      'en',
+      'intro-sail',
+      {
+        code: null,
+        fieldErrors: {},
+        status: 'idle',
+        values: {},
+      },
+      registrationFormDataWithoutPhone()
+    );
+
+    expect(result).toEqual({
+      code: 'questions_required',
+      fieldErrors: { phone: 'questions_required' },
+      status: 'error',
+      values: {
+        swimAgreementAccepted: ['true'],
+      },
+    });
+    expect(mocks.transaction).not.toHaveBeenCalled();
   });
 
   it('returns validation state when team registration is missing a team name', async () => {
@@ -635,6 +688,7 @@ describe('createPublicEventRegistrationAction', () => {
       fieldErrors: { teamName: 'questions_required' },
       status: 'error',
       values: {
+        phone: ['617-555-0100'],
         swimAgreementAccepted: ['true'],
         teamBoatMember_0_email: ['ada@example.test'],
         teamBoatMember_0_name: ['Ada Lovelace'],
@@ -672,6 +726,7 @@ describe('createPublicEventRegistrationAction', () => {
       },
       status: 'error',
       values: {
+        phone: ['617-555-0100'],
         swimAgreementAccepted: ['true'],
         teamName: ['Tech Dinghies'],
       },
@@ -705,6 +760,7 @@ describe('createPublicEventRegistrationAction', () => {
       },
       status: 'error',
       values: {
+        phone: ['617-555-0100'],
         swimAgreementAccepted: ['true'],
         teamBoatMember_0_email: ['ada@example.test'],
         teamBoatMember_0_name: ['Ada Lovelace'],
@@ -941,6 +997,7 @@ describe('createPublicEventRegistrationAction', () => {
       fieldErrors: { eventEntryFeeId: 'questions_required' },
       status: 'error',
       values: {
+        phone: ['617-555-0100'],
         swimAgreementAccepted: ['true'],
       },
     });
@@ -979,6 +1036,7 @@ describe('createPublicEventRegistrationAction', () => {
       status: 'error',
       values: {
         eventEntryFeeId: ['fee-other-event'],
+        phone: ['617-555-0100'],
         swimAgreementAccepted: ['true'],
       },
     });

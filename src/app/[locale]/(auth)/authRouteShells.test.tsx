@@ -234,15 +234,22 @@ vi.mock('./profile/ProfileAccountClient', () => ({
   ProfileAccountClient: (props: {
     initialEmail: string;
     initialEmailDeliverabilityStatus: string;
+    initialEmergencyContactName: string;
+    initialEmergencyContactPhone: string;
     initialName: string | null;
+    initialPhone: string;
     initialThemePreference: string;
     initialUnconfirmedEmail: string | null;
+    locale: string;
   }) => (
     <section
       aria-label="profile-account-client"
       data-email={props.initialEmail}
       data-email-deliverability={props.initialEmailDeliverabilityStatus}
+      data-emergency-contact-name={props.initialEmergencyContactName}
+      data-emergency-contact-phone={props.initialEmergencyContactPhone}
       data-name={props.initialName ?? ''}
+      data-phone={props.initialPhone}
       data-theme={props.initialThemePreference}
       data-unconfirmed-email={props.initialUnconfirmedEmail ?? ''}
     />
@@ -647,6 +654,9 @@ describe('auth route shells', () => {
         emailBouncedAt: true,
         emailSuppressedAt: true,
         emailSuppressionReason: true,
+        emergencyContactName: true,
+        emergencyContactPhone: true,
+        phone: true,
         themePreference: true,
         unconfirmedEmail: true,
       },

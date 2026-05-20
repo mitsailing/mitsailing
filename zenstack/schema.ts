@@ -72,6 +72,24 @@ export class SchemaType implements SchemaDef {
                     optional: true,
                     attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("gym_membership_verified_at") }] }] as readonly AttributeApplication[]
                 },
+                phone: {
+                    name: "phone",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("phone") }] }] as readonly AttributeApplication[]
+                },
+                emergencyContactName: {
+                    name: "emergencyContactName",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("emergency_contact_name") }] }] as readonly AttributeApplication[]
+                },
+                emergencyContactPhone: {
+                    name: "emergencyContactPhone",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("emergency_contact_phone") }] }] as readonly AttributeApplication[]
+                },
                 image: {
                     name: "image",
                     type: "String",
@@ -2326,7 +2344,6 @@ export class SchemaType implements SchemaDef {
                 phone: {
                     name: "phone",
                     type: "String",
-                    optional: true,
                     attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("phone") }] }] as readonly AttributeApplication[]
                 },
                 eventEntryFeeId: {
@@ -2391,7 +2408,7 @@ export class SchemaType implements SchemaDef {
                 { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("eventEntryFeeId")]) }] },
                 { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("userId")]) }] },
                 { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.field("event"), ["registrationMode"]), "!=", ExpressionUtils.literal("standard")) }] },
-                { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create,update") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.field("event"), ["requiresPhone"]), "&&", ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("phone"), "==", ExpressionUtils._null()), "||", ExpressionUtils.binary(ExpressionUtils.field("phone"), "==", ExpressionUtils.literal("")))) }] },
+                { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create,update") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.field("phone"), "==", ExpressionUtils.literal("")) }] },
                 { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create,update") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("eventEntryFee"), "!=", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.field("eventEntryFee"), ["eventId"]), "!=", ExpressionUtils.field("eventId"))) }] },
                 { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("read") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.call("auth"), "!=", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.field("userId"), "==", ExpressionUtils.member(ExpressionUtils.call("auth"), ["id"]))) }] },
                 { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("create") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.call("auth"), "!=", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.field("userId"), "==", ExpressionUtils.member(ExpressionUtils.call("auth"), ["id"]))), "&&", ExpressionUtils.call("check", [ExpressionUtils.field("event"), ExpressionUtils.literal("read")])) }] },

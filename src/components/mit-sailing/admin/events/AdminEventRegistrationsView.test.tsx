@@ -214,6 +214,14 @@ describe('AdminEventRegistrationsView', () => {
     expect(screen.getByText('Vegetarian')).toBeVisible();
   });
 
+  it('links attendee phone numbers with tel protocol', () => {
+    renderView('editable');
+
+    const phoneLink = screen.getByRole('link', { name: '617-555-0100' });
+
+    expect(phoneLink).toHaveAttribute('href', 'tel:617-555-0100');
+  });
+
   it('asks for confirmation before approving a registration', async () => {
     const user = userEvent.setup();
     renderView('editable');

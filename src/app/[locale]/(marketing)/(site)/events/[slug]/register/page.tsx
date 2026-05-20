@@ -9,6 +9,7 @@ import {
 import { SiteSectionMain } from '@/components/mit-sailing/SiteSectionMain';
 import { SiteSectionShell } from '@/components/mit-sailing/SiteSectionShell';
 import { requireCurrentUser } from '@/libs/auth/dal';
+import { prisma } from '@/libs/DB';
 import { formatEasternEventRange } from '@/libs/mit-sailing/easternTimeFormat';
 import {
   getPublicEventRegistrationState,
@@ -87,6 +88,10 @@ export default async function EventRegisterPage(props: RegisterPageProps) {
     eventId: event.id,
     userId: currentUser.id,
   });
+  const profileContact = await prisma.user.findUnique({
+    select: { phone: true },
+    where: { id: currentUser.id },
+  });
   const errorCode = parseEventRegistrationMutationCode(
     searchParams?.registration
   );
@@ -137,6 +142,7 @@ export default async function EventRegisterPage(props: RegisterPageProps) {
               `/events/${encodeURIComponent(event.slug)}/register`,
               locale
             )}
+            initialPhone={profileContact?.phone ?? null}
             labels={eventRegistrationFormLabels(t)}
             locale={locale}
           />

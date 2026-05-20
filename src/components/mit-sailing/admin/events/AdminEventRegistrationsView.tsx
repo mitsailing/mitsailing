@@ -174,12 +174,19 @@ function answerValueForQuestion(
   return answer.value;
 }
 
-function phoneValue(
-  registration: AdminEventRegistrationDto,
-  t: AdminEventRegistrationsTranslations
-): string {
-  const phone = registration.phone?.trim() ?? '';
-  return phone.length > 0 ? phone : t('empty_value');
+function PhoneValue(props: {
+  registration: AdminEventRegistrationDto;
+  t: AdminEventRegistrationsTranslations;
+}) {
+  const phone = props.registration.phone?.trim() ?? '';
+  if (phone.length === 0) {
+    return props.t('empty_value');
+  }
+  return (
+    <a className="underline-offset-4 hover:underline" href={`tel:${phone}`}>
+      {phone}
+    </a>
+  );
 }
 
 function hasPhoneColumn(event: AdminEventRegistrationsDto): boolean {
@@ -537,7 +544,7 @@ function RegistrationRosterTable(props: {
               </TableCell>
               {props.showPhone ? (
                 <TableCell className="px-4 py-3 align-top text-sm text-mit-readable-ink">
-                  {phoneValue(registration, props.t)}
+                  <PhoneValue registration={registration} t={props.t} />
                 </TableCell>
               ) : null}
               {props.showFee ? (
