@@ -388,10 +388,10 @@ function lockedPublicEventRegistrationContext(options: {
   ) {
     throw new EventRegistrationFlowError('closed');
   }
-  if (options.phone === null) {
+  if (options.event.requiresPhone && options.phone === null) {
     throw new EventRegistrationFlowError('questions_required');
   }
-  return { event: options.event, phone: options.phone };
+  return { event: options.event, phone: options.phone ?? '' };
 }
 
 function parseLockedPublicEventRegistrationTeam(options: {
@@ -500,6 +500,18 @@ async function replacePublicEventRegistrationTeam(options: {
   tx: Prisma.TransactionClient;
 }) {
   if (!options.team) {
+    const existingTeam = await options.tx.eventRegistrationTeam.findUnique({
+      where: { registrationId: options.registrationId },
+      select: { id: true },
+    });
+    if (existingTeam) {
+      await options.tx.eventRegistrationBoatMember.deleteMany({
+        where: { registrationId: options.registrationId },
+      });
+      await options.tx.eventRegistrationTeam.delete({
+        where: { registrationId: options.registrationId },
+      });
+    }
     return;
   }
   await options.tx.eventRegistrationTeam.upsert({
@@ -550,7 +562,9 @@ function eventRegistrationErrorUrl(
   )}`;
 }
 
-function mutationCodeFromPrisma(error: unknown): EventRegistrationMutationCode {
+function mutationCodeFromPrisma(
+  error: unknown
+): EventRegistrationMutationCode {
   if (
     error instanceof Prisma.PrismaClientKnownRequestError &&
     error.code === 'P2025'
@@ -564,7 +578,7 @@ async function publicEventRegistrationAccess(options: {
   callbackUrl: string;
   deniedUrl: string;
   locale: string;
-}) {
+}): Promise<{ db: ReturnType<typeof zenstackForAuthContext>; userId: string }> {
   const session = await verifySession(options.locale, options.callbackUrl);
   const authContext = appAuthContextFromSession(session);
   if (!authContext) {
@@ -618,9 +632,9 @@ export async function createPublicEventRegistrationAction(
     boatsPerTeam: number;
     personsPerBoat: number;
     allowRepeatTeamCaptain: boolean;
-  } | null;
+  };
   try {
-    event = await access.db.event.findFirst({
+    const eventResult = await access.db.event.findFirst({
       where: { slug },
       select: {
         id: true,
@@ -641,15 +655,16 @@ export async function createPublicEventRegistrationAction(
         allowRepeatTeamCaptain: true,
       },
     });
-  } catch (error) {
+    if (!eventResult) {
+      redirect(eventRegistrationErrorUrl(locale, slug, 'not_found'));
+    }
+    event = eventResult;
+  } catch (error: unknown) {
     unstable_rethrow(error);
     logPublicEventRegistrationFailure({ action: 'load-event', error, slug });
     redirect(
       eventRegistrationErrorUrl(locale, slug, mutationCodeFromPrisma(error))
     );
-  }
-  if (!event) {
-    redirect(eventRegistrationErrorUrl(locale, slug, 'not_found'));
   }
   if (
     !isPublicEventRegistrationWindowOpen({
@@ -738,7 +753,7 @@ export async function createPublicEventRegistrationAction(
 
   try {
     await prisma.$transaction(
-      async (tx) => {
+      async (tx: Prisma.TransactionClient) => {
         await tx.$queryRaw`
           SELECT id
           FROM events
@@ -833,7 +848,7 @@ export async function createPublicEventRegistrationAction(
         timeout: 10_000,
       }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     unstable_rethrow(error);
     if (error instanceof EventRegistrationFlowError) {
       redirect(eventRegistrationErrorUrl(locale, slug, error.code));
@@ -865,13 +880,17 @@ export async function cancelPublicEventRegistrationAction(
     deniedUrl: eventDetailErrorUrl(locale, slug, 'not_found'),
     locale,
   });
-  let event: { id: string } | null;
+  let event: { id: string };
   try {
-    event = await access.db.event.findFirst({
+    const eventResult = await access.db.event.findFirst({
       where: { slug },
       select: { id: true },
     });
-  } catch (error) {
+    if (!eventResult) {
+      redirect(eventDetailErrorUrl(locale, slug, 'not_found'));
+    }
+    event = eventResult;
+  } catch (error: unknown) {
     unstable_rethrow(error);
     logPublicEventRegistrationFailure({
       action: 'load-cancel-event',
@@ -880,15 +899,12 @@ export async function cancelPublicEventRegistrationAction(
     });
     redirect(eventDetailErrorUrl(locale, slug, mutationCodeFromPrisma(error)));
   }
-  if (!event) {
-    redirect(eventDetailErrorUrl(locale, slug, 'not_found'));
-  }
   try {
     await prisma.eventRegistration.updateMany({
       where: { eventId: event.id, userId: access.userId },
       data: { status: EventRegistrationStatus.cancelled },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     unstable_rethrow(error);
     logPublicEventRegistrationFailure({ action: 'cancel', error, slug });
     redirect(eventDetailErrorUrl(locale, slug, mutationCodeFromPrisma(error)));
