@@ -13,37 +13,28 @@ import { formatUsdMinorUnitsAsCurrency } from '@/libs/money/stripeUsdMinorUnits'
 import type { AdminEventRegistrationsTranslations } from './AdminEventRegistrationUtils';
 import { AdminEventListStatusBadge } from './AdminEventShared';
 
+type PaymentStatus = NonNullable<
+  AdminEventRegistrationDto['payment']
+>['status'];
+
 function paymentStatusLabel(
-  status: NonNullable<AdminEventRegistrationDto['payment']>['status'],
+  status: PaymentStatus,
   t: AdminEventRegistrationsTranslations
 ): string {
-  if (status === EventPaymentStatus.checkout_created) {
-    return t('payment_status_checkout_created');
-  }
-  if (status === EventPaymentStatus.paid) {
-    return t('payment_status_paid');
-  }
-  if (status === EventPaymentStatus.past_due) {
-    return t('payment_status_past_due');
-  }
-  if (status === EventPaymentStatus.handled) {
-    return t('payment_status_handled');
-  }
-  if (status === EventPaymentStatus.cancelled) {
-    return t('payment_status_cancelled');
-  }
-  if (status === EventPaymentStatus.refunded) {
-    return t('payment_status_refunded');
-  }
-  if (status === EventPaymentStatus.disputed) {
-    return t('payment_status_disputed');
-  }
-  return t('payment_status_pending');
+  const labels = {
+    [EventPaymentStatus.cancelled]: t('payment_status_cancelled'),
+    [EventPaymentStatus.checkout_created]: t('payment_status_checkout_created'),
+    [EventPaymentStatus.disputed]: t('payment_status_disputed'),
+    [EventPaymentStatus.handled]: t('payment_status_handled'),
+    [EventPaymentStatus.paid]: t('payment_status_paid'),
+    [EventPaymentStatus.past_due]: t('payment_status_past_due'),
+    [EventPaymentStatus.pending]: t('payment_status_pending'),
+    [EventPaymentStatus.refunded]: t('payment_status_refunded'),
+  } satisfies Record<PaymentStatus, string>;
+  return labels[status];
 }
 
-function canMarkPaymentHandled(
-  status: NonNullable<AdminEventRegistrationDto['payment']>['status']
-): boolean {
+function canMarkPaymentHandled(status: PaymentStatus): boolean {
   return (
     status === EventPaymentStatus.checkout_created ||
     status === EventPaymentStatus.past_due ||

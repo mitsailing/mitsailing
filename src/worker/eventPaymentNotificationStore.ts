@@ -126,13 +126,13 @@ async function clearNotificationMarker(
   }
 }
 
-export async function clearNotificationClaims(
-  markers: readonly { claimId: string; id: string }[]
-): Promise<void> {
-  const cleanupFailures = await Promise.all(
-    markers.map(clearNotificationMarker)
-  );
-  for (const cleanupFailure of cleanupFailures.filter(isCleanupFailure)) {
+function logCleanupFailures(
+  cleanupFailures: readonly (CleanupFailure | null)[]
+): void {
+  for (const cleanupFailure of cleanupFailures) {
+    if (!isCleanupFailure(cleanupFailure)) {
+      continue;
+    }
     logger.error(
       '[event-payment-email] admin_digest cleanup_failed notification_id={notificationId} error_name={errorName} error_code={errorCode}',
       {
@@ -142,4 +142,13 @@ export async function clearNotificationClaims(
       }
     );
   }
+}
+
+export async function clearNotificationClaims(
+  markers: readonly { claimId: string; id: string }[]
+): Promise<void> {
+  const cleanupFailures = await Promise.all(
+    markers.map(clearNotificationMarker)
+  );
+  logCleanupFailures(cleanupFailures);
 }
