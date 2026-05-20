@@ -151,6 +151,61 @@ async function resetPavilionReservationRequest(props: {
   }
 }
 
+async function setupPublicRedirectSmokeRows(): Promise<void> {
+  try {
+    await pool.query(
+      `
+        INSERT INTO public_slugs (
+          id,
+          slug,
+          sluggable_type,
+          sluggable_id,
+          scope,
+          source,
+          created_at
+        )
+        SELECT
+          'e2e-class-old-slug',
+          'old-intro-sailing',
+          'SailingClass',
+          id,
+          'classes',
+          'migration',
+          NOW()
+        FROM sailing_classes
+        WHERE slug = 'intro-sailing-101'
+        ON CONFLICT (slug, sluggable_type, scope) DO UPDATE
+          SET sluggable_id = EXCLUDED.sluggable_id
+      `
+    );
+    await pool.query(
+      `
+        INSERT INTO legacy_redirects (
+          id,
+          source_path,
+          target_path,
+          source,
+          created_at
+        )
+        VALUES (
+          'e2e-calendar-php',
+          '/calendar.php',
+          '/calendar',
+          'manual',
+          NOW()
+        )
+        ON CONFLICT (source_path) DO UPDATE
+          SET target_path = EXCLUDED.target_path,
+              source = EXCLUDED.source
+      `
+    );
+  } catch (error) {
+    throw new Error('setupPublicRedirectSmokeRows failed.', {
+      cause: error,
+    });
+  }
+}
+
 function isoDateDaysFromNow(days: number): string {
   const date = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
   return nyYmd(date);
@@ -177,6 +232,10 @@ test.afterAll(async () => {
 
 test.describe('MIT Sailing catalog', () => {
   test.describe.configure({ mode: 'serial' });
+
+  test.beforeAll(async () => {
+    await setupPublicRedirectSmokeRows();
+  });
 
   test('/events renders event calendar', async ({ page }) => {
     await page.goto('/events?month=2026-04');
@@ -314,6 +373,27 @@ test.describe('MIT Sailing catalog', () => {
     await expect(
       page.getByRole('heading', { level: 1, name: 'Intro Sailing 101' })
     ).toBeVisible();
+  });
+
+  test('redirects old public class slugs to canonical class pages', async ({
+    page,
+  }) => {
+    await page.goto('/classes/old-intro-sailing');
+
+    await expect
+      .poll(() => new URL(page.url()).pathname)
+      .toBe('/classes/intro-sailing-101');
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Intro Sailing 101' })
+    ).toBeVisible();
+  });
+
+  test('redirects legacy php paths to admin-managed targets', async ({
+    page,
+  }) => {
+    await page.goto('/calendar.php?month=may');
+
+    await expect.poll(() => new URL(page.url()).pathname).toBe('/calendar');
   });
 
   test('/reserve submits public reservation request', async ({ page }) => {
