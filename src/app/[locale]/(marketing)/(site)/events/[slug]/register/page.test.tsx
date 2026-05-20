@@ -104,7 +104,7 @@ describe('EventRegisterPage', () => {
     const pageModule = await import('./page');
 
     await expect(pageModule.default(pageProps())).rejects.toThrow(
-      'NEXT_REDIRECT:/events/new-event'
+      'NEXT_REDIRECT:/events/new-event/register'
     );
 
     expect(mocks.resolvePublicSlugRedirect).toHaveBeenCalledWith({

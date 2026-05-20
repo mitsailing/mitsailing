@@ -85,7 +85,7 @@ export default async function EventRegisterPage(props: RegisterPageProps) {
       slug,
     });
     if (redirectPath) {
-      permanentRedirect(redirectPath);
+      permanentRedirect(`${redirectPath}/register`);
     }
     notFound();
   }
