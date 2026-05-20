@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { ZenStackClient } from '@zenstackhq/orm';
 import type { ClientContract } from '@zenstackhq/orm';
 import { PostgresDialect } from '@zenstackhq/orm/dialects/postgres';
@@ -8,6 +9,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { AuthContext } from '../../../zenstack/models';
 import type { SchemaType } from '../../../zenstack/schema';
 import { schema } from '../../../zenstack/schema';
+
+const zenstackSchemaText = readFileSync('zenstack/schema.zmodel', 'utf8');
 
 const shouldRunPolicyDatabaseTest =
   process.env.RUN_DATABASE_TESTS === '1' &&
@@ -105,12 +108,11 @@ async function insertEvent(
           "id", "name", "short_name", "event_category_id", "description",
           "slug", "is_special", "max_participants", "requires_approval",
           "registration_start", "registration_end", "created_by", "created_at",
-          "detail_page_kind", "external_detail_url", "internal_notes",
-          "is_published"
+          "detail_page_kind", "external_detail_url", "is_published"
         )
         VALUES (
           $1, $2, $3, $4, $5, $6, false, 12, false,
-          NULL, NULL, $7, NOW(), 'standard', NULL, NULL, $8
+          NULL, NULL, $7, NOW(), 'standard', NULL, $8
         )
       `,
       [
@@ -133,12 +135,11 @@ async function insertEvent(
         "id", "name", "short_name", "event_category_id", "description",
         "slug", "is_special", "max_participants", "requires_approval",
         "registration_start", "registration_end", "created_at",
-        "detail_page_kind", "external_detail_url", "internal_notes",
-        "is_published"
+        "detail_page_kind", "external_detail_url", "is_published"
       )
       VALUES (
         $1, $2, $3, $4, $5, $6, false, 12, false,
-        NULL, NULL, NOW(), 'standard', NULL, NULL, $7
+        NULL, NULL, NOW(), 'standard', NULL, $7
       )
     `,
     [
@@ -265,12 +266,12 @@ async function insertFixtures(pool: Pool) {
   await pool.query(
     `
       INSERT INTO "event_registrations" (
-        "id", "event_id", "user_id", "status", "created_at",
+        "id", "event_id", "user_id", "status", "phone", "created_at",
         "swim_agreement_accepted_at"
       )
       VALUES
-        ($1, $2, $3, 'pending', NOW(), NOW()),
-        ($4, $2, $5, 'pending', NOW(), NOW())
+        ($1, $2, $3, 'pending', '+16175550100', NOW(), NOW()),
+        ($4, $2, $5, 'pending', '+16175550101', NOW(), NOW())
     `,
     [
       ids.registration,
@@ -346,6 +347,22 @@ async function resetComment(pool: Pool) {
     [ids.comment, ids.assignedEvent, ids.owner]
   );
 }
+
+describe('event policy schema rules', () => {
+  it('blocks internal registrations for unavailable registration modes', () => {
+    expect(zenstackSchemaText).toContain(
+      "@@deny('create', event.registrationMode != 'standard')"
+    );
+  });
+
+  it('requires phone for registrations', () => {
+    expect(zenstackSchemaText).toMatch(/\bphone\s+String\b/u);
+    expect(zenstackSchemaText).toMatch(/@trim\(\)\s+@map\("phone"\)/u);
+    expect(zenstackSchemaText).toContain(
+      "@@deny('create,update', phone == '')"
+    );
+  });
+});
 
 describe.skipIf(!shouldRunPolicyDatabaseTest)('event policies', () => {
   let pool: Pool;

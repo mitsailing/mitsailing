@@ -30,6 +30,10 @@ function isViableAdmin(user: {
   );
 }
 
+function betterAuthRoleMirrorForAppRole(appRole: Role): Role {
+  return appRole === Role.ADMIN ? Role.ADMIN : Role.USER;
+}
+
 export async function updateUserAppRole(props: {
   authContext: AppAuthContext;
   nextRole: Role;
@@ -61,7 +65,7 @@ export async function updateUserAppRole(props: {
 
   await setBetterAuthRoleMirror({
     requestHeaders: props.requestHeaders,
-    role: props.nextRole,
+    role: betterAuthRoleMirrorForAppRole(props.nextRole),
     userId: props.targetUserId,
   });
 
@@ -74,7 +78,7 @@ export async function updateUserAppRole(props: {
     try {
       await setBetterAuthRoleMirror({
         requestHeaders: props.requestHeaders,
-        role: targetUser.appRole,
+        role: betterAuthRoleMirrorForAppRole(targetUser.appRole),
         userId: props.targetUserId,
       });
     } catch (rollbackError) {

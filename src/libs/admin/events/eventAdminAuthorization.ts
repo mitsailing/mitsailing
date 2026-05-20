@@ -1,6 +1,7 @@
 import 'server-only';
 import { redirect } from 'next/navigation';
-import { canUpdateEventWithAuthContext } from '@/libs/admin/events/zenstackEventAccess';
+import type { AdminEventAccessMode } from '@/libs/admin/events/zenstackEventAccess';
+import { eventAccessModeWithAuthContext } from '@/libs/admin/events/zenstackEventAccess';
 import type { AuthSession } from '@/libs/auth/dal';
 import { requireAdmin } from '@/libs/auth/dal';
 import { prisma } from '@/libs/DB';
@@ -19,6 +20,7 @@ type AdminEventAccessRecord = {
 };
 
 export type AdminEventAccess = {
+  accessMode: AdminEventAccessMode;
   db: ZenStackDb;
   event: AdminEventAccessRecord;
   session: NonNullable<AuthSession>;
@@ -47,8 +49,12 @@ export async function requireAdminEventListAccess(
 
 async function findEventAccessRecord(props: {
   authContext: AppAuthContext;
+  minimumAccessMode: AdminEventAccessMode;
   slug: string;
-}): Promise<AdminEventAccessRecord | null> {
+}): Promise<{
+  accessMode: AdminEventAccessMode;
+  event: AdminEventAccessRecord;
+} | null> {
   const event = await prisma.event.findFirst({
     where: { slug: props.slug },
     select: {
@@ -60,15 +66,17 @@ async function findEventAccessRecord(props: {
   if (!event) {
     return null;
   }
-  if (
-    !canUpdateEventWithAuthContext({
-      authContext: props.authContext,
-      event,
-    })
-  ) {
+  const accessMode = eventAccessModeWithAuthContext({
+    authContext: props.authContext,
+    event,
+  });
+  if (!accessMode) {
     return null;
   }
-  return event;
+  if (props.minimumAccessMode === 'editable' && accessMode !== 'editable') {
+    return null;
+  }
+  return { accessMode, event };
 }
 
 async function eventExists(slug: string): Promise<boolean> {
@@ -80,6 +88,7 @@ async function eventExists(slug: string): Promise<boolean> {
 
 export async function requireAdminEventAccess(props: {
   locale: string;
+  minimumAccessMode?: AdminEventAccessMode;
   slug: string;
 }): Promise<AdminEventAccess | null> {
   const session = await requireAdmin(props.locale);
@@ -90,6 +99,7 @@ export async function requireAdminEventAccess(props: {
   const db = zenstackForAuthContext(authContext);
   const event = await findEventAccessRecord({
     authContext,
+    minimumAccessMode: props.minimumAccessMode ?? 'editable',
     slug: props.slug,
   });
   if (!event) {
@@ -98,5 +108,5 @@ export async function requireAdminEventAccess(props: {
     }
     redirect(getI18nPath('/admin/events', props.locale));
   }
-  return { db, event, session };
+  return { accessMode: event.accessMode, db, event: event.event, session };
 }

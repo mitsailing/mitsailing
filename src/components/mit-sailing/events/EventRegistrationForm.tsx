@@ -27,6 +27,8 @@ export function eventRegistrationFormLabels(
       unknown: t('registration_error_unknown'),
     } satisfies Record<EventRegistrationMutationCode, string>,
     feesHeading: t('section_fees'),
+    phoneHelp: t('registration_phone_help'),
+    phoneLabel: t('registration_phone_label'),
     questionsHeading: t('section_questions'),
     required: t('question_required'),
     requiresApprovalNote: t('registration_requires_approval_note'),
@@ -34,5 +36,13 @@ export function eventRegistrationFormLabels(
     submitRequestButton: t('registration_submit_request_button'),
     swimAgreementHeading: t('registration_swim_agreement_heading'),
     swimAgreementLabel: t('registration_swim_agreement_label'),
+    teamBoatEmailLabel: t('registration_team_boat_email_label'),
+    teamBoatFullNameLabel: t('registration_team_boat_full_name_label'),
+    teamBoatHeading: t('registration_team_boat_heading'),
+    teamCrewLabel: t('registration_team_crew_label'),
+    teamCrewNumberLabel: t('registration_team_crew_number_label'),
+    teamHelmLabel: t('registration_team_helm_label'),
+    teamNameLabel: t('registration_team_name_label'),
+    teamSectionHeading: t('registration_team_section_heading'),
   };
 }

@@ -7,6 +7,7 @@ import { resolveEventCategoryCalendarAccentClassName } from '@/lib/mit-sailing/e
 import { Role } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
 import { logger } from '@/libs/Logger';
+import { sanitizeCmsRichTextHtml } from '@/libs/mit-sailing/cmsRichText';
 import { eventCalendarMonthFromDate } from '@/libs/mit-sailing/eventCalendar';
 import type {
   EventCalendarCategory,
@@ -15,6 +16,16 @@ import type {
 } from '@/libs/mit-sailing/eventCalendar';
 import { safeErrorCode, safeErrorName } from '@/libs/safeUnknownError';
 import { getZenStack, zenstackForAuthContext } from '@/libs/zenstack/auth';
+
+export type EventPublicContentSectionDto = {
+  body: string;
+  id: 'faq' | 'noticeOfRace' | 'sailingInstructions' | 'results';
+  titleKey:
+    | 'content_faq_title'
+    | 'content_notice_of_race_title'
+    | 'content_sailing_instructions_title'
+    | 'content_results_title';
+};
 
 export type PublicEventDetail = {
   id: string;
@@ -25,10 +36,20 @@ export type PublicEventDetail = {
   isSpecial: boolean;
   maxParticipants: number | null;
   requiresApproval: boolean;
+  requiresPhone: boolean;
   registrationStart: Date | null;
   registrationEnd: Date | null;
   detailPageKind: 'standard' | 'external' | null;
   externalDetailUrl: string | null;
+  registrationMode?: 'none' | 'standard' | 'external' | null;
+  externalRegistrationUrl?: string | null;
+  externalEntriesUrl?: string | null;
+  teamRegistration: {
+    usesTeamRegistration: boolean;
+    boatsPerTeam: number;
+    personsPerBoat: number;
+    allowRepeatTeamCaptain: boolean;
+  };
   category: { name: string };
   dates: {
     id: string;
@@ -58,6 +79,7 @@ export type PublicEventDetail = {
     amountCents: number;
     isDeposit: boolean;
   }[];
+  publicContentSections?: EventPublicContentSectionDto[];
   approvedRegistrationCount: number;
   pendingRegistrationCount: number;
 };
@@ -110,6 +132,57 @@ export function questionOptionsFromJson(
   return value.filter((option): option is string => typeof option === 'string');
 }
 
+export function publicContentSectionsFromEvent(event: {
+  faqVisible?: boolean;
+  faqContent?: string;
+  noticeOfRaceVisible?: boolean;
+  noticeOfRaceContent?: string;
+  sailingInstructionsVisible?: boolean;
+  sailingInstructionsContent?: string;
+  resultsVisible?: boolean;
+  resultsContent?: string;
+}): EventPublicContentSectionDto[] {
+  const sections = [
+    {
+      body: event.faqContent ?? '',
+      id: 'faq',
+      titleKey: 'content_faq_title',
+      visible: event.faqVisible ?? false,
+    },
+    {
+      body: event.noticeOfRaceContent ?? '',
+      id: 'noticeOfRace',
+      titleKey: 'content_notice_of_race_title',
+      visible: event.noticeOfRaceVisible ?? false,
+    },
+    {
+      body: event.sailingInstructionsContent ?? '',
+      id: 'sailingInstructions',
+      titleKey: 'content_sailing_instructions_title',
+      visible: event.sailingInstructionsVisible ?? false,
+    },
+    {
+      body: event.resultsContent ?? '',
+      id: 'results',
+      titleKey: 'content_results_title',
+      visible: event.resultsVisible ?? false,
+    },
+  ] satisfies readonly (EventPublicContentSectionDto & {
+    visible: boolean;
+  })[];
+
+  return sections.flatMap((section) => {
+    if (!section.visible) {
+      return [];
+    }
+    const body = sanitizeCmsRichTextHtml(section.body);
+    if (!body) {
+      return [];
+    }
+    return [{ body, id: section.id, titleKey: section.titleKey }];
+  });
+}
+
 async function publicEventIds(): Promise<string[]> {
   const rows = await getZenStack().event.findMany({
     select: { id: true },
@@ -138,14 +211,37 @@ export const getPublishedEventForPublicBySlug = cache(async (slug: string) => {
         isSpecial: true,
         maxParticipants: true,
         requiresApproval: true,
+        requiresPhone: true,
         registrationStart: true,
         registrationEnd: true,
         detailPageKind: true,
         externalDetailUrl: true,
+        registrationMode: true,
+        externalRegistrationUrl: true,
+        externalEntriesUrl: true,
+        usesTeamRegistration: true,
+        boatsPerTeam: true,
+        personsPerBoat: true,
+        allowRepeatTeamCaptain: true,
+        faqVisible: true,
+        faqContent: true,
+        noticeOfRaceVisible: true,
+        noticeOfRaceContent: true,
+        sailingInstructionsVisible: true,
+        sailingInstructionsContent: true,
+        resultsVisible: true,
+        resultsContent: true,
         category: { select: { name: true } },
         dates: {
           orderBy: { startDateTime: 'asc' },
           select: { id: true, startDateTime: true, endDateTime: true },
+        },
+        admins: {
+          orderBy: [{ admin: { name: 'asc' } }, { admin: { email: 'asc' } }],
+          select: {
+            id: true,
+            admin: { select: { id: true, name: true, email: true } },
+          },
         },
         registrationQuestions: {
           orderBy: [{ displayOrder: 'asc' }, { questionText: 'asc' }],
@@ -187,11 +283,45 @@ export const getPublishedEventForPublicBySlug = cache(async (slug: string) => {
       ]);
 
     return {
-      ...event,
-      admins: [],
+      id: event.id,
+      name: event.name,
+      shortName: event.shortName,
+      description: event.description,
+      slug: event.slug,
+      isSpecial: event.isSpecial,
+      maxParticipants: event.maxParticipants,
+      requiresApproval: event.requiresApproval,
+      requiresPhone: event.requiresPhone,
+      registrationStart: event.registrationStart,
+      registrationEnd: event.registrationEnd,
+      detailPageKind: event.detailPageKind,
+      externalDetailUrl: event.externalDetailUrl,
+      registrationMode: event.registrationMode,
+      externalRegistrationUrl: event.externalRegistrationUrl,
+      externalEntriesUrl: event.externalEntriesUrl,
+      category: event.category,
+      dates: event.dates,
+      admins: event.admins,
+      entryFees: event.entryFees.map((fee) => ({
+        id: fee.id,
+        description: fee.description,
+        amountCents: fee.amountCents,
+        isDeposit: fee.isDeposit,
+      })),
+      teamRegistration: {
+        usesTeamRegistration: event.usesTeamRegistration,
+        boatsPerTeam: event.boatsPerTeam,
+        personsPerBoat: event.personsPerBoat,
+        allowRepeatTeamCaptain: event.allowRepeatTeamCaptain,
+      },
+      publicContentSections: publicContentSectionsFromEvent(event),
       registrationQuestions: event.registrationQuestions.map((question) => ({
-        ...question,
+        id: question.id,
+        questionText: question.questionText,
+        answerType: question.answerType,
         options: questionOptionsFromJson(question.options),
+        required: question.required,
+        displayOrder: question.displayOrder,
       })),
       approvedRegistrationCount,
       pendingRegistrationCount,

@@ -1,6 +1,19 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { AdminEventField } from '@/components/mit-sailing/admin/events/AdminEventShared';
+import {
+  AdminEventField,
+  AdminEventReadOnlyNotice,
+} from '@/components/mit-sailing/admin/events/AdminEventShared';
+
+function adminEventsReadOnlyNoticeTranslation(key: string) {
+  if (key === 'read_only_notice_title') {
+    return 'Read-only access';
+  }
+  if (key === 'read_only_notice_body') {
+    return 'You can review this event but cannot edit it.';
+  }
+  return key;
+}
 
 describe('AdminEventField', () => {
   it('links hint copy to the field control', () => {
@@ -46,5 +59,18 @@ describe('AdminEventField', () => {
     expect(screen.getByLabelText('Capacity')).not.toHaveAttribute(
       'aria-describedby'
     );
+  });
+});
+
+describe('AdminEventReadOnlyNotice', () => {
+  it('renders read-only title and body copy', () => {
+    render(
+      <AdminEventReadOnlyNotice t={adminEventsReadOnlyNoticeTranslation} />
+    );
+
+    expect(screen.getByText('Read-only access')).toBeInTheDocument();
+    expect(
+      screen.getByText('You can review this event but cannot edit it.')
+    ).toBeInTheDocument();
   });
 });

@@ -7,6 +7,7 @@ import { publicRegistrationWindowPhase } from '@/libs/mit-sailing/eventRegistrat
 
 export type PublicEventReservationState =
   | 'external'
+  | 'unavailable'
   | 'approved'
   | 'pending'
   | 'opening_later'
@@ -38,10 +39,10 @@ function currentRegistrationReservationState(
 }
 
 /**
- * Resolves public registration state in priority order: external event detail,
- * existing active registration, registration window, registration end, accepted
- * capacity for auto-approved events (approved count only; pending does not
- * consume capacity), then available fallback.
+ * Resolves public registration state in priority order: external/disabled
+ * registration mode, existing active registration, registration window,
+ * registration end, accepted capacity for auto-approved events (approved count
+ * only; pending does not consume capacity), then available fallback.
  *
  * @param options - Current registration, event detail, and comparison time
  * @returns Public reservation state for rendering and action guards
@@ -52,10 +53,13 @@ export function publicEventReservationState(options: {
   now: Date;
 }): PublicEventReservationState {
   if (
-    options.event.detailPageKind === 'external' &&
-    options.event.externalDetailUrl
+    options.event.registrationMode === 'external' &&
+    options.event.externalRegistrationUrl
   ) {
     return 'external';
+  }
+  if (options.event.registrationMode === 'none') {
+    return 'unavailable';
   }
   const currentRegistrationState = currentRegistrationReservationState(
     options.currentRegistration?.status

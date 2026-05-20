@@ -3,6 +3,7 @@
 import { randomUUID } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { redirect, unstable_rethrow } from 'next/navigation';
+import * as z from 'zod';
 import { Prisma } from '@/generated/prisma/client';
 import { EventRegistrationStatus } from '@/generated/prisma/enums';
 import type { EventAnswerType } from '@/generated/prisma/enums';
@@ -19,6 +20,7 @@ import { safeErrorCode, safeErrorName } from '@/libs/safeUnknownError';
 import { zenstackForAuthContext } from '@/libs/zenstack/auth';
 import { appAuthContextFromSession } from '@/libs/zenstack/authContext';
 import { getI18nPath } from '@/utils/Helpers';
+import { normalizeUsPhone } from '@/utils/phoneValidation';
 
 class EventRegistrationFlowError extends Error {
   readonly code: EventRegistrationMutationCode;
@@ -38,9 +40,41 @@ export type PublicEventRegistrationFormState = {
 };
 
 const swimAgreementFieldName = 'swimAgreementAccepted';
+const phoneFieldName = 'phone';
+const eventEntryFeeFieldName = 'eventEntryFeeId';
+const teamNameFieldName = 'teamName';
+const emailField = z.email();
 
 function publicEventRegistrationQuestionFieldName(questionId: string): string {
   return `question_${questionId}`;
+}
+
+function teamBoatMemberFieldName(options: {
+  boatNumber: number;
+  boatsPerTeam: number;
+  position: number;
+  suffix: 'email' | 'name';
+}): string {
+  if (options.boatsPerTeam === 1) {
+    return `teamBoatMember_${options.position}_${options.suffix}`;
+  }
+  return `teamBoatMember_${options.boatNumber}_${options.position}_${options.suffix}`;
+}
+
+function teamBoatMemberNameFieldName(options: {
+  boatNumber: number;
+  boatsPerTeam: number;
+  position: number;
+}): string {
+  return teamBoatMemberFieldName({ ...options, suffix: 'name' });
+}
+
+function teamBoatMemberEmailFieldName(options: {
+  boatNumber: number;
+  boatsPerTeam: number;
+  position: number;
+}): string {
+  return teamBoatMemberFieldName({ ...options, suffix: 'email' });
 }
 
 function publicEventRegistrationFormValues(
@@ -98,14 +132,204 @@ function publicEventRegistrationQuestionFieldErrors(options: {
 }
 
 function publicEventRegistrationFieldNames(
-  questions: PublicRegistrationQuestionForValidation[]
+  questions: PublicRegistrationQuestionForValidation[],
+  boatsPerTeam: number,
+  personsPerBoat: number
 ): string[] {
   return [
+    eventEntryFeeFieldName,
+    phoneFieldName,
     swimAgreementFieldName,
+    teamNameFieldName,
+    ...Array.from({ length: boatsPerTeam }, (_boatValue, boatIndex) => {
+      const boatNumber = boatIndex + 1;
+      return Array.from({ length: personsPerBoat }, (_value, position) => [
+        teamBoatMemberNameFieldName({ boatNumber, boatsPerTeam, position }),
+        teamBoatMemberEmailFieldName({ boatNumber, boatsPerTeam, position }),
+      ]).flat();
+    }).flat(),
     ...questions.map((question) =>
       publicEventRegistrationQuestionFieldName(question.id)
     ),
   ];
+}
+
+type PublicEventRegistrationTeamInput = {
+  teamName: string;
+  boatMembers: PublicEventRegistrationTeamMemberInput[];
+};
+
+type PublicEventRegistrationTeamMemberInput = {
+  boatNumber: number;
+  position: number;
+  fullName: string;
+  email: string;
+};
+
+type PublicEventRegistrationLockedEvent = {
+  id: string;
+  isPublished: boolean;
+  maxParticipants: number | null;
+  requiresApproval: boolean;
+  requiresPhone: boolean;
+  usesTeamRegistration: boolean;
+  boatsPerTeam: number;
+  personsPerBoat: number;
+  allowRepeatTeamCaptain: boolean;
+  registrationStart: Date | null;
+  registrationEnd: Date | null;
+  entryFees: { id: string }[];
+};
+
+function trimmedFormString(formData: FormData, fieldName: string): string {
+  const value = formData.get(fieldName);
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function parsePublicEventRegistrationTeamMemberFromForm(options: {
+  boatNumber: number;
+  boatsPerTeam: number;
+  formData: FormData;
+  position: number;
+}):
+  | { ok: true; member: PublicEventRegistrationTeamMemberInput | null }
+  | {
+      ok: false;
+      code: EventRegistrationMutationCode;
+      fieldName: string;
+    } {
+  const nameFieldName = teamBoatMemberNameFieldName(options);
+  const emailFieldName = teamBoatMemberEmailFieldName(options);
+  const fullName = trimmedFormString(options.formData, nameFieldName);
+  const email = trimmedFormString(options.formData, emailFieldName);
+
+  if (fullName.length === 0 && email.length === 0) {
+    return { ok: true, member: null };
+  }
+  if (fullName.length === 0) {
+    return { ok: false, code: 'questions_required', fieldName: nameFieldName };
+  }
+  if (email.length === 0) {
+    return { ok: false, code: 'questions_required', fieldName: emailFieldName };
+  }
+  if (!emailField.safeParse(email).success) {
+    return { ok: false, code: 'answers_invalid', fieldName: emailFieldName };
+  }
+  return {
+    ok: true,
+    member: {
+      boatNumber: options.boatNumber,
+      email,
+      fullName,
+      position: options.position,
+    },
+  };
+}
+
+function parsePublicEventRegistrationTeamFromForm(options: {
+  boatsPerTeam: number;
+  formData: FormData;
+  personsPerBoat: number;
+}):
+  | { ok: true; team: PublicEventRegistrationTeamInput }
+  | {
+      ok: false;
+      code: 'answers_invalid' | 'questions_required';
+      fieldErrors: Record<string, EventRegistrationMutationCode>;
+    } {
+  const teamName = trimmedFormString(options.formData, teamNameFieldName);
+  if (teamName.length === 0) {
+    return {
+      ok: false,
+      code: 'questions_required',
+      fieldErrors: { [teamNameFieldName]: 'questions_required' },
+    };
+  }
+
+  const boatMembers: PublicEventRegistrationTeamInput['boatMembers'] = [];
+  const fieldErrors: Record<string, EventRegistrationMutationCode> = {};
+
+  for (
+    let boatNumber = 1;
+    boatNumber <= options.boatsPerTeam;
+    boatNumber += 1
+  ) {
+    for (let position = 0; position < options.personsPerBoat; position += 1) {
+      const parsedMember = parsePublicEventRegistrationTeamMemberFromForm({
+        boatNumber,
+        boatsPerTeam: options.boatsPerTeam,
+        formData: options.formData,
+        position,
+      });
+      if (!parsedMember.ok) {
+        fieldErrors[parsedMember.fieldName] = parsedMember.code;
+        continue;
+      }
+      if (!parsedMember.member) {
+        continue;
+      }
+      boatMembers.push(parsedMember.member);
+    }
+  }
+
+  if (boatMembers.length === 0) {
+    return {
+      ok: false,
+      code: 'questions_required',
+      fieldErrors: {
+        [teamBoatMemberNameFieldName({
+          boatNumber: 1,
+          boatsPerTeam: options.boatsPerTeam,
+          position: 0,
+        })]: 'questions_required',
+      },
+    };
+  }
+  const [firstError] = Object.values(fieldErrors);
+  if (firstError) {
+    return {
+      ok: false,
+      code:
+        firstError === 'answers_invalid' ? firstError : 'questions_required',
+      fieldErrors,
+    };
+  }
+  return { ok: true, team: { boatMembers, teamName } };
+}
+
+function publicEventRegistrationSelectedFeeId(options: {
+  entryFees: readonly { id: string }[];
+  formData: FormData;
+}): { ok: true; eventEntryFeeId: string | null } | { ok: false } {
+  if (options.entryFees.length === 0) {
+    return { ok: true, eventEntryFeeId: null };
+  }
+  if (options.entryFees.length === 1) {
+    const [fee] = options.entryFees;
+    if (!fee) {
+      return { ok: true, eventEntryFeeId: null };
+    }
+    return { ok: true, eventEntryFeeId: fee.id };
+  }
+  const value = options.formData.get(eventEntryFeeFieldName);
+  if (
+    typeof value === 'string' &&
+    options.entryFees.some((fee) => fee.id === value)
+  ) {
+    return { ok: true, eventEntryFeeId: value };
+  }
+  return { ok: false };
+}
+
+function publicEventRegistrationPhoneFromForm(
+  formData: FormData
+): string | null {
+  const value = formData.get(phoneFieldName);
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const phone = normalizeUsPhone(value);
+  return phone.ok ? phone.phone : null;
 }
 
 function logPublicEventRegistrationFailure(options: {
@@ -124,6 +348,192 @@ function logPublicEventRegistrationFailure(options: {
       .filter((part): part is string => typeof part === 'string')
       .join(' ')
   );
+}
+
+async function syncPublicRegistrationPhoneToProfile(options: {
+  phone: string;
+  tx: Prisma.TransactionClient;
+  userId: string;
+}) {
+  const profileContact = await options.tx.user.findUnique({
+    select: { phone: true },
+    where: { id: options.userId },
+  });
+  if (profileContact?.phone === options.phone) {
+    return;
+  }
+  await options.tx.user.update({
+    data: { phone: options.phone },
+    where: { id: options.userId },
+  });
+}
+
+function lockedPublicEventRegistrationContext(options: {
+  event: PublicEventRegistrationLockedEvent | null;
+  now: Date;
+  phone: string | null;
+}): {
+  event: PublicEventRegistrationLockedEvent;
+  phone: string;
+} {
+  if (!options.event || !options.event.isPublished) {
+    throw new EventRegistrationFlowError('not_found');
+  }
+  if (
+    !isPublicEventRegistrationWindowOpen({
+      now: options.now,
+      registrationStart: options.event.registrationStart,
+      registrationEnd: options.event.registrationEnd,
+    })
+  ) {
+    throw new EventRegistrationFlowError('closed');
+  }
+  if (options.phone === null) {
+    throw new EventRegistrationFlowError('questions_required');
+  }
+  return { event: options.event, phone: options.phone };
+}
+
+function parseLockedPublicEventRegistrationTeam(options: {
+  event: PublicEventRegistrationLockedEvent;
+  formData: FormData;
+}): PublicEventRegistrationTeamInput | null {
+  if (!options.event.usesTeamRegistration) {
+    return null;
+  }
+  const lockedTeamRegistration = parsePublicEventRegistrationTeamFromForm({
+    boatsPerTeam: options.event.boatsPerTeam,
+    formData: options.formData,
+    personsPerBoat: options.event.personsPerBoat,
+  });
+  if (!lockedTeamRegistration.ok) {
+    throw new EventRegistrationFlowError(lockedTeamRegistration.code);
+  }
+  return lockedTeamRegistration.team;
+}
+
+async function assertPublicEventRegistrationCapacity(options: {
+  event: PublicEventRegistrationLockedEvent;
+  eventId: string;
+  existingRegistrationId: string | null;
+  tx: Prisma.TransactionClient;
+}) {
+  if (options.event.requiresApproval) {
+    return;
+  }
+  const approvedSlotsExcludingSelf = await options.tx.eventRegistration.count({
+    where: {
+      eventId: options.eventId,
+      ...(options.existingRegistrationId
+        ? { id: { not: options.existingRegistrationId } }
+        : {}),
+      status: EventRegistrationStatus.approved,
+    },
+  });
+  if (
+    options.event.maxParticipants !== null &&
+    approvedSlotsExcludingSelf >= options.event.maxParticipants
+  ) {
+    throw new EventRegistrationFlowError('full');
+  }
+}
+
+async function upsertPublicEventRegistration(options: {
+  eventEntryFeeId: string | null;
+  eventId: string;
+  existingRegistrationId: string | null;
+  now: Date;
+  phone: string;
+  registrationId: string;
+  status: EventRegistrationStatus;
+  tx: Prisma.TransactionClient;
+  userId: string;
+}) {
+  if (options.existingRegistrationId) {
+    await options.tx.eventRegistration.update({
+      where: { id: options.existingRegistrationId },
+      data: {
+        status: options.status,
+        phone: options.phone,
+        eventEntryFeeId: options.eventEntryFeeId,
+        swimAgreementAcceptedAt: options.now,
+        registrationAnswers: { deleteMany: {} },
+      },
+    });
+    return;
+  }
+  await options.tx.eventRegistration.create({
+    data: {
+      id: options.registrationId,
+      eventId: options.eventId,
+      userId: options.userId,
+      status: options.status,
+      phone: options.phone,
+      eventEntryFeeId: options.eventEntryFeeId,
+      createdAt: options.now,
+      swimAgreementAcceptedAt: options.now,
+    },
+  });
+}
+
+async function replacePublicEventRegistrationAnswers(options: {
+  answers: { questionId: string; value: string }[];
+  registrationId: string;
+  tx: Prisma.TransactionClient;
+}) {
+  const answers = options.answers.map((answer) => ({
+    id: randomUUID(),
+    registrationId: options.registrationId,
+    questionId: answer.questionId,
+    value: answer.value,
+  }));
+
+  if (answers.length > 0) {
+    await options.tx.eventRegistrationAnswer.createMany({ data: answers });
+  }
+}
+
+async function replacePublicEventRegistrationTeam(options: {
+  allowRepeatCaptain: boolean;
+  registrationId: string;
+  team: PublicEventRegistrationTeamInput | null;
+  tx: Prisma.TransactionClient;
+}) {
+  if (!options.team) {
+    await options.tx.eventRegistrationBoatMember.deleteMany({
+      where: { registrationId: options.registrationId },
+    });
+    await options.tx.eventRegistrationTeam.deleteMany({
+      where: { registrationId: options.registrationId },
+    });
+    return;
+  }
+  await options.tx.eventRegistrationTeam.upsert({
+    where: { registrationId: options.registrationId },
+    create: {
+      id: randomUUID(),
+      registrationId: options.registrationId,
+      teamName: options.team.teamName,
+      allowRepeatCaptain: options.allowRepeatCaptain,
+    },
+    update: {
+      teamName: options.team.teamName,
+      allowRepeatCaptain: options.allowRepeatCaptain,
+    },
+  });
+  await options.tx.eventRegistrationBoatMember.deleteMany({
+    where: { registrationId: options.registrationId },
+  });
+  await options.tx.eventRegistrationBoatMember.createMany({
+    data: options.team.boatMembers.map((member) => ({
+      id: randomUUID(),
+      registrationId: options.registrationId,
+      boatNumber: member.boatNumber,
+      position: member.position,
+      fullName: member.fullName,
+      email: member.email,
+    })),
+  });
 }
 
 function eventDetailErrorUrl(
@@ -160,7 +570,7 @@ async function publicEventRegistrationAccess(options: {
   callbackUrl: string;
   deniedUrl: string;
   locale: string;
-}) {
+}): Promise<{ db: ReturnType<typeof zenstackForAuthContext>; userId: string }> {
   const session = await verifySession(options.locale, options.callbackUrl);
   const authContext = appAuthContextFromSession(session);
   if (!authContext) {
@@ -200,6 +610,7 @@ export async function createPublicEventRegistrationAction(
   const now = new Date();
   let event: {
     id: string;
+    requiresPhone: boolean;
     registrationStart: Date | null;
     registrationEnd: Date | null;
     registrationQuestions: {
@@ -208,29 +619,44 @@ export async function createPublicEventRegistrationAction(
       answerType: EventAnswerType;
       options: Prisma.JsonValue | null;
     }[];
-  } | null;
+    entryFees: { id: string }[];
+    usesTeamRegistration: boolean;
+    boatsPerTeam: number;
+    personsPerBoat: number;
+    allowRepeatTeamCaptain: boolean;
+  };
   try {
-    event = await access.db.event.findFirst({
+    const eventResult = await access.db.event.findFirst({
       where: { slug },
       select: {
         id: true,
+        requiresPhone: true,
         registrationStart: true,
         registrationEnd: true,
         registrationQuestions: {
           orderBy: [{ displayOrder: 'asc' }, { questionText: 'asc' }],
           select: { id: true, required: true, answerType: true, options: true },
         },
+        entryFees: {
+          orderBy: [{ isDeposit: 'desc' }, { description: 'asc' }],
+          select: { id: true },
+        },
+        usesTeamRegistration: true,
+        boatsPerTeam: true,
+        personsPerBoat: true,
+        allowRepeatTeamCaptain: true,
       },
     });
-  } catch (error) {
+    if (!eventResult) {
+      redirect(eventRegistrationErrorUrl(locale, slug, 'not_found'));
+    }
+    event = eventResult;
+  } catch (error: unknown) {
     unstable_rethrow(error);
     logPublicEventRegistrationFailure({ action: 'load-event', error, slug });
     redirect(
       eventRegistrationErrorUrl(locale, slug, mutationCodeFromPrisma(error))
     );
-  }
-  if (!event) {
-    redirect(eventRegistrationErrorUrl(locale, slug, 'not_found'));
   }
   if (
     !isPublicEventRegistrationWindowOpen({
@@ -250,12 +676,53 @@ export async function createPublicEventRegistrationAction(
       options: questionOptionsFromJson(question.options),
     })
   );
+  const fieldNames = publicEventRegistrationFieldNames(
+    questionsForValidation,
+    event.usesTeamRegistration ? event.boatsPerTeam : 0,
+    event.usesTeamRegistration ? event.personsPerBoat : 0
+  );
+  const phone = publicEventRegistrationPhoneFromForm(formData);
+  if (phone === null) {
+    return publicEventRegistrationFormErrorState({
+      code: 'questions_required',
+      fieldErrors: { [phoneFieldName]: 'questions_required' },
+      fieldNames,
+      formData,
+    });
+  }
+  const selectedFee = publicEventRegistrationSelectedFeeId({
+    entryFees: event.entryFees,
+    formData,
+  });
+  if (!selectedFee.ok) {
+    return publicEventRegistrationFormErrorState({
+      code: 'questions_required',
+      fieldErrors: { [eventEntryFeeFieldName]: 'questions_required' },
+      fieldNames,
+      formData,
+    });
+  }
+  const teamRegistration = event.usesTeamRegistration
+    ? parsePublicEventRegistrationTeamFromForm({
+        boatsPerTeam: event.boatsPerTeam,
+        formData,
+        personsPerBoat: event.personsPerBoat,
+      })
+    : null;
+  if (teamRegistration && !teamRegistration.ok) {
+    return publicEventRegistrationFormErrorState({
+      code: teamRegistration.code,
+      fieldErrors: teamRegistration.fieldErrors,
+      fieldNames,
+      formData,
+    });
+  }
   const swimAgreement = formData.get('swimAgreementAccepted');
   if (swimAgreement !== 'true') {
     return publicEventRegistrationFormErrorState({
       code: 'swim_agreement_required',
       fieldErrors: { [swimAgreementFieldName]: 'swim_agreement_required' },
-      fieldNames: publicEventRegistrationFieldNames(questionsForValidation),
+      fieldNames,
       formData,
     });
   }
@@ -271,14 +738,14 @@ export async function createPublicEventRegistrationAction(
         formData,
         questions: questionsForValidation,
       }),
-      fieldNames: publicEventRegistrationFieldNames(questionsForValidation),
+      fieldNames,
       formData,
     });
   }
 
   try {
     await prisma.$transaction(
-      async (tx) => {
+      async (tx: Prisma.TransactionClient) => {
         await tx.$queryRaw`
           SELECT id
           FROM events
@@ -292,23 +759,36 @@ export async function createPublicEventRegistrationAction(
             isPublished: true,
             maxParticipants: true,
             requiresApproval: true,
+            requiresPhone: true,
+            usesTeamRegistration: true,
+            boatsPerTeam: true,
+            personsPerBoat: true,
+            allowRepeatTeamCaptain: true,
             registrationStart: true,
             registrationEnd: true,
+            entryFees: {
+              orderBy: [{ isDeposit: 'desc' }, { description: 'asc' }],
+              select: { id: true },
+            },
           },
         });
-        if (!lockedEvent || !lockedEvent.isPublished) {
-          throw new EventRegistrationFlowError('not_found');
+        const lockedContext = lockedPublicEventRegistrationContext({
+          event: lockedEvent,
+          now,
+          phone,
+        });
+        const lockedTeam = parseLockedPublicEventRegistrationTeam({
+          event: lockedContext.event,
+          formData,
+        });
+        const lockedSelectedFee = publicEventRegistrationSelectedFeeId({
+          entryFees: lockedContext.event.entryFees,
+          formData,
+        });
+        if (!lockedSelectedFee.ok) {
+          throw new EventRegistrationFlowError('questions_required');
         }
-        if (
-          !isPublicEventRegistrationWindowOpen({
-            now,
-            registrationStart: lockedEvent.registrationStart,
-            registrationEnd: lockedEvent.registrationEnd,
-          })
-        ) {
-          throw new EventRegistrationFlowError('closed');
-        }
-        const status = lockedEvent.requiresApproval
+        const status = lockedContext.event.requiresApproval
           ? EventRegistrationStatus.pending
           : EventRegistrationStatus.approved;
 
@@ -319,63 +799,48 @@ export async function createPublicEventRegistrationAction(
         });
         // Pending applications do not consume accepted capacity; only gate new
         // auto-approved registrations when every seat already has an approval.
-        if (!lockedEvent.requiresApproval) {
-          const approvedSlotsExcludingSelf = await tx.eventRegistration.count({
-            where: {
-              eventId: event.id,
-              ...(existing ? { id: { not: existing.id } } : {}),
-              status: EventRegistrationStatus.approved,
-            },
-          });
-          if (
-            lockedEvent.maxParticipants !== null &&
-            approvedSlotsExcludingSelf >= lockedEvent.maxParticipants
-          ) {
-            throw new EventRegistrationFlowError('full');
-          }
-        }
+        await assertPublicEventRegistrationCapacity({
+          event: lockedContext.event,
+          eventId: event.id,
+          existingRegistrationId: existing?.id ?? null,
+          tx,
+        });
 
         const registrationId = existing?.id ?? randomUUID();
-        if (existing) {
-          await tx.eventRegistration.update({
-            where: { id: existing.id },
-            data: {
-              status,
-              swimAgreementAcceptedAt: now,
-              registrationAnswers: { deleteMany: {} },
-            },
-          });
-        }
-        if (!existing) {
-          await tx.eventRegistration.create({
-            data: {
-              id: registrationId,
-              eventId: event.id,
-              userId: access.userId,
-              status,
-              createdAt: now,
-              swimAgreementAcceptedAt: now,
-            },
-          });
-        }
-
-        const answers = parsedAnswers.answers.map((answer) => ({
-          id: randomUUID(),
+        await upsertPublicEventRegistration({
+          eventEntryFeeId: lockedSelectedFee.eventEntryFeeId,
+          eventId: event.id,
+          existingRegistrationId: existing?.id ?? null,
+          now,
+          phone: lockedContext.phone,
           registrationId,
-          questionId: answer.questionId,
-          value: answer.value,
-        }));
-
-        if (answers.length > 0) {
-          await tx.eventRegistrationAnswer.createMany({ data: answers });
-        }
+          status,
+          tx,
+          userId: access.userId,
+        });
+        await syncPublicRegistrationPhoneToProfile({
+          phone: lockedContext.phone,
+          tx,
+          userId: access.userId,
+        });
+        await replacePublicEventRegistrationAnswers({
+          answers: parsedAnswers.answers,
+          registrationId,
+          tx,
+        });
+        await replacePublicEventRegistrationTeam({
+          allowRepeatCaptain: lockedContext.event.allowRepeatTeamCaptain,
+          registrationId,
+          team: lockedTeam,
+          tx,
+        });
       },
       {
         maxWait: 5000,
         timeout: 10_000,
       }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     unstable_rethrow(error);
     if (error instanceof EventRegistrationFlowError) {
       redirect(eventRegistrationErrorUrl(locale, slug, error.code));
@@ -407,13 +872,17 @@ export async function cancelPublicEventRegistrationAction(
     deniedUrl: eventDetailErrorUrl(locale, slug, 'not_found'),
     locale,
   });
-  let event: { id: string } | null;
+  let event: { id: string };
   try {
-    event = await access.db.event.findFirst({
+    const eventResult = await access.db.event.findFirst({
       where: { slug },
       select: { id: true },
     });
-  } catch (error) {
+    if (!eventResult) {
+      redirect(eventDetailErrorUrl(locale, slug, 'not_found'));
+    }
+    event = eventResult;
+  } catch (error: unknown) {
     unstable_rethrow(error);
     logPublicEventRegistrationFailure({
       action: 'load-cancel-event',
@@ -422,15 +891,12 @@ export async function cancelPublicEventRegistrationAction(
     });
     redirect(eventDetailErrorUrl(locale, slug, mutationCodeFromPrisma(error)));
   }
-  if (!event) {
-    redirect(eventDetailErrorUrl(locale, slug, 'not_found'));
-  }
   try {
     await prisma.eventRegistration.updateMany({
       where: { eventId: event.id, userId: access.userId },
       data: { status: EventRegistrationStatus.cancelled },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     unstable_rethrow(error);
     logPublicEventRegistrationFailure({ action: 'cancel', error, slug });
     redirect(eventDetailErrorUrl(locale, slug, mutationCodeFromPrisma(error)));

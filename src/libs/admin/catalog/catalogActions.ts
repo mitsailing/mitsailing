@@ -13,6 +13,7 @@
 import { revalidatePath, updateTag } from 'next/cache';
 import { redirect } from 'next/navigation';
 import * as z from 'zod';
+import { adminFormReturnsToEdit } from '@/libs/admin/adminFormRedirect';
 import {
   adminCatalogResourceDeletePath,
   adminCatalogResourceEditPath,
@@ -312,6 +313,17 @@ export async function updateCatalogResourceAction(
     resourceId,
     slugFromCatalogFormData(formData)
   );
+  if (!adminFormReturnsToEdit(formData)) {
+    redirect(
+      catalogRedirectPath({
+        basePath: getI18nPath(
+          adminCatalogResourceIndexPath(resourceId),
+          locale
+        ),
+        scope,
+      })
+    );
+  }
   redirect(
     catalogRedirectPath({
       basePath: getI18nPath(

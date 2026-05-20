@@ -209,11 +209,10 @@ test.describe('Admin hub and users', () => {
       await expect(
         page.getByRole('heading', { name: 'Edit user' })
       ).toBeVisible();
+      const userShowPath = new URL(page.url()).pathname.replace(/\/edit$/u, '');
       await page.getByLabel('Banned').check();
-      await page.getByRole('button', { name: 'Save' }).click();
-      await expect
-        .poll(() => new URL(page.url()).pathname)
-        .toBe('/admin/users');
+      await page.getByRole('button', { name: 'Save', exact: true }).click();
+      await expect.poll(() => new URL(page.url()).pathname).toBe(userShowPath);
 
       await page.context().clearCookies();
       await page.context().addCookies(signedInUserCookies);
@@ -262,11 +261,18 @@ test.describe('Admin hub and users', () => {
         .filter({ hasText: email })
         .getByRole('link', { name: 'Edit' })
         .click();
+      await expect(
+        page.getByRole('heading', { name: 'Edit user' })
+      ).toBeVisible();
+      const restoredUserShowPath = new URL(page.url()).pathname.replace(
+        /\/edit$/u,
+        ''
+      );
       await page.getByLabel('Banned').uncheck();
-      await page.getByRole('button', { name: 'Save' }).click();
+      await page.getByRole('button', { name: 'Save', exact: true }).click();
       await expect
         .poll(() => new URL(page.url()).pathname)
-        .toBe('/admin/users');
+        .toBe(restoredUserShowPath);
 
       await page.context().clearCookies();
       await page.goto('/login');

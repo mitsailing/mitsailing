@@ -125,12 +125,41 @@ describe('getPublishedEventForPublicBySlug', () => {
       isSpecial: false,
       maxParticipants: 12,
       requiresApproval: true,
+      requiresPhone: true,
       registrationStart: null,
       registrationEnd: null,
       detailPageKind: 'standard',
       externalDetailUrl: null,
+      registrationMode: 'external',
+      externalRegistrationUrl: 'https://example.com/register',
+      externalEntriesUrl: 'https://example.com/entries',
+      faqContent: '<p>Hidden FAQ</p>',
+      faqVisible: false,
+      isPublished: true,
+      usesTeamRegistration: true,
+      boatsPerTeam: 1,
+      personsPerBoat: 2,
+      allowRepeatTeamCaptain: false,
       category: { name: 'Classes' },
       dates: [{ id: 'date-1', startDateTime, endDateTime }],
+      admins: [
+        {
+          id: 'event-admin-1',
+          admin: {
+            id: 'admin-1',
+            name: 'Ada Lovelace',
+            email: 'ada@example.com',
+          },
+        },
+        {
+          id: 'event-admin-2',
+          admin: {
+            id: 'admin-2',
+            name: 'Grace Hopper',
+            email: 'grace@example.com',
+          },
+        },
+      ],
       registrationQuestions: [
         {
           id: 'question-1',
@@ -158,8 +187,62 @@ describe('getPublishedEventForPublicBySlug', () => {
 
     const result = await getPublishedEventForPublicBySlug('intro-sail');
 
+    expect(mocks.eventFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.objectContaining({
+          admins: {
+            orderBy: [{ admin: { name: 'asc' } }, { admin: { email: 'asc' } }],
+            select: {
+              id: true,
+              admin: { select: { id: true, name: true, email: true } },
+            },
+          },
+          externalEntriesUrl: true,
+          externalRegistrationUrl: true,
+          registrationMode: true,
+          usesTeamRegistration: true,
+          boatsPerTeam: true,
+          personsPerBoat: true,
+          allowRepeatTeamCaptain: true,
+          requiresPhone: true,
+        }),
+      })
+    );
+    expect(result?.admins).toEqual([
+      {
+        id: 'event-admin-1',
+        admin: {
+          id: 'admin-1',
+          name: 'Ada Lovelace',
+          email: 'ada@example.com',
+        },
+      },
+      {
+        id: 'event-admin-2',
+        admin: {
+          id: 'admin-2',
+          name: 'Grace Hopper',
+          email: 'grace@example.com',
+        },
+      },
+    ]);
     expect(result?.approvedRegistrationCount).toBe(4);
     expect(result?.pendingRegistrationCount).toBe(2);
+    expect(result).not.toHaveProperty('faqContent');
+    expect(result).not.toHaveProperty('faqVisible');
+    expect(result).not.toHaveProperty('isPublished');
+    expect(result).toMatchObject({
+      externalEntriesUrl: 'https://example.com/entries',
+      externalRegistrationUrl: 'https://example.com/register',
+      registrationMode: 'external',
+      requiresPhone: true,
+      teamRegistration: {
+        allowRepeatTeamCaptain: false,
+        boatsPerTeam: 1,
+        personsPerBoat: 2,
+        usesTeamRegistration: true,
+      },
+    });
     expect(result?.registrationQuestions).toEqual([
       {
         id: 'question-1',
@@ -176,6 +259,55 @@ describe('getPublishedEventForPublicBySlug', () => {
     expect(mocks.eventRegistrationCount).toHaveBeenNthCalledWith(2, {
       where: { eventId: 'event-1', status: EventRegistrationStatus.pending },
     });
+  });
+
+  it('returns visible non-empty public content sections in legacy order', async () => {
+    mocks.eventFindFirst.mockResolvedValue({
+      id: 'event-1',
+      name: 'Intro Sail',
+      shortName: 'Intro',
+      description: '',
+      slug: 'intro-sail',
+      isSpecial: false,
+      maxParticipants: 12,
+      requiresApproval: true,
+      requiresPhone: false,
+      registrationStart: null,
+      registrationEnd: null,
+      detailPageKind: 'standard',
+      externalDetailUrl: null,
+      faqContent: '<p>Questions</p>',
+      faqVisible: true,
+      noticeOfRaceContent: '<p>Notice</p>',
+      noticeOfRaceVisible: true,
+      sailingInstructionsContent: '<p>Hidden draft</p>',
+      sailingInstructionsVisible: false,
+      resultsContent: '   ',
+      resultsVisible: true,
+      category: { name: 'Classes' },
+      dates: [],
+      admins: [],
+      registrationQuestions: [],
+      entryFees: [],
+    });
+    mocks.eventRegistrationCount.mockResolvedValue(0);
+    const { getPublishedEventForPublicBySlug } =
+      await import('@/libs/mit-sailing/eventQueries');
+
+    const result = await getPublishedEventForPublicBySlug('intro-sail');
+
+    expect(result?.publicContentSections).toEqual([
+      {
+        body: '<p>Questions</p>',
+        id: 'faq',
+        titleKey: 'content_faq_title',
+      },
+      {
+        body: '<p>Notice</p>',
+        id: 'noticeOfRace',
+        titleKey: 'content_notice_of_race_title',
+      },
+    ]);
   });
 });
 

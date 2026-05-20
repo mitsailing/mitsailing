@@ -109,6 +109,12 @@ enum EventDetailPageKind {
     external
 }
 
+enum EventRegistrationMode {
+    none
+    standard
+    external
+}
+
 enum EventRegistrationStatus {
     pending
     approved
@@ -224,6 +230,9 @@ model User {
     emailSuppressedAt DateTime? @map("email_suppressed_at")
     emailSuppressionReason String? @map("email_suppression_reason")
     gymMembershipVerifiedAt DateTime? @map("gym_membership_verified_at")
+    phone String? @map("phone")
+    emergencyContactName String? @map("emergency_contact_name")
+    emergencyContactPhone String? @map("emergency_contact_phone")
     image String?
     createdAt DateTime @default(now()) @map("created_at")
     updatedAt DateTime @updatedAt() @map("updated_at")
@@ -633,12 +642,27 @@ model Event {
     isSpecial Boolean @map("is_special")
     maxParticipants Int? @map("max_participants")
     requiresApproval Boolean @map("requires_approval")
+    requiresPhone Boolean @default(false) @map("requires_phone")
+    usesTeamRegistration Boolean @default(false) @map("uses_team_registration")
+    boatsPerTeam Int @default(1) @map("boats_per_team")
+    personsPerBoat Int @default(1) @map("persons_per_boat")
+    allowRepeatTeamCaptain Boolean @default(false) @map("allow_repeat_team_captain")
     registrationStart DateTime? @map("registration_start")
     registrationEnd DateTime? @map("registration_end")
     createdAt DateTime @map("created_at")
     detailPageKind EventDetailPageKind? @map("detail_page_kind")
     externalDetailUrl String? @map("external_detail_url")
-    internalNotes String? @map("internal_notes") @db.Text()
+    registrationMode EventRegistrationMode @default(standard) @map("registration_mode")
+    externalRegistrationUrl String? @map("external_registration_url")
+    externalEntriesUrl String? @map("external_entries_url")
+    faqVisible Boolean @default(false) @map("faq_visible")
+    faqContent String @default("") @map("faq_content") @db.Text()
+    noticeOfRaceVisible Boolean @default(false) @map("notice_of_race_visible")
+    noticeOfRaceContent String @default("") @map("notice_of_race_content") @db.Text()
+    sailingInstructionsVisible Boolean @default(false) @map("sailing_instructions_visible")
+    sailingInstructionsContent String @default("") @map("sailing_instructions_content") @db.Text()
+    resultsVisible Boolean @default(false) @map("results_visible")
+    resultsContent String @default("") @map("results_content") @db.Text()
     isPublished Boolean @map("is_published")
     category EventCategory @relation(fields: [eventCategoryId], references: [id], onDelete: Restrict)
     dates EventDate[]
@@ -682,15 +706,45 @@ model EventRegistration {
     eventId String @map("event_id")
     userId String @map("user_id")
     status EventRegistrationStatus
+    phone String @map("phone")
+    eventEntryFeeId String? @map("event_entry_fee_id")
     createdAt DateTime @map("created_at")
     swimAgreementAcceptedAt DateTime @map("swim_agreement_accepted_at")
     event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+    eventEntryFee EventEntryFee? @relation(fields: [eventEntryFeeId], references: [id], onDelete: SetNull)
     user User @relation(fields: [userId], references: [id], onDelete: Cascade)
     registrationAnswers EventRegistrationAnswer[]
+    registrationTeam EventRegistrationTeam?
+    boatMembers EventRegistrationBoatMember[]
 
     @@index([eventId])
+    @@index([eventEntryFeeId])
     @@index([userId])
     @@map("event_registrations")
+}
+
+model EventRegistrationTeam {
+    id String @id()
+    registrationId String @unique() @map("registration_id")
+    teamName String @map("team_name") @db.VarChar(80)
+    allowRepeatCaptain Boolean @default(false) @map("allow_repeat_captain")
+    registration EventRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+
+    @@map("event_registration_teams")
+}
+
+model EventRegistrationBoatMember {
+    id String @id()
+    registrationId String @map("registration_id")
+    boatNumber Int @map("boat_number")
+    position Int
+    fullName String @map("full_name") @db.VarChar(80)
+    email String @db.VarChar(255)
+    registration EventRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+
+    @@index([registrationId])
+    @@unique([registrationId, boatNumber, position])
+    @@map("event_registration_boat_members")
 }
 
 model EventRegistrationQuestion {
@@ -732,6 +786,7 @@ model EventEntryFee {
     amountCents Int @map("amount_cents")
     isDeposit Boolean @map("is_deposit")
     event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+    registrations EventRegistration[]
 
     @@index([eventId])
     @@map("event_entry_fees")

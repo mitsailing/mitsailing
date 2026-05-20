@@ -23,7 +23,11 @@ export default async function AdminEventEditPage(props: PageProps) {
   const { locale, slug } = await props.params;
   const { error: errorCode } = await props.searchParams;
   setRequestLocale(locale);
-  const access = await requireAdminEventAccess({ locale, slug });
+  const access = await requireAdminEventAccess({
+    locale,
+    minimumAccessMode: 'readOnly',
+    slug,
+  });
   if (!access) {
     notFound();
   }
@@ -37,6 +41,7 @@ export default async function AdminEventEditPage(props: PageProps) {
   }
   return (
     <AdminEventFormView
+      accessMode={access.accessMode}
       categories={data.categories}
       errorCode={errorCode ?? null}
       event={data.event}

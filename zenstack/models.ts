@@ -30,6 +30,8 @@ export type Event = $ModelResult<$Schema, "Event">;
 export type EventDate = $ModelResult<$Schema, "EventDate">;
 export type EventAdmin = $ModelResult<$Schema, "EventAdmin">;
 export type EventRegistration = $ModelResult<$Schema, "EventRegistration">;
+export type EventRegistrationTeam = $ModelResult<$Schema, "EventRegistrationTeam">;
+export type EventRegistrationBoatMember = $ModelResult<$Schema, "EventRegistrationBoatMember">;
 export type EventRegistrationQuestion = $ModelResult<$Schema, "EventRegistrationQuestion">;
 export type EventRegistrationAnswer = $ModelResult<$Schema, "EventRegistrationAnswer">;
 /**
@@ -89,6 +91,8 @@ export const NewsletterEventType = $schema.enums.NewsletterEventType.values;
 export type NewsletterEventType = (typeof NewsletterEventType)[keyof typeof NewsletterEventType];
 export const EventDetailPageKind = $schema.enums.EventDetailPageKind.values;
 export type EventDetailPageKind = (typeof EventDetailPageKind)[keyof typeof EventDetailPageKind];
+export const EventRegistrationMode = $schema.enums.EventRegistrationMode.values;
+export type EventRegistrationMode = (typeof EventRegistrationMode)[keyof typeof EventRegistrationMode];
 export const EventRegistrationStatus = $schema.enums.EventRegistrationStatus.values;
 export type EventRegistrationStatus = (typeof EventRegistrationStatus)[keyof typeof EventRegistrationStatus];
 export const EventAnswerType = $schema.enums.EventAnswerType.values;

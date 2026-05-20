@@ -135,4 +135,24 @@ describe('admin user actions', () => {
       'en'
     );
   });
+
+  it('returns to the user show page after updating a user', async () => {
+    const { updateAdminUserAction } =
+      await import('@/libs/admin/users/adminUserActions');
+
+    await expect(
+      updateAdminUserAction('en', 'user-1', new FormData())
+    ).rejects.toThrow(/^NEXT_REDIRECT:\/admin\/users\/user-1$/u);
+  });
+
+  it('stays on the edit screen when requested after updating a user', async () => {
+    const { updateAdminUserAction } =
+      await import('@/libs/admin/users/adminUserActions');
+    const formData = new FormData();
+    formData.set('redirectTo', 'edit');
+
+    await expect(
+      updateAdminUserAction('en', 'user-1', formData)
+    ).rejects.toThrow(/^NEXT_REDIRECT:\/admin\/users\/user-1\/edit$/u);
+  });
 });

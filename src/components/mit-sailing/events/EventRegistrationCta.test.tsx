@@ -25,8 +25,15 @@ const minimalEvent: PublicEventDetail = {
   registrationQuestions: [],
   registrationStart: null,
   requiresApproval: true,
+  requiresPhone: false,
   slug: 'spring-series',
   shortName: 'Spring Series',
+  teamRegistration: {
+    allowRepeatTeamCaptain: false,
+    boatsPerTeam: 1,
+    personsPerBoat: 1,
+    usesTeamRegistration: false,
+  },
 };
 
 const defaultCtaProps = {

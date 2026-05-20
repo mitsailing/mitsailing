@@ -72,6 +72,24 @@ export class SchemaType implements SchemaDef {
                     optional: true,
                     attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("gym_membership_verified_at") }] }] as readonly AttributeApplication[]
                 },
+                phone: {
+                    name: "phone",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("phone") }] }] as readonly AttributeApplication[]
+                },
+                emergencyContactName: {
+                    name: "emergencyContactName",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("emergency_contact_name") }] }] as readonly AttributeApplication[]
+                },
+                emergencyContactPhone: {
+                    name: "emergencyContactPhone",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("emergency_contact_phone") }] }] as readonly AttributeApplication[]
+                },
                 image: {
                     name: "image",
                     type: "String",
@@ -2004,6 +2022,36 @@ export class SchemaType implements SchemaDef {
                     type: "Boolean",
                     attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("requires_approval") }] }] as readonly AttributeApplication[]
                 },
+                requiresPhone: {
+                    name: "requiresPhone",
+                    type: "Boolean",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal(false) }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("requires_phone") }] }] as readonly AttributeApplication[],
+                    default: false as FieldDefault
+                },
+                usesTeamRegistration: {
+                    name: "usesTeamRegistration",
+                    type: "Boolean",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal(false) }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("uses_team_registration") }] }] as readonly AttributeApplication[],
+                    default: false as FieldDefault
+                },
+                boatsPerTeam: {
+                    name: "boatsPerTeam",
+                    type: "Int",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal(1) }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("boats_per_team") }] }] as readonly AttributeApplication[],
+                    default: 1 as FieldDefault
+                },
+                personsPerBoat: {
+                    name: "personsPerBoat",
+                    type: "Int",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal(1) }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("persons_per_boat") }] }] as readonly AttributeApplication[],
+                    default: 1 as FieldDefault
+                },
+                allowRepeatTeamCaptain: {
+                    name: "allowRepeatTeamCaptain",
+                    type: "Boolean",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal(false) }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("allow_repeat_team_captain") }] }] as readonly AttributeApplication[],
+                    default: false as FieldDefault
+                },
                 registrationStart: {
                     name: "registrationStart",
                     type: "DateTime",
@@ -2033,11 +2081,71 @@ export class SchemaType implements SchemaDef {
                     optional: true,
                     attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("external_detail_url") }] }] as readonly AttributeApplication[]
                 },
-                internalNotes: {
-                    name: "internalNotes",
+                registrationMode: {
+                    name: "registrationMode",
+                    type: "EventRegistrationMode",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal("standard") }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("registration_mode") }] }] as readonly AttributeApplication[],
+                    default: "standard" as FieldDefault
+                },
+                externalRegistrationUrl: {
+                    name: "externalRegistrationUrl",
                     type: "String",
                     optional: true,
-                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("internal_notes") }] }, { name: "@db.Text" }] as readonly AttributeApplication[]
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("external_registration_url") }] }] as readonly AttributeApplication[]
+                },
+                externalEntriesUrl: {
+                    name: "externalEntriesUrl",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("external_entries_url") }] }] as readonly AttributeApplication[]
+                },
+                faqVisible: {
+                    name: "faqVisible",
+                    type: "Boolean",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal(false) }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("faq_visible") }] }] as readonly AttributeApplication[],
+                    default: false as FieldDefault
+                },
+                faqContent: {
+                    name: "faqContent",
+                    type: "String",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal("") }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("faq_content") }] }, { name: "@db.Text" }] as readonly AttributeApplication[],
+                    default: "" as FieldDefault
+                },
+                noticeOfRaceVisible: {
+                    name: "noticeOfRaceVisible",
+                    type: "Boolean",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal(false) }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("notice_of_race_visible") }] }] as readonly AttributeApplication[],
+                    default: false as FieldDefault
+                },
+                noticeOfRaceContent: {
+                    name: "noticeOfRaceContent",
+                    type: "String",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal("") }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("notice_of_race_content") }] }, { name: "@db.Text" }] as readonly AttributeApplication[],
+                    default: "" as FieldDefault
+                },
+                sailingInstructionsVisible: {
+                    name: "sailingInstructionsVisible",
+                    type: "Boolean",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal(false) }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("sailing_instructions_visible") }] }] as readonly AttributeApplication[],
+                    default: false as FieldDefault
+                },
+                sailingInstructionsContent: {
+                    name: "sailingInstructionsContent",
+                    type: "String",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal("") }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("sailing_instructions_content") }] }, { name: "@db.Text" }] as readonly AttributeApplication[],
+                    default: "" as FieldDefault
+                },
+                resultsVisible: {
+                    name: "resultsVisible",
+                    type: "Boolean",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal(false) }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("results_visible") }] }] as readonly AttributeApplication[],
+                    default: false as FieldDefault
+                },
+                resultsContent: {
+                    name: "resultsContent",
+                    type: "String",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal("") }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("results_content") }] }, { name: "@db.Text" }] as readonly AttributeApplication[],
+                    default: "" as FieldDefault
                 },
                 isPublished: {
                     name: "isPublished",
@@ -2096,6 +2204,7 @@ export class SchemaType implements SchemaDef {
             attributes: [
                 { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("eventCategoryId")]) }] },
                 { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("read") }, { name: "condition", value: ExpressionUtils.field("isPublished") }] },
+                { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create,update") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("boatsPerTeam"), "<", ExpressionUtils.literal(1)), "||", ExpressionUtils.binary(ExpressionUtils.field("personsPerBoat"), "<", ExpressionUtils.literal(1))) }] },
                 { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("read,update,delete") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.call("auth"), "!=", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("admin")), "||", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("dock_staff"))), "||", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("dock_master"))), "||", ExpressionUtils.binary(ExpressionUtils.field("admins"), "?", ExpressionUtils.binary(ExpressionUtils.field("adminUserId"), "==", ExpressionUtils.member(ExpressionUtils.call("auth"), ["id"]))))) }] },
                 { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("create") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.call("auth"), "!=", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("admin")), "||", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("dock_staff"))), "||", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("dock_master")))) }] },
                 { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("events") }] }
@@ -2232,6 +2341,20 @@ export class SchemaType implements SchemaDef {
                     name: "status",
                     type: "EventRegistrationStatus"
                 },
+                phone: {
+                    name: "phone",
+                    type: "String",
+                    attributes: [{ name: "@trim" }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("phone") }] }] as readonly AttributeApplication[]
+                },
+                eventEntryFeeId: {
+                    name: "eventEntryFeeId",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("event_entry_fee_id") }] }] as readonly AttributeApplication[],
+                    foreignKeyFor: [
+                        "eventEntryFee"
+                    ] as readonly string[]
+                },
                 createdAt: {
                     name: "createdAt",
                     type: "DateTime",
@@ -2248,6 +2371,13 @@ export class SchemaType implements SchemaDef {
                     attributes: [{ name: "@relation", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("eventId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("Cascade") }] }] as readonly AttributeApplication[],
                     relation: { opposite: "registrations", fields: ["eventId"], references: ["id"], onDelete: "Cascade" }
                 },
+                eventEntryFee: {
+                    name: "eventEntryFee",
+                    type: "EventEntryFee",
+                    optional: true,
+                    attributes: [{ name: "@relation", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("eventEntryFeeId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("SetNull") }] }] as readonly AttributeApplication[],
+                    relation: { opposite: "registrations", fields: ["eventEntryFeeId"], references: ["id"], onDelete: "SetNull" }
+                },
                 user: {
                     name: "user",
                     type: "User",
@@ -2259,11 +2389,27 @@ export class SchemaType implements SchemaDef {
                     type: "EventRegistrationAnswer",
                     array: true,
                     relation: { opposite: "registration" }
+                },
+                registrationTeam: {
+                    name: "registrationTeam",
+                    type: "EventRegistrationTeam",
+                    optional: true,
+                    relation: { opposite: "registration" }
+                },
+                boatMembers: {
+                    name: "boatMembers",
+                    type: "EventRegistrationBoatMember",
+                    array: true,
+                    relation: { opposite: "registration" }
                 }
             },
             attributes: [
                 { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("eventId")]) }] },
+                { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("eventEntryFeeId")]) }] },
                 { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("userId")]) }] },
+                { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.field("event"), ["registrationMode"]), "!=", ExpressionUtils.literal("standard")) }] },
+                { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create,update") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.field("phone"), "==", ExpressionUtils.literal("")) }] },
+                { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create,update") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("eventEntryFee"), "!=", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.field("eventEntryFee"), ["eventId"]), "!=", ExpressionUtils.field("eventId"))) }] },
                 { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("read") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.call("auth"), "!=", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.field("userId"), "==", ExpressionUtils.member(ExpressionUtils.call("auth"), ["id"]))) }] },
                 { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("create") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.call("auth"), "!=", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.field("userId"), "==", ExpressionUtils.member(ExpressionUtils.call("auth"), ["id"]))), "&&", ExpressionUtils.call("check", [ExpressionUtils.field("event"), ExpressionUtils.literal("read")])) }] },
                 { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("read,update,delete") }, { name: "condition", value: ExpressionUtils.call("check", [ExpressionUtils.field("event"), ExpressionUtils.literal("update")]) }] },
@@ -2272,6 +2418,116 @@ export class SchemaType implements SchemaDef {
             idFields: ["id"],
             uniqueFields: {
                 id: { type: "String" }
+            }
+        },
+        EventRegistrationTeam: {
+            name: "EventRegistrationTeam",
+            fields: {
+                id: {
+                    name: "id",
+                    type: "String",
+                    id: true,
+                    attributes: [{ name: "@id" }] as readonly AttributeApplication[]
+                },
+                registrationId: {
+                    name: "registrationId",
+                    type: "String",
+                    unique: true,
+                    attributes: [{ name: "@unique" }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("registration_id") }] }] as readonly AttributeApplication[],
+                    foreignKeyFor: [
+                        "registration"
+                    ] as readonly string[]
+                },
+                teamName: {
+                    name: "teamName",
+                    type: "String",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("team_name") }] }, { name: "@db.VarChar", args: [{ name: "x", value: ExpressionUtils.literal(80) }] }] as readonly AttributeApplication[]
+                },
+                allowRepeatCaptain: {
+                    name: "allowRepeatCaptain",
+                    type: "Boolean",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal(false) }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("allow_repeat_captain") }] }] as readonly AttributeApplication[],
+                    default: false as FieldDefault
+                },
+                registration: {
+                    name: "registration",
+                    type: "EventRegistration",
+                    attributes: [{ name: "@relation", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("registrationId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("Cascade") }] }] as readonly AttributeApplication[],
+                    relation: { opposite: "registrationTeam", fields: ["registrationId"], references: ["id"], onDelete: "Cascade" }
+                }
+            },
+            attributes: [
+                { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create,update") }, { name: "condition", value: ExpressionUtils.unary("!", ExpressionUtils.member(ExpressionUtils.field("registration"), ["event", "usesTeamRegistration"])) }] },
+                { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create,update") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.field("allowRepeatCaptain"), "&&", ExpressionUtils.unary("!", ExpressionUtils.member(ExpressionUtils.field("registration"), ["event", "allowRepeatTeamCaptain"]))) }] },
+                { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("read") }, { name: "condition", value: ExpressionUtils.call("check", [ExpressionUtils.field("registration"), ExpressionUtils.literal("read")]) }] },
+                { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("create,update,delete") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.call("auth"), "!=", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.field("registration"), ["userId"]), "==", ExpressionUtils.member(ExpressionUtils.call("auth"), ["id"]))) }] },
+                { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("create,update,delete") }, { name: "condition", value: ExpressionUtils.call("check", [ExpressionUtils.field("registration"), ExpressionUtils.literal("update")]) }] },
+                { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("event_registration_teams") }] }
+            ] as readonly AttributeApplication[],
+            idFields: ["id"],
+            uniqueFields: {
+                id: { type: "String" },
+                registrationId: { type: "String" }
+            }
+        },
+        EventRegistrationBoatMember: {
+            name: "EventRegistrationBoatMember",
+            fields: {
+                id: {
+                    name: "id",
+                    type: "String",
+                    id: true,
+                    attributes: [{ name: "@id" }] as readonly AttributeApplication[]
+                },
+                registrationId: {
+                    name: "registrationId",
+                    type: "String",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("registration_id") }] }] as readonly AttributeApplication[],
+                    foreignKeyFor: [
+                        "registration"
+                    ] as readonly string[]
+                },
+                boatNumber: {
+                    name: "boatNumber",
+                    type: "Int",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("boat_number") }] }] as readonly AttributeApplication[]
+                },
+                position: {
+                    name: "position",
+                    type: "Int"
+                },
+                fullName: {
+                    name: "fullName",
+                    type: "String",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("full_name") }] }, { name: "@db.VarChar", args: [{ name: "x", value: ExpressionUtils.literal(80) }] }] as readonly AttributeApplication[]
+                },
+                email: {
+                    name: "email",
+                    type: "String",
+                    attributes: [{ name: "@db.VarChar", args: [{ name: "x", value: ExpressionUtils.literal(255) }] }] as readonly AttributeApplication[]
+                },
+                registration: {
+                    name: "registration",
+                    type: "EventRegistration",
+                    attributes: [{ name: "@relation", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("registrationId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("Cascade") }] }] as readonly AttributeApplication[],
+                    relation: { opposite: "boatMembers", fields: ["registrationId"], references: ["id"], onDelete: "Cascade" }
+                }
+            },
+            attributes: [
+                { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("registrationId")]) }] },
+                { name: "@@unique", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("registrationId"), ExpressionUtils.field("boatNumber"), ExpressionUtils.field("position")]) }] },
+                { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create,update") }, { name: "condition", value: ExpressionUtils.unary("!", ExpressionUtils.member(ExpressionUtils.field("registration"), ["event", "usesTeamRegistration"])) }] },
+                { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create,update") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("boatNumber"), "<", ExpressionUtils.literal(1)), "||", ExpressionUtils.binary(ExpressionUtils.field("boatNumber"), ">", ExpressionUtils.member(ExpressionUtils.field("registration"), ["event", "boatsPerTeam"]))) }] },
+                { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create,update") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("position"), "<", ExpressionUtils.literal(0)), "||", ExpressionUtils.binary(ExpressionUtils.field("position"), ">=", ExpressionUtils.member(ExpressionUtils.field("registration"), ["event", "personsPerBoat"]))) }] },
+                { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("read") }, { name: "condition", value: ExpressionUtils.call("check", [ExpressionUtils.field("registration"), ExpressionUtils.literal("read")]) }] },
+                { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("create,update,delete") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.call("auth"), "!=", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.field("registration"), ["userId"]), "==", ExpressionUtils.member(ExpressionUtils.call("auth"), ["id"]))) }] },
+                { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("create,update,delete") }, { name: "condition", value: ExpressionUtils.call("check", [ExpressionUtils.field("registration"), ExpressionUtils.literal("update")]) }] },
+                { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("event_registration_boat_members") }] }
+            ] as readonly AttributeApplication[],
+            idFields: ["id"],
+            uniqueFields: {
+                id: { type: "String" },
+                registrationId_boatNumber_position: { registrationId: { type: "String" }, boatNumber: { type: "Int" }, position: { type: "Int" } }
             }
         },
         EventRegistrationQuestion: {
@@ -2433,6 +2689,12 @@ export class SchemaType implements SchemaDef {
                     type: "Event",
                     attributes: [{ name: "@relation", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("eventId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("Cascade") }] }] as readonly AttributeApplication[],
                     relation: { opposite: "entryFees", fields: ["eventId"], references: ["id"], onDelete: "Cascade" }
+                },
+                registrations: {
+                    name: "registrations",
+                    type: "EventRegistration",
+                    array: true,
+                    relation: { opposite: "eventEntryFee" }
                 }
             },
             attributes: [
@@ -4627,6 +4889,14 @@ export class SchemaType implements SchemaDef {
         EventDetailPageKind: {
             name: "EventDetailPageKind",
             values: {
+                standard: "standard",
+                external: "external"
+            }
+        },
+        EventRegistrationMode: {
+            name: "EventRegistrationMode",
+            values: {
+                none: "none",
                 standard: "standard",
                 external: "external"
             }

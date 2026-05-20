@@ -50,6 +50,63 @@ describe('AdminCatalogForm', () => {
     );
   });
 
+  it('offers a secondary save-and-continue submit on edit forms', async () => {
+    const formAction = vi.fn(async (_formData: FormData) => {
+      await Promise.resolve();
+    });
+    const user = userEvent.setup();
+    render(
+      <AdminCatalogForm
+        definition={catalogResourceDefinitions.event_categories}
+        formAction={formAction}
+        headingKey="edit_heading"
+        row={{ id: 'cat-1', isVisible: true, name: 'Regattas' }}
+      />
+    );
+
+    expect(
+      screen.getAllByRole('button').map((button) => button.textContent)
+    ).toEqual(['Save', 'Save and continue editing']);
+    await user.click(
+      screen.getByRole('button', { name: 'Save and continue editing' })
+    );
+
+    await waitFor(() => {
+      expect(formAction).toHaveBeenCalled();
+    });
+    const formData = formAction.mock.calls[0]?.[0];
+    expect(formData).toBeInstanceOf(FormData);
+    if (!(formData instanceof FormData)) {
+      throw new Error('Expected form data');
+    }
+    expect(formData.get('redirectTo')).toBe('edit');
+  });
+
+  it('keeps generic edit form primary save as the implicit submit action', () => {
+    render(
+      <AdminCatalogForm
+        definition={catalogResourceDefinitions.donation_funds}
+        formAction={async () => {
+          await Promise.resolve();
+        }}
+        headingKey="edit_heading"
+        row={{
+          description: 'Supports junior sailing.',
+          displayOrder: 1,
+          fundId: 'SAIL',
+          id: 'fund-1',
+          isVisible: true,
+          name: 'Sailing Fund',
+          url: 'https://example.com/donate',
+        }}
+      />
+    );
+
+    expect(
+      screen.getAllByRole('button').map((button) => button.textContent)
+    ).toEqual(['Save', 'Save and continue editing']);
+  });
+
   it('blocks invalid event category submissions before the action', async () => {
     const formAction = vi.fn(async (_formData: FormData) => {
       await Promise.resolve();

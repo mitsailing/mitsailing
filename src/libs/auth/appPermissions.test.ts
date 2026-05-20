@@ -33,6 +33,16 @@ describe('app permissions', () => {
     expect(isAdminAppRole(Role.DOCK_STAFF)).toBe(false);
   });
 
+  it('allows volunteer instructors to manage assigned events only', () => {
+    const permissions = getAppRolePermissions(Role.VOLUNTEER_INSTRUCTOR);
+
+    expect(hasPermission(permissions, Permission.ADMIN_VIEW)).toBe(true);
+    expect(hasPermission(permissions, Permission.EVENTS_ASSIGNED_MANAGE)).toBe(
+      true
+    );
+    expect(hasPermission(permissions, Permission.EVENTS_MANAGE)).toBe(false);
+  });
+
   it('checks any permission', () => {
     const permissions = getAppRolePermissions(Role.VOLUNTEER_INSTRUCTOR);
 

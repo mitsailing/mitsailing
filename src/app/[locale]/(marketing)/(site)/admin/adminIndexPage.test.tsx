@@ -83,6 +83,29 @@ describe('AdminIndexPage', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('renders the events link for assigned event managers', async () => {
+    mocks.requireAdminAreaAccess.mockResolvedValue({
+      permissions: [Permission.EVENTS_ASSIGNED_MANAGE],
+      roles: [],
+      session: {
+        session: { impersonatedBy: null },
+        user: { id: 'instructor-1' },
+      },
+    });
+    const { default: AdminIndexPage } = await import('./page');
+
+    render(
+      await AdminIndexPage({
+        params: Promise.resolve({ locale: 'en' }),
+      })
+    );
+
+    expect(screen.getByRole('link', { name: 'link_events' })).toHaveAttribute(
+      'href',
+      '/admin/events'
+    );
+  });
+
   it('renders CMS, newsletter, and catalog links only when permissions allow them', async () => {
     mocks.requireAdminAreaAccess.mockResolvedValue({
       permissions: [
