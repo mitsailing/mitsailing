@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   eventPaymentFindUnique: vi.fn(),
   eventPaymentNotificationFindUnique: vi.fn(),
   eventPaymentNotificationUpdate: vi.fn(),
+  eventPaymentNotificationUpdateMany: vi.fn(),
   eventPaymentNotificationUpsert: vi.fn(),
   loggerError: vi.fn(),
   sendEventPaymentAdminDigestEmail: vi.fn(),
@@ -34,6 +35,7 @@ vi.mock('@/libs/DB', () => ({
     eventPaymentNotification: {
       findUnique: mocks.eventPaymentNotificationFindUnique,
       update: mocks.eventPaymentNotificationUpdate,
+      updateMany: mocks.eventPaymentNotificationUpdateMany,
       upsert: mocks.eventPaymentNotificationUpsert,
     },
   },
@@ -86,6 +88,7 @@ describe('event payment email job', () => {
       id: 'notification-1',
       providerMessageId: null,
     });
+    mocks.eventPaymentNotificationUpdateMany.mockResolvedValue({ count: 1 });
     mocks.eventPaymentNotificationUpdate.mockResolvedValue({});
     mocks.sendEventPaymentRequestEmail.mockResolvedValue({
       providerMessageId: 'email_request',
@@ -156,14 +159,17 @@ describe('event payment email job', () => {
         recipientEmail: 'sailor@example.com',
       })
     );
-    expect(mocks.eventPaymentNotificationUpdate).toHaveBeenCalledWith({
+    expect(mocks.eventPaymentNotificationUpdateMany).toHaveBeenLastCalledWith({
       data: { providerMessageId: 'email_request' },
-      where: { id: 'notification-1' },
+      where: {
+        id: 'notification-1',
+        providerMessageId: expect.stringMatching(/^claim:/u),
+      },
     });
   });
 
   it('does not send duplicate notifications with provider ids', async () => {
-    mocks.eventPaymentNotificationFindUnique.mockResolvedValueOnce({
+    mocks.eventPaymentNotificationUpsert.mockResolvedValueOnce({
       id: 'notification-1',
       providerMessageId: 'email_existing',
     });
@@ -178,7 +184,56 @@ describe('event payment email job', () => {
     });
 
     expect(mocks.sendEventPaymentRequestEmail).not.toHaveBeenCalled();
-    expect(mocks.eventPaymentNotificationUpsert).not.toHaveBeenCalled();
+    expect(mocks.eventPaymentNotificationUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it('reclaims stale notification claims', async () => {
+    mocks.eventPaymentNotificationUpsert.mockResolvedValueOnce({
+      id: 'notification-1',
+      providerMessageId: 'claim:stale-worker',
+    });
+    const { processEventPaymentEmailJob } =
+      await import('@/worker/eventPaymentEmailJob');
+
+    await processEventPaymentEmailJob({
+      dateKey: '2026-06-01',
+      kind: 'request',
+      paymentId: 'payment-1',
+    });
+
+    expect(mocks.eventPaymentNotificationUpdateMany).toHaveBeenNthCalledWith(
+      1,
+      {
+        data: { providerMessageId: expect.stringMatching(/^claim:/u) },
+        where: {
+          OR: [
+            { providerMessageId: null },
+            {
+              providerMessageId: { startsWith: 'claim:' },
+              updatedAt: { lt: expect.any(Date) },
+            },
+          ],
+          id: 'notification-1',
+        },
+      }
+    );
+    expect(mocks.sendEventPaymentRequestEmail).toHaveBeenCalled();
+  });
+
+  it('does not send when another worker already claimed the notification', async () => {
+    mocks.eventPaymentNotificationUpdateMany.mockResolvedValueOnce({
+      count: 0,
+    });
+    const { processEventPaymentEmailJob } =
+      await import('@/worker/eventPaymentEmailJob');
+
+    await processEventPaymentEmailJob({
+      dateKey: '2026-06-01',
+      kind: 'request',
+      paymentId: 'payment-1',
+    });
+
+    expect(mocks.sendEventPaymentRequestEmail).not.toHaveBeenCalled();
   });
 
   it('sends receipts only for locally paid payments', async () => {
@@ -257,7 +312,9 @@ describe('event payment email job', () => {
     );
   });
 
-  it('does not enqueue daily notifications outside seven eastern', async () => {
+  it('enqueues daily notifications slightly after seven eastern', async () => {
+    mocks.eventPaymentFindMany.mockResolvedValueOnce([{ id: 'payment-1' }]);
+    mocks.eventFindMany.mockResolvedValueOnce([{ id: 'event-1' }]);
     const { enqueueDueEventPaymentNotifications } =
       await import('@/worker/eventPaymentEmailJob');
     const queue = { add: vi.fn().mockResolvedValue({ id: 'job-1' }) };
@@ -265,6 +322,21 @@ describe('event payment email job', () => {
     await enqueueDueEventPaymentNotifications(
       queue,
       new Date('2026-06-01T11:01:00.000Z')
+    );
+
+    expect(queue.add).toHaveBeenCalled();
+    expect(mocks.eventPaymentFindMany).toHaveBeenCalled();
+    expect(mocks.eventFindMany).toHaveBeenCalled();
+  });
+
+  it('does not enqueue daily notifications outside seven eastern', async () => {
+    const { enqueueDueEventPaymentNotifications } =
+      await import('@/worker/eventPaymentEmailJob');
+    const queue = { add: vi.fn().mockResolvedValue({ id: 'job-1' }) };
+
+    await enqueueDueEventPaymentNotifications(
+      queue,
+      new Date('2026-06-01T12:00:00.000Z')
     );
 
     expect(queue.add).not.toHaveBeenCalled();
@@ -304,5 +376,12 @@ describe('event payment email job', () => {
         }),
       })
     );
+    expect(mocks.eventPaymentNotificationUpdateMany).toHaveBeenLastCalledWith({
+      data: { providerMessageId: 'email_digest' },
+      where: {
+        id: 'notification-1',
+        providerMessageId: expect.stringMatching(/^claim:/u),
+      },
+    });
   });
 });

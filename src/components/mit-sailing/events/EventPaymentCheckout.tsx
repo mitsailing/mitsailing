@@ -129,8 +129,9 @@ export function EventPaymentCheckout(props: EventPaymentCheckoutProps) {
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    const { publishableKey } = props;
-    if (!isPayablePayment(props.payment) || !publishableKey) {
+    const { clientSecretAction, payment, publishableKey } = props;
+    const { checkoutLoadError } = props.labels;
+    if (!isPayablePayment(payment) || !publishableKey) {
       return;
     }
     let cancelled = false;
@@ -144,7 +145,7 @@ export function EventPaymentCheckout(props: EventPaymentCheckoutProps) {
         }
         const checkout = await stripe.createEmbeddedCheckoutPage({
           fetchClientSecret: async () => {
-            const result = await props.clientSecretAction();
+            const result = await clientSecretAction();
             if (result.status === 'unavailable') {
               throw new Error(result.message);
             }
@@ -159,7 +160,7 @@ export function EventPaymentCheckout(props: EventPaymentCheckoutProps) {
         mountedCheckout = checkout;
       } catch {
         if (!cancelled) {
-          setError(props.labels.checkoutLoadError);
+          setError(checkoutLoadError);
         }
       }
     };
@@ -171,7 +172,12 @@ export function EventPaymentCheckout(props: EventPaymentCheckoutProps) {
       cancelled = true;
       mountedCheckout?.unmount();
     };
-  }, [props]);
+  }, [
+    props.clientSecretAction,
+    props.labels.checkoutLoadError,
+    props.payment,
+    props.publishableKey,
+  ]);
 
   if (!props.payment) {
     return (

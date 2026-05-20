@@ -8,6 +8,7 @@ export type EventPaymentAdminDigestTemplateProps = {
   eventName: string;
   overduePayments: readonly {
     amount: string;
+    id: string;
     recipientEmail: string;
     recipientName: string;
     selectedFeeDescription: string;
@@ -32,10 +33,7 @@ export function EventPaymentAdminDigestTemplate(
         </Heading>
         <Text style={paragraph}>{props.body}</Text>
         {props.overduePayments.map((payment) => (
-          <Text
-            key={`${payment.recipientEmail}:${payment.selectedFeeDescription}`}
-            style={rowText}
-          >
+          <Text key={payment.id} style={rowText}>
             {payment.recipientName} ({payment.recipientEmail}) -{' '}
             {payment.selectedFeeDescription}, {payment.amount}
           </Text>

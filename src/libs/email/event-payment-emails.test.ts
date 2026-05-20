@@ -101,6 +101,7 @@ describe('event payment email wrappers', () => {
       overduePayments: [
         {
           amount: '$45.00',
+          id: 'payment-1',
           recipientEmail: 'sailor@example.com',
           recipientName: 'Ada Sailor',
           selectedFeeDescription: 'Adult entry',

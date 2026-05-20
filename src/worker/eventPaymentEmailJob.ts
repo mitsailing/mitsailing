@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { JobsOptions, Queue } from 'bullmq';
 import * as z from 'zod';
 import {
@@ -60,6 +61,8 @@ const reminderStatuses: EventPaymentStatusType[] = [
   EventPaymentStatus.past_due,
   EventPaymentStatus.pending,
 ];
+const notificationClaimPrefix = 'claim:';
+const notificationClaimTtlMs = 15 * 60 * 1000;
 
 type EventPaymentEmailJobData = z.infer<typeof eventPaymentEmailJobSchema>;
 
@@ -233,20 +236,9 @@ async function ensureNotificationMarker(options: {
   dateKey: string;
   kind: PaymentNotificationKind;
   paymentId: string;
-}): Promise<{ id: string } | null> {
-  const existing = await prisma.eventPaymentNotification.findUnique({
-    where: {
-      paymentId_kind_sentDateKey: {
-        kind: options.kind,
-        paymentId: options.paymentId,
-        sentDateKey: options.dateKey,
-      },
-    },
-  });
-  if (existing?.providerMessageId) {
-    return null;
-  }
-  return prisma.eventPaymentNotification.upsert({
+}): Promise<{ claimId: string; id: string } | null> {
+  const claimId = `${notificationClaimPrefix}${randomUUID()}`;
+  const marker = await prisma.eventPaymentNotification.upsert({
     create: {
       kind: options.kind,
       paymentId: options.paymentId,
@@ -261,15 +253,60 @@ async function ensureNotificationMarker(options: {
       },
     },
   });
+  if (
+    marker.providerMessageId &&
+    !marker.providerMessageId.startsWith(notificationClaimPrefix)
+  ) {
+    return null;
+  }
+
+  const staleClaimBefore = new Date(Date.now() - notificationClaimTtlMs);
+  const claim = await prisma.eventPaymentNotification.updateMany({
+    data: { providerMessageId: claimId },
+    where: {
+      id: marker.id,
+      OR: [
+        { providerMessageId: null },
+        {
+          providerMessageId: { startsWith: notificationClaimPrefix },
+          updatedAt: { lt: staleClaimBefore },
+        },
+      ],
+    },
+  });
+  if (claim.count === 0) {
+    return null;
+  }
+  return { claimId, id: marker.id };
+}
+
+async function clearNotificationClaim(options: {
+  claimId: string;
+  notificationId: string;
+}): Promise<void> {
+  await prisma.eventPaymentNotification.updateMany({
+    data: { providerMessageId: null },
+    where: {
+      id: options.notificationId,
+      providerMessageId: options.claimId,
+    },
+  });
 }
 
 async function recordProviderMessageId(options: {
+  claimId: string;
   notificationId: string;
   providerMessageId: string | null;
 }): Promise<void> {
-  await prisma.eventPaymentNotification.update({
-    data: { providerMessageId: options.providerMessageId },
-    where: { id: options.notificationId },
+  await prisma.eventPaymentNotification.updateMany({
+    data: {
+      providerMessageId:
+        options.providerMessageId ?? `sent-without-provider:${options.claimId}`,
+    },
+    where: {
+      id: options.notificationId,
+      providerMessageId: options.claimId,
+    },
   });
 }
 
@@ -303,14 +340,23 @@ async function processPaymentEmailJob(
     payment,
   });
   let result: SendEmailResult;
-  if (data.kind === 'receipt') {
-    result = await sendEventPaymentReceiptEmail(params);
-  } else if (data.kind === 'reminder') {
-    result = await sendEventPaymentReminderEmail(params);
-  } else {
-    result = await sendEventPaymentRequestEmail(params);
+  try {
+    if (data.kind === 'receipt') {
+      result = await sendEventPaymentReceiptEmail(params);
+    } else if (data.kind === 'reminder') {
+      result = await sendEventPaymentReminderEmail(params);
+    } else {
+      result = await sendEventPaymentRequestEmail(params);
+    }
+  } catch (error) {
+    await clearNotificationClaim({
+      claimId: marker.claimId,
+      notificationId: marker.id,
+    });
+    throw error;
   }
   await recordProviderMessageId({
+    claimId: marker.claimId,
     notificationId: marker.id,
     providerMessageId: result.providerMessageId,
   });
@@ -371,7 +417,7 @@ async function processAdminDigestJob(
     return;
   }
 
-  const markers: { id: string; paymentId: string }[] = [];
+  const markers: { claimId: string; id: string; paymentId: string }[] = [];
   for (const payment of event.payments) {
     const marker = await ensureNotificationMarker({
       dateKey: data.dateKey,
@@ -379,30 +425,47 @@ async function processAdminDigestJob(
       paymentId: payment.id,
     });
     if (marker) {
-      markers.push({ id: marker.id, paymentId: payment.id });
+      markers.push({
+        claimId: marker.claimId,
+        id: marker.id,
+        paymentId: payment.id,
+      });
     }
   }
   if (markers.length === 0) {
     return;
   }
 
-  const result = await sendEventPaymentAdminDigestEmail({
-    adminEmail,
-    deadline: event.paymentDeadlineAt
-      ? formatEventPaymentDate(event.paymentDeadlineAt)
-      : 'No deadline',
-    emailDedupeKey: `${data.eventId}:admin_digest:${data.dateKey}`,
-    eventName: event.name,
-    overduePayments: event.payments.map((payment) => ({
-      amount: formatUsdMinorUnitsAsCurrency(payment.amountCents, 'en-US'),
-      recipientEmail: payment.user.email,
-      recipientName: payment.user.name ?? payment.user.email,
-      selectedFeeDescription: payment.selectedFeeDescription,
-    })),
-  });
+  let result: SendEmailResult;
+  try {
+    result = await sendEventPaymentAdminDigestEmail({
+      adminEmail,
+      deadline: event.paymentDeadlineAt
+        ? formatEventPaymentDate(event.paymentDeadlineAt)
+        : 'No deadline',
+      emailDedupeKey: `${data.eventId}:admin_digest:${data.dateKey}`,
+      eventName: event.name,
+      overduePayments: event.payments.map((payment) => ({
+        amount: formatUsdMinorUnitsAsCurrency(payment.amountCents, 'en-US'),
+        id: payment.id,
+        recipientEmail: payment.user.email,
+        recipientName: payment.user.name ?? payment.user.email,
+        selectedFeeDescription: payment.selectedFeeDescription,
+      })),
+    });
+  } catch (error) {
+    for (const marker of markers) {
+      await clearNotificationClaim({
+        claimId: marker.claimId,
+        notificationId: marker.id,
+      });
+    }
+    throw error;
+  }
 
   for (const marker of markers) {
     await recordProviderMessageId({
+      claimId: marker.claimId,
       notificationId: marker.id,
       providerMessageId: result.providerMessageId,
     });
@@ -427,12 +490,10 @@ export async function enqueueDueEventPaymentNotifications(
   const parts = new Intl.DateTimeFormat('en-US', {
     hour: 'numeric',
     hour12: false,
-    minute: '2-digit',
     timeZone: EVENTS_TIME_ZONE,
   }).formatToParts(now);
   const hour = Number(parts.find((part) => part.type === 'hour')?.value);
-  const minute = Number(parts.find((part) => part.type === 'minute')?.value);
-  if (hour !== 7 || minute !== 0) {
+  if (hour !== 7) {
     return;
   }
 

@@ -898,6 +898,7 @@ model EventPayment {
     eventId != selectedFee.eventId ||
     userId != registration.userId
   )
+  @@deny('create,update', amountCents < 0)
   @@allow('read', auth() != null && userId == auth().id)
   @@allow('read,create,update,delete', check(event, 'update'))
   @@map("event_payments")

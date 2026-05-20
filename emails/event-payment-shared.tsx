@@ -43,10 +43,10 @@ const actionLink: React.CSSProperties = {
 
 function SafeEmailLink(props: {
   children: React.ReactNode;
-  href: string;
+  url: string;
   style: React.CSSProperties;
 }): React.ReactNode {
-  const href = safeCmsHref(props.href);
+  const href = safeCmsHref(props.url);
   if (!href) {
     return props.children;
   }
@@ -73,7 +73,7 @@ export function EventPaymentEmailTemplate(
             <Text style={detailLabel}>{detail.label}</Text>
             <Text style={detailValue}>
               {detail.href ? (
-                <SafeEmailLink href={detail.href} style={actionLink}>
+                <SafeEmailLink style={actionLink} url={detail.href}>
                   {detail.value}
                 </SafeEmailLink>
               ) : (
@@ -84,7 +84,7 @@ export function EventPaymentEmailTemplate(
         ))}
         {props.actionHref && props.actionLabel ? (
           <Text style={{ ...paragraph, marginTop: 24 }}>
-            <SafeEmailLink href={props.actionHref} style={actionLink}>
+            <SafeEmailLink style={actionLink} url={props.actionHref}>
               {props.actionLabel}
             </SafeEmailLink>
           </Text>

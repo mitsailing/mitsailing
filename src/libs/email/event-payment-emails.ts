@@ -30,6 +30,7 @@ type AdminDigestEmailParams = {
   eventName: string;
   overduePayments: readonly {
     amount: string;
+    id: string;
     recipientEmail: string;
     recipientName: string;
     selectedFeeDescription: string;

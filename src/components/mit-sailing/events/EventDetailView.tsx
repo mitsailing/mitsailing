@@ -78,18 +78,23 @@ function MetaRow(props: { label: string; children: React.ReactNode }) {
   );
 }
 
+function isNonEmptyString(value: string | null | undefined): value is string {
+  return typeof value === 'string' && value.length > 0;
+}
+
 function eventAddressLines(event: PublicEventDetail): string[] {
   return [
     event.addressName,
     event.addressLine1,
     event.addressLine2,
     [event.addressCity, event.addressState, event.addressPostalCode]
-      .filter(Boolean)
+      .map((part) => part?.trim())
+      .filter(isNonEmptyString)
       .join(' '),
     event.addressCountry,
-  ].filter(
-    (part): part is string => typeof part === 'string' && part.length > 0
-  );
+  ]
+    .map((part) => part?.trim())
+    .filter(isNonEmptyString);
 }
 
 function eventAddressMapHref(lines: readonly string[]): string {

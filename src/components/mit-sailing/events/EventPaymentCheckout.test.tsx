@@ -1,7 +1,10 @@
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventPaymentCheckout } from '@/components/mit-sailing/events/EventPaymentCheckout';
-import type { EventPaymentCheckoutActionResult } from '@/components/mit-sailing/events/EventPaymentCheckout';
+import type {
+  EventPaymentCheckoutActionResult,
+  EventPaymentCheckoutPayment,
+} from '@/components/mit-sailing/events/EventPaymentCheckout';
 
 const stripeMocks = vi.hoisted(() => ({
   createEmbeddedCheckoutPage: vi.fn(),
@@ -149,5 +152,38 @@ describe('EventPaymentCheckout', () => {
     });
 
     expect(stripeMocks.unmount).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps checkout mounted across parent rerenders', async () => {
+    const clientSecretAction = vi.fn(defaultClientSecretAction);
+    const payment: EventPaymentCheckoutPayment = {
+      amount: '$25.00',
+      receiptUrl: null,
+      status: 'pending',
+      statusLabel: 'Pending',
+    };
+    const { rerender } = render(
+      <EventPaymentCheckout
+        clientSecretAction={clientSecretAction}
+        labels={labels}
+        payment={payment}
+        publishableKey="pk_test_checkout"
+      />
+    );
+
+    await waitFor(() => {
+      expect(stripeMocks.createEmbeddedCheckoutPage).toHaveBeenCalledTimes(1);
+    });
+    rerender(
+      <EventPaymentCheckout
+        clientSecretAction={clientSecretAction}
+        labels={labels}
+        payment={payment}
+        publishableKey="pk_test_checkout"
+      />
+    );
+
+    await Promise.resolve();
+    expect(stripeMocks.createEmbeddedCheckoutPage).toHaveBeenCalledTimes(1);
   });
 });

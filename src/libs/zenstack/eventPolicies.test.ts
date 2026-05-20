@@ -286,7 +286,7 @@ async function insertFixtures(pool: Pool) {
       )
       VALUES
         ($1, $2, $3, 'pending', '+16175550100', NOW(), NOW()),
-        ($4, $6, $5, 'pending', '+16175550101', NOW(), NOW())
+        ($4, $2, $5, 'pending', '+16175550101', NOW(), NOW())
     `,
     [
       ids.registration,
@@ -294,7 +294,6 @@ async function insertFixtures(pool: Pool) {
       ids.owner,
       ids.otherRegistration,
       ids.otherUser,
-      ids.otherEvent,
     ]
   );
   await pool.query(
@@ -306,7 +305,7 @@ async function insertFixtures(pool: Pool) {
       )
       VALUES
         ($1, $2, $3, $4, $5, 'Fee', 1200, 'usd', 'pending', NOW()),
-        ($6, $7, $8, $9, $10, 'Other fee', 1200, 'usd', 'pending', NOW())
+        ($6, $2, $7, $8, $5, 'Fee', 1200, 'usd', 'pending', NOW())
     `,
     [
       ids.payment,
@@ -315,10 +314,8 @@ async function insertFixtures(pool: Pool) {
       ids.owner,
       ids.fee,
       ids.otherPayment,
-      ids.otherEvent,
       ids.otherRegistration,
       ids.otherUser,
-      ids.otherFee,
     ]
   );
   await pool.query(
@@ -410,6 +407,12 @@ describe('event policy schema rules', () => {
     expect(zenstackSchemaText).toMatch(/@trim\(\)\s+@map\("phone"\)/u);
     expect(zenstackSchemaText).toContain(
       "@@deny('create,update', phone == '')"
+    );
+  });
+
+  it('blocks negative event payment amounts', () => {
+    expect(zenstackSchemaText).toContain(
+      "@@deny('create,update', amountCents < 0)"
     );
   });
 });

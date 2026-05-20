@@ -1,5 +1,6 @@
 'use server';
 
+import { getTranslations } from 'next-intl/server';
 import type { EventPaymentCheckoutActionResult } from '@/components/mit-sailing/events/EventPaymentCheckout';
 import { requireCurrentUser } from '@/libs/auth/dal';
 import { prisma } from '@/libs/DB';
@@ -30,8 +31,12 @@ export async function createEventPaymentCheckoutClientSecretAction(
   });
 
   if (!clientSecret) {
+    const t = await getTranslations({
+      locale,
+      namespace: 'MitSailingEvents',
+    });
     return {
-      message: 'Payment is no longer available for checkout.',
+      message: t('checkout_unavailable_message'),
       status: 'unavailable',
     };
   }

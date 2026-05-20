@@ -600,7 +600,7 @@ describe('event admin queries', () => {
       result?.registrations[0]?.answers.map((answer) => answer.id)
     ).toEqual(['answer-1', 'answer-2']);
     expect(result?.registrations[0]?.phone).toBe('617-555-0100');
-    expect(result?.registrations[0]?.phone).toBe('617-555-0100');
+    expect(result?.registrations[0]?.user.email).toBe('c@example.com');
     expect(result?.registrations[0]?.payment).toEqual({
       amountCents: 15_000,
       currency: 'usd',
