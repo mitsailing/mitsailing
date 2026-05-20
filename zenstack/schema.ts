@@ -2344,7 +2344,7 @@ export class SchemaType implements SchemaDef {
                 phone: {
                     name: "phone",
                     type: "String",
-                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("phone") }] }] as readonly AttributeApplication[]
+                    attributes: [{ name: "@trim" }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("phone") }] }] as readonly AttributeApplication[]
                 },
                 eventEntryFeeId: {
                     name: "eventEntryFeeId",

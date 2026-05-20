@@ -1,62 +1,41 @@
-import {
-  ArrowLeft,
-  Check,
-  Mail,
-  MoreHorizontal,
-  RotateCcw,
-  X,
-} from 'lucide-react';
-import type { getTranslations } from 'next-intl/server';
-import * as React from 'react';
+import { ArrowLeft, Mail } from 'lucide-react';
 import { AdminErrorAlert } from '@/components/mit-sailing/admin/AdminErrorAlert';
+import { RegistrationRosterTable } from '@/components/mit-sailing/admin/events/AdminEventRegistrationRosterTable';
+import {
+  countForFilter,
+  emptyStatusMessage,
+  hasFeeColumn,
+  hasPhoneColumn,
+  hasTeamBoatColumn,
+  registrationFilters,
+  registrationQuestionColumns,
+  registrationVisible,
+  statusLabel,
+} from '@/components/mit-sailing/admin/events/AdminEventRegistrationUtils';
+import type {
+  AdminEventRegistrationsTranslations,
+  RegistrationFilter,
+} from '@/components/mit-sailing/admin/events/AdminEventRegistrationUtils';
 import {
   AdminEventBackLink,
   AdminEventEmptyState,
   AdminEventFormSection,
-  AdminEventListStatusBadge,
   AdminEventReadOnlyNotice,
   adminEventFormErrorMessage,
 } from '@/components/mit-sailing/admin/events/AdminEventShared';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
-import { EventRegistrationStatus } from '@/generated/prisma/enums';
-import type { AdminStatusSemanticTone } from '@/lib/mit-sailing/tokens';
-import { updateAdminEventRegistrationStatusAction } from '@/libs/admin/events/eventAdminActions';
 import {
   adminEventShowPath,
   adminEventsIndexPath,
 } from '@/libs/admin/events/eventAdminPaths';
-import type {
-  AdminEventRegistrationCounts,
-  AdminEventRegistrationDto,
-  AdminEventRegistrationsDto,
-} from '@/libs/admin/events/eventAdminQueries';
+import type { AdminEventRegistrationsDto } from '@/libs/admin/events/eventAdminQueries';
 import type { AdminEventAccessMode } from '@/libs/admin/events/zenstackEventAccess';
 import { Link } from '@/libs/I18nNavigation';
-import { formatEasternDateTime } from '@/libs/mit-sailing/easternTimeFormat';
-import { formatUsdMinorUnitsAsCurrency } from '@/libs/money/stripeUsdMinorUnits';
 
-type AdminEventRegistrationsTranslations = Awaited<
-  ReturnType<typeof getTranslations<'AdminEvents'>>
->;
-
-export type RegistrationFilter = 'all' | 'pending' | 'approved' | 'cancelled';
-
-type RegistrationQuestionColumn = {
-  id: string;
-  questionText: string;
-  displayOrder: number;
-};
+export type { RegistrationFilter } from '@/components/mit-sailing/admin/events/AdminEventRegistrationUtils';
 
 type AdminEventRegistrationsViewProps = {
   accessMode: AdminEventAccessMode;
@@ -70,518 +49,18 @@ type AdminEventRegistrationsViewProps = {
   t: AdminEventRegistrationsTranslations;
 };
 
-const filters: RegistrationFilter[] = [
-  'all',
-  EventRegistrationStatus.pending,
-  EventRegistrationStatus.approved,
-  EventRegistrationStatus.cancelled,
-];
-
-function countForFilter(
-  filter: RegistrationFilter,
-  counts: AdminEventRegistrationCounts
-): number {
-  if (filter === 'all') {
-    return counts.pending + counts.approved + counts.cancelled;
-  }
-  return counts[filter];
-}
-
-function registrationVisible(
-  registration: AdminEventRegistrationDto,
-  filter: RegistrationFilter
-): boolean {
-  return filter === 'all' || registration.status === filter;
-}
-
-function statusLabel(
-  status: RegistrationFilter,
-  t: AdminEventRegistrationsTranslations
-): string {
-  if (status === 'all') {
-    return t('registration_filter_all');
-  }
-  if (status === EventRegistrationStatus.pending) {
-    return t('registration_status_pending');
-  }
-  if (status === EventRegistrationStatus.approved) {
-    return t('registration_status_approved');
-  }
-  return t('registration_status_cancelled');
-}
-
-function emptyStatusMessage(
-  status: Exclude<RegistrationFilter, 'all'>,
-  t: AdminEventRegistrationsTranslations
-): string {
-  if (status === EventRegistrationStatus.approved) {
-    return t('registrations_empty_status_approved');
-  }
-  if (status === EventRegistrationStatus.pending) {
-    return t('registrations_empty_status_pending');
-  }
-  return t('registrations_empty_status_cancelled');
-}
-
-function registrationStatusTone(
-  status: AdminEventRegistrationDto['status']
-): AdminStatusSemanticTone {
-  if (status === EventRegistrationStatus.approved) {
-    return 'success';
-  }
-  if (status === EventRegistrationStatus.cancelled) {
-    return 'danger';
-  }
-  return 'neutral';
-}
-
-function registrationQuestionColumns(
-  event: AdminEventRegistrationsDto
-): RegistrationQuestionColumn[] {
-  const columns = new Map<string, RegistrationQuestionColumn>();
-  for (const question of event.questions) {
-    columns.set(question.id, {
-      displayOrder: question.displayOrder,
-      id: question.id,
-      questionText: question.questionText,
-    });
-  }
-  for (const registration of event.registrations) {
-    for (const answer of registration.answers) {
-      if (!columns.has(answer.question.id)) {
-        columns.set(answer.question.id, answer.question);
-      }
-    }
-  }
-  return [...columns.values()].toSorted(
-    (a, b) =>
-      a.displayOrder - b.displayOrder ||
-      a.questionText.localeCompare(b.questionText)
-  );
-}
-
-function answerValueForQuestion(
-  registration: AdminEventRegistrationDto,
-  questionId: string,
-  t: AdminEventRegistrationsTranslations
-): string {
-  const answer = registration.answers.find(
-    (registrationAnswer) => registrationAnswer.question.id === questionId
-  );
-  if (!answer || answer.value.trim().length === 0) {
-    return t('empty_value');
-  }
-  return answer.value;
-}
-
-function PhoneValue(props: {
-  registration: AdminEventRegistrationDto;
-  t: AdminEventRegistrationsTranslations;
-}) {
-  const phone = props.registration.phone?.trim() ?? '';
-  if (phone.length === 0) {
-    return props.t('empty_value');
-  }
-  return (
-    <a className="underline-offset-4 hover:underline" href={`tel:${phone}`}>
-      {phone}
-    </a>
-  );
-}
-
-function hasPhoneColumn(event: AdminEventRegistrationsDto): boolean {
-  return (
-    event.requiresPhone ||
-    event.registrations.some(
-      (registration) => (registration.phone ?? '').trim().length > 0
-    )
-  );
-}
-
-function FeeValue(props: {
-  locale: string;
-  registration: AdminEventRegistrationDto;
-  t: AdminEventRegistrationsTranslations;
-}) {
-  if (!props.registration.entryFee) {
-    return props.t('empty_value');
-  }
-  return (
-    <span className="inline-flex flex-col gap-0.5">
-      <span className="text-foreground">
-        {props.registration.entryFee.description}
-      </span>
-      <span>
-        {formatUsdMinorUnitsAsCurrency(
-          props.registration.entryFee.amountCents,
-          props.locale
-        )}
-      </span>
-    </span>
-  );
-}
-
-function hasFeeColumn(event: AdminEventRegistrationsDto): boolean {
-  return (
-    (event.entryFees?.length ?? 0) > 0 ||
-    event.registrations.some(
-      (registration) => (registration.entryFee ?? null) !== null
-    )
-  );
-}
-
-function hasTeamBoatColumn(event: AdminEventRegistrationsDto): boolean {
-  return (
-    event.usesTeamRegistration ||
-    event.registrations.some(
-      (registration) =>
-        registration.registrationTeam !== null ||
-        registration.boatMembers.length > 0
-    )
-  );
-}
-
-function groupedBoatMembers(registration: AdminEventRegistrationDto): {
-  boatNumber: number;
-  members: AdminEventRegistrationDto['boatMembers'];
-}[] {
-  const boats = new Map<number, AdminEventRegistrationDto['boatMembers']>();
-  for (const member of registration.boatMembers) {
-    boats.set(member.boatNumber, [
-      ...(boats.get(member.boatNumber) ?? []),
-      member,
-    ]);
-  }
-  return [...boats.entries()]
-    .map(([boatNumber, members]) => ({ boatNumber, members }))
-    .toSorted((a, b) => a.boatNumber - b.boatNumber);
-}
-
-function TeamBoatValue(props: {
-  registration: AdminEventRegistrationDto;
-  t: AdminEventRegistrationsTranslations;
-}) {
-  const boats = groupedBoatMembers(props.registration);
-  if (props.registration.registrationTeam === null && boats.length === 0) {
-    return props.t('empty_value');
-  }
-  return (
-    <div className="flex min-w-64 flex-col gap-2">
-      {props.registration.registrationTeam ? (
-        <p className="font-semibold text-foreground">
-          {props.registration.registrationTeam.teamName}
-        </p>
-      ) : null}
-      {boats.map((boat) => (
-        <div className="flex flex-col gap-1" key={boat.boatNumber}>
-          <p className="text-xs font-semibold text-mit-readable-ink">
-            {props.t('registration_boat_number', {
-              number: boat.boatNumber,
-            })}
-          </p>
-          {boat.members.map((member) => (
-            <div
-              className="grid grid-cols-[3.5rem_minmax(0,1fr)] gap-x-2 gap-y-0.5"
-              key={member.id}
-            >
-              <span className="text-xs text-mit-readable-ink">
-                {member.positionLabel === 'helm'
-                  ? props.t('registration_team_helm_label')
-                  : props.t('registration_team_crew_label')}
-              </span>
-              <span className="min-w-0">
-                <span className="block text-foreground">{member.fullName}</span>
-                <span className="block text-xs text-mit-readable-ink">
-                  {member.email}
-                </span>
-              </span>
-            </div>
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function RegistrationFilters(props: {
-  counts: AdminEventRegistrationCounts;
+function registrationFilterHref(options: {
   event: AdminEventRegistrationsDto;
   filter: RegistrationFilter;
-  t: AdminEventRegistrationsTranslations;
-}) {
-  return (
-    <div
-      aria-label={props.t('registration_filter_aria')}
-      className="flex flex-wrap gap-2"
-    >
-      {filters.map((filter) => {
-        const active = filter === props.filter;
-        const href =
-          filter === 'all'
-            ? `${adminEventShowPath(props.event.slug)}#registrations`
-            : `${adminEventShowPath(props.event.slug)}?status=${filter}#registrations`;
-        return (
-          <Button
-            asChild
-            key={filter}
-            size="sm"
-            variant={active ? 'mit' : 'outline'}
-          >
-            <Link href={href}>
-              {statusLabel(filter, props.t)}
-              <span className="font-normal tabular-nums opacity-75">
-                {countForFilter(filter, props.counts)}
-              </span>
-            </Link>
-          </Button>
-        );
-      })}
-    </div>
-  );
-}
-
-function RegistrationStatusAction(props: {
-  actionLabel: string;
-  confirmActionLabel: string;
-  confirmBody: string;
-  confirmTitle: string;
-  icon: React.ReactNode;
-  locale: string;
-  registrationId: string;
-  slug: string;
-  status: AdminEventRegistrationDto['status'];
-  variant?: React.ComponentProps<typeof Button>['variant'];
-}) {
-  const action = updateAdminEventRegistrationStatusAction.bind(
-    null,
-    props.locale,
-    props.slug,
-    props.registrationId
-  );
-  return (
-    <details className="rounded-md border border-transparent open:border-border open:bg-muted/40">
-      <summary
-        className="flex cursor-pointer list-none items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium text-foreground hover:bg-muted [&::-webkit-details-marker]:hidden"
-        role="menuitem"
-      >
-        {props.icon}
-        {props.actionLabel}
-      </summary>
-      <div
-        aria-label={props.confirmTitle}
-        className="m-2 rounded-md border border-border bg-background p-3"
-        role="dialog"
-      >
-        <p className="text-sm text-foreground">{props.confirmBody}</p>
-        <form action={action} className="mt-3 flex justify-end">
-          <input name="status" type="hidden" value={props.status} />
-          <Button size="sm" type="submit" variant={props.variant ?? 'outline'}>
-            {props.confirmActionLabel}
-          </Button>
-        </form>
-      </div>
-    </details>
-  );
-}
-
-function RegistrationActionsMenu(props: {
-  locale: string;
-  registration: AdminEventRegistrationDto;
-  slug: string;
-  t: AdminEventRegistrationsTranslations;
-}) {
-  const showApprove =
-    props.registration.status !== EventRegistrationStatus.approved;
-  const showCancel =
-    props.registration.status !== EventRegistrationStatus.cancelled;
-  const attendeeName = props.registration.user.name;
-  return (
-    <details className="relative inline-block text-left">
-      <summary
-        aria-label={props.t('registration_actions_for', {
-          name: attendeeName,
-        })}
-        className="inline-flex size-8 cursor-pointer list-none items-center justify-center rounded-md border border-border bg-background text-foreground hover:bg-muted focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden"
-      >
-        <MoreHorizontal aria-hidden className="size-4" />
-      </summary>
-      <div
-        className="absolute left-0 z-20 mt-2 w-72 rounded-lg border border-border bg-background p-2 shadow-lg"
-        role="menu"
-      >
-        {showApprove ? (
-          <RegistrationStatusAction
-            actionLabel={props.t('action_approve')}
-            confirmActionLabel={props.t('registration_confirm_approve_action')}
-            confirmBody={props.t('registration_confirm_approve_body', {
-              name: attendeeName,
-            })}
-            confirmTitle={props.t('registration_confirm_approve_title', {
-              name: attendeeName,
-            })}
-            icon={<Check aria-hidden className="size-4" />}
-            locale={props.locale}
-            registrationId={props.registration.id}
-            slug={props.slug}
-            status={EventRegistrationStatus.approved}
-            variant="mit"
-          />
-        ) : null}
-        {showCancel ? (
-          <RegistrationStatusAction
-            actionLabel={props.t('action_cancel_registration')}
-            confirmActionLabel={props.t('registration_confirm_cancel_action')}
-            confirmBody={props.t('registration_confirm_cancel_body', {
-              name: attendeeName,
-            })}
-            confirmTitle={props.t('registration_confirm_cancel_title', {
-              name: attendeeName,
-            })}
-            icon={<X aria-hidden className="size-4" />}
-            locale={props.locale}
-            registrationId={props.registration.id}
-            slug={props.slug}
-            status={EventRegistrationStatus.cancelled}
-            variant="destructive"
-          />
-        ) : null}
-        {props.registration.status === EventRegistrationStatus.cancelled ? (
-          <RegistrationStatusAction
-            actionLabel={props.t('action_reopen')}
-            confirmActionLabel={props.t('registration_confirm_reopen_action')}
-            confirmBody={props.t('registration_confirm_reopen_body', {
-              name: attendeeName,
-            })}
-            confirmTitle={props.t('registration_confirm_reopen_title', {
-              name: attendeeName,
-            })}
-            icon={<RotateCcw aria-hidden className="size-4" />}
-            locale={props.locale}
-            registrationId={props.registration.id}
-            slug={props.slug}
-            status={EventRegistrationStatus.pending}
-          />
-        ) : null}
-        <div className="mt-2 border-t border-border pt-2">
-          <p className="px-2 py-1 text-xs text-mit-readable-ink">
-            {props.t('registration_history_unavailable')}
-          </p>
-          <p className="px-2 py-1 text-xs text-mit-readable-ink">
-            {props.t('registration_edit_unavailable')}
-          </p>
-        </div>
-      </div>
-    </details>
-  );
-}
-
-function RegistrationRosterTable(props: {
-  accessMode: AdminEventAccessMode;
-  locale: string;
-  showFee: boolean;
-  showPhone: boolean;
-  showTeamBoat: boolean;
-  questionColumns: RegistrationQuestionColumn[];
-  registrations: AdminEventRegistrationDto[];
-  slug: string;
-  t: AdminEventRegistrationsTranslations;
-}) {
-  return (
-    <div className="overflow-x-auto rounded-lg border border-border bg-background">
-      <Table aria-label={props.t('registration_table_label')}>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{props.t('column_attendee')}</TableHead>
-            <TableHead>{props.t('column_status')}</TableHead>
-            <TableHead>{props.t('registration_created_at')}</TableHead>
-            {props.showPhone ? (
-              <TableHead>{props.t('column_phone')}</TableHead>
-            ) : null}
-            {props.showFee ? (
-              <TableHead>{props.t('column_fee')}</TableHead>
-            ) : null}
-            {props.showTeamBoat ? (
-              <TableHead>{props.t('column_team_boat')}</TableHead>
-            ) : null}
-            <TableHead>{props.t('registration_swim_agreement')}</TableHead>
-            {props.questionColumns.map((question) => (
-              <TableHead key={question.id}>{question.questionText}</TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {props.registrations.map((registration) => (
-            <TableRow key={registration.id}>
-              <TableCell className="min-w-56 px-4 py-3 align-top">
-                <div className="flex items-start gap-2">
-                  {props.accessMode === 'editable' ? (
-                    <RegistrationActionsMenu
-                      locale={props.locale}
-                      registration={registration}
-                      slug={props.slug}
-                      t={props.t}
-                    />
-                  ) : null}
-                  <div className="min-w-0">
-                    <p className="font-semibold text-foreground">
-                      {registration.user.name}
-                    </p>
-                    <p className="text-xs text-mit-readable-ink">
-                      {registration.user.email}
-                    </p>
-                  </div>
-                </div>
-              </TableCell>
-              <TableCell className="px-4 py-3 align-top">
-                <AdminEventListStatusBadge
-                  tone={registrationStatusTone(registration.status)}
-                >
-                  {statusLabel(registration.status, props.t)}
-                </AdminEventListStatusBadge>
-              </TableCell>
-              <TableCell className="px-4 py-3 align-top text-sm text-mit-readable-ink">
-                {formatEasternDateTime(registration.createdAt)}
-              </TableCell>
-              {props.showPhone ? (
-                <TableCell className="px-4 py-3 align-top text-sm text-mit-readable-ink">
-                  <PhoneValue registration={registration} t={props.t} />
-                </TableCell>
-              ) : null}
-              {props.showFee ? (
-                <TableCell className="px-4 py-3 align-top text-sm text-mit-readable-ink">
-                  <FeeValue
-                    locale={props.locale}
-                    registration={registration}
-                    t={props.t}
-                  />
-                </TableCell>
-              ) : null}
-              {props.showTeamBoat ? (
-                <TableCell className="px-4 py-3 align-top text-sm text-mit-readable-ink">
-                  <TeamBoatValue registration={registration} t={props.t} />
-                </TableCell>
-              ) : null}
-              <TableCell className="px-4 py-3 align-top text-sm text-mit-readable-ink">
-                {formatEasternDateTime(registration.swimAgreementAcceptedAt)}
-              </TableCell>
-              {props.questionColumns.map((question) => (
-                <TableCell
-                  className="max-w-56 px-4 py-3 align-top text-sm whitespace-normal text-foreground"
-                  key={question.id}
-                >
-                  {answerValueForQuestion(registration, question.id, props.t)}
-                </TableCell>
-              ))}
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
-  );
+}): string {
+  if (options.filter === 'all') {
+    return `${adminEventShowPath(options.event.slug)}#registrations`;
+  }
+  return `${adminEventShowPath(options.event.slug)}?status=${options.filter}#registrations`;
 }
 
 function BulkEmailPlaceholder(props: {
-  counts: AdminEventRegistrationCounts;
+  counts: AdminEventRegistrationsDto['registrationCounts'];
   t: AdminEventRegistrationsTranslations;
 }) {
   const recipientCount = props.counts.pending + props.counts.approved;
@@ -630,6 +109,57 @@ function AdminEventRegistrationErrorAlert(props: {
     return null;
   }
   return <AdminErrorAlert>{message}</AdminErrorAlert>;
+}
+
+function RegistrationFilterButton(props: {
+  counts: AdminEventRegistrationsDto['registrationCounts'];
+  event: AdminEventRegistrationsDto;
+  filter: RegistrationFilter;
+  isActive: boolean;
+  t: AdminEventRegistrationsTranslations;
+}) {
+  return (
+    <Button asChild size="sm" variant={props.isActive ? 'mit' : 'outline'}>
+      <Link
+        href={registrationFilterHref({
+          event: props.event,
+          filter: props.filter,
+        })}
+      >
+        {statusLabel(props.filter, props.t)}
+        <span className="font-normal tabular-nums opacity-75">
+          {countForFilter(props.filter, props.counts)}
+        </span>
+      </Link>
+    </Button>
+  );
+}
+
+function RegistrationFilters(props: {
+  counts: AdminEventRegistrationsDto['registrationCounts'];
+  event: AdminEventRegistrationsDto;
+  filter: RegistrationFilter;
+  t: AdminEventRegistrationsTranslations;
+}) {
+  const filterButtons = registrationFilters.map((filter) => (
+    <RegistrationFilterButton
+      counts={props.counts}
+      event={props.event}
+      filter={filter}
+      isActive={filter === props.filter}
+      key={filter}
+      t={props.t}
+    />
+  ));
+
+  return (
+    <div
+      aria-label={props.t('registration_filter_aria')}
+      className="flex flex-wrap gap-2"
+    >
+      {filterButtons}
+    </div>
+  );
 }
 
 export function AdminEventRegistrationsView(

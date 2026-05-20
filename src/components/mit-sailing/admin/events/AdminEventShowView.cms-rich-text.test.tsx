@@ -44,42 +44,47 @@ const t = createTranslator({
   namespace: 'AdminEvents',
 });
 
-const eventFixture = {
-  accessMode: 'editable',
-  admins: [],
-  category: { id: 'category-1', name: 'Clinic' },
-  dates: [],
-  description: 'Learn how to sail.',
-  detailPageKind: 'standard',
-  externalDetailUrl: null,
-  externalEntriesUrl: null,
-  externalRegistrationUrl: null,
-  entryFees: [],
-  id: 'event-1',
-  isPublished: true,
-  isSpecial: false,
-  maxParticipants: null,
-  name: 'Intro Sail',
-  publicContentSections: [],
-  registrationCounts: {
-    approved: 0,
-    cancelled: 0,
-    pending: 0,
-  },
-  registrationEnd: null,
-  registrationMode: 'standard',
-  registrationStart: null,
-  registrations: [],
-  requiresApproval: false,
-  requiresPhone: false,
-  usesTeamRegistration: false,
-  boatsPerTeam: 1,
-  personsPerBoat: 1,
-  allowRepeatTeamCaptain: false,
-  shortName: 'Intro',
-  slug: 'intro-sail',
-  questions: [],
-} satisfies AdminEventShowDto;
+function eventFixture(
+  overrides: Partial<AdminEventShowDto> = {}
+): AdminEventShowDto {
+  return {
+    accessMode: 'editable',
+    admins: [],
+    allowRepeatTeamCaptain: false,
+    boatsPerTeam: 1,
+    category: { id: 'category-1', name: 'Clinic' },
+    dates: [],
+    description: 'Learn how to sail.',
+    detailPageKind: 'standard',
+    entryFees: [],
+    externalDetailUrl: null,
+    externalEntriesUrl: null,
+    externalRegistrationUrl: null,
+    id: 'event-1',
+    isPublished: true,
+    isSpecial: false,
+    maxParticipants: null,
+    name: 'Intro Sail',
+    personsPerBoat: 1,
+    publicContentSections: [],
+    questions: [],
+    registrationCounts: {
+      approved: 0,
+      cancelled: 0,
+      pending: 0,
+    },
+    registrationEnd: null,
+    registrationMode: 'standard',
+    registrationStart: null,
+    registrations: [],
+    requiresApproval: false,
+    requiresPhone: false,
+    shortName: 'Intro',
+    slug: 'intro-sail',
+    usesTeamRegistration: false,
+    ...overrides,
+  };
+}
 
 describe('AdminEventShowView CMS rich text', () => {
   beforeEach(() => {
@@ -98,8 +103,7 @@ describe('AdminEventShowView CMS rich text', () => {
     render(
       <AdminEventShowView
         errorCode={null}
-        event={{
-          ...eventFixture,
+        event={eventFixture({
           publicContentSections: [
             {
               body,
@@ -107,7 +111,7 @@ describe('AdminEventShowView CMS rich text', () => {
               titleKey: 'content_faq_title',
             },
           ],
-        }}
+        })}
         filter="all"
         locale="en"
         t={t}

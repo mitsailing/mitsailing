@@ -689,7 +689,7 @@ model EventRegistration {
   eventId                 String                    @map("event_id")
   userId                  String                    @map("user_id")
   status                  EventRegistrationStatus
-  phone                   String                    @map("phone")
+  phone                   String                    @trim() @map("phone")
   eventEntryFeeId         String?                   @map("event_entry_fee_id")
   createdAt               DateTime                  @map("created_at")
   swimAgreementAcceptedAt DateTime                  @map("swim_agreement_accepted_at")

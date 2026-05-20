@@ -74,34 +74,36 @@ function eventFixture(
 
 describe('EventDetailView', () => {
   it('renders public content sections as rich text', async () => {
+    const eventWithSections = eventFixture({
+      publicContentSections: [
+        {
+          body: '<p>Ask the <strong>race desk</strong>.</p>',
+          id: 'faq',
+          titleKey: 'content_faq_title',
+        },
+        {
+          body: '<p>Notice includes <a href="/events">course details</a>.</p>',
+          id: 'noticeOfRace',
+          titleKey: 'content_notice_of_race_title',
+        },
+        {
+          body: '<ul><li>Check in on channel 72.</li></ul>',
+          id: 'sailingInstructions',
+          titleKey: 'content_sailing_instructions_title',
+        },
+        {
+          body: '<p>Posted after racing.</p>',
+          id: 'results',
+          titleKey: 'content_results_title',
+        },
+      ],
+    });
+
     render(
       await EventDetailView({
         currentRegistration: null,
         errorCode: null,
-        event: eventFixture({
-          publicContentSections: [
-            {
-              body: '<p>Ask the <strong>race desk</strong>.</p>',
-              id: 'faq',
-              titleKey: 'content_faq_title',
-            },
-            {
-              body: '<p>Notice includes <a href="/events">course details</a>.</p>',
-              id: 'noticeOfRace',
-              titleKey: 'content_notice_of_race_title',
-            },
-            {
-              body: '<ul><li>Check in on channel 72.</li></ul>',
-              id: 'sailingInstructions',
-              titleKey: 'content_sailing_instructions_title',
-            },
-            {
-              body: '<p>Posted after racing.</p>',
-              id: 'results',
-              titleKey: 'content_results_title',
-            },
-          ],
-        }),
+        event: eventWithSections,
         isSignedIn: false,
         locale: 'en',
       })

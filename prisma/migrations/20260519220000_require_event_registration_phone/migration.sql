@@ -1,6 +1,15 @@
-UPDATE "event_registrations"
-SET "phone" = 'Unknown'
-WHERE "phone" IS NULL OR btrim("phone") = '';
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM "event_registrations"
+    WHERE "phone" IS NULL OR btrim("phone") = ''
+  ) THEN
+    RAISE EXCEPTION
+      'event_registrations.phone contains NULL/blank values; remediate rows before enforcing NOT NULL';
+  END IF;
+END
+$$;
 
 ALTER TABLE "event_registrations"
   ALTER COLUMN "phone" SET NOT NULL;

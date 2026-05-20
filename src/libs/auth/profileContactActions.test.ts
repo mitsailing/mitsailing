@@ -78,6 +78,22 @@ describe('updateProfileContactAction', () => {
     expect(userUpdate).not.toHaveBeenCalled();
   });
 
+  it('rejects unauthenticated contact updates', async () => {
+    getSession.mockResolvedValue(null);
+    const { updateProfileContactAction } =
+      await import('@/libs/auth/profileContactActions');
+
+    await expect(
+      updateProfileContactAction('en', {
+        emergencyContactName: '',
+        emergencyContactPhone: '',
+        phone: '(617) 555-0100',
+      })
+    ).resolves.toEqual({ ok: false, error: 'unauthorized' });
+
+    expect(userUpdate).not.toHaveBeenCalled();
+  });
+
   it('requires emergency contact name and phone together', async () => {
     const { updateProfileContactAction } =
       await import('@/libs/auth/profileContactActions');
@@ -91,5 +107,57 @@ describe('updateProfileContactAction', () => {
     ).resolves.toEqual({ ok: false, error: 'incomplete_emergency_contact' });
 
     expect(userUpdate).not.toHaveBeenCalled();
+  });
+
+  it('requires emergency contact phone and name together', async () => {
+    const { updateProfileContactAction } =
+      await import('@/libs/auth/profileContactActions');
+
+    await expect(
+      updateProfileContactAction('en', {
+        emergencyContactName: '',
+        emergencyContactPhone: '+44 20 7946 0958',
+        phone: '(617) 555-0100',
+      })
+    ).resolves.toEqual({ ok: false, error: 'incomplete_emergency_contact' });
+
+    expect(userUpdate).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid emergency contact phones', async () => {
+    const { updateProfileContactAction } =
+      await import('@/libs/auth/profileContactActions');
+
+    await expect(
+      updateProfileContactAction('en', {
+        emergencyContactName: 'Jane Sailor',
+        emergencyContactPhone: '555',
+        phone: '(617) 555-0100',
+      })
+    ).resolves.toEqual({ ok: false, error: 'invalid_emergency_phone' });
+
+    expect(userUpdate).not.toHaveBeenCalled();
+  });
+
+  it('stores a primary phone without optional emergency contact fields', async () => {
+    const { updateProfileContactAction } =
+      await import('@/libs/auth/profileContactActions');
+
+    await expect(
+      updateProfileContactAction('en', {
+        emergencyContactName: '   ',
+        emergencyContactPhone: '   ',
+        phone: '(617) 555-0100',
+      })
+    ).resolves.toEqual({ ok: true });
+
+    expect(userUpdate).toHaveBeenCalledWith({
+      data: {
+        emergencyContactName: null,
+        emergencyContactPhone: null,
+        phone: '+16175550100',
+      },
+      where: { id: 'user-1' },
+    });
   });
 });

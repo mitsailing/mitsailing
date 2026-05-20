@@ -96,6 +96,140 @@ function formValues(formData: FormData): Record<string, string[]> {
   return values;
 }
 
+function renderRegistrationForm(options: {
+  action?: Parameters<
+    typeof EventRegistrationForm
+  >[0]['createRegistrationAction'];
+  eventOverrides?: Partial<PublicEventDetail>;
+}) {
+  render(
+    <EventRegistrationForm
+      createRegistrationAction={options.action ?? vi.fn()}
+      event={{ ...event, ...options.eventOverrides }}
+      formPermalink="/events/learn-to-sail/register"
+      labels={labels}
+      locale="en"
+    />
+  );
+}
+
+function entryFeeEventOverrides(): Partial<PublicEventDetail> {
+  return {
+    entryFees: [
+      {
+        amountCents: 15_000,
+        description: 'Adult',
+        id: 'fee-adult',
+        isDeposit: false,
+      },
+      {
+        amountCents: 9000,
+        description: 'Junior',
+        id: 'fee-junior',
+        isDeposit: true,
+      },
+    ],
+  };
+}
+
+function teamEventOverrides(options: {
+  boatsPerTeam: number;
+  personsPerBoat: number;
+}): Partial<PublicEventDetail> {
+  return {
+    teamRegistration: {
+      allowRepeatTeamCaptain: false,
+      boatsPerTeam: options.boatsPerTeam,
+      personsPerBoat: options.personsPerBoat,
+      usesTeamRegistration: true,
+    },
+  };
+}
+
+function invalidFormAction(options: {
+  code: PublicEventRegistrationFormState['code'];
+  fieldErrors: NonNullable<PublicEventRegistrationFormState['fieldErrors']>;
+}) {
+  return vi.fn(
+    (
+      _prevState: PublicEventRegistrationFormState,
+      formData: FormData
+    ): PublicEventRegistrationFormState => ({
+      code: options.code,
+      fieldErrors: options.fieldErrors,
+      status: 'error',
+      values: formValues(formData),
+    })
+  );
+}
+
+function teamFields() {
+  return {
+    crewEmail: screen.getByRole('textbox', { name: 'Crew Email' }),
+    crewName: screen.getByRole('textbox', { name: 'Crew Full name' }),
+    helmEmail: screen.getByRole('textbox', { name: 'Helm Email' }),
+    helmName: screen.getByRole('textbox', { name: 'Helm Full name' }),
+    teamName: screen.getByRole('textbox', { name: 'Team nameRequired' }),
+  };
+}
+
+function expectTeamFieldsRequired(fields: ReturnType<typeof teamFields>) {
+  expect(fields.teamName).toHaveAttribute('name', 'teamName');
+  expect(fields.helmName).toHaveAttribute('name', 'teamBoatMember_0_name');
+  expect(fields.helmEmail).toHaveAttribute('name', 'teamBoatMember_0_email');
+  expect(fields.crewName).toHaveAttribute('name', 'teamBoatMember_1_name');
+  expect(fields.crewEmail).toHaveAttribute('name', 'teamBoatMember_1_email');
+  expect(fields.helmName).toBeRequired();
+  expect(fields.helmEmail).toBeRequired();
+  expect(fields.crewName).toBeRequired();
+  expect(fields.crewEmail).toBeRequired();
+  expect(fields.helmName).toHaveAttribute('aria-required', 'true');
+  expect(fields.helmEmail).toHaveAttribute('aria-required', 'true');
+  expect(fields.crewName).toHaveAttribute('aria-required', 'true');
+  expect(fields.crewEmail).toHaveAttribute('aria-required', 'true');
+}
+
+async function fillInvalidTeamFields(
+  user: ReturnType<typeof userEvent.setup>,
+  fields: ReturnType<typeof teamFields>
+) {
+  await user.type(fields.teamName, '  Tech Dinghies  ');
+  await user.type(fields.helmName, 'Ada Lovelace');
+  await user.type(fields.helmEmail, 'ada@example.test');
+  await user.type(fields.crewName, 'Grace Hopper');
+  await user.type(fields.crewEmail, 'not-an-email');
+  await user.click(
+    screen.getByRole('button', { name: 'Confirm registration' })
+  );
+}
+
+function teamMemberFields() {
+  return {
+    crewEmailFields: screen.getAllByRole('textbox', { name: 'Crew Email' }),
+    crewNameFields: screen.getAllByRole('textbox', { name: 'Crew Full name' }),
+    helmEmailFields: screen.getAllByRole('textbox', { name: 'Helm Email' }),
+    helmNameFields: screen.getAllByRole('textbox', { name: 'Helm Full name' }),
+  };
+}
+
+function expectTeamBoatMemberNames(
+  fields: ReturnType<typeof teamMemberFields>
+) {
+  const expectedNames = [
+    [fields.helmNameFields[0], 'teamBoatMember_1_0_name'],
+    [fields.helmEmailFields[0], 'teamBoatMember_1_0_email'],
+    [fields.crewNameFields[0], 'teamBoatMember_1_1_name'],
+    [fields.crewEmailFields[0], 'teamBoatMember_1_1_email'],
+    [fields.helmNameFields[1], 'teamBoatMember_2_0_name'],
+    [fields.helmEmailFields[1], 'teamBoatMember_2_0_email'],
+    [fields.crewNameFields[1], 'teamBoatMember_2_1_name'],
+    [fields.crewEmailFields[1], 'teamBoatMember_2_1_email'],
+  ] as const;
+  for (const [field, name] of expectedNames) {
+    expect(field).toHaveAttribute('name', name);
+  }
+}
+
 describe('EventRegistrationForm', () => {
   it('renders required phone input with preserved validation state', async () => {
     const user = userEvent.setup();
@@ -206,27 +340,12 @@ describe('EventRegistrationForm', () => {
     const user = userEvent.setup();
     const scrollIntoView = vi.fn();
     window.HTMLElement.prototype.scrollIntoView = scrollIntoView;
-    const action = vi.fn(
-      (
-        _prevState: PublicEventRegistrationFormState,
-        formData: FormData
-      ): PublicEventRegistrationFormState => ({
-        code: 'swim_agreement_required',
-        fieldErrors: { swimAgreementAccepted: 'swim_agreement_required' },
-        status: 'error',
-        values: formValues(formData),
-      })
-    );
+    const action = invalidFormAction({
+      code: 'swim_agreement_required',
+      fieldErrors: { swimAgreementAccepted: 'swim_agreement_required' },
+    });
 
-    render(
-      <EventRegistrationForm
-        createRegistrationAction={action}
-        event={event}
-        formPermalink="/events/learn-to-sail/register"
-        labels={labels}
-        locale="en"
-      />
-    );
+    renderRegistrationForm({ action });
 
     await user.selectOptions(
       screen.getByRole('combobox', { name: 'T-shirt sizeRequired' }),
@@ -288,43 +407,15 @@ describe('EventRegistrationForm', () => {
   it('requires a fee choice when multiple fees are available and preserves selected value', async () => {
     const user = userEvent.setup();
     window.HTMLElement.prototype.scrollIntoView = vi.fn();
-    const action = vi.fn(
-      (
-        _prevState: PublicEventRegistrationFormState,
-        formData: FormData
-      ): PublicEventRegistrationFormState => ({
-        code: 'questions_required',
-        fieldErrors: { eventEntryFeeId: 'questions_required' },
-        status: 'error',
-        values: formValues(formData),
-      })
-    );
+    const action = invalidFormAction({
+      code: 'questions_required',
+      fieldErrors: { eventEntryFeeId: 'questions_required' },
+    });
 
-    render(
-      <EventRegistrationForm
-        createRegistrationAction={action}
-        event={{
-          ...event,
-          entryFees: [
-            {
-              amountCents: 15_000,
-              description: 'Adult',
-              id: 'fee-adult',
-              isDeposit: false,
-            },
-            {
-              amountCents: 9000,
-              description: 'Junior',
-              id: 'fee-junior',
-              isDeposit: true,
-            },
-          ],
-        }}
-        formPermalink="/events/learn-to-sail/register"
-        labels={labels}
-        locale="en"
-      />
-    );
+    renderRegistrationForm({
+      action,
+      eventOverrides: entryFeeEventOverrides(),
+    });
 
     const adultFee = screen.getByRole('radio', {
       name: /adult/i,
@@ -357,38 +448,21 @@ describe('EventRegistrationForm', () => {
   it('renders team boat fields and preserves validation state', async () => {
     const user = userEvent.setup();
     window.HTMLElement.prototype.scrollIntoView = vi.fn();
-    const action = vi.fn(
-      (
-        _prevState: PublicEventRegistrationFormState,
-        formData: FormData
-      ): PublicEventRegistrationFormState => ({
-        code: 'questions_required',
-        fieldErrors: {
-          teamName: 'questions_required',
-          teamBoatMember_1_email: 'answers_invalid',
-        },
-        status: 'error',
-        values: formValues(formData),
-      })
-    );
+    const action = invalidFormAction({
+      code: 'questions_required',
+      fieldErrors: {
+        teamName: 'questions_required',
+        teamBoatMember_1_email: 'answers_invalid',
+      },
+    });
 
-    render(
-      <EventRegistrationForm
-        createRegistrationAction={action}
-        event={{
-          ...event,
-          teamRegistration: {
-            allowRepeatTeamCaptain: false,
-            boatsPerTeam: 1,
-            personsPerBoat: 2,
-            usesTeamRegistration: true,
-          },
-        }}
-        formPermalink="/events/learn-to-sail/register"
-        labels={labels}
-        locale="en"
-      />
-    );
+    renderRegistrationForm({
+      action,
+      eventOverrides: teamEventOverrides({
+        boatsPerTeam: 1,
+        personsPerBoat: 2,
+      }),
+    });
 
     expect(
       screen.getByRole('heading', { name: 'Team information' })
@@ -397,72 +471,26 @@ describe('EventRegistrationForm', () => {
       screen.getByRole('heading', { name: 'Boat 1 information' })
     ).toBeVisible();
 
-    const teamName = screen.getByRole('textbox', { name: 'Team nameRequired' });
-    const helmName = screen.getByRole('textbox', {
-      name: 'Helm Full name',
-    });
-    const helmEmail = screen.getByRole('textbox', {
-      name: 'Helm Email',
-    });
-    const crewName = screen.getByRole('textbox', {
-      name: 'Crew Full name',
-    });
-    const crewEmail = screen.getByRole('textbox', {
-      name: 'Crew Email',
-    });
-
-    expect(teamName).toHaveAttribute('name', 'teamName');
-    expect(helmName).toHaveAttribute('name', 'teamBoatMember_0_name');
-    expect(helmEmail).toHaveAttribute('name', 'teamBoatMember_0_email');
-    expect(crewName).toHaveAttribute('name', 'teamBoatMember_1_name');
-    expect(crewEmail).toHaveAttribute('name', 'teamBoatMember_1_email');
-    expect(helmName).toBeRequired();
-    expect(helmEmail).toBeRequired();
-    expect(crewName).toBeRequired();
-    expect(crewEmail).toBeRequired();
-    expect(helmName).toHaveAttribute('aria-required', 'true');
-    expect(helmEmail).toHaveAttribute('aria-required', 'true');
-    expect(crewName).toHaveAttribute('aria-required', 'true');
-    expect(crewEmail).toHaveAttribute('aria-required', 'true');
-
-    await user.type(teamName, '  Tech Dinghies  ');
-    await user.type(helmName, 'Ada Lovelace');
-    await user.type(helmEmail, 'ada@example.test');
-    await user.type(crewName, 'Grace Hopper');
-    await user.type(crewEmail, 'not-an-email');
-    await user.click(
-      screen.getByRole('button', { name: 'Confirm registration' })
-    );
+    const fields = teamFields();
+    expectTeamFieldsRequired(fields);
+    await fillInvalidTeamFields(user, fields);
 
     expect(
       await screen.findByText('Answer the required registration questions.')
     ).toBeVisible();
-    expect(teamName).toHaveValue('  Tech Dinghies  ');
-    expect(crewEmail).toHaveValue('not-an-email');
-    expect(teamName).toHaveAttribute('aria-invalid', 'true');
-    expect(crewEmail).toHaveAttribute('aria-invalid', 'true');
+    expect(fields.teamName).toHaveValue('  Tech Dinghies  ');
+    expect(fields.crewEmail).toHaveValue('not-an-email');
+    expect(fields.teamName).toHaveAttribute('aria-invalid', 'true');
+    expect(fields.crewEmail).toHaveAttribute('aria-invalid', 'true');
   });
 
   it('renders distinct member fields for every team boat', () => {
-    const action = vi.fn();
-
-    render(
-      <EventRegistrationForm
-        createRegistrationAction={action}
-        event={{
-          ...event,
-          teamRegistration: {
-            allowRepeatTeamCaptain: false,
-            boatsPerTeam: 2,
-            personsPerBoat: 2,
-            usesTeamRegistration: true,
-          },
-        }}
-        formPermalink="/events/learn-to-sail/register"
-        labels={labels}
-        locale="en"
-      />
-    );
+    renderRegistrationForm({
+      eventOverrides: teamEventOverrides({
+        boatsPerTeam: 2,
+        personsPerBoat: 2,
+      }),
+    });
 
     expect(
       screen.getByRole('heading', { name: 'Boat 1 information' })
@@ -471,50 +499,6 @@ describe('EventRegistrationForm', () => {
       screen.getByRole('heading', { name: 'Boat 2 information' })
     ).toBeVisible();
 
-    const helmNameFields = screen.getAllByRole('textbox', {
-      name: 'Helm Full name',
-    });
-    const helmEmailFields = screen.getAllByRole('textbox', {
-      name: 'Helm Email',
-    });
-    const crewNameFields = screen.getAllByRole('textbox', {
-      name: 'Crew Full name',
-    });
-    const crewEmailFields = screen.getAllByRole('textbox', {
-      name: 'Crew Email',
-    });
-
-    expect(helmNameFields[0]).toHaveAttribute(
-      'name',
-      'teamBoatMember_1_0_name'
-    );
-    expect(helmEmailFields[0]).toHaveAttribute(
-      'name',
-      'teamBoatMember_1_0_email'
-    );
-    expect(crewNameFields[0]).toHaveAttribute(
-      'name',
-      'teamBoatMember_1_1_name'
-    );
-    expect(crewEmailFields[0]).toHaveAttribute(
-      'name',
-      'teamBoatMember_1_1_email'
-    );
-    expect(helmNameFields[1]).toHaveAttribute(
-      'name',
-      'teamBoatMember_2_0_name'
-    );
-    expect(helmEmailFields[1]).toHaveAttribute(
-      'name',
-      'teamBoatMember_2_0_email'
-    );
-    expect(crewNameFields[1]).toHaveAttribute(
-      'name',
-      'teamBoatMember_2_1_name'
-    );
-    expect(crewEmailFields[1]).toHaveAttribute(
-      'name',
-      'teamBoatMember_2_1_email'
-    );
+    expectTeamBoatMemberNames(teamMemberFields());
   });
 });

@@ -248,6 +248,7 @@ vi.mock('./profile/ProfileAccountClient', () => ({
       data-email-deliverability={props.initialEmailDeliverabilityStatus}
       data-emergency-contact-name={props.initialEmergencyContactName}
       data-emergency-contact-phone={props.initialEmergencyContactPhone}
+      data-locale={props.locale}
       data-name={props.initialName ?? ''}
       data-phone={props.initialPhone}
       data-theme={props.initialThemePreference}
