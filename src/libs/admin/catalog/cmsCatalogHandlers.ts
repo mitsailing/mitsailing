@@ -24,6 +24,10 @@ import {
   cmsPageInputSchema,
   validateCmsMenuTree,
 } from '@/libs/mit-sailing/cmsValidation';
+import {
+  deletePublicSlugHistoryForTarget,
+  recordPublicSlugHistory,
+} from '@/libs/mit-sailing/publicSlugHistory';
 import enMessages from '@/locales/en.json';
 
 const cmsMenuInputSchema = z.object({
@@ -79,6 +83,19 @@ function optionalCmsRichText(
   }
   const sanitized = sanitizeCmsRichTextHtml(value);
   return sanitized.length > 0 ? sanitized : undefined;
+}
+
+function objectProperty(value: unknown, key: string): unknown {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return undefined;
+  }
+  return Object.getOwnPropertyDescriptor(value, key)?.value;
+}
+
+function cmsPagePathFromSnapshot(snapshot: unknown): string | null {
+  const page = objectProperty(snapshot, 'page');
+  const path = objectProperty(page, 'path');
+  return typeof path === 'string' && path.trim().length > 0 ? path : null;
 }
 
 function duplicateCode(error: unknown): CatalogMutationErr | null {
@@ -298,10 +315,21 @@ export const cmsPagesCatalogHandlers: CatalogServerHandlers = {
       return { ok: false, code: 'validation_failed' };
     }
     try {
-      const previousSnapshot = await loadCmsPageRevisionSnapshot(id);
       await prisma.$transaction(
         async (tx) => {
+          const previousSnapshot = await loadCmsPageRevisionSnapshot(id, tx);
           await tx.cmsPage.update({ where: { id }, data: parsed.data });
+          const previousPath = cmsPagePathFromSnapshot(previousSnapshot);
+          if (previousPath) {
+            await recordPublicSlugHistory({
+              currentSlug: parsed.data.path,
+              db: tx,
+              previousSlug: previousPath,
+              scope: 'cms',
+              sluggableId: id,
+              sluggableType: 'CmsPage',
+            });
+          }
           await recordCmsPageRevisionIfChanged({
             pageId: id,
             action: 'update',
@@ -323,9 +351,14 @@ export const cmsPagesCatalogHandlers: CatalogServerHandlers = {
     context?: CatalogMutationContext
   ): Promise<CatalogMutationOk | CatalogMutationErr> {
     try {
-      const snapshot = await loadCmsPageRevisionSnapshot(id);
       await prisma.$transaction(
         async (tx) => {
+          const snapshot = await loadCmsPageRevisionSnapshot(id, tx);
+          await deletePublicSlugHistoryForTarget({
+            db: tx,
+            sluggableId: id,
+            sluggableType: 'CmsPage',
+          });
           await tx.cmsPage.delete({ where: { id } });
           if (snapshot) {
             await recordCmsPageRevisionFromSnapshot({

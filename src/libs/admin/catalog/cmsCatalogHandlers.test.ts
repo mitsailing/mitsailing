@@ -18,6 +18,8 @@ const mocks = vi.hoisted(() => ({
   cmsPageFindUnique: vi.fn(),
   cmsPageFindMany: vi.fn(),
   cmsPageUpdate: vi.fn(),
+  deletePublicSlugHistoryForTarget: vi.fn(),
+  recordPublicSlugHistory: vi.fn(),
   userAuditAggregate: vi.fn(),
   userAuditCreate: vi.fn(),
   userAuditFindFirst: vi.fn(),
@@ -62,6 +64,11 @@ vi.mock('@/libs/DB', () => ({
   },
 }));
 
+vi.mock('@/libs/mit-sailing/publicSlugHistory', () => ({
+  deletePublicSlugHistoryForTarget: mocks.deletePublicSlugHistoryForTarget,
+  recordPublicSlugHistory: mocks.recordPublicSlugHistory,
+}));
+
 const {
   cmsMenuItemsCatalogHandlers,
   cmsMenuParentSelectOptions,
@@ -92,6 +99,8 @@ beforeEach(() => {
   mocks.cmsPageFindUnique.mockReset();
   mocks.cmsPageFindMany.mockReset();
   mocks.cmsPageUpdate.mockReset();
+  mocks.deletePublicSlugHistoryForTarget.mockReset();
+  mocks.recordPublicSlugHistory.mockReset();
   mocks.userAuditAggregate.mockReset();
   mocks.userAuditCreate.mockReset();
   mocks.userAuditFindFirst.mockReset();
@@ -162,6 +171,38 @@ function cmsPageSnapshotRow(now: Date) {
 
 describe('cmsPagesCatalogHandlers', () => {
   describe('updateFromForm', () => {
+    it('records public path history when page path changes', async () => {
+      const now = new Date('2026-05-09T12:00:00.000Z');
+      const formData = new FormData();
+      formData.set('slug', 'about');
+      formData.set('path', '/new-about');
+      formData.set('title', 'About');
+      formData.set('metaTitle', 'About');
+      formData.set('metaDescription', 'About page');
+      formData.set('isPublished', 'true');
+
+      mocks.cmsPageFindUnique.mockResolvedValue({
+        ...cmsPageSnapshotRow(now),
+        path: '/old-about',
+      });
+      mocks.cmsPageUpdate.mockResolvedValue({ id: 'page-1' });
+
+      await expect(
+        cmsPagesCatalogHandlers.updateFromForm('page-1', formData, {
+          userId: 'admin-1',
+        })
+      ).resolves.toEqual({ ok: true });
+
+      expect(mocks.recordPublicSlugHistory).toHaveBeenCalledWith({
+        currentSlug: '/new-about',
+        db: expect.anything(),
+        previousSlug: '/old-about',
+        scope: 'cms',
+        sluggableId: 'page-1',
+        sluggableType: 'CmsPage',
+      });
+    });
+
     it('skips history when page content is unchanged', async () => {
       const now = new Date('2026-05-09T12:00:00.000Z');
       const formData = new FormData();
@@ -183,6 +224,24 @@ describe('cmsPagesCatalogHandlers', () => {
 
       expect(mocks.userAuditCreate).not.toHaveBeenCalled();
       expect(mocks.userAuditFindFirst).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('delete', () => {
+    it('deletes public path history when deleting a page', async () => {
+      const now = new Date('2026-05-09T12:00:00.000Z');
+      mocks.cmsPageFindUnique.mockResolvedValue(cmsPageSnapshotRow(now));
+      mocks.cmsPageDelete.mockResolvedValue({ id: 'page-1' });
+
+      await expect(
+        cmsPagesCatalogHandlers.delete('page-1', { userId: 'admin-1' })
+      ).resolves.toEqual({ ok: true });
+
+      expect(mocks.deletePublicSlugHistoryForTarget).toHaveBeenCalledWith({
+        db: expect.anything(),
+        sluggableId: 'page-1',
+        sluggableType: 'CmsPage',
+      });
     });
   });
 });

@@ -23,6 +23,10 @@ import {
   recordCatalogRevisionFromSnapshot,
   recordCatalogRevisionIfChanged,
 } from '@/libs/mit-sailing/catalogHistory';
+import {
+  deletePublicSlugHistoryForTarget,
+  recordPublicSlugHistory,
+} from '@/libs/mit-sailing/publicSlugHistory';
 import { getI18nPath } from '@/utils/Helpers';
 
 function mapPrismaErr(e: unknown): CatalogMutationErr | null {
@@ -33,6 +37,18 @@ function mapPrismaErr(e: unknown): CatalogMutationErr | null {
     return { ok: false, code: 'foreign_key' };
   }
   return null;
+}
+
+function snapshotSlug(snapshot: unknown): string | null {
+  if (
+    typeof snapshot !== 'object' ||
+    snapshot === null ||
+    Array.isArray(snapshot)
+  ) {
+    return null;
+  }
+  const slug = Object.getOwnPropertyDescriptor(snapshot, 'slug')?.value;
+  return typeof slug === 'string' && slug.trim().length > 0 ? slug : null;
 }
 
 /**
@@ -201,6 +217,17 @@ export const fleetCatalogHandlers: CatalogServerHandlers = {
               imagePath: data.imagePath,
             },
           });
+          const previousSlug = snapshotSlug(previousSnapshot);
+          if (previousSlug) {
+            await recordPublicSlugHistory({
+              currentSlug: data.slug,
+              db: tx,
+              previousSlug,
+              scope: 'fleet',
+              sluggableId: id,
+              sluggableType: 'FleetBoat',
+            });
+          }
           await recordCatalogRevisionIfChanged({
             action: 'update',
             context,
@@ -239,6 +266,11 @@ export const fleetCatalogHandlers: CatalogServerHandlers = {
             itemId: id,
             resourceId: 'fleet',
             tx,
+          });
+          await deletePublicSlugHistoryForTarget({
+            db: tx,
+            sluggableId: id,
+            sluggableType: 'FleetBoat',
           });
           await tx.fleetBoat.delete({ where: { id } });
           if (snapshot) {

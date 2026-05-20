@@ -22,6 +22,10 @@ import {
   recordCatalogRevisionFromSnapshot,
   recordCatalogRevisionIfChanged,
 } from '@/libs/mit-sailing/catalogHistory';
+import {
+  deletePublicSlugHistoryForTarget,
+  recordPublicSlugHistory,
+} from '@/libs/mit-sailing/publicSlugHistory';
 
 function mapPrismaErr(e: unknown): CatalogMutationErr | null {
   if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
@@ -31,6 +35,18 @@ function mapPrismaErr(e: unknown): CatalogMutationErr | null {
     return { ok: false, code: 'foreign_key' };
   }
   return null;
+}
+
+function snapshotSlug(snapshot: unknown): string | null {
+  if (
+    typeof snapshot !== 'object' ||
+    snapshot === null ||
+    Array.isArray(snapshot)
+  ) {
+    return null;
+  }
+  const slug = Object.getOwnPropertyDescriptor(snapshot, 'slug')?.value;
+  return typeof slug === 'string' && slug.trim().length > 0 ? slug : null;
 }
 
 /**
@@ -212,6 +228,17 @@ export const sailingClassesCatalogHandlers: CatalogServerHandlers = {
               isVisible: data.isVisible,
             },
           });
+          const previousSlug = snapshotSlug(previousSnapshot);
+          if (previousSlug) {
+            await recordPublicSlugHistory({
+              currentSlug: data.slug,
+              db: tx,
+              previousSlug,
+              scope: 'classes',
+              sluggableId: id,
+              sluggableType: 'SailingClass',
+            });
+          }
           await recordCatalogRevisionIfChanged({
             action: 'update',
             context,
@@ -250,6 +277,11 @@ export const sailingClassesCatalogHandlers: CatalogServerHandlers = {
             itemId: id,
             resourceId: 'sailing_classes',
             tx,
+          });
+          await deletePublicSlugHistoryForTarget({
+            db: tx,
+            sluggableId: id,
+            sluggableType: 'SailingClass',
           });
           await tx.sailingClass.delete({ where: { id } });
           if (snapshot) {

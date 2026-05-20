@@ -9,6 +9,7 @@ import { Role } from '@/libs/auth/roles';
 
 const mocks = vi.hoisted(() => ({
   dbTransaction: vi.fn(),
+  deletePublicSlugHistoryForTarget: vi.fn(),
   eventAdminCreateMany: vi.fn(),
   eventAdminDeleteMany: vi.fn(),
   eventCreate: vi.fn(),
@@ -32,6 +33,7 @@ const mocks = vi.hoisted(() => ({
   eventRegistrationQuestionUpdateMany: vi.fn(),
   eventRegistrationTeamCount: vi.fn(),
   eventUpdate: vi.fn(),
+  recordPublicSlugHistory: vi.fn(),
   redirect: vi.fn((href: string) => {
     throw new Error(`NEXT_REDIRECT:${href}`);
   }),
@@ -48,6 +50,7 @@ const mocks = vi.hoisted(() => ({
 type AdminEventTransactionClient = {
   $queryRaw: typeof mocks.txQueryRaw;
   event: {
+    delete: typeof mocks.eventDelete;
     findUnique: typeof mocks.eventFindUnique;
     update: typeof mocks.eventUpdate;
   };
@@ -157,6 +160,11 @@ vi.mock('@/libs/DB', () => ({
       count: mocks.userCount,
     },
   },
+}));
+
+vi.mock('@/libs/mit-sailing/publicSlugHistory', () => ({
+  deletePublicSlugHistoryForTarget: mocks.deletePublicSlugHistoryForTarget,
+  recordPublicSlugHistory: mocks.recordPublicSlugHistory,
 }));
 
 vi.mock('@/libs/Logger', () => ({
@@ -282,6 +290,7 @@ beforeEach(() => {
   const transactionClient: AdminEventTransactionClient = {
     $queryRaw: mocks.txQueryRaw,
     event: {
+      delete: mocks.eventDelete,
       findUnique: mocks.eventFindUnique,
       update: mocks.eventUpdate,
     },
@@ -732,6 +741,30 @@ describe('updateAdminEventBasicsAction', () => {
     );
   });
 
+  it('records public slug history when event slug changes', async () => {
+    const formData = validEventFormData();
+    formData.set('name', 'New Event');
+    mocks.requireAdminEventAccess.mockResolvedValue({
+      ...access(),
+      event: { id: 'event-1', slug: 'old-event' },
+    });
+    const { updateAdminEventBasicsAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventBasicsAction('en', 'old-event', formData)
+    ).rejects.toThrow('NEXT_REDIRECT:/admin/events/new-event/edit');
+
+    expect(mocks.recordPublicSlugHistory).toHaveBeenCalledWith({
+      currentSlug: 'new-event',
+      db: expect.anything(),
+      previousSlug: 'old-event',
+      scope: 'events',
+      sluggableId: 'event-1',
+      sluggableType: 'Event',
+    });
+  });
+
   it('redirects when event access is denied', async () => {
     mocks.requireAdminEventAccess.mockResolvedValue(null);
     const { updateAdminEventBasicsAction } =
@@ -744,6 +777,23 @@ describe('updateAdminEventBasicsAction', () => {
     );
 
     expect(mocks.eventUpdate).not.toHaveBeenCalled();
+  });
+});
+
+describe('deleteAdminEventAction', () => {
+  it('deletes public slug history when deleting an event', async () => {
+    const { deleteAdminEventAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(deleteAdminEventAction('en', 'intro-sail')).rejects.toThrow(
+      'NEXT_REDIRECT:/admin/events'
+    );
+
+    expect(mocks.deletePublicSlugHistoryForTarget).toHaveBeenCalledWith({
+      db: expect.anything(),
+      sluggableId: 'event-1',
+      sluggableType: 'Event',
+    });
   });
 });
 

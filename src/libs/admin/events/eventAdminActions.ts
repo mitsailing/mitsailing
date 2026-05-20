@@ -43,6 +43,10 @@ import { requirePermission } from '@/libs/auth/dal';
 import { Permission } from '@/libs/auth/permissions';
 import { prisma } from '@/libs/DB';
 import { logger } from '@/libs/Logger';
+import {
+  deletePublicSlugHistoryForTarget,
+  recordPublicSlugHistory,
+} from '@/libs/mit-sailing/publicSlugHistory';
 import { sitemapCatalogCacheTag } from '@/libs/mit-sailing/sitemapCache';
 import { safeErrorCode, safeErrorName } from '@/libs/safeUnknownError';
 import { getI18nPath } from '@/utils/Helpers';
@@ -511,6 +515,14 @@ export async function updateAdminEventBasicsAction(
           isPublished: data.isPublished,
         },
       });
+      await recordPublicSlugHistory({
+        currentSlug: slug,
+        db: tx,
+        previousSlug: access.event.slug,
+        scope: 'events',
+        sluggableId: access.event.id,
+        sluggableType: 'Event',
+      });
     });
   } catch (error) {
     logAdminEventMutationFailure({
@@ -532,7 +544,14 @@ export async function deleteAdminEventAction(
 ): Promise<void> {
   const access = await requireEditableAdminEvent(locale, slug);
   try {
-    await prisma.event.delete({ where: { id: access.event.id } });
+    await prisma.$transaction(async (tx) => {
+      await deletePublicSlugHistoryForTarget({
+        db: tx,
+        sluggableId: access.event.id,
+        sluggableType: 'Event',
+      });
+      await tx.event.delete({ where: { id: access.event.id } });
+    });
   } catch (error) {
     logAdminEventMutationFailure({ action: 'delete-event', error, slug });
     redirect(
