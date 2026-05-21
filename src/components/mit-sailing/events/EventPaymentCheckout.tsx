@@ -149,7 +149,11 @@ export function EventPaymentCheckout(props: EventPaymentCheckoutProps) {
     const mountCheckout = async () => {
       try {
         const stripe = await loadStripe(publishableKey);
-        if (!stripe || effectState.cancelled) {
+        if (effectState.cancelled) {
+          return;
+        }
+        if (!stripe) {
+          setError(checkoutLoadError);
           return;
         }
         const checkout = await stripe.createEmbeddedCheckoutPage({
@@ -161,9 +165,11 @@ export function EventPaymentCheckout(props: EventPaymentCheckoutProps) {
             return result.clientSecret;
           },
         });
-        const target = effectState.cancelled
-          ? null
-          : checkoutTarget(checkoutRef);
+        if (effectState.cancelled) {
+          checkout.unmount();
+          return;
+        }
+        const target = checkoutTarget(checkoutRef);
         if (!target) {
           checkout.unmount();
           return;

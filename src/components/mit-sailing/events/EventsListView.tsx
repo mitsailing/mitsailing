@@ -238,7 +238,7 @@ export async function EventsListView(props: EventsListViewProps) {
 
       <div
         aria-label={t('calendar_grid_label', { month: monthTitle })}
-        className="hidden w-full min-w-0 overflow-hidden rounded-xl border border-mit-line shadow-sm lg:block"
+        className="hidden w-full min-w-0 rounded-xl border border-mit-line shadow-sm lg:block"
       >
         <div className="grid w-full min-w-0 grid-cols-7 divide-x divide-mit-line bg-mit-surface">
           {weekdayLabels(props.locale).map((weekday) => (
@@ -277,21 +277,14 @@ export async function EventsListView(props: EventsListViewProps) {
                           {Number(dateKey.slice(8, 10))}
                         </div>
                         <div>
-                          {dayRows.slice(0, 3).map((row, rowIndex, shown) => (
+                          {dayRows.map((row, rowIndex) => (
                             <EventCalendarOccurrenceRow
                               key={row.rowKey}
                               row={row}
-                              showBottomBorder={rowIndex < shown.length - 1}
+                              showBottomBorder={rowIndex < dayRows.length - 1}
                               wrapTitle
                             />
                           ))}
-                          {dayRows.length > 3 ? (
-                            <p className="mt-1 text-xs leading-snug text-mit-text">
-                              {t('additional_events', {
-                                count: dayRows.length - 3,
-                              })}
-                            </p>
-                          ) : null}
                         </div>
                       </>
                     ) : null}

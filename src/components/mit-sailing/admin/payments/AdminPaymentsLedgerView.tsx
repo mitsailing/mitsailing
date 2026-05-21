@@ -224,12 +224,12 @@ export function AdminPaymentsLedgerView(props: AdminPaymentsLedgerViewProps) {
             >
               <div className="min-w-0">
                 <Link
-                  className="font-semibold text-mit-red no-underline hover:underline dark:text-mit-red-ink"
+                  className="font-semibold break-words text-mit-red no-underline hover:underline dark:text-mit-red-ink"
                   href={`/events/${payment.event.slug}`}
                 >
                   {payment.event.name}
                 </Link>
-                <p className="mt-1 truncate text-sm text-mit-readable-ink">
+                <p className="mt-1 text-sm break-words text-mit-readable-ink">
                   {payment.user.name} · {payment.user.email}
                 </p>
               </div>

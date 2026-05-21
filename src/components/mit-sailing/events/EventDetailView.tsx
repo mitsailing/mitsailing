@@ -416,12 +416,12 @@ export async function EventDetailView(props: EventDetailViewProps) {
                       {adminInitials(adminRow.admin.name)}
                     </span>
                     <div className="min-w-0">
-                      <p className="m-0 truncate text-sm font-semibold text-mit-text">
+                      <p className="m-0 text-sm font-semibold break-words text-mit-text">
                         {adminRow.admin.name}
                       </p>
                       <a
                         className={cn(
-                          'block truncate text-xs text-mit-red no-underline hover:underline dark:text-white',
+                          'block break-words text-xs text-mit-red no-underline hover:underline dark:text-white',
                           textFocusRingClassName
                         )}
                         href={`mailto:${adminRow.admin.email}`}

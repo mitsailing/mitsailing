@@ -21,17 +21,28 @@ function paymentStatusLabel(
   status: PaymentStatus,
   t: AdminEventRegistrationsTranslations
 ): string {
-  const labels = {
-    [EventPaymentStatus.cancelled]: t('payment_status_cancelled'),
-    [EventPaymentStatus.checkout_created]: t('payment_status_checkout_created'),
-    [EventPaymentStatus.disputed]: t('payment_status_disputed'),
-    [EventPaymentStatus.handled]: t('payment_status_handled'),
-    [EventPaymentStatus.paid]: t('payment_status_paid'),
-    [EventPaymentStatus.past_due]: t('payment_status_past_due'),
-    [EventPaymentStatus.pending]: t('payment_status_pending'),
-    [EventPaymentStatus.refunded]: t('payment_status_refunded'),
-  } satisfies Record<PaymentStatus, string>;
-  return labels[status];
+  if (status === EventPaymentStatus.cancelled) {
+    return t('payment_status_cancelled');
+  }
+  if (status === EventPaymentStatus.checkout_created) {
+    return t('payment_status_checkout_created');
+  }
+  if (status === EventPaymentStatus.disputed) {
+    return t('payment_status_disputed');
+  }
+  if (status === EventPaymentStatus.handled) {
+    return t('payment_status_handled');
+  }
+  if (status === EventPaymentStatus.paid) {
+    return t('payment_status_paid');
+  }
+  if (status === EventPaymentStatus.past_due) {
+    return t('payment_status_past_due');
+  }
+  if (status === EventPaymentStatus.pending) {
+    return t('payment_status_pending');
+  }
+  return t('payment_status_refunded');
 }
 
 function canMarkPaymentHandled(status: PaymentStatus): boolean {
@@ -66,7 +77,7 @@ export function AdminEventRegistrationPaymentValue(props: {
     payment.id
   );
   return (
-    <div className="flex min-w-64 flex-col gap-2">
+    <div className="flex w-full min-w-0 flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2">
         <AdminEventListStatusBadge tone="neutral">
           {paymentStatusLabel(payment.status, props.t)}
@@ -77,7 +88,7 @@ export function AdminEventRegistrationPaymentValue(props: {
       </div>
       {props.accessMode === 'editable' && payment.resendEligible ? (
         <form action={resendAction}>
-          <Button size="sm" type="submit" variant="outline">
+          <Button className="w-fit" size="sm" type="submit" variant="outline">
             <Mail aria-hidden className="size-4" />
             {props.t('payment_resend_request')}
           </Button>
@@ -93,7 +104,7 @@ export function AdminEventRegistrationPaymentValue(props: {
             placeholder={props.t('payment_manual_note_placeholder')}
             required
           />
-          <Button size="sm" type="submit" variant="outline">
+          <Button className="w-fit" size="sm" type="submit" variant="outline">
             {props.t('payment_mark_handled')}
           </Button>
         </form>
@@ -103,7 +114,7 @@ export function AdminEventRegistrationPaymentValue(props: {
           <summary className="cursor-pointer text-foreground">
             {props.t('payment_manual_note_summary')}
           </summary>
-          <p className="mt-1 text-mit-readable-ink">
+          <p className="mt-1 break-words text-mit-readable-ink">
             {payment.manualHandledNote}
           </p>
           {payment.manualHandledBy && payment.manualHandledAt ? (

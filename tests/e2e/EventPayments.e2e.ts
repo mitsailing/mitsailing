@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { signInAsAdmin } from '../helpers/e2e-admin-sign-in';
 import {
   cleanupPaymentFixtures,
@@ -23,6 +24,16 @@ test.afterEach(async () => {
 test.afterAll(async () => {
   await endPaymentFixturePool();
 });
+
+ async function waitForAdminRegistrationsAction(page: Page, slug: string) {
+  return page.waitForResponse((response) => {
+    const request = response.request();
+    return (
+      request.method() === 'POST' &&
+      response.url().includes(`/admin/events/${slug}`)
+    );
+  });
+}
 
 test.describe('Event payments', () => {
   test.describe.configure({ mode: 'serial' });
@@ -130,7 +141,7 @@ test.describe('Event payments', () => {
       .poll(() => new URL(page.url()).pathname)
       .toBe(`/events/${event.slug}`);
 
-    await page.goto(`/admin/events/${event.slug}/registrations`);
+    await page.goto(`/admin/events/${event.slug}#registrations`);
     await page.getByLabel(/Actions for/u).click();
     await page.getByText('Approve', { exact: true }).click();
     await page.getByRole('button', { name: 'Confirm approve' }).click();
@@ -172,10 +183,13 @@ test.describe('Event payments', () => {
     });
     await signInAsAdmin(page);
 
-    await page.goto(`/admin/events/${event.slug}/registrations`);
+    await page.goto(`/admin/events/${event.slug}#registrations`);
     await expect(page.getByText('Pending').first()).toBeVisible();
 
-    await page.getByRole('button', { name: 'Resend request' }).click();
+    await Promise.all([
+      waitForAdminRegistrationsAction(page, event.slug),
+      page.getByRole('button', { name: 'Resend request' }).click(),
+    ]);
     await expect
       .poll(async () => {
         const count = await paymentRequestCount(paymentId);
@@ -186,7 +200,10 @@ test.describe('Event payments', () => {
     await page
       .getByLabel('Manual payment note')
       .fill('Paid by check at the pavilion.');
-    await page.getByRole('button', { name: 'Mark handled' }).click();
+    await Promise.all([
+      waitForAdminRegistrationsAction(page, event.slug),
+      page.getByRole('button', { name: 'Mark handled' }).click(),
+    ]);
 
     await expect
       .poll(

@@ -43,7 +43,7 @@ describe('AdminEventsListView', () => {
     );
   });
 
-  it('uses the event name as the canonical show page link without row action buttons', () => {
+  it('uses page-flow event cards without a horizontally scrolling table', () => {
     render(
       <AdminEventsListView
         categories={[]}
@@ -75,16 +75,17 @@ describe('AdminEventsListView', () => {
       />
     );
 
-    const table = screen.getByRole('table');
+    const list = screen.getByRole('list', { name: 'Events' });
 
     expect(
-      within(table).getByRole('link', { name: 'Intro Sail' })
+      within(list).getByRole('link', { name: 'Intro Sail' })
     ).toHaveAttribute('href', '/admin/events/intro-sail');
-    expect(within(table).queryByRole('link', { name: /view/i })).toBeNull();
-    expect(within(table).queryByRole('link', { name: /edit/i })).toBeNull();
+    expect(screen.queryByRole('table')).toBeNull();
+    expect(within(list).queryByRole('link', { name: /view/i })).toBeNull();
+    expect(within(list).queryByRole('link', { name: /edit/i })).toBeNull();
     expect(
-      within(table).queryByRole('link', { name: /registrations/i })
+      within(list).queryByRole('link', { name: /registrations/i })
     ).toBeNull();
-    expect(within(table).queryByRole('link', { name: /delete/i })).toBeNull();
+    expect(within(list).queryByRole('link', { name: /delete/i })).toBeNull();
   });
 });

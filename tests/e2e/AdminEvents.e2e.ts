@@ -58,24 +58,14 @@ test.describe('Admin events', () => {
       })
     ).toBeVisible();
     await expect(page.getByRole('link', { name: /Pending/ })).toBeVisible();
-    const roster = page.getByRole('table', { name: 'Registration roster' });
+    const roster = page.getByRole('list', { name: 'Registration roster' });
     await expect(roster).toBeVisible();
+    await expect(roster.getByText('Attendee').first()).toBeVisible();
+    await expect(roster.getByText('Status').first()).toBeVisible();
+    await expect(roster.getByText('Registered').first()).toBeVisible();
+    await expect(roster.getByText('Swim agreement').first()).toBeVisible();
     await expect(
-      roster.getByRole('columnheader', { name: 'Attendee' })
-    ).toBeVisible();
-    await expect(
-      roster.getByRole('columnheader', { name: 'Status' })
-    ).toBeVisible();
-    await expect(
-      roster.getByRole('columnheader', { name: 'Registered' })
-    ).toBeVisible();
-    await expect(
-      roster.getByRole('columnheader', { name: 'Swim agreement' })
-    ).toBeVisible();
-    await expect(
-      roster.getByRole('columnheader', {
-        name: 'Preferred watch role',
-      })
+      roster.getByText('Preferred watch role').first()
     ).toBeVisible();
     await expect(
       page.getByRole('heading', { name: 'Bulk email' })
@@ -83,14 +73,20 @@ test.describe('Admin events', () => {
 
     await page.setViewportSize({ width: 390, height: 844 });
 
-    const usernameRow = page.getByRole('row').filter({ hasText: 'Username' });
-    await expect(usernameRow.getByLabel('Actions for Username')).toBeVisible();
+    const usernameRegistration = roster
+      .getByRole('listitem')
+      .filter({ hasText: 'Username' });
+    await expect(
+      usernameRegistration.getByLabel('Actions for Username')
+    ).toBeVisible();
     await expect(
       page.getByRole('table', { name: 'Answers for Username' })
     ).toHaveCount(0);
 
-    await usernameRow.getByLabel('Actions for Username').click();
-    await usernameRow.getByRole('menuitem', { name: 'Approve' }).click();
+    await usernameRegistration.getByLabel('Actions for Username').click();
+    await usernameRegistration
+      .getByRole('menuitem', { name: 'Approve' })
+      .click();
     await expect(
       page.getByRole('dialog', { name: 'Confirm approve for Username' })
     ).toContainText('Approve Username and mark confirmed?');

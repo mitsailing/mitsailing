@@ -185,6 +185,25 @@ describe('EventPaymentCheckout', () => {
     expect(stripeMocks.mount).not.toHaveBeenCalled();
   });
 
+  it('shows load error when Stripe fails to initialize', async () => {
+    stripeMocks.loadStripe.mockResolvedValue(null);
+
+    renderCheckout({
+      payment: {
+        amount: '$25.00',
+        receiptUrl: null,
+        status: 'pending',
+        statusLabel: 'Pending',
+      },
+    });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Checkout could not load.'
+    );
+    expect(stripeMocks.createEmbeddedCheckoutPage).not.toHaveBeenCalled();
+    expect(stripeMocks.mount).not.toHaveBeenCalled();
+  });
+
   it('clears checkout load error after successful retry', async () => {
     const retryPayment: EventPaymentCheckoutPayment = {
       amount: '$25.00',

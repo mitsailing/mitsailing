@@ -1,14 +1,6 @@
 import { Check, MoreHorizontal, RotateCcw, X } from 'lucide-react';
 import type * as React from 'react';
 import { Button } from '@/components/ui/button';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { EventRegistrationStatus } from '@/generated/prisma/enums';
 import { updateAdminEventRegistrationStatusAction } from '@/libs/admin/events/eventAdminActions';
 import type { AdminEventRegistrationDto } from '@/libs/admin/events/eventAdminQueries';
@@ -90,7 +82,7 @@ function TeamBoatValue(props: {
     return props.t('empty_value');
   }
   return (
-    <div className="flex min-w-64 flex-col gap-2">
+    <div className="flex min-w-0 flex-col gap-2">
       {props.registration.registrationTeam ? (
         <p className="font-semibold text-foreground">
           {props.registration.registrationTeam.teamName}
@@ -113,7 +105,7 @@ function TeamBoatValue(props: {
                   ? props.t('registration_team_helm_label')
                   : props.t('registration_team_crew_label')}
               </span>
-              <span className="min-w-0">
+              <span className="min-w-0 break-words">
                 <span className="block text-foreground">{member.fullName}</span>
                 <span className="block text-xs text-mit-readable-ink">
                   {member.email}
@@ -183,7 +175,7 @@ function RegistrationActionsMenu(props: {
     props.registration.status !== EventRegistrationStatus.cancelled;
   const attendeeName = props.registration.user.name;
   return (
-    <details className="relative inline-block text-left">
+    <details className="w-full min-w-0 text-left sm:w-fit">
       <summary
         aria-label={props.t('registration_actions_for', {
           name: attendeeName,
@@ -193,7 +185,7 @@ function RegistrationActionsMenu(props: {
         <MoreHorizontal aria-hidden className="size-4" />
       </summary>
       <div
-        className="absolute left-0 z-20 mt-2 w-72 rounded-lg border border-border bg-background p-2 shadow-lg"
+        className="mt-2 w-full rounded-lg border border-border bg-background p-2 shadow-sm sm:w-72"
         role="menu"
       >
         {showApprove ? (
@@ -262,6 +254,23 @@ function RegistrationActionsMenu(props: {
   );
 }
 
+function RosterField(props: {
+  children: React.ReactNode;
+  label: string;
+  wide?: boolean;
+}) {
+  return (
+    <div className={props.wide ? 'min-w-0 md:col-span-2' : 'min-w-0'}>
+      <p className="text-xs font-semibold tracking-wide text-mit-readable-ink uppercase">
+        {props.label}
+      </p>
+      <div className="mt-1 text-sm break-words text-mit-readable-ink">
+        {props.children}
+      </div>
+    </div>
+  );
+}
+
 function RegistrationRosterRow(props: {
   accessMode: AdminEventAccessMode;
   locale: string;
@@ -275,83 +284,89 @@ function RegistrationRosterRow(props: {
   t: AdminEventRegistrationsTranslations;
 }) {
   return (
-    <TableRow>
-      <TableCell className="min-w-56 px-4 py-3 align-top">
-        <div className="flex items-start gap-2">
-          {props.accessMode === 'editable' ? (
-            <RegistrationActionsMenu
-              locale={props.locale}
-              registration={props.registration}
-              slug={props.slug}
-              t={props.t}
-            />
-          ) : null}
-          <div className="min-w-0">
-            <p className="font-semibold text-foreground">
-              {props.registration.user.name}
-            </p>
-            <p className="text-xs text-mit-readable-ink">
-              {props.registration.user.email}
-            </p>
+    <li className="rounded-lg border border-border bg-background p-4">
+      <article className="flex min-w-0 flex-col gap-4">
+        <header className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
+            {props.accessMode === 'editable' ? (
+              <RegistrationActionsMenu
+                locale={props.locale}
+                registration={props.registration}
+                slug={props.slug}
+                t={props.t}
+              />
+            ) : null}
+            <div className="min-w-0">
+              <p className="font-semibold break-words text-foreground">
+                {props.registration.user.name}
+              </p>
+              <p className="text-xs break-words text-mit-readable-ink">
+                {props.registration.user.email}
+              </p>
+            </div>
           </div>
+          <AdminEventListStatusBadge
+            tone={registrationStatusTone(props.registration.status)}
+          >
+            {statusLabel(props.registration.status, props.t)}
+          </AdminEventListStatusBadge>
+        </header>
+
+        <div className="grid min-w-0 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <RosterField label={props.t('column_attendee')}>
+            {props.registration.user.name}
+          </RosterField>
+          <RosterField label={props.t('column_status')}>
+            {statusLabel(props.registration.status, props.t)}
+          </RosterField>
+          <RosterField label={props.t('registration_created_at')}>
+            {formatEasternDateTime(props.registration.createdAt)}
+          </RosterField>
+          {props.showPhone ? (
+            <RosterField label={props.t('column_phone')}>
+              <PhoneValue registration={props.registration} t={props.t} />
+            </RosterField>
+          ) : null}
+          {props.showFee ? (
+            <RosterField label={props.t('column_fee')}>
+              <FeeValue
+                locale={props.locale}
+                registration={props.registration}
+                t={props.t}
+              />
+            </RosterField>
+          ) : null}
+          {props.showPayment ? (
+            <RosterField label={props.t('payment_heading')} wide>
+              <AdminEventRegistrationPaymentValue
+                accessMode={props.accessMode}
+                locale={props.locale}
+                registration={props.registration}
+                slug={props.slug}
+                t={props.t}
+              />
+            </RosterField>
+          ) : null}
+          {props.showTeamBoat ? (
+            <RosterField label={props.t('column_team_boat')} wide>
+              <TeamBoatValue registration={props.registration} t={props.t} />
+            </RosterField>
+          ) : null}
+          <RosterField label={props.t('registration_swim_agreement')}>
+            {formatEasternDateTime(props.registration.swimAgreementAcceptedAt)}
+          </RosterField>
+          {props.questionColumns.map((question) => (
+            <RosterField key={question.id} label={question.questionText} wide>
+              {answerValueForQuestion({
+                questionId: question.id,
+                registration: props.registration,
+                t: props.t,
+              })}
+            </RosterField>
+          ))}
         </div>
-      </TableCell>
-      <TableCell className="px-4 py-3 align-top">
-        <AdminEventListStatusBadge
-          tone={registrationStatusTone(props.registration.status)}
-        >
-          {statusLabel(props.registration.status, props.t)}
-        </AdminEventListStatusBadge>
-      </TableCell>
-      <TableCell className="px-4 py-3 align-top text-sm text-mit-readable-ink">
-        {formatEasternDateTime(props.registration.createdAt)}
-      </TableCell>
-      {props.showPhone ? (
-        <TableCell className="px-4 py-3 align-top text-sm text-mit-readable-ink">
-          <PhoneValue registration={props.registration} t={props.t} />
-        </TableCell>
-      ) : null}
-      {props.showFee ? (
-        <TableCell className="px-4 py-3 align-top text-sm text-mit-readable-ink">
-          <FeeValue
-            locale={props.locale}
-            registration={props.registration}
-            t={props.t}
-          />
-        </TableCell>
-      ) : null}
-      {props.showPayment ? (
-        <TableCell className="px-4 py-3 align-top text-sm text-mit-readable-ink">
-          <AdminEventRegistrationPaymentValue
-            accessMode={props.accessMode}
-            locale={props.locale}
-            registration={props.registration}
-            slug={props.slug}
-            t={props.t}
-          />
-        </TableCell>
-      ) : null}
-      {props.showTeamBoat ? (
-        <TableCell className="px-4 py-3 align-top text-sm text-mit-readable-ink">
-          <TeamBoatValue registration={props.registration} t={props.t} />
-        </TableCell>
-      ) : null}
-      <TableCell className="px-4 py-3 align-top text-sm text-mit-readable-ink">
-        {formatEasternDateTime(props.registration.swimAgreementAcceptedAt)}
-      </TableCell>
-      {props.questionColumns.map((question) => (
-        <TableCell
-          className="max-w-56 px-4 py-3 align-top text-sm whitespace-normal text-foreground"
-          key={question.id}
-        >
-          {answerValueForQuestion({
-            questionId: question.id,
-            registration: props.registration,
-            t: props.t,
-          })}
-        </TableCell>
-      ))}
-    </TableRow>
+      </article>
+    </li>
   );
 }
 
@@ -370,49 +385,25 @@ export function RegistrationRosterTable(props: {
     (registration) => registration.payment !== null
   );
   return (
-    <div className="overflow-x-auto rounded-lg border border-border bg-background">
-      <Table aria-label={props.t('registration_table_label')}>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{props.t('column_attendee')}</TableHead>
-            <TableHead>{props.t('column_status')}</TableHead>
-            <TableHead>{props.t('registration_created_at')}</TableHead>
-            {props.showPhone ? (
-              <TableHead>{props.t('column_phone')}</TableHead>
-            ) : null}
-            {props.showFee ? (
-              <TableHead>{props.t('column_fee')}</TableHead>
-            ) : null}
-            {showPayment ? (
-              <TableHead>{props.t('payment_heading')}</TableHead>
-            ) : null}
-            {props.showTeamBoat ? (
-              <TableHead>{props.t('column_team_boat')}</TableHead>
-            ) : null}
-            <TableHead>{props.t('registration_swim_agreement')}</TableHead>
-            {props.questionColumns.map((question) => (
-              <TableHead key={question.id}>{question.questionText}</TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {props.registrations.map((registration) => (
-            <RegistrationRosterRow
-              accessMode={props.accessMode}
-              key={registration.id}
-              locale={props.locale}
-              questionColumns={props.questionColumns}
-              registration={registration}
-              showFee={props.showFee}
-              showPayment={showPayment}
-              showPhone={props.showPhone}
-              showTeamBoat={props.showTeamBoat}
-              slug={props.slug}
-              t={props.t}
-            />
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <ul
+      aria-label={props.t('registration_table_label')}
+      className="m-0 grid list-none gap-3 p-0"
+    >
+      {props.registrations.map((registration) => (
+        <RegistrationRosterRow
+          accessMode={props.accessMode}
+          key={registration.id}
+          locale={props.locale}
+          questionColumns={props.questionColumns}
+          registration={registration}
+          showFee={props.showFee}
+          showPayment={showPayment}
+          showPhone={props.showPhone}
+          showTeamBoat={props.showTeamBoat}
+          slug={props.slug}
+          t={props.t}
+        />
+      ))}
+    </ul>
   );
 }
