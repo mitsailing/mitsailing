@@ -45,7 +45,7 @@ describe('formatEasternEventCalendarLine', () => {
         end,
         segment: 'multi-end',
       })
-    ).toBe('Until 4:00 PM ET');
+    ).toBe('Until 4:00 PM');
   });
 
   it('formats ongoing segment with start time and end date', async () => {
@@ -61,7 +61,7 @@ describe('formatEasternEventCalendarLine', () => {
         end: new Date('2026-04-02T20:00:00.000Z'),
         segment: 'ongoing',
       })
-    ).toBe('9:00 AM – Thu, Apr 2, 4:00 PM ET');
+    ).toBe('9:00 AM – Thu, Apr 2, 4:00 PM');
   });
 });
 

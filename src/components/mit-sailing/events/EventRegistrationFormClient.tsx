@@ -24,6 +24,7 @@ export type EventRegistrationFormLabels = {
   selectPlaceholder: string;
   submitRequestButton: string;
   feesHeading: string;
+  nextStepHeading: string;
   phoneHelp: string;
   phoneLabel: string;
   swimAgreementHeading: string;
@@ -733,6 +734,27 @@ function RegistrationFeeSummary(props: {
   );
 }
 
+function RegistrationNextStep(props: {
+  event: PublicEventDetail;
+  labels: EventRegistrationFormLabels;
+}) {
+  return (
+    <section
+      aria-label={props.labels.nextStepHeading}
+      className="rounded-lg border border-mit-line bg-muted/30 px-4 py-3"
+    >
+      <h3 className="font-mit-serif text-base font-semibold tracking-tight text-mit-text">
+        {props.labels.nextStepHeading}
+      </h3>
+      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+        {props.event.requiresApproval
+          ? props.labels.requiresApprovalNote
+          : props.labels.autoApprovalNote}
+      </p>
+    </section>
+  );
+}
+
 export function EventRegistrationForm(props: EventRegistrationFormProps) {
   const [state, formAction] = useActionState(
     props.createRegistrationAction,
@@ -781,9 +803,10 @@ export function EventRegistrationForm(props: EventRegistrationFormProps) {
           {formError}
         </p>
       ) : null}
-      <PhoneField
-        initialPhone={props.initialPhone ?? null}
+      <RegistrationFeeSummary
+        event={props.event}
         labels={props.labels}
+        locale={props.locale}
         state={state}
       />
       <TeamRegistrationFields
@@ -791,24 +814,18 @@ export function EventRegistrationForm(props: EventRegistrationFormProps) {
         labels={props.labels}
         state={state}
       />
-      <SwimAgreementField labels={props.labels} state={state} />
       <RegistrationQuestions
         event={props.event}
         labels={props.labels}
         state={state}
       />
-      <RegistrationFeeSummary
-        event={props.event}
+      <PhoneField
+        initialPhone={props.initialPhone ?? null}
         labels={props.labels}
-        locale={props.locale}
         state={state}
       />
-
-      <p className="text-xs leading-relaxed text-muted-foreground">
-        {props.event.requiresApproval
-          ? props.labels.requiresApprovalNote
-          : props.labels.autoApprovalNote}
-      </p>
+      <SwimAgreementField labels={props.labels} state={state} />
+      <RegistrationNextStep event={props.event} labels={props.labels} />
 
       <SubmitButton
         className="w-full"

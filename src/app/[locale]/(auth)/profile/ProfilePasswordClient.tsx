@@ -96,7 +96,10 @@ export function ProfilePasswordClient() {
         <form
           aria-busy={changingPassword || undefined}
           className="mt-4 flex flex-col gap-3"
-          onSubmit={onChangePassword}
+          onSubmit={(event) => {
+            // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the form promise.
+            void onChangePassword(event);
+          }}
         >
           <div className="flex flex-col gap-1.5">
             <Label className="text-foreground" htmlFor="currentPassword">

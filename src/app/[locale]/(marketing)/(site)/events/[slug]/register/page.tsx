@@ -43,10 +43,8 @@ function EventScheduleSummary(props: {
       : props.t('date_to_be_announced');
 
   return (
-    <p
-      aria-label={props.t('field_schedule')}
-      className="mb-5 text-sm leading-snug text-muted-foreground"
-    >
+    <p className="mb-5 text-sm leading-snug text-muted-foreground">
+      <span className="sr-only">{props.t('field_schedule')}: </span>
       {dateSummary}
     </p>
   );

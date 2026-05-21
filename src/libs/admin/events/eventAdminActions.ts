@@ -7,6 +7,8 @@ import { redirect } from 'next/navigation';
 import type * as z from 'zod';
 import { Prisma } from '@/generated/prisma/client';
 import {
+  EventPaymentNotificationKind,
+  EventPaymentStatus,
   EventAnswerType,
   EventRegistrationStatus,
 } from '@/generated/prisma/enums';
@@ -26,6 +28,9 @@ import {
   eventAdminIdsFormSchema,
   eventDateFormSchema,
   eventFeeFormSchema,
+  eventLocationFormSchema,
+  eventPaymentManualHandledFormSchema,
+  eventPaymentSettingsFormSchema,
   eventQuestionFormSchema,
   eventRegistrationStatusFormSchema,
   ASSIGNABLE_EVENT_ADMIN_ROLES,
@@ -35,6 +40,9 @@ import {
   rawEventBasicsFromFormData,
   rawEventDateFromFormData,
   rawEventFeeFromFormData,
+  rawEventLocationFromFormData,
+  rawEventPaymentManualHandledFromFormData,
+  rawEventPaymentSettingsFromFormData,
   rawEventQuestionFromFormData,
   rawEventRegistrationStatusFromFormData,
 } from '@/libs/admin/events/eventAdminSchemas';
@@ -43,9 +51,16 @@ import { requirePermission } from '@/libs/auth/dal';
 import { Permission } from '@/libs/auth/permissions';
 import { prisma } from '@/libs/DB';
 import { logger } from '@/libs/Logger';
+import {
+  buildManualHandledEventPaymentTransition,
+  getEventPaymentEligibility,
+  nyEventPaymentNotificationDateKey,
+} from '@/libs/mit-sailing/eventPayments';
 import { sitemapCatalogCacheTag } from '@/libs/mit-sailing/sitemapCache';
 import { safeErrorCode, safeErrorName } from '@/libs/safeUnknownError';
 import { getI18nPath } from '@/utils/Helpers';
+import { getDefaultQueue } from '@/worker/defaultQueue';
+import { enqueueEventPaymentEmailJob } from '@/worker/eventPaymentEmailJob';
 
 type EventAdminMutationCode =
   | 'validation_failed'
@@ -94,6 +109,26 @@ async function lockEventForUpdate(options: {
     FOR UPDATE
   `;
 }
+
+type PaymentEligibleEventFee = {
+  amountCents: number;
+  description: string;
+  id: string;
+};
+
+type PaymentEligibleEvent = {
+  entryFees: PaymentEligibleEventFee[];
+  paymentDeadlineAt: Date | null;
+  paymentsEnabled: boolean;
+};
+
+type RegistrationForPayment = {
+  eventEntryFee: PaymentEligibleEventFee | null;
+  eventId: string;
+  id: string;
+  status: EventRegistrationStatus;
+  userId: string;
+};
 
 function logAdminEventMutationFailure(options: {
   action: string;
@@ -171,6 +206,155 @@ function adminEventSuccessPath(options: {
     ? adminEventEditPath(options.slug)
     : adminEventShowPath(options.slug);
   return getI18nPath(path, options.locale);
+}
+
+function checkoutFeeForRegistration(options: {
+  event: PaymentEligibleEvent;
+  registration: Pick<RegistrationForPayment, 'eventEntryFee'>;
+}) {
+  const eligibility = getEventPaymentEligibility({
+    entryFees: options.event.entryFees,
+    paymentDeadlineAt: options.event.paymentDeadlineAt,
+    paymentsEnabled: options.event.paymentsEnabled,
+  });
+  if (!eligibility.canCreatePayment || !options.registration.eventEntryFee) {
+    return null;
+  }
+  return options.registration.eventEntryFee.amountCents > 0
+    ? options.registration.eventEntryFee
+    : null;
+}
+
+function canSendPaymentRequestForEvent(options: {
+  event: PaymentEligibleEvent;
+  now: Date;
+}): boolean {
+  if (
+    options.event.paymentDeadlineAt &&
+    options.event.paymentDeadlineAt.getTime() <= options.now.getTime()
+  ) {
+    return false;
+  }
+  return getEventPaymentEligibility({
+    entryFees: options.event.entryFees,
+    paymentDeadlineAt: options.event.paymentDeadlineAt,
+    paymentsEnabled: options.event.paymentsEnabled,
+  }).canSendRequest;
+}
+
+async function upsertRegistrationPayment(options: {
+  tx: {
+    eventPayment: {
+      upsert: (args: {
+        create: {
+          amountCents: number;
+          currency: 'usd';
+          eventId: string;
+          id: string;
+          registrationId: string;
+          selectedFeeDescription: string;
+          selectedFeeId: string;
+          status: typeof EventPaymentStatus.pending;
+          userId: string;
+        };
+        update: Record<string, never>;
+        where: { registrationId: string };
+      }) => Promise<{ id: string }>;
+    };
+  };
+  event: PaymentEligibleEvent;
+  registration: RegistrationForPayment;
+}): Promise<{ id: string } | null> {
+  const fee = checkoutFeeForRegistration(options);
+  if (!fee) {
+    return null;
+  }
+  const payment = await options.tx.eventPayment.upsert({
+    create: {
+      amountCents: fee.amountCents,
+      currency: 'usd',
+      eventId: options.registration.eventId,
+      id: randomUUID(),
+      registrationId: options.registration.id,
+      selectedFeeDescription: fee.description,
+      selectedFeeId: fee.id,
+      status: EventPaymentStatus.pending,
+      userId: options.registration.userId,
+    },
+    update: {},
+    where: { registrationId: options.registration.id },
+  });
+  return payment;
+}
+
+async function markPaymentRequestNotification(options: {
+  now: Date;
+  paymentId: string;
+  tx: {
+    eventPaymentNotification: {
+      upsert: (args: {
+        create: {
+          id: string;
+          kind: typeof EventPaymentNotificationKind.request;
+          paymentId: string;
+          sentDateKey: string;
+        };
+        update: Record<string, never>;
+        where: {
+          paymentId_kind_sentDateKey: {
+            kind: typeof EventPaymentNotificationKind.request;
+            paymentId: string;
+            sentDateKey: string;
+          };
+        };
+      }) => Promise<unknown>;
+    };
+  };
+}): Promise<{ dateKey: string; paymentId: string }> {
+  const sentDateKey = nyEventPaymentNotificationDateKey(options.now);
+  await options.tx.eventPaymentNotification.upsert({
+    create: {
+      id: randomUUID(),
+      kind: EventPaymentNotificationKind.request,
+      paymentId: options.paymentId,
+      sentDateKey,
+    },
+    update: {},
+    where: {
+      paymentId_kind_sentDateKey: {
+        kind: EventPaymentNotificationKind.request,
+        paymentId: options.paymentId,
+        sentDateKey,
+      },
+    },
+  });
+  return { dateKey: sentDateKey, paymentId: options.paymentId };
+}
+
+async function enqueuePaymentRequestEmailJob(options: {
+  dateKey: string;
+  paymentId: string;
+}): Promise<void> {
+  try {
+    await enqueueEventPaymentEmailJob(getDefaultQueue(), {
+      dateKey: options.dateKey,
+      kind: 'request',
+      paymentId: options.paymentId,
+    });
+  } catch (error) {
+    logger.error('Failed to enqueue event payment request email: {error}', {
+      error,
+      paymentId: options.paymentId,
+    });
+  }
+}
+
+function enqueuePaymentRequestEmailJobInBackground(options: {
+  dateKey: string;
+  paymentId: string;
+}): void {
+  // eslint-disable-next-line no-void
+  void enqueuePaymentRequestEmailJob(options);
 }
 
 function verifiedEventIdFromAccess(options: {
@@ -963,6 +1147,68 @@ export async function deleteAdminEventFeeAction(
   redirect(getI18nPath(adminEventShowPath(slug), locale));
 }
 
+export async function updateAdminEventPaymentSettingsAction(
+  locale: string,
+  slug: string,
+  formData: FormData
+): Promise<void> {
+  const access = await requireEditableAdminEvent(locale, slug);
+  const zodParse = await adminEventZodParseParams(locale);
+  const parsed = eventPaymentSettingsFormSchema.safeParse(
+    rawEventPaymentSettingsFromFormData(formData),
+    zodParse
+  );
+  if (!parsed.success) {
+    redirect(editUrlWithError(locale, slug, 'validation_failed'));
+  }
+  try {
+    await prisma.event.update({
+      where: { id: access.event.id },
+      data: parsed.data,
+    });
+  } catch (error) {
+    logAdminEventMutationFailure({
+      action: 'update-payment-settings',
+      error,
+      slug,
+    });
+    redirect(editUrlWithError(locale, slug, mutationCodeFromPrisma(error)));
+  }
+  revalidateEventAdminMutation(locale, [slug]);
+  redirect(getI18nPath(adminEventEditPath(slug), locale));
+}
+
+export async function updateAdminEventLocationAction(
+  locale: string,
+  slug: string,
+  formData: FormData
+): Promise<void> {
+  const access = await requireEditableAdminEvent(locale, slug);
+  const zodParse = await adminEventZodParseParams(locale);
+  const parsed = eventLocationFormSchema.safeParse(
+    rawEventLocationFromFormData(formData),
+    zodParse
+  );
+  if (!parsed.success) {
+    redirect(editUrlWithError(locale, slug, 'validation_failed'));
+  }
+  try {
+    await prisma.event.update({
+      where: { id: access.event.id },
+      data: parsed.data,
+    });
+  } catch (error) {
+    logAdminEventMutationFailure({
+      action: 'update-location',
+      error,
+      slug,
+    });
+    redirect(editUrlWithError(locale, slug, mutationCodeFromPrisma(error)));
+  }
+  revalidateEventAdminMutation(locale, [slug]);
+  redirect(getI18nPath(adminEventEditPath(slug), locale));
+}
+
 export async function updateAdminEventRegistrationStatusAction(
   locale: string,
   slug: string,
@@ -970,6 +1216,7 @@ export async function updateAdminEventRegistrationStatusAction(
   formData: FormData
 ): Promise<void> {
   const access = await requireRegistrationsAdminEvent(locale, slug);
+  let paymentRequestJob: { dateKey: string; paymentId: string } | null = null;
   const zodParse = await adminEventZodParseParams(locale);
   const parsed = eventRegistrationStatusFormSchema.safeParse(
     rawEventRegistrationStatusFromFormData(formData),
@@ -987,7 +1234,15 @@ export async function updateAdminEventRegistrationStatusAction(
       async (tx) => {
         const registration = await tx.eventRegistration.findFirst({
           where: { id: registrationId, eventId: access.event.id },
-          select: { eventId: true, status: true },
+          select: {
+            eventEntryFee: {
+              select: { amountCents: true, description: true, id: true },
+            },
+            eventId: true,
+            id: true,
+            status: true,
+            userId: true,
+          },
         });
         if (!registration) {
           return { errorCode: null, updatedCount: 0 };
@@ -1001,7 +1256,15 @@ export async function updateAdminEventRegistrationStatusAction(
         `;
         const event = await tx.event.findUnique({
           where: { id: registration.eventId },
-          select: { maxParticipants: true },
+          select: {
+            maxParticipants: true,
+            paymentDeadlineAt: true,
+            paymentsEnabled: true,
+            entryFees: {
+              orderBy: [{ isDeposit: 'desc' }, { description: 'asc' }],
+              select: { amountCents: true, description: true, id: true },
+            },
+          },
         });
         if (!event) {
           return { errorCode: null, updatedCount: 0 };
@@ -1028,6 +1291,25 @@ export async function updateAdminEventRegistrationStatusAction(
           where: { id: registrationId, eventId: access.event.id },
           data: { status: parsed.data.status },
         });
+        if (
+          updateResult.count > 0 &&
+          parsed.data.status === EventRegistrationStatus.approved &&
+          registration.status !== EventRegistrationStatus.approved
+        ) {
+          const payment = await upsertRegistrationPayment({
+            event,
+            registration,
+            tx,
+          });
+          const now = new Date();
+          if (payment && canSendPaymentRequestForEvent({ event, now })) {
+            paymentRequestJob = await markPaymentRequestNotification({
+              now,
+              paymentId: payment.id,
+              tx,
+            });
+          }
+        }
         return { errorCode: null, updatedCount: updateResult.count };
       },
       {
@@ -1049,6 +1331,162 @@ export async function updateAdminEventRegistrationStatusAction(
     redirect(registrationsUrlWithError(locale, slug, result.errorCode));
   }
   if (result.updatedCount === 0) {
+    redirect(registrationsUrlWithError(locale, slug, 'not_found'));
+  }
+  if (paymentRequestJob) {
+    enqueuePaymentRequestEmailJobInBackground(paymentRequestJob);
+  }
+  revalidateEventAdminMutation(locale, [slug]);
+  redirect(getI18nPath(adminEventRegistrationsPath(slug), locale));
+}
+
+export async function resendAdminEventPaymentRequestAction(
+  locale: string,
+  slug: string,
+  paymentId: string
+): Promise<void> {
+  const access = await requireRegistrationsAdminEvent(locale, slug);
+  let foundPayment = false;
+  try {
+    const now = new Date();
+    const payment = await prisma.eventPayment.findFirst({
+      where: {
+        eventId: access.event.id,
+        id: paymentId,
+        event: { paymentDeadlineAt: { gt: now }, paymentsEnabled: true },
+        status: {
+          in: [
+            EventPaymentStatus.checkout_created,
+            EventPaymentStatus.past_due,
+            EventPaymentStatus.pending,
+          ],
+        },
+      },
+      select: { id: true },
+    });
+    foundPayment = payment !== null;
+    if (payment) {
+      const paymentRequestJob = await markPaymentRequestNotification({
+        now,
+        paymentId: payment.id,
+        tx: prisma,
+      });
+      enqueuePaymentRequestEmailJobInBackground(paymentRequestJob);
+    }
+  } catch (error) {
+    logAdminEventMutationFailure({
+      action: 'resend-payment-request',
+      error,
+      slug,
+    });
+    redirect(
+      registrationsUrlWithError(locale, slug, mutationCodeFromPrisma(error))
+    );
+  }
+  if (!foundPayment) {
+    redirect(registrationsUrlWithError(locale, slug, 'not_found'));
+  }
+  revalidateEventAdminMutation(locale, [slug]);
+  redirect(getI18nPath(adminEventRegistrationsPath(slug), locale));
+}
+
+export async function resendAllAdminEventPaymentRequestsAction(
+  locale: string,
+  slug: string
+): Promise<void> {
+  const access = await requireRegistrationsAdminEvent(locale, slug);
+  const paymentRequestJobs: { dateKey: string; paymentId: string }[] = [];
+  try {
+    const now = new Date();
+    const payments = await prisma.eventPayment.findMany({
+      where: {
+        eventId: access.event.id,
+        event: { paymentDeadlineAt: { gt: now }, paymentsEnabled: true },
+        status: {
+          in: [
+            EventPaymentStatus.checkout_created,
+            EventPaymentStatus.past_due,
+            EventPaymentStatus.pending,
+          ],
+        },
+      },
+      select: { id: true },
+    });
+    for (const payment of payments) {
+      paymentRequestJobs.push(
+        await markPaymentRequestNotification({
+          now,
+          paymentId: payment.id,
+          tx: prisma,
+        })
+      );
+    }
+  } catch (error) {
+    logAdminEventMutationFailure({
+      action: 'resend-all-payment-requests',
+      error,
+      slug,
+    });
+    redirect(
+      registrationsUrlWithError(locale, slug, mutationCodeFromPrisma(error))
+    );
+  }
+  for (const paymentRequestJob of paymentRequestJobs) {
+    enqueuePaymentRequestEmailJobInBackground(paymentRequestJob);
+  }
+  revalidateEventAdminMutation(locale, [slug]);
+  redirect(getI18nPath(adminEventRegistrationsPath(slug), locale));
+}
+
+export async function markAdminEventPaymentHandledAction(
+  locale: string,
+  slug: string,
+  paymentId: string,
+  formData: FormData
+): Promise<void> {
+  const access = await requireRegistrationsAdminEvent(locale, slug);
+  const zodParse = await adminEventZodParseParams(locale);
+  const parsed = eventPaymentManualHandledFormSchema.safeParse(
+    rawEventPaymentManualHandledFromFormData(formData),
+    zodParse
+  );
+  if (!parsed.success) {
+    redirect(registrationsUrlWithError(locale, slug, 'validation_failed'));
+  }
+  let updatedCount = 0;
+  try {
+    const transition = buildManualHandledEventPaymentTransition({
+      adminUserId: access.session.user.id,
+      note: parsed.data.note,
+      now: new Date(),
+      status: EventPaymentStatus.pending,
+    });
+    const result = await prisma.eventPayment.updateMany({
+      where: {
+        eventId: access.event.id,
+        id: paymentId,
+        status: {
+          in: [
+            EventPaymentStatus.checkout_created,
+            EventPaymentStatus.past_due,
+            EventPaymentStatus.pending,
+          ],
+        },
+      },
+      data: transition,
+    });
+    updatedCount = result.count;
+  } catch (error) {
+    logAdminEventMutationFailure({
+      action: 'mark-payment-handled',
+      error,
+      slug,
+    });
+    redirect(
+      registrationsUrlWithError(locale, slug, mutationCodeFromPrisma(error))
+    );
+  }
+  if (updatedCount === 0) {
     redirect(registrationsUrlWithError(locale, slug, 'not_found'));
   }
   revalidateEventAdminMutation(locale, [slug]);

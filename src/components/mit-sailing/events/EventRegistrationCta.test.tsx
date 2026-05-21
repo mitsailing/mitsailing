@@ -9,6 +9,10 @@ const noopCancelAction = vi.fn((_formData: FormData) => {});
 
 const minimalEvent: PublicEventDetail = {
   admins: [],
+  attendees: {
+    approved: [],
+    pending: [],
+  },
   approvedRegistrationCount: 0,
   category: { name: 'Racing' },
   dates: [],
@@ -38,6 +42,7 @@ const minimalEvent: PublicEventDetail = {
 
 const defaultCtaProps = {
   cancelRegistrationAction: noopCancelAction,
+  currentRegistration: null,
   errorCode: null,
   event: minimalEvent,
   isSignedIn: true,
@@ -51,12 +56,14 @@ const defaultCtaProps = {
 } as const;
 
 describe('EventRegistrationCta', () => {
-  it('renders nothing when reservations are closed (heading lives in EventDetailView)', () => {
-    const { container } = render(
+  it('offers another-events recovery when reservations are closed', () => {
+    render(
       <EventRegistrationCta {...defaultCtaProps} reservationState="closed" />
     );
 
-    expect(container.firstChild).toBeNull();
+    expect(
+      screen.getByRole('link', { name: 'View other events' })
+    ).toHaveAttribute('href', '/events');
   });
 
   it('shows opening-later pill when registration has not opened yet', () => {

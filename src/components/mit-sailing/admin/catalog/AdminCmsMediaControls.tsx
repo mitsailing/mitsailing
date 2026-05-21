@@ -198,8 +198,9 @@ export function AdminImageField(props: {
           aria-expanded={pickerOpen}
           aria-label={t('media_select_for_field', { label: props.label })}
           disabled={mediaBusy}
-          onClick={async () => {
-            await openPicker();
+          onClick={() => {
+            // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the picker promise.
+            void openPicker();
           }}
           type="button"
           variant="outline"
@@ -224,11 +225,12 @@ export function AdminImageField(props: {
       <input
         accept="image/jpeg,image/png,image/webp,image/gif"
         className="sr-only"
-        onChange={async (event) => {
+        onChange={(event) => {
           const file = event.target.files?.[0];
           event.currentTarget.value = '';
           if (file) {
-            await uploadImage(file);
+            // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the upload promise.
+            void uploadImage(file);
           }
         }}
         ref={fileInputRef}
@@ -365,8 +367,9 @@ export function AdminImageListField(props: {
           aria-describedby={props.errorMessage ? props.errorId : undefined}
           aria-invalid={props.errorMessage ? true : undefined}
           disabled={mediaBusy}
-          onClick={async () => {
-            await openPicker();
+          onClick={() => {
+            // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the picker promise.
+            void openPicker();
           }}
           type="button"
           variant="outline"
@@ -383,11 +386,12 @@ export function AdminImageListField(props: {
             ? 'sailing-class-gallery-upload'
             : `${props.fieldKey}-upload`
         }
-        onChange={async (event) => {
+        onChange={(event) => {
           const file = event.target.files?.[0];
           event.currentTarget.value = '';
           if (file) {
-            await uploadImage(file);
+            // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the upload promise.
+            void uploadImage(file);
           }
         }}
         ref={fileInputRef}

@@ -189,6 +189,19 @@ export class SchemaType implements SchemaDef {
                     array: true,
                     relation: { opposite: "user" }
                 },
+                eventPayments: {
+                    name: "eventPayments",
+                    type: "EventPayment",
+                    array: true,
+                    relation: { opposite: "user" }
+                },
+                manuallyHandledEventPayments: {
+                    name: "manuallyHandledEventPayments",
+                    type: "EventPayment",
+                    array: true,
+                    attributes: [{ name: "@relation", args: [{ name: "name", value: ExpressionUtils.literal("EventPaymentManualHandledBy") }] }] as readonly AttributeApplication[],
+                    relation: { opposite: "manualHandledBy", name: "EventPaymentManualHandledBy" }
+                },
                 eventComments: {
                     name: "eventComments",
                     type: "EventComment",
@@ -2152,6 +2165,66 @@ export class SchemaType implements SchemaDef {
                     type: "Boolean",
                     attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("is_published") }] }] as readonly AttributeApplication[]
                 },
+                paymentsEnabled: {
+                    name: "paymentsEnabled",
+                    type: "Boolean",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal(false) }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("payments_enabled") }] }] as readonly AttributeApplication[],
+                    default: false as FieldDefault
+                },
+                paymentDeadlineAt: {
+                    name: "paymentDeadlineAt",
+                    type: "DateTime",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("payment_deadline_at") }] }] as readonly AttributeApplication[]
+                },
+                addressPreset: {
+                    name: "addressPreset",
+                    type: "EventAddressPreset",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal("pavilion") }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("address_preset") }] }] as readonly AttributeApplication[],
+                    default: "pavilion" as FieldDefault
+                },
+                addressName: {
+                    name: "addressName",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("address_name") }] }] as readonly AttributeApplication[]
+                },
+                addressLine1: {
+                    name: "addressLine1",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("address_line1") }] }] as readonly AttributeApplication[]
+                },
+                addressLine2: {
+                    name: "addressLine2",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("address_line2") }] }] as readonly AttributeApplication[]
+                },
+                addressCity: {
+                    name: "addressCity",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("address_city") }] }] as readonly AttributeApplication[]
+                },
+                addressState: {
+                    name: "addressState",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("address_state") }] }] as readonly AttributeApplication[]
+                },
+                addressPostalCode: {
+                    name: "addressPostalCode",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("address_postal_code") }] }] as readonly AttributeApplication[]
+                },
+                addressCountry: {
+                    name: "addressCountry",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("address_country") }] }] as readonly AttributeApplication[]
+                },
                 category: {
                     name: "category",
                     type: "EventCategory",
@@ -2185,6 +2258,12 @@ export class SchemaType implements SchemaDef {
                 entryFees: {
                     name: "entryFees",
                     type: "EventEntryFee",
+                    array: true,
+                    relation: { opposite: "event" }
+                },
+                payments: {
+                    name: "payments",
+                    type: "EventPayment",
                     array: true,
                     relation: { opposite: "event" }
                 },
@@ -2400,6 +2479,12 @@ export class SchemaType implements SchemaDef {
                     name: "boatMembers",
                     type: "EventRegistrationBoatMember",
                     array: true,
+                    relation: { opposite: "registration" }
+                },
+                payment: {
+                    name: "payment",
+                    type: "EventPayment",
+                    optional: true,
                     relation: { opposite: "registration" }
                 }
             },
@@ -2695,6 +2780,12 @@ export class SchemaType implements SchemaDef {
                     type: "EventRegistration",
                     array: true,
                     relation: { opposite: "eventEntryFee" }
+                },
+                payments: {
+                    name: "payments",
+                    type: "EventPayment",
+                    array: true,
+                    relation: { opposite: "selectedFee" }
                 }
             },
             attributes: [
@@ -2706,6 +2797,318 @@ export class SchemaType implements SchemaDef {
             idFields: ["id"],
             uniqueFields: {
                 id: { type: "String" }
+            }
+        },
+        EventPayment: {
+            name: "EventPayment",
+            fields: {
+                id: {
+                    name: "id",
+                    type: "String",
+                    id: true,
+                    attributes: [{ name: "@id" }, { name: "@default", args: [{ name: "value", value: ExpressionUtils.call("cuid") }] }] as readonly AttributeApplication[],
+                    default: ExpressionUtils.call("cuid") as FieldDefault
+                },
+                eventId: {
+                    name: "eventId",
+                    type: "String",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("event_id") }] }] as readonly AttributeApplication[],
+                    foreignKeyFor: [
+                        "event"
+                    ] as readonly string[]
+                },
+                registrationId: {
+                    name: "registrationId",
+                    type: "String",
+                    unique: true,
+                    attributes: [{ name: "@unique" }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("registration_id") }] }] as readonly AttributeApplication[],
+                    foreignKeyFor: [
+                        "registration"
+                    ] as readonly string[]
+                },
+                userId: {
+                    name: "userId",
+                    type: "String",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("user_id") }] }] as readonly AttributeApplication[],
+                    foreignKeyFor: [
+                        "user"
+                    ] as readonly string[]
+                },
+                selectedFeeId: {
+                    name: "selectedFeeId",
+                    type: "String",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("selected_fee_id") }] }] as readonly AttributeApplication[],
+                    foreignKeyFor: [
+                        "selectedFee"
+                    ] as readonly string[]
+                },
+                selectedFeeDescription: {
+                    name: "selectedFeeDescription",
+                    type: "String",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("selected_fee_description") }] }] as readonly AttributeApplication[]
+                },
+                amountCents: {
+                    name: "amountCents",
+                    type: "Int",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("amount_cents") }] }] as readonly AttributeApplication[]
+                },
+                currency: {
+                    name: "currency",
+                    type: "String",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal("usd") }] }] as readonly AttributeApplication[],
+                    default: "usd" as FieldDefault
+                },
+                status: {
+                    name: "status",
+                    type: "EventPaymentStatus",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal("pending") }] }] as readonly AttributeApplication[],
+                    default: "pending" as FieldDefault
+                },
+                stripeCustomerId: {
+                    name: "stripeCustomerId",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("stripe_customer_id") }] }] as readonly AttributeApplication[]
+                },
+                stripeCheckoutSessionId: {
+                    name: "stripeCheckoutSessionId",
+                    type: "String",
+                    unique: true,
+                    optional: true,
+                    attributes: [{ name: "@unique" }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("stripe_checkout_session_id") }] }] as readonly AttributeApplication[]
+                },
+                stripePaymentIntentId: {
+                    name: "stripePaymentIntentId",
+                    type: "String",
+                    unique: true,
+                    optional: true,
+                    attributes: [{ name: "@unique" }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("stripe_payment_intent_id") }] }] as readonly AttributeApplication[]
+                },
+                stripeChargeId: {
+                    name: "stripeChargeId",
+                    type: "String",
+                    unique: true,
+                    optional: true,
+                    attributes: [{ name: "@unique" }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("stripe_charge_id") }] }] as readonly AttributeApplication[]
+                },
+                stripeReceiptUrl: {
+                    name: "stripeReceiptUrl",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("stripe_receipt_url") }] }, { name: "@db.Text" }] as readonly AttributeApplication[]
+                },
+                manualHandledNote: {
+                    name: "manualHandledNote",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("manual_handled_note") }] }, { name: "@db.Text" }] as readonly AttributeApplication[]
+                },
+                manualHandledByUserId: {
+                    name: "manualHandledByUserId",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("manual_handled_by_user_id") }] }] as readonly AttributeApplication[],
+                    foreignKeyFor: [
+                        "manualHandledBy"
+                    ] as readonly string[]
+                },
+                manualHandledAt: {
+                    name: "manualHandledAt",
+                    type: "DateTime",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("manual_handled_at") }] }] as readonly AttributeApplication[]
+                },
+                createdAt: {
+                    name: "createdAt",
+                    type: "DateTime",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.call("now") }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("created_at") }] }] as readonly AttributeApplication[],
+                    default: ExpressionUtils.call("now") as FieldDefault
+                },
+                updatedAt: {
+                    name: "updatedAt",
+                    type: "DateTime",
+                    updatedAt: true,
+                    attributes: [{ name: "@updatedAt" }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("updated_at") }] }] as readonly AttributeApplication[]
+                },
+                event: {
+                    name: "event",
+                    type: "Event",
+                    attributes: [{ name: "@relation", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("eventId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("Restrict") }] }] as readonly AttributeApplication[],
+                    relation: { opposite: "payments", fields: ["eventId"], references: ["id"], onDelete: "Restrict" }
+                },
+                registration: {
+                    name: "registration",
+                    type: "EventRegistration",
+                    attributes: [{ name: "@relation", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("registrationId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("Restrict") }] }] as readonly AttributeApplication[],
+                    relation: { opposite: "payment", fields: ["registrationId"], references: ["id"], onDelete: "Restrict" }
+                },
+                user: {
+                    name: "user",
+                    type: "User",
+                    attributes: [{ name: "@relation", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("userId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("Restrict") }] }] as readonly AttributeApplication[],
+                    relation: { opposite: "eventPayments", fields: ["userId"], references: ["id"], onDelete: "Restrict" }
+                },
+                selectedFee: {
+                    name: "selectedFee",
+                    type: "EventEntryFee",
+                    attributes: [{ name: "@relation", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("selectedFeeId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("Restrict") }] }] as readonly AttributeApplication[],
+                    relation: { opposite: "payments", fields: ["selectedFeeId"], references: ["id"], onDelete: "Restrict" }
+                },
+                manualHandledBy: {
+                    name: "manualHandledBy",
+                    type: "User",
+                    optional: true,
+                    attributes: [{ name: "@relation", args: [{ name: "name", value: ExpressionUtils.literal("EventPaymentManualHandledBy") }, { name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("manualHandledByUserId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("SetNull") }] }] as readonly AttributeApplication[],
+                    relation: { opposite: "manuallyHandledEventPayments", name: "EventPaymentManualHandledBy", fields: ["manualHandledByUserId"], references: ["id"], onDelete: "SetNull" }
+                },
+                notifications: {
+                    name: "notifications",
+                    type: "EventPaymentNotification",
+                    array: true,
+                    relation: { opposite: "payment" }
+                }
+            },
+            attributes: [
+                { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("eventId"), ExpressionUtils.field("status")]) }] },
+                { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("userId"), ExpressionUtils.field("createdAt")]) }] },
+                { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("selectedFeeId")]) }] },
+                { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("manualHandledByUserId")]) }] },
+                { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("post-update") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("eventId"), "!=", ExpressionUtils.member(ExpressionUtils.call("before"), ["eventId"])), "||", ExpressionUtils.binary(ExpressionUtils.field("registrationId"), "!=", ExpressionUtils.member(ExpressionUtils.call("before"), ["registrationId"]))), "||", ExpressionUtils.binary(ExpressionUtils.field("userId"), "!=", ExpressionUtils.member(ExpressionUtils.call("before"), ["userId"]))), "||", ExpressionUtils.binary(ExpressionUtils.field("selectedFeeId"), "!=", ExpressionUtils.member(ExpressionUtils.call("before"), ["selectedFeeId"]))), "||", ExpressionUtils.binary(ExpressionUtils.field("selectedFeeDescription"), "!=", ExpressionUtils.member(ExpressionUtils.call("before"), ["selectedFeeDescription"]))), "||", ExpressionUtils.binary(ExpressionUtils.field("amountCents"), "!=", ExpressionUtils.member(ExpressionUtils.call("before"), ["amountCents"]))), "||", ExpressionUtils.binary(ExpressionUtils.field("currency"), "!=", ExpressionUtils.member(ExpressionUtils.call("before"), ["currency"]))) }] },
+                { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create,update") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("eventId"), "!=", ExpressionUtils.member(ExpressionUtils.field("registration"), ["eventId"])), "||", ExpressionUtils.binary(ExpressionUtils.field("eventId"), "!=", ExpressionUtils.member(ExpressionUtils.field("selectedFee"), ["eventId"]))), "||", ExpressionUtils.binary(ExpressionUtils.field("userId"), "!=", ExpressionUtils.member(ExpressionUtils.field("registration"), ["userId"]))) }] },
+                { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create,update") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.field("amountCents"), "<", ExpressionUtils.literal(0)) }] },
+                { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("read") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.call("auth"), "!=", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.field("userId"), "==", ExpressionUtils.member(ExpressionUtils.call("auth"), ["id"]))) }] },
+                { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("read,create,update,delete") }, { name: "condition", value: ExpressionUtils.call("check", [ExpressionUtils.field("event"), ExpressionUtils.literal("update")]) }] },
+                { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("event_payments") }] }
+            ] as readonly AttributeApplication[],
+            idFields: ["id"],
+            uniqueFields: {
+                id: { type: "String" },
+                registrationId: { type: "String" },
+                stripeCheckoutSessionId: { type: "String" },
+                stripePaymentIntentId: { type: "String" },
+                stripeChargeId: { type: "String" }
+            }
+        },
+        StripeWebhookEvent: {
+            name: "StripeWebhookEvent",
+            fields: {
+                id: {
+                    name: "id",
+                    type: "String",
+                    id: true,
+                    attributes: [{ name: "@id" }, { name: "@default", args: [{ name: "value", value: ExpressionUtils.call("cuid") }] }] as readonly AttributeApplication[],
+                    default: ExpressionUtils.call("cuid") as FieldDefault
+                },
+                stripeEventId: {
+                    name: "stripeEventId",
+                    type: "String",
+                    unique: true,
+                    attributes: [{ name: "@unique" }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("stripe_event_id") }] }] as readonly AttributeApplication[]
+                },
+                eventType: {
+                    name: "eventType",
+                    type: "String",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("event_type") }] }] as readonly AttributeApplication[]
+                },
+                stripeCreatedAt: {
+                    name: "stripeCreatedAt",
+                    type: "DateTime",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("stripe_created_at") }] }] as readonly AttributeApplication[]
+                },
+                processedAt: {
+                    name: "processedAt",
+                    type: "DateTime",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("processed_at") }] }] as readonly AttributeApplication[]
+                },
+                processingError: {
+                    name: "processingError",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("processing_error") }] }, { name: "@db.Text" }] as readonly AttributeApplication[]
+                },
+                createdAt: {
+                    name: "createdAt",
+                    type: "DateTime",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.call("now") }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("created_at") }] }] as readonly AttributeApplication[],
+                    default: ExpressionUtils.call("now") as FieldDefault
+                }
+            },
+            attributes: [
+                { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("eventType"), ExpressionUtils.field("stripeCreatedAt")]) }] },
+                { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("DateTime", [ExpressionUtils.field("processedAt")]) }] },
+                { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("stripe_webhook_events") }] }
+            ] as readonly AttributeApplication[],
+            idFields: ["id"],
+            uniqueFields: {
+                id: { type: "String" },
+                stripeEventId: { type: "String" }
+            }
+        },
+        EventPaymentNotification: {
+            name: "EventPaymentNotification",
+            fields: {
+                id: {
+                    name: "id",
+                    type: "String",
+                    id: true,
+                    attributes: [{ name: "@id" }, { name: "@default", args: [{ name: "value", value: ExpressionUtils.call("cuid") }] }] as readonly AttributeApplication[],
+                    default: ExpressionUtils.call("cuid") as FieldDefault
+                },
+                paymentId: {
+                    name: "paymentId",
+                    type: "String",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("payment_id") }] }] as readonly AttributeApplication[],
+                    foreignKeyFor: [
+                        "payment"
+                    ] as readonly string[]
+                },
+                kind: {
+                    name: "kind",
+                    type: "EventPaymentNotificationKind"
+                },
+                sentDateKey: {
+                    name: "sentDateKey",
+                    type: "String",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("sent_date_key") }] }] as readonly AttributeApplication[]
+                },
+                providerMessageId: {
+                    name: "providerMessageId",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("provider_message_id") }] }] as readonly AttributeApplication[]
+                },
+                createdAt: {
+                    name: "createdAt",
+                    type: "DateTime",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.call("now") }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("created_at") }] }] as readonly AttributeApplication[],
+                    default: ExpressionUtils.call("now") as FieldDefault
+                },
+                updatedAt: {
+                    name: "updatedAt",
+                    type: "DateTime",
+                    updatedAt: true,
+                    attributes: [{ name: "@updatedAt" }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("updated_at") }] }] as readonly AttributeApplication[]
+                },
+                payment: {
+                    name: "payment",
+                    type: "EventPayment",
+                    attributes: [{ name: "@relation", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("paymentId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("Cascade") }] }] as readonly AttributeApplication[],
+                    relation: { opposite: "notifications", fields: ["paymentId"], references: ["id"], onDelete: "Cascade" }
+                }
+            },
+            attributes: [
+                { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("paymentId"), ExpressionUtils.field("createdAt")]) }] },
+                { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("EventPaymentNotificationKind", [ExpressionUtils.field("kind"), ExpressionUtils.field("sentDateKey")]) }] },
+                { name: "@@unique", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("paymentId"), ExpressionUtils.field("kind"), ExpressionUtils.field("sentDateKey")]) }] },
+                { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("read") }, { name: "condition", value: ExpressionUtils.call("check", [ExpressionUtils.field("payment"), ExpressionUtils.literal("update")]) }] },
+                { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("create,update,delete") }, { name: "condition", value: ExpressionUtils.call("check", [ExpressionUtils.field("payment"), ExpressionUtils.literal("update")]) }] },
+                { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("event_payment_notifications") }] }
+            ] as readonly AttributeApplication[],
+            idFields: ["id"],
+            uniqueFields: {
+                id: { type: "String" },
+                paymentId_kind_sentDateKey: { paymentId: { type: "String" }, kind: { type: "EventPaymentNotificationKind" }, sentDateKey: { type: "String" } }
             }
         },
         EventComment: {
@@ -4901,6 +5304,17 @@ export class SchemaType implements SchemaDef {
                 external: "external"
             }
         },
+        EventAddressPreset: {
+            name: "EventAddressPreset",
+            values: {
+                pavilion: "pavilion",
+                bluewater: "bluewater",
+                custom: "custom"
+            },
+            attributes: [
+                { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("event_address_preset") }] }
+            ] as readonly AttributeApplication[]
+        },
         EventRegistrationStatus: {
             name: "EventRegistrationStatus",
             values: {
@@ -4916,6 +5330,34 @@ export class SchemaType implements SchemaDef {
                 select: "select",
                 checkbox: "checkbox"
             }
+        },
+        EventPaymentStatus: {
+            name: "EventPaymentStatus",
+            values: {
+                pending: "pending",
+                checkout_created: "checkout_created",
+                paid: "paid",
+                past_due: "past_due",
+                handled: "handled",
+                cancelled: "cancelled",
+                refunded: "refunded",
+                disputed: "disputed"
+            },
+            attributes: [
+                { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("event_payment_status") }] }
+            ] as readonly AttributeApplication[]
+        },
+        EventPaymentNotificationKind: {
+            name: "EventPaymentNotificationKind",
+            values: {
+                request: "request",
+                receipt: "receipt",
+                reminder: "reminder",
+                admin_digest: "admin_digest"
+            },
+            attributes: [
+                { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("event_payment_notification_kind") }] }
+            ] as readonly AttributeApplication[]
         },
         SailingRatingRuleType: {
             name: "SailingRatingRuleType",

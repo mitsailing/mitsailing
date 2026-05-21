@@ -11,6 +11,7 @@ type ProfileNavItem = {
   labelKey:
     | 'nav_account'
     | 'nav_ratings'
+    | 'nav_payments'
     | 'nav_newsletter'
     | 'nav_password'
     | 'nav_security'
@@ -20,6 +21,7 @@ type ProfileNavItem = {
 const PROFILE_NAV: ProfileNavItem[] = [
   { href: '/profile/account', labelKey: 'nav_account' },
   { href: '/profile/ratings', labelKey: 'nav_ratings' },
+  { href: '/profile/payments', labelKey: 'nav_payments' },
   { href: '/profile/newsletter', labelKey: 'nav_newsletter' },
   { href: '/profile/password', labelKey: 'nav_password' },
   { href: '/profile/security', labelKey: 'nav_security' },
@@ -55,12 +57,9 @@ export function ProfileSideNav() {
         aria-label={t('aria_label')}
         className="relative flex min-h-0 flex-1 flex-col"
       >
-        <ul
-          className="m-0 flex min-h-0 flex-1 list-none flex-col gap-y-2 p-0"
-          role="list"
-        >
+        <ul className="m-0 flex min-h-0 flex-1 list-none flex-col gap-y-2 p-0">
           <li>
-            <ul className="m-0 -mx-2 list-none space-y-0.5 p-0" role="list">
+            <ul className="m-0 -mx-2 list-none space-y-0.5 p-0">
               {PROFILE_NAV.map((item) => {
                 const active = isProfileNavActive(pathname, item.href);
                 return (

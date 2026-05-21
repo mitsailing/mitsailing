@@ -44,7 +44,10 @@ export function StopImpersonationButton(props: StopImpersonationButtonProps) {
     <>
       <SubmitButton
         className="h-auto min-h-0 px-0 py-0 font-semibold text-foreground underline shadow-none hover:bg-transparent hover:text-mit-red-hover hover:underline disabled:opacity-60"
-        onClick={onClick}
+        onClick={() => {
+          // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the stop promise.
+          void onClick();
+        }}
         pending={submitting}
         pendingLabel={tCommon('pending_submitting')}
         type="button"

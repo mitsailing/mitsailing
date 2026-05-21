@@ -45,6 +45,7 @@ export default async function AdminIndexPage(props: AdminIndexPageProps) {
     Permission.EVENTS_MANAGE,
     Permission.EVENTS_ASSIGNED_MANAGE,
   ]);
+  const canPayments = hasPermission(permissions, Permission.PAYMENTS_VIEW);
   const canPavilionReservations = hasPermission(
     permissions,
     Permission.PAVILION_RESERVATIONS_MANAGE
@@ -95,6 +96,19 @@ export default async function AdminIndexPage(props: AdminIndexPageProps) {
               </Link>
               <p className="mt-0.5 text-sm text-mit-text">
                 {t('link_pavilion_reservations_blurb')}
+              </p>
+            </li>
+          ) : null}
+          {canPayments ? (
+            <li>
+              <Link
+                className="font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink"
+                href="/admin/payments"
+              >
+                {t('link_payments')}
+              </Link>
+              <p className="mt-0.5 text-sm text-mit-text">
+                {t('link_payments_blurb')}
               </p>
             </li>
           ) : null}

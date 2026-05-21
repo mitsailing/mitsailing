@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  EventAddressPreset,
   EventAnswerType,
   EventDetailPageKind,
+  EventPaymentNotificationKind,
+  EventPaymentStatus,
   EventRegistrationStatus,
 } from '@/generated/prisma/enums';
 import { Permission } from '@/libs/auth/permissions';
@@ -25,7 +28,13 @@ const mocks = vi.hoisted(() => ({
   eventRegistrationCount: vi.fn(),
   eventRegistrationFindFirst: vi.fn(),
   eventRegistrationUpdateMany: vi.fn(),
+  eventPaymentFindFirst: vi.fn(),
+  eventPaymentFindMany: vi.fn(),
+  eventPaymentUpsert: vi.fn(),
+  eventPaymentUpdateMany: vi.fn(),
+  eventPaymentNotificationUpsert: vi.fn(),
   eventRegistrationBoatMemberCount: vi.fn(),
+  enqueueEventPaymentEmailJob: vi.fn(),
   eventRegistrationQuestionAggregate: vi.fn(),
   eventRegistrationQuestionCreate: vi.fn(),
   eventRegistrationQuestionDeleteMany: vi.fn(),
@@ -41,6 +50,7 @@ const mocks = vi.hoisted(() => ({
   txQueryRaw: vi.fn(),
   updateTag: vi.fn(),
   appAuthContextFromSession: vi.fn(),
+  getDefaultQueue: vi.fn(() => ({ queue: true })),
   userCount: vi.fn(),
   zenstackForAuthContext: vi.fn(),
 }));
@@ -66,6 +76,15 @@ type AdminEventTransactionClient = {
     count: typeof mocks.eventRegistrationCount;
     findFirst: typeof mocks.eventRegistrationFindFirst;
     updateMany: typeof mocks.eventRegistrationUpdateMany;
+  };
+  eventPayment: {
+    findFirst: typeof mocks.eventPaymentFindFirst;
+    findMany: typeof mocks.eventPaymentFindMany;
+    upsert: typeof mocks.eventPaymentUpsert;
+    updateMany: typeof mocks.eventPaymentUpdateMany;
+  };
+  eventPaymentNotification: {
+    upsert: typeof mocks.eventPaymentNotificationUpsert;
   };
   eventRegistrationBoatMember: {
     count: typeof mocks.eventRegistrationBoatMemberCount;
@@ -141,6 +160,15 @@ vi.mock('@/libs/DB', () => ({
       findFirst: mocks.eventRegistrationFindFirst,
       updateMany: mocks.eventRegistrationUpdateMany,
     },
+    eventPayment: {
+      findFirst: mocks.eventPaymentFindFirst,
+      findMany: mocks.eventPaymentFindMany,
+      upsert: mocks.eventPaymentUpsert,
+      updateMany: mocks.eventPaymentUpdateMany,
+    },
+    eventPaymentNotification: {
+      upsert: mocks.eventPaymentNotificationUpsert,
+    },
     eventRegistrationBoatMember: {
       count: mocks.eventRegistrationBoatMemberCount,
     },
@@ -167,6 +195,14 @@ vi.mock('@/libs/Logger', () => ({
 
 vi.mock('@/libs/mit-sailing/sitemapCache', () => ({
   sitemapCatalogCacheTag: 'sitemap-catalog',
+}));
+
+vi.mock('@/worker/defaultQueue', () => ({
+  getDefaultQueue: mocks.getDefaultQueue,
+}));
+
+vi.mock('@/worker/eventPaymentEmailJob', () => ({
+  enqueueEventPaymentEmailJob: mocks.enqueueEventPaymentEmailJob,
 }));
 
 vi.mock('@/utils/Helpers', () => ({
@@ -224,6 +260,26 @@ function validEventFeeFormData(): FormData {
   return formData;
 }
 
+function validPaymentSettingsFormData(): FormData {
+  const formData = new FormData();
+  formData.set('paymentsEnabled', 'true');
+  formData.set('paymentDeadlineAt', '2026-06-01T17:00');
+  return formData;
+}
+
+function validLocationFormData(): FormData {
+  const formData = new FormData();
+  formData.set('addressPreset', EventAddressPreset.pavilion);
+  formData.set('addressName', '');
+  formData.set('addressLine1', '');
+  formData.set('addressLine2', '');
+  formData.set('addressCity', '');
+  formData.set('addressState', '');
+  formData.set('addressPostalCode', '');
+  formData.set('addressCountry', '');
+  return formData;
+}
+
 function statusFormData(status: EventRegistrationStatus): FormData {
   const formData = new FormData();
   formData.set('status', status);
@@ -266,17 +322,40 @@ beforeEach(() => {
   mocks.eventEntryFeeUpdateMany.mockResolvedValue({ count: 1 });
   mocks.eventEntryFeeDeleteMany.mockResolvedValue({ count: 1 });
   mocks.eventFindUnique.mockResolvedValue({
+    entryFees: [],
     maxParticipants: null,
     name: 'Intro Sail',
+    paymentDeadlineAt: null,
+    paymentsEnabled: false,
   });
   mocks.eventRegistrationFindFirst.mockResolvedValue({
+    eventEntryFee: {
+      amountCents: 15_000,
+      description: 'Adult entry',
+      id: 'fee-1',
+    },
     eventId: 'event-1',
+    id: 'registration-1',
     status: EventRegistrationStatus.pending,
+    userId: 'user-1',
   });
   mocks.eventRegistrationCount.mockResolvedValue(0);
   mocks.eventRegistrationBoatMemberCount.mockResolvedValue(0);
   mocks.eventRegistrationTeamCount.mockResolvedValue(0);
   mocks.eventRegistrationUpdateMany.mockResolvedValue({ count: 1 });
+  mocks.eventPaymentFindFirst.mockResolvedValue({
+    id: 'payment-1',
+    status: EventPaymentStatus.pending,
+  });
+  mocks.eventPaymentFindMany.mockResolvedValue([
+    { id: 'payment-1', status: EventPaymentStatus.pending },
+  ]);
+  mocks.eventPaymentUpdateMany.mockResolvedValue({ count: 1 });
+  mocks.eventPaymentUpsert.mockResolvedValue({ id: 'payment-1' });
+  mocks.eventPaymentNotificationUpsert.mockResolvedValue({
+    id: 'notification-1',
+  });
+  mocks.enqueueEventPaymentEmailJob.mockImplementation(async () => {});
   mocks.userCount.mockResolvedValue(1);
   mocks.txQueryRaw.mockResolvedValue([{ id: 'event-1' }]);
   const transactionClient: AdminEventTransactionClient = {
@@ -300,6 +379,15 @@ beforeEach(() => {
       count: mocks.eventRegistrationCount,
       findFirst: mocks.eventRegistrationFindFirst,
       updateMany: mocks.eventRegistrationUpdateMany,
+    },
+    eventPayment: {
+      findFirst: mocks.eventPaymentFindFirst,
+      findMany: mocks.eventPaymentFindMany,
+      upsert: mocks.eventPaymentUpsert,
+      updateMany: mocks.eventPaymentUpdateMany,
+    },
+    eventPaymentNotification: {
+      upsert: mocks.eventPaymentNotificationUpsert,
     },
     eventRegistrationBoatMember: {
       count: mocks.eventRegistrationBoatMemberCount,
@@ -993,6 +1081,58 @@ describe('admin event fee actions', () => {
   });
 });
 
+describe('updateAdminEventPaymentSettingsAction', () => {
+  it('updates payment settings through the protected event id', async () => {
+    const { updateAdminEventPaymentSettingsAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventPaymentSettingsAction(
+        'en',
+        'intro-sail',
+        validPaymentSettingsFormData()
+      )
+    ).rejects.toThrow('NEXT_REDIRECT:/admin/events/intro-sail/edit');
+
+    expect(mocks.eventUpdate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        paymentDeadlineAt: new Date('2026-06-01T21:00:00.000Z'),
+        paymentsEnabled: true,
+      }),
+      where: { id: 'event-1' },
+    });
+  });
+});
+
+describe('updateAdminEventLocationAction', () => {
+  it('updates event address through the protected event id', async () => {
+    const { updateAdminEventLocationAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventLocationAction(
+        'en',
+        'intro-sail',
+        validLocationFormData()
+      )
+    ).rejects.toThrow('NEXT_REDIRECT:/admin/events/intro-sail/edit');
+
+    expect(mocks.eventUpdate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        addressCity: 'Cambridge',
+        addressCountry: 'US',
+        addressLine1: '134 Memorial Drive',
+        addressLine2: null,
+        addressName: 'MIT Sailing Pavilion',
+        addressPostalCode: '02139',
+        addressPreset: EventAddressPreset.pavilion,
+        addressState: 'MA',
+      }),
+      where: { id: 'event-1' },
+    });
+  });
+});
+
 describe('updateAdminEventAdminsAction', () => {
   it('redirects validation failures when no admins are selected', async () => {
     const formData = new FormData();
@@ -1108,7 +1248,12 @@ describe('updateAdminEventRegistrationStatusAction', () => {
   });
 
   it('redirects capacity full before approving into a full event', async () => {
-    mocks.eventFindUnique.mockResolvedValue({ maxParticipants: 1 });
+    mocks.eventFindUnique.mockResolvedValue({
+      entryFees: [],
+      maxParticipants: 1,
+      paymentDeadlineAt: null,
+      paymentsEnabled: false,
+    });
     mocks.eventRegistrationCount.mockResolvedValue(1);
     const { updateAdminEventRegistrationStatusAction } =
       await import('@/libs/admin/events/eventAdminActions');
@@ -1128,7 +1273,12 @@ describe('updateAdminEventRegistrationStatusAction', () => {
   });
 
   it('updates registration status when capacity permits', async () => {
-    mocks.eventFindUnique.mockResolvedValue({ maxParticipants: 2 });
+    mocks.eventFindUnique.mockResolvedValue({
+      entryFees: [],
+      maxParticipants: 2,
+      paymentDeadlineAt: null,
+      paymentsEnabled: false,
+    });
     mocks.eventRegistrationCount.mockResolvedValue(1);
     const { updateAdminEventRegistrationStatusAction } =
       await import('@/libs/admin/events/eventAdminActions');
@@ -1151,5 +1301,339 @@ describe('updateAdminEventRegistrationStatusAction', () => {
       minimumAccessMode: 'editable',
       slug: 'intro-sail',
     });
+  });
+
+  it('creates a payment and request marker when approving paid registrations', async () => {
+    const deadline = new Date('2026-06-01T13:00:00.000Z');
+    mocks.eventFindUnique.mockResolvedValue({
+      entryFees: [
+        {
+          amountCents: 15_000,
+          description: 'Adult entry',
+          id: 'fee-1',
+        },
+      ],
+      maxParticipants: 2,
+      paymentDeadlineAt: deadline,
+      paymentsEnabled: true,
+    });
+    mocks.eventRegistrationCount.mockResolvedValue(1);
+    const { updateAdminEventRegistrationStatusAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventRegistrationStatusAction(
+        'en',
+        'intro-sail',
+        'registration-1',
+        statusFormData(EventRegistrationStatus.approved)
+      )
+    ).rejects.toThrow('NEXT_REDIRECT:/admin/events/intro-sail/registrations');
+
+    expect(mocks.eventPaymentUpsert).toHaveBeenCalledWith({
+      create: expect.objectContaining({
+        amountCents: 15_000,
+        currency: 'usd',
+        eventId: 'event-1',
+        registrationId: 'registration-1',
+        selectedFeeDescription: 'Adult entry',
+        selectedFeeId: 'fee-1',
+        status: EventPaymentStatus.pending,
+        userId: 'user-1',
+      }),
+      update: {},
+      where: { registrationId: 'registration-1' },
+    });
+    expect(mocks.eventPaymentNotificationUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          kind: EventPaymentNotificationKind.request,
+          paymentId: 'payment-1',
+        }),
+      })
+    );
+    expect(mocks.enqueueEventPaymentEmailJob).toHaveBeenCalledWith(
+      { queue: true },
+      expect.objectContaining({
+        kind: 'request',
+        paymentId: 'payment-1',
+      })
+    );
+  });
+
+  it('creates admin approval payment from the selected registration fee snapshot', async () => {
+    mocks.eventRegistrationFindFirst.mockResolvedValue({
+      eventEntryFee: {
+        amountCents: 20_000,
+        description: 'Premium entry at registration',
+        id: 'fee-premium',
+      },
+      eventId: 'event-1',
+      id: 'registration-1',
+      status: EventRegistrationStatus.pending,
+      userId: 'user-1',
+    });
+    mocks.eventFindUnique.mockResolvedValue({
+      entryFees: [
+        {
+          amountCents: 15_000,
+          description: 'Adult entry',
+          id: 'fee-adult',
+        },
+        {
+          amountCents: 25_000,
+          description: 'Premium entry after edit',
+          id: 'fee-premium',
+        },
+      ],
+      maxParticipants: null,
+      paymentDeadlineAt: new Date('2026-06-01T13:00:00.000Z'),
+      paymentsEnabled: true,
+    });
+    const { updateAdminEventRegistrationStatusAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventRegistrationStatusAction(
+        'en',
+        'intro-sail',
+        'registration-1',
+        statusFormData(EventRegistrationStatus.approved)
+      )
+    ).rejects.toThrow('NEXT_REDIRECT:/admin/events/intro-sail/registrations');
+
+    expect(mocks.eventPaymentUpsert).toHaveBeenCalledWith({
+      create: expect.objectContaining({
+        amountCents: 20_000,
+        selectedFeeDescription: 'Premium entry at registration',
+        selectedFeeId: 'fee-premium',
+      }),
+      update: {},
+      where: { registrationId: 'registration-1' },
+    });
+  });
+
+  it('does not create a payment when the selected registration fee is free', async () => {
+    mocks.eventRegistrationFindFirst.mockResolvedValue({
+      eventEntryFee: {
+        amountCents: 0,
+        description: 'Volunteer comp',
+        id: 'fee-free',
+      },
+      eventId: 'event-1',
+      id: 'registration-1',
+      status: EventRegistrationStatus.pending,
+      userId: 'user-1',
+    });
+    mocks.eventFindUnique.mockResolvedValue({
+      entryFees: [
+        {
+          amountCents: 15_000,
+          description: 'Adult entry',
+          id: 'fee-adult',
+        },
+      ],
+      maxParticipants: null,
+      paymentDeadlineAt: new Date('2026-06-01T13:00:00.000Z'),
+      paymentsEnabled: true,
+    });
+    const { updateAdminEventRegistrationStatusAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventRegistrationStatusAction(
+        'en',
+        'intro-sail',
+        'registration-1',
+        statusFormData(EventRegistrationStatus.approved)
+      )
+    ).rejects.toThrow('NEXT_REDIRECT:/admin/events/intro-sail/registrations');
+
+    expect(mocks.eventPaymentUpsert).not.toHaveBeenCalled();
+    expect(mocks.eventPaymentNotificationUpsert).not.toHaveBeenCalled();
+  });
+
+  it('does not mark a request sent when approval creates a payment without deadline', async () => {
+    mocks.eventFindUnique.mockResolvedValue({
+      entryFees: [
+        {
+          amountCents: 15_000,
+          description: 'Adult entry',
+          id: 'fee-1',
+        },
+      ],
+      maxParticipants: 2,
+      paymentDeadlineAt: null,
+      paymentsEnabled: true,
+    });
+    mocks.eventRegistrationCount.mockResolvedValue(1);
+    const { updateAdminEventRegistrationStatusAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventRegistrationStatusAction(
+        'en',
+        'intro-sail',
+        'registration-1',
+        statusFormData(EventRegistrationStatus.approved)
+      )
+    ).rejects.toThrow('NEXT_REDIRECT:/admin/events/intro-sail/registrations');
+
+    expect(mocks.eventPaymentUpsert).toHaveBeenCalled();
+    expect(mocks.eventPaymentNotificationUpsert).not.toHaveBeenCalled();
+    expect(mocks.enqueueEventPaymentEmailJob).not.toHaveBeenCalled();
+  });
+
+  it('does not mark a request sent when approval creates a payment after deadline', async () => {
+    mocks.eventFindUnique.mockResolvedValue({
+      entryFees: [
+        {
+          amountCents: 15_000,
+          description: 'Adult entry',
+          id: 'fee-1',
+        },
+      ],
+      maxParticipants: 2,
+      paymentDeadlineAt: new Date('2020-06-01T13:00:00.000Z'),
+      paymentsEnabled: true,
+    });
+    mocks.eventRegistrationCount.mockResolvedValue(1);
+    const { updateAdminEventRegistrationStatusAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventRegistrationStatusAction(
+        'en',
+        'intro-sail',
+        'registration-1',
+        statusFormData(EventRegistrationStatus.approved)
+      )
+    ).rejects.toThrow('NEXT_REDIRECT:/admin/events/intro-sail/registrations');
+
+    expect(mocks.eventPaymentUpsert).toHaveBeenCalled();
+    expect(mocks.eventPaymentNotificationUpsert).not.toHaveBeenCalled();
+    expect(mocks.enqueueEventPaymentEmailJob).not.toHaveBeenCalled();
+  });
+});
+
+describe('admin event payment actions', () => {
+  it('resends one unpaid payment request with a dedupe marker', async () => {
+    const { resendAdminEventPaymentRequestAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      resendAdminEventPaymentRequestAction('en', 'intro-sail', 'payment-1')
+    ).rejects.toThrow('NEXT_REDIRECT:/admin/events/intro-sail/registrations');
+
+    expect(mocks.eventPaymentFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          eventId: 'event-1',
+          event: {
+            paymentDeadlineAt: { gt: expect.any(Date) },
+            paymentsEnabled: true,
+          },
+          id: 'payment-1',
+        }),
+      })
+    );
+    expect(mocks.eventPaymentNotificationUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          kind: EventPaymentNotificationKind.request,
+          paymentId: 'payment-1',
+        }),
+        where: expect.objectContaining({
+          paymentId_kind_sentDateKey: expect.objectContaining({
+            kind: EventPaymentNotificationKind.request,
+            paymentId: 'payment-1',
+          }),
+        }),
+      })
+    );
+    expect(mocks.enqueueEventPaymentEmailJob).toHaveBeenCalledWith(
+      { queue: true },
+      expect.objectContaining({
+        kind: 'request',
+        paymentId: 'payment-1',
+      })
+    );
+  });
+
+  it('does not fail resend when the email enqueue rejects', async () => {
+    mocks.enqueueEventPaymentEmailJob.mockRejectedValue(
+      new Error('Queue unavailable')
+    );
+    const { resendAdminEventPaymentRequestAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      resendAdminEventPaymentRequestAction('en', 'intro-sail', 'payment-1')
+    ).rejects.toThrow('NEXT_REDIRECT:/admin/events/intro-sail/registrations');
+
+    expect(mocks.eventPaymentNotificationUpsert).toHaveBeenCalled();
+    expect(mocks.enqueueEventPaymentEmailJob).toHaveBeenCalledWith(
+      { queue: true },
+      expect.objectContaining({
+        kind: 'request',
+        paymentId: 'payment-1',
+      })
+    );
+  });
+
+  it('marks a payment handled with a required internal note', async () => {
+    const formData = new FormData();
+    formData.set('note', 'Paid by check at front desk');
+    const { markAdminEventPaymentHandledAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      markAdminEventPaymentHandledAction(
+        'en',
+        'intro-sail',
+        'payment-1',
+        formData
+      )
+    ).rejects.toThrow('NEXT_REDIRECT:/admin/events/intro-sail/registrations');
+
+    expect(mocks.eventPaymentUpdateMany).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        manualHandledByUserId: 'staff-1',
+        manualHandledNote: 'Paid by check at front desk',
+        status: EventPaymentStatus.handled,
+      }),
+      where: {
+        eventId: 'event-1',
+        id: 'payment-1',
+        status: {
+          in: [
+            EventPaymentStatus.checkout_created,
+            EventPaymentStatus.past_due,
+            EventPaymentStatus.pending,
+          ],
+        },
+      },
+    });
+    expect(mocks.eventPaymentFindFirst).not.toHaveBeenCalled();
+  });
+
+  it('rejects manual handled submissions without a note', async () => {
+    const formData = new FormData();
+    formData.set('note', '');
+    const { markAdminEventPaymentHandledAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      markAdminEventPaymentHandledAction(
+        'en',
+        'intro-sail',
+        'payment-1',
+        formData
+      )
+    ).rejects.toThrow(
+      'NEXT_REDIRECT:/admin/events/intro-sail/registrations?error=validation_failed'
+    );
+
+    expect(mocks.eventPaymentUpdateMany).not.toHaveBeenCalled();
   });
 });

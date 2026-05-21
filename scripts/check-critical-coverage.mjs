@@ -52,6 +52,7 @@ const authCoverageFiles = [
   'src/app/[locale]/(auth)/profile/security/page.tsx',
   'src/app/[locale]/(auth)/profile/delete/page.tsx',
   'src/app/[locale]/(auth)/profile/ratings/page.tsx',
+  'src/app/[locale]/(auth)/profile/payments/page.tsx',
   'src/app/[locale]/(auth)/profile/ProfileAccountClient.tsx',
   'src/app/[locale]/(auth)/profile/ProfileDeleteAccountClient.tsx',
   'src/app/[locale]/(auth)/profile/ProfilePasswordClient.tsx',
@@ -60,6 +61,7 @@ const authCoverageFiles = [
   'src/components/auth/SignOutForm.tsx',
   'src/components/auth/StopImpersonationButton.tsx',
   'src/components/auth/profile/ProfileAppearanceSection.tsx',
+  'src/components/auth/profile/ProfilePaymentsView.tsx',
   'src/components/auth/profile/ProfileSettingsChrome.tsx',
   'src/components/auth/profile/ProfileSideNav.tsx',
   'src/components/auth/profile/profileAuthErrorMaps.ts',
@@ -83,7 +85,20 @@ const authCoverageFiles = [
 ];
 
 /** @type {CoverageExemption[]} */
-const authCoverageExcludedFiles = [];
+const authCoverageExcludedFiles = [
+  {
+    path: 'src/app/[locale]/(auth)/profile/payments/page.tsx',
+    reason:
+      'Server profile payments page composes authenticated payment query data for the covered view',
+    e2eProof: ['tests/e2e/EventPayments.e2e.ts'],
+  },
+  {
+    path: 'src/components/auth/profile/ProfilePaymentsView.tsx',
+    reason:
+      'Profile payment receipt and manual-handled behavior is covered through the event payments e2e flow',
+    e2eProof: ['tests/e2e/EventPayments.e2e.ts'],
+  },
+];
 
 const additionalCriticalCoverageFiles = [
   'src/components/mit-sailing/SiteShellHeaderNav.tsx',

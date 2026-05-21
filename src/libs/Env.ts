@@ -21,7 +21,10 @@ type FinalEnv = {
   MEDIA_UPLOAD_BASE_URL?: string;
   MEDIA_UPLOAD_SHARED_SECRET?: string;
   NEXT_SERVER_ACTIONS_ENCRYPTION_KEY?: string;
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?: string;
   REDIS_URL?: string;
+  STRIPE_SECRET_KEY?: string;
+  STRIPE_WEBHOOK_SECRET?: string;
   TEST_DATABASE_URL?: string;
   HOST_TRAFFIC_STATE_FILE?: string;
 };
@@ -129,6 +132,27 @@ function validateDeploymentEnv(env: FinalEnv, ctx: z.RefinementCtx): void {
       'NEXT_SERVER_ACTIONS_ENCRYPTION_KEY is required in staging and production.'
     );
   }
+  if (!env.STRIPE_SECRET_KEY) {
+    addEnvIssue(
+      ctx,
+      'STRIPE_SECRET_KEY',
+      'STRIPE_SECRET_KEY is required in staging and production.'
+    );
+  }
+  if (!env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
+    addEnvIssue(
+      ctx,
+      'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY',
+      'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is required in staging and production.'
+    );
+  }
+  if (!env.STRIPE_WEBHOOK_SECRET) {
+    addEnvIssue(
+      ctx,
+      'STRIPE_WEBHOOK_SECRET',
+      'STRIPE_WEBHOOK_SECRET is required in staging and production.'
+    );
+  }
 }
 
 function validateFinalEnv(env: FinalEnv, ctx: z.RefinementCtx): void {
@@ -227,6 +251,13 @@ export const Env = createEnv({
       .max(10)
       .default(2),
     RESEND_WEBHOOK_SECRET: z.string().min(1).optional(),
+    STRIPE_SECRET_KEY: z
+      .string()
+      .regex(/^(rk|sk)_(test|live)_/, {
+        message: 'STRIPE_SECRET_KEY must be a Stripe restricted or secret key.',
+      })
+      .optional(),
+    STRIPE_WEBHOOK_SECRET: z.string().startsWith('whsec_').optional(),
 
     // Cloudflare Tunnel credential consumed by the cloudflared service in
     // compose.staging.yaml / compose.prod.yaml. Required in staging+prod,
@@ -244,6 +275,13 @@ export const Env = createEnv({
     NEXT_PUBLIC_BETTER_STACK_INGESTING_HOST: z.string().optional(),
     NEXT_PUBLIC_POSTHOG_KEY: z.string().optional(),
     NEXT_PUBLIC_POSTHOG_HOST: z.string().optional(),
+    NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z
+      .string()
+      .regex(/^pk_(test|live)_/, {
+        message:
+          'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY must be a Stripe publishable key.',
+      })
+      .optional(),
   },
   shared: {
     NODE_ENV: z.enum(['test', 'development', 'production']).optional(),
@@ -282,6 +320,8 @@ export const Env = createEnv({
     SUPPORT_EMAIL: process.env.SUPPORT_EMAIL,
     NEWSLETTER_WORKER_CONCURRENCY: process.env.NEWSLETTER_WORKER_CONCURRENCY,
     RESEND_WEBHOOK_SECRET: process.env.RESEND_WEBHOOK_SECRET,
+    STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+    STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
     CLOUDFLARE_TUNNEL_TOKEN: process.env.CLOUDFLARE_TUNNEL_TOKEN,
     DEPLOYMENT_VERSION: process.env.DEPLOYMENT_VERSION,
     NEXT_SERVER_ACTIONS_ENCRYPTION_KEY:
@@ -294,6 +334,8 @@ export const Env = createEnv({
       process.env.NEXT_PUBLIC_BETTER_STACK_INGESTING_HOST,
     NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
     NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+    NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:
+      process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
     NODE_ENV: process.env.NODE_ENV,
   },
   // Treat "" like "unset" so `.optional()` vars in shared .env files can be

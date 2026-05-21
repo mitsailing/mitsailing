@@ -30,11 +30,15 @@ const ids = {
   matchingAnswer: `event_policy_${randomUUID()}_matching_answer`,
   managedCategory: `event_policy_${randomUUID()}_managed_category`,
   otherEvent: `event_policy_${randomUUID()}_other_event`,
+  otherFee: `event_policy_${randomUUID()}_other_fee`,
   otherParentComment: `event_policy_${randomUUID()}_other_parent_comment`,
+  otherPayment: `event_policy_${randomUUID()}_other_payment`,
   otherQuestion: `event_policy_${randomUUID()}_other_question`,
   otherRegistration: `event_policy_${randomUUID()}_other_registration`,
   otherUser: `event_policy_${randomUUID()}_other_user`,
   owner: `event_policy_${randomUUID()}_owner`,
+  payment: `event_policy_${randomUUID()}_payment`,
+  paymentNotification: `event_policy_${randomUUID()}_payment_notification`,
   question: `event_policy_${randomUUID()}_question`,
   registration: `event_policy_${randomUUID()}_registration`,
   staff: `event_policy_${randomUUID()}_staff`,
@@ -163,10 +167,19 @@ async function deleteFixtures(pool: Pool) {
   await pool.query('DELETE FROM "event_comments" WHERE "event_id" = ANY($1)', [
     eventIds,
   ]);
+  await pool.query(
+    'DELETE FROM "event_payment_notifications" WHERE "payment_id" = ANY($1)',
+    [[ids.payment, ids.otherPayment]]
+  );
+  await pool.query('DELETE FROM "event_payments" WHERE "id" = ANY($1)', [
+    [ids.payment, ids.otherPayment],
+  ]);
   await pool.query('DELETE FROM "event_registrations" WHERE "id" = ANY($1)', [
     [ids.registration, ids.otherRegistration],
   ]);
-  await pool.query('DELETE FROM "event_entry_fees" WHERE "id" = $1', [ids.fee]);
+  await pool.query('DELETE FROM "event_entry_fees" WHERE "id" = ANY($1)', [
+    [ids.fee, ids.otherFee],
+  ]);
   await pool.query(
     'DELETE FROM "event_registration_questions" WHERE "id" = ANY($1)',
     [[ids.question, ids.otherQuestion]]
@@ -259,9 +272,11 @@ async function insertFixtures(pool: Pool) {
       INSERT INTO "event_entry_fees" (
         "id", "event_id", "description", "amount_cents", "is_deposit"
       )
-      VALUES ($1, $2, 'Fee', 1200, false)
+      VALUES
+        ($1, $2, 'Fee', 1200, false),
+        ($3, $4, 'Other fee', 1200, false)
     `,
-    [ids.fee, ids.assignedEvent]
+    [ids.fee, ids.assignedEvent, ids.otherFee, ids.otherEvent]
   );
   await pool.query(
     `
@@ -280,6 +295,38 @@ async function insertFixtures(pool: Pool) {
       ids.otherRegistration,
       ids.otherUser,
     ]
+  );
+  await pool.query(
+    `
+      INSERT INTO "event_payments" (
+        "id", "event_id", "registration_id", "user_id", "selected_fee_id",
+        "selected_fee_description", "amount_cents", "currency", "status",
+        "updated_at"
+      )
+      VALUES
+        ($1, $2, $3, $4, $5, 'Fee', 1200, 'usd', 'pending', NOW()),
+        ($6, $2, $7, $8, $5, 'Fee', 1200, 'usd', 'pending', NOW())
+    `,
+    [
+      ids.payment,
+      ids.assignedEvent,
+      ids.registration,
+      ids.owner,
+      ids.fee,
+      ids.otherPayment,
+      ids.otherRegistration,
+      ids.otherUser,
+    ]
+  );
+  await pool.query(
+    `
+      INSERT INTO "event_payment_notifications" (
+        "id", "payment_id", "kind", "sent_date_key", "provider_message_id",
+        "updated_at"
+      )
+      VALUES ($1, $2, 'request', '2026-05-20', 'email-message-id', NOW())
+    `,
+    [ids.paymentNotification, ids.payment]
   );
   await pool.query(
     `
@@ -360,6 +407,12 @@ describe('event policy schema rules', () => {
     expect(zenstackSchemaText).toMatch(/@trim\(\)\s+@map\("phone"\)/u);
     expect(zenstackSchemaText).toContain(
       "@@deny('create,update', phone == '')"
+    );
+  });
+
+  it('blocks negative event payment amounts', () => {
+    expect(zenstackSchemaText).toContain(
+      "@@deny('create,update', amountCents < 0)"
     );
   });
 });
@@ -629,6 +682,84 @@ describe.skipIf(!shouldRunPolicyDatabaseTest)('event policies', () => {
         data: { status: 'approved' },
       })
     ).resolves.toMatchObject({ id: ids.otherRegistration });
+  });
+
+  it('allows payment owners to read their own payment records only', async () => {
+    const payments = await authDb({
+      appRole: 'user',
+      id: ids.owner,
+    }).eventPayment.findMany({
+      orderBy: { id: 'asc' },
+      select: { id: true },
+    });
+
+    expect(payments).toEqual([{ id: ids.payment }]);
+
+    await expect(
+      authDb({ appRole: 'user', id: ids.owner }).eventPayment.update({
+        data: { status: 'handled' },
+        where: { id: ids.payment },
+      })
+    ).rejects.toThrow();
+  });
+
+  it('allows assigned event admins to manage event payment records', async () => {
+    await expect(
+      authDb({
+        appRole: 'volunteer_instructor',
+        id: ids.assignedAdmin,
+      }).eventPayment.update({
+        data: { status: 'past_due' },
+        where: { id: ids.payment },
+      })
+    ).resolves.toMatchObject({ id: ids.payment, status: 'past_due' });
+
+    await pool.query(
+      'UPDATE "event_payments" SET "status" = $2 WHERE "id" = $1',
+      [ids.payment, 'pending']
+    );
+  });
+
+  it('denies payment access outside the managed event scope', async () => {
+    await expect(
+      authDb({
+        appRole: 'volunteer_instructor',
+        id: ids.unassignedAdmin,
+      }).eventPayment.findMany({
+        where: { id: { in: [ids.payment, ids.otherPayment] } },
+      })
+    ).resolves.toEqual([]);
+
+    await expect(
+      authDb({
+        appRole: 'volunteer_instructor',
+        id: ids.unassignedAdmin,
+      }).eventPayment.update({
+        data: { status: 'past_due' },
+        where: { id: ids.payment },
+      })
+    ).rejects.toThrow();
+  });
+
+  it('limits payment notification records to event managers', async () => {
+    await expect(
+      authDb({
+        appRole: 'volunteer_instructor',
+        id: ids.unassignedAdmin,
+      }).eventPaymentNotification.findMany({
+        where: { paymentId: ids.payment },
+      })
+    ).resolves.toEqual([]);
+
+    await expect(
+      authDb({
+        appRole: 'volunteer_instructor',
+        id: ids.assignedAdmin,
+      }).eventPaymentNotification.findMany({
+        where: { paymentId: ids.payment },
+        select: { id: true },
+      })
+    ).resolves.toEqual([{ id: ids.paymentNotification }]);
   });
 
   it('requires answers to match the registration event questions', async () => {

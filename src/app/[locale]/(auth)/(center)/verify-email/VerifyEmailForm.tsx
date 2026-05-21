@@ -25,6 +25,51 @@ type BannerState = {
   message: string;
 } | null;
 
+type ResendTimerRef = {
+  current: number | null;
+};
+
+type ResendLockTimers = {
+  resendIntervalRef: ResendTimerRef;
+  resendTimeoutRef: ResendTimerRef;
+};
+
+type ResendLockControls = ResendLockTimers & {
+  setResendLocked: (locked: boolean) => void;
+  setResendSecondsLeft: (
+    value: number | ((previousSecondsLeft: number) => number)
+  ) => void;
+};
+
+function clearResendLockTimers(options: ResendLockTimers) {
+  clearTimeout(options.resendTimeoutRef.current ?? undefined);
+  clearInterval(options.resendIntervalRef.current ?? undefined);
+  options.resendTimeoutRef.current = null;
+  options.resendIntervalRef.current = null;
+}
+
+function startResendLock(options: ResendLockControls) {
+  clearResendLockTimers(options);
+  options.setResendLocked(true);
+  options.setResendSecondsLeft(30);
+  options.resendIntervalRef.current = window.setInterval(() => {
+    options.setResendSecondsLeft((prev) => {
+      if (prev <= 1) {
+        clearInterval(options.resendIntervalRef.current ?? undefined);
+        options.resendIntervalRef.current = null;
+        return 0;
+      }
+      return prev - 1;
+    });
+  }, 1000);
+  options.resendTimeoutRef.current = window.setTimeout(() => {
+    options.setResendLocked(false);
+    options.resendTimeoutRef.current = null;
+    clearInterval(options.resendIntervalRef.current ?? undefined);
+    options.resendIntervalRef.current = null;
+  }, 30_000);
+}
+
 export function VerifyEmailForm(props: VerifyEmailFormProps) {
   const tCommon = useTranslations('Common');
   const t = useTranslations('VerifyEmailPage');
@@ -69,47 +114,21 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
     return t('error_invalid_code');
   }
 
-  function lockResend() {
-    clearTimeout(resendTimeoutRef.current ?? undefined);
-    clearInterval(resendIntervalRef.current ?? undefined);
-    resendTimeoutRef.current = null;
-    resendIntervalRef.current = null;
-    setResendLocked(true);
-    setResendSecondsLeft(30);
-    resendIntervalRef.current = window.setInterval(() => {
-      setResendSecondsLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(resendIntervalRef.current ?? undefined);
-          resendIntervalRef.current = null;
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    resendTimeoutRef.current = window.setTimeout(() => {
-      setResendLocked(false);
-      resendTimeoutRef.current = null;
-      clearInterval(resendIntervalRef.current ?? undefined);
-      resendIntervalRef.current = null;
-    }, 30_000);
-  }
-
   useEffect(() => {
     if (props.initialResendLocked) {
-      lockResend();
+      startResendLock({
+        resendIntervalRef,
+        resendTimeoutRef,
+        setResendLocked,
+        setResendSecondsLeft,
+      });
     } else {
-      clearTimeout(resendTimeoutRef.current ?? undefined);
-      clearInterval(resendIntervalRef.current ?? undefined);
-      resendTimeoutRef.current = null;
-      resendIntervalRef.current = null;
+      clearResendLockTimers({ resendIntervalRef, resendTimeoutRef });
       setResendLocked(false);
     }
 
     return () => {
-      clearTimeout(resendTimeoutRef.current ?? undefined);
-      clearInterval(resendIntervalRef.current ?? undefined);
-      resendTimeoutRef.current = null;
-      resendIntervalRef.current = null;
+      clearResendLockTimers({ resendIntervalRef, resendTimeoutRef });
     };
   }, [props.initialResendLocked]);
 
@@ -165,7 +184,12 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
         return;
       }
       setBanner({ kind: 'success', message: t('resent_banner') });
-      lockResend();
+      startResendLock({
+        resendIntervalRef,
+        resendTimeoutRef,
+        setResendLocked,
+        setResendSecondsLeft,
+      });
     } catch {
       setBanner({ kind: 'error', message: t('error_request_failed') });
     } finally {
@@ -201,7 +225,13 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
         </p>
       ) : null}
 
-      <form className="flex w-full flex-col gap-6" onSubmit={onSubmit}>
+      <form
+        className="flex w-full flex-col gap-6"
+        onSubmit={(event) => {
+          // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the form promise.
+          void onSubmit(event);
+        }}
+      >
         {hasInitialEmail ? null : (
           <div>
             <Label className="sr-only" htmlFor="email">
@@ -261,7 +291,10 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
       <Button
         className="h-auto min-h-0 px-0 py-0 text-lg font-normal text-foreground no-underline shadow-none hover:bg-transparent hover:text-foreground/70 hover:no-underline disabled:opacity-60"
         disabled={resending || resendLocked}
-        onClick={onResendCode}
+        onClick={() => {
+          // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the resend promise.
+          void onResendCode();
+        }}
         type="button"
         variant="link"
       >

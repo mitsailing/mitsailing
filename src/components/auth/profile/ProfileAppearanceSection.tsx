@@ -84,32 +84,35 @@ export function ProfileAppearanceSection(props: ProfileAppearanceSectionProps) {
       <ProfileInlineBanner banner={banner} />
       <fieldset className="mt-4">
         <legend className="sr-only">{t('appearance_heading')}</legend>
-        <div
-          className="flex flex-col gap-2 sm:flex-row sm:flex-wrap"
-          role="radiogroup"
-        >
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           {APPEARANCE_OPTIONS.map((opt) => {
             const selected = activeScheme === opt.value;
             return (
-              <button
-                aria-checked={selected}
-                className={cn(
-                  'min-h-[44px] flex-1 rounded-md border px-4 py-2.5 text-left text-sm font-medium transition-colors',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                  selected
-                    ? 'border-mit-red-600 bg-mit-red-600 text-white'
-                    : 'border-border bg-background text-foreground hover:bg-muted'
-                )}
-                disabled={pending}
-                key={opt.value}
-                role="radio"
-                type="button"
-                onClick={async () => {
-                  await onSelect(opt.value);
-                }}
-              >
-                {t(opt.labelKey)}
-              </button>
+              <label className="flex-1" key={opt.value}>
+                <input
+                  checked={selected}
+                  className="peer sr-only"
+                  disabled={pending}
+                  name="appearance-color-scheme"
+                  type="radio"
+                  value={opt.value}
+                  onChange={() => {
+                    // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the save promise.
+                    void onSelect(opt.value);
+                  }}
+                />
+                <span
+                  className={cn(
+                    'block min-h-[44px] rounded-md border px-4 py-2.5 text-left text-sm font-medium transition-colors',
+                    'peer-focus-visible:outline-none peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-background',
+                    selected
+                      ? 'border-mit-red-600 bg-mit-red-600 text-white'
+                      : 'border-border bg-background text-foreground peer-enabled:hover:bg-muted'
+                  )}
+                >
+                  {t(opt.labelKey)}
+                </span>
+              </label>
             );
           })}
         </div>

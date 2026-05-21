@@ -27,6 +27,51 @@ type ResetPasswordFormProps = {
   passwordHeading: string;
 };
 
+type ResendTimerRef = {
+  current: number | null;
+};
+
+type ResendLockTimers = {
+  resendIntervalRef: ResendTimerRef;
+  resendTimeoutRef: ResendTimerRef;
+};
+
+type ResendLockControls = ResendLockTimers & {
+  setResendLocked: (locked: boolean) => void;
+  setResendSecondsLeft: (
+    value: number | ((previousSecondsLeft: number) => number)
+  ) => void;
+};
+
+function clearResendLockTimers(options: ResendLockTimers) {
+  clearTimeout(options.resendTimeoutRef.current ?? undefined);
+  clearInterval(options.resendIntervalRef.current ?? undefined);
+  options.resendTimeoutRef.current = null;
+  options.resendIntervalRef.current = null;
+}
+
+function startResendLock(options: ResendLockControls) {
+  clearResendLockTimers(options);
+  options.setResendLocked(true);
+  options.setResendSecondsLeft(30);
+  options.resendIntervalRef.current = window.setInterval(() => {
+    options.setResendSecondsLeft((prev) => {
+      if (prev <= 1) {
+        clearInterval(options.resendIntervalRef.current ?? undefined);
+        options.resendIntervalRef.current = null;
+        return 0;
+      }
+      return prev - 1;
+    });
+  }, 1000);
+  options.resendTimeoutRef.current = window.setTimeout(() => {
+    options.setResendLocked(false);
+    options.resendTimeoutRef.current = null;
+    clearInterval(options.resendIntervalRef.current ?? undefined);
+    options.resendIntervalRef.current = null;
+  }, 30_000);
+}
+
 export function ResetPasswordForm(props: ResetPasswordFormProps) {
   const tCommon = useTranslations('Common');
   const t = useTranslations('ResetPasswordPage');
@@ -91,45 +136,18 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
       : t('error_code_validation');
   }
 
-  function startResendLock() {
-    clearTimeout(resendTimeoutRef.current ?? undefined);
-    clearInterval(resendIntervalRef.current ?? undefined);
-    resendTimeoutRef.current = null;
-    resendIntervalRef.current = null;
-    setResendLocked(true);
-    setResendSecondsLeft(30);
-    resendIntervalRef.current = window.setInterval(() => {
-      setResendSecondsLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(resendIntervalRef.current ?? undefined);
-          resendIntervalRef.current = null;
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    resendTimeoutRef.current = window.setTimeout(() => {
-      setResendLocked(false);
-      resendTimeoutRef.current = null;
-      clearInterval(resendIntervalRef.current ?? undefined);
-      resendIntervalRef.current = null;
-    }, 30_000);
-  }
-
-  function lockResend() {
-    startResendLock();
-  }
-
   useEffect(() => {
     if (props.initialResendLocked) {
-      startResendLock();
+      startResendLock({
+        resendIntervalRef,
+        resendTimeoutRef,
+        setResendLocked,
+        setResendSecondsLeft,
+      });
     }
 
     return () => {
-      clearTimeout(resendTimeoutRef.current ?? undefined);
-      clearInterval(resendIntervalRef.current ?? undefined);
-      resendTimeoutRef.current = null;
-      resendIntervalRef.current = null;
+      clearResendLockTimers({ resendIntervalRef, resendTimeoutRef });
     };
   }, [props.initialResendLocked]);
 
@@ -200,7 +218,12 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
       }
       setStatus(t('resent_banner'));
       setResetCode('');
-      lockResend();
+      startResendLock({
+        resendIntervalRef,
+        resendTimeoutRef,
+        setResendLocked,
+        setResendSecondsLeft,
+      });
     } catch {
       setError(t('error_resend_failed'));
     } finally {
@@ -330,7 +353,13 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
 
       {step === 'code' ? (
         <>
-          <form className="flex w-full flex-col gap-6" onSubmit={onCodeSubmit}>
+          <form
+            className="flex w-full flex-col gap-6"
+            onSubmit={(event) => {
+              // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the code form promise.
+              void onCodeSubmit(event);
+            }}
+          >
             {hasInitialEmail ? null : (
               <div>
                 <Label className="sr-only" htmlFor="email">
@@ -392,7 +421,10 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
           <Button
             className="h-auto min-h-0 px-0 py-0 text-lg font-normal text-foreground no-underline shadow-none hover:bg-transparent hover:text-foreground/70 hover:no-underline disabled:opacity-60"
             disabled={resending || resendLocked}
-            onClick={onResendCode}
+            onClick={() => {
+              // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the resend promise.
+              void onResendCode();
+            }}
             type="button"
             variant="link"
           >
@@ -407,7 +439,13 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
           </Button>
         </>
       ) : (
-        <form className="flex w-full flex-col gap-4" onSubmit={onSubmit}>
+        <form
+          className="flex w-full flex-col gap-4"
+          onSubmit={(event) => {
+            // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the password form promise.
+            void onSubmit(event);
+          }}
+        >
           <div className="flex flex-col gap-1.5 text-left">
             <Label className="text-foreground" htmlFor="password">
               {t('password_label')}

@@ -60,6 +60,7 @@ const SITE_ALERT_SANITIZE_OPTIONS = {
   allowedAttributes: {
     a: ['href', 'rel', 'target'],
   },
+  nonTextTags: ['script', 'style', 'textarea', 'option', 'xmp'],
   transformTags: {
     a: transformSiteAlertAnchor,
   },

@@ -34,6 +34,10 @@ function makeEvent(
     category: { name: 'Racing' },
     dates: [],
     admins: [],
+    attendees: {
+      approved: [],
+      pending: [],
+    },
     registrationQuestions: [],
     entryFees: [],
     approvedRegistrationCount: 0,

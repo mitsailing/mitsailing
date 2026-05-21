@@ -31,10 +31,7 @@ function SiteShellStoryPreview() {
             nav labels, SiteFooter) is only in the Next.js app.
           </p>
         </main>
-        <footer
-          className="mt-auto bg-mit-footer py-8 text-center text-xs text-white/70"
-          aria-label="Story placeholder"
-        >
+        <footer className="mt-auto bg-mit-footer py-8 text-center text-xs text-white/70">
           Footer omitted in Storybook — see SiteFooter in production routes.
         </footer>
       </div>

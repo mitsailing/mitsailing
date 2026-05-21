@@ -40,6 +40,9 @@ export type EventRegistrationAnswer = $ModelResult<$Schema, "EventRegistrationAn
  * avoiding floating-point dollar columns in PostgreSQL.
  */
 export type EventEntryFee = $ModelResult<$Schema, "EventEntryFee">;
+export type EventPayment = $ModelResult<$Schema, "EventPayment">;
+export type StripeWebhookEvent = $ModelResult<$Schema, "StripeWebhookEvent">;
+export type EventPaymentNotification = $ModelResult<$Schema, "EventPaymentNotification">;
 export type EventComment = $ModelResult<$Schema, "EventComment">;
 export type ClassCategory = $ModelResult<$Schema, "ClassCategory">;
 export type SailingClass = $ModelResult<$Schema, "SailingClass">;
@@ -93,10 +96,16 @@ export const EventDetailPageKind = $schema.enums.EventDetailPageKind.values;
 export type EventDetailPageKind = (typeof EventDetailPageKind)[keyof typeof EventDetailPageKind];
 export const EventRegistrationMode = $schema.enums.EventRegistrationMode.values;
 export type EventRegistrationMode = (typeof EventRegistrationMode)[keyof typeof EventRegistrationMode];
+export const EventAddressPreset = $schema.enums.EventAddressPreset.values;
+export type EventAddressPreset = (typeof EventAddressPreset)[keyof typeof EventAddressPreset];
 export const EventRegistrationStatus = $schema.enums.EventRegistrationStatus.values;
 export type EventRegistrationStatus = (typeof EventRegistrationStatus)[keyof typeof EventRegistrationStatus];
 export const EventAnswerType = $schema.enums.EventAnswerType.values;
 export type EventAnswerType = (typeof EventAnswerType)[keyof typeof EventAnswerType];
+export const EventPaymentStatus = $schema.enums.EventPaymentStatus.values;
+export type EventPaymentStatus = (typeof EventPaymentStatus)[keyof typeof EventPaymentStatus];
+export const EventPaymentNotificationKind = $schema.enums.EventPaymentNotificationKind.values;
+export type EventPaymentNotificationKind = (typeof EventPaymentNotificationKind)[keyof typeof EventPaymentNotificationKind];
 export const SailingRatingRuleType = $schema.enums.SailingRatingRuleType.values;
 export type SailingRatingRuleType = (typeof SailingRatingRuleType)[keyof typeof SailingRatingRuleType];
 export const CmsMediaStatus = $schema.enums.CmsMediaStatus.values;

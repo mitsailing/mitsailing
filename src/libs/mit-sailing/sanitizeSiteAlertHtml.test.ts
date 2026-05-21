@@ -20,6 +20,14 @@ describe('sanitizeSiteAlertBodyHtml', () => {
     expect(sanitizeSiteAlertBodyHtml('a<br>b')).toBe('a<br />b');
   });
 
+  it('keeps alert links and line breaks while stripping unsupported rich markup', () => {
+    expect(
+      sanitizeSiteAlertBodyHtml(
+        '<strong>Notice</strong><br><a href="/alerts">Read alerts</a>'
+      )
+    ).toBe('Notice<br /><a href="/alerts">Read alerts</a>');
+  });
+
   it('strips bold but keeps text', () => {
     expect(sanitizeSiteAlertBodyHtml('<b>x</b>')).toBe('x');
   });
@@ -32,5 +40,11 @@ describe('sanitizeSiteAlertBodyHtml', () => {
 
   it('drops protocol-relative URLs', () => {
     expect(sanitizeSiteAlertBodyHtml('<a href="//evil.test/">x</a>')).toBe('x');
+  });
+
+  it('strips raw-text xmp payloads before React rendering', () => {
+    expect(
+      sanitizeSiteAlertBodyHtml('<xmp><img src=x onerror=alert(1)></xmp>')
+    ).toBe('');
   });
 });

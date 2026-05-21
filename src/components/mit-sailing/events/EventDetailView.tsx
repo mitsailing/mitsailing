@@ -9,7 +9,6 @@ import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
 import { cn } from '@/lib/utils';
 import { Link } from '@/libs/I18nNavigation';
 import { safeExternalHttpHref } from '@/libs/mit-sailing/cmsHref';
-import { formatEasternEventRange } from '@/libs/mit-sailing/easternTimeFormat';
 import type {
   PublicEventDetail,
   PublicEventRegistrationState,
@@ -18,6 +17,8 @@ import { cancelPublicEventRegistrationAction } from '@/libs/mit-sailing/eventReg
 import { publicEventReservationState } from '@/libs/mit-sailing/eventRegistrationState';
 import type { PublicEventReservationState } from '@/libs/mit-sailing/eventRegistrationState';
 import { formatUsdMinorUnitsAsCurrency } from '@/libs/money/stripeUsdMinorUnits';
+import { getI18nPath } from '@/utils/Helpers';
+import { EventDetailFacts } from './EventDetailFacts';
 import { EventRegistrationCta } from './EventRegistrationCta';
 
 type EventDetailViewProps = {
@@ -44,16 +45,6 @@ function formatDateOnly(date: Date | null, locale: string): string {
   }).format(date);
 }
 
-function adminInitials(name: string): string {
-  const parts = name
-    .split(/\s+/)
-    .map((part) => part.trim())
-    .filter(Boolean);
-  const first = parts[0]?.[0] ?? '';
-  const second = parts[1]?.[0] ?? '';
-  return `${first}${second}`.toUpperCase() || '?';
-}
-
 function SectionHeading(props: { children: React.ReactNode; id: string }) {
   return (
     <h2
@@ -67,11 +58,11 @@ function SectionHeading(props: { children: React.ReactNode; id: string }) {
 
 function MetaRow(props: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-baseline justify-between gap-3">
-      <dt className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+    <div className="flex items-baseline justify-between gap-4 py-3">
+      <dt className="text-[0.6875rem] font-semibold tracking-wide text-muted-foreground uppercase">
         {props.label}
       </dt>
-      <dd className="m-0 text-right text-sm text-foreground">
+      <dd className="m-0 text-right text-sm font-medium text-mit-text">
         {props.children}
       </dd>
     </div>
@@ -121,6 +112,14 @@ function registrationMetaLabels(props: {
       tense: dateTense(props.event.registrationEnd, props.now),
     }),
   };
+}
+
+function showRegistrationOpens(event: PublicEventDetail, now: Date): boolean {
+  return event.registrationStart !== null && event.registrationStart > now;
+}
+
+function showRegistrationCloses(event: PublicEventDetail): boolean {
+  return event.registrationEnd !== null;
 }
 
 function visiblePublicContentSections(
@@ -180,6 +179,8 @@ export async function EventDetailView(props: EventDetailViewProps) {
     now,
     t,
   });
+  const shouldShowRegistrationOpens = showRegistrationOpens(props.event, now);
+  const shouldShowRegistrationCloses = showRegistrationCloses(props.event);
   const externalRegistrationUrl = safeExternalHttpHref(
     props.event.registrationMode === 'external'
       ? props.event.externalRegistrationUrl
@@ -247,6 +248,7 @@ export async function EventDetailView(props: EventDetailViewProps) {
           props.event.slug
         )}
         errorCode={props.errorCode}
+        currentRegistration={props.currentRegistration}
         event={props.event}
         isSignedIn={props.isSignedIn}
         locale={props.locale}
@@ -256,7 +258,6 @@ export async function EventDetailView(props: EventDetailViewProps) {
       />
     );
   }
-
   return (
     <article>
       <PublicCatalogDetailTopNav>
@@ -265,19 +266,22 @@ export async function EventDetailView(props: EventDetailViewProps) {
             'inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-mit-red no-underline hover:underline dark:text-mit-red-ink',
             textFocusRingClassName
           )}
-          href="/events/"
+          href={getI18nPath('/events', props.locale)}
         >
           <ArrowLeft aria-hidden size={16} />
           {t('back_to_list')}
         </Link>
         <PublicAdminEditLink
           className="mb-0 ml-auto shrink-0"
-          href={`/admin/events/${encodeURIComponent(props.event.slug)}/edit`}
+          href={getI18nPath(
+            `/admin/events/${encodeURIComponent(props.event.slug)}/edit`,
+            props.locale
+          )}
         />
       </PublicCatalogDetailTopNav>
 
       <div className="grid grid-cols-1 gap-x-12 gap-y-10 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <header className="lg:col-span-2">
+        <header className="min-w-0 lg:col-start-1 lg:row-start-1">
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <span className="rounded-sm bg-mit-red-highlight px-2 py-1 text-xs font-bold tracking-wide text-mit-red uppercase dark:text-white">
               {props.event.category.name}
@@ -291,33 +295,40 @@ export async function EventDetailView(props: EventDetailViewProps) {
           <h1 className="scroll-m-20 font-mit-serif text-[clamp(1.875rem,5vw,3rem)] leading-tight font-semibold tracking-tight text-balance text-mit-text">
             {props.event.name}
           </h1>
-          {props.event.shortName &&
-          props.event.shortName !== props.event.name ? (
-            <p className="mt-2 text-xl leading-7 text-muted-foreground">
-              {props.event.shortName}
-            </p>
-          ) : null}
+          <EventDetailFacts event={props.event} t={t} />
           <p className="mt-5 max-w-3xl text-base leading-relaxed whitespace-pre-wrap text-mit-text">
             {props.event.description}
           </p>
         </header>
 
-        <aside className="flex flex-col gap-6 lg:col-start-2 lg:row-start-2 lg:self-start">
-          <section className="rounded-lg border-2 border-mit-red bg-card p-5 shadow-sm shadow-mit-red/5 lg:sticky lg:top-24 dark:border-white/35">
-            <p className="mb-1 text-xs font-bold tracking-widest text-mit-red uppercase dark:text-white">
-              {t('section_registration')}
-            </p>
-            <h2 className="mb-4 scroll-m-20 font-mit-serif text-xl font-semibold tracking-tight text-mit-text">
-              {registrationHeadingText}
-            </h2>
-            {registrationActionContent}
-            <dl className="m-0 mt-5 flex flex-col gap-3 p-0">
-              <MetaRow label={registrationMeta.opens}>
-                {registrationOpens || t('date_to_be_announced')}
-              </MetaRow>
-              <MetaRow label={registrationMeta.closes}>
-                {registrationCloses || t('date_to_be_announced')}
-              </MetaRow>
+        <aside className="flex flex-col gap-6 lg:col-start-2 lg:row-start-1 lg:self-start">
+          <section
+            aria-labelledby="event-registration-panel-heading"
+            className="overflow-hidden rounded-lg border border-mit-line bg-card shadow-sm shadow-foreground/5 lg:sticky lg:top-24"
+          >
+            <div className="border-b border-mit-line p-5">
+              <p className="mb-1 text-xs font-bold tracking-widest text-mit-red uppercase dark:text-white">
+                {t('section_registration')}
+              </p>
+              <h2
+                className="scroll-m-20 font-mit-serif text-xl font-semibold tracking-tight text-mit-text"
+                id="event-registration-panel-heading"
+              >
+                {registrationHeadingText}
+              </h2>
+              <div className="mt-4">{registrationActionContent}</div>
+            </div>
+            <dl className="m-0 divide-y divide-mit-line px-5 py-1">
+              {shouldShowRegistrationOpens ? (
+                <MetaRow label={registrationMeta.opens}>
+                  {registrationOpens}
+                </MetaRow>
+              ) : null}
+              {shouldShowRegistrationCloses ? (
+                <MetaRow label={registrationMeta.closes}>
+                  {registrationCloses}
+                </MetaRow>
+              ) : null}
               <MetaRow label={t('capacity_label')}>{capacityLabel}</MetaRow>
               <MetaRow label={t('approval_label')}>
                 {props.event.requiresApproval
@@ -325,73 +336,10 @@ export async function EventDetailView(props: EventDetailViewProps) {
                   : t('approval_auto')}
               </MetaRow>
             </dl>
-            {props.event.pendingRegistrationCount > 0 ? (
-              <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
-                {t('pending_review', {
-                  count: props.event.pendingRegistrationCount,
-                })}
-              </p>
-            ) : null}
-          </section>
-
-          <section className="rounded-lg border border-mit-line bg-card p-5">
-            <h2 className="mb-3 scroll-m-20 font-mit-serif text-xl font-semibold tracking-tight text-mit-text">
-              {t('section_admins')}
-            </h2>
-            {props.event.admins.length === 0 ? (
-              <p className="text-sm leading-7 text-muted-foreground">
-                {t('admins_empty')}
-              </p>
-            ) : (
-              <ul className="m-0 list-none space-y-3 p-0">
-                {props.event.admins.map((adminRow) => (
-                  <li className="flex items-center gap-3" key={adminRow.id}>
-                    <span
-                      aria-hidden
-                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-mit-line bg-mit-surface text-xs font-bold text-mit-text"
-                    >
-                      {adminInitials(adminRow.admin.name)}
-                    </span>
-                    <div className="min-w-0">
-                      <p className="m-0 truncate text-sm font-semibold text-mit-text">
-                        {adminRow.admin.name}
-                      </p>
-                      <a
-                        className={cn(
-                          'block truncate text-xs text-mit-red no-underline hover:underline dark:text-white',
-                          textFocusRingClassName
-                        )}
-                        href={`mailto:${adminRow.admin.email}`}
-                      >
-                        {adminRow.admin.email}
-                      </a>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
           </section>
         </aside>
 
         <div className="min-w-0 lg:col-start-1 lg:row-start-2">
-          {props.event.dates.length > 0 ? (
-            <section className="mb-10" aria-labelledby="event-schedule-heading">
-              <SectionHeading id="event-schedule-heading">
-                {t('field_schedule')}
-              </SectionHeading>
-              <ul className="m-0 list-none divide-y divide-mit-line border-t border-mit-line p-0">
-                {props.event.dates.map((date) => (
-                  <li className="py-3 text-sm text-mit-text" key={date.id}>
-                    {formatEasternEventRange(
-                      date.startDateTime,
-                      date.endDateTime
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-
           {props.event.entryFees.length > 0 ? (
             <section className="mb-10" aria-labelledby="event-fees-heading">
               <SectionHeading id="event-fees-heading">

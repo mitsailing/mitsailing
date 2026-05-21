@@ -161,10 +161,9 @@ export async function EventsListView(props: EventsListViewProps) {
         })}
       </nav>
 
-      <div
+      <nav
         aria-label={t('month_nav_label')}
         className="mb-6 grid w-full grid-cols-[auto_1fr_auto] items-center gap-3"
-        role="group"
       >
         <div className="flex items-center gap-1.5 justify-self-start">
           {canGoPrevious ? (
@@ -234,11 +233,11 @@ export async function EventsListView(props: EventsListViewProps) {
           )}
         </div>
         <div className="w-10 justify-self-end sm:w-[5.5rem]" aria-hidden />
-      </div>
+      </nav>
 
-      <div
+      <section
         aria-label={t('calendar_grid_label', { month: monthTitle })}
-        className="hidden w-full min-w-0 overflow-hidden rounded-xl border border-mit-line shadow-sm lg:block"
+        className="hidden w-full min-w-0 rounded-xl border border-mit-line shadow-sm lg:block"
       >
         <div className="grid w-full min-w-0 grid-cols-7 divide-x divide-mit-line bg-mit-surface">
           {weekdayLabels(props.locale).map((weekday) => (
@@ -277,21 +276,14 @@ export async function EventsListView(props: EventsListViewProps) {
                           {Number(dateKey.slice(8, 10))}
                         </div>
                         <div>
-                          {dayRows.slice(0, 3).map((row, rowIndex, shown) => (
+                          {dayRows.map((row, rowIndex) => (
                             <EventCalendarOccurrenceRow
                               key={row.rowKey}
                               row={row}
-                              showBottomBorder={rowIndex < shown.length - 1}
+                              showBottomBorder={rowIndex < dayRows.length - 1}
                               wrapTitle
                             />
                           ))}
-                          {dayRows.length > 3 ? (
-                            <p className="mt-1 text-xs leading-snug text-mit-text">
-                              {t('additional_events', {
-                                count: dayRows.length - 3,
-                              })}
-                            </p>
-                          ) : null}
                         </div>
                       </>
                     ) : null}
@@ -301,7 +293,7 @@ export async function EventsListView(props: EventsListViewProps) {
             </div>
           ))}
         </div>
-      </div>
+      </section>
 
       <div className="rounded-xl border border-mit-line p-6 shadow-sm lg:hidden">
         <h2 className="mb-5 font-mit-serif text-xl font-semibold text-mit-text">

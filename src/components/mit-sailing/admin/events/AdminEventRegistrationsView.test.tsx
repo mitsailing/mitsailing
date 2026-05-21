@@ -8,6 +8,7 @@ import messages from '@/locales/en.json';
 import { AdminEventRegistrationsView } from './AdminEventRegistrationsView';
 
 vi.mock('@/libs/admin/events/eventAdminActions', () => ({
+  resendAllAdminEventPaymentRequestsAction: vi.fn(),
   updateAdminEventRegistrationStatusAction: vi.fn(),
 }));
 
@@ -92,6 +93,7 @@ function renderView(
               isDeposit: false,
             },
             id: 'registration-1',
+            payment: null,
             phone: '617-555-0100',
             registrationTeam: {
               id: 'team-1',
@@ -150,59 +152,40 @@ function renderView(
 }
 
 describe('AdminEventRegistrationsView', () => {
-  it('renders registrations in a dense table with row-local actions and question columns', () => {
+  it('renders registrations in page-flow roster cards with row-local actions and answers', () => {
     renderView('editable');
 
-    const table = screen.getByRole('table', { name: 'Registration roster' });
+    const roster = screen.getByRole('list', { name: 'Registration roster' });
 
-    expect(
-      within(table).getByRole('columnheader', { name: 'Attendee' })
-    ).toBeVisible();
-    expect(
-      within(table).getByRole('columnheader', { name: 'Status' })
-    ).toBeVisible();
-    expect(
-      within(table).getByRole('columnheader', { name: 'Registered' })
-    ).toBeVisible();
-    expect(
-      within(table).getByRole('columnheader', { name: 'Phone' })
-    ).toBeVisible();
-    expect(
-      within(table).getByRole('columnheader', { name: 'Fee' })
-    ).toBeVisible();
-    expect(
-      within(table).getByRole('columnheader', { name: 'Team and boat' })
-    ).toBeVisible();
-    expect(
-      within(table).getByRole('columnheader', { name: 'Swim agreement' })
-    ).toBeVisible();
-    expect(
-      within(table).getByRole('columnheader', {
-        name: 'Dietary restrictions?',
-      })
-    ).toBeVisible();
-    expect(
-      within(table).getByRole('columnheader', { name: 'Sailing experience?' })
-    ).toBeVisible();
-    expect(within(table).getByText('617-555-0100')).toBeVisible();
-    expect(within(table).getByText('Adult entry')).toBeVisible();
-    expect(within(table).getByText('$150.00')).toBeVisible();
-    expect(within(table).getByText('Fast Team')).toBeVisible();
-    expect(within(table).getByText('Boat 1')).toBeVisible();
-    expect(within(table).getByText('Helm')).toBeVisible();
-    expect(within(table).getByText('Helm One')).toBeVisible();
-    expect(within(table).getByText('helm@example.com')).toBeVisible();
-    expect(within(table).getByText('Crew')).toBeVisible();
-    expect(within(table).getByText('Crew One')).toBeVisible();
-    expect(within(table).getByText('crew@example.com')).toBeVisible();
+    expect(screen.queryByRole('table')).toBeNull();
+    expect(within(roster).getByText('Attendee')).toBeVisible();
+    expect(within(roster).getByText('Status')).toBeVisible();
+    expect(within(roster).getByText('Registered')).toBeVisible();
+    expect(within(roster).getByText('Phone')).toBeVisible();
+    expect(within(roster).getByText('Fee')).toBeVisible();
+    expect(within(roster).getByText('Team and boat')).toBeVisible();
+    expect(within(roster).getByText('Swim agreement')).toBeVisible();
+    expect(within(roster).getByText('Dietary restrictions?')).toBeVisible();
+    expect(within(roster).getByText('Sailing experience?')).toBeVisible();
+    expect(within(roster).getByText('617-555-0100')).toBeVisible();
+    expect(within(roster).getByText('Adult entry')).toBeVisible();
+    expect(within(roster).getByText('$150.00')).toBeVisible();
+    expect(within(roster).getByText('Fast Team')).toBeVisible();
+    expect(within(roster).getByText('Boat 1')).toBeVisible();
+    expect(within(roster).getByText('Helm')).toBeVisible();
+    expect(within(roster).getByText('Helm One')).toBeVisible();
+    expect(within(roster).getByText('helm@example.com')).toBeVisible();
+    expect(within(roster).getByText('Crew')).toBeVisible();
+    expect(within(roster).getByText('Crew One')).toBeVisible();
+    expect(within(roster).getByText('crew@example.com')).toBeVisible();
     expect(screen.getAllByLabelText('Actions for Sailor One').length).toBe(1);
   });
 
-  it('keeps mobile review in one roster table instead of per-attendee answer tables', () => {
+  it('keeps mobile review in one roster list instead of nested answer tables', () => {
     renderView('editable');
 
     expect(
-      screen.getByRole('table', { name: 'Registration roster' })
+      screen.getByRole('list', { name: 'Registration roster' })
     ).toBeVisible();
     expect(screen.queryByLabelText('View answers for Sailor One')).toBeNull();
     expect(
@@ -250,11 +233,27 @@ describe('AdminEventRegistrationsView', () => {
     renderView('readOnly');
 
     expect(screen.getByText('Read-only access')).toBeVisible();
-    expect(screen.getByText('Sailor One')).toBeVisible();
-    expect(screen.getByText('sailor@example.com')).toBeVisible();
+    expect(screen.getAllByText('Sailor One').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('sailor@example.com').length).toBeGreaterThan(0);
     expect(screen.getByText('Dietary restrictions?')).toBeVisible();
     expect(screen.getByText('Vegetarian')).toBeVisible();
     expect(screen.queryByLabelText('Actions for Sailor One')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Send' })).toBeNull();
+  });
+
+  it('shows bulk email as an active composing surface', () => {
+    renderView('editable');
+
+    const bulkEmail = screen.getByRole('region', { name: 'Bulk email' });
+
+    expect(
+      within(bulkEmail).getByRole('textbox', { name: 'Subject' })
+    ).toBeEnabled();
+    expect(
+      within(bulkEmail).getByRole('textbox', { name: 'Message' })
+    ).toBeEnabled();
+    expect(
+      within(bulkEmail).getByRole('button', { name: 'Send' })
+    ).toBeEnabled();
   });
 });

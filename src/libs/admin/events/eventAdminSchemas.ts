@@ -1,6 +1,7 @@
 import * as z from 'zod';
 import {
   EventAnswerType,
+  EventAddressPreset,
   EventDetailPageKind,
   EventRegistrationMode,
   EventRegistrationStatus,
@@ -11,6 +12,7 @@ import {
 } from '@/lib/mit-sailing/nyTime';
 import { Role } from '@/libs/auth/roles';
 import { sanitizeCmsRichTextHtml } from '@/libs/mit-sailing/cmsRichText';
+import { eventAddressPresetFields } from '@/libs/mit-sailing/eventAddressPresets';
 import { parseUsdDecimalStringToMinorUnits } from '@/libs/money/stripeUsdMinorUnits';
 
 export {
@@ -220,6 +222,12 @@ const eventAnswerTypeSchema = z.enum([
   EventAnswerType.text,
   EventAnswerType.select,
   EventAnswerType.checkbox,
+]);
+
+const eventAddressPresetSchema = z.enum([
+  EventAddressPreset.pavilion,
+  EventAddressPreset.bluewater,
+  EventAddressPreset.custom,
 ]);
 
 const eventAdminExternalHttpUrlSchema = z.httpUrl();
@@ -459,6 +467,46 @@ export const eventRegistrationStatusFormSchema = z.object({
   ]),
 });
 
+export const eventPaymentSettingsFormSchema = z
+  .object({
+    paymentsEnabled: z.boolean(),
+    paymentDeadlineAt: optionalDateTimeLocalSchema,
+  })
+  .refine(
+    (value) => !value.paymentsEnabled || value.paymentDeadlineAt !== null,
+    { path: ['paymentDeadlineAt'] }
+  );
+
+export const eventLocationFormSchema = z
+  .object({
+    addressPreset: eventAddressPresetSchema,
+    addressName: z.string().trim(),
+    addressLine1: z.string().trim(),
+    addressLine2: z.string().trim(),
+    addressCity: z.string().trim(),
+    addressState: z.string().trim(),
+    addressPostalCode: z.string().trim(),
+    addressCountry: z.string().trim(),
+  })
+  .transform((value) => {
+    const preset = eventAddressPresetFields(value.addressPreset);
+    const address = preset ?? value;
+    return {
+      ...value,
+      addressName: address.addressName || null,
+      addressLine1: address.addressLine1 || null,
+      addressLine2: address.addressLine2 || null,
+      addressCity: address.addressCity || null,
+      addressState: address.addressState || null,
+      addressPostalCode: address.addressPostalCode || null,
+      addressCountry: address.addressCountry || null,
+    };
+  });
+
+export const eventPaymentManualHandledFormSchema = z.object({
+  note: z.string().trim().min(1),
+});
+
 export function rawEventBasicsFromFormData(formData: FormData): unknown {
   return {
     name: formString(formData, 'name'),
@@ -531,4 +579,32 @@ export function rawEventRegistrationStatusFromFormData(
   formData: FormData
 ): unknown {
   return { status: formString(formData, 'status') };
+}
+
+export function rawEventPaymentSettingsFromFormData(
+  formData: FormData
+): unknown {
+  return {
+    paymentsEnabled: formCheckbox(formData, 'paymentsEnabled'),
+    paymentDeadlineAt: formString(formData, 'paymentDeadlineAt'),
+  };
+}
+
+export function rawEventLocationFromFormData(formData: FormData): unknown {
+  return {
+    addressPreset: formString(formData, 'addressPreset'),
+    addressName: formString(formData, 'addressName'),
+    addressLine1: formString(formData, 'addressLine1'),
+    addressLine2: formString(formData, 'addressLine2'),
+    addressCity: formString(formData, 'addressCity'),
+    addressState: formString(formData, 'addressState'),
+    addressPostalCode: formString(formData, 'addressPostalCode'),
+    addressCountry: formString(formData, 'addressCountry'),
+  };
+}
+
+export function rawEventPaymentManualHandledFromFormData(
+  formData: FormData
+): unknown {
+  return { note: formString(formData, 'note') };
 }

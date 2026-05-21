@@ -28,11 +28,7 @@ export async function SiteAlertsListView(props: SiteAlertsListViewProps) {
   }
 
   return (
-    <ul
-      role="list"
-      aria-labelledby={props.headingId}
-      className="flex flex-col gap-4"
-    >
+    <ul aria-labelledby={props.headingId} className="flex flex-col gap-4">
       {props.alerts.map((item) => {
         const dateIso = item.startDateIso;
         return (

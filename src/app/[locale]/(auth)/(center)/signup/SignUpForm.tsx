@@ -69,7 +69,7 @@ export function SignUpForm(props: SignUpFormProps) {
   async function onSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-    if (password !== passwordConfirmation) {
+    if (!Object.is(password, passwordConfirmation)) {
       setError({
         message: t('error_password_mismatch'),
         showSignInLinks: false,
@@ -169,7 +169,13 @@ export function SignUpForm(props: SignUpFormProps) {
         </p>
       ) : null}
 
-      <form className="flex flex-col gap-4" onSubmit={onSubmit}>
+      <form
+        className="flex flex-col gap-4"
+        onSubmit={(event) => {
+          // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the form promise.
+          void onSubmit(event);
+        }}
+      >
         <div className="flex flex-col gap-1.5">
           <Label className="text-foreground" htmlFor="name">
             {t('name_label')}
