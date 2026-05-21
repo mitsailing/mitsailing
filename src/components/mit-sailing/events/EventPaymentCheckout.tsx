@@ -48,12 +48,14 @@ type EventPaymentCheckoutProps = {
   title: string;
 };
 
-function isPayablePayment(
-  payment: EventPaymentCheckoutPayment
-): payment is Exclude<
+type PayableEventPaymentCheckoutPayment = Exclude<
   EventPaymentCheckoutPayment,
   null | { status: 'cancelled' | 'disputed' | 'handled' | 'paid' | 'refunded' }
-> {
+>;
+
+function isPayablePayment(
+  payment: EventPaymentCheckoutPayment
+): payment is PayableEventPaymentCheckoutPayment {
   return (
     payment !== null &&
     (payment.status === 'checkout_created' ||
@@ -132,26 +134,33 @@ function StaticCheckoutState(props: {
   );
 }
 
-export function EventPaymentCheckout(props: EventPaymentCheckoutProps) {
-  const checkoutRef = React.useRef<HTMLElement | null>(null);
-  const [error, setError] = React.useState<string | null>(null);
-  const { checkoutLoadError } = props.labels;
+function useEmbeddedCheckout(props: {
+  checkoutLoadError: string;
+  checkoutRef: React.RefObject<HTMLElement | null>;
+  clientSecretAction: () => Promise<EventPaymentCheckoutActionResult>;
+  payment: EventPaymentCheckoutPayment;
+  publishableKey: string | undefined;
+  setError: (message: string | null) => void;
+}) {
+  const { checkoutLoadError } = props;
+  const { checkoutRef } = props;
   const { clientSecretAction } = props;
   const { payment } = props;
   const { publishableKey } = props;
+  const { setError } = props;
 
   React.useEffect(() => {
     if (!isPayablePayment(payment) || !publishableKey) {
       return;
     }
     setError(null);
-    const effectState = { cancelled: false };
+    let isMounted = true;
     let mountedCheckout: { unmount: () => void } | null = null;
 
     const mountCheckout = async () => {
       try {
         const stripe = await loadStripe(publishableKey);
-        if (effectState.cancelled) {
+        if (!isMounted) {
           return;
         }
         if (!stripe) {
@@ -167,7 +176,7 @@ export function EventPaymentCheckout(props: EventPaymentCheckoutProps) {
             return result.clientSecret;
           },
         });
-        if (effectState.cancelled) {
+        if (!isMounted) {
           checkout.unmount();
           return;
         }
@@ -179,7 +188,7 @@ export function EventPaymentCheckout(props: EventPaymentCheckoutProps) {
         checkout.mount(target);
         mountedCheckout = checkout;
       } catch {
-        if (!effectState.cancelled) {
+        if (isMounted) {
           setError(checkoutLoadError);
         }
       }
@@ -189,53 +198,34 @@ export function EventPaymentCheckout(props: EventPaymentCheckoutProps) {
     void mountCheckout();
 
     return () => {
-      effectState.cancelled = true;
+      isMounted = false;
       mountedCheckout?.unmount();
     };
-  }, [checkoutLoadError, clientSecretAction, payment, publishableKey]);
+  }, [
+    checkoutLoadError,
+    checkoutRef,
+    clientSecretAction,
+    payment,
+    publishableKey,
+    setError,
+  ]);
+}
 
-  if (!props.payment) {
-    return (
-      <StaticCheckoutState
-        body={props.labels.noPaymentBody}
-        labels={props.labels}
-        payment={null}
-        title={props.labels.noPaymentTitle}
-      />
-    );
+function ActiveCheckoutState(
+  props: EventPaymentCheckoutProps & {
+    payment: PayableEventPaymentCheckoutPayment;
   }
-
-  if (!isPayablePayment(props.payment)) {
-    return (
-      <StaticCheckoutState
-        body={props.labels.alreadyHandledBody}
-        labels={props.labels}
-        payment={props.payment}
-        title={props.labels.alreadyHandledTitle}
-      />
-    );
-  }
-
-  if (!props.publishableKey) {
-    return (
-      <section className="mx-auto flex max-w-4xl flex-col gap-5">
-        <h1 className="font-mit-serif text-3xl font-semibold tracking-tight text-mit-text">
-          {props.title}
-        </h1>
-        <PaymentSummary
-          amount={props.payment.amount}
-          labels={props.labels}
-          status={props.payment.statusLabel}
-        />
-        <p
-          className="rounded-lg border border-mit-line bg-muted/30 px-3 py-2 text-sm text-mit-readable-ink"
-          role="status"
-        >
-          {props.labels.checkoutUnavailable}
-        </p>
-      </section>
-    );
-  }
+) {
+  const checkoutRef = React.useRef<HTMLElement | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
+  useEmbeddedCheckout({
+    checkoutLoadError: props.labels.checkoutLoadError,
+    checkoutRef,
+    clientSecretAction: props.clientSecretAction,
+    payment: props.payment,
+    publishableKey: props.publishableKey,
+    setError,
+  });
 
   return (
     <section className="mx-auto flex max-w-4xl flex-col gap-5">
@@ -269,4 +259,53 @@ export function EventPaymentCheckout(props: EventPaymentCheckoutProps) {
       </section>
     </section>
   );
+}
+
+export function EventPaymentCheckout(props: EventPaymentCheckoutProps) {
+  const { payment } = props;
+
+  if (!payment) {
+    return (
+      <StaticCheckoutState
+        body={props.labels.noPaymentBody}
+        labels={props.labels}
+        payment={null}
+        title={props.labels.noPaymentTitle}
+      />
+    );
+  }
+
+  if (!isPayablePayment(payment)) {
+    return (
+      <StaticCheckoutState
+        body={props.labels.alreadyHandledBody}
+        labels={props.labels}
+        payment={payment}
+        title={props.labels.alreadyHandledTitle}
+      />
+    );
+  }
+
+  if (!props.publishableKey) {
+    return (
+      <section className="mx-auto flex max-w-4xl flex-col gap-5">
+        <h1 className="font-mit-serif text-3xl font-semibold tracking-tight text-mit-text">
+          {props.title}
+        </h1>
+        <PaymentSummary
+          amount={payment.amount}
+          labels={props.labels}
+          status={payment.statusLabel}
+        />
+        <p
+          className="rounded-lg border border-mit-line bg-muted/30 px-3 py-2 text-sm text-mit-readable-ink"
+          role="status"
+        >
+          {props.labels.checkoutUnavailable}
+        </p>
+      </section>
+    );
+  }
+
+  return <ActiveCheckoutState {...props} payment={payment} />;
 }
