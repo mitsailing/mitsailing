@@ -2,6 +2,7 @@ import { Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { EventPaymentStatus } from '@/generated/prisma/enums';
+import type { EventPaymentStatus as EventPaymentStatusValue } from '@/generated/prisma/enums';
 import {
   markAdminEventPaymentHandledAction,
   resendAdminEventPaymentRequestAction,
@@ -19,60 +20,22 @@ type PaymentStatus = NonNullable<
 type PaymentStatusTranslationKey =
   Parameters<AdminEventRegistrationsTranslations>[0];
 
-function terminalPaymentStatusLabel(
-  status: Extract<
-    PaymentStatus,
-    | typeof EventPaymentStatus.cancelled
-    | typeof EventPaymentStatus.disputed
-    | typeof EventPaymentStatus.handled
-    | typeof EventPaymentStatus.paid
-    | typeof EventPaymentStatus.refunded
-  >
-): PaymentStatusTranslationKey {
-  if (status === EventPaymentStatus.cancelled) {
-    return 'payment_status_cancelled';
-  }
-  if (status === EventPaymentStatus.disputed) {
-    return 'payment_status_disputed';
-  }
-  if (status === EventPaymentStatus.handled) {
-    return 'payment_status_handled';
-  }
-  if (status === EventPaymentStatus.paid) {
-    return 'payment_status_paid';
-  }
-  return 'payment_status_refunded';
-}
-
-function payablePaymentStatusLabel(
-  status: Extract<
-    PaymentStatus,
-    | typeof EventPaymentStatus.checkout_created
-    | typeof EventPaymentStatus.past_due
-    | typeof EventPaymentStatus.pending
-  >
-): PaymentStatusTranslationKey {
-  if (status === EventPaymentStatus.checkout_created) {
-    return 'payment_status_checkout_created';
-  }
-  if (status === EventPaymentStatus.past_due) {
-    return 'payment_status_past_due';
-  }
-  return 'payment_status_pending';
-}
+const paymentStatusLabelKeys = {
+  [EventPaymentStatus.cancelled]: 'payment_status_cancelled',
+  [EventPaymentStatus.checkout_created]: 'payment_status_checkout_created',
+  [EventPaymentStatus.disputed]: 'payment_status_disputed',
+  [EventPaymentStatus.handled]: 'payment_status_handled',
+  [EventPaymentStatus.paid]: 'payment_status_paid',
+  [EventPaymentStatus.past_due]: 'payment_status_past_due',
+  [EventPaymentStatus.pending]: 'payment_status_pending',
+  [EventPaymentStatus.refunded]: 'payment_status_refunded',
+} satisfies Record<EventPaymentStatusValue, PaymentStatusTranslationKey>;
 
 function paymentStatusLabel(
   status: PaymentStatus,
   t: AdminEventRegistrationsTranslations
 ): string {
-  if (
-    status === EventPaymentStatus.checkout_created ||
-    status === EventPaymentStatus.past_due ||
-    status === EventPaymentStatus.pending
-  ) {
-    return t(payablePaymentStatusLabel(status));
-  }
-  return t(terminalPaymentStatusLabel(status));
+  return t(paymentStatusLabelKeys[status]);
 }
 
 function canMarkPaymentHandled(status: PaymentStatus): boolean {

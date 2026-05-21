@@ -46,4 +46,34 @@ describe('AdminCatalogListCell', () => {
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
     expect(screen.getByText(unsafeHref)).toBeInTheDocument();
   });
+
+  it('renders name edit links for app paths', () => {
+    render(
+      <AdminCatalogListCell
+        field="name"
+        kind="text"
+        listNameEditHref="/admin/catalog/boats/1/edit"
+        row={{ id: '1', name: 'Boat one' }}
+      />
+    );
+
+    expect(screen.getByRole('link', { name: 'Boat one' })).toHaveAttribute(
+      'href',
+      '/admin/catalog/boats/1/edit'
+    );
+  });
+
+  it('renders unsafe name edit links as plain text', () => {
+    render(
+      <AdminCatalogListCell
+        field="name"
+        kind="text"
+        listNameEditHref="https://example.com/admin"
+        row={{ id: '1', name: 'Boat one' }}
+      />
+    );
+
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expect(screen.getByText('Boat one')).toBeInTheDocument();
+  });
 });

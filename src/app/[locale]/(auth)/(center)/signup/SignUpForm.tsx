@@ -69,7 +69,7 @@ export function SignUpForm(props: SignUpFormProps) {
   async function onSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-    if (password !== passwordConfirmation) {
+    if (!Object.is(password, passwordConfirmation)) {
       setError({
         message: t('error_password_mismatch'),
         showSignInLinks: false,

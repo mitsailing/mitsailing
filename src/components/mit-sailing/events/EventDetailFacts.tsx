@@ -25,6 +25,7 @@ const compactTimeFormatter = new Intl.DateTimeFormat('en-US', {
   hour12: true,
   minute: '2-digit',
 });
+const safeRelativeAvatarImageUrlPattern = /^\/(?!\/)/;
 
 function adminInitials(name: string): string {
   const parts = name
@@ -76,27 +77,20 @@ function personInitials(name: string): string {
   return `${first.charAt(0)}${second.charAt(0)}`.toUpperCase() || '?';
 }
 
-function isSafeRelativeAvatarImageUrl(value: string): boolean {
-  return value.startsWith('/') && !value.startsWith('//');
-}
-
-function safeAbsoluteAvatarImageUrl(value: string): string | null {
-  if (!URL.canParse(value)) {
-    return null;
-  }
-  const url = new URL(value);
-  return url.protocol === 'https:' ? url.href : null;
-}
-
-function safeAvatarImageUrl(value: string | null): string | null {
+const safeAvatarImageUrl = (value: string | null): string | null => {
   if (!value) {
     return null;
   }
-  if (isSafeRelativeAvatarImageUrl(value)) {
+  if (safeRelativeAvatarImageUrlPattern.test(value)) {
     return value;
   }
-  return safeAbsoluteAvatarImageUrl(value);
-}
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' ? url.href : null;
+  } catch {
+    return null;
+  }
+};
 
 function avatarImageStyle(value: string): React.CSSProperties {
   return {
@@ -254,6 +248,7 @@ export function EventDetailFacts(props: {
   t: Awaited<ReturnType<typeof getTranslations<'MitSailingEvents'>>>;
 }) {
   const addressLines = eventAddressLines(props.event);
+  const addressMapHrefProps = { href: eventAddressMapHref(addressLines) };
   return (
     <div className="mt-5 grid max-w-3xl gap-3 border-y border-mit-line py-3.5">
       <DetailFactSection
@@ -295,7 +290,7 @@ export function EventDetailFacts(props: {
               'inline-flex flex-col text-mit-red no-underline hover:underline dark:text-mit-red-ink',
               textFocusRingClassName
             )}
-            href={eventAddressMapHref(addressLines)}
+            {...addressMapHrefProps}
             rel="noopener noreferrer"
             target="_blank"
           >

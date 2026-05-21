@@ -38,9 +38,10 @@ function renderAdminCatalogNameListContent(props: {
   if (display.length === 0) {
     return <span className="text-slate-400">—</span>;
   }
-  if (props.listNameEditHref) {
+  if (props.listNameEditHref && isAppRelativeCmsHref(props.listNameEditHref)) {
+    const editHrefProps = { href: props.listNameEditHref };
     return (
-      <Link className={nameEditLinkClassName} href={props.listNameEditHref}>
+      <Link className={nameEditLinkClassName} {...editHrefProps}>
         {display}
       </Link>
     );
@@ -64,15 +65,20 @@ function renderUrlListContent(raw: string): React.ReactElement {
     return <span>{raw}</span>;
   }
   const label = raw.length > 48 ? `${raw.slice(0, 45)}…` : raw;
+  const hrefProps = { href };
   if (isAppRelativeCmsHref(href)) {
     return (
-      <Link className={urlLinkClassName} href={href}>
+      <Link className={urlLinkClassName} {...hrefProps}>
         {label}
       </Link>
     );
   }
   return (
-    <a className={urlLinkClassName} href={href} {...externalCmsLinkProps(href)}>
+    <a
+      className={urlLinkClassName}
+      {...hrefProps}
+      {...externalCmsLinkProps(href)}
+    >
       {label}
     </a>
   );
