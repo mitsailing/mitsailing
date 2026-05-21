@@ -5,12 +5,16 @@ import { revalidatePath } from 'next/cache';
 import { redirect, unstable_rethrow } from 'next/navigation';
 import * as z from 'zod';
 import { Prisma } from '@/generated/prisma/client';
-import { EventRegistrationStatus } from '@/generated/prisma/enums';
+import {
+  EventPaymentStatus,
+  EventRegistrationStatus,
+} from '@/generated/prisma/enums';
 import type { EventAnswerType } from '@/generated/prisma/enums';
 import { verifySession } from '@/libs/auth/dal';
 import { Role } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
 import { logger } from '@/libs/Logger';
+import { getEventPaymentEligibility } from '@/libs/mit-sailing/eventPayments';
 import { questionOptionsFromJson } from '@/libs/mit-sailing/eventQueries';
 import { parsePublicEventRegistrationAnswersFromForm } from '@/libs/mit-sailing/eventRegistrationAnswerValidation';
 import type { PublicRegistrationQuestionForValidation } from '@/libs/mit-sailing/eventRegistrationAnswerValidation';
@@ -178,7 +182,9 @@ type PublicEventRegistrationLockedEvent = {
   allowRepeatTeamCaptain: boolean;
   registrationStart: Date | null;
   registrationEnd: Date | null;
-  entryFees: { id: string }[];
+  entryFees: { amountCents: number; description: string; id: string }[];
+  paymentDeadlineAt: Date | null;
+  paymentsEnabled: boolean;
 };
 
 function trimmedFormString(formData: FormData, fieldName: string): string {
@@ -556,6 +562,31 @@ function eventRegistrationErrorUrl(
   )}`;
 }
 
+function eventCheckoutUrl(locale: string, slug: string): string {
+  return getI18nPath(`/events/${encodeURIComponent(slug)}/checkout`, locale);
+}
+
+function selectedPaymentEventFee(options: {
+  entryFees: { amountCents: number; description: string; id: string }[];
+  paymentDeadlineAt: Date | null;
+  paymentsEnabled: boolean;
+  selectedFeeId: string | null;
+}) {
+  const eligibility = getEventPaymentEligibility({
+    entryFees: options.entryFees,
+    paymentDeadlineAt: options.paymentDeadlineAt,
+    paymentsEnabled: options.paymentsEnabled,
+  });
+  if (!eligibility.canCreatePayment) {
+    return null;
+  }
+  return (
+    options.entryFees.find(
+      (fee) => fee.id === options.selectedFeeId && fee.amountCents > 0
+    ) ?? null
+  );
+}
+
 function mutationCodeFromPrisma(error: unknown): EventRegistrationMutationCode {
   if (
     error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -743,8 +774,9 @@ export async function createPublicEventRegistrationAction(
     });
   }
 
+  let redirectToCheckout = false;
   try {
-    await prisma.$transaction(
+    const result = await prisma.$transaction(
       async (tx: Prisma.TransactionClient) => {
         await tx.$queryRaw`
           SELECT id
@@ -758,6 +790,8 @@ export async function createPublicEventRegistrationAction(
             id: true,
             isPublished: true,
             maxParticipants: true,
+            paymentDeadlineAt: true,
+            paymentsEnabled: true,
             requiresApproval: true,
             requiresPhone: true,
             usesTeamRegistration: true,
@@ -768,7 +802,7 @@ export async function createPublicEventRegistrationAction(
             registrationEnd: true,
             entryFees: {
               orderBy: [{ isDeposit: 'desc' }, { description: 'asc' }],
-              select: { id: true },
+              select: { amountCents: true, description: true, id: true },
             },
           },
         });
@@ -834,12 +868,39 @@ export async function createPublicEventRegistrationAction(
           team: lockedTeam,
           tx,
         });
+        const paymentFee = selectedPaymentEventFee({
+          ...lockedContext.event,
+          selectedFeeId: lockedSelectedFee.eventEntryFeeId,
+        });
+        if (
+          status === EventRegistrationStatus.approved &&
+          paymentFee !== null
+        ) {
+          await tx.eventPayment.upsert({
+            create: {
+              amountCents: paymentFee.amountCents,
+              currency: 'usd',
+              eventId: event.id,
+              id: randomUUID(),
+              registrationId,
+              selectedFeeDescription: paymentFee.description,
+              selectedFeeId: paymentFee.id,
+              status: EventPaymentStatus.pending,
+              userId: access.userId,
+            },
+            update: {},
+            where: { registrationId },
+          });
+          return { redirectToCheckout: true };
+        }
+        return { redirectToCheckout: false };
       },
       {
         maxWait: 5000,
         timeout: 10_000,
       }
     );
+    ({ redirectToCheckout } = result);
   } catch (error: unknown) {
     unstable_rethrow(error);
     if (error instanceof EventRegistrationFlowError) {
@@ -852,7 +913,11 @@ export async function createPublicEventRegistrationAction(
   }
 
   revalidatePath(getI18nPath(`/events/${encodeURIComponent(slug)}`, locale));
-  redirect(getI18nPath(`/events/${encodeURIComponent(slug)}`, locale));
+  redirect(
+    redirectToCheckout
+      ? eventCheckoutUrl(locale, slug)
+      : getI18nPath(`/events/${encodeURIComponent(slug)}`, locale)
+  );
 }
 
 /**
@@ -892,9 +957,25 @@ export async function cancelPublicEventRegistrationAction(
     redirect(eventDetailErrorUrl(locale, slug, mutationCodeFromPrisma(error)));
   }
   try {
-    await prisma.eventRegistration.updateMany({
-      where: { eventId: event.id, userId: access.userId },
-      data: { status: EventRegistrationStatus.cancelled },
+    await prisma.$transaction(async (tx) => {
+      await tx.eventRegistration.updateMany({
+        where: { eventId: event.id, userId: access.userId },
+        data: { status: EventRegistrationStatus.cancelled },
+      });
+      await tx.eventPayment.updateMany({
+        where: {
+          eventId: event.id,
+          userId: access.userId,
+          status: {
+            in: [
+              EventPaymentStatus.checkout_created,
+              EventPaymentStatus.past_due,
+              EventPaymentStatus.pending,
+            ],
+          },
+        },
+        data: { status: EventPaymentStatus.cancelled },
+      });
     });
   } catch (error: unknown) {
     unstable_rethrow(error);

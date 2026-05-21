@@ -911,7 +911,10 @@ function EventCategoryCatalogForm(props: AdminCatalogFormProps) {
       <form
         action={props.formAction}
         className="flex max-w-xl flex-col gap-4"
-        onSubmit={handleSubmit}
+        onSubmit={(event) => {
+          // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the validation promise.
+          void handleSubmit(event);
+        }}
       >
         <div className="flex flex-col gap-1.5 text-sm">
           <Label className="text-foreground" htmlFor="catalog-field-name">

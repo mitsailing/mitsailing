@@ -43,7 +43,10 @@ export function SignOutForm(props: SignOutFormProps) {
         props.buttonClassName ??
         'h-auto min-h-0 rounded-md border-none bg-transparent px-0 py-0 font-normal text-gray-700 shadow-none hover:bg-transparent hover:text-gray-900 disabled:opacity-60'
       }
-      onClick={onClick}
+      onClick={() => {
+        // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the sign-out promise.
+        void onClick();
+      }}
       pending={submitting}
       pendingLabel={tCommon('pending_submitting')}
       type="button"

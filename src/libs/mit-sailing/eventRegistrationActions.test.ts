@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { EventRegistrationStatus } from '@/generated/prisma/enums';
+import {
+  EventPaymentStatus,
+  EventRegistrationStatus,
+} from '@/generated/prisma/enums';
 import { Role } from '@/libs/auth/roles';
 
 const mocks = vi.hoisted(() => ({
@@ -15,6 +18,8 @@ const mocks = vi.hoisted(() => ({
   eventRegistrationTeamDeleteMany: vi.fn(),
   eventRegistrationUpdate: vi.fn(),
   eventRegistrationUpdateMany: vi.fn(),
+  eventPaymentUpsert: vi.fn(),
+  eventPaymentUpdateMany: vi.fn(),
   queryRaw: vi.fn(),
   userFindUnique: vi.fn(),
   userUpdate: vi.fn(),
@@ -133,6 +138,8 @@ function mockTeamRegistrationEvent(): void {
     id: 'event-1',
     isPublished: true,
     maxParticipants: null,
+    paymentDeadlineAt: null,
+    paymentsEnabled: false,
     personsPerBoat: 2,
     registrationEnd: null,
     registrationStart: null,
@@ -155,6 +162,8 @@ beforeEach(() => {
   mocks.eventRegistrationTeamDeleteMany.mockReset();
   mocks.eventRegistrationUpdate.mockReset();
   mocks.eventRegistrationUpdateMany.mockReset();
+  mocks.eventPaymentUpsert.mockReset();
+  mocks.eventPaymentUpdateMany.mockReset();
   mocks.queryRaw.mockReset();
   mocks.userFindUnique.mockReset();
   mocks.userUpdate.mockReset();
@@ -208,6 +217,8 @@ beforeEach(() => {
     id: 'event-1',
     isPublished: true,
     maxParticipants: null,
+    paymentDeadlineAt: null,
+    paymentsEnabled: false,
     registrationEnd: null,
     registrationStart: null,
     requiresApproval: true,
@@ -224,6 +235,7 @@ beforeEach(() => {
     id: 'registration-1',
   });
   mocks.eventRegistrationUpdateMany.mockResolvedValue({ count: 1 });
+  mocks.eventPaymentUpdateMany.mockResolvedValue({ count: 1 });
   mocks.userFindUnique.mockResolvedValue({ phone: null });
   mocks.zenstackForAuthContext.mockReturnValue({
     event: {
@@ -245,6 +257,7 @@ beforeEach(() => {
           create: typeof mocks.eventRegistrationCreate;
           findFirst: typeof mocks.eventRegistrationFindFirst;
           update: typeof mocks.eventRegistrationUpdate;
+          updateMany: typeof mocks.eventRegistrationUpdateMany;
         };
         eventRegistrationAnswer: {
           createMany: typeof mocks.eventRegistrationAnswerCreateMany;
@@ -256,6 +269,10 @@ beforeEach(() => {
         eventRegistrationTeam: {
           upsert: typeof mocks.eventRegistrationTeamUpsert;
           deleteMany: typeof mocks.eventRegistrationTeamDeleteMany;
+        };
+        eventPayment: {
+          upsert: typeof mocks.eventPaymentUpsert;
+          updateMany: typeof mocks.eventPaymentUpdateMany;
         };
         user: {
           findUnique: typeof mocks.userFindUnique;
@@ -273,6 +290,7 @@ beforeEach(() => {
           create: mocks.eventRegistrationCreate,
           findFirst: mocks.eventRegistrationFindFirst,
           update: mocks.eventRegistrationUpdate,
+          updateMany: mocks.eventRegistrationUpdateMany,
         },
         eventRegistrationAnswer: {
           createMany: mocks.eventRegistrationAnswerCreateMany,
@@ -284,6 +302,10 @@ beforeEach(() => {
         eventRegistrationTeam: {
           upsert: mocks.eventRegistrationTeamUpsert,
           deleteMany: mocks.eventRegistrationTeamDeleteMany,
+        },
+        eventPayment: {
+          upsert: mocks.eventPaymentUpsert,
+          updateMany: mocks.eventPaymentUpdateMany,
         },
         user: {
           findUnique: mocks.userFindUnique,
@@ -471,6 +493,128 @@ describe('createPublicEventRegistrationAction', () => {
     });
     expect(mocks.eventRegistrationCreate).not.toHaveBeenCalled();
     expect(mocks.eventRegistrationUpdate).not.toHaveBeenCalled();
+  });
+
+  it('creates payment snapshot and redirects auto-approved paid registrations to checkout', async () => {
+    mocks.eventFindUnique.mockResolvedValue({
+      allowRepeatTeamCaptain: false,
+      boatsPerTeam: 1,
+      entryFees: [
+        {
+          amountCents: 15_000,
+          description: 'Adult entry',
+          id: 'fee-1',
+        },
+      ],
+      id: 'event-1',
+      isPublished: true,
+      maxParticipants: null,
+      paymentDeadlineAt: new Date('2026-06-01T13:00:00.000Z'),
+      paymentsEnabled: true,
+      personsPerBoat: 1,
+      registrationEnd: null,
+      registrationStart: null,
+      requiresApproval: false,
+      requiresPhone: false,
+      usesTeamRegistration: false,
+    });
+    const { createPublicEventRegistrationAction } =
+      await import('@/libs/mit-sailing/eventRegistrationActions');
+
+    await expect(
+      createPublicEventRegistrationAction(
+        'en',
+        'intro-sail',
+        {
+          code: null,
+          fieldErrors: {},
+          status: 'idle',
+          values: {},
+        },
+        registrationFormData()
+      )
+    ).rejects.toThrow('NEXT_REDIRECT:/events/intro-sail/checkout');
+
+    expect(mocks.eventPaymentUpsert).toHaveBeenCalledWith({
+      create: expect.objectContaining({
+        amountCents: 15_000,
+        currency: 'usd',
+        eventId: 'event-1',
+        registrationId: 'registration-1',
+        selectedFeeDescription: 'Adult entry',
+        selectedFeeId: 'fee-1',
+        status: EventPaymentStatus.pending,
+        userId: 'user-1',
+      }),
+      update: {},
+      where: { registrationId: 'registration-1' },
+    });
+  });
+
+  it('creates payment snapshot from the selected event fee', async () => {
+    mocks.eventFindFirst.mockResolvedValue({
+      entryFees: [{ id: 'fee-free' }, { id: 'fee-premium' }],
+      id: 'event-1',
+      requiresPhone: false,
+      registrationEnd: null,
+      registrationQuestions: [],
+      registrationStart: null,
+    });
+    mocks.eventFindUnique.mockResolvedValue({
+      allowRepeatTeamCaptain: false,
+      boatsPerTeam: 1,
+      entryFees: [
+        {
+          amountCents: 0,
+          description: 'Volunteer comp',
+          id: 'fee-free',
+        },
+        {
+          amountCents: 25_000,
+          description: 'Premium entry',
+          id: 'fee-premium',
+        },
+      ],
+      id: 'event-1',
+      isPublished: true,
+      maxParticipants: null,
+      paymentDeadlineAt: new Date('2026-06-01T13:00:00.000Z'),
+      paymentsEnabled: true,
+      personsPerBoat: 1,
+      registrationEnd: null,
+      registrationStart: null,
+      requiresApproval: false,
+      requiresPhone: false,
+      usesTeamRegistration: false,
+    });
+    const formData = registrationFormData();
+    formData.set('eventEntryFeeId', 'fee-premium');
+    const { createPublicEventRegistrationAction } =
+      await import('@/libs/mit-sailing/eventRegistrationActions');
+
+    await expect(
+      createPublicEventRegistrationAction(
+        'en',
+        'intro-sail',
+        {
+          code: null,
+          fieldErrors: {},
+          status: 'idle',
+          values: {},
+        },
+        formData
+      )
+    ).rejects.toThrow('NEXT_REDIRECT:/events/intro-sail/checkout');
+
+    expect(mocks.eventPaymentUpsert).toHaveBeenCalledWith({
+      create: expect.objectContaining({
+        amountCents: 25_000,
+        selectedFeeDescription: 'Premium entry',
+        selectedFeeId: 'fee-premium',
+      }),
+      update: {},
+      where: { registrationId: 'registration-1' },
+    });
   });
 
   it('returns validation state when required phone is blank', async () => {
@@ -1145,6 +1289,20 @@ describe('cancelPublicEventRegistrationAction', () => {
     expect(mocks.eventRegistrationUpdateMany).toHaveBeenCalledWith({
       data: { status: EventRegistrationStatus.cancelled },
       where: { eventId: 'event-1', userId: 'user-1' },
+    });
+    expect(mocks.eventPaymentUpdateMany).toHaveBeenCalledWith({
+      data: { status: EventPaymentStatus.cancelled },
+      where: {
+        eventId: 'event-1',
+        status: {
+          in: [
+            EventPaymentStatus.checkout_created,
+            EventPaymentStatus.past_due,
+            EventPaymentStatus.pending,
+          ],
+        },
+        userId: 'user-1',
+      },
     });
   });
 

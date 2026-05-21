@@ -2,6 +2,7 @@ import {
   ArrowLeft,
   CreditCard,
   ExternalLink,
+  MapPin,
   Plus,
   Save,
   Trash2,
@@ -28,6 +29,7 @@ import { Input } from '@/components/ui/input';
 import { SubmitButton } from '@/components/ui/submit-button';
 import { Textarea } from '@/components/ui/textarea';
 import {
+  EventAddressPreset,
   EventAnswerType,
   EventDetailPageKind,
   EventRegistrationMode,
@@ -45,10 +47,12 @@ import {
   updateAdminEventBasicsAction,
   updateAdminEventDateAction,
   updateAdminEventFeeAction,
+  updateAdminEventLocationAction,
   updateAdminEventQuestionAction,
   deleteAdminEventDateAction,
   deleteAdminEventFeeAction,
   deleteAdminEventQuestionAction,
+  updateAdminEventPaymentSettingsAction,
 } from '@/libs/admin/events/eventAdminActions';
 import {
   adminEventShowPath,
@@ -1357,17 +1361,210 @@ function EventFeesSection(props: AdminEventFormViewProps) {
   );
 }
 
-function StripePlaceholder(props: { t: AdminEventFormTranslations }) {
+function addressPresetLabel(
+  preset: EventAddressPreset,
+  t: AdminEventFormTranslations
+): string {
+  if (preset === EventAddressPreset.pavilion) {
+    return t('address_preset_pavilion');
+  }
+  if (preset === EventAddressPreset.bluewater) {
+    return t('address_preset_bluewater');
+  }
+  return t('address_preset_custom');
+}
+
+function addressPresetHint(
+  preset: EventAddressPreset,
+  t: AdminEventFormTranslations
+): string {
+  if (preset === EventAddressPreset.pavilion) {
+    return t('address_preset_pavilion_hint');
+  }
+  if (preset === EventAddressPreset.bluewater) {
+    return t('address_preset_bluewater_hint');
+  }
+  return t('address_preset_custom_hint');
+}
+
+function EventPaymentSettingsSection(props: AdminEventFormViewProps) {
+  const updateAction = updateAdminEventPaymentSettingsAction.bind(
+    null,
+    props.locale,
+    props.event.slug
+  );
   return (
     <AdminEventFormSection
-      id="event-stripe"
-      subtitle={props.t('stripe_placeholder_body')}
-      title={props.t('section_stripe')}
+      id="event-payments"
+      subtitle={props.t('payments_settings_subtitle')}
+      title={props.t('section_payments')}
     >
-      <div className="flex items-center gap-3 rounded-lg border border-dashed border-border bg-muted/40 px-4 py-3 text-sm text-mit-readable-ink">
-        <CreditCard aria-hidden className="size-5" />
-        <span>{props.t('stripe_placeholder_status')}</span>
-      </div>
+      <form action={updateAction} className="flex flex-col gap-4">
+        <AdminEventCheckbox
+          defaultChecked={props.event.paymentsEnabled}
+          hint={props.t('field_payments_enabled_hint')}
+          label={props.t('field_payments_enabled')}
+          name="paymentsEnabled"
+        />
+        <AdminEventField
+          htmlFor="event-payment-deadline"
+          hint={props.t('field_payment_deadline_hint')}
+          label={props.t('field_payment_deadline')}
+        >
+          {(controlProps) => (
+            <Input
+              defaultValue={formatEasternDateTimeLocal(
+                props.event.paymentDeadlineAt
+              )}
+              id="event-payment-deadline"
+              name="paymentDeadlineAt"
+              type="datetime-local"
+              {...controlProps}
+            />
+          )}
+        </AdminEventField>
+        <div className="flex justify-end">
+          <SubmitButton
+            pendingLabel={props.tCommon('pending_saving')}
+            variant="mit"
+          >
+            <CreditCard aria-hidden className="size-4" />
+            {props.t('action_save_payment_settings')}
+          </SubmitButton>
+        </div>
+      </form>
+    </AdminEventFormSection>
+  );
+}
+
+function EventLocationSection(props: AdminEventFormViewProps) {
+  const updateAction = updateAdminEventLocationAction.bind(
+    null,
+    props.locale,
+    props.event.slug
+  );
+  return (
+    <AdminEventFormSection
+      id="event-location"
+      subtitle={props.t('location_settings_subtitle')}
+      title={props.t('section_location')}
+    >
+      <form action={updateAction} className="flex flex-col gap-4">
+        <fieldset className="grid gap-2">
+          <legend className="text-sm font-semibold text-foreground">
+            {props.t('field_address_preset')}
+          </legend>
+          {[
+            EventAddressPreset.pavilion,
+            EventAddressPreset.bluewater,
+            EventAddressPreset.custom,
+          ].map((preset) => (
+            <label
+              className="flex cursor-pointer items-start gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              key={preset}
+            >
+              <input
+                aria-label={addressPresetLabel(preset, props.t)}
+                className="mt-0.5"
+                defaultChecked={props.event.addressPreset === preset}
+                name="addressPreset"
+                type="radio"
+                value={preset}
+              />
+              <span className="flex flex-col">
+                <span className="font-medium">
+                  {addressPresetLabel(preset, props.t)}
+                </span>
+                <span className="text-xs text-mit-readable-ink">
+                  {addressPresetHint(preset, props.t)}
+                </span>
+              </span>
+            </label>
+          ))}
+        </fieldset>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <AdminEventField
+            htmlFor="event-address-name"
+            label={props.t('field_address_name')}
+          >
+            <Input
+              defaultValue={props.event.addressName ?? ''}
+              id="event-address-name"
+              name="addressName"
+            />
+          </AdminEventField>
+          <AdminEventField
+            htmlFor="event-address-line1"
+            label={props.t('field_address_line1')}
+          >
+            <Input
+              defaultValue={props.event.addressLine1 ?? ''}
+              id="event-address-line1"
+              name="addressLine1"
+            />
+          </AdminEventField>
+          <AdminEventField
+            htmlFor="event-address-line2"
+            label={props.t('field_address_line2')}
+          >
+            <Input
+              defaultValue={props.event.addressLine2 ?? ''}
+              id="event-address-line2"
+              name="addressLine2"
+            />
+          </AdminEventField>
+          <AdminEventField
+            htmlFor="event-address-city"
+            label={props.t('field_address_city')}
+          >
+            <Input
+              defaultValue={props.event.addressCity ?? ''}
+              id="event-address-city"
+              name="addressCity"
+            />
+          </AdminEventField>
+          <AdminEventField
+            htmlFor="event-address-state"
+            label={props.t('field_address_state')}
+          >
+            <Input
+              defaultValue={props.event.addressState ?? ''}
+              id="event-address-state"
+              name="addressState"
+            />
+          </AdminEventField>
+          <AdminEventField
+            htmlFor="event-address-postal-code"
+            label={props.t('field_address_postal_code')}
+          >
+            <Input
+              defaultValue={props.event.addressPostalCode ?? ''}
+              id="event-address-postal-code"
+              name="addressPostalCode"
+            />
+          </AdminEventField>
+          <AdminEventField
+            htmlFor="event-address-country"
+            label={props.t('field_address_country')}
+          >
+            <Input
+              defaultValue={props.event.addressCountry ?? ''}
+              id="event-address-country"
+              name="addressCountry"
+            />
+          </AdminEventField>
+        </div>
+        <div className="flex justify-end">
+          <SubmitButton
+            pendingLabel={props.tCommon('pending_saving')}
+            variant="mit"
+          >
+            <MapPin aria-hidden className="size-4" />
+            {props.t('action_save_location')}
+          </SubmitButton>
+        </div>
+      </form>
     </AdminEventFormSection>
   );
 }
@@ -1430,6 +1627,8 @@ export function AdminEventFormView(props: AdminEventFormViewProps) {
           >
             <EventFeesSection {...props} />
           </OptionalEditorSection>
+          <EventPaymentSettingsSection {...props} />
+          <EventLocationSection {...props} />
         </>
       ) : (
         <>
@@ -1441,7 +1640,6 @@ export function AdminEventFormView(props: AdminEventFormViewProps) {
           <ReadOnlyFeesSection {...props} />
         </>
       )}
-      <StripePlaceholder t={props.t} />
     </div>
   );
 }

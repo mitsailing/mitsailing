@@ -503,8 +503,9 @@ function AdminRichTextToolbar(props: {
         aria-expanded={props.pickerOpen}
         aria-label={t('rich_text_select_image')}
         disabled={props.disabled || props.mediaBusy}
-        onClick={async () => {
-          await toggleMediaPicker({
+        onClick={() => {
+          // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the picker promise.
+          void toggleMediaPicker({
             loadAssets: props.loadAssets,
             pickerOpen: props.pickerOpen,
             setPickerOpen: props.setPickerOpen,
@@ -581,8 +582,9 @@ function AdminRichTextToolbar(props: {
       <input
         accept="image/jpeg,image/png,image/webp,image/gif"
         className="sr-only"
-        onChange={async (event) => {
-          await handleFileInputChange({
+        onChange={(event) => {
+          // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the upload promise.
+          void handleFileInputChange({
             event,
             handleMediaFailure: props.handleMediaFailure,
             uploadImage: props.uploadImage,

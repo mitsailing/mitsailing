@@ -40,6 +40,12 @@ function stubRequiredProductionEnv(): void {
   vi.stubEnv('REDIS_URL', 'redis://redis:6379');
 }
 
+function stubRequiredStripeEnv(): void {
+  vi.stubEnv('STRIPE_SECRET_KEY', 'rk_test_restricted_key');
+  vi.stubEnv('NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY', 'pk_test_publishable_key');
+  vi.stubEnv('STRIPE_WEBHOOK_SECRET', 'whsec_test_webhook_secret');
+}
+
 describe('Env legacy MySQL sync validation', () => {
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -81,6 +87,7 @@ describe('Env legacy MySQL sync validation', () => {
     stubNewsletterRevalidateSecret();
     vi.stubEnv('APP_ENV', 'production');
     stubRequiredProductionEnv();
+    stubRequiredStripeEnv();
     vi.stubEnv('LEGACY_MYSQL_SYNC_ENABLED', 'true');
 
     await expect(import('@/libs/Env')).rejects.toThrow(
@@ -113,6 +120,7 @@ describe('Env legacy MySQL sync validation', () => {
     stubNewsletterRevalidateSecret();
     vi.stubEnv('APP_ENV', 'production');
     stubRequiredProductionEnv();
+    stubRequiredStripeEnv();
     vi.stubEnv('LEGACY_MYSQL_SYNC_ENABLED', 'true');
     vi.stubEnv('LEGACY_MYSQL_PASSWORD', 'secret');
 
@@ -130,6 +138,7 @@ describe('Env legacy MySQL sync validation', () => {
     vi.stubEnv('HEALTHCHECK_SECRET', 'x'.repeat(32));
     vi.stubEnv('NEXT_SERVER_ACTIONS_ENCRYPTION_KEY', 'x'.repeat(32));
     vi.stubEnv('REDIS_URL', 'redis://10.0.0.10:6379');
+    stubRequiredStripeEnv();
 
     await expect(import('@/libs/Env')).rejects.toThrow(
       'Invalid environment variables'
@@ -156,6 +165,7 @@ describe('Env legacy MySQL sync validation', () => {
     );
     vi.stubEnv('NEXT_SERVER_ACTIONS_ENCRYPTION_KEY', 'x'.repeat(32));
     vi.stubEnv('REDIS_URL', 'redis://10.0.0.10:6379');
+    stubRequiredStripeEnv();
 
     const { Env } = await import('@/libs/Env');
 
@@ -164,5 +174,43 @@ describe('Env legacy MySQL sync validation', () => {
     expect(Env.MEDIA_PUBLIC_BASE_URL).toBe('https://mitsailing.com');
     expect(Env.MEDIA_STORAGE_ROOT).toBe('/var/lib/mitsailing/cms-media');
     expect(Env.MEDIA_UPLOAD_BASE_URL).toBe('https://mitsailing.com');
+  });
+
+  it('allows local development without Stripe keys', async () => {
+    stubRequiredBaseEnv();
+    stubNewsletterRevalidateSecret();
+
+    const { Env } = await import('@/libs/Env');
+
+    expect(Env.STRIPE_SECRET_KEY).toBeUndefined();
+    expect(Env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY).toBeUndefined();
+    expect(Env.STRIPE_WEBHOOK_SECRET).toBeUndefined();
+  });
+
+  it('requires Stripe keys in staging', async () => {
+    stubRequiredBaseEnv();
+    stubNewsletterRevalidateSecret();
+    vi.stubEnv('APP_ENV', 'staging');
+    stubRequiredProductionEnv();
+
+    await expect(import('@/libs/Env')).rejects.toThrow(
+      'Invalid environment variables'
+    );
+  });
+
+  it('accepts Stripe keys in production', async () => {
+    stubRequiredBaseEnv();
+    stubNewsletterRevalidateSecret();
+    vi.stubEnv('APP_ENV', 'production');
+    stubRequiredProductionEnv();
+    stubRequiredStripeEnv();
+
+    const { Env } = await import('@/libs/Env');
+
+    expect(Env.STRIPE_SECRET_KEY).toBe('rk_test_restricted_key');
+    expect(Env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY).toBe(
+      'pk_test_publishable_key'
+    );
+    expect(Env.STRIPE_WEBHOOK_SECRET).toBe('whsec_test_webhook_secret');
   });
 });

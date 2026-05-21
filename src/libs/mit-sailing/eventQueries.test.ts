@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   eventDateFindMany: vi.fn(),
   eventRegistrationCount: vi.fn(),
   eventRegistrationFindFirst: vi.fn(),
+  eventRegistrationFindMany: vi.fn(),
   eventCategoryFindMany: vi.fn(),
   getZenStack: vi.fn(),
   zenstackForAuthContext: vi.fn(),
@@ -35,6 +36,7 @@ vi.mock('@/libs/DB', () => ({
     eventRegistration: {
       count: mocks.eventRegistrationCount,
       findFirst: mocks.eventRegistrationFindFirst,
+      findMany: mocks.eventRegistrationFindMany,
     },
   },
 }));
@@ -59,6 +61,7 @@ beforeEach(() => {
   mocks.eventDateFindMany.mockReset();
   mocks.eventRegistrationCount.mockReset();
   mocks.eventRegistrationFindFirst.mockReset();
+  mocks.eventRegistrationFindMany.mockReset();
   mocks.eventCategoryFindMany.mockReset();
   mocks.getZenStack.mockReset();
   mocks.zenstackForAuthContext.mockReset();
@@ -77,6 +80,7 @@ beforeEach(() => {
     eventRegistration: {
       count: mocks.eventRegistrationCount,
       findFirst: mocks.eventRegistrationFindFirst,
+      findMany: mocks.eventRegistrationFindMany,
     },
   });
   mocks.zenstackForAuthContext.mockReturnValue({
@@ -133,6 +137,14 @@ describe('getPublishedEventForPublicBySlug', () => {
       registrationMode: 'external',
       externalRegistrationUrl: 'https://example.com/register',
       externalEntriesUrl: 'https://example.com/entries',
+      addressPreset: 'pavilion',
+      addressName: '',
+      addressLine1: '',
+      addressLine2: null,
+      addressCity: '',
+      addressState: null,
+      addressPostalCode: null,
+      addressCountry: null,
       faqContent: '<p>Hidden FAQ</p>',
       faqVisible: false,
       isPublished: true,
@@ -182,6 +194,18 @@ describe('getPublishedEventForPublicBySlug', () => {
     mocks.eventRegistrationCount
       .mockResolvedValueOnce(4)
       .mockResolvedValueOnce(2);
+    mocks.eventRegistrationFindMany.mockResolvedValue([
+      {
+        id: 'registration-approved',
+        status: EventRegistrationStatus.approved,
+        user: { image: '/ada.jpg', name: 'Ada Lovelace' },
+      },
+      {
+        id: 'registration-pending',
+        status: EventRegistrationStatus.pending,
+        user: { image: null, name: 'Alan Turing' },
+      },
+    ]);
     const { getPublishedEventForPublicBySlug } =
       await import('@/libs/mit-sailing/eventQueries');
 
@@ -199,6 +223,7 @@ describe('getPublishedEventForPublicBySlug', () => {
           },
           externalEntriesUrl: true,
           externalRegistrationUrl: true,
+          addressPreset: true,
           registrationMode: true,
           usesTeamRegistration: true,
           boatsPerTeam: true,
@@ -228,6 +253,24 @@ describe('getPublishedEventForPublicBySlug', () => {
     ]);
     expect(result?.approvedRegistrationCount).toBe(4);
     expect(result?.pendingRegistrationCount).toBe(2);
+    expect(result?.addressName).toBe('MIT Sailing Pavilion');
+    expect(result?.addressLine1).toBe('134 Memorial Drive');
+    expect(result?.attendees).toEqual({
+      approved: [
+        {
+          id: 'registration-approved',
+          image: '/ada.jpg',
+          name: 'Ada Lovelace',
+        },
+      ],
+      pending: [
+        {
+          id: 'registration-pending',
+          image: null,
+          name: 'Alan Turing',
+        },
+      ],
+    });
     expect(result).not.toHaveProperty('faqContent');
     expect(result).not.toHaveProperty('faqVisible');
     expect(result).not.toHaveProperty('isPublished');
@@ -259,6 +302,23 @@ describe('getPublishedEventForPublicBySlug', () => {
     expect(mocks.eventRegistrationCount).toHaveBeenNthCalledWith(2, {
       where: { eventId: 'event-1', status: EventRegistrationStatus.pending },
     });
+    expect(mocks.eventRegistrationFindMany).toHaveBeenCalledWith({
+      orderBy: [{ status: 'asc' }, { createdAt: 'asc' }],
+      select: {
+        id: true,
+        status: true,
+        user: { select: { image: true, name: true } },
+      },
+      where: {
+        eventId: 'event-1',
+        status: {
+          in: [
+            EventRegistrationStatus.approved,
+            EventRegistrationStatus.pending,
+          ],
+        },
+      },
+    });
   });
 
   it('returns visible non-empty public content sections in legacy order', async () => {
@@ -276,6 +336,14 @@ describe('getPublishedEventForPublicBySlug', () => {
       registrationEnd: null,
       detailPageKind: 'standard',
       externalDetailUrl: null,
+      addressPreset: 'custom',
+      addressName: null,
+      addressLine1: null,
+      addressLine2: null,
+      addressCity: null,
+      addressState: null,
+      addressPostalCode: null,
+      addressCountry: null,
       faqContent: '<p>Questions</p>',
       faqVisible: true,
       noticeOfRaceContent: '<p>Notice</p>',
@@ -291,6 +359,7 @@ describe('getPublishedEventForPublicBySlug', () => {
       entryFees: [],
     });
     mocks.eventRegistrationCount.mockResolvedValue(0);
+    mocks.eventRegistrationFindMany.mockResolvedValue([]);
     const { getPublishedEventForPublicBySlug } =
       await import('@/libs/mit-sailing/eventQueries');
 

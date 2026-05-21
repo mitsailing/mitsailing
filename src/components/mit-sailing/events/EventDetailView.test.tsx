@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { createTranslator } from 'next-intl';
 import type * as React from 'react';
 import { describe, expect, it, vi } from 'vitest';
@@ -34,11 +34,22 @@ vi.mock('@/libs/mit-sailing/eventRegistrationActions', () => ({
   cancelPublicEventRegistrationAction: vi.fn(),
 }));
 
+function expectElementBefore(first: Element, second: Element): void {
+  const orderedElements = [...document.body.querySelectorAll('*')];
+  expect(orderedElements.indexOf(first)).toBeLessThan(
+    orderedElements.indexOf(second)
+  );
+}
+
 function eventFixture(
   overrides: Partial<PublicEventDetail> = {}
 ): PublicEventDetail {
   return {
     admins: [],
+    attendees: {
+      approved: [],
+      pending: [],
+    },
     approvedRegistrationCount: 0,
     category: { name: 'Racing' },
     dates: [],
@@ -181,6 +192,129 @@ describe('EventDetailView', () => {
       'https://example.com/entries'
     );
     expect(screen.queryByRole('link', { name: 'Register' })).toBeNull();
+  });
+
+  it('keeps event facts above the description without repeating them later', async () => {
+    render(
+      await EventDetailView({
+        currentRegistration: null,
+        errorCode: null,
+        event: eventFixture({
+          addressCity: 'Cambridge',
+          addressCountry: 'US',
+          addressLine1: '134 Memorial Drive',
+          addressLine2: null,
+          addressName: 'MIT Sailing Pavilion',
+          addressPostalCode: '02139',
+          addressState: 'MA',
+          admins: [
+            {
+              admin: {
+                email: 'race@example.com',
+                id: 'admin-1',
+                name: 'Race Chair',
+              },
+              id: 'event-admin-1',
+            },
+          ],
+          approvedRegistrationCount: 7,
+          attendees: {
+            approved: [
+              { id: 'registration-1', image: null, name: 'Ada Lovelace' },
+              {
+                id: 'registration-2',
+                image: '/avatars/grace.jpg',
+                name: 'Grace Hopper',
+              },
+            ],
+            pending: [
+              { id: 'registration-3', image: null, name: 'Alan Turing' },
+            ],
+          },
+          dates: [
+            {
+              endDateTime: new Date('2026-06-02T18:00:00Z'),
+              id: 'date-1',
+              startDateTime: new Date('2026-06-02T14:00:00Z'),
+            },
+          ],
+          entryFees: [
+            {
+              amountCents: 15_000,
+              description: 'Adult entry',
+              id: 'fee-1',
+              isDeposit: false,
+            },
+          ],
+          maxParticipants: 10,
+          pendingRegistrationCount: 2,
+          registrationEnd: new Date('2026-06-01T16:00:00Z'),
+          registrationStart: new Date('2026-05-20T16:00:00Z'),
+        }),
+        isSignedIn: true,
+        locale: 'en',
+      })
+    );
+
+    const schedule = screen.getByText('Jun 2, 2026, 10:00 AM – 2:00 PM');
+    const host = screen.getByText('Race Chair');
+    const location = screen.getByText(/MIT Sailing Pavilion/);
+    const going = screen.getByText('Going');
+    const description = screen.getByText('Race around the harbor.');
+
+    expect(screen.getByText('Race Chair')).toBeVisible();
+    expect(screen.getByText(/MIT Sailing Pavilion/)).toBeVisible();
+    expect(screen.getByText('Going')).toBeVisible();
+    expect(screen.getByLabelText('Ada Lovelace')).toBeVisible();
+    expect(screen.getByLabelText('Grace Hopper')).toBeVisible();
+    expect(screen.getByText('Pending approval')).toBeVisible();
+    expect(screen.getByLabelText('Alan Turing')).toBeVisible();
+    expectElementBefore(schedule, description);
+    expectElementBefore(host, description);
+    expectElementBefore(location, description);
+    expectElementBefore(going, description);
+    expect(
+      screen.queryByRole('region', { name: 'Event at a glance' })
+    ).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Entry fees' })).toBeVisible();
+    expect(screen.getByText('$150.00')).toBeVisible();
+    expect(screen.getByText('7 / 10 confirmed')).toBeVisible();
+    expect(screen.getAllByText('Capacity')).toHaveLength(1);
+    expect(screen.queryByText('Opened')).toBeNull();
+    expect(screen.getByText(/134 Memorial Drive/)).toBeVisible();
+
+    const registrationPanel = screen.getByRole('region', {
+      name: 'Reserve your spot',
+    });
+    expect(within(registrationPanel).queryByText('Opened')).toBeNull();
+    expect(
+      within(registrationPanel).queryByText('Jun 2, 2026, 10:00 AM – 2:00 PM')
+    ).toBeNull();
+    expect(
+      within(registrationPanel).queryByText('MIT Sailing Pavilion')
+    ).toBeNull();
+  });
+
+  it('hides short name on the detail page', async () => {
+    render(
+      await EventDetailView({
+        currentRegistration: null,
+        errorCode: null,
+        event: eventFixture({
+          name: 'Intercollegiate Overnight Series',
+          shortName: 'Overnight Series',
+        }),
+        isSignedIn: true,
+        locale: 'en',
+      })
+    );
+
+    expect(
+      screen.getByRole('heading', {
+        name: 'Intercollegiate Overnight Series',
+      })
+    ).toBeVisible();
+    expect(screen.queryByText('Overnight Series')).toBeNull();
   });
 
   it('omits unsafe external registration links', async () => {

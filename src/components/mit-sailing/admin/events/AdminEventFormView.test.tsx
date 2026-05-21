@@ -4,6 +4,7 @@ import { createTranslator } from 'next-intl';
 import type * as React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import {
+  EventAddressPreset,
   EventAnswerType,
   EventDetailPageKind,
   EventRegistrationMode,
@@ -22,6 +23,8 @@ vi.mock('@/libs/admin/events/eventAdminActions', () => ({
   updateAdminEventBasicsAction: vi.fn(),
   updateAdminEventDateAction: vi.fn(),
   updateAdminEventFeeAction: vi.fn(),
+  updateAdminEventLocationAction: vi.fn(),
+  updateAdminEventPaymentSettingsAction: vi.fn(),
   updateAdminEventQuestionAction: vi.fn(),
 }));
 
@@ -68,6 +71,14 @@ function createEventFixture(
       },
     ],
     allowRepeatTeamCaptain: false,
+    addressCity: null,
+    addressCountry: null,
+    addressLine1: null,
+    addressLine2: null,
+    addressName: null,
+    addressPostalCode: null,
+    addressPreset: EventAddressPreset.pavilion,
+    addressState: null,
     boatsPerTeam: 1,
     createdAt: new Date('2026-05-01T12:00:00Z'),
     dates: [
@@ -93,6 +104,8 @@ function createEventFixture(
     name: 'Intro Sail',
     noticeOfRaceContent: '',
     noticeOfRaceVisible: false,
+    paymentDeadlineAt: null,
+    paymentsEnabled: false,
     personsPerBoat: 1,
     registrationCounts: {
       approved: 1,
@@ -294,6 +307,10 @@ describe('AdminEventFormView', () => {
     expect(
       screen.getByRole('heading', { name: 'Contacts / event admins' })
     ).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Payments' })).toBeVisible();
+    expect(
+      screen.getByRole('heading', { name: 'Event address' })
+    ).toBeVisible();
     expect(screen.queryByText('Record metadata')).toBeNull();
     expect(screen.queryByText('Summary')).toBeNull();
     expect(
@@ -314,6 +331,14 @@ describe('AdminEventFormView', () => {
     for (const label of optionalEditorLabels) {
       expect(optionalSection(label)).not.toHaveAttribute('open');
     }
+    expect(
+      screen.getByRole('checkbox', {
+        name: /Collect payment for approved registrations/,
+      })
+    ).not.toBeChecked();
+    expect(screen.getByLabelText('Event address')).toHaveTextContent(
+      'MIT Sailing Pavilion'
+    );
   });
 
   it('opens optional boxes with existing editable content', () => {

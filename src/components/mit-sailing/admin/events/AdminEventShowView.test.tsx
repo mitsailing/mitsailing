@@ -7,6 +7,7 @@ import messages from '@/locales/en.json';
 import { AdminEventShowView } from './AdminEventShowView';
 
 vi.mock('@/libs/admin/events/eventAdminActions', () => ({
+  resendAllAdminEventPaymentRequestsAction: vi.fn(),
   updateAdminEventRegistrationStatusAction: vi.fn(),
 }));
 
@@ -103,6 +104,7 @@ function eventFixture(
           isDeposit: false,
         },
         id: 'registration-1',
+        payment: null,
         phone: null,
         registrationTeam: null,
         boatMembers: [],
@@ -172,7 +174,7 @@ describe('AdminEventShowView', () => {
     );
     expect(screen.getByText('Learn how to sail.')).toBeVisible();
     expect(
-      screen.getByRole('table', { name: 'Registration roster' })
+      screen.getByRole('list', { name: 'Registration roster' })
     ).toBeVisible();
     expect(screen.getByText('Adult entry')).toBeVisible();
     expect(screen.getByText('$150.00')).toBeVisible();

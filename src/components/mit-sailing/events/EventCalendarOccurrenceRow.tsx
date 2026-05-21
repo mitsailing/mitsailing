@@ -32,23 +32,25 @@ export function EventCalendarOccurrenceRow(
         )}
       />
       <div className="min-w-0 flex-1">
+        <p className="mb-0.5 text-[0.6875rem] leading-tight font-semibold tracking-wide text-muted-foreground uppercase">
+          {props.row.category.name}
+        </p>
         <Link
           className={cn(
             'block text-sm leading-tight font-semibold text-mit-red no-underline hover:underline dark:text-mit-red-ink',
             textFocusRingClassName,
-            props.wrapTitle
-              ? '[overflow-wrap:anywhere] whitespace-normal'
-              : 'truncate'
+            '[overflow-wrap:anywhere] whitespace-normal'
           )}
           href={`/events/${props.row.event.slug}/`}
-          title={props.row.event.name}
         >
           {props.row.event.name}
         </Link>
         <p
           className={cn(
             'mt-0.5 text-xs leading-snug text-mit-text',
-            props.wrapTitle ? '[overflow-wrap:anywhere]' : 'truncate'
+            props.wrapTitle
+              ? '[overflow-wrap:anywhere]'
+              : '[overflow-wrap:anywhere] whitespace-normal'
           )}
         >
           {formatEasternEventCalendarLine({

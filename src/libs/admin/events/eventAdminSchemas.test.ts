@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { EventAnswerType, EventDetailPageKind } from '@/generated/prisma/enums';
+import {
+  EventAddressPreset,
+  EventAnswerType,
+  EventDetailPageKind,
+} from '@/generated/prisma/enums';
 import {
   dollarsToEventAdminCents,
   isEventAdminInvalidFeeAmountIssue,
@@ -7,10 +11,16 @@ import {
   eventAdminIdsFormSchema,
   eventDateFormSchema,
   eventFeeFormSchema,
+  eventLocationFormSchema,
+  eventPaymentManualHandledFormSchema,
+  eventPaymentSettingsFormSchema,
   eventQuestionFormSchema,
   generateEventAdminSlug,
   parseEasternDateTimeLocal,
   rawEventFeeFromFormData,
+  rawEventLocationFromFormData,
+  rawEventPaymentManualHandledFromFormData,
+  rawEventPaymentSettingsFromFormData,
   slugifyEventAdmin,
   splitEventAdminOptionLines,
 } from '@/libs/admin/events/eventAdminSchemas';
@@ -300,6 +310,112 @@ describe('eventAdminSchemas', () => {
     const parsed = eventFeeFormSchema.parse(raw);
 
     expect(parsed.amountCents).toBe(2500);
+  });
+
+  it('parses payment settings from form data', () => {
+    const formData = new FormData();
+    formData.set('paymentsEnabled', 'true');
+    formData.set('paymentDeadlineAt', '2026-06-01T17:30');
+
+    const parsed = eventPaymentSettingsFormSchema.parse(
+      rawEventPaymentSettingsFromFormData(formData)
+    );
+
+    expect(parsed).toEqual({
+      paymentsEnabled: true,
+      paymentDeadlineAt: new Date('2026-06-01T21:30:00.000Z'),
+    });
+  });
+
+  it('parses custom address fields from form data', () => {
+    const formData = new FormData();
+    formData.set('addressPreset', EventAddressPreset.custom);
+    formData.set('addressName', 'Sailing center');
+    formData.set('addressLine1', '1 Memorial Drive');
+    formData.set('addressLine2', 'Suite 2');
+    formData.set('addressCity', 'Cambridge');
+    formData.set('addressState', 'MA');
+    formData.set('addressPostalCode', '02139');
+    formData.set('addressCountry', 'US');
+
+    const parsed = eventLocationFormSchema.parse(
+      rawEventLocationFromFormData(formData)
+    );
+
+    expect(parsed).toEqual({
+      addressPreset: EventAddressPreset.custom,
+      addressName: 'Sailing center',
+      addressLine1: '1 Memorial Drive',
+      addressLine2: 'Suite 2',
+      addressCity: 'Cambridge',
+      addressState: 'MA',
+      addressPostalCode: '02139',
+      addressCountry: 'US',
+    });
+  });
+
+  it('materializes Pavilion preset address fields even when form fields are blank', () => {
+    const parsed = eventLocationFormSchema.parse({
+      addressPreset: EventAddressPreset.pavilion,
+      addressName: '',
+      addressLine1: '',
+      addressLine2: '',
+      addressCity: '',
+      addressState: '',
+      addressPostalCode: '',
+      addressCountry: '',
+    });
+
+    expect(parsed).toMatchObject({
+      addressName: 'MIT Sailing Pavilion',
+      addressLine1: '134 Memorial Drive',
+      addressCity: 'Cambridge',
+      addressState: 'MA',
+      addressPostalCode: '02139',
+      addressCountry: 'US',
+    });
+  });
+
+  it('materializes Bluewater preset address fields even when form fields are blank', () => {
+    const parsed = eventLocationFormSchema.parse({
+      addressPreset: EventAddressPreset.bluewater,
+      addressName: '',
+      addressLine1: '',
+      addressLine2: '',
+      addressCity: '',
+      addressState: '',
+      addressPostalCode: '',
+      addressCountry: '',
+    });
+
+    expect(parsed).toMatchObject({
+      addressName: 'Boston Waterboat Marina',
+      addressLine1: '66 Long Wharf',
+      addressCity: 'Boston',
+      addressState: 'MA',
+      addressPostalCode: '02110',
+      addressCountry: 'US',
+    });
+  });
+
+  it('rejects enabled payments without a deadline', () => {
+    const parsed = eventPaymentSettingsFormSchema.safeParse({
+      paymentsEnabled: true,
+      paymentDeadlineAt: '',
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+
+  it('requires a manual handled note', () => {
+    const formData = new FormData();
+    formData.set('note', '  ');
+
+    const parsed = eventPaymentManualHandledFormSchema.safeParse(
+      rawEventPaymentManualHandledFromFormData(formData)
+    );
+
+    expect(parsed.success).toBe(false);
   });
 
   it('rejects fee form with invalid dollar amount', () => {

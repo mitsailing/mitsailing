@@ -50,6 +50,7 @@ describe('AdminIndexPage', () => {
       permissions: [
         Permission.USERS_VIEW,
         Permission.EVENTS_MANAGE,
+        Permission.PAYMENTS_VIEW,
         Permission.PAVILION_RESERVATIONS_MANAGE,
       ],
       roles: [],
@@ -72,6 +73,10 @@ describe('AdminIndexPage', () => {
     expect(
       screen.getByRole('link', { name: 'link_pavilion_reservations' })
     ).toHaveAttribute('href', '/admin/pavilion-reservations');
+    expect(screen.getByRole('link', { name: 'link_payments' })).toHaveAttribute(
+      'href',
+      '/admin/payments'
+    );
     expect(
       screen.getByRole('link', { name: 'hub_label_users' })
     ).toHaveAttribute('href', '/admin/users');

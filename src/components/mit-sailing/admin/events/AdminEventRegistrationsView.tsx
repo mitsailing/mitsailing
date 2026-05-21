@@ -27,6 +27,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { resendAllAdminEventPaymentRequestsAction } from '@/libs/admin/events/eventAdminActions';
 import {
   adminEventShowPath,
   adminEventsIndexPath,
@@ -65,7 +66,11 @@ function BulkEmailPlaceholder(props: {
 }) {
   const recipientCount = props.counts.pending + props.counts.approved;
   return (
-    <Card className="rounded-lg">
+    <Card
+      aria-label={props.t('bulk_email_heading')}
+      className="rounded-lg"
+      role="region"
+    >
       <CardHeader>
         <CardTitle>
           <h2 className="inline-flex items-center gap-2">
@@ -80,23 +85,49 @@ function BulkEmailPlaceholder(props: {
         </p>
         <Input
           aria-label={props.t('bulk_email_subject')}
-          disabled
           placeholder={props.t('bulk_email_subject')}
         />
         <Textarea
           aria-label={props.t('bulk_email_message')}
           className="min-h-28"
-          disabled
           placeholder={props.t('bulk_email_message')}
         />
         <p className="text-xs text-mit-readable-ink">
           {props.t('bulk_email_recipients', { count: recipientCount })}
         </p>
-        <Button disabled type="button" variant="mit">
+        <Button type="button" variant="mit">
           {props.t('bulk_email_send')}
         </Button>
       </CardContent>
     </Card>
+  );
+}
+
+function PaymentRequestSummary(props: {
+  locale: string;
+  slug: string;
+  t: AdminEventRegistrationsTranslations;
+}) {
+  const action = resendAllAdminEventPaymentRequestsAction.bind(
+    null,
+    props.locale,
+    props.slug
+  );
+  return (
+    <AdminEventFormSection
+      id="registration-payment-requests"
+      title={props.t('payment_requests_heading')}
+    >
+      <p className="text-sm text-mit-readable-ink">
+        {props.t('payment_requests_body')}
+      </p>
+      <form action={action}>
+        <Button type="submit" variant="outline">
+          <Mail aria-hidden className="size-4" />
+          {props.t('payment_resend_all')}
+        </Button>
+      </form>
+    </AdminEventFormSection>
   );
 }
 
@@ -153,12 +184,12 @@ function RegistrationFilters(props: {
   ));
 
   return (
-    <div
+    <nav
       aria-label={props.t('registration_filter_aria')}
       className="flex flex-wrap gap-2"
     >
       {filterButtons}
-    </div>
+    </nav>
   );
 }
 
@@ -254,10 +285,17 @@ export function AdminEventRegistrationsView(
             </dl>
           </AdminEventFormSection>
           {props.accessMode === 'editable' ? (
-            <BulkEmailPlaceholder
-              counts={props.event.registrationCounts}
-              t={props.t}
-            />
+            <>
+              <PaymentRequestSummary
+                locale={props.locale}
+                slug={props.event.slug}
+                t={props.t}
+              />
+              <BulkEmailPlaceholder
+                counts={props.event.registrationCounts}
+                t={props.t}
+              />
+            </>
           ) : null}
         </aside>
       </div>

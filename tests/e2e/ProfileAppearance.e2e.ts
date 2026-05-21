@@ -8,8 +8,9 @@ test.describe('Profile appearance', () => {
     await signInAsAdmin(page);
     await page.goto('/profile/account');
 
-    await page.getByRole('radio', { name: 'Dark' }).click();
+    await page.getByText('Dark', { exact: true }).click();
 
+    await expect(page.getByRole('radio', { name: 'Dark' })).toBeChecked();
     await expect(page.locator('html')).toHaveClass('dark');
   });
 });

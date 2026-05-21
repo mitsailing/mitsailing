@@ -82,6 +82,8 @@ model User {
   cmsMediaAssets         CmsMediaAsset[]    @relation("CmsMediaUploadedBy")
 
   eventRegistrations                  EventRegistration[]
+  eventPayments                       EventPayment[]
+  manuallyHandledEventPayments        EventPayment[]                  @relation("EventPaymentManualHandledBy")
   eventComments                       EventComment[]
   eventAdmins                         EventAdmin[]
   sailingRatings                      UserSailingRating[]           @relation("UserSailingRatings")
@@ -582,6 +584,14 @@ enum EventRegistrationMode {
   external
 }
 
+enum EventAddressPreset {
+  pavilion
+  bluewater
+  custom
+
+  @@map("event_address_preset")
+}
+
 model Event {
   id                String               @id
   name              String
@@ -614,6 +624,16 @@ model Event {
   resultsVisible    Boolean              @default(false) @map("results_visible")
   resultsContent    String               @default("") @map("results_content") @db.Text
   isPublished       Boolean              @map("is_published")
+  paymentsEnabled   Boolean              @default(false) @map("payments_enabled")
+  paymentDeadlineAt DateTime?            @map("payment_deadline_at")
+  addressPreset     EventAddressPreset   @default(pavilion) @map("address_preset")
+  addressName       String?              @map("address_name")
+  addressLine1      String?              @map("address_line1")
+  addressLine2      String?              @map("address_line2")
+  addressCity       String?              @map("address_city")
+  addressState      String?              @map("address_state")
+  addressPostalCode String?              @map("address_postal_code")
+  addressCountry    String?              @map("address_country")
 
   category                  EventCategory               @relation(fields: [eventCategoryId], references: [id], onDelete: Restrict)
   dates                     EventDate[]
@@ -621,6 +641,7 @@ model Event {
   registrations             EventRegistration[]
   registrationQuestions     EventRegistrationQuestion[]
   entryFees                 EventEntryFee[]
+  payments                  EventPayment[]
   comments                  EventComment[]
   sailingClassRelatedEvents SailingClassRelatedEvent[]
 
@@ -699,6 +720,7 @@ model EventRegistration {
   registrationAnswers     EventRegistrationAnswer[]
   registrationTeam        EventRegistrationTeam?
   boatMembers             EventRegistrationBoatMember[]
+  payment                 EventPayment?
 
   @@index([eventId])
   @@index([eventEntryFeeId])
@@ -800,11 +822,119 @@ model EventEntryFee {
   isDeposit   Boolean @map("is_deposit")
   event       Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
   registrations EventRegistration[]
+  payments      EventPayment[]
 
   @@index([eventId])
   @@allow('read', check(event, 'read'))
   @@allow('create,update,delete', check(event, 'update'))
   @@map("event_entry_fees")
+}
+
+enum EventPaymentStatus {
+  pending
+  checkout_created
+  paid
+  past_due
+  handled
+  cancelled
+  refunded
+  disputed
+
+  @@map("event_payment_status")
+}
+
+enum EventPaymentNotificationKind {
+  request
+  receipt
+  reminder
+  admin_digest
+
+  @@map("event_payment_notification_kind")
+}
+
+model EventPayment {
+  id                      String             @id @default(cuid())
+  eventId                 String             @map("event_id")
+  registrationId          String             @unique @map("registration_id")
+  userId                  String             @map("user_id")
+  selectedFeeId           String             @map("selected_fee_id")
+  selectedFeeDescription  String             @map("selected_fee_description")
+  amountCents             Int                @map("amount_cents")
+  currency                String             @default("usd")
+  status                  EventPaymentStatus @default(pending)
+  stripeCustomerId        String?            @map("stripe_customer_id")
+  stripeCheckoutSessionId String?            @unique @map("stripe_checkout_session_id")
+  stripePaymentIntentId   String?            @unique @map("stripe_payment_intent_id")
+  stripeChargeId          String?            @unique @map("stripe_charge_id")
+  stripeReceiptUrl        String?            @map("stripe_receipt_url") @db.Text
+  manualHandledNote       String?            @map("manual_handled_note") @db.Text
+  manualHandledByUserId   String?            @map("manual_handled_by_user_id")
+  manualHandledAt         DateTime?          @map("manual_handled_at")
+  createdAt               DateTime           @default(now()) @map("created_at")
+  updatedAt               DateTime           @updatedAt @map("updated_at")
+
+  event                 Event                      @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  registration          EventRegistration          @relation(fields: [registrationId], references: [id], onDelete: Restrict)
+  user                  User                       @relation(fields: [userId], references: [id], onDelete: Restrict)
+  selectedFee           EventEntryFee              @relation(fields: [selectedFeeId], references: [id], onDelete: Restrict)
+  manualHandledBy       User?                      @relation("EventPaymentManualHandledBy", fields: [manualHandledByUserId], references: [id], onDelete: SetNull)
+  notifications         EventPaymentNotification[]
+
+  @@index([eventId, status])
+  @@index([userId, createdAt])
+  @@index([selectedFeeId])
+  @@index([manualHandledByUserId])
+  @@deny('post-update',
+    eventId != before().eventId ||
+    registrationId != before().registrationId ||
+    userId != before().userId ||
+    selectedFeeId != before().selectedFeeId ||
+    selectedFeeDescription != before().selectedFeeDescription ||
+    amountCents != before().amountCents ||
+    currency != before().currency
+  )
+  @@deny('create,update',
+    eventId != registration.eventId ||
+    eventId != selectedFee.eventId ||
+    userId != registration.userId
+  )
+  @@deny('create,update', amountCents < 0)
+  @@allow('read', auth() != null && userId == auth().id)
+  @@allow('read,create,update,delete', check(event, 'update'))
+  @@map("event_payments")
+}
+
+model StripeWebhookEvent {
+  id                String    @id @default(cuid())
+  stripeEventId     String    @unique @map("stripe_event_id")
+  eventType         String    @map("event_type")
+  stripeCreatedAt   DateTime  @map("stripe_created_at")
+  processedAt       DateTime? @map("processed_at")
+  processingError   String?   @map("processing_error") @db.Text
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  @@index([eventType, stripeCreatedAt])
+  @@index([processedAt])
+  @@map("stripe_webhook_events")
+}
+
+model EventPaymentNotification {
+  id                String                       @id @default(cuid())
+  paymentId         String                       @map("payment_id")
+  kind              EventPaymentNotificationKind
+  sentDateKey       String                       @map("sent_date_key")
+  providerMessageId String?                      @map("provider_message_id")
+  createdAt         DateTime                     @default(now()) @map("created_at")
+  updatedAt         DateTime                     @updatedAt @map("updated_at")
+
+  payment EventPayment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([paymentId, createdAt])
+  @@index([kind, sentDateKey])
+  @@unique([paymentId, kind, sentDateKey])
+  @@allow('read', check(payment, 'update'))
+  @@allow('create,update,delete', check(payment, 'update'))
+  @@map("event_payment_notifications")
 }
 
 model EventComment {

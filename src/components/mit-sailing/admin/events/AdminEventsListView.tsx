@@ -1,18 +1,11 @@
 import { Plus, Search } from 'lucide-react';
 import type { getTranslations } from 'next-intl/server';
 import Form from 'next/form';
+import type * as React from 'react';
 import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader';
 import { AdminEventListStatusBadge } from '@/components/mit-sailing/admin/events/AdminEventShared';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 import {
   adminEventShowPath,
@@ -147,63 +140,35 @@ function EventStatusBadges(props: {
   );
 }
 
-function EventRow(props: {
-  event: AdminEventListRow;
-  t: AdminEventsListTranslations;
+function EventSummaryField(props: {
+  children: React.ReactNode;
+  label: string;
 }) {
   return (
-    <TableRow>
-      <TableCell className="px-4 py-3 align-top text-sm">
-        <span className="font-medium text-foreground">
-          {props.event.category.name}
-        </span>
-      </TableCell>
-      <TableCell className="px-4 py-3 align-top">
-        <div className="flex min-w-0 flex-col gap-2">
-          <Link
-            className="font-semibold text-mit-red no-underline hover:underline dark:text-mit-red-ink"
-            href={adminEventShowPath(props.event.slug)}
-          >
-            {props.event.name}
-          </Link>
-          <span className="text-xs text-mit-readable-ink">
-            {props.event.shortName} · /events/{props.event.slug}
-          </span>
-          <EventStatusBadges event={props.event} t={props.t} />
-        </div>
-      </TableCell>
-      <TableCell className="px-4 py-3 align-top text-sm text-mit-readable-ink">
-        {dateSummary(props.event.dates, props.t)}
-      </TableCell>
-      <TableCell className="px-4 py-3 align-top text-sm">
-        {registrationsSummary(
-          props.event.registrationCounts,
-          props.event.maxParticipants,
-          props.t
-        )}
-      </TableCell>
-      <TableCell className="px-4 py-3 align-top text-sm text-mit-readable-ink">
-        {props.event.requiresApproval
-          ? props.t('approval_manual')
-          : props.t('approval_auto')}
-      </TableCell>
-    </TableRow>
+    <div className="min-w-0">
+      <dt className="text-xs font-semibold tracking-wide text-mit-readable-ink uppercase">
+        {props.label}
+      </dt>
+      <dd className="mt-1 text-sm break-words text-mit-readable-ink">
+        {props.children}
+      </dd>
+    </div>
   );
 }
 
-function MobileEventCard(props: {
+function EventCard(props: {
   event: AdminEventListRow;
   t: AdminEventsListTranslations;
 }) {
   return (
-    <article className="rounded-lg border border-border bg-card p-4">
-      <div className="flex min-w-0 flex-col gap-3">
-        <div className="flex min-w-0 flex-col gap-1.5">
+    <li className="rounded-lg border border-border bg-card p-4">
+      <article className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+        <div className="flex min-w-0 flex-col gap-2">
           <span className="text-xs font-medium text-mit-readable-ink uppercase">
             {props.event.category.name}
           </span>
           <Link
-            className="font-semibold text-mit-red no-underline hover:underline dark:text-mit-red-ink"
+            className="font-semibold break-words text-mit-red no-underline hover:underline dark:text-mit-red-ink"
             href={adminEventShowPath(props.event.slug)}
           >
             {props.event.name}
@@ -213,40 +178,25 @@ function MobileEventCard(props: {
           </span>
           <EventStatusBadges event={props.event} t={props.t} />
         </div>
-        <dl className="grid gap-2 text-sm">
-          <div>
-            <dt className="font-medium text-foreground">
-              {props.t('column_dates')}
-            </dt>
-            <dd className="text-mit-readable-ink">
-              {dateSummary(props.event.dates, props.t)}
-            </dd>
-          </div>
-          <div>
-            <dt className="font-medium text-foreground">
-              {props.t('column_registrations')}
-            </dt>
-            <dd className="text-mit-readable-ink">
-              {registrationsSummary(
-                props.event.registrationCounts,
-                props.event.maxParticipants,
-                props.t
-              )}
-            </dd>
-          </div>
-          <div>
-            <dt className="font-medium text-foreground">
-              {props.t('column_approval')}
-            </dt>
-            <dd className="text-mit-readable-ink">
-              {props.event.requiresApproval
-                ? props.t('approval_manual')
-                : props.t('approval_auto')}
-            </dd>
-          </div>
+        <dl className="grid min-w-0 gap-3 sm:grid-cols-3 lg:grid-cols-1">
+          <EventSummaryField label={props.t('column_dates')}>
+            {dateSummary(props.event.dates, props.t)}
+          </EventSummaryField>
+          <EventSummaryField label={props.t('column_registrations')}>
+            {registrationsSummary(
+              props.event.registrationCounts,
+              props.event.maxParticipants,
+              props.t
+            )}
+          </EventSummaryField>
+          <EventSummaryField label={props.t('column_approval')}>
+            {props.event.requiresApproval
+              ? props.t('approval_manual')
+              : props.t('approval_auto')}
+          </EventSummaryField>
         </dl>
-      </div>
-    </article>
+      </article>
+    </li>
   );
 }
 
@@ -333,59 +283,20 @@ export function AdminEventsListView(props: AdminEventsListViewProps) {
         {props.t('list_count', { count: props.rows.length })}
       </p>
 
-      <div className="grid gap-3 md:hidden">
+      <ul
+        aria-label={props.t('list_title')}
+        className="m-0 grid list-none gap-3 p-0"
+      >
         {props.rows.length === 0 ? (
-          <div className="rounded-lg border border-border bg-card px-4 py-10 text-center text-sm text-mit-readable-ink">
+          <li className="rounded-lg border border-border bg-card px-4 py-10 text-center text-sm text-mit-readable-ink">
             {props.t('list_empty')}
-          </div>
+          </li>
         ) : (
           props.rows.map((event) => (
-            <MobileEventCard event={event} key={event.id} t={props.t} />
+            <EventCard event={event} key={event.id} t={props.t} />
           ))
         )}
-      </div>
-
-      <div className="hidden overflow-hidden rounded-lg border border-border bg-card md:block">
-        <div className="overflow-x-auto">
-          <Table className="min-w-[760px] text-left">
-            <TableHeader>
-              <TableRow className="border-b bg-muted/50 hover:bg-muted/50">
-                <TableHead className="px-4 py-3">
-                  {props.t('column_category')}
-                </TableHead>
-                <TableHead className="px-4 py-3">
-                  {props.t('column_event')}
-                </TableHead>
-                <TableHead className="px-4 py-3">
-                  {props.t('column_dates')}
-                </TableHead>
-                <TableHead className="px-4 py-3">
-                  {props.t('column_registrations')}
-                </TableHead>
-                <TableHead className="px-4 py-3">
-                  {props.t('column_approval')}
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {props.rows.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    className="px-4 py-10 text-center text-sm text-mit-readable-ink"
-                    colSpan={5}
-                  >
-                    {props.t('list_empty')}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                props.rows.map((event) => (
-                  <EventRow event={event} key={event.id} t={props.t} />
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
+      </ul>
     </div>
   );
 }

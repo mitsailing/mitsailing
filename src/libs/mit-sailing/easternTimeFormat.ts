@@ -85,8 +85,8 @@ export function formatEasternShortDateFromIsoCalendar(iso: string): string {
  *
  * Examples:
  * - `single`: `9:00 AM – 5:00 PM`
- * - `multi-start` and `ongoing`: `9:00 AM – Sat, Mar 7, 5:00 PM ET`
- * - `multi-end`: `Until 5:00 PM ET`
+ * - `multi-start` and `ongoing`: `9:00 AM – Sat, Mar 7, 5:00 PM`
+ * - `multi-end`: `Until 5:00 PM`
  *
  * @param params - Event occurrence segment
  * @returns Compact line for calendar rows
@@ -100,7 +100,7 @@ export function formatEasternEventCalendarLine(params: {
     return formatEasternSameDayTimeRange(params.start, params.end);
   }
   if (params.segment === 'multi-end') {
-    return `Until ${timeOnlyFormatter.format(params.end)} ET`;
+    return `Until ${timeOnlyFormatter.format(params.end)}`;
   }
 
   const startYear = Number(nyYmd(params.start).slice(0, 4));
@@ -111,5 +111,5 @@ export function formatEasternEventCalendarLine(params: {
       : fullDateFormatter.format(params.end);
   return `${timeOnlyFormatter.format(params.start)} – ${endDate}, ${timeOnlyFormatter.format(
     params.end
-  )} ET`;
+  )}`;
 }

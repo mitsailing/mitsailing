@@ -197,7 +197,7 @@ const CMS_RICH_TEXT_SANITIZE_OPTIONS = {
     'strong',
     'ul',
   ],
-  nonTextTags: ['script', 'style', 'textarea', 'option'],
+  nonTextTags: ['script', 'style', 'textarea', 'option', 'xmp'],
   selfClosing: ['br', 'img'],
   transformTags: {
     a: transformCmsRichTextAnchor,
@@ -217,7 +217,7 @@ function cmsRichTextHasContent(html: string): boolean {
   const text = sanitizeHtml(html, {
     allowedAttributes: {},
     allowedTags: [],
-    nonTextTags: ['script', 'style', 'textarea', 'option'],
+    nonTextTags: ['script', 'style', 'textarea', 'option', 'xmp'],
   });
   return text.replaceAll(/\s+/gu, '').length > 0;
 }

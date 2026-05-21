@@ -202,8 +202,9 @@ export function SignInForm(props: SignInFormProps) {
             <Button
               className="h-auto min-h-0 px-0 py-0 font-medium text-red-900 underline shadow-none hover:bg-transparent hover:text-red-950 hover:underline disabled:opacity-60"
               disabled={resending}
-              onClick={async () => {
-                await onSendVerificationCode(error.email);
+              onClick={() => {
+                // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the resend promise.
+                void onSendVerificationCode(error.email);
               }}
               type="button"
               variant="link"
@@ -223,7 +224,13 @@ export function SignInForm(props: SignInFormProps) {
         </div>
       ) : null}
 
-      <form className="flex flex-col gap-4" onSubmit={onSubmit}>
+      <form
+        className="flex flex-col gap-4"
+        onSubmit={(event) => {
+          // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the form promise.
+          void onSubmit(event);
+        }}
+      >
         <div className="flex flex-col gap-1.5">
           <Label className="text-foreground" htmlFor="email">
             {t('email_label')}
@@ -281,7 +288,10 @@ export function SignInForm(props: SignInFormProps) {
           <button
             className={`${authInlineLinkClassName} border-0 bg-transparent p-0 disabled:opacity-60`}
             disabled={requestingReset}
-            onClick={onForgotPassword}
+            onClick={() => {
+              // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the reset promise.
+              void onForgotPassword();
+            }}
             type="button"
           >
             {t('forgot_password')}

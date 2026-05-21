@@ -22,6 +22,7 @@ const labels: EventRegistrationFormLabels = {
   feesHeading: 'Entry fees',
   phoneHelp: 'Used by event admins if they need to reach you.',
   phoneLabel: 'Phone',
+  nextStepHeading: 'What happens next',
   questionsHeading: 'Registration questions',
   required: 'Required',
   requiresApprovalNote:
@@ -42,6 +43,10 @@ const labels: EventRegistrationFormLabels = {
 
 const event: PublicEventDetail = {
   admins: [],
+  attendees: {
+    approved: [],
+    pending: [],
+  },
   approvedRegistrationCount: 0,
   category: { name: 'Classes' },
   dates: [],
@@ -228,6 +233,13 @@ function expectTeamBoatMemberNames(
   for (const [field, name] of expectedNames) {
     expect(field).toHaveAttribute('name', name);
   }
+}
+
+function expectElementBefore(first: Element, second: Element): void {
+  const orderedElements = [...document.body.querySelectorAll('*')];
+  expect(orderedElements.indexOf(first)).toBeLessThan(
+    orderedElements.indexOf(second)
+  );
 }
 
 describe('EventRegistrationForm', () => {
@@ -465,6 +477,34 @@ describe('EventRegistrationForm', () => {
     expect(screen.getByRole('group', { name: /entry fees/i })).toHaveAttribute(
       'aria-invalid',
       'true'
+    );
+  });
+
+  it('puts decision facts before contact fields and commit copy before submit', () => {
+    renderRegistrationForm({
+      eventOverrides: {
+        ...entryFeeEventOverrides(),
+        requiresApproval: true,
+      },
+    });
+
+    const feeGroup = screen.getByRole('group', { name: /entry fees/i });
+    const phoneInput = screen.getByRole('textbox', { name: /phone/i });
+    const swimAgreement = screen.getByRole('switch', {
+      name: 'I agree to the Swim Agreement and Liability Release.',
+    });
+    const nextStep = screen.getByRole('region', {
+      name: 'What happens next',
+    });
+    const submitButton = screen.getByRole('button', {
+      name: 'Submit registration request',
+    });
+
+    expectElementBefore(feeGroup, phoneInput);
+    expectElementBefore(phoneInput, swimAgreement);
+    expectElementBefore(nextStep, submitButton);
+    expect(nextStep).toHaveTextContent(
+      'An event admin will review and confirm your registration.'
     );
   });
 

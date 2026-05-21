@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { EventRegistrationStatus } from '@/generated/prisma/enums';
+import {
+  EventAddressPreset,
+  EventPaymentStatus,
+  EventRegistrationStatus,
+} from '@/generated/prisma/enums';
 import { Role } from '@/libs/auth/roles';
 import type * as EventQueries from '@/libs/mit-sailing/eventQueries';
 
@@ -355,6 +359,16 @@ describe('event admin queries', () => {
       personsPerBoat: 1,
       allowRepeatTeamCaptain: true,
       isPublished: true,
+      paymentsEnabled: true,
+      paymentDeadlineAt: new Date('2026-06-01T13:00:00.000Z'),
+      addressPreset: EventAddressPreset.pavilion,
+      addressName: null,
+      addressLine1: null,
+      addressLine2: null,
+      addressCity: null,
+      addressState: null,
+      addressPostalCode: null,
+      addressCountry: null,
       dates: [],
       admins: [],
       registrationQuestions: [
@@ -399,8 +413,11 @@ describe('event admin queries', () => {
     expect(mocks.eventFindUnique).toHaveBeenCalledWith(
       expect.objectContaining({
         select: expect.objectContaining({
+          addressPreset: true,
           externalEntriesUrl: true,
           externalRegistrationUrl: true,
+          paymentDeadlineAt: true,
+          paymentsEnabled: true,
           registrationMode: true,
           requiresPhone: true,
           usesTeamRegistration: true,
@@ -411,10 +428,13 @@ describe('event admin queries', () => {
       })
     );
     expect(result.event).toMatchObject({
+      addressPreset: EventAddressPreset.pavilion,
       allowRepeatTeamCaptain: true,
       boatsPerTeam: 2,
       externalEntriesUrl: 'https://example.com/entries',
       externalRegistrationUrl: 'https://example.com/register',
+      paymentDeadlineAt: new Date('2026-06-01T13:00:00.000Z'),
+      paymentsEnabled: true,
       personsPerBoat: 1,
       registrationMode: 'external',
       requiresPhone: true,
@@ -503,6 +523,7 @@ describe('event admin queries', () => {
           user: { id: 'user-1', name: 'A', email: 'a@example.com' },
           registrationTeam: null,
           boatMembers: [],
+          payment: null,
           registrationAnswers: [],
         },
         {
@@ -514,6 +535,7 @@ describe('event admin queries', () => {
           user: { id: 'user-2', name: 'B', email: 'b@example.com' },
           registrationTeam: null,
           boatMembers: [],
+          payment: null,
           registrationAnswers: [],
         },
         {
@@ -525,6 +547,17 @@ describe('event admin queries', () => {
           user: { id: 'user-3', name: 'C', email: 'c@example.com' },
           registrationTeam: null,
           boatMembers: [],
+          payment: {
+            amountCents: 15_000,
+            currency: 'usd',
+            id: 'payment-1',
+            manualHandledAt: null,
+            manualHandledBy: null,
+            manualHandledByUserId: null,
+            manualHandledNote: null,
+            status: EventPaymentStatus.pending,
+            stripeReceiptUrl: null,
+          },
           registrationAnswers: [
             {
               id: 'answer-2',
@@ -567,6 +600,19 @@ describe('event admin queries', () => {
       result?.registrations[0]?.answers.map((answer) => answer.id)
     ).toEqual(['answer-1', 'answer-2']);
     expect(result?.registrations[0]?.phone).toBe('617-555-0100');
+    expect(result?.registrations[0]?.user.email).toBe('c@example.com');
+    expect(result?.registrations[0]?.payment).toEqual({
+      amountCents: 15_000,
+      currency: 'usd',
+      id: 'payment-1',
+      manualHandledAt: null,
+      manualHandledBy: null,
+      manualHandledByUserId: null,
+      manualHandledNote: null,
+      receiptUrl: null,
+      resendEligible: true,
+      status: EventPaymentStatus.pending,
+    });
     expect(result?.registrationCounts).toEqual({
       approved: 0,
       cancelled: 1,

@@ -57,7 +57,13 @@ export function ForgotPasswordForm(props: ForgotPasswordFormProps) {
   }
 
   return (
-    <form className="flex flex-col gap-4" onSubmit={onSubmit}>
+    <form
+      className="flex flex-col gap-4"
+      onSubmit={(event) => {
+        // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the form promise.
+        void onSubmit(event);
+      }}
+    >
       {emailError ? (
         <p
           className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-800"

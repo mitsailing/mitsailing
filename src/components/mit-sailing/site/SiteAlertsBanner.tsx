@@ -128,7 +128,6 @@ export function SiteAlertsBanner(props: {
                 <ul
                   aria-labelledby={headingId}
                   className="flex flex-col gap-2.5 p-0 [list-style:none]"
-                  role="list"
                 >
                   {props.rows.map((row) => (
                     <li className="m-0" key={row.id}>

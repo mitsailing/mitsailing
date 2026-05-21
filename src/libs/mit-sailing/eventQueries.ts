@@ -2,12 +2,16 @@ import 'server-only';
 import { cache } from 'react';
 import type { Prisma } from '@/generated/prisma/client';
 import { EventRegistrationStatus } from '@/generated/prisma/enums';
-import type { EventRegistrationStatus as EventRegistrationStatusValue } from '@/generated/prisma/enums';
+import type {
+  EventPaymentStatus as EventPaymentStatusValue,
+  EventRegistrationStatus as EventRegistrationStatusValue,
+} from '@/generated/prisma/enums';
 import { resolveEventCategoryCalendarAccentClassName } from '@/lib/mit-sailing/eventCategoryAccent';
 import { Role } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
 import { logger } from '@/libs/Logger';
 import { sanitizeCmsRichTextHtml } from '@/libs/mit-sailing/cmsRichText';
+import { eventAddressPresetFields } from '@/libs/mit-sailing/eventAddressPresets';
 import { eventCalendarMonthFromDate } from '@/libs/mit-sailing/eventCalendar';
 import type {
   EventCalendarCategory,
@@ -50,6 +54,13 @@ export type PublicEventDetail = {
     personsPerBoat: number;
     allowRepeatTeamCaptain: boolean;
   };
+  addressName?: string | null;
+  addressLine1?: string | null;
+  addressLine2?: string | null;
+  addressCity?: string | null;
+  addressState?: string | null;
+  addressPostalCode?: string | null;
+  addressCountry?: string | null;
   category: { name: string };
   dates: {
     id: string;
@@ -64,6 +75,10 @@ export type PublicEventDetail = {
       email: string;
     };
   }[];
+  attendees: {
+    approved: PublicEventAttendee[];
+    pending: PublicEventAttendee[];
+  };
   registrationQuestions: {
     id: string;
     questionText: string;
@@ -84,8 +99,19 @@ export type PublicEventDetail = {
   pendingRegistrationCount: number;
 };
 
+export type PublicEventAttendee = {
+  id: string;
+  image: string | null;
+  name: string;
+};
+
 export type PublicEventRegistrationState = {
   id: string;
+  payment?: {
+    amountCents: number;
+    receiptUrl: string | null;
+    status: EventPaymentStatusValue;
+  } | null;
   status: EventRegistrationStatusValue;
 };
 
@@ -183,6 +209,45 @@ export function publicContentSectionsFromEvent(event: {
   });
 }
 
+function addressValue(
+  value: string | null,
+  fallbackValue: string | undefined
+): string | null {
+  const trimmed = value?.trim();
+  if (trimmed && trimmed.length > 0) {
+    return trimmed;
+  }
+  return fallbackValue && fallbackValue.length > 0 ? fallbackValue : null;
+}
+
+function publicAddressFieldsFromEvent(event: {
+  addressPreset: Parameters<typeof eventAddressPresetFields>[0];
+  addressName: string | null;
+  addressLine1: string | null;
+  addressLine2: string | null;
+  addressCity: string | null;
+  addressState: string | null;
+  addressPostalCode: string | null;
+  addressCountry: string | null;
+}) {
+  const presetFields = eventAddressPresetFields(event.addressPreset);
+  return {
+    addressName: addressValue(event.addressName, presetFields?.addressName),
+    addressLine1: addressValue(event.addressLine1, presetFields?.addressLine1),
+    addressLine2: addressValue(event.addressLine2, presetFields?.addressLine2),
+    addressCity: addressValue(event.addressCity, presetFields?.addressCity),
+    addressState: addressValue(event.addressState, presetFields?.addressState),
+    addressPostalCode: addressValue(
+      event.addressPostalCode,
+      presetFields?.addressPostalCode
+    ),
+    addressCountry: addressValue(
+      event.addressCountry,
+      presetFields?.addressCountry
+    ),
+  };
+}
+
 async function publicEventIds(): Promise<string[]> {
   const rows = await getZenStack().event.findMany({
     select: { id: true },
@@ -231,6 +296,14 @@ export const getPublishedEventForPublicBySlug = cache(async (slug: string) => {
         sailingInstructionsContent: true,
         resultsVisible: true,
         resultsContent: true,
+        addressName: true,
+        addressLine1: true,
+        addressLine2: true,
+        addressCity: true,
+        addressState: true,
+        addressPostalCode: true,
+        addressCountry: true,
+        addressPreset: true,
         category: { select: { name: true } },
         dates: {
           orderBy: { startDateTime: 'asc' },
@@ -269,18 +342,62 @@ export const getPublishedEventForPublicBySlug = cache(async (slug: string) => {
       return null;
     }
 
-    const [approvedRegistrationCount, pendingRegistrationCount] =
-      await Promise.all([
-        prisma.eventRegistration.count({
-          where: {
-            eventId: event.id,
-            status: EventRegistrationStatus.approved,
+    const [
+      approvedRegistrationCount,
+      pendingRegistrationCount,
+      attendeeRegistrations,
+    ] = await Promise.all([
+      prisma.eventRegistration.count({
+        where: {
+          eventId: event.id,
+          status: EventRegistrationStatus.approved,
+        },
+      }),
+      prisma.eventRegistration.count({
+        where: { eventId: event.id, status: EventRegistrationStatus.pending },
+      }),
+      prisma.eventRegistration.findMany({
+        where: {
+          eventId: event.id,
+          status: {
+            in: [
+              EventRegistrationStatus.approved,
+              EventRegistrationStatus.pending,
+            ],
           },
-        }),
-        prisma.eventRegistration.count({
-          where: { eventId: event.id, status: EventRegistrationStatus.pending },
-        }),
-      ]);
+        },
+        orderBy: [{ status: 'asc' }, { createdAt: 'asc' }],
+        select: {
+          id: true,
+          status: true,
+          user: { select: { image: true, name: true } },
+        },
+      }),
+    ]);
+    const attendees = {
+      approved: attendeeRegistrations.flatMap((registration) =>
+        registration.status === EventRegistrationStatus.approved
+          ? [
+              {
+                id: registration.id,
+                image: registration.user.image,
+                name: registration.user.name,
+              },
+            ]
+          : []
+      ),
+      pending: attendeeRegistrations.flatMap((registration) =>
+        registration.status === EventRegistrationStatus.pending
+          ? [
+              {
+                id: registration.id,
+                image: registration.user.image,
+                name: registration.user.name,
+              },
+            ]
+          : []
+      ),
+    };
 
     return {
       id: event.id,
@@ -302,6 +419,8 @@ export const getPublishedEventForPublicBySlug = cache(async (slug: string) => {
       category: event.category,
       dates: event.dates,
       admins: event.admins,
+      attendees,
+      ...publicAddressFieldsFromEvent(event),
       entryFees: event.entryFees.map((fee) => ({
         id: fee.id,
         description: fee.description,
@@ -352,11 +471,34 @@ const getCachedPublicEventRegistrationState = cache(
         appRole: Role.USER,
         id: userId,
       });
-      return await db.eventRegistration.findFirst({
+      const registration = await db.eventRegistration.findFirst({
         where: { eventId },
         orderBy: { createdAt: 'desc' },
-        select: { id: true, status: true },
+        select: {
+          id: true,
+          payment: {
+            select: {
+              amountCents: true,
+              status: true,
+              stripeReceiptUrl: true,
+            },
+          },
+          status: true,
+        },
       });
+      return registration
+        ? {
+            id: registration.id,
+            payment: registration.payment
+              ? {
+                  amountCents: registration.payment.amountCents,
+                  receiptUrl: registration.payment.stripeReceiptUrl,
+                  status: registration.payment.status,
+                }
+              : null,
+            status: registration.status,
+          }
+        : null;
     } catch (error) {
       logPublicEventsQueryFailure({
         where: 'viewer-registration',

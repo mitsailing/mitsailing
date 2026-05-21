@@ -1,7 +1,14 @@
 import 'server-only';
 import type { Prisma } from '@/generated/prisma/client';
-import { EventRegistrationStatus } from '@/generated/prisma/enums';
-import type { EventRegistrationStatus as EventRegistrationStatusValue } from '@/generated/prisma/enums';
+import {
+  EventPaymentStatus,
+  EventRegistrationStatus,
+} from '@/generated/prisma/enums';
+import type {
+  EventAddressPreset,
+  EventPaymentStatus as EventPaymentStatusValue,
+  EventRegistrationStatus as EventRegistrationStatusValue,
+} from '@/generated/prisma/enums';
 import { ASSIGNABLE_EVENT_ADMIN_ROLES } from '@/libs/admin/events/eventAdminSchemas';
 import type { AdminEventAccessMode } from '@/libs/admin/events/zenstackEventAccess';
 import { eventAccessModeWithAuthContext } from '@/libs/admin/events/zenstackEventAccess';
@@ -112,6 +119,16 @@ export type AdminEventEditorDto = {
   resultsVisible?: boolean;
   resultsContent?: string;
   isPublished: boolean;
+  paymentsEnabled: boolean;
+  paymentDeadlineAt: Date | null;
+  addressPreset: EventAddressPreset;
+  addressName: string | null;
+  addressLine1: string | null;
+  addressLine2: string | null;
+  addressCity: string | null;
+  addressState: string | null;
+  addressPostalCode: string | null;
+  addressCountry: string | null;
   dates: AdminEventDateDto[];
   admins: AdminEventAdminDto[];
   registrationQuestions: AdminEventQuestionDto[];
@@ -149,6 +166,19 @@ export type AdminEventRegistrationBoatMemberDto = {
   email: string;
 };
 
+export type AdminEventRegistrationPaymentDto = {
+  id: string;
+  status: EventPaymentStatusValue;
+  amountCents: number;
+  currency: string;
+  receiptUrl: string | null;
+  manualHandledNote: string | null;
+  manualHandledByUserId: string | null;
+  manualHandledBy: AdminEventUserOption | null;
+  manualHandledAt: Date | null;
+  resendEligible: boolean;
+};
+
 export type AdminEventRegistrationDto = {
   id: string;
   status: EventRegistrationStatusValue;
@@ -160,6 +190,7 @@ export type AdminEventRegistrationDto = {
   registrationTeam: AdminEventRegistrationTeamDto | null;
   boatMembers: AdminEventRegistrationBoatMemberDto[];
   answers: AdminEventRegistrationAnswerDto[];
+  payment: AdminEventRegistrationPaymentDto | null;
 };
 
 export type AdminEventRegistrationsDto = {
@@ -344,6 +375,14 @@ function publicContentSectionsFromDescription(
   ];
 }
 
+function eventPaymentResendEligible(status: EventPaymentStatusValue): boolean {
+  return (
+    status === EventPaymentStatus.checkout_created ||
+    status === EventPaymentStatus.past_due ||
+    status === EventPaymentStatus.pending
+  );
+}
+
 function boatPositionLabel(
   position: number
 ): AdminEventRegistrationBoatMemberDto['positionLabel'] {
@@ -375,6 +414,17 @@ function registrationDtosFromRows(
       fullName: string;
       email: string;
     }[];
+    payment?: {
+      id: string;
+      status: EventPaymentStatusValue;
+      amountCents: number;
+      currency: string;
+      stripeReceiptUrl: string | null;
+      manualHandledNote: string | null;
+      manualHandledByUserId: string | null;
+      manualHandledBy: AdminEventUserOption | null;
+      manualHandledAt: Date | null;
+    } | null;
     registrationAnswers: readonly {
       id: string;
       value: string;
@@ -408,6 +458,22 @@ function registrationDtosFromRows(
         .toSorted(
           (a, b) => a.boatNumber - b.boatNumber || a.position - b.position
         ),
+      payment: registration.payment
+        ? {
+            amountCents: registration.payment.amountCents,
+            currency: registration.payment.currency,
+            id: registration.payment.id,
+            manualHandledAt: registration.payment.manualHandledAt,
+            manualHandledBy: registration.payment.manualHandledBy,
+            manualHandledByUserId: registration.payment.manualHandledByUserId,
+            manualHandledNote: registration.payment.manualHandledNote,
+            receiptUrl: registration.payment.stripeReceiptUrl,
+            resendEligible: eventPaymentResendEligible(
+              registration.payment.status
+            ),
+            status: registration.payment.status,
+          }
+        : null,
       answers: registration.registrationAnswers
         .map((answer) => ({
           id: answer.id,
@@ -641,6 +707,16 @@ export async function getAdminEventEditorDataBySlug(options: {
             resultsVisible: true,
             resultsContent: true,
             isPublished: true,
+            paymentsEnabled: true,
+            paymentDeadlineAt: true,
+            addressPreset: true,
+            addressName: true,
+            addressLine1: true,
+            addressLine2: true,
+            addressCity: true,
+            addressState: true,
+            addressPostalCode: true,
+            addressCountry: true,
             dates: {
               orderBy: { startDateTime: 'asc' },
               select: { id: true, startDateTime: true, endDateTime: true },
@@ -817,6 +893,21 @@ export async function getAdminEventRegistrationsBySlug(options: {
                   questionText: true,
                   displayOrder: true,
                 },
+              },
+            },
+          },
+          payment: {
+            select: {
+              id: true,
+              status: true,
+              amountCents: true,
+              currency: true,
+              stripeReceiptUrl: true,
+              manualHandledNote: true,
+              manualHandledByUserId: true,
+              manualHandledAt: true,
+              manualHandledBy: {
+                select: { id: true, name: true, email: true },
               },
             },
           },

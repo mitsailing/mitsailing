@@ -70,6 +70,12 @@ export const ADMIN_SITE_NAV_ITEMS: AdminNavItem[] = [
     permissions: [Permission.EVENTS_MANAGE, Permission.EVENTS_ASSIGNED_MANAGE],
   },
   {
+    href: '/admin/payments',
+    labelKey: 'nav_payments',
+    match: 'prefix',
+    permissions: [Permission.PAYMENTS_VIEW],
+  },
+  {
     href: '/admin/event_categories',
     labelKey: 'nav_event_categories',
     match: 'prefix',

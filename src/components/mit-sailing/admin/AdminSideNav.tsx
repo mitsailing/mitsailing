@@ -152,12 +152,9 @@ export function AdminSideNav(props: { items: readonly AdminNavItem[] }) {
         )}
         id={ADMIN_SIDE_NAV_REGION_ID}
       >
-        <ul
-          className="m-0 flex min-h-0 flex-1 list-none flex-col gap-y-2 p-0"
-          role="list"
-        >
+        <ul className="m-0 flex min-h-0 flex-1 list-none flex-col gap-y-2 p-0">
           <li>
-            <ul className="m-0 -mx-2 list-none space-y-0.5 p-0" role="list">
+            <ul className="m-0 -mx-2 list-none space-y-0.5 p-0">
               {props.items.map((item) => {
                 const active = isAdminNavItemActive(
                   pathname,
