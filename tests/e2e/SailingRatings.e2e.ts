@@ -174,6 +174,7 @@ test.describe('Sailing ratings', () => {
 
     await techRow.getByRole('button', { name: 'Revoke' }).click();
     await waitForTechRatingRowPresent(false);
+    await page.reload();
     await expect(techRow.getByRole('button', { name: 'Revoke' })).toHaveCount(
       0
     );

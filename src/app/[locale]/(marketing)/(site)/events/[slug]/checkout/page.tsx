@@ -113,6 +113,7 @@ export default async function EventCheckoutPage(props: EventCheckoutPageProps) {
             checkoutLoadError: t('checkout_load_error'),
             checkoutLoading: t('checkout_loading'),
             checkoutRegionLabel: t('checkout_region_label'),
+            checkoutUnavailable: t('checkout_unavailable'),
             noPaymentBody: t('checkout_no_payment_body'),
             noPaymentTitle: t('checkout_no_payment_title'),
             paidReceipt: t('checkout_receipt_link'),
@@ -120,6 +121,7 @@ export default async function EventCheckoutPage(props: EventCheckoutPageProps) {
           }}
           payment={payment}
           publishableKey={checkoutPublishableKey()}
+          title={t('checkout_title', { event: data.event.name })}
         />
       </SiteSectionMain>
     </SiteSectionShell>

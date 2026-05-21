@@ -28,6 +28,7 @@ import {
   eventAdminIdsFormSchema,
   eventDateFormSchema,
   eventFeeFormSchema,
+  eventLocationFormSchema,
   eventPaymentManualHandledFormSchema,
   eventPaymentSettingsFormSchema,
   eventQuestionFormSchema,
@@ -39,6 +40,7 @@ import {
   rawEventBasicsFromFormData,
   rawEventDateFromFormData,
   rawEventFeeFromFormData,
+  rawEventLocationFromFormData,
   rawEventPaymentManualHandledFromFormData,
   rawEventPaymentSettingsFromFormData,
   rawEventQuestionFromFormData,
@@ -1167,6 +1169,37 @@ export async function updateAdminEventPaymentSettingsAction(
   } catch (error) {
     logAdminEventMutationFailure({
       action: 'update-payment-settings',
+      error,
+      slug,
+    });
+    redirect(editUrlWithError(locale, slug, mutationCodeFromPrisma(error)));
+  }
+  revalidateEventAdminMutation(locale, [slug]);
+  redirect(getI18nPath(adminEventEditPath(slug), locale));
+}
+
+export async function updateAdminEventLocationAction(
+  locale: string,
+  slug: string,
+  formData: FormData
+): Promise<void> {
+  const access = await requireEditableAdminEvent(locale, slug);
+  const zodParse = await adminEventZodParseParams(locale);
+  const parsed = eventLocationFormSchema.safeParse(
+    rawEventLocationFromFormData(formData),
+    zodParse
+  );
+  if (!parsed.success) {
+    redirect(editUrlWithError(locale, slug, 'validation_failed'));
+  }
+  try {
+    await prisma.event.update({
+      where: { id: access.event.id },
+      data: parsed.data,
+    });
+  } catch (error) {
+    logAdminEventMutationFailure({
+      action: 'update-location',
       error,
       slug,
     });

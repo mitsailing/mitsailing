@@ -1,4 +1,4 @@
-import { Check, Clock, CreditCard, LogIn, X } from 'lucide-react';
+import { ArrowRight, Check, Clock, CreditCard, LogIn, X } from 'lucide-react';
 import type { getTranslations } from 'next-intl/server';
 import type * as React from 'react';
 import { Button } from '@/components/ui/button';
@@ -111,6 +111,7 @@ export function EventRegistrationCta(props: EventRegistrationCtaProps) {
     `/events/${encodeURIComponent(props.event.slug)}/checkout`,
     props.locale
   );
+  const eventsHref = getI18nPath('/events', props.locale);
 
   if (props.reservationState === 'approved') {
     const payment = props.currentRegistration?.payment ?? null;
@@ -180,7 +181,17 @@ export function EventRegistrationCta(props: EventRegistrationCtaProps) {
   }
 
   if (props.reservationState === 'closed') {
-    return <RegistrationErrorAlert message={errorMessage} />;
+    return (
+      <div className="flex flex-col items-start gap-2">
+        <RegistrationErrorAlert message={errorMessage} />
+        <Button asChild size="sm" variant="outline">
+          <Link href={eventsHref}>
+            {props.t('registration_view_other_events')}
+            <ArrowRight aria-hidden className="size-4" />
+          </Link>
+        </Button>
+      </div>
+    );
   }
 
   if (props.reservationState === 'full') {

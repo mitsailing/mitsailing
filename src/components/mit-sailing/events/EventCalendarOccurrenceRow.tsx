@@ -32,6 +32,9 @@ export function EventCalendarOccurrenceRow(
         )}
       />
       <div className="min-w-0 flex-1">
+        <p className="mb-0.5 text-[0.6875rem] leading-tight font-semibold tracking-wide text-muted-foreground uppercase">
+          {props.row.category.name}
+        </p>
         <Link
           className={cn(
             'block text-sm leading-tight font-semibold text-mit-red no-underline hover:underline dark:text-mit-red-ink',

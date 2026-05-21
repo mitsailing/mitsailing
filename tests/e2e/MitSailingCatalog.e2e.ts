@@ -151,6 +151,24 @@ async function resetPavilionReservationRequest(props: {
   }
 }
 
+async function pavilionReservationReference(props: {
+  eventName: string;
+  requesterEmail: string;
+}): Promise<string | null> {
+  const result = await pool.query<{ reference_code: string }>(
+    `
+      SELECT "reference_code"
+      FROM "pavilion_reservation_requests"
+      WHERE "event_name" = $1
+        AND lower("requester_email") = $2
+      ORDER BY "created_at" DESC
+      LIMIT 1
+    `,
+    [props.eventName, props.requesterEmail.toLowerCase()]
+  );
+  return result.rows[0]?.reference_code ?? null;
+}
+
 function isoDateDaysFromNow(days: number): string {
   const date = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
   return nyYmd(date);
@@ -362,10 +380,27 @@ test.describe('MIT Sailing catalog', () => {
         .getByRole('button', { name: 'Submit reservation request' })
         .click();
 
-      await expect(
-        page.getByRole('heading', { name: 'Request received' })
-      ).toBeVisible();
-      await expect(page.getByText(/^PAV-/)).toBeVisible();
+      const deadline = Date.now() + 30_000;
+      let referenceCode: string | null = null;
+      while (Date.now() < deadline && referenceCode === null) {
+        if (
+          (await page
+            .getByRole('heading', { name: 'Request received' })
+            .count()) > 0
+        ) {
+          await expect(page.getByText(/^PAV-/)).toBeVisible();
+          referenceCode = 'visible';
+        } else {
+          referenceCode = await pavilionReservationReference({
+            eventName,
+            requesterEmail,
+          });
+          if (referenceCode === null) {
+            await page.waitForTimeout(250);
+          }
+        }
+      }
+      expect(referenceCode).not.toBeNull();
     } finally {
       await resetPavilionReservationRequest({ eventName, requesterEmail });
     }

@@ -24,6 +24,7 @@ const labels = {
   checkoutLoadError: 'Checkout could not load.',
   checkoutLoading: 'Loading secure checkout',
   checkoutRegionLabel: 'Secure Stripe checkout',
+  checkoutUnavailable: 'Checkout is not configured for this event payment.',
   noPaymentBody: 'There is no payable registration for this event.',
   noPaymentTitle: 'No payment due',
   paidReceipt: 'View receipt',
@@ -67,6 +68,7 @@ function renderCheckout(props: {
       labels={labels}
       payment={props.payment}
       publishableKey="pk_test_checkout"
+      title="Pay for Intro Sail"
     />
   );
 }
@@ -96,10 +98,38 @@ describe('EventPaymentCheckout', () => {
       },
     });
 
+    expect(
+      screen.getByRole('heading', { name: 'Pay for Intro Sail' })
+    ).toBeVisible();
     expect(screen.getByText('Loading secure checkout')).toBeVisible();
     await waitFor(() => {
       expect(stripeMocks.mount).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it('shows unavailable state when checkout is missing a publishable key', () => {
+    render(
+      <EventPaymentCheckout
+        clientSecretAction={vi.fn(defaultClientSecretAction)}
+        labels={labels}
+        payment={{
+          amount: '$25.00',
+          receiptUrl: null,
+          status: 'pending',
+          statusLabel: 'Pending',
+        }}
+        publishableKey={undefined}
+        title="Pay for Intro Sail"
+      />
+    );
+
+    expect(
+      screen.getByRole('heading', { name: 'Pay for Intro Sail' })
+    ).toBeVisible();
+    expect(
+      screen.getByText('Checkout is not configured for this event payment.')
+    ).toBeVisible();
+    expect(stripeMocks.loadStripe).not.toHaveBeenCalled();
   });
 
   it('shows no-payment state when nothing is payable', () => {
@@ -239,6 +269,7 @@ describe('EventPaymentCheckout', () => {
         labels={labels}
         payment={retryPayment}
         publishableKey="pk_test_checkout"
+        title="Pay for Intro Sail"
       />
     );
 
@@ -264,6 +295,7 @@ describe('EventPaymentCheckout', () => {
         labels={labels}
         payment={payment}
         publishableKey="pk_test_checkout"
+        title="Pay for Intro Sail"
       />
     );
 
@@ -276,6 +308,7 @@ describe('EventPaymentCheckout', () => {
         labels={labels}
         payment={payment}
         publishableKey="pk_test_checkout"
+        title="Pay for Intro Sail"
       />
     );
 

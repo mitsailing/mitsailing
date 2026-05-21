@@ -11,12 +11,14 @@ import {
   eventAdminIdsFormSchema,
   eventDateFormSchema,
   eventFeeFormSchema,
+  eventLocationFormSchema,
   eventPaymentManualHandledFormSchema,
   eventPaymentSettingsFormSchema,
   eventQuestionFormSchema,
   generateEventAdminSlug,
   parseEasternDateTimeLocal,
   rawEventFeeFromFormData,
+  rawEventLocationFromFormData,
   rawEventPaymentManualHandledFromFormData,
   rawEventPaymentSettingsFromFormData,
   slugifyEventAdmin,
@@ -310,10 +312,23 @@ describe('eventAdminSchemas', () => {
     expect(parsed.amountCents).toBe(2500);
   });
 
-  it('parses payment settings and custom address fields from form data', () => {
+  it('parses payment settings from form data', () => {
     const formData = new FormData();
     formData.set('paymentsEnabled', 'true');
     formData.set('paymentDeadlineAt', '2026-06-01T17:30');
+
+    const parsed = eventPaymentSettingsFormSchema.parse(
+      rawEventPaymentSettingsFromFormData(formData)
+    );
+
+    expect(parsed).toEqual({
+      paymentsEnabled: true,
+      paymentDeadlineAt: new Date('2026-06-01T21:30:00.000Z'),
+    });
+  });
+
+  it('parses custom address fields from form data', () => {
+    const formData = new FormData();
     formData.set('addressPreset', EventAddressPreset.custom);
     formData.set('addressName', 'Sailing center');
     formData.set('addressLine1', '1 Memorial Drive');
@@ -323,13 +338,11 @@ describe('eventAdminSchemas', () => {
     formData.set('addressPostalCode', '02139');
     formData.set('addressCountry', 'US');
 
-    const parsed = eventPaymentSettingsFormSchema.parse(
-      rawEventPaymentSettingsFromFormData(formData)
+    const parsed = eventLocationFormSchema.parse(
+      rawEventLocationFromFormData(formData)
     );
 
     expect(parsed).toEqual({
-      paymentsEnabled: true,
-      paymentDeadlineAt: new Date('2026-06-01T21:30:00.000Z'),
       addressPreset: EventAddressPreset.custom,
       addressName: 'Sailing center',
       addressLine1: '1 Memorial Drive',
@@ -342,9 +355,7 @@ describe('eventAdminSchemas', () => {
   });
 
   it('materializes Pavilion preset address fields even when form fields are blank', () => {
-    const parsed = eventPaymentSettingsFormSchema.parse({
-      paymentsEnabled: false,
-      paymentDeadlineAt: '',
+    const parsed = eventLocationFormSchema.parse({
       addressPreset: EventAddressPreset.pavilion,
       addressName: '',
       addressLine1: '',
@@ -366,9 +377,7 @@ describe('eventAdminSchemas', () => {
   });
 
   it('materializes Bluewater preset address fields even when form fields are blank', () => {
-    const parsed = eventPaymentSettingsFormSchema.parse({
-      paymentsEnabled: false,
-      paymentDeadlineAt: '',
+    const parsed = eventLocationFormSchema.parse({
       addressPreset: EventAddressPreset.bluewater,
       addressName: '',
       addressLine1: '',
@@ -393,14 +402,6 @@ describe('eventAdminSchemas', () => {
     const parsed = eventPaymentSettingsFormSchema.safeParse({
       paymentsEnabled: true,
       paymentDeadlineAt: '',
-      addressPreset: EventAddressPreset.pavilion,
-      addressName: '',
-      addressLine1: '',
-      addressLine2: '',
-      addressCity: '',
-      addressState: '',
-      addressPostalCode: '',
-      addressCountry: '',
     });
 
     expect(parsed.success).toBe(false);

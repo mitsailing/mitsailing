@@ -33,6 +33,7 @@ type EventPaymentCheckoutLabels = {
   checkoutLoadError: string;
   checkoutLoading: string;
   checkoutRegionLabel: string;
+  checkoutUnavailable: string;
   noPaymentBody: string;
   noPaymentTitle: string;
   paidReceipt: string;
@@ -44,6 +45,7 @@ type EventPaymentCheckoutProps = {
   labels: EventPaymentCheckoutLabels;
   payment: EventPaymentCheckoutPayment;
   publishableKey: string | undefined;
+  title: string;
 };
 
 function isPayablePayment(
@@ -214,8 +216,32 @@ export function EventPaymentCheckout(props: EventPaymentCheckoutProps) {
     );
   }
 
+  if (!props.publishableKey) {
+    return (
+      <section className="mx-auto flex max-w-4xl flex-col gap-5">
+        <h1 className="font-mit-serif text-3xl font-semibold tracking-tight text-mit-text">
+          {props.title}
+        </h1>
+        <PaymentSummary
+          amount={props.payment.amount}
+          labels={props.labels}
+          status={props.payment.statusLabel}
+        />
+        <p
+          className="rounded-lg border border-mit-line bg-muted/30 px-3 py-2 text-sm text-mit-readable-ink"
+          role="status"
+        >
+          {props.labels.checkoutUnavailable}
+        </p>
+      </section>
+    );
+  }
+
   return (
     <section className="mx-auto flex max-w-4xl flex-col gap-5">
+      <h1 className="font-mit-serif text-3xl font-semibold tracking-tight text-mit-text">
+        {props.title}
+      </h1>
       <PaymentSummary
         amount={props.payment.amount}
         labels={props.labels}

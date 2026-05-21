@@ -66,7 +66,11 @@ function BulkEmailPlaceholder(props: {
 }) {
   const recipientCount = props.counts.pending + props.counts.approved;
   return (
-    <Card className="rounded-lg">
+    <Card
+      aria-label={props.t('bulk_email_heading')}
+      className="rounded-lg"
+      role="region"
+    >
       <CardHeader>
         <CardTitle>
           <h2 className="inline-flex items-center gap-2">
@@ -81,19 +85,17 @@ function BulkEmailPlaceholder(props: {
         </p>
         <Input
           aria-label={props.t('bulk_email_subject')}
-          disabled
           placeholder={props.t('bulk_email_subject')}
         />
         <Textarea
           aria-label={props.t('bulk_email_message')}
           className="min-h-28"
-          disabled
           placeholder={props.t('bulk_email_message')}
         />
         <p className="text-xs text-mit-readable-ink">
           {props.t('bulk_email_recipients', { count: recipientCount })}
         </p>
-        <Button disabled type="button" variant="mit">
+        <Button type="button" variant="mit">
           {props.t('bulk_email_send')}
         </Button>
       </CardContent>

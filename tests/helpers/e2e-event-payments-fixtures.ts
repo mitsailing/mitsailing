@@ -335,6 +335,25 @@ export async function paymentRequestCount(paymentId: string): Promise<number> {
   return Number(result.rows[0]?.count ?? '0');
 }
 
+export async function markPaymentHandledFixture(options: {
+  note: string;
+  paymentId: string;
+}): Promise<void> {
+  const adminId = await adminUserId();
+  await pool.query(
+    `
+      UPDATE "event_payments"
+      SET "status" = 'handled',
+          "manual_handled_note" = $2,
+          "manual_handled_by_user_id" = $3,
+          "manual_handled_at" = NOW(),
+          "updated_at" = NOW()
+      WHERE "id" = $1
+    `,
+    [options.paymentId, options.note, adminId]
+  );
+}
+
 export async function paymentSettingsForEvent(
   slug: string
 ): Promise<PaymentSettingsRow> {

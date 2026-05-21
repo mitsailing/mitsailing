@@ -264,6 +264,11 @@ function validPaymentSettingsFormData(): FormData {
   const formData = new FormData();
   formData.set('paymentsEnabled', 'true');
   formData.set('paymentDeadlineAt', '2026-06-01T17:00');
+  return formData;
+}
+
+function validLocationFormData(): FormData {
+  const formData = new FormData();
   formData.set('addressPreset', EventAddressPreset.pavilion);
   formData.set('addressName', '');
   formData.set('addressLine1', '');
@@ -1091,6 +1096,29 @@ describe('updateAdminEventPaymentSettingsAction', () => {
 
     expect(mocks.eventUpdate).toHaveBeenCalledWith({
       data: expect.objectContaining({
+        paymentDeadlineAt: new Date('2026-06-01T21:00:00.000Z'),
+        paymentsEnabled: true,
+      }),
+      where: { id: 'event-1' },
+    });
+  });
+});
+
+describe('updateAdminEventLocationAction', () => {
+  it('updates event address through the protected event id', async () => {
+    const { updateAdminEventLocationAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventLocationAction(
+        'en',
+        'intro-sail',
+        validLocationFormData()
+      )
+    ).rejects.toThrow('NEXT_REDIRECT:/admin/events/intro-sail/edit');
+
+    expect(mocks.eventUpdate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
         addressCity: 'Cambridge',
         addressCountry: 'US',
         addressLine1: '134 Memorial Drive',
@@ -1099,8 +1127,6 @@ describe('updateAdminEventPaymentSettingsAction', () => {
         addressPostalCode: '02139',
         addressPreset: EventAddressPreset.pavilion,
         addressState: 'MA',
-        paymentDeadlineAt: new Date('2026-06-01T21:00:00.000Z'),
-        paymentsEnabled: true,
       }),
       where: { id: 'event-1' },
     });

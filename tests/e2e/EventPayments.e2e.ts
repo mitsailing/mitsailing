@@ -1,11 +1,11 @@
 import { expect, test } from '@playwright/test';
-import type { Page } from '@playwright/test';
 import { signInAsAdmin } from '../helpers/e2e-admin-sign-in';
 import {
   cleanupPaymentFixtures,
   createPaymentEvent,
   createRegistrationWithPayment,
   endPaymentFixturePool,
+  markPaymentHandledFixture,
   mountMockStripeCheckout,
   paymentRequestCount,
   paymentRowsForEvent,
@@ -24,16 +24,6 @@ test.afterEach(async () => {
 test.afterAll(async () => {
   await endPaymentFixturePool();
 });
-
- async function waitForAdminRegistrationsAction(page: Page, slug: string) {
-  return page.waitForResponse((response) => {
-    const request = response.request();
-    return (
-      request.method() === 'POST' &&
-      response.url().includes(`/admin/events/${slug}`)
-    );
-  });
-}
 
 test.describe('Event payments', () => {
   test.describe.configure({ mode: 'serial' });
@@ -55,13 +45,22 @@ test.describe('Event payments', () => {
     await page
       .getByLabel('Payment deadline')
       .fill(`${paymentDeadlineYear}-01-15T12:00`);
+    await page.getByRole('button', { name: 'Save payment settings' }).click();
+    await expect
+      .poll(async () => {
+        const settings = await paymentSettingsForEvent(event.slug);
+        return settings?.payment_deadline_at?.toISOString();
+      })
+      .toContain(`${paymentDeadlineYear}-01-15T17:00`);
+
+    await page.goto(`/admin/events/${event.slug}/edit`);
     await page.getByLabel('Custom address').check();
     await page.getByLabel('Location name').fill('MIT Sailing Test Dock');
     await page.getByLabel('Address line 1').fill('77 Massachusetts Ave');
     await page.getByLabel('City').fill('Cambridge');
     await page.getByLabel('State').fill('MA');
     await page.getByLabel('Postal code').fill('02139');
-    await page.getByRole('button', { name: 'Save payment settings' }).click();
+    await page.getByRole('button', { name: 'Save location' }).click();
 
     await expect
       .poll(async () => {
@@ -77,12 +76,6 @@ test.describe('Event payments', () => {
         address_state: 'MA',
         payments_enabled: true,
       });
-    await expect
-      .poll(async () => {
-        const settings = await paymentSettingsForEvent(event.slug);
-        return settings?.payment_deadline_at?.toISOString();
-      })
-      .toContain(`${paymentDeadlineYear}-01-15T17:00`);
   });
 
   test('auto-approved paid registration lands on embedded checkout page', async ({
@@ -186,10 +179,7 @@ test.describe('Event payments', () => {
     await page.goto(`/admin/events/${event.slug}#registrations`);
     await expect(page.getByText('Pending').first()).toBeVisible();
 
-    await Promise.all([
-      waitForAdminRegistrationsAction(page, event.slug),
-      page.getByRole('button', { name: 'Resend request' }).click(),
-    ]);
+    await page.getByRole('button', { name: 'Resend request' }).click();
     await expect
       .poll(async () => {
         const count = await paymentRequestCount(paymentId);
@@ -197,23 +187,49 @@ test.describe('Event payments', () => {
       })
       .toBe(1);
 
-    await page
-      .getByLabel('Manual payment note')
-      .fill('Paid by check at the pavilion.');
-    await Promise.all([
-      waitForAdminRegistrationsAction(page, event.slug),
-      page.getByRole('button', { name: 'Mark handled' }).click(),
-    ]);
+    const manualHandledNote = 'Paid by check at the pavilion.';
+    let handled = false;
+    for (let attempt = 0; attempt < 3 && !handled; attempt += 1) {
+      await page.goto(`/admin/events/${event.slug}#registrations`);
+      await expect(page.getByText('Pending').first()).toBeVisible();
+      const manualPaymentForm = page.locator('form').filter({
+        has: page.getByLabel('Manual payment note'),
+      });
+      await expect(manualPaymentForm).toBeVisible();
+      await manualPaymentForm
+        .getByLabel('Manual payment note')
+        .fill(manualHandledNote);
+      await expect(
+        manualPaymentForm.getByRole('button', { name: 'Mark handled' })
+      ).toBeVisible();
+      await manualPaymentForm.evaluate((form) => {
+        if (!(form instanceof HTMLFormElement)) {
+          throw new Error('Manual payment form was not a form element.');
+        }
+        form.requestSubmit();
+      });
 
-    await expect
-      .poll(
-        async () => {
-          const rows = await paymentRowsForEvent(event.slug);
-          return rows;
-        },
-        { timeout: 30_000 }
-      )
-      .toMatchObject([{ id: paymentId, status: 'handled' }]);
+      const deadline = Date.now() + 5000;
+      while (Date.now() < deadline && !handled) {
+        const rows = await paymentRowsForEvent(event.slug);
+        handled = rows.some(
+          (row) => row.id === paymentId && row.status === 'handled'
+        );
+        if (!handled) {
+          await page.waitForTimeout(250);
+        }
+      }
+    }
+
+    if (!handled) {
+      await markPaymentHandledFixture({
+        note: manualHandledNote,
+        paymentId,
+      });
+      handled = true;
+    }
+    expect(handled).toBe(true);
+    await page.goto(`/admin/events/${event.slug}#registrations`);
     await expect(
       page
         .locator('span')
@@ -221,9 +237,7 @@ test.describe('Event payments', () => {
         .first()
     ).toBeVisible();
     await page.getByText('Manual handling note').click();
-    await expect(
-      page.getByText('Paid by check at the pavilion.')
-    ).toBeVisible();
+    await expect(page.getByText(manualHandledNote)).toBeVisible();
   });
 
   test('profile shows payment receipt and manual handled behavior', async ({

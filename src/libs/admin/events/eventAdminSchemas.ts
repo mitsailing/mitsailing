@@ -471,6 +471,14 @@ export const eventPaymentSettingsFormSchema = z
   .object({
     paymentsEnabled: z.boolean(),
     paymentDeadlineAt: optionalDateTimeLocalSchema,
+  })
+  .refine(
+    (value) => !value.paymentsEnabled || value.paymentDeadlineAt !== null,
+    { path: ['paymentDeadlineAt'] }
+  );
+
+export const eventLocationFormSchema = z
+  .object({
     addressPreset: eventAddressPresetSchema,
     addressName: z.string().trim(),
     addressLine1: z.string().trim(),
@@ -493,11 +501,7 @@ export const eventPaymentSettingsFormSchema = z
       addressPostalCode: address.addressPostalCode || null,
       addressCountry: address.addressCountry || null,
     };
-  })
-  .refine(
-    (value) => !value.paymentsEnabled || value.paymentDeadlineAt !== null,
-    { path: ['paymentDeadlineAt'] }
-  );
+  });
 
 export const eventPaymentManualHandledFormSchema = z.object({
   note: z.string().trim().min(1),
@@ -583,6 +587,11 @@ export function rawEventPaymentSettingsFromFormData(
   return {
     paymentsEnabled: formCheckbox(formData, 'paymentsEnabled'),
     paymentDeadlineAt: formString(formData, 'paymentDeadlineAt'),
+  };
+}
+
+export function rawEventLocationFromFormData(formData: FormData): unknown {
+  return {
     addressPreset: formString(formData, 'addressPreset'),
     addressName: formString(formData, 'addressName'),
     addressLine1: formString(formData, 'addressLine1'),

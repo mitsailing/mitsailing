@@ -2,6 +2,7 @@ import {
   ArrowLeft,
   CreditCard,
   ExternalLink,
+  MapPin,
   Plus,
   Save,
   Trash2,
@@ -46,6 +47,7 @@ import {
   updateAdminEventBasicsAction,
   updateAdminEventDateAction,
   updateAdminEventFeeAction,
+  updateAdminEventLocationAction,
   updateAdminEventQuestionAction,
   deleteAdminEventDateAction,
   deleteAdminEventFeeAction,
@@ -1393,9 +1395,9 @@ function EventPaymentSettingsSection(props: AdminEventFormViewProps) {
   );
   return (
     <AdminEventFormSection
-      id="event-stripe"
+      id="event-payments"
       subtitle={props.t('payments_settings_subtitle')}
-      title={props.t('section_stripe')}
+      title={props.t('section_payments')}
     >
       <form action={updateAction} className="flex flex-col gap-4">
         <AdminEventCheckbox
@@ -1421,7 +1423,33 @@ function EventPaymentSettingsSection(props: AdminEventFormViewProps) {
             />
           )}
         </AdminEventField>
+        <div className="flex justify-end">
+          <SubmitButton
+            pendingLabel={props.tCommon('pending_saving')}
+            variant="mit"
+          >
+            <CreditCard aria-hidden className="size-4" />
+            {props.t('action_save_payment_settings')}
+          </SubmitButton>
+        </div>
+      </form>
+    </AdminEventFormSection>
+  );
+}
 
+function EventLocationSection(props: AdminEventFormViewProps) {
+  const updateAction = updateAdminEventLocationAction.bind(
+    null,
+    props.locale,
+    props.event.slug
+  );
+  return (
+    <AdminEventFormSection
+      id="event-location"
+      subtitle={props.t('location_settings_subtitle')}
+      title={props.t('section_location')}
+    >
+      <form action={updateAction} className="flex flex-col gap-4">
         <fieldset className="grid gap-2">
           <legend className="text-sm font-semibold text-foreground">
             {props.t('field_address_preset')}
@@ -1532,8 +1560,8 @@ function EventPaymentSettingsSection(props: AdminEventFormViewProps) {
             pendingLabel={props.tCommon('pending_saving')}
             variant="mit"
           >
-            <CreditCard aria-hidden className="size-4" />
-            {props.t('action_save_payment_settings')}
+            <MapPin aria-hidden className="size-4" />
+            {props.t('action_save_location')}
           </SubmitButton>
         </div>
       </form>
@@ -1600,6 +1628,7 @@ export function AdminEventFormView(props: AdminEventFormViewProps) {
             <EventFeesSection {...props} />
           </OptionalEditorSection>
           <EventPaymentSettingsSection {...props} />
+          <EventLocationSection {...props} />
         </>
       ) : (
         <>

@@ -1,15 +1,14 @@
-import { ArrowLeft, MapPin } from 'lucide-react';
+import { ArrowLeft, CalendarDays, MapPin, Users } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import type * as React from 'react';
 import { PublicAdminEditLink } from '@/components/mit-sailing/admin/PublicAdminEditLink';
 import { PublicCatalogDetailTopNav } from '@/components/mit-sailing/admin/PublicCatalogDetailTopNav';
 import { CmsRichText } from '@/components/mit-sailing/cms/CmsRichText';
-import { EVENTS_TIME_ZONE } from '@/lib/mit-sailing/nyTime';
+import { EVENTS_TIME_ZONE, nyYmd } from '@/lib/mit-sailing/nyTime';
 import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
 import { cn } from '@/lib/utils';
 import { Link } from '@/libs/I18nNavigation';
 import { safeExternalHttpHref } from '@/libs/mit-sailing/cmsHref';
-import { formatEasternEventRange } from '@/libs/mit-sailing/easternTimeFormat';
 import type {
   PublicEventDetail,
   PublicEventRegistrationState,
@@ -32,6 +31,26 @@ type EventDetailViewProps = {
 type PublicContentSection = NonNullable<
   PublicEventDetail['publicContentSections']
 >[number];
+
+const compactDateFormatter = new Intl.DateTimeFormat('en-US', {
+  timeZone: EVENTS_TIME_ZONE,
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+});
+
+const compactDateNoYearFormatter = new Intl.DateTimeFormat('en-US', {
+  timeZone: EVENTS_TIME_ZONE,
+  month: 'short',
+  day: 'numeric',
+});
+
+const compactTimeFormatter = new Intl.DateTimeFormat('en-US', {
+  timeZone: EVENTS_TIME_ZONE,
+  hour: 'numeric',
+  hour12: true,
+  minute: '2-digit',
+});
 
 function formatDateOnly(date: Date | null, locale: string): string {
   if (!date) {
@@ -66,17 +85,77 @@ function SectionHeading(props: { children: React.ReactNode; id: string }) {
   );
 }
 
+function formatCompactEventRange(start: Date, end: Date): string {
+  const startKey = nyYmd(start);
+  const endKey = nyYmd(end);
+  const startTime = compactTimeFormatter.format(start);
+  const endTime = compactTimeFormatter.format(end);
+  if (startKey === endKey) {
+    return `${compactDateFormatter.format(start)}, ${startTime} – ${endTime}`;
+  }
+
+  const startYear = startKey.slice(0, 4);
+  const endDate =
+    startYear === endKey.slice(0, 4)
+      ? compactDateNoYearFormatter.format(end)
+      : compactDateFormatter.format(end);
+  return `${compactDateFormatter.format(start)}, ${startTime} – ${endDate}, ${endTime}`;
+}
+
+function DetailFactSection(props: {
+  children: React.ReactNode;
+  icon: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <section
+      aria-label={props.label}
+      className="grid grid-cols-[1.25rem_minmax(0,1fr)] gap-3"
+    >
+      <div className="pt-0.5 text-muted-foreground">{props.icon}</div>
+      <div className="min-w-0 text-sm leading-5 text-mit-text">
+        {props.children}
+      </div>
+    </section>
+  );
+}
+
 function MetaRow(props: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-baseline justify-between gap-3">
-      <dt className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+    <div className="flex items-baseline justify-between gap-4 py-3">
+      <dt className="text-[0.6875rem] font-semibold tracking-wide text-muted-foreground uppercase">
         {props.label}
       </dt>
-      <dd className="m-0 text-right text-sm text-foreground">
+      <dd className="m-0 text-right text-sm font-medium text-mit-text">
         {props.children}
       </dd>
     </div>
   );
+}
+
+function personInitials(name: string): string {
+  const [first = '', second = ''] = name.trim().split(/\s+/);
+  return `${first[0] ?? ''}${second[0] ?? ''}`.toUpperCase() || '?';
+}
+
+function safeAvatarImageUrl(value: string | null): string | null {
+  if (value?.startsWith('/') && !value.startsWith('//')) {
+    return value;
+  }
+  if (!value) {
+    return null;
+  }
+  if (URL.canParse(value)) {
+    const url = new URL(value);
+    return url.protocol === 'https:' ? url.href : null;
+  }
+  return null;
+}
+
+function avatarImageStyle(value: string): React.CSSProperties {
+  return {
+    backgroundImage: `url("${value.replaceAll('"', '%22')}")`,
+  };
 }
 
 function isNonEmptyString(value: string | null | undefined): value is string {
@@ -105,6 +184,10 @@ function eventAddressMapHref(lines: readonly string[]): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
     lines.join(', ')
   )}`;
+}
+
+function eventAddressSummary(lines: readonly string[]): string {
+  return lines.filter((line) => line !== 'US').join(', ');
 }
 
 function registrationHeading(
@@ -150,6 +233,185 @@ function registrationMetaLabels(props: {
       tense: dateTense(props.event.registrationEnd, props.now),
     }),
   };
+}
+
+function showRegistrationOpens(event: PublicEventDetail, now: Date): boolean {
+  return event.registrationStart !== null && event.registrationStart > now;
+}
+
+function showRegistrationCloses(event: PublicEventDetail): boolean {
+  return event.registrationEnd !== null;
+}
+
+function HostList(props: { event: PublicEventDetail }) {
+  if (props.event.admins.length === 0) {
+    return null;
+  }
+  return (
+    <ul className="m-0 flex list-none flex-wrap gap-2 p-0">
+      {props.event.admins.map((adminRow) => (
+        <li className="min-w-0" key={adminRow.id}>
+          <a
+            className={cn(
+              'inline-flex max-w-full items-center gap-2 rounded-full border border-mit-line bg-card px-2.5 py-1 text-sm font-medium text-mit-text no-underline hover:border-mit-red/45 hover:text-mit-red dark:hover:text-mit-red-ink',
+              textFocusRingClassName
+            )}
+            href={`mailto:${adminRow.admin.email}`}
+          >
+            <span
+              aria-hidden
+              className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-[0.6875rem] font-bold text-muted-foreground"
+            >
+              {adminInitials(adminRow.admin.name)}
+            </span>
+            <span className="truncate">{adminRow.admin.name}</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function AttendeeAvatar(props: {
+  attendee: PublicEventDetail['attendees']['approved'][number];
+  muted?: boolean;
+}) {
+  const imageUrl = safeAvatarImageUrl(props.attendee.image);
+  return (
+    <span
+      aria-label={props.attendee.name}
+      className={cn(
+        'inline-flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-mit-line bg-muted text-xs font-bold text-mit-text',
+        props.muted ? 'opacity-65' : undefined
+      )}
+      title={props.attendee.name}
+    >
+      {imageUrl ? (
+        <span
+          aria-hidden
+          className="size-full bg-cover bg-center"
+          style={avatarImageStyle(imageUrl)}
+        />
+      ) : (
+        personInitials(props.attendee.name)
+      )}
+    </span>
+  );
+}
+
+function AttendeeRow(props: {
+  attendees: PublicEventDetail['attendees']['approved'];
+  label: string;
+  muted?: boolean;
+}) {
+  if (props.attendees.length === 0) {
+    return null;
+  }
+  return (
+    <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2">
+      <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+        {props.label}
+      </p>
+      <div className="flex gap-1.5 overflow-x-auto py-0.5">
+        {props.attendees.map((attendee) => (
+          <AttendeeAvatar
+            attendee={attendee}
+            key={attendee.id}
+            muted={props.muted}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function EventAttendees(props: {
+  event: PublicEventDetail;
+  t: Awaited<ReturnType<typeof getTranslations<'MitSailingEvents'>>>;
+}) {
+  if (
+    props.event.attendees.approved.length === 0 &&
+    props.event.attendees.pending.length === 0
+  ) {
+    return null;
+  }
+  return (
+    <DetailFactSection
+      icon={<Users aria-hidden className="size-4" />}
+      label={props.t('attendees_heading')}
+    >
+      <div className="grid gap-2">
+        <AttendeeRow
+          attendees={props.event.attendees.approved}
+          label={props.t('attendees_going')}
+        />
+        <AttendeeRow
+          attendees={props.event.attendees.pending}
+          label={props.t('attendees_pending')}
+          muted
+        />
+      </div>
+    </DetailFactSection>
+  );
+}
+
+function EventDetailFacts(props: {
+  addressLines: string[];
+  event: PublicEventDetail;
+  t: Awaited<ReturnType<typeof getTranslations<'MitSailingEvents'>>>;
+}) {
+  return (
+    <div className="mt-5 grid max-w-3xl gap-3 border-y border-mit-line py-3.5">
+      <DetailFactSection
+        icon={<CalendarDays aria-hidden className="size-4" />}
+        label={props.t('field_schedule')}
+      >
+        {props.event.dates.length > 0 ? (
+          <ul className="m-0 list-none space-y-0.5 p-0 font-medium">
+            {props.event.dates.map((date) => (
+              <li key={date.id}>
+                {formatCompactEventRange(date.startDateTime, date.endDateTime)}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          props.t('date_to_be_announced')
+        )}
+      </DetailFactSection>
+      {props.event.admins.length > 0 ? (
+        <DetailFactSection
+          icon={<Users aria-hidden className="size-4" />}
+          label={props.t('hosted_by')}
+        >
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+            <span className="text-muted-foreground">
+              {props.t('hosted_by')}
+            </span>
+            <HostList event={props.event} />
+          </div>
+        </DetailFactSection>
+      ) : null}
+      {props.addressLines.length > 0 ? (
+        <DetailFactSection
+          icon={<MapPin aria-hidden className="size-4" />}
+          label={props.t('section_location')}
+        >
+          <a
+            className={cn(
+              'inline-flex flex-col text-mit-red no-underline hover:underline dark:text-mit-red-ink',
+              textFocusRingClassName
+            )}
+            href={eventAddressMapHref(props.addressLines)}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            {eventAddressSummary(props.addressLines)}
+          </a>
+        </DetailFactSection>
+      ) : null}
+      <EventAttendees event={props.event} t={props.t} />
+    </div>
+  );
 }
 
 function visiblePublicContentSections(
@@ -209,6 +471,8 @@ export async function EventDetailView(props: EventDetailViewProps) {
     now,
     t,
   });
+  const shouldShowRegistrationOpens = showRegistrationOpens(props.event, now);
+  const shouldShowRegistrationCloses = showRegistrationCloses(props.event);
   const externalRegistrationUrl = safeExternalHttpHref(
     props.event.registrationMode === 'external'
       ? props.event.externalRegistrationUrl
@@ -311,7 +575,7 @@ export async function EventDetailView(props: EventDetailViewProps) {
       </PublicCatalogDetailTopNav>
 
       <div className="grid grid-cols-1 gap-x-12 gap-y-10 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <header className="lg:col-span-2">
+        <header className="min-w-0 lg:col-start-1 lg:row-start-1">
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <span className="rounded-sm bg-mit-red-highlight px-2 py-1 text-xs font-bold tracking-wide text-mit-red uppercase dark:text-white">
               {props.event.category.name}
@@ -325,33 +589,44 @@ export async function EventDetailView(props: EventDetailViewProps) {
           <h1 className="scroll-m-20 font-mit-serif text-[clamp(1.875rem,5vw,3rem)] leading-tight font-semibold tracking-tight text-balance text-mit-text">
             {props.event.name}
           </h1>
-          {props.event.shortName &&
-          props.event.shortName !== props.event.name ? (
-            <p className="mt-2 text-xl leading-7 text-muted-foreground">
-              {props.event.shortName}
-            </p>
-          ) : null}
+          <EventDetailFacts
+            addressLines={addressLines}
+            event={props.event}
+            t={t}
+          />
           <p className="mt-5 max-w-3xl text-base leading-relaxed whitespace-pre-wrap text-mit-text">
             {props.event.description}
           </p>
         </header>
 
-        <aside className="flex flex-col gap-6 lg:col-start-2 lg:row-start-2 lg:self-start">
-          <section className="rounded-lg border-2 border-mit-red bg-card p-5 shadow-sm shadow-mit-red/5 lg:sticky lg:top-24 dark:border-white/35">
-            <p className="mb-1 text-xs font-bold tracking-widest text-mit-red uppercase dark:text-white">
-              {t('section_registration')}
-            </p>
-            <h2 className="mb-4 scroll-m-20 font-mit-serif text-xl font-semibold tracking-tight text-mit-text">
-              {registrationHeadingText}
-            </h2>
-            {registrationActionContent}
-            <dl className="m-0 mt-5 flex flex-col gap-3 p-0">
-              <MetaRow label={registrationMeta.opens}>
-                {registrationOpens || t('date_to_be_announced')}
-              </MetaRow>
-              <MetaRow label={registrationMeta.closes}>
-                {registrationCloses || t('date_to_be_announced')}
-              </MetaRow>
+        <aside className="flex flex-col gap-6 lg:col-start-2 lg:row-start-1 lg:self-start">
+          <section
+            aria-labelledby="event-registration-panel-heading"
+            className="overflow-hidden rounded-lg border border-mit-line bg-card shadow-sm shadow-foreground/5 lg:sticky lg:top-24"
+          >
+            <div className="border-b border-mit-line p-5">
+              <p className="mb-1 text-xs font-bold tracking-widest text-mit-red uppercase dark:text-white">
+                {t('section_registration')}
+              </p>
+              <h2
+                className="scroll-m-20 font-mit-serif text-xl font-semibold tracking-tight text-mit-text"
+                id="event-registration-panel-heading"
+              >
+                {registrationHeadingText}
+              </h2>
+              <div className="mt-4">{registrationActionContent}</div>
+            </div>
+            <dl className="m-0 divide-y divide-mit-line px-5 py-1">
+              {shouldShowRegistrationOpens ? (
+                <MetaRow label={registrationMeta.opens}>
+                  {registrationOpens}
+                </MetaRow>
+              ) : null}
+              {shouldShowRegistrationCloses ? (
+                <MetaRow label={registrationMeta.closes}>
+                  {registrationCloses}
+                </MetaRow>
+              ) : null}
               <MetaRow label={t('capacity_label')}>{capacityLabel}</MetaRow>
               <MetaRow label={t('approval_label')}>
                 {props.event.requiresApproval
@@ -359,102 +634,10 @@ export async function EventDetailView(props: EventDetailViewProps) {
                   : t('approval_auto')}
               </MetaRow>
             </dl>
-            {props.event.pendingRegistrationCount > 0 ? (
-              <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
-                {t('pending_review', {
-                  count: props.event.pendingRegistrationCount,
-                })}
-              </p>
-            ) : null}
-          </section>
-
-          {addressLines.length > 0 ? (
-            <section className="rounded-lg border border-mit-line bg-card p-5">
-              <h2 className="mb-3 flex scroll-m-20 items-center gap-2 font-mit-serif text-xl font-semibold tracking-tight text-mit-text">
-                <MapPin aria-hidden className="size-5" />
-                {t('section_location')}
-              </h2>
-              <address className="not-italic">
-                <a
-                  className={cn(
-                    'block text-sm leading-6 text-mit-red no-underline hover:underline dark:text-mit-red-ink',
-                    textFocusRingClassName
-                  )}
-                  href={eventAddressMapHref(addressLines)}
-                  rel="noopener noreferrer"
-                  target="_blank"
-                >
-                  {addressLines.map((line) => (
-                    <span className="block" key={line}>
-                      {line}
-                    </span>
-                  ))}
-                  <span className="mt-2 inline-block text-xs font-semibold">
-                    {t('location_map_link')}
-                  </span>
-                </a>
-              </address>
-            </section>
-          ) : null}
-
-          <section className="rounded-lg border border-mit-line bg-card p-5">
-            <h2 className="mb-3 scroll-m-20 font-mit-serif text-xl font-semibold tracking-tight text-mit-text">
-              {t('section_admins')}
-            </h2>
-            {props.event.admins.length === 0 ? (
-              <p className="text-sm leading-7 text-muted-foreground">
-                {t('admins_empty')}
-              </p>
-            ) : (
-              <ul className="m-0 list-none space-y-3 p-0">
-                {props.event.admins.map((adminRow) => (
-                  <li className="flex items-center gap-3" key={adminRow.id}>
-                    <span
-                      aria-hidden
-                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-mit-line bg-mit-surface text-xs font-bold text-mit-text"
-                    >
-                      {adminInitials(adminRow.admin.name)}
-                    </span>
-                    <div className="min-w-0">
-                      <p className="m-0 text-sm font-semibold break-words text-mit-text">
-                        {adminRow.admin.name}
-                      </p>
-                      <a
-                        className={cn(
-                          'block break-words text-xs text-mit-red no-underline hover:underline dark:text-white',
-                          textFocusRingClassName
-                        )}
-                        href={`mailto:${adminRow.admin.email}`}
-                      >
-                        {adminRow.admin.email}
-                      </a>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
           </section>
         </aside>
 
         <div className="min-w-0 lg:col-start-1 lg:row-start-2">
-          {props.event.dates.length > 0 ? (
-            <section className="mb-10" aria-labelledby="event-schedule-heading">
-              <SectionHeading id="event-schedule-heading">
-                {t('field_schedule')}
-              </SectionHeading>
-              <ul className="m-0 list-none divide-y divide-mit-line border-t border-mit-line p-0">
-                {props.event.dates.map((date) => (
-                  <li className="py-3 text-sm text-mit-text" key={date.id}>
-                    {formatEasternEventRange(
-                      date.startDateTime,
-                      date.endDateTime
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-
           {props.event.entryFees.length > 0 ? (
             <section className="mb-10" aria-labelledby="event-fees-heading">
               <SectionHeading id="event-fees-heading">

@@ -60,4 +60,10 @@ describe('EventCalendarOccurrenceRow', () => {
     expect(link).not.toHaveAttribute('title');
     expect(link).toHaveClass('whitespace-normal');
   });
+
+  it('shows the category next to the calendar occurrence', () => {
+    render(<EventCalendarOccurrenceRow row={row} showBottomBorder wrapTitle />);
+
+    expect(screen.getByText('Clinic')).toBeVisible();
+  });
 });

@@ -240,4 +240,20 @@ describe('AdminEventRegistrationsView', () => {
     expect(screen.queryByLabelText('Actions for Sailor One')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Send' })).toBeNull();
   });
+
+  it('shows bulk email as an active composing surface', () => {
+    renderView('editable');
+
+    const bulkEmail = screen.getByRole('region', { name: 'Bulk email' });
+
+    expect(
+      within(bulkEmail).getByRole('textbox', { name: 'Subject' })
+    ).toBeEnabled();
+    expect(
+      within(bulkEmail).getByRole('textbox', { name: 'Message' })
+    ).toBeEnabled();
+    expect(
+      within(bulkEmail).getByRole('button', { name: 'Send' })
+    ).toBeEnabled();
+  });
 });
