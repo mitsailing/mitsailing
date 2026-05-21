@@ -79,7 +79,13 @@ export function ProfileDeleteAccountClient(
           {t('delete_account_description')}
         </p>
         <ProfileInlineBanner banner={deleteBanner} />
-        <form className="mt-4 flex flex-col gap-3" onSubmit={onDeleteAccount}>
+        <form
+          className="mt-4 flex flex-col gap-3"
+          onSubmit={(event) => {
+            // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the form promise.
+            void onDeleteAccount(event);
+          }}
+        >
           <div className="flex flex-col gap-1.5">
             <Label className="text-foreground" htmlFor="deleteCurrentPassword">
               {t('current_password_label')}

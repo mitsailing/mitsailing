@@ -69,10 +69,9 @@ export function FooterSocialStrip(props: {
               >
                 {group.label}
               </span>
-              <div
+              <ul
                 aria-label={`${group.label} ${props.socialLinksLabel}`}
-                className="flex flex-nowrap items-center gap-2 sm:gap-3"
-                role="list"
+                className="m-0 flex list-none flex-nowrap items-center gap-2 p-0 sm:gap-3"
               >
                 {group.links.map((link) => {
                   const href = safeCmsHref(link.href);
@@ -89,31 +88,31 @@ export function FooterSocialStrip(props: {
                   );
                   if (isAppRelativeCmsHref(href)) {
                     return (
-                      <Link
-                        aria-label={label}
-                        className={footerSocialIconButtonClassName}
-                        href={href}
-                        key={link.id}
-                        role="listitem"
-                      >
-                        {icon}
-                      </Link>
+                      <li className="m-0" key={link.id}>
+                        <Link
+                          aria-label={label}
+                          className={footerSocialIconButtonClassName}
+                          href={href}
+                        >
+                          {icon}
+                        </Link>
+                      </li>
                     );
                   }
                   return (
-                    <a
-                      aria-label={label}
-                      className={footerSocialIconButtonClassName}
-                      href={href}
-                      key={link.id}
-                      role="listitem"
-                      {...externalCmsLinkProps(href)}
-                    >
-                      {icon}
-                    </a>
+                    <li className="m-0" key={link.id}>
+                      <a
+                        aria-label={label}
+                        className={footerSocialIconButtonClassName}
+                        href={href}
+                        {...externalCmsLinkProps(href)}
+                      >
+                        {icon}
+                      </a>
+                    </li>
                   );
                 })}
-              </div>
+              </ul>
             </div>
           ))}
         </div>

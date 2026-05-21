@@ -56,7 +56,10 @@ export function ProfileSecurityClient() {
         <ProfileInlineBanner banner={sessionBanner} />
         <SubmitButton
           className="mt-4 w-fit"
-          onClick={onRevokeSessions}
+          onClick={() => {
+            // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the revoke promise.
+            void onRevokeSessions();
+          }}
           pending={revoking}
           pendingLabel={tCommon('pending_submitting')}
           type="button"

@@ -161,10 +161,9 @@ export async function EventsListView(props: EventsListViewProps) {
         })}
       </nav>
 
-      <div
+      <nav
         aria-label={t('month_nav_label')}
         className="mb-6 grid w-full grid-cols-[auto_1fr_auto] items-center gap-3"
-        role="group"
       >
         <div className="flex items-center gap-1.5 justify-self-start">
           {canGoPrevious ? (
@@ -234,9 +233,9 @@ export async function EventsListView(props: EventsListViewProps) {
           )}
         </div>
         <div className="w-10 justify-self-end sm:w-[5.5rem]" aria-hidden />
-      </div>
+      </nav>
 
-      <div
+      <section
         aria-label={t('calendar_grid_label', { month: monthTitle })}
         className="hidden w-full min-w-0 rounded-xl border border-mit-line shadow-sm lg:block"
       >
@@ -294,7 +293,7 @@ export async function EventsListView(props: EventsListViewProps) {
             </div>
           ))}
         </div>
-      </div>
+      </section>
 
       <div className="rounded-xl border border-mit-line p-6 shadow-sm lg:hidden">
         <h2 className="mb-5 font-mit-serif text-xl font-semibold text-mit-text">

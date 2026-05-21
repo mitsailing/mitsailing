@@ -589,10 +589,7 @@ describe('ProfileAccountClient', () => {
       LOCALE,
       'dark'
     );
-    expect(await screen.findByRole('radio', { name: 'Dark' })).toHaveAttribute(
-      'aria-checked',
-      'true'
-    );
+    expect(await screen.findByRole('radio', { name: 'Dark' })).toBeChecked();
     expect(document.documentElement).toHaveClass('dark');
   });
 
@@ -607,10 +604,7 @@ describe('ProfileAccountClient', () => {
       'Could not save appearance.'
     );
     await waitFor(() => {
-      expect(screen.getByRole('radio', { name: 'Light' })).toHaveAttribute(
-        'aria-checked',
-        'true'
-      );
+      expect(screen.getByRole('radio', { name: 'Light' })).toBeChecked();
     });
   });
 });

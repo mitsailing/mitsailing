@@ -51,7 +51,10 @@ export function ImpersonateButton(props: ImpersonateButtonProps) {
         </span>
       ) : null}
       <SubmitButton
-        onClick={onClick}
+        onClick={() => {
+          // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the impersonation promise.
+          void onClick();
+        }}
         pending={submitting}
         pendingLabel={tCommon('pending_submitting')}
         size="sm"

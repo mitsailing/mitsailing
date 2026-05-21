@@ -366,7 +366,10 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
                 </p>
                 <form
                   className="mt-3 flex flex-col gap-2"
-                  onSubmit={onConfirmPendingEmailSubmit}
+                  onSubmit={(event) => {
+                    // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the form promise.
+                    void onConfirmPendingEmailSubmit(event);
+                  }}
                 >
                   <Label className="text-amber-950" htmlFor="emailCode">
                     {t('pending_email_code_label')}
@@ -407,8 +410,9 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
                   <Button
                     className="h-auto min-h-0 px-0 py-0 font-medium text-amber-900 underline shadow-none hover:bg-transparent hover:text-amber-950 hover:underline disabled:opacity-60"
                     disabled={resendingEmail || resendLocked}
-                    onClick={async () => {
-                      await onResendPendingEmail(pendingEmail);
+                    onClick={() => {
+                      // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the resend promise.
+                      void onResendPendingEmail(pendingEmail);
                     }}
                     type="button"
                     variant="link"
@@ -452,7 +456,13 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
           {t('update_name_description')}
         </p>
         <ProfileInlineBanner banner={nameBanner} />
-        <form className="mt-4 flex flex-col gap-3" onSubmit={onUpdateName}>
+        <form
+          className="mt-4 flex flex-col gap-3"
+          onSubmit={(event) => {
+            // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the form promise.
+            void onUpdateName(event);
+          }}
+        >
           <div className="flex flex-col gap-1.5">
             <Label className="text-foreground" htmlFor="displayName">
               {t('name')}
@@ -492,7 +502,13 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
         </h2>
         <p className="mt-2 text-sm text-mit-text">{t('contact_description')}</p>
         <ProfileInlineBanner banner={contactBanner} />
-        <form className="mt-4 flex flex-col gap-3" onSubmit={onUpdateContact}>
+        <form
+          className="mt-4 flex flex-col gap-3"
+          onSubmit={(event) => {
+            // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the form promise.
+            void onUpdateContact(event);
+          }}
+        >
           <div className="flex flex-col gap-1.5">
             <Label className="text-foreground" htmlFor="phone">
               {t('phone')}
@@ -560,7 +576,13 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
           {t('change_email_heading')}
         </h2>
         <ProfileInlineBanner banner={emailBanner} />
-        <form className="mt-4 flex flex-col gap-3" onSubmit={onChangeEmail}>
+        <form
+          className="mt-4 flex flex-col gap-3"
+          onSubmit={(event) => {
+            // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the form promise.
+            void onChangeEmail(event);
+          }}
+        >
           <div className="flex flex-col gap-1.5">
             <Label className="text-foreground" htmlFor="newEmail">
               {t('new_email_label')}

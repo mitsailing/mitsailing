@@ -380,12 +380,16 @@ export function NavigationDropdown(props: NavigationDropdownProps) {
     >
       {trigger}
       <div
-        aria-labelledby={triggerId}
         className="absolute top-full left-0 z-50 mt-1.5 min-w-[260px] overflow-x-hidden rounded-xl border border-border bg-card py-1 shadow-lg ring-1 ring-black/5 dark:ring-white/10"
         hidden={!isOpen}
-        id={panelId}
       >
-        <ul className="flex min-w-0 flex-col">{listItems}</ul>
+        <ul
+          aria-labelledby={triggerId}
+          className="flex min-w-0 flex-col"
+          id={panelId}
+        >
+          {listItems}
+        </ul>
       </div>
     </div>
   );

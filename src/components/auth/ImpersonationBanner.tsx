@@ -22,17 +22,17 @@ export async function ImpersonationBanner(props: ImpersonationBannerProps) {
   });
 
   return (
-    <div
+    <section
+      aria-labelledby="impersonation-banner-notice"
       aria-live="polite"
       className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-center text-sm text-amber-950"
-      role="region"
     >
-      <span>{t('impersonation_notice')}</span>{' '}
+      <span id="impersonation-banner-notice">{t('impersonation_notice')}</span>{' '}
       <StopImpersonationButton
         errorLabel={t('impersonation_exit_error')}
         label={t('impersonation_exit')}
         locale={props.locale}
       />
-    </div>
+    </section>
   );
 }

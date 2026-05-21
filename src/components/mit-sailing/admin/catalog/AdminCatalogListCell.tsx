@@ -9,9 +9,16 @@ import type {
   CatalogRow,
 } from '@/libs/admin/catalog/types';
 import { Link } from '@/libs/I18nNavigation';
+import {
+  externalCmsLinkProps,
+  isAppRelativeCmsHref,
+  safeCmsHref,
+} from '@/libs/mit-sailing/cmsHref';
 
 const nameEditLinkClassName =
   'text-sm font-medium text-mit-red no-underline hover:underline dark:text-mit-red-ink';
+const urlLinkClassName =
+  'text-mit-red underline decoration-mit-red/30 underline-offset-2 hover:decoration-mit-red dark:text-mit-red-ink';
 
 type CatalogCellValue = CatalogRow[string];
 
@@ -49,6 +56,26 @@ function booleanListTone(
     return on ? 'success' : 'neutral';
   }
   return on ? 'danger' : 'neutral';
+}
+
+function renderUrlListContent(raw: string): React.ReactElement {
+  const href = safeCmsHref(raw);
+  if (!href) {
+    return <span>{raw}</span>;
+  }
+  const label = raw.length > 48 ? `${raw.slice(0, 45)}…` : raw;
+  if (isAppRelativeCmsHref(href)) {
+    return (
+      <Link className={urlLinkClassName} href={href}>
+        {label}
+      </Link>
+    );
+  }
+  return (
+    <a className={urlLinkClassName} href={href} {...externalCmsLinkProps(href)}>
+      {label}
+    </a>
+  );
 }
 
 type AdminCatalogListCellProps = {
@@ -103,16 +130,7 @@ export function AdminCatalogListCell(
   }
 
   if (props.kind === 'url' && typeof raw === 'string' && raw.length > 0) {
-    return (
-      <a
-        className="text-mit-red underline decoration-mit-red/30 underline-offset-2 hover:decoration-mit-red dark:text-mit-red-ink"
-        href={raw}
-        rel="noopener noreferrer"
-        target="_blank"
-      >
-        {raw.length > 48 ? `${raw.slice(0, 45)}…` : raw}
-      </a>
-    );
+    return renderUrlListContent(raw);
   }
 
   if (props.kind === 'number' && typeof raw === 'number') {

@@ -29,6 +29,16 @@ describe('sanitizeCmsRichTextHtml', () => {
     );
   });
 
+  it('keeps the supported Tiptap rich text subset', () => {
+    expect(
+      sanitizeCmsRichTextHtml(
+        '<h2>Race notes</h2><p><strong>Bring</strong> layers<br>and water.</p><ul><li>Rig boats</li><li>Check weather</li></ul><ol><li>Launch</li></ol><p><a href="/classes">Class info</a> <a href="https://example.com">External</a></p>'
+      )
+    ).toBe(
+      '<h2>Race notes</h2><p><strong>Bring</strong> layers<br />and water.</p><ul><li>Rig boats</li><li>Check weather</li></ul><ol><li>Launch</li></ol><p><a href="/classes">Class info</a> <a href="https://example.com" rel="noopener noreferrer" target="_blank">External</a></p>'
+    );
+  });
+
   it('strips unsafe markup and presentation attributes', () => {
     expect(
       sanitizeCmsRichTextHtml(
@@ -93,6 +103,12 @@ describe('sanitizeCmsRichTextHtml', () => {
         '<p>Images</p><img src="/cms-media/%2e%2e/race-day.png"><img src="/cms-media/asset-1/../race-day.png">'
       )
     ).toBe('<p>Images</p>');
+  });
+
+  it('strips raw-text xmp payloads before React rendering', () => {
+    expect(
+      sanitizeCmsRichTextHtml('<xmp><img src=x onerror=alert(1)></xmp>')
+    ).toBe('');
   });
 });
 

@@ -184,12 +184,12 @@ function RegistrationFilters(props: {
   ));
 
   return (
-    <div
+    <nav
       aria-label={props.t('registration_filter_aria')}
       className="flex flex-wrap gap-2"
     >
       {filterButtons}
-    </div>
+    </nav>
   );
 }
 

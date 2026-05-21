@@ -350,7 +350,10 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
       {canReorder ? (
         <DndContext
           collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
+          onDragEnd={(event) => {
+            // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the reorder promise.
+            void handleDragEnd(event);
+          }}
           sensors={sensors}
         >
           <div className="rounded-lg border border-border bg-card">

@@ -16,6 +16,11 @@ import {
 } from '@/data/mit-sailing/aboutContent';
 import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
 import { Link } from '@/libs/I18nNavigation';
+import {
+  externalCmsLinkProps,
+  isAppRelativeCmsHref,
+  safeCmsHref,
+} from '@/libs/mit-sailing/cmsHref';
 import type { PublicCmsPage } from '@/libs/mit-sailing/cmsQueries';
 
 const accent = `font-semibold text-mit-red no-underline hover:underline ${textFocusRingClassName} dark:text-mit-red-ink`;
@@ -30,12 +35,15 @@ function ExternalLink({
   href: string;
   children: React.ReactNode;
 }) {
+  const safeHref = safeCmsHref(href);
+  if (!safeHref || isAppRelativeCmsHref(safeHref)) {
+    return null;
+  }
   return (
     <a
       className={`inline-flex items-center gap-1 ${accent}`}
-      href={href}
-      rel="noopener noreferrer"
-      target="_blank"
+      href={safeHref}
+      {...externalCmsLinkProps(safeHref)}
     >
       {children}
       <ArrowRight aria-hidden className="size-4" />
@@ -78,18 +86,19 @@ function StaffCardImage(props: {
 }
 
 function PillarCta(props: { href: string; label: string }) {
-  if (props.href.startsWith('/')) {
+  const href = safeCmsHref(props.href);
+  if (!href) {
+    return null;
+  }
+  if (isAppRelativeCmsHref(href)) {
     return (
-      <Link
-        className={`inline-flex items-center gap-1 ${accent}`}
-        href={props.href}
-      >
+      <Link className={`inline-flex items-center gap-1 ${accent}`} href={href}>
         {props.label}
         <ArrowRight aria-hidden className="size-4" />
       </Link>
     );
   }
-  return <ExternalLink href={props.href}>{props.label}</ExternalLink>;
+  return <ExternalLink href={href}>{props.label}</ExternalLink>;
 }
 
 function cmsTextOrFallback(
