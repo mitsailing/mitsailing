@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventPaymentStatus } from '@/generated/prisma/enums';
 import { POST } from './route';
 
-type TransactionOperation = (_tx: typeof mocks.tx) => Promise<unknown>;
+type TransactionOperation = {
+  run(tx: typeof mocks.tx): Promise<unknown>;
+}['run'];
 
 const mocks = vi.hoisted(() => ({
   constructEvent: vi.fn(),

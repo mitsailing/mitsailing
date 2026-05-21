@@ -48,6 +48,8 @@ type EventPaymentCheckoutProps = {
   title: string;
 };
 
+type SetCheckoutError = React.Dispatch<React.SetStateAction<string | null>>;
+
 type PayableEventPaymentCheckoutPayment = Exclude<
   EventPaymentCheckoutPayment,
   null | { status: 'cancelled' | 'disputed' | 'handled' | 'paid' | 'refunded' }
@@ -68,6 +70,14 @@ function checkoutTarget(
   ref: React.RefObject<HTMLElement | null>
 ): HTMLElement | null {
   return ref.current;
+}
+
+function checkoutEffectWasCancelled(state: { cancelled: boolean }): boolean {
+  return state.cancelled;
+}
+
+function cancelCheckoutEffect(state: { cancelled: boolean }) {
+  state.cancelled = true;
 }
 
 function PaymentSummary(props: {
@@ -140,7 +150,7 @@ function useEmbeddedCheckout(props: {
   clientSecretAction: () => Promise<EventPaymentCheckoutActionResult>;
   payment: EventPaymentCheckoutPayment;
   publishableKey: string | undefined;
-  setError: (message: string | null) => void;
+  setError: SetCheckoutError;
 }) {
   const { checkoutLoadError } = props;
   const { checkoutRef } = props;
@@ -154,13 +164,13 @@ function useEmbeddedCheckout(props: {
       return;
     }
     setError(null);
-    let isMounted = true;
+    const effectState = { cancelled: false };
     let mountedCheckout: { unmount: () => void } | null = null;
 
     const mountCheckout = async () => {
       try {
         const stripe = await loadStripe(publishableKey);
-        if (!isMounted) {
+        if (checkoutEffectWasCancelled(effectState)) {
           return;
         }
         if (!stripe) {
@@ -176,7 +186,7 @@ function useEmbeddedCheckout(props: {
             return result.clientSecret;
           },
         });
-        if (!isMounted) {
+        if (checkoutEffectWasCancelled(effectState)) {
           checkout.unmount();
           return;
         }
@@ -188,7 +198,7 @@ function useEmbeddedCheckout(props: {
         checkout.mount(target);
         mountedCheckout = checkout;
       } catch {
-        if (isMounted) {
+        if (!checkoutEffectWasCancelled(effectState)) {
           setError(checkoutLoadError);
         }
       }
@@ -198,7 +208,7 @@ function useEmbeddedCheckout(props: {
     void mountCheckout();
 
     return () => {
-      isMounted = false;
+      cancelCheckoutEffect(effectState);
       mountedCheckout?.unmount();
     };
   }, [

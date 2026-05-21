@@ -73,21 +73,29 @@ function DetailFactSection(props: {
 
 function personInitials(name: string): string {
   const [first = '', second = ''] = name.trim().split(/\s+/);
-  return `${first[0] ?? ''}${second[0] ?? ''}`.toUpperCase() || '?';
+  return `${first.charAt(0)}${second.charAt(0)}`.toUpperCase() || '?';
+}
+
+function isSafeRelativeAvatarImageUrl(value: string): boolean {
+  return value.startsWith('/') && !value.startsWith('//');
+}
+
+function safeAbsoluteAvatarImageUrl(value: string): string | null {
+  if (!URL.canParse(value)) {
+    return null;
+  }
+  const url = new URL(value);
+  return url.protocol === 'https:' ? url.href : null;
 }
 
 function safeAvatarImageUrl(value: string | null): string | null {
-  if (value?.startsWith('/') && !value.startsWith('//')) {
-    return value;
-  }
   if (!value) {
     return null;
   }
-  if (URL.canParse(value)) {
-    const url = new URL(value);
-    return url.protocol === 'https:' ? url.href : null;
+  if (isSafeRelativeAvatarImageUrl(value)) {
+    return value;
   }
-  return null;
+  return safeAbsoluteAvatarImageUrl(value);
 }
 
 function avatarImageStyle(value: string): React.CSSProperties {
