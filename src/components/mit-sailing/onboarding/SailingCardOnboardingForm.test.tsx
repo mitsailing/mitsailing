@@ -250,6 +250,27 @@ describe('SailingCardOnboardingForm', () => {
     ).toHaveLength(3);
   });
 
+  it('hides the locked class year field when the verified identity has no class year', () => {
+    render(
+      <SailingCardOnboardingForm
+        initialValues={{
+          ...emptyValues,
+          affiliation: SailingAffiliation.MIT_STUDENT,
+          mitId: '123456789',
+        }}
+        lockedIdentity={{
+          firstName: 'Ada',
+          lastName: 'Lovelace',
+          mitClassYear: null,
+        }}
+      />
+    );
+
+    expect(screen.getByLabelText('First name')).toHaveValue('Ada');
+    expect(screen.getByLabelText('Last name')).toHaveValue('Lovelace');
+    expect(screen.queryByLabelText('MIT class/year')).not.toBeInTheDocument();
+  });
+
   it('shows phone and emergency contact controls before affiliation selection', () => {
     renderForm();
 
@@ -347,6 +368,44 @@ describe('SailingCardOnboardingForm', () => {
     expect(formData.get('callbackUrl')).toBe('/events/regatta/register');
   });
 
+  it('submits only mit identity data when manual names and callback are hidden', async () => {
+    renderForm();
+    const user = userEvent.setup();
+
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'Affiliation' }),
+      SailingAffiliation.MIT_STUDENT
+    );
+    await user.type(screen.getByLabelText('MIT ID'), '123456789');
+    await user.type(screen.getByLabelText('Date of birth'), '2000-01-02');
+    await user.type(screen.getByLabelText('Your phone number'), '6175550100');
+    await user.type(
+      screen.getByLabelText('Emergency contact name'),
+      'Ada Lovelace'
+    );
+    await user.type(
+      screen.getByLabelText('Emergency contact phone'),
+      '6175550101'
+    );
+    await user.click(
+      screen.getByLabelText(
+        'I have read and agree to the swim agreement and liability release.'
+      )
+    );
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+
+    const formData = actionStateMock.formAction.mock.calls[0]?.[0];
+
+    if (!(formData instanceof FormData)) {
+      throw new TypeError('Expected onboarding submit to send FormData.');
+    }
+    expect(formData.get('callbackUrl')).toBeNull();
+    expect(formData.get('firstName')).toBe('');
+    expect(formData.get('lastName')).toBe('');
+    expect(formData.get('mitId')).toBe('123456789');
+    expect(formData.get('swimAgreementAccepted')).toBe('on');
+  });
+
   it('marks mit id invalid when server validation fails', async () => {
     actionStateMock.state = {
       fieldErrors: { mitId: 'required_dw_identity' },
@@ -367,6 +426,117 @@ describe('SailingCardOnboardingForm', () => {
       'sailing-card-onboarding-mitId-error'
     );
     expect(screen.getByRole('alert')).toHaveTextContent('Enter your MIT ID.');
+  });
+
+  it('renders affiliation and contact field server errors', () => {
+    actionStateMock.state = {
+      fieldErrors: {
+        affiliation: 'required',
+        emergencyContactName: 'required',
+        emergencyContactPhone: 'invalid',
+        phone: 'invalid',
+        swimAgreementAccepted: 'required',
+      },
+      status: 'error',
+      values: {
+        ...emptyValues,
+        affiliation: SailingAffiliation.WELLESLEY,
+      },
+    };
+
+    renderForm();
+
+    expect(
+      screen.getByRole('combobox', { name: 'Affiliation' })
+    ).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByLabelText('Your phone number')).toHaveAttribute(
+      'aria-invalid',
+      'true'
+    );
+    expect(screen.getByLabelText('Emergency contact name')).toHaveAttribute(
+      'aria-invalid',
+      'true'
+    );
+    expect(screen.getByLabelText('Emergency contact phone')).toHaveAttribute(
+      'aria-invalid',
+      'true'
+    );
+    expect(
+      screen.getByLabelText(
+        'I have read and agree to the swim agreement and liability release.'
+      )
+    ).toHaveAttribute('aria-invalid', 'true');
+    expect(
+      screen.getByText('Enter a valid US phone number.')
+    ).toBeInTheDocument();
+    expect(screen.getByText('Enter a valid phone number.')).toBeInTheDocument();
+  });
+
+  it('renders manual-name and mit identity server errors', () => {
+    actionStateMock.state = {
+      fieldErrors: {
+        firstName: 'required',
+        lastName: 'required',
+        mitId: 'affiliation_mismatch',
+      },
+      status: 'error',
+      values: {
+        ...emptyValues,
+        affiliation: SailingAffiliation.MIT_ALUM,
+      },
+    };
+
+    renderForm();
+
+    expect(screen.getByLabelText('First name')).toHaveAttribute(
+      'aria-invalid',
+      'true'
+    );
+    expect(screen.getByLabelText('Last name')).toHaveAttribute(
+      'aria-invalid',
+      'true'
+    );
+    expect(screen.getByLabelText('MIT ID')).toHaveAttribute(
+      'aria-invalid',
+      'true'
+    );
+    expect(
+      screen.getByText('Choose the matching MIT affiliation.')
+    ).toBeInTheDocument();
+  });
+
+  it('renders invalid data warehouse identity errors', () => {
+    actionStateMock.state = {
+      fieldErrors: { mitId: 'invalid_dw_identity' },
+      status: 'error',
+      values: {
+        ...emptyValues,
+        affiliation: SailingAffiliation.MIT_STUDENT,
+      },
+    };
+
+    renderForm();
+
+    expect(
+      screen.getByText('Enter an MIT ID that matches your account.')
+    ).toBeInTheDocument();
+  });
+
+  it('falls back to the blank affiliation when the saved value is hidden', () => {
+    actionStateMock.state = {
+      fieldErrors: {},
+      status: 'idle',
+      values: {
+        ...emptyValues,
+        affiliation: SailingAffiliation.NON_MIT,
+      },
+    };
+
+    renderForm();
+
+    expect(screen.getByRole('combobox', { name: 'Affiliation' })).toHaveValue(
+      ''
+    );
   });
 
   it('renders card type date of birth and emergency email server errors', () => {

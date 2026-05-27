@@ -213,6 +213,39 @@ describe('onboarding pages', () => {
     );
   });
 
+  it('renders blank onboarding defaults when the profile row is missing', async () => {
+    mocks.findUser.mockResolvedValue(null);
+    const { default: OnboardingPage } = await import('./page');
+
+    render(
+      await OnboardingPage({
+        params: Promise.resolve({ locale: 'en' }),
+        searchParams: Promise.resolve({}),
+      })
+    );
+
+    expect(screen.getByTestId('onboarding-form')).toHaveAttribute(
+      'data-initial-values',
+      JSON.stringify({
+        affiliation: '',
+        cardType: 'normal',
+        dateOfBirth: '',
+        emergencyContactEmail: '',
+        emergencyContactName: '',
+        emergencyContactPhone: '',
+        firstName: '',
+        lastName: '',
+        mitId: '',
+        phone: '',
+        swimAgreementAccepted: false,
+      })
+    );
+    expect(screen.getByTestId('onboarding-form')).toHaveAttribute(
+      'data-locked-identity',
+      'null'
+    );
+  });
+
   it('redirects completed current-year onboarding away from the form', async () => {
     mocks.findUser.mockResolvedValue({
       ...onboardingUser(),
