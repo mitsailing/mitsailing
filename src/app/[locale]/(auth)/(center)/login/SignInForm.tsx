@@ -85,18 +85,22 @@ export function SignInForm(props: SignInFormProps) {
       return;
     }
     setSubmitting(true);
+    const continuationHref = authHrefWithCallback(
+      '/login/continue',
+      props.callbackUrl
+    );
     try {
       const res = await authClient.signIn.email({
         email: normalizedEmail,
         password,
-        callbackURL: props.callbackUrl,
+        callbackURL: continuationHref,
       });
 
       if (res.error) {
         setError(mapError(res.error.code, res.error.message, normalizedEmail));
         return;
       }
-      router.push(authHrefWithCallback('/login/continue', props.callbackUrl));
+      router.push(continuationHref);
       router.refresh();
     } catch {
       setError({ kind: 'generic', message: t('error_request_failed') });

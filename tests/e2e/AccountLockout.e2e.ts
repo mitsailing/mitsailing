@@ -18,7 +18,8 @@ import {
  *      locks and a lockout email is sent.
  *   3. Clicking the unlock link in the email clears the failed-attempt
  *      rows and lands on /login?unlocked=1.
- *   4. A subsequent sign-in with the correct password succeeds.
+ *   4. A subsequent sign-in with the correct password succeeds and reaches
+ *      the sailing card onboarding gate for the newly verified sailor.
  *
  * This is the key integration test for the auth hardening work because it
  * covers the three moving parts at once: before-middleware (lockout),
@@ -148,7 +149,10 @@ test.describe('Account lockout', () => {
       await page.getByLabel('Password').fill(password);
       await page.getByRole('button', { name: 'Sign in' }).click();
 
-      await expect.poll(() => new URL(page.url()).pathname).toBe('/');
+      await expect.poll(() => new URL(page.url()).pathname).toBe('/onboarding');
+      await expect(
+        page.getByRole('heading', { name: 'Sailing card onboarding' })
+      ).toBeVisible();
     } finally {
       await cleanupByEmail(email);
     }

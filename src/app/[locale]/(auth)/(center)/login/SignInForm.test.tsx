@@ -36,7 +36,7 @@ describe('SignInForm', () => {
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
 
     expect(authClientMock.signIn.email).toHaveBeenCalledWith({
-      callbackURL: '/fleet',
+      callbackURL: '/login/continue?callbackUrl=%2Ffleet',
       email: 'sailor@mit.edu',
       password: 'correct-password',
     });

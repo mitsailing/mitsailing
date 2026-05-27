@@ -16,7 +16,7 @@ function listTypeScriptFiles(directory: string): string[] {
 
 const serverActionFiles = listTypeScriptFiles('src').filter((file) => {
   const source = readFileSync(file, 'utf8');
-  return source.split('\n').some((line) => line === "'use server';");
+  return source.split('\n').includes("'use server';");
 });
 
 function exportedRuntimeBindings(source: string) {

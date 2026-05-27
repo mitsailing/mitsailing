@@ -125,6 +125,8 @@ async function signUpVerifiedSailor(props: {
 }
 
 test.describe('Onboarding', () => {
+  test.describe.configure({ mode: 'serial' });
+
   test('keeps new sailors on onboarding even when sign-up has a public callback', async ({
     page,
   }) => {
@@ -196,7 +198,7 @@ test.describe('Onboarding', () => {
       await page.goto(`/events/${slug}/register`);
       await expect(page).toHaveURL(
         new RegExp(
-          `/onboarding\\?callbackUrl=%2Fevents%2F${slug}%2Fregister/?$`
+          String.raw`/onboarding\?callbackUrl=%2Fevents%2F${slug}%2Fregister/?$`
         )
       );
 

@@ -120,6 +120,33 @@ async function markOnboardingCompleteByEmail(email: string) {
   }
 }
 
+async function expectOnboardingSchemaReady() {
+  const { rows } = await pool.query<{
+    request_table_exists: boolean;
+    user_column_exists: boolean;
+  }>(
+    `
+      SELECT
+        EXISTS (
+          SELECT 1
+          FROM information_schema.columns
+          WHERE table_schema = 'public'
+            AND table_name = 'user'
+            AND column_name = 'emergency_contact_email'
+        ) AS "user_column_exists",
+        EXISTS (
+          SELECT 1
+          FROM information_schema.tables
+          WHERE table_schema = 'public'
+            AND table_name = 'sailing_card_requests'
+        ) AS "request_table_exists"
+    `
+  );
+
+  expect(rows[0]?.user_column_exists).toBe(true);
+  expect(rows[0]?.request_table_exists).toBe(true);
+}
+
 async function createVerifiedUser(props: {
   email: string;
   page: Page;
@@ -302,6 +329,8 @@ test.describe('Auth', () => {
   test('verified sailor without onboarding lands on onboarding after direct login', async ({
     page,
   }) => {
+    await expectOnboardingSchemaReady();
+
     const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
     const credential = `Qa1-${faker.string.alphanumeric(20)}`;
 
@@ -318,6 +347,9 @@ test.describe('Auth', () => {
       await page.getByRole('button', { name: 'Sign in' }).click();
 
       await expect.poll(() => new URL(page.url()).pathname).toBe('/onboarding');
+      await expect(
+        page.getByRole('heading', { name: 'Sailing card onboarding' })
+      ).toBeVisible();
     } finally {
       await cleanupByEmail(email);
     }
