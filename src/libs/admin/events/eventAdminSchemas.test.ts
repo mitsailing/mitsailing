@@ -3,6 +3,7 @@ import {
   EventAddressPreset,
   EventAnswerType,
   EventDetailPageKind,
+  EventSailingCardRequirement,
 } from '@/generated/prisma/enums';
 import {
   dollarsToEventAdminCents,
@@ -83,6 +84,35 @@ describe('eventAdminSchemas', () => {
     });
 
     expect(parsed.requiresPhone).toBe(true);
+  });
+
+  it('defaults missing sailing card requirement to none', () => {
+    const parsed = eventAdminBasicsFormSchema.parse(validEventBasicsInput());
+
+    expect(parsed.sailingCardRequirement).toBe(
+      EventSailingCardRequirement.NONE
+    );
+  });
+
+  it.each([
+    EventSailingCardRequirement.NONE,
+    EventSailingCardRequirement.CURRENT_CARD,
+  ])('parses %s sailing card requirement', (sailingCardRequirement) => {
+    const parsed = eventAdminBasicsFormSchema.parse({
+      ...validEventBasicsInput(),
+      sailingCardRequirement,
+    });
+
+    expect(parsed.sailingCardRequirement).toBe(sailingCardRequirement);
+  });
+
+  it('rejects unknown sailing card requirement', () => {
+    const parsed = eventAdminBasicsFormSchema.safeParse({
+      ...validEventBasicsInput(),
+      sailingCardRequirement: 'VIRTUAL_CARD',
+    });
+
+    expect(parsed.success).toBe(false);
   });
 
   it('parses enabled team configuration from basics', () => {

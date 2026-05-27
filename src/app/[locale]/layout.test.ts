@@ -19,6 +19,18 @@ vi.mock('next/navigation', () => ({
   notFound: layoutMocks.notFound,
 }));
 
+vi.mock('next/script', () => ({
+  default: (props: {
+    children: React.ReactNode;
+    id: string;
+    strategy: string;
+  }) =>
+    React.createElement('script', {
+      'data-strategy': props.strategy,
+      id: props.id,
+    }),
+}));
+
 vi.mock('next-intl', () => ({
   hasLocale: (locales: readonly string[], locale: string): boolean =>
     Boolean(layoutMocks.hasLocale(locales, locale)),

@@ -26,7 +26,7 @@ import { NavigationDropdown } from './NavigationDropdown';
 import { SiteBrandWordmarkTypography } from './SiteBrandWordmarkTypography';
 
 const navLinkClass =
-  'text-sm font-medium text-mit-text no-underline transition-colors duration-200 hover:text-primary-ink dark:hover:text-white aria-[current=page]:font-semibold aria-[current=page]:text-primary-ink dark:aria-[current=page]:text-white';
+  'text-sm font-medium text-mit-text no-underline transition-colors duration-200 hover:text-primary-ink dark:!text-white dark:hover:!text-white aria-[current=page]:font-semibold aria-[current=page]:text-primary-ink dark:aria-[current=page]:!text-white';
 
 const mobileLinkClassName = `min-h-[44px] rounded-sm py-3 focus-visible:ring-2 focus-visible:ring-mit-text focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none ${navLinkClass}`;
 
@@ -50,7 +50,7 @@ const desktopAuthOuterClass =
   'hidden min-h-[42px] min-w-[280px] items-center justify-end gap-2 lg:flex';
 
 const desktopGuestLoginClass =
-  'inline-flex items-center justify-center rounded-lg px-4 py-2.5 text-sm font-medium text-primary-ink no-underline transition-colors duration-200 dark:text-white dark:hover:text-white/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none';
+  'inline-flex items-center justify-center rounded-lg px-4 py-2.5 text-sm font-medium text-primary-ink no-underline transition-colors duration-200 dark:!text-white dark:hover:!text-white/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none';
 
 const desktopGuestSignupClass =
   'inline-flex items-center justify-center rounded-lg bg-mit-red px-6 py-2.5 text-sm font-medium text-white no-underline shadow-sm transition-colors duration-200 hover:bg-mit-red-hover dark:hover:ring-1 dark:hover:ring-inset dark:hover:ring-white/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none';
@@ -58,7 +58,7 @@ const desktopGuestSignupClass =
 const desktopSignOutClass = `${desktopGuestLoginClass} cursor-pointer border-none bg-transparent disabled:opacity-60`;
 
 const mobileGuestLoginClass =
-  'inline-flex min-h-[44px] items-center justify-center rounded-lg py-3 text-sm font-medium text-primary-ink no-underline transition-colors duration-200 dark:text-white dark:hover:text-white/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none';
+  'inline-flex min-h-[44px] items-center justify-center rounded-lg py-3 text-sm font-medium text-primary-ink no-underline transition-colors duration-200 dark:!text-white dark:hover:!text-white/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none';
 
 const mobileGuestSignupClass =
   'inline-flex min-h-[44px] items-center justify-center rounded-lg bg-mit-red px-6 py-2.5 text-sm font-medium text-white no-underline shadow-sm transition-colors duration-200 hover:bg-mit-red-hover dark:hover:ring-1 dark:hover:ring-inset dark:hover:ring-white/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none';
@@ -296,7 +296,7 @@ export function SiteHeader(props: SiteHeaderProps) {
     search ? `${pathname}?${search}` : pathname
   );
   const loginHref = authHrefWithCallback('/login', authCallbackUrl);
-  const signupHref = authHrefWithCallback('/signup', authCallbackUrl);
+  const signupHref = '/signup';
 
   function closeMobile() {
     setMobileMenuOpen(false);
@@ -532,7 +532,10 @@ export function SiteHeader(props: SiteHeaderProps) {
       : null;
 
   return (
-    <header className="sticky top-0 z-50 border-b border-mit-line bg-background/85 backdrop-blur-md backdrop-saturate-150 dark:bg-background dark:backdrop-blur-none">
+    <header
+      className="sticky top-0 z-50 border-b border-mit-line bg-background/85 backdrop-blur-md backdrop-saturate-150 dark:bg-background dark:backdrop-blur-none"
+      data-site-header
+    >
       <div className="mx-auto flex h-[4.25rem] max-w-7xl items-center justify-between gap-4 px-6 sm:px-8">
         <Link
           className="flex cursor-pointer items-center gap-2 no-underline"
@@ -563,7 +566,7 @@ export function SiteHeader(props: SiteHeaderProps) {
           ))}
         </nav>
 
-        <div className={desktopAuthOuterClass}>
+        <div className={desktopAuthOuterClass} data-site-header-auth>
           {showAuthPending ? (
             <div
               aria-busy="true"

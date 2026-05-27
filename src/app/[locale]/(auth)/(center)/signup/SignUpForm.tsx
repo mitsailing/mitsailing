@@ -32,7 +32,6 @@ export function SignUpForm(props: SignUpFormProps) {
   const t = useTranslations('SignUpPage');
   const tCommon = useTranslations('Common');
   const router = useRouter();
-  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
@@ -87,8 +86,9 @@ export function SignUpForm(props: SignUpFormProps) {
     }
     setSubmitting(true);
     const localPart = normalizedEmail.split('@')[0] ?? normalizedEmail;
-    const trimmedName = name.trim();
-    const displayName = trimmedName === '' ? localPart : trimmedName;
+    const trimmedLocalPart = localPart.trim();
+    const displayName =
+      trimmedLocalPart === '' ? normalizedEmail : trimmedLocalPart;
     let keepSubmitting = false;
     try {
       const res = await authClient.signUp.email({
@@ -176,22 +176,6 @@ export function SignUpForm(props: SignUpFormProps) {
           void onSubmit(event);
         }}
       >
-        <div className="flex flex-col gap-1.5">
-          <Label className="text-foreground" htmlFor="name">
-            {t('name_label')}
-          </Label>
-          <Input
-            autoComplete="name"
-            id="name"
-            name="name"
-            onChange={(e) => {
-              setName(e.target.value);
-            }}
-            type="text"
-            value={name}
-          />
-        </div>
-
         <div className="flex flex-col gap-1.5">
           <Label className="text-foreground" htmlFor="email">
             {t('email_label')}

@@ -1,8 +1,13 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
+import type * as React from 'react';
 import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader';
 import { AdminPrimaryActionLink } from '@/components/mit-sailing/admin/AdminPrimaryActionLink';
+import {
+  AdminSailingCardExpireForm,
+  AdminSailingCardHistory,
+} from '@/components/mit-sailing/admin/cards/AdminSailingCardQueue';
 import { AdminUserRatingsPanel } from '@/components/mit-sailing/admin/users/AdminUserRatingsPanel';
 import {
   Table,
@@ -13,6 +18,10 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { formatAdminDate } from '@/libs/admin/adminDateFormatting';
+import {
+  getAdminSailingCardHistory,
+  getAdminUserSailingCardSummary,
+} from '@/libs/admin/cards/adminSailingCardUiQueries';
 import { adminUsersEditPath } from '@/libs/admin/users/adminUserPaths';
 import { usersAdminHandlers } from '@/libs/admin/users/usersAdminHandlers';
 import {
@@ -24,6 +33,7 @@ import { appRoleFromSessionUser, requirePermission } from '@/libs/auth/dal';
 import { getAdminUserEmailMessages } from '@/libs/email/emailMessages';
 import type { AdminUserEmailMessageRow } from '@/libs/email/emailMessages';
 import { logger } from '@/libs/Logger';
+import { hasCurrentSailingCard } from '@/libs/mit-sailing/sailingCardValidity';
 import { listUserRatingAssignmentRows } from '@/libs/mit-sailing/sailingRatingQueries';
 import type { UserRatingAssignmentRow } from '@/libs/mit-sailing/sailingRatingQueries';
 
@@ -107,6 +117,182 @@ type AdminUserEmailsPanelProps = Readonly<{
   t: Awaited<ReturnType<typeof getTranslations>>;
 }>;
 
+type AdminUserSailingCardSummary = Awaited<
+  ReturnType<typeof getAdminUserSailingCardSummary>
+>;
+
+type AdminUserSailingCardDetails = {
+  readonly history: Awaited<ReturnType<typeof getAdminSailingCardHistory>>;
+  readonly loadError: boolean;
+  readonly summary: AdminUserSailingCardSummary;
+};
+
+type AdminUserRatingDetails = {
+  readonly loadError: boolean;
+  readonly rows: UserRatingAssignmentRow[];
+};
+
+type AdminUserEmailDetails = {
+  readonly loadError: boolean;
+  readonly messages: AdminUserEmailMessageRow[];
+};
+
+async function loadAdminUserSailingCardDetails(
+  userId: string
+): Promise<AdminUserSailingCardDetails> {
+  try {
+    const [summary, history] = await Promise.all([
+      getAdminUserSailingCardSummary(userId),
+      getAdminSailingCardHistory(userId),
+    ]);
+    return { history, loadError: false, summary };
+  } catch (error) {
+    logger.error('Failed to load admin user sailing-card rows: {error}', {
+      error,
+      userId,
+    });
+    return { history: [], loadError: true, summary: null };
+  }
+}
+
+async function loadAdminUserRatingDetails(
+  userId: string
+): Promise<AdminUserRatingDetails> {
+  try {
+    return {
+      loadError: false,
+      rows: await listUserRatingAssignmentRows(userId),
+    };
+  } catch (error) {
+    logger.error('Failed to load admin user rating rows: {error}', {
+      error,
+      userId,
+    });
+    return { loadError: true, rows: [] };
+  }
+}
+
+async function loadAdminUserEmailDetails(props: {
+  readonly email: string;
+  readonly userId: string;
+}): Promise<AdminUserEmailDetails> {
+  try {
+    return {
+      loadError: false,
+      messages: await getAdminUserEmailMessages(props),
+    };
+  } catch (error) {
+    logger.error('Failed to load admin user email message rows: {error}', {
+      error,
+      userId: props.userId,
+    });
+    return { loadError: true, messages: [] };
+  }
+}
+
+function AdminUserDetailValue(props: {
+  readonly label: string;
+  readonly value: React.ReactNode;
+}) {
+  return (
+    <div>
+      <dt className="font-semibold">{props.label}</dt>
+      <dd className="m-0">{props.value}</dd>
+    </div>
+  );
+}
+
+function optionalAdminDate(
+  date: Date | null | undefined,
+  locale: string,
+  emptyValue: string
+) {
+  return date ? formatAdminDate(date, locale) : emptyValue;
+}
+
+function AdminUserSailingCardSection(props: {
+  readonly canExpireCards: boolean;
+  readonly history: AdminUserSailingCardDetails['history'];
+  readonly loadError: boolean;
+  readonly locale: string;
+  readonly summary: AdminUserSailingCardSummary;
+  readonly t: Awaited<ReturnType<typeof getTranslations>>;
+  readonly userId: string;
+}) {
+  const hasCurrentCard =
+    props.summary !== null && hasCurrentSailingCard(props.summary);
+  const agreement = props.summary?.legalAgreementAcceptances[0];
+  const emptyValue = props.t('empty_value');
+
+  return (
+    <>
+      <section className="rounded-lg border border-border bg-card p-5 text-sm text-foreground">
+        <h2 className="m-0 text-lg font-semibold">
+          {props.t('sailing_card_heading')}
+        </h2>
+        {props.loadError ? (
+          <output className="mt-3 block rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+            {props.t('sailing_card_load_failed')}
+          </output>
+        ) : null}
+        <dl className="mt-4 grid gap-3 sm:grid-cols-3">
+          <AdminUserDetailValue
+            label={props.t('sailing_card_number')}
+            value={props.summary?.sailingCardNumber ?? emptyValue}
+          />
+          <AdminUserDetailValue
+            label={props.t('sailing_card_year')}
+            value={props.summary?.sailingCardYear ?? emptyValue}
+          />
+          <AdminUserDetailValue
+            label={props.t('sailing_card_expires')}
+            value={optionalAdminDate(
+              props.summary?.sailingCardExpiresOn,
+              props.locale,
+              emptyValue
+            )}
+          />
+          <AdminUserDetailValue
+            label={props.t('sailing_card_requested')}
+            value={optionalAdminDate(
+              props.summary?.sailingCardRequestedAt,
+              props.locale,
+              emptyValue
+            )}
+          />
+          <AdminUserDetailValue
+            label={props.t('sailing_card_agreement')}
+            value={optionalAdminDate(
+              agreement?.acceptedAt,
+              props.locale,
+              emptyValue
+            )}
+          />
+          <AdminUserDetailValue
+            label={props.t('sailing_card_agreement_version')}
+            value={agreement?.agreementVersion ?? emptyValue}
+          />
+          <AdminUserDetailValue
+            label={props.t('sailing_card_issued_by')}
+            value={props.summary?.sailingCardIssuedBy?.name ?? emptyValue}
+          />
+        </dl>
+        {props.canExpireCards && hasCurrentCard ? (
+          <div className="mt-4">
+            <AdminSailingCardExpireForm
+              locale={props.locale}
+              userId={props.userId}
+            />
+          </div>
+        ) : null}
+      </section>
+      {props.loadError ? null : (
+        <AdminSailingCardHistory rows={props.history} />
+      )}
+    </>
+  );
+}
+
 function AdminUserEmailsPanel(props: AdminUserEmailsPanelProps) {
   return (
     <section className="flex flex-col gap-3">
@@ -183,37 +369,18 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
     Permission.RATINGS_ASSIGN
   );
   const canEditUsers = hasPermission(permissions, Permission.USERS_EDIT);
+  const canExpireCards = hasPermission(permissions, Permission.CARDS_EXPIRE);
 
   const user = await usersAdminHandlers.getById(id);
   if (!user) {
     notFound();
   }
   const userEmail = typeof user.email === 'string' ? user.email : '';
-  let rows: UserRatingAssignmentRow[] = [];
-  let ratingsLoadError = false;
-  let emailMessages: AdminUserEmailMessageRow[] = [];
-  let emailMessagesLoadError = false;
-  try {
-    rows = await listUserRatingAssignmentRows(id);
-  } catch (error) {
-    ratingsLoadError = true;
-    logger.error('Failed to load admin user rating rows: {error}', {
-      error,
-      userId: id,
-    });
-  }
-  try {
-    emailMessages = await getAdminUserEmailMessages({
-      email: userEmail,
-      userId: id,
-    });
-  } catch (error) {
-    emailMessagesLoadError = true;
-    logger.error('Failed to load admin user email message rows: {error}', {
-      error,
-      userId: id,
-    });
-  }
+  const [sailingCardDetails, ratingDetails, emailDetails] = await Promise.all([
+    loadAdminUserSailingCardDetails(id),
+    loadAdminUserRatingDetails(id),
+    loadAdminUserEmailDetails({ email: userEmail, userId: id }),
+  ]);
   const t = await getTranslations({ locale, namespace: 'AdminUsers' });
   const emailStatus = emailDeliverabilityStatus(user.emailDeliverabilityStatus);
   const emailStatusReason =
@@ -266,17 +433,26 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
           </p>
         </output>
       ) : null}
+      <AdminUserSailingCardSection
+        canExpireCards={canExpireCards}
+        history={sailingCardDetails.history}
+        loadError={sailingCardDetails.loadError}
+        locale={locale}
+        summary={sailingCardDetails.summary}
+        t={t}
+        userId={id}
+      />
       <AdminUserRatingsPanel
         canAssignRatings={canAssignRatings}
         errorCode={searchParams.error}
         locale={locale}
-        ratingsLoadFailed={ratingsLoadError}
-        rows={rows}
+        ratingsLoadFailed={ratingDetails.loadError}
+        rows={ratingDetails.rows}
         userId={id}
       />
       <AdminUserEmailsPanel
-        emails={emailMessages}
-        loadFailed={emailMessagesLoadError}
+        emails={emailDetails.messages}
+        loadFailed={emailDetails.loadError}
         locale={locale}
         t={t}
       />

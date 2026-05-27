@@ -465,23 +465,39 @@ describe('auth route shells', () => {
     });
   });
 
-  it('sign-up page passes callback links through the shell', async () => {
+  it('sign-up page sends new sailors to onboarding even with an inbound callback', async () => {
     render(await SignUpPage(routeProps({ callbackUrl: '/fleet' })));
 
     expect(routeMocks.redirectIfAuthenticated).toHaveBeenCalledWith(
       'en',
-      '/fleet'
+      '/onboarding'
     );
     expect(
       screen.getByRole('heading', { name: 'SignUpPage.heading' })
     ).toBeVisible();
     expect(screen.getByRole('form', { name: 'sign-up-form' })).toHaveAttribute(
       'data-callback-url',
-      '/fleet'
+      '/onboarding'
     );
     expect(
       screen.getByRole('link', { name: 'SignUpPage.sign_in_link' })
-    ).toHaveAttribute('href', '/login?callbackUrl=%2Ffleet');
+    ).toHaveAttribute('href', '/login?callbackUrl=%2Fonboarding');
+  });
+
+  it('sign-up page defaults new sailors to onboarding', async () => {
+    render(await SignUpPage(routeProps()));
+
+    expect(routeMocks.redirectIfAuthenticated).toHaveBeenCalledWith(
+      'en',
+      '/onboarding'
+    );
+    expect(screen.getByRole('form', { name: 'sign-up-form' })).toHaveAttribute(
+      'data-callback-url',
+      '/onboarding'
+    );
+    expect(
+      screen.getByRole('link', { name: 'SignUpPage.sign_in_link' })
+    ).toHaveAttribute('href', '/login?callbackUrl=%2Fonboarding');
   });
 
   it('forgot-password metadata uses localized copy', async () => {

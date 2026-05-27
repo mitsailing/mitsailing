@@ -1978,7 +1978,14 @@ function PavilionReservationSpacesStep(props: {
                     {t(`persona_${personaOption}_label`)}
                   </span>
                 </span>
-                <span className="mt-2 hidden pl-8 text-sm text-muted-foreground sm:block">
+                <span
+                  className={cn(
+                    'mt-2 hidden pl-8 text-sm text-muted-foreground sm:block',
+                    props.persona === personaOption
+                      ? 'dark:text-foreground'
+                      : ''
+                  )}
+                >
                   {t(`persona_${personaOption}_desc`)}
                 </span>
               </label>

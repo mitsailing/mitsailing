@@ -3,12 +3,18 @@ import type * as React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Permission } from '@/libs/auth/permissions';
 import { Role } from '@/libs/auth/roles';
+import {
+  sailingCardAgreement,
+  sailingCardAgreementHash,
+} from '@/libs/mit-sailing/sailingCardAgreement';
 
 const mocks = vi.hoisted(() => ({
   createAdminUserAction: vi.fn(),
   deleteAdminUserAction: vi.fn(),
   getById: vi.fn(),
   getAdminUserEmailMessages: vi.fn(),
+  getAdminSailingCardHistory: vi.fn(),
+  getAdminUserSailingCardSummary: vi.fn(),
   getTranslations: vi.fn(async () => {
     await Promise.resolve();
     return (key: string) => key;
@@ -92,10 +98,24 @@ vi.mock('@/components/mit-sailing/admin/users/AdminUserRatingsPanel', () => ({
   AdminUserRatingsPanel: () => <section data-testid="ratings-panel" />,
 }));
 
+vi.mock('@/components/mit-sailing/admin/cards/AdminSailingCardHistory', () => ({
+  AdminSailingCardHistory: () => <section data-testid="card-history-panel" />,
+}));
+
+vi.mock('@/components/mit-sailing/admin/cards/AdminSailingCardQueue', () => ({
+  AdminSailingCardHistory: () => <section data-testid="card-history-panel" />,
+  AdminSailingCardExpireForm: () => <form aria-label="Expire sailing card" />,
+}));
+
 vi.mock('@/libs/admin/users/adminUserActions', () => ({
   createAdminUserAction: mocks.createAdminUserAction,
   deleteAdminUserAction: mocks.deleteAdminUserAction,
   updateAdminUserAction: mocks.updateAdminUserAction,
+}));
+
+vi.mock('@/libs/admin/cards/adminSailingCardUiQueries', () => ({
+  getAdminSailingCardHistory: mocks.getAdminSailingCardHistory,
+  getAdminUserSailingCardSummary: mocks.getAdminUserSailingCardSummary,
 }));
 
 vi.mock('@/libs/admin/users/usersAdminHandlers', () => ({
@@ -128,6 +148,8 @@ beforeEach(() => {
   mocks.deleteAdminUserAction.mockReset();
   mocks.getById.mockReset();
   mocks.getAdminUserEmailMessages.mockReset();
+  mocks.getAdminSailingCardHistory.mockReset();
+  mocks.getAdminUserSailingCardSummary.mockReset();
   mocks.getTranslations.mockClear();
   mocks.list.mockReset();
   mocks.listUserRatingAssignmentRows.mockReset();
@@ -151,6 +173,24 @@ beforeEach(() => {
     updatedAt: new Date('2026-01-02T00:00:00.000Z'),
   });
   mocks.getAdminUserEmailMessages.mockResolvedValue([]);
+  mocks.getAdminSailingCardHistory.mockResolvedValue([]);
+  mocks.getAdminUserSailingCardSummary.mockResolvedValue({
+    legalAgreementAcceptances: [
+      {
+        acceptedAt: new Date('2026-06-01T16:00:00.000Z'),
+        agreementHash: sailingCardAgreementHash(),
+        agreementVersion: sailingCardAgreement.version,
+      },
+    ],
+    sailingCardExpiresOn: new Date('2027-07-15T04:00:00.000Z'),
+    sailingCardIssuedAt: new Date('2026-08-01T16:00:00.000Z'),
+    sailingCardIssuedBy: { name: 'Dock Master' },
+    sailingCardNumber: 61,
+    sailingCardRequestedAt: new Date('2026-05-21T16:00:00.000Z'),
+    sailingCardSwimAgreementInitialedAt: new Date('2026-06-01T16:00:00.000Z'),
+    sailingCardSwimAgreementInitials: 'AK',
+    sailingCardYear: 2027,
+  });
   mocks.list.mockResolvedValue([
     { email: 'sailor@example.com', id: 'user-1', name: 'Sailor One' },
   ]);
@@ -257,6 +297,74 @@ describe('admin user pages', () => {
     );
     expect(mocks.getById).toHaveBeenCalledWith('user-1');
     expect(mocks.listUserRatingAssignmentRows).toHaveBeenCalledWith('user-1');
+  });
+
+  it('shows the sailing-card panel without replacing ratings', async () => {
+    const { default: AdminUserShowPage } = await import('./[id]/page');
+
+    render(
+      await AdminUserShowPage({
+        params: Promise.resolve({ id: 'user-1', locale: 'en' }),
+        searchParams: Promise.resolve({}),
+      })
+    );
+
+    expect(screen.getByText('sailing_card_heading')).toBeInTheDocument();
+    expect(screen.getByText('61')).toBeInTheDocument();
+    expect(screen.getByText('2027')).toBeInTheDocument();
+    expect(screen.getByText(/Jun 1, 2026/)).toBeInTheDocument();
+    expect(screen.getByTestId('card-history-panel')).toBeInTheDocument();
+    expect(screen.getByTestId('ratings-panel')).toBeInTheDocument();
+  });
+
+  it('keeps user detail available when sailing-card panel fails to load', async () => {
+    mocks.getAdminSailingCardHistory.mockRejectedValue(
+      new Error('audit failed')
+    );
+    const { default: AdminUserShowPage } = await import('./[id]/page');
+
+    render(
+      await AdminUserShowPage({
+        params: Promise.resolve({ id: 'user-1', locale: 'en' }),
+        searchParams: Promise.resolve({}),
+      })
+    );
+
+    expect(screen.getByText('Sailor One')).toBeInTheDocument();
+    expect(screen.getByText('sailing_card_load_failed')).toBeInTheDocument();
+    expect(screen.getByTestId('ratings-panel')).toBeInTheDocument();
+  });
+
+  it('shows an expire action for current cards when the admin can expire cards', async () => {
+    mocks.getAdminUserSailingCardSummary.mockResolvedValue({
+      legalAgreementAcceptances: [
+        {
+          acceptedAt: new Date('2026-05-21T16:00:00.000Z'),
+          agreementHash: sailingCardAgreementHash(),
+          agreementVersion: sailingCardAgreement.version,
+        },
+      ],
+      sailingCardExpiresOn: new Date('2026-07-15T04:00:00.000Z'),
+      sailingCardIssuedAt: new Date('2025-08-01T16:00:00.000Z'),
+      sailingCardIssuedBy: { name: 'Dock Master' },
+      sailingCardNumber: 61,
+      sailingCardRequestedAt: new Date('2026-05-21T16:00:00.000Z'),
+      sailingCardSwimAgreementInitialedAt: new Date('2026-05-21T16:00:00.000Z'),
+      sailingCardSwimAgreementInitials: 'AK',
+      sailingCardYear: 2026,
+    });
+    const { default: AdminUserShowPage } = await import('./[id]/page');
+
+    render(
+      await AdminUserShowPage({
+        params: Promise.resolve({ id: 'user-1', locale: 'en' }),
+        searchParams: Promise.resolve({}),
+      })
+    );
+
+    expect(
+      screen.getByRole('form', { name: 'Expire sailing card' })
+    ).toBeInTheDocument();
   });
 
   it('passes edit and delete capabilities for admin users', async () => {

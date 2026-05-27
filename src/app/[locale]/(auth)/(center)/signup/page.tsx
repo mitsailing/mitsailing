@@ -1,10 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { authInlineLinkClassName } from '@/lib/mit-sailing/tokens';
-import {
-  authHrefWithCallback,
-  safeAuthCallbackUrl,
-} from '@/libs/auth/callbackUrl';
+import { authHrefWithCallback } from '@/libs/auth/callbackUrl';
 import { redirectIfAuthenticated } from '@/libs/auth/dal';
 import { Link as I18nLink } from '@/libs/I18nNavigation';
 import { getI18nPath } from '@/utils/Helpers';
@@ -12,7 +9,6 @@ import { SignUpForm } from './SignUpForm';
 
 type SignUpPageProps = {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ callbackUrl?: string }>;
 };
 
 export async function generateMetadata(
@@ -30,11 +26,7 @@ export async function generateMetadata(
 export default async function SignUpPage(props: SignUpPageProps) {
   const { locale } = await props.params;
   setRequestLocale(locale);
-  const searchParams = await props.searchParams;
-  const callbackUrl = safeAuthCallbackUrl(
-    searchParams.callbackUrl,
-    getI18nPath('/', locale)
-  );
+  const callbackUrl = getI18nPath('/onboarding', locale);
   await redirectIfAuthenticated(locale, callbackUrl);
 
   const t = await getTranslations({ locale, namespace: 'SignUpPage' });

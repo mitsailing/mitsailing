@@ -4,6 +4,7 @@ import type { Page } from '@playwright/test';
 import { Pool } from 'pg';
 import { Env } from '@/libs/Env';
 import { signInAsAdmin } from '../helpers/e2e-admin-sign-in';
+import { insertCurrentSailingCardOnboardingAcceptance } from '../helpers/e2e-sailing-card-onboarding';
 import {
   extractCodeFromMessage,
   findLatestMessageTo,
@@ -79,6 +80,39 @@ async function cleanupByEmail(email: string) {
   }
 }
 
+async function markOnboardingCompleteByEmail(email: string) {
+  const pool = getCleanupPool();
+  if (!pool) {
+    return;
+  }
+  await pool.query('BEGIN');
+  try {
+    const user = await pool.query<{ id: string }>(
+      `UPDATE "user"
+     SET "phone" = $2,
+         "emergency_contact_name" = $3,
+         "emergency_contact_phone" = $4,
+         "sailing_card_requested_at" = COALESCE("sailing_card_requested_at", NOW())
+     WHERE "email" = $1
+     RETURNING "id"`,
+      [email, '+16172531234', 'Taylor Test', '+16172534321']
+    );
+    const userId = user.rows[0]?.id;
+    if (!userId) {
+      throw new Error(`Unable to find verified test user ${email}`);
+    }
+    await insertCurrentSailingCardOnboardingAcceptance({
+      pool,
+      userAgent: 'e2e-admin-hub',
+      userId,
+    });
+    await pool.query('COMMIT');
+  } catch (error) {
+    await pool.query('ROLLBACK');
+    throw error;
+  }
+}
+
 async function signUpWithEmailAndPassword(
   page: Page,
   email: string,
@@ -105,7 +139,8 @@ async function verifyEmailWithLatestCode(page: Page, email: string) {
 async function createVerifiedUser(page: Page, email: string, password: string) {
   await signUpWithEmailAndPassword(page, email, password);
   await verifyEmailWithLatestCode(page, email);
-  await expect.poll(() => new URL(page.url()).pathname).toBe('/');
+  await expect.poll(() => new URL(page.url()).pathname).toBe('/onboarding');
+  await markOnboardingCompleteByEmail(email);
 }
 
 async function expectSignInPage(page: Page) {

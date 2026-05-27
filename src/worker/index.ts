@@ -28,6 +28,11 @@ import {
   PAVILION_RESERVATION_SUBMITTED_EMAIL_JOB_NAME,
   processPavilionReservationSubmittedEmailJob,
 } from '@/worker/pavilionReservationSubmittedEmailJob';
+import {
+  SAILING_CARD_ANNUAL_CLEARING_JOB_NAME,
+  processSailingCardAnnualClearingJob,
+  registerSailingCardAnnualClearingScheduler,
+} from '@/worker/sailingCardAnnualClearingJob';
 
 async function processJob(
   job: Pick<Job<unknown>, 'data' | 'name'>,
@@ -50,6 +55,10 @@ async function processJob(
     job.name === EVENT_PAYMENT_DAILY_NOTIFICATIONS_JOB_NAME
   ) {
     await processEventPaymentEmailJob(job.data, queue);
+    return;
+  }
+  if (job.name === SAILING_CARD_ANNUAL_CLEARING_JOB_NAME) {
+    await processSailingCardAnnualClearingJob();
     return;
   }
   throw new Error(`Unknown worker job: ${job.name}`);
@@ -82,6 +91,7 @@ async function main(): Promise<void> {
   const queue = new Queue(DEFAULT_QUEUE_NAME, { connection });
   await registerLegacyMysqlSyncScheduler(queue);
   await registerEventPaymentDailyNotificationScheduler(queue);
+  await registerSailingCardAnnualClearingScheduler(queue);
   await reconcileCmsMediaProcessingJobs(queue, new Date());
 
   const worker = new Worker(

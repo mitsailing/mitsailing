@@ -4,6 +4,7 @@ import type { Page } from '@playwright/test';
 import { Pool } from 'pg';
 import { formAlert } from '../helpers/e2e-alert';
 import { e2ePgConnectionString } from '../helpers/e2e-database-url';
+import { insertCurrentSailingCardOnboardingAcceptance } from '../helpers/e2e-sailing-card-onboarding';
 import {
   extractCodeFromMessage,
   findLatestMessageTo,
@@ -87,6 +88,38 @@ async function verifyEmailWithLatestCode(page: Page, email: string) {
   await page.getByRole('button', { name: 'Continue' }).click();
 }
 
+async function markOnboardingCompleteByEmail(email: string) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const user = await client.query<{ id: string }>(
+      `UPDATE "user"
+     SET "phone" = $2,
+         "emergency_contact_name" = $3,
+         "emergency_contact_phone" = $4,
+         "sailing_card_requested_at" = NOW()
+     WHERE "email" = $1
+     RETURNING "id"`,
+      [email, '+16172531234', 'Taylor Test', '+16172534321']
+    );
+    const userId = user.rows[0]?.id;
+    if (!userId) {
+      throw new Error(`Unable to find verified test user ${email}`);
+    }
+    await insertCurrentSailingCardOnboardingAcceptance({
+      pool: client,
+      userAgent: 'e2e-auth',
+      userId,
+    });
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 async function createVerifiedUser(props: {
   email: string;
   page: Page;
@@ -95,7 +128,10 @@ async function createVerifiedUser(props: {
   await props.page.goto('/signup');
   await signUpWithEmailAndPassword(props);
   await verifyEmailWithLatestCode(props.page, props.email);
-  await expect.poll(() => new URL(props.page.url()).pathname).toBe('/');
+  await expect
+    .poll(() => new URL(props.page.url()).pathname)
+    .toBe('/onboarding');
+  await markOnboardingCompleteByEmail(props.email);
 }
 
 async function findLatestPasswordResetCode(email: string) {
@@ -197,6 +233,12 @@ test.describe('Auth', () => {
 
       for (const path of authPaths) {
         await page.goto(`${path}?callbackUrl=${encodeURIComponent('/fleet')}`);
+        if (path === '/signup') {
+          await expect
+            .poll(() => new URL(page.url()).pathname)
+            .toBe('/onboarding/success');
+          continue;
+        }
         await expect
           .poll(() => new URL(page.url()).pathname)
           .toMatch(/^\/fleet\/?$/);
@@ -228,40 +270,61 @@ test.describe('Auth', () => {
     const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
     const password = 'Correct-Horse-Battery-Staple';
 
-    await page.goto('/signup');
-    await signUpWithEmailAndPassword({ email, page, password });
+    try {
+      await page.goto('/signup');
+      await signUpWithEmailAndPassword({ email, page, password });
 
-    const { rows: credentialRows } = await pool.query<{
-      password: string | null;
-    }>(
-      `SELECT a."password" FROM "account" a
+      const { rows: credentialRows } = await pool.query<{
+        password: string | null;
+      }>(
+        `SELECT a."password" FROM "account" a
        INNER JOIN "user" u ON u."id" = a."user_id"
        WHERE u."email" = $1 AND a."provider_id" = $2
        LIMIT 1`,
-      [email, 'credential']
-    );
-    const storedPassword = credentialRows[0]?.password;
-    expect(storedPassword?.startsWith('$argon2id$')).toBe(true);
+        [email, 'credential']
+      );
+      const storedPassword = credentialRows[0]?.password;
+      expect(storedPassword?.startsWith('$argon2id$')).toBe(true);
 
-    await verifyEmailWithLatestCode(page, email);
-    await expect.poll(() => new URL(page.url()).pathname).toBe('/');
+      await verifyEmailWithLatestCode(page, email);
+      await expect.poll(() => new URL(page.url()).pathname).toBe('/onboarding');
 
-    await page.goto('/profile');
-    await expect(page).toHaveURL(/\/profile\/account/);
-    const profileNav = page.getByRole('navigation', {
-      name: 'Profile settings',
-    });
-    await expect(
-      profileNav.getByRole('link', { name: 'Account', exact: true })
-    ).toBeVisible();
-    await expect(
-      profileNav.getByRole('button', { name: 'Sign out' })
-    ).toHaveCount(0);
-    await expect(
-      page.getByRole('banner').getByRole('button', { name: 'Sign out' })
-    ).toBeVisible();
+      await page.goto('/profile');
+      await expect(page).toHaveURL(/\/onboarding\?callbackUrl=%2Fprofile/);
+      await expect(
+        page.getByRole('heading', { name: 'Sailing card onboarding' })
+      ).toBeVisible();
+    } finally {
+      await cleanupByEmail(email);
+    }
+  });
 
-    await cleanupByEmail(email);
+  test('verified sailor with onboarding complete reaches profile settings', async ({
+    page,
+  }) => {
+    const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
+    const password = 'Correct-Horse-Battery-Staple';
+
+    try {
+      await createVerifiedUser({ email, page, password });
+
+      await page.goto('/profile');
+      await expect(page).toHaveURL(/\/profile\/account/);
+      const profileNav = page.getByRole('navigation', {
+        name: 'Profile settings',
+      });
+      await expect(
+        profileNav.getByRole('link', { name: 'Account', exact: true })
+      ).toBeVisible();
+      await expect(
+        profileNav.getByRole('button', { name: 'Sign out' })
+      ).toHaveCount(0);
+      await expect(
+        page.getByRole('banner').getByRole('button', { name: 'Sign out' })
+      ).toBeVisible();
+    } finally {
+      await cleanupByEmail(email);
+    }
   });
 
   test('visitor returns to the original page after login-to-signup verification', async ({
@@ -280,9 +343,7 @@ test.describe('Auth', () => {
     await signUpWithEmailAndPassword({ email, page, password });
     await verifyEmailWithLatestCode(page, email);
 
-    await expect
-      .poll(() => new URL(page.url()).pathname)
-      .toMatch(/^\/fleet\/?$/);
+    await expect.poll(() => new URL(page.url()).pathname).toBe('/onboarding');
 
     await cleanupByEmail(email);
   });

@@ -8,6 +8,7 @@ import {
   EventAnswerType,
   EventDetailPageKind,
   EventRegistrationMode,
+  EventSailingCardRequirement,
 } from '@/generated/prisma/enums';
 import messages from '@/locales/en.json';
 import { AdminEventFormView } from './AdminEventFormView';
@@ -120,6 +121,7 @@ function createEventFixture(
     requiresPhone: false,
     resultsContent: '',
     resultsVisible: false,
+    sailingCardRequirement: EventSailingCardRequirement.NONE,
     sailingInstructionsContent: '',
     sailingInstructionsVisible: false,
     shortName: '',
@@ -323,6 +325,19 @@ describe('AdminEventFormView', () => {
       expect(optionalSection(label)).not.toBeNull();
     }
     expect(screen.queryByText('Ask gender')).toBeNull();
+  });
+
+  it('renders sailing card requirement in registration settings', async () => {
+    const user = userEvent.setup();
+    renderView('editable', {
+      sailingCardRequirement: EventSailingCardRequirement.CURRENT_CARD,
+    });
+
+    await user.click(screen.getByText('Registration'));
+
+    expect(screen.getByLabelText('Sailing card requirement')).toHaveValue(
+      EventSailingCardRequirement.CURRENT_CARD
+    );
   });
 
   it('closes optional boxes for default editable events', () => {
