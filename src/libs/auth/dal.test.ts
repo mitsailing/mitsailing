@@ -386,6 +386,28 @@ describe('getCurrentUser', () => {
       unconfirmedEmail: null,
     });
   });
+
+  it('preserves string current user profile fields', async () => {
+    authGetSession.mockResolvedValue(
+      createSession({
+        email: 'sailor@example.com',
+        appRole: 'user',
+        id: 'user-1',
+        name: 'Ada Sailor',
+        role: 'user',
+        unconfirmedEmail: 'new-sailor@example.com',
+      })
+    );
+    const { getCurrentUser } = await import('@/libs/auth/dal');
+
+    await expect(getCurrentUser()).resolves.toEqual({
+      email: 'sailor@example.com',
+      id: 'user-1',
+      name: 'Ada Sailor',
+      role: 'user',
+      unconfirmedEmail: 'new-sailor@example.com',
+    });
+  });
 });
 
 describe('requireCurrentUser', () => {
@@ -450,6 +472,27 @@ describe('requireCurrentUser', () => {
 
     expect(redirect).toHaveBeenCalledWith(
       '/onboarding?callbackUrl=%2Fprofile%2Faccount'
+    );
+  });
+
+  it('redirects to sign-in when the session user was deleted', async () => {
+    authGetSession.mockResolvedValue(
+      createSession({
+        email: 'sailor@example.com',
+        appRole: 'user',
+        id: 'deleted-user',
+        role: 'user',
+      })
+    );
+    prismaUserFindUnique.mockResolvedValue(null);
+    const { requireCurrentUser } = await import('@/libs/auth/dal');
+
+    await expect(requireCurrentUser('en', '/profile/account')).rejects.toThrow(
+      'NEXT_REDIRECT:/login?callbackUrl=%2Fprofile%2Faccount'
+    );
+
+    expect(redirect).toHaveBeenCalledWith(
+      '/login?callbackUrl=%2Fprofile%2Faccount'
     );
   });
 

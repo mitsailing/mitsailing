@@ -83,11 +83,13 @@ function formDataWithCardNumber(value: string) {
   return formData;
 }
 
-function uniqueCardError() {
+function uniqueCardError(
+  target: string | string[] = ['sailingCardYear', 'sailingCardNumber']
+) {
   return new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
     clientVersion: 'test',
     code: 'P2002',
-    meta: { target: ['sailingCardYear', 'sailingCardNumber'] },
+    meta: { target },
   });
 }
 
@@ -205,6 +207,25 @@ describe('adminSailingCardActions', () => {
     );
   });
 
+  it('rejects malformed manual card numbers before opening a transaction', async () => {
+    const { issueSailingCardAction } =
+      await import('@/libs/admin/cards/adminSailingCardActions');
+
+    await expect(
+      issueSailingCardAction(
+        'en',
+        'user-1',
+        { fieldErrors: {}, status: 'idle' },
+        formDataWithCardNumber('0')
+      )
+    ).resolves.toEqual({
+      fieldErrors: { cardNumber: 'invalid' },
+      status: 'error',
+    });
+
+    expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+
   it('duplicate card number returns a field-level error', async () => {
     mocks.transaction.mockRejectedValue(uniqueCardError());
     const { issueSailingCardAction } =
@@ -221,6 +242,48 @@ describe('adminSailingCardActions', () => {
       fieldErrors: { cardNumber: 'duplicate' },
       status: 'error',
     });
+  });
+
+  it('recognizes duplicate card numbers from string unique targets', async () => {
+    mocks.transaction.mockRejectedValue(
+      uniqueCardError('sailingCardYear_sailingCardNumber')
+    );
+    const { issueSailingCardAction } =
+      await import('@/libs/admin/cards/adminSailingCardActions');
+
+    await expect(
+      issueSailingCardAction(
+        'en',
+        'user-1',
+        { fieldErrors: {}, status: 'idle' },
+        formDataWithCardNumber('61')
+      )
+    ).resolves.toEqual({
+      fieldErrors: { cardNumber: 'duplicate' },
+      status: 'error',
+    });
+  });
+
+  it('returns not found when issuing for a deleted user', async () => {
+    mocks.txUserFindUnique.mockResolvedValue(null);
+    const { issueSailingCardAction } =
+      await import('@/libs/admin/cards/adminSailingCardActions');
+
+    await expect(
+      issueSailingCardAction(
+        'en',
+        'missing-user',
+        { fieldErrors: {}, status: 'idle' },
+        formDataWithCardNumber('61')
+      )
+    ).resolves.toEqual({
+      fieldErrors: {},
+      formError: 'not_found',
+      status: 'error',
+    });
+
+    expect(mocks.txSailingCardRequestUpdateMany).not.toHaveBeenCalled();
+    expect(mocks.txUserAuditCreate).not.toHaveBeenCalled();
   });
 
   it('does not issue a card when the user has no pending request', async () => {
@@ -482,6 +545,28 @@ describe('adminSailingCardActions', () => {
     expect(mocks.txUserAuditCreate).not.toHaveBeenCalled();
   });
 
+  it('does not issue when another admin already updated the user card', async () => {
+    mocks.txUserUpdateMany.mockResolvedValue({ count: 0 });
+    const { issueSailingCardAction } =
+      await import('@/libs/admin/cards/adminSailingCardActions');
+
+    await expect(
+      issueSailingCardAction(
+        'en',
+        'user-1',
+        { fieldErrors: {}, status: 'idle' },
+        formDataWithCardNumber('61')
+      )
+    ).resolves.toEqual({
+      fieldErrors: {},
+      formError: 'not_pending_request',
+      status: 'error',
+    });
+
+    expect(mocks.txSailingCardRequestUpdateMany).toHaveBeenCalled();
+    expect(mocks.txUserAuditCreate).not.toHaveBeenCalled();
+  });
+
   it('expireSailingCardAction requires expire permission and clears yearly fields', async () => {
     mocks.txUserFindUnique.mockResolvedValue({
       ...existingUser,
@@ -536,6 +621,28 @@ describe('adminSailingCardActions', () => {
     ).resolves.toEqual({
       fieldErrors: {},
       formError: 'no_current_card',
+      status: 'error',
+    });
+
+    expect(mocks.txUserUpdate).not.toHaveBeenCalled();
+    expect(mocks.txUserAuditCreate).not.toHaveBeenCalled();
+  });
+
+  it('expireSailingCardAction returns not found for a deleted user', async () => {
+    mocks.txUserFindUnique.mockResolvedValue(null);
+    const { expireSailingCardAction } =
+      await import('@/libs/admin/cards/adminSailingCardActions');
+
+    await expect(
+      expireSailingCardAction(
+        'en',
+        'missing-user',
+        { fieldErrors: {}, status: 'idle' },
+        new FormData()
+      )
+    ).resolves.toEqual({
+      fieldErrors: {},
+      formError: 'not_found',
       status: 'error',
     });
 

@@ -35,6 +35,7 @@ const authCoverageFiles = [
   'src/app/[locale]/(auth)/(center)/layout.tsx',
   'src/app/[locale]/(auth)/(center)/login/page.tsx',
   'src/app/[locale]/(auth)/(center)/login/SignInForm.tsx',
+  'src/app/[locale]/(auth)/(center)/login/continue/page.tsx',
   'src/app/[locale]/(auth)/(center)/signup/page.tsx',
   'src/app/[locale]/(auth)/(center)/signup/SignUpForm.tsx',
   'src/app/[locale]/(auth)/(center)/forgot-password/page.tsx',

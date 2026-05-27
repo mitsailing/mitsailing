@@ -1,68 +1,7 @@
-import type { Job } from 'bullmq';
-import { Queue, Worker } from 'bullmq';
-import IORedis from 'ioredis';
 import { Env } from '@/libs/Env';
 import { logger } from '@/libs/Logger';
-import { processNewsletterBroadcast } from '@/libs/newsletter/newsletterBroadcasts';
-import { NEWSLETTER_QUEUE_NAME } from '@/libs/newsletter/newsletterConstants';
-import type { NewsletterBroadcastJob } from '@/libs/newsletter/newsletterQueue';
 import { safeErrorCode, safeErrorName } from '@/libs/safeUnknownError';
-import {
-  CMS_MEDIA_PROCESSING_JOB_NAME,
-  processCmsMediaProcessingJob,
-  reconcileCmsMediaProcessingJobs,
-} from '@/worker/cmsMediaProcessingJob';
-import { DEFAULT_QUEUE_NAME } from '@/worker/defaultQueue';
-import {
-  EVENT_PAYMENT_DAILY_NOTIFICATIONS_JOB_NAME,
-  EVENT_PAYMENT_EMAIL_JOB_NAME,
-  processEventPaymentEmailJob,
-  registerEventPaymentDailyNotificationScheduler,
-} from '@/worker/eventPaymentEmailJob';
-import {
-  LEGACY_MYSQL_SYNC_JOB_NAME,
-  processLegacyMysqlSyncJob,
-  registerLegacyMysqlSyncScheduler,
-} from '@/worker/legacyMysqlSyncJob';
-import {
-  PAVILION_RESERVATION_SUBMITTED_EMAIL_JOB_NAME,
-  processPavilionReservationSubmittedEmailJob,
-} from '@/worker/pavilionReservationSubmittedEmailJob';
-import {
-  SAILING_CARD_ANNUAL_CLEARING_JOB_NAME,
-  processSailingCardAnnualClearingJob,
-  registerSailingCardAnnualClearingScheduler,
-} from '@/worker/sailingCardAnnualClearingJob';
-
-async function processJob(
-  job: Pick<Job<unknown>, 'data' | 'name'>,
-  queue: Queue
-): Promise<void> {
-  if (job.name === LEGACY_MYSQL_SYNC_JOB_NAME) {
-    await processLegacyMysqlSyncJob();
-    return;
-  }
-  if (job.name === PAVILION_RESERVATION_SUBMITTED_EMAIL_JOB_NAME) {
-    await processPavilionReservationSubmittedEmailJob(job.data);
-    return;
-  }
-  if (job.name === CMS_MEDIA_PROCESSING_JOB_NAME) {
-    await processCmsMediaProcessingJob(job.data);
-    return;
-  }
-  if (
-    job.name === EVENT_PAYMENT_EMAIL_JOB_NAME ||
-    job.name === EVENT_PAYMENT_DAILY_NOTIFICATIONS_JOB_NAME
-  ) {
-    await processEventPaymentEmailJob(job.data, queue);
-    return;
-  }
-  if (job.name === SAILING_CARD_ANNUAL_CLEARING_JOB_NAME) {
-    await processSailingCardAnnualClearingJob();
-    return;
-  }
-  throw new Error(`Unknown worker job: ${job.name}`);
-}
+import { startWorkerRuntime } from '@/worker/workerRuntime';
 
 function logWorkerLifecycleFailure(options: {
   context: 'shutdown' | 'startup';
@@ -84,61 +23,13 @@ async function main(): Promise<void> {
     throw new Error('REDIS_URL is required for the BullMQ worker');
   }
 
-  const connection = new IORedis(redisUrl, {
-    maxRetriesPerRequest: null,
-  });
-
-  const queue = new Queue(DEFAULT_QUEUE_NAME, { connection });
-  await registerLegacyMysqlSyncScheduler(queue);
-  await registerEventPaymentDailyNotificationScheduler(queue);
-  await registerSailingCardAnnualClearingScheduler(queue);
-  await reconcileCmsMediaProcessingJobs(queue, new Date());
-
-  const worker = new Worker(
-    DEFAULT_QUEUE_NAME,
-    async (job) => {
-      await processJob(job, queue);
-    },
-    { connection, concurrency: 1 }
-  );
-
-  const newsletterWorker = new Worker<NewsletterBroadcastJob>(
-    NEWSLETTER_QUEUE_NAME,
-    async (job) => {
-      await processNewsletterBroadcast(job.data.broadcastId);
-    },
-    { connection, concurrency: Env.NEWSLETTER_WORKER_CONCURRENCY }
-  );
-
-  logger.info('Newsletter worker started', {
-    concurrency: Env.NEWSLETTER_WORKER_CONCURRENCY,
-  });
-
-  newsletterWorker.on('completed', (job) => {
-    logger.info('Newsletter broadcast job completed', {
-      broadcastId: job.data.broadcastId,
-      jobId: job.id,
-    });
-  });
-  newsletterWorker.on('failed', (job, error) => {
-    logger.error('Newsletter broadcast job failed: {error}', {
-      broadcastId: job?.data.broadcastId,
-      error,
-      jobId: job?.id,
-    });
-  });
-  newsletterWorker.on('error', (error) => {
-    logger.error('Newsletter worker error: {error}', { error });
-  });
-  newsletterWorker.on('stalled', (jobId) => {
-    logger.warn('Newsletter broadcast job stalled', { jobId });
+  const runtime = await startWorkerRuntime({
+    newsletterWorkerConcurrency: Env.NEWSLETTER_WORKER_CONCURRENCY,
+    redisUrl,
   });
 
   const shutdown = async (): Promise<void> => {
-    await newsletterWorker.close();
-    await worker.close();
-    await queue.close();
-    await connection.quit();
+    await runtime.close();
     process.exit(0);
   };
 

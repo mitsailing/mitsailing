@@ -85,10 +85,7 @@ export function SignUpForm(props: SignUpFormProps) {
       return;
     }
     setSubmitting(true);
-    const localPart = normalizedEmail.split('@')[0] ?? normalizedEmail;
-    const trimmedLocalPart = localPart.trim();
-    const displayName =
-      trimmedLocalPart === '' ? normalizedEmail : trimmedLocalPart;
+    const displayName = normalizedEmail.slice(0, normalizedEmail.indexOf('@'));
     let keepSubmitting = false;
     try {
       const res = await authClient.signUp.email({

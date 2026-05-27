@@ -95,7 +95,11 @@ vi.mock('@/components/mit-sailing/admin/catalog/AdminCatalogTable', () => ({
 }));
 
 vi.mock('@/components/mit-sailing/admin/users/AdminUserRatingsPanel', () => ({
-  AdminUserRatingsPanel: () => <section data-testid="ratings-panel" />,
+  AdminUserRatingsPanel: (props: { ratingsLoadFailed: boolean }) => (
+    <section data-testid="ratings-panel">
+      {props.ratingsLoadFailed ? 'ratings-load-failed' : 'ratings-loaded'}
+    </section>
+  ),
 }));
 
 vi.mock('@/components/mit-sailing/admin/cards/AdminSailingCardHistory', () => ({
@@ -333,6 +337,116 @@ describe('admin user pages', () => {
     expect(screen.getByText('Sailor One')).toBeInTheDocument();
     expect(screen.getByText('sailing_card_load_failed')).toBeInTheDocument();
     expect(screen.getByTestId('ratings-panel')).toBeInTheDocument();
+  });
+
+  it('keeps user detail available when ratings fail to load', async () => {
+    mocks.listUserRatingAssignmentRows.mockRejectedValue(
+      new Error('ratings failed')
+    );
+    const { default: AdminUserShowPage } = await import('./[id]/page');
+
+    render(
+      await AdminUserShowPage({
+        params: Promise.resolve({ id: 'user-1', locale: 'en' }),
+        searchParams: Promise.resolve({}),
+      })
+    );
+
+    expect(screen.getByText('Sailor One')).toBeInTheDocument();
+    expect(screen.getByText('ratings-load-failed')).toBeInTheDocument();
+    expect(screen.getByText('emails_heading')).toBeInTheDocument();
+  });
+
+  it('keeps user detail available when email history fails to load', async () => {
+    mocks.getAdminUserEmailMessages.mockRejectedValue(
+      new Error('email failed')
+    );
+    const { default: AdminUserShowPage } = await import('./[id]/page');
+
+    render(
+      await AdminUserShowPage({
+        params: Promise.resolve({ id: 'user-1', locale: 'en' }),
+        searchParams: Promise.resolve({}),
+      })
+    );
+
+    expect(screen.getByText('Sailor One')).toBeInTheDocument();
+    expect(screen.getByText('emails_load_failed')).toBeInTheDocument();
+    expect(screen.getByText('emails_empty')).toBeInTheDocument();
+  });
+
+  it('renders email history with category status date and error fallback', async () => {
+    mocks.getAdminUserEmailMessages.mockResolvedValue([
+      {
+        bouncedAt: null,
+        category: 'password_reset',
+        complainedAt: null,
+        createdAt: new Date('2026-05-01T12:00:00.000Z'),
+        deliveredAt: null,
+        failedAt: null,
+        id: 'email-1',
+        lastError: null,
+        lastEventAt: new Date('2026-05-01T12:01:00.000Z'),
+        lastEventType: 'email.delivered',
+        newsletterBroadcastId: null,
+        sentAt: new Date('2026-05-01T12:00:00.000Z'),
+        subject: 'Reset your password',
+        suppressedAt: null,
+        toEmail: 'sailor@example.com',
+      },
+      {
+        bouncedAt: null,
+        category: 'custom',
+        complainedAt: null,
+        createdAt: new Date('2026-05-02T12:00:00.000Z'),
+        deliveredAt: null,
+        failedAt: null,
+        id: 'email-2',
+        lastError: 'smtp rejected',
+        lastEventAt: null,
+        lastEventType: null,
+        newsletterBroadcastId: null,
+        sentAt: null,
+        subject: 'Custom notice',
+        suppressedAt: null,
+        toEmail: 'sailor@example.com',
+      },
+    ]);
+    const { default: AdminUserShowPage } = await import('./[id]/page');
+
+    render(
+      await AdminUserShowPage({
+        params: Promise.resolve({ id: 'user-1', locale: 'en' }),
+        searchParams: Promise.resolve({}),
+      })
+    );
+
+    expect(screen.getByText('Reset your password')).toBeInTheDocument();
+    expect(
+      screen.getByText('email_category_password_reset')
+    ).toBeInTheDocument();
+    expect(screen.getByText('email_event_delivered')).toBeInTheDocument();
+    expect(screen.getAllByText('empty_value')).toHaveLength(1);
+    expect(screen.getByText('Custom notice')).toBeInTheDocument();
+    expect(screen.getByText('email_category_other')).toBeInTheDocument();
+    expect(screen.getByText('email_event_unknown')).toBeInTheDocument();
+    expect(screen.getByText('smtp rejected')).toBeInTheDocument();
+  });
+
+  it('returns not found when the user no longer exists', async () => {
+    mocks.getById.mockResolvedValue(null);
+    const { default: AdminUserShowPage } = await import('./[id]/page');
+
+    await expect(
+      AdminUserShowPage({
+        params: Promise.resolve({ id: 'missing-user', locale: 'en' }),
+        searchParams: Promise.resolve({}),
+      })
+    ).rejects.toThrow('NEXT_NOT_FOUND');
+
+    expect(mocks.notFound).toHaveBeenCalledOnce();
+    expect(mocks.getAdminUserSailingCardSummary).not.toHaveBeenCalled();
+    expect(mocks.listUserRatingAssignmentRows).not.toHaveBeenCalled();
   });
 
   it('shows an expire action for current cards when the admin can expire cards', async () => {
