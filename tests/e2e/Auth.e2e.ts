@@ -219,7 +219,7 @@ test.describe('Auth', () => {
     page,
   }) => {
     const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
-    const password = 'Correct-Horse-Battery-Staple';
+    const credential = `Qa1-${faker.string.alphanumeric(20)}`;
     const authPaths = [
       '/login',
       '/signup',
@@ -229,7 +229,7 @@ test.describe('Auth', () => {
     ] as const;
 
     try {
-      await createVerifiedUser({ email, page, password });
+      await createVerifiedUser({ email, page, password: credential });
 
       for (const path of authPaths) {
         await page.goto(`${path}?callbackUrl=${encodeURIComponent('/fleet')}`);
@@ -299,14 +299,38 @@ test.describe('Auth', () => {
     }
   });
 
+  test('verified sailor without onboarding lands on onboarding after direct login', async ({
+    page,
+  }) => {
+    const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
+    const credential = `Qa1-${faker.string.alphanumeric(20)}`;
+
+    try {
+      await page.goto('/signup');
+      await signUpWithEmailAndPassword({ email, page, password: credential });
+      await verifyEmailWithLatestCode(page, email);
+      await expect.poll(() => new URL(page.url()).pathname).toBe('/onboarding');
+
+      await page.context().clearCookies();
+      await page.goto('/login');
+      await page.getByLabel('Email').fill(email);
+      await page.getByLabel('Password').fill(credential);
+      await page.getByRole('button', { name: 'Sign in' }).click();
+
+      await expect.poll(() => new URL(page.url()).pathname).toBe('/onboarding');
+    } finally {
+      await cleanupByEmail(email);
+    }
+  });
+
   test('verified sailor with onboarding complete reaches profile settings', async ({
     page,
   }) => {
     const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
-    const password = 'Correct-Horse-Battery-Staple';
+    const credential = `Qa1-${faker.string.alphanumeric(20)}`;
 
     try {
-      await createVerifiedUser({ email, page, password });
+      await createVerifiedUser({ email, page, password: credential });
 
       await page.goto('/profile');
       await expect(page).toHaveURL(/\/profile\/account/);

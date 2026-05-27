@@ -17,9 +17,9 @@ import {
 } from '@/libs/mit-sailing/sailingCardValidity';
 import { getI18nPath } from '@/utils/Helpers';
 
-type OnboardingSuccessPageProps = {
+type OnboardingSuccessPageProps = Readonly<{
   params: Promise<{ locale: string }>;
-};
+}>;
 
 export async function generateMetadata(
   props: OnboardingSuccessPageProps

@@ -8,6 +8,7 @@ import ForgotPasswordPage, {
   generateMetadata as generateForgotPasswordMetadata,
 } from './(center)/forgot-password/page';
 import CenteredLayout from './(center)/layout';
+import SignInContinuePage from './(center)/login/continue/page';
 import SignInPage, {
   generateMetadata as generateSignInMetadata,
 } from './(center)/login/page';
@@ -456,6 +457,15 @@ describe('auth route shells', () => {
     expect(
       screen.queryByText('SignInPage.unlocked_banner')
     ).not.toBeInTheDocument();
+  });
+
+  it('sign-in continuation applies yearly onboarding before callback', async () => {
+    await expect(
+      SignInContinuePage(routeProps({ callbackUrl: '/fleet' }))
+    ).rejects.toThrow('NEXT_REDIRECT:/fleet');
+
+    expect(routeMocks.requireCurrentUser).toHaveBeenCalledWith('en', '/fleet');
+    expect(routeMocks.redirect).toHaveBeenCalledWith('/fleet');
   });
 
   it('sign-up metadata uses localized copy', async () => {

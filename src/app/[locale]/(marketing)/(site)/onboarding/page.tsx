@@ -5,6 +5,7 @@ import { connection } from 'next/server';
 import { SailingCardOnboardingForm } from '@/components/mit-sailing/onboarding/SailingCardOnboardingForm';
 import { SiteSectionMain } from '@/components/mit-sailing/SiteSectionMain';
 import { SiteSectionShell } from '@/components/mit-sailing/SiteSectionShell';
+import { safeAuthCallbackUrl } from '@/libs/auth/callbackUrl';
 import { requireCurrentUser } from '@/libs/auth/dal';
 import { prisma } from '@/libs/DB';
 import {
@@ -13,9 +14,12 @@ import {
 } from '@/libs/mit-sailing/sailingCardValidity';
 import { getI18nPath } from '@/utils/Helpers';
 
-type OnboardingPageProps = {
+type OnboardingPageProps = Readonly<{
   params: Promise<{ locale: string }>;
-};
+  searchParams: Promise<{
+    callbackUrl?: string;
+  }>;
+}>;
 
 async function getOnboardingUser(userId: string) {
   const user = await prisma.user.findUnique({
@@ -113,6 +117,8 @@ export default async function OnboardingPage(props: OnboardingPageProps) {
   const { locale } = await props.params;
   setRequestLocale(locale);
   const user = await requireCurrentUser(locale, '/onboarding');
+  const searchParams = await props.searchParams;
+  const callbackUrl = safeAuthCallbackUrl(searchParams.callbackUrl, '');
   const t = await getTranslations({ locale, namespace: 'OnboardingPage' });
   const currentUser = await getOnboardingUser(user.id);
 
@@ -142,6 +148,7 @@ export default async function OnboardingPage(props: OnboardingPageProps) {
           </div>
 
           <SailingCardOnboardingForm
+            callbackUrl={callbackUrl}
             initialValues={initialValues}
             lockedIdentity={lockedIdentity}
           />

@@ -159,7 +159,6 @@ export function AdminSailingCardExpireForm(props: {
 
 export function AdminSailingCardQueue(props: {
   readonly canAssignCards: boolean;
-  readonly canExpireCards: boolean;
   readonly locale: string;
   readonly rows: readonly AdminSailingCardQueueRow[];
   readonly suggestedCardNumber: number;

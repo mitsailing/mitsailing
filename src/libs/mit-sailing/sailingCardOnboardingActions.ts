@@ -10,6 +10,10 @@ import {
   SailingCardRequestStatus,
   SailingCardType,
 } from '@/generated/prisma/enums';
+import {
+  authHrefWithCallback,
+  safeAuthCallbackUrl,
+} from '@/libs/auth/callbackUrl';
 import { getSession } from '@/libs/auth/dal';
 import { prisma } from '@/libs/DB';
 import {
@@ -57,6 +61,17 @@ export type SailingCardOnboardingFormValues = {
 const formDataString = (formData: FormData, key: string) => {
   const value = formData.get(key);
   return typeof value === 'string' ? value : '';
+};
+
+const postOnboardingDestination = (props: {
+  readonly callbackUrl: string;
+  readonly successHref: string;
+}) => {
+  const callbackUrl = safeAuthCallbackUrl(props.callbackUrl, props.successHref);
+
+  return callbackUrl.startsWith('/onboarding')
+    ? props.successHref
+    : callbackUrl;
 };
 
 const parseAffiliation = (value: string) => {
@@ -156,9 +171,16 @@ export const submitSailingCardOnboardingAction = async (
 ): Promise<SailingCardOnboardingFormState> => {
   const locale = await getLocale();
   const session = await getSession();
+  const successHref = getI18nPath('/onboarding/success', locale);
+  const callbackUrl = formDataString(formData, 'callbackUrl');
 
   if (!session?.user?.id) {
-    redirect(getI18nPath('/login?callbackUrl=/onboarding', locale));
+    redirect(
+      authHrefWithCallback(
+        getI18nPath('/login', locale),
+        authHrefWithCallback(getI18nPath('/onboarding', locale), callbackUrl)
+      )
+    );
   }
 
   const currentUser = await prisma.user.findUnique({
@@ -220,7 +242,12 @@ export const submitSailingCardOnboardingAction = async (
   });
 
   if (currentUser === null) {
-    redirect(getI18nPath('/login?callbackUrl=/onboarding', locale));
+    redirect(
+      authHrefWithCallback(
+        getI18nPath('/login', locale),
+        authHrefWithCallback(getI18nPath('/onboarding', locale), callbackUrl)
+      )
+    );
   }
 
   if (
@@ -228,7 +255,7 @@ export const submitSailingCardOnboardingAction = async (
       currentUser.sailingCardRequests.at(0) ?? null
     )
   ) {
-    redirect(getI18nPath('/onboarding/success', locale));
+    redirect(successHref);
   }
 
   const input = parseSailingCardOnboardingFormData(formData);
@@ -332,6 +359,11 @@ export const submitSailingCardOnboardingAction = async (
     });
   });
 
-  revalidatePath(getI18nPath('/onboarding/success', locale));
-  redirect(getI18nPath('/onboarding/success', locale));
+  const destination = postOnboardingDestination({ callbackUrl, successHref });
+
+  revalidatePath(successHref);
+  if (destination !== successHref) {
+    revalidatePath(destination);
+  }
+  redirect(destination);
 };

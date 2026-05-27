@@ -16,20 +16,35 @@ function listTypeScriptFiles(directory: string): string[] {
 
 const serverActionFiles = listTypeScriptFiles('src').filter((file) => {
   const source = readFileSync(file, 'utf8');
-  return /^'use server';$/m.test(source);
+  return source.split('\n').some((line) => line === "'use server';");
 });
 
 function exportedRuntimeBindings(source: string) {
-  return [...source.matchAll(/^export\s+(?!type\s)(.+)$/gm)]
-    .map((match) => match[1]?.trim() ?? '')
+  return source
+    .split('\n')
+    .filter(
+      (line) => line.startsWith('export ') && !line.startsWith('export type ')
+    )
+    .map((line) => line.slice('export '.length).trim())
     .filter((statement) => !statement.startsWith('interface '));
 }
 
 function isAsyncFunctionExport(statement: string) {
-  return (
-    statement.startsWith('async function ') ||
-    /^const\s+\w+\s*=\s*async\s*(?:\(|<)/.test(statement)
-  );
+  if (statement.startsWith('async function ')) {
+    return true;
+  }
+
+  if (!statement.startsWith('const ')) {
+    return false;
+  }
+
+  const assignment = statement.indexOf('=');
+  if (assignment === -1) {
+    return false;
+  }
+
+  const initializer = statement.slice(assignment + 1).trimStart();
+  return initializer.startsWith('async (') || initializer.startsWith('async<');
 }
 
 describe('server action boundaries', () => {

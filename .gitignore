@@ -3,6 +3,9 @@
 # Figma / Vite source (integrated into src/; not vendored in git)
 /mit-redesign/
 
+# WordPress source (not vendored in git)
+/sailing-wp/
+
 # dependencies
 /node_modules
 /.pnp

@@ -87,7 +87,6 @@ describe('AdminSailingCardQueue', () => {
     render(
       <AdminSailingCardQueue
         canAssignCards
-        canExpireCards={false}
         locale="en"
         rows={[queueRow]}
         suggestedCardNumber={60}
@@ -113,7 +112,6 @@ describe('AdminSailingCardQueue', () => {
     render(
       <AdminSailingCardQueue
         canAssignCards={false}
-        canExpireCards
         locale="en"
         rows={[queueRow]}
         suggestedCardNumber={60}

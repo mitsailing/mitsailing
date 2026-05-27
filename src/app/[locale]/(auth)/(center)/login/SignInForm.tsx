@@ -96,7 +96,7 @@ export function SignInForm(props: SignInFormProps) {
         setError(mapError(res.error.code, res.error.message, normalizedEmail));
         return;
       }
-      router.push(props.callbackUrl);
+      router.push(authHrefWithCallback('/login/continue', props.callbackUrl));
       router.refresh();
     } catch {
       setError({ kind: 'generic', message: t('error_request_failed') });

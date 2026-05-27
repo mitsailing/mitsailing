@@ -75,7 +75,7 @@ function parseManualCardNumber(formData: FormData) {
   if (raw === '') {
     return null;
   }
-  if (!/^[1-9][0-9]*$/.test(raw)) {
+  if (!/^[1-9]\d*$/.test(raw)) {
     return 'invalid';
   }
   return Number(raw);

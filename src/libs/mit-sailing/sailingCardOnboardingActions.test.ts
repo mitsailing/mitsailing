@@ -191,7 +191,7 @@ describe('submitSailingCardOnboardingAction', () => {
 
     await expect(
       submitSailingCardOnboardingAction(idleState, onboardingFormData())
-    ).rejects.toThrow('NEXT_REDIRECT:/login?callbackUrl=/onboarding');
+    ).rejects.toThrow('NEXT_REDIRECT:/login?callbackUrl=%2Fonboarding');
 
     expect(mocks.prismaUserUpdate).not.toHaveBeenCalled();
   });
@@ -224,6 +224,31 @@ describe('submitSailingCardOnboardingAction', () => {
           sailingCardYear: null,
         }),
       })
+    );
+  });
+
+  it('redirects to the preserved callback after successful onboarding', async () => {
+    const formData = onboardingFormData();
+    formData.set('callbackUrl', '/events/regatta/register');
+    const { submitSailingCardOnboardingAction } =
+      await import('@/libs/mit-sailing/sailingCardOnboardingActions');
+
+    await expect(
+      submitSailingCardOnboardingAction(idleState, formData)
+    ).rejects.toThrow('NEXT_REDIRECT:/events/regatta/register');
+  });
+
+  it('redirects unauthenticated preserved callbacks through onboarding', async () => {
+    mocks.getSession.mockResolvedValue(null);
+    const formData = onboardingFormData();
+    formData.set('callbackUrl', '/events/regatta/register');
+    const { submitSailingCardOnboardingAction } =
+      await import('@/libs/mit-sailing/sailingCardOnboardingActions');
+
+    await expect(
+      submitSailingCardOnboardingAction(idleState, formData)
+    ).rejects.toThrow(
+      'NEXT_REDIRECT:/login?callbackUrl=%2Fonboarding%3FcallbackUrl%3D%252Fevents%252Fregatta%252Fregister'
     );
   });
 

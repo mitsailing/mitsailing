@@ -1,8 +1,6 @@
 import type { MitDataWarehousePersonType } from '@/generated/prisma/enums';
 import { prisma } from '@/libs/DB';
 
-export type VerifiedKerberos = string;
-
 export type MitDataWarehouseIdentity = {
   readonly mitId: string;
   readonly firstName: string;
@@ -55,7 +53,7 @@ const doesVerifiedKerberosMatch = (
 export const lookupMitDataWarehouseIdentity = async (props: {
   readonly db?: MitDataWarehouseDb;
   readonly mitId: string;
-  readonly verifiedKerberos: VerifiedKerberos | null;
+  readonly verifiedKerberos: string | null;
 }) => {
   const normalizedMitId = normalizeMitId(props.mitId);
 

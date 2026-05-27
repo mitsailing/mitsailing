@@ -57,6 +57,35 @@ export class SailingCardOnboardingValidationError extends Error {
   }
 }
 
+function hasWhitespace(value: string) {
+  for (const character of value) {
+    if (character.trim() === '') {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isSimpleEmailAddress(email: string) {
+  if (email.length > 254 || hasWhitespace(email)) {
+    return false;
+  }
+
+  const atIndex = email.indexOf('@');
+  if (atIndex <= 0 || atIndex !== email.lastIndexOf('@')) {
+    return false;
+  }
+
+  const localPart = email.slice(0, atIndex);
+  const domain = email.slice(atIndex + 1);
+  if (localPart === '' || domain === '') {
+    return false;
+  }
+
+  const domainLabels = domain.split('.');
+  return domainLabels.length > 1 && domainLabels.every((label) => label !== '');
+}
+
 const validateContact = (input: SailingCardOnboardingInput) => {
   const fieldErrors: SailingCardOnboardingFieldErrors = {};
   const phone = normalizeUsPhone(input.phone);
@@ -79,7 +108,7 @@ const validateContact = (input: SailingCardOnboardingInput) => {
   }
   if (
     emergencyContactEmail !== '' &&
-    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emergencyContactEmail)
+    !isSimpleEmailAddress(emergencyContactEmail)
   ) {
     fieldErrors.emergencyContactEmail = 'invalid';
   }

@@ -12,6 +12,11 @@ const pool = new Pool({ connectionString: e2ePgConnectionString() });
 
 let pgPoolEnded = false;
 
+type EventRegistrationWindowSnapshot = {
+  registration_end: Date | null;
+  registration_start: Date | null;
+};
+
 test.afterAll(async () => {
   if (pgPoolEnded) {
     return;
@@ -50,6 +55,51 @@ async function cleanupByEmail(email: string) {
   }
 }
 
+async function openEventRegistrationWindow(
+  slug: string
+): Promise<EventRegistrationWindowSnapshot> {
+  const { rows } = await pool.query<EventRegistrationWindowSnapshot>(
+    `
+      SELECT "registration_start", "registration_end"
+      FROM "events"
+      WHERE "slug" = $1
+    `,
+    [slug]
+  );
+  const [original] = rows;
+
+  if (!original) {
+    throw new Error(`No event row for slug=${slug}.`);
+  }
+
+  await pool.query(
+    `
+      UPDATE "events"
+      SET "registration_start" = now() - interval '1 day',
+          "registration_end" = now() + interval '30 days'
+      WHERE "slug" = $1
+    `,
+    [slug]
+  );
+
+  return original;
+}
+
+async function restoreEventRegistrationWindow(
+  slug: string,
+  original: EventRegistrationWindowSnapshot
+) {
+  await pool.query(
+    `
+      UPDATE "events"
+      SET "registration_start" = $2,
+          "registration_end" = $3
+      WHERE "slug" = $1
+    `,
+    [slug, original.registration_start, original.registration_end]
+  );
+}
+
 async function signUpVerifiedSailor(props: {
   email: string;
   page: Page;
@@ -79,13 +129,13 @@ test.describe('Onboarding', () => {
     page,
   }) => {
     const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
-    const password = 'Correct-Horse-Battery-Staple';
+    const credential = `Qa1-${faker.string.alphanumeric(20)}`;
 
     try {
       await signUpVerifiedSailor({
         email,
         page,
-        password,
+        password: credential,
         signupUrl: '/signup?callbackUrl=%2Ffleet',
       });
       await expect(
@@ -100,10 +150,10 @@ test.describe('Onboarding', () => {
     page,
   }) => {
     const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
-    const password = 'Correct-Horse-Battery-Staple';
+    const credential = `Qa1-${faker.string.alphanumeric(20)}`;
 
     try {
-      await signUpVerifiedSailor({ email, page, password });
+      await signUpVerifiedSailor({ email, page, password: credential });
       await expect(
         page.getByRole('heading', { name: 'Sailing card onboarding' })
       ).toBeVisible();
@@ -129,6 +179,50 @@ test.describe('Onboarding', () => {
         'Other non-student',
       ]);
     } finally {
+      await cleanupByEmail(email);
+    }
+  });
+
+  test('returns sailors to event registration after onboarding', async ({
+    page,
+  }) => {
+    const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
+    const credential = `Qa1-${faker.string.alphanumeric(20)}`;
+    const slug = 'intercollegiate-overnight-series';
+    const registrationWindow = await openEventRegistrationWindow(slug);
+
+    try {
+      await signUpVerifiedSailor({ email, page, password: credential });
+      await page.goto(`/events/${slug}/register`);
+      await expect(page).toHaveURL(
+        new RegExp(
+          `/onboarding\\?callbackUrl=%2Fevents%2F${slug}%2Fregister/?$`
+        )
+      );
+
+      await page.getByLabel('Affiliation').selectOption({ label: 'Wellesley' });
+      await page.getByLabel('First name').fill('Grace');
+      await page.getByLabel('Last name').fill('Hopper');
+      await page.getByLabel('Date of birth').fill('2000-01-02');
+      await page.getByLabel('Your phone number').fill('617-555-0100');
+      await page.getByLabel('Emergency contact name').fill('Ada Lovelace');
+      await page.getByLabel('Emergency contact phone').fill('617-555-0101');
+      await page
+        .getByLabel(
+          'I have read and agree to the swim agreement and liability release.'
+        )
+        .check();
+      await page.getByRole('button', { name: 'Submit' }).click();
+
+      await expect(page).toHaveURL(new RegExp(`/events/${slug}/register/?$`));
+      await expect(
+        page.getByRole('heading', {
+          level: 1,
+          name: 'Intercollegiate Overnight Series',
+        })
+      ).toBeVisible();
+    } finally {
+      await restoreEventRegistrationWindow(slug, registrationWindow);
       await cleanupByEmail(email);
     }
   });

@@ -115,8 +115,8 @@ vi.mock('@/libs/mit-sailing/sailingCardOnboardingActions', () => ({
   submitSailingCardOnboardingAction: vi.fn(),
 }));
 
-function renderForm() {
-  render(<SailingCardOnboardingForm />);
+function renderForm(props: { readonly callbackUrl?: string } = {}) {
+  render(<SailingCardOnboardingForm callbackUrl={props.callbackUrl} />);
 }
 
 const selectAffiliation = async (affiliation: SailingAffiliation) => {
@@ -310,6 +310,41 @@ describe('SailingCardOnboardingForm', () => {
     for (const paragraph of sailingCardAgreement.text.split('\n\n')) {
       expect(screen.getByText(paragraph)).toBeInTheDocument();
     }
+  });
+
+  it('preserves callback url in submitted form data', async () => {
+    renderForm({ callbackUrl: '/events/regatta/register' });
+    const user = userEvent.setup();
+
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'Affiliation' }),
+      SailingAffiliation.WELLESLEY
+    );
+    await user.type(screen.getByLabelText('First name'), 'Grace');
+    await user.type(screen.getByLabelText('Last name'), 'Hopper');
+    await user.type(screen.getByLabelText('Date of birth'), '2000-01-02');
+    await user.type(screen.getByLabelText('Your phone number'), '6175550100');
+    await user.type(
+      screen.getByLabelText('Emergency contact name'),
+      'Ada Lovelace'
+    );
+    await user.type(
+      screen.getByLabelText('Emergency contact phone'),
+      '6175550101'
+    );
+    await user.click(
+      screen.getByLabelText(
+        'I have read and agree to the swim agreement and liability release.'
+      )
+    );
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+
+    const formData = actionStateMock.formAction.mock.calls[0]?.[0];
+
+    if (!(formData instanceof FormData)) {
+      throw new TypeError('Expected onboarding submit to send FormData.');
+    }
+    expect(formData.get('callbackUrl')).toBe('/events/regatta/register');
   });
 
   it('marks mit id invalid when server validation fails', async () => {

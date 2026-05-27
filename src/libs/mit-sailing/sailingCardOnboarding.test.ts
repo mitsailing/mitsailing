@@ -369,6 +369,45 @@ describe('sailingCardOnboarding', () => {
     );
   });
 
+  it('preserves optional emergency contact email when present', () => {
+    expect(
+      buildSailingCardOnboardingUpdate({
+        input: {
+          ...contactInput,
+          affiliation: SailingAffiliation.OTHER_STUDENT,
+          emergencyContactEmail: ' grace@example.edu ',
+          firstName: 'Robin',
+          lastName: 'Lee',
+          mitId: '',
+        },
+        dataWarehouseIdentity: null,
+        now: new Date('2026-05-21T12:00:00-04:00'),
+      })
+    ).toMatchObject({
+      emergencyContactEmail: 'grace@example.edu',
+    });
+  });
+
+  it('rejects malformed emergency contact email', () => {
+    expectValidationError(
+      () => {
+        buildSailingCardOnboardingUpdate({
+          input: {
+            ...contactInput,
+            affiliation: SailingAffiliation.OTHER_STUDENT,
+            emergencyContactEmail: 'grace@example.',
+            firstName: 'Robin',
+            lastName: 'Lee',
+            mitId: '',
+          },
+          dataWarehouseIdentity: null,
+          now: new Date('2026-05-21T12:00:00-04:00'),
+        });
+      },
+      { emergencyContactEmail: 'invalid' }
+    );
+  });
+
   it('rejects invalid primary and emergency phone numbers', () => {
     expectValidationError(
       () => {

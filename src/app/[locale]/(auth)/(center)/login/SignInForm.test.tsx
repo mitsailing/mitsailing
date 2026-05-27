@@ -40,7 +40,9 @@ describe('SignInForm', () => {
       email: 'sailor@mit.edu',
       password: 'correct-password',
     });
-    expect(componentTestRouter().push).toHaveBeenCalledWith('/fleet');
+    expect(componentTestRouter().push).toHaveBeenCalledWith(
+      '/login/continue?callbackUrl=%2Ffleet'
+    );
     expect(componentTestRouter().refresh).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('button', { name: 'Sign in' })).not.toBeDisabled();
   });

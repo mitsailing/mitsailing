@@ -13,9 +13,9 @@ import {
 import { appRoleFromSessionUser, requireAnyPermission } from '@/libs/auth/dal';
 import { getCurrentSailingCardYear } from '@/libs/mit-sailing/sailingCardValidity';
 
-type AdminCardsPageProps = {
+type AdminCardsPageProps = Readonly<{
   params: Promise<{ locale: string }>;
-};
+}>;
 
 export async function generateMetadata(
   props: AdminCardsPageProps
@@ -50,7 +50,6 @@ export default async function AdminCardsPage(props: AdminCardsPageProps) {
           permissions,
           Permission.CARDS_ASSIGN_NUMBER
         )}
-        canExpireCards={hasPermission(permissions, Permission.CARDS_EXPIRE)}
         locale={locale}
         rows={rows}
         suggestedCardNumber={suggestedCardNumber}

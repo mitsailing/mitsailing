@@ -29,6 +29,7 @@ type SailingCardOnboardingFormProps = {
     previousState: SailingCardOnboardingFormState,
     formData: FormData
   ) => Promise<SailingCardOnboardingFormState>;
+  readonly callbackUrl?: string;
   readonly initialValues?: SailingCardOnboardingFormValues;
   readonly lockedIdentity?: {
     readonly firstName: string;
@@ -115,27 +116,32 @@ const isVisibleSailingAffiliation = (
 ): value is SailingAffiliation =>
   getSailingAffiliationOptions().some((option) => option.value === value);
 
-const formDataFromReactHookFormValues = (
-  values: SailingCardOnboardingFormValues
-) => {
+const formDataFromReactHookFormValues = (props: {
+  readonly callbackUrl?: string;
+  readonly values: SailingCardOnboardingFormValues;
+}) => {
   const formData = new FormData();
-  const rule = isVisibleSailingAffiliation(values.affiliation)
-    ? getSailingAffiliationRule(values.affiliation)
+  const rule = isVisibleSailingAffiliation(props.values.affiliation)
+    ? getSailingAffiliationRule(props.values.affiliation)
     : null;
-  const showMitId = rule !== null && rule.mitIdMode !== 'hidden';
-  const showManualName = rule !== null && rule.allowManualName;
+  const showMitId =
+    rule?.mitIdMode === 'required' || rule?.mitIdMode === 'optional';
+  const showManualName = rule?.allowManualName === true;
 
-  formData.set('affiliation', values.affiliation);
-  formData.set('cardType', values.cardType);
-  formData.set('dateOfBirth', values.dateOfBirth);
-  formData.set('emergencyContactEmail', values.emergencyContactEmail);
-  formData.set('emergencyContactName', values.emergencyContactName);
-  formData.set('emergencyContactPhone', values.emergencyContactPhone);
-  formData.set('firstName', showManualName ? values.firstName : '');
-  formData.set('lastName', showManualName ? values.lastName : '');
-  formData.set('mitId', showMitId ? values.mitId : '');
-  formData.set('phone', values.phone);
-  if (values.swimAgreementAccepted) {
+  formData.set('affiliation', props.values.affiliation);
+  formData.set('cardType', props.values.cardType);
+  formData.set('dateOfBirth', props.values.dateOfBirth);
+  formData.set('emergencyContactEmail', props.values.emergencyContactEmail);
+  formData.set('emergencyContactName', props.values.emergencyContactName);
+  formData.set('emergencyContactPhone', props.values.emergencyContactPhone);
+  formData.set('firstName', showManualName ? props.values.firstName : '');
+  formData.set('lastName', showManualName ? props.values.lastName : '');
+  formData.set('mitId', showMitId ? props.values.mitId : '');
+  formData.set('phone', props.values.phone);
+  if (props.callbackUrl) {
+    formData.set('callbackUrl', props.callbackUrl);
+  }
+  if (props.values.swimAgreementAccepted) {
     formData.set('swimAgreementAccepted', 'on');
   }
 
@@ -573,7 +579,12 @@ export function SailingCardOnboardingForm(
       className="mx-auto flex w-full max-w-2xl flex-col gap-4 rounded border border-border bg-background p-4 text-sm shadow-sm"
       onSubmit={form.handleSubmit((values) => {
         startTransition(() => {
-          formAction(formDataFromReactHookFormValues(values));
+          formAction(
+            formDataFromReactHookFormValues({
+              callbackUrl: props.callbackUrl,
+              values,
+            })
+          );
         });
       })}
     >
