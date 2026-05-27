@@ -95,6 +95,7 @@ function onboardingFormData() {
   formData.set('emergencyContactPhone', '+44 20 7946 0958');
   formData.set('mitId', '123456789');
   formData.set('firstName', '');
+  formData.set('hasFitnessMembership', '');
   formData.set('lastName', '');
   formData.set('phone', '(617) 555-0100');
   formData.set('cardType', SailingCardType.normal);
@@ -111,6 +112,7 @@ const expectedOnboardingValues = {
   emergencyContactName: 'Grace Hopper',
   emergencyContactPhone: '+44 20 7946 0958',
   firstName: '',
+  hasFitnessMembership: '',
   lastName: '',
   mitId: '123456789',
   phone: '(617) 555-0100',

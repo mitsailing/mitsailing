@@ -197,24 +197,26 @@ test.describe('Onboarding', () => {
       await signUpVerifiedSailor({ email, page, password: credential });
       await page.goto(`/events/${slug}/register`);
       await expect(page).toHaveURL(
-        new RegExp(
-          String.raw`/onboarding\?callbackUrl=%2Fevents%2F${slug}%2Fregister/?$`
-        )
+        (url) =>
+          url.pathname === '/onboarding' &&
+          url.searchParams.get('callbackUrl') === `/events/${slug}/register`
       );
 
       await page.getByLabel('Affiliation').selectOption({ label: 'Wellesley' });
       await page.getByLabel('First name').fill('Grace');
       await page.getByLabel('Last name').fill('Hopper');
-      await page.getByLabel('Date of birth').fill('2000-01-02');
+      await page.getByRole('button', { name: 'Continue' }).click();
+      await page.getByLabel('Date of birth').fill('01/02/2000');
       await page.getByLabel('Your phone number').fill('617-555-0100');
       await page.getByLabel('Emergency contact name').fill('Ada Lovelace');
       await page.getByLabel('Emergency contact phone').fill('617-555-0101');
+      await page.getByRole('radio', { name: /^Yes/ }).check();
       await page
         .getByLabel(
           'I have read and agree to the swim agreement and liability release.'
         )
         .check();
-      await page.getByRole('button', { name: 'Submit' }).click();
+      await page.getByRole('button', { name: 'Request sailing card' }).click();
 
       await expect(page).toHaveURL(new RegExp(`/events/${slug}/register/?$`));
       await expect(

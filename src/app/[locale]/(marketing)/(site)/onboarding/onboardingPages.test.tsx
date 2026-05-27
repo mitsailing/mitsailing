@@ -169,6 +169,14 @@ describe('onboarding pages', () => {
       expect.stringContaining('"affiliation":"MIT_STUDENT"')
     );
     expect(screen.getByTestId('onboarding-form')).toHaveAttribute(
+      'data-initial-values',
+      expect.stringContaining('"dateOfBirth":""')
+    );
+    expect(screen.getByTestId('onboarding-form')).toHaveAttribute(
+      'data-initial-values',
+      expect.stringContaining('"emergencyContactEmail":""')
+    );
+    expect(screen.getByTestId('onboarding-form')).toHaveAttribute(
       'data-locked-identity',
       expect.stringContaining('"mitClassYear":"2027"')
     );
@@ -234,6 +242,7 @@ describe('onboarding pages', () => {
         emergencyContactName: '',
         emergencyContactPhone: '',
         firstName: '',
+        hasFitnessMembership: '',
         lastName: '',
         mitId: '',
         phone: '',

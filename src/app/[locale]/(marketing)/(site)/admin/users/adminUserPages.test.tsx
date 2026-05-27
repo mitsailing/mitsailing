@@ -30,6 +30,45 @@ const mocks = vi.hoisted(() => ({
   updateAdminUserAction: vi.fn(),
 }));
 
+function emailHistoryRowsWithFallback() {
+  return [
+    {
+      bouncedAt: null,
+      category: 'password_reset',
+      complainedAt: null,
+      createdAt: new Date('2026-05-01T12:00:00.000Z'),
+      deliveredAt: null,
+      failedAt: null,
+      id: 'email-1',
+      lastError: null,
+      lastEventAt: new Date('2026-05-01T12:01:00.000Z'),
+      lastEventType: 'email.delivered',
+      newsletterBroadcastId: null,
+      sentAt: new Date('2026-05-01T12:00:00.000Z'),
+      subject: 'Reset your password',
+      suppressedAt: null,
+      toEmail: 'sailor@example.com',
+    },
+    {
+      bouncedAt: null,
+      category: 'custom',
+      complainedAt: null,
+      createdAt: new Date('2026-05-02T12:00:00.000Z'),
+      deliveredAt: null,
+      failedAt: null,
+      id: 'email-2',
+      lastError: 'smtp rejected',
+      lastEventAt: null,
+      lastEventType: null,
+      newsletterBroadcastId: null,
+      sentAt: null,
+      subject: 'Custom notice',
+      suppressedAt: null,
+      toEmail: 'sailor@example.com',
+    },
+  ];
+}
+
 vi.mock('next-intl/server', () => ({
   getTranslations: mocks.getTranslations,
   setRequestLocale: mocks.setRequestLocale,
@@ -376,42 +415,9 @@ describe('admin user pages', () => {
   });
 
   it('renders email history with category status date and error fallback', async () => {
-    mocks.getAdminUserEmailMessages.mockResolvedValue([
-      {
-        bouncedAt: null,
-        category: 'password_reset',
-        complainedAt: null,
-        createdAt: new Date('2026-05-01T12:00:00.000Z'),
-        deliveredAt: null,
-        failedAt: null,
-        id: 'email-1',
-        lastError: null,
-        lastEventAt: new Date('2026-05-01T12:01:00.000Z'),
-        lastEventType: 'email.delivered',
-        newsletterBroadcastId: null,
-        sentAt: new Date('2026-05-01T12:00:00.000Z'),
-        subject: 'Reset your password',
-        suppressedAt: null,
-        toEmail: 'sailor@example.com',
-      },
-      {
-        bouncedAt: null,
-        category: 'custom',
-        complainedAt: null,
-        createdAt: new Date('2026-05-02T12:00:00.000Z'),
-        deliveredAt: null,
-        failedAt: null,
-        id: 'email-2',
-        lastError: 'smtp rejected',
-        lastEventAt: null,
-        lastEventType: null,
-        newsletterBroadcastId: null,
-        sentAt: null,
-        subject: 'Custom notice',
-        suppressedAt: null,
-        toEmail: 'sailor@example.com',
-      },
-    ]);
+    mocks.getAdminUserEmailMessages.mockResolvedValue(
+      emailHistoryRowsWithFallback()
+    );
     const { default: AdminUserShowPage } = await import('./[id]/page');
 
     render(

@@ -3,6 +3,8 @@ import { EmailLayout } from './email-layout';
 import {
   assertSixDigitCode,
   codeBox,
+  domainBoundCode,
+  domainBoundOtpCodeLine,
   heading,
   paragraph,
   replaceAuthEmailValues,
@@ -43,6 +45,9 @@ export function PasswordResetEmailTemplate(props: PasswordResetEmailProps) {
           })}
         </Text>
         <Text style={codeBox}>{props.code}</Text>
+        <Text style={domainBoundCode}>
+          {domainBoundOtpCodeLine(props.code)}
+        </Text>
         <Text style={supportFooter}>{props.copy.reset_password_expiry}</Text>
       </Section>
     </EmailLayout>

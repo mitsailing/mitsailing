@@ -52,6 +52,7 @@ export type SailingCardOnboardingFormValues = {
   readonly emergencyContactName: string;
   readonly emergencyContactPhone: string;
   readonly firstName: string;
+  readonly hasFitnessMembership: string;
   readonly lastName: string;
   readonly mitId: string;
   readonly phone: string;
@@ -130,6 +131,7 @@ const parseSailingCardOnboardingFormValues = (
   emergencyContactName: formDataString(formData, 'emergencyContactName'),
   emergencyContactPhone: formDataString(formData, 'emergencyContactPhone'),
   firstName: formDataString(formData, 'firstName'),
+  hasFitnessMembership: formDataString(formData, 'hasFitnessMembership'),
   lastName: formDataString(formData, 'lastName'),
   mitId: formDataString(formData, 'mitId'),
   phone: formDataString(formData, 'phone'),

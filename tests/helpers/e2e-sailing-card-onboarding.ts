@@ -7,19 +7,19 @@ const sailingCardAgreementHash = createHash('sha256')
   .update(sailingCardAgreement.text)
   .digest('hex');
 
-export async function insertCurrentSailingCardOnboardingAcceptance(options: {
-  pool: Pool | PoolClient;
-  userAgent: string;
-  userId: string;
-}): Promise<void> {
-  const legalAgreementAcceptanceId = `e2e-onboarding-agreement-${randomUUID()}`;
+async function insertLegalAgreementAcceptance(options: {
+  readonly id: string;
+  readonly pool: Pool | PoolClient;
+  readonly userAgent: string;
+  readonly userId: string;
+}) {
   await options.pool.query(
     `INSERT INTO "legal_agreement_acceptances"
       ("id", "user_id", "source", "agreement_label", "agreement_version", "agreement_hash", "accepted_at", "ip_address", "user_agent", "created_at")
      VALUES
       ($1, $2, 'SAILING_CARD_ONBOARDING', $3, $4, $5, NOW(), '127.0.0.1', $6, NOW())`,
     [
-      legalAgreementAcceptanceId,
+      options.id,
       options.userId,
       sailingCardAgreement.label,
       sailingCardAgreement.version,
@@ -27,7 +27,13 @@ export async function insertCurrentSailingCardOnboardingAcceptance(options: {
       options.userAgent,
     ]
   );
+}
 
+async function upsertSailingCardRequest(options: {
+  readonly legalAgreementAcceptanceId: string;
+  readonly pool: Pool | PoolClient;
+  readonly userId: string;
+}) {
   await options.pool.query(
     `INSERT INTO "sailing_card_requests"
       ("id", "user_id", "card_year", "status", "card_type", "legal_agreement_acceptance_id", "requested_at",
@@ -35,25 +41,15 @@ export async function insertCurrentSailingCardOnboardingAcceptance(options: {
        "phone", "emergency_contact_name", "emergency_contact_phone", "emergency_contact_email",
        "created_at", "updated_at")
      SELECT
-       $1,
-       u."id",
-       $3,
-       'pending',
-       'normal',
-       $2,
-       NOW(),
+       $1, u."id", $3, 'pending', 'normal', $2, NOW(),
        COALESCE(NULLIF(u."first_name", ''), 'E2E'),
        COALESCE(NULLIF(u."last_name", ''), 'Sailor'),
-       COALESCE(u."sailing_affiliation", 'MIT_AFFILIATE'),
-       u."mit_id",
-       u."mit_class_year",
-       DATE '1990-01-01',
+       COALESCE(u."sailing_affiliation", 'MIT_AFFILIATE'), u."mit_id",
+       u."mit_class_year", DATE '1990-01-01',
        COALESCE(NULLIF(u."phone", ''), '+16172531234'),
        COALESCE(NULLIF(u."emergency_contact_name", ''), 'Taylor Test'),
        COALESCE(NULLIF(u."emergency_contact_phone", ''), '+16172534321'),
-       u."emergency_contact_email",
-       NOW(),
-       NOW()
+       u."emergency_contact_email", NOW(), NOW()
      FROM "user" u
      WHERE u."id" = $4
      ON CONFLICT ("user_id", "card_year") DO UPDATE
@@ -74,9 +70,28 @@ export async function insertCurrentSailingCardOnboardingAcceptance(options: {
          "updated_at" = NOW()`,
     [
       `e2e-sailing-card-request-${randomUUID()}`,
-      legalAgreementAcceptanceId,
+      options.legalAgreementAcceptanceId,
       getCurrentSailingCardYear(),
       options.userId,
     ]
   );
+}
+
+export async function insertCurrentSailingCardOnboardingAcceptance(options: {
+  pool: Pool | PoolClient;
+  userAgent: string;
+  userId: string;
+}): Promise<void> {
+  const legalAgreementAcceptanceId = `e2e-onboarding-agreement-${randomUUID()}`;
+  await insertLegalAgreementAcceptance({
+    id: legalAgreementAcceptanceId,
+    pool: options.pool,
+    userAgent: options.userAgent,
+    userId: options.userId,
+  });
+  await upsertSailingCardRequest({
+    legalAgreementAcceptanceId,
+    pool: options.pool,
+    userId: options.userId,
+  });
 }

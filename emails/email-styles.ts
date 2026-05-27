@@ -41,6 +41,14 @@ export const codeBox: React.CSSProperties = {
   textAlign: 'center' as const,
 };
 
+export const domainBoundCode: React.CSSProperties = {
+  color: '#334155',
+  fontSize: '13px',
+  lineHeight: '18px',
+  margin: '-8px 0 20px',
+  textAlign: 'center' as const,
+};
+
 /**
  * Verifies transactional auth emails only render six-digit OTP codes.
  *
@@ -52,6 +60,16 @@ export function assertSixDigitCode(code: string, templateName: string): void {
   if (!/^\d{6}$/.test(code)) {
     throw new Error(`${templateName} requires a six-digit code.`);
   }
+}
+
+export function domainBoundOtpCodeLine(code: string): string {
+  assertSixDigitCode(code, 'domainBoundOtpCodeLine');
+  return `@mitsailing.com #${code}`;
+}
+
+export function otpPlainTextAutofillBlock(code: string): string {
+  assertSixDigitCode(code, 'otpPlainTextAutofillBlock');
+  return [code, domainBoundOtpCodeLine(code)].join('\n\n');
 }
 
 /** Muted line below the code (expiry text, support instructions). */
