@@ -221,15 +221,20 @@ test.describe('Event payments', () => {
       }
     }
 
+    let usedFixtureFallback = false;
     if (!handled) {
       await markPaymentHandledFixture({
         note: manualHandledNote,
         paymentId,
       });
       handled = true;
+      usedFixtureFallback = true;
     }
     expect(handled).toBe(true);
-    await page.goto(`/admin/events/${event.slug}#registrations`);
+    const registrationsUrl = usedFixtureFallback
+      ? `/admin/events/${event.slug}?paymentStatusRefresh=${Date.now()}#registrations`
+      : `/admin/events/${event.slug}#registrations`;
+    await page.goto(registrationsUrl);
     await expect(
       page
         .locator('span')

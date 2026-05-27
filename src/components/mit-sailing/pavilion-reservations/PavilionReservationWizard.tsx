@@ -101,6 +101,20 @@ type SpaceOptionGroup = {
   slugs: string[];
 };
 
+const mitAffiliationPersonas = ['mit_student', 'mit_community'] as const;
+const selectClassName =
+  'w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50';
+
+function updatePavilionReservationPersonaFromValue(props: {
+  setPersona: (persona: PavilionReservationPersonaValue) => void;
+  value: string;
+}) {
+  const nextPersona = parsePavilionReservationPersona(props.value) ?? null;
+  if (nextPersona) {
+    props.setPersona(nextPersona);
+  }
+}
+
 type PavilionReservationWizardProps = {
   action: (
     state: PavilionReservationSubmitState,
@@ -1983,7 +1997,7 @@ function PavilionReservationSpacesStep(props: {
                     'mt-2 hidden pl-8 text-sm text-muted-foreground sm:block',
                     props.persona === personaOption
                       ? 'dark:text-foreground'
-                      : ''
+                      : 'dark:text-mit-text'
                   )}
                 >
                   {t(`persona_${personaOption}_desc`)}
@@ -2113,17 +2127,15 @@ function PavilionReservationContactStep(props: {
           <Field id="contact-persona" label={t('persona_title')} required>
             <select
               aria-required
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              className={selectClassName}
               id="contact-persona"
               required
               value={props.persona}
               onChange={(event) => {
-                const nextPersona =
-                  parsePavilionReservationPersona(event.currentTarget.value) ??
-                  null;
-                if (nextPersona) {
-                  props.setPersona(nextPersona);
-                }
+                updatePavilionReservationPersonaFromValue({
+                  setPersona: props.setPersona,
+                  value: event.currentTarget.value,
+                });
               }}
             >
               {PAVILION_RESERVATION_PERSONAS.map((personaOption) => (
@@ -2402,6 +2414,33 @@ function PavilionReservationContactStep(props: {
               {t('mit_affiliation_title')}
             </h3>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <div className="md:col-span-2">
+                <Field
+                  id="mitAffiliationType"
+                  label={t('field_mit_affiliation_type')}
+                  required
+                >
+                  <select
+                    aria-required
+                    className={selectClassName}
+                    id="mitAffiliationType"
+                    required
+                    value={props.persona}
+                    onChange={(event) => {
+                      updatePavilionReservationPersonaFromValue({
+                        setPersona: props.setPersona,
+                        value: event.currentTarget.value,
+                      });
+                    }}
+                  >
+                    {mitAffiliationPersonas.map((personaOption) => (
+                      <option key={personaOption} value={personaOption}>
+                        {t(`persona_${personaOption}_label`)}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
               <Field id="mitId" label={t('field_mit_id')}>
                 <Input
                   id="mitId"

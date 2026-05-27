@@ -2020,6 +2020,7 @@
     "field_advisor_email": "Faculty advisor email",
     "field_cost_center": "Cost center",
     "mit_affiliation_title": "MIT affiliation info",
+    "field_mit_affiliation_type": "MIT affiliation type",
     "field_mit_id": "MIT ID",
     "field_mit_account": "MIT account",
     "services_title": "Additional services",

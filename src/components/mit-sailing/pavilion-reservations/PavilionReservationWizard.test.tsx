@@ -451,6 +451,7 @@ describe('PavilionReservationWizard slot picker', () => {
     fireEvent.change(screen.getByLabelText('Email address*'), {
       target: { value: 'sailor@example.edu' },
     });
+    fireEvent.click(screen.getByRole('radio', { name: /MIT Student/u }));
     fireEvent.click(screen.getByRole('button', { name: 'Select this option' }));
     fireEvent.click(screen.getByRole('button', { name: '20' }));
     fireEvent.click(screen.getByRole('button', { name: '9:00 AM' }));
@@ -466,6 +467,9 @@ describe('PavilionReservationWizard slot picker', () => {
     expect(
       screen.getByRole('heading', { name: 'Review your reservation' })
     ).toBeInTheDocument();
+    expect(screen.getByLabelText('MIT affiliation type*')).toHaveValue(
+      'mit_student'
+    );
     expect(
       screen.queryByRole('button', { name: 'Review your request' })
     ).toBeNull();
@@ -499,5 +503,28 @@ describe('PavilionReservationWizard slot picker', () => {
         endMinutes: 600,
       },
     ]);
+  });
+
+  it('changes MIT affiliation type from the affiliation section', () => {
+    const { container } = renderWizard({ items: [space, service] });
+
+    fireEvent.change(screen.getByLabelText('Email address*'), {
+      target: { value: 'sailor@example.edu' },
+    });
+    fireEvent.click(screen.getByRole('radio', { name: /MIT Student/u }));
+    fireEvent.click(screen.getByRole('button', { name: 'Select this option' }));
+    fireEvent.click(screen.getByRole('button', { name: '20' }));
+    fireEvent.click(screen.getByRole('button', { name: '9:00 AM' }));
+    fireEvent.click(screen.getByRole('button', { name: '10:00 AM' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Next: contact information' })
+    );
+
+    fireEvent.change(screen.getByLabelText('MIT affiliation type*'), {
+      target: { value: 'mit_community' },
+    });
+
+    expect(screen.getByLabelText('Group type*')).toHaveValue('mit_community');
+    expect(hiddenInput(container, 'persona').value).toBe('mit_community');
   });
 });
