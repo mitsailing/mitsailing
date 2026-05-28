@@ -18,6 +18,8 @@ const isCi = !!process.env.CI;
 const includeFirefox = process.env.PLAYWRIGHT_INCLUDE_FIREFOX === '1';
 /** Safari-engine smoke coverage; off unless explicitly enabled (local or CI). */
 const includeWebkit = process.env.PLAYWRIGHT_INCLUDE_WEBKIT === '1';
+/** Video requires Playwright's ffmpeg binary; CI keeps traces/screenshots by default. */
+const includeVideo = process.env.PLAYWRIGHT_VIDEO === '1';
 const ciChromeChannel: { channel?: 'chrome' } = isCi
   ? { channel: 'chrome' }
   : {};
@@ -106,7 +108,7 @@ export default defineConfig<ChromaticConfig>({
     baseURL,
     trace: isCi ? 'on-first-retry' : 'retain-on-failure',
     screenshot: isCi ? 'only-on-failure' : undefined,
-    video: isCi ? 'retain-on-failure' : undefined,
+    video: includeVideo ? 'retain-on-failure' : undefined,
     disableAutoSnapshot: true,
     navigationTimeout: defaultNavigationTimeout,
     actionTimeout: defaultActionTimeout,
