@@ -208,6 +208,50 @@ describe('submitSailingCardOnboardingAction', () => {
     expect(mocks.prismaUserUpdate).not.toHaveBeenCalled();
   });
 
+  it('redirects users with an existing current-year request to success', async () => {
+    mocks.prismaUserFindUnique.mockResolvedValue({
+      emergencyContactName: null,
+      emergencyContactPhone: null,
+      legalAgreementAcceptances: [],
+      phone: null,
+      sailingCardIssuedByUserId: null,
+      sailingCardNumber: null,
+      sailingCardYear: null,
+      sailingCardExpiresOn: null,
+      sailingCardIssuedAt: null,
+      sailingCardRequestedAt: null,
+      sailingCardRequests: [
+        {
+          cardYear: 2026,
+          legalAgreementAcceptance: {
+            agreementHash: sailingCardAgreementHash(),
+            agreementVersion: sailingCardAgreement.version,
+            source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
+            userId: 'user-1',
+          },
+          status: SailingCardRequestStatus.pending,
+          userId: 'user-1',
+          user: {
+            emergencyContactName: 'Grace Hopper',
+            emergencyContactPhone: '+442079460958',
+            phone: '+16175550100',
+          },
+        },
+      ],
+      sailingCardSwimAgreementInitials: null,
+      sailingCardSwimAgreementInitialedAt: null,
+    });
+    const { submitSailingCardOnboardingAction } =
+      await import('@/libs/mit-sailing/sailingCardOnboardingActions');
+
+    await expect(
+      submitSailingCardOnboardingAction(idleState, onboardingFormData())
+    ).rejects.toThrow('NEXT_REDIRECT:/onboarding/success');
+
+    expect(mocks.lookupMitDataWarehouseIdentity).not.toHaveBeenCalled();
+    expect(mocks.prismaTransaction).not.toHaveBeenCalled();
+  });
+
   it('updates only the current user', async () => {
     const { submitSailingCardOnboardingAction } =
       await import('@/libs/mit-sailing/sailingCardOnboardingActions');

@@ -47,6 +47,22 @@ export type SailingCardOnboardingFieldErrors = Partial<
   Record<SailingCardOnboardingFieldName, SailingCardOnboardingFieldError>
 >;
 
+type SailingCardOnboardingContact = {
+  readonly emergencyContactName: string;
+  readonly emergencyContactPhone: string;
+  readonly phone: string;
+};
+
+type SailingCardOnboardingContactValidation =
+  | {
+      readonly ok: true;
+      readonly contact: SailingCardOnboardingContact;
+    }
+  | {
+      readonly ok: false;
+      readonly fieldErrors: SailingCardOnboardingFieldErrors;
+    };
+
 export class SailingCardOnboardingValidationError extends Error {
   readonly fieldErrors: SailingCardOnboardingFieldErrors;
 
@@ -57,7 +73,9 @@ export class SailingCardOnboardingValidationError extends Error {
   }
 }
 
-const validateContact = (input: SailingCardOnboardingInput) => {
+const validateContact = (
+  input: SailingCardOnboardingInput
+): SailingCardOnboardingContactValidation => {
   const fieldErrors: SailingCardOnboardingFieldErrors = {};
   const phone = normalizeUsPhone(input.phone);
   const emergencyContactName = input.emergencyContactName.trim();
@@ -81,13 +99,16 @@ const validateContact = (input: SailingCardOnboardingInput) => {
     !phone.ok ||
     !emergencyContactPhone.ok
   ) {
-    throw new SailingCardOnboardingValidationError(fieldErrors);
+    return { fieldErrors, ok: false };
   }
 
   return {
-    emergencyContactName,
-    emergencyContactPhone: emergencyContactPhone.phone,
-    phone: phone.phone,
+    contact: {
+      emergencyContactName,
+      emergencyContactPhone: emergencyContactPhone.phone,
+      phone: phone.phone,
+    },
+    ok: true,
   };
 };
 
@@ -100,12 +121,15 @@ const validateRequiredInputs = (input: SailingCardOnboardingInput) => {
       ? input.affiliation
       : null;
   const fieldErrors: SailingCardOnboardingFieldErrors = {};
-  const contact = validateContact(input);
+  const contactValidation = validateContact(input);
   const dateOfBirth = parseSailingCardDateOfBirth({
     allowIsoDate: true,
     value: input.dateOfBirth,
   });
 
+  if (!contactValidation.ok) {
+    Object.assign(fieldErrors, contactValidation.fieldErrors);
+  }
   if (affiliation === null) {
     fieldErrors.affiliation = 'required';
   }
@@ -118,29 +142,20 @@ const validateRequiredInputs = (input: SailingCardOnboardingInput) => {
   if (!input.swimAgreementAccepted) {
     fieldErrors.swimAgreementAccepted = 'required';
   }
-  if (Object.keys(fieldErrors).length > 0) {
+  if (
+    Object.keys(fieldErrors).length > 0 ||
+    !contactValidation.ok ||
+    affiliation === null ||
+    input.cardType === null ||
+    dateOfBirth === null
+  ) {
     throw new SailingCardOnboardingValidationError(fieldErrors);
-  }
-  if (affiliation === null) {
-    throw new SailingCardOnboardingValidationError({
-      affiliation: 'required',
-    });
-  }
-  if (input.cardType === null) {
-    throw new SailingCardOnboardingValidationError({
-      cardType: 'required',
-    });
-  }
-  if (dateOfBirth === null) {
-    throw new SailingCardOnboardingValidationError({
-      dateOfBirth: 'required',
-    });
   }
 
   return {
     affiliation,
     cardType: input.cardType,
-    contact,
+    contact: contactValidation.contact,
     dateOfBirth,
   };
 };

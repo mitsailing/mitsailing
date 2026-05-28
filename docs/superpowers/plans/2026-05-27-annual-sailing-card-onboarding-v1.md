@@ -21,13 +21,13 @@
 - Modify `zenstack/schema.zmodel`, `prisma/schema.prisma`, and `prisma/migrations/20260521000000_add_sailing_card_onboarding/migration.sql`: add `SailingCardRequestStatus`, `SailingCardType`, and `SailingCardRequest` with `@@unique([userId, cardYear])`, `legalAgreementAcceptanceId`, profile snapshot fields, and current-issued-card reference fields.
 - Regenerate `src/generated/prisma/*` and `zenstack/*` through existing repo workflow.
 - Modify `src/libs/mit-sailing/sailingCardValidity.ts` and tests: compute current-year onboarding completion from a current-year request with linked legal evidence and required profile facts.
-- Modify `src/libs/mit-sailing/sailingCardOnboarding.ts` and tests: include `cardType`, `dateOfBirth`, emergency email, profile update data, and request upsert data.
+- Modify `src/libs/mit-sailing/sailingCardOnboarding.ts` and tests: include `cardType`, `dateOfBirth`, profile update data, and request upsert data.
 - Modify `src/libs/mit-sailing/sailingCardOnboardingActions.ts` and tests: create legal evidence and upsert the current-year request in one transaction; preserve returned form values after validation errors.
 - Modify `src/app/[locale]/(marketing)/(site)/onboarding/page.tsx`: prefill from `User`, redirect complete current-year onboarding to success, and pass defaults into the form.
 - Modify `src/components/mit-sailing/onboarding/SailingCardOnboardingForm.tsx` and tests: finish RHF registration, field order, card type options, DOB/contact grouping, emergency grouping, locked verified names, and server error preservation.
 - Modify `src/libs/admin/cards/*`, `src/components/mit-sailing/admin/cards/*`, and tests: queue latest current-year requests; issue card only when request has linked legal acceptance; set request status/issued fields when issuing.
 - Modify `tests/e2e/Auth.e2e.ts`, `tests/e2e/Onboarding.e2e.ts`, and helpers: signup verification routes new users to `/onboarding`; manual onboarding required flow works; completed current-year request goes to success; stale prior-year pending request requires onboarding again.
-- Modify `src/locales/en.json`: add missing labels/errors for card type, date of birth, emergency email, grouping headings, and success/queue copy.
+- Modify `src/locales/en.json`: add missing labels/errors for card type, date of birth, grouping headings, and success/queue copy.
 
 ## Task 1: Annual Request Schema
 

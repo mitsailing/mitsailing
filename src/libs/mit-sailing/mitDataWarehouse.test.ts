@@ -67,6 +67,37 @@ describe('mitDataWarehouse', () => {
     ).resolves.toBeNull();
   });
 
+  it('returns null when valid mit id has no warehouse match', async () => {
+    const verifiedKerberos = verifiedKerberosFromEmail({
+      email: 'ada@mit.edu',
+      emailVerified: true,
+    });
+    const db = {
+      mitDataWarehousePerson: {
+        findUnique: vi.fn().mockResolvedValue(null),
+      },
+    };
+
+    await expect(
+      lookupMitDataWarehouseIdentity({
+        db,
+        mitId: '123456789',
+        verifiedKerberos,
+      })
+    ).resolves.toBeNull();
+    expect(db.mitDataWarehousePerson.findUnique).toHaveBeenCalledWith({
+      select: {
+        classYear: true,
+        firstName: true,
+        kerberos: true,
+        lastName: true,
+        mitId: true,
+        personType: true,
+      },
+      where: { mitId: '123456789' },
+    });
+  });
+
   it('does not derive kerberos from unverified email', () => {
     expect(
       verifiedKerberosFromEmail({

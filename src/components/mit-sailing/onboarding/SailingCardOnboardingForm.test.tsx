@@ -253,7 +253,7 @@ describe('SailingCardOnboardingForm', () => {
     );
   });
 
-  it('shows emergency contact controls without emergency email', async () => {
+  it('shows emergency contact controls', async () => {
     renderForm();
 
     await showWellesleyDetails();

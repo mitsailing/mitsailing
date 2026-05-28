@@ -291,6 +291,39 @@ describe('sailingCardOnboarding', () => {
     );
   });
 
+  it('reports contact and required detail errors together', () => {
+    expectValidationError(
+      () => {
+        buildSailingCardOnboardingUpdate({
+          input: {
+            ...contactInput,
+            affiliation: null,
+            cardType: null,
+            dateOfBirth: '',
+            emergencyContactName: '',
+            emergencyContactPhone: '',
+            firstName: 'Robin',
+            lastName: 'Lee',
+            mitId: '',
+            phone: 'not a phone',
+            swimAgreementAccepted: false,
+          },
+          dataWarehouseIdentity: null,
+          now: new Date('2026-05-21T12:00:00-04:00'),
+        });
+      },
+      {
+        affiliation: 'required',
+        cardType: 'required',
+        dateOfBirth: 'required',
+        emergencyContactName: 'required',
+        emergencyContactPhone: 'required',
+        phone: 'invalid',
+        swimAgreementAccepted: 'required',
+      }
+    );
+  });
+
   it('requires swim agreement acceptance', () => {
     expectValidationError(
       () => {
