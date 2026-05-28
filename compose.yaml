@@ -1,0 +1,84 @@
+# Base Compose file — shared by dev, staging, and prod. Environment-specific
+# additions (bind-mounts, Mailpit, Cloudflare Tunnel) live in the matching
+# compose.override.yaml / compose.staging.yaml / compose.prod.yaml.
+#
+# Design choices worth noting:
+# - No host port bindings at the base level. Each env decides whether to
+#   expose ports locally (dev) or rely on an ingress container (cloudflared
+#   in staging/prod). This is the principle that makes the staging stack
+#   safe to run on a machine without a firewall configuration step.
+# - Postgres keeps its data in a named volume, not a bind mount, so the
+#   path works identically on Linux hosts (rootless docker) and macOS.
+# - Healthchecks allow `depends_on: condition: service_healthy` to gate app
+#   startup on a working DB without sprinkling `wait-for-it` scripts.
+# - `name:` gives all environments a stable project namespace so
+#   `docker compose ps` shows recognizable container names regardless of
+#   what the working directory is called.
+# - `internal` is a user-defined bridge for app↔data plane isolation; local
+#   dev still reaches Postgres via published ports in compose.override.yaml.
+
+name: mitsailing
+
+networks:
+  internal:
+    driver: bridge
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    networks:
+      - internal
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: dev_db
+    volumes:
+      # Postgres 18 stores data under a major-version subdirectory and
+      # expects a single mount at the parent so `pg_upgrade --link` can
+      # work across boundaries. See docker-library/postgres#1259.
+      - postgres_data:/var/lib/postgresql
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 2s
+      timeout: 5s
+      retries: 30
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 768M
+        reservations:
+          cpus: '0.10'
+          memory: 256M
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks:
+      - internal
+    volumes:
+      - redis_data:/data
+    command: >-
+      redis-server
+      --appendonly yes
+      --maxmemory 256mb
+      --maxmemory-policy noeviction
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 384M
+        reservations:
+          cpus: '0.05'
+          memory: 64M
+
+volumes:
+  postgres_data:
+  redis_data:

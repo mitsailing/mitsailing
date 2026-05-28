@@ -1,0 +1,43 @@
+# Mirror .gitignore for the parts that matter to an image build, plus a
+# few extras that git tracks but Docker doesn't need.
+
+# Build output / local caches
+.next/
+out/
+coverage/
+vitest-test-results/
+playwright-report/
+test-results/
+.turbo/
+storybook-static/
+
+# Dependencies — reinstalled inside the image from lockfile
+node_modules/
+
+# Secrets (never bake into images)
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Version-control + editor
+.git/
+.gitignore
+.vscode/
+.idea/
+.cursor/
+
+# Ops artifacts that have their own lifecycle
+Dockerfile
+.dockerignore
+compose.yaml
+compose.*.yaml
+docker-compose.yml
+bin/
+docs/
+.github/
+
+# Stuff that's big and useless in the image
+*.log
+*.md
+!README.md

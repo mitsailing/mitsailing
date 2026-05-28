@@ -1,0 +1,56 @@
+# Local-dev overlay — auto-loaded by Docker Compose when `compose.yaml` is
+# in the same directory. Adds:
+#   - host port bindings so the app running on the laptop can reach the
+#     services at 127.0.0.1:<POSTGRES_PUBLISH_PORT> / <MAILPIT_SMTP_PUBLISH_PORT> /
+#     <MAILPIT_HTTP_PUBLISH_PORT> (defaults in `.env.example`; Compose reads `.env`).
+#   - Mailpit for email capture (no auth — loopback-only).
+#
+# Notably does NOT start the Next.js app container. Local workflow runs
+# `npm run dev` on the host so HMR, source maps, and IDE integration all
+# work the way they already do. Flip to the dev container only if you
+# actively want to exercise the Dockerfile's `dev` stage.
+
+services:
+  postgres:
+    ports:
+      # Host port defaults to 5432; override via POSTGRES_PUBLISH_PORT in `.env`
+      # when another Postgres already owns 5432 (Homebrew, another container).
+      - '${POSTGRES_PUBLISH_PORT:-5432}:5432'
+
+  redis:
+    ports:
+      # For `npm run worker:dev` on the host. Production leaves Redis unpublished.
+      - '127.0.0.1:${REDIS_PUBLISH_PORT:-6379}:6379'
+
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      # Container keeps 1025/8025; host side overridable when 1025/8025 are taken.
+      - '${MAILPIT_SMTP_PUBLISH_PORT:-1025}:1025'
+      - '${MAILPIT_HTTP_PUBLISH_PORT:-8025}:8025'
+    environment:
+      MP_MAX_MESSAGES: '5000'
+      MP_DATABASE: /data/mailpit.db
+      # Local dev binds Mailpit to loopback only and accepts anything
+      # — never do either in a shared environment (see compose.staging.yaml).
+      MP_SMTP_AUTH_ACCEPT_ANY: '1'
+      MP_SMTP_AUTH_ALLOW_INSECURE: '1'
+    volumes:
+      - mailpit_data:/data
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'wget',
+          '--quiet',
+          '--tries=1',
+          '--spider',
+          'http://localhost:8025/readyz',
+        ]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  mailpit_data:

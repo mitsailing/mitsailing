@@ -1,0 +1,52 @@
+import react from '@vitejs/plugin-react';
+import { loadEnv } from 'vite';
+import tsconfigPaths from 'vite-tsconfig-paths';
+import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+  plugins: [react(), tsconfigPaths()],
+  test: {
+    coverage: {
+      provider: 'v8',
+      // lcov: Codecov; json-summary: machine-readable totals in CI logs
+      reporter: ['text', 'lcov', 'json', 'html', 'json-summary'],
+      // Emit coverage even when a test fails so CI uploads still have data.
+      reportOnFailure: true,
+      include: ['src/**/*.{ts,tsx,js,jsx}'],
+      exclude: [
+        'src/**/*.stories.{js,jsx,ts,tsx}',
+        'src/**/*.test.{js,jsx,ts,tsx}',
+        'src/**/*.d.ts',
+        'src/generated/**',
+        'src/types/**',
+        'src/styles/**',
+        'src/data/**',
+        'src/locales/**',
+        'src/instrumentation.ts',
+        'src/instrumentation-client.ts',
+      ],
+    },
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'unit',
+          include: ['src/**/*.test.{js,ts}'],
+          exclude: ['src/hooks/**/*.test.ts'],
+          environment: 'node',
+        },
+      },
+    ],
+    reporters: [
+      'default',
+      // JUnit XML is required by Codecov Test Analytics.
+      ['junit', { outputFile: './test-report.junit.xml' }],
+      // conditional reporter
+      process.env.CI ? 'github-actions' : {},
+    ],
+    env: loadEnv('', process.cwd(), ''), // Expose .env variables to Node.js
+  },
+  define: {
+    'process.env': JSON.stringify(loadEnv('', process.cwd(), 'NEXT_PUBLIC_')), // Expose .env variables to browser
+  },
+});

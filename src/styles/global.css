@@ -1,0 +1,9 @@
+@layer theme, base, components, utilities;
+
+@import './mit-fonts.css';
+@import 'tailwindcss';
+@import './mit-theme.css';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@custom-variant dark (&:is(.dark *));

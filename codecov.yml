@@ -1,0 +1,45 @@
+# Codecov configuration — https://docs.codecov.com/docs/codecov-yaml
+# - `auto` targets compare against the base branch so we don't hardcode %.
+# - `threshold: 1%` tolerates tiny regressions from refactors.
+# - `patch` enforces quality on *changed lines* (stricter than project).
+# - `ignore` mirrors `vitest.config.mts` coverage.exclude so local `npm run
+#   test:coverage` and the Codecov report agree.
+
+coverage:
+  precision: 2
+  round: down
+  range: '70...100'
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%
+        informational: false
+    patch:
+      default:
+        target: auto
+        threshold: 1%
+        informational: false
+
+comment:
+  layout: 'reach, diff, flags, files'
+  behavior: default
+  require_changes: true
+
+flags:
+  unittests:
+    paths:
+      - src/
+    carryforward: true
+
+ignore:
+  - 'src/generated/**'
+  - 'src/data/**'
+  - 'src/types/**'
+  - 'src/styles/**'
+  - 'src/locales/**'
+  - 'src/instrumentation.ts'
+  - 'src/instrumentation-client.ts'
+  - 'src/**/*.stories.{js,jsx,ts,tsx}'
+  - 'src/**/*.test.{js,jsx,ts,tsx}'
+  - 'src/**/*.d.ts'
