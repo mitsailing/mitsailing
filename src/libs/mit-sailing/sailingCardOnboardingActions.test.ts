@@ -332,6 +332,48 @@ describe('submitSailingCardOnboardingAction', () => {
     });
   });
 
+  it('uses real ip when forwarded header is blank', async () => {
+    mocks.headers.mockResolvedValue(
+      new Headers({
+        'user-agent': 'Vitest browser',
+        'x-forwarded-for': '   ',
+        'x-real-ip': '198.51.100.7',
+      })
+    );
+    const { submitSailingCardOnboardingAction } =
+      await import('@/libs/mit-sailing/sailingCardOnboardingActions');
+
+    await expect(
+      submitSailingCardOnboardingAction(idleState, onboardingFormData())
+    ).rejects.toThrow('NEXT_REDIRECT:/onboarding/success');
+
+    expect(mocks.prismaLegalAgreementAcceptanceCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        ipAddress: '198.51.100.7',
+      }),
+    });
+  });
+
+  it('stores null ip without forwarding headers', async () => {
+    mocks.headers.mockResolvedValue(
+      new Headers({
+        'user-agent': 'Vitest browser',
+      })
+    );
+    const { submitSailingCardOnboardingAction } =
+      await import('@/libs/mit-sailing/sailingCardOnboardingActions');
+
+    await expect(
+      submitSailingCardOnboardingAction(idleState, onboardingFormData())
+    ).rejects.toThrow('NEXT_REDIRECT:/onboarding/success');
+
+    expect(mocks.prismaLegalAgreementAcceptanceCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        ipAddress: null,
+      }),
+    });
+  });
+
   it('upserts current-year onboarding request linked to exact legal acceptance', async () => {
     const { submitSailingCardOnboardingAction } =
       await import('@/libs/mit-sailing/sailingCardOnboardingActions');

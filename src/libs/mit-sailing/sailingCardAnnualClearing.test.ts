@@ -101,16 +101,17 @@ describe('clearAnnualSailingCardState', () => {
       })
     );
     const userFindMany = vi.fn().mockResolvedValue(users);
-    let transactionCount = 0;
+    const transactionBatchSizes: number[] = [];
     const transaction: AnnualClearingDb['$transaction'] = async (operation) => {
-      transactionCount += 1;
+      const userUpdate = vi.fn().mockResolvedValue({});
       const result = await operation({
-        user: { update: vi.fn().mockResolvedValue({}) },
+        user: { update: userUpdate },
         userAudit: {
           create: vi.fn().mockResolvedValue({}),
           findFirst: vi.fn().mockResolvedValue(null),
         },
       });
+      transactionBatchSizes.push(userUpdate.mock.calls.length);
       return result;
     };
 
@@ -124,7 +125,10 @@ describe('clearAnnualSailingCardState', () => {
       })
     ).resolves.toEqual({ cleared: users.length });
 
-    expect(transactionCount).toBe(2);
+    expect(transactionBatchSizes).toEqual([
+      ANNUAL_SAILING_CARD_CLEARING_BATCH_SIZE,
+      1,
+    ]);
   });
 
   it('does nothing before july 15 eastern', async () => {
