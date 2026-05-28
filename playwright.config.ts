@@ -18,6 +18,9 @@ const isCi = !!process.env.CI;
 const includeFirefox = process.env.PLAYWRIGHT_INCLUDE_FIREFOX === '1';
 /** Safari-engine smoke coverage; off unless explicitly enabled (local or CI). */
 const includeWebkit = process.env.PLAYWRIGHT_INCLUDE_WEBKIT === '1';
+const ciChromeChannel: { channel?: 'chrome' } = isCi
+  ? { channel: 'chrome' }
+  : {};
 
 // Fast (default): short limits but enough headroom for cold standalone
 // `server.js` and cal-style high parallelism. Set PLAYWRIGHT_SLOW=1 for 120s nav/expect/action.
@@ -117,7 +120,7 @@ export default defineConfig<ChromaticConfig>({
     {
       name: 'chromium',
       testIgnore: '**/*.a11y.e2e.ts',
-      use: { ...devices['Desktop Chrome'] },
+      use: { ...devices['Desktop Chrome'], ...ciChromeChannel },
     },
     ...(includeFirefox
       ? [
@@ -142,7 +145,7 @@ export default defineConfig<ChromaticConfig>({
       testMatch: '**/*.a11y.e2e.ts',
       timeout: 300_000,
       workers: isCi ? 2 : 4,
-      use: { ...devices['Desktop Chrome'] },
+      use: { ...devices['Desktop Chrome'], ...ciChromeChannel },
     },
   ],
 });

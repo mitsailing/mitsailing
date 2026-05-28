@@ -250,8 +250,11 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
-      - name: Install Playwright Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Install Playwright browser dependencies
+        run: npx playwright install-deps chromium
+
+      - name: Verify Chrome channel
+        run: google-chrome-stable --version || google-chrome --version
 
       - name: Run storybook tests
         run: npm run storybook:test
@@ -335,8 +338,11 @@ jobs:
       # Chromium-only on the PR gate (faster CI, matches deploy engine). The
       # `firefox` Playwright project is omitted unless PLAYWRIGHT_INCLUDE_FIREFOX=1
       # and `npx playwright install firefox --with-deps` — see e2e-verification.mdc.
-      - name: Install Playwright browsers
-        run: npx playwright install chromium --with-deps
+      - name: Install Playwright browser dependencies
+        run: npx playwright install-deps chromium
+
+      - name: Verify Chrome channel
+        run: google-chrome-stable --version || google-chrome --version
 
       # Run e2e tests directly on the runner so the Playwright process can
       # reach the docker-compose services on localhost:5432 / localhost:1025
@@ -447,13 +453,24 @@ jobs:
           path: all-blob-reports
           merge-multiple: true
 
+      - name: Check blob reports
+        id: blob-reports
+        run: |
+          if find all-blob-reports -type f -name '*.zip' -print -quit 2>/dev/null | grep -q .; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No Playwright blob reports were uploaded by the E2E shards."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Merge Playwright reports
+        if: steps.blob-reports.outputs.found == 'true'
         timeout-minutes: 5
         run: npx playwright merge-reports --reporter html ./all-blob-reports
 
       - name: Upload merged E2E report
         uses: actions/upload-artifact@v7
-        if: always()
+        if: always() && steps.blob-reports.outputs.found == 'true'
         with:
           name: playwright-report--attempt-${{ github.run_attempt }}
           path: playwright-report/
