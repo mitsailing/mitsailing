@@ -438,8 +438,16 @@ describe('SailingCardOnboardingForm', () => {
       'href',
       '/terms'
     );
+    expect(screen.getByRole('link', { name: 'Terms of use' })).toHaveClass(
+      'text-mit-red',
+      'dark:text-mit-red-ink'
+    );
     expect(
       screen.getByRole('link', { name: 'Privacy policy' })
     ).toHaveAttribute('href', '/privacy');
+    expect(screen.getByRole('link', { name: 'Privacy policy' })).toHaveClass(
+      'text-mit-red',
+      'dark:text-mit-red-ink'
+    );
   });
 });
