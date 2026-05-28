@@ -2,6 +2,7 @@
 
 import { useActionState, useState, useTransition } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
+import type { Control } from 'react-hook-form';
 import type { SailingAffiliation } from '@/generated/prisma/enums';
 import { hasAutomaticFitnessMembership } from '@/libs/mit-sailing/sailingCardMembership';
 import { submitSailingCardOnboardingAction } from '@/libs/mit-sailing/sailingCardOnboardingActions';
@@ -174,9 +175,17 @@ const getIdentityVisibility = (props: {
   };
 };
 
-export function useSailingCardOnboardingFormModel(
-  props: SailingCardOnboardingFormProps
-) {
+const watchedOnboardingFieldNames = [
+  'affiliation',
+  'mitId',
+  'firstName',
+  'lastName',
+  'dateOfBirth',
+  'hasFitnessMembership',
+  'cardType',
+] as const;
+
+function useOnboardingActionRuntime(props: SailingCardOnboardingFormProps) {
   const [state, formAction] = useActionState(
     props.action ?? defaultSailingCardOnboardingAction,
     initialSailingCardOnboardingFormState
@@ -191,6 +200,33 @@ export function useSailingCardOnboardingFormModel(
     values: formValues,
   });
   const [now] = useState(() => new Date());
+  const handleSubmit = form.handleSubmit((values) => {
+    startTransition(() => {
+      formAction(
+        formDataFromReactHookFormValues({
+          callbackUrl: props.callbackUrl,
+          values,
+        })
+      );
+    });
+  });
+
+  return {
+    form,
+    handleContinueIdentity: () => {
+      setDetailsUnlocked(true);
+    },
+    handleSubmit,
+    isPending,
+    now,
+    state,
+    detailsUnlocked,
+  };
+}
+
+function useWatchedOnboardingValues(
+  control: Control<SailingCardOnboardingFormValues>
+) {
   const [
     affiliationValue,
     mitIdValue,
@@ -200,28 +236,36 @@ export function useSailingCardOnboardingFormModel(
     hasFitnessMembershipValue,
     cardTypeValue,
   ] = useWatch({
-    control: form.control,
-    name: [
-      'affiliation',
-      'mitId',
-      'firstName',
-      'lastName',
-      'dateOfBirth',
-      'hasFitnessMembership',
-      'cardType',
-    ],
+    control,
+    name: watchedOnboardingFieldNames,
   });
-  const affiliation = getVisibleSailingAffiliation(affiliationValue);
-  const rule = getVisibleSailingAffiliationRule(affiliation);
+
+  return {
+    affiliationValue,
+    cardTypeValue,
+    dateOfBirthValue,
+    firstNameValue,
+    hasFitnessMembershipValue,
+    lastNameValue,
+    mitIdValue,
+  };
+}
+
+function getOnboardingIdentityModel(props: {
+  readonly affiliation: SailingAffiliation | '';
+  readonly lockedIdentity?: SailingCardOnboardingLockedIdentity;
+  readonly values: ReturnType<typeof useWatchedOnboardingValues>;
+}) {
+  const rule = getVisibleSailingAffiliationRule(props.affiliation);
   const identityVisibility = getIdentityVisibility({
     lockedIdentity: props.lockedIdentity,
     rule,
   });
   const identityComplete = isIdentityComplete({
-    firstNameValue,
-    lastNameValue,
+    firstNameValue: props.values.firstNameValue,
+    lastNameValue: props.values.lastNameValue,
     lockedIdentity: props.lockedIdentity,
-    mitIdValue,
+    mitIdValue: props.values.mitIdValue,
     rule,
     showLockedIdentity: identityVisibility.showLockedIdentity,
     showManualName: identityVisibility.showManualName,
@@ -229,43 +273,52 @@ export function useSailingCardOnboardingFormModel(
   });
 
   return {
-    affiliation,
-    cardTypeValue,
-    dateOfBirthValue,
-    fitnessMembershipReady: isFitnessMembershipReady({
-      affiliation,
-      hasFitnessMembershipValue,
-    }),
-    form,
-    handleSubmit: form.handleSubmit((values) => {
-      startTransition(() => {
-        formAction(
-          formDataFromReactHookFormValues({
-            callbackUrl: props.callbackUrl,
-            values,
-          })
-        );
-      });
-    }),
     identityComplete,
     identityVisibility,
-    isPending,
-    lockedIdentity: props.lockedIdentity,
     manualNameRequired: isManualNameRequired({
-      mitIdValue,
+      mitIdValue: props.values.mitIdValue,
       rule,
       showManualName: identityVisibility.showManualName,
     }),
     mitIdRequired: rule?.mitIdMode === 'required',
-    now,
-    handleContinueIdentity: () => {
-      setDetailsUnlocked(true);
-    },
-    showDetails: shouldShowDetails({
-      detailsUnlocked,
-      identityComplete,
-      state,
+  };
+}
+
+export function useSailingCardOnboardingFormModel(
+  props: SailingCardOnboardingFormProps
+) {
+  const runtime = useOnboardingActionRuntime(props);
+  const values = useWatchedOnboardingValues(runtime.form.control);
+  const affiliation = getVisibleSailingAffiliation(values.affiliationValue);
+  const identity = getOnboardingIdentityModel({
+    affiliation,
+    lockedIdentity: props.lockedIdentity,
+    values,
+  });
+
+  return {
+    affiliation,
+    cardTypeValue: values.cardTypeValue,
+    dateOfBirthValue: values.dateOfBirthValue,
+    fitnessMembershipReady: isFitnessMembershipReady({
+      affiliation,
+      hasFitnessMembershipValue: values.hasFitnessMembershipValue,
     }),
-    state,
+    form: runtime.form,
+    handleContinueIdentity: runtime.handleContinueIdentity,
+    handleSubmit: runtime.handleSubmit,
+    identityComplete: identity.identityComplete,
+    identityVisibility: identity.identityVisibility,
+    isPending: runtime.isPending,
+    lockedIdentity: props.lockedIdentity,
+    manualNameRequired: identity.manualNameRequired,
+    mitIdRequired: identity.mitIdRequired,
+    now: runtime.now,
+    showDetails: shouldShowDetails({
+      detailsUnlocked: runtime.detailsUnlocked,
+      identityComplete: identity.identityComplete,
+      state: runtime.state,
+    }),
+    state: runtime.state,
   };
 }

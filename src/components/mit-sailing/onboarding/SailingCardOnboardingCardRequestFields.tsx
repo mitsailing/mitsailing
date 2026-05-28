@@ -117,6 +117,38 @@ function FitnessMembershipOption(props: {
   );
 }
 
+function FitnessMembershipOptions(props: {
+  readonly onBlur: React.FocusEventHandler<HTMLInputElement>;
+  readonly onChange: React.ChangeEventHandler<HTMLInputElement>;
+  readonly ref: React.Ref<HTMLInputElement>;
+  readonly registrationName: string;
+}) {
+  const t = useTranslations('OnboardingPage');
+
+  return (
+    <div className="grid gap-2 sm:grid-cols-2">
+      <FitnessMembershipOption
+        id="hasFitnessMembershipYes"
+        label={t('fitness_membership_yes')}
+        onBlur={props.onBlur}
+        onChange={props.onChange}
+        ref={props.ref}
+        registrationName={props.registrationName}
+        value="yes"
+      />
+      <FitnessMembershipOption
+        id="hasFitnessMembershipNo"
+        label={t('fitness_membership_no')}
+        onBlur={props.onBlur}
+        onChange={props.onChange}
+        ref={props.ref}
+        registrationName={props.registrationName}
+        value="no"
+      />
+    </div>
+  );
+}
+
 function FitnessMembershipQuestion(props: {
   readonly register: UseFormRegister<SailingCardOnboardingFormValues>;
   readonly setValue: UseFormSetValue<SailingCardOnboardingFormValues>;
@@ -146,26 +178,12 @@ function FitnessMembershipQuestion(props: {
       <p className="text-xs leading-5 text-muted-foreground" id={helpId}>
         {t('fitness_membership_help')}
       </p>
-      <div className="grid gap-2 sm:grid-cols-2">
-        <FitnessMembershipOption
-          id="hasFitnessMembershipYes"
-          label={t('fitness_membership_yes')}
-          onBlur={handleFitnessMembershipBlur}
-          onChange={handleFitnessMembershipChange}
-          ref={registration.ref}
-          registrationName={registration.name}
-          value="yes"
-        />
-        <FitnessMembershipOption
-          id="hasFitnessMembershipNo"
-          label={t('fitness_membership_no')}
-          onBlur={handleFitnessMembershipBlur}
-          onChange={handleFitnessMembershipChange}
-          ref={registration.ref}
-          registrationName={registration.name}
-          value="no"
-        />
-      </div>
+      <FitnessMembershipOptions
+        onBlur={handleFitnessMembershipBlur}
+        onChange={handleFitnessMembershipChange}
+        ref={registration.ref}
+        registrationName={registration.name}
+      />
       <p className="text-xs leading-5 text-muted-foreground" id={signupNoteId}>
         {t.rich(
           'fitness_membership_signup_note',

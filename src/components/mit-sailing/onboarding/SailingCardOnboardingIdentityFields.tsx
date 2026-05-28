@@ -141,51 +141,60 @@ function MitIdField(props: {
   );
 }
 
+function ManualNameField(props: {
+  readonly autoComplete: string;
+  readonly field: 'firstName' | 'lastName';
+  readonly label: string;
+  readonly register: UseFormRegister<SailingCardOnboardingFormValues>;
+  readonly required: boolean;
+  readonly state: SailingCardOnboardingFormState;
+}) {
+  const error = props.state.fieldErrors[props.field];
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label className="text-foreground" htmlFor={props.field}>
+        {props.label}
+      </Label>
+      <Input
+        aria-describedby={error ? fieldErrorId(props.field) : undefined}
+        aria-invalid={error ? true : undefined}
+        autoComplete={props.autoComplete}
+        id={props.field}
+        required={props.required}
+        type="text"
+        {...props.register(props.field, { required: props.required })}
+      />
+      <FieldError field={props.field} state={props.state} />
+    </div>
+  );
+}
+
 function ManualNameFields(props: {
   readonly register: UseFormRegister<SailingCardOnboardingFormValues>;
   readonly required: boolean;
   readonly state: SailingCardOnboardingFormState;
 }) {
   const t = useTranslations('OnboardingPage');
-  const firstNameError = props.state.fieldErrors.firstName;
-  const lastNameError = props.state.fieldErrors.lastName;
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
-      <div className="flex flex-col gap-1.5">
-        <Label className="text-foreground" htmlFor="firstName">
-          {t('first_name_label')}
-        </Label>
-        <Input
-          aria-describedby={
-            firstNameError ? fieldErrorId('firstName') : undefined
-          }
-          aria-invalid={firstNameError ? true : undefined}
-          autoComplete="section-user given-name"
-          id="firstName"
-          required={props.required}
-          type="text"
-          {...props.register('firstName', { required: props.required })}
-        />
-        <FieldError field="firstName" state={props.state} />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <Label className="text-foreground" htmlFor="lastName">
-          {t('last_name_label')}
-        </Label>
-        <Input
-          aria-describedby={
-            lastNameError ? fieldErrorId('lastName') : undefined
-          }
-          aria-invalid={lastNameError ? true : undefined}
-          autoComplete="section-user family-name"
-          id="lastName"
-          required={props.required}
-          type="text"
-          {...props.register('lastName', { required: props.required })}
-        />
-        <FieldError field="lastName" state={props.state} />
-      </div>
+      <ManualNameField
+        autoComplete="section-user given-name"
+        field="firstName"
+        label={t('first_name_label')}
+        register={props.register}
+        required={props.required}
+        state={props.state}
+      />
+      <ManualNameField
+        autoComplete="section-user family-name"
+        field="lastName"
+        label={t('last_name_label')}
+        register={props.register}
+        required={props.required}
+        state={props.state}
+      />
     </div>
   );
 }
