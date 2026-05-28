@@ -36,6 +36,9 @@ const config: KnipConfig = {
   compilers: {
     css: (text: string) => [...text.matchAll(/(?<=@)import[^;]+/g)].join('\n'),
   },
+  // Keep these suppressions file-scoped so `npm run check:deps` still reports
+  // ordinary unused exports while allowing route, Prisma, and future-facing DTO
+  // types that are consumed through generated or framework-owned boundaries.
   ignoreIssues: {
     'src/components/mit-sailing/donate/DonateAlternateGivingSection.tsx': [
       'types',

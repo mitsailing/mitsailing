@@ -4,7 +4,15 @@ import { CronExpressionParser } from 'cron-parser';
 export const LEGACY_MYSQL_SYNC_DEFAULT_CRON = '0 0 * * * *';
 
 const BULLMQ_UNSUPPORTED_HASHED_CRON_FIELD_RE =
-  /(?:^|[\s,\-/])H(?:$|[\s,\-/()]|\d)/iu;
+  /(?:^|,|\/|-)H(?:$|,|\/|-|\(|\)|\d)/iu;
+
+function containsBullMqUnsupportedHashedCronField(fields: string[]): boolean {
+  // cron-parser v5 accepts Jenkins-style `H` fields, but BullMQ cron repeat
+  // patterns do not support hashed scheduling syntax.
+  return fields.some((field) =>
+    BULLMQ_UNSUPPORTED_HASHED_CRON_FIELD_RE.test(field)
+  );
+}
 
 /**
  * Returns whether `value` is a six-field BullMQ cron pattern (seconds first).
@@ -18,7 +26,7 @@ export function isLegacyMysqlSyncCronPattern(value: string): boolean {
   if (fields.length !== 6) {
     return false;
   }
-  if (BULLMQ_UNSUPPORTED_HASHED_CRON_FIELD_RE.test(trimmed)) {
+  if (containsBullMqUnsupportedHashedCronField(fields)) {
     return false;
   }
   try {
