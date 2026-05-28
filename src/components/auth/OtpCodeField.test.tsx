@@ -44,6 +44,25 @@ function renderOtpCodeField(options?: {
   );
 }
 
+function mockClipboardText(value: string) {
+  const readText = vi.fn().mockResolvedValue(value);
+  const clipboard: Clipboard = {
+    addEventListener: vi.fn(),
+    dispatchEvent: vi.fn(() => true),
+    read: vi.fn(async () => {
+      await Promise.resolve();
+      return [];
+    }),
+    readText,
+    removeEventListener: vi.fn(),
+    write: vi.fn(),
+    writeText: vi.fn(),
+  };
+  vi.spyOn(navigator, 'clipboard', 'get').mockReturnValue(clipboard);
+
+  return readText;
+}
+
 describe('OtpCodeField', () => {
   it('renders a platform-friendly one-time code input', () => {
     renderOtpCodeField();
@@ -70,26 +89,59 @@ describe('OtpCodeField', () => {
   it('pastes the first six-digit code from clipboard text', async () => {
     const user = userEvent.setup();
     const onValueChange = vi.fn();
-    const readText = vi.fn().mockResolvedValue('Your code is 123456.');
-    const clipboard: Clipboard = {
-      addEventListener: vi.fn(),
-      dispatchEvent: vi.fn(() => true),
-      read: vi.fn(async () => {
-        await Promise.resolve();
-        return [];
-      }),
-      readText,
-      removeEventListener: vi.fn(),
-      write: vi.fn(),
-      writeText: vi.fn(),
-    };
-    vi.spyOn(navigator, 'clipboard', 'get').mockReturnValue(clipboard);
+    const readText = mockClipboardText('Your code is 123456.');
     renderOtpCodeField({ onValueChange });
 
     await user.click(screen.getByRole('button', { name: 'Paste code' }));
 
     expect(readText).toHaveBeenCalledTimes(1);
     expect(onValueChange).toHaveBeenCalledWith('123456');
+    expect(screen.getByLabelText('Verification code')).toHaveFocus();
+  });
+
+  it('keeps focus when clipboard text has no code', async () => {
+    const user = userEvent.setup();
+    const onValueChange = vi.fn();
+    const readText = mockClipboardText('No code here.');
+    renderOtpCodeField({ onValueChange });
+
+    await user.click(screen.getByRole('button', { name: 'Paste code' }));
+
+    expect(readText).toHaveBeenCalledTimes(1);
+    expect(onValueChange).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Verification code')).toHaveFocus();
+  });
+
+  it('keeps focus when clipboard access is unavailable', async () => {
+    const user = userEvent.setup();
+    const onValueChange = vi.fn();
+    const originalClipboardDescriptor = Object.getOwnPropertyDescriptor(
+      navigator,
+      'clipboard'
+    );
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      get() {},
+    });
+
+    try {
+      renderOtpCodeField({ onValueChange });
+
+      await user.click(screen.getByRole('button', { name: 'Paste code' }));
+
+      expect(onValueChange).not.toHaveBeenCalled();
+      expect(screen.getByLabelText('Verification code')).toHaveFocus();
+    } finally {
+      if (originalClipboardDescriptor) {
+        Object.defineProperty(
+          navigator,
+          'clipboard',
+          originalClipboardDescriptor
+        );
+      } else {
+        Reflect.deleteProperty(navigator, 'clipboard');
+      }
+    }
   });
 
   it('accepts native paste events from mail clients', () => {
@@ -103,6 +155,19 @@ describe('OtpCodeField', () => {
     });
 
     expect(onValueChange).toHaveBeenCalledWith('654321');
+  });
+
+  it('ignores native paste events without a code', () => {
+    const onValueChange = vi.fn();
+    renderOtpCodeField({ onValueChange });
+
+    fireEvent.paste(screen.getByLabelText('Verification code'), {
+      clipboardData: {
+        getData: () => 'No code here.',
+      },
+    });
+
+    expect(onValueChange).not.toHaveBeenCalled();
   });
 });
 

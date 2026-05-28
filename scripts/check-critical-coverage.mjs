@@ -59,6 +59,7 @@ const authCoverageFiles = [
   'src/app/[locale]/(auth)/profile/ProfilePasswordClient.tsx',
   'src/app/[locale]/(auth)/profile/ProfileSecurityClient.tsx',
   'src/components/auth/ImpersonationBanner.tsx',
+  'src/components/auth/OtpCodeField.tsx',
   'src/components/auth/SignOutForm.tsx',
   'src/components/auth/StopImpersonationButton.tsx',
   'src/components/auth/profile/ProfileAppearanceSection.tsx',

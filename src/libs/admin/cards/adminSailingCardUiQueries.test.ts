@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { getCurrentSailingCardYear } from '@/libs/mit-sailing/sailingCardValidity';
 
 vi.mock('server-only', () => ({}));
 
@@ -79,7 +80,7 @@ describe('adminSailingCardUiQueries', () => {
     expect(mocks.sailingCardRequestFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          cardYear: 2026,
+          cardYear: getCurrentSailingCardYear(),
           status: 'pending',
         }),
       })
