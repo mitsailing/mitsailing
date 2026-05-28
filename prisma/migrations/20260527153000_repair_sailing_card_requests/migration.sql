@@ -87,11 +87,13 @@ CREATE INDEX IF NOT EXISTS "sailing_card_requests_approved_by_user_id_idx"
 ON "sailing_card_requests"("approved_by_user_id");
 
 DO $$
+DECLARE
+    sailing_card_requests_table REGCLASS := '"sailing_card_requests"'::regclass;
 BEGIN
     IF NOT EXISTS (
         SELECT 1
         FROM pg_constraint
-        WHERE conrelid = '"sailing_card_requests"'::regclass
+        WHERE conrelid = sailing_card_requests_table
           AND conname = 'sailing_card_requests_user_id_fkey'
     ) THEN
         ALTER TABLE "sailing_card_requests"
@@ -101,15 +103,11 @@ BEGIN
         ON DELETE CASCADE
         ON UPDATE CASCADE;
     END IF;
-END;
-$$;
 
-DO $$
-BEGIN
     IF NOT EXISTS (
         SELECT 1
         FROM pg_constraint
-        WHERE conrelid = '"sailing_card_requests"'::regclass
+        WHERE conrelid = sailing_card_requests_table
           AND conname = 'sailing_card_requests_legal_agreement_acceptance_id_fkey'
     ) THEN
         ALTER TABLE "sailing_card_requests"
@@ -119,15 +117,11 @@ BEGIN
         ON DELETE RESTRICT
         ON UPDATE CASCADE;
     END IF;
-END;
-$$;
 
-DO $$
-BEGIN
     IF NOT EXISTS (
         SELECT 1
         FROM pg_constraint
-        WHERE conrelid = '"sailing_card_requests"'::regclass
+        WHERE conrelid = sailing_card_requests_table
           AND conname = 'sailing_card_requests_approved_by_user_id_fkey'
     ) THEN
         ALTER TABLE "sailing_card_requests"

@@ -1,6 +1,5 @@
 import type { Job, Queue } from 'bullmq';
 import { processNewsletterBroadcast } from '@/libs/newsletter/newsletterBroadcasts';
-import { NEWSLETTER_QUEUE_NAME } from '@/libs/newsletter/newsletterConstants';
 import type { NewsletterBroadcastJob } from '@/libs/newsletter/newsletterQueue';
 import {
   CMS_MEDIA_PROCESSING_JOB_NAME,
@@ -60,4 +59,4 @@ export async function processNewsletterQueueJob(
   await processNewsletterBroadcast(job.data.broadcastId);
 }
 
-export { NEWSLETTER_QUEUE_NAME };
+export { NEWSLETTER_QUEUE_NAME } from '@/libs/newsletter/newsletterConstants';

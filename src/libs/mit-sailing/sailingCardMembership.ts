@@ -1,4 +1,5 @@
 import { SailingAffiliation, SailingCardType } from '@/generated/prisma/enums';
+import { parseSailingCardDateOfBirth } from '@/libs/mit-sailing/sailingCardDateOfBirth';
 
 const studentAffiliations: ReadonlySet<SailingAffiliation> = new Set([
   SailingAffiliation.MIT_STUDENT,
@@ -11,30 +12,6 @@ const studentAffiliations: ReadonlySet<SailingAffiliation> = new Set([
   SailingAffiliation.OTHER_STUDENT,
 ]);
 
-const typedDateOfBirthPattern = /^(\d{2})\/(\d{2})\/(\d{4})$/;
-
-const dateFromParts = (props: {
-  readonly day: string;
-  readonly month: string;
-  readonly year: string;
-}) => {
-  const year = Number(props.year);
-  const month = Number(props.month);
-  const day = Number(props.day);
-  const date = new Date(Date.UTC(year, month - 1, day));
-
-  if (
-    Number.isNaN(date.getTime()) ||
-    date.getUTCFullYear() !== year ||
-    date.getUTCMonth() !== month - 1 ||
-    date.getUTCDate() !== day
-  ) {
-    return null;
-  }
-
-  return date;
-};
-
 const isStudentSailingAffiliation = (affiliation: SailingAffiliation | '') =>
   affiliation !== '' && studentAffiliations.has(affiliation);
 
@@ -45,29 +22,6 @@ export const hasAutomaticFitnessMembership = (
 export const needsFitnessMembershipQuestion = (
   affiliation: SailingAffiliation | ''
 ) => affiliation !== '' && !hasAutomaticFitnessMembership(affiliation);
-
-const parseTypedDateOfBirth = (value: string | undefined) => {
-  const trimmed = (value ?? '').trim();
-  const slashMatch = typedDateOfBirthPattern.exec(trimmed);
-  if (slashMatch?.[1] && slashMatch[2] && slashMatch[3]) {
-    return dateFromParts({
-      day: slashMatch[2],
-      month: slashMatch[1],
-      year: slashMatch[3],
-    });
-  }
-
-  const numericMatch = /^(\d{2})(\d{2})(\d{4})$/.exec(trimmed);
-  if (numericMatch?.[1] && numericMatch[2] && numericMatch[3]) {
-    return dateFromParts({
-      day: numericMatch[2],
-      month: numericMatch[1],
-      year: numericMatch[3],
-    });
-  }
-
-  return null;
-};
 
 const ageOnDate = (props: {
   readonly birthDate: Date;
@@ -113,7 +67,9 @@ function nonStudentRacingPriceCents(props: {
   readonly dateOfBirth: string | undefined;
   readonly now: Date;
 }) {
-  const birthDate = parseTypedDateOfBirth(props.dateOfBirth);
+  const birthDate = parseSailingCardDateOfBirth({
+    value: props.dateOfBirth,
+  });
   if (birthDate === null) {
     return null;
   }
@@ -130,7 +86,9 @@ function nonStudentTeamRacingPriceCents(props: {
   readonly dateOfBirth: string | undefined;
   readonly now: Date;
 }) {
-  const birthDate = parseTypedDateOfBirth(props.dateOfBirth);
+  const birthDate = parseSailingCardDateOfBirth({
+    value: props.dateOfBirth,
+  });
   if (birthDate === null) {
     return null;
   }

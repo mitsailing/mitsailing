@@ -2792,7 +2792,7 @@ function PavilionReservationFooter(props: {
           </p>
           <Button
             size="sm"
-            className="shrink-0"
+            className="shrink-0 text-foreground transition-none"
             type="button"
             variant="ghost"
             onClick={props.onSpacesStepInvalid}

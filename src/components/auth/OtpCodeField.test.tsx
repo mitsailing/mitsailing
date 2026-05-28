@@ -4,9 +4,11 @@ import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { OtpCodeField, extractOtpCode } from './OtpCodeField';
 
-function StatefulOtpCodeField(props: {
-  onValueChange: (value: string) => void;
-}) {
+function StatefulOtpCodeField(
+  props: Readonly<{
+    onValueChange: (value: string) => void;
+  }>
+) {
   const [value, setValue] = useState('');
 
   function onValueChange(nextValue: string) {

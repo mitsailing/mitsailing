@@ -13,6 +13,7 @@ import {
   getSailingAffiliationOptions,
   getSailingAffiliationRule,
 } from '@/libs/mit-sailing/sailingAffiliations';
+import { parseSailingCardDateOfBirth } from '@/libs/mit-sailing/sailingCardDateOfBirth';
 import {
   normalizeInternationalPhone,
   normalizeUsPhone,
@@ -55,60 +56,6 @@ export class SailingCardOnboardingValidationError extends Error {
     this.fieldErrors = fieldErrors;
   }
 }
-
-const dateFromParts = (props: {
-  readonly day: string;
-  readonly month: string;
-  readonly year: string;
-}) => {
-  const year = Number(props.year);
-  const month = Number(props.month);
-  const day = Number(props.day);
-  const date = new Date(Date.UTC(year, month - 1, day));
-
-  if (
-    Number.isNaN(date.getTime()) ||
-    date.getUTCFullYear() !== year ||
-    date.getUTCMonth() !== month - 1 ||
-    date.getUTCDate() !== day
-  ) {
-    return null;
-  }
-
-  return date;
-};
-
-const parseDateOfBirth = (value: string) => {
-  const trimmed = value.trim();
-  const isoMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
-  if (isoMatch?.[1] && isoMatch[2] && isoMatch[3]) {
-    return dateFromParts({
-      day: isoMatch[3],
-      month: isoMatch[2],
-      year: isoMatch[1],
-    });
-  }
-
-  const slashMatch = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(trimmed);
-  if (slashMatch?.[1] && slashMatch[2] && slashMatch[3]) {
-    return dateFromParts({
-      day: slashMatch[2],
-      month: slashMatch[1],
-      year: slashMatch[3],
-    });
-  }
-
-  const numericMatch = /^(\d{2})(\d{2})(\d{4})$/.exec(trimmed);
-  if (numericMatch?.[1] && numericMatch[2] && numericMatch[3]) {
-    return dateFromParts({
-      day: numericMatch[2],
-      month: numericMatch[1],
-      year: numericMatch[3],
-    });
-  }
-
-  return null;
-};
 
 const validateContact = (input: SailingCardOnboardingInput) => {
   const fieldErrors: SailingCardOnboardingFieldErrors = {};
@@ -154,7 +101,10 @@ const validateRequiredInputs = (input: SailingCardOnboardingInput) => {
       : null;
   const fieldErrors: SailingCardOnboardingFieldErrors = {};
   const contact = validateContact(input);
-  const dateOfBirth = parseDateOfBirth(input.dateOfBirth);
+  const dateOfBirth = parseSailingCardDateOfBirth({
+    allowIsoDate: true,
+    value: input.dateOfBirth,
+  });
 
   if (affiliation === null) {
     fieldErrors.affiliation = 'required';

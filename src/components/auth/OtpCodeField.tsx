@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 
-type OtpCodeFieldProps = {
+type OtpCodeFieldProps = Readonly<{
   containerClassName?: string;
   id: string;
   inputClassName?: string;
@@ -18,7 +18,7 @@ type OtpCodeFieldProps = {
   pasteLabel: string;
   placeholder: string;
   value: string;
-};
+}>;
 
 export function extractOtpCode(value: string): string {
   const isolatedCode = /(?:^|\D)(\d{6})(?!\d)/u.exec(value);

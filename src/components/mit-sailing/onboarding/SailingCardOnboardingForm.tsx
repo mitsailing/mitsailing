@@ -1,13 +1,10 @@
 'use client';
 
-import {
-  defaultSailingCardOnboardingAction,
-  useSailingCardOnboardingFormModel,
-} from './SailingCardOnboardingFormModel';
+import { useSailingCardOnboardingFormModel } from './SailingCardOnboardingFormModel';
 import type { SailingCardOnboardingFormProps } from './SailingCardOnboardingFormModel';
 import { OnboardingFormFields } from './SailingCardOnboardingFormSections';
 
-export { defaultSailingCardOnboardingAction };
+export { defaultSailingCardOnboardingAction } from './SailingCardOnboardingFormModel';
 
 export function SailingCardOnboardingForm(
   props: SailingCardOnboardingFormProps
