@@ -252,10 +252,11 @@ export const submitSailingCardOnboardingAction = async (
     );
   }
 
+  const latestRequest = currentUser.sailingCardRequests.at(0) ?? null;
   if (
-    hasCompletedCurrentYearSailingCardRequest(
-      currentUser.sailingCardRequests.at(0) ?? null
-    )
+    latestRequest !== null &&
+    latestRequest.status !== 'cancelled' &&
+    hasCompletedCurrentYearSailingCardRequest(latestRequest)
   ) {
     redirect(successHref);
   }
@@ -357,6 +358,7 @@ export const submitSailingCardOnboardingAction = async (
         phone: update.phone,
         requestedAt: acceptedAt,
         sailingAffiliation: update.sailingAffiliation,
+        status: SailingCardRequestStatus.pending,
       },
     });
   });

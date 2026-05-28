@@ -34,7 +34,7 @@ async function upsertSailingCardRequest(options: {
   readonly pool: Pool | PoolClient;
   readonly userId: string;
 }) {
-  await options.pool.query(
+  const result = await options.pool.query(
     `INSERT INTO "sailing_card_requests"
       ("id", "user_id", "card_year", "status", "card_type", "legal_agreement_acceptance_id", "requested_at",
        "first_name", "last_name", "sailing_affiliation", "mit_id", "mit_class_year", "date_of_birth",
@@ -75,6 +75,11 @@ async function upsertSailingCardRequest(options: {
       options.userId,
     ]
   );
+  if (result.rowCount === 0) {
+    throw new Error(
+      `Failed to insert sailing card request: user ${options.userId} for year ${getCurrentSailingCardYear()} not found`
+    );
+  }
 }
 
 export async function insertCurrentSailingCardOnboardingAcceptance(options: {

@@ -197,7 +197,7 @@ export function AdminSailingCardQueue(props: {
               <TableRow key={row.id}>
                 <TableCell className="font-semibold">
                   <Link
-                    className="text-mit-red hover:underline"
+                    className="text-mit-red dark:text-mit-red-ink hover:underline"
                     href={adminUsersShowPath(row.id)}
                   >
                     {row.name}

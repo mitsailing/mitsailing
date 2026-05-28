@@ -73,20 +73,40 @@ const ageOnDate = (props: {
   readonly birthDate: Date;
   readonly onDate: Date;
 }) => {
-  const yearDifference =
-    props.onDate.getUTCFullYear() - props.birthDate.getUTCFullYear();
+  const onDateParts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+  }).formatToParts(props.onDate);
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(onDateParts.find((p) => p.type === type)?.value ?? 0);
+  const onYear = get('year');
+  const onMonth = get('month');
+  const onDay = get('day');
+
+  const yearDifference = onYear - props.birthDate.getUTCFullYear();
   const hasHadBirthday =
-    props.onDate.getUTCMonth() > props.birthDate.getUTCMonth() ||
-    (props.onDate.getUTCMonth() === props.birthDate.getUTCMonth() &&
-      props.onDate.getUTCDate() >= props.birthDate.getUTCDate());
+    onMonth > props.birthDate.getUTCMonth() + 1 ||
+    (onMonth === props.birthDate.getUTCMonth() + 1 &&
+      onDay >= props.birthDate.getUTCDate());
 
   return hasHadBirthday ? yearDifference : yearDifference - 1;
 };
 
 function isSpringOnly(now: Date) {
-  const year = now.getUTCFullYear();
-  const julyFifteenth = new Date(Date.UTC(year, 6, 15));
-  return now.getTime() < julyFifteenth.getTime();
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+  }).formatToParts(now);
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((p) => p.type === type)?.value ?? 0);
+  const month = get('month');
+  const day = get('day');
+
+  return month < 7 || (month === 7 && day < 15);
 }
 
 function nonStudentRacingPriceCents(props: {

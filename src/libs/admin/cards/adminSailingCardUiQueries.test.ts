@@ -2,6 +2,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('server-only', () => ({}));
 
+vi.mock('@/libs/mit-sailing/sailingCardValidity', async () => {
+  const actual = await vi.importActual<
+    typeof import('@/libs/mit-sailing/sailingCardValidity')
+  >('@/libs/mit-sailing/sailingCardValidity');
+  return {
+    ...actual,
+    getCurrentSailingCardYear: () => 2026,
+  };
+});
+
 const mocks = vi.hoisted(() => ({
   sailingCardRequestFindMany: vi.fn(),
   userFindMany: vi.fn(),

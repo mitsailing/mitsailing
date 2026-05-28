@@ -88,6 +88,16 @@ vi.mock('@/libs/mit-sailing/mitDataWarehouse', async () => {
   };
 });
 
+vi.mock('@/libs/mit-sailing/sailingCardValidity', async () => {
+  const actual = await vi.importActual<
+    typeof import('@/libs/mit-sailing/sailingCardValidity')
+  >('@/libs/mit-sailing/sailingCardValidity');
+  return {
+    ...actual,
+    getCurrentSailingCardYear: () => 2026,
+  };
+});
+
 function onboardingFormData() {
   const formData = new FormData();
   formData.set('affiliation', SailingAffiliation.MIT_STUDENT);

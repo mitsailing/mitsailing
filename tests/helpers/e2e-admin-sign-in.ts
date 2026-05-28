@@ -10,9 +10,10 @@ const adminPassword = process.env.ADMIN_PASSWORD ?? 'dev-local-change-me';
 
 async function markAdminOnboardingComplete(): Promise<void> {
   const pool = new Pool({ connectionString: e2ePgConnectionString() });
+  const client = await pool.connect();
   try {
-    await pool.query('BEGIN');
-    const user = await pool.query<{ id: string }>(
+    await client.query('BEGIN');
+    const user = await client.query<{ id: string }>(
       `UPDATE "user"
        SET "phone" = $2,
            "emergency_contact_name" = $3,
@@ -25,16 +26,17 @@ async function markAdminOnboardingComplete(): Promise<void> {
     const userId = user.rows[0]?.id;
     if (userId) {
       await insertCurrentSailingCardOnboardingAcceptance({
-        pool,
+        pool: client,
         userAgent: 'e2e-admin-sign-in',
         userId,
       });
     }
-    await pool.query('COMMIT');
+    await client.query('COMMIT');
   } catch (error) {
-    await pool.query('ROLLBACK');
+    await client.query('ROLLBACK');
     throw error;
   } finally {
+    client.release();
     await pool.end();
   }
 }

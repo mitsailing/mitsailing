@@ -57,6 +57,24 @@ CREATE TABLE IF NOT EXISTS "sailing_card_requests" (
     CONSTRAINT "sailing_card_requests_pkey" PRIMARY KEY ("id")
 );
 
+DO $$
+DECLARE
+    duplicate_count INTEGER;
+BEGIN
+    SELECT COUNT(*) INTO duplicate_count
+    FROM (
+        SELECT user_id, card_year, COUNT(*) AS cnt
+        FROM sailing_card_requests
+        GROUP BY user_id, card_year
+        HAVING COUNT(*) > 1
+    ) duplicates;
+
+    IF duplicate_count > 0 THEN
+        RAISE EXCEPTION 'Cannot create unique index sailing_card_requests_user_id_card_year_key on table sailing_card_requests: duplicate (user_id, card_year) pairs exist';
+    END IF;
+END
+$$;
+
 CREATE UNIQUE INDEX IF NOT EXISTS "sailing_card_requests_user_id_card_year_key"
 ON "sailing_card_requests"("user_id", "card_year");
 

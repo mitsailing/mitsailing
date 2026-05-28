@@ -85,9 +85,10 @@ async function markOnboardingCompleteByEmail(email: string) {
   if (!pool) {
     return;
   }
-  await pool.query('BEGIN');
+  const client = await pool.connect();
   try {
-    const user = await pool.query<{ id: string }>(
+    await client.query('BEGIN');
+    const user = await client.query<{ id: string }>(
       `UPDATE "user"
      SET "phone" = $2,
          "emergency_contact_name" = $3,
@@ -102,14 +103,16 @@ async function markOnboardingCompleteByEmail(email: string) {
       throw new Error(`Unable to find verified test user ${email}`);
     }
     await insertCurrentSailingCardOnboardingAcceptance({
-      pool,
+      pool: client,
       userAgent: 'e2e-admin-hub',
       userId,
     });
-    await pool.query('COMMIT');
+    await client.query('COMMIT');
   } catch (error) {
-    await pool.query('ROLLBACK');
+    await client.query('ROLLBACK');
     throw error;
+  } finally {
+    client.release();
   }
 }
 

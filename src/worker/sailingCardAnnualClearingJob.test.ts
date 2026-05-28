@@ -25,6 +25,7 @@ describe('registerSailingCardAnnualClearingScheduler', () => {
 
     await registerSailingCardAnnualClearingScheduler(queue);
 
+    expect(queue.upsertJobScheduler).toHaveBeenCalledTimes(1);
     expect(queue.upsertJobScheduler).toHaveBeenCalledWith(
       SAILING_CARD_ANNUAL_CLEARING_SCHEDULER_ID,
       { pattern: '0 0 0 15 7 *', tz: 'America/New_York' },

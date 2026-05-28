@@ -296,7 +296,7 @@ export function SiteHeader(props: SiteHeaderProps) {
     search ? `${pathname}?${search}` : pathname
   );
   const loginHref = authHrefWithCallback('/login', authCallbackUrl);
-  const signupHref = '/signup';
+  const signupHref = authHrefWithCallback('/signup', authCallbackUrl);
 
   function closeMobile() {
     setMobileMenuOpen(false);

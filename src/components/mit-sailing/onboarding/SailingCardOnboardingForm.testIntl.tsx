@@ -26,8 +26,16 @@ const formatterFor = (
   return chunks.membership;
 };
 
+type Translator = {
+  (key: string, values?: Record<string, number | string>): string;
+  rich: (
+    key: string,
+    chunks: Record<string, (children: React.ReactNode) => React.ReactNode>
+  ) => React.ReactNode[];
+};
+
 export function useOnboardingTestTranslations() {
-  const translate = (
+  const translate = ((
     key: string,
     values: Record<string, number | string> = {}
   ) => {
@@ -36,7 +44,7 @@ export function useOnboardingTestTranslations() {
       message = message.replaceAll(`{${name}}`, String(value));
     }
     return message;
-  };
+  }) as Translator;
   translate.rich = (
     key: string,
     chunks: Record<string, (children: React.ReactNode) => React.ReactNode>

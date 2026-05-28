@@ -163,7 +163,7 @@ export function SiteAlertsBanner(props: {
               ? t('alerts_toggle_expand_aria')
               : t('alerts_toggle_collapse_aria')
           }
-          className="flex shrink-0 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-md border border-transparent px-3 py-1.5 text-xs leading-tight font-semibold !text-foreground transition-colors hover:bg-foreground/[0.06] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:min-w-[4.5rem]"
+          className="flex shrink-0 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-md border border-transparent px-3 py-1.5 text-xs leading-tight font-semibold text-foreground! transition-colors hover:bg-foreground/[0.06] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:min-w-[4.5rem]"
           data-expanded={(!collapsed).toString()}
           type="button"
           onClick={toggleCollapsed}
@@ -178,7 +178,7 @@ export function SiteAlertsBanner(props: {
               strokeWidth={2}
             />
           </span>
-          <span aria-hidden className="leading-tight !text-foreground">
+          <span aria-hidden className="leading-tight text-foreground!">
             {collapsed ? t('alerts_show_more') : t('alerts_show_less')}
           </span>
         </button>

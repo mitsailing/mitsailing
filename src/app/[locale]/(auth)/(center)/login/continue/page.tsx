@@ -18,8 +18,12 @@ export default async function SignInContinuePage(
   setRequestLocale(locale);
 
   const searchParams = await props.searchParams;
+  const rawCallbackUrl = searchParams.callbackUrl;
+  const normalizedCallbackUrl = Array.isArray(rawCallbackUrl)
+    ? rawCallbackUrl[0]
+    : rawCallbackUrl;
   const callbackUrl = safeAuthCallbackUrl(
-    searchParams.callbackUrl,
+    normalizedCallbackUrl,
     getI18nPath('/', locale)
   );
 

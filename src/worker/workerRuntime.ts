@@ -31,10 +31,16 @@ export async function startWorkerRuntime(
   });
   const queue = new Queue(DEFAULT_QUEUE_NAME, { connection });
 
-  await registerLegacyMysqlSyncScheduler(queue);
-  await registerEventPaymentDailyNotificationScheduler(queue);
-  await registerSailingCardAnnualClearingScheduler(queue);
-  await reconcileCmsMediaProcessingJobs(queue, options.now ?? new Date());
+  try {
+    await registerLegacyMysqlSyncScheduler(queue);
+    await registerEventPaymentDailyNotificationScheduler(queue);
+    await registerSailingCardAnnualClearingScheduler(queue);
+    await reconcileCmsMediaProcessingJobs(queue, options.now ?? new Date());
+  } catch (error) {
+    await queue.close();
+    await connection.quit();
+    throw error;
+  }
 
   const worker = new Worker(
     DEFAULT_QUEUE_NAME,

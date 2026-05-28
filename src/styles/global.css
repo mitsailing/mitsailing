@@ -31,37 +31,35 @@
     color: var(--foreground) !important;
   }
 
-  @media (prefers-color-scheme: dark) {
-    .bg-card {
-      background-color: #18181b !important;
-    }
+  .dark .bg-card {
+    background-color: #18181b !important;
+  }
 
-    [data-site-header]
-      :is(
-        nav a,
-        nav button,
-        [data-site-header-auth] a,
-        [data-site-header-auth] button
-      ) {
-      color: #fafafa !important;
-    }
+  .dark [data-site-header]
+    :is(
+      nav a,
+      nav button,
+      [data-site-header-auth] a,
+      [data-site-header-auth] button
+    ) {
+    color: #fafafa !important;
+  }
 
-    [data-conditions-bar] a {
-      color: #fafafa !important;
-    }
+  .dark [data-conditions-bar] a {
+    color: #fafafa !important;
+  }
 
-    input,
-    textarea,
-    select,
-    [data-variant='link'] {
-      color: #fafafa !important;
-    }
+  .dark input,
+  .dark textarea,
+  .dark select,
+  .dark [data-variant='link'] {
+    color: #fafafa !important;
+  }
 
-    input::placeholder,
-    textarea::placeholder {
-      color: #a1a1aa !important;
-      opacity: 1;
-    }
+  .dark input::placeholder,
+  .dark textarea::placeholder {
+    color: #a1a1aa !important;
+    opacity: 1;
   }
 
   .cms-rich-text {
