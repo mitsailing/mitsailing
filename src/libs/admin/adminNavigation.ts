@@ -28,6 +28,16 @@ export const ADMIN_SITE_NAV_ITEMS: AdminNavItem[] = [
     permissions: [Permission.USERS_VIEW],
   },
   {
+    href: '/admin/cards',
+    labelKey: 'nav_cards',
+    match: 'prefix',
+    permissions: [
+      Permission.CARDS_REVIEW,
+      Permission.CARDS_APPROVE,
+      Permission.CARDS_ASSIGN_NUMBER,
+    ],
+  },
+  {
     href: '/admin/pavilion-reservations',
     labelKey: 'nav_pavilion_reservations',
     match: 'prefix',

@@ -16,7 +16,10 @@ import {
   EmailChangeRequestedNoticePlaintext,
   EmailChangeRequestedNoticeTemplate,
 } from '../../../emails/email-change-requested';
-import { replaceAuthEmailValues } from '../../../emails/email-styles';
+import {
+  otpPlainTextAutofillBlock,
+  replaceAuthEmailValues,
+} from '../../../emails/email-styles';
 import { PasswordChangedNoticeTemplate } from '../../../emails/password-changed';
 import { PasswordResetEmailTemplate } from '../../../emails/password-reset';
 import {
@@ -58,18 +61,27 @@ function verificationCodeText(params: {
   purpose: 'verify-email' | 'reset-password' | 'change-email';
 }): string {
   if (params.purpose === 'reset-password') {
-    return replaceAuthEmailValues(params.copy.reset_password_text, {
-      code: params.code,
-    });
+    return [
+      replaceAuthEmailValues(params.copy.reset_password_text, {
+        code: params.code,
+      }),
+      otpPlainTextAutofillBlock(params.code),
+    ].join('\n\n');
   }
 
   if (params.purpose === 'change-email') {
-    return replaceAuthEmailValues(params.copy.change_email_text, {
-      code: params.code,
-    });
+    return [
+      replaceAuthEmailValues(params.copy.change_email_text, {
+        code: params.code,
+      }),
+      otpPlainTextAutofillBlock(params.code),
+    ].join('\n\n');
   }
 
-  return replaceAuthEmailValues(params.copy.verify_text, { code: params.code });
+  return [
+    replaceAuthEmailValues(params.copy.verify_text, { code: params.code }),
+    otpPlainTextAutofillBlock(params.code),
+  ].join('\n\n');
 }
 
 /**

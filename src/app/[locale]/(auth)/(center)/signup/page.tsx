@@ -12,7 +12,9 @@ import { SignUpForm } from './SignUpForm';
 
 type SignUpPageProps = {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ callbackUrl?: string }>;
+  searchParams: Promise<{
+    callbackUrl?: string | string[];
+  }>;
 };
 
 export async function generateMetadata(
@@ -31,9 +33,12 @@ export default async function SignUpPage(props: SignUpPageProps) {
   const { locale } = await props.params;
   setRequestLocale(locale);
   const searchParams = await props.searchParams;
-  const callbackUrl = safeAuthCallbackUrl(
-    searchParams.callbackUrl,
-    getI18nPath('/', locale)
+  const rawCallbackUrl = searchParams.callbackUrl;
+  const normalizedCallbackUrl =
+    typeof rawCallbackUrl === 'string' ? rawCallbackUrl : rawCallbackUrl?.[0];
+  const callbackUrl = authHrefWithCallback(
+    getI18nPath('/onboarding', locale),
+    safeAuthCallbackUrl(normalizedCallbackUrl, '')
   );
   await redirectIfAuthenticated(locale, callbackUrl);
 

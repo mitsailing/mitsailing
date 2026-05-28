@@ -45,6 +45,7 @@ describe('account email notices', () => {
     expect(payload?.to).toBe('new-sailor@example.com');
     expect(payload?.subject).toMatch(/confirm/i);
     expect(payload?.text).toContain('verification code is 123456');
+    expect(payload?.text).toContain('\n\n123456\n\n@mitsailing.com #123456');
     expect(payload?.html).toContain('Thanks for signing up');
   });
 
@@ -62,6 +63,7 @@ describe('account email notices', () => {
     const [payload] = vi.mocked(sendTransactionalEmail).mock.calls[0] ?? [];
 
     expect(payload?.text).toContain('sign-in code is 123456');
+    expect(payload?.text).toContain('\n\n123456\n\n@mitsailing.com #123456');
     expect(payload?.text).not.toContain('{code}');
   });
 
@@ -102,6 +104,7 @@ describe('account email notices', () => {
     expect(payload?.to).toBe('reset@example.com');
     expect(payload?.subject).toMatch(/reset/i);
     expect(payload?.text).toContain('password reset code is 654321');
+    expect(payload?.text).toContain('\n\n654321\n\n@mitsailing.com #654321');
   });
 
   it('email-change persona receives a confirmation code at the new email', async () => {
@@ -120,6 +123,7 @@ describe('account email notices', () => {
     expect(payload?.to).toBe('next@example.com');
     expect(payload?.subject).toMatch(/new email/i);
     expect(payload?.text).toContain('email change confirmation code is 987654');
+    expect(payload?.text).toContain('\n\n987654\n\n@mitsailing.com #987654');
   });
 
   it('throws when an unsupported OTP type reaches the exhaustive branch', async () => {

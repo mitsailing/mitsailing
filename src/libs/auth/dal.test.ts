@@ -1,14 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  sailingCardAgreement,
+  sailingCardAgreementHash,
+} from '@/libs/mit-sailing/sailingCardAgreement';
 
-const { authGetSession, headers, redirect, syncSentryUserFromSession } =
-  vi.hoisted(() => ({
-    authGetSession: vi.fn(),
-    headers: vi.fn(),
-    redirect: vi.fn((href: string) => {
-      throw new Error(`NEXT_REDIRECT:${href}`);
-    }),
-    syncSentryUserFromSession: vi.fn(),
-  }));
+const {
+  authGetSession,
+  headers,
+  prismaUserFindUnique,
+  redirect,
+  syncSentryUserFromSession,
+} = vi.hoisted(() => ({
+  authGetSession: vi.fn(),
+  headers: vi.fn(),
+  prismaUserFindUnique: vi.fn(),
+  redirect: vi.fn((href: string) => {
+    throw new Error(`NEXT_REDIRECT:${href}`);
+  }),
+  syncSentryUserFromSession: vi.fn(),
+}));
 
 vi.mock('server-only', () => ({}));
 
@@ -46,6 +56,14 @@ vi.mock('@/libs/auth', () => ({
   },
 }));
 
+vi.mock('@/libs/DB', () => ({
+  prisma: {
+    user: {
+      findUnique: prismaUserFindUnique,
+    },
+  },
+}));
+
 vi.mock('@/libs/sentry-user-server', () => ({
   syncSentryUserFromSession,
 }));
@@ -77,14 +95,54 @@ function createSession(user: TestSession['user']): TestSession {
   };
 }
 
+const currentOnboardingLegalAcceptance = {
+  agreementHash: sailingCardAgreementHash(),
+  agreementVersion: sailingCardAgreement.version,
+  source: 'SAILING_CARD_ONBOARDING',
+  userId: 'user-1',
+};
+
 beforeEach(() => {
+  vi.useRealTimers();
   authGetSession.mockReset();
   headers.mockReset();
+  prismaUserFindUnique.mockReset();
   redirect.mockClear();
   syncSentryUserFromSession.mockClear();
 
   headers.mockResolvedValue(new Headers([['x-auth-test', '1']]));
   authGetSession.mockResolvedValue(null);
+  prismaUserFindUnique.mockResolvedValue({
+    emergencyContactName: 'Grace Hopper',
+    emergencyContactPhone: '+442079460958',
+    legalAgreementAcceptances: [
+      {
+        acceptedAt: new Date('2026-05-20T12:01:00-04:00'),
+        agreementHash: sailingCardAgreementHash(),
+        agreementVersion: sailingCardAgreement.version,
+      },
+    ],
+    phone: '+16175550100',
+    sailingCardRequests: [
+      {
+        cardYear: 2026,
+        legalAgreementAcceptance: currentOnboardingLegalAcceptance,
+        status: 'pending',
+        userId: 'user-1',
+        user: {
+          emergencyContactName: 'Grace Hopper',
+          emergencyContactPhone: '+442079460958',
+          phone: '+16175550100',
+        },
+      },
+    ],
+    sailingCardExpiresOn: null,
+    sailingCardIssuedAt: null,
+    sailingCardNumber: null,
+    sailingCardRequestedAt: new Date('2026-05-20T12:00:00-04:00'),
+    sailingCardSwimAgreementInitials: 'AK',
+    sailingCardYear: null,
+  });
 });
 
 describe('getSession', () => {
@@ -233,6 +291,7 @@ describe('requirePermission', () => {
     );
 
     expect(redirect).not.toHaveBeenCalled();
+    expect(prismaUserFindUnique).not.toHaveBeenCalled();
   });
 
   it('fails closed for comma-separated role strings', async () => {
@@ -327,6 +386,28 @@ describe('getCurrentUser', () => {
       unconfirmedEmail: null,
     });
   });
+
+  it('preserves string current user profile fields', async () => {
+    authGetSession.mockResolvedValue(
+      createSession({
+        email: 'sailor@example.com',
+        appRole: 'user',
+        id: 'user-1',
+        name: 'Ada Sailor',
+        role: 'user',
+        unconfirmedEmail: 'new-sailor@example.com',
+      })
+    );
+    const { getCurrentUser } = await import('@/libs/auth/dal');
+
+    await expect(getCurrentUser()).resolves.toEqual({
+      email: 'sailor@example.com',
+      id: 'user-1',
+      name: 'Ada Sailor',
+      role: 'user',
+      unconfirmedEmail: 'new-sailor@example.com',
+    });
+  });
 });
 
 describe('requireCurrentUser', () => {
@@ -359,6 +440,180 @@ describe('requireCurrentUser', () => {
       role: 'admin',
       unconfirmedEmail: 'new-admin@example.com',
     });
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it('redirects member-facing flows to onboarding when yearly state is missing', async () => {
+    authGetSession.mockResolvedValue(
+      createSession({
+        email: 'sailor@example.com',
+        appRole: 'user',
+        id: 'user-1',
+        role: 'user',
+      })
+    );
+    prismaUserFindUnique.mockResolvedValue({
+      emergencyContactName: null,
+      emergencyContactPhone: null,
+      phone: null,
+      sailingCardRequests: [],
+      sailingCardExpiresOn: null,
+      sailingCardIssuedAt: null,
+      sailingCardNumber: null,
+      sailingCardRequestedAt: null,
+      sailingCardSwimAgreementInitials: null,
+      sailingCardYear: null,
+    });
+    const { requireCurrentUser } = await import('@/libs/auth/dal');
+
+    await expect(requireCurrentUser('en', '/profile/account')).rejects.toThrow(
+      'NEXT_REDIRECT:/onboarding?callbackUrl=%2Fprofile%2Faccount'
+    );
+
+    expect(redirect).toHaveBeenCalledWith(
+      '/onboarding?callbackUrl=%2Fprofile%2Faccount'
+    );
+  });
+
+  it('redirects to sign-in when the session user was deleted', async () => {
+    authGetSession.mockResolvedValue(
+      createSession({
+        email: 'sailor@example.com',
+        appRole: 'user',
+        id: 'deleted-user',
+        role: 'user',
+      })
+    );
+    prismaUserFindUnique.mockResolvedValue(null);
+    const { requireCurrentUser } = await import('@/libs/auth/dal');
+
+    await expect(requireCurrentUser('en', '/profile/account')).rejects.toThrow(
+      'NEXT_REDIRECT:/login?callbackUrl=%2Fprofile%2Faccount'
+    );
+
+    expect(redirect).toHaveBeenCalledWith(
+      '/login?callbackUrl=%2Fprofile%2Faccount'
+    );
+  });
+
+  it('redirects current-card users to onboarding when contact fields are missing', async () => {
+    authGetSession.mockResolvedValue(
+      createSession({
+        email: 'sailor@example.com',
+        appRole: 'user',
+        id: 'user-1',
+        role: 'user',
+      })
+    );
+    prismaUserFindUnique.mockResolvedValue({
+      emergencyContactName: null,
+      emergencyContactPhone: '+442079460958',
+      phone: '+16175550100',
+      sailingCardRequests: [],
+      sailingCardExpiresOn: new Date('2027-07-15T04:00:00.000Z'),
+      sailingCardIssuedAt: new Date('2026-08-01T16:00:00.000Z'),
+      sailingCardNumber: 61,
+      sailingCardRequestedAt: null,
+      sailingCardSwimAgreementInitials: 'AK',
+      sailingCardYear: 2027,
+    });
+    const { requireCurrentUser } = await import('@/libs/auth/dal');
+
+    await expect(requireCurrentUser('en', '/profile/account')).rejects.toThrow(
+      'NEXT_REDIRECT:/onboarding?callbackUrl=%2Fprofile%2Faccount'
+    );
+  });
+
+  it('allows member-facing flows with current-year request evidence', async () => {
+    authGetSession.mockResolvedValue(
+      createSession({
+        email: 'sailor@example.com',
+        appRole: 'user',
+        id: 'user-1',
+        role: 'user',
+      })
+    );
+    prismaUserFindUnique.mockResolvedValue({
+      sailingCardRequests: [
+        {
+          cardYear: 2026,
+          legalAgreementAcceptance: currentOnboardingLegalAcceptance,
+          status: 'pending',
+          userId: 'user-1',
+          user: {
+            emergencyContactName: 'Grace Hopper',
+            emergencyContactPhone: '+442079460958',
+            phone: '+16175550100',
+          },
+        },
+      ],
+    });
+    const { requireCurrentUser } = await import('@/libs/auth/dal');
+
+    await expect(requireCurrentUser('en', '/profile/account')).resolves.toEqual(
+      {
+        email: 'sailor@example.com',
+        id: 'user-1',
+        name: null,
+        role: 'user',
+        unconfirmedEmail: null,
+      }
+    );
+  });
+
+  it('redirects stale prior-year pending requests after the annual cutoff', async () => {
+    authGetSession.mockResolvedValue(
+      createSession({
+        email: 'sailor@example.com',
+        appRole: 'user',
+        id: 'user-1',
+        role: 'user',
+      })
+    );
+    prismaUserFindUnique.mockResolvedValue({
+      sailingCardRequests: [
+        {
+          cardYear: 2026,
+          legalAgreementAcceptance: currentOnboardingLegalAcceptance,
+          status: 'pending',
+          userId: 'user-1',
+          user: {
+            emergencyContactName: 'Grace Hopper',
+            emergencyContactPhone: '+442079460958',
+            phone: '+16175550100',
+          },
+        },
+      ],
+    });
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-15T00:01:00-04:00'));
+    const { requireCurrentUser } = await import('@/libs/auth/dal');
+
+    await expect(requireCurrentUser('en', '/profile/account')).rejects.toThrow(
+      'NEXT_REDIRECT:/onboarding?callbackUrl=%2Fprofile%2Faccount'
+    );
+  });
+
+  it('does not redirect the onboarding page to itself', async () => {
+    authGetSession.mockResolvedValue(
+      createSession({
+        email: 'sailor@example.com',
+        appRole: 'user',
+        id: 'user-1',
+        role: 'user',
+      })
+    );
+    const { requireCurrentUser } = await import('@/libs/auth/dal');
+
+    await expect(requireCurrentUser('en', '/onboarding')).resolves.toEqual({
+      email: 'sailor@example.com',
+      id: 'user-1',
+      name: null,
+      role: 'user',
+      unconfirmedEmail: null,
+    });
+
+    expect(prismaUserFindUnique).not.toHaveBeenCalled();
     expect(redirect).not.toHaveBeenCalled();
   });
 });

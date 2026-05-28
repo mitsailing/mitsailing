@@ -5,6 +5,7 @@ import {
   EventDetailPageKind,
   EventRegistrationMode,
   EventRegistrationStatus,
+  EventSailingCardRequirement,
 } from '@/generated/prisma/enums';
 import {
   formatNyDateTimeLocalInput,
@@ -218,6 +219,17 @@ const eventRegistrationModeSchema = z
   .default('')
   .transform((value) => value || EventRegistrationMode.standard);
 
+const eventSailingCardRequirementSchema = z
+  .union([
+    z.enum([
+      EventSailingCardRequirement.NONE,
+      EventSailingCardRequirement.CURRENT_CARD,
+    ]),
+    z.literal(''),
+  ])
+  .default('')
+  .transform((value) => value || EventSailingCardRequirement.NONE);
+
 const eventAnswerTypeSchema = z.enum([
   EventAnswerType.text,
   EventAnswerType.select,
@@ -264,6 +276,7 @@ export const eventAdminBasicsFormSchema = z
     registrationMode: eventRegistrationModeSchema,
     externalRegistrationUrl: z.string().trim().default(''),
     externalEntriesUrl: z.string().trim().default(''),
+    sailingCardRequirement: eventSailingCardRequirementSchema,
     faqVisible: z.boolean().default(false),
     faqContent: eventAdminPublicContentSchema,
     noticeOfRaceVisible: z.boolean().default(false),
@@ -528,6 +541,7 @@ export function rawEventBasicsFromFormData(formData: FormData): unknown {
     registrationMode: formString(formData, 'registrationMode'),
     externalRegistrationUrl: formString(formData, 'externalRegistrationUrl'),
     externalEntriesUrl: formString(formData, 'externalEntriesUrl'),
+    sailingCardRequirement: formString(formData, 'sailingCardRequirement'),
     faqVisible: formCheckbox(formData, 'faqVisible'),
     faqContent: formString(formData, 'faqContent'),
     noticeOfRaceVisible: formCheckbox(formData, 'noticeOfRaceVisible'),

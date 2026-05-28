@@ -27,15 +27,11 @@ beforeEach(() => {
 
 async function fillSignUpForm(props: {
   email: string;
-  name?: string;
   password: string;
   passwordConfirmation?: string;
 }) {
   const user = userEvent.setup();
 
-  if (props.name) {
-    await user.type(screen.getByLabelText('Name (optional)'), props.name);
-  }
   await user.type(screen.getByLabelText('Email'), props.email);
   await user.type(screen.getByLabelText('Password'), props.password);
   await user.type(
@@ -48,30 +44,30 @@ async function fillSignUpForm(props: {
 
 describe('SignUpForm', () => {
   it('create account and continue to email verification', async () => {
-    render(<SignUpForm callbackUrl="/fleet" />);
+    render(<SignUpForm callbackUrl="/onboarding" />);
 
     const user = await fillSignUpForm({
       email: 'new-sailor@mit.edu',
-      name: 'New Sailor',
       password: 'correct-password',
     });
     await user.click(screen.getByRole('button', { name: 'Sign up' }));
 
+    expect(screen.queryByLabelText(/name/i)).not.toBeInTheDocument();
     expect(authClientMock.signUp.email).toHaveBeenCalledWith({
-      callbackURL: '/fleet',
+      callbackURL: '/onboarding',
       email: 'new-sailor@mit.edu',
-      name: 'New Sailor',
+      name: 'new-sailor',
       password: 'correct-password',
     });
     expect(await screen.findByRole('status')).toHaveTextContent(
       'Check your email for a verification code.'
     );
     expect(componentTestRouter().push).toHaveBeenCalledWith(
-      '/verify-email?email=new-sailor%40mit.edu&codeSent=1&callbackUrl=%2Ffleet'
+      '/verify-email?email=new-sailor%40mit.edu&codeSent=1&callbackUrl=%2Fonboarding'
     );
   });
 
-  it('create account with email name when name is blank', async () => {
+  it('creates account with email local part as temporary display name', async () => {
     render(<SignUpForm callbackUrl="/fleet" />);
 
     const user = await fillSignUpForm({
@@ -93,7 +89,6 @@ describe('SignUpForm', () => {
 
     const user = await fillSignUpForm({
       email: '  Sailor@MIT.EDU ',
-      name: 'New Sailor',
       password: 'correct-password',
     });
     await user.click(screen.getByRole('button', { name: 'Sign up' }));
@@ -101,7 +96,7 @@ describe('SignUpForm', () => {
     expect(authClientMock.signUp.email).toHaveBeenCalledWith({
       callbackURL: '/fleet',
       email: 'sailor@mit.edu',
-      name: 'New Sailor',
+      name: 'sailor',
       password: 'correct-password',
     });
     expect(

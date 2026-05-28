@@ -8,6 +8,7 @@ import type {
   EventAddressPreset,
   EventPaymentStatus as EventPaymentStatusValue,
   EventRegistrationStatus as EventRegistrationStatusValue,
+  EventSailingCardRequirement,
 } from '@/generated/prisma/enums';
 import { ASSIGNABLE_EVENT_ADMIN_ROLES } from '@/libs/admin/events/eventAdminSchemas';
 import type { AdminEventAccessMode } from '@/libs/admin/events/zenstackEventAccess';
@@ -110,6 +111,7 @@ export type AdminEventEditorDto = {
   registrationMode?: AdminEventRegistrationMode | null;
   externalRegistrationUrl?: string | null;
   externalEntriesUrl?: string | null;
+  sailingCardRequirement: EventSailingCardRequirement;
   faqVisible?: boolean;
   faqContent?: string;
   noticeOfRaceVisible?: boolean;
@@ -698,6 +700,7 @@ export async function getAdminEventEditorDataBySlug(options: {
             registrationMode: true,
             externalRegistrationUrl: true,
             externalEntriesUrl: true,
+            sailingCardRequirement: true,
             faqVisible: true,
             faqContent: true,
             noticeOfRaceVisible: true,

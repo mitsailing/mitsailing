@@ -48,6 +48,64 @@ enum ThemePreference {
   @@map("theme_preference")
 }
 
+enum SailingAffiliation {
+  MIT_STUDENT
+  MIT_FACULTY
+  MIT_STAFF
+  MIT_ALUM
+  MIT_FAMILY
+  MIT_AFFILIATE
+  WELLESLEY
+  BRANDEIS
+  NORTHEASTERN
+  WINSOR
+  BROOKS
+  NROTC
+  OTHER_STUDENT
+  OTHER_NON_STUDENT
+  NON_MIT
+
+  @@map("sailing_affiliation")
+}
+
+enum MitDataWarehousePersonType {
+  CURRENT_STUDENT
+  CURRENT_STAFF
+  OTHER
+
+  @@map("mit_data_warehouse_person_type")
+}
+
+enum EventSailingCardRequirement {
+  NONE
+  CURRENT_CARD
+
+  @@map("event_sailing_card_requirement")
+}
+
+enum LegalAgreementAcceptanceSource {
+  SAILING_CARD_ONBOARDING
+  EVENT_REGISTRATION
+
+  @@map("legal_agreement_acceptance_source")
+}
+
+enum SailingCardRequestStatus {
+  pending
+  approved
+  cancelled
+
+  @@map("sailing_card_request_status")
+}
+
+enum SailingCardType {
+  normal
+  racing
+  team_racing
+
+  @@map("sailing_card_type")
+}
+
 model User {
   id               String          @id
   appRole          AppRole         @default(user) @map("app_role")
@@ -62,6 +120,20 @@ model User {
   phone            String?         @map("phone")
   emergencyContactName String?     @map("emergency_contact_name")
   emergencyContactPhone String?    @map("emergency_contact_phone")
+  firstName        String?         @map("first_name")
+  lastName         String?         @map("last_name")
+  sailingAffiliation SailingAffiliation? @map("sailing_affiliation")
+  mitId            String?         @unique @map("mit_id")
+  mitClassYear     String?         @map("mit_class_year")
+  mitDataWarehouseVerifiedAt DateTime? @map("mit_data_warehouse_verified_at")
+  sailingCardNumber Int?          @map("sailing_card_number")
+  sailingCardYear  Int?           @map("sailing_card_year")
+  sailingCardExpiresOn DateTime?  @db.Date @map("sailing_card_expires_on")
+  sailingCardRequestedAt DateTime? @map("sailing_card_requested_at")
+  sailingCardIssuedAt DateTime?   @map("sailing_card_issued_at")
+  sailingCardIssuedByUserId String? @map("sailing_card_issued_by_user_id")
+  sailingCardSwimAgreementInitials String? @map("sailing_card_swim_agreement_initials")
+  sailingCardSwimAgreementInitialedAt DateTime? @map("sailing_card_swim_agreement_initialed_at")
   image            String?
   createdAt        DateTime        @default(now()) @map("created_at")
   updatedAt        DateTime        @updatedAt @map("updated_at")
@@ -80,8 +152,13 @@ model User {
   impersonatedUserAudits UserAudit[]        @relation("UserAuditImpersonatedUser")
   siteTextOverrides      SiteTextOverride[]
   cmsMediaAssets         CmsMediaAsset[]    @relation("CmsMediaUploadedBy")
+  sailingCardIssuedBy    User?              @relation("SailingCardIssuer", fields: [sailingCardIssuedByUserId], references: [id], onDelete: SetNull)
+  sailingCardsIssued     User[]             @relation("SailingCardIssuer")
 
   eventRegistrations                  EventRegistration[]
+  legalAgreementAcceptances           LegalAgreementAcceptance[]
+  sailingCardRequests                 SailingCardRequest[]
+  approvedSailingCardRequests         SailingCardRequest[]           @relation("SailingCardRequestApprover")
   eventPayments                       EventPayment[]
   manuallyHandledEventPayments        EventPayment[]                  @relation("EventPaymentManualHandledBy")
   eventComments                       EventComment[]
@@ -94,7 +171,26 @@ model User {
   newsletterEvents                    NewsletterEvent[]             @relation("NewsletterEventActor")
   emailMessages                       EmailMessage[]
 
+  @@unique([sailingCardYear, sailingCardNumber])
+  @@index([sailingCardRequestedAt])
+  @@index([sailingCardExpiresOn])
+  @@index([sailingAffiliation])
   @@map("user")
+}
+
+model MitDataWarehousePerson {
+  mitId      String                     @id @map("mit_id")
+  firstName  String                     @map("first_name")
+  lastName   String                     @map("last_name")
+  kerberos   String?                    @unique
+  classYear  String?                    @map("class_year")
+  personType MitDataWarehousePersonType @map("person_type")
+  loadedAt   DateTime                   @map("loaded_at")
+  createdAt  DateTime                   @default(now()) @map("created_at")
+  updatedAt  DateTime                   @updatedAt @map("updated_at")
+
+  @@index([personType])
+  @@map("mit_data_warehouse_people")
 }
 
 model Session {
@@ -175,6 +271,64 @@ model AuditLog {
   @@index([action])
   @@index([createdAt])
   @@map("audit_log")
+}
+
+model LegalAgreementAcceptance {
+  id               String                         @id @default(cuid())
+  userId           String                         @map("user_id")
+  source           LegalAgreementAcceptanceSource
+  sourceRecordId   String?                        @map("source_record_id")
+  agreementLabel   String                         @map("agreement_label") @db.Text
+  agreementVersion String                         @map("agreement_version") @db.VarChar(40)
+  agreementHash    String                         @map("agreement_hash") @db.VarChar(64)
+  acceptedAt       DateTime                       @map("accepted_at")
+  ipAddress        String?                        @map("ip_address") @db.VarChar(80)
+  userAgent        String?                        @map("user_agent") @db.Text
+  createdAt        DateTime                       @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sailingCardRequests SailingCardRequest[]
+
+  @@index([userId, source, acceptedAt])
+  @@index([source, sourceRecordId])
+  @@deny('update,delete', true)
+  @@allow('read', auth() != null && userId == auth().id)
+  @@allow('read', auth().appRole == 'admin' || auth().appRole == 'dock_master')
+  @@map("legal_agreement_acceptances")
+}
+
+model SailingCardRequest {
+  id                         String                   @id @default(cuid())
+  userId                     String                   @map("user_id")
+  cardYear                   Int                      @map("card_year")
+  status                     SailingCardRequestStatus @default(pending)
+  cardType                   SailingCardType          @default(normal) @map("card_type")
+  legalAgreementAcceptanceId String                   @map("legal_agreement_acceptance_id")
+  requestedAt                DateTime                 @map("requested_at")
+  approvedAt                 DateTime?                @map("approved_at")
+  approvedByUserId           String?                  @map("approved_by_user_id")
+  issuedCardNumber           Int?                     @map("issued_card_number")
+  firstName                  String                   @map("first_name")
+  lastName                   String                   @map("last_name")
+  sailingAffiliation         SailingAffiliation       @map("sailing_affiliation")
+  mitId                      String?                  @map("mit_id")
+  mitClassYear               String?                  @map("mit_class_year")
+  dateOfBirth                DateTime                 @db.Date @map("date_of_birth")
+  phone                      String                   @map("phone")
+  emergencyContactName       String                   @map("emergency_contact_name")
+  emergencyContactPhone      String                   @map("emergency_contact_phone")
+  createdAt                  DateTime                 @default(now()) @map("created_at")
+  updatedAt                  DateTime                 @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  legalAgreementAcceptance LegalAgreementAcceptance @relation(fields: [legalAgreementAcceptanceId], references: [id], onDelete: Restrict)
+  approvedBy User? @relation("SailingCardRequestApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, cardYear])
+  @@index([cardYear, status, requestedAt])
+  @@index([legalAgreementAcceptanceId])
+  @@index([approvedByUserId])
+  @@map("sailing_card_requests")
 }
 
 enum UserAuditAction {
@@ -626,6 +780,7 @@ model Event {
   isPublished       Boolean              @map("is_published")
   paymentsEnabled   Boolean              @default(false) @map("payments_enabled")
   paymentDeadlineAt DateTime?            @map("payment_deadline_at")
+  sailingCardRequirement EventSailingCardRequirement @default(NONE) @map("sailing_card_requirement")
   addressPreset     EventAddressPreset   @default(pavilion) @map("address_preset")
   addressName       String?              @map("address_name")
   addressLine1      String?              @map("address_line1")
@@ -725,6 +880,7 @@ model EventRegistration {
   @@index([eventId])
   @@index([eventEntryFeeId])
   @@index([userId])
+  @@unique([id, eventId, userId])
   @@deny('create', event.registrationMode != 'standard')
   @@deny('create,update', phone == '')
   @@deny('create,update', eventEntryFee != null && eventEntryFee.eventId != eventId)
@@ -825,6 +981,7 @@ model EventEntryFee {
   payments      EventPayment[]
 
   @@index([eventId])
+  @@unique([eventId, id])
   @@allow('read', check(event, 'read'))
   @@allow('create,update,delete', check(event, 'update'))
   @@map("event_entry_fees")
@@ -874,9 +1031,9 @@ model EventPayment {
   updatedAt               DateTime           @updatedAt @map("updated_at")
 
   event                 Event                      @relation(fields: [eventId], references: [id], onDelete: Restrict)
-  registration          EventRegistration          @relation(fields: [registrationId], references: [id], onDelete: Restrict)
+  registration          EventRegistration          @relation(fields: [registrationId, eventId, userId], references: [id, eventId, userId], onDelete: Restrict)
   user                  User                       @relation(fields: [userId], references: [id], onDelete: Restrict)
-  selectedFee           EventEntryFee              @relation(fields: [selectedFeeId], references: [id], onDelete: Restrict)
+  selectedFee           EventEntryFee              @relation(fields: [eventId, selectedFeeId], references: [eventId, id], onDelete: Restrict)
   manualHandledBy       User?                      @relation("EventPaymentManualHandledBy", fields: [manualHandledByUserId], references: [id], onDelete: SetNull)
   notifications         EventPaymentNotification[]
 
@@ -884,6 +1041,7 @@ model EventPayment {
   @@index([userId, createdAt])
   @@index([selectedFeeId])
   @@index([manualHandledByUserId])
+  @@unique([registrationId, eventId, userId])
   @@deny('post-update',
     eventId != before().eventId ||
     registrationId != before().registrationId ||

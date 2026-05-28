@@ -3,7 +3,10 @@ import { EmailLayout } from './email-layout';
 import {
   assertSixDigitCode,
   codeBox,
+  domainBoundCode,
+  domainBoundOtpCodeLine,
   heading,
+  otpPlainTextAutofillBlock,
   paragraph,
   replaceAuthEmailValues,
   section,
@@ -36,7 +39,7 @@ export function SignInOtpEmailPlaintext(props: SignInOtpEmailProps): string {
   return [
     props.copy.sign_in_otp_heading,
     replaceAuthEmailValues(props.copy.sign_in_otp_body, { code: props.code }),
-    `Code: ${props.code}`,
+    otpPlainTextAutofillBlock(props.code),
     replaceAuthEmailValues(
       props.copy.sign_in_otp_expiry
         .replaceAll('<support>', '')
@@ -70,6 +73,9 @@ export function SignInOtpEmailTemplate(props: SignInOtpEmailProps) {
           })}
         </Text>
         <Text style={codeBox}>{props.code}</Text>
+        <Text style={domainBoundCode}>
+          {domainBoundOtpCodeLine(props.code)}
+        </Text>
         <Text style={supportFooter}>
           {supportMessage({
             message: props.copy.sign_in_otp_expiry,

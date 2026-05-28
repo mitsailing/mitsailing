@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import { OtpCodeField } from '@/components/auth/OtpCodeField';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -382,31 +383,17 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
               </div>
             )}
 
-            <div>
-              <Label className="sr-only" htmlFor="code">
-                {t('code_label')}
-              </Label>
-              <Input
-                autoComplete="one-time-code"
-                className="h-14 rounded-full px-8 text-xl md:text-xl"
-                enterKeyHint="done"
-                id="code"
-                inputMode="numeric"
-                maxLength={6}
-                minLength={6}
-                name="code"
-                onChange={(e) => {
-                  setResetCode(
-                    e.target.value.replaceAll(/\D/g, '').slice(0, 6)
-                  );
-                }}
-                pattern="[0-9]{6}"
-                placeholder={t('code_placeholder')}
-                required
-                type="text"
-                value={resetCode}
-              />
-            </div>
+            <OtpCodeField
+              id="code"
+              inputClassName="h-14 rounded-full px-8 text-xl md:text-xl"
+              label={t('code_label')}
+              name="code"
+              onValueChange={setResetCode}
+              pasteButtonClassName="text-muted-foreground hover:text-foreground"
+              pasteLabel={tCommon('paste_code')}
+              placeholder={t('code_placeholder')}
+              value={resetCode}
+            />
 
             <SubmitButton
               className="h-14 w-full rounded-full bg-foreground text-lg font-normal text-background hover:bg-foreground/90"

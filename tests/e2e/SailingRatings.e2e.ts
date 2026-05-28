@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import { Pool } from 'pg';
 import { signInAsAdmin } from '../helpers/e2e-admin-sign-in';
 import { e2ePgConnectionString } from '../helpers/e2e-database-url';
+import { insertCurrentSailingCardOnboardingAcceptance } from '../helpers/e2e-sailing-card-onboarding';
 
 const adminEmail =
   process.env.ADMIN_EMAIL?.trim().toLowerCase() ?? 'admin@example.com';
@@ -24,6 +25,26 @@ async function grantTechRatingForProfileTest() {
   if (!adminId) {
     throw new Error('Seeded admin user missing');
   }
+
+  const user = await pool.query<{ id: string }>(
+    `UPDATE "user"
+     SET "phone" = $2,
+         "emergency_contact_name" = $3,
+         "emergency_contact_phone" = $4,
+         "sailing_card_requested_at" = COALESCE("sailing_card_requested_at", NOW())
+     WHERE "id" = $1
+     RETURNING "id"`,
+    [usernameId, '+16172531234', 'Taylor Test', '+16172534321']
+  );
+  const userId = user.rows[0]?.id;
+  if (!userId) {
+    throw new Error('Seeded profile test user missing');
+  }
+  await insertCurrentSailingCardOnboardingAcceptance({
+    pool,
+    userAgent: 'e2e-sailing-ratings',
+    userId,
+  });
 
   await pool.query(
     `INSERT INTO "user_sailing_ratings"

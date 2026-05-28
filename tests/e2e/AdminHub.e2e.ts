@@ -4,6 +4,7 @@ import type { Page } from '@playwright/test';
 import { Pool } from 'pg';
 import { Env } from '@/libs/Env';
 import { signInAsAdmin } from '../helpers/e2e-admin-sign-in';
+import { insertCurrentSailingCardOnboardingAcceptance } from '../helpers/e2e-sailing-card-onboarding';
 import {
   extractCodeFromMessage,
   findLatestMessageTo,
@@ -79,6 +80,42 @@ async function cleanupByEmail(email: string) {
   }
 }
 
+async function markOnboardingCompleteByEmail(email: string) {
+  const pool = getCleanupPool();
+  if (!pool) {
+    return;
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const user = await client.query<{ id: string }>(
+      `UPDATE "user"
+     SET "phone" = $2,
+         "emergency_contact_name" = $3,
+         "emergency_contact_phone" = $4,
+         "sailing_card_requested_at" = COALESCE("sailing_card_requested_at", NOW())
+     WHERE "email" = $1
+     RETURNING "id"`,
+      [email, '+16172531234', 'Taylor Test', '+16172534321']
+    );
+    const userId = user.rows[0]?.id;
+    if (!userId) {
+      throw new Error(`Unable to find verified test user ${email}`);
+    }
+    await insertCurrentSailingCardOnboardingAcceptance({
+      pool: client,
+      userAgent: 'e2e-admin-hub',
+      userId,
+    });
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 async function signUpWithEmailAndPassword(
   page: Page,
   email: string,
@@ -105,7 +142,8 @@ async function verifyEmailWithLatestCode(page: Page, email: string) {
 async function createVerifiedUser(page: Page, email: string, password: string) {
   await signUpWithEmailAndPassword(page, email, password);
   await verifyEmailWithLatestCode(page, email);
-  await expect.poll(() => new URL(page.url()).pathname).toBe('/');
+  await expect.poll(() => new URL(page.url()).pathname).toBe('/onboarding');
+  await markOnboardingCompleteByEmail(email);
 }
 
 async function expectSignInPage(page: Page) {

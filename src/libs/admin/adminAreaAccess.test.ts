@@ -53,6 +53,7 @@ describe('requireAdminAreaAccess', () => {
     expect(access.navItems.map((item) => item.href)).toEqual([
       '/admin',
       '/admin/users',
+      '/admin/cards',
       '/admin/events',
     ]);
     expect(access.permissions).toContain(Permission.USERS_VIEW);

@@ -100,6 +100,21 @@ CREATE INDEX "event_payments_user_id_created_at_idx" ON "event_payments"("user_i
 CREATE INDEX "event_payments_selected_fee_id_idx" ON "event_payments"("selected_fee_id");
 CREATE INDEX "event_payments_manual_handled_by_user_id_idx" ON "event_payments"("manual_handled_by_user_id");
 CREATE UNIQUE INDEX "event_payments_registration_id_event_id_user_id_key" ON "event_payments"("registration_id", "event_id", "user_id");
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM "event_registrations"
+    GROUP BY "id", "event_id", "user_id"
+    HAVING count(*) > 1
+  ) THEN
+    RAISE EXCEPTION
+      'event_registrations contains duplicate (id, event_id, user_id) rows; remediate rows before creating event_registrations_id_event_id_user_id_key';
+  END IF;
+END
+$$;
+
 CREATE UNIQUE INDEX "event_registrations_id_event_id_user_id_key" ON "event_registrations"("id", "event_id", "user_id");
 
 CREATE UNIQUE INDEX "stripe_webhook_events_stripe_event_id_key" ON "stripe_webhook_events"("stripe_event_id");

@@ -3,6 +3,8 @@ import { EmailLayout } from './email-layout';
 import {
   assertSixDigitCode,
   codeBox,
+  domainBoundCode,
+  domainBoundOtpCodeLine,
   heading,
   paragraph,
   replaceAuthEmailValues,
@@ -46,6 +48,9 @@ export function VerifyEmailTemplate(props: VerifyEmailProps) {
           {replaceAuthEmailValues(props.copy.verify_body, { code: props.code })}
         </Text>
         <Text style={codeBox}>{props.code}</Text>
+        <Text style={domainBoundCode}>
+          {domainBoundOtpCodeLine(props.code)}
+        </Text>
         <Text style={supportFooter}>
           {supportMessage({
             message: props.copy.verify_expiry,

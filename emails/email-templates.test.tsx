@@ -87,6 +87,7 @@ describe('email templates', () => {
     expect(html).toContain('This code expires in 5 minutes');
     expect(html).toContain(`mailto:${SUPPORT_EMAIL}`);
     expect(html).toContain('Thanks for signing up');
+    expect(html).toContain('@mitsailing.com #123456');
   });
 
   it('rejects malformed verification codes', () => {
@@ -113,6 +114,7 @@ describe('email templates', () => {
     expect(html).toContain('sign-in screen');
     expect(html).not.toContain('Thanks for signing up');
     expect(html).toContain(`mailto:${SUPPORT_EMAIL}`);
+    expect(html).toContain('@mitsailing.com #111222');
   });
 
   it('rejects malformed sign-in OTP codes', () => {
@@ -189,6 +191,7 @@ describe('email templates', () => {
     expect(html).toContain('654321');
     expect(html).toContain('choose a new password');
     expect(html).toContain('If you did not request this');
+    expect(html).toContain('@mitsailing.com #654321');
   });
 
   it('rejects malformed password reset codes', () => {
@@ -209,6 +212,7 @@ describe('email templates', () => {
     expect(html).toContain('987654');
     expect(html).toContain('new login email');
     expect(html).toContain(`mailto:${SUPPORT_EMAIL}`);
+    expect(html).toContain('@mitsailing.com #987654');
   });
 
   it('rejects malformed email change confirmation codes', () => {
