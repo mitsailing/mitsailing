@@ -35,11 +35,15 @@ readonly DEPLOY_HEALTH_TIMEOUT_SECONDS="${DEPLOY_HEALTH_TIMEOUT_SECONDS:-120}"
 # The app release drain is intentionally short: tusd/media keep handling uploads
 # outside the blue/green web cutover, and nginx upload timeouts track this value.
 readonly DEPLOY_DRAIN_SECONDS="${DEPLOY_DRAIN_SECONDS:-120}"
-# A server admin must create this root-owned tree before deploy. The deploy
-# user may not be able to traverse it, so validate mounts through Docker only.
-readonly PRODUCTION_POSTGRES_DIR="/srv/mitsailing-data/postgres"
-readonly PRODUCTION_REDIS_DIR="/srv/mitsailing-data/redis"
-readonly PRODUCTION_CMS_MEDIA_DIR="/srv/mitsailing-data/cms-media"
+# A server admin must create the default root-owned tree before deploy. Rootless
+# hosts may set PRODUCTION_DATA_ROOT to a prepared deploy-user-owned path.
+readonly PRODUCTION_DATA_ROOT_WAS_SET="${PRODUCTION_DATA_ROOT+x}"
+readonly REQUESTED_PRODUCTION_DATA_ROOT="${PRODUCTION_DATA_ROOT-}"
+readonly PRODUCTION_DATA_ROOT="${PRODUCTION_DATA_ROOT:-/srv/mitsailing-data}"
+export PRODUCTION_DATA_ROOT
+readonly PRODUCTION_POSTGRES_DIR="${PRODUCTION_DATA_ROOT}/postgres"
+readonly PRODUCTION_REDIS_DIR="${PRODUCTION_DATA_ROOT}/redis"
+readonly PRODUCTION_CMS_MEDIA_DIR="${PRODUCTION_DATA_ROOT}/cms-media"
 
 log() { printf '[deploy %s] %s\n' "$(date -u +'%FT%TZ')" "$*"; }
 fail() { log "ERROR: $*" >&2; exit 1; }
@@ -80,7 +84,22 @@ compose() {
   docker compose $COMPOSE_FILES --profile release "${env_files[@]}" "$@"
 }
 
+validate_production_data_root() {
+  if [[ "$PRODUCTION_DATA_ROOT_WAS_SET" == "x" && -z "$REQUESTED_PRODUCTION_DATA_ROOT" ]]; then
+    fail "PRODUCTION_DATA_ROOT must not be empty"
+  fi
+
+  case "$PRODUCTION_DATA_ROOT" in
+    /*) ;;
+    *) fail "PRODUCTION_DATA_ROOT must be an absolute path: $PRODUCTION_DATA_ROOT" ;;
+  esac
+
+  [[ "$PRODUCTION_DATA_ROOT" != "/" ]] || fail "PRODUCTION_DATA_ROOT must not be /"
+  [[ "$PRODUCTION_DATA_ROOT" != */ ]] || fail "PRODUCTION_DATA_ROOT must not end with /"
+}
+
 ensure_prereqs() {
+  validate_production_data_root
   [[ -f compose.yaml && -f compose.prod.yaml ]] \
     || fail "compose files missing in $DEPLOY_DIR — re-run the bootstrap from docs/deploy.md"
   [[ -f "$ENV_FILE" ]] \
