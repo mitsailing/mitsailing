@@ -10,7 +10,7 @@ import {
   EventRegistrationStatus,
 } from '@/generated/prisma/enums';
 import type { EventAnswerType } from '@/generated/prisma/enums';
-import { verifySession } from '@/libs/auth/dal';
+import { requireCurrentUser, verifySession } from '@/libs/auth/dal';
 import { Role } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
 import { logger } from '@/libs/Logger';
@@ -602,6 +602,7 @@ async function publicEventRegistrationAccess(options: {
   deniedUrl: string;
   locale: string;
 }): Promise<{ db: ReturnType<typeof zenstackForAuthContext>; userId: string }> {
+  await requireCurrentUser(options.locale, options.callbackUrl);
   const session = await verifySession(options.locale, options.callbackUrl);
   const authContext = appAuthContextFromSession(session);
   if (!authContext) {

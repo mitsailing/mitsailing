@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import { OtpCodeField } from '@/components/auth/OtpCodeField';
 import { ProfileAppearanceSection } from '@/components/auth/profile/ProfileAppearanceSection';
 import { mapProfileEmailError } from '@/components/auth/profile/profileAuthErrorMaps';
 import { ProfileInlineBanner } from '@/components/auth/profile/profileBanner';
@@ -371,27 +372,16 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
                     void onConfirmPendingEmailSubmit(event);
                   }}
                 >
-                  <Label className="text-amber-950" htmlFor="emailCode">
-                    {t('pending_email_code_label')}
-                  </Label>
-                  <Input
-                    autoComplete="one-time-code"
-                    className="h-12 max-w-64 rounded-full bg-white px-5 text-base md:text-base"
-                    enterKeyHint="done"
+                  <OtpCodeField
                     id="emailCode"
-                    inputMode="numeric"
-                    maxLength={6}
-                    minLength={6}
+                    inputClassName="h-12 max-w-64 rounded-full bg-white px-5 text-base md:text-base"
+                    label={t('pending_email_code_label')}
+                    labelClassName="not-sr-only text-amber-950"
                     name="emailCode"
-                    onChange={(e) => {
-                      setEmailCode(
-                        e.target.value.replaceAll(/\D/g, '').slice(0, 6)
-                      );
-                    }}
-                    pattern="[0-9]{6}"
+                    onValueChange={setEmailCode}
+                    pasteButtonClassName="text-amber-900 hover:text-amber-950"
+                    pasteLabel={tCommon('paste_code')}
                     placeholder={t('pending_email_code_placeholder')}
-                    required
-                    type="text"
                     value={emailCode}
                   />
                   <SubmitButton

@@ -1,7 +1,18 @@
 import './vitest-env-defaults.mts';
 import { storybookTest } from '@storybook/addon-vitest/vitest-plugin';
+import type { PlaywrightProviderOptions } from '@vitest/browser-playwright';
 import { playwright } from '@vitest/browser-playwright';
 import { defineConfig } from 'vitest/config';
+
+type PlaywrightLaunchOptions = PlaywrightProviderOptions['launchOptions'];
+
+const ciChromeLaunchOptions: PlaywrightLaunchOptions | undefined = process.env
+  .CI
+  ? { channel: 'chrome' }
+  : undefined;
+const storybookBrowserProvider = ciChromeLaunchOptions
+  ? playwright({ launchOptions: ciChromeLaunchOptions })
+  : playwright();
 
 export default defineConfig({
   plugins: [
@@ -18,7 +29,7 @@ export default defineConfig({
           browser: {
             enabled: true,
             headless: true,
-            provider: playwright(),
+            provider: storybookBrowserProvider,
             instances: [{ browser: 'chromium' }],
           },
           setupFiles: ['.storybook/vitest.setup.ts'],

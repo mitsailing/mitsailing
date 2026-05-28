@@ -1,5 +1,8 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.4.10/schema.json",
+  "files": {
+    "includes": ["**", "!!.superpowers"]
+  },
   "javascript": {
     "jsxRuntime": "transparent"
   },
@@ -9,5 +12,10 @@
       "qwik": "none",
       "solid": "none"
     }
+  },
+  "vcs": {
+    "clientKind": "git",
+    "enabled": true,
+    "useIgnoreFile": true
   }
 }

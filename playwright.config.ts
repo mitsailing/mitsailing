@@ -18,6 +18,11 @@ const isCi = !!process.env.CI;
 const includeFirefox = process.env.PLAYWRIGHT_INCLUDE_FIREFOX === '1';
 /** Safari-engine smoke coverage; off unless explicitly enabled (local or CI). */
 const includeWebkit = process.env.PLAYWRIGHT_INCLUDE_WEBKIT === '1';
+/** Video requires Playwright's ffmpeg binary; CI keeps traces/screenshots by default. */
+const includeVideo = process.env.PLAYWRIGHT_VIDEO === '1';
+const ciChromeChannel: { channel?: 'chrome' } = isCi
+  ? { channel: 'chrome' }
+  : {};
 
 // Fast (default): short limits but enough headroom for cold standalone
 // `server.js` and cal-style high parallelism. Set PLAYWRIGHT_SLOW=1 for 120s nav/expect/action.
@@ -103,7 +108,7 @@ export default defineConfig<ChromaticConfig>({
     baseURL,
     trace: isCi ? 'on-first-retry' : 'retain-on-failure',
     screenshot: isCi ? 'only-on-failure' : undefined,
-    video: isCi ? 'retain-on-failure' : undefined,
+    video: includeVideo ? 'retain-on-failure' : undefined,
     disableAutoSnapshot: true,
     navigationTimeout: defaultNavigationTimeout,
     actionTimeout: defaultActionTimeout,
@@ -117,7 +122,7 @@ export default defineConfig<ChromaticConfig>({
     {
       name: 'chromium',
       testIgnore: '**/*.a11y.e2e.ts',
-      use: { ...devices['Desktop Chrome'] },
+      use: { ...devices['Desktop Chrome'], ...ciChromeChannel },
     },
     ...(includeFirefox
       ? [
@@ -142,7 +147,7 @@ export default defineConfig<ChromaticConfig>({
       testMatch: '**/*.a11y.e2e.ts',
       timeout: 300_000,
       workers: isCi ? 2 : 4,
-      use: { ...devices['Desktop Chrome'] },
+      use: { ...devices['Desktop Chrome'], ...ciChromeChannel },
     },
   ],
 });

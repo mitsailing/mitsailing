@@ -14,6 +14,11 @@ import {
 } from '@/libs/auth/callbackUrl';
 import { Permission } from '@/libs/auth/permissions';
 import type { Role } from '@/libs/auth/roles';
+import { prisma } from '@/libs/DB';
+import {
+  getCurrentSailingCardYear,
+  hasCompletedCurrentYearSailingCardRequest,
+} from '@/libs/mit-sailing/sailingCardValidity';
 import { syncSentryUserFromSession } from '@/libs/sentry-user-server';
 import { appAuthContextFromSession } from '@/libs/zenstack/authContext';
 import { AppConfig } from '@/utils/AppConfig';
@@ -111,7 +116,7 @@ export async function verifySession(
   return session;
 }
 
-async function requireAnyPermission(
+export async function requireAnyPermission(
   permissions: readonly Permission[],
   locale: string = AppConfig.i18n.defaultLocale
 ): Promise<NonNullable<AuthSession>> {
@@ -171,6 +176,72 @@ function toCurrentUser(session: NonNullable<AuthSession>): CurrentUser {
   };
 }
 
+function skipsYearlyOnboardingRedirect(callbackUrl?: string): boolean {
+  return (
+    callbackUrl?.startsWith('/admin') === true ||
+    callbackUrl?.startsWith('/onboarding') === true
+  );
+}
+
+async function requireYearlyOnboardingState(options: {
+  readonly callbackUrl?: string;
+  readonly locale: string;
+  readonly userId: string;
+}): Promise<void> {
+  if (skipsYearlyOnboardingRedirect(options.callbackUrl)) {
+    return;
+  }
+
+  const user = await prisma.user.findUnique({
+    select: {
+      sailingCardRequests: {
+        orderBy: { requestedAt: 'desc' },
+        take: 1,
+        where: {
+          cardYear: getCurrentSailingCardYear(),
+        },
+        select: {
+          cardYear: true,
+          legalAgreementAcceptance: {
+            select: {
+              agreementHash: true,
+              agreementVersion: true,
+              source: true,
+              userId: true,
+            },
+          },
+          status: true,
+          userId: true,
+          user: {
+            select: {
+              emergencyContactName: true,
+              emergencyContactPhone: true,
+              phone: true,
+            },
+          },
+        },
+      },
+    },
+    where: { id: options.userId },
+  });
+
+  if (user === null) {
+    const signIn = getI18nPath('/login', options.locale);
+    redirect(authHrefWithCallback(signIn, options.callbackUrl));
+  }
+
+  if (
+    hasCompletedCurrentYearSailingCardRequest(
+      user.sailingCardRequests.at(0) ?? null
+    )
+  ) {
+    return;
+  }
+
+  const onboardingHref = getI18nPath('/onboarding', options.locale);
+  redirect(authHrefWithCallback(onboardingHref, options.callbackUrl));
+}
+
 /**
  * Projects the session onto a minimal `CurrentUser` DTO.
  *
@@ -196,5 +267,10 @@ export async function requireCurrentUser(
   callbackUrl?: string
 ): Promise<CurrentUser> {
   const session = await verifySession(locale, callbackUrl);
+  await requireYearlyOnboardingState({
+    callbackUrl,
+    locale,
+    userId: session.user.id,
+  });
   return toCurrentUser(session);
 }

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { hasLocale, NextIntlClientProvider } from 'next-intl';
 import { setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
+import Script from 'next/script';
 import { AppThemeProvider } from '@/components/shell/AppThemeProvider';
 import { SentryUserSync } from '@/components/shell/SentryUserSync';
 import type { AppColorScheme } from '@/lib/mit-sailing/themePreference';
@@ -79,14 +80,14 @@ export default async function RootLayout(props: {
       lang={locale}
       suppressHydrationWarning
     >
-      <head>
-        <script id="theme-boot">{themeBootScript(defaultTheme)}</script>
-      </head>
       <body>
         <SentryUserSync />
         <AppThemeProvider defaultTheme={defaultTheme}>
           <NextIntlClientProvider>{props.children}</NextIntlClientProvider>
         </AppThemeProvider>
+        <Script id="theme-boot" strategy="beforeInteractive">
+          {themeBootScript(defaultTheme)}
+        </Script>
       </body>
     </html>
   );

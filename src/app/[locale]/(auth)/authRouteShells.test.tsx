@@ -8,6 +8,7 @@ import ForgotPasswordPage, {
   generateMetadata as generateForgotPasswordMetadata,
 } from './(center)/forgot-password/page';
 import CenteredLayout from './(center)/layout';
+import SignInContinuePage from './(center)/login/continue/page';
 import SignInPage, {
   generateMetadata as generateSignInMetadata,
 } from './(center)/login/page';
@@ -308,7 +309,9 @@ vi.mock('@/components/mit-sailing/newsletter/NewsletterPreferenceForm', () => ({
   ),
 }));
 
-function routeProps(searchParams: Record<string, string | undefined> = {}) {
+function routeProps(
+  searchParams: Record<string, string | string[] | undefined> = {}
+) {
   return {
     params: Promise.resolve({ locale: 'en' }),
     searchParams: Promise.resolve(searchParams),
@@ -458,6 +461,24 @@ describe('auth route shells', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('sign-in continuation applies yearly onboarding before callback', async () => {
+    await expect(
+      SignInContinuePage(routeProps({ callbackUrl: '/fleet' }))
+    ).rejects.toThrow('NEXT_REDIRECT:/fleet');
+
+    expect(routeMocks.requireCurrentUser).toHaveBeenCalledWith('en', '/fleet');
+    expect(routeMocks.redirect).toHaveBeenCalledWith('/fleet');
+  });
+
+  it('sign-in continuation uses the first duplicate callback value', async () => {
+    await expect(
+      SignInContinuePage(routeProps({ callbackUrl: ['/fleet', '/events'] }))
+    ).rejects.toThrow('NEXT_REDIRECT:/fleet');
+
+    expect(routeMocks.requireCurrentUser).toHaveBeenCalledWith('en', '/fleet');
+    expect(routeMocks.redirect).toHaveBeenCalledWith('/fleet');
+  });
+
   it('sign-up metadata uses localized copy', async () => {
     await expect(generateSignUpMetadata(routeProps())).resolves.toEqual({
       description: 'SignUpPage.meta_description',
@@ -465,23 +486,53 @@ describe('auth route shells', () => {
     });
   });
 
-  it('sign-up page passes callback links through the shell', async () => {
+  it('sign-up page keeps an inbound callback through onboarding', async () => {
     render(await SignUpPage(routeProps({ callbackUrl: '/fleet' })));
 
     expect(routeMocks.redirectIfAuthenticated).toHaveBeenCalledWith(
       'en',
-      '/fleet'
+      '/onboarding?callbackUrl=%2Ffleet'
     );
     expect(
       screen.getByRole('heading', { name: 'SignUpPage.heading' })
     ).toBeVisible();
     expect(screen.getByRole('form', { name: 'sign-up-form' })).toHaveAttribute(
       'data-callback-url',
-      '/fleet'
+      '/onboarding?callbackUrl=%2Ffleet'
     );
     expect(
       screen.getByRole('link', { name: 'SignUpPage.sign_in_link' })
-    ).toHaveAttribute('href', '/login?callbackUrl=%2Ffleet');
+    ).toHaveAttribute(
+      'href',
+      '/login?callbackUrl=%2Fonboarding%3FcallbackUrl%3D%252Ffleet'
+    );
+  });
+
+  it('sign-up page uses the first duplicate inbound callback', async () => {
+    render(
+      await SignUpPage(routeProps({ callbackUrl: ['/fleet', '/events'] }))
+    );
+
+    expect(screen.getByRole('form', { name: 'sign-up-form' })).toHaveAttribute(
+      'data-callback-url',
+      '/onboarding?callbackUrl=%2Ffleet'
+    );
+  });
+
+  it('sign-up page defaults new sailors to onboarding', async () => {
+    render(await SignUpPage(routeProps()));
+
+    expect(routeMocks.redirectIfAuthenticated).toHaveBeenCalledWith(
+      'en',
+      '/onboarding'
+    );
+    expect(screen.getByRole('form', { name: 'sign-up-form' })).toHaveAttribute(
+      'data-callback-url',
+      '/onboarding'
+    );
+    expect(
+      screen.getByRole('link', { name: 'SignUpPage.sign_in_link' })
+    ).toHaveAttribute('href', '/login?callbackUrl=%2Fonboarding');
   });
 
   it('forgot-password metadata uses localized copy', async () => {

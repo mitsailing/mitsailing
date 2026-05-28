@@ -6,6 +6,7 @@ import {
   EventPaymentNotificationKind,
   EventPaymentStatus,
   EventRegistrationStatus,
+  EventSailingCardRequirement,
 } from '@/generated/prisma/enums';
 import { Permission } from '@/libs/auth/permissions';
 import { Role } from '@/libs/auth/roles';
@@ -507,6 +508,32 @@ describe('createAdminEventAction', () => {
     );
   });
 
+  it('persists sailing card requirement when creating an event', async () => {
+    mocks.requirePermission.mockResolvedValue({
+      session: { impersonatedBy: null },
+      user: { id: 'creator-1' },
+    });
+    const formData = validEventFormData();
+    formData.set(
+      'sailingCardRequirement',
+      EventSailingCardRequirement.CURRENT_CARD
+    );
+    const { createAdminEventAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(createAdminEventAction('en', formData)).rejects.toThrow(
+      /^NEXT_REDIRECT:\/admin\/events\/2026-06-01-intro-sail$/u
+    );
+
+    expect(mocks.eventCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          sailingCardRequirement: EventSailingCardRequirement.CURRENT_CARD,
+        }),
+      })
+    );
+  });
+
   it('redirects new event validation failures without creating rows', async () => {
     const formData = validEventFormData();
     formData.set('name', '');
@@ -634,6 +661,28 @@ describe('updateAdminEventBasicsAction', () => {
       expect.objectContaining({
         data: expect.objectContaining({
           requiresPhone: true,
+        }),
+      })
+    );
+  });
+
+  it('persists sailing card requirement from event basics', async () => {
+    const formData = validEventFormData();
+    formData.set(
+      'sailingCardRequirement',
+      EventSailingCardRequirement.CURRENT_CARD
+    );
+    const { updateAdminEventBasicsAction } =
+      await import('@/libs/admin/events/eventAdminActions');
+
+    await expect(
+      updateAdminEventBasicsAction('en', 'intro-sail', formData)
+    ).rejects.toThrow(/^NEXT_REDIRECT:\/admin\/events\/intro-sail$/u);
+
+    expect(mocks.eventUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          sailingCardRequirement: EventSailingCardRequirement.CURRENT_CARD,
         }),
       })
     );

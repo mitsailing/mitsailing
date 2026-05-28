@@ -158,7 +158,12 @@ export function EventRegistrationCta(props: EventRegistrationCtaProps) {
           {props.t('registration_status_pending')}
         </RegistrationStatusPill>
         <form action={props.cancelRegistrationAction}>
-          <Button size="sm" type="submit" variant="outline">
+          <Button
+            className="!bg-white !text-zinc-950"
+            size="sm"
+            type="submit"
+            variant="outline"
+          >
             {props.t('registration_cancel_request_button')}
           </Button>
         </form>
@@ -184,7 +189,12 @@ export function EventRegistrationCta(props: EventRegistrationCtaProps) {
     return (
       <div className="flex flex-col items-start gap-2">
         <RegistrationErrorAlert message={errorMessage} />
-        <Button asChild size="sm" variant="outline">
+        <Button
+          asChild
+          className="!bg-white !text-zinc-950"
+          size="sm"
+          variant="outline"
+        >
           <Link href={eventsHref}>
             {props.t('registration_view_other_events')}
             <ArrowRight aria-hidden className="size-4" />

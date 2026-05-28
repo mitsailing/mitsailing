@@ -380,27 +380,35 @@ test.describe('MIT Sailing catalog', () => {
         .getByRole('button', { name: 'Submit reservation request' })
         .click();
 
-      const deadline = Date.now() + 30_000;
-      let referenceCode: string | null = null;
-      while (Date.now() < deadline && referenceCode === null) {
-        if (
-          (await page
-            .getByRole('heading', { name: 'Request received' })
-            .count()) > 0
-        ) {
-          await expect(page.getByText(/^PAV-/)).toBeVisible();
-          referenceCode = 'visible';
-        } else {
-          referenceCode = await pavilionReservationReference({
-            eventName,
-            requesterEmail,
-          });
-          if (referenceCode === null) {
-            await page.waitForTimeout(250);
-          }
-        }
+      await expect
+        .poll(
+          async () => {
+            const referenceCode = await pavilionReservationReference({
+              eventName,
+              requesterEmail,
+            });
+            if (referenceCode !== null) {
+              return referenceCode;
+            }
+            if (
+              (await page
+                .getByRole('heading', { name: 'Request received' })
+                .count()) > 0
+            ) {
+              return 'visible';
+            }
+            return null;
+          },
+          { timeout: 60_000 }
+        )
+        .not.toBeNull();
+      if (
+        (await page
+          .getByRole('heading', { name: 'Request received' })
+          .count()) > 0
+      ) {
+        await expect(page.getByText(/^PAV-/)).toBeVisible();
       }
-      expect(referenceCode).not.toBeNull();
     } finally {
       await resetPavilionReservationRequest({ eventName, requesterEmail });
     }

@@ -72,7 +72,10 @@ function displaySegmentText(value: string | null | undefined): string {
 
 function WeatherConditionsChrome(props: ChromeProps) {
   return (
-    <div className="border-b border-mit-line bg-mit-surface pt-4 pb-2 sm:py-2 dark:bg-background dark:backdrop-blur-none">
+    <div
+      className="border-b border-mit-line bg-mit-surface pt-4 pb-2 sm:py-2 dark:bg-background dark:backdrop-blur-none"
+      data-conditions-bar
+    >
       <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-4 px-6 sm:px-8">
         <a
           aria-label={props.tMitSite('conditions_weather_link_aria')}

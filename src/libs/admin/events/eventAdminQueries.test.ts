@@ -3,6 +3,7 @@ import {
   EventAddressPreset,
   EventPaymentStatus,
   EventRegistrationStatus,
+  EventSailingCardRequirement,
 } from '@/generated/prisma/enums';
 import { Role } from '@/libs/auth/roles';
 import type * as EventQueries from '@/libs/mit-sailing/eventQueries';
@@ -354,6 +355,7 @@ describe('event admin queries', () => {
       registrationMode: 'external',
       externalRegistrationUrl: 'https://example.com/register',
       externalEntriesUrl: 'https://example.com/entries',
+      sailingCardRequirement: EventSailingCardRequirement.CURRENT_CARD,
       usesTeamRegistration: true,
       boatsPerTeam: 2,
       personsPerBoat: 1,
@@ -420,6 +422,7 @@ describe('event admin queries', () => {
           paymentsEnabled: true,
           registrationMode: true,
           requiresPhone: true,
+          sailingCardRequirement: true,
           usesTeamRegistration: true,
           boatsPerTeam: true,
           personsPerBoat: true,
@@ -438,6 +441,7 @@ describe('event admin queries', () => {
       personsPerBoat: 1,
       registrationMode: 'external',
       requiresPhone: true,
+      sailingCardRequirement: EventSailingCardRequirement.CURRENT_CARD,
       usesTeamRegistration: true,
     });
   });

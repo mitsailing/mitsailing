@@ -411,6 +411,35 @@ describe('createPublicEventRegistrationAction', () => {
     expect(mocks.eventFindFirst).not.toHaveBeenCalled();
   });
 
+  it('redirects to onboarding before loading events when yearly state is missing', async () => {
+    mocks.requireCurrentUser.mockRejectedValue(
+      new Error(
+        'NEXT_REDIRECT:/onboarding?callbackUrl=%2Fevents%2Fintro-sail%2Fregister'
+      )
+    );
+    const { createPublicEventRegistrationAction } =
+      await import('@/libs/mit-sailing/eventRegistrationActions');
+
+    await expect(
+      createPublicEventRegistrationAction(
+        'en',
+        'intro-sail',
+        {
+          code: null,
+          fieldErrors: {},
+          status: 'idle',
+          values: {},
+        },
+        registrationFormData()
+      )
+    ).rejects.toThrow(
+      'NEXT_REDIRECT:/onboarding?callbackUrl=%2Fevents%2Fintro-sail%2Fregister'
+    );
+
+    expect(mocks.verifySession).not.toHaveBeenCalled();
+    expect(mocks.eventFindFirst).not.toHaveBeenCalled();
+  });
+
   it('creates pending registration for approval-required event at accepted capacity', async () => {
     mocks.eventFindUnique.mockResolvedValue({
       entryFees: [],

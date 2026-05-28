@@ -3,6 +3,8 @@ import { EmailLayout } from './email-layout';
 import {
   assertSixDigitCode,
   codeBox,
+  domainBoundCode,
+  domainBoundOtpCodeLine,
   heading,
   paragraph,
   section,
@@ -39,6 +41,9 @@ export function ConfirmEmailChangeTemplate(props: ConfirmEmailChangeProps) {
           email.
         </Text>
         <Text style={codeBox}>{props.code}</Text>
+        <Text style={domainBoundCode}>
+          {domainBoundOtpCodeLine(props.code)}
+        </Text>
         <Text style={supportFooter}>
           This code expires in 5 minutes. If you did not request this change,
           contact{' '}

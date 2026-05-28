@@ -33,6 +33,7 @@ import {
   EventAnswerType,
   EventDetailPageKind,
   EventRegistrationMode,
+  EventSailingCardRequirement,
 } from '@/generated/prisma/enums';
 import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 import {
@@ -141,6 +142,7 @@ function registrationOptionalOpen(props: {
 }): boolean {
   return (
     props.registrationMode !== EventRegistrationMode.standard ||
+    props.event.sailingCardRequirement !== EventSailingCardRequirement.NONE ||
     props.event.registrationStart !== null ||
     props.event.registrationEnd !== null ||
     props.event.maxParticipants !== null ||
@@ -473,6 +475,28 @@ function EventBasicsForm(props: AdminEventFormViewProps) {
                   label={props.t('field_requires_approval')}
                   name="requiresApproval"
                 />
+                <AdminEventField
+                  htmlFor="event-sailing-card-requirement"
+                  hint={props.t('field_sailing_card_requirement_hint')}
+                  label={props.t('field_sailing_card_requirement')}
+                >
+                  {(controlProps) => (
+                    <select
+                      className={adminNativeSelectClassName}
+                      defaultValue={props.event.sailingCardRequirement}
+                      id="event-sailing-card-requirement"
+                      name="sailingCardRequirement"
+                      {...controlProps}
+                    >
+                      <option value={EventSailingCardRequirement.NONE}>
+                        {props.t('sailing_card_requirement_none')}
+                      </option>
+                      <option value={EventSailingCardRequirement.CURRENT_CARD}>
+                        {props.t('sailing_card_requirement_current_card')}
+                      </option>
+                    </select>
+                  )}
+                </AdminEventField>
               </>
             }
             standardLabel={props.t('registration_mode_standard')}
