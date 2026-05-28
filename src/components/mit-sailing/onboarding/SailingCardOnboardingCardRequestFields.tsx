@@ -30,7 +30,7 @@ const radioCardClassName =
 const radioInputClassName = 'mt-0.5 size-4 shrink-0 accent-mit-red';
 
 const fitnessMembershipLinkClassName =
-  'font-medium text-mit-red underline underline-offset-2 hover:text-mit-red/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mit-red dark:text-mit-red-ink';
+  'font-medium text-mit-red underline underline-offset-2 hover:text-mit-red/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mit-red dark:text-mit-red-ink dark:hover:text-mit-red-ink/80';
 
 const renderFitnessMembershipLink = (chunks: React.ReactNode) => (
   <Link

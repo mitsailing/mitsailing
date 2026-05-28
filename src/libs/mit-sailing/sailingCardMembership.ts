@@ -1,4 +1,5 @@
 import { SailingAffiliation, SailingCardType } from '@/generated/prisma/enums';
+import { EVENTS_TIME_ZONE } from '@/lib/mit-sailing/nyTime';
 import { parseSailingCardDateOfBirth } from '@/libs/mit-sailing/sailingCardDateOfBirth';
 
 const studentAffiliations: ReadonlySet<SailingAffiliation> = new Set([
@@ -28,7 +29,7 @@ const ageOnDate = (props: {
   readonly onDate: Date;
 }) => {
   const onDateParts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/New_York',
+    timeZone: EVENTS_TIME_ZONE,
     year: 'numeric',
     month: 'numeric',
     day: 'numeric',
@@ -50,7 +51,7 @@ const ageOnDate = (props: {
 
 function isSpringOnly(now: Date) {
   const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/New_York',
+    timeZone: EVENTS_TIME_ZONE,
     year: 'numeric',
     month: 'numeric',
     day: 'numeric',

@@ -20,7 +20,7 @@ import { fieldErrorId } from './SailingCardOnboardingFormHelpers';
 import type { SailingCardOnboardingLockedIdentity } from './SailingCardOnboardingFormTypes';
 
 const richLinkClassName =
-  'font-medium text-mit-red dark:text-mit-red-ink underline underline-offset-2 hover:text-mit-red/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mit-red';
+  'font-medium text-mit-red underline underline-offset-2 hover:text-mit-red/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mit-red dark:text-mit-red-ink dark:hover:text-mit-red-ink/80';
 
 const renderPrivacyLink = (chunks: React.ReactNode) => (
   <Link className={richLinkClassName} href="/privacy" key="privacy">

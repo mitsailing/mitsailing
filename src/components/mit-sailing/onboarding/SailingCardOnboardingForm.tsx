@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import { useSailingCardOnboardingFormModel } from './SailingCardOnboardingFormModel';
 import type { SailingCardOnboardingFormProps } from './SailingCardOnboardingFormModel';
 import { OnboardingFormFields } from './SailingCardOnboardingFormSections';
@@ -10,9 +11,20 @@ export function SailingCardOnboardingForm(
   props: SailingCardOnboardingFormProps
 ) {
   const model = useSailingCardOnboardingFormModel(props);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    if (model.state.status !== 'error') {
+      return;
+    }
+    formRef.current
+      ?.querySelector<HTMLElement>('[aria-invalid="true"]')
+      ?.focus();
+  }, [model.state]);
 
   return (
     <form
+      ref={formRef}
       className="mx-auto flex w-full max-w-2xl flex-col gap-4 rounded border border-border bg-background p-4 text-sm shadow-sm"
       onSubmit={model.handleSubmit}
     >

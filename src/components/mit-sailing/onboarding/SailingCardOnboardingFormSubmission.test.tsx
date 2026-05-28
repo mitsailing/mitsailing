@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { SailingAffiliation } from '@/generated/prisma/enums';
@@ -51,6 +51,9 @@ describe('SailingCardOnboardingForm submission and errors', () => {
 
     expect(formData.get('callbackUrl')).toBe('/events/regatta/register');
     expect(formData.get('cardType')).toBe('normal');
+    expect(formData.get('emergencyContactName')).toBe('Ada Lovelace');
+    expect(formData.get('emergencyContactPhone')).toBe('6175550101');
+    expect(formData.get('phone')).toBe('6175550100');
   });
 
   it('submits only mit identity data when manual names and callback are hidden', async () => {
@@ -155,6 +158,23 @@ describe('SailingCardOnboardingForm submission and errors', () => {
       screen.getByText('Enter a valid US phone number.')
     ).toBeInTheDocument();
     expect(screen.getByText('Enter a valid phone number.')).toBeInTheDocument();
+  });
+
+  it('focuses the first invalid field after server validation fails', async () => {
+    setOnboardingFormActionState({
+      fieldErrors: {
+        affiliation: 'required',
+        phone: 'required',
+      },
+      status: 'error',
+      values: emptyValues,
+    });
+
+    renderForm();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Affiliation')).toHaveFocus();
+    });
   });
 
   it('renders manual-name and mit identity server errors', () => {

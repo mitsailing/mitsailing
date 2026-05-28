@@ -74,6 +74,49 @@ const postOnboardingDestination = (props: {
     : callbackUrl;
 };
 
+const currentYearSailingCardRequestSelect = {
+  cardYear: true,
+  legalAgreementAcceptance: {
+    select: {
+      agreementHash: true,
+      agreementVersion: true,
+      source: true,
+      userId: true,
+    },
+  },
+  status: true,
+  userId: true,
+  user: {
+    select: {
+      emergencyContactName: true,
+      emergencyContactPhone: true,
+      phone: true,
+    },
+  },
+} as const;
+
+const sailingCardRequestUpdateData = (props: {
+  readonly acceptedAt: Date;
+  readonly cardType: SailingCardType;
+  readonly dateOfBirth: Date;
+  readonly legalAgreementAcceptanceId: string;
+  readonly update: ReturnType<typeof buildSailingCardOnboardingUpdate>;
+}) => ({
+  cardType: props.cardType,
+  dateOfBirth: props.dateOfBirth,
+  emergencyContactName: props.update.emergencyContactName,
+  emergencyContactPhone: props.update.emergencyContactPhone,
+  firstName: props.update.firstName,
+  lastName: props.update.lastName,
+  legalAgreementAcceptanceId: props.legalAgreementAcceptanceId,
+  mitClassYear: props.update.mitClassYear,
+  mitId: props.update.mitId,
+  phone: props.update.phone,
+  requestedAt: props.acceptedAt,
+  sailingAffiliation: props.update.sailingAffiliation,
+  status: SailingCardRequestStatus.pending,
+});
+
 const parseAffiliation = (value: string) => {
   const affiliations: ReadonlySet<SailingAffiliation> = new Set(
     Object.values(SailingAffiliation).filter(
@@ -216,26 +259,7 @@ export const submitSailingCardOnboardingAction = async (
         where: {
           cardYear: getCurrentSailingCardYear(),
         },
-        select: {
-          cardYear: true,
-          legalAgreementAcceptance: {
-            select: {
-              agreementHash: true,
-              agreementVersion: true,
-              source: true,
-              userId: true,
-            },
-          },
-          status: true,
-          userId: true,
-          user: {
-            select: {
-              emergencyContactName: true,
-              emergencyContactPhone: true,
-              phone: true,
-            },
-          },
-        },
+        select: currentYearSailingCardRequestSelect,
       },
     },
   });
@@ -307,7 +331,20 @@ export const submitSailingCardOnboardingAction = async (
     sailingCardRequestedAt: update.sailingCardRequestedAt,
   };
 
-  await prisma.$transaction(async (tx) => {
+  const transactionResult = await prisma.$transaction(async (tx) => {
+    const currentYearRequest = await tx.sailingCardRequest.findUnique({
+      where: {
+        userId_cardYear: {
+          cardYear,
+          userId: session.user.id,
+        },
+      },
+      select: currentYearSailingCardRequestSelect,
+    });
+    if (hasCompletedCurrentYearSailingCardRequest(currentYearRequest)) {
+      return { status: 'alreadyCompleted' } as const;
+    }
+
     const legalAgreementAcceptance = await tx.legalAgreementAcceptance.create({
       data: {
         acceptedAt,
@@ -325,47 +362,43 @@ export const submitSailingCardOnboardingAction = async (
       where: { id: session.user.id },
       data: userUpdate,
     });
-    await tx.sailingCardRequest.upsert({
-      where: {
-        userId_cardYear: {
+    const requestData = sailingCardRequestUpdateData({
+      acceptedAt,
+      cardType,
+      dateOfBirth,
+      legalAgreementAcceptanceId: legalAgreementAcceptance.id,
+      update,
+    });
+
+    if (currentYearRequest === null) {
+      await tx.sailingCardRequest.create({
+        data: {
+          ...requestData,
           cardYear,
           userId: session.user.id,
         },
-      },
-      create: {
-        cardType,
-        cardYear,
-        dateOfBirth,
-        emergencyContactName: update.emergencyContactName,
-        emergencyContactPhone: update.emergencyContactPhone,
-        firstName: update.firstName,
-        lastName: update.lastName,
-        legalAgreementAcceptanceId: legalAgreementAcceptance.id,
-        mitClassYear: update.mitClassYear,
-        mitId: update.mitId,
-        phone: update.phone,
-        requestedAt: acceptedAt,
-        sailingAffiliation: update.sailingAffiliation,
-        status: SailingCardRequestStatus.pending,
-        userId: session.user.id,
-      },
-      update: {
-        cardType,
-        dateOfBirth,
-        emergencyContactName: update.emergencyContactName,
-        emergencyContactPhone: update.emergencyContactPhone,
-        firstName: update.firstName,
-        lastName: update.lastName,
-        legalAgreementAcceptanceId: legalAgreementAcceptance.id,
-        mitClassYear: update.mitClassYear,
-        mitId: update.mitId,
-        phone: update.phone,
-        requestedAt: acceptedAt,
-        sailingAffiliation: update.sailingAffiliation,
-        status: SailingCardRequestStatus.pending,
-      },
-    });
+      });
+    } else {
+      const requestUpdate = await tx.sailingCardRequest.updateMany({
+        where: {
+          cardYear,
+          status: SailingCardRequestStatus.pending,
+          userId: session.user.id,
+        },
+        data: requestData,
+      });
+
+      if (requestUpdate.count === 0) {
+        redirect(successHref);
+      }
+    }
+
+    return { status: 'submitted' } as const;
   });
+
+  if (transactionResult.status === 'alreadyCompleted') {
+    redirect(successHref);
+  }
 
   const destination = postOnboardingDestination({ callbackUrl, successHref });
 

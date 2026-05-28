@@ -37,6 +37,7 @@
 .DS_Store
 *.pem
 Thumbs.db
+/.superpowers/
 
 # debug
 npm-debug.log*

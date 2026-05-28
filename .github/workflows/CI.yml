@@ -339,7 +339,9 @@ jobs:
       # `firefox` Playwright project is omitted unless PLAYWRIGHT_INCLUDE_FIREFOX=1
       # and `npx playwright install firefox --with-deps` — see e2e-verification.mdc.
       - name: Install Playwright browser dependencies
-        run: npx playwright install-deps chromium
+        run: |
+          npx playwright install-deps chromium
+          npx playwright install ffmpeg
 
       - name: Verify Chrome channel
         run: google-chrome-stable --version || google-chrome --version

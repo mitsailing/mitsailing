@@ -197,9 +197,7 @@ test.describe('Onboarding', () => {
       await signUpVerifiedSailor({ email, page, password: credential });
       await page.goto(`/events/${slug}/register`);
       await expect(page).toHaveURL(
-        (url) =>
-          url.pathname === '/onboarding' &&
-          url.searchParams.get('callbackUrl') === `/events/${slug}/register`
+        `/onboarding?callbackUrl=%2Fevents%2F${slug}%2Fregister`
       );
 
       await page.getByLabel('Affiliation').selectOption({ label: 'Wellesley' });
@@ -218,7 +216,7 @@ test.describe('Onboarding', () => {
         .check();
       await page.getByRole('button', { name: 'Request sailing card' }).click();
 
-      await expect(page).toHaveURL(new RegExp(`/events/${slug}/register$`));
+      await expect(page).toHaveURL(`/events/${slug}/register`);
       await expect(
         page.getByRole('heading', {
           level: 1,

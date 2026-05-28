@@ -20,7 +20,9 @@ const mocks = vi.hoisted(() => ({
   prismaUserFindUnique: vi.fn(),
   prismaUserUpdate: vi.fn(),
   prismaLegalAgreementAcceptanceCreate: vi.fn(),
-  prismaSailingCardRequestUpsert: vi.fn(),
+  prismaSailingCardRequestCreate: vi.fn(),
+  prismaSailingCardRequestFindUnique: vi.fn(),
+  prismaSailingCardRequestUpdateMany: vi.fn(),
   prismaTransaction: vi.fn(),
   revalidatePath: vi.fn(),
   redirect: vi.fn((destination: string) => {
@@ -34,7 +36,9 @@ type MockOnboardingTransactionClient = {
     readonly create: typeof mocks.prismaLegalAgreementAcceptanceCreate;
   };
   readonly sailingCardRequest: {
-    readonly upsert: typeof mocks.prismaSailingCardRequestUpsert;
+    readonly create: typeof mocks.prismaSailingCardRequestCreate;
+    readonly findUnique: typeof mocks.prismaSailingCardRequestFindUnique;
+    readonly updateMany: typeof mocks.prismaSailingCardRequestUpdateMany;
   };
   readonly user: {
     readonly update: typeof mocks.prismaUserUpdate;
@@ -173,7 +177,9 @@ describe('submitSailingCardOnboardingAction', () => {
     mocks.prismaLegalAgreementAcceptanceCreate.mockResolvedValue({
       id: 'acceptance-1',
     });
-    mocks.prismaSailingCardRequestUpsert.mockResolvedValue({});
+    mocks.prismaSailingCardRequestCreate.mockResolvedValue({});
+    mocks.prismaSailingCardRequestFindUnique.mockResolvedValue(null);
+    mocks.prismaSailingCardRequestUpdateMany.mockResolvedValue({ count: 1 });
     mocks.prismaTransaction.mockImplementation(
       (runTransaction: MockOnboardingTransaction) =>
         runTransaction({
@@ -184,7 +190,9 @@ describe('submitSailingCardOnboardingAction', () => {
             create: mocks.prismaLegalAgreementAcceptanceCreate,
           },
           sailingCardRequest: {
-            upsert: mocks.prismaSailingCardRequestUpsert,
+            create: mocks.prismaSailingCardRequestCreate,
+            findUnique: mocks.prismaSailingCardRequestFindUnique,
+            updateMany: mocks.prismaSailingCardRequestUpdateMany,
           },
         })
     );
@@ -332,6 +340,66 @@ describe('submitSailingCardOnboardingAction', () => {
     });
   });
 
+  it('does not reopen a completed request that appears during submission', async () => {
+    mocks.prismaSailingCardRequestFindUnique.mockResolvedValue({
+      cardYear: 2026,
+      legalAgreementAcceptance: {
+        agreementHash: sailingCardAgreementHash(),
+        agreementVersion: sailingCardAgreement.version,
+        source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
+        userId: 'user-1',
+      },
+      status: SailingCardRequestStatus.approved,
+      userId: 'user-1',
+      user: {
+        emergencyContactName: 'Grace Hopper',
+        emergencyContactPhone: '+442079460958',
+        phone: '+16175550100',
+      },
+    });
+    const { submitSailingCardOnboardingAction } =
+      await import('@/libs/mit-sailing/sailingCardOnboardingActions');
+
+    await expect(
+      submitSailingCardOnboardingAction(idleState, onboardingFormData())
+    ).rejects.toThrow('NEXT_REDIRECT:/onboarding/success');
+
+    expect(mocks.prismaLegalAgreementAcceptanceCreate).not.toHaveBeenCalled();
+    expect(mocks.prismaUserUpdate).not.toHaveBeenCalled();
+    expect(mocks.prismaSailingCardRequestCreate).not.toHaveBeenCalled();
+    expect(mocks.prismaSailingCardRequestUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it('does not reopen a request approved after the transaction read', async () => {
+    mocks.prismaSailingCardRequestFindUnique.mockResolvedValue({
+      cardYear: 2026,
+      legalAgreementAcceptance: null,
+      status: SailingCardRequestStatus.pending,
+      userId: 'user-1',
+      user: {
+        emergencyContactName: 'Grace Hopper',
+        emergencyContactPhone: '+442079460958',
+        phone: '+16175550100',
+      },
+    });
+    mocks.prismaSailingCardRequestUpdateMany.mockResolvedValue({ count: 0 });
+    const { submitSailingCardOnboardingAction } =
+      await import('@/libs/mit-sailing/sailingCardOnboardingActions');
+
+    await expect(
+      submitSailingCardOnboardingAction(idleState, onboardingFormData())
+    ).rejects.toThrow('NEXT_REDIRECT:/onboarding/success');
+
+    expect(mocks.prismaSailingCardRequestUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: SailingCardRequestStatus.pending,
+        }),
+      })
+    );
+    expect(mocks.prismaSailingCardRequestCreate).not.toHaveBeenCalled();
+  });
+
   it('uses real ip when forwarded header is blank', async () => {
     mocks.headers.mockResolvedValue(
       new Headers({
@@ -374,7 +442,7 @@ describe('submitSailingCardOnboardingAction', () => {
     });
   });
 
-  it('upserts current-year onboarding request linked to exact legal acceptance', async () => {
+  it('creates current-year onboarding request linked to exact legal acceptance', async () => {
     const { submitSailingCardOnboardingAction } =
       await import('@/libs/mit-sailing/sailingCardOnboardingActions');
 
@@ -383,10 +451,10 @@ describe('submitSailingCardOnboardingAction', () => {
     ).rejects.toThrow('NEXT_REDIRECT:/onboarding/success');
 
     expect(mocks.prismaLegalAgreementAcceptanceCreate).toHaveBeenCalledBefore(
-      mocks.prismaSailingCardRequestUpsert
+      mocks.prismaSailingCardRequestCreate
     );
-    expect(mocks.prismaSailingCardRequestUpsert).toHaveBeenCalledWith({
-      create: expect.objectContaining({
+    expect(mocks.prismaSailingCardRequestCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
         cardType: SailingCardType.normal,
         cardYear: 2026,
         dateOfBirth: new Date('2000-01-02T00:00:00.000Z'),
@@ -394,17 +462,6 @@ describe('submitSailingCardOnboardingAction', () => {
         status: SailingCardRequestStatus.pending,
         userId: 'user-1',
       }),
-      update: expect.objectContaining({
-        cardType: SailingCardType.normal,
-        dateOfBirth: new Date('2000-01-02T00:00:00.000Z'),
-        legalAgreementAcceptanceId: 'acceptance-1',
-      }),
-      where: {
-        userId_cardYear: {
-          cardYear: 2026,
-          userId: 'user-1',
-        },
-      },
     });
   });
 
@@ -600,9 +657,9 @@ describe('submitSailingCardOnboardingAction', () => {
         userId: 'user-1',
       }),
     });
-    expect(mocks.prismaSailingCardRequestUpsert).toHaveBeenCalledWith(
+    expect(mocks.prismaSailingCardRequestCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        update: expect.not.objectContaining({
+        data: expect.not.objectContaining({
           approvedAt: null,
           approvedByUserId: null,
           issuedCardNumber: null,

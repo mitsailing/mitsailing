@@ -10,7 +10,7 @@ BEGIN
             'EVENT_REGISTRATION'
         );
     END IF;
-END
+END;
 $$;
 
 CREATE TABLE IF NOT EXISTS "legal_agreement_acceptances" (
@@ -46,5 +46,5 @@ BEGIN
         ON DELETE CASCADE
         ON UPDATE CASCADE;
     END IF;
-END
+END;
 $$;

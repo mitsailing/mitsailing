@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
-import type { Pool, PoolClient } from 'pg';
+import { Pool } from 'pg';
+import type { PoolClient } from 'pg';
 import { sailingCardAgreement } from '@/libs/mit-sailing/sailingCardAgreementContent';
 import { getCurrentSailingCardYear } from '@/libs/mit-sailing/sailingCardValidity';
 
@@ -85,15 +86,34 @@ export async function insertCurrentSailingCardOnboardingAcceptance(options: {
   userId: string;
 }): Promise<void> {
   const legalAgreementAcceptanceId = `e2e-onboarding-agreement-${randomUUID()}`;
-  await insertLegalAgreementAcceptance({
-    id: legalAgreementAcceptanceId,
-    pool: options.pool,
-    userAgent: options.userAgent,
-    userId: options.userId,
-  });
-  await upsertSailingCardRequest({
-    legalAgreementAcceptanceId,
-    pool: options.pool,
-    userId: options.userId,
-  });
+  const insertOnboardingAcceptance = async (pool: PoolClient) => {
+    await insertLegalAgreementAcceptance({
+      id: legalAgreementAcceptanceId,
+      pool,
+      userAgent: options.userAgent,
+      userId: options.userId,
+    });
+    await upsertSailingCardRequest({
+      legalAgreementAcceptanceId,
+      pool,
+      userId: options.userId,
+    });
+  };
+
+  if (!(options.pool instanceof Pool)) {
+    await insertOnboardingAcceptance(options.pool);
+    return;
+  }
+
+  const client = await options.pool.connect();
+  try {
+    await client.query('BEGIN');
+    await insertOnboardingAcceptance(client);
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }
