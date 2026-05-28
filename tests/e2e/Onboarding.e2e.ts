@@ -218,7 +218,7 @@ test.describe('Onboarding', () => {
         .check();
       await page.getByRole('button', { name: 'Request sailing card' }).click();
 
-      await expect(page).toHaveURL(new RegExp(`/events/${slug}/register/?$`));
+      await expect(page).toHaveURL(new RegExp(`/events/${slug}/register$`));
       await expect(
         page.getByRole('heading', {
           level: 1,

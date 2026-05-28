@@ -3,6 +3,7 @@
 import { Sailboat } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useActionState, useState, useTransition } from 'react';
+import type * as React from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import type { UseFormRegister, UseFormSetValue } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
@@ -130,6 +131,42 @@ const radioCardClassName =
 
 const radioInputClassName = 'mt-0.5 size-4 shrink-0 accent-mit-red';
 
+const richLinkClassName =
+  'font-medium text-mit-red underline underline-offset-2 hover:text-mit-red/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mit-red';
+
+const fitnessMembershipLinkClassName = `${richLinkClassName} dark:text-mit-red-ink`;
+
+const renderFitnessMembershipLink = (chunks: React.ReactNode) => (
+  <Link
+    className={fitnessMembershipLinkClassName}
+    href="https://www.mitrecsports.com/join/memberships/"
+    key="membership"
+  >
+    {chunks}
+  </Link>
+);
+
+const renderPrivacyLink = (chunks: React.ReactNode) => (
+  <Link className={richLinkClassName} href="/privacy" key="privacy">
+    {chunks}
+  </Link>
+);
+
+const renderTermsLink = (chunks: React.ReactNode) => (
+  <Link className={richLinkClassName} href="/terms" key="terms">
+    {chunks}
+  </Link>
+);
+
+const fitnessMembershipSignupNoteRichText = {
+  membership: renderFitnessMembershipLink,
+};
+
+const legalNoticeRichText = {
+  privacy: renderPrivacyLink,
+  terms: renderTermsLink,
+};
+
 const membershipPriceLabelKey = (props: {
   readonly priceCents: number | null;
 }) => {
@@ -236,17 +273,10 @@ function FitnessMembershipQuestion(props: {
         </label>
       </div>
       <p className="text-xs leading-5 text-muted-foreground" id={signupNoteId}>
-        {t.rich('fitness_membership_signup_note', {
-          membership: (chunks) => (
-            <Link
-              className="font-medium text-mit-red underline underline-offset-2 hover:text-mit-red/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mit-red dark:text-mit-red-ink"
-              href="https://www.mitrecsports.com/join/memberships/"
-              key="membership"
-            >
-              {chunks}
-            </Link>
-          ),
-        })}
+        {t.rich(
+          'fitness_membership_signup_note',
+          fitnessMembershipSignupNoteRichText
+        )}
       </p>
     </fieldset>
   );
@@ -605,23 +635,10 @@ function AgreementCheckbox(props: {
 
 function LegalNotice() {
   const t = useTranslations('OnboardingPage');
-  const legalLinkClassName =
-    'font-medium text-mit-red underline underline-offset-2 hover:text-mit-red/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mit-red';
 
   return (
     <p className="text-xs leading-5 text-muted-foreground">
-      {t.rich('agreement_legal_notice', {
-        privacy: (chunks) => (
-          <Link className={legalLinkClassName} href="/privacy" key="privacy">
-            {chunks}
-          </Link>
-        ),
-        terms: (chunks) => (
-          <Link className={legalLinkClassName} href="/terms" key="terms">
-            {chunks}
-          </Link>
-        ),
-      })}
+      {t.rich('agreement_legal_notice', legalNoticeRichText)}
     </p>
   );
 }
@@ -700,6 +717,25 @@ const hasCompleteManualName = (props: {
   (props.firstNameValue ?? '').trim() !== '' &&
   (props.lastNameValue ?? '').trim() !== '';
 
+const hasLockedIdentity = (props: {
+  readonly lockedIdentity?: SailingCardOnboardingFormProps['lockedIdentity'];
+  readonly showLockedIdentity: boolean;
+}) => props.showLockedIdentity && props.lockedIdentity !== undefined;
+
+const hasUsableMitId = (props: {
+  readonly mitIdValue: string | undefined;
+  readonly showMitId: boolean;
+}) => props.showMitId && isCompleteMitId(props.mitIdValue);
+
+const canUseManualName = (props: {
+  readonly mitIdValue: string | undefined;
+  readonly rule: ReturnType<typeof getVisibleSailingAffiliationRule>;
+  readonly showManualName: boolean;
+}) =>
+  props.rule?.mitIdMode !== 'required' &&
+  props.showManualName &&
+  (props.mitIdValue ?? '').trim() === '';
+
 const isIdentityComplete = (props: {
   readonly firstNameValue: string | undefined;
   readonly lastNameValue: string | undefined;
@@ -713,19 +749,29 @@ const isIdentityComplete = (props: {
   if (props.rule === null) {
     return false;
   }
-  if (props.showLockedIdentity && props.lockedIdentity !== undefined) {
+  if (
+    hasLockedIdentity({
+      lockedIdentity: props.lockedIdentity,
+      showLockedIdentity: props.showLockedIdentity,
+    })
+  ) {
     return true;
   }
-  if (props.showMitId && isCompleteMitId(props.mitIdValue)) {
+  if (
+    hasUsableMitId({
+      mitIdValue: props.mitIdValue,
+      showMitId: props.showMitId,
+    })
+  ) {
     return true;
   }
-  if (props.rule.mitIdMode === 'required') {
-    return false;
-  }
-  if (!props.showManualName) {
-    return false;
-  }
-  if ((props.mitIdValue ?? '').trim() !== '') {
+  if (
+    !canUseManualName({
+      mitIdValue: props.mitIdValue,
+      rule: props.rule,
+      showManualName: props.showManualName,
+    })
+  ) {
     return false;
   }
   return hasCompleteManualName({
@@ -754,6 +800,137 @@ const shouldShowDetails = (props: {
   return props.detailsUnlocked && props.identityComplete;
 };
 
+const isFitnessMembershipReady = (props: {
+  readonly affiliation: SailingAffiliation | '';
+  readonly hasFitnessMembershipValue: string | undefined;
+}) =>
+  hasAutomaticFitnessMembership(props.affiliation) ||
+  props.hasFitnessMembershipValue === 'yes' ||
+  props.hasFitnessMembershipValue === 'no';
+
+const getIdentityVisibility = (props: {
+  readonly lockedIdentity?: SailingCardOnboardingFormProps['lockedIdentity'];
+  readonly rule: ReturnType<typeof getVisibleSailingAffiliationRule>;
+}) => {
+  const showMitId = showMitIdForRule(props.rule);
+  const showLockedIdentity = showMitId && props.lockedIdentity !== undefined;
+  const showManualName = showManualNameForRule({
+    lockedIdentity: showLockedIdentity,
+    rule: props.rule,
+  });
+
+  return {
+    showLockedIdentity,
+    showManualName,
+    showMitId,
+  };
+};
+
+function CardRequestSection(props: {
+  readonly affiliation: SailingAffiliation | '';
+  readonly cardTypeValue: string | undefined;
+  readonly dateOfBirthValue: string | undefined;
+  readonly fitnessMembershipReady: boolean;
+  readonly now: Date;
+  readonly register: UseFormRegister<SailingCardOnboardingFormValues>;
+  readonly setValue: UseFormSetValue<SailingCardOnboardingFormValues>;
+  readonly state: SailingCardOnboardingFormState;
+}) {
+  const t = useTranslations('OnboardingPage');
+
+  return (
+    <section className="flex flex-col gap-3 border-t border-border pt-5">
+      <h2 className="text-base font-semibold text-foreground">
+        {t('card_request_heading')}
+      </h2>
+      {needsFitnessMembershipQuestion(props.affiliation) ? (
+        <FitnessMembershipQuestion
+          register={props.register}
+          setValue={props.setValue}
+        />
+      ) : (
+        <p className="text-xs leading-5 text-muted-foreground">
+          {t('fitness_membership_auto_mit_student')}
+        </p>
+      )}
+      <CardTypeSelect
+        affiliation={props.affiliation}
+        cardTypeValue={props.cardTypeValue}
+        dateOfBirthValue={props.dateOfBirthValue}
+        fitnessMembershipReady={props.fitnessMembershipReady}
+        now={props.now}
+        register={props.register}
+        state={props.state}
+      />
+    </section>
+  );
+}
+
+function AgreementSection(props: {
+  readonly register: UseFormRegister<SailingCardOnboardingFormValues>;
+  readonly state: SailingCardOnboardingFormState;
+}) {
+  const t = useTranslations('OnboardingPage');
+
+  return (
+    <section className="flex flex-col gap-3 border-t border-border pt-5">
+      <h2 className="text-base font-semibold text-foreground">
+        {t('agreement_heading')}
+      </h2>
+      <AgreementDisclosure />
+      <AgreementCheckbox register={props.register} state={props.state} />
+      <LegalNotice />
+    </section>
+  );
+}
+
+function SubmitButton(props: { readonly isPending: boolean }) {
+  const t = useTranslations('OnboardingPage');
+
+  return (
+    <Button
+      className="w-full gap-2 sm:w-fit"
+      disabled={props.isPending}
+      type="submit"
+      variant="mit"
+    >
+      <Sailboat aria-hidden className="size-4" />
+      {t('submit')}
+    </Button>
+  );
+}
+
+function OnboardingDetailsFields(props: {
+  readonly affiliation: SailingAffiliation | '';
+  readonly cardTypeValue: string | undefined;
+  readonly dateOfBirthValue: string | undefined;
+  readonly fitnessMembershipReady: boolean;
+  readonly isPending: boolean;
+  readonly now: Date;
+  readonly register: UseFormRegister<SailingCardOnboardingFormValues>;
+  readonly setValue: UseFormSetValue<SailingCardOnboardingFormValues>;
+  readonly state: SailingCardOnboardingFormState;
+}) {
+  return (
+    <>
+      <ContactFields register={props.register} state={props.state} />
+      <EmergencyContactFields register={props.register} state={props.state} />
+      <CardRequestSection
+        affiliation={props.affiliation}
+        cardTypeValue={props.cardTypeValue}
+        dateOfBirthValue={props.dateOfBirthValue}
+        fitnessMembershipReady={props.fitnessMembershipReady}
+        now={props.now}
+        register={props.register}
+        setValue={props.setValue}
+        state={props.state}
+      />
+      <AgreementSection register={props.register} state={props.state} />
+      <SubmitButton isPending={props.isPending} />
+    </>
+  );
+}
+
 function OnboardingFormFields(props: {
   readonly affiliation: SailingAffiliation | '';
   readonly cardTypeValue: string | undefined;
@@ -774,8 +951,6 @@ function OnboardingFormFields(props: {
   readonly showMitId: boolean;
   readonly state: SailingCardOnboardingFormState;
 }) {
-  const t = useTranslations('OnboardingPage');
-
   return (
     <>
       <AffiliationSelect
@@ -799,54 +974,17 @@ function OnboardingFormFields(props: {
         />
       )}
       {props.showDetails ? (
-        <>
-          <ContactFields register={props.register} state={props.state} />
-          <EmergencyContactFields
-            register={props.register}
-            state={props.state}
-          />
-          <section className="flex flex-col gap-3 border-t border-border pt-5">
-            <h2 className="text-base font-semibold text-foreground">
-              {t('card_request_heading')}
-            </h2>
-            {needsFitnessMembershipQuestion(props.affiliation) ? (
-              <FitnessMembershipQuestion
-                register={props.register}
-                setValue={props.setValue}
-              />
-            ) : (
-              <p className="text-xs leading-5 text-muted-foreground">
-                {t('fitness_membership_auto_mit_student')}
-              </p>
-            )}
-            <CardTypeSelect
-              affiliation={props.affiliation}
-              cardTypeValue={props.cardTypeValue}
-              dateOfBirthValue={props.dateOfBirthValue}
-              fitnessMembershipReady={props.fitnessMembershipReady}
-              now={props.now}
-              register={props.register}
-              state={props.state}
-            />
-          </section>
-          <section className="flex flex-col gap-3 border-t border-border pt-5">
-            <h2 className="text-base font-semibold text-foreground">
-              {t('agreement_heading')}
-            </h2>
-            <AgreementDisclosure />
-            <AgreementCheckbox register={props.register} state={props.state} />
-            <LegalNotice />
-          </section>
-          <Button
-            className="w-full gap-2 sm:w-fit"
-            disabled={props.isPending}
-            type="submit"
-            variant="mit"
-          >
-            <Sailboat aria-hidden className="size-4" />
-            {t('submit')}
-          </Button>
-        </>
+        <OnboardingDetailsFields
+          affiliation={props.affiliation}
+          cardTypeValue={props.cardTypeValue}
+          dateOfBirthValue={props.dateOfBirthValue}
+          fitnessMembershipReady={props.fitnessMembershipReady}
+          isPending={props.isPending}
+          now={props.now}
+          register={props.register}
+          setValue={props.setValue}
+          state={props.state}
+        />
       ) : null}
     </>
   );
@@ -890,21 +1028,19 @@ export function SailingCardOnboardingForm(
     ],
   });
   const affiliation = getVisibleSailingAffiliation(affiliationValue);
-  const fitnessMembershipReady =
-    hasAutomaticFitnessMembership(affiliation) ||
-    hasFitnessMembershipValue === 'yes' ||
-    hasFitnessMembershipValue === 'no';
+  const fitnessMembershipReady = isFitnessMembershipReady({
+    affiliation,
+    hasFitnessMembershipValue,
+  });
   const rule = getVisibleSailingAffiliationRule(affiliation);
-  const showMitId = showMitIdForRule(rule);
-  const showLockedIdentity = showMitId && props.lockedIdentity !== undefined;
-  const showManualName = showManualNameForRule({
-    lockedIdentity: showLockedIdentity,
+  const identityVisibility = getIdentityVisibility({
+    lockedIdentity: props.lockedIdentity,
     rule,
   });
   const manualNameRequired = isManualNameRequired({
     mitIdValue,
     rule,
-    showManualName,
+    showManualName: identityVisibility.showManualName,
   });
   const identityComplete = isIdentityComplete({
     firstNameValue,
@@ -912,9 +1048,9 @@ export function SailingCardOnboardingForm(
     lockedIdentity: props.lockedIdentity,
     mitIdValue,
     rule,
-    showLockedIdentity,
-    showManualName,
-    showMitId,
+    showLockedIdentity: identityVisibility.showLockedIdentity,
+    showManualName: identityVisibility.showManualName,
+    showMitId: identityVisibility.showMitId,
   });
   const showDetails = shouldShowDetails({
     detailsUnlocked,
@@ -953,9 +1089,9 @@ export function SailingCardOnboardingForm(
         register={form.register}
         setValue={form.setValue}
         showDetails={showDetails}
-        showLockedIdentity={showLockedIdentity}
-        showManualName={showManualName}
-        showMitId={showMitId}
+        showLockedIdentity={identityVisibility.showLockedIdentity}
+        showManualName={identityVisibility.showManualName}
+        showMitId={identityVisibility.showMitId}
         state={state}
       />
     </form>

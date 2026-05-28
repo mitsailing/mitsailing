@@ -21,45 +21,37 @@
     :is(
       nav a,
       nav button,
+      nav button span,
       [data-site-header-auth] a,
       [data-site-header-auth] button
     ) {
     color: var(--foreground) !important;
+    transition-property:
+      background-color, border-color, box-shadow, opacity, transform !important;
   }
 
   .dark [data-conditions-bar] a {
     color: var(--foreground) !important;
+    transition-property:
+      background-color, border-color, box-shadow, opacity, transform !important;
   }
 
   .dark .bg-card {
-    background-color: #18181b !important;
-  }
-
-  .dark
-    [data-site-header]
-    :is(
-      nav a,
-      nav button,
-      [data-site-header-auth] a,
-      [data-site-header-auth] button
-    ) {
-    color: #fafafa !important;
-  }
-
-  .dark [data-conditions-bar] a {
-    color: #fafafa !important;
+    background-color: var(--card) !important;
   }
 
   .dark input,
   .dark textarea,
   .dark select,
   .dark [data-variant='link'] {
-    color: #fafafa !important;
+    color: var(--foreground) !important;
+    transition-property:
+      background-color, border-color, box-shadow, opacity, transform !important;
   }
 
   .dark input::placeholder,
   .dark textarea::placeholder {
-    color: #a1a1aa !important;
+    color: var(--muted-foreground) !important;
     opacity: 1;
   }
 

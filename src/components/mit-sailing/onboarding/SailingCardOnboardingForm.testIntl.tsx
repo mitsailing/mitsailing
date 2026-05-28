@@ -26,6 +26,49 @@ const formatterFor = (
   return chunks.membership;
 };
 
+type RichParseResult = {
+  readonly nextIndex: number;
+  readonly node: React.ReactNode;
+};
+
+const parseRichOpeningPart = (props: {
+  readonly chunks: Record<
+    string,
+    (children: React.ReactNode) => React.ReactNode
+  >;
+  readonly index: number;
+  readonly part: string;
+  readonly parts: string[];
+}): RichParseResult | undefined => {
+  if (
+    props.part !== '<terms>' &&
+    props.part !== '<privacy>' &&
+    props.part !== '<membership>'
+  ) {
+    return undefined;
+  }
+
+  const closingTag = closingTagFor(props.part);
+  const closingIndex = props.parts.indexOf(closingTag, props.index + 1);
+  if (closingIndex === -1) {
+    return {
+      nextIndex: props.index + 1,
+      node: props.part,
+    };
+  }
+
+  const content = props.parts.slice(props.index + 1, closingIndex).join('');
+  const formatter = formatterFor(props.part, props.chunks);
+
+  return {
+    nextIndex: closingIndex + 1,
+    node: formatter ? formatter(content) : content,
+  };
+};
+
+const isRichClosingPart = (part: string) =>
+  part === '</terms>' || part === '</privacy>' || part === '</membership>';
+
 type Translator = {
   (key: string, values?: Record<string, number | string>): string;
   rich: (
@@ -54,33 +97,27 @@ export function useOnboardingTestTranslations(): Translator {
         );
         const nodes: React.ReactNode[] = [];
 
-        for (let index = 0; index < parts.length; index += 1) {
-          const part = parts[index];
-          if (
-            part === '<terms>' ||
-            part === '<privacy>' ||
-            part === '<membership>'
-          ) {
-            const closingTag = closingTagFor(part);
-            const closingIndex = parts.indexOf(closingTag, index + 1);
-            if (closingIndex === -1) {
-              nodes.push(part);
-              continue;
-            }
-            const content = parts.slice(index + 1, closingIndex).join('');
-            const formatter = formatterFor(part, chunks);
+        let index = 0;
+        while (index < parts.length) {
+          const part = parts[index] ?? '';
+          const parsedPart = parseRichOpeningPart({
+            chunks,
+            index,
+            part,
+            parts,
+          });
 
-            nodes.push(formatter ? formatter(content) : content);
-            index = closingIndex;
+          if (parsedPart) {
+            nodes.push(parsedPart.node);
+            index = parsedPart.nextIndex;
             continue;
           }
-          if (
-            part !== '</terms>' &&
-            part !== '</privacy>' &&
-            part !== '</membership>'
-          ) {
+
+          if (!isRichClosingPart(part)) {
             nodes.push(part);
           }
+
+          index += 1;
         }
 
         return nodes;

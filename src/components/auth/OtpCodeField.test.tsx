@@ -121,7 +121,7 @@ describe('OtpCodeField', () => {
     );
     Object.defineProperty(navigator, 'clipboard', {
       configurable: true,
-      get() {},
+      value: undefined,
     });
 
     try {

@@ -486,23 +486,37 @@ describe('auth route shells', () => {
     });
   });
 
-  it('sign-up page sends new sailors to onboarding even with an inbound callback', async () => {
+  it('sign-up page keeps an inbound callback through onboarding', async () => {
     render(await SignUpPage(routeProps({ callbackUrl: '/fleet' })));
 
     expect(routeMocks.redirectIfAuthenticated).toHaveBeenCalledWith(
       'en',
-      '/onboarding'
+      '/onboarding?callbackUrl=%2Ffleet'
     );
     expect(
       screen.getByRole('heading', { name: 'SignUpPage.heading' })
     ).toBeVisible();
     expect(screen.getByRole('form', { name: 'sign-up-form' })).toHaveAttribute(
       'data-callback-url',
-      '/onboarding'
+      '/onboarding?callbackUrl=%2Ffleet'
     );
     expect(
       screen.getByRole('link', { name: 'SignUpPage.sign_in_link' })
-    ).toHaveAttribute('href', '/login?callbackUrl=%2Fonboarding');
+    ).toHaveAttribute(
+      'href',
+      '/login?callbackUrl=%2Fonboarding%3FcallbackUrl%3D%252Ffleet'
+    );
+  });
+
+  it('sign-up page uses the first duplicate inbound callback', async () => {
+    render(
+      await SignUpPage(routeProps({ callbackUrl: ['/fleet', '/events'] }))
+    );
+
+    expect(screen.getByRole('form', { name: 'sign-up-form' })).toHaveAttribute(
+      'data-callback-url',
+      '/onboarding?callbackUrl=%2Ffleet'
+    );
   });
 
   it('sign-up page defaults new sailors to onboarding', async () => {
