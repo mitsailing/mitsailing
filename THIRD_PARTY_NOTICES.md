@@ -1,3 +1,7 @@
+# Third-party notices
+
+Portions derived from upstream MIT-licensed boilerplate:
+
 MIT License
 
 Copyright (c) 2026 Remi W.
