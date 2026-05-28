@@ -30,7 +30,7 @@
       background-color, border-color, box-shadow, opacity, transform !important;
   }
 
-  .dark [data-conditions-bar] a {
+  .dark [data-conditions-bar] :is(a, button) {
     color: var(--foreground) !important;
     transition-property:
       background-color, border-color, box-shadow, opacity, transform !important;
@@ -38,6 +38,11 @@
 
   .dark .bg-card {
     background-color: var(--card) !important;
+  }
+
+  .dark :is(.bg-background, .bg-card, .bg-mit-red-highlight, .bg-mit-surface) {
+    transition-property:
+      border-color, box-shadow, opacity, transform !important;
   }
 
   .dark input,

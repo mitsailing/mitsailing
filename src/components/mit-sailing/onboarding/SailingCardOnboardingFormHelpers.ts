@@ -24,7 +24,9 @@ const isVisibleSailingAffiliation = (
 ): value is SailingAffiliation =>
   getSailingAffiliationOptions().some((option) => option.value === value);
 
-export const getVisibleSailingAffiliation = (value: string | undefined) => {
+export const getVisibleSailingAffiliation = (
+  value: string | undefined
+): SailingAffiliation | '' => {
   if (value === undefined) {
     return '';
   }
