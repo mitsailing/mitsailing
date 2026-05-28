@@ -5,7 +5,7 @@ import {
 import type { EventPaymentStatus as EventPaymentStatusType } from '@/generated/prisma/enums';
 import { EVENTS_TIME_ZONE, nyYmd } from '@/lib/mit-sailing/nyTime';
 
-export type EventPaymentEligibilityReason =
+type EventPaymentEligibilityReason =
   | 'eligible'
   | 'missing_deadline'
   | 'no_fee'

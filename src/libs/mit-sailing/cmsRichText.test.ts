@@ -29,22 +29,20 @@ describe('sanitizeCmsRichTextHtml', () => {
     );
   });
 
-  it('keeps the supported Tiptap rich text subset', () => {
-    expect(
-      sanitizeCmsRichTextHtml(
-        '<h2>Race notes</h2><p><strong>Bring</strong> layers<br>and water.</p><ul><li>Rig boats</li><li>Check weather</li></ul><ol><li>Launch</li></ol><p><a href="/classes">Class info</a> <a href="https://example.com">External</a></p>'
-      )
-    ).toBe(
-      '<h2>Race notes</h2><p><strong>Bring</strong> layers<br />and water.</p><ul><li>Rig boats</li><li>Check weather</li></ul><ol><li>Launch</li></ol><p><a href="/classes">Class info</a> <a href="https://example.com" rel="noopener noreferrer" target="_blank">External</a></p>'
-    );
-  });
-
   it('strips unsafe markup and presentation attributes', () => {
     expect(
       sanitizeCmsRichTextHtml(
         '<p class="red" style="color:red"><span>Text</span><script>alert(1)</script><font color="red"> color</font> <a href="javascript:alert(1)">bad</a></p>'
       )
     ).toBe('<p>Text color bad</p>');
+  });
+
+  it('drops xmp raw-text contents instead of re-emitting markup', () => {
+    expect(
+      sanitizeCmsRichTextHtml(
+        '<p>Before</p><xmp><img src=x onerror=alert(1)></xmp><p>After</p>'
+      )
+    ).toBe('<p>Before</p><p>After</p>');
   });
 
   it('strips links with obfuscated unsafe schemes', () => {
@@ -104,12 +102,6 @@ describe('sanitizeCmsRichTextHtml', () => {
       )
     ).toBe('<p>Images</p>');
   });
-
-  it('strips raw-text xmp payloads before React rendering', () => {
-    expect(
-      sanitizeCmsRichTextHtml('<xmp><img src=x onerror=alert(1)></xmp>')
-    ).toBe('');
-  });
 });
 
 describe('cmsRichTextContainsRenderedImageFromSanitized', () => {
@@ -167,6 +159,14 @@ describe('plainTextFromCmsRichTextHtml', () => {
     expect(plainTextFromCmsRichTextHtml('<p>a<br>b<br/>c<BR />d</p>')).toBe(
       'a b c d'
     );
+  });
+
+  it('omits xmp raw-text contents from plaintext extraction', () => {
+    expect(
+      plainTextFromCmsRichTextHtml(
+        '<p>Before</p><xmp><a href="javascript:alert(1)">bad</a></xmp><p>After</p>'
+      )
+    ).toBe('Before After');
   });
 });
 

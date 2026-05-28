@@ -48,7 +48,7 @@ export function ProfileSideNav() {
   return (
     <div
       className={cn(
-        'relative flex h-full min-h-0 grow flex-col overflow-y-auto',
+        'relative flex h-full min-h-0 grow flex-col overflow-y-auto scrollbar-gutter-stable',
         'border-mit-line bg-card px-4 pt-2 pb-3 md:px-5 md:pt-3 md:pb-4',
         'border-b md:border-b-0 md:border-r'
       )}

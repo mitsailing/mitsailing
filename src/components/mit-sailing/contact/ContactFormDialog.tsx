@@ -321,7 +321,7 @@ export function ContactFormDialog(props: ContactFormDialogProps) {
           <Dialog.Overlay className="fixed inset-0 z-50 bg-black/55" />
           <Dialog.Content
             aria-describedby={undefined}
-            className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-8 outline-none"
+            className="fixed inset-0 z-50 flex scrollbar-gutter-stable items-start justify-center overflow-y-auto px-4 py-8 outline-none"
             onCloseAutoFocus={(event) => {
               event.preventDefault();
               previouslyFocusedRef.current?.focus();

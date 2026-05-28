@@ -77,6 +77,7 @@ type EventAdminBasicsFormData = z.infer<typeof eventAdminBasicsFormSchema>;
 class EventDateValidationError extends Error {
   constructor() {
     super('Event must keep at least one date.');
+    this.name = 'EventDateValidationError';
   }
 }
 
