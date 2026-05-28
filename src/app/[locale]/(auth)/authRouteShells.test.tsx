@@ -309,7 +309,9 @@ vi.mock('@/components/mit-sailing/newsletter/NewsletterPreferenceForm', () => ({
   ),
 }));
 
-function routeProps(searchParams: Record<string, string | undefined> = {}) {
+function routeProps(
+  searchParams: Record<string, string | string[] | undefined> = {}
+) {
   return {
     params: Promise.resolve({ locale: 'en' }),
     searchParams: Promise.resolve(searchParams),
@@ -462,6 +464,15 @@ describe('auth route shells', () => {
   it('sign-in continuation applies yearly onboarding before callback', async () => {
     await expect(
       SignInContinuePage(routeProps({ callbackUrl: '/fleet' }))
+    ).rejects.toThrow('NEXT_REDIRECT:/fleet');
+
+    expect(routeMocks.requireCurrentUser).toHaveBeenCalledWith('en', '/fleet');
+    expect(routeMocks.redirect).toHaveBeenCalledWith('/fleet');
+  });
+
+  it('sign-in continuation uses the first duplicate callback value', async () => {
+    await expect(
+      SignInContinuePage(routeProps({ callbackUrl: ['/fleet', '/events'] }))
     ).rejects.toThrow('NEXT_REDIRECT:/fleet');
 
     expect(routeMocks.requireCurrentUser).toHaveBeenCalledWith('en', '/fleet');

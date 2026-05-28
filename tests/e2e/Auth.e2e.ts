@@ -132,7 +132,7 @@ async function expectOnboardingSchemaReady() {
           FROM information_schema.columns
           WHERE table_schema = 'public'
             AND table_name = 'user'
-            AND column_name = 'emergency_contact_email'
+            AND column_name = 'emergency_contact_phone'
         ) AS "user_column_exists",
         EXISTS (
           SELECT 1

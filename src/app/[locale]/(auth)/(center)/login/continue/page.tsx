@@ -7,7 +7,7 @@ import { getI18nPath } from '@/utils/Helpers';
 type SignInContinuePageProps = Readonly<{
   params: Promise<{ locale: string }>;
   searchParams: Promise<{
-    callbackUrl?: string;
+    callbackUrl?: string | string[];
   }>;
 }>;
 
@@ -19,9 +19,8 @@ export default async function SignInContinuePage(
 
   const searchParams = await props.searchParams;
   const rawCallbackUrl = searchParams.callbackUrl;
-  const normalizedCallbackUrl = Array.isArray(rawCallbackUrl)
-    ? rawCallbackUrl[0]
-    : rawCallbackUrl;
+  const normalizedCallbackUrl =
+    typeof rawCallbackUrl === 'string' ? rawCallbackUrl : rawCallbackUrl?.[0];
   const callbackUrl = safeAuthCallbackUrl(
     normalizedCallbackUrl,
     getI18nPath('/', locale)

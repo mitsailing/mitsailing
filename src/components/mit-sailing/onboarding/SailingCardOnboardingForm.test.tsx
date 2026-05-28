@@ -15,7 +15,6 @@ const emptyValues = {
   affiliation: '',
   cardType: 'normal',
   dateOfBirth: '',
-  emergencyContactEmail: '',
   emergencyContactName: '',
   emergencyContactPhone: '',
   firstName: '',
@@ -35,7 +34,6 @@ const actionStateMock = vi.hoisted(() => ({
       affiliation: '',
       cardType: 'normal',
       dateOfBirth: '',
-      emergencyContactEmail: '',
       emergencyContactName: '',
       emergencyContactPhone: '',
       firstName: '',
@@ -391,9 +389,6 @@ describe('SailingCardOnboardingForm', () => {
       'autocomplete',
       'section-emergency tel'
     );
-    expect(
-      screen.queryByLabelText('Emergency contact email, optional')
-    ).not.toBeInTheDocument();
     expect(screen.queryByLabelText('MIT ID')).not.toBeInTheDocument();
   });
 
@@ -645,50 +640,6 @@ describe('SailingCardOnboardingForm', () => {
     expect(formData.get('lastName')).toBe('');
     expect(formData.get('mitId')).toBe('123456789');
     expect(formData.get('swimAgreementAccepted')).toBe('on');
-  });
-
-  it('does not submit retained emergency contact email values', async () => {
-    renderForm({
-      initialValues: {
-        ...emptyValues,
-        emergencyContactEmail: 'retained@example.com',
-      },
-    });
-    const user = userEvent.setup();
-
-    await user.selectOptions(
-      screen.getByRole('combobox', { name: 'Affiliation' }),
-      SailingAffiliation.WELLESLEY
-    );
-    await user.type(screen.getByLabelText('First name'), 'Grace');
-    await user.type(screen.getByLabelText('Last name'), 'Hopper');
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
-    await user.type(screen.getByLabelText('Date of birth'), '01/02/2000');
-    await user.type(screen.getByLabelText('Your phone number'), '6175550100');
-    await user.type(
-      screen.getByLabelText('Emergency contact name'),
-      'Ada Lovelace'
-    );
-    await user.type(
-      screen.getByLabelText('Emergency contact phone'),
-      '6175550101'
-    );
-    await user.click(screen.getByRole('radio', { name: /^Yes/u }));
-    await user.click(
-      screen.getByLabelText(
-        'I have read and agree to the swim agreement and liability release.'
-      )
-    );
-    await user.click(
-      screen.getByRole('button', { name: 'Request sailing card' })
-    );
-
-    const formData = actionStateMock.formAction.mock.calls[0]?.[0];
-
-    if (!(formData instanceof FormData)) {
-      throw new TypeError('Expected onboarding submit to send FormData.');
-    }
-    expect(formData.get('emergencyContactEmail')).toBe('');
   });
 
   it('marks mit id invalid when server validation fails', async () => {

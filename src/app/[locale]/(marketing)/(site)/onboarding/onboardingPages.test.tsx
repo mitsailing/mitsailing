@@ -108,7 +108,6 @@ function completedRequest(userId = 'user-1') {
 
 function onboardingUser() {
   return {
-    emergencyContactEmail: 'grace@example.com',
     emergencyContactName: 'Grace Hopper',
     emergencyContactPhone: '617-555-0100',
     firstName: 'Ada',
@@ -173,10 +172,6 @@ describe('onboarding pages', () => {
       expect.stringContaining('"dateOfBirth":""')
     );
     expect(screen.getByTestId('onboarding-form')).toHaveAttribute(
-      'data-initial-values',
-      expect.stringContaining('"emergencyContactEmail":""')
-    );
-    expect(screen.getByTestId('onboarding-form')).toHaveAttribute(
       'data-locked-identity',
       expect.stringContaining('"mitClassYear":"2027"')
     );
@@ -238,7 +233,6 @@ describe('onboarding pages', () => {
         affiliation: '',
         cardType: 'normal',
         dateOfBirth: '',
-        emergencyContactEmail: '',
         emergencyContactName: '',
         emergencyContactPhone: '',
         firstName: '',

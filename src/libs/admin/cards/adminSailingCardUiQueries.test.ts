@@ -1,12 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getCurrentSailingCardYear } from '@/libs/mit-sailing/sailingCardValidity';
+import type * as SailingCardValidityModule from '@/libs/mit-sailing/sailingCardValidity';
 
 vi.mock('server-only', () => ({}));
 
 vi.mock('@/libs/mit-sailing/sailingCardValidity', async () => {
-  const actual = await vi.importActual<
-    typeof import('@/libs/mit-sailing/sailingCardValidity')
-  >('@/libs/mit-sailing/sailingCardValidity');
+  const actual = await vi.importActual<typeof SailingCardValidityModule>(
+    '@/libs/mit-sailing/sailingCardValidity'
+  );
   return {
     ...actual,
     getCurrentSailingCardYear: () => 2026,

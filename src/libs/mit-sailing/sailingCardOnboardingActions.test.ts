@@ -11,6 +11,7 @@ import {
   sailingCardAgreement,
   sailingCardAgreementHash,
 } from '@/libs/mit-sailing/sailingCardAgreement';
+import type * as SailingCardValidityModule from '@/libs/mit-sailing/sailingCardValidity';
 
 const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
@@ -89,9 +90,9 @@ vi.mock('@/libs/mit-sailing/mitDataWarehouse', async () => {
 });
 
 vi.mock('@/libs/mit-sailing/sailingCardValidity', async () => {
-  const actual = await vi.importActual<
-    typeof import('@/libs/mit-sailing/sailingCardValidity')
-  >('@/libs/mit-sailing/sailingCardValidity');
+  const actual = await vi.importActual<typeof SailingCardValidityModule>(
+    '@/libs/mit-sailing/sailingCardValidity'
+  );
   return {
     ...actual,
     getCurrentSailingCardYear: () => 2026,
@@ -118,7 +119,6 @@ const expectedOnboardingValues = {
   affiliation: SailingAffiliation.MIT_STUDENT,
   cardType: SailingCardType.normal,
   dateOfBirth: '2000-01-02',
-  emergencyContactEmail: '',
   emergencyContactName: 'Grace Hopper',
   emergencyContactPhone: '+44 20 7946 0958',
   firstName: '',

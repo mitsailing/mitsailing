@@ -120,7 +120,6 @@ model User {
   phone            String?         @map("phone")
   emergencyContactName String?     @map("emergency_contact_name")
   emergencyContactPhone String?    @map("emergency_contact_phone")
-  emergencyContactEmail String?    @map("emergency_contact_email")
   firstName        String?         @map("first_name")
   lastName         String?         @map("last_name")
   sailingAffiliation SailingAffiliation? @map("sailing_affiliation")
@@ -318,7 +317,6 @@ model SailingCardRequest {
   phone                      String                   @map("phone")
   emergencyContactName       String                   @map("emergency_contact_name")
   emergencyContactPhone      String                   @map("emergency_contact_phone")
-  emergencyContactEmail      String?                  @map("emergency_contact_email")
   createdAt                  DateTime                 @default(now()) @map("created_at")
   updatedAt                  DateTime                 @updatedAt @map("updated_at")
 

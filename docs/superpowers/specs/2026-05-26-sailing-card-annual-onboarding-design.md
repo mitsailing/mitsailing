@@ -46,8 +46,7 @@ The V1 onboarding form contains:
 7. Your phone number
 8. Emergency contact name
 9. Emergency contact phone
-10. Emergency contact email, optional
-11. Swim agreement disclosure and required checkbox
+10. Swim agreement disclosure and required checkbox
 
 Do not include username. Do not include password or email; signup already owns them. Do not include virtual card type.
 

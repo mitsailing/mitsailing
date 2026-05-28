@@ -33,7 +33,6 @@ const otherIdentity = {
 const contactInput = {
   cardType: SailingCardType.normal,
   dateOfBirth: '2000-01-02',
-  emergencyContactEmail: '',
   emergencyContactName: 'Grace Hopper',
   emergencyContactPhone: '+44 20 7946 0958',
   phone: '(617) 555-0100',
@@ -71,7 +70,6 @@ describe('sailingCardOnboarding', () => {
     ).toEqual({
       cardType: SailingCardType.normal,
       dateOfBirth: new Date('2000-01-02T00:00:00.000Z'),
-      emergencyContactEmail: null,
       firstName: 'Ada',
       lastName: 'Lovelace',
       name: 'Ada Lovelace',
@@ -404,45 +402,6 @@ describe('sailingCardOnboarding', () => {
         });
       },
       { emergencyContactName: 'required' }
-    );
-  });
-
-  it('preserves optional emergency contact email when present', () => {
-    expect(
-      buildSailingCardOnboardingUpdate({
-        input: {
-          ...contactInput,
-          affiliation: SailingAffiliation.OTHER_STUDENT,
-          emergencyContactEmail: ' grace@example.edu ',
-          firstName: 'Robin',
-          lastName: 'Lee',
-          mitId: '',
-        },
-        dataWarehouseIdentity: null,
-        now: new Date('2026-05-21T12:00:00-04:00'),
-      })
-    ).toMatchObject({
-      emergencyContactEmail: 'grace@example.edu',
-    });
-  });
-
-  it('rejects malformed emergency contact email', () => {
-    expectValidationError(
-      () => {
-        buildSailingCardOnboardingUpdate({
-          input: {
-            ...contactInput,
-            affiliation: SailingAffiliation.OTHER_STUDENT,
-            emergencyContactEmail: 'grace@example.',
-            firstName: 'Robin',
-            lastName: 'Lee',
-            mitId: '',
-          },
-          dataWarehouseIdentity: null,
-          now: new Date('2026-05-21T12:00:00-04:00'),
-        });
-      },
-      { emergencyContactEmail: 'invalid' }
     );
   });
 

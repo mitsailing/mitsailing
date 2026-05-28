@@ -22,7 +22,6 @@ export type SailingCardOnboardingInput = {
   readonly affiliation: SailingAffiliation | null;
   readonly cardType: SailingCardType | null;
   readonly dateOfBirth: string;
-  readonly emergencyContactEmail: string;
   readonly emergencyContactName: string;
   readonly emergencyContactPhone: string;
   readonly mitId: string;
@@ -55,35 +54,6 @@ export class SailingCardOnboardingValidationError extends Error {
     this.name = 'SailingCardOnboardingValidationError';
     this.fieldErrors = fieldErrors;
   }
-}
-
-function hasWhitespace(value: string) {
-  for (const character of value) {
-    if (character.trim() === '') {
-      return true;
-    }
-  }
-  return false;
-}
-
-function isSimpleEmailAddress(email: string) {
-  if (email.length > 254 || hasWhitespace(email)) {
-    return false;
-  }
-
-  const atIndex = email.indexOf('@');
-  if (atIndex <= 0 || atIndex !== email.lastIndexOf('@')) {
-    return false;
-  }
-
-  const localPart = email.slice(0, atIndex);
-  const domain = email.slice(atIndex + 1);
-  if (localPart === '' || domain === '') {
-    return false;
-  }
-
-  const domainLabels = domain.split('.');
-  return domainLabels.length > 1 && domainLabels.every((label) => label !== '');
 }
 
 const dateFromParts = (props: {
@@ -143,7 +113,6 @@ const parseDateOfBirth = (value: string) => {
 const validateContact = (input: SailingCardOnboardingInput) => {
   const fieldErrors: SailingCardOnboardingFieldErrors = {};
   const phone = normalizeUsPhone(input.phone);
-  const emergencyContactEmail = input.emergencyContactEmail.trim();
   const emergencyContactName = input.emergencyContactName.trim();
   const emergencyContactPhone = normalizeInternationalPhone(
     input.emergencyContactPhone
@@ -161,13 +130,6 @@ const validateContact = (input: SailingCardOnboardingInput) => {
     fieldErrors.emergencyContactPhone = 'invalid';
   }
   if (
-    emergencyContactEmail !== '' &&
-    !isSimpleEmailAddress(emergencyContactEmail)
-  ) {
-    fieldErrors.emergencyContactEmail = 'invalid';
-  }
-
-  if (
     Object.keys(fieldErrors).length > 0 ||
     !phone.ok ||
     !emergencyContactPhone.ok
@@ -177,8 +139,6 @@ const validateContact = (input: SailingCardOnboardingInput) => {
 
   return {
     emergencyContactName,
-    emergencyContactEmail:
-      emergencyContactEmail === '' ? null : emergencyContactEmail,
     emergencyContactPhone: emergencyContactPhone.phone,
     phone: phone.phone,
   };
@@ -351,7 +311,6 @@ export const buildSailingCardOnboardingUpdate = (props: {
     cardType,
     dateOfBirth,
     emergencyContactName: contact.emergencyContactName,
-    emergencyContactEmail: contact.emergencyContactEmail,
     emergencyContactPhone: contact.emergencyContactPhone,
     lastName,
     name: `${firstName} ${lastName}`,

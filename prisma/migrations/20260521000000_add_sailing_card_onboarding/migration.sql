@@ -47,7 +47,6 @@ CREATE TYPE "sailing_card_type" AS ENUM (
 ALTER TABLE "user"
 ADD COLUMN "first_name" TEXT,
 ADD COLUMN "last_name" TEXT,
-ADD COLUMN "emergency_contact_email" TEXT,
 ADD COLUMN "sailing_affiliation" "sailing_affiliation",
 ADD COLUMN "mit_id" TEXT,
 ADD COLUMN "mit_class_year" TEXT,
@@ -152,7 +151,6 @@ CREATE TABLE "sailing_card_requests" (
     "phone" TEXT NOT NULL,
     "emergency_contact_name" TEXT NOT NULL,
     "emergency_contact_phone" TEXT NOT NULL,
-    "emergency_contact_email" TEXT,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 

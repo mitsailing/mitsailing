@@ -98,7 +98,10 @@ describe('SiteHeader', () => {
     );
     expect(
       within(banner).getByRole('link', { name: 'Create account' })
-    ).toHaveAttribute('href', '/signup');
+    ).toHaveAttribute(
+      'href',
+      '/signup?callbackUrl=%2Ffleet%3Fcategory%3Ddinghy'
+    );
   });
 
   it('renders profile and sign out for signed-in users', () => {

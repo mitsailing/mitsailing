@@ -104,10 +104,6 @@ const appendBaseFields = (props: {
   props.formData.set('affiliation', props.values.affiliation);
   props.formData.set('cardType', props.values.cardType);
   props.formData.set('dateOfBirth', props.values.dateOfBirth);
-  props.formData.set(
-    'emergencyContactEmail',
-    props.values.emergencyContactEmail
-  );
   props.formData.set('emergencyContactName', props.values.emergencyContactName);
   props.formData.set(
     'emergencyContactPhone',

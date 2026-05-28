@@ -11,7 +11,7 @@ BEGIN
             'cancelled'
         );
     END IF;
-END
+END;
 $$;
 
 DO $$
@@ -27,7 +27,7 @@ BEGIN
             'team_racing'
         );
     END IF;
-END
+END;
 $$;
 
 CREATE TABLE IF NOT EXISTS "sailing_card_requests" (
@@ -50,7 +50,6 @@ CREATE TABLE IF NOT EXISTS "sailing_card_requests" (
     "phone" TEXT NOT NULL,
     "emergency_contact_name" TEXT NOT NULL,
     "emergency_contact_phone" TEXT NOT NULL,
-    "emergency_contact_email" TEXT,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -72,7 +71,7 @@ BEGIN
     IF duplicate_count > 0 THEN
         RAISE EXCEPTION 'Cannot create unique index sailing_card_requests_user_id_card_year_key on table sailing_card_requests: duplicate (user_id, card_year) pairs exist';
     END IF;
-END
+END;
 $$;
 
 CREATE UNIQUE INDEX IF NOT EXISTS "sailing_card_requests_user_id_card_year_key"
@@ -102,7 +101,7 @@ BEGIN
         ON DELETE CASCADE
         ON UPDATE CASCADE;
     END IF;
-END
+END;
 $$;
 
 DO $$
@@ -120,7 +119,7 @@ BEGIN
         ON DELETE RESTRICT
         ON UPDATE CASCADE;
     END IF;
-END
+END;
 $$;
 
 DO $$
@@ -138,5 +137,5 @@ BEGIN
         ON DELETE SET NULL
         ON UPDATE CASCADE;
     END IF;
-END
+END;
 $$;

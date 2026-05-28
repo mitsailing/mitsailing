@@ -38,8 +38,7 @@ async function upsertSailingCardRequest(options: {
     `INSERT INTO "sailing_card_requests"
       ("id", "user_id", "card_year", "status", "card_type", "legal_agreement_acceptance_id", "requested_at",
        "first_name", "last_name", "sailing_affiliation", "mit_id", "mit_class_year", "date_of_birth",
-       "phone", "emergency_contact_name", "emergency_contact_phone", "emergency_contact_email",
-       "created_at", "updated_at")
+       "phone", "emergency_contact_name", "emergency_contact_phone", "created_at", "updated_at")
      SELECT
        $1, u."id", $3, 'pending', 'normal', $2, NOW(),
        COALESCE(NULLIF(u."first_name", ''), 'E2E'),
@@ -48,8 +47,7 @@ async function upsertSailingCardRequest(options: {
        u."mit_class_year", DATE '1990-01-01',
        COALESCE(NULLIF(u."phone", ''), '+16172531234'),
        COALESCE(NULLIF(u."emergency_contact_name", ''), 'Taylor Test'),
-       COALESCE(NULLIF(u."emergency_contact_phone", ''), '+16172534321'),
-       u."emergency_contact_email", NOW(), NOW()
+       COALESCE(NULLIF(u."emergency_contact_phone", ''), '+16172534321'), NOW(), NOW()
      FROM "user" u
      WHERE u."id" = $4
      ON CONFLICT ("user_id", "card_year") DO UPDATE
@@ -66,7 +64,6 @@ async function upsertSailingCardRequest(options: {
          "phone" = EXCLUDED."phone",
          "emergency_contact_name" = EXCLUDED."emergency_contact_name",
          "emergency_contact_phone" = EXCLUDED."emergency_contact_phone",
-         "emergency_contact_email" = EXCLUDED."emergency_contact_email",
          "updated_at" = NOW()`,
     [
       `e2e-sailing-card-request-${randomUUID()}`,

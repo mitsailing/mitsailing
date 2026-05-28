@@ -35,7 +35,8 @@
     background-color: #18181b !important;
   }
 
-  .dark [data-site-header]
+  .dark
+    [data-site-header]
     :is(
       nav a,
       nav button,

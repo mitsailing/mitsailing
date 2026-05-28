@@ -2,14 +2,13 @@
 
 import { Sailboat } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useActionState, useMemo, useState, useTransition } from 'react';
+import { useActionState, useState, useTransition } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import type { UseFormRegister, UseFormSetValue } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SailingAffiliation, SailingCardType } from '@/generated/prisma/enums';
-import { EVENTS_TIME_ZONE } from '@/lib/mit-sailing/nyTime';
 import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 import { cn } from '@/lib/utils';
 import { Link } from '@/libs/I18nNavigation';
@@ -64,7 +63,6 @@ const initialSailingCardOnboardingFormState: SailingCardOnboardingFormState = {
     affiliation: '',
     cardType: 'normal',
     dateOfBirth: '',
-    emergencyContactEmail: '',
     emergencyContactName: '',
     emergencyContactPhone: '',
     firstName: '',
@@ -241,7 +239,7 @@ function FitnessMembershipQuestion(props: {
         {t.rich('fitness_membership_signup_note', {
           membership: (chunks) => (
             <Link
-              className="font-medium text-mit-red dark:text-mit-red-ink underline underline-offset-2 hover:text-mit-red/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mit-red"
+              className="font-medium text-mit-red underline underline-offset-2 hover:text-mit-red/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mit-red dark:text-mit-red-ink"
               href="https://www.mitrecsports.com/join/memberships/"
               key="membership"
             >
@@ -870,22 +868,7 @@ export function SailingCardOnboardingForm(
   const form = useForm<SailingCardOnboardingFormValues>({
     values: formValues,
   });
-  const now = useMemo(() => {
-    const parts = new Intl.DateTimeFormat('en-US', {
-      timeZone: EVENTS_TIME_ZONE,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    }).formatToParts(new Date());
-    const get = (type: Intl.DateTimeFormatPartTypes) =>
-      parts.find((p) => p.type === type)?.value ?? '0';
-    return new Date(
-      `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}:${get('second')}`
-    );
-  }, []);
+  const [now] = useState(() => new Date());
   const [
     affiliationValue,
     mitIdValue,

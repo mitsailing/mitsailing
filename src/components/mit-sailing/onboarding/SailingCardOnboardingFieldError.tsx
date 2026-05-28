@@ -22,9 +22,6 @@ const fieldErrorMessageKey = (props: {
   if (props.field === 'emergencyContactPhone') {
     return 'error_invalid_emergency_phone';
   }
-  if (props.field === 'emergencyContactEmail') {
-    return 'error_invalid_email';
-  }
   if (props.value === 'affiliation_mismatch') {
     return 'error_mit_id_affiliation_mismatch';
   }

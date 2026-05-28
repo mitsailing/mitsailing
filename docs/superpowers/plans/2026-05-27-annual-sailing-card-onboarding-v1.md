@@ -49,7 +49,7 @@
 - [ ] Add failing action tests proving successful submit creates one `LegalAgreementAcceptance`, upserts the current-year `SailingCardRequest`, links the exact acceptance id, and resubmitting same year updates that request.
 - [ ] Add failing action tests proving validation-error responses include the submitted `values` so RHF can preserve user input.
 - [ ] Run `npm run test -- src/libs/mit-sailing/sailingCardOnboardingActions.test.ts`; expected: fail on request upsert and preservation assertions until implemented.
-- [ ] Update onboarding parsing to include `cardType`, `dateOfBirth`, and optional `emergencyContactEmail`; keep server validation authoritative.
+- [ ] Update onboarding parsing to include `cardType` and `dateOfBirth`; keep server validation authoritative.
 - [ ] In one Prisma transaction, update reusable `User` facts, create append-only legal evidence, and upsert `SailingCardRequest` by `(userId, cardYear)` with `legalAgreementAcceptanceId`.
 - [ ] Re-run the action tests.
 

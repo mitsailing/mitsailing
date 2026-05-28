@@ -48,7 +48,6 @@ export type SailingCardOnboardingFormValues = {
   readonly affiliation: string;
   readonly cardType: string;
   readonly dateOfBirth: string;
-  readonly emergencyContactEmail: string;
   readonly emergencyContactName: string;
   readonly emergencyContactPhone: string;
   readonly firstName: string;
@@ -127,7 +126,6 @@ const parseSailingCardOnboardingFormValues = (
   affiliation: formDataString(formData, 'affiliation'),
   cardType: formDataString(formData, 'cardType'),
   dateOfBirth: formDataString(formData, 'dateOfBirth'),
-  emergencyContactEmail: formDataString(formData, 'emergencyContactEmail'),
   emergencyContactName: formDataString(formData, 'emergencyContactName'),
   emergencyContactPhone: formDataString(formData, 'emergencyContactPhone'),
   firstName: formDataString(formData, 'firstName'),
@@ -147,7 +145,6 @@ const parseSailingCardOnboardingFormData = (
     affiliation: parseAffiliation(values.affiliation),
     cardType: parseCardType(values.cardType),
     dateOfBirth: values.dateOfBirth,
-    emergencyContactEmail: values.emergencyContactEmail,
     emergencyContactName: values.emergencyContactName,
     emergencyContactPhone: values.emergencyContactPhone,
     mitId: values.mitId,
@@ -295,8 +292,20 @@ export const submitSailingCardOnboardingAction = async (
   const userAgent = truncateMetadata(headerList.get('user-agent'));
   const acceptedAt = new Date();
   const cardYear = getCurrentSailingCardYear(acceptedAt);
-  const { cardType, dateOfBirth, emergencyContactEmail, ...userUpdate } =
-    update;
+  const { cardType, dateOfBirth } = update;
+  const userUpdate = {
+    emergencyContactName: update.emergencyContactName,
+    emergencyContactPhone: update.emergencyContactPhone,
+    firstName: update.firstName,
+    lastName: update.lastName,
+    mitClassYear: update.mitClassYear,
+    mitDataWarehouseVerifiedAt: update.mitDataWarehouseVerifiedAt,
+    mitId: update.mitId,
+    name: update.name,
+    phone: update.phone,
+    sailingAffiliation: update.sailingAffiliation,
+    sailingCardRequestedAt: update.sailingCardRequestedAt,
+  };
 
   await prisma.$transaction(async (tx) => {
     const legalAgreementAcceptance = await tx.legalAgreementAcceptance.create({
@@ -314,10 +323,7 @@ export const submitSailingCardOnboardingAction = async (
     });
     await tx.user.update({
       where: { id: session.user.id },
-      data: {
-        ...userUpdate,
-        emergencyContactEmail,
-      },
+      data: userUpdate,
     });
     await tx.sailingCardRequest.upsert({
       where: {
@@ -330,7 +336,6 @@ export const submitSailingCardOnboardingAction = async (
         cardType,
         cardYear,
         dateOfBirth,
-        emergencyContactEmail,
         emergencyContactName: update.emergencyContactName,
         emergencyContactPhone: update.emergencyContactPhone,
         firstName: update.firstName,
@@ -347,7 +352,6 @@ export const submitSailingCardOnboardingAction = async (
       update: {
         cardType,
         dateOfBirth,
-        emergencyContactEmail,
         emergencyContactName: update.emergencyContactName,
         emergencyContactPhone: update.emergencyContactPhone,
         firstName: update.firstName,
