@@ -18,6 +18,7 @@ commit PR-specific persona files unless the user explicitly asks.
 
 | Persona ID | Persona | Actor/session | Goal | Status | Current path | Seeded data | Prerequisite gates | Blocked-state assertion | Eligibility transition | Eligible-state assertion | Staff/admin handoff | Evidence source | Finding classification | Owner issue or durable doc |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| software-engineer-conductor | Software engineer or agent conductor | Local repo, GitHub PR, Linear/GitHub tasks, local run files | Use the runbook to make safe code changes for this PR | Required for feature/code PRs | README prompt -> runbook -> conductor ledger -> persona matrix -> durable task source -> verification | PR URL, branch, repo rules, Linear/GitHub task links | Must keep context small, ask before product semantics or issue creation, and run independent bug review | Cannot start implementation if task source, persona file, or verification gates are unclear | Run packet is clear and user has reviewed editable persona/task files | Implementation workers can proceed with bounded prompts and evidence requirements | Follow-up gaps are linked to Linear/GitHub, not chat memory | Ledger, task links, command output, manual note | Needs verification | |
 | student-card-onboarding | MIT student | Separate browser/session from staff | Get a sailing card | Capability-gated | | Unique verified user | Intro for experienced sailors or one beginner class must be complete | Staff cannot assign a sailing card yet | User completes intro for experienced sailors or one required beginner class | User becomes ready for staff card assignment | Staff assigns card only after eligibility | Playwright, DB query, screenshot | Needs verification | |
 | admin-card-assignment | Staff/admin | Separate browser/session from student | Review registration and issue card | Capability-gated | | Eligible user from student flow | User must be eligible | Card action unavailable or rejected before eligibility | User eligibility exists | Card action available and succeeds | Admin records card assignment | Playwright, DB query, screenshot | Needs verification | |
 | pavilion-rental-payment-question | Pavilion rental requester | Separate public or authenticated user session | Understand how to pay for a pavilion rental | Supported if clear copy exists | Pavilion rental inquiry or reservation path | Rental request data | Payment is manual | UI must not imply online payment is available | Staff/manual payment next step is shown | User knows who follows up or how manual payment happens | Staff handles payment manually | Playwright, screenshot, copy review | Needs verification | |
@@ -36,6 +37,26 @@ Keep status separate from finding classification. Classification is `PR
 blocker`, `follow-up`, `won't fix`, or `needs product judgment`.
 
 ## Executable Acceptance Checks
+
+### Software engineer conductor
+
+Persona ID:
+Persona:
+Actor/session:
+PR:
+Branch:
+Run directory:
+Durable task source:
+Given:
+When:
+Then:
+Context-control assertion:
+Task-tracking assertion:
+Product-semantics stop condition:
+Issue-creation stop condition:
+Independent bug-review gate:
+Verification gate:
+Evidence source:
 
 ### MIT student onboarding
 

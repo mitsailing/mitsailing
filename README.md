@@ -148,7 +148,8 @@ local/agent-runs/pr-<number>/conductor.md.
 For UI, journey, admin, onboarding, or capability-gated work, write the persona
 workflow matrix from docs/ai/persona-matrix-template.md to
 local/agent-runs/pr-<number>/personas.md and wait for me to review/edit that
-file before implementation.
+file before implementation. Include the software-engineer process persona first
+so the agent workflow itself is tested before product personas run.
 ```
 
 Skip this only for small changes that do not edit code, such as a typo-only

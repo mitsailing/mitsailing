@@ -14,11 +14,13 @@ The operating model is:
 2. Give bounded worker agents strict contracts.
 3. Review journeys, not isolated pages, when a PR crosses actors or states.
 4. Use `impeccable` for UI, copy, admin, email, and journey PRs.
-5. Use personas to expose product risks early.
-6. Use Context7 before library-specific implementation changes.
-7. Run independent code review for bugs separate from CodeRabbit.
-8. Preserve user product intuition by escalating policy and UX decisions.
-9. Verify locally before claiming anything is fixed.
+5. Use a software-engineer process persona to test whether the runbook is
+   usable for the PR before product personas start.
+6. Use product personas to expose product risks early.
+7. Use Context7 before library-specific implementation changes.
+8. Run independent code review for bugs separate from CodeRabbit.
+9. Preserve user product intuition by escalating policy and UX decisions.
+10. Verify locally before claiming anything is fixed.
 
 This system is designed for MIT Sailing. Agents must still follow `AGENTS.md`,
 the repo's Cursor rules by path, and any PR-specific instructions from the
@@ -63,7 +65,8 @@ local/agent-runs/pr-<number>/conductor.md.
 For UI, journey, admin, onboarding, or capability-gated work, write the persona
 workflow matrix from docs/ai/persona-matrix-template.md to
 local/agent-runs/pr-<number>/personas.md and wait for me to review/edit that
-file before implementation.
+file before implementation. Include the software-engineer process persona first
+so the PR process itself is tested before product personas run.
 ```
 
 The conductor output should show:
@@ -82,6 +85,10 @@ For UI, journey, admin, onboarding, or capability-gated work, the conductor's
 first useful output should be the path to the local persona matrix file. The
 user views and edits personas in that file. The conductor then reloads the
 file, updates its state ledger, and gives the revised matrix to worker agents.
+The first persona should be the software engineer or agent conductor using the
+runbook on this PR. That persona checks whether the instructions are clear,
+whether required files and durable tasks can be found, whether context stays
+small, and whether the process would catch bugs before code changes.
 
 For a PR with unusual domain risk, create a PR-specific context packet in
 `local/agent-runs/pr-<number>/packets/00-context.md` that references this
@@ -1016,6 +1023,28 @@ Examples:
 ## Persona selection guide
 
 Pick personas from the workflow, not from generic demographics.
+
+For every feature PR or code-changing PR, start with one process persona before
+product personas:
+
+- Software engineer or agent conductor applying this runbook to the PR.
+
+This persona is not testing the product UI. It tests whether a competent
+engineer or agent can safely use the runbook to change code:
+
+- Can they find the PR, branch, conductor ledger, persona matrix, and durable
+  task source?
+- Can they tell what is a blocker, follow-up, non-goal, or product judgment
+  question?
+- Can they keep context small enough to avoid drift?
+- Can they identify when to stop and ask before changing semantics or creating
+  issues?
+- Can they find the right Linear or GitHub task for a persona-discovered gap?
+- Can they tell what verification and independent bug review are required
+  before merge readiness?
+
+If this process persona fails, fix the run packet, docs, or task links before
+dispatching product personas or implementation workers.
 
 Common MIT Sailing personas:
 
