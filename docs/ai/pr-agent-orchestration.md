@@ -58,6 +58,8 @@ Run it against PR <number or URL> on branch <branch name>.
 Keep a tiny conductor state ledger, dispatch bounded sub-agents, use
 impeccable for UI/journey work, run an independent bug review separate from
 CodeRabbit, and ask me before changing product semantics or creating issues.
+Write conductor state from docs/ai/pr-run-ledger-template.md to
+local/agent-runs/pr-<number>/conductor.md.
 For UI, journey, admin, onboarding, or capability-gated work, write the persona
 workflow matrix from docs/ai/persona-matrix-template.md to
 local/agent-runs/pr-<number>/personas.md and wait for me to review/edit that
@@ -67,6 +69,8 @@ file before implementation.
 The conductor output should show:
 
 - the PR blocker list;
+- the PR class and selected specialist roster;
+- the conductor ledger path;
 - the journey map, if the PR crosses actors or states;
 - the persona matrix file path used for the review;
 - product judgment questions;
@@ -79,9 +83,11 @@ first useful output should be the path to the local persona matrix file. The
 user views and edits personas in that file. The conductor then reloads the
 file, updates its state ledger, and gives the revised matrix to worker agents.
 
-For a PR with unusual domain risk, create a PR-specific packet in
-`docs/superpowers/plans/YYYY-MM-DD-pr-<number>-agent-packet.md` that references
-this runbook and fills in concrete PR facts.
+For a PR with unusual domain risk, create a PR-specific context packet in
+`local/agent-runs/pr-<number>/packets/00-context.md` that references this
+runbook and fills in concrete PR facts. Use `docs/superpowers/plans/` only for
+durable implementation plans or historical planning records that should be
+committed.
 
 ## When to use
 
@@ -110,6 +116,66 @@ Compact run for small code changes:
 
 Full journey run applies when the PR crosses actors, admin surfaces, emails,
 permissions, payments, background jobs, or capability gates.
+
+## Run artifacts
+
+Keep durable system instructions in committed docs and mutable run state in
+ignored local files.
+
+| Artifact | Default path | Committed | Purpose |
+| --- | --- | --- | --- |
+| Runbook | `docs/ai/pr-agent-orchestration.md` | Yes | Stable process and worker contracts. |
+| Conductor ledger template | `docs/ai/pr-run-ledger-template.md` | Yes | Reusable shape for PR state. |
+| Persona matrix template | `docs/ai/persona-matrix-template.md` | Yes | Reusable executable persona schema. |
+| Conductor ledger | `local/agent-runs/pr-<number>/conductor.md` | No | Tiny mutable state for one PR run. |
+| Persona matrix | `local/agent-runs/pr-<number>/personas.md` | No | User-editable persona and workflow state. |
+| Worker packets | `local/agent-runs/pr-<number>/packets/<nn>-<role>.md` | No | Bounded prompts for specialists. |
+| Worker results | `local/agent-runs/pr-<number>/results/<nn>-<role>.md` | No | Compressed evidence returned by specialists. |
+| Follow-up drafts | `local/agent-runs/pr-<number>/follow-ups.md` | No | Issue drafts before duplicate search and user approval. |
+| Durable gaps | GitHub issues or focused docs under `docs/ai/` | Yes, if docs | Product rules or buildable gaps that must outlive the PR run. |
+
+Before a PR number exists, replace `pr-<number>` with `<branch-slug>`.
+Do not put active PR run state in `docs/superpowers/plans/`. Use that folder
+only for durable implementation plans or historical planning records.
+
+## PR classification
+
+Classify the PR before dispatching workers and record the class in
+`local/agent-runs/pr-<number>/conductor.md`.
+
+| Class | Use when | Minimum specialists |
+| --- | --- | --- |
+| `docs-only` | Typo, link, comment, or prose-only change with no code behavior. | Conductor only or compact review. |
+| `compact-code` | Small code change with no user journey, cross-actor state, schema, auth, or async behavior. | Triage, focused fix, independent bug review, final verification. |
+| `technical` | Dependencies, framework behavior, CI, schema, cache, auth internals, jobs, or data code. | Compact specialists plus Context7 when a library/framework/API is touched. |
+| `journey` | UI, admin, email, onboarding, payment, permissions, async, multi-actor, or capability-gated behavior. | Technical specialists plus persona workflow, `impeccable`, TDD/E2E, and any domain specialists triggered below. |
+| `migration-parity` | Replacing legacy behavior, migrating data/workflows, or touching old-app parity. | Journey or technical specialists plus legacy/operations migration auditor. |
+
+## Specialist roster
+
+Use the full roster as a coverage map, then dispatch only the roles triggered
+by the PR. Do not create one broad agent that owns multiple specialties.
+
+| Specialist | Trigger | Owns |
+| --- | --- | --- |
+| Product intent analyst | New feature, ambiguous behavior, pricing, membership, eligibility, or policy. | Goals, non-goals, and product judgment questions. |
+| Persona workflow architect | UI, journey, admin, onboarding, capability gates, or multi-actor work. | Executable personas, handoffs, status labels, and issue promotion. |
+| UX interaction designer | New or materially changed user/admin workflow. | Simplest task flow and screen behavior. |
+| Visual/product UI reviewer | Any UI surface. | `impeccable` product UI quality, hierarchy, tokens, and anti-AI-slop verdict. |
+| UX copy/clarity reviewer | Labels, errors, emails, eligibility, admin actions, or user-visible strings. | Clarity, i18n key impact, and policy meaning. |
+| Accessibility reviewer | Forms, controls, navigation, admin actions, or rendered UI. | Keyboard, focus, semantics, contrast, and assistive-tech states. |
+| Responsive/mobile reviewer | Rendered UI. | Mobile, tablet, desktop fit, touch targets, overflow, and screenshots. |
+| TDD planner | Behavior change or bug fix. | Failing tests, red/green evidence, and regression scope. |
+| E2E workflow tester | User journey, multi-actor flow, email, admin handoff, or capability gate. | Playwright sessions, Mailpit, DB assertions, screenshots, and evidence. |
+| Implementation engineer | Approved implementation or confirmed blocker. | Minimal code changes inside assigned write scope. |
+| Bug reviewer | Every code-changing PR before merge-readiness claim. | Independent defect review separate from CodeRabbit and analyzers. |
+| Security/auth reviewer | Auth, roles, admin, permissions, membership, payment, or data visibility. | Authorization, session boundaries, privilege checks, and leakage risks. |
+| Data model reviewer | Schema, Prisma, migrations, imports, warehouse sync, or data integrity. | Data shape, constraints, migration safety, and integrity checks. |
+| Legacy parity auditor | Migration, old-app replacement, or uncertain historical behavior. | Old app parity and forgotten workflows. |
+| Operations/deployment auditor | Cron, jobs, email delivery, env, deployment, runtime, rollback, or external systems. | Production behavior and operational readiness. |
+| GitHub/CI readiness reviewer | Before final merge recommendation. | CI, CodeRabbit independence, Sonar/Codacy freshness, and PR status. |
+| Issue/backlog curator | Confirmed non-blocking gaps. | Duplicate search, user-approved issue drafts, and follow-up hygiene. |
+| Documentation/IA maintainer | Runbook, templates, durable docs, or artifact locations. | Human-editable source of truth and local versus committed state. |
 
 ## Best-practice scorecard
 
@@ -222,6 +288,12 @@ CodeRabbit to find bugs the independent reviewer can find locally.
 
 ## Standard execution order
 
+0. **Conductor setup**
+   Create `local/agent-runs/pr-<number>/conductor.md` from
+   `docs/ai/pr-run-ledger-template.md`. Classify the PR, record the selected
+   specialist roster, and create any needed worker packet paths under
+   `local/agent-runs/pr-<number>/packets/`.
+
 1. **Triage agent**
    Inspect PR checks, review comments, and local state. Reproduce failures when
    practical. Identify whether the PR is a simple fix or a journey PR. Do not
@@ -233,33 +305,41 @@ CodeRabbit to find bugs the independent reviewer can find locally.
    evidence. Look only for product or UX risks that could make implementation
    harden the wrong behavior.
 
-3. **Context7 best-practices audit**
+3. **Impeccable product/design gate**
+   For UI, copy, admin, email, onboarding, or journey PRs, run the setup gate
+   before design judgment. For net-new or meaningful workflow changes, shape
+   before implementation, then use the relevant concrete touchpoint checks:
+   `clarify`, `adapt`, `audit`, `harden`, and `polish`.
+
+4. **Context7 best-practices audit**
    Use current docs for library, framework, SDK, or tool behavior before
    implementation.
 
-4. **Focused fix agent**
+5. **Focused fix agent**
    Fix confirmed blockers only. Use TDD where practical. Avoid broad cleanup.
 
-5. **Independent bug review agent**
+6. **Independent bug review agent**
    Review the diff for bugs and missing tests without relying on CodeRabbit.
    This is read-only unless the conductor assigns confirmed findings back to a
    focused fix agent.
 
-6. **Post-fix persona system agent**
+7. **Post-fix persona system agent**
    Build or update the journey map, persona workflow matrix, touchpoint
    findings, Playwright/Mailpit coverage ideas, and product judgment queue.
 
-7. **Legacy parity agent**
-   Optional, but recommended for migration work. Search old app behavior and
-   draft follow-up issues for confirmed gaps.
+8. **Legacy parity agent**
+   Required for migration, admin/member lifecycle, email, import,
+   scheduled-job, and deployment/runtime PRs. Search old app behavior and draft
+   follow-up issues for confirmed gaps.
 
-8. **Final verification agent**
+9. **Final verification agent**
    Review final diff, run checks, classify remaining risks, and report remote
    checks that need re-analysis.
 
-Steps 2 and 3 can run after triage has enough information. Step 5 runs after
-the focused fix agent reports. Steps 6 and 7 can run in parallel after blocker
-fixes are underway or complete. Step 8 is always last.
+Persona, `impeccable`, Context7, legacy, security/auth, data, operations, and
+CI discovery can run in parallel after triage has enough information, as long
+as they have distinct scopes and no overlapping writes. Independent bug review
+runs after the focused fix agent reports. Final verification is always last.
 
 ## Journey-first review
 
@@ -435,6 +515,30 @@ Do not make onboarding completion automatically unlock card assignment. Ask
 Andrew before changing the prerequisite.
 ```
 
+## Operational parity gates
+
+Run the legacy/operations specialist for migration, admin/member lifecycle,
+email, import, scheduled-job, and deployment/runtime PRs. Do not treat it as
+optional for those classes.
+
+Required gates:
+
+- Legacy access gate: if the old app is unavailable, record that limitation
+  and do not claim parity.
+- Scheduled job gate: classify related cron, queue, shebang, or manual-run
+  operations as preserved, intentionally dropped, follow-up, or needs decision.
+- Warehouse sync gate: for MIT identity, affiliation, Kerberos, membership
+  eligibility, or imports, document source, freshness, stale-data behavior,
+  credentials/env, and local fixture.
+- Email/Mailman gate: treat transactional email and Mailman/list side effects
+  separately. Mailpit proves email behavior, not external list subscription.
+- Runtime/deploy gate: record Redis/workers, cron, env vars, SSH/media paths,
+  Oracle access, Cloudflare routing, manual deploy steps, rollback, and failure
+  modes when touched.
+- Forgotten behavior gate: final verification must answer, with search
+  evidence or a recorded source limitation, what legacy operational behavior
+  could silently stop after this PR.
+
 ## Launch prompt
 
 Use this as the default conductor prompt for future PRs:
@@ -450,6 +554,9 @@ Your job is orchestration, not implementation. Keep your own context small.
 Maintain this state ledger only:
 - Objective
 - Active branch
+- Ledger path
+- PR class
+- Selected specialist roster and trigger
 - PR blocker list
 - Journey map, if this PR crosses actors, emails, admin surfaces, or async work
 - Persona matrix file path, if this PR touches UI, admin, onboarding, journey,
@@ -473,29 +580,43 @@ Classification rules:
   or app rules, or out-of-scope redesign.
 
 Execution order:
-1. Dispatch the triage agent.
-2. Dispatch the pre-fix persona risk scan after triage identifies touched
+0. Create `local/agent-runs/pr-<number>/conductor.md` from
+   `docs/ai/pr-run-ledger-template.md`.
+1. Classify the PR and record the selected specialist roster in the ledger.
+2. Dispatch the triage agent.
+3. Dispatch the pre-fix persona risk scan after triage identifies touched
    workflows. For journey PRs, require a compact journey map.
    For UI, journey, admin, onboarding, or capability-gated PRs, write the
    persona workflow matrix to a PR-specific Markdown file and wait for user
    review/edits before implementation.
-3. Dispatch the Context7 best-practices audit after triage identifies touched
+4. Dispatch the `impeccable` gate for UI, admin, copy, email, onboarding, or
+   journey work before implementation.
+5. Dispatch the Context7 best-practices audit after triage identifies touched
    libraries/frameworks.
-4. Dispatch the focused fix agent only after triage, pre-fix persona scan, and
-   Context7 audit report.
-5. Dispatch the independent bug review agent after the focused fix agent
+6. Dispatch the focused fix agent only after triage, pre-fix persona scan,
+   required `impeccable` findings, and Context7 audit report.
+7. Dispatch the independent bug review agent after the focused fix agent
    reports.
-6. Dispatch the post-fix persona system agent and legacy parity agent in
+8. Dispatch the post-fix persona system agent and legacy parity agent in
    parallel when appropriate.
-7. Dispatch final verification last.
+9. Dispatch final verification last.
 
 Acceptance rules:
+- No worker starts until PR class, ledger path, and selected specialist roster
+  are recorded.
 - No implementation before triage and relevant Context7 report.
 - No UI, copy, admin, email, or journey PR may skip the `impeccable` gate.
+- No persona-dependent worker starts after user edits until the conductor
+  reloads `personas.md` and records the reload in the ledger.
 - No broad refactors.
+- No worker may change its role, widen scope, or spawn follow-up work.
 - No merge-readiness recommendation before independent bug review completes.
 - No concurrent writes to the same files by multiple workers.
+- No second writer starts until the first writer's diff is summarized in the
+  ledger.
 - No new infrastructure without explicit justification.
+- No unclassified finding proceeds; classify every finding as blocker,
+  follow-up, won't fix, or needs user decision.
 - No GitHub issue creation before duplicate search and user approval.
 - No "fixed" claim without command evidence.
 - Escalate product decisions to the user.
@@ -650,6 +771,10 @@ Verification:
 Output contract:
 - Files changed.
 - Exact fixes made.
+- Failing test added, or explicit reason a new failing test was impractical.
+- Red command/result.
+- Green command/result.
+- Regression scope and why narrower coverage is sufficient.
 - Tests and checks run, with pass/fail.
 - Remaining risks.
 - Confidence level.
@@ -713,10 +838,15 @@ agents can reuse.
 Use the impeccable skill:
 - Load product/design context if present.
 - Treat app/admin surfaces as product UI.
+- For net-new or meaningful admin, onboarding, capability-gated, or responsive
+  flows, run `shape` before implementation and record the design brief.
 - Check at least:
   - `clarify`: copy, labels, errors, decision clarity.
   - `audit`: accessibility, keyboard flow, focus, form semantics.
   - `adapt`: responsive and mobile usability.
+- Use `harden` after fixes for edge cases, stale states, long content,
+  permissions, and retries.
+- Use `polish` only after functional completeness.
 - Run the setup gate before design judgment: load context, identify register,
   and load the relevant command reference.
 
@@ -741,7 +871,12 @@ Output contract:
 - Journey map for multi-actor or async PRs.
 - Persona workflow matrix.
 - At least one executable acceptance check per persona.
-- Impeccable findings for clarity, audit, and adapt.
+- Impeccable setup evidence: `PRODUCT.md` path, `DESIGN.md` path, register,
+  command references loaded, and concrete touchpoints inspected.
+- Impeccable findings for shape, critique, clarify, adapt, audit, harden, and
+  polish when triggered.
+- Viewport-specific responsive evidence for mobile, tablet, and desktop when
+  UI changed.
 - Recommended Playwright, Mailpit, or background-job coverage.
 - PR blockers versus follow-up issues.
 - Product judgment questions for the user.
@@ -758,9 +893,16 @@ Legacy app path, if relevant: <LEGACY_APP_PATH>
 
 Task:
 - Confirm the legacy path is accessible.
+- If `/Users/andrewkelley/GitHub/mitsailing-wp/old` is unavailable, record
+  that limitation and search known nearby legacy checkouts only as hints, not
+  proof of parity.
 - Search legacy behavior related to this PR.
 - Identify forgotten workflows, scheduled jobs, data flows, emails,
   permissions, billing, admin actions, or migration requirements.
+- For member/card/rating/event/import/email/admin behavior, search legacy cron
+  or shebang scripts and classify each related operation.
+- For MIT identity, affiliation, Kerberos, membership eligibility, or imports,
+  check whether an MIT warehouse sync or local fixture is required.
 - Do not edit app code.
 
 GitHub issue behavior:
@@ -772,9 +914,25 @@ GitHub issue behavior:
 Output contract:
 - Legacy paths confirmed.
 - Files inspected.
+- Operational parity inventory:
+  - operation name;
+  - legacy evidence path/line;
+  - trigger: cron, queue, admin action, user action, deploy hook, or manual run;
+  - cadence and timezone;
+  - owner actor: user, admin, staff, or system;
+  - inputs: DB tables, files, external APIs, imports, credentials;
+  - outputs or side effects: DB writes, emails, Mailman changes, files, logs;
+  - idempotency/dedupe rule;
+  - retry/failure/alert behavior;
+  - runtime dependency: Redis/BullMQ, SMTP/Mailpit, Oracle/MIT warehouse, SSH,
+    media volume, Cloudflare, tusd, nginx, or other;
+  - new-app status: preserved, intentionally dropped, manual workaround, not
+    built, or needs decision;
+  - verification evidence.
 - Confirmed migration gaps with evidence.
 - Duplicate issue search results.
-- Ready-to-create issue titles and bodies.
+- Ready-to-create issue titles and bodies, including legacy operation,
+  operational risk, deployment/env requirements, and verification gate.
 - Classification: PR blocker or follow-up issue.
 - Confidence level.
 ```
@@ -799,9 +957,12 @@ Task:
 - Check best practices against Context7 notes.
 
 Run allowed verification commands from `AGENTS.md`:
+- `npm run build-local`
 - `npm run lint`
 - `npm run check:types`
-- `npm run test`
+- `npm run check:deps`
+- `npm run check:i18n`
+- `npm run test:coverage`
 - `npm run test:e2e` only if user-flow changes were made or e2e coverage is
   needed.
 
@@ -816,6 +977,11 @@ Output contract:
 - Journey evidence reviewed, if applicable.
 - Independent bug review result.
 - Remaining risks.
+- Local HEAD and PR head match, or exact divergence.
+- Required branch checks versus advisory checks.
+- Analyzer freshness: tool name, status, analyzed commit SHA, and timestamp.
+- CodeRabbit status reported separately from independent bug review.
+- Review approval/thread status when merge readiness is requested.
 - Remote checks needing rerun.
 - Merge readiness recommendation.
 - Confidence level.
@@ -876,16 +1042,24 @@ Each persona should produce testable questions:
 Each persona row must produce at least one executable acceptance check:
 
 ```markdown
+Persona ID:
 Persona:
 Actor/session:
+Actor storage state/context name:
+Session creation method:
 Seeded data:
 Start route:
 Given:
 When:
 Then:
 Blocked-state assertion:
+Eligibility transition:
 Eligible-state assertion:
 Staff/admin handoff:
+Failing test artifact:
+Email evidence:
+Database evidence:
+Screenshot evidence:
 Evidence source: Playwright, Mailpit, server log, DB query, screenshot, or manual note.
 ```
 
@@ -922,6 +1096,16 @@ file path, then wait. The user reviews and edits that Markdown file directly.
 After the user says it is ready, the conductor reloads the file and gives the
 updated matrix to worker agents.
 
+The persona file must track:
+
+- `Last updated by user`;
+- `Last reloaded by conductor`;
+- `Reload required`;
+- `Worker dispatch allowed`.
+
+If the user edits the file, all persona-dependent workers are blocked until
+the conductor reloads the file and records that dispatch is allowed again.
+
 For durable product capabilities, summarize stable capability state in the
 journey capability matrix or parent GitHub issue instead of leaving it only in
 a PR-specific persona file.
@@ -953,12 +1137,15 @@ Persona:
 Actor/session:
 Goal:
 Current path:
+Seeded data:
 Prerequisite gates:
-Blocked state:
-Eligible state:
+Blocked-state assertion:
+Eligibility transition:
+Eligible-state assertion:
 Staff/admin handoff:
 Success evidence:
 Executable acceptance check:
+Finding classification:
 Known gaps:
 Owner issue:
 ```
@@ -1015,10 +1202,20 @@ Minimum commands by PR type:
 For UI, admin, onboarding, email, or journey PRs, `impeccable` findings must
 include:
 
+- setup evidence: `PRODUCT.md` path, `DESIGN.md` path, register selected,
+  command references loaded, touchpoints inspected, and why the surface is
+  product UI or brand UI;
 - clarity: next action, status, eligibility, errors, and recovery;
 - audit: keyboard path, focus order, form semantics, labels, contrast, and
   accessibility blockers;
-- adapt: mobile and narrow viewport usability;
+- adapt: mobile, tablet, desktop, touch target, horizontal overflow, and
+  screenshot evidence where UI changed;
+- harden: long names, empty states, permission errors, failed network/API
+  states, double submit, stale eligibility state, i18n text expansion, and
+  role/session boundaries;
+- polish: design-system alignment, no nested or decorative cards, no raw
+  colors, no landing-page styling in task flows, consistent controls, and final
+  anti-AI-slop verdict;
 - anti-AI-slop review: no generic card grids, vague copy, decorative
   gradients/glass, hidden primary action, inconsistent spacing, or design
   choices unsupported by `PRODUCT.md`/`DESIGN.md` context.

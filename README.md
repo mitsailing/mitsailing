@@ -143,6 +143,8 @@ Run it against PR <number or URL> on branch <branch name>.
 Keep a tiny conductor state ledger, dispatch bounded sub-agents, use
 impeccable for UI/journey work, run an independent bug review separate from
 CodeRabbit, and ask me before changing product semantics or creating issues.
+Write conductor state from docs/ai/pr-run-ledger-template.md to
+local/agent-runs/pr-<number>/conductor.md.
 For UI, journey, admin, onboarding, or capability-gated work, write the persona
 workflow matrix from docs/ai/persona-matrix-template.md to
 local/agent-runs/pr-<number>/personas.md and wait for me to review/edit that
