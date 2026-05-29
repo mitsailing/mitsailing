@@ -152,7 +152,7 @@ file before implementation.
 ```
 
 Skip this only for small changes that do not edit code, such as a typo-only
-documentation update.
+documentation update, README link correction, or comment-only clarification.
 
 The runbook explains how to map journeys, view and edit personas, add
 capability gates, track product judgment questions, and decide which findings
