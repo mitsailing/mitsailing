@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { LegalAgreementAcceptanceSource } from '@/generated/prisma/enums';
+import {
+  LegalAgreementAcceptanceSource,
+  SailingCardType,
+} from '@/generated/prisma/enums';
 import {
   sailingCardAgreement,
   sailingCardAgreementHash,
@@ -49,7 +52,9 @@ describe('adminSailingCardUiQueries', () => {
   it('returns pending requests with latest onboarding agreement acceptance', async () => {
     mocks.sailingCardRequestFindMany.mockResolvedValue([
       {
+        cardType: SailingCardType.normal,
         firstName: 'Submitted',
+        hasFitnessMembership: false,
         id: 'user-1',
         lastName: 'Name',
         mitId: '987654321',
@@ -76,7 +81,9 @@ describe('adminSailingCardUiQueries', () => {
       {
         agreementAcceptedAt: new Date('2026-05-21T16:00:00.000Z'),
         agreementVersion: 'v1',
+        cardType: SailingCardType.normal,
         email: 'ada@mit.edu',
+        hasFitnessMembership: false,
         id: 'user-1',
         mitId: '987654321',
         name: 'Submitted Name',

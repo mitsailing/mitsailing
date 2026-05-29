@@ -297,6 +297,19 @@ export class SchemaType implements SchemaDef {
                     array: true,
                     relation: { opposite: "user" }
                 },
+                sailingCardRequests: {
+                    name: "sailingCardRequests",
+                    type: "SailingCardRequest",
+                    array: true,
+                    relation: { opposite: "user" }
+                },
+                approvedSailingCardRequests: {
+                    name: "approvedSailingCardRequests",
+                    type: "SailingCardRequest",
+                    array: true,
+                    attributes: [{ name: "@relation", args: [{ name: "name", value: ExpressionUtils.literal("SailingCardRequestApprover") }] }] as readonly AttributeApplication[],
+                    relation: { opposite: "approvedBy", name: "SailingCardRequestApprover" }
+                },
                 eventPayments: {
                     name: "eventPayments",
                     type: "EventPayment",
@@ -847,6 +860,12 @@ export class SchemaType implements SchemaDef {
                     type: "User",
                     attributes: [{ name: "@relation", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("userId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("Cascade") }] }] as readonly AttributeApplication[],
                     relation: { opposite: "legalAgreementAcceptances", fields: ["userId"], references: ["id"], onDelete: "Cascade" }
+                },
+                sailingCardRequests: {
+                    name: "sailingCardRequests",
+                    type: "SailingCardRequest",
+                    array: true,
+                    relation: { opposite: "legalAgreementAcceptance" }
                 }
             },
             attributes: [
@@ -860,6 +879,173 @@ export class SchemaType implements SchemaDef {
             idFields: ["id"],
             uniqueFields: {
                 id: { type: "String" }
+            }
+        },
+        SailingCardRequest: {
+            name: "SailingCardRequest",
+            fields: {
+                id: {
+                    name: "id",
+                    type: "String",
+                    id: true,
+                    attributes: [{ name: "@id" }, { name: "@default", args: [{ name: "value", value: ExpressionUtils.call("cuid") }] }] as readonly AttributeApplication[],
+                    default: ExpressionUtils.call("cuid") as FieldDefault
+                },
+                userId: {
+                    name: "userId",
+                    type: "String",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("user_id") }] }] as readonly AttributeApplication[],
+                    foreignKeyFor: [
+                        "user"
+                    ] as readonly string[]
+                },
+                cardYear: {
+                    name: "cardYear",
+                    type: "Int",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("card_year") }] }] as readonly AttributeApplication[]
+                },
+                status: {
+                    name: "status",
+                    type: "SailingCardRequestStatus",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal("pending") }] }] as readonly AttributeApplication[],
+                    default: "pending" as FieldDefault
+                },
+                cardType: {
+                    name: "cardType",
+                    type: "SailingCardType",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal("normal") }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("card_type") }] }] as readonly AttributeApplication[],
+                    default: "normal" as FieldDefault
+                },
+                hasFitnessMembership: {
+                    name: "hasFitnessMembership",
+                    type: "Boolean",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("has_fitness_membership") }] }] as readonly AttributeApplication[]
+                },
+                legalAgreementAcceptanceId: {
+                    name: "legalAgreementAcceptanceId",
+                    type: "String",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("legal_agreement_acceptance_id") }] }] as readonly AttributeApplication[],
+                    foreignKeyFor: [
+                        "legalAgreementAcceptance"
+                    ] as readonly string[]
+                },
+                requestedAt: {
+                    name: "requestedAt",
+                    type: "DateTime",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("requested_at") }] }] as readonly AttributeApplication[]
+                },
+                approvedAt: {
+                    name: "approvedAt",
+                    type: "DateTime",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("approved_at") }] }] as readonly AttributeApplication[]
+                },
+                approvedByUserId: {
+                    name: "approvedByUserId",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("approved_by_user_id") }] }] as readonly AttributeApplication[],
+                    foreignKeyFor: [
+                        "approvedBy"
+                    ] as readonly string[]
+                },
+                issuedCardNumber: {
+                    name: "issuedCardNumber",
+                    type: "Int",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("issued_card_number") }] }] as readonly AttributeApplication[]
+                },
+                firstName: {
+                    name: "firstName",
+                    type: "String",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("first_name") }] }] as readonly AttributeApplication[]
+                },
+                lastName: {
+                    name: "lastName",
+                    type: "String",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("last_name") }] }] as readonly AttributeApplication[]
+                },
+                sailingAffiliation: {
+                    name: "sailingAffiliation",
+                    type: "SailingAffiliation",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("sailing_affiliation") }] }] as readonly AttributeApplication[]
+                },
+                mitId: {
+                    name: "mitId",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("mit_id") }] }] as readonly AttributeApplication[]
+                },
+                mitClassYear: {
+                    name: "mitClassYear",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("mit_class_year") }] }] as readonly AttributeApplication[]
+                },
+                dateOfBirth: {
+                    name: "dateOfBirth",
+                    type: "DateTime",
+                    attributes: [{ name: "@db.Date" }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("date_of_birth") }] }] as readonly AttributeApplication[]
+                },
+                phone: {
+                    name: "phone",
+                    type: "String",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("phone") }] }] as readonly AttributeApplication[]
+                },
+                emergencyContactName: {
+                    name: "emergencyContactName",
+                    type: "String",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("emergency_contact_name") }] }] as readonly AttributeApplication[]
+                },
+                emergencyContactPhone: {
+                    name: "emergencyContactPhone",
+                    type: "String",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("emergency_contact_phone") }] }] as readonly AttributeApplication[]
+                },
+                createdAt: {
+                    name: "createdAt",
+                    type: "DateTime",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.call("now") }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("created_at") }] }] as readonly AttributeApplication[],
+                    default: ExpressionUtils.call("now") as FieldDefault
+                },
+                updatedAt: {
+                    name: "updatedAt",
+                    type: "DateTime",
+                    updatedAt: true,
+                    attributes: [{ name: "@updatedAt" }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("updated_at") }] }] as readonly AttributeApplication[]
+                },
+                user: {
+                    name: "user",
+                    type: "User",
+                    attributes: [{ name: "@relation", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("userId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("Cascade") }] }] as readonly AttributeApplication[],
+                    relation: { opposite: "sailingCardRequests", fields: ["userId"], references: ["id"], onDelete: "Cascade" }
+                },
+                legalAgreementAcceptance: {
+                    name: "legalAgreementAcceptance",
+                    type: "LegalAgreementAcceptance",
+                    attributes: [{ name: "@relation", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("legalAgreementAcceptanceId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("Restrict") }] }] as readonly AttributeApplication[],
+                    relation: { opposite: "sailingCardRequests", fields: ["legalAgreementAcceptanceId"], references: ["id"], onDelete: "Restrict" }
+                },
+                approvedBy: {
+                    name: "approvedBy",
+                    type: "User",
+                    optional: true,
+                    attributes: [{ name: "@relation", args: [{ name: "name", value: ExpressionUtils.literal("SailingCardRequestApprover") }, { name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("approvedByUserId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("SetNull") }] }] as readonly AttributeApplication[],
+                    relation: { opposite: "approvedSailingCardRequests", name: "SailingCardRequestApprover", fields: ["approvedByUserId"], references: ["id"], onDelete: "SetNull" }
+                }
+            },
+            attributes: [
+                { name: "@@unique", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("userId"), ExpressionUtils.field("cardYear")]) }] },
+                { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("Int", [ExpressionUtils.field("cardYear"), ExpressionUtils.field("status"), ExpressionUtils.field("requestedAt")]) }] },
+                { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("legalAgreementAcceptanceId")]) }] },
+                { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("approvedByUserId")]) }] },
+                { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("sailing_card_requests") }] }
+            ] as readonly AttributeApplication[],
+            idFields: ["id"],
+            uniqueFields: {
+                id: { type: "String" },
+                userId_cardYear: { userId: { type: "String" }, cardYear: { type: "Int" } }
             }
         },
         UserAudit: {
@@ -5513,6 +5699,28 @@ export class SchemaType implements SchemaDef {
             },
             attributes: [
                 { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("legal_agreement_acceptance_source") }] }
+            ] as readonly AttributeApplication[]
+        },
+        SailingCardRequestStatus: {
+            name: "SailingCardRequestStatus",
+            values: {
+                pending: "pending",
+                approved: "approved",
+                cancelled: "cancelled"
+            },
+            attributes: [
+                { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("sailing_card_request_status") }] }
+            ] as readonly AttributeApplication[]
+        },
+        SailingCardType: {
+            name: "SailingCardType",
+            values: {
+                normal: "normal",
+                racing: "racing",
+                team_racing: "team_racing"
+            },
+            attributes: [
+                { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("sailing_card_type") }] }
             ] as readonly AttributeApplication[]
         },
         UserAuditAction: {

@@ -260,7 +260,7 @@ describe('SailingCardOnboardingForm submission and errors', () => {
     renderForm();
 
     expect(
-      screen.getByRole('group', { name: 'Type of sailing card requested' })
+      screen.getByRole('group', { name: 'Choose your sailing card' })
     ).toHaveAttribute('aria-invalid', 'true');
     expect(screen.getByLabelText('Date of birth')).toHaveAttribute(
       'aria-invalid',

@@ -55,7 +55,7 @@ export const footerNavColumns: readonly FooterNavColumn[] = [
   {
     titleKey: 'footer_col_about',
     links: [
-      { labelKey: 'footer_link_membership', href: '#' },
+      { labelKey: 'footer_link_membership', to: '/pricing' },
       { labelKey: 'footer_link_sailing_team', href: '#' },
       { labelKey: 'footer_link_pavilion_rental', to: '/reserve' },
       { labelKey: 'footer_link_about_us', href: '#' },

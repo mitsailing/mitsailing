@@ -3,6 +3,7 @@ import { Prisma } from '@/generated/prisma/client';
 import {
   LegalAgreementAcceptanceSource,
   SailingCardRequestStatus,
+  SailingCardType,
   UserAuditAction,
 } from '@/generated/prisma/enums';
 import { Permission } from '@/libs/auth/permissions';
@@ -102,6 +103,8 @@ describe('adminSailingCardActions', () => {
     mocks.txUserUpdate.mockResolvedValue({});
     mocks.txUserUpdateMany.mockResolvedValue({ count: 1 });
     mocks.txSailingCardRequestFindFirst.mockResolvedValue({
+      cardType: SailingCardType.normal,
+      hasFitnessMembership: true,
       id: 'request-1',
       legalAgreementAcceptance: {
         agreementHash: sailingCardAgreementHash(),
@@ -417,6 +420,8 @@ describe('adminSailingCardActions', () => {
         userId: 'user-1',
       },
       select: {
+        cardType: true,
+        hasFitnessMembership: true,
         id: true,
         legalAgreementAcceptance: {
           select: {
@@ -429,6 +434,39 @@ describe('adminSailingCardActions', () => {
       },
     });
     expect(mocks.txLegalAgreementAcceptanceFindFirst).not.toHaveBeenCalled();
+  });
+
+  it('does not issue full sailing before mit recreation is verified', async () => {
+    mocks.txSailingCardRequestFindFirst.mockResolvedValue({
+      cardType: SailingCardType.normal,
+      hasFitnessMembership: false,
+      id: 'request-1',
+      legalAgreementAcceptance: {
+        agreementHash: sailingCardAgreementHash(),
+        agreementVersion: sailingCardAgreement.version,
+        source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
+        userId: 'user-1',
+      },
+    });
+    const { issueSailingCardAction } =
+      await import('@/libs/admin/cards/adminSailingCardActions');
+
+    await expect(
+      issueSailingCardAction(
+        'en',
+        'user-1',
+        { fieldErrors: {}, status: 'idle' },
+        formDataWithCardNumber('61')
+      )
+    ).resolves.toEqual({
+      fieldErrors: {},
+      formError: 'mit_recreation_required',
+      status: 'error',
+    });
+
+    expect(mocks.txSailingCardRequestUpdateMany).not.toHaveBeenCalled();
+    expect(mocks.txUserUpdateMany).not.toHaveBeenCalled();
+    expect(mocks.txUserAuditCreate).not.toHaveBeenCalled();
   });
 
   it('issuing a card sets yearly card fields without requiring initials', async () => {

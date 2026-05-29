@@ -205,6 +205,8 @@ const blocks = [
   {
     body: JSON.stringify({
       footnote: 'Rates are subject to change.',
+      footnoteLinkLabel: 'See MIT Gym pricing',
+      footnoteLinkUrl: '/pricing',
       plans: [
         {
           badge: 'Best value',
@@ -384,6 +386,9 @@ describe('MitSailingHomePageView', () => {
     expect(
       screen.getByRole('link', { name: 'Choose student' })
     ).toHaveAttribute('href', '/signup');
+    expect(
+      screen.getByRole('link', { name: 'See MIT Gym pricing' })
+    ).toHaveAttribute('href', '/pricing');
 
     const rentalSection = screen
       .getByRole('heading', { name: 'Rentals and pavilion' })

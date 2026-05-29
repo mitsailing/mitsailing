@@ -61,6 +61,8 @@ export async function listPendingSailingCardRequests(): Promise<
     },
     orderBy: { requestedAt: 'asc' },
     select: {
+      cardType: true,
+      hasFitnessMembership: true,
       id: true,
       legalAgreementAcceptance: {
         select: {
@@ -85,7 +87,9 @@ export async function listPendingSailingCardRequests(): Promise<
   return rows.map((row) => ({
     agreementAcceptedAt: row.legalAgreementAcceptance.acceptedAt,
     agreementVersion: row.legalAgreementAcceptance.agreementVersion,
+    cardType: row.cardType,
     email: row.user.email,
+    hasFitnessMembership: row.hasFitnessMembership,
     id: row.user.id,
     mitId: row.mitId,
     name: `${row.firstName} ${row.lastName}`,

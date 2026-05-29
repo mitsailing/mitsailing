@@ -107,6 +107,7 @@ const sailingCardRequestUpdateData = (props: {
   emergencyContactName: props.update.emergencyContactName,
   emergencyContactPhone: props.update.emergencyContactPhone,
   firstName: props.update.firstName,
+  hasFitnessMembership: props.update.hasFitnessMembership,
   lastName: props.update.lastName,
   legalAgreementAcceptanceId: props.legalAgreementAcceptanceId,
   mitClassYear: props.update.mitClassYear,
@@ -139,6 +140,16 @@ const parseCardType = (value: string) => {
     if (value === cardType) {
       return cardType;
     }
+  }
+  return null;
+};
+
+const parseFitnessMembership = (value: string) => {
+  if (value === 'yes') {
+    return true;
+  }
+  if (value === 'no') {
+    return false;
   }
   return null;
 };
@@ -190,6 +201,7 @@ const parseSailingCardOnboardingFormData = (
     dateOfBirth: values.dateOfBirth,
     emergencyContactName: values.emergencyContactName,
     emergencyContactPhone: values.emergencyContactPhone,
+    hasFitnessMembership: parseFitnessMembership(values.hasFitnessMembership),
     mitId: values.mitId,
     firstName: values.firstName,
     lastName: values.lastName,

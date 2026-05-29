@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { parseCmsPricingBody } from '@/libs/mit-sailing/cmsPricing';
 import type { CmsSeedMenu } from './cmsSeed';
-import { orderedCmsSeedMenuItems } from './cmsSeed';
+import {
+  CMS_MENU_SEED_ROWS,
+  CMS_PAGE_SEED_ROWS,
+  orderedCmsSeedMenuItems,
+} from './cmsSeed';
 
 describe('orderedCmsSeedMenuItems', () => {
   it('orders parents before children', () => {
@@ -111,5 +116,133 @@ describe('orderedCmsSeedMenuItems', () => {
     expect(() => orderedCmsSeedMenuItems(menu)).toThrow(
       'CMS menu seed "menu" contains a parent cycle at item "a"'
     );
+  });
+});
+
+describe('cms seed membership pricing', () => {
+  it('keeps the home getting-started step from hiding paid racing paths', () => {
+    const homePage = CMS_PAGE_SEED_ROWS.find((page) => page.path === '/');
+    const overviewBlock = homePage?.blocks.find(
+      (block) => block.id === 'cms-block-home-overview'
+    );
+    const overview: unknown = JSON.parse(overviewBlock?.body ?? '{}');
+    const steps =
+      typeof overview === 'object' && overview !== null
+        ? Object.getOwnPropertyDescriptor(overview, 'steps')?.value
+        : undefined;
+    const firstStep = Array.isArray(steps) ? steps.at(0) : undefined;
+    const description =
+      typeof firstStep === 'object' && firstStep !== null
+        ? Object.getOwnPropertyDescriptor(firstStep, 'description')?.value
+        : undefined;
+
+    expect(description).toBe(
+      'MIT students and MIT Recreation members get full sailing included, including Charles River racing. Others can compare paid racing cards before requesting a card.'
+    );
+  });
+
+  it('compares sailing card types on the home page', () => {
+    const homePage = CMS_PAGE_SEED_ROWS.find((page) => page.path === '/');
+    const pricingBlock = homePage?.blocks.find(
+      (block) => block.id === 'cms-block-home-membership-pricing'
+    );
+    const pricing = parseCmsPricingBody(pricingBlock?.body);
+
+    expect(pricingBlock?.title).toBe('Pricing');
+    expect(pricingBlock?.subtitle).toBe(
+      'Choose the card that matches what you want to sail.'
+    );
+    expect(pricing).toMatchObject({
+      footnoteLinkLabel: 'See MIT Gym pricing',
+      footnoteLinkUrl: '/pricing',
+    });
+    expect(pricing?.footnote).toBeUndefined();
+    expect(pricing?.plans.map((plan) => plan.title)).toEqual([
+      'Normal',
+      'Spring racing card',
+      'Full-year racing card',
+      'Thursday team racing',
+    ]);
+    expect(pricing?.plans[0]).toMatchObject({
+      linkLabel: 'Sign up',
+      linkUrl: '/signup?callbackUrl=%2Fonboarding',
+      price: 'Free',
+      priceRows: [
+        { label: 'MIT student', value: 'Free' },
+        { label: 'MIT Gym member', value: 'Free' },
+      ],
+    });
+    expect(pricing?.plans[0]?.description).toBe(
+      'Pavilion, classes, ratings, racing, Mashnee.'
+    );
+    expect(pricing?.plans[0]?.features).toContain(
+      'Full access to Pavilion sailing, classes, ratings, racing, and Mashnee.'
+    );
+    expect(pricing?.plans[0]?.features).toContain(
+      'MIT Gym members qualify with an active membership.'
+    );
+    expect(pricing?.plans[1]).toMatchObject({
+      linkLabel: 'Sign up',
+      linkUrl: '/signup?callbackUrl=%2Fonboarding',
+      price: '$25',
+      priceRows: [
+        { label: 'Non-MIT student', value: '$25' },
+        { label: 'Under 30', value: '$70' },
+        { label: '30+', value: '$100' },
+      ],
+    });
+    expect(pricing?.plans[2]).toMatchObject({
+      linkLabel: 'Sign up',
+      linkUrl: '/signup?callbackUrl=%2Fonboarding',
+      price: '$40',
+      priceRows: [
+        { label: 'Non-MIT student', value: '$40' },
+        { label: 'Under 30', value: '$125' },
+        { label: '30+', value: '$175' },
+      ],
+    });
+    expect(pricing?.plans[3]).toMatchObject({
+      description: 'For Thursday team racing on the Charles River.',
+      linkLabel: 'Sign up',
+      linkUrl: '/signup?callbackUrl=%2Fonboarding',
+      price: '$25',
+      priceRows: [
+        { label: 'Non-MIT student', value: '$25' },
+        { label: 'Under 30', value: '$70' },
+        { label: '30+', value: '$100' },
+      ],
+    });
+    expect(pricing?.plans[3]?.features).toContain(
+      'Thursday team racing on the Charles River.'
+    );
+    expect(pricingBlock?.body).not.toContain('Not MIT Sailing Team');
+  });
+
+  it('links the seeded header and footer to pricing', () => {
+    const headerMenu = CMS_MENU_SEED_ROWS.find(
+      (menu) => menu.id === 'cms-menu-header'
+    );
+    const headerPricingItem = headerMenu?.items.find(
+      (item) => item.id === 'cms-menu-header-pricing'
+    );
+    const footerMenu = CMS_MENU_SEED_ROWS.find(
+      (menu) => menu.id === 'cms-menu-footer'
+    );
+    const membershipItem = footerMenu?.items.find(
+      (item) => item.id === 'cms-menu-footer-membership'
+    );
+
+    expect(headerPricingItem).toMatchObject({
+      kind: 'url_link',
+      label: 'Pricing',
+      url: '/pricing',
+      isVisible: true,
+    });
+    expect(membershipItem).toMatchObject({
+      kind: 'url_link',
+      label: 'Pricing',
+      url: '/pricing',
+      isVisible: true,
+    });
   });
 });

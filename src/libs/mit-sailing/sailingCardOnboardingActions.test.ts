@@ -458,9 +458,32 @@ describe('submitSailingCardOnboardingAction', () => {
         cardType: SailingCardType.normal,
         cardYear: 2026,
         dateOfBirth: new Date('2000-01-02T00:00:00.000Z'),
+        hasFitnessMembership: null,
         legalAgreementAcceptanceId: 'acceptance-1',
         status: SailingCardRequestStatus.pending,
         userId: 'user-1',
+      }),
+    });
+  });
+
+  it('stores no mit recreation answer for requests that need verification', async () => {
+    const { submitSailingCardOnboardingAction } =
+      await import('@/libs/mit-sailing/sailingCardOnboardingActions');
+    const formData = onboardingFormData();
+    formData.set('affiliation', SailingAffiliation.MIT_ALUM);
+    formData.set('firstName', 'Grace');
+    formData.set('hasFitnessMembership', 'no');
+    formData.set('lastName', 'Hopper');
+    formData.set('mitId', '');
+
+    await expect(
+      submitSailingCardOnboardingAction(idleState, formData)
+    ).rejects.toThrow('NEXT_REDIRECT:/onboarding/success');
+
+    expect(mocks.prismaSailingCardRequestCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        hasFitnessMembership: false,
+        sailingAffiliation: SailingAffiliation.MIT_ALUM,
       }),
     });
   });

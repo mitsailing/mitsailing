@@ -7,6 +7,10 @@ export type CmsPricingPlan = {
   description?: string;
   price: string;
   frequency?: string;
+  priceRows?: {
+    label: string;
+    value: string;
+  }[];
   badge?: string;
   linkLabel?: string;
   linkUrl?: string;
@@ -16,6 +20,8 @@ export type CmsPricingPlan = {
 
 export type CmsPricingData = {
   footnote?: string;
+  footnoteLinkLabel?: string;
+  footnoteLinkUrl?: string;
   plans: CmsPricingPlan[];
 };
 
@@ -61,6 +67,22 @@ function stringArrayFromUnknown(value: unknown): string[] | null {
     : null;
 }
 
+function priceRowsFromUnknown(
+  value: unknown
+): CmsPricingPlan['priceRows'] | null {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+  const rows = value.map((row) => {
+    const label = stringFromUnknown(propertyFromUnknown(row, 'label'));
+    const rowValue = stringFromUnknown(propertyFromUnknown(row, 'value'));
+    return label && rowValue ? { label, value: rowValue } : null;
+  });
+  return rows.every((row): row is NonNullable<typeof row> => row !== null)
+    ? rows
+    : null;
+}
+
 function urlFromUnknown(value: unknown): string | undefined {
   const url = stringFromUnknown(value);
   return url ? (safeCmsHref(url) ?? undefined) : undefined;
@@ -81,6 +103,9 @@ function planFromUnknown(value: unknown): CmsPricingPlan | null {
     description: stringFromUnknown(propertyFromUnknown(value, 'description')),
     price,
     frequency: stringFromUnknown(propertyFromUnknown(value, 'frequency')),
+    priceRows:
+      priceRowsFromUnknown(propertyFromUnknown(value, 'priceRows')) ??
+      undefined,
     badge: stringFromUnknown(propertyFromUnknown(value, 'badge')),
     linkLabel: stringFromUnknown(propertyFromUnknown(value, 'linkLabel')),
     linkUrl: urlFromUnknown(propertyFromUnknown(value, 'linkUrl')),
@@ -128,6 +153,12 @@ export function parseCmsPricingBody(
 
   return {
     footnote: stringFromUnknown(propertyFromUnknown(parsed, 'footnote')),
+    footnoteLinkLabel: stringFromUnknown(
+      propertyFromUnknown(parsed, 'footnoteLinkLabel')
+    ),
+    footnoteLinkUrl: urlFromUnknown(
+      propertyFromUnknown(parsed, 'footnoteLinkUrl')
+    ),
     plans: parsedPlans,
   };
 }

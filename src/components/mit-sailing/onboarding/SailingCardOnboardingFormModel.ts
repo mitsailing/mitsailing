@@ -305,6 +305,7 @@ export function useSailingCardOnboardingFormModel(
       hasFitnessMembershipValue: values.hasFitnessMembershipValue,
     }),
     form: runtime.form,
+    hasFitnessMembershipValue: values.hasFitnessMembershipValue,
     handleContinueIdentity: runtime.handleContinueIdentity,
     handleSubmit: runtime.handleSubmit,
     identityComplete: identity.identityComplete,

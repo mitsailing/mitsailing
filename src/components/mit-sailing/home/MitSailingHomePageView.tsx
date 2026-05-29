@@ -297,7 +297,6 @@ function HomeClassesSection(props: {
                   </p>
                   <div className="mt-auto flex items-center gap-1 text-xs font-semibold text-primary-ink">
                     <span>{props.t('class_details')}</span>
-                    <ArrowRight aria-hidden size={14} />
                   </div>
                 </Link>
               ))}
@@ -353,7 +352,6 @@ function HomeClassesSection(props: {
                         href={`/classes/${cls.slug}`}
                       >
                         {props.t('course_details')}
-                        <ArrowRight aria-hidden size={12} />
                       </Link>
                     </div>
                   </div>
@@ -366,7 +364,6 @@ function HomeClassesSection(props: {
                   className={`inline-flex items-center gap-1 no-underline hover:underline ${textFocusRingClassName} ${mitAccentLinkClassName}`}
                   href={props.block.ctaUrl}
                   label={props.block.ctaLabel}
-                  showArrow
                 />
               </div>
             ) : null}

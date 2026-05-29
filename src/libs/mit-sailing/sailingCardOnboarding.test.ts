@@ -35,6 +35,7 @@ const contactInput = {
   dateOfBirth: '2000-01-02',
   emergencyContactName: 'Grace Hopper',
   emergencyContactPhone: '+44 20 7946 0958',
+  hasFitnessMembership: true,
   phone: '(617) 555-0100',
   swimAgreementAccepted: true,
 };
@@ -76,6 +77,7 @@ describe('sailingCardOnboarding', () => {
       phone: '+16175550100',
       emergencyContactName: 'Grace Hopper',
       emergencyContactPhone: '+442079460958',
+      hasFitnessMembership: null,
       sailingAffiliation: SailingAffiliation.MIT_STUDENT,
       mitId: '123456789',
       mitClassYear: '2027',
@@ -205,6 +207,47 @@ describe('sailingCardOnboarding', () => {
       mitId: null,
       mitClassYear: null,
       mitDataWarehouseVerifiedAt: null,
+    });
+  });
+
+  it('requires mit recreation answer when affiliation needs it', () => {
+    expectValidationError(
+      () => {
+        buildSailingCardOnboardingUpdate({
+          input: {
+            ...contactInput,
+            affiliation: SailingAffiliation.MIT_ALUM,
+            hasFitnessMembership: null,
+            mitId: '',
+            firstName: 'Grace',
+            lastName: 'Hopper',
+          },
+          dataWarehouseIdentity: null,
+          now: new Date('2026-05-21T12:00:00-04:00'),
+        });
+      },
+      { hasFitnessMembership: 'required' }
+    );
+  });
+
+  it('canonicalizes covered users to full sailing', () => {
+    expect(
+      buildSailingCardOnboardingUpdate({
+        input: {
+          ...contactInput,
+          affiliation: SailingAffiliation.MIT_ALUM,
+          cardType: SailingCardType.racing,
+          hasFitnessMembership: true,
+          mitId: '',
+          firstName: 'Grace',
+          lastName: 'Hopper',
+        },
+        dataWarehouseIdentity: null,
+        now: new Date('2026-05-21T12:00:00-04:00'),
+      })
+    ).toMatchObject({
+      cardType: SailingCardType.normal,
+      hasFitnessMembership: true,
     });
   });
 

@@ -5,6 +5,7 @@ import { Prisma } from '@/generated/prisma/client';
 import {
   LegalAgreementAcceptanceSource,
   SailingCardRequestStatus,
+  SailingCardType,
   UserAuditAction,
 } from '@/generated/prisma/enums';
 import { getNextAvailableSailingCardNumber } from '@/libs/admin/cards/adminSailingCardQueries';
@@ -27,6 +28,7 @@ type AdminSailingCardFieldErrors = Partial<{
 
 type AdminSailingCardFormError =
   | 'missing_onboarding_agreement'
+  | 'mit_recreation_required'
   | 'no_current_card'
   | 'not_pending_request'
   | 'not_found';
@@ -128,6 +130,8 @@ async function findCurrentPendingSailingCardRequest(props: {
       userId: props.userId,
     },
     select: {
+      cardType: true,
+      hasFitnessMembership: true,
       id: true,
       legalAgreementAcceptance: {
         select: {
@@ -259,6 +263,12 @@ export async function issueSailingCardAction(
       ) {
         throw new Error('missing_onboarding_agreement');
       }
+      if (
+        request.cardType === SailingCardType.normal &&
+        request.hasFitnessMembership === false
+      ) {
+        throw new Error('mit_recreation_required');
+      }
       const after = {
         ...before,
         sailingCardExpiresOn: getSailingCardExpirationDate(cardYear),
@@ -334,6 +344,13 @@ export async function issueSailingCardAction(
       return {
         fieldErrors: {},
         formError: 'missing_onboarding_agreement',
+        status: 'error',
+      };
+    }
+    if (error instanceof Error && error.message === 'mit_recreation_required') {
+      return {
+        fieldErrors: {},
+        formError: 'mit_recreation_required',
         status: 'error',
       };
     }
