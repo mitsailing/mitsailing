@@ -231,12 +231,15 @@ describe('submitSailingCardOnboardingAction', () => {
       sailingCardRequests: [
         {
           cardYear: 2026,
+          cardType: SailingCardType.normal,
+          hasFitnessMembership: true,
           legalAgreementAcceptance: {
             agreementHash: sailingCardAgreementHash(),
             agreementVersion: sailingCardAgreement.version,
             source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
             userId: 'user-1',
           },
+          sailingAffiliation: SailingAffiliation.MIT_ALUM,
           status: SailingCardRequestStatus.pending,
           userId: 'user-1',
           user: {
@@ -486,6 +489,74 @@ describe('submitSailingCardOnboardingAction', () => {
         sailingAffiliation: SailingAffiliation.MIT_ALUM,
       }),
     });
+  });
+
+  it('updates pending normal request when mit recreation becomes verified', async () => {
+    const pendingNormalRequest = {
+      cardYear: 2026,
+      cardType: SailingCardType.normal,
+      hasFitnessMembership: false,
+      legalAgreementAcceptance: {
+        agreementHash: sailingCardAgreementHash(),
+        agreementVersion: sailingCardAgreement.version,
+        source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
+        userId: 'user-1',
+      },
+      sailingAffiliation: SailingAffiliation.MIT_ALUM,
+      status: SailingCardRequestStatus.pending,
+      userId: 'user-1',
+      user: {
+        emergencyContactName: 'Grace Hopper',
+        emergencyContactPhone: '+442079460958',
+        phone: '+16175550100',
+      },
+    };
+    mocks.prismaUserFindUnique.mockResolvedValue({
+      emergencyContactName: null,
+      emergencyContactPhone: null,
+      legalAgreementAcceptances: [],
+      phone: null,
+      sailingCardIssuedByUserId: null,
+      sailingCardNumber: null,
+      sailingCardYear: null,
+      sailingCardExpiresOn: null,
+      sailingCardIssuedAt: null,
+      sailingCardRequestedAt: null,
+      sailingCardRequests: [pendingNormalRequest],
+      sailingCardSwimAgreementInitials: null,
+      sailingCardSwimAgreementInitialedAt: null,
+    });
+    mocks.prismaSailingCardRequestFindUnique.mockResolvedValue(
+      pendingNormalRequest
+    );
+    const { submitSailingCardOnboardingAction } =
+      await import('@/libs/mit-sailing/sailingCardOnboardingActions');
+    const formData = onboardingFormData();
+    formData.set('affiliation', SailingAffiliation.MIT_ALUM);
+    formData.set('firstName', 'Grace');
+    formData.set('hasFitnessMembership', 'yes');
+    formData.set('lastName', 'Hopper');
+    formData.set('mitId', '');
+
+    await expect(
+      submitSailingCardOnboardingAction(idleState, formData)
+    ).rejects.toThrow('NEXT_REDIRECT:/onboarding/success');
+
+    expect(mocks.prismaSailingCardRequestUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          cardType: SailingCardType.normal,
+          hasFitnessMembership: true,
+          sailingAffiliation: SailingAffiliation.MIT_ALUM,
+        }),
+        where: expect.objectContaining({
+          cardYear: 2026,
+          status: SailingCardRequestStatus.pending,
+          userId: 'user-1',
+        }),
+      })
+    );
+    expect(mocks.prismaSailingCardRequestCreate).not.toHaveBeenCalled();
   });
 
   it('redirects successful submit to success page', async () => {

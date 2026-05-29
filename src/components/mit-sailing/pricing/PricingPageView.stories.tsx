@@ -31,7 +31,7 @@ Guest.play = async ({ canvasElement }) => {
   );
   await expect(
     canvas.getAllByRole('button', {
-      name: 'See MIT Gym pricing',
+      name: 'See MIT Recreation rates',
     }).length
   ).toBeGreaterThan(0);
 };
@@ -40,10 +40,10 @@ export const GymRatesLightbox: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const [ratesButton] = canvas.getAllByRole('button', {
-      name: 'See MIT Gym pricing',
+      name: 'See MIT Recreation rates',
     });
     if (!ratesButton) {
-      throw new Error('Missing MIT Gym rates button');
+      throw new Error('Missing MIT Recreation rates button');
     }
     await userEvent.click(ratesButton);
     const dialog = await within(document.body).findByRole('dialog', {

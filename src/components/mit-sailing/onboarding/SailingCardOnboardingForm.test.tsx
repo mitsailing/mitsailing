@@ -10,6 +10,7 @@ import {
   renderForm,
   resetOnboardingFormTestState,
   selectAffiliation,
+  setOnboardingFormActionState,
   showWellesleyDetails,
 } from './SailingCardOnboardingForm.testHelpers';
 
@@ -288,7 +289,7 @@ describe('SailingCardOnboardingForm', () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        'Full sailing membership is included for MIT Recreation members. Answer No if you do not have it yet.'
+        'Normal is included for MIT Recreation members. Answer No if you do not have it yet.'
       )
     ).toBeInTheDocument();
     expect(
@@ -314,8 +315,40 @@ describe('SailingCardOnboardingForm', () => {
         screen.getByRole('group', {
           name: 'Choose your sailing card',
         })
-      ).getByRole('radio', { name: /Full sailing membership/u })
+      ).getByRole('radio', { name: /Normal/u })
     ).toBeEnabled();
+  });
+
+  it('shows server errors for missing mit recreation answer', () => {
+    setOnboardingFormActionState({
+      fieldErrors: { hasFitnessMembership: 'required' },
+      status: 'error',
+      values: {
+        ...emptyValues,
+        affiliation: SailingAffiliation.WELLESLEY,
+        cardType: 'normal',
+        dateOfBirth: '01/02/2000',
+        emergencyContactName: 'Ada Lovelace',
+        emergencyContactPhone: '(617) 555-0102',
+        firstName: 'Ada',
+        lastName: 'Lovelace',
+        phone: '(617) 555-0100',
+        swimAgreementAccepted: true,
+      },
+    });
+
+    renderForm();
+
+    const fitnessQuestion = screen.getByRole('group', {
+      name: 'Do you already have MIT Recreation membership?',
+    });
+
+    expect(fitnessQuestion).toHaveAccessibleDescription(/Required\./u);
+    expect(fitnessQuestion).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByText('Required.')).toHaveAttribute(
+      'id',
+      'sailing-card-onboarding-hasFitnessMembership-error'
+    );
   });
 
   it('renders sailing card options with clear comparison copy', async () => {
@@ -332,7 +365,7 @@ describe('SailingCardOnboardingForm', () => {
 
     expect(cardType).toBeInTheDocument();
     expect(
-      cardTypeControls.getByRole('radio', { name: /Full sailing membership/u })
+      cardTypeControls.getByRole('radio', { name: /Normal/u })
     ).toHaveAttribute('value', 'normal');
     expect(
       cardTypeControls.queryByRole('radio', {
@@ -342,8 +375,6 @@ describe('SailingCardOnboardingForm', () => {
     expect(
       cardTypeControls.queryByRole('radio', { name: /Thursday team racing/u })
     ).not.toBeInTheDocument();
-    expect(screen.queryByText('Normal membership')).not.toBeInTheDocument();
-    expect(screen.queryByText('Racing membership')).not.toBeInTheDocument();
     expect(
       screen.getAllByText(
         'Included for MIT students and MIT Recreation members. Pavilion sailing, classes, ratings, Charles River racing, and Mashnee, the 48-foot Boston Harbor blue-water sailboat, when approved.'
@@ -351,12 +382,12 @@ describe('SailingCardOnboardingForm', () => {
     ).toBeGreaterThan(0);
     expect(
       screen.getByText(
-        'Full sailing covers Pavilion sailing and Charles River racing. Prices use your affiliation and date of birth.'
+        'Normal covers Pavilion sailing and Charles River racing. Prices use your affiliation and date of birth.'
       )
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        'MIT students and MIT Recreation members usually choose Full sailing. The racing cards are already covered by Full sailing.'
+        'MIT students and MIT Recreation members usually choose Normal. The racing cards are already covered by Normal.'
       )
     ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'See pricing' })).toHaveAttribute(
@@ -381,7 +412,7 @@ describe('SailingCardOnboardingForm', () => {
 
     expect(
       screen.getByText(
-        'No MIT Recreation yet? You can still request full sailing, but your card number waits until MIT Recreation is active. Pavilion racing and Thursday team racing stay available.'
+        'No MIT Recreation yet? You can still request Normal, but your card number waits until MIT Recreation is active. Pavilion racing and Thursday team racing stay available.'
       )
     ).toBeInTheDocument();
     expect(
@@ -390,7 +421,7 @@ describe('SailingCardOnboardingForm', () => {
       )
     ).toBeInTheDocument();
     expect(
-      cardTypeControls.getByRole('radio', { name: /Full sailing membership/u })
+      cardTypeControls.getByRole('radio', { name: /Normal/u })
     ).toBeChecked();
     expect(
       cardTypeControls.getByRole('radio', {
@@ -419,14 +450,14 @@ describe('SailingCardOnboardingForm', () => {
       })
     ).not.toBeInTheDocument();
     expect(
-      screen.getByText('MIT students get full sailing membership included.')
+      screen.getByText('MIT students get Normal included.')
     ).toBeInTheDocument();
     expect(
       within(
         screen.getByRole('group', {
           name: 'Choose your sailing card',
         })
-      ).getByRole('radio', { name: /Full sailing membership/u })
+      ).getByRole('radio', { name: /Normal/u })
     ).toBeChecked();
   });
 

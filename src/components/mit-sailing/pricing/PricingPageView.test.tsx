@@ -59,7 +59,7 @@ describe('PricingPageView', () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        'MIT students and people with an MIT Gym membership choose Normal. Need a gym membership? Plans start at $528/year. See MIT Gym pricing before you request your card.'
+        'MIT students and MIT Recreation members choose Normal. Need MIT Recreation? Review MIT Recreation rates before you request your card.'
       )
     ).toBeInTheDocument();
     const pricingChart = screen.getByRole('table', { name: 'Pricing chart' });
@@ -111,11 +111,11 @@ describe('PricingPageView', () => {
       )
     ).toBeInTheDocument();
     const gymRateButtons = screen.getAllByRole('button', {
-      name: 'See MIT Gym pricing',
+      name: 'See MIT Recreation rates',
     });
     const [gymRateButton] = gymRateButtons;
     if (!gymRateButton) {
-      throw new Error('Missing MIT Gym rates button');
+      throw new Error('Missing MIT Recreation rates button');
     }
     await user.click(gymRateButton);
     const ratesDialog = screen.getByRole('dialog', {
@@ -163,7 +163,7 @@ describe('PricingPageView', () => {
     ).not.toBeInTheDocument();
     expect(
       within(ratesDialog).getByRole('link', {
-        name: 'MIT Gym rates and access hours are subject to change.',
+        name: 'MIT Recreation rates and access hours are subject to change.',
       })
     ).toHaveAttribute('href', mitRecreationMembershipHref);
   });

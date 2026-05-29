@@ -162,7 +162,7 @@ export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
               {
                 title: 'Create your account',
                 description:
-                  'MIT students and MIT Recreation members get full sailing included, including Charles River racing. Others can compare paid racing cards before requesting a card.',
+                  'MIT students and MIT Recreation members get Normal included, including Charles River racing. Others can compare paid racing cards before requesting a card.',
               },
               {
                 title: 'Take a beginner class',
@@ -194,7 +194,7 @@ export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
         subtitle: 'Choose the card that matches what you want to sail.',
         body: JSON.stringify(
           {
-            footnoteLinkLabel: 'See MIT Gym pricing',
+            footnoteLinkLabel: 'See MIT Recreation rates',
             footnoteLinkUrl: '/pricing',
             plans: [
               {
@@ -203,14 +203,14 @@ export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
                 price: 'Free',
                 priceRows: [
                   { label: 'MIT student', value: 'Free' },
-                  { label: 'MIT Gym member', value: 'Free' },
+                  { label: 'MIT Recreation member', value: 'Free' },
                 ],
                 linkLabel: 'Sign up',
                 linkUrl: '/signup?callbackUrl=%2Fonboarding',
                 features: [
-                  'Full access to Pavilion sailing, classes, ratings, racing, and Mashnee.',
+                  'Normal access to Pavilion sailing, classes, ratings, racing, and Mashnee.',
                   'MIT students qualify automatically.',
-                  'MIT Gym members qualify with an active membership.',
+                  'MIT Recreation members qualify with an active membership.',
                 ],
               },
               {

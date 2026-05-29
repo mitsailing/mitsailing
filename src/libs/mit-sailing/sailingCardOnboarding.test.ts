@@ -230,7 +230,7 @@ describe('sailingCardOnboarding', () => {
     );
   });
 
-  it('canonicalizes covered users to full sailing', () => {
+  it('canonicalizes covered users to normal', () => {
     expect(
       buildSailingCardOnboardingUpdate({
         input: {

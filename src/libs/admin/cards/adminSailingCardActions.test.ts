@@ -439,7 +439,7 @@ describe('adminSailingCardActions', () => {
     expect(mocks.txLegalAgreementAcceptanceFindFirst).not.toHaveBeenCalled();
   });
 
-  it('does not issue full sailing before mit recreation is verified', async () => {
+  it('does not issue normal before mit recreation is verified', async () => {
     mocks.txSailingCardRequestFindFirst.mockResolvedValue({
       cardType: SailingCardType.normal,
       hasFitnessMembership: false,
@@ -473,7 +473,7 @@ describe('adminSailingCardActions', () => {
     expect(mocks.txUserAuditCreate).not.toHaveBeenCalled();
   });
 
-  it('does not issue legacy full sailing requests before mit recreation is verified', async () => {
+  it('does not issue legacy normal requests before mit recreation is verified', async () => {
     mocks.txSailingCardRequestFindFirst.mockResolvedValue({
       cardType: SailingCardType.normal,
       hasFitnessMembership: null,

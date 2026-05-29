@@ -3,21 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { AboutPageView } from './AboutPageView';
 
 vi.mock('next/image', () => ({
-  default: (props: {
-    alt: string;
-    className?: string;
-    height?: number;
-    src: string;
-    width?: number;
-  }) => (
-    // eslint-disable-next-line @next/next/no-img-element -- Test double for `next/image`.
-    <img
-      alt={props.alt}
-      className={props.className}
-      height={props.height}
-      src={props.src}
-      width={props.width}
-    />
+  default: (props: { alt: string; className?: string }) => (
+    <span aria-label={props.alt} className={props.className} role="img" />
   ),
 }));
 
@@ -30,10 +17,10 @@ describe('AboutPageView', () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        'MIT students and MIT Recreation members get full sailing membership included. Pavilion racing and Thursday team racing are paid cards for Charles River racing only.'
+        'MIT students and MIT Recreation members get Normal included. Pavilion racing and Thursday team racing are paid cards for Charles River racing only.'
       )
     ).toBeInTheDocument();
-    expect(screen.getByText('Full sailing membership')).toBeInTheDocument();
+    expect(screen.getByText('Normal')).toBeInTheDocument();
     expect(
       screen.getByText(/Pavilion sailing, classes, ratings/u)
     ).toBeInTheDocument();

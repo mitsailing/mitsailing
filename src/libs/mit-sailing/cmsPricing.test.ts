@@ -54,7 +54,7 @@ describe('parseCmsPricingBody', () => {
     const parsed = parseCmsPricingBody(
       JSON.stringify({
         footnote: 'Need details?',
-        footnoteLinkLabel: 'See MIT Gym pricing',
+        footnoteLinkLabel: 'See MIT Recreation rates',
         footnoteLinkUrl: '/pricing',
         plans: [
           {
@@ -68,7 +68,7 @@ describe('parseCmsPricingBody', () => {
 
     expect(parsed).toMatchObject({
       footnote: 'Need details?',
-      footnoteLinkLabel: 'See MIT Gym pricing',
+      footnoteLinkLabel: 'See MIT Recreation rates',
       footnoteLinkUrl: '/pricing',
     });
   });

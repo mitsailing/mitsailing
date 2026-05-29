@@ -140,6 +140,7 @@ const shouldShowDetails = (props: {
       'dateOfBirth',
       'emergencyContactName',
       'emergencyContactPhone',
+      'hasFitnessMembership',
       'phone',
       'swimAgreementAccepted',
     ])

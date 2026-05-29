@@ -13,7 +13,7 @@ The docs URL may require Tailwind Plus access. If command-line fetches return 40
 
 ## Local Files
 
-- `src/components/mit-sailing/pricing/PricingPageView.tsx`: MIT Sailing pricing content, Tailwind Plus-style mobile cards, desktop comparison chart, and MIT Gym modal.
+- `src/components/mit-sailing/pricing/PricingPageView.tsx`: MIT Sailing pricing content, Tailwind Plus-style mobile cards, desktop comparison chart, and MIT Recreation modal.
 - `src/locales/en.json`: `PricingPage` strings.
 - `src/components/mit-sailing/pricing/PricingPageView.test.tsx`: pricing behavior and copy coverage.
 - `src/components/mit-sailing/pricing/PricingPageView.stories.tsx`: browser/story coverage.

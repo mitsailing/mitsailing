@@ -24,6 +24,7 @@ import {
   sailingCardAgreement,
   sailingCardAgreementHash,
 } from '@/libs/mit-sailing/sailingCardAgreement';
+import { needsFitnessMembershipQuestion } from '@/libs/mit-sailing/sailingCardMembership';
 import {
   buildSailingCardOnboardingUpdate,
   SailingCardOnboardingValidationError,
@@ -76,6 +77,8 @@ const postOnboardingDestination = (props: {
 
 const currentYearSailingCardRequestSelect = {
   cardYear: true,
+  cardType: true,
+  hasFitnessMembership: true,
   legalAgreementAcceptance: {
     select: {
       agreementHash: true,
@@ -84,6 +87,7 @@ const currentYearSailingCardRequestSelect = {
       userId: true,
     },
   },
+  sailingAffiliation: true,
   status: true,
   userId: true,
   user: {
@@ -94,6 +98,19 @@ const currentYearSailingCardRequestSelect = {
     },
   },
 } as const;
+
+const canUpdatePendingNormalFitnessVerification = (request: {
+  readonly cardType?: SailingCardType | null;
+  readonly hasFitnessMembership?: boolean | null;
+  readonly sailingAffiliation?: SailingAffiliation | null;
+  readonly status: SailingCardRequestStatus;
+}) =>
+  request.status === SailingCardRequestStatus.pending &&
+  request.cardType === SailingCardType.normal &&
+  request.hasFitnessMembership !== true &&
+  request.sailingAffiliation !== null &&
+  request.sailingAffiliation !== undefined &&
+  needsFitnessMembershipQuestion(request.sailingAffiliation);
 
 const sailingCardRequestUpdateData = (props: {
   readonly acceptedAt: Date;
@@ -289,7 +306,8 @@ export const submitSailingCardOnboardingAction = async (
   if (
     latestRequest !== null &&
     latestRequest.status !== 'cancelled' &&
-    hasCompletedCurrentYearSailingCardRequest(latestRequest)
+    hasCompletedCurrentYearSailingCardRequest(latestRequest) &&
+    !canUpdatePendingNormalFitnessVerification(latestRequest)
   ) {
     redirect(successHref);
   }
@@ -353,7 +371,11 @@ export const submitSailingCardOnboardingAction = async (
       },
       select: currentYearSailingCardRequestSelect,
     });
-    if (hasCompletedCurrentYearSailingCardRequest(currentYearRequest)) {
+    if (
+      currentYearRequest !== null &&
+      hasCompletedCurrentYearSailingCardRequest(currentYearRequest) &&
+      !canUpdatePendingNormalFitnessVerification(currentYearRequest)
+    ) {
       return { status: 'alreadyCompleted' } as const;
     }
 

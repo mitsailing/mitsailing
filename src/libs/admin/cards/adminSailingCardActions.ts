@@ -221,6 +221,23 @@ function revalidateSailingCardAdminPaths(locale: string, userId: string) {
   revalidatePath(getI18nPath('/profile/account', locale));
 }
 
+function hasMatchingOnboardingAgreement(props: {
+  readonly request: NonNullable<
+    Awaited<ReturnType<typeof findCurrentPendingSailingCardRequest>>
+  >;
+  readonly targetUserId: string;
+}) {
+  return (
+    props.request.legalAgreementAcceptance.agreementHash ===
+      sailingCardAgreementHash() &&
+    props.request.legalAgreementAcceptance.agreementVersion ===
+      sailingCardAgreement.version &&
+    props.request.legalAgreementAcceptance.source ===
+      LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING &&
+    props.request.legalAgreementAcceptance.userId === props.targetUserId
+  );
+}
+
 export async function issueSailingCardAction(
   locale: string,
   targetUserId: string,
@@ -267,15 +284,7 @@ export async function issueSailingCardAction(
       if (request === null) {
         throw new Error('not_pending_request');
       }
-      if (
-        request.legalAgreementAcceptance.agreementHash !==
-          sailingCardAgreementHash() ||
-        request.legalAgreementAcceptance.agreementVersion !==
-          sailingCardAgreement.version ||
-        request.legalAgreementAcceptance.source !==
-          LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING ||
-        request.legalAgreementAcceptance.userId !== targetUserId
-      ) {
+      if (!hasMatchingOnboardingAgreement({ request, targetUserId })) {
         throw new Error('missing_onboarding_agreement');
       }
       if (requestNeedsFitnessVerification(request)) {

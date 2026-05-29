@@ -39,12 +39,14 @@ function CmsPricingPlanLink(props: {
 
   if (isAppRelativeCmsHref(props.href)) {
     return (
+      // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- safeCmsHref and isAppRelativeCmsHref restrict CMS links before rendering.
       <Link className={className} href={props.href}>
         {props.label}
       </Link>
     );
   }
   return (
+    // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- safeCmsHref restricts CMS links to http(s) URLs before rendering.
     <a
       className={className}
       href={props.href}
@@ -140,10 +142,12 @@ function CmsPricingFootnote(props: { pricing: CmsPricingData }) {
   let link: React.ReactNode = null;
   if (href && props.pricing.footnoteLinkLabel) {
     link = isAppRelativeCmsHref(href) ? (
+      // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- safeCmsHref and isAppRelativeCmsHref restrict CMS links before rendering.
       <Link className={linkClassName} href={href}>
         {props.pricing.footnoteLinkLabel}
       </Link>
     ) : (
+      // nosemgrep: typescript.react.security.audit.react-href-var.react-href-var -- safeCmsHref restricts CMS links to http(s) URLs before rendering.
       <a className={linkClassName} href={href} {...externalCmsLinkProps(href)}>
         {props.pricing.footnoteLinkLabel}
       </a>

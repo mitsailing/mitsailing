@@ -128,6 +128,7 @@ const selectedCardTypeValue = (value: string | undefined) =>
   value === '' ? SailingCardType.normal : (value ?? SailingCardType.normal);
 
 function FitnessMembershipOption(props: {
+  readonly ariaDescribedBy: string;
   readonly id: string;
   readonly label: string;
   readonly onBlur: React.FocusEventHandler<HTMLInputElement>;
@@ -145,6 +146,7 @@ function FitnessMembershipOption(props: {
       <input
         className={radioInputClassName}
         id={props.id}
+        aria-describedby={props.ariaDescribedBy}
         name={props.registrationName}
         onBlur={props.onBlur}
         onChange={props.onChange}
@@ -161,6 +163,7 @@ function FitnessMembershipOption(props: {
 }
 
 function FitnessMembershipOptions(props: {
+  readonly ariaDescribedBy: string;
   readonly onBlur: React.FocusEventHandler<HTMLInputElement>;
   readonly onChange: React.ChangeEventHandler<HTMLInputElement>;
   readonly ref: React.Ref<HTMLInputElement>;
@@ -171,6 +174,7 @@ function FitnessMembershipOptions(props: {
   return (
     <div className="grid gap-2 sm:grid-cols-2">
       <FitnessMembershipOption
+        ariaDescribedBy={props.ariaDescribedBy}
         id="hasFitnessMembershipYes"
         label={t('fitness_membership_yes')}
         onBlur={props.onBlur}
@@ -180,6 +184,7 @@ function FitnessMembershipOptions(props: {
         value="yes"
       />
       <FitnessMembershipOption
+        ariaDescribedBy={props.ariaDescribedBy}
         id="hasFitnessMembershipNo"
         label={t('fitness_membership_no')}
         onBlur={props.onBlur}
@@ -195,10 +200,17 @@ function FitnessMembershipOptions(props: {
 function FitnessMembershipQuestion(props: {
   readonly register: UseFormRegister<SailingCardOnboardingFormValues>;
   readonly setValue: UseFormSetValue<SailingCardOnboardingFormValues>;
+  readonly state: SailingCardOnboardingFormState;
 }) {
   const t = useTranslations('OnboardingPage');
+  const error = props.state.fieldErrors.hasFitnessMembership;
   const helpId = 'sailing-card-onboarding-hasFitnessMembership-help';
   const signupNoteId = 'sailing-card-onboarding-fitness-signup-note';
+  const describedBy = cn(
+    helpId,
+    signupNoteId,
+    error ? fieldErrorId('hasFitnessMembership') : undefined
+  );
   const registration = props.register('hasFitnessMembership', {
     required: true,
   });
@@ -213,7 +225,8 @@ function FitnessMembershipQuestion(props: {
   return (
     <fieldset
       className="flex flex-col gap-2"
-      aria-describedby={`${helpId} ${signupNoteId}`}
+      aria-describedby={describedBy}
+      aria-invalid={error ? true : undefined}
     >
       <legend className="font-medium text-foreground">
         {t('fitness_membership_label')}
@@ -222,6 +235,7 @@ function FitnessMembershipQuestion(props: {
         {t('fitness_membership_help')}
       </p>
       <FitnessMembershipOptions
+        ariaDescribedBy={describedBy}
         onBlur={handleFitnessMembershipBlur}
         onChange={handleFitnessMembershipChange}
         ref={registration.ref}
@@ -233,6 +247,7 @@ function FitnessMembershipQuestion(props: {
           fitnessMembershipSignupNoteRichText
         )}
       </p>
+      <FieldError field="hasFitnessMembership" state={props.state} />
     </fieldset>
   );
 }
@@ -479,6 +494,7 @@ export function CardRequestSection(props: {
         <FitnessMembershipQuestion
           register={props.register}
           setValue={props.setValue}
+          state={props.state}
         />
       ) : (
         <p className="text-xs leading-5 text-muted-foreground">

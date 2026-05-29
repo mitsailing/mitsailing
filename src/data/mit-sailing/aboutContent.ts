@@ -43,11 +43,11 @@ export const missionPillars: {
 
 export const membershipSummary = {
   title: 'Pricing and sailing cards',
-  body: 'MIT students and MIT Recreation members get full sailing membership included. Pavilion racing and Thursday team racing are paid cards for Charles River racing only.',
+  body: 'MIT students and MIT Recreation members get Normal included. Pavilion racing and Thursday team racing are paid cards for Charles River racing only.',
   cta: { label: 'See pricing', href: '/pricing' },
   options: [
     {
-      title: 'Full sailing membership',
+      title: 'Normal',
       body: 'Pavilion sailing, classes, ratings, Charles River racing, and Mashnee, the 48-foot Boston Harbor blue-water sailboat, when approved.',
     },
     {

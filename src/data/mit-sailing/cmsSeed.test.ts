@@ -137,7 +137,7 @@ describe('cms seed membership pricing', () => {
         : undefined;
 
     expect(description).toBe(
-      'MIT students and MIT Recreation members get full sailing included, including Charles River racing. Others can compare paid racing cards before requesting a card.'
+      'MIT students and MIT Recreation members get Normal included, including Charles River racing. Others can compare paid racing cards before requesting a card.'
     );
   });
 
@@ -153,7 +153,7 @@ describe('cms seed membership pricing', () => {
       'Choose the card that matches what you want to sail.'
     );
     expect(pricing).toMatchObject({
-      footnoteLinkLabel: 'See MIT Gym pricing',
+      footnoteLinkLabel: 'See MIT Recreation rates',
       footnoteLinkUrl: '/pricing',
     });
     expect(pricing?.footnote).toBeUndefined();
@@ -169,17 +169,17 @@ describe('cms seed membership pricing', () => {
       price: 'Free',
       priceRows: [
         { label: 'MIT student', value: 'Free' },
-        { label: 'MIT Gym member', value: 'Free' },
+        { label: 'MIT Recreation member', value: 'Free' },
       ],
     });
     expect(pricing?.plans[0]?.description).toBe(
       'Pavilion, classes, ratings, racing, Mashnee.'
     );
     expect(pricing?.plans[0]?.features).toContain(
-      'Full access to Pavilion sailing, classes, ratings, racing, and Mashnee.'
+      'Normal access to Pavilion sailing, classes, ratings, racing, and Mashnee.'
     );
     expect(pricing?.plans[0]?.features).toContain(
-      'MIT Gym members qualify with an active membership.'
+      'MIT Recreation members qualify with an active membership.'
     );
     expect(pricing?.plans[1]).toMatchObject({
       linkLabel: 'Sign up',

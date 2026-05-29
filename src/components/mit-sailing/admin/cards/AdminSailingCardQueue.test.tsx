@@ -59,14 +59,14 @@ vi.mock('next-intl', () => ({
       error_missing_onboarding_agreement:
         'Missing onboarding agreement acceptance.',
       error_mit_recreation_required:
-        'Verify MIT Recreation before issuing full sailing.',
+        'Verify MIT Recreation before issuing Normal.',
       error_no_current_card: 'No current card.',
       error_not_found: 'User was not found.',
       fitness_membership_mit_student: 'MIT student',
       fitness_membership_no_verify: 'No, verify before issuing',
       fitness_membership_not_required: 'Not required',
       fitness_membership_yes: 'Yes',
-      card_type_normal: 'Full sailing',
+      card_type_normal: 'Normal',
       card_type_racing: 'Pavilion racing',
       card_type_team_racing: 'Thursday team racing',
       history_empty: 'No previous cards.',
@@ -114,7 +114,7 @@ describe('AdminSailingCardQueue', () => {
     expect(
       screen.getByText(SailingAffiliation.MIT_STUDENT)
     ).toBeInTheDocument();
-    expect(screen.getByText('Full sailing')).toBeInTheDocument();
+    expect(screen.getByText('Normal')).toBeInTheDocument();
     expect(screen.getByText('MIT student')).toBeInTheDocument();
     expect(screen.getByText('123456789')).toBeInTheDocument();
     expect(screen.getByText(/v1/)).toBeInTheDocument();
@@ -123,7 +123,7 @@ describe('AdminSailingCardQueue', () => {
     expect(screen.queryByText('AK')).not.toBeInTheDocument();
   });
 
-  it('flags full sailing requests that need mit recreation verification', () => {
+  it('flags normal requests that need mit recreation verification', () => {
     render(
       <AdminSailingCardQueue
         canAssignCards
