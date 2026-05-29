@@ -21,7 +21,13 @@ export type EventPaymentCheckoutPayment =
   | {
       amount: string;
       receiptUrl: string | null;
-      status: 'cancelled' | 'disputed' | 'handled' | 'paid' | 'refunded';
+      status:
+        | 'cancelled'
+        | 'disputed'
+        | 'handled'
+        | 'needs_review'
+        | 'paid'
+        | 'refunded';
       statusLabel: string;
     }
   | null;
@@ -52,7 +58,15 @@ type SetCheckoutError = React.Dispatch<React.SetStateAction<string | null>>;
 
 type PayableEventPaymentCheckoutPayment = Exclude<
   EventPaymentCheckoutPayment,
-  null | { status: 'cancelled' | 'disputed' | 'handled' | 'paid' | 'refunded' }
+  null | {
+    status:
+      | 'cancelled'
+      | 'disputed'
+      | 'handled'
+      | 'needs_review'
+      | 'paid'
+      | 'refunded';
+  }
 >;
 
 function isPayablePayment(

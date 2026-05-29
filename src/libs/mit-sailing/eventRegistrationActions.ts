@@ -6,7 +6,7 @@ import { redirect, unstable_rethrow } from 'next/navigation';
 import * as z from 'zod';
 import { Prisma } from '@/generated/prisma/client';
 import {
-  EventPaymentStatus,
+  PaymentStatus,
   EventRegistrationStatus,
 } from '@/generated/prisma/enums';
 import type { EventAnswerType } from '@/generated/prisma/enums';
@@ -877,7 +877,7 @@ export async function createPublicEventRegistrationAction(
           status === EventRegistrationStatus.approved &&
           paymentFee !== null
         ) {
-          await tx.eventPayment.upsert({
+          await tx.payment.upsert({
             create: {
               amountCents: paymentFee.amountCents,
               currency: 'usd',
@@ -886,7 +886,7 @@ export async function createPublicEventRegistrationAction(
               registrationId,
               selectedFeeDescription: paymentFee.description,
               selectedFeeId: paymentFee.id,
-              status: EventPaymentStatus.pending,
+              status: PaymentStatus.pending,
               userId: access.userId,
             },
             update: {},
@@ -963,19 +963,19 @@ export async function cancelPublicEventRegistrationAction(
         where: { eventId: event.id, userId: access.userId },
         data: { status: EventRegistrationStatus.cancelled },
       });
-      await tx.eventPayment.updateMany({
+      await tx.payment.updateMany({
         where: {
           eventId: event.id,
           userId: access.userId,
           status: {
             in: [
-              EventPaymentStatus.checkout_created,
-              EventPaymentStatus.past_due,
-              EventPaymentStatus.pending,
+              PaymentStatus.checkout_created,
+              PaymentStatus.past_due,
+              PaymentStatus.pending,
             ],
           },
         },
-        data: { status: EventPaymentStatus.cancelled },
+        data: { status: PaymentStatus.cancelled },
       });
     });
   } catch (error: unknown) {

@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Prisma } from '@/generated/prisma/client';
 import {
   LegalAgreementAcceptanceSource,
+  PaymentPurpose,
+  PaymentSource,
+  PaymentStatus,
   SailingAffiliation,
   SailingCardRequestStatus,
   SailingCardType,
@@ -16,6 +19,8 @@ import {
 vi.mock('server-only', () => ({}));
 
 const mocks = vi.hoisted(() => ({
+  txPaymentCreate: vi.fn(),
+  txPaymentFindFirst: vi.fn(),
   txLegalAgreementAcceptanceFindFirst: vi.fn(),
   revalidatePath: vi.fn(),
   requirePermission: vi.fn(),
@@ -32,6 +37,10 @@ const mocks = vi.hoisted(() => ({
 }));
 
 type MockTransactionClient = {
+  readonly payment: {
+    readonly create: typeof mocks.txPaymentCreate;
+    readonly findFirst: typeof mocks.txPaymentFindFirst;
+  };
   readonly legalAgreementAcceptance: {
     readonly findFirst: typeof mocks.txLegalAgreementAcceptanceFindFirst;
   };
@@ -130,6 +139,8 @@ describe('adminSailingCardActions', () => {
     mocks.txUserFindUnique.mockResolvedValue(existingUser);
     mocks.txUserUpdate.mockResolvedValue({});
     mocks.txUserUpdateMany.mockResolvedValue({ count: 1 });
+    mocks.txPaymentCreate.mockResolvedValue({});
+    mocks.txPaymentFindFirst.mockResolvedValue(null);
     mocks.txSailingCardRequestFindFirst.mockResolvedValue({
       cardType: SailingCardType.normal,
       hasFitnessMembership: true,
@@ -153,6 +164,10 @@ describe('adminSailingCardActions', () => {
     mocks.transaction.mockImplementation(
       async (operation: MockTransactionOperation) => {
         const result = await operation({
+          payment: {
+            create: mocks.txPaymentCreate,
+            findFirst: mocks.txPaymentFindFirst,
+          },
           user: {
             findMany: mocks.txUserFindMany,
             findUnique: mocks.txUserFindUnique,
@@ -219,7 +234,7 @@ describe('adminSailingCardActions', () => {
     );
   });
 
-  it('manual card number accepts a positive integer below 60', async () => {
+  it('manual card number accepts any unused positive integer', async () => {
     const { issueSailingCardAction } =
       await import('@/libs/admin/cards/adminSailingCardActions');
 
@@ -227,13 +242,13 @@ describe('adminSailingCardActions', () => {
       'en',
       'user-1',
       { fieldErrors: {}, status: 'idle' },
-      formDataWithCardNumber(' 7 ')
+      formDataWithCardNumber(' 110 ')
     );
 
     expect(mocks.txUserUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          sailingCardNumber: 7,
+          sailingCardNumber: 110,
         }),
       })
     );
@@ -553,6 +568,101 @@ describe('adminSailingCardActions', () => {
         status: SailingCardRequestStatus.approved,
       },
     });
+  });
+
+  it('issuing a paid card without a recorded payment creates an admin override payment', async () => {
+    mocks.txSailingCardRequestFindFirst.mockResolvedValue({
+      cardType: SailingCardType.racing,
+      hasFitnessMembership: null,
+      id: 'request-1',
+      legalAgreementAcceptance: {
+        agreementHash: sailingCardAgreementHash(),
+        agreementVersion: sailingCardAgreement.version,
+        source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
+        userId: 'user-1',
+      },
+      sailingAffiliation: SailingAffiliation.MIT_ALUM,
+    });
+    const { issueSailingCardAction } =
+      await import('@/libs/admin/cards/adminSailingCardActions');
+
+    await issueSailingCardAction(
+      'en',
+      'user-1',
+      { fieldErrors: {}, status: 'idle' },
+      formDataWithCardNumber('61')
+    );
+
+    expect(mocks.txPaymentFindFirst).toHaveBeenCalledWith({
+      where: {
+        cardType: SailingCardType.racing,
+        cardYear: 2027,
+        purpose: PaymentPurpose.membership,
+        status: { in: [PaymentStatus.handled, PaymentStatus.paid] },
+        userId: 'user-1',
+      },
+      select: { id: true },
+    });
+    expect(mocks.txPaymentCreate).toHaveBeenCalledWith({
+      data: {
+        amountCents: 0,
+        cardType: SailingCardType.racing,
+        cardYear: 2027,
+        currency: 'usd',
+        manualHandledAt: new Date('2026-08-01T16:00:00.000Z'),
+        manualHandledByUserId: 'admin-1',
+        manualHandledNote: 'Admin issued sailing card without payment.',
+        purpose: PaymentPurpose.membership,
+        source: PaymentSource.admin_override,
+        status: PaymentStatus.handled,
+        userId: 'user-1',
+      },
+    });
+    expect(mocks.txSailingCardRequestUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          paymentBypassAt: new Date('2026-08-01T16:00:00.000Z'),
+          paymentBypassByUserId: 'admin-1',
+          paymentBypassNote: 'Admin issued sailing card without payment.',
+        }),
+      })
+    );
+  });
+
+  it('issuing a paid card with a recorded payment does not create an admin override', async () => {
+    mocks.txPaymentFindFirst.mockResolvedValue({ id: 'payment-1' });
+    mocks.txSailingCardRequestFindFirst.mockResolvedValue({
+      cardType: SailingCardType.racing,
+      hasFitnessMembership: null,
+      id: 'request-1',
+      legalAgreementAcceptance: {
+        agreementHash: sailingCardAgreementHash(),
+        agreementVersion: sailingCardAgreement.version,
+        source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
+        userId: 'user-1',
+      },
+      sailingAffiliation: SailingAffiliation.MIT_ALUM,
+    });
+    const { issueSailingCardAction } =
+      await import('@/libs/admin/cards/adminSailingCardActions');
+
+    await issueSailingCardAction(
+      'en',
+      'user-1',
+      { fieldErrors: {}, status: 'idle' },
+      formDataWithCardNumber('61')
+    );
+
+    expect(mocks.txPaymentCreate).not.toHaveBeenCalled();
+    expect(mocks.txSailingCardRequestUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.not.objectContaining({
+          paymentBypassAt: expect.anything(),
+          paymentBypassByUserId: expect.anything(),
+          paymentBypassNote: expect.anything(),
+        }),
+      })
+    );
   });
 
   it('does not issue when another admin already approved the request', async () => {

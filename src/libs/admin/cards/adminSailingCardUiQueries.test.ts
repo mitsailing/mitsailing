@@ -169,6 +169,13 @@ describe('adminSailingCardUiQueries', () => {
           agreementVersion: sailingCardAgreement.version,
         },
       ],
+      sailingCardRequests: [
+        {
+          paymentBypassAt: new Date('2026-05-22T16:00:00.000Z'),
+          paymentBypassBy: { name: 'Payment Admin' },
+          paymentBypassNote: 'Admin issued sailing card without payment.',
+        },
+      ],
       sailingCardExpiresOn: new Date('2027-05-31T04:00:00.000Z'),
       sailingCardIssuedAt: new Date('2026-05-22T16:00:00.000Z'),
       sailingCardIssuedBy: {
@@ -203,6 +210,20 @@ describe('adminSailingCardUiQueries', () => {
               agreementVersion: sailingCardAgreement.version,
               source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
             },
+          },
+          sailingCardRequests: {
+            orderBy: { paymentBypassAt: 'desc' },
+            select: {
+              paymentBypassAt: true,
+              paymentBypassBy: {
+                select: {
+                  name: true,
+                },
+              },
+              paymentBypassNote: true,
+            },
+            where: { paymentBypassAt: { not: null } },
+            take: 1,
           },
         }),
         where: { id: 'user-1' },

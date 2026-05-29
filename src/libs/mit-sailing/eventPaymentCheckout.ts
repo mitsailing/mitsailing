@@ -1,20 +1,28 @@
 import 'server-only';
-import { EventPaymentStatus } from '@/generated/prisma/enums';
-import type { EventPaymentStatus as EventPaymentStatusType } from '@/generated/prisma/enums';
+import { PaymentPurpose, PaymentStatus } from '@/generated/prisma/enums';
+import type { PaymentStatus as PaymentStatusType } from '@/generated/prisma/enums';
 import type { EventPaymentCheckoutSessionPayment } from '@/libs/stripe/stripeCheckoutSessions';
 import { createEmbeddedEventPaymentCheckoutSession } from '@/libs/stripe/stripeCheckoutSessions';
 import { getI18nPath } from '@/utils/Helpers';
 
-type EventPaymentCheckoutDbPayment = EventPaymentCheckoutSessionPayment & {
-  status: EventPaymentStatusType;
+type EventPaymentCheckoutDbPayment = {
+  amountCents: number;
+  currency: string;
+  eventId: string | null;
+  id: string;
+  registrationId: string | null;
+  selectedFeeDescription: string | null;
+  status: PaymentStatusType;
   stripeCheckoutSessionId: string | null;
+  userId: string | null;
 };
 
 type EventPaymentCheckoutDb = {
-  eventPayment: {
+  payment: {
     findFirst: (args: {
       where: {
         id: string;
+        purpose: typeof PaymentPurpose.event_payment;
         OR: (
           | { event: { admins: { some: { adminUserId: string } } } }
           | { userId: string }
@@ -23,14 +31,14 @@ type EventPaymentCheckoutDb = {
     }) => Promise<EventPaymentCheckoutDbPayment | null>;
     updateMany: (args: {
       data: {
-        status: typeof EventPaymentStatus.checkout_created;
+        status: typeof PaymentStatus.checkout_created;
         stripeCheckoutSessionId: string;
         stripeCustomerId?: string;
         stripePaymentIntentId?: string;
       };
       where: {
         id: string;
-        status: EventPaymentStatusType;
+        status: PaymentStatusType;
         stripeCheckoutSessionId: string | null;
       };
     }) => Promise<{ count: number }>;
@@ -41,11 +49,33 @@ type EventPaymentCheckoutStripe = Parameters<
   typeof createEmbeddedEventPaymentCheckoutSession
 >[0]['stripe'];
 
-const checkoutAllowedStatuses = new Set<EventPaymentStatusType>([
-  EventPaymentStatus.checkout_created,
-  EventPaymentStatus.past_due,
-  EventPaymentStatus.pending,
+const checkoutAllowedStatuses = new Set<PaymentStatusType>([
+  PaymentStatus.checkout_created,
+  PaymentStatus.past_due,
+  PaymentStatus.pending,
 ]);
+
+function eventCheckoutSessionPayment(
+  payment: EventPaymentCheckoutDbPayment
+): EventPaymentCheckoutSessionPayment | null {
+  if (
+    payment.eventId === null ||
+    payment.registrationId === null ||
+    payment.selectedFeeDescription === null ||
+    payment.userId === null
+  ) {
+    return null;
+  }
+  return {
+    amountCents: payment.amountCents,
+    currency: payment.currency,
+    eventId: payment.eventId,
+    id: payment.id,
+    registrationId: payment.registrationId,
+    selectedFeeDescription: payment.selectedFeeDescription,
+    userId: payment.userId,
+  };
+}
 
 export function buildEventPaymentCheckoutReturnUrl(options: {
   appUrl: string;
@@ -68,7 +98,7 @@ function checkoutSessionUpdateData(options: {
   stripePaymentIntentId: string | null;
 }) {
   return {
-    status: EventPaymentStatus.checkout_created,
+    status: PaymentStatus.checkout_created,
     stripeCheckoutSessionId: options.checkoutSessionId,
     ...(options.stripeCustomerId
       ? { stripeCustomerId: options.stripeCustomerId }
@@ -86,9 +116,10 @@ export async function createEventPaymentCheckoutClientSecret(options: {
   stripe?: EventPaymentCheckoutStripe;
   userId: string;
 }): Promise<string | null> {
-  const payment = await options.db.eventPayment.findFirst({
+  const payment = await options.db.payment.findFirst({
     where: {
       id: options.paymentId,
+      purpose: PaymentPurpose.event_payment,
       OR: [
         { userId: options.userId },
         { event: { admins: { some: { adminUserId: options.userId } } } },
@@ -99,14 +130,18 @@ export async function createEventPaymentCheckoutClientSecret(options: {
   if (!payment || !checkoutAllowedStatuses.has(payment.status)) {
     return null;
   }
+  const checkoutPayment = eventCheckoutSessionPayment(payment);
+  if (!checkoutPayment) {
+    return null;
+  }
 
   const checkoutSession = await createEmbeddedEventPaymentCheckoutSession({
-    payment,
+    payment: checkoutPayment,
     returnUrl: options.returnUrl,
     stripe: options.stripe,
   });
 
-  const updateResult = await options.db.eventPayment.updateMany({
+  const updateResult = await options.db.payment.updateMany({
     data: checkoutSessionUpdateData(checkoutSession),
     where: {
       id: payment.id,

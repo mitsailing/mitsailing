@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   EventAddressPreset,
-  EventPaymentStatus,
+  PaymentStatus,
   EventRegistrationStatus,
   EventSailingCardRequirement,
 } from '@/generated/prisma/enums';
@@ -559,7 +559,7 @@ describe('event admin queries', () => {
             manualHandledBy: null,
             manualHandledByUserId: null,
             manualHandledNote: null,
-            status: EventPaymentStatus.pending,
+            status: PaymentStatus.pending,
             stripeReceiptUrl: null,
           },
           registrationAnswers: [
@@ -615,7 +615,7 @@ describe('event admin queries', () => {
       manualHandledNote: null,
       receiptUrl: null,
       resendEligible: true,
-      status: EventPaymentStatus.pending,
+      status: PaymentStatus.pending,
     });
     expect(result?.registrationCounts).toEqual({
       approved: 0,

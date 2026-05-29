@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make sailing-card membership choices understandable at the exact signup decision point, explain the same model on the home/About/pricing pages, and document the domain rules so future developers do not confuse racing membership, Thursday team racing, and college sailing-team eligibility.
+**Goal:** Make sailing-card membership choices understandable at the exact signup decision point, explain the same model on the home/About/membership pages, and document the domain rules so future developers do not confuse racing membership, Thursday team racing, and college sailing-team eligibility.
 
-**Architecture:** Keep the existing `SailingCardType` enum values because they are already wired through onboarding and admin records, but stop exposing legacy/internal labels directly to users. Put the highest-value comparison inside onboarding, where affiliation and date of birth can produce accurate prices; use the home page for a compact public comparison; use `/pricing` as the canonical full explainer; add developer documentation that distinguishes user-facing labels from internal enum names and old WordPress behavior.
+**Architecture:** Keep the existing `SailingCardType` enum values because they are already wired through onboarding and admin records, but stop exposing legacy/internal labels directly to users. Put the highest-value comparison inside onboarding, where affiliation and date of birth can produce accurate prices; use the home page for a compact public comparison; use `/membership` as the canonical full explainer; add developer documentation that distinguishes user-facing labels from internal enum names and old WordPress behavior.
 
 **Tech Stack:** Next.js App Router, React 19, TypeScript, next-intl, Tailwind v4, Vitest/Testing Library, Playwright only if the final UI needs e2e confirmation.
 
@@ -12,25 +12,19 @@
 
 ## Domain Decisions
 
-The current user-facing labels must be consistent:
+The current user-facing labels are not acceptable:
 
-- `Normal` is the approved user-facing label for the general sailing-card type.
-- `Pavilion racing` must be described clearly because it excludes Mashnee and means MIT evening racing/race classes at the Pavilion.
+- `Normal membership` is internal and vague.
+- `Racing membership` is too broad because it excludes Mashnee and means MIT evening racing/race classes at the Pavilion.
 - `Team racing` is misleading because even a developer read it as college-team membership. Legacy WordPress shows it meant summer Thursday team racing, not being on the MIT or Northeastern college team.
 
 Use this vocabulary in user-facing product UI:
 
 | Internal enum | User-facing label | Compact detail | Badge examples |
 |---|---|---|---|
-| `normal` | `Normal` | `Pavilion, classes, ratings, and Mashnee.` | `Included` |
-| `racing` | `Pavilion racing` | `MIT evening racing and race classes at the Pavilion. No Mashnee.` | `$25`, `$70`, `$100`, `$125`, `$175` |
-| `team_racing` | `Thursday team racing` | `Thursday night team Pavilion racing only. No Mashnee. Not MIT Sailing Team.` | `$25`, `$70`, `$100`, `Summer only` |
-
-Free Normal eligibility must always be presented in this order:
-
-1. MIT students get Normal included.
-2. MIT Recreation members get Normal included.
-3. Users who are not eligible for included Normal can still choose paid Pavilion-racing or Thursday-team-racing cards.
+| `normal` | `Full sailing membership` | `Pavilion, classes, ratings, and Mashnee.` | `Included` |
+| `racing` | `Racing series membership` | `MIT evening racing and race classes at the Pavilion. No Mashnee.` | `$25`, `$70`, `$100`, `$125`, `$175` |
+| `team_racing` | `Thursday team racing` | `Thursday night team racing series only. No Mashnee. Not MIT Sailing Team.` | `$25`, `$70`, `$100`, `Summer only` |
 
 Do not use `College team racing membership` for the current product. That is a different concept. College sailing-team status should be handled as eligibility/affiliation copy, not as the `team_racing` card type.
 
@@ -45,7 +39,7 @@ Source files:
 Legacy behavior:
 
 - `Team Racing` was a summer-only recreational team racing card.
-- Public copy said it was for Thursday team racing, and users were only allowed to race in that Thursday team Pavilion racing.
+- Public copy said it was for Thursday team racing, and users were only allowed to race in that Thursday team racing series.
 - It had pricing: non-MIT/high-school/college student `$25`, under 30 `$70`, 30-plus `$100`.
 - Regular racing pricing was spring `$25/$70/$100` before July 15 and full-year `$40/$125/$175` after July 15.
 - MIT students did not pay for sailing cards and were told to get a normal card free.
@@ -57,35 +51,34 @@ External references used for this plan:
 - [Amazon Subscribe & Save overview](https://www.aboutamazon.com/news/retail/how-you-can-save-time-and-money-with-amazon-subscribe-save): shows the subscribe choice near purchase, gives advance reminders before recurring charges, and keeps subscription management discoverable.
 - [Baymard subscription UX research](https://baymard.com/blog/new-research-consumables-subscription-services): users distrust subscription flows when pricing is hard to find before checkout.
 
-Apply these eleven principles:
+Apply these ten principles:
 
 1. Show the comparison before the user submits onboarding, not only on a separate page.
 2. Let the user compare membership types with prices calculated from their affiliation and date of birth.
-3. Show free Normal eligibility in the right order: MIT students, then MIT Recreation members.
-4. Make the no-MIT-Recreation path positive: if the user is not eligible for free Normal and does not plan to buy MIT Recreation, show Pavilion-racing and Thursday-team-racing as available choices.
-5. Use one clear “today” price on each option, with later renewal copy only when subscription checkout is implemented.
-6. Keep the primary labels short, but use one compact detail line per option so the user knows what is included.
-7. Do not hide price behind FAQ text, helper text, or a later payment step.
-8. Use badges for fast scanning: `Included`, `$70 today`, `Needs MIT Recreation`, `Thursday series`.
-9. Keep one obvious next action after the user selects an option.
-10. Explain why date of birth is needed before price calculation, because age changes racing and team-racing prices.
-11. Keep cancellation and renewal expectations adjacent to paid subscription checkout when the billing PR adds auto-renew.
+3. Make the no-MIT-Fitness path positive: if the user is not eligible for free full sailing membership and does not plan to buy MIT Fitness, show racing-series and Thursday-team-racing as available choices.
+4. Use one clear “today” price on each option, with later renewal copy only when subscription checkout is implemented.
+5. Keep the primary labels short, but use one compact detail line per option so the user knows what is included.
+6. Do not hide price behind FAQ text, helper text, or a later payment step.
+7. Use badges for fast scanning: `Included`, `$70 today`, `Needs MIT Fitness`, `Thursday series`.
+8. Keep one obvious next action after the user selects an option.
+9. Explain why date of birth is needed before price calculation, because age changes racing and team-racing prices.
+10. Keep cancellation and renewal expectations adjacent to paid subscription checkout when the billing PR adds auto-renew.
 
 ## File Structure
 
 - Modify `src/locales/en.json`: all public copy and test assertions.
 - Modify `src/components/mit-sailing/onboarding/SailingCardOnboardingCardRequestFields.tsx`: keep compact option cards, add an in-flow comparison/price section, add a membership-details link, and ensure the new labels/descriptions render in the radio group.
-- Modify `src/components/mit-sailing/onboarding/SailingCardOnboardingForm.test.tsx`: prove the approved labels are accessible.
-- Create `src/components/mit-sailing/pricing/PricingPageView.tsx`: public pricing explainer.
-- Create `src/components/mit-sailing/pricing/PricingPageView.test.tsx`: page-level copy and link tests.
-- Create `src/app/[locale]/(marketing)/(site)/pricing/page.tsx`: static public route.
-- Create `src/app/[locale]/(marketing)/(site)/pricing/pricingPage.test.tsx`: route metadata/page shell test if existing app-page tests make this straightforward.
-- Modify `src/components/mit-sailing/home/MitSailingHomePageView.tsx` and tests if the seeded pricing block cannot express a clear pricing comparison by itself.
-- Modify `src/components/mit-sailing/about/AboutPageView.tsx`: add a compact “Pricing” section or callout linking to `/pricing`.
+- Modify `src/components/mit-sailing/onboarding/SailingCardOnboardingForm.test.tsx`: prove the old ambiguous labels are gone and the new choices are accessible.
+- Create `src/components/mit-sailing/membership/MembershipPageView.tsx`: public membership/pricing explainer.
+- Create `src/components/mit-sailing/membership/MembershipPageView.test.tsx`: page-level copy and link tests.
+- Create `src/app/[locale]/(marketing)/(site)/membership/page.tsx`: static public route.
+- Create `src/app/[locale]/(marketing)/(site)/membership/membershipPage.test.tsx`: route metadata/page shell test if existing app-page tests make this straightforward.
+- Modify `src/components/mit-sailing/home/MitSailingHomePageView.tsx` and tests if the seeded pricing block cannot express a clear membership-type comparison by itself.
+- Modify `src/components/mit-sailing/about/AboutPageView.tsx`: add a compact “Membership and sailing cards” section or callout linking to `/membership`.
 - Modify `src/components/mit-sailing/about/AboutPageView.test.tsx` if present; otherwise add focused assertions to existing about page tests under `src/app/[locale]/(marketing)/(site)/about`.
-- Modify `src/data/mit-sailing/footerNavSeed.ts`: point `footer_link_membership` to `/pricing`.
-- Modify `src/data/mit-sailing/cmsSeed.ts`: keep home pricing aligned with the public pricing page and avoid implying racing/team-racing are college-team status.
-- Run a site-wide copy audit across `src/locales/en.json`, `src/components/mit-sailing`, `src/app/[locale]/(marketing)/(site)`, and seeded public CMS data so membership option copy consistently uses `Normal`, `Pavilion racing`, and `Thursday team racing`.
+- Modify `src/data/mit-sailing/footerNavSeed.ts`: point `footer_link_membership` to `/membership`.
+- Modify `src/data/mit-sailing/cmsSeed.ts`: keep home pricing aligned with the public membership page and avoid implying racing/team-racing are college-team status.
+- Run a site-wide copy audit across `src/locales/en.json`, `src/components/mit-sailing`, `src/app/[locale]/(marketing)/(site)`, and seeded public CMS data so membership option copy consistently uses `Full sailing membership`, `Racing series membership`, and `Thursday team racing`.
 - Create `docs/mit-sailing/sailing-card-memberships.md`: developer-facing source of truth for card types, pricing, and legacy terminology.
 - Modify `README.md`: link the developer doc from a short “Product domain docs” section.
 
@@ -112,26 +105,23 @@ Create `docs/mit-sailing/sailing-card-memberships.md` with this content:
 ```markdown
 # Sailing Card Memberships
 
-This document is the product-domain source of truth for sailing-card membership labels, access, and pricing rules. Keep it in sync with onboarding copy, the public pricing page, and membership billing changes.
+This document is the product-domain source of truth for sailing-card membership labels, access, and pricing rules. Keep it in sync with onboarding copy, the public membership page, and membership billing changes.
 
 ## User-facing card types
 
 | Internal value | User-facing label | Meaning |
 |---|---|---|
-| `normal` | Normal | General MITNA sailing membership with Pavilion access, classes, ratings, and Mashnee access when the sailor has the required rating/approval. |
-| `racing` | Pavilion racing | MIT evening racing and race-related classes at the Sailing Pavilion. This does not include Mashnee. |
-| `team_racing` | Thursday team racing | Thursday night team Pavilion racing only. No Mashnee. This is not MIT Sailing Team membership. |
+| `normal` | Full sailing membership | General MITNA sailing membership with Pavilion access, classes, ratings, and Mashnee access when the sailor has the required rating/approval. |
+| `racing` | Racing series membership | MIT evening racing and race-related classes at the Sailing Pavilion. This does not include Mashnee. |
+| `team_racing` | Thursday team racing | Thursday night team racing series only. No Mashnee. This is not MIT Sailing Team membership. |
 
 The internal enum names are legacy storage names. Do not use `normal`, `racing`, or `team racing` alone as the primary onboarding labels.
 
 ## Pricing model
 
-Normal is included for eligible users. Always list MIT students first and MIT Recreation members second:
+Full sailing membership is included for eligible users, including MIT students and users with the required MIT Recreation membership.
 
-1. MIT students.
-2. MIT Recreation members.
-
-Pavilion racing uses the racing-card pricing model:
+Racing series membership uses the racing-card pricing model:
 
 | Timing | Non-MIT student | Under 30 | 30-plus |
 |---|---:|---:|---:|
@@ -144,13 +134,13 @@ Thursday team racing uses the summer-only team-racing pricing model:
 |---|---:|---:|---:|
 | Any date | $25 | $70 | $100 |
 
-MIT students do not pay for sailing cards. They should use Normal unless a staff-controlled future flow explicitly introduces another verified team status.
+MIT students do not pay for sailing cards. They should use full sailing membership unless a staff-controlled future flow explicitly introduces another verified team status.
 
 ## Legacy WordPress behavior
 
-The old WordPress site used `Normal`, `Racing`, and `Team Racing` in account forms. `Normal` remains the approved modern label; bare `Racing` and `Team Racing` need clearer product copy.
+The old WordPress site used `Normal`, `Racing`, and `Team Racing` in account forms. That terminology is ambiguous in the modern onboarding flow.
 
-`Team Racing` in legacy WordPress meant summer recreational team racing, not membership on the MIT or Northeastern college sailing team. The old public page described it as Thursday summer team racing and said the team-racing card only allowed racing in that Thursday team Pavilion racing.
+`Team Racing` in legacy WordPress meant summer recreational team racing, not membership on the MIT or Northeastern college sailing team. The old public page described it as Thursday summer team racing and said the team-racing card only allowed racing in that Thursday team racing series.
 
 Relevant legacy files:
 
@@ -162,7 +152,7 @@ Relevant legacy files:
 
 - Onboarding labels must be short and disambiguating.
 - Onboarding must show a comparison with exact prices once affiliation and date of birth are known.
-- If a non-MIT user is not getting MIT Recreation membership, do not leave them at a dead end. Make the Pavilion-racing and Thursday-team-racing options visible as the available paid paths.
+- If a non-MIT user is not getting MIT Recreation membership, do not leave them at a dead end. Make the racing-series and Thursday-team-racing options visible as the available paid paths.
 - Public pages can explain the differences with tables and short paragraphs.
 - Admin views may show internal values, but member-facing UI should use the user-facing labels above.
 - Do not introduce `college team racing membership` unless the data model changes to represent verified college sailing-team status separately from Thursday team racing.
@@ -197,19 +187,19 @@ Expected: both files are returned.
 
 - [ ] **Step 1: Write failing onboarding copy tests**
 
-In `src/components/mit-sailing/onboarding/SailingCardOnboardingForm.test.tsx`, update the card-type test so it asserts the approved labels:
+In `src/components/mit-sailing/onboarding/SailingCardOnboardingForm.test.tsx`, update the card-type test so it asserts the new labels and rejects the ambiguous old ones:
 
 ```ts
 expect(
-  cardTypeControls.getByRole('radio', { name: /Normal/u })
+  cardTypeControls.getByRole('radio', { name: /Full sailing membership/u })
 ).toBeInTheDocument();
 expect(
-  cardTypeControls.getByRole('radio', { name: /Pavilion racing/u })
+  cardTypeControls.getByRole('radio', { name: /Racing series membership/u })
 ).toBeInTheDocument();
 expect(
   cardTypeControls.getByRole('radio', { name: /Thursday team racing/u })
 ).toBeInTheDocument();
-expect(screen.getByText('Normal')).toBeInTheDocument();
+expect(screen.queryByText('Normal membership')).not.toBeInTheDocument();
 expect(screen.queryByText('Team racing')).not.toBeInTheDocument();
 expect(
   screen.getByText(
@@ -218,7 +208,7 @@ expect(
 ).toBeInTheDocument();
 expect(
   screen.getByText(
-    'Thursday night team Pavilion racing only. No Mashnee. Not MIT Sailing Team.'
+    'Thursday night team racing series only. No Mashnee. Not MIT Sailing Team.'
   )
 ).toBeInTheDocument();
 expect(
@@ -226,7 +216,7 @@ expect(
 ).toBeInTheDocument();
 ```
 
-Also update any existing expectations for `Normal`, `Pavilion racing`, and the current team-racing description.
+Also update any existing expectations for `Normal membership`, `Racing membership`, and the current team-racing description.
 
 - [ ] **Step 2: Run the failing onboarding test**
 
@@ -236,7 +226,7 @@ Run:
 npm run test -- src/components/mit-sailing/onboarding/SailingCardOnboardingForm.test.tsx
 ```
 
-Expected: FAIL before implementation because the current locale still uses stale card-type descriptions or a college-team-oriented team-racing description.
+Expected: FAIL because the current locale still uses `Normal membership`, `Racing membership`, and a college-team-oriented team-racing description.
 
 - [ ] **Step 3: Update locale copy**
 
@@ -244,22 +234,22 @@ In `src/locales/en.json`, replace the onboarding card-type keys with:
 
 ```json
 "card_type_label": "Choose your sailing card",
-"card_type_normal": "Normal",
-"card_type_normal_description": "Included for MIT students and MIT Recreation members. Pavilion, classes, ratings, and Mashnee.",
-"card_type_racing": "Pavilion racing",
+"card_type_normal": "Full sailing membership",
+"card_type_normal_description": "Pavilion, classes, ratings, and Mashnee.",
+"card_type_racing": "Racing series membership",
 "card_type_racing_description": "MIT evening racing and race classes at the Pavilion. No Mashnee.",
-"card_type_racing_description_needs_dob": "Enter date of birth above to see the Pavilion racing price. MIT evening racing and race classes at the Pavilion. No Mashnee.",
+"card_type_racing_description_needs_dob": "Enter date of birth above to see the racing series price. MIT evening racing and race classes at the Pavilion. No Mashnee.",
 "card_type_team_racing": "Thursday team racing",
-"card_type_team_racing_description": "Thursday night team Pavilion racing only. No Mashnee. Not MIT Sailing Team.",
+"card_type_team_racing_description": "Thursday night team racing series only. No Mashnee. Not MIT Sailing Team.",
 "card_type_details_link": "Compare membership options",
 "card_type_comparison_heading": "Compare your options",
 "card_type_comparison_help": "Prices update from your affiliation and date of birth.",
-"card_type_no_fitness_path": "Not getting MIT Recreation? Pavilion racing and Thursday team racing stay available.",
-"card_type_full_requires_fitness": "Needs MIT Recreation",
+"card_type_no_fitness_path": "Not getting MIT Fitness? Racing series and Thursday team racing stay available.",
+"card_type_full_requires_fitness": "Needs MIT Fitness",
 "card_type_available_today": "Available today",
 "card_type_thursday_series": "Thursday series only",
-"fitness_membership_help": "Answer No if you still need to sign up. You can continue with Normal.",
-"fitness_membership_auto_mit_student": "MIT students meet the MIT Recreation requirement for Normal."
+"fitness_membership_help": "Answer No if you still need to sign up. You can continue with full sailing membership.",
+"fitness_membership_auto_mit_student": "MIT students meet the MIT Fitness requirement for full sailing membership."
 ```
 
 Keep the existing price keys.
@@ -373,7 +363,7 @@ In `CardRequestSection`, render `CardTypeComparison` immediately before `CardTyp
 ) : null}
 ```
 
-Also render this note when the user has answered `No` to MIT Recreation. If the current component does not receive the raw `hasFitnessMembership` value, add it to the section props from `SailingCardOnboardingFormModel`:
+Also render this note when the user has answered `No` to MIT Fitness. If the current component does not receive the raw `hasFitnessMembership` value, add it to the section props from `SailingCardOnboardingFormModel`:
 
 ```tsx
 <p className="text-xs leading-5 text-muted-foreground">
@@ -388,7 +378,7 @@ In `CardTypeSelect`, after `<FieldError field="cardType" state={props.state} />`
 ```tsx
 <Link
   className={fitnessMembershipLinkClassName}
-  href="/pricing"
+  href="/membership"
 >
   {t('card_type_details_link')}
 </Link>
@@ -398,16 +388,16 @@ If the link spacing looks too strong, wrap it in a `text-xs leading-5` paragraph
 
 - [ ] **Step 7: Add no-MIT-Fitness conversion-path test**
 
-Add or update the test that answers `No` to the MIT Recreation question. Assert the comparison does not dead-end the user and shows the paid options:
+Add or update the test that answers `No` to the MIT Fitness question. Assert the comparison does not dead-end the user and shows the paid options:
 
 ```ts
 expect(
   screen.getByText(
-    'Not getting MIT Recreation? Pavilion racing and Thursday team racing stay available.'
+    'Not getting MIT Fitness? Racing series and Thursday team racing stay available.'
   )
 ).toBeInTheDocument();
 expect(
-  screen.getByRole('radio', { name: /Pavilion racing/u })
+  screen.getByRole('radio', { name: /Racing series membership/u })
 ).toBeInTheDocument();
 expect(
   screen.getByRole('radio', { name: /Thursday team racing/u })
@@ -424,38 +414,38 @@ npm run test -- src/components/mit-sailing/onboarding/SailingCardOnboardingForm.
 
 Expected: PASS.
 
-## Task 3: Add The Public Pricing Page
+## Task 3: Add The Public Membership Page
 
 **Files:**
-- Create: `src/components/mit-sailing/pricing/PricingPageView.tsx`
-- Create: `src/components/mit-sailing/pricing/PricingPageView.test.tsx`
-- Create: `src/app/[locale]/(marketing)/(site)/pricing/page.tsx`
+- Create: `src/components/mit-sailing/membership/MembershipPageView.tsx`
+- Create: `src/components/mit-sailing/membership/MembershipPageView.test.tsx`
+- Create: `src/app/[locale]/(marketing)/(site)/membership/page.tsx`
 - Modify: `src/locales/en.json`
 
-- [ ] **Step 1: Add pricing page locale keys**
+- [ ] **Step 1: Add membership page locale keys**
 
-Add a `PricingPage` namespace to `src/locales/en.json`:
+Add a `MembershipPage` namespace to `src/locales/en.json`:
 
 ```json
-"PricingPage": {
-  "meta_title": "Pricing",
-  "meta_description": "Compare MIT Sailing Normal, Pavilion racing membership, and Thursday team racing.",
-  "title": "Pricing",
+"MembershipPage": {
+  "meta_title": "Membership and sailing cards",
+  "meta_description": "Compare MIT Sailing full sailing membership, racing series membership, and Thursday team racing.",
+  "title": "Membership and sailing cards",
   "description": "Choose the card that matches the access you need. The names are intentionally specific because the racing options cover different programs.",
-  "full_title": "Normal",
-  "full_body": "Included for MIT students and MIT Recreation members. Pavilion access, classes, ratings, and Mashnee access when you have the required rating or approval.",
+  "full_title": "Full sailing membership",
+  "full_body": "Pavilion access, classes, ratings, and Mashnee access when you have the required rating or approval.",
   "full_price": "Included for eligible members",
-  "racing_title": "Pavilion racing",
+  "racing_title": "Racing series membership",
   "racing_body": "MIT evening racing and race-related classes at the Pavilion. Mashnee is not included.",
   "racing_price": "$25 to $175 by season, student status, and age",
   "team_title": "Thursday team racing",
-  "team_body": "Thursday night team Pavilion racing only. No Mashnee. This is not MIT Sailing Team membership.",
+  "team_body": "Thursday night team racing series only. No Mashnee. This is not MIT Sailing Team membership.",
   "team_price": "$25 to $100 by student status and age",
   "pricing_heading": "Pricing",
-  "pricing_full_label": "Normal",
-  "pricing_full_value": "Included for MIT students and MIT Recreation members",
-  "pricing_racing_spring": "Pavilion racing, spring before July 15",
-  "pricing_racing_full": "Pavilion racing, full year July 15 or later",
+  "pricing_full_label": "Full sailing membership",
+  "pricing_full_value": "Included when eligibility requirements are met",
+  "pricing_racing_spring": "Racing series, spring before July 15",
+  "pricing_racing_full": "Racing series, full year July 15 or later",
   "pricing_team": "Thursday team racing",
   "pricing_student": "Non-MIT student",
   "pricing_under_30": "Under 30",
@@ -469,34 +459,34 @@ Add a `PricingPage` namespace to `src/locales/en.json`:
   "pricing_team_student": "$25",
   "pricing_team_under_30": "$70",
   "pricing_team_30_plus": "$100",
-  "mit_student_note": "MIT students and MIT Recreation members do not pay for Normal.",
+  "mit_student_note": "MIT students do not pay for sailing cards.",
   "onboarding_cta": "Request a sailing card"
 }
 ```
 
 - [ ] **Step 2: Write the page view test**
 
-Create `src/components/mit-sailing/pricing/PricingPageView.test.tsx`:
+Create `src/components/mit-sailing/membership/MembershipPageView.test.tsx`:
 
 ```tsx
 import { render, screen, within } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import messages from '@/locales/en.json';
-import { PricingPageView } from './PricingPageView';
+import { MembershipPageView } from './MembershipPageView';
 
-describe('PricingPageView', () => {
+describe('MembershipPageView', () => {
   it('explains the three sailing card choices', () => {
     render(
       <NextIntlClientProvider locale="en" messages={messages}>
-        <PricingPageView />
+        <MembershipPageView />
       </NextIntlClientProvider>
     );
 
     expect(
-      screen.getByRole('heading', { name: 'Pricing' })
+      screen.getByRole('heading', { name: 'Membership and sailing cards' })
     ).toBeInTheDocument();
-    expect(screen.getByText('Normal')).toBeInTheDocument();
-    expect(screen.getByText('Pavilion racing')).toBeInTheDocument();
+    expect(screen.getByText('Full sailing membership')).toBeInTheDocument();
+    expect(screen.getByText('Racing series membership')).toBeInTheDocument();
     expect(screen.getByText('Thursday team racing')).toBeInTheDocument();
     expect(
       screen.getByText('This is not college sailing-team membership.', {
@@ -508,14 +498,14 @@ describe('PricingPageView', () => {
   it('shows racing and Thursday team racing prices separately', () => {
     render(
       <NextIntlClientProvider locale="en" messages={messages}>
-        <PricingPageView />
+        <MembershipPageView />
       </NextIntlClientProvider>
     );
 
     const table = screen.getByRole('table', { name: 'Pricing' });
     expect(
       within(table).getByRole('row', {
-        name: /Pavilion racing, full year July 15 or later \$40 \$125 \$175/u,
+        name: /Racing series, full year July 15 or later \$40 \$125 \$175/u,
       })
     ).toBeInTheDocument();
     expect(
@@ -532,14 +522,14 @@ describe('PricingPageView', () => {
 Run:
 
 ```shell
-npm run test -- src/components/mit-sailing/pricing/PricingPageView.test.tsx
+npm run test -- src/components/mit-sailing/membership/MembershipPageView.test.tsx
 ```
 
-Expected: FAIL because `PricingPageView` does not exist.
+Expected: FAIL because `MembershipPageView` does not exist.
 
-- [ ] **Step 4: Create the pricing page view**
+- [ ] **Step 4: Create the membership page view**
 
-Create `src/components/mit-sailing/pricing/PricingPageView.tsx` using `SectionHeader`, `Button`, `Link`, and existing MIT tokens. Keep the layout restrained:
+Create `src/components/mit-sailing/membership/MembershipPageView.tsx` using `SectionHeader`, `Button`, `Link`, and existing MIT tokens. Keep the layout restrained:
 
 ```tsx
 'use client';
@@ -552,7 +542,7 @@ import { Link } from '@/libs/I18nNavigation';
 
 const pageInnerClassName = 'mx-auto w-full max-w-5xl px-6';
 
-function PricingSummary(props: {
+function MembershipSummary(props: {
   readonly title: string;
   readonly body: string;
   readonly price: string;
@@ -568,8 +558,8 @@ function PricingSummary(props: {
   );
 }
 
-export function PricingPageView() {
-  const t = useTranslations('PricingPage');
+export function MembershipPageView() {
+  const t = useTranslations('MembershipPage');
 
   const rows = [
     {
@@ -613,17 +603,17 @@ export function PricingPageView() {
 
       <section className="border-b border-mit-line bg-mit-surface py-14 md:py-18">
         <div className={`${pageInnerClassName} grid gap-4 md:grid-cols-3`}>
-          <PricingSummary
+          <MembershipSummary
             body={t('full_body')}
             price={t('full_price')}
             title={t('full_title')}
           />
-          <PricingSummary
+          <MembershipSummary
             body={t('racing_body')}
             price={t('racing_price')}
             title={t('racing_title')}
           />
-          <PricingSummary
+          <MembershipSummary
             body={t('team_body')}
             price={t('team_price')}
             title={t('team_title')}
@@ -680,19 +670,19 @@ If `Button` does not support `asChild`, follow the repo's existing link-button p
 
 - [ ] **Step 5: Add the route**
 
-Create `src/app/[locale]/(marketing)/(site)/pricing/page.tsx`:
+Create `src/app/[locale]/(marketing)/(site)/membership/page.tsx`:
 
 ```tsx
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { PricingPageView } from '@/components/mit-sailing/pricing/PricingPageView';
+import { MembershipPageView } from '@/components/mit-sailing/membership/MembershipPageView';
 
-type PricingPageProps = {
+type MembershipPageProps = {
   readonly params: Promise<{ locale: string }>;
 };
 
-export async function generateMetadata(props: PricingPageProps) {
+export async function generateMetadata(props: MembershipPageProps) {
   const { locale } = await props.params;
-  const t = await getTranslations({ locale, namespace: 'PricingPage' });
+  const t = await getTranslations({ locale, namespace: 'MembershipPage' });
 
   return {
     description: t('meta_description'),
@@ -700,11 +690,11 @@ export async function generateMetadata(props: PricingPageProps) {
   };
 }
 
-export default async function PricingPage(props: PricingPageProps) {
+export default async function MembershipPage(props: MembershipPageProps) {
   const { locale } = await props.params;
   setRequestLocale(locale);
 
-  return <PricingPageView />;
+  return <MembershipPageView />;
 }
 ```
 
@@ -713,7 +703,7 @@ export default async function PricingPage(props: PricingPageProps) {
 Run:
 
 ```shell
-npm run test -- src/components/mit-sailing/pricing/PricingPageView.test.tsx
+npm run test -- src/components/mit-sailing/membership/MembershipPageView.test.tsx
 ```
 
 Expected: PASS.
@@ -727,14 +717,14 @@ Expected: PASS.
 
 - [ ] **Step 1: Write a failing About-page assertion**
 
-Add a test assertion that the About page links to `/pricing` with the label `Pricing`.
+Add a test assertion that the About page links to `/membership` with the label `Membership and sailing cards`.
 
 If an About page test already renders `AboutPageView`, add:
 
 ```tsx
 expect(
-  screen.getByRole('link', { name: /Pricing/u })
-).toHaveAttribute('href', '/pricing');
+  screen.getByRole('link', { name: /Membership and sailing cards/u })
+).toHaveAttribute('href', '/membership');
 ```
 
 - [ ] **Step 2: Run the failing About test**
@@ -745,7 +735,7 @@ Run the focused About test file. If the only available coverage is app-level, ru
 npm run test -- src/app/[locale]/(marketing)/(site)/about
 ```
 
-Expected: FAIL because there is no pricing link.
+Expected: FAIL because there is no membership link.
 
 - [ ] **Step 3: Add the About-page section**
 
@@ -756,16 +746,16 @@ In `AboutPageView`, add a compact section between mission and history:
   <div className={aboutSectionInner}>
     <div className="max-w-3xl">
       <SectionHeader
-        subtitle="Normal, Pavilion racing, and Thursday team racing are separate card choices."
-        title="Pricing"
+        subtitle="Full sailing, racing series, and Thursday team racing are separate card choices."
+        title="Membership and sailing cards"
       />
       <p className="text-sm leading-6 text-mit-text">
-        The pricing page explains what each sailing card includes, what the
+        The membership page explains what each sailing card includes, what the
         racing cards exclude, and how pricing changes by season, student status,
         and age.
       </p>
-      <Link className={`mt-5 inline-flex items-center gap-1 ${accent}`} href="/pricing">
-        Pricing
+      <Link className={`mt-5 inline-flex items-center gap-1 ${accent}`} href="/membership">
+        Membership and sailing cards
         <ArrowRight aria-hidden className="size-4" />
       </Link>
     </div>
@@ -773,7 +763,7 @@ In `AboutPageView`, add a compact section between mission and history:
 </section>
 ```
 
-This is intentionally a short entry point. Keep the price table on `/pricing`, not on About.
+This is intentionally a short entry point. Keep the price table on `/membership`, not on About.
 
 - [ ] **Step 4: Run the About test**
 
@@ -787,7 +777,7 @@ Expected: PASS.
 - Modify: `src/data/mit-sailing/footerNavSeed.ts`
 - Modify: `src/data/mit-sailing/cmsSeed.ts`
 - Modify: `src/components/mit-sailing/home/MitSailingHomePageView.test.tsx`
-- Modify related CMS/footer tests if they assert old `#` pricing links or old pricing copy
+- Modify related CMS/footer tests if they assert old `#` membership links or old pricing copy
 
 - [ ] **Step 1: Write failing footer test or update existing footer assertion**
 
@@ -797,7 +787,7 @@ Find the footer test:
 rg -n "footer_link_membership|Membership" src/components/mit-sailing/site src -S
 ```
 
-Add or update the assertion so the Pricing footer link points to `/pricing`.
+Add or update the assertion so the Membership footer link points to `/membership`.
 
 - [ ] **Step 2: Update footer nav**
 
@@ -810,7 +800,7 @@ In `src/data/mit-sailing/footerNavSeed.ts`, change:
 to:
 
 ```ts
-{ labelKey: 'footer_link_membership', to: '/pricing' },
+{ labelKey: 'footer_link_membership', to: '/membership' },
 ```
 
 - [ ] **Step 3: Write failing home comparison assertions**
@@ -818,8 +808,8 @@ to:
 In `src/components/mit-sailing/home/MitSailingHomePageView.test.tsx`, update the pricing block test so the home page compares membership types, not only audience categories:
 
 ```tsx
-expect(screen.getByText('Normal')).toBeInTheDocument();
-expect(screen.getByText('Pavilion racing')).toBeInTheDocument();
+expect(screen.getByText('Full sailing membership')).toBeInTheDocument();
+expect(screen.getByText('Racing series membership')).toBeInTheDocument();
 expect(screen.getByText('Thursday team racing')).toBeInTheDocument();
 expect(
   screen.getByText('Thursday night team racing only. No Mashnee.', {
@@ -827,22 +817,22 @@ expect(
   })
 ).toBeInTheDocument();
 expect(
-  screen.getByRole('link', { name: /See pricing/u })
-).toHaveAttribute('href', '/pricing');
+  screen.getByRole('link', { name: /Compare all membership prices/u })
+).toHaveAttribute('href', '/membership');
 expect(screen.queryByText('Team Racing')).not.toBeInTheDocument();
 ```
 
 - [ ] **Step 4: Update seeded home membership copy**
 
-In `src/data/mit-sailing/cmsSeed.ts`, replace the home membership pricing block plans with pricing comparison cards. Keep the full price matrix on `/pricing`, but show enough pricing on the home page that a three-year member can understand the difference without digging.
+In `src/data/mit-sailing/cmsSeed.ts`, replace the home membership pricing block plans with membership-type comparison cards. Keep the full price matrix on `/membership`, but show enough pricing on the home page that a three-year member can understand the difference without digging.
 
 Use this shape in the seeded `plans` array:
 
 ```ts
 plans: [
   {
-    title: 'Normal',
-    description: 'Included for MIT students and MIT Recreation members',
+    title: 'Full sailing membership',
+    description: 'Pavilion, classes, ratings, and Mashnee',
     price: 'Included',
     frequency: 'when eligible',
     badge: 'Most common',
@@ -850,22 +840,21 @@ plans: [
     linkLabel: 'Request a card',
     linkUrl: '/onboarding',
     features: [
-      'MIT students qualify automatically',
-      'MIT Recreation members qualify',
-      'Pavilion, classes, and ratings',
+      'Requires MIT student status or MIT Recreation membership',
+      'General Pavilion sailing access after ratings',
       'Mashnee access when approved',
     ],
   },
   {
-    title: 'Pavilion racing',
+    title: 'Racing series membership',
     description: 'MIT evening racing and race classes',
     price: '$25 to $175',
     frequency: 'by season, student status, and age',
-    linkLabel: 'See pricing',
-    linkUrl: '/pricing',
+    linkLabel: 'Compare all membership prices',
+    linkUrl: '/membership',
     features: [
       'Does not include Mashnee',
-      'Available when Normal is not the right fit',
+      'Available when full sailing membership is not the right fit',
       'Price changes after July 15',
     ],
   },
@@ -874,8 +863,8 @@ plans: [
     description: 'Thursday night team racing only. No Mashnee.',
     price: '$25 to $100',
     frequency: 'by student status and age',
-    linkLabel: 'See pricing',
-    linkUrl: '/pricing',
+    linkLabel: 'Compare all membership prices',
+    linkUrl: '/membership',
     features: [
       'Not MIT Sailing Team membership',
       'Limited to Thursday night team racing',
@@ -895,8 +884,8 @@ footnote:
 
 Use these principles:
 
-- Home page: quick pricing comparison, broad price ranges, and links to `/pricing`.
-- Pricing page: precise card-type and pricing matrix.
+- Home page: quick membership-type comparison, broad price ranges, and links to `/membership`.
+- Membership page: precise card-type and pricing matrix.
 - Onboarding: exact price comparison from the user's affiliation and date of birth.
 
 If the current CMS pricing block keeps feature bullets, remove any wording that implies every plan has “Full access to all boats” when eligibility, ratings, or Mashnee approvals matter.
@@ -927,18 +916,18 @@ If this command is too broad or no matching tests are found by Vitest, run the s
 Run:
 
 ```shell
-rg -n "Normal|Pavilion racing|Summer team racing" src/locales/en.json src/components/mit-sailing 'src/app/[locale]/(marketing)/(site)' src/data/mit-sailing/cmsSeed.ts
+rg -n "Normal membership|Racing membership|Summer team racing" src/locales/en.json src/components/mit-sailing 'src/app/[locale]/(marketing)/(site)' src/data/mit-sailing/cmsSeed.ts
 ```
 
-Expected: FAIL before implementation because current onboarding tests and locale copy still mention stale labels or stale descriptions.
+Expected: FAIL before implementation because current onboarding tests and locale copy still mention at least `Normal membership` and `Racing membership`.
 
 - [ ] **Step 2: Replace obsolete membership-option wording**
 
 Replace only membership-option copy. Use these exact replacements:
 
 ```text
-General sailing-card type -> Normal
-Legacy racing label -> Pavilion racing
+Normal membership -> Full sailing membership
+Racing membership -> Racing series membership
 Summer team racing -> Thursday team racing
 Team racing, when it means the card type -> Thursday team racing
 ```
@@ -966,17 +955,17 @@ Expected: no matches for membership-option copy. If the command returns `Team Ra
 Run:
 
 ```shell
-rg -n "Pavilion racing|Thursday team racing|No Mashnee|Mashnee is not included" src/locales/en.json src/components/mit-sailing src/data/mit-sailing/cmsSeed.ts docs/mit-sailing/sailing-card-memberships.md
+rg -n "Racing series membership|Thursday team racing|No Mashnee|Mashnee is not included" src/locales/en.json src/components/mit-sailing src/data/mit-sailing/cmsSeed.ts docs/mit-sailing/sailing-card-memberships.md
 ```
 
-Expected: the Pavilion-racing and Thursday-team-racing user-facing descriptions both have an explicit Mashnee exclusion. Normal may mention Mashnee as included when rating/approval requirements are met.
+Expected: the racing-series and Thursday-team-racing user-facing descriptions both have an explicit Mashnee exclusion. Full sailing membership may mention Mashnee as included when rating/approval requirements are met.
 
 - [ ] **Step 5: Run focused copy tests**
 
 Run:
 
 ```shell
-npm run test -- src/components/mit-sailing/onboarding/SailingCardOnboardingForm.test.tsx src/components/mit-sailing/pricing/PricingPageView.test.tsx src/components/mit-sailing/home/MitSailingHomePageView.test.tsx
+npm run test -- src/components/mit-sailing/onboarding/SailingCardOnboardingForm.test.tsx src/components/mit-sailing/membership/MembershipPageView.test.tsx src/components/mit-sailing/home/MitSailingHomePageView.test.tsx
 ```
 
 Expected: PASS.
@@ -991,7 +980,7 @@ Expected: PASS.
 Run:
 
 ```shell
-npm run test -- src/components/mit-sailing/onboarding/SailingCardOnboardingForm.test.tsx src/components/mit-sailing/pricing/PricingPageView.test.tsx src/components/mit-sailing/home/MitSailingHomePageView.test.tsx
+npm run test -- src/components/mit-sailing/onboarding/SailingCardOnboardingForm.test.tsx src/components/mit-sailing/membership/MembershipPageView.test.tsx src/components/mit-sailing/home/MitSailingHomePageView.test.tsx
 ```
 
 Expected: PASS.
@@ -1027,29 +1016,29 @@ npm run dev
 
 Open:
 
-- `http://localhost:3000/pricing`
+- `http://localhost:3000/membership`
 - `http://localhost:3000/`
 - `http://localhost:3000/about`
 - `http://localhost:3000/onboarding`
 
 Verify:
 
-- `/pricing` clearly separates Normal, Pavilion racing, and Thursday team racing.
-- `/` has a compact pricing comparison with broad price ranges, `Thursday team racing`, and no bare `Team Racing` label.
-- `/about` links to `/pricing` without adding a large pricing table.
-- `/onboarding` uses the compact labels and does not show bare `Team racing` as a primary label.
+- `/membership` clearly separates full sailing, racing series, and Thursday team racing.
+- `/` has a compact membership-type comparison with broad price ranges, `Thursday team racing`, and no bare `Team Racing` label.
+- `/about` links to `/membership` without adding a large pricing table.
+- `/onboarding` uses the compact labels and does not show `Normal membership`, `Racing membership`, or bare `Team racing` as primary labels.
 - On mobile width, the price badges and labels wrap without overlap.
 
 ## Implementation Notes
 
 - Do not rename `SailingCardType.normal`, `SailingCardType.racing`, or `SailingCardType.team_racing` in this plan. That would create unnecessary schema churn.
 - Do not implement Stripe subscription changes here. The existing racing subscription plan owns billing infrastructure.
-- Do not add long educational paragraphs to onboarding. The public `/pricing` page is where the full explanation belongs.
+- Do not add long educational paragraphs to onboarding. The public `/membership` page is where the full explanation belongs.
 - Keep visible app strings in `src/locales/en.json`.
 - Keep the About-page addition short; the page is not the pricing page.
 
 ## Self-Review
 
-- Spec coverage: onboarding labels, onboarding comparison/pricing, home-page comparison/pricing, public About explanation, a dedicated pricing/pricing page, developer docs, and README linking are all covered.
+- Spec coverage: onboarding labels, onboarding comparison/pricing, home-page comparison/pricing, public About explanation, a dedicated pricing/membership page, developer docs, and README linking are all covered.
 - Placeholder scan: this plan contains no `TBD`, `TODO`, or unspecified “write tests” steps.
-- Type consistency: existing `SailingCardType` values remain unchanged; the new `PricingPageView` and `PricingPage` names match file names and imports.
+- Type consistency: existing `SailingCardType` values remain unchanged; the new `MembershipPageView` and `MembershipPage` names match file names and imports.

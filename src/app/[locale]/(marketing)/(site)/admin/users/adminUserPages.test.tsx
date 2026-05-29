@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import type * as React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { PaymentSource, SailingCardType } from '@/generated/prisma/enums';
 import { Permission } from '@/libs/auth/permissions';
 import { Role } from '@/libs/auth/roles';
 import {
@@ -15,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   getAdminUserEmailMessages: vi.fn(),
   getAdminSailingCardHistory: vi.fn(),
   getAdminUserSailingCardSummary: vi.fn(),
+  listAdminUserPaymentHistory: vi.fn(),
   getTranslations: vi.fn(async () => {
     await Promise.resolve();
     return (key: string) => key;
@@ -168,6 +170,10 @@ vi.mock('@/libs/admin/users/usersAdminHandlers', () => ({
   },
 }));
 
+vi.mock('@/libs/admin/users/adminUserPaymentHistory', () => ({
+  listAdminUserPaymentHistory: mocks.listAdminUserPaymentHistory,
+}));
+
 vi.mock('@/libs/auth/dal', () => ({
   appRoleFromSessionUser: (user: { appRole?: unknown }) => user.appRole,
   requirePermission: mocks.requirePermission,
@@ -193,6 +199,7 @@ beforeEach(() => {
   mocks.getAdminUserEmailMessages.mockReset();
   mocks.getAdminSailingCardHistory.mockReset();
   mocks.getAdminUserSailingCardSummary.mockReset();
+  mocks.listAdminUserPaymentHistory.mockReset();
   mocks.getTranslations.mockClear();
   mocks.list.mockReset();
   mocks.listUserRatingAssignmentRows.mockReset();
@@ -225,6 +232,7 @@ beforeEach(() => {
         agreementVersion: sailingCardAgreement.version,
       },
     ],
+    sailingCardRequests: [],
     sailingCardExpiresOn: new Date('2027-07-15T04:00:00.000Z'),
     sailingCardIssuedAt: new Date('2026-08-01T16:00:00.000Z'),
     sailingCardIssuedBy: { name: 'Dock Master' },
@@ -238,6 +246,7 @@ beforeEach(() => {
     { email: 'sailor@example.com', id: 'user-1', name: 'Sailor One' },
   ]);
   mocks.listUserRatingAssignmentRows.mockResolvedValue([]);
+  mocks.listAdminUserPaymentHistory.mockResolvedValue([]);
   mocks.requirePermission.mockResolvedValue({
     session: { impersonatedBy: null },
     user: {
@@ -360,6 +369,48 @@ describe('admin user pages', () => {
     expect(screen.getByTestId('ratings-panel')).toBeInTheDocument();
   });
 
+  it('shows admin override payment bypass on the user sailing-card panel', async () => {
+    mocks.getAdminUserSailingCardSummary.mockResolvedValue({
+      legalAgreementAcceptances: [
+        {
+          acceptedAt: new Date('2026-05-21T16:00:00.000Z'),
+          agreementHash: sailingCardAgreementHash(),
+          agreementVersion: sailingCardAgreement.version,
+        },
+      ],
+      sailingCardRequests: [
+        {
+          paymentBypassAt: new Date('2026-08-01T16:00:00.000Z'),
+          paymentBypassBy: { name: 'Dock Master' },
+          paymentBypassNote: 'Admin issued sailing card without payment.',
+        },
+      ],
+      sailingCardExpiresOn: new Date('2027-07-15T04:00:00.000Z'),
+      sailingCardIssuedAt: new Date('2026-08-01T16:00:00.000Z'),
+      sailingCardIssuedBy: { name: 'Dock Master' },
+      sailingCardNumber: 61,
+      sailingCardRequestedAt: new Date('2026-05-21T16:00:00.000Z'),
+      sailingCardSwimAgreementInitialedAt: new Date('2026-05-21T16:00:00.000Z'),
+      sailingCardSwimAgreementInitials: 'AK',
+      sailingCardYear: 2027,
+    });
+    const { default: AdminUserShowPage } = await import('./[id]/page');
+
+    render(
+      await AdminUserShowPage({
+        params: Promise.resolve({ id: 'user-1', locale: 'en' }),
+        searchParams: Promise.resolve({}),
+      })
+    );
+
+    expect(
+      screen.getByText('sailing_card_payment_bypass_title')
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('sailing_card_payment_bypass_body')
+    ).toBeInTheDocument();
+  });
+
   it('keeps user detail available when sailing-card panel fails to load', async () => {
     mocks.getAdminSailingCardHistory.mockRejectedValue(
       new Error('audit failed')
@@ -439,6 +490,84 @@ describe('admin user pages', () => {
     expect(screen.getByText('smtp rejected')).toBeInTheDocument();
   });
 
+  it('renders user payment history with successful and failed payments', async () => {
+    mocks.listAdminUserPaymentHistory.mockResolvedValue([
+      {
+        amountCents: 2500,
+        cardType: null,
+        cardYear: null,
+        createdAt: new Date('2026-05-21T16:00:00.000Z'),
+        currency: 'usd',
+        detailHref: '/events/firefly-clinic',
+        id: 'payment-1',
+        manualHandledAt: null,
+        manualHandledByName: null,
+        manualHandledNote: null,
+        purpose: 'event',
+        receiptHref: 'https://pay.stripe.com/receipts/payment-1',
+        source: PaymentSource.stripe,
+        status: 'paid',
+        title: 'Firefly Clinic',
+      },
+      {
+        amountCents: 1500,
+        cardType: null,
+        cardYear: null,
+        createdAt: new Date('2026-05-20T16:00:00.000Z'),
+        currency: 'usd',
+        detailHref: '/events/racing-deposit',
+        id: 'payment-2',
+        manualHandledAt: null,
+        manualHandledByName: null,
+        manualHandledNote: null,
+        purpose: 'event',
+        receiptHref: null,
+        source: PaymentSource.stripe,
+        status: 'disputed',
+        title: 'Racing Deposit',
+      },
+      {
+        amountCents: 12_000,
+        cardType: SailingCardType.racing,
+        cardYear: 2026,
+        createdAt: new Date('2026-05-19T16:00:00.000Z'),
+        currency: 'usd',
+        detailHref: null,
+        id: 'payment-3',
+        manualHandledAt: new Date('2026-05-19T17:00:00.000Z'),
+        manualHandledByName: 'Dock Master',
+        manualHandledNote: 'Admin issued sailing card without payment.',
+        purpose: 'membership',
+        receiptHref: null,
+        source: PaymentSource.legacy,
+        status: 'paid',
+        title: '',
+      },
+    ]);
+    const { default: AdminUserShowPage } = await import('./[id]/page');
+
+    render(
+      await AdminUserShowPage({
+        params: Promise.resolve({ id: 'user-1', locale: 'en' }),
+        searchParams: Promise.resolve({}),
+      })
+    );
+
+    expect(mocks.listAdminUserPaymentHistory).toHaveBeenCalledWith('user-1');
+    expect(screen.getByText('payments_heading')).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'Firefly Clinic' })
+    ).toHaveAttribute('href', '/events/firefly-clinic');
+    expect(screen.getByText('$25.00')).toBeInTheDocument();
+    expect(screen.getAllByText('payment_status_paid')).toHaveLength(2);
+    expect(screen.getByText('Racing Deposit')).toBeInTheDocument();
+    expect(screen.getByText('payment_status_disputed')).toBeInTheDocument();
+    expect(screen.getByText('payment_source_legacy')).toBeInTheDocument();
+    expect(screen.getByText('payment_manual_meta')).toBeInTheDocument();
+    expect(screen.getByText('payment_manual_note')).toBeInTheDocument();
+    expect(screen.getByText('payment_title_membership')).toBeInTheDocument();
+  });
+
   it('returns not found when the user no longer exists', async () => {
     mocks.getById.mockResolvedValue(null);
     const { default: AdminUserShowPage } = await import('./[id]/page');
@@ -464,6 +593,7 @@ describe('admin user pages', () => {
           agreementVersion: sailingCardAgreement.version,
         },
       ],
+      sailingCardRequests: [],
       sailingCardExpiresOn: new Date('2026-07-15T04:00:00.000Z'),
       sailingCardIssuedAt: new Date('2025-08-01T16:00:00.000Z'),
       sailingCardIssuedBy: { name: 'Dock Master' },

@@ -62,6 +62,9 @@ vi.mock('next-intl', () => ({
         'Verify MIT Recreation before issuing Normal.',
       error_no_current_card: 'No current card.',
       error_not_found: 'User was not found.',
+      filter_empty: 'No pending card requests match that search.',
+      filter_search_label: 'Search pending requests',
+      filter_search_placeholder: 'Search by name, email, or MIT ID',
       fitness_membership_mit_student: 'MIT student',
       fitness_membership_no_verify: 'No, verify before issuing',
       fitness_membership_not_required: 'Not required',
@@ -179,6 +182,59 @@ describe('AdminSailingCardQueue', () => {
     expect(
       screen.queryByRole('button', { name: 'Expire' })
     ).not.toBeInTheDocument();
+  });
+
+  it('filters pending requests by name email and mit id without navigation', async () => {
+    render(
+      <AdminSailingCardQueue
+        canAssignCards
+        locale="en"
+        rows={[
+          queueRow,
+          {
+            ...queueRow,
+            email: 'grace@mit.edu',
+            id: 'user-2',
+            mitId: '987654321',
+            name: 'Grace Hopper',
+          },
+          {
+            ...queueRow,
+            email: 'katherine@mit.edu',
+            id: 'user-3',
+            mitId: '456789123',
+            name: 'Katherine Johnson',
+          },
+        ]}
+        suggestedCardNumber={60}
+      />
+    );
+    const user = userEvent.setup();
+    const originalLocation = window.location.href;
+    const search = screen.getByLabelText('Search pending requests');
+
+    await user.type(search, 'grace');
+
+    expect(screen.getByRole('link', { name: 'Grace Hopper' })).toBeVisible();
+    expect(screen.queryByRole('link', { name: 'Ada Lovelace' })).toBeNull();
+    expect(
+      screen.queryByRole('link', { name: 'Katherine Johnson' })
+    ).toBeNull();
+
+    await user.clear(search);
+    await user.type(search, 'ada@mit.edu');
+
+    expect(screen.getByRole('link', { name: 'Ada Lovelace' })).toBeVisible();
+    expect(screen.queryByRole('link', { name: 'Grace Hopper' })).toBeNull();
+
+    await user.clear(search);
+    await user.type(search, '456789123');
+
+    expect(
+      screen.getByRole('link', { name: 'Katherine Johnson' })
+    ).toBeVisible();
+    expect(screen.queryByRole('link', { name: 'Ada Lovelace' })).toBeNull();
+    expect(window.location.href).toBe(originalLocation);
   });
 
   it('allows blank card number for auto assignment', () => {

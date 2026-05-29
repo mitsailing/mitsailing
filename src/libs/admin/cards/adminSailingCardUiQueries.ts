@@ -145,6 +145,20 @@ export async function getAdminUserSailingCardSummary(userId: string) {
         },
         take: 1,
       },
+      sailingCardRequests: {
+        orderBy: { paymentBypassAt: 'desc' },
+        select: {
+          paymentBypassAt: true,
+          paymentBypassBy: {
+            select: {
+              name: true,
+            },
+          },
+          paymentBypassNote: true,
+        },
+        where: { paymentBypassAt: { not: null } },
+        take: 1,
+      },
       sailingCardNumber: true,
       sailingCardRequestedAt: true,
       sailingCardSwimAgreementInitialedAt: true,

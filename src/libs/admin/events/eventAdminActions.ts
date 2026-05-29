@@ -8,7 +8,7 @@ import type * as z from 'zod';
 import { Prisma } from '@/generated/prisma/client';
 import {
   EventPaymentNotificationKind,
-  EventPaymentStatus,
+  PaymentStatus,
   EventAnswerType,
   EventRegistrationStatus,
 } from '@/generated/prisma/enums';
@@ -244,7 +244,7 @@ function canSendPaymentRequestForEvent(options: {
 
 async function upsertRegistrationPayment(options: {
   tx: {
-    eventPayment: {
+    payment: {
       upsert: (args: {
         create: {
           amountCents: number;
@@ -254,7 +254,7 @@ async function upsertRegistrationPayment(options: {
           registrationId: string;
           selectedFeeDescription: string;
           selectedFeeId: string;
-          status: typeof EventPaymentStatus.pending;
+          status: typeof PaymentStatus.pending;
           userId: string;
         };
         update: Record<string, never>;
@@ -269,7 +269,7 @@ async function upsertRegistrationPayment(options: {
   if (!fee) {
     return null;
   }
-  const payment = await options.tx.eventPayment.upsert({
+  const payment = await options.tx.payment.upsert({
     create: {
       amountCents: fee.amountCents,
       currency: 'usd',
@@ -278,7 +278,7 @@ async function upsertRegistrationPayment(options: {
       registrationId: options.registration.id,
       selectedFeeDescription: fee.description,
       selectedFeeId: fee.id,
-      status: EventPaymentStatus.pending,
+      status: PaymentStatus.pending,
       userId: options.registration.userId,
     },
     update: {},
@@ -1351,16 +1351,16 @@ export async function resendAdminEventPaymentRequestAction(
   let foundPayment = false;
   try {
     const now = new Date();
-    const payment = await prisma.eventPayment.findFirst({
+    const payment = await prisma.payment.findFirst({
       where: {
         eventId: access.event.id,
         id: paymentId,
         event: { paymentDeadlineAt: { gt: now }, paymentsEnabled: true },
         status: {
           in: [
-            EventPaymentStatus.checkout_created,
-            EventPaymentStatus.past_due,
-            EventPaymentStatus.pending,
+            PaymentStatus.checkout_created,
+            PaymentStatus.past_due,
+            PaymentStatus.pending,
           ],
         },
       },
@@ -1400,15 +1400,15 @@ export async function resendAllAdminEventPaymentRequestsAction(
   const paymentRequestJobs: { dateKey: string; paymentId: string }[] = [];
   try {
     const now = new Date();
-    const payments = await prisma.eventPayment.findMany({
+    const payments = await prisma.payment.findMany({
       where: {
         eventId: access.event.id,
         event: { paymentDeadlineAt: { gt: now }, paymentsEnabled: true },
         status: {
           in: [
-            EventPaymentStatus.checkout_created,
-            EventPaymentStatus.past_due,
-            EventPaymentStatus.pending,
+            PaymentStatus.checkout_created,
+            PaymentStatus.past_due,
+            PaymentStatus.pending,
           ],
         },
       },
@@ -1461,17 +1461,17 @@ export async function markAdminEventPaymentHandledAction(
       adminUserId: access.session.user.id,
       note: parsed.data.note,
       now: new Date(),
-      status: EventPaymentStatus.pending,
+      status: PaymentStatus.pending,
     });
-    const result = await prisma.eventPayment.updateMany({
+    const result = await prisma.payment.updateMany({
       where: {
         eventId: access.event.id,
         id: paymentId,
         status: {
           in: [
-            EventPaymentStatus.checkout_created,
-            EventPaymentStatus.past_due,
-            EventPaymentStatus.pending,
+            PaymentStatus.checkout_created,
+            PaymentStatus.past_due,
+            PaymentStatus.pending,
           ],
         },
       },

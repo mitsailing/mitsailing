@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   EventPaymentNotificationKind,
-  EventPaymentStatus,
+  PaymentStatus,
 } from '@/generated/prisma/enums';
 import {
   applyEventPaymentPaidTransition,
@@ -76,7 +76,7 @@ describe('getEventPaymentEligibility', () => {
 describe('event payment status transitions', () => {
   it('stores stripe ids and receipt url when pending payment becomes paid', () => {
     const result = applyEventPaymentPaidTransition({
-      current: { status: EventPaymentStatus.pending },
+      current: { status: PaymentStatus.pending },
       stripeChargeId: 'ch_123',
       stripeCheckoutSessionId: 'cs_123',
       stripeCustomerId: 'cus_123',
@@ -88,7 +88,7 @@ describe('event payment status transitions', () => {
       notificationKind: EventPaymentNotificationKind.receipt,
       shouldCreateReceiptNotification: true,
       update: {
-        status: EventPaymentStatus.paid,
+        status: PaymentStatus.paid,
         stripeChargeId: 'ch_123',
         stripeCheckoutSessionId: 'cs_123',
         stripeCustomerId: 'cus_123',
@@ -101,7 +101,7 @@ describe('event payment status transitions', () => {
   it('does not create a second receipt marker for duplicate paid transition', () => {
     const result = applyEventPaymentPaidTransition({
       current: {
-        status: EventPaymentStatus.paid,
+        status: PaymentStatus.paid,
         stripeChargeId: 'ch_existing',
         stripeCheckoutSessionId: 'cs_existing',
         stripeCustomerId: 'cus_existing',
@@ -117,7 +117,7 @@ describe('event payment status transitions', () => {
 
     expect(result.shouldCreateReceiptNotification).toBe(false);
     expect(result.update).toEqual({
-      status: EventPaymentStatus.paid,
+      status: PaymentStatus.paid,
       stripeChargeId: 'ch_existing',
       stripeCheckoutSessionId: 'cs_existing',
       stripeCustomerId: 'cus_existing',
@@ -129,7 +129,7 @@ describe('event payment status transitions', () => {
   it('rejects stale paid transitions for terminal non-paid statuses', () => {
     expect(() =>
       applyEventPaymentPaidTransition({
-        current: { status: EventPaymentStatus.refunded },
+        current: { status: PaymentStatus.refunded },
         stripePaymentIntentId: 'pi_123',
       })
     ).toThrow('Event payment status cannot transition to paid.');
@@ -138,8 +138,8 @@ describe('event payment status transitions', () => {
   it('prevents paid payments from returning to pending', () => {
     expect(
       eventPaymentStatusCanTransitionTo({
-        from: EventPaymentStatus.paid,
-        to: EventPaymentStatus.pending,
+        from: PaymentStatus.paid,
+        to: PaymentStatus.pending,
       })
     ).toBe(false);
   });
@@ -150,7 +150,7 @@ describe('event payment status transitions', () => {
         adminUserId: 'admin-1',
         note: '  ',
         now: new Date('2026-06-01T13:00:00.000Z'),
-        status: EventPaymentStatus.pending,
+        status: PaymentStatus.pending,
       })
     ).toThrow('Manual handled payments require an internal note.');
 
@@ -159,7 +159,7 @@ describe('event payment status transitions', () => {
         adminUserId: '',
         note: 'Paid by check',
         now: new Date('2026-06-01T13:00:00.000Z'),
-        status: EventPaymentStatus.pending,
+        status: PaymentStatus.pending,
       })
     ).toThrow('Manual handled payments require an admin user id.');
 
@@ -168,22 +168,22 @@ describe('event payment status transitions', () => {
         adminUserId: 'admin-1',
         note: ' Paid by check ',
         now: new Date('2026-06-01T13:00:00.000Z'),
-        status: EventPaymentStatus.pending,
+        status: PaymentStatus.pending,
       })
     ).toEqual({
       manualHandledAt: new Date('2026-06-01T13:00:00.000Z'),
       manualHandledByUserId: 'admin-1',
       manualHandledNote: 'Paid by check',
-      status: EventPaymentStatus.handled,
+      status: PaymentStatus.handled,
     });
   });
 
   it.each([
-    EventPaymentStatus.refunded,
-    EventPaymentStatus.disputed,
-    EventPaymentStatus.cancelled,
-    EventPaymentStatus.handled,
-    EventPaymentStatus.paid,
+    PaymentStatus.refunded,
+    PaymentStatus.disputed,
+    PaymentStatus.cancelled,
+    PaymentStatus.handled,
+    PaymentStatus.paid,
   ])('blocks reminders for terminal status %s', (status) => {
     expect(eventPaymentStatusAllowsReminder(status)).toBe(false);
   });
@@ -221,7 +221,7 @@ describe('event payment reminder and digest timing', () => {
         notificationSentDateKeys: [],
         now: new Date('2026-06-01T11:00:00.000Z'),
         paymentDeadlineAt: new Date('2026-06-01T20:00:00.000Z'),
-        status: EventPaymentStatus.checkout_created,
+        status: PaymentStatus.checkout_created,
       })
     ).toBe(true);
   });
@@ -233,7 +233,7 @@ describe('event payment reminder and digest timing', () => {
         notificationSentDateKeys: [],
         now: new Date('2026-06-01T11:00:00.000Z'),
         paymentDeadlineAt: new Date('2026-06-01T10:59:00.000Z'),
-        status: EventPaymentStatus.checkout_created,
+        status: PaymentStatus.checkout_created,
       })
     ).toBe(true);
   });
@@ -245,7 +245,7 @@ describe('event payment reminder and digest timing', () => {
         notificationSentDateKeys: [],
         now: new Date('2026-06-01T11:01:00.000Z'),
         paymentDeadlineAt: new Date('2026-06-01T10:59:00.000Z'),
-        status: EventPaymentStatus.pending,
+        status: PaymentStatus.pending,
       })
     ).toBe(false);
     expect(
@@ -254,7 +254,7 @@ describe('event payment reminder and digest timing', () => {
         notificationSentDateKeys: ['2026-06-01'],
         now: new Date('2026-06-01T11:00:00.000Z'),
         paymentDeadlineAt: new Date('2026-06-01T10:59:00.000Z'),
-        status: EventPaymentStatus.pending,
+        status: PaymentStatus.pending,
       })
     ).toBe(false);
   });
@@ -266,7 +266,7 @@ describe('event payment reminder and digest timing', () => {
         notificationSentDateKeys: [],
         now: new Date('2026-06-01T11:00:00.000Z'),
         paymentDeadlineAt: new Date('2026-06-01T10:59:00.000Z'),
-        status: EventPaymentStatus.past_due,
+        status: PaymentStatus.past_due,
       })
     ).toBe(true);
   });
@@ -278,7 +278,7 @@ describe('event payment reminder and digest timing', () => {
         notificationSentDateKeys: [],
         now: new Date('2026-06-01T11:00:00.000Z'),
         paymentDeadlineAt: new Date('2026-06-01T20:00:00.000Z'),
-        status: EventPaymentStatus.pending,
+        status: PaymentStatus.pending,
       })
     ).toBe(false);
   });

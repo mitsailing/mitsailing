@@ -1,6 +1,9 @@
 import type { JobsOptions, Queue } from 'bullmq';
 import * as z from 'zod';
-import { EventPaymentNotificationKind } from '@/generated/prisma/enums';
+import {
+  EventPaymentNotificationKind,
+  PaymentPurpose,
+} from '@/generated/prisma/enums';
 import { EVENTS_TIME_ZONE } from '@/lib/mit-sailing/nyTime';
 import { prisma } from '@/libs/DB';
 import {
@@ -84,7 +87,7 @@ function jobId(data: EventPaymentQueueData): string {
 }
 
 async function findPayment(paymentId: string): Promise<PaymentEmailRow | null> {
-  const payment = await prisma.eventPayment.findUnique({
+  const payment = await prisma.payment.findUnique({
     include: {
       event: {
         select: {
@@ -105,7 +108,18 @@ async function findPayment(paymentId: string): Promise<PaymentEmailRow | null> {
     },
     where: { id: paymentId },
   });
-  return payment;
+  if (!payment?.event || !payment.selectedFeeDescription || !payment.user) {
+    return null;
+  }
+  return {
+    amountCents: payment.amountCents,
+    event: payment.event,
+    id: payment.id,
+    selectedFeeDescription: payment.selectedFeeDescription,
+    status: payment.status,
+    stripeReceiptUrl: payment.stripeReceiptUrl,
+    user: payment.user,
+  };
 }
 
 async function processPaymentEmailJob(
@@ -198,6 +212,7 @@ async function processAdminDigestJob(
               sentDateKey: data.dateKey,
             },
           },
+          purpose: PaymentPurpose.event_payment,
           status: { in: EVENT_PAYMENT_REMINDER_STATUSES },
         },
       },
@@ -243,13 +258,22 @@ async function processAdminDigestJob(
         : 'No deadline',
       emailDedupeKey: `${data.eventId}:admin_digest:${data.dateKey}`,
       eventName: event.name,
-      overduePayments: event.payments.map((payment) => ({
-        amount: formatUsdMinorUnitsAsCurrency(payment.amountCents, 'en-US'),
-        id: payment.id,
-        recipientEmail: payment.user.email,
-        recipientName: payment.user.name ?? payment.user.email,
-        selectedFeeDescription: payment.selectedFeeDescription,
-      })),
+      overduePayments: event.payments.flatMap((payment) =>
+        payment.selectedFeeDescription && payment.user
+          ? [
+              {
+                amount: formatUsdMinorUnitsAsCurrency(
+                  payment.amountCents,
+                  'en-US'
+                ),
+                id: payment.id,
+                recipientEmail: payment.user.email,
+                recipientName: payment.user.name ?? payment.user.email,
+                selectedFeeDescription: payment.selectedFeeDescription,
+              },
+            ]
+          : []
+      ),
     });
   } catch (error) {
     await clearNotificationClaims(markers);
@@ -289,7 +313,7 @@ async function enqueueDuePaymentReminderJobs(options: {
   now: Date;
   queue: Pick<Queue<EventPaymentEmailJobData>, 'add'>;
 }): Promise<void> {
-  const payments = await prisma.eventPayment.findMany({
+  const payments = await prisma.payment.findMany({
     orderBy: { createdAt: 'asc' },
     select: { id: true },
     where: {
@@ -303,6 +327,7 @@ async function enqueueDuePaymentReminderJobs(options: {
           sentDateKey: options.dateKey,
         },
       },
+      purpose: PaymentPurpose.event_payment,
       status: { in: EVENT_PAYMENT_REMINDER_STATUSES },
     },
   });
@@ -336,6 +361,7 @@ async function enqueueDueAdminDigestJobs(options: {
               sentDateKey: options.dateKey,
             },
           },
+          purpose: PaymentPurpose.event_payment,
           status: { in: EVENT_PAYMENT_REMINDER_STATUSES },
         },
       },

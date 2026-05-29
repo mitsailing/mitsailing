@@ -1,13 +1,13 @@
-import { EventPaymentStatus } from '@/generated/prisma/enums';
-import type { EventPaymentStatus as EventPaymentStatusType } from '@/generated/prisma/enums';
+import { PaymentStatus } from '@/generated/prisma/enums';
+import type { PaymentStatus as PaymentStatusType } from '@/generated/prisma/enums';
 import { EVENTS_TIME_ZONE } from '@/lib/mit-sailing/nyTime';
 import { Env } from '@/libs/Env';
 import { formatUsdMinorUnitsAsCurrency } from '@/libs/money/stripeUsdMinorUnits';
 
-export const EVENT_PAYMENT_REMINDER_STATUSES: EventPaymentStatusType[] = [
-  EventPaymentStatus.checkout_created,
-  EventPaymentStatus.past_due,
-  EventPaymentStatus.pending,
+export const EVENT_PAYMENT_REMINDER_STATUSES: PaymentStatusType[] = [
+  PaymentStatus.checkout_created,
+  PaymentStatus.past_due,
+  PaymentStatus.pending,
 ];
 
 export type PaymentEmailRow = {
@@ -27,7 +27,7 @@ export type PaymentEmailRow = {
   };
   id: string;
   selectedFeeDescription: string;
-  status: EventPaymentStatusType;
+  status: PaymentStatusType;
   stripeReceiptUrl: string | null;
   user: {
     email: string;
@@ -108,7 +108,7 @@ export function paymentCanReceiveNotification(options: {
   payment: PaymentEmailRow;
 }): boolean {
   if (options.kind === 'receipt') {
-    return options.payment.status === EventPaymentStatus.paid;
+    return options.payment.status === PaymentStatus.paid;
   }
   return (
     EVENT_PAYMENT_REMINDER_STATUSES.includes(options.payment.status) &&

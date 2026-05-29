@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { ProfilePaymentsView } from '@/components/auth/profile/ProfilePaymentsView';
 import { requireCurrentUser } from '@/libs/auth/dal';
-import { listUserEventPayments } from '@/libs/mit-sailing/userPaymentQueries';
+import { listUserPayments } from '@/libs/mit-sailing/userPaymentQueries';
 import { getI18nPath } from '@/utils/Helpers';
 
 type ProfilePaymentsPageProps = {
@@ -30,7 +30,7 @@ export default async function ProfilePaymentsPage(
     getI18nPath('/profile/payments', locale)
   );
   const [payments, t] = await Promise.all([
-    listUserEventPayments(user.id),
+    listUserPayments(user.id),
     getTranslations({ locale, namespace: 'UserProfilePage' }),
   ]);
 

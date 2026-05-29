@@ -43,7 +43,7 @@ export type EventRegistrationAnswer = $ModelResult<$Schema, "EventRegistrationAn
  * avoiding floating-point dollar columns in PostgreSQL.
  */
 export type EventEntryFee = $ModelResult<$Schema, "EventEntryFee">;
-export type EventPayment = $ModelResult<$Schema, "EventPayment">;
+export type Payment = $ModelResult<$Schema, "Payment">;
 export type StripeWebhookEvent = $ModelResult<$Schema, "StripeWebhookEvent">;
 export type EventPaymentNotification = $ModelResult<$Schema, "EventPaymentNotification">;
 export type EventComment = $ModelResult<$Schema, "EventComment">;
@@ -117,8 +117,12 @@ export const EventRegistrationStatus = $schema.enums.EventRegistrationStatus.val
 export type EventRegistrationStatus = (typeof EventRegistrationStatus)[keyof typeof EventRegistrationStatus];
 export const EventAnswerType = $schema.enums.EventAnswerType.values;
 export type EventAnswerType = (typeof EventAnswerType)[keyof typeof EventAnswerType];
-export const EventPaymentStatus = $schema.enums.EventPaymentStatus.values;
-export type EventPaymentStatus = (typeof EventPaymentStatus)[keyof typeof EventPaymentStatus];
+export const PaymentStatus = $schema.enums.PaymentStatus.values;
+export type PaymentStatus = (typeof PaymentStatus)[keyof typeof PaymentStatus];
+export const PaymentPurpose = $schema.enums.PaymentPurpose.values;
+export type PaymentPurpose = (typeof PaymentPurpose)[keyof typeof PaymentPurpose];
+export const PaymentSource = $schema.enums.PaymentSource.values;
+export type PaymentSource = (typeof PaymentSource)[keyof typeof PaymentSource];
 export const EventPaymentNotificationKind = $schema.enums.EventPaymentNotificationKind.values;
 export type EventPaymentNotificationKind = (typeof EventPaymentNotificationKind)[keyof typeof EventPaymentNotificationKind];
 export const SailingRatingRuleType = $schema.enums.SailingRatingRuleType.values;

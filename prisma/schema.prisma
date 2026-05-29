@@ -186,7 +186,7 @@ enum EventAnswerType {
     checkbox
 }
 
-enum EventPaymentStatus {
+enum PaymentStatus {
     pending
     checkout_created
     paid
@@ -195,7 +195,21 @@ enum EventPaymentStatus {
     cancelled
     refunded
     disputed
-    @@map("event_payment_status")
+    needs_review
+    @@map("payment_status")
+}
+
+enum PaymentPurpose {
+    event_payment @map("event")
+    membership
+    @@map("payment_purpose")
+}
+
+enum PaymentSource {
+    stripe
+    legacy
+    admin_override
+    @@map("payment_source")
 }
 
 enum EventPaymentNotificationKind {
@@ -347,8 +361,9 @@ model User {
     legalAgreementAcceptances LegalAgreementAcceptance[]
     sailingCardRequests SailingCardRequest[]
     approvedSailingCardRequests SailingCardRequest[] @relation("SailingCardRequestApprover")
-    eventPayments EventPayment[]
-    manuallyHandledEventPayments EventPayment[] @relation("EventPaymentManualHandledBy")
+    paymentBypassedSailingCardRequests SailingCardRequest[] @relation("SailingCardRequestPaymentBypassBy")
+    payments Payment[]
+    manuallyHandledPayments Payment[] @relation("PaymentManualHandledBy")
     eventComments EventComment[]
     eventAdmins EventAdmin[]
     sailingRatings UserSailingRating[] @relation("UserSailingRatings")
@@ -487,6 +502,9 @@ model SailingCardRequest {
     requestedAt DateTime @map("requested_at")
     approvedAt DateTime? @map("approved_at")
     approvedByUserId String? @map("approved_by_user_id")
+    paymentBypassNote String? @map("payment_bypass_note") @db.Text()
+    paymentBypassByUserId String? @map("payment_bypass_by_user_id")
+    paymentBypassAt DateTime? @map("payment_bypass_at")
     issuedCardNumber Int? @map("issued_card_number")
     firstName String @map("first_name")
     lastName String @map("last_name")
@@ -502,11 +520,14 @@ model SailingCardRequest {
     user User @relation(fields: [userId], references: [id], onDelete: Cascade)
     legalAgreementAcceptance LegalAgreementAcceptance @relation(fields: [legalAgreementAcceptanceId], references: [id], onDelete: Restrict)
     approvedBy User? @relation("SailingCardRequestApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+    paymentBypassBy User? @relation("SailingCardRequestPaymentBypassBy", fields: [paymentBypassByUserId], references: [id], onDelete: SetNull)
 
     @@unique([userId, cardYear])
+    @@unique([cardYear, issuedCardNumber])
     @@index([cardYear, status, requestedAt])
     @@index([legalAgreementAcceptanceId])
     @@index([approvedByUserId])
+    @@index([paymentBypassByUserId])
     @@map("sailing_card_requests")
 }
 
@@ -854,7 +875,7 @@ model Event {
     registrations EventRegistration[]
     registrationQuestions EventRegistrationQuestion[]
     entryFees EventEntryFee[]
-    payments EventPayment[]
+    payments Payment[]
     comments EventComment[]
     sailingClassRelatedEvents SailingClassRelatedEvent[]
 
@@ -901,7 +922,7 @@ model EventRegistration {
     registrationAnswers EventRegistrationAnswer[]
     registrationTeam EventRegistrationTeam?
     boatMembers EventRegistrationBoatMember[]
-    payment EventPayment?
+    payment Payment?
 
     @@index([eventId])
     @@index([eventEntryFeeId])
@@ -974,46 +995,62 @@ model EventEntryFee {
     isDeposit Boolean @map("is_deposit")
     event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
     registrations EventRegistration[]
-    payments EventPayment[]
+    payments Payment[]
 
     @@index([eventId])
     @@unique([eventId, id])
     @@map("event_entry_fees")
 }
 
-model EventPayment {
+model Payment {
     id String @id() @default(cuid())
-    eventId String @map("event_id")
-    registrationId String @unique() @map("registration_id")
-    userId String @map("user_id")
-    selectedFeeId String @map("selected_fee_id")
-    selectedFeeDescription String @map("selected_fee_description")
+    purpose PaymentPurpose @default(event_payment)
+    source PaymentSource @default(stripe)
+    eventId String? @map("event_id")
+    registrationId String? @unique() @map("registration_id")
+    userId String? @map("user_id")
+    selectedFeeId String? @map("selected_fee_id")
+    selectedFeeDescription String? @map("selected_fee_description")
     amountCents Int @map("amount_cents")
     currency String @default("usd")
-    status EventPaymentStatus @default(pending)
+    status PaymentStatus @default(pending)
+    cardYear Int? @map("card_year")
+    cardType SailingCardType? @map("card_type")
+    legacySourceTable String? @map("legacy_source_table")
+    legacySourceId String? @map("legacy_source_id")
+    legacyCategory String? @map("legacy_category")
+    legacyDescription String? @map("legacy_description") @db.Text()
+    legacySettled Boolean? @map("legacy_settled")
+    payerName String? @map("payer_name")
+    payerEmail String? @map("payer_email")
     stripeCustomerId String? @map("stripe_customer_id")
     stripeCheckoutSessionId String? @unique() @map("stripe_checkout_session_id")
     stripePaymentIntentId String? @unique() @map("stripe_payment_intent_id")
     stripeChargeId String? @unique() @map("stripe_charge_id")
+    stripeSubscriptionId String? @unique() @map("stripe_subscription_id")
+    stripeInvoiceId String? @unique() @map("stripe_invoice_id")
     stripeReceiptUrl String? @map("stripe_receipt_url") @db.Text()
     manualHandledNote String? @map("manual_handled_note") @db.Text()
     manualHandledByUserId String? @map("manual_handled_by_user_id")
     manualHandledAt DateTime? @map("manual_handled_at")
     createdAt DateTime @default(now()) @map("created_at")
     updatedAt DateTime @updatedAt() @map("updated_at")
-    event Event @relation(fields: [eventId], references: [id], onDelete: Restrict)
-    registration EventRegistration @relation(fields: [registrationId, eventId, userId], references: [id, eventId, userId], onDelete: Restrict)
-    user User @relation(fields: [userId], references: [id], onDelete: Restrict)
-    selectedFee EventEntryFee @relation(fields: [eventId, selectedFeeId], references: [eventId, id], onDelete: Restrict)
-    manualHandledBy User? @relation("EventPaymentManualHandledBy", fields: [manualHandledByUserId], references: [id], onDelete: SetNull)
+    event Event? @relation(fields: [eventId], references: [id], onDelete: Restrict)
+    registration EventRegistration? @relation(fields: [registrationId, eventId, userId], references: [id, eventId, userId], onDelete: Restrict)
+    user User? @relation(fields: [userId], references: [id], onDelete: Restrict)
+    selectedFee EventEntryFee? @relation(fields: [eventId, selectedFeeId], references: [eventId, id], onDelete: Restrict)
+    manualHandledBy User? @relation("PaymentManualHandledBy", fields: [manualHandledByUserId], references: [id], onDelete: SetNull)
     notifications EventPaymentNotification[]
 
     @@index([eventId, status])
+    @@index([purpose, status])
+    @@index([cardYear, cardType, status])
     @@index([userId, createdAt])
     @@index([selectedFeeId])
     @@index([manualHandledByUserId])
+    @@unique([legacySourceTable, legacySourceId])
     @@unique([registrationId, eventId, userId])
-    @@map("event_payments")
+    @@map("payments")
 }
 
 model StripeWebhookEvent {
@@ -1038,7 +1075,7 @@ model EventPaymentNotification {
     providerMessageId String? @map("provider_message_id")
     createdAt DateTime @default(now()) @map("created_at")
     updatedAt DateTime @updatedAt() @map("updated_at")
-    payment EventPayment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+    payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
 
     @@index([paymentId, createdAt])
     @@index([kind, sentDateKey])

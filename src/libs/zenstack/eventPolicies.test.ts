@@ -688,7 +688,7 @@ describe.skipIf(!shouldRunPolicyDatabaseTest)('event policies', () => {
     const payments = await authDb({
       appRole: 'user',
       id: ids.owner,
-    }).eventPayment.findMany({
+    }).payment.findMany({
       orderBy: { id: 'asc' },
       select: { id: true },
     });
@@ -696,7 +696,7 @@ describe.skipIf(!shouldRunPolicyDatabaseTest)('event policies', () => {
     expect(payments).toEqual([{ id: ids.payment }]);
 
     await expect(
-      authDb({ appRole: 'user', id: ids.owner }).eventPayment.update({
+      authDb({ appRole: 'user', id: ids.owner }).payment.update({
         data: { status: 'handled' },
         where: { id: ids.payment },
       })
@@ -708,7 +708,7 @@ describe.skipIf(!shouldRunPolicyDatabaseTest)('event policies', () => {
       authDb({
         appRole: 'volunteer_instructor',
         id: ids.assignedAdmin,
-      }).eventPayment.update({
+      }).payment.update({
         data: { status: 'past_due' },
         where: { id: ids.payment },
       })
@@ -725,7 +725,7 @@ describe.skipIf(!shouldRunPolicyDatabaseTest)('event policies', () => {
       authDb({
         appRole: 'volunteer_instructor',
         id: ids.unassignedAdmin,
-      }).eventPayment.findMany({
+      }).payment.findMany({
         where: { id: { in: [ids.payment, ids.otherPayment] } },
       })
     ).resolves.toEqual([]);
@@ -734,7 +734,7 @@ describe.skipIf(!shouldRunPolicyDatabaseTest)('event policies', () => {
       authDb({
         appRole: 'volunteer_instructor',
         id: ids.unassignedAdmin,
-      }).eventPayment.update({
+      }).payment.update({
         data: { status: 'past_due' },
         where: { id: ids.payment },
       })

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   EventPaymentNotificationKind,
-  EventPaymentStatus,
+  PaymentStatus,
 } from '@/generated/prisma/enums';
 
 const mocks = vi.hoisted(() => ({
@@ -28,7 +28,7 @@ vi.mock('@/libs/DB', () => ({
       findMany: mocks.eventFindMany,
       findUnique: mocks.eventFindUnique,
     },
-    eventPayment: {
+    payment: {
       findMany: mocks.eventPaymentFindMany,
       findUnique: mocks.eventPaymentFindUnique,
     },
@@ -71,7 +71,7 @@ const paymentRow = {
   },
   id: 'payment-1',
   selectedFeeDescription: 'Adult entry',
-  status: EventPaymentStatus.pending,
+  status: PaymentStatus.pending,
   stripeReceiptUrl: 'https://pay.stripe.com/receipts/test',
   user: {
     email: 'sailor@example.com',
@@ -239,7 +239,7 @@ describe('event payment email job', () => {
   it('sends receipts only for locally paid payments', async () => {
     mocks.eventPaymentFindUnique.mockResolvedValueOnce({
       ...paymentRow,
-      status: EventPaymentStatus.paid,
+      status: PaymentStatus.paid,
     });
     const { processEventPaymentEmailJob } =
       await import('@/worker/eventPaymentEmailJob');
@@ -302,9 +302,9 @@ describe('event payment email job', () => {
         where: expect.objectContaining({
           status: {
             in: [
-              EventPaymentStatus.checkout_created,
-              EventPaymentStatus.past_due,
-              EventPaymentStatus.pending,
+              PaymentStatus.checkout_created,
+              PaymentStatus.past_due,
+              PaymentStatus.pending,
             ],
           },
         }),

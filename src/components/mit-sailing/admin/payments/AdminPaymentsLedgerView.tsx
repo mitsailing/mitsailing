@@ -2,7 +2,7 @@ import { ExternalLink, Search } from 'lucide-react';
 import type { getTranslations } from 'next-intl/server';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { EventPaymentStatus } from '@/generated/prisma/enums';
+import { PaymentStatus } from '@/generated/prisma/enums';
 import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 import type {
   AdminPaymentLedgerData,
@@ -31,26 +31,29 @@ function paymentStatusLabel(
   status: AdminPaymentLedgerRow['status'],
   t: AdminPaymentsTranslations
 ): string {
-  if (status === EventPaymentStatus.paid) {
+  if (status === PaymentStatus.paid) {
     return t('status_paid');
   }
-  if (status === EventPaymentStatus.handled) {
+  if (status === PaymentStatus.handled) {
     return t('status_handled');
   }
-  if (status === EventPaymentStatus.refunded) {
+  if (status === PaymentStatus.refunded) {
     return t('status_refunded');
   }
-  if (status === EventPaymentStatus.disputed) {
+  if (status === PaymentStatus.disputed) {
     return t('status_disputed');
   }
-  if (status === EventPaymentStatus.cancelled) {
+  if (status === PaymentStatus.cancelled) {
     return t('status_cancelled');
   }
-  if (status === EventPaymentStatus.past_due) {
+  if (status === PaymentStatus.past_due) {
     return t('status_past_due');
   }
-  if (status === EventPaymentStatus.checkout_created) {
+  if (status === PaymentStatus.checkout_created) {
     return t('status_checkout_created');
+  }
+  if (status === PaymentStatus.needs_review) {
+    return t('status_needs_review');
   }
   return t('status_pending');
 }
@@ -98,6 +101,46 @@ function StripeDashboardLinks(props: {
         </a>
       ) : null}
     </div>
+  );
+}
+
+function PaymentLedgerTitle(props: {
+  payment: AdminPaymentLedgerRow;
+  t: AdminPaymentsTranslations;
+}) {
+  const title =
+    props.payment.event?.name ??
+    props.payment.legacyDescription ??
+    props.t('legacy_payment_title');
+
+  if (props.payment.event) {
+    return (
+      <Link
+        className="font-semibold break-words text-mit-red no-underline hover:underline dark:text-mit-red-ink"
+        href={`/events/${props.payment.event.slug}`}
+      >
+        {title}
+      </Link>
+    );
+  }
+
+  return (
+    <span className="font-semibold break-words text-foreground">{title}</span>
+  );
+}
+
+function PaymentLedgerPayer(props: {
+  payment: AdminPaymentLedgerRow;
+  t: AdminPaymentsTranslations;
+}) {
+  const payerName = props.payment.user?.name ?? props.payment.payerName;
+  const payerEmail = props.payment.user?.email ?? props.payment.payerEmail;
+  const payer = [payerName, payerEmail].filter(Boolean).join(' · ');
+
+  return (
+    <p className="mt-1 text-sm break-words text-mit-readable-ink">
+      {payer || props.t('empty_value')}
+    </p>
   );
 }
 
@@ -198,7 +241,7 @@ export function AdminPaymentsLedgerView(props: AdminPaymentsLedgerViewProps) {
             name="status"
           >
             <option value="all">{props.t('filter_status_all')}</option>
-            {Object.values(EventPaymentStatus).map((status) => (
+            {Object.values(PaymentStatus).map((status) => (
               <option key={status} value={status}>
                 {paymentStatusLabel(status, props.t)}
               </option>
@@ -223,15 +266,8 @@ export function AdminPaymentsLedgerView(props: AdminPaymentsLedgerViewProps) {
               key={payment.id}
             >
               <div className="min-w-0">
-                <Link
-                  className="font-semibold break-words text-mit-red no-underline hover:underline dark:text-mit-red-ink"
-                  href={`/events/${payment.event.slug}`}
-                >
-                  {payment.event.name}
-                </Link>
-                <p className="mt-1 text-sm break-words text-mit-readable-ink">
-                  {payment.user.name} · {payment.user.email}
-                </p>
+                <PaymentLedgerTitle payment={payment} t={props.t} />
+                <PaymentLedgerPayer payment={payment} t={props.t} />
               </div>
               <div className="text-sm text-mit-readable-ink">
                 <span className="font-semibold text-foreground">

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  EventPaymentStatus,
+  PaymentStatus,
   EventRegistrationStatus,
 } from '@/generated/prisma/enums';
 import { Role } from '@/libs/auth/roles';
@@ -270,7 +270,7 @@ beforeEach(() => {
           upsert: typeof mocks.eventRegistrationTeamUpsert;
           deleteMany: typeof mocks.eventRegistrationTeamDeleteMany;
         };
-        eventPayment: {
+        payment: {
           upsert: typeof mocks.eventPaymentUpsert;
           updateMany: typeof mocks.eventPaymentUpdateMany;
         };
@@ -303,7 +303,7 @@ beforeEach(() => {
           upsert: mocks.eventRegistrationTeamUpsert,
           deleteMany: mocks.eventRegistrationTeamDeleteMany,
         },
-        eventPayment: {
+        payment: {
           upsert: mocks.eventPaymentUpsert,
           updateMany: mocks.eventPaymentUpdateMany,
         },
@@ -572,7 +572,7 @@ describe('createPublicEventRegistrationAction', () => {
         registrationId: 'registration-1',
         selectedFeeDescription: 'Adult entry',
         selectedFeeId: 'fee-1',
-        status: EventPaymentStatus.pending,
+        status: PaymentStatus.pending,
         userId: 'user-1',
       }),
       update: {},
@@ -1320,14 +1320,14 @@ describe('cancelPublicEventRegistrationAction', () => {
       where: { eventId: 'event-1', userId: 'user-1' },
     });
     expect(mocks.eventPaymentUpdateMany).toHaveBeenCalledWith({
-      data: { status: EventPaymentStatus.cancelled },
+      data: { status: PaymentStatus.cancelled },
       where: {
         eventId: 'event-1',
         status: {
           in: [
-            EventPaymentStatus.checkout_created,
-            EventPaymentStatus.past_due,
-            EventPaymentStatus.pending,
+            PaymentStatus.checkout_created,
+            PaymentStatus.past_due,
+            PaymentStatus.pending,
           ],
         },
         userId: 'user-1',

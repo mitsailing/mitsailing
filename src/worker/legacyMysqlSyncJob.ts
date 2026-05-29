@@ -7,6 +7,7 @@ import {
   legacyMysqlSyncConfigFromEnv,
 } from '@/libs/legacy-sync/legacyMysqlSyncConfig';
 import { importLegacyPavilionReservationsFromSchema } from '@/libs/legacy-sync/legacyPavilionReservationImport';
+import { importLegacyPaymentsFromSchema } from '@/libs/legacy-sync/legacyPaymentImport';
 
 export { LEGACY_MYSQL_SYNC_JOB_NAME } from '@/libs/legacy-sync/legacyMysqlSyncConfig';
 
@@ -63,4 +64,5 @@ export async function processLegacyMysqlSyncJob(): Promise<void> {
     return;
   }
   await importLegacyPavilionReservationsFromSchema();
+  await importLegacyPaymentsFromSchema();
 }

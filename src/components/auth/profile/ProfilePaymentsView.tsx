@@ -1,8 +1,12 @@
 import { ExternalLink } from 'lucide-react';
 import type { getTranslations } from 'next-intl/server';
-import { EventPaymentStatus } from '@/generated/prisma/enums';
+import {
+  PaymentSource,
+  PaymentStatus,
+  SailingCardType,
+} from '@/generated/prisma/enums';
 import { Link } from '@/libs/I18nNavigation';
-import type { UserEventPaymentRow } from '@/libs/mit-sailing/userPaymentQueries';
+import type { UserPaymentRow } from '@/libs/mit-sailing/userPaymentQueries';
 import { formatUsdMinorUnitsAsCurrency } from '@/libs/money/stripeUsdMinorUnits';
 
 type ProfilePaymentsTranslations = Awaited<
@@ -11,30 +15,63 @@ type ProfilePaymentsTranslations = Awaited<
 
 type ProfilePaymentsViewProps = {
   locale: string;
-  payments: UserEventPaymentRow[];
+  payments: UserPaymentRow[];
   t: ProfilePaymentsTranslations;
 };
 
 function profilePaymentStatusLabel(
-  status: UserEventPaymentRow['status'],
+  status: UserPaymentRow['status'],
   t: ProfilePaymentsTranslations
 ): string {
-  if (status === EventPaymentStatus.paid) {
+  if (status === PaymentStatus.paid) {
     return t('payments_status_paid');
   }
-  if (status === EventPaymentStatus.handled) {
+  if (status === PaymentStatus.handled) {
     return t('payments_status_handled');
   }
-  if (status === EventPaymentStatus.refunded) {
+  if (status === PaymentStatus.refunded) {
     return t('payments_status_refunded');
   }
-  if (status === EventPaymentStatus.disputed) {
+  if (status === PaymentStatus.disputed) {
     return t('payments_status_disputed');
   }
-  if (status === EventPaymentStatus.cancelled) {
+  if (status === PaymentStatus.cancelled) {
     return t('payments_status_cancelled');
   }
+  if (status === PaymentStatus.needs_review) {
+    return t('payments_status_needs_review');
+  }
   return t('payments_status_due');
+}
+
+const paymentSourceMessageKeys = {
+  [PaymentSource.admin_override]: 'payments_source_admin_override',
+  [PaymentSource.legacy]: 'payments_source_legacy',
+  [PaymentSource.stripe]: 'payments_source_stripe',
+} as const satisfies Record<UserPaymentRow['source'], string>;
+
+const paymentCardTypeMessageKeys = {
+  [SailingCardType.normal]: 'payments_card_type_normal',
+  [SailingCardType.racing]: 'payments_card_type_racing',
+  [SailingCardType.team_racing]: 'payments_card_type_team_racing',
+} as const satisfies Record<SailingCardType, string>;
+
+function paymentTitle(payment: UserPaymentRow, t: ProfilePaymentsTranslations) {
+  if (
+    payment.purpose === 'membership' &&
+    payment.cardType &&
+    payment.cardYear
+  ) {
+    return t('payments_membership_title', {
+      cardType: t(paymentCardTypeMessageKeys[payment.cardType]),
+      year: payment.cardYear,
+    });
+  }
+  return (
+    payment.event?.name ??
+    payment.legacyDescription ??
+    t('payments_unknown_title')
+  );
 }
 
 export function ProfilePaymentsView(props: ProfilePaymentsViewProps) {
@@ -50,15 +87,18 @@ export function ProfilePaymentsView(props: ProfilePaymentsViewProps) {
         <thead>
           <tr className="text-sm font-bold text-mit-text">
             <th className="w-[42%] px-2 py-2" scope="col">
-              {props.t('payments_column_event')}
+              {props.t('payments_column_payment')}
             </th>
-            <th className="w-[18%] px-2 py-2" scope="col">
+            <th className="w-[16%] px-2 py-2" scope="col">
               {props.t('payments_column_amount')}
             </th>
-            <th className="w-[22%] px-2 py-2" scope="col">
+            <th className="w-[18%] px-2 py-2" scope="col">
               {props.t('payments_column_status')}
             </th>
-            <th className="w-[18%] px-2 py-2 text-right" scope="col">
+            <th className="w-[14%] px-2 py-2" scope="col">
+              {props.t('payments_column_source')}
+            </th>
+            <th className="w-[10%] px-2 py-2 text-right" scope="col">
               {props.t('payments_column_receipt')}
             </th>
           </tr>
@@ -68,7 +108,7 @@ export function ProfilePaymentsView(props: ProfilePaymentsViewProps) {
             <tr className="border-t border-mit-line">
               <td
                 className="px-2 py-4 text-center text-mit-readable-ink"
-                colSpan={4}
+                colSpan={5}
               >
                 {props.t('payments_empty_state')}
               </td>
@@ -77,12 +117,18 @@ export function ProfilePaymentsView(props: ProfilePaymentsViewProps) {
             props.payments.map((payment) => (
               <tr className="border-t border-mit-line" key={payment.id}>
                 <th className="px-2 py-3 font-normal" scope="row">
-                  <Link
-                    className="font-semibold text-mit-red no-underline hover:underline dark:text-mit-red-ink"
-                    href={`/events/${payment.event.slug}`}
-                  >
-                    {payment.event.name}
-                  </Link>
+                  {payment.event ? (
+                    <Link
+                      className="font-semibold text-mit-red no-underline hover:underline dark:text-mit-red-ink"
+                      href={`/events/${payment.event.slug}`}
+                    >
+                      {paymentTitle(payment, props.t)}
+                    </Link>
+                  ) : (
+                    <span className="font-semibold">
+                      {paymentTitle(payment, props.t)}
+                    </span>
+                  )}
                 </th>
                 <td className="px-2 py-3 font-medium tabular-nums">
                   {formatUsdMinorUnitsAsCurrency(
@@ -93,9 +139,12 @@ export function ProfilePaymentsView(props: ProfilePaymentsViewProps) {
                 <td className="px-2 py-3">
                   {profilePaymentStatusLabel(payment.status, props.t)}
                 </td>
+                <td className="px-2 py-3">
+                  {props.t(paymentSourceMessageKeys[payment.source])}
+                </td>
                 <td className="px-2 py-3 text-right">
                   {payment.receiptUrl &&
-                  payment.status !== EventPaymentStatus.handled ? (
+                  payment.status !== PaymentStatus.handled ? (
                     <a
                       className="inline-flex items-center justify-end gap-1 font-semibold text-mit-red no-underline hover:underline dark:text-mit-red-ink"
                       href={payment.receiptUrl}

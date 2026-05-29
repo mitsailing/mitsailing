@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { EventPaymentStatus } from '@/generated/prisma/enums';
+import { PaymentPurpose, PaymentStatus } from '@/generated/prisma/enums';
 import {
   buildEventPaymentCheckoutReturnUrl,
   createEventPaymentCheckoutClientSecret,
@@ -116,7 +116,7 @@ describe('createEventPaymentCheckoutClientSecret', () => {
       id: 'payment-1',
       registrationId: 'registration-1',
       selectedFeeDescription: 'Adult entry',
-      status: EventPaymentStatus.pending,
+      status: PaymentStatus.pending,
       stripeCheckoutSessionId: null,
       userId: 'user-1',
     });
@@ -125,7 +125,7 @@ describe('createEventPaymentCheckoutClientSecret', () => {
     await expect(
       createEventPaymentCheckoutClientSecret({
         db: {
-          eventPayment: {
+          payment: {
             findFirst: mocks.eventPaymentFindFirst,
             updateMany: mocks.eventPaymentUpdateMany,
           },
@@ -146,6 +146,7 @@ describe('createEventPaymentCheckoutClientSecret', () => {
     expect(mocks.eventPaymentFindFirst).toHaveBeenCalledWith({
       where: {
         id: 'payment-1',
+        purpose: PaymentPurpose.event_payment,
         OR: [
           { userId: 'user-1' },
           { event: { admins: { some: { adminUserId: 'user-1' } } } },
@@ -154,13 +155,13 @@ describe('createEventPaymentCheckoutClientSecret', () => {
     });
     expect(mocks.eventPaymentUpdateMany).toHaveBeenCalledWith({
       data: {
-        status: EventPaymentStatus.checkout_created,
+        status: PaymentStatus.checkout_created,
         stripeCheckoutSessionId: 'cs_123',
         stripePaymentIntentId: 'pi_123',
       },
       where: {
         id: 'payment-1',
-        status: EventPaymentStatus.pending,
+        status: PaymentStatus.pending,
         stripeCheckoutSessionId: null,
       },
     });
@@ -174,7 +175,7 @@ describe('createEventPaymentCheckoutClientSecret', () => {
       id: 'payment-1',
       registrationId: 'registration-1',
       selectedFeeDescription: 'Adult entry',
-      status: EventPaymentStatus.pending,
+      status: PaymentStatus.pending,
       stripeCheckoutSessionId: null,
       userId: 'user-1',
     });
@@ -183,7 +184,7 @@ describe('createEventPaymentCheckoutClientSecret', () => {
     await expect(
       createEventPaymentCheckoutClientSecret({
         db: {
-          eventPayment: {
+          payment: {
             findFirst: mocks.eventPaymentFindFirst,
             updateMany: mocks.eventPaymentUpdateMany,
           },
@@ -203,11 +204,11 @@ describe('createEventPaymentCheckoutClientSecret', () => {
 
     expect(mocks.eventPaymentUpdateMany).toHaveBeenCalledWith({
       data: expect.objectContaining({
-        status: EventPaymentStatus.checkout_created,
+        status: PaymentStatus.checkout_created,
       }),
       where: {
         id: 'payment-1',
-        status: EventPaymentStatus.pending,
+        status: PaymentStatus.pending,
         stripeCheckoutSessionId: null,
       },
     });
@@ -219,7 +220,7 @@ describe('createEventPaymentCheckoutClientSecret', () => {
     await expect(
       createEventPaymentCheckoutClientSecret({
         db: {
-          eventPayment: {
+          payment: {
             findFirst: mocks.eventPaymentFindFirst,
             updateMany: mocks.eventPaymentUpdateMany,
           },
@@ -247,7 +248,7 @@ describe('createEventPaymentCheckoutClientSecret', () => {
       id: 'payment-1',
       registrationId: 'registration-1',
       selectedFeeDescription: 'Adult entry',
-      status: EventPaymentStatus.paid,
+      status: PaymentStatus.paid,
       stripeCheckoutSessionId: 'cs_paid',
       userId: 'user-1',
     });
@@ -255,7 +256,7 @@ describe('createEventPaymentCheckoutClientSecret', () => {
     await expect(
       createEventPaymentCheckoutClientSecret({
         db: {
-          eventPayment: {
+          payment: {
             findFirst: mocks.eventPaymentFindFirst,
             updateMany: mocks.eventPaymentUpdateMany,
           },

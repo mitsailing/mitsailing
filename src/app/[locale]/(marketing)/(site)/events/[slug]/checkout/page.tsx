@@ -60,6 +60,7 @@ export default async function EventCheckoutPage(props: EventCheckoutPageProps) {
     checkout_created: t('checkout_payment_status_checkout_created'),
     disputed: t('checkout_payment_status_disputed'),
     handled: t('checkout_payment_status_handled'),
+    needs_review: t('checkout_payment_status_needs_review'),
     paid: t('checkout_payment_status_paid'),
     past_due: t('checkout_payment_status_past_due'),
     pending: t('checkout_payment_status_pending'),

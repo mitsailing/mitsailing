@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add the simplest V1 membership payment/access status foundation that lets staff and members see Stripe, legacy, and staff-bypassed paid racing status without generic notes or a broad admin search framework.
+**Goal:** Add the simplest V1 membership payment/access status foundation that lets staff and members see Stripe, legacy, event/deposit, and staff-bypassed paid racing status in one admin payment history without generic notes or a broad admin search framework.
 
-**Architecture:** Extend the membership billing model with a payment source discriminator and keep legacy records in the same access/status path as Stripe records. Keep card issuance manual and pavilion-centered: `/admin/cards` loads pending rows once, filters client-side, and records payment bypass on the Sailing Card request approval path when staff intentionally issue a paid card without payment. The top of `/admin/users/[id]` shows status and links only; actions stay in the owning sections.
+**Architecture:** Broaden the existing event payment storage into one `Payment` model/table with a simple `purpose` value: `event` or `membership`. Event/deposit rows keep using event fields. Membership rows use membership fields such as `cardYear`, `cardType`, `source`, and Stripe subscription/invoice ids. Database checks enforce which fields belong to which purpose. Do not add adapter classes, repository layers, or a second Stripe event processor. Stripe sync stays in the existing webhook route and updates the same payment table. Keep card issuance manual and pavilion-centered: `/admin/cards` loads pending rows once, filters client-side, and records payment bypass on the Sailing Card request approval path when staff intentionally issue a paid card without payment. The top of `/admin/users/[id]` shows status and links only; actions stay in the owning sections.
 
 **Tech Stack:** Next.js App Router, React client components, Server Actions, ZenStack/Prisma, PostgreSQL, next-intl, Vitest, Playwright.
 
@@ -16,12 +16,14 @@ This plan is an insert into the broader Sailing Card payments/onboarding plan. K
 
 Recommended split:
 
-1. **Schema/status PR:** membership payment source/status fields, request bypass fields, status helpers, and legacy-match representation.
+1. **Schema/status PR:** rename/broaden event payment to shared payment storage, add payment purpose/source/status fields, request bypass fields, status helpers, and legacy-match representation.
 2. **Admin card PR:** `/admin/cards` client-side filtering and paid-card-without-payment issuance controls.
-3. **Admin/member status PR:** `/admin/users/[id]` current blockers and member dashboard membership status.
+3. **Admin/member status PR:** `/admin/users/[id]` current blockers, shared payment history, and member dashboard membership status.
 4. **Legacy import PR:** legacy source-table discovery, confident match import, and unmatched review report.
 
 Schema work must edit `zenstack/schema.zmodel` first. Do not hand-edit `prisma/schema.prisma`; use the maintainer-approved ZenStack generation handoff.
+
+Keep this plan junior-readable. If a task starts needing adapter classes, repository layers, or a second Stripe event processor, stop and simplify the task before coding. A plain `purpose` switch is acceptable.
 
 ## File Map
 
@@ -37,6 +39,20 @@ Membership status domain:
 - Create or update: `src/libs/mit-sailing/membershipBilling/membershipPaymentStatus.test.ts`
 - Create or update: `src/libs/mit-sailing/membershipBilling/legacyMembershipPayments.ts`
 - Create or update: `src/libs/mit-sailing/membershipBilling/legacyMembershipPayments.test.ts`
+
+Shared payment domain:
+
+- Modify: `src/libs/mit-sailing/eventPayments.ts`
+- Modify: `src/libs/mit-sailing/eventPayments.test.ts`
+- Create or update: `src/libs/mit-sailing/payments/paymentStatus.ts`
+- Create or update: `src/libs/mit-sailing/payments/paymentStatus.test.ts`
+
+Stripe sync touch points:
+
+- Modify only if needed: `src/libs/stripe/stripeWebhookEvents.ts`
+- Modify only if needed: `src/libs/stripe/stripeWebhookEvents.test.ts`
+- Modify only if needed: `src/app/api/stripe/webhooks/route.ts`
+- Modify only if needed: `src/app/api/stripe/webhooks/route.test.ts`
 
 Admin cards:
 
@@ -54,6 +70,8 @@ Admin user/member status:
 - Modify: `src/app/[locale]/(marketing)/(site)/admin/users/adminUserPages.test.tsx`
 - Create or update: `src/libs/admin/users/adminUserMembershipStatus.ts`
 - Create or update: `src/libs/admin/users/adminUserMembershipStatus.test.ts`
+- Create or update: `src/libs/admin/users/adminUserPaymentHistory.ts`
+- Create or update: `src/libs/admin/users/adminUserPaymentHistory.test.ts`
 - Create or update: `src/app/[locale]/(auth)/profile/membership/page.tsx`
 - Create or update: `src/components/auth/profile/ProfileMembershipStatus.tsx`
 - Create or update: `src/components/auth/profile/ProfileMembershipStatus.test.tsx`
@@ -78,7 +96,7 @@ Locale and e2e:
 - Read: `docs/superpowers/specs/2026-05-29-membership-payment-admin-status-design.md`
 - Optional local evidence: legacy mirror table list from the `legacy` schema
 
-- [ ] **Step 1: Confirm branch and file budget**
+- [x] **Step 1: Confirm branch and file budget**
 
 Run:
 
@@ -99,7 +117,7 @@ Expected facts:
 - manual assignment accepts any positive integer;
 - duplicate numbers are rejected per `sailingCardYear`.
 
-- [ ] **Step 3: Discover legacy membership payment source tables**
+- [x] **Step 3: Discover legacy membership payment source tables**
 
 Use the existing legacy MySQL mirror. If the local `legacy` schema is not populated, run the repo's documented legacy sync process or ask Andrew for a synced local DB. Inspect table names and columns for membership/racing/card payment evidence.
 
@@ -127,9 +145,9 @@ where table_schema = 'legacy'
 order by table_name, ordinal_position;
 ```
 
-Expected: identify the exact source table and matching fields before implementing import logic. If no source table can be identified, stop the legacy import PR and record the blocker in Linear MIT-6.
+Expected: use `legacy.payments` as the confident legacy payment source. V1 matching uses `category = 'Racing'` plus canonical descriptions matching `Racing Card YYYY-YYYY for ...`. Rows from `sailing-wp/reports/payments_missing_user.csv` are review-only unless staff resolves them.
 
-## Task 1: Add Membership Payment Source And Request Bypass Schema
+## Task 1: Broaden Event Payment Into Shared Payment Schema
 
 **Files:**
 - Modify: `zenstack/schema.zmodel`
@@ -184,20 +202,29 @@ describe('membershipPaymentAccessStatus', () => {
 
 Expected: FAIL because the helper and types do not exist.
 
-- [ ] **Step 2: Add schema fields**
+- [x] **Step 2: Add shared payment purpose and membership fields**
 
-In `zenstack/schema.zmodel`, add payment source/status enums to the membership payment model introduced by the broader billing foundation. If the model does not exist yet, add the minimal foundation model in the schema/status PR:
+In `zenstack/schema.zmodel`, broaden the existing `EventPayment` model into one shared payment model. Prefer a clear model name such as `Payment` if the changed-file count stays below the PR budget; otherwise keep the existing model name for the first PR and rename in a follow-up PR. The table must have one purpose column and must store both event/deposit and membership rows.
 
 ```prisma
-enum SailingCardMembershipPaymentSource {
-  stripe
-  legacy
+enum PaymentPurpose {
+  event
+  membership
 
-  @@map("sailing_card_membership_payment_source")
+  @@map("payment_purpose")
 }
 
-enum SailingCardMembershipPaymentStatus {
+enum PaymentSource {
+  stripe
+  legacy
+  admin_override
+
+  @@map("payment_source")
+}
+
+enum PaymentStatus {
   pending
+  checkout_created
   paid
   past_due
   handled
@@ -206,24 +233,41 @@ enum SailingCardMembershipPaymentStatus {
   disputed
   needs_review
 
-  @@map("sailing_card_membership_payment_status")
+  @@map("payment_status")
 }
 ```
 
-The membership payment model includes:
+The shared payment model keeps current event fields and adds membership fields:
 
 ```prisma
-source SailingCardMembershipPaymentSource
-status SailingCardMembershipPaymentStatus @default(pending)
-cardYear Int @map("card_year")
-cardType SailingCardType @map("card_type")
+purpose PaymentPurpose @default(event)
+source PaymentSource @default(stripe)
+status PaymentStatus @default(pending)
+
+// Existing event/deposit payment fields. Nullable only because membership rows do not have them.
+eventId String? @map("event_id")
+registrationId String? @map("registration_id")
+selectedFeeId String? @map("selected_fee_id")
+selectedFeeDescription String? @map("selected_fee_description")
+
+// Membership rows.
+cardYear Int? @map("card_year")
+cardType SailingCardType? @map("card_type")
 legacySourceTable String? @map("legacy_source_table")
 legacySourceId String? @map("legacy_source_id")
+stripeCustomerId String? @map("stripe_customer_id")
+stripeCheckoutSessionId String? @unique @map("stripe_checkout_session_id")
+stripeSubscriptionId String? @unique @map("stripe_subscription_id")
+stripeInvoiceId String? @unique @map("stripe_invoice_id")
 stripeReceiptUrl String? @map("stripe_receipt_url") @db.Text
 issueHandledNote String? @map("issue_handled_note") @db.Text
 issueHandledByUserId String? @map("issue_handled_by_user_id")
 issueHandledAt DateTime? @map("issue_handled_at")
 ```
+
+Keep Stripe fields directly on the shared payment model. Do not create a separate generic `StripePayment`, `PaymentOwner`, or `PaymentSyncTarget` table for V1.
+
+Event relations become optional because membership rows have no event registration. Preserve existing event behavior with database checks and application tests rather than fake event rows.
 
 On `SailingCardRequest`, add the V1 paid-card-without-payment override fields:
 
@@ -246,13 +290,39 @@ Use the maintainer-approved ZenStack generation handoff. Do not manually edit `p
 
 Expected generated artifacts include `prisma/schema.prisma` with the new enums, model fields, and relation.
 
-- [ ] **Step 4: Add migration constraints**
+- [x] **Step 4: Add migration constraints**
 
-In the migration SQL, enforce source-specific integrity:
+In the migration SQL, enforce purpose-specific integrity:
 
 ```sql
-alter table sailing_card_membership_payments
-  add constraint sailing_card_membership_payments_legacy_no_stripe_chk
+alter table payments
+  add constraint payments_event_fields_chk
+  check (
+    purpose <> 'event'
+    or (
+      event_id is not null
+      and registration_id is not null
+      and selected_fee_id is not null
+      and selected_fee_description is not null
+    )
+  );
+
+alter table payments
+  add constraint payments_membership_fields_chk
+  check (
+    purpose <> 'membership'
+    or (
+      event_id is null
+      and registration_id is null
+      and selected_fee_id is null
+      and selected_fee_description is null
+      and card_year is not null
+      and card_type is not null
+    )
+  );
+
+alter table payments
+  add constraint payments_legacy_no_stripe_chk
   check (
     source <> 'legacy'
     or (
@@ -292,12 +362,12 @@ Expected: tests pass after helper implementation in Task 2; typecheck passes aft
 - Create: `src/libs/mit-sailing/membershipBilling/membershipPaymentStatus.ts`
 - Test: `src/libs/mit-sailing/membershipBilling/membershipPaymentStatus.test.ts`
 
-- [ ] **Step 1: Implement minimal types and status mapping**
+- [x] **Step 1: Implement minimal types and status mapping**
 
 Add:
 
 ```ts
-export type MembershipPaymentSource = 'legacy' | 'stripe';
+export type MembershipPaymentSource = 'admin_override' | 'legacy' | 'stripe';
 export type MembershipPaymentStatus =
   | 'cancelled'
   | 'disputed'
@@ -370,7 +440,7 @@ export function membershipPaymentAccessStatus(props: {
 }
 ```
 
-- [ ] **Step 2: Run focused tests**
+- [x] **Step 2: Run focused tests**
 
 Run:
 
@@ -387,7 +457,7 @@ Expected: PASS.
 - Modify: `src/components/mit-sailing/admin/cards/AdminSailingCardQueue.test.tsx`
 - Modify: `src/locales/en.json`
 
-- [ ] **Step 1: Write failing component test**
+- [x] **Step 1: Write failing component test**
 
 Add a test that renders two pending rows, types into the search input, and confirms the table filters without navigation:
 
@@ -410,7 +480,7 @@ it('filters pending card requests by name, email, and MIT ID without navigation'
 
 Expected: FAIL because there is no searchbox.
 
-- [ ] **Step 2: Add search state and filtering**
+- [x] **Step 2: Add search state and filtering**
 
 In `AdminSailingCardQueue.tsx`, add `useState` and a normalized filter:
 
@@ -448,7 +518,7 @@ Render an input above the table:
 
 Use `visibleRows` instead of `props.rows` for rendering and empty-state logic.
 
-- [ ] **Step 3: Add locale keys**
+- [x] **Step 3: Add locale keys**
 
 In `src/locales/en.json` under `AdminCards`, add:
 
@@ -457,7 +527,7 @@ In `src/locales/en.json` under `AdminCards`, add:
 "empty_search_results": "No pending requests match that search."
 ```
 
-- [ ] **Step 4: Run focused tests**
+- [x] **Step 4: Run focused tests**
 
 Run:
 
@@ -580,11 +650,13 @@ npm run test -- src/libs/admin/cards/adminSailingCardActions.test.ts src/compone
 
 Expected: PASS.
 
-## Task 5: Add Admin User Current Blockers
+## Task 5: Add Admin User Current Blockers And Payment History
 
 **Files:**
 - Create: `src/libs/admin/users/adminUserMembershipStatus.ts`
 - Create: `src/libs/admin/users/adminUserMembershipStatus.test.ts`
+- Create: `src/libs/admin/users/adminUserPaymentHistory.ts`
+- Create: `src/libs/admin/users/adminUserPaymentHistory.test.ts`
 - Modify: `src/app/[locale]/(marketing)/(site)/admin/users/[id]/page.tsx`
 - Modify: `src/app/[locale]/(marketing)/(site)/admin/users/adminUserPages.test.tsx`
 - Modify: `src/locales/en.json`
@@ -632,7 +704,49 @@ export type AdminUserMembershipBlocker = {
 
 Implement `adminUserMembershipBlockers` as a pure function that returns status/link rows only. It must not return actions.
 
-- [ ] **Step 3: Render top status area**
+- [x] **Step 3: Write failing payment history tests**
+
+Create `src/libs/admin/users/adminUserPaymentHistory.test.ts` with rows for:
+
+- successful event payment;
+- failed or disputed event payment;
+- successful membership Stripe payment;
+- successful legacy membership payment with no receipt link;
+- failed membership Stripe payment.
+
+Expected: FAIL because the helper/query does not exist.
+
+- [x] **Step 4: Implement read-only payment history query**
+
+Create `src/libs/admin/users/adminUserPaymentHistory.ts`. Query shared payment rows for one user, map them into a small UI DTO, then sort newest first.
+
+Use a plain union in TypeScript:
+
+```ts
+export type AdminUserPaymentHistoryRow = {
+  readonly amountCents: number;
+  readonly createdAt: Date;
+  readonly currency: string;
+  readonly detailHref: string | null;
+  readonly id: string;
+  readonly receiptHref: string | null;
+  readonly purpose: 'event' | 'membership';
+  readonly status:
+    | 'cancelled'
+    | 'disputed'
+    | 'handled'
+    | 'needs_review'
+    | 'paid'
+    | 'past_due'
+    | 'pending'
+    | 'refunded';
+  readonly title: string;
+};
+```
+
+Do not create a database view or adapter layer for V1. This is just an admin user-page display query over the shared payment table.
+
+- [ ] **Step 5: Render top status area**
 
 In `/admin/users/[id]/page.tsx`, render the current blockers after `AdminPageHeader` and before detail cards:
 
@@ -655,12 +769,18 @@ In `/admin/users/[id]/page.tsx`, render the current blockers after `AdminPageHea
 ) : null}
 ```
 
-- [ ] **Step 4: Run focused tests**
+- [x] **Step 6: Render payment history section**
+
+On `/admin/users/[id]`, add a staff-only section showing all rows from `adminUserPaymentHistory`. Include source label, title, status, amount, date, receipt link when present, and owning-record link when present.
+
+The section is read-only. Do not add refund, override, cancellation, or retry controls in this task.
+
+- [ ] **Step 7: Run focused tests**
 
 Run:
 
 ```bash
-npm run test -- src/libs/admin/users/adminUserMembershipStatus.test.ts 'src/app/[locale]/(marketing)/(site)/admin/users/adminUserPages.test.tsx'
+npm run test -- src/libs/admin/users/adminUserMembershipStatus.test.ts src/libs/admin/users/adminUserPaymentHistory.test.ts 'src/app/[locale]/(marketing)/(site)/admin/users/adminUserPages.test.tsx'
 ```
 
 Expected: PASS.
@@ -838,6 +958,6 @@ Expected: all pass before PR readiness is claimed.
 
 ## Self-Review
 
-- Spec coverage: covers same membership payment/access model, legacy display, optional auto-renew prompt, unmatched review, admin blockers, JS pending search, manual card-number rules, and payment-bypass override.
-- Placeholder scan: this plan intentionally has one legacy source discovery gate because the old-system membership payment table is not yet identified. Import code starts only after that table is discovered.
-- Type consistency: source/status names are `legacy`, `stripe`, `paid`, `needs_review`, and the bypass fields are `paymentBypassNote`, `paymentBypassByUserId`, and `paymentBypassAt`.
+- Spec coverage: covers one shared payment table, legacy display, optional auto-renew prompt, unmatched review, admin blockers, admin user payment history, JS pending search, manual card-number rules, and payment-bypass override.
+- Placeholder scan: legacy source discovery is complete enough for V1 import planning: use `legacy.payments` with `category = 'Racing'` and canonical `Racing Card YYYY-YYYY for ...` descriptions for confident matches.
+- Type consistency: purpose/source/status names are `event`, `membership`, `legacy`, `stripe`, `admin_override`, `paid`, `needs_review`, and the bypass fields are `paymentBypassNote`, `paymentBypassByUserId`, and `paymentBypassAt`.

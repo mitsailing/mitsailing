@@ -3,7 +3,7 @@
 import { CheckCircle2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { useActionState } from 'react';
+import { useActionState, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -76,6 +76,21 @@ const cardTypeMessageKeys = {
   [SailingCardType.racing]: 'card_type_racing',
   [SailingCardType.team_racing]: 'card_type_team_racing',
 } as const satisfies Record<SailingCardType, string>;
+
+function matchesCardQueueSearch(options: {
+  readonly query: string;
+  readonly row: AdminSailingCardQueueRow;
+}) {
+  const query = options.query.trim().toLowerCase();
+
+  if (query.length === 0) {
+    return true;
+  }
+
+  return [options.row.name, options.row.email, options.row.mitId ?? ''].some(
+    (value) => value.toLowerCase().includes(query)
+  );
+}
 
 function FitnessMembershipStatus(props: {
   readonly cardType: SailingCardType;
@@ -200,13 +215,90 @@ export function AdminSailingCardQueue(props: {
   readonly suggestedCardNumber: number;
 }) {
   const t = useTranslations('AdminCards');
+  const [searchQuery, setSearchQuery] = useState('');
+  const visibleRows = props.rows.filter((row) =>
+    matchesCardQueueSearch({ query: searchQuery, row })
+  );
+  let queueRows;
+  if (props.rows.length === 0) {
+    queueRows = (
+      <TableRow>
+        <TableCell colSpan={10}>{t('empty_queue')}</TableCell>
+      </TableRow>
+    );
+  } else if (visibleRows.length === 0) {
+    queueRows = (
+      <TableRow>
+        <TableCell colSpan={10}>{t('filter_empty')}</TableCell>
+      </TableRow>
+    );
+  } else {
+    queueRows = visibleRows.map((row) => (
+      <TableRow key={row.id}>
+        <TableCell className="font-semibold">
+          <Link
+            className="text-mit-red hover:underline dark:text-mit-red-ink"
+            href={adminUsersShowPath(row.id)}
+          >
+            {row.name}
+          </Link>
+        </TableCell>
+        <TableCell>{row.email}</TableCell>
+        <TableCell>{row.sailingAffiliation ?? t('empty_value')}</TableCell>
+        <TableCell>{t(cardTypeMessageKeys[row.cardType])}</TableCell>
+        <TableCell>
+          <FitnessMembershipStatus
+            cardType={row.cardType}
+            hasFitnessMembership={row.hasFitnessMembership}
+            sailingAffiliation={row.sailingAffiliation}
+          />
+        </TableCell>
+        <TableCell>{row.mitId ?? t('empty_value')}</TableCell>
+        <TableCell>
+          {row.agreementAcceptedAt
+            ? `${formatAdminDate(row.agreementAcceptedAt, props.locale)} (${row.agreementVersion ?? t('empty_value')})`
+            : t('empty_value')}
+        </TableCell>
+        <TableCell>{formatAdminDate(row.requestedAt, props.locale)}</TableCell>
+        <TableCell>{props.suggestedCardNumber}</TableCell>
+        <TableCell>
+          <div className="flex flex-wrap gap-2">
+            {props.canAssignCards ? (
+              <AdminSailingCardIssueForm
+                locale={props.locale}
+                suggestedCardNumber={props.suggestedCardNumber}
+                userId={row.id}
+              />
+            ) : null}
+          </div>
+        </TableCell>
+      </TableRow>
+    ));
+  }
 
   return (
     <section className="rounded-lg border border-border bg-card">
-      <div className="border-b border-border px-5 py-4">
+      <div className="flex flex-col gap-4 border-b border-border px-5 py-4 md:flex-row md:items-end md:justify-between">
         <h2 className="m-0 text-lg font-semibold text-foreground">
           {t('queue_heading')}
         </h2>
+        {props.rows.length > 0 ? (
+          <div className="w-full md:max-w-xs">
+            <Label htmlFor="admin-sailing-card-queue-search">
+              {t('filter_search_label')}
+            </Label>
+            <Input
+              className="mt-2"
+              id="admin-sailing-card-queue-search"
+              onChange={(event) => {
+                setSearchQuery(event.currentTarget.value);
+              }}
+              placeholder={t('filter_search_placeholder')}
+              type="search"
+              value={searchQuery}
+            />
+          </div>
+        ) : null}
       </div>
       <Table>
         <TableHeader>
@@ -225,59 +317,7 @@ export function AdminSailingCardQueue(props: {
             </TableHead>
           </TableRow>
         </TableHeader>
-        <TableBody>
-          {props.rows.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={10}>{t('empty_queue')}</TableCell>
-            </TableRow>
-          ) : (
-            props.rows.map((row) => (
-              <TableRow key={row.id}>
-                <TableCell className="font-semibold">
-                  <Link
-                    className="text-mit-red hover:underline dark:text-mit-red-ink"
-                    href={adminUsersShowPath(row.id)}
-                  >
-                    {row.name}
-                  </Link>
-                </TableCell>
-                <TableCell>{row.email}</TableCell>
-                <TableCell>
-                  {row.sailingAffiliation ?? t('empty_value')}
-                </TableCell>
-                <TableCell>{t(cardTypeMessageKeys[row.cardType])}</TableCell>
-                <TableCell>
-                  <FitnessMembershipStatus
-                    cardType={row.cardType}
-                    hasFitnessMembership={row.hasFitnessMembership}
-                    sailingAffiliation={row.sailingAffiliation}
-                  />
-                </TableCell>
-                <TableCell>{row.mitId ?? t('empty_value')}</TableCell>
-                <TableCell>
-                  {row.agreementAcceptedAt
-                    ? `${formatAdminDate(row.agreementAcceptedAt, props.locale)} (${row.agreementVersion ?? t('empty_value')})`
-                    : t('empty_value')}
-                </TableCell>
-                <TableCell>
-                  {formatAdminDate(row.requestedAt, props.locale)}
-                </TableCell>
-                <TableCell>{props.suggestedCardNumber}</TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-2">
-                    {props.canAssignCards ? (
-                      <AdminSailingCardIssueForm
-                        locale={props.locale}
-                        suggestedCardNumber={props.suggestedCardNumber}
-                        userId={row.id}
-                      />
-                    ) : null}
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))
-          )}
-        </TableBody>
+        <TableBody>{queueRows}</TableBody>
       </Table>
     </section>
   );

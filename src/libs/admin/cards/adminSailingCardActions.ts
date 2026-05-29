@@ -3,6 +3,9 @@
 import { revalidatePath } from 'next/cache';
 import { Prisma } from '@/generated/prisma/client';
 import {
+  PaymentPurpose,
+  PaymentSource,
+  PaymentStatus,
   LegalAgreementAcceptanceSource,
   SailingCardRequestStatus,
   SailingCardType,
@@ -44,7 +47,7 @@ export type AdminSailingCardActionState = {
 type AdminSailingCardDb = Pick<Prisma.TransactionClient, 'user' | 'userAudit'>;
 type AdminSailingCardIssueDb = Pick<
   Prisma.TransactionClient,
-  'sailingCardRequest' | 'user' | 'userAudit'
+  'payment' | 'sailingCardRequest' | 'user' | 'userAudit'
 >;
 
 type SailingCardAuditFields = {
@@ -161,6 +164,29 @@ function requestNeedsFitnessVerification(request: {
   );
 }
 
+function requestNeedsPaymentBypass(cardType: SailingCardType) {
+  return cardType !== SailingCardType.normal;
+}
+
+async function hasRecordedMembershipPayment(props: {
+  readonly cardType: SailingCardType;
+  readonly cardYear: number;
+  readonly db: AdminSailingCardIssueDb;
+  readonly userId: string;
+}) {
+  const payment = await props.db.payment.findFirst({
+    where: {
+      cardType: props.cardType,
+      cardYear: props.cardYear,
+      purpose: PaymentPurpose.membership,
+      status: { in: [PaymentStatus.handled, PaymentStatus.paid] },
+      userId: props.userId,
+    },
+    select: { id: true },
+  });
+  return payment !== null;
+}
+
 function isSailingCardUniqueError(error: unknown) {
   if (
     !(error instanceof Prisma.PrismaClientKnownRequestError) ||
@@ -171,13 +197,17 @@ function isSailingCardUniqueError(error: unknown) {
   const target = error.meta?.target;
   if (Array.isArray(target)) {
     return (
-      target.includes('sailingCardYear') && target.includes('sailingCardNumber')
+      (target.includes('sailingCardYear') &&
+        target.includes('sailingCardNumber')) ||
+      (target.includes('cardYear') && target.includes('issuedCardNumber'))
     );
   }
   return (
     typeof target === 'string' &&
     (target.includes('sailingCardYear_sailingCardNumber') ||
-      target.includes('sailing_card_year_sailing_card_number'))
+      target.includes('sailing_card_year_sailing_card_number') ||
+      target.includes('cardYear_issuedCardNumber') ||
+      target.includes('card_year_issued_card_number'))
   );
 }
 
@@ -315,6 +345,31 @@ export async function issueSailingCardAction(
       if (requestNeedsFitnessVerification(request)) {
         throw new Error('mit_recreation_required');
       }
+      const needsPaymentBypass =
+        requestNeedsPaymentBypass(request.cardType) &&
+        !(await hasRecordedMembershipPayment({
+          cardType: request.cardType,
+          cardYear,
+          db: tx,
+          userId: targetUserId,
+        }));
+      if (needsPaymentBypass) {
+        await tx.payment.create({
+          data: {
+            amountCents: 0,
+            cardType: request.cardType,
+            cardYear,
+            currency: 'usd',
+            manualHandledAt: now,
+            manualHandledByUserId: session.user.id,
+            manualHandledNote: 'Admin issued sailing card without payment.',
+            purpose: PaymentPurpose.membership,
+            source: PaymentSource.admin_override,
+            status: PaymentStatus.handled,
+            userId: targetUserId,
+          },
+        });
+      }
       const after = {
         ...before,
         sailingCardExpiresOn: getSailingCardExpirationDate(cardYear),
@@ -342,6 +397,13 @@ export async function issueSailingCardAction(
           approvedAt: now,
           approvedByUserId: session.user.id,
           issuedCardNumber: cardNumber,
+          ...(needsPaymentBypass
+            ? {
+                paymentBypassAt: now,
+                paymentBypassByUserId: session.user.id,
+                paymentBypassNote: 'Admin issued sailing card without payment.',
+              }
+            : {}),
           status: SailingCardRequestStatus.approved,
         },
       });

@@ -17,12 +17,15 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { PaymentSource, SailingCardType } from '@/generated/prisma/enums';
 import { formatAdminDate } from '@/libs/admin/adminDateFormatting';
 import {
   getAdminSailingCardHistory,
   getAdminUserSailingCardSummary,
 } from '@/libs/admin/cards/adminSailingCardUiQueries';
 import { adminUsersEditPath } from '@/libs/admin/users/adminUserPaths';
+import { listAdminUserPaymentHistory } from '@/libs/admin/users/adminUserPaymentHistory';
+import type { AdminUserPaymentHistoryRow } from '@/libs/admin/users/adminUserPaymentHistory';
 import { usersAdminHandlers } from '@/libs/admin/users/usersAdminHandlers';
 import {
   getAppRolePermissions,
@@ -36,6 +39,7 @@ import { logger } from '@/libs/Logger';
 import { hasCurrentSailingCard } from '@/libs/mit-sailing/sailingCardValidity';
 import { listUserRatingAssignmentRows } from '@/libs/mit-sailing/sailingRatingQueries';
 import type { UserRatingAssignmentRow } from '@/libs/mit-sailing/sailingRatingQueries';
+import { formatUsdMinorUnitsAsCurrency } from '@/libs/money/stripeUsdMinorUnits';
 
 type EmailDeliverabilityStatus = 'ok' | 'bounced' | 'suppressed';
 
@@ -127,6 +131,9 @@ type AdminUserSailingCardDetails = {
   readonly summary: AdminUserSailingCardSummary;
 };
 
+type AdminUserSailingCardRequestSummary =
+  NonNullable<AdminUserSailingCardSummary>['sailingCardRequests'][number];
+
 type AdminUserRatingDetails = {
   readonly loadError: boolean;
   readonly rows: UserRatingAssignmentRow[];
@@ -135,6 +142,11 @@ type AdminUserRatingDetails = {
 type AdminUserEmailDetails = {
   readonly loadError: boolean;
   readonly messages: AdminUserEmailMessageRow[];
+};
+
+type AdminUserPaymentDetails = {
+  readonly loadError: boolean;
+  readonly rows: AdminUserPaymentHistoryRow[];
 };
 
 async function loadAdminUserSailingCardDetails(
@@ -190,6 +202,23 @@ async function loadAdminUserEmailDetails(props: {
   }
 }
 
+async function loadAdminUserPaymentDetails(
+  userId: string
+): Promise<AdminUserPaymentDetails> {
+  try {
+    return {
+      loadError: false,
+      rows: await listAdminUserPaymentHistory(userId),
+    };
+  } catch (error) {
+    logger.error('Failed to load admin user payment rows: {error}', {
+      error,
+      userId,
+    });
+    return { loadError: true, rows: [] };
+  }
+}
+
 function AdminUserDetailValue(props: {
   readonly label: string;
   readonly value: React.ReactNode;
@@ -210,6 +239,31 @@ function optionalAdminDate(
   return date ? formatAdminDate(date, locale) : emptyValue;
 }
 
+function AdminUserPaymentBypassAlert(props: {
+  readonly emptyValue: string;
+  readonly locale: string;
+  readonly request: AdminUserSailingCardRequestSummary | undefined;
+  readonly t: Awaited<ReturnType<typeof getTranslations>>;
+}) {
+  if (!props.request?.paymentBypassAt) {
+    return null;
+  }
+  return (
+    <output className="mt-3 block rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+      <span className="font-semibold">
+        {props.t('sailing_card_payment_bypass_title')}
+      </span>
+      <span className="mt-1 block">
+        {props.t('sailing_card_payment_bypass_body', {
+          admin: props.request.paymentBypassBy?.name ?? props.emptyValue,
+          date: formatAdminDate(props.request.paymentBypassAt, props.locale),
+          note: props.request.paymentBypassNote ?? props.emptyValue,
+        })}
+      </span>
+    </output>
+  );
+}
+
 function AdminUserSailingCardSection(props: {
   readonly canExpireCards: boolean;
   readonly history: AdminUserSailingCardDetails['history'];
@@ -222,6 +276,7 @@ function AdminUserSailingCardSection(props: {
   const hasCurrentCard =
     props.summary !== null && hasCurrentSailingCard(props.summary);
   const agreement = props.summary?.legalAgreementAcceptances[0];
+  const paymentBypass = props.summary?.sailingCardRequests[0];
   const emptyValue = props.t('empty_value');
 
   return (
@@ -235,6 +290,12 @@ function AdminUserSailingCardSection(props: {
             {props.t('sailing_card_load_failed')}
           </output>
         ) : null}
+        <AdminUserPaymentBypassAlert
+          emptyValue={emptyValue}
+          locale={props.locale}
+          request={paymentBypass}
+          t={props.t}
+        />
         <dl className="mt-4 grid gap-3 sm:grid-cols-3">
           <AdminUserDetailValue
             label={props.t('sailing_card_number')}
@@ -349,6 +410,173 @@ function AdminUserEmailsPanel(props: AdminUserEmailsPanelProps) {
   );
 }
 
+const paymentStatusMessageKeys = {
+  cancelled: 'payment_status_cancelled',
+  checkout_created: 'payment_status_checkout_created',
+  disputed: 'payment_status_disputed',
+  handled: 'payment_status_handled',
+  needs_review: 'payment_status_needs_review',
+  paid: 'payment_status_paid',
+  past_due: 'payment_status_past_due',
+  pending: 'payment_status_pending',
+  refunded: 'payment_status_refunded',
+} as const satisfies Record<AdminUserPaymentHistoryRow['status'], string>;
+
+const paymentPurposeMessageKeys = {
+  event: 'payment_purpose_event',
+  membership: 'payment_purpose_membership',
+} as const satisfies Record<AdminUserPaymentHistoryRow['purpose'], string>;
+
+const paymentSourceMessageKeys = {
+  [PaymentSource.admin_override]: 'payment_source_admin_override',
+  [PaymentSource.legacy]: 'payment_source_legacy',
+  [PaymentSource.stripe]: 'payment_source_stripe',
+} as const satisfies Record<AdminUserPaymentHistoryRow['source'], string>;
+
+const paymentCardTypeMessageKeys = {
+  [SailingCardType.normal]: 'payment_card_type_normal',
+  [SailingCardType.racing]: 'payment_card_type_racing',
+  [SailingCardType.team_racing]: 'payment_card_type_team_racing',
+} as const satisfies Record<SailingCardType, string>;
+
+function paymentHistoryTitle(
+  payment: AdminUserPaymentHistoryRow,
+  t: Awaited<ReturnType<typeof getTranslations>>
+): string {
+  if (
+    payment.purpose === 'membership' &&
+    payment.cardType &&
+    payment.cardYear
+  ) {
+    return t('payment_title_membership', {
+      cardType: t(paymentCardTypeMessageKeys[payment.cardType]),
+      year: payment.cardYear,
+    });
+  }
+  return payment.title;
+}
+
+function AdminUserPaymentManualEvidence(props: {
+  readonly emptyValue: string;
+  readonly locale: string;
+  readonly payment: AdminUserPaymentHistoryRow;
+  readonly t: Awaited<ReturnType<typeof getTranslations>>;
+}) {
+  if (!props.payment.manualHandledAt && !props.payment.manualHandledNote) {
+    return null;
+  }
+
+  return (
+    <span className="mt-1 block text-xs text-mit-readable-ink">
+      {props.payment.manualHandledAt
+        ? props.t('payment_manual_meta', {
+            admin: props.payment.manualHandledByName ?? props.emptyValue,
+            date: formatAdminDate(props.payment.manualHandledAt, props.locale),
+          })
+        : props.emptyValue}
+      {props.payment.manualHandledNote ? (
+        <span className="block">
+          {props.t('payment_manual_note', {
+            note: props.payment.manualHandledNote,
+          })}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+function AdminUserPaymentHistoryPanel(props: {
+  readonly loadFailed: boolean;
+  readonly locale: string;
+  readonly rows: AdminUserPaymentHistoryRow[];
+  readonly t: Awaited<ReturnType<typeof getTranslations>>;
+}) {
+  return (
+    <section className="flex flex-col gap-3">
+      <h2 className="text-lg font-semibold">{props.t('payments_heading')}</h2>
+      {props.loadFailed ? (
+        <output className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+          {props.t('payments_load_failed')}
+        </output>
+      ) : null}
+      <div className="overflow-hidden rounded-lg border border-border bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{props.t('payment_column_title')}</TableHead>
+              <TableHead>{props.t('payment_column_purpose')}</TableHead>
+              <TableHead>{props.t('payment_column_status')}</TableHead>
+              <TableHead>{props.t('payment_column_amount')}</TableHead>
+              <TableHead>{props.t('payment_column_date')}</TableHead>
+              <TableHead>{props.t('payment_column_source')}</TableHead>
+              <TableHead>{props.t('payment_column_receipt')}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {props.rows.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7}>{props.t('payments_empty')}</TableCell>
+              </TableRow>
+            ) : (
+              props.rows.map((payment) => (
+                <TableRow key={payment.id}>
+                  <TableCell className="font-medium">
+                    {payment.detailHref ? (
+                      <a className="underline" href={payment.detailHref}>
+                        {payment.title}
+                      </a>
+                    ) : (
+                      paymentHistoryTitle(payment, props.t)
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {props.t(paymentPurposeMessageKeys[payment.purpose])}
+                  </TableCell>
+                  <TableCell>
+                    {props.t(paymentStatusMessageKeys[payment.status])}
+                  </TableCell>
+                  <TableCell>
+                    {formatUsdMinorUnitsAsCurrency(
+                      payment.amountCents,
+                      props.locale
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {formatAdminDate(payment.createdAt, props.locale)}
+                  </TableCell>
+                  <TableCell>
+                    {props.t(paymentSourceMessageKeys[payment.source])}
+                    <AdminUserPaymentManualEvidence
+                      emptyValue={props.t('empty_value')}
+                      locale={props.locale}
+                      payment={payment}
+                      t={props.t}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    {payment.receiptHref ? (
+                      <a
+                        className="underline"
+                        href={payment.receiptHref}
+                        rel="noopener noreferrer"
+                        target="_blank"
+                      >
+                        {props.t('payment_receipt_link')}
+                      </a>
+                    ) : (
+                      props.t('empty_value')
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </section>
+  );
+}
+
 export async function generateMetadata(
   props: AdminUserShowPageProps
 ): Promise<Metadata> {
@@ -376,11 +604,13 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
     notFound();
   }
   const userEmail = typeof user.email === 'string' ? user.email : '';
-  const [sailingCardDetails, ratingDetails, emailDetails] = await Promise.all([
-    loadAdminUserSailingCardDetails(id),
-    loadAdminUserRatingDetails(id),
-    loadAdminUserEmailDetails({ email: userEmail, userId: id }),
-  ]);
+  const [sailingCardDetails, ratingDetails, emailDetails, paymentDetails] =
+    await Promise.all([
+      loadAdminUserSailingCardDetails(id),
+      loadAdminUserRatingDetails(id),
+      loadAdminUserEmailDetails({ email: userEmail, userId: id }),
+      loadAdminUserPaymentDetails(id),
+    ]);
   const t = await getTranslations({ locale, namespace: 'AdminUsers' });
   const emailStatus = emailDeliverabilityStatus(user.emailDeliverabilityStatus);
   const emailStatusReason =
@@ -449,6 +679,12 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
         ratingsLoadFailed={ratingDetails.loadError}
         rows={ratingDetails.rows}
         userId={id}
+      />
+      <AdminUserPaymentHistoryPanel
+        loadFailed={paymentDetails.loadError}
+        locale={locale}
+        rows={paymentDetails.rows}
+        t={t}
       />
       <AdminUserEmailsPanel
         emails={emailDetails.messages}
