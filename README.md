@@ -132,3 +132,9 @@ npm run test:e2e       # Playwright end-to-end gate
 ```
 
 For schema changes use Prisma migrations; for production deploy and rollback commands, use [docs/deploy.md](docs/deploy.md).
+
+## AI Agent PRs
+
+Use [docs/ai/pr-agent-orchestration.md](docs/ai/pr-agent-orchestration.md)
+for larger PRs with failing checks, review-bot feedback, product judgment,
+journey UX, or legacy migration risk.
