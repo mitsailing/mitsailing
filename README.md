@@ -161,4 +161,7 @@ parent issue with a task list from docs/ai/feature-task-list-template.md, add a
 milestone for release grouping, and treat GitHub Projects as optional once the
 issue list needs a dashboard. Use docs/ai/pm-manager-runbook.md when you need
 an agent to inventory current PRs, branches, issues, milestones, and
-persona-discovered gaps before deciding what to finish next.
+persona-discovered gaps before deciding what to finish next. If using Linear
+as the PM layer, seed the trial project from
+docs/ai/linear-membership-pricing-project-plan.md and keep Linear as the PM
+source of truth while GitHub remains the code, CI, and PR review source.

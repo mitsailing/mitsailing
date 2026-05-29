@@ -30,6 +30,18 @@ Source boundaries:
   `docs/superpowers/plans/`.
 - Current agent run state: `local/agent-runs/<id>/`.
 
+If Linear is adopted, use Linear as the PM source of truth instead of GitHub
+parent issues. Keep GitHub as the code, CI, and PR review source of truth.
+Do not maintain equal task lists in both systems.
+
+Linear pilot seed:
+
+- `docs/ai/linear-membership-pricing-project-plan.md`
+- Project: `Membership pricing V1`
+- Scope: pricing, membership, onboarding payments, Learn-to-Sail waitlists,
+  profile/MIT affiliation editing, staff card assignment, and manual pavilion
+  rental payment copy.
+
 ## Where To View, Edit, Add, Delete, And Audit
 
 View PM state:
@@ -40,6 +52,8 @@ View PM state:
 - Open the repo Projects page for an optional dashboard:
   `https://github.com/mitsailing/mitsailing/projects?query=is%3Aopen`.
   As of this run, that page shows no open repo Projects.
+- If Linear is active, open the Linear project instead and treat GitHub issues
+  as synced or linked implementation records.
 
 Edit PM state:
 
