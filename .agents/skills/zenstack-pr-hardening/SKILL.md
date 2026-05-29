@@ -1,6 +1,6 @@
 ---
 name: zenstack-pr-hardening
-description: Bounded MIT Sailing ZenStack admin authorization PR publishing and hardening workflow. Use when finishing docs/superpowers/plans/zenstack-admin-authorization/tasks/10-pr-hardening.md, creating or updating the ZenStack authorization PR, checking GitHub CI once per bounded round, addressing CodeRabbit or other bot PR comments without interactive prompting, or preventing broader PR-finishing skills from starting open-ended watch/heartbeat loops.
+description: Bounded MIT Sailing ZenStack admin authorization PR publishing and hardening workflow. Use when finishing docs/superpowers/plans/zenstack-admin-authorization/tasks/10-pr-hardening.md, creating or updating the ZenStack authorization PR, checking GitHub CI once per bounded round, addressing actionable bot PR comments without interactive prompting, or preventing broader PR-finishing skills from starting open-ended watch/heartbeat loops.
 ---
 
 # ZenStack PR Hardening
@@ -14,8 +14,6 @@ unless the user explicitly asks for that behavior.
 
 ## Source References
 
-- CodeRabbit CLI/skills docs:
-  `https://docs.coderabbit.ai/cli/skills`
 - Repo PR-loop rule:
   `.cursor/rules/pr-agent-reviews-loop.mdc`
 - GitHub skill:
@@ -29,14 +27,17 @@ unless the user explicitly asks for that behavior.
 - Do not use `resolve-agent-reviews` as a workflow.
 - Do not use the official CodeRabbit `autofix` skill for this task because it
   prompts the user for fix choices and push decisions.
+- Wait for CodeRabbit only when a review is actively running/pending. Do not
+  run, wait for, or retry CodeRabbit when it is out of credits, rate-limited,
+  unavailable, skipped/not started, or failing without actionable comments.
 - Do not run `npx agent-reviews --watch`.
 - Do not create open-ended heartbeat automations.
 - Do not keep polling after the bounded round count is exhausted.
 - Do not schedule recurring checks. The only allowed schedule is one short
   next worker/recheck, normally 10 minutes after the latest successful fix
   commit and push.
-- Do not run another local CodeRabbit review pass here; task 9 owns the
-  two-pass local CodeRabbit review workflow.
+- Do not run another local CodeRabbit review pass here; use local independent
+  sub-agent review instead.
 - Do not manually review code and claim the result came from CodeRabbit.
 - Do not ask the user to choose fixes unless a finding is genuinely ambiguous,
   unrelated to the migration, or would require broad scope expansion.
@@ -61,7 +62,7 @@ Use local `git` for branch, commit, and push. Prefer the GitHub app for PR
 creation after the branch is pushed; use `gh` only when the connector cannot
 infer the repository or branch cleanly.
 
-Create the PR as ready for review, not draft, because CodeRabbit must run on the
+Create the PR as ready for review, not draft, so CI and analyzers can run on the
 PR. If an open PR already exists for the branch, update it instead of creating a
 duplicate.
 
@@ -69,7 +70,7 @@ The PR body must include:
 
 - what changed
 - why it changed
-- task 9 CodeRabbit artifacts and verification summary
+- local independent AI review and verification summary
 - commands run
 - remaining blockers, if any
 
@@ -94,7 +95,7 @@ At the start of each round:
 3. Pick one work unit:
    - first priority: one failing CI/check cluster, excluding non-blocking
      Codacy Low/Info noise;
-   - second priority: one cluster of actionable CodeRabbit comments;
+   - second priority: one cluster of actionable bot comments;
    - third priority: one cluster of other actionable bot review comments.
 4. Fix only that work unit.
 5. Run targeted verification, then `npm run check:types` and `npm run lint`.
@@ -126,30 +127,31 @@ Stop and ask the user when:
 - any security, auth, policy, data-loss, or merge-blocking CI issue remains
   after round 3.
 
-## CodeRabbit PR Comments
+## Bot PR Comments
 
-For CodeRabbit comments on the opened PR, use raw PR review-thread data from
+For bot comments on the opened PR, use raw PR review-thread data from
 `npx agent-reviews --bots-only --unanswered` and any available GitHub thread
 metadata. Do not invoke the official CodeRabbit `autofix` skill because this
 task should not prompt the user for each fix.
 
-Use CodeRabbit's agent-ready fix prompt from the PR thread when present as
-evidence to inspect, not as code to execute blindly. Verify the finding against
-the local code and repo rules, apply the fix when it is a real actionable
-migration issue, commit once with the round's changes, push, then reply/resolve
-through `npx agent-reviews`.
+Use any agent-ready fix prompt from a PR thread as evidence to inspect, not as
+code to execute blindly. Verify the finding against the local code and repo
+rules, apply the fix when it is a real actionable migration issue, commit once
+with the round's changes, push, then reply/resolve through `npx agent-reviews`.
 
-If a CodeRabbit comment is a false positive, unrelated style churn, or outside
-the ZenStack authorization migration, reply with a concise won't-fix reason and
+If a bot comment is a false positive, unrelated style churn, or outside the
+ZenStack authorization migration, reply with a concise won't-fix reason and
 resolve it only when it is part of the assigned work unit.
 
-If CodeRabbit cannot run or report actionable comments because credits are
-exhausted, rate limits are hit, auth is unavailable, or the service is failing,
-record CodeRabbit as unavailable and do not wait on it. Replace that signal with
-one bounded local adversarial review by independent agents, then prioritize CI,
-Sonar, Codacy, Sourcery, and other checks with actionable output. A CodeRabbit
-credit/rate-limit failure alone is not a merge blocker after local independent
-review and required non-CodeRabbit checks pass.
+If CodeRabbit is actively running/pending, wait for it to finish before
+declaring merge readiness. If CodeRabbit cannot run or report actionable
+comments because credits are exhausted, rate limits are hit, auth is
+unavailable, it was skipped/not started, or the service is failing, delete it
+from the active plan. Record CodeRabbit as unavailable, do not wait on it, do
+not schedule rechecks for it, and do not treat it as a merge-readiness blocker.
+Replace that signal with one bounded local adversarial review by independent
+agents, then prioritize CI, Sonar, Codacy, Sourcery, and other checks with
+actionable output.
 
 ## Codacy and Advisory Findings
 

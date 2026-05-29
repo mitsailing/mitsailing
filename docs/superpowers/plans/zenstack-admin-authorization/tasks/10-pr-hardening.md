@@ -30,7 +30,8 @@ comments and CI/test failures.
 
 Task 10 stays under the ZenStack conductor workflow.
 
-Use CodeRabbit and GitHub skills/tools only as sub-tools for:
+Use GitHub skills/tools and already-available review-bot output only as
+sub-tools for:
 
 - PR creation/update
 - PR comments
@@ -41,14 +42,20 @@ Do not switch to `finish-pr-loop` or `finish-pr-context7` unless the user
 explicitly asks.
 
 Do not use the official CodeRabbit `autofix` skill in this task because it
-prompts for fix and push choices. CodeRabbit PR comments are handled through the
-bounded workflow in `.agents/skills/zenstack-pr-hardening/SKILL.md`.
+prompts for fix and push choices. If CodeRabbit already produced actionable PR
+comments, handle them through the bounded workflow in
+`.agents/skills/zenstack-pr-hardening/SKILL.md`. If CodeRabbit is actively
+running/pending, wait for it to finish. If CodeRabbit is unavailable,
+rate-limited, out of credits, skipped/not started, or failing without actionable
+comments, record it as unavailable, run local adversarial sub-agent review
+instead, and do not treat CodeRabbit as a blocker.
 
 ## Phase 1: Local Hardening
 
-Task 9 already completed the required two-pass local CodeRabbit MCP review/fix
-loop. Do not run another local CodeRabbit pass here unless new local commits are
-added after task 9 or the user explicitly asks.
+Task 9 already completed the required two-pass review/fix loop. Do not run
+another CodeRabbit pass here unless it is already available and has actionable
+comments. If new local commits are added after task 9, use a fresh local
+adversarial sub-agent review unless the user explicitly asks for CodeRabbit.
 
 Run local verification before PR creation:
 
@@ -67,7 +74,8 @@ issues directly relevant to this migration.
 
 Push the current branch.
 
-Create a GitHub PR as ready for review, not draft, because CodeRabbit must run.
+Create a GitHub PR as ready for review, not draft, so required checks, human
+review, and any available review bots can run.
 
 If a PR already exists for the branch, update that PR instead of creating a
 duplicate.
@@ -75,46 +83,28 @@ duplicate.
 ## Phase 3: Up to Five Post-PR Fix Rounds
 
 Run up to five post-PR fix rounds. Start each round in its own fresh sub-agent.
-Each round begins only after the scheduled follow-up confirms 30 minutes have
-passed since the latest push, then inspects GitHub checks and review comments.
-Do not wait 30 minutes between local fix steps inside a round.
+Each round begins by inspecting current GitHub checks and actionable review
+comments. Wait for CodeRabbit only when a review is actively running/pending;
+do not wait on CodeRabbit no-start/skipped/rate-limit/credit/auth/service
+states.
 
 After a successful fix commit and push, do not produce a long handoff. Persist
-compact state and schedule one next bounded worker/recheck for 30 minutes after
-that successful commit/push unless the stop conditions are already met. This is
-not a recurring 30-minute interval.
+compact state and refresh PR status once. If required checks are still pending
+or CodeRabbit is actively running/pending, schedule one short bounded recheck
+for that running work only, then stop all live agents. Do not schedule rechecks
+for CodeRabbit no-start/skipped/rate-limit/credit/auth/service states.
 
-Optimize for token usage during the 30-minute post-push quiet period. The main
-agent and all sub-agents must stop instead of staying live while time passes. Do
-not use `sleep`, polling loops, or long `wait_agent` calls to wait out that
-time. The final-push wait is automation-only: schedule one thread heartbeat or
-equivalent follow-up for 30 minutes after the latest successful push, then stop
-all live agents. Each sub-agent must report the final push state and exit; the
-main agent must schedule the follow-up and exit. When the follow-up resumes,
-re-check PR comments, review-bot feedback, and failing CI/tests. If another
-push happens before the follow-up runs, replace the old follow-up with one
-scheduled 30 minutes after the newest push.
+If a resumed follow-up finds required checks still pending with no actionable
+failure or comment yet, do one bounded inspection, schedule one more short
+required-check recheck, and stop all live agents again. This pending-only wakeup
+does not count as one of the five post-PR fix rounds; a fix round starts only
+when there is actionable work to fix, document, or resolve.
 
-If a resumed follow-up finds checks still pending or review bots still
-processing with no actionable failure or comment yet, do one bounded inspection,
-schedule another follow-up for 30 minutes later, and stop all live agents again.
-This pending-only wakeup does not count as one of the five post-PR fix rounds;
-a fix round starts only when there is actionable work to fix, document, or
-resolve.
-
-If CodeRabbit skips review because of file count, branch target, or review-scope
-configuration, treat the fix as PR setup maintenance rather than a post-PR fix
-round. Update the smallest relevant CodeRabbit configuration or PR shape, run
-the smallest reasonable local verification for that configuration change, commit
-and push, then replace the old follow-up with one new 30-minute follow-up
-anchored to the successful push. Do not count this CodeRabbit enablement work
-against the five post-PR fix rounds.
-
-After each push, confirm CodeRabbit actually starts on the PR. If CodeRabbit has
-not started automatically, comment `@coderabbitai full review` on the PR, then
-confirm CodeRabbit replies that the full review was triggered or that a review
-is in progress. This manual trigger is PR setup/review enablement and does not
-count against the five post-PR fix rounds.
+Do not comment `@coderabbitai full review` unless the user explicitly asks or a
+repository policy explicitly requires CodeRabbit. If CodeRabbit skips review,
+does not start, is out of credits, is rate-limited, or fails without actionable
+comments, record it as unavailable and replace that signal with one bounded
+local adversarial sub-agent review.
 
 Each round must begin with aggressive context pruning. The context gets very big
 during step 9 and during review loops, so do not treat prior implementation or
@@ -123,8 +113,7 @@ review history as reusable context.
 Before round 1, discard the accumulated step 9 implementation context. Keep only
 a short task 9 completion summary, artifact paths, the latest pushed commit
 hash, and the PR state. Do not carry forward step 9 file-by-file notes, full
-verification output, debugging history, raw CodeRabbit output, or old
-hypotheses.
+verification output, debugging history, raw bot output, or old hypotheses.
 
 Before rounds 2 through 5, close or discard the previous round's working notes,
 pasted logs, full review dumps, stale hypotheses, speculative analysis, fixed
@@ -139,7 +128,7 @@ next fresh sub-agent with only:
 - exact failed command plus the smallest relevant log excerpt, if a check failed
 - files or tests already touched in the previous round
 
-Do not carry forward full CI logs, full CodeRabbit/GitHub comment exports,
+Do not carry forward full CI logs, full bot/GitHub comment exports,
 complete diffs, full file contents, full rule bodies, or broad repository
 context. Cite rule paths instead of pasting rules. Keep the handoff short enough
 to fit in one screen; if it grows past that, summarize harder before spawning
@@ -149,15 +138,15 @@ decision-relevant lines and drop the rest before starting the next round. The
 sub-agent should need only current PR state, targeted files, and targeted
 verification to complete the round.
 
-Stop the loop early when the 30-minute post-push check shows all GitHub checks
-passing, no failing tests, and no actionable GitHub or CodeRabbit comments left
-to fix.
+Stop the loop early when all required GitHub checks are passing, no failing
+tests remain, and no actionable GitHub or already-run review-bot comments are
+left to fix.
 
 A post-PR round means:
 
 - inspect current GitHub Actions/check results
 - inspect all GitHub review comments
-- inspect all CodeRabbit PR comments
+- inspect already-available review-bot PR comments
 - fix all relevant actionable issues
 - run local verification
 - commit and push once
@@ -167,8 +156,12 @@ Review finding scope:
 - Prioritize security, auth/policy bugs, data integrity, failing tests,
   TypeScript/lint failures, broken admin/event workflows, and stale pre-ZenStack
   authorization paths.
-- Fix CodeRabbit and GitHub review comments when they are relevant and
+- Fix CodeRabbit and GitHub review comments when they exist, are relevant, and
   actionable.
+- Treat CodeRabbit unavailable/rate-limited/out-of-credits/skipped/service
+  failure without actionable comments as non-blocking; use local adversarial
+  sub-agent review instead. Treat active CodeRabbit running/pending state as
+  pending work until it finishes.
 - Treat Codacy as advisory.
 - Fix Codacy findings only when they identify a real bug, security issue, test
   failure, or clear migration risk.
@@ -197,14 +190,14 @@ Before finishing:
 - Confirm latest pushed commit.
 - Confirm PR URL.
 - Confirm GitHub checks state.
-- Confirm relevant CodeRabbit/GitHub comments are fixed or documented.
+- Confirm relevant GitHub and already-run review-bot comments are fixed or
+  documented.
 - Keep the final status compact. Report command names and outcomes, not full
   logs. Link or cite artifact paths instead of pasting review output.
-- If another bounded round is needed, schedule it 30 minutes later and report
-  only the PR URL, latest commit, next round number, scheduled time, and blocker
-  if any. The scheduled time is anchored to the last successful commit/push, not
-  to a repeating timer. Do not keep the main agent or a sub-agent alive while
-  waiting for that scheduled time.
+- If another bounded round is needed for required pending checks, schedule a
+  short one-shot recheck and report only the PR URL, latest commit, next round
+  number, scheduled time, and blocker if any. Do not keep the main agent or a
+  sub-agent alive while waiting for that scheduled time.
 
 ## Stop Conditions
 
@@ -226,10 +219,10 @@ Post one compact final PR comment. Keep it under one screen and include only:
 - local commands run
 - latest pushed commit hash
 - GitHub checks status
-- CodeRabbit/GitHub review status
+- GitHub and already-run review-bot status
 - relevant bugs fixed, grouped by theme
 - Codacy advisory status if applicable
 - remaining risks or items left for user decision
 
-Do not paste full CI logs, full CodeRabbit/GitHub comment exports, full diffs,
+Do not paste full CI logs, full bot/GitHub comment exports, full diffs,
 or long per-file histories into the PR comment.
