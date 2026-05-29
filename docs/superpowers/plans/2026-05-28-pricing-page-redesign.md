@@ -37,7 +37,7 @@
 Replace the `term` role assertion with text assertions. React Testing Library exposes `<dt>` as `term`, but the current test environment reports empty accessible names for these terms, so the role-name assertion is brittle and not relevant to the pricing redesign.
 
 ```tsx
-expect(screen.getByText('Full sailing membership')).toBeInTheDocument();
+expect(screen.getByText('Normal')).toBeInTheDocument();
 expect(
   screen.getByText(/Pavilion sailing, classes, ratings/u)
 ).toBeInTheDocument();
@@ -294,21 +294,21 @@ Expected: tab tests pass after plan cards are implemented in Task 4.
 Add tests that click each tab:
 
 ```tsx
-it('shows full sailing included for MIT students', async () => {
+it('shows Normal included for MIT students', async () => {
   renderPricingPage();
 
-  expect(screen.getByRole('heading', { name: 'Full sailing' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Normal' })).toBeInTheDocument();
   expect(screen.getByText('Included')).toBeInTheDocument();
-  expect(screen.getByText('Covered by Full sailing')).toBeInTheDocument();
+  expect(screen.getByText('Covered by Normal')).toBeInTheDocument();
 });
 
-it('shows full sailing included for MIT Recreation members', async () => {
+it('shows Normal included for MIT Recreation members', async () => {
   renderPricingPage();
   await userEvent.click(screen.getByRole('tab', { name: 'MIT Recreation member' }));
 
-  expect(screen.getByRole('heading', { name: 'Full sailing' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Normal' })).toBeInTheDocument();
   expect(screen.getByText('For active MIT Recreation members.')).toBeInTheDocument();
-  expect(screen.getAllByText('Covered by Full sailing').length).toBeGreaterThan(1);
+  expect(screen.getAllByText('Covered by Normal').length).toBeGreaterThan(1);
 });
 ```
 
@@ -362,7 +362,7 @@ function PricingPlanCard(props: {
 
 - [ ] **Step 3: Render included-status cards**
 
-For `MIT student` and `MIT Recreation member`, render a 1-column recommended Full sailing card followed by two subdued included cards:
+For `MIT student` and `MIT Recreation member`, render a 1-column recommended Normal card followed by two subdued included cards:
 
 ```tsx
 <div className="grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
@@ -527,7 +527,7 @@ expect(pricing?.plans[2]).toMatchObject({
 
 - [ ] **Step 2: Update `cmsSeed.ts`**
 
-Change the highlighted Full sailing plan:
+Change the highlighted Normal plan:
 
 ```ts
 linkLabel: 'Create account',

@@ -238,6 +238,31 @@ function hasMatchingOnboardingAgreement(props: {
   );
 }
 
+function issueSailingCardErrorState(error: unknown) {
+  if (isSailingCardUniqueError(error)) {
+    return {
+      fieldErrors: { cardNumber: 'duplicate' },
+      status: 'error',
+    } satisfies AdminSailingCardActionState;
+  }
+  if (!(error instanceof Error)) {
+    return null;
+  }
+  if (
+    error.message === 'not_found' ||
+    error.message === 'missing_onboarding_agreement' ||
+    error.message === 'mit_recreation_required' ||
+    error.message === 'not_pending_request'
+  ) {
+    return {
+      fieldErrors: {},
+      formError: error.message,
+      status: 'error',
+    } satisfies AdminSailingCardActionState;
+  }
+  return null;
+}
+
 export async function issueSailingCardAction(
   locale: string,
   targetUserId: string,
@@ -345,42 +370,9 @@ export async function issueSailingCardAction(
       });
     });
   } catch (error) {
-    if (isSailingCardUniqueError(error)) {
-      return {
-        fieldErrors: { cardNumber: 'duplicate' },
-        status: 'error',
-      };
-    }
-    if (error instanceof Error && error.message === 'not_found') {
-      return {
-        fieldErrors: {},
-        formError: 'not_found',
-        status: 'error',
-      };
-    }
-    if (
-      error instanceof Error &&
-      error.message === 'missing_onboarding_agreement'
-    ) {
-      return {
-        fieldErrors: {},
-        formError: 'missing_onboarding_agreement',
-        status: 'error',
-      };
-    }
-    if (error instanceof Error && error.message === 'mit_recreation_required') {
-      return {
-        fieldErrors: {},
-        formError: 'mit_recreation_required',
-        status: 'error',
-      };
-    }
-    if (error instanceof Error && error.message === 'not_pending_request') {
-      return {
-        fieldErrors: {},
-        formError: 'not_pending_request',
-        status: 'error',
-      };
+    const errorState = issueSailingCardErrorState(error);
+    if (errorState) {
+      return errorState;
     }
     throw error;
   }

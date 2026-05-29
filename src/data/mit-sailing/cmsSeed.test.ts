@@ -7,6 +7,18 @@ import {
   orderedCmsSeedMenuItems,
 } from './cmsSeed';
 
+function isUnknownRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function objectProperty(value: unknown, key: string): unknown {
+  return isUnknownRecord(value) ? value[key] : undefined;
+}
+
+function unknownArray(value: unknown): readonly unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
 describe('orderedCmsSeedMenuItems', () => {
   it('orders parents before children', () => {
     const menu = {
@@ -120,36 +132,40 @@ describe('orderedCmsSeedMenuItems', () => {
 });
 
 describe('cms seed membership pricing', () => {
-  it('keeps the home getting-started step from hiding paid racing paths', () => {
+  function homePageBlock(id: string) {
     const homePage = CMS_PAGE_SEED_ROWS.find((page) => page.path === '/');
-    const overviewBlock = homePage?.blocks.find(
-      (block) => block.id === 'cms-block-home-overview'
-    );
-    const overview: unknown = JSON.parse(overviewBlock?.body ?? '{}');
-    const steps =
-      typeof overview === 'object' && overview !== null
-        ? Object.getOwnPropertyDescriptor(overview, 'steps')?.value
-        : undefined;
-    const firstStep = Array.isArray(steps) ? steps.at(0) : undefined;
-    const description =
-      typeof firstStep === 'object' && firstStep !== null
-        ? Object.getOwnPropertyDescriptor(firstStep, 'description')?.value
-        : undefined;
+    return homePage?.blocks.find((block) => block.id === id);
+  }
 
-    expect(description).toBe(
+  function homeOverviewSteps() {
+    const overviewBlock = homePageBlock('cms-block-home-overview');
+    const overview: unknown = JSON.parse(overviewBlock?.body ?? '{}');
+    const steps = objectProperty(overview, 'steps');
+    return unknownArray(steps);
+  }
+
+  function homePricing() {
+    const pricingBlock = homePageBlock('cms-block-home-membership-pricing');
+    return {
+      block: pricingBlock,
+      pricing: parseCmsPricingBody(pricingBlock?.body),
+    };
+  }
+
+  it('keeps the home getting-started step from hiding paid racing paths', () => {
+    const steps =
+      objectProperty(homeOverviewSteps().at(0), 'description') ?? '';
+
+    expect(steps).toBe(
       'MIT students and MIT Recreation members get Normal included, including Charles River racing. Others can compare paid racing cards before requesting a card.'
     );
   });
 
-  it('compares sailing card types on the home page', () => {
-    const homePage = CMS_PAGE_SEED_ROWS.find((page) => page.path === '/');
-    const pricingBlock = homePage?.blocks.find(
-      (block) => block.id === 'cms-block-home-membership-pricing'
-    );
-    const pricing = parseCmsPricingBody(pricingBlock?.body);
+  it('labels sailing card pricing on the home page', () => {
+    const { block, pricing } = homePricing();
 
-    expect(pricingBlock?.title).toBe('Pricing');
-    expect(pricingBlock?.subtitle).toBe(
+    expect(block?.title).toBe('Pricing');
+    expect(block?.subtitle).toBe(
       'Choose the card that matches what you want to sail.'
     );
     expect(pricing).toMatchObject({
@@ -163,6 +179,11 @@ describe('cms seed membership pricing', () => {
       'Full-year racing card',
       'Thursday team racing',
     ]);
+  });
+
+  it('describes Normal access on the home page', () => {
+    const { pricing } = homePricing();
+
     expect(pricing?.plans[0]).toMatchObject({
       linkLabel: 'Sign up',
       linkUrl: '/signup?callbackUrl=%2Fonboarding',
@@ -181,6 +202,11 @@ describe('cms seed membership pricing', () => {
     expect(pricing?.plans[0]?.features).toContain(
       'MIT Recreation members qualify with an active membership.'
     );
+  });
+
+  it('describes paid racing card prices on the home page', () => {
+    const { pricing } = homePricing();
+
     expect(pricing?.plans[1]).toMatchObject({
       linkLabel: 'Sign up',
       linkUrl: '/signup?callbackUrl=%2Fonboarding',
@@ -201,6 +227,11 @@ describe('cms seed membership pricing', () => {
         { label: '30+', value: '$175' },
       ],
     });
+  });
+
+  it('describes Thursday team racing on the home page', () => {
+    const { block, pricing } = homePricing();
+
     expect(pricing?.plans[3]).toMatchObject({
       description: 'For Thursday team racing on the Charles River.',
       linkLabel: 'Sign up',
@@ -215,7 +246,7 @@ describe('cms seed membership pricing', () => {
     expect(pricing?.plans[3]?.features).toContain(
       'Thursday team racing on the Charles River.'
     );
-    expect(pricingBlock?.body).not.toContain('Not MIT Sailing Team');
+    expect(block?.body).not.toContain('Not MIT Sailing Team');
   });
 
   it('links the seeded header and footer to pricing', () => {

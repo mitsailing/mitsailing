@@ -4,7 +4,7 @@ import { AboutPageView } from './AboutPageView';
 
 vi.mock('next/image', () => ({
   default: (props: { alt: string; className?: string }) => (
-    <span aria-label={props.alt} className={props.className} role="img" />
+    <span className={props.className} data-alt={props.alt} />
   ),
 }));
 

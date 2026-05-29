@@ -6,7 +6,11 @@ import { SiteModalContent } from '@/components/mit-sailing/site/SiteModal';
 import { Dialog, DialogTrigger } from '@/components/ui/dialog';
 import { mitRecreationMembershipHref } from '@/data/mit-sailing/mitRecreationMembership';
 import { Link } from '@/libs/I18nNavigation';
-import type { IncludedClassRow, PricingPlan } from './PricingPageData';
+import type {
+  GymRateRow,
+  IncludedClassRow,
+  PricingPlan,
+} from './PricingPageData';
 import {
   useGymRateRows,
   useIncludedClassRows,
@@ -36,6 +40,110 @@ function pricingPrimaryCta(props: PricingPageViewProps) {
   } as const;
 }
 
+function GymRatesDesktopTable(props: { readonly rows: readonly GymRateRow[] }) {
+  const t = useTranslations('PricingPage');
+
+  return (
+    <div className="hidden overflow-hidden rounded-lg border border-mit-line bg-background md:block">
+      <table
+        aria-label={t('pricing_chart_gym_rates_table_label')}
+        className="w-full table-fixed border-collapse text-left text-sm"
+      >
+        <colgroup>
+          <col className="w-[52%]" />
+          <col className="w-[24%]" />
+          <col className="w-[24%]" />
+        </colgroup>
+        <thead className="border-b border-mit-line bg-muted/55 text-mit-text">
+          <tr>
+            <th className="py-2.5 pr-3 pl-4 font-medium" scope="col">
+              {t('pricing_chart_gym_category_heading')}
+            </th>
+            <th
+              className="px-3 py-2.5 font-medium whitespace-nowrap tabular-nums"
+              scope="col"
+            >
+              {t('pricing_chart_gym_individual_heading')}
+            </th>
+            <th
+              className="py-2.5 pr-4 pl-3 font-medium whitespace-nowrap tabular-nums"
+              scope="col"
+            >
+              {t('pricing_chart_gym_family_heading')}
+            </th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-mit-line">
+          {props.rows.map((row) => (
+            <tr key={row.category}>
+              <th
+                className="py-2.5 pr-3 pl-4 font-medium text-mit-text"
+                scope="row"
+              >
+                <span>{row.category}</span>
+                {row.note ? (
+                  <span className="mt-1 block text-xs leading-5 font-normal text-muted-foreground">
+                    {row.note}
+                  </span>
+                ) : null}
+              </th>
+              <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground tabular-nums dark:text-foreground">
+                {row.individual}
+              </td>
+              <td className="py-2.5 pr-4 pl-3 whitespace-nowrap text-muted-foreground tabular-nums dark:text-foreground">
+                {row.family}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function GymRateMobileCard(props: { readonly row: GymRateRow }) {
+  const t = useTranslations('PricingPage');
+
+  return (
+    <section className="rounded-lg border border-mit-line bg-background p-4">
+      <h3 className="font-medium text-mit-text">{props.row.category}</h3>
+      {props.row.note ? (
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+          {props.row.note}
+        </p>
+      ) : null}
+      <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
+        <div>
+          <dt className="font-medium text-mit-text">
+            {t('pricing_chart_gym_individual_heading')}
+          </dt>
+          <dd className="mt-1 text-muted-foreground tabular-nums dark:text-foreground">
+            {props.row.individual}
+          </dd>
+        </div>
+        <div>
+          <dt className="font-medium text-mit-text">
+            {t('pricing_chart_gym_family_heading')}
+          </dt>
+          <dd className="mt-1 text-muted-foreground tabular-nums dark:text-foreground">
+            {props.row.family}
+          </dd>
+        </div>
+      </dl>
+    </section>
+  );
+}
+
+function GymRatesMobileCards(props: { readonly rows: readonly GymRateRow[] }) {
+  return (
+    <div className="grid gap-3 md:hidden">
+      {props.rows.map((row) => (
+        <GymRateMobileCard key={row.category} row={row} />
+      ))}
+    </div>
+  );
+}
+
 function GymRatesDialog() {
   const t = useTranslations('PricingPage');
   const gymRateRows = useGymRateRows();
@@ -56,93 +164,8 @@ function GymRatesDialog() {
         eyebrow={t('pricing_chart_gym_modal_eyebrow')}
         title={t('pricing_chart_gym_modal_title')}
       >
-        <div className="hidden overflow-hidden rounded-lg border border-mit-line bg-background md:block">
-          <table
-            aria-label={t('pricing_chart_gym_rates_table_label')}
-            className="w-full table-fixed border-collapse text-left text-sm"
-          >
-            <colgroup>
-              <col className="w-[52%]" />
-              <col className="w-[24%]" />
-              <col className="w-[24%]" />
-            </colgroup>
-            <thead className="border-b border-mit-line bg-muted/55 text-mit-text">
-              <tr>
-                <th className="py-2.5 pr-3 pl-4 font-medium" scope="col">
-                  {t('pricing_chart_gym_category_heading')}
-                </th>
-                <th
-                  className="px-3 py-2.5 font-medium whitespace-nowrap tabular-nums"
-                  scope="col"
-                >
-                  {t('pricing_chart_gym_individual_heading')}
-                </th>
-                <th
-                  className="py-2.5 pr-4 pl-3 font-medium whitespace-nowrap tabular-nums"
-                  scope="col"
-                >
-                  {t('pricing_chart_gym_family_heading')}
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-mit-line">
-              {gymRateRows.map((row) => (
-                <tr key={row.category}>
-                  <th
-                    className="py-2.5 pr-3 pl-4 font-medium text-mit-text"
-                    scope="row"
-                  >
-                    <span>{row.category}</span>
-                    {row.note ? (
-                      <span className="mt-1 block text-xs leading-5 font-normal text-muted-foreground">
-                        {row.note}
-                      </span>
-                    ) : null}
-                  </th>
-                  <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground tabular-nums dark:text-foreground">
-                    {row.individual}
-                  </td>
-                  <td className="py-2.5 pr-4 pl-3 whitespace-nowrap text-muted-foreground tabular-nums dark:text-foreground">
-                    {row.family}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="grid gap-3 md:hidden">
-          {gymRateRows.map((row) => (
-            <section
-              className="rounded-lg border border-mit-line bg-background p-4"
-              key={row.category}
-            >
-              <h3 className="font-medium text-mit-text">{row.category}</h3>
-              {row.note ? (
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                  {row.note}
-                </p>
-              ) : null}
-              <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <dt className="font-medium text-mit-text">
-                    {t('pricing_chart_gym_individual_heading')}
-                  </dt>
-                  <dd className="mt-1 text-muted-foreground tabular-nums dark:text-foreground">
-                    {row.individual}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="font-medium text-mit-text">
-                    {t('pricing_chart_gym_family_heading')}
-                  </dt>
-                  <dd className="mt-1 text-muted-foreground tabular-nums dark:text-foreground">
-                    {row.family}
-                  </dd>
-                </div>
-              </dl>
-            </section>
-          ))}
-        </div>
+        <GymRatesDesktopTable rows={gymRateRows} />
+        <GymRatesMobileCards rows={gymRateRows} />
         <div className="grid gap-3 text-sm leading-6 text-muted-foreground">
           <a
             className="font-medium text-primary-ink underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-mit-red focus-visible:ring-offset-2 focus-visible:outline-none"

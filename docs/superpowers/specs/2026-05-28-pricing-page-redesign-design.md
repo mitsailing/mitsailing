@@ -70,7 +70,7 @@ These tabs are about the user's current status, not age or pricing category. Age
 Show one recommended plan card.
 
 ```text
-Full sailing
+Normal
 Included
 
 For current MIT students.
@@ -83,10 +83,10 @@ Below it, show two muted cards or rows:
 
 ```text
 Pavilion racing
-Covered by Full sailing
+Covered by Normal
 
 Thursday team racing
-Covered by Full sailing
+Covered by Normal
 ```
 
 Do not show paid prices in this tab.
@@ -96,7 +96,7 @@ Do not show paid prices in this tab.
 Show one recommended plan card.
 
 ```text
-Full sailing
+Normal
 Included
 
 For active MIT Recreation members.
@@ -109,10 +109,10 @@ Below it, show:
 
 ```text
 Pavilion racing
-Covered by Full sailing
+Covered by Normal
 
 Thursday team racing
-Covered by Full sailing
+Covered by Normal
 ```
 
 Do not show paid prices in this tab.
@@ -142,24 +142,24 @@ Pavilion July 15+        $40               $125                   $175
 Thursday team racing     $25               $70                    $100
 ```
 
-Then show the Full sailing path as a secondary option.
+Then show the Normal path as a secondary option.
 
 ```text
-Want Full sailing?
+Want Normal?
 Join MIT Recreation first.
 
 [MIT Recreation rates]
 ```
 
-Do not show a Full sailing paid price. The value is `Requires MIT Recreation`.
+Do not show a Normal paid price. The value is `Requires MIT Recreation`.
 
 ## Copy Rules
 
-- Use `Full sailing`, `Pavilion racing`, and `Thursday team racing`.
+- Use `Normal`, `Pavilion racing`, and `Thursday team racing`.
 - Use `Non-MIT student`, not `MIT student`, in paid-card charts.
 - Use `30+`, not `over 30`.
 - Use `under 30`, not `29 or younger`, unless a legal/product source requires the latter.
-- Use `Included`, `Covered by Full sailing`, and `Requires MIT Recreation` as status labels.
+- Use `Included`, `Covered by Normal`, and `Requires MIT Recreation` as status labels.
 - Keep body copy to one short sentence per card.
 - Put details below the decision UI, not in the hero.
 
@@ -202,8 +202,8 @@ MIT Recreation rates -> https://www.mitrecsports.com/join/memberships/
 Add or update component tests to verify:
 
 - The page renders the 3 status tabs.
-- The `MIT student` tab shows `Full sailing` as `Included`.
-- The `MIT Recreation member` tab shows `Full sailing` as `Included`.
+- The `MIT student` tab shows `Normal` as `Included`.
+- The `MIT Recreation member` tab shows `Normal` as `Included`.
 - The `No MIT Recreation` tab shows paid cards and the exact price table.
 - The paid table headers are `Non-MIT student`, `Non-student under 30`, and `Non-student 30+`.
 - The paid table does not show `MIT student`.

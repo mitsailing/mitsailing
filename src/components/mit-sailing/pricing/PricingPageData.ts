@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 
-type GymRateRow = {
+export type GymRateRow = {
   readonly category: string;
   readonly individual: string;
   readonly family: string;

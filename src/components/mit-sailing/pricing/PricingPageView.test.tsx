@@ -32,6 +32,30 @@ function renderPricingPage(options?: { readonly isSignedIn?: boolean }) {
   render(<PricingPageView isSignedIn={options?.isSignedIn ?? false} />);
 }
 
+function pricingChart() {
+  return screen.getByRole('table', { name: 'Pricing chart' });
+}
+
+function expectPricingColumn(name: RegExp) {
+  expect(
+    within(pricingChart()).getByRole('columnheader', { name })
+  ).toBeInTheDocument();
+}
+
+async function openRatesDialog() {
+  const user = userEvent.setup();
+
+  const [gymRateButton] = screen.getAllByRole('button', {
+    name: 'See MIT Recreation rates',
+  });
+  if (!gymRateButton) {
+    throw new Error('Missing MIT Recreation rates button');
+  }
+  await user.click(gymRateButton);
+
+  return screen.getByRole('dialog', { name: 'Annual membership rates' });
+}
+
 describe('PricingPageView', () => {
   it('sends guests to sign up before onboarding', () => {
     renderPricingPage();
@@ -49,9 +73,7 @@ describe('PricingPageView', () => {
     ).toHaveAttribute('href', '/onboarding');
   });
 
-  it('renders pricing columns and included classes', async () => {
-    const user = userEvent.setup();
-
+  it('renders pricing columns and included classes', () => {
     renderPricingPage();
 
     expect(
@@ -62,30 +84,15 @@ describe('PricingPageView', () => {
         'MIT students and MIT Recreation members choose Normal. Need MIT Recreation? Review MIT Recreation rates before you request your card.'
       )
     ).toBeInTheDocument();
-    const pricingChart = screen.getByRole('table', { name: 'Pricing chart' });
+    expectPricingColumn(/Normal/u);
+    expectPricingColumn(/Spring racing card/u);
+    expectPricingColumn(/Full-year racing card/u);
+    expectPricingColumn(/Thursday team racing/u);
+    expect(within(pricingChart()).getAllByText('Free').length).toBeGreaterThan(
+      0
+    );
     expect(
-      within(pricingChart).getByRole('columnheader', {
-        name: /Normal/u,
-      })
-    ).toBeInTheDocument();
-    expect(
-      within(pricingChart).getByRole('columnheader', {
-        name: /Spring racing card/u,
-      })
-    ).toBeInTheDocument();
-    expect(
-      within(pricingChart).getByRole('columnheader', {
-        name: /Full-year racing card/u,
-      })
-    ).toBeInTheDocument();
-    expect(
-      within(pricingChart).getByRole('columnheader', {
-        name: /Thursday team racing/u,
-      })
-    ).toBeInTheDocument();
-    expect(within(pricingChart).getAllByText('Free').length).toBeGreaterThan(0);
-    expect(
-      within(pricingChart).getAllByText(
+      within(pricingChart()).getAllByText(
         'Pavilion, classes, ratings, racing, Mashnee.'
       ).length
     ).toBeGreaterThan(0);
@@ -93,15 +100,20 @@ describe('PricingPageView', () => {
       screen.queryByRole('table', { name: 'Paid-card prices' })
     ).not.toBeInTheDocument();
     expect(
-      within(pricingChart).getByRole('row', {
+      within(pricingChart()).getByRole('row', {
         name: /Intro Sailing 101 Included - - -/u,
       })
     ).toBeInTheDocument();
     expect(
-      within(pricingChart).getByRole('row', {
+      within(pricingChart()).getByRole('row', {
         name: /Intro to Racing Included Included Included -/u,
       })
     ).toBeInTheDocument();
+  });
+
+  it('summarizes renewal timing outside the rates dialog', () => {
+    renderPricingPage();
+
     expect(
       screen.queryByRole('dialog', { name: 'Annual membership rates' })
     ).not.toBeInTheDocument();
@@ -110,17 +122,13 @@ describe('PricingPageView', () => {
         'Sailing cards renew each July 15. After renewal, request your next card before picking up a new card number.'
       )
     ).toBeInTheDocument();
-    const gymRateButtons = screen.getAllByRole('button', {
-      name: 'See MIT Recreation rates',
-    });
-    const [gymRateButton] = gymRateButtons;
-    if (!gymRateButton) {
-      throw new Error('Missing MIT Recreation rates button');
-    }
-    await user.click(gymRateButton);
-    const ratesDialog = screen.getByRole('dialog', {
-      name: 'Annual membership rates',
-    });
+  });
+
+  it('opens MIT Recreation rates from the Normal card', async () => {
+    renderPricingPage();
+
+    const ratesDialog = await openRatesDialog();
+
     expect(
       within(ratesDialog).getAllByText('MIT student').length
     ).toBeGreaterThan(0);
@@ -147,6 +155,13 @@ describe('PricingPageView', () => {
     expect(
       within(ratesDialog).getAllByText('General public (Friends of MIT)').length
     ).toBeGreaterThan(0);
+  });
+
+  it('keeps MIT Recreation rate fine print focused', async () => {
+    renderPricingPage();
+
+    const ratesDialog = await openRatesDialog();
+
     expect(
       within(ratesDialog).queryByText(/General public memberships use Friends/u)
     ).not.toBeInTheDocument();
