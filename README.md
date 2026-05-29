@@ -143,8 +143,10 @@ Run it against PR <number or URL> on branch <branch name>.
 Keep a tiny conductor state ledger, dispatch bounded sub-agents, use
 impeccable for UI/journey work, run an independent bug review separate from
 CodeRabbit, and ask me before changing product semantics or creating issues.
-For UI, journey, admin, onboarding, or capability-gated work, show me the
-persona workflow matrix before implementation and let me edit/add personas.
+For UI, journey, admin, onboarding, or capability-gated work, write the persona
+workflow matrix from docs/ai/persona-matrix-template.md to
+local/agent-runs/pr-<number>/personas.md and wait for me to review/edit that
+file before implementation.
 ```
 
 Skip this only for small changes that do not edit code, such as a typo-only

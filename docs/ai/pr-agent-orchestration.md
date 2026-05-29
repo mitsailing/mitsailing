@@ -58,25 +58,26 @@ Run it against PR <number or URL> on branch <branch name>.
 Keep a tiny conductor state ledger, dispatch bounded sub-agents, use
 impeccable for UI/journey work, run an independent bug review separate from
 CodeRabbit, and ask me before changing product semantics or creating issues.
-For UI, journey, admin, onboarding, or capability-gated work, show me the
-persona workflow matrix before implementation and let me edit/add personas.
+For UI, journey, admin, onboarding, or capability-gated work, write the persona
+workflow matrix from docs/ai/persona-matrix-template.md to
+local/agent-runs/pr-<number>/personas.md and wait for me to review/edit that
+file before implementation.
 ```
 
 The conductor output should show:
 
 - the PR blocker list;
 - the journey map, if the PR crosses actors or states;
-- personas used for the review;
+- the persona matrix file path used for the review;
 - product judgment questions;
 - independent bug-review findings;
 - verification commands and results;
 - follow-up issues to create after approval.
 
 For UI, journey, admin, onboarding, or capability-gated work, the conductor's
-first useful output should include the persona workflow matrix. The user views
-personas because the conductor prints that matrix. The user edits personas by
-replying with changed rows or new rows. The conductor then updates its state
-ledger and gives the revised matrix to worker agents.
+first useful output should be the path to the local persona matrix file. The
+user views and edits personas in that file. The conductor then reloads the
+file, updates its state ledger, and gives the revised matrix to worker agents.
 
 For a PR with unusual domain risk, create a PR-specific packet in
 `docs/superpowers/plans/YYYY-MM-DD-pr-<number>-agent-packet.md` that references
@@ -451,7 +452,7 @@ Maintain this state ledger only:
 - Active branch
 - PR blocker list
 - Journey map, if this PR crosses actors, emails, admin surfaces, or async work
-- Persona workflow matrix, if this PR touches UI, admin, onboarding, journey,
+- Persona matrix file path, if this PR touches UI, admin, onboarding, journey,
   or capability-gated behavior
 - Agent assignments
 - One-paragraph result per agent
@@ -475,8 +476,9 @@ Execution order:
 1. Dispatch the triage agent.
 2. Dispatch the pre-fix persona risk scan after triage identifies touched
    workflows. For journey PRs, require a compact journey map.
-   For UI, journey, admin, onboarding, or capability-gated PRs, present the
-   persona workflow matrix to the user before implementation and accept edits.
+   For UI, journey, admin, onboarding, or capability-gated PRs, write the
+   persona workflow matrix to a PR-specific Markdown file and wait for user
+   review/edits before implementation.
 3. Dispatch the Context7 best-practices audit after triage identifies touched
    libraries/frameworks.
 4. Dispatch the focused fix agent only after triage, pre-fix persona scan, and
@@ -582,6 +584,8 @@ Do not edit files.
 Output contract:
 - Compact journey map if the PR crosses actors, emails, admin surfaces, or
   async work.
+- Persona matrix file path for UI, journey, admin, onboarding, or
+  capability-gated PRs.
 - Up to five product/UX risks, each with file evidence if available.
 - Classification: PR blocker, follow-up, won't fix, or needs user product
   judgment.
@@ -887,34 +891,59 @@ Evidence source: Playwright, Mailpit, server log, DB query, screenshot, or manua
 
 ## Viewing, editing, and adding personas
 
-Personas are not a separate hidden system. They live in the conductor's journey
-map or in the PR-specific packet/issue that references this runbook. For
-durable product capabilities, summarize them in the journey capability matrix
-or parent GitHub issue instead of leaving them only in an agent transcript.
+Personas are file-backed, not hidden in the chat transcript. For UI, journey,
+admin, onboarding, or capability-gated PRs, the conductor must create or update
+a PR-specific persona matrix before implementation starts.
 
-Persona review is not automatic unless the conductor prints the matrix. For
-UI, journey, admin, onboarding, or capability-gated PRs, the conductor must
-show the matrix before implementation starts. If the conductor skips it, ask:
+Use the tracked template:
 
-```markdown
-Show the persona workflow matrix before implementation. I want to edit/add
-personas first.
+```text
+docs/ai/persona-matrix-template.md
 ```
 
-To view personas for a PR run, ask the conductor:
+Write the PR-specific working file under ignored local run state, not under
+`docs/superpowers/plans/`. Persona matrices are review evidence and conductor
+state, not implementation plans.
 
-```markdown
-Show the persona workflow matrix for this PR, including each persona's goal,
-current path, blocked state, eligible state, staff/admin handoff, and owner
-issue if a gap exists.
+Default path:
+
+```text
+local/agent-runs/pr-<number>/personas.md
 ```
 
-To edit personas during a run, tell the conductor which row to change:
+If there is no PR number yet, use:
+
+```text
+local/agent-runs/<branch-slug>/personas.md
+```
+
+The conductor should create parent directories as needed, tell the user the
+file path, then wait. The user reviews and edits that Markdown file directly.
+After the user says it is ready, the conductor reloads the file and gives the
+updated matrix to worker agents.
+
+For durable product capabilities, summarize stable capability state in the
+journey capability matrix or parent GitHub issue instead of leaving it only in
+a PR-specific persona file.
+
+If the conductor skips the file-backed persona step, ask:
 
 ```markdown
-Update the persona matrix: add "experienced sailor" as a separate persona from
-"beginner sailor". The experienced sailor is blocked from card assignment until
-intro for experienced sailors is complete.
+Write the persona workflow matrix to the PR persona file before implementation.
+I want to review and edit that file first.
+```
+
+To view personas for a PR run, open the persona file. To ask the conductor for
+the path, use:
+
+```markdown
+What persona matrix file are you using for this PR?
+```
+
+To edit personas during a run, edit the file directly. Then tell the conductor:
+
+```markdown
+I edited the persona matrix file. Reload it before dispatching workers.
 ```
 
 To add personas, use this shape:
@@ -1220,7 +1249,8 @@ Good pilot journeys:
 
 Validation checks:
 
-- persona matrix was shown before implementation;
+- persona matrix file was written, reviewed, and reloaded before
+  implementation;
 - actor sessions were isolated;
 - Mailpit evidence was captured when email was in scope;
 - the context packet was enough for a worker to proceed without broad history;
