@@ -23,6 +23,9 @@ The operating model is:
 10. Verify locally before claiming anything is fixed.
 11. Rebase on current `origin/main` before a merge-readiness claim and prefer
     GitHub rebase-and-merge for final integration.
+12. Verify facts from source-of-truth systems before making high-impact claims
+    or actions, and update the workflow when a user catches a repeatable agent
+    failure.
 
 This system is designed for MIT Sailing. Agents must still follow `AGENTS.md`,
 the repo's Cursor rules by path, and any PR-specific instructions from the
@@ -80,6 +83,7 @@ The conductor output should show:
 - the persona matrix file path used for the review;
 - product judgment questions;
 - independent bug-review findings;
+- verified source-of-truth facts versus assumptions;
 - verification commands and results;
 - follow-up issues to create after approval.
 
@@ -201,7 +205,7 @@ Judge each run against this scorecard:
 | TDD and verification | 15 | Failing behavior is reproduced first when practical, then targeted tests and required checks run. |
 | Journey coverage | 10 | Multi-actor PRs map pages, admin surfaces, emails, background jobs, state transitions, and handoffs. |
 | Scope control | 10 | Findings are classified as blocker, follow-up, or won't fix. No broad cleanup. |
-| Recovery | 5 | The conductor detects stale checks, duplicate issues, noisy analyzers, and agent drift. |
+| Recovery | 5 | The conductor detects stale checks, duplicate issues, noisy analyzers, wrong assumptions, and agent drift. |
 | Parallelism | 5 | Independent discovery tasks run in parallel without concurrent writes to the same files. |
 
 A 100/100 run does not mean agents make every decision. It means agents gather
@@ -249,6 +253,16 @@ The conductor must not ingest:
 - Full legacy source files.
 - Long agent transcripts.
 - Full external documentation.
+
+The conductor must maintain a short verified-execution log for high-impact
+work:
+
+- source-of-truth facts checked, such as GitHub PR state, branch rules, CI,
+  deployment, package docs, production data boundaries, or runtime behavior;
+- assumptions still not verified;
+- intended action and expected visible result;
+- post-action verification evidence;
+- user-caught mistake and workflow/rule update when the failure is repeatable.
 
 ### Worker agents
 
@@ -346,6 +360,15 @@ CodeRabbit to find bugs the independent reviewer can find locally.
 9. **Final verification agent**
    Review final diff, run checks, classify remaining risks, and report remote
    checks that need re-analysis.
+
+10. **Merge-readiness verification**
+    When the user asks to merge, fetch current `origin/main`, rebase the PR
+    branch, inspect GitHub branch rules and required checks, confirm the
+    repository's allowed merge method, and verify the exact commit title that
+    will appear on `main`. For squash merges, preserve the conventional PR
+    title with the `(#PR)` suffix unless the user explicitly chooses a
+    different visible title. After merge, query the PR and associated commit
+    before saying the merge was successful.
 
 Persona, `impeccable`, Context7, legacy, security/auth, data, operations, and
 CI discovery can run in parallel after triage has enough information, as long

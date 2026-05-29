@@ -104,7 +104,10 @@ Do not comment `@coderabbitai full review` unless the user explicitly asks or a
 repository policy explicitly requires CodeRabbit. If CodeRabbit skips review,
 does not start, is out of credits, is rate-limited, or fails without actionable
 comments, record it as unavailable and replace that signal with one bounded
-local adversarial sub-agent review.
+local adversarial sub-agent review. If that outage state creates a red PR
+status, disable CodeRabbit status publication with `reviews.commit_status:
+false`; `fail_commit_status: false` alone is not enough while commit statuses
+remain enabled.
 
 Each round must begin with aggressive context pruning. The context gets very big
 during step 9 and during review loops, so do not treat prior implementation or

@@ -10,6 +10,8 @@ alwaysApply: false
 
 **Before PR:** Use CodeRabbit only when it is already available without waiting, retrying, or spending extra credits. Fix high-confidence actionable comments when a review actually runs; otherwise run a local independent sub-agent review, keep diffs small, and run the **allowed** `npm run` checks from AGENTS.md. CodeRabbit blocks only while a review is actively running/pending or when completed actionable comments exist. CodeRabbit no-start/skipped/rate-limit/credit/auth/service failure is not a blocker unless repository policy explicitly requires it.
 
+**Commit status:** If CodeRabbit rate limits or credits are making GitHub red, disable its status with `reviews.commit_status: false`. Do not rely on `fail_commit_status: false` alone while `commit_status` remains enabled.
+
 **Stack specifics** live in other rules — do not duplicate them here: `nextjs-node-server-2026.mdc`, `next-intl-single-locale-routing.mdc`, `react-form-events.mdc`, `ui-color-tokens.mdc`, `admin-list-usability.mdc`, `tdd.mdc`, `e2e-verification.mdc`.
 
 **CodeRabbit config:** [`.coderabbit.yaml`](../../.coderabbit.yaml) `path_instructions` include URL-shape guidance (default no `trailingSlash`; use `/path#hash` not `/path/#hash` for assertions and in-app links) so the bot does not repeat mistaken `/ratings/#…` review suggestions.
