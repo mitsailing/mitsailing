@@ -132,3 +132,37 @@ npm run test:e2e       # Playwright end-to-end gate
 ```
 
 For schema changes use Prisma migrations; for production deploy and rollback commands, use [docs/deploy.md](docs/deploy.md).
+
+## AI Agent PR Orchestration
+
+For any feature PR or code-changing PR, start a fresh agent thread and paste:
+
+```text
+Use docs/ai/pr-agent-orchestration.md as the source of truth.
+Run it against PR <number or URL> on branch <branch name>.
+Keep a tiny conductor state ledger, dispatch bounded sub-agents, use
+impeccable for UI/journey work, run an independent bug review separate from
+CodeRabbit, and ask me before changing product semantics or creating issues.
+Write conductor state from docs/ai/pr-run-ledger-template.md to
+local/agent-runs/pr-<number>/conductor.md.
+For UI, journey, admin, onboarding, or capability-gated work, write the persona
+workflow matrix from docs/ai/persona-matrix-template.md to
+local/agent-runs/pr-<number>/personas.md and wait for me to review/edit that
+file before implementation. Include the software-engineer process persona first
+so the agent workflow itself is tested before product personas run.
+```
+
+Skip this only for small changes that do not edit code, such as a typo-only
+documentation update, README link correction, or comment-only clarification.
+
+The runbook explains how to map journeys, view and edit personas, add
+capability gates, track product judgment questions, and decide which findings
+are PR blockers versus follow-up issues. For multi-PR features, use a GitHub
+parent issue with a task list from docs/ai/feature-task-list-template.md, add a
+milestone for release grouping, and treat GitHub Projects as optional once the
+issue list needs a dashboard. Use docs/ai/pm-manager-runbook.md when you need
+an agent to inventory current PRs, branches, issues, milestones, and
+persona-discovered gaps before deciding what to finish next. If using Linear
+as the PM layer, seed the trial project from
+docs/ai/linear-membership-pricing-project-plan.md and keep Linear as the PM
+source of truth while GitHub remains the code, CI, and PR review source.

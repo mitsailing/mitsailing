@@ -52,7 +52,7 @@ Track: `loop`, `last_commit`, `processed_comment_ids`, `failing_checks`, `codacy
 4. Increment `loop`; spawn sub-agent with worker prompt (below).
 5. Merge worker JSON into state; goto 1. **Do not stop** after one worker unless DONE or `blocked`.
 
-Workers **do not** run `--watch`. Orchestrator may use `--watch --timeout 600` once per session between loops, not inside workers.
+Workers **do not** run `--watch`. Orchestrator may use `--watch --timeout 600` once per session between loops only for required CI/checks or an active CodeRabbit review that is already running. Do not watch for CodeRabbit no-start/skipped/rate-limit/credit/auth/service states; mark CodeRabbit unavailable and rely on local sub-agent review unless actionable CodeRabbit comments already exist.
 
 ## Worker prompt (fill placeholders)
 

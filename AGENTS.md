@@ -15,11 +15,18 @@
 - Options object for 3+ params, optional flags, or ambiguous args.
 - Hypothesis-driven debugging: 1-3 causes, validate most likely first.
 
+## Verified execution
+
+- Evidence before claims: verify mutable, remote, tool, and runtime state from the source of truth before acting or reporting.
+- High-impact actions need preflight plus post-action verification; do not bypass protected safeguards without explicit authorization.
+- User-caught repeatable mistakes are workflow bugs. Update the smallest relevant AGENTS/rule/runbook/skill and prefer references over long prose.
+
 ## Token efficiency
 
 - Skip recaps unless the result is ambiguous or you need more input.
+- Instruction files are context budget: keep `AGENTS.md` for always-on rules only, `.mdc` files focused and scoped, skills/runbooks procedural and loaded on demand, and prefer references over duplicated prose.
 - **Cursor rules** ([Cursor docs](https://cursor.com/docs/rules)): keep each `.mdc` **focused, actionable, well-scoped** — **reference** code or docs instead of duplicating prose (official guidance allows up to **500 lines per rule**; stay **well below** that). Prefer **`globs` + `alwaysApply: false`**; use **`alwaysApply: true`** only for short universal policy. **Cite** `.cursor/rules/…` paths; do not paste full rule bodies (including in **sub-agent** prompts). **`@tdd`** for strict test-first.
-- **Which rule:** `.coderabbit.yaml` (CodeRabbit on PRs) + `coderabbit-review.mdc` (same expectations for local agents / `cr review`). `source-faithful-implementation.mdc` (when user provides exact code, screenshots, Tailwind Plus/UI blocks, Figma, docs, or local vendor source to use). `pr-agent-reviews-loop.mdc` (long review-bot loops: one work unit at a time). `sonarqube-review.mdc` (SonarQube MCP triage; app style/design rules win over generic code smells). `package-first-simple.mdc` (always-on simple-code/package gate). `nextjs-node-server-2026.mdc` (Next cache/DB/runtime, `src/app` + `src/libs`). `e2e-verification.mdc` (`test:e2e` gate). `dev-browser-auth.mdc` (local `/api/dev-login` for Cursor browser agents only). `tdd.mdc` (`tests/**`, `*.test.*`). `agent-workflow.mdc` (inspect-first, `src/**`). `admin-list-usability.mdc` (admin tables/actions/mobile row usability). `ui-color-tokens.mdc` (MIT color tokens, contrast, auth/admin links). `dates-us-eastern.mdc` (venue US Eastern; `I18n.ts` `timeZone`). `mitsailing-single-tenant-chrome.mdc` (chrome copy).
+- **Which rule:** `.coderabbit.yaml` (CodeRabbit on PRs) + `coderabbit-review.mdc` (same expectations for local agents / `cr review`). `source-faithful-implementation.mdc` (when user provides exact code, screenshots, Tailwind Plus/UI blocks, Figma, docs, or local vendor source to use). The merge-readiness blocker is incomplete local AI review: required personas not run, persona findings not fixed/classified, independent local code review not run, or local review findings not fixed/classified. CodeRabbit blocks only while a review is actively running/pending or when completed actionable comments exist; CodeRabbit no-start/skipped/credit/rate-limit/auth/service failure is not a blocker unless repository policy explicitly requires it, so use local sub-agent review instead. When disabling CodeRabbit as a blocking PR status, set `reviews.commit_status: false`; `fail_commit_status: false` alone still allows red rate-limit statuses when `commit_status` is enabled. `pr-agent-reviews-loop.mdc` (long review-bot loops: one work unit at a time). `sonarqube-review.mdc` (SonarQube MCP triage; app style/design rules win over generic code smells). `package-first-simple.mdc` (always-on simple-code/package gate). `nextjs-node-server-2026.mdc` (Next cache/DB/runtime, `src/app` + `src/libs`). `e2e-verification.mdc` (`test:e2e` gate). `dev-browser-auth.mdc` (local `/api/dev-login` for Cursor browser agents only). `tdd.mdc` (`tests/**`, `*.test.*`). `agent-workflow.mdc` (inspect-first, `src/**`). `admin-list-usability.mdc` (admin tables/actions/mobile row usability). `ui-color-tokens.mdc` (MIT color tokens, contrast, auth/admin links). `dates-us-eastern.mdc` (venue US Eastern; `I18n.ts` `timeZone`). `mitsailing-single-tenant-chrome.mdc` (chrome copy).
 - **Prod → local DB:** `.cursor/skills/pgsync-prod-to-local/SKILL.md` (`.pgsync.yml`, optional `PGSYNC_FROM_URL` in `.env`).
 
 ## Commands
@@ -64,6 +71,7 @@ For **Cursor browser MCP** or manual agent browsing on **`npm run dev`** only �
 ## Git Commits
 
 Conventional Commits: `type: summary` without scope. The summary should be a short, specific sentence that explains what changed and where or why, not a vague phrase. Types: `feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert`. `BREAKING CHANGE:` footer when needed.
+For GitHub squash merges, use the PR title as the squash commit title and preserve GitHub's PR suffix, for example `feat: add payment onboarding (#123)`. Do not override the squash title with a plain sentence that drops the type or PR number.
 
 ## Env
 
