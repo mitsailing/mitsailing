@@ -595,6 +595,10 @@ Maintain this state ledger only:
 - Journey map, if this PR crosses actors, emails, admin surfaces, or async work
 - Persona matrix file path, if this PR touches UI, admin, onboarding, journey,
   or capability-gated behavior
+- Persona gate status: every selected persona run, evidence captured, and
+  findings fixed or classified
+- Local code review gate status: independent bug review run, findings fixed or
+  classified
 - Agent assignments
 - One-paragraph result per agent
 - Product judgment queue
@@ -608,6 +612,9 @@ transcripts. Ask agents to compress into evidence-backed summaries.
 Classification rules:
 - PR blocker: failing CI/check, actionable review comment, security or
   reliability issue, or broken user workflow introduced by this PR.
+- PR process blocker: required persona missing, persona acceptance check not
+  run, local independent bug review missing, or any persona/local-review finding
+  still unclassified or unfixed.
 - Follow-up issue: real migration gap or UX improvement not required for this
   PR.
 - Won't fix: stale or noisy analyzer item, generic smell conflicting with repo
@@ -645,6 +652,15 @@ Acceptance rules:
 - No broad refactors.
 - No worker may change its role, widen scope, or spawn follow-up work.
 - No merge-readiness recommendation before independent bug review completes.
+- No merge-readiness recommendation before every selected persona has run and
+  every persona finding is fixed, classified as follow-up/won't-fix with
+  evidence, or escalated and decided by the user.
+- No merge-readiness recommendation while any local independent code review
+  finding is unclassified, unfixed, or lacks evidence for a non-blocking
+  classification.
+- GitHub review comments, bot comments, and unresolved threads are inputs to
+  the local review/persona gates. Use them when helpful, but the blocker is the
+  unresolved finding, not the bot or service itself.
 - No concurrent writes to the same files by multiple workers.
 - No second writer starts until the first writer's diff is summarized in the
   ledger.
@@ -662,6 +678,9 @@ Acceptance rules:
   be triaged and fixed or classified, but a credit, rate-limit, stale, or
   unavailable CodeRabbit status does not block merge readiness after local
   independent review and required non-CodeRabbit checks pass.
+- If CodeRabbit is actively running, wait for the run to finish before final
+  classification. If it fails to run because of credits/rate limits/service
+  state, record that fact and complete the local review/persona gates instead.
 
 Final output:
 - What was fixed.
@@ -987,6 +1006,11 @@ Task:
 - Verify confirmed blockers are addressed.
 - Verify independent bug review completed and any confirmed findings were fixed
   or explicitly deferred with user approval.
+- Verify the persona matrix gate is complete: every selected persona has run,
+  every executable acceptance check has evidence, and every persona finding is
+  fixed or classified with user-approved follow-up/deferral when needed.
+- Verify GitHub comments and unresolved threads were inspected and folded into
+  the blocker list or explicitly classified as non-blocking with evidence.
 - Check changed UI against persona findings and impeccable categories.
 - For journey PRs, check actor handoffs, web UI states, admin states, emails,
   background-job transitions, prerequisite gates, capability gates,
@@ -1013,7 +1037,11 @@ Output contract:
 - Pass/fail per command.
 - Files reviewed.
 - Journey evidence reviewed, if applicable.
+- Persona gate result: matrix path, selected personas, run status, unresolved
+  findings, and evidence paths.
 - Independent bug review result.
+- Local review gate result: reviewer identity/agent, findings fixed,
+  non-blocking classifications, and unresolved findings.
 - Remaining risks.
 - Local HEAD and PR head match, or exact divergence.
 - Required branch checks versus advisory checks.
@@ -1576,6 +1604,10 @@ Validation checks:
 
 - persona matrix file was written, reviewed, and reloaded before
   implementation;
+- every selected persona ran before merge readiness, and all persona findings
+  were fixed or classified with evidence;
+- independent local code review ran before merge readiness, and all local
+  review findings were fixed or classified with evidence;
 - actor sessions were isolated;
 - Mailpit evidence was captured when email was in scope;
 - the context packet was enough for a worker to proceed without broad history;
@@ -1626,6 +1658,12 @@ Avoid these:
 A run is complete when:
 
 - All confirmed PR blockers are fixed or classified with evidence.
+- All selected personas have run, produced evidence, and have no unclassified or
+  unresolved PR-blocking findings.
+- Independent local code review has run and has no unclassified or unresolved
+  PR-blocking findings.
+- GitHub review comments and unresolved threads were inspected and either fixed,
+  folded into the blocker list, or classified as non-blocking with evidence.
 - Product judgment questions are answered or explicitly deferred.
 - Targeted tests for changed behavior pass.
 - Required local checks pass, or failures are documented as unrelated with

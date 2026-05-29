@@ -24,6 +24,21 @@ Reason:
 | Independent bug review | Always before merge-readiness claim | Pending | `packets/03-bug-review.md` | |
 | Final verification | Always before final answer | Pending | `packets/04-final-verification.md` | |
 
+## Local Review Gates
+
+Merge readiness is blocked until every required gate is `Done` and every
+finding is fixed or classified with evidence. GitHub comments may be used as
+inputs, but this local gate is the source of truth for AI review completion.
+
+| Gate | Required when | Status | Evidence | Unresolved findings |
+| --- | --- | --- | --- | --- |
+| Persona matrix written and user-reviewed | UI, journey, admin, onboarding, or capability-gated PRs | Pending | | |
+| Selected personas executed | UI, journey, admin, onboarding, or capability-gated PRs | Pending | | |
+| Persona findings fixed/classified | UI, journey, admin, onboarding, or capability-gated PRs | Pending | | |
+| Independent local bug review executed | Every code-changing PR | Pending | | |
+| Local review findings fixed/classified | Every code-changing PR | Pending | | |
+| GitHub comments/threads inspected | Every PR with comments or requested changes | Pending | | |
+
 ## Run Artifacts
 
 Persona matrix:
@@ -82,6 +97,9 @@ a local draft is promoted, mark the draft `promoted`; if rejected, mark it
 Local HEAD:
 PR head:
 Unpushed changes:
+Persona gate:
+Independent local review gate:
+GitHub comments/thread gate:
 Commitlint:
 Signed commits or branch protection satisfied:
 Review approval:

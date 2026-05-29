@@ -19,8 +19,8 @@ Use when asked to harden, finish, production-shape, review, or review-bot-cycle 
 - Push after the commit when the user's request is to fix an existing PR or rerun remote review/checks, because remote CI, Sonar, Codacy, and review bots cannot validate unpushed work. Do not push only for explicitly local-only requests or when blocked by credentials, ambiguous scope, failing verification, or unrelated changes that make the push unsafe.
 - Create follow-up automation only after a successful push to GitHub and only when CI/checks are pending or expected to rerun. Use a short one-shot thread heartbeat, normally 10 minutes, unless the user asks for a different cadence.
 - Never merge the PR. Never use destructive git commands.
-- For high-impact actions outside this skill's default scope, such as a user explicitly ordering a merge or protected-branch repair, use verified execution: query GitHub/source-of-truth state first, state assumptions separately, preflight allowed actions and expected visible results, then verify the actual remote result before claiming success.
-- When a user catches a process failure, treat it as a workflow bug. Identify the failed assumption, update `AGENTS.md`, this skill, or the relevant runbook when the lesson is reusable, and continue from the corrected state.
+- For user-requested merge or protected-branch repair, run the verified-execution preflight in `AGENTS.md` and `docs/ai/pr-agent-orchestration.md`.
+- User-caught repeatable mistakes are workflow bugs. Update the smallest relevant instruction file; prefer references over long prose.
 
 ## Credit And Context Controls
 
@@ -35,6 +35,12 @@ Apply these controls before doing extra analysis or spawning agents:
 Do not poll GitHub or CI in-session. After the last successful push in finish mode, use a thread heartbeat automation for the next check-in; otherwise write the handoff and stop.
 
 CodeRabbit blocks only while a review is actively running/pending or when completed actionable comments exist. CodeRabbit no-start/skipped/credit/rate-limit/auth/service failure is noise. Do not wait, re-run, poll, schedule, or block merge readiness on that outage state. Run local adversarial sub-agent review instead. Existing actionable CodeRabbit comments still get triaged and fixed or classified like any other review comment.
+
+The primary AI review gate is local, not CodeRabbit. Merge readiness is blocked
+until every required persona has run, every persona finding is fixed or
+classified with evidence, independent local bug review has run, and every local
+review finding is fixed or classified with evidence. Use GitHub comments and
+review threads as inputs when helpful.
 
 ## Start
 
@@ -135,8 +141,11 @@ When verification passes:
 4. Push the PR branch when this run is for an existing PR, PR comments, review-bot findings, or remote checks.
 5. Refresh PR status once after push, then either continue a new fix loop for immediate failures, create a heartbeat for pending checks, or move to merge-readiness checks.
 6. Before reporting merge readiness, fetch the base branch, rebase the PR branch on current `origin/main`, rerun or wait for the required verification, and record the allowed GitHub merge method from branch protection.
-7. For squash-only repositories, preserve the PR-shaped squash title that GitHub displays on `main`: conventional type prefix plus the `(#PR)` suffix. Do not override the title with a plain sentence that drops the type or PR number.
-8. Before a merge or merge-readiness claim, query the PR, checks, ruleset or protection summary, and the expected squash commit title. After merge, query the PR and associated commit/PR linkage before saying it merged correctly.
+7. Before reporting merge readiness, verify the local AI review gates in the
+   conductor ledger: required personas complete, persona findings resolved or
+   classified, independent bug review complete, and local review findings
+   resolved or classified.
+8. For squash-only repositories, preserve the visible PR-shaped squash title, including conventional type and `(#PR)` suffix, then verify the associated commit after merge.
 
 If any step cannot be done safely, say exactly why, update the handoff with the next command, and do not call the local-only state "done."
 

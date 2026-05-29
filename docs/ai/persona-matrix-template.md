@@ -14,6 +14,12 @@ runs. Copy it to `local/agent-runs/pr-<number>/personas.md`, or to
 `local/agent-runs/<branch-slug>/personas.md` before a PR number exists. Do not
 commit PR-specific persona files unless the user explicitly asks.
 
+Merge readiness is blocked until every selected persona row has been run, has
+evidence for its executable acceptance check, and has each finding classified as
+`PR blocker`, `follow-up`, `won't fix`, or `needs product judgment`. `PR
+blocker` findings must be fixed before merge readiness. `needs product
+judgment` blocks until the user decides or explicitly defers it.
+
 ## Personas
 
 | Persona ID | Persona | Actor/session | Goal | Status | Current path | Seeded data | Prerequisite gates | Blocked-state assertion | Eligibility transition | Eligible-state assertion | Staff/admin handoff | Evidence source | Finding classification | Owner issue or durable doc |
@@ -24,6 +30,17 @@ commit PR-specific persona files unless the user explicitly asks.
 | pavilion-rental-payment-question | Pavilion rental requester | Separate public or authenticated user session | Understand how to pay for a pavilion rental | Supported if clear copy exists | Pavilion rental inquiry or reservation path | Rental request data | Payment is manual | UI must not imply online payment is available | Staff/manual payment next step is shown | User knows who follows up or how manual payment happens | Staff handles payment manually | Playwright, screenshot, copy review | Needs verification | |
 
 ## Status Labels
+
+Suggested run-status values:
+
+- `Selected`: this persona applies to the PR and must run.
+- `Running`: a sub-agent or manual pass is currently evaluating it.
+- `Done`: evidence is captured and findings are classified.
+- `Skipped`: not applicable, with a short reason in the evidence/source column.
+- `Blocked`: cannot complete without a user decision, credentials, data, or a
+  prerequisite fix.
+
+Product support labels:
 
 - `Supported`: implemented and verified.
 - `Partially supported`: some path exists, but required workflow coverage is incomplete.
