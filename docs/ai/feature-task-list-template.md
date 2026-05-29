@@ -21,6 +21,10 @@ What user or staff outcome should exist when this feature is complete?
 
 What should agents avoid building in this feature?
 
+For membership pricing work, pavilion rental online payment is a non-goal
+unless the user explicitly adds it. Pavilion rental payment is manual; personas
+should verify that users are told the manual payment next step clearly.
+
 ## Tasks
 
 | Task | Status | Source | Owner PR/issue | Acceptance evidence |

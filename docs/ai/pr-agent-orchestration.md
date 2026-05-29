@@ -125,6 +125,7 @@ ignored local files.
 | Artifact | Default path | Committed | Purpose |
 | --- | --- | --- | --- |
 | Runbook | `docs/ai/pr-agent-orchestration.md` | Yes | Stable process and worker contracts. |
+| PM manager runbook | `docs/ai/pm-manager-runbook.md` | Yes | Portfolio, issue, milestone, and AI learning workflow. |
 | Conductor ledger template | `docs/ai/pr-run-ledger-template.md` | Yes | Reusable shape for PR state. |
 | Persona matrix template | `docs/ai/persona-matrix-template.md` | Yes | Reusable executable persona schema. |
 | Feature task-list template | `docs/ai/feature-task-list-template.md` | Yes | Reusable GitHub parent issue shape for multi-PR features. |
