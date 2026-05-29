@@ -24,6 +24,21 @@ function homePageBlock(id: string) {
   return homePage?.blocks.find((block) => block.id === id);
 }
 
+function homeOverviewSteps() {
+  const overviewBlock = homePageBlock('cms-block-home-overview');
+  const overview: unknown = JSON.parse(overviewBlock?.body ?? '{}');
+  const steps = objectProperty(overview, 'steps');
+  return unknownArray(steps);
+}
+
+function homePricing() {
+  const pricingBlock = homePageBlock('cms-block-home-membership-pricing');
+  return {
+    block: pricingBlock,
+    pricing: parseCmsPricingBody(pricingBlock?.body),
+  };
+}
+
 describe('orderedCmsSeedMenuItems', () => {
   it('orders parents before children', () => {
     const menu = {
@@ -137,21 +152,6 @@ describe('orderedCmsSeedMenuItems', () => {
 });
 
 describe('cms seed membership pricing', () => {
-  function homeOverviewSteps() {
-    const overviewBlock = homePageBlock('cms-block-home-overview');
-    const overview: unknown = JSON.parse(overviewBlock?.body ?? '{}');
-    const steps = objectProperty(overview, 'steps');
-    return unknownArray(steps);
-  }
-
-  function homePricing() {
-    const pricingBlock = homePageBlock('cms-block-home-membership-pricing');
-    return {
-      block: pricingBlock,
-      pricing: parseCmsPricingBody(pricingBlock?.body),
-    };
-  }
-
   it('keeps the home getting-started step from hiding paid racing paths', () => {
     const steps =
       objectProperty(homeOverviewSteps().at(0), 'description') ?? '';

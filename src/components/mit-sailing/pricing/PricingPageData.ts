@@ -28,7 +28,7 @@ export type PricingPlan = {
   readonly over30?: string;
 };
 
-const gymRateRowKeys = [
+const gymRateRowKeyParts = [
   [
     'pricing_chart_gym_rate_mit_student',
     'pricing_chart_gym_individual_mit_student',
@@ -103,7 +103,7 @@ const racingClassNames = [
 export function useGymRateRows() {
   const t = useTranslations('PricingPage');
 
-  return gymRateRowKeys.map(([category, individual, family, note]) => ({
+  return gymRateRowKeyParts.map(([category, individual, family, note]) => ({
     category: t(category),
     individual: t(individual),
     family: t(family),

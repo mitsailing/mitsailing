@@ -322,12 +322,12 @@ function PricingPlanSummary(props: {
   return (
     <div className="flex h-full flex-col gap-5">
       <div>
-        <h3
+        <h2
           className="text-base leading-7 font-semibold text-mit-text"
           id={planId}
         >
           {props.plan.name}
-        </h3>
+        </h2>
         <p className="mt-3 text-sm leading-6 font-normal text-muted-foreground">
           {props.plan.description}
         </p>
