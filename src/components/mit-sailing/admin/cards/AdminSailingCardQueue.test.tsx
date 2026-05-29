@@ -379,4 +379,67 @@ describe('AdminSailingCardQueue', () => {
 
     expect(screen.getByText('Card #42 for 2027')).toBeInTheDocument();
   });
+
+  it('requires payment bypass note for team racing cards without payment', () => {
+    render(
+      <AdminSailingCardIssueForm
+        action={vi.fn()}
+        cardType={SailingCardType.team_racing}
+        locale="en"
+        paymentAccess="none"
+        suggestedCardNumber={60}
+        userId="user-1"
+      />
+    );
+
+    const note = screen.getByLabelText('Payment bypass note');
+    expect(note).toHaveAttribute('name', 'paymentBypassNote');
+    expect(note).toBeRequired();
+  });
+
+  it('omits payment bypass note for normal cards without payment', () => {
+    render(
+      <AdminSailingCardIssueForm
+        action={vi.fn()}
+        cardType={SailingCardType.normal}
+        locale="en"
+        paymentAccess="none"
+        suggestedCardNumber={60}
+        userId="user-1"
+      />
+    );
+
+    expect(screen.queryByLabelText('Payment bypass note')).toBeNull();
+  });
+
+  it('shows paid payment access status without highlighting', () => {
+    render(
+      <AdminSailingCardQueue
+        canAssignCards
+        locale="en"
+        rows={[
+          {
+            ...queueRow,
+            paymentAccess: 'paid',
+          },
+        ]}
+        suggestedCardNumber={60}
+      />
+    );
+
+    expect(screen.getByText('Paid')).toBeInTheDocument();
+  });
+
+  it('shows empty queue message when there are no pending requests', () => {
+    render(
+      <AdminSailingCardQueue
+        canAssignCards
+        locale="en"
+        rows={[]}
+        suggestedCardNumber={60}
+      />
+    );
+
+    expect(screen.getByText('No pending card requests.')).toBeInTheDocument();
+  });
 });

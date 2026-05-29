@@ -281,6 +281,57 @@ describe('EventPaymentCheckout', () => {
     });
   });
 
+  it('shows handled state without a Stripe checkout for needs_review payments', () => {
+    render(
+      <EventPaymentCheckout
+        clientSecretAction={vi.fn(defaultClientSecretAction)}
+        labels={labels}
+        payment={{
+          amount: '$120.00',
+          receiptUrl: null,
+          status: 'needs_review',
+          statusLabel: 'Needs review',
+        }}
+        publishableKey="pk_test_checkout"
+        title="Pay for Intro Sail"
+      />
+    );
+
+    expect(
+      screen.getByRole('heading', { name: 'Payment handled' })
+    ).toBeVisible();
+    expect(
+      screen.getByText('This payment has already been handled.')
+    ).toBeVisible();
+    expect(stripeMocks.loadStripe).not.toHaveBeenCalled();
+    expect(stripeMocks.createEmbeddedCheckoutPage).not.toHaveBeenCalled();
+  });
+
+  it('shows handled state without a receipt link when receipt is absent for terminal payments', () => {
+    render(
+      <EventPaymentCheckout
+        clientSecretAction={vi.fn(defaultClientSecretAction)}
+        labels={labels}
+        payment={{
+          amount: '$25.00',
+          receiptUrl: null,
+          status: 'refunded',
+          statusLabel: 'Refunded',
+        }}
+        publishableKey="pk_test_checkout"
+        title="Pay for Intro Sail"
+      />
+    );
+
+    expect(
+      screen.getByRole('heading', { name: 'Payment handled' })
+    ).toBeVisible();
+    expect(
+      screen.queryByRole('link', { name: 'View receipt' })
+    ).not.toBeInTheDocument();
+    expect(stripeMocks.loadStripe).not.toHaveBeenCalled();
+  });
+
   it('keeps checkout mounted across parent rerenders', async () => {
     const clientSecretAction = vi.fn(defaultClientSecretAction);
     const payment: EventPaymentCheckoutPayment = {
