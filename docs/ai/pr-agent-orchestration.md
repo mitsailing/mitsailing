@@ -388,6 +388,52 @@ Use plain Markdown as the source of truth. Do not create tokenized or binary
 agent context files. If compact context is needed later, generate it from
 human-editable Markdown and do not edit the generated digest by hand.
 
+## Operational policy notes
+
+Some journeys depend on short product or safety rules that should not be
+rediscovered from code every time. Keep those rules as human-editable Markdown,
+either in the parent issue or in a focused docs file referenced by the
+PR-specific context packet.
+
+Policy notes are not long technical documentation. Use this shape:
+
+```markdown
+# Policy name
+
+## Rule
+What must be true.
+
+## Why
+One short reason.
+
+## Applies to
+Pages, emails, jobs, journeys, or staff actions.
+
+## Agent rule
+Do not change this behavior in a cleanup PR. Ask Andrew first.
+```
+
+Example:
+
+```markdown
+# Sailing card assignment prerequisites
+
+## Rule
+Staff assign a sailing card only after the member completes the required
+practical path, such as intro for experienced sailors or one beginner class.
+
+## Why
+Onboarding records intent and agreement data, but it does not prove the member
+is ready for card issuance.
+
+## Applies to
+Onboarding, admin card queue, profile card status, staff card assignment.
+
+## Agent rule
+Do not make onboarding completion automatically unlock card assignment. Ask
+Andrew before changing the prerequisite.
+```
+
 ## Launch prompt
 
 Use this as the default conductor prompt for future PRs:
@@ -1138,6 +1184,49 @@ issue or user explicitly approves that scope.
 
 Collect V2 ideas in the parent journey issue and create `v2-recommendation`
 issues after the current PR is stable.
+
+## PR size and review-bot scope
+
+Keep PRs small enough that humans and bots can review the actual behavior.
+Prefer one child issue or one narrow fix cluster per PR. Do not create a PR for
+"improve all UX" or "fix all agent findings."
+
+During active implementation:
+
+- use a draft PR or WIP title while the branch is not ready;
+- run local verification before asking for another bot review;
+- use CodeRabbit commands deliberately when available, following
+  `.cursor/rules/coderabbit-review.mdc` and
+  `.cursor/rules/pr-agent-reviews-loop.mdc`;
+- if CodeRabbit, Codacy, Sonar, or another bot finds adjacent work, classify it
+  as blocker, follow-up, or won't fix instead of expanding the PR by default.
+
+CodeRabbit churn is not a substitute for local independent review. A PR can
+have a green bot review and still fail this runbook if the independent bug
+review or journey evidence is missing.
+
+## First-run validation
+
+When changing this runbook or applying it to a new class of work, validate it
+on a bounded journey before relying on it for broad cleanup.
+
+Good pilot journeys:
+
+- signup and email verification;
+- password reset;
+- profile email change;
+- event registration approval;
+- sailing-card onboarding to staff-gated card assignment.
+
+Validation checks:
+
+- persona matrix was shown before implementation;
+- actor sessions were isolated;
+- Mailpit evidence was captured when email was in scope;
+- the context packet was enough for a worker to proceed without broad history;
+- CodeRabbit or analyzer feedback did not expand PR scope by default;
+- final verification reviewed journey evidence, independent bug review, and
+  product judgment decisions.
 
 ## Final report format
 
