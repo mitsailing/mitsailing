@@ -5,8 +5,10 @@ import { Prisma } from '@/generated/prisma/client';
 import {
   LegalAgreementAcceptanceSource,
   SailingCardRequestStatus,
+  SailingCardType,
   UserAuditAction,
 } from '@/generated/prisma/enums';
+import type { SailingAffiliation } from '@/generated/prisma/enums';
 import { getNextAvailableSailingCardNumber } from '@/libs/admin/cards/adminSailingCardQueries';
 import { requirePermission } from '@/libs/auth/dal';
 import { Permission } from '@/libs/auth/permissions';
@@ -15,6 +17,7 @@ import {
   sailingCardAgreement,
   sailingCardAgreementHash,
 } from '@/libs/mit-sailing/sailingCardAgreement';
+import { needsFitnessMembershipQuestion } from '@/libs/mit-sailing/sailingCardMembership';
 import {
   getCurrentSailingCardYear,
   getSailingCardExpirationDate,
@@ -27,6 +30,7 @@ type AdminSailingCardFieldErrors = Partial<{
 
 type AdminSailingCardFormError =
   | 'missing_onboarding_agreement'
+  | 'mit_recreation_required'
   | 'no_current_card'
   | 'not_pending_request'
   | 'not_found';
@@ -128,6 +132,8 @@ async function findCurrentPendingSailingCardRequest(props: {
       userId: props.userId,
     },
     select: {
+      cardType: true,
+      hasFitnessMembership: true,
       id: true,
       legalAgreementAcceptance: {
         select: {
@@ -137,9 +143,22 @@ async function findCurrentPendingSailingCardRequest(props: {
           userId: true,
         },
       },
+      sailingAffiliation: true,
     },
   });
   return request;
+}
+
+function requestNeedsFitnessVerification(request: {
+  readonly cardType: SailingCardType;
+  readonly hasFitnessMembership: boolean | null;
+  readonly sailingAffiliation: SailingAffiliation;
+}) {
+  return (
+    request.cardType === SailingCardType.normal &&
+    needsFitnessMembershipQuestion(request.sailingAffiliation) &&
+    request.hasFitnessMembership !== true
+  );
 }
 
 function isSailingCardUniqueError(error: unknown) {
@@ -202,6 +221,48 @@ function revalidateSailingCardAdminPaths(locale: string, userId: string) {
   revalidatePath(getI18nPath('/profile/account', locale));
 }
 
+function hasMatchingOnboardingAgreement(props: {
+  readonly request: NonNullable<
+    Awaited<ReturnType<typeof findCurrentPendingSailingCardRequest>>
+  >;
+  readonly targetUserId: string;
+}) {
+  return (
+    props.request.legalAgreementAcceptance.agreementHash ===
+      sailingCardAgreementHash() &&
+    props.request.legalAgreementAcceptance.agreementVersion ===
+      sailingCardAgreement.version &&
+    props.request.legalAgreementAcceptance.source ===
+      LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING &&
+    props.request.legalAgreementAcceptance.userId === props.targetUserId
+  );
+}
+
+function issueSailingCardErrorState(error: unknown) {
+  if (isSailingCardUniqueError(error)) {
+    return {
+      fieldErrors: { cardNumber: 'duplicate' },
+      status: 'error',
+    } satisfies AdminSailingCardActionState;
+  }
+  if (!(error instanceof Error)) {
+    return null;
+  }
+  if (
+    error.message === 'not_found' ||
+    error.message === 'missing_onboarding_agreement' ||
+    error.message === 'mit_recreation_required' ||
+    error.message === 'not_pending_request'
+  ) {
+    return {
+      fieldErrors: {},
+      formError: error.message,
+      status: 'error',
+    } satisfies AdminSailingCardActionState;
+  }
+  return null;
+}
+
 export async function issueSailingCardAction(
   locale: string,
   targetUserId: string,
@@ -248,16 +309,11 @@ export async function issueSailingCardAction(
       if (request === null) {
         throw new Error('not_pending_request');
       }
-      if (
-        request.legalAgreementAcceptance.agreementHash !==
-          sailingCardAgreementHash() ||
-        request.legalAgreementAcceptance.agreementVersion !==
-          sailingCardAgreement.version ||
-        request.legalAgreementAcceptance.source !==
-          LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING ||
-        request.legalAgreementAcceptance.userId !== targetUserId
-      ) {
+      if (!hasMatchingOnboardingAgreement({ request, targetUserId })) {
         throw new Error('missing_onboarding_agreement');
+      }
+      if (requestNeedsFitnessVerification(request)) {
+        throw new Error('mit_recreation_required');
       }
       const after = {
         ...before,
@@ -314,35 +370,9 @@ export async function issueSailingCardAction(
       });
     });
   } catch (error) {
-    if (isSailingCardUniqueError(error)) {
-      return {
-        fieldErrors: { cardNumber: 'duplicate' },
-        status: 'error',
-      };
-    }
-    if (error instanceof Error && error.message === 'not_found') {
-      return {
-        fieldErrors: {},
-        formError: 'not_found',
-        status: 'error',
-      };
-    }
-    if (
-      error instanceof Error &&
-      error.message === 'missing_onboarding_agreement'
-    ) {
-      return {
-        fieldErrors: {},
-        formError: 'missing_onboarding_agreement',
-        status: 'error',
-      };
-    }
-    if (error instanceof Error && error.message === 'not_pending_request') {
-      return {
-        fieldErrors: {},
-        formError: 'not_pending_request',
-        status: 'error',
-      };
+    const errorState = issueSailingCardErrorState(error);
+    if (errorState) {
+      return errorState;
     }
     throw error;
   }

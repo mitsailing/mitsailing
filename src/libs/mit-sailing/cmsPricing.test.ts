@@ -49,4 +49,27 @@ describe('parseCmsPricingBody', () => {
     });
     expect(parsed?.plans[0]?.linkUrl).toBeUndefined();
   });
+
+  it('keeps safe footnote link urls', () => {
+    const parsed = parseCmsPricingBody(
+      JSON.stringify({
+        footnote: 'Need details?',
+        footnoteLinkLabel: 'See MIT Recreation rates',
+        footnoteLinkUrl: '/pricing',
+        plans: [
+          {
+            title: 'Member',
+            price: '$10',
+            features: ['Sailing'],
+          },
+        ],
+      })
+    );
+
+    expect(parsed).toMatchObject({
+      footnote: 'Need details?',
+      footnoteLinkLabel: 'See MIT Recreation rates',
+      footnoteLinkUrl: '/pricing',
+    });
+  });
 });

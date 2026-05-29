@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Prisma } from '@/generated/prisma/client';
 import {
   LegalAgreementAcceptanceSource,
+  SailingAffiliation,
   SailingCardRequestStatus,
+  SailingCardType,
   UserAuditAction,
 } from '@/generated/prisma/enums';
 import { Permission } from '@/libs/auth/permissions';
@@ -93,6 +95,33 @@ function uniqueCardError(
   });
 }
 
+async function expectIssueCardFormError(options: {
+  readonly cardNumber?: string;
+  readonly formError: string;
+}) {
+  const { issueSailingCardAction } =
+    await import('@/libs/admin/cards/adminSailingCardActions');
+
+  await expect(
+    issueSailingCardAction(
+      'en',
+      'user-1',
+      { fieldErrors: {}, status: 'idle' },
+      formDataWithCardNumber(options.cardNumber ?? '61')
+    )
+  ).resolves.toEqual({
+    fieldErrors: {},
+    formError: options.formError,
+    status: 'error',
+  });
+}
+
+function expectNoCardIssueWrites() {
+  expect(mocks.txSailingCardRequestUpdateMany).not.toHaveBeenCalled();
+  expect(mocks.txUserUpdateMany).not.toHaveBeenCalled();
+  expect(mocks.txUserAuditCreate).not.toHaveBeenCalled();
+}
+
 describe('adminSailingCardActions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -102,6 +131,8 @@ describe('adminSailingCardActions', () => {
     mocks.txUserUpdate.mockResolvedValue({});
     mocks.txUserUpdateMany.mockResolvedValue({ count: 1 });
     mocks.txSailingCardRequestFindFirst.mockResolvedValue({
+      cardType: SailingCardType.normal,
+      hasFitnessMembership: true,
       id: 'request-1',
       legalAgreementAcceptance: {
         agreementHash: sailingCardAgreementHash(),
@@ -109,6 +140,7 @@ describe('adminSailingCardActions', () => {
         source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
         userId: 'user-1',
       },
+      sailingAffiliation: SailingAffiliation.MIT_ALUM,
     });
     mocks.txSailingCardRequestUpdate.mockResolvedValue({});
     mocks.txSailingCardRequestUpdateMany.mockResolvedValue({ count: 1 });
@@ -288,24 +320,10 @@ describe('adminSailingCardActions', () => {
 
   it('does not issue a card when the user has no pending request', async () => {
     mocks.txSailingCardRequestFindFirst.mockResolvedValue(null);
-    const { issueSailingCardAction } =
-      await import('@/libs/admin/cards/adminSailingCardActions');
 
-    await expect(
-      issueSailingCardAction(
-        'en',
-        'user-1',
-        { fieldErrors: {}, status: 'idle' },
-        formDataWithCardNumber('61')
-      )
-    ).resolves.toEqual({
-      fieldErrors: {},
-      formError: 'not_pending_request',
-      status: 'error',
-    });
+    await expectIssueCardFormError({ formError: 'not_pending_request' });
 
-    expect(mocks.txUserUpdateMany).not.toHaveBeenCalled();
-    expect(mocks.txUserAuditCreate).not.toHaveBeenCalled();
+    expectNoCardIssueWrites();
   });
 
   it('does not issue a card over an already issued card', async () => {
@@ -317,24 +335,12 @@ describe('adminSailingCardActions', () => {
       sailingCardNumber: 61,
       sailingCardYear: 2027,
     });
-    const { issueSailingCardAction } =
-      await import('@/libs/admin/cards/adminSailingCardActions');
-
-    await expect(
-      issueSailingCardAction(
-        'en',
-        'user-1',
-        { fieldErrors: {}, status: 'idle' },
-        formDataWithCardNumber('62')
-      )
-    ).resolves.toEqual({
-      fieldErrors: {},
+    await expectIssueCardFormError({
+      cardNumber: '62',
       formError: 'not_pending_request',
-      status: 'error',
     });
 
-    expect(mocks.txUserUpdateMany).not.toHaveBeenCalled();
-    expect(mocks.txUserAuditCreate).not.toHaveBeenCalled();
+    expectNoCardIssueWrites();
   });
 
   it('issues a current-year card over an expired previous-year card', async () => {
@@ -379,24 +385,11 @@ describe('adminSailingCardActions', () => {
         userId: 'user-1',
       },
     });
-    const { issueSailingCardAction } =
-      await import('@/libs/admin/cards/adminSailingCardActions');
-
-    await expect(
-      issueSailingCardAction(
-        'en',
-        'user-1',
-        { fieldErrors: {}, status: 'idle' },
-        formDataWithCardNumber('61')
-      )
-    ).resolves.toEqual({
-      fieldErrors: {},
+    await expectIssueCardFormError({
       formError: 'missing_onboarding_agreement',
-      status: 'error',
     });
 
-    expect(mocks.txUserUpdateMany).not.toHaveBeenCalled();
-    expect(mocks.txUserAuditCreate).not.toHaveBeenCalled();
+    expectNoCardIssueWrites();
   });
 
   it('loads current-year pending request before issuing a card', async () => {
@@ -417,6 +410,8 @@ describe('adminSailingCardActions', () => {
         userId: 'user-1',
       },
       select: {
+        cardType: true,
+        hasFitnessMembership: true,
         id: true,
         legalAgreementAcceptance: {
           select: {
@@ -426,9 +421,46 @@ describe('adminSailingCardActions', () => {
             userId: true,
           },
         },
+        sailingAffiliation: true,
       },
     });
     expect(mocks.txLegalAgreementAcceptanceFindFirst).not.toHaveBeenCalled();
+  });
+
+  it('does not issue normal before mit recreation is verified', async () => {
+    mocks.txSailingCardRequestFindFirst.mockResolvedValue({
+      cardType: SailingCardType.normal,
+      hasFitnessMembership: false,
+      id: 'request-1',
+      legalAgreementAcceptance: {
+        agreementHash: sailingCardAgreementHash(),
+        agreementVersion: sailingCardAgreement.version,
+        source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
+        userId: 'user-1',
+      },
+      sailingAffiliation: SailingAffiliation.MIT_ALUM,
+    });
+    await expectIssueCardFormError({ formError: 'mit_recreation_required' });
+
+    expectNoCardIssueWrites();
+  });
+
+  it('does not issue legacy normal requests before mit recreation is verified', async () => {
+    mocks.txSailingCardRequestFindFirst.mockResolvedValue({
+      cardType: SailingCardType.normal,
+      hasFitnessMembership: null,
+      id: 'request-1',
+      legalAgreementAcceptance: {
+        agreementHash: sailingCardAgreementHash(),
+        agreementVersion: sailingCardAgreement.version,
+        source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
+        userId: 'user-1',
+      },
+      sailingAffiliation: SailingAffiliation.MIT_ALUM,
+    });
+    await expectIssueCardFormError({ formError: 'mit_recreation_required' });
+
+    expectNoCardIssueWrites();
   });
 
   it('issuing a card sets yearly card fields without requiring initials', async () => {

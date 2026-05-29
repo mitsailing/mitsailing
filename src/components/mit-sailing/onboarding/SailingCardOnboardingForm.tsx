@@ -33,6 +33,7 @@ export function SailingCardOnboardingForm(
         cardTypeValue={model.cardTypeValue}
         dateOfBirthValue={model.dateOfBirthValue}
         fitnessMembershipReady={model.fitnessMembershipReady}
+        hasFitnessMembershipValue={model.hasFitnessMembershipValue}
         identityComplete={model.identityComplete}
         isPending={model.isPending}
         lockedIdentity={model.lockedIdentity}

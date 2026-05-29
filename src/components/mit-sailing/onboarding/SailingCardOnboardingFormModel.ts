@@ -140,6 +140,7 @@ const shouldShowDetails = (props: {
       'dateOfBirth',
       'emergencyContactName',
       'emergencyContactPhone',
+      'hasFitnessMembership',
       'phone',
       'swimAgreementAccepted',
     ])
@@ -305,6 +306,7 @@ export function useSailingCardOnboardingFormModel(
       hasFitnessMembershipValue: values.hasFitnessMembershipValue,
     }),
     form: runtime.form,
+    hasFitnessMembershipValue: values.hasFitnessMembershipValue,
     handleContinueIdentity: runtime.handleContinueIdentity,
     handleSubmit: runtime.handleSubmit,
     identityComplete: identity.identityComplete,

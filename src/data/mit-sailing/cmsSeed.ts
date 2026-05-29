@@ -29,6 +29,41 @@ export type CmsSeedPage = {
   }[];
 };
 
+type CmsSeedBlock = CmsSeedPage['blocks'][number];
+
+function cmsHeroBlock(props: {
+  readonly body: string;
+  readonly id: string;
+  readonly title: string;
+}): CmsSeedBlock {
+  return {
+    body: props.body,
+    displayOrder: 0,
+    id: props.id,
+    isVisible: true,
+    kind: 'hero',
+    title: props.title,
+  };
+}
+
+function cmsTextSectionBlock(props: {
+  readonly body: string;
+  readonly displayOrder: number;
+  readonly id: string;
+  readonly subtitle?: string;
+  readonly title: string;
+}): CmsSeedBlock {
+  return {
+    body: props.body,
+    displayOrder: props.displayOrder,
+    id: props.id,
+    isVisible: true,
+    kind: 'text_section',
+    subtitle: props.subtitle,
+    title: props.title,
+  };
+}
+
 export type CmsSeedMenu = {
   id: string;
   location: 'header' | 'mobile_utility' | 'footer' | 'legal' | 'social';
@@ -162,7 +197,7 @@ export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
               {
                 title: 'Create your account',
                 description:
-                  'Free for MIT students. Alumni and public need an MIT Rec membership.',
+                  'MIT students and MIT Recreation members get Normal included, including Charles River racing. Others can compare paid racing cards before requesting a card.',
               },
               {
                 title: 'Take a beginner class',
@@ -190,68 +225,78 @@ export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
       {
         id: 'cms-block-home-membership-pricing',
         kind: 'pricing',
-        title: 'Membership Options',
-        subtitle:
-          'MIT Sailing is open to the entire MIT community and the general public.',
+        title: 'Pricing',
+        subtitle: 'Choose the card that matches what you want to sail.',
         body: JSON.stringify(
           {
-            footnote:
-              'Full membership details and MIT Fitness info available from the pavilion.',
+            footnoteLinkLabel: 'See MIT Recreation rates',
+            footnoteLinkUrl: '/pricing',
             plans: [
               {
-                title: 'MIT Students',
-                description: 'Enrolled MIT students',
+                title: 'Normal',
+                description: 'Pavilion, classes, ratings, racing, Mashnee.',
                 price: 'Free',
-                badge: 'Most Common',
-                highlighted: true,
-                linkLabel: 'Create account',
-                linkUrl: '/signup',
+                priceRows: [
+                  { label: 'MIT student', value: 'Free' },
+                  { label: 'MIT Recreation member', value: 'Free' },
+                ],
+                linkLabel: 'Sign up',
+                linkUrl: '/signup?callbackUrl=%2Fonboarding',
                 features: [
-                  'Full access to all boats',
-                  'All classes and clinics',
-                  'Independent sailing rights',
-                  'Sailing Team eligibility',
+                  'Normal access to Pavilion sailing, classes, ratings, racing, and Mashnee.',
+                  'MIT students qualify automatically.',
+                  'MIT Recreation members qualify with an active membership.',
                 ],
               },
               {
-                title: 'Faculty and Staff',
-                description: 'Requires MIT Rec membership',
-                price: 'Free',
-                frequency: 'with MIT Rec',
-                linkLabel: 'Create account',
-                linkUrl: '/signup',
+                title: 'Spring racing card',
+                description:
+                  'For regular Pavilion racing from April 1 through July 14.',
+                price: '$25',
+                priceRows: [
+                  { label: 'Non-MIT student', value: '$25' },
+                  { label: 'Under 30', value: '$70' },
+                  { label: '30+', value: '$100' },
+                ],
+                linkLabel: 'Sign up',
+                linkUrl: '/signup?callbackUrl=%2Fonboarding',
                 features: [
-                  'Full access to all boats',
-                  'All classes and clinics',
-                  'Independent sailing after rating',
+                  'Regular Pavilion racing from April 1 through July 14.',
+                  'Race-related classes included.',
+                  'Renews with all cards on July 15.',
                 ],
               },
               {
-                title: 'Alumni',
-                description: 'MIT alumni — via MIT Fitness',
-                price: '$64',
-                frequency: '/ month',
-                linkLabel: 'Create account',
-                linkUrl: '/signup',
+                title: 'Full-year racing card',
+                description: 'Regular Pavilion racing for the full card year.',
+                price: '$40',
+                priceRows: [
+                  { label: 'Non-MIT student', value: '$40' },
+                  { label: 'Under 30', value: '$125' },
+                  { label: '30+', value: '$175' },
+                ],
+                linkLabel: 'Sign up',
+                linkUrl: '/signup?callbackUrl=%2Fonboarding',
                 features: [
-                  'Full access to all boats',
-                  'All classes and clinics',
-                  'Independent sailing after rating',
-                  'MIT Fitness facility access',
+                  'Regular Pavilion racing for the full card year.',
+                  'Race-related classes included.',
+                  'Does not include Thursday team racing.',
                 ],
               },
               {
-                title: 'General Public',
-                description: 'Non-MIT community',
-                price: '$90',
-                frequency: '/ month',
-                linkLabel: 'Create account',
-                linkUrl: '/signup',
+                title: 'Thursday team racing',
+                description: 'For Thursday team racing on the Charles River.',
+                price: '$25',
+                priceRows: [
+                  { label: 'Non-MIT student', value: '$25' },
+                  { label: 'Under 30', value: '$70' },
+                  { label: '30+', value: '$100' },
+                ],
+                linkLabel: 'Sign up',
+                linkUrl: '/signup?callbackUrl=%2Fonboarding',
                 features: [
-                  'Full access to all boats',
-                  'All classes and clinics',
-                  'Independent sailing after rating',
-                  'MIT Fitness facility access',
+                  'Thursday team racing on the Charles River.',
+                  'No regular Pavilion racing.',
                 ],
               },
             ],
@@ -372,41 +417,32 @@ export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
     metaDescription:
       'Sample privacy information for MIT Sailing website visitors and program participants.',
     blocks: [
-      {
-        id: 'cms-block-privacy-hero',
-        kind: 'hero',
-        title: 'Privacy',
+      cmsHeroBlock({
         body: 'Sample content: This page describes how MIT Sailing may collect, use, and manage information for website visitors, class participants, volunteers, and event guests.',
-        displayOrder: 0,
-        isVisible: true,
-      },
-      {
-        id: 'cms-block-privacy-information',
-        kind: 'text_section',
-        title: 'Information we collect',
-        subtitle: 'Sample content',
+        id: 'cms-block-privacy-hero',
+        title: 'Privacy',
+      }),
+      cmsTextSectionBlock({
         body: 'We may collect information that you provide when you register for programs, contact the Pavilion, make a donation inquiry, or sign up for updates. This may include your name, email address, MIT affiliation, program interests, and messages sent through site forms.\n\nWe may also collect basic technical information, such as browser type, device information, referring pages, and pages visited, to help keep the website reliable and useful.',
         displayOrder: 10,
-        isVisible: true,
-      },
-      {
-        id: 'cms-block-privacy-use',
-        kind: 'text_section',
-        title: 'How we use information',
+        id: 'cms-block-privacy-information',
         subtitle: 'Sample content',
+        title: 'Information we collect',
+      }),
+      cmsTextSectionBlock({
         body: 'We use information to respond to requests, coordinate classes and events, maintain safety and membership records, improve website content, and support MIT Sailing operations.\n\nWe do not use sample website content as legal guidance. Production privacy language should be reviewed by the appropriate MIT offices before publication.',
         displayOrder: 20,
-        isVisible: true,
-      },
-      {
-        id: 'cms-block-privacy-requests',
-        kind: 'text_section',
-        title: 'Questions and update requests',
+        id: 'cms-block-privacy-use',
         subtitle: 'Sample content',
+        title: 'How we use information',
+      }),
+      cmsTextSectionBlock({
         body: 'If you have questions about information associated with MIT Sailing programs, contact the Pavilion staff. We will route requests to the appropriate team when records are managed by another MIT office or service provider.',
         displayOrder: 30,
-        isVisible: true,
-      },
+        id: 'cms-block-privacy-requests',
+        subtitle: 'Sample content',
+        title: 'Questions and update requests',
+      }),
     ],
   },
   {
@@ -419,41 +455,32 @@ export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
     metaDescription:
       'Sample terms for using MIT Sailing website content, programs, and facilities.',
     blocks: [
-      {
-        id: 'cms-block-terms-hero',
-        kind: 'hero',
-        title: 'Terms',
+      cmsHeroBlock({
         body: 'Sample content: These terms outline expected use of MIT Sailing website information, program materials, and public communications.',
-        displayOrder: 0,
-        isVisible: true,
-      },
-      {
-        id: 'cms-block-terms-use',
-        kind: 'text_section',
-        title: 'Acceptable use',
-        subtitle: 'Sample content',
+        id: 'cms-block-terms-hero',
+        title: 'Terms',
+      }),
+      cmsTextSectionBlock({
         body: 'Use this website for lawful, respectful, and appropriate purposes related to MIT Sailing programs, facilities, events, and community information.\n\nDo not attempt to disrupt the site, misuse forms, submit misleading information, or interfere with another person using MIT Sailing services.',
         displayOrder: 10,
-        isVisible: true,
-      },
-      {
-        id: 'cms-block-terms-participation',
-        kind: 'text_section',
-        title: 'Program and facility participation',
+        id: 'cms-block-terms-use',
         subtitle: 'Sample content',
+        title: 'Acceptable use',
+      }),
+      cmsTextSectionBlock({
         body: 'Participation in sailing classes, fleet use, racing, volunteering, and Pavilion events may require eligibility confirmation, safety briefings, waivers, training, or staff approval.\n\nPosted website information does not replace on-site instructions, class requirements, MIT policies, or directions from Pavilion staff.',
         displayOrder: 20,
-        isVisible: true,
-      },
-      {
-        id: 'cms-block-terms-accuracy',
-        kind: 'text_section',
-        title: 'Content accuracy',
+        id: 'cms-block-terms-participation',
         subtitle: 'Sample content',
+        title: 'Program and facility participation',
+      }),
+      cmsTextSectionBlock({
         body: 'We work to keep schedules, class descriptions, fleet details, and public information current, but details may change due to weather, staffing, maintenance, or operational needs.\n\nProduction terms should be reviewed by the appropriate MIT offices before publication.',
         displayOrder: 30,
-        isVisible: true,
-      },
+        id: 'cms-block-terms-accuracy',
+        subtitle: 'Sample content',
+        title: 'Content accuracy',
+      }),
     ],
   },
   {
@@ -466,41 +493,32 @@ export const CMS_PAGE_SEED_ROWS: readonly CmsSeedPage[] = [
     metaDescription:
       'Sample accessibility information for the MIT Sailing website and Pavilion communications.',
     blocks: [
-      {
-        id: 'cms-block-accessibility-hero',
-        kind: 'hero',
-        title: 'Accessibility',
+      cmsHeroBlock({
         body: 'Sample content: MIT Sailing aims to make website content, program information, and Pavilion communications usable by as many people as possible.',
-        displayOrder: 0,
-        isVisible: true,
-      },
-      {
-        id: 'cms-block-accessibility-commitment',
-        kind: 'text_section',
-        title: 'Our commitment',
-        subtitle: 'Sample content',
+        id: 'cms-block-accessibility-hero',
+        title: 'Accessibility',
+      }),
+      cmsTextSectionBlock({
         body: 'We strive to maintain clear navigation, readable content, keyboard-accessible controls, meaningful page structure, and useful alternative text for important images.\n\nAccessibility is an ongoing practice, and we welcome feedback when something on the site is difficult to use.',
         displayOrder: 10,
-        isVisible: true,
-      },
-      {
-        id: 'cms-block-accessibility-support',
-        kind: 'text_section',
-        title: 'Access needs for programs',
+        id: 'cms-block-accessibility-commitment',
         subtitle: 'Sample content',
+        title: 'Our commitment',
+      }),
+      cmsTextSectionBlock({
         body: 'If you plan to attend a class, event, meeting, or Pavilion activity and have access needs, contact Pavilion staff as early as possible. We will work with you and MIT resources to identify reasonable options based on the activity, facility, and safety requirements.',
         displayOrder: 20,
-        isVisible: true,
-      },
-      {
-        id: 'cms-block-accessibility-feedback',
-        kind: 'text_section',
-        title: 'Website feedback',
+        id: 'cms-block-accessibility-support',
         subtitle: 'Sample content',
+        title: 'Access needs for programs',
+      }),
+      cmsTextSectionBlock({
         body: 'To report an accessibility issue with the MIT Sailing website, include the page URL, a short description of the problem, and the browser or assistive technology you were using if that information is available.',
         displayOrder: 30,
-        isVisible: true,
-      },
+        id: 'cms-block-accessibility-feedback',
+        subtitle: 'Sample content',
+        title: 'Website feedback',
+      }),
     ],
   },
 ];
@@ -555,6 +573,15 @@ export const CMS_MENU_SEED_ROWS: readonly CmsSeedMenu[] = [
         isExternal: false,
         isVisible: true,
         displayOrder: 40,
+      },
+      {
+        kind: 'url_link',
+        id: 'cms-menu-header-pricing',
+        label: 'Pricing',
+        url: '/pricing',
+        isExternal: false,
+        isVisible: true,
+        displayOrder: 45,
       },
       {
         kind: 'page_link',
@@ -676,9 +703,10 @@ export const CMS_MENU_SEED_ROWS: readonly CmsSeedMenu[] = [
         kind: 'url_link',
         id: 'cms-menu-footer-membership',
         parentId: 'cms-menu-footer-about',
-        label: 'Membership',
+        label: 'Pricing',
+        url: '/pricing',
         isExternal: false,
-        isVisible: false,
+        isVisible: true,
         displayOrder: 0,
       },
       {

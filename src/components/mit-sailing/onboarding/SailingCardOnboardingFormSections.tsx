@@ -42,6 +42,7 @@ function OnboardingDetailsFields(props: {
   readonly cardTypeValue: string | undefined;
   readonly dateOfBirthValue: string | undefined;
   readonly fitnessMembershipReady: boolean;
+  readonly hasFitnessMembershipValue: string | undefined;
   readonly isPending: boolean;
   readonly now: Date;
   readonly register: UseFormRegister<SailingCardOnboardingFormValues>;
@@ -57,6 +58,7 @@ function OnboardingDetailsFields(props: {
         cardTypeValue={props.cardTypeValue}
         dateOfBirthValue={props.dateOfBirthValue}
         fitnessMembershipReady={props.fitnessMembershipReady}
+        hasFitnessMembershipValue={props.hasFitnessMembershipValue}
         now={props.now}
         register={props.register}
         setValue={props.setValue}
@@ -73,6 +75,7 @@ export function OnboardingFormFields(props: {
   readonly cardTypeValue: string | undefined;
   readonly dateOfBirthValue: string | undefined;
   readonly fitnessMembershipReady: boolean;
+  readonly hasFitnessMembershipValue: string | undefined;
   readonly identityComplete: boolean;
   readonly isPending: boolean;
   readonly lockedIdentity?: SailingCardOnboardingLockedIdentity;
@@ -116,6 +119,7 @@ export function OnboardingFormFields(props: {
           cardTypeValue={props.cardTypeValue}
           dateOfBirthValue={props.dateOfBirthValue}
           fitnessMembershipReady={props.fitnessMembershipReady}
+          hasFitnessMembershipValue={props.hasFitnessMembershipValue}
           isPending={props.isPending}
           now={props.now}
           register={props.register}

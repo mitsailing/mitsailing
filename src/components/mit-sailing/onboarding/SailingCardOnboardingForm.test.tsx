@@ -1,6 +1,7 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { mitRecreationMembershipHref } from '@/data/mit-sailing/mitRecreationMembership';
 import { SailingAffiliation } from '@/generated/prisma/enums';
 import { sailingCardAgreement } from '@/libs/mit-sailing/sailingCardAgreementContent';
 import {
@@ -9,6 +10,7 @@ import {
   renderForm,
   resetOnboardingFormTestState,
   selectAffiliation,
+  setOnboardingFormActionState,
   showWellesleyDetails,
 } from './SailingCardOnboardingForm.testHelpers';
 
@@ -282,25 +284,27 @@ describe('SailingCardOnboardingForm', () => {
 
     expect(
       screen.getByRole('group', {
-        name: 'Do you already have an MIT Fitness membership?',
+        name: 'Do you already have MIT Recreation membership?',
       })
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        'Answer No if you still need to sign up. You can continue with Normal membership.'
+        'Normal is included for MIT Recreation members. Answer No if you do not have it yet.'
       )
     ).toBeInTheDocument();
     expect(
       screen.getByRole('link', { name: 'open MIT Recreation' })
-    ).toHaveAttribute('href', 'https://www.mitrecsports.com/join/memberships/');
+    ).toHaveAttribute('href', mitRecreationMembershipHref);
     expect(
-      screen.getByText(/Individual rates: student \$25\/mo/u)
-    ).toBeInTheDocument();
+      screen.getByText(/Common 12-month individual rates/u)
+    ).toHaveTextContent(
+      'Common 12-month individual rates range from $300/year to $1,080/year; MIT Recreation lists exact categories.'
+    );
     expect(screen.getByText('Yes')).toBeInTheDocument();
     expect(screen.getByText('No')).toBeInTheDocument();
     expect(
       screen.getByText(
-        'Answer the MIT Fitness membership question to see the right options.'
+        'Answer the MIT Recreation membership question to see the right options.'
       )
     ).toBeInTheDocument();
 
@@ -309,13 +313,45 @@ describe('SailingCardOnboardingForm', () => {
     expect(
       within(
         screen.getByRole('group', {
-          name: 'Type of sailing card requested',
+          name: 'Choose your sailing card',
         })
-      ).getByRole('radio', { name: /Normal membership/u })
+      ).getByRole('radio', { name: /Normal/u })
     ).toBeEnabled();
   });
 
-  it('renders sailing membership type options without virtual card', async () => {
+  it('shows server errors for missing mit recreation answer', () => {
+    setOnboardingFormActionState({
+      fieldErrors: { hasFitnessMembership: 'required' },
+      status: 'error',
+      values: {
+        ...emptyValues,
+        affiliation: SailingAffiliation.WELLESLEY,
+        cardType: 'normal',
+        dateOfBirth: '01/02/2000',
+        emergencyContactName: 'Ada Lovelace',
+        emergencyContactPhone: '(617) 555-0102',
+        firstName: 'Ada',
+        lastName: 'Lovelace',
+        phone: '(617) 555-0100',
+        swimAgreementAccepted: true,
+      },
+    });
+
+    renderForm();
+
+    const fitnessQuestion = screen.getByRole('group', {
+      name: 'Do you already have MIT Recreation membership?',
+    });
+
+    expect(fitnessQuestion).toHaveAccessibleDescription(/Required\./u);
+    expect(fitnessQuestion).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByText('Required.')).toHaveAttribute(
+      'id',
+      'sailing-card-onboarding-hasFitnessMembership-error'
+    );
+  });
+
+  it('renders sailing card options with clear comparison copy', async () => {
     renderForm();
     const user = userEvent.setup();
 
@@ -323,51 +359,77 @@ describe('SailingCardOnboardingForm', () => {
     await user.click(screen.getByRole('radio', { name: /^Yes/u }));
 
     const cardType = screen.getByRole('group', {
-      name: 'Type of sailing card requested',
+      name: 'Choose your sailing card',
     });
     const cardTypeControls = within(cardType);
 
     expect(cardType).toBeInTheDocument();
     expect(
-      cardTypeControls.getByRole('radio', { name: /Normal membership/u })
+      cardTypeControls.getByRole('radio', { name: /Normal/u })
     ).toHaveAttribute('value', 'normal');
     expect(
-      cardTypeControls.getByRole('radio', { name: /Racing membership/u })
-    ).toHaveAttribute('value', 'racing');
+      cardTypeControls.queryByRole('radio', {
+        name: /Pavilion racing/u,
+      })
+    ).not.toBeInTheDocument();
     expect(
-      cardTypeControls.getByRole('radio', { name: /Team racing/u })
-    ).toHaveAttribute('value', 'team_racing');
+      cardTypeControls.queryByRole('radio', { name: /Thursday team racing/u })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getAllByText(
+        'Included for MIT students and MIT Recreation members. Pavilion sailing, classes, ratings, Charles River racing, and Mashnee, the 48-foot Boston Harbor blue-water sailboat, when approved.'
+      ).length
+    ).toBeGreaterThan(0);
     expect(
       screen.getByText(
-        'For access to the Sailing Pavilion and Mashnee sails. If you need MIT Fitness, choose this and finish signup within 24 hours.'
+        'Normal covers Pavilion sailing and Charles River racing. Prices use your affiliation and date of birth.'
       )
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        'Racing membership is $25. It covers race classes and racing events. Mashnee sails are not included.'
+        'MIT students and MIT Recreation members usually choose Normal. The racing cards are already covered by Normal.'
       )
     ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'See pricing' })).toHaveAttribute(
+      'href',
+      '/pricing'
+    );
     expect(
       screen.queryByRole('radio', { name: /Virtual/u })
     ).not.toBeInTheDocument();
   });
 
-  it('keeps normal membership available for non fitness members', async () => {
+  it('shows paid racing paths for non fitness members', async () => {
     renderForm();
     const user = userEvent.setup();
 
     await showWellesleyDetails();
     await user.click(screen.getByRole('radio', { name: /^No/u }));
     const cardType = screen.getByRole('group', {
-      name: 'Type of sailing card requested',
+      name: 'Choose your sailing card',
     });
     const cardTypeControls = within(cardType);
 
     expect(
-      cardTypeControls.getByRole('radio', { name: /Normal membership/u })
+      screen.getByText(
+        'No MIT Recreation yet? You can still request Normal, but your card number waits until MIT Recreation is active. Pavilion racing and Thursday team racing stay available.'
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Requires MIT Recreation before staff issue your sailing card number. Includes Pavilion sailing, classes, ratings, Charles River racing, and Mashnee, the 48-foot Boston Harbor blue-water sailboat, when approved.'
+      )
+    ).toBeInTheDocument();
+    expect(
+      cardTypeControls.getByRole('radio', { name: /Normal/u })
     ).toBeChecked();
     expect(
-      cardTypeControls.getByRole('radio', { name: /Racing membership/u })
+      cardTypeControls.getByRole('radio', {
+        name: /Pavilion racing/u,
+      })
+    ).toBeEnabled();
+    expect(
+      cardTypeControls.getByRole('radio', { name: /Thursday team racing/u })
     ).toBeEnabled();
   });
 
@@ -384,20 +446,18 @@ describe('SailingCardOnboardingForm', () => {
 
     expect(
       screen.queryByRole('group', {
-        name: 'Do you already have an MIT Fitness membership?',
+        name: 'Do you already have MIT Recreation membership?',
       })
     ).not.toBeInTheDocument();
     expect(
-      screen.getByText(
-        'MIT students meet the MIT Fitness requirement for Normal membership.'
-      )
+      screen.getByText('MIT students get Normal included.')
     ).toBeInTheDocument();
     expect(
       within(
         screen.getByRole('group', {
-          name: 'Type of sailing card requested',
+          name: 'Choose your sailing card',
         })
-      ).getByRole('radio', { name: /Normal membership/u })
+      ).getByRole('radio', { name: /Normal/u })
     ).toBeChecked();
   });
 

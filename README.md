@@ -85,6 +85,10 @@ npm run test:e2e
 
 `npm run build-local` is the local production-build gate used by CI.
 
+## Product Domain Docs
+
+- [docs/mit-sailing/sailing-card-memberships.md](docs/mit-sailing/sailing-card-memberships.md) - sailing-card membership labels, pricing rules, and legacy WordPress terminology.
+
 ## CI And Deployment
 
 Pull requests run build/static checks, unit coverage, integration tests, Storybook checks, sharded Playwright e2e, Docker smoke/security checks, CodeQL, coverage upload, and optional previews. `main` runs semantic-release and the production deploy workflow.

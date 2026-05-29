@@ -303,6 +303,7 @@ model SailingCardRequest {
   cardYear                   Int                      @map("card_year")
   status                     SailingCardRequestStatus @default(pending)
   cardType                   SailingCardType          @default(normal) @map("card_type")
+  hasFitnessMembership       Boolean?                 @map("has_fitness_membership")
   legalAgreementAcceptanceId String                   @map("legal_agreement_acceptance_id")
   requestedAt                DateTime                 @map("requested_at")
   approvedAt                 DateTime?                @map("approved_at")

@@ -114,6 +114,7 @@ function defaultHeaderMenuItems(
     { id: 'bluewater', label: t('nav_bluewater'), href: '#' },
     { id: 'racing', label: t('nav_racing'), href: '#' },
     { id: 'calendar', label: t('nav_calendar'), href: '/events' },
+    { id: 'pricing', label: t('nav_pricing'), href: '/pricing' },
     { id: 'about', label: t('nav_about'), href: '/about' },
     { id: 'resources', label: t('nav_resources'), href: '#' },
   ];

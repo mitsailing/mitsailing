@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl';
 import type * as React from 'react';
 import type { UseFormRegister, UseFormSetValue } from 'react-hook-form';
+import { mitRecreationMembershipHref } from '@/data/mit-sailing/mitRecreationMembership';
 import { SailingCardType } from '@/generated/prisma/enums';
 import type { SailingAffiliation } from '@/generated/prisma/enums';
 import { cn } from '@/lib/utils';
@@ -35,7 +36,7 @@ const fitnessMembershipLinkClassName =
 const renderFitnessMembershipLink = (chunks: React.ReactNode) => (
   <Link
     className={fitnessMembershipLinkClassName}
-    href="https://www.mitrecsports.com/join/memberships/"
+    href={mitRecreationMembershipHref}
     key="membership"
   >
     {chunks}
@@ -66,12 +67,54 @@ const cardTypeDescriptionKey = (cardType: SailingCardType) => {
   return keys[cardType];
 };
 
+const cardTypeDescriptionKeyForState = (props: {
+  readonly cardType: SailingCardType;
+  readonly hasFitnessMembershipValue: string | undefined;
+}) => {
+  if (
+    props.cardType === SailingCardType.normal &&
+    props.hasFitnessMembershipValue === 'no'
+  ) {
+    return 'card_type_normal_description_needs_recreation';
+  }
+
+  return cardTypeDescriptionKey(props.cardType);
+};
+
 const formatMembershipPrice = (value: number | null) =>
   value === null ? null : usdFormatter.format(value / 100);
 
+const hasFullSailingCoverage = (props: {
+  readonly affiliation: SailingAffiliation | '';
+  readonly hasFitnessMembershipValue: string | undefined;
+}) =>
+  props.affiliation !== '' &&
+  (!needsFitnessMembershipQuestion(props.affiliation) ||
+    props.hasFitnessMembershipValue === 'yes');
+
 const membershipPriceLabelKey = (props: {
+  readonly affiliation: SailingAffiliation | '';
+  readonly cardType: SailingCardType;
+  readonly hasFitnessMembershipValue: string | undefined;
   readonly priceCents: number | null;
 }) => {
+  if (props.cardType === SailingCardType.normal) {
+    if (!needsFitnessMembershipQuestion(props.affiliation)) {
+      return 'card_type_price_included';
+    }
+    if (props.hasFitnessMembershipValue === 'yes') {
+      return 'card_type_price_included_with_recreation';
+    }
+    return 'card_type_price_needs_recreation';
+  }
+  if (
+    hasFullSailingCoverage({
+      affiliation: props.affiliation,
+      hasFitnessMembershipValue: props.hasFitnessMembershipValue,
+    })
+  ) {
+    return 'card_type_price_covered_by_full';
+  }
   if (props.priceCents === 0) {
     return 'card_type_price_included';
   }
@@ -85,6 +128,7 @@ const selectedCardTypeValue = (value: string | undefined) =>
   value === '' ? SailingCardType.normal : (value ?? SailingCardType.normal);
 
 function FitnessMembershipOption(props: {
+  readonly ariaDescribedBy: string;
   readonly id: string;
   readonly label: string;
   readonly onBlur: React.FocusEventHandler<HTMLInputElement>;
@@ -102,6 +146,7 @@ function FitnessMembershipOption(props: {
       <input
         className={radioInputClassName}
         id={props.id}
+        aria-describedby={props.ariaDescribedBy}
         name={props.registrationName}
         onBlur={props.onBlur}
         onChange={props.onChange}
@@ -118,6 +163,7 @@ function FitnessMembershipOption(props: {
 }
 
 function FitnessMembershipOptions(props: {
+  readonly ariaDescribedBy: string;
   readonly onBlur: React.FocusEventHandler<HTMLInputElement>;
   readonly onChange: React.ChangeEventHandler<HTMLInputElement>;
   readonly ref: React.Ref<HTMLInputElement>;
@@ -128,6 +174,7 @@ function FitnessMembershipOptions(props: {
   return (
     <div className="grid gap-2 sm:grid-cols-2">
       <FitnessMembershipOption
+        ariaDescribedBy={props.ariaDescribedBy}
         id="hasFitnessMembershipYes"
         label={t('fitness_membership_yes')}
         onBlur={props.onBlur}
@@ -137,6 +184,7 @@ function FitnessMembershipOptions(props: {
         value="yes"
       />
       <FitnessMembershipOption
+        ariaDescribedBy={props.ariaDescribedBy}
         id="hasFitnessMembershipNo"
         label={t('fitness_membership_no')}
         onBlur={props.onBlur}
@@ -152,10 +200,17 @@ function FitnessMembershipOptions(props: {
 function FitnessMembershipQuestion(props: {
   readonly register: UseFormRegister<SailingCardOnboardingFormValues>;
   readonly setValue: UseFormSetValue<SailingCardOnboardingFormValues>;
+  readonly state: SailingCardOnboardingFormState;
 }) {
   const t = useTranslations('OnboardingPage');
+  const error = props.state.fieldErrors.hasFitnessMembership;
   const helpId = 'sailing-card-onboarding-hasFitnessMembership-help';
   const signupNoteId = 'sailing-card-onboarding-fitness-signup-note';
+  const describedBy = cn(
+    helpId,
+    signupNoteId,
+    error ? fieldErrorId('hasFitnessMembership') : undefined
+  );
   const registration = props.register('hasFitnessMembership', {
     required: true,
   });
@@ -170,7 +225,8 @@ function FitnessMembershipQuestion(props: {
   return (
     <fieldset
       className="flex flex-col gap-2"
-      aria-describedby={`${helpId} ${signupNoteId}`}
+      aria-describedby={describedBy}
+      aria-invalid={error ? true : undefined}
     >
       <legend className="font-medium text-foreground">
         {t('fitness_membership_label')}
@@ -179,6 +235,7 @@ function FitnessMembershipQuestion(props: {
         {t('fitness_membership_help')}
       </p>
       <FitnessMembershipOptions
+        ariaDescribedBy={describedBy}
         onBlur={handleFitnessMembershipBlur}
         onChange={handleFitnessMembershipChange}
         ref={registration.ref}
@@ -190,16 +247,23 @@ function FitnessMembershipQuestion(props: {
           fitnessMembershipSignupNoteRichText
         )}
       </p>
+      <FieldError field="hasFitnessMembership" state={props.state} />
     </fieldset>
   );
 }
 
 function CardTypePriceBadge(props: {
+  readonly affiliation: SailingAffiliation | '';
+  readonly cardType: SailingCardType;
+  readonly hasFitnessMembershipValue: string | undefined;
   readonly price: string | null;
   readonly priceCents: number | null;
 }) {
   const t = useTranslations('OnboardingPage');
   const priceLabelKey = membershipPriceLabelKey({
+    affiliation: props.affiliation,
+    cardType: props.cardType,
+    hasFitnessMembershipValue: props.hasFitnessMembershipValue,
     priceCents: props.priceCents,
   });
   const priceLabel =
@@ -220,24 +284,48 @@ function CardTypePriceBadge(props: {
 }
 
 function CardTypeDescription(props: {
+  readonly affiliation: SailingAffiliation | '';
   readonly cardType: SailingCardType;
+  readonly hasFitnessMembershipValue: string | undefined;
   readonly price: string | null;
 }) {
   const t = useTranslations('OnboardingPage');
+  const coveredByFull = hasFullSailingCoverage({
+    affiliation: props.affiliation,
+    hasFitnessMembershipValue: props.hasFitnessMembershipValue,
+  });
 
   if (props.cardType === SailingCardType.racing) {
+    let description = t('card_type_racing_description');
+    if (coveredByFull) {
+      description = t('card_type_racing_description_covered');
+    } else if (props.price === null) {
+      description = t('card_type_racing_description_needs_dob');
+    }
+
     return (
       <span className="text-xs leading-5 text-muted-foreground">
-        {props.price === null
-          ? t('card_type_racing_description_needs_dob')
-          : t('card_type_racing_description', { price: props.price })}
+        {description}
+      </span>
+    );
+  }
+
+  if (props.cardType === SailingCardType.team_racing && coveredByFull) {
+    return (
+      <span className="text-xs leading-5 text-muted-foreground">
+        {t('card_type_team_racing_description_covered')}
       </span>
     );
   }
 
   return (
     <span className="text-xs leading-5 text-muted-foreground">
-      {t(cardTypeDescriptionKey(props.cardType))}
+      {t(
+        cardTypeDescriptionKeyForState({
+          cardType: props.cardType,
+          hasFitnessMembershipValue: props.hasFitnessMembershipValue,
+        })
+      )}
     </span>
   );
 }
@@ -247,6 +335,7 @@ function CardTypeRadio(props: {
   readonly cardType: SailingCardType;
   readonly cardTypeValue: string | undefined;
   readonly dateOfBirthValue: string | undefined;
+  readonly hasFitnessMembershipValue: string | undefined;
   readonly now: Date;
   readonly register: UseFormRegister<SailingCardOnboardingFormValues>;
 }) {
@@ -276,9 +365,20 @@ function CardTypeRadio(props: {
           <span className="font-medium text-foreground">
             {t(cardTypeLabelKey(props.cardType))}
           </span>
-          <CardTypePriceBadge price={price} priceCents={priceCents} />
+          <CardTypePriceBadge
+            affiliation={props.affiliation}
+            cardType={props.cardType}
+            hasFitnessMembershipValue={props.hasFitnessMembershipValue}
+            price={price}
+            priceCents={priceCents}
+          />
         </span>
-        <CardTypeDescription cardType={props.cardType} price={price} />
+        <CardTypeDescription
+          affiliation={props.affiliation}
+          cardType={props.cardType}
+          hasFitnessMembershipValue={props.hasFitnessMembershipValue}
+          price={price}
+        />
       </span>
     </label>
   );
@@ -289,27 +389,64 @@ function CardTypeSelect(props: {
   readonly cardTypeValue: string | undefined;
   readonly dateOfBirthValue: string | undefined;
   readonly fitnessMembershipReady: boolean;
+  readonly hasFitnessMembershipValue: string | undefined;
   readonly now: Date;
   readonly register: UseFormRegister<SailingCardOnboardingFormValues>;
   readonly state: SailingCardOnboardingFormState;
 }) {
   const t = useTranslations('OnboardingPage');
   const cardTypeError = props.state.fieldErrors.cardType;
-  const cardTypes = [
-    SailingCardType.normal,
-    SailingCardType.racing,
-    SailingCardType.team_racing,
-  ];
+  const helpId = 'sailing-card-type-help';
+  const noFitnessPathId = 'sailing-card-type-no-fitness-path';
+  const coveredPathId = 'sailing-card-type-covered-path';
+  const coveredByFull = hasFullSailingCoverage({
+    affiliation: props.affiliation,
+    hasFitnessMembershipValue: props.hasFitnessMembershipValue,
+  });
+  const cardTypes = coveredByFull
+    ? [SailingCardType.normal]
+    : [
+        SailingCardType.normal,
+        SailingCardType.racing,
+        SailingCardType.team_racing,
+      ];
 
   return (
     <fieldset
-      aria-describedby={cardTypeError ? fieldErrorId('cardType') : undefined}
+      aria-describedby={cn(
+        helpId,
+        props.hasFitnessMembershipValue === 'no' ? noFitnessPathId : undefined,
+        coveredByFull ? coveredPathId : undefined,
+        cardTypeError ? fieldErrorId('cardType') : undefined
+      )}
       aria-invalid={cardTypeError ? true : undefined}
       className="flex flex-col gap-2"
     >
       <legend className="font-medium text-foreground">
         {t('card_type_label')}
       </legend>
+      <p className="text-xs leading-5 text-muted-foreground" id={helpId}>
+        {t('card_type_comparison_help')}{' '}
+        <Link className={fitnessMembershipLinkClassName} href="/pricing">
+          {t('card_type_details_link')}
+        </Link>
+      </p>
+      {props.hasFitnessMembershipValue === 'no' ? (
+        <p
+          className="text-xs leading-5 text-muted-foreground"
+          id={noFitnessPathId}
+        >
+          {t('card_type_no_fitness_path')}
+        </p>
+      ) : null}
+      {coveredByFull ? (
+        <p
+          className="text-xs leading-5 text-muted-foreground"
+          id={coveredPathId}
+        >
+          {t('card_type_covered_path')}
+        </p>
+      ) : null}
       {props.fitnessMembershipReady ? (
         <div className="grid gap-2">
           {cardTypes.map((cardType) => (
@@ -318,6 +455,7 @@ function CardTypeSelect(props: {
               cardType={cardType}
               cardTypeValue={props.cardTypeValue}
               dateOfBirthValue={props.dateOfBirthValue}
+              hasFitnessMembershipValue={props.hasFitnessMembershipValue}
               key={cardType}
               now={props.now}
               register={props.register}
@@ -339,6 +477,7 @@ export function CardRequestSection(props: {
   readonly cardTypeValue: string | undefined;
   readonly dateOfBirthValue: string | undefined;
   readonly fitnessMembershipReady: boolean;
+  readonly hasFitnessMembershipValue: string | undefined;
   readonly now: Date;
   readonly register: UseFormRegister<SailingCardOnboardingFormValues>;
   readonly setValue: UseFormSetValue<SailingCardOnboardingFormValues>;
@@ -355,6 +494,7 @@ export function CardRequestSection(props: {
         <FitnessMembershipQuestion
           register={props.register}
           setValue={props.setValue}
+          state={props.state}
         />
       ) : (
         <p className="text-xs leading-5 text-muted-foreground">
@@ -366,6 +506,7 @@ export function CardRequestSection(props: {
         cardTypeValue={props.cardTypeValue}
         dateOfBirthValue={props.dateOfBirthValue}
         fitnessMembershipReady={props.fitnessMembershipReady}
+        hasFitnessMembershipValue={props.hasFitnessMembershipValue}
         now={props.now}
         register={props.register}
         state={props.state}

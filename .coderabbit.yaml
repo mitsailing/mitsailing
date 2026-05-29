@@ -17,8 +17,11 @@ reviews:
   review_details: true
   collapse_walkthrough: false
 
-  commit_status: true
-  fail_commit_status: true
+  # CodeRabbit is optional. Do not publish a PR status while credits/rate limits
+  # are unreliable; agents still fix actionable CodeRabbit comments when a
+  # review actually runs.
+  commit_status: false
+  fail_commit_status: false
 
   enable_prompt_for_ai_agents: true
 

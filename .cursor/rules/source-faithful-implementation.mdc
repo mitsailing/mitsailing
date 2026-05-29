@@ -1,0 +1,31 @@
+---
+description: Use user-supplied source code/design as the controlling reference
+globs: src/**/*.{ts,tsx,css,json},docs/**/*.md
+alwaysApply: false
+---
+
+# Source-Faithful Implementation
+
+Use this rule when the user provides exact source material to use, such as pasted component code, Tailwind Plus blocks, Figma output, screenshots, docs, or local vendor/example folders.
+
+**Source order:** explicit user-provided source > linked/local vendor source > project specs > existing patterns > agent preference.
+
+**Hard requirements:**
+
+- Treat the supplied source as the controlling implementation reference.
+- Preserve the source structure and visual pattern unless the user explicitly approves a deviation.
+- Before changing layout, component count, copy hierarchy, pricing semantics, or interaction model, state the deviation and wait for approval.
+- Adapt only what the repo requires: imports, tokens, i18n keys, shared components, accessibility, responsive breakpoints, and type safety.
+- Do not replace a supplied design with a different design because it seems cleaner, more conventional, or easier.
+- Do not add new page sections, headings, badges, explanatory copy, pricing groupings, or CTA concepts unless they exist in the source or the user asks for them.
+- If the supplied source breaks at a breakpoint, fix the breakpoint while preserving the pattern; do not switch patterns without approval.
+
+**Required workflow:**
+
+1. Cite the exact controlling source file, URL, screenshot, or pasted snippet before editing.
+2. List the minimal adaptations needed for this repo.
+3. Implement those adaptations only.
+4. Browser-check the changed surface against the source at desktop and mobile sizes.
+5. In the final response, call out any intentional differences from the supplied source.
+
+If a product requirement conflicts with the supplied source, stop and ask which should win.
