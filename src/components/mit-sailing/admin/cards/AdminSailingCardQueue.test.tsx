@@ -51,6 +51,7 @@ vi.mock('next-intl', () => ({
       column_fitness_membership: 'MIT Recreation',
       column_mit_id: 'MIT ID',
       column_name: 'Name',
+      column_payment_access: 'Payment access',
       column_requested_at: 'Requested',
       column_suggested_card: 'Suggested card',
       empty_queue: 'No pending card requests.',
@@ -62,6 +63,10 @@ vi.mock('next-intl', () => ({
         'Verify MIT Recreation before issuing Normal.',
       error_no_current_card: 'No current card.',
       error_not_found: 'User was not found.',
+      error_payment_required: 'Enter a note before issuing without payment.',
+      filter_empty: 'No pending card requests match that search.',
+      filter_search_label: 'Search pending requests',
+      filter_search_placeholder: 'Search by name, email, or MIT ID',
       fitness_membership_mit_student: 'MIT student',
       fitness_membership_no_verify: 'No, verify before issuing',
       fitness_membership_not_required: 'Not required',
@@ -72,6 +77,11 @@ vi.mock('next-intl', () => ({
       history_empty: 'No previous cards.',
       history_heading: 'Card history',
       history_row: `Card #${number} for ${year}`,
+      payment_bypass_note_label: 'Payment bypass note',
+      payment_bypass_note_placeholder: 'Required when issuing without payment',
+      payment_access_blocked: 'Payment needs review',
+      payment_access_none: 'No payment',
+      payment_access_paid: 'Paid',
     };
     return messages[key] ?? key;
   },
@@ -86,6 +96,7 @@ const queueRow = {
   hasFitnessMembership: null,
   mitId: '123456789',
   name: 'Ada Lovelace',
+  paymentAccess: 'none' as const,
   requestedAt: new Date('2026-05-21T16:00:00.000Z'),
   sailingAffiliation: SailingAffiliation.MIT_STUDENT,
 };
@@ -117,6 +128,7 @@ describe('AdminSailingCardQueue', () => {
     expect(screen.getByText('Normal')).toBeInTheDocument();
     expect(screen.getByText('MIT student')).toBeInTheDocument();
     expect(screen.getByText('123456789')).toBeInTheDocument();
+    expect(screen.getByText('No payment')).toBeInTheDocument();
     expect(screen.getByText(/v1/)).toBeInTheDocument();
     expect(screen.getAllByText(/May 21, 2026/)).toHaveLength(2);
     expect(screen.getByText('60')).toBeInTheDocument();
@@ -166,6 +178,25 @@ describe('AdminSailingCardQueue', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('shows blocked payment access in pending queue rows', () => {
+    render(
+      <AdminSailingCardQueue
+        canAssignCards
+        locale="en"
+        rows={[
+          {
+            ...queueRow,
+            cardType: SailingCardType.racing,
+            paymentAccess: 'blocked',
+          },
+        ]}
+        suggestedCardNumber={60}
+      />
+    );
+
+    expect(screen.getByText('Payment needs review')).toBeInTheDocument();
+  });
+
   it('does not render expire action for pending requests', () => {
     render(
       <AdminSailingCardQueue
@@ -179,6 +210,59 @@ describe('AdminSailingCardQueue', () => {
     expect(
       screen.queryByRole('button', { name: 'Expire' })
     ).not.toBeInTheDocument();
+  });
+
+  it('filters pending requests by name email and mit id without navigation', async () => {
+    render(
+      <AdminSailingCardQueue
+        canAssignCards
+        locale="en"
+        rows={[
+          queueRow,
+          {
+            ...queueRow,
+            email: 'grace@mit.edu',
+            id: 'user-2',
+            mitId: '987654321',
+            name: 'Grace Hopper',
+          },
+          {
+            ...queueRow,
+            email: 'katherine@mit.edu',
+            id: 'user-3',
+            mitId: '456789123',
+            name: 'Katherine Johnson',
+          },
+        ]}
+        suggestedCardNumber={60}
+      />
+    );
+    const user = userEvent.setup();
+    const originalLocation = window.location.href;
+    const search = screen.getByLabelText('Search pending requests');
+
+    await user.type(search, 'grace');
+
+    expect(screen.getByRole('link', { name: 'Grace Hopper' })).toBeVisible();
+    expect(screen.queryByRole('link', { name: 'Ada Lovelace' })).toBeNull();
+    expect(
+      screen.queryByRole('link', { name: 'Katherine Johnson' })
+    ).toBeNull();
+
+    await user.clear(search);
+    await user.type(search, 'ada@mit.edu');
+
+    expect(screen.getByRole('link', { name: 'Ada Lovelace' })).toBeVisible();
+    expect(screen.queryByRole('link', { name: 'Grace Hopper' })).toBeNull();
+
+    await user.clear(search);
+    await user.type(search, '456789123');
+
+    expect(
+      screen.getByRole('link', { name: 'Katherine Johnson' })
+    ).toBeVisible();
+    expect(screen.queryByRole('link', { name: 'Ada Lovelace' })).toBeNull();
+    expect(window.location.href).toBe(originalLocation);
   });
 
   it('allows blank card number for auto assignment', () => {
@@ -214,10 +298,42 @@ describe('AdminSailingCardQueue', () => {
     expect(screen.getByLabelText('Card number')).toHaveValue(7);
   });
 
+  it('renders payment bypass note for paid pending rows without payment', () => {
+    render(
+      <AdminSailingCardIssueForm
+        action={vi.fn()}
+        locale="en"
+        paymentAccess="none"
+        cardType={SailingCardType.racing}
+        suggestedCardNumber={60}
+        userId="user-1"
+      />
+    );
+
+    const note = screen.getByLabelText('Payment bypass note');
+    expect(note).toHaveAttribute('name', 'paymentBypassNote');
+    expect(note).toBeRequired();
+  });
+
+  it('omits payment bypass note for paid pending rows with paid access', () => {
+    render(
+      <AdminSailingCardIssueForm
+        action={vi.fn()}
+        locale="en"
+        paymentAccess="paid"
+        cardType={SailingCardType.racing}
+        suggestedCardNumber={60}
+        userId="user-1"
+      />
+    );
+
+    expect(screen.queryByLabelText('Payment bypass note')).toBeNull();
+  });
+
   it('renders issue form-level errors', () => {
     actionStateMock.state = {
       fieldErrors: {},
-      formError: 'missing_onboarding_agreement',
+      formError: 'payment_required',
       status: 'error',
     };
 
@@ -231,7 +347,7 @@ describe('AdminSailingCardQueue', () => {
     );
 
     expect(screen.getByRole('alert')).toHaveTextContent(
-      'Missing onboarding agreement acceptance.'
+      'Enter a note before issuing without payment.'
     );
   });
 
@@ -262,5 +378,68 @@ describe('AdminSailingCardQueue', () => {
     );
 
     expect(screen.getByText('Card #42 for 2027')).toBeInTheDocument();
+  });
+
+  it('requires payment bypass note for team racing cards without payment', () => {
+    render(
+      <AdminSailingCardIssueForm
+        action={vi.fn()}
+        cardType={SailingCardType.team_racing}
+        locale="en"
+        paymentAccess="none"
+        suggestedCardNumber={60}
+        userId="user-1"
+      />
+    );
+
+    const note = screen.getByLabelText('Payment bypass note');
+    expect(note).toHaveAttribute('name', 'paymentBypassNote');
+    expect(note).toBeRequired();
+  });
+
+  it('omits payment bypass note for normal cards without payment', () => {
+    render(
+      <AdminSailingCardIssueForm
+        action={vi.fn()}
+        cardType={SailingCardType.normal}
+        locale="en"
+        paymentAccess="none"
+        suggestedCardNumber={60}
+        userId="user-1"
+      />
+    );
+
+    expect(screen.queryByLabelText('Payment bypass note')).toBeNull();
+  });
+
+  it('shows paid payment access status without highlighting', () => {
+    render(
+      <AdminSailingCardQueue
+        canAssignCards
+        locale="en"
+        rows={[
+          {
+            ...queueRow,
+            paymentAccess: 'paid',
+          },
+        ]}
+        suggestedCardNumber={60}
+      />
+    );
+
+    expect(screen.getByText('Paid')).toBeInTheDocument();
+  });
+
+  it('shows empty queue message when there are no pending requests', () => {
+    render(
+      <AdminSailingCardQueue
+        canAssignCards
+        locale="en"
+        rows={[]}
+        suggestedCardNumber={60}
+      />
+    );
+
+    expect(screen.getByText('No pending card requests.')).toBeInTheDocument();
   });
 });
