@@ -71,6 +71,78 @@ function emailHistoryRowsWithFallback() {
   ];
 }
 
+function eventPaymentHistoryRow(options: {
+  readonly amountCents: number;
+  readonly createdAt: string;
+  readonly detailHref: string;
+  readonly id: string;
+  readonly receiptHref: string | null;
+  readonly status: 'disputed' | 'paid';
+  readonly title: string;
+}) {
+  return {
+    amountCents: options.amountCents,
+    cardType: null,
+    cardYear: null,
+    createdAt: new Date(options.createdAt),
+    currency: 'usd',
+    detailHref: options.detailHref,
+    id: options.id,
+    manualHandledAt: null,
+    manualHandledByName: null,
+    manualHandledNote: null,
+    purpose: 'event',
+    receiptHref: options.receiptHref,
+    source: PaymentSource.stripe,
+    status: options.status,
+    title: options.title,
+  };
+}
+
+function membershipPaymentHistoryRow() {
+  return {
+    amountCents: 12_000,
+    cardType: SailingCardType.racing,
+    cardYear: 2026,
+    createdAt: new Date('2026-05-19T16:00:00.000Z'),
+    currency: 'usd',
+    detailHref: null,
+    id: 'payment-3',
+    manualHandledAt: new Date('2026-05-19T17:00:00.000Z'),
+    manualHandledByName: 'Dock Master',
+    manualHandledNote: 'Admin issued sailing card without payment.',
+    purpose: 'membership',
+    receiptHref: null,
+    source: PaymentSource.legacy,
+    status: 'paid',
+    title: '',
+  };
+}
+
+function paymentHistoryRowsWithSuccessfulAndFailedPayments() {
+  return [
+    eventPaymentHistoryRow({
+      amountCents: 2500,
+      createdAt: '2026-05-21T16:00:00.000Z',
+      detailHref: '/events/firefly-clinic',
+      id: 'payment-1',
+      receiptHref: 'https://pay.stripe.com/receipts/payment-1',
+      status: 'paid',
+      title: 'Firefly Clinic',
+    }),
+    eventPaymentHistoryRow({
+      amountCents: 1500,
+      createdAt: '2026-05-20T16:00:00.000Z',
+      detailHref: '/events/racing-deposit',
+      id: 'payment-2',
+      receiptHref: null,
+      status: 'disputed',
+      title: 'Racing Deposit',
+    }),
+    membershipPaymentHistoryRow(),
+  ];
+}
+
 vi.mock('next-intl/server', () => ({
   getTranslations: mocks.getTranslations,
   setRequestLocale: mocks.setRequestLocale,
@@ -491,59 +563,9 @@ describe('admin user pages', () => {
   });
 
   it('renders user payment history with successful and failed payments', async () => {
-    mocks.listAdminUserPaymentHistory.mockResolvedValue([
-      {
-        amountCents: 2500,
-        cardType: null,
-        cardYear: null,
-        createdAt: new Date('2026-05-21T16:00:00.000Z'),
-        currency: 'usd',
-        detailHref: '/events/firefly-clinic',
-        id: 'payment-1',
-        manualHandledAt: null,
-        manualHandledByName: null,
-        manualHandledNote: null,
-        purpose: 'event',
-        receiptHref: 'https://pay.stripe.com/receipts/payment-1',
-        source: PaymentSource.stripe,
-        status: 'paid',
-        title: 'Firefly Clinic',
-      },
-      {
-        amountCents: 1500,
-        cardType: null,
-        cardYear: null,
-        createdAt: new Date('2026-05-20T16:00:00.000Z'),
-        currency: 'usd',
-        detailHref: '/events/racing-deposit',
-        id: 'payment-2',
-        manualHandledAt: null,
-        manualHandledByName: null,
-        manualHandledNote: null,
-        purpose: 'event',
-        receiptHref: null,
-        source: PaymentSource.stripe,
-        status: 'disputed',
-        title: 'Racing Deposit',
-      },
-      {
-        amountCents: 12_000,
-        cardType: SailingCardType.racing,
-        cardYear: 2026,
-        createdAt: new Date('2026-05-19T16:00:00.000Z'),
-        currency: 'usd',
-        detailHref: null,
-        id: 'payment-3',
-        manualHandledAt: new Date('2026-05-19T17:00:00.000Z'),
-        manualHandledByName: 'Dock Master',
-        manualHandledNote: 'Admin issued sailing card without payment.',
-        purpose: 'membership',
-        receiptHref: null,
-        source: PaymentSource.legacy,
-        status: 'paid',
-        title: '',
-      },
-    ]);
+    mocks.listAdminUserPaymentHistory.mockResolvedValue(
+      paymentHistoryRowsWithSuccessfulAndFailedPayments()
+    );
     const { default: AdminUserShowPage } = await import('./[id]/page');
 
     render(
@@ -566,6 +588,145 @@ describe('admin user pages', () => {
     expect(screen.getByText('payment_manual_meta')).toBeInTheDocument();
     expect(screen.getByText('payment_manual_note')).toBeInTheDocument();
     expect(screen.getByText('payment_title_membership')).toBeInTheDocument();
+  });
+
+  it('renders current payment blockers before detail sections', async () => {
+    mocks.listAdminUserPaymentHistory.mockResolvedValue([
+      {
+        amountCents: 12_000,
+        cardType: SailingCardType.racing,
+        cardYear: 2026,
+        createdAt: new Date('2026-05-19T16:00:00.000Z'),
+        currency: 'usd',
+        detailHref: null,
+        id: 'payment-3',
+        manualHandledAt: null,
+        manualHandledByName: null,
+        manualHandledNote: null,
+        purpose: 'membership',
+        receiptHref: null,
+        source: PaymentSource.stripe,
+        status: 'disputed',
+        title: '',
+      },
+    ]);
+    const { default: AdminUserShowPage } = await import('./[id]/page');
+
+    render(
+      await AdminUserShowPage({
+        params: Promise.resolve({ id: 'user-1', locale: 'en' }),
+        searchParams: Promise.resolve({}),
+      })
+    );
+
+    expect(screen.getByText('current_blockers_heading')).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', {
+        name: 'admin_user_blocker_payment_disputed',
+      })
+    ).toHaveAttribute('href', '#membership-payment-status');
+  });
+
+  it('uses the strongest current payment access across membership rows', async () => {
+    mocks.listAdminUserPaymentHistory.mockResolvedValue([
+      {
+        amountCents: 12_000,
+        cardType: SailingCardType.racing,
+        cardYear: 2026,
+        createdAt: new Date('2026-05-20T16:00:00.000Z'),
+        currency: 'usd',
+        detailHref: null,
+        id: 'payment-4',
+        manualHandledAt: null,
+        manualHandledByName: null,
+        manualHandledNote: null,
+        purpose: 'membership',
+        receiptHref: null,
+        source: PaymentSource.legacy,
+        status: 'needs_review',
+        title: '',
+      },
+      {
+        amountCents: 12_000,
+        cardType: SailingCardType.racing,
+        cardYear: 2026,
+        createdAt: new Date('2026-05-19T16:00:00.000Z'),
+        currency: 'usd',
+        detailHref: null,
+        id: 'payment-3',
+        manualHandledAt: null,
+        manualHandledByName: null,
+        manualHandledNote: null,
+        purpose: 'membership',
+        receiptHref: 'https://pay.stripe.test/receipts/1',
+        source: PaymentSource.stripe,
+        status: 'paid',
+        title: '',
+      },
+    ]);
+    const { default: AdminUserShowPage } = await import('./[id]/page');
+
+    render(
+      await AdminUserShowPage({
+        params: Promise.resolve({ id: 'user-1', locale: 'en' }),
+        searchParams: Promise.resolve({}),
+      })
+    );
+
+    expect(screen.queryByText('current_blockers_heading')).toBeNull();
+  });
+
+  it('keeps current payment blockers when newer pending rows exist', async () => {
+    mocks.listAdminUserPaymentHistory.mockResolvedValue([
+      {
+        amountCents: 12_000,
+        cardType: SailingCardType.racing,
+        cardYear: 2026,
+        createdAt: new Date('2026-05-20T16:00:00.000Z'),
+        currency: 'usd',
+        detailHref: null,
+        id: 'payment-4',
+        manualHandledAt: null,
+        manualHandledByName: null,
+        manualHandledNote: null,
+        purpose: 'membership',
+        receiptHref: null,
+        source: PaymentSource.stripe,
+        status: 'checkout_created',
+        title: '',
+      },
+      {
+        amountCents: 12_000,
+        cardType: SailingCardType.racing,
+        cardYear: 2026,
+        createdAt: new Date('2026-05-19T16:00:00.000Z'),
+        currency: 'usd',
+        detailHref: null,
+        id: 'payment-3',
+        manualHandledAt: null,
+        manualHandledByName: null,
+        manualHandledNote: null,
+        purpose: 'membership',
+        receiptHref: null,
+        source: PaymentSource.stripe,
+        status: 'past_due',
+        title: '',
+      },
+    ]);
+    const { default: AdminUserShowPage } = await import('./[id]/page');
+
+    render(
+      await AdminUserShowPage({
+        params: Promise.resolve({ id: 'user-1', locale: 'en' }),
+        searchParams: Promise.resolve({}),
+      })
+    );
+
+    expect(
+      screen.getByRole('link', {
+        name: 'admin_user_blocker_payment_past_due',
+      })
+    ).toHaveAttribute('href', '#membership-payment-status');
   });
 
   it('returns not found when the user no longer exists', async () => {

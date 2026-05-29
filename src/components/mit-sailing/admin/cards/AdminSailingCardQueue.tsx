@@ -3,6 +3,7 @@
 import { CheckCircle2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
+import type * as React from 'react';
 import { useActionState, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Textarea } from '@/components/ui/textarea';
 import { SailingAffiliation, SailingCardType } from '@/generated/prisma/enums';
 import { formatAdminDate } from '@/libs/admin/adminDateFormatting';
 import {
@@ -32,6 +34,7 @@ export type AdminSailingCardQueueRow = {
   readonly hasFitnessMembership: boolean | null;
   readonly id: string;
   readonly mitId: string | null;
+  readonly paymentAccess: 'blocked' | 'none' | 'paid';
   readonly name: string;
   readonly requestedAt: Date | null;
   readonly sailingAffiliation: SailingAffiliation | null;
@@ -49,7 +52,9 @@ type AdminSailingCardIssueFormProps = {
     previousState: AdminSailingCardActionState,
     formData: FormData
   ) => Promise<AdminSailingCardActionState>;
+  readonly cardType?: SailingCardType;
   readonly locale: string;
+  readonly paymentAccess?: AdminSailingCardQueueRow['paymentAccess'];
   readonly suggestedCardNumber: number;
   readonly userId: string;
 };
@@ -69,6 +74,7 @@ const formErrorMessageKeys = {
   no_current_card: 'error_no_current_card',
   not_found: 'error_not_found',
   not_pending_request: 'error_not_pending_request',
+  payment_required: 'error_payment_required',
 } as const satisfies Record<AdminSailingCardFormError, string>;
 
 const cardTypeMessageKeys = {
@@ -76,6 +82,12 @@ const cardTypeMessageKeys = {
   [SailingCardType.racing]: 'card_type_racing',
   [SailingCardType.team_racing]: 'card_type_team_racing',
 } as const satisfies Record<SailingCardType, string>;
+
+const paymentAccessMessageKeys = {
+  blocked: 'payment_access_blocked',
+  none: 'payment_access_none',
+  paid: 'payment_access_paid',
+} as const satisfies Record<AdminSailingCardQueueRow['paymentAccess'], string>;
 
 function matchesCardQueueSearch(options: {
   readonly query: string;
@@ -89,6 +101,17 @@ function matchesCardQueueSearch(options: {
 
   return [options.row.name, options.row.email, options.row.mitId ?? ''].some(
     (value) => value.toLowerCase().includes(query)
+  );
+}
+
+function issueFormNeedsPaymentBypassNote(props: {
+  readonly cardType: SailingCardType | undefined;
+  readonly paymentAccess: AdminSailingCardQueueRow['paymentAccess'] | undefined;
+}) {
+  return (
+    props.paymentAccess !== 'paid' &&
+    (props.cardType === SailingCardType.racing ||
+      props.cardType === SailingCardType.team_racing)
   );
 }
 
@@ -118,6 +141,23 @@ function FitnessMembershipStatus(props: {
   return t('empty_value');
 }
 
+function PaymentAccessStatus(props: {
+  readonly paymentAccess: AdminSailingCardQueueRow['paymentAccess'];
+}) {
+  const t = useTranslations('AdminCards');
+  return (
+    <span
+      className={
+        props.paymentAccess === 'blocked'
+          ? 'font-medium text-mit-red dark:text-mit-red-ink'
+          : undefined
+      }
+    >
+      {t(paymentAccessMessageKeys[props.paymentAccess])}
+    </span>
+  );
+}
+
 export function AdminSailingCardIssueForm(
   props: AdminSailingCardIssueFormProps
 ) {
@@ -134,6 +174,11 @@ export function AdminSailingCardIssueForm(
   const cardNumberErrorId = cardNumberError
     ? `${props.userId}-card-number-error`
     : undefined;
+  const paymentBypassNoteId = `${props.userId}-paymentBypassNote`;
+  const needsPaymentBypassNote = issueFormNeedsPaymentBypassNote({
+    cardType: props.cardType,
+    paymentAccess: props.paymentAccess,
+  });
 
   return (
     <form action={formAction} className="flex flex-col gap-2 sm:max-w-52">
@@ -168,6 +213,20 @@ export function AdminSailingCardIssueForm(
             ? t('error_card_number_duplicate')
             : t('error_card_number_invalid')}
         </p>
+      ) : null}
+      {needsPaymentBypassNote ? (
+        <div className="flex flex-col gap-1">
+          <Label htmlFor={paymentBypassNoteId}>
+            {t('payment_bypass_note_label')}
+          </Label>
+          <Textarea
+            id={paymentBypassNoteId}
+            name="paymentBypassNote"
+            placeholder={t('payment_bypass_note_placeholder')}
+            required
+            rows={3}
+          />
+        </div>
       ) : null}
       {formError ? (
         <p className="m-0 text-xs text-destructive" role="alert">
@@ -219,17 +278,17 @@ export function AdminSailingCardQueue(props: {
   const visibleRows = props.rows.filter((row) =>
     matchesCardQueueSearch({ query: searchQuery, row })
   );
-  let queueRows;
+  let queueRows: React.ReactNode;
   if (props.rows.length === 0) {
     queueRows = (
       <TableRow>
-        <TableCell colSpan={10}>{t('empty_queue')}</TableCell>
+        <TableCell colSpan={11}>{t('empty_queue')}</TableCell>
       </TableRow>
     );
   } else if (visibleRows.length === 0) {
     queueRows = (
       <TableRow>
-        <TableCell colSpan={10}>{t('filter_empty')}</TableCell>
+        <TableCell colSpan={11}>{t('filter_empty')}</TableCell>
       </TableRow>
     );
   } else {
@@ -255,17 +314,22 @@ export function AdminSailingCardQueue(props: {
         </TableCell>
         <TableCell>{row.mitId ?? t('empty_value')}</TableCell>
         <TableCell>
+          <PaymentAccessStatus paymentAccess={row.paymentAccess} />
+        </TableCell>
+        <TableCell>
           {row.agreementAcceptedAt
             ? `${formatAdminDate(row.agreementAcceptedAt, props.locale)} (${row.agreementVersion ?? t('empty_value')})`
             : t('empty_value')}
         </TableCell>
         <TableCell>{formatAdminDate(row.requestedAt, props.locale)}</TableCell>
         <TableCell>{props.suggestedCardNumber}</TableCell>
-        <TableCell>
+        <TableCell className="sticky right-0 bg-card">
           <div className="flex flex-wrap gap-2">
             {props.canAssignCards ? (
               <AdminSailingCardIssueForm
+                cardType={row.cardType}
                 locale={props.locale}
+                paymentAccess={row.paymentAccess}
                 suggestedCardNumber={props.suggestedCardNumber}
                 userId={row.id}
               />
@@ -309,6 +373,7 @@ export function AdminSailingCardQueue(props: {
             <TableHead>{t('column_card_type')}</TableHead>
             <TableHead>{t('column_fitness_membership')}</TableHead>
             <TableHead>{t('column_mit_id')}</TableHead>
+            <TableHead>{t('column_payment_access')}</TableHead>
             <TableHead>{t('column_agreement_acceptance')}</TableHead>
             <TableHead>{t('column_requested_at')}</TableHead>
             <TableHead>{t('column_suggested_card')}</TableHead>

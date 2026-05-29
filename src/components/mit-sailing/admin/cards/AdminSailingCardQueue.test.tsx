@@ -51,6 +51,7 @@ vi.mock('next-intl', () => ({
       column_fitness_membership: 'MIT Recreation',
       column_mit_id: 'MIT ID',
       column_name: 'Name',
+      column_payment_access: 'Payment access',
       column_requested_at: 'Requested',
       column_suggested_card: 'Suggested card',
       empty_queue: 'No pending card requests.',
@@ -62,6 +63,7 @@ vi.mock('next-intl', () => ({
         'Verify MIT Recreation before issuing Normal.',
       error_no_current_card: 'No current card.',
       error_not_found: 'User was not found.',
+      error_payment_required: 'Enter a note before issuing without payment.',
       filter_empty: 'No pending card requests match that search.',
       filter_search_label: 'Search pending requests',
       filter_search_placeholder: 'Search by name, email, or MIT ID',
@@ -75,6 +77,11 @@ vi.mock('next-intl', () => ({
       history_empty: 'No previous cards.',
       history_heading: 'Card history',
       history_row: `Card #${number} for ${year}`,
+      payment_bypass_note_label: 'Payment bypass note',
+      payment_bypass_note_placeholder: 'Required when issuing without payment',
+      payment_access_blocked: 'Payment needs review',
+      payment_access_none: 'No payment',
+      payment_access_paid: 'Paid',
     };
     return messages[key] ?? key;
   },
@@ -89,6 +96,7 @@ const queueRow = {
   hasFitnessMembership: null,
   mitId: '123456789',
   name: 'Ada Lovelace',
+  paymentAccess: 'none' as const,
   requestedAt: new Date('2026-05-21T16:00:00.000Z'),
   sailingAffiliation: SailingAffiliation.MIT_STUDENT,
 };
@@ -120,6 +128,7 @@ describe('AdminSailingCardQueue', () => {
     expect(screen.getByText('Normal')).toBeInTheDocument();
     expect(screen.getByText('MIT student')).toBeInTheDocument();
     expect(screen.getByText('123456789')).toBeInTheDocument();
+    expect(screen.getByText('No payment')).toBeInTheDocument();
     expect(screen.getByText(/v1/)).toBeInTheDocument();
     expect(screen.getAllByText(/May 21, 2026/)).toHaveLength(2);
     expect(screen.getByText('60')).toBeInTheDocument();
@@ -167,6 +176,25 @@ describe('AdminSailingCardQueue', () => {
     expect(
       screen.queryByText('No, verify before issuing')
     ).not.toBeInTheDocument();
+  });
+
+  it('shows blocked payment access in pending queue rows', () => {
+    render(
+      <AdminSailingCardQueue
+        canAssignCards
+        locale="en"
+        rows={[
+          {
+            ...queueRow,
+            cardType: SailingCardType.racing,
+            paymentAccess: 'blocked',
+          },
+        ]}
+        suggestedCardNumber={60}
+      />
+    );
+
+    expect(screen.getByText('Payment needs review')).toBeInTheDocument();
   });
 
   it('does not render expire action for pending requests', () => {
@@ -270,10 +298,42 @@ describe('AdminSailingCardQueue', () => {
     expect(screen.getByLabelText('Card number')).toHaveValue(7);
   });
 
+  it('renders payment bypass note for paid pending rows without payment', () => {
+    render(
+      <AdminSailingCardIssueForm
+        action={vi.fn()}
+        locale="en"
+        paymentAccess="none"
+        cardType={SailingCardType.racing}
+        suggestedCardNumber={60}
+        userId="user-1"
+      />
+    );
+
+    const note = screen.getByLabelText('Payment bypass note');
+    expect(note).toHaveAttribute('name', 'paymentBypassNote');
+    expect(note).toBeRequired();
+  });
+
+  it('omits payment bypass note for paid pending rows with paid access', () => {
+    render(
+      <AdminSailingCardIssueForm
+        action={vi.fn()}
+        locale="en"
+        paymentAccess="paid"
+        cardType={SailingCardType.racing}
+        suggestedCardNumber={60}
+        userId="user-1"
+      />
+    );
+
+    expect(screen.queryByLabelText('Payment bypass note')).toBeNull();
+  });
+
   it('renders issue form-level errors', () => {
     actionStateMock.state = {
       fieldErrors: {},
-      formError: 'missing_onboarding_agreement',
+      formError: 'payment_required',
       status: 'error',
     };
 
@@ -287,7 +347,7 @@ describe('AdminSailingCardQueue', () => {
     );
 
     expect(screen.getByRole('alert')).toHaveTextContent(
-      'Missing onboarding agreement acceptance.'
+      'Enter a note before issuing without payment.'
     );
   });
 

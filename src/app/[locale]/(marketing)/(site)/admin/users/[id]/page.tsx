@@ -17,12 +17,18 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { PaymentSource, SailingCardType } from '@/generated/prisma/enums';
+import {
+  PaymentSource,
+  PaymentStatus,
+  SailingCardType,
+} from '@/generated/prisma/enums';
 import { formatAdminDate } from '@/libs/admin/adminDateFormatting';
 import {
   getAdminSailingCardHistory,
   getAdminUserSailingCardSummary,
 } from '@/libs/admin/cards/adminSailingCardUiQueries';
+import { adminUserMembershipBlockers } from '@/libs/admin/users/adminUserMembershipStatus';
+import type { AdminUserMembershipBlocker } from '@/libs/admin/users/adminUserMembershipStatus';
 import { adminUsersEditPath } from '@/libs/admin/users/adminUserPaths';
 import { listAdminUserPaymentHistory } from '@/libs/admin/users/adminUserPaymentHistory';
 import type { AdminUserPaymentHistoryRow } from '@/libs/admin/users/adminUserPaymentHistory';
@@ -36,7 +42,11 @@ import { appRoleFromSessionUser, requirePermission } from '@/libs/auth/dal';
 import { getAdminUserEmailMessages } from '@/libs/email/emailMessages';
 import type { AdminUserEmailMessageRow } from '@/libs/email/emailMessages';
 import { logger } from '@/libs/Logger';
-import { hasCurrentSailingCard } from '@/libs/mit-sailing/sailingCardValidity';
+import { membershipPaymentAccessStatus } from '@/libs/mit-sailing/membershipBilling/membershipPaymentStatus';
+import {
+  getCurrentSailingCardYear,
+  hasCurrentSailingCard,
+} from '@/libs/mit-sailing/sailingCardValidity';
 import { listUserRatingAssignmentRows } from '@/libs/mit-sailing/sailingRatingQueries';
 import type { UserRatingAssignmentRow } from '@/libs/mit-sailing/sailingRatingQueries';
 import { formatUsdMinorUnitsAsCurrency } from '@/libs/money/stripeUsdMinorUnits';
@@ -282,7 +292,7 @@ function AdminUserSailingCardSection(props: {
   return (
     <>
       <section className="rounded-lg border border-border bg-card p-5 text-sm text-foreground">
-        <h2 className="m-0 text-lg font-semibold">
+        <h2 className="m-0 text-lg font-semibold" id="sailing-card-status">
           {props.t('sailing_card_heading')}
         </h2>
         {props.loadError ? (
@@ -485,6 +495,16 @@ function AdminUserPaymentManualEvidence(props: {
   );
 }
 
+function adminPaymentReceiptFallback(
+  payment: AdminUserPaymentHistoryRow,
+  t: Awaited<ReturnType<typeof getTranslations>>
+) {
+  if (payment.source === PaymentSource.legacy && payment.status === 'paid') {
+    return t('payment_no_stripe_receipt');
+  }
+  return t('empty_value');
+}
+
 function AdminUserPaymentHistoryPanel(props: {
   readonly loadFailed: boolean;
   readonly locale: string;
@@ -493,7 +513,9 @@ function AdminUserPaymentHistoryPanel(props: {
 }) {
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-lg font-semibold">{props.t('payments_heading')}</h2>
+      <h2 className="text-lg font-semibold" id="membership-payment-status">
+        {props.t('payments_heading')}
+      </h2>
       {props.loadFailed ? (
         <output className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
           {props.t('payments_load_failed')}
@@ -564,7 +586,7 @@ function AdminUserPaymentHistoryPanel(props: {
                         {props.t('payment_receipt_link')}
                       </a>
                     ) : (
-                      props.t('empty_value')
+                      adminPaymentReceiptFallback(payment, props.t)
                     )}
                   </TableCell>
                 </TableRow>
@@ -575,6 +597,88 @@ function AdminUserPaymentHistoryPanel(props: {
       </div>
     </section>
   );
+}
+
+function AdminUserCurrentBlockers(props: {
+  readonly blockers: AdminUserMembershipBlocker[];
+  readonly t: Awaited<ReturnType<typeof getTranslations>>;
+}) {
+  if (props.blockers.length === 0) {
+    return null;
+  }
+
+  return (
+    <section
+      aria-labelledby="admin-user-current-blockers"
+      className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"
+    >
+      <h2 className="m-0 font-semibold" id="admin-user-current-blockers">
+        {props.t('current_blockers_heading')}
+      </h2>
+      <ul className="mt-2 space-y-1 p-0">
+        {props.blockers.map((blocker) => (
+          <li className="list-none" key={blocker.key}>
+            <a className="font-medium underline" href={blocker.href}>
+              {props.t(blocker.key)}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function membershipAccessPriority(
+  access: ReturnType<typeof membershipPaymentAccessStatus>
+) {
+  if (access.access === 'paid') {
+    return 3;
+  }
+  if (access.access === 'blocked') {
+    return 2;
+  }
+  return 1;
+}
+
+function currentMembershipPaymentAccess(
+  rows: readonly AdminUserPaymentHistoryRow[]
+) {
+  const cardYear = getCurrentSailingCardYear();
+  let currentAccess = membershipPaymentAccessStatus({ cardYear, record: null });
+
+  for (const row of rows) {
+    if (
+      row.purpose !== 'membership' ||
+      row.cardYear !== cardYear ||
+      (row.cardType !== SailingCardType.racing &&
+        row.cardType !== SailingCardType.team_racing)
+    ) {
+      continue;
+    }
+
+    const rowAccess =
+      row.status === PaymentStatus.checkout_created
+        ? membershipPaymentAccessStatus({ cardYear, record: null })
+        : membershipPaymentAccessStatus({
+            cardYear,
+            record: {
+              cardType: row.cardType,
+              cardYear,
+              source: row.source,
+              status: row.status,
+              stripeReceiptUrl: row.receiptHref,
+            },
+          });
+
+    if (
+      membershipAccessPriority(rowAccess) >
+      membershipAccessPriority(currentAccess)
+    ) {
+      currentAccess = rowAccess;
+    }
+  }
+
+  return currentAccess;
 }
 
 export async function generateMetadata(
@@ -618,6 +722,12 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
       ? user.emailSuppressionReason
       : emailStatus;
   const hasEmailDeliverabilityWarning = emailStatus !== 'ok';
+  const blockers = adminUserMembershipBlockers({
+    cardRequest: null,
+    introClassRequired: false,
+    membershipAccess: currentMembershipPaymentAccess(paymentDetails.rows),
+    recreationVerificationRequired: false,
+  });
 
   return (
     <div className="flex w-full max-w-5xl flex-col gap-6">
@@ -631,6 +741,7 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
         }
         title={user.name}
       />
+      <AdminUserCurrentBlockers blockers={blockers} t={t} />
       <div className="rounded-lg border border-border bg-card p-5 text-sm text-foreground">
         <dl className="m-0 grid gap-3 sm:grid-cols-3">
           <div>

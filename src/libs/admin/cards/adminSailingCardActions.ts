@@ -36,7 +36,8 @@ type AdminSailingCardFormError =
   | 'mit_recreation_required'
   | 'no_current_card'
   | 'not_pending_request'
-  | 'not_found';
+  | 'not_found'
+  | 'payment_required';
 
 export type AdminSailingCardActionState = {
   readonly fieldErrors: AdminSailingCardFieldErrors;
@@ -86,6 +87,11 @@ function parseManualCardNumber(formData: FormData) {
     return 'invalid';
   }
   return Number(raw);
+}
+
+function parsePaymentBypassNote(formData: FormData) {
+  const raw = formDataString(formData, 'paymentBypassNote').trim();
+  return raw.length < 3 ? null : raw;
 }
 
 function jsonDate(date: Date | null) {
@@ -165,7 +171,10 @@ function requestNeedsFitnessVerification(request: {
 }
 
 function requestNeedsPaymentBypass(cardType: SailingCardType) {
-  return cardType !== SailingCardType.normal;
+  return (
+    cardType === SailingCardType.racing ||
+    cardType === SailingCardType.team_racing
+  );
 }
 
 async function hasRecordedMembershipPayment(props: {
@@ -282,7 +291,8 @@ function issueSailingCardErrorState(error: unknown) {
     error.message === 'not_found' ||
     error.message === 'missing_onboarding_agreement' ||
     error.message === 'mit_recreation_required' ||
-    error.message === 'not_pending_request'
+    error.message === 'not_pending_request' ||
+    error.message === 'payment_required'
   ) {
     return {
       fieldErrors: {},
@@ -304,6 +314,7 @@ export async function issueSailingCardAction(
     locale
   );
   const manualCardNumber = parseManualCardNumber(formData);
+  const paymentBypassNote = parsePaymentBypassNote(formData);
   if (manualCardNumber === 'invalid') {
     return {
       fieldErrors: { cardNumber: 'invalid' },
@@ -354,6 +365,9 @@ export async function issueSailingCardAction(
           userId: targetUserId,
         }));
       if (needsPaymentBypass) {
+        if (paymentBypassNote === null) {
+          throw new Error('payment_required');
+        }
         await tx.payment.create({
           data: {
             amountCents: 0,
@@ -362,7 +376,7 @@ export async function issueSailingCardAction(
             currency: 'usd',
             manualHandledAt: now,
             manualHandledByUserId: session.user.id,
-            manualHandledNote: 'Admin issued sailing card without payment.',
+            manualHandledNote: paymentBypassNote,
             purpose: PaymentPurpose.membership,
             source: PaymentSource.admin_override,
             status: PaymentStatus.handled,
@@ -401,7 +415,7 @@ export async function issueSailingCardAction(
             ? {
                 paymentBypassAt: now,
                 paymentBypassByUserId: session.user.id,
-                paymentBypassNote: 'Admin issued sailing card without payment.',
+                paymentBypassNote,
               }
             : {}),
           status: SailingCardRequestStatus.approved,

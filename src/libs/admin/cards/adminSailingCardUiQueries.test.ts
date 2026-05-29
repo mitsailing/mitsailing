@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   LegalAgreementAcceptanceSource,
+  PaymentPurpose,
+  PaymentSource,
+  PaymentStatus,
   SailingCardType,
 } from '@/generated/prisma/enums';
 import {
@@ -23,14 +26,80 @@ vi.mock('@/libs/mit-sailing/sailingCardValidity', async () => {
 });
 
 const mocks = vi.hoisted(() => ({
+  paymentFindMany: vi.fn(),
   sailingCardRequestFindMany: vi.fn(),
   userFindUnique: vi.fn(),
   userFindMany: vi.fn(),
   userAuditFindMany: vi.fn(),
 }));
 
+function pendingRequestFixture(options: {
+  readonly cardType?: SailingCardType;
+  readonly email?: string;
+  readonly firstName?: string;
+}) {
+  return {
+    cardType: options.cardType ?? SailingCardType.racing,
+    firstName: options.firstName ?? 'Pending',
+    hasFitnessMembership: null,
+    id: 'request-1',
+    lastName: 'Racer',
+    legalAgreementAcceptance: {
+      acceptedAt: new Date('2026-05-21T16:00:00.000Z'),
+      agreementVersion: 'v1',
+    },
+    mitId: null,
+    requestedAt: new Date('2026-05-22T16:00:00.000Z'),
+    sailingAffiliation: 'MIT_ALUM',
+    user: {
+      email: options.email ?? 'pending@example.com',
+      id: 'user-1',
+    },
+  };
+}
+
+function membershipPaymentFixture(options: {
+  readonly source: PaymentSource;
+  readonly status: PaymentStatus;
+  readonly stripeReceiptUrl?: string | null;
+}) {
+  return {
+    cardType: SailingCardType.racing,
+    source: options.source,
+    status: options.status,
+    stripeReceiptUrl: options.stripeReceiptUrl ?? null,
+    userId: 'user-1',
+  };
+}
+
+async function expectPendingPaymentAccess(options: {
+  readonly access: 'blocked' | 'paid';
+  readonly payments: ReturnType<typeof membershipPaymentFixture>[];
+  readonly requestEmail: string;
+  readonly requestName: string;
+}) {
+  mocks.sailingCardRequestFindMany.mockResolvedValue([
+    pendingRequestFixture({
+      email: options.requestEmail,
+      firstName: options.requestName,
+    }),
+  ]);
+  mocks.paymentFindMany.mockResolvedValue(options.payments);
+  const { listPendingSailingCardRequests } =
+    await import('@/libs/admin/cards/adminSailingCardUiQueries');
+
+  await expect(listPendingSailingCardRequests()).resolves.toMatchObject([
+    {
+      paymentAccess: options.access,
+    },
+  ]);
+}
+
 vi.mock('@/libs/DB', () => ({
   prisma: {
+    payment: {
+      findMany: mocks.paymentFindMany,
+    },
     sailingCardRequest: {
       findMany: mocks.sailingCardRequestFindMany,
     },
@@ -47,6 +116,7 @@ vi.mock('@/libs/DB', () => ({
 describe('adminSailingCardUiQueries', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.paymentFindMany.mockResolvedValue([]);
   });
 
   it('returns pending requests with latest onboarding agreement acceptance', async () => {
@@ -87,6 +157,7 @@ describe('adminSailingCardUiQueries', () => {
         id: 'user-1',
         mitId: '987654321',
         name: 'Submitted Name',
+        paymentAccess: 'none',
         requestedAt: new Date('2026-05-22T16:00:00.000Z'),
         sailingAffiliation: 'MIT_ALUM',
       },
@@ -100,6 +171,68 @@ describe('adminSailingCardUiQueries', () => {
         }),
       })
     );
+    expect(mocks.paymentFindMany).toHaveBeenCalledWith({
+      select: {
+        cardType: true,
+        source: true,
+        status: true,
+        stripeReceiptUrl: true,
+        userId: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      where: {
+        cardYear: getCurrentSailingCardYear(),
+        purpose: PaymentPurpose.membership,
+        userId: { in: ['user-1'] },
+      },
+    });
+  });
+
+  it('marks pending paid card requests with current payment access', async () => {
+    await expectPendingPaymentAccess({
+      access: 'paid',
+      payments: [
+        membershipPaymentFixture({
+          source: PaymentSource.legacy,
+          status: PaymentStatus.paid,
+        }),
+      ],
+      requestEmail: 'paid@example.com',
+      requestName: 'Paid',
+    });
+  });
+
+  it('marks pending paid card requests with current payment blockers', async () => {
+    await expectPendingPaymentAccess({
+      access: 'blocked',
+      payments: [
+        membershipPaymentFixture({
+          source: PaymentSource.legacy,
+          status: PaymentStatus.needs_review,
+        }),
+      ],
+      requestEmail: 'blocked@example.com',
+      requestName: 'Blocked',
+    });
+  });
+
+  it('keeps paid access when a newer legacy row needs review', async () => {
+    await expectPendingPaymentAccess({
+      access: 'paid',
+      payments: [
+        membershipPaymentFixture({
+          source: PaymentSource.legacy,
+          status: PaymentStatus.needs_review,
+        }),
+        membershipPaymentFixture({
+          source: PaymentSource.stripe,
+          status: PaymentStatus.paid,
+          stripeReceiptUrl: 'https://pay.stripe.test/receipts/1',
+        }),
+      ],
+      requestEmail: 'mixed@example.com',
+      requestName: 'Mixed',
+    });
   });
 
   it('returns old card history even after many unrelated audits', async () => {

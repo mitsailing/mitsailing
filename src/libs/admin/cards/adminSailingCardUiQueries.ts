@@ -6,9 +6,12 @@ import type {
 import type { Prisma } from '@/generated/prisma/client';
 import {
   LegalAgreementAcceptanceSource,
+  PaymentPurpose,
+  PaymentStatus,
   SailingCardRequestStatus,
 } from '@/generated/prisma/enums';
 import { prisma } from '@/libs/DB';
+import { membershipPaymentAccessStatus } from '@/libs/mit-sailing/membershipBilling/membershipPaymentStatus';
 import {
   sailingCardAgreement,
   sailingCardAgreementHash,
@@ -51,12 +54,25 @@ function historyRowFromAudit(row: {
   };
 }
 
+function paymentAccessPriority(
+  access: AdminSailingCardQueueRow['paymentAccess']
+) {
+  if (access === 'paid') {
+    return 3;
+  }
+  if (access === 'blocked') {
+    return 2;
+  }
+  return 1;
+}
+
 export async function listPendingSailingCardRequests(): Promise<
   AdminSailingCardQueueRow[]
 > {
+  const cardYear = getCurrentSailingCardYear();
   const rows = await prisma.sailingCardRequest.findMany({
     where: {
-      cardYear: getCurrentSailingCardYear(),
+      cardYear,
       status: SailingCardRequestStatus.pending,
     },
     orderBy: { requestedAt: 'asc' },
@@ -83,6 +99,56 @@ export async function listPendingSailingCardRequests(): Promise<
       },
     },
   });
+  const userIds = rows.map((row) => row.user.id);
+  const payments =
+    userIds.length === 0
+      ? []
+      : await prisma.payment.findMany({
+          where: {
+            cardYear,
+            purpose: PaymentPurpose.membership,
+            userId: { in: userIds },
+          },
+          orderBy: { createdAt: 'desc' },
+          select: {
+            cardType: true,
+            source: true,
+            status: true,
+            stripeReceiptUrl: true,
+            userId: true,
+          },
+        });
+  const accessByKey = new Map<
+    string,
+    AdminSailingCardQueueRow['paymentAccess']
+  >();
+  for (const payment of payments) {
+    if (payment.cardType !== 'racing' && payment.cardType !== 'team_racing') {
+      continue;
+    }
+    const key = `${payment.userId}:${payment.cardType}`;
+    const access = membershipPaymentAccessStatus({
+      cardYear,
+      record: {
+        cardType: payment.cardType,
+        cardYear,
+        source: payment.source,
+        status:
+          payment.status === PaymentStatus.checkout_created
+            ? PaymentStatus.pending
+            : payment.status,
+        stripeReceiptUrl: payment.stripeReceiptUrl,
+      },
+    });
+    const currentAccess = accessByKey.get(key);
+    if (
+      currentAccess === undefined ||
+      paymentAccessPriority(access.access) >
+        paymentAccessPriority(currentAccess)
+    ) {
+      accessByKey.set(key, access.access);
+    }
+  }
 
   return rows.map((row) => ({
     agreementAcceptedAt: row.legalAgreementAcceptance.acceptedAt,
@@ -93,6 +159,7 @@ export async function listPendingSailingCardRequests(): Promise<
     id: row.user.id,
     mitId: row.mitId,
     name: `${row.firstName} ${row.lastName}`,
+    paymentAccess: accessByKey.get(`${row.user.id}:${row.cardType}`) ?? 'none',
     requestedAt: row.requestedAt,
     sailingAffiliation: row.sailingAffiliation,
   }));

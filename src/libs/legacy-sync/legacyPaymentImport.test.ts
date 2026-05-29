@@ -153,10 +153,23 @@ describe('legacyPaymentImport', () => {
     });
   });
 
-  it('keeps old deposit authorizations out of paid access', () => {
-    expect(legacyPaymentStatus(payment({ category: 'BD', settled: '0' }))).toBe(
+  it('keeps unsettled racing payments out of paid access', () => {
+    expect(legacyPaymentStatus(payment({ settled: '0' }))).toBe(
       PaymentStatus.needs_review
     );
+  });
+
+  it('keeps old deposit authorizations out of paid access', () => {
+    expect(
+      legacyPaymentStatus(
+        payment({
+          category: null,
+          description: 'CROTR07 Damage Deposit - Team 2 Boat 3',
+          omarsid: 'BD-135670323',
+          settled: '0',
+        })
+      )
+    ).toBe(PaymentStatus.needs_review);
   });
 
   it('parses legacy decimal dollar amounts into cents', () => {
@@ -350,6 +363,32 @@ describe('legacyPaymentImport', () => {
           legacyCategory: 'Regatta',
           legacyDescription: 'Legacy regatta payment',
           purpose: PaymentPurpose.event_payment,
+          status: PaymentStatus.needs_review,
+          userId: null,
+        }),
+      })
+    );
+  });
+
+  it('keeps unmatched racing card rows reviewable as membership context', async () => {
+    await importLegacyPaymentRows({
+      members: [],
+      payments: [
+        payment({
+          billTo_email: '',
+          description: 'Racing Card 2026-2027 for unknown-sailor',
+          settled: '0',
+          userid: '',
+        }),
+      ],
+    });
+
+    expect(mocks.paymentUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          cardType: SailingCardType.racing,
+          cardYear: 2027,
+          purpose: PaymentPurpose.membership,
           status: PaymentStatus.needs_review,
           userId: null,
         }),

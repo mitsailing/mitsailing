@@ -1,6 +1,10 @@
 import 'server-only';
 import type { Prisma } from '@/generated/prisma/client';
-import { PaymentPurpose, PaymentStatus } from '@/generated/prisma/enums';
+import {
+  PaymentPurpose,
+  PaymentSource,
+  PaymentStatus,
+} from '@/generated/prisma/enums';
 import type { PaymentStatus as PaymentStatusValue } from '@/generated/prisma/enums';
 import { prisma } from '@/libs/DB';
 
@@ -16,8 +20,11 @@ export type AdminPaymentLedgerRow = {
     name: string;
     slug: string;
   } | null;
+  legacyCategory: string | null;
   id: string;
   legacyDescription: string | null;
+  legacySourceId: string | null;
+  legacySourceTable: string | null;
   payerEmail: string | null;
   payerName: string | null;
   receiptUrl: string | null;
@@ -54,26 +61,42 @@ function ledgerWhereFromFilters(
   filters: AdminPaymentLedgerFilters
 ): Prisma.PaymentWhereInput {
   const query = filters.query?.trim();
+  const conditions: Prisma.PaymentWhereInput[] = [
+    {
+      OR: [
+        { purpose: PaymentPurpose.event_payment },
+        {
+          purpose: PaymentPurpose.membership,
+          source: PaymentSource.legacy,
+          status: PaymentStatus.needs_review,
+          userId: null,
+        },
+      ],
+    },
+  ];
+
+  if (filters.status && filters.status !== 'all') {
+    conditions.push({ status: filters.status });
+  }
+
+  if (query) {
+    conditions.push({
+      OR: [
+        { event: { name: { contains: query, mode: 'insensitive' } } },
+        { user: { email: { contains: query, mode: 'insensitive' } } },
+        { user: { name: { contains: query, mode: 'insensitive' } } },
+        { legacyDescription: { contains: query, mode: 'insensitive' } },
+        { legacySourceId: { contains: query } },
+        { payerEmail: { contains: query, mode: 'insensitive' } },
+        { payerName: { contains: query, mode: 'insensitive' } },
+        { stripeCheckoutSessionId: { contains: query } },
+        { stripePaymentIntentId: { contains: query } },
+      ],
+    });
+  }
+
   return {
-    purpose: PaymentPurpose.event_payment,
-    ...(filters.status && filters.status !== 'all'
-      ? { status: filters.status }
-      : {}),
-    ...(query
-      ? {
-          OR: [
-            { event: { name: { contains: query, mode: 'insensitive' } } },
-            { user: { email: { contains: query, mode: 'insensitive' } } },
-            { user: { name: { contains: query, mode: 'insensitive' } } },
-            { legacyDescription: { contains: query, mode: 'insensitive' } },
-            { legacySourceId: { contains: query } },
-            { payerEmail: { contains: query, mode: 'insensitive' } },
-            { payerName: { contains: query, mode: 'insensitive' } },
-            { stripeCheckoutSessionId: { contains: query } },
-            { stripePaymentIntentId: { contains: query } },
-          ],
-        }
-      : {}),
+    AND: conditions,
   };
 }
 
@@ -90,7 +113,10 @@ export async function listAdminPaymentLedgerData(
         createdAt: true,
         event: { select: { name: true, slug: true } },
         id: true,
+        legacyCategory: true,
         legacyDescription: true,
+        legacySourceId: true,
+        legacySourceTable: true,
         payerEmail: true,
         payerName: true,
         status: true,
@@ -117,7 +143,10 @@ export async function listAdminPaymentLedgerData(
       createdAt: row.createdAt,
       event: row.event,
       id: row.id,
+      legacyCategory: row.legacyCategory,
       legacyDescription: row.legacyDescription,
+      legacySourceId: row.legacySourceId,
+      legacySourceTable: row.legacySourceTable,
       payerEmail: row.payerEmail,
       payerName: row.payerName,
       receiptUrl: row.stripeReceiptUrl,

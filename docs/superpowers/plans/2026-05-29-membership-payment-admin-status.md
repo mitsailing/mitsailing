@@ -547,7 +547,7 @@ Expected: PASS.
 - Modify: `src/components/mit-sailing/admin/cards/AdminSailingCardQueue.test.tsx`
 - Modify: `src/locales/en.json`
 
-- [ ] **Step 1: Write failing server-action tests**
+- [x] **Step 1: Write failing server-action tests**
 
 Add tests that paid card issuance without paid access fails unless a bypass note is present:
 
@@ -585,7 +585,7 @@ it('records a bypass note when issuing paid racing without payment', async () =>
 
 Expected: FAIL because the form error and fields do not exist.
 
-- [ ] **Step 2: Parse and validate bypass note**
+- [x] **Step 2: Parse and validate bypass note**
 
 Add:
 
@@ -611,7 +611,7 @@ Extend `AdminSailingCardFormError` with:
 
 When `paidCardRequiresPayment(request.cardType)` and current membership access is not paid, require `paymentBypassNote !== null`.
 
-- [ ] **Step 3: Store bypass fields on request approval**
+- [x] **Step 3: Store bypass fields on request approval**
 
 In the `sailingCardRequest.updateMany` approval data, set:
 
@@ -623,7 +623,7 @@ paymentBypassNote: shouldBypassPayment ? paymentBypassNote : null,
 
 Keep user card fields unchanged; this is still manual card issuance.
 
-- [ ] **Step 4: Add UI note field only for paid unpaid rows**
+- [x] **Step 4: Add UI note field only for paid unpaid rows**
 
 Extend the pending row DTO with payment access status. In the issue form, render a textarea when the row is paid `racing`/`team_racing` and access is not paid:
 
@@ -640,7 +640,7 @@ Extend the pending row DTO with payment access status. In the issue form, render
 
 Do not show this field for free normal cards or paid cards with active paid/legacy access.
 
-- [ ] **Step 5: Run focused tests**
+- [x] **Step 5: Run focused tests**
 
 Run:
 
@@ -661,7 +661,7 @@ Expected: PASS.
 - Modify: `src/app/[locale]/(marketing)/(site)/admin/users/adminUserPages.test.tsx`
 - Modify: `src/locales/en.json`
 
-- [ ] **Step 1: Write failing status helper tests**
+- [x] **Step 1: Write failing status helper tests**
 
 Create tests for blocker composition:
 
@@ -685,7 +685,7 @@ it('returns payment blocker before card issuance', () => {
 
 Expected: FAIL because helper does not exist.
 
-- [ ] **Step 2: Implement pure blocker helper**
+- [x] **Step 2: Implement pure blocker helper**
 
 Add:
 
@@ -746,7 +746,7 @@ export type AdminUserPaymentHistoryRow = {
 
 Do not create a database view or adapter layer for V1. This is just an admin user-page display query over the shared payment table.
 
-- [ ] **Step 5: Render top status area**
+- [x] **Step 5: Render top status area**
 
 In `/admin/users/[id]/page.tsx`, render the current blockers after `AdminPageHeader` and before detail cards:
 
@@ -775,7 +775,7 @@ On `/admin/users/[id]`, add a staff-only section showing all rows from `adminUse
 
 The section is read-only. Do not add refund, override, cancellation, or retry controls in this task.
 
-- [ ] **Step 7: Run focused tests**
+- [x] **Step 7: Run focused tests**
 
 Run:
 
@@ -794,7 +794,12 @@ Expected: PASS.
 - Modify: `src/components/auth/profile/ProfileSideNav.tsx`
 - Modify: `src/locales/en.json`
 
-- [ ] **Step 1: Write failing component tests**
+- [x] **Step 1: Write failing component tests**
+
+V1 update: implemented the member-facing payment view at `/profile/payments`
+rather than adding a second `/profile/membership` route in this PR. The view
+shows event and membership payment status, including legacy paid rows with no
+Stripe receipt link.
 
 Test legacy paid display:
 
@@ -819,7 +824,7 @@ it('shows legacy payment as paid without a receipt link', () => {
 
 Expected: FAIL because component does not exist.
 
-- [ ] **Step 2: Implement display component**
+- [x] **Step 2: Implement display component**
 
 Add a small component that accepts `MembershipPaymentAccessStatus` and renders:
 
@@ -828,11 +833,11 @@ Add a small component that accepts `MembershipPaymentAccessStatus` and renders:
 - blocked: warning/error text;
 - none: payment setup/status copy.
 
-- [ ] **Step 3: Add profile route**
+- [x] **Step 3: Add profile route**
 
 Add `/profile/membership` using existing profile layout conventions. It should load the current user's membership access status server-side and render `ProfileMembershipStatus`.
 
-- [ ] **Step 4: Run focused tests**
+- [x] **Step 4: Run focused tests**
 
 Run:
 
@@ -851,7 +856,15 @@ Expected: PASS.
 - Create: `src/libs/admin/membership/legacyMembershipPaymentReview.ts`
 - Create: `src/libs/admin/membership/legacyMembershipPaymentReview.test.ts`
 
-- [ ] **Step 1: Write matching tests from discovered source fields**
+- [x] **Step 1: Write matching tests from discovered source fields**
+
+V1 evidence update: the local legacy mirror is the source of truth, not
+WordPress. `legacy.payments` has `settled`; local racing-card rows include many
+`settled = '0'` rows. This PR treats `settled != '1'` racing rows as
+`needs_review` rather than paid access. Legacy damage-deposit rows are detected
+by `omarsid` prefix `BD-` or description containing `Damage Deposit` and are
+review-only because returned/voided/final deposit state cannot be proven from
+the available legacy columns.
 
 After Task 0 identifies the source table/fields, write tests with three fixtures:
 
@@ -894,7 +907,7 @@ it('routes ambiguous legacy payment rows to review', () => {
 
 Expected: FAIL until the source-specific mapping exists.
 
-- [ ] **Step 2: Implement source-specific mapping**
+- [x] **Step 2: Implement source-specific mapping**
 
 Map the discovered legacy row fields into the membership payment/access model. Do not invent Stripe ids. Do not attach ambiguous rows to users.
 
@@ -913,11 +926,11 @@ Required output fields:
 }
 ```
 
-- [ ] **Step 3: Add review query helper**
+- [x] **Step 3: Add review query helper**
 
 Expose unmatched/ambiguous rows through `legacyMembershipPaymentReview.ts` for a future admin review UI/report. The helper returns only review rows and must not grant access.
 
-- [ ] **Step 4: Run focused tests**
+- [x] **Step 4: Run focused tests**
 
 Run:
 
@@ -932,7 +945,14 @@ Expected: PASS.
 **Files:**
 - Add or update: `tests/e2e/SailingCardMembershipPayments.e2e.ts`
 
-- [ ] **Step 1: Add e2e coverage**
+- [x] **Step 1: Add e2e coverage**
+
+Current status: focused unit/component coverage exists for card-queue search,
+manual card `110`, duplicate card protection, payment-bypass note requirement,
+legacy paid/no receipt, current admin payment blockers, and legacy review-only
+classification. Existing Playwright payment coverage was updated for the shared
+`payments` table and rerun successfully after fixing the stale
+`event_payments` fixture helper.
 
 Add Playwright coverage for:
 
@@ -942,7 +962,7 @@ Add Playwright coverage for:
 - paid racing without payment requires a bypass note;
 - legacy-paid member sees paid legacy status and no receipt link.
 
-- [ ] **Step 2: Run local gates**
+- [x] **Step 2: Run local gates**
 
 Run:
 
@@ -956,8 +976,11 @@ npm run test:e2e
 
 Expected: all pass before PR readiness is claimed.
 
+Result: `npm run lint`, `npm run check:types`, `npm run check:i18n`,
+`npm run test`, and `npm run test:e2e` all passed locally on May 29, 2026.
+
 ## Self-Review
 
 - Spec coverage: covers one shared payment table, legacy display, optional auto-renew prompt, unmatched review, admin blockers, admin user payment history, JS pending search, manual card-number rules, and payment-bypass override.
-- Placeholder scan: legacy source discovery is complete enough for V1 import planning: use `legacy.payments` with `category = 'Racing'` and canonical `Racing Card YYYY-YYYY for ...` descriptions for confident matches.
+- Placeholder scan: legacy source discovery is complete enough for V1 import planning: use `legacy.payments` with `category = 'Racing'`, canonical `Racing Card YYYY-YYYY for ...` descriptions, and `settled = '1'` for confident paid matches. Unsettled racing rows and all detected legacy damage deposits are review-only; deposit returned/voided/final state cannot be proven from the mirrored legacy schema.
 - Type consistency: purpose/source/status names are `event`, `membership`, `legacy`, `stripe`, `admin_override`, `paid`, `needs_review`, and the bypass fields are `paymentBypassNote`, `paymentBypassByUserId`, and `paymentBypassAt`.

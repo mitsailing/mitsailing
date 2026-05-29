@@ -38,7 +38,7 @@ export async function cleanupPaymentFixtures(): Promise<void> {
       DELETE FROM "event_payment_notifications"
       WHERE "payment_id" IN (
         SELECT ep."id"
-        FROM "event_payments" ep
+        FROM "payments" ep
         JOIN "events" e ON e."id" = ep."event_id"
         WHERE e."slug" LIKE $1
       )
@@ -47,7 +47,7 @@ export async function cleanupPaymentFixtures(): Promise<void> {
   );
   await pool.query(
     `
-      DELETE FROM "event_payments" ep
+      DELETE FROM "payments" ep
       USING "events" e
       WHERE e."id" = ep."event_id" AND e."slug" LIKE $1
     `,
@@ -244,8 +244,10 @@ async function insertEventPayment(options: {
 }): Promise<void> {
   await pool.query(
     `
-      INSERT INTO "event_payments" (
+      INSERT INTO "payments" (
         "id",
+        "purpose",
+        "source",
         "event_id",
         "registration_id",
         "user_id",
@@ -262,8 +264,8 @@ async function insertEventPayment(options: {
         "updated_at"
       )
       VALUES (
-        $1, $2, $3, $4, $5, 'Event registration', 4200, 'usd',
-        $6::event_payment_status, $7, $8,
+        $1, 'event', 'stripe', $2, $3, $4, $5, 'Event registration', 4200, 'usd',
+        $6::payment_status, $7, $8,
         CASE WHEN $6::text = 'handled' THEN $4 ELSE NULL END,
         CASE WHEN $6::text = 'handled' THEN NOW() ELSE NULL END,
         NOW(),
@@ -313,7 +315,7 @@ export async function paymentRowsForEvent(slug: string): Promise<PaymentRow[]> {
   const result = await pool.query<PaymentRow>(
     `
       SELECT ep."id", ep."status"
-      FROM "event_payments" ep
+      FROM "payments" ep
       JOIN "events" e ON e."id" = ep."event_id"
       WHERE e."slug" = $1
       ORDER BY ep."created_at" DESC
@@ -342,7 +344,7 @@ export async function markPaymentHandledFixture(options: {
   const adminId = await adminUserId();
   await pool.query(
     `
-      UPDATE "event_payments"
+      UPDATE "payments"
       SET "status" = 'handled',
           "manual_handled_note" = $2,
           "manual_handled_by_user_id" = $3,

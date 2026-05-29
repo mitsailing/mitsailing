@@ -275,6 +275,12 @@ function racingCardUsername(description: string): string | null {
   return match?.[1]?.trim().toLowerCase() ?? null;
 }
 
+function isLegacyDepositPayment(payment: LegacyPaymentRow): boolean {
+  const sourceId = stringValue(payment.omarsid);
+  const description = stringValue(payment.description).toLowerCase();
+  return sourceId.startsWith('BD-') || description.includes('damage deposit');
+}
+
 export function legacyPaymentPurpose(payment: LegacyPaymentRow): {
   readonly cardType: SailingCardType | null;
   readonly cardYear: number | null;
@@ -298,7 +304,7 @@ export function legacyPaymentPurpose(payment: LegacyPaymentRow): {
 }
 
 export function legacyPaymentStatus(payment: LegacyPaymentRow): PaymentStatus {
-  if (stringValue(payment.category) === 'BD') {
+  if (isLegacyDepositPayment(payment) || stringValue(payment.settled) !== '1') {
     return PaymentStatus.needs_review;
   }
   return PaymentStatus.paid;
@@ -443,10 +449,7 @@ async function upsertLegacyPayment(props: {
     legacySourceTable: 'payments',
     payerEmail: normalizeLegacyEmail(props.payment.billTo_email) || null,
     payerName: payerName(props.payment),
-    purpose:
-      purpose.purpose === PaymentPurpose.membership && matchedUserId === null
-        ? PaymentPurpose.event_payment
-        : purpose.purpose,
+    purpose: purpose.purpose,
     source: PaymentSource.legacy,
     status,
     userId: matchedUserId,

@@ -83,7 +83,7 @@ ALTER TABLE "payments"
     OR (
       "event_id" IS NULL
       AND "registration_id" IS NULL
-      AND "user_id" IS NOT NULL
+      AND ("user_id" IS NOT NULL OR ("source" = 'legacy' AND "status" = 'needs_review'))
       AND "selected_fee_id" IS NULL
       AND "selected_fee_description" IS NULL
       AND "card_year" IS NOT NULL

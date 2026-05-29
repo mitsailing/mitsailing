@@ -129,6 +129,28 @@ function PaymentLedgerTitle(props: {
   );
 }
 
+function PaymentLedgerLegacyEvidence(props: {
+  payment: AdminPaymentLedgerRow;
+  t: AdminPaymentsTranslations;
+}) {
+  const source = [props.payment.legacySourceTable, props.payment.legacySourceId]
+    .filter(Boolean)
+    .join(' ');
+  const details = [source, props.payment.legacyCategory]
+    .filter(Boolean)
+    .join(' · ');
+
+  if (!details) {
+    return null;
+  }
+
+  return (
+    <p className="mt-1 text-xs break-words text-mit-readable-ink">
+      {props.t('legacy_evidence', { details })}
+    </p>
+  );
+}
+
 function PaymentLedgerPayer(props: {
   payment: AdminPaymentLedgerRow;
   t: AdminPaymentsTranslations;
@@ -267,6 +289,7 @@ export function AdminPaymentsLedgerView(props: AdminPaymentsLedgerViewProps) {
             >
               <div className="min-w-0">
                 <PaymentLedgerTitle payment={payment} t={props.t} />
+                <PaymentLedgerLegacyEvidence payment={payment} t={props.t} />
                 <PaymentLedgerPayer payment={payment} t={props.t} />
               </div>
               <div className="text-sm text-mit-readable-ink">

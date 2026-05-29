@@ -94,6 +94,15 @@ function formDataWithCardNumber(value: string) {
   return formData;
 }
 
+function formDataWithCardNumberAndPaymentBypassNote(
+  cardNumber: string,
+  paymentBypassNote: string
+) {
+  const formData = formDataWithCardNumber(cardNumber);
+  formData.set('paymentBypassNote', paymentBypassNote);
+  return formData;
+}
+
 function uniqueCardError(
   target: string | string[] = ['sailingCardYear', 'sailingCardNumber']
 ) {
@@ -106,6 +115,7 @@ function uniqueCardError(
 
 async function expectIssueCardFormError(options: {
   readonly cardNumber?: string;
+  readonly formData?: FormData;
   readonly formError: string;
 }) {
   const { issueSailingCardAction } =
@@ -116,7 +126,7 @@ async function expectIssueCardFormError(options: {
       'en',
       'user-1',
       { fieldErrors: {}, status: 'idle' },
-      formDataWithCardNumber(options.cardNumber ?? '61')
+      options.formData ?? formDataWithCardNumber(options.cardNumber ?? '61')
     )
   ).resolves.toEqual({
     fieldErrors: {},
@@ -590,7 +600,10 @@ describe('adminSailingCardActions', () => {
       'en',
       'user-1',
       { fieldErrors: {}, status: 'idle' },
-      formDataWithCardNumber('61')
+      formDataWithCardNumberAndPaymentBypassNote(
+        '61',
+        'Director approved comped racing access.'
+      )
     );
 
     expect(mocks.txPaymentFindFirst).toHaveBeenCalledWith({
@@ -611,7 +624,7 @@ describe('adminSailingCardActions', () => {
         currency: 'usd',
         manualHandledAt: new Date('2026-08-01T16:00:00.000Z'),
         manualHandledByUserId: 'admin-1',
-        manualHandledNote: 'Admin issued sailing card without payment.',
+        manualHandledNote: 'Director approved comped racing access.',
         purpose: PaymentPurpose.membership,
         source: PaymentSource.admin_override,
         status: PaymentStatus.handled,
@@ -623,10 +636,34 @@ describe('adminSailingCardActions', () => {
         data: expect.objectContaining({
           paymentBypassAt: new Date('2026-08-01T16:00:00.000Z'),
           paymentBypassByUserId: 'admin-1',
-          paymentBypassNote: 'Admin issued sailing card without payment.',
+          paymentBypassNote: 'Director approved comped racing access.',
         }),
       })
     );
+  });
+
+  it('requires a bypass note to issue paid racing without payment', async () => {
+    mocks.txSailingCardRequestFindFirst.mockResolvedValue({
+      cardType: SailingCardType.racing,
+      hasFitnessMembership: null,
+      id: 'request-1',
+      legalAgreementAcceptance: {
+        agreementHash: sailingCardAgreementHash(),
+        agreementVersion: sailingCardAgreement.version,
+        source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
+        userId: 'user-1',
+      },
+      sailingAffiliation: SailingAffiliation.MIT_ALUM,
+    });
+
+    await expectIssueCardFormError({
+      cardNumber: '110',
+      formData: formDataWithCardNumberAndPaymentBypassNote('110', 'ok'),
+      formError: 'payment_required',
+    });
+
+    expect(mocks.txPaymentCreate).not.toHaveBeenCalled();
+    expectNoCardIssueWrites();
   });
 
   it('issuing a paid card with a recorded payment does not create an admin override', async () => {
