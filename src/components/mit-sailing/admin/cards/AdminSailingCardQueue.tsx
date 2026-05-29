@@ -15,7 +15,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { SailingAffiliation, SailingCardType } from '@/generated/prisma/enums';
 import { formatAdminDate } from '@/libs/admin/adminDateFormatting';
 import {
   issueSailingCardAction,
@@ -27,14 +26,12 @@ import { adminUsersShowPath } from '@/libs/admin/users/adminUserPaths';
 export type AdminSailingCardQueueRow = {
   readonly agreementAcceptedAt: Date | null;
   readonly agreementVersion: string | null;
-  readonly cardType: SailingCardType;
   readonly email: string;
-  readonly hasFitnessMembership: boolean | null;
   readonly id: string;
   readonly mitId: string | null;
   readonly name: string;
   readonly requestedAt: Date | null;
-  readonly sailingAffiliation: SailingAffiliation | null;
+  readonly sailingAffiliation: string | null;
 };
 
 export type AdminSailingCardHistoryRow = {
@@ -65,43 +62,10 @@ type AdminSailingCardFormError = NonNullable<
 
 const formErrorMessageKeys = {
   missing_onboarding_agreement: 'error_missing_onboarding_agreement',
-  mit_recreation_required: 'error_mit_recreation_required',
   no_current_card: 'error_no_current_card',
   not_found: 'error_not_found',
   not_pending_request: 'error_not_pending_request',
 } as const satisfies Record<AdminSailingCardFormError, string>;
-
-const cardTypeMessageKeys = {
-  [SailingCardType.normal]: 'card_type_normal',
-  [SailingCardType.racing]: 'card_type_racing',
-  [SailingCardType.team_racing]: 'card_type_team_racing',
-} as const satisfies Record<SailingCardType, string>;
-
-function FitnessMembershipStatus(props: {
-  readonly cardType: SailingCardType;
-  readonly hasFitnessMembership: boolean | null;
-  readonly sailingAffiliation: SailingAffiliation | null;
-}) {
-  const t = useTranslations('AdminCards');
-
-  if (props.hasFitnessMembership === true) {
-    return t('fitness_membership_yes');
-  }
-  if (props.hasFitnessMembership === false) {
-    if (props.cardType !== SailingCardType.normal) {
-      return t('fitness_membership_not_required');
-    }
-    return (
-      <span className="font-medium text-mit-red dark:text-mit-red-ink">
-        {t('fitness_membership_no_verify')}
-      </span>
-    );
-  }
-  if (props.sailingAffiliation === SailingAffiliation.MIT_STUDENT) {
-    return t('fitness_membership_mit_student');
-  }
-  return t('empty_value');
-}
 
 export function AdminSailingCardIssueForm(
   props: AdminSailingCardIssueFormProps
@@ -214,8 +178,6 @@ export function AdminSailingCardQueue(props: {
             <TableHead>{t('column_name')}</TableHead>
             <TableHead>{t('column_email')}</TableHead>
             <TableHead>{t('column_affiliation')}</TableHead>
-            <TableHead>{t('column_card_type')}</TableHead>
-            <TableHead>{t('column_fitness_membership')}</TableHead>
             <TableHead>{t('column_mit_id')}</TableHead>
             <TableHead>{t('column_agreement_acceptance')}</TableHead>
             <TableHead>{t('column_requested_at')}</TableHead>
@@ -228,7 +190,7 @@ export function AdminSailingCardQueue(props: {
         <TableBody>
           {props.rows.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={10}>{t('empty_queue')}</TableCell>
+              <TableCell colSpan={8}>{t('empty_queue')}</TableCell>
             </TableRow>
           ) : (
             props.rows.map((row) => (
@@ -244,14 +206,6 @@ export function AdminSailingCardQueue(props: {
                 <TableCell>{row.email}</TableCell>
                 <TableCell>
                   {row.sailingAffiliation ?? t('empty_value')}
-                </TableCell>
-                <TableCell>{t(cardTypeMessageKeys[row.cardType])}</TableCell>
-                <TableCell>
-                  <FitnessMembershipStatus
-                    cardType={row.cardType}
-                    hasFitnessMembership={row.hasFitnessMembership}
-                    sailingAffiliation={row.sailingAffiliation}
-                  />
                 </TableCell>
                 <TableCell>{row.mitId ?? t('empty_value')}</TableCell>
                 <TableCell>

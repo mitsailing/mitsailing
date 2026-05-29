@@ -1,4 +1,3 @@
-import { getTranslations } from 'next-intl/server';
 import {
   listClassCategoriesForNav,
   mapClassCategoriesToNavDropdownItems,
@@ -14,7 +13,6 @@ import type {
   SiteHeaderMobileUtilityItem,
 } from './site/SiteHeader';
 import { SiteHeader } from './site/SiteHeader';
-import { headerMenuItemsWithPricing } from './siteNavigationRequiredLinks';
 
 type SiteShellHeaderNavProps = {
   /** Session snapshot from the parent shell (`getSession`). */
@@ -31,13 +29,12 @@ type SiteShellHeaderNavProps = {
  * @returns Sticky header with populated dropdowns when data loads
  */
 export async function SiteShellHeaderNav(props: SiteShellHeaderNavProps) {
-  const [categories, fleetBoats, headerMenu, mobileUtilityMenu, t] =
+  const [categories, fleetBoats, headerMenu, mobileUtilityMenu] =
     await Promise.all([
       listClassCategoriesForNav(),
       listFleetBoatsForNav(),
       loadCmsMenu('header'),
       loadCmsMenu('mobile_utility'),
-      getTranslations('MitSailingSite'),
     ]);
 
   const headerMenuItems = headerMenu.flatMap<SiteHeaderMenuItem>((item) => {
@@ -82,14 +79,7 @@ export async function SiteShellHeaderNav(props: SiteShellHeaderNavProps) {
     <SiteHeader
       classesDropdownItems={mapClassCategoriesToNavDropdownItems(categories)}
       fleetDropdownItems={mapFleetBoatsToNavDropdownItems(fleetBoats)}
-      headerMenuItems={
-        headerMenuItems.length > 0
-          ? headerMenuItemsWithPricing({
-              items: headerMenuItems,
-              pricingLabel: t('nav_pricing'),
-            })
-          : undefined
-      }
+      headerMenuItems={headerMenuItems.length > 0 ? headerMenuItems : undefined}
       initialShowAdminLink={props.initialShowAdminLink}
       initialSignedIn={props.initialSignedIn}
       mobileUtilityItems={

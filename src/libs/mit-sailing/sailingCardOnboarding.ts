@@ -1,8 +1,8 @@
 import {
   MitDataWarehousePersonType,
   SailingAffiliation,
-  SailingCardType,
 } from '@/generated/prisma/enums';
+import type { SailingCardType } from '@/generated/prisma/enums';
 import type { MitDataWarehouseIdentity } from '@/libs/mit-sailing/mitDataWarehouse';
 import { normalizeMitId } from '@/libs/mit-sailing/mitDataWarehouse';
 import {
@@ -18,7 +18,6 @@ import {
   normalizeInternationalPhone,
   normalizeUsPhone,
 } from '@/utils/phoneValidation';
-import { needsFitnessMembershipQuestion } from './sailingCardMembership';
 
 export type SailingCardOnboardingInput = {
   readonly affiliation: SailingAffiliation | null;
@@ -26,7 +25,6 @@ export type SailingCardOnboardingInput = {
   readonly dateOfBirth: string;
   readonly emergencyContactName: string;
   readonly emergencyContactPhone: string;
-  readonly hasFitnessMembership: boolean | null;
   readonly mitId: string;
   readonly firstName: string;
   readonly lastName: string;
@@ -74,29 +72,6 @@ export class SailingCardOnboardingValidationError extends Error {
     this.fieldErrors = fieldErrors;
   }
 }
-
-const persistedFitnessMembership = (props: {
-  readonly affiliation: SailingAffiliation;
-  readonly hasFitnessMembership: boolean | null;
-}) =>
-  needsFitnessMembershipQuestion(props.affiliation)
-    ? props.hasFitnessMembership
-    : null;
-
-const normalizedCardTypeForMembership = (props: {
-  readonly affiliation: SailingAffiliation;
-  readonly cardType: SailingCardType;
-  readonly hasFitnessMembership: boolean | null;
-}) => {
-  if (
-    !needsFitnessMembershipQuestion(props.affiliation) ||
-    props.hasFitnessMembership === true
-  ) {
-    return SailingCardType.normal;
-  }
-
-  return props.cardType;
-};
 
 const validateContact = (
   input: SailingCardOnboardingInput
@@ -151,8 +126,6 @@ const validateRequiredInputs = (input: SailingCardOnboardingInput) => {
     allowIsoDate: true,
     value: input.dateOfBirth,
   });
-  const membershipAnswerRequired =
-    affiliation !== null && needsFitnessMembershipQuestion(affiliation);
 
   if (!contactValidation.ok) {
     Object.assign(fieldErrors, contactValidation.fieldErrors);
@@ -160,14 +133,11 @@ const validateRequiredInputs = (input: SailingCardOnboardingInput) => {
   if (affiliation === null) {
     fieldErrors.affiliation = 'required';
   }
-  if (dateOfBirth === null) {
-    fieldErrors.dateOfBirth = 'required';
-  }
   if (input.cardType === null) {
     fieldErrors.cardType = 'required';
   }
-  if (membershipAnswerRequired && input.hasFitnessMembership === null) {
-    fieldErrors.hasFitnessMembership = 'required';
+  if (dateOfBirth === null) {
+    fieldErrors.dateOfBirth = 'required';
   }
   if (!input.swimAgreementAccepted) {
     fieldErrors.swimAgreementAccepted = 'required';
@@ -176,7 +146,6 @@ const validateRequiredInputs = (input: SailingCardOnboardingInput) => {
     Object.keys(fieldErrors).length > 0 ||
     !contactValidation.ok ||
     affiliation === null ||
-    (membershipAnswerRequired && input.hasFitnessMembership === null) ||
     input.cardType === null ||
     dateOfBirth === null
   ) {
@@ -185,17 +154,9 @@ const validateRequiredInputs = (input: SailingCardOnboardingInput) => {
 
   return {
     affiliation,
-    cardType: normalizedCardTypeForMembership({
-      affiliation,
-      cardType: input.cardType,
-      hasFitnessMembership: input.hasFitnessMembership,
-    }),
+    cardType: input.cardType,
     contact: contactValidation.contact,
     dateOfBirth,
-    hasFitnessMembership: persistedFitnessMembership({
-      affiliation,
-      hasFitnessMembership: input.hasFitnessMembership,
-    }),
   };
 };
 
@@ -263,7 +224,7 @@ export const buildSailingCardOnboardingUpdate = (props: {
   readonly dataWarehouseIdentity: MitDataWarehouseIdentity | null;
   readonly now: Date;
 }) => {
-  const { affiliation, cardType, contact, dateOfBirth, hasFitnessMembership } =
+  const { affiliation, cardType, contact, dateOfBirth } =
     validateRequiredInputs(props.input);
   const affiliationRule = getSailingAffiliationRule(affiliation);
   const normalizedMitId = normalizeMitId(props.input.mitId);
@@ -317,7 +278,6 @@ export const buildSailingCardOnboardingUpdate = (props: {
     emergencyContactName: contact.emergencyContactName,
     emergencyContactPhone: contact.emergencyContactPhone,
     lastName,
-    hasFitnessMembership,
     name: `${firstName} ${lastName}`,
     phone: contact.phone,
     sailingAffiliation: affiliation,

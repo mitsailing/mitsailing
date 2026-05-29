@@ -6,7 +6,6 @@ import {
   dockHours,
   EXTERNAL,
   historyBlocks,
-  membershipSummary,
   missionBody,
   missionIntro,
   missionPillars,
@@ -195,36 +194,6 @@ export function AboutPageView(props: { cmsPage?: PublicCmsPage | null }) {
         </div>
       </section>
 
-      <section className="border-b border-mit-line bg-background py-14 md:py-18">
-        <div className={aboutSectionInner}>
-          <div className="grid gap-10 md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] md:items-start">
-            <div>
-              <SectionHeader
-                subtitle={membershipSummary.body}
-                title={membershipSummary.title}
-              />
-              <Link
-                className={`inline-flex items-center gap-1 ${accent}`}
-                href={membershipSummary.cta.href}
-              >
-                {membershipSummary.cta.label}
-                <ArrowRight aria-hidden className="size-4" />
-              </Link>
-            </div>
-            <dl className="divide-y divide-mit-line border-y border-mit-line text-sm text-mit-text">
-              {membershipSummary.options.map((option) => (
-                <div className="py-4 leading-relaxed" key={option.title}>
-                  <dt className="font-semibold text-mit-text">
-                    {option.title}
-                  </dt>
-                  <dd className="mt-1 text-muted-foreground">{option.body}</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-        </div>
-      </section>
-
       <section className="border-b border-mit-line bg-background py-16 md:py-24">
         <div className={aboutSectionInner}>
           <SectionHeader
@@ -371,7 +340,7 @@ export function AboutPageView(props: { cmsPage?: PublicCmsPage | null }) {
             subtitle="Coaching, skills help, and rating tests when volunteers and staff are on the dock."
             title="Dock hours"
           />
-          <div className="max-w-3xl rounded-xl border border-mit-line bg-card p-8">
+          <div className="max-w-3xl rounded-xl border border-l-4 border-mit-line border-l-mit-red bg-card p-8">
             <p className="mb-6 text-base leading-relaxed text-mit-text">
               {dockHours.lead}
             </p>

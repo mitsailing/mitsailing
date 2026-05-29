@@ -15,7 +15,6 @@ import {
   safeCmsHref,
 } from '@/libs/mit-sailing/cmsHref';
 import { loadCmsMenu } from '@/libs/mit-sailing/cmsQueries';
-import { footerMenuWithPricing } from '../siteNavigationRequiredLinks';
 import { FooterSocialStrip } from './FooterSocialStrip';
 
 function FooterMaybeInternalLink(props: {
@@ -55,11 +54,6 @@ export async function SiteFooter() {
     loadCmsMenu('legal'),
     loadCmsMenu('social'),
   ]);
-  const footerMenuWithRequiredLinks = footerMenuWithPricing({
-    footerMenu,
-    groupLabel: t('footer_col_about'),
-    pricingLabel: t('footer_link_membership'),
-  });
   const year = calendarYearInEventsTimeZone(new Date());
   const socialGroups = socialMenu.map((group) => ({
     id: group.id,
@@ -106,7 +100,7 @@ export async function SiteFooter() {
             </address>
           </div>
 
-          {footerMenuWithRequiredLinks.map((col) => (
+          {footerMenu.map((col) => (
             <div key={col.id}>
               <h4 className={`mb-6 ${footerNavSectionHeadingClassName}`}>
                 {col.label}
