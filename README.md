@@ -135,8 +135,7 @@ For schema changes use Prisma migrations; for production deploy and rollback com
 
 ## AI Agent PR Orchestration
 
-For a larger PR with failing checks, review-bot feedback, product judgment,
-journey UX, or legacy migration risk, start a fresh agent thread and paste:
+For any feature PR or code-changing PR, start a fresh agent thread and paste:
 
 ```text
 Use docs/ai/pr-agent-orchestration.md as the source of truth.
@@ -144,7 +143,12 @@ Run it against PR <number or URL> on branch <branch name>.
 Keep a tiny conductor state ledger, dispatch bounded sub-agents, use
 impeccable for UI/journey work, run an independent bug review separate from
 CodeRabbit, and ask me before changing product semantics or creating issues.
+For UI, journey, admin, onboarding, or capability-gated work, show me the
+persona workflow matrix before implementation and let me edit/add personas.
 ```
+
+Skip this only for small changes that do not edit code, such as a typo-only
+documentation update.
 
 The runbook explains how to map journeys, view and edit personas, add
 capability gates, track product judgment questions, and decide which findings

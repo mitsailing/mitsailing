@@ -3,9 +3,10 @@
 This is the MIT Sailing runbook for using agents on GitHub pull requests. It is
 both a GitHub-facing process document and an agent instruction packet template.
 
-Use it for PRs that need more than a simple direct fix: review-bot feedback, CI
-failures, UX/product judgment, library best-practice checks, legacy parity, or
-multi-step verification.
+Use it by default for feature PRs and code-changing PRs. It scales from a
+compact run for small code changes to a full journey run for review-bot
+feedback, CI failures, UX/product judgment, library best-practice checks,
+legacy parity, or multi-step verification.
 
 The operating model is:
 
@@ -26,7 +27,7 @@ user.
 ## GitHub usage
 
 Use this doc from a GitHub issue, PR description, PR comment, or local agent
-thread when a PR needs coordinated agent work.
+thread for feature PRs and code-changing PRs.
 
 Recommended PR comment:
 
@@ -57,6 +58,8 @@ Run it against PR <number or URL> on branch <branch name>.
 Keep a tiny conductor state ledger, dispatch bounded sub-agents, use
 impeccable for UI/journey work, run an independent bug review separate from
 CodeRabbit, and ask me before changing product semantics or creating issues.
+For UI, journey, admin, onboarding, or capability-gated work, show me the
+persona workflow matrix before implementation and let me edit/add personas.
 ```
 
 The conductor output should show:
@@ -69,23 +72,43 @@ The conductor output should show:
 - verification commands and results;
 - follow-up issues to create after approval.
 
+For UI, journey, admin, onboarding, or capability-gated work, the conductor's
+first useful output should include the persona workflow matrix. The user views
+personas because the conductor prints that matrix. The user edits personas by
+replying with changed rows or new rows. The conductor then updates its state
+ledger and gives the revised matrix to worker agents.
+
 For a PR with unusual domain risk, create a PR-specific packet in
 `docs/superpowers/plans/YYYY-MM-DD-pr-<number>-agent-packet.md` that references
 this runbook and fills in concrete PR facts.
 
 ## When to use
 
-Use this system when a PR has any of these:
+Use this system for:
 
-- Multiple failing checks.
-- Review comments from bots or humans.
-- UI, workflow, pricing, membership, authorization, or admin usability changes.
-- Dependency, framework, or library behavior questions.
-- Migration or legacy-parity risk.
-- High cost of making the wrong product decision.
+- every feature PR;
+- every PR that changes application code, tests, schema, config, routes,
+  workers, scripts, or dependencies;
+- every PR with UI, workflow, pricing, membership, authorization, admin,
+  email, payment, or data-migration behavior;
+- every PR with review-bot comments, failing checks, or dependency/framework
+  behavior questions;
+- every PR where the cost of the wrong product decision is non-trivial.
 
-Do not use the full system for a one-line typo, a narrow test update, or a
-single obvious compile error. Use direct execution in those cases.
+Skip the system only for small changes that do not edit code, such as a
+typo-only documentation update, a README link correction, or a comment-only
+clarification. If the change edits code, use at least the compact run.
+
+Compact run for small code changes:
+
+1. Triage the intended diff.
+2. Run the relevant Context7 gate if a library/framework/API is touched.
+3. Apply TDD or a focused regression check when behavior changes.
+4. Run independent bug review.
+5. Run required local verification.
+
+Full journey run applies when the PR crosses actors, admin surfaces, emails,
+permissions, payments, background jobs, or capability gates.
 
 ## Best-practice scorecard
 
@@ -259,6 +282,16 @@ Pages are touchpoints inside the journey. `impeccable critique` and
 touchpoints; the conductor synthesizes those findings into journey-level
 decisions.
 
+For multi-actor journey PRs, verification must execute the journey in actor
+order, not only inspect pages:
+
+- normal user completes the public or authenticated step;
+- verification records the resulting user-visible state;
+- admin or staff logs in separately and verifies the gated staff action is
+  unavailable, available, or complete as expected;
+- final evidence includes the routes visited, actor used, state before and
+  after, and assertion, screenshot, log, Mailpit, or database evidence.
+
 Journey map template:
 
 ```markdown
@@ -281,6 +314,21 @@ Permission handoffs:
 
 Verification evidence:
 ```
+
+### Session isolation for actor handoffs
+
+Never verify user and staff/admin steps in the same authenticated browser
+session.
+
+Use one of:
+
+- separate Playwright browser contexts or storage states per actor;
+- separate browsers/profiles for manual checks;
+- explicit logout plus cookie, session, and localStorage clearing before
+  switching actors.
+
+Evidence must name which actor/session performed each step. A staff/admin
+check is invalid if it reuses the normal user's session state.
 
 ## Capability gates
 
@@ -308,6 +356,11 @@ MIT Sailing example:
 - The journey test should cover at least three states: onboarding complete but
   not class-qualified, class-qualified and ready for staff card assignment, and
   card assigned.
+- Evidence must prove onboarding complete does not make staff card assignment
+  available, completing intro for experienced sailors or one required beginner
+  class changes eligibility, staff/admin assignment becomes available only
+  after that transition, and the assigned-card state is visible to both user
+  and staff/admin.
 
 This distinction is a product rule, not UI polish. If an agent is unsure
 whether a prerequisite exists or who verifies it, the conductor adds it to the
@@ -352,6 +405,8 @@ Maintain this state ledger only:
 - Active branch
 - PR blocker list
 - Journey map, if this PR crosses actors, emails, admin surfaces, or async work
+- Persona workflow matrix, if this PR touches UI, admin, onboarding, journey,
+  or capability-gated behavior
 - Agent assignments
 - One-paragraph result per agent
 - Product judgment queue
@@ -374,6 +429,8 @@ Execution order:
 1. Dispatch the triage agent.
 2. Dispatch the pre-fix persona risk scan after triage identifies touched
    workflows. For journey PRs, require a compact journey map.
+   For UI, journey, admin, onboarding, or capability-gated PRs, present the
+   persona workflow matrix to the user before implementation and accept edits.
 3. Dispatch the Context7 best-practices audit after triage identifies touched
    libraries/frameworks.
 4. Dispatch the focused fix agent only after triage, pre-fix persona scan, and
@@ -633,6 +690,7 @@ Persona evaluation rubric:
 Output contract:
 - Journey map for multi-actor or async PRs.
 - Persona workflow matrix.
+- At least one executable acceptance check per persona.
 - Impeccable findings for clarity, audit, and adapt.
 - Recommended Playwright, Mailpit, or background-job coverage.
 - PR blockers versus follow-up issues.
@@ -686,7 +744,8 @@ Task:
 - Check changed UI against persona findings and impeccable categories.
 - For journey PRs, check actor handoffs, web UI states, admin states, emails,
   background-job transitions, prerequisite gates, capability gates,
-  permissions, and missing evidence.
+  permissions, session isolation between actors, executable persona acceptance
+  checks, and missing evidence.
 - Check best practices against Context7 notes.
 
 Run allowed verification commands from `AGENTS.md`:
@@ -764,12 +823,37 @@ Each persona should produce testable questions:
 - What failure or recovery path matters?
 - What should Playwright assert?
 
+Each persona row must produce at least one executable acceptance check:
+
+```markdown
+Persona:
+Actor/session:
+Seeded data:
+Start route:
+Given:
+When:
+Then:
+Blocked-state assertion:
+Eligible-state assertion:
+Staff/admin handoff:
+Evidence source: Playwright, Mailpit, server log, DB query, screenshot, or manual note.
+```
+
 ## Viewing, editing, and adding personas
 
 Personas are not a separate hidden system. They live in the conductor's journey
 map or in the PR-specific packet/issue that references this runbook. For
 durable product capabilities, summarize them in the journey capability matrix
 or parent GitHub issue instead of leaving them only in an agent transcript.
+
+Persona review is not automatic unless the conductor prints the matrix. For
+UI, journey, admin, onboarding, or capability-gated PRs, the conductor must
+show the matrix before implementation starts. If the conductor skips it, ask:
+
+```markdown
+Show the persona workflow matrix before implementation. I want to edit/add
+personas first.
+```
 
 To view personas for a PR run, ask the conductor:
 
@@ -791,6 +875,7 @@ To add personas, use this shape:
 
 ```markdown
 Persona:
+Actor/session:
 Goal:
 Current path:
 Prerequisite gates:
@@ -798,6 +883,7 @@ Blocked state:
 Eligible state:
 Staff/admin handoff:
 Success evidence:
+Executable acceptance check:
 Known gaps:
 Owner issue:
 ```
@@ -850,6 +936,17 @@ Minimum commands by PR type:
 - Journey PR: `shape` before implementation and `polish` or `harden` after
   fixes.
 - Email PR: `clarify` for subject/body/action copy plus async verification.
+
+For UI, admin, onboarding, email, or journey PRs, `impeccable` findings must
+include:
+
+- clarity: next action, status, eligibility, errors, and recovery;
+- audit: keyboard path, focus order, form semantics, labels, contrast, and
+  accessibility blockers;
+- adapt: mobile and narrow viewport usability;
+- anti-AI-slop review: no generic card grids, vague copy, decorative
+  gradients/glass, hidden primary action, inconsistent spacing, or design
+  choices unsupported by `PRODUCT.md`/`DESIGN.md` context.
 
 Use these commands by intent:
 
@@ -1095,6 +1192,8 @@ A run is complete when:
   evidence reviewed.
 - Capability-gated journeys prove both the blocked state and the eligible
   completion path.
+- Multi-actor journeys prove actor order and session isolation.
+- Each persona used for the run produced an executable acceptance check.
 - Persona findings are classified as PR blockers or follow-ups.
 - Legacy findings are classified and issue drafts are prepared when needed.
 - Remote check state is reported accurately.
