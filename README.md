@@ -133,8 +133,19 @@ npm run test:e2e       # Playwright end-to-end gate
 
 For schema changes use Prisma migrations; for production deploy and rollback commands, use [docs/deploy.md](docs/deploy.md).
 
-## AI Agent PRs
+## AI Agent PR Orchestration
 
-Use [docs/ai/pr-agent-orchestration.md](docs/ai/pr-agent-orchestration.md)
-for larger PRs with failing checks, review-bot feedback, product judgment,
-journey UX, or legacy migration risk.
+For a larger PR with failing checks, review-bot feedback, product judgment,
+journey UX, or legacy migration risk, start a fresh agent thread and paste:
+
+```text
+Use docs/ai/pr-agent-orchestration.md as the source of truth.
+Run it against PR <number or URL> on branch <branch name>.
+Keep a tiny conductor state ledger, dispatch bounded sub-agents, use
+impeccable for UI/journey work, run an independent bug review separate from
+CodeRabbit, and ask me before changing product semantics or creating issues.
+```
+
+The runbook explains how to map journeys, view and edit personas, add
+capability gates, track product judgment questions, and decide which findings
+are PR blockers versus follow-up issues.

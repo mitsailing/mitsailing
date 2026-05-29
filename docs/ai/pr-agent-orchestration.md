@@ -49,6 +49,26 @@ sub-agents with the worker prompt templates. Ask me before creating GitHub
 issues, changing product semantics, or widening scope.
 ```
 
+Minimal prompt to run this against a PR:
+
+```markdown
+Use docs/ai/pr-agent-orchestration.md as the source of truth.
+Run it against PR <number or URL> on branch <branch name>.
+Keep a tiny conductor state ledger, dispatch bounded sub-agents, use
+impeccable for UI/journey work, run an independent bug review separate from
+CodeRabbit, and ask me before changing product semantics or creating issues.
+```
+
+The conductor output should show:
+
+- the PR blocker list;
+- the journey map, if the PR crosses actors or states;
+- personas used for the review;
+- product judgment questions;
+- independent bug-review findings;
+- verification commands and results;
+- follow-up issues to create after approval.
+
 For a PR with unusual domain risk, create a PR-specific packet in
 `docs/superpowers/plans/YYYY-MM-DD-pr-<number>-agent-packet.md` that references
 this runbook and fills in concrete PR facts.
@@ -743,6 +763,72 @@ Each persona should produce testable questions:
 - What UI state proves success?
 - What failure or recovery path matters?
 - What should Playwright assert?
+
+## Viewing, editing, and adding personas
+
+Personas are not a separate hidden system. They live in the conductor's journey
+map or in the PR-specific packet/issue that references this runbook. For
+durable product capabilities, summarize them in the journey capability matrix
+or parent GitHub issue instead of leaving them only in an agent transcript.
+
+To view personas for a PR run, ask the conductor:
+
+```markdown
+Show the persona workflow matrix for this PR, including each persona's goal,
+current path, blocked state, eligible state, staff/admin handoff, and owner
+issue if a gap exists.
+```
+
+To edit personas during a run, tell the conductor which row to change:
+
+```markdown
+Update the persona matrix: add "experienced sailor" as a separate persona from
+"beginner sailor". The experienced sailor is blocked from card assignment until
+intro for experienced sailors is complete.
+```
+
+To add personas, use this shape:
+
+```markdown
+Persona:
+Goal:
+Current path:
+Prerequisite gates:
+Blocked state:
+Eligible state:
+Staff/admin handoff:
+Success evidence:
+Known gaps:
+Owner issue:
+```
+
+Keep personas short and operational. They should help agents test what users
+can do, what is blocked, and what staff must do next. They are not marketing
+profiles.
+
+For missing capabilities, do not let personas become the backlog. Document the
+capability state in the matrix and track implementation in GitHub issues:
+
+```markdown
+| Persona | Goal | Status | Current path | Gap | Owner issue |
+| --- | --- | --- | --- | --- | --- |
+| Non-MIT racer | Pay for racing membership during onboarding | Not built | Onboarding records the card request | Payment is not connected during onboarding | #123 |
+| Returning member | Edit MIT affiliation after onboarding | Not built | Profile shows account info | No profile edit flow for affiliation/MIT status | #124 |
+| Dock staff | Assign sailing card after prerequisites | Capability-gated | Admin card queue | Must wait until intro for experienced sailors or a beginner class is complete | #125 |
+```
+
+Use these status labels:
+
+- `Supported`
+- `Partially supported`
+- `Manual staff workaround`
+- `Not built`
+- `Capability-gated`
+- `Blocked by policy decision`
+- `Needs verification`
+
+For journey PRs, update the matrix when the PR adds, removes, partially
+supports, or intentionally defers a user capability.
 
 ## Mandatory impeccable gate
 
