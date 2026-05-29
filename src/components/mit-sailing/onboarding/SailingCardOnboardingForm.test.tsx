@@ -1,6 +1,7 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { mitRecreationMembershipHref } from '@/data/mit-sailing/mitRecreationMembership';
 import { SailingAffiliation } from '@/generated/prisma/enums';
 import { sailingCardAgreement } from '@/libs/mit-sailing/sailingCardAgreementContent';
 import {
@@ -292,7 +293,7 @@ describe('SailingCardOnboardingForm', () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole('link', { name: 'open MIT Recreation' })
-    ).toHaveAttribute('href', 'https://www.mitrecsports.com/join/memberships/');
+    ).toHaveAttribute('href', mitRecreationMembershipHref);
     expect(
       screen.getByText(/Common 12-month individual rates/u)
     ).toHaveTextContent(

@@ -57,7 +57,7 @@ External references used for this plan:
 - [Amazon Subscribe & Save overview](https://www.aboutamazon.com/news/retail/how-you-can-save-time-and-money-with-amazon-subscribe-save): shows the subscribe choice near purchase, gives advance reminders before recurring charges, and keeps subscription management discoverable.
 - [Baymard subscription UX research](https://baymard.com/blog/new-research-consumables-subscription-services): users distrust subscription flows when pricing is hard to find before checkout.
 
-Apply these ten principles:
+Apply these eleven principles:
 
 1. Show the comparison before the user submits onboarding, not only on a separate page.
 2. Let the user compare membership types with prices calculated from their affiliation and date of birth.

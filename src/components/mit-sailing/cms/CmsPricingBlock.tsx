@@ -134,10 +134,6 @@ function CmsPricingCard(props: { plan: CmsPricingData['plans'][number] }) {
 }
 
 function CmsPricingFootnote(props: { pricing: CmsPricingData }) {
-  if (!props.pricing.footnote && !props.pricing.footnoteLinkLabel) {
-    return null;
-  }
-
   const href = safeCmsHref(props.pricing.footnoteLinkUrl);
   const linkClassName =
     'font-semibold text-primary-ink underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-mit-red focus-visible:ring-offset-2 focus-visible:outline-none';
@@ -152,6 +148,9 @@ function CmsPricingFootnote(props: { pricing: CmsPricingData }) {
         {props.pricing.footnoteLinkLabel}
       </a>
     );
+  }
+  if (!props.pricing.footnote && !link) {
+    return null;
   }
 
   return (

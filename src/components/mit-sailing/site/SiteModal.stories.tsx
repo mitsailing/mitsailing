@@ -47,7 +47,9 @@ export const Default: Story = {
     const dialog = await within(document.body).findByRole('dialog', {
       name: 'Modal title',
     });
-    await expect(dialog).toBeVisible();
+    await expect(
+      within(dialog).getByRole('heading', { name: 'Modal title' })
+    ).toBeVisible();
     await expect(
       within(dialog).getByRole('button', { name: 'Close modal' })
     ).toBeVisible();

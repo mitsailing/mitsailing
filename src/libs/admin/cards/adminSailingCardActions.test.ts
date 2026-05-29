@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Prisma } from '@/generated/prisma/client';
 import {
   LegalAgreementAcceptanceSource,
+  SailingAffiliation,
   SailingCardRequestStatus,
   SailingCardType,
   UserAuditAction,
@@ -112,6 +113,7 @@ describe('adminSailingCardActions', () => {
         source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
         userId: 'user-1',
       },
+      sailingAffiliation: SailingAffiliation.MIT_ALUM,
     });
     mocks.txSailingCardRequestUpdate.mockResolvedValue({});
     mocks.txSailingCardRequestUpdateMany.mockResolvedValue({ count: 1 });
@@ -431,6 +433,7 @@ describe('adminSailingCardActions', () => {
             userId: true,
           },
         },
+        sailingAffiliation: true,
       },
     });
     expect(mocks.txLegalAgreementAcceptanceFindFirst).not.toHaveBeenCalled();
@@ -447,6 +450,41 @@ describe('adminSailingCardActions', () => {
         source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
         userId: 'user-1',
       },
+      sailingAffiliation: SailingAffiliation.MIT_ALUM,
+    });
+    const { issueSailingCardAction } =
+      await import('@/libs/admin/cards/adminSailingCardActions');
+
+    await expect(
+      issueSailingCardAction(
+        'en',
+        'user-1',
+        { fieldErrors: {}, status: 'idle' },
+        formDataWithCardNumber('61')
+      )
+    ).resolves.toEqual({
+      fieldErrors: {},
+      formError: 'mit_recreation_required',
+      status: 'error',
+    });
+
+    expect(mocks.txSailingCardRequestUpdateMany).not.toHaveBeenCalled();
+    expect(mocks.txUserUpdateMany).not.toHaveBeenCalled();
+    expect(mocks.txUserAuditCreate).not.toHaveBeenCalled();
+  });
+
+  it('does not issue legacy full sailing requests before mit recreation is verified', async () => {
+    mocks.txSailingCardRequestFindFirst.mockResolvedValue({
+      cardType: SailingCardType.normal,
+      hasFitnessMembership: null,
+      id: 'request-1',
+      legalAgreementAcceptance: {
+        agreementHash: sailingCardAgreementHash(),
+        agreementVersion: sailingCardAgreement.version,
+        source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
+        userId: 'user-1',
+      },
+      sailingAffiliation: SailingAffiliation.MIT_ALUM,
     });
     const { issueSailingCardAction } =
       await import('@/libs/admin/cards/adminSailingCardActions');

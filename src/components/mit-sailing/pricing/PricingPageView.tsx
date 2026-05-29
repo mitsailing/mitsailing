@@ -4,9 +4,8 @@ import { Check } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { SiteModalContent } from '@/components/mit-sailing/site/SiteModal';
 import { Dialog, DialogTrigger } from '@/components/ui/dialog';
+import { mitRecreationMembershipHref } from '@/data/mit-sailing/mitRecreationMembership';
 import { Link } from '@/libs/I18nNavigation';
-
-const mitRecreationRatesHref = 'https://www.mitrecsports.com/join/memberships/';
 
 type PricingPageViewProps = {
   readonly isSignedIn: boolean;
@@ -367,7 +366,7 @@ function GymRatesDialog() {
         <div className="grid gap-3 text-sm leading-6 text-muted-foreground">
           <a
             className="font-medium text-primary-ink underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-mit-red focus-visible:ring-offset-2 focus-visible:outline-none"
-            href={mitRecreationRatesHref}
+            href={mitRecreationMembershipHref}
             rel="noreferrer"
             target="_blank"
           >
@@ -505,12 +504,12 @@ function PricingPlanSummary(props: {
   return (
     <div className="flex h-full flex-col gap-5">
       <div>
-        <h2
+        <h3
           className="text-base leading-7 font-semibold text-mit-text"
           id={planId}
         >
           {props.plan.name}
-        </h2>
+        </h3>
         <p className="mt-3 text-sm leading-6 font-normal text-muted-foreground">
           {props.plan.description}
         </p>
@@ -593,17 +592,34 @@ function PricingComparisonTable(props: {
               {t('pricing_chart_plan')}
             </th>
             {props.plans.map((plan) => (
-              <th className="px-4 py-6 align-top" key={plan.id} scope="col">
-                <PricingPlanSummary
-                  cta={props.cta}
-                  idSuffix="desktop"
-                  plan={plan}
-                />
+              <th
+                className="px-4 py-4 text-base leading-7 font-semibold"
+                key={plan.id}
+                scope="col"
+              >
+                {plan.name}
               </th>
             ))}
           </tr>
         </thead>
         <tbody className="divide-y divide-mit-line">
+          <tr>
+            <th
+              className="bg-muted/35 px-5 py-6 align-top text-sm font-semibold text-mit-red dark:text-mit-red-ink"
+              scope="row"
+            >
+              {t('pricing_chart_details')}
+            </th>
+            {props.plans.map((plan) => (
+              <td className="px-4 py-6 align-top" key={plan.id}>
+                <PricingPlanSummary
+                  cta={props.cta}
+                  idSuffix="desktop"
+                  plan={plan}
+                />
+              </td>
+            ))}
+          </tr>
           <tr>
             <th
               className="bg-muted/35 px-5 py-3 text-sm font-semibold text-mit-red dark:text-mit-red-ink"

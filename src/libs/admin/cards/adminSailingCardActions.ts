@@ -8,6 +8,7 @@ import {
   SailingCardType,
   UserAuditAction,
 } from '@/generated/prisma/enums';
+import type { SailingAffiliation } from '@/generated/prisma/enums';
 import { getNextAvailableSailingCardNumber } from '@/libs/admin/cards/adminSailingCardQueries';
 import { requirePermission } from '@/libs/auth/dal';
 import { Permission } from '@/libs/auth/permissions';
@@ -16,6 +17,7 @@ import {
   sailingCardAgreement,
   sailingCardAgreementHash,
 } from '@/libs/mit-sailing/sailingCardAgreement';
+import { needsFitnessMembershipQuestion } from '@/libs/mit-sailing/sailingCardMembership';
 import {
   getCurrentSailingCardYear,
   getSailingCardExpirationDate,
@@ -141,9 +143,22 @@ async function findCurrentPendingSailingCardRequest(props: {
           userId: true,
         },
       },
+      sailingAffiliation: true,
     },
   });
   return request;
+}
+
+function requestNeedsFitnessVerification(request: {
+  readonly cardType: SailingCardType;
+  readonly hasFitnessMembership: boolean | null;
+  readonly sailingAffiliation: SailingAffiliation;
+}) {
+  return (
+    request.cardType === SailingCardType.normal &&
+    needsFitnessMembershipQuestion(request.sailingAffiliation) &&
+    request.hasFitnessMembership !== true
+  );
 }
 
 function isSailingCardUniqueError(error: unknown) {
@@ -263,10 +278,7 @@ export async function issueSailingCardAction(
       ) {
         throw new Error('missing_onboarding_agreement');
       }
-      if (
-        request.cardType === SailingCardType.normal &&
-        request.hasFitnessMembership === false
-      ) {
+      if (requestNeedsFitnessVerification(request)) {
         throw new Error('mit_recreation_required');
       }
       const after = {

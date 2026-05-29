@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl';
 import type * as React from 'react';
 import type { UseFormRegister, UseFormSetValue } from 'react-hook-form';
+import { mitRecreationMembershipHref } from '@/data/mit-sailing/mitRecreationMembership';
 import { SailingCardType } from '@/generated/prisma/enums';
 import type { SailingAffiliation } from '@/generated/prisma/enums';
 import { cn } from '@/lib/utils';
@@ -35,7 +36,7 @@ const fitnessMembershipLinkClassName =
 const renderFitnessMembershipLink = (chunks: React.ReactNode) => (
   <Link
     className={fitnessMembershipLinkClassName}
-    href="https://www.mitrecsports.com/join/memberships/"
+    href={mitRecreationMembershipHref}
     key="membership"
   >
     {chunks}

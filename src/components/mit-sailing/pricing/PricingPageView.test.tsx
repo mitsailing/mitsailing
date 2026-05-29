@@ -1,6 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
+import { mitRecreationMembershipHref } from '@/data/mit-sailing/mitRecreationMembership';
 import { PricingPageView } from './PricingPageView';
 
 function isStringRecord(value: unknown): value is Record<string, string> {
@@ -164,7 +165,7 @@ describe('PricingPageView', () => {
       within(ratesDialog).getByRole('link', {
         name: 'MIT Gym rates and access hours are subject to change.',
       })
-    ).toHaveAttribute('href', 'https://www.mitrecsports.com/join/memberships/');
+    ).toHaveAttribute('href', mitRecreationMembershipHref);
   });
 
   it('shows Mashnee in the Normal card', () => {
