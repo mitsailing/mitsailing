@@ -34,11 +34,14 @@ Durable task list or parent issue:
 
 ## Task List Sync
 
-Use this section to mirror, not replace, the durable GitHub task list.
+Use this section to mirror, not replace, the durable GitHub task list. After
+GitHub changes, update this section with the issue/task link and timestamp. If
+a local draft is promoted, mark the draft `promoted`; if rejected, mark it
+`obsolete` or `rejected` with a short reason.
 
 | Task/gap | Durable source | Local status | Agent/persona evidence | Action needed |
 | --- | --- | --- | --- | --- |
-| | GitHub issue, project item, or none yet | Planned / in progress / done / blocked / deferred / discovered | | Update existing task / draft issue / ask user |
+| | GitHub parent issue, child issue, milestone, or none yet | Planned / in progress / done / blocked / deferred / discovered / dropped | | Update existing task / draft issue / ask user |
 
 ## Blockers
 

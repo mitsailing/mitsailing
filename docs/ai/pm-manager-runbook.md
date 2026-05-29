@@ -20,6 +20,64 @@ Use `local/agent-runs/<id>/conductor.md` only as a mirror for the current
 agent run. Do not treat local run files, chat, or persona matrices as the
 durable backlog.
 
+Source boundaries:
+
+- Feature/backlog tasks: GitHub parent and child issues.
+- Release grouping: GitHub milestones.
+- Dashboard view: GitHub Projects. Project items mirror issues; they are not
+  the canonical task text.
+- Durable implementation plans or historical plan records:
+  `docs/superpowers/plans/`.
+- Current agent run state: `local/agent-runs/<id>/`.
+
+## Where To View, Edit, Add, Delete, And Audit
+
+View PM state:
+
+- Open the parent issue for the feature task list.
+- Open linked child issues for detailed tasks.
+- Open the milestone for release/phase progress.
+- Open the repo Projects page for an optional dashboard:
+  `https://github.com/mitsailing/mitsailing/projects?query=is%3Aopen`.
+  As of this run, that page shows no open repo Projects.
+
+Edit PM state:
+
+- Edit the parent issue body to update the task list, goal, non-goals,
+  decisions, and persona-discovered gaps.
+- Edit child issue bodies for detailed acceptance criteria.
+- Edit milestones for release grouping.
+- Edit Project fields only as dashboard metadata.
+
+Add PM state:
+
+- Add a checkbox/task row to the parent issue for small tasks.
+- Create a child issue for larger work, future PRs, or work needing separate
+  review.
+- Add an item to the milestone when it belongs in that release/phase.
+- Add to a GitHub Project only after the issue exists.
+
+Delete or drop PM state:
+
+- Do not silently delete discovered work.
+- Mark tasks `dropped`, `deferred`, or move them to `Non-Goals` with the user
+  decision and evidence.
+- Close child issues with a reason and link back to the parent issue.
+- If a local draft in `follow-ups.md` is rejected, mark it `obsolete` or
+  `rejected` instead of deleting it without a note.
+
+Audit PM state:
+
+1. Run the portfolio inventory commands below.
+2. Read the parent issue body.
+3. Check linked child issues and their open/closed state.
+4. Check milestone membership.
+5. Check optional Project fields if a Project exists.
+6. Reconcile `local/agent-runs/<id>/conductor.md` Task List Sync against
+   GitHub.
+7. Report orphan branches, stale PRs, unlinked issues, duplicate tasks, and
+   persona-discovered gaps without durable tracking.
+
 ## Portfolio Inventory
 
 Start every PM pass by inventorying the repo:

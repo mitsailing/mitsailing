@@ -29,7 +29,21 @@ should verify that users are told the manual payment next step clearly.
 
 | Task | Status | Source | Owner PR/issue | Acceptance evidence |
 | --- | --- | --- | --- | --- |
-| | Planned / in progress / done / blocked / deferred / discovered | User / persona / legacy / CI / review | | |
+| | Planned / in progress / done / blocked / deferred / discovered / dropped | User / persona / legacy / CI / review | | |
+
+Task lifecycle:
+
+- `planned`: accepted but not started.
+- `in progress`: current PR or active branch is working on it.
+- `done`: merged or otherwise verified.
+- `blocked`: cannot proceed without credentials, policy, dependency, or user decision.
+- `deferred`: real work, intentionally moved out of this phase.
+- `discovered`: found by persona, legacy, CI, or review and not yet triaged.
+- `dropped`: intentionally removed from scope with user decision and evidence.
+
+Deferred and dropped tasks need a decision note. Link child issues or PRs in
+`Owner PR/issue`. GitHub Project items are dashboard mirrors; the parent or
+child issue remains the source of truth.
 
 ## Persona-Discovered Gaps
 

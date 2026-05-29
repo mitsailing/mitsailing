@@ -1389,6 +1389,15 @@ Agent rule:
 5. In final verification, report every discovered gap as fixed, linked,
    deferred with approval, or intentionally dropped.
 
+Delete/drop rule:
+
+- Do not silently delete discovered work from the durable plan.
+- Mark the task `dropped`, move it to `Non-Goals`, or close the child issue
+  with a reason and evidence.
+- Dropping, deleting, or moving a task out of scope requires a user decision.
+- Project items are dashboard mirrors; changing a Project field is not enough
+  unless the parent or child issue is also updated.
+
 Example: if a pricing persona reads the pricing page, starts onboarding, and
 cannot pay for racing membership, the agent must not leave that only in the
 persona file. It must search for an existing task or issue. If none exists, it
