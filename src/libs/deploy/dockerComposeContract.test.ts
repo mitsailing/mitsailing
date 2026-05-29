@@ -126,14 +126,18 @@ describe('production docker compose', () => {
   it('documents the CI-first production deploy flow', () => {
     expect(deployRunbook).toContain('Open a PR.');
     expect(deployRunbook).toContain(
-      'Wait for CI, CodeRabbit, Codacy, Sonar, and human review.'
+      'Wait for all required PR checks, the Docker PR build, code-scanning/security'
     );
+    expect(deployRunbook).toContain('gates, and human review.');
     expect(deployRunbook).toContain(
       'If CodeRabbit is unavailable, run a local sub-agent code review before merge.'
     );
     expect(deployRunbook).toContain('Merge the approved PR to `main`.');
     expect(deployRunbook).toContain(
       'GitHub runs `Deploy (production)` from `main`.'
+    );
+    expect(deployRunbook).toContain(
+      'approval may happen before the image build and again before release'
     );
     expect(deployRunbook).toContain('`feature/<slug>`');
     expect(deployRunbook).toContain('`fix/<slug>`');
@@ -156,7 +160,10 @@ describe('production docker compose', () => {
       `PRODUCTION_DATA_ROOT='${shellProductionDataRoot}' DEPLOY_DIR=$DEPLOY_DIR`
     );
     expect(localDevelopmentRunbook).toContain(
-      '`PRODUCTION_DATA_ROOT/cms-media/ready` from the remote `media` container'
+      '`/var/lib/mitsailing/cms-media/ready` from the remote `media` container'
+    );
+    expect(localDevelopmentRunbook).toContain(
+      '`PRODUCTION_DATA_ROOT/cms-media/ready` on the host'
     );
   });
 

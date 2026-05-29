@@ -1,4 +1,12 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from 'node:fs/promises';
 import type * as FsPromises from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -110,6 +118,46 @@ describe('cms media processing job', () => {
     await expect(readFile(readyPath)).resolves.toEqual(
       Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3])
     );
+    const readyDirStat = await stat(path.dirname(readyPath));
+    const readyFileStat = await stat(readyPath);
+    expect(readyDirStat.mode.toString(8).slice(-3)).toBe('755');
+    expect(readyFileStat.mode.toString(8).slice(-3)).toBe('644');
+    expect(update).toHaveBeenLastCalledWith({
+      data: expect.objectContaining({
+        processingErrorCode: null,
+        status: 'ready',
+      }),
+      where: { id: 'asset-1' },
+    });
+  });
+
+  it('fixes ready file permissions when retrying an already moved file', async () => {
+    const root = await createMediaRoot();
+    const { processCmsMediaProcessingJob } =
+      await import('@/worker/cmsMediaProcessingJob');
+    const rawPath = path.join(root, 'uploads', 'asset-1');
+    const readyPath = path.join(root, 'ready', 'asset-1', 'race-day.png');
+    await mkdir(path.dirname(readyPath), { recursive: true });
+    await writeFile(
+      readyPath,
+      Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3])
+    );
+    await chmod(path.dirname(readyPath), 0o700);
+    await chmod(readyPath, 0o600);
+    findUnique.mockResolvedValue(
+      processingAsset({
+        byteSize: BigInt(Number('11')),
+        rawPath,
+        readyPath,
+      })
+    );
+
+    await processCmsMediaProcessingJob({ assetId: 'asset-1' });
+
+    const readyDirStat = await stat(path.dirname(readyPath));
+    const readyFileStat = await stat(readyPath);
+    expect(readyDirStat.mode.toString(8).slice(-3)).toBe('755');
+    expect(readyFileStat.mode.toString(8).slice(-3)).toBe('644');
     expect(update).toHaveBeenLastCalledWith({
       data: expect.objectContaining({
         processingErrorCode: null,

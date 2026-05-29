@@ -120,8 +120,10 @@ node scripts/sync-prod-media.mjs
 ```
 
 Use your SSH login for the production host. The script copies
-`PRODUCTION_DATA_ROOT/cms-media/ready` from the remote `media` container into
-`local/cms-media/ready` and leaves in-progress `uploads/` files behind.
+`/var/lib/mitsailing/cms-media/ready` from the remote `media` container into
+`local/cms-media/ready`; that container path is backed by
+`PRODUCTION_DATA_ROOT/cms-media/ready` on the host. It leaves in-progress
+`uploads/` files behind.
 
 Defaults:
 

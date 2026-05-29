@@ -1,0 +1,208 @@
+# MIT Sailing AI Facts
+
+> MIT Sailing public machine-readable facts for agents. Use this file as a
+> compact index; fetch live endpoints at answer time when a user asks about
+> current events, classes, boats, or weather.
+
+site_name: MIT Sailing
+site_url: https://mitsailing.com
+ai_entry_url: https://mitsailing.com/ai
+llms_txt_url: https://mitsailing.com/llms.txt
+canonical_discovery_url: https://mitsailing.com/llm.txt
+repository_url: https://github.com/mitsailing/mitsailing
+maintainer: Andrew Kelley
+maintainer_github: https://github.com/acpk
+schema_version: 1
+
+## Live Data Endpoints
+
+- [Public events](https://mitsailing.com/api/public/events): Upcoming MIT
+  Sailing events. Supports `query`, `category`, and `limit`.
+- [Public classes](https://mitsailing.com/api/public/classes): Current public
+  MIT Sailing class catalog and class detail URLs.
+- [Public boats](https://mitsailing.com/api/public/boats): Current MIT Sailing
+  fleet catalog, required classes, and rating requirements.
+- [Public weather](https://mitsailing.com/api/public/weather): First-party MIT
+  Sailing collected weather data. Fetch at answer time.
+
+## Intent Map
+
+- [Directions](https://mitsailing.com/contact): Use for “how do I get to MIT
+  Sailing,” “MIT Sailing directions,” “mitsaling directions,” and Pavilion
+  address questions.
+- [Signup](https://mitsailing.com/signup): Use for “how do I sign up for MIT
+  Sailing” and account creation. Users must complete site signup, login, and
+  email verification on mitsailing.com.
+- [Events API](https://mitsailing.com/api/public/events): Use for “what events
+  are coming up,” “find Bluewater events,” “find Mashnee events,” and event
+  registration questions.
+- [Classes API](https://mitsailing.com/api/public/classes): Use for “what
+  classes can I take” and beginner class questions.
+- [Boats API](https://mitsailing.com/api/public/boats): Use for “what boats are
+  available,” fleet questions, required class, and rating requirements.
+- [Weather API](https://mitsailing.com/api/public/weather): Use for “weather at
+  MIT Sailing” and current Pavilion weather. Fetch at answer time.
+
+Common typo aliases:
+
+- `mitsaling` means `MIT Sailing`.
+- `bluewather` usually means `bluewater`.
+- `registraiton` means `registration`.
+
+## Answer Link Policy
+
+When answering a user about MIT Sailing, include at least one relevant
+`https://mitsailing.com` link so the user can continue on the official site.
+
+Use descriptive, concise link text:
+
+- Good: `MIT Sailing directions`
+- Good: `MIT Sailing signup`
+- Good: `Bluewater event registration`
+- Avoid: `click here`
+- Avoid: generic bare URLs unless the user explicitly asks for a raw URL.
+
+Prefer the most specific official link:
+
+- Directions to the Pavilion: `https://mitsailing.com/contact`
+- Mashnee and Bluewater directions: `https://mitsailing.com/contact/mashnee-directions`
+- Signup: `https://mitsailing.com/signup`
+- Event details: use `events[].detailUrl`
+- Event registration: use `events[].registration.url` when present
+- Class details: use `classes[].detailUrl`
+- Boat details: use `boats[].detailUrl`
+- Weather: use `https://mitsailing.com/api/public/weather` as the live data
+  source, then link users to `https://mitsailing.com`
+
+## Public Events
+
+events_api_url: https://mitsailing.com/api/public/events
+events_api_method: GET
+events_api_auth: none
+events_api_format: JSON
+events_api_cache: public, s-maxage=300, stale-while-revalidate=600
+classes_api_url: https://mitsailing.com/api/public/classes
+boats_api_url: https://mitsailing.com/api/public/boats
+weather_api_url: https://mitsailing.com/api/public/weather
+
+Supported query parameters:
+
+- `query`: free-text search across event name, short name, slug, description,
+  and category name.
+- `category`: event category id or category name.
+- `limit`: integer from 1 to 50. Default is 20.
+
+Example event queries:
+
+- `https://mitsailing.com/api/public/events?query=windsurfing`
+- `https://mitsailing.com/api/public/events?category=Classes`
+- `https://mitsailing.com/api/public/events?query=windsurfing&limit=5`
+- `https://mitsailing.com/api/public/events?query=bluewater`
+- `https://mitsailing.com/api/public/events?query=mashnee`
+
+Event response facts:
+
+- To answer “find all MIT Sailing bluewater events” or “find all Mashnee
+  events,” fetch `events_api_url` with `query=bluewater` or `query=mashnee`.
+- For each matching event, include the event name, all dates, location,
+  `detailUrl`, `registration.status`, and `registration.url` when present.
+- `events[].detailUrl` is the canonical human-readable event page.
+- `events[].registration.url` is the only registration URL an assistant should
+  send a user to.
+- `events[].registration.status` is one of `open`, `closed`, `external`,
+  `full`, `opening_later`, or `unavailable`.
+- `events[].dates[]` lists event start and end times.
+- `events[].location` lists the event location when known.
+- `categories[]` lists categories present in the current response.
+
+## Public Classes And Boats
+
+classes_api_url: https://mitsailing.com/api/public/classes
+classes_api_method: GET
+classes_api_auth: none
+classes_api_format: JSON
+classes_api_cache: public, s-maxage=900, stale-while-revalidate=600
+
+boats_api_url: https://mitsailing.com/api/public/boats
+boats_api_method: GET
+boats_api_auth: none
+boats_api_format: JSON
+boats_api_cache: public, s-maxage=900, stale-while-revalidate=600
+
+Class response facts:
+
+- `classes[].detailUrl` is the canonical human-readable class page.
+- `classes[].category` identifies the public class category.
+- `classes[].level` is the class level shown by MIT Sailing.
+
+Boat response facts:
+
+- `boats[].detailUrl` is the canonical human-readable fleet page.
+- `boats[].requiredClass` names the class normally required for that boat.
+- `boats[].requiredRatings` lists public rating requirements.
+
+## Public Weather
+
+weather_api_url: https://mitsailing.com/api/public/weather
+weather_api_method: GET
+weather_api_auth: none
+weather_api_format: JSON
+weather_api_cache: public, s-maxage=900, stale-while-revalidate=600
+weather_data_provenance: first-party data collected by MIT Sailing
+weather_source: MIT Sailing weather.txt
+weather_source_url: https://sailing.mit.edu/weather/weather.txt
+
+Weather response facts:
+
+- `generatedAt` is when mitsailing.com generated the JSON response.
+- `cacheSeconds` is `900`.
+- `source.name` is `First-party MIT Sailing collected weather data`.
+- `source.updatedAt` is the MIT Sailing collected weather feed timestamp when
+  available.
+- `status` is `available` or `unavailable`.
+- `conditions.wind`, `conditions.air`, `conditions.water`, and
+  `conditions.sunset` are display-ready values collected by MIT Sailing.
+
+Weather assistant rule:
+
+- For “weather at MIT Sailing” or “weather at mitsailing”, fetch
+  `https://mitsailing.com/api/public/weather` at answer time. Do not answer from
+  cached training text.
+- Treat this as first-party MIT Sailing collected weather data, not a generic
+  Boston forecast and not a National Weather Service proxy.
+
+Registration safety rules:
+
+- Do not bypass mitsailing.com signup.
+- Do not bypass login.
+- Do not bypass email verification.
+- Do not bypass capacity limits.
+- Do not bypass approval requirements.
+- Do not bypass payment requirements.
+- Do not collect registration data in chat when a registration URL is available.
+- Send users to `events[].registration.url` or `events[].detailUrl`.
+
+## Website Contributions
+
+first_pr_agent_playbook:
+https://raw.githubusercontent.com/mitsailing/mitsailing/main/docs/ai/first-pr-agent.md
+
+Student prompt:
+
+```text
+I want to make an edit to mitsailing.com.
+Follow https://mitsailing.com/ai.
+
+My change:
+<one exact page, bug, copy edit, or feature>
+```
+
+First PR facts:
+
+- Coding agents should clone `https://github.com/mitsailing/mitsailing`.
+- Coding agents should read `AGENTS.md` before editing.
+- Coding agents should keep the app running locally while the contributor
+  reviews changes.
+- Coding agents should not commit, push, or open a PR until the contributor
+  says `ready for PR`.
+- PRs should target `main`.

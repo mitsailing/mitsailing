@@ -8,12 +8,16 @@ the routine path.
 1. Create a branch.
 2. Push the branch to GitHub.
 3. Open a PR.
-4. Wait for CI, CodeRabbit, Codacy, Sonar, and human review.
+4. Wait for all required PR checks, the Docker PR build, code-scanning/security
+   gates, and human review.
 5. Fix failures and review comments on the branch.
 6. If CodeRabbit is unavailable, run a local sub-agent code review before merge.
 7. Merge the approved PR to `main`.
 8. GitHub runs `Deploy (production)` from `main`.
-9. Approve the production environment gate if GitHub asks.
+9. Approve the production environment gate if GitHub asks. The workflow uses
+   the `production` environment for both image build secrets and SSH release, so
+   approval may happen before the image build and again before release depending
+   on GitHub environment settings.
 10. Verify production.
 
 Branch prefixes:
@@ -59,6 +63,13 @@ docker run --rm --user 0:0 \
     chown -R 1001:1001 /data/cms-media
     chmod 755 /data/cms-media /data/cms-media/ready
     chmod 700 /data/cms-media/uploads
+    apk add --no-cache acl >/dev/null 2>&1 || true
+    if command -v setfacl >/dev/null 2>&1; then
+      setfacl -m u:101:rx /data/cms-media/ready
+      setfacl -d -m u:101:rx /data/cms-media/ready
+    else
+      chmod -R a+rX /data/cms-media/ready
+    fi
   '
 ```
 

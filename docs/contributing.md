@@ -1,7 +1,8 @@
 # Contributing
 
-Start with the README quick path. This page is reference material for
-contributors who need more detail after their first AI-assisted PR.
+Start with the README quick path. AI agents should follow
+[the first PR playbook](ai/first-pr-agent.md); this page is reference material
+for contributors who need more detail after their first AI-assisted PR.
 
 ## Branch Names
 
@@ -14,14 +15,15 @@ contributors who need more detail after their first AI-assisted PR.
 ## Commit And Push
 
 Ask AI to review the diff, stage only the intended files, commit with a short
-conventional message, push the branch, and open the PR.
+conventional message, push the branch, and open the PR. If you cannot push to
+`mitsailing/mitsailing`, ask AI to fork the repo and open the PR from your fork.
 
 Commit types: `feat`, `fix`, `docs`, `refactor`, `test`, `ci`, `build`, or
 `chore`.
 
 ## Pull Request
 
-Ask AI to open a PR to `main`.
+Ask AI to open a PR to `main` from your branch or fork.
 
 In the PR description, include:
 
