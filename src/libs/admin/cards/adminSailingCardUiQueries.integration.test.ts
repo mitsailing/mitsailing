@@ -156,6 +156,7 @@ describe.skipIf(!shouldRunSummaryDatabaseTest)(
         sailingCardIssuedBy: { name: 'Card Admin' },
         sailingCardNumber: 61,
         sailingCardRequestedAt: requestedAt,
+        sailingCardRequests: [],
         sailingCardSwimAgreementInitialedAt: initialedAt,
         sailingCardSwimAgreementInitials: 'AL',
         sailingCardYear: 2026,

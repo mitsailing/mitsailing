@@ -171,7 +171,7 @@ async function deleteFixtures(pool: Pool) {
     'DELETE FROM "event_payment_notifications" WHERE "payment_id" = ANY($1)',
     [[ids.payment, ids.otherPayment]]
   );
-  await pool.query('DELETE FROM "event_payments" WHERE "id" = ANY($1)', [
+  await pool.query('DELETE FROM "payments" WHERE "id" = ANY($1)', [
     [ids.payment, ids.otherPayment],
   ]);
   await pool.query('DELETE FROM "event_registrations" WHERE "id" = ANY($1)', [
@@ -298,7 +298,7 @@ async function insertFixtures(pool: Pool) {
   );
   await pool.query(
     `
-      INSERT INTO "event_payments" (
+      INSERT INTO "payments" (
         "id", "event_id", "registration_id", "user_id", "selected_fee_id",
         "selected_fee_description", "amount_cents", "currency", "status",
         "updated_at"
@@ -714,10 +714,10 @@ describe.skipIf(!shouldRunPolicyDatabaseTest)('event policies', () => {
       })
     ).resolves.toMatchObject({ id: ids.payment, status: 'past_due' });
 
-    await pool.query(
-      'UPDATE "event_payments" SET "status" = $2 WHERE "id" = $1',
-      [ids.payment, 'pending']
-    );
+    await pool.query('UPDATE "payments" SET "status" = $2 WHERE "id" = $1', [
+      ids.payment,
+      'pending',
+    ]);
   });
 
   it('denies payment access outside the managed event scope', async () => {
