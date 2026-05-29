@@ -156,4 +156,7 @@ documentation update.
 
 The runbook explains how to map journeys, view and edit personas, add
 capability gates, track product judgment questions, and decide which findings
-are PR blockers versus follow-up issues.
+are PR blockers versus follow-up issues. For multi-PR features, use a GitHub
+parent issue with a task list from docs/ai/feature-task-list-template.md, add a
+milestone for release grouping, and treat GitHub Projects as optional once the
+issue list needs a dashboard.

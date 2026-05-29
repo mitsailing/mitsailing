@@ -30,6 +30,15 @@ Persona matrix:
 Follow-up drafts:
 Worker packets:
 Worker results:
+Durable task list or parent issue:
+
+## Task List Sync
+
+Use this section to mirror, not replace, the durable GitHub task list.
+
+| Task/gap | Durable source | Local status | Agent/persona evidence | Action needed |
+| --- | --- | --- | --- | --- |
+| | GitHub issue, project item, or none yet | Planned / in progress / done / blocked / deferred / discovered | | Update existing task / draft issue / ask user |
 
 ## Blockers
 

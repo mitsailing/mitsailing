@@ -127,12 +127,13 @@ ignored local files.
 | Runbook | `docs/ai/pr-agent-orchestration.md` | Yes | Stable process and worker contracts. |
 | Conductor ledger template | `docs/ai/pr-run-ledger-template.md` | Yes | Reusable shape for PR state. |
 | Persona matrix template | `docs/ai/persona-matrix-template.md` | Yes | Reusable executable persona schema. |
+| Feature task-list template | `docs/ai/feature-task-list-template.md` | Yes | Reusable GitHub parent issue shape for multi-PR features. |
 | Conductor ledger | `local/agent-runs/pr-<number>/conductor.md` | No | Tiny mutable state for one PR run. |
 | Persona matrix | `local/agent-runs/pr-<number>/personas.md` | No | User-editable persona and workflow state. |
 | Worker packets | `local/agent-runs/pr-<number>/packets/<nn>-<role>.md` | No | Bounded prompts for specialists. |
 | Worker results | `local/agent-runs/pr-<number>/results/<nn>-<role>.md` | No | Compressed evidence returned by specialists. |
 | Follow-up drafts | `local/agent-runs/pr-<number>/follow-ups.md` | No | Issue drafts before duplicate search and user approval. |
-| Durable gaps | GitHub issues or focused docs under `docs/ai/` | Yes, if docs | Product rules or buildable gaps that must outlive the PR run. |
+| Durable tasks and gaps | GitHub parent issue, child issues, or focused docs under `docs/ai/` | Yes, if docs | Planned, done, deferred, or discovered work that must outlive the PR run. |
 
 Before a PR number exists, replace `pr-<number>` with `<branch-slug>`.
 Do not put active PR run state in `docs/superpowers/plans/`. Use that folder
@@ -1358,6 +1359,41 @@ Create GitHub issues only after:
 2. Duplicate search finds no matching issue.
 3. The conductor asks the user.
 4. The user approves.
+
+## Feature task management
+
+Use GitHub as the durable project-management layer. Do not rely on chat,
+local run files, or persona matrices as the long-term task list.
+
+Default model:
+
+- Parent issue: one feature or journey, using
+  `docs/ai/feature-task-list-template.md`.
+- Parent issue task list: planned, in-progress, done, blocked, deferred, and
+  discovered tasks.
+- Child issues: larger tasks, future PRs, or work that needs its own review.
+- Milestone: release or phase grouping, such as `Membership pricing V1`.
+- GitHub Project: optional dashboard only when parent issues plus milestones
+  become hard to manage.
+
+Agent rule:
+
+1. When a persona, legacy audit, CI check, or review finds a missing capability,
+   search the parent issue task list and existing issues first.
+2. If the task already exists, update the local run ledger with the task link
+   and current status.
+3. If the task is missing, add it to `local/agent-runs/pr-<number>/follow-ups.md`
+   as a draft issue or task-list addition.
+4. Ask the user before creating the issue or editing the durable parent issue.
+5. In final verification, report every discovered gap as fixed, linked,
+   deferred with approval, or intentionally dropped.
+
+Example: if a pricing persona reads the pricing page, starts onboarding, and
+cannot pay for racing membership, the agent must not leave that only in the
+persona file. It must search for an existing task or issue. If none exists, it
+drafts a task such as "Add racing membership payment during onboarding" with
+persona evidence and asks before adding it to the parent issue or creating a
+child issue.
 
 Issue body format:
 
