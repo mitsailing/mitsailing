@@ -229,6 +229,7 @@ Journey maps include:
 - public pages, authenticated pages, and admin pages;
 - emails sent to each actor;
 - background jobs or queued work;
+- prerequisite gates and capability gates;
 - state transitions;
 - permissions and role handoffs;
 - evidence required for verification.
@@ -254,10 +255,43 @@ Touchpoints:
 
 State transitions:
 
+Prerequisite gates:
+
 Permission handoffs:
 
 Verification evidence:
 ```
+
+## Capability gates
+
+Journey tests must prove when a user can do something and when they cannot.
+Do not treat a completed form as permission to complete the whole business
+process if the domain has additional prerequisites.
+
+For each journey, capture:
+
+- the user-visible request or intent;
+- prerequisites that must be met before staff or automation can complete it;
+- who verifies each prerequisite;
+- the blocked state while prerequisites are missing;
+- the transition that makes the user eligible;
+- the staff/admin action that becomes available only after eligibility;
+- the evidence that proves premature completion is impossible.
+
+MIT Sailing example:
+
+- A user can complete sailing-card onboarding and request a card.
+- Staff must not assign the sailing card merely because onboarding succeeded.
+- Staff assign the card only after the user has completed the required
+  practical path, such as intro for experienced sailors or one of the two
+  beginner classes.
+- The journey test should cover at least three states: onboarding complete but
+  not class-qualified, class-qualified and ready for staff card assignment, and
+  card assigned.
+
+This distinction is a product rule, not UI polish. If an agent is unsure
+whether a prerequisite exists or who verifies it, the conductor adds it to the
+product judgment queue before implementation proceeds.
 
 ## Context packets
 
@@ -561,7 +595,7 @@ Use the impeccable skill:
 
 For journey PRs:
 - map actors, touchpoints, state transitions, permissions, emails, background
-  jobs, and required evidence;
+  jobs, prerequisite gates, capability gates, and required evidence;
 - review pages and emails as touchpoints inside the journey;
 - keep V2 ideas as follow-up recommendations instead of expanding the PR.
 
@@ -569,6 +603,8 @@ Persona evaluation rubric:
 - Clarity: can the person tell what to do next?
 - Confidence: can the person tell whether they are eligible and what happens?
 - Recovery: can the person recover from common errors or missing prerequisites?
+- Eligibility: can the person tell whether the request is pending, blocked by a
+  prerequisite, ready for staff action, or complete?
 - Workflow speed: can staff complete repeated tasks without hunting?
 - Trust: does the UI make costs, requirements, state, and next steps accurate?
 - Continuity: does the flow preserve important old behavior unless changed
@@ -629,7 +665,8 @@ Task:
   or explicitly deferred with user approval.
 - Check changed UI against persona findings and impeccable categories.
 - For journey PRs, check actor handoffs, web UI states, admin states, emails,
-  background-job transitions, permissions, and missing evidence.
+  background-job transitions, prerequisite gates, capability gates,
+  permissions, and missing evidence.
 - Check best practices against Context7 notes.
 
 Run allowed verification commands from `AGENTS.md`:
@@ -700,6 +737,9 @@ Each persona should produce testable questions:
 - What route do they start on?
 - What data do they need seeded?
 - What decision must they make?
+- What prerequisite gates block completion?
+- What transition makes them eligible?
+- What staff/admin action should remain unavailable until eligibility?
 - What UI state proves success?
 - What failure or recovery path matters?
 - What should Playwright assert?
@@ -967,6 +1007,8 @@ A run is complete when:
   by user decision, or classified as non-blocking with evidence.
 - Journey PRs have actor, touchpoint, email, async, permission, and state
   evidence reviewed.
+- Capability-gated journeys prove both the blocked state and the eligible
+  completion path.
 - Persona findings are classified as PR blockers or follow-ups.
 - Legacy findings are classified and issue drafts are prepared when needed.
 - Remote check state is reported accurately.
