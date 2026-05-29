@@ -19,6 +19,11 @@ function unknownArray(value: unknown): readonly unknown[] {
   return Array.isArray(value) ? value : [];
 }
 
+function homePageBlock(id: string) {
+  const homePage = CMS_PAGE_SEED_ROWS.find((page) => page.path === '/');
+  return homePage?.blocks.find((block) => block.id === id);
+}
+
 describe('orderedCmsSeedMenuItems', () => {
   it('orders parents before children', () => {
     const menu = {
@@ -132,11 +137,6 @@ describe('orderedCmsSeedMenuItems', () => {
 });
 
 describe('cms seed membership pricing', () => {
-  function homePageBlock(id: string) {
-    const homePage = CMS_PAGE_SEED_ROWS.find((page) => page.path === '/');
-    return homePage?.blocks.find((block) => block.id === id);
-  }
-
   function homeOverviewSteps() {
     const overviewBlock = homePageBlock('cms-block-home-overview');
     const overview: unknown = JSON.parse(overviewBlock?.body ?? '{}');

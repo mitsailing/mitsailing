@@ -453,7 +453,7 @@ function PricingComparisonTable(props: {
                 {row.name}
               </th>
               <td className="px-5 py-3.5 text-center">
-                {row.fullSailing ? <IncludedMark /> : t('pricing_chart_dash')}
+                {row.normal ? <IncludedMark /> : t('pricing_chart_dash')}
               </td>
               <td className="px-5 py-3.5 text-center">
                 {row.springRacing ? <IncludedMark /> : t('pricing_chart_dash')}
