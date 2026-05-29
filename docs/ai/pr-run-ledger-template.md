@@ -89,6 +89,9 @@ Review threads:
 Required remote checks:
 Advisory remote checks:
 Remote analyzer freshness:
+Rebased on current `origin/main`:
+Merge strategy:
+CodeRabbit credit/rate-limit status:
 
 ## Follow-Up Issues
 

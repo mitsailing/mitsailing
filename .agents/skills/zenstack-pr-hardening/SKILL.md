@@ -32,8 +32,9 @@ unless the user explicitly asks for that behavior.
 - Do not run `npx agent-reviews --watch`.
 - Do not create open-ended heartbeat automations.
 - Do not keep polling after the bounded round count is exhausted.
-- Do not schedule recurring 30-minute checks. The only allowed schedule is one
-  next worker/recheck 30 minutes after the latest successful fix commit and push.
+- Do not schedule recurring checks. The only allowed schedule is one short
+  next worker/recheck, normally 10 minutes after the latest successful fix
+  commit and push.
 - Do not run another local CodeRabbit review pass here; task 9 owns the
   two-pass local CodeRabbit review workflow.
 - Do not manually review code and claim the result came from CodeRabbit.
@@ -103,7 +104,7 @@ At the start of each round:
 7. Reply to each processed review comment with `npx agent-reviews --reply ...`
    and `--resolve` when the issue is fixed or intentionally won't-fix.
 8. If another bounded round is needed after a successful commit and push,
-   schedule one next worker/recheck for 30 minutes after that successful
+   schedule one next worker/recheck for about 10 minutes after that successful
    commit/push and emit only compact state. Do not schedule a recurring
    interval.
 
@@ -111,6 +112,10 @@ Stop early when a round's one-shot inspection shows:
 
 - no failing checks except non-blocking Codacy Low/Info noise; and
 - no actionable unanswered bot comments.
+
+Before treating that state as merge-ready, fetch the base branch, rebase the PR
+branch on current `origin/main`, rerun or wait for required verification, and
+record GitHub rebase-and-merge as the intended merge strategy.
 
 Stop and ask the user when:
 
@@ -137,6 +142,14 @@ through `npx agent-reviews`.
 If a CodeRabbit comment is a false positive, unrelated style churn, or outside
 the ZenStack authorization migration, reply with a concise won't-fix reason and
 resolve it only when it is part of the assigned work unit.
+
+If CodeRabbit cannot run or report actionable comments because credits are
+exhausted, rate limits are hit, auth is unavailable, or the service is failing,
+record CodeRabbit as unavailable and do not wait on it. Replace that signal with
+one bounded local adversarial review by independent agents, then prioritize CI,
+Sonar, Codacy, Sourcery, and other checks with actionable output. A CodeRabbit
+credit/rate-limit failure alone is not a merge blocker after local independent
+review and required non-CodeRabbit checks pass.
 
 ## Codacy and Advisory Findings
 

@@ -15,21 +15,24 @@ Use when asked to harden, finish, production-shape, review, or CodeRabbit-cycle 
 - Do not paste full rule bodies into prompts. Cite paths such as `AGENTS.md`, `.coderabbit.yaml`, and `.cursor/rules/*.mdc`.
 - Persist state outside the repo under `~/.codex/tmp/ak-pr-hardening/`.
 - Write a handoff after every major phase and before stopping for context, CI, or blockers.
-- Default mode may commit locally after verification, but does not push. Push only when the user explicitly says push, publish, finish, or production-shape this PR.
-- Create follow-up automation only after a successful push to GitHub and only when CI/checks are pending or expected to rerun.
+- For PR comment-fix, review-bot, hardening, or finish requests, a verified local fix is not complete until it is committed on the PR branch. Commit after verification unless the user explicitly says not to commit, the worktree has unresolved unrelated edits in touched files, or verification is still failing.
+- Push after the commit when the user's request is to fix an existing PR or rerun remote review/checks, because remote CI, Sonar, Codacy, and review bots cannot validate unpushed work. Do not push only for explicitly local-only requests or when blocked by credentials, ambiguous scope, failing verification, or unrelated changes that make the push unsafe.
+- Create follow-up automation only after a successful push to GitHub and only when CI/checks are pending or expected to rerun. Use a short one-shot thread heartbeat, normally 10 minutes, unless the user asks for a different cadence.
 - Never merge the PR. Never use destructive git commands.
 
 ## Credit And Context Controls
 
 Apply these controls before doing extra analysis or spawning agents:
 
-1. Fetch remote PR state only at phase boundaries: start, after local hardening, after fresh CodeRabbit, and after a successful push.
+1. Fetch remote PR state only at phase boundaries: start, after local hardening, after fresh CodeRabbit when available, and after a successful push.
 2. Keep prompts scoped to one role and one ownership area. Cite rule paths instead of pasting rule bodies.
 3. Store findings, decisions, and handoffs in `~/.codex/tmp/ak-pr-hardening/`; keep main context focused on the current batch.
-4. Run fresh CodeRabbit at most once per active fix loop, after local adversarial review or major fixes, unless CodeRabbit itself is the blocker.
+4. Run fresh CodeRabbit at most once per active fix loop, after local adversarial review or major fixes, unless CodeRabbit is unavailable because of credits, rate limits, auth, or service outage.
 5. Prefer targeted tests and diffs first; run broader checks only when the changed surface or repo gates require them.
 
 Do not poll GitHub or CI in-session. After the last successful push in finish mode, use a thread heartbeat automation for the next check-in; otherwise write the handoff and stop.
+
+When CodeRabbit is unavailable, record that status in the state file and replace the fresh CodeRabbit pass with a local CodeRabbit-equivalent review: independent explorer sub-agents covering correctness, security, accessibility, framework rules, tests, and CI-risk. Actionable CodeRabbit comments must be triaged and fixed or classified, but a CodeRabbit credit, rate-limit, pending, auth, or service failure alone is not a merge blocker after local independent review and required non-CodeRabbit checks pass.
 
 ## Start
 
@@ -104,6 +107,8 @@ Fix real correctness, security, accessibility, framework, and test issues. If Co
 
 Do not run a fresh CodeRabbit pass after every small edit. Run it after local adversarial hardening, after major fixes, or when CodeRabbit is the blocker.
 
+If CodeRabbit cannot run because credits are exhausted, rate limits are hit, auth is unavailable, or the service is failing, do not wait on it or schedule long rechecks for it. Mark CodeRabbit unavailable, run the local adversarial review substitute, and focus remote follow-up on CI, Sonar, Codacy, Sourcery, and other checks with actionable output. Do not block merge readiness on CodeRabbit availability alone.
+
 ## Verification Order
 
 Use only repo-approved npm scripts from `AGENTS.md` unless the user approves otherwise:
@@ -117,6 +122,19 @@ Use only repo-approved npm scripts from `AGENTS.md` unless the user approves oth
 7. `npm run test:e2e` when flows, routing, forms, payments, or auth UX changed.
 
 If CI fails, inspect failing logs before guessing. Fix required checks before lower-priority review comments.
+
+## Commit And Push Completion
+
+When verification passes:
+
+1. Inspect `git status --short` and `git diff --name-only`; do not stage unrelated user work.
+2. Stage only files belonging to the accepted fixes and tests.
+3. Commit with a Conventional Commit message that names the PR hardening result.
+4. Push the PR branch when this run is for an existing PR, PR comments, review-bot findings, or remote checks.
+5. Refresh PR status once after push, then either continue a new fix loop for immediate failures, create a heartbeat for pending checks, or move to merge-readiness checks.
+6. Before reporting merge readiness, fetch the base branch, rebase the PR branch on current `origin/main`, rerun or wait for the required verification, and record GitHub rebase-and-merge as the intended merge strategy.
+
+If any step cannot be done safely, say exactly why, update the handoff with the next command, and do not call the local-only state "done."
 
 ## Loop Budget
 
@@ -137,6 +155,7 @@ Automation rule:
 - Never create an automation before a successful push.
 - After the final successful push in finish mode, create one thread heartbeat for the next CI/check recheck.
 - The heartbeat prompt must point to the state file and handoff, refresh compact PR checks once, and either continue the next fix loop, stop as done, or write a new handoff if checks remain pending.
+- Use a short one-shot heartbeat, normally 10 minutes after push. Do not use 30-minute follow-ups for CodeRabbit-only pending/rate-limit states.
 - Do not schedule repeated fixed-time automations unless a pushed commit is waiting on remote checks.
 
 ## Handoff
