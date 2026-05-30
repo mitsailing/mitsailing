@@ -86,7 +86,7 @@ Legacy review:
 Locale and e2e:
 
 - Modify: `src/locales/en.json`
-- Add or update: `tests/e2e/SailingCardMembershipPayments.e2e.ts`
+- Follow-up: `tests/e2e/SailingCardMembershipPayments.e2e.ts` if MIT-6 keeps the full admin/member membership-payment journey in scope after PR #145.
 
 ## Task 0: File Budget And Legacy Source Discovery
 
@@ -107,7 +107,7 @@ git diff --name-only origin/main...HEAD | wc -l
 
 Expected: current branch is a `feature/` branch and changed-file count is below 70 before implementation.
 
-- [ ] **Step 2: Confirm existing card-number behavior**
+- [x] **Step 2: Confirm existing card-number behavior**
 
 Read `src/libs/admin/cards/adminSailingCardQueries.ts` and `src/libs/admin/cards/adminSailingCardActions.ts`.
 
@@ -116,6 +116,11 @@ Expected facts:
 - blank/auto assignment starts at `60`;
 - manual assignment accepts any positive integer;
 - duplicate numbers are rejected per `sailingCardYear`.
+
+Result: confirmed in `src/libs/admin/cards/adminSailingCardQueries.ts`,
+`src/libs/admin/cards/adminSailingCardQueries.test.ts`,
+`src/libs/admin/cards/adminSailingCardActions.ts`, and
+`src/libs/admin/cards/adminSailingCardActions.test.ts`.
 
 - [x] **Step 3: Discover legacy membership payment source tables**
 
@@ -155,7 +160,7 @@ Expected: use `legacy.payments` as the confident legacy payment source. V1 match
 - Add: `prisma/migrations/20260529183000_membership_payment_admin_status/migration.sql`
 - Test: existing schema/model tests near `src/libs/mit-sailing/*Schema*.test.ts`, or create `src/libs/mit-sailing/membershipBilling/membershipPaymentStatus.test.ts`
 
-- [ ] **Step 1: Write failing schema/status tests**
+- [x] **Step 1: Write failing schema/status tests**
 
 Create or update `src/libs/mit-sailing/membershipBilling/membershipPaymentStatus.test.ts` with tests for the public status contract:
 
@@ -201,6 +206,10 @@ describe('membershipPaymentAccessStatus', () => {
 ```
 
 Expected: FAIL because the helper and types do not exist.
+
+Result: covered by
+`src/libs/mit-sailing/membershipBilling/membershipPaymentStatus.test.ts`
+and `src/libs/mit-sailing/payments/paymentSchemaContract.test.ts`.
 
 - [x] **Step 2: Add shared payment purpose and membership fields**
 
@@ -284,11 +293,14 @@ Add the inverse relation on `User`:
 paymentBypassedSailingCardRequests SailingCardRequest[] @relation("SailingCardRequestPaymentBypassBy")
 ```
 
-- [ ] **Step 3: Generate schema artifacts**
+- [x] **Step 3: Generate schema artifacts**
 
 Use the maintainer-approved ZenStack generation handoff. Do not manually edit `prisma/schema.prisma`.
 
 Expected generated artifacts include `prisma/schema.prisma` with the new enums, model fields, and relation.
+
+Result: generated artifacts are present in `prisma/schema.prisma` and
+`zenstack/schema.ts`.
 
 - [x] **Step 4: Add migration constraints**
 
@@ -345,7 +357,7 @@ alter table sailing_card_requests
   );
 ```
 
-- [ ] **Step 5: Run focused verification**
+- [x] **Step 5: Run focused verification**
 
 Run:
 
@@ -355,6 +367,9 @@ npm run check:types
 ```
 
 Expected: tests pass after helper implementation in Task 2; typecheck passes after generated artifacts are present.
+
+Result: focused payment/status tests and `npm run check:types` passed on
+May 29, 2026.
 
 ## Task 2: Implement Membership Payment Access Status Helpers
 
@@ -943,9 +958,9 @@ Expected: PASS.
 ## Task 8: End-To-End Verification
 
 **Files:**
-- Add or update: `tests/e2e/SailingCardMembershipPayments.e2e.ts`
+- Follow-up candidate: `tests/e2e/SailingCardMembershipPayments.e2e.ts`
 
-- [x] **Step 1: Add e2e coverage**
+- [x] **Step 1: Classify e2e coverage**
 
 Current status: focused unit/component coverage exists for card-queue search,
 manual card `110`, duplicate card protection, payment-bypass note requirement,
@@ -954,7 +969,15 @@ classification. Existing Playwright payment coverage was updated for the shared
 `payments` table and rerun successfully after fixing the stale
 `event_payments` fixture helper.
 
-Add Playwright coverage for:
+Decision for PR #145: the missing
+`tests/e2e/SailingCardMembershipPayments.e2e.ts` full journey is not present in
+this branch and is explicitly classified as a MIT-6 follow-up, not a PR #145
+merge blocker. The branch keeps focused unit/component coverage for payment
+membership behavior and adds Playwright coverage in `tests/e2e/Onboarding.e2e.ts`
+for the onboarding draft-loss/profile-navigation regression found during the
+impeccable corrective pass.
+
+Follow-up Playwright coverage should include:
 
 - admin filters pending card queue by MIT ID without navigation;
 - admin manually assigns card number `110`;

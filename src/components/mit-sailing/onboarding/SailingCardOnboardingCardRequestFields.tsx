@@ -1,9 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import type * as React from 'react';
 import type { UseFormRegister, UseFormSetValue } from 'react-hook-form';
-import { mitRecreationMembershipHref } from '@/data/mit-sailing/mitRecreationMembership';
 import { SailingCardType } from '@/generated/prisma/enums';
 import type { SailingAffiliation } from '@/generated/prisma/enums';
 import { cn } from '@/lib/utils';
@@ -30,22 +28,8 @@ const radioCardClassName =
 
 const radioInputClassName = 'mt-0.5 size-4 shrink-0 accent-mit-red';
 
-const fitnessMembershipLinkClassName =
+const onboardingLinkClassName =
   'font-medium text-mit-red underline underline-offset-2 hover:text-mit-red/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mit-red dark:text-mit-red-ink dark:hover:text-mit-red-ink/80';
-
-const renderFitnessMembershipLink = (chunks: React.ReactNode) => (
-  <Link
-    className={fitnessMembershipLinkClassName}
-    href={mitRecreationMembershipHref}
-    key="membership"
-  >
-    {chunks}
-  </Link>
-);
-
-const fitnessMembershipSignupNoteRichText = {
-  membership: renderFitnessMembershipLink,
-};
 
 const cardTypeLabelKey = (cardType: SailingCardType) => {
   const keys = {
@@ -205,10 +189,8 @@ function FitnessMembershipQuestion(props: {
   const t = useTranslations('OnboardingPage');
   const error = props.state.fieldErrors.hasFitnessMembership;
   const helpId = 'sailing-card-onboarding-hasFitnessMembership-help';
-  const signupNoteId = 'sailing-card-onboarding-fitness-signup-note';
   const describedBy = cn(
     helpId,
-    signupNoteId,
     error ? fieldErrorId('hasFitnessMembership') : undefined
   );
   const registration = props.register('hasFitnessMembership', {
@@ -241,12 +223,6 @@ function FitnessMembershipQuestion(props: {
         ref={registration.ref}
         registrationName={registration.name}
       />
-      <p className="text-xs leading-5 text-muted-foreground" id={signupNoteId}>
-        {t.rich(
-          'fitness_membership_signup_note',
-          fitnessMembershipSignupNoteRichText
-        )}
-      </p>
       <FieldError field="hasFitnessMembership" state={props.state} />
     </fieldset>
   );
@@ -427,7 +403,12 @@ function CardTypeSelect(props: {
       </legend>
       <p className="text-xs leading-5 text-muted-foreground" id={helpId}>
         {t('card_type_comparison_help')}{' '}
-        <Link className={fitnessMembershipLinkClassName} href="/pricing">
+        <Link
+          className={onboardingLinkClassName}
+          href="/pricing"
+          rel="noopener noreferrer"
+          target="_blank"
+        >
           {t('card_type_details_link')}
         </Link>
       </p>

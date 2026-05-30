@@ -27,6 +27,7 @@ vi.mock('@/libs/mit-sailing/sailingCardValidity', async () => {
 
 const mocks = vi.hoisted(() => ({
   paymentFindMany: vi.fn(),
+  sailingCardRequestFindFirst: vi.fn(),
   sailingCardRequestFindMany: vi.fn(),
   userFindUnique: vi.fn(),
   userFindMany: vi.fn(),
@@ -101,6 +102,7 @@ vi.mock('@/libs/DB', () => ({
       findMany: mocks.paymentFindMany,
     },
     sailingCardRequest: {
+      findFirst: mocks.sailingCardRequestFindFirst,
       findMany: mocks.sailingCardRequestFindMany,
     },
     user: {
@@ -117,6 +119,7 @@ describe('adminSailingCardUiQueries', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.paymentFindMany.mockResolvedValue([]);
+    mocks.sailingCardRequestFindFirst.mockResolvedValue(null);
   });
 
   it('returns pending requests with latest onboarding agreement acceptance', async () => {
@@ -302,11 +305,16 @@ describe('adminSailingCardUiQueries', () => {
           agreementVersion: sailingCardAgreement.version,
         },
       ],
+      paymentBypassRequest: {
+        paymentBypassAt: new Date('2026-05-22T16:00:00.000Z'),
+        paymentBypassBy: { name: 'Payment Admin' },
+        paymentBypassNote: 'Admin issued sailing card without payment.',
+      },
       sailingCardRequests: [
         {
-          paymentBypassAt: new Date('2026-05-22T16:00:00.000Z'),
-          paymentBypassBy: { name: 'Payment Admin' },
-          paymentBypassNote: 'Admin issued sailing card without payment.',
+          paymentBypassAt: null,
+          paymentBypassBy: null,
+          paymentBypassNote: null,
         },
       ],
       sailingCardExpiresOn: new Date('2027-05-31T04:00:00.000Z'),
@@ -320,11 +328,18 @@ describe('adminSailingCardUiQueries', () => {
       sailingCardSwimAgreementInitials: 'AL',
       sailingCardYear: 2026,
     };
-    mocks.userFindUnique.mockResolvedValue(summary);
+    const userSummary = {
+      ...summary,
+      paymentBypassRequest: undefined,
+    };
+    mocks.userFindUnique.mockResolvedValue(userSummary);
+    mocks.sailingCardRequestFindFirst.mockResolvedValue(
+      summary.paymentBypassRequest
+    );
     const { getAdminUserSailingCardSummary } =
       await import('@/libs/admin/cards/adminSailingCardUiQueries');
 
-    await expect(getAdminUserSailingCardSummary('user-1')).resolves.toBe(
+    await expect(getAdminUserSailingCardSummary('user-1')).resolves.toEqual(
       summary
     );
     expect(mocks.userFindUnique).toHaveBeenCalledWith(
@@ -345,8 +360,12 @@ describe('adminSailingCardUiQueries', () => {
             },
           },
           sailingCardRequests: {
-            orderBy: { paymentBypassAt: 'desc' },
+            orderBy: [{ cardYear: 'desc' }, { requestedAt: 'desc' }],
             select: {
+              cardType: true,
+              cardYear: true,
+              hasFitnessMembership: true,
+              issuedCardNumber: true,
               paymentBypassAt: true,
               paymentBypassBy: {
                 select: {
@@ -354,13 +373,38 @@ describe('adminSailingCardUiQueries', () => {
                 },
               },
               paymentBypassNote: true,
+              requestedAt: true,
+              sailingAffiliation: true,
+              status: true,
             },
-            where: { paymentBypassAt: { not: null } },
             take: 1,
           },
         }),
         where: { id: 'user-1' },
       })
     );
+    expect(mocks.sailingCardRequestFindFirst).toHaveBeenCalledWith({
+      orderBy: { paymentBypassAt: 'desc' },
+      select: {
+        cardType: true,
+        cardYear: true,
+        hasFitnessMembership: true,
+        issuedCardNumber: true,
+        paymentBypassAt: true,
+        paymentBypassBy: {
+          select: {
+            name: true,
+          },
+        },
+        paymentBypassNote: true,
+        requestedAt: true,
+        sailingAffiliation: true,
+        status: true,
+      },
+      where: {
+        paymentBypassAt: { not: null },
+        userId: 'user-1',
+      },
+    });
   });
 });

@@ -253,7 +253,7 @@ export function buildLegacyMemberPaymentMap(
 }
 
 export function legacyPaymentAmountCents(amount: string | null): number {
-  const normalized = stringValue(amount).replaceAll(',', '');
+  const normalized = stringValue(amount).replaceAll(/[^\d.]/gu, '');
   const parsed = Number(normalized);
   if (!Number.isFinite(parsed) || parsed < 0) {
     return 0;
@@ -347,16 +347,24 @@ async function ensureLegacyUsers(props: {
   let cardRecordsMerged = 0;
   let usersCreated = 0;
   let usersMatched = 0;
+  const existingUsers = await props.db.user.findMany({
+    where: {
+      email: { in: props.map.canonicalUsers.map((user) => user.email) },
+    },
+    select: {
+      email: true,
+      id: true,
+      sailingCardNumber: true,
+      sailingCardYear: true,
+    },
+  });
+  const existingUserByEmail = new Map(
+    existingUsers.map((user) => [user.email.toLowerCase(), user])
+  );
+  const usersToCreate: Prisma.UserCreateManyInput[] = [];
 
   for (const user of props.map.canonicalUsers) {
-    const existing = await props.db.user.findUnique({
-      where: { email: user.email },
-      select: {
-        id: true,
-        sailingCardNumber: true,
-        sailingCardYear: true,
-      },
-    });
+    const existing = existingUserByEmail.get(user.email);
     if (existing) {
       if (
         user.legacySailingCard &&
@@ -373,31 +381,35 @@ async function ensureLegacyUsers(props: {
       usersMatched += 1;
       continue;
     }
-    const created = await props.db.user.create({
-      data: {
-        id: stableLegacyUserId(user.email),
-        appRole: 'user',
-        email: user.email,
-        emailVerified: false,
-        emergencyContactName: user.emergencyContactName,
-        emergencyContactPhone: user.emergencyContactPhone,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        mitId: user.mitId,
-        name: user.name,
-        phone: user.phone,
-        role: 'user',
-        ...(user.legacySailingCard
-          ? legacySailingCardUserData(user.legacySailingCard)
-          : {}),
-      },
-      select: { id: true },
+    const id = stableLegacyUserId(user.email);
+    usersToCreate.push({
+      id,
+      appRole: 'user',
+      email: user.email,
+      emailVerified: false,
+      emergencyContactName: user.emergencyContactName,
+      emergencyContactPhone: user.emergencyContactPhone,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      mitId: user.mitId,
+      name: user.name,
+      phone: user.phone,
+      role: 'user',
+      ...(user.legacySailingCard
+        ? legacySailingCardUserData(user.legacySailingCard)
+        : {}),
     });
-    appUserIdByKey.set(user.key, created.id);
+    appUserIdByKey.set(user.key, id);
     if (user.legacySailingCard) {
       cardRecordsMerged += 1;
     }
     usersCreated += 1;
+  }
+  if (usersToCreate.length > 0) {
+    await props.db.user.createMany({
+      data: usersToCreate,
+      skipDuplicates: true,
+    });
   }
 
   return { appUserIdByKey, cardRecordsMerged, usersCreated, usersMatched };
@@ -411,9 +423,7 @@ function payerName(payment: LegacyPaymentRow): string | null {
 }
 
 function legacyPaymentCreatedAt(payment: LegacyPaymentRow): Date {
-  const date = stringValue(payment.date);
-  const parsed = date ? new Date(`${date}T12:00:00.000Z`) : null;
-  return parsed && !Number.isNaN(parsed.getTime()) ? parsed : new Date(0);
+  return parseLegacyDate(payment.date) ?? new Date(0);
 }
 
 async function upsertLegacyPayment(props: {
@@ -454,6 +464,21 @@ async function upsertLegacyPayment(props: {
     status,
     userId: matchedUserId,
   };
+  const update = {
+    amountCents: data.amountCents,
+    cardType: data.cardType,
+    cardYear: data.cardYear,
+    createdAt: data.createdAt,
+    currency: data.currency,
+    legacyCategory: data.legacyCategory,
+    legacyDescription: data.legacyDescription,
+    legacySettled: data.legacySettled,
+    payerEmail: data.payerEmail,
+    payerName: data.payerName,
+    purpose: data.purpose,
+    source: data.source,
+    userId: data.userId,
+  };
 
   await props.db.payment.upsert({
     where: {
@@ -463,7 +488,7 @@ async function upsertLegacyPayment(props: {
       },
     },
     create: data,
-    update: data,
+    update,
   });
   return status;
 }

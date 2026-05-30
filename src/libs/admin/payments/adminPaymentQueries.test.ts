@@ -1,9 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  PaymentPurpose,
-  PaymentSource,
-  PaymentStatus,
-} from '@/generated/prisma/enums';
+import { PaymentPurpose, PaymentStatus } from '@/generated/prisma/enums';
 
 vi.mock('server-only', () => ({}));
 
@@ -100,12 +96,7 @@ describe('listAdminPaymentLedgerData', () => {
           {
             OR: [
               { purpose: PaymentPurpose.event_payment },
-              {
-                purpose: PaymentPurpose.membership,
-                source: PaymentSource.legacy,
-                status: PaymentStatus.needs_review,
-                userId: null,
-              },
+              { purpose: PaymentPurpose.membership },
             ],
           },
           { status: PaymentStatus.needs_review },
@@ -128,12 +119,7 @@ describe('listAdminPaymentLedgerData', () => {
             {
               OR: [
                 { purpose: PaymentPurpose.event_payment },
-                {
-                  purpose: PaymentPurpose.membership,
-                  source: PaymentSource.legacy,
-                  status: PaymentStatus.needs_review,
-                  userId: null,
-                },
+                { purpose: PaymentPurpose.membership },
               ],
             },
             {
@@ -182,7 +168,7 @@ describe('listAdminPaymentLedgerData', () => {
     );
   });
 
-  it('includes unmatched legacy membership review rows in the ledger scope', async () => {
+  it('includes membership payments in the ledger scope', async () => {
     mocks.paymentFindMany.mockResolvedValue([]);
     const { listAdminPaymentLedgerData } =
       await import('./adminPaymentQueries');
@@ -196,17 +182,60 @@ describe('listAdminPaymentLedgerData', () => {
             {
               OR: [
                 { purpose: PaymentPurpose.event_payment },
-                {
-                  purpose: PaymentPurpose.membership,
-                  source: PaymentSource.legacy,
-                  status: PaymentStatus.needs_review,
-                  userId: null,
-                },
+                { purpose: PaymentPurpose.membership },
               ],
             },
           ],
         },
       })
     );
+  });
+
+  it('returns paid legacy membership payments linked to users', async () => {
+    const legacyMembershipPayment = {
+      amountCents: 12_000,
+      createdAt: new Date('2026-05-29T16:00:00.000Z'),
+      event: null,
+      id: 'payment-membership-1',
+      legacyCategory: 'racing',
+      legacyDescription: '2026 Pavilion racing sailing card',
+      legacySourceId: 'legacy-membership-1001',
+      legacySourceTable: 'legacy.payments',
+      payerEmail: 'grace@example.com',
+      payerName: 'Grace Hopper',
+      status: PaymentStatus.paid,
+      stripeCheckoutSessionId: null,
+      stripePaymentIntentId: null,
+      stripeReceiptUrl: null,
+      user: { email: 'grace@example.com', name: 'Grace Hopper' },
+    };
+    mocks.paymentFindMany.mockResolvedValue([legacyMembershipPayment]);
+    const { listAdminPaymentLedgerData } =
+      await import('./adminPaymentQueries');
+
+    await expect(
+      listAdminPaymentLedgerData({ query: 'grace@example.com', status: 'all' })
+    ).resolves.toEqual({
+      latestWebhook: null,
+      rows: [
+        {
+          amountCents: 12_000,
+          createdAt: new Date('2026-05-29T16:00:00.000Z'),
+          event: null,
+          id: 'payment-membership-1',
+          legacyCategory: 'racing',
+          legacyDescription: '2026 Pavilion racing sailing card',
+          legacySourceId: 'legacy-membership-1001',
+          legacySourceTable: 'legacy.payments',
+          payerEmail: 'grace@example.com',
+          payerName: 'Grace Hopper',
+          receiptUrl: null,
+          status: PaymentStatus.paid,
+          stripeCheckoutSessionId: null,
+          stripePaymentIntentId: null,
+          user: { email: 'grace@example.com', name: 'Grace Hopper' },
+        },
+      ],
+    });
   });
 });

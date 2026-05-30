@@ -16,6 +16,9 @@ const fieldErrorMessageKey = (props: {
   if (props.value === 'required') {
     return 'error_required';
   }
+  if (props.field === 'dateOfBirth') {
+    return 'error_invalid_date_of_birth';
+  }
   if (props.field === 'phone') {
     return 'error_invalid_phone';
   }

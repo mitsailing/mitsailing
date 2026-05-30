@@ -21,8 +21,8 @@ import type {
 const mocks = vi.hoisted(() => ({
   paymentUpsert: vi.fn(),
   transaction: vi.fn(),
-  userCreate: vi.fn(),
-  userFindUnique: vi.fn(),
+  userCreateMany: vi.fn(),
+  userFindMany: vi.fn(),
   userUpdate: vi.fn(),
 }));
 
@@ -31,8 +31,8 @@ type MockLegacyPaymentImportDb = {
     readonly upsert: typeof mocks.paymentUpsert;
   };
   readonly user: {
-    readonly create: typeof mocks.userCreate;
-    readonly findUnique: typeof mocks.userFindUnique;
+    readonly createMany: typeof mocks.userCreateMany;
+    readonly findMany: typeof mocks.userFindMany;
     readonly update: typeof mocks.userUpdate;
   };
 };
@@ -89,15 +89,8 @@ function payment(overrides: Partial<LegacyPaymentRow> = {}): LegacyPaymentRow {
 describe('legacyPaymentImport', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.userFindUnique.mockResolvedValue(null);
-    mocks.userCreate.mockImplementation(
-      async (props: { data: { id: string } }) => {
-        const created = await Promise.resolve({
-          id: props.data.id,
-        });
-        return created;
-      }
-    );
+    mocks.userFindMany.mockResolvedValue([]);
+    mocks.userCreateMany.mockResolvedValue({ count: 0 });
     mocks.userUpdate.mockResolvedValue({});
     mocks.paymentUpsert.mockResolvedValue({});
     mocks.transaction.mockImplementation(
@@ -105,8 +98,8 @@ describe('legacyPaymentImport', () => {
         const result = await operation({
           payment: { upsert: mocks.paymentUpsert },
           user: {
-            create: mocks.userCreate,
-            findUnique: mocks.userFindUnique,
+            createMany: mocks.userCreateMany,
+            findMany: mocks.userFindMany,
             update: mocks.userUpdate,
           },
         });
@@ -174,6 +167,10 @@ describe('legacyPaymentImport', () => {
 
   it('parses legacy decimal dollar amounts into cents', () => {
     expect(legacyPaymentAmountCents('120.50')).toBe(12_050);
+  });
+
+  it('parses legacy currency amount strings into cents', () => {
+    expect(legacyPaymentAmountCents('$1,200.50')).toBe(120_050);
   });
 
   it('matches payment users by legacy id username or billing email', () => {
@@ -244,22 +241,26 @@ describe('legacyPaymentImport', () => {
       usersMatched: 0,
     });
 
-    expect(mocks.userCreate).toHaveBeenCalledWith(
+    expect(mocks.userCreateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.not.objectContaining({
-          legacyUsername: expect.anything(),
-          username: expect.anything(),
-        }),
+        data: expect.arrayContaining([
+          expect.not.objectContaining({
+            legacyUsername: expect.anything(),
+            username: expect.anything(),
+          }),
+        ]),
       })
     );
-    expect(mocks.userCreate).toHaveBeenCalledWith(
+    expect(mocks.userCreateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({
-          sailingCardExpiresOn: new Date('2027-07-15T12:00:00.000Z'),
-          sailingCardIssuedAt: new Date('2026-06-01T12:00:00.000Z'),
-          sailingCardNumber: 110,
-          sailingCardYear: 2027,
-        }),
+        data: expect.arrayContaining([
+          expect.objectContaining({
+            sailingCardExpiresOn: new Date('2027-07-15T12:00:00.000Z'),
+            sailingCardIssuedAt: new Date('2026-06-01T12:00:00.000Z'),
+            sailingCardNumber: 110,
+            sailingCardYear: 2027,
+          }),
+        ]),
       })
     );
     expect(mocks.paymentUpsert).toHaveBeenCalledWith(
@@ -288,17 +289,20 @@ describe('legacyPaymentImport', () => {
   });
 
   it('merges legacy card data onto matched existing users without overwriting assigned cards', async () => {
-    mocks.userFindUnique
-      .mockResolvedValueOnce({
+    mocks.userFindMany.mockResolvedValueOnce([
+      {
+        email: 'sailor@example.com',
         id: 'existing-user-1',
         sailingCardNumber: null,
         sailingCardYear: null,
-      })
-      .mockResolvedValueOnce({
+      },
+      {
+        email: 'assigned@example.com',
         id: 'existing-user-2',
         sailingCardNumber: 72,
         sailingCardYear: 2027,
-      });
+      },
+    ]);
 
     await expect(
       importLegacyPaymentRows({
@@ -365,6 +369,39 @@ describe('legacyPaymentImport', () => {
           purpose: PaymentPurpose.event_payment,
           status: PaymentStatus.needs_review,
           userId: null,
+        }),
+      })
+    );
+  });
+
+  it('parses legacy payment dates with time components', async () => {
+    await importLegacyPaymentRows({
+      members: [member()],
+      payments: [payment({ date: '2026-05-01 15:30:00' })],
+    });
+
+    expect(mocks.paymentUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          createdAt: new Date('2026-05-01T12:00:00.000Z'),
+        }),
+      })
+    );
+  });
+
+  it('does not overwrite existing payment status on legacy reimport', async () => {
+    await importLegacyPaymentRows({
+      members: [member()],
+      payments: [payment({ settled: '1' })],
+    });
+
+    expect(mocks.paymentUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          status: PaymentStatus.paid,
+        }),
+        update: expect.not.objectContaining({
+          status: expect.anything(),
         }),
       })
     );

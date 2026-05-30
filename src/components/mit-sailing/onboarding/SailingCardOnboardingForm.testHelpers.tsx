@@ -71,6 +71,7 @@ vi.mock('@/libs/mit-sailing/sailingCardOnboardingActions', () => ({
 
 export function resetOnboardingFormTestState() {
   vi.clearAllMocks();
+  window.sessionStorage.clear();
   actionStateMock.state = {
     fieldErrors: {},
     status: 'idle',
@@ -87,13 +88,15 @@ export function setOnboardingFormActionState(
 export function renderForm(
   props: {
     readonly callbackUrl?: string;
+    readonly draftKey?: string;
     readonly initialValues?: SailingCardOnboardingFormValues;
     readonly lockedIdentity?: SailingCardOnboardingLockedIdentity;
   } = {}
 ) {
-  render(
+  return render(
     <SailingCardOnboardingForm
       callbackUrl={props.callbackUrl}
+      draftKey={props.draftKey}
       initialValues={props.initialValues}
       lockedIdentity={props.lockedIdentity}
     />
@@ -125,7 +128,7 @@ export const showWellesleyDetails = async () => {
 
 export const expectDetailsHidden = () => {
   expect(
-    screen.queryByRole('heading', { name: 'Contact details' })
+    screen.queryByRole('heading', { name: 'Contact and safety' })
   ).not.toBeInTheDocument();
   expect(
     screen.queryByRole('group', { name: 'Type of sailing card requested' })

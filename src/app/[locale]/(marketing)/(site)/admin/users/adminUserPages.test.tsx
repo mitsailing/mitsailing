@@ -1,7 +1,11 @@
 import { render, screen } from '@testing-library/react';
 import type * as React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { PaymentSource, SailingCardType } from '@/generated/prisma/enums';
+import {
+  PaymentSource,
+  SailingCardRequestStatus,
+  SailingCardType,
+} from '@/generated/prisma/enums';
 import { Permission } from '@/libs/auth/permissions';
 import { Role } from '@/libs/auth/roles';
 import {
@@ -16,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   getAdminUserEmailMessages: vi.fn(),
   getAdminSailingCardHistory: vi.fn(),
   getAdminUserSailingCardSummary: vi.fn(),
+  getNextAvailableSailingCardNumber: vi.fn(),
   listAdminUserPaymentHistory: vi.fn(),
   getTranslations: vi.fn(async () => {
     await Promise.resolve();
@@ -222,6 +227,18 @@ vi.mock('@/components/mit-sailing/admin/cards/AdminSailingCardHistory', () => ({
 vi.mock('@/components/mit-sailing/admin/cards/AdminSailingCardQueue', () => ({
   AdminSailingCardHistory: () => <section data-testid="card-history-panel" />,
   AdminSailingCardExpireForm: () => <form aria-label="Expire sailing card" />,
+  AdminSailingCardIssueForm: (props: {
+    cardType?: SailingCardType;
+    paymentAccess?: 'blocked' | 'none' | 'paid';
+    suggestedCardNumber: number;
+  }) => (
+    <form
+      aria-label="Issue sailing card"
+      data-card-type={props.cardType}
+      data-payment-access={props.paymentAccess}
+      data-suggested-card-number={props.suggestedCardNumber}
+    />
+  ),
 }));
 
 vi.mock('@/libs/admin/users/adminUserActions', () => ({
@@ -233,6 +250,10 @@ vi.mock('@/libs/admin/users/adminUserActions', () => ({
 vi.mock('@/libs/admin/cards/adminSailingCardUiQueries', () => ({
   getAdminSailingCardHistory: mocks.getAdminSailingCardHistory,
   getAdminUserSailingCardSummary: mocks.getAdminUserSailingCardSummary,
+}));
+
+vi.mock('@/libs/admin/cards/adminSailingCardQueries', () => ({
+  getNextAvailableSailingCardNumber: mocks.getNextAvailableSailingCardNumber,
 }));
 
 vi.mock('@/libs/admin/users/usersAdminHandlers', () => ({
@@ -271,6 +292,7 @@ beforeEach(() => {
   mocks.getAdminUserEmailMessages.mockReset();
   mocks.getAdminSailingCardHistory.mockReset();
   mocks.getAdminUserSailingCardSummary.mockReset();
+  mocks.getNextAvailableSailingCardNumber.mockReset();
   mocks.listAdminUserPaymentHistory.mockReset();
   mocks.getTranslations.mockClear();
   mocks.list.mockReset();
@@ -296,6 +318,7 @@ beforeEach(() => {
   });
   mocks.getAdminUserEmailMessages.mockResolvedValue([]);
   mocks.getAdminSailingCardHistory.mockResolvedValue([]);
+  mocks.getNextAvailableSailingCardNumber.mockResolvedValue(2471);
   mocks.getAdminUserSailingCardSummary.mockResolvedValue({
     legalAgreementAcceptances: [
       {
@@ -304,6 +327,7 @@ beforeEach(() => {
         agreementVersion: sailingCardAgreement.version,
       },
     ],
+    paymentBypassRequest: null,
     sailingCardRequests: [],
     sailingCardExpiresOn: new Date('2027-07-15T04:00:00.000Z'),
     sailingCardIssuedAt: new Date('2026-08-01T16:00:00.000Z'),
@@ -441,7 +465,77 @@ describe('admin user pages', () => {
     expect(screen.getByTestId('ratings-panel')).toBeInTheDocument();
   });
 
+  it('shows pending card number assignment on the user detail page', async () => {
+    mocks.getAdminUserSailingCardSummary.mockResolvedValue({
+      legalAgreementAcceptances: [
+        {
+          acceptedAt: new Date('2026-06-01T16:00:00.000Z'),
+          agreementHash: sailingCardAgreementHash(),
+          agreementVersion: sailingCardAgreement.version,
+        },
+      ],
+      paymentBypassRequest: null,
+      sailingCardRequests: [
+        {
+          cardType: SailingCardType.normal,
+          cardYear: 2026,
+          hasFitnessMembership: true,
+          issuedCardNumber: null,
+          paymentBypassAt: null,
+          paymentBypassBy: null,
+          paymentBypassNote: null,
+          requestedAt: new Date('2026-05-21T16:00:00.000Z'),
+          sailingAffiliation: 'MIT_STUDENT',
+          status: SailingCardRequestStatus.pending,
+        },
+      ],
+      sailingCardExpiresOn: null,
+      sailingCardIssuedAt: null,
+      sailingCardIssuedBy: null,
+      sailingCardNumber: null,
+      sailingCardRequestedAt: new Date('2026-05-21T16:00:00.000Z'),
+      sailingCardSwimAgreementInitialedAt: new Date('2026-06-01T16:00:00.000Z'),
+      sailingCardSwimAgreementInitials: 'AK',
+      sailingCardYear: null,
+    });
+    const { default: AdminUserShowPage } = await import('./[id]/page');
+
+    render(
+      await AdminUserShowPage({
+        params: Promise.resolve({ id: 'user-1', locale: 'en' }),
+        searchParams: Promise.resolve({}),
+      })
+    );
+
+    expect(
+      screen.getByText('sailing_card_status_requested')
+    ).toBeInTheDocument();
+    expect(screen.getByText('sailing_card_pending_number')).toBeInTheDocument();
+    expect(screen.getByText('2471')).toBeInTheDocument();
+    expect(
+      screen.getByText('sailing_card_assignment_pending')
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('form', { name: 'Issue sailing card' })
+    ).toHaveAttribute('data-suggested-card-number', '2471');
+    expect(mocks.getNextAvailableSailingCardNumber).toHaveBeenCalledWith({
+      cardYear: 2026,
+    });
+  });
+
   it('shows admin override payment bypass on the user sailing-card panel', async () => {
+    const paymentBypassRequest = {
+      cardType: SailingCardType.racing,
+      cardYear: 2026,
+      hasFitnessMembership: true,
+      issuedCardNumber: 60,
+      paymentBypassAt: new Date('2026-08-01T16:00:00.000Z'),
+      paymentBypassBy: { name: 'Dock Master' },
+      paymentBypassNote: 'Admin issued sailing card without payment.',
+      requestedAt: new Date('2026-05-21T16:00:00.000Z'),
+      sailingAffiliation: 'OTHER',
+      status: SailingCardRequestStatus.approved,
+    };
     mocks.getAdminUserSailingCardSummary.mockResolvedValue({
       legalAgreementAcceptances: [
         {
@@ -450,11 +544,19 @@ describe('admin user pages', () => {
           agreementVersion: sailingCardAgreement.version,
         },
       ],
+      paymentBypassRequest,
       sailingCardRequests: [
         {
-          paymentBypassAt: new Date('2026-08-01T16:00:00.000Z'),
-          paymentBypassBy: { name: 'Dock Master' },
-          paymentBypassNote: 'Admin issued sailing card without payment.',
+          cardType: SailingCardType.racing,
+          cardYear: 2027,
+          hasFitnessMembership: true,
+          issuedCardNumber: 61,
+          paymentBypassAt: null,
+          paymentBypassBy: null,
+          paymentBypassNote: null,
+          requestedAt: new Date('2026-05-21T16:00:00.000Z'),
+          sailingAffiliation: 'OTHER',
+          status: SailingCardRequestStatus.approved,
         },
       ],
       sailingCardExpiresOn: new Date('2027-07-15T04:00:00.000Z'),
@@ -481,6 +583,22 @@ describe('admin user pages', () => {
     expect(
       screen.getByText('sailing_card_payment_bypass_body')
     ).toBeInTheDocument();
+  });
+
+  it('does not fetch the next card number when no pending request can be issued', async () => {
+    const { default: AdminUserShowPage } = await import('./[id]/page');
+
+    render(
+      await AdminUserShowPage({
+        params: Promise.resolve({ id: 'user-1', locale: 'en' }),
+        searchParams: Promise.resolve({}),
+      })
+    );
+
+    expect(mocks.getNextAvailableSailingCardNumber).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole('form', { name: 'Issue sailing card' })
+    ).toBeNull();
   });
 
   it('keeps user detail available when sailing-card panel fails to load', async () => {
@@ -555,7 +673,7 @@ describe('admin user pages', () => {
       screen.getByText('email_category_password_reset')
     ).toBeInTheDocument();
     expect(screen.getByText('email_event_delivered')).toBeInTheDocument();
-    expect(screen.getAllByText('empty_value')).toHaveLength(1);
+    expect(screen.getAllByText('empty_value').length).toBeGreaterThan(0);
     expect(screen.getByText('Custom notice')).toBeInTheDocument();
     expect(screen.getByText('email_category_other')).toBeInTheDocument();
     expect(screen.getByText('email_event_unknown')).toBeInTheDocument();

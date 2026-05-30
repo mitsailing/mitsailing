@@ -71,6 +71,7 @@ vi.mock('next-intl', () => ({
       fitness_membership_no_verify: 'No, verify before issuing',
       fitness_membership_not_required: 'Not required',
       fitness_membership_yes: 'Yes',
+      issue_form_label: 'Issue sailing card',
       card_type_normal: 'Normal',
       card_type_racing: 'Pavilion racing',
       card_type_team_racing: 'Thursday team racing',
@@ -275,6 +276,9 @@ describe('AdminSailingCardQueue', () => {
       />
     );
 
+    expect(
+      screen.getByRole('form', { name: 'Issue sailing card' })
+    ).toBeVisible();
     expect(screen.getByLabelText('Card number')).not.toBeRequired();
     expect(screen.getByLabelText('Card number')).toHaveAttribute(
       'placeholder',

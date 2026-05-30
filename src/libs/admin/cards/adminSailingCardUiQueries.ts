@@ -188,50 +188,81 @@ export async function getAdminSailingCardHistory(
 }
 
 export async function getAdminUserSailingCardSummary(userId: string) {
-  const summary = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      sailingCardExpiresOn: true,
-      sailingCardIssuedAt: true,
-      sailingCardIssuedBy: {
-        select: {
-          name: true,
-        },
-      },
-      legalAgreementAcceptances: {
-        where: {
-          agreementHash: sailingCardAgreementHash(),
-          agreementVersion: sailingCardAgreement.version,
-          source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
-        },
-        orderBy: { acceptedAt: 'desc' },
-        select: {
-          acceptedAt: true,
-          agreementHash: true,
-          agreementVersion: true,
-        },
-        take: 1,
-      },
-      sailingCardRequests: {
-        orderBy: { paymentBypassAt: 'desc' },
-        select: {
-          paymentBypassAt: true,
-          paymentBypassBy: {
-            select: {
-              name: true,
-            },
+  const [summary, paymentBypassRequest] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        sailingCardExpiresOn: true,
+        sailingCardIssuedAt: true,
+        sailingCardIssuedBy: {
+          select: {
+            name: true,
           },
-          paymentBypassNote: true,
         },
-        where: { paymentBypassAt: { not: null } },
-        take: 1,
+        legalAgreementAcceptances: {
+          where: {
+            agreementHash: sailingCardAgreementHash(),
+            agreementVersion: sailingCardAgreement.version,
+            source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
+          },
+          orderBy: { acceptedAt: 'desc' },
+          select: {
+            acceptedAt: true,
+            agreementHash: true,
+            agreementVersion: true,
+          },
+          take: 1,
+        },
+        sailingCardRequests: {
+          orderBy: [{ cardYear: 'desc' }, { requestedAt: 'desc' }],
+          select: {
+            cardType: true,
+            cardYear: true,
+            hasFitnessMembership: true,
+            issuedCardNumber: true,
+            paymentBypassAt: true,
+            paymentBypassBy: {
+              select: {
+                name: true,
+              },
+            },
+            paymentBypassNote: true,
+            requestedAt: true,
+            sailingAffiliation: true,
+            status: true,
+          },
+          take: 1,
+        },
+        sailingCardNumber: true,
+        sailingCardRequestedAt: true,
+        sailingCardSwimAgreementInitialedAt: true,
+        sailingCardSwimAgreementInitials: true,
+        sailingCardYear: true,
       },
-      sailingCardNumber: true,
-      sailingCardRequestedAt: true,
-      sailingCardSwimAgreementInitialedAt: true,
-      sailingCardSwimAgreementInitials: true,
-      sailingCardYear: true,
-    },
-  });
-  return summary;
+    }),
+    prisma.sailingCardRequest.findFirst({
+      where: {
+        paymentBypassAt: { not: null },
+        userId,
+      },
+      orderBy: { paymentBypassAt: 'desc' },
+      select: {
+        cardType: true,
+        cardYear: true,
+        hasFitnessMembership: true,
+        issuedCardNumber: true,
+        paymentBypassAt: true,
+        paymentBypassBy: {
+          select: {
+            name: true,
+          },
+        },
+        paymentBypassNote: true,
+        requestedAt: true,
+        sailingAffiliation: true,
+        status: true,
+      },
+    }),
+  ]);
+  return summary === null ? null : { ...summary, paymentBypassRequest };
 }

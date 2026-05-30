@@ -10,10 +10,7 @@ import type {
   SailingCardOnboardingFormValues,
 } from '@/libs/mit-sailing/sailingCardOnboardingActions';
 import { CardRequestSection } from './SailingCardOnboardingCardRequestFields';
-import {
-  ContactFields,
-  EmergencyContactFields,
-} from './SailingCardOnboardingContactFields';
+import { ContactAndSafetyFields } from './SailingCardOnboardingContactFields';
 import type { SailingCardOnboardingLockedIdentity } from './SailingCardOnboardingFormTypes';
 import {
   AffiliationSelect,
@@ -51,8 +48,7 @@ function OnboardingDetailsFields(props: {
 }) {
   return (
     <>
-      <ContactFields register={props.register} state={props.state} />
-      <EmergencyContactFields register={props.register} state={props.state} />
+      <ContactAndSafetyFields register={props.register} state={props.state} />
       <CardRequestSection
         affiliation={props.affiliation}
         cardTypeValue={props.cardTypeValue}

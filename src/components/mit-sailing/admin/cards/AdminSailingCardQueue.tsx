@@ -181,7 +181,11 @@ export function AdminSailingCardIssueForm(
   });
 
   return (
-    <form action={formAction} className="flex flex-col gap-2 sm:max-w-52">
+    <form
+      action={formAction}
+      aria-label={t('issue_form_label')}
+      className="flex flex-col gap-2 sm:max-w-52"
+    >
       <Label className="sr-only" htmlFor={`${props.userId}-cardNumber`}>
         {t('card_number_label')}
       </Label>

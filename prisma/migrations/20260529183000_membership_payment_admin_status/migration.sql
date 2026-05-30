@@ -146,6 +146,24 @@ CREATE UNIQUE INDEX "payments_legacy_source_table_legacy_source_id_key" ON "paym
 CREATE UNIQUE INDEX "payments_stripe_subscription_id_key" ON "payments"("stripe_subscription_id");
 CREATE UNIQUE INDEX "payments_stripe_invoice_id_key" ON "payments"("stripe_invoice_id");
 
+CREATE FUNCTION payments_prevent_classification_change()
+RETURNS trigger AS $$
+BEGIN
+  IF NEW."purpose" IS DISTINCT FROM OLD."purpose"
+    OR NEW."source" IS DISTINCT FROM OLD."source"
+    OR NEW."card_type" IS DISTINCT FROM OLD."card_type" THEN
+    RAISE EXCEPTION 'payment classification fields are immutable after create';
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER payments_prevent_classification_change_trigger
+  BEFORE UPDATE OF "purpose", "source", "card_type"
+  ON "payments"
+  FOR EACH ROW
+  EXECUTE FUNCTION payments_prevent_classification_change();
+
 ALTER TABLE "sailing_card_requests"
   ADD COLUMN "payment_bypass_note" TEXT,
   ADD COLUMN "payment_bypass_by_user_id" TEXT,

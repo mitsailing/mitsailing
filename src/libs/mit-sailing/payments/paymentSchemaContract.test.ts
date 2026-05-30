@@ -39,6 +39,19 @@ describe('payment schema contract', () => {
     expect(migration).toContain('"stripe_receipt_url" IS NULL');
   });
 
+  it('keeps payment classification immutable without ZenStack enum before comparisons', () => {
+    expect(zmodel).toContain('payments_prevent_classification_change');
+    expect(migration).toContain(
+      'CREATE FUNCTION payments_prevent_classification_change()'
+    );
+    expect(migration).toContain(
+      'BEFORE UPDATE OF "purpose", "source", "card_type"'
+    );
+    expect(migration).toContain(
+      'payment classification fields are immutable after create'
+    );
+  });
+
   it('stores legacy payment evidence without requiring an app user', () => {
     expect(zmodel).toContain('legacyCategory');
     expect(zmodel).toContain('legacyDescription');

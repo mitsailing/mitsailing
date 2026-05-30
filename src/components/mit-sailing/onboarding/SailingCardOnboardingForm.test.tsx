@@ -1,7 +1,6 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { mitRecreationMembershipHref } from '@/data/mit-sailing/mitRecreationMembership';
 import { SailingAffiliation } from '@/generated/prisma/enums';
 import { sailingCardAgreement } from '@/libs/mit-sailing/sailingCardAgreementContent';
 import {
@@ -106,7 +105,7 @@ describe('SailingCardOnboardingForm', () => {
     await user.click(screen.getByRole('button', { name: 'Continue' }));
 
     expect(
-      screen.getByRole('heading', { name: 'Contact details' })
+      screen.getByRole('heading', { name: 'Contact and safety' })
     ).toBeInTheDocument();
   });
 
@@ -215,7 +214,7 @@ describe('SailingCardOnboardingForm', () => {
     await showWellesleyDetails();
 
     expect(
-      screen.getByRole('heading', { name: 'Contact details' })
+      screen.getByRole('heading', { name: 'Contact and safety' })
     ).toBeInTheDocument();
     expect(screen.getByLabelText('Date of birth')).toBeRequired();
     expect(screen.getByLabelText('Date of birth')).toHaveAttribute(
@@ -255,14 +254,58 @@ describe('SailingCardOnboardingForm', () => {
     );
   });
 
+  it('formats typed date of birth and shows an inline invalid date error', async () => {
+    renderForm();
+    const user = userEvent.setup();
+
+    await showWellesleyDetails();
+    const dateOfBirth = screen.getByLabelText('Date of birth');
+
+    await user.type(dateOfBirth, '03');
+
+    expect(dateOfBirth).toHaveValue('03/');
+
+    await user.type(dateOfBirth, '241988');
+
+    expect(dateOfBirth).toHaveValue('03/24/1988');
+
+    await user.clear(dateOfBirth);
+    await user.type(dateOfBirth, '02302000');
+    await user.tab();
+
+    expect(dateOfBirth).toHaveValue('02/30/2000');
+    expect(dateOfBirth).toHaveAttribute('aria-invalid', 'true');
+    expect(
+      screen.getByText('Enter date of birth as MM/DD/YYYY.')
+    ).toBeInTheDocument();
+  });
+
+  it('restores draft details after leaving the onboarding page', async () => {
+    const draftKey = 'sailing-card-onboarding:user-1:2026:v1';
+    const { unmount } = renderForm({ draftKey });
+    const user = userEvent.setup();
+
+    await showWellesleyDetails();
+    await user.type(screen.getByLabelText('Date of birth'), '03241988');
+    await user.type(screen.getByLabelText('Your phone number'), '6175550100');
+
+    unmount();
+    renderForm({ draftKey });
+
+    expect(
+      screen.getByRole('heading', { name: 'Contact and safety' })
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('Date of birth')).toHaveValue('03/24/1988');
+    expect(screen.getByLabelText('Your phone number')).toHaveValue(
+      '(617) 555-0100'
+    );
+  });
+
   it('shows emergency contact controls', async () => {
     renderForm();
 
     await showWellesleyDetails();
 
-    expect(
-      screen.getByRole('heading', { name: 'Emergency contact' })
-    ).toBeInTheDocument();
     expect(screen.getByLabelText('Emergency contact name')).toBeRequired();
     expect(screen.getByLabelText('Emergency contact name')).toHaveAttribute(
       'autocomplete',
@@ -293,13 +336,8 @@ describe('SailingCardOnboardingForm', () => {
       )
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('link', { name: 'open MIT Recreation' })
-    ).toHaveAttribute('href', mitRecreationMembershipHref);
-    expect(
-      screen.getByText(/Common 12-month individual rates/u)
-    ).toHaveTextContent(
-      'Common 12-month individual rates range from $300/year to $1,080/year; MIT Recreation lists exact categories.'
-    );
+      screen.queryByRole('link', { name: /MIT Recreation/u })
+    ).not.toBeInTheDocument();
     expect(screen.getByText('Yes')).toBeInTheDocument();
     expect(screen.getByText('No')).toBeInTheDocument();
     expect(
@@ -393,6 +431,10 @@ describe('SailingCardOnboardingForm', () => {
     expect(screen.getByRole('link', { name: 'See pricing' })).toHaveAttribute(
       'href',
       '/pricing'
+    );
+    expect(screen.getByRole('link', { name: 'See pricing' })).toHaveAttribute(
+      'target',
+      '_blank'
     );
     expect(
       screen.queryByRole('radio', { name: /Virtual/u })
@@ -498,6 +540,10 @@ describe('SailingCardOnboardingForm', () => {
       'href',
       '/terms'
     );
+    expect(screen.getByRole('link', { name: 'Terms of use' })).toHaveAttribute(
+      'target',
+      '_blank'
+    );
     expect(screen.getByRole('link', { name: 'Terms of use' })).toHaveClass(
       'text-mit-red',
       'dark:text-mit-red-ink'
@@ -505,6 +551,9 @@ describe('SailingCardOnboardingForm', () => {
     expect(
       screen.getByRole('link', { name: 'Privacy policy' })
     ).toHaveAttribute('href', '/privacy');
+    expect(
+      screen.getByRole('link', { name: 'Privacy policy' })
+    ).toHaveAttribute('target', '_blank');
     expect(screen.getByRole('link', { name: 'Privacy policy' })).toHaveClass(
       'text-mit-red',
       'dark:text-mit-red-ink'

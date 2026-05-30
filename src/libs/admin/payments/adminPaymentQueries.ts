@@ -1,10 +1,6 @@
 import 'server-only';
 import type { Prisma } from '@/generated/prisma/client';
-import {
-  PaymentPurpose,
-  PaymentSource,
-  PaymentStatus,
-} from '@/generated/prisma/enums';
+import { PaymentPurpose, PaymentStatus } from '@/generated/prisma/enums';
 import type { PaymentStatus as PaymentStatusValue } from '@/generated/prisma/enums';
 import { prisma } from '@/libs/DB';
 
@@ -65,12 +61,7 @@ function ledgerWhereFromFilters(
     {
       OR: [
         { purpose: PaymentPurpose.event_payment },
-        {
-          purpose: PaymentPurpose.membership,
-          source: PaymentSource.legacy,
-          status: PaymentStatus.needs_review,
-          userId: null,
-        },
+        { purpose: PaymentPurpose.membership },
       ],
     },
   ];

@@ -7,7 +7,9 @@ import { AdminPrimaryActionLink } from '@/components/mit-sailing/admin/AdminPrim
 import {
   AdminSailingCardExpireForm,
   AdminSailingCardHistory,
+  AdminSailingCardIssueForm,
 } from '@/components/mit-sailing/admin/cards/AdminSailingCardQueue';
+import type { AdminSailingCardQueueRow } from '@/components/mit-sailing/admin/cards/AdminSailingCardQueue';
 import { AdminUserRatingsPanel } from '@/components/mit-sailing/admin/users/AdminUserRatingsPanel';
 import {
   Table,
@@ -20,9 +22,11 @@ import {
 import {
   PaymentSource,
   PaymentStatus,
+  SailingCardRequestStatus,
   SailingCardType,
 } from '@/generated/prisma/enums';
 import { formatAdminDate } from '@/libs/admin/adminDateFormatting';
+import { getNextAvailableSailingCardNumber } from '@/libs/admin/cards/adminSailingCardQueries';
 import {
   getAdminSailingCardHistory,
   getAdminUserSailingCardSummary,
@@ -274,20 +278,382 @@ function AdminUserPaymentBypassAlert(props: {
   );
 }
 
+const sailingCardRequestStatusMessageKeys = {
+  [SailingCardRequestStatus.approved]: 'sailing_card_status_approved',
+  [SailingCardRequestStatus.cancelled]: 'sailing_card_status_cancelled',
+  [SailingCardRequestStatus.pending]: 'sailing_card_status_requested',
+} as const satisfies Record<SailingCardRequestStatus, string>;
+
+const sailingCardTypeMessageKeys = {
+  [SailingCardType.normal]: 'sailing_card_type_normal',
+  [SailingCardType.racing]: 'sailing_card_type_racing',
+  [SailingCardType.team_racing]: 'sailing_card_type_team_racing',
+} as const satisfies Record<SailingCardType, string>;
+
+function currentPendingSailingCardRequest(
+  summary: AdminUserSailingCardSummary
+) {
+  const currentYear = getCurrentSailingCardYear();
+  return summary?.sailingCardRequests.find(
+    (request) =>
+      request.cardYear === currentYear &&
+      request.status === SailingCardRequestStatus.pending
+  );
+}
+
+function sailingCardStatusMessageKey(props: {
+  readonly hasCurrentCard: boolean;
+  readonly request: AdminUserSailingCardRequestSummary | undefined;
+}) {
+  if (props.request?.status === SailingCardRequestStatus.pending) {
+    return 'sailing_card_status_requested';
+  }
+  if (props.hasCurrentCard) {
+    return 'sailing_card_status_current';
+  }
+  if (props.request) {
+    return sailingCardRequestStatusMessageKeys[props.request.status];
+  }
+  return 'sailing_card_status_none';
+}
+
+function sailingCardAssignmentMessageKey(props: {
+  readonly hasCurrentCard: boolean;
+  readonly request: AdminUserSailingCardRequestSummary | undefined;
+}) {
+  if (props.request?.status === SailingCardRequestStatus.pending) {
+    return 'sailing_card_assignment_pending';
+  }
+  if (props.hasCurrentCard) {
+    return 'sailing_card_assignment_issued';
+  }
+  if (props.request?.status === SailingCardRequestStatus.cancelled) {
+    return 'sailing_card_assignment_cancelled';
+  }
+  return 'sailing_card_assignment_none';
+}
+
+function membershipAccessPriority(
+  access: ReturnType<typeof membershipPaymentAccessStatus>
+) {
+  if (access.access === 'paid') {
+    return 3;
+  }
+  if (access.access === 'blocked') {
+    return 2;
+  }
+  return 1;
+}
+
+function sailingCardIssuePaymentAccess(props: {
+  readonly request: AdminUserSailingCardRequestSummary | undefined;
+  readonly rows: readonly AdminUserPaymentHistoryRow[];
+}): AdminSailingCardQueueRow['paymentAccess'] | undefined {
+  const { request } = props;
+  if (!request) {
+    return undefined;
+  }
+  if (
+    request.cardType !== SailingCardType.racing &&
+    request.cardType !== SailingCardType.team_racing
+  ) {
+    return 'none';
+  }
+
+  let currentAccess = membershipPaymentAccessStatus({
+    cardYear: request.cardYear,
+    record: null,
+  });
+  for (const row of props.rows) {
+    if (
+      row.purpose !== 'membership' ||
+      row.cardYear !== request.cardYear ||
+      row.cardType !== request.cardType
+    ) {
+      continue;
+    }
+    const rowAccess =
+      row.status === PaymentStatus.checkout_created
+        ? membershipPaymentAccessStatus({
+            cardYear: request.cardYear,
+            record: null,
+          })
+        : membershipPaymentAccessStatus({
+            cardYear: request.cardYear,
+            record: {
+              cardType: row.cardType,
+              cardYear: request.cardYear,
+              source: row.source,
+              status: row.status,
+              stripeReceiptUrl: row.receiptHref,
+            },
+          });
+    if (
+      membershipAccessPriority(rowAccess) >
+      membershipAccessPriority(currentAccess)
+    ) {
+      currentAccess = rowAccess;
+    }
+  }
+  return currentAccess.access;
+}
+
+type AdminUserSailingCardSectionModel = {
+  readonly agreement:
+    | NonNullable<AdminUserSailingCardSummary>['legalAgreementAcceptances'][number]
+    | undefined;
+  readonly displayedCardNumber: React.ReactNode;
+  readonly emptyValue: string;
+  readonly hasCurrentCard: boolean;
+  readonly issuePaymentAccess:
+    | AdminSailingCardQueueRow['paymentAccess']
+    | undefined;
+  readonly latestRequest: AdminUserSailingCardRequestSummary | undefined;
+  readonly paymentBypass: AdminUserSailingCardRequestSummary | undefined;
+  readonly pendingCardNumber: number;
+  readonly pendingRequest: AdminUserSailingCardRequestSummary | undefined;
+};
+
+function adminUserSailingCardSectionModel(props: {
+  readonly paymentRows: readonly AdminUserPaymentHistoryRow[];
+  readonly suggestedCardNumber: number;
+  readonly summary: AdminUserSailingCardSummary;
+  readonly t: Awaited<ReturnType<typeof getTranslations>>;
+}): AdminUserSailingCardSectionModel {
+  const hasCurrentCard =
+    props.summary !== null && hasCurrentSailingCard(props.summary);
+  const pendingRequest = currentPendingSailingCardRequest(props.summary);
+  const emptyValue = props.t('empty_value');
+
+  return {
+    agreement: props.summary?.legalAgreementAcceptances[0],
+    displayedCardNumber:
+      props.summary?.sailingCardNumber ??
+      pendingRequest?.issuedCardNumber ??
+      emptyValue,
+    emptyValue,
+    hasCurrentCard,
+    issuePaymentAccess: sailingCardIssuePaymentAccess({
+      request: pendingRequest,
+      rows: props.paymentRows,
+    }),
+    latestRequest: pendingRequest ?? props.summary?.sailingCardRequests[0],
+    paymentBypass: props.summary?.paymentBypassRequest ?? undefined,
+    pendingCardNumber:
+      pendingRequest?.issuedCardNumber ?? props.suggestedCardNumber,
+    pendingRequest,
+  };
+}
+
+function AdminUserSailingCardIssueAction(props: {
+  readonly canAssignCards: boolean;
+  readonly locale: string;
+  readonly model: AdminUserSailingCardSectionModel;
+  readonly userId: string;
+}) {
+  if (!props.canAssignCards || !props.model.pendingRequest) {
+    return null;
+  }
+
+  return (
+    <div className="mt-4">
+      <AdminSailingCardIssueForm
+        cardType={props.model.pendingRequest.cardType}
+        locale={props.locale}
+        paymentAccess={props.model.issuePaymentAccess}
+        suggestedCardNumber={props.model.pendingCardNumber}
+        userId={props.userId}
+      />
+    </div>
+  );
+}
+
+function AdminUserSailingCardStatusPanel(props: {
+  readonly canAssignCards: boolean;
+  readonly locale: string;
+  readonly model: AdminUserSailingCardSectionModel;
+  readonly t: Awaited<ReturnType<typeof getTranslations>>;
+  readonly userId: string;
+}) {
+  const cardNumberLabel = props.model.pendingRequest
+    ? props.t('sailing_card_pending_number')
+    : props.t('sailing_card_number');
+  const cardNumberHelp = props.model.pendingRequest
+    ? props.t('sailing_card_pending_number_help')
+    : props.t('sailing_card_number_help');
+  const statusHelp = props.model.pendingRequest
+    ? props.t('sailing_card_status_requested_help')
+    : props.t('sailing_card_status_default_help');
+
+  return (
+    <div className="mt-4 grid gap-4 border-y border-border py-4 md:grid-cols-[minmax(0,1fr)_minmax(16rem,0.7fr)]">
+      <div>
+        <p className="m-0 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+          {props.t('sailing_card_status')}
+        </p>
+        <p className="mt-1 text-2xl font-semibold text-foreground">
+          {props.t(
+            sailingCardStatusMessageKey({
+              hasCurrentCard: props.model.hasCurrentCard,
+              request: props.model.latestRequest,
+            })
+          )}
+        </p>
+        <p className="mt-2 text-sm text-muted-foreground">{statusHelp}</p>
+      </div>
+      <div className="border-t border-border pt-4 md:border-t-0 md:border-l md:pt-0 md:pl-4">
+        <p className="m-0 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+          {cardNumberLabel}
+        </p>
+        <p className="mt-1 text-3xl font-semibold text-foreground">
+          {props.model.pendingRequest
+            ? props.model.pendingCardNumber
+            : props.model.displayedCardNumber}
+        </p>
+        <p className="mt-2 text-sm text-muted-foreground">{cardNumberHelp}</p>
+        <AdminUserSailingCardIssueAction
+          canAssignCards={props.canAssignCards}
+          locale={props.locale}
+          model={props.model}
+          userId={props.userId}
+        />
+      </div>
+    </div>
+  );
+}
+
+function sailingCardTypeValue(props: {
+  readonly emptyValue: string;
+  readonly request: AdminUserSailingCardRequestSummary | undefined;
+  readonly t: Awaited<ReturnType<typeof getTranslations>>;
+}) {
+  return props.request
+    ? props.t(sailingCardTypeMessageKeys[props.request.cardType])
+    : props.emptyValue;
+}
+
+function sailingCardSwimAgreementValue(props: {
+  readonly locale: string;
+  readonly summary: AdminUserSailingCardSummary;
+  readonly t: Awaited<ReturnType<typeof getTranslations>>;
+}) {
+  if (
+    props.summary?.sailingCardSwimAgreementInitialedAt &&
+    props.summary.sailingCardSwimAgreementInitials
+  ) {
+    return props.t('sailing_card_swim_agreement_value', {
+      date: formatAdminDate(
+        props.summary.sailingCardSwimAgreementInitialedAt,
+        props.locale
+      ),
+      initials: props.summary.sailingCardSwimAgreementInitials,
+    });
+  }
+  return props.t('empty_value');
+}
+
+function AdminUserSailingCardDetailsList(props: {
+  readonly locale: string;
+  readonly model: AdminUserSailingCardSectionModel;
+  readonly summary: AdminUserSailingCardSummary;
+  readonly t: Awaited<ReturnType<typeof getTranslations>>;
+}) {
+  return (
+    <dl className="mt-4 grid gap-3 sm:grid-cols-3">
+      <AdminUserDetailValue
+        label={props.t('sailing_card_assignment')}
+        value={props.t(
+          sailingCardAssignmentMessageKey({
+            hasCurrentCard: props.model.hasCurrentCard,
+            request: props.model.latestRequest,
+          })
+        )}
+      />
+      <AdminUserDetailValue
+        label={props.t('sailing_card_type')}
+        value={sailingCardTypeValue({
+          emptyValue: props.model.emptyValue,
+          request: props.model.latestRequest,
+          t: props.t,
+        })}
+      />
+      <AdminUserDetailValue
+        label={props.t('sailing_card_year')}
+        value={
+          props.summary?.sailingCardYear ??
+          props.model.pendingRequest?.cardYear ??
+          props.model.latestRequest?.cardYear ??
+          props.model.emptyValue
+        }
+      />
+      <AdminUserDetailValue
+        label={props.t('sailing_card_expires')}
+        value={optionalAdminDate(
+          props.summary?.sailingCardExpiresOn,
+          props.locale,
+          props.model.emptyValue
+        )}
+      />
+      <AdminUserDetailValue
+        label={props.t('sailing_card_requested')}
+        value={optionalAdminDate(
+          props.model.pendingRequest?.requestedAt ??
+            props.model.latestRequest?.requestedAt ??
+            props.summary?.sailingCardRequestedAt,
+          props.locale,
+          props.model.emptyValue
+        )}
+      />
+      <AdminUserDetailValue
+        label={props.t('sailing_card_agreement')}
+        value={optionalAdminDate(
+          props.model.agreement?.acceptedAt,
+          props.locale,
+          props.model.emptyValue
+        )}
+      />
+      <AdminUserDetailValue
+        label={props.t('sailing_card_agreement_version')}
+        value={
+          props.model.agreement?.agreementVersion ?? props.model.emptyValue
+        }
+      />
+      <AdminUserDetailValue
+        label={props.t('sailing_card_issued_by')}
+        value={
+          props.summary?.sailingCardIssuedBy?.name ?? props.model.emptyValue
+        }
+      />
+      <AdminUserDetailValue
+        label={props.t('sailing_card_swim_agreement')}
+        value={sailingCardSwimAgreementValue({
+          locale: props.locale,
+          summary: props.summary,
+          t: props.t,
+        })}
+      />
+    </dl>
+  );
+}
+
 function AdminUserSailingCardSection(props: {
+  readonly canAssignCards: boolean;
   readonly canExpireCards: boolean;
   readonly history: AdminUserSailingCardDetails['history'];
   readonly loadError: boolean;
   readonly locale: string;
+  readonly paymentRows: readonly AdminUserPaymentHistoryRow[];
+  readonly suggestedCardNumber: number;
   readonly summary: AdminUserSailingCardSummary;
   readonly t: Awaited<ReturnType<typeof getTranslations>>;
   readonly userId: string;
 }) {
-  const hasCurrentCard =
-    props.summary !== null && hasCurrentSailingCard(props.summary);
-  const agreement = props.summary?.legalAgreementAcceptances[0];
-  const paymentBypass = props.summary?.sailingCardRequests[0];
-  const emptyValue = props.t('empty_value');
+  const model = adminUserSailingCardSectionModel({
+    paymentRows: props.paymentRows,
+    suggestedCardNumber: props.suggestedCardNumber,
+    summary: props.summary,
+    t: props.t,
+  });
 
   return (
     <>
@@ -301,54 +667,25 @@ function AdminUserSailingCardSection(props: {
           </output>
         ) : null}
         <AdminUserPaymentBypassAlert
-          emptyValue={emptyValue}
+          emptyValue={model.emptyValue}
           locale={props.locale}
-          request={paymentBypass}
+          request={model.paymentBypass}
           t={props.t}
         />
-        <dl className="mt-4 grid gap-3 sm:grid-cols-3">
-          <AdminUserDetailValue
-            label={props.t('sailing_card_number')}
-            value={props.summary?.sailingCardNumber ?? emptyValue}
-          />
-          <AdminUserDetailValue
-            label={props.t('sailing_card_year')}
-            value={props.summary?.sailingCardYear ?? emptyValue}
-          />
-          <AdminUserDetailValue
-            label={props.t('sailing_card_expires')}
-            value={optionalAdminDate(
-              props.summary?.sailingCardExpiresOn,
-              props.locale,
-              emptyValue
-            )}
-          />
-          <AdminUserDetailValue
-            label={props.t('sailing_card_requested')}
-            value={optionalAdminDate(
-              props.summary?.sailingCardRequestedAt,
-              props.locale,
-              emptyValue
-            )}
-          />
-          <AdminUserDetailValue
-            label={props.t('sailing_card_agreement')}
-            value={optionalAdminDate(
-              agreement?.acceptedAt,
-              props.locale,
-              emptyValue
-            )}
-          />
-          <AdminUserDetailValue
-            label={props.t('sailing_card_agreement_version')}
-            value={agreement?.agreementVersion ?? emptyValue}
-          />
-          <AdminUserDetailValue
-            label={props.t('sailing_card_issued_by')}
-            value={props.summary?.sailingCardIssuedBy?.name ?? emptyValue}
-          />
-        </dl>
-        {props.canExpireCards && hasCurrentCard ? (
+        <AdminUserSailingCardStatusPanel
+          canAssignCards={props.canAssignCards}
+          locale={props.locale}
+          model={model}
+          t={props.t}
+          userId={props.userId}
+        />
+        <AdminUserSailingCardDetailsList
+          locale={props.locale}
+          model={model}
+          summary={props.summary}
+          t={props.t}
+        />
+        {props.canExpireCards && model.hasCurrentCard ? (
           <div className="mt-4">
             <AdminSailingCardExpireForm
               locale={props.locale}
@@ -628,18 +965,6 @@ function AdminUserCurrentBlockers(props: {
   );
 }
 
-function membershipAccessPriority(
-  access: ReturnType<typeof membershipPaymentAccessStatus>
-) {
-  if (access.access === 'paid') {
-    return 3;
-  }
-  if (access.access === 'blocked') {
-    return 2;
-  }
-  return 1;
-}
-
 function currentMembershipPaymentAccess(
   rows: readonly AdminUserPaymentHistoryRow[]
 ) {
@@ -701,6 +1026,10 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
     Permission.RATINGS_ASSIGN
   );
   const canEditUsers = hasPermission(permissions, Permission.USERS_EDIT);
+  const canAssignCards = hasPermission(
+    permissions,
+    Permission.CARDS_ASSIGN_NUMBER
+  );
   const canExpireCards = hasPermission(permissions, Permission.CARDS_EXPIRE);
 
   const user = await usersAdminHandlers.getById(id);
@@ -708,6 +1037,7 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
     notFound();
   }
   const userEmail = typeof user.email === 'string' ? user.email : '';
+  const cardYear = getCurrentSailingCardYear();
   const [sailingCardDetails, ratingDetails, emailDetails, paymentDetails] =
     await Promise.all([
       loadAdminUserSailingCardDetails(id),
@@ -715,6 +1045,12 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
       loadAdminUserEmailDetails({ email: userEmail, userId: id }),
       loadAdminUserPaymentDetails(id),
     ]);
+  const shouldLoadSuggestedCardNumber =
+    canAssignCards &&
+    currentPendingSailingCardRequest(sailingCardDetails.summary) !== undefined;
+  const suggestedCardNumber = shouldLoadSuggestedCardNumber
+    ? await getNextAvailableSailingCardNumber({ cardYear })
+    : 0;
   const t = await getTranslations({ locale, namespace: 'AdminUsers' });
   const emailStatus = emailDeliverabilityStatus(user.emailDeliverabilityStatus);
   const emailStatusReason =
@@ -775,10 +1111,13 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
         </output>
       ) : null}
       <AdminUserSailingCardSection
+        canAssignCards={canAssignCards}
         canExpireCards={canExpireCards}
         history={sailingCardDetails.history}
         loadError={sailingCardDetails.loadError}
         locale={locale}
+        paymentRows={paymentDetails.rows}
+        suggestedCardNumber={suggestedCardNumber}
         summary={sailingCardDetails.summary}
         t={t}
         userId={id}

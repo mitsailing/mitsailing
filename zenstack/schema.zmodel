@@ -1083,16 +1083,16 @@ model Payment {
   @@index([manualHandledByUserId])
   @@unique([legacySourceTable, legacySourceId])
   @@unique([registrationId, eventId, userId])
+  // Enum classification immutability is enforced by the migration trigger
+  // payments_prevent_classification_change. ZenStack before() comparisons for
+  // Postgres enum fields generate invalid enum/text SQL in integration tests.
   @@deny('post-update',
-    purpose != before().purpose ||
-    source != before().source ||
     eventId != before().eventId ||
     registrationId != before().registrationId ||
     userId != before().userId ||
     selectedFeeId != before().selectedFeeId ||
     selectedFeeDescription != before().selectedFeeDescription ||
     cardYear != before().cardYear ||
-    cardType != before().cardType ||
     legacySourceTable != before().legacySourceTable ||
     legacySourceId != before().legacySourceId ||
     legacyCategory != before().legacyCategory ||

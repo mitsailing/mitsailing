@@ -185,6 +185,33 @@ test.describe('Onboarding', () => {
     }
   });
 
+  test('restores draft fields after checking profile before submit', async ({
+    page,
+  }) => {
+    const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
+    const credential = `Qa1-${faker.string.alphanumeric(20)}`;
+
+    try {
+      await signUpVerifiedSailor({ email, page, password: credential });
+      await page.getByLabel('Affiliation').selectOption({ label: 'Wellesley' });
+      await page.getByLabel('First name').fill('Grace');
+      await page.getByLabel('Last name').fill('Hopper');
+      await page.getByRole('button', { name: 'Continue' }).click();
+      await page.getByLabel('Date of birth').fill('03241988');
+      await page.getByLabel('Your phone number').fill('617-555-0100');
+
+      await page.goto('/profile');
+
+      await expect(page).toHaveURL(/\/onboarding\?callbackUrl=%2Fprofile/);
+      await expect(page.getByLabel('Date of birth')).toHaveValue('03/24/1988');
+      await expect(page.getByLabel('Your phone number')).toHaveValue(
+        '(617) 555-0100'
+      );
+    } finally {
+      await cleanupByEmail(email);
+    }
+  });
+
   test('returns sailors to event registration after onboarding', async ({
     page,
   }) => {

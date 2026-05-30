@@ -23,13 +23,25 @@ const richLinkClassName =
   'font-medium text-mit-red underline underline-offset-2 hover:text-mit-red/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mit-red dark:text-mit-red-ink dark:hover:text-mit-red-ink/80';
 
 const renderPrivacyLink = (chunks: React.ReactNode) => (
-  <Link className={richLinkClassName} href="/privacy" key="privacy">
+  <Link
+    className={richLinkClassName}
+    href="/privacy"
+    key="privacy"
+    rel="noopener noreferrer"
+    target="_blank"
+  >
     {chunks}
   </Link>
 );
 
 const renderTermsLink = (chunks: React.ReactNode) => (
-  <Link className={richLinkClassName} href="/terms" key="terms">
+  <Link
+    className={richLinkClassName}
+    href="/terms"
+    key="terms"
+    rel="noopener noreferrer"
+    target="_blank"
+  >
     {chunks}
   </Link>
 );
