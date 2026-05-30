@@ -77,104 +77,105 @@ const userDefinition = {
   titleKey: 'title_admin_users',
 } as const satisfies CatalogResourceDefinition;
 
+const userRows = [
+  {
+    appRole: 'admin',
+    email: 'ada@example.com',
+    emailDeliverabilityStatus: 'ok',
+    id: 'user-1',
+    mitId: '111111111',
+    name: 'Ada Lovelace',
+    sailingCardNumber: 61,
+  },
+  {
+    appRole: 'dock_staff',
+    email: 'grace@example.com',
+    emailDeliverabilityStatus: 'bounced',
+    id: 'user-2',
+    mitId: '222222222',
+    name: 'Grace Hopper',
+    sailingCardNumber: 110,
+  },
+];
+
+function renderUsersTable() {
+  render(
+    <AdminCatalogTable
+      adminBasePath="/admin/users"
+      definition={userDefinition}
+      locale="en"
+      messageNamespace="AdminUsers"
+      resourceId="users"
+      rows={userRows}
+      search={{
+        emptyKey: 'filter_empty',
+        fields: ['email', 'name', 'mitId', 'sailingCardNumber', 'appRole'],
+        labelKey: 'filter_search_label',
+        placeholderKey: 'filter_search_placeholder',
+      }}
+      filters={[
+        {
+          allKey: 'filter_email_status_all',
+          field: 'emailDeliverabilityStatus',
+          labelKey: 'filter_email_status_label',
+          options: [
+            { labelKey: 'email_status_ok', value: 'ok' },
+            { labelKey: 'email_status_bounced', value: 'bounced' },
+          ],
+        },
+      ]}
+    />
+  );
+}
+
+async function searchUsers(
+  user: ReturnType<typeof userEvent.setup>,
+  query: string
+) {
+  const searchbox = screen.getByRole('searchbox', { name: 'Search users' });
+  await user.clear(searchbox);
+  await user.type(searchbox, query);
+}
+
+function expectOnlyUserLink(name: 'Ada Lovelace' | 'Grace Hopper') {
+  const hiddenName = name === 'Ada Lovelace' ? 'Grace Hopper' : 'Ada Lovelace';
+  expect(screen.getByRole('link', { name })).toBeVisible();
+  expect(screen.queryByRole('link', { name: hiddenName })).toBeNull();
+}
+
 describe('AdminCatalogTable', () => {
   it('filters users by configured search fields without navigation', async () => {
-    render(
-      <AdminCatalogTable
-        adminBasePath="/admin/users"
-        definition={userDefinition}
-        locale="en"
-        messageNamespace="AdminUsers"
-        resourceId="users"
-        rows={[
-          {
-            appRole: 'admin',
-            email: 'ada@example.com',
-            emailDeliverabilityStatus: 'ok',
-            id: 'user-1',
-            mitId: '111111111',
-            name: 'Ada Lovelace',
-            sailingCardNumber: 61,
-          },
-          {
-            appRole: 'dock_staff',
-            email: 'grace@example.com',
-            emailDeliverabilityStatus: 'bounced',
-            id: 'user-2',
-            mitId: '222222222',
-            name: 'Grace Hopper',
-            sailingCardNumber: 110,
-          },
-        ]}
-        search={{
-          emptyKey: 'filter_empty',
-          fields: ['email', 'name', 'mitId', 'sailingCardNumber', 'appRole'],
-          labelKey: 'filter_search_label',
-          placeholderKey: 'filter_search_placeholder',
-        }}
-        filters={[
-          {
-            allKey: 'filter_email_status_all',
-            field: 'emailDeliverabilityStatus',
-            labelKey: 'filter_email_status_label',
-            options: [
-              { labelKey: 'email_status_ok', value: 'ok' },
-              { labelKey: 'email_status_bounced', value: 'bounced' },
-            ],
-          },
-        ]}
-      />
-    );
+    renderUsersTable();
     const user = userEvent.setup();
     const originalHref = window.location.href;
 
-    await user.type(
-      screen.getByRole('searchbox', { name: 'Search users' }),
-      'grace'
-    );
+    await searchUsers(user, 'grace');
 
-    expect(screen.getByRole('link', { name: 'Grace Hopper' })).toBeVisible();
-    expect(screen.queryByRole('link', { name: 'Ada Lovelace' })).toBeNull();
+    expectOnlyUserLink('Grace Hopper');
     expect(window.location.href).toBe(originalHref);
 
-    await user.clear(screen.getByRole('searchbox', { name: 'Search users' }));
-    await user.type(
-      screen.getByRole('searchbox', { name: 'Search users' }),
-      'admin'
-    );
+    await searchUsers(user, 'admin');
 
-    expect(screen.getByRole('link', { name: 'Ada Lovelace' })).toBeVisible();
-    expect(screen.queryByRole('link', { name: 'Grace Hopper' })).toBeNull();
+    expectOnlyUserLink('Ada Lovelace');
 
-    await user.clear(screen.getByRole('searchbox', { name: 'Search users' }));
-    await user.type(
-      screen.getByRole('searchbox', { name: 'Search users' }),
-      '222222222'
-    );
+    await searchUsers(user, '222222222');
 
-    expect(screen.getByRole('link', { name: 'Grace Hopper' })).toBeVisible();
-    expect(screen.queryByRole('link', { name: 'Ada Lovelace' })).toBeNull();
+    expectOnlyUserLink('Grace Hopper');
 
-    await user.clear(screen.getByRole('searchbox', { name: 'Search users' }));
-    await user.type(
-      screen.getByRole('searchbox', { name: 'Search users' }),
-      '61'
-    );
+    await searchUsers(user, '61');
 
-    expect(screen.getByRole('link', { name: 'Ada Lovelace' })).toBeVisible();
-    expect(screen.queryByRole('link', { name: 'Grace Hopper' })).toBeNull();
+    expectOnlyUserLink('Ada Lovelace');
+  });
 
-    await user.clear(screen.getByRole('searchbox', { name: 'Search users' }));
+  it('combines configured filters and empty state', async () => {
+    renderUsersTable();
+    const user = userEvent.setup();
+
     await user.selectOptions(screen.getByLabelText('Email status'), 'bounced');
 
-    expect(screen.getByRole('link', { name: 'Grace Hopper' })).toBeVisible();
-    expect(screen.queryByRole('link', { name: 'Ada Lovelace' })).toBeNull();
+    expectOnlyUserLink('Grace Hopper');
 
-    await user.clear(screen.getByRole('searchbox', { name: 'Search users' }));
-    await user.type(
-      screen.getByRole('searchbox', { name: 'Search users' }),
-      'missing'
-    );
+    await searchUsers(user, 'missing');
 
     expect(screen.getByText('No users match that search.')).toBeVisible();
   });

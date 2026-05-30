@@ -91,6 +91,64 @@ async function createBaseUser(props: {
   return userId;
 }
 
+async function markUserProfileOnboarded(userId: string) {
+  await pool.query(
+    `UPDATE "user"
+     SET "phone" = '+16175550100',
+         "emergency_contact_name" = 'Ada Lovelace',
+         "emergency_contact_phone" = '+16175550101',
+         "sailing_card_requested_at" = NOW(),
+         "updated_at" = NOW()
+     WHERE "id" = $1`,
+    [userId]
+  );
+}
+
+async function updatePendingCardRequest(props: {
+  readonly cardType: 'normal' | 'racing' | 'team_racing';
+  readonly firstName: string;
+  readonly lastName: string;
+  readonly mitId: string | null;
+  readonly userId: string;
+}) {
+  await pool.query(
+    `UPDATE "sailing_card_requests"
+     SET "card_type" = $2,
+         "has_fitness_membership" = true,
+         "first_name" = $3,
+         "last_name" = $4,
+         "sailing_affiliation" = 'WELLESLEY',
+         "mit_id" = $5,
+         "requested_at" = NOW(),
+         "updated_at" = NOW()
+     WHERE "user_id" = $1 AND "card_year" = $6`,
+    [
+      props.userId,
+      props.cardType,
+      props.firstName,
+      props.lastName,
+      props.mitId,
+      getCurrentSailingCardYear(),
+    ]
+  );
+}
+
+async function completePendingCardOnboarding(props: {
+  readonly cardType: 'normal' | 'racing' | 'team_racing';
+  readonly firstName: string;
+  readonly lastName: string;
+  readonly mitId: string | null;
+  readonly userId: string;
+}) {
+  await insertCurrentSailingCardOnboardingAcceptance({
+    pool,
+    userAgent: 'e2e-membership-payments',
+    userId: props.userId,
+  });
+  await markUserProfileOnboarded(props.userId);
+  await updatePendingCardRequest(props);
+}
+
 async function createPendingCardUser(props: {
   readonly cardType?: 'normal' | 'racing' | 'team_racing';
   readonly email: string;
@@ -107,41 +165,13 @@ async function createPendingCardUser(props: {
     mitId: props.mitId,
   });
 
-  await insertCurrentSailingCardOnboardingAcceptance({
-    pool,
-    userAgent: 'e2e-membership-payments',
+  await completePendingCardOnboarding({
+    cardType: props.cardType ?? 'normal',
+    firstName,
+    lastName,
+    mitId: props.mitId ?? null,
     userId,
   });
-  await pool.query(
-    `UPDATE "user"
-     SET "phone" = '+16175550100',
-         "emergency_contact_name" = 'Ada Lovelace',
-         "emergency_contact_phone" = '+16175550101',
-         "sailing_card_requested_at" = NOW(),
-         "updated_at" = NOW()
-     WHERE "id" = $1`,
-    [userId]
-  );
-  await pool.query(
-    `UPDATE "sailing_card_requests"
-     SET "card_type" = $2,
-         "has_fitness_membership" = true,
-         "first_name" = $3,
-         "last_name" = $4,
-         "sailing_affiliation" = 'WELLESLEY',
-         "mit_id" = $5,
-         "requested_at" = NOW(),
-         "updated_at" = NOW()
-     WHERE "user_id" = $1 AND "card_year" = $6`,
-    [
-      userId,
-      props.cardType ?? 'normal',
-      firstName,
-      lastName,
-      props.mitId ?? null,
-      getCurrentSailingCardYear(),
-    ]
-  );
   return userId;
 }
 
@@ -213,6 +243,61 @@ async function openAdminUserProfile(props: {
     .fill(props.query);
   await props.page.getByRole('link', { name: props.userName }).click();
   await expect(props.page).toHaveURL(/\/admin\/users\/[^/]+$/);
+}
+
+async function findUserIdByEmail(email: string) {
+  const userResult = await pool.query<{ id: string }>(
+    'SELECT "id" FROM "user" WHERE "email" = $1',
+    [email]
+  );
+  const userId = userResult.rows[0]?.id;
+  if (!userId) {
+    throw new Error(`Unable to find member ${email}`);
+  }
+  return userId;
+}
+
+async function markLegacyPaidUserOnboarded(userId: string) {
+  await insertCurrentSailingCardOnboardingAcceptance({
+    pool,
+    userAgent: 'e2e-membership-payments',
+    userId,
+  });
+  await pool.query(
+    `UPDATE "user"
+     SET "first_name" = 'Legacy',
+         "last_name" = 'Paid',
+         "sailing_affiliation" = 'WELLESLEY',
+         "phone" = '+16175550100',
+         "emergency_contact_name" = 'Ada Lovelace',
+         "emergency_contact_phone" = '+16175550101',
+         "sailing_card_requested_at" = NOW(),
+         "updated_at" = NOW()
+     WHERE "id" = $1`,
+    [userId]
+  );
+}
+
+async function insertLegacyPaidMembershipPayment(props: {
+  readonly email: string;
+  readonly userId: string;
+}) {
+  await pool.query(
+    `INSERT INTO "payments"
+      ("id", "purpose", "source", "user_id", "amount_cents", "currency", "status", "card_year", "card_type",
+       "legacy_source_table", "legacy_source_id", "legacy_category", "legacy_description", "legacy_settled",
+       "payer_name", "payer_email", "created_at", "updated_at")
+     VALUES
+      ($1, 'membership', 'legacy', $2, 12000, 'usd', 'paid', $3, 'racing',
+       'legacy.payments', $4, 'racing', 'Racing Card E2E', true, 'Legacy Paid', $5, NOW(), NOW())`,
+    [
+      `e2e-payment-${randomUUID()}`,
+      props.userId,
+      getCurrentSailingCardYear(),
+      `legacy-${randomUUID()}`,
+      props.email,
+    ]
+  );
 }
 
 test('admin searches users without leaving the users page', async ({
@@ -309,48 +394,9 @@ test('legacy-paid member sees paid status without Stripe receipt', async ({
   const email = fixtureEmail('legacy-paid');
   const password = `Qa1-${randomUUID()}-Password`;
   await signUpVerifiedSailor({ email, page, password });
-  const userResult = await pool.query<{ id: string }>(
-    'SELECT "id" FROM "user" WHERE "email" = $1',
-    [email]
-  );
-  const userId = userResult.rows[0]?.id;
-  if (!userId) {
-    throw new Error(`Unable to find member ${email}`);
-  }
-  await insertCurrentSailingCardOnboardingAcceptance({
-    pool,
-    userAgent: 'e2e-membership-payments',
-    userId,
-  });
-  await pool.query(
-    `UPDATE "user"
-     SET "first_name" = 'Legacy',
-         "last_name" = 'Paid',
-         "sailing_affiliation" = 'WELLESLEY',
-         "phone" = '+16175550100',
-         "emergency_contact_name" = 'Ada Lovelace',
-         "emergency_contact_phone" = '+16175550101',
-         "sailing_card_requested_at" = NOW(),
-         "updated_at" = NOW()
-     WHERE "id" = $1`,
-    [userId]
-  );
-  await pool.query(
-    `INSERT INTO "payments"
-      ("id", "purpose", "source", "user_id", "amount_cents", "currency", "status", "card_year", "card_type",
-       "legacy_source_table", "legacy_source_id", "legacy_category", "legacy_description", "legacy_settled",
-       "payer_name", "payer_email", "created_at", "updated_at")
-     VALUES
-      ($1, 'membership', 'legacy', $2, 12000, 'usd', 'paid', $3, 'racing',
-       'legacy.payments', $4, 'racing', 'Racing Card E2E', true, 'Legacy Paid', $5, NOW(), NOW())`,
-    [
-      `e2e-payment-${randomUUID()}`,
-      userId,
-      getCurrentSailingCardYear(),
-      `legacy-${randomUUID()}`,
-      email,
-    ]
-  );
+  const userId = await findUserIdByEmail(email);
+  await markLegacyPaidUserOnboarded(userId);
+  await insertLegacyPaidMembershipPayment({ email, userId });
 
   await page.goto('/profile/payments');
 

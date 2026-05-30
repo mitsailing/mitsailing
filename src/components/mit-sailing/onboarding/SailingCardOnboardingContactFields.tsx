@@ -16,6 +16,39 @@ import { formatPhoneAsYouType } from '@/utils/phoneValidation';
 import { FieldError } from './SailingCardOnboardingFieldError';
 import { fieldErrorId } from './SailingCardOnboardingFormHelpers';
 
+function dateOfBirthDescribedBy(props: {
+  readonly dateOfBirthError: string | undefined;
+  readonly showClientError: boolean;
+}) {
+  return [
+    'sailing-card-onboarding-dateOfBirth-help',
+    props.dateOfBirthError ? fieldErrorId('dateOfBirth') : undefined,
+    props.showClientError
+      ? 'sailing-card-onboarding-dateOfBirth-client-error'
+      : undefined,
+  ]
+    .filter((value) => value !== undefined)
+    .join(' ');
+}
+
+function DateOfBirthClientError(props: { readonly visible: boolean }) {
+  const t = useTranslations('OnboardingPage');
+
+  if (!props.visible) {
+    return null;
+  }
+
+  return (
+    <p
+      className="text-sm font-medium text-destructive"
+      id="sailing-card-onboarding-dateOfBirth-client-error"
+      role="alert"
+    >
+      {t('error_invalid_date_of_birth')}
+    </p>
+  );
+}
+
 function DateOfBirthField(props: {
   readonly register: UseFormRegister<SailingCardOnboardingFormValues>;
   readonly state: SailingCardOnboardingFormState;
@@ -27,16 +60,11 @@ function DateOfBirthField(props: {
   });
   const dateOfBirthError = props.state.fieldErrors.dateOfBirth;
   const dateOfBirthHelpId = 'sailing-card-onboarding-dateOfBirth-help';
-  const dateOfBirthClientErrorId =
-    'sailing-card-onboarding-dateOfBirth-client-error';
   const showClientError = dateOfBirthError === undefined && clientError;
-  const describedBy = [
-    dateOfBirthHelpId,
-    dateOfBirthError ? fieldErrorId('dateOfBirth') : undefined,
-    showClientError ? dateOfBirthClientErrorId : undefined,
-  ]
-    .filter((value) => value !== undefined)
-    .join(' ');
+  const describedBy = dateOfBirthDescribedBy({
+    dateOfBirthError,
+    showClientError,
+  });
   const updateDateOfBirthClientError = (value: string) => {
     setClientError(
       value.trim() !== '' && parseSailingCardDateOfBirth({ value }) === null
@@ -84,15 +112,7 @@ function DateOfBirthField(props: {
         {t('date_of_birth_help')}
       </p>
       <FieldError field="dateOfBirth" state={props.state} />
-      {showClientError ? (
-        <p
-          className="text-sm font-medium text-destructive"
-          id={dateOfBirthClientErrorId}
-          role="alert"
-        >
-          {t('error_invalid_date_of_birth')}
-        </p>
-      ) : null}
+      <DateOfBirthClientError visible={showClientError} />
     </div>
   );
 }

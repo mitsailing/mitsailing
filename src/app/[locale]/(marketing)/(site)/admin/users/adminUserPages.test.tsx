@@ -380,6 +380,77 @@ beforeEach(() => {
   mocks.updateAdminUserAction.mockReturnValue(async () => {});
 });
 
+function pendingCardSummary() {
+  return {
+    legalAgreementAcceptances: [
+      {
+        acceptedAt: new Date('2026-06-01T16:00:00.000Z'),
+        agreementHash: sailingCardAgreementHash(),
+        agreementVersion: sailingCardAgreement.version,
+      },
+    ],
+    paymentBypassRequest: null,
+    sailingCardRequests: [
+      {
+        cardType: SailingCardType.normal,
+        cardYear: 2026,
+        hasFitnessMembership: true,
+        issuedCardNumber: null,
+        paymentBypassAt: null,
+        paymentBypassBy: null,
+        paymentBypassNote: null,
+        requestedAt: new Date('2026-05-21T16:00:00.000Z'),
+        sailingAffiliation: 'MIT_STUDENT',
+        status: SailingCardRequestStatus.pending,
+      },
+    ],
+    sailingCardExpiresOn: null,
+    sailingCardIssuedAt: null,
+    sailingCardIssuedBy: null,
+    sailingCardNumber: null,
+    sailingCardRequestedAt: new Date('2026-05-21T16:00:00.000Z'),
+    sailingCardSwimAgreementInitialedAt: new Date('2026-06-01T16:00:00.000Z'),
+    sailingCardSwimAgreementInitials: 'AK',
+    sailingCardYear: null,
+  };
+}
+
+function paymentBypassCardSummary() {
+  const paymentBypassRequest = {
+    cardType: SailingCardType.racing,
+    cardYear: 2026,
+    hasFitnessMembership: true,
+    issuedCardNumber: 60,
+    paymentBypassAt: new Date('2026-08-01T16:00:00.000Z'),
+    paymentBypassBy: { name: 'Dock Master' },
+    paymentBypassNote: 'Admin issued sailing card without payment.',
+    requestedAt: new Date('2026-05-21T16:00:00.000Z'),
+    sailingAffiliation: 'OTHER',
+    status: SailingCardRequestStatus.approved,
+  };
+
+  return {
+    ...pendingCardSummary(),
+    paymentBypassRequest,
+    sailingCardRequests: [
+      {
+        ...paymentBypassRequest,
+        cardYear: 2027,
+        issuedCardNumber: 61,
+        paymentBypassAt: null,
+        paymentBypassBy: null,
+        paymentBypassNote: null,
+      },
+    ],
+    sailingCardExpiresOn: new Date('2027-07-15T04:00:00.000Z'),
+    sailingCardIssuedAt: new Date('2026-08-01T16:00:00.000Z'),
+    sailingCardIssuedBy: { name: 'Dock Master' },
+    sailingCardNumber: 61,
+    sailingCardSwimAgreementInitialedAt: new Date('2026-05-21T16:00:00.000Z'),
+    sailingCardYear: 2027,
+  };
+}
+
 describe('admin user pages', () => {
   it('keeps the user index behind the view-users permission', async () => {
     const { default: AdminUsersIndexPage } = await import('./page');
@@ -491,38 +562,9 @@ describe('admin user pages', () => {
   });
 
   it('shows pending card number assignment on the user detail page', async () => {
-    mocks.getAdminUserSailingCardSummary.mockResolvedValue({
-      legalAgreementAcceptances: [
-        {
-          acceptedAt: new Date('2026-06-01T16:00:00.000Z'),
-          agreementHash: sailingCardAgreementHash(),
-          agreementVersion: sailingCardAgreement.version,
-        },
-      ],
-      paymentBypassRequest: null,
-      sailingCardRequests: [
-        {
-          cardType: SailingCardType.normal,
-          cardYear: 2026,
-          hasFitnessMembership: true,
-          issuedCardNumber: null,
-          paymentBypassAt: null,
-          paymentBypassBy: null,
-          paymentBypassNote: null,
-          requestedAt: new Date('2026-05-21T16:00:00.000Z'),
-          sailingAffiliation: 'MIT_STUDENT',
-          status: SailingCardRequestStatus.pending,
-        },
-      ],
-      sailingCardExpiresOn: null,
-      sailingCardIssuedAt: null,
-      sailingCardIssuedBy: null,
-      sailingCardNumber: null,
-      sailingCardRequestedAt: new Date('2026-05-21T16:00:00.000Z'),
-      sailingCardSwimAgreementInitialedAt: new Date('2026-06-01T16:00:00.000Z'),
-      sailingCardSwimAgreementInitials: 'AK',
-      sailingCardYear: null,
-    });
+    mocks.getAdminUserSailingCardSummary.mockResolvedValue(
+      pendingCardSummary()
+    );
     const { default: AdminUserShowPage } = await import('./[id]/page');
 
     render(
@@ -549,50 +591,9 @@ describe('admin user pages', () => {
   });
 
   it('shows admin override payment bypass on the user sailing-card panel', async () => {
-    const paymentBypassRequest = {
-      cardType: SailingCardType.racing,
-      cardYear: 2026,
-      hasFitnessMembership: true,
-      issuedCardNumber: 60,
-      paymentBypassAt: new Date('2026-08-01T16:00:00.000Z'),
-      paymentBypassBy: { name: 'Dock Master' },
-      paymentBypassNote: 'Admin issued sailing card without payment.',
-      requestedAt: new Date('2026-05-21T16:00:00.000Z'),
-      sailingAffiliation: 'OTHER',
-      status: SailingCardRequestStatus.approved,
-    };
-    mocks.getAdminUserSailingCardSummary.mockResolvedValue({
-      legalAgreementAcceptances: [
-        {
-          acceptedAt: new Date('2026-05-21T16:00:00.000Z'),
-          agreementHash: sailingCardAgreementHash(),
-          agreementVersion: sailingCardAgreement.version,
-        },
-      ],
-      paymentBypassRequest,
-      sailingCardRequests: [
-        {
-          cardType: SailingCardType.racing,
-          cardYear: 2027,
-          hasFitnessMembership: true,
-          issuedCardNumber: 61,
-          paymentBypassAt: null,
-          paymentBypassBy: null,
-          paymentBypassNote: null,
-          requestedAt: new Date('2026-05-21T16:00:00.000Z'),
-          sailingAffiliation: 'OTHER',
-          status: SailingCardRequestStatus.approved,
-        },
-      ],
-      sailingCardExpiresOn: new Date('2027-07-15T04:00:00.000Z'),
-      sailingCardIssuedAt: new Date('2026-08-01T16:00:00.000Z'),
-      sailingCardIssuedBy: { name: 'Dock Master' },
-      sailingCardNumber: 61,
-      sailingCardRequestedAt: new Date('2026-05-21T16:00:00.000Z'),
-      sailingCardSwimAgreementInitialedAt: new Date('2026-05-21T16:00:00.000Z'),
-      sailingCardSwimAgreementInitials: 'AK',
-      sailingCardYear: 2027,
-    });
+    mocks.getAdminUserSailingCardSummary.mockResolvedValue(
+      paymentBypassCardSummary()
+    );
     const { default: AdminUserShowPage } = await import('./[id]/page');
 
     render(

@@ -65,6 +65,65 @@ function issueFormNeedsPaymentBypassNote(props: {
   );
 }
 
+function AdminSailingCardNumberError(props: {
+  readonly error: AdminSailingCardActionState['fieldErrors']['cardNumber'];
+  readonly id: string | undefined;
+}) {
+  const t = useTranslations('AdminCards');
+
+  if (!props.error) {
+    return null;
+  }
+
+  return (
+    <p className="m-0 text-xs text-destructive" id={props.id} role="alert">
+      {props.error === 'duplicate'
+        ? t('error_card_number_duplicate')
+        : t('error_card_number_invalid')}
+    </p>
+  );
+}
+
+function AdminSailingCardPaymentBypassNote(props: {
+  readonly id: string;
+  readonly visible: boolean;
+}) {
+  const t = useTranslations('AdminCards');
+
+  if (!props.visible) {
+    return null;
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      <Label htmlFor={props.id}>{t('payment_bypass_note_label')}</Label>
+      <Textarea
+        id={props.id}
+        name="paymentBypassNote"
+        placeholder={t('payment_bypass_note_placeholder')}
+        required
+        rows={3}
+      />
+    </div>
+  );
+}
+
+function AdminSailingCardFormErrorMessage(props: {
+  readonly formError: AdminSailingCardActionState['formError'];
+}) {
+  const t = useTranslations('AdminCards');
+
+  if (!props.formError) {
+    return null;
+  }
+
+  return (
+    <p className="m-0 text-xs text-destructive" role="alert">
+      {t(formErrorMessageKeys[props.formError])}
+    </p>
+  );
+}
+
 export function AdminSailingCardIssueForm(
   props: AdminSailingCardIssueFormProps
 ) {
@@ -77,7 +136,6 @@ export function AdminSailingCardIssueForm(
     initialAdminSailingCardActionState
   );
   const cardNumberError = state.fieldErrors.cardNumber;
-  const { formError } = state;
   const cardNumberErrorId = cardNumberError
     ? `${props.userId}-card-number-error`
     : undefined;
@@ -114,36 +172,15 @@ export function AdminSailingCardIssueForm(
           {t('action_issue')}
         </Button>
       </div>
-      {cardNumberError ? (
-        <p
-          className="m-0 text-xs text-destructive"
-          id={cardNumberErrorId}
-          role="alert"
-        >
-          {cardNumberError === 'duplicate'
-            ? t('error_card_number_duplicate')
-            : t('error_card_number_invalid')}
-        </p>
-      ) : null}
-      {needsPaymentBypassNote ? (
-        <div className="flex flex-col gap-1">
-          <Label htmlFor={paymentBypassNoteId}>
-            {t('payment_bypass_note_label')}
-          </Label>
-          <Textarea
-            id={paymentBypassNoteId}
-            name="paymentBypassNote"
-            placeholder={t('payment_bypass_note_placeholder')}
-            required
-            rows={3}
-          />
-        </div>
-      ) : null}
-      {formError ? (
-        <p className="m-0 text-xs text-destructive" role="alert">
-          {t(formErrorMessageKeys[formError])}
-        </p>
-      ) : null}
+      <AdminSailingCardNumberError
+        error={cardNumberError}
+        id={cardNumberErrorId}
+      />
+      <AdminSailingCardPaymentBypassNote
+        id={paymentBypassNoteId}
+        visible={needsPaymentBypassNote}
+      />
+      <AdminSailingCardFormErrorMessage formError={state.formError} />
     </form>
   );
 }
