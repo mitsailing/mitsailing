@@ -8,8 +8,8 @@ import {
   AdminSailingCardExpireForm,
   AdminSailingCardHistory,
   AdminSailingCardIssueForm,
-} from '@/components/mit-sailing/admin/cards/AdminSailingCardQueue';
-import type { AdminSailingCardQueueRow } from '@/components/mit-sailing/admin/cards/AdminSailingCardQueue';
+} from '@/components/mit-sailing/admin/cards/AdminSailingCardControls';
+import type { AdminSailingCardPaymentAccess } from '@/components/mit-sailing/admin/cards/AdminSailingCardControls';
 import { AdminUserRatingsPanel } from '@/components/mit-sailing/admin/users/AdminUserRatingsPanel';
 import {
   Table,
@@ -65,12 +65,6 @@ type AdminUserShowPageProps = Readonly<{
 function emailDeliverabilityStatus(value: unknown): EmailDeliverabilityStatus {
   return value === 'bounced' || value === 'suppressed' ? value : 'ok';
 }
-
-const emailStatusMessageKeys = {
-  bounced: 'email_status_bounced',
-  ok: 'email_status_ok',
-  suppressed: 'email_status_suppressed',
-} as const satisfies Record<EmailDeliverabilityStatus, string>;
 
 type EmailEventMessageKey =
   | 'email_event_bounced'
@@ -348,7 +342,7 @@ function membershipAccessPriority(
 function sailingCardIssuePaymentAccess(props: {
   readonly request: AdminUserSailingCardRequestSummary | undefined;
   readonly rows: readonly AdminUserPaymentHistoryRow[];
-}): AdminSailingCardQueueRow['paymentAccess'] | undefined {
+}): AdminSailingCardPaymentAccess | undefined {
   const { request } = props;
   if (!request) {
     return undefined;
@@ -405,9 +399,7 @@ type AdminUserSailingCardSectionModel = {
   readonly displayedCardNumber: React.ReactNode;
   readonly emptyValue: string;
   readonly hasCurrentCard: boolean;
-  readonly issuePaymentAccess:
-    | AdminSailingCardQueueRow['paymentAccess']
-    | undefined;
+  readonly issuePaymentAccess: AdminSailingCardPaymentAccess | undefined;
   readonly latestRequest: AdminUserSailingCardRequestSummary | undefined;
   readonly paymentBypass: AdminUserSailingCardRequestSummary | undefined;
   readonly pendingCardNumber: number;
@@ -1085,6 +1077,16 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
             <dd className="m-0">{userEmail}</dd>
           </div>
           <div>
+            <dt className="font-semibold">{t('column_mit_id')}</dt>
+            <dd className="m-0">{user.mitId ?? t('empty_value')}</dd>
+          </div>
+          <div>
+            <dt className="font-semibold">{t('column_sailing_card_number')}</dt>
+            <dd className="m-0">
+              {user.sailingCardNumber ?? t('empty_value')}
+            </dd>
+          </div>
+          <div>
             <dt className="font-semibold">{t('column_role')}</dt>
             <dd className="m-0">{user.appRole}</dd>
           </div>
@@ -1093,10 +1095,6 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
             <dd className="m-0">
               {user.emailVerified ? t('boolean_yes') : t('boolean_no')}
             </dd>
-          </div>
-          <div>
-            <dt className="font-semibold">{t('column_email_status')}</dt>
-            <dd className="m-0">{t(emailStatusMessageKeys[emailStatus])}</dd>
           </div>
         </dl>
       </div>

@@ -151,6 +151,7 @@ describe.skipIf(!shouldRunSummaryDatabaseTest)(
             agreementVersion: sailingCardAgreement.version,
           },
         ],
+        paymentBypassRequest: null,
         sailingCardExpiresOn: expiresOn,
         sailingCardIssuedAt: issuedAt,
         sailingCardIssuedBy: { name: 'Card Admin' },

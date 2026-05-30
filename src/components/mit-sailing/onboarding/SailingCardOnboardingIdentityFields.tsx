@@ -83,35 +83,44 @@ export function AffiliationSelect(props: {
   const affiliationHelpId = 'sailing-card-onboarding-affiliation-help';
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <Label className="text-foreground" htmlFor="affiliation">
-        {t('affiliation_label')}
-      </Label>
-      <select
-        aria-describedby={
-          affiliationError
-            ? `${affiliationHelpId} ${fieldErrorId('affiliation')}`
-            : affiliationHelpId
-        }
-        aria-invalid={affiliationError ? true : undefined}
-        className={adminNativeSelectClassName}
-        id="affiliation"
-        required
-        value={props.affiliation}
-        {...props.register('affiliation', { required: true })}
-      >
-        <option value="">{t('affiliation_placeholder')}</option>
-        {getSailingAffiliationOptions().map((option) => (
-          <option key={option.value} value={option.value}>
-            {t(affiliationLabelKey(option.value))}
-          </option>
-        ))}
-      </select>
-      <p className="text-xs text-muted-foreground" id={affiliationHelpId}>
-        {t('affiliation_help')}
-      </p>
-      <FieldError field="affiliation" state={props.state} />
-    </div>
+    <section className="border-y border-border py-5">
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)] sm:items-start">
+        <div className="flex flex-col gap-1">
+          <Label className="text-foreground" htmlFor="affiliation">
+            {t('affiliation_label')}
+          </Label>
+          <p
+            className="text-xs leading-5 text-muted-foreground"
+            id={affiliationHelpId}
+          >
+            {t('affiliation_help')}
+          </p>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <select
+            aria-describedby={
+              affiliationError
+                ? `${affiliationHelpId} ${fieldErrorId('affiliation')}`
+                : affiliationHelpId
+            }
+            aria-invalid={affiliationError ? true : undefined}
+            className={adminNativeSelectClassName}
+            id="affiliation"
+            required
+            value={props.affiliation}
+            {...props.register('affiliation', { required: true })}
+          >
+            <option value="">{t('affiliation_placeholder')}</option>
+            {getSailingAffiliationOptions().map((option) => (
+              <option key={option.value} value={option.value}>
+                {t(affiliationLabelKey(option.value))}
+              </option>
+            ))}
+          </select>
+          <FieldError field="affiliation" state={props.state} />
+        </div>
+      </div>
+    </section>
   );
 }
 

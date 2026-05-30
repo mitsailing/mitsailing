@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
   txPaymentCreate: vi.fn(),
   txPaymentFindFirst: vi.fn(),
   txLegalAgreementAcceptanceFindFirst: vi.fn(),
+  txSailingCardRequestCount: vi.fn(),
   revalidatePath: vi.fn(),
   requirePermission: vi.fn(),
   txSailingCardRequestFindFirst: vi.fn(),
@@ -29,6 +30,7 @@ const mocks = vi.hoisted(() => ({
   txSailingCardRequestUpdateMany: vi.fn(),
   txUserAuditCreate: vi.fn(),
   txUserAuditFindFirst: vi.fn(),
+  txUserCount: vi.fn(),
   txUserFindMany: vi.fn(),
   txUserFindUnique: vi.fn(),
   txUserUpdate: vi.fn(),
@@ -45,11 +47,13 @@ type MockTransactionClient = {
     readonly findFirst: typeof mocks.txLegalAgreementAcceptanceFindFirst;
   };
   readonly sailingCardRequest: {
+    readonly count: typeof mocks.txSailingCardRequestCount;
     readonly findFirst: typeof mocks.txSailingCardRequestFindFirst;
     readonly update: typeof mocks.txSailingCardRequestUpdate;
     readonly updateMany: typeof mocks.txSailingCardRequestUpdateMany;
   };
   readonly user: {
+    readonly count: typeof mocks.txUserCount;
     readonly findMany: typeof mocks.txUserFindMany;
     readonly findUnique: typeof mocks.txUserFindUnique;
     readonly update: typeof mocks.txUserUpdate;
@@ -145,6 +149,8 @@ describe('adminSailingCardActions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.requirePermission.mockResolvedValue({ user: { id: 'admin-1' } });
+    mocks.txSailingCardRequestCount.mockResolvedValue(0);
+    mocks.txUserCount.mockResolvedValue(0);
     mocks.txUserFindMany.mockResolvedValue([]);
     mocks.txUserFindUnique.mockResolvedValue(existingUser);
     mocks.txUserUpdate.mockResolvedValue({});
@@ -179,6 +185,7 @@ describe('adminSailingCardActions', () => {
             findFirst: mocks.txPaymentFindFirst,
           },
           user: {
+            count: mocks.txUserCount,
             findMany: mocks.txUserFindMany,
             findUnique: mocks.txUserFindUnique,
             update: mocks.txUserUpdate,
@@ -188,6 +195,7 @@ describe('adminSailingCardActions', () => {
             findFirst: mocks.txLegalAgreementAcceptanceFindFirst,
           },
           sailingCardRequest: {
+            count: mocks.txSailingCardRequestCount,
             findFirst: mocks.txSailingCardRequestFindFirst,
             update: mocks.txSailingCardRequestUpdate,
             updateMany: mocks.txSailingCardRequestUpdateMany,

@@ -41,6 +41,8 @@ function rowFromDb(user: {
   emailBouncedAt: Date | null;
   emailSuppressedAt: Date | null;
   emailSuppressionReason: string | null;
+  mitId: string | null;
+  sailingCardNumber: number | null;
 }): AdminUserRow {
   return {
     id: user.id,
@@ -49,6 +51,8 @@ function rowFromDb(user: {
     emailDeliverabilityStatus: emailDeliverabilityStatus(user),
     emailSuppressedAt: user.emailSuppressedAt?.toISOString() ?? null,
     emailSuppressionReason: user.emailSuppressionReason,
+    mitId: user.mitId,
+    sailingCardNumber: user.sailingCardNumber,
     name: user.name,
     appRole: normalizeAppRole(user.appRole),
     emailVerified: user.emailVerified,
@@ -232,6 +236,8 @@ export const usersAdminHandlers: CatalogServerHandlers = {
         emailBouncedAt: true,
         emailSuppressedAt: true,
         emailSuppressionReason: true,
+        mitId: true,
+        sailingCardNumber: true,
       },
     });
     return rows.map(rowFromDb);
@@ -250,6 +256,8 @@ export const usersAdminHandlers: CatalogServerHandlers = {
         emailBouncedAt: true,
         emailSuppressedAt: true,
         emailSuppressionReason: true,
+        mitId: true,
+        sailingCardNumber: true,
       },
     });
     return row ? rowFromDb(row) : null;

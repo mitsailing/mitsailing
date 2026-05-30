@@ -86,8 +86,35 @@ export default async function AdminUsersIndexPage(
         }}
         locale={locale}
         messageNamespace="AdminUsers"
+        filters={[
+          {
+            allKey: 'filter_email_status_all',
+            field: 'emailDeliverabilityStatus',
+            labelKey: 'filter_email_status_label',
+            options: [
+              { labelKey: 'email_status_ok', value: 'ok' },
+              { labelKey: 'email_status_bounced', value: 'bounced' },
+              { labelKey: 'email_status_suppressed', value: 'suppressed' },
+            ],
+          },
+          {
+            allKey: 'filter_banned_all',
+            field: 'banned',
+            labelKey: 'filter_banned_label',
+            options: [
+              { labelKey: 'boolean_yes', value: 'true' },
+              { labelKey: 'boolean_no', value: 'false' },
+            ],
+          },
+        ]}
         resourceId={usersAdminDefinition.id}
         rows={rows}
+        search={{
+          emptyKey: 'filter_empty',
+          fields: ['email', 'name', 'mitId', 'sailingCardNumber', 'appRole'],
+          labelKey: 'filter_search_label',
+          placeholderKey: 'filter_search_placeholder',
+        }}
         userImpersonation={
           canEditUsers
             ? {

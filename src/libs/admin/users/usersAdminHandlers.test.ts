@@ -143,7 +143,9 @@ describe('usersAdminHandlers', () => {
           emailSuppressionReason: null,
           emailVerified: true,
           id: 'user-1',
+          mitId: '123456789',
           name: 'Sailor',
+          sailingCardNumber: 61,
         },
         {
           appRole: Role.ADMIN,
@@ -154,7 +156,9 @@ describe('usersAdminHandlers', () => {
           emailSuppressionReason: null,
           emailVerified: false,
           id: 'user-2',
+          mitId: null,
           name: 'Admin',
+          sailingCardNumber: null,
         },
       ]);
 
@@ -168,7 +172,9 @@ describe('usersAdminHandlers', () => {
           emailSuppressionReason: null,
           emailVerified: true,
           id: 'user-1',
+          mitId: '123456789',
           name: 'Sailor',
+          sailingCardNumber: 61,
           appRole: Role.USER,
         },
         {
@@ -180,7 +186,9 @@ describe('usersAdminHandlers', () => {
           emailSuppressionReason: null,
           emailVerified: false,
           id: 'user-2',
+          mitId: null,
           name: 'Admin',
+          sailingCardNumber: null,
           appRole: Role.ADMIN,
         },
       ]);
@@ -199,7 +207,9 @@ describe('usersAdminHandlers', () => {
           emailSuppressionReason: 'complained',
           emailVerified: true,
           id: 'user-1',
+          mitId: '123456789',
           name: 'Sailor',
+          sailingCardNumber: 61,
         })
         .mockResolvedValueOnce(null);
 
@@ -212,6 +222,8 @@ describe('usersAdminHandlers', () => {
           emailSuppressedAt: '2026-05-02T12:00:00.000Z',
           emailSuppressionReason: 'complained',
           id: 'user-1',
+          mitId: '123456789',
+          sailingCardNumber: 61,
           appRole: Role.ADMIN,
         }
       );

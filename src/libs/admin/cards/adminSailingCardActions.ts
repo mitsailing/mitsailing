@@ -252,7 +252,6 @@ async function createSailingCardAudit(props: {
 }
 
 function revalidateSailingCardAdminPaths(locale: string, userId: string) {
-  revalidatePath(getI18nPath('/admin/cards', locale));
   revalidatePath(
     getI18nPath(`/admin/users/${encodeURIComponent(userId)}`, locale)
   );
@@ -278,6 +277,12 @@ function hasMatchingOnboardingAgreement(props: {
 }
 
 function issueSailingCardErrorState(error: unknown) {
+  if (error instanceof Error && error.message === 'card_number_duplicate') {
+    return {
+      fieldErrors: { cardNumber: 'duplicate' },
+      status: 'error',
+    } satisfies AdminSailingCardActionState;
+  }
   if (isSailingCardUniqueError(error)) {
     return {
       fieldErrors: { cardNumber: 'duplicate' },
@@ -301,6 +306,34 @@ function issueSailingCardErrorState(error: unknown) {
     } satisfies AdminSailingCardActionState;
   }
   return null;
+}
+
+async function assertCardNumberAvailable(props: {
+  readonly cardNumber: number;
+  readonly cardYear: number;
+  readonly db: AdminSailingCardIssueDb;
+  readonly requestId: string;
+  readonly targetUserId: string;
+}) {
+  const [issuedUserCount, issuedRequestCount] = await Promise.all([
+    props.db.user.count({
+      where: {
+        id: { not: props.targetUserId },
+        sailingCardNumber: props.cardNumber,
+        sailingCardYear: props.cardYear,
+      },
+    }),
+    props.db.sailingCardRequest.count({
+      where: {
+        cardYear: props.cardYear,
+        id: { not: props.requestId },
+        issuedCardNumber: props.cardNumber,
+      },
+    }),
+  ]);
+  if (issuedUserCount > 0 || issuedRequestCount > 0) {
+    throw new Error('card_number_duplicate');
+  }
 }
 
 export async function issueSailingCardAction(
@@ -356,6 +389,13 @@ export async function issueSailingCardAction(
       if (requestNeedsFitnessVerification(request)) {
         throw new Error('mit_recreation_required');
       }
+      await assertCardNumberAvailable({
+        cardNumber,
+        cardYear,
+        db: tx,
+        requestId: request.id,
+        targetUserId,
+      });
       const needsPaymentBypass =
         requestNeedsPaymentBypass(request.cardType) &&
         !(await hasRecordedMembershipPayment({

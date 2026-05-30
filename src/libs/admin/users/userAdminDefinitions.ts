@@ -26,6 +26,16 @@ export const usersAdminDefinition = {
       headerKey: 'column_name_label',
     },
     {
+      field: 'mitId',
+      kind: 'string',
+      headerKey: 'column_mit_id',
+    },
+    {
+      field: 'sailingCardNumber',
+      kind: 'string',
+      headerKey: 'column_sailing_card_number',
+    },
+    {
       field: 'appRole',
       kind: 'string',
       headerKey: 'column_role',
@@ -34,17 +44,6 @@ export const usersAdminDefinition = {
       field: 'emailVerified',
       kind: 'boolean',
       headerKey: 'column_email_verified',
-    },
-    {
-      field: 'emailDeliverabilityStatus',
-      kind: 'string',
-      headerKey: 'column_email_status',
-    },
-    {
-      field: 'banned',
-      kind: 'boolean',
-      headerKey: 'column_banned',
-      booleanPolarity: 'badWhenTrue',
     },
   ],
   formFields: [

@@ -194,7 +194,9 @@ vi.mock('@/components/mit-sailing/admin/catalog/AdminCatalogTable', () => ({
         update: boolean;
       };
     };
+    filters?: readonly { field: string }[];
     rows: unknown[];
+    search?: { fields: readonly string[] };
     userImpersonation?: unknown;
   }) => {
     const { capabilities } = props.definition;
@@ -205,7 +207,11 @@ vi.mock('@/components/mit-sailing/admin/catalog/AdminCatalogTable', () => ({
         data-can-reorder={String(capabilities.reorder)}
         data-can-update={String(capabilities.update)}
         data-has-impersonation={String(Boolean(props.userImpersonation))}
+        data-filter-fields={
+          props.filters?.map((filter) => filter.field).join(',') ?? ''
+        }
         data-row-count={props.rows.length}
+        data-search-fields={props.search?.fields.join(',') ?? ''}
         data-testid="admin-catalog-table"
       />
     );
@@ -224,22 +230,25 @@ vi.mock('@/components/mit-sailing/admin/cards/AdminSailingCardHistory', () => ({
   AdminSailingCardHistory: () => <section data-testid="card-history-panel" />,
 }));
 
-vi.mock('@/components/mit-sailing/admin/cards/AdminSailingCardQueue', () => ({
-  AdminSailingCardHistory: () => <section data-testid="card-history-panel" />,
-  AdminSailingCardExpireForm: () => <form aria-label="Expire sailing card" />,
-  AdminSailingCardIssueForm: (props: {
-    cardType?: SailingCardType;
-    paymentAccess?: 'blocked' | 'none' | 'paid';
-    suggestedCardNumber: number;
-  }) => (
-    <form
-      aria-label="Issue sailing card"
-      data-card-type={props.cardType}
-      data-payment-access={props.paymentAccess}
-      data-suggested-card-number={props.suggestedCardNumber}
-    />
-  ),
-}));
+vi.mock(
+  '@/components/mit-sailing/admin/cards/AdminSailingCardControls',
+  () => ({
+    AdminSailingCardHistory: () => <section data-testid="card-history-panel" />,
+    AdminSailingCardExpireForm: () => <form aria-label="Expire sailing card" />,
+    AdminSailingCardIssueForm: (props: {
+      cardType?: SailingCardType;
+      paymentAccess?: 'blocked' | 'none' | 'paid';
+      suggestedCardNumber: number;
+    }) => (
+      <form
+        aria-label="Issue sailing card"
+        data-card-type={props.cardType}
+        data-payment-access={props.paymentAccess}
+        data-suggested-card-number={props.suggestedCardNumber}
+      />
+    ),
+  })
+);
 
 vi.mock('@/libs/admin/users/adminUserActions', () => ({
   createAdminUserAction: mocks.createAdminUserAction,
@@ -312,7 +321,9 @@ beforeEach(() => {
     emailSuppressionReason: null,
     emailVerified: true,
     id: 'user-1',
+    mitId: '123456789',
     name: 'Sailor One',
+    sailingCardNumber: 61,
     appRole: 'user',
     updatedAt: new Date('2026-01-02T00:00:00.000Z'),
   });
@@ -339,7 +350,20 @@ beforeEach(() => {
     sailingCardYear: 2027,
   });
   mocks.list.mockResolvedValue([
-    { email: 'sailor@example.com', id: 'user-1', name: 'Sailor One' },
+    {
+      email: 'sailor@example.com',
+      emailBouncedAt: null,
+      emailDeliverabilityStatus: 'ok',
+      emailSuppressedAt: null,
+      emailSuppressionReason: null,
+      emailVerified: true,
+      id: 'user-1',
+      mitId: '123456789',
+      name: 'Sailor One',
+      sailingCardNumber: 61,
+      appRole: 'user',
+      banned: false,
+    },
   ]);
   mocks.listUserRatingAssignmentRows.mockResolvedValue([]);
   mocks.listAdminUserPaymentHistory.mockResolvedValue([]);
@@ -458,7 +482,8 @@ describe('admin user pages', () => {
     );
 
     expect(screen.getByText('sailing_card_heading')).toBeInTheDocument();
-    expect(screen.getByText('61')).toBeInTheDocument();
+    expect(screen.getByText('123456789')).toBeInTheDocument();
+    expect(screen.getAllByText('61').length).toBeGreaterThan(0);
     expect(screen.getByText('2027')).toBeInTheDocument();
     expect(screen.getByText(/Jun 1, 2026/)).toBeInTheDocument();
     expect(screen.getByTestId('card-history-panel')).toBeInTheDocument();
@@ -928,6 +953,14 @@ describe('admin user pages', () => {
     expect(screen.getByTestId('admin-catalog-table')).toHaveAttribute(
       'data-has-impersonation',
       'true'
+    );
+    expect(screen.getByTestId('admin-catalog-table')).toHaveAttribute(
+      'data-search-fields',
+      'email,name,mitId,sailingCardNumber,appRole'
+    );
+    expect(screen.getByTestId('admin-catalog-table')).toHaveAttribute(
+      'data-filter-fields',
+      'emailDeliverabilityStatus,banned'
     );
   });
 

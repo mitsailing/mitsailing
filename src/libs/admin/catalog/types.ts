@@ -110,6 +110,8 @@ export type AdminUserRow = {
   emailDeliverabilityStatus: AdminEmailDeliverabilityStatus;
   emailSuppressedAt: string | null;
   emailSuppressionReason: string | null;
+  mitId: string | null;
+  sailingCardNumber: number | null;
   name: string;
   appRole: string;
   emailVerified: boolean;

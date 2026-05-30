@@ -4,7 +4,7 @@
 
 **Goal:** Add the simplest V1 membership payment/access status foundation that lets staff and members see Stripe, legacy, event/deposit, and staff-bypassed paid racing status in one admin payment history without generic notes or a broad admin search framework.
 
-**Architecture:** Broaden the existing event payment storage into one `Payment` model/table with a simple `purpose` value: `event` or `membership`. Event/deposit rows keep using event fields. Membership rows use membership fields such as `cardYear`, `cardType`, `source`, and Stripe subscription/invoice ids. Database checks enforce which fields belong to which purpose. Do not add adapter classes, repository layers, or a second Stripe event processor. Stripe sync stays in the existing webhook route and updates the same payment table. Keep card issuance manual and pavilion-centered: `/admin/cards` loads pending rows once, filters client-side, and records payment bypass on the Sailing Card request approval path when staff intentionally issue a paid card without payment. The top of `/admin/users/[id]` shows status and links only; actions stay in the owning sections.
+**Architecture:** Broaden the existing event payment storage into one `Payment` model/table with a simple `purpose` value: `event` or `membership`. Event/deposit rows keep using event fields. Membership rows use membership fields such as `cardYear`, `cardType`, `source`, and Stripe subscription/invoice ids. Database checks enforce which fields belong to which purpose. Do not add adapter classes, repository layers, or a second Stripe event processor. Stripe sync stays in the existing webhook route and updates the same payment table. Keep card issuance manual and Pavilion-staff centered: staff start in `/admin/users`, search by the person in front of them, open `/admin/users/[id]`, then review card/payment/agreement state and issue or expire the card there. Records still use the sailing-card request approval path when staff intentionally issue a paid card without payment; the UI entry point is the admin user profile, not a standalone card queue.
 
 **Tech Stack:** Next.js App Router, React client components, Server Actions, ZenStack/Prisma, PostgreSQL, next-intl, Vitest, Playwright.
 
@@ -17,8 +17,8 @@ This plan is an insert into the broader Sailing Card payments/onboarding plan. K
 Recommended split:
 
 1. **Schema/status PR:** rename/broaden event payment to shared payment storage, add payment purpose/source/status fields, request bypass fields, status helpers, and legacy-match representation.
-2. **Admin card PR:** `/admin/cards` client-side filtering and paid-card-without-payment issuance controls.
-3. **Admin/member status PR:** `/admin/users/[id]` current blockers, shared payment history, and member dashboard membership status.
+2. **Admin user card PR:** `/admin/users` client-side people search/filters and `/admin/users/[id]` paid-card-without-payment issuance controls.
+3. **Admin/member status PR:** `/admin/users/[id]` current blockers, shared payment history, card status, and member dashboard membership status.
 4. **Legacy import PR:** legacy source-table discovery, confident match import, and unmatched review report.
 
 Schema work must edit `zenstack/schema.zmodel` first. Do not hand-edit `prisma/schema.prisma`; use the maintainer-approved ZenStack generation handoff.
@@ -54,18 +54,20 @@ Stripe sync touch points:
 - Modify only if needed: `src/app/api/stripe/webhooks/route.ts`
 - Modify only if needed: `src/app/api/stripe/webhooks/route.test.ts`
 
-Admin cards:
+Admin card issuance:
 
 - Modify: `src/libs/admin/cards/adminSailingCardActions.ts`
 - Modify: `src/libs/admin/cards/adminSailingCardActions.test.ts`
 - Modify: `src/libs/admin/cards/adminSailingCardUiQueries.ts`
 - Modify: `src/libs/admin/cards/adminSailingCardUiQueries.test.ts`
-- Modify: `src/components/mit-sailing/admin/cards/AdminSailingCardQueue.tsx`
-- Modify: `src/components/mit-sailing/admin/cards/AdminSailingCardQueue.test.tsx`
-- Modify: `src/app/[locale]/(marketing)/(site)/admin/cards/page.tsx`
+- Rename/modify: `src/components/mit-sailing/admin/cards/AdminSailingCardControls.tsx`
+- Rename/modify: `src/components/mit-sailing/admin/cards/AdminSailingCardControls.test.tsx`
+- Delete: `src/app/[locale]/(marketing)/(site)/admin/cards/page.tsx`
+- Delete: `src/app/[locale]/(marketing)/(site)/admin/cards/adminCardsPage.test.tsx`
 
 Admin user/member status:
 
+- Modify: `src/app/[locale]/(marketing)/(site)/admin/users/page.tsx`
 - Modify: `src/app/[locale]/(marketing)/(site)/admin/users/[id]/page.tsx`
 - Modify: `src/app/[locale]/(marketing)/(site)/admin/users/adminUserPages.test.tsx`
 - Create or update: `src/libs/admin/users/adminUserMembershipStatus.ts`
@@ -86,7 +88,8 @@ Legacy review:
 Locale and e2e:
 
 - Modify: `src/locales/en.json`
-- Follow-up: `tests/e2e/SailingCardMembershipPayments.e2e.ts` if MIT-6 keeps the full admin/member membership-payment journey in scope after PR #145.
+- Add: `src/components/mit-sailing/admin/catalog/AdminCatalogTable.test.tsx`
+- Add: `tests/e2e/SailingCardMembershipPayments.e2e.ts`
 
 ## Task 0: File Budget And Legacy Source Discovery
 
@@ -465,89 +468,43 @@ npm run test -- src/libs/mit-sailing/membershipBilling/membershipPaymentStatus.t
 
 Expected: PASS.
 
-## Task 3: Add Client-Side Pending Queue Search
+## Task 3: Add Client-Side User Search For Pavilion Staff
 
 **Files:**
-- Modify: `src/components/mit-sailing/admin/cards/AdminSailingCardQueue.tsx`
-- Modify: `src/components/mit-sailing/admin/cards/AdminSailingCardQueue.test.tsx`
+- Modify: `src/app/[locale]/(marketing)/(site)/admin/users/page.tsx`
+- Modify: `src/components/mit-sailing/admin/catalog/AdminCatalogTable.tsx`
+- Add: `src/components/mit-sailing/admin/catalog/AdminCatalogTable.test.tsx`
 - Modify: `src/locales/en.json`
 
 - [x] **Step 1: Write failing component test**
 
-Add a test that renders two pending rows, types into the search input, and confirms the table filters without navigation:
+Add a test that renders two admin user rows, types into the users search input,
+and confirms staff can filter by name, email, MIT ID, sailing card number, or
+role without navigation. Add exact-match filters for email status and banned
+state because those are secondary staff triage states, not default table
+columns.
 
-```ts
-it('filters pending card requests by name, email, and MIT ID without navigation', async () => {
-  const user = userEvent.setup();
-  renderQueue({
-    rows: [
-      row({ email: 'ada@example.edu', mitId: '111111111', name: 'Ada Lovelace' }),
-      row({ email: 'grace@example.edu', mitId: '222222222', name: 'Grace Hopper' }),
-    ],
-  });
-
-  await user.type(screen.getByRole('searchbox', { name: /search pending/i }), '222');
-
-  expect(screen.queryByText('Ada Lovelace')).not.toBeInTheDocument();
-  expect(screen.getByText('Grace Hopper')).toBeInTheDocument();
-});
-```
-
-Expected: FAIL because there is no searchbox.
+Expected: FAIL because the users catalog table has no client-side search or
+filters.
 
 - [x] **Step 2: Add search state and filtering**
 
-In `AdminSailingCardQueue.tsx`, add `useState` and a normalized filter:
-
-```ts
-const [search, setSearch] = useState('');
-const normalizedSearch = search.trim().toLowerCase();
-const visibleRows =
-  normalizedSearch === ''
-    ? props.rows
-    : props.rows.filter((row) =>
-        [row.name, row.email, row.mitId ?? '']
-          .join(' ')
-          .toLowerCase()
-          .includes(normalizedSearch)
-      );
-```
-
-Render an input above the table:
-
-```tsx
-<div className="border-b border-border px-5 py-4">
-  <Label htmlFor="admin-card-pending-search">
-    {t('pending_search_label')}
-  </Label>
-  <Input
-    className="mt-2 max-w-md"
-    id="admin-card-pending-search"
-    name="pendingSearch"
-    onChange={(event) => setSearch(event.currentTarget.value)}
-    type="search"
-    value={search}
-  />
-</div>
-```
-
-Use `visibleRows` instead of `props.rows` for rendering and empty-state logic.
+In `AdminCatalogTable.tsx`, add optional search and filter props, normalized
+client-side filtering, and stable labels. Configure `/admin/users` with search
+fields `email`, `name`, `mitId`, `sailingCardNumber`, and `appRole`. Configure
+email-delivery and banned as filters, not visible columns.
 
 - [x] **Step 3: Add locale keys**
 
-In `src/locales/en.json` under `AdminCards`, add:
-
-```json
-"pending_search_label": "Search pending requests",
-"empty_search_results": "No pending requests match that search."
-```
+In `src/locales/en.json` under `AdminUsers`, add labels for MIT ID, sailing card
+number, users search, email status filter, and banned filter.
 
 - [x] **Step 4: Run focused tests**
 
 Run:
 
 ```bash
-npm run test -- src/components/mit-sailing/admin/cards/AdminSailingCardQueue.test.tsx
+npm run test -- src/components/mit-sailing/admin/catalog/AdminCatalogTable.test.tsx 'src/app/[locale]/(marketing)/(site)/admin/users/adminUserPages.test.tsx'
 ```
 
 Expected: PASS.
@@ -558,8 +515,8 @@ Expected: PASS.
 - Modify: `src/libs/admin/cards/adminSailingCardActions.ts`
 - Modify: `src/libs/admin/cards/adminSailingCardActions.test.ts`
 - Modify: `src/libs/admin/cards/adminSailingCardUiQueries.ts`
-- Modify: `src/components/mit-sailing/admin/cards/AdminSailingCardQueue.tsx`
-- Modify: `src/components/mit-sailing/admin/cards/AdminSailingCardQueue.test.tsx`
+- Modify: `src/components/mit-sailing/admin/cards/AdminSailingCardControls.tsx`
+- Modify: `src/components/mit-sailing/admin/cards/AdminSailingCardControls.test.tsx`
 - Modify: `src/locales/en.json`
 
 - [x] **Step 1: Write failing server-action tests**
@@ -640,7 +597,9 @@ Keep user card fields unchanged; this is still manual card issuance.
 
 - [x] **Step 4: Add UI note field only for paid unpaid rows**
 
-Extend the pending row DTO with payment access status. In the issue form, render a textarea when the row is paid `racing`/`team_racing` and access is not paid:
+Expose the payment access status to the issue form rendered on
+`/admin/users/[id]`. In the issue form, render a textarea when the pending
+request is paid `racing`/`team_racing` and access is not paid:
 
 ```tsx
 <Label htmlFor={`${props.userId}-paymentBypassNote`}>
@@ -653,14 +612,15 @@ Extend the pending row DTO with payment access status. In the issue form, render
 />
 ```
 
-Do not show this field for free normal cards or paid cards with active paid/legacy access.
+Do not show this field for free normal cards or paid cards with active
+paid/legacy access. Do not add a standalone card admin page for this action.
 
 - [x] **Step 5: Run focused tests**
 
 Run:
 
 ```bash
-npm run test -- src/libs/admin/cards/adminSailingCardActions.test.ts src/components/mit-sailing/admin/cards/AdminSailingCardQueue.test.tsx
+npm run test -- src/libs/admin/cards/adminSailingCardActions.test.ts src/components/mit-sailing/admin/cards/AdminSailingCardControls.test.tsx
 ```
 
 Expected: PASS.
@@ -958,32 +918,22 @@ Expected: PASS.
 ## Task 8: End-To-End Verification
 
 **Files:**
-- Follow-up candidate: `tests/e2e/SailingCardMembershipPayments.e2e.ts`
+- Add: `tests/e2e/SailingCardMembershipPayments.e2e.ts`
 
 - [x] **Step 1: Classify e2e coverage**
 
-Current status: focused unit/component coverage exists for card-queue search,
+Current status: focused unit/component coverage exists for users search,
 manual card `110`, duplicate card protection, payment-bypass note requirement,
 legacy paid/no receipt, current admin payment blockers, and legacy review-only
-classification. Existing Playwright payment coverage was updated for the shared
-`payments` table and rerun successfully after fixing the stale
-`event_payments` fixture helper.
+classification. Playwright coverage now exists in
+`tests/e2e/SailingCardMembershipPayments.e2e.ts` for the Pavilion-staff journey:
+admin searches `/admin/users` by MIT ID, opens the user profile, assigns card
+`110`, sees duplicate-card failure, records a paid-card-without-payment bypass
+note, and confirms legacy-paid/no-receipt membership status.
 
-Decision for PR #145: the missing
-`tests/e2e/SailingCardMembershipPayments.e2e.ts` full journey is not present in
-this branch and is explicitly classified as a MIT-6 follow-up, not a PR #145
-merge blocker. The branch keeps focused unit/component coverage for payment
-membership behavior and adds Playwright coverage in `tests/e2e/Onboarding.e2e.ts`
-for the onboarding draft-loss/profile-navigation regression found during the
-impeccable corrective pass.
-
-Follow-up Playwright coverage should include:
-
-- admin filters pending card queue by MIT ID without navigation;
-- admin manually assigns card number `110`;
-- duplicate card number for the same year fails;
-- paid racing without payment requires a bypass note;
-- legacy-paid member sees paid legacy status and no receipt link.
+Decision for PR #145: the full membership-payment/card journey is in this PR.
+Further MIT-6 follow-up can deepen legacy import edge cases, but the missing
+Playwright journey is no longer a merge-readiness gap.
 
 - [x] **Step 2: Run local gates**
 
@@ -999,11 +949,15 @@ npm run test:e2e
 
 Expected: all pass before PR readiness is claimed.
 
+Result: `npm run test:e2e` passed on May 29, 2026 with 93 passed and 2
+skipped after the Pavilion-staff user-profile card issuance flow replaced the
+standalone card-admin route.
+
 Result: `npm run lint`, `npm run check:types`, `npm run check:i18n`,
 `npm run test`, and `npm run test:e2e` all passed locally on May 29, 2026.
 
 ## Self-Review
 
-- Spec coverage: covers one shared payment table, legacy display, optional auto-renew prompt, unmatched review, admin blockers, admin user payment history, JS pending search, manual card-number rules, and payment-bypass override.
+- Spec coverage: covers one shared payment table, legacy display, optional auto-renew prompt, unmatched review, admin blockers, admin user payment history, users search, manual card-number rules, and payment-bypass override.
 - Placeholder scan: legacy source discovery is complete enough for V1 import planning: use `legacy.payments` with `category = 'Racing'`, canonical `Racing Card YYYY-YYYY for ...` descriptions, and `settled = '1'` for confident paid matches. Unsettled racing rows and all detected legacy damage deposits are review-only; deposit returned/voided/final state cannot be proven from the mirrored legacy schema.
 - Type consistency: purpose/source/status names are `event`, `membership`, `legacy`, `stripe`, `admin_override`, `paid`, `needs_review`, and the bypass fields are `paymentBypassNote`, `paymentBypassByUserId`, and `paymentBypassAt`.
