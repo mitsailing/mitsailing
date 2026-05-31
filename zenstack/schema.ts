@@ -330,6 +330,13 @@ export class SchemaType implements SchemaDef {
                     attributes: [{ name: "@relation", args: [{ name: "name", value: ExpressionUtils.literal("PaymentManualHandledBy") }] }] as readonly AttributeApplication[],
                     relation: { opposite: "manualHandledBy", name: "PaymentManualHandledBy" }
                 },
+                sailingCardMembershipPricesCreated: {
+                    name: "sailingCardMembershipPricesCreated",
+                    type: "SailingCardMembershipPrice",
+                    array: true,
+                    attributes: [{ name: "@relation", args: [{ name: "name", value: ExpressionUtils.literal("SailingCardMembershipPriceCreatedBy") }] }] as readonly AttributeApplication[],
+                    relation: { opposite: "createdBy", name: "SailingCardMembershipPriceCreatedBy" }
+                },
                 eventComments: {
                     name: "eventComments",
                     type: "EventComment",
@@ -3598,6 +3605,129 @@ export class SchemaType implements SchemaDef {
                 registrationId_eventId_userId: { registrationId: { type: "String" }, eventId: { type: "String" }, userId: { type: "String" } }
             }
         },
+        SailingCardMembershipPrice: {
+            name: "SailingCardMembershipPrice",
+            fields: {
+                id: {
+                    name: "id",
+                    type: "String",
+                    id: true,
+                    attributes: [{ name: "@id" }, { name: "@default", args: [{ name: "value", value: ExpressionUtils.call("cuid") }] }] as readonly AttributeApplication[],
+                    default: ExpressionUtils.call("cuid") as FieldDefault
+                },
+                cardType: {
+                    name: "cardType",
+                    type: "SailingCardType",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("card_type") }] }] as readonly AttributeApplication[]
+                },
+                priceKind: {
+                    name: "priceKind",
+                    type: "SailingCardMembershipPriceKind",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("price_kind") }] }] as readonly AttributeApplication[]
+                },
+                priceCategory: {
+                    name: "priceCategory",
+                    type: "SailingCardMembershipPriceCategory",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("price_category") }] }] as readonly AttributeApplication[]
+                },
+                billingInterval: {
+                    name: "billingInterval",
+                    type: "SailingCardMembershipBillingInterval",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("billing_interval") }] }] as readonly AttributeApplication[]
+                },
+                amountCents: {
+                    name: "amountCents",
+                    type: "Int",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("amount_cents") }] }] as readonly AttributeApplication[]
+                },
+                currency: {
+                    name: "currency",
+                    type: "String",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal("usd") }] }] as readonly AttributeApplication[],
+                    default: "usd" as FieldDefault
+                },
+                active: {
+                    name: "active",
+                    type: "Boolean",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.literal(true) }] }] as readonly AttributeApplication[],
+                    default: true as FieldDefault
+                },
+                effectiveAt: {
+                    name: "effectiveAt",
+                    type: "DateTime",
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("effective_at") }] }] as readonly AttributeApplication[]
+                },
+                changeReason: {
+                    name: "changeReason",
+                    type: "String",
+                    attributes: [{ name: "@trim" }, { name: "@length", args: [{ name: "min", value: ExpressionUtils.literal(1) }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("change_reason") }] }, { name: "@db.Text" }] as readonly AttributeApplication[]
+                },
+                stripePriceId: {
+                    name: "stripePriceId",
+                    type: "String",
+                    unique: true,
+                    optional: true,
+                    attributes: [{ name: "@unique" }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("stripe_price_id") }] }] as readonly AttributeApplication[]
+                },
+                stripeSyncError: {
+                    name: "stripeSyncError",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("stripe_sync_error") }] }, { name: "@db.Text" }] as readonly AttributeApplication[]
+                },
+                stripeSyncedAt: {
+                    name: "stripeSyncedAt",
+                    type: "DateTime",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("stripe_synced_at") }] }] as readonly AttributeApplication[]
+                },
+                createdByUserId: {
+                    name: "createdByUserId",
+                    type: "String",
+                    optional: true,
+                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("created_by_user_id") }] }] as readonly AttributeApplication[],
+                    foreignKeyFor: [
+                        "createdBy"
+                    ] as readonly string[]
+                },
+                createdAt: {
+                    name: "createdAt",
+                    type: "DateTime",
+                    attributes: [{ name: "@default", args: [{ name: "value", value: ExpressionUtils.call("now") }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("created_at") }] }] as readonly AttributeApplication[],
+                    default: ExpressionUtils.call("now") as FieldDefault
+                },
+                updatedAt: {
+                    name: "updatedAt",
+                    type: "DateTime",
+                    updatedAt: true,
+                    attributes: [{ name: "@updatedAt" }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("updated_at") }] }] as readonly AttributeApplication[]
+                },
+                createdBy: {
+                    name: "createdBy",
+                    type: "User",
+                    optional: true,
+                    attributes: [{ name: "@relation", args: [{ name: "name", value: ExpressionUtils.literal("SailingCardMembershipPriceCreatedBy") }, { name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("createdByUserId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("SetNull") }] }] as readonly AttributeApplication[],
+                    relation: { opposite: "sailingCardMembershipPricesCreated", name: "SailingCardMembershipPriceCreatedBy", fields: ["createdByUserId"], references: ["id"], onDelete: "SetNull" }
+                }
+            },
+            attributes: [
+                { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create,update") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.field("cardType"), "==", ExpressionUtils.literal("normal")) }] },
+                { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create,update") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.field("amountCents"), "<", ExpressionUtils.literal(50)) }] },
+                { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create,update") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.field("currency"), "!=", ExpressionUtils.literal("usd")) }] },
+                { name: "@@deny", args: [{ name: "operation", value: ExpressionUtils.literal("create,update") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.field("priceKind"), "==", ExpressionUtils.literal("spring")), "&&", ExpressionUtils.binary(ExpressionUtils.field("billingInterval"), "==", ExpressionUtils.literal("annual"))) }] },
+                { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("read") }, { name: "condition", value: ExpressionUtils.literal(true) }] },
+                { name: "@@allow", args: [{ name: "operation", value: ExpressionUtils.literal("create,update") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.call("auth"), "!=", ExpressionUtils._null()), "&&", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "==", ExpressionUtils.literal("admin"))) }] },
+                { name: "@@unique", args: [{ name: "fields", value: ExpressionUtils.array("SailingCardType", [ExpressionUtils.field("cardType"), ExpressionUtils.field("priceKind"), ExpressionUtils.field("priceCategory"), ExpressionUtils.field("billingInterval"), ExpressionUtils.field("effectiveAt")]) }] },
+                { name: "@@index", args: [{ name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("createdByUserId")]) }] },
+                { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("sailing_card_membership_prices") }] }
+            ] as readonly AttributeApplication[],
+            idFields: ["id"],
+            uniqueFields: {
+                id: { type: "String" },
+                stripePriceId: { type: "String" },
+                cardType_priceKind_priceCategory_billingInterval_effectiveAt: { cardType: { type: "SailingCardType" }, priceKind: { type: "SailingCardMembershipPriceKind" }, priceCategory: { type: "SailingCardMembershipPriceCategory" }, billingInterval: { type: "SailingCardMembershipBillingInterval" }, effectiveAt: { type: "DateTime" } }
+            }
+        },
         StripeWebhookEvent: {
             name: "StripeWebhookEvent",
             fields: {
@@ -6063,6 +6193,37 @@ export class SchemaType implements SchemaDef {
             },
             attributes: [
                 { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("payment_source") }] }
+            ] as readonly AttributeApplication[]
+        },
+        SailingCardMembershipPriceKind: {
+            name: "SailingCardMembershipPriceKind",
+            values: {
+                spring: "spring",
+                full: "full"
+            },
+            attributes: [
+                { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("sailing_card_membership_price_kind") }] }
+            ] as readonly AttributeApplication[]
+        },
+        SailingCardMembershipPriceCategory: {
+            name: "SailingCardMembershipPriceCategory",
+            values: {
+                student: "student",
+                under_30: "under_30",
+                thirty_or_over: "thirty_or_over"
+            },
+            attributes: [
+                { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("sailing_card_membership_price_category") }] }
+            ] as readonly AttributeApplication[]
+        },
+        SailingCardMembershipBillingInterval: {
+            name: "SailingCardMembershipBillingInterval",
+            values: {
+                one_time: "one_time",
+                annual: "annual"
+            },
+            attributes: [
+                { name: "@@map", args: [{ name: "name", value: ExpressionUtils.literal("sailing_card_membership_billing_interval") }] }
             ] as readonly AttributeApplication[]
         },
         EventPaymentNotificationKind: {
