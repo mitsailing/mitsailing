@@ -206,12 +206,14 @@ reviews:
       - release/.*
 
   finishing_touches:
-    # Docstring generation opens a follow-up PR by design; use `@coderabbitai autofix`
-    # on the original PR for same-branch fixes instead.
+    # Keep CodeRabbit in review/comment mode only. Write-producing finishing
+    # touches can create follow-up PRs or direct commits from checkbox clicks.
     docstrings:
       enabled: false
+    unit_tests:
+      enabled: false
     simplify:
-      enabled: true
+      enabled: false
 
   pre_merge_checks:
     docstrings:
