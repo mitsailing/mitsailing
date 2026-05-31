@@ -6,6 +6,7 @@
 
 language: en-US
 early_access: false
+inheritance: false
 
 reviews:
   profile: assertive
@@ -214,6 +215,7 @@ reviews:
       enabled: false
     simplify:
       enabled: false
+    custom: []
 
   pre_merge_checks:
     docstrings:
