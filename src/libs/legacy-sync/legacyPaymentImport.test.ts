@@ -191,6 +191,7 @@ describe('legacyPaymentImport', () => {
 
   it('does not turn negative legacy adjustments into positive payments', () => {
     expect(legacyPaymentAmountCents('-$12.00')).toBe(0);
+    expect(legacyPaymentAmountCents('USD -12.00')).toBe(0);
   });
 
   it('matches payment users by legacy id username or billing email', () => {
@@ -301,6 +302,31 @@ describe('legacyPaymentImport', () => {
           }),
         ]),
         skipDuplicates: true,
+      })
+    );
+  });
+
+  it('refreshes created user ids after skipped duplicate inserts', async () => {
+    mocks.userFindMany.mockResolvedValueOnce([]).mockResolvedValueOnce([
+      {
+        email: 'sailor@example.com',
+        id: 'persisted-user-1',
+      },
+    ]);
+
+    await importLegacyPaymentRows({
+      members: [member()],
+      payments: [payment()],
+    });
+
+    expect(mocks.userCreateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ skipDuplicates: true })
+    );
+    expect(mocks.paymentCreateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.arrayContaining([
+          expect.objectContaining({ userId: 'persisted-user-1' }),
+        ]),
       })
     );
   });

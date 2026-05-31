@@ -256,10 +256,9 @@ export function buildLegacyMemberPaymentMap(
 }
 
 export function legacyPaymentAmountCents(amount: string | null): number {
-  const trimmedAmount = stringValue(amount).trim();
-  const sign = trimmedAmount.startsWith('-') ? '-' : '';
-  const normalized = `${sign}${trimmedAmount.replaceAll(/[^\d.]/gu, '')}`;
-  const parsed = Number(normalized);
+  const normalized = stringValue(amount).replaceAll(/[^\d,.-]/gu, '');
+  const match = /-?[\d,]+(?:\.\d+)?/u.exec(normalized);
+  const parsed = Number((match?.[0] ?? '').replaceAll(',', ''));
   if (!Number.isFinite(parsed) || parsed < 0) {
     return 0;
   }
@@ -407,6 +406,7 @@ async function ensureLegacyUsers(props: {
     existingUsers.map((user) => [user.email.toLowerCase(), user])
   );
   const usersToCreate: Prisma.UserCreateManyInput[] = [];
+  const userKeyByCreatedEmail = new Map<string, string>();
 
   for (const user of props.map.canonicalUsers) {
     const existing = existingUserByEmail.get(user.email);
@@ -444,6 +444,7 @@ async function ensureLegacyUsers(props: {
         ? legacySailingCardUserData(user.legacySailingCard)
         : {}),
     });
+    userKeyByCreatedEmail.set(user.email, user.key);
     appUserIdByKey.set(user.key, id);
     if (user.legacySailingCard) {
       cardRecordsMerged += 1;
@@ -455,6 +456,23 @@ async function ensureLegacyUsers(props: {
       data: usersToCreate,
       skipDuplicates: true,
     });
+    const persistedUsers = await props.db.user.findMany({
+      where: {
+        email: { in: usersToCreate.map((user) => user.email) },
+      },
+      select: {
+        email: true,
+        id: true,
+      },
+    });
+    for (const persistedUser of persistedUsers) {
+      const userKey = userKeyByCreatedEmail.get(
+        persistedUser.email.toLowerCase()
+      );
+      if (userKey) {
+        appUserIdByKey.set(userKey, persistedUser.id);
+      }
+    }
   }
   await mergeLegacySailingCards({ db: props.db, merges: cardMerges });
 

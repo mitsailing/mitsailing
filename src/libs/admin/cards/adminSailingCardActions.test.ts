@@ -650,6 +650,61 @@ describe('adminSailingCardActions', () => {
     );
   });
 
+  it('issuing a paid team racing card without a recorded payment creates an admin override payment', async () => {
+    mocks.txSailingCardRequestFindFirst.mockResolvedValue({
+      cardType: SailingCardType.team_racing,
+      hasFitnessMembership: null,
+      id: 'request-1',
+      legalAgreementAcceptance: {
+        agreementHash: sailingCardAgreementHash(),
+        agreementVersion: sailingCardAgreement.version,
+        source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
+        userId: 'user-1',
+      },
+      sailingAffiliation: SailingAffiliation.MIT_ALUM,
+    });
+    const { issueSailingCardAction } =
+      await import('@/libs/admin/cards/adminSailingCardActions');
+
+    await issueSailingCardAction(
+      'en',
+      'user-1',
+      { fieldErrors: {}, status: 'idle' },
+      formDataWithCardNumberAndPaymentBypassNote(
+        '61',
+        'Director approved comped team racing access.'
+      )
+    );
+
+    expect(mocks.txPaymentFindFirst).toHaveBeenCalledWith({
+      where: {
+        cardType: SailingCardType.team_racing,
+        cardYear: 2027,
+        purpose: PaymentPurpose.membership,
+        status: { in: [PaymentStatus.handled, PaymentStatus.paid] },
+        userId: 'user-1',
+      },
+      select: { id: true },
+    });
+    expect(mocks.txPaymentCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        cardType: SailingCardType.team_racing,
+        manualHandledNote: 'Director approved comped team racing access.',
+        source: PaymentSource.admin_override,
+        status: PaymentStatus.handled,
+      }),
+    });
+    expect(mocks.txSailingCardRequestUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          paymentBypassAt: new Date('2026-08-01T16:00:00.000Z'),
+          paymentBypassByUserId: 'admin-1',
+          paymentBypassNote: 'Director approved comped team racing access.',
+        }),
+      })
+    );
+  });
+
   it('requires a bypass note to issue paid racing without payment', async () => {
     mocks.txSailingCardRequestFindFirst.mockResolvedValue({
       cardType: SailingCardType.racing,

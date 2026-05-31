@@ -1126,11 +1126,17 @@ model Payment {
   @@deny('create,update',
     source == legacy && (
       legacySourceTable == null ||
+      legacySourceTable == '' ||
       legacySourceId == null ||
+      legacySourceId == '' ||
       legacyCategory == null ||
+      legacyCategory == '' ||
       legacyDescription == null ||
+      legacyDescription == '' ||
       legacySettled == null ||
+      payerName == null ||
       payerName == '' ||
+      payerEmail == null ||
       payerEmail == ''
     )
   )
@@ -1160,6 +1166,7 @@ model Payment {
     source == admin_override && (
       amountCents != 0 ||
       manualHandledNote == null ||
+      manualHandledNote == '' ||
       manualHandledByUserId == null ||
       manualHandledAt == null ||
       userId == null

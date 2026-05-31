@@ -814,7 +814,7 @@ describe('admin user pages', () => {
     ).toHaveAttribute('href', '#membership-payment-status');
   });
 
-  it('uses the strongest current payment access across membership rows', async () => {
+  it('uses the newest decisive current payment access across membership rows', async () => {
     mocks.listAdminUserPaymentHistory.mockResolvedValue([
       {
         amountCents: 12_000,
@@ -848,6 +848,45 @@ describe('admin user pages', () => {
         receiptHref: 'https://pay.stripe.test/receipts/1',
         source: PaymentSource.stripe,
         status: 'paid',
+        title: '',
+      },
+    ]);
+    const { default: AdminUserShowPage } = await import('./[id]/page');
+
+    render(
+      await AdminUserShowPage({
+        params: Promise.resolve({ id: 'user-1', locale: 'en' }),
+        searchParams: Promise.resolve({}),
+      })
+    );
+
+    expect(
+      screen.getByRole('link', {
+        name: 'admin_user_blocker_legacy_review',
+      })
+    ).toHaveAttribute('href', '#membership-payment-status');
+  });
+
+  it('suppresses payment blockers when the card request records a payment bypass', async () => {
+    mocks.getAdminUserSailingCardSummary.mockResolvedValue(
+      paymentBypassCardSummary()
+    );
+    mocks.listAdminUserPaymentHistory.mockResolvedValue([
+      {
+        amountCents: 12_000,
+        cardType: SailingCardType.racing,
+        cardYear: 2026,
+        createdAt: new Date('2026-05-19T16:00:00.000Z'),
+        currency: 'usd',
+        detailHref: null,
+        id: 'payment-3',
+        manualHandledAt: null,
+        manualHandledByName: null,
+        manualHandledNote: null,
+        purpose: 'membership',
+        receiptHref: null,
+        source: PaymentSource.stripe,
+        status: 'disputed',
         title: '',
       },
     ]);

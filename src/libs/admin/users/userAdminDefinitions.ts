@@ -32,7 +32,7 @@ export const usersAdminDefinition = {
     },
     {
       field: 'sailingCardNumber',
-      kind: 'string',
+      kind: 'number',
       headerKey: 'column_sailing_card_number',
     },
     {

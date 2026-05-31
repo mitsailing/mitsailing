@@ -3,14 +3,14 @@ ALTER TYPE "event_payment_status" RENAME TO "payment_status";
 ALTER TYPE "payment_status" ADD VALUE IF NOT EXISTS 'needs_review';
 
 CREATE TYPE "payment_purpose" AS ENUM (
-  'event',
+  'event', -- NOSONAR: Migration enum labels are intentionally repeated in constraints and defaults.
   'membership'
 );
 
 CREATE TYPE "payment_source" AS ENUM (
   'stripe',
-  'legacy',
-  'admin_override'
+  'legacy', -- NOSONAR: Migration enum labels are intentionally repeated in constraints and defaults.
+  'admin_override' -- NOSONAR: Migration enum labels are intentionally repeated in constraints and defaults.
 );
 
 ALTER TABLE "event_payments" RENAME TO "payments";

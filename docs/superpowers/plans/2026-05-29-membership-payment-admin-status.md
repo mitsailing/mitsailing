@@ -978,6 +978,19 @@ ZenStack policy. `npm run lint`, `npm run check:types`, `npm run check:deps`,
 `npm run test:e2e` passed locally; `npm run test` result was 2231 passed, 18
 skipped, and e2e result was 93 passed, 2 skipped.
 
+May 31, 2026 PR-analyzer closure update: remaining live Codacy/CodeRabbit
+threads were rechecked against current code and fixed. The admin user profile
+now uses the latest decisive membership payment row so newer blocked rows do not
+hide behind older paid rows, blocker banners receive the actual pending/bypassed
+card request, `/admin/users` treats sailing card number as a numeric column, and
+team-racing payment-bypass coverage matches racing coverage. The legacy payment
+import now refreshes persisted user IDs after `createMany(skipDuplicates)` and
+parses prefixed negative adjustment strings as non-payments. Sonar's three new
+issues were migration-only duplicate-literal findings and were handled with
+targeted `NOSONAR` comments on enum-label lines. The Docker PR worker smoke
+wait now verifies an actual SQL connection to the target `smoke` database before
+running migrations.
+
 ## Self-Review
 
 - Spec coverage: covers one shared payment table, legacy display, optional auto-renew prompt, unmatched review, admin blockers, admin user payment history, users search, manual card-number rules, and payment-bypass override.

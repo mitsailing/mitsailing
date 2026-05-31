@@ -328,16 +328,70 @@ function sailingCardAssignmentMessageKey(props: {
   return 'sailing_card_assignment_none';
 }
 
-function membershipAccessPriority(
-  access: ReturnType<typeof membershipPaymentAccessStatus>
-) {
-  if (access.access === 'paid') {
-    return 3;
+function membershipPaymentAccessFromRow(props: {
+  readonly cardYear: number;
+  readonly row: AdminUserPaymentHistoryRow;
+}) {
+  const { cardType } = props.row;
+  if (props.row.status === PaymentStatus.checkout_created) {
+    return membershipPaymentAccessStatus({
+      cardYear: props.cardYear,
+      record: null,
+    });
   }
-  if (access.access === 'blocked') {
-    return 2;
+  if (
+    cardType !== SailingCardType.racing &&
+    cardType !== SailingCardType.team_racing
+  ) {
+    return membershipPaymentAccessStatus({
+      cardYear: props.cardYear,
+      record: null,
+    });
   }
-  return 1;
+
+  return membershipPaymentAccessStatus({
+    cardYear: props.cardYear,
+    record: {
+      cardType,
+      cardYear: props.cardYear,
+      source: props.row.source,
+      status: props.row.status,
+      stripeReceiptUrl: props.row.receiptHref,
+    },
+  });
+}
+
+function latestMembershipPaymentAccess(props: {
+  readonly cardType?: SailingCardType;
+  readonly cardYear: number;
+  readonly rows: readonly AdminUserPaymentHistoryRow[];
+}) {
+  const currentAccess = membershipPaymentAccessStatus({
+    cardYear: props.cardYear,
+    record: null,
+  });
+  const matchingRows = props.rows
+    .filter(
+      (row) =>
+        row.purpose === 'membership' &&
+        row.cardYear === props.cardYear &&
+        (props.cardType
+          ? row.cardType === props.cardType
+          : row.cardType === SailingCardType.racing ||
+            row.cardType === SailingCardType.team_racing)
+    )
+    .toSorted(
+      (left, right) => right.createdAt.getTime() - left.createdAt.getTime()
+    );
+
+  for (const row of matchingRows) {
+    if (row.status === PaymentStatus.checkout_created) {
+      continue;
+    }
+    return membershipPaymentAccessFromRow({ cardYear: props.cardYear, row });
+  }
+
+  return currentAccess;
 }
 
 function sailingCardIssuePaymentAccess(props: {
@@ -355,42 +409,11 @@ function sailingCardIssuePaymentAccess(props: {
     return 'none';
   }
 
-  let currentAccess = membershipPaymentAccessStatus({
+  return latestMembershipPaymentAccess({
+    cardType: request.cardType,
     cardYear: request.cardYear,
-    record: null,
-  });
-  for (const row of props.rows) {
-    if (
-      row.purpose !== 'membership' ||
-      row.cardYear !== request.cardYear ||
-      row.cardType !== request.cardType
-    ) {
-      continue;
-    }
-    const rowAccess =
-      row.status === PaymentStatus.checkout_created
-        ? membershipPaymentAccessStatus({
-            cardYear: request.cardYear,
-            record: null,
-          })
-        : membershipPaymentAccessStatus({
-            cardYear: request.cardYear,
-            record: {
-              cardType: row.cardType,
-              cardYear: request.cardYear,
-              source: row.source,
-              status: row.status,
-              stripeReceiptUrl: row.receiptHref,
-            },
-          });
-    if (
-      membershipAccessPriority(rowAccess) >
-      membershipAccessPriority(currentAccess)
-    ) {
-      currentAccess = rowAccess;
-    }
-  }
-  return currentAccess.access;
+    rows: props.rows,
+  }).access;
 }
 
 type AdminUserSailingCardSectionModel = {
@@ -981,41 +1004,7 @@ function currentMembershipPaymentAccess(
   rows: readonly AdminUserPaymentHistoryRow[]
 ) {
   const cardYear = getCurrentSailingCardYear();
-  let currentAccess = membershipPaymentAccessStatus({ cardYear, record: null });
-
-  for (const row of rows) {
-    if (
-      row.purpose !== 'membership' ||
-      row.cardYear !== cardYear ||
-      (row.cardType !== SailingCardType.racing &&
-        row.cardType !== SailingCardType.team_racing)
-    ) {
-      continue;
-    }
-
-    const rowAccess =
-      row.status === PaymentStatus.checkout_created
-        ? membershipPaymentAccessStatus({ cardYear, record: null })
-        : membershipPaymentAccessStatus({
-            cardYear,
-            record: {
-              cardType: row.cardType,
-              cardYear,
-              source: row.source,
-              status: row.status,
-              stripeReceiptUrl: row.receiptHref,
-            },
-          });
-
-    if (
-      membershipAccessPriority(rowAccess) >
-      membershipAccessPriority(currentAccess)
-    ) {
-      currentAccess = rowAccess;
-    }
-  }
-
-  return currentAccess;
+  return latestMembershipPaymentAccess({ cardYear, rows });
 }
 
 export async function generateMetadata(
@@ -1071,7 +1060,10 @@ export default async function AdminUserShowPage(props: AdminUserShowPageProps) {
       : emailStatus;
   const hasEmailDeliverabilityWarning = emailStatus !== 'ok';
   const blockers = adminUserMembershipBlockers({
-    cardRequest: null,
+    cardRequest:
+      currentPendingSailingCardRequest(sailingCardDetails.summary) ??
+      sailingCardDetails.summary?.paymentBypassRequest ??
+      null,
     introClassRequired: false,
     membershipAccess: currentMembershipPaymentAccess(paymentDetails.rows),
     recreationVerificationRequired: false,

@@ -138,13 +138,13 @@ jobs:
           fi
 
           for _ in $(seq 1 30); do
-            if docker exec worker-smoke-postgres pg_isready -U smoke -d smoke | grep -q 'accepting connections'; then
+            if docker exec worker-smoke-postgres psql -U smoke -d smoke -c 'SELECT 1' >/dev/null 2>&1; then
               break
             fi
             sleep 1
           done
 
-          if ! docker exec worker-smoke-postgres pg_isready -U smoke -d smoke | grep -q 'accepting connections'; then
+          if ! docker exec worker-smoke-postgres psql -U smoke -d smoke -c 'SELECT 1' >/dev/null 2>&1; then
             echo "::error::Postgres did not become ready for worker smoke"
             docker logs --tail 100 worker-smoke-postgres || true
             exit 1

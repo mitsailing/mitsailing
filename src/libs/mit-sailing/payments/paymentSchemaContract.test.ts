@@ -66,6 +66,8 @@ describe('payment schema contract', () => {
     expect(zmodel).toContain(
       'manualHandledNote       String?             @trim @length(min: 1)'
     );
+    expect(zmodel).toContain("legacySourceTable == ''");
+    expect(zmodel).toContain("manualHandledNote == ''");
     expect(migration).toContain('"legacy_category" TEXT');
     expect(migration).toContain('"legacy_settled" BOOLEAN');
     expect(migration).toContain('ALTER COLUMN "user_id" DROP NOT NULL');
