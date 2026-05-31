@@ -75,6 +75,7 @@ For **Cursor browser MCP** or manual agent browsing on **`npm run dev`** only â€
 ## Git Commits
 
 Conventional Commits: `type: summary` without scope. The summary should be a short, specific sentence that explains what changed and where or why, not a vague phrase. Types: `feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert`. `BREAKING CHANGE:` footer when needed.
+Push completed work with a normal push. Do not force push; if Git says force is needed, stop and diagnose the branch/upstream/history error.
 For GitHub squash merges, use the PR title as the squash commit title and preserve GitHub's PR suffix, for example `feat: add payment onboarding (#123)`. Do not override the squash title with a plain sentence that drops the type or PR number.
 
 ## Env
