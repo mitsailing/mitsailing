@@ -347,6 +347,42 @@ async function assertCardNumberAvailable(props: {
   }
 }
 
+function updateSailingCardNumberErrorState(
+  error: unknown
+): AdminSailingCardActionState | null {
+  if (!(error instanceof Error)) {
+    return null;
+  }
+  if (error.message === 'same_card_number') {
+    return {
+      fieldErrors: {},
+      formError: 'same_card_number',
+      status: 'error',
+    };
+  }
+  if (error.message === 'card_number_duplicate') {
+    return {
+      fieldErrors: { cardNumber: 'duplicate' },
+      status: 'error',
+    };
+  }
+  if (error.message === 'no_current_card') {
+    return {
+      fieldErrors: {},
+      formError: 'no_current_card',
+      status: 'error',
+    };
+  }
+  if (error.message === 'not_found') {
+    return {
+      fieldErrors: {},
+      formError: 'not_found',
+      status: 'error',
+    };
+  }
+  return null;
+}
+
 export async function updateSailingCardNumberAction(
   locale: string,
   targetUserId: string,
@@ -413,32 +449,9 @@ export async function updateSailingCardNumberAction(
       });
     });
   } catch (error) {
-    if (error instanceof Error && error.message === 'same_card_number') {
-      return {
-        fieldErrors: {},
-        formError: 'same_card_number',
-        status: 'error',
-      };
-    }
-    if (error instanceof Error && error.message === 'card_number_duplicate') {
-      return {
-        fieldErrors: { cardNumber: 'duplicate' },
-        status: 'error',
-      };
-    }
-    if (error instanceof Error && error.message === 'no_current_card') {
-      return {
-        fieldErrors: {},
-        formError: 'no_current_card',
-        status: 'error',
-      };
-    }
-    if (error instanceof Error && error.message === 'not_found') {
-      return {
-        fieldErrors: {},
-        formError: 'not_found',
-        status: 'error',
-      };
+    const errorState = updateSailingCardNumberErrorState(error);
+    if (errorState) {
+      return errorState;
     }
     if (isSailingCardUniqueError(error)) {
       return {

@@ -377,6 +377,76 @@ async function mergeLegacySailingCards(props: {
   `;
 }
 
+function maybeLegacyCardMerge(props: {
+  readonly existing: Pick<
+    Awaited<ReturnType<LegacyPaymentImportDb['user']['findMany']>>[number],
+    'id' | 'sailingCardNumber' | 'sailingCardYear'
+  >;
+  readonly user: CanonicalLegacyUser;
+}): LegacySailingCardMerge | null {
+  if (!props.user.legacySailingCard) {
+    return null;
+  }
+  if (
+    props.existing.sailingCardNumber !== null &&
+    props.existing.sailingCardYear !== null
+  ) {
+    return null;
+  }
+  return {
+    id: props.existing.id,
+    legacySailingCard: props.user.legacySailingCard,
+  };
+}
+
+function legacyUserCreateInput(user: CanonicalLegacyUser) {
+  return {
+    id: stableLegacyUserId(user.email),
+    appRole: 'user',
+    email: user.email,
+    emailVerified: false,
+    emergencyContactName: user.emergencyContactName,
+    emergencyContactPhone: user.emergencyContactPhone,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    mitId: user.mitId,
+    name: user.name,
+    phone: user.phone,
+    role: 'user',
+    ...(user.legacySailingCard
+      ? legacySailingCardUserData(user.legacySailingCard)
+      : {}),
+  } satisfies Prisma.UserCreateManyInput;
+}
+
+async function refreshCreatedLegacyUserIds(props: {
+  readonly appUserIdByKey: Map<string, string>;
+  readonly db: LegacyPaymentImportDb;
+  readonly userKeyByCreatedEmail: ReadonlyMap<string, string>;
+  readonly usersToCreate: readonly Prisma.UserCreateManyInput[];
+}) {
+  if (props.usersToCreate.length === 0) {
+    return;
+  }
+  const persistedUsers = await props.db.user.findMany({
+    where: {
+      email: { in: props.usersToCreate.map((user) => user.email) },
+    },
+    select: {
+      email: true,
+      id: true,
+    },
+  });
+  for (const persistedUser of persistedUsers) {
+    const userKey = props.userKeyByCreatedEmail.get(
+      persistedUser.email.toLowerCase()
+    );
+    if (userKey) {
+      props.appUserIdByKey.set(userKey, persistedUser.id);
+    }
+  }
+}
+
 async function ensureLegacyUsers(props: {
   readonly db: LegacyPaymentImportDb;
   readonly map: LegacyMemberPaymentMap;
@@ -411,41 +481,19 @@ async function ensureLegacyUsers(props: {
   for (const user of props.map.canonicalUsers) {
     const existing = existingUserByEmail.get(user.email);
     if (existing) {
-      if (
-        user.legacySailingCard &&
-        (existing.sailingCardNumber === null ||
-          existing.sailingCardYear === null)
-      ) {
-        cardMerges.push({
-          id: existing.id,
-          legacySailingCard: user.legacySailingCard,
-        });
+      const cardMerge = maybeLegacyCardMerge({ existing, user });
+      if (cardMerge) {
+        cardMerges.push(cardMerge);
         cardRecordsMerged += 1;
       }
       appUserIdByKey.set(user.key, existing.id);
       usersMatched += 1;
       continue;
     }
-    const id = stableLegacyUserId(user.email);
-    usersToCreate.push({
-      id,
-      appRole: 'user',
-      email: user.email,
-      emailVerified: false,
-      emergencyContactName: user.emergencyContactName,
-      emergencyContactPhone: user.emergencyContactPhone,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      mitId: user.mitId,
-      name: user.name,
-      phone: user.phone,
-      role: 'user',
-      ...(user.legacySailingCard
-        ? legacySailingCardUserData(user.legacySailingCard)
-        : {}),
-    });
+    const createInput = legacyUserCreateInput(user);
+    usersToCreate.push(createInput);
     userKeyByCreatedEmail.set(user.email, user.key);
-    appUserIdByKey.set(user.key, id);
+    appUserIdByKey.set(user.key, createInput.id);
     if (user.legacySailingCard) {
       cardRecordsMerged += 1;
     }
@@ -456,23 +504,12 @@ async function ensureLegacyUsers(props: {
       data: usersToCreate,
       skipDuplicates: true,
     });
-    const persistedUsers = await props.db.user.findMany({
-      where: {
-        email: { in: usersToCreate.map((user) => user.email) },
-      },
-      select: {
-        email: true,
-        id: true,
-      },
+    await refreshCreatedLegacyUserIds({
+      appUserIdByKey,
+      db: props.db,
+      userKeyByCreatedEmail,
+      usersToCreate,
     });
-    for (const persistedUser of persistedUsers) {
-      const userKey = userKeyByCreatedEmail.get(
-        persistedUser.email.toLowerCase()
-      );
-      if (userKey) {
-        appUserIdByKey.set(userKey, persistedUser.id);
-      }
-    }
   }
   await mergeLegacySailingCards({ db: props.db, merges: cardMerges });
 
