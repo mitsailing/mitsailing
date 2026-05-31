@@ -1,8 +1,8 @@
 # yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
 #
-# Strict review defaults (assertive profile + request changes). Finishing-touch
-# autofix delivery is not configurable here: use `@coderabbitai autofix` to push
-# fixes to the PR branch, or `@coderabbitai autofix stacked pr` for a separate PR.
+# Strict review defaults (assertive profile + request changes). Keep CodeRabbit
+# as review/comment input; write-producing finishing touches are disabled below.
+# Manual Autofix or stacked PR commands require an explicit user request.
 
 language: en-US
 early_access: false

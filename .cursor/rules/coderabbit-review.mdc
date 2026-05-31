@@ -1,14 +1,18 @@
 ---
-description: PR review alignment — follow .coderabbit.yaml and cr review before PRs
+description: PR review alignment — follow .coderabbit.yaml and local review gates
 globs: .coderabbit.yaml,AGENTS.md,.github/**/*
 alwaysApply: false
 ---
 
 # CodeRabbit review conventions
 
-**Why this file:** [CodeRabbit](https://docs.coderabbit.ai/) runs on PRs using [`.coderabbit.yaml`](../../.coderabbit.yaml) (`path_instructions`, assertive profile, `enable_prompt_for_ai_agents` for inline “AI agent” hints). This rule does **not** replace that config — it tells **Cursor agents** to treat the same YAML + [AGENTS.md](../../AGENTS.md) as the source of truth so local edits match what the bot will flag.
+**Why this file:** [CodeRabbit](https://docs.coderabbit.ai/) runs on PRs using [`.coderabbit.yaml`](../../.coderabbit.yaml) (`inheritance: false`, automatic review, `path_instructions`, assertive profile, `enable_prompt_for_ai_agents`). This rule does **not** replace that config — it tells Cursor agents to treat the same YAML + [AGENTS.md](../../AGENTS.md) as the source of truth so local work matches what the bot will review.
 
-**Before PR:** Use CodeRabbit only when it is already available without waiting, retrying, or spending extra credits. Fix high-confidence actionable comments when a review actually runs; otherwise run a local independent sub-agent review, keep diffs small, and run the **allowed** `npm run` checks from AGENTS.md. CodeRabbit blocks only while a review is actively running/pending or when completed actionable comments exist. CodeRabbit no-start/skipped/rate-limit/credit/auth/service failure is not a blocker unless repository policy explicitly requires it.
+**Review-only contract:** CodeRabbit is automatic review/comment input, not the merge-readiness gate. The repo config disables write-producing finishing touches: generated docstrings, generated unit tests, simplify, and custom recipes. Do not trigger `@coderabbitai autofix`, `@coderabbitai autofix stacked pr`, `@coderabbitai generate unit tests`, `@coderabbitai generate docstrings`, `@coderabbitai simplify`, or `@coderabbitai run ...` unless the user explicitly asks for that exact action.
+
+**Before PR:** Fix high-confidence actionable comments when a CodeRabbit review actually runs; otherwise run local independent sub-agent review, keep diffs small, and run the allowed `npm run` checks from AGENTS.md. CodeRabbit blocks only while a review is actively running/pending or when completed actionable comments exist. CodeRabbit no-start/skipped/rate-limit/credit/auth/service failure is not a blocker unless repository policy explicitly requires it.
+
+**Historical note:** Old CodeRabbit-heavy plans were written around API-limit and credit-limit failures. Do not use them as current best practice. Prefer the current repo contract: automatic CodeRabbit comments plus local independent bug/persona review.
 
 **Commit status:** If CodeRabbit rate limits or credits are making GitHub red, disable its status with `reviews.commit_status: false`. Do not rely on `fail_commit_status: false` alone while `commit_status` remains enabled.
 

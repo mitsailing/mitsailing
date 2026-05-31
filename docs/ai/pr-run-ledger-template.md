@@ -89,7 +89,8 @@ a local draft is promoted, mark the draft `promoted`; if rejected, mark it
 | `npm run test:e2e` | Journey/user-flow PRs | | | |
 | Required GitHub checks | Before merge | | | |
 | Advisory GitHub checks | Report only | | | |
-| CodeRabbit | Report separately from independent bug review | | | |
+| CodeRabbit comments | Report separately from independent bug review | | | |
+| CodeRabbit finishing touches | Must remain untriggered unless user explicitly requested | | | |
 | Sonar/Codacy/analyzers | Include commit SHA and timestamp | | | |
 
 ## Merge Readiness
@@ -110,6 +111,7 @@ Remote analyzer freshness:
 Rebased on current `origin/main`:
 Merge strategy:
 CodeRabbit credit/rate-limit status:
+CodeRabbit write actions requested by user:
 
 ## Follow-Up Issues
 

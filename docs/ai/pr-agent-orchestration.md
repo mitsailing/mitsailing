@@ -18,7 +18,8 @@ The operating model is:
    usable for the PR before product personas start.
 6. Use product personas to expose product risks early.
 7. Use Context7 before library-specific implementation changes.
-8. Run independent code review for bugs separate from CodeRabbit.
+8. Treat CodeRabbit as automatic review/comment input, not as the primary
+   review gate.
 9. Preserve user product intuition by escalating policy and UX decisions.
 10. Verify locally before claiming anything is fixed.
 11. Rebase on current `origin/main` before a merge-readiness claim and prefer
@@ -30,6 +31,14 @@ The operating model is:
 This system is designed for MIT Sailing. Agents must still follow `AGENTS.md`,
 the repo's Cursor rules by path, and any PR-specific instructions from the
 user.
+
+CodeRabbit policy: `.coderabbit.yaml` is the repository source of truth. It
+keeps CodeRabbit in review/comment mode with configuration inheritance and
+write-producing finishing touches disabled. Do not trigger CodeRabbit Autofix,
+stacked PRs, generated unit tests, docstrings, simplify, or custom recipes
+unless the user explicitly asks for that exact action. Older CodeRabbit-heavy
+plans were written while API limits made the service unreliable; do not copy
+those loops forward as current best practice.
 
 ## GitHub usage
 
@@ -661,6 +670,8 @@ Acceptance rules:
 - GitHub review comments, bot comments, and unresolved threads are inputs to
   the local review/persona gates. Use them when helpful, but the blocker is the
   unresolved finding, not the bot or service itself.
+- CodeRabbit finishing-touch commands are out of scope for the runbook unless
+  the user explicitly requests the exact CodeRabbit write action.
 - No concurrent writes to the same files by multiple workers.
 - No second writer starts until the first writer's diff is summarized in the
   ledger.
@@ -1554,9 +1565,11 @@ During active implementation:
 
 - use a draft PR or WIP title while the branch is not ready;
 - run local verification before asking for another bot review;
-- use CodeRabbit commands deliberately when available, following
-  `.cursor/rules/coderabbit-review.mdc` and
+- let CodeRabbit run automatically on the PR, following
+  `.coderabbit.yaml`, `.cursor/rules/coderabbit-review.mdc`, and
   `.cursor/rules/pr-agent-reviews-loop.mdc`;
+- do not trigger CodeRabbit write-producing finishing touches unless the user
+  explicitly asks for that exact action;
 - if CodeRabbit, Codacy, Sonar, or another bot finds adjacent work, classify it
   as blocker, follow-up, or won't fix instead of expanding the PR by default.
 

@@ -36,6 +36,12 @@ Do not poll GitHub or CI in-session. After the last successful push in finish mo
 
 CodeRabbit blocks only while a review is actively running/pending or when completed actionable comments exist. CodeRabbit no-start/skipped/credit/rate-limit/auth/service failure is noise. Do not wait, re-run, poll, schedule, or block merge readiness on that outage state. Run local adversarial sub-agent review instead. Existing actionable CodeRabbit comments still get triaged and fixed or classified like any other review comment.
 
+Do not trigger CodeRabbit write-producing finishing touches during hardening.
+The repo config keeps CodeRabbit in review/comment mode only: no Autofix,
+stacked PRs, generated unit tests, docstrings, simplify, or custom recipes
+unless the user explicitly asks for that exact action. Older CodeRabbit-heavy
+plans were API-limit workarounds, not current best practice.
+
 The primary AI review gate is local, not CodeRabbit. Merge readiness is blocked
 until every required persona has run, every persona finding is fixed or
 classified with evidence, independent local bug review has run, and every local

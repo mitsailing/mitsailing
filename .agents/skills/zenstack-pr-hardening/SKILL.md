@@ -27,6 +27,9 @@ unless the user explicitly asks for that behavior.
 - Do not use `resolve-agent-reviews` as a workflow.
 - Do not use the official CodeRabbit `autofix` skill for this task because it
   prompts the user for fix choices and push decisions.
+- Do not trigger any CodeRabbit write-producing finishing touch: Autofix,
+  stacked PR, generated unit tests, docstrings, simplify, or custom recipes.
+  `.coderabbit.yaml` keeps CodeRabbit in review/comment mode only.
 - Wait for CodeRabbit only when a review is actively running/pending. Do not
   run, wait for, or retry CodeRabbit when it is out of credits, rate-limited,
   unavailable, skipped/not started, or failing without actionable comments.
@@ -152,6 +155,10 @@ not schedule rechecks for it, and do not treat it as a merge-readiness blocker.
 Replace that signal with one bounded local adversarial review by independent
 agents, then prioritize CI, Sonar, Codacy, Sourcery, and other checks with
 actionable output.
+
+Historical ZenStack plan language that implies extra CodeRabbit passes was
+written around API-limit failures. Treat it as historical context only; the
+current rule is automatic CodeRabbit comments plus local independent review.
 
 ## Codacy and Advisory Findings
 
