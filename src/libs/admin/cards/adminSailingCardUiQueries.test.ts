@@ -154,6 +154,33 @@ describe('adminSailingCardUiQueries', () => {
     ]);
   });
 
+  it('drops partial card history rows without the required year', async () => {
+    mocks.userAuditFindMany.mockResolvedValue([
+      {
+        auditedChanges: {
+          after: { sailingCardNumber: 42, sailingCardYear: null },
+          before: { sailingCardNumber: null, sailingCardYear: null },
+        },
+        createdAt: new Date('2026-08-01T16:00:00.000Z'),
+        id: 'partial-issued-audit',
+        user: null,
+      },
+      {
+        auditedChanges: {
+          after: { sailingCardNumber: null, sailingCardYear: null },
+          before: { sailingCardNumber: 42, sailingCardYear: null },
+        },
+        createdAt: new Date('2026-08-02T16:00:00.000Z'),
+        id: 'partial-expired-audit',
+        user: null,
+      },
+    ]);
+    const { getAdminSailingCardHistory } =
+      await import('@/libs/admin/cards/adminSailingCardUiQueries');
+
+    await expect(getAdminSailingCardHistory('user-1')).resolves.toEqual([]);
+  });
+
   it('returns user card summary with latest onboarding agreement acceptance', async () => {
     const summary = {
       legalAgreementAcceptances: [

@@ -3,6 +3,7 @@ import type { PaymentStatus as PaymentStatusType } from '@/generated/prisma/enum
 import { EVENTS_TIME_ZONE } from '@/lib/mit-sailing/nyTime';
 import { Env } from '@/libs/Env';
 import { formatUsdMinorUnitsAsCurrency } from '@/libs/money/stripeUsdMinorUnits';
+import enMessages from '@/locales/en.json';
 
 export const EVENT_PAYMENT_REMINDER_STATUSES: PaymentStatusType[] = [
   PaymentStatus.checkout_created,
@@ -65,12 +66,18 @@ function eventAddressMapHref(lines: readonly string[]): string {
   )}`;
 }
 
-export function formatEventPaymentDate(date: Date): string {
+function formatEventPaymentDate(date: Date): string {
   return `${new Intl.DateTimeFormat('en-US', {
     dateStyle: 'long',
     timeStyle: 'short',
     timeZone: EVENTS_TIME_ZONE,
   }).format(date)} ET`;
+}
+
+export function eventPaymentDeadlineLabel(date: Date | null): string {
+  return date
+    ? formatEventPaymentDate(date)
+    : enMessages.EventPaymentEmails.no_deadline;
 }
 
 export function paymentEmailParams(options: {
@@ -82,9 +89,9 @@ export function paymentEmailParams(options: {
   return {
     amount: formatUsdMinorUnitsAsCurrency(options.payment.amountCents, 'en-US'),
     checkoutUrl: checkoutUrl(options.payment),
-    deadline: options.payment.event.paymentDeadlineAt
-      ? formatEventPaymentDate(options.payment.event.paymentDeadlineAt)
-      : 'No deadline',
+    deadline: eventPaymentDeadlineLabel(
+      options.payment.event.paymentDeadlineAt
+    ),
     emailDedupeKey: `${options.payment.id}:${options.kind}:${options.dateKey}`,
     eventAddress: addressLines.length > 0 ? addressLines.join(', ') : null,
     eventAddressUrl:

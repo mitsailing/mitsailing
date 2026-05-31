@@ -19,7 +19,7 @@ import { formatUsdMinorUnitsAsCurrency } from '@/libs/money/stripeUsdMinorUnits'
 import { safeErrorCode, safeErrorName } from '@/libs/safeUnknownError';
 import {
   EVENT_PAYMENT_REMINDER_STATUSES,
-  formatEventPaymentDate,
+  eventPaymentDeadlineLabel,
   paymentCanReceiveNotification,
   paymentEmailParams,
 } from './eventPaymentEmailContent';
@@ -282,9 +282,7 @@ async function sendAdminDigestEmail(props: {
 }): Promise<SendEmailResult> {
   const result = await sendEventPaymentAdminDigestEmail({
     adminEmail: props.adminEmail,
-    deadline: props.event.paymentDeadlineAt
-      ? formatEventPaymentDate(props.event.paymentDeadlineAt)
-      : 'No deadline',
+    deadline: eventPaymentDeadlineLabel(props.event.paymentDeadlineAt),
     emailDedupeKey: `${props.data.eventId}:admin_digest:${props.data.dateKey}`,
     eventName: props.event.name,
     overduePayments: props.payments.map((payment) => ({

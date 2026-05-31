@@ -930,7 +930,7 @@ describe('adminSailingCardActions', () => {
     expect(mocks.txUserUpdate).toHaveBeenCalledWith({
       where: { id: 'user-1' },
       data: expect.objectContaining({
-        sailingCardIssuedByUserId: 'admin-1',
+        sailingCardIssuedByUserId: 'admin-old',
         sailingCardNumber: 62,
         sailingCardYear: 2027,
       }),
@@ -994,5 +994,34 @@ describe('adminSailingCardActions', () => {
       fieldErrors: { cardNumber: 'duplicate' },
       status: 'error',
     });
+  });
+
+  it('updateSailingCardNumberAction maps duplicate domain errors to the card field', async () => {
+    mocks.txUserCount.mockResolvedValue(1);
+    mocks.txUserFindUnique.mockResolvedValue({
+      ...existingUser,
+      sailingCardExpiresOn: new Date('2027-07-15T04:00:00.000Z'),
+      sailingCardIssuedAt: new Date('2026-08-01T16:00:00.000Z'),
+      sailingCardIssuedByUserId: 'admin-old',
+      sailingCardNumber: 61,
+      sailingCardYear: 2027,
+    });
+    const { updateSailingCardNumberAction } =
+      await import('@/libs/admin/cards/adminSailingCardActions');
+
+    await expect(
+      updateSailingCardNumberAction(
+        'en',
+        'user-1',
+        { fieldErrors: {}, status: 'idle' },
+        formDataWithCardNumber('62')
+      )
+    ).resolves.toEqual({
+      fieldErrors: { cardNumber: 'duplicate' },
+      status: 'error',
+    });
+
+    expect(mocks.txUserUpdate).not.toHaveBeenCalled();
+    expect(mocks.txUserAuditCreate).not.toHaveBeenCalled();
   });
 });

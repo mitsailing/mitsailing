@@ -991,6 +991,13 @@ targeted `NOSONAR` comments on enum-label lines. The Docker PR worker smoke
 wait now verifies an actual SQL connection to the target `smoke` database before
 running migrations.
 
+May 31, 2026 CodeRabbit rerun closure update: fresh review threads on
+`6828c3a0` were fixed with card-number `step={1}`, optional MIT ID format
+validation, redacted onboarding history-state drafts, duplicate domain-error
+mapping for card-number correction, preserving the original issuer during
+number-only corrections, complete-year guards for card history rows, enum-based
+event registration status lookup, and email-copy sourced no-deadline text.
+
 ## Self-Review
 
 - Spec coverage: covers one shared payment table, legacy display, optional auto-renew prompt, unmatched review, admin blockers, admin user payment history, users search, manual card-number rules, and payment-bypass override.

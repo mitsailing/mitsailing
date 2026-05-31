@@ -45,12 +45,14 @@ function historyAction(props: {
   if (
     props.fromNumber === null &&
     props.fromYear === null &&
-    props.toNumber !== null
+    props.toNumber !== null &&
+    props.toYear !== null
   ) {
     return 'issued';
   }
   if (
     props.fromNumber !== null &&
+    props.fromYear !== null &&
     props.toNumber === null &&
     props.toYear === null
   ) {

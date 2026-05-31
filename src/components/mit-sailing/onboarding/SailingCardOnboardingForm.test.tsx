@@ -150,6 +150,21 @@ describe('SailingCardOnboardingForm', () => {
     expect(screen.getByLabelText('Last name')).toBeRequired();
   });
 
+  it('validates optional mit id when a value is entered', async () => {
+    renderForm();
+    const user = userEvent.setup();
+
+    await user.selectOptions(screen.getByLabelText('Affiliation'), 'MIT_ALUM');
+    await user.type(screen.getByLabelText('MIT ID'), 'abc');
+    await user.tab();
+
+    expect(screen.getByLabelText('MIT ID')).toHaveAttribute(
+      'aria-invalid',
+      'true'
+    );
+    expect(screen.getByText('Enter a 9-digit MIT ID.')).toBeInTheDocument();
+  });
+
   it('does not require manual name when optional affiliation has mit id', async () => {
     renderForm();
     const user = userEvent.setup();
@@ -307,7 +322,7 @@ describe('SailingCardOnboardingForm', () => {
     ).toBeInTheDocument();
   });
 
-  it('restores full draft details after browser back', async () => {
+  it('restores safe draft progress after remount without storing contact details', async () => {
     const draftKey = 'sailing-card-onboarding:user-1:2026:v1';
     const { unmount } = renderForm({ draftKey });
     const user = userEvent.setup();
@@ -319,14 +334,12 @@ describe('SailingCardOnboardingForm', () => {
     unmount();
     renderForm({ draftKey });
 
-    expect(
-      screen.getByRole('heading', { name: 'Contact and safety' })
-    ).toBeInTheDocument();
     expect(screen.getByLabelText('Affiliation')).toHaveValue('WELLESLEY');
-    expect(screen.getByLabelText('Date of birth')).toHaveValue('03/24/1988');
-    expect(screen.getByLabelText('Your phone number')).toHaveValue(
-      '(617) 555-0100'
-    );
+    expect(
+      screen.getByRole('heading', { name: 'Confirm your identity' })
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('First name')).toHaveValue('');
+    expect(screen.getByLabelText('Last name')).toHaveValue('');
   });
 
   it('keeps sensitive identity and contact details out of session storage', async () => {
@@ -362,6 +375,24 @@ describe('SailingCardOnboardingForm', () => {
     expect(rawDraft).not.toContain('(617) 555-0100');
     expect(rawDraft).not.toContain('Marie');
     expect(rawDraft).not.toContain('(617) 555-0101');
+  });
+
+  it('keeps sensitive identity and contact details out of history state', async () => {
+    const draftKey = 'sailing-card-onboarding:user-1:2026:history-pii-test';
+    renderForm({ draftKey });
+    const user = userEvent.setup();
+
+    await showWellesleyDetails();
+    await user.type(screen.getByLabelText('Date of birth'), '03241988');
+    await user.type(screen.getByLabelText('Your phone number'), '6175550100');
+    await user.type(screen.getByLabelText('Emergency contact name'), 'Marie');
+
+    const historyText = JSON.stringify(globalThis.history.state);
+
+    expect(historyText).toContain('WELLESLEY');
+    expect(historyText).not.toContain('03/24/1988');
+    expect(historyText).not.toContain('(617) 555-0100');
+    expect(historyText).not.toContain('Marie');
   });
 
   it('shows emergency contact controls', async () => {

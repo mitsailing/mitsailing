@@ -157,6 +157,7 @@ function AdminSailingCardNumberField(props: {
             number: props.suggestedCardNumber,
           })}
           required={props.required}
+          step={1}
           type="number"
         />
         <Button className="gap-2" size="sm" type="submit">

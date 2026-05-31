@@ -2458,6 +2458,7 @@
     "field_fee": "Fee",
     "field_amount": "Amount",
     "field_deadline": "Deadline",
+    "no_deadline": "No deadline",
     "action_pay": "Pay online",
     "action_receipt": "View Stripe receipt"
   },

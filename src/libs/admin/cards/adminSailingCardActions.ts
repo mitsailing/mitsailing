@@ -388,7 +388,6 @@ export async function updateSailingCardNumberAction(
       });
       const after = {
         ...before,
-        sailingCardIssuedByUserId: session.user.id,
         sailingCardNumber: cardNumber,
       };
       await tx.sailingCardRequest.updateMany({
@@ -418,6 +417,12 @@ export async function updateSailingCardNumberAction(
       return {
         fieldErrors: {},
         formError: 'same_card_number',
+        status: 'error',
+      };
+    }
+    if (error instanceof Error && error.message === 'card_number_duplicate') {
+      return {
+        fieldErrors: { cardNumber: 'duplicate' },
         status: 'error',
       };
     }

@@ -195,8 +195,10 @@ type OnboardingDraft = {
   readonly values: Partial<SailingCardOnboardingFormValues>;
 };
 
-type OnboardingHistoryDraft = OnboardingDraft & {
+type OnboardingHistoryDraft = {
+  readonly detailsUnlocked: boolean;
   readonly draftKey: string;
+  readonly values: SafeOnboardingDraftValues;
 };
 
 type SafeOnboardingDraftValues = Pick<
@@ -279,7 +281,7 @@ const loadOnboardingHistoryDraft = (
   if (record.draftKey !== draftKey) {
     return null;
   }
-  const values = onboardingValuesFromDraft(record.values);
+  const values = safeOnboardingValuesFromDraft(record.values);
   if (values === null) {
     return null;
   }
@@ -338,7 +340,7 @@ const saveOnboardingProgressDraft = (props: {
 const saveOnboardingHistoryDraft = (props: {
   readonly detailsUnlocked: boolean;
   readonly draftKey: string;
-  readonly values: SailingCardOnboardingFormValues;
+  readonly values: SafeOnboardingDraftValues;
 }) => {
   if (globalThis.window === undefined) {
     return;
@@ -424,7 +426,7 @@ function useOnboardingDraftPersistence(props: {
     saveOnboardingHistoryDraft({
       detailsUnlocked: props.detailsUnlocked,
       draftKey,
-      values: initialValues,
+      values: safeOnboardingDraftValues(initialValues),
     });
     saveOnboardingProgressDraft({
       detailsUnlocked: props.detailsUnlocked,
@@ -437,7 +439,7 @@ function useOnboardingDraftPersistence(props: {
         saveOnboardingHistoryDraft({
           detailsUnlocked: props.detailsUnlocked,
           draftKey,
-          values: draftValues,
+          values: safeOnboardingDraftValues(draftValues),
         });
         saveOnboardingProgressDraft({
           detailsUnlocked: props.detailsUnlocked,

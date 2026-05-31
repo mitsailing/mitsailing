@@ -1,6 +1,10 @@
 import 'server-only';
 import { cache } from 'react';
-import { PaymentPurpose, PaymentStatus } from '@/generated/prisma/enums';
+import {
+  EventRegistrationStatus,
+  PaymentPurpose,
+  PaymentStatus,
+} from '@/generated/prisma/enums';
 import type { PaymentStatus as PaymentStatusType } from '@/generated/prisma/enums';
 import { prisma } from '@/libs/DB';
 
@@ -37,7 +41,7 @@ export const getEventPaymentCheckoutPageData = cache(
     const registration = await prisma.eventRegistration.findFirst({
       where: {
         eventId: event.id,
-        status: 'approved',
+        status: EventRegistrationStatus.approved,
         userId,
       },
       orderBy: { createdAt: 'desc' },

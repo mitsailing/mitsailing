@@ -171,7 +171,6 @@ function MitIdField(props: {
             ? 'error_mit_id_required_dw_identity'
             : false,
           validate: (value) =>
-            !props.required ||
             value.trim() === '' ||
             /^\d{9}$/.test(value.replaceAll(/\D/g, '')) ||
             'error_mit_id_format',
