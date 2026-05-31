@@ -12,13 +12,115 @@
 
 ## Execution Reconciliation Notes
 
-- 2026-05-29 local execution status: this plan was restored onto `feature/sailing-card-payments-onboarding-plan` after PR #143 landed on `main`. Treat it as the candidate implementation plan, but do not start code until the PR #143 persona/runbook gates, `/grill me` policy pass, and first-slice approval are complete.
+- Start from latest `origin/main`. PR #143's runbook work is already merged and its branch may be deleted; do not depend on that branch. PR #145 (`feat: add sailing card payment onboarding foundation`) is also merged and changed the app implementation. Before coding, reconcile this plan against current `main` and skip work already landed in PR #145.
 - Current `main` already includes `SailingCardRequest.hasFitnessMembership` as the canonical MIT Recreation self-report and `SailingCardOnboardingInput.hasFitnessMembership` as `boolean | null`. Steps below that previously named `mitRecreationMembershipSelfReported` should use the existing `hasFitnessMembership` field instead of adding a duplicate column.
 - Current `main` already includes one `Payment` model for event and membership payments with `purpose`, `source`, Stripe IDs, legacy fields, and admin-override fields. Steps below that mention separate membership payment/refund tables must be reconciled through the structural simplicity gate before implementation; do not copy older schema snippets unchanged.
 - Current `main` already includes paid-card-without-payment bypass evidence on `SailingCardRequest` plus an `admin_override` membership `Payment`. Preserve that narrow override shape; do not create a generic notes, waiver, or payment-exception framework.
 - Current admin card issuance is person-centered through `/admin/users` and `/admin/users/[id]`. Do not recreate a standalone `/admin/cards` route or card queue page.
 - Linear/GitHub mirrors already exist for this feature. Do not create a fresh batch of child issues from the issue plan unless the user approves new or missing tracker items after duplicate checks.
 - PR file budget is a hard constraint: 100 changed files max. Every slice should split at 70 changed files and should not be submitted above 80 unless the user explicitly approves the file-list rationale.
+
+## Autonomous Execution And Parallel Work
+
+The execution goal is to finish the remaining plan without routine user involvement. A conductor agent should keep moving through the remaining PRs, create focused branches/worktrees, dispatch bounded sub-agents, run local review gates, push draft PRs, fix review/CI findings, and continue to the next unblocked slice. Ask the user only for a true product decision, missing secret/external access, protected production action, merge/squash action that policy blocks, or an impossible conflict between requirements.
+
+Use one conductor ledger for the overall feature and one run ledger per PR branch. Read only compact prior artifacts from `local/agent-runs/**`: `conductor.md`, `personas.md`, decision tables, summaries, and verification results. Do not load huge transcripts, raw logs, full agent outputs, or copied command dumps unless a specific blocker requires them.
+
+Parallelize discovery and review freely; parallelize implementation only when branches do not depend on each other and do not touch the same files. Use separate git worktrees or separate Codex threads per implementation branch. The conductor owns merge order and rebases any stacked/follow-on branch after its base PR lands.
+
+Safe parallel work:
+
+- Read-only reconciliation against current `main`, persona checks, `impeccable`, Context7 Stripe/Next.js audits, and structural simplicity reviews for any upcoming PR.
+- PR 3 webhook dispatcher hardening can be prepared in parallel with PR 2A/2B because it should not depend on pricing schema.
+- Test-plan drafting and risk review for PR 4A/4B/5/6 can run while earlier implementation PRs are in review, but code should wait for the schema/API it depends on.
+
+Sequential or stacked work:
+
+- PR 2B depends on PR 2A pricing schema/helpers.
+- PR 4A depends on the reconciled pricing/Stripe Price foundation from PR 2A/2B.
+- PR 4B depends on PR 3 and PR 4A.
+- PR 5 depends on the local payment/subscription states created by PR 4A/4B.
+- PR 6 depends on subscription, cancellation, and renewal price state from PR 4A/4B and pricing from PR 2A/2B.
+
+Within each PR, use sub-agents for independent work units: implementation, spec compliance review, code-quality/bug review, `impeccable` product/admin workflow review, structural simplicity review, and focused CI/review-comment fixes. Do not let two implementation agents edit the same files concurrently.
+
+### Autonomous Conductor Starter Prompt
+
+Use this prompt for the fresh conductor agent that will finish the plan:
+
+```text
+You are the autonomous conductor for the MIT Sailing racing membership subscription implementation in /Users/andrewkelley/GitHub/mitsailing.
+
+Goal: finish the remaining racing membership subscription plan with minimal user involvement. Keep moving PR-by-PR until the plan is complete or you hit a real blocker.
+
+Start state:
+- Start from latest origin/main.
+- The docs/runbook work from PR #143 is already merged; its branch may be deleted and must not be used as a dependency.
+- PR #145 (`feat: add sailing card payment onboarding foundation`) and PR #147 (`fix: reduce sailing card control complexity`) are already merged and changed current main.
+- If this prompt was copied before the docs branch containing this section was merged, first bring the latest docs/runbook changes into your implementation branch or stop and report that the required plan/runbook update is missing.
+
+First actions:
+1. `git fetch origin main`
+2. Create a new branch or worktree from latest `origin/main` for the first still-incomplete slice.
+3. Read `AGENTS.md`.
+4. Read this plan: `docs/superpowers/plans/2026-05-28-racing-membership-subscriptions.md`.
+5. Read `docs/ai/pr-agent-orchestration.md`, `docs/ai/persona-matrix-template.md`, and `docs/ai/pr-run-ledger-template.md`.
+6. Read only compact prior artifacts from `local/agent-runs/**` if useful: `conductor.md`, `personas.md`, decision tables, summaries, and verification results. Do not load huge transcripts, raw logs, full agent outputs, or command dumps unless a specific blocker requires them.
+7. Reconcile this plan against current `main`. Mark already-completed PR #145/#147 work in the ledger and choose the first still-incomplete smallest slice.
+
+Operating model:
+- Use `superpowers:subagent-driven-development` for the active implementation PR.
+- Use `superpowers:dispatching-parallel-agents` for independent discovery/review tasks.
+- Use `impeccable` for product/admin/onboarding/copy flows.
+- Use `grill-me` style checks before committing to a slice: ask whether the persona is a real user/admin and whether the website path is simple.
+- Use Context7 for current library/platform docs when touching Stripe, Next.js, Prisma/ZenStack, GitHub CLI, or other evolving tools.
+
+Persona requirement:
+For each feature slice, create the persona once, then check it twice before relying on it:
+1. Would this real person naturally start here on the website with this goal?
+2. Is the website path obvious and minimal: find the thing, understand state, take action, recover from blockers?
+3. Did the persona lead to complexity that does not make the user/admin path simpler?
+
+Autonomous relay:
+1. Implement one PR to local merge-readiness.
+2. Run required local review gates: persona, impeccable when applicable, structural simplicity, independent bug review, focused tests, lint/types/i18n as required.
+3. Commit, push, and create a draft PR with `gh pr create --draft`.
+4. Watch/check CI with `gh pr checks`.
+5. Fix local review, CI, and actionable PR findings.
+6. If policy and permissions allow, enable auto-merge or merge after checks. If merge is blocked by policy, record the blocker and continue the next unblocked branch/worktree.
+7. Start the next unblocked PR without waiting for routine user approval.
+
+Parallelization:
+- Parallelize read-only reconciliation, persona checks, Context7 audits, impeccable review, structural simplicity review, and independent bug review.
+- Parallelize implementation only in separate worktrees/branches when the slices do not depend on each other and do not edit the same files.
+- PR 3 can be prepared in parallel with PR 2A/2B.
+- PR 4A waits for PR 2A/2B. PR 4B waits for PR 3 and PR 4A. PR 5 waits for PR 4A/4B. PR 6 waits for PR 2A/2B and PR 4A/4B.
+
+Ask the user only for:
+- true product judgment,
+- missing credentials or external access,
+- protected production actions,
+- merge/squash actions blocked by repository policy,
+- or a real conflict between requirements that cannot be resolved from repo context.
+
+Hard constraints:
+- Do not redo PR #145/#147 work.
+- Do not add `mitRecreationMembershipSelfReported`; use existing `SailingCardRequest.hasFitnessMembership`.
+- Do not recreate `/admin/cards` or a standalone card queue.
+- Keep admin card work person-centered through `/admin/users` and `/admin/users/[id]`.
+- Do not create parallel membership payment/refund tables unless current tests and Context7 Stripe docs prove the existing `Payment` model cannot represent the lifecycle.
+- Avoid AI slop: no extra tables, pages, components, services, permissions, states, or workflows unless they directly simplify a real user/admin path or prove a lifecycle/permission/audit/retention/cardinality/transaction/operational/platform boundary.
+
+Final report for each PR:
+- branch and PR URL,
+- slice completed,
+- files changed,
+- persona checks,
+- structural simplicity decision,
+- verification commands/results,
+- remote checks/review state,
+- next unblocked slice started or blocker requiring user input.
+```
 
 ## Sources And Current Code Facts
 

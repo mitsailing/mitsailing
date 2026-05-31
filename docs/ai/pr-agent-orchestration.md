@@ -1521,7 +1521,9 @@ When skipping tests, the worker must say why.
 
 ## Parallelism rules
 
-Parallelize discovery, not edits.
+Parallelize discovery by default. Parallelize edits only when each edit worker
+has its own branch/worktree and the conductor has confirmed the branches do not
+depend on each other or edit the same files.
 
 Safe to run in parallel:
 
@@ -1531,6 +1533,9 @@ Safe to run in parallel:
 - Legacy parity search.
 - Independent bug review after focused fixes are ready.
 - Final read-only review.
+- Implementation in separate git worktrees for independent PRs.
+- While one PR waits on remote checks or review, read-only planning and
+  non-overlapping implementation for the next unblocked PR.
 
 Do not run in parallel:
 
@@ -1538,6 +1543,35 @@ Do not run in parallel:
 - Implementation and final verification.
 - GitHub issue creation and duplicate search.
 - Commits or pushes from multiple workers.
+- Dependent implementation PRs unless the later PR is intentionally stacked on
+  the earlier branch and the conductor records the stack.
+- Schema/model edits that downstream workers already depend on, until the
+  schema branch has passed local verification.
+
+## Autonomous PR relay
+
+When the user asks for a feature plan to be completed without routine handoffs,
+the conductor should keep the relay moving:
+
+1. Work one implementation PR to local merge-readiness.
+2. Push the branch and create a draft PR with `gh pr create --draft`.
+3. Run or watch checks with `gh pr checks`.
+4. Fix local review, CI, and actionable PR findings.
+5. If repo policy and permissions allow, enable auto-merge or merge after checks
+   with the correct squash title. Otherwise report the exact blocker and keep
+   the next unblocked branch moving.
+6. Start the next unblocked PR in a new branch/worktree instead of waiting for
+   the user after every successful push.
+
+Use Git worktrees for concurrent branches when local edits would otherwise
+collide. Git's worktree model allows multiple working trees attached to one
+repository, each with its own `HEAD` and index, while sharing repository
+history. The conductor owns branch naming, merge order, rebasing stacked
+branches after their base lands, and cleanup of completed worktrees.
+
+Ask the user only for true product judgment, missing credentials/access,
+protected production actions, merge actions blocked by policy, or unresolved
+requirements conflicts.
 
 ## Issue creation rules
 
