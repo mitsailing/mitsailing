@@ -156,6 +156,7 @@ Verified against Stripe official docs: [build subscriptions](https://docs.stripe
 - [ ] Use webhook signature verification and existing `StripeWebhookEvent` idempotency for all membership billing events.
 - [ ] Handle `customer.subscription.created`, `customer.subscription.updated`, and `customer.subscription.deleted` by updating `SailingCardSubscription`; local access decisions must read this table.
 - [ ] Handle `invoice.paid` and `invoice.payment_failed` by updating/creating membership `Payment` rows and profile/admin issue state.
+- [ ] Before each July 15 renewal email is persisted or sent, move active auto-renew subscription items to the currently effective full annual Price, verify the applied renewal amount, then snapshot/email that applied amount. Use the stored Stripe subscription item ID and same-interval annual Price with `proration_behavior: 'none'` or an equivalent subscription schedule phase proven in Stripe test mode, so the next invoice uses the new amount without an immediate charge. If Stripe update or verification fails, block the reminder for that subscription and surface the issue to admins instead of emailing an amount that will not be charged.
 - [ ] Preserve free-normal eligibility before paid checkout: MIT students, verified MIT Recreation members, and pending free-normal verification users must not enter paid Checkout.
 - [ ] Use Stripe Customer Portal for payment-method and invoice recovery, but keep auto-renew cancellation in-app first so local cancellation state and optional feedback are recorded.
 
@@ -183,9 +184,9 @@ Verified against Stripe official docs: [build subscriptions](https://docs.stripe
 - **Admin pending search:** staff start from the person, not a queue. Preserve `/admin/users` and `/admin/users/[id]` as the primary Pavilion-staff path for finding a sailor, reviewing blockers, and issuing cards. Keep one user search across name, email, MIT ID, and card number. Add the simplest pending/card-type filters on `/admin/users` so staff can view pending normal, racing, or team racing requests, then open the user profile to resolve blockers and issue cards. Keep filtering bounded to the users surface; do not add a standalone card queue route or generic search framework.
 - **Cancellation:** users can turn off auto-renew in one in-app flow without a required survey step. The server sets Stripe `cancel_at_period_end=true`; optional feedback can record a reason enum and note after or alongside the primary action.
 - **Subscription consent:** paid Racing and Team Racing selection, required Sailing Card details, emergency contact fields, and swim-agreement approval stay in the signup/onboarding flow. Only after those required fields are complete does onboarding show the amount due today, the July 15 renewal amount, annual auto-renew behavior, and where to turn off auto-renew before sending the user to Stripe Checkout. The submit button says that the user is starting paid racing membership, not just continuing. Profile membership pages are for managing an existing paid membership after signup.
-- **Admin pricing:** admins edit app pricing records with effective dates and change reasons. Stripe Prices are immutable, so each usable price row stores the Stripe Price ID created for that amount/interval. Checkout never uses a price row until Stripe sync succeeds.
+- **Admin pricing:** admins edit app pricing records with effective dates and change reasons. Stripe Prices are immutable, so each usable price row stores the Stripe Price ID created for that amount/interval. Checkout never uses a price row until Stripe sync succeeds. Price changes are not grandfathered for active auto-renew subscriptions: before the next July 15 renewal, the renewal job must move active subscription items to the currently effective full annual Stripe Price, verify the applied renewal amount, and only then persist/send the renewal email snapshot. Members should be charged the new annual amount on the renewal date, not an old subscription-item Price.
 - **Admin operations:** admins can search members by name/email/card/payment/subscription status and Stripe identifiers, filter failed/past-due/cancelled records, open Stripe Dashboard links, and mark a local issue handled with an internal note without erasing the original issue status.
-- **No racing/team reset surprise:** reminders go out before July 15 and explain the charge date, amount, renewal status, and cancellation link.
+- **No racing/team reset surprise:** reminders go out before July 15 and explain the charge date, amount, renewal status, cancellation link, and any price increase that will be charged on the July 15 renewal date.
 
 ## Membership Policy Matrix
 
@@ -1556,15 +1557,15 @@ Cover reminder eligibility for 30, 14, and 3 days before July 15:
 
 - active auto-renew subscriptions get reminders
 - canceled-at-period-end subscriptions do not
-- reminders include amount, charge date, and cancel link
+- reminders include amount, charge date, cancel link, and price-change disclosure when the currently effective renewal Price is higher than the subscriber's previously stored renewal amount
 - reminder cancel links go directly to `/profile/membership?focus=auto-renew`, and the membership page reveals or focuses the turn-off-auto-renew form for that URL
-- reminders use the subscription's current full price snapshot or the accepted renewal price, not a newly edited price row that has not been applied to the subscription
+- before reminders are sent, active auto-renew subscriptions are moved to the currently effective `full + annual` Stripe Price when that Price is Stripe-ready; reminder snapshots then use the applied new amount, not the old accepted renewal price
 - active paid subscribers who now qualify for free normal membership do not receive generic renewal reminders; before renewal, the job sets `cancel_at_period_end=true` / `autoRenew=false` or otherwise blocks the paid renewal unless the member gives fresh explicit consent to paid racing renewal
 - special free-normal renewal copy explains that paid renewal was turned off or blocked because normal membership is now covered, with a link to restart paid racing only if they intentionally need it
 - duplicate reminders for the same subscription/window are skipped
-- active auto-renew subscriptions can be moved to the currently effective full Stripe Price before reminders with `proration_behavior: 'none'`
+- active auto-renew subscriptions are moved to the currently effective full annual Stripe Price before reminders with `proration_behavior: 'none'`, and a failed Stripe update blocks the reminder for that subscription instead of emailing an amount that will not be charged
 - renewal price updates select the currently effective `full + annual` price by the member's age on the upcoming July 15 Eastern date, including a subscriber who moves from `under_30` to `thirty_or_over`
-- renewal price updates only swap to a Price with the same product, annual interval, currency, and tax behavior; tests assert no invoice or proration is created and the July 15 anchor/current period end remains unchanged.
+- renewal price updates only swap to a Stripe-ready annual Price for the same card type, currency, and tax behavior; tests assert no invoice or proration is created, the July 15 anchor/current period end remains unchanged, and the next Stripe invoice preview or test-clock renewal uses the new annual amount instead of the old subscription-item Price.
 
 - [ ] **Step 2: Add or reuse the notification model**
 
