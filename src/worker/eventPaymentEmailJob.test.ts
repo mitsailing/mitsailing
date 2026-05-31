@@ -439,6 +439,16 @@ describe('event payment email job', () => {
         ],
       })
     );
+    expect(mocks.eventPaymentNotificationUpsert).toHaveBeenCalledTimes(1);
+    expect(mocks.eventPaymentNotificationUpsert).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          paymentId_kind_sentDateKey: expect.objectContaining({
+            paymentId: 'payment-2',
+          }),
+        }),
+      })
+    );
   });
 
   it('logs admin digest cleanup failures and rethrows the send failure', async () => {

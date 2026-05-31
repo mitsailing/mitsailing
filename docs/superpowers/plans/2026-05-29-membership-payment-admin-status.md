@@ -965,6 +965,19 @@ onboarding form values through profile/pricing navigation. `npm run lint`,
 `npm run test`, and `npm run test:e2e` passed locally; e2e result was 93
 passed, 2 skipped.
 
+May 31, 2026 analyzer hardening update: current CodeRabbit event-payment,
+worker, fixture, onboarding-storage, and ZenStack policy findings were
+rechecked against current code and fixed/classified. Checkout now distinguishes
+`needs_review` from handled payments, claims checkout rows before creating
+Stripe sessions, scopes checkout display to the latest approved registration,
+refreshes/cancels open payment snapshots on registration edits, filters admin
+digest markers to rows that appear in the email, keeps e2e payment fixture
+amounts aligned with event fees, and mirrors payment/bypass evidence checks in
+ZenStack policy. `npm run lint`, `npm run check:types`, `npm run check:deps`,
+`npm run check:i18n`, `git diff --check`, `npm run test`, and
+`npm run test:e2e` passed locally; `npm run test` result was 2231 passed, 18
+skipped, and e2e result was 93 passed, 2 skipped.
+
 ## Self-Review
 
 - Spec coverage: covers one shared payment table, legacy display, optional auto-renew prompt, unmatched review, admin blockers, admin user payment history, users search, manual card-number rules, and payment-bypass override.

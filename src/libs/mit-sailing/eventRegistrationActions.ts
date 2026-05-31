@@ -889,10 +889,45 @@ export async function createPublicEventRegistrationAction(
               status: PaymentStatus.pending,
               userId: access.userId,
             },
-            update: {},
+            update: {
+              amountCents: paymentFee.amountCents,
+              currency: 'usd',
+              eventId: event.id,
+              selectedFeeDescription: paymentFee.description,
+              selectedFeeId: paymentFee.id,
+              userId: access.userId,
+            },
             where: { registrationId },
           });
+          await tx.payment.updateMany({
+            data: { status: PaymentStatus.pending },
+            where: {
+              registrationId,
+              status: {
+                in: [
+                  PaymentStatus.checkout_created,
+                  PaymentStatus.past_due,
+                  PaymentStatus.pending,
+                ],
+              },
+            },
+          });
           return { redirectToCheckout: true };
+        }
+        if (status === EventRegistrationStatus.approved) {
+          await tx.payment.updateMany({
+            data: { status: PaymentStatus.cancelled },
+            where: {
+              registrationId,
+              status: {
+                in: [
+                  PaymentStatus.checkout_created,
+                  PaymentStatus.past_due,
+                  PaymentStatus.pending,
+                ],
+              },
+            },
+          });
         }
         return { redirectToCheckout: false };
       },

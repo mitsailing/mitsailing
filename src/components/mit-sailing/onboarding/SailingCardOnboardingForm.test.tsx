@@ -329,6 +329,41 @@ describe('SailingCardOnboardingForm', () => {
     );
   });
 
+  it('keeps sensitive identity and contact details out of session storage', async () => {
+    const draftKey = 'sailing-card-onboarding:user-1:2026:pii-test';
+    renderForm({ draftKey });
+    const user = userEvent.setup();
+
+    await showWellesleyDetails();
+    await user.type(screen.getByLabelText('Date of birth'), '03241988');
+    await user.type(screen.getByLabelText('Your phone number'), '6175550100');
+    await user.type(screen.getByLabelText('Emergency contact name'), 'Marie');
+    await user.type(
+      screen.getByLabelText('Emergency contact phone'),
+      '6175550101'
+    );
+
+    const rawDraft = globalThis.sessionStorage.getItem(draftKey);
+
+    expect(rawDraft).not.toBeNull();
+    const stored: unknown = JSON.parse(rawDraft ?? '{}');
+    expect(stored).toEqual({
+      detailsUnlocked: true,
+      values: {
+        affiliation: 'WELLESLEY',
+        cardType: 'normal',
+        hasFitnessMembership: '',
+        swimAgreementAccepted: false,
+      },
+    });
+    expect(rawDraft).not.toContain('Grace');
+    expect(rawDraft).not.toContain('Hopper');
+    expect(rawDraft).not.toContain('03/24/1988');
+    expect(rawDraft).not.toContain('(617) 555-0100');
+    expect(rawDraft).not.toContain('Marie');
+    expect(rawDraft).not.toContain('(617) 555-0101');
+  });
+
   it('shows emergency contact controls', async () => {
     renderForm();
 

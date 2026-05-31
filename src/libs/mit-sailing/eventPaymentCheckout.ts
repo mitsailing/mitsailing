@@ -31,8 +31,8 @@ type EventPaymentCheckoutDb = {
     }) => Promise<EventPaymentCheckoutDbPayment | null>;
     updateMany: (args: {
       data: {
-        status: typeof PaymentStatus.checkout_created;
-        stripeCheckoutSessionId: string;
+        status?: typeof PaymentStatus.checkout_created;
+        stripeCheckoutSessionId?: string;
         stripeCustomerId?: string;
         stripePaymentIntentId?: string;
       };
@@ -134,6 +134,26 @@ export async function createEventPaymentCheckoutClientSecret(options: {
   if (!checkoutPayment) {
     return null;
   }
+  if (
+    payment.status === PaymentStatus.checkout_created &&
+    payment.stripeCheckoutSessionId === null
+  ) {
+    return null;
+  }
+
+  if (payment.stripeCheckoutSessionId === null) {
+    const claimResult = await options.db.payment.updateMany({
+      data: { status: PaymentStatus.checkout_created },
+      where: {
+        id: payment.id,
+        status: payment.status,
+        stripeCheckoutSessionId: null,
+      },
+    });
+    if (claimResult.count === 0) {
+      return null;
+    }
+  }
 
   const checkoutSession = await createEmbeddedEventPaymentCheckoutSession({
     payment: checkoutPayment,
@@ -145,7 +165,7 @@ export async function createEventPaymentCheckoutClientSecret(options: {
     data: checkoutSessionUpdateData(checkoutSession),
     where: {
       id: payment.id,
-      status: payment.status,
+      status: PaymentStatus.checkout_created,
       stripeCheckoutSessionId: payment.stripeCheckoutSessionId,
     },
   });

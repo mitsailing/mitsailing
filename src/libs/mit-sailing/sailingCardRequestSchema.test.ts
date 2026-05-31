@@ -18,4 +18,13 @@ describe('sailing card request schema', () => {
     );
     expect(schema).toContain('@@unique([userId, cardYear])');
   });
+
+  it('requires complete payment bypass evidence in policy and database schema', () => {
+    expect(schema).toContain(
+      'paymentBypassNote          String?                  @trim @length(min: 3)'
+    );
+    expect(schema).toContain(
+      'paymentBypassAt != null && (paymentBypassNote == null || paymentBypassByUserId == null)'
+    );
+  });
 });

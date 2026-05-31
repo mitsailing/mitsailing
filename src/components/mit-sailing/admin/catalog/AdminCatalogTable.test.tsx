@@ -81,6 +81,14 @@ const userDefinition = {
   titleKey: 'title_admin_users',
 } as const satisfies CatalogResourceDefinition;
 
+const reorderableUserDefinition = {
+  ...userDefinition,
+  capabilities: {
+    ...userDefinition.capabilities,
+    reorder: true,
+  },
+} as const satisfies CatalogResourceDefinition;
+
 const userRows = [
   {
     appRole: 'admin',
@@ -143,6 +151,25 @@ function renderUsersTable() {
   );
 }
 
+function renderReorderableUsersTable() {
+  render(
+    <AdminCatalogTable
+      adminBasePath="/admin/users"
+      definition={reorderableUserDefinition}
+      locale="en"
+      messageNamespace="AdminUsers"
+      resourceId="users"
+      rows={userRows}
+      search={{
+        emptyKey: 'filter_empty',
+        fields: ['email', 'name', 'mitId', 'sailingCardNumber', 'appRole'],
+        labelKey: 'filter_search_label',
+        placeholderKey: 'filter_search_placeholder',
+      }}
+    />
+  );
+}
+
 async function searchUsers(
   user: ReturnType<typeof userEvent.setup>,
   query: string
@@ -200,5 +227,17 @@ describe('AdminCatalogTable', () => {
     await searchUsers(user, 'missing');
 
     expect(screen.getByText('No users match that search.')).toBeVisible();
+  });
+
+  it('disables drag handles while a filtered row set is mounted', async () => {
+    renderReorderableUsersTable();
+    const user = userEvent.setup();
+
+    expect(screen.getAllByRole('button', { name: 'Drag row' })).toHaveLength(2);
+
+    await searchUsers(user, 'grace');
+
+    expect(screen.queryByRole('button', { name: 'Drag row' })).toBeNull();
+    expectOnlyUserLink('Grace Hopper');
   });
 });

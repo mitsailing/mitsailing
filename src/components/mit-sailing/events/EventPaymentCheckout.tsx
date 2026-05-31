@@ -43,6 +43,8 @@ type EventPaymentCheckoutLabels = {
   noPaymentBody: string;
   noPaymentTitle: string;
   paidReceipt: string;
+  reviewBody: string;
+  reviewTitle: string;
   statusLabel: string;
 };
 
@@ -78,6 +80,10 @@ function isPayablePayment(
       payment.status === 'past_due' ||
       payment.status === 'pending')
   );
+}
+
+function isReviewPayment(payment: EventPaymentCheckoutPayment): boolean {
+  return payment?.status === 'needs_review';
 }
 
 function checkoutTarget(
@@ -295,6 +301,17 @@ export function EventPaymentCheckout(props: EventPaymentCheckoutProps) {
         labels={props.labels}
         payment={null}
         title={props.labels.noPaymentTitle}
+      />
+    );
+  }
+
+  if (isReviewPayment(payment)) {
+    return (
+      <StaticCheckoutState
+        body={props.labels.reviewBody}
+        labels={props.labels}
+        payment={payment}
+        title={props.labels.reviewTitle}
       />
     );
   }

@@ -28,6 +28,9 @@ const labels = {
   noPaymentBody: 'There is no payable registration for this event.',
   noPaymentTitle: 'No payment due',
   paidReceipt: 'View receipt',
+  reviewBody:
+    'MIT Sailing is reviewing an existing payment record for this registration.',
+  reviewTitle: 'Payment needs review',
   statusLabel: 'Status',
 } as const;
 
@@ -281,7 +284,7 @@ describe('EventPaymentCheckout', () => {
     });
   });
 
-  it('shows handled state without a Stripe checkout for needs_review payments', () => {
+  it('shows review state without a Stripe checkout for needs_review payments', () => {
     render(
       <EventPaymentCheckout
         clientSecretAction={vi.fn(defaultClientSecretAction)}
@@ -298,10 +301,12 @@ describe('EventPaymentCheckout', () => {
     );
 
     expect(
-      screen.getByRole('heading', { name: 'Payment handled' })
+      screen.getByRole('heading', { name: 'Payment needs review' })
     ).toBeVisible();
     expect(
-      screen.getByText('This payment has already been handled.')
+      screen.getByText(
+        'MIT Sailing is reviewing an existing payment record for this registration.'
+      )
     ).toBeVisible();
     expect(stripeMocks.loadStripe).not.toHaveBeenCalled();
     expect(stripeMocks.createEmbeddedCheckoutPage).not.toHaveBeenCalled();

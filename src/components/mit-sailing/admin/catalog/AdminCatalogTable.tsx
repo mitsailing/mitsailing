@@ -278,6 +278,10 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
   const canDelete = props.definition.capabilities.delete;
   const { filters, search } = props;
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+  const hasActiveListNarrowing =
+    normalizedSearchQuery.length > 0 ||
+    Object.values(filterValues).some((value) => value.length > 0);
+  const canDragReorder = canReorder && !hasActiveListNarrowing;
   const visibleRows =
     search || filters
       ? orderedRows.filter((row) => {
@@ -304,7 +308,7 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
     <TableRow>
       <TableCell
         className="px-4 py-6 text-sm text-muted-foreground"
-        colSpan={displayColumns.length + (canReorder ? 2 : 1)}
+        colSpan={displayColumns.length + (canDragReorder ? 2 : 1)}
       >
         {t(search.emptyKey)}
       </TableCell>
@@ -450,7 +454,7 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
         </p>
       ) : null}
 
-      {canReorder ? (
+      {canDragReorder ? (
         <DndContext
           collisionDetection={closestCenter}
           onDragEnd={(event) => {

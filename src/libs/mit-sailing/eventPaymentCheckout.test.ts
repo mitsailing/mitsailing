@@ -153,7 +153,15 @@ describe('createEventPaymentCheckoutClientSecret', () => {
         ],
       },
     });
-    expect(mocks.eventPaymentUpdateMany).toHaveBeenCalledWith({
+    expect(mocks.eventPaymentUpdateMany).toHaveBeenNthCalledWith(1, {
+      data: { status: PaymentStatus.checkout_created },
+      where: {
+        id: 'payment-1',
+        status: PaymentStatus.pending,
+        stripeCheckoutSessionId: null,
+      },
+    });
+    expect(mocks.eventPaymentUpdateMany).toHaveBeenNthCalledWith(2, {
       data: {
         status: PaymentStatus.checkout_created,
         stripeCheckoutSessionId: 'cs_123',
@@ -161,13 +169,13 @@ describe('createEventPaymentCheckoutClientSecret', () => {
       },
       where: {
         id: 'payment-1',
-        status: PaymentStatus.pending,
+        status: PaymentStatus.checkout_created,
         stripeCheckoutSessionId: null,
       },
     });
   });
 
-  it('returns null when payment status changes during checkout creation', async () => {
+  it('returns null without calling Stripe when payment claim fails', async () => {
     mocks.eventPaymentFindFirst.mockResolvedValue({
       amountCents: 2500,
       currency: 'usd',
@@ -212,6 +220,45 @@ describe('createEventPaymentCheckoutClientSecret', () => {
         stripeCheckoutSessionId: null,
       },
     });
+    expect(mocks.stripeCheckoutSessionsCreate).not.toHaveBeenCalled();
+  });
+
+  it('returns null while another request is creating the checkout session', async () => {
+    mocks.eventPaymentFindFirst.mockResolvedValue({
+      amountCents: 2500,
+      currency: 'usd',
+      eventId: 'event-1',
+      id: 'payment-1',
+      registrationId: 'registration-1',
+      selectedFeeDescription: 'Adult entry',
+      status: PaymentStatus.checkout_created,
+      stripeCheckoutSessionId: null,
+      userId: 'user-1',
+    });
+
+    await expect(
+      createEventPaymentCheckoutClientSecret({
+        db: {
+          payment: {
+            findFirst: mocks.eventPaymentFindFirst,
+            updateMany: mocks.eventPaymentUpdateMany,
+          },
+        },
+        paymentId: 'payment-1',
+        returnUrl: 'https://sailing.mit.edu/events/intro/checkout/return',
+        stripe: {
+          checkout: {
+            sessions: {
+              create: mocks.stripeCheckoutSessionsCreate,
+            },
+          },
+        },
+        userId: 'user-1',
+      })
+    ).resolves.toBeNull();
+
+    expect(mocks.eventPaymentUpdateMany).not.toHaveBeenCalled();
+    expect(mocks.stripeCheckoutSessionsCreate).not.toHaveBeenCalled();
   });
 
   it('returns null when the requester cannot access payment', async () => {

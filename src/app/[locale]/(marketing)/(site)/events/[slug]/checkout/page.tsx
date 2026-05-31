@@ -118,6 +118,8 @@ export default async function EventCheckoutPage(props: EventCheckoutPageProps) {
             noPaymentBody: t('checkout_no_payment_body'),
             noPaymentTitle: t('checkout_no_payment_title'),
             paidReceipt: t('checkout_receipt_link'),
+            reviewBody: t('checkout_review_body'),
+            reviewTitle: t('checkout_review_title'),
             statusLabel: t('checkout_status_label'),
           }}
           payment={payment}

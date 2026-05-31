@@ -1,6 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import type * as React from 'react';
 import type {
   FieldErrors,
   UseFormRegister,

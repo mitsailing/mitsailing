@@ -77,6 +77,11 @@ type EventPaymentQueueData = Exclude<
 type AdminDigestEvent = NonNullable<
   Awaited<ReturnType<typeof findAdminDigestEvent>>
 >;
+type AdminDigestPayment = AdminDigestEvent['payments'][number];
+type AdminDigestEmailPayment = AdminDigestPayment & {
+  selectedFeeDescription: string;
+  user: NonNullable<AdminDigestPayment['user']>;
+};
 
 type AdminDigestMarker = {
   readonly claimId: string;
@@ -240,11 +245,11 @@ function adminDigestRecipient(event: AdminDigestEvent): string | null {
 }
 
 async function claimAdminDigestMarkers(
-  event: AdminDigestEvent,
+  payments: readonly AdminDigestPayment[],
   dateKey: string
 ): Promise<AdminDigestMarker[]> {
   const markers: AdminDigestMarker[] = [];
-  for (const payment of event.payments) {
+  for (const payment of payments) {
     const marker = await ensureNotificationMarker({
       dateKey,
       kind: EventPaymentNotificationKind.admin_digest,
@@ -261,19 +266,11 @@ async function claimAdminDigestMarkers(
   return markers;
 }
 
-function adminDigestOverduePayments(event: AdminDigestEvent) {
-  return event.payments.flatMap((payment) =>
-    payment.selectedFeeDescription && payment.user
-      ? [
-          {
-            amount: formatUsdMinorUnitsAsCurrency(payment.amountCents, 'en-US'),
-            id: payment.id,
-            recipientEmail: payment.user.email,
-            recipientName: payment.user.name ?? payment.user.email,
-            selectedFeeDescription: payment.selectedFeeDescription,
-          },
-        ]
-      : []
+function adminDigestEligiblePayments(
+  event: AdminDigestEvent
+): AdminDigestEmailPayment[] {
+  return event.payments.filter((payment): payment is AdminDigestEmailPayment =>
+    Boolean(payment.selectedFeeDescription && payment.user)
   );
 }
 
@@ -281,6 +278,7 @@ async function sendAdminDigestEmail(props: {
   readonly adminEmail: string;
   readonly data: z.infer<typeof adminDigestJobSchema>;
   readonly event: AdminDigestEvent;
+  readonly payments: readonly AdminDigestEmailPayment[];
 }): Promise<SendEmailResult> {
   const result = await sendEventPaymentAdminDigestEmail({
     adminEmail: props.adminEmail,
@@ -289,7 +287,13 @@ async function sendAdminDigestEmail(props: {
       : 'No deadline',
     emailDedupeKey: `${props.data.eventId}:admin_digest:${props.data.dateKey}`,
     eventName: props.event.name,
-    overduePayments: adminDigestOverduePayments(props.event),
+    overduePayments: props.payments.map((payment) => ({
+      amount: formatUsdMinorUnitsAsCurrency(payment.amountCents, 'en-US'),
+      id: payment.id,
+      recipientEmail: payment.user.email,
+      recipientName: payment.user.name ?? payment.user.email,
+      selectedFeeDescription: payment.selectedFeeDescription,
+    })),
   });
   return result;
 }
@@ -319,7 +323,12 @@ async function processAdminDigestJob(
     return;
   }
 
-  const markers = await claimAdminDigestMarkers(event, data.dateKey);
+  const overduePayments = adminDigestEligiblePayments(event);
+  if (overduePayments.length === 0) {
+    return;
+  }
+
+  const markers = await claimAdminDigestMarkers(overduePayments, data.dateKey);
   if (markers.length === 0) {
     return;
   }
@@ -329,6 +338,7 @@ async function processAdminDigestJob(
       adminEmail,
       data,
       event,
+      payments: overduePayments,
     });
     await recordAdminDigestMarkers({
       markers,

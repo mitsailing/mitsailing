@@ -309,7 +309,7 @@ model SailingCardRequest {
   requestedAt                DateTime                 @map("requested_at")
   approvedAt                 DateTime?                @map("approved_at")
   approvedByUserId           String?                  @map("approved_by_user_id")
-  paymentBypassNote          String?                  @map("payment_bypass_note") @db.Text
+  paymentBypassNote          String?                  @trim @length(min: 3) @map("payment_bypass_note") @db.Text
   paymentBypassByUserId      String?                  @map("payment_bypass_by_user_id")
   paymentBypassAt            DateTime?                @map("payment_bypass_at")
   issuedCardNumber           Int?                     @map("issued_card_number")
@@ -336,7 +336,7 @@ model SailingCardRequest {
   @@index([legalAgreementAcceptanceId])
   @@index([approvedByUserId])
   @@index([paymentBypassByUserId])
-  @@deny('create,update', paymentBypassAt != null && paymentBypassNote == null)
+  @@deny('create,update', paymentBypassAt != null && (paymentBypassNote == null || paymentBypassByUserId == null))
   @@map("sailing_card_requests")
 }
 
@@ -1048,13 +1048,13 @@ model Payment {
   status                  PaymentStatus  @default(pending)
   cardYear                Int?                @map("card_year")
   cardType                SailingCardType?    @map("card_type")
-  legacySourceTable       String?             @map("legacy_source_table")
-  legacySourceId          String?             @map("legacy_source_id")
-  legacyCategory          String?             @map("legacy_category")
-  legacyDescription       String?             @map("legacy_description") @db.Text
+  legacySourceTable       String?             @trim @length(min: 1) @map("legacy_source_table")
+  legacySourceId          String?             @trim @length(min: 1) @map("legacy_source_id")
+  legacyCategory          String?             @trim @length(min: 1) @map("legacy_category")
+  legacyDescription       String?             @trim @length(min: 1) @map("legacy_description") @db.Text
   legacySettled           Boolean?            @map("legacy_settled")
-  payerName               String?             @map("payer_name")
-  payerEmail              String?             @map("payer_email")
+  payerName               String?             @trim @map("payer_name")
+  payerEmail              String?             @trim @map("payer_email")
   stripeCustomerId        String?             @map("stripe_customer_id")
   stripeCheckoutSessionId String?             @unique @map("stripe_checkout_session_id")
   stripePaymentIntentId   String?             @unique @map("stripe_payment_intent_id")
@@ -1062,7 +1062,7 @@ model Payment {
   stripeSubscriptionId    String?             @unique @map("stripe_subscription_id")
   stripeInvoiceId         String?             @unique @map("stripe_invoice_id")
   stripeReceiptUrl        String?             @map("stripe_receipt_url") @db.Text
-  manualHandledNote       String?             @map("manual_handled_note") @db.Text
+  manualHandledNote       String?             @trim @length(min: 1) @map("manual_handled_note") @db.Text
   manualHandledByUserId   String?             @map("manual_handled_by_user_id")
   manualHandledAt         DateTime?           @map("manual_handled_at")
   createdAt               DateTime            @default(now()) @map("created_at")
@@ -1130,6 +1130,13 @@ model Payment {
       legacyCategory == null ||
       legacyDescription == null ||
       legacySettled == null ||
+      payerName == '' ||
+      payerEmail == ''
+    )
+  )
+  @@deny('create,update',
+    source != stripe && (
+      stripeCustomerId != null ||
       stripeCheckoutSessionId != null ||
       stripePaymentIntentId != null ||
       stripeChargeId != null ||

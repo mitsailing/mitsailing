@@ -2217,6 +2217,8 @@
     "checkout_no_payment_body": "There is no payable registration for this event.",
     "checkout_already_handled_title": "Payment handled",
     "checkout_already_handled_body": "This payment has already been paid, handled, cancelled, or refunded.",
+    "checkout_review_title": "Payment needs review",
+    "checkout_review_body": "MIT Sailing is reviewing an existing payment record for this registration. You do not need to pay online unless staff asks you to.",
     "checkout_receipt_link": "View receipt",
     "checkout_unavailable": "Checkout is not configured for this event payment.",
     "checkout_unavailable_message": "Payment is no longer available for checkout."

@@ -189,6 +189,10 @@ describe('legacyPaymentImport', () => {
     expect(legacyPaymentAmountCents('$1,200.50')).toBe(120_050);
   });
 
+  it('does not turn negative legacy adjustments into positive payments', () => {
+    expect(legacyPaymentAmountCents('-$12.00')).toBe(0);
+  });
+
   it('matches payment users by legacy id username or billing email', () => {
     const map = buildLegacyMemberPaymentMap([
       member({

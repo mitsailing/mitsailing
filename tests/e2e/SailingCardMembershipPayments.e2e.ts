@@ -289,7 +289,7 @@ async function insertLegacyPaidMembershipPayment(props: {
        "payer_name", "payer_email", "created_at", "updated_at")
      VALUES
       ($1, 'membership', 'legacy', $2, 12000, 'usd', 'paid', $3, 'racing',
-       'legacy.payments', $4, 'racing', 'Racing Card E2E', true, 'Legacy Paid', $5, NOW(), NOW())`,
+       'payments', $4, 'racing', 'Racing Card E2E', true, 'Legacy Paid', $5, NOW(), NOW())`,
     [
       `e2e-payment-${randomUUID()}`,
       props.userId,

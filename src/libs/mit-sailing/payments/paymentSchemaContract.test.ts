@@ -13,7 +13,7 @@ describe('payment schema contract', () => {
     expect(zmodel).toContain('event');
     expect(zmodel).toContain('membership');
     expect(zmodel).toContain('model Payment');
-    expect(zmodel).toContain('purpose                 PaymentPurpose');
+    expect(zmodel).toMatch(/purpose\s+PaymentPurpose/u);
     expect(zmodel).toContain('cardYear');
     expect(zmodel).toContain('stripeSubscriptionId');
     expect(zmodel).toContain('stripeInvoiceId');
@@ -37,6 +37,8 @@ describe('payment schema contract', () => {
       "\"source\" NOT IN ('legacy', 'admin_override')"
     );
     expect(migration).toContain('"stripe_receipt_url" IS NULL');
+    expect(zmodel).toContain('source != stripe');
+    expect(zmodel).toContain('stripeCustomerId != null');
   });
 
   it('keeps payment classification immutable without ZenStack enum before comparisons', () => {
@@ -57,7 +59,13 @@ describe('payment schema contract', () => {
     expect(zmodel).toContain('legacyDescription');
     expect(zmodel).toContain('legacySettled');
     expect(zmodel).toContain('payerEmail');
-    expect(zmodel).toContain('userId                  String?');
+    expect(zmodel).toMatch(/userId\s+String\?/u);
+    expect(zmodel).toContain(
+      'legacySourceTable       String?             @trim @length(min: 1)'
+    );
+    expect(zmodel).toContain(
+      'manualHandledNote       String?             @trim @length(min: 1)'
+    );
     expect(migration).toContain('"legacy_category" TEXT');
     expect(migration).toContain('"legacy_settled" BOOLEAN');
     expect(migration).toContain('ALTER COLUMN "user_id" DROP NOT NULL');

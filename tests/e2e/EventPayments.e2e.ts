@@ -249,6 +249,7 @@ test.describe('Event payments', () => {
     page,
   }) => {
     const paidEvent = await createPaymentEvent({
+      amountCents: 1500,
       name: 'E2E paid receipt clinic',
       requiresApproval: false,
     });
@@ -272,7 +273,7 @@ test.describe('Event payments', () => {
     await page.goto('/profile/payments');
 
     const paidRow = page.getByRole('row', { name: /E2E paid receipt clinic/ });
-    await expect(paidRow).toContainText('$42.00');
+    await expect(paidRow).toContainText('$15.00');
     await expect(paidRow).toContainText('Paid');
     await expect(
       paidRow.getByRole('link', { exact: true, name: 'Receipt' })

@@ -256,7 +256,9 @@ export function buildLegacyMemberPaymentMap(
 }
 
 export function legacyPaymentAmountCents(amount: string | null): number {
-  const normalized = stringValue(amount).replaceAll(/[^\d.]/gu, '');
+  const trimmedAmount = stringValue(amount).trim();
+  const sign = trimmedAmount.startsWith('-') ? '-' : '';
+  const normalized = `${sign}${trimmedAmount.replaceAll(/[^\d.]/gu, '')}`;
   const parsed = Number(normalized);
   if (!Number.isFinite(parsed) || parsed < 0) {
     return 0;

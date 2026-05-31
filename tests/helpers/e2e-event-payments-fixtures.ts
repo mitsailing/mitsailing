@@ -10,6 +10,7 @@ const fixtureSlugPrefix = `e2e-stripe-payments-${randomUUID()}-`;
 const pool = new Pool({ connectionString: e2ePgConnectionString() });
 
 type EventFixture = {
+  amountCents: number;
   eventId: string;
   feeId: string;
   name: string;
@@ -130,6 +131,7 @@ export async function createPaymentEvent(options: {
   const eventEnd = new Date(
     Date.now() + 30 * 86_400_000 + 14_400_000
   ).toISOString();
+  const amountCents = options.amountCents ?? 4200;
   const paymentDeadlineAt =
     options.paymentDeadlineAt === undefined
       ? new Date(Date.now() + 14 * 86_400_000).toISOString()
@@ -205,10 +207,10 @@ export async function createPaymentEvent(options: {
       INSERT INTO "event_entry_fees" ("id", "event_id", "description", "amount_cents", "is_deposit")
       VALUES ($1, $2, 'Event registration', $3, false)
     `,
-    [feeId, eventId, options.amountCents ?? 4200]
+    [feeId, eventId, amountCents]
   );
 
-  return { eventId, feeId, name: options.name, slug };
+  return { amountCents, eventId, feeId, name: options.name, slug };
 }
 
 async function insertApprovedRegistration(options: {
@@ -264,7 +266,7 @@ async function insertEventPayment(options: {
         "updated_at"
       )
       VALUES (
-        $1, 'event', 'stripe', $2, $3, $4, $5, 'Event registration', 4200, 'usd',
+        $1, 'event', 'stripe', $2, $3, $4, $5, 'Event registration', $9, 'usd',
         $6::payment_status, $7, $8,
         CASE WHEN $6::text = 'handled' THEN $4 ELSE NULL END,
         CASE WHEN $6::text = 'handled' THEN NOW() ELSE NULL END,
@@ -281,6 +283,7 @@ async function insertEventPayment(options: {
       options.status,
       options.receiptUrl ?? null,
       options.manualHandledNote ?? null,
+      options.event.amountCents,
     ]
   );
 }
