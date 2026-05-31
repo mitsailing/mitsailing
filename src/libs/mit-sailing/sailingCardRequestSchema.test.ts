@@ -2,6 +2,10 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const schema = readFileSync('zenstack/schema.zmodel', 'utf8');
+const membershipPriceMigration = readFileSync(
+  'prisma/migrations/20260531201000_add_sailing_card_membership_prices/migration.sql',
+  'utf8'
+);
 const compactSchema = schema.replaceAll(/\s+/g, ' ');
 
 describe('sailing card request schema', () => {
@@ -31,5 +35,40 @@ describe('sailing card request schema', () => {
   it('preserves MIT Recreation self-report on sailing card requests', () => {
     expect(compactSchema).toContain('hasFitnessMembership Boolean?');
     expect(compactSchema).toContain('@map("has_fitness_membership")');
+  });
+
+  it('stores effective-dated sailing card membership prices', () => {
+    expect(compactSchema).toContain('model SailingCardMembershipPrice');
+    expect(compactSchema).toContain('enum SailingCardMembershipPriceKind');
+    expect(compactSchema).toContain('enum SailingCardMembershipPriceCategory');
+    expect(compactSchema).toContain(
+      'enum SailingCardMembershipBillingInterval'
+    );
+    expect(compactSchema).toContain('model Payment');
+    expect(compactSchema).toContain('purpose PaymentPurpose');
+    expect(compactSchema).toContain('membership');
+    expect(compactSchema).toContain('active Boolean @default(true)');
+    expect(compactSchema).toContain(
+      'priceKind == spring && billingInterval == annual'
+    );
+    expect(compactSchema).toContain(
+      'effectiveAt DateTime @map("effective_at")'
+    );
+    expect(compactSchema).toContain('priceCategory');
+    expect(compactSchema).not.toContain('@map("retired_at")');
+    expect(compactSchema).not.toContain('model SailingCardMembershipPayment');
+    expect(compactSchema).not.toContain('model SailingCardMembershipRefund');
+    expect(membershipPriceMigration).toContain(
+      'sailing_card_membership_prices_prevent_catalog_key_change'
+    );
+    expect(membershipPriceMigration).toContain(
+      'sailing_card_membership_prices_price_kind_interval_chk'
+    );
+    expect(membershipPriceMigration).toContain(
+      'OLD.stripe_price_id IS NOT NULL'
+    );
+    expect(membershipPriceMigration).toContain(
+      'NEW.stripe_price_id IS DISTINCT FROM OLD.stripe_price_id'
+    );
   });
 });

@@ -212,6 +212,25 @@ enum PaymentSource {
     @@map("payment_source")
 }
 
+enum SailingCardMembershipPriceKind {
+    spring
+    full
+    @@map("sailing_card_membership_price_kind")
+}
+
+enum SailingCardMembershipPriceCategory {
+    student
+    under_30
+    thirty_or_over
+    @@map("sailing_card_membership_price_category")
+}
+
+enum SailingCardMembershipBillingInterval {
+    one_time
+    annual
+    @@map("sailing_card_membership_billing_interval")
+}
+
 enum EventPaymentNotificationKind {
     request
     receipt
@@ -364,6 +383,7 @@ model User {
     paymentBypassedSailingCardRequests SailingCardRequest[] @relation("SailingCardRequestPaymentBypassBy")
     payments Payment[]
     manuallyHandledPayments Payment[] @relation("PaymentManualHandledBy")
+    sailingCardMembershipPricesCreated SailingCardMembershipPrice[] @relation("SailingCardMembershipPriceCreatedBy")
     eventComments EventComment[]
     eventAdmins EventAdmin[]
     sailingRatings UserSailingRating[] @relation("UserSailingRatings")
@@ -1051,6 +1071,30 @@ model Payment {
     @@unique([legacySourceTable, legacySourceId])
     @@unique([registrationId, eventId, userId])
     @@map("payments")
+}
+
+model SailingCardMembershipPrice {
+    id String @id() @default(cuid())
+    cardType SailingCardType @map("card_type")
+    priceKind SailingCardMembershipPriceKind @map("price_kind")
+    priceCategory SailingCardMembershipPriceCategory @map("price_category")
+    billingInterval SailingCardMembershipBillingInterval @map("billing_interval")
+    amountCents Int @map("amount_cents")
+    currency String @default("usd")
+    active Boolean @default(true)
+    effectiveAt DateTime @map("effective_at")
+    changeReason String @map("change_reason") @db.Text()
+    stripePriceId String? @unique() @map("stripe_price_id")
+    stripeSyncError String? @map("stripe_sync_error") @db.Text()
+    stripeSyncedAt DateTime? @map("stripe_synced_at")
+    createdByUserId String? @map("created_by_user_id")
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt() @map("updated_at")
+    createdBy User? @relation("SailingCardMembershipPriceCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+    @@unique([cardType, priceKind, priceCategory, billingInterval, effectiveAt])
+    @@index([createdByUserId])
+    @@map("sailing_card_membership_prices")
 }
 
 model StripeWebhookEvent {

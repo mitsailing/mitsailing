@@ -756,7 +756,7 @@ Add a focused schema test for the reconciled schema. If the structural simplicit
 ```ts
 expect(compactSchema).toContain('model SailingCardMembershipPrice');
 expect(compactSchema).toContain('enum SailingCardMembershipPriceKind');
-expect(compactSchema).toContain('enum SailingCardMembershipAgeBand');
+expect(compactSchema).toContain('enum SailingCardMembershipPriceCategory');
 expect(compactSchema).toContain('enum SailingCardMembershipBillingInterval');
 expect(compactSchema).toContain('model Payment');
 expect(compactSchema).toContain('purpose PaymentPurpose');
@@ -774,7 +774,8 @@ enum SailingCardMembershipPriceKind {
   full
 }
 
-enum SailingCardMembershipAgeBand {
+enum SailingCardMembershipPriceCategory {
+  student
   under_30
   thirty_or_over
 }
@@ -794,13 +795,12 @@ model SailingCardMembershipPrice {
   id String @id() @default(cuid())
   cardType SailingCardType @map("card_type")
   priceKind SailingCardMembershipPriceKind @map("price_kind")
-  ageBand SailingCardMembershipAgeBand @map("age_band")
+  priceCategory SailingCardMembershipPriceCategory @map("price_category")
   billingInterval SailingCardMembershipBillingInterval @map("billing_interval")
   amountCents Int @map("amount_cents")
   currency String @default("usd")
   active Boolean @default(true)
   effectiveAt DateTime @map("effective_at")
-  retiredAt DateTime? @map("retired_at")
   changeReason String @map("change_reason") @db.Text()
   stripePriceId String? @unique() @map("stripe_price_id")
   stripeSyncError String? @map("stripe_sync_error") @db.Text()
@@ -810,8 +810,7 @@ model SailingCardMembershipPrice {
   updatedAt DateTime @updatedAt() @map("updated_at")
   createdBy User? @relation("SailingCardMembershipPriceCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
 
-  @@unique([cardType, priceKind, ageBand, billingInterval, effectiveAt])
-  @@index([cardType, priceKind, ageBand, billingInterval, active, effectiveAt])
+  @@unique([cardType, priceKind, priceCategory, billingInterval, effectiveAt])
   @@index([createdByUserId])
   @@map("sailing_card_membership_prices")
 }
@@ -891,12 +890,13 @@ Create `membershipPricing.test.ts` covering:
 - Before July 15, checkout pricing returns both the spring price due today and the full renewal price due on July 15.
 - Spring age band is calculated from the purchase date. Full-renewal age band is calculated from the July 15 billing anchor, including a date of birth that crosses age 30 between purchase and July 15, a birthday exactly on July 15 Eastern, and birthdays one day before and after the anchor.
 - Age band is computed from the relevant US Eastern calendar date; `thirty_or_over` starts on the 30th birthday. Include tests for birthdays on July 15 and July 16, plus UTC times that cross Eastern midnight.
+- Non-MIT student affiliations use the `student` price category and do not fall through to age pricing.
 - Inactive prices are ignored.
 - Future `effectiveAt` prices are ignored until their effective date.
-- Retired prices are ignored after `retiredAt`.
 - Future price changes keep the current checkout price active until `effectiveAt`.
-- Price changes create a new active row and set the previous matching row's `retiredAt` to the new row's `effectiveAt`, not to the write time.
-- Duplicate effective dates and overlapping active rows for the same card type, price kind, age band, and billing interval fail validation before checkout selection can become ambiguous.
+- Price changes create a new immutable row. Following Stripe Price practice, checkout keeps using the previous synced active row until the replacement row has `stripePriceId`, no `stripeSyncError`, and `stripeSyncedAt`; then the old row can be archived by setting `active=false`.
+- Duplicate effective dates for the same card type, price kind, price category, and billing interval fail validation before checkout selection can become ambiguous.
+- `spring + annual` price rows fail validation; only `spring + one_time`, `full + one_time`, and `full + annual` are valid catalog combinations.
 - Existing payments keep their initial and renewal price IDs, amount, and currency snapshot after later price changes.
 - Invalid amounts below Stripe minimum return field error.
 - Blank price-change reasons fail validation.
@@ -906,23 +906,27 @@ Create `membershipPricing.test.ts` covering:
 Create `membershipPricing.ts` with:
 
 ```ts
-export function membershipAgeBandForDateOfBirth(props: {
+export function membershipPriceCategoryForCardRequest(props: {
+  readonly affiliation: SailingAffiliation | '';
   readonly dateOfBirth: string;
   readonly now: Date;
-}): SailingCardMembershipAgeBand;
+}): SailingCardMembershipPriceCategory | null;
 
 export async function getActiveMembershipPrice(options: {
   readonly billingInterval: SailingCardMembershipBillingInterval;
   readonly cardType: SailingCardType;
-  readonly dateOfBirth: string;
   readonly now: Date;
+  readonly priceCategory: SailingCardMembershipPriceCategory;
   readonly priceKind: SailingCardMembershipPriceKind;
+  readonly requireStripeReady?: boolean;
 }): Promise<SailingCardMembershipPrice | null>;
 
 export async function getCheckoutMembershipPrices(options: {
+  readonly affiliation: SailingAffiliation | '';
   readonly cardType: SailingCardType;
   readonly dateOfBirth: string;
   readonly now: Date;
+  readonly requireStripeReady?: boolean;
 }): Promise<{
   readonly dueTodayPrice: SailingCardMembershipPrice;
   readonly renewalPrice: SailingCardMembershipPrice;
@@ -935,16 +939,16 @@ export async function replaceActiveMembershipPrice(options: {
   readonly changeReason: string;
   readonly createdByUserId: string;
   readonly priceKind: SailingCardMembershipPriceKind;
-  readonly ageBand: SailingCardMembershipAgeBand;
+  readonly priceCategory: SailingCardMembershipPriceCategory;
   readonly effectiveAt: Date;
 }): Promise<SailingCardMembershipPrice>;
 ```
 
-Use the existing sailing-card date-only parser before age-band math; do not construct age bands from arbitrary JavaScript `Date` values. Use a transaction for retiring the previous matching row at the new row's `effectiveAt` plus creating the new row. Do not call Stripe from this helper. Keep historical rows for audit and reminders; never mutate amount/currency on a row that may already be referenced by a payment or subscription.
+Use the existing sailing-card date-only parser before category math; do not construct age categories from arbitrary JavaScript `Date` values. Do not call Stripe from read helpers. Keep historical rows for audit and reminders; never mutate amount/currency on a row that may already be referenced by a payment or subscription.
 
 - [ ] **Step 3: Add admin pricing UI**
 
-Create a compact admin page that lists active prices by card type, price kind, and age band. The edit form uses native number inputs, preserves dollars-to-cents conversion server-side, and shows the Stripe Price sync state.
+Create a compact admin page that lists active prices by card type, price kind, and price category. The edit form uses native number inputs, preserves dollars-to-cents conversion server-side, and shows the Stripe Price sync state.
 
 The default admin page shows current active prices and sync state first. Retired/history rows and "subscriptions still using an older full-season Stripe Price" diagnostics live behind a history/details disclosure with a link to the filtered membership payments page. Pricing forms use dollar-prefix inputs, server-rendered cents preview, effective-date preview, a "will replace current price on {date}" summary, and disabled save until amount, effective date, and reason are valid. If a new row has not synced to Stripe, show that checkout will not use it until Stripe sync succeeds and that the previous synced price remains the checkout price.
 
@@ -956,10 +960,10 @@ Create `src/libs/mit-sailing/membershipBilling/membershipPricingActions.test.ts`
 - dollars are converted to integer cents server-side
 - `changeReason` is required
 - `effectiveAt` must be a valid future-or-current date in US Eastern
-- the previous matching row is retired inside the same transaction
-- duplicate effective dates and overlapping active rows for the same price key are rejected
+- the previous matching row is archived only after the replacement Stripe Price is ready
+- duplicate effective dates for the same price key are rejected
 - `createdByUserId` is stored
-- synced rows cannot have `stripePriceId`, amount, currency, billing interval, card type, price kind, or age band edited in place
+- synced rows cannot have amount, currency, billing interval, card type, price kind, price category, effective date, or change reason edited in place
 - manual Stripe Price ID entry is rejected
 
 Implement `membershipPricingActions.ts` as thin Server Actions that call the pricing helper after authorization and validation.
@@ -985,6 +989,7 @@ In `membershipPricing.test.ts` or a separate `membershipStripePrices.test.ts`, m
 - Stripe sync failure keeps the row visible to admins with `stripeSyncError` and no `stripeSyncedAt`.
 - Checkout selection helpers only return rows with a non-null `stripePriceId` and no sync error.
 - Sync does not replace Stripe Prices on historical rows that already have `stripePriceId`.
+- When a locally active row with a synced `stripePriceId` is archived by setting `active=false`, the sync helper updates the matching Stripe Price to `active=false` instead of deleting or replacing it.
 
 - [ ] **Step 2: Implement sync helper**
 
@@ -996,7 +1001,7 @@ metadata: {
   appPriceId: price.id,
   cardType: price.cardType,
   priceKind: price.priceKind,
-  ageBand: price.ageBand,
+  priceCategory: price.priceCategory,
   billingInterval: price.billingInterval,
 }
 ```
@@ -1087,7 +1092,7 @@ Before editing, confirm the listed route, action, component, navigation, and tes
 
 - [ ] **Step 0: Add only checkout-needed subscription/payment schema**
 
-If PR 2 deferred subscription schema, start PR 4A with a focused schema test for the smallest local subscription-state model needed by Checkout/profile state and duplicate-subscription handling. Extend the existing `Payment` model for checkout/session/consent/price snapshot fields needed by PR 4A; do not create a parallel membership-payment table unless the structural simplicity review proves `Payment` cannot represent the lifecycle. Defer cancellation reason fields to PR 4B and renewal-notification rows to the reminder PR unless this PR's tests need them.
+If PR 2 deferred subscription schema, start PR 4A with a focused schema test for the smallest local subscription-state model needed by Checkout/profile state and duplicate-subscription handling. Stripe Billing does not require a local subscription table, but this app may need one if ongoing access state, canonical Stripe subscription identity, subscription item IDs, period dates, duplicate-subscription handling, and profile/admin queries would overload `Payment`. Extend the existing `Payment` model for checkout/session/consent/price snapshot fields needed by PR 4A. Add a focused `SailingCardSubscription` table only if the structural simplicity review proves it is the clearest boundary for ongoing membership state; do not create parallel local tables for Stripe invoices, refunds, or events unless a test proves the app needs them. Defer cancellation reason fields to PR 4B and renewal-notification rows to the reminder PR unless this PR's tests need them.
 
 - [ ] **Step 1: Write subscription-state tests**
 
@@ -1157,6 +1162,8 @@ export async function createMembershipCheckoutSession(options: {
 ```
 
 Use the existing `getStripeClient`, `Env.NEXT_PUBLIC_APP_URL`, and event-payment idempotency style. Split Checkout tests into three bites: date/price selection, pending payment/session idempotency, and Stripe Checkout request construction. Create or reuse a pending local membership payment row in a transaction before calling Stripe. By default this is the existing `Payment` model with `purpose: membership`; use a separate membership-payment table only if the PR 4A structural simplicity decision proved that split. Store the accepted initial and renewal price IDs, amount due today, currency, card type, price kind, payment kind, `activeCheckoutKey`, `stripeCheckoutSessionUrl`, and `stripeCheckoutSessionExpiresAt` locally, then use the local payment ID as the Stripe idempotency-key source and metadata value. Store the metadata on both the Checkout Session and `subscription_data.metadata`. Store `stripeSubscriptionItemId` on webhook completion in PR 4B so future price changes can update active auto-renew subscriptions before renewal with `proration_behavior: 'none'`.
+
+Before calling `getCheckoutMembershipPrices`, Checkout must call the existing sailing-card membership eligibility helper and return no paid Checkout path for MIT students, verified MIT Recreation members, or pending free-normal verification users. Pricing helpers choose the paid price category only after free-normal eligibility has already been ruled out.
 
 The implementation must prove in Stripe test mode that spring Checkout does not create a prorated recurring charge before July 15. If Checkout Session parameters cannot express that safely, switch this task to a two-step flow: one-time Checkout for spring/full access plus a server-created subscription anchored to July 15 after successful payment. Do not ship a path where the initial invoice can include both spring and annual charges.
 
