@@ -7,6 +7,7 @@ import {
   emptyValues,
   expectDetailsHidden,
   renderForm,
+  renderFormWithPersistentDraftProvider,
   resetOnboardingFormTestState,
   selectAffiliation,
   setOnboardingFormActionState,
@@ -322,27 +323,30 @@ describe('SailingCardOnboardingForm', () => {
     ).toBeInTheDocument();
   });
 
-  it('restores safe draft progress after remount without storing contact details', async () => {
+  it('restores full draft progress after remount without storing contact details', async () => {
     const draftKey = 'sailing-card-onboarding:user-1:2026:v1';
-    const { unmount } = renderForm({ draftKey });
+    const { remount } = renderFormWithPersistentDraftProvider({ draftKey });
     const user = userEvent.setup();
 
     await showWellesleyDetails();
     await user.type(screen.getByLabelText('Date of birth'), '03241988');
     await user.type(screen.getByLabelText('Your phone number'), '6175550100');
 
-    unmount();
-    renderForm({ draftKey });
+    remount();
 
     expect(screen.getByLabelText('Affiliation')).toHaveValue('WELLESLEY');
     expect(
       screen.getByRole('heading', { name: 'Confirm your identity' })
     ).toBeInTheDocument();
-    expect(screen.getByLabelText('First name')).toHaveValue('');
-    expect(screen.getByLabelText('Last name')).toHaveValue('');
+    expect(screen.getByLabelText('First name')).toHaveValue('Grace');
+    expect(screen.getByLabelText('Last name')).toHaveValue('Hopper');
+    expect(screen.getByLabelText('Date of birth')).toHaveValue('03/24/1988');
+    expect(screen.getByLabelText('Your phone number')).toHaveValue(
+      '(617) 555-0100'
+    );
   });
 
-  it('keeps sensitive identity and contact details out of session storage', async () => {
+  it('does not write onboarding drafts to session storage', async () => {
     const draftKey = 'sailing-card-onboarding:user-1:2026:pii-test';
     renderForm({ draftKey });
     const user = userEvent.setup();
@@ -358,26 +362,10 @@ describe('SailingCardOnboardingForm', () => {
 
     const rawDraft = globalThis.sessionStorage.getItem(draftKey);
 
-    expect(rawDraft).not.toBeNull();
-    const stored: unknown = JSON.parse(rawDraft ?? '{}');
-    expect(stored).toEqual({
-      detailsUnlocked: true,
-      values: {
-        affiliation: 'WELLESLEY',
-        cardType: 'normal',
-        hasFitnessMembership: '',
-        swimAgreementAccepted: false,
-      },
-    });
-    expect(rawDraft).not.toContain('Grace');
-    expect(rawDraft).not.toContain('Hopper');
-    expect(rawDraft).not.toContain('03/24/1988');
-    expect(rawDraft).not.toContain('(617) 555-0100');
-    expect(rawDraft).not.toContain('Marie');
-    expect(rawDraft).not.toContain('(617) 555-0101');
+    expect(rawDraft).toBeNull();
   });
 
-  it('keeps sensitive identity and contact details out of history state', async () => {
+  it('does not write onboarding drafts to history state', async () => {
     const draftKey = 'sailing-card-onboarding:user-1:2026:history-pii-test';
     renderForm({ draftKey });
     const user = userEvent.setup();
@@ -389,7 +377,8 @@ describe('SailingCardOnboardingForm', () => {
 
     const historyText = JSON.stringify(globalThis.history.state);
 
-    expect(historyText).toContain('WELLESLEY');
+    expect(historyText).not.toContain(draftKey);
+    expect(historyText).not.toContain('WELLESLEY');
     expect(historyText).not.toContain('03/24/1988');
     expect(historyText).not.toContain('(617) 555-0100');
     expect(historyText).not.toContain('Marie');

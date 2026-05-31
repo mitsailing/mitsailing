@@ -1,4 +1,5 @@
 import { setRequestLocale } from 'next-intl/server';
+import { SailingCardOnboardingDraftProvider } from '@/components/mit-sailing/onboarding/SailingCardOnboardingDraftProvider';
 import { SiteShell } from '@/components/mit-sailing/SiteShell';
 
 /**
@@ -20,5 +21,9 @@ export default async function MarketingSegmentLayout(props: {
   const { locale } = await props.params;
   setRequestLocale(locale);
 
-  return <SiteShell>{props.children}</SiteShell>;
+  return (
+    <SailingCardOnboardingDraftProvider>
+      <SiteShell>{props.children}</SiteShell>
+    </SailingCardOnboardingDraftProvider>
+  );
 }
