@@ -5,6 +5,7 @@
 - Clarity and consistency over cleverness. Minimal changes. Match existing patterns.
 - Build bug-free, maintainable, simple code; ask before building package-like infrastructure from scratch when an existing package or local abstraction may fit.
 - User-path first: before adding or moving UI, identify the actor, their starting point, and the object they are trying to change. Put controls where that actor naturally works, not where the database/model name suggests.
+- Avoid agent slop: do not add tables, pages, components, services, permissions, states, or workflows when an existing surface plus a field, filter, or narrow helper fits the current slice; split only for a proven lifecycle, permission, audit, retention, cardinality, transaction, operational, or external-platform boundary.
 - Keep components/functions short; break down when it improves structure.
 - TypeScript everywhere; no `any` unless isolated and necessary.
 - No unnecessary `try/catch`. Avoid casting; use narrowing.
