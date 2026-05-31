@@ -102,10 +102,19 @@ export default async function AdminUsersIndexPage(
             field: 'sailingCardStatus',
             labelKey: 'filter_sailing_card_status_label',
             options: [
-              { labelKey: 'sailing_card_status_pending', value: 'pending' },
-              { labelKey: 'sailing_card_status_current', value: 'current' },
-              { labelKey: 'sailing_card_status_expired', value: 'expired' },
-              { labelKey: 'sailing_card_status_none', value: 'none' },
+              {
+                labelKey: 'filter_sailing_card_status_pending',
+                value: 'pending',
+              },
+              {
+                labelKey: 'filter_sailing_card_status_current',
+                value: 'current',
+              },
+              {
+                labelKey: 'filter_sailing_card_status_expired',
+                value: 'expired',
+              },
+              { labelKey: 'filter_sailing_card_status_none', value: 'none' },
             ],
           },
         ]}

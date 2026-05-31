@@ -35,16 +35,30 @@ vi.mock('react', async (importOriginal) => {
   };
 });
 
+function numberValue(props: {
+  readonly field: string;
+  readonly values: Record<string, unknown> | undefined;
+}) {
+  const value = props.values?.[props.field];
+  return typeof value === 'number' ? value : '';
+}
+
+function stringValue(props: {
+  readonly field: string;
+  readonly values: Record<string, unknown> | undefined;
+}) {
+  const value = props.values?.[props.field];
+  return typeof value === 'string' ? value : '';
+}
+
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) => {
-    const number = typeof values?.number === 'number' ? values.number : '';
-    const year = typeof values?.year === 'number' ? values.year : '';
-    const fromNumber =
-      typeof values?.fromNumber === 'number' ? values.fromNumber : '';
-    const toNumber =
-      typeof values?.toNumber === 'number' ? values.toNumber : '';
-    const date = typeof values?.date === 'string' ? values.date : '';
-    const actor = typeof values?.actor === 'string' ? values.actor : '';
+    const number = numberValue({ field: 'number', values });
+    const year = numberValue({ field: 'year', values });
+    const fromNumber = numberValue({ field: 'fromNumber', values });
+    const toNumber = numberValue({ field: 'toNumber', values });
+    const date = stringValue({ field: 'date', values });
+    const actor = stringValue({ field: 'actor', values });
     const messages: Record<string, string> = {
       action_expire: 'Expire',
       action_issue: 'Issue',

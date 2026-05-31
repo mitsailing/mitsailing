@@ -31,6 +31,11 @@ function dateOfBirthDescribedBy(props: { readonly showError: boolean }) {
 const ariaDescribedBy = (ids: readonly (string | undefined)[]) =>
   ids.filter((id) => id !== undefined).join(' ');
 
+const validateDateOfBirth = (value: string) =>
+  value.trim() === '' ||
+  parseSailingCardDateOfBirth({ value }) !== null ||
+  'error_invalid_date_of_birth';
+
 function DateOfBirthField(props: {
   readonly clientErrors: FieldErrors<SailingCardOnboardingFormValues>;
   readonly register: UseFormRegister<SailingCardOnboardingFormValues>;
@@ -39,10 +44,7 @@ function DateOfBirthField(props: {
   const t = useTranslations('OnboardingPage');
   const registration = props.register('dateOfBirth', {
     required: 'error_required',
-    validate: (value) =>
-      value.trim() === '' ||
-      parseSailingCardDateOfBirth({ value }) !== null ||
-      'error_invalid_date_of_birth',
+    validate: validateDateOfBirth,
   });
   const dateOfBirthError = props.state.fieldErrors.dateOfBirth;
   const dateOfBirthClientError = props.clientErrors.dateOfBirth;

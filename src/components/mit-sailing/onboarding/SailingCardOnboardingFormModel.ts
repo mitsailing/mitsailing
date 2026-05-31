@@ -298,26 +298,28 @@ function useOnboardingDraftPersistence(props: {
   readonly draftKey: string | undefined;
   readonly form: ReturnType<typeof useForm<SailingCardOnboardingFormValues>>;
 }) {
+  const { detailsUnlocked, draftKey, draftStore, form } = props;
+  const { getValues: getFormValues, subscribe: subscribeToForm } = form;
+
   useEffect(() => {
-    const { draftKey } = props;
     if (draftKey === undefined) {
       return;
     }
-    const initialValues = props.form.getValues();
+    const initialValues = getFormValues();
     const saveDraft = (values: SailingCardOnboardingFormValues) => {
       const fullDraft = {
-        detailsUnlocked: props.detailsUnlocked,
+        detailsUnlocked,
         values,
       } satisfies SailingCardOnboardingMemoryDraft;
 
-      props.draftStore?.saveDraft({
+      draftStore?.saveDraft({
         draft: fullDraft,
         draftKey,
       });
     };
 
     saveDraft(initialValues);
-    const unsubscribe = props.form.subscribe({
+    const unsubscribe = subscribeToForm({
       callback: ({ values }) => {
         const draftValues = onboardingValuesFromDraft(values);
         if (draftValues !== null) {
@@ -331,7 +333,7 @@ function useOnboardingDraftPersistence(props: {
     return () => {
       unsubscribe();
     };
-  }, [props.detailsUnlocked, props.draftKey, props.draftStore, props.form]);
+  }, [detailsUnlocked, draftKey, draftStore, getFormValues, subscribeToForm]);
 }
 
 function useWatchedOnboardingValues(

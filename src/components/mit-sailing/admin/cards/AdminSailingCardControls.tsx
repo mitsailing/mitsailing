@@ -302,48 +302,70 @@ export function AdminSailingCardExpireForm(props: {
   );
 }
 
-function historyRowLabel(props: {
+function changedHistoryRowLabel(props: {
   readonly row: AdminSailingCardHistoryRow;
   readonly t: ReturnType<typeof useTranslations<'AdminCards'>>;
 }) {
   if (
-    props.row.action === 'changed' &&
-    props.row.fromNumber !== null &&
-    props.row.fromYear !== null &&
-    props.row.toNumber !== null &&
-    props.row.toYear !== null
+    props.row.fromNumber === null ||
+    props.row.fromYear === null ||
+    props.row.toNumber === null ||
+    props.row.toYear === null
   ) {
-    if (props.row.fromYear === props.row.toYear) {
-      return props.t('history_row_changed', {
-        fromNumber: props.row.fromNumber,
-        toNumber: props.row.toNumber,
-        year: props.row.toYear,
-      });
-    }
-    return props.t('history_row_changed_year', {
+    return null;
+  }
+  if (props.row.fromYear === props.row.toYear) {
+    return props.t('history_row_changed', {
       fromNumber: props.row.fromNumber,
-      fromYear: props.row.fromYear,
       toNumber: props.row.toNumber,
-      toYear: props.row.toYear,
+      year: props.row.toYear,
     });
   }
-  if (
-    props.row.action === 'expired' &&
-    props.row.fromNumber !== null &&
-    props.row.fromYear !== null
-  ) {
+  return props.t('history_row_changed_year', {
+    fromNumber: props.row.fromNumber,
+    fromYear: props.row.fromYear,
+    toNumber: props.row.toNumber,
+    toYear: props.row.toYear,
+  });
+}
+
+function expiredHistoryRowLabel(props: {
+  readonly row: AdminSailingCardHistoryRow;
+  readonly t: ReturnType<typeof useTranslations<'AdminCards'>>;
+}) {
+  if (props.row.fromNumber !== null && props.row.fromYear !== null) {
     return props.t('history_row_expired', {
       number: props.row.fromNumber,
       year: props.row.fromYear,
     });
   }
+  return null;
+}
+
+function issuedHistoryRowLabel(props: {
+  readonly row: AdminSailingCardHistoryRow;
+  readonly t: ReturnType<typeof useTranslations<'AdminCards'>>;
+}) {
   if (props.row.toNumber !== null && props.row.toYear !== null) {
     return props.t('history_row_issued', {
       number: props.row.toNumber,
       year: props.row.toYear,
     });
   }
-  return props.t('history_row_unknown');
+  return null;
+}
+
+function historyRowLabel(props: {
+  readonly row: AdminSailingCardHistoryRow;
+  readonly t: ReturnType<typeof useTranslations<'AdminCards'>>;
+}) {
+  if (props.row.action === 'changed') {
+    return changedHistoryRowLabel(props) ?? props.t('history_row_unknown');
+  }
+  if (props.row.action === 'expired') {
+    return expiredHistoryRowLabel(props) ?? props.t('history_row_unknown');
+  }
+  return issuedHistoryRowLabel(props) ?? props.t('history_row_unknown');
 }
 
 export function AdminSailingCardHistory(props: {

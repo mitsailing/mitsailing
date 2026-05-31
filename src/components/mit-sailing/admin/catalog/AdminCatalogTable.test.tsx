@@ -30,8 +30,8 @@ vi.mock('next-intl', () => ({
       email_status_ok: 'OK',
       no: 'No',
       reorder_error: 'Could not reorder rows.',
-      sailing_card_status_current: 'Current card',
-      sailing_card_status_pending: 'Pending card',
+      filter_sailing_card_status_current: 'Current card',
+      filter_sailing_card_status_pending: 'Pending card',
       yes: 'Yes',
     };
     return messages[key] ?? key;
@@ -142,8 +142,14 @@ function renderUsersTable() {
           field: 'sailingCardStatus',
           labelKey: 'filter_sailing_card_status_label',
           options: [
-            { labelKey: 'sailing_card_status_current', value: 'current' },
-            { labelKey: 'sailing_card_status_pending', value: 'pending' },
+            {
+              labelKey: 'filter_sailing_card_status_current',
+              value: 'current',
+            },
+            {
+              labelKey: 'filter_sailing_card_status_pending',
+              value: 'pending',
+            },
           ],
         },
       ]}
