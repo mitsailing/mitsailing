@@ -36,6 +36,7 @@ export function SailingCardOnboardingForm(
         hasFitnessMembershipValue={model.hasFitnessMembershipValue}
         identityComplete={model.identityComplete}
         isPending={model.isPending}
+        clientErrors={model.form.formState.errors}
         lockedIdentity={model.lockedIdentity}
         manualNameRequired={model.manualNameRequired}
         mitIdRequired={model.mitIdRequired}

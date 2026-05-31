@@ -956,6 +956,15 @@ standalone card-admin route.
 Result: `npm run lint`, `npm run check:types`, `npm run check:i18n`,
 `npm run test`, and `npm run test:e2e` all passed locally on May 29, 2026.
 
+May 31, 2026 hardening update: the Pavilion-staff journey now keeps card
+assignment and correction on `/admin/users/[id]`, adds `/admin/users` card
+status filtering, removes the banned filter from the staff list, rejects
+same-number card corrections without writing duplicate audit history, and keeps
+onboarding form values through profile/pricing navigation. `npm run lint`,
+`npm run check:types`, `npm run check:deps`, `npm run check:i18n`,
+`npm run test`, and `npm run test:e2e` passed locally; e2e result was 93
+passed, 2 skipped.
+
 ## Self-Review
 
 - Spec coverage: covers one shared payment table, legacy display, optional auto-renew prompt, unmatched review, admin blockers, admin user payment history, users search, manual card-number rules, and payment-bypass override.

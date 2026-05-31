@@ -2,7 +2,11 @@
 
 import { Sailboat } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import type { UseFormRegister, UseFormSetValue } from 'react-hook-form';
+import type {
+  FieldErrors,
+  UseFormRegister,
+  UseFormSetValue,
+} from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import type { SailingAffiliation } from '@/generated/prisma/enums';
 import type {
@@ -37,6 +41,7 @@ function SubmitButton(props: { readonly isPending: boolean }) {
 function OnboardingDetailsFields(props: {
   readonly affiliation: SailingAffiliation | '';
   readonly cardTypeValue: string | undefined;
+  readonly clientErrors: FieldErrors<SailingCardOnboardingFormValues>;
   readonly dateOfBirthValue: string | undefined;
   readonly fitnessMembershipReady: boolean;
   readonly hasFitnessMembershipValue: string | undefined;
@@ -48,10 +53,15 @@ function OnboardingDetailsFields(props: {
 }) {
   return (
     <>
-      <ContactAndSafetyFields register={props.register} state={props.state} />
+      <ContactAndSafetyFields
+        clientErrors={props.clientErrors}
+        register={props.register}
+        state={props.state}
+      />
       <CardRequestSection
         affiliation={props.affiliation}
         cardTypeValue={props.cardTypeValue}
+        clientErrors={props.clientErrors}
         dateOfBirthValue={props.dateOfBirthValue}
         fitnessMembershipReady={props.fitnessMembershipReady}
         hasFitnessMembershipValue={props.hasFitnessMembershipValue}
@@ -60,7 +70,11 @@ function OnboardingDetailsFields(props: {
         setValue={props.setValue}
         state={props.state}
       />
-      <AgreementSection register={props.register} state={props.state} />
+      <AgreementSection
+        clientErrors={props.clientErrors}
+        register={props.register}
+        state={props.state}
+      />
       <SubmitButton isPending={props.isPending} />
     </>
   );
@@ -69,6 +83,7 @@ function OnboardingDetailsFields(props: {
 export function OnboardingFormFields(props: {
   readonly affiliation: SailingAffiliation | '';
   readonly cardTypeValue: string | undefined;
+  readonly clientErrors: FieldErrors<SailingCardOnboardingFormValues>;
   readonly dateOfBirthValue: string | undefined;
   readonly fitnessMembershipReady: boolean;
   readonly hasFitnessMembershipValue: string | undefined;
@@ -91,12 +106,14 @@ export function OnboardingFormFields(props: {
     <>
       <AffiliationSelect
         affiliation={props.affiliation}
+        clientErrors={props.clientErrors}
         register={props.register}
         state={props.state}
       />
       {props.affiliation === '' ? null : (
         <IdentityFields
           identityComplete={props.identityComplete}
+          clientErrors={props.clientErrors}
           lockedIdentity={props.lockedIdentity}
           manualNameRequired={props.manualNameRequired}
           mitIdRequired={props.mitIdRequired}
@@ -113,6 +130,7 @@ export function OnboardingFormFields(props: {
         <OnboardingDetailsFields
           affiliation={props.affiliation}
           cardTypeValue={props.cardTypeValue}
+          clientErrors={props.clientErrors}
           dateOfBirthValue={props.dateOfBirthValue}
           fitnessMembershipReady={props.fitnessMembershipReady}
           hasFitnessMembershipValue={props.hasFitnessMembershipValue}

@@ -98,12 +98,14 @@ export default async function AdminUsersIndexPage(
             ],
           },
           {
-            allKey: 'filter_banned_all',
-            field: 'banned',
-            labelKey: 'filter_banned_label',
+            allKey: 'filter_sailing_card_status_all',
+            field: 'sailingCardStatus',
+            labelKey: 'filter_sailing_card_status_label',
             options: [
-              { labelKey: 'boolean_yes', value: 'true' },
-              { labelKey: 'boolean_no', value: 'false' },
+              { labelKey: 'sailing_card_status_pending', value: 'pending' },
+              { labelKey: 'sailing_card_status_current', value: 'current' },
+              { labelKey: 'sailing_card_status_expired', value: 'expired' },
+              { labelKey: 'sailing_card_status_none', value: 'none' },
             ],
           },
         ]}

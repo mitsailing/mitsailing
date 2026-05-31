@@ -19,21 +19,23 @@ import type {
 } from '@/libs/legacy-sync/legacyPaymentImport';
 
 const mocks = vi.hoisted(() => ({
-  paymentUpsert: vi.fn(),
+  executeRaw: vi.fn(),
+  paymentCreateMany: vi.fn(),
+  paymentFindMany: vi.fn(),
   transaction: vi.fn(),
   userCreateMany: vi.fn(),
   userFindMany: vi.fn(),
-  userUpdate: vi.fn(),
 }));
 
 type MockLegacyPaymentImportDb = {
   readonly payment: {
-    readonly upsert: typeof mocks.paymentUpsert;
+    readonly createMany: typeof mocks.paymentCreateMany;
+    readonly findMany: typeof mocks.paymentFindMany;
   };
+  readonly $executeRaw: typeof mocks.executeRaw;
   readonly user: {
     readonly createMany: typeof mocks.userCreateMany;
     readonly findMany: typeof mocks.userFindMany;
-    readonly update: typeof mocks.userUpdate;
   };
 };
 
@@ -46,6 +48,16 @@ vi.mock('@/libs/DB', () => ({
     $transaction: mocks.transaction,
   },
 }));
+
+function expectRawSqlContaining(
+  callIndex: number,
+  expected: readonly string[]
+) {
+  const query = String(mocks.executeRaw.mock.calls[callIndex]?.[0] ?? '');
+  for (const fragment of expected) {
+    expect(query).toContain(fragment);
+  }
+}
 
 function member(overrides: Partial<LegacyMemberRow> = {}): LegacyMemberRow {
   return {
@@ -91,16 +103,20 @@ describe('legacyPaymentImport', () => {
     vi.clearAllMocks();
     mocks.userFindMany.mockResolvedValue([]);
     mocks.userCreateMany.mockResolvedValue({ count: 0 });
-    mocks.userUpdate.mockResolvedValue({});
-    mocks.paymentUpsert.mockResolvedValue({});
+    mocks.paymentFindMany.mockResolvedValue([]);
+    mocks.paymentCreateMany.mockResolvedValue({ count: 0 });
+    mocks.executeRaw.mockResolvedValue(0);
     mocks.transaction.mockImplementation(
       async (operation: MockTransactionOperation) => {
         const result = await operation({
-          payment: { upsert: mocks.paymentUpsert },
+          $executeRaw: mocks.executeRaw,
+          payment: {
+            createMany: mocks.paymentCreateMany,
+            findMany: mocks.paymentFindMany,
+          },
           user: {
             createMany: mocks.userCreateMany,
             findMany: mocks.userFindMany,
-            update: mocks.userUpdate,
           },
         });
         return result;
@@ -263,27 +279,24 @@ describe('legacyPaymentImport', () => {
         ]),
       })
     );
-    expect(mocks.paymentUpsert).toHaveBeenCalledWith(
+    expect(mocks.paymentCreateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        create: expect.objectContaining({
-          cardType: SailingCardType.racing,
-          cardYear: 2027,
-          legacyCategory: 'Racing',
-          legacyDescription: 'Racing Card 2026-2027 for sailor',
-          legacySettled: true,
-          legacySourceId: '1001',
-          legacySourceTable: 'payments',
-          purpose: PaymentPurpose.membership,
-          source: PaymentSource.legacy,
-          status: PaymentStatus.paid,
-          userId: expect.any(String),
-        }),
-        where: {
-          legacySourceTable_legacySourceId: {
+        data: expect.arrayContaining([
+          expect.objectContaining({
+            cardType: SailingCardType.racing,
+            cardYear: 2027,
+            legacyCategory: 'Racing',
+            legacyDescription: 'Racing Card 2026-2027 for sailor',
+            legacySettled: true,
             legacySourceId: '1001',
             legacySourceTable: 'payments',
-          },
-        },
+            purpose: PaymentPurpose.membership,
+            source: PaymentSource.legacy,
+            status: PaymentStatus.paid,
+            userId: expect.any(String),
+          }),
+        ]),
+        skipDuplicates: true,
       })
     );
   });
@@ -330,16 +343,12 @@ describe('legacyPaymentImport', () => {
       usersMatched: 2,
     });
 
-    expect(mocks.userUpdate).toHaveBeenCalledTimes(1);
-    expect(mocks.userUpdate).toHaveBeenCalledWith({
-      data: {
-        sailingCardExpiresOn: new Date('2027-07-15T12:00:00.000Z'),
-        sailingCardIssuedAt: new Date('2026-01-01T12:00:00.000Z'),
-        sailingCardNumber: 110,
-        sailingCardYear: 2027,
-      },
-      where: { id: 'existing-user-1' },
-    });
+    expect(mocks.executeRaw).toHaveBeenCalledTimes(1);
+    expectRawSqlContaining(0, [
+      'UPDATE "user" AS target',
+      'SET "sailing_card_expires_on"',
+      'WHERE target."id" = source.id',
+    ]);
   });
 
   it('imports unmatched legacy rows for admin review', async () => {
@@ -361,15 +370,17 @@ describe('legacyPaymentImport', () => {
       paymentsNeedingReview: 1,
     });
 
-    expect(mocks.paymentUpsert).toHaveBeenCalledWith(
+    expect(mocks.paymentCreateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        create: expect.objectContaining({
-          legacyCategory: 'Regatta',
-          legacyDescription: 'Legacy regatta payment',
-          purpose: PaymentPurpose.event_payment,
-          status: PaymentStatus.needs_review,
-          userId: null,
-        }),
+        data: expect.arrayContaining([
+          expect.objectContaining({
+            legacyCategory: 'Regatta',
+            legacyDescription: 'Legacy regatta payment',
+            purpose: PaymentPurpose.event_payment,
+            status: PaymentStatus.needs_review,
+            userId: null,
+          }),
+        ]),
       })
     );
   });
@@ -380,31 +391,34 @@ describe('legacyPaymentImport', () => {
       payments: [payment({ date: '2026-05-01 15:30:00' })],
     });
 
-    expect(mocks.paymentUpsert).toHaveBeenCalledWith(
+    expect(mocks.paymentCreateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        create: expect.objectContaining({
-          createdAt: new Date('2026-05-01T12:00:00.000Z'),
-        }),
+        data: expect.arrayContaining([
+          expect.objectContaining({
+            createdAt: new Date('2026-05-01T12:00:00.000Z'),
+          }),
+        ]),
       })
     );
   });
 
-  it('does not overwrite existing payment status on legacy reimport', async () => {
+  it('only updates unresolved existing payment status on legacy reimport', async () => {
+    mocks.paymentFindMany.mockResolvedValueOnce([{ legacySourceId: '1001' }]);
+
     await importLegacyPaymentRows({
       members: [member()],
       payments: [payment({ settled: '1' })],
     });
 
-    expect(mocks.paymentUpsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        create: expect.objectContaining({
-          status: PaymentStatus.paid,
-        }),
-        update: expect.not.objectContaining({
-          status: expect.anything(),
-        }),
-      })
-    );
+    expect(mocks.paymentCreateMany).not.toHaveBeenCalled();
+    expect(mocks.executeRaw).toHaveBeenCalledTimes(1);
+    expectRawSqlContaining(0, [
+      'UPDATE "payments" AS target',
+      `WHEN target."status" = 'needs_review'`,
+      'THEN source.status::text::"payment_status"',
+      '"updated_at" = NOW()',
+      '"legacy_source_id" = source.legacy_source_id',
+    ]);
   });
 
   it('keeps unmatched racing card rows reviewable as membership context', async () => {
@@ -420,15 +434,43 @@ describe('legacyPaymentImport', () => {
       ],
     });
 
-    expect(mocks.paymentUpsert).toHaveBeenCalledWith(
+    expect(mocks.paymentCreateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        create: expect.objectContaining({
-          cardType: SailingCardType.racing,
-          cardYear: 2027,
-          purpose: PaymentPurpose.membership,
-          status: PaymentStatus.needs_review,
-          userId: null,
-        }),
+        data: expect.arrayContaining([
+          expect.objectContaining({
+            cardType: SailingCardType.racing,
+            cardYear: 2027,
+            purpose: PaymentPurpose.membership,
+            status: PaymentStatus.needs_review,
+            userId: null,
+          }),
+        ]),
+      })
+    );
+  });
+
+  it('imports multiple payments with one lookup and one bulk insert', async () => {
+    await importLegacyPaymentRows({
+      members: [member()],
+      payments: [payment({ omarsid: '1001' }), payment({ omarsid: '1002' })],
+    });
+
+    expect(mocks.paymentFindMany).toHaveBeenCalledTimes(1);
+    expect(mocks.paymentFindMany).toHaveBeenCalledWith({
+      select: { legacySourceId: true },
+      where: {
+        legacySourceId: { in: ['1001', '1002'] },
+        legacySourceTable: 'payments',
+      },
+    });
+    expect(mocks.paymentCreateMany).toHaveBeenCalledTimes(1);
+    expect(mocks.paymentCreateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.arrayContaining([
+          expect.objectContaining({ legacySourceId: '1001' }),
+          expect.objectContaining({ legacySourceId: '1002' }),
+        ]),
+        skipDuplicates: true,
       })
     );
   });

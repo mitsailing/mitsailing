@@ -129,6 +129,22 @@ describe('SiteHeader', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('opens profile in a new tab while onboarding is in progress', () => {
+    setSessionState({
+      data: { user: { id: 'user-1', role: 'user' }, session: {} },
+    });
+    setComponentTestPathname('/onboarding');
+
+    renderHeader();
+
+    const profileLink = within(screen.getByRole('banner')).getByRole('link', {
+      name: 'Profile',
+    });
+    expect(profileLink).toHaveAttribute('href', '/profile');
+    expect(profileLink).toHaveAttribute('target', '_blank');
+    expect(profileLink).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+
   it('renders admin link for signed-in admins', () => {
     setSessionState({
       data: {

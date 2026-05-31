@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { Prisma } from '@/generated/prisma/client';
+import { Prisma } from '@/generated/prisma/client';
 import {
   PaymentPurpose,
   PaymentSource,
@@ -61,7 +61,10 @@ export type LegacyMemberPaymentMap = {
   readonly memberUserKeyByUsername: ReadonlyMap<string, string>;
 };
 
-type LegacyPaymentImportDb = Pick<Prisma.TransactionClient, 'payment' | 'user'>;
+type LegacyPaymentImportDb = Pick<
+  Prisma.TransactionClient,
+  '$executeRaw' | 'payment' | 'user'
+>;
 
 type LegacySailingCardSnapshot = {
   readonly expiresOn: Date;
@@ -262,7 +265,7 @@ export function legacyPaymentAmountCents(amount: string | null): number {
 }
 
 function racingCardSeasonEndYear(description: string): number | null {
-  const match = description.match(/\bRacing Card \d{4}-(\d{4}) for /u);
+  const match = /\bRacing Card \d{4}-(\d{4}) for /u.exec(description);
   if (!match) {
     return null;
   }
@@ -271,7 +274,7 @@ function racingCardSeasonEndYear(description: string): number | null {
 }
 
 function racingCardUsername(description: string): string | null {
-  const match = description.match(/\bRacing Card \d{4}-\d{4} for ([^\s]+)/u);
+  const match = /\bRacing Card \d{4}-\d{4} for ([^\s]+)/u.exec(description);
   return match?.[1]?.trim().toLowerCase() ?? null;
 }
 
@@ -334,6 +337,45 @@ function legacySailingCardUserData(card: LegacySailingCardSnapshot) {
   };
 }
 
+type LegacySailingCardMerge = Readonly<{
+  id: string;
+  legacySailingCard: LegacySailingCardSnapshot;
+}>;
+
+function legacySailingCardMergeSql(merges: readonly LegacySailingCardMerge[]) {
+  return Prisma.join(
+    merges.map(
+      (merge) =>
+        Prisma.sql`(${merge.id}, ${merge.legacySailingCard.expiresOn}, ${merge.legacySailingCard.issuedAt}, ${merge.legacySailingCard.number}, ${merge.legacySailingCard.year})`
+    ),
+    ', '
+  );
+}
+
+async function mergeLegacySailingCards(props: {
+  readonly db: LegacyPaymentImportDb;
+  readonly merges: readonly LegacySailingCardMerge[];
+}) {
+  if (props.merges.length === 0) {
+    return;
+  }
+  await props.db.$executeRaw`
+    UPDATE "user" AS target
+    SET "sailing_card_expires_on" = source.expires_on::date,
+        "sailing_card_issued_at" = source.issued_at::timestamp,
+        "sailing_card_number" = source.card_number::integer,
+        "sailing_card_year" = source.card_year::integer
+    FROM (
+      VALUES ${legacySailingCardMergeSql(props.merges)}
+    ) AS source(id, expires_on, issued_at, card_number, card_year)
+    WHERE target."id" = source.id
+      AND (
+        target."sailing_card_number" IS NULL
+        OR target."sailing_card_year" IS NULL
+      )
+  `;
+}
+
 async function ensureLegacyUsers(props: {
   readonly db: LegacyPaymentImportDb;
   readonly map: LegacyMemberPaymentMap;
@@ -347,6 +389,7 @@ async function ensureLegacyUsers(props: {
   let cardRecordsMerged = 0;
   let usersCreated = 0;
   let usersMatched = 0;
+  const cardMerges: LegacySailingCardMerge[] = [];
   const existingUsers = await props.db.user.findMany({
     where: {
       email: { in: props.map.canonicalUsers.map((user) => user.email) },
@@ -371,9 +414,9 @@ async function ensureLegacyUsers(props: {
         (existing.sailingCardNumber === null ||
           existing.sailingCardYear === null)
       ) {
-        await props.db.user.update({
-          data: legacySailingCardUserData(user.legacySailingCard),
-          where: { id: existing.id },
+        cardMerges.push({
+          id: existing.id,
+          legacySailingCard: user.legacySailingCard,
         });
         cardRecordsMerged += 1;
       }
@@ -411,6 +454,7 @@ async function ensureLegacyUsers(props: {
       skipDuplicates: true,
     });
   }
+  await mergeLegacySailingCards({ db: props.db, merges: cardMerges });
 
   return { appUserIdByKey, cardRecordsMerged, usersCreated, usersMatched };
 }
@@ -426,12 +470,16 @@ function legacyPaymentCreatedAt(payment: LegacyPaymentRow): Date {
   return parseLegacyDate(payment.date) ?? new Date(0);
 }
 
-async function upsertLegacyPayment(props: {
+type LegacyPaymentWrite = Readonly<{
+  data: Prisma.PaymentCreateManyInput;
+  status: PaymentStatus;
+}>;
+
+function legacyPaymentWrite(props: {
   readonly appUserIdByKey: ReadonlyMap<string, string>;
-  readonly db: LegacyPaymentImportDb;
   readonly map: LegacyMemberPaymentMap;
   readonly payment: LegacyPaymentRow;
-}): Promise<PaymentStatus> {
+}): LegacyPaymentWrite {
   const orderNumber = stringValue(props.payment.omarsid);
   const purpose = legacyPaymentPurpose(props.payment);
   const matchedUserId = legacyPaymentUserId({
@@ -464,33 +512,106 @@ async function upsertLegacyPayment(props: {
     status,
     userId: matchedUserId,
   };
-  const update = {
-    amountCents: data.amountCents,
-    cardType: data.cardType,
-    cardYear: data.cardYear,
-    createdAt: data.createdAt,
-    currency: data.currency,
-    legacyCategory: data.legacyCategory,
-    legacyDescription: data.legacyDescription,
-    legacySettled: data.legacySettled,
-    payerEmail: data.payerEmail,
-    payerName: data.payerName,
-    purpose: data.purpose,
-    source: data.source,
-    userId: data.userId,
-  };
+  return { data, status };
+}
 
-  await props.db.payment.upsert({
+function legacyPaymentUpdateSql(writes: readonly LegacyPaymentWrite[]) {
+  return Prisma.join(
+    writes.map((write) => {
+      const { data } = write;
+      return Prisma.sql`(${data.legacySourceId}, ${data.amountCents}, ${data.cardType}, ${data.cardYear}, ${data.createdAt}, ${data.currency}, ${data.legacyCategory}, ${data.legacyDescription}, ${data.legacySettled}, ${data.payerEmail}, ${data.payerName}, ${data.purpose}, ${data.source}, ${data.status}, ${data.userId})`;
+    }),
+    ', '
+  );
+}
+
+async function updateExistingLegacyPayments(props: {
+  readonly db: LegacyPaymentImportDb;
+  readonly writes: readonly LegacyPaymentWrite[];
+}) {
+  if (props.writes.length === 0) {
+    return;
+  }
+  await props.db.$executeRaw`
+    UPDATE "payments" AS target
+    SET "amount_cents" = source.amount_cents::integer,
+        "card_type" = source.card_type::text::"sailing_card_type",
+        "card_year" = source.card_year::integer,
+        "created_at" = source.created_at::timestamp,
+        "currency" = source.currency::text,
+        "legacy_category" = source.legacy_category::text,
+        "legacy_description" = source.legacy_description::text,
+        "legacy_settled" = source.legacy_settled::boolean,
+        "payer_email" = source.payer_email::text,
+        "payer_name" = source.payer_name::text,
+        "purpose" = source.purpose::text::"payment_purpose",
+        "source" = source.source::text::"payment_source",
+        "status" = CASE
+          WHEN target."status" = 'needs_review'
+            THEN source.status::text::"payment_status"
+          ELSE target."status"
+        END,
+        "updated_at" = NOW(),
+        "user_id" = source.user_id::text
+    FROM (
+      VALUES ${legacyPaymentUpdateSql(props.writes)}
+    ) AS source(
+      legacy_source_id,
+      amount_cents,
+      card_type,
+      card_year,
+      created_at,
+      currency,
+      legacy_category,
+      legacy_description,
+      legacy_settled,
+      payer_email,
+      payer_name,
+      purpose,
+      source,
+      status,
+      user_id
+    )
+    WHERE target."legacy_source_table" = 'payments'
+      AND target."legacy_source_id" = source.legacy_source_id
+  `;
+}
+
+async function writeLegacyPayments(props: {
+  readonly db: LegacyPaymentImportDb;
+  readonly writes: readonly LegacyPaymentWrite[];
+}) {
+  if (props.writes.length === 0) {
+    return;
+  }
+  const existingRows = await props.db.payment.findMany({
+    select: { legacySourceId: true },
     where: {
-      legacySourceTable_legacySourceId: {
-        legacySourceId: orderNumber,
-        legacySourceTable: 'payments',
+      legacySourceId: {
+        in: props.writes.map((write) => String(write.data.legacySourceId)),
       },
+      legacySourceTable: 'payments',
     },
-    create: data,
-    update,
   });
-  return status;
+  const existingSourceIds = new Set(
+    existingRows.flatMap((row) =>
+      row.legacySourceId === null ? [] : [row.legacySourceId]
+    )
+  );
+  const newWrites = props.writes.filter(
+    (write) => !existingSourceIds.has(String(write.data.legacySourceId))
+  );
+  const existingWrites = props.writes.filter((write) =>
+    existingSourceIds.has(String(write.data.legacySourceId))
+  );
+
+  if (newWrites.length > 0) {
+    await props.db.payment.createMany({
+      data: newWrites.map((write) => write.data),
+      skipDuplicates: true,
+    });
+  }
+  await updateExistingLegacyPayments({ db: props.db, writes: existingWrites });
 }
 
 export async function importLegacyPaymentRows(props: {
@@ -503,6 +624,7 @@ export async function importLegacyPaymentRows(props: {
     const users = await ensureLegacyUsers({ db, map });
     let paymentsImported = 0;
     let paymentsNeedingReview = 0;
+    const paymentWrites: LegacyPaymentWrite[] = [];
 
     for (const payment of props.payments) {
       const orderNumber = stringValue(payment.omarsid);
@@ -510,17 +632,18 @@ export async function importLegacyPaymentRows(props: {
         paymentsNeedingReview += 1;
         continue;
       }
-      const status = await upsertLegacyPayment({
+      const write = legacyPaymentWrite({
         appUserIdByKey: users.appUserIdByKey,
-        db,
         map,
         payment,
       });
+      paymentWrites.push(write);
       paymentsImported += 1;
-      if (status === PaymentStatus.needs_review) {
+      if (write.status === PaymentStatus.needs_review) {
         paymentsNeedingReview += 1;
       }
     }
+    await writeLegacyPayments({ db, writes: paymentWrites });
 
     return {
       cardRecordsMerged: users.cardRecordsMerged,

@@ -18,29 +18,88 @@ function numberValue(value: unknown): number | null {
   return typeof value === 'number' && Number.isInteger(value) ? value : null;
 }
 
+function trimmedValue(value: string | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed === undefined || trimmed === '' ? null : trimmed;
+}
+
+function historyActorName(
+  user: { readonly email: string; readonly name: string } | null
+) {
+  return trimmedValue(user?.name) ?? trimmedValue(user?.email);
+}
+
+function historyAction(props: {
+  readonly fromNumber: number | null;
+  readonly fromYear: number | null;
+  readonly toNumber: number | null;
+  readonly toYear: number | null;
+}): AdminSailingCardHistoryRow['action'] | null {
+  if (
+    props.fromNumber === props.toNumber &&
+    props.fromYear === props.toYear &&
+    [props.fromNumber, props.fromYear].some((value) => value !== null)
+  ) {
+    return null;
+  }
+  if (
+    props.fromNumber === null &&
+    props.fromYear === null &&
+    props.toNumber !== null
+  ) {
+    return 'issued';
+  }
+  if (
+    props.fromNumber !== null &&
+    props.toNumber === null &&
+    props.toYear === null
+  ) {
+    return 'expired';
+  }
+  if (
+    props.fromNumber !== null &&
+    props.fromYear !== null &&
+    props.toNumber !== null &&
+    props.toYear !== null
+  ) {
+    return 'changed';
+  }
+  return null;
+}
+
 function historyRowFromAudit(row: {
   readonly auditedChanges: Prisma.JsonValue;
   readonly createdAt: Date;
   readonly id: string;
+  readonly user: { readonly email: string; readonly name: string } | null;
 }): AdminSailingCardHistoryRow | null {
   const changes = objectValue(row.auditedChanges);
   const after = objectValue(changes?.after);
   const before = objectValue(changes?.before);
-  const number =
-    numberValue(before?.sailingCardNumber) ??
-    numberValue(after?.sailingCardNumber);
-  const year =
-    numberValue(before?.sailingCardYear) ?? numberValue(after?.sailingCardYear);
+  const fromNumber = numberValue(before?.sailingCardNumber);
+  const fromYear = numberValue(before?.sailingCardYear);
+  const toNumber = numberValue(after?.sailingCardNumber);
+  const toYear = numberValue(after?.sailingCardYear);
+  const action = historyAction({
+    fromNumber,
+    fromYear,
+    toNumber,
+    toYear,
+  });
 
-  if (number === null || year === null) {
+  if (action === null) {
     return null;
   }
 
   return {
+    action,
+    actorName: historyActorName(row.user),
     createdAt: row.createdAt,
+    fromNumber,
+    fromYear,
     id: row.id,
-    number,
-    year,
+    toNumber,
+    toYear,
   };
 }
 
@@ -57,6 +116,12 @@ export async function getAdminSailingCardHistory(
       auditedChanges: true,
       createdAt: true,
       id: true,
+      user: {
+        select: {
+          email: true,
+          name: true,
+        },
+      },
     },
   });
 

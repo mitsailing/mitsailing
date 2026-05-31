@@ -12,16 +12,21 @@ import { formatAdminDate } from '@/libs/admin/adminDateFormatting';
 import {
   issueSailingCardAction,
   expireSailingCardAction,
+  updateSailingCardNumberAction,
 } from '@/libs/admin/cards/adminSailingCardActions';
 import type { AdminSailingCardActionState } from '@/libs/admin/cards/adminSailingCardActions';
 
 export type AdminSailingCardPaymentAccess = 'blocked' | 'none' | 'paid';
 
 export type AdminSailingCardHistoryRow = {
+  readonly action: 'changed' | 'expired' | 'issued';
+  readonly actorName: string | null;
   readonly createdAt: Date;
+  readonly fromNumber: number | null;
+  readonly fromYear: number | null;
   readonly id: string;
-  readonly number: number;
-  readonly year: number;
+  readonly toNumber: number | null;
+  readonly toYear: number | null;
 };
 
 type AdminSailingCardIssueFormProps = {
@@ -52,6 +57,7 @@ const formErrorMessageKeys = {
   not_found: 'error_not_found',
   not_pending_request: 'error_not_pending_request',
   payment_required: 'error_payment_required',
+  same_card_number: 'error_same_card_number',
 } as const satisfies Record<AdminSailingCardFormError, string>;
 
 function issueFormNeedsPaymentBypassNote(props: {
@@ -124,6 +130,44 @@ function AdminSailingCardFormErrorMessage(props: {
   );
 }
 
+function AdminSailingCardNumberField(props: {
+  readonly actionLabel: string;
+  readonly defaultValue?: number;
+  readonly error: AdminSailingCardActionState['fieldErrors']['cardNumber'];
+  readonly errorId: string | undefined;
+  readonly inputId: string;
+  readonly required?: boolean;
+  readonly suggestedCardNumber: number;
+}) {
+  const t = useTranslations('AdminCards');
+
+  return (
+    <>
+      <Label htmlFor={props.inputId}>{t('card_number_label')}</Label>
+      <div className="flex gap-2">
+        <Input
+          aria-describedby={props.errorId}
+          aria-invalid={props.error ? true : undefined}
+          defaultValue={props.defaultValue}
+          id={props.inputId}
+          inputMode="numeric"
+          min={1}
+          name="cardNumber"
+          placeholder={t('card_number_placeholder', {
+            number: props.suggestedCardNumber,
+          })}
+          required={props.required}
+          type="number"
+        />
+        <Button className="gap-2" size="sm" type="submit">
+          <CheckCircle2 aria-hidden className="size-4" />
+          {props.actionLabel}
+        </Button>
+      </div>
+    </>
+  );
+}
+
 export function AdminSailingCardIssueForm(
   props: AdminSailingCardIssueFormProps
 ) {
@@ -139,6 +183,7 @@ export function AdminSailingCardIssueForm(
   const cardNumberErrorId = cardNumberError
     ? `${props.userId}-card-number-error`
     : undefined;
+  const cardNumberInputId = `${props.userId}-cardNumber`;
   const paymentBypassNoteId = `${props.userId}-paymentBypassNote`;
   const needsPaymentBypassNote = issueFormNeedsPaymentBypassNote({
     cardType: props.cardType,
@@ -151,27 +196,19 @@ export function AdminSailingCardIssueForm(
       aria-label={t('issue_form_label')}
       className="flex flex-col gap-2 sm:max-w-52"
     >
-      <Label className="sr-only" htmlFor={`${props.userId}-cardNumber`}>
-        {t('card_number_label')}
-      </Label>
-      <div className="flex gap-2">
-        <Input
-          aria-describedby={cardNumberErrorId}
-          aria-invalid={cardNumberError ? true : undefined}
-          id={`${props.userId}-cardNumber`}
-          inputMode="numeric"
-          min={1}
-          name="cardNumber"
-          placeholder={t('card_number_placeholder', {
-            number: props.suggestedCardNumber,
-          })}
-          type="number"
-        />
-        <Button className="gap-2" size="sm" type="submit">
-          <CheckCircle2 aria-hidden className="size-4" />
-          {t('action_issue')}
-        </Button>
-      </div>
+      <p className="m-0 text-xs text-muted-foreground">
+        {t('issue_number_help', { number: props.suggestedCardNumber })}
+      </p>
+      <AdminSailingCardNumberField
+        actionLabel={t('action_issue_number', {
+          number: props.suggestedCardNumber,
+        })}
+        defaultValue={props.suggestedCardNumber}
+        error={cardNumberError}
+        errorId={cardNumberErrorId}
+        inputId={cardNumberInputId}
+        suggestedCardNumber={props.suggestedCardNumber}
+      />
       <AdminSailingCardNumberError
         error={cardNumberError}
         id={cardNumberErrorId}
@@ -179,6 +216,55 @@ export function AdminSailingCardIssueForm(
       <AdminSailingCardPaymentBypassNote
         id={paymentBypassNoteId}
         visible={needsPaymentBypassNote}
+      />
+      <AdminSailingCardFormErrorMessage formError={state.formError} />
+    </form>
+  );
+}
+
+export function AdminSailingCardChangeNumberForm(props: {
+  readonly action?: (
+    previousState: AdminSailingCardActionState,
+    formData: FormData
+  ) => Promise<AdminSailingCardActionState>;
+  readonly currentCardNumber: number;
+  readonly locale: string;
+  readonly userId: string;
+}) {
+  const t = useTranslations('AdminCards');
+  const action =
+    props.action ??
+    updateSailingCardNumberAction.bind(null, props.locale, props.userId);
+  const [state, formAction] = useActionState(
+    action,
+    initialAdminSailingCardActionState
+  );
+  const cardNumberError = state.fieldErrors.cardNumber;
+  const cardNumberErrorId = cardNumberError
+    ? `${props.userId}-change-card-number-error`
+    : undefined;
+
+  return (
+    <form
+      action={formAction}
+      aria-label={t('change_number_form_label')}
+      className="flex flex-col gap-2"
+    >
+      <p className="m-0 text-xs text-muted-foreground">
+        {t('change_number_help', { number: props.currentCardNumber })}
+      </p>
+      <AdminSailingCardNumberField
+        actionLabel={t('action_save_correction')}
+        defaultValue={props.currentCardNumber}
+        error={cardNumberError}
+        errorId={cardNumberErrorId}
+        inputId={`${props.userId}-changeCardNumber`}
+        required
+        suggestedCardNumber={props.currentCardNumber}
+      />
+      <AdminSailingCardNumberError
+        error={cardNumberError}
+        id={cardNumberErrorId}
       />
       <AdminSailingCardFormErrorMessage formError={state.formError} />
     </form>
@@ -215,6 +301,50 @@ export function AdminSailingCardExpireForm(props: {
   );
 }
 
+function historyRowLabel(props: {
+  readonly row: AdminSailingCardHistoryRow;
+  readonly t: ReturnType<typeof useTranslations<'AdminCards'>>;
+}) {
+  if (
+    props.row.action === 'changed' &&
+    props.row.fromNumber !== null &&
+    props.row.fromYear !== null &&
+    props.row.toNumber !== null &&
+    props.row.toYear !== null
+  ) {
+    if (props.row.fromYear === props.row.toYear) {
+      return props.t('history_row_changed', {
+        fromNumber: props.row.fromNumber,
+        toNumber: props.row.toNumber,
+        year: props.row.toYear,
+      });
+    }
+    return props.t('history_row_changed_year', {
+      fromNumber: props.row.fromNumber,
+      fromYear: props.row.fromYear,
+      toNumber: props.row.toNumber,
+      toYear: props.row.toYear,
+    });
+  }
+  if (
+    props.row.action === 'expired' &&
+    props.row.fromNumber !== null &&
+    props.row.fromYear !== null
+  ) {
+    return props.t('history_row_expired', {
+      number: props.row.fromNumber,
+      year: props.row.fromYear,
+    });
+  }
+  if (props.row.toNumber !== null && props.row.toYear !== null) {
+    return props.t('history_row_issued', {
+      number: props.row.toNumber,
+      year: props.row.toYear,
+    });
+  }
+  return props.t('history_row_unknown');
+}
+
 export function AdminSailingCardHistory(props: {
   readonly rows: readonly AdminSailingCardHistoryRow[];
 }) {
@@ -233,15 +363,17 @@ export function AdminSailingCardHistory(props: {
         <ul className="mt-3 space-y-2 p-0">
           {props.rows.map((row) => (
             <li className="list-none text-sm" key={row.id}>
-              <span className="font-medium">
-                {t('history_row', {
-                  number: row.number,
-                  year: row.year,
-                })}
-              </span>
-              <span className="ml-2 text-muted-foreground">
-                {formatAdminDate(row.createdAt, 'en')}
-              </span>
+              <p className="m-0 font-medium">{historyRowLabel({ row, t })}</p>
+              <p className="m-0 text-xs text-muted-foreground">
+                {row.actorName
+                  ? t('history_row_meta_actor', {
+                      actor: row.actorName,
+                      date: formatAdminDate(row.createdAt, 'en'),
+                    })
+                  : t('history_row_meta', {
+                      date: formatAdminDate(row.createdAt, 'en'),
+                    })}
+              </p>
             </li>
           ))}
         </ul>

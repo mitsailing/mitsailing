@@ -144,7 +144,7 @@ describe('SailingCardOnboardingForm', () => {
     expect(screen.getByLabelText('MIT ID')).toBeInTheDocument();
     expect(screen.getByLabelText('MIT ID')).not.toBeRequired();
     expect(screen.getByLabelText('MIT ID')).toHaveAccessibleDescription(
-      'If you know your MIT ID, we can use it to match MIT records. If not, enter your name below.'
+      'Optional. Leave this blank and enter your name below to skip MIT ID lookup.'
     );
     expect(screen.getByLabelText('First name')).toBeRequired();
     expect(screen.getByLabelText('Last name')).toBeRequired();
@@ -205,6 +205,33 @@ describe('SailingCardOnboardingForm', () => {
 
     expect(screen.getByLabelText('First name')).toHaveValue('Ada');
     expect(screen.getByLabelText('Last name')).toHaveValue('Lovelace');
+    expect(screen.queryByLabelText('MIT class/year')).not.toBeInTheDocument();
+  });
+
+  it('keeps optional mit affiliation names editable when mit identity exists', () => {
+    renderForm({
+      initialValues: {
+        ...emptyValues,
+        affiliation: SailingAffiliation.MIT_FAMILY,
+        firstName: 'Grace',
+        lastName: 'Hopper',
+        mitId: '123456789',
+      },
+      lockedIdentity: {
+        firstName: 'Ada',
+        lastName: 'Lovelace',
+        mitClassYear: '2027',
+      },
+    });
+
+    expect(screen.getByLabelText('MIT ID')).not.toBeRequired();
+    expect(screen.getByLabelText('MIT ID')).toHaveAccessibleDescription(
+      'Optional. Leave this blank and enter your name below to skip MIT ID lookup.'
+    );
+    expect(screen.getByLabelText('First name')).toHaveValue('Grace');
+    expect(screen.getByLabelText('First name')).not.toHaveAttribute('readOnly');
+    expect(screen.getByLabelText('Last name')).toHaveValue('Hopper');
+    expect(screen.getByLabelText('Last name')).not.toHaveAttribute('readOnly');
     expect(screen.queryByLabelText('MIT class/year')).not.toBeInTheDocument();
   });
 
@@ -280,7 +307,7 @@ describe('SailingCardOnboardingForm', () => {
     ).toBeInTheDocument();
   });
 
-  it('restores draft details after leaving the onboarding page', async () => {
+  it('restores full draft details after browser back', async () => {
     const draftKey = 'sailing-card-onboarding:user-1:2026:v1';
     const { unmount } = renderForm({ draftKey });
     const user = userEvent.setup();
@@ -295,6 +322,7 @@ describe('SailingCardOnboardingForm', () => {
     expect(
       screen.getByRole('heading', { name: 'Contact and safety' })
     ).toBeInTheDocument();
+    expect(screen.getByLabelText('Affiliation')).toHaveValue('WELLESLEY');
     expect(screen.getByLabelText('Date of birth')).toHaveValue('03/24/1988');
     expect(screen.getByLabelText('Your phone number')).toHaveValue(
       '(617) 555-0100'

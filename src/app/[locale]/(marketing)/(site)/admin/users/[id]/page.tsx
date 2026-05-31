@@ -5,6 +5,7 @@ import type * as React from 'react';
 import { AdminPageHeader } from '@/components/mit-sailing/admin/AdminPageHeader';
 import { AdminPrimaryActionLink } from '@/components/mit-sailing/admin/AdminPrimaryActionLink';
 import {
+  AdminSailingCardChangeNumberForm,
   AdminSailingCardExpireForm,
   AdminSailingCardHistory,
   AdminSailingCardIssueForm,
@@ -396,6 +397,7 @@ type AdminUserSailingCardSectionModel = {
   readonly agreement:
     | NonNullable<AdminUserSailingCardSummary>['legalAgreementAcceptances'][number]
     | undefined;
+  readonly currentCardNumber: number | null;
   readonly displayedCardNumber: React.ReactNode;
   readonly emptyValue: string;
   readonly hasCurrentCard: boolean;
@@ -419,6 +421,7 @@ function adminUserSailingCardSectionModel(props: {
 
   return {
     agreement: props.summary?.legalAgreementAcceptances[0],
+    currentCardNumber: props.summary?.sailingCardNumber ?? null,
     displayedCardNumber:
       props.summary?.sailingCardNumber ??
       pendingRequest?.issuedCardNumber ??
@@ -437,27 +440,44 @@ function adminUserSailingCardSectionModel(props: {
   };
 }
 
-function AdminUserSailingCardIssueAction(props: {
+function AdminUserSailingCardNumberAction(props: {
   readonly canAssignCards: boolean;
   readonly locale: string;
   readonly model: AdminUserSailingCardSectionModel;
   readonly userId: string;
 }) {
-  if (!props.canAssignCards || !props.model.pendingRequest) {
+  if (!props.canAssignCards) {
     return null;
   }
+  const { currentCardNumber } = props.model;
 
-  return (
-    <div className="mt-4">
-      <AdminSailingCardIssueForm
-        cardType={props.model.pendingRequest.cardType}
-        locale={props.locale}
-        paymentAccess={props.model.issuePaymentAccess}
-        suggestedCardNumber={props.model.pendingCardNumber}
-        userId={props.userId}
-      />
-    </div>
-  );
+  if (props.model.pendingRequest) {
+    return (
+      <div className="mt-4">
+        <AdminSailingCardIssueForm
+          cardType={props.model.pendingRequest.cardType}
+          locale={props.locale}
+          paymentAccess={props.model.issuePaymentAccess}
+          suggestedCardNumber={props.model.pendingCardNumber}
+          userId={props.userId}
+        />
+      </div>
+    );
+  }
+
+  if (props.model.hasCurrentCard && typeof currentCardNumber === 'number') {
+    return (
+      <div className="mt-4">
+        <AdminSailingCardChangeNumberForm
+          currentCardNumber={currentCardNumber}
+          locale={props.locale}
+          userId={props.userId}
+        />
+      </div>
+    );
+  }
+
+  return null;
 }
 
 function AdminUserSailingCardStatusPanel(props: {
@@ -503,7 +523,7 @@ function AdminUserSailingCardStatusPanel(props: {
             : props.model.displayedCardNumber}
         </p>
         <p className="mt-2 text-sm text-muted-foreground">{cardNumberHelp}</p>
-        <AdminUserSailingCardIssueAction
+        <AdminUserSailingCardNumberAction
           canAssignCards={props.canAssignCards}
           locale={props.locale}
           model={props.model}

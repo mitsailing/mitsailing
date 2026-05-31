@@ -146,6 +146,8 @@ describe('usersAdminHandlers', () => {
           mitId: '123456789',
           name: 'Sailor',
           sailingCardNumber: 61,
+          sailingCardRequests: [],
+          sailingCardYear: 2026,
         },
         {
           appRole: Role.ADMIN,
@@ -159,6 +161,8 @@ describe('usersAdminHandlers', () => {
           mitId: null,
           name: 'Admin',
           sailingCardNumber: null,
+          sailingCardRequests: [{ status: 'pending' }],
+          sailingCardYear: null,
         },
       ]);
 
@@ -175,6 +179,7 @@ describe('usersAdminHandlers', () => {
           mitId: '123456789',
           name: 'Sailor',
           sailingCardNumber: 61,
+          sailingCardStatus: 'current',
           appRole: Role.USER,
         },
         {
@@ -189,6 +194,7 @@ describe('usersAdminHandlers', () => {
           mitId: null,
           name: 'Admin',
           sailingCardNumber: null,
+          sailingCardStatus: 'pending',
           appRole: Role.ADMIN,
         },
       ]);
@@ -210,6 +216,8 @@ describe('usersAdminHandlers', () => {
           mitId: '123456789',
           name: 'Sailor',
           sailingCardNumber: 61,
+          sailingCardRequests: [],
+          sailingCardYear: 2026,
         })
         .mockResolvedValueOnce(null);
 
@@ -224,6 +232,7 @@ describe('usersAdminHandlers', () => {
           id: 'user-1',
           mitId: '123456789',
           sailingCardNumber: 61,
+          sailingCardStatus: 'current',
           appRole: Role.ADMIN,
         }
       );

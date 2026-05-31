@@ -164,7 +164,10 @@ const getIdentityVisibility = (props: {
   readonly rule: ReturnType<typeof getVisibleSailingAffiliationRule>;
 }) => {
   const showMitId = showMitIdForRule(props.rule);
-  const showLockedIdentity = showMitId && props.lockedIdentity !== undefined;
+  const showLockedIdentity =
+    showMitId &&
+    props.rule?.mitIdMode === 'required' &&
+    props.lockedIdentity !== undefined;
   const showManualName = showManualNameForRule({
     lockedIdentity: showLockedIdentity,
     rule: props.rule,
@@ -189,8 +192,17 @@ const watchedOnboardingFieldNames = [
 
 type OnboardingDraft = {
   readonly detailsUnlocked: boolean;
-  readonly values: SailingCardOnboardingFormValues;
+  readonly values: Partial<SailingCardOnboardingFormValues>;
 };
+
+type OnboardingHistoryDraft = OnboardingDraft & {
+  readonly draftKey: string;
+};
+
+type SafeOnboardingDraftValues = Pick<
+  SailingCardOnboardingFormValues,
+  'affiliation' | 'cardType' | 'hasFitnessMembership' | 'swimAgreementAccepted'
+>;
 
 const stringFromDraft = (
   value: Record<string, unknown>,
@@ -227,11 +239,63 @@ const onboardingValuesFromDraft = (
   };
 };
 
-const loadOnboardingDraft = (draftKey: string | undefined) => {
-  if (draftKey === undefined || typeof window === 'undefined') {
+const safeOnboardingDraftValues = (
+  values: SailingCardOnboardingFormValues
+): SafeOnboardingDraftValues => ({
+  affiliation: values.affiliation,
+  cardType: values.cardType,
+  hasFitnessMembership: values.hasFitnessMembership,
+  swimAgreementAccepted: values.swimAgreementAccepted,
+});
+
+const safeOnboardingValuesFromDraft = (
+  value: unknown
+): SafeOnboardingDraftValues | null => {
+  const values = onboardingValuesFromDraft(value);
+  return values === null ? null : safeOnboardingDraftValues(values);
+};
+
+const formValuesFromDraft = (props: {
+  readonly draft: OnboardingDraft | null;
+  readonly initialValues: SailingCardOnboardingFormValues | undefined;
+}) => ({
+  ...(props.initialValues ?? initialSailingCardOnboardingFormState.values),
+  ...props.draft?.values,
+});
+
+const historyDraftStateKey = '__mitsailingSailingCardOnboardingDraft';
+
+const loadOnboardingHistoryDraft = (
+  draftKey: string | undefined
+): OnboardingDraft | null => {
+  if (draftKey === undefined || globalThis.window === undefined) {
     return null;
   }
-  const raw = window.sessionStorage.getItem(draftKey);
+  const state = recordFromUnknown(globalThis.history.state);
+  const record = recordFromUnknown(state?.[historyDraftStateKey]);
+  if (record === null) {
+    return null;
+  }
+  if (record.draftKey !== draftKey) {
+    return null;
+  }
+  const values = onboardingValuesFromDraft(record.values);
+  if (values === null) {
+    return null;
+  }
+  return {
+    detailsUnlocked: record.detailsUnlocked === true,
+    values,
+  };
+};
+
+const loadOnboardingProgressDraft = (
+  draftKey: string | undefined
+): OnboardingDraft | null => {
+  if (draftKey === undefined || globalThis.window === undefined) {
+    return null;
+  }
+  const raw = globalThis.sessionStorage.getItem(draftKey);
   if (raw === null) {
     return null;
   }
@@ -241,7 +305,7 @@ const loadOnboardingDraft = (draftKey: string | undefined) => {
     if (record === null) {
       return null;
     }
-    const values = onboardingValuesFromDraft(record.values);
+    const values = safeOnboardingValuesFromDraft(record.values);
     if (values === null) {
       return null;
     }
@@ -254,15 +318,15 @@ const loadOnboardingDraft = (draftKey: string | undefined) => {
   }
 };
 
-const saveOnboardingDraft = (props: {
+const saveOnboardingProgressDraft = (props: {
   readonly detailsUnlocked: boolean;
   readonly draftKey: string | undefined;
-  readonly values: SailingCardOnboardingFormValues;
+  readonly values: SafeOnboardingDraftValues;
 }) => {
-  if (props.draftKey === undefined || typeof window === 'undefined') {
+  if (props.draftKey === undefined || globalThis.window === undefined) {
     return;
   }
-  window.sessionStorage.setItem(
+  globalThis.sessionStorage.setItem(
     props.draftKey,
     JSON.stringify({
       detailsUnlocked: props.detailsUnlocked,
@@ -271,14 +335,35 @@ const saveOnboardingDraft = (props: {
   );
 };
 
-const clearOnboardingDraft = (draftKey: string | undefined) => {
-  if (draftKey !== undefined && typeof window !== 'undefined') {
-    window.sessionStorage.removeItem(draftKey);
+const saveOnboardingHistoryDraft = (props: {
+  readonly detailsUnlocked: boolean;
+  readonly draftKey: string;
+  readonly values: SailingCardOnboardingFormValues;
+}) => {
+  if (globalThis.window === undefined) {
+    return;
   }
+  const state = recordFromUnknown(globalThis.history.state) ?? {};
+  globalThis.history.replaceState(
+    {
+      ...state,
+      [historyDraftStateKey]: {
+        detailsUnlocked: props.detailsUnlocked,
+        draftKey: props.draftKey,
+        values: props.values,
+      } satisfies OnboardingHistoryDraft,
+    },
+    '',
+    globalThis.location.href
+  );
 };
 
 function useOnboardingActionRuntime(props: SailingCardOnboardingFormProps) {
-  const [initialDraft] = useState(() => loadOnboardingDraft(props.draftKey));
+  const [initialDraft] = useState(
+    () =>
+      loadOnboardingHistoryDraft(props.draftKey) ??
+      loadOnboardingProgressDraft(props.draftKey)
+  );
   const [state, formAction] = useActionState(
     props.action ?? defaultSailingCardOnboardingAction,
     initialSailingCardOnboardingFormState
@@ -289,16 +374,19 @@ function useOnboardingActionRuntime(props: SailingCardOnboardingFormProps) {
   const [isPending, startTransition] = useTransition();
   const formValues =
     state.status === 'idle'
-      ? (initialDraft?.values ??
-        props.initialValues ??
-        initialSailingCardOnboardingFormState.values)
+      ? formValuesFromDraft({
+          draft: initialDraft,
+          initialValues: props.initialValues,
+        })
       : state.values;
   const form = useForm<SailingCardOnboardingFormValues>({
-    values: formValues,
+    defaultValues: formValues,
+    mode: 'onChange',
+    reValidateMode: 'onChange',
+    values: state.status === 'idle' ? undefined : formValues,
   });
   const [now] = useState(() => new Date());
   const handleSubmit = form.handleSubmit((values) => {
-    clearOnboardingDraft(props.draftKey);
     startTransition(() => {
       formAction(
         formDataFromReactHookFormValues({
@@ -328,21 +416,33 @@ function useOnboardingDraftPersistence(props: {
   readonly form: ReturnType<typeof useForm<SailingCardOnboardingFormValues>>;
 }) {
   useEffect(() => {
-    if (props.draftKey === undefined) {
+    const { draftKey } = props;
+    if (draftKey === undefined) {
       return;
     }
-    saveOnboardingDraft({
+    const initialValues = props.form.getValues();
+    saveOnboardingHistoryDraft({
       detailsUnlocked: props.detailsUnlocked,
-      draftKey: props.draftKey,
-      values: props.form.getValues(),
+      draftKey,
+      values: initialValues,
+    });
+    saveOnboardingProgressDraft({
+      detailsUnlocked: props.detailsUnlocked,
+      draftKey,
+      values: safeOnboardingDraftValues(initialValues),
     });
     const subscription = props.form.watch((values) => {
       const draftValues = onboardingValuesFromDraft(values);
       if (draftValues !== null) {
-        saveOnboardingDraft({
+        saveOnboardingHistoryDraft({
           detailsUnlocked: props.detailsUnlocked,
-          draftKey: props.draftKey,
+          draftKey,
           values: draftValues,
+        });
+        saveOnboardingProgressDraft({
+          detailsUnlocked: props.detailsUnlocked,
+          draftKey,
+          values: safeOnboardingDraftValues(draftValues),
         });
       }
     });

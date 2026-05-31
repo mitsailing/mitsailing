@@ -37,7 +37,8 @@ type AdminSailingCardFormError =
   | 'no_current_card'
   | 'not_pending_request'
   | 'not_found'
-  | 'payment_required';
+  | 'payment_required'
+  | 'same_card_number';
 
 export type AdminSailingCardActionState = {
   readonly fieldErrors: AdminSailingCardFieldErrors;
@@ -45,7 +46,10 @@ export type AdminSailingCardActionState = {
   readonly status: 'error' | 'idle' | 'success';
 };
 
-type AdminSailingCardDb = Pick<Prisma.TransactionClient, 'user' | 'userAudit'>;
+type AdminSailingCardDb = Pick<
+  Prisma.TransactionClient,
+  'sailingCardRequest' | 'user' | 'userAudit'
+>;
 type AdminSailingCardIssueDb = Pick<
   Prisma.TransactionClient,
   'payment' | 'sailingCardRequest' | 'user' | 'userAudit'
@@ -87,6 +91,11 @@ function parseManualCardNumber(formData: FormData) {
     return 'invalid';
   }
   return Number(raw);
+}
+
+function parseRequiredCardNumber(formData: FormData) {
+  const cardNumber = parseManualCardNumber(formData);
+  return cardNumber ?? 'invalid';
 }
 
 function parsePaymentBypassNote(formData: FormData) {
@@ -255,6 +264,7 @@ function revalidateSailingCardAdminPaths(locale: string, userId: string) {
   revalidatePath(
     getI18nPath(`/admin/users/${encodeURIComponent(userId)}`, locale)
   );
+  revalidatePath(getI18nPath('/admin/users', locale));
   revalidatePath(getI18nPath('/onboarding', locale));
   revalidatePath(getI18nPath('/profile/account', locale));
 }
@@ -312,7 +322,7 @@ async function assertCardNumberAvailable(props: {
   readonly cardNumber: number;
   readonly cardYear: number;
   readonly db: AdminSailingCardIssueDb;
-  readonly requestId: string;
+  readonly requestId?: string;
   readonly targetUserId: string;
 }) {
   const [issuedUserCount, issuedRequestCount] = await Promise.all([
@@ -326,14 +336,116 @@ async function assertCardNumberAvailable(props: {
     props.db.sailingCardRequest.count({
       where: {
         cardYear: props.cardYear,
-        id: { not: props.requestId },
+        ...(props.requestId ? { id: { not: props.requestId } } : {}),
         issuedCardNumber: props.cardNumber,
+        userId: { not: props.targetUserId },
       },
     }),
   ]);
   if (issuedUserCount > 0 || issuedRequestCount > 0) {
     throw new Error('card_number_duplicate');
   }
+}
+
+export async function updateSailingCardNumberAction(
+  locale: string,
+  targetUserId: string,
+  _previousState: AdminSailingCardActionState,
+  formData: FormData
+): Promise<AdminSailingCardActionState> {
+  const session = await requirePermission(
+    Permission.CARDS_ASSIGN_NUMBER,
+    locale
+  );
+  const cardNumber = parseRequiredCardNumber(formData);
+  if (cardNumber === 'invalid') {
+    return {
+      fieldErrors: { cardNumber: 'invalid' },
+      status: 'error',
+    };
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const before = await tx.user.findUnique({
+        where: { id: targetUserId },
+        select: sailingCardAuditSelect,
+      });
+      if (before === null) {
+        throw new Error('not_found');
+      }
+      if (!hasIssuedSailingCard(before) || before.sailingCardYear === null) {
+        throw new Error('no_current_card');
+      }
+      if (before.sailingCardNumber === cardNumber) {
+        throw new Error('same_card_number');
+      }
+      await assertCardNumberAvailable({
+        cardNumber,
+        cardYear: before.sailingCardYear,
+        db: tx,
+        targetUserId,
+      });
+      const after = {
+        ...before,
+        sailingCardIssuedByUserId: session.user.id,
+        sailingCardNumber: cardNumber,
+      };
+      await tx.sailingCardRequest.updateMany({
+        where: {
+          cardYear: before.sailingCardYear,
+          status: SailingCardRequestStatus.approved,
+          userId: targetUserId,
+        },
+        data: {
+          issuedCardNumber: cardNumber,
+        },
+      });
+      await tx.user.update({
+        where: { id: targetUserId },
+        data: after,
+      });
+      await createSailingCardAudit({
+        after,
+        before,
+        db: tx,
+        targetUserId,
+        userId: session.user.id,
+      });
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === 'same_card_number') {
+      return {
+        fieldErrors: {},
+        formError: 'same_card_number',
+        status: 'error',
+      };
+    }
+    if (error instanceof Error && error.message === 'no_current_card') {
+      return {
+        fieldErrors: {},
+        formError: 'no_current_card',
+        status: 'error',
+      };
+    }
+    if (error instanceof Error && error.message === 'not_found') {
+      return {
+        fieldErrors: {},
+        formError: 'not_found',
+        status: 'error',
+      };
+    }
+    if (isSailingCardUniqueError(error)) {
+      return {
+        fieldErrors: { cardNumber: 'duplicate' },
+        status: 'error',
+      };
+    }
+    throw error;
+  }
+
+  revalidateSailingCardAdminPaths(locale, targetUserId);
+  return { fieldErrors: {}, status: 'success' };
 }
 
 export async function issueSailingCardAction(

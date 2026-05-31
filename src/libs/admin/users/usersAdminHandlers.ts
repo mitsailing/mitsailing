@@ -2,6 +2,7 @@ import 'server-only';
 import { APIError } from 'better-auth';
 import { headers } from 'next/headers';
 import type { Prisma } from '@/generated/prisma/client';
+import { SailingCardRequestStatus } from '@/generated/prisma/enums';
 import type {
   AdminUserRow,
   CatalogCreateResult,
@@ -23,6 +24,7 @@ import { normalizeAppRole } from '@/libs/auth/appPermissions';
 import { Role } from '@/libs/auth/roles';
 import { prisma } from '@/libs/DB';
 import { emailDeliverabilityStatus } from '@/libs/email/emailDeliverabilityStatus';
+import { getCurrentSailingCardYear } from '@/libs/mit-sailing/sailingCardValidity';
 import { appAuthContextFromSession } from '@/libs/zenstack/authContext';
 
 const VIABLE_ADMIN_FILTER = {
@@ -30,6 +32,26 @@ const VIABLE_ADMIN_FILTER = {
   banned: false,
   emailVerified: true,
 } satisfies Prisma.UserWhereInput;
+
+function sailingCardStatusFromUser(user: {
+  readonly sailingCardNumber: number | null;
+  readonly sailingCardRequests: readonly { readonly status: string }[];
+  readonly sailingCardYear: number | null;
+}): AdminUserRow['sailingCardStatus'] {
+  const pendingRequest = user.sailingCardRequests.some(
+    (request) => request.status === SailingCardRequestStatus.pending
+  );
+  if (pendingRequest) {
+    return 'pending';
+  }
+  if (user.sailingCardNumber === null) {
+    return 'none';
+  }
+  if (user.sailingCardYear === getCurrentSailingCardYear()) {
+    return 'current';
+  }
+  return 'expired';
+}
 
 function rowFromDb(user: {
   id: string;
@@ -43,6 +65,8 @@ function rowFromDb(user: {
   emailSuppressionReason: string | null;
   mitId: string | null;
   sailingCardNumber: number | null;
+  sailingCardRequests: readonly { status: string }[];
+  sailingCardYear: number | null;
 }): AdminUserRow {
   return {
     id: user.id,
@@ -53,6 +77,7 @@ function rowFromDb(user: {
     emailSuppressionReason: user.emailSuppressionReason,
     mitId: user.mitId,
     sailingCardNumber: user.sailingCardNumber,
+    sailingCardStatus: sailingCardStatusFromUser(user),
     name: user.name,
     appRole: normalizeAppRole(user.appRole),
     emailVerified: user.emailVerified,
@@ -238,6 +263,12 @@ export const usersAdminHandlers: CatalogServerHandlers = {
         emailSuppressionReason: true,
         mitId: true,
         sailingCardNumber: true,
+        sailingCardRequests: {
+          orderBy: { requestedAt: 'desc' },
+          select: { status: true },
+          take: 1,
+        },
+        sailingCardYear: true,
       },
     });
     return rows.map(rowFromDb);
@@ -258,6 +289,12 @@ export const usersAdminHandlers: CatalogServerHandlers = {
         emailSuppressionReason: true,
         mitId: true,
         sailingCardNumber: true,
+        sailingCardRequests: {
+          orderBy: { requestedAt: 'desc' },
+          select: { status: true },
+          take: 1,
+        },
+        sailingCardYear: true,
       },
     });
     return row ? rowFromDb(row) : null;

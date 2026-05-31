@@ -1,7 +1,6 @@
 import { useTranslations } from 'next-intl';
 import type * as React from 'react';
-import { useState } from 'react';
-import type { UseFormRegister } from 'react-hook-form';
+import type { FieldErrors, UseFormRegister } from 'react-hook-form';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -12,80 +11,55 @@ import type {
   SailingCardOnboardingFormState,
   SailingCardOnboardingFormValues,
 } from '@/libs/mit-sailing/sailingCardOnboardingActions';
-import { formatPhoneAsYouType } from '@/utils/phoneValidation';
+import {
+  formatPhoneAsYouType,
+  normalizeInternationalPhone,
+  normalizeUsPhone,
+} from '@/utils/phoneValidation';
 import { FieldError } from './SailingCardOnboardingFieldError';
 import { fieldErrorId } from './SailingCardOnboardingFormHelpers';
 
-function dateOfBirthDescribedBy(props: {
-  readonly dateOfBirthError: string | undefined;
-  readonly showClientError: boolean;
-}) {
+function dateOfBirthDescribedBy(props: { readonly showError: boolean }) {
   return [
     'sailing-card-onboarding-dateOfBirth-help',
-    props.dateOfBirthError ? fieldErrorId('dateOfBirth') : undefined,
-    props.showClientError
-      ? 'sailing-card-onboarding-dateOfBirth-client-error'
-      : undefined,
+    props.showError ? fieldErrorId('dateOfBirth') : undefined,
   ]
     .filter((value) => value !== undefined)
     .join(' ');
 }
 
-function DateOfBirthClientError(props: { readonly visible: boolean }) {
-  const t = useTranslations('OnboardingPage');
-
-  if (!props.visible) {
-    return null;
-  }
-
-  return (
-    <p
-      className="text-sm font-medium text-destructive"
-      id="sailing-card-onboarding-dateOfBirth-client-error"
-      role="alert"
-    >
-      {t('error_invalid_date_of_birth')}
-    </p>
-  );
-}
+const ariaDescribedBy = (ids: readonly (string | undefined)[]) =>
+  ids.filter((id) => id !== undefined).join(' ');
 
 function DateOfBirthField(props: {
+  readonly clientErrors: FieldErrors<SailingCardOnboardingFormValues>;
   readonly register: UseFormRegister<SailingCardOnboardingFormValues>;
   readonly state: SailingCardOnboardingFormState;
 }) {
   const t = useTranslations('OnboardingPage');
-  const [clientError, setClientError] = useState(false);
   const registration = props.register('dateOfBirth', {
-    required: true,
+    required: 'error_required',
+    validate: (value) =>
+      value.trim() === '' ||
+      parseSailingCardDateOfBirth({ value }) !== null ||
+      'error_invalid_date_of_birth',
   });
   const dateOfBirthError = props.state.fieldErrors.dateOfBirth;
+  const dateOfBirthClientError = props.clientErrors.dateOfBirth;
   const dateOfBirthHelpId = 'sailing-card-onboarding-dateOfBirth-help';
-  const showClientError = dateOfBirthError === undefined && clientError;
-  const describedBy = dateOfBirthDescribedBy({
-    dateOfBirthError,
-    showClientError,
+  const showError =
+    dateOfBirthError !== undefined || dateOfBirthClientError !== undefined;
+  const dateOfBirthAriaDescribedBy = dateOfBirthDescribedBy({
+    showError,
   });
-  const updateDateOfBirthClientError = (value: string) => {
-    setClientError(
-      value.trim() !== '' && parseSailingCardDateOfBirth({ value }) === null
-    );
-  };
+  const handleDateOfBirthBlur = registration.onBlur;
   const handleDateOfBirthChange = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
     event.currentTarget.value = formatSailingCardDateOfBirthInput(
       event.currentTarget.value
     );
-    if (clientError) {
-      updateDateOfBirthClientError(event.currentTarget.value);
-    }
     await registration.onChange(event);
-  };
-  const handleDateOfBirthBlur = async (
-    event: React.FocusEvent<HTMLInputElement>
-  ) => {
-    updateDateOfBirthClientError(event.currentTarget.value);
-    await registration.onBlur(event);
   };
 
   return (
@@ -94,8 +68,8 @@ function DateOfBirthField(props: {
         {t('date_of_birth_label')}
       </Label>
       <Input
-        aria-describedby={describedBy}
-        aria-invalid={dateOfBirthError || showClientError ? true : undefined}
+        aria-describedby={dateOfBirthAriaDescribedBy}
+        aria-invalid={showError ? true : undefined}
         autoComplete="bday"
         id="dateOfBirth"
         inputMode="numeric"
@@ -111,20 +85,32 @@ function DateOfBirthField(props: {
       <p className="text-xs text-muted-foreground" id={dateOfBirthHelpId}>
         {t('date_of_birth_help')}
       </p>
-      <FieldError field="dateOfBirth" state={props.state} />
-      <DateOfBirthClientError visible={showClientError} />
+      <FieldError
+        clientErrors={props.clientErrors}
+        field="dateOfBirth"
+        state={props.state}
+      />
     </div>
   );
 }
 
 function PhoneField(props: {
+  readonly clientErrors: FieldErrors<SailingCardOnboardingFormValues>;
   readonly register: UseFormRegister<SailingCardOnboardingFormValues>;
   readonly state: SailingCardOnboardingFormState;
 }) {
   const t = useTranslations('OnboardingPage');
   const phoneError = props.state.fieldErrors.phone;
+  const phoneClientError = props.clientErrors.phone;
   const phoneHelpId = 'sailing-card-onboarding-phone-help';
-  const registration = props.register('phone', { required: true });
+  const showError = phoneError !== undefined || phoneClientError !== undefined;
+  const registration = props.register('phone', {
+    required: 'error_required',
+    validate: (value) =>
+      value.trim() === '' ||
+      normalizeUsPhone(value).ok ||
+      'error_invalid_phone',
+  });
   const handlePhoneBlur = registration.onBlur;
   const handlePhoneChange = async (
     event: React.ChangeEvent<HTMLInputElement>
@@ -139,10 +125,11 @@ function PhoneField(props: {
         {t('phone_label')}
       </Label>
       <Input
-        aria-describedby={
-          phoneError ? `${phoneHelpId} ${fieldErrorId('phone')}` : phoneHelpId
-        }
-        aria-invalid={phoneError ? true : undefined}
+        aria-describedby={ariaDescribedBy([
+          phoneHelpId,
+          showError ? fieldErrorId('phone') : undefined,
+        ])}
+        aria-invalid={showError ? true : undefined}
         autoComplete="section-user tel"
         id="phone"
         name={registration.name}
@@ -155,17 +142,24 @@ function PhoneField(props: {
       <p className="text-xs text-muted-foreground" id={phoneHelpId}>
         {t('phone_help')}
       </p>
-      <FieldError field="phone" state={props.state} />
+      <FieldError
+        clientErrors={props.clientErrors}
+        field="phone"
+        state={props.state}
+      />
     </div>
   );
 }
 
 function EmergencyContactNameField(props: {
+  readonly clientErrors: FieldErrors<SailingCardOnboardingFormValues>;
   readonly register: UseFormRegister<SailingCardOnboardingFormValues>;
   readonly state: SailingCardOnboardingFormState;
 }) {
   const t = useTranslations('OnboardingPage');
   const nameError = props.state.fieldErrors.emergencyContactName;
+  const nameClientError = props.clientErrors.emergencyContactName;
+  const showError = nameError !== undefined || nameClientError !== undefined;
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -174,28 +168,41 @@ function EmergencyContactNameField(props: {
       </Label>
       <Input
         aria-describedby={
-          nameError ? fieldErrorId('emergencyContactName') : undefined
+          showError ? fieldErrorId('emergencyContactName') : undefined
         }
-        aria-invalid={nameError ? true : undefined}
+        aria-invalid={showError ? true : undefined}
         autoComplete="section-emergency name"
         id="emergencyContactName"
         required
         type="text"
-        {...props.register('emergencyContactName', { required: true })}
+        {...props.register('emergencyContactName', {
+          required: 'error_required',
+        })}
       />
-      <FieldError field="emergencyContactName" state={props.state} />
+      <FieldError
+        clientErrors={props.clientErrors}
+        field="emergencyContactName"
+        state={props.state}
+      />
     </div>
   );
 }
 
 function EmergencyContactPhoneField(props: {
+  readonly clientErrors: FieldErrors<SailingCardOnboardingFormValues>;
   readonly register: UseFormRegister<SailingCardOnboardingFormValues>;
   readonly state: SailingCardOnboardingFormState;
 }) {
   const t = useTranslations('OnboardingPage');
   const phoneError = props.state.fieldErrors.emergencyContactPhone;
+  const phoneClientError = props.clientErrors.emergencyContactPhone;
+  const showError = phoneError !== undefined || phoneClientError !== undefined;
   const registration = props.register('emergencyContactPhone', {
-    required: true,
+    required: 'error_required',
+    validate: (value) =>
+      value.trim() === '' ||
+      normalizeInternationalPhone(value).ok ||
+      'error_invalid_emergency_phone',
   });
   const handlePhoneBlur = registration.onBlur;
   const handlePhoneChange = async (
@@ -212,9 +219,9 @@ function EmergencyContactPhoneField(props: {
       </Label>
       <Input
         aria-describedby={
-          phoneError ? fieldErrorId('emergencyContactPhone') : undefined
+          showError ? fieldErrorId('emergencyContactPhone') : undefined
         }
-        aria-invalid={phoneError ? true : undefined}
+        aria-invalid={showError ? true : undefined}
         autoComplete="section-emergency tel"
         id="emergencyContactPhone"
         name={registration.name}
@@ -224,12 +231,17 @@ function EmergencyContactPhoneField(props: {
         ref={registration.ref}
         type="tel"
       />
-      <FieldError field="emergencyContactPhone" state={props.state} />
+      <FieldError
+        clientErrors={props.clientErrors}
+        field="emergencyContactPhone"
+        state={props.state}
+      />
     </div>
   );
 }
 
 export function ContactAndSafetyFields(props: {
+  readonly clientErrors: FieldErrors<SailingCardOnboardingFormValues>;
   readonly register: UseFormRegister<SailingCardOnboardingFormValues>;
   readonly state: SailingCardOnboardingFormState;
 }) {
@@ -240,14 +252,24 @@ export function ContactAndSafetyFields(props: {
       <h2 className="text-base font-semibold text-foreground">
         {t('contact_and_safety_heading')}
       </h2>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <DateOfBirthField register={props.register} state={props.state} />
-        <PhoneField register={props.register} state={props.state} />
+      <div className="flex flex-col gap-3">
+        <DateOfBirthField
+          clientErrors={props.clientErrors}
+          register={props.register}
+          state={props.state}
+        />
+        <PhoneField
+          clientErrors={props.clientErrors}
+          register={props.register}
+          state={props.state}
+        />
         <EmergencyContactNameField
+          clientErrors={props.clientErrors}
           register={props.register}
           state={props.state}
         />
         <EmergencyContactPhoneField
+          clientErrors={props.clientErrors}
           register={props.register}
           state={props.state}
         />

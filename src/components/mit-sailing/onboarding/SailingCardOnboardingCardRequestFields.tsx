@@ -1,7 +1,11 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import type { UseFormRegister, UseFormSetValue } from 'react-hook-form';
+import type {
+  FieldErrors,
+  UseFormRegister,
+  UseFormSetValue,
+} from 'react-hook-form';
 import { SailingCardType } from '@/generated/prisma/enums';
 import type { SailingAffiliation } from '@/generated/prisma/enums';
 import { cn } from '@/lib/utils';
@@ -182,19 +186,21 @@ function FitnessMembershipOptions(props: {
 }
 
 function FitnessMembershipQuestion(props: {
+  readonly clientErrors: FieldErrors<SailingCardOnboardingFormValues>;
   readonly register: UseFormRegister<SailingCardOnboardingFormValues>;
   readonly setValue: UseFormSetValue<SailingCardOnboardingFormValues>;
   readonly state: SailingCardOnboardingFormState;
 }) {
   const t = useTranslations('OnboardingPage');
   const error = props.state.fieldErrors.hasFitnessMembership;
+  const clientError = props.clientErrors.hasFitnessMembership;
   const helpId = 'sailing-card-onboarding-hasFitnessMembership-help';
   const describedBy = cn(
     helpId,
-    error ? fieldErrorId('hasFitnessMembership') : undefined
+    error || clientError ? fieldErrorId('hasFitnessMembership') : undefined
   );
   const registration = props.register('hasFitnessMembership', {
-    required: true,
+    required: 'error_required',
   });
   const handleFitnessMembershipBlur = registration.onBlur;
   const handleFitnessMembershipChange = async (
@@ -208,7 +214,7 @@ function FitnessMembershipQuestion(props: {
     <fieldset
       className="flex flex-col gap-2"
       aria-describedby={describedBy}
-      aria-invalid={error ? true : undefined}
+      aria-invalid={error || clientError ? true : undefined}
     >
       <legend className="font-medium text-foreground">
         {t('fitness_membership_label')}
@@ -223,7 +229,11 @@ function FitnessMembershipQuestion(props: {
         ref={registration.ref}
         registrationName={registration.name}
       />
-      <FieldError field="hasFitnessMembership" state={props.state} />
+      <FieldError
+        clientErrors={props.clientErrors}
+        field="hasFitnessMembership"
+        state={props.state}
+      />
     </fieldset>
   );
 }
@@ -327,7 +337,7 @@ function CardTypeRadio(props: {
   return (
     <label className={radioCardClassName}>
       <input
-        {...props.register('cardType', { required: true })}
+        {...props.register('cardType', { required: 'error_required' })}
         className={radioInputClassName}
         defaultChecked={
           selectedCardTypeValue(props.cardTypeValue) === props.cardType
@@ -363,6 +373,7 @@ function CardTypeRadio(props: {
 function CardTypeSelect(props: {
   readonly affiliation: SailingAffiliation | '';
   readonly cardTypeValue: string | undefined;
+  readonly clientErrors: FieldErrors<SailingCardOnboardingFormValues>;
   readonly dateOfBirthValue: string | undefined;
   readonly fitnessMembershipReady: boolean;
   readonly hasFitnessMembershipValue: string | undefined;
@@ -372,6 +383,7 @@ function CardTypeSelect(props: {
 }) {
   const t = useTranslations('OnboardingPage');
   const cardTypeError = props.state.fieldErrors.cardType;
+  const cardTypeClientError = props.clientErrors.cardType;
   const helpId = 'sailing-card-type-help';
   const noFitnessPathId = 'sailing-card-type-no-fitness-path';
   const coveredPathId = 'sailing-card-type-covered-path';
@@ -393,9 +405,11 @@ function CardTypeSelect(props: {
         helpId,
         props.hasFitnessMembershipValue === 'no' ? noFitnessPathId : undefined,
         coveredByFull ? coveredPathId : undefined,
-        cardTypeError ? fieldErrorId('cardType') : undefined
+        cardTypeError || cardTypeClientError
+          ? fieldErrorId('cardType')
+          : undefined
       )}
-      aria-invalid={cardTypeError ? true : undefined}
+      aria-invalid={cardTypeError || cardTypeClientError ? true : undefined}
       className="flex flex-col gap-2"
     >
       <legend className="font-medium text-foreground">
@@ -448,7 +462,11 @@ function CardTypeSelect(props: {
           {t('card_type_waiting_for_fitness')}
         </p>
       )}
-      <FieldError field="cardType" state={props.state} />
+      <FieldError
+        clientErrors={props.clientErrors}
+        field="cardType"
+        state={props.state}
+      />
     </fieldset>
   );
 }
@@ -456,6 +474,7 @@ function CardTypeSelect(props: {
 export function CardRequestSection(props: {
   readonly affiliation: SailingAffiliation | '';
   readonly cardTypeValue: string | undefined;
+  readonly clientErrors: FieldErrors<SailingCardOnboardingFormValues>;
   readonly dateOfBirthValue: string | undefined;
   readonly fitnessMembershipReady: boolean;
   readonly hasFitnessMembershipValue: string | undefined;
@@ -473,6 +492,7 @@ export function CardRequestSection(props: {
       </h2>
       {needsFitnessMembershipQuestion(props.affiliation) ? (
         <FitnessMembershipQuestion
+          clientErrors={props.clientErrors}
           register={props.register}
           setValue={props.setValue}
           state={props.state}
@@ -485,6 +505,7 @@ export function CardRequestSection(props: {
       <CardTypeSelect
         affiliation={props.affiliation}
         cardTypeValue={props.cardTypeValue}
+        clientErrors={props.clientErrors}
         dateOfBirthValue={props.dateOfBirthValue}
         fitnessMembershipReady={props.fitnessMembershipReady}
         hasFitnessMembershipValue={props.hasFitnessMembershipValue}

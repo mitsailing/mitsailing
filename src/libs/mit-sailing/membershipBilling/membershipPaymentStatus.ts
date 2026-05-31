@@ -57,7 +57,7 @@ export function membershipPaymentAccessStatus(props: {
   readonly cardYear: number;
   readonly record: MembershipPaymentAccessRecord | null;
 }): MembershipPaymentAccessStatus {
-  if (props.record === null || props.record.cardYear !== props.cardYear) {
+  if (props.record?.cardYear !== props.cardYear) {
     return { access: 'none' };
   }
 

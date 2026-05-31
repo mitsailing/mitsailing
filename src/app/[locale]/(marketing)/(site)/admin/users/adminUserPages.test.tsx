@@ -235,6 +235,14 @@ vi.mock(
   () => ({
     AdminSailingCardHistory: () => <section data-testid="card-history-panel" />,
     AdminSailingCardExpireForm: () => <form aria-label="Expire sailing card" />,
+    AdminSailingCardChangeNumberForm: (props: {
+      currentCardNumber: number;
+    }) => (
+      <form
+        aria-label="Change sailing card number"
+        data-current-card-number={props.currentCardNumber}
+      />
+    ),
     AdminSailingCardIssueForm: (props: {
       cardType?: SailingCardType;
       paymentAccess?: 'blocked' | 'none' | 'paid';
@@ -340,14 +348,14 @@ beforeEach(() => {
     ],
     paymentBypassRequest: null,
     sailingCardRequests: [],
-    sailingCardExpiresOn: new Date('2027-07-15T04:00:00.000Z'),
+    sailingCardExpiresOn: new Date('2026-07-15T04:00:00.000Z'),
     sailingCardIssuedAt: new Date('2026-08-01T16:00:00.000Z'),
     sailingCardIssuedBy: { name: 'Dock Master' },
     sailingCardNumber: 61,
     sailingCardRequestedAt: new Date('2026-05-21T16:00:00.000Z'),
     sailingCardSwimAgreementInitialedAt: new Date('2026-06-01T16:00:00.000Z'),
     sailingCardSwimAgreementInitials: 'AK',
-    sailingCardYear: 2027,
+    sailingCardYear: 2026,
   });
   mocks.list.mockResolvedValue([
     {
@@ -361,6 +369,7 @@ beforeEach(() => {
       mitId: '123456789',
       name: 'Sailor One',
       sailingCardNumber: 61,
+      sailingCardStatus: 'current',
       appRole: 'user',
       banned: false,
     },
@@ -555,7 +564,7 @@ describe('admin user pages', () => {
     expect(screen.getByText('sailing_card_heading')).toBeInTheDocument();
     expect(screen.getByText('123456789')).toBeInTheDocument();
     expect(screen.getAllByText('61').length).toBeGreaterThan(0);
-    expect(screen.getByText('2027')).toBeInTheDocument();
+    expect(screen.getByText('2026')).toBeInTheDocument();
     expect(screen.getByText(/Jun 1, 2026/)).toBeInTheDocument();
     expect(screen.getByTestId('card-history-panel')).toBeInTheDocument();
     expect(screen.getByTestId('ratings-panel')).toBeInTheDocument();
@@ -588,6 +597,40 @@ describe('admin user pages', () => {
     expect(mocks.getNextAvailableSailingCardNumber).toHaveBeenCalledWith({
       cardYear: 2026,
     });
+  });
+
+  it('shows card number correction on the user detail page for issued cards', async () => {
+    mocks.getAdminUserSailingCardSummary.mockResolvedValue({
+      legalAgreementAcceptances: [
+        {
+          acceptedAt: new Date('2026-05-21T16:00:00.000Z'),
+          agreementHash: sailingCardAgreementHash(),
+          agreementVersion: sailingCardAgreement.version,
+        },
+      ],
+      paymentBypassRequest: null,
+      sailingCardRequests: [],
+      sailingCardExpiresOn: new Date('2026-07-15T04:00:00.000Z'),
+      sailingCardIssuedAt: new Date('2026-05-21T16:00:00.000Z'),
+      sailingCardIssuedBy: { name: 'Dock Master' },
+      sailingCardNumber: 61,
+      sailingCardRequestedAt: new Date('2026-05-21T16:00:00.000Z'),
+      sailingCardSwimAgreementInitialedAt: new Date('2026-05-21T16:00:00.000Z'),
+      sailingCardSwimAgreementInitials: 'AK',
+      sailingCardYear: 2026,
+    });
+    const { default: AdminUserShowPage } = await import('./[id]/page');
+
+    render(
+      await AdminUserShowPage({
+        params: Promise.resolve({ id: 'user-1', locale: 'en' }),
+        searchParams: Promise.resolve({}),
+      })
+    );
+
+    expect(
+      screen.getByRole('form', { name: 'Change sailing card number' })
+    ).toHaveAttribute('data-current-card-number', '61');
   });
 
   it('shows admin override payment bypass on the user sailing-card panel', async () => {
@@ -961,7 +1004,7 @@ describe('admin user pages', () => {
     );
     expect(screen.getByTestId('admin-catalog-table')).toHaveAttribute(
       'data-filter-fields',
-      'emailDeliverabilityStatus,banned'
+      'emailDeliverabilityStatus,sailingCardStatus'
     );
   });
 

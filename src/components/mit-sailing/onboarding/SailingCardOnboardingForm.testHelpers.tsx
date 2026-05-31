@@ -71,7 +71,7 @@ vi.mock('@/libs/mit-sailing/sailingCardOnboardingActions', () => ({
 
 export function resetOnboardingFormTestState() {
   vi.clearAllMocks();
-  window.sessionStorage.clear();
+  globalThis.sessionStorage.clear();
   actionStateMock.state = {
     fieldErrors: {},
     status: 'idle',

@@ -74,6 +74,16 @@ type EventPaymentQueueData = Exclude<
   { kind: 'daily' }
 >;
 
+type AdminDigestEvent = NonNullable<
+  Awaited<ReturnType<typeof findAdminDigestEvent>>
+>;
+
+type AdminDigestMarker = {
+  readonly claimId: string;
+  readonly id: string;
+  readonly paymentId: string;
+};
+
 export type EventPaymentEmailQueue = Pick<
   Queue<EventPaymentEmailJobData>,
   'add' | 'upsertJobScheduler'
@@ -174,9 +184,9 @@ async function processPaymentEmailJob(
   });
 }
 
-async function processAdminDigestJob(
+async function findAdminDigestEvent(
   data: z.infer<typeof adminDigestJobSchema>
-): Promise<void> {
+) {
   const event = await prisma.event.findUnique({
     select: {
       admins: {
@@ -219,21 +229,24 @@ async function processAdminDigestJob(
     },
     where: { id: data.eventId },
   });
-  if (!event || event.payments.length === 0) {
-    return;
-  }
+  return event;
+}
+
+function adminDigestRecipient(event: AdminDigestEvent): string | null {
   const adminEmails = event.admins
     .map((row) => row.admin.email.trim())
     .filter((email) => email.length > 0);
-  const adminEmail = adminEmails.at(0);
-  if (!adminEmail) {
-    return;
-  }
+  return adminEmails.at(0) ?? null;
+}
 
-  const markers: { claimId: string; id: string; paymentId: string }[] = [];
+async function claimAdminDigestMarkers(
+  event: AdminDigestEvent,
+  dateKey: string
+): Promise<AdminDigestMarker[]> {
+  const markers: AdminDigestMarker[] = [];
   for (const payment of event.payments) {
     const marker = await ensureNotificationMarker({
-      dateKey: data.dateKey,
+      dateKey,
       kind: EventPaymentNotificationKind.admin_digest,
       paymentId: payment.id,
     });
@@ -245,47 +258,85 @@ async function processAdminDigestJob(
       });
     }
   }
+  return markers;
+}
+
+function adminDigestOverduePayments(event: AdminDigestEvent) {
+  return event.payments.flatMap((payment) =>
+    payment.selectedFeeDescription && payment.user
+      ? [
+          {
+            amount: formatUsdMinorUnitsAsCurrency(payment.amountCents, 'en-US'),
+            id: payment.id,
+            recipientEmail: payment.user.email,
+            recipientName: payment.user.name ?? payment.user.email,
+            selectedFeeDescription: payment.selectedFeeDescription,
+          },
+        ]
+      : []
+  );
+}
+
+async function sendAdminDigestEmail(props: {
+  readonly adminEmail: string;
+  readonly data: z.infer<typeof adminDigestJobSchema>;
+  readonly event: AdminDigestEvent;
+}): Promise<SendEmailResult> {
+  const result = await sendEventPaymentAdminDigestEmail({
+    adminEmail: props.adminEmail,
+    deadline: props.event.paymentDeadlineAt
+      ? formatEventPaymentDate(props.event.paymentDeadlineAt)
+      : 'No deadline',
+    emailDedupeKey: `${props.data.eventId}:admin_digest:${props.data.dateKey}`,
+    eventName: props.event.name,
+    overduePayments: adminDigestOverduePayments(props.event),
+  });
+  return result;
+}
+
+async function recordAdminDigestMarkers(props: {
+  readonly markers: readonly AdminDigestMarker[];
+  readonly providerMessageId: string | null;
+}) {
+  for (const marker of props.markers) {
+    await recordProviderMessageId({
+      claimId: marker.claimId,
+      notificationId: marker.id,
+      providerMessageId: props.providerMessageId,
+    });
+  }
+}
+
+async function processAdminDigestJob(
+  data: z.infer<typeof adminDigestJobSchema>
+): Promise<void> {
+  const event = await findAdminDigestEvent(data);
+  if (!event || event.payments.length === 0) {
+    return;
+  }
+  const adminEmail = adminDigestRecipient(event);
+  if (!adminEmail) {
+    return;
+  }
+
+  const markers = await claimAdminDigestMarkers(event, data.dateKey);
   if (markers.length === 0) {
     return;
   }
 
-  let result: SendEmailResult;
   try {
-    result = await sendEventPaymentAdminDigestEmail({
+    const result = await sendAdminDigestEmail({
       adminEmail,
-      deadline: event.paymentDeadlineAt
-        ? formatEventPaymentDate(event.paymentDeadlineAt)
-        : 'No deadline',
-      emailDedupeKey: `${data.eventId}:admin_digest:${data.dateKey}`,
-      eventName: event.name,
-      overduePayments: event.payments.flatMap((payment) =>
-        payment.selectedFeeDescription && payment.user
-          ? [
-              {
-                amount: formatUsdMinorUnitsAsCurrency(
-                  payment.amountCents,
-                  'en-US'
-                ),
-                id: payment.id,
-                recipientEmail: payment.user.email,
-                recipientName: payment.user.name ?? payment.user.email,
-                selectedFeeDescription: payment.selectedFeeDescription,
-              },
-            ]
-          : []
-      ),
+      data,
+      event,
+    });
+    await recordAdminDigestMarkers({
+      markers,
+      providerMessageId: result.providerMessageId,
     });
   } catch (error) {
     await clearNotificationClaims(markers);
     throw error;
-  }
-
-  for (const marker of markers) {
-    await recordProviderMessageId({
-      claimId: marker.claimId,
-      notificationId: marker.id,
-      providerMessageId: result.providerMessageId,
-    });
   }
 }
 

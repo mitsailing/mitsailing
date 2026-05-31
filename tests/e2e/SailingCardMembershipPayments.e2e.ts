@@ -14,6 +14,8 @@ import {
 const pool = new Pool({ connectionString: e2ePgConnectionString() });
 const fixtureEmailPrefix = 'e2e-membership-payments-';
 
+type PendingCardType = 'normal' | 'racing' | 'team_racing';
+
 test.describe.configure({ mode: 'serial' });
 
 async function cleanupMembershipPaymentFixtures() {
@@ -105,7 +107,7 @@ async function markUserProfileOnboarded(userId: string) {
 }
 
 async function updatePendingCardRequest(props: {
-  readonly cardType: 'normal' | 'racing' | 'team_racing';
+  readonly cardType: PendingCardType;
   readonly firstName: string;
   readonly lastName: string;
   readonly mitId: string | null;
@@ -134,7 +136,7 @@ async function updatePendingCardRequest(props: {
 }
 
 async function completePendingCardOnboarding(props: {
-  readonly cardType: 'normal' | 'racing' | 'team_racing';
+  readonly cardType: PendingCardType;
   readonly firstName: string;
   readonly lastName: string;
   readonly mitId: string | null;
@@ -150,26 +152,24 @@ async function completePendingCardOnboarding(props: {
 }
 
 async function createPendingCardUser(props: {
-  readonly cardType?: 'normal' | 'racing' | 'team_racing';
+  readonly cardType: PendingCardType;
   readonly email: string;
-  readonly firstName?: string;
-  readonly lastName?: string;
-  readonly mitId?: string;
+  readonly firstName: string;
+  readonly lastName: string;
+  readonly mitId: string | null;
 }) {
-  const firstName = props.firstName ?? 'Grace';
-  const lastName = props.lastName ?? 'Hopper';
   const userId = await createBaseUser({
     email: props.email,
-    firstName,
-    lastName,
-    mitId: props.mitId,
+    firstName: props.firstName,
+    lastName: props.lastName,
+    mitId: props.mitId ?? undefined,
   });
 
   await completePendingCardOnboarding({
-    cardType: props.cardType ?? 'normal',
-    firstName,
-    lastName,
-    mitId: props.mitId ?? null,
+    cardType: props.cardType,
+    firstName: props.firstName,
+    lastName: props.lastName,
+    mitId: props.mitId,
     userId,
   });
   return userId;
@@ -329,7 +329,13 @@ test('admin opens pending card user profile by MIT ID search', async ({
 }) => {
   const mitId = '987654321';
   const email = fixtureEmail('card-search');
-  await createPendingCardUser({ email, mitId });
+  await createPendingCardUser({
+    cardType: 'normal',
+    email,
+    firstName: 'Grace',
+    lastName: 'Hopper',
+    mitId,
+  });
   await signInAsAdmin(page);
 
   await openAdminUserProfile({ page, query: mitId, userName: 'Grace Hopper' });
@@ -342,7 +348,13 @@ test('admin opens pending card user profile by MIT ID search', async ({
 
 test('admin manually assigns card number 110', async ({ page }) => {
   const email = fixtureEmail('manual-card');
-  const userId = await createPendingCardUser({ email });
+  const userId = await createPendingCardUser({
+    cardType: 'normal',
+    email,
+    firstName: 'Grace',
+    lastName: 'Hopper',
+    mitId: null,
+  });
   await signInAsAdmin(page);
   await openAdminUserProfile({ page, query: email, userName: 'Grace Hopper' });
 
@@ -363,7 +375,13 @@ test('admin manually assigns card number 110', async ({ page }) => {
 test('duplicate card number for the same year fails', async ({ page }) => {
   await createIssuedCardUser(110);
   const email = fixtureEmail('duplicate-card');
-  await createPendingCardUser({ email });
+  await createPendingCardUser({
+    cardType: 'normal',
+    email,
+    firstName: 'Grace',
+    lastName: 'Hopper',
+    mitId: null,
+  });
   await signInAsAdmin(page);
   await openAdminUserProfile({ page, query: email, userName: 'Grace Hopper' });
 
@@ -377,7 +395,13 @@ test('duplicate card number for the same year fails', async ({ page }) => {
 
 test('paid racing without payment requires a bypass note', async ({ page }) => {
   const email = fixtureEmail('bypass-note');
-  await createPendingCardUser({ cardType: 'racing', email });
+  await createPendingCardUser({
+    cardType: 'racing',
+    email,
+    firstName: 'Grace',
+    lastName: 'Hopper',
+    mitId: null,
+  });
   await signInAsAdmin(page);
   await openAdminUserProfile({ page, query: email, userName: 'Grace Hopper' });
 

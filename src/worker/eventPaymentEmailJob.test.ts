@@ -385,6 +385,62 @@ describe('event payment email job', () => {
     });
   });
 
+  it('skips admin digest when event has no admin email', async () => {
+    mocks.eventFindUnique.mockResolvedValueOnce({
+      admins: [{ admin: { email: '   ' } }],
+      name: 'Frostbite Regatta',
+      paymentDeadlineAt: new Date('2026-06-01T11:00:00.000Z'),
+      payments: [paymentRow],
+    });
+    const { processEventPaymentEmailJob } =
+      await import('@/worker/eventPaymentEmailJob');
+
+    await processEventPaymentEmailJob({
+      dateKey: '2026-06-01',
+      eventId: 'event-1',
+      kind: 'admin_digest',
+    });
+
+    expect(mocks.eventPaymentNotificationUpsert).not.toHaveBeenCalled();
+    expect(mocks.sendEventPaymentAdminDigestEmail).not.toHaveBeenCalled();
+  });
+
+  it('excludes incomplete payments from admin digest rows', async () => {
+    mocks.eventFindUnique.mockResolvedValueOnce({
+      admins: [{ admin: { email: 'admin@example.com' } }],
+      name: 'Frostbite Regatta',
+      paymentDeadlineAt: null,
+      payments: [
+        paymentRow,
+        {
+          ...paymentRow,
+          id: 'payment-2',
+          selectedFeeDescription: null,
+        },
+      ],
+    });
+    const { processEventPaymentEmailJob } =
+      await import('@/worker/eventPaymentEmailJob');
+
+    await processEventPaymentEmailJob({
+      dateKey: '2026-06-01',
+      eventId: 'event-1',
+      kind: 'admin_digest',
+    });
+
+    expect(mocks.sendEventPaymentAdminDigestEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deadline: 'No deadline',
+        overduePayments: [
+          expect.objectContaining({
+            id: 'payment-1',
+            selectedFeeDescription: 'Adult entry',
+          }),
+        ],
+      })
+    );
+  });
+
   it('logs admin digest cleanup failures and rethrows the send failure', async () => {
     const sendError = new Error('send failed');
     const cleanupError = new Error('cleanup failed');

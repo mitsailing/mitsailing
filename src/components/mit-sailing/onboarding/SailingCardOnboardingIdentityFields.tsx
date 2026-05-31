@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import type * as React from 'react';
-import type { UseFormRegister } from 'react-hook-form';
+import type { FieldErrors, UseFormRegister } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -51,6 +51,9 @@ const legalNoticeRichText = {
   terms: renderTermsLink,
 };
 
+const describedBy = (ids: readonly (string | undefined)[]) =>
+  ids.filter((id) => id !== undefined).join(' ');
+
 const affiliationLabelKey = (affiliation: SailingAffiliation) => {
   const keys = {
     [SailingAffiliation.MIT_STUDENT]: 'affiliation_mit_student',
@@ -75,11 +78,15 @@ const affiliationLabelKey = (affiliation: SailingAffiliation) => {
 
 export function AffiliationSelect(props: {
   readonly affiliation: SailingAffiliation | '';
+  readonly clientErrors: FieldErrors<SailingCardOnboardingFormValues>;
   readonly register: UseFormRegister<SailingCardOnboardingFormValues>;
   readonly state: SailingCardOnboardingFormState;
 }) {
   const t = useTranslations('OnboardingPage');
   const affiliationError = props.state.fieldErrors.affiliation;
+  const affiliationClientError = props.clientErrors.affiliation;
+  const showError =
+    affiliationError !== undefined || affiliationClientError !== undefined;
   const affiliationHelpId = 'sailing-card-onboarding-affiliation-help';
 
   return (
@@ -98,17 +105,16 @@ export function AffiliationSelect(props: {
         </div>
         <div className="flex flex-col gap-1.5">
           <select
-            aria-describedby={
-              affiliationError
-                ? `${affiliationHelpId} ${fieldErrorId('affiliation')}`
-                : affiliationHelpId
-            }
-            aria-invalid={affiliationError ? true : undefined}
+            aria-describedby={describedBy([
+              affiliationHelpId,
+              showError ? fieldErrorId('affiliation') : undefined,
+            ])}
+            aria-invalid={showError ? true : undefined}
             className={adminNativeSelectClassName}
             id="affiliation"
             required
             value={props.affiliation}
-            {...props.register('affiliation', { required: true })}
+            {...props.register('affiliation', { required: 'error_required' })}
           >
             <option value="">{t('affiliation_placeholder')}</option>
             {getSailingAffiliationOptions().map((option) => (
@@ -117,7 +123,11 @@ export function AffiliationSelect(props: {
               </option>
             ))}
           </select>
-          <FieldError field="affiliation" state={props.state} />
+          <FieldError
+            clientErrors={props.clientErrors}
+            field="affiliation"
+            state={props.state}
+          />
         </div>
       </div>
     </section>
@@ -125,12 +135,15 @@ export function AffiliationSelect(props: {
 }
 
 function MitIdField(props: {
+  readonly clientErrors: FieldErrors<SailingCardOnboardingFormValues>;
   readonly register: UseFormRegister<SailingCardOnboardingFormValues>;
   readonly required: boolean;
   readonly state: SailingCardOnboardingFormState;
 }) {
   const t = useTranslations('OnboardingPage');
   const mitIdError = props.state.fieldErrors.mitId;
+  const mitIdClientError = props.clientErrors.mitId;
+  const showError = mitIdError !== undefined || mitIdClientError !== undefined;
   const mitIdHelpId = 'sailing-card-onboarding-mitId-help';
   const mitIdHelpKey = props.required
     ? 'mit_id_required_help'
@@ -142,28 +155,43 @@ function MitIdField(props: {
         {t('mit_id_label')}
       </Label>
       <Input
-        aria-describedby={
-          mitIdError ? `${mitIdHelpId} ${fieldErrorId('mitId')}` : mitIdHelpId
-        }
-        aria-invalid={mitIdError ? true : undefined}
+        aria-describedby={describedBy([
+          mitIdHelpId,
+          showError ? fieldErrorId('mitId') : undefined,
+        ])}
+        aria-invalid={showError ? true : undefined}
         autoComplete="off"
         id="mitId"
         inputMode="numeric"
         pattern="[0-9]*"
         required={props.required}
         type="text"
-        {...props.register('mitId', { required: props.required })}
+        {...props.register('mitId', {
+          required: props.required
+            ? 'error_mit_id_required_dw_identity'
+            : false,
+          validate: (value) =>
+            !props.required ||
+            value.trim() === '' ||
+            /^\d{9}$/.test(value.replaceAll(/\D/g, '')) ||
+            'error_mit_id_format',
+        })}
       />
       <p className="text-xs text-muted-foreground" id={mitIdHelpId}>
         {t(mitIdHelpKey)}
       </p>
-      <FieldError field="mitId" state={props.state} />
+      <FieldError
+        clientErrors={props.clientErrors}
+        field="mitId"
+        state={props.state}
+      />
     </div>
   );
 }
 
 function ManualNameField(props: {
   readonly autoComplete: string;
+  readonly clientErrors: FieldErrors<SailingCardOnboardingFormValues>;
   readonly field: 'firstName' | 'lastName';
   readonly label: string;
   readonly register: UseFormRegister<SailingCardOnboardingFormValues>;
@@ -171,6 +199,8 @@ function ManualNameField(props: {
   readonly state: SailingCardOnboardingFormState;
 }) {
   const error = props.state.fieldErrors[props.field];
+  const clientError = props.clientErrors[props.field];
+  const showError = error !== undefined || clientError !== undefined;
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -178,20 +208,27 @@ function ManualNameField(props: {
         {props.label}
       </Label>
       <Input
-        aria-describedby={error ? fieldErrorId(props.field) : undefined}
-        aria-invalid={error ? true : undefined}
+        aria-describedby={showError ? fieldErrorId(props.field) : undefined}
+        aria-invalid={showError ? true : undefined}
         autoComplete={props.autoComplete}
         id={props.field}
         required={props.required}
         type="text"
-        {...props.register(props.field, { required: props.required })}
+        {...props.register(props.field, {
+          required: props.required ? 'error_required' : false,
+        })}
       />
-      <FieldError field={props.field} state={props.state} />
+      <FieldError
+        clientErrors={props.clientErrors}
+        field={props.field}
+        state={props.state}
+      />
     </div>
   );
 }
 
 function ManualNameFields(props: {
+  readonly clientErrors: FieldErrors<SailingCardOnboardingFormValues>;
   readonly register: UseFormRegister<SailingCardOnboardingFormValues>;
   readonly required: boolean;
   readonly state: SailingCardOnboardingFormState;
@@ -199,9 +236,10 @@ function ManualNameFields(props: {
   const t = useTranslations('OnboardingPage');
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="flex flex-col gap-4">
       <ManualNameField
         autoComplete="section-user given-name"
+        clientErrors={props.clientErrors}
         field="firstName"
         label={t('first_name_label')}
         register={props.register}
@@ -210,6 +248,7 @@ function ManualNameFields(props: {
       />
       <ManualNameField
         autoComplete="section-user family-name"
+        clientErrors={props.clientErrors}
         field="lastName"
         label={t('last_name_label')}
         register={props.register}
@@ -244,7 +283,7 @@ function LockedIdentityFields(props: {
   const t = useTranslations('OnboardingPage');
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="flex flex-col gap-4">
       <ReadOnlyIdentityField
         id="firstName"
         label={t('first_name_label')}
@@ -284,11 +323,15 @@ function AgreementDisclosure() {
 }
 
 function AgreementCheckbox(props: {
+  readonly clientErrors: FieldErrors<SailingCardOnboardingFormValues>;
   readonly register: UseFormRegister<SailingCardOnboardingFormValues>;
   readonly state: SailingCardOnboardingFormState;
 }) {
   const t = useTranslations('OnboardingPage');
   const agreementError = props.state.fieldErrors.swimAgreementAccepted;
+  const agreementClientError = props.clientErrors.swimAgreementAccepted;
+  const showError =
+    agreementError !== undefined || agreementClientError !== undefined;
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -298,18 +341,24 @@ function AgreementCheckbox(props: {
       >
         <input
           aria-describedby={
-            agreementError ? fieldErrorId('swimAgreementAccepted') : undefined
+            showError ? fieldErrorId('swimAgreementAccepted') : undefined
           }
-          aria-invalid={agreementError ? true : undefined}
+          aria-invalid={showError ? true : undefined}
           className="mt-1 size-4 shrink-0 rounded border-input text-mit-red"
           id="swimAgreementAccepted"
           required
           type="checkbox"
-          {...props.register('swimAgreementAccepted', { required: true })}
+          {...props.register('swimAgreementAccepted', {
+            required: 'error_required',
+          })}
         />
         <span>{t('agreement_checkbox_label')}</span>
       </label>
-      <FieldError field="swimAgreementAccepted" state={props.state} />
+      <FieldError
+        clientErrors={props.clientErrors}
+        field="swimAgreementAccepted"
+        state={props.state}
+      />
     </div>
   );
 }
@@ -325,6 +374,7 @@ function LegalNotice() {
 }
 
 export function IdentityFields(props: {
+  readonly clientErrors: FieldErrors<SailingCardOnboardingFormValues>;
   readonly identityComplete: boolean;
   readonly lockedIdentity?: SailingCardOnboardingLockedIdentity;
   readonly manualNameRequired: boolean;
@@ -351,6 +401,7 @@ export function IdentityFields(props: {
       </div>
       {props.showMitId ? (
         <MitIdField
+          clientErrors={props.clientErrors}
           register={props.register}
           required={props.mitIdRequired}
           state={props.state}
@@ -358,6 +409,7 @@ export function IdentityFields(props: {
       ) : null}
       {props.showManualName ? (
         <ManualNameFields
+          clientErrors={props.clientErrors}
           register={props.register}
           required={props.manualNameRequired}
           state={props.state}
@@ -382,6 +434,7 @@ export function IdentityFields(props: {
 }
 
 export function AgreementSection(props: {
+  readonly clientErrors: FieldErrors<SailingCardOnboardingFormValues>;
   readonly register: UseFormRegister<SailingCardOnboardingFormValues>;
   readonly state: SailingCardOnboardingFormState;
 }) {
@@ -393,7 +446,11 @@ export function AgreementSection(props: {
         {t('agreement_heading')}
       </h2>
       <AgreementDisclosure />
-      <AgreementCheckbox register={props.register} state={props.state} />
+      <AgreementCheckbox
+        clientErrors={props.clientErrors}
+        register={props.register}
+        state={props.state}
+      />
       <LegalNotice />
     </section>
   );

@@ -27,42 +27,32 @@ type AdminPaymentsLedgerViewProps = {
   webhookConfigured: boolean;
 };
 
+const paymentStatusLabelKeys = {
+  [PaymentStatus.cancelled]: 'status_cancelled',
+  [PaymentStatus.checkout_created]: 'status_checkout_created',
+  [PaymentStatus.disputed]: 'status_disputed',
+  [PaymentStatus.handled]: 'status_handled',
+  [PaymentStatus.needs_review]: 'status_needs_review',
+  [PaymentStatus.paid]: 'status_paid',
+  [PaymentStatus.past_due]: 'status_past_due',
+  [PaymentStatus.pending]: 'status_pending',
+  [PaymentStatus.refunded]: 'status_refunded',
+} as const satisfies Record<AdminPaymentLedgerRow['status'], string>;
+
 function paymentStatusLabel(
   status: AdminPaymentLedgerRow['status'],
   t: AdminPaymentsTranslations
 ): string {
-  if (status === PaymentStatus.paid) {
-    return t('status_paid');
-  }
-  if (status === PaymentStatus.handled) {
-    return t('status_handled');
-  }
-  if (status === PaymentStatus.refunded) {
-    return t('status_refunded');
-  }
-  if (status === PaymentStatus.disputed) {
-    return t('status_disputed');
-  }
-  if (status === PaymentStatus.cancelled) {
-    return t('status_cancelled');
-  }
-  if (status === PaymentStatus.past_due) {
-    return t('status_past_due');
-  }
-  if (status === PaymentStatus.checkout_created) {
-    return t('status_checkout_created');
-  }
-  if (status === PaymentStatus.needs_review) {
-    return t('status_needs_review');
-  }
-  return t('status_pending');
+  return t(paymentStatusLabelKeys[status]);
 }
 
-function StripeDashboardLinks(props: {
-  dashboardBaseUrl: string;
-  payment: AdminPaymentLedgerRow;
-  t: AdminPaymentsTranslations;
-}) {
+function StripeDashboardLinks(
+  props: Readonly<{
+    dashboardBaseUrl: string;
+    payment: AdminPaymentLedgerRow;
+    t: AdminPaymentsTranslations;
+  }>
+) {
   const paymentIntentHref = props.payment.stripePaymentIntentId
     ? `${props.dashboardBaseUrl}/payments/${props.payment.stripePaymentIntentId}`
     : null;
@@ -104,10 +94,12 @@ function StripeDashboardLinks(props: {
   );
 }
 
-function PaymentLedgerTitle(props: {
-  payment: AdminPaymentLedgerRow;
-  t: AdminPaymentsTranslations;
-}) {
+function PaymentLedgerTitle(
+  props: Readonly<{
+    payment: AdminPaymentLedgerRow;
+    t: AdminPaymentsTranslations;
+  }>
+) {
   const title =
     props.payment.event?.name ??
     props.payment.legacyDescription ??
@@ -129,10 +121,12 @@ function PaymentLedgerTitle(props: {
   );
 }
 
-function PaymentLedgerLegacyEvidence(props: {
-  payment: AdminPaymentLedgerRow;
-  t: AdminPaymentsTranslations;
-}) {
+function PaymentLedgerLegacyEvidence(
+  props: Readonly<{
+    payment: AdminPaymentLedgerRow;
+    t: AdminPaymentsTranslations;
+  }>
+) {
   const source = [props.payment.legacySourceTable, props.payment.legacySourceId]
     .filter(Boolean)
     .join(' ');
@@ -151,10 +145,12 @@ function PaymentLedgerLegacyEvidence(props: {
   );
 }
 
-function PaymentLedgerPayer(props: {
-  payment: AdminPaymentLedgerRow;
-  t: AdminPaymentsTranslations;
-}) {
+function PaymentLedgerPayer(
+  props: Readonly<{
+    payment: AdminPaymentLedgerRow;
+    t: AdminPaymentsTranslations;
+  }>
+) {
   const payerName = props.payment.user?.name ?? props.payment.payerName;
   const payerEmail = props.payment.user?.email ?? props.payment.payerEmail;
   const payer = [payerName, payerEmail].filter(Boolean).join(' · ');

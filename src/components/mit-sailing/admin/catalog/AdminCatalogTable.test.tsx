@@ -24,10 +24,14 @@ vi.mock('next-intl', () => ({
         'Search by name, email, MIT ID, sailing card number, or role',
       filter_email_status_all: 'All email statuses',
       filter_email_status_label: 'Email status',
+      filter_sailing_card_status_all: 'All card statuses',
+      filter_sailing_card_status_label: 'Sailing card status',
       email_status_bounced: 'Bounced',
       email_status_ok: 'OK',
       no: 'No',
       reorder_error: 'Could not reorder rows.',
+      sailing_card_status_current: 'Current card',
+      sailing_card_status_pending: 'Pending card',
       yes: 'Yes',
     };
     return messages[key] ?? key;
@@ -86,6 +90,7 @@ const userRows = [
     mitId: '111111111',
     name: 'Ada Lovelace',
     sailingCardNumber: 61,
+    sailingCardStatus: 'current',
   },
   {
     appRole: 'dock_staff',
@@ -95,6 +100,7 @@ const userRows = [
     mitId: '222222222',
     name: 'Grace Hopper',
     sailingCardNumber: 110,
+    sailingCardStatus: 'pending',
   },
 ];
 
@@ -123,6 +129,15 @@ function renderUsersTable() {
             { labelKey: 'email_status_bounced', value: 'bounced' },
           ],
         },
+        {
+          allKey: 'filter_sailing_card_status_all',
+          field: 'sailingCardStatus',
+          labelKey: 'filter_sailing_card_status_label',
+          options: [
+            { labelKey: 'sailing_card_status_current', value: 'current' },
+            { labelKey: 'sailing_card_status_pending', value: 'pending' },
+          ],
+        },
       ]}
     />
   );
@@ -147,12 +162,12 @@ describe('AdminCatalogTable', () => {
   it('filters users by configured search fields without navigation', async () => {
     renderUsersTable();
     const user = userEvent.setup();
-    const originalHref = window.location.href;
+    const originalHref = globalThis.location.href;
 
     await searchUsers(user, 'grace');
 
     expectOnlyUserLink('Grace Hopper');
-    expect(window.location.href).toBe(originalHref);
+    expect(globalThis.location.href).toBe(originalHref);
 
     await searchUsers(user, 'admin');
 
@@ -172,6 +187,13 @@ describe('AdminCatalogTable', () => {
     const user = userEvent.setup();
 
     await user.selectOptions(screen.getByLabelText('Email status'), 'bounced');
+
+    expectOnlyUserLink('Grace Hopper');
+
+    await user.selectOptions(
+      screen.getByLabelText('Sailing card status'),
+      'pending'
+    );
 
     expectOnlyUserLink('Grace Hopper');
 

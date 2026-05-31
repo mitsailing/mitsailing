@@ -836,4 +836,108 @@ describe('adminSailingCardActions', () => {
     expect(mocks.txUserUpdate).not.toHaveBeenCalled();
     expect(mocks.txUserAuditCreate).not.toHaveBeenCalled();
   });
+
+  it('updateSailingCardNumberAction changes an issued card number', async () => {
+    mocks.txUserFindUnique.mockResolvedValue({
+      ...existingUser,
+      sailingCardExpiresOn: new Date('2027-07-15T04:00:00.000Z'),
+      sailingCardIssuedAt: new Date('2026-08-01T16:00:00.000Z'),
+      sailingCardIssuedByUserId: 'admin-old',
+      sailingCardNumber: 61,
+      sailingCardYear: 2027,
+    });
+    const { updateSailingCardNumberAction } =
+      await import('@/libs/admin/cards/adminSailingCardActions');
+
+    await expect(
+      updateSailingCardNumberAction(
+        'en',
+        'user-1',
+        { fieldErrors: {}, status: 'idle' },
+        formDataWithCardNumber('62')
+      )
+    ).resolves.toEqual({ fieldErrors: {}, status: 'success' });
+
+    expect(mocks.requirePermission).toHaveBeenCalledWith(
+      Permission.CARDS_ASSIGN_NUMBER,
+      'en'
+    );
+    expect(mocks.txSailingCardRequestUpdateMany).toHaveBeenCalledWith({
+      where: {
+        cardYear: 2027,
+        status: SailingCardRequestStatus.approved,
+        userId: 'user-1',
+      },
+      data: {
+        issuedCardNumber: 62,
+      },
+    });
+    expect(mocks.txUserUpdate).toHaveBeenCalledWith({
+      where: { id: 'user-1' },
+      data: expect.objectContaining({
+        sailingCardIssuedByUserId: 'admin-1',
+        sailingCardNumber: 62,
+        sailingCardYear: 2027,
+      }),
+    });
+    expect(mocks.txUserAuditCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: UserAuditAction.update,
+          auditedChanges: expect.objectContaining({
+            after: expect.objectContaining({ sailingCardNumber: 62 }),
+            before: expect.objectContaining({ sailingCardNumber: 61 }),
+          }),
+        }),
+      })
+    );
+  });
+
+  it('updateSailingCardNumberAction rejects the existing card number without audit', async () => {
+    mocks.txUserFindUnique.mockResolvedValue({
+      ...existingUser,
+      sailingCardExpiresOn: new Date('2027-07-15T04:00:00.000Z'),
+      sailingCardIssuedAt: new Date('2026-08-01T16:00:00.000Z'),
+      sailingCardIssuedByUserId: 'admin-1',
+      sailingCardNumber: 61,
+      sailingCardYear: 2027,
+    });
+    const { updateSailingCardNumberAction } =
+      await import('@/libs/admin/cards/adminSailingCardActions');
+
+    await expect(
+      updateSailingCardNumberAction(
+        'en',
+        'user-1',
+        { fieldErrors: {}, status: 'idle' },
+        formDataWithCardNumber('61')
+      )
+    ).resolves.toEqual({
+      fieldErrors: {},
+      formError: 'same_card_number',
+      status: 'error',
+    });
+
+    expect(mocks.txSailingCardRequestUpdateMany).not.toHaveBeenCalled();
+    expect(mocks.txUserUpdate).not.toHaveBeenCalled();
+    expect(mocks.txUserAuditCreate).not.toHaveBeenCalled();
+  });
+
+  it('updateSailingCardNumberAction rejects duplicates', async () => {
+    mocks.transaction.mockRejectedValue(uniqueCardError());
+    const { updateSailingCardNumberAction } =
+      await import('@/libs/admin/cards/adminSailingCardActions');
+
+    await expect(
+      updateSailingCardNumberAction(
+        'en',
+        'user-1',
+        { fieldErrors: {}, status: 'idle' },
+        formDataWithCardNumber('62')
+      )
+    ).resolves.toEqual({
+      fieldErrors: { cardNumber: 'duplicate' },
+      status: 'error',
+    });
+  });
 });

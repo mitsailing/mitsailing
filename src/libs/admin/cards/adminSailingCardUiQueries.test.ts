@@ -54,6 +54,7 @@ describe('adminSailingCardUiQueries', () => {
           `2026-09-${String(index + 1).padStart(2, '0')}T00:00:00.000Z`
         ),
         id: `audit-${index}`,
+        user: null,
       })),
       {
         auditedChanges: {
@@ -62,6 +63,7 @@ describe('adminSailingCardUiQueries', () => {
         },
         createdAt: new Date('2026-08-01T16:00:00.000Z'),
         id: 'card-audit',
+        user: { email: 'dock@example.test', name: 'Dock Master' },
       },
     ]);
     const { getAdminSailingCardHistory } =
@@ -69,10 +71,14 @@ describe('adminSailingCardUiQueries', () => {
 
     await expect(getAdminSailingCardHistory('user-1')).resolves.toEqual([
       {
+        action: 'issued',
+        actorName: 'Dock Master',
         createdAt: new Date('2026-08-01T16:00:00.000Z'),
+        fromNumber: null,
+        fromYear: null,
         id: 'card-audit',
-        number: 42,
-        year: 2027,
+        toNumber: 42,
+        toYear: 2027,
       },
     ]);
     expect(mocks.userAuditFindMany.mock.calls[0]?.[0]).not.toHaveProperty(
@@ -89,6 +95,7 @@ describe('adminSailingCardUiQueries', () => {
         },
         createdAt: new Date('2026-08-01T16:00:00.000Z'),
         id: 'reissue-audit',
+        user: null,
       },
     ]);
     const { getAdminSailingCardHistory } =
@@ -96,10 +103,53 @@ describe('adminSailingCardUiQueries', () => {
 
     await expect(getAdminSailingCardHistory('user-1')).resolves.toEqual([
       {
+        action: 'changed',
+        actorName: null,
         createdAt: new Date('2026-08-01T16:00:00.000Z'),
+        fromNumber: 42,
+        fromYear: 2026,
         id: 'reissue-audit',
-        number: 42,
-        year: 2026,
+        toNumber: 60,
+        toYear: 2027,
+      },
+    ]);
+  });
+
+  it('drops no-op repeated card-number audits', async () => {
+    const createdAt = new Date('2026-08-01T16:00:00.000Z');
+    mocks.userAuditFindMany.mockResolvedValue([
+      {
+        auditedChanges: {
+          after: { sailingCardNumber: 42, sailingCardYear: 2027 },
+          before: { sailingCardNumber: 42, sailingCardYear: 2027 },
+        },
+        createdAt,
+        id: 'duplicate-audit',
+        user: null,
+      },
+      {
+        auditedChanges: {
+          after: { sailingCardNumber: 42, sailingCardYear: 2027 },
+          before: { sailingCardNumber: null, sailingCardYear: null },
+        },
+        createdAt,
+        id: 'original-audit',
+        user: null,
+      },
+    ]);
+    const { getAdminSailingCardHistory } =
+      await import('@/libs/admin/cards/adminSailingCardUiQueries');
+
+    await expect(getAdminSailingCardHistory('user-1')).resolves.toEqual([
+      {
+        action: 'issued',
+        actorName: null,
+        createdAt,
+        fromNumber: null,
+        fromYear: null,
+        id: 'original-audit',
+        toNumber: 42,
+        toYear: 2027,
       },
     ]);
   });
