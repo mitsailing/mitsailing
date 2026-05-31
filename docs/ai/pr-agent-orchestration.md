@@ -193,6 +193,7 @@ by the PR. Do not create one broad agent that owns multiple specialties.
 | E2E workflow tester | User journey, multi-actor flow, email, admin handoff, or capability gate. | Playwright sessions, Mailpit, DB assertions, screenshots, and evidence. |
 | Implementation engineer | Approved implementation or confirmed blocker. | Minimal code changes inside assigned write scope. |
 | Bug reviewer | Every code-changing PR before merge-readiness claim. | Independent defect review separate from CodeRabbit and analyzers. |
+| Structural simplicity reviewer | Schema, admin surface, service/helper, component, permission, or workflow additions. | Agent slop, unnecessary multiplicity, and whether one existing model/surface/helper would work. |
 | Security/auth reviewer | Auth, roles, admin, permissions, membership, payment, or data visibility. | Authorization, session boundaries, privilege checks, and leakage risks. |
 | Data model reviewer | Schema, Prisma, migrations, imports, warehouse sync, or data integrity. | Data shape, constraints, migration safety, and integrity checks. |
 | Legacy parity auditor | Migration, old-app replacement, or uncertain historical behavior. | Old app parity and forgotten workflows. |
@@ -207,19 +208,45 @@ Judge each run against this scorecard:
 
 | Category | Points | Standard |
 | --- | ---: | --- |
-| Context control | 15 | The conductor keeps only state, summaries, blockers, decisions, and verification results. |
+| Context control | 10 | The conductor keeps only state, summaries, blockers, decisions, and verification results. |
 | Product intuition | 15 | Personas pressure-test workflows, but the user decides policy, semantics, and UX blocker status. |
 | Independent bug review | 15 | A read-only reviewer hunts for bugs separately from CodeRabbit before final verification. |
 | Evidence quality | 10 | Every fix maps to a check, comment, test, Context7 source, repo rule, or legacy file. |
-| TDD and verification | 15 | Failing behavior is reproduced first when practical, then targeted tests and required checks run. |
+| TDD and verification | 10 | Failing behavior is reproduced first when practical, then targeted tests and required checks run. |
 | Journey coverage | 10 | Multi-actor PRs map pages, admin surfaces, emails, background jobs, state transitions, and handoffs. |
 | Scope control | 10 | Findings are classified as blocker, follow-up, or won't fix. No broad cleanup. |
+| Structural simplicity | 10 | New tables, pages, components, services, permissions, states, and workflows are justified by current lifecycle, permission, audit, retention, cardinality, transaction, operational, or external-platform boundaries. |
 | Recovery | 5 | The conductor detects stale checks, duplicate issues, noisy analyzers, wrong assumptions, and agent drift. |
 | Parallelism | 5 | Independent discovery tasks run in parallel without concurrent writes to the same files. |
 
 A 100/100 run does not mean agents make every decision. It means agents gather
 the right evidence and the user makes the decisions that require product
 judgment.
+
+## Structural simplicity and agent slop
+
+Agent slop is unnecessary generated surface area: extra tables, pages,
+components, services, permissions, states, or workflows that make the codebase
+look designed while adding maintenance cost.
+
+Default to the existing model, page, component, and helper. Split only when the
+current PR has a proven boundary: different lifecycle, permission, audit,
+retention, cardinality, transaction, or operational owner. External platform
+evidence can justify a split. For example, Stripe subscription work may need a
+separate subscription-state record when current Stripe Billing docs via Context7
+show that subscription lifecycle, invoices, and payments have distinct states
+and webhook events.
+
+Before adding a new structural surface, answer in the conductor ledger:
+
+- Why can the existing table, page, module, or component not represent this?
+- Would a discriminator, status/source field, filter, or narrow helper be
+  simpler?
+- Which actor benefits from the extra structure in this PR?
+- Which current tests prove the separation is needed?
+- What future maintenance cost does the separation create?
+
+If the answers are generic, keep the simpler structure.
 
 ## Roles
 
@@ -357,16 +384,21 @@ CodeRabbit to find bugs the independent reviewer can find locally.
    This is read-only unless the conductor assigns confirmed findings back to a
    focused fix agent.
 
-7. **Post-fix persona system agent**
+7. **Structural simplicity review**
+   Required when the PR adds schema, admin pages, components, services,
+   helpers, permissions, queues, states, or workflows. Review the actual diff
+   for unnecessary multiplicity and recommend deletions or narrower shapes.
+
+8. **Post-fix persona system agent**
    Build or update the journey map, persona workflow matrix, touchpoint
    findings, Playwright/Mailpit coverage ideas, and product judgment queue.
 
-8. **Legacy parity agent**
+9. **Legacy parity agent**
    Required for migration, admin/member lifecycle, email, import,
    scheduled-job, and deployment/runtime PRs. Search old app behavior and draft
    follow-up issues for confirmed gaps.
 
-9. **Final verification agent**
+10. **Final verification agent**
    Review final diff, run checks, classify remaining risks, and report remote
    checks that need re-analysis.
 
@@ -551,7 +583,7 @@ Onboarding records intent and agreement data, but it does not prove the member
 is ready for card issuance.
 
 ## Applies to
-Onboarding, admin card queue, profile card status, staff card assignment.
+Onboarding, admin user search/profile card status, staff card assignment.
 
 ## Agent rule
 Do not make onboarding completion automatically unlock card assignment. Ask
@@ -604,8 +636,9 @@ Maintain this state ledger only:
 - Journey map, if this PR crosses actors, emails, admin surfaces, or async work
 - Persona matrix file path, if this PR touches UI, admin, onboarding, journey,
   or capability-gated behavior
-- Persona gate status: every selected persona run, evidence captured, and
-  findings fixed or classified
+- Persona gate status: every selected persona created once, real user and simple
+  website path checks completed twice, evidence captured, and findings fixed or
+  classified
 - Local code review gate status: independent bug review run, findings fixed or
   classified
 - Agent assignments
@@ -661,9 +694,10 @@ Acceptance rules:
 - No broad refactors.
 - No worker may change its role, widen scope, or spawn follow-up work.
 - No merge-readiness recommendation before independent bug review completes.
-- No merge-readiness recommendation before every selected persona has run and
-  every persona finding is fixed, classified as follow-up/won't-fix with
-  evidence, or escalated and decided by the user.
+- No merge-readiness recommendation before every selected persona has been
+  created once, real user and simple website path checks have been completed
+  twice, and every persona finding is fixed, classified as follow-up/won't-fix
+  with evidence, or escalated and decided by the user.
 - No merge-readiness recommendation while any local independent code review
   finding is unclassified, unfixed, or lacks evidence for a non-blocking
   classification.
@@ -760,6 +794,23 @@ Use the impeccable skill lightly:
 Create 2-4 personas based on the touched workflow. For MIT Sailing, prefer real
 roles such as MIT student, non-MIT public user, admin, dock staff, instructor,
 event host, returning member, or donor.
+
+For each feature slice, create the selected persona framing once, then review
+that persona and your reasoning twice before relying on it. This is not three
+separate persona runs; it is one persona plus two explicit checks that the
+persona behaves like a real user or admin and that the website path is super
+simple. In each review, ask:
+
+1. Would this real person naturally start here on the website, with this goal
+   and this amount of context? If the persona sounds like a route, table, queue,
+   schema model, Stripe object, or implementation concern, rewrite it as a human
+   user/admin task.
+2. Is the website path obvious and minimal for this person: find the thing,
+   understand the current state, take the next action, and recover from blockers
+   without hunting through extra pages or controls?
+3. Did the persona lead us to add complexity that does not make the user's or
+   admin's path simpler? Prefer the existing user/admin page, form, filter, or
+   helper unless a split directly simplifies that real workflow.
 
 Decision rule:
 - Mark only severe workflow confusion, accessibility blockage, incorrect
@@ -892,6 +943,43 @@ Output contract:
 - Confidence level.
 ```
 
+### Structural simplicity review agent
+
+```markdown
+You are the structural simplicity review sub-agent for PR <PR_NUMBER>.
+
+Working dir: <ABSOLUTE_REPO_PATH>
+
+This review is separate from the bug review. Inspect the actual diff for agent
+slop: unnecessary generated surface area that makes the system harder to
+understand or maintain.
+
+Task:
+- Review `origin/main...HEAD` or the PR diff specified by the conductor.
+- Look for multiple tables where one model plus source/status fields works.
+- Look for multiple pages where one existing page plus filters or anchors works.
+- Look for multiple components where one local component or shared primitive
+  works.
+- Look for multiple services/helpers where one narrow function works.
+- Look for generic abstractions before the second real use case.
+- Look for future-proof fields, states, flags, permissions, queues, or config
+  that this PR does not use.
+- Allow splits when the current PR proves a lifecycle, permission, audit,
+  retention, cardinality, transaction, operational, or external-platform
+  boundary. For Stripe subscription work, accept separate subscription-state
+  modeling when current Stripe docs via Context7 and local tests show that
+  subscription, invoice, payment, and portal/cancellation lifecycles need
+  distinct local state.
+- Do not edit files.
+
+Output contract:
+- Deletions or simplifications recommended, each with file evidence.
+- Justified splits you accept, with the boundary that makes them necessary.
+- Findings classified as PR blocker, follow-up, won't fix, or needs product
+  judgment.
+- Confidence level.
+```
+
 ### Post-fix persona system agent
 
 ```markdown
@@ -1017,7 +1105,8 @@ Task:
 - Verify confirmed blockers are addressed.
 - Verify independent bug review completed and any confirmed findings were fixed
   or explicitly deferred with user approval.
-- Verify the persona matrix gate is complete: every selected persona has run,
+- Verify the persona matrix gate is complete: every selected persona was
+  created once, real user and simple website path checks were completed twice,
   every executable acceptance check has evidence, and every persona finding is
   fixed or classified with user-approved follow-up/deferral when needed.
 - Verify GitHub comments and unresolved threads were inspected and folded into
@@ -1262,7 +1351,7 @@ capability state in the matrix and track implementation in GitHub issues:
 | --- | --- | --- | --- | --- | --- |
 | Non-MIT racer | Pay for racing membership during onboarding | Not built | Onboarding records the card request | Payment is not connected during onboarding | #123 |
 | Returning member | Edit MIT affiliation after onboarding | Not built | Profile shows account info | No profile edit flow for affiliation/MIT status | #124 |
-| Dock staff | Assign sailing card after prerequisites | Capability-gated | Admin card queue | Must wait until intro for experienced sailors or a beginner class is complete | #125 |
+| Dock staff | Assign sailing card after prerequisites | Capability-gated | Admin user search -> admin user profile | Must wait until intro for experienced sailors or a beginner class is complete | #125 |
 ```
 
 Use these status labels:
@@ -1617,7 +1706,8 @@ Validation checks:
 
 - persona matrix file was written, reviewed, and reloaded before
   implementation;
-- every selected persona ran before merge readiness, and all persona findings
+- every selected persona was created once, real user and simple website path
+  checks were completed twice before merge readiness, and all persona findings
   were fixed or classified with evidence;
 - independent local code review ran before merge readiness, and all local
   review findings were fixed or classified with evidence;
@@ -1671,8 +1761,9 @@ Avoid these:
 A run is complete when:
 
 - All confirmed PR blockers are fixed or classified with evidence.
-- All selected personas have run, produced evidence, and have no unclassified or
-  unresolved PR-blocking findings.
+- All selected personas were created once, real user and simple website path
+  checks were completed twice, evidence was produced, and there are no
+  unclassified or unresolved PR-blocking findings.
 - Independent local code review has run and has no unclassified or unresolved
   PR-blocking findings.
 - GitHub review comments and unresolved threads were inspected and either fixed,

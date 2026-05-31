@@ -14,11 +14,11 @@ runs. Copy it to `local/agent-runs/pr-<number>/personas.md`, or to
 `local/agent-runs/<branch-slug>/personas.md` before a PR number exists. Do not
 commit PR-specific persona files unless the user explicitly asks.
 
-Merge readiness is blocked until every selected persona row has been run, has
-evidence for its executable acceptance check, and has each finding classified as
-`PR blocker`, `follow-up`, `won't fix`, or `needs product judgment`. `PR
-blocker` findings must be fixed before merge readiness. `needs product
-judgment` blocks until the user decides or explicitly defers it.
+Merge readiness is blocked until every selected persona row has evidence for
+its executable acceptance check and has each finding classified as `PR blocker`,
+`follow-up`, `won't fix`, or `needs product judgment`. `PR blocker` findings
+must be fixed before merge readiness. `needs product judgment` blocks until the
+user decides or explicitly defers it.
 
 ## Personas
 
@@ -52,6 +52,26 @@ Product support labels:
 
 Keep status separate from finding classification. Classification is `PR
 blocker`, `follow-up`, `won't fix`, or `needs product judgment`.
+
+## Persona Model Checks
+
+For each feature slice, create the selected persona framing once, then review
+that persona and your reasoning twice before relying on it. This is not three
+separate persona runs; it is one persona plus two explicit checks that the
+persona behaves like a real user or admin and that the website path is super
+simple. Record the answer in the evidence column or in the Impeccable/anti-slop
+tables below.
+
+1. Would this real person naturally start here on the website, with this goal
+   and this amount of context? If the persona sounds like a route, table, queue,
+   schema model, Stripe object, or implementation concern, rewrite it as a human
+   user/admin task.
+2. Is the website path obvious and minimal for this person: find the thing,
+   understand the current state, take the next action, and recover from blockers
+   without hunting through extra pages or controls?
+3. Did the persona lead us to add complexity that does not make the user's or
+   admin's path simpler? Prefer the existing user/admin page, form, filter, or
+   helper unless a split directly simplifies that real workflow.
 
 ## Executable Acceptance Checks
 
@@ -166,6 +186,12 @@ Capability gate tests:
 | audit | Keyboard, focus, semantics, contrast, tokens, states | | | | |
 | harden | Long names, empty/error states, permissions, double submit, stale state | | | | |
 | polish | Final design-system alignment and anti-AI-slop verdict | | | | |
+
+## Structural Simplicity Evidence
+
+| Proposed structure | Existing simpler option | Boundary that justifies split | Evidence/test | Classification |
+| --- | --- | --- | --- | --- |
+| | | | | |
 
 ## Product Judgment Questions
 
