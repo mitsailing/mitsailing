@@ -4,6 +4,7 @@ import { requireCurrentUser } from '@/libs/auth/dal';
 import { prisma } from '@/libs/DB';
 import { emailDeliverabilityStatus } from '@/libs/email/emailDeliverabilityStatus';
 import { logger } from '@/libs/Logger';
+import { getCurrentSailingCardYear } from '@/libs/mit-sailing/sailingCardValidity';
 import { getI18nPath } from '@/utils/Helpers';
 import { ProfileAccountClient } from '../ProfileAccountClient';
 
@@ -40,6 +41,19 @@ export default async function ProfileAccountPage(
       emergencyContactName: true,
       emergencyContactPhone: true,
       phone: true,
+      sailingCardRequests: {
+        orderBy: { requestedAt: 'desc' },
+        take: 1,
+        where: {
+          cardYear: getCurrentSailingCardYear(),
+        },
+        select: {
+          cardType: true,
+          cardYear: true,
+          hasFitnessMembership: true,
+          status: true,
+        },
+      },
       themePreference: true,
       unconfirmedEmail: true,
     },
@@ -61,6 +75,7 @@ export default async function ProfileAccountPage(
       initialEmergencyContactPhone={dbUser.emergencyContactPhone ?? ''}
       initialName={user.name}
       initialPhone={dbUser.phone ?? ''}
+      initialSailingCardRequest={dbUser.sailingCardRequests.at(0)}
       initialThemePreference={dbUser.themePreference ?? 'SYSTEM'}
       initialUnconfirmedEmail={dbUser.unconfirmedEmail ?? null}
       locale={locale}

@@ -27,4 +27,9 @@ describe('sailing card request schema', () => {
       'paymentBypassAt != null && (paymentBypassNote == null || paymentBypassByUserId == null)'
     );
   });
+
+  it('preserves MIT Recreation self-report on sailing card requests', () => {
+    expect(compactSchema).toContain('hasFitnessMembership Boolean?');
+    expect(compactSchema).toContain('@map("has_fitness_membership")');
+  });
 });

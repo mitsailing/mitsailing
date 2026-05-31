@@ -9,6 +9,10 @@ import userEvent from '@testing-library/user-event';
 import type React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppThemeProvider } from '@/components/shell/AppThemeProvider';
+import {
+  SailingCardRequestStatus,
+  SailingCardType,
+} from '@/generated/prisma/enums';
 import { componentTestRouter } from '@/test/component';
 import { ProfileAccountClient } from './ProfileAccountClient';
 
@@ -124,6 +128,43 @@ async function expectContactUpdateError(options: {
 }
 
 describe('ProfileAccountClient', () => {
+  it('profile owner sees pending sailing card request status', () => {
+    renderAccountClient({
+      initialSailingCardRequest: {
+        cardType: SailingCardType.normal,
+        cardYear: 2027,
+        hasFitnessMembership: false,
+        status: SailingCardRequestStatus.pending,
+      },
+    });
+
+    expect(screen.getByRole('heading', { name: 'Sailing card' })).toBeVisible();
+    expect(screen.getByText('Pending')).toBeVisible();
+    expect(screen.getByText('2027 Normal sailing card')).toBeVisible();
+    expect(
+      screen.getByText(
+        'Your request is pending. Come to the Pavilion with your MIT ID or another legal ID. Staff will issue your card number there after review.'
+      )
+    ).toBeVisible();
+  });
+
+  it('profile owner sees mit recreation verification pending status', () => {
+    renderAccountClient({
+      initialSailingCardRequest: {
+        cardType: SailingCardType.normal,
+        cardYear: 2027,
+        hasFitnessMembership: true,
+        status: SailingCardRequestStatus.pending,
+      },
+    });
+
+    expect(
+      screen.getByText(
+        'Your request is pending. Staff will verify MIT Recreation membership before issuing your card number at the Pavilion.'
+      )
+    ).toBeVisible();
+  });
+
   it('profile owner sees non-blocking email deliverability notice', () => {
     renderAccountClient({ initialEmailDeliverabilityStatus: 'bounced' });
 

@@ -2,21 +2,29 @@
 
 import { useTranslations } from 'next-intl';
 import type * as React from 'react';
-import type { FieldErrors, UseFormRegister } from 'react-hook-form';
+import type {
+  FieldErrors,
+  UseFormRegister,
+  UseFormSetValue,
+} from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { SailingAffiliation } from '@/generated/prisma/enums';
+import { SailingAffiliation, SailingCardType } from '@/generated/prisma/enums';
 import { adminNativeSelectClassName } from '@/lib/mit-sailing/tokens';
 import { Link } from '@/libs/I18nNavigation';
 import { getSailingAffiliationOptions } from '@/libs/mit-sailing/sailingAffiliations';
 import { sailingCardAgreement } from '@/libs/mit-sailing/sailingCardAgreementContent';
+import { hasAutomaticFitnessMembership } from '@/libs/mit-sailing/sailingCardMembership';
 import type {
   SailingCardOnboardingFormState,
   SailingCardOnboardingFormValues,
 } from '@/libs/mit-sailing/sailingCardOnboardingActions';
 import { FieldError } from './SailingCardOnboardingFieldError';
-import { fieldErrorId } from './SailingCardOnboardingFormHelpers';
+import {
+  fieldErrorId,
+  getVisibleSailingAffiliation,
+} from './SailingCardOnboardingFormHelpers';
 import type { SailingCardOnboardingLockedIdentity } from './SailingCardOnboardingFormTypes';
 
 const richLinkClassName =
@@ -79,7 +87,9 @@ const affiliationLabelKey = (affiliation: SailingAffiliation) => {
 export function AffiliationSelect(props: {
   readonly affiliation: SailingAffiliation | '';
   readonly clientErrors: FieldErrors<SailingCardOnboardingFormValues>;
+  readonly hasVerifiedMitRecreationMembership?: boolean;
   readonly register: UseFormRegister<SailingCardOnboardingFormValues>;
+  readonly setValue: UseFormSetValue<SailingCardOnboardingFormValues>;
   readonly state: SailingCardOnboardingFormState;
 }) {
   const t = useTranslations('OnboardingPage');
@@ -88,6 +98,23 @@ export function AffiliationSelect(props: {
   const showError =
     affiliationError !== undefined || affiliationClientError !== undefined;
   const affiliationHelpId = 'sailing-card-onboarding-affiliation-help';
+  const registration = props.register('affiliation', {
+    required: 'error_required',
+  });
+  const handleAffiliationBlur = registration.onBlur;
+  const handleAffiliationChange = async (
+    event: React.ChangeEvent<HTMLSelectElement>
+  ) => {
+    const selectedAffiliation = event.currentTarget.value;
+    await registration.onChange(event);
+    const affiliation = getVisibleSailingAffiliation(selectedAffiliation);
+    if (
+      props.hasVerifiedMitRecreationMembership === true ||
+      hasAutomaticFitnessMembership(affiliation)
+    ) {
+      props.setValue('cardType', SailingCardType.normal);
+    }
+  };
 
   return (
     <section className="border-y border-border py-5">
@@ -112,9 +139,12 @@ export function AffiliationSelect(props: {
             aria-invalid={showError ? true : undefined}
             className={adminNativeSelectClassName}
             id="affiliation"
+            name={registration.name}
+            onBlur={handleAffiliationBlur}
+            onChange={handleAffiliationChange}
+            ref={registration.ref}
             required
             value={props.affiliation}
-            {...props.register('affiliation', { required: 'error_required' })}
           >
             <option value="">{t('affiliation_placeholder')}</option>
             {getSailingAffiliationOptions().map((option) => (

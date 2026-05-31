@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import React from 'react';
 import type { MockedFunction } from 'vitest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { getCurrentSailingCardYear } from '@/libs/mit-sailing/sailingCardValidity';
 import { listUserRatingAssignmentRows } from '@/libs/mit-sailing/sailingRatingQueries';
 import type { UserRatingAssignmentRow } from '@/libs/mit-sailing/sailingRatingQueries';
 import ForgotPasswordPage, {
@@ -351,6 +352,7 @@ beforeEach(() => {
     emailBouncedAt: new Date('2026-01-01T12:00:00Z'),
     emailSuppressedAt: null,
     emailSuppressionReason: null,
+    sailingCardRequests: [],
     themePreference: 'DARK',
     unconfirmedEmail: 'pending@example.com',
   });
@@ -709,6 +711,19 @@ describe('auth route shells', () => {
         emergencyContactName: true,
         emergencyContactPhone: true,
         phone: true,
+        sailingCardRequests: {
+          orderBy: { requestedAt: 'desc' },
+          select: {
+            cardType: true,
+            cardYear: true,
+            hasFitnessMembership: true,
+            status: true,
+          },
+          take: 1,
+          where: {
+            cardYear: getCurrentSailingCardYear(),
+          },
+        },
         themePreference: true,
         unconfirmedEmail: true,
       },
@@ -735,6 +750,7 @@ describe('auth route shells', () => {
       emailBouncedAt: null,
       emailSuppressedAt: null,
       emailSuppressionReason: null,
+      sailingCardRequests: [],
       themePreference: null,
       unconfirmedEmail: null,
     });
@@ -758,6 +774,7 @@ describe('auth route shells', () => {
       emailBouncedAt: new Date('2026-01-01T12:00:00Z'),
       emailSuppressedAt: new Date('2026-01-01T12:00:00Z'),
       emailSuppressionReason: 'complained',
+      sailingCardRequests: [],
       themePreference: 'DARK',
       unconfirmedEmail: null,
     });

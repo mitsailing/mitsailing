@@ -26,6 +26,10 @@ import {
 } from '@/libs/mit-sailing/sailingCardAgreement';
 import { needsFitnessMembershipQuestion } from '@/libs/mit-sailing/sailingCardMembership';
 import {
+  canRequestPaidRacingMembership,
+  membershipAccessForOnboardingRequest,
+} from '@/libs/mit-sailing/sailingCardMembershipEligibility';
+import {
   buildSailingCardOnboardingUpdate,
   SailingCardOnboardingValidationError,
 } from '@/libs/mit-sailing/sailingCardOnboarding';
@@ -236,6 +240,28 @@ const formStateFromValidationError = (props: {
   values: parseSailingCardOnboardingFormValues(props.formData),
 });
 
+const validateVerifiedMembershipEligibility = (props: {
+  readonly cardType: SailingCardType;
+  readonly gymMembershipVerifiedAt: Date | null;
+  readonly hasFitnessMembership: boolean | null;
+  readonly sailingAffiliation: SailingAffiliation;
+}) => {
+  const access = membershipAccessForOnboardingRequest({
+    gymMembershipVerifiedAt: props.gymMembershipVerifiedAt,
+    hasFitnessMembership: props.hasFitnessMembership,
+    sailingAffiliation: props.sailingAffiliation,
+  });
+  if (
+    props.cardType !== SailingCardType.normal &&
+    !canRequestPaidRacingMembership({ access, cardType: props.cardType })
+  ) {
+    throw new SailingCardOnboardingValidationError({ cardType: 'invalid' });
+  }
+};
+
+const hasVerifiedMitRecreationMembership = (value: Date | null | undefined) =>
+  value !== null && value !== undefined;
+
 export const submitSailingCardOnboardingAction = async (
   _previousState: SailingCardOnboardingFormState,
   formData: FormData
@@ -259,6 +285,7 @@ export const submitSailingCardOnboardingAction = async (
     select: {
       emergencyContactName: true,
       emergencyContactPhone: true,
+      gymMembershipVerifiedAt: true,
       legalAgreementAcceptances: {
         where: {
           agreementHash: sailingCardAgreementHash(),
@@ -329,7 +356,16 @@ export const submitSailingCardOnboardingAction = async (
     update = buildSailingCardOnboardingUpdate({
       input,
       dataWarehouseIdentity,
+      hasVerifiedMitRecreationMembership: hasVerifiedMitRecreationMembership(
+        currentUser.gymMembershipVerifiedAt
+      ),
       now: new Date(),
+    });
+    validateVerifiedMembershipEligibility({
+      cardType: update.cardType,
+      gymMembershipVerifiedAt: currentUser.gymMembershipVerifiedAt ?? null,
+      hasFitnessMembership: update.hasFitnessMembership,
+      sailingAffiliation: update.sailingAffiliation,
     });
   } catch (error) {
     if (error instanceof SailingCardOnboardingValidationError) {
