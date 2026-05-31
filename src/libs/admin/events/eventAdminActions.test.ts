@@ -4,7 +4,7 @@ import {
   EventAnswerType,
   EventDetailPageKind,
   EventPaymentNotificationKind,
-  EventPaymentStatus,
+  PaymentStatus,
   EventRegistrationStatus,
   EventSailingCardRequirement,
 } from '@/generated/prisma/enums';
@@ -78,7 +78,7 @@ type AdminEventTransactionClient = {
     findFirst: typeof mocks.eventRegistrationFindFirst;
     updateMany: typeof mocks.eventRegistrationUpdateMany;
   };
-  eventPayment: {
+  payment: {
     findFirst: typeof mocks.eventPaymentFindFirst;
     findMany: typeof mocks.eventPaymentFindMany;
     upsert: typeof mocks.eventPaymentUpsert;
@@ -161,7 +161,7 @@ vi.mock('@/libs/DB', () => ({
       findFirst: mocks.eventRegistrationFindFirst,
       updateMany: mocks.eventRegistrationUpdateMany,
     },
-    eventPayment: {
+    payment: {
       findFirst: mocks.eventPaymentFindFirst,
       findMany: mocks.eventPaymentFindMany,
       upsert: mocks.eventPaymentUpsert,
@@ -346,10 +346,10 @@ beforeEach(() => {
   mocks.eventRegistrationUpdateMany.mockResolvedValue({ count: 1 });
   mocks.eventPaymentFindFirst.mockResolvedValue({
     id: 'payment-1',
-    status: EventPaymentStatus.pending,
+    status: PaymentStatus.pending,
   });
   mocks.eventPaymentFindMany.mockResolvedValue([
-    { id: 'payment-1', status: EventPaymentStatus.pending },
+    { id: 'payment-1', status: PaymentStatus.pending },
   ]);
   mocks.eventPaymentUpdateMany.mockResolvedValue({ count: 1 });
   mocks.eventPaymentUpsert.mockResolvedValue({ id: 'payment-1' });
@@ -381,7 +381,7 @@ beforeEach(() => {
       findFirst: mocks.eventRegistrationFindFirst,
       updateMany: mocks.eventRegistrationUpdateMany,
     },
-    eventPayment: {
+    payment: {
       findFirst: mocks.eventPaymentFindFirst,
       findMany: mocks.eventPaymentFindMany,
       upsert: mocks.eventPaymentUpsert,
@@ -1387,7 +1387,7 @@ describe('updateAdminEventRegistrationStatusAction', () => {
         registrationId: 'registration-1',
         selectedFeeDescription: 'Adult entry',
         selectedFeeId: 'fee-1',
-        status: EventPaymentStatus.pending,
+        status: PaymentStatus.pending,
         userId: 'user-1',
       }),
       update: {},
@@ -1649,16 +1649,16 @@ describe('admin event payment actions', () => {
       data: expect.objectContaining({
         manualHandledByUserId: 'staff-1',
         manualHandledNote: 'Paid by check at front desk',
-        status: EventPaymentStatus.handled,
+        status: PaymentStatus.handled,
       }),
       where: {
         eventId: 'event-1',
         id: 'payment-1',
         status: {
           in: [
-            EventPaymentStatus.checkout_created,
-            EventPaymentStatus.past_due,
-            EventPaymentStatus.pending,
+            PaymentStatus.checkout_created,
+            PaymentStatus.past_due,
+            PaymentStatus.pending,
           ],
         },
       },

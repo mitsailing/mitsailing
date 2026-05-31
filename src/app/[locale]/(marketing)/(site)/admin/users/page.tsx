@@ -86,8 +86,46 @@ export default async function AdminUsersIndexPage(
         }}
         locale={locale}
         messageNamespace="AdminUsers"
+        filters={[
+          {
+            allKey: 'filter_email_status_all',
+            field: 'emailDeliverabilityStatus',
+            labelKey: 'filter_email_status_label',
+            options: [
+              { labelKey: 'email_status_ok', value: 'ok' },
+              { labelKey: 'email_status_bounced', value: 'bounced' },
+              { labelKey: 'email_status_suppressed', value: 'suppressed' },
+            ],
+          },
+          {
+            allKey: 'filter_sailing_card_status_all',
+            field: 'sailingCardStatus',
+            labelKey: 'filter_sailing_card_status_label',
+            options: [
+              {
+                labelKey: 'filter_sailing_card_status_pending',
+                value: 'pending',
+              },
+              {
+                labelKey: 'filter_sailing_card_status_current',
+                value: 'current',
+              },
+              {
+                labelKey: 'filter_sailing_card_status_expired',
+                value: 'expired',
+              },
+              { labelKey: 'filter_sailing_card_status_none', value: 'none' },
+            ],
+          },
+        ]}
         resourceId={usersAdminDefinition.id}
         rows={rows}
+        search={{
+          emptyKey: 'filter_empty',
+          fields: ['email', 'name', 'mitId', 'sailingCardNumber', 'appRole'],
+          labelKey: 'filter_search_label',
+          placeholderKey: 'filter_search_placeholder',
+        }}
         userImpersonation={
           canEditUsers
             ? {

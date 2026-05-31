@@ -21,7 +21,13 @@ export type EventPaymentCheckoutPayment =
   | {
       amount: string;
       receiptUrl: string | null;
-      status: 'cancelled' | 'disputed' | 'handled' | 'paid' | 'refunded';
+      status:
+        | 'cancelled'
+        | 'disputed'
+        | 'handled'
+        | 'needs_review'
+        | 'paid'
+        | 'refunded';
       statusLabel: string;
     }
   | null;
@@ -37,6 +43,8 @@ type EventPaymentCheckoutLabels = {
   noPaymentBody: string;
   noPaymentTitle: string;
   paidReceipt: string;
+  reviewBody: string;
+  reviewTitle: string;
   statusLabel: string;
 };
 
@@ -52,7 +60,15 @@ type SetCheckoutError = React.Dispatch<React.SetStateAction<string | null>>;
 
 type PayableEventPaymentCheckoutPayment = Exclude<
   EventPaymentCheckoutPayment,
-  null | { status: 'cancelled' | 'disputed' | 'handled' | 'paid' | 'refunded' }
+  null | {
+    status:
+      | 'cancelled'
+      | 'disputed'
+      | 'handled'
+      | 'needs_review'
+      | 'paid'
+      | 'refunded';
+  }
 >;
 
 function isPayablePayment(
@@ -64,6 +80,10 @@ function isPayablePayment(
       payment.status === 'past_due' ||
       payment.status === 'pending')
   );
+}
+
+function isReviewPayment(payment: EventPaymentCheckoutPayment): boolean {
+  return payment?.status === 'needs_review';
 }
 
 function checkoutTarget(
@@ -281,6 +301,17 @@ export function EventPaymentCheckout(props: EventPaymentCheckoutProps) {
         labels={props.labels}
         payment={null}
         title={props.labels.noPaymentTitle}
+      />
+    );
+  }
+
+  if (isReviewPayment(payment)) {
+    return (
+      <StaticCheckoutState
+        body={props.labels.reviewBody}
+        labels={props.labels}
+        payment={payment}
+        title={props.labels.reviewTitle}
       />
     );
   }

@@ -1,12 +1,12 @@
 import 'server-only';
 import type { Prisma } from '@/generated/prisma/client';
 import {
-  EventPaymentStatus,
+  PaymentStatus,
   EventRegistrationStatus,
 } from '@/generated/prisma/enums';
 import type {
   EventAddressPreset,
-  EventPaymentStatus as EventPaymentStatusValue,
+  PaymentStatus as PaymentStatusValue,
   EventRegistrationStatus as EventRegistrationStatusValue,
   EventSailingCardRequirement,
 } from '@/generated/prisma/enums';
@@ -170,7 +170,7 @@ export type AdminEventRegistrationBoatMemberDto = {
 
 export type AdminEventRegistrationPaymentDto = {
   id: string;
-  status: EventPaymentStatusValue;
+  status: PaymentStatusValue;
   amountCents: number;
   currency: string;
   receiptUrl: string | null;
@@ -377,11 +377,11 @@ function publicContentSectionsFromDescription(
   ];
 }
 
-function eventPaymentResendEligible(status: EventPaymentStatusValue): boolean {
+function eventPaymentResendEligible(status: PaymentStatusValue): boolean {
   return (
-    status === EventPaymentStatus.checkout_created ||
-    status === EventPaymentStatus.past_due ||
-    status === EventPaymentStatus.pending
+    status === PaymentStatus.checkout_created ||
+    status === PaymentStatus.past_due ||
+    status === PaymentStatus.pending
   );
 }
 
@@ -418,7 +418,7 @@ function registrationDtosFromRows(
     }[];
     payment?: {
       id: string;
-      status: EventPaymentStatusValue;
+      status: PaymentStatusValue;
       amountCents: number;
       currency: string;
       stripeReceiptUrl: string | null;

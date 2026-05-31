@@ -2,7 +2,7 @@ import { ArrowRight, Check, Clock, CreditCard, LogIn, X } from 'lucide-react';
 import type { getTranslations } from 'next-intl/server';
 import type * as React from 'react';
 import { Button } from '@/components/ui/button';
-import { EventPaymentStatus } from '@/generated/prisma/enums';
+import { PaymentStatus } from '@/generated/prisma/enums';
 import { cn } from '@/lib/utils';
 import { authHrefWithCallback } from '@/libs/auth/callbackUrl';
 import { Link } from '@/libs/I18nNavigation';
@@ -91,9 +91,9 @@ function isPaymentDue(
   return (
     payment !== null &&
     payment !== undefined &&
-    (payment.status === EventPaymentStatus.checkout_created ||
-      payment.status === EventPaymentStatus.past_due ||
-      payment.status === EventPaymentStatus.pending)
+    (payment.status === PaymentStatus.checkout_created ||
+      payment.status === PaymentStatus.past_due ||
+      payment.status === PaymentStatus.pending)
   );
 }
 

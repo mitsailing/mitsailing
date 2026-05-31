@@ -54,6 +54,11 @@ Track: `loop`, `last_commit`, `processed_comment_ids`, `failing_checks`, `codacy
 
 Workers **do not** run `--watch`. Orchestrator may use `--watch --timeout 600` once per session between loops only for required CI/checks or an active CodeRabbit review that is already running. Do not watch for CodeRabbit no-start/skipped/rate-limit/credit/auth/service states; mark CodeRabbit unavailable and rely on local sub-agent review unless actionable CodeRabbit comments already exist.
 
+Do not trigger CodeRabbit write-producing finishing touches in this loop. The
+repo config keeps CodeRabbit in review/comment mode only; generated unit-test,
+docstring, simplify, custom-recipe, Autofix, and stacked-PR actions require an
+explicit user request outside the review-bot loop.
+
 ## Worker prompt (fill placeholders)
 
 ```
@@ -64,7 +69,7 @@ Scope only the above. Cite .cursor/rules and AGENTS.md by path. Context7: 3 pass
 Verify each finding; minimal fix. Codacy Low/Info: won't-fix + --resolve, no code change (see pr-agent-reviews-loop Codacy triage). Medium+ / security: fix when valid.
 Tests: targeted npm run test, then check:types + lint (+ check:i18n if copy).
 Commit + push if changed. Per ID: npx agent-reviews --reply <id> "Fixed in <hash>. …" --resolve OR "Won't fix: …" --resolve.
-Use --detail <id> only for assigned IDs. No --watch. No full PR diff.
+Use --detail <id> only for assigned IDs. No --watch. No CodeRabbit finishing-touch commands. No full PR diff.
 
 Return only JSON:
 {"status":"done|no_changes|blocked","commit":"<short-hash|null>","fixed_ids":[],"wont_fix_ids":[],"tests_run":[],"blocker":null}

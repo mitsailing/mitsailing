@@ -163,6 +163,9 @@ const validateRequiredInputs = (input: SailingCardOnboardingInput) => {
   if (dateOfBirth === null) {
     fieldErrors.dateOfBirth = 'required';
   }
+  if (input.dateOfBirth.trim() !== '' && dateOfBirth === null) {
+    fieldErrors.dateOfBirth = 'invalid';
+  }
   if (input.cardType === null) {
     fieldErrors.cardType = 'required';
   }

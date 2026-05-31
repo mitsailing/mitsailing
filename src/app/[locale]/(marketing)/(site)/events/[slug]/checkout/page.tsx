@@ -60,6 +60,7 @@ export default async function EventCheckoutPage(props: EventCheckoutPageProps) {
     checkout_created: t('checkout_payment_status_checkout_created'),
     disputed: t('checkout_payment_status_disputed'),
     handled: t('checkout_payment_status_handled'),
+    needs_review: t('checkout_payment_status_needs_review'),
     paid: t('checkout_payment_status_paid'),
     past_due: t('checkout_payment_status_past_due'),
     pending: t('checkout_payment_status_pending'),
@@ -117,6 +118,8 @@ export default async function EventCheckoutPage(props: EventCheckoutPageProps) {
             noPaymentBody: t('checkout_no_payment_body'),
             noPaymentTitle: t('checkout_no_payment_title'),
             paidReceipt: t('checkout_receipt_link'),
+            reviewBody: t('checkout_review_body'),
+            reviewTitle: t('checkout_review_title'),
             statusLabel: t('checkout_status_label'),
           }}
           payment={payment}

@@ -1,4 +1,4 @@
-import { parsePhoneNumberWithError } from 'libphonenumber-js';
+import { AsYouType, parsePhoneNumberWithError } from 'libphonenumber-js';
 
 type PhoneNormalizationResult = { ok: true; phone: string } | { ok: false };
 
@@ -53,4 +53,8 @@ export function formatPhoneForDisplay(phone: string | null): string {
   return parsed.country === 'US'
     ? parsed.formatNational()
     : parsed.formatInternational();
+}
+
+export function formatPhoneAsYouType(value: string): string {
+  return new AsYouType('US').input(value);
 }

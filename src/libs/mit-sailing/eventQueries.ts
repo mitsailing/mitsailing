@@ -3,7 +3,7 @@ import { cache } from 'react';
 import type { Prisma } from '@/generated/prisma/client';
 import { EventRegistrationStatus } from '@/generated/prisma/enums';
 import type {
-  EventPaymentStatus as EventPaymentStatusValue,
+  PaymentStatus as PaymentStatusValue,
   EventRegistrationStatus as EventRegistrationStatusValue,
 } from '@/generated/prisma/enums';
 import { resolveEventCategoryCalendarAccentClassName } from '@/lib/mit-sailing/eventCategoryAccent';
@@ -110,7 +110,7 @@ export type PublicEventRegistrationState = {
   payment?: {
     amountCents: number;
     receiptUrl: string | null;
-    status: EventPaymentStatusValue;
+    status: PaymentStatusValue;
   } | null;
   status: EventRegistrationStatusValue;
 };

@@ -1,12 +1,12 @@
 import 'server-only';
 import type { Prisma } from '@/generated/prisma/client';
-import { EventPaymentStatus } from '@/generated/prisma/enums';
-import type { EventPaymentStatus as EventPaymentStatusValue } from '@/generated/prisma/enums';
+import { PaymentPurpose, PaymentStatus } from '@/generated/prisma/enums';
+import type { PaymentStatus as PaymentStatusValue } from '@/generated/prisma/enums';
 import { prisma } from '@/libs/DB';
 
 export type AdminPaymentLedgerFilters = {
   query?: string;
-  status?: EventPaymentStatusValue | 'all';
+  status?: PaymentStatusValue | 'all';
 };
 
 export type AdminPaymentLedgerRow = {
@@ -15,16 +15,22 @@ export type AdminPaymentLedgerRow = {
   event: {
     name: string;
     slug: string;
-  };
+  } | null;
+  legacyCategory: string | null;
   id: string;
+  legacyDescription: string | null;
+  legacySourceId: string | null;
+  legacySourceTable: string | null;
+  payerEmail: string | null;
+  payerName: string | null;
   receiptUrl: string | null;
-  status: EventPaymentStatusValue;
+  status: PaymentStatusValue;
   stripeCheckoutSessionId: string | null;
   stripePaymentIntentId: string | null;
   user: {
     email: string;
     name: string;
-  };
+  } | null;
 };
 
 export type AdminPaymentLedgerData = {
@@ -38,8 +44,8 @@ export type AdminPaymentLedgerData = {
 
 export function adminPaymentStatusFromParam(
   status: string | undefined
-): EventPaymentStatusValue | 'all' {
-  for (const candidate of Object.values(EventPaymentStatus)) {
+): PaymentStatusValue | 'all' {
+  for (const candidate of Object.values(PaymentStatus)) {
     if (candidate === status) {
       return candidate;
     }
@@ -49,23 +55,39 @@ export function adminPaymentStatusFromParam(
 
 function ledgerWhereFromFilters(
   filters: AdminPaymentLedgerFilters
-): Prisma.EventPaymentWhereInput {
+): Prisma.PaymentWhereInput {
   const query = filters.query?.trim();
+  const conditions: Prisma.PaymentWhereInput[] = [
+    {
+      OR: [
+        { purpose: PaymentPurpose.event_payment },
+        { purpose: PaymentPurpose.membership },
+      ],
+    },
+  ];
+
+  if (filters.status && filters.status !== 'all') {
+    conditions.push({ status: filters.status });
+  }
+
+  if (query) {
+    conditions.push({
+      OR: [
+        { event: { name: { contains: query, mode: 'insensitive' } } },
+        { user: { email: { contains: query, mode: 'insensitive' } } },
+        { user: { name: { contains: query, mode: 'insensitive' } } },
+        { legacyDescription: { contains: query, mode: 'insensitive' } },
+        { legacySourceId: { contains: query } },
+        { payerEmail: { contains: query, mode: 'insensitive' } },
+        { payerName: { contains: query, mode: 'insensitive' } },
+        { stripeCheckoutSessionId: { contains: query } },
+        { stripePaymentIntentId: { contains: query } },
+      ],
+    });
+  }
+
   return {
-    ...(filters.status && filters.status !== 'all'
-      ? { status: filters.status }
-      : {}),
-    ...(query
-      ? {
-          OR: [
-            { event: { name: { contains: query, mode: 'insensitive' } } },
-            { user: { email: { contains: query, mode: 'insensitive' } } },
-            { user: { name: { contains: query, mode: 'insensitive' } } },
-            { stripeCheckoutSessionId: { contains: query } },
-            { stripePaymentIntentId: { contains: query } },
-          ],
-        }
-      : {}),
+    AND: conditions,
   };
 }
 
@@ -73,7 +95,7 @@ export async function listAdminPaymentLedgerData(
   filters: AdminPaymentLedgerFilters
 ): Promise<AdminPaymentLedgerData> {
   const [rows, latestWebhook] = await Promise.all([
-    prisma.eventPayment.findMany({
+    prisma.payment.findMany({
       where: ledgerWhereFromFilters(filters),
       orderBy: { createdAt: 'desc' },
       take: 100,
@@ -82,6 +104,12 @@ export async function listAdminPaymentLedgerData(
         createdAt: true,
         event: { select: { name: true, slug: true } },
         id: true,
+        legacyCategory: true,
+        legacyDescription: true,
+        legacySourceId: true,
+        legacySourceTable: true,
+        payerEmail: true,
+        payerName: true,
         status: true,
         stripeCheckoutSessionId: true,
         stripePaymentIntentId: true,
@@ -106,6 +134,12 @@ export async function listAdminPaymentLedgerData(
       createdAt: row.createdAt,
       event: row.event,
       id: row.id,
+      legacyCategory: row.legacyCategory,
+      legacyDescription: row.legacyDescription,
+      legacySourceId: row.legacySourceId,
+      legacySourceTable: row.legacySourceTable,
+      payerEmail: row.payerEmail,
+      payerName: row.payerName,
       receiptUrl: row.stripeReceiptUrl,
       status: row.status,
       stripeCheckoutSessionId: row.stripeCheckoutSessionId,

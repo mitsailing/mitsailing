@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  EventPaymentStatus,
+  PaymentStatus,
   EventRegistrationStatus,
 } from '@/generated/prisma/enums';
 import { Role } from '@/libs/auth/roles';
@@ -270,7 +270,7 @@ beforeEach(() => {
           upsert: typeof mocks.eventRegistrationTeamUpsert;
           deleteMany: typeof mocks.eventRegistrationTeamDeleteMany;
         };
-        eventPayment: {
+        payment: {
           upsert: typeof mocks.eventPaymentUpsert;
           updateMany: typeof mocks.eventPaymentUpdateMany;
         };
@@ -303,7 +303,7 @@ beforeEach(() => {
           upsert: mocks.eventRegistrationTeamUpsert,
           deleteMany: mocks.eventRegistrationTeamDeleteMany,
         },
-        eventPayment: {
+        payment: {
           upsert: mocks.eventPaymentUpsert,
           updateMany: mocks.eventPaymentUpdateMany,
         },
@@ -572,11 +572,31 @@ describe('createPublicEventRegistrationAction', () => {
         registrationId: 'registration-1',
         selectedFeeDescription: 'Adult entry',
         selectedFeeId: 'fee-1',
-        status: EventPaymentStatus.pending,
+        status: PaymentStatus.pending,
         userId: 'user-1',
       }),
-      update: {},
+      update: {
+        amountCents: 15_000,
+        currency: 'usd',
+        eventId: 'event-1',
+        selectedFeeDescription: 'Adult entry',
+        selectedFeeId: 'fee-1',
+        userId: 'user-1',
+      },
       where: { registrationId: 'registration-1' },
+    });
+    expect(mocks.eventPaymentUpdateMany).toHaveBeenCalledWith({
+      data: { status: PaymentStatus.pending },
+      where: {
+        registrationId: 'registration-1',
+        status: {
+          in: [
+            PaymentStatus.checkout_created,
+            PaymentStatus.past_due,
+            PaymentStatus.pending,
+          ],
+        },
+      },
     });
   });
 
@@ -641,8 +661,75 @@ describe('createPublicEventRegistrationAction', () => {
         selectedFeeDescription: 'Premium entry',
         selectedFeeId: 'fee-premium',
       }),
-      update: {},
+      update: expect.objectContaining({
+        amountCents: 25_000,
+        selectedFeeDescription: 'Premium entry',
+        selectedFeeId: 'fee-premium',
+      }),
       where: { registrationId: 'registration-1' },
+    });
+    expect(mocks.eventPaymentUpdateMany).toHaveBeenCalledWith({
+      data: { status: PaymentStatus.pending },
+      where: {
+        registrationId: 'registration-1',
+        status: {
+          in: [
+            PaymentStatus.checkout_created,
+            PaymentStatus.past_due,
+            PaymentStatus.pending,
+          ],
+        },
+      },
+    });
+  });
+
+  it('cancels open payment snapshot when approved registration no longer has a fee', async () => {
+    mocks.eventFindUnique.mockResolvedValue({
+      allowRepeatTeamCaptain: false,
+      boatsPerTeam: 1,
+      entryFees: [],
+      id: 'event-1',
+      isPublished: true,
+      maxParticipants: null,
+      paymentDeadlineAt: null,
+      paymentsEnabled: false,
+      personsPerBoat: 1,
+      registrationEnd: null,
+      registrationStart: null,
+      requiresApproval: false,
+      requiresPhone: false,
+      usesTeamRegistration: false,
+    });
+    const { createPublicEventRegistrationAction } =
+      await import('@/libs/mit-sailing/eventRegistrationActions');
+
+    await expect(
+      createPublicEventRegistrationAction(
+        'en',
+        'intro-sail',
+        {
+          code: null,
+          fieldErrors: {},
+          status: 'idle',
+          values: {},
+        },
+        registrationFormData()
+      )
+    ).rejects.toThrow('NEXT_REDIRECT:/events/intro-sail');
+
+    expect(mocks.eventPaymentUpsert).not.toHaveBeenCalled();
+    expect(mocks.eventPaymentUpdateMany).toHaveBeenCalledWith({
+      data: { status: PaymentStatus.cancelled },
+      where: {
+        registrationId: 'registration-1',
+        status: {
+          in: [
+            PaymentStatus.checkout_created,
+            PaymentStatus.past_due,
+            PaymentStatus.pending,
+          ],
+        },
+      },
     });
   });
 
@@ -1320,14 +1407,14 @@ describe('cancelPublicEventRegistrationAction', () => {
       where: { eventId: 'event-1', userId: 'user-1' },
     });
     expect(mocks.eventPaymentUpdateMany).toHaveBeenCalledWith({
-      data: { status: EventPaymentStatus.cancelled },
+      data: { status: PaymentStatus.cancelled },
       where: {
         eventId: 'event-1',
         status: {
           in: [
-            EventPaymentStatus.checkout_created,
-            EventPaymentStatus.past_due,
-            EventPaymentStatus.pending,
+            PaymentStatus.checkout_created,
+            PaymentStatus.past_due,
+            PaymentStatus.pending,
           ],
         },
         userId: 'user-1',

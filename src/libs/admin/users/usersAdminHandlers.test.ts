@@ -143,7 +143,11 @@ describe('usersAdminHandlers', () => {
           emailSuppressionReason: null,
           emailVerified: true,
           id: 'user-1',
+          mitId: '123456789',
           name: 'Sailor',
+          sailingCardNumber: 61,
+          sailingCardRequests: [],
+          sailingCardYear: 2026,
         },
         {
           appRole: Role.ADMIN,
@@ -154,7 +158,11 @@ describe('usersAdminHandlers', () => {
           emailSuppressionReason: null,
           emailVerified: false,
           id: 'user-2',
+          mitId: null,
           name: 'Admin',
+          sailingCardNumber: null,
+          sailingCardRequests: [{ status: 'pending' }],
+          sailingCardYear: null,
         },
       ]);
 
@@ -168,7 +176,10 @@ describe('usersAdminHandlers', () => {
           emailSuppressionReason: null,
           emailVerified: true,
           id: 'user-1',
+          mitId: '123456789',
           name: 'Sailor',
+          sailingCardNumber: 61,
+          sailingCardStatus: 'current',
           appRole: Role.USER,
         },
         {
@@ -180,7 +191,10 @@ describe('usersAdminHandlers', () => {
           emailSuppressionReason: null,
           emailVerified: false,
           id: 'user-2',
+          mitId: null,
           name: 'Admin',
+          sailingCardNumber: null,
+          sailingCardStatus: 'pending',
           appRole: Role.ADMIN,
         },
       ]);
@@ -199,7 +213,11 @@ describe('usersAdminHandlers', () => {
           emailSuppressionReason: 'complained',
           emailVerified: true,
           id: 'user-1',
+          mitId: '123456789',
           name: 'Sailor',
+          sailingCardNumber: 61,
+          sailingCardRequests: [],
+          sailingCardYear: 2026,
         })
         .mockResolvedValueOnce(null);
 
@@ -212,6 +230,9 @@ describe('usersAdminHandlers', () => {
           emailSuppressedAt: '2026-05-02T12:00:00.000Z',
           emailSuppressionReason: 'complained',
           id: 'user-1',
+          mitId: '123456789',
+          sailingCardNumber: 61,
+          sailingCardStatus: 'current',
           appRole: Role.ADMIN,
         }
       );

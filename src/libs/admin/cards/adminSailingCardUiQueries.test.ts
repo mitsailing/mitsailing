@@ -1,13 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  LegalAgreementAcceptanceSource,
-  SailingCardType,
-} from '@/generated/prisma/enums';
+import { LegalAgreementAcceptanceSource } from '@/generated/prisma/enums';
 import {
   sailingCardAgreement,
   sailingCardAgreementHash,
 } from '@/libs/mit-sailing/sailingCardAgreement';
-import { getCurrentSailingCardYear } from '@/libs/mit-sailing/sailingCardValidity';
 import type * as SailingCardValidityModule from '@/libs/mit-sailing/sailingCardValidity';
 
 vi.mock('server-only', () => ({}));
@@ -23,7 +19,7 @@ vi.mock('@/libs/mit-sailing/sailingCardValidity', async () => {
 });
 
 const mocks = vi.hoisted(() => ({
-  sailingCardRequestFindMany: vi.fn(),
+  sailingCardRequestFindFirst: vi.fn(),
   userFindUnique: vi.fn(),
   userFindMany: vi.fn(),
   userAuditFindMany: vi.fn(),
@@ -32,7 +28,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/libs/DB', () => ({
   prisma: {
     sailingCardRequest: {
-      findMany: mocks.sailingCardRequestFindMany,
+      findFirst: mocks.sailingCardRequestFindFirst,
     },
     user: {
       findUnique: mocks.userFindUnique,
@@ -47,59 +43,7 @@ vi.mock('@/libs/DB', () => ({
 describe('adminSailingCardUiQueries', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  it('returns pending requests with latest onboarding agreement acceptance', async () => {
-    mocks.sailingCardRequestFindMany.mockResolvedValue([
-      {
-        cardType: SailingCardType.normal,
-        firstName: 'Submitted',
-        hasFitnessMembership: false,
-        id: 'user-1',
-        lastName: 'Name',
-        mitId: '987654321',
-        sailingCardRequestedAt: new Date('2026-05-22T16:00:00.000Z'),
-        requestedAt: new Date('2026-05-22T16:00:00.000Z'),
-        sailingAffiliation: 'MIT_ALUM',
-        legalAgreementAcceptance: {
-          acceptedAt: new Date('2026-05-21T16:00:00.000Z'),
-          agreementVersion: 'v1',
-        },
-        user: {
-          email: 'ada@mit.edu',
-          id: 'user-1',
-          mitId: '123456789',
-          name: 'Ada Lovelace',
-          sailingAffiliation: 'MIT_STUDENT',
-        },
-      },
-    ]);
-    const { listPendingSailingCardRequests } =
-      await import('@/libs/admin/cards/adminSailingCardUiQueries');
-
-    await expect(listPendingSailingCardRequests()).resolves.toEqual([
-      {
-        agreementAcceptedAt: new Date('2026-05-21T16:00:00.000Z'),
-        agreementVersion: 'v1',
-        cardType: SailingCardType.normal,
-        email: 'ada@mit.edu',
-        hasFitnessMembership: false,
-        id: 'user-1',
-        mitId: '987654321',
-        name: 'Submitted Name',
-        requestedAt: new Date('2026-05-22T16:00:00.000Z'),
-        sailingAffiliation: 'MIT_ALUM',
-      },
-    ]);
-    expect(mocks.userFindMany).not.toHaveBeenCalled();
-    expect(mocks.sailingCardRequestFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          cardYear: getCurrentSailingCardYear(),
-          status: 'pending',
-        }),
-      })
-    );
+    mocks.sailingCardRequestFindFirst.mockResolvedValue(null);
   });
 
   it('returns old card history even after many unrelated audits', async () => {
@@ -110,6 +54,7 @@ describe('adminSailingCardUiQueries', () => {
           `2026-09-${String(index + 1).padStart(2, '0')}T00:00:00.000Z`
         ),
         id: `audit-${index}`,
+        user: null,
       })),
       {
         auditedChanges: {
@@ -118,6 +63,7 @@ describe('adminSailingCardUiQueries', () => {
         },
         createdAt: new Date('2026-08-01T16:00:00.000Z'),
         id: 'card-audit',
+        user: { email: 'dock@example.test', name: 'Dock Master' },
       },
     ]);
     const { getAdminSailingCardHistory } =
@@ -125,10 +71,14 @@ describe('adminSailingCardUiQueries', () => {
 
     await expect(getAdminSailingCardHistory('user-1')).resolves.toEqual([
       {
+        action: 'issued',
+        actorName: 'Dock Master',
         createdAt: new Date('2026-08-01T16:00:00.000Z'),
+        fromNumber: null,
+        fromYear: null,
         id: 'card-audit',
-        number: 42,
-        year: 2027,
+        toNumber: 42,
+        toYear: 2027,
       },
     ]);
     expect(mocks.userAuditFindMany.mock.calls[0]?.[0]).not.toHaveProperty(
@@ -145,6 +95,7 @@ describe('adminSailingCardUiQueries', () => {
         },
         createdAt: new Date('2026-08-01T16:00:00.000Z'),
         id: 'reissue-audit',
+        user: null,
       },
     ]);
     const { getAdminSailingCardHistory } =
@@ -152,12 +103,82 @@ describe('adminSailingCardUiQueries', () => {
 
     await expect(getAdminSailingCardHistory('user-1')).resolves.toEqual([
       {
+        action: 'changed',
+        actorName: null,
         createdAt: new Date('2026-08-01T16:00:00.000Z'),
+        fromNumber: 42,
+        fromYear: 2026,
         id: 'reissue-audit',
-        number: 42,
-        year: 2026,
+        toNumber: 60,
+        toYear: 2027,
       },
     ]);
+  });
+
+  it('drops no-op repeated card-number audits', async () => {
+    const createdAt = new Date('2026-08-01T16:00:00.000Z');
+    mocks.userAuditFindMany.mockResolvedValue([
+      {
+        auditedChanges: {
+          after: { sailingCardNumber: 42, sailingCardYear: 2027 },
+          before: { sailingCardNumber: 42, sailingCardYear: 2027 },
+        },
+        createdAt,
+        id: 'duplicate-audit',
+        user: null,
+      },
+      {
+        auditedChanges: {
+          after: { sailingCardNumber: 42, sailingCardYear: 2027 },
+          before: { sailingCardNumber: null, sailingCardYear: null },
+        },
+        createdAt,
+        id: 'original-audit',
+        user: null,
+      },
+    ]);
+    const { getAdminSailingCardHistory } =
+      await import('@/libs/admin/cards/adminSailingCardUiQueries');
+
+    await expect(getAdminSailingCardHistory('user-1')).resolves.toEqual([
+      {
+        action: 'issued',
+        actorName: null,
+        createdAt,
+        fromNumber: null,
+        fromYear: null,
+        id: 'original-audit',
+        toNumber: 42,
+        toYear: 2027,
+      },
+    ]);
+  });
+
+  it('drops partial card history rows without the required year', async () => {
+    mocks.userAuditFindMany.mockResolvedValue([
+      {
+        auditedChanges: {
+          after: { sailingCardNumber: 42, sailingCardYear: null },
+          before: { sailingCardNumber: null, sailingCardYear: null },
+        },
+        createdAt: new Date('2026-08-01T16:00:00.000Z'),
+        id: 'partial-issued-audit',
+        user: null,
+      },
+      {
+        auditedChanges: {
+          after: { sailingCardNumber: null, sailingCardYear: null },
+          before: { sailingCardNumber: 42, sailingCardYear: null },
+        },
+        createdAt: new Date('2026-08-02T16:00:00.000Z'),
+        id: 'partial-expired-audit',
+        user: null,
+      },
+    ]);
+    const { getAdminSailingCardHistory } =
+      await import('@/libs/admin/cards/adminSailingCardUiQueries');
+
+    await expect(getAdminSailingCardHistory('user-1')).resolves.toEqual([]);
   });
 
   it('returns user card summary with latest onboarding agreement acceptance', async () => {
@@ -167,6 +188,18 @@ describe('adminSailingCardUiQueries', () => {
           acceptedAt: new Date('2026-05-21T16:00:00.000Z'),
           agreementHash: sailingCardAgreementHash(),
           agreementVersion: sailingCardAgreement.version,
+        },
+      ],
+      paymentBypassRequest: {
+        paymentBypassAt: new Date('2026-05-22T16:00:00.000Z'),
+        paymentBypassBy: { name: 'Payment Admin' },
+        paymentBypassNote: 'Admin issued sailing card without payment.',
+      },
+      sailingCardRequests: [
+        {
+          paymentBypassAt: null,
+          paymentBypassBy: null,
+          paymentBypassNote: null,
         },
       ],
       sailingCardExpiresOn: new Date('2027-05-31T04:00:00.000Z'),
@@ -180,11 +213,18 @@ describe('adminSailingCardUiQueries', () => {
       sailingCardSwimAgreementInitials: 'AL',
       sailingCardYear: 2026,
     };
-    mocks.userFindUnique.mockResolvedValue(summary);
+    const userSummary = {
+      ...summary,
+      paymentBypassRequest: undefined,
+    };
+    mocks.userFindUnique.mockResolvedValue(userSummary);
+    mocks.sailingCardRequestFindFirst.mockResolvedValue(
+      summary.paymentBypassRequest
+    );
     const { getAdminUserSailingCardSummary } =
       await import('@/libs/admin/cards/adminSailingCardUiQueries');
 
-    await expect(getAdminUserSailingCardSummary('user-1')).resolves.toBe(
+    await expect(getAdminUserSailingCardSummary('user-1')).resolves.toEqual(
       summary
     );
     expect(mocks.userFindUnique).toHaveBeenCalledWith(
@@ -204,9 +244,52 @@ describe('adminSailingCardUiQueries', () => {
               source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
             },
           },
+          sailingCardRequests: {
+            orderBy: [{ cardYear: 'desc' }, { requestedAt: 'desc' }],
+            select: {
+              cardType: true,
+              cardYear: true,
+              hasFitnessMembership: true,
+              issuedCardNumber: true,
+              paymentBypassAt: true,
+              paymentBypassBy: {
+                select: {
+                  name: true,
+                },
+              },
+              paymentBypassNote: true,
+              requestedAt: true,
+              sailingAffiliation: true,
+              status: true,
+            },
+            take: 1,
+          },
         }),
         where: { id: 'user-1' },
       })
     );
+    expect(mocks.sailingCardRequestFindFirst).toHaveBeenCalledWith({
+      orderBy: { paymentBypassAt: 'desc' },
+      select: {
+        cardType: true,
+        cardYear: true,
+        hasFitnessMembership: true,
+        issuedCardNumber: true,
+        paymentBypassAt: true,
+        paymentBypassBy: {
+          select: {
+            name: true,
+          },
+        },
+        paymentBypassNote: true,
+        requestedAt: true,
+        sailingAffiliation: true,
+        status: true,
+      },
+      where: {
+        paymentBypassAt: { not: null },
+        userId: 'user-1',
+      },
+    });
   });
 });

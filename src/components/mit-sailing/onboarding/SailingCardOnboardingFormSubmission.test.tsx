@@ -52,8 +52,8 @@ describe('SailingCardOnboardingForm submission and errors', () => {
     expect(formData.get('callbackUrl')).toBe('/events/regatta/register');
     expect(formData.get('cardType')).toBe('normal');
     expect(formData.get('emergencyContactName')).toBe('Ada Lovelace');
-    expect(formData.get('emergencyContactPhone')).toBe('6175550101');
-    expect(formData.get('phone')).toBe('6175550100');
+    expect(formData.get('emergencyContactPhone')).toBe('(617) 555-0101');
+    expect(formData.get('phone')).toBe('(617) 555-0100');
   });
 
   it('submits only mit identity data when manual names and callback are hidden', async () => {

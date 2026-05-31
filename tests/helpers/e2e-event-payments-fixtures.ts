@@ -10,6 +10,7 @@ const fixtureSlugPrefix = `e2e-stripe-payments-${randomUUID()}-`;
 const pool = new Pool({ connectionString: e2ePgConnectionString() });
 
 type EventFixture = {
+  amountCents: number;
   eventId: string;
   feeId: string;
   name: string;
@@ -38,7 +39,7 @@ export async function cleanupPaymentFixtures(): Promise<void> {
       DELETE FROM "event_payment_notifications"
       WHERE "payment_id" IN (
         SELECT ep."id"
-        FROM "event_payments" ep
+        FROM "payments" ep
         JOIN "events" e ON e."id" = ep."event_id"
         WHERE e."slug" LIKE $1
       )
@@ -47,7 +48,7 @@ export async function cleanupPaymentFixtures(): Promise<void> {
   );
   await pool.query(
     `
-      DELETE FROM "event_payments" ep
+      DELETE FROM "payments" ep
       USING "events" e
       WHERE e."id" = ep."event_id" AND e."slug" LIKE $1
     `,
@@ -130,6 +131,7 @@ export async function createPaymentEvent(options: {
   const eventEnd = new Date(
     Date.now() + 30 * 86_400_000 + 14_400_000
   ).toISOString();
+  const amountCents = options.amountCents ?? 4200;
   const paymentDeadlineAt =
     options.paymentDeadlineAt === undefined
       ? new Date(Date.now() + 14 * 86_400_000).toISOString()
@@ -205,10 +207,10 @@ export async function createPaymentEvent(options: {
       INSERT INTO "event_entry_fees" ("id", "event_id", "description", "amount_cents", "is_deposit")
       VALUES ($1, $2, 'Event registration', $3, false)
     `,
-    [feeId, eventId, options.amountCents ?? 4200]
+    [feeId, eventId, amountCents]
   );
 
-  return { eventId, feeId, name: options.name, slug };
+  return { amountCents, eventId, feeId, name: options.name, slug };
 }
 
 async function insertApprovedRegistration(options: {
@@ -244,8 +246,10 @@ async function insertEventPayment(options: {
 }): Promise<void> {
   await pool.query(
     `
-      INSERT INTO "event_payments" (
+      INSERT INTO "payments" (
         "id",
+        "purpose",
+        "source",
         "event_id",
         "registration_id",
         "user_id",
@@ -262,8 +266,8 @@ async function insertEventPayment(options: {
         "updated_at"
       )
       VALUES (
-        $1, $2, $3, $4, $5, 'Event registration', 4200, 'usd',
-        $6::event_payment_status, $7, $8,
+        $1, 'event', 'stripe', $2, $3, $4, $5, 'Event registration', $9, 'usd',
+        $6::payment_status, $7, $8,
         CASE WHEN $6::text = 'handled' THEN $4 ELSE NULL END,
         CASE WHEN $6::text = 'handled' THEN NOW() ELSE NULL END,
         NOW(),
@@ -279,6 +283,7 @@ async function insertEventPayment(options: {
       options.status,
       options.receiptUrl ?? null,
       options.manualHandledNote ?? null,
+      options.event.amountCents,
     ]
   );
 }
@@ -313,7 +318,7 @@ export async function paymentRowsForEvent(slug: string): Promise<PaymentRow[]> {
   const result = await pool.query<PaymentRow>(
     `
       SELECT ep."id", ep."status"
-      FROM "event_payments" ep
+      FROM "payments" ep
       JOIN "events" e ON e."id" = ep."event_id"
       WHERE e."slug" = $1
       ORDER BY ep."created_at" DESC
@@ -342,7 +347,7 @@ export async function markPaymentHandledFixture(options: {
   const adminId = await adminUserId();
   await pool.query(
     `
-      UPDATE "event_payments"
+      UPDATE "payments"
       SET "status" = 'handled',
           "manual_handled_note" = $2,
           "manual_handled_by_user_id" = $3,

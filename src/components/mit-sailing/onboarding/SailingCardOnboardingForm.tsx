@@ -25,7 +25,7 @@ export function SailingCardOnboardingForm(
   return (
     <form
       ref={formRef}
-      className="mx-auto flex w-full max-w-2xl flex-col gap-4 rounded border border-border bg-background p-4 text-sm shadow-sm"
+      className="mx-auto flex w-full max-w-3xl flex-col gap-6 text-sm"
       onSubmit={model.handleSubmit}
     >
       <OnboardingFormFields
@@ -36,6 +36,7 @@ export function SailingCardOnboardingForm(
         hasFitnessMembershipValue={model.hasFitnessMembershipValue}
         identityComplete={model.identityComplete}
         isPending={model.isPending}
+        clientErrors={model.form.formState.errors}
         lockedIdentity={model.lockedIdentity}
         manualNameRequired={model.manualNameRequired}
         mitIdRequired={model.mitIdRequired}

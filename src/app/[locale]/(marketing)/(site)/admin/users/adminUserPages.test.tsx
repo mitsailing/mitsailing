@@ -1,6 +1,11 @@
 import { render, screen } from '@testing-library/react';
 import type * as React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  PaymentSource,
+  SailingCardRequestStatus,
+  SailingCardType,
+} from '@/generated/prisma/enums';
 import { Permission } from '@/libs/auth/permissions';
 import { Role } from '@/libs/auth/roles';
 import {
@@ -15,6 +20,8 @@ const mocks = vi.hoisted(() => ({
   getAdminUserEmailMessages: vi.fn(),
   getAdminSailingCardHistory: vi.fn(),
   getAdminUserSailingCardSummary: vi.fn(),
+  getNextAvailableSailingCardNumber: vi.fn(),
+  listAdminUserPaymentHistory: vi.fn(),
   getTranslations: vi.fn(async () => {
     await Promise.resolve();
     return (key: string) => key;
@@ -69,6 +76,78 @@ function emailHistoryRowsWithFallback() {
   ];
 }
 
+function eventPaymentHistoryRow(options: {
+  readonly amountCents: number;
+  readonly createdAt: string;
+  readonly detailHref: string;
+  readonly id: string;
+  readonly receiptHref: string | null;
+  readonly status: 'disputed' | 'paid';
+  readonly title: string;
+}) {
+  return {
+    amountCents: options.amountCents,
+    cardType: null,
+    cardYear: null,
+    createdAt: new Date(options.createdAt),
+    currency: 'usd',
+    detailHref: options.detailHref,
+    id: options.id,
+    manualHandledAt: null,
+    manualHandledByName: null,
+    manualHandledNote: null,
+    purpose: 'event',
+    receiptHref: options.receiptHref,
+    source: PaymentSource.stripe,
+    status: options.status,
+    title: options.title,
+  };
+}
+
+function membershipPaymentHistoryRow() {
+  return {
+    amountCents: 12_000,
+    cardType: SailingCardType.racing,
+    cardYear: 2026,
+    createdAt: new Date('2026-05-19T16:00:00.000Z'),
+    currency: 'usd',
+    detailHref: null,
+    id: 'payment-3',
+    manualHandledAt: new Date('2026-05-19T17:00:00.000Z'),
+    manualHandledByName: 'Dock Master',
+    manualHandledNote: 'Admin issued sailing card without payment.',
+    purpose: 'membership',
+    receiptHref: null,
+    source: PaymentSource.legacy,
+    status: 'paid',
+    title: '',
+  };
+}
+
+function paymentHistoryRowsWithSuccessfulAndFailedPayments() {
+  return [
+    eventPaymentHistoryRow({
+      amountCents: 2500,
+      createdAt: '2026-05-21T16:00:00.000Z',
+      detailHref: '/events/firefly-clinic',
+      id: 'payment-1',
+      receiptHref: 'https://pay.stripe.com/receipts/payment-1',
+      status: 'paid',
+      title: 'Firefly Clinic',
+    }),
+    eventPaymentHistoryRow({
+      amountCents: 1500,
+      createdAt: '2026-05-20T16:00:00.000Z',
+      detailHref: '/events/racing-deposit',
+      id: 'payment-2',
+      receiptHref: null,
+      status: 'disputed',
+      title: 'Racing Deposit',
+    }),
+    membershipPaymentHistoryRow(),
+  ];
+}
+
 vi.mock('next-intl/server', () => ({
   getTranslations: mocks.getTranslations,
   setRequestLocale: mocks.setRequestLocale,
@@ -115,7 +194,9 @@ vi.mock('@/components/mit-sailing/admin/catalog/AdminCatalogTable', () => ({
         update: boolean;
       };
     };
+    filters?: readonly { field: string }[];
     rows: unknown[];
+    search?: { fields: readonly string[] };
     userImpersonation?: unknown;
   }) => {
     const { capabilities } = props.definition;
@@ -126,7 +207,11 @@ vi.mock('@/components/mit-sailing/admin/catalog/AdminCatalogTable', () => ({
         data-can-reorder={String(capabilities.reorder)}
         data-can-update={String(capabilities.update)}
         data-has-impersonation={String(Boolean(props.userImpersonation))}
+        data-filter-fields={
+          props.filters?.map((filter) => filter.field).join(',') ?? ''
+        }
         data-row-count={props.rows.length}
+        data-search-fields={props.search?.fields.join(',') ?? ''}
         data-testid="admin-catalog-table"
       />
     );
@@ -145,10 +230,33 @@ vi.mock('@/components/mit-sailing/admin/cards/AdminSailingCardHistory', () => ({
   AdminSailingCardHistory: () => <section data-testid="card-history-panel" />,
 }));
 
-vi.mock('@/components/mit-sailing/admin/cards/AdminSailingCardQueue', () => ({
-  AdminSailingCardHistory: () => <section data-testid="card-history-panel" />,
-  AdminSailingCardExpireForm: () => <form aria-label="Expire sailing card" />,
-}));
+vi.mock(
+  '@/components/mit-sailing/admin/cards/AdminSailingCardControls',
+  () => ({
+    AdminSailingCardHistory: () => <section data-testid="card-history-panel" />,
+    AdminSailingCardExpireForm: () => <form aria-label="Expire sailing card" />,
+    AdminSailingCardChangeNumberForm: (props: {
+      currentCardNumber: number;
+    }) => (
+      <form
+        aria-label="Change sailing card number"
+        data-current-card-number={props.currentCardNumber}
+      />
+    ),
+    AdminSailingCardIssueForm: (props: {
+      cardType?: SailingCardType;
+      paymentAccess?: 'blocked' | 'none' | 'paid';
+      suggestedCardNumber: number;
+    }) => (
+      <form
+        aria-label="Issue sailing card"
+        data-card-type={props.cardType}
+        data-payment-access={props.paymentAccess}
+        data-suggested-card-number={props.suggestedCardNumber}
+      />
+    ),
+  })
+);
 
 vi.mock('@/libs/admin/users/adminUserActions', () => ({
   createAdminUserAction: mocks.createAdminUserAction,
@@ -161,11 +269,19 @@ vi.mock('@/libs/admin/cards/adminSailingCardUiQueries', () => ({
   getAdminUserSailingCardSummary: mocks.getAdminUserSailingCardSummary,
 }));
 
+vi.mock('@/libs/admin/cards/adminSailingCardQueries', () => ({
+  getNextAvailableSailingCardNumber: mocks.getNextAvailableSailingCardNumber,
+}));
+
 vi.mock('@/libs/admin/users/usersAdminHandlers', () => ({
   usersAdminHandlers: {
     getById: mocks.getById,
     list: mocks.list,
   },
+}));
+
+vi.mock('@/libs/admin/users/adminUserPaymentHistory', () => ({
+  listAdminUserPaymentHistory: mocks.listAdminUserPaymentHistory,
 }));
 
 vi.mock('@/libs/auth/dal', () => ({
@@ -193,6 +309,8 @@ beforeEach(() => {
   mocks.getAdminUserEmailMessages.mockReset();
   mocks.getAdminSailingCardHistory.mockReset();
   mocks.getAdminUserSailingCardSummary.mockReset();
+  mocks.getNextAvailableSailingCardNumber.mockReset();
+  mocks.listAdminUserPaymentHistory.mockReset();
   mocks.getTranslations.mockClear();
   mocks.list.mockReset();
   mocks.listUserRatingAssignmentRows.mockReset();
@@ -211,12 +329,15 @@ beforeEach(() => {
     emailSuppressionReason: null,
     emailVerified: true,
     id: 'user-1',
+    mitId: '123456789',
     name: 'Sailor One',
+    sailingCardNumber: 61,
     appRole: 'user',
     updatedAt: new Date('2026-01-02T00:00:00.000Z'),
   });
   mocks.getAdminUserEmailMessages.mockResolvedValue([]);
   mocks.getAdminSailingCardHistory.mockResolvedValue([]);
+  mocks.getNextAvailableSailingCardNumber.mockResolvedValue(2471);
   mocks.getAdminUserSailingCardSummary.mockResolvedValue({
     legalAgreementAcceptances: [
       {
@@ -225,19 +346,36 @@ beforeEach(() => {
         agreementVersion: sailingCardAgreement.version,
       },
     ],
-    sailingCardExpiresOn: new Date('2027-07-15T04:00:00.000Z'),
+    paymentBypassRequest: null,
+    sailingCardRequests: [],
+    sailingCardExpiresOn: new Date('2026-07-15T04:00:00.000Z'),
     sailingCardIssuedAt: new Date('2026-08-01T16:00:00.000Z'),
     sailingCardIssuedBy: { name: 'Dock Master' },
     sailingCardNumber: 61,
     sailingCardRequestedAt: new Date('2026-05-21T16:00:00.000Z'),
     sailingCardSwimAgreementInitialedAt: new Date('2026-06-01T16:00:00.000Z'),
     sailingCardSwimAgreementInitials: 'AK',
-    sailingCardYear: 2027,
+    sailingCardYear: 2026,
   });
   mocks.list.mockResolvedValue([
-    { email: 'sailor@example.com', id: 'user-1', name: 'Sailor One' },
+    {
+      email: 'sailor@example.com',
+      emailBouncedAt: null,
+      emailDeliverabilityStatus: 'ok',
+      emailSuppressedAt: null,
+      emailSuppressionReason: null,
+      emailVerified: true,
+      id: 'user-1',
+      mitId: '123456789',
+      name: 'Sailor One',
+      sailingCardNumber: 61,
+      sailingCardStatus: 'current',
+      appRole: 'user',
+      banned: false,
+    },
   ]);
   mocks.listUserRatingAssignmentRows.mockResolvedValue([]);
+  mocks.listAdminUserPaymentHistory.mockResolvedValue([]);
   mocks.requirePermission.mockResolvedValue({
     session: { impersonatedBy: null },
     user: {
@@ -250,6 +388,77 @@ beforeEach(() => {
   });
   mocks.updateAdminUserAction.mockReturnValue(async () => {});
 });
+
+function pendingCardSummary() {
+  return {
+    legalAgreementAcceptances: [
+      {
+        acceptedAt: new Date('2026-06-01T16:00:00.000Z'),
+        agreementHash: sailingCardAgreementHash(),
+        agreementVersion: sailingCardAgreement.version,
+      },
+    ],
+    paymentBypassRequest: null,
+    sailingCardRequests: [
+      {
+        cardType: SailingCardType.normal,
+        cardYear: 2026,
+        hasFitnessMembership: true,
+        issuedCardNumber: null,
+        paymentBypassAt: null,
+        paymentBypassBy: null,
+        paymentBypassNote: null,
+        requestedAt: new Date('2026-05-21T16:00:00.000Z'),
+        sailingAffiliation: 'MIT_STUDENT',
+        status: SailingCardRequestStatus.pending,
+      },
+    ],
+    sailingCardExpiresOn: null,
+    sailingCardIssuedAt: null,
+    sailingCardIssuedBy: null,
+    sailingCardNumber: null,
+    sailingCardRequestedAt: new Date('2026-05-21T16:00:00.000Z'),
+    sailingCardSwimAgreementInitialedAt: new Date('2026-06-01T16:00:00.000Z'),
+    sailingCardSwimAgreementInitials: 'AK',
+    sailingCardYear: null,
+  };
+}
+
+function paymentBypassCardSummary() {
+  const paymentBypassRequest = {
+    cardType: SailingCardType.racing,
+    cardYear: 2026,
+    hasFitnessMembership: true,
+    issuedCardNumber: 60,
+    paymentBypassAt: new Date('2026-08-01T16:00:00.000Z'),
+    paymentBypassBy: { name: 'Dock Master' },
+    paymentBypassNote: 'Admin issued sailing card without payment.',
+    requestedAt: new Date('2026-05-21T16:00:00.000Z'),
+    sailingAffiliation: 'OTHER',
+    status: SailingCardRequestStatus.approved,
+  };
+
+  return {
+    ...pendingCardSummary(),
+    paymentBypassRequest,
+    sailingCardRequests: [
+      {
+        ...paymentBypassRequest,
+        cardYear: 2027,
+        issuedCardNumber: 61,
+        paymentBypassAt: null,
+        paymentBypassBy: null,
+        paymentBypassNote: null,
+      },
+    ],
+    sailingCardExpiresOn: new Date('2027-07-15T04:00:00.000Z'),
+    sailingCardIssuedAt: new Date('2026-08-01T16:00:00.000Z'),
+    sailingCardIssuedBy: { name: 'Dock Master' },
+    sailingCardNumber: 61,
+    sailingCardSwimAgreementInitialedAt: new Date('2026-05-21T16:00:00.000Z'),
+    sailingCardYear: 2027,
+  };
+}
 
 describe('admin user pages', () => {
   it('keeps the user index behind the view-users permission', async () => {
@@ -353,11 +562,112 @@ describe('admin user pages', () => {
     );
 
     expect(screen.getByText('sailing_card_heading')).toBeInTheDocument();
-    expect(screen.getByText('61')).toBeInTheDocument();
-    expect(screen.getByText('2027')).toBeInTheDocument();
+    expect(screen.getByText('123456789')).toBeInTheDocument();
+    expect(screen.getAllByText('61').length).toBeGreaterThan(0);
+    expect(screen.getByText('2026')).toBeInTheDocument();
     expect(screen.getByText(/Jun 1, 2026/)).toBeInTheDocument();
     expect(screen.getByTestId('card-history-panel')).toBeInTheDocument();
     expect(screen.getByTestId('ratings-panel')).toBeInTheDocument();
+  });
+
+  it('shows pending card number assignment on the user detail page', async () => {
+    mocks.getAdminUserSailingCardSummary.mockResolvedValue(
+      pendingCardSummary()
+    );
+    const { default: AdminUserShowPage } = await import('./[id]/page');
+
+    render(
+      await AdminUserShowPage({
+        params: Promise.resolve({ id: 'user-1', locale: 'en' }),
+        searchParams: Promise.resolve({}),
+      })
+    );
+
+    expect(
+      screen.getByText('sailing_card_status_requested')
+    ).toBeInTheDocument();
+    expect(screen.getByText('sailing_card_pending_number')).toBeInTheDocument();
+    expect(screen.getByText('2471')).toBeInTheDocument();
+    expect(
+      screen.getByText('sailing_card_assignment_pending')
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('form', { name: 'Issue sailing card' })
+    ).toHaveAttribute('data-suggested-card-number', '2471');
+    expect(mocks.getNextAvailableSailingCardNumber).toHaveBeenCalledWith({
+      cardYear: 2026,
+    });
+  });
+
+  it('shows card number correction on the user detail page for issued cards', async () => {
+    mocks.getAdminUserSailingCardSummary.mockResolvedValue({
+      legalAgreementAcceptances: [
+        {
+          acceptedAt: new Date('2026-05-21T16:00:00.000Z'),
+          agreementHash: sailingCardAgreementHash(),
+          agreementVersion: sailingCardAgreement.version,
+        },
+      ],
+      paymentBypassRequest: null,
+      sailingCardRequests: [],
+      sailingCardExpiresOn: new Date('2026-07-15T04:00:00.000Z'),
+      sailingCardIssuedAt: new Date('2026-05-21T16:00:00.000Z'),
+      sailingCardIssuedBy: { name: 'Dock Master' },
+      sailingCardNumber: 61,
+      sailingCardRequestedAt: new Date('2026-05-21T16:00:00.000Z'),
+      sailingCardSwimAgreementInitialedAt: new Date('2026-05-21T16:00:00.000Z'),
+      sailingCardSwimAgreementInitials: 'AK',
+      sailingCardYear: 2026,
+    });
+    const { default: AdminUserShowPage } = await import('./[id]/page');
+
+    render(
+      await AdminUserShowPage({
+        params: Promise.resolve({ id: 'user-1', locale: 'en' }),
+        searchParams: Promise.resolve({}),
+      })
+    );
+
+    expect(
+      screen.getByRole('form', { name: 'Change sailing card number' })
+    ).toHaveAttribute('data-current-card-number', '61');
+  });
+
+  it('shows admin override payment bypass on the user sailing-card panel', async () => {
+    mocks.getAdminUserSailingCardSummary.mockResolvedValue(
+      paymentBypassCardSummary()
+    );
+    const { default: AdminUserShowPage } = await import('./[id]/page');
+
+    render(
+      await AdminUserShowPage({
+        params: Promise.resolve({ id: 'user-1', locale: 'en' }),
+        searchParams: Promise.resolve({}),
+      })
+    );
+
+    expect(
+      screen.getByText('sailing_card_payment_bypass_title')
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('sailing_card_payment_bypass_body')
+    ).toBeInTheDocument();
+  });
+
+  it('does not fetch the next card number when no pending request can be issued', async () => {
+    const { default: AdminUserShowPage } = await import('./[id]/page');
+
+    render(
+      await AdminUserShowPage({
+        params: Promise.resolve({ id: 'user-1', locale: 'en' }),
+        searchParams: Promise.resolve({}),
+      })
+    );
+
+    expect(mocks.getNextAvailableSailingCardNumber).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole('form', { name: 'Issue sailing card' })
+    ).toBeNull();
   });
 
   it('keeps user detail available when sailing-card panel fails to load', async () => {
@@ -432,11 +742,217 @@ describe('admin user pages', () => {
       screen.getByText('email_category_password_reset')
     ).toBeInTheDocument();
     expect(screen.getByText('email_event_delivered')).toBeInTheDocument();
-    expect(screen.getAllByText('empty_value')).toHaveLength(1);
+    expect(screen.getAllByText('empty_value').length).toBeGreaterThan(0);
     expect(screen.getByText('Custom notice')).toBeInTheDocument();
     expect(screen.getByText('email_category_other')).toBeInTheDocument();
     expect(screen.getByText('email_event_unknown')).toBeInTheDocument();
     expect(screen.getByText('smtp rejected')).toBeInTheDocument();
+  });
+
+  it('renders user payment history with successful and failed payments', async () => {
+    mocks.listAdminUserPaymentHistory.mockResolvedValue(
+      paymentHistoryRowsWithSuccessfulAndFailedPayments()
+    );
+    const { default: AdminUserShowPage } = await import('./[id]/page');
+
+    render(
+      await AdminUserShowPage({
+        params: Promise.resolve({ id: 'user-1', locale: 'en' }),
+        searchParams: Promise.resolve({}),
+      })
+    );
+
+    expect(mocks.listAdminUserPaymentHistory).toHaveBeenCalledWith('user-1');
+    expect(screen.getByText('payments_heading')).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'Firefly Clinic' })
+    ).toHaveAttribute('href', '/events/firefly-clinic');
+    expect(screen.getByText('$25.00')).toBeInTheDocument();
+    expect(screen.getAllByText('payment_status_paid')).toHaveLength(2);
+    expect(screen.getByText('Racing Deposit')).toBeInTheDocument();
+    expect(screen.getByText('payment_status_disputed')).toBeInTheDocument();
+    expect(screen.getByText('payment_source_legacy')).toBeInTheDocument();
+    expect(screen.getByText('payment_manual_meta')).toBeInTheDocument();
+    expect(screen.getByText('payment_manual_note')).toBeInTheDocument();
+    expect(screen.getByText('payment_title_membership')).toBeInTheDocument();
+  });
+
+  it('renders current payment blockers before detail sections', async () => {
+    mocks.listAdminUserPaymentHistory.mockResolvedValue([
+      {
+        amountCents: 12_000,
+        cardType: SailingCardType.racing,
+        cardYear: 2026,
+        createdAt: new Date('2026-05-19T16:00:00.000Z'),
+        currency: 'usd',
+        detailHref: null,
+        id: 'payment-3',
+        manualHandledAt: null,
+        manualHandledByName: null,
+        manualHandledNote: null,
+        purpose: 'membership',
+        receiptHref: null,
+        source: PaymentSource.stripe,
+        status: 'disputed',
+        title: '',
+      },
+    ]);
+    const { default: AdminUserShowPage } = await import('./[id]/page');
+
+    render(
+      await AdminUserShowPage({
+        params: Promise.resolve({ id: 'user-1', locale: 'en' }),
+        searchParams: Promise.resolve({}),
+      })
+    );
+
+    expect(screen.getByText('current_blockers_heading')).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', {
+        name: 'admin_user_blocker_payment_disputed',
+      })
+    ).toHaveAttribute('href', '#membership-payment-status');
+  });
+
+  it('uses the newest decisive current payment access across membership rows', async () => {
+    mocks.listAdminUserPaymentHistory.mockResolvedValue([
+      {
+        amountCents: 12_000,
+        cardType: SailingCardType.racing,
+        cardYear: 2026,
+        createdAt: new Date('2026-05-20T16:00:00.000Z'),
+        currency: 'usd',
+        detailHref: null,
+        id: 'payment-4',
+        manualHandledAt: null,
+        manualHandledByName: null,
+        manualHandledNote: null,
+        purpose: 'membership',
+        receiptHref: null,
+        source: PaymentSource.legacy,
+        status: 'needs_review',
+        title: '',
+      },
+      {
+        amountCents: 12_000,
+        cardType: SailingCardType.racing,
+        cardYear: 2026,
+        createdAt: new Date('2026-05-19T16:00:00.000Z'),
+        currency: 'usd',
+        detailHref: null,
+        id: 'payment-3',
+        manualHandledAt: null,
+        manualHandledByName: null,
+        manualHandledNote: null,
+        purpose: 'membership',
+        receiptHref: 'https://pay.stripe.test/receipts/1',
+        source: PaymentSource.stripe,
+        status: 'paid',
+        title: '',
+      },
+    ]);
+    const { default: AdminUserShowPage } = await import('./[id]/page');
+
+    render(
+      await AdminUserShowPage({
+        params: Promise.resolve({ id: 'user-1', locale: 'en' }),
+        searchParams: Promise.resolve({}),
+      })
+    );
+
+    expect(
+      screen.getByRole('link', {
+        name: 'admin_user_blocker_legacy_review',
+      })
+    ).toHaveAttribute('href', '#membership-payment-status');
+  });
+
+  it('suppresses payment blockers when the card request records a payment bypass', async () => {
+    mocks.getAdminUserSailingCardSummary.mockResolvedValue(
+      paymentBypassCardSummary()
+    );
+    mocks.listAdminUserPaymentHistory.mockResolvedValue([
+      {
+        amountCents: 12_000,
+        cardType: SailingCardType.racing,
+        cardYear: 2026,
+        createdAt: new Date('2026-05-19T16:00:00.000Z'),
+        currency: 'usd',
+        detailHref: null,
+        id: 'payment-3',
+        manualHandledAt: null,
+        manualHandledByName: null,
+        manualHandledNote: null,
+        purpose: 'membership',
+        receiptHref: null,
+        source: PaymentSource.stripe,
+        status: 'disputed',
+        title: '',
+      },
+    ]);
+    const { default: AdminUserShowPage } = await import('./[id]/page');
+
+    render(
+      await AdminUserShowPage({
+        params: Promise.resolve({ id: 'user-1', locale: 'en' }),
+        searchParams: Promise.resolve({}),
+      })
+    );
+
+    expect(screen.queryByText('current_blockers_heading')).toBeNull();
+  });
+
+  it('keeps current payment blockers when newer pending rows exist', async () => {
+    mocks.listAdminUserPaymentHistory.mockResolvedValue([
+      {
+        amountCents: 12_000,
+        cardType: SailingCardType.racing,
+        cardYear: 2026,
+        createdAt: new Date('2026-05-20T16:00:00.000Z'),
+        currency: 'usd',
+        detailHref: null,
+        id: 'payment-4',
+        manualHandledAt: null,
+        manualHandledByName: null,
+        manualHandledNote: null,
+        purpose: 'membership',
+        receiptHref: null,
+        source: PaymentSource.stripe,
+        status: 'checkout_created',
+        title: '',
+      },
+      {
+        amountCents: 12_000,
+        cardType: SailingCardType.racing,
+        cardYear: 2026,
+        createdAt: new Date('2026-05-19T16:00:00.000Z'),
+        currency: 'usd',
+        detailHref: null,
+        id: 'payment-3',
+        manualHandledAt: null,
+        manualHandledByName: null,
+        manualHandledNote: null,
+        purpose: 'membership',
+        receiptHref: null,
+        source: PaymentSource.stripe,
+        status: 'past_due',
+        title: '',
+      },
+    ]);
+    const { default: AdminUserShowPage } = await import('./[id]/page');
+
+    render(
+      await AdminUserShowPage({
+        params: Promise.resolve({ id: 'user-1', locale: 'en' }),
+        searchParams: Promise.resolve({}),
+      })
+    );
+
+    expect(
+      screen.getByRole('link', {
+        name: 'admin_user_blocker_payment_past_due',
+      })
+    ).toHaveAttribute('href', '#membership-payment-status');
   });
 
   it('returns not found when the user no longer exists', async () => {
@@ -464,6 +980,7 @@ describe('admin user pages', () => {
           agreementVersion: sailingCardAgreement.version,
         },
       ],
+      sailingCardRequests: [],
       sailingCardExpiresOn: new Date('2026-07-15T04:00:00.000Z'),
       sailingCardIssuedAt: new Date('2025-08-01T16:00:00.000Z'),
       sailingCardIssuedBy: { name: 'Dock Master' },
@@ -519,6 +1036,14 @@ describe('admin user pages', () => {
     expect(screen.getByTestId('admin-catalog-table')).toHaveAttribute(
       'data-has-impersonation',
       'true'
+    );
+    expect(screen.getByTestId('admin-catalog-table')).toHaveAttribute(
+      'data-search-fields',
+      'email,name,mitId,sailingCardNumber,appRole'
+    );
+    expect(screen.getByTestId('admin-catalog-table')).toHaveAttribute(
+      'data-filter-fields',
+      'emailDeliverabilityStatus,sailingCardStatus'
     );
   });
 

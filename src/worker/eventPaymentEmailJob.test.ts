@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   EventPaymentNotificationKind,
-  EventPaymentStatus,
+  PaymentStatus,
 } from '@/generated/prisma/enums';
 
 const mocks = vi.hoisted(() => ({
@@ -28,7 +28,7 @@ vi.mock('@/libs/DB', () => ({
       findMany: mocks.eventFindMany,
       findUnique: mocks.eventFindUnique,
     },
-    eventPayment: {
+    payment: {
       findMany: mocks.eventPaymentFindMany,
       findUnique: mocks.eventPaymentFindUnique,
     },
@@ -71,7 +71,7 @@ const paymentRow = {
   },
   id: 'payment-1',
   selectedFeeDescription: 'Adult entry',
-  status: EventPaymentStatus.pending,
+  status: PaymentStatus.pending,
   stripeReceiptUrl: 'https://pay.stripe.com/receipts/test',
   user: {
     email: 'sailor@example.com',
@@ -239,7 +239,7 @@ describe('event payment email job', () => {
   it('sends receipts only for locally paid payments', async () => {
     mocks.eventPaymentFindUnique.mockResolvedValueOnce({
       ...paymentRow,
-      status: EventPaymentStatus.paid,
+      status: PaymentStatus.paid,
     });
     const { processEventPaymentEmailJob } =
       await import('@/worker/eventPaymentEmailJob');
@@ -302,9 +302,9 @@ describe('event payment email job', () => {
         where: expect.objectContaining({
           status: {
             in: [
-              EventPaymentStatus.checkout_created,
-              EventPaymentStatus.past_due,
-              EventPaymentStatus.pending,
+              PaymentStatus.checkout_created,
+              PaymentStatus.past_due,
+              PaymentStatus.pending,
             ],
           },
         }),
@@ -383,6 +383,72 @@ describe('event payment email job', () => {
         providerMessageId: expect.stringMatching(/^claim:/u),
       },
     });
+  });
+
+  it('skips admin digest when event has no admin email', async () => {
+    mocks.eventFindUnique.mockResolvedValueOnce({
+      admins: [{ admin: { email: '   ' } }],
+      name: 'Frostbite Regatta',
+      paymentDeadlineAt: new Date('2026-06-01T11:00:00.000Z'),
+      payments: [paymentRow],
+    });
+    const { processEventPaymentEmailJob } =
+      await import('@/worker/eventPaymentEmailJob');
+
+    await processEventPaymentEmailJob({
+      dateKey: '2026-06-01',
+      eventId: 'event-1',
+      kind: 'admin_digest',
+    });
+
+    expect(mocks.eventPaymentNotificationUpsert).not.toHaveBeenCalled();
+    expect(mocks.sendEventPaymentAdminDigestEmail).not.toHaveBeenCalled();
+  });
+
+  it('excludes incomplete payments from admin digest rows', async () => {
+    mocks.eventFindUnique.mockResolvedValueOnce({
+      admins: [{ admin: { email: 'admin@example.com' } }],
+      name: 'Frostbite Regatta',
+      paymentDeadlineAt: null,
+      payments: [
+        paymentRow,
+        {
+          ...paymentRow,
+          id: 'payment-2',
+          selectedFeeDescription: null,
+        },
+      ],
+    });
+    const { processEventPaymentEmailJob } =
+      await import('@/worker/eventPaymentEmailJob');
+
+    await processEventPaymentEmailJob({
+      dateKey: '2026-06-01',
+      eventId: 'event-1',
+      kind: 'admin_digest',
+    });
+
+    expect(mocks.sendEventPaymentAdminDigestEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deadline: 'No deadline',
+        overduePayments: [
+          expect.objectContaining({
+            id: 'payment-1',
+            selectedFeeDescription: 'Adult entry',
+          }),
+        ],
+      })
+    );
+    expect(mocks.eventPaymentNotificationUpsert).toHaveBeenCalledTimes(1);
+    expect(mocks.eventPaymentNotificationUpsert).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          paymentId_kind_sentDateKey: expect.objectContaining({
+            paymentId: 'payment-2',
+          }),
+        }),
+      })
+    );
   });
 
   it('logs admin digest cleanup failures and rethrows the send failure', async () => {

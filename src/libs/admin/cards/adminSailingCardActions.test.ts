@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Prisma } from '@/generated/prisma/client';
 import {
   LegalAgreementAcceptanceSource,
+  PaymentPurpose,
+  PaymentSource,
+  PaymentStatus,
   SailingAffiliation,
   SailingCardRequestStatus,
   SailingCardType,
@@ -16,7 +19,10 @@ import {
 vi.mock('server-only', () => ({}));
 
 const mocks = vi.hoisted(() => ({
+  txPaymentCreate: vi.fn(),
+  txPaymentFindFirst: vi.fn(),
   txLegalAgreementAcceptanceFindFirst: vi.fn(),
+  txSailingCardRequestCount: vi.fn(),
   revalidatePath: vi.fn(),
   requirePermission: vi.fn(),
   txSailingCardRequestFindFirst: vi.fn(),
@@ -24,6 +30,7 @@ const mocks = vi.hoisted(() => ({
   txSailingCardRequestUpdateMany: vi.fn(),
   txUserAuditCreate: vi.fn(),
   txUserAuditFindFirst: vi.fn(),
+  txUserCount: vi.fn(),
   txUserFindMany: vi.fn(),
   txUserFindUnique: vi.fn(),
   txUserUpdate: vi.fn(),
@@ -32,15 +39,21 @@ const mocks = vi.hoisted(() => ({
 }));
 
 type MockTransactionClient = {
+  readonly payment: {
+    readonly create: typeof mocks.txPaymentCreate;
+    readonly findFirst: typeof mocks.txPaymentFindFirst;
+  };
   readonly legalAgreementAcceptance: {
     readonly findFirst: typeof mocks.txLegalAgreementAcceptanceFindFirst;
   };
   readonly sailingCardRequest: {
+    readonly count: typeof mocks.txSailingCardRequestCount;
     readonly findFirst: typeof mocks.txSailingCardRequestFindFirst;
     readonly update: typeof mocks.txSailingCardRequestUpdate;
     readonly updateMany: typeof mocks.txSailingCardRequestUpdateMany;
   };
   readonly user: {
+    readonly count: typeof mocks.txUserCount;
     readonly findMany: typeof mocks.txUserFindMany;
     readonly findUnique: typeof mocks.txUserFindUnique;
     readonly update: typeof mocks.txUserUpdate;
@@ -85,6 +98,15 @@ function formDataWithCardNumber(value: string) {
   return formData;
 }
 
+function formDataWithCardNumberAndPaymentBypassNote(
+  cardNumber: string,
+  paymentBypassNote: string
+) {
+  const formData = formDataWithCardNumber(cardNumber);
+  formData.set('paymentBypassNote', paymentBypassNote);
+  return formData;
+}
+
 function uniqueCardError(
   target: string | string[] = ['sailingCardYear', 'sailingCardNumber']
 ) {
@@ -97,6 +119,7 @@ function uniqueCardError(
 
 async function expectIssueCardFormError(options: {
   readonly cardNumber?: string;
+  readonly formData?: FormData;
   readonly formError: string;
 }) {
   const { issueSailingCardAction } =
@@ -107,7 +130,7 @@ async function expectIssueCardFormError(options: {
       'en',
       'user-1',
       { fieldErrors: {}, status: 'idle' },
-      formDataWithCardNumber(options.cardNumber ?? '61')
+      options.formData ?? formDataWithCardNumber(options.cardNumber ?? '61')
     )
   ).resolves.toEqual({
     fieldErrors: {},
@@ -126,10 +149,14 @@ describe('adminSailingCardActions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.requirePermission.mockResolvedValue({ user: { id: 'admin-1' } });
+    mocks.txSailingCardRequestCount.mockResolvedValue(0);
+    mocks.txUserCount.mockResolvedValue(0);
     mocks.txUserFindMany.mockResolvedValue([]);
     mocks.txUserFindUnique.mockResolvedValue(existingUser);
     mocks.txUserUpdate.mockResolvedValue({});
     mocks.txUserUpdateMany.mockResolvedValue({ count: 1 });
+    mocks.txPaymentCreate.mockResolvedValue({});
+    mocks.txPaymentFindFirst.mockResolvedValue(null);
     mocks.txSailingCardRequestFindFirst.mockResolvedValue({
       cardType: SailingCardType.normal,
       hasFitnessMembership: true,
@@ -153,7 +180,12 @@ describe('adminSailingCardActions', () => {
     mocks.transaction.mockImplementation(
       async (operation: MockTransactionOperation) => {
         const result = await operation({
+          payment: {
+            create: mocks.txPaymentCreate,
+            findFirst: mocks.txPaymentFindFirst,
+          },
           user: {
+            count: mocks.txUserCount,
             findMany: mocks.txUserFindMany,
             findUnique: mocks.txUserFindUnique,
             update: mocks.txUserUpdate,
@@ -163,6 +195,7 @@ describe('adminSailingCardActions', () => {
             findFirst: mocks.txLegalAgreementAcceptanceFindFirst,
           },
           sailingCardRequest: {
+            count: mocks.txSailingCardRequestCount,
             findFirst: mocks.txSailingCardRequestFindFirst,
             update: mocks.txSailingCardRequestUpdate,
             updateMany: mocks.txSailingCardRequestUpdateMany,
@@ -219,7 +252,7 @@ describe('adminSailingCardActions', () => {
     );
   });
 
-  it('manual card number accepts a positive integer below 60', async () => {
+  it('manual card number accepts any unused positive integer', async () => {
     const { issueSailingCardAction } =
       await import('@/libs/admin/cards/adminSailingCardActions');
 
@@ -227,13 +260,13 @@ describe('adminSailingCardActions', () => {
       'en',
       'user-1',
       { fieldErrors: {}, status: 'idle' },
-      formDataWithCardNumber(' 7 ')
+      formDataWithCardNumber(' 110 ')
     );
 
     expect(mocks.txUserUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          sailingCardNumber: 7,
+          sailingCardNumber: 110,
         }),
       })
     );
@@ -555,6 +588,183 @@ describe('adminSailingCardActions', () => {
     });
   });
 
+  it('issuing a paid card without a recorded payment creates an admin override payment', async () => {
+    mocks.txSailingCardRequestFindFirst.mockResolvedValue({
+      cardType: SailingCardType.racing,
+      hasFitnessMembership: null,
+      id: 'request-1',
+      legalAgreementAcceptance: {
+        agreementHash: sailingCardAgreementHash(),
+        agreementVersion: sailingCardAgreement.version,
+        source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
+        userId: 'user-1',
+      },
+      sailingAffiliation: SailingAffiliation.MIT_ALUM,
+    });
+    const { issueSailingCardAction } =
+      await import('@/libs/admin/cards/adminSailingCardActions');
+
+    await issueSailingCardAction(
+      'en',
+      'user-1',
+      { fieldErrors: {}, status: 'idle' },
+      formDataWithCardNumberAndPaymentBypassNote(
+        '61',
+        'Director approved comped racing access.'
+      )
+    );
+
+    expect(mocks.txPaymentFindFirst).toHaveBeenCalledWith({
+      where: {
+        cardType: SailingCardType.racing,
+        cardYear: 2027,
+        purpose: PaymentPurpose.membership,
+        status: { in: [PaymentStatus.handled, PaymentStatus.paid] },
+        userId: 'user-1',
+      },
+      select: { id: true },
+    });
+    expect(mocks.txPaymentCreate).toHaveBeenCalledWith({
+      data: {
+        amountCents: 0,
+        cardType: SailingCardType.racing,
+        cardYear: 2027,
+        currency: 'usd',
+        manualHandledAt: new Date('2026-08-01T16:00:00.000Z'),
+        manualHandledByUserId: 'admin-1',
+        manualHandledNote: 'Director approved comped racing access.',
+        purpose: PaymentPurpose.membership,
+        source: PaymentSource.admin_override,
+        status: PaymentStatus.handled,
+        userId: 'user-1',
+      },
+    });
+    expect(mocks.txSailingCardRequestUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          paymentBypassAt: new Date('2026-08-01T16:00:00.000Z'),
+          paymentBypassByUserId: 'admin-1',
+          paymentBypassNote: 'Director approved comped racing access.',
+        }),
+      })
+    );
+  });
+
+  it('issuing a paid team racing card without a recorded payment creates an admin override payment', async () => {
+    mocks.txSailingCardRequestFindFirst.mockResolvedValue({
+      cardType: SailingCardType.team_racing,
+      hasFitnessMembership: null,
+      id: 'request-1',
+      legalAgreementAcceptance: {
+        agreementHash: sailingCardAgreementHash(),
+        agreementVersion: sailingCardAgreement.version,
+        source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
+        userId: 'user-1',
+      },
+      sailingAffiliation: SailingAffiliation.MIT_ALUM,
+    });
+    const { issueSailingCardAction } =
+      await import('@/libs/admin/cards/adminSailingCardActions');
+
+    await issueSailingCardAction(
+      'en',
+      'user-1',
+      { fieldErrors: {}, status: 'idle' },
+      formDataWithCardNumberAndPaymentBypassNote(
+        '61',
+        'Director approved comped team racing access.'
+      )
+    );
+
+    expect(mocks.txPaymentFindFirst).toHaveBeenCalledWith({
+      where: {
+        cardType: SailingCardType.team_racing,
+        cardYear: 2027,
+        purpose: PaymentPurpose.membership,
+        status: { in: [PaymentStatus.handled, PaymentStatus.paid] },
+        userId: 'user-1',
+      },
+      select: { id: true },
+    });
+    expect(mocks.txPaymentCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        cardType: SailingCardType.team_racing,
+        manualHandledNote: 'Director approved comped team racing access.',
+        source: PaymentSource.admin_override,
+        status: PaymentStatus.handled,
+      }),
+    });
+    expect(mocks.txSailingCardRequestUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          paymentBypassAt: new Date('2026-08-01T16:00:00.000Z'),
+          paymentBypassByUserId: 'admin-1',
+          paymentBypassNote: 'Director approved comped team racing access.',
+        }),
+      })
+    );
+  });
+
+  it('requires a bypass note to issue paid racing without payment', async () => {
+    mocks.txSailingCardRequestFindFirst.mockResolvedValue({
+      cardType: SailingCardType.racing,
+      hasFitnessMembership: null,
+      id: 'request-1',
+      legalAgreementAcceptance: {
+        agreementHash: sailingCardAgreementHash(),
+        agreementVersion: sailingCardAgreement.version,
+        source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
+        userId: 'user-1',
+      },
+      sailingAffiliation: SailingAffiliation.MIT_ALUM,
+    });
+
+    await expectIssueCardFormError({
+      cardNumber: '110',
+      formData: formDataWithCardNumberAndPaymentBypassNote('110', 'ok'),
+      formError: 'payment_required',
+    });
+
+    expect(mocks.txPaymentCreate).not.toHaveBeenCalled();
+    expectNoCardIssueWrites();
+  });
+
+  it('issuing a paid card with a recorded payment does not create an admin override', async () => {
+    mocks.txPaymentFindFirst.mockResolvedValue({ id: 'payment-1' });
+    mocks.txSailingCardRequestFindFirst.mockResolvedValue({
+      cardType: SailingCardType.racing,
+      hasFitnessMembership: null,
+      id: 'request-1',
+      legalAgreementAcceptance: {
+        agreementHash: sailingCardAgreementHash(),
+        agreementVersion: sailingCardAgreement.version,
+        source: LegalAgreementAcceptanceSource.SAILING_CARD_ONBOARDING,
+        userId: 'user-1',
+      },
+      sailingAffiliation: SailingAffiliation.MIT_ALUM,
+    });
+    const { issueSailingCardAction } =
+      await import('@/libs/admin/cards/adminSailingCardActions');
+
+    await issueSailingCardAction(
+      'en',
+      'user-1',
+      { fieldErrors: {}, status: 'idle' },
+      formDataWithCardNumber('61')
+    );
+
+    expect(mocks.txPaymentCreate).not.toHaveBeenCalled();
+    expect(mocks.txSailingCardRequestUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.not.objectContaining({
+          paymentBypassAt: expect.anything(),
+          paymentBypassByUserId: expect.anything(),
+          paymentBypassNote: expect.anything(),
+        }),
+      })
+    );
+  });
+
   it('does not issue when another admin already approved the request', async () => {
     mocks.txSailingCardRequestUpdateMany.mockResolvedValue({ count: 0 });
     const { issueSailingCardAction } =
@@ -675,6 +885,139 @@ describe('adminSailingCardActions', () => {
     ).resolves.toEqual({
       fieldErrors: {},
       formError: 'not_found',
+      status: 'error',
+    });
+
+    expect(mocks.txUserUpdate).not.toHaveBeenCalled();
+    expect(mocks.txUserAuditCreate).not.toHaveBeenCalled();
+  });
+
+  it('updateSailingCardNumberAction changes an issued card number', async () => {
+    mocks.txUserFindUnique.mockResolvedValue({
+      ...existingUser,
+      sailingCardExpiresOn: new Date('2027-07-15T04:00:00.000Z'),
+      sailingCardIssuedAt: new Date('2026-08-01T16:00:00.000Z'),
+      sailingCardIssuedByUserId: 'admin-old',
+      sailingCardNumber: 61,
+      sailingCardYear: 2027,
+    });
+    const { updateSailingCardNumberAction } =
+      await import('@/libs/admin/cards/adminSailingCardActions');
+
+    await expect(
+      updateSailingCardNumberAction(
+        'en',
+        'user-1',
+        { fieldErrors: {}, status: 'idle' },
+        formDataWithCardNumber('62')
+      )
+    ).resolves.toEqual({ fieldErrors: {}, status: 'success' });
+
+    expect(mocks.requirePermission).toHaveBeenCalledWith(
+      Permission.CARDS_ASSIGN_NUMBER,
+      'en'
+    );
+    expect(mocks.txSailingCardRequestUpdateMany).toHaveBeenCalledWith({
+      where: {
+        cardYear: 2027,
+        status: SailingCardRequestStatus.approved,
+        userId: 'user-1',
+      },
+      data: {
+        issuedCardNumber: 62,
+      },
+    });
+    expect(mocks.txUserUpdate).toHaveBeenCalledWith({
+      where: { id: 'user-1' },
+      data: expect.objectContaining({
+        sailingCardIssuedByUserId: 'admin-old',
+        sailingCardNumber: 62,
+        sailingCardYear: 2027,
+      }),
+    });
+    expect(mocks.txUserAuditCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: UserAuditAction.update,
+          auditedChanges: expect.objectContaining({
+            after: expect.objectContaining({ sailingCardNumber: 62 }),
+            before: expect.objectContaining({ sailingCardNumber: 61 }),
+          }),
+        }),
+      })
+    );
+  });
+
+  it('updateSailingCardNumberAction rejects the existing card number without audit', async () => {
+    mocks.txUserFindUnique.mockResolvedValue({
+      ...existingUser,
+      sailingCardExpiresOn: new Date('2027-07-15T04:00:00.000Z'),
+      sailingCardIssuedAt: new Date('2026-08-01T16:00:00.000Z'),
+      sailingCardIssuedByUserId: 'admin-1',
+      sailingCardNumber: 61,
+      sailingCardYear: 2027,
+    });
+    const { updateSailingCardNumberAction } =
+      await import('@/libs/admin/cards/adminSailingCardActions');
+
+    await expect(
+      updateSailingCardNumberAction(
+        'en',
+        'user-1',
+        { fieldErrors: {}, status: 'idle' },
+        formDataWithCardNumber('61')
+      )
+    ).resolves.toEqual({
+      fieldErrors: {},
+      formError: 'same_card_number',
+      status: 'error',
+    });
+
+    expect(mocks.txSailingCardRequestUpdateMany).not.toHaveBeenCalled();
+    expect(mocks.txUserUpdate).not.toHaveBeenCalled();
+    expect(mocks.txUserAuditCreate).not.toHaveBeenCalled();
+  });
+
+  it('updateSailingCardNumberAction rejects duplicates', async () => {
+    mocks.transaction.mockRejectedValue(uniqueCardError());
+    const { updateSailingCardNumberAction } =
+      await import('@/libs/admin/cards/adminSailingCardActions');
+
+    await expect(
+      updateSailingCardNumberAction(
+        'en',
+        'user-1',
+        { fieldErrors: {}, status: 'idle' },
+        formDataWithCardNumber('62')
+      )
+    ).resolves.toEqual({
+      fieldErrors: { cardNumber: 'duplicate' },
+      status: 'error',
+    });
+  });
+
+  it('updateSailingCardNumberAction maps duplicate domain errors to the card field', async () => {
+    mocks.txUserCount.mockResolvedValue(1);
+    mocks.txUserFindUnique.mockResolvedValue({
+      ...existingUser,
+      sailingCardExpiresOn: new Date('2027-07-15T04:00:00.000Z'),
+      sailingCardIssuedAt: new Date('2026-08-01T16:00:00.000Z'),
+      sailingCardIssuedByUserId: 'admin-old',
+      sailingCardNumber: 61,
+      sailingCardYear: 2027,
+    });
+    const { updateSailingCardNumberAction } =
+      await import('@/libs/admin/cards/adminSailingCardActions');
+
+    await expect(
+      updateSailingCardNumberAction(
+        'en',
+        'user-1',
+        { fieldErrors: {}, status: 'idle' },
+        formDataWithCardNumber('62')
+      )
+    ).resolves.toEqual({
+      fieldErrors: { cardNumber: 'duplicate' },
       status: 'error',
     });
 

@@ -119,6 +119,7 @@ export default async function OnboardingPage(props: OnboardingPageProps) {
   const searchParams = await props.searchParams;
   const callbackUrl = safeAuthCallbackUrl(searchParams.callbackUrl, '');
   const t = await getTranslations({ locale, namespace: 'OnboardingPage' });
+  const cardYear = getCurrentSailingCardYear();
   const currentUser = await getOnboardingUser(user.id);
 
   if (
@@ -148,6 +149,7 @@ export default async function OnboardingPage(props: OnboardingPageProps) {
 
           <SailingCardOnboardingForm
             callbackUrl={callbackUrl}
+            draftKey={`sailing-card-onboarding:${user.id}:${cardYear}:v1`}
             initialValues={initialValues}
             lockedIdentity={lockedIdentity}
           />

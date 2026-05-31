@@ -1,11 +1,12 @@
 # yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
 #
-# Strict review defaults (assertive profile + request changes). Finishing-touch
-# autofix delivery is not configurable here: use `@coderabbitai autofix` to push
-# fixes to the PR branch, or `@coderabbitai autofix stacked pr` for a separate PR.
+# Strict review defaults (assertive profile + request changes). Keep CodeRabbit
+# as review/comment input; write-producing finishing touches are disabled below.
+# Manual Autofix or stacked PR commands require an explicit user request.
 
 language: en-US
 early_access: false
+inheritance: false
 
 reviews:
   profile: assertive
@@ -13,7 +14,7 @@ reviews:
   poem: false
 
   high_level_summary: true
-  review_status: true
+  review_status: false
   review_details: true
   collapse_walkthrough: false
 
@@ -206,12 +207,15 @@ reviews:
       - release/.*
 
   finishing_touches:
-    # Docstring generation opens a follow-up PR by design; use `@coderabbitai autofix`
-    # on the original PR for same-branch fixes instead.
+    # Keep CodeRabbit in review/comment mode only. Write-producing finishing
+    # touches can create follow-up PRs or direct commits from checkbox clicks.
     docstrings:
       enabled: false
+    unit_tests:
+      enabled: false
     simplify:
-      enabled: true
+      enabled: false
+    custom: []
 
   pre_merge_checks:
     docstrings:

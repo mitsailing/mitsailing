@@ -1,8 +1,8 @@
 import { Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { EventPaymentStatus } from '@/generated/prisma/enums';
-import type { EventPaymentStatus as EventPaymentStatusValue } from '@/generated/prisma/enums';
+import { PaymentStatus } from '@/generated/prisma/enums';
+import type { PaymentStatus as PaymentStatusValue } from '@/generated/prisma/enums';
 import {
   markAdminEventPaymentHandledAction,
   resendAdminEventPaymentRequestAction,
@@ -14,35 +14,36 @@ import { formatUsdMinorUnitsAsCurrency } from '@/libs/money/stripeUsdMinorUnits'
 import type { AdminEventRegistrationsTranslations } from './AdminEventRegistrationUtils';
 import { AdminEventListStatusBadge } from './AdminEventShared';
 
-type PaymentStatus = NonNullable<
+type RegistrationPaymentStatus = NonNullable<
   AdminEventRegistrationDto['payment']
 >['status'];
 type PaymentStatusTranslationKey =
   Parameters<AdminEventRegistrationsTranslations>[0];
 
 const paymentStatusLabelKeys = {
-  [EventPaymentStatus.cancelled]: 'payment_status_cancelled',
-  [EventPaymentStatus.checkout_created]: 'payment_status_checkout_created',
-  [EventPaymentStatus.disputed]: 'payment_status_disputed',
-  [EventPaymentStatus.handled]: 'payment_status_handled',
-  [EventPaymentStatus.paid]: 'payment_status_paid',
-  [EventPaymentStatus.past_due]: 'payment_status_past_due',
-  [EventPaymentStatus.pending]: 'payment_status_pending',
-  [EventPaymentStatus.refunded]: 'payment_status_refunded',
-} satisfies Record<EventPaymentStatusValue, PaymentStatusTranslationKey>;
+  [PaymentStatus.cancelled]: 'payment_status_cancelled',
+  [PaymentStatus.checkout_created]: 'payment_status_checkout_created',
+  [PaymentStatus.disputed]: 'payment_status_disputed',
+  [PaymentStatus.handled]: 'payment_status_handled',
+  [PaymentStatus.paid]: 'payment_status_paid',
+  [PaymentStatus.past_due]: 'payment_status_past_due',
+  [PaymentStatus.pending]: 'payment_status_pending',
+  [PaymentStatus.refunded]: 'payment_status_refunded',
+  [PaymentStatus.needs_review]: 'payment_status_needs_review',
+} satisfies Record<PaymentStatusValue, PaymentStatusTranslationKey>;
 
 function paymentStatusLabel(
-  status: PaymentStatus,
+  status: RegistrationPaymentStatus,
   t: AdminEventRegistrationsTranslations
 ): string {
   return t(paymentStatusLabelKeys[status]);
 }
 
-function canMarkPaymentHandled(status: PaymentStatus): boolean {
+function canMarkPaymentHandled(status: RegistrationPaymentStatus): boolean {
   return (
-    status === EventPaymentStatus.checkout_created ||
-    status === EventPaymentStatus.past_due ||
-    status === EventPaymentStatus.pending
+    status === PaymentStatus.checkout_created ||
+    status === PaymentStatus.past_due ||
+    status === PaymentStatus.pending
   );
 }
 

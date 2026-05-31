@@ -1,8 +1,8 @@
 import {
   EventPaymentNotificationKind,
-  EventPaymentStatus,
+  PaymentStatus,
 } from '@/generated/prisma/enums';
-import type { EventPaymentStatus as EventPaymentStatusType } from '@/generated/prisma/enums';
+import type { PaymentStatus as PaymentStatusType } from '@/generated/prisma/enums';
 import { EVENTS_TIME_ZONE, nyYmd } from '@/lib/mit-sailing/nyTime';
 
 export type EventPaymentEligibilityReason =
@@ -24,7 +24,7 @@ type EventPaymentEligibilityInput = {
 };
 
 type PaidTransitionCurrentPayment = {
-  status: EventPaymentStatusType;
+  status: PaymentStatusType;
   stripeChargeId?: string | null;
   stripeCheckoutSessionId?: string | null;
   stripeCustomerId?: string | null;
@@ -42,7 +42,7 @@ type PaidTransitionInput = {
 };
 
 type PaidTransitionUpdate = {
-  status: typeof EventPaymentStatus.paid;
+  status: typeof PaymentStatus.paid;
   stripeChargeId?: string | null;
   stripeCheckoutSessionId?: string | null;
   stripeCustomerId?: string | null;
@@ -55,7 +55,7 @@ type ReminderEligibilityInput = {
   notificationSentDateKeys: readonly string[];
   now: Date;
   paymentDeadlineAt: Date | null;
-  status: EventPaymentStatusType;
+  status: PaymentStatusType;
 };
 
 const notificationTimeFormatter = new Intl.DateTimeFormat('en-US', {
@@ -65,18 +65,18 @@ const notificationTimeFormatter = new Intl.DateTimeFormat('en-US', {
   timeZone: EVENTS_TIME_ZONE,
 });
 
-const terminalStatuses = new Set<EventPaymentStatusType>([
-  EventPaymentStatus.cancelled,
-  EventPaymentStatus.disputed,
-  EventPaymentStatus.handled,
-  EventPaymentStatus.paid,
-  EventPaymentStatus.refunded,
+const terminalStatuses = new Set<PaymentStatusType>([
+  PaymentStatus.cancelled,
+  PaymentStatus.disputed,
+  PaymentStatus.handled,
+  PaymentStatus.paid,
+  PaymentStatus.refunded,
 ]);
 
-const reminderStatuses = new Set<EventPaymentStatusType>([
-  EventPaymentStatus.checkout_created,
-  EventPaymentStatus.past_due,
-  EventPaymentStatus.pending,
+const reminderStatuses = new Set<PaymentStatusType>([
+  PaymentStatus.checkout_created,
+  PaymentStatus.past_due,
+  PaymentStatus.pending,
 ]);
 
 export function getEventPaymentEligibility(
@@ -114,8 +114,8 @@ export function getEventPaymentEligibility(
 }
 
 export function eventPaymentStatusCanTransitionTo(options: {
-  from: EventPaymentStatusType;
-  to: EventPaymentStatusType;
+  from: PaymentStatusType;
+  to: PaymentStatusType;
 }): boolean {
   if (options.from === options.to) {
     return true;
@@ -123,7 +123,7 @@ export function eventPaymentStatusCanTransitionTo(options: {
   if (terminalStatuses.has(options.from)) {
     return false;
   }
-  if (options.from === EventPaymentStatus.paid) {
+  if (options.from === PaymentStatus.paid) {
     return false;
   }
   return true;
@@ -142,17 +142,17 @@ export function applyEventPaymentPaidTransition(input: PaidTransitionInput): {
   update: PaidTransitionUpdate;
 } {
   if (
-    input.current.status !== EventPaymentStatus.paid &&
+    input.current.status !== PaymentStatus.paid &&
     !eventPaymentStatusCanTransitionTo({
       from: input.current.status,
-      to: EventPaymentStatus.paid,
+      to: PaymentStatus.paid,
     })
   ) {
     throw new TypeError('Event payment status cannot transition to paid.');
   }
 
   const update: PaidTransitionUpdate = {
-    status: EventPaymentStatus.paid,
+    status: PaymentStatus.paid,
     stripeChargeId: keepExistingStripeValue(
       input.current.stripeChargeId,
       input.stripeChargeId
@@ -178,7 +178,7 @@ export function applyEventPaymentPaidTransition(input: PaidTransitionInput): {
   return {
     notificationKind: EventPaymentNotificationKind.receipt,
     shouldCreateReceiptNotification:
-      input.current.status !== EventPaymentStatus.paid,
+      input.current.status !== PaymentStatus.paid,
     update,
   };
 }
@@ -187,12 +187,12 @@ export function buildManualHandledEventPaymentTransition(options: {
   adminUserId: string;
   note: string;
   now: Date;
-  status: EventPaymentStatusType;
+  status: PaymentStatusType;
 }): {
   manualHandledAt: Date;
   manualHandledByUserId: string;
   manualHandledNote: string;
-  status: typeof EventPaymentStatus.handled;
+  status: typeof PaymentStatus.handled;
 } {
   const note = options.note.trim();
   const adminUserId = options.adminUserId.trim();
@@ -205,7 +205,7 @@ export function buildManualHandledEventPaymentTransition(options: {
   if (
     !eventPaymentStatusCanTransitionTo({
       from: options.status,
-      to: EventPaymentStatus.handled,
+      to: PaymentStatus.handled,
     })
   ) {
     throw new TypeError('Event payment status cannot transition to handled.');
@@ -214,12 +214,12 @@ export function buildManualHandledEventPaymentTransition(options: {
     manualHandledAt: options.now,
     manualHandledByUserId: adminUserId,
     manualHandledNote: note,
-    status: EventPaymentStatus.handled,
+    status: PaymentStatus.handled,
   };
 }
 
 export function eventPaymentStatusAllowsReminder(
-  status: EventPaymentStatusType
+  status: PaymentStatusType
 ): boolean {
   return reminderStatuses.has(status);
 }

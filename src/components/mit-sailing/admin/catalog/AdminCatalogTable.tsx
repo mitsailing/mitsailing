@@ -24,6 +24,8 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { AdminCatalogListCell } from '@/components/mit-sailing/admin/catalog/AdminCatalogListCell';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -73,6 +75,23 @@ type AdminCatalogTableProps = {
   };
   /** Message bundle for column headers, mobile labels, and actions (not list cell pills). */
   messageNamespace?: 'AdminCatalogResource' | 'AdminUsers';
+  /** Optional client-side list filter for small admin directories such as users. */
+  search?: {
+    emptyKey: string;
+    fields: readonly string[];
+    labelKey: string;
+    placeholderKey: string;
+  };
+  /** Optional exact-match filters for secondary states that do not need table columns. */
+  filters?: readonly {
+    allKey: string;
+    field: string;
+    labelKey: string;
+    options: readonly {
+      labelKey: string;
+      value: string;
+    }[];
+  }[];
 };
 
 function SortableRow(props: {
@@ -155,7 +174,7 @@ function listColumnsWithNameFirst(
 export function AdminCatalogTable(props: AdminCatalogTableProps) {
   const tCatalog = useTranslations('AdminCatalogResource');
   const tUsers = useTranslations('AdminUsers');
-  /* eslint-disable @typescript-eslint/no-unsafe-type-assertion -- column keys come from the definition matched to `messageNamespace` */
+  /* eslint-disable @typescript-eslint/no-unsafe-type-assertion -- next-intl returns namespace-bound translators; this table switches between the two configured namespaces. */
   const t =
     props.messageNamespace === 'AdminUsers'
       ? (tUsers as (key: string) => string)
@@ -202,6 +221,8 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
     props.rows.map((r) => String(r.id))
   );
   const [reorderError, setReorderError] = useState<string | null>(null);
+  const [filterValues, setFilterValues] = useState<Record<string, string>>({});
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     setOrderedIds(props.rows.map((r) => String(r.id)));
@@ -255,6 +276,44 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
   const displayColumns = listColumnsWithNameFirst(props.definition.listColumns);
   const canUpdate = props.definition.capabilities.update;
   const canDelete = props.definition.capabilities.delete;
+  const { filters, search } = props;
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+  const hasActiveListNarrowing =
+    normalizedSearchQuery.length > 0 ||
+    Object.values(filterValues).some((value) => value.length > 0);
+  const canDragReorder = canReorder && !hasActiveListNarrowing;
+  const visibleRows =
+    search || filters
+      ? orderedRows.filter((row) => {
+          const matchesSearch =
+            !search ||
+            !normalizedSearchQuery ||
+            search.fields.some((field) =>
+              String(row[field] ?? '')
+                .toLowerCase()
+                .includes(normalizedSearchQuery)
+            );
+          const matchesFilters =
+            !filters ||
+            filters.every((filter) => {
+              const selected = filterValues[filter.field] ?? '';
+              return (
+                selected.length === 0 || String(row[filter.field]) === selected
+              );
+            });
+          return matchesSearch && matchesFilters;
+        })
+      : orderedRows;
+  const emptyRow = search ? (
+    <TableRow>
+      <TableCell
+        className="px-4 py-6 text-sm text-muted-foreground"
+        colSpan={displayColumns.length + (canDragReorder ? 2 : 1)}
+      >
+        {t(search.emptyKey)}
+      </TableCell>
+    </TableRow>
+  ) : null;
 
   function renderCells(row: CatalogRow) {
     const cols = displayColumns.map((col) => {
@@ -341,13 +400,61 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
 
   return (
     <div className="flex flex-col gap-2">
+      {props.search || props.filters ? (
+        <div className="flex flex-col gap-3 md:flex-row md:items-end">
+          {props.search ? (
+            <div className="w-full md:max-w-sm">
+              <Label htmlFor={`${props.resourceId}-admin-search`}>
+                {t(props.search.labelKey)}
+              </Label>
+              <Input
+                className="mt-2"
+                id={`${props.resourceId}-admin-search`}
+                onChange={(event) => {
+                  setSearchQuery(event.currentTarget.value);
+                }}
+                placeholder={t(props.search.placeholderKey)}
+                type="search"
+                value={searchQuery}
+              />
+            </div>
+          ) : null}
+          {props.filters?.map((filter) => (
+            <div className="w-full md:max-w-56" key={filter.field}>
+              <Label htmlFor={`${props.resourceId}-${filter.field}-filter`}>
+                {t(filter.labelKey)}
+              </Label>
+              <select
+                className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-xs transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                id={`${props.resourceId}-${filter.field}-filter`}
+                onChange={(event) => {
+                  const selectedValue = event.currentTarget.value;
+                  setFilterValues((current) => ({
+                    ...current,
+                    [filter.field]: selectedValue,
+                  }));
+                }}
+                value={filterValues[filter.field] ?? ''}
+              >
+                <option value="">{t(filter.allKey)}</option>
+                {filter.options.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {t(option.labelKey)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
       {reorderError ? (
         <p className="text-sm text-destructive" role="alert">
           {reorderError}
         </p>
       ) : null}
 
-      {canReorder ? (
+      {canDragReorder ? (
         <DndContext
           collisionDetection={closestCenter}
           onDragEnd={(event) => {
@@ -382,15 +489,17 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
                 strategy={verticalListSortingStrategy}
               >
                 <TableBody>
-                  {orderedRows.map((row) => (
-                    <SortableRow
-                      dragLabel={t('drag_handle_aria')}
-                      id={String(row.id)}
-                      key={String(row.id)}
-                    >
-                      {renderCells(row)}
-                    </SortableRow>
-                  ))}
+                  {visibleRows.length === 0
+                    ? emptyRow
+                    : visibleRows.map((row) => (
+                        <SortableRow
+                          dragLabel={t('drag_handle_aria')}
+                          id={String(row.id)}
+                          key={String(row.id)}
+                        >
+                          {renderCells(row)}
+                        </SortableRow>
+                      ))}
                 </TableBody>
               </SortableContext>
             </Table>
@@ -412,9 +521,13 @@ export function AdminCatalogTable(props: AdminCatalogTableProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {orderedRows.map((row) => (
-                <StaticRow key={String(row.id)}>{renderCells(row)}</StaticRow>
-              ))}
+              {visibleRows.length === 0
+                ? emptyRow
+                : visibleRows.map((row) => (
+                    <StaticRow key={String(row.id)}>
+                      {renderCells(row)}
+                    </StaticRow>
+                  ))}
             </TableBody>
           </Table>
         </div>

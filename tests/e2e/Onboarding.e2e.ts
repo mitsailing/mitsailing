@@ -124,6 +124,29 @@ async function signUpVerifiedSailor(props: {
     .toBe('/onboarding');
 }
 
+async function expectOnboardingDraftValues(page: Page) {
+  await expect(page.getByLabel('Affiliation')).toHaveValue('WELLESLEY');
+  await expect(page.getByLabel('First name')).toHaveValue('Grace');
+  await expect(page.getByLabel('Last name')).toHaveValue('Hopper');
+  await expect(page.getByLabel('Date of birth')).toHaveValue('03/24/1988');
+  await expect(page.getByLabel('Your phone number')).toHaveValue(
+    '(617) 555-0100'
+  );
+  await expect(page.getByLabel('Emergency contact name')).toHaveValue(
+    'Ada Lovelace'
+  );
+  await expect(page.getByLabel('Emergency contact phone')).toHaveValue(
+    '(617) 555-0101'
+  );
+  await expect(page.getByRole('radio', { name: /^Yes/ })).toBeChecked();
+  await expect(page.getByRole('radio', { name: /^Normal/ })).toBeChecked();
+  await expect(
+    page.getByLabel(
+      'I have read and agree to the swim agreement and liability release.'
+    )
+  ).toBeChecked();
+}
+
 test.describe('Onboarding', () => {
   test.describe.configure({ mode: 'serial' });
 
@@ -180,6 +203,55 @@ test.describe('Onboarding', () => {
         'Other student',
         'Other non-student',
       ]);
+    } finally {
+      await cleanupByEmail(email);
+    }
+  });
+
+  test('restores full onboarding fields after browser back before submit', async ({
+    page,
+  }) => {
+    const email = `qa-${faker.string.alphanumeric(10).toLowerCase()}@example.com`;
+    const credential = `Qa1-${faker.string.alphanumeric(20)}`;
+
+    try {
+      await signUpVerifiedSailor({ email, page, password: credential });
+      await page.getByLabel('Affiliation').selectOption({ label: 'Wellesley' });
+      await page.getByLabel('First name').fill('Grace');
+      await page.getByLabel('Last name').fill('Hopper');
+      await page.getByRole('button', { name: 'Continue' }).click();
+      await page.getByLabel('Date of birth').fill('03241988');
+      await page.getByLabel('Your phone number').fill('617-555-0100');
+      await page.getByLabel('Emergency contact name').fill('Ada Lovelace');
+      await page.getByLabel('Emergency contact phone').fill('617-555-0101');
+      await page.getByRole('radio', { name: /^Yes/ }).check();
+      await page
+        .getByLabel(
+          'I have read and agree to the swim agreement and liability release.'
+        )
+        .check();
+
+      const profilePagePromise = page.waitForEvent('popup');
+      await page
+        .getByRole('banner')
+        .getByRole('link', { name: 'Profile' })
+        .click();
+      const profilePage = await profilePagePromise;
+      await expect(profilePage).toHaveURL(
+        /\/onboarding\?callbackUrl=%2Fprofile(?:%2Faccount)?$/
+      );
+      await profilePage.close();
+      await expectOnboardingDraftValues(page);
+
+      await page
+        .getByRole('banner')
+        .getByRole('link', { name: 'Pricing' })
+        .click();
+      await expect(page).toHaveURL(/\/pricing/);
+      await page.goBack();
+
+      await expect(page).toHaveURL(/\/onboarding/);
+      await expectOnboardingDraftValues(page);
     } finally {
       await cleanupByEmail(email);
     }

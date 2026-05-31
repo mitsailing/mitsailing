@@ -3,6 +3,9 @@
 import { revalidatePath } from 'next/cache';
 import { Prisma } from '@/generated/prisma/client';
 import {
+  PaymentPurpose,
+  PaymentSource,
+  PaymentStatus,
   LegalAgreementAcceptanceSource,
   SailingCardRequestStatus,
   SailingCardType,
@@ -33,7 +36,9 @@ type AdminSailingCardFormError =
   | 'mit_recreation_required'
   | 'no_current_card'
   | 'not_pending_request'
-  | 'not_found';
+  | 'not_found'
+  | 'payment_required'
+  | 'same_card_number';
 
 export type AdminSailingCardActionState = {
   readonly fieldErrors: AdminSailingCardFieldErrors;
@@ -41,10 +46,13 @@ export type AdminSailingCardActionState = {
   readonly status: 'error' | 'idle' | 'success';
 };
 
-type AdminSailingCardDb = Pick<Prisma.TransactionClient, 'user' | 'userAudit'>;
-type AdminSailingCardIssueDb = Pick<
+type AdminSailingCardDb = Pick<
   Prisma.TransactionClient,
   'sailingCardRequest' | 'user' | 'userAudit'
+>;
+type AdminSailingCardIssueDb = Pick<
+  Prisma.TransactionClient,
+  'payment' | 'sailingCardRequest' | 'user' | 'userAudit'
 >;
 
 type SailingCardAuditFields = {
@@ -83,6 +91,16 @@ function parseManualCardNumber(formData: FormData) {
     return 'invalid';
   }
   return Number(raw);
+}
+
+function parseRequiredCardNumber(formData: FormData) {
+  const cardNumber = parseManualCardNumber(formData);
+  return cardNumber ?? 'invalid';
+}
+
+function parsePaymentBypassNote(formData: FormData) {
+  const raw = formDataString(formData, 'paymentBypassNote').trim();
+  return raw.length < 3 ? null : raw;
 }
 
 function jsonDate(date: Date | null) {
@@ -161,6 +179,32 @@ function requestNeedsFitnessVerification(request: {
   );
 }
 
+function requestNeedsPaymentBypass(cardType: SailingCardType) {
+  return (
+    cardType === SailingCardType.racing ||
+    cardType === SailingCardType.team_racing
+  );
+}
+
+async function hasRecordedMembershipPayment(props: {
+  readonly cardType: SailingCardType;
+  readonly cardYear: number;
+  readonly db: AdminSailingCardIssueDb;
+  readonly userId: string;
+}) {
+  const payment = await props.db.payment.findFirst({
+    where: {
+      cardType: props.cardType,
+      cardYear: props.cardYear,
+      purpose: PaymentPurpose.membership,
+      status: { in: [PaymentStatus.handled, PaymentStatus.paid] },
+      userId: props.userId,
+    },
+    select: { id: true },
+  });
+  return payment !== null;
+}
+
 function isSailingCardUniqueError(error: unknown) {
   if (
     !(error instanceof Prisma.PrismaClientKnownRequestError) ||
@@ -171,13 +215,17 @@ function isSailingCardUniqueError(error: unknown) {
   const target = error.meta?.target;
   if (Array.isArray(target)) {
     return (
-      target.includes('sailingCardYear') && target.includes('sailingCardNumber')
+      (target.includes('sailingCardYear') &&
+        target.includes('sailingCardNumber')) ||
+      (target.includes('cardYear') && target.includes('issuedCardNumber'))
     );
   }
   return (
     typeof target === 'string' &&
     (target.includes('sailingCardYear_sailingCardNumber') ||
-      target.includes('sailing_card_year_sailing_card_number'))
+      target.includes('sailing_card_year_sailing_card_number') ||
+      target.includes('cardYear_issuedCardNumber') ||
+      target.includes('card_year_issued_card_number'))
   );
 }
 
@@ -213,10 +261,10 @@ async function createSailingCardAudit(props: {
 }
 
 function revalidateSailingCardAdminPaths(locale: string, userId: string) {
-  revalidatePath(getI18nPath('/admin/cards', locale));
   revalidatePath(
     getI18nPath(`/admin/users/${encodeURIComponent(userId)}`, locale)
   );
+  revalidatePath(getI18nPath('/admin/users', locale));
   revalidatePath(getI18nPath('/onboarding', locale));
   revalidatePath(getI18nPath('/profile/account', locale));
 }
@@ -239,6 +287,12 @@ function hasMatchingOnboardingAgreement(props: {
 }
 
 function issueSailingCardErrorState(error: unknown) {
+  if (error instanceof Error && error.message === 'card_number_duplicate') {
+    return {
+      fieldErrors: { cardNumber: 'duplicate' },
+      status: 'error',
+    } satisfies AdminSailingCardActionState;
+  }
   if (isSailingCardUniqueError(error)) {
     return {
       fieldErrors: { cardNumber: 'duplicate' },
@@ -252,7 +306,8 @@ function issueSailingCardErrorState(error: unknown) {
     error.message === 'not_found' ||
     error.message === 'missing_onboarding_agreement' ||
     error.message === 'mit_recreation_required' ||
-    error.message === 'not_pending_request'
+    error.message === 'not_pending_request' ||
+    error.message === 'payment_required'
   ) {
     return {
       fieldErrors: {},
@@ -261,6 +316,154 @@ function issueSailingCardErrorState(error: unknown) {
     } satisfies AdminSailingCardActionState;
   }
   return null;
+}
+
+async function assertCardNumberAvailable(props: {
+  readonly cardNumber: number;
+  readonly cardYear: number;
+  readonly db: AdminSailingCardIssueDb;
+  readonly requestId?: string;
+  readonly targetUserId: string;
+}) {
+  const [issuedUserCount, issuedRequestCount] = await Promise.all([
+    props.db.user.count({
+      where: {
+        id: { not: props.targetUserId },
+        sailingCardNumber: props.cardNumber,
+        sailingCardYear: props.cardYear,
+      },
+    }),
+    props.db.sailingCardRequest.count({
+      where: {
+        cardYear: props.cardYear,
+        ...(props.requestId ? { id: { not: props.requestId } } : {}),
+        issuedCardNumber: props.cardNumber,
+        userId: { not: props.targetUserId },
+      },
+    }),
+  ]);
+  if (issuedUserCount > 0 || issuedRequestCount > 0) {
+    throw new Error('card_number_duplicate');
+  }
+}
+
+function updateSailingCardNumberErrorState(
+  error: unknown
+): AdminSailingCardActionState | null {
+  if (!(error instanceof Error)) {
+    return null;
+  }
+  if (error.message === 'same_card_number') {
+    return {
+      fieldErrors: {},
+      formError: 'same_card_number',
+      status: 'error',
+    };
+  }
+  if (error.message === 'card_number_duplicate') {
+    return {
+      fieldErrors: { cardNumber: 'duplicate' },
+      status: 'error',
+    };
+  }
+  if (error.message === 'no_current_card') {
+    return {
+      fieldErrors: {},
+      formError: 'no_current_card',
+      status: 'error',
+    };
+  }
+  if (error.message === 'not_found') {
+    return {
+      fieldErrors: {},
+      formError: 'not_found',
+      status: 'error',
+    };
+  }
+  return null;
+}
+
+export async function updateSailingCardNumberAction(
+  locale: string,
+  targetUserId: string,
+  _previousState: AdminSailingCardActionState,
+  formData: FormData
+): Promise<AdminSailingCardActionState> {
+  const session = await requirePermission(
+    Permission.CARDS_ASSIGN_NUMBER,
+    locale
+  );
+  const cardNumber = parseRequiredCardNumber(formData);
+  if (cardNumber === 'invalid') {
+    return {
+      fieldErrors: { cardNumber: 'invalid' },
+      status: 'error',
+    };
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const before = await tx.user.findUnique({
+        where: { id: targetUserId },
+        select: sailingCardAuditSelect,
+      });
+      if (before === null) {
+        throw new Error('not_found');
+      }
+      if (!hasIssuedSailingCard(before) || before.sailingCardYear === null) {
+        throw new Error('no_current_card');
+      }
+      if (before.sailingCardNumber === cardNumber) {
+        throw new Error('same_card_number');
+      }
+      await assertCardNumberAvailable({
+        cardNumber,
+        cardYear: before.sailingCardYear,
+        db: tx,
+        targetUserId,
+      });
+      const after = {
+        ...before,
+        sailingCardNumber: cardNumber,
+      };
+      await tx.sailingCardRequest.updateMany({
+        where: {
+          cardYear: before.sailingCardYear,
+          status: SailingCardRequestStatus.approved,
+          userId: targetUserId,
+        },
+        data: {
+          issuedCardNumber: cardNumber,
+        },
+      });
+      await tx.user.update({
+        where: { id: targetUserId },
+        data: after,
+      });
+      await createSailingCardAudit({
+        after,
+        before,
+        db: tx,
+        targetUserId,
+        userId: session.user.id,
+      });
+    });
+  } catch (error) {
+    const errorState = updateSailingCardNumberErrorState(error);
+    if (errorState) {
+      return errorState;
+    }
+    if (isSailingCardUniqueError(error)) {
+      return {
+        fieldErrors: { cardNumber: 'duplicate' },
+        status: 'error',
+      };
+    }
+    throw error;
+  }
+
+  revalidateSailingCardAdminPaths(locale, targetUserId);
+  return { fieldErrors: {}, status: 'success' };
 }
 
 export async function issueSailingCardAction(
@@ -274,6 +477,7 @@ export async function issueSailingCardAction(
     locale
   );
   const manualCardNumber = parseManualCardNumber(formData);
+  const paymentBypassNote = parsePaymentBypassNote(formData);
   if (manualCardNumber === 'invalid') {
     return {
       fieldErrors: { cardNumber: 'invalid' },
@@ -315,6 +519,41 @@ export async function issueSailingCardAction(
       if (requestNeedsFitnessVerification(request)) {
         throw new Error('mit_recreation_required');
       }
+      await assertCardNumberAvailable({
+        cardNumber,
+        cardYear,
+        db: tx,
+        requestId: request.id,
+        targetUserId,
+      });
+      const needsPaymentBypass =
+        requestNeedsPaymentBypass(request.cardType) &&
+        !(await hasRecordedMembershipPayment({
+          cardType: request.cardType,
+          cardYear,
+          db: tx,
+          userId: targetUserId,
+        }));
+      if (needsPaymentBypass) {
+        if (paymentBypassNote === null) {
+          throw new Error('payment_required');
+        }
+        await tx.payment.create({
+          data: {
+            amountCents: 0,
+            cardType: request.cardType,
+            cardYear,
+            currency: 'usd',
+            manualHandledAt: now,
+            manualHandledByUserId: session.user.id,
+            manualHandledNote: paymentBypassNote,
+            purpose: PaymentPurpose.membership,
+            source: PaymentSource.admin_override,
+            status: PaymentStatus.handled,
+            userId: targetUserId,
+          },
+        });
+      }
       const after = {
         ...before,
         sailingCardExpiresOn: getSailingCardExpirationDate(cardYear),
@@ -342,6 +581,13 @@ export async function issueSailingCardAction(
           approvedAt: now,
           approvedByUserId: session.user.id,
           issuedCardNumber: cardNumber,
+          ...(needsPaymentBypass
+            ? {
+                paymentBypassAt: now,
+                paymentBypassByUserId: session.user.id,
+                paymentBypassNote,
+              }
+            : {}),
           status: SailingCardRequestStatus.approved,
         },
       });

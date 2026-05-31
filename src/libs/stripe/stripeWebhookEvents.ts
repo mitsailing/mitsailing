@@ -3,9 +3,13 @@ import { randomUUID } from 'node:crypto';
 import type { Stripe } from 'stripe';
 import {
   EventPaymentNotificationKind,
-  EventPaymentStatus,
+  PaymentPurpose,
+  PaymentStatus,
 } from '@/generated/prisma/enums';
-import type { EventPaymentStatus as EventPaymentStatusType } from '@/generated/prisma/enums';
+import type {
+  PaymentPurpose as PaymentPurposeType,
+  PaymentStatus as PaymentStatusType,
+} from '@/generated/prisma/enums';
 import {
   applyEventPaymentPaidTransition,
   eventPaymentStatusCanTransitionTo,
@@ -43,7 +47,8 @@ type StripeWebhookDbPayment = {
   amountCents: number;
   currency: string;
   id: string;
-  status: EventPaymentStatusType;
+  purpose?: PaymentPurposeType;
+  status: PaymentStatusType;
   stripeChargeId?: string | null;
   stripeCheckoutSessionId?: string | null;
   stripeCustomerId?: string | null;
@@ -52,15 +57,16 @@ type StripeWebhookDbPayment = {
 };
 
 type StripeWebhookDb = {
-  eventPayment: {
+  payment: {
     findFirst: (args: {
       where: {
+        purpose: typeof PaymentPurpose.event_payment;
         OR: Record<string, unknown>[];
       };
     }) => Promise<StripeWebhookDbPayment | null>;
     updateMany: (args: {
       data: Record<string, unknown>;
-      where: { id: string; status?: EventPaymentStatusType };
+      where: { id: string; status?: PaymentStatusType };
     }) => Promise<{ count: number }>;
   };
   eventPaymentNotification: {
@@ -273,8 +279,8 @@ async function findPaymentForStripeObject(options: {
   if (or.length === 0) {
     return null;
   }
-  const payment = await options.db.eventPayment.findFirst({
-    where: { OR: or },
+  const payment = await options.db.payment.findFirst({
+    where: { OR: or, purpose: PaymentPurpose.event_payment },
   });
   return payment;
 }
@@ -291,10 +297,10 @@ async function markPaymentPaid(options: {
   receiptUrl?: string | null;
 }): Promise<{ dateKey: string; paymentId: string } | null> {
   if (
-    options.payment.status !== EventPaymentStatus.paid &&
+    options.payment.status !== PaymentStatus.paid &&
     !eventPaymentStatusCanTransitionTo({
       from: options.payment.status,
-      to: EventPaymentStatus.paid,
+      to: PaymentStatus.paid,
     })
   ) {
     return null;
@@ -310,7 +316,7 @@ async function markPaymentPaid(options: {
     stripePaymentIntentId: options.paymentIntentId,
     stripeReceiptUrl: options.receiptUrl,
   });
-  const result = await options.db.eventPayment.updateMany({
+  const result = await options.db.payment.updateMany({
     data: transition.update,
     where: { id: options.payment.id, status: options.payment.status },
   });
@@ -411,9 +417,7 @@ async function markPaymentTerminal(options: {
   chargeId?: string | null;
   db: StripeWebhookDb;
   object: Record<string, unknown>;
-  status:
-    | typeof EventPaymentStatus.disputed
-    | typeof EventPaymentStatus.refunded;
+  status: typeof PaymentStatus.disputed | typeof PaymentStatus.refunded;
 }): Promise<void> {
   const chargeId =
     options.chargeId ??
@@ -429,7 +433,7 @@ async function markPaymentTerminal(options: {
   if (!payment) {
     return;
   }
-  await options.db.eventPayment.updateMany({
+  await options.db.payment.updateMany({
     data: {
       status: options.status,
       ...(chargeId ? { stripeChargeId: chargeId } : {}),
@@ -469,7 +473,7 @@ async function duplicateReceiptJobForPaidEvent(options: {
   });
   if (
     !payment ||
-    payment.status !== EventPaymentStatus.paid ||
+    payment.status !== PaymentStatus.paid ||
     !stripeObjectMatchesPaymentAmount(object, payment)
   ) {
     return null;
@@ -518,7 +522,7 @@ async function applyStripeEventToPayment(options: {
     await markPaymentTerminal({
       db: options.db,
       object,
-      status: EventPaymentStatus.refunded,
+      status: PaymentStatus.refunded,
     });
     return null;
   }
@@ -530,7 +534,7 @@ async function applyStripeEventToPayment(options: {
       chargeId: stringValue(object.charge),
       db: options.db,
       object,
-      status: EventPaymentStatus.disputed,
+      status: PaymentStatus.disputed,
     });
     return null;
   }

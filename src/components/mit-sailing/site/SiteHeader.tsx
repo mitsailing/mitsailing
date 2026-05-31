@@ -171,6 +171,16 @@ function configuredMobileUtilityItems(props: {
   return props.mobileUtilityItems ?? defaultMobileUtilityItems(props.t);
 }
 
+function profileLinkTargetProps(pathname: string) {
+  if (!pathname.startsWith('/onboarding')) {
+    return {};
+  }
+  return {
+    rel: 'noopener noreferrer',
+    target: '_blank',
+  } as const;
+}
+
 function PrimaryNavBranch(props: {
   flatLinkClass: string;
   item: SiteHeaderMenuItem;
@@ -298,6 +308,7 @@ export function SiteHeader(props: SiteHeaderProps) {
   );
   const loginHref = authHrefWithCallback('/login', authCallbackUrl);
   const signupHref = authHrefWithCallback('/signup', authCallbackUrl);
+  const profileLinkProps = profileLinkTargetProps(pathname);
 
   function closeMobile() {
     setMobileMenuOpen(false);
@@ -468,6 +479,7 @@ export function SiteHeader(props: SiteHeaderProps) {
                 className={`${mobileGuestLoginClass} w-full`}
                 href="/profile"
                 onClick={closeMobile}
+                {...profileLinkProps}
               >
                 {tAccount('user_profile_link')}
               </Link>
@@ -597,7 +609,11 @@ export function SiteHeader(props: SiteHeaderProps) {
                   {tAccount('admin_link')}
                 </Link>
               ) : null}
-              <Link className={desktopGuestLoginClass} href="/profile">
+              <Link
+                className={desktopGuestLoginClass}
+                href="/profile"
+                {...profileLinkProps}
+              >
                 {tAccount('user_profile_link')}
               </Link>
               <SignOutForm

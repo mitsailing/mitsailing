@@ -171,7 +171,7 @@ async function deleteFixtures(pool: Pool) {
     'DELETE FROM "event_payment_notifications" WHERE "payment_id" = ANY($1)',
     [[ids.payment, ids.otherPayment]]
   );
-  await pool.query('DELETE FROM "event_payments" WHERE "id" = ANY($1)', [
+  await pool.query('DELETE FROM "payments" WHERE "id" = ANY($1)', [
     [ids.payment, ids.otherPayment],
   ]);
   await pool.query('DELETE FROM "event_registrations" WHERE "id" = ANY($1)', [
@@ -298,7 +298,7 @@ async function insertFixtures(pool: Pool) {
   );
   await pool.query(
     `
-      INSERT INTO "event_payments" (
+      INSERT INTO "payments" (
         "id", "event_id", "registration_id", "user_id", "selected_fee_id",
         "selected_fee_description", "amount_cents", "currency", "status",
         "updated_at"
@@ -688,7 +688,7 @@ describe.skipIf(!shouldRunPolicyDatabaseTest)('event policies', () => {
     const payments = await authDb({
       appRole: 'user',
       id: ids.owner,
-    }).eventPayment.findMany({
+    }).payment.findMany({
       orderBy: { id: 'asc' },
       select: { id: true },
     });
@@ -696,7 +696,7 @@ describe.skipIf(!shouldRunPolicyDatabaseTest)('event policies', () => {
     expect(payments).toEqual([{ id: ids.payment }]);
 
     await expect(
-      authDb({ appRole: 'user', id: ids.owner }).eventPayment.update({
+      authDb({ appRole: 'user', id: ids.owner }).payment.update({
         data: { status: 'handled' },
         where: { id: ids.payment },
       })
@@ -708,16 +708,16 @@ describe.skipIf(!shouldRunPolicyDatabaseTest)('event policies', () => {
       authDb({
         appRole: 'volunteer_instructor',
         id: ids.assignedAdmin,
-      }).eventPayment.update({
+      }).payment.update({
         data: { status: 'past_due' },
         where: { id: ids.payment },
       })
     ).resolves.toMatchObject({ id: ids.payment, status: 'past_due' });
 
-    await pool.query(
-      'UPDATE "event_payments" SET "status" = $2 WHERE "id" = $1',
-      [ids.payment, 'pending']
-    );
+    await pool.query('UPDATE "payments" SET "status" = $2 WHERE "id" = $1', [
+      ids.payment,
+      'pending',
+    ]);
   });
 
   it('denies payment access outside the managed event scope', async () => {
@@ -725,7 +725,7 @@ describe.skipIf(!shouldRunPolicyDatabaseTest)('event policies', () => {
       authDb({
         appRole: 'volunteer_instructor',
         id: ids.unassignedAdmin,
-      }).eventPayment.findMany({
+      }).payment.findMany({
         where: { id: { in: [ids.payment, ids.otherPayment] } },
       })
     ).resolves.toEqual([]);
@@ -734,7 +734,7 @@ describe.skipIf(!shouldRunPolicyDatabaseTest)('event policies', () => {
       authDb({
         appRole: 'volunteer_instructor',
         id: ids.unassignedAdmin,
-      }).eventPayment.update({
+      }).payment.update({
         data: { status: 'past_due' },
         where: { id: ids.payment },
       })

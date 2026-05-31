@@ -7,8 +7,16 @@ import type {
   SailingCardOnboardingFormState,
   SailingCardOnboardingFormValues,
 } from '@/libs/mit-sailing/sailingCardOnboardingActions';
+import { SailingCardOnboardingDraftProvider } from './SailingCardOnboardingDraftProvider';
 import { SailingCardOnboardingForm } from './SailingCardOnboardingForm';
 import type { SailingCardOnboardingLockedIdentity } from './SailingCardOnboardingFormTypes';
+
+type RenderFormProps = {
+  readonly callbackUrl?: string;
+  readonly draftKey?: string;
+  readonly initialValues?: SailingCardOnboardingFormValues;
+  readonly lockedIdentity?: SailingCardOnboardingLockedIdentity;
+};
 
 export const emptyValues = {
   affiliation: '',
@@ -71,6 +79,8 @@ vi.mock('@/libs/mit-sailing/sailingCardOnboardingActions', () => ({
 
 export function resetOnboardingFormTestState() {
   vi.clearAllMocks();
+  globalThis.sessionStorage.clear();
+  globalThis.history.replaceState(null, '', '/');
   actionStateMock.state = {
     fieldErrors: {},
     status: 'idle',
@@ -84,20 +94,52 @@ export function setOnboardingFormActionState(
   actionStateMock.state = state;
 }
 
-export function renderForm(
-  props: {
-    readonly callbackUrl?: string;
-    readonly initialValues?: SailingCardOnboardingFormValues;
-    readonly lockedIdentity?: SailingCardOnboardingLockedIdentity;
-  } = {}
-) {
-  render(
-    <SailingCardOnboardingForm
-      callbackUrl={props.callbackUrl}
-      initialValues={props.initialValues}
-      lockedIdentity={props.lockedIdentity}
-    />
+export function renderForm(props: RenderFormProps = {}) {
+  return render(
+    <SailingCardOnboardingDraftProvider>
+      <SailingCardOnboardingForm
+        callbackUrl={props.callbackUrl}
+        draftKey={props.draftKey}
+        initialValues={props.initialValues}
+        lockedIdentity={props.lockedIdentity}
+      />
+    </SailingCardOnboardingDraftProvider>
   );
+}
+
+function PersistentDraftFormHarness(
+  props: RenderFormProps & {
+    readonly visible: boolean;
+  }
+) {
+  return (
+    <SailingCardOnboardingDraftProvider>
+      {props.visible ? (
+        <SailingCardOnboardingForm
+          callbackUrl={props.callbackUrl}
+          draftKey={props.draftKey}
+          initialValues={props.initialValues}
+          lockedIdentity={props.lockedIdentity}
+        />
+      ) : null}
+    </SailingCardOnboardingDraftProvider>
+  );
+}
+
+export function renderFormWithPersistentDraftProvider(
+  props: RenderFormProps = {}
+) {
+  const result = render(<PersistentDraftFormHarness {...props} visible />);
+
+  return {
+    ...result,
+    remount: () => {
+      result.rerender(
+        <PersistentDraftFormHarness {...props} visible={false} />
+      );
+      result.rerender(<PersistentDraftFormHarness {...props} visible />);
+    },
+  };
 }
 
 export const selectAffiliation = async (affiliation: SailingAffiliation) => {
@@ -125,7 +167,7 @@ export const showWellesleyDetails = async () => {
 
 export const expectDetailsHidden = () => {
   expect(
-    screen.queryByRole('heading', { name: 'Contact details' })
+    screen.queryByRole('heading', { name: 'Contact and safety' })
   ).not.toBeInTheDocument();
   expect(
     screen.queryByRole('group', { name: 'Type of sailing card requested' })

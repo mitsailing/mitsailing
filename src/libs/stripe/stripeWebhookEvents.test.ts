@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { EventPaymentStatus } from '@/generated/prisma/enums';
+import { PaymentStatus } from '@/generated/prisma/enums';
 import {
   constructStripeWebhookEvent,
   processStripeWebhookEvent,
@@ -52,12 +52,12 @@ describe('processStripeWebhookEvent', () => {
     const updatePayment = vi.fn();
     const updateWebhookEvent = vi.fn();
     const db = {
-      eventPayment: {
+      payment: {
         findFirst: vi.fn().mockResolvedValue({
           amountCents: 4200,
           currency: 'usd',
           id: 'payment_123',
-          status: EventPaymentStatus.refunded,
+          status: PaymentStatus.refunded,
         }),
         updateMany: updatePayment,
       },
@@ -101,12 +101,12 @@ describe('processStripeWebhookEvent', () => {
     const updateManyWebhookEvent = vi.fn().mockResolvedValue({ count: 1 });
     const updatePayment = vi.fn().mockResolvedValue({ count: 1 });
     const db = {
-      eventPayment: {
+      payment: {
         findFirst: vi.fn().mockResolvedValue({
           amountCents: 4200,
           currency: 'usd',
           id: 'payment_123',
-          status: EventPaymentStatus.pending,
+          status: PaymentStatus.pending,
         }),
         updateMany: updatePayment,
       },
@@ -169,7 +169,7 @@ describe('processStripeWebhookEvent', () => {
 
   it('fails unprocessed duplicate events when claim is unavailable', async () => {
     const db = {
-      eventPayment: {
+      payment: {
         findFirst: vi.fn(),
         updateMany: vi.fn(),
       },
@@ -209,6 +209,6 @@ describe('processStripeWebhookEvent', () => {
     });
 
     expect(result).toEqual({ ok: false });
-    expect(db.eventPayment.findFirst).not.toHaveBeenCalled();
+    expect(db.payment.findFirst).not.toHaveBeenCalled();
   });
 });

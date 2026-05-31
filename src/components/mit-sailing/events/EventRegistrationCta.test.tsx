@@ -3,7 +3,7 @@ import { createTranslator } from 'next-intl';
 import { describe, expect, it, vi } from 'vitest';
 import { EventRegistrationCta } from '@/components/mit-sailing/events/EventRegistrationCta';
 import {
-  EventPaymentStatus,
+  PaymentStatus,
   EventRegistrationStatus,
 } from '@/generated/prisma/enums';
 import type { PublicEventDetail } from '@/libs/mit-sailing/eventQueries';
@@ -138,7 +138,7 @@ describe('EventRegistrationCta', () => {
           payment: {
             amountCents: 4500,
             receiptUrl: null,
-            status: EventPaymentStatus.past_due,
+            status: PaymentStatus.past_due,
           },
           status: EventRegistrationStatus.approved,
         }}
@@ -163,7 +163,7 @@ describe('EventRegistrationCta', () => {
           payment: {
             amountCents: 4500,
             receiptUrl: 'https://pay.stripe.com/receipts/test',
-            status: EventPaymentStatus.paid,
+            status: PaymentStatus.paid,
           },
           status: EventRegistrationStatus.approved,
         }}
