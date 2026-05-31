@@ -60,6 +60,16 @@ const formErrorMessageKeys = {
   same_card_number: 'error_same_card_number',
 } as const satisfies Record<AdminSailingCardFormError, string>;
 
+type AdminSailingCardIssueFormModel = {
+  readonly cardNumberError: AdminSailingCardActionState['fieldErrors']['cardNumber'];
+  readonly cardNumberErrorId: string | undefined;
+  readonly cardNumberInputId: string;
+  readonly formAction: (payload: FormData) => void;
+  readonly formError: AdminSailingCardActionState['formError'];
+  readonly needsPaymentBypassNote: boolean;
+  readonly paymentBypassNoteId: string;
+};
+
 function issueFormNeedsPaymentBypassNote(props: {
   readonly cardType: SailingCardType | undefined;
   readonly paymentAccess: AdminSailingCardPaymentAccess | undefined;
@@ -87,30 +97,6 @@ function AdminSailingCardNumberError(props: {
         ? t('error_card_number_duplicate')
         : t('error_card_number_invalid')}
     </p>
-  );
-}
-
-function AdminSailingCardPaymentBypassNote(props: {
-  readonly id: string;
-  readonly visible: boolean;
-}) {
-  const t = useTranslations('AdminCards');
-
-  if (!props.visible) {
-    return null;
-  }
-
-  return (
-    <div className="flex flex-col gap-1">
-      <Label htmlFor={props.id}>{t('payment_bypass_note_label')}</Label>
-      <Textarea
-        id={props.id}
-        name="paymentBypassNote"
-        placeholder={t('payment_bypass_note_placeholder')}
-        required
-        rows={3}
-      />
-    </div>
   );
 }
 
@@ -169,10 +155,9 @@ function AdminSailingCardNumberField(props: {
   );
 }
 
-export function AdminSailingCardIssueForm(
+function useAdminSailingCardIssueFormModel(
   props: AdminSailingCardIssueFormProps
-) {
-  const t = useTranslations('AdminCards');
+): AdminSailingCardIssueFormModel {
   const action =
     props.action ??
     issueSailingCardAction.bind(null, props.locale, props.userId);
@@ -181,19 +166,32 @@ export function AdminSailingCardIssueForm(
     initialAdminSailingCardActionState
   );
   const cardNumberError = state.fieldErrors.cardNumber;
-  const cardNumberErrorId = cardNumberError
-    ? `${props.userId}-card-number-error`
-    : undefined;
-  const cardNumberInputId = `${props.userId}-cardNumber`;
-  const paymentBypassNoteId = `${props.userId}-paymentBypassNote`;
-  const needsPaymentBypassNote = issueFormNeedsPaymentBypassNote({
-    cardType: props.cardType,
-    paymentAccess: props.paymentAccess,
-  });
+
+  return {
+    cardNumberError,
+    cardNumberErrorId: cardNumberError
+      ? `${props.userId}-card-number-error`
+      : undefined,
+    cardNumberInputId: `${props.userId}-cardNumber`,
+    formAction,
+    formError: state.formError,
+    needsPaymentBypassNote: issueFormNeedsPaymentBypassNote({
+      cardType: props.cardType,
+      paymentAccess: props.paymentAccess,
+    }),
+    paymentBypassNoteId: `${props.userId}-paymentBypassNote`,
+  };
+}
+
+export function AdminSailingCardIssueForm(
+  props: AdminSailingCardIssueFormProps
+) {
+  const t = useTranslations('AdminCards');
+  const model = useAdminSailingCardIssueFormModel(props);
 
   return (
     <form
-      action={formAction}
+      action={model.formAction}
       aria-label={t('issue_form_label')}
       className="flex flex-col gap-2 sm:max-w-52"
     >
@@ -205,20 +203,21 @@ export function AdminSailingCardIssueForm(
           number: props.suggestedCardNumber,
         })}
         defaultValue={props.suggestedCardNumber}
-        error={cardNumberError}
-        errorId={cardNumberErrorId}
-        inputId={cardNumberInputId}
+        error={model.cardNumberError}
+        errorId={model.cardNumberErrorId}
+        inputId={model.cardNumberInputId}
         suggestedCardNumber={props.suggestedCardNumber}
       />
       <AdminSailingCardNumberError
-        error={cardNumberError}
-        id={cardNumberErrorId}
+        error={model.cardNumberError}
+        id={model.cardNumberErrorId}
       />
+      {/* eslint-disable-next-line no-use-before-define -- Lizard mis-parses this TSX helper when it sits above the form. */}
       <AdminSailingCardPaymentBypassNote
-        id={paymentBypassNoteId}
-        visible={needsPaymentBypassNote}
+        id={model.paymentBypassNoteId}
+        visible={model.needsPaymentBypassNote}
       />
-      <AdminSailingCardFormErrorMessage formError={state.formError} />
+      <AdminSailingCardFormErrorMessage formError={model.formError} />
     </form>
   );
 }
@@ -355,17 +354,26 @@ function issuedHistoryRowLabel(props: {
   return null;
 }
 
+const historyRowLabelGetters = {
+  changed: changedHistoryRowLabel,
+  expired: expiredHistoryRowLabel,
+  issued: issuedHistoryRowLabel,
+} as const satisfies Record<
+  AdminSailingCardHistoryRow['action'],
+  (props: {
+    readonly row: AdminSailingCardHistoryRow;
+    readonly t: ReturnType<typeof useTranslations<'AdminCards'>>;
+  }) => string | null
+>;
+
 function historyRowLabel(props: {
   readonly row: AdminSailingCardHistoryRow;
   readonly t: ReturnType<typeof useTranslations<'AdminCards'>>;
 }) {
-  if (props.row.action === 'changed') {
-    return changedHistoryRowLabel(props) ?? props.t('history_row_unknown');
-  }
-  if (props.row.action === 'expired') {
-    return expiredHistoryRowLabel(props) ?? props.t('history_row_unknown');
-  }
-  return issuedHistoryRowLabel(props) ?? props.t('history_row_unknown');
+  return (
+    historyRowLabelGetters[props.row.action](props) ??
+    props.t('history_row_unknown')
+  );
 }
 
 export function AdminSailingCardHistory(props: {
@@ -402,5 +410,29 @@ export function AdminSailingCardHistory(props: {
         </ul>
       )}
     </section>
+  );
+}
+
+function AdminSailingCardPaymentBypassNote(props: {
+  readonly id: string;
+  readonly visible: boolean;
+}) {
+  const t = useTranslations('AdminCards');
+
+  if (!props.visible) {
+    return null;
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      <Label htmlFor={props.id}>{t('payment_bypass_note_label')}</Label>
+      <Textarea
+        id={props.id}
+        name="paymentBypassNote"
+        placeholder={t('payment_bypass_note_placeholder')}
+        required
+        rows={3}
+      />
+    </div>
   );
 }
