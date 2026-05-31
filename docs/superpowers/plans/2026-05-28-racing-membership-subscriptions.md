@@ -12,10 +12,115 @@
 
 ## Execution Reconciliation Notes
 
-- 2026-05-29 local execution status: this plan was restored onto `feature/sailing-card-payments-onboarding-plan` after PR #143 landed on `main`. Treat it as the candidate implementation plan, but do not start code until the PR #143 persona/runbook gates, `/grill me` policy pass, and first-slice approval are complete.
-- Current `main` already includes `hasFitnessMembership` in `SailingCardOnboardingInput` as `boolean | null` and passes it through the onboarding Server Action. Steps below that say to add that field should be read as "verify and extend the existing field" rather than reintroducing a string-shaped contract.
+- Start from latest `origin/main`. PR #143's runbook work is already merged and its branch may be deleted; do not depend on that branch. PR #145 (`feat: add sailing card payment onboarding foundation`) is also merged and changed the app implementation. Before coding, reconcile this plan against current `main` and skip work already landed in PR #145.
+- Current `main` already includes `SailingCardRequest.hasFitnessMembership` as the canonical MIT Recreation self-report and `SailingCardOnboardingInput.hasFitnessMembership` as `boolean | null`. Steps below that previously named `mitRecreationMembershipSelfReported` should use the existing `hasFitnessMembership` field instead of adding a duplicate column.
+- Current `main` already includes one `Payment` model for event and membership payments with `purpose`, `source`, Stripe IDs, legacy fields, and admin-override fields. Steps below that mention separate membership payment/refund tables must be reconciled through the structural simplicity gate before implementation; do not copy older schema snippets unchanged.
+- Current `main` already includes paid-card-without-payment bypass evidence on `SailingCardRequest` plus an `admin_override` membership `Payment`. Preserve that narrow override shape; do not create a generic notes, waiver, or payment-exception framework.
+- Current admin card issuance is person-centered through `/admin/users` and `/admin/users/[id]`. Do not recreate a standalone `/admin/cards` route or card queue page.
 - Linear/GitHub mirrors already exist for this feature. Do not create a fresh batch of child issues from the issue plan unless the user approves new or missing tracker items after duplicate checks.
 - PR file budget is a hard constraint: 100 changed files max. Every slice should split at 70 changed files and should not be submitted above 80 unless the user explicitly approves the file-list rationale.
+
+## Autonomous Execution And Parallel Work
+
+The execution goal is to finish the remaining plan without routine user involvement. A conductor agent should keep moving through the remaining PRs, create focused branches/worktrees, dispatch bounded sub-agents, run local review gates, push draft PRs, fix review/CI findings, and continue to the next unblocked slice. Ask the user only for a true product decision, missing secret/external access, protected production action, merge/squash action that policy blocks, or an impossible conflict between requirements.
+
+Use one conductor ledger for the overall feature and one run ledger per PR branch. Read only compact prior artifacts from `local/agent-runs/**`: `conductor.md`, `personas.md`, decision tables, summaries, and verification results. Do not load huge transcripts, raw logs, full agent outputs, or copied command dumps unless a specific blocker requires them.
+
+Parallelize discovery and review freely; parallelize implementation only when branches do not depend on each other and do not touch the same files. Use separate git worktrees or separate Codex threads per implementation branch. The conductor owns merge order and rebases any stacked/follow-on branch after its base PR lands.
+
+Safe parallel work:
+
+- Read-only reconciliation against current `main`, persona checks, `impeccable`, Context7 Stripe/Next.js audits, and structural simplicity reviews for any upcoming PR.
+- PR 3 webhook dispatcher hardening can be prepared in parallel with PR 2A/2B because it should not depend on pricing schema.
+- Test-plan drafting and risk review for PR 4A/4B/5/6 can run while earlier implementation PRs are in review, but code should wait for the schema/API it depends on.
+
+Sequential or stacked work:
+
+- PR 2B depends on PR 2A pricing schema/helpers.
+- PR 4A depends on the reconciled pricing/Stripe Price foundation from PR 2A/2B.
+- PR 4B depends on PR 3 and PR 4A.
+- PR 5 depends on the local payment/subscription states created by PR 4A/4B.
+- PR 6 depends on subscription, cancellation, and renewal price state from PR 4A/4B and pricing from PR 2A/2B.
+
+Within each PR, use sub-agents for independent work units: implementation, spec compliance review, code-quality/bug review, `impeccable` product/admin workflow review, structural simplicity review, and focused CI/review-comment fixes. Do not let two implementation agents edit the same files concurrently.
+
+### Autonomous Conductor Starter Prompt
+
+Use this prompt for the fresh conductor agent that will finish the plan:
+
+```text
+You are the autonomous conductor for the MIT Sailing racing membership subscription implementation in /Users/andrewkelley/GitHub/mitsailing.
+
+Goal: finish the remaining racing membership subscription plan with minimal user involvement. Keep moving PR-by-PR until the plan is complete or you hit a real blocker.
+
+Start state:
+- Start from latest origin/main.
+- The docs/runbook work from PR #143 is already merged; its branch may be deleted and must not be used as a dependency.
+- PR #145 (`feat: add sailing card payment onboarding foundation`) and PR #147 (`fix: reduce sailing card control complexity`) are already merged and changed current main.
+- If this prompt was copied before the docs branch containing this section was merged, first bring the latest docs/runbook changes into your implementation branch or stop and report that the required plan/runbook update is missing.
+
+First actions:
+1. `git fetch origin main`
+2. Create a new branch or worktree from latest `origin/main` for the first still-incomplete slice.
+3. Read `AGENTS.md`.
+4. Read this plan: `docs/superpowers/plans/2026-05-28-racing-membership-subscriptions.md`.
+5. Read `docs/ai/pr-agent-orchestration.md`, `docs/ai/persona-matrix-template.md`, and `docs/ai/pr-run-ledger-template.md`.
+6. Read only compact prior artifacts from `local/agent-runs/**` if useful: `conductor.md`, `personas.md`, decision tables, summaries, and verification results. Do not load huge transcripts, raw logs, full agent outputs, or command dumps unless a specific blocker requires them.
+7. Reconcile this plan against current `main`. Mark already-completed PR #145/#147 work in the ledger and choose the first still-incomplete smallest slice.
+
+Operating model:
+- Use `superpowers:subagent-driven-development` for the active implementation PR.
+- Use `superpowers:dispatching-parallel-agents` for independent discovery/review tasks.
+- Use `impeccable` for product/admin/onboarding/copy flows.
+- Use `grill-me` style checks before committing to a slice: ask whether the persona is a real user/admin and whether the website path is simple.
+- Use Context7 for current library/platform docs when touching Stripe, Next.js, Prisma/ZenStack, GitHub CLI, or other evolving tools.
+
+Persona requirement:
+For each feature slice, create the persona once, then check it twice before relying on it:
+1. Would this real person naturally start here on the website with this goal?
+2. Is the website path obvious and minimal: find the thing, understand state, take action, recover from blockers?
+3. Did the persona lead to complexity that does not make the user/admin path simpler?
+
+Autonomous relay:
+1. Implement one PR to local merge-readiness.
+2. Run required local review gates: persona, impeccable when applicable, structural simplicity, independent bug review, focused tests, lint/types/i18n as required.
+3. Commit, push, and create a draft PR with `gh pr create --draft`.
+4. Watch/check CI with `gh pr checks`.
+5. Fix local review, CI, and actionable PR findings.
+6. If policy and permissions allow, enable auto-merge or merge after checks. If merge is blocked by policy, record the blocker and continue the next unblocked branch/worktree.
+7. Start the next unblocked PR without waiting for routine user approval.
+
+Parallelization:
+- Parallelize read-only reconciliation, persona checks, Context7 audits, impeccable review, structural simplicity review, and independent bug review.
+- Parallelize implementation only in separate worktrees/branches when the slices do not depend on each other and do not edit the same files.
+- PR 3 can be prepared in parallel with PR 2A/2B.
+- PR 4A waits for PR 2A/2B. PR 4B waits for PR 3 and PR 4A. PR 5 waits for PR 4A/4B. PR 6 waits for PR 2A/2B and PR 4A/4B.
+
+Ask the user only for:
+- true product judgment,
+- missing credentials or external access,
+- protected production actions,
+- merge/squash actions blocked by repository policy,
+- or a real conflict between requirements that cannot be resolved from repo context.
+
+Hard constraints:
+- Do not redo PR #145/#147 work.
+- Do not add `mitRecreationMembershipSelfReported`; use existing `SailingCardRequest.hasFitnessMembership`.
+- Do not recreate `/admin/cards` or a standalone card queue.
+- Keep admin card work person-centered through `/admin/users` and `/admin/users/[id]`.
+- Do not create parallel membership payment/refund tables unless current tests and Context7 Stripe docs prove the existing `Payment` model cannot represent the lifecycle.
+- Avoid AI slop: no extra tables, pages, components, services, permissions, states, or workflows unless they directly simplify a real user/admin path or prove a lifecycle/permission/audit/retention/cardinality/transaction/operational/platform boundary.
+
+Final report for each PR:
+- branch and PR URL,
+- slice completed,
+- files changed,
+- persona checks,
+- structural simplicity decision,
+- verification commands/results,
+- remote checks/review state,
+- next unblocked slice started or blocker requiring user input.
+```
 
 ## Sources And Current Code Facts
 
@@ -45,7 +150,7 @@
 - **Sailing team verification:** add an admin-managed `User.sailingTeamMembershipVerifiedAt` timestamp plus a small admin control to set and clear it. Team membership grants free normal membership and suppresses paid racing/team-racing purchase paths.
 - **Paid racing eligibility:** paid `racing` and `team_racing` are only available to users who do not already qualify for free normal membership and who choose that paid card type intentionally.
 - **Paid racing issuance:** staff can issue paid `racing` or `team_racing` Sailing Cards only after the local membership payment/subscription state is paid or active. V1 must include an explicit admin override path to issue a paid card without payment when staff intentionally waive or bypass payment; the override requires an internal note and is surfaced on the admin user record.
-- **Simplest override shape:** do not build a generic notes system or payment-waiver framework for V1. Store the paid-card-without-payment override on the current `SailingCardRequest` approval/issuance path with a required note, approver, and timestamp, then show that state on `/admin/cards` and `/admin/users/[id]`.
+- **Simplest override shape:** do not build a generic notes system or payment-waiver framework for V1. Store the paid-card-without-payment override on the current `SailingCardRequest` approval/issuance path with a required note, approver, and timestamp, then show that state on `/admin/users/[id]` and any embedded pending-request/card controls.
 - **Override permission:** use the existing card-number assignment permission for the V1 paid-card-without-payment override. Do not add a separate permission in V1; the required note and audit fields distinguish the override.
 - **Admin user blockers:** the admin user page needs one visible current-blockers alert area for card-issuance blockers, including payment issues, MIT Recreation verification, intro-class prerequisites, and other current blockers. The top blocker area is status/navigation only, with links or focus targets to the owning section; remediation controls stay in the Sailing Card/payment sections. Refunded, disputed, failed, or past-due current-season paid racing payments block paid racing/team-racing access and pavilion card issuance until the payment is paid/active again or staff records an explicit handled/override note. A V1 paid-card-without-payment override clears the payment blocker for that card issuance while preserving the fact that payment was bypassed.
 - **Payment issue notes:** handled/override notes for payment issues belong on the specific membership payment issue record, not as generic user notes. The admin user page surfaces the current/latest relevant issue summary from those records.
@@ -55,7 +160,7 @@
 - **Legacy-to-Stripe transition:** a legacy payment covers the imported/current season only and must not create a Stripe subscription or charge the member again for that covered season. Legacy-paid members should see a non-blocking dashboard/status prompt to add payment information and set up Stripe auto-renew for the next July 15 renewal. This prompt is optional and must not block current-season card issuance when the legacy payment is a confident match.
 - **Pavilion card issuance:** Sailing Card numbers are assigned manually by staff at the pavilion after the user shows MIT ID or another legal ID. If the user is taking one of the three intro classes, staff assigns the card at the end of class at the pavilion. If onboarding is complete but the intro-class prerequisite is not complete, the request remains pending with copy telling the user to take the required class and that card issuance happens during/after class at the pavilion.
 - **Manual card numbers:** preserve the existing card-number rule. Auto-suggested/blank issuance starts at 60 so lower numbers are not auto-assigned, but admins with card assignment permission can manually enter any positive card number as long as it is not already assigned for that card year.
-- **Admin pending search:** staff need an admin surface that shows all pending Sailing Card/onboarding requests and makes it easy to find a person by name, email, or MIT ID before issuing cards at the pavilion. Search/filtering should happen with client-side JavaScript over the loaded pending rows so typing does not reload the whole page. This is a bounded admin usability requirement, not a generic search framework.
+- **Admin pending search:** staff start from the person, not a queue. Preserve `/admin/users` and `/admin/users/[id]` as the primary Pavilion-staff path for finding a sailor, reviewing blockers, and issuing cards. Keep one user search across name, email, MIT ID, and card number. Add the simplest pending/card-type filters on `/admin/users` so staff can view pending normal, racing, or team racing requests, then open the user profile to resolve blockers and issue cards. Keep filtering bounded to the users surface; do not add a standalone card queue route or generic search framework.
 - **Cancellation:** users can turn off auto-renew in one in-app flow without a required survey step. The server sets Stripe `cancel_at_period_end=true`; optional feedback can record a reason enum and note after or alongside the primary action.
 - **Subscription consent:** before Stripe Checkout, the profile membership page shows the amount due today, the July 15 renewal amount, annual auto-renew behavior, and where to turn off auto-renew. The submit button says that the user is starting paid racing membership, not just continuing.
 - **Admin pricing:** admins edit app pricing records with effective dates and change reasons. Stripe Prices are immutable, so each usable price row stores the Stripe Price ID created for that amount/interval. Checkout never uses a price row until Stripe sync succeeds.
@@ -68,7 +173,7 @@
 |---|---:|---|---|---|
 | MIT students | $0 | Hidden and server-rejected | MIT affiliation from account/warehouse | Membership dues are covered; staff still controls ratings and team/racing requirements separately. |
 | Verified MIT Recreation members | $0 | Hidden and server-rejected | `User.gymMembershipVerifiedAt` | User-facing copy says MIT Recreation membership, not gym membership. |
-| Self-reported MIT Recreation members | $0 pending review | Hidden and server-rejected during onboarding | Staff verifies before issuing card | Request records `mitRecreationMembershipSelfReported=true`. |
+| Self-reported MIT Recreation members | $0 pending review | Hidden and server-rejected during onboarding | Staff verifies before issuing card | Request records `SailingCardRequest.hasFitnessMembership=true` as the MIT Recreation self-report. |
 | Verified sailing-team members | $0 | Hidden and server-rejected | `User.sailingTeamMembershipVerifiedAt` | Membership dues are covered; this does not grant ratings by itself. |
 | Wellesley, Brandeis, Northeastern, Winsor, Brooks, NROTC, other students, MIT faculty/staff/alum/family/affiliate, other non-students, and non-MIT | Normal membership follows existing policy; paid racing/team-racing uses nonstudent age-band pricing | Visible when no free-normal rule applies | None for paid purchase | Tests cover every non-MIT-student affiliation, both paid card types, both age bands, before and after July 15. |
 
@@ -99,6 +204,8 @@ Seed these amounts from the legacy racing-card rules. Admins can replace them la
 - Current `AGENTS.md` does not allow schema-generation npm scripts. Before any schema PR starts, the owner must either approve adding a correct ZenStack generation script to `AGENTS.md` or run `npx zenstack generate` as a maintainer handoff. Implementation agents must not run `npm run db:generate`; that script currently only runs Prisma generation and does not regenerate `prisma/schema.prisma` from `zenstack/schema.zmodel`.
 - Every PR starts with `Task 0: Confirm exact file list and budget`. Run `git diff --name-only origin/main...HEAD | wc -l` before implementation, after schema/generation handoff, after UI wiring, and before review. If the count reaches 70 or more, split before continuing; 80 changed files is the normal stop, and 100 changed files is the hard maximum.
 - Do not build a generic billing framework. No barrels, no class-based service layer, and no package-like abstractions. Each module exports narrow functions used by that PR.
+- Avoid agent slop: do not add tables, admin pages, components, services, permissions, states, or workflows when an existing surface plus a field, filter, or narrow helper fits the current slice. Split only when this PR proves a distinct lifecycle, permission, audit, retention, cardinality, transaction, operational, or external-platform boundary.
+- Current code already uses one `Payment` model with `purpose` and `source` for event, membership, Stripe, legacy, and admin-override records. Preserve that unified access/payment-record direction unless current Stripe docs via Context7 and local tests prove subscription state, invoice/payment state, or portal/cancellation lifecycle needs a separate local model.
 
 ## PR Breakdown
 
@@ -131,7 +238,7 @@ Seed these amounts from the legacy racing-card rules. Admins can replace them la
 - Modify: `src/locales/en.json`
 - Modify: `src/data/mit-sailing/cmsSeed.ts`
 - Modify: `src/libs/mit-sailing/cmsValidation.test.ts`
-- Modify: `src/components/mit-sailing/admin/cards/AdminSailingCardQueue.test.tsx`
+- Modify: `src/components/mit-sailing/admin/cards/AdminSailingCardControls.test.tsx`
 
 #### Task 1.1: Add sailing-team verification to users
 
@@ -149,9 +256,9 @@ it('stores sailing team membership verification on users', () => {
   expect(compactSchema).toContain('@map("sailing_team_membership_verified_at")');
 });
 
-it('stores MIT Recreation self-report on sailing card requests', () => {
-  expect(compactSchema).toContain('mitRecreationMembershipSelfReported Boolean @default(false)');
-  expect(compactSchema).toContain('@map("mit_recreation_membership_self_reported")');
+it('preserves MIT Recreation self-report on sailing card requests', () => {
+  expect(compactSchema).toContain('hasFitnessMembership Boolean?');
+  expect(compactSchema).toContain('@map("has_fitness_membership")');
 });
 ```
 
@@ -169,11 +276,7 @@ In `zenstack/schema.zmodel`, add this field beside `gymMembershipVerifiedAt`:
 sailingTeamMembershipVerifiedAt DateTime? @map("sailing_team_membership_verified_at")
 ```
 
-Add this field to `SailingCardRequest` so staff can see the pending verification state:
-
-```prisma
-mitRecreationMembershipSelfReported Boolean @default(false) @map("mit_recreation_membership_self_reported")
-```
+Do not add a second MIT Recreation self-report column. `SailingCardRequest.hasFitnessMembership Boolean? @map("has_fitness_membership")` already stores the pending verification state from onboarding; admin/user copy should read that field.
 
 Add an index:
 
@@ -233,9 +336,9 @@ describe('sailing card membership eligibility', () => {
 
   it('keeps self-reported recreation members in pending verification', () => {
     expect(
-      membershipAccessForSailingCardUser({
+      membershipAccessForOnboardingRequest({
         ...baseUser,
-        mitRecreationMembershipSelfReported: true,
+        hasFitnessMembership: true,
       })
     ).toEqual({ kind: 'pending_recreation_verification' });
   });
@@ -286,9 +389,12 @@ export type SailingCardMembershipAccess =
 
 type SailingCardMembershipUser = {
   readonly gymMembershipVerifiedAt: Date | null;
-  readonly mitRecreationMembershipSelfReported?: boolean;
   readonly sailingAffiliation: SailingAffiliation | null;
   readonly sailingTeamMembershipVerifiedAt: Date | null;
+};
+
+type SailingCardMembershipOnboardingRequest = SailingCardMembershipUser & {
+  readonly hasFitnessMembership: boolean | null;
 };
 
 export function membershipAccessForSailingCardUser(
@@ -303,10 +409,20 @@ export function membershipAccessForSailingCardUser(
   if (user.sailingTeamMembershipVerifiedAt !== null) {
     return { kind: 'free_normal', reason: 'verified_sailing_team' };
   }
-  if (user.mitRecreationMembershipSelfReported === true) {
+  return { kind: 'paid_racing_available' };
+}
+
+export function membershipAccessForOnboardingRequest(
+  request: SailingCardMembershipOnboardingRequest
+): SailingCardMembershipAccess {
+  const verifiedAccess = membershipAccessForSailingCardUser(request);
+  if (verifiedAccess.kind !== 'paid_racing_available') {
+    return verifiedAccess;
+  }
+  if (request.hasFitnessMembership === true) {
     return { kind: 'pending_recreation_verification' };
   }
-  return { kind: 'paid_racing_available' };
+  return verifiedAccess;
 }
 
 export function canRequestPaidRacingMembership(props: {
@@ -320,7 +436,7 @@ export function canRequestPaidRacingMembership(props: {
 }
 ```
 
-Add `membershipAccessForOnboardingRequest` in the same module. It accepts the verified user facts plus `mitRecreationMembershipSelfReported` and returns a free-normal pending-review access reason when the user reports MIT Recreation membership during onboarding. Server Actions and UI use this helper so self-report and verified eligibility cannot drift.
+Add `membershipAccessForOnboardingRequest` in the same module. It accepts the verified user facts plus the existing `hasFitnessMembership` self-report value and returns a pending-review access reason when the user reports MIT Recreation membership during onboarding. Server Actions and UI use this helper so self-report and verified eligibility cannot drift.
 
 - [ ] **Step 4: Run the test**
 
@@ -492,7 +608,7 @@ In `src/libs/mit-sailing/sailingCardOnboardingActions.ts`, verify `parseSailingC
 hasFitnessMembership: parseFitnessMembership(values.hasFitnessMembership),
 ```
 
-In the Server Action, load the current user's `sailingAffiliation`, `gymMembershipVerifiedAt`, and `sailingTeamMembershipVerifiedAt`, then call `membershipAccessForOnboardingRequest({ verified user facts, mitRecreationMembershipSelfReported: parsed.hasFitnessMembership === true })` and `canRequestPaidRacingMembership`. Do not duplicate the central eligibility logic in the Server Action. Persist the self-reported MIT Recreation answer on `SailingCardRequest` or an adjacent request-review field so staff can see that verification is required before issuing the card. Add an action-level test that a crafted form with `hasFitnessMembership=yes` and `cardType=racing` is rejected even when the UI is bypassed.
+In the Server Action, load the current user's `sailingAffiliation`, `gymMembershipVerifiedAt`, and `sailingTeamMembershipVerifiedAt`, then call `membershipAccessForOnboardingRequest({ verified user facts, hasFitnessMembership: parsed.hasFitnessMembership })` and `canRequestPaidRacingMembership`. Do not duplicate the central eligibility logic in the Server Action. Persist the self-reported MIT Recreation answer on the existing `SailingCardRequest.hasFitnessMembership` field so staff can see that verification is required before issuing the card. Add an action-level test that a crafted form with `hasFitnessMembership=yes` and `cardType=racing` is rejected even when the UI is bypassed.
 
 - [ ] **Step 5: Run focused tests**
 
@@ -589,11 +705,11 @@ Add focused tests for the existing sailing-card request admin or member profile 
 
 - [ ] **Step 2: Add the smallest admin control**
 
-Reuse the existing member/request review surface. Add an inline admin action to set or clear sailing-team verification and display the MIT Recreation self-report state for staff. Preserve the pavilion workflow by keeping pending requests easy to find: staff must be able to view all pending Sailing Card/onboarding requests and search/filter by name, email, or MIT ID before issuing a card number. Implement this as client-side filtering over the loaded pending queue so typing does not reload the admin page. Do not introduce a separate team-management system or generic search framework in this PR.
+Reuse the existing member/request review surface. Add an inline admin action to set or clear sailing-team verification and display the MIT Recreation self-report state for staff. Preserve the pavilion workflow through `/admin/users` and `/admin/users/[id]`: staff must be able to use one user search, apply a pending/card-type filter when useful, open the user profile, and resolve blockers before issuing a card number. Keep pending visibility inside the users surface with bounded filtering over loaded rows. Do not introduce a separate team-management system, standalone card queue route, or generic search framework in this PR.
 
 - [ ] **Step 3: Run focused tests**
 
-Run: `npm run test -- src/components/mit-sailing/admin/cards/AdminSailingCardQueue.test.tsx 'src/app/[locale]/(marketing)/(site)/admin/users/adminUserPages.test.tsx'`
+Run: `npm run test -- src/components/mit-sailing/admin/cards/AdminSailingCardControls.test.tsx 'src/app/[locale]/(marketing)/(site)/admin/users/adminUserPages.test.tsx'`
 
 Run: `npm run check:i18n`.
 
@@ -606,7 +722,7 @@ Run:
 ```bash
 npm run lint
 npm run check:types
-npm run test -- src/libs/mit-sailing/sailingCardRequestSchema.test.ts src/libs/mit-sailing/sailingCardMembership.test.ts src/libs/mit-sailing/sailingCardMembershipEligibility.test.ts src/libs/mit-sailing/sailingCardOnboarding.test.ts src/libs/mit-sailing/sailingCardOnboardingActions.test.ts src/libs/mit-sailing/cmsValidation.test.ts src/components/mit-sailing/onboarding/SailingCardOnboardingForm.test.tsx src/components/mit-sailing/admin/cards/AdminSailingCardQueue.test.tsx src/libs/admin/users/adminUserActions.test.ts 'src/app/[locale]/(marketing)/(site)/admin/users/adminUserPages.test.tsx'
+npm run test -- src/libs/mit-sailing/sailingCardRequestSchema.test.ts src/libs/mit-sailing/sailingCardMembership.test.ts src/libs/mit-sailing/sailingCardMembershipEligibility.test.ts src/libs/mit-sailing/sailingCardOnboarding.test.ts src/libs/mit-sailing/sailingCardOnboardingActions.test.ts src/libs/mit-sailing/cmsValidation.test.ts src/components/mit-sailing/onboarding/SailingCardOnboardingForm.test.tsx src/components/mit-sailing/admin/cards/AdminSailingCardControls.test.tsx src/libs/admin/users/adminUserActions.test.ts 'src/app/[locale]/(marketing)/(site)/admin/users/adminUserPages.test.tsx'
 npm run check:i18n
 ```
 
@@ -615,6 +731,8 @@ Expected: all commands pass.
 ### PR 2A/2B: Billing Foundation, Pricing Catalog, And Stripe Price Sync
 
 **Goal:** Add the local billing schema foundation, then let admins maintain effective-dated membership prices in the app and sync immutable Stripe Prices without starting paid subscriptions yet.
+
+**Readiness reconciliation:** The schema snippets below were written before the current unified `Payment` model landed. Treat the price catalog as the default PR 2 schema work; defer subscription, cancellation, notification, and checkout-specific `Payment` fields until the PR that first needs them. Do not add separate `SailingCardMembershipPayment` or `SailingCardMembershipRefund` tables unless the structural simplicity review, current Stripe docs via Context7, and failing tests prove that `Payment` plus `purpose`, `source`, `status`, Stripe IDs, and narrow extension fields cannot represent the current PR's payment/refund/invoice needs. If a split is justified, record the lifecycle boundary in `local/agent-runs/<branch-slug>/conductor.md` before editing schema.
 
 **Estimated changed files:** 30-45 total, implemented as two review units by default.
 
@@ -673,31 +791,28 @@ Expected: PASS.
 
 #### Task 2.1: Add membership billing schema
 
+- [ ] **Step 0: Reconcile schema shape against current `Payment`**
+
+Before writing schema tests, inspect `zenstack/schema.zmodel`, current payment queries, legacy membership import, admin user payment history, and Stripe Billing docs via Context7. Fill the structural simplicity decision table in the conductor ledger. Default schema direction:
+
+- Add only the pricing catalog models/enums needed for effective-dated admin-maintained prices in PR 2A.
+- Defer subscription-state, cancellation, and notification schema until PR 4A/4B or the reminder PR first needs that state.
+- Extend or reuse the existing `Payment` model for membership payment, legacy, Stripe, invoice, receipt, refund/dispute, and admin-override records unless tests prove a separate model is simpler.
+- Do not duplicate `PaymentSource`, `PaymentStatus`, legacy source fields, Stripe payment IDs, receipt URL, or manual handled note fields in a parallel membership-payment table without a documented boundary.
+
 - [ ] **Step 1: Write schema tests**
 
-Add a focused schema test that expects these models/enums in generated schema:
+Add a focused schema test for the reconciled schema. If the structural simplicity decision keeps membership payments in `Payment`, update the expectations below to assert the reused `Payment` fields and only the new pricing fields that this PR actually adds. Do not blindly copy older expectations for separate membership payment/refund tables.
 
 ```ts
 expect(compactSchema).toContain('model SailingCardMembershipPrice');
-expect(compactSchema).toContain('model SailingCardSubscription');
-expect(compactSchema).toContain('model SailingCardMembershipPayment');
-expect(compactSchema).toContain('model SailingCardMembershipRefund');
-expect(compactSchema).toContain('model SailingCardMembershipNotification');
-expect(compactSchema).toContain('enum SailingCardSubscriptionStatus');
 expect(compactSchema).toContain('enum SailingCardMembershipPriceKind');
-expect(compactSchema).toContain('enum SailingCardMembershipPaymentStatus');
-expect(compactSchema).toContain('enum SailingCardMembershipPaymentIssueKind');
-expect(compactSchema).toContain('enum SailingCardMembershipPaymentKind');
 expect(compactSchema).toContain('enum SailingCardMembershipAgeBand');
 expect(compactSchema).toContain('enum SailingCardMembershipBillingInterval');
-expect(compactSchema).toContain('enum SailingCardMembershipCancellationReason');
-expect(compactSchema).toContain('enum SailingCardMembershipNotificationKind');
+expect(compactSchema).toContain('model Payment');
+expect(compactSchema).toContain('purpose PaymentPurpose');
+expect(compactSchema).toContain('membership');
 expect(compactSchema).toContain('effectiveAt DateTime @map("effective_at")');
-expect(compactSchema).toContain('initialMembershipPriceId String @map("initial_membership_price_id")');
-expect(compactSchema).toContain('renewalMembershipPriceId String @map("renewal_membership_price_id")');
-expect(compactSchema).toContain('consentAcceptedAt DateTime? @map("consent_accepted_at")');
-expect(compactSchema).toContain('lastStripeSubscriptionEventId String? @map("last_stripe_subscription_event_id")');
-expect(compactSchema).toContain('recipientEmail String @map("recipient_email")');
 ```
 
 - [ ] **Step 2: Add schema models**
@@ -719,56 +834,11 @@ enum SailingCardMembershipBillingInterval {
   one_time
   annual
 }
-
-enum SailingCardSubscriptionStatus {
-  incomplete
-  incomplete_expired
-  trialing
-  active
-  past_due
-  canceled
-  unpaid
-}
-
-enum SailingCardMembershipPaymentIssueKind {
-  duplicate_subscription
-  refunded_current_season
-  disputed_current_season
-}
-
-enum SailingCardMembershipPaymentKind {
-  initial_spring
-  initial_full
-  annual_renewal
-  adjustment
-}
-
-enum SailingCardMembershipPaymentStatus {
-  pending
-  checkout_created
-  paid
-  past_due
-  refunded
-  disputed
-  cancelled
-}
-
-enum SailingCardMembershipCancellationReason {
-  not_sailing_next_season
-  using_free_membership
-  cost
-  duplicate_or_mistake
-  other
-}
-
-enum SailingCardMembershipNotificationKind {
-  renewal_30_days
-  renewal_14_days
-  renewal_3_days
-}
 ```
 
-Add models:
+Add models for only the reconciled shape. Keep payment/refund rows in the existing
+`Payment` model by default; add focused `Payment` extension fields in the checkout
+or webhook PR that first needs them, not in this pricing PR.
 
 ```prisma
 model SailingCardMembershipPrice {
@@ -796,159 +866,11 @@ model SailingCardMembershipPrice {
   @@index([createdByUserId])
   @@map("sailing_card_membership_prices")
 }
-
-model SailingCardSubscription {
-  id String @id() @default(cuid())
-  userId String @unique() @map("user_id")
-  currentFullPriceId String? @map("current_full_price_id")
-  cardType SailingCardType @map("card_type")
-  status SailingCardSubscriptionStatus
-  stripeStatus String? @map("stripe_status")
-  autoRenew Boolean @default(true) @map("auto_renew")
-  stripeCustomerId String @map("stripe_customer_id")
-  stripeSubscriptionId String @unique() @map("stripe_subscription_id")
-  stripeSubscriptionItemId String? @map("stripe_subscription_item_id")
-  lastStripeSubscriptionEventId String? @map("last_stripe_subscription_event_id")
-  lastStripeSubscriptionEventCreatedAt DateTime? @map("last_stripe_subscription_event_created_at")
-  currentPeriodStart DateTime? @map("current_period_start")
-  currentPeriodEnd DateTime? @map("current_period_end")
-  cancelAtPeriodEnd Boolean @default(false) @map("cancel_at_period_end")
-  cancellationReason SailingCardMembershipCancellationReason? @map("cancellation_reason")
-  cancellationNote String? @map("cancellation_note") @db.Text()
-  cancellationRequestedAt DateTime? @map("cancellation_requested_at")
-  cancelledAt DateTime? @map("cancelled_at")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt() @map("updated_at")
-  currentFullPrice SailingCardMembershipPrice? @relation(fields: [currentFullPriceId], references: [id], onDelete: SetNull)
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  payments SailingCardMembershipPayment[]
-  notifications SailingCardMembershipNotification[]
-
-  @@index([status, autoRenew])
-  @@index([currentPeriodEnd])
-  @@index([stripeCustomerId])
-  @@map("sailing_card_subscriptions")
-}
-
-model SailingCardMembershipPayment {
-  id String @id() @default(cuid())
-  userId String @map("user_id")
-  subscriptionId String? @map("subscription_id")
-  initialMembershipPriceId String @map("initial_membership_price_id")
-  renewalMembershipPriceId String @map("renewal_membership_price_id")
-  activeCheckoutKey String? @unique() @map("active_checkout_key")
-  cardType SailingCardType @map("card_type")
-  priceKind SailingCardMembershipPriceKind @map("price_kind")
-  paymentKind SailingCardMembershipPaymentKind @map("payment_kind")
-  amountCents Int @map("amount_cents")
-  currency String @default("usd")
-  status SailingCardMembershipPaymentStatus @default(pending)
-  consentShownAt DateTime? @map("consent_shown_at")
-  consentAcceptedAt DateTime? @map("consent_accepted_at")
-  consentLocale String? @map("consent_locale")
-  consentTermsVersion String? @map("consent_terms_version")
-  consentTermsSnapshot String? @map("consent_terms_snapshot") @db.Text()
-  consentAmountDueTodayCents Int? @map("consent_amount_due_today_cents")
-  consentRenewalAmountCents Int? @map("consent_renewal_amount_cents")
-  consentRenewalAt DateTime? @map("consent_renewal_at")
-  consentAutoRenewTextKey String? @map("consent_auto_renew_text_key")
-  consentSubmitButtonTextKey String? @map("consent_submit_button_text_key")
-  consentCancellationPathTextKey String? @map("consent_cancellation_path_text_key")
-  consentTermsHash String? @map("consent_terms_hash")
-  issueKind SailingCardMembershipPaymentIssueKind? @map("issue_kind")
-  refundedAmountCents Int @default(0) @map("refunded_amount_cents")
-  disputeStatus String? @map("dispute_status")
-  stripeHostedInvoiceUrl String? @map("stripe_hosted_invoice_url") @db.Text()
-  stripeInvoicePdfUrl String? @map("stripe_invoice_pdf_url") @db.Text()
-  stripeRefundId String? @map("stripe_refund_id")
-  stripeDisputeId String? @map("stripe_dispute_id")
-  duplicateStripeSubscriptionId String? @map("duplicate_stripe_subscription_id")
-  stripeCustomerId String? @map("stripe_customer_id")
-  stripeCheckoutSessionId String? @unique() @map("stripe_checkout_session_id")
-  stripeCheckoutSessionUrl String? @map("stripe_checkout_session_url") @db.Text()
-  stripeCheckoutSessionExpiresAt DateTime? @map("stripe_checkout_session_expires_at")
-  stripeSubscriptionId String? @map("stripe_subscription_id")
-  stripeInvoiceId String? @map("stripe_invoice_id")
-  stripeInvoiceLineItemId String? @map("stripe_invoice_line_item_id")
-  stripePaymentIntentId String? @map("stripe_payment_intent_id")
-  stripeChargeId String? @map("stripe_charge_id")
-  lastStripePaymentEventId String? @map("last_stripe_payment_event_id")
-  lastStripeInvoiceEventId String? @map("last_stripe_invoice_event_id")
-  lastStripePaymentEventCreatedAt DateTime? @map("last_stripe_payment_event_created_at")
-  lastStripeInvoiceEventCreatedAt DateTime? @map("last_stripe_invoice_event_created_at")
-  stripeReceiptUrl String? @map("stripe_receipt_url") @db.Text()
-  issueHandledNote String? @map("issue_handled_note") @db.Text()
-  issueHandledByUserId String? @map("issue_handled_by_user_id")
-  issueHandledAt DateTime? @map("issue_handled_at")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt() @map("updated_at")
-  initialMembershipPrice SailingCardMembershipPrice @relation("SailingCardMembershipPaymentInitialPrice", fields: [initialMembershipPriceId], references: [id], onDelete: Restrict)
-  renewalMembershipPrice SailingCardMembershipPrice @relation("SailingCardMembershipPaymentRenewalPrice", fields: [renewalMembershipPriceId], references: [id], onDelete: Restrict)
-  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
-  subscription SailingCardSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
-  issueHandledBy User? @relation("SailingCardMembershipPaymentIssueHandledBy", fields: [issueHandledByUserId], references: [id], onDelete: SetNull)
-  refunds SailingCardMembershipRefund[]
-  refunds SailingCardMembershipRefund[]
-
-  @@index([userId, createdAt])
-  @@index([subscriptionId])
-  @@index([initialMembershipPriceId])
-  @@index([renewalMembershipPriceId])
-  @@index([status, createdAt])
-  @@index([stripeCustomerId])
-  @@index([stripeSubscriptionId])
-  @@index([duplicateStripeSubscriptionId])
-  @@index([stripeInvoiceId])
-  @@index([stripePaymentIntentId])
-  @@index([stripeChargeId])
-  @@index([stripeRefundId])
-  @@index([stripeDisputeId])
-  @@index([issueKind, status, createdAt])
-  @@index([issueKind, issueHandledAt])
-  @@unique([stripeInvoiceId, stripeInvoiceLineItemId])
-  @@index([issueHandledByUserId])
-  @@map("sailing_card_membership_payments")
-}
-
-model SailingCardMembershipRefund {
-  id String @id() @default(cuid())
-  paymentId String @map("payment_id")
-  stripeRefundId String @unique() @map("stripe_refund_id")
-  amountCents Int @map("amount_cents")
-  status String
-  reason String?
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt() @map("updated_at")
-  payment SailingCardMembershipPayment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
-
-  @@index([paymentId])
-  @@map("sailing_card_membership_refunds")
-}
-
-model SailingCardMembershipNotification {
-  id String @id() @default(cuid())
-  subscriptionId String @map("subscription_id")
-  kind SailingCardMembershipNotificationKind
-  recipientEmail String @map("recipient_email")
-  renewalAmountCents Int? @map("renewal_amount_cents")
-  renewalAt DateTime? @map("renewal_at")
-  autoRenew Boolean? @map("auto_renew")
-  templateVersion String @map("template_version")
-  cancelLinkPath String? @map("cancel_link_path")
-  providerMessageId String? @map("provider_message_id")
-  deliveryError String? @map("delivery_error") @db.Text()
-  sentAt DateTime? @map("sent_at")
-  createdAt DateTime @default(now()) @map("created_at")
-  subscription SailingCardSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
-
-  @@unique([subscriptionId, kind])
-  @@map("sailing_card_membership_notifications")
-}
 ```
 
 - [ ] **Step 3: Run schema tests and type generation**
 
-Add inverse relation fields for every new relation on `User` and `SailingCardMembershipPrice`, then run the maintainer-approved ZenStack generation step and the focused schema test. Include generated `prisma/schema.prisma` and any changed tracked `zenstack/**` artifacts in the PR file budget.
+Add inverse relation fields only for the new pricing relation(s), then run the maintainer-approved ZenStack generation step and the focused schema test. Include generated `prisma/schema.prisma` and any changed tracked `zenstack/**` artifacts in the PR file budget.
 
 Expected: PASS.
 
@@ -1177,9 +1099,12 @@ Expected: PASS.
 
 **Goal:** Let eligible users choose paid racing or team racing, start the subscription through Stripe Checkout, and manage payment method/invoices through Stripe Portal. Membership webhooks and cancellation move to PR 4B so review stays small.
 
-**Estimated changed files:** 24-36.
+**Estimated changed files:** 28-42.
 
 **Files:**
+- Modify: `zenstack/schema.zmodel`
+- Generated: `prisma/schema.prisma`
+- Add: one migration directory for the checkout/subscription-state fields
 - Create: `src/libs/mit-sailing/membershipBilling/membershipStripeCustomers.ts`
 - Create: `src/libs/mit-sailing/membershipBilling/membershipStripeCheckout.ts`
 - Create: `src/libs/mit-sailing/membershipBilling/membershipStripeCheckout.test.ts`
@@ -1206,6 +1131,10 @@ Expected: PASS.
 Before editing, confirm the listed route, action, component, navigation, and test files still match the current code. If navigation requires touching more than the two listed layout files, split navigation into the PR 4B follow-up instead of expanding PR 4A.
 
 #### Task 4A.1: Implement subscription state helpers
+
+- [ ] **Step 0: Add only checkout-needed subscription/payment schema**
+
+If PR 2 deferred subscription schema, start PR 4A with a focused schema test for the smallest local subscription-state model needed by Checkout/profile state and duplicate-subscription handling. Extend the existing `Payment` model for checkout/session/consent/price snapshot fields needed by PR 4A; do not create a parallel membership-payment table unless the structural simplicity review proves `Payment` cannot represent the lifecycle. Defer cancellation reason fields to PR 4B and renewal-notification rows to the reminder PR unless this PR's tests need them.
 
 - [ ] **Step 1: Write subscription-state tests**
 
@@ -1238,7 +1167,7 @@ Create `membershipStripeCheckout.test.ts` asserting:
 - The request uses `subscription_data.trial_end` as the July 15 anchor and does not set `subscription_data.billing_cycle_anchor`. Assert `billing_cycle_anchor` is absent in request-construction tests.
 - Checkout creation records a consent snapshot before redirecting to Stripe: shown time, accepted time, terms version, amount due today, renewal amount, renewal date, selected card type, submit button text key, cancellation path text key, auto-renew disclosure key, and a stable hash or key set for the displayed terms.
 - Free-normal users cannot create Checkout.
-- Users with pending current-year or latest `mitRecreationMembershipSelfReported` status cannot create Checkout; profile copy shows "MIT Recreation verification needed" until staff verifies or clears the request.
+- Users with pending current-year or latest `SailingCardRequest.hasFitnessMembership=true` status cannot create Checkout; profile copy shows "MIT Recreation verification needed" until staff verifies or clears the request.
 - Users with active subscriptions, cancel-at-period-end subscriptions, or incomplete pending Checkout sessions cannot start a duplicate purchase; the page routes them to manage the current membership.
 - Two rapid Checkout submissions for the same user/card type/season/initial price/renewal price reuse one pending local membership payment/session path, enforced by `activeCheckoutKey`. The second request rereads the existing row and returns its stored non-expired `stripeCheckoutSessionUrl`.
 - If a second Stripe subscription somehow completes, the pure subscription-state helper identifies the existing canonical `SailingCardSubscription` and returns a duplicate-completion result. PR 4B webhook handling records the duplicate and neutralizes the extra Stripe subscription.
@@ -1274,7 +1203,7 @@ export async function createMembershipCheckoutSession(options: {
 }): Promise<{ readonly url: string } | null>;
 ```
 
-Use the existing `getStripeClient`, `Env.NEXT_PUBLIC_APP_URL`, and event-payment idempotency style. Split Checkout tests into three bites: date/price selection, pending payment/session idempotency, and Stripe Checkout request construction. Create or reuse a pending `SailingCardMembershipPayment` in a transaction before calling Stripe, store the accepted initial and renewal price IDs, amount due today, currency, card type, price kind, payment kind, `activeCheckoutKey`, `stripeCheckoutSessionUrl`, and `stripeCheckoutSessionExpiresAt` locally, then use the local payment ID as the Stripe idempotency-key source and metadata value. Store the metadata on both the Checkout Session and `subscription_data.metadata`. Store `stripeSubscriptionItemId` on webhook completion in PR 4B so future price changes can update active auto-renew subscriptions before renewal with `proration_behavior: 'none'`.
+Use the existing `getStripeClient`, `Env.NEXT_PUBLIC_APP_URL`, and event-payment idempotency style. Split Checkout tests into three bites: date/price selection, pending payment/session idempotency, and Stripe Checkout request construction. Create or reuse a pending local membership payment row in a transaction before calling Stripe. By default this is the existing `Payment` model with `purpose: membership`; use a separate membership-payment table only if the PR 4A structural simplicity decision proved that split. Store the accepted initial and renewal price IDs, amount due today, currency, card type, price kind, payment kind, `activeCheckoutKey`, `stripeCheckoutSessionUrl`, and `stripeCheckoutSessionExpiresAt` locally, then use the local payment ID as the Stripe idempotency-key source and metadata value. Store the metadata on both the Checkout Session and `subscription_data.metadata`. Store `stripeSubscriptionItemId` on webhook completion in PR 4B so future price changes can update active auto-renew subscriptions before renewal with `proration_behavior: 'none'`.
 
 The implementation must prove in Stripe test mode that spring Checkout does not create a prorated recurring charge before July 15. If Checkout Session parameters cannot express that safely, switch this task to a two-step flow: one-time Checkout for spring/full access plus a server-created subscription anchored to July 15 after successful payment. Do not ship a path where the initial invoice can include both spring and annual charges.
 
@@ -1647,9 +1576,9 @@ Cover reminder eligibility for 30, 14, and 3 days before July 15:
 - renewal price updates select the currently effective `full + annual` price by the member's age on the upcoming July 15 Eastern date, including a subscriber who moves from `under_30` to `thirty_or_over`
 - renewal price updates only swap to a Price with the same product, annual interval, currency, and tax behavior; tests assert no invoice or proration is created and the July 15 anchor/current period end remains unchanged.
 
-- [ ] **Step 2: Use the PR 2 notification model**
+- [ ] **Step 2: Add or reuse the notification model**
 
-Use `SailingCardMembershipNotification` from the PR 2 schema. Do not add schema churn in this PR.
+If a notification model was not introduced earlier, add the smallest reminder-log model in this PR. It should store one row per subscription/window with recipient, amount/date/link snapshot, provider ID, sent timestamp, and delivery error. Do not add generic notification infrastructure.
 
 - [ ] **Step 3: Implement job**
 
@@ -1700,6 +1629,8 @@ Expected: all commands pass.
 ## Review Plan
 
 Run three batches of three sub-agent reviews. Each batch can run its three experts in parallel. At least one expert in every batch must explicitly load `impeccable` and apply the product-register lens. After each batch, update this plan before starting the next batch.
+
+These completed review batches are plan-hardening evidence only. They do not count as review of a future implementation branch. Each PR still needs fresh independent bug review, Impeccable/persona review, and structural simplicity review against the actual diff.
 
 **Batch 1 completed**
 

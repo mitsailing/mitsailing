@@ -5,6 +5,7 @@
 - Clarity and consistency over cleverness. Minimal changes. Match existing patterns.
 - Build bug-free, maintainable, simple code; ask before building package-like infrastructure from scratch when an existing package or local abstraction may fit.
 - User-path first: before adding or moving UI, identify the actor, their starting point, and the object they are trying to change. Put controls where that actor naturally works, not where the database/model name suggests.
+- Avoid agent slop: do not add tables, pages, components, services, permissions, states, or workflows when an existing surface plus a field, filter, or narrow helper fits the current slice; split only for a proven lifecycle, permission, audit, retention, cardinality, transaction, operational, or external-platform boundary.
 - Keep components/functions short; break down when it improves structure.
 - TypeScript everywhere; no `any` unless isolated and necessary.
 - No unnecessary `try/catch`. Avoid casting; use narrowing.
@@ -74,6 +75,7 @@ For **Cursor browser MCP** or manual agent browsing on **`npm run dev`** only â€
 ## Git Commits
 
 Conventional Commits: `type: summary` without scope. The summary should be a short, specific sentence that explains what changed and where or why, not a vague phrase. Types: `feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert`. `BREAKING CHANGE:` footer when needed.
+Push completed work with a normal push. Do not force push; if Git says force is needed, stop and diagnose the branch/upstream/history error.
 For GitHub squash merges, use the PR title as the squash commit title and preserve GitHub's PR suffix, for example `feat: add payment onboarding (#123)`. Do not override the squash title with a plain sentence that drops the type or PR number.
 
 ## Env

@@ -33,10 +33,14 @@ inputs, but this local gate is the source of truth for AI review completion.
 | Gate | Required when | Status | Evidence | Unresolved findings |
 | --- | --- | --- | --- | --- |
 | Persona matrix written and user-reviewed | UI, journey, admin, onboarding, or capability-gated PRs | Pending | | |
-| Selected personas executed | UI, journey, admin, onboarding, or capability-gated PRs | Pending | | |
+| Selected personas created | UI, journey, admin, onboarding, or capability-gated PRs | Pending | | |
+| Persona real user and simple website path review 1 completed | UI, journey, admin, onboarding, or capability-gated PRs | Pending | | |
+| Persona real user and simple website path review 2 completed | UI, journey, admin, onboarding, or capability-gated PRs | Pending | | |
 | Persona findings fixed/classified | UI, journey, admin, onboarding, or capability-gated PRs | Pending | | |
 | Independent local bug review executed | Every code-changing PR | Pending | | |
 | Local review findings fixed/classified | Every code-changing PR | Pending | | |
+| Structural simplicity review executed | Schema, admin surface, component, helper/service, permission, state, or workflow additions | Pending | | |
+| Structural simplicity findings fixed/classified | When structural simplicity review runs | Pending | | |
 | GitHub comments/threads inspected | Every PR with comments or requested changes | Pending | | |
 
 ## Run Artifacts
@@ -69,6 +73,17 @@ a local draft is promoted, mark the draft `promoted`; if rejected, mark it
 | Decision | Evidence | Options | Recommended answer | Impact if deferred | User decision |
 | --- | --- | --- | --- | --- | --- |
 | | | | | | |
+
+## Structural Simplicity Decisions
+
+Use this for proposed tables, pages, routes, components, services, helpers,
+permissions, queues, states, or workflows. Default to the existing surface unless
+the current PR proves a lifecycle, permission, audit, retention, cardinality,
+transaction, operational, or external-platform boundary.
+
+| Proposed structure | Existing simpler option | Boundary/evidence | Decision | Follow-up |
+| --- | --- | --- | --- | --- |
+| | | | Keep existing / split now / defer | |
 
 ## Files Changed
 
