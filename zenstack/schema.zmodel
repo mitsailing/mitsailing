@@ -1242,6 +1242,20 @@ model SailingCardMembershipPrice {
   @@deny('create,update', amountCents < 50)
   @@deny('create,update', currency != 'usd')
   @@deny('create,update', priceKind == spring && billingInterval == annual)
+  @@deny('post-update',
+    cardType != before().cardType ||
+    priceKind != before().priceKind ||
+    priceCategory != before().priceCategory ||
+    billingInterval != before().billingInterval ||
+    amountCents != before().amountCents ||
+    currency != before().currency ||
+    effectiveAt != before().effectiveAt ||
+    changeReason != before().changeReason ||
+    (createdByUserId == null && before().createdByUserId != null) ||
+    (createdByUserId != null && before().createdByUserId == null) ||
+    (createdByUserId != null && before().createdByUserId != null && createdByUserId != before().createdByUserId) ||
+    (before().stripePriceId != null && (stripePriceId == null || stripePriceId != before().stripePriceId))
+  )
   @@allow('read', true)
   @@allow('create,update', auth() != null && auth().appRole == 'admin')
   @@unique([cardType, priceKind, priceCategory, billingInterval, effectiveAt])

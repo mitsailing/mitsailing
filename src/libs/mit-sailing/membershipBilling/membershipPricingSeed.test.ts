@@ -10,17 +10,14 @@ import {
   initialSailingCardMembershipPrices,
   INITIAL_MEMBERSHIP_PRICE_CHANGE_REASON,
 } from '@/libs/mit-sailing/membershipBilling/membershipPricingSeed';
-import { sailingCardMembershipPriceCents } from '@/libs/mit-sailing/sailingCardMembership';
+import {
+  hasStudentPaidRacingPrice,
+  sailingCardMembershipPriceCents,
+} from '@/libs/mit-sailing/sailingCardMembership';
 
-const studentPaidAffiliations: readonly SailingAffiliation[] = [
-  SailingAffiliation.WELLESLEY,
-  SailingAffiliation.BRANDEIS,
-  SailingAffiliation.NORTHEASTERN,
-  SailingAffiliation.WINSOR,
-  SailingAffiliation.BROOKS,
-  SailingAffiliation.NROTC,
-  SailingAffiliation.OTHER_STUDENT,
-];
+const studentPaidAffiliations = Object.values(SailingAffiliation).filter(
+  hasStudentPaidRacingPrice
+);
 
 const agePricedAffiliations = Object.values(SailingAffiliation).filter(
   (affiliation) =>
