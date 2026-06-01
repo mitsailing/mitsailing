@@ -126,7 +126,7 @@ describe('single host deploy script', () => {
     );
     expect(script).toContain('const signal = AbortSignal.timeout(timeoutMs);');
     expect(script).toMatch(
-      /fetch\("http:\/\/127\.0\.0\.1:3000\/api\/health\/ready", \{\s+headers: \{ Authorization: `Bearer \$\{secret\}` \},\s+signal,\s+\}\)/u
+      /fetch\("http:\/\/127\.0\.0\.1:3000\/api\/health\/ready\?mode=service", \{\s+headers: \{ Authorization: `Bearer \$\{secret\}` \},\s+signal,\s+\}\)/u
     );
   });
 

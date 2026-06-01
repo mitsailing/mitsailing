@@ -86,6 +86,13 @@ The host also needs `apps/mitsailing/.env.production`. Start from
 `.env.production.example`, fill real secrets, and use the MIT Sailing
 Cloudflare tunnel token.
 
+Permission checks have two surfaces: persistent data under
+`PRODUCTION_DATA_ROOT`, and non-secret deploy files that are bind-mounted into
+containers. The GitHub workflow normalizes the synced `docker` directories,
+compose files, `docker/postgres/init.sql`, and `docker/nginx/media.conf` to
+container-readable modes after `scp`; do not apply that chmod pattern to
+`.env.production`.
+
 ## Cloudflare
 
 Keep WordPress separate. MIT Sailing route order:
