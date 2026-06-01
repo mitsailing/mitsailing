@@ -28,6 +28,17 @@ type SiteShellSession = {
   } | null;
 } | null;
 
+function stagingBannerLink(chunks: React.ReactNode) {
+  return (
+    <a
+      className={`font-semibold text-mit-red underline underline-offset-2 hover:text-mit-red-hover ${textFocusRingClassName} dark:text-mit-red-ink`}
+      href="https://sailing.mit.edu"
+    >
+      {chunks}
+    </a>
+  );
+}
+
 export function shouldShowAdminLink(session: SiteShellSession): boolean {
   return adminHeaderLinkVisibleFromSession({
     userId: session?.user?.id,
@@ -60,23 +71,11 @@ export async function SiteShell(props: SiteShellProps) {
   return (
     <div className="flex min-h-screen flex-col bg-background font-mit-sans text-mit-text">
       {shouldShowStagingBanner ? (
-        <div
-          className="border-b border-mit-red/20 bg-mit-red-highlight px-4 py-2 text-center text-xs font-medium text-mit-text sm:text-sm dark:border-mit-red/30 dark:bg-mit-red-950/45"
-          role="status"
-        >
-          <p>
-            {tMitSite.rich('staging_banner', {
-              link: (chunks) => (
-                <a
-                  className={`font-semibold text-mit-red underline underline-offset-2 hover:text-mit-red-hover ${textFocusRingClassName} dark:text-mit-red-ink`}
-                  href="https://sailing.mit.edu"
-                >
-                  {chunks}
-                </a>
-              ),
-            })}
-          </p>
-        </div>
+        <output className="block border-b border-mit-red/20 bg-mit-red-highlight px-4 py-2 text-center text-xs font-medium text-mit-text sm:text-sm dark:border-mit-red/30 dark:bg-mit-red-950/45">
+          {tMitSite.rich('staging_banner', {
+            link: stagingBannerLink,
+          })}
+        </output>
       ) : null}
       <Suspense fallback={null}>
         <ImpersonationBanner locale={locale} />

@@ -252,7 +252,7 @@ describe('production docker compose', () => {
       '~/mitsailing',
     ]) {
       const result = spawnSync(
-        'bash',
+        '/bin/bash',
         [
           '-c',
           '. .github/scripts/validate_remote_app_dir.sh && validate_remote_app_dir',
@@ -260,7 +260,7 @@ describe('production docker compose', () => {
         {
           cwd: process.cwd(),
           encoding: 'utf8',
-          env: { ...process.env, REMOTE_APP_DIR: remoteAppDir },
+          env: { REMOTE_APP_DIR: remoteAppDir },
         }
       );
 
