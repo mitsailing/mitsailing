@@ -6,9 +6,250 @@ import {
   processStripeWebhookEvent,
   stripeEventCreatedAtDate,
 } from '@/libs/stripe/stripeWebhookEvents';
-import type { StripeWebhookDispatchHandler } from '@/libs/stripe/stripeWebhookEvents';
+import type {
+  StripeWebhookDb,
+  StripeWebhookDispatchHandler,
+} from '@/libs/stripe/stripeWebhookEvents';
 
 vi.mock('server-only', () => ({}));
+
+type StripeWebhookPayment = NonNullable<
+  Awaited<ReturnType<StripeWebhookDb['payment']['findFirst']>>
+>;
+type StoredWebhookEvent = NonNullable<
+  Awaited<ReturnType<StripeWebhookDb['stripeWebhookEvent']['findUnique']>>
+>;
+
+const stripeEventCreated = 1_777_636_800;
+
+function duplicateStripeEventError() {
+  return Object.assign(new Error('duplicate'), { code: 'P2002' });
+}
+
+function eventPayment(
+  options: { id?: string; status?: PaymentStatusType } = {}
+): StripeWebhookPayment {
+  return {
+    amountCents: 4200,
+    currency: 'usd',
+    id: options.id ?? 'payment_123',
+    status: options.status ?? PaymentStatus.pending,
+  };
+}
+
+function storedWebhookEvent(
+  options: {
+    id?: string;
+    processedAt?: Date | null;
+    processingError?: string | null;
+  } = {}
+): StoredWebhookEvent {
+  return {
+    id: options.id ?? 'webhook_event_123',
+    processedAt: options.processedAt ?? null,
+    processingError: options.processingError ?? null,
+  };
+}
+
+function mockPaymentUpdate(result?: { count: number }) {
+  return vi
+    .fn<StripeWebhookDb['payment']['updateMany']>()
+    .mockResolvedValue(result ?? { count: 1 });
+}
+
+function mockReceiptUpsert() {
+  return vi
+    .fn<StripeWebhookDb['eventPaymentNotification']['upsert']>()
+    .mockResolvedValue({});
+}
+
+function mockWebhookCreate() {
+  return vi.fn<StripeWebhookDb['stripeWebhookEvent']['create']>();
+}
+
+function mockDuplicateWebhookCreate() {
+  return mockWebhookCreate().mockRejectedValue(duplicateStripeEventError());
+}
+
+function mockWebhookCreateThenDuplicate(webhookEventId = 'webhook_event_123') {
+  return mockWebhookCreate()
+    .mockResolvedValueOnce({ id: webhookEventId })
+    .mockRejectedValueOnce(duplicateStripeEventError());
+}
+
+function mockWebhookUpdate() {
+  return vi
+    .fn<StripeWebhookDb['stripeWebhookEvent']['update']>()
+    .mockResolvedValue({});
+}
+
+function mockWebhookUpdateMany(result?: { count: number }) {
+  return vi
+    .fn<StripeWebhookDb['stripeWebhookEvent']['updateMany']>()
+    .mockResolvedValue(result ?? { count: 1 });
+}
+
+function createWebhookDb(
+  options: {
+    createWebhookEvent?: StripeWebhookDb['stripeWebhookEvent']['create'];
+    payment?: StripeWebhookPayment | null;
+    storedWebhookEvent?: StoredWebhookEvent | null;
+    updateManyWebhookEvent?: StripeWebhookDb['stripeWebhookEvent']['updateMany'];
+    updatePayment?: StripeWebhookDb['payment']['updateMany'];
+    updateWebhookEvent?: StripeWebhookDb['stripeWebhookEvent']['update'];
+    upsertReceipt?: StripeWebhookDb['eventPaymentNotification']['upsert'];
+    webhookEventId?: string;
+  } = {}
+): StripeWebhookDb {
+  const webhookEventId = options.webhookEventId ?? 'webhook_event_123';
+  return {
+    payment: {
+      findFirst: vi
+        .fn<StripeWebhookDb['payment']['findFirst']>()
+        .mockResolvedValue(options.payment ?? null),
+      updateMany: options.updatePayment ?? mockPaymentUpdate({ count: 0 }),
+    },
+    eventPaymentNotification: {
+      upsert: options.upsertReceipt ?? mockReceiptUpsert(),
+    },
+    stripeWebhookEvent: {
+      create:
+        options.createWebhookEvent ??
+        mockWebhookCreate().mockResolvedValue({ id: webhookEventId }),
+      findUnique: vi
+        .fn<StripeWebhookDb['stripeWebhookEvent']['findUnique']>()
+        .mockResolvedValue(options.storedWebhookEvent ?? null),
+      update: options.updateWebhookEvent ?? mockWebhookUpdate(),
+      updateMany: options.updateManyWebhookEvent ?? mockWebhookUpdateMany(),
+    },
+  };
+}
+
+function paymentIntentSucceededEvent(
+  options: {
+    latestCharge?: string;
+    paymentId?: string;
+    paymentIntentId?: string;
+    stripeEventId?: string;
+  } = {}
+) {
+  return {
+    created: stripeEventCreated,
+    data: {
+      object: {
+        id: options.paymentIntentId ?? 'pi_123',
+        amount_received: 4200,
+        currency: 'usd',
+        latest_charge: options.latestCharge,
+        metadata: { paymentId: options.paymentId ?? 'payment_123' },
+      },
+    },
+    id: options.stripeEventId ?? 'evt_payment_intent_succeeded',
+    type: 'payment_intent.succeeded',
+  };
+}
+
+function membershipSubscriptionEvent() {
+  return {
+    created: stripeEventCreated,
+    data: {
+      object: {
+        id: 'sub_123',
+        metadata: { domain: 'sailing_card_membership' },
+      },
+    },
+    id: 'evt_customer_subscription_updated',
+    type: 'customer.subscription.updated',
+  };
+}
+
+function failingMembershipHandler(): StripeWebhookDispatchHandler {
+  return vi.fn(async () => {
+    await Promise.resolve();
+    throw new Error('membership handler down');
+  });
+}
+
+function succeedingMembershipHandler(): StripeWebhookDispatchHandler {
+  return vi.fn(async () => {
+    await Promise.resolve();
+    return { handled: true };
+  });
+}
+
+function createReceiptRecoveryScenario(options: {
+  processingError: string;
+  updateWebhookEvent?: StripeWebhookDb['stripeWebhookEvent']['update'];
+  upsertReceipt?: StripeWebhookDb['eventPaymentNotification']['upsert'];
+}) {
+  const updateWebhookEvent = options.updateWebhookEvent ?? mockWebhookUpdate();
+  const updateManyWebhookEvent = mockWebhookUpdateMany();
+  const updatePayment = mockPaymentUpdate();
+  const upsertReceipt = options.upsertReceipt ?? mockReceiptUpsert();
+  const paymentState = eventPayment();
+  const db = createWebhookDb({
+    createWebhookEvent: mockWebhookCreateThenDuplicate(),
+    payment: paymentState,
+    storedWebhookEvent: storedWebhookEvent({
+      processingError: options.processingError,
+    }),
+    updateManyWebhookEvent,
+    updatePayment,
+    updateWebhookEvent,
+    upsertReceipt,
+  });
+
+  return {
+    db,
+    event: paymentIntentSucceededEvent(),
+    paymentState,
+    updateManyWebhookEvent,
+    updatePayment,
+    updateWebhookEvent,
+    upsertReceipt,
+  };
+}
+
+async function expectReceiptRecoveryAfterInitialFailure(options: {
+  db: StripeWebhookDb;
+  event: ReturnType<typeof paymentIntentSucceededEvent>;
+  paymentState: StripeWebhookPayment;
+}) {
+  await expect(
+    processStripeWebhookEvent({ db: options.db, event: options.event })
+  ).resolves.toEqual({ ok: false });
+  options.paymentState.status = PaymentStatus.paid;
+  await expect(
+    processStripeWebhookEvent({ db: options.db, event: options.event })
+  ).resolves.toEqual({
+    ok: true,
+    receiptJob: { dateKey: '2026-05-01', paymentId: 'payment_123' },
+    stripeWebhookEventId: 'webhook_event_123',
+  });
+}
+
+async function expectHandlerFailureThenSuccess(options: {
+  beforeSuccess?: () => void;
+  db: StripeWebhookDb;
+  event: ReturnType<typeof paymentIntentSucceededEvent>;
+  successResult: Awaited<ReturnType<typeof processStripeWebhookEvent>>;
+}) {
+  await expect(
+    processStripeWebhookEvent({
+      db: options.db,
+      event: options.event,
+      handlers: [failingMembershipHandler()],
+    })
+  ).resolves.toEqual({ ok: false });
+  options.beforeSuccess?.();
+  await expect(
+    processStripeWebhookEvent({
+      db: options.db,
+      event: options.event,
+      handlers: [succeedingMembershipHandler()],
+    })
+  ).resolves.toEqual(options.successResult);
+}
 
 describe('constructStripeWebhookEvent', () => {
   it('verifies raw body with stripe webhook signature', () => {
@@ -51,44 +292,17 @@ describe('stripeEventCreatedAtDate', () => {
 
 describe('processStripeWebhookEvent', () => {
   it('records stale paid events without reverting terminal local status', async () => {
-    const updatePayment = vi.fn();
-    const updateWebhookEvent = vi.fn();
-    const db = {
-      payment: {
-        findFirst: vi.fn().mockResolvedValue({
-          amountCents: 4200,
-          currency: 'usd',
-          id: 'payment_123',
-          status: PaymentStatus.refunded,
-        }),
-        updateMany: updatePayment,
-      },
-      eventPaymentNotification: {
-        upsert: vi.fn(),
-      },
-      stripeWebhookEvent: {
-        create: vi.fn().mockResolvedValue({ id: 'webhook_event_123' }),
-        findUnique: vi.fn(),
-        update: updateWebhookEvent,
-        updateMany: vi.fn(),
-      },
-    };
+    const updatePayment = mockPaymentUpdate();
+    const updateWebhookEvent = mockWebhookUpdate();
+    const db = createWebhookDb({
+      payment: eventPayment({ status: PaymentStatus.refunded }),
+      updatePayment,
+      updateWebhookEvent,
+    });
 
     const result = await processStripeWebhookEvent({
       db,
-      event: {
-        created: 1_777_636_800,
-        data: {
-          object: {
-            id: 'pi_123',
-            amount_received: 4200,
-            currency: 'usd',
-            metadata: { paymentId: 'payment_123' },
-          },
-        },
-        id: 'evt_payment_intent_succeeded',
-        type: 'payment_intent.succeeded',
-      },
+      event: paymentIntentSucceededEvent(),
     });
 
     expect(result).toEqual({ ok: true });
@@ -100,52 +314,22 @@ describe('processStripeWebhookEvent', () => {
   });
 
   it('claims unprocessed duplicate events before retrying payment updates', async () => {
-    const updateManyWebhookEvent = vi.fn().mockResolvedValue({ count: 1 });
-    const updatePayment = vi.fn().mockResolvedValue({ count: 1 });
-    const db = {
-      payment: {
-        findFirst: vi.fn().mockResolvedValue({
-          amountCents: 4200,
-          currency: 'usd',
-          id: 'payment_123',
-          status: PaymentStatus.pending,
-        }),
-        updateMany: updatePayment,
-      },
-      eventPaymentNotification: {
-        upsert: vi.fn().mockResolvedValue({}),
-      },
-      stripeWebhookEvent: {
-        create: vi.fn().mockRejectedValue(
-          Object.assign(new Error('duplicate'), {
-            code: 'P2002',
-          })
-        ),
-        findUnique: vi.fn().mockResolvedValue({
-          id: 'webhook_event_123',
-          processedAt: null,
-          processingError: 'receipt_enqueue_pending',
-        }),
-        update: vi.fn(),
-        updateMany: updateManyWebhookEvent,
-      },
-    };
+    const updateManyWebhookEvent = mockWebhookUpdateMany();
+    const updatePayment = mockPaymentUpdate();
+    const db = createWebhookDb({
+      createWebhookEvent: mockDuplicateWebhookCreate(),
+      payment: eventPayment(),
+      storedWebhookEvent: storedWebhookEvent({
+        processingError: 'receipt_enqueue_pending',
+      }),
+      updateManyWebhookEvent,
+      updatePayment,
+      upsertReceipt: mockReceiptUpsert(),
+    });
 
     const result = await processStripeWebhookEvent({
       db,
-      event: {
-        created: 1_777_636_800,
-        data: {
-          object: {
-            id: 'pi_123',
-            amount_received: 4200,
-            currency: 'usd',
-            metadata: { paymentId: 'payment_123' },
-          },
-        },
-        id: 'evt_payment_intent_succeeded',
-        type: 'payment_intent.succeeded',
-      },
+      event: paymentIntentSucceededEvent(),
     });
 
     expect(result).toEqual({
@@ -178,45 +362,15 @@ describe('processStripeWebhookEvent', () => {
   });
 
   it('fails unprocessed duplicate events when claim is unavailable', async () => {
-    const db = {
-      payment: {
-        findFirst: vi.fn(),
-        updateMany: vi.fn(),
-      },
-      eventPaymentNotification: {
-        upsert: vi.fn(),
-      },
-      stripeWebhookEvent: {
-        create: vi.fn().mockRejectedValue(
-          Object.assign(new Error('duplicate'), {
-            code: 'P2002',
-          })
-        ),
-        findUnique: vi.fn().mockResolvedValue({
-          id: 'webhook_event_123',
-          processedAt: null,
-          processingError: null,
-        }),
-        update: vi.fn(),
-        updateMany: vi.fn().mockResolvedValue({ count: 0 }),
-      },
-    };
+    const db = createWebhookDb({
+      createWebhookEvent: mockDuplicateWebhookCreate(),
+      storedWebhookEvent: storedWebhookEvent(),
+      updateManyWebhookEvent: mockWebhookUpdateMany({ count: 0 }),
+    });
 
     const result = await processStripeWebhookEvent({
       db,
-      event: {
-        created: 1_777_636_800,
-        data: {
-          object: {
-            id: 'pi_123',
-            amount_received: 4200,
-            currency: 'usd',
-            metadata: { paymentId: 'payment_123' },
-          },
-        },
-        id: 'evt_payment_intent_succeeded',
-        type: 'payment_intent.succeeded',
-      },
+      event: paymentIntentSucceededEvent(),
     });
 
     expect(result).toEqual({ ok: false });
@@ -224,35 +378,11 @@ describe('processStripeWebhookEvent', () => {
   });
 
   it('creates new webhook events with a processing claim', async () => {
-    const db = {
-      payment: {
-        findFirst: vi.fn().mockResolvedValue(null),
-        updateMany: vi.fn(),
-      },
-      eventPaymentNotification: {
-        upsert: vi.fn(),
-      },
-      stripeWebhookEvent: {
-        create: vi.fn().mockResolvedValue({ id: 'webhook_event_123' }),
-        findUnique: vi.fn(),
-        update: vi.fn(),
-        updateMany: vi.fn(),
-      },
-    };
+    const db = createWebhookDb();
 
     await processStripeWebhookEvent({
       db,
-      event: {
-        created: 1_777_636_800,
-        data: {
-          object: {
-            id: 'sub_123',
-            metadata: { domain: 'sailing_card_membership' },
-          },
-        },
-        id: 'evt_customer_subscription_updated',
-        type: 'customer.subscription.updated',
-      },
+      event: membershipSubscriptionEvent(),
     });
 
     expect(db.stripeWebhookEvent.create).toHaveBeenCalledWith({
@@ -266,36 +396,12 @@ describe('processStripeWebhookEvent', () => {
   });
 
   it('leaves all-unhandled events retryable for future domains', async () => {
-    const updateWebhookEvent = vi.fn();
-    const db = {
-      payment: {
-        findFirst: vi.fn(),
-        updateMany: vi.fn(),
-      },
-      eventPaymentNotification: {
-        upsert: vi.fn(),
-      },
-      stripeWebhookEvent: {
-        create: vi.fn().mockResolvedValue({ id: 'webhook_event_123' }),
-        findUnique: vi.fn(),
-        update: updateWebhookEvent,
-        updateMany: vi.fn(),
-      },
-    };
+    const updateWebhookEvent = mockWebhookUpdate();
+    const db = createWebhookDb({ updateWebhookEvent });
 
     const result = await processStripeWebhookEvent({
       db,
-      event: {
-        created: 1_777_636_800,
-        data: {
-          object: {
-            id: 'sub_123',
-            metadata: { domain: 'sailing_card_membership' },
-          },
-        },
-        id: 'evt_customer_subscription_updated',
-        type: 'customer.subscription.updated',
-      },
+      event: membershipSubscriptionEvent(),
     });
 
     expect(result).toEqual({ ok: false });
@@ -313,27 +419,16 @@ describe('processStripeWebhookEvent', () => {
   });
 
   it('leaves membership invoice events retryable when domain is on subscription metadata', async () => {
-    const updateWebhookEvent = vi.fn();
-    const db = {
-      payment: {
-        findFirst: vi.fn(),
-        updateMany: vi.fn(),
-      },
-      eventPaymentNotification: {
-        upsert: vi.fn(),
-      },
-      stripeWebhookEvent: {
-        create: vi.fn().mockResolvedValue({ id: 'webhook_event_invoice' }),
-        findUnique: vi.fn(),
-        update: updateWebhookEvent,
-        updateMany: vi.fn(),
-      },
-    };
+    const updateWebhookEvent = mockWebhookUpdate();
+    const db = createWebhookDb({
+      updateWebhookEvent,
+      webhookEventId: 'webhook_event_invoice',
+    });
 
     const result = await processStripeWebhookEvent({
       db,
       event: {
-        created: 1_777_636_800,
+        created: stripeEventCreated,
         data: {
           object: {
             id: 'in_123',
@@ -360,27 +455,13 @@ describe('processStripeWebhookEvent', () => {
   });
 
   it('marks unmatched non-membership payment events processed as no-ops', async () => {
-    const updateWebhookEvent = vi.fn();
-    const db = {
-      payment: {
-        findFirst: vi.fn().mockResolvedValue(null),
-        updateMany: vi.fn(),
-      },
-      eventPaymentNotification: {
-        upsert: vi.fn(),
-      },
-      stripeWebhookEvent: {
-        create: vi.fn().mockResolvedValue({ id: 'webhook_event_123' }),
-        findUnique: vi.fn(),
-        update: updateWebhookEvent,
-        updateMany: vi.fn(),
-      },
-    };
+    const updateWebhookEvent = mockWebhookUpdate();
+    const db = createWebhookDb({ updateWebhookEvent });
 
     const result = await processStripeWebhookEvent({
       db,
       event: {
-        created: 1_777_636_800,
+        created: stripeEventCreated,
         data: {
           object: {
             id: 'pi_other',
@@ -401,37 +482,13 @@ describe('processStripeWebhookEvent', () => {
   });
 
   it('dispatches non-event-payment events to a later domain handler', async () => {
-    const updateWebhookEvent = vi.fn();
+    const updateWebhookEvent = mockWebhookUpdate();
     const membershipHandler: StripeWebhookDispatchHandler = vi.fn(async () => {
       await Promise.resolve();
       return { handled: true };
     });
-    const db = {
-      payment: {
-        findFirst: vi.fn(),
-        updateMany: vi.fn(),
-      },
-      eventPaymentNotification: {
-        upsert: vi.fn(),
-      },
-      stripeWebhookEvent: {
-        create: vi.fn().mockResolvedValue({ id: 'webhook_event_123' }),
-        findUnique: vi.fn(),
-        update: updateWebhookEvent,
-        updateMany: vi.fn(),
-      },
-    };
-    const event = {
-      created: 1_777_636_800,
-      data: {
-        object: {
-          id: 'sub_123',
-          metadata: { domain: 'sailing_card_membership' },
-        },
-      },
-      id: 'evt_customer_subscription_updated',
-      type: 'customer.subscription.updated',
-    };
+    const db = createWebhookDb({ updateWebhookEvent });
+    const event = membershipSubscriptionEvent();
 
     const result = await processStripeWebhookEvent({
       db,
@@ -454,45 +511,23 @@ describe('processStripeWebhookEvent', () => {
   });
 
   it('does not requeue receipts for a separate paid Stripe event', async () => {
-    const updateWebhookEvent = vi.fn();
-    const updatePayment = vi.fn().mockResolvedValue({ count: 1 });
-    const upsertReceipt = vi.fn();
-    const db = {
-      payment: {
-        findFirst: vi.fn().mockResolvedValue({
-          amountCents: 4200,
-          currency: 'usd',
-          id: 'payment_123',
-          status: PaymentStatus.paid,
-        }),
-        updateMany: updatePayment,
-      },
-      eventPaymentNotification: {
-        upsert: upsertReceipt,
-      },
-      stripeWebhookEvent: {
-        create: vi.fn().mockResolvedValue({ id: 'webhook_event_456' }),
-        findUnique: vi.fn(),
-        update: updateWebhookEvent,
-        updateMany: vi.fn(),
-      },
-    };
+    const updateWebhookEvent = mockWebhookUpdate();
+    const updatePayment = mockPaymentUpdate();
+    const upsertReceipt = mockReceiptUpsert();
+    const db = createWebhookDb({
+      payment: eventPayment({ status: PaymentStatus.paid }),
+      updatePayment,
+      updateWebhookEvent,
+      upsertReceipt,
+      webhookEventId: 'webhook_event_456',
+    });
 
     const result = await processStripeWebhookEvent({
       db,
-      event: {
-        created: 1_777_636_800,
-        data: {
-          object: {
-            id: 'pi_456',
-            amount_received: 4200,
-            currency: 'usd',
-            metadata: { paymentId: 'payment_123' },
-          },
-        },
-        id: 'evt_payment_intent_succeeded_later',
-        type: 'payment_intent.succeeded',
-      },
+      event: paymentIntentSucceededEvent({
+        paymentIntentId: 'pi_456',
+        stripeEventId: 'evt_payment_intent_succeeded_later',
+      }),
     });
 
     expect(result).toEqual({ ok: true });
@@ -511,79 +546,31 @@ describe('processStripeWebhookEvent', () => {
   });
 
   it('does not synthesize receipts when retrying a failed later event that never created one', async () => {
-    const updateWebhookEvent = vi.fn();
-    const updateManyWebhookEvent = vi.fn().mockResolvedValue({ count: 1 });
-    const updatePayment = vi.fn().mockResolvedValue({ count: 1 });
-    const upsertReceipt = vi.fn();
-    const db = {
-      payment: {
-        findFirst: vi.fn().mockResolvedValue({
-          amountCents: 4200,
-          currency: 'usd',
-          id: 'payment_123',
-          status: PaymentStatus.paid,
-        }),
-        updateMany: updatePayment,
-      },
-      eventPaymentNotification: {
-        upsert: upsertReceipt,
-      },
-      stripeWebhookEvent: {
-        create: vi
-          .fn()
-          .mockResolvedValueOnce({ id: 'webhook_event_456' })
-          .mockRejectedValueOnce(
-            Object.assign(new Error('duplicate'), { code: 'P2002' })
-          ),
-        findUnique: vi.fn().mockResolvedValue({
-          id: 'webhook_event_456',
-          processedAt: null,
-          processingError: 'membership handler down',
-        }),
-        update: updateWebhookEvent,
-        updateMany: updateManyWebhookEvent,
-      },
-    };
-    const event = {
-      created: 1_777_636_800,
-      data: {
-        object: {
-          id: 'pi_456',
-          amount_received: 4200,
-          currency: 'usd',
-          metadata: { paymentId: 'payment_123' },
-        },
-      },
-      id: 'evt_payment_intent_succeeded_later',
-      type: 'payment_intent.succeeded',
-    };
-    const failingLaterHandler: StripeWebhookDispatchHandler = vi.fn(
-      async () => {
-        await Promise.resolve();
-        throw new Error('membership handler down');
-      }
-    );
-    const succeedingLaterHandler: StripeWebhookDispatchHandler = vi.fn(
-      async () => {
-        await Promise.resolve();
-        return { handled: true };
-      }
-    );
-
-    await expect(
-      processStripeWebhookEvent({
-        db,
-        event,
-        handlers: [failingLaterHandler],
-      })
-    ).resolves.toEqual({ ok: false });
-    await expect(
-      processStripeWebhookEvent({
-        db,
-        event,
-        handlers: [succeedingLaterHandler],
-      })
-    ).resolves.toEqual({ ok: true });
+    const updateWebhookEvent = mockWebhookUpdate();
+    const updateManyWebhookEvent = mockWebhookUpdateMany();
+    const updatePayment = mockPaymentUpdate();
+    const upsertReceipt = mockReceiptUpsert();
+    const db = createWebhookDb({
+      createWebhookEvent: mockWebhookCreateThenDuplicate('webhook_event_456'),
+      payment: eventPayment({ status: PaymentStatus.paid }),
+      storedWebhookEvent: storedWebhookEvent({
+        id: 'webhook_event_456',
+        processingError: 'membership handler down',
+      }),
+      updateManyWebhookEvent,
+      updatePayment,
+      updateWebhookEvent,
+      upsertReceipt,
+    });
+    const event = paymentIntentSucceededEvent({
+      paymentIntentId: 'pi_456',
+      stripeEventId: 'evt_payment_intent_succeeded_later',
+    });
+    await expectHandlerFailureThenSuccess({
+      db,
+      event,
+      successResult: { ok: true },
+    });
 
     expect(upsertReceipt).not.toHaveBeenCalled();
     expect(updateManyWebhookEvent).toHaveBeenCalled();
@@ -594,27 +581,13 @@ describe('processStripeWebhookEvent', () => {
   });
 
   it('does not claim unpaid membership checkout sessions as event payments', async () => {
-    const updateWebhookEvent = vi.fn();
-    const db = {
-      payment: {
-        findFirst: vi.fn().mockResolvedValue(null),
-        updateMany: vi.fn(),
-      },
-      eventPaymentNotification: {
-        upsert: vi.fn(),
-      },
-      stripeWebhookEvent: {
-        create: vi.fn().mockResolvedValue({ id: 'webhook_event_123' }),
-        findUnique: vi.fn(),
-        update: updateWebhookEvent,
-        updateMany: vi.fn(),
-      },
-    };
+    const updateWebhookEvent = mockWebhookUpdate();
+    const db = createWebhookDb({ updateWebhookEvent });
 
     const result = await processStripeWebhookEvent({
       db,
       event: {
-        created: 1_777_636_800,
+        created: stripeEventCreated,
         data: {
           object: {
             id: 'cs_membership',
@@ -651,73 +624,18 @@ describe('processStripeWebhookEvent', () => {
   });
 
   it('recovers receipts when marker creation fails after the paid transition', async () => {
-    const updateWebhookEvent = vi.fn();
-    const updateManyWebhookEvent = vi.fn().mockResolvedValue({ count: 1 });
-    const updatePayment = vi.fn().mockResolvedValue({ count: 1 });
-    const upsertReceipt = vi
-      .fn()
-      .mockRejectedValueOnce(new Error('receipt marker down'))
-      .mockResolvedValueOnce({});
-    const paymentState: {
-      amountCents: number;
-      currency: string;
-      id: string;
-      status: PaymentStatusType;
-    } = {
-      amountCents: 4200,
-      currency: 'usd',
-      id: 'payment_123',
-      status: PaymentStatus.pending,
-    };
-    const db = {
-      payment: {
-        findFirst: vi.fn(async () => {
-          await Promise.resolve();
-          return paymentState;
-        }),
-        updateMany: updatePayment,
-      },
-      eventPaymentNotification: {
-        upsert: upsertReceipt,
-      },
-      stripeWebhookEvent: {
-        create: vi
-          .fn()
-          .mockResolvedValueOnce({ id: 'webhook_event_123' })
-          .mockRejectedValueOnce(
-            Object.assign(new Error('duplicate'), { code: 'P2002' })
-          ),
-        findUnique: vi.fn().mockResolvedValue({
-          id: 'webhook_event_123',
-          processedAt: null,
-          processingError: 'receipt_enqueue_pending:receipt marker down',
-        }),
-        update: updateWebhookEvent,
-        updateMany: updateManyWebhookEvent,
-      },
-    };
-    const event = {
-      created: 1_777_636_800,
-      data: {
-        object: {
-          id: 'pi_123',
-          amount_received: 4200,
-          currency: 'usd',
-          metadata: { paymentId: 'payment_123' },
-        },
-      },
-      id: 'evt_payment_intent_succeeded',
-      type: 'payment_intent.succeeded',
-    };
+    const upsertReceipt = mockReceiptUpsert();
+    upsertReceipt.mockRejectedValueOnce(new Error('receipt marker down'));
+    const { db, event, paymentState, updateWebhookEvent } =
+      createReceiptRecoveryScenario({
+        processingError: 'receipt_enqueue_pending:receipt marker down',
+        upsertReceipt,
+      });
 
-    await expect(processStripeWebhookEvent({ db, event })).resolves.toEqual({
-      ok: false,
-    });
-    paymentState.status = PaymentStatus.paid;
-    await expect(processStripeWebhookEvent({ db, event })).resolves.toEqual({
-      ok: true,
-      receiptJob: { dateKey: '2026-05-01', paymentId: 'payment_123' },
-      stripeWebhookEventId: 'webhook_event_123',
+    await expectReceiptRecoveryAfterInitialFailure({
+      db,
+      event,
+      paymentState,
     });
 
     expect(upsertReceipt).toHaveBeenCalledTimes(2);
@@ -730,73 +648,19 @@ describe('processStripeWebhookEvent', () => {
   });
 
   it('recovers receipts when persisting the receipt-pending marker first fails', async () => {
-    const updateWebhookEvent = vi
-      .fn()
-      .mockRejectedValueOnce(new Error('webhook marker down'))
-      .mockResolvedValue({});
-    const updateManyWebhookEvent = vi.fn().mockResolvedValue({ count: 1 });
-    const updatePayment = vi.fn().mockResolvedValue({ count: 1 });
-    const upsertReceipt = vi.fn().mockResolvedValue({});
-    const paymentState: {
-      amountCents: number;
-      currency: string;
-      id: string;
-      status: PaymentStatusType;
-    } = {
-      amountCents: 4200,
-      currency: 'usd',
-      id: 'payment_123',
-      status: PaymentStatus.pending,
-    };
-    const db = {
-      payment: {
-        findFirst: vi.fn(async () => {
-          await Promise.resolve();
-          return paymentState;
-        }),
-        updateMany: updatePayment,
-      },
-      eventPaymentNotification: {
-        upsert: upsertReceipt,
-      },
-      stripeWebhookEvent: {
-        create: vi
-          .fn()
-          .mockResolvedValueOnce({ id: 'webhook_event_123' })
-          .mockRejectedValueOnce(
-            Object.assign(new Error('duplicate'), { code: 'P2002' })
-          ),
-        findUnique: vi.fn().mockResolvedValue({
-          id: 'webhook_event_123',
-          processedAt: null,
-          processingError: 'receipt_enqueue_pending:webhook marker down',
-        }),
-        update: updateWebhookEvent,
-        updateMany: updateManyWebhookEvent,
-      },
-    };
-    const event = {
-      created: 1_777_636_800,
-      data: {
-        object: {
-          id: 'pi_123',
-          amount_received: 4200,
-          currency: 'usd',
-          metadata: { paymentId: 'payment_123' },
-        },
-      },
-      id: 'evt_payment_intent_succeeded',
-      type: 'payment_intent.succeeded',
-    };
-
-    await expect(processStripeWebhookEvent({ db, event })).resolves.toEqual({
-      ok: false,
+    const updateWebhookEvent = mockWebhookUpdate();
+    updateWebhookEvent.mockRejectedValueOnce(new Error('webhook marker down'));
+    const upsertReceipt = mockReceiptUpsert();
+    const { db, event, paymentState } = createReceiptRecoveryScenario({
+      processingError: 'receipt_enqueue_pending:webhook marker down',
+      updateWebhookEvent,
+      upsertReceipt,
     });
-    paymentState.status = PaymentStatus.paid;
-    await expect(processStripeWebhookEvent({ db, event })).resolves.toEqual({
-      ok: true,
-      receiptJob: { dateKey: '2026-05-01', paymentId: 'payment_123' },
-      stripeWebhookEventId: 'webhook_event_123',
+
+    await expectReceiptRecoveryAfterInitialFailure({
+      db,
+      event,
+      paymentState,
     });
 
     expect(updateWebhookEvent).toHaveBeenCalledWith({
@@ -809,92 +673,27 @@ describe('processStripeWebhookEvent', () => {
   });
 
   it('retries later-domain failures without duplicating event-payment receipts', async () => {
-    const updateWebhookEvent = vi.fn();
-    const updateManyWebhookEvent = vi.fn().mockResolvedValue({ count: 1 });
-    const updatePayment = vi.fn().mockResolvedValue({ count: 1 });
-    const upsertReceipt = vi.fn().mockResolvedValue({});
-    const paymentState: {
-      amountCents: number;
-      currency: string;
-      id: string;
-      status: PaymentStatusType;
-    } = {
-      amountCents: 4200,
-      currency: 'usd',
-      id: 'payment_123',
-      status: PaymentStatus.pending,
-    };
-    const db = {
-      payment: {
-        findFirst: vi.fn(async () => {
-          await Promise.resolve();
-          return paymentState;
-        }),
-        updateMany: updatePayment,
+    const {
+      db,
+      event,
+      paymentState,
+      updateManyWebhookEvent,
+      updateWebhookEvent,
+      upsertReceipt,
+    } = createReceiptRecoveryScenario({
+      processingError: 'receipt_enqueue_pending:membership handler down',
+    });
+    await expectHandlerFailureThenSuccess({
+      beforeSuccess: () => {
+        paymentState.status = PaymentStatus.paid;
       },
-      eventPaymentNotification: {
-        upsert: upsertReceipt,
+      db,
+      event,
+      successResult: {
+        ok: true,
+        receiptJob: { dateKey: '2026-05-01', paymentId: 'payment_123' },
+        stripeWebhookEventId: 'webhook_event_123',
       },
-      stripeWebhookEvent: {
-        create: vi
-          .fn()
-          .mockResolvedValueOnce({ id: 'webhook_event_123' })
-          .mockRejectedValueOnce(
-            Object.assign(new Error('duplicate'), { code: 'P2002' })
-          ),
-        findUnique: vi.fn().mockResolvedValue({
-          id: 'webhook_event_123',
-          processedAt: null,
-          processingError: 'receipt_enqueue_pending:membership handler down',
-        }),
-        update: updateWebhookEvent,
-        updateMany: updateManyWebhookEvent,
-      },
-    };
-    const event = {
-      created: 1_777_636_800,
-      data: {
-        object: {
-          id: 'pi_123',
-          amount_received: 4200,
-          currency: 'usd',
-          metadata: { paymentId: 'payment_123' },
-        },
-      },
-      id: 'evt_payment_intent_succeeded',
-      type: 'payment_intent.succeeded',
-    };
-    const failingLaterHandler: StripeWebhookDispatchHandler = vi.fn(
-      async () => {
-        await Promise.resolve();
-        throw new Error('membership handler down');
-      }
-    );
-    const succeedingLaterHandler: StripeWebhookDispatchHandler = vi.fn(
-      async () => {
-        await Promise.resolve();
-        return { handled: true };
-      }
-    );
-
-    await expect(
-      processStripeWebhookEvent({
-        db,
-        event,
-        handlers: [failingLaterHandler],
-      })
-    ).resolves.toEqual({ ok: false });
-    paymentState.status = PaymentStatus.paid;
-    await expect(
-      processStripeWebhookEvent({
-        db,
-        event,
-        handlers: [succeedingLaterHandler],
-      })
-    ).resolves.toEqual({
-      ok: true,
-      receiptJob: { dateKey: '2026-05-01', paymentId: 'payment_123' },
-      stripeWebhookEventId: 'webhook_event_123',
     });
 
     expect(upsertReceipt).toHaveBeenCalledTimes(2);

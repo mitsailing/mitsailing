@@ -94,6 +94,67 @@ function stripeEvent(type: string, object: Record<string, unknown>) {
   };
 }
 
+function duplicateStripeEventError() {
+  return Object.assign(new Error('duplicate'), { code: 'P2002' });
+}
+
+function mockStripeEvent(type: string, object: Record<string, unknown>) {
+  mocks.constructEvent.mockReturnValueOnce(stripeEvent(type, object));
+}
+
+function mockPaymentIntentSucceededEvent() {
+  mockStripeEvent('payment_intent.succeeded', {
+    amount_received: 4200,
+    currency: 'usd',
+    id: 'pi_test',
+    metadata: { paymentId: 'payment-1' },
+  });
+}
+
+function mockCheckoutCompletedEvent() {
+  mockStripeEvent('checkout.session.completed', {
+    amount_total: 4200,
+    currency: 'usd',
+    customer: 'cus_test',
+    id: 'cs_test',
+    metadata: { paymentId: 'payment-1' },
+    payment_status: 'paid',
+    payment_intent: 'pi_test',
+  });
+}
+
+function mockDuplicateStoredWebhookEvent(options: {
+  processedAt: Date | null;
+  processingError: string | null;
+}) {
+  mocks.tx.stripeWebhookEvent.create.mockRejectedValueOnce(
+    duplicateStripeEventError()
+  );
+  mocks.tx.stripeWebhookEvent.findUnique.mockResolvedValueOnce({
+    id: 'stored-event-1',
+    processedAt: options.processedAt,
+    processingError: options.processingError,
+  });
+}
+
+async function expectDuplicateOkResponse(response: Response) {
+  await expect(response.json()).resolves.toEqual({
+    duplicate: true,
+    ok: true,
+  });
+  expect(response.status).toBe(200);
+}
+
+async function expectReceiptPendingFailureResponse(response: Response) {
+  await expect(response.json()).resolves.toEqual({ ok: false });
+  expect(response.status).toBe(500);
+  expect(mocks.tx.stripeWebhookEvent.update).toHaveBeenCalledWith({
+    data: { processingError: 'receipt_enqueue_pending' },
+    where: { id: 'stored-event-1' },
+  });
+  expect(mocks.prisma.stripeWebhookEvent.update).not.toHaveBeenCalled();
+}
+
 describe('stripe webhook route', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -150,76 +211,41 @@ describe('stripe webhook route', () => {
   });
 
   it('skips duplicate Stripe event ids', async () => {
-    mocks.constructEvent.mockReturnValueOnce(
-      stripeEvent('checkout.session.completed', {
-        id: 'cs_test',
-        metadata: { paymentId: 'payment-1' },
-        payment_intent: 'pi_test',
-      })
-    );
-    mocks.tx.stripeWebhookEvent.create.mockRejectedValueOnce(
-      Object.assign(new Error('duplicate'), { code: 'P2002' })
-    );
-    mocks.tx.stripeWebhookEvent.findUnique.mockResolvedValueOnce({
-      id: 'stored-event-1',
+    mockStripeEvent('checkout.session.completed', {
+      id: 'cs_test',
+      metadata: { paymentId: 'payment-1' },
+      payment_intent: 'pi_test',
+    });
+    mockDuplicateStoredWebhookEvent({
       processedAt: new Date('2026-05-01T12:01:00.000Z'),
       processingError: null,
     });
 
     const response = await POST(stripeRequest({}));
 
-    await expect(response.json()).resolves.toEqual({
-      duplicate: true,
-      ok: true,
-    });
-    expect(response.status).toBe(200);
+    await expectDuplicateOkResponse(response);
     expect(mocks.tx.payment.findFirst).not.toHaveBeenCalled();
     expect(mocks.tx.payment.updateMany).not.toHaveBeenCalled();
     expect(mocks.enqueueEventPaymentEmailJob).not.toHaveBeenCalled();
   });
 
   it('skips processed paid duplicates without replaying receipt side effects', async () => {
-    mocks.constructEvent.mockReturnValueOnce(
-      stripeEvent('payment_intent.succeeded', {
-        amount_received: 4200,
-        currency: 'usd',
-        id: 'pi_test',
-        metadata: { paymentId: 'payment-1' },
-      })
-    );
-    mocks.tx.stripeWebhookEvent.create.mockRejectedValueOnce(
-      Object.assign(new Error('duplicate'), { code: 'P2002' })
-    );
-    mocks.tx.stripeWebhookEvent.findUnique.mockResolvedValueOnce({
-      id: 'stored-event-1',
+    mockPaymentIntentSucceededEvent();
+    mockDuplicateStoredWebhookEvent({
       processedAt: new Date('2026-05-01T12:01:00.000Z'),
       processingError: null,
     });
 
     const response = await POST(stripeRequest({}));
 
-    await expect(response.json()).resolves.toEqual({
-      duplicate: true,
-      ok: true,
-    });
+    await expectDuplicateOkResponse(response);
     expect(mocks.tx.payment.findFirst).not.toHaveBeenCalled();
     expect(mocks.enqueueEventPaymentEmailJob).not.toHaveBeenCalled();
   });
 
   it('retries duplicate Stripe event ids that previously failed processing', async () => {
-    mocks.constructEvent.mockReturnValueOnce(
-      stripeEvent('payment_intent.succeeded', {
-        amount_received: 4200,
-        currency: 'usd',
-        id: 'pi_test',
-        metadata: { paymentId: 'payment-1' },
-      })
-    );
-    mocks.tx.stripeWebhookEvent.create.mockRejectedValueOnce(
-      Object.assign(new Error('duplicate'), { code: 'P2002' })
-    );
-    mocks.tx.stripeWebhookEvent.findUnique.mockResolvedValueOnce({
-      id: 'stored-event-1',
+    mockPaymentIntentSucceededEvent();
+    mockDuplicateStoredWebhookEvent({
       processedAt: null,
       processingError: 'receipt_enqueue_pending',
     });
@@ -237,17 +263,7 @@ describe('stripe webhook route', () => {
   });
 
   it('marks checkout completion as paid and queues a receipt email', async () => {
-    mocks.constructEvent.mockReturnValueOnce(
-      stripeEvent('checkout.session.completed', {
-        amount_total: 4200,
-        currency: 'usd',
-        customer: 'cus_test',
-        id: 'cs_test',
-        metadata: { paymentId: 'payment-1' },
-        payment_status: 'paid',
-        payment_intent: 'pi_test',
-      })
-    );
+    mockCheckoutCompletedEvent();
 
     const response = await POST(stripeRequest({}));
 
@@ -283,46 +299,19 @@ describe('stripe webhook route', () => {
   });
 
   it('leaves receipt-producing events retryable when queueing fails', async () => {
-    mocks.constructEvent.mockReturnValueOnce(
-      stripeEvent('checkout.session.completed', {
-        amount_total: 4200,
-        currency: 'usd',
-        customer: 'cus_test',
-        id: 'cs_test',
-        metadata: { paymentId: 'payment-1' },
-        payment_status: 'paid',
-        payment_intent: 'pi_test',
-      })
-    );
+    mockCheckoutCompletedEvent();
     mocks.enqueueEventPaymentEmailJob.mockRejectedValueOnce(
       new Error('Queue down')
     );
 
     const response = await POST(stripeRequest({}));
 
-    await expect(response.json()).resolves.toEqual({ ok: false });
-    expect(response.status).toBe(500);
-    expect(mocks.tx.stripeWebhookEvent.update).toHaveBeenCalledWith({
-      data: { processingError: 'receipt_enqueue_pending' },
-      where: { id: 'stored-event-1' },
-    });
-    expect(mocks.prisma.stripeWebhookEvent.update).not.toHaveBeenCalled();
+    await expectReceiptPendingFailureResponse(response);
   });
 
   it('re-persists receipt pending when a duplicate retry queueing fails again', async () => {
-    mocks.constructEvent.mockReturnValueOnce(
-      stripeEvent('payment_intent.succeeded', {
-        amount_received: 4200,
-        currency: 'usd',
-        id: 'pi_test',
-        metadata: { paymentId: 'payment-1' },
-      })
-    );
-    mocks.tx.stripeWebhookEvent.create.mockRejectedValueOnce(
-      Object.assign(new Error('duplicate'), { code: 'P2002' })
-    );
-    mocks.tx.stripeWebhookEvent.findUnique.mockResolvedValueOnce({
-      id: 'stored-event-1',
+    mockPaymentIntentSucceededEvent();
+    mockDuplicateStoredWebhookEvent({
       processedAt: null,
       processingError: 'receipt_enqueue_pending:Queue down',
     });
@@ -338,25 +327,17 @@ describe('stripe webhook route', () => {
 
     const response = await POST(stripeRequest({}));
 
-    await expect(response.json()).resolves.toEqual({ ok: false });
-    expect(response.status).toBe(500);
-    expect(mocks.tx.stripeWebhookEvent.update).toHaveBeenCalledWith({
-      data: { processingError: 'receipt_enqueue_pending' },
-      where: { id: 'stored-event-1' },
-    });
-    expect(mocks.prisma.stripeWebhookEvent.update).not.toHaveBeenCalled();
+    await expectReceiptPendingFailureResponse(response);
   });
 
   it('marks payment intent success as paid', async () => {
-    mocks.constructEvent.mockReturnValueOnce(
-      stripeEvent('payment_intent.succeeded', {
-        amount_received: 4200,
-        currency: 'usd',
-        id: 'pi_test',
-        latest_charge: 'ch_test',
-        metadata: { paymentId: 'payment-1' },
-      })
-    );
+    mockStripeEvent('payment_intent.succeeded', {
+      amount_received: 4200,
+      currency: 'usd',
+      id: 'pi_test',
+      latest_charge: 'ch_test',
+      metadata: { paymentId: 'payment-1' },
+    });
 
     const response = await POST(stripeRequest({}));
 
@@ -445,14 +426,7 @@ describe('stripe webhook route', () => {
   });
 
   it('persists processing errors on the stored webhook event', async () => {
-    mocks.constructEvent.mockReturnValueOnce(
-      stripeEvent('payment_intent.succeeded', {
-        amount_received: 4200,
-        currency: 'usd',
-        id: 'pi_test',
-        metadata: { paymentId: 'payment-1' },
-      })
-    );
+    mockPaymentIntentSucceededEvent();
     mocks.tx.payment.updateMany.mockRejectedValueOnce(new Error('DB down'));
 
     const response = await POST(stripeRequest({}));
