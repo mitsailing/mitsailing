@@ -245,14 +245,18 @@ function healthUrl(baseUrl: string, pathname: string): string {
   return new URL(pathname, baseUrl).toString();
 }
 
-function optionalHttpCheck(params: {
+type OptionalHttpCheckParams = {
   baseUrl?: string;
   checkers: ReadinessCheckers;
   method: 'GET' | 'OPTIONS';
   path: string;
   required: boolean;
   timeoutMs: number;
-}): DependencyHealth | Promise<DependencyHealth> {
+};
+
+function optionalHttpCheck(
+  params: OptionalHttpCheckParams
+): DependencyHealth | Promise<DependencyHealth> {
   if (!params.baseUrl) {
     return skippedDependencyCheck(params.required);
   }
@@ -266,6 +270,15 @@ function optionalHttpCheck(params: {
       });
     },
   });
+}
+
+function optionalServiceAwareHttpCheck(
+  params: OptionalHttpCheckParams & { mode: ReadinessMode }
+): DependencyHealth | Promise<DependencyHealth> {
+  if (params.mode === 'service') {
+    return Promise.resolve(serviceModeDependencyCheck());
+  }
+  return optionalHttpCheck(params);
 }
 
 export async function getReadinessHealth(
@@ -298,28 +311,24 @@ export async function getReadinessHealth(
         },
       })
     : Promise.resolve(skippedDependencyCheck(isExternalDependencyRequired));
-  const mediaUploadPromise =
-    mode === 'service'
-      ? Promise.resolve(serviceModeDependencyCheck())
-      : optionalHttpCheck({
-          baseUrl: env.mediaUploadBaseUrl,
-          checkers,
-          method: 'OPTIONS',
-          path: '/cms-media/uploads/',
-          required: isExternalDependencyRequired,
-          timeoutMs,
-        });
-  const mediaPublicPromise =
-    mode === 'service'
-      ? Promise.resolve(serviceModeDependencyCheck())
-      : optionalHttpCheck({
-          baseUrl: env.mediaPublicBaseUrl,
-          checkers,
-          method: 'GET',
-          path: '/cms-media/healthz',
-          required: isExternalDependencyRequired,
-          timeoutMs,
-        });
+  const mediaUploadPromise = optionalServiceAwareHttpCheck({
+    baseUrl: env.mediaUploadBaseUrl,
+    checkers,
+    method: 'OPTIONS',
+    mode,
+    path: '/cms-media/uploads/',
+    required: isExternalDependencyRequired,
+    timeoutMs,
+  });
+  const mediaPublicPromise = optionalServiceAwareHttpCheck({
+    baseUrl: env.mediaPublicBaseUrl,
+    checkers,
+    method: 'GET',
+    mode,
+    path: '/cms-media/healthz',
+    required: isExternalDependencyRequired,
+    timeoutMs,
+  });
   const trafficPromise = (async () => {
     try {
       const hostTrafficState = await checkers.trafficState(

@@ -203,7 +203,7 @@ describe('production docker compose', () => {
       `"mkdir -p ${escapedAppDir}/bin ${escapedAppDir}/docker/postgres ${escapedAppDir}/docker/nginx"`
     );
     expect(deployWorkflow).toContain(
-      `chmod 755 ${escapedAppDir}/docker ${escapedAppDir}/docker/postgres ${escapedAppDir}/docker/nginx`
+      `chmod 755 ${escapedAppDir}/bin ${escapedAppDir}/docker ${escapedAppDir}/docker/postgres ${escapedAppDir}/docker/nginx`
     );
     expect(deployWorkflow).toContain(
       `chmod 700 ${escapedAppDir}/bin/deploy.sh`

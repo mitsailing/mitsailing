@@ -222,7 +222,7 @@ jobs:
             -o BatchMode=yes \
             -o ConnectTimeout=15 \
             "$PRODUCTION_SSH_TARGET" \
-            "chmod 755 ${remote_app_dir}/docker ${remote_app_dir}/docker/postgres ${remote_app_dir}/docker/nginx && chmod 700 ${remote_app_dir}/bin/deploy.sh && chmod 644 ${remote_app_dir}/compose.yaml ${remote_app_dir}/compose.prod.yaml ${remote_app_dir}/docker/postgres/init.sql ${remote_app_dir}/docker/nginx/media.conf"
+            "chmod 755 ${remote_app_dir}/bin ${remote_app_dir}/docker ${remote_app_dir}/docker/postgres ${remote_app_dir}/docker/nginx && chmod 700 ${remote_app_dir}/bin/deploy.sh && chmod 644 ${remote_app_dir}/compose.yaml ${remote_app_dir}/compose.prod.yaml ${remote_app_dir}/docker/postgres/init.sql ${remote_app_dir}/docker/nginx/media.conf"
 
       - name: Release
         env:
