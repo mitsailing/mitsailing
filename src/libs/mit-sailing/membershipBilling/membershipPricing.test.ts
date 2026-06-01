@@ -39,6 +39,7 @@ function priceRow(
     >
 ): SailingCardMembershipPriceRow {
   return {
+    ...row,
     active: row.active ?? true,
     cardType: row.cardType ?? SailingCardType.racing,
     currency: row.currency ?? 'usd',
@@ -54,7 +55,6 @@ function priceRow(
     stripePriceId: row.stripePriceId ?? null,
     stripeSyncError: row.stripeSyncError ?? null,
     stripeSyncedAt: row.stripeSyncedAt ?? null,
-    ...row,
   };
 }
 

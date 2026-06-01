@@ -1,9 +1,28 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const schema = readFileSync('zenstack/schema.zmodel', 'utf8');
+const membershipPriceMigrationPath = readdirSync('prisma/migrations', {
+  withFileTypes: true,
+})
+  .filter(
+    (entry) =>
+      entry.isDirectory() &&
+      /^\d+_add_sailing_card_membership_prices$/u.test(entry.name)
+  )
+  .map((entry) => join('prisma/migrations', entry.name, 'migration.sql'))
+  .toSorted()
+  .find((path) => existsSync(path));
+
+if (membershipPriceMigrationPath === undefined) {
+  throw new Error(
+    'Expected a migration matching *_add_sailing_card_membership_prices/migration.sql.'
+  );
+}
+
 const membershipPriceMigration = readFileSync(
-  'prisma/migrations/20260531201000_add_sailing_card_membership_prices/migration.sql',
+  membershipPriceMigrationPath,
   'utf8'
 );
 const compactSchema = schema.replaceAll(/\s+/g, ' ');

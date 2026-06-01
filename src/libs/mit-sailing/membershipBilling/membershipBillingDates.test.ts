@@ -3,7 +3,6 @@ import {
   membershipAccessThroughDate,
   membershipBillingAnchorForCheckout,
   membershipPriceKindForDate,
-  nextMembershipRenewalAt,
 } from '@/libs/mit-sailing/membershipBilling/membershipBillingDates';
 
 describe('membership billing dates', () => {
@@ -40,7 +39,7 @@ describe('membership billing dates', () => {
 
   it('returns access-through and next-renewal dates for profile copy', () => {
     expect(
-      nextMembershipRenewalAt(
+      membershipBillingAnchorForCheckout(
         new Date('2026-12-01T12:00:00.000Z')
       ).toISOString()
     ).toBe('2027-07-15T04:00:00.000Z');

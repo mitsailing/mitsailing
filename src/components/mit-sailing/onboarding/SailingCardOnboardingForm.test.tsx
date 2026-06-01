@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { SailingAffiliation, SailingCardType } from '@/generated/prisma/enums';
@@ -278,12 +278,16 @@ describe('SailingCardOnboardingForm', () => {
       'bday'
     );
     expect(screen.getByLabelText('Date of birth')).toHaveAccessibleDescription(
-      'Used for sailing card eligibility and safety records.'
+      'Use a 4-digit year, like 03/24/1988. Short years are accepted and expanded when possible.'
     );
     expect(screen.getByLabelText('Your phone number')).toBeRequired();
     expect(screen.getByLabelText('Your phone number')).toHaveAttribute(
       'autocomplete',
       'section-user tel'
+    );
+    expect(screen.getByLabelText('Your phone number')).toHaveAttribute(
+      'inputmode',
+      'tel'
     );
     expect(
       screen.getByText(
@@ -319,8 +323,36 @@ describe('SailingCardOnboardingForm', () => {
     expect(dateOfBirth).toHaveValue('02/30/2000');
     expect(dateOfBirth).toHaveAttribute('aria-invalid', 'true');
     expect(
-      screen.getByText('Enter date of birth as MM/DD/YYYY.')
+      screen.getByText('Enter date of birth as MM/DD/YYYY with a 4-digit year.')
     ).toBeInTheDocument();
+  });
+
+  it('normalizes short date of birth years when leaving the field', async () => {
+    renderForm();
+    const user = userEvent.setup();
+
+    await showWellesleyDetails();
+    const dateOfBirth = screen.getByLabelText('Date of birth');
+
+    await user.type(dateOfBirth, '032488');
+
+    expect(dateOfBirth).toHaveValue('03/24/88');
+
+    await user.tab();
+
+    expect(dateOfBirth).toHaveValue('03/24/1988');
+    expect(dateOfBirth).not.toHaveAttribute('aria-invalid', 'true');
+  });
+
+  it('normalizes browser autofilled iso dates of birth', async () => {
+    renderForm();
+
+    await showWellesleyDetails();
+    const dateOfBirth = screen.getByLabelText('Date of birth');
+
+    fireEvent.change(dateOfBirth, { target: { value: '1988-03-24' } });
+
+    expect(dateOfBirth).toHaveValue('03/24/1988');
   });
 
   it('restores full draft progress after remount without storing contact details', async () => {
@@ -398,6 +430,10 @@ describe('SailingCardOnboardingForm', () => {
     expect(screen.getByLabelText('Emergency contact phone')).toHaveAttribute(
       'autocomplete',
       'section-emergency tel'
+    );
+    expect(screen.getByLabelText('Emergency contact phone')).toHaveAttribute(
+      'inputmode',
+      'tel'
     );
     expect(screen.queryByLabelText('MIT ID')).not.toBeInTheDocument();
   });

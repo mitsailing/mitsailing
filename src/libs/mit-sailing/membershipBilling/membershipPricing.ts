@@ -14,6 +14,9 @@ import {
 import { parseSailingCardDateOfBirth } from '@/libs/mit-sailing/sailingCardDateOfBirth';
 import { hasStudentPaidRacingPrice } from '@/libs/mit-sailing/sailingCardMembership';
 
+/**
+ * Active membership price catalog row used for request pricing and checkout.
+ */
 export type SailingCardMembershipPriceRow = {
   readonly active: boolean;
   readonly amountCents: number;
@@ -44,6 +47,9 @@ type MembershipPriceLookup = {
   readonly priceKind: SailingCardMembershipPriceKind;
 };
 
+/**
+ * Minimal Prisma-compatible reader for sailing-card membership prices.
+ */
 export type MembershipPricingReadClient = {
   readonly sailingCardMembershipPrice: {
     findMany(
@@ -58,6 +64,9 @@ type CheckoutMembershipPricesReady = {
   readonly status: 'ready';
 };
 
+/**
+ * Result of resolving the due-today and renewal prices for checkout.
+ */
 export type CheckoutMembershipPricesResult =
   | CheckoutMembershipPricesReady
   | { readonly status: 'missing_due_today_price' }
@@ -84,18 +93,36 @@ function ageOnEasternDate(props: {
   readonly birthDate: Date;
   readonly now: Date;
 }) {
-  const [year, month, day] = nyYmd(props.now).split('-').map(Number);
+  const [year, month, day, extra] = nyYmd(props.now).split('-').map(Number);
+  if (
+    year === undefined ||
+    month === undefined ||
+    day === undefined ||
+    extra !== undefined ||
+    Number.isNaN(year) ||
+    Number.isNaN(month) ||
+    Number.isNaN(day)
+  ) {
+    throw new TypeError('nyYmd returned an invalid date for ageOnEasternDate.');
+  }
+
   const birthMonth = props.birthDate.getUTCMonth() + 1;
   const birthDay = props.birthDate.getUTCDate();
   const hasHadBirthday =
-    (month ?? 0) > birthMonth ||
-    ((month ?? 0) === birthMonth && (day ?? 0) >= birthDay);
+    month > birthMonth || (month === birthMonth && day >= birthDay);
 
   return hasHadBirthday
-    ? (year ?? 0) - props.birthDate.getUTCFullYear()
-    : (year ?? 0) - props.birthDate.getUTCFullYear() - 1;
+    ? year - props.birthDate.getUTCFullYear()
+    : year - props.birthDate.getUTCFullYear() - 1;
 }
 
+/**
+ * Resolves the paid membership price category for a card request.
+ *
+ * @param props - Request affiliation, optional date of birth, and pricing date.
+ * @returns Price category, or null for unpaid/unknown eligibility.
+ * @throws TypeError when New York date formatting returns an invalid date.
+ */
 export function membershipPriceCategoryForCardRequest(props: {
   readonly affiliation: SailingAffiliation | '';
   readonly dateOfBirth: string | undefined;
@@ -144,6 +171,13 @@ function membershipPriceMatchesLookup(
   );
 }
 
+/**
+ * Selects the newest active price effective at the requested instant.
+ *
+ * @param prices - Candidate catalog rows for one price lookup.
+ * @param options - Pricing instant and optional Stripe readiness requirement.
+ * @returns Matching price row, or null when none are active and usable.
+ */
 export function selectActiveMembershipPrice(
   prices: readonly SailingCardMembershipPriceRow[],
   options: {
@@ -165,6 +199,13 @@ export function selectActiveMembershipPrice(
   );
 }
 
+/**
+ * Reads and selects one active catalog price from the configured client.
+ *
+ * @param options - Catalog key, pricing instant, client, and Stripe readiness.
+ * @returns Matching price row, or null when the catalog lacks a usable row.
+ * @throws Error when the configured read client cannot load catalog prices.
+ */
 export async function getActiveMembershipPrice(options: {
   readonly billingInterval: SailingCardMembershipBillingInterval;
   readonly cardType: SailingCardType;
@@ -193,6 +234,14 @@ export async function getActiveMembershipPrice(options: {
   });
 }
 
+/**
+ * Reads the due-today and renewal prices required for Stripe Checkout.
+ *
+ * @param options - Card request facts, pricing instant, client, and Stripe readiness.
+ * @returns Ready prices or a status explaining why checkout cannot proceed.
+ * @throws Error when the configured read client cannot load catalog prices.
+ * @throws TypeError when New York date formatting returns an invalid date.
+ */
 export async function getCheckoutMembershipPrices(options: {
   readonly affiliation: SailingAffiliation | '';
   readonly cardType: SailingCardType;

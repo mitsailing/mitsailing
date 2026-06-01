@@ -24,9 +24,10 @@ export function SailingCardOnboardingForm(
 
   return (
     <form
-      ref={formRef}
+      autoComplete="on"
       className="mx-auto flex w-full max-w-3xl flex-col gap-6 text-sm"
       onSubmit={model.handleSubmit}
+      ref={formRef}
     >
       <OnboardingFormFields
         affiliation={model.affiliation}
