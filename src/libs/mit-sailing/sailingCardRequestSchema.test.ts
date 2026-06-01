@@ -83,5 +83,8 @@ describe('sailing card request schema', () => {
     expect(membershipPriceMigration).toContain(
       'NEW.stripe_price_id IS DISTINCT FROM OLD.stripe_price_id'
     );
+    expect(membershipPriceMigration).toMatch(
+      /OR \(\s*NEW\.created_by_user_id IS NOT NULL\s*AND NEW\.created_by_user_id IS DISTINCT FROM OLD\.created_by_user_id\s*\)/u
+    );
   });
 });
