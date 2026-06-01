@@ -29,13 +29,20 @@ type MembershipStripePrice = Pick<
 
 export type MembershipStripePriceSyncDb = {
   readonly sailingCardMembershipPrice: {
+    findUnique(args: {
+      readonly where: { readonly id: string };
+    }): Promise<SailingCardMembershipPriceRow | null>;
     update(args: {
       readonly data: {
         readonly stripePriceId?: string;
         readonly stripeSyncError: string | null;
         readonly stripeSyncedAt: Date | null;
       };
-      readonly where: { readonly id: string };
+      readonly where: {
+        readonly AND?: readonly { readonly stripePriceId: string | null }[];
+        readonly active?: boolean;
+        readonly id: string;
+      };
     }): Promise<SailingCardMembershipPriceRow>;
   };
 };
@@ -215,6 +222,13 @@ function isStripeResourceMissing(error: unknown) {
   return code === 'resource_missing' || statusCode === 404;
 }
 
+function isPrismaRecordMissing(error: unknown) {
+  if (typeof error !== 'object' || error === null) {
+    return false;
+  }
+  return 'code' in error && error.code === 'P2025';
+}
+
 function stripeSyncErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : 'Unknown Stripe sync error.';
 }
@@ -282,6 +296,20 @@ async function activateMembershipStripePrice(options: {
   );
 }
 
+async function archiveMembershipStripePrice(options: {
+  readonly price: Pick<SailingCardMembershipPriceRow, 'id'>;
+  readonly stripe: MembershipStripePriceSyncStripe;
+  readonly stripePriceId: string;
+}) {
+  await options.stripe.prices.update(
+    options.stripePriceId,
+    { active: false },
+    {
+      idempotencyKey: `membership-price-archive-${options.price.id}`,
+    }
+  );
+}
+
 async function findMembershipStripePriceByLookupKey(options: {
   readonly price: Pick<SailingCardMembershipPriceRow, 'id'>;
   readonly stripe: MembershipStripePriceSyncStripe;
@@ -316,7 +344,9 @@ function membershipStripePriceMatchesLocalPrice(options: {
   ) {
     return (
       options.stripePrice.type === 'recurring' &&
-      options.stripePrice.recurring?.interval === 'year'
+      options.stripePrice.recurring?.interval === 'year' &&
+      options.stripePrice.recurring.interval_count === 1 &&
+      options.stripePrice.recurring.usage_type === 'licensed'
     );
   }
 
@@ -386,11 +416,120 @@ function shouldSkipStripeSync(price: SailingCardMembershipPriceRow) {
 function existingStripePriceNeedsVerification(
   price: SailingCardMembershipPriceRow
 ) {
+  return price.stripePriceId !== null && price.stripeSyncedAt === null;
+}
+
+function syncedPriceUpdateWhere(price: SailingCardMembershipPriceRow) {
+  return {
+    AND: [{ stripePriceId: price.stripePriceId }],
+    active: price.active,
+    id: price.id,
+  };
+}
+
+function isAlreadySyncedToStripePrice(options: {
+  readonly currentPrice: SailingCardMembershipPriceRow;
+  readonly price: Pick<SailingCardMembershipPriceRow, 'active'>;
+  readonly stripePriceId: string;
+}) {
   return (
-    price.active &&
-    price.stripePriceId !== null &&
-    price.stripeSyncedAt === null
+    options.currentPrice.active === options.price.active &&
+    options.currentPrice.stripePriceId === options.stripePriceId &&
+    options.currentPrice.stripeSyncError === null &&
+    options.currentPrice.stripeSyncedAt !== null
   );
+}
+
+async function handleChangedMembershipPrice(options: {
+  readonly db: MembershipStripePriceSyncDb;
+  readonly price: SailingCardMembershipPriceRow;
+  readonly stripe: MembershipStripePriceSyncStripe;
+  readonly stripePriceId: string;
+}) {
+  const currentPrice = await options.db.sailingCardMembershipPrice.findUnique({
+    where: { id: options.price.id },
+  });
+
+  if (
+    currentPrice !== null &&
+    isAlreadySyncedToStripePrice({
+      currentPrice,
+      price: options.price,
+      stripePriceId: options.stripePriceId,
+    })
+  ) {
+    return currentPrice;
+  }
+
+  if (currentPrice?.active === false) {
+    await archiveMembershipStripePrice({
+      price: options.price,
+      stripe: options.stripe,
+      stripePriceId: options.stripePriceId,
+    });
+  }
+
+  throw new TypeError('Membership Price changed during Stripe sync.');
+}
+
+async function markMembershipStripePriceSynced(options: {
+  readonly db: MembershipStripePriceSyncDb;
+  readonly now: Date;
+  readonly price: SailingCardMembershipPriceRow;
+  readonly stripe: MembershipStripePriceSyncStripe;
+  readonly stripePriceId: string;
+}) {
+  try {
+    return await options.db.sailingCardMembershipPrice.update({
+      data: {
+        stripePriceId: options.stripePriceId,
+        stripeSyncError: null,
+        stripeSyncedAt: options.now,
+      },
+      where: syncedPriceUpdateWhere(options.price),
+    });
+  } catch (error) {
+    if (!isPrismaRecordMissing(error)) {
+      throw error;
+    }
+    return handleChangedMembershipPrice(options);
+  }
+}
+
+function membershipStripePriceSyncDb(): MembershipStripePriceSyncDb {
+  return {
+    sailingCardMembershipPrice: {
+      findUnique: async (args) => {
+        const price = await prisma.sailingCardMembershipPrice.findUnique(args);
+        return price;
+      },
+      update: async (args) => {
+        const price = await prisma.sailingCardMembershipPrice.update({
+          data: {
+            ...(args.data.stripePriceId === undefined
+              ? {}
+              : { stripePriceId: args.data.stripePriceId }),
+            stripeSyncError: args.data.stripeSyncError,
+            stripeSyncedAt: args.data.stripeSyncedAt,
+          },
+          where: {
+            ...(args.where.AND === undefined
+              ? {}
+              : {
+                  AND: args.where.AND.map((condition) => ({
+                    stripePriceId: condition.stripePriceId,
+                  })),
+                }),
+            ...(args.where.active === undefined
+              ? {}
+              : { active: args.where.active }),
+            id: args.where.id,
+          },
+        });
+        return price;
+      },
+    },
+  };
 }
 
 export async function syncSailingCardMembershipPrice(options: {
@@ -399,7 +538,7 @@ export async function syncSailingCardMembershipPrice(options: {
   readonly price: SailingCardMembershipPriceRow;
   readonly stripe: MembershipStripePriceSyncStripe;
 }): Promise<MembershipStripePriceSyncResult> {
-  const db = options.db ?? prisma;
+  const db = options.db ?? membershipStripePriceSyncDb();
   const now = options.now ?? new Date();
 
   if (shouldSkipStripeSync(options.price)) {
@@ -433,15 +572,26 @@ export async function syncSailingCardMembershipPrice(options: {
       });
       status = 'reused';
     } else {
-      await options.stripe.prices.update(
+      await archiveMembershipStripePrice({
+        price: options.price,
+        stripe: options.stripe,
         stripePriceId,
-        { active: false },
-        {
-          idempotencyKey: `membership-price-archive-${options.price.id}`,
-        }
-      );
+      });
       status = 'archived';
     }
+    const updatedPrice = await markMembershipStripePriceSynced({
+      db,
+      now,
+      price: options.price,
+      stripe: options.stripe,
+      stripePriceId,
+    });
+
+    return {
+      price: updatedPrice,
+      status,
+      stripePriceId,
+    };
   } catch (error) {
     const message = stripeSyncErrorMessage(error);
     const updatedPrice = await db.sailingCardMembershipPrice.update({
@@ -459,19 +609,4 @@ export async function syncSailingCardMembershipPrice(options: {
       stripePriceId: options.price.stripePriceId,
     };
   }
-
-  const updatedPrice = await db.sailingCardMembershipPrice.update({
-    data: {
-      stripePriceId,
-      stripeSyncError: null,
-      stripeSyncedAt: now,
-    },
-    where: { id: options.price.id },
-  });
-
-  return {
-    price: updatedPrice,
-    status,
-    stripePriceId,
-  };
 }
