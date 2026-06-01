@@ -8,6 +8,8 @@
 
 **Tech Stack:** Next.js App Router, Server Actions, Prisma/ZenStack, Stripe Checkout/Billing, next-intl, Vitest, Playwright.
 
+**Stripe/package-first guard:** Do not build a subscription engine from scratch. Use the official `stripe` SDK plus Stripe Checkout, Billing, Prices, Subscriptions, invoices, automatic payment retry/dunning, and Customer Portal wherever they cover the lifecycle. MIT Sailing code should only hold local eligibility, consent snapshots, audit/payment records, admin issue state, and idempotent webhook side effects needed for this app. Before adding custom billing tables, schedulers, renewal logic, retry loops, or wrapper services, document why Stripe Billing/Checkout/Portal or an existing local helper cannot do it. Do not add a third-party Stripe subscription abstraction unless it is actively maintained, broadly adopted, and reduces code in this repo without hiding July 15 renewal, MIT eligibility, legacy payment, admin override, or audit requirements.
+
 ---
 
 ## Execution Reconciliation Notes

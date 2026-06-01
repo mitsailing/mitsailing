@@ -59,11 +59,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ duplicate: true, ok: true });
   }
   if (result.receiptJob) {
-    await enqueueEventPaymentEmailJob(getDefaultQueue(), {
-      dateKey: result.receiptJob.dateKey,
-      kind: 'receipt',
-      paymentId: result.receiptJob.paymentId,
-    });
+    try {
+      await enqueueEventPaymentEmailJob(getDefaultQueue(), {
+        dateKey: result.receiptJob.dateKey,
+        kind: 'receipt',
+        paymentId: result.receiptJob.paymentId,
+      });
+      await prisma.stripeWebhookEvent.update({
+        data: { processedAt: new Date(), processingError: null },
+        where: { id: result.stripeWebhookEventId },
+      });
+    } catch (error) {
+      logger.error('Failed to enqueue Stripe webhook receipt job: {error}', {
+        error,
+      });
+      return NextResponse.json({ ok: false }, { status: 500 });
+    }
   }
   return NextResponse.json({ ok: true });
 }
