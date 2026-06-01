@@ -195,10 +195,12 @@ function PrimaryNavBranch(props: {
   );
 }
 
-function MobileUtilityLink(props: {
-  item: SiteHeaderMobileUtilityItem;
-  onNavigate: () => void;
-}) {
+function MobileUtilityLink(
+  props: Readonly<{
+    item: SiteHeaderMobileUtilityItem;
+    onNavigate: () => void;
+  }>
+) {
   const href = safeCmsHref(props.item.href);
   if (!href) {
     return null;
@@ -228,22 +230,23 @@ function MobileUtilityLink(props: {
   );
 }
 
-function MobileAuthActions(props: {
-  adminLabel: string;
-  displayAdminLink: boolean;
-  displayAuthenticated: boolean;
-  loadingLabel: string;
-  locale: string;
-  loginHref: string;
-  loginLabel: string;
-  onNavigate: () => void;
-  profileLabel: string;
-  profileLinkProps: ReturnType<typeof profileLinkTargetProps>;
-  showAuthPending: boolean;
-  signOutLabel: string;
-  signupHref: string;
-  signupLabel: string;
-}) {
+function MobileAuthActions(
+  props: Readonly<{
+    adminLabel: string;
+    authCallbackUrl: string;
+    displayAdminLink: boolean;
+    displayAuthenticated: boolean;
+    loadingLabel: string;
+    locale: string;
+    loginLabel: string;
+    onNavigate: () => void;
+    profileLabel: string;
+    profileLinkProps: ReturnType<typeof profileLinkTargetProps>;
+    showAuthPending: boolean;
+    signOutLabel: string;
+    signupLabel: string;
+  }>
+) {
   return (
     <div className="mt-4 flex min-h-[92px] flex-col gap-2 border-t border-mit-line pt-4">
       {props.showAuthPending ? (
@@ -260,14 +263,14 @@ function MobileAuthActions(props: {
         <>
           <Link
             className={mobileGuestLoginClass}
-            href={props.loginHref}
+            href={authHrefWithCallback('/login', props.authCallbackUrl)}
             onClick={props.onNavigate}
           >
             {props.loginLabel}
           </Link>
           <Link
             className={mobileGuestSignupClass}
-            href={props.signupHref}
+            href={authHrefWithCallback('/signup', props.authCallbackUrl)}
             onClick={props.onNavigate}
           >
             {props.signupLabel}
@@ -472,18 +475,17 @@ export function SiteHeader(props: SiteHeaderProps) {
         </nav>
         <MobileAuthActions
           adminLabel={tAccount('admin_link')}
+          authCallbackUrl={authCallbackUrl}
           displayAdminLink={displayAdminLink}
           displayAuthenticated={displayAuthenticated}
           loadingLabel={t('a11y_header_session_loading')}
           locale={locale}
-          loginHref={loginHref}
           loginLabel={t('auth_log_in')}
           onNavigate={closeMobile}
           profileLabel={tAccount('user_profile_link')}
           profileLinkProps={profileLinkProps}
           showAuthPending={showAuthPending}
           signOutLabel={tAccount('sign_out')}
-          signupHref={signupHref}
           signupLabel={t('auth_create_account')}
         />
       </>
