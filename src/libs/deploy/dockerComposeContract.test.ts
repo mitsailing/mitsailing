@@ -21,6 +21,9 @@ describe('production docker compose', () => {
   const productionCompose = readRepoFile('compose.prod.yaml');
   const deployRunbook = readRepoFile('docs/deploy.md');
   const deployWorkflow = readRepoFile('.github/workflows/deploy.yml');
+  const remoteAppDirValidationScript = readRepoFile(
+    '.github/scripts/validate_remote_app_dir.sh'
+  );
   const localDevelopmentRunbook = readRepoFile('docs/local-development.md');
   const mediaMaintenanceRunbook = readRepoFile('docs/media-maintenance.md');
   const mediaNginx = readRepoFile('docker/nginx/media.conf');
@@ -185,11 +188,15 @@ describe('production docker compose', () => {
     const productionDataRootFallbackExpression = `${dollar}{{ vars.PRODUCTION_DATA_ROOT || '/srv/mitsailing-data' }}`;
     const githubShaExpression = `${dollar}{{ github.sha }}`;
 
-    expect(deployWorkflow).toContain('validate_remote_app_dir');
     expect(deployWorkflow).toContain(
+      '. .github/scripts/validate_remote_app_dir.sh'
+    );
+    expect(deployWorkflow).toContain('validate_remote_app_dir');
+    expect(remoteAppDirValidationScript).toContain('validate_remote_app_dir');
+    expect(remoteAppDirValidationScript).toContain(
       'PRODUCTION_REMOTE_APP_DIR must use safe path characters'
     );
-    expect(deployWorkflow).toContain(
+    expect(remoteAppDirValidationScript).toContain(
       'PRODUCTION_REMOTE_APP_DIR must not contain path segments starting with -'
     );
     expect(deployWorkflow).toContain(
@@ -236,6 +243,31 @@ describe('production docker compose', () => {
       `DEPLOYMENT_VERSION=${githubShaExpression}`
     );
   });
+
+  it('rejects unsafe remote app directory values', () => {
+    for (const remoteAppDir of [
+      '',
+      '/',
+      'apps/../mitsailing',
+      '~/mitsailing',
+    ]) {
+      const result = spawnSync(
+        'bash',
+        [
+          '-c',
+          '. .github/scripts/validate_remote_app_dir.sh && validate_remote_app_dir',
+        ],
+        {
+          cwd: process.cwd(),
+          encoding: 'utf8',
+          env: { ...process.env, REMOTE_APP_DIR: remoteAppDir },
+        }
+      );
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('PRODUCTION_REMOTE_APP_DIR must');
+    }
+  });
 });
 
 describe('production deploy script', () => {
@@ -275,6 +307,9 @@ describe('production deploy script', () => {
     expect(deployScript).toContain('PRODUCTION_DATA_ROOT must not be empty');
     expect(deployScript).toContain('PRODUCTION_DATA_ROOT must not be /');
     expect(deployScript).toContain('PRODUCTION_DATA_ROOT must not end with /');
+    expect(deployScript).toContain(
+      'PRODUCTION_DATA_ROOT must not contain .. or ~'
+    );
     expect(deployScript).not.toContain('PRODUCTION_DATA_OWNER');
     expect(deployScript).not.toContain('PRODUCTION_DATA_GROUP');
   });

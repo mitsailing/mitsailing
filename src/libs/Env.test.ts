@@ -46,6 +46,12 @@ function stubRequiredStripeEnv(): void {
   vi.stubEnv('STRIPE_WEBHOOK_SECRET', 'whsec_test_webhook_secret');
 }
 
+function stubBlankStripeEnv(): void {
+  vi.stubEnv('STRIPE_SECRET_KEY', '');
+  vi.stubEnv('NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY', '');
+  vi.stubEnv('STRIPE_WEBHOOK_SECRET', '');
+}
+
 describe('Env legacy MySQL sync validation', () => {
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -59,6 +65,17 @@ describe('Env legacy MySQL sync validation', () => {
 
     expect(Env.LEGACY_MYSQL_SYNC_ENABLED).toBe('false');
     expect(Env.LEGACY_MYSQL_SYNC_CRON).toBe(LEGACY_MYSQL_SYNC_DEFAULT_CRON);
+    expect(Env.STAGING_BANNER).toBe('no');
+  });
+
+  it('accepts staging banner opt-in', async () => {
+    stubRequiredBaseEnv();
+    stubNewsletterRevalidateSecret();
+    vi.stubEnv('STAGING_BANNER', 'yes');
+
+    const { Env } = await import('@/libs/Env');
+
+    expect(Env.STAGING_BANNER).toBe('yes');
   });
 
   it('allows builds without newsletter archive revalidation secret', async () => {
@@ -179,6 +196,7 @@ describe('Env legacy MySQL sync validation', () => {
   it('allows local development without Stripe keys', async () => {
     stubRequiredBaseEnv();
     stubNewsletterRevalidateSecret();
+    stubBlankStripeEnv();
 
     const { Env } = await import('@/libs/Env');
 
@@ -192,6 +210,7 @@ describe('Env legacy MySQL sync validation', () => {
     stubNewsletterRevalidateSecret();
     vi.stubEnv('APP_ENV', 'staging');
     stubRequiredProductionEnv();
+    stubBlankStripeEnv();
 
     await expect(import('@/libs/Env')).rejects.toThrow(
       'Invalid environment variables'

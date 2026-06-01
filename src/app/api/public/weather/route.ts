@@ -2,8 +2,6 @@ import { NextResponse } from 'next/server';
 import { MIT_WEATHER_TXT_URL } from '@/lib/mitWeatherConstants';
 import { fetchWeatherHeaderData } from '@/lib/weather';
 
-export const runtime = 'nodejs';
-
 const cacheSeconds = 900;
 
 export async function GET() {

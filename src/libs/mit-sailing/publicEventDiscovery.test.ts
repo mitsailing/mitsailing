@@ -8,6 +8,7 @@ import {
 vi.mock('server-only', () => ({}));
 
 const mocks = vi.hoisted(() => ({
+  eventDateGroupBy: vi.fn(),
   eventFindMany: vi.fn(),
 }));
 
@@ -16,10 +17,20 @@ vi.mock('@/libs/DB', () => ({
     event: {
       findMany: mocks.eventFindMany,
     },
+    eventDate: {
+      groupBy: mocks.eventDateGroupBy,
+    },
   },
 }));
 
 beforeEach(() => {
+  mocks.eventDateGroupBy.mockReset();
+  mocks.eventDateGroupBy.mockResolvedValue([
+    {
+      _min: { startDateTime: new Date('2026-06-15T14:00:00Z') },
+      eventId: 'event-1',
+    },
+  ]);
   mocks.eventFindMany.mockReset();
 });
 
@@ -140,6 +151,7 @@ describe('listPublicEventsForDiscovery', () => {
         where: expect.objectContaining({
           category: { isVisible: true },
           dates: { some: { endDateTime: { gte: now } } },
+          id: { in: ['event-1'] },
           isPublished: true,
           AND: [{ OR: expect.any(Array) }],
         }),
@@ -152,6 +164,22 @@ describe('listPublicEventsForDiscovery', () => {
             },
           },
         }),
+      })
+    );
+    expect(mocks.eventDateGroupBy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        by: ['eventId'],
+        orderBy: [{ _min: { startDateTime: 'asc' } }, { eventId: 'asc' }],
+        take: 20,
+        where: expect.objectContaining({
+          endDateTime: { gte: now },
+          event: expect.objectContaining({
+            category: { isVisible: true },
+            isPublished: true,
+            AND: [{ OR: expect.any(Array) }],
+          }),
+        }),
+        _min: { startDateTime: true },
       })
     );
     expect(result.categories).toEqual([
@@ -322,28 +350,13 @@ describe('listPublicEventsForDiscovery', () => {
       name: 'Classes',
       displayOrder: 1,
     };
+    mocks.eventDateGroupBy.mockResolvedValue([
+      {
+        _min: { startDateTime: new Date('2026-06-05T14:00:00Z') },
+        eventId: 'event-soon',
+      },
+    ]);
     mocks.eventFindMany.mockResolvedValue([
-      eventRow({
-        id: 'event-late',
-        name: 'Late Class',
-        shortName: 'Class',
-        slug: 'late-class',
-        category,
-        registrationMode: EventRegistrationMode.standard,
-        requiresApproval: false,
-        dates: [
-          eventDate({
-            id: 'date-late-1',
-            startDateTime: new Date('2026-07-20T14:00:00Z'),
-            endDateTime: new Date('2026-07-20T16:00:00Z'),
-          }),
-          eventDate({
-            id: 'date-late-2',
-            startDateTime: new Date('2026-07-21T14:00:00Z'),
-            endDateTime: new Date('2026-07-21T16:00:00Z'),
-          }),
-        ],
-      }),
       eventRow({
         id: 'event-soon',
         name: 'Soon Class',
@@ -371,5 +384,43 @@ describe('listPublicEventsForDiscovery', () => {
     });
 
     expect(result.events.map((event) => event.slug)).toEqual(['soon-class']);
+    expect(mocks.eventDateGroupBy).toHaveBeenCalledWith(
+      expect.objectContaining({ take: 1 })
+    );
+    expect(mocks.eventFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: { in: ['event-soon'] } }),
+      })
+    );
+  });
+
+  it('uses the latest end across overlapping event dates', async () => {
+    const now = new Date('2026-06-01T12:00:00Z');
+    mocks.eventFindMany.mockResolvedValue([
+      eventRow({
+        id: 'event-1',
+        dates: [
+          eventDate({
+            id: 'date-long',
+            startDateTime: new Date('2026-06-05T14:00:00Z'),
+            endDateTime: new Date('2026-06-07T16:00:00Z'),
+          }),
+          eventDate({
+            id: 'date-short-later',
+            startDateTime: new Date('2026-06-06T14:00:00Z'),
+            endDateTime: new Date('2026-06-06T16:00:00Z'),
+          }),
+        ],
+      }),
+    ]);
+    const { listPublicEventsForDiscovery } =
+      await import('@/libs/mit-sailing/publicEventDiscovery');
+
+    const result = await listPublicEventsForDiscovery({
+      origin: 'https://mitsailing.com',
+      now,
+    });
+
+    expect(result.events[0]?.lastEndDateTime).toBe('2026-06-07T16:00:00.000Z');
   });
 });

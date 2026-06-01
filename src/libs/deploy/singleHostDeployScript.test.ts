@@ -48,6 +48,7 @@ describe('single host deploy script', () => {
     expect(script).toContain('PRODUCTION_DATA_ROOT must not be empty');
     expect(script).toContain('PRODUCTION_DATA_ROOT must not be /');
     expect(script).toContain('PRODUCTION_DATA_ROOT must not end with /');
+    expect(script).toContain('PRODUCTION_DATA_ROOT must not contain .. or ~');
     expect(script).not.toContain('ensure_production_data_dirs');
     expect(script).not.toContain('PRODUCTION_DATA_OWNER');
     expect(script).not.toContain('-m 0750 "$PRODUCTION_CMS_MEDIA_DIR"');

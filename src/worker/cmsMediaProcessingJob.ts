@@ -24,6 +24,8 @@ const CMS_MEDIA_PROCESSING_JOB_OPTS: JobsOptions = {
 
 const CMS_MEDIA_PROCESSING_STALE_MS = 15 * 60 * 1000;
 const CMS_MEDIA_RECONCILE_BATCH_SIZE = 500;
+const CMS_MEDIA_READY_DIR_MODE = 0o755;
+const CMS_MEDIA_READY_FILE_MODE = 0o644;
 
 type CmsMediaProcessingJobData = {
   assetId: string;
@@ -150,8 +152,8 @@ async function markCmsMediaReady(assetId: string): Promise<void> {
 }
 
 async function ensureReadyMediaPermissions(readyPath: string): Promise<void> {
-  await chmod(path.dirname(readyPath), 0o755);
-  await chmod(readyPath, 0o644);
+  await chmod(path.dirname(readyPath), CMS_MEDIA_READY_DIR_MODE);
+  await chmod(readyPath, CMS_MEDIA_READY_FILE_MODE);
 }
 
 async function processServerFolderAsset(

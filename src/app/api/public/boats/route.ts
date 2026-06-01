@@ -1,23 +1,10 @@
 import { NextResponse } from 'next/server';
 import { listFleetBoatsForPublic } from '@/libs/mit-sailing/fleetQueries';
-import { MIT_SAILING_PUBLIC_ORIGIN } from '@/libs/mit-sailing/publicDiscoveryUrls';
-import { AppConfig } from '@/utils/AppConfig';
-import { getI18nPath } from '@/utils/Helpers';
+import { publicFleetBoatDetailUrl } from '@/libs/mit-sailing/publicDiscoveryUrls';
 
 export const runtime = 'nodejs';
 
 const cacheSeconds = 900;
-
-function absoluteUrl(origin: string, path: string): string {
-  return new URL(path, origin).toString();
-}
-
-function fleetBoatPath(slug: string): string {
-  return getI18nPath(
-    `/fleet/${encodeURIComponent(slug)}`,
-    AppConfig.i18n.defaultLocale
-  );
-}
 
 export async function GET() {
   const boats = await listFleetBoatsForPublic();
@@ -42,10 +29,7 @@ export async function GET() {
           shortName: rating.shortName,
           slug: rating.slug,
         })),
-        detailUrl: absoluteUrl(
-          MIT_SAILING_PUBLIC_ORIGIN,
-          fleetBoatPath(boat.slug)
-        ),
+        detailUrl: publicFleetBoatDetailUrl(boat.slug),
       })),
     },
     {

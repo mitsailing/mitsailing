@@ -61,6 +61,8 @@ describe('GET /api/public/boats', () => {
         },
       ],
     });
+    expect(body.boats[0]).not.toHaveProperty('isDeprecated');
+    expect(body.boats[0].requiredRatings[0]).not.toHaveProperty('isDeprecated');
     expect(typeof body.generatedAt).toBe('string');
   });
 });

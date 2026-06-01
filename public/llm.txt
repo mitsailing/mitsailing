@@ -81,9 +81,6 @@ events_api_method: GET
 events_api_auth: none
 events_api_format: JSON
 events_api_cache: public, s-maxage=300, stale-while-revalidate=600
-classes_api_url: https://mitsailing.com/api/public/classes
-boats_api_url: https://mitsailing.com/api/public/boats
-weather_api_url: https://mitsailing.com/api/public/weather
 
 Supported query parameters:
 
@@ -115,7 +112,7 @@ Event response facts:
 - `events[].location` lists the event location when known.
 - `categories[]` lists categories present in the current response.
 
-## Public Classes And Boats
+## Public Classes
 
 classes_api_url: https://mitsailing.com/api/public/classes
 classes_api_method: GET
@@ -123,17 +120,19 @@ classes_api_auth: none
 classes_api_format: JSON
 classes_api_cache: public, s-maxage=900, stale-while-revalidate=600
 
-boats_api_url: https://mitsailing.com/api/public/boats
-boats_api_method: GET
-boats_api_auth: none
-boats_api_format: JSON
-boats_api_cache: public, s-maxage=900, stale-while-revalidate=600
-
 Class response facts:
 
 - `classes[].detailUrl` is the canonical human-readable class page.
 - `classes[].category` identifies the public class category.
 - `classes[].level` is the class level shown by MIT Sailing.
+
+## Public Boats
+
+boats_api_url: https://mitsailing.com/api/public/boats
+boats_api_method: GET
+boats_api_auth: none
+boats_api_format: JSON
+boats_api_cache: public, s-maxage=900, stale-while-revalidate=600
 
 Boat response facts:
 

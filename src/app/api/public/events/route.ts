@@ -26,12 +26,12 @@ function publicEventsLimit(params: URLSearchParams): number {
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
-  const events = await listPublicEventsForDiscovery({
+  const discovery = await listPublicEventsForDiscovery({
     category: singleSearchParam(searchParams, 'category'),
     limit: publicEventsLimit(searchParams),
     query: singleSearchParam(searchParams, 'query'),
   });
-  return NextResponse.json(events, {
+  return NextResponse.json(discovery, {
     headers: {
       'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
     },

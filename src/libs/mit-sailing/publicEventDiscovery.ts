@@ -72,45 +72,53 @@ export type PublicEventDiscoveryResponse = {
   generatedAt: string;
 };
 
-type PublicEventDiscoveryRow = {
-  id: string;
-  name: string;
-  shortName: string;
-  slug: string;
-  description: string;
-  detailPageKind: EventDetailPageKind | null;
-  externalDetailUrl: string | null;
-  maxParticipants: number | null;
-  requiresApproval: boolean;
-  registrationStart: Date | null;
-  registrationEnd: Date | null;
-  registrationMode: EventRegistrationMode;
-  externalRegistrationUrl: string | null;
-  addressPreset: Parameters<typeof eventAddressPresetFields>[0];
-  addressName: string | null;
-  addressLine1: string | null;
-  addressLine2: string | null;
-  addressCity: string | null;
-  addressState: string | null;
-  addressPostalCode: string | null;
-  addressCountry: string | null;
-  category: {
-    id: string;
-    name: string;
-    displayOrder: number;
-  };
-  dates: {
-    id: string;
-    startDateTime: Date;
-    endDateTime: Date;
-  }[];
-  _count: {
-    registrations: number;
-  };
-};
-
 const defaultPublicEventLimit = 20;
 const maxPublicEventLimit = 50;
+
+const publicEventDiscoveryDateSelect = {
+  endDateTime: true,
+  id: true,
+  startDateTime: true,
+} satisfies Prisma.EventDateSelect;
+
+const publicEventDiscoverySelect = {
+  _count: {
+    select: {
+      registrations: true,
+    },
+  },
+  addressCity: true,
+  addressCountry: true,
+  addressLine1: true,
+  addressLine2: true,
+  addressName: true,
+  addressPostalCode: true,
+  addressPreset: true,
+  addressState: true,
+  category: {
+    select: { displayOrder: true, id: true, name: true },
+  },
+  dates: {
+    select: publicEventDiscoveryDateSelect,
+  },
+  description: true,
+  detailPageKind: true,
+  externalDetailUrl: true,
+  externalRegistrationUrl: true,
+  id: true,
+  maxParticipants: true,
+  name: true,
+  registrationEnd: true,
+  registrationMode: true,
+  registrationStart: true,
+  requiresApproval: true,
+  shortName: true,
+  slug: true,
+} satisfies Prisma.EventSelect;
+
+type PublicEventDiscoveryRow = Prisma.EventGetPayload<{
+  select: typeof publicEventDiscoverySelect;
+}>;
 
 function trimmedParam(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
@@ -300,6 +308,16 @@ function eventSortKey(event: PublicEventDiscoveryRow): number {
   return event.dates[0]?.startDateTime.getTime() ?? Number.MAX_SAFE_INTEGER;
 }
 
+function maxEndDateTime(dates: PublicEventDiscoveryDate[]): string | null {
+  let latest: string | null = null;
+  for (const date of dates) {
+    if (latest === null || date.endDateTime > latest) {
+      latest = date.endDateTime;
+    }
+  }
+  return latest;
+}
+
 function publicEventDetailUrl(options: {
   event: Pick<
     PublicEventDiscoveryRow,
@@ -355,7 +373,7 @@ function publicEventFromRow(options: {
     location: locationFromEvent(options.event),
     dates,
     firstStartDateTime: dates[0]?.startDateTime ?? null,
-    lastEndDateTime: dates.at(-1)?.endDateTime ?? null,
+    lastEndDateTime: maxEndDateTime(dates),
     registration: {
       approvedCount,
       closesAt: nullableIso(options.event.registrationEnd),
@@ -383,44 +401,45 @@ export async function listPublicEventsForDiscovery(params: {
 }): Promise<PublicEventDiscoveryResponse> {
   const now = params.now ?? new Date();
   const limit = publicEventLimit(params.limit);
-  const rows = (await prisma.event.findMany({
+  const eventDateGroups = await prisma.eventDate.groupBy({
+    by: ['eventId'],
+    where: {
+      endDateTime: { gte: now },
+      event: publicEventsWhere({
+        category: params.category,
+        query: params.query,
+      }),
+    },
+    _min: { startDateTime: true },
+    orderBy: [{ _min: { startDateTime: 'asc' } }, { eventId: 'asc' }],
+    take: limit,
+  });
+  const eventIds = eventDateGroups.map(
+    (eventDateGroup) => eventDateGroup.eventId
+  );
+  if (eventIds.length === 0) {
+    return {
+      categories: [],
+      events: [],
+      generatedAt: now.toISOString(),
+    };
+  }
+  const rows: PublicEventDiscoveryRow[] = await prisma.event.findMany({
     where: {
       ...publicEventsWhere({
         category: params.category,
         query: params.query,
       }),
+      id: { in: eventIds },
       dates: { some: { endDateTime: { gte: now } } },
     },
     orderBy: [{ name: 'asc' }],
     select: {
-      id: true,
-      name: true,
-      shortName: true,
-      slug: true,
-      description: true,
-      detailPageKind: true,
-      externalDetailUrl: true,
-      maxParticipants: true,
-      requiresApproval: true,
-      registrationStart: true,
-      registrationEnd: true,
-      registrationMode: true,
-      externalRegistrationUrl: true,
-      addressPreset: true,
-      addressName: true,
-      addressLine1: true,
-      addressLine2: true,
-      addressCity: true,
-      addressState: true,
-      addressPostalCode: true,
-      addressCountry: true,
-      category: {
-        select: { id: true, name: true, displayOrder: true },
-      },
+      ...publicEventDiscoverySelect,
       dates: {
         where: { endDateTime: { gte: now } },
         orderBy: { startDateTime: 'asc' },
-        select: { id: true, startDateTime: true, endDateTime: true },
+        select: publicEventDiscoveryDateSelect,
       },
       _count: {
         select: {
@@ -430,10 +449,28 @@ export async function listPublicEventsForDiscovery(params: {
         },
       },
     },
-  })) as PublicEventDiscoveryRow[];
-  const sortedRows = rows
-    .toSorted((left, right) => eventSortKey(left) - eventSortKey(right))
-    .slice(0, limit);
+  });
+  const eventOrder = new Map(
+    eventDateGroups.map((eventDateGroup, index) => [
+      eventDateGroup.eventId,
+      {
+        index,
+        startDateTime: eventDateGroup._min.startDateTime,
+      },
+    ])
+  );
+  const sortedRows = rows.toSorted((left, right) => {
+    const leftOrder = eventOrder.get(left.id);
+    const rightOrder = eventOrder.get(right.id);
+    const leftStartDateTime =
+      leftOrder?.startDateTime?.getTime() ?? eventSortKey(left);
+    const rightStartDateTime =
+      rightOrder?.startDateTime?.getTime() ?? eventSortKey(right);
+    if (leftStartDateTime !== rightStartDateTime) {
+      return leftStartDateTime - rightStartDateTime;
+    }
+    return (leftOrder?.index ?? 0) - (rightOrder?.index ?? 0);
+  });
   const origin = params.origin ?? MIT_SAILING_PUBLIC_ORIGIN;
   const events = sortedRows.map((event) =>
     publicEventFromRow({

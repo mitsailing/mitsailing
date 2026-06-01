@@ -96,6 +96,8 @@ validate_production_data_root() {
 
   [[ "$PRODUCTION_DATA_ROOT" != "/" ]] || fail "PRODUCTION_DATA_ROOT must not be /"
   [[ "$PRODUCTION_DATA_ROOT" != */ ]] || fail "PRODUCTION_DATA_ROOT must not end with /"
+  [[ "$PRODUCTION_DATA_ROOT" != *..* && "$PRODUCTION_DATA_ROOT" != *~* ]] \
+    || fail "PRODUCTION_DATA_ROOT must not contain .. or ~"
 }
 
 ensure_prereqs() {

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MIT_WEATHER_TXT_URL } from '@/lib/mitWeatherConstants';
 import { GET } from './route';
 
 const mocks = vi.hoisted(() => ({
@@ -22,7 +23,7 @@ beforeEach(() => {
 });
 
 describe('GET /api/public/weather', () => {
-  it('returns first-party MIT Sailing weather with freshness metadata', async () => {
+  it('returns weather with freshness metadata when available', async () => {
     const response = await GET();
     const body = await response.json();
 
@@ -32,7 +33,7 @@ describe('GET /api/public/weather', () => {
       cacheSeconds: 900,
       source: {
         name: 'First-party MIT Sailing collected weather data',
-        url: 'https://sailing.mit.edu/weather/weather.txt',
+        url: MIT_WEATHER_TXT_URL,
         updatedAt: 'Fri, 29 May 2026 01:30:00 GMT',
       },
       status: 'available',
@@ -46,7 +47,7 @@ describe('GET /api/public/weather', () => {
     expect(typeof body.generatedAt).toBe('string');
   });
 
-  it('marks weather unavailable when the first-party feed is unavailable', async () => {
+  it('returns unavailable weather when feed unavailable', async () => {
     mocks.fetchWeatherHeaderData.mockResolvedValue({
       windText: null,
       airText: null,

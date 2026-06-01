@@ -1,8 +1,10 @@
 import { getLocale, getTranslations } from 'next-intl/server';
 import { Suspense } from 'react';
 import { ImpersonationBanner } from '@/components/auth/ImpersonationBanner';
+import { textFocusRingClassName } from '@/lib/mit-sailing/tokens';
 import { adminHeaderLinkVisibleFromSession } from '@/libs/auth/adminHeaderLink';
 import { getSession } from '@/libs/auth/dal';
+import { Env } from '@/libs/Env';
 import { SiteFooter } from './site/SiteFooter';
 import { SiteHeader } from './site/SiteHeader';
 import {
@@ -25,6 +27,8 @@ type SiteShellSession = {
     id?: string;
   } | null;
 } | null;
+
+const liveMitSailingUrl = 'https://sailing.mit.edu';
 
 export function shouldShowAdminLink(session: SiteShellSession): boolean {
   return adminHeaderLinkVisibleFromSession({
@@ -51,11 +55,31 @@ export async function SiteShell(props: SiteShellProps) {
   const locale = await getLocale();
   const initialSignedIn = Boolean(session?.user?.id);
   const initialShowAdminLink = shouldShowAdminLink(session);
+  const shouldShowStagingBanner = Env.STAGING_BANNER === 'yes';
 
   const tMitSite = await getTranslations('MitSailingSite');
 
   return (
     <div className="flex min-h-screen flex-col bg-background font-mit-sans text-mit-text">
+      {shouldShowStagingBanner ? (
+        <div
+          className="border-b border-mit-red/20 bg-mit-red-highlight px-4 py-2 text-center text-xs font-medium text-mit-text sm:text-sm dark:border-mit-red/30 dark:bg-mit-red-950/45"
+          role="status"
+        >
+          <p>
+            {tMitSite.rich('staging_banner', {
+              link: (chunks) => (
+                <a
+                  className={`font-semibold text-mit-red underline underline-offset-2 hover:text-mit-red-hover ${textFocusRingClassName} dark:text-mit-red-ink`}
+                  href={liveMitSailingUrl}
+                >
+                  {chunks}
+                </a>
+              ),
+            })}
+          </p>
+        </div>
+      ) : null}
       <Suspense fallback={null}>
         <ImpersonationBanner locale={locale} />
       </Suspense>
