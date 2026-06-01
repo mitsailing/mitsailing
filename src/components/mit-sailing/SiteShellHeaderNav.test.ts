@@ -16,6 +16,27 @@ const {
   loadCmsMenu: vi.fn(),
 }));
 
+type SiteHeaderElementProps = {
+  classesDropdownItems: { href: string; label: string }[];
+  fleetDropdownItems: { href: string; label: string }[];
+  headerMenuItems: {
+    href?: string;
+    id: string;
+    isExternal?: boolean;
+    items?: { href: string; label: string }[];
+    label: string;
+    systemKey?: string;
+  }[];
+  initialShowAdminLink: boolean;
+  initialSignedIn: boolean;
+  mobileUtilityItems: {
+    href: string;
+    id: string;
+    isExternal?: boolean;
+    label: string;
+  }[];
+};
+
 vi.mock('server-only', () => ({}));
 
 vi.mock('next-intl/server', () => ({
@@ -154,28 +175,7 @@ function cmsMenusByLocation(unsafeHref: string) {
   };
 }
 
-function expectSiteHeaderNavProps(
-  props: React.ReactElement<{
-    classesDropdownItems: { href: string; label: string }[];
-    fleetDropdownItems: { href: string; label: string }[];
-    headerMenuItems: {
-      href?: string;
-      id: string;
-      isExternal?: boolean;
-      items?: { href: string; label: string }[];
-      label: string;
-      systemKey?: string;
-    }[];
-    initialShowAdminLink: boolean;
-    initialSignedIn: boolean;
-    mobileUtilityItems: {
-      href: string;
-      id: string;
-      isExternal?: boolean;
-      label: string;
-    }[];
-  }>['props']
-) {
+function expectSiteHeaderNavProps(props: SiteHeaderElementProps) {
   expect(props.initialSignedIn).toBe(true);
   expect(props.initialShowAdminLink).toBe(true);
   expect(props.classesDropdownItems).toEqual([
@@ -216,26 +216,7 @@ describe('SiteShellHeaderNav', () => {
     const element = (await SiteShellHeaderNav({
       initialShowAdminLink: true,
       initialSignedIn: true,
-    })) as React.ReactElement<{
-      classesDropdownItems: { href: string; label: string }[];
-      fleetDropdownItems: { href: string; label: string }[];
-      headerMenuItems: {
-        href?: string;
-        id: string;
-        isExternal?: boolean;
-        items?: { href: string; label: string }[];
-        label: string;
-        systemKey?: string;
-      }[];
-      initialShowAdminLink: boolean;
-      initialSignedIn: boolean;
-      mobileUtilityItems: {
-        href: string;
-        id: string;
-        isExternal?: boolean;
-        label: string;
-      }[];
-    }>;
+    })) as React.ReactElement<SiteHeaderElementProps>;
 
     expect(loadCmsMenu).toHaveBeenCalledWith('header');
     expect(loadCmsMenu).toHaveBeenCalledWith('mobile_utility');
