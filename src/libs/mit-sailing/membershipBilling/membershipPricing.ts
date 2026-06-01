@@ -33,12 +33,15 @@ type MembershipPriceFindManyArgs = {
   orderBy: { effectiveAt: 'desc' };
   select: Record<keyof SailingCardMembershipPriceRow, true>;
   where: {
-    billingInterval: SailingCardMembershipBillingInterval;
     cardType: SailingCardType;
-    effectiveAt: { lte: Date };
-    priceCategory: SailingCardMembershipPriceCategory;
-    priceKind: SailingCardMembershipPriceKind;
-  };
+  } & (MembershipPriceLookup | { OR: readonly MembershipPriceLookup[] });
+};
+
+type MembershipPriceLookup = {
+  readonly billingInterval: SailingCardMembershipBillingInterval;
+  readonly effectiveAt: { readonly lte: Date };
+  readonly priceCategory: SailingCardMembershipPriceCategory;
+  readonly priceKind: SailingCardMembershipPriceKind;
 };
 
 export type MembershipPricingReadClient = {
@@ -48,6 +51,18 @@ export type MembershipPricingReadClient = {
     ): Promise<SailingCardMembershipPriceRow[]>;
   };
 };
+
+type CheckoutMembershipPricesReady = {
+  readonly dueTodayPrice: SailingCardMembershipPriceRow;
+  readonly renewalPrice: SailingCardMembershipPriceRow;
+  readonly status: 'ready';
+};
+
+export type CheckoutMembershipPricesResult =
+  | CheckoutMembershipPricesReady
+  | { readonly status: 'missing_due_today_price' }
+  | { readonly status: 'missing_renewal_price' }
+  | { readonly status: 'not_eligible' };
 
 const membershipPriceSelect: Record<keyof SailingCardMembershipPriceRow, true> =
   {
@@ -117,6 +132,18 @@ function isStripeReadyPrice(price: SailingCardMembershipPriceRow) {
   );
 }
 
+function membershipPriceMatchesLookup(
+  price: SailingCardMembershipPriceRow,
+  lookup: MembershipPriceLookup
+) {
+  return (
+    price.billingInterval === lookup.billingInterval &&
+    price.effectiveAt.getTime() <= lookup.effectiveAt.lte.getTime() &&
+    price.priceCategory === lookup.priceCategory &&
+    price.priceKind === lookup.priceKind
+  );
+}
+
 export function selectActiveMembershipPrice(
   prices: readonly SailingCardMembershipPriceRow[],
   options: {
@@ -173,10 +200,7 @@ export async function getCheckoutMembershipPrices(options: {
   readonly dateOfBirth: string | undefined;
   readonly now: Date;
   readonly requireStripeReady?: boolean;
-}): Promise<{
-  readonly dueTodayPrice: SailingCardMembershipPriceRow;
-  readonly renewalPrice: SailingCardMembershipPriceRow;
-} | null> {
+}): Promise<CheckoutMembershipPricesResult> {
   const dueTodayCategory = membershipPriceCategoryForCardRequest({
     affiliation: options.affiliation,
     dateOfBirth: options.dateOfBirth,
@@ -190,31 +214,57 @@ export async function getCheckoutMembershipPrices(options: {
   });
 
   if (dueTodayCategory === null || renewalCategory === null) {
-    return null;
+    return { status: 'not_eligible' };
   }
 
-  const dueTodayPrice = await getActiveMembershipPrice({
+  const dueTodayLookup: MembershipPriceLookup = {
     billingInterval: SailingCardMembershipBillingInterval.one_time,
-    cardType: options.cardType,
-    client: options.client,
-    now: options.now,
+    effectiveAt: { lte: options.now },
     priceCategory: dueTodayCategory,
     priceKind: membershipPriceKindForDate(options.now),
-    requireStripeReady: options.requireStripeReady ?? true,
-  });
-  const renewalPrice = await getActiveMembershipPrice({
+  };
+  const renewalLookup: MembershipPriceLookup = {
     billingInterval: SailingCardMembershipBillingInterval.annual,
-    cardType: options.cardType,
-    client: options.client,
-    now: renewalAt,
+    effectiveAt: { lte: renewalAt },
     priceCategory: renewalCategory,
     priceKind: SailingCardMembershipPriceKind.full,
-    requireStripeReady: options.requireStripeReady ?? true,
+  };
+  const prices = await (
+    options.client ?? prisma
+  ).sailingCardMembershipPrice.findMany({
+    orderBy: { effectiveAt: 'desc' },
+    select: membershipPriceSelect,
+    where: {
+      cardType: options.cardType,
+      OR: [dueTodayLookup, renewalLookup],
+    },
   });
+  const requireStripeReady = options.requireStripeReady ?? true;
+  const dueTodayPrice = selectActiveMembershipPrice(
+    prices.filter((price) =>
+      membershipPriceMatchesLookup(price, dueTodayLookup)
+    ),
+    {
+      now: options.now,
+      requireStripeReady,
+    }
+  );
+  const renewalPrice = selectActiveMembershipPrice(
+    prices.filter((price) =>
+      membershipPriceMatchesLookup(price, renewalLookup)
+    ),
+    {
+      now: renewalAt,
+      requireStripeReady,
+    }
+  );
 
-  if (dueTodayPrice === null || renewalPrice === null) {
-    return null;
+  if (dueTodayPrice === null) {
+    return { status: 'missing_due_today_price' };
+  }
+  if (renewalPrice === null) {
+    return { status: 'missing_renewal_price' };
   }
 
-  return { dueTodayPrice, renewalPrice };
+  return { dueTodayPrice, renewalPrice, status: 'ready' };
 }

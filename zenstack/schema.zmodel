@@ -1242,11 +1242,9 @@ model SailingCardMembershipPrice {
   @@deny('create,update', amountCents < 50)
   @@deny('create,update', currency != 'usd')
   @@deny('create,update', priceKind == spring && billingInterval == annual)
+  // Enum key immutability is enforced by the migration trigger. ZenStack
+  // before() comparisons for Postgres enum fields generate invalid enum/text SQL.
   @@deny('post-update',
-    cardType != before().cardType ||
-    priceKind != before().priceKind ||
-    priceCategory != before().priceCategory ||
-    billingInterval != before().billingInterval ||
     amountCents != before().amountCents ||
     currency != before().currency ||
     effectiveAt != before().effectiveAt ||
