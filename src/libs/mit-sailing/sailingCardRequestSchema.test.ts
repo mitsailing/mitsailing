@@ -105,6 +105,12 @@ describe('sailing card request schema', () => {
     expect(compactSchema).toContain(
       "createdByUserId String? @deny('read', auth() == null || auth().appRole != 'admin')"
     );
+    expect(compactSchema).not.toContain(
+      'createdBy User? @relation("SailingCardMembershipPriceCreatedBy"'
+    );
+    expect(compactSchema).not.toContain(
+      'sailingCardMembershipPricesCreated SailingCardMembershipPrice[]'
+    );
     expect(membershipPriceMigration).toContain(
       'sailing_card_membership_prices_price_kind_interval_chk'
     );
@@ -117,5 +123,7 @@ describe('sailing card request schema', () => {
     expect(membershipPriceMigration).toMatch(
       /OR \(\s*NEW\.created_by_user_id IS NOT NULL\s*AND NEW\.created_by_user_id IS DISTINCT FROM OLD\.created_by_user_id\s*\)/u
     );
+    expect(membershipPriceMigration).toContain('ON UPDATE NO ACTION');
+    expect(membershipPriceMigration).not.toContain('ON UPDATE CASCADE');
   });
 });

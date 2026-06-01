@@ -383,7 +383,6 @@ model User {
     paymentBypassedSailingCardRequests SailingCardRequest[] @relation("SailingCardRequestPaymentBypassBy")
     payments Payment[]
     manuallyHandledPayments Payment[] @relation("PaymentManualHandledBy")
-    sailingCardMembershipPricesCreated SailingCardMembershipPrice[] @relation("SailingCardMembershipPriceCreatedBy")
     eventComments EventComment[]
     eventAdmins EventAdmin[]
     sailingRatings UserSailingRating[] @relation("UserSailingRatings")
@@ -1090,7 +1089,6 @@ model SailingCardMembershipPrice {
     createdByUserId String? @map("created_by_user_id")
     createdAt DateTime @default(now()) @map("created_at")
     updatedAt DateTime @updatedAt() @map("updated_at")
-    createdBy User? @relation("SailingCardMembershipPriceCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
 
     @@unique([cardType, priceKind, priceCategory, billingInterval, effectiveAt])
     @@index([createdByUserId])

@@ -65,7 +65,7 @@ ADD CONSTRAINT "sailing_card_membership_prices_created_by_user_id_fkey"
 FOREIGN KEY ("created_by_user_id")
 REFERENCES "user"("id")
 ON DELETE SET NULL
-ON UPDATE CASCADE;
+ON UPDATE NO ACTION;
 
 CREATE FUNCTION sailing_card_membership_prices_prevent_catalog_key_change()
 RETURNS TRIGGER AS $$

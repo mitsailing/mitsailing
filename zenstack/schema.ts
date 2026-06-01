@@ -330,13 +330,6 @@ export class SchemaType implements SchemaDef {
                     attributes: [{ name: "@relation", args: [{ name: "name", value: ExpressionUtils.literal("PaymentManualHandledBy") }] }] as readonly AttributeApplication[],
                     relation: { opposite: "manualHandledBy", name: "PaymentManualHandledBy" }
                 },
-                sailingCardMembershipPricesCreated: {
-                    name: "sailingCardMembershipPricesCreated",
-                    type: "SailingCardMembershipPrice",
-                    array: true,
-                    attributes: [{ name: "@relation", args: [{ name: "name", value: ExpressionUtils.literal("SailingCardMembershipPriceCreatedBy") }] }] as readonly AttributeApplication[],
-                    relation: { opposite: "createdBy", name: "SailingCardMembershipPriceCreatedBy" }
-                },
                 eventComments: {
                     name: "eventComments",
                     type: "EventComment",
@@ -3685,10 +3678,7 @@ export class SchemaType implements SchemaDef {
                     name: "createdByUserId",
                     type: "String",
                     optional: true,
-                    attributes: [{ name: "@deny", args: [{ name: "operation", value: ExpressionUtils.literal("read") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.call("auth"), "==", ExpressionUtils._null()), "||", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "!=", ExpressionUtils.literal("admin"))) }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("created_by_user_id") }] }] as readonly AttributeApplication[],
-                    foreignKeyFor: [
-                        "createdBy"
-                    ] as readonly string[]
+                    attributes: [{ name: "@deny", args: [{ name: "operation", value: ExpressionUtils.literal("read") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.call("auth"), "==", ExpressionUtils._null()), "||", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "!=", ExpressionUtils.literal("admin"))) }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("created_by_user_id") }] }] as readonly AttributeApplication[]
                 },
                 createdAt: {
                     name: "createdAt",
@@ -3701,13 +3691,6 @@ export class SchemaType implements SchemaDef {
                     type: "DateTime",
                     updatedAt: true,
                     attributes: [{ name: "@updatedAt" }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("updated_at") }] }] as readonly AttributeApplication[]
-                },
-                createdBy: {
-                    name: "createdBy",
-                    type: "User",
-                    optional: true,
-                    attributes: [{ name: "@relation", args: [{ name: "name", value: ExpressionUtils.literal("SailingCardMembershipPriceCreatedBy") }, { name: "fields", value: ExpressionUtils.array("String", [ExpressionUtils.field("createdByUserId")]) }, { name: "references", value: ExpressionUtils.array("String", [ExpressionUtils.field("id")]) }, { name: "onDelete", value: ExpressionUtils.literal("SetNull") }] }] as readonly AttributeApplication[],
-                    relation: { opposite: "sailingCardMembershipPricesCreated", name: "SailingCardMembershipPriceCreatedBy", fields: ["createdByUserId"], references: ["id"], onDelete: "SetNull" }
                 }
             },
             attributes: [
