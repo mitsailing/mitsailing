@@ -60,6 +60,134 @@ const cmsMenuItem = (
   systemKey: item.systemKey,
 });
 
+const expectedHeaderMenuItems = [
+  {
+    href: '/classes',
+    id: 'classes',
+    isExternal: false,
+    items: [{ href: '/classes#intro', label: 'Intro class' }],
+    label: 'Classes',
+    systemKey: 'classes',
+  },
+  {
+    href: undefined,
+    id: 'fleet',
+    isExternal: false,
+    items: undefined,
+    label: 'Fleet',
+    systemKey: 'fleet',
+  },
+  {
+    href: 'https://example.com/donate',
+    id: 'donate',
+    isExternal: true,
+    items: undefined,
+    label: 'Donate',
+    systemKey: undefined,
+  },
+  {
+    href: '/pricing',
+    id: 'site-shell-header-pricing-fallback',
+    label: 'Pricing',
+    systemKey: 'pricing',
+  },
+];
+
+const expectedMobileUtilityItems = [
+  {
+    href: '/reserve',
+    id: 'reserve',
+    isExternal: false,
+    label: 'Reserve',
+  },
+];
+
+function cmsMenusByLocation(unsafeHref: string) {
+  return {
+    header: [
+      cmsMenuItem({
+        children: [
+          cmsMenuItem({
+            href: '/classes#intro',
+            id: 'classes-child',
+            label: 'Intro class',
+          }),
+          cmsMenuItem({
+            href: unsafeHref,
+            id: 'unsafe-child',
+            label: 'Unsafe child',
+          }),
+        ],
+        href: '/classes',
+        id: 'classes',
+        label: 'Classes',
+        systemKey: 'classes',
+      }),
+      cmsMenuItem({
+        id: 'fleet',
+        label: 'Fleet',
+        systemKey: 'fleet',
+      }),
+      cmsMenuItem({
+        href: 'https://example.com/donate',
+        id: 'donate',
+        isExternal: true,
+        label: 'Donate',
+      }),
+      cmsMenuItem({
+        id: 'empty',
+        label: 'Empty',
+      }),
+    ],
+    mobile_utility: [
+      cmsMenuItem({
+        href: '/reserve',
+        id: 'reserve',
+        label: 'Reserve',
+      }),
+      cmsMenuItem({
+        href: unsafeHref,
+        id: 'unsafe-mobile',
+        label: 'Unsafe mobile',
+      }),
+    ],
+  };
+}
+
+function expectSiteHeaderNavProps(
+  props: React.ReactElement<{
+    classesDropdownItems: { href: string; label: string }[];
+    fleetDropdownItems: { href: string; label: string }[];
+    headerMenuItems: {
+      href?: string;
+      id: string;
+      isExternal?: boolean;
+      items?: { href: string; label: string }[];
+      label: string;
+      systemKey?: string;
+    }[];
+    initialShowAdminLink: boolean;
+    initialSignedIn: boolean;
+    mobileUtilityItems: {
+      href: string;
+      id: string;
+      isExternal?: boolean;
+      label: string;
+    }[];
+  }>['props']
+) {
+  expect(props.initialSignedIn).toBe(true);
+  expect(props.initialShowAdminLink).toBe(true);
+  expect(props.classesDropdownItems).toEqual([
+    { href: '/classes#beginner', label: 'Beginner' },
+  ]);
+  expect(props.fleetDropdownItems).toEqual([
+    { href: '/fleet/tech-dinghy', label: 'Tech dinghy' },
+  ]);
+  expect(props.headerMenuItems).toEqual(expectedHeaderMenuItems);
+  expect(props.mobileUtilityItems).toEqual(expectedMobileUtilityItems);
+}
+
 describe('SiteShellHeaderNav', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -76,60 +204,12 @@ describe('SiteShellHeaderNav', () => {
 
   it('maps CMS menus into site header nav props', async () => {
     const unsafeHref = ['java', 'script:alert(1)'].join('');
+    const menus = cmsMenusByLocation(unsafeHref);
     loadCmsMenu.mockImplementation(async (location: string) => {
       await Promise.resolve();
-      if (location === 'header') {
-        return [
-          cmsMenuItem({
-            children: [
-              cmsMenuItem({
-                href: '/classes#intro',
-                id: 'classes-child',
-                label: 'Intro class',
-              }),
-              cmsMenuItem({
-                href: unsafeHref,
-                id: 'unsafe-child',
-                label: 'Unsafe child',
-              }),
-            ],
-            href: '/classes',
-            id: 'classes',
-            label: 'Classes',
-            systemKey: 'classes',
-          }),
-          cmsMenuItem({
-            id: 'fleet',
-            label: 'Fleet',
-            systemKey: 'fleet',
-          }),
-          cmsMenuItem({
-            href: 'https://example.com/donate',
-            id: 'donate',
-            isExternal: true,
-            label: 'Donate',
-          }),
-          cmsMenuItem({
-            id: 'empty',
-            label: 'Empty',
-          }),
-        ];
-      }
-      if (location === 'mobile_utility') {
-        return [
-          cmsMenuItem({
-            href: '/reserve',
-            id: 'reserve',
-            label: 'Reserve',
-          }),
-          cmsMenuItem({
-            href: unsafeHref,
-            id: 'unsafe-mobile',
-            label: 'Unsafe mobile',
-          }),
-        ];
-      }
-      return [];
+      return location === 'header' || location === 'mobile_utility'
+        ? menus[location]
+        : [];
     });
 
     const { SiteShellHeaderNav } = await import('./SiteShellHeaderNav');
@@ -159,53 +239,6 @@ describe('SiteShellHeaderNav', () => {
 
     expect(loadCmsMenu).toHaveBeenCalledWith('header');
     expect(loadCmsMenu).toHaveBeenCalledWith('mobile_utility');
-    expect(element.props.initialSignedIn).toBe(true);
-    expect(element.props.initialShowAdminLink).toBe(true);
-    expect(element.props.classesDropdownItems).toEqual([
-      { href: '/classes#beginner', label: 'Beginner' },
-    ]);
-    expect(element.props.fleetDropdownItems).toEqual([
-      { href: '/fleet/tech-dinghy', label: 'Tech dinghy' },
-    ]);
-    expect(element.props.headerMenuItems).toEqual([
-      {
-        href: '/classes',
-        id: 'classes',
-        isExternal: false,
-        items: [{ href: '/classes#intro', label: 'Intro class' }],
-        label: 'Classes',
-        systemKey: 'classes',
-      },
-      {
-        href: undefined,
-        id: 'fleet',
-        isExternal: false,
-        items: undefined,
-        label: 'Fleet',
-        systemKey: 'fleet',
-      },
-      {
-        href: 'https://example.com/donate',
-        id: 'donate',
-        isExternal: true,
-        items: undefined,
-        label: 'Donate',
-        systemKey: undefined,
-      },
-      {
-        href: '/pricing',
-        id: 'site-shell-header-pricing-fallback',
-        label: 'Pricing',
-        systemKey: 'pricing',
-      },
-    ]);
-    expect(element.props.mobileUtilityItems).toEqual([
-      {
-        href: '/reserve',
-        id: 'reserve',
-        isExternal: false,
-        label: 'Reserve',
-      },
-    ]);
+    expectSiteHeaderNavProps(element.props);
   });
 });
