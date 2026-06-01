@@ -62,7 +62,14 @@ describe('sailing card request schema', () => {
       'sailing_card_membership_prices_prevent_catalog_key_change'
     );
     expect(compactSchema).toContain("@@deny('post-update'");
-    expect(compactSchema).toContain('cardType != before().cardType');
+    expect(compactSchema).not.toContain('cardType != before().cardType');
+    expect(compactSchema).not.toContain('priceKind != before().priceKind');
+    expect(compactSchema).not.toContain(
+      'priceCategory != before().priceCategory'
+    );
+    expect(compactSchema).not.toContain(
+      'billingInterval != before().billingInterval'
+    );
     expect(compactSchema).toContain('amountCents != before().amountCents');
     expect(compactSchema).toContain(
       'before().stripePriceId != null && (stripePriceId == null || stripePriceId != before().stripePriceId)'
