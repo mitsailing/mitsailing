@@ -3667,25 +3667,25 @@ export class SchemaType implements SchemaDef {
                     type: "String",
                     unique: true,
                     optional: true,
-                    attributes: [{ name: "@unique" }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("stripe_price_id") }] }] as readonly AttributeApplication[]
+                    attributes: [{ name: "@deny", args: [{ name: "operation", value: ExpressionUtils.literal("read") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.call("auth"), "==", ExpressionUtils._null()), "||", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "!=", ExpressionUtils.literal("admin"))) }] }, { name: "@unique" }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("stripe_price_id") }] }] as readonly AttributeApplication[]
                 },
                 stripeSyncError: {
                     name: "stripeSyncError",
                     type: "String",
                     optional: true,
-                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("stripe_sync_error") }] }, { name: "@db.Text" }] as readonly AttributeApplication[]
+                    attributes: [{ name: "@deny", args: [{ name: "operation", value: ExpressionUtils.literal("read") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.call("auth"), "==", ExpressionUtils._null()), "||", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "!=", ExpressionUtils.literal("admin"))) }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("stripe_sync_error") }] }, { name: "@db.Text" }] as readonly AttributeApplication[]
                 },
                 stripeSyncedAt: {
                     name: "stripeSyncedAt",
                     type: "DateTime",
                     optional: true,
-                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("stripe_synced_at") }] }] as readonly AttributeApplication[]
+                    attributes: [{ name: "@deny", args: [{ name: "operation", value: ExpressionUtils.literal("read") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.call("auth"), "==", ExpressionUtils._null()), "||", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "!=", ExpressionUtils.literal("admin"))) }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("stripe_synced_at") }] }] as readonly AttributeApplication[]
                 },
                 createdByUserId: {
                     name: "createdByUserId",
                     type: "String",
                     optional: true,
-                    attributes: [{ name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("created_by_user_id") }] }] as readonly AttributeApplication[],
+                    attributes: [{ name: "@deny", args: [{ name: "operation", value: ExpressionUtils.literal("read") }, { name: "condition", value: ExpressionUtils.binary(ExpressionUtils.binary(ExpressionUtils.call("auth"), "==", ExpressionUtils._null()), "||", ExpressionUtils.binary(ExpressionUtils.member(ExpressionUtils.call("auth"), ["appRole"]), "!=", ExpressionUtils.literal("admin"))) }] }, { name: "@map", args: [{ name: "name", value: ExpressionUtils.literal("created_by_user_id") }] }] as readonly AttributeApplication[],
                     foreignKeyFor: [
                         "createdBy"
                     ] as readonly string[]
