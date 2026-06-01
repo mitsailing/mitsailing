@@ -16,11 +16,15 @@ describe('sailingCardMembership', () => {
     SailingAffiliation.NROTC,
     SailingAffiliation.OTHER_STUDENT,
   ];
-  const agePricedRacingAffiliations = Object.values(SailingAffiliation).filter(
-    (affiliation) =>
-      affiliation !== SailingAffiliation.MIT_STUDENT &&
-      !studentPaidRacingAffiliations.includes(affiliation)
-  );
+  const agePricedRacingAffiliations: readonly SailingAffiliation[] = [
+    SailingAffiliation.MIT_FACULTY,
+    SailingAffiliation.MIT_STAFF,
+    SailingAffiliation.MIT_ALUM,
+    SailingAffiliation.MIT_FAMILY,
+    SailingAffiliation.MIT_AFFILIATE,
+    SailingAffiliation.OTHER_NON_STUDENT,
+    SailingAffiliation.NON_MIT,
+  ];
 
   it('treats mit students as automatic fitness members', () => {
     expect(hasAutomaticFitnessMembership(SailingAffiliation.MIT_STUDENT)).toBe(
