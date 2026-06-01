@@ -14,14 +14,14 @@ reviews:
   poem: false
 
   high_level_summary: true
-  review_status: false
+  review_status: true
   review_details: true
   collapse_walkthrough: false
 
-  # CodeRabbit is optional. Do not publish a PR status while credits/rate limits
-  # are unreliable; agents still fix actionable CodeRabbit comments when a
-  # review actually runs.
-  commit_status: false
+  # Publish the CodeRabbit commit status so GitHub can expose coderabbitai as a
+  # required PR gate. Keep service/auth/rate-limit failures non-blocking unless
+  # repository policy explicitly chooses to treat them as hard failures.
+  commit_status: true
   fail_commit_status: false
 
   enable_prompt_for_ai_agents: true

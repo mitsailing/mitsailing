@@ -71,11 +71,11 @@ export async function SiteShell(props: SiteShellProps) {
   return (
     <div className="flex min-h-screen flex-col bg-background font-mit-sans text-mit-text">
       {shouldShowStagingBanner ? (
-        <output className="block border-b border-mit-red/20 bg-mit-red-highlight px-4 py-2 text-center text-xs font-medium text-mit-text sm:text-sm dark:border-mit-red/30 dark:bg-mit-red-950/45">
+        <aside className="block border-b border-mit-red/20 bg-mit-red-highlight px-4 py-2 text-center text-xs font-medium text-mit-text sm:text-sm dark:border-mit-red/30 dark:bg-mit-red-950/45">
           {tMitSite.rich('staging_banner', {
             link: stagingBannerLink,
           })}
-        </output>
+        </aside>
       ) : null}
       <Suspense fallback={null}>
         <ImpersonationBanner locale={locale} />

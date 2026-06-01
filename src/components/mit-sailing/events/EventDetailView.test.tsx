@@ -248,7 +248,7 @@ describe('EventDetailView', () => {
           ],
           maxParticipants: 10,
           pendingRegistrationCount: 2,
-          registrationEnd: new Date('2026-06-01T16:00:00Z'),
+          registrationEnd: new Date('2099-06-01T16:00:00Z'),
           registrationStart: new Date('2026-05-20T16:00:00Z'),
         }),
         isSignedIn: true,

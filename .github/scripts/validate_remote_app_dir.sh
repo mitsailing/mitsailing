@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-set -euo pipefail
-
 validate_remote_app_dir() {
   [[ -n "${REMOTE_APP_DIR:-}" ]] || {
     echo "PRODUCTION_REMOTE_APP_DIR must not be empty" >&2

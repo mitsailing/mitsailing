@@ -4,6 +4,8 @@ import { fetchWeatherHeaderData } from '@/lib/weather';
 
 const cacheSeconds = 900;
 
+export const runtime = 'nodejs';
+
 export async function GET() {
   const weather = await fetchWeatherHeaderData();
   return NextResponse.json(

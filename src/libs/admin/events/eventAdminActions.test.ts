@@ -1353,7 +1353,7 @@ describe('updateAdminEventRegistrationStatusAction', () => {
   });
 
   it('creates a payment and request marker when approving paid registrations', async () => {
-    const deadline = new Date('2026-06-01T13:00:00.000Z');
+    const deadline = new Date('2099-06-01T13:00:00.000Z');
     mocks.eventFindUnique.mockResolvedValue({
       entryFees: [
         {
@@ -1436,7 +1436,7 @@ describe('updateAdminEventRegistrationStatusAction', () => {
         },
       ],
       maxParticipants: null,
-      paymentDeadlineAt: new Date('2026-06-01T13:00:00.000Z'),
+      paymentDeadlineAt: new Date('2099-06-01T13:00:00.000Z'),
       paymentsEnabled: true,
     });
     const { updateAdminEventRegistrationStatusAction } =
@@ -1483,7 +1483,7 @@ describe('updateAdminEventRegistrationStatusAction', () => {
         },
       ],
       maxParticipants: null,
-      paymentDeadlineAt: new Date('2026-06-01T13:00:00.000Z'),
+      paymentDeadlineAt: new Date('2099-06-01T13:00:00.000Z'),
       paymentsEnabled: true,
     });
     const { updateAdminEventRegistrationStatusAction } =
