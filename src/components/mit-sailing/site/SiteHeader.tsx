@@ -80,9 +80,9 @@ function sessionHasUser(data: unknown): data is { user: { id: string } } {
 
 export type SiteHeaderProps = {
   /** Top-level public nav items from the CMS header menu. */
-  headerMenuItems?: SiteHeaderMenuItem[];
+  headerMenuItems: SiteHeaderMenuItem[];
   /** Mobile-only public utility links from the CMS mobile utility menu. */
-  mobileUtilityItems?: SiteHeaderMobileUtilityItem[];
+  mobileUtilityItems: SiteHeaderMobileUtilityItem[];
   /** Items for the Fleet dropdown — generated server-side from Prisma. */
   fleetDropdownItems: NavigationDropdownItem[];
   /** Items for the Classes dropdown (ordered categories → `/classes#slug`). */
@@ -99,47 +99,6 @@ export type SiteHeaderProps = {
    */
   initialShowAdminLink?: boolean;
 };
-
-function defaultHeaderMenuItems(
-  t: ReturnType<typeof useTranslations<'MitSailingSite'>>
-): SiteHeaderMenuItem[] {
-  return [
-    {
-      id: 'classes',
-      label: t('nav_classes'),
-      href: '/classes',
-      systemKey: 'classes',
-    },
-    { id: 'fleet', label: t('nav_fleet'), href: '/fleet', systemKey: 'fleet' },
-    { id: 'bluewater', label: t('nav_bluewater'), href: '#' },
-    { id: 'racing', label: t('nav_racing'), href: '#' },
-    { id: 'calendar', label: t('nav_calendar'), href: '/events' },
-    { id: 'pricing', label: t('nav_pricing'), href: '/pricing' },
-    { id: 'about', label: t('nav_about'), href: '/about' },
-    { id: 'resources', label: t('nav_resources'), href: '#' },
-  ];
-}
-
-function defaultMobileUtilityItems(
-  t: ReturnType<typeof useTranslations<'MitSailingSite'>>
-): SiteHeaderMobileUtilityItem[] {
-  return [
-    {
-      id: 'reserve',
-      label: t('util_reserve_pavilion'),
-      href: '/reserve',
-    },
-    { id: 'directions', label: t('util_directions'), href: '/contact' },
-    { id: 'donate', label: t('util_donate'), href: '/donate' },
-  ];
-}
-
-function configuredHeaderMenuItems(props: {
-  headerMenuItems: SiteHeaderProps['headerMenuItems'];
-  t: ReturnType<typeof useTranslations<'MitSailingSite'>>;
-}): SiteHeaderMenuItem[] {
-  return props.headerMenuItems ?? defaultHeaderMenuItems(props.t);
-}
 
 function withGeneratedDropdowns(props: {
   items: SiteHeaderMenuItem[];
@@ -162,13 +121,6 @@ function withGeneratedDropdowns(props: {
     }
     return item;
   });
-}
-
-function configuredMobileUtilityItems(props: {
-  mobileUtilityItems: SiteHeaderProps['mobileUtilityItems'];
-  t: ReturnType<typeof useTranslations<'MitSailingSite'>>;
-}): SiteHeaderMobileUtilityItem[] {
-  return props.mobileUtilityItems ?? defaultMobileUtilityItems(props.t);
 }
 
 function profileLinkTargetProps(pathname: string) {
@@ -290,17 +242,10 @@ export function SiteHeader(props: SiteHeaderProps) {
       : clientAdminLinkVisible;
 
   const navItems = withGeneratedDropdowns({
-    items: configuredHeaderMenuItems({
-      headerMenuItems: props.headerMenuItems,
-      t,
-    }),
+    items: props.headerMenuItems,
     fleetDropdownItems: props.fleetDropdownItems,
     classesDropdownItems: props.classesDropdownItems,
     sailingRatingsLabel: t('nav_sailing_ratings'),
-  });
-  const mobileUtilityItems = configuredMobileUtilityItems({
-    mobileUtilityItems: props.mobileUtilityItems,
-    t,
   });
   const search = searchParams?.toString() ?? '';
   const authCallbackUrl = safeAuthCallbackUrl(
@@ -393,7 +338,7 @@ export function SiteHeader(props: SiteHeaderProps) {
     return (
       <>
         <nav aria-label={primaryNavAria} className="flex flex-col gap-1">
-          {mobileUtilityItems.map((link) => {
+          {props.mobileUtilityItems.map((link) => {
             const href = safeCmsHref(link.href);
             if (!href) {
               return null;

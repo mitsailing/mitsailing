@@ -91,8 +91,10 @@ export async function SiteShell(props: SiteShellProps) {
           <SiteHeader
             classesDropdownItems={[]}
             fleetDropdownItems={[]}
+            headerMenuItems={[]}
             initialShowAdminLink={initialShowAdminLink}
             initialSignedIn={initialSignedIn}
+            mobileUtilityItems={[]}
           />
         }
       >

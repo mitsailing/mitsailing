@@ -1,7 +1,6 @@
 'use client';
 
 import { useRef } from 'react';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
@@ -14,8 +13,6 @@ type OtpCodeFieldProps = Readonly<{
   labelClassName?: string;
   name: string;
   onValueChange: (value: string) => void;
-  pasteButtonClassName?: string;
-  pasteLabel: string;
   placeholder: string;
   value: string;
 }>;
@@ -30,18 +27,6 @@ export function extractOtpCode(value: string): string {
 
 export function OtpCodeField(props: OtpCodeFieldProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
-
-  async function onPasteButtonClick() {
-    try {
-      const text = await navigator.clipboard?.readText?.();
-      const pastedCode = extractOtpCode(text ?? '');
-      if (pastedCode) {
-        props.onValueChange(pastedCode);
-      }
-    } finally {
-      inputRef.current?.focus();
-    }
-  }
 
   function onInputChange(event: React.ChangeEvent<HTMLInputElement>) {
     props.onValueChange(extractOtpCode(event.target.value));
@@ -82,20 +67,6 @@ export function OtpCodeField(props: OtpCodeFieldProps) {
         type="text"
         value={props.value}
       />
-      <Button
-        className={cn(
-          'mt-2 h-auto min-h-0 px-0 py-0 font-medium shadow-none hover:bg-transparent hover:underline',
-          props.pasteButtonClassName
-        )}
-        onClick={() => {
-          // eslint-disable-next-line no-void -- JSX handlers stay synchronous while discarding the paste promise.
-          void onPasteButtonClick();
-        }}
-        type="button"
-        variant="link"
-      >
-        {props.pasteLabel}
-      </Button>
     </div>
   );
 }

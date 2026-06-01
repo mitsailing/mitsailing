@@ -261,8 +261,6 @@ export function VerifyEmailForm(props: VerifyEmailFormProps) {
           label={t('code_label')}
           name="code"
           onValueChange={setCode}
-          pasteButtonClassName="text-muted-foreground hover:text-foreground"
-          pasteLabel={tCommon('paste_code')}
           placeholder={t('code_placeholder')}
           value={code}
         />

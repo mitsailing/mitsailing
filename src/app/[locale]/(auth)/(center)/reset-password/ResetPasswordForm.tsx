@@ -389,8 +389,6 @@ export function ResetPasswordForm(props: ResetPasswordFormProps) {
               label={t('code_label')}
               name="code"
               onValueChange={setResetCode}
-              pasteButtonClassName="text-muted-foreground hover:text-foreground"
-              pasteLabel={tCommon('paste_code')}
               placeholder={t('code_placeholder')}
               value={resetCode}
             />

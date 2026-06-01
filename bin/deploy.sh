@@ -16,9 +16,17 @@
 set -Eeuo pipefail
 umask 077
 
+resolve_deploy_dir() {
+  local dir="$1"
+  case "$dir" in
+    /*) printf '%s\n' "$dir" ;;
+    *) printf '%s/%s\n' "$(pwd -P)" "$dir" ;;
+  esac
+}
+
 # Where compose files + `.env.production` live on the host. Override if you
 # keep multiple apps under ~/apps/<name>/.
-readonly DEPLOY_DIR="${DEPLOY_DIR:-$HOME/apps/mitsailing}"
+readonly DEPLOY_DIR="$(resolve_deploy_dir "${DEPLOY_DIR:-$HOME/apps/mitsailing}")"
 
 # Compose overlay: production (no Mailpit; Resend for mail). Override with
 # a full flag sequence, e.g. `DEPLOY_COMPOSE_FILES='-f compose.yaml -f compose.prod.yaml'`.
