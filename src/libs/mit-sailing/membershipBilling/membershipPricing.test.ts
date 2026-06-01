@@ -17,6 +17,18 @@ import type {
   SailingCardMembershipPriceRow,
 } from '@/libs/mit-sailing/membershipBilling/membershipPricing';
 
+type PricingFindManyArgs = Parameters<
+  MembershipPricingReadClient['sailingCardMembershipPrice']['findMany']
+>[0];
+type PricingLookup = Extract<
+  PricingFindManyArgs['where'],
+  { OR: readonly unknown[] }
+>['OR'][number];
+type PricingClientFixture = {
+  readonly client: MembershipPricingReadClient;
+  readonly findMany: ReturnType<typeof vi.fn>;
+};
+
 const effectiveAt = new Date('2026-01-01T05:00:00.000Z');
 
 function priceRow(
@@ -46,28 +58,40 @@ function priceRow(
   };
 }
 
+function pricingClientFixtureForRows(
+  rows: readonly SailingCardMembershipPriceRow[]
+): PricingClientFixture {
+  const findMany = vi.fn(async (args: PricingFindManyArgs) => {
+    await Promise.resolve();
+    const lookups: readonly PricingLookup[] =
+      'OR' in args.where ? args.where.OR : [args.where];
+    return rows
+      .filter(
+        (row) =>
+          row.cardType === args.where.cardType &&
+          lookups.some(
+            (lookup) =>
+              row.billingInterval === lookup.billingInterval &&
+              row.effectiveAt <= lookup.effectiveAt.lte &&
+              row.priceCategory === lookup.priceCategory &&
+              row.priceKind === lookup.priceKind
+          )
+      )
+      .toSorted((a, b) => b.effectiveAt.getTime() - a.effectiveAt.getTime());
+  });
+
+  return {
+    client: {
+      sailingCardMembershipPrice: { findMany },
+    },
+    findMany,
+  };
+}
+
 function pricingClientForRows(
   rows: readonly SailingCardMembershipPriceRow[]
 ): MembershipPricingReadClient {
-  return {
-    sailingCardMembershipPrice: {
-      findMany: vi.fn(async (args) => {
-        await Promise.resolve();
-        return rows
-          .filter(
-            (row) =>
-              row.billingInterval === args.where.billingInterval &&
-              row.cardType === args.where.cardType &&
-              row.effectiveAt <= args.where.effectiveAt.lte &&
-              row.priceCategory === args.where.priceCategory &&
-              row.priceKind === args.where.priceKind
-          )
-          .toSorted(
-            (a, b) => b.effectiveAt.getTime() - a.effectiveAt.getTime()
-          );
-      }),
-    },
-  };
+  return pricingClientFixtureForRows(rows).client;
 }
 
 const baseRows: readonly SailingCardMembershipPriceRow[] = [
@@ -143,19 +167,23 @@ describe('membership pricing', () => {
   });
 
   it('returns spring due today and annual July 15 renewal pricing before July 15', async () => {
+    const fixture = pricingClientFixtureForRows(baseRows);
+
     await expect(
       getCheckoutMembershipPrices({
         affiliation: SailingAffiliation.MIT_ALUM,
         cardType: SailingCardType.racing,
-        client: pricingClientForRows(baseRows),
+        client: fixture.client,
         dateOfBirth: '07/16/1996',
         now: new Date('2026-06-01T12:00:00.000Z'),
         requireStripeReady: false,
       })
     ).resolves.toMatchObject({
+      status: 'ready',
       dueTodayPrice: { amountCents: 7000 },
       renewalPrice: { amountCents: 12_500 },
     });
+    expect(fixture.findMany).toHaveBeenCalledTimes(1);
   });
 
   it('returns no checkout prices by default until Stripe sync succeeds', async () => {
@@ -167,7 +195,20 @@ describe('membership pricing', () => {
         dateOfBirth: '07/16/1996',
         now: new Date('2026-06-01T12:00:00.000Z'),
       })
-    ).resolves.toBeNull();
+    ).resolves.toMatchObject({ status: 'missing_due_today_price' });
+  });
+
+  it('distinguishes ineligible requests from missing membership prices', async () => {
+    await expect(
+      getCheckoutMembershipPrices({
+        affiliation: SailingAffiliation.MIT_STUDENT,
+        cardType: SailingCardType.racing,
+        client: pricingClientForRows(baseRows),
+        dateOfBirth: '07/16/1996',
+        now: new Date('2026-06-01T12:00:00.000Z'),
+        requireStripeReady: false,
+      })
+    ).resolves.toEqual({ status: 'not_eligible' });
   });
 
   it('uses the renewal age band at the July 15 billing anchor', async () => {
@@ -181,10 +222,33 @@ describe('membership pricing', () => {
         requireStripeReady: false,
       })
     ).resolves.toMatchObject({
+      status: 'ready',
       dueTodayPrice: { amountCents: 7000 },
       renewalPrice: { amountCents: 17_500 },
     });
   });
+
+  it.each([
+    ['July 14 birthday', '07/14/1996', 17_500],
+    ['July 16 birthday', '07/16/1996', 12_500],
+  ])(
+    'uses the renewal age band for a %s',
+    async (_label, dateOfBirth, amount) => {
+      await expect(
+        getCheckoutMembershipPrices({
+          affiliation: SailingAffiliation.MIT_ALUM,
+          cardType: SailingCardType.racing,
+          client: pricingClientForRows(baseRows),
+          dateOfBirth,
+          now: new Date('2026-06-01T12:00:00.000Z'),
+          requireStripeReady: false,
+        })
+      ).resolves.toMatchObject({
+        status: 'ready',
+        renewalPrice: { amountCents: amount },
+      });
+    }
+  );
 
   it('treats the 30th birthday as thirty or over in Eastern time', () => {
     expect(
