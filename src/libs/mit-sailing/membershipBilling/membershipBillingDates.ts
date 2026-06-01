@@ -8,7 +8,10 @@ import {
 const renewalMonth = 7;
 const renewalDay = 15;
 
-const renewalDateKey = (year: number) => `${year}-07-15`;
+const renewalDateKey = (year: number) =>
+  [year, renewalMonth, renewalDay]
+    .map((part) => part.toString().padStart(2, '0'))
+    .join('-');
 
 const renewalAt = (year: number) =>
   instantForNyWallClock(year, renewalMonth, renewalDay, 0, 0);
