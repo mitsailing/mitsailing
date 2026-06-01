@@ -11,7 +11,7 @@ env:
   HEALTHCHECK_SECRET: ${{ secrets.HEALTHCHECK_SECRET }}
 
 jobs:
-  test-e2e:
+  deploy-health-checks:
     strategy:
       matrix:
         node-version: [24.x]
@@ -20,7 +20,7 @@ jobs:
     # Only run after a successful production deployment.
     if: github.event.deployment_status.state == 'success' && github.event.deployment_status.environment == 'production'
 
-    name: Test E2E on Checkly
+    name: Deploy Checkly health checks
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -46,11 +46,11 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
-      - name: Run checks # run the checks passing in the ENVIRONMENT_URL and recording a test session.
+      - name: Run checks
         id: run-checks
         run: npx dotenv -c production -- npx checkly test --reporter=github --record
 
-      - name: Create summary # export the markdown report to the job summary.
+      - name: Create summary
         id: create-summary
         if: always()
         run: |
@@ -58,7 +58,7 @@ jobs:
             cat checkly-github-report.md > "$GITHUB_STEP_SUMMARY"
           fi
 
-      - name: Deploy checks # if the test run was successful and we are on production, deploy the checks
+      - name: Deploy checks
         id: deploy-checks
         if: steps.run-checks.outcome == 'success'
         run: npx dotenv -c production -- npx checkly deploy --force
