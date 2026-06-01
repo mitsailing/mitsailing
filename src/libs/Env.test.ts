@@ -46,6 +46,12 @@ function stubRequiredStripeEnv(): void {
   vi.stubEnv('STRIPE_WEBHOOK_SECRET', 'whsec_test_webhook_secret');
 }
 
+function stubMissingStripeEnv(): void {
+  vi.stubEnv('STRIPE_SECRET_KEY', '');
+  vi.stubEnv('NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY', '');
+  vi.stubEnv('STRIPE_WEBHOOK_SECRET', '');
+}
+
 describe('Env legacy MySQL sync validation', () => {
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -179,6 +185,7 @@ describe('Env legacy MySQL sync validation', () => {
   it('allows local development without Stripe keys', async () => {
     stubRequiredBaseEnv();
     stubNewsletterRevalidateSecret();
+    stubMissingStripeEnv();
 
     const { Env } = await import('@/libs/Env');
 
@@ -192,6 +199,7 @@ describe('Env legacy MySQL sync validation', () => {
     stubNewsletterRevalidateSecret();
     vi.stubEnv('APP_ENV', 'staging');
     stubRequiredProductionEnv();
+    stubMissingStripeEnv();
 
     await expect(import('@/libs/Env')).rejects.toThrow(
       'Invalid environment variables'

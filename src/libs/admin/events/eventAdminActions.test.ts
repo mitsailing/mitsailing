@@ -99,6 +99,10 @@ type EventRegistrationStatusTransaction = (
   tx: AdminEventTransactionClient
 ) => Promise<unknown>;
 
+function futurePaymentDeadline() {
+  return new Date(Date.now() + 60_000);
+}
+
 vi.mock('server-only', () => ({}));
 
 vi.mock('next/cache', () => ({
@@ -1353,7 +1357,7 @@ describe('updateAdminEventRegistrationStatusAction', () => {
   });
 
   it('creates a payment and request marker when approving paid registrations', async () => {
-    const deadline = new Date('2026-06-01T13:00:00.000Z');
+    const deadline = futurePaymentDeadline();
     mocks.eventFindUnique.mockResolvedValue({
       entryFees: [
         {
@@ -1436,7 +1440,7 @@ describe('updateAdminEventRegistrationStatusAction', () => {
         },
       ],
       maxParticipants: null,
-      paymentDeadlineAt: new Date('2026-06-01T13:00:00.000Z'),
+      paymentDeadlineAt: futurePaymentDeadline(),
       paymentsEnabled: true,
     });
     const { updateAdminEventRegistrationStatusAction } =
@@ -1483,7 +1487,7 @@ describe('updateAdminEventRegistrationStatusAction', () => {
         },
       ],
       maxParticipants: null,
-      paymentDeadlineAt: new Date('2026-06-01T13:00:00.000Z'),
+      paymentDeadlineAt: futurePaymentDeadline(),
       paymentsEnabled: true,
     });
     const { updateAdminEventRegistrationStatusAction } =
