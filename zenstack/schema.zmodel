@@ -1229,10 +1229,10 @@ model SailingCardMembershipPrice {
   active          Boolean                                 @default(true)
   effectiveAt     DateTime                                @map("effective_at")
   changeReason    String                                  @trim @length(min: 1) @map("change_reason") @db.Text
-  stripePriceId   String?                                 @unique @map("stripe_price_id")
-  stripeSyncError String?                                 @map("stripe_sync_error") @db.Text
-  stripeSyncedAt  DateTime?                               @map("stripe_synced_at")
-  createdByUserId String?                                 @map("created_by_user_id")
+  stripePriceId   String?                                 @deny('read', auth() == null || auth().appRole != 'admin') @unique @map("stripe_price_id")
+  stripeSyncError String?                                 @deny('read', auth() == null || auth().appRole != 'admin') @map("stripe_sync_error") @db.Text
+  stripeSyncedAt  DateTime?                               @deny('read', auth() == null || auth().appRole != 'admin') @map("stripe_synced_at")
+  createdByUserId String?                                 @deny('read', auth() == null || auth().appRole != 'admin') @map("created_by_user_id")
   createdAt       DateTime                                @default(now()) @map("created_at")
   updatedAt       DateTime                                @updatedAt @map("updated_at")
 

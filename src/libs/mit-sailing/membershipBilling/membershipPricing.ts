@@ -151,7 +151,7 @@ export function selectActiveMembershipPrice(
     readonly requireStripeReady?: boolean;
   }
 ): SailingCardMembershipPriceRow | null {
-  const sortedPrices = [...prices].toSorted(
+  const sortedPrices = prices.toSorted(
     (a, b) => b.effectiveAt.getTime() - a.effectiveAt.getTime()
   );
 
