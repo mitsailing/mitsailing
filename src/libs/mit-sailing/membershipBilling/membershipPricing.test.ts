@@ -308,7 +308,7 @@ describe('membership pricing', () => {
     expect(selected).toMatchObject({ amountCents: 7500 });
   });
 
-  it('can require Stripe-synced prices for checkout selection', () => {
+  it('blocks checkout when the current price is not Stripe synced', () => {
     const selected = selectActiveMembershipPrice(
       [
         priceRow({
@@ -345,6 +345,6 @@ describe('membership pricing', () => {
       }
     );
 
-    expect(selected).toMatchObject({ amountCents: 7500 });
+    expect(selected).toBeNull();
   });
 });

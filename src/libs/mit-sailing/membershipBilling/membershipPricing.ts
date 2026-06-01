@@ -188,15 +188,20 @@ export function selectActiveMembershipPrice(
   const sortedPrices = prices.toSorted(
     (a, b) => b.effectiveAt.getTime() - a.effectiveAt.getTime()
   );
-
-  return (
+  const currentPrice =
     sortedPrices.find(
       (price) =>
-        price.active &&
-        price.effectiveAt.getTime() <= options.now.getTime() &&
-        (options.requireStripeReady !== true || isStripeReadyPrice(price))
-    ) ?? null
-  );
+        price.active && price.effectiveAt.getTime() <= options.now.getTime()
+    ) ?? null;
+
+  if (
+    currentPrice === null ||
+    (options.requireStripeReady === true && !isStripeReadyPrice(currentPrice))
+  ) {
+    return null;
+  }
+
+  return currentPrice;
 }
 
 /**

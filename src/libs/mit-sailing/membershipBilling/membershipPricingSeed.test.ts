@@ -15,6 +15,8 @@ import {
   sailingCardMembershipPriceCents,
 } from '@/libs/mit-sailing/sailingCardMembership';
 
+type SeedPriceRow = (typeof initialSailingCardMembershipPrices)[number];
+
 const studentPaidAffiliations = Object.values(SailingAffiliation).filter(
   hasStudentPaidRacingPrice
 );
@@ -30,7 +32,7 @@ const findSeedPrice = (props: {
   cardType: SailingCardType;
   priceCategory: SailingCardMembershipPriceCategory;
   priceKind: SailingCardMembershipPriceKind;
-}) => {
+}): SeedPriceRow => {
   const price = initialSailingCardMembershipPrices.find(
     (row) =>
       row.billingInterval === props.billingInterval &&
@@ -38,7 +40,10 @@ const findSeedPrice = (props: {
       row.priceCategory === props.priceCategory &&
       row.priceKind === props.priceKind
   );
-  expect(price).toBeDefined();
+  if (price === undefined) {
+    throw new Error('Expected initial sailing card membership seed price.');
+  }
+
   return price;
 };
 
@@ -68,7 +73,7 @@ describe('initial sailing card membership prices', () => {
         cardType: SailingCardType.racing,
         priceCategory: SailingCardMembershipPriceCategory.student,
         priceKind: SailingCardMembershipPriceKind.spring,
-      })?.amountCents
+      }).amountCents
     ).toBe(2500);
     expect(
       findSeedPrice({
@@ -76,7 +81,7 @@ describe('initial sailing card membership prices', () => {
         cardType: SailingCardType.racing,
         priceCategory: SailingCardMembershipPriceCategory.student,
         priceKind: SailingCardMembershipPriceKind.full,
-      })?.amountCents
+      }).amountCents
     ).toBe(4000);
     expect(
       findSeedPrice({
@@ -84,7 +89,7 @@ describe('initial sailing card membership prices', () => {
         cardType: SailingCardType.racing,
         priceCategory: SailingCardMembershipPriceCategory.under_30,
         priceKind: SailingCardMembershipPriceKind.spring,
-      })?.amountCents
+      }).amountCents
     ).toBe(7000);
     expect(
       findSeedPrice({
@@ -92,7 +97,7 @@ describe('initial sailing card membership prices', () => {
         cardType: SailingCardType.racing,
         priceCategory: SailingCardMembershipPriceCategory.thirty_or_over,
         priceKind: SailingCardMembershipPriceKind.full,
-      })?.amountCents
+      }).amountCents
     ).toBe(17_500);
   });
 
@@ -103,7 +108,7 @@ describe('initial sailing card membership prices', () => {
         cardType: SailingCardType.team_racing,
         priceCategory: SailingCardMembershipPriceCategory.student,
         priceKind: SailingCardMembershipPriceKind.spring,
-      })?.amountCents
+      }).amountCents
     ).toBe(2500);
     expect(
       findSeedPrice({
@@ -111,7 +116,7 @@ describe('initial sailing card membership prices', () => {
         cardType: SailingCardType.team_racing,
         priceCategory: SailingCardMembershipPriceCategory.under_30,
         priceKind: SailingCardMembershipPriceKind.full,
-      })?.amountCents
+      }).amountCents
     ).toBe(7000);
     expect(
       findSeedPrice({
@@ -119,7 +124,7 @@ describe('initial sailing card membership prices', () => {
         cardType: SailingCardType.team_racing,
         priceCategory: SailingCardMembershipPriceCategory.thirty_or_over,
         priceKind: SailingCardMembershipPriceKind.full,
-      })?.amountCents
+      }).amountCents
     ).toBe(10_000);
   });
 
@@ -139,7 +144,7 @@ describe('initial sailing card membership prices', () => {
           cardType: SailingCardType.racing,
           priceCategory: SailingCardMembershipPriceCategory.student,
           priceKind: SailingCardMembershipPriceKind.spring,
-        })?.amountCents
+        }).amountCents
       );
       expect(
         sailingCardMembershipPriceCents({
@@ -154,7 +159,7 @@ describe('initial sailing card membership prices', () => {
           cardType: SailingCardType.racing,
           priceCategory: SailingCardMembershipPriceCategory.student,
           priceKind: SailingCardMembershipPriceKind.full,
-        })?.amountCents
+        }).amountCents
       );
     }
   );
@@ -175,7 +180,7 @@ describe('initial sailing card membership prices', () => {
           cardType: SailingCardType.racing,
           priceCategory: SailingCardMembershipPriceCategory.under_30,
           priceKind: SailingCardMembershipPriceKind.spring,
-        })?.amountCents
+        }).amountCents
       );
       expect(
         sailingCardMembershipPriceCents({
@@ -190,7 +195,7 @@ describe('initial sailing card membership prices', () => {
           cardType: SailingCardType.racing,
           priceCategory: SailingCardMembershipPriceCategory.thirty_or_over,
           priceKind: SailingCardMembershipPriceKind.full,
-        })?.amountCents
+        }).amountCents
       );
     }
   );

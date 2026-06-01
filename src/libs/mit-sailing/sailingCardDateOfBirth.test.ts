@@ -18,6 +18,24 @@ describe('sailingCardDateOfBirth', () => {
     expect(formatSailingCardDateOfBirthInput('1988-03-24')).toBe('03/24/1988');
   });
 
+  it('keeps invalid structured birthdays unchanged', () => {
+    expect(formatSailingCardDateOfBirthInput('2026-99-99')).toBe('2026-99-99');
+    expect(normalizeSailingCardDateOfBirthInput({ value: '2026-99-99' })).toBe(
+      '2026-99-99'
+    );
+  });
+
+  it('expands short birth years against the New York calendar year', () => {
+    const newYearsEveInNewYork = new Date('2027-01-01T04:30:00.000Z');
+
+    expect(
+      parseSailingCardDateOfBirth({
+        now: newYearsEveInNewYork,
+        value: '01/01/27',
+      })
+    ).toStrictEqual(new Date('1927-01-01T00:00:00.000Z'));
+  });
+
   it('parses short birth years for submit', () => {
     expect(
       parseSailingCardDateOfBirth({ now, value: '03/24/88' })

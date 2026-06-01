@@ -1,15 +1,23 @@
+import { calendarYearInEventsTimeZone } from '@/lib/mit-sailing/nyTime';
+
 const isoDateOfBirthPattern = /^(\d{4})-(\d{1,2})-(\d{1,2})$/;
 const numericDateOfBirthPattern = /^(\d{2})(\d{2})(\d{4})$/;
 const numericShortDateOfBirthPattern = /^(\d{2})(\d{2})(\d{2})$/;
 const slashDateOfBirthPattern = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
 const slashShortDateOfBirthPattern = /^(\d{1,2})\/(\d{1,2})\/(\d{2})$/;
 
+/**
+ * Expands a two-digit birth year into the New York current or previous century.
+ *
+ * @param props - Current date and two-digit year string to expand.
+ * @returns Four-digit year string; for example, "88" in 2026 becomes "1988".
+ */
 const expandShortBirthYear = (props: {
   readonly now: Date;
   readonly year: string;
 }) => {
   const shortYear = Number(props.year);
-  const currentYear = props.now.getUTCFullYear();
+  const currentYear = calendarYearInEventsTimeZone(props.now);
   const currentCentury = Math.floor(currentYear / 100) * 100;
   const expandedYear = currentCentury + shortYear;
 
@@ -128,16 +136,18 @@ export const parseSailingCardDateOfBirth = (props: {
 
 export const formatSailingCardDateOfBirthInput = (value: string) => {
   const trimmed = value.trim();
-  const parsedAutofillDate = parseSailingCardDateOfBirth({
-    allowIsoDate: true,
-    value:
-      isoDateOfBirthPattern.test(trimmed) ||
-      slashDateOfBirthPattern.test(trimmed)
-        ? trimmed
-        : undefined,
-  });
-  if (parsedAutofillDate !== null) {
-    return formatDateOfBirth(parsedAutofillDate);
+  if (
+    isoDateOfBirthPattern.test(trimmed) ||
+    slashDateOfBirthPattern.test(trimmed)
+  ) {
+    const parsedAutofillDate = parseSailingCardDateOfBirth({
+      allowIsoDate: true,
+      value: trimmed,
+    });
+
+    return parsedAutofillDate === null
+      ? trimmed
+      : formatDateOfBirth(parsedAutofillDate);
   }
 
   const digits = value.replaceAll(/\D/g, '').slice(0, 8);

@@ -162,7 +162,6 @@ model User {
   paymentBypassedSailingCardRequests  SailingCardRequest[]           @relation("SailingCardRequestPaymentBypassBy")
   payments                            Payment[]
   manuallyHandledPayments             Payment[]                  @relation("PaymentManualHandledBy")
-  sailingCardMembershipPricesCreated  SailingCardMembershipPrice[] @relation("SailingCardMembershipPriceCreatedBy")
   eventComments                       EventComment[]
   eventAdmins                         EventAdmin[]
   sailingRatings                      UserSailingRating[]           @relation("UserSailingRatings")
@@ -1235,10 +1234,6 @@ model SailingCardMembershipPrice {
   createdByUserId String?                                 @deny('read', auth() == null || auth().appRole != 'admin') @map("created_by_user_id")
   createdAt       DateTime                                @default(now()) @map("created_at")
   updatedAt       DateTime                                @updatedAt @map("updated_at")
-
-  // The FK scalar is read-denied; ZenStack field policies cannot be placed on
-  // relation fields, so public surfaces must not expose this relation.
-  createdBy User? @relation("SailingCardMembershipPriceCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
 
   @@deny('create,update', cardType == normal)
   @@deny('create,update', amountCents < 50)
