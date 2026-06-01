@@ -23,6 +23,7 @@ type FinalEnv = {
   NEXT_SERVER_ACTIONS_ENCRYPTION_KEY?: string;
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?: string;
   REDIS_URL?: string;
+  STAGING_BANNER: 'no' | 'yes';
   STRIPE_SECRET_KEY?: string;
   STRIPE_WEBHOOK_SECRET?: string;
   TEST_DATABASE_URL?: string;
@@ -192,6 +193,8 @@ export const Env = createEnv({
       .enum(['local', 'test', 'staging', 'production'])
       .default('local'),
 
+    STAGING_BANNER: z.enum(['yes', 'no']).default('no'),
+
     // Mail transport selector. Enum (not a boolean toggle) so adding drivers
     // later — SES, Postmark, SMTP relay — is a single case rather than a
     // cascade of if/else. Defaults to `log` so unconfigured environments
@@ -301,6 +304,7 @@ export const Env = createEnv({
     LEGACY_MYSQL_SYNC_CRON: process.env.LEGACY_MYSQL_SYNC_CRON,
     LEGACY_MYSQL_PASSWORD: process.env.LEGACY_MYSQL_PASSWORD,
     APP_ENV: process.env.APP_ENV,
+    STAGING_BANNER: process.env.STAGING_BANNER,
     MAIL_TRANSPORT: process.env.MAIL_TRANSPORT,
     RESEND_API_KEY: process.env.RESEND_API_KEY,
     EMAIL_FROM: process.env.EMAIL_FROM,

@@ -6,8 +6,8 @@ env:
   CHECKLY_API_KEY: ${{ secrets.CHECKLY_API_KEY }}
   CHECKLY_ACCOUNT_ID: ${{ secrets.CHECKLY_ACCOUNT_ID }}
   CHECKLY_REPO_URL: https://github.com/mitsailing/mitsailing
-  CHECKLY_TEST_ENVIRONMENT: production
-  ENVIRONMENT_URL: https://mitsailing.com
+  CHECKLY_TEST_ENVIRONMENT: ${{ github.event.deployment_status.environment }}
+  ENVIRONMENT_URL: ${{ github.event.deployment_status.environment_url || 'https://mitsailing.com' }}
   HEALTHCHECK_SECRET: ${{ secrets.HEALTHCHECK_SECRET }}
 
 jobs:
@@ -25,11 +25,10 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - name: Verify readiness monitoring secret
+      - name: Note readiness monitoring scope
         run: |
           if [ -z "${HEALTHCHECK_SECRET}" ]; then
-            echo "::error::HEALTHCHECK_SECRET is required for production readiness monitoring."
-            exit 1
+            echo "::notice::HEALTHCHECK_SECRET is not configured. Checkly will run public checks and skip protected readiness checks."
           fi
 
       - uses: actions/checkout@v6

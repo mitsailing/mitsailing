@@ -1,5 +1,5 @@
 import type { BigIntStats } from 'node:fs';
-import { mkdir, open, rename, stat } from 'node:fs/promises';
+import { chmod, mkdir, open, rename, stat } from 'node:fs/promises';
 import path from 'node:path';
 import type { JobsOptions } from 'bullmq';
 import type { Prisma } from '@/generated/prisma/client';
@@ -24,6 +24,8 @@ const CMS_MEDIA_PROCESSING_JOB_OPTS: JobsOptions = {
 
 const CMS_MEDIA_PROCESSING_STALE_MS = 15 * 60 * 1000;
 const CMS_MEDIA_RECONCILE_BATCH_SIZE = 500;
+const CMS_MEDIA_READY_DIR_MODE = 0o755;
+const CMS_MEDIA_READY_FILE_MODE = 0o644;
 
 type CmsMediaProcessingJobData = {
   assetId: string;
@@ -149,6 +151,11 @@ async function markCmsMediaReady(assetId: string): Promise<void> {
   });
 }
 
+async function ensureReadyMediaPermissions(readyPath: string): Promise<void> {
+  await chmod(path.dirname(readyPath), CMS_MEDIA_READY_DIR_MODE);
+  await chmod(readyPath, CMS_MEDIA_READY_FILE_MODE);
+}
+
 async function processServerFolderAsset(
   asset: CmsMediaProcessingAsset
 ): Promise<void> {
@@ -161,6 +168,7 @@ async function processServerFolderAsset(
     return;
   }
   if (await fileExists(paths.readyPath)) {
+    await ensureReadyMediaPermissions(paths.readyPath);
     await markCmsMediaReady(asset.id);
     return;
   }
@@ -187,6 +195,7 @@ async function processServerFolderAsset(
   });
   await mkdir(path.dirname(paths.readyPath), { recursive: true });
   await rename(paths.rawPath, paths.readyPath);
+  await ensureReadyMediaPermissions(paths.readyPath);
   await markCmsMediaReady(asset.id);
 }
 

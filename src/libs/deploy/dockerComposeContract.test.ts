@@ -20,7 +20,17 @@ function composeVariable(value: string): string {
 describe('production docker compose', () => {
   const productionCompose = readRepoFile('compose.prod.yaml');
   const deployRunbook = readRepoFile('docs/deploy.md');
+  const deployWorkflow = readRepoFile('.github/workflows/deploy.yml');
+  const remoteAppDirValidationScript = readRepoFile(
+    '.github/scripts/validate_remote_app_dir.sh'
+  );
+  const localDevelopmentRunbook = readRepoFile('docs/local-development.md');
+  const mediaMaintenanceRunbook = readRepoFile('docs/media-maintenance.md');
   const mediaNginx = readRepoFile('docker/nginx/media.conf');
+  const productionDataRoot = composeVariable(
+    'PRODUCTION_DATA_ROOT:-/srv/mitsailing-data'
+  );
+  const productionDataRootReference = composeVariable('PRODUCTION_DATA_ROOT');
 
   it('defines one docker-only production stack', () => {
     expect(productionCompose).toContain('app:');
@@ -34,10 +44,9 @@ describe('production docker compose', () => {
     expect(productionCompose).toContain("user: '1001:1001'");
     expect(productionCompose).toContain('media:');
     expect(productionCompose).toContain('cloudflared:');
-    expect(productionCompose).toContain('/srv/mitsailing-data/postgres');
-    expect(productionCompose).toContain('/srv/mitsailing-data/redis');
-    expect(productionCompose).toContain('/srv/mitsailing-data/cms-media');
-    expect(productionCompose).not.toContain('PRODUCTION_DATA_ROOT');
+    expect(productionCompose).toContain(`${productionDataRoot}/postgres`);
+    expect(productionCompose).toContain(`${productionDataRoot}/redis`);
+    expect(productionCompose).toContain(`${productionDataRoot}/cms-media`);
     expect(productionCompose).not.toContain('PRODUCTION_RUNTIME_UID');
     expect(productionCompose).not.toContain('upload-service:');
     expect(productionCompose).not.toContain('media-worker:');
@@ -59,13 +68,13 @@ describe('production docker compose', () => {
   it('requires admin-created production bind mount paths', () => {
     expect(productionCompose).toContain('create_host_path: false');
     expect(productionCompose).toMatch(
-      /source: \/srv\/mitsailing-data\/postgres\s+target: \/var\/lib\/postgresql\s+bind:\s+create_host_path: false/u
+      /source: \$\{PRODUCTION_DATA_ROOT:-\/srv\/mitsailing-data\}\/postgres\s+target: \/var\/lib\/postgresql\s+bind:\s+create_host_path: false/u
     );
     expect(productionCompose).toMatch(
-      /source: \/srv\/mitsailing-data\/redis\s+target: \/data\s+bind:\s+create_host_path: false/u
+      /source: \$\{PRODUCTION_DATA_ROOT:-\/srv\/mitsailing-data\}\/redis\s+target: \/data\s+bind:\s+create_host_path: false/u
     );
     expect(productionCompose).toMatch(
-      /source: \/srv\/mitsailing-data\/cms-media\s+target: \/var\/lib\/mitsailing\/cms-media\s+bind:\s+create_host_path: false/u
+      /source: \$\{PRODUCTION_DATA_ROOT:-\/srv\/mitsailing-data\}\/cms-media\s+target: \/var\/lib\/mitsailing\/cms-media\s+bind:\s+create_host_path: false/u
     );
   });
 
@@ -116,10 +125,161 @@ describe('production docker compose', () => {
     expect(deployRunbook).toContain('service: http://media:8080');
     expect(deployRunbook).toContain('service: http://app:3000');
   });
+
+  it('documents the CI-first production deploy flow', () => {
+    expect(deployRunbook).toContain('Open a PR.');
+    expect(deployRunbook).toContain(
+      'Wait for all required PR checks, the Docker PR build, code-scanning/security'
+    );
+    expect(deployRunbook).toContain('gates, and human review.');
+    expect(deployRunbook).toContain(
+      'If CodeRabbit is unavailable, run a local sub-agent code review before merge.'
+    );
+    expect(deployRunbook).toContain('Merge the approved PR to `main`.');
+    expect(deployRunbook).toContain(
+      'GitHub runs `Deploy (production)` from `main`.'
+    );
+    expect(deployRunbook).toContain(
+      'approval may happen before the image build and again before release'
+    );
+    expect(deployRunbook).toContain('`feature/<slug>`');
+    expect(deployRunbook).toContain('`fix/<slug>`');
+    expect(deployRunbook).toContain('`issue-<number>-<slug>`');
+  });
+
+  it('documents the production data root for direct host commands', () => {
+    const shellProductionDataRoot = `${String.fromCodePoint(36)}PRODUCTION_DATA_ROOT`;
+
+    expect(deployRunbook).toContain(
+      `PRODUCTION_DATA_ROOT='${productionDataRootReference}' DEPLOY_DIR=apps/mitsailing`
+    );
+    expect(deployRunbook).toContain(
+      'PRODUCTION_DATA_ROOT=/srv/mitsailing-data'
+    );
+    expect(mediaMaintenanceRunbook).toContain(
+      `PRODUCTION_DATA_ROOT='${shellProductionDataRoot}' docker compose`
+    );
+    expect(mediaMaintenanceRunbook).toContain(
+      `PRODUCTION_DATA_ROOT='${shellProductionDataRoot}' DEPLOY_DIR=$DEPLOY_DIR`
+    );
+    expect(localDevelopmentRunbook).toContain(
+      '`/var/lib/mitsailing/cms-media/ready` from the remote `media` container'
+    );
+    expect(localDevelopmentRunbook).toContain(
+      '`PRODUCTION_DATA_ROOT/cms-media/ready` on the host'
+    );
+  });
+
+  it('shell-escapes the remote deploy command values', () => {
+    const dollar = String.fromCodePoint(36);
+    const remoteAppDir = composeVariable('REMOTE_APP_DIR');
+    const remoteDeployScriptPath = `${remoteAppDir}/bin/deploy.sh`;
+    const escapedAppDir = composeVariable('remote_app_dir');
+    const escapedDataRoot = composeVariable('remote_data_root');
+    const escapedDataRootAssignment = composeVariable(
+      'remote_data_root_assignment'
+    );
+    const escapedDeployScript = composeVariable('remote_deploy_script');
+    const escapedImageTag = composeVariable('remote_image_tag');
+    const checkedOutSha = composeVariable('checked_out_sha');
+    const checkedOutShortSha = `${dollar}{checked_out_sha::12}`;
+    const deploymentVersionExpression = `${dollar}{{ steps.meta.outputs.deployment_version }}`;
+    const productionDataRootExpression = `${dollar}{{ vars.PRODUCTION_DATA_ROOT }}`;
+    const productionDataRootFallbackExpression = `${dollar}{{ vars.PRODUCTION_DATA_ROOT || '/srv/mitsailing-data' }}`;
+    const githubShaExpression = `${dollar}{{ github.sha }}`;
+
+    expect(deployWorkflow).toContain(
+      '. .github/scripts/validate_remote_app_dir.sh'
+    );
+    expect(deployWorkflow).toContain('validate_remote_app_dir');
+    expect(remoteAppDirValidationScript).toContain('validate_remote_app_dir');
+    expect(remoteAppDirValidationScript).toContain(
+      'PRODUCTION_REMOTE_APP_DIR must use safe path characters'
+    );
+    expect(remoteAppDirValidationScript).toContain(
+      'PRODUCTION_REMOTE_APP_DIR must not contain path segments starting with -'
+    );
+    expect(deployWorkflow).toContain(
+      `"mkdir -p ${escapedAppDir}/bin ${escapedAppDir}/docker/postgres ${escapedAppDir}/docker/nginx"`
+    );
+    expect(deployWorkflow).toContain(
+      `"chmod +x ${escapedAppDir}/bin/deploy.sh"`
+    );
+    expect(deployWorkflow).toContain(
+      `printf -v remote_data_root '%q' "${dollar}PRODUCTION_DATA_ROOT"`
+    );
+    expect(deployWorkflow).toContain(
+      `PRODUCTION_DATA_ROOT: ${productionDataRootExpression}`
+    );
+    expect(deployWorkflow).not.toContain(
+      `PRODUCTION_DATA_ROOT: ${productionDataRootFallbackExpression}`
+    );
+    expect(deployWorkflow).toContain('remote_data_root_assignment=');
+    expect(deployWorkflow).toContain(
+      `remote_data_root_assignment="PRODUCTION_DATA_ROOT=${escapedDataRoot} "`
+    );
+    expect(deployWorkflow).toContain(
+      `printf -v remote_app_dir '%q' "${dollar}REMOTE_APP_DIR"`
+    );
+    expect(deployWorkflow).toContain(
+      `printf -v remote_deploy_script '%q' "${remoteDeployScriptPath}"`
+    );
+    expect(deployWorkflow).toContain(
+      'printf -v remote_image_tag \'%q\' "$IMAGE_TAG"'
+    );
+    expect(deployWorkflow).toContain(
+      `"${escapedDataRootAssignment}DEPLOY_DIR=${escapedAppDir} ${escapedDeployScript} release ${escapedImageTag}"`
+    );
+    expect(deployWorkflow).not.toContain(`"mkdir -p '${remoteAppDir}/bin'`);
+    expect(deployWorkflow).toContain('checked_out_sha="$(git rev-parse HEAD)"');
+    expect(deployWorkflow).toContain(`short_sha="${checkedOutShortSha}"`);
+    expect(deployWorkflow).toContain(
+      `echo "deployment_version=${checkedOutSha}"`
+    );
+    expect(deployWorkflow).toContain(
+      `DEPLOYMENT_VERSION=${deploymentVersionExpression}`
+    );
+    expect(deployWorkflow).not.toContain(
+      `DEPLOYMENT_VERSION=${githubShaExpression}`
+    );
+  });
+
+  it('rejects unsafe remote app directory values', () => {
+    for (const remoteAppDir of [
+      '',
+      '/',
+      'apps/../mitsailing',
+      '~/mitsailing',
+    ]) {
+      const result = spawnSync(
+        '/bin/bash',
+        [
+          '-c',
+          '. .github/scripts/validate_remote_app_dir.sh && validate_remote_app_dir',
+        ],
+        {
+          cwd: process.cwd(),
+          encoding: 'utf8',
+          env: {
+            ...process.env,
+            PATH: '/bin:/usr/bin',
+            REMOTE_APP_DIR: remoteAppDir,
+          },
+        }
+      );
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('PRODUCTION_REMOTE_APP_DIR must');
+    }
+  });
 });
 
 describe('production deploy script', () => {
   const deployScript = readRepoFile('bin/deploy.sh');
+  const defaultProductionDataRoot = composeVariable(
+    'PRODUCTION_DATA_ROOT:-/srv/mitsailing-data'
+  );
+  const productionDataRoot = composeVariable('PRODUCTION_DATA_ROOT');
 
   it('requires admin-created production data directories without sudo', () => {
     expect(deployScript).toContain('server admin must create');
@@ -130,17 +290,30 @@ describe('production deploy script', () => {
     expect(deployScript).not.toContain('[[ -d "$dir" ]]');
   });
 
-  it('uses fixed production data paths', () => {
+  it('derives production data paths from a configurable root', () => {
     expect(deployScript).toContain(
-      'readonly PRODUCTION_POSTGRES_DIR="/srv/mitsailing-data/postgres"'
+      `readonly PRODUCTION_DATA_ROOT="${defaultProductionDataRoot}"`
+    );
+    expect(deployScript).toContain('export PRODUCTION_DATA_ROOT');
+    expect(deployScript).toContain(
+      `readonly PRODUCTION_POSTGRES_DIR="${productionDataRoot}/postgres"`
     );
     expect(deployScript).toContain(
-      'readonly PRODUCTION_REDIS_DIR="/srv/mitsailing-data/redis"'
+      `readonly PRODUCTION_REDIS_DIR="${productionDataRoot}/redis"`
     );
     expect(deployScript).toContain(
-      'readonly PRODUCTION_CMS_MEDIA_DIR="/srv/mitsailing-data/cms-media"'
+      `readonly PRODUCTION_CMS_MEDIA_DIR="${productionDataRoot}/cms-media"`
     );
-    expect(deployScript).not.toContain('PRODUCTION_DATA_ROOT=');
+    expect(deployScript).toContain('validate_production_data_root');
+    expect(deployScript).toContain(
+      'PRODUCTION_DATA_ROOT must be an absolute path'
+    );
+    expect(deployScript).toContain('PRODUCTION_DATA_ROOT must not be empty');
+    expect(deployScript).toContain('PRODUCTION_DATA_ROOT must not be /');
+    expect(deployScript).toContain('PRODUCTION_DATA_ROOT must not end with /');
+    expect(deployScript).toContain(
+      'PRODUCTION_DATA_ROOT must not contain .. or ~'
+    );
     expect(deployScript).not.toContain('PRODUCTION_DATA_OWNER');
     expect(deployScript).not.toContain('PRODUCTION_DATA_GROUP');
   });

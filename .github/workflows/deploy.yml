@@ -76,11 +76,13 @@ jobs:
         #   - sha-<shortsha>  : immutable, used for rollback / auditing
         #   - latest          : floating, what deploy.sh defaults to
         run: |
-          short_sha="${GITHUB_SHA::12}"
+          checked_out_sha="$(git rev-parse HEAD)"
+          short_sha="${checked_out_sha::12}"
           repo="$(echo '${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')"
           echo "image_sha=${{ env.REGISTRY }}/${repo}:sha-${short_sha}" >> "$GITHUB_OUTPUT"
           echo "image_floating=${{ env.REGISTRY }}/${repo}:latest"     >> "$GITHUB_OUTPUT"
           echo "image_tag=sha-${short_sha}"                            >> "$GITHUB_OUTPUT"
+          echo "deployment_version=${checked_out_sha}"                  >> "$GITHUB_OUTPUT"
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
@@ -101,7 +103,7 @@ jobs:
             NEXT_PUBLIC_SENTRY_DSN=${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
             NEXT_PUBLIC_SENTRY_DISABLED=
             SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
-            DEPLOYMENT_VERSION=${{ github.sha }}
+            DEPLOYMENT_VERSION=${{ steps.meta.outputs.deployment_version }}
           tags: |
             ${{ steps.meta.outputs.image_sha }}
             ${{ steps.meta.outputs.image_floating }}
@@ -175,12 +177,16 @@ jobs:
           REMOTE_APP_DIR: ${{ vars.PRODUCTION_REMOTE_APP_DIR || 'apps/mitsailing' }}
         run: |
           set -euo pipefail
+          . .github/scripts/validate_remote_app_dir.sh
+          validate_remote_app_dir
+          printf -v remote_app_dir '%q' "$REMOTE_APP_DIR"
+
           ssh \
             -i ~/.ssh/id_deploy \
             -o BatchMode=yes \
             -o ConnectTimeout=15 \
             "$PRODUCTION_SSH_TARGET" \
-            "mkdir -p '${REMOTE_APP_DIR}/bin' '${REMOTE_APP_DIR}/docker/postgres' '${REMOTE_APP_DIR}/docker/nginx'"
+            "mkdir -p ${remote_app_dir}/bin ${remote_app_dir}/docker/postgres ${remote_app_dir}/docker/nginx"
 
           scp \
             -i ~/.ssh/id_deploy \
@@ -216,17 +222,32 @@ jobs:
             -o BatchMode=yes \
             -o ConnectTimeout=15 \
             "$PRODUCTION_SSH_TARGET" \
-            "chmod +x '${REMOTE_APP_DIR}/bin/deploy.sh'"
+            "chmod +x ${remote_app_dir}/bin/deploy.sh"
 
       - name: Release
         env:
           PRODUCTION_SSH_TARGET: ${{ secrets.PRODUCTION_SSH_TARGET }}
           IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
           REMOTE_APP_DIR: ${{ vars.PRODUCTION_REMOTE_APP_DIR || 'apps/mitsailing' }}
+          PRODUCTION_DATA_ROOT: ${{ vars.PRODUCTION_DATA_ROOT }}
         run: |
+          set -euo pipefail
+
+          . .github/scripts/validate_remote_app_dir.sh
+          validate_remote_app_dir
+          remote_data_root_assignment=
+          if [[ -n "$PRODUCTION_DATA_ROOT" ]]; then
+            printf -v remote_data_root '%q' "$PRODUCTION_DATA_ROOT"
+            remote_data_root_assignment="PRODUCTION_DATA_ROOT=${remote_data_root} "
+          fi
+
+          printf -v remote_app_dir '%q' "$REMOTE_APP_DIR"
+          printf -v remote_deploy_script '%q' "${REMOTE_APP_DIR}/bin/deploy.sh"
+          printf -v remote_image_tag '%q' "$IMAGE_TAG"
+
           ssh \
             -i ~/.ssh/id_deploy \
             -o BatchMode=yes \
             -o ConnectTimeout=15 \
             "$PRODUCTION_SSH_TARGET" \
-            "DEPLOY_DIR='${REMOTE_APP_DIR}' '${REMOTE_APP_DIR}/bin/deploy.sh' release '${IMAGE_TAG}'"
+            "${remote_data_root_assignment}DEPLOY_DIR=${remote_app_dir} ${remote_deploy_script} release ${remote_image_tag}"

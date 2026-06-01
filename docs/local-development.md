@@ -104,40 +104,32 @@ curl -fsSI http://127.0.0.1:8088/cms-media/healthz
 
 ## Production Database And Media Locally
 
-Use production data locally when working on CMS, admin, reporting, auth,
-reservation, newsletter, or migration behavior.
+Use production data locally when a change depends on existing CMS media, admin
+records, reservations, newsletters, auth, or migrations.
 
 First sync Postgres using the pgsync workflow documented in
 [`../.cursor/skills/pgsync-prod-to-local/SKILL.md`](../.cursor/skills/pgsync-prod-to-local/SKILL.md).
 That copies database rows only. It does not copy media files from the production
-Docker volume.
+storage root.
 
-Then download public ready CMS media over SSH:
+Then copy public ready CMS media:
 
 ```shell
 export PRODUCTION_SSH_TARGET=username@example.com
 node scripts/sync-prod-media.mjs
 ```
 
-Replace `username@example.com` with your SSH login for the production host
-before running the command.
+Use your SSH login for the production host. The script copies
+`/var/lib/mitsailing/cms-media/ready` from the remote `media` container into
+`local/cms-media/ready`; that container path is backed by
+`PRODUCTION_DATA_ROOT/cms-media/ready` on the host. It leaves in-progress
+`uploads/` files behind.
 
-Defaults and inputs:
+Defaults:
 
 - SSH target: `--ssh-target` or `PRODUCTION_SSH_TARGET`
 - remote app directory: `apps/mitsailing`
 - local media root: `local/cms-media`
-- copied path: production `/srv/mitsailing-data/cms-media/ready`
-
-The script streams a tar archive from the production `media` container:
-
-```shell
-ssh <target> 'cd apps/mitsailing && docker compose -f compose.yaml -f compose.prod.yaml --profile release --env-file .env.production --env-file .env.image exec -T media tar -C /var/lib/mitsailing/cms-media -cf - ready'
-```
-
-It extracts into `local/cms-media`, producing `local/cms-media/ready/...`.
-It merges files into the local tree and does not remove local files. Raw
-in-progress uploads under production `uploads/` are intentionally not copied.
 
 Override paths when needed:
 

@@ -4,6 +4,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const getSession = vi.fn();
 const adminHeaderLinkVisibleFromSession = vi.fn();
+const env = vi.hoisted(() => ({
+  STAGING_BANNER: 'no' as 'no' | 'yes',
+}));
+
+vi.mock('@/libs/Env', () => ({
+  Env: env,
+}));
 
 vi.mock('@/libs/auth/dal', () => ({
   getSession,
@@ -15,7 +22,25 @@ vi.mock('@/libs/auth/adminHeaderLink', () => ({
 
 vi.mock('next-intl/server', () => ({
   getLocale: vi.fn().mockResolvedValue('en'),
-  getTranslations: vi.fn().mockResolvedValue((key: string) => key),
+  getTranslations: vi.fn().mockResolvedValue(
+    Object.assign((key: string) => key, {
+      rich: (
+        key: string,
+        values: { link: (chunks: React.ReactNode) => React.ReactNode }
+      ) => {
+        if (key !== 'staging_banner') {
+          return key;
+        }
+        return React.createElement(
+          React.Fragment,
+          null,
+          'Staging website. Visit the live MIT Sailing site at ',
+          values.link('https://sailing.mit.edu'),
+          '.'
+        );
+      },
+    })
+  ),
 }));
 
 vi.mock('@/components/auth/ImpersonationBanner', () => ({
@@ -65,6 +90,7 @@ vi.mock('@/components/mit-sailing/site/SiteHeader', () => ({
 describe('SiteShell', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    env.STAGING_BANNER = 'no';
     getSession.mockResolvedValue(null);
     adminHeaderLinkVisibleFromSession.mockReturnValue(false);
   });
@@ -84,6 +110,19 @@ describe('SiteShell', () => {
 
       expect(html).toContain('data-testid="page-body"');
       expect(html).toContain('data-testid="site-footer"');
+      expect(html).not.toContain('Staging website');
+    });
+
+    it('renders staging banner when configured', async () => {
+      env.STAGING_BANNER = 'yes';
+      const { SiteShell } = await import('./SiteShell');
+
+      const tree = await SiteShell({ children: null });
+      const html = renderToStaticMarkup(tree);
+
+      expect(html).toContain('Staging website');
+      expect(html).toContain('href="https://sailing.mit.edu"');
+      expect(html).toContain('https://sailing.mit.edu');
     });
 
     it('hides admin link without session', async () => {

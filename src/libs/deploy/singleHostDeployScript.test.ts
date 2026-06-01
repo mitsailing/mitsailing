@@ -14,6 +14,10 @@ describe('single host deploy script', () => {
   const script = readRepoFile('bin/deploy.sh');
   const deployDrainSeconds = `${shellVariable('DEPLOY_DRAIN_SECONDS')}s`;
   const shellEscape = String.fromCodePoint(92);
+  const defaultProductionDataRoot = shellVariable(
+    'PRODUCTION_DATA_ROOT:-/srv/mitsailing-data'
+  );
+  const productionDataRoot = shellVariable('PRODUCTION_DATA_ROOT');
 
   it('keeps nginx upload timeouts aligned with the release drain default', () => {
     expect(script).toContain('DEPLOY_DRAIN_SECONDS:-120');
@@ -26,6 +30,25 @@ describe('single host deploy script', () => {
   it('keeps production data paths outside deploy user control', () => {
     expect(script).toContain('/srv/mitsailing-data');
     expect(script).toContain('server admin must create');
+    expect(script).toContain(
+      `readonly PRODUCTION_DATA_ROOT="${defaultProductionDataRoot}"`
+    );
+    expect(script).toContain('export PRODUCTION_DATA_ROOT');
+    expect(script).toContain(
+      `readonly PRODUCTION_POSTGRES_DIR="${productionDataRoot}/postgres"`
+    );
+    expect(script).toContain(
+      `readonly PRODUCTION_REDIS_DIR="${productionDataRoot}/redis"`
+    );
+    expect(script).toContain(
+      `readonly PRODUCTION_CMS_MEDIA_DIR="${productionDataRoot}/cms-media"`
+    );
+    expect(script).toContain('validate_production_data_root');
+    expect(script).toContain('PRODUCTION_DATA_ROOT must be an absolute path');
+    expect(script).toContain('PRODUCTION_DATA_ROOT must not be empty');
+    expect(script).toContain('PRODUCTION_DATA_ROOT must not be /');
+    expect(script).toContain('PRODUCTION_DATA_ROOT must not end with /');
+    expect(script).toContain('PRODUCTION_DATA_ROOT must not contain .. or ~');
     expect(script).not.toContain('ensure_production_data_dirs');
     expect(script).not.toContain('PRODUCTION_DATA_OWNER');
     expect(script).not.toContain('-m 0750 "$PRODUCTION_CMS_MEDIA_DIR"');

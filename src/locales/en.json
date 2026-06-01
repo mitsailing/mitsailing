@@ -97,6 +97,7 @@
     "util_donate": "Donate",
     "auth_log_in": "Log in",
     "auth_create_account": "Create account",
+    "staging_banner": "Staging website. Visit the live MIT Sailing site at <link>https://sailing.mit.edu</link>.",
     "alerts_banner_heading": "Current site alerts",
     "alerts_banner_aria_prefix": "Site alerts",
     "alerts_view_all": "View all alerts",

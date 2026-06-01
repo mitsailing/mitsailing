@@ -44,6 +44,7 @@
           { "context": "Run Storybook (24.x)" },
           { "context": "Run E2E tests (24.x)" },
           { "context": "Codacy Static Code Analysis" },
+          { "context": "coderabbitai" },
           { "context": "codecov/patch" }
         ]
       }
