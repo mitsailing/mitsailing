@@ -19,8 +19,19 @@ type SailingCardMembershipOnboardingRequest = SailingCardMembershipUser & {
   readonly hasFitnessMembership: boolean | null;
 };
 
-export function membershipAccessForSailingCardUser(
-  user: SailingCardMembershipUser
+type SailingCardMembershipUserFlags = {
+  readonly hasVerifiedMitRecreationMembership: boolean;
+  readonly sailingAffiliation: SailingAffiliation | null;
+};
+
+type SailingCardMembershipOnboardingFlags = {
+  readonly hasFitnessMembership: boolean | null;
+  readonly hasVerifiedMitRecreationMembership?: boolean;
+  readonly sailingAffiliation: SailingAffiliation | null;
+};
+
+function membershipAccessForSailingCardFlags(
+  user: SailingCardMembershipUserFlags
 ): SailingCardMembershipAccess {
   if (user.sailingAffiliation === SailingAffiliation.MIT_STUDENT) {
     return {
@@ -28,7 +39,7 @@ export function membershipAccessForSailingCardUser(
       reason: 'automatic_mit_recreation_membership',
     };
   }
-  if (user.gymMembershipVerifiedAt !== null) {
+  if (user.hasVerifiedMitRecreationMembership) {
     return {
       kind: 'free_normal',
       reason: 'verified_mit_recreation_membership',
@@ -37,10 +48,23 @@ export function membershipAccessForSailingCardUser(
   return { kind: 'paid_racing_available' };
 }
 
-export function membershipAccessForOnboardingRequest(
-  request: SailingCardMembershipOnboardingRequest
+export function membershipAccessForSailingCardUser(
+  user: SailingCardMembershipUser
 ): SailingCardMembershipAccess {
-  const verifiedAccess = membershipAccessForSailingCardUser(request);
+  return membershipAccessForSailingCardFlags({
+    hasVerifiedMitRecreationMembership: user.gymMembershipVerifiedAt !== null,
+    sailingAffiliation: user.sailingAffiliation,
+  });
+}
+
+export function membershipAccessForOnboardingFlags(
+  request: SailingCardMembershipOnboardingFlags
+): SailingCardMembershipAccess {
+  const verifiedAccess = membershipAccessForSailingCardFlags({
+    hasVerifiedMitRecreationMembership:
+      request.hasVerifiedMitRecreationMembership === true,
+    sailingAffiliation: request.sailingAffiliation,
+  });
   if (verifiedAccess.kind !== 'paid_racing_available') {
     return verifiedAccess;
   }
@@ -48,6 +72,17 @@ export function membershipAccessForOnboardingRequest(
     return { kind: 'pending_recreation_verification' };
   }
   return verifiedAccess;
+}
+
+export function membershipAccessForOnboardingRequest(
+  request: SailingCardMembershipOnboardingRequest
+): SailingCardMembershipAccess {
+  return membershipAccessForOnboardingFlags({
+    hasFitnessMembership: request.hasFitnessMembership,
+    hasVerifiedMitRecreationMembership:
+      request.gymMembershipVerifiedAt !== null,
+    sailingAffiliation: request.sailingAffiliation,
+  });
 }
 
 export function canRequestPaidRacingMembership(props: {

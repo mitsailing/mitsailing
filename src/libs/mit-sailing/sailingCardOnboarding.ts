@@ -21,7 +21,7 @@ import {
 import { needsFitnessMembershipQuestion } from './sailingCardMembership';
 import {
   canRequestPaidRacingMembership,
-  membershipAccessForOnboardingRequest,
+  membershipAccessForOnboardingFlags,
 } from './sailingCardMembershipEligibility';
 
 export type SailingCardOnboardingInput = {
@@ -118,9 +118,9 @@ const validateCardTypeEligibility = (props: {
   readonly hasFitnessMembership: boolean | null;
   readonly hasVerifiedMitRecreationMembership?: boolean;
 }) => {
-  const access = membershipAccessForOnboardingRequest({
-    gymMembershipVerifiedAt:
-      props.hasVerifiedMitRecreationMembership === true ? new Date(0) : null,
+  const access = membershipAccessForOnboardingFlags({
+    hasVerifiedMitRecreationMembership:
+      props.hasVerifiedMitRecreationMembership,
     hasFitnessMembership: props.hasFitnessMembership,
     sailingAffiliation: props.affiliation,
   });

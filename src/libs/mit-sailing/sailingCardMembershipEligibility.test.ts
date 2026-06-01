@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { SailingAffiliation, SailingCardType } from '@/generated/prisma/enums';
 import {
   canRequestPaidRacingMembership,
+  membershipAccessForOnboardingFlags,
   membershipAccessForOnboardingRequest,
   membershipAccessForSailingCardUser,
 } from '@/libs/mit-sailing/sailingCardMembershipEligibility';
@@ -43,6 +44,19 @@ describe('sailing card membership eligibility', () => {
         hasFitnessMembership: true,
       })
     ).toEqual({ kind: 'pending_recreation_verification' });
+  });
+
+  it('grants free normal membership from verified recreation flags', () => {
+    expect(
+      membershipAccessForOnboardingFlags({
+        hasFitnessMembership: false,
+        hasVerifiedMitRecreationMembership: true,
+        sailingAffiliation: SailingAffiliation.MIT_ALUM,
+      })
+    ).toEqual({
+      kind: 'free_normal',
+      reason: 'verified_mit_recreation_membership',
+    });
   });
 
   it('allows paid racing only when no free normal membership applies', () => {
