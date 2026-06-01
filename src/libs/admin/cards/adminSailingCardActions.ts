@@ -162,6 +162,11 @@ async function findCurrentPendingSailingCardRequest(props: {
         },
       },
       sailingAffiliation: true,
+      user: {
+        select: {
+          gymMembershipVerifiedAt: true,
+        },
+      },
     },
   });
   return request;
@@ -169,13 +174,15 @@ async function findCurrentPendingSailingCardRequest(props: {
 
 function requestNeedsFitnessVerification(request: {
   readonly cardType: SailingCardType;
-  readonly hasFitnessMembership: boolean | null;
   readonly sailingAffiliation: SailingAffiliation;
+  readonly user: {
+    readonly gymMembershipVerifiedAt: Date | null;
+  };
 }) {
   return (
     request.cardType === SailingCardType.normal &&
     needsFitnessMembershipQuestion(request.sailingAffiliation) &&
-    request.hasFitnessMembership !== true
+    request.user.gymMembershipVerifiedAt === null
   );
 }
 

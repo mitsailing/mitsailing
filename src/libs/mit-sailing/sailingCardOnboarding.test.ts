@@ -230,13 +230,99 @@ describe('sailingCardOnboarding', () => {
     );
   });
 
-  it('canonicalizes covered users to normal', () => {
+  it('does not require mit recreation answer when membership is already verified', () => {
     expect(
       buildSailingCardOnboardingUpdate({
         input: {
           ...contactInput,
           affiliation: SailingAffiliation.MIT_ALUM,
-          cardType: SailingCardType.racing,
+          hasFitnessMembership: null,
+          mitId: '',
+          firstName: 'Grace',
+          lastName: 'Hopper',
+        },
+        dataWarehouseIdentity: null,
+        hasVerifiedMitRecreationMembership: true,
+        now: new Date('2026-05-21T12:00:00-04:00'),
+      })
+    ).toMatchObject({
+      cardType: SailingCardType.normal,
+      hasFitnessMembership: null,
+      sailingAffiliation: SailingAffiliation.MIT_ALUM,
+    });
+  });
+
+  it('rejects paid racing when mit recreation membership is already verified', () => {
+    expectValidationError(
+      () => {
+        buildSailingCardOnboardingUpdate({
+          input: {
+            ...contactInput,
+            affiliation: SailingAffiliation.MIT_ALUM,
+            cardType: SailingCardType.racing,
+            hasFitnessMembership: null,
+            mitId: '',
+            firstName: 'Grace',
+            lastName: 'Hopper',
+          },
+          dataWarehouseIdentity: null,
+          hasVerifiedMitRecreationMembership: true,
+          now: new Date('2026-05-21T12:00:00-04:00'),
+        });
+      },
+      { cardType: 'invalid' }
+    );
+  });
+
+  it('rejects paid racing for MIT students', () => {
+    expectValidationError(
+      () => {
+        buildSailingCardOnboardingUpdate({
+          input: {
+            ...contactInput,
+            affiliation: SailingAffiliation.MIT_STUDENT,
+            cardType: SailingCardType.racing,
+            hasFitnessMembership: null,
+            mitId: '123456789',
+            firstName: '',
+            lastName: '',
+          },
+          dataWarehouseIdentity: studentIdentity,
+          now: new Date('2026-05-21T12:00:00-04:00'),
+        });
+      },
+      { cardType: 'invalid' }
+    );
+  });
+
+  it('rejects paid racing when the user reports existing MIT Recreation membership', () => {
+    expectValidationError(
+      () => {
+        buildSailingCardOnboardingUpdate({
+          input: {
+            ...contactInput,
+            affiliation: SailingAffiliation.MIT_ALUM,
+            cardType: SailingCardType.racing,
+            hasFitnessMembership: true,
+            mitId: '',
+            firstName: 'Grace',
+            lastName: 'Hopper',
+          },
+          dataWarehouseIdentity: null,
+          now: new Date('2026-05-21T12:00:00-04:00'),
+        });
+      },
+      { cardType: 'invalid' }
+    );
+  });
+
+  it('persists self-reported MIT Recreation membership for normal requests', () => {
+    expect(
+      buildSailingCardOnboardingUpdate({
+        input: {
+          ...contactInput,
+          affiliation: SailingAffiliation.MIT_ALUM,
+          cardType: SailingCardType.normal,
           hasFitnessMembership: true,
           mitId: '',
           firstName: 'Grace',

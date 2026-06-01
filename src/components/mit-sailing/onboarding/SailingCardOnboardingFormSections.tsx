@@ -45,6 +45,7 @@ function OnboardingDetailsFields(props: {
   readonly dateOfBirthValue: string | undefined;
   readonly fitnessMembershipReady: boolean;
   readonly hasFitnessMembershipValue: string | undefined;
+  readonly hasVerifiedMitRecreationMembership?: boolean;
   readonly isPending: boolean;
   readonly now: Date;
   readonly register: UseFormRegister<SailingCardOnboardingFormValues>;
@@ -65,6 +66,9 @@ function OnboardingDetailsFields(props: {
         dateOfBirthValue={props.dateOfBirthValue}
         fitnessMembershipReady={props.fitnessMembershipReady}
         hasFitnessMembershipValue={props.hasFitnessMembershipValue}
+        hasVerifiedMitRecreationMembership={
+          props.hasVerifiedMitRecreationMembership
+        }
         now={props.now}
         register={props.register}
         setValue={props.setValue}
@@ -87,6 +91,7 @@ export function OnboardingFormFields(props: {
   readonly dateOfBirthValue: string | undefined;
   readonly fitnessMembershipReady: boolean;
   readonly hasFitnessMembershipValue: string | undefined;
+  readonly hasVerifiedMitRecreationMembership?: boolean;
   readonly identityComplete: boolean;
   readonly isPending: boolean;
   readonly lockedIdentity?: SailingCardOnboardingLockedIdentity;
@@ -107,7 +112,11 @@ export function OnboardingFormFields(props: {
       <AffiliationSelect
         affiliation={props.affiliation}
         clientErrors={props.clientErrors}
+        hasVerifiedMitRecreationMembership={
+          props.hasVerifiedMitRecreationMembership
+        }
         register={props.register}
+        setValue={props.setValue}
         state={props.state}
       />
       {props.affiliation === '' ? null : (
@@ -134,6 +143,9 @@ export function OnboardingFormFields(props: {
           dateOfBirthValue={props.dateOfBirthValue}
           fitnessMembershipReady={props.fitnessMembershipReady}
           hasFitnessMembershipValue={props.hasFitnessMembershipValue}
+          hasVerifiedMitRecreationMembership={
+            props.hasVerifiedMitRecreationMembership
+          }
           isPending={props.isPending}
           now={props.now}
           register={props.register}

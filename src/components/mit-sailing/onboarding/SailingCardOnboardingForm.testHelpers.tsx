@@ -14,6 +14,7 @@ import type { SailingCardOnboardingLockedIdentity } from './SailingCardOnboardin
 type RenderFormProps = {
   readonly callbackUrl?: string;
   readonly draftKey?: string;
+  readonly hasVerifiedMitRecreationMembership?: boolean;
   readonly initialValues?: SailingCardOnboardingFormValues;
   readonly lockedIdentity?: SailingCardOnboardingLockedIdentity;
 };
@@ -100,6 +101,9 @@ export function renderForm(props: RenderFormProps = {}) {
       <SailingCardOnboardingForm
         callbackUrl={props.callbackUrl}
         draftKey={props.draftKey}
+        hasVerifiedMitRecreationMembership={
+          props.hasVerifiedMitRecreationMembership
+        }
         initialValues={props.initialValues}
         lockedIdentity={props.lockedIdentity}
       />
@@ -118,6 +122,9 @@ function PersistentDraftFormHarness(
         <SailingCardOnboardingForm
           callbackUrl={props.callbackUrl}
           draftKey={props.draftKey}
+          hasVerifiedMitRecreationMembership={
+            props.hasVerifiedMitRecreationMembership
+          }
           initialValues={props.initialValues}
           lockedIdentity={props.lockedIdentity}
         />

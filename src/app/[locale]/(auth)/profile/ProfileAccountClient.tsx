@@ -12,6 +12,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SubmitButton } from '@/components/ui/submit-button';
+import {
+  SailingCardRequestStatus,
+  SailingCardType,
+} from '@/generated/prisma/enums';
 import type { ThemePreferenceValue } from '@/lib/mit-sailing/themePreference';
 import { authClient } from '@/libs/auth-client';
 import { updateProfileContactAction } from '@/libs/auth/profileContactActions';
@@ -27,8 +31,15 @@ type ProfileAccountClientProps = {
   initialEmailDeliverabilityStatus: 'ok' | 'bounced' | 'suppressed';
   initialEmergencyContactName: string;
   initialEmergencyContactPhone: string;
+  initialGymMembershipVerifiedAt: string | null;
   initialName: string | null;
   initialPhone: string;
+  initialSailingCardRequest?: {
+    readonly cardType: SailingCardType;
+    readonly cardYear: number;
+    readonly hasFitnessMembership: boolean | null;
+    readonly status: SailingCardRequestStatus;
+  };
   initialThemePreference: ThemePreferenceValue;
   initialUnconfirmedEmail: string | null;
   locale: string;
@@ -48,6 +59,12 @@ const emailDeliverabilityBodyKeys = {
   bounced: 'email_deliverability_bounced_body',
   suppressed: 'email_deliverability_suppressed_body',
 } as const satisfies Record<ActiveEmailDeliverabilityStatus, string>;
+
+const sailingCardTypeMessageKeys = {
+  [SailingCardType.normal]: 'sailing_card_type_normal',
+  [SailingCardType.racing]: 'sailing_card_type_racing',
+  [SailingCardType.team_racing]: 'sailing_card_type_team_racing',
+} as const satisfies Record<SailingCardType, string>;
 
 type ContactErrorMessageKey =
   | 'contact_emergency_incomplete'
@@ -342,6 +359,49 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
             {t(emailDeliverabilityBodyKeys[deliverabilityStatus])}
           </p>
         </div>
+      ) : null}
+
+      {props.initialSailingCardRequest?.status ===
+      SailingCardRequestStatus.pending ? (
+        <section
+          aria-labelledby="sailing-card-status-heading"
+          className="rounded-lg border border-mit-line bg-card p-6 shadow-sm"
+        >
+          <h2 className="text-lg font-medium" id="sailing-card-status-heading">
+            {t('sailing_card_status_heading')}
+          </h2>
+          <dl className="mt-4 grid gap-3 text-sm">
+            <div>
+              <dt className="font-medium text-mit-text">
+                {t('sailing_card_status_label')}
+              </dt>
+              <dd className="mt-1 text-muted-foreground">
+                {t('sailing_card_status_pending')}
+              </dd>
+            </div>
+            <div>
+              <dt className="font-medium text-mit-text">
+                {t('sailing_card_request_label')}
+              </dt>
+              <dd className="mt-1 text-muted-foreground">
+                {t('sailing_card_request_summary', {
+                  cardType: t(
+                    sailingCardTypeMessageKeys[
+                      props.initialSailingCardRequest.cardType
+                    ]
+                  ),
+                  year: props.initialSailingCardRequest.cardYear,
+                })}
+              </dd>
+            </div>
+          </dl>
+          <p className="mt-4 text-sm leading-6 text-muted-foreground">
+            {props.initialGymMembershipVerifiedAt === null &&
+            props.initialSailingCardRequest.hasFitnessMembership === true
+              ? t('sailing_card_pending_mit_recreation_body')
+              : t('sailing_card_pending_body')}
+          </p>
+        </section>
       ) : null}
 
       <div className="rounded-lg border border-mit-line bg-card p-6 shadow-sm">

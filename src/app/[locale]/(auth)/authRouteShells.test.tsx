@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import React from 'react';
 import type { MockedFunction } from 'vitest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { getCurrentSailingCardYear } from '@/libs/mit-sailing/sailingCardValidity';
 import { listUserRatingAssignmentRows } from '@/libs/mit-sailing/sailingRatingQueries';
 import type { UserRatingAssignmentRow } from '@/libs/mit-sailing/sailingRatingQueries';
 import ForgotPasswordPage, {
@@ -237,6 +238,7 @@ vi.mock('./profile/ProfileAccountClient', () => ({
     initialEmailDeliverabilityStatus: string;
     initialEmergencyContactName: string;
     initialEmergencyContactPhone: string;
+    initialGymMembershipVerifiedAt: string | null;
     initialName: string | null;
     initialPhone: string;
     initialThemePreference: string;
@@ -249,6 +251,9 @@ vi.mock('./profile/ProfileAccountClient', () => ({
       data-email-deliverability={props.initialEmailDeliverabilityStatus}
       data-emergency-contact-name={props.initialEmergencyContactName}
       data-emergency-contact-phone={props.initialEmergencyContactPhone}
+      data-gym-membership-verified-at={
+        props.initialGymMembershipVerifiedAt ?? ''
+      }
       data-locale={props.locale}
       data-name={props.initialName ?? ''}
       data-phone={props.initialPhone}
@@ -351,6 +356,8 @@ beforeEach(() => {
     emailBouncedAt: new Date('2026-01-01T12:00:00Z'),
     emailSuppressedAt: null,
     emailSuppressionReason: null,
+    gymMembershipVerifiedAt: new Date('2026-01-02T12:00:00Z'),
+    sailingCardRequests: [],
     themePreference: 'DARK',
     unconfirmedEmail: 'pending@example.com',
   });
@@ -708,7 +715,21 @@ describe('auth route shells', () => {
         emailSuppressionReason: true,
         emergencyContactName: true,
         emergencyContactPhone: true,
+        gymMembershipVerifiedAt: true,
         phone: true,
+        sailingCardRequests: {
+          orderBy: { requestedAt: 'desc' },
+          select: {
+            cardType: true,
+            cardYear: true,
+            hasFitnessMembership: true,
+            status: true,
+          },
+          take: 1,
+          where: {
+            cardYear: getCurrentSailingCardYear(),
+          },
+        },
         themePreference: true,
         unconfirmedEmail: true,
       },
@@ -723,6 +744,12 @@ describe('auth route shells', () => {
     expect(
       screen.getByRole('region', { name: 'profile-account-client' })
     ).toHaveAttribute('data-unconfirmed-email', 'pending@example.com');
+    expect(
+      screen.getByRole('region', { name: 'profile-account-client' })
+    ).toHaveAttribute(
+      'data-gym-membership-verified-at',
+      '2026-01-02T12:00:00.000Z'
+    );
   });
 
   it('profile account page defaults nullable account fields', async () => {
@@ -735,6 +762,8 @@ describe('auth route shells', () => {
       emailBouncedAt: null,
       emailSuppressedAt: null,
       emailSuppressionReason: null,
+      gymMembershipVerifiedAt: null,
+      sailingCardRequests: [],
       themePreference: null,
       unconfirmedEmail: null,
     });
@@ -758,6 +787,8 @@ describe('auth route shells', () => {
       emailBouncedAt: new Date('2026-01-01T12:00:00Z'),
       emailSuppressedAt: new Date('2026-01-01T12:00:00Z'),
       emailSuppressionReason: 'complained',
+      gymMembershipVerifiedAt: null,
+      sailingCardRequests: [],
       themePreference: 'DARK',
       unconfirmedEmail: null,
     });

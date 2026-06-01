@@ -19,6 +19,10 @@ import {
   normalizeUsPhone,
 } from '@/utils/phoneValidation';
 import { needsFitnessMembershipQuestion } from './sailingCardMembership';
+import {
+  canRequestPaidRacingMembership,
+  membershipAccessForOnboardingFlags,
+} from './sailingCardMembershipEligibility';
 
 export type SailingCardOnboardingInput = {
   readonly affiliation: SailingAffiliation | null;
@@ -65,6 +69,25 @@ type SailingCardOnboardingContactValidation =
       readonly fieldErrors: SailingCardOnboardingFieldErrors;
     };
 
+type RequiredInputValidationState = {
+  readonly affiliation: SailingAffiliation | null;
+  readonly cardType: SailingCardType | null;
+  readonly contactValidation: SailingCardOnboardingContactValidation;
+  readonly dateOfBirth: Date | null;
+  readonly fieldErrors: SailingCardOnboardingFieldErrors;
+  readonly missingMembershipAnswer: boolean;
+};
+
+type ValidRequiredInputValidationState = RequiredInputValidationState & {
+  readonly affiliation: SailingAffiliation;
+  readonly cardType: SailingCardType;
+  readonly contactValidation: {
+    readonly ok: true;
+    readonly contact: SailingCardOnboardingContact;
+  };
+  readonly dateOfBirth: Date;
+};
+
 export class SailingCardOnboardingValidationError extends Error {
   readonly fieldErrors: SailingCardOnboardingFieldErrors;
 
@@ -78,24 +101,35 @@ export class SailingCardOnboardingValidationError extends Error {
 const persistedFitnessMembership = (props: {
   readonly affiliation: SailingAffiliation;
   readonly hasFitnessMembership: boolean | null;
-}) =>
-  needsFitnessMembershipQuestion(props.affiliation)
-    ? props.hasFitnessMembership
-    : null;
+  readonly hasVerifiedMitRecreationMembership?: boolean;
+}) => {
+  if (props.hasVerifiedMitRecreationMembership === true) {
+    return null;
+  }
+  if (!needsFitnessMembershipQuestion(props.affiliation)) {
+    return null;
+  }
+  return props.hasFitnessMembership;
+};
 
-const normalizedCardTypeForMembership = (props: {
+const validateCardTypeEligibility = (props: {
   readonly affiliation: SailingAffiliation;
   readonly cardType: SailingCardType;
   readonly hasFitnessMembership: boolean | null;
+  readonly hasVerifiedMitRecreationMembership?: boolean;
 }) => {
+  const access = membershipAccessForOnboardingFlags({
+    hasVerifiedMitRecreationMembership:
+      props.hasVerifiedMitRecreationMembership,
+    hasFitnessMembership: props.hasFitnessMembership,
+    sailingAffiliation: props.affiliation,
+  });
   if (
-    !needsFitnessMembershipQuestion(props.affiliation) ||
-    props.hasFitnessMembership === true
+    props.cardType !== SailingCardType.normal &&
+    !canRequestPaidRacingMembership({ access, cardType: props.cardType })
   ) {
-    return SailingCardType.normal;
+    throw new SailingCardOnboardingValidationError({ cardType: 'invalid' });
   }
-
-  return props.cardType;
 };
 
 const validateContact = (
@@ -137,7 +171,27 @@ const validateContact = (
   };
 };
 
-const validateRequiredInputs = (input: SailingCardOnboardingInput) => {
+const hasRequiredInputErrors = (props: RequiredInputValidationState) =>
+  Object.keys(props.fieldErrors).length > 0 ||
+  !props.contactValidation.ok ||
+  props.affiliation === null ||
+  props.missingMembershipAnswer ||
+  props.cardType === null ||
+  props.dateOfBirth === null;
+
+function assertRequiredInputValid(
+  props: RequiredInputValidationState
+): asserts props is ValidRequiredInputValidationState {
+  if (hasRequiredInputErrors(props)) {
+    throw new SailingCardOnboardingValidationError(props.fieldErrors);
+  }
+}
+
+const validateRequiredInputs = (props: {
+  readonly hasVerifiedMitRecreationMembership?: boolean;
+  readonly input: SailingCardOnboardingInput;
+}) => {
+  const { input } = props;
   const visibleAffiliations: ReadonlySet<SailingAffiliation> = new Set(
     getSailingAffiliationOptions().map((option) => option.value)
   );
@@ -152,7 +206,11 @@ const validateRequiredInputs = (input: SailingCardOnboardingInput) => {
     value: input.dateOfBirth,
   });
   const membershipAnswerRequired =
-    affiliation !== null && needsFitnessMembershipQuestion(affiliation);
+    affiliation !== null &&
+    props.hasVerifiedMitRecreationMembership !== true &&
+    needsFitnessMembershipQuestion(affiliation);
+  const missingMembershipAnswer =
+    membershipAnswerRequired && input.hasFitnessMembership === null;
 
   if (!contactValidation.ok) {
     Object.assign(fieldErrors, contactValidation.fieldErrors);
@@ -169,35 +227,40 @@ const validateRequiredInputs = (input: SailingCardOnboardingInput) => {
   if (input.cardType === null) {
     fieldErrors.cardType = 'required';
   }
-  if (membershipAnswerRequired && input.hasFitnessMembership === null) {
+  if (missingMembershipAnswer) {
     fieldErrors.hasFitnessMembership = 'required';
   }
   if (!input.swimAgreementAccepted) {
     fieldErrors.swimAgreementAccepted = 'required';
   }
-  if (
-    Object.keys(fieldErrors).length > 0 ||
-    !contactValidation.ok ||
-    affiliation === null ||
-    (membershipAnswerRequired && input.hasFitnessMembership === null) ||
-    input.cardType === null ||
-    dateOfBirth === null
-  ) {
-    throw new SailingCardOnboardingValidationError(fieldErrors);
-  }
+  const validation = {
+    affiliation,
+    cardType: input.cardType,
+    contactValidation,
+    dateOfBirth,
+    fieldErrors,
+    missingMembershipAnswer,
+  };
+
+  assertRequiredInputValid(validation);
+  validateCardTypeEligibility({
+    affiliation: validation.affiliation,
+    cardType: validation.cardType,
+    hasFitnessMembership: input.hasFitnessMembership,
+    hasVerifiedMitRecreationMembership:
+      props.hasVerifiedMitRecreationMembership,
+  });
 
   return {
-    affiliation,
-    cardType: normalizedCardTypeForMembership({
-      affiliation,
-      cardType: input.cardType,
-      hasFitnessMembership: input.hasFitnessMembership,
-    }),
-    contact: contactValidation.contact,
-    dateOfBirth,
+    affiliation: validation.affiliation,
+    cardType: validation.cardType,
+    contact: validation.contactValidation.contact,
+    dateOfBirth: validation.dateOfBirth,
     hasFitnessMembership: persistedFitnessMembership({
-      affiliation,
+      affiliation: validation.affiliation,
       hasFitnessMembership: input.hasFitnessMembership,
+      hasVerifiedMitRecreationMembership:
+        props.hasVerifiedMitRecreationMembership,
     }),
   };
 };
@@ -264,10 +327,15 @@ const requireManualName = (input: SailingCardOnboardingInput) => {
 export const buildSailingCardOnboardingUpdate = (props: {
   readonly input: SailingCardOnboardingInput;
   readonly dataWarehouseIdentity: MitDataWarehouseIdentity | null;
+  readonly hasVerifiedMitRecreationMembership?: boolean;
   readonly now: Date;
 }) => {
   const { affiliation, cardType, contact, dateOfBirth, hasFitnessMembership } =
-    validateRequiredInputs(props.input);
+    validateRequiredInputs({
+      hasVerifiedMitRecreationMembership:
+        props.hasVerifiedMitRecreationMembership,
+      input: props.input,
+    });
   const affiliationRule = getSailingAffiliationRule(affiliation);
   const normalizedMitId = normalizeMitId(props.input.mitId);
   const hasMitIdInput = props.input.mitId.trim() !== '';
