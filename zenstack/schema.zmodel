@@ -1236,6 +1236,8 @@ model SailingCardMembershipPrice {
   createdAt       DateTime                                @default(now()) @map("created_at")
   updatedAt       DateTime                                @updatedAt @map("updated_at")
 
+  // The FK scalar is read-denied; ZenStack field policies cannot be placed on
+  // relation fields, so public surfaces must not expose this relation.
   createdBy User? @relation("SailingCardMembershipPriceCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
 
   @@deny('create,update', cardType == normal)

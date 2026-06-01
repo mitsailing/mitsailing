@@ -6,6 +6,9 @@ import {
 } from '@/generated/prisma/enums';
 import { instantForNyWallClock } from '@/lib/mit-sailing/nyTime';
 
+/**
+ * Canonical audit reason for inserting the legacy membership pricing catalog.
+ */
 export const INITIAL_MEMBERSHIP_PRICE_CHANGE_REASON =
   'Initial catalog from legacy racing-card pricing.';
 
@@ -146,6 +149,12 @@ const membershipPriceRowsForCardType = (
   );
 };
 
+/**
+ * Immutable seed rows for the initial paid racing membership price catalog.
+ *
+ * Each row defines a paid card type, price kind, category, billing interval,
+ * USD cent amount, effective date, and empty Stripe sync fields for seeding.
+ */
 export const initialSailingCardMembershipPrices = [
   ...membershipPriceRowsForCardType(SailingCardType.racing),
   ...membershipPriceRowsForCardType(SailingCardType.team_racing),

@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   formatSailingCardDateOfBirthInput,
+  normalizeSailingCardDateOfBirthInput,
   parseSailingCardDateOfBirth,
 } from '@/libs/mit-sailing/sailingCardDateOfBirth';
 import type {
@@ -33,7 +34,7 @@ const ariaDescribedBy = (ids: readonly (string | undefined)[]) =>
 
 const validateDateOfBirth = (value: string) =>
   value.trim() === '' ||
-  parseSailingCardDateOfBirth({ value }) !== null ||
+  parseSailingCardDateOfBirth({ allowIsoDate: true, value }) !== null ||
   'error_invalid_date_of_birth';
 
 function DateOfBirthField(props: {
@@ -54,7 +55,15 @@ function DateOfBirthField(props: {
   const dateOfBirthAriaDescribedBy = dateOfBirthDescribedBy({
     showError,
   });
-  const handleDateOfBirthBlur = registration.onBlur;
+  const handleDateOfBirthBlur = async (
+    event: React.FocusEvent<HTMLInputElement>
+  ) => {
+    event.currentTarget.value = normalizeSailingCardDateOfBirthInput({
+      value: event.currentTarget.value,
+    });
+    await registration.onChange(event);
+    await registration.onBlur(event);
+  };
   const handleDateOfBirthChange = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -134,6 +143,7 @@ function PhoneField(props: {
         aria-invalid={showError ? true : undefined}
         autoComplete="section-user tel"
         id="phone"
+        inputMode="tel"
         name={registration.name}
         onBlur={handlePhoneBlur}
         onChange={handlePhoneChange}
@@ -173,6 +183,7 @@ function EmergencyContactNameField(props: {
           showError ? fieldErrorId('emergencyContactName') : undefined
         }
         aria-invalid={showError ? true : undefined}
+        autoCapitalize="words"
         autoComplete="section-emergency name"
         id="emergencyContactName"
         required
@@ -226,6 +237,7 @@ function EmergencyContactPhoneField(props: {
         aria-invalid={showError ? true : undefined}
         autoComplete="section-emergency tel"
         id="emergencyContactPhone"
+        inputMode="tel"
         name={registration.name}
         onBlur={handlePhoneBlur}
         onChange={handlePhoneChange}

@@ -240,6 +240,7 @@ function ManualNameField(props: {
       <Input
         aria-describedby={showError ? fieldErrorId(props.field) : undefined}
         aria-invalid={showError ? true : undefined}
+        autoCapitalize="words"
         autoComplete={props.autoComplete}
         id={props.field}
         required={props.required}

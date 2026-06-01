@@ -531,6 +531,25 @@ describe('sailingCardOnboarding', () => {
     });
   });
 
+  it('accepts typed short-year numeric dates of birth', () => {
+    expect(
+      buildSailingCardOnboardingUpdate({
+        input: {
+          ...contactInput,
+          affiliation: SailingAffiliation.OTHER_STUDENT,
+          dateOfBirth: '010288',
+          firstName: 'Robin',
+          lastName: 'Lee',
+          mitId: '',
+        },
+        dataWarehouseIdentity: null,
+        now: new Date('2026-05-21T12:00:00-04:00'),
+      })
+    ).toMatchObject({
+      dateOfBirth: new Date('1988-01-02T00:00:00.000Z'),
+    });
+  });
+
   it('parses checked swim agreement as accepted without initials output', () => {
     expect(
       buildSailingCardOnboardingUpdate({
