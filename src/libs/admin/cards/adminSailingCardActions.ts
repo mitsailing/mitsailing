@@ -174,7 +174,6 @@ async function findCurrentPendingSailingCardRequest(props: {
 
 function requestNeedsFitnessVerification(request: {
   readonly cardType: SailingCardType;
-  readonly hasFitnessMembership: boolean | null;
   readonly sailingAffiliation: SailingAffiliation;
   readonly user: {
     readonly gymMembershipVerifiedAt: Date | null;

@@ -65,6 +65,7 @@ function renderAccountClient(
         initialEmailDeliverabilityStatus="ok"
         initialEmergencyContactName=""
         initialEmergencyContactPhone=""
+        initialGymMembershipVerifiedAt={null}
         initialName="Old Name"
         initialPhone=""
         initialThemePreference="LIGHT"
@@ -163,6 +164,29 @@ describe('ProfileAccountClient', () => {
         'Your request is pending. Staff will verify MIT Recreation membership before issuing your card number at the Pavilion.'
       )
     ).toBeVisible();
+  });
+
+  it('profile owner with verified mit recreation membership sees standard pending status', () => {
+    renderAccountClient({
+      initialGymMembershipVerifiedAt: '2026-05-01T12:00:00.000Z',
+      initialSailingCardRequest: {
+        cardType: SailingCardType.normal,
+        cardYear: 2027,
+        hasFitnessMembership: true,
+        status: SailingCardRequestStatus.pending,
+      },
+    });
+
+    expect(
+      screen.getByText(
+        'Your request is pending. Come to the Pavilion with your MIT ID or another legal ID. Staff will issue your card number there after review.'
+      )
+    ).toBeVisible();
+    expect(
+      screen.queryByText(
+        'Your request is pending. Staff will verify MIT Recreation membership before issuing your card number at the Pavilion.'
+      )
+    ).not.toBeInTheDocument();
   });
 
   it('profile owner sees non-blocking email deliverability notice', () => {

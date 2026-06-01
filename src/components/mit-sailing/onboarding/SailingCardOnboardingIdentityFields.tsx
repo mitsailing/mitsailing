@@ -102,11 +102,12 @@ export function AffiliationSelect(props: {
     required: 'error_required',
   });
   const handleAffiliationBlur = registration.onBlur;
-  const handleAffiliationChange = async (
+  const handleAffiliationChange = (
     event: React.ChangeEvent<HTMLSelectElement>
   ) => {
     const selectedAffiliation = event.currentTarget.value;
-    await registration.onChange(event);
+    // eslint-disable-next-line no-void -- React Hook Form accepts async handlers; this change handler stays synchronous.
+    void registration.onChange(event);
     const affiliation = getVisibleSailingAffiliation(selectedAffiliation);
     if (
       props.hasVerifiedMitRecreationMembership === true ||

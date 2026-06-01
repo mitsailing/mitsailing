@@ -31,6 +31,7 @@ type ProfileAccountClientProps = {
   initialEmailDeliverabilityStatus: 'ok' | 'bounced' | 'suppressed';
   initialEmergencyContactName: string;
   initialEmergencyContactPhone: string;
+  initialGymMembershipVerifiedAt: string | null;
   initialName: string | null;
   initialPhone: string;
   initialSailingCardRequest?: {
@@ -395,7 +396,8 @@ export function ProfileAccountClient(props: ProfileAccountClientProps) {
             </div>
           </dl>
           <p className="mt-4 text-sm leading-6 text-muted-foreground">
-            {props.initialSailingCardRequest.hasFitnessMembership === true
+            {props.initialGymMembershipVerifiedAt === null &&
+            props.initialSailingCardRequest.hasFitnessMembership === true
               ? t('sailing_card_pending_mit_recreation_body')
               : t('sailing_card_pending_body')}
           </p>

@@ -40,6 +40,7 @@ export default async function ProfileAccountPage(
       emailSuppressionReason: true,
       emergencyContactName: true,
       emergencyContactPhone: true,
+      gymMembershipVerifiedAt: true,
       phone: true,
       sailingCardRequests: {
         orderBy: { requestedAt: 'desc' },
@@ -73,6 +74,9 @@ export default async function ProfileAccountPage(
       initialEmailDeliverabilityStatus={emailDeliverabilityStatus(dbUser)}
       initialEmergencyContactName={dbUser.emergencyContactName ?? ''}
       initialEmergencyContactPhone={dbUser.emergencyContactPhone ?? ''}
+      initialGymMembershipVerifiedAt={
+        dbUser.gymMembershipVerifiedAt?.toISOString() ?? null
+      }
       initialName={user.name}
       initialPhone={dbUser.phone ?? ''}
       initialSailingCardRequest={dbUser.sailingCardRequests.at(0)}
