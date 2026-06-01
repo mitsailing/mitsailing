@@ -195,6 +195,117 @@ function PrimaryNavBranch(props: {
   );
 }
 
+function MobileUtilityLink(props: {
+  item: SiteHeaderMobileUtilityItem;
+  onNavigate: () => void;
+}) {
+  const href = safeCmsHref(props.item.href);
+  if (!href) {
+    return null;
+  }
+
+  if (props.item.isExternal || !isAppRelativeCmsHref(href)) {
+    return (
+      <a
+        className={mobileLinkClassName}
+        href={href}
+        onClick={props.onNavigate}
+        {...externalCmsLinkProps(href)}
+      >
+        {props.item.label}
+      </a>
+    );
+  }
+
+  return (
+    <Link
+      className={mobileLinkClassName}
+      href={href}
+      onClick={props.onNavigate}
+    >
+      {props.item.label}
+    </Link>
+  );
+}
+
+function MobileAuthActions(props: {
+  adminLabel: string;
+  displayAdminLink: boolean;
+  displayAuthenticated: boolean;
+  loadingLabel: string;
+  locale: string;
+  loginHref: string;
+  loginLabel: string;
+  onNavigate: () => void;
+  profileLabel: string;
+  profileLinkProps: ReturnType<typeof profileLinkTargetProps>;
+  showAuthPending: boolean;
+  signOutLabel: string;
+  signupHref: string;
+  signupLabel: string;
+}) {
+  return (
+    <div className="mt-4 flex min-h-[92px] flex-col gap-2 border-t border-mit-line pt-4">
+      {props.showAuthPending ? (
+        <div
+          aria-busy="true"
+          aria-live="polite"
+          className="flex min-h-[92px] flex-col justify-center"
+          role="status"
+        >
+          <span className="sr-only">{props.loadingLabel}</span>
+        </div>
+      ) : null}
+      {!props.showAuthPending && !props.displayAuthenticated ? (
+        <>
+          <Link
+            className={mobileGuestLoginClass}
+            href={props.loginHref}
+            onClick={props.onNavigate}
+          >
+            {props.loginLabel}
+          </Link>
+          <Link
+            className={mobileGuestSignupClass}
+            href={props.signupHref}
+            onClick={props.onNavigate}
+          >
+            {props.signupLabel}
+          </Link>
+        </>
+      ) : null}
+      {!props.showAuthPending && props.displayAuthenticated ? (
+        <>
+          {props.displayAdminLink ? (
+            <Link
+              className={`${mobileGuestLoginClass} w-full`}
+              href="/admin"
+              onClick={props.onNavigate}
+            >
+              {props.adminLabel}
+            </Link>
+          ) : null}
+          <Link
+            className={`${mobileGuestLoginClass} w-full`}
+            href="/profile"
+            onClick={props.onNavigate}
+            {...props.profileLinkProps}
+          >
+            {props.profileLabel}
+          </Link>
+          <SignOutForm
+            buttonClassName={mobileSignOutClass}
+            label={props.signOutLabel}
+            locale={props.locale}
+            onSignOutStart={props.onNavigate}
+            redirectPath="/"
+          />
+        </>
+      ) : null}
+    </div>
+  );
+}
+
 /**
  * Sticky top-of-page site header with primary nav, fleet/classes dropdowns, and mobile menu.
  *
@@ -338,32 +449,13 @@ export function SiteHeader(props: SiteHeaderProps) {
     return (
       <>
         <nav aria-label={primaryNavAria} className="flex flex-col gap-1">
-          {props.mobileUtilityItems.map((link) => {
-            const href = safeCmsHref(link.href);
-            if (!href) {
-              return null;
-            }
-            return link.isExternal || !isAppRelativeCmsHref(href) ? (
-              <a
-                className={mobileLinkClassName}
-                href={href}
-                key={link.id}
-                onClick={closeMobile}
-                {...externalCmsLinkProps(href)}
-              >
-                {link.label}
-              </a>
-            ) : (
-              <Link
-                className={mobileLinkClassName}
-                href={href}
-                key={link.id}
-                onClick={closeMobile}
-              >
-                {link.label}
-              </Link>
-            );
-          })}
+          {props.mobileUtilityItems.map((link) => (
+            <MobileUtilityLink
+              item={link}
+              key={link.id}
+              onNavigate={closeMobile}
+            />
+          ))}
           {navItems.map((item) => (
             <PrimaryNavBranch
               flatLinkClass={mobileLinkClassName}
@@ -378,66 +470,22 @@ export function SiteHeader(props: SiteHeaderProps) {
             />
           ))}
         </nav>
-        <div className="mt-4 flex min-h-[92px] flex-col gap-2 border-t border-mit-line pt-4">
-          {showAuthPending ? (
-            <div
-              aria-busy="true"
-              aria-live="polite"
-              className="flex min-h-[92px] flex-col justify-center"
-              role="status"
-            >
-              <span className="sr-only">
-                {t('a11y_header_session_loading')}
-              </span>
-            </div>
-          ) : null}
-          {!showAuthPending && !displayAuthenticated ? (
-            <>
-              <Link
-                className={mobileGuestLoginClass}
-                href={loginHref}
-                onClick={closeMobile}
-              >
-                {t('auth_log_in')}
-              </Link>
-              <Link
-                className={mobileGuestSignupClass}
-                href={signupHref}
-                onClick={closeMobile}
-              >
-                {t('auth_create_account')}
-              </Link>
-            </>
-          ) : null}
-          {!showAuthPending && displayAuthenticated ? (
-            <>
-              {displayAdminLink ? (
-                <Link
-                  className={`${mobileGuestLoginClass} w-full`}
-                  href="/admin"
-                  onClick={closeMobile}
-                >
-                  {tAccount('admin_link')}
-                </Link>
-              ) : null}
-              <Link
-                className={`${mobileGuestLoginClass} w-full`}
-                href="/profile"
-                onClick={closeMobile}
-                {...profileLinkProps}
-              >
-                {tAccount('user_profile_link')}
-              </Link>
-              <SignOutForm
-                buttonClassName={mobileSignOutClass}
-                label={tAccount('sign_out')}
-                locale={locale}
-                onSignOutStart={closeMobile}
-                redirectPath="/"
-              />
-            </>
-          ) : null}
-        </div>
+        <MobileAuthActions
+          adminLabel={tAccount('admin_link')}
+          displayAdminLink={displayAdminLink}
+          displayAuthenticated={displayAuthenticated}
+          loadingLabel={t('a11y_header_session_loading')}
+          locale={locale}
+          loginHref={loginHref}
+          loginLabel={t('auth_log_in')}
+          onNavigate={closeMobile}
+          profileLabel={tAccount('user_profile_link')}
+          profileLinkProps={profileLinkProps}
+          showAuthPending={showAuthPending}
+          signOutLabel={tAccount('sign_out')}
+          signupHref={signupHref}
+          signupLabel={t('auth_create_account')}
+        />
       </>
     );
   }
