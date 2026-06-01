@@ -260,7 +260,11 @@ describe('production docker compose', () => {
         {
           cwd: process.cwd(),
           encoding: 'utf8',
-          env: { REMOTE_APP_DIR: remoteAppDir },
+          env: {
+            ...process.env,
+            PATH: '/bin:/usr/bin',
+            REMOTE_APP_DIR: remoteAppDir,
+          },
         }
       );
 
