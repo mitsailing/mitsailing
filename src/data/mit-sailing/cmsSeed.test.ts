@@ -277,3 +277,18 @@ describe('cms seed membership pricing', () => {
     });
   });
 });
+
+describe('cms seed header navigation', () => {
+  it('omits Bluewater from the top navigation seed', () => {
+    const headerMenu = CMS_MENU_SEED_ROWS.find(
+      (menu) => menu.id === 'cms-menu-header'
+    );
+
+    expect(headerMenu?.items.map((item) => item.label)).not.toContain(
+      'Bluewater'
+    );
+    expect(headerMenu?.items.map((item) => item.id)).not.toContain(
+      'cms-menu-header-bluewater'
+    );
+  });
+});

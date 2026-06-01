@@ -77,24 +77,19 @@ export async function SiteShellHeaderNav(props: SiteShellHeaderNavProps) {
           ]
         : [];
     });
+  const headerMenuItemsWithRequiredLinks = headerMenuItemsWithPricing({
+    items: headerMenuItems,
+    pricingLabel: t('nav_pricing'),
+  });
 
   return (
     <SiteHeader
       classesDropdownItems={mapClassCategoriesToNavDropdownItems(categories)}
       fleetDropdownItems={mapFleetBoatsToNavDropdownItems(fleetBoats)}
-      headerMenuItems={
-        headerMenuItems.length > 0
-          ? headerMenuItemsWithPricing({
-              items: headerMenuItems,
-              pricingLabel: t('nav_pricing'),
-            })
-          : undefined
-      }
+      headerMenuItems={headerMenuItemsWithRequiredLinks}
       initialShowAdminLink={props.initialShowAdminLink}
       initialSignedIn={props.initialSignedIn}
-      mobileUtilityItems={
-        mobileUtilityItems.length > 0 ? mobileUtilityItems : undefined
-      }
+      mobileUtilityItems={mobileUtilityItems}
     />
   );
 }

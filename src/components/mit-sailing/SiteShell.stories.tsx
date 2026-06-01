@@ -21,8 +21,10 @@ function SiteShellStoryPreview() {
       <SiteHeader
         classesDropdownItems={[]}
         fleetDropdownItems={[]}
+        headerMenuItems={[]}
         initialShowAdminLink={false}
         initialSignedIn={false}
+        mobileUtilityItems={[]}
       />
       <div className="flex min-h-0 flex-1 flex-col" id="site-shell-inert-scope">
         <main className="flex-1 px-6 py-8 text-mit-text">

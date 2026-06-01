@@ -5,6 +5,10 @@ export function headerMenuItemsWithPricing(props: {
   readonly items: readonly SiteHeaderMenuItem[];
   readonly pricingLabel: string;
 }): SiteHeaderMenuItem[] {
+  if (props.items.length === 0) {
+    return [];
+  }
+
   if (
     props.items.some(
       (item) => item.href === '/pricing' || item.systemKey === 'pricing'
@@ -35,9 +39,12 @@ export function headerMenuItemsWithPricing(props: {
 
 export function footerMenuWithPricing(props: {
   readonly footerMenu: readonly PublicCmsMenuItem[];
-  readonly groupLabel: string;
   readonly pricingLabel: string;
 }): PublicCmsMenuItem[] {
+  if (props.footerMenu.length === 0) {
+    return [];
+  }
+
   if (
     props.footerMenu.some((group) =>
       group.children.some((link) => link.href === '/pricing')
@@ -65,13 +72,5 @@ export function footerMenuWithPricing(props: {
     );
   }
 
-  return [
-    ...props.footerMenu,
-    {
-      id: 'site-footer-about-fallback',
-      label: props.groupLabel,
-      isExternal: false,
-      children: [pricingItem],
-    },
-  ];
+  return [...props.footerMenu];
 }

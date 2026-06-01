@@ -5,6 +5,15 @@ import {
 } from './siteNavigationRequiredLinks';
 
 describe('headerMenuItemsWithPricing', () => {
+  it('keeps an empty CMS header menu empty', () => {
+    expect(
+      headerMenuItemsWithPricing({
+        items: [],
+        pricingLabel: 'Pricing',
+      })
+    ).toEqual([]);
+  });
+
   it('adds pricing after calendar when CMS header data omits it', () => {
     expect(
       headerMenuItemsWithPricing({
@@ -44,6 +53,15 @@ describe('headerMenuItemsWithPricing', () => {
 });
 
 describe('footerMenuWithPricing', () => {
+  it('keeps an empty CMS footer menu empty', () => {
+    expect(
+      footerMenuWithPricing({
+        footerMenu: [],
+        pricingLabel: 'Pricing',
+      })
+    ).toEqual([]);
+  });
+
   it('adds pricing to the about footer group when CMS footer data omits it', () => {
     expect(
       footerMenuWithPricing({
@@ -63,7 +81,6 @@ describe('footerMenuWithPricing', () => {
             ],
           },
         ],
-        groupLabel: 'About',
         pricingLabel: 'Pricing',
       })
     ).toEqual([
@@ -112,7 +129,32 @@ describe('footerMenuWithPricing', () => {
     expect(
       footerMenuWithPricing({
         footerMenu: menu,
-        groupLabel: 'About',
+        pricingLabel: 'Pricing',
+      })
+    ).toEqual(menu);
+  });
+
+  it('does not create a synthetic about group when CMS footer data omits it', () => {
+    const menu = [
+      {
+        id: 'cms-menu-footer-programs',
+        label: 'Programs',
+        isExternal: false,
+        children: [
+          {
+            id: 'classes',
+            label: 'Classes',
+            href: '/classes',
+            isExternal: false,
+            children: [],
+          },
+        ],
+      },
+    ];
+
+    expect(
+      footerMenuWithPricing({
+        footerMenu: menu,
         pricingLabel: 'Pricing',
       })
     ).toEqual(menu);
