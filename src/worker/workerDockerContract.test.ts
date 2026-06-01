@@ -29,6 +29,9 @@ function readPackageScripts(): Record<string, string> {
 }
 
 describe('worker Docker contract', () => {
+  const readonlySeedCopyPrefix =
+    'COPY --from=builder --chown=nextjs:nodejs --chmod=0444';
+
   it('builds an ESM worker bundle with a Node require shim', () => {
     const scripts = readPackageScripts();
     const dockerfile = readRepoFile('Dockerfile');
@@ -64,34 +67,34 @@ describe('worker Docker contract', () => {
     const dockerfile = readRepoFile('Dockerfile');
 
     expect(dockerfile).toContain(
-      'COPY --from=builder --chown=nextjs:nodejs /app/tsconfig.json ./tsconfig.json'
+      `${readonlySeedCopyPrefix} /app/tsconfig.json ./tsconfig.json`
     );
     expect(dockerfile).toContain(
-      'COPY --from=builder --chown=nextjs:nodejs /app/src/lib/mit-sailing/nyTime.ts ./src/lib/mit-sailing/nyTime.ts'
+      `${readonlySeedCopyPrefix} /app/src/lib/mit-sailing/nyTime.ts ./src/lib/mit-sailing/nyTime.ts`
     );
     expect(dockerfile).toContain(
-      'COPY --from=builder --chown=nextjs:nodejs /app/src/data ./src/data'
+      `${readonlySeedCopyPrefix} /app/src/data ./src/data`
     );
     expect(dockerfile).toContain(
-      'COPY --from=builder --chown=nextjs:nodejs /app/src/generated ./src/generated'
+      `${readonlySeedCopyPrefix} /app/src/generated ./src/generated`
     );
     expect(dockerfile).toContain(
-      'COPY --from=builder --chown=nextjs:nodejs /app/src/libs/DB.ts ./src/libs/DB.ts'
+      `${readonlySeedCopyPrefix} /app/src/libs/DB.ts ./src/libs/DB.ts`
     );
     expect(dockerfile).toContain(
-      'COPY --from=builder --chown=nextjs:nodejs /app/src/libs/Env.ts ./src/libs/Env.ts'
+      `${readonlySeedCopyPrefix} /app/src/libs/Env.ts ./src/libs/Env.ts`
     );
     expect(dockerfile).toContain(
-      'COPY --from=builder --chown=nextjs:nodejs /app/src/libs/auth/passwordHashing.ts ./src/libs/auth/passwordHashing.ts'
+      `${readonlySeedCopyPrefix} /app/src/libs/auth/passwordHashing.ts ./src/libs/auth/passwordHashing.ts`
     );
     expect(dockerfile).toContain(
-      'COPY --from=builder --chown=nextjs:nodejs /app/src/libs/auth/roles.ts ./src/libs/auth/roles.ts'
+      `${readonlySeedCopyPrefix} /app/src/libs/auth/roles.ts ./src/libs/auth/roles.ts`
     );
     expect(dockerfile).toContain(
-      'COPY --from=builder --chown=nextjs:nodejs /app/src/libs/legacy-sync/legacyMysqlSyncConstants.ts ./src/libs/legacy-sync/legacyMysqlSyncConstants.ts'
+      `${readonlySeedCopyPrefix} /app/src/libs/legacy-sync/legacyMysqlSyncConstants.ts ./src/libs/legacy-sync/legacyMysqlSyncConstants.ts`
     );
     expect(dockerfile).toContain(
-      'COPY --from=builder --chown=nextjs:nodejs /app/src/libs/mit-sailing/pavilionReservationPersonas.ts ./src/libs/mit-sailing/pavilionReservationPersonas.ts'
+      `${readonlySeedCopyPrefix} /app/src/libs/mit-sailing/pavilionReservationPersonas.ts ./src/libs/mit-sailing/pavilionReservationPersonas.ts`
     );
   });
 

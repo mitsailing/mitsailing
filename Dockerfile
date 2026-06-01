@@ -139,16 +139,16 @@ COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
 # Production operations run `npm run db:seed` from this image after fresh DB
 # creation; ship the seed-only modules that Next standalone tracing omits.
-COPY --from=builder --chown=nextjs:nodejs /app/tsconfig.json ./tsconfig.json
-COPY --from=builder --chown=nextjs:nodejs /app/src/lib/mit-sailing/nyTime.ts ./src/lib/mit-sailing/nyTime.ts
-COPY --from=builder --chown=nextjs:nodejs /app/src/data ./src/data
-COPY --from=builder --chown=nextjs:nodejs /app/src/generated ./src/generated
-COPY --from=builder --chown=nextjs:nodejs /app/src/libs/DB.ts ./src/libs/DB.ts
-COPY --from=builder --chown=nextjs:nodejs /app/src/libs/Env.ts ./src/libs/Env.ts
-COPY --from=builder --chown=nextjs:nodejs /app/src/libs/auth/passwordHashing.ts ./src/libs/auth/passwordHashing.ts
-COPY --from=builder --chown=nextjs:nodejs /app/src/libs/auth/roles.ts ./src/libs/auth/roles.ts
-COPY --from=builder --chown=nextjs:nodejs /app/src/libs/legacy-sync/legacyMysqlSyncConstants.ts ./src/libs/legacy-sync/legacyMysqlSyncConstants.ts
-COPY --from=builder --chown=nextjs:nodejs /app/src/libs/mit-sailing/pavilionReservationPersonas.ts ./src/libs/mit-sailing/pavilionReservationPersonas.ts
+COPY --from=builder --chown=nextjs:nodejs --chmod=0444 /app/tsconfig.json ./tsconfig.json
+COPY --from=builder --chown=nextjs:nodejs --chmod=0444 /app/src/lib/mit-sailing/nyTime.ts ./src/lib/mit-sailing/nyTime.ts
+COPY --from=builder --chown=nextjs:nodejs --chmod=0444 /app/src/data ./src/data
+COPY --from=builder --chown=nextjs:nodejs --chmod=0444 /app/src/generated ./src/generated
+COPY --from=builder --chown=nextjs:nodejs --chmod=0444 /app/src/libs/DB.ts ./src/libs/DB.ts
+COPY --from=builder --chown=nextjs:nodejs --chmod=0444 /app/src/libs/Env.ts ./src/libs/Env.ts
+COPY --from=builder --chown=nextjs:nodejs --chmod=0444 /app/src/libs/auth/passwordHashing.ts ./src/libs/auth/passwordHashing.ts
+COPY --from=builder --chown=nextjs:nodejs --chmod=0444 /app/src/libs/auth/roles.ts ./src/libs/auth/roles.ts
+COPY --from=builder --chown=nextjs:nodejs --chmod=0444 /app/src/libs/legacy-sync/legacyMysqlSyncConstants.ts ./src/libs/legacy-sync/legacyMysqlSyncConstants.ts
+COPY --from=builder --chown=nextjs:nodejs --chmod=0444 /app/src/libs/mit-sailing/pavilionReservationPersonas.ts ./src/libs/mit-sailing/pavilionReservationPersonas.ts
 COPY --from=builder --chown=nextjs:nodejs /app/worker.mjs ./worker.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/worker-redis-healthcheck.cjs ./worker-redis-healthcheck.cjs
 
