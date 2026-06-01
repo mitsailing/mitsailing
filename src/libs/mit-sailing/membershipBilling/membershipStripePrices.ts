@@ -22,6 +22,10 @@ type MembershipStripePriceSyncStatus =
   | 'skipped';
 
 type MembershipStripeProduct = Pick<Stripe.Product, 'id'>;
+type MembershipStripePrice = Pick<
+  Stripe.Price,
+  'currency' | 'id' | 'product' | 'recurring' | 'type' | 'unit_amount'
+>;
 
 export type MembershipStripePriceSyncDb = {
   readonly sailingCardMembershipPrice: {
@@ -43,7 +47,7 @@ export type MembershipStripePriceSyncStripe = {
       options: { readonly idempotencyKey: string }
     ): Promise<Pick<Stripe.Price, 'id'>>;
     list(params: Stripe.PriceListParams): Promise<{
-      readonly data: readonly Pick<Stripe.Price, 'id'>[];
+      readonly data: readonly MembershipStripePrice[];
     }>;
     update(
       id: string,
@@ -167,7 +171,7 @@ export function membershipStripePriceMetadata(
   };
 }
 
-export function membershipStripePriceNickname(
+function membershipStripePriceNickname(
   price: Pick<
     SailingCardMembershipPriceRow,
     'billingInterval' | 'cardType' | 'priceCategory' | 'priceKind'
@@ -191,6 +195,10 @@ function membershipStripePriceLookupKey(
   price: Pick<SailingCardMembershipPriceRow, 'id'>
 ) {
   return `mitsailing_membership_${price.id}`;
+}
+
+function stripeProductId(product: Stripe.Price['product']) {
+  return typeof product === 'string' ? product : product.id;
 }
 
 function isStripeResourceMissing(error: unknown) {
@@ -282,7 +290,40 @@ async function findMembershipStripePriceByLookupKey(options: {
     limit: 1,
     lookup_keys: [membershipStripePriceLookupKey(options.price)],
   });
-  return existingPrices.data[0]?.id ?? null;
+  return existingPrices.data[0] ?? null;
+}
+
+function membershipStripePriceMatchesLocalPrice(options: {
+  readonly price: Pick<
+    SailingCardMembershipPriceRow,
+    'amountCents' | 'billingInterval' | 'cardType' | 'currency' | 'priceKind'
+  >;
+  readonly stripePrice: MembershipStripePrice;
+}) {
+  const product = membershipStripeProductDetails(options.price);
+  const samePriceTerms =
+    options.stripePrice.currency === options.price.currency &&
+    options.stripePrice.unit_amount === options.price.amountCents &&
+    stripeProductId(options.stripePrice.product) === product.id;
+
+  if (!samePriceTerms) {
+    return false;
+  }
+
+  if (
+    options.price.billingInterval ===
+    SailingCardMembershipBillingInterval.annual
+  ) {
+    return (
+      options.stripePrice.type === 'recurring' &&
+      options.stripePrice.recurring?.interval === 'year'
+    );
+  }
+
+  return (
+    options.stripePrice.type === 'one_time' &&
+    options.stripePrice.recurring === null
+  );
 }
 
 async function createMembershipStripePrice(options: {
@@ -290,17 +331,27 @@ async function createMembershipStripePrice(options: {
   readonly stripe: MembershipStripePriceSyncStripe;
 }) {
   assertSyncablePrice(options.price);
-  const existingPriceId = await findMembershipStripePriceByLookupKey({
+  const existingPrice = await findMembershipStripePriceByLookupKey({
     price: options.price,
     stripe: options.stripe,
   });
-  if (existingPriceId !== null) {
+  if (existingPrice !== null) {
+    if (
+      !membershipStripePriceMatchesLocalPrice({
+        price: options.price,
+        stripePrice: existingPrice,
+      })
+    ) {
+      throw new TypeError(
+        'Existing Stripe Price lookup key points to a mismatched Price.'
+      );
+    }
     await activateMembershipStripePrice({
       price: options.price,
       stripe: options.stripe,
-      stripePriceId: existingPriceId,
+      stripePriceId: existingPrice.id,
     });
-    return existingPriceId;
+    return existingPrice.id;
   }
 
   const productId = await ensureMembershipStripeProduct({
