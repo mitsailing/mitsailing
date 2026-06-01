@@ -21,7 +21,7 @@ type MembershipStripePriceSyncStatus =
   | 'reused'
   | 'skipped';
 
-type MembershipStripeProduct = Pick<Stripe.Product, 'id'>;
+type MembershipStripeProduct = Pick<Stripe.Product, 'active' | 'id'>;
 type MembershipStripePrice = Pick<
   Stripe.Price,
   'currency' | 'id' | 'product' | 'recurring' | 'type' | 'unit_amount'
@@ -68,6 +68,11 @@ export type MembershipStripePriceSyncStripe = {
       options: { readonly idempotencyKey: string }
     ): Promise<MembershipStripeProduct>;
     retrieve(id: string): Promise<MembershipStripeProduct>;
+    update(
+      id: string,
+      params: Stripe.ProductUpdateParams,
+      options: { readonly idempotencyKey: string }
+    ): Promise<MembershipStripeProduct>;
   };
 };
 
@@ -258,6 +263,15 @@ async function ensureMembershipStripeProduct(options: {
   const product = membershipStripeProductDetails(options.price);
   try {
     const existingProduct = await options.stripe.products.retrieve(product.id);
+    if (!existingProduct.active) {
+      await options.stripe.products.update(
+        product.id,
+        { active: true },
+        {
+          idempotencyKey: `membership-price-product-activate-${product.id}`,
+        }
+      );
+    }
     return existingProduct.id;
   } catch (error) {
     if (!isStripeResourceMissing(error)) {
@@ -267,6 +281,7 @@ async function ensureMembershipStripeProduct(options: {
 
   await options.stripe.products.create(
     {
+      active: true,
       description: product.description,
       id: product.id,
       metadata: {

@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   priceUpdate: vi.fn(),
   productsCreate: vi.fn(),
   productsRetrieve: vi.fn(),
+  productsUpdate: vi.fn(),
   pricesCreate: vi.fn(),
   pricesList: vi.fn(),
   pricesUpdate: vi.fn(),
@@ -69,6 +70,7 @@ function stripeClient(): MembershipStripePriceSyncStripe {
     products: {
       create: mocks.productsCreate,
       retrieve: mocks.productsRetrieve,
+      update: mocks.productsUpdate,
     },
   };
 }
@@ -122,6 +124,7 @@ describe('membership Stripe Prices', () => {
     mocks.priceUpdate.mockReset();
     mocks.productsCreate.mockReset();
     mocks.productsRetrieve.mockReset();
+    mocks.productsUpdate.mockReset();
     mocks.pricesCreate.mockReset();
     mocks.pricesList.mockReset();
     mocks.pricesUpdate.mockReset();
@@ -129,9 +132,16 @@ describe('membership Stripe Prices', () => {
     mocks.priceFindUnique.mockResolvedValue(priceRow());
     mocks.productsRetrieve.mockImplementation(async (id: string) => {
       await Promise.resolve();
-      return { id };
+      return { active: true, id };
     });
-    mocks.productsCreate.mockResolvedValue({ id: 'created_product' });
+    mocks.productsCreate.mockResolvedValue({
+      active: true,
+      id: 'created_product',
+    });
+    mocks.productsUpdate.mockResolvedValue({
+      active: true,
+      id: 'updated_product',
+    });
     mocks.pricesCreate.mockResolvedValue({ id: 'price_123' });
     mocks.pricesList.mockResolvedValue({ data: [] });
     mocks.pricesUpdate.mockResolvedValue({ id: 'price_existing' });
@@ -565,6 +575,7 @@ describe('membership Stripe Prices', () => {
 
     expect(mocks.productsCreate).toHaveBeenCalledWith(
       {
+        active: true,
         description: 'MIT Sailing team racing membership.',
         id: 'mitsailing_sailing_card_membership_team_racing_annual',
         metadata: {
@@ -578,6 +589,35 @@ describe('membership Stripe Prices', () => {
       {
         idempotencyKey:
           'membership-price-product-mitsailing_sailing_card_membership_team_racing_annual',
+      }
+    );
+    expect(mocks.pricesCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        product: 'mitsailing_sailing_card_membership_team_racing_annual',
+      }),
+      { idempotencyKey: 'membership-price-sync-price-row-1' }
+    );
+  });
+
+  it('reactivates the card-type Stripe Product before creating a Price when archived', async () => {
+    mocks.productsRetrieve.mockResolvedValueOnce({
+      active: false,
+      id: 'mitsailing_sailing_card_membership_team_racing_annual',
+    });
+
+    await syncSailingCardMembershipPrice({
+      db: syncDb(),
+      now: syncedAt,
+      price: priceRow({ cardType: SailingCardType.team_racing }),
+      stripe: stripeClient(),
+    });
+
+    expect(mocks.productsUpdate).toHaveBeenCalledWith(
+      'mitsailing_sailing_card_membership_team_racing_annual',
+      { active: true },
+      {
+        idempotencyKey:
+          'membership-price-product-activate-mitsailing_sailing_card_membership_team_racing_annual',
       }
     );
     expect(mocks.pricesCreate).toHaveBeenCalledWith(
