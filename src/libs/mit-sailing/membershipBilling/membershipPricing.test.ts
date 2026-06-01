@@ -312,6 +312,16 @@ describe('membership pricing', () => {
     const selected = selectActiveMembershipPrice(
       [
         priceRow({
+          amountCents: 9000,
+          billingInterval: SailingCardMembershipBillingInterval.one_time,
+          effectiveAt: new Date('2026-06-10T04:00:00.000Z'),
+          priceCategory: SailingCardMembershipPriceCategory.under_30,
+          priceKind: SailingCardMembershipPriceKind.spring,
+          stripePriceId: 'price_failed_sync',
+          stripeSyncError: 'Stripe unavailable',
+          stripeSyncedAt: new Date('2026-06-10T04:30:00.000Z'),
+        }),
+        priceRow({
           amountCents: 8000,
           billingInterval: SailingCardMembershipBillingInterval.one_time,
           effectiveAt: new Date('2026-06-01T04:00:00.000Z'),
