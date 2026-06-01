@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { listPublicEventsForDiscovery } from '@/libs/mit-sailing/publicEventDiscovery';
+import {
+  listPublicEventsForDiscovery,
+  publicEventLimit,
+} from '@/libs/mit-sailing/publicEventDiscovery';
 
 export const runtime = 'nodejs';
 
-const defaultLimit = 20;
-const maxLimit = 50;
+const cacheSeconds = 300;
 
 function singleSearchParam(
   params: URLSearchParams,
@@ -15,25 +17,20 @@ function singleSearchParam(
   return value && value.length > 0 ? value : undefined;
 }
 
-function publicEventsLimit(params: URLSearchParams): number {
-  const raw = params.get('limit');
-  const value = raw ? Number(raw) : defaultLimit;
-  if (!Number.isInteger(value)) {
-    return defaultLimit;
-  }
-  return Math.min(maxLimit, Math.max(1, value));
-}
-
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
+  const rawLimit = searchParams.get('limit');
   const discovery = await listPublicEventsForDiscovery({
     category: singleSearchParam(searchParams, 'category'),
-    limit: publicEventsLimit(searchParams),
+    limit: publicEventLimit(rawLimit ? Number(rawLimit) : undefined),
     query: singleSearchParam(searchParams, 'query'),
   });
-  return NextResponse.json(discovery, {
-    headers: {
-      'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
-    },
-  });
+  return NextResponse.json(
+    { ...discovery, cacheSeconds },
+    {
+      headers: {
+        'Cache-Control': `public, s-maxage=${cacheSeconds}, stale-while-revalidate=600`,
+      },
+    }
+  );
 }

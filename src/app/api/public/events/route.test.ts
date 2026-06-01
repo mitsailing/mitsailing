@@ -8,6 +8,12 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/libs/mit-sailing/publicEventDiscovery', () => ({
   listPublicEventsForDiscovery: mocks.listPublicEventsForDiscovery,
+  publicEventLimit: (value: number | undefined) => {
+    if (value === undefined || !Number.isInteger(value)) {
+      return 20;
+    }
+    return Math.min(50, Math.max(1, value));
+  },
 }));
 
 beforeEach(() => {
@@ -43,6 +49,7 @@ describe('GET /api/public/events', () => {
       })
     );
     expect(body).toEqual({
+      cacheSeconds: 300,
       categories: [{ id: 'classes', name: 'Classes' }],
       events: [{ id: 'event-1', name: 'Intro Windsurfing' }],
       generatedAt: '2026-06-01T12:00:00.000Z',

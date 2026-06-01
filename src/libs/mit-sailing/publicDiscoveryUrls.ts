@@ -35,6 +35,8 @@ export function publicFleetBoatDetailUrl(
   return absoluteDiscoveryUrl(origin, publicFleetBoatPath(slug));
 }
 
-export function publicAiDiscoveryUrl(origin = MIT_SAILING_PUBLIC_ORIGIN): URL {
-  return new URL('/llm.txt', origin);
+export function publicAiDiscoveryUrl(
+  origin = MIT_SAILING_PUBLIC_ORIGIN
+): string {
+  return absoluteDiscoveryUrl(origin, '/llm.txt');
 }

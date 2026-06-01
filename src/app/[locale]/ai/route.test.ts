@@ -5,7 +5,7 @@ describe('GET /ai', () => {
   it('redirects agents to the discovery file', () => {
     const response = GET();
 
-    expect(response.status).toBe(307);
+    expect(response.status).toBe(308);
     expect(response.headers.get('location')).toBe(
       'https://mitsailing.com/llm.txt'
     );

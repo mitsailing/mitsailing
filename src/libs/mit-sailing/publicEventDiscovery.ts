@@ -82,11 +82,6 @@ const publicEventDiscoveryDateSelect = {
 } satisfies Prisma.EventDateSelect;
 
 const publicEventDiscoverySelect = {
-  _count: {
-    select: {
-      registrations: true,
-    },
-  },
   addressCity: true,
   addressCountry: true,
   addressLine1: true,
@@ -116,8 +111,19 @@ const publicEventDiscoverySelect = {
   slug: true,
 } satisfies Prisma.EventSelect;
 
+const publicEventDiscoveryApprovedCountSelect = {
+  ...publicEventDiscoverySelect,
+  _count: {
+    select: {
+      registrations: {
+        where: { status: EventRegistrationStatus.approved },
+      },
+    },
+  },
+} satisfies Prisma.EventSelect;
+
 type PublicEventDiscoveryRow = Prisma.EventGetPayload<{
-  select: typeof publicEventDiscoverySelect;
+  select: typeof publicEventDiscoveryApprovedCountSelect;
 }>;
 
 function trimmedParam(value: string | undefined): string | undefined {
@@ -290,7 +296,7 @@ function publicEventsWhere(params: {
   };
 }
 
-function publicEventLimit(value: number | undefined): number {
+export function publicEventLimit(value: number | undefined): number {
   if (value === undefined) {
     return defaultPublicEventLimit;
   }
@@ -308,6 +314,7 @@ function eventSortKey(event: PublicEventDiscoveryRow): number {
   return event.dates[0]?.startDateTime.getTime() ?? Number.MAX_SAFE_INTEGER;
 }
 
+// Dates are fixed-width UTC ISO strings from Date.toISOString(); local offsets would break this ordering.
 function maxEndDateTime(dates: PublicEventDiscoveryDate[]): string | null {
   let latest: string | null = null;
   for (const date of dates) {
@@ -435,18 +442,11 @@ export async function listPublicEventsForDiscovery(params: {
     },
     orderBy: [{ name: 'asc' }],
     select: {
-      ...publicEventDiscoverySelect,
+      ...publicEventDiscoveryApprovedCountSelect,
       dates: {
         where: { endDateTime: { gte: now } },
         orderBy: { startDateTime: 'asc' },
         select: publicEventDiscoveryDateSelect,
-      },
-      _count: {
-        select: {
-          registrations: {
-            where: { status: EventRegistrationStatus.approved },
-          },
-        },
       },
     },
   });
