@@ -284,6 +284,7 @@ describe('cms seed header navigation', () => {
       (menu) => menu.id === 'cms-menu-header'
     );
 
+    expect(headerMenu).toBeDefined();
     expect(headerMenu?.items.map((item) => item.label)).not.toContain(
       'Bluewater'
     );
