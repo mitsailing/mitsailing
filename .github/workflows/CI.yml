@@ -101,6 +101,7 @@ jobs:
         env:
           NEXT_PUBLIC_SENTRY_DISABLED: 'true' # Only upload Sentry source maps in deployment
           NEXT_PUBLIC_APP_URL: http://localhost:3008
+          IS_E2E: '1'
 
       # Records the inlined public origin so `E2E_SKIP_BUILD=1` never reuses a
       # `.next` built for a different NEXT_PUBLIC_APP_URL (Better Auth INVALID_ORIGIN).
