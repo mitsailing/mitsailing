@@ -16,12 +16,13 @@ import type {
 } from '@/libs/mit-sailing/membershipBilling/membershipStripePrices';
 
 const mocks = vi.hoisted(() => ({
+  priceFindUnique: vi.fn(),
+  priceUpdate: vi.fn(),
   productsCreate: vi.fn(),
   productsRetrieve: vi.fn(),
   pricesCreate: vi.fn(),
   pricesList: vi.fn(),
   pricesUpdate: vi.fn(),
-  priceUpdate: vi.fn(),
 }));
 
 vi.mock('server-only', () => ({}));
@@ -52,6 +53,7 @@ function priceRow(
 function syncDb(): MembershipStripePriceSyncDb {
   return {
     sailingCardMembershipPrice: {
+      findUnique: mocks.priceFindUnique,
       update: mocks.priceUpdate,
     },
   };
@@ -71,15 +73,60 @@ function stripeClient(): MembershipStripePriceSyncStripe {
   };
 }
 
+type StripePriceListRow = Awaited<
+  ReturnType<MembershipStripePriceSyncStripe['prices']['list']>
+>['data'][number];
+
+function annualRecurringPrice(
+  price: Partial<StripePriceListRow> = {}
+): StripePriceListRow {
+  return {
+    currency: 'usd',
+    id: 'price_recovered',
+    product: 'mitsailing_sailing_card_membership_racing_annual',
+    recurring: {
+      interval: 'year',
+      interval_count: 1,
+      meter: null,
+      trial_period_days: null,
+      usage_type: 'licensed',
+    },
+    type: 'recurring',
+    unit_amount: 12_500,
+    ...price,
+  };
+}
+
+function expectSyncedPriceUpdate(options: {
+  readonly previousStripePriceId: string | null;
+  readonly stripePriceId: string;
+  readonly syncedAt: Date;
+}) {
+  expect(mocks.priceUpdate).toHaveBeenCalledWith({
+    data: {
+      stripePriceId: options.stripePriceId,
+      stripeSyncError: null,
+      stripeSyncedAt: options.syncedAt,
+    },
+    where: {
+      AND: [{ stripePriceId: options.previousStripePriceId }],
+      active: true,
+      id: 'price-row-1',
+    },
+  });
+}
+
 describe('membership Stripe Prices', () => {
   beforeEach(() => {
+    mocks.priceFindUnique.mockReset();
+    mocks.priceUpdate.mockReset();
     mocks.productsCreate.mockReset();
     mocks.productsRetrieve.mockReset();
     mocks.pricesCreate.mockReset();
     mocks.pricesList.mockReset();
     mocks.pricesUpdate.mockReset();
-    mocks.priceUpdate.mockReset();
 
+    mocks.priceFindUnique.mockResolvedValue(priceRow());
     mocks.productsRetrieve.mockImplementation(async (id: string) => {
       await Promise.resolve();
       return { id };
@@ -118,13 +165,10 @@ describe('membership Stripe Prices', () => {
       { idempotencyKey: 'membership-price-activate-price-row-1' }
     );
     expect(mocks.pricesCreate).not.toHaveBeenCalled();
-    expect(mocks.priceUpdate).toHaveBeenCalledWith({
-      data: {
-        stripePriceId: 'price_existing',
-        stripeSyncError: null,
-        stripeSyncedAt: syncedAt,
-      },
-      where: { id: 'price-row-1' },
+    expectSyncedPriceUpdate({
+      previousStripePriceId: 'price_existing',
+      stripePriceId: 'price_existing',
+      syncedAt,
     });
   });
 
@@ -183,13 +227,10 @@ describe('membership Stripe Prices', () => {
       { active: true },
       { idempotencyKey: 'membership-price-activate-price-row-1' }
     );
-    expect(mocks.priceUpdate).toHaveBeenCalledWith({
-      data: {
-        stripePriceId: 'price_existing',
-        stripeSyncError: null,
-        stripeSyncedAt: new Date('2026-06-01T13:00:00.000Z'),
-      },
-      where: { id: 'price-row-1' },
+    expectSyncedPriceUpdate({
+      previousStripePriceId: 'price_existing',
+      stripePriceId: 'price_existing',
+      syncedAt: new Date('2026-06-01T13:00:00.000Z'),
     });
   });
 
@@ -220,29 +261,17 @@ describe('membership Stripe Prices', () => {
       },
       { idempotencyKey: 'membership-price-sync-price-row-1' }
     );
-    expect(mocks.priceUpdate).toHaveBeenCalledWith({
-      data: {
-        stripePriceId: 'price_123',
-        stripeSyncError: null,
-        stripeSyncedAt: syncedAt,
-      },
-      where: { id: 'price-row-1' },
+    expectSyncedPriceUpdate({
+      previousStripePriceId: null,
+      stripePriceId: 'price_123',
+      syncedAt,
     });
   });
 
   it('recovers a previously created Stripe Price by lookup key before creating', async () => {
     const price = priceRow();
     mocks.pricesList.mockResolvedValueOnce({
-      data: [
-        {
-          currency: 'usd',
-          id: 'price_recovered',
-          product: 'mitsailing_sailing_card_membership_racing_annual',
-          recurring: { interval: 'year' },
-          type: 'recurring',
-          unit_amount: 12_500,
-        },
-      ],
+      data: [annualRecurringPrice()],
     });
 
     await expect(
@@ -267,29 +296,134 @@ describe('membership Stripe Prices', () => {
       { active: true },
       { idempotencyKey: 'membership-price-activate-price-row-1' }
     );
+    expectSyncedPriceUpdate({
+      previousStripePriceId: null,
+      stripePriceId: 'price_recovered',
+      syncedAt,
+    });
+  });
+
+  it.each([
+    {
+      label: 'amount',
+      stripePrice: annualRecurringPrice({ unit_amount: 13_000 }),
+    },
+    {
+      label: 'currency',
+      stripePrice: annualRecurringPrice({ currency: 'eur' }),
+    },
+    {
+      label: 'product',
+      stripePrice: annualRecurringPrice({
+        product: 'mitsailing_sailing_card_membership_racing_spring',
+      }),
+    },
+    {
+      label: 'type',
+      stripePrice: annualRecurringPrice({
+        recurring: null,
+        type: 'one_time',
+      }),
+    },
+    {
+      label: 'interval count',
+      stripePrice: annualRecurringPrice({
+        recurring: {
+          interval: 'year',
+          interval_count: 2,
+          meter: null,
+          trial_period_days: null,
+          usage_type: 'licensed',
+        },
+      }),
+    },
+    {
+      label: 'usage type',
+      stripePrice: annualRecurringPrice({
+        recurring: {
+          interval: 'year',
+          interval_count: 1,
+          meter: null,
+          trial_period_days: null,
+          usage_type: 'metered',
+        },
+      }),
+    },
+  ])(
+    'rejects recovered Stripe Prices with mismatched $label',
+    async ({ stripePrice }) => {
+      mocks.pricesList.mockResolvedValueOnce({
+        data: [stripePrice],
+      });
+
+      await expect(
+        syncSailingCardMembershipPrice({
+          db: syncDb(),
+          now: syncedAt,
+          price: priceRow(),
+          stripe: stripeClient(),
+        })
+      ).resolves.toMatchObject({
+        error: 'Existing Stripe Price lookup key points to a mismatched Price.',
+        status: 'failed',
+        stripePriceId: null,
+      });
+
+      expect(mocks.pricesUpdate).not.toHaveBeenCalled();
+      expect(mocks.pricesCreate).not.toHaveBeenCalled();
+      expect(mocks.priceUpdate).toHaveBeenCalledWith({
+        data: {
+          stripeSyncError:
+            'Existing Stripe Price lookup key points to a mismatched Price.',
+          stripeSyncedAt: null,
+        },
+        where: { id: 'price-row-1' },
+      });
+    }
+  );
+
+  it('rejects inactive rows with unverified existing Stripe Price ids', async () => {
+    const price = priceRow({
+      active: false,
+      stripePriceId: 'price_unverified',
+    });
+
+    await expect(
+      syncSailingCardMembershipPrice({
+        db: syncDb(),
+        now: syncedAt,
+        price,
+        stripe: stripeClient(),
+      })
+    ).resolves.toMatchObject({
+      error: 'Existing Stripe Price ID is not verified for checkout.',
+      status: 'failed',
+      stripePriceId: 'price_unverified',
+    });
+
+    expect(mocks.pricesUpdate).not.toHaveBeenCalled();
     expect(mocks.priceUpdate).toHaveBeenCalledWith({
       data: {
-        stripePriceId: 'price_recovered',
-        stripeSyncError: null,
-        stripeSyncedAt: syncedAt,
+        stripeSyncError:
+          'Existing Stripe Price ID is not verified for checkout.',
+        stripeSyncedAt: null,
       },
       where: { id: 'price-row-1' },
     });
   });
 
-  it('rejects recovered Stripe Prices that do not match the local immutable price terms', async () => {
-    mocks.pricesList.mockResolvedValueOnce({
-      data: [
-        {
-          currency: 'usd',
-          id: 'price_mismatched',
-          product: 'mitsailing_sailing_card_membership_racing_annual',
-          recurring: { interval: 'year' },
-          type: 'recurring',
-          unit_amount: 13_000,
-        },
-      ],
-    });
+  it('archives created Stripe Prices when the local row changes before persistence', async () => {
+    mocks.priceFindUnique.mockResolvedValueOnce(priceRow({ active: false }));
+    mocks.priceUpdate
+      .mockRejectedValueOnce(
+        Object.assign(new Error('Record not found'), { code: 'P2025' })
+      )
+      .mockResolvedValueOnce(
+        priceRow({
+          active: false,
+          stripeSyncError: 'Membership Price changed during Stripe sync.',
+        })
+      );
 
     await expect(
       syncSailingCardMembershipPrice({
@@ -299,21 +433,72 @@ describe('membership Stripe Prices', () => {
         stripe: stripeClient(),
       })
     ).resolves.toMatchObject({
-      error: 'Existing Stripe Price lookup key points to a mismatched Price.',
+      error: 'Membership Price changed during Stripe sync.',
       status: 'failed',
       stripePriceId: null,
     });
 
-    expect(mocks.pricesUpdate).not.toHaveBeenCalled();
-    expect(mocks.pricesCreate).not.toHaveBeenCalled();
-    expect(mocks.priceUpdate).toHaveBeenCalledWith({
+    expect(mocks.pricesCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lookup_key: 'mitsailing_membership_price-row-1',
+      }),
+      { idempotencyKey: 'membership-price-sync-price-row-1' }
+    );
+    expect(mocks.priceUpdate).toHaveBeenNthCalledWith(1, {
       data: {
-        stripeSyncError:
-          'Existing Stripe Price lookup key points to a mismatched Price.',
+        stripePriceId: 'price_123',
+        stripeSyncError: null,
+        stripeSyncedAt: syncedAt,
+      },
+      where: {
+        AND: [{ stripePriceId: null }],
+        active: true,
+        id: 'price-row-1',
+      },
+    });
+    expect(mocks.pricesUpdate).toHaveBeenCalledWith(
+      'price_123',
+      { active: false },
+      { idempotencyKey: 'membership-price-archive-price-row-1' }
+    );
+    expect(mocks.priceUpdate).toHaveBeenNthCalledWith(2, {
+      data: {
+        stripeSyncError: 'Membership Price changed during Stripe sync.',
         stripeSyncedAt: null,
       },
       where: { id: 'price-row-1' },
     });
+  });
+
+  it('preserves concurrent successful syncs for the same Stripe Price', async () => {
+    mocks.pricesList.mockResolvedValueOnce({
+      data: [annualRecurringPrice({ id: 'price_123' })],
+    });
+    mocks.priceFindUnique.mockResolvedValueOnce(
+      priceRow({ stripePriceId: 'price_123', stripeSyncedAt: syncedAt })
+    );
+    mocks.priceUpdate.mockRejectedValueOnce(
+      Object.assign(new Error('Record not found'), { code: 'P2025' })
+    );
+
+    await expect(
+      syncSailingCardMembershipPrice({
+        db: syncDb(),
+        now: syncedAt,
+        price: priceRow(),
+        stripe: stripeClient(),
+      })
+    ).resolves.toMatchObject({
+      status: 'created',
+      stripePriceId: 'price_123',
+    });
+
+    expect(mocks.pricesCreate).not.toHaveBeenCalled();
+    expect(mocks.pricesUpdate).toHaveBeenCalledWith(
+      'price_123',
+      { active: true },
+      { idempotencyKey: 'membership-price-activate-price-row-1' }
+    );
   });
 
   it('creates one-time Stripe Prices for spring and full current-season prices', async () => {
