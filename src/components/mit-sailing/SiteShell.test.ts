@@ -35,7 +35,7 @@ vi.mock('next-intl/server', () => ({
           React.Fragment,
           null,
           'Staging website. Visit the live MIT Sailing site at ',
-          values.link('sailing.mit.edu'),
+          values.link('https://sailing.mit.edu'),
           '.'
         );
       },
@@ -122,7 +122,7 @@ describe('SiteShell', () => {
 
       expect(html).toContain('Staging website');
       expect(html).toContain('href="https://sailing.mit.edu"');
-      expect(html).toContain('sailing.mit.edu');
+      expect(html).toContain('https://sailing.mit.edu');
     });
 
     it('hides admin link without session', async () => {

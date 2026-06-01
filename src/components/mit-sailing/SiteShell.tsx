@@ -28,8 +28,6 @@ type SiteShellSession = {
   } | null;
 } | null;
 
-const liveMitSailingUrl = 'https://sailing.mit.edu';
-
 export function shouldShowAdminLink(session: SiteShellSession): boolean {
   return adminHeaderLinkVisibleFromSession({
     userId: session?.user?.id,
@@ -71,7 +69,7 @@ export async function SiteShell(props: SiteShellProps) {
               link: (chunks) => (
                 <a
                   className={`font-semibold text-mit-red underline underline-offset-2 hover:text-mit-red-hover ${textFocusRingClassName} dark:text-mit-red-ink`}
-                  href={liveMitSailingUrl}
+                  href="https://sailing.mit.edu"
                 >
                   {chunks}
                 </a>
