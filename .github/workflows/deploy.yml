@@ -181,46 +181,52 @@ jobs:
           validate_remote_app_dir
           printf -v remote_app_dir '%q' "$REMOTE_APP_DIR"
 
-          ssh \
+          retry_network_command() {
+            local attempt
+            for attempt in 1 2 3; do
+              "$@" && return 0
+              if [[ "$attempt" == 3 ]]; then
+                return 1
+              fi
+              sleep $((attempt * 10))
+            done
+          }
+
+          ssh_options=(
             -i ~/.ssh/id_deploy \
             -o BatchMode=yes \
-            -o ConnectTimeout=15 \
+            -o ConnectTimeout=30 \
+            -o ConnectionAttempts=2 \
+          )
+
+          retry_network_command ssh \
+            "${ssh_options[@]}" \
             "$PRODUCTION_SSH_TARGET" \
             "mkdir -p ${remote_app_dir}/bin ${remote_app_dir}/docker/postgres ${remote_app_dir}/docker/nginx"
 
-          scp \
-            -i ~/.ssh/id_deploy \
-            -o BatchMode=yes \
-            -o ConnectTimeout=15 \
+          retry_network_command scp \
+            "${ssh_options[@]}" \
             compose.yaml \
             compose.prod.yaml \
             "$PRODUCTION_SSH_TARGET:${REMOTE_APP_DIR}/"
 
-          scp \
-            -i ~/.ssh/id_deploy \
-            -o BatchMode=yes \
-            -o ConnectTimeout=15 \
+          retry_network_command scp \
+            "${ssh_options[@]}" \
             bin/deploy.sh \
             "$PRODUCTION_SSH_TARGET:${REMOTE_APP_DIR}/bin/deploy.sh"
 
-          scp \
-            -i ~/.ssh/id_deploy \
-            -o BatchMode=yes \
-            -o ConnectTimeout=15 \
+          retry_network_command scp \
+            "${ssh_options[@]}" \
             docker/postgres/init.sql \
             "$PRODUCTION_SSH_TARGET:${REMOTE_APP_DIR}/docker/postgres/init.sql"
 
-          scp \
-            -i ~/.ssh/id_deploy \
-            -o BatchMode=yes \
-            -o ConnectTimeout=15 \
+          retry_network_command scp \
+            "${ssh_options[@]}" \
             docker/nginx/media.conf \
             "$PRODUCTION_SSH_TARGET:${REMOTE_APP_DIR}/docker/nginx/media.conf"
 
-          ssh \
-            -i ~/.ssh/id_deploy \
-            -o BatchMode=yes \
-            -o ConnectTimeout=15 \
+          retry_network_command ssh \
+            "${ssh_options[@]}" \
             "$PRODUCTION_SSH_TARGET" \
             "chmod +x ${remote_app_dir}/bin/deploy.sh"
 
@@ -245,9 +251,25 @@ jobs:
           printf -v remote_deploy_script '%q' "${REMOTE_APP_DIR}/bin/deploy.sh"
           printf -v remote_image_tag '%q' "$IMAGE_TAG"
 
-          ssh \
+          retry_network_command() {
+            local attempt
+            for attempt in 1 2 3; do
+              "$@" && return 0
+              if [[ "$attempt" == 3 ]]; then
+                return 1
+              fi
+              sleep $((attempt * 10))
+            done
+          }
+
+          ssh_options=(
             -i ~/.ssh/id_deploy \
             -o BatchMode=yes \
-            -o ConnectTimeout=15 \
+            -o ConnectTimeout=30 \
+            -o ConnectionAttempts=2 \
+          )
+
+          retry_network_command ssh \
+            "${ssh_options[@]}" \
             "$PRODUCTION_SSH_TARGET" \
             "${remote_data_root_assignment}DEPLOY_DIR=${remote_app_dir} ${remote_deploy_script} release ${remote_image_tag}"
