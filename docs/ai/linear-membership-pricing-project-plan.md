@@ -78,7 +78,7 @@ Use these personas before coding or reviewing pricing/onboarding work.
 | --- | --- | --- |
 | MIT student getting first sailing card | Pricing or card info -> signup -> onboarding -> confirmation -> staff/admin state | Whether payment is required, whether card assignment is blocked until class/intro prerequisites, and what happens next. |
 | Non-MIT racer | Pricing -> account/signup -> onboarding/racing membership -> payment or deferred explanation | If racing membership payment is missing, it must be linked to an existing task or drafted as a new issue. |
-| Returning member | Profile/account -> membership/card state -> renewal or correction | Whether MIT affiliation/profile can be edited after onboarding. |
+| Returning member | Profile -> membership/card state -> renewal or correction | Whether MIT affiliation/profile can be edited after onboarding. |
 | Beginner class participant | Class listing -> intro class full -> waitlist -> email/admin state | Whether the two beginner classes have waitlist handling. |
 | Staff/admin | Admin queue -> user registration -> prerequisite evidence -> card assignment | Card assignment must be unavailable before eligibility and available after eligibility. |
 | Pavilion rental requester | Rental info/reservation path -> payment question | UI must say pavilion rental payment is manual and what staff/contact/next step follows. |

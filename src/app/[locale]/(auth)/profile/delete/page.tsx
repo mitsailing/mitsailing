@@ -24,7 +24,7 @@ export default async function ProfileDeletePage(props: ProfileDeletePageProps) {
   const { locale } = await props.params;
   setRequestLocale(locale);
 
-  await requireCurrentUser(locale, getI18nPath('/profile/account', locale));
+  await requireCurrentUser(locale, getI18nPath('/profile', locale));
 
   return (
     <ProfileDeleteAccountClient signInHref={getI18nPath('/login', locale)} />

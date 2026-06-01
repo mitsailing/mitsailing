@@ -5,14 +5,14 @@ import { ProfileSideNav } from './ProfileSideNav';
 
 describe('ProfileSideNav', () => {
   beforeEach(() => {
-    setComponentTestPathname('/profile/account');
+    setComponentTestPathname('/profile');
   });
 
   it('profile owner sees profile settings navigation with the current page marked', () => {
     render(<ProfileSideNav />);
 
     screen.getByRole('navigation', { name: 'Profile settings' });
-    expect(screen.getByRole('link', { name: 'Account' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Profile' })).toHaveAttribute(
       'aria-current',
       'page'
     );
@@ -30,7 +30,7 @@ describe('ProfileSideNav', () => {
       'aria-current',
       'page'
     );
-    expect(screen.getByRole('link', { name: 'Account' })).not.toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Profile' })).not.toHaveAttribute(
       'aria-current'
     );
   });

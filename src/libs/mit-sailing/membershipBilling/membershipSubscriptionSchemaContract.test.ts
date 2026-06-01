@@ -1,0 +1,72 @@
+import { readFileSync } from 'node:fs';
+import { describe, expect, it } from 'vitest';
+
+const zmodel = readFileSync('zenstack/schema.zmodel', 'utf8');
+const compactZmodel = zmodel.replaceAll(/\s+/g, ' ');
+const migration = readFileSync(
+  'prisma/migrations/20260531223000_add_sailing_card_subscriptions/migration.sql',
+  'utf8'
+);
+
+describe('membership subscription schema contract', () => {
+  it('stores Stripe subscription state in one local subscription model', () => {
+    expect(compactZmodel).toContain('model SailingCardSubscription');
+    expect(compactZmodel).toContain('userId String @map("user_id")');
+    expect(compactZmodel).toContain(
+      'cardType SailingCardType @map("card_type")'
+    );
+    expect(compactZmodel).toContain(
+      'stripeCustomerId String @map("stripe_customer_id")'
+    );
+    expect(compactZmodel).toContain(
+      'stripeSubscriptionId String @unique @map("stripe_subscription_id")'
+    );
+    expect(compactZmodel).toContain('stripeSubscriptionItemId');
+    expect(compactZmodel).toContain('currentPeriodStart');
+    expect(compactZmodel).toContain('currentPeriodEnd');
+    expect(compactZmodel).toContain('cancelAtPeriodEnd');
+    expect(compactZmodel).toContain('autoRenew Boolean @default(true)');
+    expect(compactZmodel).toContain('lastStripeSubscriptionEventId');
+    expect(compactZmodel).toContain('@@map("sailing_card_subscriptions")');
+    expect(compactZmodel).not.toContain('model SailingCardMembershipPayment');
+    expect(compactZmodel).not.toContain('model SailingCardMembershipRefund');
+  });
+
+  it('keeps membership charges in the shared payments table', () => {
+    expect(compactZmodel).toContain(
+      'membershipSubscriptionId String? @map("membership_subscription_id")'
+    );
+    expect(compactZmodel).toContain(
+      'membershipPaymentKind MembershipPaymentKind? @map("membership_payment_kind")'
+    );
+    expect(compactZmodel).toContain('activeCheckoutKey String? @unique');
+    expect(compactZmodel).toContain('stripeCheckoutSessionUrl');
+    expect(compactZmodel).toContain('stripeHostedInvoiceUrl');
+    expect(compactZmodel).toContain('stripeInvoicePdfUrl');
+    expect(compactZmodel).toContain('stripeInvoiceLineItemId');
+    expect(compactZmodel).toContain('stripeRefundId');
+    expect(compactZmodel).toContain('stripeDisputeId');
+    expect(compactZmodel).toContain('refundedAmountCents');
+    expect(compactZmodel).toContain('issueKind');
+    expect(compactZmodel).toContain('issueHandledByUserId');
+    expect(compactZmodel).toContain('membershipConsentSnapshot Json?');
+  });
+
+  it('allows one Stripe subscription to produce many payment rows', () => {
+    expect(compactZmodel).not.toContain(
+      'stripeSubscriptionId String? @unique @map("stripe_subscription_id")'
+    );
+    expect(compactZmodel).toContain(
+      '@@index([stripeSubscriptionId, stripeInvoiceId])'
+    );
+    expect(migration).toContain(
+      'DROP CONSTRAINT IF EXISTS "payments_stripe_subscription_id_key"'
+    );
+    expect(migration).toContain(
+      'DROP INDEX IF EXISTS "payments_stripe_subscription_id_key"'
+    );
+    expect(migration).toContain(
+      'CREATE INDEX "payments_stripe_subscription_id_stripe_invoice_id_idx"'
+    );
+  });
+});

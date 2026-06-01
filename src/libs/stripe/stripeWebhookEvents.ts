@@ -8,6 +8,7 @@ import {
 } from '@/generated/prisma/enums';
 import type {
   PaymentPurpose as PaymentPurposeType,
+  SailingCardType,
   PaymentStatus as PaymentStatusType,
 } from '@/generated/prisma/enums';
 import {
@@ -45,22 +46,33 @@ export function stripeEventCreatedAtDate(event: Pick<Stripe.Event, 'created'>) {
 
 type StripeWebhookDbPayment = {
   amountCents: number;
+  cardType?: SailingCardType | null;
+  cardYear?: number | null;
   currency: string;
   id: string;
+  membershipInitialPriceId?: string | null;
+  membershipPaymentKind?: string | null;
+  membershipRenewalPriceId?: string | null;
+  membershipSubscriptionId?: string | null;
   purpose?: PaymentPurposeType;
   status: PaymentStatusType;
   stripeChargeId?: string | null;
   stripeCheckoutSessionId?: string | null;
   stripeCustomerId?: string | null;
+  stripeInvoiceId?: string | null;
   stripePaymentIntentId?: string | null;
   stripeReceiptUrl?: string | null;
+  stripeSubscriptionId?: string | null;
+  userId?: string | null;
 };
 
 export type StripeWebhookDb = {
   payment: {
+    create?: unknown;
     findFirst: (args: {
+      orderBy?: Record<string, unknown>;
       where: {
-        purpose: typeof PaymentPurpose.event_payment;
+        purpose?: PaymentPurposeType;
         OR: Record<string, unknown>[];
       };
     }) => Promise<StripeWebhookDbPayment | null>;
@@ -69,6 +81,7 @@ export type StripeWebhookDb = {
       where: { id: string; status?: PaymentStatusType };
     }) => Promise<{ count: number }>;
   };
+  sailingCardSubscription?: unknown;
   eventPaymentNotification: {
     upsert: (args: {
       create: {
@@ -246,6 +259,10 @@ const webhookProcessingClaimPrefix = 'processing:';
 const webhookProcessingClaimTtlMs = 15 * 60 * 1000;
 const receiptEnqueuePendingProcessingError = 'receipt_enqueue_pending';
 
+export function stripeWebhookReceiptEnqueuePendingError(error: unknown) {
+  return `${receiptEnqueuePendingProcessingError}:${errorMessage(error)}`;
+}
+
 function stripeWebhookProcessingClaim(now = new Date()) {
   return `${webhookProcessingClaimPrefix}${now.toISOString()}:${randomUUID()}`;
 }
@@ -375,11 +392,29 @@ async function findPaymentForStripeObject(options: {
   return payment;
 }
 
+function paidStripeReferenceMergeData(update: Record<string, unknown>) {
+  const data: Record<string, unknown> = { status: PaymentStatus.paid };
+  for (const key of [
+    'stripeChargeId',
+    'stripeCheckoutSessionId',
+    'stripeCustomerId',
+    'stripePaymentIntentId',
+    'stripeReceiptUrl',
+  ]) {
+    const value = update[key];
+    if (typeof value === 'string' && value.length > 0) {
+      data[key] = value;
+    }
+  }
+  return data;
+}
+
 async function duplicateReceiptJobForPaidEvent(options: {
   db: StripeWebhookDb;
   event: ProcessableStripeEvent;
 }): Promise<{ dateKey: string; paymentId: string } | null> {
   const object = eventDataObject(options.event);
+  const objectId = stringValue(object.id);
   if (
     (options.event.type === 'checkout.session.completed' ||
       options.event.type === 'checkout.session.async_payment_succeeded') &&
@@ -396,12 +431,18 @@ async function duplicateReceiptJobForPaidEvent(options: {
     return null;
   }
   const payment = await findPaymentForStripeObject({
-    chargeId: stringValue(object.id),
-    checkoutSessionId: stringValue(object.id),
+    chargeId: options.event.type === 'charge.succeeded' ? objectId : null,
+    checkoutSessionId:
+      options.event.type === 'checkout.session.completed' ||
+      options.event.type === 'checkout.session.async_payment_succeeded'
+        ? objectId
+        : null,
     db: options.db,
     paymentId: eventPaymentId(object),
     paymentIntentId:
-      stringValue(object.id) ?? expandableId(object.payment_intent),
+      options.event.type === 'payment_intent.succeeded'
+        ? objectId
+        : expandableId(object.payment_intent),
   });
   if (!payment) {
     return null;
@@ -452,6 +493,10 @@ async function markPaymentPaid(options: {
     where: { id: options.payment.id, status: options.payment.status },
   });
   if (result.count === 0) {
+    await options.db.payment.updateMany({
+      data: paidStripeReferenceMergeData(transition.update),
+      where: { id: options.payment.id, status: PaymentStatus.paid },
+    });
     return { handled: true };
   }
   if (!transition.shouldCreateReceiptNotification) {
@@ -788,7 +833,7 @@ export async function processStripeWebhookEvent(options: {
         },
         where: { id: storedEvent.id },
       });
-      return { ok: false };
+      return { ok: true };
     }
     if (dispatchResult.receiptJob) {
       return {
@@ -804,7 +849,7 @@ export async function processStripeWebhookEvent(options: {
     return { ok: true };
   } catch (error) {
     const message = receiptRecoveryPending
-      ? `${receiptEnqueuePendingProcessingError}:${errorMessage(error)}`
+      ? stripeWebhookReceiptEnqueuePendingError(error)
       : errorMessage(error);
     await options.db.stripeWebhookEvent.update({
       data: { processingError: message },

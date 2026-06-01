@@ -14,10 +14,13 @@ import {
 import type { SailingCardOnboardingFormValues } from '@/libs/mit-sailing/sailingCardOnboardingActions';
 import type * as SailingCardValidityModule from '@/libs/mit-sailing/sailingCardValidity';
 
+vi.mock('server-only', () => ({}));
+
 const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
   getLocale: vi.fn(),
   lookupMitDataWarehouseIdentity: vi.fn(),
+  createMembershipCheckoutUrlForOnboarding: vi.fn(),
   prismaUserFindUnique: vi.fn(),
   prismaUserUpdate: vi.fn(),
   prismaLegalAgreementAcceptanceCreate: vi.fn(),
@@ -141,6 +144,14 @@ vi.mock('@/libs/mit-sailing/mitDataWarehouse', async () => {
   };
 });
 
+vi.mock(
+  '@/libs/mit-sailing/membershipBilling/membershipCheckoutActions',
+  () => ({
+    createMembershipCheckoutUrlForOnboarding:
+      mocks.createMembershipCheckoutUrlForOnboarding,
+  })
+);
+
 vi.mock('@/libs/mit-sailing/sailingCardValidity', async () => {
   const actual = await vi.importActual<typeof SailingCardValidityModule>(
     '@/libs/mit-sailing/sailingCardValidity'
@@ -209,6 +220,18 @@ const alumOnboardingFormData = (props: {
   return formData;
 };
 
+const paidRacingOnboardingFormData = () => {
+  const formData = onboardingFormData();
+  formData.set('affiliation', SailingAffiliation.OTHER_NON_STUDENT);
+  formData.set('cardType', SailingCardType.racing);
+  formData.set('dateOfBirth', '1990-01-02');
+  formData.set('firstName', 'Grace');
+  formData.set('hasFitnessMembership', 'no');
+  formData.set('lastName', 'Hopper');
+  formData.set('mitId', '');
+  return formData;
+};
+
 const expectedAlumOnboardingValues = (
   overrides: Partial<typeof expectedOnboardingValues> = {}
 ) => ({
@@ -219,6 +242,17 @@ const expectedAlumOnboardingValues = (
   mitId: '',
   ...overrides,
 });
+
+const expectedPaidRacingOnboardingValues = {
+  ...expectedOnboardingValues,
+  affiliation: SailingAffiliation.OTHER_NON_STUDENT,
+  cardType: SailingCardType.racing,
+  dateOfBirth: '1990-01-02',
+  firstName: 'Grace',
+  hasFitnessMembership: 'no',
+  lastName: 'Hopper',
+  mitId: '',
+};
 
 const expectAlumPaidRacingRejected = async (hasFitnessMembership: string) => {
   const submitSailingCardOnboardingAction =
@@ -270,6 +304,10 @@ describe('submitSailingCardOnboardingAction', () => {
     mocks.prismaSailingCardRequestCreate.mockResolvedValue({});
     mocks.prismaSailingCardRequestFindUnique.mockResolvedValue(null);
     mocks.prismaSailingCardRequestUpdateMany.mockResolvedValue({ count: 1 });
+    mocks.createMembershipCheckoutUrlForOnboarding.mockResolvedValue({
+      status: 'created',
+      url: 'https://checkout.stripe.com/c/pay/cs_test',
+    });
     mocks.prismaTransaction.mockImplementation(
       (runTransaction: MockOnboardingTransaction) =>
         runTransaction({
@@ -671,6 +709,82 @@ describe('submitSailingCardOnboardingAction', () => {
     await expect(
       submitSailingCardOnboardingAction(idleState, onboardingFormData())
     ).rejects.toThrow('NEXT_REDIRECT:/onboarding/success');
+  });
+
+  it('redirects paid racing onboarding to hosted Stripe Checkout when creation succeeds', async () => {
+    const submitSailingCardOnboardingAction =
+      await loadSubmitSailingCardOnboardingAction();
+
+    await expect(
+      submitSailingCardOnboardingAction(
+        idleState,
+        paidRacingOnboardingFormData()
+      )
+    ).rejects.toThrow(
+      'NEXT_REDIRECT:https://checkout.stripe.com/c/pay/cs_test'
+    );
+
+    expect(mocks.createMembershipCheckoutUrlForOnboarding).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cardType: SailingCardType.racing,
+        dateOfBirth: '1990-01-02',
+        email: 'ada@mit.edu',
+        sailingAffiliation: SailingAffiliation.OTHER_NON_STUDENT,
+        userId: 'user-1',
+      })
+    );
+    expect(mocks.redirect).not.toHaveBeenCalledWith('/onboarding/success');
+  });
+
+  it.each([
+    ['unavailable', undefined],
+    ['not eligible', { status: 'not_eligible' }],
+    ['rollover blocked', { status: 'rollover_blocked' }],
+  ])(
+    'returns a recoverable error when paid checkout creation is %s',
+    async (_name, checkoutResult) => {
+      mocks.createMembershipCheckoutUrlForOnboarding.mockResolvedValue(
+        checkoutResult
+      );
+      const submitSailingCardOnboardingAction =
+        await loadSubmitSailingCardOnboardingAction();
+
+      await expect(
+        submitSailingCardOnboardingAction(
+          idleState,
+          paidRacingOnboardingFormData()
+        )
+      ).resolves.toEqual({
+        fieldErrors: {},
+        formError: 'membership_checkout_unavailable',
+        status: 'error',
+        values: expectedPaidRacingOnboardingValues,
+      });
+
+      expect(mocks.redirect).not.toHaveBeenCalledWith('/onboarding/success');
+    }
+  );
+
+  it('returns a recoverable error when paid checkout creation throws', async () => {
+    mocks.createMembershipCheckoutUrlForOnboarding.mockRejectedValue(
+      new Error('Stripe unavailable')
+    );
+    const submitSailingCardOnboardingAction =
+      await loadSubmitSailingCardOnboardingAction();
+
+    await expect(
+      submitSailingCardOnboardingAction(
+        idleState,
+        paidRacingOnboardingFormData()
+      )
+    ).resolves.toEqual({
+      fieldErrors: {},
+      formError: 'membership_checkout_unavailable',
+      status: 'error',
+      values: expectedPaidRacingOnboardingValues,
+    });
+
+    expect(mocks.redirect).not.toHaveBeenCalledWith('/onboarding/success');
   });
 
   it('returns validation errors without crashing the page', async () => {

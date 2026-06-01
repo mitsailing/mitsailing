@@ -66,6 +66,6 @@ export async function updateProfileContactAction(
     where: { id: session.user.id },
   });
 
-  revalidatePath(getI18nPath('/profile/account', locale));
+  revalidatePath(getI18nPath('/profile', locale));
   return { ok: true };
 }

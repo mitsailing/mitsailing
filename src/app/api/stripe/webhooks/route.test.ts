@@ -28,10 +28,15 @@ const mocks = vi.hoisted(() => ({
   },
   tx: {
     payment: {
+      create: vi.fn(),
       findFirst: vi.fn(),
       updateMany: vi.fn(),
     },
     eventPaymentNotification: {
+      upsert: vi.fn(),
+    },
+    sailingCardSubscription: {
+      findFirst: vi.fn(),
       upsert: vi.fn(),
     },
     stripeWebhookEvent: {
@@ -102,13 +107,18 @@ function mockStripeEvent(type: string, object: Record<string, unknown>) {
   mocks.constructEvent.mockReturnValueOnce(stripeEvent(type, object));
 }
 
-function mockPaymentIntentSucceededEvent() {
-  mockStripeEvent('payment_intent.succeeded', {
+function eventPaymentStripePayload(overrides?: Record<string, unknown>) {
+  return {
     amount_received: 4200,
     currency: 'usd',
     id: 'pi_test',
     metadata: { paymentId: 'payment-1' },
-  });
+    ...overrides,
+  };
+}
+
+function mockPaymentIntentSucceededEvent() {
+  mockStripeEvent('payment_intent.succeeded', eventPaymentStripePayload());
 }
 
 function mockCheckoutCompletedEvent() {
@@ -145,14 +155,20 @@ async function expectDuplicateOkResponse(response: Response) {
   expect(response.status).toBe(200);
 }
 
-async function expectReceiptPendingFailureResponse(response: Response) {
+async function expectReceiptPendingFailureResponse(
+  response: Response,
+  expectedProcessingError: string
+) {
   await expect(response.json()).resolves.toEqual({ ok: false });
   expect(response.status).toBe(500);
   expect(mocks.tx.stripeWebhookEvent.update).toHaveBeenCalledWith({
     data: { processingError: 'receipt_enqueue_pending' },
     where: { id: 'stored-event-1' },
   });
-  expect(mocks.prisma.stripeWebhookEvent.update).not.toHaveBeenCalled();
+  expect(mocks.prisma.stripeWebhookEvent.update).toHaveBeenCalledWith({
+    data: { processingError: expectedProcessingError },
+    where: { id: 'stored-event-1' },
+  });
 }
 
 describe('stripe webhook route', () => {
@@ -169,6 +185,7 @@ describe('stripe webhook route', () => {
     mocks.tx.stripeWebhookEvent.update.mockResolvedValue({});
     mocks.tx.stripeWebhookEvent.updateMany.mockResolvedValue({ count: 1 });
     mocks.prisma.stripeWebhookEvent.update.mockResolvedValue({});
+    mocks.tx.payment.create.mockResolvedValue({});
     mocks.tx.payment.findFirst.mockResolvedValue({
       amountCents: 4200,
       currency: 'usd',
@@ -177,6 +194,11 @@ describe('stripe webhook route', () => {
     });
     mocks.tx.payment.updateMany.mockResolvedValue({ count: 1 });
     mocks.tx.eventPaymentNotification.upsert.mockResolvedValue({});
+    mocks.tx.sailingCardSubscription.findFirst.mockResolvedValue(null);
+    mocks.tx.sailingCardSubscription.upsert.mockResolvedValue({
+      id: 'membership-subscription-1',
+      userId: 'user-1',
+    });
     mocks.enqueueEventPaymentEmailJob.mockImplementation(async () => {
       await Promise.resolve();
     });
@@ -208,6 +230,17 @@ describe('stripe webhook route', () => {
     );
     expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
     expect(mocks.tx.payment.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('rejects oversized payloads before constructing events or mutating data', async () => {
+    const response = await POST(
+      stripeRequest({ body: 'x'.repeat(256 * 1024 + 1) })
+    );
+
+    await expect(response.json()).resolves.toEqual({ ok: false });
+    expect(response.status).toBe(413);
+    expect(mocks.constructEvent).not.toHaveBeenCalled();
+    expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
   });
 
   it('skips duplicate Stripe event ids', async () => {
@@ -306,7 +339,10 @@ describe('stripe webhook route', () => {
 
     const response = await POST(stripeRequest({}));
 
-    await expectReceiptPendingFailureResponse(response);
+    await expectReceiptPendingFailureResponse(
+      response,
+      'receipt_enqueue_pending:Queue down'
+    );
   });
 
   it('re-persists receipt pending when a duplicate retry queueing fails again', async () => {
@@ -327,16 +363,17 @@ describe('stripe webhook route', () => {
 
     const response = await POST(stripeRequest({}));
 
-    await expectReceiptPendingFailureResponse(response);
+    await expectReceiptPendingFailureResponse(
+      response,
+      'receipt_enqueue_pending:Queue still down'
+    );
   });
 
   it('marks payment intent success as paid', async () => {
     mockStripeEvent('payment_intent.succeeded', {
-      amount_received: 4200,
-      currency: 'usd',
-      id: 'pi_test',
-      latest_charge: 'ch_test',
-      metadata: { paymentId: 'payment-1' },
+      ...eventPaymentStripePayload({
+        latest_charge: 'ch_test',
+      }),
     });
 
     const response = await POST(stripeRequest({}));
@@ -350,6 +387,29 @@ describe('stripe webhook route', () => {
       }),
       where: { id: 'payment-1', status: PaymentStatus.pending },
     });
+  });
+
+  it('keeps receipt-producing events retryable when persisting queue error detail fails', async () => {
+    mockCheckoutCompletedEvent();
+    mocks.enqueueEventPaymentEmailJob.mockRejectedValueOnce(
+      new Error('Queue down')
+    );
+    mocks.prisma.stripeWebhookEvent.update.mockRejectedValueOnce(
+      new Error('DB down')
+    );
+
+    const response = await POST(stripeRequest({}));
+
+    await expect(response.json()).resolves.toEqual({ ok: false });
+    expect(response.status).toBe(500);
+    expect(mocks.tx.stripeWebhookEvent.update).toHaveBeenCalledWith({
+      data: { processingError: 'receipt_enqueue_pending' },
+      where: { id: 'stored-event-1' },
+    });
+    expect(mocks.logger.error).toHaveBeenCalledWith(
+      'Failed to persist Stripe webhook receipt enqueue error: {error}',
+      { error: expect.any(Error) }
+    );
   });
 
   it('captures receipt URLs from charge success', async () => {
@@ -441,7 +501,7 @@ describe('stripe webhook route', () => {
     });
   });
 
-  it('does not mark future membership events processed before a handler exists', async () => {
+  it('returns ok for future membership events without marking them processed', async () => {
     mocks.constructEvent.mockReturnValueOnce(
       stripeEvent('customer.subscription.updated', {
         id: 'sub_test',
@@ -451,9 +511,20 @@ describe('stripe webhook route', () => {
 
     const response = await POST(stripeRequest({}));
 
-    await expect(response.json()).resolves.toEqual({ ok: false });
-    expect(response.status).toBe(500);
-    expect(mocks.tx.payment.findFirst).not.toHaveBeenCalled();
+    await expect(response.json()).resolves.toEqual({ ok: true });
+    expect(response.status).toBe(200);
+    expect(mocks.tx.payment.findFirst).toHaveBeenCalledWith({
+      orderBy: { createdAt: 'desc' },
+      where: {
+        OR: [
+          {
+            membershipPaymentKind: 'initial',
+            stripeSubscriptionId: 'sub_test',
+          },
+        ],
+        purpose: 'membership',
+      },
+    });
     expect(mocks.tx.stripeWebhookEvent.update).toHaveBeenCalledWith({
       data: {
         processingError:
@@ -464,5 +535,19 @@ describe('stripe webhook route', () => {
     expect(
       mocks.tx.stripeWebhookEvent.update.mock.calls[0]?.[0].data
     ).not.toHaveProperty('processedAt');
+  });
+
+  it('returns server error when the processing transaction fails', async () => {
+    mockPaymentIntentSucceededEvent();
+    mocks.prisma.$transaction.mockRejectedValueOnce(new Error('DB down'));
+
+    const response = await POST(stripeRequest({}));
+
+    await expect(response.json()).resolves.toEqual({ ok: false });
+    expect(response.status).toBe(500);
+    expect(mocks.logger.error).toHaveBeenCalledWith(
+      'Failed to process Stripe webhook: {error}',
+      { error: expect.any(Error) }
+    );
   });
 });

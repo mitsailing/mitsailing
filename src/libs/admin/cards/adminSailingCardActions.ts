@@ -274,7 +274,7 @@ function revalidateSailingCardAdminPaths(locale: string, userId: string) {
   );
   revalidatePath(getI18nPath('/admin/users', locale));
   revalidatePath(getI18nPath('/onboarding', locale));
-  revalidatePath(getI18nPath('/profile/account', locale));
+  revalidatePath(getI18nPath('/profile', locale));
 }
 
 function hasMatchingOnboardingAgreement(props: {
