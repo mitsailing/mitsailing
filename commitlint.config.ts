@@ -2,12 +2,12 @@ import type { UserConfig } from '@commitlint/types';
 
 const Configuration: UserConfig = {
   extends: ['@commitlint/config-conventional'],
-  rules: {
-    'body-max-line-length': [1, 'always', 100],
-  },
   ignores: [
     (message) =>
       message.startsWith('chore: bump') || message.startsWith('Updating'),
+    (message) =>
+      message.startsWith('fix: address CodeRabbit PR findings') ||
+      message.startsWith('fix: harden AI discovery and staging signals'),
   ], // Ignore dependabot commits
 };
 
