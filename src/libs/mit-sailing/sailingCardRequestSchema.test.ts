@@ -74,6 +74,18 @@ describe('sailing card request schema', () => {
     expect(compactSchema).toContain(
       'before().stripePriceId != null && (stripePriceId == null || stripePriceId != before().stripePriceId)'
     );
+    expect(compactSchema).toContain(
+      "stripePriceId String? @deny('read', auth() == null || auth().appRole != 'admin')"
+    );
+    expect(compactSchema).toContain(
+      "stripeSyncError String? @deny('read', auth() == null || auth().appRole != 'admin')"
+    );
+    expect(compactSchema).toContain(
+      "stripeSyncedAt DateTime? @deny('read', auth() == null || auth().appRole != 'admin')"
+    );
+    expect(compactSchema).toContain(
+      "createdByUserId String? @deny('read', auth() == null || auth().appRole != 'admin')"
+    );
     expect(membershipPriceMigration).toContain(
       'sailing_card_membership_prices_price_kind_interval_chk'
     );
